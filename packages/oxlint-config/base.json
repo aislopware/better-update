@@ -29,7 +29,21 @@
     "jsdoc/require-jsdoc": "off",
     "jsdoc/require-param": "off",
     "jsdoc/require-returns": "off",
-    "unicorn/no-abusive-eslint-disable": "off"
+    "unicorn/no-abusive-eslint-disable": "off",
+    "constructor-super": "off",
+    "getter-return": "off",
+    "no-const-assign": "off",
+    "no-dupe-class-members": "off",
+    "no-dupe-keys": "off",
+    "no-func-assign": "off",
+    "no-import-assign": "off",
+    "no-new-native-nonconstructor": "off",
+    "no-obj-calls": "off",
+    "no-redeclare": "off",
+    "no-setter-return": "off",
+    "no-this-before-super": "off",
+    "no-undef": "off",
+    "no-unreachable": "off"
   },
   "overrides": [
     {
