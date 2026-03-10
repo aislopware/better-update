@@ -1,0 +1,23 @@
+{
+  "files.watcherExclude": {
+    "**/routeTree.gen.ts": true,
+    "**/worker-configuration.d.ts": true
+  },
+  "search.exclude": {
+    "**/routeTree.gen.ts": true,
+    "**/worker-configuration.d.ts": true
+  },
+  "files.readonlyInclude": {
+    "**/routeTree.gen.ts": true,
+    "**/worker-configuration.d.ts": true
+  },
+  "oxc.fmt.configPath": ".oxfmtrc.json",
+  "editor.defaultFormatter": "oxc.oxc-vscode",
+  "editor.formatOnSave": true,
+  "files.associations": {
+    "**/packages/oxlint-config/*.json": "jsonc",
+    "wrangler.json": "jsonc",
+    "wrangler.jsonc": "jsonc"
+  },
+  "js/ts.experimental.useTsgo": true
+}
