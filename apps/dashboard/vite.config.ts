@@ -12,6 +12,7 @@ export default defineConfig({
     react(),
   ],
   server: {
-    port: 3000,
+    // eslint-disable-next-line no-magic-numbers, node/no-process-env -- config file
+    port: Number(process.env["PORT"]) || 6780,
   },
 });

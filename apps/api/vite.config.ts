@@ -4,6 +4,7 @@ import { defineConfig } from "vite";
 export default defineConfig({
   plugins: [cloudflare()],
   server: {
-    port: 3001,
+    // eslint-disable-next-line no-magic-numbers, node/no-process-env -- config file
+    port: Number(process.env["PORT"]) || 6781,
   },
 });
