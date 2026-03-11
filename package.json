@@ -1,5 +1,5 @@
 {
-  "name": "better-ota",
+  "name": "better-update",
   "private": true,
   "workspaces": [
     "apps/*",
