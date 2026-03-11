@@ -1,5 +1,5 @@
 {
-  "name": "@better-ota/api",
+  "name": "@better-update/api",
   "private": true,
   "type": "module",
   "scripts": {
@@ -12,8 +12,8 @@
     "typegen:cf": "wrangler types"
   },
   "devDependencies": {
-    "@better-ota/oxlint-config": "workspace:*",
-    "@better-ota/typescript-config": "workspace:*",
+    "@better-update/oxlint-config": "workspace:*",
+    "@better-update/typescript-config": "workspace:*",
     "@cloudflare/vite-plugin": "^1.26.1",
     "vite": "^7.3.1",
     "wrangler": "^4.71.0"

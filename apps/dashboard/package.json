@@ -1,5 +1,5 @@
 {
-  "name": "@better-ota/dashboard",
+  "name": "@better-update/dashboard",
   "private": true,
   "type": "module",
   "scripts": {
@@ -18,8 +18,8 @@
     "react-dom": "^19.2.4"
   },
   "devDependencies": {
-    "@better-ota/oxlint-config": "workspace:*",
-    "@better-ota/typescript-config": "workspace:*",
+    "@better-update/oxlint-config": "workspace:*",
+    "@better-update/typescript-config": "workspace:*",
     "@cloudflare/vite-plugin": "^1.26.1",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
