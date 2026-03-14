@@ -1,10 +1,10 @@
 {
   "$schema": "../../node_modules/oxlint/configuration_schema.json",
   "categories": {
-    "correctness": "error",
-    "suspicious": "error",
+    "correctness": "warn",
+    "suspicious": "warn",
     "pedantic": "warn",
-    "perf": "error",
+    "perf": "warn",
     "style": "warn",
     "restriction": "warn",
     "nursery": "warn"
@@ -43,7 +43,24 @@
     "no-setter-return": "off",
     "no-this-before-super": "off",
     "no-undef": "off",
-    "no-unreachable": "off"
+    "no-unreachable": "off",
+    "func-names": ["warn", "as-needed", { "generators": "never" }],
+    "import/group-exports": "off",
+    "import/no-relative-parent-imports": "off",
+    "max-classes-per-file": ["warn", { "max": 5, "ignoreExpressions": true }],
+    "max-lines-per-function": [
+      "warn",
+      { "max": 120, "skipBlankLines": true, "skipComments": true, "IIFEs": true }
+    ],
+    "max-statements": ["warn", 15],
+    "new-cap": ["warn", { "properties": false }],
+    "no-magic-numbers": "off",
+    "no-ternary": "off",
+    "no-undefined": "off",
+    "oxc/no-async-await": "off",
+    "require-await": "off",
+    "unicorn/no-array-callback-reference": "off",
+    "vitest/prefer-called-once": "off"
   },
   "overrides": [
     {
@@ -69,7 +86,7 @@
   "options": {
     "typeAware": true,
     "denyWarnings": true,
-    "reportUnusedDisableDirectives": "error",
+    "reportUnusedDisableDirectives": "warn",
     "typeCheck": true
   }
 }

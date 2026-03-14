@@ -18,13 +18,13 @@
     "typegen:cf": "turbo run typegen:cf"
   },
   "devDependencies": {
-    "@types/node": "^25.4.0",
-    "@typescript/native-preview": "^7.0.0-dev.20260312.1",
+    "@types/node": "^25.5.0",
+    "@typescript/native-preview": "^7.0.0-dev.20260314.1",
     "lefthook": "^2.1.4",
-    "oxfmt": "^0.39.0",
-    "oxlint": "^1.54.0",
+    "oxfmt": "^0.40.0",
+    "oxlint": "^1.55.0",
     "oxlint-tsgolint": "^0.16.0",
-    "turbo": "^2.8.16"
+    "turbo": "^2.8.17"
   },
   "packageManager": "bun@1.3.10"
 }
