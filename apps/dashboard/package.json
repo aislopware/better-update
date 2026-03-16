@@ -20,11 +20,11 @@
   "devDependencies": {
     "@better-update/oxlint-config": "workspace:*",
     "@better-update/typescript-config": "workspace:*",
-    "@cloudflare/vite-plugin": "^1.28.0",
+    "@cloudflare/vite-plugin": "^1.29.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
     "vite": "^8.0.0",
-    "wrangler": "^4.73.0"
+    "wrangler": "^4.74.0"
   }
 }
