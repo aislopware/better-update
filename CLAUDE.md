@@ -27,6 +27,15 @@
 - Do not use for/while loops. Use `map`, `filter`, `reduce`, or Effect-TS pipe patterns instead.
 - Do not mutate objects or arrays. Create new values instead.
 
+## Functional Style
+
+- Do not use classes. Use plain functions and data types instead. Exception: class syntax required by library APIs (`Data.TaggedError`, `Context.Tag`, `Schema.Class` from Effect-TS).
+- Do not use `this`. Exception: class bodies required by library APIs.
+- Prefer function composition via `pipe` and `flow` from `effect` over imperative step-by-step sequences.
+- Write pure functions. Isolate side effects in Effect pipelines or dedicated XState actors.
+- Use property signatures (`fn: () => T`) over method signatures (`fn(): T`) in interfaces and type definitions.
+- Prefer expressions over statements. Use ternary expressions or `pipe` patterns over if/else blocks for simple conditions.
+
 ## Type Safety
 
 - Do not use `as` type assertions. Use type narrowing, type predicates, or `satisfies` instead. Exception: branded type smart constructors.
