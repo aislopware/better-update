@@ -11,6 +11,9 @@
     "preview": "vite preview",
     "typegen:cf": "wrangler types"
   },
+  "dependencies": {
+    "effect": "^3.21.0"
+  },
   "devDependencies": {
     "@better-update/oxlint-config": "workspace:*",
     "@better-update/typescript-config": "workspace:*",
