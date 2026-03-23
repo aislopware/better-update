@@ -19,12 +19,12 @@
   },
   "devDependencies": {
     "@types/node": "^25.5.0",
-    "@typescript/native-preview": "^7.0.0-dev.20260316.1",
+    "@typescript/native-preview": "^7.0.0-dev.20260322.1",
     "lefthook": "^2.1.4",
     "oxfmt": "^0.41.0",
     "oxlint": "^1.56.0",
-    "oxlint-tsgolint": "^0.17.0",
-    "turbo": "^2.8.17"
+    "oxlint-tsgolint": "^0.17.1",
+    "turbo": "^2.8.20"
   },
   "packageManager": "bun@1.3.10"
 }
