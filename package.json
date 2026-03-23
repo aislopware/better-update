@@ -17,9 +17,12 @@
     "prepare": "lefthook install",
     "typegen:cf": "turbo run typegen:cf"
   },
+  "dependencies": {
+    "@tanstack/react-router-ssr-query": "^1.166.10"
+  },
   "devDependencies": {
     "@types/node": "^25.5.0",
-    "@typescript/native-preview": "^7.0.0-dev.20260322.1",
+    "@typescript/native-preview": "^7.0.0-dev.20260323.1",
     "eslint-plugin-functional": "^9.0.4",
     "lefthook": "^2.1.4",
     "oxfmt": "^0.41.0",

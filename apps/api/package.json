@@ -18,7 +18,7 @@
     "@better-update/oxlint-config": "workspace:*",
     "@better-update/typescript-config": "workspace:*",
     "@cloudflare/vite-plugin": "^1.30.0",
-    "vite": "^8.0.1",
+    "vite": "^8.0.2",
     "wrangler": "^4.76.0"
   }
 }
