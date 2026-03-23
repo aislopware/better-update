@@ -10,7 +10,18 @@
     "nursery": "warn"
   },
   "plugins": ["typescript", "unicorn", "oxc", "import", "promise", "vitest", "jsdoc", "node"],
+  "jsPlugins": ["eslint-plugin-functional"],
   "rules": {
+    "functional/immutable-data": [
+      "warn",
+      { "ignoreImmediateMutation": true, "ignoreAccessorPattern": ["**.current"] }
+    ],
+    "functional/no-let": "warn",
+    "functional/no-loop-statements": "warn",
+    "functional/no-promise-reject": "warn",
+    "functional/no-throw-statements": "warn",
+    "functional/no-try-statements": "warn",
+
     "constructor-super": "off",
     "func-names": ["warn", "as-needed", { "generators": "never" }],
     "getter-return": "off",
@@ -41,6 +52,7 @@
     "require-await": "off",
     "no-duplicate-imports": "off",
     "sort-imports": "off",
+    "sort-keys": "off",
 
     "typescript/explicit-function-return-type": "off",
     "typescript/strict-boolean-expressions": "off",

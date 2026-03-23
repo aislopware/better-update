@@ -1,5 +1,6 @@
-import { HeadContent, Outlet, Scripts, createRootRoute } from "@tanstack/react-router";
+import { HeadContent, Outlet, Scripts, createRootRouteWithContext } from "@tanstack/react-router";
 
+import type { QueryClient } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
 const RootDocument = ({ children }: Readonly<{ children: ReactNode }>) => (
@@ -20,7 +21,7 @@ const RootComponent = () => (
   </RootDocument>
 );
 
-export const Route = createRootRoute({
+export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   component: RootComponent,
   head: () => ({
     meta: [
