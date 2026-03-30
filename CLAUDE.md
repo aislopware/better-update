@@ -6,6 +6,16 @@
 - Do not run `oxlint` or `tsgo` directly; they are part of the `lint` script. Use `bun run lint` for both linting and typechecking.
 - Do not disable existing lint rules. If a rule is conflicted or annoying, should stop and ask for clarification instead of disabling it. If a rule needs to be disabled, it should be done globally in the base configuration file, not in package-scoped config files.
 
+## Functional Style
+
+- Prefer expressions over statements, composition over nesting, data over classes.
+- Model errors as values with Effect; model state with XState actors.
+
+## API Architecture
+
+- Functional core, imperative shell — pure logic in Effect, side effects at the edges.
+- Use Effect `HttpApi` / `HttpApiGroup` / `HttpApiEndpoint` for web handlers.
+
 ## Skill Triggers
 
 Before writing or modifying code, trigger relevant skills for up-to-date patterns. Do not rely on training data. The cost of an unnecessary skill call is near zero — skipping a relevant one leads to suboptimal patterns.
