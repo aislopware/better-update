@@ -12,10 +12,7 @@
   "plugins": ["typescript", "unicorn", "oxc", "import", "promise", "vitest", "jsdoc", "node"],
   "jsPlugins": ["eslint-plugin-functional"],
   "rules": {
-    "functional/immutable-data": [
-      "warn",
-      { "ignoreImmediateMutation": true, "ignoreAccessorPattern": ["**.current"] }
-    ],
+    "functional/immutable-data": "off",
     "functional/no-let": "warn",
     "functional/no-loop-statements": "warn",
     "functional/no-promise-reject": "warn",
@@ -26,12 +23,15 @@
     "func-names": ["warn", "as-needed", { "generators": "never" }],
     "getter-return": "off",
     "max-classes-per-file": ["warn", { "max": 5, "ignoreExpressions": true }],
+    "max-lines": ["warn", { "max": 500 }],
     "max-lines-per-function": [
       "warn",
-      { "max": 120, "skipBlankLines": true, "skipComments": true, "IIFEs": true }
+      { "max": 250, "skipBlankLines": true, "skipComments": true, "IIFEs": true }
     ],
-    "max-statements": ["warn", 15],
+    "max-params": ["warn", 5],
+    "max-statements": ["warn", 25],
     "new-cap": ["warn", { "properties": false }],
+    "id-length": ["warn", { "min": 2, "exceptions": ["_"] }],
     "no-console": "off",
     "no-const-assign": "off",
     "no-dupe-class-members": "off",
@@ -61,6 +61,8 @@
 
     "unicorn/filename-case": "off",
     "unicorn/no-abusive-eslint-disable": "off",
+    "unicorn/no-array-reduce": "off",
+    "unicorn/prefer-math-trunc": "off",
     "unicorn/no-array-callback-reference": "off",
     "unicorn/no-array-for-each": "off",
     "unicorn/no-nested-ternary": "off",
@@ -73,16 +75,28 @@
     "import/no-named-export": "off",
     "import/no-relative-parent-imports": "off",
     "import/prefer-default-export": "off",
+    "import/max-dependencies": ["warn", { "max": 15 }],
+    "import/no-unassigned-import": ["warn", { "allow": ["**/*.css", "**/*.scss"] }],
 
     "jsdoc/require-jsdoc": "off",
     "jsdoc/require-param": "off",
     "jsdoc/require-returns": "off",
 
+    "oxc/no-accumulating-spread": "off",
     "oxc/no-async-await": "off",
+    "oxc/no-optional-chaining": "off",
+    "oxc/no-rest-spread-properties": "off",
 
-    "vitest/prefer-called-once": "off"
+    "vitest/prefer-called-once": "off",
+    "vitest/require-hook": "off"
   },
   "overrides": [
+    {
+      "files": ["**/*.machine.ts"],
+      "rules": {
+        "typescript/no-unsafe-type-assertion": "off"
+      }
+    },
     {
       "files": ["**/*.test.*", "**/*.spec.*", "**/__tests__/**"],
       "rules": {
