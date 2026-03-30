@@ -4,4 +4,18 @@
   "compatibility_flags": ["nodejs_compat"],
   "compatibility_date": "2026-03-11",
   "main": "src/index.ts",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "better-update-db",
+      "database_id": "<database-id>",
+      "migrations_dir": "migrations",
+    },
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "SESSION_KV",
+      "id": "<kv-namespace-id>",
+    },
+  ],
 }
