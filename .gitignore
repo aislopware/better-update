@@ -1,10 +1,12 @@
 .wrangler/
+.dev.vars
 worker-configuration.d.ts
 node_modules/
 dist/
 .turbo/
 *.tsbuildinfo
 .tanstack
+coverage/
 
 # macOS
 .DS_Store

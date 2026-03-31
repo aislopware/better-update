@@ -23,6 +23,10 @@
     "//#format:check": {
       "cache": false
     },
+    "test": {
+      "dependsOn": ["^build"],
+      "cache": false
+    },
     "typegen:cf": {
       "dependsOn": ["^typegen:cf"],
       "cache": false

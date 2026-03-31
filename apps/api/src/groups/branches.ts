@@ -1,0 +1,64 @@
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "@effect/platform";
+import { Schema } from "effect";
+
+import { NotFound } from "../auth/ownership";
+import { Branch, CreateBranchBody, UpdateBranchBody } from "../domain/branch";
+import { Id, PaginationParams } from "../domain/common";
+import { Conflict } from "../domain/errors";
+
+const idParam = HttpApiSchema.param("id", Schema.String);
+
+export class BranchesGroup extends HttpApiGroup.make("branches")
+  .add(
+    HttpApiEndpoint.post("create", "/api/branches")
+      .setPayload(CreateBranchBody)
+      .addSuccess(Branch, { status: 201 })
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Create branch",
+          description: "Create a new branch within a project",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.get("list", "/api/branches")
+      .setUrlParams(
+        Schema.Struct({
+          projectId: Id,
+          ...PaginationParams.fields,
+        }),
+      )
+      .addSuccess(
+        Schema.Struct({
+          items: Schema.Array(Branch),
+          total: Schema.Number,
+          page: Schema.Number,
+          limit: Schema.Number,
+        }),
+      )
+      .annotateContext(
+        OpenApi.annotations({
+          title: "List branches",
+          description: "List all branches for a project",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.patch("rename")`/api/branches/${idParam}`
+      .setPayload(UpdateBranchBody)
+      .addSuccess(Branch)
+      .addError(Conflict)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Rename branch",
+          description: "Rename a branch (channels and updates are unaffected)",
+        }),
+      ),
+  )
+  .addError(NotFound)
+  .annotateContext(
+    OpenApi.annotations({
+      title: "Branches",
+      description: "Branch management endpoints",
+    }),
+  ) {}

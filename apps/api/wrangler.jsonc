@@ -2,7 +2,7 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "better-update-api",
   "compatibility_flags": ["nodejs_compat"],
-  "compatibility_date": "2026-03-11",
+  "compatibility_date": "2026-03-30",
   "main": "src/index.ts",
   "d1_databases": [
     {
@@ -18,4 +18,12 @@
       "id": "<kv-namespace-id>",
     },
   ],
+  "secrets": {
+    "required": [
+      "BETTER_AUTH_SECRET",
+      "BETTER_AUTH_URL",
+      "GITHUB_CLIENT_ID",
+      "GITHUB_CLIENT_SECRET",
+    ],
+  },
 }
