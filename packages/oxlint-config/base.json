@@ -88,6 +88,8 @@
     "oxc/no-rest-spread-properties": "off",
 
     "vitest/prefer-called-once": "off",
+    "vitest/prefer-to-be-truthy": "off",
+    "vitest/prefer-to-be-falsy": "off",
     "vitest/require-hook": "off"
   },
   "overrides": [
@@ -100,10 +102,17 @@
     {
       "files": ["**/*.test.*", "**/*.spec.*", "**/__tests__/**"],
       "rules": {
+        "init-declarations": "off",
         "max-lines-per-function": "off",
         "no-magic-numbers": "off",
 
+        "functional/no-let": "off",
+        "functional/no-loop-statements": "off",
+
+        "import/no-nodejs-modules": "off",
+
         "typescript/no-confusing-void-expression": "off",
+        "typescript/no-unsafe-type-assertion": "off",
         "typescript/no-empty-function": "off",
         "typescript/no-explicit-any": "off",
         "typescript/no-non-null-assertion": "off",
@@ -119,7 +128,15 @@
       }
     }
   ],
-  "ignorePatterns": ["dist", "node_modules", ".turbo", "**/*.gen.*", "**/*.d.ts"],
+  "ignorePatterns": [
+    "dist",
+    "node_modules",
+    ".turbo",
+    "**/*.gen.*",
+    "**/*.d.ts",
+    "coverage",
+    "vitest.config.*"
+  ],
   "options": {
     "typeAware": true,
     "denyWarnings": true,

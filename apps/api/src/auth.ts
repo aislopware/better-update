@@ -2,21 +2,11 @@ import { apiKey } from "@better-auth/api-key";
 import { betterAuth } from "better-auth";
 import { organization } from "better-auth/plugins";
 
-interface AuthEnv extends Env {
-  readonly BETTER_AUTH_SECRET: string;
-  readonly BETTER_AUTH_URL: string;
-  readonly GITHUB_CLIENT_ID: string;
-  readonly GITHUB_CLIENT_SECRET: string;
-}
-
-export const createAuth = (env: AuthEnv) =>
+export const createAuth = (env: Env) =>
   betterAuth({
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL,
-    database: {
-      db: env.DB,
-      type: "sqlite",
-    },
+    database: env.DB,
 
     emailAndPassword: { enabled: true },
     socialProviders: {

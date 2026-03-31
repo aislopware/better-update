@@ -6,7 +6,7 @@
 | --------------------- | ------------------- |
 | `name`                | `better-update-api` |
 | `main`                | `src/index.ts`      |
-| `compatibility_date`  | `2026-03-11`        |
+| `compatibility_date`  | `2026-03-30`        |
 | `compatibility_flags` | `nodejs_compat`     |
 
 **Bindings:**
