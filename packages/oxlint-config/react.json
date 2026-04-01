@@ -14,7 +14,11 @@
     "jsdoc",
     "node"
   ],
+  "jsPlugins": ["@tanstack/eslint-plugin-router"],
   "rules": {
+    "@tanstack/router/create-route-property-order": "warn",
+    "@tanstack/router/route-param-names": "warn",
+
     "no-restricted-imports": [
       "warn",
       {

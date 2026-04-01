@@ -14,7 +14,7 @@
     "format:check": "oxfmt --check .",
     "lint": "turbo run lint",
     "lint:check": "turbo run lint:check",
-    "prepare": "lefthook install",
+    "prepare": "lefthook install --force",
     "test": "turbo run test",
     "test:all": "turbo run test test:integrations test:e2e",
     "test:e2e": "turbo run test:e2e",
@@ -22,15 +22,16 @@
     "typegen:cf": "turbo run typegen:cf"
   },
   "dependencies": {
-    "@tanstack/react-query": "^5.96.0",
+    "@tanstack/react-query": "^5.96.1",
     "@tanstack/react-router": "^1.168.10",
     "@tanstack/react-router-ssr-query": "^1.166.10",
     "@tanstack/react-start": "^1.167.16"
   },
   "devDependencies": {
     "@effect/vitest": "^0.29.0",
+    "@tanstack/eslint-plugin-router": "^1.161.6",
     "@types/node": "^25.5.0",
-    "@typescript/native-preview": "^7.0.0-dev.20260331.1",
+    "@typescript/native-preview": "^7.0.0-dev.20260401.1",
     "eslint-plugin-functional": "^9.0.4",
     "lefthook": "^2.1.4",
     "oxfmt": "^0.43.0",
