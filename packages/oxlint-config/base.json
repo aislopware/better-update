@@ -31,7 +31,7 @@
     "max-params": ["warn", 5],
     "max-statements": ["warn", 25],
     "new-cap": ["warn", { "properties": false }],
-    "id-length": ["warn", { "min": 2, "exceptions": ["_"] }],
+    "id-length": ["warn", { "min": 2, "exceptions": ["_", "T", "K", "V", "R"] }],
     "no-console": "off",
     "no-const-assign": "off",
     "no-dupe-class-members": "off",
@@ -54,6 +54,7 @@
     "sort-imports": "off",
     "sort-keys": "off",
 
+    "typescript/strict-void-return": "off",
     "typescript/explicit-function-return-type": "off",
     "typescript/strict-boolean-expressions": "off",
     "typescript/explicit-module-boundary-types": "off",
@@ -67,7 +68,7 @@
     "unicorn/no-array-for-each": "off",
     "unicorn/no-nested-ternary": "off",
     "unicorn/no-null": "off",
-    "unicorn/prevent-abbreviations": "off",
+    "unicorn/no-useless-undefined": "off",
 
     "import/exports-last": "off",
     "import/group-exports": "off",
@@ -78,7 +79,6 @@
     "import/max-dependencies": ["warn", { "max": 15 }],
     "import/no-unassigned-import": ["warn", { "allow": ["**/*.css", "**/*.scss"] }],
 
-    "jsdoc/require-jsdoc": "off",
     "jsdoc/require-param": "off",
     "jsdoc/require-returns": "off",
 
@@ -97,6 +97,15 @@
       "files": ["**/*.machine.ts"],
       "rules": {
         "typescript/no-unsafe-type-assertion": "off"
+      }
+    },
+    {
+      "files": ["**/routes/**/*.ts", "**/routes/**/*.tsx"],
+      "rules": {
+        "functional/no-throw-statements": "off",
+        "functional/no-promise-reject": "off",
+        "no-use-before-define": "off",
+        "typescript/only-throw-error": "off"
       }
     },
     {
@@ -124,7 +133,7 @@
 
         "unicorn/consistent-function-scoping": "off",
 
-        "vitest/no-setup-in-describe": "off"
+        "vitest/require-test-timeout": "off"
       }
     }
   ],

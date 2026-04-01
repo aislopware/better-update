@@ -2,10 +2,13 @@ import { apiKey } from "@better-auth/api-key";
 import { betterAuth } from "better-auth";
 import { organization } from "better-auth/plugins";
 
+import { API_KEY_PREFIX } from "./auth/constants";
+
 export const createAuth = (env: Env) =>
   betterAuth({
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL,
+    trustedOrigins: [env.DASHBOARD_URL].filter(Boolean),
     database: env.DB,
 
     emailAndPassword: { enabled: true },
@@ -109,8 +112,8 @@ export const createAuth = (env: Env) =>
       apiKey(
         [
           {
-            configId: "org-secret",
-            defaultPrefix: "bu_",
+            configId: "default",
+            defaultPrefix: API_KEY_PREFIX,
             references: "organization",
             enableMetadata: true,
             keyExpiration: {

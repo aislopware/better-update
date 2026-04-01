@@ -7,6 +7,9 @@ dist/
 *.tsbuildinfo
 .tanstack
 coverage/
+__screenshots__/
+.vitest-attachments/
+test-results/
 
 # macOS
 .DS_Store

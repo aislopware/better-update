@@ -27,6 +27,14 @@
       "dependsOn": ["^build"],
       "cache": false
     },
+    "test:integrations": {
+      "dependsOn": ["^build"],
+      "cache": false
+    },
+    "test:e2e": {
+      "dependsOn": ["^build"],
+      "cache": false
+    },
     "typegen:cf": {
       "dependsOn": ["^typegen:cf"],
       "cache": false

@@ -3,6 +3,7 @@ import { Effect, Layer, Redacted } from "effect";
 
 import { createAuth } from "../auth";
 import { getEnv } from "../cloudflare/context";
+import { API_KEY_PREFIX } from "./constants";
 import { AuthContext } from "./context";
 import { Unauthorized } from "./errors";
 import { permissions } from "./permissions";
@@ -11,7 +12,7 @@ import type { AuthContextShape, EffectivePermissions, Role } from "./context";
 
 const bearerSecurity = HttpApiSecurity.bearer;
 const cookieSecurity = HttpApiSecurity.apiKey({
-  key: "better-auth.session_token",
+  key: "__Secure-better-auth.session_token",
   in: "cookie",
 });
 
@@ -83,9 +84,16 @@ const isRole = (value: string): value is Role =>
 
 // ── Bearer (API key) ──────────────────────────────────────────────
 
-const resolveFromApiKey = (token: Redacted.Redacted) =>
-  Effect.tryPromise({
-    try: async () => verifyApiKey(Redacted.value(token)),
+// Only keys matching the configured default prefix are accepted.
+// Custom prefixes are not supported — the create endpoint always uses API_KEY_PREFIX.
+const resolveFromApiKey = (token: Redacted.Redacted) => {
+  const key = Redacted.value(token);
+  if (!key.startsWith(API_KEY_PREFIX)) {
+    return Effect.fail(new Unauthorized({ message: "Not an API key" }));
+  }
+
+  return Effect.tryPromise({
+    try: async () => verifyApiKey(key),
     catch: () => new Unauthorized({ message: "API key verification failed" }),
   }).pipe(
     Effect.flatMap((result) => {
@@ -108,6 +116,7 @@ const resolveFromApiKey = (token: Redacted.Redacted) =>
       } as const satisfies AuthContextShape);
     }),
   );
+};
 
 // ── Cookie (session) ──────────────────────────────────────────────
 
