@@ -1,7 +1,9 @@
 {
   "extends": "@better-update/typescript-config/react.json",
   "compilerOptions": {
-    "types": ["vite/client"]
+    "paths": {
+      "#/*": ["./src/*"]
+    }
   },
-  "include": ["src", "*.ts"]
+  "include": ["src"]
 }

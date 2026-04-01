@@ -1,3 +1,5 @@
+import "../app.css";
+
 import { HeadContent, Outlet, Scripts, createRootRouteWithContext } from "@tanstack/react-router";
 
 import type { QueryClient } from "@tanstack/react-query";
