@@ -100,7 +100,12 @@
       }
     },
     {
-      "files": ["**/routes/**/*.ts", "**/routes/**/*.tsx"],
+      "files": [
+        "**/routes/**/*.ts",
+        "**/routes/**/*.tsx",
+        "**/queries/**/*.ts",
+        "**/serverFns/**/*.ts"
+      ],
       "rules": {
         "functional/no-throw-statements": "off",
         "functional/no-promise-reject": "off",
@@ -109,7 +114,7 @@
       }
     },
     {
-      "files": ["**/*.test.*", "**/*.spec.*", "**/__tests__/**"],
+      "files": ["**/*.test.*", "**/*.spec.*", "**/__tests__/**", "**/tests/setup.*"],
       "rules": {
         "init-declarations": "off",
         "max-lines-per-function": "off",
@@ -119,6 +124,7 @@
         "functional/no-loop-statements": "off",
 
         "import/no-nodejs-modules": "off",
+        "import/no-unassigned-import": "off",
 
         "typescript/no-confusing-void-expression": "off",
         "typescript/no-unsafe-type-assertion": "off",

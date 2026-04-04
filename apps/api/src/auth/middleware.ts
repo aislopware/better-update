@@ -105,7 +105,7 @@ const resolveFromApiKey = (token: Redacted.Redacted) => {
         );
       }
 
-      const keyPermissions: EffectivePermissions = result.key.permissions ?? {};
+      const keyPermissions: EffectivePermissions = result.key.permissions ?? permissions.owner;
 
       return Effect.succeed({
         userId: null,

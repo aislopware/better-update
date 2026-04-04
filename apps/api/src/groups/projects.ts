@@ -1,8 +1,10 @@
 import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "@effect/platform";
 import { Schema } from "effect";
 
+import { Forbidden } from "../auth/errors";
 import { NotFound } from "../auth/ownership";
 import { PaginationParams } from "../domain/common";
+import { Conflict } from "../domain/errors";
 import { CreateProjectBody, Project } from "../domain/project";
 
 export class ProjectsGroup extends HttpApiGroup.make("projects")
@@ -36,6 +38,8 @@ export class ProjectsGroup extends HttpApiGroup.make("projects")
       ),
   )
   .addError(NotFound)
+  .addError(Conflict)
+  .addError(Forbidden)
   .annotateContext(
     OpenApi.annotations({
       title: "Projects",

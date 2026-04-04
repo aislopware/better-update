@@ -6,7 +6,10 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [
-    cloudflare({ viteEnvironment: { name: "ssr" } }),
+    cloudflare({
+      viteEnvironment: { name: "ssr" },
+      auxiliaryWorkers: [{ configPath: "../api/wrangler.jsonc" }],
+    }),
     tailwindcss(),
     tanstackStart(),
     react(),

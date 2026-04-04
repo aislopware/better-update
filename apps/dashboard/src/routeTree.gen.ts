@@ -9,50 +9,294 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthedRouteImport } from './routes/_authed'
+import { Route as AuthedOnboardingRouteImport } from './routes/_authed/onboarding'
+import { Route as AuthedAppRouteImport } from './routes/_authed/_app'
+import { Route as authSignupRouteImport } from './routes/(auth)/signup'
+import { Route as authResetPasswordRouteImport } from './routes/(auth)/reset-password'
+import { Route as authLoginRouteImport } from './routes/(auth)/login'
+import { Route as authForgotPasswordRouteImport } from './routes/(auth)/forgot-password'
+import { Route as AuthedAppIndexRouteImport } from './routes/_authed/_app/index'
+import { Route as AuthedAppMembersRouteImport } from './routes/_authed/_app/members'
+import { Route as AuthedAppApiKeysRouteImport } from './routes/_authed/_app/api-keys'
+import { Route as AuthedAppSettingsIndexRouteImport } from './routes/_authed/_app/settings/index'
+import { Route as AuthedAppProjectsIndexRouteImport } from './routes/_authed/_app/projects/index'
 
-const IndexRoute = IndexRouteImport.update({
+const AuthedRoute = AuthedRouteImport.update({
+  id: '/_authed',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthedOnboardingRoute = AuthedOnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedAppRoute = AuthedAppRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const authSignupRoute = authSignupRouteImport.update({
+  id: '/(auth)/signup',
+  path: '/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const authResetPasswordRoute = authResetPasswordRouteImport.update({
+  id: '/(auth)/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const authLoginRoute = authLoginRouteImport.update({
+  id: '/(auth)/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const authForgotPasswordRoute = authForgotPasswordRouteImport.update({
+  id: '/(auth)/forgot-password',
+  path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthedAppIndexRoute = AuthedAppIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthedAppRoute,
+} as any)
+const AuthedAppMembersRoute = AuthedAppMembersRouteImport.update({
+  id: '/members',
+  path: '/members',
+  getParentRoute: () => AuthedAppRoute,
+} as any)
+const AuthedAppApiKeysRoute = AuthedAppApiKeysRouteImport.update({
+  id: '/api-keys',
+  path: '/api-keys',
+  getParentRoute: () => AuthedAppRoute,
+} as any)
+const AuthedAppSettingsIndexRoute = AuthedAppSettingsIndexRouteImport.update({
+  id: '/settings/',
+  path: '/settings/',
+  getParentRoute: () => AuthedAppRoute,
+} as any)
+const AuthedAppProjectsIndexRoute = AuthedAppProjectsIndexRouteImport.update({
+  id: '/projects/',
+  path: '/projects/',
+  getParentRoute: () => AuthedAppRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
+  '/': typeof AuthedAppIndexRoute
+  '/forgot-password': typeof authForgotPasswordRoute
+  '/login': typeof authLoginRoute
+  '/reset-password': typeof authResetPasswordRoute
+  '/signup': typeof authSignupRoute
+  '/onboarding': typeof AuthedOnboardingRoute
+  '/api-keys': typeof AuthedAppApiKeysRoute
+  '/members': typeof AuthedAppMembersRoute
+  '/projects/': typeof AuthedAppProjectsIndexRoute
+  '/settings/': typeof AuthedAppSettingsIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
+  '/': typeof AuthedAppIndexRoute
+  '/forgot-password': typeof authForgotPasswordRoute
+  '/login': typeof authLoginRoute
+  '/reset-password': typeof authResetPasswordRoute
+  '/signup': typeof authSignupRoute
+  '/onboarding': typeof AuthedOnboardingRoute
+  '/api-keys': typeof AuthedAppApiKeysRoute
+  '/members': typeof AuthedAppMembersRoute
+  '/projects': typeof AuthedAppProjectsIndexRoute
+  '/settings': typeof AuthedAppSettingsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
+  '/_authed': typeof AuthedRouteWithChildren
+  '/(auth)/forgot-password': typeof authForgotPasswordRoute
+  '/(auth)/login': typeof authLoginRoute
+  '/(auth)/reset-password': typeof authResetPasswordRoute
+  '/(auth)/signup': typeof authSignupRoute
+  '/_authed/_app': typeof AuthedAppRouteWithChildren
+  '/_authed/onboarding': typeof AuthedOnboardingRoute
+  '/_authed/_app/api-keys': typeof AuthedAppApiKeysRoute
+  '/_authed/_app/members': typeof AuthedAppMembersRoute
+  '/_authed/_app/': typeof AuthedAppIndexRoute
+  '/_authed/_app/projects/': typeof AuthedAppProjectsIndexRoute
+  '/_authed/_app/settings/': typeof AuthedAppSettingsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/forgot-password'
+    | '/login'
+    | '/reset-password'
+    | '/signup'
+    | '/onboarding'
+    | '/api-keys'
+    | '/members'
+    | '/projects/'
+    | '/settings/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/forgot-password'
+    | '/login'
+    | '/reset-password'
+    | '/signup'
+    | '/onboarding'
+    | '/api-keys'
+    | '/members'
+    | '/projects'
+    | '/settings'
+  id:
+    | '__root__'
+    | '/_authed'
+    | '/(auth)/forgot-password'
+    | '/(auth)/login'
+    | '/(auth)/reset-password'
+    | '/(auth)/signup'
+    | '/_authed/_app'
+    | '/_authed/onboarding'
+    | '/_authed/_app/api-keys'
+    | '/_authed/_app/members'
+    | '/_authed/_app/'
+    | '/_authed/_app/projects/'
+    | '/_authed/_app/settings/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
+  AuthedRoute: typeof AuthedRouteWithChildren
+  authForgotPasswordRoute: typeof authForgotPasswordRoute
+  authLoginRoute: typeof authLoginRoute
+  authResetPasswordRoute: typeof authResetPasswordRoute
+  authSignupRoute: typeof authSignupRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
+    '/_authed': {
+      id: '/_authed'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authed/onboarding': {
+      id: '/_authed/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof AuthedOnboardingRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/_app': {
+      id: '/_authed/_app'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthedAppRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/(auth)/signup': {
+      id: '/(auth)/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof authSignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(auth)/reset-password': {
+      id: '/(auth)/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof authResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(auth)/login': {
+      id: '/(auth)/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof authLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(auth)/forgot-password': {
+      id: '/(auth)/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof authForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authed/_app/': {
+      id: '/_authed/_app/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthedAppIndexRouteImport
+      parentRoute: typeof AuthedAppRoute
+    }
+    '/_authed/_app/members': {
+      id: '/_authed/_app/members'
+      path: '/members'
+      fullPath: '/members'
+      preLoaderRoute: typeof AuthedAppMembersRouteImport
+      parentRoute: typeof AuthedAppRoute
+    }
+    '/_authed/_app/api-keys': {
+      id: '/_authed/_app/api-keys'
+      path: '/api-keys'
+      fullPath: '/api-keys'
+      preLoaderRoute: typeof AuthedAppApiKeysRouteImport
+      parentRoute: typeof AuthedAppRoute
+    }
+    '/_authed/_app/settings/': {
+      id: '/_authed/_app/settings/'
+      path: '/settings'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof AuthedAppSettingsIndexRouteImport
+      parentRoute: typeof AuthedAppRoute
+    }
+    '/_authed/_app/projects/': {
+      id: '/_authed/_app/projects/'
+      path: '/projects'
+      fullPath: '/projects/'
+      preLoaderRoute: typeof AuthedAppProjectsIndexRouteImport
+      parentRoute: typeof AuthedAppRoute
     }
   }
 }
 
+interface AuthedAppRouteChildren {
+  AuthedAppApiKeysRoute: typeof AuthedAppApiKeysRoute
+  AuthedAppMembersRoute: typeof AuthedAppMembersRoute
+  AuthedAppIndexRoute: typeof AuthedAppIndexRoute
+  AuthedAppProjectsIndexRoute: typeof AuthedAppProjectsIndexRoute
+  AuthedAppSettingsIndexRoute: typeof AuthedAppSettingsIndexRoute
+}
+
+const AuthedAppRouteChildren: AuthedAppRouteChildren = {
+  AuthedAppApiKeysRoute: AuthedAppApiKeysRoute,
+  AuthedAppMembersRoute: AuthedAppMembersRoute,
+  AuthedAppIndexRoute: AuthedAppIndexRoute,
+  AuthedAppProjectsIndexRoute: AuthedAppProjectsIndexRoute,
+  AuthedAppSettingsIndexRoute: AuthedAppSettingsIndexRoute,
+}
+
+const AuthedAppRouteWithChildren = AuthedAppRoute._addFileChildren(
+  AuthedAppRouteChildren,
+)
+
+interface AuthedRouteChildren {
+  AuthedAppRoute: typeof AuthedAppRouteWithChildren
+  AuthedOnboardingRoute: typeof AuthedOnboardingRoute
+}
+
+const AuthedRouteChildren: AuthedRouteChildren = {
+  AuthedAppRoute: AuthedAppRouteWithChildren,
+  AuthedOnboardingRoute: AuthedOnboardingRoute,
+}
+
+const AuthedRouteWithChildren =
+  AuthedRoute._addFileChildren(AuthedRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  AuthedRoute: AuthedRouteWithChildren,
+  authForgotPasswordRoute: authForgotPasswordRoute,
+  authLoginRoute: authLoginRoute,
+  authResetPasswordRoute: authResetPasswordRoute,
+  authSignupRoute: authSignupRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
