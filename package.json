@@ -22,7 +22,7 @@
     "typegen:cf": "turbo run typegen:cf"
   },
   "dependencies": {
-    "@tanstack/react-query": "^5.96.1",
+    "@tanstack/react-query": "^5.96.2",
     "@tanstack/react-router": "^1.168.10",
     "@tanstack/react-router-ssr-query": "^1.166.10",
     "@tanstack/react-start": "^1.167.16"
@@ -30,8 +30,8 @@
   "devDependencies": {
     "@effect/vitest": "^0.29.0",
     "@tanstack/eslint-plugin-router": "^1.161.6",
-    "@types/node": "^25.5.0",
-    "@typescript/native-preview": "^7.0.0-dev.20260401.1",
+    "@types/node": "^25.5.2",
+    "@typescript/native-preview": "^7.0.0-dev.20260403.1",
     "eslint-plugin-functional": "^9.0.4",
     "lefthook": "^2.1.4",
     "oxfmt": "^0.43.0",

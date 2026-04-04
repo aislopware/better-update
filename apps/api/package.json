@@ -25,10 +25,10 @@
   "devDependencies": {
     "@better-update/oxlint-config": "workspace:*",
     "@better-update/typescript-config": "workspace:*",
-    "@cloudflare/vite-plugin": "^1.30.3",
-    "@cloudflare/vitest-pool-workers": "^0.14.0",
+    "@cloudflare/vite-plugin": "^1.31.0",
+    "@cloudflare/vitest-pool-workers": "^0.14.1",
     "@vitest/coverage-istanbul": "^4.1.2",
     "vite": "^8.0.3",
-    "wrangler": "^4.79.0"
+    "wrangler": "^4.80.0"
   }
 }
