@@ -114,7 +114,7 @@
       }
     },
     {
-      "files": ["**/*.test.*", "**/*.spec.*", "**/__tests__/**", "**/tests/setup.*"],
+      "files": ["**/*.test.*", "**/*.spec.*", "**/__tests__/**", "**/tests/**"],
       "rules": {
         "init-declarations": "off",
         "max-lines-per-function": "off",
