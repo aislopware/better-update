@@ -60,6 +60,7 @@ import { Suspense } from "react";
 import { authClient } from "../../lib/auth-client";
 import { useTheme } from "../../lib/theme-context";
 import { orgsQueryOptions, sessionQueryOptions } from "../../queries/auth";
+import { setActiveOrgFn } from "../../serverFns/auth";
 
 import type { Theme } from "../../lib/theme";
 
@@ -303,15 +304,20 @@ const AppLayout = () => (
 );
 
 export const Route = createFileRoute("/_authed/_app")({
-  beforeLoad: ({ context }) => {
-    if (context.orgs.length === 0) {
+  beforeLoad: async ({ context }) => {
+    const [firstOrg] = context.orgs;
+    if (!firstOrg) {
       throw redirect({ to: "/onboarding" });
     }
 
     const activeOrgId = context.session?.user.activeOrganizationId;
-    const activeOrg = context.orgs.find((org) => org.id === activeOrgId) ?? context.orgs[0];
+    const activeOrg = context.orgs.find((org) => org.id === activeOrgId);
 
-    return { activeOrg };
+    if (!activeOrg) {
+      await setActiveOrgFn({ data: { organizationId: firstOrg.id } });
+    }
+
+    return { activeOrg: activeOrg ?? firstOrg };
   },
   component: AppLayout,
 });
