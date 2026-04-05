@@ -1,5 +1,5 @@
 {
-  "name": "@better-update/api",
+  "name": "@better-update/server",
   "private": true,
   "type": "module",
   "scripts": {

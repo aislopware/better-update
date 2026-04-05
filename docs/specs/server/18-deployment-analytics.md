@@ -39,7 +39,7 @@ sequenceDiagram
 
 ## Wrangler Configuration
 
-Add to `apps/api/wrangler.jsonc`:
+Add to `apps/server/wrangler.jsonc`:
 
 | Type             | Binding Name | Dataset         |
 | ---------------- | ------------ | --------------- |
