@@ -187,7 +187,7 @@ const SignupPage = () => {
               }}
             </form.Field>
           </CardContent>
-          <CardFooter className="flex flex-col gap-4">
+          <CardFooter className="flex flex-col gap-4 pt-4">
             <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
               {([canSubmit, isSubmitting]) => (
                 <Button type="submit" className="w-full" disabled={!canSubmit}>
