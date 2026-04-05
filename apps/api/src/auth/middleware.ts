@@ -2,7 +2,7 @@ import { HttpApiMiddleware, HttpApiSecurity, HttpServerRequest } from "@effect/p
 import { Effect, Layer, Redacted } from "effect";
 
 import { createAuth } from "../auth";
-import { getEnv } from "../cloudflare/context";
+import { cloudflareEnv } from "../cloudflare/context";
 import { API_KEY_PREFIX } from "./constants";
 import { AuthContext } from "./context";
 import { Unauthorized } from "./errors";
@@ -46,26 +46,50 @@ interface SessionResult {
 
 /* eslint-disable typescript/no-unsafe-type-assertion -- plugin API types not inferred from betterAuth config */
 
-const verifyApiKey = async (key: string): Promise<VerifyApiKeyResult> =>
-  (
-    createAuth(getEnv()).api as unknown as {
-      verifyApiKey: (opts: { body: { key: string } }) => Promise<VerifyApiKeyResult>;
-    }
-  ).verifyApiKey({ body: { key } });
+const verifyApiKey = (key: string) =>
+  Effect.gen(function* () {
+    const env = yield* cloudflareEnv;
+    return yield* Effect.tryPromise({
+      try: async () =>
+        (
+          createAuth(env).api as unknown as {
+            verifyApiKey: (opts: { body: { key: string } }) => Promise<VerifyApiKeyResult>;
+          }
+        ).verifyApiKey({ body: { key } }),
+      catch: () => new Unauthorized({ message: "API key verification failed" }),
+    });
+  });
 
-const getSession = async (headers: Headers): Promise<SessionResult | null> =>
-  (
-    createAuth(getEnv()).api as unknown as {
-      getSession: (opts: { headers: Headers }) => Promise<SessionResult | null>;
-    }
-  ).getSession({ headers });
+const getSession = (headers: Headers) =>
+  Effect.gen(function* () {
+    const env = yield* cloudflareEnv;
+    return yield* Effect.tryPromise({
+      try: async () =>
+        (
+          createAuth(env).api as unknown as {
+            getSession: (opts: { headers: Headers }) => Promise<SessionResult | null>;
+          }
+        ).getSession({ headers }),
+      catch: () => new Unauthorized({ message: "Session verification failed" }),
+    });
+  });
 
-const getActiveMember = async (headers: Headers): Promise<ActiveMember | null> =>
-  (
-    createAuth(getEnv()).api as unknown as {
-      getActiveMember: (opts: { headers: Headers }) => Promise<ActiveMember | null>;
-    }
-  ).getActiveMember({ headers });
+const getActiveMember = (headers: Headers) =>
+  Effect.gen(function* () {
+    const env = yield* cloudflareEnv;
+    return yield* Effect.tryPromise({
+      try: async () =>
+        (
+          createAuth(env).api as unknown as {
+            getActiveMember: (opts: { headers: Headers }) => Promise<ActiveMember | null>;
+          }
+        ).getActiveMember({ headers }),
+      catch: () =>
+        new Unauthorized({
+          message: "Not a member of the active organization",
+        }),
+    });
+  });
 
 /* eslint-enable typescript/no-unsafe-type-assertion */
 
@@ -92,10 +116,7 @@ const resolveFromApiKey = (token: Redacted.Redacted) => {
     return Effect.fail(new Unauthorized({ message: "Not an API key" }));
   }
 
-  return Effect.tryPromise({
-    try: async () => verifyApiKey(key),
-    catch: () => new Unauthorized({ message: "API key verification failed" }),
-  }).pipe(
+  return verifyApiKey(key).pipe(
     Effect.flatMap((result) => {
       if (!result.valid || !result.key) {
         return Effect.fail(
@@ -125,10 +146,7 @@ const resolveFromSession = (_cookie: Redacted.Redacted) =>
     const request = yield* HttpServerRequest.HttpServerRequest;
     const headers = toStandardHeaders(request.headers);
 
-    const session = yield* Effect.tryPromise({
-      try: async () => getSession(headers),
-      catch: () => new Unauthorized({ message: "Session verification failed" }),
-    });
+    const session = yield* getSession(headers);
 
     if (!session) {
       return yield* new Unauthorized({ message: "Invalid session" });
@@ -142,13 +160,7 @@ const resolveFromSession = (_cookie: Redacted.Redacted) =>
       });
     }
 
-    const member = yield* Effect.tryPromise({
-      try: async () => getActiveMember(headers),
-      catch: () =>
-        new Unauthorized({
-          message: "Not a member of the active organization",
-        }),
-    });
+    const member = yield* getActiveMember(headers);
 
     if (!member || !isRole(member.role)) {
       return yield* new Unauthorized({

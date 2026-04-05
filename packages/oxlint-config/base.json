@@ -122,6 +122,10 @@
 
         "functional/no-let": "off",
         "functional/no-loop-statements": "off",
+        "functional/no-throw-statements": "off",
+        "functional/no-promise-reject": "off",
+        "functional/no-try-statements": "off",
+        "typescript/require-await": "off",
 
         "import/no-nodejs-modules": "off",
         "import/no-unassigned-import": "off",

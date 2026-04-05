@@ -1,4 +1,6 @@
-import { getCtx, getEnv, setRequestContext } from "./context";
+import { Effect } from "effect";
+
+import { cloudflareCtx, cloudflareEnv, setRequestContext } from "./context";
 
 describe("Cloudflare request context", () => {
   test("setRequestContext stores env and ctx", () => {
@@ -10,7 +12,7 @@ describe("Cloudflare request context", () => {
 
     setRequestContext(mockEnv, mockCtx);
 
-    expect(getEnv()).toBe(mockEnv);
-    expect(getCtx()).toBe(mockCtx);
+    expect(Effect.runSync(cloudflareEnv)).toBe(mockEnv);
+    expect(Effect.runSync(cloudflareCtx)).toBe(mockCtx);
   });
 });

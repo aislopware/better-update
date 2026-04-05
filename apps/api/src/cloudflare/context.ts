@@ -1,18 +1,6 @@
-import { Context } from "effect";
+import { Effect } from "effect";
 
-// ── Effect Context.Tag (for handler code that uses Effect DI) ────
-
-export interface CloudflareContextShape {
-  readonly env: Env;
-  readonly ctx: ExecutionContext;
-}
-
-export class CloudflareContext extends Context.Tag("api/CloudflareContext")<
-  CloudflareContext,
-  CloudflareContextShape
->() {}
-
-// ── Module-level ref (for middleware, safe: Workers are single-threaded) ────
+// ── Module-level ref (safe: Workers are single-threaded) ────────
 
 interface RequestState {
   env: Env | undefined;
@@ -27,6 +15,14 @@ export const setRequestContext = (env: Env, ctx: ExecutionContext) => {
 };
 
 // eslint-disable-next-line typescript/no-non-null-assertion -- set in Worker.fetch before any handler runs
-export const getEnv = (): Env => _state.env!;
+const getEnv = (): Env => _state.env!;
 // eslint-disable-next-line typescript/no-non-null-assertion -- set in Worker.fetch before any handler runs
-export const getCtx = (): ExecutionContext => _state.ctx!;
+const getCtx = (): ExecutionContext => _state.ctx!;
+
+// ── Effect accessors (for use inside adapters / middleware) ──────
+
+/** Lazily reads the per-request Cloudflare `Env`. `R = never`. */
+export const cloudflareEnv: Effect.Effect<Env> = Effect.sync(getEnv);
+
+/** Lazily reads the per-request `ExecutionContext`. `R = never`. */
+export const cloudflareCtx: Effect.Effect<ExecutionContext> = Effect.sync(getCtx);
