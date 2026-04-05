@@ -130,3 +130,12 @@
     @apply font-sans;
   }
 }
+
+@keyframes progress-grow {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 90%;
+  }
+}

@@ -77,3 +77,46 @@ export const getOrgsFn = createServerFn({ method: "GET" }).handler(async () => {
 
   return isOrgArray(json) ? json : [];
 });
+
+export interface ApiKeyResponse {
+  id: string;
+  name: string | null;
+  start: string | null;
+  prefix: string | null;
+  createdAt: string;
+  expiresAt: string | null;
+}
+
+const isApiKeyArray = (value: unknown): value is ApiKeyResponse[] =>
+  Array.isArray(value) &&
+  value.every((item) => typeof item === "object" && item !== null && "id" in item);
+
+export const getApiKeysFn = createServerFn({ method: "GET" })
+  .inputValidator((input: { organizationId: string }) => input)
+  .handler(async ({ data: { organizationId } }) => {
+    const request = getRequest();
+    const cookie = request.headers.get("cookie") ?? "";
+
+    if (!cookie) {
+      return [] as ApiKeyResponse[];
+    }
+
+    const { env } = await import("cloudflare:workers");
+    const url = `https://internal/api/auth/api-key/list?organizationId=${encodeURIComponent(organizationId)}`;
+    const response = await env.API.fetch(url, {
+      headers: { cookie },
+    });
+
+    if (!response.ok) {
+      return [] as ApiKeyResponse[];
+    }
+
+    const json: unknown = JSON.parse(await response.text());
+
+    if (typeof json === "object" && json !== null && "apiKeys" in json) {
+      const { apiKeys } = json as { apiKeys: unknown };
+      return isApiKeyArray(apiKeys) ? apiKeys : [];
+    }
+
+    return [] as ApiKeyResponse[];
+  });

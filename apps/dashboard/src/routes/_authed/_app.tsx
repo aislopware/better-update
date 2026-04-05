@@ -8,7 +8,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@better-update/ui/components/ui/dropdown-menu";
-import { Separator } from "@better-update/ui/components/ui/separator";
 import {
   Sidebar,
   SidebarContent,
@@ -25,6 +24,7 @@ import {
   SidebarSeparator,
   SidebarTrigger,
 } from "@better-update/ui/components/ui/sidebar";
+import { Skeleton } from "@better-update/ui/components/ui/skeleton";
 import { TooltipProvider } from "@better-update/ui/components/ui/tooltip";
 import {
   Folder02Icon,
@@ -39,7 +39,15 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { Link, Outlet, createFileRoute, redirect, useRouter } from "@tanstack/react-router";
+import {
+  Link,
+  Outlet,
+  createFileRoute,
+  redirect,
+  useRouter,
+  useRouterState,
+} from "@tanstack/react-router";
+import { Suspense } from "react";
 
 import { authClient } from "../../lib/auth-client";
 import { orgsQueryOptions, sessionQueryOptions } from "../../queries/auth";
@@ -180,6 +188,40 @@ const NavGroup = () => (
   </SidebarGroup>
 );
 
+const PageSkeleton = () => (
+  <div className="mx-auto flex max-w-4xl flex-col gap-6">
+    <div className="flex items-center justify-between">
+      <div className="space-y-2">
+        <Skeleton className="h-8 w-36 rounded-md" />
+        <Skeleton className="h-5 w-72 rounded-md" />
+      </div>
+      <Skeleton className="h-9 w-28 rounded-md" />
+    </div>
+    <Skeleton className="h-48 w-full rounded-xl" />
+  </div>
+);
+
+const pageSkeleton = <PageSkeleton />;
+
+const NavigationProgress = () => {
+  const isNavigating = useRouterState({
+    select: (state) => state.isLoading || state.isTransitioning,
+  });
+
+  if (!isNavigating) {
+    return null;
+  }
+
+  return (
+    <div className="pointer-events-none absolute inset-x-0 bottom-0">
+      <div
+        className="bg-primary h-0.5"
+        style={{ animation: "progress-grow 8s cubic-bezier(0.1, 0.05, 0, 1) forwards" }}
+      />
+    </div>
+  );
+};
+
 const AppSidebar = () => (
   <Sidebar variant="inset" collapsible="icon">
     <SidebarHeader>
@@ -208,12 +250,14 @@ const AppLayout = () => (
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
-        <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
+        <header className="relative flex h-14 shrink-0 items-center gap-2 border-b px-4">
           <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
+          <NavigationProgress />
         </header>
         <main className="flex-1 p-4">
-          <Outlet />
+          <Suspense fallback={pageSkeleton}>
+            <Outlet />
+          </Suspense>
         </main>
       </SidebarInset>
     </SidebarProvider>
