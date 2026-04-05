@@ -29,6 +29,7 @@
       "name": "@better-update/dashboard",
       "dependencies": {
         "@better-auth/api-key": "^1.5.6",
+        "@better-update/api": "workspace:*",
         "@better-update/react-hooks": "workspace:*",
         "@better-update/ui": "workspace:*",
         "@fontsource-variable/geist": "^5.2.8",
@@ -72,6 +73,7 @@
       "name": "@better-update/server",
       "dependencies": {
         "@better-auth/api-key": "^1.5.6",
+        "@better-update/api": "workspace:*",
         "@effect/platform": "^0.96.0",
         "better-auth": "^1.5.6",
         "effect": "^3.21.0",
@@ -84,6 +86,18 @@
         "@vitest/coverage-istanbul": "^4.1.2",
         "vite": "^8.0.3",
         "wrangler": "^4.80.0",
+      },
+    },
+    "packages/api": {
+      "name": "@better-update/api",
+      "dependencies": {
+        "@effect/platform": "^0.96.0",
+        "effect": "^3.21.0",
+      },
+      "devDependencies": {
+        "@better-update/oxlint-config": "workspace:*",
+        "@better-update/typescript-config": "workspace:*",
+        "vitest": "^4.1.2",
       },
     },
     "packages/oxlint-config": {
@@ -212,6 +226,8 @@
     "@better-auth/utils": ["@better-auth/utils@0.3.1", "", {}, "sha512-+CGp4UmZSUrHHnpHhLPYu6cV+wSUSvVbZbNykxhUDocpVNTo9uFFxw/NqJlh1iC4wQ9HKKWGCKuZ5wUgS0v6Kg=="],
 
     "@better-fetch/fetch": ["@better-fetch/fetch@1.1.21", "", {}, "sha512-/ImESw0sskqlVR94jB+5+Pxjf+xBwDZF/N5+y2/q4EqD7IARUTSpPfIo8uf39SYpCxyOCtbyYpUrZ3F/k0zT4A=="],
+
+    "@better-update/api": ["@better-update/api@workspace:packages/api"],
 
     "@better-update/dashboard": ["@better-update/dashboard@workspace:apps/dashboard"],
 

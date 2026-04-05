@@ -1,13 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 
-export interface ProjectItem {
-  id: string;
-  organizationId: string;
-  name: string;
-  scopeKey: string;
-  createdAt: string;
-}
+import type { Project } from "@better-update/api";
+
+export type ProjectItem = typeof Project.Type;
 
 interface ProjectListResponse {
   items: ProjectItem[];

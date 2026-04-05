@@ -1,11 +1,9 @@
+import { AuthContext, Forbidden } from "@better-update/api";
 import { Effect } from "effect";
 
-import { AuthContext } from "./context";
-import { Forbidden } from "./errors";
+import type { Action, Resource, Role } from "@better-update/api";
 
-import type { Action, Resource, Role } from "./context";
-
-export type { Action, Resource } from "./context";
+export type { Action, Resource } from "@better-update/api";
 
 type PermissionMap = Record<Role, Partial<Record<Resource, readonly Action[]>>>;
 

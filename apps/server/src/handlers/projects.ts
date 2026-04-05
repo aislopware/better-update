@@ -1,10 +1,9 @@
+import { AuthContext, Project } from "@better-update/api";
 import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
 import { ManagementApi } from "../api";
-import { AuthContext } from "../auth/context";
 import { assertPermission } from "../auth/permissions";
-import { Project } from "../domain/project";
 import { ProjectRepo } from "../repositories/projects";
 
 export const ProjectsGroupLive = HttpApiBuilder.group(ManagementApi, "projects", (handlers) =>

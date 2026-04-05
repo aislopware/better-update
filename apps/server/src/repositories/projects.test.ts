@@ -1,8 +1,7 @@
+import { Conflict, Project } from "@better-update/api";
 import { Effect, Either, Exit } from "effect";
 
 import { setRequestContext } from "../cloudflare/context";
-import { Conflict } from "../domain/errors";
-import { Project } from "../domain/project";
 import { ProjectRepo, ProjectRepoLive } from "./projects";
 
 // ── Mock D1 helpers ───────────────────────────────────────────────
