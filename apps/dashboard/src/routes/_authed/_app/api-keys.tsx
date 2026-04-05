@@ -68,8 +68,8 @@ const ApiKeysTable = ({
     name: string | null;
     start: string | null;
     prefix: string | null;
-    createdAt: Date;
-    expiresAt: Date | null;
+    createdAt: Date | string;
+    expiresAt: Date | string | null;
   }[];
   onRevoke: (keyId: string) => void;
 }) => (

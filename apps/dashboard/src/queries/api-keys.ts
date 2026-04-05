@@ -1,15 +1,10 @@
 import { queryOptions } from "@tanstack/react-query";
 
-import { authClient } from "../lib/auth-client";
+import { getApiKeysFn } from "../serverFns/auth";
 
 export const apiKeysQueryOptions = (orgId: string) =>
   queryOptions({
     queryKey: ["org", orgId, "api-keys"],
-    queryFn: async () => {
-      const { data } = await authClient.apiKey.list({
-        query: { organizationId: orgId },
-      });
-      return data?.apiKeys ?? [];
-    },
+    queryFn: async () => getApiKeysFn({ data: { organizationId: orgId } }),
     staleTime: 30_000,
   });
