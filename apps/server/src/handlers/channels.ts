@@ -1,8 +1,8 @@
+import { Channel } from "@better-update/api";
 import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
 import { ManagementApi } from "../api";
-import { Channel } from "../domain/channel";
 
 const stubChannel = new Channel({
   id: "00000000-0000-0000-0000-000000000000",

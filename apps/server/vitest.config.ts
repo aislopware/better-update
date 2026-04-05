@@ -10,7 +10,7 @@ export default defineConfig(async () => {
     test: {
       coverage: {
         provider: "istanbul" as const,
-        include: ["src/auth/**/*.ts", "src/domain/**/*.ts", "src/cloudflare/**/*.ts"],
+        include: ["src/auth/**/*.ts", "src/cloudflare/**/*.ts"],
         exclude: ["src/**/*.test.ts", "src/**/*.d.ts", "src/auth/middleware.ts"],
         thresholds: {
           lines: 80,

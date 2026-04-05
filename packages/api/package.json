@@ -1,0 +1,25 @@
+{
+  "name": "@better-update/api",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./domain/*": "./src/domain/*.ts",
+    "./auth/*": "./src/auth/*.ts",
+    "./groups/*": "./src/groups/*.ts"
+  },
+  "scripts": {
+    "lint": "oxlint --fix",
+    "lint:check": "oxlint",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@effect/platform": "^0.96.0",
+    "effect": "^3.21.0"
+  },
+  "devDependencies": {
+    "@better-update/oxlint-config": "workspace:*",
+    "@better-update/typescript-config": "workspace:*",
+    "vitest": "^4.1.2"
+  }
+}

@@ -1,26 +1,13 @@
-import { HttpApiMiddleware, HttpApiSecurity, HttpServerRequest } from "@effect/platform";
+import { Authentication, Unauthorized } from "@better-update/api";
+import { HttpServerRequest } from "@effect/platform";
 import { Effect, Layer, Redacted } from "effect";
+
+import type { AuthContextShape, EffectivePermissions, Role } from "@better-update/api";
 
 import { createAuth } from "../auth";
 import { cloudflareEnv } from "../cloudflare/context";
 import { API_KEY_PREFIX } from "./constants";
-import { AuthContext } from "./context";
-import { Unauthorized } from "./errors";
 import { permissions } from "./permissions";
-
-import type { AuthContextShape, EffectivePermissions, Role } from "./context";
-
-const bearerSecurity = HttpApiSecurity.bearer;
-const cookieSecurity = HttpApiSecurity.apiKey({
-  key: "__Secure-better-auth.session_token",
-  in: "cookie",
-});
-
-export class Authentication extends HttpApiMiddleware.Tag<Authentication>()("api/Authentication", {
-  failure: Unauthorized,
-  provides: AuthContext,
-  security: { bearer: bearerSecurity, cookie: cookieSecurity },
-}) {}
 
 // ── Plugin API helpers (types not inferred from betterAuth config) ─
 

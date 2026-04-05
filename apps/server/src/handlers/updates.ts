@@ -1,8 +1,8 @@
+import { Update } from "@better-update/api";
 import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
 import { ManagementApi } from "../api";
-import { Update } from "../domain/update";
 
 const stubUpdate = new Update({
   id: "00000000-0000-0000-0000-000000000000",

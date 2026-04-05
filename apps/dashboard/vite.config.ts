@@ -8,7 +8,7 @@ export default defineConfig({
   plugins: [
     cloudflare({
       viteEnvironment: { name: "ssr" },
-      auxiliaryWorkers: [{ configPath: "../api/wrangler.jsonc" }],
+      auxiliaryWorkers: [{ configPath: "../server/wrangler.jsonc" }],
     }),
     tailwindcss(),
     tanstackStart(),

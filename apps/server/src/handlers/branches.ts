@@ -1,8 +1,8 @@
+import { Branch } from "@better-update/api";
 import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
 import { ManagementApi } from "../api";
-import { Branch } from "../domain/branch";
 
 const stubBranch = new Branch({
   id: "00000000-0000-0000-0000-000000000000",

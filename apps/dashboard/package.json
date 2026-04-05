@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@better-auth/api-key": "^1.5.6",
+    "@better-update/api": "workspace:*",
     "@better-update/react-hooks": "workspace:*",
     "@better-update/ui": "workspace:*",
     "@fontsource-variable/geist": "^5.2.8",
