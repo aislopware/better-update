@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 
 import { unstable_startWorker } from "wrangler";
 
-const API_DIR = resolve(import.meta.dirname, "../../../api");
+const API_DIR = resolve(import.meta.dirname, "../../../server");
 
 const devVars = `BETTER_AUTH_SECRET=e2e-test-secret-that-is-at-least-32-chars
 BETTER_AUTH_URL=http://localhost

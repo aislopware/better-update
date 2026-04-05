@@ -25,24 +25,6 @@
         "vitest": "^4.1.2",
       },
     },
-    "apps/api": {
-      "name": "@better-update/api",
-      "dependencies": {
-        "@better-auth/api-key": "^1.5.6",
-        "@effect/platform": "^0.96.0",
-        "better-auth": "^1.5.6",
-        "effect": "^3.21.0",
-      },
-      "devDependencies": {
-        "@better-update/oxlint-config": "workspace:*",
-        "@better-update/typescript-config": "workspace:*",
-        "@cloudflare/vite-plugin": "^1.31.0",
-        "@cloudflare/vitest-pool-workers": "^0.14.1",
-        "@vitest/coverage-istanbul": "^4.1.2",
-        "vite": "^8.0.3",
-        "wrangler": "^4.80.0",
-      },
-    },
     "apps/dashboard": {
       "name": "@better-update/dashboard",
       "dependencies": {
@@ -83,6 +65,24 @@
         "jsdom": "^29.0.1",
         "vite": "^8.0.3",
         "vitest": "^4.1.2",
+        "wrangler": "^4.80.0",
+      },
+    },
+    "apps/server": {
+      "name": "@better-update/server",
+      "dependencies": {
+        "@better-auth/api-key": "^1.5.6",
+        "@effect/platform": "^0.96.0",
+        "better-auth": "^1.5.6",
+        "effect": "^3.21.0",
+      },
+      "devDependencies": {
+        "@better-update/oxlint-config": "workspace:*",
+        "@better-update/typescript-config": "workspace:*",
+        "@cloudflare/vite-plugin": "^1.31.0",
+        "@cloudflare/vitest-pool-workers": "^0.14.1",
+        "@vitest/coverage-istanbul": "^4.1.2",
+        "vite": "^8.0.3",
         "wrangler": "^4.80.0",
       },
     },
@@ -213,13 +213,13 @@
 
     "@better-fetch/fetch": ["@better-fetch/fetch@1.1.21", "", {}, "sha512-/ImESw0sskqlVR94jB+5+Pxjf+xBwDZF/N5+y2/q4EqD7IARUTSpPfIo8uf39SYpCxyOCtbyYpUrZ3F/k0zT4A=="],
 
-    "@better-update/api": ["@better-update/api@workspace:apps/api"],
-
     "@better-update/dashboard": ["@better-update/dashboard@workspace:apps/dashboard"],
 
     "@better-update/oxlint-config": ["@better-update/oxlint-config@workspace:packages/oxlint-config"],
 
     "@better-update/react-hooks": ["@better-update/react-hooks@workspace:packages/react-hooks"],
+
+    "@better-update/server": ["@better-update/server@workspace:apps/server"],
 
     "@better-update/typescript-config": ["@better-update/typescript-config@workspace:packages/typescript-config"],
 

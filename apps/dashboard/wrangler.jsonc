@@ -4,5 +4,5 @@
   "compatibility_flags": ["nodejs_compat"],
   "compatibility_date": "2026-03-30",
   "main": "src/server.ts",
-  "services": [{ "binding": "API", "service": "better-update-api" }],
+  "services": [{ "binding": "API", "service": "better-update-server" }],
 }

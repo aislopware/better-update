@@ -1,13 +1,13 @@
 # 14. Wrangler Configuration
 
-## apps/api/wrangler.jsonc
+## apps/server/wrangler.jsonc
 
-| Setting               | Value               |
-| --------------------- | ------------------- |
-| `name`                | `better-update-api` |
-| `main`                | `src/index.ts`      |
-| `compatibility_date`  | `2026-03-30`        |
-| `compatibility_flags` | `nodejs_compat`     |
+| Setting               | Value                  |
+| --------------------- | ---------------------- |
+| `name`                | `better-update-server` |
+| `main`                | `src/index.ts`         |
+| `compatibility_date`  | `2026-03-30`           |
+| `compatibility_flags` | `nodejs_compat`        |
 
 **Bindings:**
 

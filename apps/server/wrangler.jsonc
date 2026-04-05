@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "better-update-api",
+  "name": "better-update-server",
   "compatibility_flags": ["nodejs_compat"],
   "compatibility_date": "2026-03-30",
   "main": "src/index.ts",
