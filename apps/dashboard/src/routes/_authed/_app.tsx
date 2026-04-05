@@ -5,7 +5,12 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@better-update/ui/components/ui/dropdown-menu";
 import {
@@ -36,6 +41,9 @@ import {
   Add01Icon,
   UserGroupIcon,
   Key01Icon,
+  Sun02Icon,
+  Moon02Icon,
+  ComputerIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
@@ -50,7 +58,13 @@ import {
 import { Suspense } from "react";
 
 import { authClient } from "../../lib/auth-client";
+import { useTheme } from "../../lib/theme-context";
 import { orgsQueryOptions, sessionQueryOptions } from "../../queries/auth";
+
+import type { Theme } from "../../lib/theme";
+
+const THEMES = new Set<string>(["light", "dark", "system"]);
+const isTheme = (value: unknown): value is Theme => typeof value === "string" && THEMES.has(value);
 
 const navItems = [
   { to: "/projects", label: "Projects", icon: Folder02Icon },
@@ -126,10 +140,13 @@ const OrgSwitcher = () => {
   );
 };
 
+const themeIcons = { light: Sun02Icon, dark: Moon02Icon, system: ComputerIcon } as const;
+
 const UserMenu = () => {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { data: session } = useSuspenseQuery(sessionQueryOptions);
+  const { theme, setTheme } = useTheme();
   const user = session?.user;
 
   const handleLogout = async () => {
@@ -155,6 +172,27 @@ const UserMenu = () => {
       <DropdownMenuContent align="start" side="top" sideOffset={4} className="w-56">
         <DropdownMenuGroup>
           <DropdownMenuLabel>{user?.name}</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <HugeiconsIcon icon={themeIcons[theme]} strokeWidth={2} className="size-4" />
+              <span>Theme</span>
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              <DropdownMenuRadioGroup
+                value={theme}
+                onValueChange={(value: unknown) => {
+                  if (isTheme(value)) {
+                    setTheme(value);
+                  }
+                }}
+              >
+                <DropdownMenuRadioItem value="light">Light</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="dark">Dark</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="system">System</DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleLogout}>
             <HugeiconsIcon icon={Logout03Icon} strokeWidth={2} className="size-4" />
