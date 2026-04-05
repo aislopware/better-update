@@ -78,6 +78,24 @@ export const getOrgsFn = createServerFn({ method: "GET" }).handler(async () => {
   return isOrgArray(json) ? json : [];
 });
 
+export const setActiveOrgFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { organizationId: string }) => input)
+  .handler(async ({ data: { organizationId } }) => {
+    const request = getRequest();
+    const cookie = request.headers.get("cookie") ?? "";
+
+    if (!cookie) {
+      return;
+    }
+
+    const { env } = await import("cloudflare:workers");
+    await env.API.fetch("https://internal/api/auth/organization/set-active", {
+      method: "POST",
+      headers: { cookie, "content-type": "application/json" },
+      body: JSON.stringify({ organizationId }),
+    });
+  });
+
 export interface ApiKeyResponse {
   id: string;
   name: string | null;

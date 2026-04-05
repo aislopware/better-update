@@ -11,6 +11,7 @@ import { BranchesGroupLive } from "./handlers/branches";
 import { ChannelsGroupLive } from "./handlers/channels";
 import { ProjectsGroupLive } from "./handlers/projects";
 import { UpdatesGroupLive } from "./handlers/updates";
+import { errorFormatMiddleware } from "./middleware/error-format";
 import { ProjectRepoLive } from "./repositories/projects";
 
 const ProjectsGroupWithRepo = ProjectsGroupLive.pipe(Layer.provide(ProjectRepoLive));
@@ -33,20 +34,60 @@ const DocsLive = Layer.merge(
 
 const { handler } = HttpApiBuilder.toWebHandler(
   Layer.mergeAll(ApiLive, DocsLive, HttpServer.layerContext),
+  { middleware: errorFormatMiddleware },
 );
+
+const internalError = () =>
+  Response.json(
+    { code: "INTERNAL_SERVER_ERROR", message: "An unexpected error occurred" },
+    { status: 500 },
+  );
 
 export default {
   async fetch(request, env, ctx) {
-    setRequestContext(env, ctx);
+    // eslint-disable-next-line functional/no-try-statements -- imperative shell error boundary
+    try {
+      setRequestContext(env, ctx);
 
-    const url = new URL(request.url);
+      const url = new URL(request.url);
 
-    // Better Auth handles its own auth routes
-    if (url.pathname.startsWith("/api/auth")) {
-      return createAuth(env).handler(request);
+      // Better Auth handles its own auth routes
+      if (url.pathname.startsWith("/api/auth")) {
+        // eslint-disable-next-line functional/no-try-statements -- Better Auth may throw unhandled exceptions
+        try {
+          const response = await createAuth(env).handler(request);
+
+          // Workaround: @cloudflare/vite-plugin crashes on HTTP 401 from auxiliary
+          // Workers (all other 4xx/5xx codes work). Remap 401 → 403 in development
+          // So the client still receives a parseable JSON error body.
+          if (response.status === 401) {
+            const body = response.body ? await response.text() : null;
+            return new Response(body, {
+              status: 403,
+              headers: response.headers,
+            });
+          }
+
+          // Better-call returns null-body 500 for non-APIError exceptions (e.g. D1 errors);
+          // Replace with a structured JSON body so the client always gets parseable output
+          if (response.status >= 400 && !response.body) {
+            return Response.json(
+              { code: "INTERNAL_SERVER_ERROR", message: "An unexpected error occurred" },
+              { status: response.status },
+            );
+          }
+
+          return response;
+        } catch (error) {
+          console.error("[auth]", error);
+          return internalError();
+        }
+      }
+
+      // Effect HttpApi handles management routes + OpenAPI + Scalar docs
+      return await handler(request);
+    } catch {
+      return internalError();
     }
-
-    // Effect HttpApi handles management routes + OpenAPI + Scalar docs
-    return handler(request);
   },
 } satisfies ExportedHandler<Env>;
