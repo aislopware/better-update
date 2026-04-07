@@ -67,21 +67,21 @@ describe(ThemeProvider, () => {
     expect(result.current.theme).toBe("system");
   });
 
-  test('setTheme("dark") updates context and applies dark class', () => {
+  test('updateTheme("dark") updates context and applies dark class', () => {
     const { result } = renderHook(() => useTheme(), { wrapper });
 
-    act(() => result.current.setTheme("dark"));
+    act(() => result.current.updateTheme("dark"));
 
     expect(result.current.theme).toBe("dark");
     expect(result.current.resolvedTheme).toBe("dark");
     expect(document.documentElement.classList.contains("dark")).toBe(true);
   });
 
-  test('setTheme("light") updates context and removes dark class', () => {
+  test('updateTheme("light") updates context and removes dark class', () => {
     const { result } = renderHook(() => useTheme(), { wrapper });
 
-    act(() => result.current.setTheme("dark"));
-    act(() => result.current.setTheme("light"));
+    act(() => result.current.updateTheme("dark"));
+    act(() => result.current.updateTheme("light"));
 
     expect(result.current.theme).toBe("light");
     expect(result.current.resolvedTheme).toBe("light");
@@ -91,7 +91,7 @@ describe(ThemeProvider, () => {
   test("persists theme to cookie on change", () => {
     const { result } = renderHook(() => useTheme(), { wrapper });
 
-    act(() => result.current.setTheme("dark"));
+    act(() => result.current.updateTheme("dark"));
 
     expect(document.cookie).toContain(`${THEME_COOKIE_NAME}=dark`);
   });

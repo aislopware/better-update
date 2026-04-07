@@ -147,7 +147,7 @@ const UserMenu = () => {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { data: session } = useSuspenseQuery(sessionQueryOptions);
-  const { theme, setTheme } = useTheme();
+  const { theme, updateTheme } = useTheme();
   const user = session?.user;
 
   const handleLogout = async () => {
@@ -184,7 +184,7 @@ const UserMenu = () => {
                 value={theme}
                 onValueChange={(value: unknown) => {
                   if (isTheme(value)) {
-                    setTheme(value);
+                    updateTheme(value);
                   }
                 }}
               >
