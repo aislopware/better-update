@@ -23,7 +23,7 @@ import type { ResolvedTheme, Theme } from "./theme";
 interface ThemeContextValue {
   theme: Theme;
   resolvedTheme: ResolvedTheme;
-  setTheme: (theme: Theme) => void;
+  updateTheme: (theme: Theme) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -61,7 +61,7 @@ export const ThemeProvider = ({
 }) => {
   const queryClient = useQueryClient();
 
-  const [theme, setThemeState] = useState<Theme>(initialTheme ?? "system");
+  const [theme, setTheme] = useState<Theme>(initialTheme ?? "system");
 
   const systemPreference = useSyncExternalStore(
     subscribeSystemPreference,
@@ -71,9 +71,9 @@ export const ThemeProvider = ({
 
   const resolvedTheme = resolveTheme(theme, systemPreference === "dark");
 
-  const setTheme = useCallback(
+  const updateTheme = useCallback(
     (next: Theme) => {
-      setThemeState(next);
+      setTheme(next);
       setThemeCookie(next);
       queryClient.setQueryData(["theme"], next);
       applyTheme(resolveTheme(next, getSystemPreference() === "dark"));
@@ -82,8 +82,8 @@ export const ThemeProvider = ({
   );
 
   const value = useMemo(
-    () => ({ theme, resolvedTheme, setTheme }),
-    [theme, resolvedTheme, setTheme],
+    () => ({ theme, resolvedTheme, updateTheme }),
+    [theme, resolvedTheme, updateTheme],
   );
 
   return <ThemeContext value={value}>{children}</ThemeContext>;
