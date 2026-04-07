@@ -143,7 +143,8 @@
 
         "unicorn/consistent-function-scoping": "off",
 
-        "vitest/require-test-timeout": "off"
+        "vitest/require-test-timeout": "off",
+        "vitest/prefer-importing-vitest-globals": "off"
       }
     }
   ],
