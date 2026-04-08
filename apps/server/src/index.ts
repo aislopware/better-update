@@ -9,11 +9,11 @@ import { AnalyticsGroupLive } from "./handlers/analytics";
 import { AssetsGroupLive } from "./handlers/assets";
 import { BranchesGroupLive } from "./handlers/branches";
 import { ChannelsGroupLive } from "./handlers/channels";
+import { serveManifest } from "./handlers/manifest";
 import { ProjectsGroupLive } from "./handlers/projects";
 import { UpdatesGroupLive } from "./handlers/updates";
 import { errorFormatMiddleware } from "./middleware/error-format";
-import { BranchRepoLive } from "./repositories/branches";
-import { ProjectRepoLive } from "./repositories/projects";
+import { BranchRepoLive, ProjectRepoLive } from "./repositories";
 
 const ProjectsGroupWithRepo = ProjectsGroupLive.pipe(Layer.provide(ProjectRepoLive));
 const BranchesGroupWithRepo = BranchesGroupLive.pipe(
@@ -87,6 +87,12 @@ export default {
           console.error("[auth]", error);
           return internalError();
         }
+      }
+
+      // Expo Updates protocol — unauthenticated manifest serving
+      const manifestMatch = /^\/manifest\/([^/]+)\/?$/.exec(url.pathname);
+      if (manifestMatch?.[1]) {
+        return await serveManifest(request, manifestMatch[1]);
       }
 
       // Effect HttpApi handles management routes + OpenAPI + Scalar docs
