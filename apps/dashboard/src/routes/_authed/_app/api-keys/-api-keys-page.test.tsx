@@ -20,7 +20,7 @@ import { screen } from "@testing-library/react";
 import { makeApiKey, makeOrg, makeSession } from "../../../../../tests/helpers/fixtures";
 import { renderWithQuery } from "../../../../../tests/helpers/render-with-query";
 
-import type { ApiKeyResponse } from "../../../../serverFns/auth";
+import type { ApiKeyResponse } from "../../../../../tests/helpers/fixtures";
 
 /**
  * These tests verify the rendering patterns of the API keys page.
@@ -86,7 +86,7 @@ const ApiKeysTestPage = () => {
     queryFn: async () => [] as ReturnType<typeof makeOrg>[],
   });
 
-  const activeOrgId = session?.user.activeOrganizationId ?? "";
+  const activeOrgId = session?.session.activeOrganizationId ?? "";
   const activeOrg = orgs.find((org) => org.id === activeOrgId) ?? orgs[0];
   const orgId = activeOrg?.id ?? "";
 

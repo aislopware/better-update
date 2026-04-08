@@ -1,6 +1,32 @@
-import type { BranchItem } from "../../src/queries/branches";
-import type { ApiKeyResponse, OrgResponse, SessionResponse } from "../../src/serverFns/auth";
-import type { ProjectItem } from "../../src/serverFns/projects";
+import type { BranchItem, ProjectItem } from "@better-update/api-client/react";
+
+export interface SessionResponse {
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    image: string | null;
+    emailVerified: boolean;
+  };
+  session: { id: string; token: string; expiresAt: string; activeOrganizationId: string | null };
+}
+
+export interface OrgResponse {
+  id: string;
+  name: string;
+  slug: string;
+  logo: string | null;
+  createdAt: string;
+}
+
+export interface ApiKeyResponse {
+  id: string;
+  name: string | null;
+  start: string | null;
+  prefix: string | null;
+  createdAt: string;
+  expiresAt: string | null;
+}
 
 export const makeSession = (
   overrides?: Partial<{
@@ -14,13 +40,13 @@ export const makeSession = (
     email: "test@example.com",
     image: null,
     emailVerified: true,
-    activeOrganizationId: "org-1",
     ...overrides?.user,
   },
   session: {
     id: "session-1",
     token: "token-abc",
     expiresAt: "2027-01-01T00:00:00Z",
+    activeOrganizationId: "org-1",
     ...overrides?.session,
   },
 });

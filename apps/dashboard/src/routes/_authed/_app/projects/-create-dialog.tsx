@@ -1,3 +1,5 @@
+import { getApiError } from "@better-update/api-client";
+import { createProject } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
@@ -18,7 +20,6 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod/v4";
 
-import { apiPost, getResponseError } from "../../../../lib/api-client";
 import { generateScopeKey, nameSchema } from "../../../../lib/form-utils";
 const scopeKeySchema = z.string().min(1, "Scope key is required");
 
@@ -29,13 +30,11 @@ const CreateFormContent = ({ orgId, onSuccess }: { orgId: string; onSuccess: () 
   const form = useForm({
     defaultValues: { name: "", scopeKey: "" },
     onSubmit: async ({ value }) => {
-      const response = await apiPost("/api/projects", {
-        name: value.name,
-        scopeKey: value.scopeKey,
-      });
-
-      if (!response.ok) {
-        toast.error(await getResponseError(response));
+      // eslint-disable-next-line functional/no-try-statements -- imperative shell error handling
+      try {
+        await createProject({ name: value.name, scopeKey: value.scopeKey });
+      } catch (error) {
+        toast.error(getApiError(error));
         return;
       }
 

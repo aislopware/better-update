@@ -1,3 +1,5 @@
+import { getApiError } from "@better-update/api-client";
+import { renameBranch } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
@@ -13,10 +15,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { apiPatch, getResponseError } from "../../../../../lib/api-client";
-import { BranchNameForm } from "./-branch-name-form";
+import type { BranchItem } from "@better-update/api-client/react";
 
-import type { BranchItem } from "../../../../../queries/branches";
+import { BranchNameForm } from "./-branch-name-form";
 
 export const RenameBranchDialog = ({
   branch,
@@ -47,10 +48,11 @@ export const RenameBranchDialog = ({
           submitLabel="Rename"
           submittingLabel="Renaming..."
           onSubmit={async (name) => {
-            const response = await apiPatch(`/api/branches/${branch.id}`, { name });
-
-            if (!response.ok) {
-              toast.error(await getResponseError(response));
+            // eslint-disable-next-line functional/no-try-statements -- imperative shell error handling
+            try {
+              await renameBranch(branch.id, { name });
+            } catch (error) {
+              toast.error(getApiError(error));
               return;
             }
 

@@ -1,9 +1,8 @@
+import { Conflict, Project } from "@better-update/api";
 import { env } from "cloudflare:test";
 import { Effect, Either } from "effect";
 
 import { setRequestContext } from "../../../src/cloudflare/context";
-import { Conflict } from "../../../src/domain/errors";
-import { Project } from "../../../src/domain/project";
 import { ProjectRepo, ProjectRepoLive } from "../../../src/repositories/projects";
 
 // ── Helpers ───────────────────────────────────────────────────────

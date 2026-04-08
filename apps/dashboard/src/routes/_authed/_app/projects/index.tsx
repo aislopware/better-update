@@ -1,3 +1,4 @@
+import { projectsQueryOptions } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import {
   Card,
@@ -11,11 +12,10 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 
-import { orgsQueryOptions, sessionQueryOptions } from "../../../../queries/auth";
-import { projectsQueryOptions } from "../../../../queries/projects";
-import { CreateProjectDialog } from "./-create-dialog";
+import type { ProjectItem } from "@better-update/api-client/react";
 
-import type { ProjectItem } from "../../../../queries/projects";
+import { orgsQueryOptions, sessionQueryOptions } from "../../../../queries/auth";
+import { CreateProjectDialog } from "./-create-dialog";
 
 const ProjectCard = ({ project }: { project: ProjectItem }) => (
   <Link to="/projects/$projectId" params={{ projectId: project.id }} className="block">
@@ -59,7 +59,7 @@ const EmptyState = () => (
 const Projects = () => {
   const { data: session } = useSuspenseQuery(sessionQueryOptions);
   const { data: orgs } = useSuspenseQuery(orgsQueryOptions);
-  const activeOrgId = session?.user.activeOrganizationId ?? "";
+  const activeOrgId = session?.session.activeOrganizationId ?? "";
   const activeOrg = orgs.find((org) => org.id === activeOrgId) ?? orgs[0];
   const orgId = activeOrg?.id ?? "";
 

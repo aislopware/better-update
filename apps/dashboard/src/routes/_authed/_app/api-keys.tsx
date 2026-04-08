@@ -135,7 +135,7 @@ const ApiKeys = () => {
   const queryClient = useQueryClient();
   const { data: session } = useSuspenseQuery(sessionQueryOptions);
   const { data: orgs } = useSuspenseQuery(orgsQueryOptions);
-  const activeOrgId = session?.user.activeOrganizationId ?? "";
+  const activeOrgId = session?.session.activeOrganizationId ?? "";
   const activeOrg = orgs.find((org) => org.id === activeOrgId) ?? orgs[0];
   const orgId = activeOrg?.id ?? "";
 
