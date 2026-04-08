@@ -16,6 +16,7 @@ export class Channel extends Schema.Class<Channel>("Channel")({
 export const CreateChannelBody = Schema.Struct({
   projectId: Id,
   name: Schema.String.pipe(Schema.minLength(1)),
+  branchId: Id,
 });
 
 export const UpdateChannelBody = Schema.Struct({

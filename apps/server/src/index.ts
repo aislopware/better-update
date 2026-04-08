@@ -13,7 +13,7 @@ import { serveManifest } from "./handlers/manifest";
 import { ProjectsGroupLive } from "./handlers/projects";
 import { UpdatesGroupLive } from "./handlers/updates";
 import { errorFormatMiddleware } from "./middleware/error-format";
-import { BranchRepoLive, ProjectRepoLive } from "./repositories";
+import { BranchRepoLive, ChannelRepoLive, ProjectRepoLive } from "./repositories";
 
 const ProjectsGroupWithRepo = ProjectsGroupLive.pipe(Layer.provide(ProjectRepoLive));
 const BranchesGroupWithRepo = BranchesGroupLive.pipe(
@@ -21,10 +21,16 @@ const BranchesGroupWithRepo = BranchesGroupLive.pipe(
   Layer.provide(ProjectRepoLive),
 );
 
+const ChannelsGroupWithRepo = ChannelsGroupLive.pipe(
+  Layer.provide(ChannelRepoLive),
+  Layer.provide(BranchRepoLive),
+  Layer.provide(ProjectRepoLive),
+);
+
 const ApiLive = HttpApiBuilder.api(ManagementApi).pipe(
   Layer.provide(ProjectsGroupWithRepo),
   Layer.provide(BranchesGroupWithRepo),
-  Layer.provide(ChannelsGroupLive),
+  Layer.provide(ChannelsGroupWithRepo),
   Layer.provide(UpdatesGroupLive),
   Layer.provide(AssetsGroupLive),
   Layer.provide(AnalyticsGroupLive),

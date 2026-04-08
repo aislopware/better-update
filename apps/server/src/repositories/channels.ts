@@ -1,0 +1,160 @@
+import { Channel, NotFound } from "@better-update/api";
+import { Context, Effect, Layer } from "effect";
+
+import type { Conflict } from "@better-update/api";
+
+import { cloudflareEnv } from "../cloudflare/context";
+import { d1RunWithUniqueCheck } from "./d1-helpers";
+
+// -- Port ------------------------------------------------------------------
+
+export interface ChannelRepository {
+  readonly insert: (params: {
+    readonly projectId: string;
+    readonly name: string;
+    readonly branchId: string;
+  }) => Effect.Effect<Channel, Conflict>;
+
+  readonly findByProject: (params: {
+    readonly projectId: string;
+    readonly limit: number;
+    readonly offset: number;
+  }) => Effect.Effect<{ readonly items: readonly Channel[]; readonly total: number }>;
+
+  readonly findById: (params: { readonly id: string }) => Effect.Effect<Channel, NotFound>;
+
+  readonly updateBranchId: (params: {
+    readonly id: string;
+    readonly branchId: string;
+  }) => Effect.Effect<void>;
+
+  readonly setPaused: (params: {
+    readonly id: string;
+    readonly isPaused: boolean;
+  }) => Effect.Effect<void>;
+}
+
+export class ChannelRepo extends Context.Tag("api/ChannelRepo")<ChannelRepo, ChannelRepository>() {}
+
+// -- D1 Adapter ------------------------------------------------------------
+
+interface ChannelRow {
+  id: string;
+  project_id: string;
+  name: string;
+  branch_id: string;
+  branch_mapping_json: string | null;
+  cache_version: number;
+  is_paused: number;
+  created_at: string;
+}
+
+const toChannel = (row: ChannelRow) =>
+  new Channel({
+    id: row.id,
+    projectId: row.project_id,
+    name: row.name,
+    branchId: row.branch_id,
+    branchMappingJson: row.branch_mapping_json,
+    cacheVersion: row.cache_version,
+    isPaused: row.is_paused === 1,
+    createdAt: row.created_at,
+  });
+
+export const ChannelRepoLive = Layer.succeed(ChannelRepo, {
+  insert: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+      const id = crypto.randomUUID();
+      const now = new Date().toISOString();
+
+      yield* d1RunWithUniqueCheck(
+        async () =>
+          env.DB.prepare(
+            `INSERT INTO "channels" ("id", "project_id", "name", "branch_id", "branch_mapping_json", "cache_version", "is_paused", "created_at") VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          )
+            .bind(id, params.projectId, params.name, params.branchId, null, 0, 0, now)
+            .run(),
+        `A channel named "${params.name}" already exists in this project`,
+      );
+
+      return new Channel({
+        id,
+        projectId: params.projectId,
+        name: params.name,
+        branchId: params.branchId,
+        branchMappingJson: null,
+        cacheVersion: 0,
+        isPaused: false,
+        createdAt: now,
+      });
+    }),
+
+  findByProject: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+
+      const countResult = yield* Effect.promise(async () =>
+        env.DB.prepare(`SELECT COUNT(*) as count FROM "channels" WHERE "project_id" = ?`)
+          .bind(params.projectId)
+          .first<{ count: number }>(),
+      );
+
+      const total = countResult?.count ?? 0;
+
+      const rows = yield* Effect.promise(async () =>
+        env.DB.prepare(
+          `SELECT "id", "project_id", "name", "branch_id", "branch_mapping_json", "cache_version", "is_paused", "created_at" FROM "channels" WHERE "project_id" = ? ORDER BY "created_at" DESC LIMIT ? OFFSET ?`,
+        )
+          .bind(params.projectId, params.limit, params.offset)
+          .all<ChannelRow>(),
+      );
+
+      return { items: rows.results.map(toChannel), total };
+    }),
+
+  findById: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+
+      const row = yield* Effect.promise(async () =>
+        env.DB.prepare(
+          `SELECT "id", "project_id", "name", "branch_id", "branch_mapping_json", "cache_version", "is_paused", "created_at" FROM "channels" WHERE "id" = ?`,
+        )
+          .bind(params.id)
+          .first<ChannelRow>(),
+      );
+
+      if (row === null) {
+        return yield* Effect.fail(new NotFound({ message: "Channel not found" }));
+      }
+
+      return toChannel(row);
+    }),
+
+  updateBranchId: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+
+      yield* Effect.promise(async () =>
+        env.DB.prepare(
+          `UPDATE "channels" SET "branch_id" = ?, "cache_version" = "cache_version" + 1 WHERE "id" = ?`,
+        )
+          .bind(params.branchId, params.id)
+          .run(),
+      );
+    }),
+
+  setPaused: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+
+      yield* Effect.promise(async () =>
+        env.DB.prepare(
+          `UPDATE "channels" SET "is_paused" = ?, "cache_version" = "cache_version" + 1 WHERE "id" = ?`,
+        )
+          .bind(params.isPaused ? 1 : 0, params.id)
+          .run(),
+      );
+    }),
+});
