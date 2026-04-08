@@ -174,7 +174,7 @@ describe("API keys page rendering", () => {
   test("shows expiry date for keys with expiration", () => {
     const session = makeSession();
     const org = makeOrg();
-    const key = makeApiKey({ expiresAt: "2026-12-31T00:00:00Z" });
+    const key = makeApiKey({ expiresAt: new Date("2026-12-31T00:00:00Z") });
 
     renderWithQuery(<ApiKeysTestPage />, {
       seedCache: [
