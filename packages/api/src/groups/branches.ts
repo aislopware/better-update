@@ -1,6 +1,7 @@
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "@effect/platform";
 import { Schema } from "effect";
 
+import { Forbidden } from "../auth/errors";
 import { NotFound } from "../auth/ownership";
 import { Branch, CreateBranchBody, UpdateBranchBody } from "../domain/branch";
 import { Id, PaginationParams } from "../domain/common";
@@ -56,6 +57,8 @@ export class BranchesGroup extends HttpApiGroup.make("branches")
       ),
   )
   .addError(NotFound)
+  .addError(Conflict)
+  .addError(Forbidden)
   .annotateContext(
     OpenApi.annotations({
       title: "Branches",

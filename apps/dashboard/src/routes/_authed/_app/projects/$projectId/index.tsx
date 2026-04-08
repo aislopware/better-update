@@ -1,0 +1,106 @@
+import { Badge } from "@better-update/ui/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@better-update/ui/components/ui/card";
+import { ArrowLeft02Icon, GitBranchIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { Link, createFileRoute } from "@tanstack/react-router";
+
+import { orgsQueryOptions, sessionQueryOptions } from "../../../../../queries/auth";
+import { branchesQueryOptions } from "../../../../../queries/branches";
+import { projectQueryOptions } from "../../../../../queries/project";
+import { CreateBranchDialog } from "./-create-branch-dialog";
+import { RenameBranchDialog } from "./-rename-branch-dialog";
+
+import type { BranchItem } from "../../../../../queries/branches";
+
+const BranchCard = ({
+  branch,
+  orgId,
+  projectId,
+}: {
+  branch: BranchItem;
+  orgId: string;
+  projectId: string;
+}) => (
+  <Card>
+    <CardHeader className="pb-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <HugeiconsIcon
+            icon={GitBranchIcon}
+            strokeWidth={2}
+            className="text-muted-foreground size-5"
+          />
+          <CardTitle className="text-base">{branch.name}</CardTitle>
+        </div>
+        <RenameBranchDialog branch={branch} orgId={orgId} projectId={projectId} />
+      </div>
+    </CardHeader>
+    <CardContent>
+      <Badge variant="outline">{new Date(branch.createdAt).toLocaleDateString()}</Badge>
+    </CardContent>
+  </Card>
+);
+
+const EmptyState = () => (
+  <Card className="border-dashed">
+    <CardContent className="flex flex-col items-center justify-center py-12">
+      <HugeiconsIcon
+        icon={GitBranchIcon}
+        strokeWidth={1.5}
+        className="text-muted-foreground mb-4 size-12"
+      />
+      <p className="text-lg font-medium">No branches yet</p>
+      <p className="text-muted-foreground mt-1 text-sm">
+        Create your first branch to start managing deployments.
+      </p>
+    </CardContent>
+  </Card>
+);
+
+const ProjectDetail = () => {
+  const { projectId } = Route.useParams();
+  const { data: session } = useSuspenseQuery(sessionQueryOptions);
+  const { data: orgs } = useSuspenseQuery(orgsQueryOptions);
+  const activeOrgId = session?.user.activeOrganizationId ?? "";
+  const activeOrg = orgs.find((org) => org.id === activeOrgId) ?? orgs[0];
+  const orgId = activeOrg?.id ?? "";
+
+  const { data: project } = useSuspenseQuery(projectQueryOptions(projectId));
+  const { data: branchesData } = useSuspenseQuery(branchesQueryOptions(orgId, projectId));
+
+  return (
+    <div className="mx-auto flex max-w-4xl flex-col gap-6">
+      <div>
+        <Link
+          to="/projects"
+          className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center gap-1 text-sm transition-colors"
+        >
+          <HugeiconsIcon icon={ArrowLeft02Icon} strokeWidth={2} className="size-4" />
+          Back to projects
+        </Link>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">{project.name}</h1>
+            <p className="text-muted-foreground mt-1">Manage branches for this project.</p>
+          </div>
+          <CreateBranchDialog orgId={orgId} projectId={projectId} />
+        </div>
+      </div>
+
+      {branchesData.items.length === 0 ? (
+        <EmptyState />
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2">
+          {branchesData.items.map((branch) => (
+            <BranchCard key={branch.id} branch={branch} orgId={orgId} projectId={projectId} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export const Route = createFileRoute("/_authed/_app/projects/$projectId/")({
+  component: ProjectDetail,
+});

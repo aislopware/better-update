@@ -12,13 +12,18 @@ import { ChannelsGroupLive } from "./handlers/channels";
 import { ProjectsGroupLive } from "./handlers/projects";
 import { UpdatesGroupLive } from "./handlers/updates";
 import { errorFormatMiddleware } from "./middleware/error-format";
+import { BranchRepoLive } from "./repositories/branches";
 import { ProjectRepoLive } from "./repositories/projects";
 
 const ProjectsGroupWithRepo = ProjectsGroupLive.pipe(Layer.provide(ProjectRepoLive));
+const BranchesGroupWithRepo = BranchesGroupLive.pipe(
+  Layer.provide(BranchRepoLive),
+  Layer.provide(ProjectRepoLive),
+);
 
 const ApiLive = HttpApiBuilder.api(ManagementApi).pipe(
   Layer.provide(ProjectsGroupWithRepo),
-  Layer.provide(BranchesGroupLive),
+  Layer.provide(BranchesGroupWithRepo),
   Layer.provide(ChannelsGroupLive),
   Layer.provide(UpdatesGroupLive),
   Layer.provide(AssetsGroupLive),

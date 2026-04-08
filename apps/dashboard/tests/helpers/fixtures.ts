@@ -1,3 +1,4 @@
+import type { BranchItem } from "../../src/queries/branches";
 import type { ApiKeyResponse, OrgResponse, SessionResponse } from "../../src/serverFns/auth";
 import type { ProjectItem } from "../../src/serverFns/projects";
 
@@ -83,5 +84,13 @@ export const makeInvitation = (
   role: "member",
   status: "pending",
   expiresAt: new Date("2027-01-01"),
+  ...overrides,
+});
+
+export const makeBranch = (overrides?: Partial<BranchItem>): BranchItem => ({
+  id: "branch-1",
+  projectId: "proj-1",
+  name: "main",
+  createdAt: "2026-01-01T00:00:00Z",
   ...overrides,
 });

@@ -1,7 +1,10 @@
-import { Conflict, Project } from "@better-update/api";
+import { NotFound, Project } from "@better-update/api";
 import { Context, Effect, Layer } from "effect";
 
+import type { Conflict } from "@better-update/api";
+
 import { cloudflareEnv } from "../cloudflare/context";
+import { d1RunWithUniqueCheck } from "./d1-helpers";
 
 // ── Port ──────────────────────────────────────────────────────────
 
@@ -19,6 +22,10 @@ export interface ProjectRepository {
     readonly limit: number;
     readonly offset: number;
   }) => Effect.Effect<{ readonly items: readonly Project[]; readonly total: number }>;
+
+  readonly findById: (params: { readonly id: string }) => Effect.Effect<Project, NotFound>;
+
+  readonly findOrgIdById: (params: { readonly id: string }) => Effect.Effect<string, NotFound>;
 }
 
 export class ProjectRepo extends Context.Tag("api/ProjectRepo")<ProjectRepo, ProjectRepository>() {}
@@ -47,25 +54,14 @@ export const ProjectRepoLive = Layer.succeed(ProjectRepo, {
     Effect.gen(function* () {
       const env = yield* cloudflareEnv;
 
-      yield* Effect.tryPromise({
-        try: async () =>
+      yield* d1RunWithUniqueCheck(
+        async () =>
           env.DB.prepare(
             `INSERT INTO "projects" ("id", "organization_id", "name", "scope_key", "created_at") VALUES (?, ?, ?, ?, ?)`,
           )
             .bind(params.id, params.organizationId, params.name, params.scopeKey, params.createdAt)
             .run(),
-        catch: (error) => error,
-      }).pipe(
-        Effect.catchAll((error) => {
-          if (String(error).includes("UNIQUE constraint failed")) {
-            return Effect.fail(
-              new Conflict({
-                message: `A project with scope key "${params.scopeKey}" already exists`,
-              }),
-            );
-          }
-          return Effect.die(error);
-        }),
+        `A project with scope key "${params.scopeKey}" already exists`,
       );
     }),
 
@@ -90,5 +86,41 @@ export const ProjectRepoLive = Layer.succeed(ProjectRepo, {
       );
 
       return { items: rows.results.map(toProject), total };
+    }),
+
+  findById: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+
+      const row = yield* Effect.promise(async () =>
+        env.DB.prepare(
+          `SELECT "id", "organization_id", "name", "scope_key", "created_at" FROM "projects" WHERE "id" = ?`,
+        )
+          .bind(params.id)
+          .first<ProjectRow>(),
+      );
+
+      if (row === null) {
+        return yield* Effect.fail(new NotFound({ message: "Project not found" }));
+      }
+
+      return toProject(row);
+    }),
+
+  findOrgIdById: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+
+      const row = yield* Effect.promise(async () =>
+        env.DB.prepare(`SELECT "organization_id" FROM "projects" WHERE "id" = ?`)
+          .bind(params.id)
+          .first<{ organization_id: string }>(),
+      );
+
+      if (row === null) {
+        return yield* Effect.fail(new NotFound({ message: "Project not found" }));
+      }
+
+      return row.organization_id;
     }),
 });

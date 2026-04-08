@@ -29,7 +29,7 @@ const OnboardingSubmitTestForm = () => {
         return;
       }
 
-      const data = (await response.json()) as { id?: string };
+      const data: { id?: string } = await response.json();
 
       if (data.id) {
         await fetch("/api/auth/organization/set-active", {

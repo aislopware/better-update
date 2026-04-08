@@ -74,5 +74,12 @@ export const setupE2EDashboard = (persistDir: string) => {
       body: JSON.stringify(body),
     });
 
-  return { getBaseUrl: () => state.baseUrl, post, get, del, parseCookies };
+  const patch = async (path: string, body: unknown, headers?: Record<string, string>) =>
+    fetch(`${state.baseUrl}${path}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json", ...headers },
+      body: JSON.stringify(body),
+    });
+
+  return { getBaseUrl: () => state.baseUrl, post, get, del, patch, parseCookies };
 };

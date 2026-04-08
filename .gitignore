@@ -11,6 +11,13 @@ __screenshots__/
 .vitest-attachments/
 test-results/
 
+# Claude Code (keep CLAUDE.md, settings/, commands/)
+.claude/*
+!.claude/CLAUDE.md
+!.claude/settings/
+!.claude/commands/
+!.claude/rules/
+
 # macOS
 .DS_Store
 .AppleDouble
