@@ -1,4 +1,4 @@
-import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "@effect/platform";
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "@effect/platform";
 import { Schema } from "effect";
 
 import { Forbidden } from "../auth/errors";
@@ -6,6 +6,8 @@ import { NotFound } from "../auth/ownership";
 import { PaginationParams } from "../domain/common";
 import { Conflict } from "../domain/errors";
 import { CreateProjectBody, Project } from "../domain/project";
+
+const idParam = HttpApiSchema.param("id", Schema.String);
 
 export class ProjectsGroup extends HttpApiGroup.make("projects")
   .add(
@@ -36,6 +38,14 @@ export class ProjectsGroup extends HttpApiGroup.make("projects")
           description: "List all projects in the caller's active organization",
         }),
       ),
+  )
+  .add(
+    HttpApiEndpoint.get("get")`/api/projects/${idParam}`.addSuccess(Project).annotateContext(
+      OpenApi.annotations({
+        title: "Get project",
+        description: "Get a single project by ID",
+      }),
+    ),
   )
   .addError(NotFound)
   .addError(Conflict)

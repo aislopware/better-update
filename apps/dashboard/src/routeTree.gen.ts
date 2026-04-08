@@ -21,6 +21,7 @@ import { Route as AuthedAppMembersRouteImport } from './routes/_authed/_app/memb
 import { Route as AuthedAppApiKeysRouteImport } from './routes/_authed/_app/api-keys'
 import { Route as AuthedAppSettingsIndexRouteImport } from './routes/_authed/_app/settings/index'
 import { Route as AuthedAppProjectsIndexRouteImport } from './routes/_authed/_app/projects/index'
+import { Route as AuthedAppProjectsProjectIdIndexRouteImport } from './routes/_authed/_app/projects/$projectId/index'
 
 const AuthedRoute = AuthedRouteImport.update({
   id: '/_authed',
@@ -80,6 +81,12 @@ const AuthedAppProjectsIndexRoute = AuthedAppProjectsIndexRouteImport.update({
   path: '/projects/',
   getParentRoute: () => AuthedAppRoute,
 } as any)
+const AuthedAppProjectsProjectIdIndexRoute =
+  AuthedAppProjectsProjectIdIndexRouteImport.update({
+    id: '/projects/$projectId/',
+    path: '/projects/$projectId/',
+    getParentRoute: () => AuthedAppRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthedAppIndexRoute
@@ -92,6 +99,7 @@ export interface FileRoutesByFullPath {
   '/members': typeof AuthedAppMembersRoute
   '/projects/': typeof AuthedAppProjectsIndexRoute
   '/settings/': typeof AuthedAppSettingsIndexRoute
+  '/projects/$projectId/': typeof AuthedAppProjectsProjectIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof AuthedAppIndexRoute
@@ -104,6 +112,7 @@ export interface FileRoutesByTo {
   '/members': typeof AuthedAppMembersRoute
   '/projects': typeof AuthedAppProjectsIndexRoute
   '/settings': typeof AuthedAppSettingsIndexRoute
+  '/projects/$projectId': typeof AuthedAppProjectsProjectIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -119,6 +128,7 @@ export interface FileRoutesById {
   '/_authed/_app/': typeof AuthedAppIndexRoute
   '/_authed/_app/projects/': typeof AuthedAppProjectsIndexRoute
   '/_authed/_app/settings/': typeof AuthedAppSettingsIndexRoute
+  '/_authed/_app/projects/$projectId/': typeof AuthedAppProjectsProjectIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -133,6 +143,7 @@ export interface FileRouteTypes {
     | '/members'
     | '/projects/'
     | '/settings/'
+    | '/projects/$projectId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -145,6 +156,7 @@ export interface FileRouteTypes {
     | '/members'
     | '/projects'
     | '/settings'
+    | '/projects/$projectId'
   id:
     | '__root__'
     | '/_authed'
@@ -159,6 +171,7 @@ export interface FileRouteTypes {
     | '/_authed/_app/'
     | '/_authed/_app/projects/'
     | '/_authed/_app/settings/'
+    | '/_authed/_app/projects/$projectId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -255,6 +268,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedAppProjectsIndexRouteImport
       parentRoute: typeof AuthedAppRoute
     }
+    '/_authed/_app/projects/$projectId/': {
+      id: '/_authed/_app/projects/$projectId/'
+      path: '/projects/$projectId'
+      fullPath: '/projects/$projectId/'
+      preLoaderRoute: typeof AuthedAppProjectsProjectIdIndexRouteImport
+      parentRoute: typeof AuthedAppRoute
+    }
   }
 }
 
@@ -264,6 +284,7 @@ interface AuthedAppRouteChildren {
   AuthedAppIndexRoute: typeof AuthedAppIndexRoute
   AuthedAppProjectsIndexRoute: typeof AuthedAppProjectsIndexRoute
   AuthedAppSettingsIndexRoute: typeof AuthedAppSettingsIndexRoute
+  AuthedAppProjectsProjectIdIndexRoute: typeof AuthedAppProjectsProjectIdIndexRoute
 }
 
 const AuthedAppRouteChildren: AuthedAppRouteChildren = {
@@ -272,6 +293,7 @@ const AuthedAppRouteChildren: AuthedAppRouteChildren = {
   AuthedAppIndexRoute: AuthedAppIndexRoute,
   AuthedAppProjectsIndexRoute: AuthedAppProjectsIndexRoute,
   AuthedAppSettingsIndexRoute: AuthedAppSettingsIndexRoute,
+  AuthedAppProjectsProjectIdIndexRoute: AuthedAppProjectsProjectIdIndexRoute,
 }
 
 const AuthedAppRouteWithChildren = AuthedAppRoute._addFileChildren(

@@ -9,7 +9,7 @@ import {
 import { Folder02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 
 import { orgsQueryOptions, sessionQueryOptions } from "../../../../queries/auth";
 import { projectsQueryOptions } from "../../../../queries/projects";
@@ -18,24 +18,26 @@ import { CreateProjectDialog } from "./-create-dialog";
 import type { ProjectItem } from "../../../../queries/projects";
 
 const ProjectCard = ({ project }: { project: ProjectItem }) => (
-  <Card>
-    <CardHeader className="pb-2">
-      <div className="flex items-center gap-2">
-        <HugeiconsIcon
-          icon={Folder02Icon}
-          strokeWidth={2}
-          className="text-muted-foreground size-5"
-        />
-        <CardTitle className="text-base">{project.name}</CardTitle>
-      </div>
-      <CardDescription>{project.scopeKey}</CardDescription>
-    </CardHeader>
-    <CardContent>
-      <div className="flex items-center justify-between">
-        <Badge variant="outline">{new Date(project.createdAt).toLocaleDateString()}</Badge>
-      </div>
-    </CardContent>
-  </Card>
+  <Link to="/projects/$projectId" params={{ projectId: project.id }} className="block">
+    <Card className="hover:border-primary/50 transition-colors">
+      <CardHeader className="pb-2">
+        <div className="flex items-center gap-2">
+          <HugeiconsIcon
+            icon={Folder02Icon}
+            strokeWidth={2}
+            className="text-muted-foreground size-5"
+          />
+          <CardTitle className="text-base">{project.name}</CardTitle>
+        </div>
+        <CardDescription>{project.scopeKey}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-center justify-between">
+          <Badge variant="outline">{new Date(project.createdAt).toLocaleDateString()}</Badge>
+        </div>
+      </CardContent>
+    </Card>
+  </Link>
 );
 
 const EmptyState = () => (

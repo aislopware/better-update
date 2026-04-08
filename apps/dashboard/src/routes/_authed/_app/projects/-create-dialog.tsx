@@ -19,9 +19,7 @@ import { toast } from "sonner";
 import { z } from "zod/v4";
 
 import { apiPost, getResponseError } from "../../../../lib/api-client";
-import { generateScopeKey } from "../../../../lib/form-utils";
-
-const nameSchema = z.string().min(1, "Name is required");
+import { generateScopeKey, nameSchema } from "../../../../lib/form-utils";
 const scopeKeySchema = z.string().min(1, "Scope key is required");
 
 const CreateFormContent = ({ orgId, onSuccess }: { orgId: string; onSuccess: () => void }) => {

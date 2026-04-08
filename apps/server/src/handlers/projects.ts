@@ -3,6 +3,7 @@ import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
 import { ManagementApi } from "../api";
+import { assertOrgOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
 import { ProjectRepo } from "../repositories/projects";
 
@@ -49,6 +50,15 @@ export const ProjectsGroupLive = HttpApiBuilder.group(ManagementApi, "projects",
         });
 
         return { items, total, page, limit };
+      }),
+    )
+    .handle("get", ({ path }) =>
+      Effect.gen(function* () {
+        yield* assertPermission("project", "read");
+        const repo = yield* ProjectRepo;
+        const project = yield* repo.findById({ id: path.id });
+        yield* assertOrgOwnership(project.organizationId);
+        return project;
       }),
     ),
 );
