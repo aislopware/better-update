@@ -33,6 +33,8 @@ import { apiKeysQueryOptions } from "../../../queries/api-keys";
 import { orgsQueryOptions, sessionQueryOptions } from "../../../queries/auth";
 import { CreateApiKeyDialog, RevokeDialog } from "./-api-key-dialogs";
 
+import type { ApiKeyItem } from "../../../queries/api-keys";
+
 const maskKey = (start: string | null, prefix: string | null): string => {
   if (start) {
     return `${start}${"*".repeat(8)}`;
@@ -63,14 +65,7 @@ const ApiKeysTable = ({
   apiKeys,
   onRevoke,
 }: {
-  apiKeys: {
-    id: string;
-    name: string | null;
-    start: string | null;
-    prefix: string | null;
-    createdAt: Date | string;
-    expiresAt: Date | string | null;
-  }[];
+  apiKeys: ApiKeyItem[];
   onRevoke: (keyId: string) => void;
 }) => (
   <Table>

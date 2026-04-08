@@ -1,4 +1,10 @@
+import type { ApiKey } from "@better-auth/api-key/types";
 import type { BranchItem, ProjectItem } from "@better-update/api-client/react";
+
+export type ApiKeyResponse = Pick<
+  ApiKey,
+  "id" | "name" | "start" | "prefix" | "createdAt" | "expiresAt"
+>;
 
 export interface SessionResponse {
   user: {
@@ -17,15 +23,6 @@ export interface OrgResponse {
   slug: string;
   logo: string | null;
   createdAt: string;
-}
-
-export interface ApiKeyResponse {
-  id: string;
-  name: string | null;
-  start: string | null;
-  prefix: string | null;
-  createdAt: string;
-  expiresAt: string | null;
 }
 
 export const makeSession = (
@@ -74,7 +71,7 @@ export const makeApiKey = (overrides?: Partial<ApiKeyResponse>): ApiKeyResponse 
   name: "Test Key",
   start: "bu_abc",
   prefix: "bu_",
-  createdAt: "2026-01-01T00:00:00Z",
+  createdAt: new Date("2026-01-01T00:00:00Z"),
   expiresAt: null,
   ...overrides,
 });
