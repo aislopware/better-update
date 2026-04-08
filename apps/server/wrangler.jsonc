@@ -18,6 +18,9 @@
       "id": "<kv-namespace-id>",
     },
   ],
+  "vars": {
+    "ASSET_CDN_URL": "https://assets.better-update.dev",
+  },
   "secrets": {
     "required": [
       "BETTER_AUTH_SECRET",

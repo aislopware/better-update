@@ -1,5 +1,6 @@
 // Root API
 export { ManagementApi } from "./api";
+export { ProtocolApi } from "./protocol-api";
 
 // Auth
 export { AuthContext } from "./auth/context";
@@ -17,7 +18,7 @@ export type {
 
 // Domain schemas
 export { DateTimeString, Id, PaginationParams, Platform } from "./domain/common";
-export { Conflict } from "./domain/errors";
+export { BadRequest, Conflict, NotAcceptable } from "./domain/errors";
 export { CreateProjectBody, Project } from "./domain/project";
 export { Branch, CreateBranchBody, UpdateBranchBody } from "./domain/branch";
 export {
@@ -51,5 +52,6 @@ export { AnalyticsGroup } from "./groups/analytics";
 export { AssetsGroup } from "./groups/assets";
 export { BranchesGroup } from "./groups/branches";
 export { ChannelsGroup } from "./groups/channels";
+export { ManifestGroup } from "./groups/manifest";
 export { ProjectsGroup } from "./groups/projects";
 export { UpdatesGroup } from "./groups/updates";

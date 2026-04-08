@@ -1,0 +1,140 @@
+import { NotFound } from "@better-update/api";
+import { Context, Effect, Layer } from "effect";
+
+import { cloudflareEnv } from "../cloudflare/context";
+
+// -- Row types ---------------------------------------------------------------
+
+export interface ChannelRow {
+  branch_id: string;
+  is_paused: number;
+}
+
+export interface UpdateRow {
+  id: string;
+  branch_id: string;
+  runtime_version: string;
+  platform: string;
+  message: string;
+  metadata_json: string;
+  extra_json: string | null;
+  group_id: string;
+  rollout_percentage: number;
+  is_rollback: number;
+  signature: string | null;
+  certificate_chain: string | null;
+  manifest_body: string | null;
+  directive_body: string | null;
+  created_at: string;
+}
+
+export interface AssetRow {
+  update_id: string;
+  asset_key: string;
+  asset_hash: string;
+  is_launch: number;
+  hash: string;
+  content_type: string;
+  file_ext: string;
+  byte_size: number;
+  r2_key: string;
+  created_at: string;
+}
+
+// -- Port --------------------------------------------------------------------
+
+export interface ManifestRepository {
+  readonly resolveChannel: (params: {
+    readonly projectId: string;
+    readonly channelName: string;
+  }) => Effect.Effect<ChannelRow, NotFound>;
+
+  readonly resolveUpdate: (params: {
+    readonly branchId: string;
+    readonly platform: string;
+    readonly runtimeVersion: string;
+  }) => Effect.Effect<UpdateRow | null>;
+
+  readonly findUpdateAssets: (params: {
+    readonly updateId: string;
+  }) => Effect.Effect<readonly AssetRow[]>;
+
+  readonly findProjectScopeKey: (params: {
+    readonly projectId: string;
+  }) => Effect.Effect<string, NotFound>;
+}
+
+export class ManifestRepo extends Context.Tag("api/ManifestRepo")<
+  ManifestRepo,
+  ManifestRepository
+>() {}
+
+// -- D1 Adapter --------------------------------------------------------------
+
+export const ManifestRepoLive = Layer.succeed(ManifestRepo, {
+  resolveChannel: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+
+      const row = yield* Effect.promise(async () =>
+        env.DB.prepare(
+          `SELECT "branch_id", "is_paused" FROM "channels" WHERE "project_id" = ? AND "name" = ?`,
+        )
+          .bind(params.projectId, params.channelName)
+          .first<ChannelRow>(),
+      );
+
+      if (row === null) {
+        return yield* Effect.fail(new NotFound({ message: "Channel not found" }));
+      }
+
+      return row;
+    }),
+
+  resolveUpdate: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+
+      const row = yield* Effect.promise(async () =>
+        env.DB.prepare(
+          `SELECT "id", "runtime_version", "platform", "is_rollback", "signature", "certificate_chain", "manifest_body", "directive_body", "metadata_json", "extra_json", "rollout_percentage", "created_at" FROM "updates" WHERE "branch_id" = ? AND "platform" = ? AND "runtime_version" = ? ORDER BY "created_at" DESC, "id" DESC LIMIT 1`,
+        )
+          .bind(params.branchId, params.platform, params.runtimeVersion)
+          .first<UpdateRow>(),
+      );
+
+      return row;
+    }),
+
+  findUpdateAssets: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+
+      const rows = yield* Effect.promise(async () =>
+        env.DB.prepare(
+          `SELECT ua."update_id", ua."asset_key", ua."asset_hash", ua."is_launch", a."hash", a."content_type", a."file_ext", a."byte_size", a."r2_key", a."created_at" FROM "update_assets" ua JOIN "assets" a ON ua."asset_hash" = a."hash" WHERE ua."update_id" = ?`,
+        )
+          .bind(params.updateId)
+          .all<AssetRow>(),
+      );
+
+      return rows.results;
+    }),
+
+  findProjectScopeKey: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+
+      const row = yield* Effect.promise(async () =>
+        env.DB.prepare(`SELECT "scope_key" FROM "projects" WHERE "id" = ?`)
+          .bind(params.projectId)
+          .first<{ scope_key: string }>(),
+      );
+
+      if (row === null) {
+        return yield* Effect.fail(new NotFound({ message: "Project not found" }));
+      }
+
+      return row.scope_key;
+    }),
+});
