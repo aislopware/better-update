@@ -1,6 +1,7 @@
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "@effect/platform";
 import { Schema } from "effect";
 
+import { Forbidden } from "../auth/errors";
 import { NotFound } from "../auth/ownership";
 import {
   Channel,
@@ -10,6 +11,7 @@ import {
   UpdateRolloutBody,
 } from "../domain/channel";
 import { Id, PaginationParams } from "../domain/common";
+import { Conflict } from "../domain/errors";
 
 const idParam = HttpApiSchema.param("id", Schema.String);
 
@@ -122,6 +124,8 @@ export class ChannelsGroup extends HttpApiGroup.make("channels")
       ),
   )
   .addError(NotFound)
+  .addError(Conflict)
+  .addError(Forbidden)
   .annotateContext(
     OpenApi.annotations({
       title: "Channels",

@@ -1,6 +1,7 @@
 import { branchesQueryOptions, projectQueryOptions } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@better-update/ui/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@better-update/ui/components/ui/tabs";
 import { ArrowLeft02Icon, GitBranchIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
@@ -9,6 +10,7 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import type { BranchItem } from "@better-update/api-client/react";
 
 import { orgsQueryOptions, sessionQueryOptions } from "../../../../../queries/auth";
+import { ChannelsTab } from "./-channels-tab";
 import { CreateBranchDialog } from "./-create-branch-dialog";
 import { RenameBranchDialog } from "./-rename-branch-dialog";
 
@@ -41,7 +43,7 @@ const BranchCard = ({
   </Card>
 );
 
-const EmptyState = () => (
+const BranchesEmptyState = () => (
   <Card className="border-dashed">
     <CardContent className="flex flex-col items-center justify-center py-12">
       <HugeiconsIcon
@@ -78,24 +80,41 @@ const ProjectDetail = () => {
           <HugeiconsIcon icon={ArrowLeft02Icon} strokeWidth={2} className="size-4" />
           Back to projects
         </Link>
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">{project.name}</h1>
-            <p className="text-muted-foreground mt-1">Manage branches for this project.</p>
-          </div>
-          <CreateBranchDialog orgId={orgId} projectId={projectId} />
+        <div>
+          <h1 className="text-2xl font-bold">{project.name}</h1>
+          <p className="text-muted-foreground mt-1">
+            Manage branches and channels for this project.
+          </p>
         </div>
       </div>
 
-      {branchesData.items.length === 0 ? (
-        <EmptyState />
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
-          {branchesData.items.map((branch) => (
-            <BranchCard key={branch.id} branch={branch} orgId={orgId} projectId={projectId} />
-          ))}
-        </div>
-      )}
+      <Tabs defaultValue="branches">
+        <TabsList>
+          <TabsTrigger value="branches">Branches</TabsTrigger>
+          <TabsTrigger value="channels">Channels</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="branches">
+          <div className="flex flex-col gap-4">
+            <div className="flex justify-end">
+              <CreateBranchDialog orgId={orgId} projectId={projectId} />
+            </div>
+            {branchesData.items.length === 0 ? (
+              <BranchesEmptyState />
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2">
+                {branchesData.items.map((branch) => (
+                  <BranchCard key={branch.id} branch={branch} orgId={orgId} projectId={projectId} />
+                ))}
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="channels">
+          <ChannelsTab orgId={orgId} projectId={projectId} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
