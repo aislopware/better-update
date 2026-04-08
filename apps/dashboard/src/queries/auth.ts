@@ -1,10 +1,13 @@
 import { queryOptions } from "@tanstack/react-query";
 
-import { getOrgsFn, getSessionFn } from "../serverFns/auth";
+import { authClient } from "../lib/auth-client";
 
 export const sessionQueryOptions = queryOptions({
   queryKey: ["auth", "session"],
-  queryFn: async () => getSessionFn(),
+  queryFn: async () => {
+    const { data } = await authClient.getSession();
+    return data;
+  },
   staleTime: 5 * 60 * 1000,
   refetchOnMount: false,
   refetchOnWindowFocus: false,
@@ -12,6 +15,9 @@ export const sessionQueryOptions = queryOptions({
 
 export const orgsQueryOptions = queryOptions({
   queryKey: ["auth", "orgs"],
-  queryFn: async () => getOrgsFn(),
+  queryFn: async () => {
+    const { data } = await authClient.organization.list();
+    return data ?? [];
+  },
   staleTime: 5 * 60 * 1000,
 });

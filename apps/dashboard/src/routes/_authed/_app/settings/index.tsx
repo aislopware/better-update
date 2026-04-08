@@ -34,7 +34,7 @@ const OrgGeneralForm = () => {
   const queryClient = useQueryClient();
   const { data: session } = useSuspenseQuery(sessionQueryOptions);
   const { data: orgs } = useSuspenseQuery(orgsQueryOptions);
-  const activeOrgId = session?.user.activeOrganizationId;
+  const activeOrgId = session?.session.activeOrganizationId;
   const activeOrg = orgs.find((org) => org.id === activeOrgId) ?? orgs[0];
   const slugEdited = useRef(false);
 
@@ -154,7 +154,7 @@ const DeleteOrgSection = () => {
   const queryClient = useQueryClient();
   const { data: session } = useSuspenseQuery(sessionQueryOptions);
   const { data: orgs } = useSuspenseQuery(orgsQueryOptions);
-  const activeOrgId = session?.user.activeOrganizationId;
+  const activeOrgId = session?.session.activeOrganizationId;
   const activeOrg = orgs.find((org) => org.id === activeOrgId) ?? orgs[0];
   const [confirmText, setConfirmText] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);

@@ -1,3 +1,5 @@
+import { getApiError } from "@better-update/api-client";
+import { createBranch } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
@@ -12,7 +14,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { apiPost, getResponseError } from "../../../../../lib/api-client";
 import { BranchNameForm } from "./-branch-name-form";
 
 export const CreateBranchDialog = ({ orgId, projectId }: { orgId: string; projectId: string }) => {
@@ -40,10 +41,11 @@ export const CreateBranchDialog = ({ orgId, projectId }: { orgId: string; projec
           submittingLabel="Creating..."
           submitIcon={Add01Icon}
           onSubmit={async (name) => {
-            const response = await apiPost("/api/branches", { projectId, name });
-
-            if (!response.ok) {
-              toast.error(await getResponseError(response));
+            // eslint-disable-next-line functional/no-try-statements -- imperative shell error handling
+            try {
+              await createBranch({ projectId, name });
+            } catch (error) {
+              toast.error(getApiError(error));
               return;
             }
 

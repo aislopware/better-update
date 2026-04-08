@@ -50,8 +50,6 @@ const subscribeSystemPreference = (onStoreChange: () => void) => {
   };
 };
 
-const getServerSnapshot = (): ResolvedTheme => "light";
-
 export const ThemeProvider = ({
   initialTheme,
   children,
@@ -63,11 +61,7 @@ export const ThemeProvider = ({
 
   const [theme, setTheme] = useState<Theme>(initialTheme ?? "system");
 
-  const systemPreference = useSyncExternalStore(
-    subscribeSystemPreference,
-    getSystemPreference,
-    getServerSnapshot,
-  );
+  const systemPreference = useSyncExternalStore(subscribeSystemPreference, getSystemPreference);
 
   const resolvedTheme = resolveTheme(theme, systemPreference === "dark");
 

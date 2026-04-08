@@ -60,7 +60,6 @@ import { Suspense } from "react";
 import { authClient } from "../../lib/auth-client";
 import { useTheme } from "../../lib/theme-context";
 import { orgsQueryOptions, sessionQueryOptions } from "../../queries/auth";
-import { setActiveOrgFn } from "../../serverFns/auth";
 
 import type { Theme } from "../../lib/theme";
 
@@ -87,7 +86,7 @@ const OrgSwitcher = () => {
   const queryClient = useQueryClient();
   const { data: orgs } = useSuspenseQuery(orgsQueryOptions);
   const { data: session } = useSuspenseQuery(sessionQueryOptions);
-  const activeOrgId = session?.user.activeOrganizationId;
+  const activeOrgId = session?.session.activeOrganizationId;
   const activeOrg = orgs.find((org) => org.id === activeOrgId) ?? orgs[0];
 
   const handleOrgSwitch = async (orgId: string) => {
@@ -310,11 +309,11 @@ export const Route = createFileRoute("/_authed/_app")({
       throw redirect({ to: "/onboarding" });
     }
 
-    const activeOrgId = context.session?.user.activeOrganizationId;
+    const activeOrgId = context.session?.session.activeOrganizationId;
     const activeOrg = context.orgs.find((org) => org.id === activeOrgId);
 
     if (!activeOrg) {
-      await setActiveOrgFn({ data: { organizationId: firstOrg.id } });
+      await authClient.organization.setActive({ organizationId: firstOrg.id });
     }
 
     return { activeOrg: activeOrg ?? firstOrg };

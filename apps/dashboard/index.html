@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard</title>
+    <script>
+      (function () {
+        var c = document.cookie.match(/(?:^|;\s*)theme=([\w]+)/);
+        var t = c && c[1];
+        var d = document.documentElement;
+        if (
+          t === "dark" ||
+          ((!t || t === "system") && matchMedia("(prefers-color-scheme:dark)").matches)
+        ) {
+          d.classList.add("dark");
+        } else {
+          d.classList.remove("dark");
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

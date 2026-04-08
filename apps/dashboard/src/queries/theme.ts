@@ -1,10 +1,10 @@
 import { queryOptions } from "@tanstack/react-query";
 
-import { getThemeFn } from "../serverFns/theme";
+import { getThemeFromCookie } from "../lib/theme";
 
 export const themeQueryOptions = queryOptions({
   queryKey: ["theme"],
-  queryFn: async () => getThemeFn(),
+  queryFn: () => getThemeFromCookie(),
   staleTime: Number.POSITIVE_INFINITY,
   refetchOnMount: false,
   refetchOnWindowFocus: false,

@@ -1,3 +1,4 @@
+import { branchesQueryOptions, projectQueryOptions } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@better-update/ui/components/ui/card";
 import { ArrowLeft02Icon, GitBranchIcon } from "@hugeicons/core-free-icons";
@@ -5,13 +6,11 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 
+import type { BranchItem } from "@better-update/api-client/react";
+
 import { orgsQueryOptions, sessionQueryOptions } from "../../../../../queries/auth";
-import { branchesQueryOptions } from "../../../../../queries/branches";
-import { projectQueryOptions } from "../../../../../queries/project";
 import { CreateBranchDialog } from "./-create-branch-dialog";
 import { RenameBranchDialog } from "./-rename-branch-dialog";
-
-import type { BranchItem } from "../../../../../queries/branches";
 
 const BranchCard = ({
   branch,
@@ -62,7 +61,7 @@ const ProjectDetail = () => {
   const { projectId } = Route.useParams();
   const { data: session } = useSuspenseQuery(sessionQueryOptions);
   const { data: orgs } = useSuspenseQuery(orgsQueryOptions);
-  const activeOrgId = session?.user.activeOrganizationId ?? "";
+  const activeOrgId = session?.session.activeOrganizationId ?? "";
   const activeOrg = orgs.find((org) => org.id === activeOrgId) ?? orgs[0];
   const orgId = activeOrg?.id ?? "";
 

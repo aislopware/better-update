@@ -3,10 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@better-update/ui/comp
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { screen } from "@testing-library/react";
 
+import type { BranchItem } from "@better-update/api-client/react";
+
 import { makeBranch, makeOrg, makeSession } from "../../../../../../tests/helpers/fixtures";
 import { renderWithQuery } from "../../../../../../tests/helpers/render-with-query";
-
-import type { BranchItem } from "../../../../../queries/branches";
 
 /**
  * These tests verify the rendering patterns of the branches page.
@@ -46,7 +46,7 @@ const BranchesTestPage = () => {
     queryFn: async () => [] as ReturnType<typeof makeOrg>[],
   });
 
-  const activeOrgId = session?.user.activeOrganizationId ?? "";
+  const activeOrgId = session?.session.activeOrganizationId ?? "";
   const activeOrg = orgs.find((org) => org.id === activeOrgId) ?? orgs[0];
   const orgId = activeOrg?.id ?? "";
 

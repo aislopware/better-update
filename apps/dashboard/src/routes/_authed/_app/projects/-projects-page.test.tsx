@@ -51,7 +51,7 @@ const ProjectsTestPage = () => {
     queryFn: async () => [] as ReturnType<typeof makeOrg>[],
   });
 
-  const activeOrgId = session?.user.activeOrganizationId ?? "";
+  const activeOrgId = session?.session.activeOrganizationId ?? "";
   const activeOrg = orgs.find((org) => org.id === activeOrgId) ?? orgs[0];
   const orgId = activeOrg?.id ?? "";
 
