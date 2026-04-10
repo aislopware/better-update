@@ -11,7 +11,14 @@ interface BranchMapping {
 }
 
 const isBranchMapping = (value: unknown): value is BranchMapping =>
-  typeof value === "object" && value !== null && "data" in value && "salt" in value;
+  typeof value === "object" &&
+  value !== null &&
+  "data" in value &&
+  // eslint-disable-next-line typescript/no-unsafe-type-assertion -- checked "data" in value above
+  Array.isArray((value as BranchMapping).data) &&
+  "salt" in value &&
+  // eslint-disable-next-line typescript/no-unsafe-type-assertion -- checked "salt" in value above
+  typeof (value as BranchMapping).salt === "string";
 
 const emptyMapping: BranchMapping = { data: [], salt: "" };
 
@@ -43,11 +50,18 @@ export const buildBranchMapping = (params: {
 
 export const updateBranchMappingPercentage = (existing: string, percentage: number): string => {
   const mapping = parseBranchMapping(existing);
-  const [first] = mapping.data;
-  if (first) {
-    first.branchMappingLogic = `hash_lt(mappingId, ${(percentage / 100).toFixed(2)})`;
+  const [first, ...rest] = mapping.data;
+  if (!first) {
+    return JSON.stringify(mapping);
   }
-  return JSON.stringify(mapping);
+  const updated: BranchMapping = {
+    ...mapping,
+    data: [
+      { ...first, branchMappingLogic: `hash_lt(mappingId, ${(percentage / 100).toFixed(2)})` },
+      ...rest,
+    ],
+  };
+  return JSON.stringify(updated);
 };
 
 export const extractNewBranchId = (branchMappingJson: string): string => {
