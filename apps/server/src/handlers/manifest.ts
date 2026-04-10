@@ -103,8 +103,9 @@ const buildCacheKey = (params: {
   readonly runtimeVersion: string;
   readonly resolvedBranchId: string;
   readonly multipart: boolean;
+  readonly expectSignature: boolean;
 }) =>
-  `https://cache.internal/_cache/v${params.cacheVersion}/manifest/${params.projectId}/${params.channelName}/${params.platform}/${params.runtimeVersion}/${params.resolvedBranchId}/${params.multipart ? "mp" : "json"}`;
+  `https://cache.internal/_cache/v${params.cacheVersion}/manifest/${params.projectId}/${params.channelName}/${params.platform}/${params.runtimeVersion}/${params.resolvedBranchId}/${params.multipart ? "mp" : "json"}/${params.expectSignature ? "sig" : "nosig"}`;
 
 const toCacheEntry = (
   response: Response,
@@ -282,29 +283,29 @@ const buildUpdateResponse = (params: {
 
 // -- Cache check (extracted to stay within max-statements) -------------------
 
-const checkCache = (cacheKey: string) =>
-  Effect.gen(function* () {
-    const cache = yield* Effect.promise(async () => caches.open(CACHE_NAME));
-    return yield* Effect.promise(async () => cache.match(cacheKey));
-  });
+const openCache = () => Effect.promise(async () => caches.open(CACHE_NAME));
 
-const isCacheable = (candidates: readonly UpdateRow[], update: UpdateRow) =>
-  update.rollout_percentage === 100 || candidates.length === 1;
+const checkCache = (cache: Cache, cacheKey: string) =>
+  Effect.promise(async () => cache.match(cacheKey));
+
+const isCacheable = (candidates: readonly UpdateRow[]) =>
+  candidates.every((candidate) => candidate.rollout_percentage === 100);
 
 const storeInCache = (
+  cache: Cache,
   cacheKey: string,
   response: Response,
   meta: { readonly updateId: string; readonly responseType: ResponseType },
 ) =>
   Effect.gen(function* () {
     const ctx = yield* cloudflareCtx;
-    const cache = yield* Effect.promise(async () => caches.open(CACHE_NAME));
     ctx.waitUntil(cache.put(cacheKey, toCacheEntry(response, meta)));
   });
 
 // -- Cache-miss resolution (extracted to stay within max-statements) ---------
 
 const handleCacheMiss = (params: {
+  readonly cache: Cache;
   readonly projectId: string;
   readonly resolvedBranchId: string;
   readonly cacheKey: string;
@@ -312,7 +313,7 @@ const handleCacheMiss = (params: {
   readonly track: (branchId: string, updateId: string, responseType: ResponseType) => void;
 }): Effect.Effect<Response, NotFound, ManifestRepo> =>
   Effect.gen(function* () {
-    const { projectId, resolvedBranchId, cacheKey, ph, track } = params;
+    const { cache, projectId, resolvedBranchId, cacheKey, ph, track } = params;
     const repo = yield* ManifestRepo;
 
     const [scopeKey, candidates] = yield* Effect.all(
@@ -348,8 +349,8 @@ const handleCacheMiss = (params: {
     const responseType: ResponseType = update.is_rollback === 1 ? "directive" : "manifest";
     track(resolvedBranchId, update.id, responseType);
 
-    if (response.status === 200 && isCacheable(candidates, update)) {
-      yield* storeInCache(cacheKey, response, { updateId: update.id, responseType });
+    if (response.status === 200 && isCacheable(candidates)) {
+      yield* storeInCache(cache, cacheKey, response, { updateId: update.id, responseType });
     }
 
     return response;
@@ -402,8 +403,10 @@ const serve = (request: Request, projectId: string): Effect.Effect<Response, nev
       runtimeVersion: ph.runtimeVersion,
       resolvedBranchId,
       multipart: supportsMultipart(ph.accept ?? "*/*"),
+      expectSignature: Boolean(ph.expectSignature),
     });
-    const cached = yield* checkCache(cacheKey);
+    const cache = yield* openCache();
+    const cached = yield* checkCache(cache, cacheKey);
     if (cached) {
       const updateId = cached.headers.get("x-cache-update-id") ?? "";
       // eslint-disable-next-line typescript/no-unsafe-type-assertion -- internal header written by toCacheEntry
@@ -413,7 +416,7 @@ const serve = (request: Request, projectId: string): Effect.Effect<Response, nev
       return fromCacheEntry(cached);
     }
 
-    return yield* handleCacheMiss({ projectId, resolvedBranchId, cacheKey, ph, track });
+    return yield* handleCacheMiss({ cache, projectId, resolvedBranchId, cacheKey, ph, track });
   }).pipe(
     // eslint-disable-next-line promise/prefer-await-to-callbacks -- Effect error handler, not a callback
     Effect.catchTag("BadRequest", (err) =>

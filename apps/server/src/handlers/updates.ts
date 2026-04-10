@@ -79,7 +79,7 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
         }
 
         // Create update with assets
-        return yield* updateRepo.insert({
+        const result = yield* updateRepo.insert({
           branchId: branch.id,
           runtimeVersion: payload.runtimeVersion,
           platform: payload.platform,
@@ -95,6 +95,11 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
           directiveBody: payload.directiveBody ?? null,
           assets: payload.assets,
         });
+
+        const channelRepo = yield* ChannelRepo;
+        yield* channelRepo.bumpCacheVersionByBranch({ branchId: branch.id });
+
+        return result;
       }),
     )
     .handle("list", ({ urlParams }) =>
@@ -136,7 +141,12 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
         const branch = yield* branchRepo.findById({ id: firstUpdate.branchId });
         yield* assertProjectOwnership(branch.projectId);
 
-        return yield* updateRepo.deleteGroup({ groupId: path.groupId });
+        const result = yield* updateRepo.deleteGroup({ groupId: path.groupId });
+
+        const channelRepo = yield* ChannelRepo;
+        yield* channelRepo.bumpCacheVersionByBranch({ branchId: firstUpdate.branchId });
+
+        return result;
       }),
     )
     .handle("republish", ({ payload }) =>
@@ -178,7 +188,7 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
         // Get source update's assets via update_assets table
         const sourceAssets = yield* getUpdateAssets(sourceUpdate.id);
 
-        return yield* updateRepo.insert({
+        const result = yield* updateRepo.insert({
           branchId: targetChannel.branchId,
           runtimeVersion: sourceUpdate.runtimeVersion,
           platform: sourceUpdate.platform,
@@ -194,6 +204,10 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
           directiveBody: sourceUpdate.directiveBody,
           assets: sourceAssets,
         });
+
+        yield* channelRepo.bumpCacheVersionByBranch({ branchId: targetChannel.branchId });
+
+        return result;
       }),
     )
     .handle("editRollout", ({ path, payload }) =>
@@ -208,6 +222,10 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
         yield* assertProjectOwnership(branch.projectId);
 
         yield* updateRepo.updateRollout({ id: path.id, percentage: payload.percentage });
+
+        const channelRepo = yield* ChannelRepo;
+        yield* channelRepo.bumpCacheVersionByBranch({ branchId: update.branchId });
+
         return yield* updateRepo.findById({ id: path.id });
       }),
     )
@@ -223,6 +241,10 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
         yield* assertProjectOwnership(branch.projectId);
 
         yield* updateRepo.updateRollout({ id: path.id, percentage: 100 });
+
+        const channelRepo = yield* ChannelRepo;
+        yield* channelRepo.bumpCacheVersionByBranch({ branchId: update.branchId });
+
         return yield* updateRepo.findById({ id: path.id });
       }),
     )
@@ -238,6 +260,10 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
         yield* assertProjectOwnership(branch.projectId);
 
         yield* updateRepo.updateRollout({ id: path.id, percentage: 0 });
+
+        const channelRepo = yield* ChannelRepo;
+        yield* channelRepo.bumpCacheVersionByBranch({ branchId: update.branchId });
+
         return yield* updateRepo.findById({ id: path.id });
       }),
     ),

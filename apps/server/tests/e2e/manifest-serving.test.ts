@@ -486,6 +486,94 @@ describe("Manifest caching", () => {
     expect(response.headers.get("x-cache-update-id")).toBeNull();
     expect(response.headers.get("x-cache-response-type")).toBeNull();
   });
+
+  it("does not cache partial rollout responses (cache poisoning prevention)", async () => {
+    // Two clients hitting the same per-update rollout channel should get different updates
+    // because the 50% rollout is non-deterministic per client ID.
+    // If the first response were cached, the second client would incorrectly get the same.
+    const inRollout = await manifestGet(
+      "proj-1",
+      protocolHeaders({
+        "expo-runtime-version": "6.0.0",
+        "expo-channel-name": "update-rollout",
+        "eas-client-id": "client-in-rollout",
+      }),
+    );
+    expect(inRollout.status).toBe(200);
+    const inBody = await inRollout.text();
+    const inParts = parseMultipart(inRollout.headers.get("content-type")!, inBody);
+    const inManifest = inParts.find((p) =>
+      p.headers["content-disposition"]?.includes('name="manifest"'),
+    );
+    expect(inManifest).toBeDefined();
+    const inId = JSON.parse(inManifest!.body).id;
+
+    const outRollout = await manifestGet(
+      "proj-1",
+      protocolHeaders({
+        "expo-runtime-version": "6.0.0",
+        "expo-channel-name": "update-rollout",
+        "eas-client-id": "client-out-rollout",
+      }),
+    );
+    expect(outRollout.status).toBe(200);
+    const outBody = await outRollout.text();
+    const outParts = parseMultipart(outRollout.headers.get("content-type")!, outBody);
+    const outManifest = outParts.find((p) =>
+      p.headers["content-disposition"]?.includes('name="manifest"'),
+    );
+    expect(outManifest).toBeDefined();
+    const outId = JSON.parse(outManifest!.body).id;
+
+    // The two clients must get different updates, proving no cache poisoning
+    expect(inId).not.toBe(outId);
+  });
+
+  it("signed and unsigned requests produce separate cache entries", async () => {
+    // Request without signature
+    const unsigned = await manifestGet(
+      "proj-1",
+      protocolHeaders({ "expo-runtime-version": "3.0.0" }),
+    );
+    expect(unsigned.status).toBe(200);
+    const unsignedBody = await unsigned.text();
+    const unsignedParts = parseMultipart(unsigned.headers.get("content-type")!, unsignedBody);
+    const unsignedManifest = unsignedParts.find((p) =>
+      p.headers["content-disposition"]?.includes('name="manifest"'),
+    );
+    expect(unsignedManifest).toBeDefined();
+    // Unsigned response should NOT have expo-signature on the manifest part
+    expect(unsignedManifest!.headers["expo-signature"]).toBeUndefined();
+    // Unsigned response should NOT have certificate_chain part
+    const unsignedCert = unsignedParts.find((p) =>
+      p.headers["content-disposition"]?.includes('name="certificate_chain"'),
+    );
+    expect(unsignedCert).toBeUndefined();
+
+    // Request with signature
+    const signed = await manifestGet(
+      "proj-1",
+      protocolHeaders({
+        "expo-runtime-version": "3.0.0",
+        "expo-expect-signature": "true",
+      }),
+    );
+    expect(signed.status).toBe(200);
+    const signedBody = await signed.text();
+    const signedParts = parseMultipart(signed.headers.get("content-type")!, signedBody);
+    const signedManifest = signedParts.find((p) =>
+      p.headers["content-disposition"]?.includes('name="manifest"'),
+    );
+    expect(signedManifest).toBeDefined();
+    // Signed response MUST have expo-signature on the manifest part
+    expect(signedManifest!.headers["expo-signature"]).toBe("sig=test-signature");
+    // Signed response MUST have certificate_chain part
+    const signedCert = signedParts.find((p) =>
+      p.headers["content-disposition"]?.includes('name="certificate_chain"'),
+    );
+    expect(signedCert).toBeDefined();
+    expect(signedCert!.body).toContain("BEGIN CERTIFICATE");
+  });
 });
 
 // ── Per-update rollout resolution tests ──────────────────────────
