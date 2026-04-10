@@ -124,7 +124,7 @@ const ProjectDetail = () => {
         </TabsContent>
 
         <TabsContent value="analytics">
-          <AnalyticsTab orgId={orgId} projectId={projectId} />
+          <AnalyticsTab projectId={projectId} />
         </TabsContent>
       </Tabs>
     </div>

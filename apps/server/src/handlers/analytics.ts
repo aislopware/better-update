@@ -2,6 +2,8 @@ import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
 import { ManagementApi } from "../api";
+import { assertProjectOwnership } from "../auth/ownership";
+import { assertPermission } from "../auth/permissions";
 import { queryAnalyticsEngine } from "../cloudflare/analytics-engine";
 
 const sanitize = (value: string): string => value.replaceAll("'", "''");
@@ -14,6 +16,8 @@ export const AnalyticsGroupLive = HttpApiBuilder.group(ManagementApi, "analytics
   handlers
     .handle("adoption", ({ urlParams: { projectId, period } }) =>
       Effect.gen(function* () {
+        yield* assertPermission("project", "read");
+        yield* assertProjectOwnership(projectId);
         const pid = sanitize(projectId);
         const days = periodToDays(period);
 
@@ -45,6 +49,8 @@ export const AnalyticsGroupLive = HttpApiBuilder.group(ManagementApi, "analytics
     )
     .handle("updates", ({ urlParams: { projectId, updateId, period } }) =>
       Effect.gen(function* () {
+        yield* assertPermission("project", "read");
+        yield* assertProjectOwnership(projectId);
         const pid = sanitize(projectId);
         const uid = sanitize(updateId);
         const days = periodToDays(period);
@@ -61,7 +67,7 @@ export const AnalyticsGroupLive = HttpApiBuilder.group(ManagementApi, "analytics
             queryAnalyticsEngine(`
               SELECT toStartOfHour(timestamp) AS hour, SUM(_sample_interval) AS requests
               FROM update_events
-              WHERE blob1 = '${pid}' AND blob4 = '${uid}' AND blob7 = 'manifest'
+              WHERE blob1 = '${pid}' AND blob4 = '${uid}'
                 AND timestamp > NOW() - INTERVAL '${days}' DAY
               GROUP BY hour
               ORDER BY hour ASC
@@ -103,6 +109,8 @@ export const AnalyticsGroupLive = HttpApiBuilder.group(ManagementApi, "analytics
     )
     .handle("channels", ({ urlParams: { projectId, channel, period } }) =>
       Effect.gen(function* () {
+        yield* assertPermission("project", "read");
+        yield* assertProjectOwnership(projectId);
         const pid = sanitize(projectId);
         const ch = sanitize(channel);
         const days = periodToDays(period);
@@ -146,6 +154,8 @@ export const AnalyticsGroupLive = HttpApiBuilder.group(ManagementApi, "analytics
     )
     .handle("platforms", ({ urlParams: { projectId, period } }) =>
       Effect.gen(function* () {
+        yield* assertPermission("project", "read");
+        yield* assertProjectOwnership(projectId);
         const pid = sanitize(projectId);
         const days = periodToDays(period);
 

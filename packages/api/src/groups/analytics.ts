@@ -1,5 +1,7 @@
 import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "@effect/platform";
 
+import { Forbidden } from "../auth/errors";
+import { NotFound } from "../auth/ownership";
 import {
   AdoptionParams,
   AdoptionResult,
@@ -56,6 +58,8 @@ export class AnalyticsGroup extends HttpApiGroup.make("analytics")
         }),
       ),
   )
+  .addError(NotFound)
+  .addError(Forbidden)
   .annotateContext(
     OpenApi.annotations({
       title: "Analytics",

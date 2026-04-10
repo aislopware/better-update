@@ -242,32 +242,6 @@ const buildUpdateResponse = (params: {
     });
   });
 
-// -- Analytics ---------------------------------------------------------------
-
-const trackAnalytics = (params: {
-  readonly env: Env;
-  readonly projectId: string;
-  readonly ph: ProtocolHeaders;
-  readonly branchId: string;
-  readonly updateId: string;
-  readonly responseType: ResponseType;
-  readonly resolutionMs: number;
-}) => {
-  params.env.ANALYTICS.writeDataPoint({
-    indexes: [`${params.projectId}:${params.ph.easClientId ?? "anonymous"}`],
-    blobs: [
-      params.projectId,
-      params.ph.channelName,
-      params.branchId,
-      params.updateId,
-      params.ph.platform,
-      params.ph.runtimeVersion,
-      params.responseType,
-    ],
-    doubles: [params.resolutionMs, 0],
-  });
-};
-
 // -- Resolution program ------------------------------------------------------
 
 const serve = (request: Request, projectId: string): Effect.Effect<Response, never, ManifestRepo> =>
@@ -275,6 +249,23 @@ const serve = (request: Request, projectId: string): Effect.Effect<Response, nev
     const startTime = Date.now();
     const env = yield* cloudflareEnv;
     const ph = yield* parseProtocolHeaders(request.headers);
+
+    const track = (branchId: string, updateId: string, responseType: ResponseType) => {
+      env.ANALYTICS.writeDataPoint({
+        indexes: [`${projectId}:${ph.easClientId ?? crypto.randomUUID()}`],
+        blobs: [
+          projectId,
+          ph.channelName,
+          branchId,
+          updateId,
+          ph.platform,
+          ph.runtimeVersion,
+          responseType,
+        ],
+        doubles: [Date.now() - startTime, 0],
+      });
+    };
+
     const accept = ph.accept ?? "*/*";
     if (!supportsAny(accept)) {
       return jsonError(406, "NOT_ACCEPTABLE", "Supported: multipart/mixed, application/expo+json");
@@ -290,15 +281,7 @@ const serve = (request: Request, projectId: string): Effect.Effect<Response, nev
     );
 
     if (channel.is_paused === 1) {
-      trackAnalytics({
-        env,
-        projectId,
-        ph,
-        branchId: channel.branch_id,
-        updateId: "",
-        responseType: "no_update",
-        resolutionMs: Date.now() - startTime,
-      });
+      track(channel.branch_id, "", "no_update");
       return noContent();
     }
 
@@ -310,15 +293,7 @@ const serve = (request: Request, projectId: string): Effect.Effect<Response, nev
     });
 
     if (candidates.length === 0) {
-      trackAnalytics({
-        env,
-        projectId,
-        ph,
-        branchId: resolvedBranchId,
-        updateId: "",
-        responseType: "no_update",
-        resolutionMs: Date.now() - startTime,
-      });
+      track(resolvedBranchId, "", "no_update");
       return noContent();
     }
 
@@ -331,28 +306,12 @@ const serve = (request: Request, projectId: string): Effect.Effect<Response, nev
       runtimeVersion: ph.runtimeVersion,
     });
     if (update === null) {
-      trackAnalytics({
-        env,
-        projectId,
-        ph,
-        branchId: resolvedBranchId,
-        updateId: "",
-        responseType: "no_update",
-        resolutionMs: Date.now() - startTime,
-      });
+      track(resolvedBranchId, "", "no_update");
       return noContent();
     }
 
     const response = yield* buildUpdateResponse({ update, scopeKey, ph });
-    trackAnalytics({
-      env,
-      projectId,
-      ph,
-      branchId: resolvedBranchId,
-      updateId: update.id,
-      responseType: update.is_rollback === 1 ? "directive" : "manifest",
-      resolutionMs: Date.now() - startTime,
-    });
+    track(resolvedBranchId, update.id, update.is_rollback === 1 ? "directive" : "manifest");
     return response;
   }).pipe(
     // eslint-disable-next-line promise/prefer-await-to-callbacks -- Effect error handler, not a callback
