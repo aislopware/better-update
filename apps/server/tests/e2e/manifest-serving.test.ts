@@ -55,6 +55,25 @@ VALUES ('signed-hash', 'application/javascript', 'js', 512, 'assets/signed-hash'
 
 INSERT INTO "update_assets" ("update_id", "asset_key", "asset_hash", "is_launch")
 VALUES ('update-signed', 'bundle', 'signed-hash', 1);
+
+-- Rollout test data: two branches, channel with branch_mapping_json
+INSERT INTO "branches" ("id", "project_id", "name", "created_at")
+VALUES ('branch-rollout-old', 'proj-1', 'rollout-old', '2024-04-01T00:00:00.000Z');
+
+INSERT INTO "branches" ("id", "project_id", "name", "created_at")
+VALUES ('branch-rollout-new', 'proj-1', 'rollout-new', '2024-04-01T00:00:00.000Z');
+
+INSERT INTO "channels" ("id", "project_id", "name", "branch_id", "branch_mapping_json", "is_paused", "created_at")
+VALUES ('chan-rollout', 'proj-1', 'rollout', 'branch-rollout-old', '{"data":[{"branchId":"branch-rollout-new","branchMappingLogic":"hash_lt(mappingId, 0.50)"},{"branchId":"branch-rollout-old","branchMappingLogic":"true"}],"salt":"test-salt"}', 0, '2024-04-01T00:00:00.000Z');
+
+INSERT INTO "channels" ("id", "project_id", "name", "branch_id", "is_paused", "created_at")
+VALUES ('chan-no-rollout', 'proj-1', 'no-rollout', 'branch-rollout-old', 0, '2024-04-01T00:00:00.000Z');
+
+INSERT INTO "updates" ("id", "branch_id", "runtime_version", "platform", "message", "metadata_json", "group_id", "is_rollback", "manifest_body", "created_at")
+VALUES ('update-rollout-old', 'branch-rollout-old', '5.0.0', 'ios', 'old branch update', '{}', 'group-ro-1', 0, '{"id":"update-rollout-old","createdAt":"2024-04-01T00:00:00.000Z","runtimeVersion":"5.0.0","launchAsset":null,"assets":[],"metadata":{},"extra":{"scopeKey":"@test/my-app"}}', '2024-04-01T00:00:00.000Z');
+
+INSERT INTO "updates" ("id", "branch_id", "runtime_version", "platform", "message", "metadata_json", "group_id", "is_rollback", "manifest_body", "created_at")
+VALUES ('update-rollout-new', 'branch-rollout-new', '5.0.0', 'ios', 'new branch update', '{}', 'group-ro-2', 0, '{"id":"update-rollout-new","createdAt":"2024-04-02T00:00:00.000Z","runtimeVersion":"5.0.0","launchAsset":null,"assets":[],"metadata":{},"extra":{"scopeKey":"@test/my-app"}}', '2024-04-02T00:00:00.000Z');
 `;
 
 beforeAll(() => {
@@ -323,5 +342,101 @@ describe("Manifest serving protocol", () => {
     const notFound = await manifestGet("nonexistent", protocolHeaders());
     expect(notFound.headers.get("expo-protocol-version")).toBe("1");
     expect(notFound.headers.get("expo-sfv-version")).toBe("0");
+  });
+});
+
+// ── Branch mapping / rollout resolution tests ──────────────────
+
+const rolloutHeaders = (overrides?: Record<string, string>) =>
+  protocolHeaders({
+    "expo-runtime-version": "5.0.0",
+    "expo-channel-name": "rollout",
+    ...overrides,
+  });
+
+describe("Rollout manifest resolution", () => {
+  // With salt "test-salt":
+  // - "client-above-threshold" hashes to ~0.471 (below 0.50 -> gets NEW branch)
+  // - "client-below-threshold" hashes to ~0.777 (above 0.50 -> gets OLD branch)
+
+  it("serves new branch update for client in rollout group", async () => {
+    const response = await manifestGet(
+      "proj-1",
+      rolloutHeaders({
+        "eas-client-id": "client-above-threshold",
+      }),
+    );
+    expect(response.status).toBe(200);
+
+    const contentType = response.headers.get("content-type")!;
+    const body = await response.text();
+    const parts = parseMultipart(contentType, body);
+
+    const manifestPart = parts.find((part) =>
+      part.headers["content-disposition"]?.includes('name="manifest"'),
+    );
+    expect(manifestPart).toBeDefined();
+    const manifest = JSON.parse(manifestPart!.body);
+    expect(manifest.id).toBe("update-rollout-new");
+  });
+
+  it("serves old branch update for client NOT in rollout group", async () => {
+    const response = await manifestGet(
+      "proj-1",
+      rolloutHeaders({
+        "eas-client-id": "client-below-threshold",
+      }),
+    );
+    expect(response.status).toBe(200);
+
+    const contentType = response.headers.get("content-type")!;
+    const body = await response.text();
+    const parts = parseMultipart(contentType, body);
+
+    const manifestPart = parts.find((part) =>
+      part.headers["content-disposition"]?.includes('name="manifest"'),
+    );
+    expect(manifestPart).toBeDefined();
+    const manifest = JSON.parse(manifestPart!.body);
+    expect(manifest.id).toBe("update-rollout-old");
+  });
+
+  it("serves fallback (old) branch update when no EAS-Client-ID header", async () => {
+    const response = await manifestGet("proj-1", rolloutHeaders());
+    expect(response.status).toBe(200);
+
+    const contentType = response.headers.get("content-type")!;
+    const body = await response.text();
+    const parts = parseMultipart(contentType, body);
+
+    const manifestPart = parts.find((part) =>
+      part.headers["content-disposition"]?.includes('name="manifest"'),
+    );
+    expect(manifestPart).toBeDefined();
+    const manifest = JSON.parse(manifestPart!.body);
+    expect(manifest.id).toBe("update-rollout-old");
+  });
+
+  it("resolves normally when no rollout is active (branch_mapping_json is NULL)", async () => {
+    const response = await manifestGet(
+      "proj-1",
+      protocolHeaders({
+        "expo-runtime-version": "5.0.0",
+        "expo-channel-name": "no-rollout",
+        "eas-client-id": "any-client-id",
+      }),
+    );
+    expect(response.status).toBe(200);
+
+    const contentType = response.headers.get("content-type")!;
+    const body = await response.text();
+    const parts = parseMultipart(contentType, body);
+
+    const manifestPart = parts.find((part) =>
+      part.headers["content-disposition"]?.includes('name="manifest"'),
+    );
+    expect(manifestPart).toBeDefined();
+    const manifest = JSON.parse(manifestPart!.body);
+    expect(manifest.id).toBe("update-rollout-old");
   });
 });

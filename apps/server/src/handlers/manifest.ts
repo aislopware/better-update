@@ -1,6 +1,7 @@
 import { Effect } from "effect";
 
 import { cloudflareEnv } from "../cloudflare/context";
+import { evaluateBranchMapping } from "../domain/branch-mapping";
 import { parseProtocolHeaders } from "../protocol/headers";
 import { buildDirective, buildExtensions, buildManifest } from "../protocol/manifest-builder";
 import { encodeMultipart } from "../protocol/multipart";
@@ -8,7 +9,7 @@ import { ManifestRepo, ManifestRepoLive } from "../repositories/manifest";
 
 import type { ProtocolHeaders } from "../protocol/headers";
 import type { Part } from "../protocol/multipart";
-import type { AssetRow, UpdateRow } from "../repositories/manifest";
+import type { AssetRow, ChannelRow, UpdateRow } from "../repositories/manifest";
 
 // -- Common protocol headers (required on ALL responses) ---------------------
 
@@ -148,6 +149,15 @@ const buildManifestFromData = (params: {
   ]);
 };
 
+// -- Branch resolution -------------------------------------------------------
+
+const resolveBranchId = (channel: ChannelRow, easClientId: string | undefined) => {
+  const { branch_mapping_json: mapping } = channel;
+  return mapping
+    ? Effect.promise(async () => evaluateBranchMapping(mapping, easClientId))
+    : Effect.succeed(channel.branch_id);
+};
+
 // -- Resolution program ------------------------------------------------------
 
 const serve = (request: Request, projectId: string): Effect.Effect<Response, never, ManifestRepo> =>
@@ -172,7 +182,7 @@ const serve = (request: Request, projectId: string): Effect.Effect<Response, nev
     }
 
     const update = yield* repo.resolveUpdate({
-      branchId: channel.branch_id,
+      branchId: yield* resolveBranchId(channel, ph.easClientId),
       platform: ph.platform,
       runtimeVersion: ph.runtimeVersion,
     });
