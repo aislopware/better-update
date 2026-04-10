@@ -466,4 +466,100 @@ describe("Updates & Assets API flow", () => {
     expect(body).toHaveProperty("items");
     expect(body.items.every((u: { groupId: string }) => u.groupId !== "group-1")).toBe(true);
   });
+
+  // ── Section 10: Same-runtime publish blocking ─────────────────
+
+  /* eslint-disable functional/no-let -- mutable publish-blocking test state */
+  let blockingBranchId: string;
+  let blockingUpdateId: string;
+  /* eslint-enable functional/no-let */
+
+  it("creates branch for publish-blocking test", async () => {
+    const response = await post(
+      "/api/branches",
+      { projectId, name: "blocking-test" },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    blockingBranchId = body.id;
+  });
+
+  it("creates channel for publish-blocking test", async () => {
+    const response = await post(
+      "/api/channels",
+      { projectId, name: "blocking-channel", branchId: blockingBranchId },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(201);
+  });
+
+  it("creates update with partial rollout (50%)", async () => {
+    const response = await post(
+      "/api/updates",
+      {
+        project: "@updates/test",
+        branch: "blocking-test",
+        runtimeVersion: "2.0.0",
+        platform: "ios",
+        message: "Canary release",
+        groupId: "group-blocking-1",
+        metadata: {},
+        rolloutPercentage: 50,
+        assets: [{ hash: "abc123def456", key: "bundles/ios.js", isLaunch: true }],
+      },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    expect(body.rolloutPercentage).toBe(50);
+    blockingUpdateId = body.id;
+  });
+
+  it("rejects publish to same branch/platform/runtimeVersion during active rollout (409)", async () => {
+    const response = await post(
+      "/api/updates",
+      {
+        project: "@updates/test",
+        branch: "blocking-test",
+        runtimeVersion: "2.0.0",
+        platform: "ios",
+        message: "Should be blocked",
+        groupId: "group-blocking-2",
+        metadata: {},
+        assets: [{ hash: "abc123def456", key: "bundles/ios.js", isLaunch: true }],
+      },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(409);
+  });
+
+  it("completes the active rollout", async () => {
+    const response = await post(
+      `/api/updates/${blockingUpdateId}/rollout/complete`,
+      {},
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.rolloutPercentage).toBe(100);
+  });
+
+  it("allows publish after rollout is completed", async () => {
+    const response = await post(
+      "/api/updates",
+      {
+        project: "@updates/test",
+        branch: "blocking-test",
+        runtimeVersion: "2.0.0",
+        platform: "ios",
+        message: "After rollout complete",
+        groupId: "group-blocking-3",
+        metadata: {},
+        assets: [{ hash: "abc123def456", key: "bundles/ios.js", isLaunch: true }],
+      },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(201);
+  });
 });
