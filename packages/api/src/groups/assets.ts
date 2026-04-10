@@ -1,5 +1,6 @@
 import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "@effect/platform";
 
+import { Forbidden } from "../auth/errors";
 import { AssetUploadBody, AssetUploadResult } from "../domain/asset";
 
 export class AssetsGroup extends HttpApiGroup.make("assets")
@@ -14,6 +15,7 @@ export class AssetsGroup extends HttpApiGroup.make("assets")
         }),
       ),
   )
+  .addError(Forbidden)
   .annotateContext(
     OpenApi.annotations({
       title: "Assets",

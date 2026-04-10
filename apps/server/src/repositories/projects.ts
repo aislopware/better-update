@@ -25,6 +25,10 @@ export interface ProjectRepository {
 
   readonly findById: (params: { readonly id: string }) => Effect.Effect<Project, NotFound>;
 
+  readonly findByScopeKey: (params: {
+    readonly scopeKey: string;
+  }) => Effect.Effect<Project, NotFound>;
+
   readonly findOrgIdById: (params: { readonly id: string }) => Effect.Effect<string, NotFound>;
 }
 
@@ -97,6 +101,25 @@ export const ProjectRepoLive = Layer.succeed(ProjectRepo, {
           `SELECT "id", "organization_id", "name", "scope_key", "created_at" FROM "projects" WHERE "id" = ?`,
         )
           .bind(params.id)
+          .first<ProjectRow>(),
+      );
+
+      if (row === null) {
+        return yield* Effect.fail(new NotFound({ message: "Project not found" }));
+      }
+
+      return toProject(row);
+    }),
+
+  findByScopeKey: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+
+      const row = yield* Effect.promise(async () =>
+        env.DB.prepare(
+          `SELECT "id", "organization_id", "name", "scope_key", "created_at" FROM "projects" WHERE "scope_key" = ?`,
+        )
+          .bind(params.scopeKey)
           .first<ProjectRow>(),
       );
 

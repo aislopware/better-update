@@ -6,9 +6,7 @@ import { unstable_startWorker } from "wrangler";
 
 const API_DIR = resolve(import.meta.dirname, "../../../server");
 
-const devVars = `BETTER_AUTH_SECRET=e2e-test-secret-that-is-at-least-32-chars
-BETTER_AUTH_URL=http://localhost
-DASHBOARD_URL=http://localhost
+const envLocal = `BETTER_AUTH_SECRET=e2e-test-secret-that-is-at-least-32-chars
 GITHUB_CLIENT_ID=e2e-github-id
 GITHUB_CLIENT_SECRET=e2e-github-secret
 `;
@@ -31,11 +29,11 @@ export const setupE2EDashboard = (persistDir: string) => {
     baseUrl: "",
   };
 
-  const devVarsPath = resolve(API_DIR, ".dev.vars");
+  const envLocalPath = resolve(API_DIR, ".env.local");
 
   beforeAll(async () => {
     rmSync(resolve(API_DIR, persistDir), { recursive: true, force: true });
-    writeFileSync(devVarsPath, devVars);
+    writeFileSync(envLocalPath, envLocal);
 
     execSync(`bunx wrangler d1 migrations apply DB --local --persist-to ${persistDir}`, {
       cwd: API_DIR,
@@ -54,7 +52,7 @@ export const setupE2EDashboard = (persistDir: string) => {
   afterAll(async () => {
     await state.worker?.dispose();
     rmSync(resolve(API_DIR, persistDir), { recursive: true, force: true });
-    rmSync(devVarsPath, { force: true });
+    rmSync(envLocalPath, { force: true });
   });
 
   const post = async (path: string, body: unknown, headers?: Record<string, string>) =>

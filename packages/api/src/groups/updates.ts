@@ -1,6 +1,7 @@
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "@effect/platform";
 import { Schema } from "effect";
 
+import { Forbidden } from "../auth/errors";
 import { NotFound } from "../auth/ownership";
 import { Id, PaginationParams } from "../domain/common";
 import { Conflict } from "../domain/errors";
@@ -105,6 +106,7 @@ export class UpdatesGroup extends HttpApiGroup.make("updates")
       ),
   )
   .addError(NotFound)
+  .addError(Forbidden)
   .annotateContext(
     OpenApi.annotations({
       title: "Updates",

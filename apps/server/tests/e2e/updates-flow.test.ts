@@ -1,0 +1,469 @@
+import { setupE2EWorker } from "../helpers/e2e-worker";
+
+const { getBaseUrl } = setupE2EWorker(".wrangler/state/e2e-updates");
+
+// ── Helpers ───────────────────────────────────────────────────────
+
+const post = (path: string, body: unknown, headers?: Record<string, string>) =>
+  fetch(`${getBaseUrl()}${path}`, {
+    method: "POST",
+    headers: { "content-type": "application/json", ...headers },
+    body: JSON.stringify(body),
+  });
+
+const get = (path: string, headers?: Record<string, string>) =>
+  fetch(`${getBaseUrl()}${path}`, headers ? { headers } : {});
+
+const patch = (path: string, body: unknown, headers?: Record<string, string>) =>
+  fetch(`${getBaseUrl()}${path}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json", ...headers },
+    body: JSON.stringify(body),
+  });
+
+const del = (path: string, headers?: Record<string, string>) =>
+  fetch(`${getBaseUrl()}${path}`, {
+    method: "DELETE",
+    headers,
+  });
+
+const put = (path: string, body: BodyInit, headers?: Record<string, string>) =>
+  fetch(`${getBaseUrl()}${path}`, {
+    method: "PUT",
+    headers,
+    body,
+  });
+
+const parseCookies = (response: Response): string => {
+  const setCookie = response.headers.getSetCookie();
+  return setCookie
+    .map((c) => c.split(";")[0])
+    .filter(Boolean)
+    .join("; ");
+};
+
+// ── Updates & Assets API E2E ─────────────────────────────────────
+
+describe("Updates & Assets API flow", () => {
+  /* eslint-disable functional/no-let -- mutable E2E test state */
+  let cookies: string;
+  let organizationId: string;
+  let projectId: string;
+  let mainBranchId: string;
+  let stagingBranchId: string;
+  let productionChannelId: string;
+  let updateId: string;
+  let stagingUpdateId: string;
+  let apiKeyValue: string;
+  /* eslint-enable functional/no-let */
+
+  // ── Section 1: Auth bootstrap ──────────────────────────────────
+
+  it("registers a new user", async () => {
+    const response = await post("/api/auth/sign-up/email", {
+      name: "Updates E2E User",
+      email: "updates-e2e@example.com",
+      password: "SecureP@ss123",
+    });
+    expect(response.status).toBe(200);
+    cookies = parseCookies(response);
+    expect(cookies).toBeTruthy();
+  });
+
+  it("creates an organization", async () => {
+    const response = await post(
+      "/api/auth/organization/create",
+      { name: "Updates Org", slug: "updates-org" },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.id).toBeDefined();
+    organizationId = body.id;
+    cookies = parseCookies(response) || cookies;
+  });
+
+  it("sets the organization as active", async () => {
+    const response = await post(
+      "/api/auth/organization/set-active",
+      { organizationId },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(200);
+    cookies = parseCookies(response) || cookies;
+  });
+
+  // ── Section 2: Prerequisites ───────────────────────────────────
+
+  it("creates a project", async () => {
+    const response = await post(
+      "/api/projects",
+      { name: "Updates Test Project", scopeKey: "@updates/test" },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    expect(body.id).toBeDefined();
+    projectId = body.id;
+  });
+
+  it("creates main branch", async () => {
+    const response = await post("/api/branches", { projectId, name: "main" }, { cookie: cookies });
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    expect(body.id).toBeDefined();
+    mainBranchId = body.id;
+  });
+
+  it("creates staging branch", async () => {
+    const response = await post(
+      "/api/branches",
+      { projectId, name: "staging" },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    expect(body.id).toBeDefined();
+    stagingBranchId = body.id;
+  });
+
+  it("creates production channel linked to main", async () => {
+    const response = await post(
+      "/api/channels",
+      { projectId, name: "production", branchId: mainBranchId },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    expect(body.id).toBeDefined();
+    productionChannelId = body.id;
+  });
+
+  it("creates staging channel linked to staging", async () => {
+    const response = await post(
+      "/api/channels",
+      { projectId, name: "staging", branchId: stagingBranchId },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    expect(body.id).toBeDefined();
+  });
+
+  // ── Section 3: Asset upload flow ───────────────────────────────
+
+  it("registers asset metadata", async () => {
+    const response = await post(
+      "/api/assets/upload",
+      {
+        assets: [
+          { hash: "abc123def456", contentType: "application/javascript", fileExt: "js" },
+          { hash: "789abc012def", contentType: "application/javascript", fileExt: "js" },
+        ],
+      },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    expect(body.uploaded).toContain("abc123def456");
+    expect(body.uploaded).toContain("789abc012def");
+    expect(body.deduplicated).toHaveLength(0);
+  });
+
+  it("uploads first asset binary", async () => {
+    const response = await put(
+      "/api/assets/abc123def456",
+      new TextEncoder().encode("console.log('hello')"),
+      { cookie: cookies, "content-type": "application/javascript", "content-length": "20" },
+    );
+    expect(response.status).toBe(200);
+  });
+
+  it("uploads second asset binary", async () => {
+    const response = await put(
+      "/api/assets/789abc012def",
+      new TextEncoder().encode("console.log('world')"),
+      { cookie: cookies, "content-type": "application/javascript", "content-length": "20" },
+    );
+    expect(response.status).toBe(200);
+  });
+
+  it("deduplicates already-uploaded assets", async () => {
+    const response = await post(
+      "/api/assets/upload",
+      {
+        assets: [
+          { hash: "abc123def456", contentType: "application/javascript", fileExt: "js" },
+          { hash: "789abc012def", contentType: "application/javascript", fileExt: "js" },
+        ],
+      },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    expect(body.uploaded).toHaveLength(0);
+    expect(body.deduplicated).toContain("abc123def456");
+    expect(body.deduplicated).toContain("789abc012def");
+  });
+
+  // ── Section 4: Update CRUD ─────────────────────────────────────
+
+  it("creates an iOS update", async () => {
+    const response = await post(
+      "/api/updates",
+      {
+        project: "@updates/test",
+        branch: "main",
+        runtimeVersion: "1.0.0",
+        platform: "ios",
+        message: "Initial release",
+        groupId: "group-1",
+        metadata: { buildNumber: "42" },
+        assets: [
+          { hash: "abc123def456", key: "bundles/ios.js", isLaunch: true },
+          { hash: "789abc012def", key: "assets/logo.js", isLaunch: false },
+        ],
+      },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    expect(body).toHaveProperty("id");
+    expect(body).toHaveProperty("branchId");
+    expect(body).toHaveProperty("runtimeVersion");
+    expect(body).toHaveProperty("platform");
+    expect(body).toHaveProperty("message");
+    expect(body).toHaveProperty("groupId");
+    expect(body).toHaveProperty("rolloutPercentage");
+    expect(body).toHaveProperty("isRollback");
+    expect(body).toHaveProperty("createdAt");
+    expect(body.runtimeVersion).toBe("1.0.0");
+    expect(body.platform).toBe("ios");
+    expect(body.message).toBe("Initial release");
+    expect(body.groupId).toBe("group-1");
+    expect(body.rolloutPercentage).toBe(100);
+    expect(body.isRollback).toBe(false);
+    updateId = body.id;
+  });
+
+  it("creates an Android update in same group", async () => {
+    const response = await post(
+      "/api/updates",
+      {
+        project: "@updates/test",
+        branch: "main",
+        runtimeVersion: "1.0.0",
+        platform: "android",
+        message: "Initial release",
+        groupId: "group-1",
+        metadata: { buildNumber: "42" },
+        assets: [{ hash: "abc123def456", key: "bundles/android.js", isLaunch: true }],
+      },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(201);
+  });
+
+  it("lists updates for project", async () => {
+    const response = await get(`/api/updates?projectId=${projectId}`, {
+      cookie: cookies,
+    });
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body).toHaveProperty("items");
+    expect(body).toHaveProperty("total");
+    expect(body).toHaveProperty("page");
+    expect(body).toHaveProperty("limit");
+    expect(body.total).toBe(2);
+    expect(body.items).toHaveLength(2);
+  });
+
+  it("lists updates filtered by branchId", async () => {
+    const response = await get(`/api/updates?projectId=${projectId}&branchId=${mainBranchId}`, {
+      cookie: cookies,
+    });
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.total).toBe(2);
+  });
+
+  // ── Section 5: Rollout operations ──────────────────────────────
+
+  it("edits rollout to 50%", async () => {
+    const response = await patch(
+      `/api/updates/${updateId}/rollout`,
+      { percentage: 50 },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.rolloutPercentage).toBe(50);
+  });
+
+  it("completes rollout", async () => {
+    const response = await post(
+      `/api/updates/${updateId}/rollout/complete`,
+      {},
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.rolloutPercentage).toBe(100);
+  });
+
+  it("reverts rollout", async () => {
+    const response = await post(`/api/updates/${updateId}/rollout/revert`, {}, { cookie: cookies });
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.rolloutPercentage).toBe(0);
+  });
+
+  // ── Section 6: Republish ───────────────────────────────────────
+
+  it("creates an update on staging branch", async () => {
+    const response = await post(
+      "/api/updates",
+      {
+        project: "@updates/test",
+        branch: "staging",
+        runtimeVersion: "1.0.0",
+        platform: "ios",
+        message: "Staging build",
+        groupId: "group-staging",
+        metadata: {},
+        assets: [{ hash: "abc123def456", key: "bundles/ios.js", isLaunch: true }],
+      },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    stagingUpdateId = body.id;
+  });
+
+  it("republishes to production channel", async () => {
+    const response = await post(
+      "/api/updates/republish",
+      {
+        sourceUpdateId: stagingUpdateId,
+        targetChannelId: productionChannelId,
+      },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    expect(body).toHaveProperty("id");
+    expect(body.branchId).toBe(mainBranchId);
+  });
+
+  // ── Section 7: Delete group ────────────────────────────────────
+
+  it("deletes update group-1", async () => {
+    const response = await del(`/api/updates/group-1`, {
+      cookie: cookies,
+    });
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.deleted).toBe(2);
+  });
+
+  it("lists updates - group-1 gone", async () => {
+    const response = await get(`/api/updates?projectId=${projectId}`, {
+      cookie: cookies,
+    });
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    // group-1 had 2 updates (ios + android); staging + republished remain
+    expect(body.items.every((u: { groupId: string }) => u.groupId !== "group-1")).toBe(true);
+  });
+
+  // ── Section 8: API key auth ────────────────────────────────────
+
+  it("creates an API key", async () => {
+    const response = await post(
+      "/api/auth/api-key/create",
+      { name: "updates-test-key", organizationId },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.key).toMatch(/^bu_/);
+    apiKeyValue = body.key;
+  });
+
+  it("lists updates via API key", async () => {
+    const response = await get(`/api/updates?projectId=${projectId}`, {
+      authorization: `Bearer ${apiKeyValue}`,
+    });
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body).toHaveProperty("items");
+    expect(body).toHaveProperty("total");
+  });
+
+  // ── Section 9: Cross-org isolation ─────────────────────────────
+
+  /* eslint-disable functional/no-let -- mutable cross-org test state */
+  let projectIdB: string;
+  /* eslint-enable functional/no-let */
+
+  it("creates org B and switches to it", async () => {
+    const orgRes = await post(
+      "/api/auth/organization/create",
+      { name: "Org B", slug: "updates-org-b" },
+      { cookie: cookies },
+    );
+    expect(orgRes.status).toBe(200);
+    const orgBId = (await orgRes.json()).id;
+    cookies = parseCookies(orgRes) || cookies;
+
+    const activeRes = await post(
+      "/api/auth/organization/set-active",
+      { organizationId: orgBId },
+      { cookie: cookies },
+    );
+    expect(activeRes.status).toBe(200);
+    cookies = parseCookies(activeRes) || cookies;
+  });
+
+  it("creates a project and branch in org B", async () => {
+    const projRes = await post(
+      "/api/projects",
+      { name: "Org B Project", scopeKey: "@orgb/updates" },
+      { cookie: cookies },
+    );
+    expect(projRes.status).toBe(201);
+    projectIdB = (await projRes.json()).id;
+
+    const branchRes = await post(
+      "/api/branches",
+      { projectId: projectIdB, name: "b-main" },
+      { cookie: cookies },
+    );
+    expect(branchRes.status).toBe(201);
+  });
+
+  it("org B cannot list updates for org A project (404)", async () => {
+    const response = await get(`/api/updates?projectId=${projectId}`, {
+      cookie: cookies,
+    });
+    expect(response.status).toBe(404);
+  });
+
+  it("switches back to org A - updates untouched", async () => {
+    const activeRes = await post(
+      "/api/auth/organization/set-active",
+      { organizationId },
+      { cookie: cookies },
+    );
+    expect(activeRes.status).toBe(200);
+    cookies = parseCookies(activeRes) || cookies;
+
+    const response = await get(`/api/updates?projectId=${projectId}`, {
+      cookie: cookies,
+    });
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body).toHaveProperty("items");
+    expect(body.items.every((u: { groupId: string }) => u.groupId !== "group-1")).toBe(true);
+  });
+});

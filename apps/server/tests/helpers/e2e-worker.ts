@@ -3,11 +3,9 @@ import { rmSync, writeFileSync } from "node:fs";
 
 import { unstable_startWorker } from "wrangler";
 
-const devVarsPath = ".dev.vars";
+const envLocalPath = ".env.local";
 
-const devVars = `BETTER_AUTH_SECRET=e2e-test-secret-that-is-at-least-32-chars
-BETTER_AUTH_URL=http://localhost
-DASHBOARD_URL=http://localhost
+const envLocal = `BETTER_AUTH_SECRET=e2e-test-secret-that-is-at-least-32-chars
 GITHUB_CLIENT_ID=e2e-github-id
 GITHUB_CLIENT_SECRET=e2e-github-secret
 `;
@@ -18,7 +16,7 @@ export function setupE2EWorker(persistDir: string): { getBaseUrl: () => string }
 
   beforeAll(async () => {
     rmSync(persistDir, { recursive: true, force: true });
-    writeFileSync(devVarsPath, devVars);
+    writeFileSync(envLocalPath, envLocal);
 
     execSync(`bunx wrangler d1 migrations apply DB --local --persist-to ${persistDir}`, {
       stdio: "pipe",
@@ -39,7 +37,7 @@ export function setupE2EWorker(persistDir: string): { getBaseUrl: () => string }
   afterAll(async () => {
     await worker?.dispose();
     rmSync(persistDir, { recursive: true, force: true });
-    rmSync(devVarsPath, { force: true });
+    rmSync(envLocalPath, { force: true });
   });
 
   return { getBaseUrl: () => baseUrl };
