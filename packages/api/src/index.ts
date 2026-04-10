@@ -40,6 +40,7 @@ export {
   AdoptionResult,
   ChannelAnalyticsParams,
   ChannelAnalyticsResult,
+  PeriodLiteral,
   PlatformParams,
   PlatformResult,
   UpdateAnalyticsParams,

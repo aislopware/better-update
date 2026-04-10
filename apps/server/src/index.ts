@@ -42,6 +42,7 @@ const UpdatesGroupWithRepo = UpdatesGroupLive.pipe(
 );
 
 const AssetsGroupWithRepo = AssetsGroupLive.pipe(Layer.provide(AssetRepoLive));
+const AnalyticsGroupWithRepo = AnalyticsGroupLive.pipe(Layer.provide(ProjectRepoLive));
 
 const ApiLive = HttpApiBuilder.api(ManagementApi).pipe(
   Layer.provide(ProjectsGroupWithRepo),
@@ -49,7 +50,7 @@ const ApiLive = HttpApiBuilder.api(ManagementApi).pipe(
   Layer.provide(ChannelsGroupWithRepo),
   Layer.provide(UpdatesGroupWithRepo),
   Layer.provide(AssetsGroupWithRepo),
-  Layer.provide(AnalyticsGroupLive),
+  Layer.provide(AnalyticsGroupWithRepo),
   Layer.provide(AuthenticationLive),
 );
 

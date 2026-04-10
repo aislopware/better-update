@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from "@better-update/ui/components/ui/card";
 import { useSuspenseQuery } from "@tanstack/react-query";
+import { Suspense } from "react";
 import {
   Bar,
   BarChart,
@@ -91,7 +92,13 @@ const PlatformChart = ({ projectId }: { projectId: string }) => {
   );
 };
 
-export const AnalyticsTab = ({ projectId }: { orgId: string; projectId: string }) => (
+const chartSkeleton = (
+  <div className="flex h-[300px] items-center justify-center">
+    <p className="text-muted-foreground text-sm">Loading...</p>
+  </div>
+);
+
+export const AnalyticsTab = ({ projectId }: { projectId: string }) => (
   <div className="grid grid-cols-2 gap-4">
     <Card>
       <CardHeader>
@@ -99,7 +106,9 @@ export const AnalyticsTab = ({ projectId }: { orgId: string; projectId: string }
         <CardDescription>Devices per update</CardDescription>
       </CardHeader>
       <CardContent>
-        <AdoptionChart projectId={projectId} />
+        <Suspense fallback={chartSkeleton}>
+          <AdoptionChart projectId={projectId} />
+        </Suspense>
       </CardContent>
     </Card>
 
@@ -109,7 +118,9 @@ export const AnalyticsTab = ({ projectId }: { orgId: string; projectId: string }
         <CardDescription>Device distribution by platform</CardDescription>
       </CardHeader>
       <CardContent>
-        <PlatformChart projectId={projectId} />
+        <Suspense fallback={chartSkeleton}>
+          <PlatformChart projectId={projectId} />
+        </Suspense>
       </CardContent>
     </Card>
   </div>

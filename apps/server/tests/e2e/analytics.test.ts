@@ -140,4 +140,49 @@ describe("Analytics endpoints", () => {
     expect(body).toHaveProperty("platforms");
     expect(Array.isArray(body.platforms)).toBe(true);
   });
+
+  // ── Cross-org authorization ─────────────────────────────────
+
+  let attackerCookies: string;
+
+  it("registers a second user in a different org", async () => {
+    const signUp = await post("/api/auth/sign-up/email", {
+      name: "Attacker User",
+      email: "attacker@example.com",
+      password: "SecureP@ss123",
+    });
+    expect(signUp.status).toBe(200);
+    attackerCookies = parseCookies(signUp);
+
+    const orgResponse = await post(
+      "/api/auth/organization/create",
+      { name: "Attacker Org", slug: "attacker-org" },
+      { cookie: attackerCookies },
+    );
+    expect(orgResponse.status).toBe(200);
+    const org = await orgResponse.json();
+    attackerCookies = parseCookies(orgResponse) || attackerCookies;
+
+    const setActive = await post(
+      "/api/auth/organization/set-active",
+      { organizationId: org.id },
+      { cookie: attackerCookies },
+    );
+    expect(setActive.status).toBe(200);
+    attackerCookies = parseCookies(setActive) || attackerCookies;
+  });
+
+  it("rejects cross-org analytics access on adoption endpoint", async () => {
+    const response = await get(`/api/analytics/adoption?projectId=${projectId}`, {
+      cookie: attackerCookies,
+    });
+    expect([403, 404]).toContain(response.status);
+  });
+
+  it("rejects cross-org analytics access on platforms endpoint", async () => {
+    const response = await get(`/api/analytics/platforms?projectId=${projectId}`, {
+      cookie: attackerCookies,
+    });
+    expect([403, 404]).toContain(response.status);
+  });
 });

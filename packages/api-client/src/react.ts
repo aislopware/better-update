@@ -6,14 +6,15 @@ import {
   CreateChannelBody,
   CreateProjectBody,
   CreateUpdateBody,
+  PeriodLiteral,
   Project,
   RepublishBody,
   UpdateBranchBody,
   UpdateChannelBody,
 } from "@better-update/api";
-
-type AnalyticsPeriod = "1d" | "7d" | "30d" | "90d";
 import { queryOptions } from "@tanstack/react-query";
+
+type AnalyticsPeriod = typeof PeriodLiteral.Type;
 
 import { runApi } from "./index";
 
