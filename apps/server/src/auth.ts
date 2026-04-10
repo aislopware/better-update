@@ -209,6 +209,6 @@ export const createAuth = (env: Env) =>
     ],
 
     advanced: {
-      useSecureCookies: true,
+      useSecureCookies: env.BETTER_AUTH_URL.startsWith("https://"),
     },
   });

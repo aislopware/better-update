@@ -1,7 +1,6 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "better-update-dashboard",
-  "compatibility_flags": ["nodejs_compat"],
   "compatibility_date": "2026-04-08",
   "assets": {
     "directory": "dist",

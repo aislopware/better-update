@@ -24,6 +24,11 @@ export interface BranchRepository {
 
   readonly findById: (params: { readonly id: string }) => Effect.Effect<Branch, NotFound>;
 
+  readonly findByProjectAndName: (params: {
+    readonly projectId: string;
+    readonly name: string;
+  }) => Effect.Effect<Branch, NotFound>;
+
   readonly updateName: (params: {
     readonly id: string;
     readonly name: string;
@@ -97,6 +102,25 @@ export const BranchRepoLive = Layer.succeed(BranchRepo, {
           `SELECT "id", "project_id", "name", "created_at" FROM "branches" WHERE "id" = ?`,
         )
           .bind(params.id)
+          .first<BranchRow>(),
+      );
+
+      if (row === null) {
+        return yield* Effect.fail(new NotFound({ message: "Branch not found" }));
+      }
+
+      return toBranch(row);
+    }),
+
+  findByProjectAndName: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+
+      const row = yield* Effect.promise(async () =>
+        env.DB.prepare(
+          `SELECT "id", "project_id", "name", "created_at" FROM "branches" WHERE "project_id" = ? AND "name" = ?`,
+        )
+          .bind(params.projectId, params.name)
           .first<BranchRow>(),
       );
 

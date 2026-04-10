@@ -13,6 +13,7 @@ import { orgsQueryOptions, sessionQueryOptions } from "../../../../../queries/au
 import { ChannelsTab } from "./-channels-tab";
 import { CreateBranchDialog } from "./-create-branch-dialog";
 import { RenameBranchDialog } from "./-rename-branch-dialog";
+import { UpdatesTab } from "./-updates-tab";
 
 const BranchCard = ({
   branch,
@@ -92,6 +93,7 @@ const ProjectDetail = () => {
         <TabsList>
           <TabsTrigger value="branches">Branches</TabsTrigger>
           <TabsTrigger value="channels">Channels</TabsTrigger>
+          <TabsTrigger value="updates">Updates</TabsTrigger>
         </TabsList>
 
         <TabsContent value="branches">
@@ -113,6 +115,10 @@ const ProjectDetail = () => {
 
         <TabsContent value="channels">
           <ChannelsTab orgId={orgId} projectId={projectId} />
+        </TabsContent>
+
+        <TabsContent value="updates">
+          <UpdatesTab orgId={orgId} projectId={projectId} />
         </TabsContent>
       </Tabs>
     </div>

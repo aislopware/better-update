@@ -38,6 +38,7 @@ export default defineConfig(async () => {
                   TEST_MIGRATIONS: migrations,
                   BETTER_AUTH_SECRET: "test-secret",
                   BETTER_AUTH_URL: "http://localhost",
+                  DASHBOARD_URL: "http://localhost",
                   GITHUB_CLIENT_ID: "test-github-id",
                   GITHUB_CLIENT_SECRET: "test-github-secret",
                 },

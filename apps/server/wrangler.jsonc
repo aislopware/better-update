@@ -18,16 +18,18 @@
       "id": "<kv-namespace-id>",
     },
   ],
+  "r2_buckets": [
+    {
+      "binding": "ASSETS_BUCKET",
+      "bucket_name": "better-update-assets",
+    },
+  ],
   "vars": {
     "ASSET_CDN_URL": "https://assets.better-update.dev",
+    "BETTER_AUTH_URL": "https://api.better-update.dev",
+    "DASHBOARD_URL": "https://better-update.dev",
   },
   "secrets": {
-    "required": [
-      "BETTER_AUTH_SECRET",
-      "BETTER_AUTH_URL",
-      "DASHBOARD_URL",
-      "GITHUB_CLIENT_ID",
-      "GITHUB_CLIENT_SECRET",
-    ],
+    "required": ["BETTER_AUTH_SECRET", "GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET"],
   },
 }
