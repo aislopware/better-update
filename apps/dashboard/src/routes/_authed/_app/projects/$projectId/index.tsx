@@ -10,6 +10,7 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import type { BranchItem } from "@better-update/api-client/react";
 
 import { orgsQueryOptions, sessionQueryOptions } from "../../../../../queries/auth";
+import { AnalyticsTab } from "./-analytics-tab";
 import { ChannelsTab } from "./-channels-tab";
 import { CreateBranchDialog } from "./-create-branch-dialog";
 import { RenameBranchDialog } from "./-rename-branch-dialog";
@@ -94,6 +95,7 @@ const ProjectDetail = () => {
           <TabsTrigger value="branches">Branches</TabsTrigger>
           <TabsTrigger value="channels">Channels</TabsTrigger>
           <TabsTrigger value="updates">Updates</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
 
         <TabsContent value="branches">
@@ -119,6 +121,10 @@ const ProjectDetail = () => {
 
         <TabsContent value="updates">
           <UpdatesTab orgId={orgId} projectId={projectId} />
+        </TabsContent>
+
+        <TabsContent value="analytics">
+          <AnalyticsTab orgId={orgId} projectId={projectId} />
         </TabsContent>
       </Tabs>
     </div>

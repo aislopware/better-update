@@ -12,6 +12,8 @@ import type { ProtocolHeaders } from "../protocol/headers";
 import type { Part } from "../protocol/multipart";
 import type { AssetRow, ChannelRow, UpdateRow } from "../repositories/manifest";
 
+type ResponseType = "manifest" | "directive" | "no_update";
+
 // -- Common protocol headers (required on ALL responses) ---------------------
 
 const COMMON_HEADERS: Record<string, string> = {
@@ -240,10 +242,38 @@ const buildUpdateResponse = (params: {
     });
   });
 
+// -- Analytics ---------------------------------------------------------------
+
+const trackAnalytics = (params: {
+  readonly env: Env;
+  readonly projectId: string;
+  readonly ph: ProtocolHeaders;
+  readonly branchId: string;
+  readonly updateId: string;
+  readonly responseType: ResponseType;
+  readonly resolutionMs: number;
+}) => {
+  params.env.ANALYTICS.writeDataPoint({
+    indexes: [`${params.projectId}:${params.ph.easClientId ?? "anonymous"}`],
+    blobs: [
+      params.projectId,
+      params.ph.channelName,
+      params.branchId,
+      params.updateId,
+      params.ph.platform,
+      params.ph.runtimeVersion,
+      params.responseType,
+    ],
+    doubles: [params.resolutionMs, 0],
+  });
+};
+
 // -- Resolution program ------------------------------------------------------
 
 const serve = (request: Request, projectId: string): Effect.Effect<Response, never, ManifestRepo> =>
   Effect.gen(function* () {
+    const startTime = Date.now();
+    const env = yield* cloudflareEnv;
     const ph = yield* parseProtocolHeaders(request.headers);
     const accept = ph.accept ?? "*/*";
     if (!supportsAny(accept)) {
@@ -260,6 +290,15 @@ const serve = (request: Request, projectId: string): Effect.Effect<Response, nev
     );
 
     if (channel.is_paused === 1) {
+      trackAnalytics({
+        env,
+        projectId,
+        ph,
+        branchId: channel.branch_id,
+        updateId: "",
+        responseType: "no_update",
+        resolutionMs: Date.now() - startTime,
+      });
       return noContent();
     }
 
@@ -271,6 +310,15 @@ const serve = (request: Request, projectId: string): Effect.Effect<Response, nev
     });
 
     if (candidates.length === 0) {
+      trackAnalytics({
+        env,
+        projectId,
+        ph,
+        branchId: resolvedBranchId,
+        updateId: "",
+        responseType: "no_update",
+        resolutionMs: Date.now() - startTime,
+      });
       return noContent();
     }
 
@@ -283,10 +331,29 @@ const serve = (request: Request, projectId: string): Effect.Effect<Response, nev
       runtimeVersion: ph.runtimeVersion,
     });
     if (update === null) {
+      trackAnalytics({
+        env,
+        projectId,
+        ph,
+        branchId: resolvedBranchId,
+        updateId: "",
+        responseType: "no_update",
+        resolutionMs: Date.now() - startTime,
+      });
       return noContent();
     }
 
-    return yield* buildUpdateResponse({ update, scopeKey, ph });
+    const response = yield* buildUpdateResponse({ update, scopeKey, ph });
+    trackAnalytics({
+      env,
+      projectId,
+      ph,
+      branchId: resolvedBranchId,
+      updateId: update.id,
+      responseType: update.is_rollback === 1 ? "directive" : "manifest",
+      resolutionMs: Date.now() - startTime,
+    });
+    return response;
   }).pipe(
     // eslint-disable-next-line promise/prefer-await-to-callbacks -- Effect error handler, not a callback
     Effect.catchTag("BadRequest", (err) =>

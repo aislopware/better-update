@@ -36,14 +36,13 @@ export {
 } from "./domain/update";
 export { Asset, AssetUploadBody, AssetUploadResult } from "./domain/asset";
 export {
-  AdoptionEntry,
+  AdoptionParams,
   AdoptionResult,
-  AnalyticsParams,
-  ChannelAnalyticsEntry,
+  ChannelAnalyticsParams,
   ChannelAnalyticsResult,
-  PlatformAnalyticsEntry,
-  PlatformAnalyticsResult,
-  UpdateAnalyticsEntry,
+  PlatformParams,
+  PlatformResult,
+  UpdateAnalyticsParams,
   UpdateAnalyticsResult,
 } from "./domain/analytics";
 

@@ -11,6 +11,8 @@ import {
   UpdateBranchBody,
   UpdateChannelBody,
 } from "@better-update/api";
+
+type AnalyticsPeriod = "1d" | "7d" | "30d" | "90d";
 import { queryOptions } from "@tanstack/react-query";
 
 import { runApi } from "./index";
@@ -62,32 +64,42 @@ export const updatesQueryOptions = (orgId: string, projectId: string, branchId?:
     staleTime: 30_000,
   });
 
-export const adoptionQueryOptions = (projectId: string) =>
+export const adoptionQueryOptions = (projectId: string, period?: AnalyticsPeriod) =>
   queryOptions({
-    queryKey: ["project", projectId, "analytics", "adoption"],
-    queryFn: () => runApi((api) => api.analytics.adoption({ urlParams: { projectId } })),
-    staleTime: 30_000,
+    queryKey: ["project", projectId, "analytics", "adoption", ...(period ? [period] : [])],
+    queryFn: () => runApi((api) => api.analytics.adoption({ urlParams: { projectId, period } })),
+    staleTime: 60_000,
   });
 
-export const updateAnalyticsQueryOptions = (projectId: string) =>
+export const updateAnalyticsQueryOptions = (
+  projectId: string,
+  updateId: string,
+  period?: AnalyticsPeriod,
+) =>
   queryOptions({
-    queryKey: ["project", projectId, "analytics", "updates"],
-    queryFn: () => runApi((api) => api.analytics.updates({ urlParams: { projectId } })),
-    staleTime: 30_000,
+    queryKey: ["project", projectId, "analytics", "updates", updateId, ...(period ? [period] : [])],
+    queryFn: () =>
+      runApi((api) => api.analytics.updates({ urlParams: { projectId, updateId, period } })),
+    staleTime: 60_000,
   });
 
-export const channelAnalyticsQueryOptions = (projectId: string) =>
+export const channelAnalyticsQueryOptions = (
+  projectId: string,
+  channel: string,
+  period?: AnalyticsPeriod,
+) =>
   queryOptions({
-    queryKey: ["project", projectId, "analytics", "channels"],
-    queryFn: () => runApi((api) => api.analytics.channels({ urlParams: { projectId } })),
-    staleTime: 30_000,
+    queryKey: ["project", projectId, "analytics", "channels", channel, ...(period ? [period] : [])],
+    queryFn: () =>
+      runApi((api) => api.analytics.channels({ urlParams: { projectId, channel, period } })),
+    staleTime: 60_000,
   });
 
-export const platformAnalyticsQueryOptions = (projectId: string) =>
+export const platformAnalyticsQueryOptions = (projectId: string, period?: AnalyticsPeriod) =>
   queryOptions({
-    queryKey: ["project", projectId, "analytics", "platforms"],
-    queryFn: () => runApi((api) => api.analytics.platforms({ urlParams: { projectId } })),
-    staleTime: 30_000,
+    queryKey: ["project", projectId, "analytics", "platforms", ...(period ? [period] : [])],
+    queryFn: () => runApi((api) => api.analytics.platforms({ urlParams: { projectId, period } })),
+    staleTime: 60_000,
   });
 
 // ---------------------------------------------------------------------------

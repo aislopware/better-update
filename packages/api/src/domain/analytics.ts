@@ -2,48 +2,83 @@ import { Schema } from "effect";
 
 import { Id } from "./common";
 
-export const AnalyticsParams = Schema.Struct({
+// -- Shared --
+
+export const Period = Schema.optional(Schema.Literal("1d", "7d", "30d", "90d"));
+
+// -- Adoption --
+
+export const AdoptionParams = Schema.Struct({
   projectId: Id,
+  period: Period,
 });
 
-export const AdoptionEntry = Schema.Struct({
+const AdoptionEntry = Schema.Struct({
   updateId: Schema.String,
-  groupId: Schema.String,
-  adoptionRate: Schema.Number,
-  deviceCount: Schema.Number,
+  devices: Schema.Number,
+  firstSeen: Schema.String,
+  lastSeen: Schema.String,
 });
 
 export const AdoptionResult = Schema.Struct({
-  entries: Schema.Array(AdoptionEntry),
+  updates: Schema.Array(AdoptionEntry),
 });
 
-export const UpdateAnalyticsEntry = Schema.Struct({
+// -- Update Analytics --
+
+export const UpdateAnalyticsParams = Schema.Struct({
+  projectId: Id,
   updateId: Schema.String,
-  downloads: Schema.Number,
-  applies: Schema.Number,
-  errors: Schema.Number,
+  period: Period,
+});
+
+const ResponseTypeBreakdown = Schema.Struct({
+  manifest: Schema.Number,
+  directive: Schema.Number,
+  no_update: Schema.Number,
+});
+
+const TimeSeriesEntry = Schema.Struct({
+  timestamp: Schema.String,
+  requests: Schema.Number,
 });
 
 export const UpdateAnalyticsResult = Schema.Struct({
-  entries: Schema.Array(UpdateAnalyticsEntry),
+  updateId: Schema.String,
+  totalRequests: Schema.Number,
+  uniqueDevices: Schema.Number,
+  byResponseType: ResponseTypeBreakdown,
+  timeSeries: Schema.Array(TimeSeriesEntry),
 });
 
-export const ChannelAnalyticsEntry = Schema.Struct({
-  channelId: Schema.String,
-  channelName: Schema.String,
-  activeDevices: Schema.Number,
+// -- Channel Analytics --
+
+export const ChannelAnalyticsParams = Schema.Struct({
+  projectId: Id,
+  channel: Schema.String,
+  period: Period,
 });
 
 export const ChannelAnalyticsResult = Schema.Struct({
-  entries: Schema.Array(ChannelAnalyticsEntry),
+  channel: Schema.String,
+  totalRequests: Schema.Number,
+  uniqueDevices: Schema.Number,
+  responseTypeDistribution: ResponseTypeBreakdown,
 });
 
-export const PlatformAnalyticsEntry = Schema.Struct({
+// -- Platform Analytics --
+
+export const PlatformParams = Schema.Struct({
+  projectId: Id,
+  period: Period,
+});
+
+const PlatformEntry = Schema.Struct({
   platform: Schema.String,
-  deviceCount: Schema.Number,
-  percentage: Schema.Number,
+  requests: Schema.Number,
+  devices: Schema.Number,
 });
 
-export const PlatformAnalyticsResult = Schema.Struct({
-  entries: Schema.Array(PlatformAnalyticsEntry),
+export const PlatformResult = Schema.Struct({
+  platforms: Schema.Array(PlatformEntry),
 });

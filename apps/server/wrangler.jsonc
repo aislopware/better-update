@@ -24,12 +24,19 @@
       "bucket_name": "better-update-assets",
     },
   ],
+  "analytics_engine_datasets": [
+    {
+      "binding": "ANALYTICS",
+      "dataset": "update_events",
+    },
+  ],
   "vars": {
+    "ACCOUNT_ID": "<account-id>",
     "ASSET_CDN_URL": "https://assets.better-update.dev",
     "BETTER_AUTH_URL": "https://api.better-update.dev",
     "DASHBOARD_URL": "https://better-update.dev",
   },
   "secrets": {
-    "required": ["BETTER_AUTH_SECRET", "GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET"],
+    "required": ["BETTER_AUTH_SECRET", "CF_API_TOKEN", "GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET"],
   },
 }

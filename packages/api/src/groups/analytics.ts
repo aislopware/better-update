@@ -1,17 +1,20 @@
 import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "@effect/platform";
 
 import {
+  AdoptionParams,
   AdoptionResult,
-  AnalyticsParams,
+  ChannelAnalyticsParams,
   ChannelAnalyticsResult,
-  PlatformAnalyticsResult,
+  PlatformParams,
+  PlatformResult,
+  UpdateAnalyticsParams,
   UpdateAnalyticsResult,
 } from "../domain/analytics";
 
 export class AnalyticsGroup extends HttpApiGroup.make("analytics")
   .add(
     HttpApiEndpoint.get("adoption", "/api/analytics/adoption")
-      .setUrlParams(AnalyticsParams)
+      .setUrlParams(AdoptionParams)
       .addSuccess(AdoptionResult)
       .annotateContext(
         OpenApi.annotations({
@@ -22,30 +25,30 @@ export class AnalyticsGroup extends HttpApiGroup.make("analytics")
   )
   .add(
     HttpApiEndpoint.get("updates", "/api/analytics/updates")
-      .setUrlParams(AnalyticsParams)
+      .setUrlParams(UpdateAnalyticsParams)
       .addSuccess(UpdateAnalyticsResult)
       .annotateContext(
         OpenApi.annotations({
           title: "Update analytics",
-          description: "Download and apply counts per update",
+          description: "Request metrics for a specific update",
         }),
       ),
   )
   .add(
     HttpApiEndpoint.get("channels", "/api/analytics/channels")
-      .setUrlParams(AnalyticsParams)
+      .setUrlParams(ChannelAnalyticsParams)
       .addSuccess(ChannelAnalyticsResult)
       .annotateContext(
         OpenApi.annotations({
           title: "Channel analytics",
-          description: "Active device count per channel",
+          description: "Channel-level health metrics",
         }),
       ),
   )
   .add(
     HttpApiEndpoint.get("platforms", "/api/analytics/platforms")
-      .setUrlParams(AnalyticsParams)
-      .addSuccess(PlatformAnalyticsResult)
+      .setUrlParams(PlatformParams)
+      .addSuccess(PlatformResult)
       .annotateContext(
         OpenApi.annotations({
           title: "Platform analytics",
