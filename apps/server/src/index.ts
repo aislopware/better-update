@@ -103,6 +103,51 @@ const handleAuth = async (request: Request, env: Env): Promise<Response> => {
   }
 };
 
+/** Public asset download — streams R2 object with edge caching */
+const handleAssetDownload = async (
+  request: Request,
+  env: Env,
+  ctx: ExecutionContext,
+  hash: string,
+): Promise<Response> => {
+  // Check edge cache first (named cache for isolation from default CDN cache)
+  const cache = await caches.open("assets");
+  const cached = await cache.match(request);
+  if (cached) {
+    return cached;
+  }
+
+  // Look up asset in D1 to resolve r2Key
+  const asset = await env.DB.prepare(
+    `SELECT "r2_key", "content_type" FROM "assets" WHERE "hash" = ?`,
+  )
+    .bind(hash)
+    .first<{ r2_key: string; content_type: string }>();
+  if (!asset) {
+    return Response.json({ code: "NOT_FOUND", message: "Asset not found" }, { status: 404 });
+  }
+
+  // Fetch from R2
+  const object = await env.ASSETS_BUCKET.get(asset.r2_key);
+  if (!object) {
+    return Response.json({ code: "NOT_FOUND", message: "Asset not found" }, { status: 404 });
+  }
+
+  // Build response with immutable caching headers
+  const headers = new Headers();
+  object.writeHttpMetadata(headers);
+  headers.set("etag", object.httpEtag);
+  headers.set("content-length", object.size.toString());
+  headers.set("cache-control", "public, max-age=31536000, immutable");
+
+  const response = new Response(object.body, { headers });
+
+  // Populate edge cache asynchronously
+  ctx.waitUntil(cache.put(request, response.clone()));
+
+  return response;
+};
+
 /** Binary asset upload — outside Effect HttpApi (streams body to R2) */
 const handleAssetUpload = async (request: Request, env: Env, hash: string): Promise<Response> => {
   const auth = createAuth(env);
@@ -157,6 +202,12 @@ export default {
       const manifestMatch = /^\/manifest\/([^/]+)\/?$/.exec(url.pathname);
       if (manifestMatch?.[1]) {
         return await serveManifest(request, manifestMatch[1]);
+      }
+
+      // Public asset download — GET /assets/:hash (no auth, edge-cached)
+      const assetDownloadMatch = /^\/assets\/([a-f0-9]+)$/.exec(url.pathname);
+      if (assetDownloadMatch?.[1] && request.method === "GET") {
+        return await handleAssetDownload(request, env, ctx, assetDownloadMatch[1]);
       }
 
       // Binary asset upload — PUT /api/assets/:hash
