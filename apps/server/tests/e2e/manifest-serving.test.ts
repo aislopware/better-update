@@ -149,6 +149,18 @@ const parseMultipart = (contentType: string, rawBody: string): MultipartPart[] =
     });
 };
 
+const expectManifestId = async (response: Response, expectedId: string) => {
+  const contentType = response.headers.get("content-type")!;
+  const body = await response.text();
+  const parts = parseMultipart(contentType, body);
+  const manifestPart = parts.find((part) =>
+    part.headers["content-disposition"]?.includes('name="manifest"'),
+  );
+  expect(manifestPart).toBeDefined();
+  const manifest = JSON.parse(manifestPart!.body);
+  expect(manifest.id).toBe(expectedId);
+};
+
 // ── Manifest serving protocol tests ─────────────────────────────
 
 describe("Manifest serving protocol", () => {
@@ -389,17 +401,7 @@ describe("Rollout manifest resolution", () => {
       }),
     );
     expect(response.status).toBe(200);
-
-    const contentType = response.headers.get("content-type")!;
-    const body = await response.text();
-    const parts = parseMultipart(contentType, body);
-
-    const manifestPart = parts.find((part) =>
-      part.headers["content-disposition"]?.includes('name="manifest"'),
-    );
-    expect(manifestPart).toBeDefined();
-    const manifest = JSON.parse(manifestPart!.body);
-    expect(manifest.id).toBe("update-rollout-new");
+    await expectManifestId(response, "update-rollout-new");
   });
 
   it("serves old branch update for client NOT in rollout group", async () => {
@@ -410,33 +412,13 @@ describe("Rollout manifest resolution", () => {
       }),
     );
     expect(response.status).toBe(200);
-
-    const contentType = response.headers.get("content-type")!;
-    const body = await response.text();
-    const parts = parseMultipart(contentType, body);
-
-    const manifestPart = parts.find((part) =>
-      part.headers["content-disposition"]?.includes('name="manifest"'),
-    );
-    expect(manifestPart).toBeDefined();
-    const manifest = JSON.parse(manifestPart!.body);
-    expect(manifest.id).toBe("update-rollout-old");
+    await expectManifestId(response, "update-rollout-old");
   });
 
   it("serves fallback (old) branch update when no EAS-Client-ID header", async () => {
     const response = await manifestGet("proj-1", rolloutHeaders());
     expect(response.status).toBe(200);
-
-    const contentType = response.headers.get("content-type")!;
-    const body = await response.text();
-    const parts = parseMultipart(contentType, body);
-
-    const manifestPart = parts.find((part) =>
-      part.headers["content-disposition"]?.includes('name="manifest"'),
-    );
-    expect(manifestPart).toBeDefined();
-    const manifest = JSON.parse(manifestPart!.body);
-    expect(manifest.id).toBe("update-rollout-old");
+    await expectManifestId(response, "update-rollout-old");
   });
 
   it("resolves normally when no rollout is active (branch_mapping_json is NULL)", async () => {
@@ -449,17 +431,7 @@ describe("Rollout manifest resolution", () => {
       }),
     );
     expect(response.status).toBe(200);
-
-    const contentType = response.headers.get("content-type")!;
-    const body = await response.text();
-    const parts = parseMultipart(contentType, body);
-
-    const manifestPart = parts.find((part) =>
-      part.headers["content-disposition"]?.includes('name="manifest"'),
-    );
-    expect(manifestPart).toBeDefined();
-    const manifest = JSON.parse(manifestPart!.body);
-    expect(manifest.id).toBe("update-rollout-old");
+    await expectManifestId(response, "update-rollout-old");
   });
 });
 
@@ -483,17 +455,7 @@ describe("Per-update rollout manifest resolution", () => {
       updateRolloutHeaders({ "eas-client-id": "client-in-rollout" }),
     );
     expect(response.status).toBe(200);
-
-    const contentType = response.headers.get("content-type")!;
-    const body = await response.text();
-    const parts = parseMultipart(contentType, body);
-
-    const manifestPart = parts.find((part) =>
-      part.headers["content-disposition"]?.includes('name="manifest"'),
-    );
-    expect(manifestPart).toBeDefined();
-    const manifest = JSON.parse(manifestPart!.body);
-    expect(manifest.id).toBe("update-ur-latest");
+    await expectManifestId(response, "update-ur-latest");
   });
 
   it("serves previous update for device NOT in rollout group", async () => {
@@ -502,33 +464,13 @@ describe("Per-update rollout manifest resolution", () => {
       updateRolloutHeaders({ "eas-client-id": "client-out-rollout" }),
     );
     expect(response.status).toBe(200);
-
-    const contentType = response.headers.get("content-type")!;
-    const body = await response.text();
-    const parts = parseMultipart(contentType, body);
-
-    const manifestPart = parts.find((part) =>
-      part.headers["content-disposition"]?.includes('name="manifest"'),
-    );
-    expect(manifestPart).toBeDefined();
-    const manifest = JSON.parse(manifestPart!.body);
-    expect(manifest.id).toBe("update-ur-prev");
+    await expectManifestId(response, "update-ur-prev");
   });
 
   it("falls back to previous update when no EAS-Client-ID header", async () => {
     const response = await manifestGet("proj-1", updateRolloutHeaders());
     expect(response.status).toBe(200);
-
-    const contentType = response.headers.get("content-type")!;
-    const body = await response.text();
-    const parts = parseMultipart(contentType, body);
-
-    const manifestPart = parts.find((part) =>
-      part.headers["content-disposition"]?.includes('name="manifest"'),
-    );
-    expect(manifestPart).toBeDefined();
-    const manifest = JSON.parse(manifestPart!.body);
-    expect(manifest.id).toBe("update-ur-prev");
+    await expectManifestId(response, "update-ur-prev");
   });
 
   it("skips reverted update and serves previous", async () => {
@@ -541,16 +483,6 @@ describe("Per-update rollout manifest resolution", () => {
       }),
     );
     expect(response.status).toBe(200);
-
-    const contentType = response.headers.get("content-type")!;
-    const body = await response.text();
-    const parts = parseMultipart(contentType, body);
-
-    const manifestPart = parts.find((part) =>
-      part.headers["content-disposition"]?.includes('name="manifest"'),
-    );
-    expect(manifestPart).toBeDefined();
-    const manifest = JSON.parse(manifestPart!.body);
-    expect(manifest.id).toBe("update-ur-reverted-prev");
+    await expectManifestId(response, "update-ur-reverted-prev");
   });
 });

@@ -67,6 +67,7 @@ export class UpdatesGroup extends HttpApiGroup.make("updates")
     HttpApiEndpoint.post("republish", "/api/updates/republish")
       .setPayload(RepublishBody)
       .addSuccess(Update, { status: 201 })
+      .addError(Conflict)
       .annotateContext(
         OpenApi.annotations({
           title: "Republish update",

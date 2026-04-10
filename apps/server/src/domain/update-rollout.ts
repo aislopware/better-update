@@ -35,9 +35,9 @@ const evaluateFallback = async <T extends RolloutCandidate>(
   if (previous.rollout_percentage === 0) {
     return { resolved: false, needsFallbackQuery: true };
   }
-  // Previous at 1-99%
+  // Previous at 1-99% — no client ID means legacy client, serve previous directly
   if (!easClientId) {
-    return { resolved: false, needsFallbackQuery: true };
+    return { resolved: true, update: previous };
   }
   const inRollout = await isInRollout(previous.id, easClientId, previous.rollout_percentage);
   return inRollout

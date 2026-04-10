@@ -68,6 +68,14 @@ describe(resolveUpdateRollout, () => {
     expect(result).toEqual({ resolved: true, update: candidate("update-0", 100) });
   });
 
+  test("latest at 50%, no easClientId, previous at 30% serves previous directly", async () => {
+    const result = await resolveUpdateRollout(
+      [candidate("update-1", 50), candidate("update-0", 30)],
+      undefined,
+    );
+    expect(result).toEqual({ resolved: true, update: candidate("update-0", 30) });
+  });
+
   test("latest at 50%, no easClientId, no previous returns no-update", async () => {
     const result = await resolveUpdateRollout([candidate("update-1", 50)], undefined);
     expect(result).toEqual({ resolved: false, needsFallbackQuery: false });

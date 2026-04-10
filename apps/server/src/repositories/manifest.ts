@@ -50,12 +50,6 @@ export interface ManifestRepository {
     readonly channelName: string;
   }) => Effect.Effect<ChannelRow, NotFound>;
 
-  readonly resolveUpdate: (params: {
-    readonly branchId: string;
-    readonly platform: string;
-    readonly runtimeVersion: string;
-  }) => Effect.Effect<UpdateRow | null>;
-
   readonly resolveUpdates: (params: {
     readonly branchId: string;
     readonly platform: string;
@@ -84,6 +78,8 @@ export class ManifestRepo extends Context.Tag("api/ManifestRepo")<
 
 // -- D1 Adapter --------------------------------------------------------------
 
+const UPDATE_COLUMNS = `"id", "runtime_version", "platform", "is_rollback", "signature", "certificate_chain", "manifest_body", "directive_body", "metadata_json", "extra_json", "rollout_percentage", "created_at"`;
+
 export const ManifestRepoLive = Layer.succeed(ManifestRepo, {
   resolveChannel: (params) =>
     Effect.gen(function* () {
@@ -104,28 +100,13 @@ export const ManifestRepoLive = Layer.succeed(ManifestRepo, {
       return row;
     }),
 
-  resolveUpdate: (params) =>
-    Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
-
-      const row = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT "id", "runtime_version", "platform", "is_rollback", "signature", "certificate_chain", "manifest_body", "directive_body", "metadata_json", "extra_json", "rollout_percentage", "created_at" FROM "updates" WHERE "branch_id" = ? AND "platform" = ? AND "runtime_version" = ? ORDER BY "created_at" DESC, "id" DESC LIMIT 1`,
-        )
-          .bind(params.branchId, params.platform, params.runtimeVersion)
-          .first<UpdateRow>(),
-      );
-
-      return row;
-    }),
-
   resolveUpdates: (params) =>
     Effect.gen(function* () {
       const env = yield* cloudflareEnv;
 
       const rows = yield* Effect.promise(async () =>
         env.DB.prepare(
-          `SELECT "id", "runtime_version", "platform", "is_rollback", "signature", "certificate_chain", "manifest_body", "directive_body", "metadata_json", "extra_json", "rollout_percentage", "created_at" FROM "updates" WHERE "branch_id" = ? AND "platform" = ? AND "runtime_version" = ? ORDER BY "created_at" DESC, "id" DESC LIMIT 2`,
+          `SELECT ${UPDATE_COLUMNS} FROM "updates" WHERE "branch_id" = ? AND "platform" = ? AND "runtime_version" = ? ORDER BY "created_at" DESC, "id" DESC LIMIT 2`,
         )
           .bind(params.branchId, params.platform, params.runtimeVersion)
           .all<UpdateRow>(),
@@ -140,7 +121,7 @@ export const ManifestRepoLive = Layer.succeed(ManifestRepo, {
 
       const row = yield* Effect.promise(async () =>
         env.DB.prepare(
-          `SELECT "id", "runtime_version", "platform", "is_rollback", "signature", "certificate_chain", "manifest_body", "directive_body", "metadata_json", "extra_json", "rollout_percentage", "created_at" FROM "updates" WHERE "branch_id" = ? AND "platform" = ? AND "runtime_version" = ? AND "rollout_percentage" = 100 ORDER BY "created_at" DESC, "id" DESC LIMIT 1`,
+          `SELECT ${UPDATE_COLUMNS} FROM "updates" WHERE "branch_id" = ? AND "platform" = ? AND "runtime_version" = ? AND "rollout_percentage" = 100 ORDER BY "created_at" DESC, "id" DESC LIMIT 1`,
         )
           .bind(params.branchId, params.platform, params.runtimeVersion)
           .first<UpdateRow>(),

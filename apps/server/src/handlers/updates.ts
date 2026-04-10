@@ -160,6 +160,21 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
           return yield* Effect.fail(new NotFound({ message: "Target channel not found" }));
         }
 
+        // Check for active per-update rollout on target branch
+        const hasActive = yield* updateRepo.hasActiveRollout({
+          branchId: targetChannel.branchId,
+          platform: sourceUpdate.platform,
+          runtimeVersion: sourceUpdate.runtimeVersion,
+        });
+        if (hasActive) {
+          return yield* Effect.fail(
+            new Conflict({
+              message:
+                "Cannot republish while a per-update rollout is active on the target branch. Complete or revert the rollout first.",
+            }),
+          );
+        }
+
         // Get source update's assets via update_assets table
         const sourceAssets = yield* getUpdateAssets(sourceUpdate.id);
 
