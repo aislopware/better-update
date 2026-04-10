@@ -17,7 +17,7 @@
     "prepare": "lefthook install --force",
     "test": "turbo run test",
     "test:all": "turbo run test test:integrations test:e2e",
-    "test:e2e": "turbo run test:e2e",
+    "test:e2e": "turbo run test:e2e --concurrency=1",
     "test:integrations": "turbo run test:integrations",
     "typegen:cf": "turbo run typegen:cf"
   },
