@@ -1,5 +1,6 @@
 import { BadRequest } from "@better-update/api";
 import { Effect } from "effect";
+import { parseDictionary } from "structured-headers";
 
 export interface ProtocolHeaders {
   readonly protocolVersion: 1;
@@ -10,6 +11,7 @@ export interface ProtocolHeaders {
   readonly easClientId: string | undefined;
   readonly accept: string | undefined;
   readonly currentUpdateId: string | undefined;
+  readonly extraParams: string | undefined;
 }
 
 const requireHeader = (headers: Headers, name: string, label: string) => {
@@ -25,6 +27,40 @@ const parsePlatform = (value: string): Effect.Effect<Platform, BadRequest> =>
   value === "ios" || value === "android"
     ? Effect.succeed(value)
     : Effect.fail(new BadRequest({ message: `Invalid platform: ${value}` }));
+
+const MAX_EXTRA_PARAM_KEYS = 16;
+const MAX_EXTRA_PARAM_VALUE_BYTES = 256;
+const textEncoder = new TextEncoder();
+
+const parseExtraParams = (headers: Headers) =>
+  Effect.gen(function* () {
+    const raw = headers.get("expo-extra-params");
+    if (!raw) {
+      return undefined;
+    }
+    const dict = yield* Effect.try(() => parseDictionary(raw));
+    if (dict.size > MAX_EXTRA_PARAM_KEYS) {
+      return undefined;
+    }
+    const hasOversized = [...dict.values()].some(
+      ([value]) =>
+        typeof value === "string" &&
+        textEncoder.encode(value).byteLength > MAX_EXTRA_PARAM_VALUE_BYTES,
+    );
+    return hasOversized ? undefined : raw;
+  }).pipe(Effect.catchAll(() => Effect.succeed(undefined)));
+
+export const addServerDefinedHeaders = (
+  response: Response,
+  extraParams: string | undefined,
+): Response => {
+  if (!extraParams) {
+    return response;
+  }
+  const headers = new Headers(response.headers);
+  headers.set("expo-server-defined-headers", `expo-extra-params=:${btoa(extraParams)}:`);
+  return new Response(response.body, { status: response.status, headers });
+};
 
 export const parseProtocolHeaders = (
   headers: Headers,
@@ -44,6 +80,7 @@ export const parseProtocolHeaders = (
       "expo-runtime-version",
     );
     const channelName = yield* requireHeader(headers, "expo-channel-name", "expo-channel-name");
+    const extraParams = yield* parseExtraParams(headers);
 
     return {
       protocolVersion: 1 as const,
@@ -54,5 +91,6 @@ export const parseProtocolHeaders = (
       easClientId: headers.get("eas-client-id") ?? undefined,
       accept: headers.get("accept") ?? undefined,
       currentUpdateId: headers.get("expo-current-update-id") ?? undefined,
+      extraParams,
     };
   });
