@@ -1,4 +1,4 @@
-import { NotFound } from "@better-update/api";
+import { Conflict, NotFound } from "@better-update/api";
 import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
@@ -47,6 +47,22 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
           name: payload.branch,
         });
 
+        // Check for active per-update rollout
+        const updateRepo = yield* UpdateRepo;
+        const hasActive = yield* updateRepo.hasActiveRollout({
+          branchId: branch.id,
+          platform: payload.platform,
+          runtimeVersion: payload.runtimeVersion,
+        });
+        if (hasActive) {
+          return yield* Effect.fail(
+            new Conflict({
+              message:
+                "Cannot publish while a per-update rollout is active. Complete or revert the rollout first.",
+            }),
+          );
+        }
+
         // Verify all asset hashes exist
         const assetRepo = yield* AssetRepo;
         const existingAssets = yield* assetRepo.findByHashes({
@@ -63,7 +79,6 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
         }
 
         // Create update with assets
-        const updateRepo = yield* UpdateRepo;
         return yield* updateRepo.insert({
           branchId: branch.id,
           runtimeVersion: payload.runtimeVersion,
