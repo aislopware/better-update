@@ -70,6 +70,15 @@ export interface ManifestRepository {
   readonly findProjectScopeKey: (params: {
     readonly projectId: string;
   }) => Effect.Effect<string, NotFound>;
+
+  readonly findUpdateLaunchAssetHash: (params: {
+    readonly updateId: string;
+  }) => Effect.Effect<string | null>;
+
+  readonly findPatchForAssets: (params: {
+    readonly oldHash: string;
+    readonly newHash: string;
+  }) => Effect.Effect<{ readonly r2Key: string; readonly byteSize: number } | null>;
 }
 
 export class ManifestRepo extends Context.Tag("api/ManifestRepo")<
@@ -161,5 +170,35 @@ export const ManifestRepoLive = Layer.succeed(ManifestRepo, {
       }
 
       return row.scope_key;
+    }),
+
+  findUpdateLaunchAssetHash: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+
+      const row = yield* Effect.promise(async () =>
+        env.DB.prepare(
+          `SELECT "asset_hash" FROM "update_assets" WHERE "update_id" = ? AND "is_launch" = 1`,
+        )
+          .bind(params.updateId)
+          .first<{ asset_hash: string }>(),
+      );
+
+      return row?.asset_hash ?? null;
+    }),
+
+  findPatchForAssets: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+
+      const row = yield* Effect.promise(async () =>
+        env.DB.prepare(
+          `SELECT "r2_key", "byte_size" FROM "patches" WHERE "old_asset_hash" = ? AND "new_asset_hash" = ?`,
+        )
+          .bind(params.oldHash, params.newHash)
+          .first<{ r2_key: string; byte_size: number }>(),
+      );
+
+      return row ? { r2Key: row.r2_key, byteSize: row.byte_size } : null;
     }),
 });

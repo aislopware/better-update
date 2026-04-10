@@ -2,5 +2,6 @@ export { AssetRepoLive } from "./assets";
 export { BranchRepoLive } from "./branches";
 export { ChannelRepoLive } from "./channels";
 export { ManifestRepo, ManifestRepoLive } from "./manifest";
+export { PatchRepo, PatchRepoLive } from "./patches";
 export { ProjectRepoLive } from "./projects";
 export { UpdateRepoLive } from "./updates";
