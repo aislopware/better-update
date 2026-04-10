@@ -435,6 +435,59 @@ describe("Rollout manifest resolution", () => {
   });
 });
 
+// ── Manifest caching tests ────────────────────────────────────────
+
+describe("Manifest caching", () => {
+  it("second request returns same manifest", async () => {
+    const headers = protocolHeaders({ "expo-runtime-version": "2.0.0" });
+
+    const first = await manifestGet("proj-1", headers);
+    expect(first.status).toBe(200);
+    const firstBody = await first.text();
+
+    const second = await manifestGet("proj-1", headers);
+    expect(second.status).toBe(200);
+    const secondBody = await second.text();
+
+    // Both responses contain the same manifest ID
+    const firstContentType = first.headers.get("content-type")!;
+    const firstParts = parseMultipart(firstContentType, firstBody);
+    const firstManifest = firstParts.find((p) =>
+      p.headers["content-disposition"]?.includes('name="manifest"'),
+    );
+
+    const secondContentType = second.headers.get("content-type")!;
+    const secondParts = parseMultipart(secondContentType, secondBody);
+    const secondManifest = secondParts.find((p) =>
+      p.headers["content-disposition"]?.includes('name="manifest"'),
+    );
+
+    expect(firstManifest).toBeDefined();
+    expect(secondManifest).toBeDefined();
+    expect(JSON.parse(firstManifest!.body).id).toBe("update-precomputed");
+    expect(JSON.parse(secondManifest!.body).id).toBe("update-precomputed");
+  });
+
+  it("cache-control is always private", async () => {
+    const response = await manifestGet(
+      "proj-1",
+      protocolHeaders({ "expo-runtime-version": "2.0.0" }),
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("private, max-age=0");
+  });
+
+  it("does not leak internal cache headers", async () => {
+    const response = await manifestGet(
+      "proj-1",
+      protocolHeaders({ "expo-runtime-version": "2.0.0" }),
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-cache-update-id")).toBeNull();
+    expect(response.headers.get("x-cache-response-type")).toBeNull();
+  });
+});
+
 // ── Per-update rollout resolution tests ──────────────────────────
 
 const updateRolloutHeaders = (overrides?: Record<string, string>) =>

@@ -1,6 +1,8 @@
 import { Effect } from "effect";
 
-import { cloudflareEnv } from "../cloudflare/context";
+import type { NotFound } from "@better-update/api";
+
+import { cloudflareCtx, cloudflareEnv } from "../cloudflare/context";
 import { evaluateBranchMapping } from "../domain/branch-mapping";
 import { resolveUpdateRollout } from "../domain/update-rollout";
 import { parseProtocolHeaders } from "../protocol/headers";
@@ -86,6 +88,42 @@ const certChainParts = (ph: ProtocolHeaders, update: UpdateRow): readonly Part[]
 
 // eslint-disable-next-line typescript/no-unsafe-type-assertion -- D1 JSON columns are trusted application data
 const parseJson = (raw: string) => JSON.parse(raw) as Record<string, unknown>;
+
+// -- L1 Cache helpers (Workers Cache API) ------------------------------------
+
+const CACHE_NAME = "manifests";
+/** 24 hours */
+const INTERNAL_TTL = 86_400;
+
+const buildCacheKey = (params: {
+  readonly cacheVersion: number;
+  readonly projectId: string;
+  readonly channelName: string;
+  readonly platform: string;
+  readonly runtimeVersion: string;
+  readonly resolvedBranchId: string;
+  readonly multipart: boolean;
+}) =>
+  `https://cache.internal/_cache/v${params.cacheVersion}/manifest/${params.projectId}/${params.channelName}/${params.platform}/${params.runtimeVersion}/${params.resolvedBranchId}/${params.multipart ? "mp" : "json"}`;
+
+const toCacheEntry = (
+  response: Response,
+  meta: { readonly updateId: string; readonly responseType: ResponseType },
+) => {
+  const headers = new Headers(response.headers);
+  headers.set("cache-control", `public, max-age=${INTERNAL_TTL}`);
+  headers.set("x-cache-update-id", meta.updateId);
+  headers.set("x-cache-response-type", meta.responseType);
+  return new Response(response.clone().body, { status: response.status, headers });
+};
+
+const fromCacheEntry = (cached: Response) => {
+  const headers = new Headers(cached.headers);
+  headers.delete("x-cache-update-id");
+  headers.delete("x-cache-response-type");
+  headers.set("cache-control", "private, max-age=0");
+  return new Response(cached.body, { status: cached.status, headers });
+};
 
 // -- Response builders (extracted to stay within max-statements) --------------
 
@@ -242,6 +280,81 @@ const buildUpdateResponse = (params: {
     });
   });
 
+// -- Cache check (extracted to stay within max-statements) -------------------
+
+const checkCache = (cacheKey: string) =>
+  Effect.gen(function* () {
+    const cache = yield* Effect.promise(async () => caches.open(CACHE_NAME));
+    return yield* Effect.promise(async () => cache.match(cacheKey));
+  });
+
+const isCacheable = (candidates: readonly UpdateRow[], update: UpdateRow) =>
+  update.rollout_percentage === 100 || candidates.length === 1;
+
+const storeInCache = (
+  cacheKey: string,
+  response: Response,
+  meta: { readonly updateId: string; readonly responseType: ResponseType },
+) =>
+  Effect.gen(function* () {
+    const ctx = yield* cloudflareCtx;
+    const cache = yield* Effect.promise(async () => caches.open(CACHE_NAME));
+    ctx.waitUntil(cache.put(cacheKey, toCacheEntry(response, meta)));
+  });
+
+// -- Cache-miss resolution (extracted to stay within max-statements) ---------
+
+const handleCacheMiss = (params: {
+  readonly projectId: string;
+  readonly resolvedBranchId: string;
+  readonly cacheKey: string;
+  readonly ph: ProtocolHeaders;
+  readonly track: (branchId: string, updateId: string, responseType: ResponseType) => void;
+}): Effect.Effect<Response, NotFound, ManifestRepo> =>
+  Effect.gen(function* () {
+    const { projectId, resolvedBranchId, cacheKey, ph, track } = params;
+    const repo = yield* ManifestRepo;
+
+    const [scopeKey, candidates] = yield* Effect.all(
+      [
+        repo.findProjectScopeKey({ projectId }),
+        repo.resolveUpdates({
+          branchId: resolvedBranchId,
+          platform: ph.platform,
+          runtimeVersion: ph.runtimeVersion,
+        }),
+      ],
+      { concurrency: 2 },
+    );
+
+    if (candidates.length === 0) {
+      track(resolvedBranchId, "", "no_update");
+      return noContent();
+    }
+
+    const update = yield* resolveRolledOutUpdate({
+      candidates,
+      easClientId: ph.easClientId,
+      branchId: resolvedBranchId,
+      platform: ph.platform,
+      runtimeVersion: ph.runtimeVersion,
+    });
+    if (update === null) {
+      track(resolvedBranchId, "", "no_update");
+      return noContent();
+    }
+
+    const response = yield* buildUpdateResponse({ update, scopeKey, ph });
+    const responseType: ResponseType = update.is_rollback === 1 ? "directive" : "manifest";
+    track(resolvedBranchId, update.id, responseType);
+
+    if (response.status === 200 && isCacheable(candidates, update)) {
+      yield* storeInCache(cacheKey, response, { updateId: update.id, responseType });
+    }
+
+    return response;
+  });
+
 // -- Resolution program ------------------------------------------------------
 
 const serve = (request: Request, projectId: string): Effect.Effect<Response, never, ManifestRepo> =>
@@ -272,13 +385,7 @@ const serve = (request: Request, projectId: string): Effect.Effect<Response, nev
     }
 
     const repo = yield* ManifestRepo;
-    const [scopeKey, channel] = yield* Effect.all(
-      [
-        repo.findProjectScopeKey({ projectId }),
-        repo.resolveChannel({ projectId, channelName: ph.channelName }),
-      ],
-      { concurrency: 2 },
-    );
+    const channel = yield* repo.resolveChannel({ projectId, channelName: ph.channelName });
 
     if (channel.is_paused === 1) {
       track(channel.branch_id, "", "no_update");
@@ -286,33 +393,27 @@ const serve = (request: Request, projectId: string): Effect.Effect<Response, nev
     }
 
     const resolvedBranchId = yield* resolveBranchId(channel, ph.easClientId);
-    const candidates = yield* repo.resolveUpdates({
-      branchId: resolvedBranchId,
+
+    const cacheKey = buildCacheKey({
+      cacheVersion: channel.cache_version,
+      projectId,
+      channelName: ph.channelName,
       platform: ph.platform,
       runtimeVersion: ph.runtimeVersion,
+      resolvedBranchId,
+      multipart: supportsMultipart(ph.accept ?? "*/*"),
     });
-
-    if (candidates.length === 0) {
-      track(resolvedBranchId, "", "no_update");
-      return noContent();
+    const cached = yield* checkCache(cacheKey);
+    if (cached) {
+      const updateId = cached.headers.get("x-cache-update-id") ?? "";
+      // eslint-disable-next-line typescript/no-unsafe-type-assertion -- internal header written by toCacheEntry
+      const responseType = (cached.headers.get("x-cache-response-type") ??
+        "manifest") as ResponseType;
+      track(resolvedBranchId, updateId, responseType);
+      return fromCacheEntry(cached);
     }
 
-    // Layer 2: Per-update rollout evaluation
-    const update = yield* resolveRolledOutUpdate({
-      candidates,
-      easClientId: ph.easClientId,
-      branchId: resolvedBranchId,
-      platform: ph.platform,
-      runtimeVersion: ph.runtimeVersion,
-    });
-    if (update === null) {
-      track(resolvedBranchId, "", "no_update");
-      return noContent();
-    }
-
-    const response = yield* buildUpdateResponse({ update, scopeKey, ph });
-    track(resolvedBranchId, update.id, update.is_rollback === 1 ? "directive" : "manifest");
-    return response;
+    return yield* handleCacheMiss({ projectId, resolvedBranchId, cacheKey, ph, track });
   }).pipe(
     // eslint-disable-next-line promise/prefer-await-to-callbacks -- Effect error handler, not a callback
     Effect.catchTag("BadRequest", (err) =>

@@ -8,6 +8,7 @@ import { cloudflareEnv } from "../cloudflare/context";
 export interface ChannelRow {
   branch_id: string;
   branch_mapping_json: string | null;
+  cache_version: number;
   is_paused: number;
 }
 
@@ -87,7 +88,7 @@ export const ManifestRepoLive = Layer.succeed(ManifestRepo, {
 
       const row = yield* Effect.promise(async () =>
         env.DB.prepare(
-          `SELECT "branch_id", "branch_mapping_json", "is_paused" FROM "channels" WHERE "project_id" = ? AND "name" = ?`,
+          `SELECT "branch_id", "branch_mapping_json", "cache_version", "is_paused" FROM "channels" WHERE "project_id" = ? AND "name" = ?`,
         )
           .bind(params.projectId, params.channelName)
           .first<ChannelRow>(),
