@@ -72,6 +72,7 @@
       "dependencies": {
         "@better-auth/api-key": "^1.6.0",
         "@better-update/api": "workspace:*",
+        "@better-update/bsdiff-wasm": "workspace:*",
         "@effect/platform": "^0.96.0",
         "better-auth": "^1.6.0",
         "effect": "^3.21.0",
@@ -112,6 +113,10 @@
         "@tanstack/react-query": ">=5",
         "react": ">=18",
       },
+    },
+    "packages/bsdiff-wasm": {
+      "name": "@better-update/bsdiff-wasm",
+      "version": "0.1.0",
     },
     "packages/oxlint-config": {
       "name": "@better-update/oxlint-config",
@@ -243,6 +248,8 @@
     "@better-update/api": ["@better-update/api@workspace:packages/api"],
 
     "@better-update/api-client": ["@better-update/api-client@workspace:packages/api-client"],
+
+    "@better-update/bsdiff-wasm": ["@better-update/bsdiff-wasm@workspace:packages/bsdiff-wasm"],
 
     "@better-update/dashboard": ["@better-update/dashboard@workspace:apps/dashboard"],
 
