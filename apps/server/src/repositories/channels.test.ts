@@ -223,4 +223,55 @@ describe("ChannelRepo -- D1 adapter", () => {
       expect(Exit.isSuccess(exit)).toBe(true);
     });
   });
+
+  describe("setBranchMapping", () => {
+    test("succeeds on valid update", async () => {
+      const db = mockD1.forRun(async () => ({ results: [], success: true }));
+      setRequestContext({ DB: db } as unknown as Env, {} as ExecutionContext);
+
+      const exit = await runWithRepo(
+        Effect.gen(function* () {
+          const repo = yield* ChannelRepo;
+          yield* repo.setBranchMapping({
+            id: "ch-1",
+            branchMappingJson: '{"data":[],"salt":"s"}',
+          });
+        }),
+      );
+
+      expect(Exit.isSuccess(exit)).toBe(true);
+    });
+  });
+
+  describe("completeBranchRollout", () => {
+    test("succeeds on valid update", async () => {
+      const db = mockD1.forRun(async () => ({ results: [], success: true }));
+      setRequestContext({ DB: db } as unknown as Env, {} as ExecutionContext);
+
+      const exit = await runWithRepo(
+        Effect.gen(function* () {
+          const repo = yield* ChannelRepo;
+          yield* repo.completeBranchRollout({ id: "ch-1", branchId: "branch-2" });
+        }),
+      );
+
+      expect(Exit.isSuccess(exit)).toBe(true);
+    });
+  });
+
+  describe("revertBranchRollout", () => {
+    test("succeeds on valid update", async () => {
+      const db = mockD1.forRun(async () => ({ results: [], success: true }));
+      setRequestContext({ DB: db } as unknown as Env, {} as ExecutionContext);
+
+      const exit = await runWithRepo(
+        Effect.gen(function* () {
+          const repo = yield* ChannelRepo;
+          yield* repo.revertBranchRollout({ id: "ch-1" });
+        }),
+      );
+
+      expect(Exit.isSuccess(exit)).toBe(true);
+    });
+  });
 });
