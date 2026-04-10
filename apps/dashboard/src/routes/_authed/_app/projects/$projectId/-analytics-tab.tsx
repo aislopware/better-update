@@ -50,21 +50,23 @@ const chartSkeleton = (
   </div>
 );
 
-const AdoptionChart = ({
-  projectId,
-  period,
-}: {
-  projectId: string;
-  period: AnalyticsPeriod | undefined;
-}) => {
+const ChartEmptyState = ({ message }: { message: string }) => (
+  <p className="text-muted-foreground flex h-[300px] items-center justify-center text-sm">
+    {message}
+  </p>
+);
+
+const ChartSummary = ({ requests, devices }: { requests: number; devices: number }) => (
+  <p className="text-muted-foreground text-sm">
+    {requests} requests &middot; {devices} unique devices
+  </p>
+);
+
+const AdoptionChart = ({ projectId, period }: { projectId: string; period: AnalyticsPeriod }) => {
   const { data } = useSuspenseQuery(adoptionQueryOptions(projectId, period));
 
   if (data.updates.length === 0) {
-    return (
-      <p className="text-muted-foreground flex h-[300px] items-center justify-center text-sm">
-        No analytics data available yet
-      </p>
-    );
+    return <ChartEmptyState message="No analytics data available yet" />;
   }
 
   const chartData = data.updates.map((entry) => ({
@@ -85,21 +87,11 @@ const AdoptionChart = ({
   );
 };
 
-const PlatformChart = ({
-  projectId,
-  period,
-}: {
-  projectId: string;
-  period: AnalyticsPeriod | undefined;
-}) => {
+const PlatformChart = ({ projectId, period }: { projectId: string; period: AnalyticsPeriod }) => {
   const { data } = useSuspenseQuery(platformAnalyticsQueryOptions(projectId, period));
 
   if (data.platforms.length === 0) {
-    return (
-      <p className="text-muted-foreground flex h-[300px] items-center justify-center text-sm">
-        No analytics data available yet
-      </p>
-    );
+    return <ChartEmptyState message="No analytics data available yet" />;
   }
 
   const chartData = data.platforms.map((entry, index) => ({
@@ -133,7 +125,7 @@ const ChannelHealthInner = ({
 }: {
   projectId: string;
   channel: string;
-  period: AnalyticsPeriod | undefined;
+  period: AnalyticsPeriod;
 }) => {
   const { data } = useSuspenseQuery(channelAnalyticsQueryOptions(projectId, channel, period));
 
@@ -145,9 +137,7 @@ const ChannelHealthInner = ({
 
   return (
     <>
-      <p className="text-muted-foreground text-sm">
-        {data.totalRequests} requests &middot; {data.uniqueDevices} unique devices
-      </p>
+      <ChartSummary requests={data.totalRequests} devices={data.uniqueDevices} />
       <ResponsiveContainer width="100%" height={300}>
         <BarChart data={chartData} layout="vertical" margin={{ left: 20 }}>
           <CartesianGrid strokeDasharray="3 3" />
@@ -168,23 +158,23 @@ const ChannelHealthChart = ({
 }: {
   orgId: string;
   projectId: string;
-  period: AnalyticsPeriod | undefined;
+  period: AnalyticsPeriod;
 }) => {
-  const { data: channelsData } = useSuspenseQuery(channelsQueryOptions(orgId, projectId));
+  const { data: channelsData } = useSuspenseQuery(channelsQueryOptions(orgId, projectId, 1000));
   const [selected, setSelected] = useState(channelsData.items[0]?.name ?? "");
 
   if (channelsData.items.length === 0) {
-    return (
-      <p className="text-muted-foreground flex h-[300px] items-center justify-center text-sm">
-        No channels available yet
-      </p>
-    );
+    return <ChartEmptyState message="No channels available yet" />;
   }
+
+  const effectiveSelected = channelsData.items.some((ch) => ch.name === selected)
+    ? selected
+    : (channelsData.items[0]?.name ?? "");
 
   return (
     <div className="flex flex-col gap-3">
       <Select
-        value={selected}
+        value={effectiveSelected}
         onValueChange={(value) => {
           if (value) {
             setSelected(value);
@@ -203,7 +193,7 @@ const ChannelHealthChart = ({
         </SelectContent>
       </Select>
       <Suspense fallback={chartSkeleton}>
-        <ChannelHealthInner projectId={projectId} channel={selected} period={period} />
+        <ChannelHealthInner projectId={projectId} channel={effectiveSelected} period={period} />
       </Suspense>
     </div>
   );
@@ -225,7 +215,7 @@ const UpdateTrafficInner = ({
 }: {
   projectId: string;
   updateId: string;
-  period: AnalyticsPeriod | undefined;
+  period: AnalyticsPeriod;
 }) => {
   const { data } = useSuspenseQuery(updateAnalyticsQueryOptions(projectId, updateId, period));
 
@@ -236,9 +226,7 @@ const UpdateTrafficInner = ({
 
   return (
     <>
-      <p className="text-muted-foreground text-sm">
-        {data.totalRequests} requests &middot; {data.uniqueDevices} unique devices
-      </p>
+      <ChartSummary requests={data.totalRequests} devices={data.uniqueDevices} />
       <ResponsiveContainer width="100%" height={300}>
         <AreaChart data={chartData}>
           <CartesianGrid strokeDasharray="3 3" />
@@ -265,23 +253,25 @@ const UpdateTrafficChart = ({
 }: {
   orgId: string;
   projectId: string;
-  period: AnalyticsPeriod | undefined;
+  period: AnalyticsPeriod;
 }) => {
-  const { data: updatesData } = useSuspenseQuery(updatesQueryOptions(orgId, projectId));
+  const { data: updatesData } = useSuspenseQuery(
+    updatesQueryOptions(orgId, projectId, undefined, 1000),
+  );
   const [selectedUpdateId, setSelectedUpdateId] = useState(updatesData.items[0]?.id ?? "");
 
   if (updatesData.items.length === 0) {
-    return (
-      <p className="text-muted-foreground flex h-[300px] items-center justify-center text-sm">
-        No updates available yet
-      </p>
-    );
+    return <ChartEmptyState message="No updates available yet" />;
   }
+
+  const effectiveUpdateId = updatesData.items.some((upd) => upd.id === selectedUpdateId)
+    ? selectedUpdateId
+    : (updatesData.items[0]?.id ?? "");
 
   return (
     <div className="flex flex-col gap-3">
       <Select
-        value={selectedUpdateId}
+        value={effectiveUpdateId}
         onValueChange={(value) => {
           if (value) {
             setSelectedUpdateId(value);
@@ -300,25 +290,24 @@ const UpdateTrafficChart = ({
         </SelectContent>
       </Select>
       <Suspense fallback={chartSkeleton}>
-        <UpdateTrafficInner projectId={projectId} updateId={selectedUpdateId} period={period} />
+        <UpdateTrafficInner projectId={projectId} updateId={effectiveUpdateId} period={period} />
       </Suspense>
     </div>
   );
 };
 
 export const AnalyticsTab = ({ orgId, projectId }: { orgId: string; projectId: string }) => {
-  const [period, setPeriod] = useState<AnalyticsPeriod>();
+  const [period, setPeriod] = useState<AnalyticsPeriod>("7d");
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex justify-end">
         <Select
-          value={period ?? "all"}
+          value={period}
           onValueChange={(value) => {
-            if (value) {
-              setPeriod(
-                value === "all" ? undefined : PERIODS.find((candidate) => candidate === value),
-              );
+            const match = PERIODS.find((candidate) => candidate === value);
+            if (match) {
+              setPeriod(match);
             }
           }}
         >
@@ -326,7 +315,6 @@ export const AnalyticsTab = ({ orgId, projectId }: { orgId: string; projectId: s
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All time</SelectItem>
             <SelectItem value="1d">Last 24 hours</SelectItem>
             <SelectItem value="7d">Last 7 days</SelectItem>
             <SelectItem value="30d">Last 30 days</SelectItem>

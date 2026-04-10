@@ -51,17 +51,30 @@ export const branchesQueryOptions = (orgId: string, projectId: string) =>
     staleTime: 30_000,
   });
 
-export const channelsQueryOptions = (orgId: string, projectId: string) =>
+export const channelsQueryOptions = (orgId: string, projectId: string, limit?: number) =>
   queryOptions({
-    queryKey: ["org", orgId, "projects", projectId, "channels"],
-    queryFn: () => runApi((api) => api.channels.list({ urlParams: { projectId } })),
+    queryKey: ["org", orgId, "projects", projectId, "channels", ...(limit != null ? [limit] : [])],
+    queryFn: () => runApi((api) => api.channels.list({ urlParams: { projectId, limit } })),
     staleTime: 30_000,
   });
 
-export const updatesQueryOptions = (orgId: string, projectId: string, branchId?: string) =>
+export const updatesQueryOptions = (
+  orgId: string,
+  projectId: string,
+  branchId?: string,
+  limit?: number,
+) =>
   queryOptions({
-    queryKey: ["org", orgId, "projects", projectId, "updates", ...(branchId ? [branchId] : [])],
-    queryFn: () => runApi((api) => api.updates.list({ urlParams: { projectId, branchId } })),
+    queryKey: [
+      "org",
+      orgId,
+      "projects",
+      projectId,
+      "updates",
+      ...(branchId ? [branchId] : []),
+      ...(limit != null ? [limit] : []),
+    ],
+    queryFn: () => runApi((api) => api.updates.list({ urlParams: { projectId, branchId, limit } })),
     staleTime: 30_000,
   });
 
