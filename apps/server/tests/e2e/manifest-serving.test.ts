@@ -74,6 +74,28 @@ VALUES ('update-rollout-old', 'branch-rollout-old', '5.0.0', 'ios', 'old branch 
 
 INSERT INTO "updates" ("id", "branch_id", "runtime_version", "platform", "message", "metadata_json", "group_id", "is_rollback", "manifest_body", "created_at")
 VALUES ('update-rollout-new', 'branch-rollout-new', '5.0.0', 'ios', 'new branch update', '{}', 'group-ro-2', 0, '{"id":"update-rollout-new","createdAt":"2024-04-02T00:00:00.000Z","runtimeVersion":"5.0.0","launchAsset":null,"assets":[],"metadata":{},"extra":{"scopeKey":"@test/my-app"}}', '2024-04-02T00:00:00.000Z');
+
+-- Per-update rollout test data
+INSERT INTO "branches" ("id", "project_id", "name", "created_at")
+VALUES ('branch-update-rollout', 'proj-1', 'update-rollout', '2024-05-01T00:00:00.000Z');
+
+INSERT INTO "channels" ("id", "project_id", "name", "branch_id", "is_paused", "created_at")
+VALUES ('chan-update-rollout', 'proj-1', 'update-rollout', 'branch-update-rollout', 0, '2024-05-01T00:00:00.000Z');
+
+-- Previous update: fully rolled out (100%)
+INSERT INTO "updates" ("id", "branch_id", "runtime_version", "platform", "message", "metadata_json", "group_id", "rollout_percentage", "is_rollback", "manifest_body", "created_at")
+VALUES ('update-ur-prev', 'branch-update-rollout', '6.0.0', 'ios', 'previous stable', '{}', 'group-ur-1', 100, 0, '{"id":"update-ur-prev","createdAt":"2024-05-01T00:00:00.000Z","runtimeVersion":"6.0.0","launchAsset":null,"assets":[],"metadata":{},"extra":{"scopeKey":"@test/my-app"}}', '2024-05-01T00:00:00.000Z');
+
+-- Latest update: partial rollout at 50%
+INSERT INTO "updates" ("id", "branch_id", "runtime_version", "platform", "message", "metadata_json", "group_id", "rollout_percentage", "is_rollback", "manifest_body", "created_at")
+VALUES ('update-ur-latest', 'branch-update-rollout', '6.0.0', 'ios', 'canary release', '{}', 'group-ur-2', 50, 0, '{"id":"update-ur-latest","createdAt":"2024-05-02T00:00:00.000Z","runtimeVersion":"6.0.0","launchAsset":null,"assets":[],"metadata":{},"extra":{"scopeKey":"@test/my-app"}}', '2024-05-02T00:00:00.000Z');
+
+-- Reverted update test data (separate runtimeVersion)
+INSERT INTO "updates" ("id", "branch_id", "runtime_version", "platform", "message", "metadata_json", "group_id", "rollout_percentage", "is_rollback", "manifest_body", "created_at")
+VALUES ('update-ur-reverted-prev', 'branch-update-rollout', '7.0.0', 'ios', 'old stable', '{}', 'group-ur-3', 100, 0, '{"id":"update-ur-reverted-prev","createdAt":"2024-05-03T00:00:00.000Z","runtimeVersion":"7.0.0","launchAsset":null,"assets":[],"metadata":{},"extra":{"scopeKey":"@test/my-app"}}', '2024-05-03T00:00:00.000Z');
+
+INSERT INTO "updates" ("id", "branch_id", "runtime_version", "platform", "message", "metadata_json", "group_id", "rollout_percentage", "is_rollback", "manifest_body", "created_at")
+VALUES ('update-ur-reverted', 'branch-update-rollout', '7.0.0', 'ios', 'reverted release', '{}', 'group-ur-4', 0, 0, '{"id":"update-ur-reverted","createdAt":"2024-05-04T00:00:00.000Z","runtimeVersion":"7.0.0","launchAsset":null,"assets":[],"metadata":{},"extra":{"scopeKey":"@test/my-app"}}', '2024-05-04T00:00:00.000Z');
 `;
 
 beforeAll(() => {
@@ -438,5 +460,97 @@ describe("Rollout manifest resolution", () => {
     expect(manifestPart).toBeDefined();
     const manifest = JSON.parse(manifestPart!.body);
     expect(manifest.id).toBe("update-rollout-old");
+  });
+});
+
+// ── Per-update rollout resolution tests ──────────────────────────
+
+const updateRolloutHeaders = (overrides?: Record<string, string>) =>
+  protocolHeaders({
+    "expo-runtime-version": "6.0.0",
+    "expo-channel-name": "update-rollout",
+    ...overrides,
+  });
+
+describe("Per-update rollout manifest resolution", () => {
+  // With salt "update-ur-latest" (the update ID):
+  // - "client-in-rollout" hashes to ~0.236 (below 0.50 → gets LATEST update)
+  // - "client-out-rollout" hashes to ~0.577 (above 0.50 → gets PREVIOUS update)
+
+  it("serves latest update for device in rollout group", async () => {
+    const response = await manifestGet(
+      "proj-1",
+      updateRolloutHeaders({ "eas-client-id": "client-in-rollout" }),
+    );
+    expect(response.status).toBe(200);
+
+    const contentType = response.headers.get("content-type")!;
+    const body = await response.text();
+    const parts = parseMultipart(contentType, body);
+
+    const manifestPart = parts.find((part) =>
+      part.headers["content-disposition"]?.includes('name="manifest"'),
+    );
+    expect(manifestPart).toBeDefined();
+    const manifest = JSON.parse(manifestPart!.body);
+    expect(manifest.id).toBe("update-ur-latest");
+  });
+
+  it("serves previous update for device NOT in rollout group", async () => {
+    const response = await manifestGet(
+      "proj-1",
+      updateRolloutHeaders({ "eas-client-id": "client-out-rollout" }),
+    );
+    expect(response.status).toBe(200);
+
+    const contentType = response.headers.get("content-type")!;
+    const body = await response.text();
+    const parts = parseMultipart(contentType, body);
+
+    const manifestPart = parts.find((part) =>
+      part.headers["content-disposition"]?.includes('name="manifest"'),
+    );
+    expect(manifestPart).toBeDefined();
+    const manifest = JSON.parse(manifestPart!.body);
+    expect(manifest.id).toBe("update-ur-prev");
+  });
+
+  it("falls back to previous update when no EAS-Client-ID header", async () => {
+    const response = await manifestGet("proj-1", updateRolloutHeaders());
+    expect(response.status).toBe(200);
+
+    const contentType = response.headers.get("content-type")!;
+    const body = await response.text();
+    const parts = parseMultipart(contentType, body);
+
+    const manifestPart = parts.find((part) =>
+      part.headers["content-disposition"]?.includes('name="manifest"'),
+    );
+    expect(manifestPart).toBeDefined();
+    const manifest = JSON.parse(manifestPart!.body);
+    expect(manifest.id).toBe("update-ur-prev");
+  });
+
+  it("skips reverted update and serves previous", async () => {
+    // runtimeVersion 7.0.0: latest is reverted (0%), previous is 100%
+    const response = await manifestGet(
+      "proj-1",
+      updateRolloutHeaders({
+        "expo-runtime-version": "7.0.0",
+        "eas-client-id": "any-client",
+      }),
+    );
+    expect(response.status).toBe(200);
+
+    const contentType = response.headers.get("content-type")!;
+    const body = await response.text();
+    const parts = parseMultipart(contentType, body);
+
+    const manifestPart = parts.find((part) =>
+      part.headers["content-disposition"]?.includes('name="manifest"'),
+    );
+    expect(manifestPart).toBeDefined();
+    const manifest = JSON.parse(manifestPart!.body);
+    expect(manifest.id).toBe("update-ur-reverted-prev");
   });
 });
