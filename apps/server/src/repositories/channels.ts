@@ -32,6 +32,18 @@ export interface ChannelRepository {
     readonly id: string;
     readonly isPaused: boolean;
   }) => Effect.Effect<void>;
+
+  readonly setBranchMapping: (params: {
+    readonly id: string;
+    readonly branchMappingJson: string;
+  }) => Effect.Effect<void>;
+
+  readonly completeBranchRollout: (params: {
+    readonly id: string;
+    readonly branchId: string;
+  }) => Effect.Effect<void>;
+
+  readonly revertBranchRollout: (params: { readonly id: string }) => Effect.Effect<void>;
 }
 
 export class ChannelRepo extends Context.Tag("api/ChannelRepo")<ChannelRepo, ChannelRepository>() {}
@@ -154,6 +166,45 @@ export const ChannelRepoLive = Layer.succeed(ChannelRepo, {
           `UPDATE "channels" SET "is_paused" = ?, "cache_version" = "cache_version" + 1 WHERE "id" = ?`,
         )
           .bind(params.isPaused ? 1 : 0, params.id)
+          .run(),
+      );
+    }),
+
+  setBranchMapping: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+
+      yield* Effect.promise(async () =>
+        env.DB.prepare(
+          `UPDATE "channels" SET "branch_mapping_json" = ?, "cache_version" = "cache_version" + 1 WHERE "id" = ?`,
+        )
+          .bind(params.branchMappingJson, params.id)
+          .run(),
+      );
+    }),
+
+  completeBranchRollout: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+
+      yield* Effect.promise(async () =>
+        env.DB.prepare(
+          `UPDATE "channels" SET "branch_id" = ?, "branch_mapping_json" = NULL, "cache_version" = "cache_version" + 1 WHERE "id" = ?`,
+        )
+          .bind(params.branchId, params.id)
+          .run(),
+      );
+    }),
+
+  revertBranchRollout: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+
+      yield* Effect.promise(async () =>
+        env.DB.prepare(
+          `UPDATE "channels" SET "branch_mapping_json" = NULL, "cache_version" = "cache_version" + 1 WHERE "id" = ?`,
+        )
+          .bind(params.id)
           .run(),
       );
     }),

@@ -325,4 +325,154 @@ describe("Channels API flow", () => {
     expect(body.items).toHaveLength(2);
     expect(body.items.some((c: { name: string }) => c.name === "b-channel")).toBe(false);
   });
+
+  // ── Section 7: Branch rollout ─────────────────────────────────
+
+  let thirdBranchId: string;
+
+  it("creates a third branch for rollout tests", async () => {
+    const response = await post(
+      "/api/branches",
+      { projectId, name: "rollout-target" },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    thirdBranchId = body.id;
+  });
+
+  it("creates a branch rollout", async () => {
+    const response = await post(
+      `/api/channels/${channelId}/rollout`,
+      { newBranchId: thirdBranchId, percentage: 10 },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.id).toBe(channelId);
+    expect(body.branchMappingJson).toBeTruthy();
+    const mapping = JSON.parse(body.branchMappingJson);
+    expect(mapping.data).toHaveLength(2);
+    expect(mapping.data[0].branchId).toBe(thirdBranchId);
+    expect(mapping.data[0].branchMappingLogic).toBe("hash_lt(mappingId, 0.10)");
+    expect(mapping.data[1].branchMappingLogic).toBe("true");
+    expect(mapping.salt).toBeDefined();
+  });
+
+  it("rejects duplicate rollout (409)", async () => {
+    const response = await post(
+      `/api/channels/${channelId}/rollout`,
+      { newBranchId: thirdBranchId, percentage: 20 },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(409);
+  });
+
+  it("rejects rollout to current branch (409)", async () => {
+    // First revert so we can test the current-branch guard
+    const revertRes = await post(
+      `/api/channels/${channelId}/rollout/revert`,
+      {},
+      { cookie: cookies },
+    );
+    expect(revertRes.status).toBe(200);
+
+    // Now try to rollout to the channel's current branch
+    const response = await post(
+      `/api/channels/${channelId}/rollout`,
+      { newBranchId: secondBranchId, percentage: 10 },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(409);
+  });
+
+  it("creates rollout again for update/complete tests", async () => {
+    const response = await post(
+      `/api/channels/${channelId}/rollout`,
+      { newBranchId: thirdBranchId, percentage: 10 },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(200);
+  });
+
+  it("updates rollout percentage", async () => {
+    const response = await patch(
+      `/api/channels/${channelId}/rollout`,
+      { percentage: 50 },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    const mapping = JSON.parse(body.branchMappingJson);
+    expect(mapping.data[0].branchMappingLogic).toBe("hash_lt(mappingId, 0.50)");
+  });
+
+  it("rejects update when no active rollout (404)", async () => {
+    // Revert first
+    const revertRes = await post(
+      `/api/channels/${channelId}/rollout/revert`,
+      {},
+      { cookie: cookies },
+    );
+    expect(revertRes.status).toBe(200);
+
+    const response = await patch(
+      `/api/channels/${channelId}/rollout`,
+      { percentage: 30 },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(404);
+  });
+
+  it("creates rollout again for complete test", async () => {
+    const response = await post(
+      `/api/channels/${channelId}/rollout`,
+      { newBranchId: thirdBranchId, percentage: 80 },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(200);
+  });
+
+  it("completes rollout - branchId changed, branchMappingJson null", async () => {
+    const response = await post(
+      `/api/channels/${channelId}/rollout/complete`,
+      {},
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.branchId).toBe(thirdBranchId);
+    expect(body.branchMappingJson).toBeNull();
+  });
+
+  it("rejects complete when no active rollout (404)", async () => {
+    const response = await post(
+      `/api/channels/${channelId}/rollout/complete`,
+      {},
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(404);
+  });
+
+  it("creates a second rollout then reverts - branchId unchanged", async () => {
+    // Current branchId is thirdBranchId after the complete above
+    const createRes = await post(
+      `/api/channels/${channelId}/rollout`,
+      { newBranchId: branchId, percentage: 25 },
+      { cookie: cookies },
+    );
+    expect(createRes.status).toBe(200);
+    const createBody = await createRes.json();
+    expect(createBody.branchMappingJson).toBeTruthy();
+
+    const response = await post(
+      `/api/channels/${channelId}/rollout/revert`,
+      {},
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.branchId).toBe(thirdBranchId);
+    expect(body.branchMappingJson).toBeNull();
+  });
 });

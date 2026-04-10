@@ -1,0 +1,106 @@
+// -- Types ------------------------------------------------------------------
+
+interface BranchMappingEntry {
+  branchId: string;
+  branchMappingLogic: string;
+}
+
+interface BranchMapping {
+  data: BranchMappingEntry[];
+  salt: string;
+}
+
+const isBranchMapping = (value: unknown): value is BranchMapping =>
+  typeof value === "object" && value !== null && "data" in value && "salt" in value;
+
+const emptyMapping: BranchMapping = { data: [], salt: "" };
+
+const parseBranchMapping = (json: string): BranchMapping => {
+  const raw: unknown = JSON.parse(json);
+  return isBranchMapping(raw) ? raw : emptyMapping;
+};
+
+// -- Builder functions (management API) ------------------------------------
+
+export const buildBranchMapping = (params: {
+  newBranchId: string;
+  oldBranchId: string;
+  percentage: number;
+  salt: string;
+}): string => {
+  const mapping: BranchMapping = {
+    data: [
+      {
+        branchId: params.newBranchId,
+        branchMappingLogic: `hash_lt(mappingId, ${(params.percentage / 100).toFixed(2)})`,
+      },
+      { branchId: params.oldBranchId, branchMappingLogic: "true" },
+    ],
+    salt: params.salt,
+  };
+  return JSON.stringify(mapping);
+};
+
+export const updateBranchMappingPercentage = (existing: string, percentage: number): string => {
+  const mapping = parseBranchMapping(existing);
+  const [first] = mapping.data;
+  if (first) {
+    first.branchMappingLogic = `hash_lt(mappingId, ${(percentage / 100).toFixed(2)})`;
+  }
+  return JSON.stringify(mapping);
+};
+
+export const extractNewBranchId = (branchMappingJson: string): string => {
+  const mapping = parseBranchMapping(branchMappingJson);
+  return mapping.data[0]?.branchId ?? "";
+};
+
+// -- Evaluator (manifest resolution) ---------------------------------------
+
+const hashToFraction = async (salt: string, clientId: string): Promise<number> => {
+  const input = new TextEncoder().encode(`${salt}:${clientId}`);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", input);
+  const view = new DataView(hashBuffer);
+  // First 4 bytes as big-endian uint32, normalized to [0, 1)
+  return view.getUint32(0, false) / 4_294_967_296;
+};
+
+const parseThreshold = (logic: string): number | null => {
+  const match = /^hash_lt\(mappingId,\s*([\d.]+)\)$/.exec(logic);
+  return match?.[1] ? Number.parseFloat(match[1]) : null;
+};
+
+const evaluateEntry = async (
+  entry: BranchMappingEntry,
+  salt: string,
+  easClientId: string,
+): Promise<string | null> => {
+  if (entry.branchMappingLogic === "true") {
+    return entry.branchId;
+  }
+  const threshold = parseThreshold(entry.branchMappingLogic);
+  if (threshold === null) {
+    return null;
+  }
+  const value = await hashToFraction(salt, easClientId);
+  return value < threshold ? entry.branchId : null;
+};
+
+export const evaluateBranchMapping = async (
+  branchMappingJson: string,
+  easClientId: string | undefined,
+): Promise<string> => {
+  const mapping = parseBranchMapping(branchMappingJson);
+  const fallback = mapping.data.at(-1)?.branchId ?? "";
+
+  // No client ID -> always fallback (last "true" entry)
+  if (!easClientId) {
+    return fallback;
+  }
+
+  const results = await Promise.all(
+    mapping.data.map(async (entry) => evaluateEntry(entry, mapping.salt, easClientId)),
+  );
+
+  return results.find((result) => result !== null) ?? fallback;
+};
