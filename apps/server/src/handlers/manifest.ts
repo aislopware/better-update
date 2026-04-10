@@ -11,20 +11,17 @@ import { encodeMultipart } from "../protocol/multipart";
 import { ManifestRepo, ManifestRepoLive } from "../repositories/manifest";
 
 import type { ProtocolHeaders } from "../protocol/headers";
+import type { PatchedAssetInfo } from "../protocol/manifest-builder";
 import type { Part } from "../protocol/multipart";
 import type { AssetRow, ChannelRow, UpdateRow } from "../repositories/manifest";
 
 type ResponseType = "manifest" | "directive" | "no_update";
-
-// -- Common protocol headers (required on ALL responses) ---------------------
 
 const COMMON_HEADERS: Record<string, string> = {
   "expo-protocol-version": "1",
   "expo-sfv-version": "0",
   "cache-control": "private, max-age=0",
 };
-
-// -- Response helpers --------------------------------------------------------
 
 const protocolResponse = (body: string | null, status: number, headers?: Record<string, string>) =>
   new Response(body, { status, headers: { ...COMMON_HEADERS, ...headers } });
@@ -33,31 +30,23 @@ const jsonError = (status: number, code: string, message: string) =>
   protocolResponse(JSON.stringify({ code, message }), status, {
     "content-type": "application/json",
   });
-
 const noContent = () => protocolResponse(null, 204);
-
 const multipartResponse = (boundary: string, parts: readonly Part[]) =>
   protocolResponse(encodeMultipart(boundary, parts), 200, {
     "content-type": `multipart/mixed; boundary=${boundary}`,
   });
-
 const jsonManifestResponse = (manifestJson: string, signature: string | undefined) =>
   protocolResponse(manifestJson, 200, {
     "content-type": "application/expo+json",
     ...(signature ? { "expo-signature": signature } : {}),
   });
 
-// -- Accept negotiation ------------------------------------------------------
-
 const supportsMultipart = (accept: string) =>
   accept.includes("multipart/mixed") || accept.includes("*/*");
-
 const supportsAny = (accept: string) =>
   supportsMultipart(accept) ||
   accept.includes("application/expo+json") ||
   accept.includes("application/json");
-
-// -- Part builders -----------------------------------------------------------
 
 const signedPart = (name: string, body: string, signature: string | undefined): Part => ({
   name,
@@ -72,9 +61,17 @@ const extensionsPart: Part = {
   body: JSON.stringify(buildExtensions()),
 };
 
+const buildExtensionsPart = (patchedAsset?: PatchedAssetInfo): Part =>
+  patchedAsset
+    ? {
+        name: "extensions",
+        contentType: "application/json",
+        body: JSON.stringify(buildExtensions({ patchedAsset })),
+      }
+    : extensionsPart;
+
 const signatureFor = (ph: ProtocolHeaders, update: UpdateRow) =>
   ph.expectSignature ? (update.signature ?? undefined) : undefined;
-
 const certChainParts = (ph: ProtocolHeaders, update: UpdateRow): readonly Part[] =>
   ph.expectSignature && update.certificate_chain
     ? [
@@ -88,13 +85,8 @@ const certChainParts = (ph: ProtocolHeaders, update: UpdateRow): readonly Part[]
 
 // eslint-disable-next-line typescript/no-unsafe-type-assertion -- D1 JSON columns are trusted application data
 const parseJson = (raw: string) => JSON.parse(raw) as Record<string, unknown>;
-
-// -- L1 Cache helpers (Workers Cache API) ------------------------------------
-
 const CACHE_NAME = "manifests";
-/** 24 hours */
 const INTERNAL_TTL = 86_400;
-
 const buildCacheKey = (params: {
   readonly cacheVersion: number;
   readonly projectId: string;
@@ -111,7 +103,6 @@ interface CacheMeta {
   readonly updateId: string;
   readonly responseType: ResponseType;
 }
-
 const toCacheEntry = (response: Response, meta: CacheMeta) => {
   const headers = new Headers(response.headers);
   headers.set("cache-control", `public, max-age=${INTERNAL_TTL}`);
@@ -119,7 +110,6 @@ const toCacheEntry = (response: Response, meta: CacheMeta) => {
   headers.set("x-cache-response-type", meta.responseType);
   return new Response(response.clone().body, { status: response.status, headers });
 };
-
 const fromCacheEntry = (cached: Response) => {
   const headers = new Headers(cached.headers);
   headers.delete("x-cache-update-id");
@@ -128,9 +118,12 @@ const fromCacheEntry = (cached: Response) => {
   return new Response(cached.body, { status: cached.status, headers });
 };
 
-// -- Response builders (extracted to stay within max-statements) --------------
-
-const buildDirectiveResponse = (update: UpdateRow, ph: ProtocolHeaders, boundary: string) => {
+const buildDirectiveResponse = (
+  update: UpdateRow,
+  ph: ProtocolHeaders,
+  boundary: string,
+  patchedAsset?: PatchedAssetInfo,
+) => {
   const directiveJson = update.directive_body
     ? parseJson(update.directive_body)
     : buildDirective({
@@ -146,7 +139,7 @@ const buildDirectiveResponse = (update: UpdateRow, ph: ProtocolHeaders, boundary
   return multipartResponse(boundary, [
     signedPart("directive", JSON.stringify(directiveJson), signatureFor(ph, update)),
     ...certChainParts(ph, update),
-    extensionsPart,
+    buildExtensionsPart(patchedAsset),
   ]);
 };
 
@@ -158,8 +151,10 @@ const buildManifestFromData = (params: {
   readonly ph: ProtocolHeaders;
   readonly boundary: string;
   readonly useMultipart: boolean;
+  readonly patchedAsset: PatchedAssetInfo | undefined;
 }) => {
-  const { update, assetRows, scopeKey, assetBaseUrl, ph, boundary, useMultipart } = params;
+  const { update, assetRows, scopeKey, assetBaseUrl, ph, boundary, useMultipart, patchedAsset } =
+    params;
   const manifestStr = JSON.stringify(
     buildManifest({
       update: {
@@ -189,11 +184,9 @@ const buildManifestFromData = (params: {
   return multipartResponse(boundary, [
     signedPart("manifest", manifestStr, sig),
     ...certChainParts(ph, update),
-    extensionsPart,
+    buildExtensionsPart(patchedAsset),
   ]);
 };
-
-// -- Rollout resolution ------------------------------------------------------
 
 const resolveRolledOutUpdate = (params: {
   readonly candidates: readonly UpdateRow[];
@@ -227,8 +220,6 @@ const resolveRolledOutUpdate = (params: {
     return null;
   });
 
-// -- Branch resolution -------------------------------------------------------
-
 const resolveBranchId = (channel: ChannelRow, easClientId: string | undefined) => {
   const { branch_mapping_json: mapping } = channel;
   return mapping
@@ -238,15 +229,14 @@ const resolveBranchId = (channel: ChannelRow, easClientId: string | undefined) =
     : Effect.succeed(channel.branch_id);
 };
 
-// -- Response rendering (extracted to stay within max-statements) ------------
-
 const buildUpdateResponse = (params: {
   readonly update: UpdateRow;
   readonly scopeKey: string;
   readonly ph: ProtocolHeaders;
+  readonly patchedAsset: PatchedAssetInfo | undefined;
 }): Effect.Effect<Response, never, ManifestRepo> =>
   Effect.gen(function* () {
-    const { update, scopeKey, ph } = params;
+    const { update, scopeKey, ph, patchedAsset } = params;
     const env = yield* cloudflareEnv;
     const boundary = crypto.randomUUID();
     const useMultipart = supportsMultipart(ph.accept ?? "*/*");
@@ -255,7 +245,7 @@ const buildUpdateResponse = (params: {
       if (!useMultipart) {
         return jsonError(406, "NOT_ACCEPTABLE", "Directive requires multipart/mixed");
       }
-      return buildDirectiveResponse(update, ph, boundary);
+      return buildDirectiveResponse(update, ph, boundary, patchedAsset);
     }
 
     if (update.manifest_body !== null) {
@@ -266,7 +256,7 @@ const buildUpdateResponse = (params: {
       return multipartResponse(boundary, [
         signedPart("manifest", update.manifest_body, sig),
         ...certChainParts(ph, update),
-        extensionsPart,
+        buildExtensionsPart(patchedAsset),
       ]);
     }
 
@@ -280,16 +270,13 @@ const buildUpdateResponse = (params: {
       ph,
       boundary,
       useMultipart,
+      patchedAsset,
     });
   });
 
-// -- Cache check (extracted to stay within max-statements) -------------------
-
 const openCache = () => Effect.promise(async () => caches.open(CACHE_NAME));
-
 const checkCache = (cache: Cache, cacheKey: string) =>
   Effect.promise(async () => cache.match(cacheKey));
-
 const isCacheable = (candidates: readonly UpdateRow[]) =>
   candidates.every((candidate) => candidate.rollout_percentage === 100);
 
@@ -298,8 +285,6 @@ const storeInCache = (cache: Cache, cacheKey: string, response: Response, meta: 
     const ctx = yield* cloudflareCtx;
     ctx.waitUntil(cache.put(cacheKey, toCacheEntry(response, meta)));
   });
-
-// -- Cache-miss resolution (extracted to stay within max-statements) ---------
 
 const handleCacheMiss = (params: {
   readonly cache: Cache;
@@ -345,7 +330,7 @@ const handleCacheMiss = (params: {
       return trackNoUpdate();
     }
 
-    const response = yield* buildUpdateResponse({ update, scopeKey, ph });
+    const response = yield* buildUpdateResponse({ update, scopeKey, ph, patchedAsset: undefined });
     const responseType: ResponseType = update.is_rollback === 1 ? "directive" : "manifest";
     track(resolvedBranchId, update.id, responseType);
 
@@ -356,7 +341,87 @@ const handleCacheMiss = (params: {
     return response;
   });
 
-// -- Resolution program ------------------------------------------------------
+const resolvePatchInfo = (params: {
+  readonly update: UpdateRow;
+  readonly currentUpdateId: string;
+}): Effect.Effect<PatchedAssetInfo | undefined, never, ManifestRepo> =>
+  Effect.gen(function* () {
+    const { update, currentUpdateId } = params;
+    if (update.id === currentUpdateId || update.is_rollback === 1) {
+      return undefined;
+    }
+    const repo = yield* ManifestRepo;
+    const env = yield* cloudflareEnv;
+    const oldHash = yield* repo.findUpdateLaunchAssetHash({ updateId: currentUpdateId });
+    if (!oldHash) {
+      return undefined;
+    }
+    const newAssets = yield* repo.findUpdateAssets({ updateId: update.id });
+    const newLaunch = newAssets.find((asset) => asset.is_launch === 1);
+    if (!newLaunch || oldHash === newLaunch.hash) {
+      return undefined;
+    }
+    const patch = yield* repo.findPatchForAssets({ oldHash, newHash: newLaunch.hash });
+    if (!patch) {
+      return undefined;
+    }
+    return {
+      patchUrl: `${env.ASSET_CDN_URL}/patches/${oldHash}/${newLaunch.hash}.patch`,
+      patchSize: patch.byteSize,
+      baseHash: oldHash,
+    };
+  });
+
+const handlePatchAwareRequest = (params: {
+  readonly projectId: string;
+  readonly resolvedBranchId: string;
+  readonly ph: ProtocolHeaders;
+  readonly track: (branchId: string, updateId: string, responseType: ResponseType) => void;
+}): Effect.Effect<Response, NotFound, ManifestRepo> =>
+  Effect.gen(function* () {
+    const { projectId, resolvedBranchId, ph, track } = params;
+    const repo = yield* ManifestRepo;
+
+    const [scopeKey, candidates] = yield* Effect.all(
+      [
+        repo.findProjectScopeKey({ projectId }),
+        repo.resolveUpdates({
+          branchId: resolvedBranchId,
+          platform: ph.platform,
+          runtimeVersion: ph.runtimeVersion,
+        }),
+      ],
+      { concurrency: 2 },
+    );
+
+    if (candidates.length === 0) {
+      track(resolvedBranchId, "", "no_update");
+      return noContent();
+    }
+
+    const update = yield* resolveRolledOutUpdate({
+      candidates,
+      easClientId: ph.easClientId,
+      branchId: resolvedBranchId,
+      platform: ph.platform,
+      runtimeVersion: ph.runtimeVersion,
+    });
+    if (update === null) {
+      track(resolvedBranchId, "", "no_update");
+      return noContent();
+    }
+
+    const patchedAsset = yield* resolvePatchInfo({
+      update,
+      // eslint-disable-next-line typescript/no-non-null-assertion -- guarded by caller
+      currentUpdateId: ph.currentUpdateId!,
+    });
+
+    const response = yield* buildUpdateResponse({ update, scopeKey, ph, patchedAsset });
+    const responseType: ResponseType = update.is_rollback === 1 ? "directive" : "manifest";
+    track(resolvedBranchId, update.id, responseType);
+    return response;
+  });
 
 const serve = (request: Request, projectId: string): Effect.Effect<Response, never, ManifestRepo> =>
   Effect.gen(function* () {
@@ -395,6 +460,11 @@ const serve = (request: Request, projectId: string): Effect.Effect<Response, nev
 
     const resolvedBranchId = yield* resolveBranchId(channel, ph.easClientId);
 
+    // Patch-aware path: bypass cache when client reports current update
+    if (ph.currentUpdateId) {
+      return yield* handlePatchAwareRequest({ projectId, resolvedBranchId, ph, track });
+    }
+
     const cacheKey = buildCacheKey({
       cacheVersion: channel.cache_version,
       projectId,
@@ -425,8 +495,6 @@ const serve = (request: Request, projectId: string): Effect.Effect<Response, nev
     // eslint-disable-next-line promise/prefer-await-to-callbacks -- Effect error handler, not a callback
     Effect.catchTag("NotFound", (err) => Effect.succeed(jsonError(404, "NOT_FOUND", err.message))),
   );
-
-// -- Public entry point ------------------------------------------------------
 
 export const serveManifest = async (request: Request, projectId: string): Promise<Response> =>
   Effect.runPromise(serve(request, projectId).pipe(Effect.provide(ManifestRepoLive)));

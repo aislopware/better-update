@@ -9,7 +9,7 @@ import { AnalyticsGroupLive } from "./handlers/analytics";
 import { AssetsGroupLive } from "./handlers/assets";
 import { BranchesGroupLive } from "./handlers/branches";
 import { ChannelsGroupLive } from "./handlers/channels";
-import { serveManifest } from "./handlers/manifest";
+import { handlePatchMessage, handleScheduled, serveManifest } from "./handlers/patch-gc";
 import { ProjectsGroupLive } from "./handlers/projects";
 import { UpdatesGroupLive } from "./handlers/updates";
 import { errorFormatMiddleware } from "./middleware/error-format";
@@ -17,6 +17,7 @@ import {
   AssetRepoLive,
   BranchRepoLive,
   ChannelRepoLive,
+  PatchRepoLive,
   ProjectRepoLive,
   UpdateRepoLive,
 } from "./repositories";
@@ -36,6 +37,7 @@ const ChannelsGroupWithRepo = ChannelsGroupLive.pipe(
 const UpdatesGroupWithRepo = UpdatesGroupLive.pipe(
   Layer.provide(UpdateRepoLive),
   Layer.provide(AssetRepoLive),
+  Layer.provide(PatchRepoLive),
   Layer.provide(BranchRepoLive),
   Layer.provide(ChannelRepoLive),
   Layer.provide(ProjectRepoLive),
@@ -186,6 +188,36 @@ const handleAssetUpload = async (request: Request, env: Env, hash: string): Prom
   return Response.json({ hash, r2Key: asset.r2_key }, { status: 200 });
 };
 
+/** Public patch download — streams R2 object with edge caching */
+const handlePatchDownload = async (
+  request: Request,
+  env: Env,
+  ctx: ExecutionContext,
+  oldHash: string,
+  newHash: string,
+): Promise<Response> => {
+  const cache = await caches.open("patches");
+  const cached = await cache.match(request);
+  if (cached) {
+    return cached;
+  }
+
+  const r2Key = `patches/${oldHash}/${newHash}.patch`;
+  const object = await env.ASSETS_BUCKET.get(r2Key);
+  if (!object) {
+    return Response.json({ code: "NOT_FOUND", message: "Patch not found" }, { status: 404 });
+  }
+
+  const headers = new Headers();
+  headers.set("content-type", "application/octet-stream");
+  headers.set("content-length", object.size.toString());
+  headers.set("cache-control", "public, max-age=31536000, immutable");
+
+  const response = new Response(object.body, { headers });
+  ctx.waitUntil(cache.put(request, response.clone()));
+  return response;
+};
+
 export default {
   async fetch(request, env, ctx) {
     // eslint-disable-next-line functional/no-try-statements -- imperative shell error boundary
@@ -217,10 +249,41 @@ export default {
         return await handleAssetUpload(request, env, assetUploadMatch[1]);
       }
 
+      // Patch download — GET /patches/:oldHash/:newHash.patch (public, edge-cached)
+      const patchDownloadMatch = /^\/patches\/([a-f\d]+)\/([a-f\d]+)\.patch$/.exec(url.pathname);
+      if (patchDownloadMatch?.[1] && patchDownloadMatch[2] && request.method === "GET") {
+        return await handlePatchDownload(
+          request,
+          env,
+          ctx,
+          patchDownloadMatch[1],
+          patchDownloadMatch[2],
+        );
+      }
+
       // Effect HttpApi handles management routes + OpenAPI + Scalar docs
       return await handler(request);
     } catch {
       return internalError();
     }
   },
-} satisfies ExportedHandler<Env>;
+
+  async queue(batch, env) {
+    await Promise.all(
+      batch.messages.map(async (message) => {
+        // eslint-disable-next-line functional/no-try-statements -- imperative shell error boundary for queue messages
+        try {
+          await handlePatchMessage(message.body, env);
+          message.ack();
+        } catch (error) {
+          console.error("[patch-queue]", error);
+          message.retry();
+        }
+      }),
+    );
+  },
+
+  scheduled(_event, env, ctx) {
+    ctx.waitUntil(handleScheduled(env));
+  },
+} satisfies ExportedHandler<Env, { readonly oldHash: string; readonly newHash: string }>;
