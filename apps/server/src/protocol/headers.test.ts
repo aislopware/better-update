@@ -1,7 +1,7 @@
 import { BadRequest } from "@better-update/api";
 import { Effect } from "effect";
 
-import { parseProtocolHeaders } from "./headers";
+import { addServerDefinedHeaders, parseProtocolHeaders } from "./headers";
 
 const validHeaders = () =>
   new Headers({
@@ -22,6 +22,8 @@ describe(parseProtocolHeaders, () => {
       expectSignature: undefined,
       easClientId: undefined,
       accept: undefined,
+      currentUpdateId: undefined,
+      extraParams: undefined,
     });
   });
 
@@ -76,5 +78,78 @@ describe(parseProtocolHeaders, () => {
     expect(result.expectSignature).toBe("sig-abc");
     expect(result.easClientId).toBe("client-123");
     expect(result.accept).toBe("multipart/mixed");
+  });
+
+  test("valid extra params returns raw string", async () => {
+    const headers = validHeaders();
+    const raw = 'user-cohort="beta", flag=?1';
+    headers.set("expo-extra-params", raw);
+    const result = await Effect.runPromise(parseProtocolHeaders(headers));
+    expect(result.extraParams).toBe(raw);
+  });
+
+  test("malformed extra params returns undefined", async () => {
+    const headers = validHeaders();
+    headers.set("expo-extra-params", ";;;invalid");
+    const result = await Effect.runPromise(parseProtocolHeaders(headers));
+    expect(result.extraParams).toBeUndefined();
+  });
+
+  test("extra params with exactly 16 keys returns raw string", async () => {
+    const headers = validHeaders();
+    const keys = Array.from({ length: 16 }, (_, idx) => `k${idx}=?1`).join(", ");
+    headers.set("expo-extra-params", keys);
+    const result = await Effect.runPromise(parseProtocolHeaders(headers));
+    expect(result.extraParams).toBe(keys);
+  });
+
+  test("extra params exceeding 16 keys returns undefined", async () => {
+    const headers = validHeaders();
+    const keys = Array.from({ length: 17 }, (_, idx) => `k${idx}=?1`).join(", ");
+    headers.set("expo-extra-params", keys);
+    const result = await Effect.runPromise(parseProtocolHeaders(headers));
+    expect(result.extraParams).toBeUndefined();
+  });
+
+  test("extra params with string value of exactly 256 bytes returns raw string", async () => {
+    const headers = validHeaders();
+    const exactValue = "a".repeat(256);
+    const raw = `key="${exactValue}"`;
+    headers.set("expo-extra-params", raw);
+    const result = await Effect.runPromise(parseProtocolHeaders(headers));
+    expect(result.extraParams).toBe(raw);
+  });
+
+  test("extra params with string value exceeding 256 bytes returns undefined", async () => {
+    const headers = validHeaders();
+    const longValue = "a".repeat(257);
+    headers.set("expo-extra-params", `key="${longValue}"`);
+    const result = await Effect.runPromise(parseProtocolHeaders(headers));
+    expect(result.extraParams).toBeUndefined();
+  });
+});
+
+describe(addServerDefinedHeaders, () => {
+  test("returns same response when extraParams is undefined", () => {
+    const response = new Response(null, { status: 204 });
+    expect(addServerDefinedHeaders(response, undefined)).toBe(response);
+  });
+
+  test("sets expo-server-defined-headers with base64 byte sequence", async () => {
+    const response = new Response("body", { status: 200 });
+    const raw = 'cohort="beta"';
+    const result = addServerDefinedHeaders(response, raw);
+    expect(result.headers.get("expo-server-defined-headers")).toBe(
+      `expo-extra-params=:${btoa(raw)}:`,
+    );
+    expect(result.status).toBe(200);
+    expect(await result.text()).toBe("body");
+  });
+
+  test("preserves existing response headers", () => {
+    const response = new Response(null, { status: 200, headers: { "x-custom": "keep" } });
+    const result = addServerDefinedHeaders(response, "k=?1");
+    expect(result.headers.get("x-custom")).toBe("keep");
+    expect(result.headers.has("expo-server-defined-headers")).toBe(true);
   });
 });

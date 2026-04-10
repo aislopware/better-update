@@ -5,7 +5,7 @@ import type { NotFound } from "@better-update/api";
 import { cloudflareCtx, cloudflareEnv } from "../cloudflare/context";
 import { evaluateBranchMapping } from "../domain/branch-mapping";
 import { resolveUpdateRollout } from "../domain/update-rollout";
-import { parseProtocolHeaders } from "../protocol/headers";
+import { addServerDefinedHeaders, parseProtocolHeaders } from "../protocol/headers";
 import { buildDirective, buildExtensions, buildManifest } from "../protocol/manifest-builder";
 import { encodeMultipart } from "../protocol/multipart";
 import { ManifestRepo, ManifestRepoLive } from "../repositories/manifest";
@@ -428,7 +428,7 @@ const serve = (request: Request, projectId: string): Effect.Effect<Response, nev
     const startTime = Date.now();
     const env = yield* cloudflareEnv;
     const ph = yield* parseProtocolHeaders(request.headers);
-
+    const echo = (res: Response) => addServerDefinedHeaders(res, ph.extraParams);
     const track = (branchId: string, updateId: string, responseType: ResponseType) => {
       env.ANALYTICS.writeDataPoint({
         indexes: [`${projectId}:${ph.easClientId ?? crypto.randomUUID()}`],
@@ -440,6 +440,7 @@ const serve = (request: Request, projectId: string): Effect.Effect<Response, nev
           ph.platform,
           ph.runtimeVersion,
           responseType,
+          ph.extraParams ?? "",
         ],
         doubles: [Date.now() - startTime, 0],
       });
@@ -452,17 +453,15 @@ const serve = (request: Request, projectId: string): Effect.Effect<Response, nev
 
     const repo = yield* ManifestRepo;
     const channel = yield* repo.resolveChannel({ projectId, channelName: ph.channelName });
-
     if (channel.is_paused === 1) {
       track(channel.branch_id, "", "no_update");
-      return noContent();
+      return echo(noContent());
     }
 
     const resolvedBranchId = yield* resolveBranchId(channel, ph.easClientId);
-
     // Patch-aware path: bypass cache when client reports current update
     if (ph.currentUpdateId) {
-      return yield* handlePatchAwareRequest({ projectId, resolvedBranchId, ph, track });
+      return echo(yield* handlePatchAwareRequest({ projectId, resolvedBranchId, ph, track }));
     }
 
     const cacheKey = buildCacheKey({
@@ -483,10 +482,11 @@ const serve = (request: Request, projectId: string): Effect.Effect<Response, nev
       const responseType = (cached.headers.get("x-cache-response-type") ??
         "manifest") as ResponseType;
       track(resolvedBranchId, updateId, responseType);
-      return fromCacheEntry(cached);
+      return echo(fromCacheEntry(cached));
     }
-
-    return yield* handleCacheMiss({ cache, projectId, resolvedBranchId, cacheKey, ph, track });
+    return echo(
+      yield* handleCacheMiss({ cache, projectId, resolvedBranchId, cacheKey, ph, track }),
+    );
   }).pipe(
     // eslint-disable-next-line promise/prefer-await-to-callbacks -- Effect error handler, not a callback
     Effect.catchTag("BadRequest", (err) =>
