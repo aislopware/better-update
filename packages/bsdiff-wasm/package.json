@@ -1,0 +1,14 @@
+{
+  "name": "@better-update/bsdiff-wasm",
+  "version": "0.1.0",
+  "private": true,
+  "files": [
+    "pkg/"
+  ],
+  "type": "module",
+  "main": "./pkg/bsdiff_wasm.js",
+  "types": "./pkg/bsdiff_wasm.d.ts",
+  "scripts": {
+    "build": "./build.sh"
+  }
+}
