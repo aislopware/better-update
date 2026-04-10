@@ -96,6 +96,10 @@ VALUES ('update-ur-reverted-prev', 'branch-update-rollout', '7.0.0', 'ios', 'old
 
 INSERT INTO "updates" ("id", "branch_id", "runtime_version", "platform", "message", "metadata_json", "group_id", "rollout_percentage", "is_rollback", "manifest_body", "created_at")
 VALUES ('update-ur-reverted', 'branch-update-rollout', '7.0.0', 'ios', 'reverted release', '{}', 'group-ur-4', 0, 0, '{"id":"update-ur-reverted","createdAt":"2024-05-04T00:00:00.000Z","runtimeVersion":"7.0.0","launchAsset":null,"assets":[],"metadata":{},"extra":{"scopeKey":"@test/my-app"}}', '2024-05-04T00:00:00.000Z');
+
+-- Cache invalidation test data (runtime 8.0.0)
+INSERT INTO "updates" ("id", "branch_id", "runtime_version", "platform", "message", "metadata_json", "group_id", "is_rollback", "manifest_body", "created_at")
+VALUES ('update-cache-v1', 'branch-1', '8.0.0', 'ios', 'cache test v1', '{}', 'group-cache-1', 0, '{"id":"update-cache-v1","createdAt":"2024-06-01T00:00:00.000Z","runtimeVersion":"8.0.0","launchAsset":null,"assets":[],"metadata":{},"extra":{"scopeKey":"@test/my-app"}}', '2024-06-01T00:00:00.000Z');
 `;
 
 beforeAll(() => {
@@ -443,29 +447,11 @@ describe("Manifest caching", () => {
 
     const first = await manifestGet("proj-1", headers);
     expect(first.status).toBe(200);
-    const firstBody = await first.text();
+    await expectManifestId(first, "update-precomputed");
 
     const second = await manifestGet("proj-1", headers);
     expect(second.status).toBe(200);
-    const secondBody = await second.text();
-
-    // Both responses contain the same manifest ID
-    const firstContentType = first.headers.get("content-type")!;
-    const firstParts = parseMultipart(firstContentType, firstBody);
-    const firstManifest = firstParts.find((p) =>
-      p.headers["content-disposition"]?.includes('name="manifest"'),
-    );
-
-    const secondContentType = second.headers.get("content-type")!;
-    const secondParts = parseMultipart(secondContentType, secondBody);
-    const secondManifest = secondParts.find((p) =>
-      p.headers["content-disposition"]?.includes('name="manifest"'),
-    );
-
-    expect(firstManifest).toBeDefined();
-    expect(secondManifest).toBeDefined();
-    expect(JSON.parse(firstManifest!.body).id).toBe("update-precomputed");
-    expect(JSON.parse(secondManifest!.body).id).toBe("update-precomputed");
+    await expectManifestId(second, "update-precomputed");
   });
 
   it("cache-control is always private", async () => {
@@ -499,14 +485,7 @@ describe("Manifest caching", () => {
         "eas-client-id": "client-in-rollout",
       }),
     );
-    expect(inRollout.status).toBe(200);
-    const inBody = await inRollout.text();
-    const inParts = parseMultipart(inRollout.headers.get("content-type")!, inBody);
-    const inManifest = inParts.find((p) =>
-      p.headers["content-disposition"]?.includes('name="manifest"'),
-    );
-    expect(inManifest).toBeDefined();
-    const inId = JSON.parse(inManifest!.body).id;
+    await expectManifestId(inRollout, "update-ur-latest");
 
     const outRollout = await manifestGet(
       "proj-1",
@@ -516,17 +495,7 @@ describe("Manifest caching", () => {
         "eas-client-id": "client-out-rollout",
       }),
     );
-    expect(outRollout.status).toBe(200);
-    const outBody = await outRollout.text();
-    const outParts = parseMultipart(outRollout.headers.get("content-type")!, outBody);
-    const outManifest = outParts.find((p) =>
-      p.headers["content-disposition"]?.includes('name="manifest"'),
-    );
-    expect(outManifest).toBeDefined();
-    const outId = JSON.parse(outManifest!.body).id;
-
-    // The two clients must get different updates, proving no cache poisoning
-    expect(inId).not.toBe(outId);
+    await expectManifestId(outRollout, "update-ur-prev");
   });
 
   it("signed and unsigned requests produce separate cache entries", async () => {
@@ -573,6 +542,31 @@ describe("Manifest caching", () => {
     );
     expect(signedCert).toBeDefined();
     expect(signedCert!.body).toContain("BEGIN CERTIFICATE");
+  });
+
+  it("serves fresh data after cache_version bump", async () => {
+    const headers = protocolHeaders({ "expo-runtime-version": "8.0.0" });
+
+    // Warm cache with update-cache-v1
+    const first = await manifestGet("proj-1", headers);
+    await expectManifestId(first, "update-cache-v1");
+
+    // Insert a newer update and bump cache_version (simulates a publish)
+    const bumpFile = ".wrangler/seed-cache-bump.sql";
+    writeFileSync(
+      bumpFile,
+      `INSERT INTO "updates" ("id", "branch_id", "runtime_version", "platform", "message", "metadata_json", "group_id", "is_rollback", "manifest_body", "created_at")
+VALUES ('update-cache-v2', 'branch-1', '8.0.0', 'ios', 'cache test v2', '{}', 'group-cache-2', 0, '{"id":"update-cache-v2","createdAt":"2024-07-01T00:00:00.000Z","runtimeVersion":"8.0.0","launchAsset":null,"assets":[],"metadata":{},"extra":{"scopeKey":"@test/my-app"}}', '2024-07-01T00:00:00.000Z');
+UPDATE "channels" SET "cache_version" = "cache_version" + 1 WHERE "id" = 'chan-prod';`,
+    );
+    execSync(`bunx wrangler d1 execute DB --local --persist-to ${persistDir} --file ${bumpFile}`, {
+      stdio: "pipe",
+    });
+    rmSync(bumpFile, { force: true });
+
+    // Second request should get the new update (cache key changed due to bumped version)
+    const second = await manifestGet("proj-1", headers);
+    await expectManifestId(second, "update-cache-v2");
   });
 });
 
