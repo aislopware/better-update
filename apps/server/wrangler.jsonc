@@ -30,11 +30,33 @@
       "dataset": "update_events",
     },
   ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "PATCH_QUEUE",
+        "queue": "patch-gen",
+      },
+    ],
+    "consumers": [
+      {
+        "queue": "patch-gen",
+        "max_batch_size": 1,
+        "max_retries": 3,
+        "dead_letter_queue": "patch-gen-dlq",
+      },
+    ],
+  },
+  "triggers": {
+    "crons": ["0 3 * * *"],
+  },
   "vars": {
     "ACCOUNT_ID": "<account-id>",
     "ASSET_CDN_URL": "https://assets.better-update.dev",
     "BETTER_AUTH_URL": "https://api.better-update.dev",
     "DASHBOARD_URL": "https://better-update.dev",
+    "PATCH_MAX_BUNDLE_SIZE": "4194304",
+    "PATCH_MIN_SAVING": "0.8",
+    "PATCH_RETENTION_DAYS": "30",
   },
   "secrets": {
     "required": ["BETTER_AUTH_SECRET", "CF_API_TOKEN", "GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET"],

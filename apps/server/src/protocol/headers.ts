@@ -9,6 +9,7 @@ export interface ProtocolHeaders {
   readonly expectSignature: string | undefined;
   readonly easClientId: string | undefined;
   readonly accept: string | undefined;
+  readonly currentUpdateId: string | undefined;
 }
 
 const requireHeader = (headers: Headers, name: string, label: string) => {
@@ -52,5 +53,6 @@ export const parseProtocolHeaders = (
       expectSignature: headers.get("expo-expect-signature") ?? undefined,
       easClientId: headers.get("eas-client-id") ?? undefined,
       accept: headers.get("accept") ?? undefined,
+      currentUpdateId: headers.get("expo-current-update-id") ?? undefined,
     };
   });
