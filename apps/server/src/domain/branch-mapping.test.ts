@@ -146,6 +146,25 @@ describe(evaluateBranchMapping, () => {
     results.forEach((result) => expect(result).toBe(oldBranchId));
   });
 
+  test("skips entries with unrecognized branchMappingLogic", async () => {
+    const mapping = JSON.stringify({
+      data: [
+        { branchId: newBranchId, branchMappingLogic: "unknown_operator(foo, 0.50)" },
+        { branchId: oldBranchId, branchMappingLogic: "true" },
+      ],
+      salt,
+    });
+
+    const result = await evaluateBranchMapping(mapping, "any-client");
+    expect(result).toBe(oldBranchId);
+  });
+
+  test("handles malformed JSON gracefully", async () => {
+    const mapping = JSON.stringify({ notData: true });
+    const result = await evaluateBranchMapping(mapping, "any-client");
+    expect(result).toBe("");
+  });
+
   test("hash correctness for known salt + clientId", async () => {
     // Compute the expected hash manually for verification
     const testSalt = "known-salt";
