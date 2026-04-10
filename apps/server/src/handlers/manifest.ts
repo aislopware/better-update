@@ -2,6 +2,7 @@ import { Effect } from "effect";
 
 import { cloudflareEnv } from "../cloudflare/context";
 import { evaluateBranchMapping } from "../domain/branch-mapping";
+import { resolveUpdateRollout } from "../domain/update-rollout";
 import { parseProtocolHeaders } from "../protocol/headers";
 import { buildDirective, buildExtensions, buildManifest } from "../protocol/manifest-builder";
 import { encodeMultipart } from "../protocol/multipart";
@@ -149,6 +150,40 @@ const buildManifestFromData = (params: {
   ]);
 };
 
+// -- Rollout resolution ------------------------------------------------------
+
+const resolveRolledOutUpdate = (params: {
+  readonly candidates: readonly UpdateRow[];
+  readonly easClientId: string | undefined;
+  readonly branchId: string;
+  readonly platform: string;
+  readonly runtimeVersion: string;
+}): Effect.Effect<UpdateRow | null, never, ManifestRepo> =>
+  Effect.gen(function* () {
+    const rolloutResult = yield* Effect.promise(async () =>
+      resolveUpdateRollout(params.candidates, params.easClientId),
+    );
+
+    if (rolloutResult === null) {
+      return null;
+    }
+
+    if (rolloutResult.resolved) {
+      return rolloutResult.update;
+    }
+
+    if (rolloutResult.needsFallbackQuery) {
+      const repo = yield* ManifestRepo;
+      return yield* repo.resolveFullyRolledOutUpdate({
+        branchId: params.branchId,
+        platform: params.platform,
+        runtimeVersion: params.runtimeVersion,
+      });
+    }
+
+    return null;
+  });
+
 // -- Branch resolution -------------------------------------------------------
 
 const resolveBranchId = (channel: ChannelRow, easClientId: string | undefined) => {
@@ -159,6 +194,51 @@ const resolveBranchId = (channel: ChannelRow, easClientId: string | undefined) =
       )
     : Effect.succeed(channel.branch_id);
 };
+
+// -- Response rendering (extracted to stay within max-statements) ------------
+
+const buildUpdateResponse = (params: {
+  readonly update: UpdateRow;
+  readonly scopeKey: string;
+  readonly ph: ProtocolHeaders;
+}): Effect.Effect<Response, never, ManifestRepo> =>
+  Effect.gen(function* () {
+    const { update, scopeKey, ph } = params;
+    const env = yield* cloudflareEnv;
+    const boundary = crypto.randomUUID();
+    const useMultipart = supportsMultipart(ph.accept ?? "*/*");
+
+    if (update.is_rollback === 1) {
+      if (!useMultipart) {
+        return jsonError(406, "NOT_ACCEPTABLE", "Directive requires multipart/mixed");
+      }
+      return buildDirectiveResponse(update, ph, boundary);
+    }
+
+    if (update.manifest_body !== null) {
+      const sig = signatureFor(ph, update);
+      if (!useMultipart) {
+        return jsonManifestResponse(update.manifest_body, sig);
+      }
+      return multipartResponse(boundary, [
+        signedPart("manifest", update.manifest_body, sig),
+        ...certChainParts(ph, update),
+        extensionsPart,
+      ]);
+    }
+
+    const repo = yield* ManifestRepo;
+    const assetRows = yield* repo.findUpdateAssets({ updateId: update.id });
+    return buildManifestFromData({
+      update,
+      assetRows,
+      scopeKey,
+      assetBaseUrl: env.ASSET_CDN_URL,
+      ph,
+      boundary,
+      useMultipart,
+    });
+  });
 
 // -- Resolution program ------------------------------------------------------
 
@@ -183,8 +263,22 @@ const serve = (request: Request, projectId: string): Effect.Effect<Response, nev
       return noContent();
     }
 
-    const update = yield* repo.resolveUpdate({
-      branchId: yield* resolveBranchId(channel, ph.easClientId),
+    const resolvedBranchId = yield* resolveBranchId(channel, ph.easClientId);
+    const candidates = yield* repo.resolveUpdates({
+      branchId: resolvedBranchId,
+      platform: ph.platform,
+      runtimeVersion: ph.runtimeVersion,
+    });
+
+    if (candidates.length === 0) {
+      return noContent();
+    }
+
+    // Layer 2: Per-update rollout evaluation
+    const update = yield* resolveRolledOutUpdate({
+      candidates,
+      easClientId: ph.easClientId,
+      branchId: resolvedBranchId,
       platform: ph.platform,
       runtimeVersion: ph.runtimeVersion,
     });
@@ -192,39 +286,7 @@ const serve = (request: Request, projectId: string): Effect.Effect<Response, nev
       return noContent();
     }
 
-    const env = yield* cloudflareEnv;
-    const boundary = crypto.randomUUID();
-    const useMultipart = supportsMultipart(accept);
-
-    if (update.is_rollback === 1) {
-      if (!useMultipart) {
-        return jsonError(406, "NOT_ACCEPTABLE", "Directive requires multipart/mixed");
-      }
-      return buildDirectiveResponse(update, ph, boundary);
-    }
-
-    if (update.manifest_body !== null) {
-      const sig = signatureFor(ph, update);
-      if (!useMultipart) {
-        return jsonManifestResponse(update.manifest_body, sig);
-      }
-      return multipartResponse(boundary, [
-        signedPart("manifest", update.manifest_body, sig),
-        ...certChainParts(ph, update),
-        extensionsPart,
-      ]);
-    }
-
-    const assetRows = yield* repo.findUpdateAssets({ updateId: update.id });
-    return buildManifestFromData({
-      update,
-      assetRows,
-      scopeKey,
-      assetBaseUrl: env.ASSET_CDN_URL,
-      ph,
-      boundary,
-      useMultipart,
-    });
+    return yield* buildUpdateResponse({ update, scopeKey, ph });
   }).pipe(
     // eslint-disable-next-line promise/prefer-await-to-callbacks -- Effect error handler, not a callback
     Effect.catchTag("BadRequest", (err) =>
