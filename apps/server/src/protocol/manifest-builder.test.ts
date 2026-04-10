@@ -87,8 +87,34 @@ describe(buildDirective, () => {
 });
 
 describe(buildExtensions, () => {
-  test("returns empty assetRequestHeaders", () => {
+  test("returns only assetRequestHeaders when called with no args", () => {
     const extensions = buildExtensions() as Record<string, unknown>;
     expect(extensions["assetRequestHeaders"]).toEqual({});
+    expect(extensions).not.toHaveProperty("patchedAssets");
+  });
+
+  test("returns only assetRequestHeaders when options has no patchedAsset", () => {
+    const extensions = buildExtensions({}) as Record<string, unknown>;
+    expect(extensions["assetRequestHeaders"]).toEqual({});
+    expect(extensions).not.toHaveProperty("patchedAssets");
+  });
+
+  test("includes patchedAssets when patchedAsset is provided", () => {
+    const extensions = buildExtensions({
+      patchedAsset: {
+        patchUrl: "https://cdn.example.com/patches/old123/new456.patch",
+        patchSize: 45_231,
+        baseHash: "old123",
+      },
+    }) as Record<string, unknown>;
+
+    expect(extensions["assetRequestHeaders"]).toEqual({});
+    const patchedAssets = extensions["patchedAssets"] as Record<string, unknown>[];
+    expect(patchedAssets).toHaveLength(1);
+    expect(patchedAssets[0]).toEqual({
+      url: "https://cdn.example.com/patches/old123/new456.patch",
+      size: 45_231,
+      baseHash: "old123",
+    });
   });
 });
