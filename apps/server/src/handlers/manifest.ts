@@ -107,10 +107,12 @@ const buildCacheKey = (params: {
 }) =>
   `https://cache.internal/_cache/v${params.cacheVersion}/manifest/${params.projectId}/${params.channelName}/${params.platform}/${params.runtimeVersion}/${params.resolvedBranchId}/${params.multipart ? "mp" : "json"}/${params.expectSignature ? "sig" : "nosig"}`;
 
-const toCacheEntry = (
-  response: Response,
-  meta: { readonly updateId: string; readonly responseType: ResponseType },
-) => {
+interface CacheMeta {
+  readonly updateId: string;
+  readonly responseType: ResponseType;
+}
+
+const toCacheEntry = (response: Response, meta: CacheMeta) => {
   const headers = new Headers(response.headers);
   headers.set("cache-control", `public, max-age=${INTERNAL_TTL}`);
   headers.set("x-cache-update-id", meta.updateId);
@@ -291,12 +293,7 @@ const checkCache = (cache: Cache, cacheKey: string) =>
 const isCacheable = (candidates: readonly UpdateRow[]) =>
   candidates.every((candidate) => candidate.rollout_percentage === 100);
 
-const storeInCache = (
-  cache: Cache,
-  cacheKey: string,
-  response: Response,
-  meta: { readonly updateId: string; readonly responseType: ResponseType },
-) =>
+const storeInCache = (cache: Cache, cacheKey: string, response: Response, meta: CacheMeta) =>
   Effect.gen(function* () {
     const ctx = yield* cloudflareCtx;
     ctx.waitUntil(cache.put(cacheKey, toCacheEntry(response, meta)));
@@ -328,9 +325,13 @@ const handleCacheMiss = (params: {
       { concurrency: 2 },
     );
 
-    if (candidates.length === 0) {
+    const trackNoUpdate = () => {
       track(resolvedBranchId, "", "no_update");
       return noContent();
+    };
+
+    if (candidates.length === 0) {
+      return trackNoUpdate();
     }
 
     const update = yield* resolveRolledOutUpdate({
@@ -341,8 +342,7 @@ const handleCacheMiss = (params: {
       runtimeVersion: ph.runtimeVersion,
     });
     if (update === null) {
-      track(resolvedBranchId, "", "no_update");
-      return noContent();
+      return trackNoUpdate();
     }
 
     const response = yield* buildUpdateResponse({ update, scopeKey, ph });
@@ -402,7 +402,7 @@ const serve = (request: Request, projectId: string): Effect.Effect<Response, nev
       platform: ph.platform,
       runtimeVersion: ph.runtimeVersion,
       resolvedBranchId,
-      multipart: supportsMultipart(ph.accept ?? "*/*"),
+      multipart: supportsMultipart(accept),
       expectSignature: Boolean(ph.expectSignature),
     });
     const cache = yield* openCache();
