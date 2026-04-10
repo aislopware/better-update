@@ -48,6 +48,12 @@ export interface UpdateRepository {
     readonly id: string;
     readonly percentage: number;
   }) => Effect.Effect<void>;
+
+  readonly hasActiveRollout: (params: {
+    readonly branchId: string;
+    readonly platform: "ios" | "android";
+    readonly runtimeVersion: string;
+  }) => Effect.Effect<boolean>;
 }
 
 export class UpdateRepo extends Context.Tag("api/UpdateRepo")<UpdateRepo, UpdateRepository>() {}
@@ -233,5 +239,20 @@ export const UpdateRepoLive = Layer.succeed(UpdateRepo, {
           .bind(params.percentage, params.id)
           .run(),
       );
+    }),
+
+  hasActiveRollout: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+
+      const row = yield* Effect.promise(async () =>
+        env.DB.prepare(
+          `SELECT "rollout_percentage" FROM "updates" WHERE "branch_id" = ? AND "platform" = ? AND "runtime_version" = ? ORDER BY "created_at" DESC, "id" DESC LIMIT 1`,
+        )
+          .bind(params.branchId, params.platform, params.runtimeVersion)
+          .first<{ rollout_percentage: number }>(),
+      );
+
+      return row !== null && row.rollout_percentage > 0 && row.rollout_percentage < 100;
     }),
 });

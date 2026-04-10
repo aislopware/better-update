@@ -1,3 +1,5 @@
+import { hashToFraction } from "./hash";
+
 // -- Types ------------------------------------------------------------------
 
 interface BranchMappingEntry {
@@ -70,14 +72,6 @@ export const extractNewBranchId = (branchMappingJson: string): string => {
 };
 
 // -- Evaluator (manifest resolution) ---------------------------------------
-
-const hashToFraction = async (salt: string, clientId: string): Promise<number> => {
-  const input = new TextEncoder().encode(`${salt}:${clientId}`);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", input);
-  const view = new DataView(hashBuffer);
-  // First 4 bytes as big-endian uint32, normalized to [0, 1)
-  return view.getUint32(0, false) / 4_294_967_296;
-};
 
 const parseThreshold = (logic: string): number | null => {
   const match = /^hash_lt\(mappingId,\s*([\d.]+)\)$/.exec(logic);
