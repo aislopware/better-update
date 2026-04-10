@@ -34,15 +34,15 @@
     "producers": [
       {
         "binding": "PATCH_QUEUE",
-        "queue": "patch-gen",
+        "queue": "better-update-patch-queue",
       },
     ],
     "consumers": [
       {
-        "queue": "patch-gen",
+        "queue": "better-update-patch-queue",
         "max_batch_size": 1,
         "max_retries": 3,
-        "dead_letter_queue": "patch-gen-dlq",
+        "dead_letter_queue": "better-update-patch-dlq",
       },
     ],
   },

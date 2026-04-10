@@ -65,13 +65,19 @@ export interface PatchedAssetInfo {
   readonly baseHash: string;
 }
 
-export const buildExtensions = (params?: { readonly patchedAsset?: PatchedAssetInfo }): object => ({
+export const buildExtensions = (options?: {
+  readonly patchedAsset?: PatchedAssetInfo;
+}): object => ({
   assetRequestHeaders: {},
-  ...(params?.patchedAsset
+  ...(options?.patchedAsset
     ? {
-        patchedAssets: {
-          launchAsset: params.patchedAsset,
-        },
+        patchedAssets: [
+          {
+            url: options.patchedAsset.patchUrl,
+            size: options.patchedAsset.patchSize,
+            baseHash: options.patchedAsset.baseHash,
+          },
+        ],
       }
     : {}),
 });

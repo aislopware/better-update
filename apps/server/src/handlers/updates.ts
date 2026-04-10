@@ -5,10 +5,11 @@ import { Effect } from "effect";
 import { ManagementApi } from "../api";
 import { assertProjectOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
-import { cloudflareEnv } from "../cloudflare/context";
+import { cloudflareCtx, cloudflareEnv } from "../cloudflare/context";
 import { AssetRepo } from "../repositories/assets";
 import { BranchRepo } from "../repositories/branches";
 import { ChannelRepo } from "../repositories/channels";
+import { PatchRepo } from "../repositories/patches";
 import { ProjectRepo } from "../repositories/projects";
 import { UpdateRepo } from "../repositories/updates";
 
@@ -27,6 +28,64 @@ const getUpdateAssets = (updateId: string) =>
       hash: row.asset_hash,
       isLaunch: row.is_launch === 1,
     }));
+  });
+
+/** Find previous update's launch asset hash for a branch/platform/runtime combination */
+const findPrevLaunchHash = (params: {
+  readonly branchId: string;
+  readonly platform: string;
+  readonly runtimeVersion: string;
+  readonly excludeUpdateId: string;
+}) =>
+  Effect.gen(function* () {
+    const env = yield* cloudflareEnv;
+    return yield* Effect.promise(async () =>
+      env.DB.prepare(
+        `SELECT ua."asset_hash" FROM "updates" u JOIN "update_assets" ua ON ua."update_id" = u."id" AND ua."is_launch" = 1 WHERE u."branch_id" = ? AND u."platform" = ? AND u."runtime_version" = ? AND u."is_rollback" = 0 AND u."id" != ? ORDER BY u."created_at" DESC, u."id" DESC LIMIT 1`,
+      )
+        .bind(params.branchId, params.platform, params.runtimeVersion, params.excludeUpdateId)
+        .first<{ asset_hash: string }>(),
+    );
+  });
+
+/** Enqueue patch generation job if a previous launch asset exists and differs */
+const enqueuePatchJob = (params: {
+  readonly branchId: string;
+  readonly platform: string;
+  readonly runtimeVersion: string;
+  readonly newUpdateId: string;
+  readonly newLaunchHash: string;
+}) =>
+  Effect.gen(function* () {
+    const env = yield* cloudflareEnv;
+    const ctx = yield* cloudflareCtx;
+    const prevLaunch = yield* findPrevLaunchHash({
+      branchId: params.branchId,
+      platform: params.platform,
+      runtimeVersion: params.runtimeVersion,
+      excludeUpdateId: params.newUpdateId,
+    });
+    if (prevLaunch && prevLaunch.asset_hash !== params.newLaunchHash) {
+      ctx.waitUntil(
+        env.PATCH_QUEUE.send({
+          oldHash: prevLaunch.asset_hash,
+          newHash: params.newLaunchHash,
+        }),
+      );
+    }
+  });
+
+/** Clean up patches associated with a launch asset hash */
+const cascadeDeletePatches = (assetHash: string) =>
+  Effect.gen(function* () {
+    const patchRepo = yield* PatchRepo;
+    const env = yield* cloudflareEnv;
+    const deletedPatches = yield* patchRepo.deleteByAssetHash({ assetHash });
+    if (deletedPatches.length > 0) {
+      yield* Effect.promise(async () =>
+        env.ASSETS_BUCKET.delete(deletedPatches.map((patch) => patch.r2_key)),
+      );
+    }
   });
 
 export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (handlers) =>
@@ -96,6 +155,20 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
           assets: payload.assets,
         });
 
+        // Enqueue patch generation if previous update exists
+        if (!(payload.isRollback ?? false)) {
+          const newLaunchAsset = payload.assets.find((asset) => asset.isLaunch);
+          if (newLaunchAsset) {
+            yield* enqueuePatchJob({
+              branchId: branch.id,
+              platform: payload.platform,
+              runtimeVersion: payload.runtimeVersion,
+              newUpdateId: result.id,
+              newLaunchHash: newLaunchAsset.hash,
+            });
+          }
+        }
+
         const channelRepo = yield* ChannelRepo;
         yield* channelRepo.bumpCacheVersionByBranch({ branchId: branch.id });
 
@@ -140,6 +213,26 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
         }
         const branch = yield* branchRepo.findById({ id: firstUpdate.branchId });
         yield* assertProjectOwnership(branch.projectId);
+
+        // Clean up associated patches before deleting updates
+        yield* Effect.forEach(
+          updates,
+          (update) =>
+            Effect.gen(function* () {
+              const env = yield* cloudflareEnv;
+              const launchAsset = yield* Effect.promise(async () =>
+                env.DB.prepare(
+                  `SELECT "asset_hash" FROM "update_assets" WHERE "update_id" = ? AND "is_launch" = 1`,
+                )
+                  .bind(update.id)
+                  .first<{ asset_hash: string }>(),
+              );
+              if (launchAsset) {
+                yield* cascadeDeletePatches(launchAsset.asset_hash);
+              }
+            }),
+          { concurrency: 1 },
+        );
 
         const result = yield* updateRepo.deleteGroup({ groupId: path.groupId });
 
@@ -204,6 +297,18 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
           directiveBody: sourceUpdate.directiveBody,
           assets: sourceAssets,
         });
+
+        // Enqueue patch generation on target branch
+        const newLaunchAsset = sourceAssets.find((asset) => asset.isLaunch);
+        if (newLaunchAsset) {
+          yield* enqueuePatchJob({
+            branchId: targetChannel.branchId,
+            platform: sourceUpdate.platform,
+            runtimeVersion: sourceUpdate.runtimeVersion,
+            newUpdateId: result.id,
+            newLaunchHash: newLaunchAsset.hash,
+          });
+        }
 
         yield* channelRepo.bumpCacheVersionByBranch({ branchId: targetChannel.branchId });
 
