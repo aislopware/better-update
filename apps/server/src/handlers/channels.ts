@@ -59,6 +59,12 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
         const channel = yield* repo.findById({ id: path.id });
         yield* assertProjectOwnership(channel.projectId);
 
+        if (channel.branchMappingJson !== null) {
+          return yield* Effect.fail(
+            new Conflict({ message: "Cannot relink while a rollout is active" }),
+          );
+        }
+
         const branchRepo = yield* BranchRepo;
         const branch = yield* branchRepo.findById({ id: payload.branchId });
         if (branch.projectId !== channel.projectId) {
@@ -91,7 +97,7 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
     )
     .handle("createBranchRollout", ({ path, payload }) =>
       Effect.gen(function* () {
-        yield* assertPermission("channel", "update");
+        yield* assertPermission("rollout", "create");
         const repo = yield* ChannelRepo;
         const channel = yield* repo.findById({ id: path.id });
         yield* assertProjectOwnership(channel.projectId);
@@ -123,7 +129,7 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
     )
     .handle("updateBranchRollout", ({ path, payload }) =>
       Effect.gen(function* () {
-        yield* assertPermission("channel", "update");
+        yield* assertPermission("rollout", "update");
         const repo = yield* ChannelRepo;
         const channel = yield* repo.findById({ id: path.id });
         yield* assertProjectOwnership(channel.projectId);
@@ -142,7 +148,7 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
     )
     .handle("completeBranchRollout", ({ path }) =>
       Effect.gen(function* () {
-        yield* assertPermission("channel", "update");
+        yield* assertPermission("rollout", "update");
         const repo = yield* ChannelRepo;
         const channel = yield* repo.findById({ id: path.id });
         yield* assertProjectOwnership(channel.projectId);
@@ -158,7 +164,7 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
     )
     .handle("revertBranchRollout", ({ path }) =>
       Effect.gen(function* () {
-        yield* assertPermission("channel", "update");
+        yield* assertPermission("rollout", "update");
         const repo = yield* ChannelRepo;
         const channel = yield* repo.findById({ id: path.id });
         yield* assertProjectOwnership(channel.projectId);

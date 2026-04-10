@@ -154,7 +154,9 @@ const buildManifestFromData = (params: {
 const resolveBranchId = (channel: ChannelRow, easClientId: string | undefined) => {
   const { branch_mapping_json: mapping } = channel;
   return mapping
-    ? Effect.promise(async () => evaluateBranchMapping(mapping, easClientId))
+    ? Effect.tryPromise(async () => evaluateBranchMapping(mapping, easClientId)).pipe(
+        Effect.orElseSucceed(() => channel.branch_id),
+      )
     : Effect.succeed(channel.branch_id);
 };
 

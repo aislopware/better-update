@@ -159,10 +159,14 @@ describe(evaluateBranchMapping, () => {
     expect(result).toBe(oldBranchId);
   });
 
-  test("handles malformed JSON gracefully", async () => {
+  test("returns empty fallback for valid JSON with wrong shape", async () => {
     const mapping = JSON.stringify({ notData: true });
     const result = await evaluateBranchMapping(mapping, "any-client");
     expect(result).toBe("");
+  });
+
+  test("throws on malformed JSON string", async () => {
+    await expect(evaluateBranchMapping("not-json", "any-client")).rejects.toThrow(SyntaxError);
   });
 
   test("hash correctness for known salt + clientId", async () => {
