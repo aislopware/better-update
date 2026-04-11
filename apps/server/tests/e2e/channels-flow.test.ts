@@ -21,6 +21,9 @@ const patch = (path: string, body: unknown, headers?: Record<string, string>) =>
     body: JSON.stringify(body),
   });
 
+const del = (path: string, headers?: Record<string, string>) =>
+  fetch(`${getBaseUrl()}${path}`, { method: "DELETE", ...(headers ? { headers } : {}) });
+
 const parseCookies = (response: Response): string => {
   const setCookie = response.headers.getSetCookie();
   return setCookie
@@ -474,5 +477,44 @@ describe("Channels API flow", () => {
     const body = await response.json();
     expect(body.branchId).toBe(thirdBranchId);
     expect(body.branchMappingJson).toBeNull();
+  });
+
+  // ── Section 8: Channel deletion ─────────────────────────────────
+
+  it("deletes the channel", async () => {
+    const response = await del(`/api/channels/${channelId}`, { cookie: cookies });
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.deleted).toBe(1);
+  });
+
+  it("lists channels - deleted channel is gone", async () => {
+    const response = await get(`/api/channels?projectId=${projectId}`, {
+      cookie: cookies,
+    });
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.items.some((c: { id: string }) => c.id === channelId)).toBe(false);
+  });
+
+  it("rejects deleting non-existent channel (404)", async () => {
+    const response = await del(`/api/channels/${channelId}`, { cookie: cookies });
+    expect(response.status).toBe(404);
+  });
+
+  it("deletes a channel via API key", async () => {
+    // Get the api-key-channel id
+    const listRes = await get(`/api/channels?projectId=${projectId}`, { cookie: cookies });
+    const listBody = await listRes.json();
+    const apiKeyChannel = listBody.items.find(
+      (c: { name: string }) => c.name === "api-key-channel",
+    );
+    expect(apiKeyChannel).toBeDefined();
+
+    const response = await del(`/api/channels/${apiKeyChannel.id}`, {
+      authorization: `Bearer ${apiKeyValue}`,
+    });
+    expect(response.status).toBe(200);
+    expect((await response.json()).deleted).toBe(1);
   });
 });

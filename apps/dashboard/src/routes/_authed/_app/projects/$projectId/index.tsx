@@ -1,50 +1,18 @@
 import { branchesQueryOptions, projectQueryOptions } from "@better-update/api-client/react";
-import { Badge } from "@better-update/ui/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@better-update/ui/components/ui/card";
+import { Card, CardContent } from "@better-update/ui/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@better-update/ui/components/ui/tabs";
 import { ArrowLeft02Icon, GitBranchIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 
-import type { BranchItem } from "@better-update/api-client/react";
-
 import { orgsQueryOptions, sessionQueryOptions } from "../../../../../queries/auth";
 import { AnalyticsTab } from "./-analytics-tab";
+import { BranchCard } from "./-branch-card";
 import { ChannelsTab } from "./-channels-tab";
 import { CreateBranchDialog } from "./-create-branch-dialog";
 import { DeleteProjectSection } from "./-delete-project-section";
-import { RenameBranchDialog } from "./-rename-branch-dialog";
 import { UpdatesTab } from "./-updates-tab";
-
-const BranchCard = ({
-  branch,
-  orgId,
-  projectId,
-}: {
-  branch: BranchItem;
-  orgId: string;
-  projectId: string;
-}) => (
-  <Card>
-    <CardHeader className="pb-2">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <HugeiconsIcon
-            icon={GitBranchIcon}
-            strokeWidth={2}
-            className="text-muted-foreground size-5"
-          />
-          <CardTitle className="text-base">{branch.name}</CardTitle>
-        </div>
-        <RenameBranchDialog branch={branch} orgId={orgId} projectId={projectId} />
-      </div>
-    </CardHeader>
-    <CardContent>
-      <Badge variant="outline">{new Date(branch.createdAt).toLocaleDateString()}</Badge>
-    </CardContent>
-  </Card>
-);
 
 const BranchesEmptyState = () => (
   <Card className="border-dashed">

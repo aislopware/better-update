@@ -133,6 +133,8 @@ export const createBranch = (body: typeof CreateBranchBody.Type) =>
 export const renameBranch = (id: string, body: typeof UpdateBranchBody.Type) =>
   runApi((api) => api.branches.rename({ path: { id }, payload: body }));
 
+export const deleteBranch = (id: string) => runApi((api) => api.branches.delete({ path: { id } }));
+
 // Channels
 export const createChannel = (body: typeof CreateChannelBody.Type) =>
   runApi((api) => api.channels.create({ payload: body }));
@@ -143,6 +145,8 @@ export const updateChannel = (id: string, body: typeof UpdateChannelBody.Type) =
 export const pauseChannel = (id: string) => runApi((api) => api.channels.pause({ path: { id } }));
 
 export const resumeChannel = (id: string) => runApi((api) => api.channels.resume({ path: { id } }));
+
+export const deleteChannel = (id: string) => runApi((api) => api.channels.delete({ path: { id } }));
 
 export const createBranchRollout = (channelId: string, body: typeof CreateBranchRolloutBody.Type) =>
   runApi((api) => api.channels.createBranchRollout({ path: { id: channelId }, payload: body }));
