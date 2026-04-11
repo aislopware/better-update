@@ -17,3 +17,5 @@ export const CreateBranchBody = Schema.Struct({
 export const UpdateBranchBody = Schema.Struct({
   name: Schema.String.pipe(Schema.minLength(1)),
 });
+
+export const DeleteBranchResult = Schema.Struct({ deleted: Schema.Number });

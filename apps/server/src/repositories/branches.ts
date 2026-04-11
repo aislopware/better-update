@@ -1,7 +1,5 @@
-import { Branch, NotFound } from "@better-update/api";
+import { Branch, Conflict, NotFound } from "@better-update/api";
 import { Context, Effect, Layer } from "effect";
-
-import type { Conflict } from "@better-update/api";
 
 import { cloudflareEnv } from "../cloudflare/context";
 import { d1RunWithUniqueCheck } from "./d1-helpers";
@@ -33,6 +31,10 @@ export interface BranchRepository {
     readonly id: string;
     readonly name: string;
   }) => Effect.Effect<void, Conflict>;
+
+  readonly delete: (params: {
+    readonly id: string;
+  }) => Effect.Effect<{ readonly patchR2Keys: readonly string[] }, NotFound | Conflict>;
 }
 
 export class BranchRepo extends Context.Tag("api/BranchRepo")<BranchRepo, BranchRepository>() {}
@@ -142,5 +144,51 @@ export const BranchRepoLive = Layer.succeed(BranchRepo, {
             .run(),
         `A branch named "${params.name}" already exists in this project`,
       );
+    }),
+
+  delete: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+
+      // Conflict guard: cannot delete branch while channels are linked
+      const channelCount = yield* Effect.promise(async () =>
+        env.DB.prepare(`SELECT COUNT(*) as count FROM "channels" WHERE "branch_id" = ?`)
+          .bind(params.id)
+          .first<{ count: number }>(),
+      );
+
+      if ((channelCount?.count ?? 0) > 0) {
+        return yield* Effect.fail(
+          new Conflict({ message: "Cannot delete branch while channels are linked to it" }),
+        );
+      }
+
+      const branchAssets = `SELECT ua."asset_hash" FROM "update_assets" ua JOIN "updates" u ON ua."update_id" = u."id" WHERE u."branch_id" = ?`;
+      const otherBranchAssets = `SELECT ua2."asset_hash" FROM "update_assets" ua2 JOIN "updates" u2 ON ua2."update_id" = u2."id" WHERE u2."branch_id" != ?`;
+
+      // Collect patch R2 keys before cascade — only patches not referenced by other branches
+      const patchRows = yield* Effect.promise(async () =>
+        env.DB.prepare(
+          `SELECT p."r2_key" FROM "patches" p WHERE (p."old_asset_hash" IN (${branchAssets}) AND p."old_asset_hash" NOT IN (${otherBranchAssets})) OR (p."new_asset_hash" IN (${branchAssets}) AND p."new_asset_hash" NOT IN (${otherBranchAssets}))`,
+        )
+          .bind(params.id, params.id, params.id, params.id)
+          .all<{ r2_key: string }>(),
+      );
+
+      // Cascade delete in FK dependency order
+      yield* Effect.promise(async () =>
+        env.DB.batch([
+          env.DB.prepare(
+            `DELETE FROM "patches" WHERE (("old_asset_hash" IN (${branchAssets}) AND "old_asset_hash" NOT IN (${otherBranchAssets})) OR ("new_asset_hash" IN (${branchAssets}) AND "new_asset_hash" NOT IN (${otherBranchAssets})))`,
+          ).bind(params.id, params.id, params.id, params.id),
+          env.DB.prepare(
+            `DELETE FROM "update_assets" WHERE "update_id" IN (SELECT "id" FROM "updates" WHERE "branch_id" = ?)`,
+          ).bind(params.id),
+          env.DB.prepare(`DELETE FROM "updates" WHERE "branch_id" = ?`).bind(params.id),
+          env.DB.prepare(`DELETE FROM "branches" WHERE "id" = ?`).bind(params.id),
+        ]),
+      );
+
+      return { patchR2Keys: patchRows.results.map((row) => row.r2_key) };
     }),
 });
