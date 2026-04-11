@@ -17,6 +17,8 @@
     "typegen:cf": "wrangler types"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1029.0",
+    "@aws-sdk/s3-request-presigner": "^3.1029.0",
     "@better-auth/api-key": "^1.6.0",
     "@better-update/api": "workspace:*",
     "@better-update/bsdiff-wasm": "workspace:*",

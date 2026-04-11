@@ -17,11 +17,19 @@
       "binding": "SESSION_KV",
       "id": "<kv-namespace-id>",
     },
+    {
+      "binding": "BUILD_RESERVATIONS",
+      "id": "<kv-namespace-id>",
+    },
   ],
   "r2_buckets": [
     {
       "binding": "ASSETS_BUCKET",
       "bucket_name": "better-update-assets",
+    },
+    {
+      "binding": "BUILD_BUCKET",
+      "bucket_name": "better-update-builds",
     },
   ],
   "analytics_engine_datasets": [
@@ -54,5 +62,9 @@
     "PATCH_MAX_BUNDLE_SIZE": "4194304",
     "PATCH_MIN_SAVING": "0.8",
     "PATCH_RETENTION_DAYS": "30",
+    "BUILD_BUCKET_NAME": "better-update-builds",
+    "BUILD_RETENTION_PRODUCTION": "90",
+    "BUILD_RETENTION_PREVIEW": "30",
+    "BUILD_RETENTION_DEVELOPMENT": "7",
   },
 }

@@ -1,8 +1,10 @@
 import {
   AssetUploadBody,
   Branch,
+  CompleteBuildBody,
   CreateBranchBody,
   CreateBranchRolloutBody,
+  CreateBuildBody,
   CreateChannelBody,
   CreateProjectBody,
   CreateUpdateBody,
@@ -186,3 +188,56 @@ export const revertUpdateRollout = (id: string) =>
 // Assets
 export const uploadAssets = (body: typeof AssetUploadBody.Type) =>
   runApi((api) => api.assets.upload({ payload: body }));
+
+// ---------------------------------------------------------------------------
+// Builds — Query options
+// ---------------------------------------------------------------------------
+
+export const buildsQueryOptions = (
+  orgId: string,
+  projectId: string,
+  filters?: { platform?: "ios" | "android"; profile?: string; runtimeVersion?: string },
+  page?: number,
+) =>
+  queryOptions({
+    queryKey: [
+      "org",
+      orgId,
+      "projects",
+      projectId,
+      "builds",
+      ...(filters?.platform ? [filters.platform] : []),
+      ...(filters?.profile ? [filters.profile] : []),
+      ...(filters?.runtimeVersion ? [filters.runtimeVersion] : []),
+      ...(page != null ? [page] : []),
+    ],
+    queryFn: () =>
+      runApi((api) =>
+        api.builds.list({
+          urlParams: {
+            projectId,
+            platform: filters?.platform,
+            profile: filters?.profile,
+            runtimeVersion: filters?.runtimeVersion,
+            page,
+          },
+        }),
+      ),
+    staleTime: 30_000,
+  });
+
+export const buildQueryOptions = (buildId: string) =>
+  queryOptions({
+    queryKey: ["build", buildId],
+    queryFn: () => runApi((api) => api.builds.get({ path: { id: buildId } })),
+    staleTime: 30_000,
+  });
+
+// Builds — Mutations
+export const reserveBuild = (body: typeof CreateBuildBody.Type) =>
+  runApi((api) => api.builds.reserve({ payload: body }));
+
+export const completeBuild = (id: string, body: typeof CompleteBuildBody.Type) =>
+  runApi((api) => api.builds.complete({ path: { id }, payload: body }));
+
+export const deleteBuild = (id: string) => runApi((api) => api.builds.delete({ path: { id } }));

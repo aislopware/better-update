@@ -42,6 +42,17 @@ export {
 } from "./domain/update";
 export { Asset, AssetUploadBody, AssetUploadResult } from "./domain/asset";
 export {
+  ArtifactFormat,
+  Build,
+  BuildArtifact,
+  BuildWithArtifact,
+  CompleteBuildBody,
+  CreateBuildBody,
+  DeleteBuildResult,
+  Distribution,
+  ReserveBuildResult,
+} from "./domain/build";
+export {
   AdoptionParams,
   AdoptionResult,
   ChannelAnalyticsParams,
@@ -57,6 +68,7 @@ export {
 export { AnalyticsGroup } from "./groups/analytics";
 export { AssetsGroup } from "./groups/assets";
 export { BranchesGroup } from "./groups/branches";
+export { BuildsGroup } from "./groups/builds";
 export { ChannelsGroup } from "./groups/channels";
 export { ManifestGroup } from "./groups/manifest";
 export { ProjectsGroup } from "./groups/projects";

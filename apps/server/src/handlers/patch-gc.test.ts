@@ -40,6 +40,13 @@ const createMockEnv = (expiredPatches: MockExpiredPatch[]) => {
       },
     },
     PATCH_RETENTION_DAYS: "30",
+    BUILD_BUCKET: {
+      list: async () => ({ objects: [] }),
+      delete: async () => {},
+    },
+    BUILD_RETENTION_PRODUCTION: "90",
+    BUILD_RETENTION_PREVIEW: "30",
+    BUILD_RETENTION_DEVELOPMENT: "7",
   } as unknown as Env;
 
   return { env, deletedR2Keys, deletedD1Batches };
@@ -96,13 +103,18 @@ describe("handleScheduled (patch GC)", () => {
 
   test("uses PATCH_RETENTION_DAYS from env", async () => {
     let capturedCutoff = "";
+    let captured = false;
 
     const env = {
       DB: {
-        prepare: (_query: string) => ({
-          bind: (cutoff: string, _limit: number) => ({
+        prepare: (query: string) => ({
+          bind: (...args: unknown[]) => ({
             all: async () => {
-              capturedCutoff = cutoff;
+              // Only capture the patch GC query cutoff (first SELECT with patches)
+              if (query.includes("patches") && !captured) {
+                capturedCutoff = args[0] as string;
+                captured = true;
+              }
               return { results: [] };
             },
           }),
@@ -113,6 +125,13 @@ describe("handleScheduled (patch GC)", () => {
         delete: async () => {},
       },
       PATCH_RETENTION_DAYS: "7",
+      BUILD_BUCKET: {
+        list: async () => ({ objects: [] }),
+        delete: async () => {},
+      },
+      BUILD_RETENTION_PRODUCTION: "90",
+      BUILD_RETENTION_PREVIEW: "30",
+      BUILD_RETENTION_DEVELOPMENT: "7",
     } as unknown as Env;
 
     const before = new Date(Date.now() - 7 * 86_400_000).toISOString();

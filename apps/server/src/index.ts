@@ -5,17 +5,24 @@ import { ManagementApi } from "./api";
 import { createAuth } from "./auth";
 import { AuthenticationLive } from "./auth/middleware";
 import { setRequestContext } from "./cloudflare/context";
-import { AnalyticsGroupLive } from "./handlers/analytics";
-import { AssetsGroupLive } from "./handlers/assets";
-import { BranchesGroupLive } from "./handlers/branches";
-import { ChannelsGroupLive } from "./handlers/channels";
-import { handlePatchMessage, handleScheduled, serveManifest } from "./handlers/patch-gc";
-import { ProjectsGroupLive } from "./handlers/projects";
-import { UpdatesGroupLive } from "./handlers/updates";
+import {
+  AnalyticsGroupLive,
+  AssetsGroupLive,
+  BranchesGroupLive,
+  BuildsGroupLive,
+  ChannelsGroupLive,
+  ProjectsGroupLive,
+  UpdatesGroupLive,
+  handlePatchMessage,
+  handleScheduled,
+  matchBuildRoute,
+  serveManifest,
+} from "./handlers";
 import { errorFormatMiddleware } from "./middleware/error-format";
 import {
   AssetRepoLive,
   BranchRepoLive,
+  BuildRepoLive,
   ChannelRepoLive,
   PatchRepoLive,
   ProjectRepoLive,
@@ -43,6 +50,11 @@ const UpdatesGroupWithRepo = UpdatesGroupLive.pipe(
   Layer.provide(ProjectRepoLive),
 );
 
+const BuildsGroupWithRepo = BuildsGroupLive.pipe(
+  Layer.provide(BuildRepoLive),
+  Layer.provide(ProjectRepoLive),
+);
+
 const AssetsGroupWithRepo = AssetsGroupLive.pipe(Layer.provide(AssetRepoLive));
 const AnalyticsGroupWithRepo = AnalyticsGroupLive.pipe(Layer.provide(ProjectRepoLive));
 
@@ -51,6 +63,7 @@ const ApiLive = HttpApiBuilder.api(ManagementApi).pipe(
   Layer.provide(BranchesGroupWithRepo),
   Layer.provide(ChannelsGroupWithRepo),
   Layer.provide(UpdatesGroupWithRepo),
+  Layer.provide(BuildsGroupWithRepo),
   Layer.provide(AssetsGroupWithRepo),
   Layer.provide(AnalyticsGroupWithRepo),
   Layer.provide(AuthenticationLive),
@@ -247,6 +260,12 @@ export default {
       const assetUploadMatch = /^\/api\/assets\/([a-f0-9]+)$/.exec(url.pathname);
       if (assetUploadMatch?.[1] && request.method === "PUT") {
         return await handleAssetUpload(request, env, assetUploadMatch[1]);
+      }
+
+      // Build routes — artifact download + iOS install plist
+      const buildResponse = await matchBuildRoute(request, env, url.pathname);
+      if (buildResponse) {
+        return buildResponse;
       }
 
       // Patch download — GET /patches/:oldHash/:newHash.patch (public, edge-cached)

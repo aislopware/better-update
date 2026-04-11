@@ -12,7 +12,8 @@ export type Resource =
   | "update"
   | "rollout"
   | "billing"
-  | "apiKey";
+  | "apiKey"
+  | "build";
 
 export type Action = "read" | "create" | "update" | "delete" | "cancel";
 

@@ -4,6 +4,7 @@ import { Authentication } from "./auth/middleware";
 import { AnalyticsGroup } from "./groups/analytics";
 import { AssetsGroup } from "./groups/assets";
 import { BranchesGroup } from "./groups/branches";
+import { BuildsGroup } from "./groups/builds";
 import { ChannelsGroup } from "./groups/channels";
 import { ProjectsGroup } from "./groups/projects";
 import { UpdatesGroup } from "./groups/updates";
@@ -15,6 +16,7 @@ export class ManagementApi extends HttpApi.make("management-api")
   .add(UpdatesGroup)
   .add(AssetsGroup)
   .add(AnalyticsGroup)
+  .add(BuildsGroup)
   .middleware(Authentication)
   .annotateContext(
     OpenApi.annotations({

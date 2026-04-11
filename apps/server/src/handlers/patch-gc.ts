@@ -56,4 +56,7 @@ export const handleScheduled = async (env: Env): Promise<void> => {
   if (totalDeleted > 0) {
     console.info("[patch-gc] Cleaned up expired patches", { totalDeleted });
   }
+
+  const { handleBuildGc } = await import("./build-gc");
+  await handleBuildGc(env);
 };
