@@ -5,9 +5,6 @@ import type { ArtifactFormat, Distribution } from "@better-update/api";
 
 import { cloudflareEnv } from "../cloudflare/context";
 
-type DistributionType = typeof Distribution.Type;
-type ArtifactFormatType = typeof ArtifactFormat.Type;
-
 // -- Port ------------------------------------------------------------------
 
 export interface BuildRepository {
@@ -61,7 +58,7 @@ interface BuildRow {
   project_id: string;
   platform: "ios" | "android";
   profile: string;
-  distribution: DistributionType;
+  distribution: typeof Distribution.Type;
   runtime_version: string | null;
   app_version: string | null;
   build_number: string | null;
@@ -72,7 +69,7 @@ interface BuildRow {
   metadata_json: string;
   created_at: string;
   a_r2_key: string | null;
-  a_format: ArtifactFormatType | null;
+  a_format: typeof ArtifactFormat.Type | null;
   a_content_type: string | null;
   a_byte_size: number | null;
   a_sha256: string | null;
@@ -212,23 +209,20 @@ export const BuildRepoLive = Layer.succeed(BuildRepo, {
 
       const whereClause = conditions.join(" AND ");
 
-      const countResult = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT COUNT(*) as count FROM "builds" b WHERE ${whereClause}`)
-          .bind(...bindValues)
-          .first<{ count: number }>(),
+      const [countResult, rows] = yield* Effect.promise(async () =>
+        Promise.all([
+          env.DB.prepare(`SELECT COUNT(*) as count FROM "builds" b WHERE ${whereClause}`)
+            .bind(...bindValues)
+            .first<{ count: number }>(),
+          env.DB.prepare(
+            `${SELECT_WITH_ARTIFACT} WHERE ${whereClause} ORDER BY b."created_at" DESC LIMIT ? OFFSET ?`,
+          )
+            .bind(...bindValues, params.limit, params.offset)
+            .all<BuildRow>(),
+        ]),
       );
 
-      const total = countResult?.count ?? 0;
-
-      const rows = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `${SELECT_WITH_ARTIFACT} WHERE ${whereClause} ORDER BY b."created_at" DESC LIMIT ? OFFSET ?`,
-        )
-          .bind(...bindValues, params.limit, params.offset)
-          .all<BuildRow>(),
-      );
-
-      return { items: rows.results.map(toBuildWithArtifact), total };
+      return { items: rows.results.map(toBuildWithArtifact), total: countResult?.count ?? 0 };
     }),
 
   deleteById: (params) =>

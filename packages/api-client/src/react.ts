@@ -206,10 +206,12 @@ export const buildsQueryOptions = (
       "projects",
       projectId,
       "builds",
-      ...(filters?.platform ? [filters.platform] : []),
-      ...(filters?.profile ? [filters.profile] : []),
-      ...(filters?.runtimeVersion ? [filters.runtimeVersion] : []),
-      ...(page != null ? [page] : []),
+      {
+        platform: filters?.platform,
+        profile: filters?.profile,
+        runtimeVersion: filters?.runtimeVersion,
+        page,
+      },
     ],
     queryFn: () =>
       runApi((api) =>

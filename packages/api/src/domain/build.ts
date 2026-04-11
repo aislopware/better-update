@@ -41,21 +41,7 @@ export class BuildArtifact extends Schema.Class<BuildArtifact>("BuildArtifact")(
   createdAt: DateTimeString,
 }) {}
 
-export class BuildWithArtifact extends Schema.Class<BuildWithArtifact>("BuildWithArtifact")({
-  id: Id,
-  projectId: Id,
-  platform: Platform,
-  profile: Schema.String,
-  distribution: Distribution,
-  runtimeVersion: Schema.NullOr(Schema.String),
-  appVersion: Schema.NullOr(Schema.String),
-  buildNumber: Schema.NullOr(Schema.String),
-  bundleId: Schema.NullOr(Schema.String),
-  gitRef: Schema.NullOr(Schema.String),
-  gitCommit: Schema.NullOr(Schema.String),
-  message: Schema.NullOr(Schema.String),
-  metadataJson: Schema.String,
-  createdAt: DateTimeString,
+export class BuildWithArtifact extends Build.extend<BuildWithArtifact>("BuildWithArtifact")({
   artifact: Schema.NullOr(
     Schema.Struct({
       r2Key: Schema.String,

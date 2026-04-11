@@ -2,6 +2,13 @@ import { createAuth } from "../auth";
 import { verifyInstallToken } from "../domain/install-token";
 import { generateDownloadUrl } from "../domain/presigned-url";
 
+const escapeXml = (str: string) =>
+  str
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+
 const verifySignedToken = async (
   buildId: string,
   token: string | null,
@@ -39,6 +46,29 @@ export const handleBuildArtifactDownload = async (
         { status: 401 },
       );
     }
+
+    const orgId = session.session.activeOrganizationId;
+    if (!orgId) {
+      return Response.json(
+        { code: "FORBIDDEN", message: "Organization context required" },
+        { status: 403 },
+      );
+    }
+
+    const artifact = await env.DB.prepare(
+      `SELECT a."r2_key" FROM "build_artifacts" a JOIN "builds" b ON b."id" = a."build_id" JOIN "projects" p ON p."id" = b."project_id" WHERE a."build_id" = ? AND p."organization_id" = ?`,
+    )
+      .bind(buildId, orgId)
+      .first<{ r2_key: string }>();
+    if (!artifact) {
+      return Response.json(
+        { code: "NOT_FOUND", message: "Build artifact not found" },
+        { status: 404 },
+      );
+    }
+
+    const downloadUrl = await generateDownloadUrl(env, artifact.r2_key, 900);
+    return Response.redirect(downloadUrl, 302);
   }
 
   const artifact = await env.DB.prepare(
@@ -127,19 +157,19 @@ export const handleBuildInstallPlist = async (
           <key>kind</key>
           <string>software-package</string>
           <key>url</key>
-          <string>${artifactUrl}</string>
+          <string>${escapeXml(artifactUrl)}</string>
         </dict>
       </array>
       <key>metadata</key>
       <dict>
         <key>bundle-identifier</key>
-        <string>${bundleId}</string>
+        <string>${escapeXml(bundleId)}</string>
         <key>bundle-version</key>
-        <string>${appVersion}</string>
+        <string>${escapeXml(appVersion)}</string>
         <key>kind</key>
         <string>software</string>
         <key>title</key>
-        <string>${title}</string>
+        <string>${escapeXml(title)}</string>
       </dict>
     </dict>
   </array>

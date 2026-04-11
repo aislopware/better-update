@@ -1,4 +1,3 @@
-// 1 hour
 const EXPIRY_MS = 3_600_000;
 
 const importKey = async (secret: string) =>

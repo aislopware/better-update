@@ -1,15 +1,10 @@
-const BATCH_SIZE = 100;
-
-const parseRetentionDays = (raw: string | undefined) => Number.parseInt(raw ?? "30", 10);
-
-const computeCutoff = (retentionDays: number) =>
-  new Date(Date.now() - retentionDays * 86_400_000).toISOString();
+import { GC_BATCH_SIZE, computeCutoff, parseRetentionDays } from "../domain/gc-utils";
 
 const fetchExpiredArtifactBatch = async (env: Env, profile: string, cutoff: string) => {
   const { results } = await env.DB.prepare(
     `SELECT b."id", a."r2_key" AS "r2_key" FROM "builds" b JOIN "build_artifacts" a ON a."build_id" = b."id" WHERE b."profile" = ? AND b."created_at" < ? LIMIT ?`,
   )
-    .bind(profile, cutoff, BATCH_SIZE)
+    .bind(profile, cutoff, GC_BATCH_SIZE)
     .all<{ id: string; r2_key: string }>();
   return results;
 };
@@ -38,16 +33,23 @@ const processProfileRetention = async (
   return processProfileRetention(env, profile, cutoff, totalDeleted + batch.length);
 };
 
-const cleanupOrphanedStaging = async (env: Env): Promise<number> => {
-  const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
-  const listed = await env.BUILD_BUCKET.list({ prefix: "staging/" });
-  const orphans = listed.objects.filter((obj) => obj.uploaded < twoHoursAgo);
+const cleanupOrphanedStaging = async (
+  env: Env,
+  cursor?: string,
+  accumulated = 0,
+): Promise<number> => {
+  const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000);
+  const listed = await env.BUILD_BUCKET.list(
+    cursor ? { prefix: "staging/", cursor } : { prefix: "staging/" },
+  );
+  const orphans = listed.objects.filter((obj) => obj.uploaded < threeHoursAgo);
 
   if (orphans.length > 0) {
     await env.BUILD_BUCKET.delete(orphans.map((obj) => obj.key));
   }
 
-  return orphans.length;
+  const total = accumulated + orphans.length;
+  return listed.truncated ? cleanupOrphanedStaging(env, listed.cursor, total) : total;
 };
 
 const processProfiles = async (

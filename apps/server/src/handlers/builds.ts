@@ -1,4 +1,10 @@
-import { AuthContext, BadRequest, NotFound } from "@better-update/api";
+import {
+  ArtifactFormat,
+  AuthContext,
+  BadRequest,
+  Distribution,
+  NotFound,
+} from "@better-update/api";
 import { HttpApiBuilder } from "@effect/platform";
 import { Effect, Schema } from "effect";
 
@@ -10,34 +16,27 @@ import { generateUploadUrl } from "../domain/presigned-url";
 import { BuildRepo } from "../repositories/builds";
 
 const UPLOAD_EXPIRY_SECONDS = 7200;
-// 3 hours
 const KV_RESERVATION_TTL = 10_800;
 
-const formatForContentType = (format: string) => {
-  const map: Record<string, string> = {
-    ipa: "application/octet-stream",
-    apk: "application/vnd.android.package-archive",
-    aab: "application/x-authorware-bin",
-    "tar.gz": "application/gzip",
-  };
-  return map[format] ?? "application/octet-stream";
+const FORMAT_CONTENT_TYPES: Record<string, string> = {
+  ipa: "application/octet-stream",
+  apk: "application/vnd.android.package-archive",
+  aab: "application/x-authorware-bin",
+  "tar.gz": "application/gzip",
 };
+
+const formatForContentType = (format: string) =>
+  FORMAT_CONTENT_TYPES[format] ?? "application/octet-stream";
+
+const artifactExt = (format: string) => (format === "tar.gz" ? "tar.gz" : format);
 
 const ReservationSchema = Schema.Struct({
   buildId: Schema.String,
   projectId: Schema.String,
   platform: Schema.Literal("ios", "android"),
   profile: Schema.String,
-  distribution: Schema.Literal(
-    "app-store",
-    "ad-hoc",
-    "development",
-    "enterprise",
-    "simulator",
-    "play-store",
-    "direct",
-  ),
-  artifactFormat: Schema.Literal("ipa", "apk", "aab", "tar.gz"),
+  distribution: Distribution,
+  artifactFormat: ArtifactFormat,
   runtimeVersion: Schema.NullOr(Schema.String),
   appVersion: Schema.NullOr(Schema.String),
   buildNumber: Schema.NullOr(Schema.String),
@@ -63,8 +62,7 @@ export const BuildsGroupLive = HttpApiBuilder.group(ManagementApi, "builds", (ha
         const ctx = yield* AuthContext;
 
         const buildId = crypto.randomUUID();
-        const ext = payload.artifactFormat === "tar.gz" ? "tar.gz" : payload.artifactFormat;
-        const stagingKey = `staging/${ctx.organizationId}/${buildId}.${ext}`;
+        const stagingKey = `staging/${ctx.organizationId}/${buildId}.${artifactExt(payload.artifactFormat)}`;
 
         const uploadUrl = yield* Effect.promise(async () =>
           generateUploadUrl(env, stagingKey, UPLOAD_EXPIRY_SECONDS),
@@ -119,31 +117,22 @@ export const BuildsGroupLive = HttpApiBuilder.group(ManagementApi, "builds", (ha
 
         yield* assertProjectOwnership(reservation.projectId);
 
-        const stagingHead = yield* Effect.promise(async () =>
-          env.BUILD_BUCKET.head(reservation.stagingKey),
-        );
-        if (!stagingHead) {
-          return yield* Effect.fail(new NotFound({ message: "Artifact not uploaded to staging" }));
-        }
-
-        if (stagingHead.size !== payload.byteSize) {
-          return yield* Effect.fail(
-            new BadRequest({
-              message: `Artifact size mismatch: expected ${payload.byteSize}, got ${stagingHead.size}`,
-            }),
-          );
-        }
-
-        const artifactExt =
-          reservation.artifactFormat === "tar.gz" ? "tar.gz" : reservation.artifactFormat;
-        const finalKey = `builds/${reservation.organizationId}/${reservation.projectId}/${path.id}.${artifactExt}`;
-
         const stagingObject = yield* Effect.promise(async () =>
           env.BUILD_BUCKET.get(reservation.stagingKey),
         );
         if (!stagingObject) {
-          return yield* Effect.fail(new NotFound({ message: "Artifact not found in staging" }));
+          return yield* Effect.fail(new NotFound({ message: "Artifact not uploaded to staging" }));
         }
+
+        if (stagingObject.size !== payload.byteSize) {
+          return yield* Effect.fail(
+            new BadRequest({
+              message: `Artifact size mismatch: expected ${payload.byteSize}, got ${stagingObject.size}`,
+            }),
+          );
+        }
+
+        const finalKey = `builds/${reservation.organizationId}/${reservation.projectId}/${path.id}.${artifactExt(reservation.artifactFormat)}`;
 
         yield* Effect.promise(async () =>
           env.BUILD_BUCKET.put(finalKey, stagingObject.body, {
@@ -177,13 +166,13 @@ export const BuildsGroupLive = HttpApiBuilder.group(ManagementApi, "builds", (ha
           },
         });
 
-        // Best-effort cleanup
-        yield* Effect.promise(async () => env.BUILD_BUCKET.delete(reservation.stagingKey)).pipe(
-          Effect.catchAll(() => Effect.void),
-        );
-        yield* Effect.promise(async () => env.BUILD_RESERVATIONS.delete(path.id)).pipe(
-          Effect.catchAll(() => Effect.void),
-        );
+        yield* Effect.all(
+          [
+            Effect.promise(async () => env.BUILD_BUCKET.delete(reservation.stagingKey)),
+            Effect.promise(async () => env.BUILD_RESERVATIONS.delete(path.id)),
+          ],
+          { concurrency: "unbounded" },
+        ).pipe(Effect.catchAll(() => Effect.void));
 
         return build;
       }),

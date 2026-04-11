@@ -97,17 +97,16 @@ describe("Builds API flow", () => {
       },
       { cookie: cookies },
     );
-    // Presigned URL generation may fail in E2E with fake R2 credentials
-    if (response.status === 201) {
-      const body = await response.json();
-      buildId = body.id;
-      expect(buildId).toBeDefined();
-      expect(body.uploadUrl).toBeDefined();
-      expect(body.uploadExpiresAt).toBeDefined();
-    } else {
-      // S3 presigned URL signing with fake credentials may error
-      expect([201, 500]).toContain(response.status);
+    if (response.status === 500) {
+      console.warn("[builds-e2e] Skipping reserve assertions — R2 credentials unavailable");
+      return;
     }
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    buildId = body.id;
+    expect(buildId).toBeDefined();
+    expect(body.uploadUrl).toBeDefined();
+    expect(body.uploadExpiresAt).toBeDefined();
   });
 
   it("lists builds for the project", async () => {
