@@ -1,4 +1,4 @@
-const BATCH_SIZE = 100;
+import { GC_BATCH_SIZE, computeCutoff, parseRetentionDays } from "../domain/gc-utils";
 
 interface ExpiredPatch {
   old_asset_hash: string;
@@ -6,16 +6,11 @@ interface ExpiredPatch {
   r2_key: string;
 }
 
-const parseRetentionDays = (raw: string | undefined) => Number.parseInt(raw ?? "30", 10);
-
-const computeCutoff = (retentionDays: number) =>
-  new Date(Date.now() - retentionDays * 86_400_000).toISOString();
-
 const fetchExpiredBatch = async (env: Env, cutoff: string) => {
   const { results } = await env.DB.prepare(
     `SELECT "old_asset_hash", "new_asset_hash", "r2_key" FROM "patches" WHERE "created_at" < ? LIMIT ?`,
   )
-    .bind(cutoff, BATCH_SIZE)
+    .bind(cutoff, GC_BATCH_SIZE)
     .all<ExpiredPatch>();
   return results;
 };
