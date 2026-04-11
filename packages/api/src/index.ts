@@ -20,7 +20,7 @@ export type {
 export { DateTimeString, Id, PaginationParams, Platform } from "./domain/common";
 export { BadRequest, Conflict, NotAcceptable } from "./domain/errors";
 export { CreateProjectBody, DeleteProjectResult, Project } from "./domain/project";
-export { Branch, CreateBranchBody, UpdateBranchBody } from "./domain/branch";
+export { Branch, CreateBranchBody, DeleteBranchResult, UpdateBranchBody } from "./domain/branch";
 export {
   Channel,
   CreateBranchRolloutBody,

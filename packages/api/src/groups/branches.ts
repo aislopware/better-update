@@ -3,7 +3,7 @@ import { Schema } from "effect";
 
 import { Forbidden } from "../auth/errors";
 import { NotFound } from "../auth/ownership";
-import { Branch, CreateBranchBody, UpdateBranchBody } from "../domain/branch";
+import { Branch, CreateBranchBody, DeleteBranchResult, UpdateBranchBody } from "../domain/branch";
 import { Id, PaginationParams } from "../domain/common";
 import { Conflict } from "../domain/errors";
 
@@ -53,6 +53,16 @@ export class BranchesGroup extends HttpApiGroup.make("branches")
         OpenApi.annotations({
           title: "Rename branch",
           description: "Rename a branch (channels and updates are unaffected)",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.del("delete")`/api/branches/${idParam}`
+      .addSuccess(DeleteBranchResult)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Delete branch",
+          description: "Delete a branch and all its updates and patches",
         }),
       ),
   )
