@@ -5,7 +5,12 @@ import { Forbidden } from "../auth/errors";
 import { NotFound } from "../auth/ownership";
 import { PaginationParams } from "../domain/common";
 import { Conflict } from "../domain/errors";
-import { CreateProjectBody, DeleteProjectResult, Project } from "../domain/project";
+import {
+  CreateProjectBody,
+  DeleteProjectResult,
+  Project,
+  UpdateProjectBody,
+} from "../domain/project";
 
 const idParam = HttpApiSchema.param("id", Schema.String);
 
@@ -46,6 +51,17 @@ export class ProjectsGroup extends HttpApiGroup.make("projects")
         description: "Get a single project by ID",
       }),
     ),
+  )
+  .add(
+    HttpApiEndpoint.patch("rename")`/api/projects/${idParam}`
+      .setPayload(UpdateProjectBody)
+      .addSuccess(Project)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Rename project",
+          description: "Rename a project",
+        }),
+      ),
   )
   .add(
     HttpApiEndpoint.del("delete")`/api/projects/${idParam}`

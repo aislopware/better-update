@@ -69,6 +69,23 @@ export const ProjectsGroupLive = HttpApiBuilder.group(ManagementApi, "projects",
         return project;
       }),
     )
+    .handle("rename", ({ path, payload }) =>
+      Effect.gen(function* () {
+        yield* assertPermission("project", "update");
+        const repo = yield* ProjectRepo;
+        const project = yield* repo.findById({ id: path.id });
+        yield* assertOrgOwnership(project.organizationId);
+        yield* repo.updateName({ id: path.id, name: payload.name });
+
+        return new Project({
+          id: project.id,
+          organizationId: project.organizationId,
+          name: payload.name,
+          scopeKey: project.scopeKey,
+          createdAt: project.createdAt,
+        });
+      }),
+    )
     .handle("delete", ({ path }) =>
       Effect.gen(function* () {
         yield* assertPermission("project", "delete");

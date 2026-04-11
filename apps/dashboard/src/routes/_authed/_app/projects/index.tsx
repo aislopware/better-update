@@ -1,5 +1,6 @@
 import { projectsQueryOptions } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
+import { Button } from "@better-update/ui/components/ui/button";
 import {
   Card,
   CardContent,
@@ -11,6 +12,7 @@ import { Folder02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 
 import type { ProjectItem } from "@better-update/api-client/react";
 
@@ -63,7 +65,8 @@ const Projects = () => {
   const activeOrg = orgs.find((org) => org.id === activeOrgId) ?? orgs[0];
   const orgId = activeOrg?.id ?? "";
 
-  const { data } = useSuspenseQuery(projectsQueryOptions(orgId));
+  const [page, setPage] = useState(1);
+  const { data } = useSuspenseQuery(projectsQueryOptions(orgId, page));
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6">
@@ -78,11 +81,40 @@ const Projects = () => {
       {data.items.length === 0 ? (
         <EmptyState />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
-          {data.items.map((project) => (
-            <ProjectCard key={project.id} project={project} />
-          ))}
-        </div>
+        <>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {data.items.map((project) => (
+              <ProjectCard key={project.id} project={project} />
+            ))}
+          </div>
+          {data.total > data.limit && (
+            <div className="flex items-center justify-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={data.page <= 1}
+                onClick={() => {
+                  setPage((prev) => prev - 1);
+                }}
+              >
+                Previous
+              </Button>
+              <span className="text-muted-foreground text-sm">
+                Page {data.page} of {Math.ceil(data.total / data.limit)}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={data.page * data.limit >= data.total}
+                onClick={() => {
+                  setPage((prev) => prev + 1);
+                }}
+              >
+                Next
+              </Button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

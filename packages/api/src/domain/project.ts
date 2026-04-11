@@ -15,4 +15,8 @@ export const CreateProjectBody = Schema.Struct({
   scopeKey: Schema.String.pipe(Schema.minLength(1)),
 });
 
+export const UpdateProjectBody = Schema.Struct({
+  name: Schema.String.pipe(Schema.minLength(1)),
+});
+
 export const DeleteProjectResult = Schema.Struct({ deleted: Schema.Number });

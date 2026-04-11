@@ -12,6 +12,7 @@ import { BranchCard } from "./-branch-card";
 import { ChannelsTab } from "./-channels-tab";
 import { CreateBranchDialog } from "./-create-branch-dialog";
 import { DeleteProjectSection } from "./-delete-project-section";
+import { RenameProjectSection } from "./-rename-project-section";
 import { UpdatesTab } from "./-updates-tab";
 
 const BranchesEmptyState = () => (
@@ -97,6 +98,7 @@ const ProjectDetail = () => {
         </TabsContent>
       </Tabs>
 
+      <RenameProjectSection project={project} />
       <DeleteProjectSection project={project} />
     </div>
   );

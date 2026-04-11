@@ -11,6 +11,7 @@ import {
   RepublishBody,
   UpdateBranchBody,
   UpdateChannelBody,
+  UpdateProjectBody,
 } from "@better-update/api";
 import { queryOptions } from "@tanstack/react-query";
 
@@ -30,10 +31,10 @@ export type BranchItem = typeof Branch.Type;
 // Query options factories
 // ---------------------------------------------------------------------------
 
-export const projectsQueryOptions = (orgId: string) =>
+export const projectsQueryOptions = (orgId: string, page?: number) =>
   queryOptions({
-    queryKey: ["org", orgId, "projects"],
-    queryFn: () => runApi((api) => api.projects.list({ urlParams: {} })),
+    queryKey: ["org", orgId, "projects", ...(page != null ? [page] : [])],
+    queryFn: () => runApi((api) => api.projects.list({ urlParams: { page } })),
     staleTime: 30_000,
   });
 
@@ -123,6 +124,9 @@ export const platformAnalyticsQueryOptions = (projectId: string, period?: Analyt
 // Projects
 export const createProject = (body: typeof CreateProjectBody.Type) =>
   runApi((api) => api.projects.create({ payload: body }));
+
+export const renameProject = (id: string, body: typeof UpdateProjectBody.Type) =>
+  runApi((api) => api.projects.rename({ path: { id }, payload: body }));
 
 export const deleteProject = (id: string) => runApi((api) => api.projects.delete({ path: { id } }));
 

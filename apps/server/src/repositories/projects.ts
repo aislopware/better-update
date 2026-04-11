@@ -31,6 +31,11 @@ export interface ProjectRepository {
 
   readonly findOrgIdById: (params: { readonly id: string }) => Effect.Effect<string, NotFound>;
 
+  readonly updateName: (params: {
+    readonly id: string;
+    readonly name: string;
+  }) => Effect.Effect<void>;
+
   readonly delete: (params: {
     readonly id: string;
   }) => Effect.Effect<{ readonly patchR2Keys: readonly string[] }>;
@@ -149,6 +154,16 @@ export const ProjectRepoLive = Layer.succeed(ProjectRepo, {
       }
 
       return row.organization_id;
+    }),
+
+  updateName: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+      yield* Effect.promise(async () =>
+        env.DB.prepare(`UPDATE "projects" SET "name" = ? WHERE "id" = ?`)
+          .bind(params.name, params.id)
+          .run(),
+      );
     }),
 
   delete: (params) =>
