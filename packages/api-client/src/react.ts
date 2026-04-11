@@ -124,6 +124,8 @@ export const platformAnalyticsQueryOptions = (projectId: string, period?: Analyt
 export const createProject = (body: typeof CreateProjectBody.Type) =>
   runApi((api) => api.projects.create({ payload: body }));
 
+export const deleteProject = (id: string) => runApi((api) => api.projects.delete({ path: { id } }));
+
 // Branches
 export const createBranch = (body: typeof CreateBranchBody.Type) =>
   runApi((api) => api.branches.create({ payload: body }));

@@ -5,7 +5,7 @@ import { Forbidden } from "../auth/errors";
 import { NotFound } from "../auth/ownership";
 import { PaginationParams } from "../domain/common";
 import { Conflict } from "../domain/errors";
-import { CreateProjectBody, Project } from "../domain/project";
+import { CreateProjectBody, DeleteProjectResult, Project } from "../domain/project";
 
 const idParam = HttpApiSchema.param("id", Schema.String);
 
@@ -46,6 +46,16 @@ export class ProjectsGroup extends HttpApiGroup.make("projects")
         description: "Get a single project by ID",
       }),
     ),
+  )
+  .add(
+    HttpApiEndpoint.del("delete")`/api/projects/${idParam}`
+      .addSuccess(DeleteProjectResult)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Delete project",
+          description: "Delete a project and all its branches, channels, and updates",
+        }),
+      ),
   )
   .addError(NotFound)
   .addError(Conflict)

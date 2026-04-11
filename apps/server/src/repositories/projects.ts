@@ -30,6 +30,10 @@ export interface ProjectRepository {
   }) => Effect.Effect<Project, NotFound>;
 
   readonly findOrgIdById: (params: { readonly id: string }) => Effect.Effect<string, NotFound>;
+
+  readonly delete: (params: {
+    readonly id: string;
+  }) => Effect.Effect<{ readonly patchR2Keys: readonly string[] }>;
 }
 
 export class ProjectRepo extends Context.Tag("api/ProjectRepo")<ProjectRepo, ProjectRepository>() {}
@@ -145,5 +149,51 @@ export const ProjectRepoLive = Layer.succeed(ProjectRepo, {
       }
 
       return row.organization_id;
+    }),
+
+  delete: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+
+      const projectAssets = `SELECT ua."asset_hash" FROM "update_assets" ua JOIN "updates" u ON ua."update_id" = u."id" JOIN "branches" b ON u."branch_id" = b."id" WHERE b."project_id" = ?`;
+      const otherProjectAssets = `SELECT ua2."asset_hash" FROM "update_assets" ua2 JOIN "updates" u2 ON ua2."update_id" = u2."id" JOIN "branches" b2 ON u2."branch_id" = b2."id" WHERE b2."project_id" != ?`;
+
+      // Collect patch R2 keys before cascade — only patches not referenced by other projects
+      const patchRows = yield* Effect.promise(async () =>
+        env.DB.prepare(
+          `SELECT p."r2_key" FROM "patches" p WHERE (p."old_asset_hash" IN (${projectAssets}) AND p."old_asset_hash" NOT IN (${otherProjectAssets})) OR (p."new_asset_hash" IN (${projectAssets}) AND p."new_asset_hash" NOT IN (${otherProjectAssets}))`,
+        )
+          .bind(params.id, params.id, params.id, params.id)
+          .all<{ r2_key: string }>(),
+      );
+
+      // Bump cache version before deleting channels to invalidate edge caches
+      yield* Effect.promise(async () =>
+        env.DB.prepare(
+          `UPDATE "channels" SET "cache_version" = "cache_version" + 1 WHERE "project_id" = ?`,
+        )
+          .bind(params.id)
+          .run(),
+      );
+
+      // Cascade delete in FK dependency order — only delete patches not shared with other projects
+      yield* Effect.promise(async () =>
+        env.DB.batch([
+          env.DB.prepare(
+            `DELETE FROM "patches" WHERE (("old_asset_hash" IN (${projectAssets}) AND "old_asset_hash" NOT IN (${otherProjectAssets})) OR ("new_asset_hash" IN (${projectAssets}) AND "new_asset_hash" NOT IN (${otherProjectAssets})))`,
+          ).bind(params.id, params.id, params.id, params.id),
+          env.DB.prepare(
+            `DELETE FROM "update_assets" WHERE "update_id" IN (SELECT u."id" FROM "updates" u JOIN "branches" b ON u."branch_id" = b."id" WHERE b."project_id" = ?)`,
+          ).bind(params.id),
+          env.DB.prepare(
+            `DELETE FROM "updates" WHERE "branch_id" IN (SELECT "id" FROM "branches" WHERE "project_id" = ?)`,
+          ).bind(params.id),
+          env.DB.prepare(`DELETE FROM "channels" WHERE "project_id" = ?`).bind(params.id),
+          env.DB.prepare(`DELETE FROM "branches" WHERE "project_id" = ?`).bind(params.id),
+          env.DB.prepare(`DELETE FROM "projects" WHERE "id" = ?`).bind(params.id),
+        ]),
+      );
+
+      return { patchR2Keys: patchRows.results.map((row) => row.r2_key) };
     }),
 });

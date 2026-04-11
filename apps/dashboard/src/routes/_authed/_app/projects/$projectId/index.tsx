@@ -13,6 +13,7 @@ import { orgsQueryOptions, sessionQueryOptions } from "../../../../../queries/au
 import { AnalyticsTab } from "./-analytics-tab";
 import { ChannelsTab } from "./-channels-tab";
 import { CreateBranchDialog } from "./-create-branch-dialog";
+import { DeleteProjectSection } from "./-delete-project-section";
 import { RenameBranchDialog } from "./-rename-branch-dialog";
 import { UpdatesTab } from "./-updates-tab";
 
@@ -127,6 +128,8 @@ const ProjectDetail = () => {
           <AnalyticsTab orgId={orgId} projectId={projectId} />
         </TabsContent>
       </Tabs>
+
+      <DeleteProjectSection project={project} />
     </div>
   );
 };
