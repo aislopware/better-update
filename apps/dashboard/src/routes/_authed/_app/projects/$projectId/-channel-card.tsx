@@ -36,6 +36,8 @@ import { toast } from "sonner";
 import type { Channel } from "@better-update/api";
 import type { BranchItem } from "@better-update/api-client/react";
 
+import { DeleteChannelDialog } from "./-delete-channel-dialog";
+
 interface RolloutEntry {
   branchId: string;
   branchMappingLogic: string;
@@ -377,6 +379,7 @@ export const ChannelCard = ({ channel, orgId, projectId, branches }: ChannelCard
                 className="size-4"
               />
             </Button>
+            <DeleteChannelDialog channel={channel} orgId={orgId} projectId={projectId} />
           </div>
         </div>
       </CardHeader>

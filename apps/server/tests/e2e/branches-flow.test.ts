@@ -21,6 +21,9 @@ const patch = (path: string, body: unknown, headers?: Record<string, string>) =>
     body: JSON.stringify(body),
   });
 
+const del = (path: string, headers?: Record<string, string>) =>
+  fetch(`${getBaseUrl()}${path}`, { method: "DELETE", ...(headers ? { headers } : {}) });
+
 const parseCookies = (response: Response): string => {
   const setCookie = response.headers.getSetCookie();
   return setCookie
@@ -279,5 +282,81 @@ describe("Branches API flow", () => {
     const body = await response.json();
     expect(body.items).toHaveLength(3);
     expect(body.items.some((b: { name: string }) => b.name === "b-branch")).toBe(false);
+  });
+
+  // ── Section 7: Branch deletion ──────────────────────────────────
+
+  let channelOnBranch: string;
+
+  it("creates a channel linked to the branch (for conflict test)", async () => {
+    const response = await post(
+      "/api/channels",
+      { projectId, name: "linked-channel", branchId },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(201);
+    channelOnBranch = (await response.json()).id;
+  });
+
+  it("rejects branch delete while channels are linked (409)", async () => {
+    const response = await del(`/api/branches/${branchId}`, { cookie: cookies });
+    expect(response.status).toBe(409);
+  });
+
+  it("rejects deleting a branch that is a rollout target (409)", async () => {
+    // Get the staging branch ID
+    const listRes = await get(`/api/branches?projectId=${projectId}`, { cookie: cookies });
+    const listBody = await listRes.json();
+    const stagingBranch = listBody.items.find((b: { name: string }) => b.name === "staging");
+    expect(stagingBranch).toBeDefined();
+
+    // Start a rollout from channelOnBranch to staging
+    const rolloutRes = await post(
+      `/api/channels/${channelOnBranch}/rollout`,
+      { newBranchId: stagingBranch.id, percentage: 10 },
+      { cookie: cookies },
+    );
+    expect(rolloutRes.status).toBe(200);
+
+    // Try to delete staging — should be blocked because it's a rollout target
+    const deleteRes = await del(`/api/branches/${stagingBranch.id}`, { cookie: cookies });
+    expect(deleteRes.status).toBe(409);
+
+    // Clean up: revert the rollout
+    const revertRes = await post(
+      `/api/channels/${channelOnBranch}/rollout/revert`,
+      {},
+      { cookie: cookies },
+    );
+    expect(revertRes.status).toBe(200);
+  });
+
+  it("deletes the linked channel first", async () => {
+    const response = await del(`/api/channels/${channelOnBranch}`, { cookie: cookies });
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.deleted).toBe(1);
+  });
+
+  it("deletes the branch after unlinking", async () => {
+    const response = await del(`/api/branches/${branchId}`, { cookie: cookies });
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.deleted).toBe(1);
+  });
+
+  it("lists branches - deleted branch is gone", async () => {
+    const response = await get(`/api/branches?projectId=${projectId}`, {
+      cookie: cookies,
+    });
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.items).toHaveLength(2);
+    expect(body.items.some((b: { id: string }) => b.id === branchId)).toBe(false);
+  });
+
+  it("rejects deleting non-existent branch (404)", async () => {
+    const response = await del(`/api/branches/${branchId}`, { cookie: cookies });
+    expect(response.status).toBe(404);
   });
 });

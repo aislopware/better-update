@@ -150,10 +150,13 @@ export const BranchRepoLive = Layer.succeed(BranchRepo, {
     Effect.gen(function* () {
       const env = yield* cloudflareEnv;
 
-      // Conflict guard: cannot delete branch while channels are linked
+      // Conflict guard: cannot delete branch while channels reference it
+      // (either as current branch_id OR as a rollout target in branch_mapping_json)
       const channelCount = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT COUNT(*) as count FROM "channels" WHERE "branch_id" = ?`)
-          .bind(params.id)
+        env.DB.prepare(
+          `SELECT COUNT(*) as count FROM "channels" WHERE "branch_id" = ? OR ("branch_mapping_json" IS NOT NULL AND "branch_mapping_json" LIKE '%' || ? || '%')`,
+        )
+          .bind(params.id, params.id)
           .first<{ count: number }>(),
       );
 
