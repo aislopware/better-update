@@ -46,6 +46,8 @@ export interface ChannelRepository {
   readonly revertBranchRollout: (params: { readonly id: string }) => Effect.Effect<void>;
 
   readonly bumpCacheVersionByBranch: (params: { readonly branchId: string }) => Effect.Effect<void>;
+
+  readonly delete: (params: { readonly id: string }) => Effect.Effect<void, NotFound>;
 }
 
 export class ChannelRepo extends Context.Tag("api/ChannelRepo")<ChannelRepo, ChannelRepository>() {}
@@ -221,6 +223,20 @@ export const ChannelRepoLive = Layer.succeed(ChannelRepo, {
         )
           .bind(params.branchId)
           .run(),
+      );
+    }),
+
+  delete: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+
+      yield* Effect.promise(async () =>
+        env.DB.batch([
+          env.DB.prepare(
+            `UPDATE "channels" SET "cache_version" = "cache_version" + 1 WHERE "id" = ?`,
+          ).bind(params.id),
+          env.DB.prepare(`DELETE FROM "channels" WHERE "id" = ?`).bind(params.id),
+        ]),
       );
     }),
 });

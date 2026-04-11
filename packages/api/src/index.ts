@@ -25,6 +25,7 @@ export {
   Channel,
   CreateBranchRolloutBody,
   CreateChannelBody,
+  DeleteChannelResult,
   UpdateChannelBody,
 } from "./domain/channel";
 export {

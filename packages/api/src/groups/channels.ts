@@ -7,6 +7,7 @@ import {
   Channel,
   CreateBranchRolloutBody,
   CreateChannelBody,
+  DeleteChannelResult,
   UpdateChannelBody,
   UpdateRolloutBody,
 } from "../domain/channel";
@@ -120,6 +121,16 @@ export class ChannelsGroup extends HttpApiGroup.make("channels")
         OpenApi.annotations({
           title: "Revert branch rollout",
           description: "Revert the rollout — restore the original branch",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.del("delete")`/api/channels/${idParam}`
+      .addSuccess(DeleteChannelResult)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Delete channel",
+          description: "Delete a channel",
         }),
       ),
   )

@@ -176,5 +176,15 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
         yield* repo.revertBranchRollout({ id: path.id });
         return yield* repo.findById({ id: path.id });
       }),
+    )
+    .handle("delete", ({ path }) =>
+      Effect.gen(function* () {
+        yield* assertPermission("channel", "delete");
+        const channelRepo = yield* ChannelRepo;
+        const channel = yield* channelRepo.findById({ id: path.id });
+        yield* assertProjectOwnership(channel.projectId);
+        yield* channelRepo.delete({ id: path.id });
+        return { deleted: 1 };
+      }),
     ),
 );
