@@ -22,15 +22,12 @@ const patch = (path: string, body: unknown, headers?: Record<string, string>) =>
   });
 
 const del = (path: string, headers?: Record<string, string>) =>
-  fetch(`${getBaseUrl()}${path}`, {
-    method: "DELETE",
-    headers,
-  });
+  fetch(`${getBaseUrl()}${path}`, { method: "DELETE", ...(headers ? { headers } : {}) });
 
 const put = (path: string, body: BodyInit, headers?: Record<string, string>) =>
   fetch(`${getBaseUrl()}${path}`, {
     method: "PUT",
-    headers,
+    ...(headers ? { headers } : {}),
     body,
   });
 
