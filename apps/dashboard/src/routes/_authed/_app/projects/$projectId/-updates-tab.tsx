@@ -1,4 +1,8 @@
-import { branchesQueryOptions, updatesQueryOptions } from "@better-update/api-client/react";
+import {
+  branchesQueryOptions,
+  channelsQueryOptions,
+  updatesQueryOptions,
+} from "@better-update/api-client/react";
 import { Card, CardContent } from "@better-update/ui/components/ui/card";
 import {
   Select,
@@ -36,6 +40,7 @@ export const UpdatesTab = ({ orgId, projectId }: { orgId: string; projectId: str
     updatesQueryOptions(orgId, projectId, branchFilter),
   );
   const { data: branchesData } = useSuspenseQuery(branchesQueryOptions(orgId, projectId));
+  const { data: channelsData } = useSuspenseQuery(channelsQueryOptions(orgId, projectId, 1000));
 
   return (
     <div className="flex flex-col gap-4">
@@ -66,7 +71,13 @@ export const UpdatesTab = ({ orgId, projectId }: { orgId: string; projectId: str
       ) : (
         <div className="flex flex-col gap-3">
           {updatesData.items.map((update) => (
-            <UpdateCard key={update.id} update={update} orgId={orgId} projectId={projectId} />
+            <UpdateCard
+              key={update.id}
+              update={update}
+              channels={channelsData.items}
+              orgId={orgId}
+              projectId={projectId}
+            />
           ))}
         </div>
       )}

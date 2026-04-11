@@ -9,25 +9,36 @@ import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@better-update/ui/components/ui/card";
 import { Input } from "@better-update/ui/components/ui/input";
-import { CheckmarkCircle02Icon, Delete02Icon, UndoIcon } from "@hugeicons/core-free-icons";
+import {
+  CheckmarkCircle02Icon,
+  Delete02Icon,
+  Rocket01Icon,
+  UndoIcon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import type { Update } from "@better-update/api";
+import type { Channel, Update } from "@better-update/api";
+
+import { PromoteUpdateDialog } from "./-promote-update-dialog";
 
 interface UpdateCardProps {
   readonly update: typeof Update.Type;
+  readonly channels: readonly (typeof Channel.Type)[];
   readonly orgId: string;
   readonly projectId: string;
 }
 
-export const UpdateCard = ({ update, orgId, projectId }: UpdateCardProps) => {
+export const UpdateCard = ({ update, channels, orgId, projectId }: UpdateCardProps) => {
   const queryClient = useQueryClient();
   const [isDeleting, setIsDeleting] = useState(false);
   const [rolloutInput, setRolloutInput] = useState(String(update.rolloutPercentage));
   const [isUpdatingRollout, setIsUpdatingRollout] = useState(false);
+  const [promoteOpen, setPromoteOpen] = useState(false);
+
+  const eligibleChannels = channels.filter((channel) => channel.branchId !== update.branchId);
 
   const invalidateUpdates = async () =>
     queryClient.invalidateQueries({
@@ -108,16 +119,31 @@ export const UpdateCard = ({ update, orgId, projectId }: UpdateCardProps) => {
             <Badge variant="outline">{update.platform}</Badge>
             {update.isRollback && <Badge variant="destructive">Rollback</Badge>}
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-8"
-            title="Delete update group"
-            disabled={isDeleting}
-            onClick={handleDelete}
-          >
-            <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} className="size-4" />
-          </Button>
+          <div className="flex items-center gap-1">
+            {eligibleChannels.length > 0 && !update.isRollback && !update.signature && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8"
+                title="Promote to another channel"
+                onClick={() => {
+                  setPromoteOpen(true);
+                }}
+              >
+                <HugeiconsIcon icon={Rocket01Icon} strokeWidth={2} className="size-4" />
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8"
+              title="Delete update group"
+              disabled={isDeleting}
+              onClick={handleDelete}
+            >
+              <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} className="size-4" />
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
@@ -172,6 +198,16 @@ export const UpdateCard = ({ update, orgId, projectId }: UpdateCardProps) => {
           </Button>
         </div>
       </CardContent>
+      {eligibleChannels.length > 0 && (
+        <PromoteUpdateDialog
+          update={update}
+          channels={eligibleChannels}
+          orgId={orgId}
+          projectId={projectId}
+          open={promoteOpen}
+          onOpenChange={setPromoteOpen}
+        />
+      )}
     </Card>
   );
 };
