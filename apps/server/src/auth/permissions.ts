@@ -20,7 +20,6 @@ export const permissions: PermissionMap = {
     billing: ["read", "update"],
     apiKey: ["read", "create", "delete"],
     build: ["read", "create", "delete"],
-    // @ts-expect-error -- Resource "credential" and Action "download" added in parallel task
     credential: ["read", "create", "download", "update", "delete"],
   },
   admin: {
@@ -35,7 +34,6 @@ export const permissions: PermissionMap = {
     billing: ["read", "update"],
     apiKey: ["read", "create", "delete"],
     build: ["read", "create", "delete"],
-    // @ts-expect-error -- Resource "credential" and Action "download" added in parallel task
     credential: ["read", "create", "download", "update", "delete"],
   },
   developer: {
@@ -46,7 +44,6 @@ export const permissions: PermissionMap = {
     rollout: ["read", "create", "update", "delete"],
     apiKey: ["read"],
     build: ["read", "create"],
-    // @ts-expect-error -- Resource "credential" and Action "download" added in parallel task
     credential: ["read", "download"],
   },
   viewer: {
