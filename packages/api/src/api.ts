@@ -3,6 +3,7 @@ import { HttpApi, OpenApi } from "@effect/platform";
 import { Authentication } from "./auth/middleware";
 import { AnalyticsGroup } from "./groups/analytics";
 import { AssetsGroup } from "./groups/assets";
+import { AuditLogsGroup } from "./groups/audit-logs";
 import { BranchesGroup } from "./groups/branches";
 import { BuildsGroup } from "./groups/builds";
 import { ChannelsGroup } from "./groups/channels";
@@ -21,6 +22,7 @@ export class ManagementApi extends HttpApi.make("management-api")
   .add(BuildsGroup)
   .add(CredentialsGroup)
   .add(EnvVarsGroup)
+  .add(AuditLogsGroup)
   .middleware(Authentication)
   .annotateContext(
     OpenApi.annotations({

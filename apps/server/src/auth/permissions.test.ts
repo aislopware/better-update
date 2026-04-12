@@ -14,6 +14,7 @@ const provideAuth = (role: Role, overrides?: Partial<EffectivePermissions>) =>
     role,
     effectivePermissions: { ...permissions[role], ...overrides },
     source: "session",
+    actorEmail: "test@example.com",
   });
 
 describe("permissions map", () => {

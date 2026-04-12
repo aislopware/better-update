@@ -15,7 +15,8 @@ export type Resource =
   | "apiKey"
   | "build"
   | "credential"
-  | "envVar";
+  | "envVar"
+  | "auditLog";
 
 export type Action = "read" | "create" | "update" | "delete" | "cancel" | "download";
 
@@ -27,6 +28,7 @@ export interface AuthContextShape {
   readonly role: Role | null;
   readonly effectivePermissions: EffectivePermissions;
   readonly source: "session" | "api-key";
+  readonly actorEmail: string;
 }
 
 export class AuthContext extends Context.Tag("api/AuthContext")<AuthContext, AuthContextShape>() {}

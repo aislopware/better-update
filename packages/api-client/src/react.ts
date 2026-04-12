@@ -331,3 +331,30 @@ export const deleteEnvVar = (id: string) =>
 
 export const bulkImportEnvVars = (body: typeof BulkImportEnvVarsBody.Type) =>
   runApi((api) => api["env-vars"].bulkImport({ payload: body }));
+
+// ---------------------------------------------------------------------------
+// Audit Logs — Query options
+// ---------------------------------------------------------------------------
+
+export const auditLogsQueryOptions = (
+  orgId: string,
+  filters?: {
+    action?: string;
+    resourceType?: string;
+    actorId?: string;
+    from?: string;
+    to?: string;
+    page?: number;
+    limit?: number;
+  },
+) =>
+  queryOptions({
+    queryKey: ["org", orgId, "audit-logs", filters],
+    queryFn: () =>
+      runApi((api) =>
+        api["audit-logs"].list({
+          urlParams: { ...filters },
+        }),
+      ),
+    staleTime: 10_000,
+  });
