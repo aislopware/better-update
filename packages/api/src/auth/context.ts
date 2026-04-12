@@ -13,9 +13,10 @@ export type Resource =
   | "rollout"
   | "billing"
   | "apiKey"
-  | "build";
+  | "build"
+  | "credential";
 
-export type Action = "read" | "create" | "update" | "delete" | "cancel";
+export type Action = "read" | "create" | "update" | "delete" | "cancel" | "download";
 
 export type EffectivePermissions = Partial<Record<Resource, readonly Action[]>>;
 

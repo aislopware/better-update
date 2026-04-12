@@ -42,6 +42,14 @@ export {
 } from "./domain/update";
 export { Asset, AssetUploadBody, AssetUploadResult } from "./domain/asset";
 export {
+  Credential,
+  CreateCredentialBody,
+  CredentialDistribution,
+  CredentialDownload,
+  CredentialType,
+  DeleteCredentialResult,
+} from "./domain/credential";
+export {
   ArtifactFormat,
   Build,
   BuildArtifact,
@@ -69,6 +77,7 @@ export { AnalyticsGroup } from "./groups/analytics";
 export { AssetsGroup } from "./groups/assets";
 export { BranchesGroup } from "./groups/branches";
 export { BuildsGroup } from "./groups/builds";
+export { CredentialsGroup } from "./groups/credentials";
 export { ChannelsGroup } from "./groups/channels";
 export { ManifestGroup } from "./groups/manifest";
 export { ProjectsGroup } from "./groups/projects";
