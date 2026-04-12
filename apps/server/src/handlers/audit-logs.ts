@@ -1,4 +1,4 @@
-import { AuthContext } from "@better-update/api";
+import { AuditLog, AuthContext } from "@better-update/api";
 import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
@@ -8,18 +8,19 @@ import { AuditLogRepo } from "../repositories/audit-logs";
 
 import type { AuditLogRow } from "../repositories/audit-logs";
 
-const rowToAuditLog = (row: AuditLogRow) => ({
-  id: row.id,
-  organizationId: row.organization_id,
-  actorId: row.actor_id,
-  actorEmail: row.actor_email,
-  action: row.action,
-  resourceType: row.resource_type,
-  resourceId: row.resource_id,
-  metadata: row.metadata,
-  source: row.source,
-  createdAt: row.created_at,
-});
+const rowToAuditLog = (row: AuditLogRow) =>
+  new AuditLog({
+    id: row.id,
+    organizationId: row.organization_id,
+    actorId: row.actor_id,
+    actorEmail: row.actor_email,
+    action: row.action,
+    resourceType: row.resource_type,
+    resourceId: row.resource_id,
+    metadata: row.metadata,
+    source: row.source,
+    createdAt: row.created_at,
+  });
 
 export const AuditLogsGroupLive = HttpApiBuilder.group(ManagementApi, "audit-logs", (handlers) =>
   handlers.handle("list", ({ urlParams }) =>

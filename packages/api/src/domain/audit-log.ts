@@ -20,7 +20,7 @@ export class AuditLog extends Schema.Class<AuditLog>("AuditLog")({
   actorId: Schema.NullOr(Schema.String),
   actorEmail: Schema.String,
   action: Schema.String,
-  resourceType: Schema.String,
+  resourceType: AuditLogResourceType,
   resourceId: Schema.NullOr(Schema.String),
   metadata: Schema.NullOr(Schema.String),
   source: AuditLogSource,

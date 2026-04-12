@@ -10,7 +10,14 @@ export interface AuditLogRow {
   readonly actor_id: string | null;
   readonly actor_email: string;
   readonly action: string;
-  readonly resource_type: string;
+  readonly resource_type:
+    | "project"
+    | "branch"
+    | "channel"
+    | "update"
+    | "build"
+    | "credential"
+    | "envVar";
   readonly resource_id: string | null;
   readonly metadata: string | null;
   readonly source: "session" | "api-key";
@@ -81,6 +88,7 @@ export const AuditLogRepoLive = Layer.succeed(AuditLogRepo, {
     Effect.gen(function* () {
       const env = yield* cloudflareEnv;
 
+      // SECURITY: All condition strings are hardcoded literals. Never interpolate user input into conditions.
       const conditions: string[] = ['"organization_id" = ?'];
       const bindValues: (string | number)[] = [params.organizationId];
 

@@ -173,7 +173,7 @@ const AuditLogPage = () => {
 
   const filters = {
     ...(resourceType === "all" ? {} : { resourceType }),
-    ...(fromDate ? { from: new Date(fromDate).toISOString() } : {}),
+    ...(fromDate ? { from: new Date(`${fromDate}T00:00:00`).toISOString() } : {}),
     ...(toDate ? { to: new Date(`${toDate}T23:59:59`).toISOString() } : {}),
     page,
     limit: 50,
