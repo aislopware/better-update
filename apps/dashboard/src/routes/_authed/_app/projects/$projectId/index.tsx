@@ -1,35 +1,18 @@
 import { branchesQueryOptions, projectQueryOptions } from "@better-update/api-client/react";
-import { Card, CardContent } from "@better-update/ui/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@better-update/ui/components/ui/tabs";
-import { ArrowLeft02Icon, GitBranchIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 
 import { orgsQueryOptions, sessionQueryOptions } from "../../../../../queries/auth";
 import { AnalyticsTab } from "./-analytics-tab";
 import { BranchCard } from "./-branch-card";
+import { BranchesEmptyState } from "./-branches-empty-state";
+import { BuildsTab } from "./-builds-tab";
 import { ChannelsTab } from "./-channels-tab";
 import { CreateBranchDialog } from "./-create-branch-dialog";
 import { DeleteProjectSection } from "./-delete-project-section";
 import { RenameProjectSection } from "./-rename-project-section";
 import { UpdatesTab } from "./-updates-tab";
-
-const BranchesEmptyState = () => (
-  <Card className="border-dashed">
-    <CardContent className="flex flex-col items-center justify-center py-12">
-      <HugeiconsIcon
-        icon={GitBranchIcon}
-        strokeWidth={1.5}
-        className="text-muted-foreground mb-4 size-12"
-      />
-      <p className="text-lg font-medium">No branches yet</p>
-      <p className="text-muted-foreground mt-1 text-sm">
-        Create your first branch to start managing deployments.
-      </p>
-    </CardContent>
-  </Card>
-);
 
 const ProjectDetail = () => {
   const { projectId } = Route.useParams();
@@ -49,7 +32,17 @@ const ProjectDetail = () => {
           to="/projects"
           className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center gap-1 text-sm transition-colors"
         >
-          <HugeiconsIcon icon={ArrowLeft02Icon} strokeWidth={2} className="size-4" />
+          <svg
+            className="size-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M15 19l-7-7 7-7" />
+          </svg>
           Back to projects
         </Link>
         <div>
@@ -65,6 +58,7 @@ const ProjectDetail = () => {
           <TabsTrigger value="branches">Branches</TabsTrigger>
           <TabsTrigger value="channels">Channels</TabsTrigger>
           <TabsTrigger value="updates">Updates</TabsTrigger>
+          <TabsTrigger value="builds">Builds</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
 
@@ -91,6 +85,10 @@ const ProjectDetail = () => {
 
         <TabsContent value="updates">
           <UpdatesTab orgId={orgId} projectId={projectId} />
+        </TabsContent>
+
+        <TabsContent value="builds">
+          <BuildsTab orgId={orgId} projectId={projectId} />
         </TabsContent>
 
         <TabsContent value="analytics">
