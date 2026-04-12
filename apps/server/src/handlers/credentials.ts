@@ -78,27 +78,19 @@ export const CredentialsGroupLive = HttpApiBuilder.group(ManagementApi, "credent
           envelopeEncrypt(keyring, ctx.organizationId, blobBytes),
         );
 
-        const encryptedPassword = yield* encryptOptionalSecret(
-          keyring,
-          ctx.organizationId,
-          payload.password,
-        );
-        const encryptedKeyAlias = yield* encryptOptionalSecret(
-          keyring,
-          ctx.organizationId,
-          payload.keyAlias,
-        );
-        const encryptedKeyPassword = yield* encryptOptionalSecret(
-          keyring,
-          ctx.organizationId,
-          payload.keyPassword,
+        const [encryptedPassword, encryptedKeyAlias, encryptedKeyPassword] = yield* Effect.all(
+          [
+            encryptOptionalSecret(keyring, ctx.organizationId, payload.password),
+            encryptOptionalSecret(keyring, ctx.organizationId, payload.keyAlias),
+            encryptOptionalSecret(keyring, ctx.organizationId, payload.keyPassword),
+          ],
+          { concurrency: "unbounded" },
         );
 
         const credentialId = crypto.randomUUID();
         const r2Key = `credentials/${ctx.organizationId}/${credentialId}`;
 
-        const encryptedBlobBytes = fromBase64(encryptedBlob);
-        yield* Effect.promise(async () => env.BUILD_BUCKET.put(r2Key, encryptedBlobBytes));
+        yield* Effect.promise(async () => env.BUILD_BUCKET.put(r2Key, encryptedBlob));
 
         const repo = yield* CredentialRepo;
         return yield* repo.insert({
@@ -192,27 +184,32 @@ export const CredentialsGroupLive = HttpApiBuilder.group(ManagementApi, "credent
             encData.organizationId,
             encData.keyVersion,
             encData.encryptedDek,
-            toBase64(encryptedBlobBytes),
+            encryptedBlobBytes,
           ),
         );
 
-        const password = yield* decryptOptionalSecret(
-          keyring,
-          encData.organizationId,
-          encData.keyVersion,
-          encData.encryptedPassword,
-        );
-        const keyAlias = yield* decryptOptionalSecret(
-          keyring,
-          encData.organizationId,
-          encData.keyVersion,
-          encData.encryptedKeyAlias,
-        );
-        const keyPassword = yield* decryptOptionalSecret(
-          keyring,
-          encData.organizationId,
-          encData.keyVersion,
-          encData.encryptedKeyPassword,
+        const [password, keyAlias, keyPassword] = yield* Effect.all(
+          [
+            decryptOptionalSecret(
+              keyring,
+              encData.organizationId,
+              encData.keyVersion,
+              encData.encryptedPassword,
+            ),
+            decryptOptionalSecret(
+              keyring,
+              encData.organizationId,
+              encData.keyVersion,
+              encData.encryptedKeyAlias,
+            ),
+            decryptOptionalSecret(
+              keyring,
+              encData.organizationId,
+              encData.keyVersion,
+              encData.encryptedKeyPassword,
+            ),
+          ],
+          { concurrency: "unbounded" },
         );
 
         const fileInfo = FILENAME_MAP[encData.type] ?? {

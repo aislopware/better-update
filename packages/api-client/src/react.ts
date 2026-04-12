@@ -252,6 +252,7 @@ export const deleteBuild = (id: string) => runApi((api) => api.builds.delete({ p
 export const credentialsQueryOptions = (
   orgId: string,
   filters?: { platform?: "ios" | "android"; type?: string; distribution?: string },
+  page?: number,
 ) =>
   queryOptions({
     queryKey: [
@@ -262,6 +263,7 @@ export const credentialsQueryOptions = (
         platform: filters?.platform,
         type: filters?.type,
         distribution: filters?.distribution,
+        page,
       },
     ],
     queryFn: () =>
@@ -271,6 +273,7 @@ export const credentialsQueryOptions = (
             platform: filters?.platform,
             type: filters?.type,
             distribution: filters?.distribution,
+            page,
           },
         }),
       ),
