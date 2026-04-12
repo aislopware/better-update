@@ -42,10 +42,14 @@ export const CreateOrgDialog = ({
         return;
       }
 
-      await authClient.organization.setActive({ organizationId: data.id });
+      if (data.id) {
+        await authClient.organization.setActive({ organizationId: data.id });
+      }
       await queryClient.resetQueries({ queryKey: ["auth"] });
-      await router.invalidate();
+      form.reset();
+      slugEdited.current = false;
       onOpenChange(false);
+      await router.navigate({ to: "/" });
     },
   });
 

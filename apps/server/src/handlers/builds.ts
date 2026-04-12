@@ -251,13 +251,17 @@ export const BuildsGroupLive = HttpApiBuilder.group(ManagementApi, "builds", (ha
         );
 
         const req = yield* HttpServerRequest.HttpServerRequest;
-        const { origin } = new URL(req.url);
+        const url = new URL(req.url, `https://${req.headers["host"]}`);
+        const { origin } = url;
 
         const artifactUrl = `${origin}/api/builds/${path.id}/artifact?token=${token}&expires=${expires}`;
 
         const installUrl =
           build.platform === "ios" &&
-          (build.distribution === "ad-hoc" || build.distribution === "enterprise")
+          (build.distribution === "ad-hoc" || build.distribution === "enterprise") &&
+          build.artifact?.format === "ipa" &&
+          build.bundleId !== null &&
+          build.appVersion !== null
             ? `itms-services://?action=download-manifest&url=${encodeURIComponent(`${origin}/api/builds/${path.id}/install?token=${token}&expires=${expires}`)}`
             : null;
 
