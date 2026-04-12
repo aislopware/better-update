@@ -21,6 +21,7 @@ export const permissions: PermissionMap = {
     apiKey: ["read", "create", "delete"],
     build: ["read", "create", "delete"],
     credential: ["read", "create", "download", "update", "delete"],
+    envVar: ["read", "create", "update", "delete"],
   },
   admin: {
     organization: ["read"],
@@ -35,6 +36,7 @@ export const permissions: PermissionMap = {
     apiKey: ["read", "create", "delete"],
     build: ["read", "create", "delete"],
     credential: ["read", "create", "download", "update", "delete"],
+    envVar: ["read", "create", "update", "delete"],
   },
   developer: {
     project: ["read", "create"],
@@ -45,6 +47,7 @@ export const permissions: PermissionMap = {
     apiKey: ["read"],
     build: ["read", "create"],
     credential: ["read", "download"],
+    envVar: ["read", "create", "update"],
   },
   viewer: {
     organization: ["read"],
@@ -55,6 +58,7 @@ export const permissions: PermissionMap = {
     update: ["read"],
     rollout: ["read"],
     build: ["read"],
+    envVar: ["read"],
   },
 };
 

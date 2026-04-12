@@ -11,6 +11,7 @@ import { BuildsTab } from "./-builds-tab";
 import { ChannelsTab } from "./-channels-tab";
 import { CreateBranchDialog } from "./-create-branch-dialog";
 import { DeleteProjectSection } from "./-delete-project-section";
+import { EnvVarsTab } from "./-env-vars-tab";
 import { RenameProjectSection } from "./-rename-project-section";
 import { UpdatesTab } from "./-updates-tab";
 
@@ -60,6 +61,7 @@ const ProjectDetail = () => {
           <TabsTrigger value="updates">Updates</TabsTrigger>
           <TabsTrigger value="builds">Builds</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="env-vars">Env Variables</TabsTrigger>
         </TabsList>
 
         <TabsContent value="branches">
@@ -93,6 +95,10 @@ const ProjectDetail = () => {
 
         <TabsContent value="analytics">
           <AnalyticsTab orgId={orgId} projectId={projectId} />
+        </TabsContent>
+
+        <TabsContent value="env-vars">
+          <EnvVarsTab orgId={orgId} projectId={projectId} />
         </TabsContent>
       </Tabs>
 

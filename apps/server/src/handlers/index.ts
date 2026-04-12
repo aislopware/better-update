@@ -5,6 +5,7 @@ export { matchBuildRoute } from "./build-routes";
 export { BuildsGroupLive } from "./builds";
 export { ChannelsGroupLive } from "./channels";
 export { CredentialsGroupLive } from "./credentials";
+export { EnvVarsGroupLive } from "./env-vars";
 export { handlePatchMessage, handleScheduled, serveManifest } from "./patch-gc";
 export { ProjectsGroupLive } from "./projects";
 export { UpdatesGroupLive } from "./updates";

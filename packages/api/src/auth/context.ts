@@ -14,7 +14,8 @@ export type Resource =
   | "billing"
   | "apiKey"
   | "build"
-  | "credential";
+  | "credential"
+  | "envVar";
 
 export type Action = "read" | "create" | "update" | "delete" | "cancel" | "download";
 

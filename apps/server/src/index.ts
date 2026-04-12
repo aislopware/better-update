@@ -12,6 +12,7 @@ import {
   BuildsGroupLive,
   ChannelsGroupLive,
   CredentialsGroupLive,
+  EnvVarsGroupLive,
   ProjectsGroupLive,
   UpdatesGroupLive,
   handlePatchMessage,
@@ -26,6 +27,7 @@ import {
   BuildRepoLive,
   ChannelRepoLive,
   CredentialRepoLive,
+  EnvVarRepoLive,
   PatchRepoLive,
   ProjectRepoLive,
   UpdateRepoLive,
@@ -62,6 +64,11 @@ const CredentialsGroupWithRepo = CredentialsGroupLive.pipe(
   Layer.provide(ProjectRepoLive),
 );
 
+const EnvVarsGroupWithRepo = EnvVarsGroupLive.pipe(
+  Layer.provide(EnvVarRepoLive),
+  Layer.provide(ProjectRepoLive),
+);
+
 const AssetsGroupWithRepo = AssetsGroupLive.pipe(Layer.provide(AssetRepoLive));
 const AnalyticsGroupWithRepo = AnalyticsGroupLive.pipe(Layer.provide(ProjectRepoLive));
 
@@ -72,6 +79,7 @@ const ApiLive = HttpApiBuilder.api(ManagementApi).pipe(
   Layer.provide(UpdatesGroupWithRepo),
   Layer.provide(BuildsGroupWithRepo),
   Layer.provide(CredentialsGroupWithRepo),
+  Layer.provide(EnvVarsGroupWithRepo),
   Layer.provide(AssetsGroupWithRepo),
   Layer.provide(AnalyticsGroupWithRepo),
   Layer.provide(AuthenticationLive),

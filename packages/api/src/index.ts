@@ -50,6 +50,17 @@ export {
   DeleteCredentialResult,
 } from "./domain/credential";
 export {
+  BulkImportEnvVarsBody,
+  BulkImportResult,
+  CreateEnvVarBody,
+  DeleteEnvVarResult,
+  EnvVar,
+  EnvVarExportItem,
+  EnvVarExportResult,
+  EnvVarVisibility,
+  UpdateEnvVarBody,
+} from "./domain/env-var";
+export {
   ArtifactFormat,
   Build,
   BuildArtifact,
@@ -79,6 +90,7 @@ export { AssetsGroup } from "./groups/assets";
 export { BranchesGroup } from "./groups/branches";
 export { BuildsGroup } from "./groups/builds";
 export { CredentialsGroup } from "./groups/credentials";
+export { EnvVarsGroup } from "./groups/env-vars";
 export { ChannelsGroup } from "./groups/channels";
 export { ManifestGroup } from "./groups/manifest";
 export { ProjectsGroup } from "./groups/projects";

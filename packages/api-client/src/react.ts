@@ -1,12 +1,14 @@
 import {
   AssetUploadBody,
   Branch,
+  BulkImportEnvVarsBody,
   CompleteBuildBody,
   CreateBranchBody,
   CreateBranchRolloutBody,
   CreateBuildBody,
   CreateChannelBody,
   CreateCredentialBody,
+  CreateEnvVarBody,
   CreateProjectBody,
   CreateUpdateBody,
   PeriodLiteral,
@@ -14,6 +16,7 @@ import {
   RepublishBody,
   UpdateBranchBody,
   UpdateChannelBody,
+  UpdateEnvVarBody,
   UpdateProjectBody,
 } from "@better-update/api";
 import { queryOptions } from "@tanstack/react-query";
@@ -292,3 +295,39 @@ export const activateCredential = (id: string) =>
 
 export const deleteCredential = (id: string) =>
   runApi((api) => api.credentials.delete({ path: { id } }));
+
+// ---------------------------------------------------------------------------
+// Env Vars — Query options
+// ---------------------------------------------------------------------------
+
+export const envVarsQueryOptions = (orgId: string, projectId: string, environment?: string) =>
+  queryOptions({
+    queryKey: [
+      "org",
+      orgId,
+      "projects",
+      projectId,
+      "env-vars",
+      ...(environment ? [environment] : []),
+    ],
+    queryFn: () =>
+      runApi((api) =>
+        api["env-vars"].list({
+          urlParams: { projectId, ...(environment ? { environment } : {}) },
+        }),
+      ),
+    staleTime: 30_000,
+  });
+
+// Env Vars — Mutations
+export const createEnvVar = (body: typeof CreateEnvVarBody.Type) =>
+  runApi((api) => api["env-vars"].create({ payload: body }));
+
+export const updateEnvVar = (id: string, body: typeof UpdateEnvVarBody.Type) =>
+  runApi((api) => api["env-vars"].update({ path: { id }, payload: body }));
+
+export const deleteEnvVar = (id: string) =>
+  runApi((api) => api["env-vars"].delete({ path: { id } }));
+
+export const bulkImportEnvVars = (body: typeof BulkImportEnvVarsBody.Type) =>
+  runApi((api) => api["env-vars"].bulkImport({ payload: body }));
