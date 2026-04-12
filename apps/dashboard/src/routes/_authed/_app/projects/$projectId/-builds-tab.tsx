@@ -1,4 +1,5 @@
 import { buildsQueryOptions } from "@better-update/api-client/react";
+import { Button } from "@better-update/ui/components/ui/button";
 import { Card, CardContent } from "@better-update/ui/components/ui/card";
 import {
   Select,
@@ -13,6 +14,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { BuildCard } from "./-build-card";
+import { DISTRIBUTION_LABELS } from "./-build-helpers";
 import { UploadBuildDialog } from "./-upload-build-dialog";
 
 const BuildsEmptyState = () => (
@@ -34,10 +36,17 @@ const BuildsEmptyState = () => (
 export const BuildsTab = ({ orgId, projectId }: { orgId: string; projectId: string }) => {
   const [platformFilter, setPlatformFilter] = useState<"ios" | "android" | undefined>(undefined);
   const [distributionFilter, setDistributionFilter] = useState<string | undefined>(undefined);
+  const [page, setPage] = useState(1);
   const { data: buildsData } = useSuspenseQuery(
-    buildsQueryOptions(orgId, projectId, platformFilter ? { platform: platformFilter } : undefined),
+    buildsQueryOptions(
+      orgId,
+      projectId,
+      platformFilter ? { platform: platformFilter } : undefined,
+      page,
+    ),
   );
 
+  const totalPages = Math.ceil(buildsData.total / buildsData.limit);
   const filteredBuilds = distributionFilter
     ? buildsData.items.filter((build) => build.distribution === distributionFilter)
     : buildsData.items;
@@ -54,6 +63,7 @@ export const BuildsTab = ({ orgId, projectId }: { orgId: string; projectId: stri
             } else {
               setPlatformFilter(undefined);
             }
+            setPage(1);
           }}
         >
           <SelectTrigger className="w-36">
@@ -71,6 +81,7 @@ export const BuildsTab = ({ orgId, projectId }: { orgId: string; projectId: stri
             if (value) {
               setDistributionFilter(value === "all" ? undefined : value);
             }
+            setPage(1);
           }}
         >
           <SelectTrigger className="w-44">
@@ -78,13 +89,11 @@ export const BuildsTab = ({ orgId, projectId }: { orgId: string; projectId: stri
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All distributions</SelectItem>
-            <SelectItem value="app-store">App Store</SelectItem>
-            <SelectItem value="ad-hoc">Ad Hoc</SelectItem>
-            <SelectItem value="development">Development</SelectItem>
-            <SelectItem value="enterprise">Enterprise</SelectItem>
-            <SelectItem value="simulator">Simulator</SelectItem>
-            <SelectItem value="play-store">Play Store</SelectItem>
-            <SelectItem value="direct">Direct</SelectItem>
+            {Object.entries(DISTRIBUTION_LABELS).map(([value, label]) => (
+              <SelectItem key={value} value={value}>
+                {label}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
@@ -99,6 +108,33 @@ export const BuildsTab = ({ orgId, projectId }: { orgId: string; projectId: stri
           {filteredBuilds.map((build) => (
             <BuildCard key={build.id} build={build} orgId={orgId} projectId={projectId} />
           ))}
+        </div>
+      )}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page === 1}
+            onClick={() => {
+              setPage((prev) => prev - 1);
+            }}
+          >
+            Previous
+          </Button>
+          <span className="text-muted-foreground text-sm">
+            Page {buildsData.page} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page * buildsData.limit >= buildsData.total}
+            onClick={() => {
+              setPage((prev) => prev + 1);
+            }}
+          >
+            Next
+          </Button>
         </div>
       )}
     </div>
