@@ -4,7 +4,7 @@ export interface Keyring {
 }
 
 export interface EnvelopeEncryptResult {
-  readonly encryptedBlob: string;
+  readonly encryptedBlob: Uint8Array;
   readonly encryptedDek: string;
   readonly keyVersion: number;
 }
@@ -126,7 +126,7 @@ export const envelopeEncrypt = async (
   const encryptedBlob = await encryptAesGcm(dekKey, plaintext);
   const encryptedDek = await encryptAesGcm(kek, dek);
   return {
-    encryptedBlob: toBase64(encryptedBlob),
+    encryptedBlob,
     encryptedDek: toBase64(encryptedDek),
     keyVersion: keyring.currentVersion,
   };
@@ -137,12 +137,12 @@ export const envelopeDecrypt = async (
   orgId: string,
   keyVersion: number,
   encryptedDekB64: string,
-  encryptedBlobB64: string,
+  encryptedBlob: Uint8Array,
 ): Promise<Uint8Array> => {
   const kek = await deriveKEK(getSecret(keyring, keyVersion), orgId, keyVersion);
   const dek = await decryptAesGcm(kek, fromBase64(encryptedDekB64));
   const dekKey = await importDekKey(dek, ["decrypt"]);
-  return decryptAesGcm(dekKey, fromBase64(encryptedBlobB64));
+  return decryptAesGcm(dekKey, encryptedBlob);
 };
 
 export const encryptSecret = async (

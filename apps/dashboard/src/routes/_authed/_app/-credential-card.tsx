@@ -4,6 +4,14 @@ import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@better-update/ui/components/ui/card";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@better-update/ui/components/ui/dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -12,26 +20,12 @@ import {
 import { Delete02Icon, MoreVerticalIcon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import type { Credential } from "@better-update/api";
 
-const TYPE_LABELS: Record<string, string> = {
-  "distribution-certificate": "Distribution Certificate",
-  "provisioning-profile": "Provisioning Profile",
-  "push-key": "Push Key",
-  keystore: "Keystore",
-  "play-service-account": "Service Account",
-};
-
-const DISTRIBUTION_LABELS: Record<string, string> = {
-  "ad-hoc": "Ad Hoc",
-  "app-store": "App Store",
-  development: "Development",
-  enterprise: "Enterprise",
-  "play-store": "Play Store",
-  direct: "Direct",
-};
+import { DISTRIBUTION_LABELS, TYPE_LABELS } from "./-credential-helpers";
 
 const getExpiryBadge = (expiresAt: string | null) => {
   if (!expiresAt) {
@@ -73,14 +67,21 @@ export const CredentialCard = ({
     }
   };
 
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const handleDelete = async () => {
+    setIsDeleting(true);
     // eslint-disable-next-line functional/no-try-statements -- imperative shell error handling
     try {
       await deleteCredential(credential.id);
       toast.success("Credential deleted");
+      setDeleteOpen(false);
       await queryClient.invalidateQueries({ queryKey: ["org", orgId, "credentials"] });
     } catch (error) {
       toast.error(getApiError(error));
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -109,12 +110,41 @@ export const CredentialCard = ({
                   <span>Set as active</span>
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem className="text-destructive" onClick={handleDelete}>
+              <DropdownMenuItem
+                className="text-destructive"
+                onClick={() => {
+                  setDeleteOpen(true);
+                }}
+              >
                 <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} className="size-4" />
                 <span>Delete</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Delete credential?</DialogTitle>
+                <DialogDescription>
+                  This will permanently delete &ldquo;{credential.name}&rdquo; and its encrypted
+                  data. This action cannot be undone.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setDeleteOpen(false);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button variant="destructive" disabled={isDeleting} onClick={handleDelete}>
+                  {isDeleting ? "Deleting..." : "Delete"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </CardHeader>
       <CardContent>

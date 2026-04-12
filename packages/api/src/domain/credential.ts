@@ -33,11 +33,13 @@ export class Credential extends Schema.Class<Credential>("Credential")({
   createdAt: DateTimeString,
 }) {}
 
+const MAX_BLOB_BASE64_LENGTH = 700_000;
+
 export const CreateCredentialBody = Schema.Struct({
   platform: Platform,
   type: CredentialType,
   name: Schema.String,
-  blob: Schema.String,
+  blob: Schema.String.pipe(Schema.maxLength(MAX_BLOB_BASE64_LENGTH)),
   projectId: Schema.optional(Id),
   distribution: Schema.optional(CredentialDistribution),
   password: Schema.optional(Schema.String),

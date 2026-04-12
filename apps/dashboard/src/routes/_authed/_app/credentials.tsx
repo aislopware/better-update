@@ -1,4 +1,5 @@
 import { credentialsQueryOptions } from "@better-update/api-client/react";
+import { Button } from "@better-update/ui/components/ui/button";
 import { Card, CardContent } from "@better-update/ui/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@better-update/ui/components/ui/tabs";
 import { ShieldKeyIcon } from "@hugeicons/core-free-icons";
@@ -34,10 +35,19 @@ const Credentials = () => {
   const activeOrg = orgs.find((org) => org.id === activeOrgId) ?? orgs[0];
   const orgId = activeOrg?.id ?? "";
 
-  const [platformFilter, setPlatformFilter] = useState<"all" | "ios" | "android">("all");
-  const filters = platformFilter === "all" ? undefined : { platform: platformFilter };
+  const [platformFilter, setPlatformFilter] = useState("all");
+  const [page, setPage] = useState(1);
+  const platformParam: "ios" | "android" | undefined =
+    platformFilter === "ios" || platformFilter === "android" ? platformFilter : undefined;
+  const filters = platformParam ? { platform: platformParam } : undefined;
 
-  const { data } = useSuspenseQuery(credentialsQueryOptions(orgId, filters));
+  const { data } = useSuspenseQuery(credentialsQueryOptions(orgId, filters, page));
+  const totalPages = Math.ceil(data.total / data.limit);
+
+  const handlePlatformChange = (value: string) => {
+    setPlatformFilter(value);
+    setPage(1);
+  };
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6">
@@ -51,7 +61,7 @@ const Credentials = () => {
         <UploadCredentialDialog orgId={orgId} />
       </div>
 
-      <Tabs value={platformFilter} onValueChange={setPlatformFilter}>
+      <Tabs value={platformFilter} onValueChange={handlePlatformChange}>
         <TabsList>
           <TabsTrigger value="all">All</TabsTrigger>
           <TabsTrigger value="ios">iOS</TabsTrigger>
@@ -66,6 +76,34 @@ const Credentials = () => {
           {data.items.map((credential) => (
             <CredentialCard key={credential.id} credential={credential} orgId={orgId} />
           ))}
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page === 1}
+            onClick={() => {
+              setPage((prev) => prev - 1);
+            }}
+          >
+            Previous
+          </Button>
+          <span className="text-muted-foreground text-sm">
+            Page {data.page} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page * data.limit >= data.total}
+            onClick={() => {
+              setPage((prev) => prev + 1);
+            }}
+          >
+            Next
+          </Button>
         </div>
       )}
     </div>
