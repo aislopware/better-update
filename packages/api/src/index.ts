@@ -58,6 +58,7 @@ export {
   CreateBuildBody,
   DeleteBuildResult,
   Distribution,
+  InstallLinkResult,
   ReserveBuildResult,
 } from "./domain/build";
 export {

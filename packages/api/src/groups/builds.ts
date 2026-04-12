@@ -8,6 +8,7 @@ import {
   CompleteBuildBody,
   CreateBuildBody,
   DeleteBuildResult,
+  InstallLinkResult,
   ReserveBuildResult,
 } from "../domain/build";
 import { Id, PaginationParams, Platform } from "../domain/common";
@@ -82,6 +83,16 @@ export class BuildsGroup extends HttpApiGroup.make("builds")
         OpenApi.annotations({
           title: "Delete build",
           description: "Delete a build and its artifact from storage",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.get("getInstallLink")`/api/builds/${idParam}/install-link`
+      .addSuccess(InstallLinkResult)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Get install link",
+          description: "Generate a signed install link for a build artifact",
         }),
       ),
   )

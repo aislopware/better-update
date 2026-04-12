@@ -5,13 +5,14 @@ import {
   Distribution,
   NotFound,
 } from "@better-update/api";
-import { HttpApiBuilder } from "@effect/platform";
+import { HttpApiBuilder, HttpServerRequest } from "@effect/platform";
 import { Effect, Schema } from "effect";
 
 import { ManagementApi } from "../api";
 import { assertProjectOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
 import { cloudflareEnv } from "../cloudflare/context";
+import { generateInstallToken } from "../domain/install-token";
 import { generateUploadUrl } from "../domain/presigned-url";
 import { BuildRepo } from "../repositories/builds";
 
@@ -228,6 +229,39 @@ export const BuildsGroupLive = HttpApiBuilder.group(ManagementApi, "builds", (ha
         }
 
         return { deleted: 1 };
+      }),
+    )
+    .handle("getInstallLink", ({ path }) =>
+      Effect.gen(function* () {
+        yield* assertPermission("build", "read");
+
+        const repo = yield* BuildRepo;
+        const build = yield* repo.findById({ id: path.id });
+        yield* assertProjectOwnership(build.projectId);
+
+        const env = yield* cloudflareEnv;
+        if (!env.INSTALL_TOKEN_SECRET) {
+          return yield* Effect.fail(
+            new BadRequest({ message: "Install token secret not configured" }),
+          );
+        }
+
+        const { token, expires } = yield* Effect.promise(async () =>
+          generateInstallToken(path.id, env.INSTALL_TOKEN_SECRET),
+        );
+
+        const req = yield* HttpServerRequest.HttpServerRequest;
+        const { origin } = new URL(req.url);
+
+        const artifactUrl = `${origin}/api/builds/${path.id}/artifact?token=${token}&expires=${expires}`;
+
+        const installUrl =
+          build.platform === "ios" &&
+          (build.distribution === "ad-hoc" || build.distribution === "enterprise")
+            ? `itms-services://?action=download-manifest&url=${encodeURIComponent(`${origin}/api/builds/${path.id}/install?token=${token}&expires=${expires}`)}`
+            : null;
+
+        return { token, expires, artifactUrl, installUrl };
       }),
     ),
 );
