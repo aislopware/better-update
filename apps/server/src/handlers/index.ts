@@ -1,4 +1,5 @@
 export { AnalyticsGroupLive } from "./analytics";
+export { AuditLogsGroupLive } from "./audit-logs";
 export { AssetsGroupLive } from "./assets";
 export { BranchesGroupLive } from "./branches";
 export { matchBuildRoute } from "./build-routes";

@@ -8,6 +8,7 @@ import { setRequestContext } from "./cloudflare/context";
 import {
   AnalyticsGroupLive,
   AssetsGroupLive,
+  AuditLogsGroupLive,
   BranchesGroupLive,
   BuildsGroupLive,
   ChannelsGroupLive,
@@ -23,6 +24,7 @@ import {
 import { errorFormatMiddleware } from "./middleware/error-format";
 import {
   AssetRepoLive,
+  AuditLogRepoLive,
   BranchRepoLive,
   BuildRepoLive,
   ChannelRepoLive,
@@ -71,6 +73,7 @@ const EnvVarsGroupWithRepo = EnvVarsGroupLive.pipe(
 
 const AssetsGroupWithRepo = AssetsGroupLive.pipe(Layer.provide(AssetRepoLive));
 const AnalyticsGroupWithRepo = AnalyticsGroupLive.pipe(Layer.provide(ProjectRepoLive));
+const AuditLogsGroupWithRepo = AuditLogsGroupLive.pipe(Layer.provide(AuditLogRepoLive));
 
 const ApiLive = HttpApiBuilder.api(ManagementApi).pipe(
   Layer.provide(ProjectsGroupWithRepo),
@@ -82,6 +85,7 @@ const ApiLive = HttpApiBuilder.api(ManagementApi).pipe(
   Layer.provide(EnvVarsGroupWithRepo),
   Layer.provide(AssetsGroupWithRepo),
   Layer.provide(AnalyticsGroupWithRepo),
+  Layer.provide(AuditLogsGroupWithRepo),
   Layer.provide(AuthenticationLive),
 );
 

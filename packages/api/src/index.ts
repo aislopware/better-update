@@ -17,6 +17,7 @@ export type {
 } from "./auth/context";
 
 // Domain schemas
+export { AuditLog, AuditLogResourceType, AuditLogSource } from "./domain/audit-log";
 export { DateTimeString, Id, PaginationParams, Platform } from "./domain/common";
 export { BadRequest, Conflict, NotAcceptable } from "./domain/errors";
 export {
@@ -85,6 +86,7 @@ export {
 } from "./domain/analytics";
 
 // Groups
+export { AuditLogsGroup } from "./groups/audit-logs";
 export { AnalyticsGroup } from "./groups/analytics";
 export { AssetsGroup } from "./groups/assets";
 export { BranchesGroup } from "./groups/branches";

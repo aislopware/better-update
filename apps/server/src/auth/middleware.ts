@@ -121,6 +121,7 @@ const resolveFromApiKey = (token: Redacted.Redacted) => {
         role: null,
         effectivePermissions: keyPermissions,
         source: "api-key",
+        actorEmail: "api-key",
       } as const satisfies AuthContextShape);
     }),
   );
@@ -161,6 +162,7 @@ const resolveFromSession = (_cookie: Redacted.Redacted) =>
       role: member.role,
       effectivePermissions: permissions[member.role],
       source: "session",
+      actorEmail: session.user.email,
     } as const satisfies AuthContextShape;
   });
 

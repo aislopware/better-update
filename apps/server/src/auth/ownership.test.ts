@@ -14,6 +14,7 @@ const provideAuth = (organizationId: string) =>
     role: "owner",
     effectivePermissions: permissions.owner,
     source: "session",
+    actorEmail: "test@example.com",
   });
 
 describe(assertOrgOwnership, () => {

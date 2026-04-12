@@ -1,4 +1,5 @@
 export { AssetRepoLive } from "./assets";
+export { AuditLogRepoLive } from "./audit-logs";
 export { BranchRepoLive } from "./branches";
 export { BuildRepoLive } from "./builds";
 export { ChannelRepoLive } from "./channels";
