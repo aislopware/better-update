@@ -57,7 +57,10 @@ const BuildsGroupWithRepo = BuildsGroupLive.pipe(
   Layer.provide(ProjectRepoLive),
 );
 
-const CredentialsGroupWithRepo = CredentialsGroupLive.pipe(Layer.provide(CredentialRepoLive));
+const CredentialsGroupWithRepo = CredentialsGroupLive.pipe(
+  Layer.provide(CredentialRepoLive),
+  Layer.provide(ProjectRepoLive),
+);
 
 const AssetsGroupWithRepo = AssetsGroupLive.pipe(Layer.provide(AssetRepoLive));
 const AnalyticsGroupWithRepo = AnalyticsGroupLive.pipe(Layer.provide(ProjectRepoLive));

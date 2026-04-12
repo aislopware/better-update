@@ -150,6 +150,9 @@ const UploadForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: () => void
       setCredentialType("");
       setDistribution("");
       setFile(null);
+      setPassword("");
+      setKeyAlias("");
+      setKeyPassword("");
     }
   };
 
@@ -158,6 +161,9 @@ const UploadForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: () => void
       setCredentialType(value);
       setDistribution("");
       setFile(null);
+      setPassword("");
+      setKeyAlias("");
+      setKeyPassword("");
     }
   };
 

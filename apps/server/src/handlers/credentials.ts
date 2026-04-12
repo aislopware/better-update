@@ -1,9 +1,9 @@
-import { AuthContext, Forbidden, NotFound } from "@better-update/api";
+import { AuthContext, BadRequest, Forbidden, NotFound } from "@better-update/api";
 import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
 import { ManagementApi } from "../api";
-import { assertOrgOwnership } from "../auth/ownership";
+import { assertOrgOwnership, assertProjectOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
 import { cloudflareEnv } from "../cloudflare/context";
 import {
@@ -58,7 +58,20 @@ export const CredentialsGroupLive = HttpApiBuilder.group(ManagementApi, "credent
         const ctx = yield* AuthContext;
         const env = yield* cloudflareEnv;
 
-        const keyring = resolveKeyring(env.VAULT_KEYRING);
+        if (payload.projectId) {
+          yield* assertProjectOwnership(payload.projectId);
+        }
+
+        if (payload.type === "provisioning-profile" && !payload.distribution) {
+          return yield* new BadRequest({
+            message: "distribution is required for provisioning profiles",
+          });
+        }
+
+        const keyring = yield* Effect.try({
+          try: () => resolveKeyring(env.VAULT_KEYRING),
+          catch: () => new BadRequest({ message: "Vault keyring is not configured" }),
+        });
         const blobBytes = fromBase64(payload.blob);
 
         const { encryptedBlob, encryptedDek, keyVersion } = yield* Effect.promise(async () =>
@@ -157,7 +170,10 @@ export const CredentialsGroupLive = HttpApiBuilder.group(ManagementApi, "credent
         yield* assertOrgOwnership(encData.organizationId);
 
         const env = yield* cloudflareEnv;
-        const keyring = resolveKeyring(env.VAULT_KEYRING);
+        const keyring = yield* Effect.try({
+          try: () => resolveKeyring(env.VAULT_KEYRING),
+          catch: () => new BadRequest({ message: "Vault keyring is not configured" }),
+        });
 
         const r2Object = yield* Effect.promise(async () => env.BUILD_BUCKET.get(encData.r2Key));
         if (!r2Object) {
@@ -242,10 +258,12 @@ export const CredentialsGroupLive = HttpApiBuilder.group(ManagementApi, "credent
 
         const { r2Key } = yield* repo.deleteById({ id: path.id });
 
-        const env = yield* cloudflareEnv;
-        yield* Effect.promise(async () => env.BUILD_BUCKET.delete(r2Key)).pipe(
-          Effect.catchAll(() => Effect.void),
-        );
+        if (r2Key) {
+          const env = yield* cloudflareEnv;
+          yield* Effect.promise(async () => env.BUILD_BUCKET.delete(r2Key)).pipe(
+            Effect.catchAll(() => Effect.void),
+          );
+        }
 
         return { id: path.id };
       }),
