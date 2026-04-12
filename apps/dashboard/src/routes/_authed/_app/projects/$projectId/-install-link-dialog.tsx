@@ -1,4 +1,4 @@
-import { generateInstallLink } from "@better-update/api-client/react";
+import { fetchInstallLink } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
@@ -11,7 +11,8 @@ import {
 import { SmartPhone02Icon, Copy01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { QRCodeSVG } from "qrcode.react";
-import { useState } from "react";
+import { useSyncExternalStore, useState } from "react";
+import { toast } from "sonner";
 
 import type { BuildWithArtifact, InstallLinkResult } from "@better-update/api";
 
@@ -21,11 +22,16 @@ const CopyButton = ({ text }: { text: string }) => {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => {
-      setCopied(false);
-    }, 2000);
+    // eslint-disable-next-line functional/no-try-statements -- imperative shell error handling
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => {
+        setCopied(false);
+      }, 2000);
+    } catch {
+      toast.error("Failed to copy to clipboard");
+    }
   };
 
   return (
@@ -39,6 +45,24 @@ const CopyButton = ({ text }: { text: string }) => {
 const minutesRemaining = (expiresUnix: number) =>
   Math.max(0, Math.floor((expiresUnix * 1000 - Date.now()) / 60_000));
 
+const subscribeMinuteTick = (onStoreChange: () => void) => {
+  const id = setInterval(onStoreChange, 60_000);
+  return () => {
+    clearInterval(id);
+  };
+};
+
+const getMinuteSnapshot = () => Math.floor(Date.now() / 60_000);
+
+const ExpiryBadge = ({ expires }: { expires: number }) => {
+  useSyncExternalStore(subscribeMinuteTick, getMinuteSnapshot);
+  return (
+    <span className="text-muted-foreground text-xs">
+      Expires in {minutesRemaining(expires)} min
+    </span>
+  );
+};
+
 export const InstallLinkDialog = ({ build }: { build: typeof BuildWithArtifact.Type }) => {
   const [open, setOpen] = useState(false);
   const [state, setState] = useState<
@@ -48,11 +72,11 @@ export const InstallLinkDialog = ({ build }: { build: typeof BuildWithArtifact.T
     | { status: "error"; message: string }
   >({ status: "idle" });
 
-  const fetchLink = async () => {
+  const doFetch = async () => {
     setState({ status: "loading" });
     // eslint-disable-next-line functional/no-try-statements -- imperative shell error handling
     try {
-      const data = await generateInstallLink(build.id);
+      const data = await fetchInstallLink(build.id);
       setState({ status: "success", data });
     } catch {
       setState({ status: "error", message: "Failed to generate install link" });
@@ -61,7 +85,7 @@ export const InstallLinkDialog = ({ build }: { build: typeof BuildWithArtifact.T
 
   const handleOpen = async () => {
     setOpen(true);
-    await fetchLink();
+    await doFetch();
   };
 
   const primaryUrl =
@@ -107,7 +131,7 @@ export const InstallLinkDialog = ({ build }: { build: typeof BuildWithArtifact.T
           {state.status === "error" && (
             <div className="flex flex-col items-center gap-4 py-8">
               <p className="text-destructive text-sm">{state.message}</p>
-              <Button variant="outline" size="sm" onClick={fetchLink}>
+              <Button variant="outline" size="sm" onClick={doFetch}>
                 Retry
               </Button>
             </div>
@@ -125,9 +149,7 @@ export const InstallLinkDialog = ({ build }: { build: typeof BuildWithArtifact.T
                 ) : (
                   <Badge variant="outline">Download link</Badge>
                 )}
-                <span className="text-muted-foreground text-xs">
-                  Expires in {minutesRemaining(state.data.expires)} min
-                </span>
+                <ExpiryBadge expires={state.data.expires} />
               </div>
 
               <div className="flex w-full flex-col gap-2">
