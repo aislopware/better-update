@@ -56,11 +56,12 @@ import {
   useRouter,
   useRouterState,
 } from "@tanstack/react-router";
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 
 import { authClient } from "../../lib/auth-client";
 import { useTheme } from "../../lib/theme-context";
 import { orgsQueryOptions, sessionQueryOptions } from "../../queries/auth";
+import { CreateOrgDialog } from "./-create-org-dialog";
 
 import type { Theme } from "../../lib/theme";
 
@@ -86,6 +87,7 @@ const getInitials = (name: string) =>
 const OrgSwitcher = () => {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const [createOrgOpen, setCreateOrgOpen] = useState(false);
   const { data: orgs } = useSuspenseQuery(orgsQueryOptions);
   const { data: session } = useSuspenseQuery(sessionQueryOptions);
   const activeOrgId = session?.session.activeOrganizationId;
@@ -105,40 +107,53 @@ const OrgSwitcher = () => {
   };
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger className="w-full">
-        <SidebarMenuButton size="lg" className="data-open:bg-sidebar-accent">
-          <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-            <HugeiconsIcon icon={Building06Icon} strokeWidth={2} className="size-4" />
-          </div>
-          <div className="grid flex-1 text-left text-sm leading-tight">
-            <span className="truncate font-semibold">{activeOrg?.name ?? "No org"}</span>
-            <span className="text-muted-foreground truncate text-xs">{activeOrg?.slug ?? ""}</span>
-          </div>
-          <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={2} className="ml-auto size-4" />
-        </SidebarMenuButton>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" side="bottom" sideOffset={4} className="w-64">
-        <DropdownMenuGroup>
-          <DropdownMenuLabel>Organizations</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          {orgs.map((org) => (
-            <DropdownMenuItem key={org.id} onClick={async () => handleOrgSwitch(org.id)}>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger className="w-full">
+          <SidebarMenuButton size="lg" className="data-open:bg-sidebar-accent">
+            <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
               <HugeiconsIcon icon={Building06Icon} strokeWidth={2} className="size-4" />
-              <span className="flex-1 truncate">{org.name}</span>
-              {org.id === activeOrgId ? (
-                <HugeiconsIcon icon={Tick02Icon} strokeWidth={2} className="text-primary size-4" />
-              ) : null}
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem>
-          <HugeiconsIcon icon={Add01Icon} strokeWidth={2} className="size-4" />
-          <span>Create organization</span>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+            </div>
+            <div className="grid flex-1 text-left text-sm leading-tight">
+              <span className="truncate font-semibold">{activeOrg?.name ?? "No org"}</span>
+              <span className="text-muted-foreground truncate text-xs">
+                {activeOrg?.slug ?? ""}
+              </span>
+            </div>
+            <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={2} className="ml-auto size-4" />
+          </SidebarMenuButton>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" side="bottom" sideOffset={4} className="w-64">
+          <DropdownMenuGroup>
+            <DropdownMenuLabel>Organizations</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {orgs.map((org) => (
+              <DropdownMenuItem key={org.id} onClick={async () => handleOrgSwitch(org.id)}>
+                <HugeiconsIcon icon={Building06Icon} strokeWidth={2} className="size-4" />
+                <span className="flex-1 truncate">{org.name}</span>
+                {org.id === activeOrgId ? (
+                  <HugeiconsIcon
+                    icon={Tick02Icon}
+                    strokeWidth={2}
+                    className="text-primary size-4"
+                  />
+                ) : null}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={() => {
+              setCreateOrgOpen(true);
+            }}
+          >
+            <HugeiconsIcon icon={Add01Icon} strokeWidth={2} className="size-4" />
+            <span>Create organization</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <CreateOrgDialog open={createOrgOpen} onOpenChange={setCreateOrgOpen} />
+    </>
   );
 };
 

@@ -83,3 +83,10 @@ export const ReserveBuildResult = Schema.Struct({
 export const DeleteBuildResult = Schema.Struct({
   deleted: Schema.Number,
 });
+
+export const InstallLinkResult = Schema.Struct({
+  token: Schema.String,
+  expires: Schema.Number,
+  artifactUrl: Schema.String,
+  installUrl: Schema.NullOr(Schema.String),
+});

@@ -245,6 +245,9 @@ export const completeBuild = (id: string, body: typeof CompleteBuildBody.Type) =
 
 export const deleteBuild = (id: string) => runApi((api) => api.builds.delete({ path: { id } }));
 
+export const generateInstallLink = (buildId: string) =>
+  runApi((api) => api.builds.getInstallLink({ path: { id: buildId } }));
+
 // ---------------------------------------------------------------------------
 // Credentials — Query options
 // ---------------------------------------------------------------------------
