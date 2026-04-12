@@ -40,7 +40,7 @@ export interface CredentialRepository {
 
   readonly deleteById: (params: {
     readonly id: string;
-  }) => Effect.Effect<{ readonly r2Key: string }, NotFound>;
+  }) => Effect.Effect<{ readonly r2Key: string | null }, NotFound>;
 
   readonly activate: (params: {
     readonly id: string;
@@ -240,12 +240,19 @@ export const CredentialRepoLive = Layer.succeed(CredentialRepo, {
         return yield* Effect.fail(new NotFound({ message: "Credential not found" }));
       }
 
-      return { r2Key: r2Row?.r2_key ?? "" };
+      return { r2Key: r2Row?.r2_key ?? null };
     }),
 
   activate: (params) =>
     Effect.gen(function* () {
       const env = yield* cloudflareEnv;
+
+      const checkRow = yield* Effect.promise(async () =>
+        env.DB.prepare(`SELECT 1 FROM "credentials" WHERE "id" = ?`).bind(params.id).first(),
+      );
+      if (checkRow === null) {
+        return yield* Effect.fail(new NotFound({ message: "Credential not found" }));
+      }
 
       yield* Effect.promise(async () =>
         env.DB.batch([
