@@ -6,6 +6,7 @@ import {
   CreateBranchRolloutBody,
   CreateBuildBody,
   CreateChannelBody,
+  CreateCredentialBody,
   CreateProjectBody,
   CreateUpdateBody,
   PeriodLiteral,
@@ -243,3 +244,45 @@ export const completeBuild = (id: string, body: typeof CompleteBuildBody.Type) =
   runApi((api) => api.builds.complete({ path: { id }, payload: body }));
 
 export const deleteBuild = (id: string) => runApi((api) => api.builds.delete({ path: { id } }));
+
+// ---------------------------------------------------------------------------
+// Credentials — Query options
+// ---------------------------------------------------------------------------
+
+export const credentialsQueryOptions = (
+  orgId: string,
+  filters?: { platform?: "ios" | "android"; type?: string; distribution?: string },
+) =>
+  queryOptions({
+    queryKey: [
+      "org",
+      orgId,
+      "credentials",
+      {
+        platform: filters?.platform,
+        type: filters?.type,
+        distribution: filters?.distribution,
+      },
+    ],
+    queryFn: () =>
+      runApi((api) =>
+        api.credentials.list({
+          urlParams: {
+            platform: filters?.platform,
+            type: filters?.type,
+            distribution: filters?.distribution,
+          },
+        }),
+      ),
+    staleTime: 30_000,
+  });
+
+// Credentials — Mutations
+export const uploadCredential = (body: typeof CreateCredentialBody.Type) =>
+  runApi((api) => api.credentials.upload({ payload: body }));
+
+export const activateCredential = (id: string) =>
+  runApi((api) => api.credentials.activate({ path: { id } }));
+
+export const deleteCredential = (id: string) =>
+  runApi((api) => api.credentials.delete({ path: { id } }));

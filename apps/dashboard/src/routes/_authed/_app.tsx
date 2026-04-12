@@ -41,6 +41,7 @@ import {
   Add01Icon,
   UserGroupIcon,
   Key01Icon,
+  ShieldKeyIcon,
   Sun02Icon,
   Moon02Icon,
   ComputerIcon,
@@ -70,6 +71,7 @@ const navItems = [
   { to: "/projects", label: "Projects", icon: Folder02Icon },
   { to: "/members", label: "Members", icon: UserGroupIcon },
   { to: "/api-keys", label: "API Keys", icon: Key01Icon },
+  { to: "/credentials", label: "Credentials", icon: ShieldKeyIcon },
   { to: "/settings", label: "Settings", icon: Settings02Icon },
 ] as const;
 
