@@ -75,8 +75,8 @@ export const deriveKEK = async (
     {
       name: "HKDF",
       hash: "SHA-256",
-      salt: new TextEncoder().encode(orgId),
-      info: new TextEncoder().encode(`credential-vault:${keyVersion}`),
+      salt: asBuffer(new TextEncoder().encode(orgId)),
+      info: asBuffer(new TextEncoder().encode(`credential-vault:${keyVersion}`)),
     },
     baseKey,
     { name: "AES-GCM", length: 256 },
@@ -89,14 +89,22 @@ export const generateDEK = (): Uint8Array => crypto.getRandomValues(new Uint8Arr
 
 export const encryptAesGcm = async (key: CryptoKey, plaintext: Uint8Array): Promise<Uint8Array> => {
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, asBuffer(plaintext));
+  const encrypted = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv: asBuffer(iv) },
+    key,
+    asBuffer(plaintext),
+  );
   return new Uint8Array([...iv, ...new Uint8Array(encrypted)]);
 };
 
 export const decryptAesGcm = async (key: CryptoKey, data: Uint8Array): Promise<Uint8Array> => {
   const iv = data.slice(0, 12);
   const ciphertext = data.slice(12);
-  const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, asBuffer(ciphertext));
+  const decrypted = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: asBuffer(iv) },
+    key,
+    asBuffer(ciphertext),
+  );
   return new Uint8Array(decrypted);
 };
 
@@ -147,7 +155,8 @@ export const encryptSecret = async (
     orgId,
     keyring.currentVersion,
   );
-  const encrypted = await encryptAesGcm(kek, new TextEncoder().encode(secret));
+  const plaintext = new TextEncoder().encode(secret);
+  const encrypted = await encryptAesGcm(kek, plaintext);
   return { encrypted: toBase64(encrypted), keyVersion: keyring.currentVersion };
 };
 
