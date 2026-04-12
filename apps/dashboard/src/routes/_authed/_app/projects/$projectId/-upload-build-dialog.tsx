@@ -1,5 +1,6 @@
 import { getApiError } from "@better-update/api-client";
 import { completeBuild, reserveBuild } from "@better-update/api-client/react";
+import { useMountEffect } from "@better-update/react-hooks";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
@@ -24,6 +25,10 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import {
+  DISTRIBUTIONS_BY_PLATFORM,
+  DISTRIBUTION_LABELS,
+  FORMATS_BY_PLATFORM,
+  FORMAT_LABELS,
   PHASE_LABELS,
   computeSha256,
   detectArtifactFormat,
@@ -34,7 +39,7 @@ import {
 } from "./-build-helpers";
 
 import type {
-  ArtifactFormat,
+  ArtifactFormatValue,
   DistributionValue,
   PlatformValue,
   UploadPhase,
@@ -44,21 +49,23 @@ const handleDragOver = (event: React.DragEvent) => {
   event.preventDefault();
 };
 
+interface MetadataValues {
+  profile: string;
+  runtimeVersion: string;
+  appVersion: string;
+  buildNumber: string;
+  bundleId: string;
+  gitRef: string;
+  gitCommit: string;
+  message: string;
+}
+
 const MetadataFields = ({
   values,
   onChange,
 }: {
-  values: {
-    profile: string;
-    runtimeVersion: string;
-    appVersion: string;
-    buildNumber: string;
-    bundleId: string;
-    gitRef: string;
-    gitCommit: string;
-    message: string;
-  };
-  onChange: (field: string, value: string) => void;
+  values: MetadataValues;
+  onChange: (field: keyof MetadataValues, value: string) => void;
 }) => (
   <>
     <div className="grid grid-cols-2 gap-3">
@@ -150,6 +157,22 @@ const MetadataFields = ({
   </>
 );
 
+const ProgressBar = ({ phase, progress }: { phase: UploadPhase; progress: number }) =>
+  phase === "idle" ? null : (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between text-sm">
+        <span>{PHASE_LABELS[phase]}</span>
+        {phase === "uploading" && <span>{progress}%</span>}
+      </div>
+      <div className="bg-secondary h-2 w-full overflow-hidden rounded-full">
+        <div
+          className="bg-primary h-full rounded-full transition-all"
+          style={{ width: progressWidth(phase, progress) }}
+        />
+      </div>
+    </div>
+  );
+
 const UploadForm = ({
   projectId,
   orgId,
@@ -162,7 +185,7 @@ const UploadForm = ({
   const [file, setFile] = useState<File | null>(null);
   const [platform, setPlatform] = useState<PlatformValue>("ios");
   const [distribution, setDistribution] = useState<DistributionValue>("development");
-  const [artifactFormat, setArtifactFormat] = useState<ArtifactFormat | "">("");
+  const [artifactFormat, setArtifactFormat] = useState<ArtifactFormatValue | "">("");
   const [profile, setProfile] = useState("");
   const [runtimeVersion, setRuntimeVersion] = useState("");
   const [appVersion, setAppVersion] = useState("");
@@ -174,7 +197,12 @@ const UploadForm = ({
   const [uploadPhase, setUploadPhase] = useState<UploadPhase>("idle");
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
   const queryClient = useQueryClient();
+
+  useMountEffect(() => () => {
+    abortRef.current?.abort();
+  });
 
   const handleFileSelect = (selectedFile: File) => {
     setFile(selectedFile);
@@ -184,9 +212,22 @@ const UploadForm = ({
       const detectedPlatform = detectPlatform(format);
       if (detectedPlatform) {
         setPlatform(detectedPlatform);
+        if (!DISTRIBUTIONS_BY_PLATFORM[detectedPlatform].includes(distribution)) {
+          setDistribution(DISTRIBUTIONS_BY_PLATFORM[detectedPlatform][0]);
+        }
       }
     } else {
       setArtifactFormat("");
+    }
+  };
+
+  const handlePlatformChange = (newPlatform: PlatformValue) => {
+    setPlatform(newPlatform);
+    if (!DISTRIBUTIONS_BY_PLATFORM[newPlatform].includes(distribution)) {
+      setDistribution(DISTRIBUTIONS_BY_PLATFORM[newPlatform][0]);
+    }
+    if (artifactFormat !== "" && !FORMATS_BY_PLATFORM[newPlatform].includes(artifactFormat)) {
+      setArtifactFormat(FORMATS_BY_PLATFORM[newPlatform][0]);
     }
   };
 
@@ -205,6 +246,8 @@ const UploadForm = ({
 
     // Step 1: Reserve
     setUploadPhase("reserving");
+    const controller = new AbortController();
+    abortRef.current = controller;
     // eslint-disable-next-line functional/no-try-statements -- imperative shell error handling
     try {
       const result = await reserveBuild({
@@ -224,14 +267,16 @@ const UploadForm = ({
 
       // Step 2: Upload
       setUploadPhase("uploading");
-      await uploadWithProgress(result.uploadUrl, file, setUploadProgress);
+      await uploadWithProgress(result.uploadUrl, file, setUploadProgress, controller.signal);
 
       // Step 3: Complete
       setUploadPhase("completing");
       const sha256 = await computeSha256(file);
       await completeBuild(result.id, { sha256, byteSize: file.size });
     } catch (error) {
-      toast.error(getApiError(error));
+      if (!(error instanceof Error && error.message === "Upload aborted")) {
+        toast.error(getApiError(error));
+      }
       setUploadPhase("idle");
       return;
     }
@@ -290,7 +335,7 @@ const UploadForm = ({
             value={platform}
             onValueChange={(value) => {
               if (value) {
-                setPlatform(value as PlatformValue);
+                handlePlatformChange(value);
               }
             }}
           >
@@ -309,7 +354,7 @@ const UploadForm = ({
             value={distribution}
             onValueChange={(value) => {
               if (value) {
-                setDistribution(value as DistributionValue);
+                setDistribution(value);
               }
             }}
           >
@@ -317,13 +362,11 @@ const UploadForm = ({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="app-store">App Store</SelectItem>
-              <SelectItem value="ad-hoc">Ad Hoc</SelectItem>
-              <SelectItem value="development">Development</SelectItem>
-              <SelectItem value="enterprise">Enterprise</SelectItem>
-              <SelectItem value="simulator">Simulator</SelectItem>
-              <SelectItem value="play-store">Play Store</SelectItem>
-              <SelectItem value="direct">Direct</SelectItem>
+              {DISTRIBUTIONS_BY_PLATFORM[platform].map((dist) => (
+                <SelectItem key={dist} value={dist}>
+                  {DISTRIBUTION_LABELS[dist]}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -333,7 +376,7 @@ const UploadForm = ({
             value={artifactFormat}
             onValueChange={(value) => {
               if (value) {
-                setArtifactFormat(value as ArtifactFormat);
+                setArtifactFormat(value);
               }
             }}
           >
@@ -341,10 +384,11 @@ const UploadForm = ({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="ipa">IPA</SelectItem>
-              <SelectItem value="apk">APK</SelectItem>
-              <SelectItem value="aab">AAB</SelectItem>
-              <SelectItem value="tar.gz">tar.gz</SelectItem>
+              {FORMATS_BY_PLATFORM[platform].map((fmt) => (
+                <SelectItem key={fmt} value={fmt}>
+                  {FORMAT_LABELS[fmt]}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -363,7 +407,7 @@ const UploadForm = ({
           message,
         }}
         onChange={(field, value) => {
-          const setters: Record<string, (val: string) => void> = {
+          const setters: Record<keyof MetadataValues, (val: string) => void> = {
             profile: setProfile,
             runtimeVersion: setRuntimeVersion,
             appVersion: setAppVersion,
@@ -373,25 +417,11 @@ const UploadForm = ({
             gitCommit: setGitCommit,
             message: setMessage,
           };
-          setters[field]?.(value);
+          setters[field](value);
         }}
       />
 
-      {/* Progress bar */}
-      {uploadPhase !== "idle" && (
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center justify-between text-sm">
-            <span>{PHASE_LABELS[uploadPhase]}</span>
-            {uploadPhase === "uploading" && <span>{uploadProgress}%</span>}
-          </div>
-          <div className="bg-secondary h-2 w-full overflow-hidden rounded-full">
-            <div
-              className="bg-primary h-full rounded-full transition-all"
-              style={{ width: progressWidth(uploadPhase, uploadProgress) }}
-            />
-          </div>
-        </div>
-      )}
+      <ProgressBar phase={uploadPhase} progress={uploadProgress} />
 
       {/* Submit */}
       <Button type="submit" disabled={!file || !artifactFormat || uploadPhase !== "idle"}>

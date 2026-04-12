@@ -1,15 +1,43 @@
-export type ArtifactFormat = "ipa" | "apk" | "aab" | "tar.gz";
-export type PlatformValue = "ios" | "android";
-export type DistributionValue =
-  | "app-store"
-  | "ad-hoc"
-  | "development"
-  | "enterprise"
-  | "simulator"
-  | "play-store"
-  | "direct";
+import type { ArtifactFormat, Distribution, Platform } from "@better-update/api";
 
-export const detectArtifactFormat = (filename: string): ArtifactFormat | null => {
+export type ArtifactFormatValue = typeof ArtifactFormat.Type;
+export type PlatformValue = typeof Platform.Type;
+export type DistributionValue = typeof Distribution.Type;
+
+export const DISTRIBUTIONS_BY_PLATFORM: Record<
+  PlatformValue,
+  readonly [DistributionValue, ...DistributionValue[]]
+> = {
+  ios: ["app-store", "ad-hoc", "development", "enterprise", "simulator"],
+  android: ["play-store", "development", "direct"],
+};
+
+export const FORMATS_BY_PLATFORM: Record<
+  PlatformValue,
+  readonly [ArtifactFormatValue, ...ArtifactFormatValue[]]
+> = {
+  ios: ["ipa", "tar.gz"],
+  android: ["apk", "aab", "tar.gz"],
+};
+
+export const DISTRIBUTION_LABELS: Record<DistributionValue, string> = {
+  "app-store": "App Store",
+  "ad-hoc": "Ad Hoc",
+  development: "Development",
+  enterprise: "Enterprise",
+  simulator: "Simulator",
+  "play-store": "Play Store",
+  direct: "Direct",
+};
+
+export const FORMAT_LABELS: Record<ArtifactFormatValue, string> = {
+  ipa: "IPA",
+  apk: "APK",
+  aab: "AAB",
+  "tar.gz": "tar.gz",
+};
+
+export const detectArtifactFormat = (filename: string): ArtifactFormatValue | null => {
   if (filename.endsWith(".tar.gz")) {
     return "tar.gz";
   }
@@ -25,7 +53,7 @@ export const detectArtifactFormat = (filename: string): ArtifactFormat | null =>
   return null;
 };
 
-export const detectPlatform = (format: ArtifactFormat): PlatformValue | null => {
+export const detectPlatform = (format: ArtifactFormatValue): PlatformValue | null => {
   if (format === "ipa") {
     return "ios";
   }
@@ -45,9 +73,14 @@ export const uploadWithProgress = async (
   url: string,
   file: File,
   onProgress: (percent: number) => void,
+  signal?: AbortSignal,
 ): Promise<void> =>
   // eslint-disable-next-line promise/avoid-new -- XHR upload progress requires manual Promise wrapping
   new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new Error("Upload aborted"));
+      return;
+    }
     const xhr = new XMLHttpRequest();
     xhr.open("PUT", url);
     xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
@@ -66,6 +99,12 @@ export const uploadWithProgress = async (
     xhr.addEventListener("error", () => {
       reject(new Error("Upload network error"));
     });
+    if (signal) {
+      signal.addEventListener("abort", () => {
+        xhr.abort();
+        reject(new Error("Upload aborted"));
+      });
+    }
     xhr.send(file);
   });
 
