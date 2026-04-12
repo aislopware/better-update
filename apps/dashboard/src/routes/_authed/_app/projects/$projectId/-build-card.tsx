@@ -8,6 +8,7 @@ import type { BuildWithArtifact } from "@better-update/api";
 
 import { formatBytes } from "./-build-helpers";
 import { DeleteBuildDialog } from "./-delete-build-dialog";
+import { InstallLinkDialog } from "./-install-link-dialog";
 
 export const BuildCard = ({
   build,
@@ -31,11 +32,14 @@ export const BuildCard = ({
         </div>
         <div className="flex items-center gap-1">
           {build.artifact && (
-            <a href={`/api/builds/${build.id}/artifact`}>
-              <Button variant="ghost" size="icon" className="size-8" title="Download artifact">
-                <HugeiconsIcon icon={Download04Icon} strokeWidth={2} className="size-4" />
-              </Button>
-            </a>
+            <>
+              <InstallLinkDialog build={build} />
+              <a href={`/api/builds/${build.id}/artifact`}>
+                <Button variant="ghost" size="icon" className="size-8" title="Download artifact">
+                  <HugeiconsIcon icon={Download04Icon} strokeWidth={2} className="size-4" />
+                </Button>
+              </a>
+            </>
           )}
           <DeleteBuildDialog build={build} orgId={orgId} projectId={projectId} />
         </div>
