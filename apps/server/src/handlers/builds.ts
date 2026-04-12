@@ -9,6 +9,7 @@ import { HttpApiBuilder, HttpServerRequest } from "@effect/platform";
 import { Effect, Schema } from "effect";
 
 import { ManagementApi } from "../api";
+import { logAudit } from "../audit/logger";
 import { assertProjectOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
 import { cloudflareEnv } from "../cloudflare/context";
@@ -96,6 +97,13 @@ export const BuildsGroupLive = HttpApiBuilder.group(ManagementApi, "builds", (ha
           }),
         );
 
+        yield* logAudit({
+          action: "build.reserve",
+          resourceType: "build",
+          resourceId: buildId,
+          metadata: { platform: payload.platform, projectId: payload.projectId },
+        });
+
         return { id: buildId, uploadUrl, uploadExpiresAt };
       }),
     )
@@ -175,6 +183,12 @@ export const BuildsGroupLive = HttpApiBuilder.group(ManagementApi, "builds", (ha
           { concurrency: "unbounded" },
         ).pipe(Effect.catchAll(() => Effect.void));
 
+        yield* logAudit({
+          action: "build.complete",
+          resourceType: "build",
+          resourceId: path.id,
+        });
+
         return build;
       }),
     )
@@ -227,6 +241,12 @@ export const BuildsGroupLive = HttpApiBuilder.group(ManagementApi, "builds", (ha
             Effect.catchAll(() => Effect.void),
           );
         }
+
+        yield* logAudit({
+          action: "build.delete",
+          resourceType: "build",
+          resourceId: path.id,
+        });
 
         return { deleted: 1 };
       }),

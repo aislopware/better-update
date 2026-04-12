@@ -19,6 +19,7 @@ import { Route as authForgotPasswordRouteImport } from './routes/(auth)/forgot-p
 import { Route as AuthedAppIndexRouteImport } from './routes/_authed/_app/index'
 import { Route as AuthedAppMembersRouteImport } from './routes/_authed/_app/members'
 import { Route as AuthedAppCredentialsRouteImport } from './routes/_authed/_app/credentials'
+import { Route as AuthedAppAuditLogRouteImport } from './routes/_authed/_app/audit-log'
 import { Route as AuthedAppApiKeysRouteImport } from './routes/_authed/_app/api-keys'
 import { Route as AuthedAppSettingsIndexRouteImport } from './routes/_authed/_app/settings/index'
 import { Route as AuthedAppProjectsIndexRouteImport } from './routes/_authed/_app/projects/index'
@@ -73,6 +74,11 @@ const AuthedAppCredentialsRoute = AuthedAppCredentialsRouteImport.update({
   path: '/credentials',
   getParentRoute: () => AuthedAppRoute,
 } as any)
+const AuthedAppAuditLogRoute = AuthedAppAuditLogRouteImport.update({
+  id: '/audit-log',
+  path: '/audit-log',
+  getParentRoute: () => AuthedAppRoute,
+} as any)
 const AuthedAppApiKeysRoute = AuthedAppApiKeysRouteImport.update({
   id: '/api-keys',
   path: '/api-keys',
@@ -108,6 +114,7 @@ export interface FileRoutesByFullPath {
   '/signup': typeof authSignupRoute
   '/onboarding': typeof AuthedOnboardingRoute
   '/api-keys': typeof AuthedAppApiKeysRoute
+  '/audit-log': typeof AuthedAppAuditLogRoute
   '/credentials': typeof AuthedAppCredentialsRoute
   '/members': typeof AuthedAppMembersRoute
   '/account/': typeof AuthedAppAccountIndexRoute
@@ -123,6 +130,7 @@ export interface FileRoutesByTo {
   '/signup': typeof authSignupRoute
   '/onboarding': typeof AuthedOnboardingRoute
   '/api-keys': typeof AuthedAppApiKeysRoute
+  '/audit-log': typeof AuthedAppAuditLogRoute
   '/credentials': typeof AuthedAppCredentialsRoute
   '/members': typeof AuthedAppMembersRoute
   '/account': typeof AuthedAppAccountIndexRoute
@@ -140,6 +148,7 @@ export interface FileRoutesById {
   '/_authed/_app': typeof AuthedAppRouteWithChildren
   '/_authed/onboarding': typeof AuthedOnboardingRoute
   '/_authed/_app/api-keys': typeof AuthedAppApiKeysRoute
+  '/_authed/_app/audit-log': typeof AuthedAppAuditLogRoute
   '/_authed/_app/credentials': typeof AuthedAppCredentialsRoute
   '/_authed/_app/members': typeof AuthedAppMembersRoute
   '/_authed/_app/': typeof AuthedAppIndexRoute
@@ -158,6 +167,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/onboarding'
     | '/api-keys'
+    | '/audit-log'
     | '/credentials'
     | '/members'
     | '/account/'
@@ -173,6 +183,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/onboarding'
     | '/api-keys'
+    | '/audit-log'
     | '/credentials'
     | '/members'
     | '/account'
@@ -189,6 +200,7 @@ export interface FileRouteTypes {
     | '/_authed/_app'
     | '/_authed/onboarding'
     | '/_authed/_app/api-keys'
+    | '/_authed/_app/audit-log'
     | '/_authed/_app/credentials'
     | '/_authed/_app/members'
     | '/_authed/_app/'
@@ -278,6 +290,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedAppCredentialsRouteImport
       parentRoute: typeof AuthedAppRoute
     }
+    '/_authed/_app/audit-log': {
+      id: '/_authed/_app/audit-log'
+      path: '/audit-log'
+      fullPath: '/audit-log'
+      preLoaderRoute: typeof AuthedAppAuditLogRouteImport
+      parentRoute: typeof AuthedAppRoute
+    }
     '/_authed/_app/api-keys': {
       id: '/_authed/_app/api-keys'
       path: '/api-keys'
@@ -318,6 +337,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthedAppRouteChildren {
   AuthedAppApiKeysRoute: typeof AuthedAppApiKeysRoute
+  AuthedAppAuditLogRoute: typeof AuthedAppAuditLogRoute
   AuthedAppCredentialsRoute: typeof AuthedAppCredentialsRoute
   AuthedAppMembersRoute: typeof AuthedAppMembersRoute
   AuthedAppIndexRoute: typeof AuthedAppIndexRoute
@@ -329,6 +349,7 @@ interface AuthedAppRouteChildren {
 
 const AuthedAppRouteChildren: AuthedAppRouteChildren = {
   AuthedAppApiKeysRoute: AuthedAppApiKeysRoute,
+  AuthedAppAuditLogRoute: AuthedAppAuditLogRoute,
   AuthedAppCredentialsRoute: AuthedAppCredentialsRoute,
   AuthedAppMembersRoute: AuthedAppMembersRoute,
   AuthedAppIndexRoute: AuthedAppIndexRoute,

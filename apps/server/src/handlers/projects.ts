@@ -3,6 +3,7 @@ import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
 import { ManagementApi } from "../api";
+import { logAudit } from "../audit/logger";
 import { assertOrgOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
 import { cloudflareEnv } from "../cloudflare/context";
@@ -33,13 +34,22 @@ export const ProjectsGroupLive = HttpApiBuilder.group(ManagementApi, "projects",
           createdAt: now,
         });
 
-        return new Project({
+        const project = new Project({
           id,
           organizationId: ctx.organizationId,
           name: payload.name,
           scopeKey: payload.scopeKey,
           createdAt: now,
         });
+
+        yield* logAudit({
+          action: "project.create",
+          resourceType: "project",
+          resourceId: project.id,
+          metadata: { name: payload.name, scopeKey: payload.scopeKey },
+        });
+
+        return project;
       }),
     )
     .handle("list", ({ urlParams }) =>
@@ -77,6 +87,13 @@ export const ProjectsGroupLive = HttpApiBuilder.group(ManagementApi, "projects",
         yield* assertOrgOwnership(project.organizationId);
         yield* repo.updateName({ id: path.id, name: payload.name });
 
+        yield* logAudit({
+          action: "project.rename",
+          resourceType: "project",
+          resourceId: path.id,
+          metadata: { name: payload.name },
+        });
+
         return new Project({
           id: project.id,
           organizationId: project.organizationId,
@@ -112,6 +129,12 @@ export const ProjectsGroupLive = HttpApiBuilder.group(ManagementApi, "projects",
             { concurrency: 1 },
           );
         }
+
+        yield* logAudit({
+          action: "project.delete",
+          resourceType: "project",
+          resourceId: path.id,
+        });
 
         return { deleted: 1 };
       }),

@@ -32,6 +32,7 @@ import {
 import { Skeleton } from "@better-update/ui/components/ui/skeleton";
 import { TooltipProvider } from "@better-update/ui/components/ui/tooltip";
 import {
+  Audit01Icon,
   Folder02Icon,
   Settings02Icon,
   Logout03Icon,
@@ -74,6 +75,7 @@ const navItems = [
   { to: "/members", label: "Members", icon: UserGroupIcon },
   { to: "/api-keys", label: "API Keys", icon: Key01Icon },
   { to: "/credentials", label: "Credentials", icon: ShieldKeyIcon },
+  { to: "/audit-log", label: "Audit Log", icon: Audit01Icon },
   { to: "/settings", label: "Settings", icon: Settings02Icon },
 ] as const;
 

@@ -3,6 +3,7 @@ import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
 import { ManagementApi } from "../api";
+import { logAudit } from "../audit/logger";
 import { assertOrgOwnership, assertProjectOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
 import { cloudflareEnv } from "../cloudflare/context";
@@ -166,6 +167,57 @@ const resolveUpdateFields = (
     return {};
   });
 
+const handleExport = (urlParams: { projectId: string; environment: string }) =>
+  Effect.gen(function* () {
+    const ctx = yield* AuthContext;
+    if (ctx.source !== "api-key") {
+      return yield* new Forbidden({
+        message: "This endpoint requires API key authentication",
+      });
+    }
+
+    yield* assertPermission("envVar", "read");
+    yield* assertProjectOwnership(urlParams.projectId);
+
+    const repo = yield* EnvVarRepo;
+    const environments = urlParams.environment === "*" ? ["*"] : ["*", urlParams.environment];
+
+    const rows = yield* repo.findAllByProjectEnvs({
+      projectId: urlParams.projectId,
+      environments,
+    });
+
+    // Merge: environment-specific overrides shared
+    const merged = new Map<string, EnvVarRow>();
+    rows.forEach((row) => {
+      const prev = merged.get(row.key);
+      if (!prev || (prev.environment === "*" && row.environment !== "*")) {
+        merged.set(row.key, row);
+      }
+    });
+
+    const env = yield* cloudflareEnv;
+    const items = yield* Effect.forEach(
+      [...merged.values()],
+      (row) =>
+        row.visibility === "plaintext" || !row.encrypted_value || !row.key_version
+          ? Effect.succeed({ key: row.key, value: row.value ?? "", visibility: row.visibility })
+          : Effect.map(
+              decryptValue(
+                env.VAULT_KEYRING,
+                ctx.organizationId,
+                row.key_version,
+                row.encrypted_value,
+              ),
+              (decrypted) => ({ key: row.key, value: decrypted, visibility: row.visibility }),
+            ),
+      { concurrency: 5 },
+    );
+
+    const sorted = [...items].toSorted((left, right) => left.key.localeCompare(right.key));
+    return { items: sorted, environment: urlParams.environment };
+  });
+
 export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", (handlers) =>
   handlers
     .handle("create", ({ payload }) =>
@@ -224,7 +276,20 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
             }),
           );
 
-        return rowToEnvVar(row);
+        const envVar = rowToEnvVar(row);
+
+        yield* logAudit({
+          action: "envVar.create",
+          resourceType: "envVar",
+          resourceId: envVar.id,
+          metadata: {
+            key: payload.key,
+            environment: payload.environment,
+            visibility: payload.visibility,
+          },
+        });
+
+        return envVar;
       }),
     )
     .handle("list", ({ urlParams }) =>
@@ -289,6 +354,13 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
           ...(payload.visibility ? { visibility: payload.visibility } : {}),
         });
 
+        yield* logAudit({
+          action: "envVar.update",
+          resourceType: "envVar",
+          resourceId: path.id,
+          metadata: payload.visibility ? { visibility: payload.visibility } : {},
+        });
+
         return rowToEnvVar(row);
       }),
     )
@@ -301,6 +373,12 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
         yield* assertOrgOwnership(row.organization_id);
 
         yield* repo.deleteById({ id: path.id });
+
+        yield* logAudit({
+          action: "envVar.delete",
+          resourceType: "envVar",
+          resourceId: path.id,
+        });
 
         return { id: path.id };
       }),
@@ -372,58 +450,19 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
         const created = results.filter((result) => result === "created").length;
         const updated = results.filter((result) => result === "updated").length;
 
+        yield* logAudit({
+          action: "envVar.bulkImport",
+          resourceType: "envVar",
+          metadata: {
+            projectId: payload.projectId,
+            environment: payload.environment,
+            created,
+            updated,
+          },
+        });
+
         return { created, updated, skipped };
       }),
     )
-    .handle("export", ({ urlParams }) =>
-      Effect.gen(function* () {
-        const ctx = yield* AuthContext;
-        if (ctx.source !== "api-key") {
-          return yield* new Forbidden({
-            message: "This endpoint requires API key authentication",
-          });
-        }
-
-        yield* assertPermission("envVar", "read");
-        yield* assertProjectOwnership(urlParams.projectId);
-
-        const repo = yield* EnvVarRepo;
-        const environments = urlParams.environment === "*" ? ["*"] : ["*", urlParams.environment];
-
-        const rows = yield* repo.findAllByProjectEnvs({
-          projectId: urlParams.projectId,
-          environments,
-        });
-
-        // Merge: environment-specific overrides shared
-        const merged = new Map<string, EnvVarRow>();
-        rows.forEach((row) => {
-          const prev = merged.get(row.key);
-          if (!prev || (prev.environment === "*" && row.environment !== "*")) {
-            merged.set(row.key, row);
-          }
-        });
-
-        const env = yield* cloudflareEnv;
-        const items = yield* Effect.forEach(
-          [...merged.values()],
-          (row) =>
-            row.visibility === "plaintext" || !row.encrypted_value || !row.key_version
-              ? Effect.succeed({ key: row.key, value: row.value ?? "", visibility: row.visibility })
-              : Effect.map(
-                  decryptValue(
-                    env.VAULT_KEYRING,
-                    ctx.organizationId,
-                    row.key_version,
-                    row.encrypted_value,
-                  ),
-                  (decrypted) => ({ key: row.key, value: decrypted, visibility: row.visibility }),
-                ),
-          { concurrency: 5 },
-        );
-
-        const sorted = [...items].toSorted((left, right) => left.key.localeCompare(right.key));
-        return { items: sorted, environment: urlParams.environment };
-      }),
-    ),
+    .handle("export", ({ urlParams }) => handleExport(urlParams)),
 );

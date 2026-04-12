@@ -3,6 +3,7 @@ import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
 import { ManagementApi } from "../api";
+import { logAudit } from "../audit/logger";
 import { assertProjectOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
 import {
@@ -27,11 +28,20 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
         }
 
         const repo = yield* ChannelRepo;
-        return yield* repo.insert({
+        const channel = yield* repo.insert({
           projectId: payload.projectId,
           name: payload.name,
           branchId: payload.branchId,
         });
+
+        yield* logAudit({
+          action: "channel.create",
+          resourceType: "channel",
+          resourceId: channel.id,
+          metadata: { name: payload.name, projectId: payload.projectId },
+        });
+
+        return channel;
       }),
     )
     .handle("list", ({ urlParams }) =>
@@ -72,6 +82,14 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
         }
 
         yield* repo.updateBranchId({ id: path.id, branchId: payload.branchId });
+
+        yield* logAudit({
+          action: "channel.update",
+          resourceType: "channel",
+          resourceId: path.id,
+          metadata: { branchId: payload.branchId },
+        });
+
         return yield* repo.findById({ id: path.id });
       }),
     )
@@ -184,6 +202,13 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
         const channel = yield* channelRepo.findById({ id: path.id });
         yield* assertProjectOwnership(channel.projectId);
         yield* channelRepo.delete({ id: path.id });
+
+        yield* logAudit({
+          action: "channel.delete",
+          resourceType: "channel",
+          resourceId: path.id,
+        });
+
         return { deleted: 1 };
       }),
     ),

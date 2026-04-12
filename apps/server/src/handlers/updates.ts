@@ -3,6 +3,7 @@ import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
 import { ManagementApi } from "../api";
+import { logAudit } from "../audit/logger";
 import { assertProjectOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
 import { cloudflareCtx, cloudflareEnv } from "../cloudflare/context";
@@ -172,6 +173,13 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
         const channelRepo = yield* ChannelRepo;
         yield* channelRepo.bumpCacheVersionByBranch({ branchId: branch.id });
 
+        yield* logAudit({
+          action: "update.create",
+          resourceType: "update",
+          resourceId: result.id,
+          metadata: { branchId: branch.id, platform: payload.platform },
+        });
+
         return result;
       }),
     )
@@ -238,6 +246,12 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
 
         const channelRepo = yield* ChannelRepo;
         yield* channelRepo.bumpCacheVersionByBranch({ branchId: firstUpdate.branchId });
+
+        yield* logAudit({
+          action: "update.delete",
+          resourceType: "update",
+          resourceId: path.groupId,
+        });
 
         return result;
       }),
@@ -311,6 +325,13 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
         }
 
         yield* channelRepo.bumpCacheVersionByBranch({ branchId: targetChannel.branchId });
+
+        yield* logAudit({
+          action: "update.promote",
+          resourceType: "update",
+          resourceId: result.id,
+          metadata: { channelId: payload.targetChannelId },
+        });
 
         return result;
       }),

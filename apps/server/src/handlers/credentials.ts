@@ -3,6 +3,7 @@ import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
 import { ManagementApi } from "../api";
+import { logAudit } from "../audit/logger";
 import { assertOrgOwnership, assertProjectOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
 import { cloudflareEnv } from "../cloudflare/context";
@@ -93,7 +94,7 @@ export const CredentialsGroupLive = HttpApiBuilder.group(ManagementApi, "credent
         yield* Effect.promise(async () => env.BUILD_BUCKET.put(r2Key, encryptedBlob));
 
         const repo = yield* CredentialRepo;
-        return yield* repo.insert({
+        const credential = yield* repo.insert({
           id: credentialId,
           organizationId: ctx.organizationId,
           projectId: payload.projectId ?? null,
@@ -110,6 +111,15 @@ export const CredentialsGroupLive = HttpApiBuilder.group(ManagementApi, "credent
           metadataJson: payload.metadata ?? "{}",
           expiresAt: payload.expiresAt ?? null,
         });
+
+        yield* logAudit({
+          action: "credential.upload",
+          resourceType: "credential",
+          resourceId: credential.id,
+          metadata: { type: payload.type, platform: payload.platform, name: payload.name },
+        });
+
+        return credential;
       }),
     )
     .handle("list", ({ urlParams }) =>
@@ -217,6 +227,12 @@ export const CredentialsGroupLive = HttpApiBuilder.group(ManagementApi, "credent
           contentType: "application/octet-stream",
         };
 
+        yield* logAudit({
+          action: "credential.download",
+          resourceType: "credential",
+          resourceId: path.id,
+        });
+
         return {
           blob: toBase64(plaintext),
           password,
@@ -235,7 +251,7 @@ export const CredentialsGroupLive = HttpApiBuilder.group(ManagementApi, "credent
         const credential = yield* repo.findById({ id: path.id });
         yield* assertOrgOwnership(credential.organizationId);
 
-        return yield* repo.activate({
+        const activated = yield* repo.activate({
           id: path.id,
           organizationId: credential.organizationId,
           projectId: credential.projectId,
@@ -243,6 +259,14 @@ export const CredentialsGroupLive = HttpApiBuilder.group(ManagementApi, "credent
           type: credential.type,
           distribution: credential.distribution,
         });
+
+        yield* logAudit({
+          action: "credential.activate",
+          resourceType: "credential",
+          resourceId: path.id,
+        });
+
+        return activated;
       }),
     )
     .handle("delete", ({ path }) =>
@@ -261,6 +285,12 @@ export const CredentialsGroupLive = HttpApiBuilder.group(ManagementApi, "credent
             Effect.catchAll(() => Effect.void),
           );
         }
+
+        yield* logAudit({
+          action: "credential.delete",
+          resourceType: "credential",
+          resourceId: path.id,
+        });
 
         return { id: path.id };
       }),

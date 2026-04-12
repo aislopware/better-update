@@ -3,6 +3,7 @@ import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
 import { ManagementApi } from "../api";
+import { logAudit } from "../audit/logger";
 import { assertProjectOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
 import { cloudflareEnv } from "../cloudflare/context";
@@ -32,7 +33,21 @@ export const BranchesGroupLive = HttpApiBuilder.group(ManagementApi, "branches",
           createdAt: now,
         });
 
-        return new Branch({ id, projectId: payload.projectId, name: payload.name, createdAt: now });
+        const branch = new Branch({
+          id,
+          projectId: payload.projectId,
+          name: payload.name,
+          createdAt: now,
+        });
+
+        yield* logAudit({
+          action: "branch.create",
+          resourceType: "branch",
+          resourceId: branch.id,
+          metadata: { name: payload.name, projectId: payload.projectId },
+        });
+
+        return branch;
       }),
     )
     .handle("list", ({ urlParams }) =>
@@ -60,6 +75,13 @@ export const BranchesGroupLive = HttpApiBuilder.group(ManagementApi, "branches",
         const branch = yield* repo.findById({ id: path.id });
         yield* assertProjectOwnership(branch.projectId);
         yield* repo.updateName({ id: path.id, name: payload.name });
+
+        yield* logAudit({
+          action: "branch.rename",
+          resourceType: "branch",
+          resourceId: path.id,
+          metadata: { name: payload.name },
+        });
 
         return new Branch({
           id: branch.id,
@@ -95,6 +117,12 @@ export const BranchesGroupLive = HttpApiBuilder.group(ManagementApi, "branches",
             { concurrency: 1 },
           );
         }
+
+        yield* logAudit({
+          action: "branch.delete",
+          resourceType: "branch",
+          resourceId: path.id,
+        });
 
         return { deleted: 1 };
       }),

@@ -35,16 +35,21 @@ import {
   UpdateRepoLive,
 } from "./repositories";
 
-const ProjectsGroupWithRepo = ProjectsGroupLive.pipe(Layer.provide(ProjectRepoLive));
+const ProjectsGroupWithRepo = ProjectsGroupLive.pipe(
+  Layer.provide(ProjectRepoLive),
+  Layer.provide(AuditLogRepoLive),
+);
 const BranchesGroupWithRepo = BranchesGroupLive.pipe(
   Layer.provide(BranchRepoLive),
   Layer.provide(ProjectRepoLive),
+  Layer.provide(AuditLogRepoLive),
 );
 
 const ChannelsGroupWithRepo = ChannelsGroupLive.pipe(
   Layer.provide(ChannelRepoLive),
   Layer.provide(BranchRepoLive),
   Layer.provide(ProjectRepoLive),
+  Layer.provide(AuditLogRepoLive),
 );
 
 const UpdatesGroupWithRepo = UpdatesGroupLive.pipe(
@@ -54,21 +59,25 @@ const UpdatesGroupWithRepo = UpdatesGroupLive.pipe(
   Layer.provide(BranchRepoLive),
   Layer.provide(ChannelRepoLive),
   Layer.provide(ProjectRepoLive),
+  Layer.provide(AuditLogRepoLive),
 );
 
 const BuildsGroupWithRepo = BuildsGroupLive.pipe(
   Layer.provide(BuildRepoLive),
   Layer.provide(ProjectRepoLive),
+  Layer.provide(AuditLogRepoLive),
 );
 
 const CredentialsGroupWithRepo = CredentialsGroupLive.pipe(
   Layer.provide(CredentialRepoLive),
   Layer.provide(ProjectRepoLive),
+  Layer.provide(AuditLogRepoLive),
 );
 
 const EnvVarsGroupWithRepo = EnvVarsGroupLive.pipe(
   Layer.provide(EnvVarRepoLive),
   Layer.provide(ProjectRepoLive),
+  Layer.provide(AuditLogRepoLive),
 );
 
 const AssetsGroupWithRepo = AssetsGroupLive.pipe(Layer.provide(AssetRepoLive));
