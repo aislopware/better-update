@@ -17,6 +17,8 @@ const KEY_PATTERN = /^[A-Z][A-Z0-9_]*$/;
 
 const MAX_VARS_PER_PROJECT_ENV = 100;
 
+const VALID_ENVIRONMENTS = new Set(["development", "preview", "production", "*"]);
+
 const SENSITIVE_MASK = "••••••";
 
 const maskValue = (row: EnvVarRow): string | null => {
@@ -100,7 +102,6 @@ const parseEnvContent = (content: string): readonly { key: string; value: string
       ];
     });
 
-/** Build { value, encryptedValue, keyVersion } tuple based on visibility. */
 const prepareStorageFields = (
   visibility: "plaintext" | "sensitive" | "secret",
   rawValue: string,
@@ -152,7 +153,7 @@ const resolveUpdateFields = (
     // Sensitive or secret — need to encrypt
     const rawValue = newValue ?? (existing.visibility === "plaintext" ? existing.value : null);
 
-    if (rawValue) {
+    if (rawValue !== null) {
       const env = yield* cloudflareEnv;
       const encrypted = yield* encryptValue(env.VAULT_KEYRING, orgId, rawValue);
       return {
@@ -172,6 +173,13 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
         yield* assertPermission("envVar", "create");
         const ctx = yield* AuthContext;
         yield* assertProjectOwnership(payload.projectId);
+
+        if (!VALID_ENVIRONMENTS.has(payload.environment)) {
+          return yield* new BadRequest({
+            message: `Invalid environment "${payload.environment}". Must be one of: development, preview, production, *`,
+          });
+        }
+
         yield* validateKey(payload.key);
 
         const repo = yield* EnvVarRepo;
@@ -303,6 +311,12 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
         const ctx = yield* AuthContext;
         yield* assertProjectOwnership(payload.projectId);
 
+        if (!VALID_ENVIRONMENTS.has(payload.environment)) {
+          return yield* new BadRequest({
+            message: `Invalid environment "${payload.environment}". Must be one of: development, preview, production, *`,
+          });
+        }
+
         const entries = parseEnvContent(payload.content);
         if (entries.length === 0) {
           return yield* new BadRequest({
@@ -314,16 +328,20 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
         yield* Effect.forEach(entries, (entry) => validateKey(entry.key), { discard: true });
 
         const repo = yield* EnvVarRepo;
-        const currentCount = yield* repo.countByProjectEnv({
-          projectId: payload.projectId,
-          environment: payload.environment,
-        });
 
         // Deduplicate: last entry wins
         const deduped = new Map(entries.map((entry) => [entry.key, entry.value] as const));
         const skipped = entries.length - deduped.size;
 
-        if (currentCount + deduped.size > MAX_VARS_PER_PROJECT_ENV) {
+        // Check limit accounting for keys that already exist (updates don't count as new)
+        const existingRows = yield* repo.findAllByProjectEnvs({
+          projectId: payload.projectId,
+          environments: [payload.environment],
+        });
+        const existingKeys = new Set(existingRows.map((row) => row.key));
+        const newKeyCount = [...deduped.keys()].filter((key) => !existingKeys.has(key)).length;
+
+        if (existingKeys.size + newKeyCount > MAX_VARS_PER_PROJECT_ENV) {
           return yield* new BadRequest({
             message: `Import would exceed the ${MAX_VARS_PER_PROJECT_ENV} variable limit`,
           });
@@ -348,7 +366,7 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
                 ...fields,
               });
             }),
-          { concurrency: 1 },
+          { concurrency: 5 },
         );
 
         const created = results.filter((result) => result === "created").length;

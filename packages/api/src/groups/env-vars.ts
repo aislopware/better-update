@@ -93,7 +93,8 @@ export class EnvVarsGroup extends HttpApiGroup.make("env-vars")
       .annotateContext(
         OpenApi.annotations({
           title: "Bulk import environment variables",
-          description: "Import environment variables from a dotenv-formatted string",
+          description:
+            "Import environment variables from a dotenv-formatted string. Supports KEY=VALUE format with # comments. Quoted values (single/double) are unquoted. Multiline values are not supported.",
         }),
       ),
   )
