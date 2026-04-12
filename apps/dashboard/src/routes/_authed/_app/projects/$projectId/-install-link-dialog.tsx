@@ -13,14 +13,9 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { QRCodeSVG } from "qrcode.react";
 import { useState } from "react";
 
-import type { BuildWithArtifact } from "@better-update/api";
+import type { BuildWithArtifact, InstallLinkResult } from "@better-update/api";
 
-interface InstallLinkData {
-  token: string;
-  expires: number;
-  artifactUrl: string;
-  installUrl: string | null;
-}
+type InstallLinkData = typeof InstallLinkResult.Type;
 
 const CopyButton = ({ text }: { text: string }) => {
   const [copied, setCopied] = useState(false);
