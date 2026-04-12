@@ -313,7 +313,7 @@ export const envVarsQueryOptions = (orgId: string, projectId: string, environmen
     queryFn: () =>
       runApi((api) =>
         api["env-vars"].list({
-          urlParams: { projectId, ...(environment ? { environment } : {}) },
+          urlParams: { projectId, ...(environment ? { environment } : {}), limit: 100 },
         }),
       ),
     staleTime: 30_000,

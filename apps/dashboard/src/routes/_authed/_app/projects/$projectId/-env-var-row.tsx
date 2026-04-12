@@ -1,7 +1,15 @@
 import { getApiError } from "@better-update/api-client";
-import { deleteEnvVar } from "@better-update/api-client/react";
+import { deleteEnvVar, envVarsQueryOptions } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@better-update/ui/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,7 +18,7 @@ import {
   DropdownMenuTrigger,
 } from "@better-update/ui/components/ui/dropdown-menu";
 import { TableCell, TableRow } from "@better-update/ui/components/ui/table";
-import { ArrowDown01Icon } from "@hugeicons/core-free-icons";
+import { MoreVerticalIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -50,6 +58,7 @@ export const EnvVarRow = ({
   projectId: string;
 }) => {
   const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const queryClient = useQueryClient();
 
@@ -60,8 +69,9 @@ export const EnvVarRow = ({
       await deleteEnvVar(envVar.id);
       toast.success(`Variable "${envVar.key}" deleted`);
       await queryClient.invalidateQueries({
-        queryKey: ["org", orgId, "projects", projectId, "env-vars"],
+        queryKey: envVarsQueryOptions(orgId, projectId).queryKey,
       });
+      setDeleteOpen(false);
     } catch (error) {
       toast.error(getApiError(error));
     } finally {
@@ -82,8 +92,8 @@ export const EnvVarRow = ({
         <TableCell className="text-right">
           <DropdownMenu>
             <DropdownMenuTrigger>
-              <Button variant="ghost" size="icon-sm" disabled={isDeleting}>
-                <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={2} className="size-4" />
+              <Button variant="ghost" size="icon-sm">
+                <HugeiconsIcon icon={MoreVerticalIcon} strokeWidth={2} className="size-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -95,7 +105,12 @@ export const EnvVarRow = ({
                 Edit
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-destructive" onClick={handleDelete}>
+              <DropdownMenuItem
+                className="text-destructive"
+                onClick={() => {
+                  setDeleteOpen(true);
+                }}
+              >
                 Delete
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -109,6 +124,29 @@ export const EnvVarRow = ({
         open={editOpen}
         onOpenChange={setEditOpen}
       />
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete variable?</DialogTitle>
+            <DialogDescription>
+              This will permanently delete {envVar.key}. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeleteOpen(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button variant="destructive" disabled={isDeleting} onClick={handleDelete}>
+              {isDeleting ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

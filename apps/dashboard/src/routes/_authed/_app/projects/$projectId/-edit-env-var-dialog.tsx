@@ -1,5 +1,5 @@
 import { getApiError } from "@better-update/api-client";
-import { updateEnvVar } from "@better-update/api-client/react";
+import { envVarsQueryOptions, updateEnvVar } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
@@ -47,7 +47,11 @@ const EditFormContent = ({
     },
     onSubmit: async ({ value }) => {
       const payload: { value?: string; visibility?: "plaintext" | "sensitive" | "secret" } = {};
-      if (value.value) {
+      if (isEncrypted) {
+        if (value.value.length > 0) {
+          payload.value = value.value;
+        }
+      } else if (value.value !== (envVar.value ?? "")) {
         payload.value = value.value;
       }
       if (value.visibility !== envVar.visibility) {
@@ -70,7 +74,7 @@ const EditFormContent = ({
 
       toast.success(`Variable "${envVar.key}" updated`);
       await queryClient.invalidateQueries({
-        queryKey: ["org", orgId, "projects", projectId, "env-vars"],
+        queryKey: envVarsQueryOptions(orgId, projectId).queryKey,
       });
       onSuccess();
     },

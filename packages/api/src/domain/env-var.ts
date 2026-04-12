@@ -39,7 +39,7 @@ export const UpdateEnvVarBody = Schema.Struct({
 export const BulkImportEnvVarsBody = Schema.Struct({
   projectId: Id,
   environment: EnvVarEnvironment,
-  content: Schema.String,
+  content: Schema.String.pipe(Schema.maxLength(4_000_000)),
   visibility: EnvVarVisibility,
 });
 

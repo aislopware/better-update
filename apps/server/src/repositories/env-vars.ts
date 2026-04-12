@@ -266,35 +266,15 @@ export const EnvVarRepoLive = Layer.succeed(EnvVarRepo, {
       const env = yield* cloudflareEnv;
       const now = new Date().toISOString();
 
-      const existing = yield* Effect.promise(async () =>
+      const row = yield* Effect.promise(async () =>
         env.DB.prepare(
-          `SELECT "id" FROM "env_vars" WHERE "project_id" = ? AND "environment" = ? AND "key" = ?`,
-        )
-          .bind(params.projectId, params.environment, params.key)
-          .first<{ id: string }>(),
-      );
-
-      if (existing) {
-        yield* Effect.promise(async () =>
-          env.DB.prepare(
-            `UPDATE "env_vars" SET "visibility" = ?, "value" = ?, "encrypted_value" = ?, "key_version" = ?, "updated_at" = ? WHERE "id" = ?`,
-          )
-            .bind(
-              params.visibility,
-              params.value,
-              params.encryptedValue,
-              params.keyVersion,
-              now,
-              existing.id,
-            )
-            .run(),
-        );
-        return "updated" as const;
-      }
-
-      yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `INSERT INTO "env_vars" ("id", "organization_id", "project_id", "environment", "key", "visibility", "value", "encrypted_value", "key_version", "created_at", "updated_at") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO "env_vars" ("id", "organization_id", "project_id", "environment", "key", "visibility", "value", "encrypted_value", "key_version", "created_at", "updated_at")
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT ("project_id", "environment", "key")
+           DO UPDATE SET "visibility" = excluded."visibility", "value" = excluded."value",
+             "encrypted_value" = excluded."encrypted_value", "key_version" = excluded."key_version",
+             "updated_at" = excluded."updated_at"
+           RETURNING "created_at"`,
         )
           .bind(
             params.id,
@@ -309,8 +289,9 @@ export const EnvVarRepoLive = Layer.succeed(EnvVarRepo, {
             now,
             now,
           )
-          .run(),
+          .first<{ created_at: string }>(),
       );
-      return "created" as const;
+
+      return row?.created_at === now ? ("created" as const) : ("updated" as const);
     }),
 });

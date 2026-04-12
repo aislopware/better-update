@@ -1,5 +1,5 @@
 import { getApiError } from "@better-update/api-client";
-import { createEnvVar } from "@better-update/api-client/react";
+import { createEnvVar, envVarsQueryOptions } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
@@ -38,8 +38,6 @@ const keySchema = z
 
 const valueSchema = z.string().check(z.minLength(1, "Value is required"));
 
-const RESERVED_KEYS = new Set(["PATH", "HOME", "USER", "SHELL"]);
-
 const CreateFormContent = ({
   orgId,
   projectId,
@@ -76,7 +74,7 @@ const CreateFormContent = ({
 
       toast.success(`Variable "${value.key}" created`);
       await queryClient.invalidateQueries({
-        queryKey: ["org", orgId, "projects", projectId, "env-vars"],
+        queryKey: envVarsQueryOptions(orgId, projectId).queryKey,
       });
       onSuccess();
     },
@@ -96,13 +94,7 @@ const CreateFormContent = ({
           validators={{
             onBlur: ({ value }) => {
               const result = keySchema.safeParse(value);
-              if (!result.success) {
-                return result.error.issues[0]?.message;
-              }
-              if (RESERVED_KEYS.has(value)) {
-                return `"${value}" is a reserved key`;
-              }
-              return undefined;
+              return result.success ? undefined : result.error.issues[0]?.message;
             },
           }}
         >

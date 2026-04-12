@@ -1,5 +1,5 @@
 import { getApiError } from "@better-update/api-client";
-import { bulkImportEnvVars } from "@better-update/api-client/react";
+import { bulkImportEnvVars, envVarsQueryOptions } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
@@ -64,7 +64,7 @@ export const ImportEnvVarsDialog = ({
         `Imported: ${result.created} created, ${result.updated} updated${result.skipped > 0 ? `, ${result.skipped} skipped` : ""}`,
       );
       await queryClient.invalidateQueries({
-        queryKey: ["org", orgId, "projects", projectId, "env-vars"],
+        queryKey: envVarsQueryOptions(orgId, projectId).queryKey,
       });
       setOpen(false);
       setContent("");
