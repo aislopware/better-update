@@ -22,6 +22,7 @@ import { Route as AuthedAppCredentialsRouteImport } from './routes/_authed/_app/
 import { Route as AuthedAppApiKeysRouteImport } from './routes/_authed/_app/api-keys'
 import { Route as AuthedAppSettingsIndexRouteImport } from './routes/_authed/_app/settings/index'
 import { Route as AuthedAppProjectsIndexRouteImport } from './routes/_authed/_app/projects/index'
+import { Route as AuthedAppAccountIndexRouteImport } from './routes/_authed/_app/account/index'
 import { Route as AuthedAppProjectsProjectIdIndexRouteImport } from './routes/_authed/_app/projects/$projectId/index'
 
 const AuthedRoute = AuthedRouteImport.update({
@@ -87,6 +88,11 @@ const AuthedAppProjectsIndexRoute = AuthedAppProjectsIndexRouteImport.update({
   path: '/projects/',
   getParentRoute: () => AuthedAppRoute,
 } as any)
+const AuthedAppAccountIndexRoute = AuthedAppAccountIndexRouteImport.update({
+  id: '/account/',
+  path: '/account/',
+  getParentRoute: () => AuthedAppRoute,
+} as any)
 const AuthedAppProjectsProjectIdIndexRoute =
   AuthedAppProjectsProjectIdIndexRouteImport.update({
     id: '/projects/$projectId/',
@@ -104,6 +110,7 @@ export interface FileRoutesByFullPath {
   '/api-keys': typeof AuthedAppApiKeysRoute
   '/credentials': typeof AuthedAppCredentialsRoute
   '/members': typeof AuthedAppMembersRoute
+  '/account/': typeof AuthedAppAccountIndexRoute
   '/projects/': typeof AuthedAppProjectsIndexRoute
   '/settings/': typeof AuthedAppSettingsIndexRoute
   '/projects/$projectId/': typeof AuthedAppProjectsProjectIdIndexRoute
@@ -118,6 +125,7 @@ export interface FileRoutesByTo {
   '/api-keys': typeof AuthedAppApiKeysRoute
   '/credentials': typeof AuthedAppCredentialsRoute
   '/members': typeof AuthedAppMembersRoute
+  '/account': typeof AuthedAppAccountIndexRoute
   '/projects': typeof AuthedAppProjectsIndexRoute
   '/settings': typeof AuthedAppSettingsIndexRoute
   '/projects/$projectId': typeof AuthedAppProjectsProjectIdIndexRoute
@@ -135,6 +143,7 @@ export interface FileRoutesById {
   '/_authed/_app/credentials': typeof AuthedAppCredentialsRoute
   '/_authed/_app/members': typeof AuthedAppMembersRoute
   '/_authed/_app/': typeof AuthedAppIndexRoute
+  '/_authed/_app/account/': typeof AuthedAppAccountIndexRoute
   '/_authed/_app/projects/': typeof AuthedAppProjectsIndexRoute
   '/_authed/_app/settings/': typeof AuthedAppSettingsIndexRoute
   '/_authed/_app/projects/$projectId/': typeof AuthedAppProjectsProjectIdIndexRoute
@@ -151,6 +160,7 @@ export interface FileRouteTypes {
     | '/api-keys'
     | '/credentials'
     | '/members'
+    | '/account/'
     | '/projects/'
     | '/settings/'
     | '/projects/$projectId/'
@@ -165,6 +175,7 @@ export interface FileRouteTypes {
     | '/api-keys'
     | '/credentials'
     | '/members'
+    | '/account'
     | '/projects'
     | '/settings'
     | '/projects/$projectId'
@@ -181,6 +192,7 @@ export interface FileRouteTypes {
     | '/_authed/_app/credentials'
     | '/_authed/_app/members'
     | '/_authed/_app/'
+    | '/_authed/_app/account/'
     | '/_authed/_app/projects/'
     | '/_authed/_app/settings/'
     | '/_authed/_app/projects/$projectId/'
@@ -287,6 +299,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedAppProjectsIndexRouteImport
       parentRoute: typeof AuthedAppRoute
     }
+    '/_authed/_app/account/': {
+      id: '/_authed/_app/account/'
+      path: '/account'
+      fullPath: '/account/'
+      preLoaderRoute: typeof AuthedAppAccountIndexRouteImport
+      parentRoute: typeof AuthedAppRoute
+    }
     '/_authed/_app/projects/$projectId/': {
       id: '/_authed/_app/projects/$projectId/'
       path: '/projects/$projectId'
@@ -302,6 +321,7 @@ interface AuthedAppRouteChildren {
   AuthedAppCredentialsRoute: typeof AuthedAppCredentialsRoute
   AuthedAppMembersRoute: typeof AuthedAppMembersRoute
   AuthedAppIndexRoute: typeof AuthedAppIndexRoute
+  AuthedAppAccountIndexRoute: typeof AuthedAppAccountIndexRoute
   AuthedAppProjectsIndexRoute: typeof AuthedAppProjectsIndexRoute
   AuthedAppSettingsIndexRoute: typeof AuthedAppSettingsIndexRoute
   AuthedAppProjectsProjectIdIndexRoute: typeof AuthedAppProjectsProjectIdIndexRoute
@@ -312,6 +332,7 @@ const AuthedAppRouteChildren: AuthedAppRouteChildren = {
   AuthedAppCredentialsRoute: AuthedAppCredentialsRoute,
   AuthedAppMembersRoute: AuthedAppMembersRoute,
   AuthedAppIndexRoute: AuthedAppIndexRoute,
+  AuthedAppAccountIndexRoute: AuthedAppAccountIndexRoute,
   AuthedAppProjectsIndexRoute: AuthedAppProjectsIndexRoute,
   AuthedAppSettingsIndexRoute: AuthedAppSettingsIndexRoute,
   AuthedAppProjectsProjectIdIndexRoute: AuthedAppProjectsProjectIdIndexRoute,

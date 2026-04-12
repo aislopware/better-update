@@ -103,6 +103,10 @@ export const createAuth = (env: Env) =>
     },
 
     account: {
+      accountLinking: {
+        enabled: true,
+        trustedProviders: ["credential", "github"],
+      },
       fields: {
         userId: "user_id",
         accountId: "account_id",

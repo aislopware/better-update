@@ -45,6 +45,7 @@ import {
   Sun02Icon,
   Moon02Icon,
   ComputerIcon,
+  UserAccountIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
@@ -210,6 +211,14 @@ const UserMenu = () => {
               </DropdownMenuRadioGroup>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
+          <DropdownMenuItem
+            onClick={async () => {
+              await router.navigate({ to: "/account" });
+            }}
+          >
+            <HugeiconsIcon icon={UserAccountIcon} strokeWidth={2} className="size-4" />
+            <span>Account</span>
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleLogout}>
             <HugeiconsIcon icon={Logout03Icon} strokeWidth={2} className="size-4" />
