@@ -2,6 +2,15 @@ import { z } from "zod/v4";
 
 export const nameSchema = z.string().check(z.minLength(2, "Name must be at least 2 characters"));
 
+export const requiredStringSchema = z.string().check(z.minLength(1, "This field is required"));
+
+export const passwordSchema = z
+  .string()
+  .check(z.minLength(8, "Password must be at least 8 characters"));
+
+export const getFieldError = (field: { state: { meta: { errors: unknown[] } } }) =>
+  field.state.meta.errors.map(String).filter(Boolean).join(", ");
+
 export const slugSchema = z
   .string()
   .check(
