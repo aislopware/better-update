@@ -15,10 +15,14 @@ import { useForm } from "@tanstack/react-form";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { z } from "zod/v4";
 
 import { authClient } from "../../../../lib/auth-client";
-import { nameSchema } from "../../../../lib/form-utils";
+import {
+  getFieldError,
+  nameSchema,
+  passwordSchema,
+  requiredStringSchema,
+} from "../../../../lib/form-utils";
 import {
   accountsQueryOptions,
   sessionQueryOptions,
@@ -70,7 +74,7 @@ const ProfileCard = () => {
             }}
           >
             {(field) => {
-              const errorMessage = field.state.meta.errors.map(String).filter(Boolean).join(", ");
+              const errorMessage = getFieldError(field);
               return (
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="profile-name">Name</Label>
@@ -150,16 +154,13 @@ const PasswordCard = () => {
               name="currentPassword"
               validators={{
                 onBlur: ({ value }) => {
-                  const result = z
-                    .string()
-                    .check(z.minLength(1, "Current password is required"))
-                    .safeParse(value);
+                  const result = requiredStringSchema.safeParse(value);
                   return result.success ? undefined : result.error.issues[0]?.message;
                 },
               }}
             >
               {(field) => {
-                const errorMessage = field.state.meta.errors.map(String).filter(Boolean).join(", ");
+                const errorMessage = getFieldError(field);
                 return (
                   <div className="flex flex-col gap-2">
                     <Label htmlFor="current-password">Current password</Label>
@@ -184,16 +185,13 @@ const PasswordCard = () => {
               name="newPassword"
               validators={{
                 onBlur: ({ value }) => {
-                  const result = z
-                    .string()
-                    .check(z.minLength(8, "Password must be at least 8 characters"))
-                    .safeParse(value);
+                  const result = passwordSchema.safeParse(value);
                   return result.success ? undefined : result.error.issues[0]?.message;
                 },
               }}
             >
               {(field) => {
-                const errorMessage = field.state.meta.errors.map(String).filter(Boolean).join(", ");
+                const errorMessage = getFieldError(field);
                 return (
                   <div className="flex flex-col gap-2">
                     <Label htmlFor="new-password">New password</Label>
@@ -225,7 +223,7 @@ const PasswordCard = () => {
               }}
             >
               {(field) => {
-                const errorMessage = field.state.meta.errors.map(String).filter(Boolean).join(", ");
+                const errorMessage = getFieldError(field);
                 return (
                   <div className="flex flex-col gap-2">
                     <Label htmlFor="confirm-password">Confirm new password</Label>
@@ -266,6 +264,43 @@ const PasswordCard = () => {
     </Card>
   );
 };
+
+const parseBrowser = (ua: string): string => {
+  if (ua.includes("Edg/")) {
+    return "Edge";
+  }
+  if (ua.includes("Chrome/")) {
+    return "Chrome";
+  }
+  if (ua.includes("Firefox/")) {
+    return "Firefox";
+  }
+  if (ua.includes("Safari/") && ua.includes("Version/")) {
+    return "Safari";
+  }
+  return "Unknown browser";
+};
+
+const parseOS = (ua: string): string => {
+  if (ua.includes("Mac OS X")) {
+    return "macOS";
+  }
+  if (ua.includes("Windows")) {
+    return "Windows";
+  }
+  if (ua.includes("Linux")) {
+    return "Linux";
+  }
+  if (ua.includes("Android")) {
+    return "Android";
+  }
+  if (ua.includes("iPhone") || ua.includes("iPad")) {
+    return "iOS";
+  }
+  return "Unknown OS";
+};
+
+const parseUserAgent = (ua: string): string => `${parseBrowser(ua)} on ${parseOS(ua)}`;
 
 const PROVIDER_LABELS: Record<string, string> = {
   credential: "Email & Password",
@@ -374,7 +409,9 @@ const SessionsCard = () => {
             <div key={session.id} className="flex items-center justify-between gap-4">
               <div className="flex flex-col gap-0.5">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm">{session.userAgent ?? "Unknown device"}</span>
+                  <span className="text-sm">
+                    {session.userAgent ? parseUserAgent(session.userAgent) : "Unknown device"}
+                  </span>
                   {isCurrent ? <Badge variant="secondary">Current</Badge> : null}
                 </div>
                 <span className="text-muted-foreground text-xs">
