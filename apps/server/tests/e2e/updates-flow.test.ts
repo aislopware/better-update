@@ -397,6 +397,28 @@ describe("Updates & Assets API flow", () => {
     expect(body).toHaveProperty("total");
   });
 
+  it("registers asset metadata via API key", async () => {
+    const response = await post(
+      "/api/assets/upload",
+      {
+        assets: [{ hash: "AbCdEf_-123", contentType: "text/plain", fileExt: "txt" }],
+      },
+      { authorization: `Bearer ${apiKeyValue}` },
+    );
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    expect(body.uploaded).toContain("AbCdEf_-123");
+  });
+
+  it("uploads asset binary via API key", async () => {
+    const response = await put("/api/assets/AbCdEf_-123", new TextEncoder().encode("hello"), {
+      authorization: `Bearer ${apiKeyValue}`,
+      "content-type": "text/plain",
+      "content-length": "5",
+    });
+    expect(response.status).toBe(200);
+  });
+
   // ── Section 9: Cross-org isolation ─────────────────────────────
 
   /* eslint-disable functional/no-let -- mutable cross-org test state */

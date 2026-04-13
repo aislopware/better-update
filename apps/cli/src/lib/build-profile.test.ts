@@ -1,7 +1,7 @@
 import { it } from "@effect/vitest";
 import { Effect, Exit } from "effect";
 
-import { readAppMeta, readBuildProfile } from "./build-profile";
+import { readAppMeta, readBuildProfile, readRuntimeVersionMeta } from "./build-profile";
 import { BuildProfileError } from "./exit-codes";
 import { failureError } from "./test-utils";
 
@@ -153,6 +153,37 @@ describe(readBuildProfile, () => {
       } as Record<string, unknown>;
       const profile = yield* readBuildProfile(appJson, "default");
       expect(profile.environment).toBe("production");
+    }),
+  );
+});
+
+// ── readRuntimeVersionMeta ────────────────────────────────────────
+
+describe(readRuntimeVersionMeta, () => {
+  it.effect("reads runtime version inputs without native platform sections", () =>
+    Effect.gen(function* () {
+      const appJson = {
+        expo: {
+          version: "1.0.0",
+          runtimeVersion: { policy: "fingerprint" },
+        },
+      } as Record<string, unknown>;
+      const meta = yield* readRuntimeVersionMeta(appJson);
+      expect(meta).toEqual({
+        appVersion: "1.0.0",
+        rawRuntimeVersion: { policy: "fingerprint" },
+      });
+    }),
+  );
+
+  it.effect("fails when expo section is missing", () =>
+    Effect.gen(function* () {
+      const exit = yield* readRuntimeVersionMeta({}).pipe(Effect.exit);
+      expect(Exit.isFailure(exit)).toBe(true);
+      if (Exit.isFailure(exit)) {
+        const error = failureError(exit);
+        expect(error).toBeInstanceOf(BuildProfileError);
+      }
     }),
   );
 });

@@ -58,23 +58,39 @@ const verifyPassword = async ({
   return result === 0;
 };
 
-export const createAuth = (env: Env) =>
-  betterAuth({
+type AuthEnv = Env & {
+  readonly GITHUB_CLIENT_ID?: string;
+  readonly GITHUB_CLIENT_SECRET?: string;
+  readonly TEST_MODE?: string;
+};
+
+const trimOptionalBinding = (value: string | undefined): string => value?.trim() ?? "";
+
+export const createAuth = (env: AuthEnv) => {
+  const githubClientId = trimOptionalBinding(env.GITHUB_CLIENT_ID);
+  const githubClientSecret = trimOptionalBinding(env.GITHUB_CLIENT_SECRET);
+  const githubEnabled = githubClientId.length > 0 && githubClientSecret.length > 0;
+  const testMode = env.TEST_MODE === "true";
+
+  return betterAuth({
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL,
     trustedOrigins: [env.DASHBOARD_URL].filter(Boolean),
     database: env.DB,
+    logger: testMode ? { disabled: true } : undefined,
 
     emailAndPassword: {
       enabled: true,
       password: { hash: hashPassword, verify: verifyPassword },
     },
-    socialProviders: {
-      github: {
-        clientId: env.GITHUB_CLIENT_ID,
-        clientSecret: env.GITHUB_CLIENT_SECRET,
-      },
-    },
+    socialProviders: githubEnabled
+      ? {
+          github: {
+            clientId: githubClientId,
+            clientSecret: githubClientSecret,
+          },
+        }
+      : {},
 
     user: {
       fields: {
@@ -105,7 +121,7 @@ export const createAuth = (env: Env) =>
     account: {
       accountLinking: {
         enabled: true,
-        trustedProviders: ["credential", "github"],
+        trustedProviders: githubEnabled ? ["credential", "github"] : ["credential"],
       },
       fields: {
         userId: "user_id",
@@ -216,3 +232,4 @@ export const createAuth = (env: Env) =>
       useSecureCookies: env.BETTER_AUTH_URL.startsWith("https://"),
     },
   });
+};

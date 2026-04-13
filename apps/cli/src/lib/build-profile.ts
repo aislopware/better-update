@@ -38,6 +38,11 @@ export interface AppMeta {
   readonly rawRuntimeVersion: RawRuntimeVersion | undefined;
 }
 
+export interface RuntimeVersionMeta {
+  readonly appVersion: string | undefined;
+  readonly rawRuntimeVersion: RawRuntimeVersion | undefined;
+}
+
 const asRecord = (value: unknown): Record<string, unknown> | undefined =>
   typeof value === "object" && value !== null ? (value as Record<string, unknown>) : undefined;
 
@@ -128,6 +133,23 @@ export const readBuildProfile = (
       environment,
       ...(ios !== undefined ? { ios } : {}),
       ...(android !== undefined ? { android } : {}),
+    };
+  });
+
+export const readRuntimeVersionMeta = (
+  appJson: Record<string, unknown>,
+): Effect.Effect<RuntimeVersionMeta, BuildProfileError> =>
+  Effect.gen(function* () {
+    const expo = asRecord(appJson["expo"]);
+    if (!expo) {
+      return yield* new BuildProfileError({
+        message: "Missing expo section in app.json.",
+      });
+    }
+
+    return {
+      appVersion: asString(expo["version"]),
+      rawRuntimeVersion: readRawRuntimeVersion(expo["runtimeVersion"]),
     };
   });
 

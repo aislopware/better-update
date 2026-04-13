@@ -3,6 +3,7 @@ import { Layer } from "effect";
 
 import { ManagementApi } from "./api";
 import { createAuth } from "./auth";
+import { API_KEY_PREFIX } from "./auth/constants";
 import { AuthenticationLive } from "./auth/middleware";
 import { setRequestContext } from "./cloudflare/context";
 import {
@@ -115,6 +116,46 @@ const internalError = () =>
     { status: 500 },
   );
 
+interface VerifyApiKeyResult {
+  readonly valid: boolean;
+  readonly key: object | null;
+}
+
+interface VerifyApiKeyApi {
+  readonly verifyApiKey: (opts: { body: { key: string } }) => Promise<VerifyApiKeyResult>;
+}
+
+const isVerifyApiKeyApi = (value: unknown): value is VerifyApiKeyApi =>
+  typeof value === "object" &&
+  value !== null &&
+  "verifyApiKey" in value &&
+  typeof value.verifyApiKey === "function";
+
+const isAssetUploadAuthorized = async (headers: Headers, env: Env): Promise<boolean> => {
+  const auth = createAuth(env);
+  const session = await auth.api.getSession({ headers });
+  if (session) {
+    return true;
+  }
+
+  const authorization = headers.get("authorization");
+  if (!authorization?.startsWith("Bearer ")) {
+    return false;
+  }
+
+  const token = authorization.slice("Bearer ".length).trim();
+  if (!token.startsWith(API_KEY_PREFIX)) {
+    return false;
+  }
+
+  if (!isVerifyApiKeyApi(auth.api)) {
+    return false;
+  }
+
+  const result = await auth.api.verifyApiKey({ body: { key: token } }).catch(() => null);
+  return result?.valid === true && result.key !== null;
+};
+
 /** Handle Better Auth routes with workarounds for dev-mode status codes and empty bodies */
 const handleAuth = async (request: Request, env: Env): Promise<Response> => {
   // eslint-disable-next-line functional/no-try-statements -- Better Auth may throw unhandled exceptions
@@ -195,9 +236,7 @@ const handleAssetDownload = async (
 
 /** Binary asset upload — outside Effect HttpApi (streams body to R2) */
 const handleAssetUpload = async (request: Request, env: Env, hash: string): Promise<Response> => {
-  const auth = createAuth(env);
-  const session = await auth.api.getSession({ headers: request.headers });
-  if (!session) {
+  if (!(await isAssetUploadAuthorized(request.headers, env))) {
     return Response.json(
       { code: "UNAUTHORIZED", message: "Authentication required" },
       { status: 401 },
@@ -280,13 +319,13 @@ export default {
       }
 
       // Public asset download — GET /assets/:hash (no auth, edge-cached)
-      const assetDownloadMatch = /^\/assets\/([a-f0-9]+)$/.exec(url.pathname);
+      const assetDownloadMatch = /^\/assets\/([A-Za-z0-9_-]+)$/.exec(url.pathname);
       if (assetDownloadMatch?.[1] && request.method === "GET") {
         return await handleAssetDownload(request, env, ctx, assetDownloadMatch[1]);
       }
 
       // Binary asset upload — PUT /api/assets/:hash
-      const assetUploadMatch = /^\/api\/assets\/([a-f0-9]+)$/.exec(url.pathname);
+      const assetUploadMatch = /^\/api\/assets\/([A-Za-z0-9_-]+)$/.exec(url.pathname);
       if (assetUploadMatch?.[1] && request.method === "PUT") {
         return await handleAssetUpload(request, env, assetUploadMatch[1]);
       }
@@ -298,7 +337,9 @@ export default {
       }
 
       // Patch download — GET /patches/:oldHash/:newHash.patch (public, edge-cached)
-      const patchDownloadMatch = /^\/patches\/([a-f\d]+)\/([a-f\d]+)\.patch$/.exec(url.pathname);
+      const patchDownloadMatch = /^\/patches\/([A-Za-z0-9_-]+)\/([A-Za-z0-9_-]+)\.patch$/.exec(
+        url.pathname,
+      );
       if (patchDownloadMatch?.[1] && patchDownloadMatch[2] && request.method === "GET") {
         return await handlePatchDownload(
           request,

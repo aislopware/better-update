@@ -58,3 +58,7 @@ export class ProvisioningError extends Data.TaggedError("ProvisioningError")<{
 export class EnvExportError extends Data.TaggedError("EnvExportError")<{
   readonly message: string;
 }> {}
+
+export class UpdatePublishError extends Data.TaggedError("UpdatePublishError")<{
+  readonly message: string;
+}> {}
