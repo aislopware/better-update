@@ -41,9 +41,14 @@ export const UpdateCard = ({ update, channels, orgId, projectId }: UpdateCardPro
   const eligibleChannels = channels.filter((channel) => channel.branchId !== update.branchId);
 
   const invalidateUpdates = async () =>
-    queryClient.invalidateQueries({
-      queryKey: ["org", orgId, "projects", projectId, "updates"],
-    });
+    Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: ["org", orgId, "projects", projectId, "updates"],
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ["org", orgId, "projects", projectId, "build-compatibility-matrix"],
+      }),
+    ]);
 
   const handleDelete = async () => {
     setIsDeleting(true);

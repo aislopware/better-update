@@ -64,6 +64,9 @@ export {
 export {
   ArtifactFormat,
   Build,
+  BuildCompatibilityChannel,
+  BuildCompatibilityMatrixResult,
+  BuildCompatibilityRow,
   BuildArtifact,
   BuildWithArtifact,
   CompleteBuildBody,
@@ -71,6 +74,7 @@ export {
   DeleteBuildResult,
   Distribution,
   InstallLinkResult,
+  MissingRuntimeVersionBuild,
   ReserveBuildResult,
 } from "./domain/build";
 export {

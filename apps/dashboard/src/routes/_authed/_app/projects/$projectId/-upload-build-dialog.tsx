@@ -282,9 +282,14 @@ const UploadForm = ({
     }
 
     toast.success("Build uploaded successfully");
-    await queryClient.invalidateQueries({
-      queryKey: ["org", orgId, "projects", projectId, "builds"],
-    });
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: ["org", orgId, "projects", projectId, "builds"],
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ["org", orgId, "projects", projectId, "build-compatibility-matrix"],
+      }),
+    ]);
     onSuccess();
   };
 

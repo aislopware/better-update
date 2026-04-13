@@ -4,6 +4,7 @@ import { Schema } from "effect";
 import { Forbidden } from "../auth/errors";
 import { NotFound } from "../auth/ownership";
 import {
+  BuildCompatibilityMatrixResult,
   BuildWithArtifact,
   CompleteBuildBody,
   CreateBuildBody,
@@ -63,6 +64,21 @@ export class BuildsGroup extends HttpApiGroup.make("builds")
         OpenApi.annotations({
           title: "List builds",
           description: "List builds for a project with optional filters",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.get("compatibilityMatrix", "/api/builds/compatibility-matrix")
+      .setUrlParams(
+        Schema.Struct({
+          projectId: Id,
+        }),
+      )
+      .addSuccess(BuildCompatibilityMatrixResult)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Build compatibility matrix",
+          description: "List build-to-channel OTA compatibility for a project",
         }),
       ),
   )

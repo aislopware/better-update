@@ -1,4 +1,4 @@
-import { resolveUpdateRollout } from "./update-rollout";
+import { collectServableUpdates, resolveUpdateRollout } from "./update-rollout";
 
 // Pre-computed hash fractions (SHA-256, deterministic):
 //   HashToFraction("update-1", "client-c")  ≈ 0.2048  → below 0.50 (in 50% rollout)
@@ -7,6 +7,32 @@ import { resolveUpdateRollout } from "./update-rollout";
 //   HashToFraction("update-0", "client-a")  ≈ 0.3240  → above 0.30 (not in 30% rollout)
 
 const candidate = (id: string, rollout: number) => ({ id, rollout_percentage: rollout });
+
+describe(collectServableUpdates, () => {
+  test("returns all updates that remain servable through a partial rollout chain", () => {
+    expect(
+      collectServableUpdates([
+        candidate("latest-canary", 50),
+        candidate("previous-stable", 100),
+        candidate("older-stable", 100),
+      ]),
+    ).toEqual([candidate("latest-canary", 50), candidate("previous-stable", 100)]);
+  });
+
+  test("skips reverted updates and keeps searching until a fully rolled out fallback", () => {
+    expect(
+      collectServableUpdates([
+        candidate("latest-reverted", 0),
+        candidate("previous-reverted", 0),
+        candidate("stable", 100),
+      ]),
+    ).toEqual([candidate("stable", 100)]);
+  });
+
+  test("returns an empty array when no candidate is servable", () => {
+    expect(collectServableUpdates([candidate("latest-reverted", 0)])).toEqual([]);
+  });
+});
 
 describe(resolveUpdateRollout, () => {
   test("returns null for empty candidates", async () => {

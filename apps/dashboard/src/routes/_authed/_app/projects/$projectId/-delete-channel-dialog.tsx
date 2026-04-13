@@ -26,11 +26,16 @@ export const DeleteChannelDialog = ({
       description="This action cannot be undone. The channel will be permanently removed and clients will no longer receive updates through it."
       onConfirm={async () => deleteChannel(channel.id)}
       successMessage="Channel deleted"
-      onSuccess={async () =>
-        queryClient.invalidateQueries({
-          queryKey: ["org", orgId, "projects", projectId, "channels"],
-        })
-      }
+      onSuccess={async () => {
+        await Promise.all([
+          queryClient.invalidateQueries({
+            queryKey: ["org", orgId, "projects", projectId, "channels"],
+          }),
+          queryClient.invalidateQueries({
+            queryKey: ["org", orgId, "projects", projectId, "build-compatibility-matrix"],
+          }),
+        ]);
+      }}
     >
       <Button variant="ghost" size="icon" className="size-8">
         <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} className="text-destructive size-4" />

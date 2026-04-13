@@ -16,6 +16,7 @@ import { cloudflareEnv } from "../cloudflare/context";
 import { generateInstallToken } from "../domain/install-token";
 import { generateUploadUrl } from "../domain/presigned-url";
 import { BuildRepo } from "../repositories/builds";
+import { CompatibilityRepo } from "../repositories/compatibility";
 
 const UPLOAD_EXPIRY_SECONDS = 7200;
 const KV_RESERVATION_TTL = 10_800;
@@ -223,6 +224,15 @@ export const BuildsGroupLive = HttpApiBuilder.group(ManagementApi, "builds", (ha
         yield* assertProjectOwnership(build.projectId);
 
         return build;
+      }),
+    )
+    .handle("compatibilityMatrix", ({ urlParams }) =>
+      Effect.gen(function* () {
+        yield* assertPermission("build", "read");
+        yield* assertProjectOwnership(urlParams.projectId);
+
+        const repo = yield* CompatibilityRepo;
+        return yield* repo.getBuildMatrix({ projectId: urlParams.projectId });
       }),
     )
     .handle("delete", ({ path }) =>

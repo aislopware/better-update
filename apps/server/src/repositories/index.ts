@@ -3,6 +3,7 @@ export { AuditLogRepoLive } from "./audit-logs";
 export { BranchRepoLive } from "./branches";
 export { BuildRepoLive } from "./builds";
 export { ChannelRepoLive } from "./channels";
+export { CompatibilityRepoLive } from "./compatibility";
 export { CredentialRepoLive } from "./credentials";
 export { EnvVarRepoLive } from "./env-vars";
 export { ManifestRepo, ManifestRepoLive } from "./manifest";

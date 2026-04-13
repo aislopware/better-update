@@ -63,9 +63,14 @@ export const PromoteUpdateDialog = ({
       return;
     }
     toast.success("Update promoted successfully");
-    await queryClient.invalidateQueries({
-      queryKey: ["org", orgId, "projects", projectId, "updates"],
-    });
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: ["org", orgId, "projects", projectId, "updates"],
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ["org", orgId, "projects", projectId, "build-compatibility-matrix"],
+      }),
+    ]);
     setIsPromoting(false);
     setTargetChannelId("");
     onOpenChange(false);

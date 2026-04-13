@@ -33,9 +33,15 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import type { Channel } from "@better-update/api";
+import type {
+  BuildCompatibilityChannel,
+  BuildCompatibilityRow,
+  Channel,
+  MissingRuntimeVersionBuild,
+} from "@better-update/api";
 import type { BranchItem } from "@better-update/api-client/react";
 
+import { CompatibleBuildsSection, MissingMatchingBuilds } from "./-channel-compatibility";
 import { DeleteChannelDialog } from "./-delete-channel-dialog";
 
 interface RolloutEntry {
@@ -309,9 +315,21 @@ interface ChannelCardProps {
   readonly orgId: string;
   readonly projectId: string;
   readonly branches: readonly BranchItem[];
+  readonly compatibleBuilds: readonly {
+    readonly build: typeof BuildCompatibilityRow.Type;
+    readonly status: typeof BuildCompatibilityChannel.Type;
+  }[];
+  readonly missingRuntimeVersions: readonly (typeof MissingRuntimeVersionBuild.Type)[];
 }
 
-export const ChannelCard = ({ channel, orgId, projectId, branches }: ChannelCardProps) => {
+export const ChannelCard = ({
+  channel,
+  orgId,
+  projectId,
+  branches,
+  compatibleBuilds,
+  missingRuntimeVersions,
+}: ChannelCardProps) => {
   const queryClient = useQueryClient();
   const [isToggling, setIsToggling] = useState(false);
   const linkedBranch = branches.find((branch) => branch.id === channel.branchId);
@@ -320,10 +338,16 @@ export const ChannelCard = ({ channel, orgId, projectId, branches }: ChannelCard
     ? parseRolloutState(channel.branchMappingJson)
     : null;
 
-  const invalidateChannels = async () =>
-    queryClient.invalidateQueries({
-      queryKey: ["org", orgId, "projects", projectId, "channels"],
-    });
+  const invalidateChannels = async (): Promise<void> => {
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: ["org", orgId, "projects", projectId, "channels"],
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ["org", orgId, "projects", projectId, "build-compatibility-matrix"],
+      }),
+    ]);
+  };
 
   const handleRelink = async (branchId: string) => {
     // eslint-disable-next-line functional/no-try-statements -- imperative shell error handling
@@ -426,6 +450,8 @@ export const ChannelCard = ({ channel, orgId, projectId, branches }: ChannelCard
             invalidateChannels={invalidateChannels}
           />
         )}
+        <CompatibleBuildsSection compatibleBuilds={compatibleBuilds} />
+        <MissingMatchingBuilds missingRuntimeVersions={missingRuntimeVersions} />
       </CardContent>
     </Card>
   );

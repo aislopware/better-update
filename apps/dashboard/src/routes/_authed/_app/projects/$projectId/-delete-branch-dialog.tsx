@@ -37,6 +37,9 @@ export const DeleteBranchDialog = ({
           queryClient.invalidateQueries({
             queryKey: ["org", orgId, "projects", projectId, "updates"],
           }),
+          queryClient.invalidateQueries({
+            queryKey: ["org", orgId, "projects", projectId, "build-compatibility-matrix"],
+          }),
         ]);
       }}
     >
