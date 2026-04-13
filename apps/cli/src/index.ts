@@ -1,9 +1,12 @@
 #!/usr/bin/env bun
 
+import process from "node:process";
+
 import { Command } from "@effect/cli";
 import { BunContext, BunRuntime } from "@effect/platform-bun";
 import { Console, Effect } from "effect";
 
+import { buildCommand } from "./commands/build";
 import { buildsCommand } from "./commands/builds";
 import { credentialsCommand } from "./commands/credentials";
 import { envCommand } from "./commands/env";
@@ -22,6 +25,7 @@ const command = Command.make("better-update", {}, () =>
     logoutCommand,
     initCommand,
     statusCommand,
+    buildCommand,
     buildsCommand,
     credentialsCommand,
     envCommand,

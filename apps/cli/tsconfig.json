@@ -1,7 +1,7 @@
 {
   "extends": "@better-update/typescript-config/base.json",
   "compilerOptions": {
-    "types": ["node"]
+    "types": ["node", "vitest/globals"]
   },
-  "include": ["src"]
+  "include": ["src", "*.ts"]
 }
