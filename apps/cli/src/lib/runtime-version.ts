@@ -60,7 +60,9 @@ const runFingerprint = (
   projectRoot: string,
 ): Effect.Effect<string, RuntimeVersionError, CommandExecutor.CommandExecutor> =>
   Effect.gen(function* () {
-    const cmd = Command.make("npx", "@expo/fingerprint", projectRoot);
+    const cmd = Command.make("bunx", "@expo/fingerprint", projectRoot).pipe(
+      Command.workingDirectory(projectRoot),
+    );
     const stdout = yield* Command.string(cmd).pipe(
       Effect.mapError(
         (cause) =>

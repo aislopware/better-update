@@ -10,8 +10,9 @@
     "lint:check": "oxlint",
     "preview": "vite preview",
     "test": "vitest run --project unit --project component",
-    "test:all": "vitest run",
-    "test:e2e": "vitest run --project e2e"
+    "test:all": "bun run test && bun run test:e2e",
+    "test:e2e": "vitest run --project e2e --maxWorkers 1 --fileParallelism false",
+    "typegen:cf": "wrangler types"
   },
   "dependencies": {
     "@better-auth/api-key": "^1.6.0",

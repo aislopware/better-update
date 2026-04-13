@@ -16,9 +16,9 @@
     "lint:check": "turbo run lint:check",
     "prepare": "lefthook install --force",
     "test": "turbo run test",
-    "test:all": "turbo run test test:integrations test:e2e",
+    "test:all": "bun run test && bun run test:integrations && bun run test:e2e",
     "test:e2e": "turbo run test:e2e --concurrency=1",
-    "test:integrations": "turbo run test:integrations",
+    "test:integrations": "turbo run test:integrations --concurrency=1",
     "typegen:cf": "turbo run typegen:cf"
   },
   "dependencies": {

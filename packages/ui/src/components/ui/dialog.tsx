@@ -8,20 +8,50 @@ import { Button } from "#/components/ui/button"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Cancel01Icon } from "@hugeicons/core-free-icons"
 
+const normalizeRenderChild = (
+  children: React.ReactNode,
+  render: React.ReactNode | undefined
+): { children: React.ReactNode; render?: React.ReactNode } => {
+  if (render !== undefined) {
+    return { children, render }
+  }
+
+  if (!React.isValidElement<{ children?: React.ReactNode }>(children)) {
+    return { children }
+  }
+
+  return {
+    children: children.props.children,
+    render: children,
+  }
+}
+
 function Dialog({ ...props }: DialogPrimitive.Root.Props) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />
 }
 
-function DialogTrigger({ ...props }: DialogPrimitive.Trigger.Props) {
-  return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />
+function DialogTrigger({ children, render, ...props }: DialogPrimitive.Trigger.Props) {
+  return (
+    <DialogPrimitive.Trigger
+      data-slot="dialog-trigger"
+      {...normalizeRenderChild(children, render)}
+      {...props}
+    />
+  )
 }
 
 function DialogPortal({ ...props }: DialogPrimitive.Portal.Props) {
   return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />
 }
 
-function DialogClose({ ...props }: DialogPrimitive.Close.Props) {
-  return <DialogPrimitive.Close data-slot="dialog-close" {...props} />
+function DialogClose({ children, render, ...props }: DialogPrimitive.Close.Props) {
+  return (
+    <DialogPrimitive.Close
+      data-slot="dialog-close"
+      {...normalizeRenderChild(children, render)}
+      {...props}
+    />
+  )
 }
 
 function DialogOverlay({

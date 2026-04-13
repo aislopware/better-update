@@ -6,7 +6,7 @@ import { it } from "@effect/vitest";
 import { Effect, Exit } from "effect";
 
 import { BuildFailedError } from "./exit-codes";
-import { sha256File } from "./sha256";
+import { sha256File, sha256FileBase64Url } from "./sha256";
 import { failureError } from "./test-utils";
 
 // ── fixtures ──────────────────────────────────────────────────────
@@ -69,6 +69,18 @@ describe(sha256File, () => {
       const exit = yield* sha256File("/nonexistent-path-for-test-xyz").pipe(Effect.exit);
       expect(Exit.isFailure(exit)).toBe(true);
       expect(failureError(exit)).toBeInstanceOf(BuildFailedError);
+    }),
+  );
+});
+
+describe(sha256FileBase64Url, () => {
+  it.effect('computes a base64url SHA-256 digest for "hello world"', () =>
+    Effect.gen(function* () {
+      const result = yield* withTempFile(Buffer.from(HELLO_WORLD, "utf8"), (path) =>
+        sha256FileBase64Url(path),
+      );
+      expect(result.sha256Base64Url).toBe("uU0nuZNNPgilLlLX2n2r-sSE7-N6U4DukIj3rOLvzek");
+      expect(result.byteSize).toBe(HELLO_WORLD.length);
     }),
   );
 });

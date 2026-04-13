@@ -66,8 +66,7 @@ describe(MembersTableView, () => {
       />,
     );
 
-    // DropdownMenuTrigger wraps Button, producing nested <button> elements.
-    // We verify at least 2 buttons exist (one trigger area per non-owner member).
+    // There should be one trigger button per manageable non-owner member.
     const actionButtons = screen.getAllByRole("button");
     expect(actionButtons.length).toBeGreaterThanOrEqual(2);
   });

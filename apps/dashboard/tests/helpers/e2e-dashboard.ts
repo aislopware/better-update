@@ -7,6 +7,7 @@ import { unstable_startWorker } from "wrangler";
 const API_DIR = resolve(import.meta.dirname, "../../../server");
 
 const envLocal = `BETTER_AUTH_SECRET=e2e-test-secret-that-is-at-least-32-chars
+TEST_MODE=true
 GITHUB_CLIENT_ID=e2e-github-id
 GITHUB_CLIENT_SECRET=e2e-github-secret
 `;
@@ -30,9 +31,10 @@ export const setupE2EDashboard = (persistDir: string) => {
   };
 
   const envLocalPath = resolve(API_DIR, ".env.local");
+  const persistPath = resolve(API_DIR, persistDir);
 
   beforeAll(async () => {
-    rmSync(resolve(API_DIR, persistDir), { recursive: true, force: true });
+    rmSync(persistPath, { recursive: true, force: true });
     writeFileSync(envLocalPath, envLocal);
 
     execSync(`bunx wrangler d1 migrations apply DB --local --persist-to ${persistDir}`, {
@@ -40,10 +42,18 @@ export const setupE2EDashboard = (persistDir: string) => {
       stdio: "pipe",
     });
 
-    state.worker = await unstable_startWorker({
-      config: resolve(API_DIR, "wrangler.jsonc"),
-      dev: { server: { port: 0 }, inspector: false, persist: resolve(API_DIR, persistDir) },
-    });
+    const originalCwd = process.cwd();
+
+    process.chdir(API_DIR);
+    try {
+      state.worker = await unstable_startWorker({
+        config: resolve(API_DIR, "wrangler.jsonc"),
+        build: { nodejsCompatMode: "v2" },
+        dev: { server: { port: 0 }, inspector: false, logLevel: "error", persist: persistPath },
+      });
+    } finally {
+      process.chdir(originalCwd);
+    }
 
     const url = await state.worker.url;
     state.baseUrl = url.href.replace(/\/$/, "");
@@ -51,7 +61,7 @@ export const setupE2EDashboard = (persistDir: string) => {
 
   afterAll(async () => {
     await state.worker?.dispose();
-    rmSync(resolve(API_DIR, persistDir), { recursive: true, force: true });
+    rmSync(persistPath, { recursive: true, force: true });
     rmSync(envLocalPath, { force: true });
   });
 

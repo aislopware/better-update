@@ -36,7 +36,8 @@ export default defineConfig(async () => {
               miniflare: {
                 bindings: {
                   TEST_MIGRATIONS: migrations,
-                  BETTER_AUTH_SECRET: "test-secret",
+                  TEST_MODE: "true",
+                  BETTER_AUTH_SECRET: "integration-test-secret-that-is-at-least-32-chars",
                   BETTER_AUTH_URL: "http://localhost",
                   DASHBOARD_URL: "http://localhost",
                   GITHUB_CLIENT_ID: "test-github-id",
@@ -58,6 +59,7 @@ export default defineConfig(async () => {
             name: "e2e",
             globals: true,
             include: ["tests/e2e/**/*.test.ts"],
+            hookTimeout: 30_000,
             testTimeout: 30_000,
           },
         },

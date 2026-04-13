@@ -7,6 +7,24 @@ import { cn } from "#/lib/utils"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { ArrowRight01Icon, Tick02Icon } from "@hugeicons/core-free-icons"
 
+const normalizeRenderChild = (
+  children: React.ReactNode,
+  render: React.ReactNode | undefined
+): { children: React.ReactNode; render?: React.ReactNode } => {
+  if (render !== undefined) {
+    return { children, render }
+  }
+
+  if (!React.isValidElement<{ children?: React.ReactNode }>(children)) {
+    return { children }
+  }
+
+  return {
+    children: children.props.children,
+    render: children,
+  }
+}
+
 function DropdownMenu({ ...props }: MenuPrimitive.Root.Props) {
   return <MenuPrimitive.Root data-slot="dropdown-menu" {...props} />
 }
@@ -15,8 +33,18 @@ function DropdownMenuPortal({ ...props }: MenuPrimitive.Portal.Props) {
   return <MenuPrimitive.Portal data-slot="dropdown-menu-portal" {...props} />
 }
 
-function DropdownMenuTrigger({ ...props }: MenuPrimitive.Trigger.Props) {
-  return <MenuPrimitive.Trigger data-slot="dropdown-menu-trigger" {...props} />
+function DropdownMenuTrigger({
+  children,
+  render,
+  ...props
+}: MenuPrimitive.Trigger.Props) {
+  return (
+    <MenuPrimitive.Trigger
+      data-slot="dropdown-menu-trigger"
+      {...normalizeRenderChild(children, render)}
+      {...props}
+    />
+  )
 }
 
 function DropdownMenuContent({

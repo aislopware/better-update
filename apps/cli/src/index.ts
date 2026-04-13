@@ -14,6 +14,7 @@ import { initCommand } from "./commands/init";
 import { loginCommand } from "./commands/login";
 import { logoutCommand } from "./commands/logout";
 import { statusCommand } from "./commands/status";
+import { updateCommand } from "./commands/update";
 import { AuthStoreLive } from "./services/auth-store";
 import { ConfigStoreLive } from "./services/config-store";
 
@@ -29,6 +30,7 @@ const command = Command.make("better-update", {}, () =>
     buildsCommand,
     credentialsCommand,
     envCommand,
+    updateCommand,
   ]),
 );
 
