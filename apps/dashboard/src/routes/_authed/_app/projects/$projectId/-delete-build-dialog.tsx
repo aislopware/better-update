@@ -27,9 +27,14 @@ export const DeleteBuildDialog = ({
       onConfirm={async () => deleteBuild(build.id)}
       successMessage="Build deleted"
       onSuccess={async () => {
-        await queryClient.invalidateQueries({
-          queryKey: ["org", orgId, "projects", projectId, "builds"],
-        });
+        await Promise.all([
+          queryClient.invalidateQueries({
+            queryKey: ["org", orgId, "projects", projectId, "builds"],
+          }),
+          queryClient.invalidateQueries({
+            queryKey: ["org", orgId, "projects", projectId, "build-compatibility-matrix"],
+          }),
+        ]);
       }}
     >
       <Button variant="ghost" size="icon" className="size-8" title="Delete build">

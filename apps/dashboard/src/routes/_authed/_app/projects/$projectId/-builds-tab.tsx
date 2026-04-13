@@ -1,4 +1,4 @@
-import { buildsQueryOptions } from "@better-update/api-client/react";
+import { buildCompatibilityMatrixQueryOptions } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import { Card, CardContent } from "@better-update/ui/components/ui/card";
 import {
@@ -15,6 +15,7 @@ import { useState } from "react";
 
 import { BuildCard } from "./-build-card";
 import { DISTRIBUTION_LABELS } from "./-build-helpers";
+import { CompatibilityMatrix } from "./-compatibility-matrix";
 import { UploadBuildDialog } from "./-upload-build-dialog";
 
 const BuildsEmptyState = () => (
@@ -37,22 +38,26 @@ export const BuildsTab = ({ orgId, projectId }: { orgId: string; projectId: stri
   const [platformFilter, setPlatformFilter] = useState<"ios" | "android" | undefined>(undefined);
   const [distributionFilter, setDistributionFilter] = useState<string | undefined>(undefined);
   const [page, setPage] = useState(1);
-  const { data: buildsData } = useSuspenseQuery(
-    buildsQueryOptions(
-      orgId,
-      projectId,
-      platformFilter ? { platform: platformFilter } : undefined,
-      page,
-    ),
+  const { data: compatibilityData } = useSuspenseQuery(
+    buildCompatibilityMatrixQueryOptions(orgId, projectId),
   );
 
-  const totalPages = Math.ceil(buildsData.total / buildsData.limit);
-  const filteredBuilds = distributionFilter
-    ? buildsData.items.filter((build) => build.distribution === distributionFilter)
-    : buildsData.items;
+  const pageSize = 20;
+  const filteredBuilds = compatibilityData.rows.filter(
+    (build) =>
+      (platformFilter === undefined || build.platform === platformFilter) &&
+      (distributionFilter === undefined || build.distribution === distributionFilter),
+  );
+  const totalPages = Math.max(1, Math.ceil(filteredBuilds.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const visibleBuilds = filteredBuilds.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
     <div className="flex flex-col gap-4">
+      <CompatibilityMatrix
+        rows={visibleBuilds}
+        missingRuntimeVersions={compatibilityData.missingRuntimeVersions}
+      />
       <div className="flex justify-end gap-2">
         <UploadBuildDialog projectId={projectId} orgId={orgId} />
         <Select
@@ -97,15 +102,15 @@ export const BuildsTab = ({ orgId, projectId }: { orgId: string; projectId: stri
           </SelectContent>
         </Select>
       </div>
-      {buildsData.items.length === 0 && <BuildsEmptyState />}
-      {buildsData.items.length > 0 && filteredBuilds.length === 0 && (
+      {compatibilityData.rows.length === 0 && <BuildsEmptyState />}
+      {compatibilityData.rows.length > 0 && filteredBuilds.length === 0 && (
         <p className="text-muted-foreground py-8 text-center text-sm">
           No builds match the selected filters.
         </p>
       )}
-      {filteredBuilds.length > 0 && (
+      {visibleBuilds.length > 0 && (
         <div className="flex flex-col gap-3">
-          {filteredBuilds.map((build) => (
+          {visibleBuilds.map((build) => (
             <BuildCard key={build.id} build={build} orgId={orgId} projectId={projectId} />
           ))}
         </div>
@@ -123,12 +128,12 @@ export const BuildsTab = ({ orgId, projectId }: { orgId: string; projectId: stri
             Previous
           </Button>
           <span className="text-muted-foreground text-sm">
-            Page {buildsData.page} of {totalPages}
+            Page {currentPage} of {totalPages}
           </span>
           <Button
             variant="outline"
             size="sm"
-            disabled={page * buildsData.limit >= buildsData.total}
+            disabled={currentPage >= totalPages}
             onClick={() => {
               setPage((prev) => prev + 1);
             }}

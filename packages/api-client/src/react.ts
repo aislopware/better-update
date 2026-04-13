@@ -239,6 +239,13 @@ export const buildQueryOptions = (buildId: string) =>
     staleTime: 30_000,
   });
 
+export const buildCompatibilityMatrixQueryOptions = (orgId: string, projectId: string) =>
+  queryOptions({
+    queryKey: ["org", orgId, "projects", projectId, "build-compatibility-matrix"],
+    queryFn: () => runApi((api) => api.builds.compatibilityMatrix({ urlParams: { projectId } })),
+    staleTime: 30_000,
+  });
+
 // Builds — Mutations
 export const reserveBuild = (body: typeof CreateBuildBody.Type) =>
   runApi((api) => api.builds.reserve({ payload: body }));

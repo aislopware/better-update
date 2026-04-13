@@ -29,6 +29,7 @@ import {
   BranchRepoLive,
   BuildRepoLive,
   ChannelRepoLive,
+  CompatibilityRepoLive,
   CredentialRepoLive,
   EnvVarRepoLive,
   PatchRepoLive,
@@ -64,6 +65,7 @@ const UpdatesGroupWithRepo = UpdatesGroupLive.pipe(
 );
 
 const BuildsGroupWithRepo = BuildsGroupLive.pipe(
+  Layer.provide(CompatibilityRepoLive),
   Layer.provide(BuildRepoLive),
   Layer.provide(ProjectRepoLive),
   Layer.provide(AuditLogRepoLive),

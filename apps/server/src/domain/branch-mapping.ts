@@ -78,6 +78,18 @@ const parseThreshold = (logic: string): number | null => {
   return match?.[1] ? Number.parseFloat(match[1]) : null;
 };
 
+export const extractReachableBranchIds = (branchMappingJson: string): readonly string[] => {
+  const mapping = parseBranchMapping(branchMappingJson);
+  return mapping.data.reduce<readonly string[]>((branchIds, entry) => {
+    const threshold =
+      entry.branchMappingLogic === "true" ? 1 : parseThreshold(entry.branchMappingLogic);
+
+    return threshold !== null && threshold > 0 && !branchIds.includes(entry.branchId)
+      ? [...branchIds, entry.branchId]
+      : branchIds;
+  }, []);
+};
+
 const evaluateEntry = async (
   entry: BranchMappingEntry,
   salt: string,

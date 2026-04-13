@@ -1,11 +1,27 @@
-import { branchesQueryOptions, channelsQueryOptions } from "@better-update/api-client/react";
+import {
+  branchesQueryOptions,
+  buildCompatibilityMatrixQueryOptions,
+  channelsQueryOptions,
+} from "@better-update/api-client/react";
 import { Card, CardContent } from "@better-update/ui/components/ui/card";
 import { SatelliteIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 
+import type { BuildCompatibilityChannel, BuildCompatibilityRow } from "@better-update/api";
+
 import { ChannelCard } from "./-channel-card";
 import { CreateChannelDialog } from "./-create-channel-dialog";
+
+const isCompatibleBuild = (
+  entry: {
+    readonly build: typeof BuildCompatibilityRow.Type;
+    readonly status: typeof BuildCompatibilityChannel.Type;
+  } | null,
+): entry is {
+  readonly build: typeof BuildCompatibilityRow.Type;
+  readonly status: typeof BuildCompatibilityChannel.Type;
+} => entry !== null;
 
 const ChannelsEmptyState = () => (
   <Card className="border-dashed">
@@ -26,6 +42,9 @@ const ChannelsEmptyState = () => (
 export const ChannelsTab = ({ orgId, projectId }: { orgId: string; projectId: string }) => {
   const { data: channelsData } = useSuspenseQuery(channelsQueryOptions(orgId, projectId));
   const { data: branchesData } = useSuspenseQuery(branchesQueryOptions(orgId, projectId));
+  const { data: compatibilityData } = useSuspenseQuery(
+    buildCompatibilityMatrixQueryOptions(orgId, projectId),
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -43,6 +62,15 @@ export const ChannelsTab = ({ orgId, projectId }: { orgId: string; projectId: st
               orgId={orgId}
               projectId={projectId}
               branches={branchesData.items}
+              compatibleBuilds={compatibilityData.rows
+                .map((build) => {
+                  const status = build.channels.find((entry) => entry.channelId === channel.id);
+                  return status ? { build, status } : null;
+                })
+                .filter(isCompatibleBuild)}
+              missingRuntimeVersions={compatibilityData.missingRuntimeVersions.filter(
+                (entry) => entry.channelId === channel.id,
+              )}
             />
           ))}
         </div>

@@ -1,6 +1,7 @@
 import {
   buildBranchMapping,
   evaluateBranchMapping,
+  extractReachableBranchIds,
   extractNewBranchId,
   updateBranchMappingPercentage,
 } from "./branch-mapping";
@@ -78,6 +79,37 @@ describe(extractNewBranchId, () => {
     });
 
     expect(extractNewBranchId(mapping)).toBe("target-branch");
+  });
+});
+
+describe(extractReachableBranchIds, () => {
+  test("returns both rollout target and fallback branch ids", () => {
+    const mapping = buildBranchMapping({
+      newBranchId: "branch-new",
+      oldBranchId: "branch-old",
+      percentage: 50,
+      salt: "salt",
+    });
+
+    expect(extractReachableBranchIds(mapping)).toEqual(["branch-new", "branch-old"]);
+  });
+
+  test("skips zero-threshold and invalid entries while deduplicating branch ids", () => {
+    const mapping = JSON.stringify({
+      data: [
+        { branchId: "branch-zero", branchMappingLogic: "hash_lt(mappingId, 0.00)" },
+        { branchId: "branch-valid", branchMappingLogic: "hash_lt(mappingId, 0.25)" },
+        { branchId: "branch-valid", branchMappingLogic: "true" },
+        { branchId: "branch-invalid", branchMappingLogic: "unsupported(mappingId, 0.5)" },
+      ],
+      salt: "salt",
+    });
+
+    expect(extractReachableBranchIds(mapping)).toEqual(["branch-valid"]);
+  });
+
+  test("returns empty array for valid JSON with wrong shape", () => {
+    expect(extractReachableBranchIds(JSON.stringify({ nope: true }))).toEqual([]);
   });
 });
 

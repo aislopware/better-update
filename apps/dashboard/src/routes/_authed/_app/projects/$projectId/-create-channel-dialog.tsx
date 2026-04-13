@@ -47,9 +47,14 @@ export const CreateChannelDialog = ({ orgId, projectId }: { orgId: string; proje
     }
 
     toast.success("Channel created");
-    await queryClient.invalidateQueries({
-      queryKey: ["org", orgId, "projects", projectId, "channels"],
-    });
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: ["org", orgId, "projects", projectId, "channels"],
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ["org", orgId, "projects", projectId, "build-compatibility-matrix"],
+      }),
+    ]);
     setName("");
     setBranchId(null);
     setIsSubmitting(false);

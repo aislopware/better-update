@@ -13,6 +13,20 @@ export type RolloutResolution<T extends RolloutCandidate> =
 
 // -- Core -------------------------------------------------------------------
 
+export const collectServableUpdates = <T extends RolloutCandidate>(
+  candidates: readonly T[],
+): readonly T[] => {
+  const [candidate, ...rest] = candidates;
+  if (!candidate) {
+    return [];
+  }
+
+  const current = candidate.rollout_percentage > 0 ? [candidate] : [];
+  return candidate.rollout_percentage === 100
+    ? current
+    : [...current, ...collectServableUpdates(rest)];
+};
+
 const isInRollout = async (
   updateId: string,
   easClientId: string,

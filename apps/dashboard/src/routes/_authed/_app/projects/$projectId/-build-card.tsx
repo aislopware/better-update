@@ -4,18 +4,65 @@ import { Card, CardContent, CardHeader, CardTitle } from "@better-update/ui/comp
 import { Download04Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
-import type { BuildWithArtifact } from "@better-update/api";
+import type { BuildCompatibilityRow } from "@better-update/api";
 
 import { formatBytes } from "./-build-helpers";
 import { DeleteBuildDialog } from "./-delete-build-dialog";
 import { InstallLinkDialog } from "./-install-link-dialog";
+
+const statusText = (count: number) =>
+  count > 0 ? `✓ ${count} updates` : "✗ no updates for this runtimeVersion";
+
+const CompatibleChannels = ({ build }: { build: typeof BuildCompatibilityRow.Type }) => {
+  if (build.runtimeVersion === null) {
+    return (
+      <p className="text-muted-foreground text-sm">
+        This build is missing `runtimeVersion`, so OTA compatibility cannot be determined.
+      </p>
+    );
+  }
+
+  if (build.channels.length === 0) {
+    return (
+      <p className="text-muted-foreground text-sm">
+        No channels have been created for this project yet.
+      </p>
+    );
+  }
+
+  return build.channels.map((channel) => (
+    <div
+      key={`${build.id}:${channel.channelId}`}
+      className="flex flex-wrap items-center gap-2 text-sm"
+    >
+      <Badge variant="outline">{channel.channelName}</Badge>
+      {channel.isPaused ? (
+        <Badge variant="outline">Paused</Badge>
+      ) : (
+        <span
+          className={
+            channel.updateCount > 0
+              ? "font-medium text-emerald-700 dark:text-emerald-400"
+              : "font-medium text-amber-700 dark:text-amber-400"
+          }
+        >
+          {statusText(channel.updateCount)}
+        </span>
+      )}
+      {channel.rolloutActive && <Badge variant="outline">Rollout active</Badge>}
+      {channel.latestUpdateMessage && (
+        <span className="text-muted-foreground">latest {channel.latestUpdateMessage}</span>
+      )}
+    </div>
+  ));
+};
 
 export const BuildCard = ({
   build,
   orgId,
   projectId,
 }: {
-  build: typeof BuildWithArtifact.Type;
+  build: typeof BuildCompatibilityRow.Type;
   orgId: string;
   projectId: string;
 }) => (
@@ -53,6 +100,10 @@ export const BuildCard = ({
         {build.gitRef && <span className="font-mono text-xs">{build.gitRef}</span>}
         {build.artifact && <span>{formatBytes(build.artifact.byteSize)}</span>}
         <span>{new Date(build.createdAt).toLocaleString()}</span>
+      </div>
+      <div className="mt-4 flex flex-col gap-2">
+        <div className="text-sm font-medium">Compatible channels</div>
+        <CompatibleChannels build={build} />
       </div>
     </CardContent>
   </Card>
