@@ -1,0 +1,27 @@
+{
+  "name": "better-update",
+  "version": "0.1.0",
+  "private": true,
+  "bin": {
+    "better-update": "./src/index.ts"
+  },
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "oxlint --fix",
+    "lint:check": "oxlint"
+  },
+  "dependencies": {
+    "@better-update/api": "workspace:*",
+    "@effect/cli": "^0.75.0",
+    "@effect/platform": "^0.96.0",
+    "@effect/platform-bun": "^0.89.0",
+    "effect": "^3.21.0"
+  },
+  "devDependencies": {
+    "@better-update/oxlint-config": "workspace:*",
+    "@better-update/typescript-config": "workspace:*"
+  }
+}
