@@ -1,5 +1,6 @@
 import { Effect } from "effect";
 
+import { fromBase64, toBase64 } from "../lib/base64";
 import {
   decryptAesGcm,
   decryptSecret,
@@ -7,9 +8,7 @@ import {
   encryptSecret,
   envelopeDecrypt,
   envelopeEncrypt,
-  fromBase64,
   resolveKeyring,
-  toBase64,
 } from "./credential-vault";
 
 import type { Keyring } from "./credential-vault";
@@ -85,18 +84,20 @@ describe("credential-vault", () => {
       const orgId = "org-test-123";
       const plaintext = new TextEncoder().encode("secret file contents");
 
-      const result = await envelopeEncrypt(keyring, orgId, plaintext);
+      const result = await Effect.runPromise(envelopeEncrypt(keyring, orgId, plaintext));
 
       expect(result.keyVersion).toBe(keyring.currentVersion);
       expect(result.encryptedBlob.length).toBeGreaterThan(0);
       expect(result.encryptedDek.length).toBeGreaterThan(0);
 
-      const decrypted = await envelopeDecrypt(
-        keyring,
-        orgId,
-        result.keyVersion,
-        result.encryptedDek,
-        result.encryptedBlob,
+      const decrypted = await Effect.runPromise(
+        envelopeDecrypt(
+          keyring,
+          orgId,
+          result.keyVersion,
+          result.encryptedDek,
+          result.encryptedBlob,
+        ),
       );
 
       expect(new TextDecoder().decode(decrypted)).toBe("secret file contents");
@@ -106,8 +107,8 @@ describe("credential-vault", () => {
       const keyring = makeTestKeyring();
       const plaintext = new TextEncoder().encode("same data");
 
-      const result1 = await envelopeEncrypt(keyring, "org-alpha", plaintext);
-      const result2 = await envelopeEncrypt(keyring, "org-beta", plaintext);
+      const result1 = await Effect.runPromise(envelopeEncrypt(keyring, "org-alpha", plaintext));
+      const result2 = await Effect.runPromise(envelopeEncrypt(keyring, "org-beta", plaintext));
 
       expect(result1.encryptedDek).not.toBe(result2.encryptedDek);
     });
@@ -116,15 +117,17 @@ describe("credential-vault", () => {
       const keyring = makeTestKeyring();
       const plaintext = new TextEncoder().encode("secret");
 
-      const result = await envelopeEncrypt(keyring, "org-correct", plaintext);
+      const result = await Effect.runPromise(envelopeEncrypt(keyring, "org-correct", plaintext));
 
       await expect(
-        envelopeDecrypt(
-          keyring,
-          "org-wrong",
-          result.keyVersion,
-          result.encryptedDek,
-          result.encryptedBlob,
+        Effect.runPromise(
+          envelopeDecrypt(
+            keyring,
+            "org-wrong",
+            result.keyVersion,
+            result.encryptedDek,
+            result.encryptedBlob,
+          ),
         ),
       ).rejects.toThrow();
     });
@@ -136,12 +139,16 @@ describe("credential-vault", () => {
       const orgId = "org-test-456";
       const secret = "my-super-secret-password";
 
-      const { encrypted, keyVersion } = await encryptSecret(keyring, orgId, secret);
+      const { encrypted, keyVersion } = await Effect.runPromise(
+        encryptSecret(keyring, orgId, secret),
+      );
 
       expect(encrypted.length).toBeGreaterThan(0);
       expect(keyVersion).toBe(keyring.currentVersion);
 
-      const decrypted = await decryptSecret(keyring, orgId, keyVersion, encrypted);
+      const decrypted = await Effect.runPromise(
+        decryptSecret(keyring, orgId, keyVersion, encrypted),
+      );
 
       expect(decrypted).toBe(secret);
     });
@@ -149,8 +156,8 @@ describe("credential-vault", () => {
     test("different orgIds produce different ciphertexts", async () => {
       const keyring = makeTestKeyring();
 
-      const result1 = await encryptSecret(keyring, "org-one", "password");
-      const result2 = await encryptSecret(keyring, "org-two", "password");
+      const result1 = await Effect.runPromise(encryptSecret(keyring, "org-one", "password"));
+      const result2 = await Effect.runPromise(encryptSecret(keyring, "org-two", "password"));
 
       expect(result1.encrypted).not.toBe(result2.encrypted);
     });
@@ -162,14 +169,18 @@ describe("credential-vault", () => {
       const keyringV1: Keyring = { secrets: { 1: secret1 }, currentVersion: 1 };
       const orgId = "org-rotation";
 
-      const { encrypted, keyVersion } = await encryptSecret(keyringV1, orgId, "rotated-secret");
+      const { encrypted, keyVersion } = await Effect.runPromise(
+        encryptSecret(keyringV1, orgId, "rotated-secret"),
+      );
 
       expect(keyVersion).toBe(1);
 
       const secret2 = crypto.getRandomValues(new Uint8Array(32));
       const keyringV2: Keyring = { secrets: { 1: secret1, 2: secret2 }, currentVersion: 2 };
 
-      const decrypted = await decryptSecret(keyringV2, orgId, keyVersion, encrypted);
+      const decrypted = await Effect.runPromise(
+        decryptSecret(keyringV2, orgId, keyVersion, encrypted),
+      );
 
       expect(decrypted).toBe("rotated-secret");
     });
@@ -180,19 +191,21 @@ describe("credential-vault", () => {
       const orgId = "org-envelope-rotation";
       const plaintext = new TextEncoder().encode("rotated blob");
 
-      const result = await envelopeEncrypt(keyringV1, orgId, plaintext);
+      const result = await Effect.runPromise(envelopeEncrypt(keyringV1, orgId, plaintext));
 
       expect(result.keyVersion).toBe(1);
 
       const secret2 = crypto.getRandomValues(new Uint8Array(32));
       const keyringV2: Keyring = { secrets: { 1: secret1, 2: secret2 }, currentVersion: 2 };
 
-      const decrypted = await envelopeDecrypt(
-        keyringV2,
-        orgId,
-        result.keyVersion,
-        result.encryptedDek,
-        result.encryptedBlob,
+      const decrypted = await Effect.runPromise(
+        envelopeDecrypt(
+          keyringV2,
+          orgId,
+          result.keyVersion,
+          result.encryptedDek,
+          result.encryptedBlob,
+        ),
       );
 
       expect(new TextDecoder().decode(decrypted)).toBe("rotated blob");

@@ -16,11 +16,10 @@ import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { z } from "zod/v4";
 
 import { authClient } from "../../../lib/auth-client";
-
-const nameSchema = z.string().min(1, "Name is required");
+import { getFieldError, requiredStringSchema } from "../../../lib/form-utils";
+import { apiKeysQueryOptions } from "../../../queries/api-keys";
 
 // ── Create Form ──────────────────────────────────────────────────
 
@@ -63,13 +62,13 @@ const CreateFormContent = ({
           name="name"
           validators={{
             onBlur: ({ value }) => {
-              const result = nameSchema.safeParse(value);
+              const result = requiredStringSchema.safeParse(value);
               return result.success ? undefined : result.error.issues[0]?.message;
             },
           }}
         >
           {(field) => {
-            const errorMessage = field.state.meta.errors.map(String).filter(Boolean).join(", ");
+            const errorMessage = getFieldError(field);
             return (
               <div className="flex flex-col gap-2">
                 <Label htmlFor="api-key-name">Name</Label>
@@ -159,7 +158,7 @@ export const CreateApiKeyDialog = ({ orgId }: { orgId: string }) => {
     setCreatedKey(key);
     toast.success("API key created");
     await queryClient.invalidateQueries({
-      queryKey: ["org", orgId, "api-keys"],
+      queryKey: apiKeysQueryOptions(orgId).queryKey,
     });
   };
 

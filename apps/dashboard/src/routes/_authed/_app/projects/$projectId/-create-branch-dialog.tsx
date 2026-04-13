@@ -1,5 +1,4 @@
-import { getApiError } from "@better-update/api-client";
-import { createBranch } from "@better-update/api-client/react";
+import { branchesQueryKey, createBranch } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
@@ -11,15 +10,25 @@ import {
 import { Add01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Either, Effect } from "effect";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { useApiMutation } from "../../../../../lib/use-api-mutation";
 import { BranchNameForm } from "./-branch-name-form";
 
 export const CreateBranchDialog = ({ orgId, projectId }: { orgId: string; projectId: string }) => {
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
+  const createBranchMutation = useApiMutation({
+    mutationFn: async (name: string) => createBranch({ projectId, name }),
+    onSuccess: async () => {
+      toast.success("Branch created");
+      await queryClient.invalidateQueries({
+        queryKey: branchesQueryKey(orgId, projectId),
+      });
+      setOpen(false);
+    },
+  });
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -42,24 +51,7 @@ export const CreateBranchDialog = ({ orgId, projectId }: { orgId: string; projec
           submittingLabel="Creating..."
           submitIcon={Add01Icon}
           onSubmit={async (name) => {
-            const result = await Effect.runPromise(
-              Effect.either(
-                Effect.tryPromise({
-                  try: async () => createBranch({ projectId, name }),
-                  catch: (error) => error,
-                }),
-              ),
-            );
-            if (Either.isLeft(result)) {
-              toast.error(getApiError(result.left));
-              return;
-            }
-
-            toast.success("Branch created");
-            await queryClient.invalidateQueries({
-              queryKey: ["org", orgId, "projects", projectId, "branches"],
-            });
-            setOpen(false);
+            await createBranchMutation.mutateAsync(name);
           }}
         />
       </DialogContent>

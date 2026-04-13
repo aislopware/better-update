@@ -1,4 +1,4 @@
-import { deleteProject } from "@better-update/api-client/react";
+import { deleteProject, projectQueryKey, projectsQueryKey } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Card,
@@ -38,9 +38,9 @@ export const DeleteProjectSection = ({ project }: { project: ProjectDetail }) =>
             successMessage="Project deleted"
             onSuccess={async () => {
               await queryClient.invalidateQueries({
-                queryKey: ["org", project.organizationId, "projects"],
+                queryKey: projectsQueryKey(project.organizationId),
               });
-              queryClient.removeQueries({ queryKey: ["project", project.id] });
+              queryClient.removeQueries({ queryKey: projectQueryKey(project.id) });
               await router.navigate({ to: "/projects" });
             }}
           >

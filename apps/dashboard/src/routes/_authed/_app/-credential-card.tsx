@@ -1,5 +1,8 @@
-import { getApiError } from "@better-update/api-client";
-import { activateCredential, deleteCredential } from "@better-update/api-client/react";
+import {
+  activateCredential,
+  credentialsQueryKey,
+  deleteCredential,
+} from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@better-update/ui/components/ui/card";
@@ -20,12 +23,12 @@ import {
 import { Delete02Icon, MoreVerticalIcon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Either, Effect } from "effect";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import type { Credential } from "@better-update/api";
 
+import { useApiMutation } from "../../../lib/use-api-mutation";
 import { DISTRIBUTION_LABELS, TYPE_LABELS } from "./-credential-helpers";
 
 const getExpiryBadge = (expiresAt: string | null) => {
@@ -56,47 +59,30 @@ export const CredentialCard = ({
   orgId: string;
 }) => {
   const queryClient = useQueryClient();
-
-  const handleActivate = async () => {
-    const result = await Effect.runPromise(
-      Effect.either(
-        Effect.tryPromise({
-          try: async () => activateCredential(credential.id),
-          catch: (error) => error,
-        }),
-      ),
-    );
-    if (Either.isLeft(result)) {
-      toast.error(getApiError(result.left));
-      return;
-    }
-    toast.success("Credential activated");
-    await queryClient.invalidateQueries({ queryKey: ["org", orgId, "credentials"] });
-  };
-
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const activateCredentialMutation = useApiMutation({
+    mutationFn: async () => activateCredential(credential.id),
+    onSuccess: async () => {
+      toast.success("Credential activated");
+      await queryClient.invalidateQueries({
+        queryKey: credentialsQueryKey(orgId),
+      });
+    },
+  });
+  const deleteCredentialMutation = useApiMutation({
+    mutationFn: async () => deleteCredential(credential.id),
+    onSuccess: async () => {
+      toast.success("Credential deleted");
+      setDeleteOpen(false);
+      await queryClient.invalidateQueries({
+        queryKey: credentialsQueryKey(orgId),
+      });
+    },
+  });
 
-  const handleDelete = async () => {
-    setIsDeleting(true);
-    const result = await Effect.runPromise(
-      Effect.either(
-        Effect.tryPromise({
-          try: async () => deleteCredential(credential.id),
-          catch: (error) => error,
-        }),
-      ),
-    );
-    if (Either.isLeft(result)) {
-      toast.error(getApiError(result.left));
-      setIsDeleting(false);
-      return;
-    }
-    toast.success("Credential deleted");
-    setDeleteOpen(false);
-    await queryClient.invalidateQueries({ queryKey: ["org", orgId, "credentials"] });
-    setIsDeleting(false);
-  };
+  const handleActivate = async () => activateCredentialMutation.mutateAsync();
+
+  const handleDelete = async () => deleteCredentialMutation.mutateAsync();
 
   return (
     <Card>
@@ -146,14 +132,19 @@ export const CredentialCard = ({
               <DialogFooter>
                 <Button
                   variant="outline"
+                  disabled={deleteCredentialMutation.isPending}
                   onClick={() => {
                     setDeleteOpen(false);
                   }}
                 >
                   Cancel
                 </Button>
-                <Button variant="destructive" disabled={isDeleting} onClick={handleDelete}>
-                  {isDeleting ? "Deleting..." : "Delete"}
+                <Button
+                  variant="destructive"
+                  disabled={deleteCredentialMutation.isPending}
+                  onClick={handleDelete}
+                >
+                  {deleteCredentialMutation.isPending ? "Deleting..." : "Delete"}
                 </Button>
               </DialogFooter>
             </DialogContent>

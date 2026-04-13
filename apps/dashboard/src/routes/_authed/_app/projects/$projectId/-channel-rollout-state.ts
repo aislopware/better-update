@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { safeJsonParse } from "../../../../../lib/async";
 
 interface RolloutEntry {
   branchId: string;
@@ -11,14 +11,6 @@ interface BranchMappingShape {
 
 const isBranchMapping = (value: unknown): value is BranchMappingShape =>
   typeof value === "object" && value !== null && "data" in value && Array.isArray(value.data);
-
-const safeJsonParse = (text: string): unknown =>
-  Effect.runSync(
-    Effect.orElseSucceed(
-      Effect.try(() => JSON.parse(text) as unknown),
-      () => null,
-    ),
-  );
 
 export const parseRolloutState = (
   json: string,

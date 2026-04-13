@@ -1,5 +1,4 @@
-import { getApiError } from "@better-update/api-client";
-import { envVarsQueryOptions, updateEnvVar } from "@better-update/api-client/react";
+import { envVarsQueryKey, updateEnvVar } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
@@ -22,10 +21,11 @@ import {
 import { Textarea } from "@better-update/ui/components/ui/textarea";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
-import { Either, Effect } from "effect";
 import { toast } from "sonner";
 
 import type { EnvVar } from "@better-update/api";
+
+import { useApiMutation } from "../../../../../lib/use-api-mutation";
 
 const EditFormContent = ({
   orgId,
@@ -40,6 +40,19 @@ const EditFormContent = ({
 }) => {
   const queryClient = useQueryClient();
   const isEncrypted = envVar.visibility !== "plaintext";
+  const updateEnvVarMutation = useApiMutation({
+    mutationFn: async (payload: {
+      value?: string;
+      visibility?: "plaintext" | "sensitive" | "secret";
+    }) => updateEnvVar(envVar.id, payload),
+    onSuccess: async () => {
+      toast.success(`Variable "${envVar.key}" updated`);
+      await queryClient.invalidateQueries({
+        queryKey: envVarsQueryKey(orgId, projectId),
+      });
+      onSuccess();
+    },
+  });
 
   const form = useForm({
     defaultValues: {
@@ -65,24 +78,7 @@ const EditFormContent = ({
         return;
       }
 
-      const result = await Effect.runPromise(
-        Effect.either(
-          Effect.tryPromise({
-            try: async () => updateEnvVar(envVar.id, payload),
-            catch: (error) => error,
-          }),
-        ),
-      );
-      if (Either.isLeft(result)) {
-        toast.error(getApiError(result.left));
-        return;
-      }
-
-      toast.success(`Variable "${envVar.key}" updated`);
-      await queryClient.invalidateQueries({
-        queryKey: envVarsQueryOptions(orgId, projectId).queryKey,
-      });
-      onSuccess();
+      await updateEnvVarMutation.mutateAsync(payload);
     },
   });
 

@@ -159,7 +159,7 @@ const ApiKeys = () => {
     setRevokeKeyId(null);
     toast.success("API key revoked");
     await queryClient.invalidateQueries({
-      queryKey: ["org", orgId, "api-keys"],
+      queryKey: apiKeysQueryOptions(orgId).queryKey,
     });
   };
 

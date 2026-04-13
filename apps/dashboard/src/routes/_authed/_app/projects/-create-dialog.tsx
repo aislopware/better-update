@@ -1,5 +1,4 @@
-import { getApiError } from "@better-update/api-client";
-import { createProject } from "@better-update/api-client/react";
+import { createProject, projectsQueryKey } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
@@ -16,40 +15,35 @@ import { Add01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
-import { Either, Effect } from "effect";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import { z } from "zod/v4";
 
-import { generateScopeKey, nameSchema } from "../../../../lib/form-utils";
-const scopeKeySchema = z.string().min(1, "Scope key is required");
+import {
+  generateScopeKey,
+  getFieldError,
+  nameSchema,
+  requiredStringSchema,
+} from "../../../../lib/form-utils";
+import { useApiMutation } from "../../../../lib/use-api-mutation";
 
 const CreateFormContent = ({ orgId, onSuccess }: { orgId: string; onSuccess: () => void }) => {
   const queryClient = useQueryClient();
   const scopeKeyEdited = useRef(false);
-
-  const form = useForm({
-    defaultValues: { name: "", scopeKey: "" },
-    onSubmit: async ({ value }) => {
-      const result = await Effect.runPromise(
-        Effect.either(
-          Effect.tryPromise({
-            try: async () => createProject({ name: value.name, scopeKey: value.scopeKey }),
-            catch: (error) => error,
-          }),
-        ),
-      );
-      if (Either.isLeft(result)) {
-        toast.error(getApiError(result.left));
-        return;
-      }
-
+  const createProjectMutation = useApiMutation({
+    mutationFn: async (value: { name: string; scopeKey: string }) =>
+      createProject({ name: value.name, scopeKey: value.scopeKey }),
+    onSuccess: async () => {
       toast.success("Project created");
       await queryClient.invalidateQueries({
-        queryKey: ["org", orgId, "projects"],
+        queryKey: projectsQueryKey(orgId),
       });
       onSuccess();
     },
+  });
+
+  const form = useForm({
+    defaultValues: { name: "", scopeKey: "" },
+    onSubmit: async ({ value }) => createProjectMutation.mutateAsync(value),
   });
 
   return (
@@ -71,7 +65,7 @@ const CreateFormContent = ({ orgId, onSuccess }: { orgId: string; onSuccess: () 
           }}
         >
           {(field) => {
-            const errorMessage = field.state.meta.errors.map(String).filter(Boolean).join(", ");
+            const errorMessage = getFieldError(field);
             return (
               <div className="flex flex-col gap-2">
                 <Label htmlFor="project-name">Project name</Label>
@@ -101,13 +95,13 @@ const CreateFormContent = ({ orgId, onSuccess }: { orgId: string; onSuccess: () 
           name="scopeKey"
           validators={{
             onBlur: ({ value }) => {
-              const result = scopeKeySchema.safeParse(value);
+              const result = requiredStringSchema.safeParse(value);
               return result.success ? undefined : result.error.issues[0]?.message;
             },
           }}
         >
           {(field) => {
-            const errorMessage = field.state.meta.errors.map(String).filter(Boolean).join(", ");
+            const errorMessage = getFieldError(field);
             return (
               <div className="flex flex-col gap-2">
                 <Label htmlFor="project-scope-key">Scope key</Label>

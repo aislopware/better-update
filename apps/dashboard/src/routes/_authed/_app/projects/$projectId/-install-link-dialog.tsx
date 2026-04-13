@@ -1,3 +1,4 @@
+import { getApiError } from "@better-update/api-client";
 import { fetchInstallLink } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
@@ -10,28 +11,22 @@ import {
 } from "@better-update/ui/components/ui/dialog";
 import { SmartPhone02Icon, Copy01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Either, Effect } from "effect";
+import { useMutation } from "@tanstack/react-query";
 import { QRCodeSVG } from "qrcode.react";
 import { useSyncExternalStore, useState } from "react";
 import { toast } from "sonner";
 
-import type { BuildWithArtifact, InstallLinkResult } from "@better-update/api";
-
-type InstallLinkData = typeof InstallLinkResult.Type;
+import type { BuildWithArtifact } from "@better-update/api";
 
 const CopyButton = ({ text }: { text: string }) => {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
-    const result = await Effect.runPromise(
-      Effect.either(
-        Effect.tryPromise({
-          try: async () => navigator.clipboard.writeText(text),
-          catch: (error) => error,
-        }),
-      ),
+    const didCopy = await navigator.clipboard.writeText(text).then(
+      () => true,
+      () => false,
     );
-    if (Either.isLeft(result)) {
+    if (!didCopy) {
       toast.error("Failed to copy to clipboard");
       return;
     }
@@ -72,38 +67,22 @@ const ExpiryBadge = ({ expires }: { expires: number }) => {
 
 export const InstallLinkDialog = ({ build }: { build: typeof BuildWithArtifact.Type }) => {
   const [open, setOpen] = useState(false);
-  const [state, setState] = useState<
-    | { status: "idle" }
-    | { status: "loading" }
-    | { status: "success"; data: InstallLinkData }
-    | { status: "error"; message: string }
-  >({ status: "idle" });
+  const fetchInstallLinkMutation = useMutation({
+    mutationFn: async () => fetchInstallLink(build.id),
+  });
 
-  const doFetch = async () => {
-    setState({ status: "loading" });
-    const result = await Effect.runPromise(
-      Effect.either(
-        Effect.tryPromise({
-          try: async () => fetchInstallLink(build.id),
-          catch: (error) => error,
-        }),
-      ),
-    );
-    if (Either.isLeft(result)) {
-      setState({ status: "error", message: "Failed to generate install link" });
-      return;
-    }
-    setState({ status: "success", data: result.right });
-  };
-
-  const handleOpen = async () => {
+  const handleOpen = () => {
     setOpen(true);
-    await doFetch();
+    fetchInstallLinkMutation.mutate();
   };
 
   const primaryUrl =
-    state.status === "success" ? (state.data.installUrl ?? state.data.artifactUrl) : "";
-  const isIosInstall = state.status === "success" && state.data.installUrl !== null;
+    fetchInstallLinkMutation.status === "success"
+      ? (fetchInstallLinkMutation.data.installUrl ?? fetchInstallLinkMutation.data.artifactUrl)
+      : "";
+  const isIosInstall =
+    fetchInstallLinkMutation.status === "success" &&
+    fetchInstallLinkMutation.data.installUrl !== null;
 
   return (
     <>
@@ -121,7 +100,7 @@ export const InstallLinkDialog = ({ build }: { build: typeof BuildWithArtifact.T
         onOpenChange={(next) => {
           setOpen(next);
           if (!next) {
-            setState({ status: "idle" });
+            fetchInstallLinkMutation.reset();
           }
         }}
       >
@@ -135,22 +114,30 @@ export const InstallLinkDialog = ({ build }: { build: typeof BuildWithArtifact.T
             </DialogDescription>
           </DialogHeader>
 
-          {state.status === "loading" && (
+          {fetchInstallLinkMutation.isPending && (
             <div className="flex items-center justify-center py-12">
               <div className="text-muted-foreground text-sm">Generating install link...</div>
             </div>
           )}
 
-          {state.status === "error" && (
+          {fetchInstallLinkMutation.isError && (
             <div className="flex flex-col items-center gap-4 py-8">
-              <p className="text-destructive text-sm">{state.message}</p>
-              <Button variant="outline" size="sm" onClick={doFetch}>
+              <p className="text-destructive text-sm">
+                {getApiError(fetchInstallLinkMutation.error)}
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  fetchInstallLinkMutation.mutate();
+                }}
+              >
                 Retry
               </Button>
             </div>
           )}
 
-          {state.status === "success" && (
+          {fetchInstallLinkMutation.status === "success" && (
             <div className="flex flex-col items-center gap-4">
               <div className="rounded-lg border bg-white p-4">
                 <QRCodeSVG value={primaryUrl} size={200} level="M" />
@@ -162,7 +149,7 @@ export const InstallLinkDialog = ({ build }: { build: typeof BuildWithArtifact.T
                 ) : (
                   <Badge variant="outline">Download link</Badge>
                 )}
-                <ExpiryBadge expires={state.data.expires} />
+                <ExpiryBadge expires={fetchInstallLinkMutation.data.expires} />
               </div>
 
               <div className="flex w-full flex-col gap-2">
@@ -173,8 +160,10 @@ export const InstallLinkDialog = ({ build }: { build: typeof BuildWithArtifact.T
 
                 {isIosInstall && (
                   <div className="bg-muted flex items-center gap-2 rounded-md px-3 py-2">
-                    <code className="flex-1 truncate text-xs">{state.data.artifactUrl}</code>
-                    <CopyButton text={state.data.artifactUrl} />
+                    <code className="flex-1 truncate text-xs">
+                      {fetchInstallLinkMutation.data.artifactUrl}
+                    </code>
+                    <CopyButton text={fetchInstallLinkMutation.data.artifactUrl} />
                   </div>
                 )}
               </div>

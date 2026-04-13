@@ -1,5 +1,4 @@
-import { getApiError } from "@better-update/api-client";
-import { createEnvVar, envVarsQueryOptions } from "@better-update/api-client/react";
+import { createEnvVar, envVarsQueryKey } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
@@ -24,23 +23,15 @@ import { Add01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
-import { Either, Effect } from "effect";
 import { useState } from "react";
 import { toast } from "sonner";
 
-const validateKey = (value: string) => {
-  if (value.length === 0) {
-    return "Key is required";
-  }
-  if (value.length > 256) {
-    return "Key must be at most 256 characters";
-  }
-  return /^[A-Z][A-Z0-9_]*$/.test(value)
-    ? undefined
-    : "Must be uppercase letters, digits, and underscores";
-};
-
-const validateValue = (value: string) => (value.length === 0 ? "Value is required" : undefined);
+import {
+  envVarKeySchema,
+  getFieldError,
+  requiredStringSchema,
+} from "../../../../../lib/form-utils";
+import { useApiMutation } from "../../../../../lib/use-api-mutation";
 
 const CreateFormContent = ({
   orgId,
@@ -54,6 +45,27 @@ const CreateFormContent = ({
   onSuccess: () => void;
 }) => {
   const queryClient = useQueryClient();
+  const createEnvVarMutation = useApiMutation({
+    mutationFn: async (value: {
+      key: string;
+      value: string;
+      visibility: "plaintext" | "sensitive" | "secret";
+    }) =>
+      createEnvVar({
+        projectId,
+        environment,
+        key: value.key,
+        value: value.value,
+        visibility: value.visibility,
+      }),
+    onSuccess: async (_, value) => {
+      toast.success(`Variable "${value.key}" created`);
+      await queryClient.invalidateQueries({
+        queryKey: envVarsQueryKey(orgId, projectId),
+      });
+      onSuccess();
+    },
+  });
 
   const form = useForm({
     defaultValues: {
@@ -61,33 +73,7 @@ const CreateFormContent = ({
       value: "",
       visibility: "plaintext" as "plaintext" | "sensitive" | "secret",
     },
-    onSubmit: async ({ value }) => {
-      const result = await Effect.runPromise(
-        Effect.either(
-          Effect.tryPromise({
-            try: async () =>
-              createEnvVar({
-                projectId,
-                environment,
-                key: value.key,
-                value: value.value,
-                visibility: value.visibility,
-              }),
-            catch: (error) => error,
-          }),
-        ),
-      );
-      if (Either.isLeft(result)) {
-        toast.error(getApiError(result.left));
-        return;
-      }
-
-      toast.success(`Variable "${value.key}" created`);
-      await queryClient.invalidateQueries({
-        queryKey: envVarsQueryOptions(orgId, projectId).queryKey,
-      });
-      onSuccess();
-    },
+    onSubmit: async ({ value }) => createEnvVarMutation.mutateAsync(value),
   });
 
   return (
@@ -102,11 +88,14 @@ const CreateFormContent = ({
         <form.Field
           name="key"
           validators={{
-            onBlur: ({ value }) => validateKey(value),
+            onBlur: ({ value }) => {
+              const result = envVarKeySchema.safeParse(value);
+              return result.success ? undefined : result.error.issues[0]?.message;
+            },
           }}
         >
           {(field) => {
-            const errorMessage = field.state.meta.errors.map(String).filter(Boolean).join(", ");
+            const errorMessage = getFieldError(field);
             return (
               <div className="flex flex-col gap-2">
                 <Label htmlFor="env-var-key">Key</Label>
@@ -129,11 +118,14 @@ const CreateFormContent = ({
         <form.Field
           name="value"
           validators={{
-            onBlur: ({ value }) => validateValue(value),
+            onBlur: ({ value }) => {
+              const result = requiredStringSchema.safeParse(value);
+              return result.success ? undefined : result.error.issues[0]?.message;
+            },
           }}
         >
           {(field) => {
-            const errorMessage = field.state.meta.errors.map(String).filter(Boolean).join(", ");
+            const errorMessage = getFieldError(field);
             return (
               <div className="flex flex-col gap-2">
                 <Label htmlFor="env-var-value">Value</Label>

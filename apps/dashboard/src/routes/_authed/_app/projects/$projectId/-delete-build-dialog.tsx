@@ -1,4 +1,8 @@
-import { deleteBuild } from "@better-update/api-client/react";
+import {
+  buildCompatibilityMatrixQueryKey,
+  buildsQueryKey,
+  deleteBuild,
+} from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import { Delete02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -29,10 +33,10 @@ export const DeleteBuildDialog = ({
       onSuccess={async () => {
         await Promise.all([
           queryClient.invalidateQueries({
-            queryKey: ["org", orgId, "projects", projectId, "builds"],
+            queryKey: buildsQueryKey(orgId, projectId),
           }),
           queryClient.invalidateQueries({
-            queryKey: ["org", orgId, "projects", projectId, "build-compatibility-matrix"],
+            queryKey: buildCompatibilityMatrixQueryKey(orgId, projectId),
           }),
         ]);
       }}

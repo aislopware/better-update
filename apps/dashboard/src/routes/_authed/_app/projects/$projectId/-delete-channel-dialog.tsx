@@ -1,4 +1,8 @@
-import { deleteChannel } from "@better-update/api-client/react";
+import {
+  buildCompatibilityMatrixQueryKey,
+  channelsQueryKey,
+  deleteChannel,
+} from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import { Delete02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -29,10 +33,10 @@ export const DeleteChannelDialog = ({
       onSuccess={async () => {
         await Promise.all([
           queryClient.invalidateQueries({
-            queryKey: ["org", orgId, "projects", projectId, "channels"],
+            queryKey: channelsQueryKey(orgId, projectId),
           }),
           queryClient.invalidateQueries({
-            queryKey: ["org", orgId, "projects", projectId, "build-compatibility-matrix"],
+            queryKey: buildCompatibilityMatrixQueryKey(orgId, projectId),
           }),
         ]);
       }}

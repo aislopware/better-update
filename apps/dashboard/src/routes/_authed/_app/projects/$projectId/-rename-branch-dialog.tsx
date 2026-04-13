@@ -1,5 +1,4 @@
-import { getApiError } from "@better-update/api-client";
-import { renameBranch } from "@better-update/api-client/react";
+import { branchesQueryKey, renameBranch } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
@@ -12,12 +11,12 @@ import {
 import { PencilEdit02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Either, Effect } from "effect";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import type { BranchItem } from "@better-update/api-client/react";
 
+import { useApiMutation } from "../../../../../lib/use-api-mutation";
 import { BranchNameForm } from "./-branch-name-form";
 
 export const RenameBranchDialog = ({
@@ -31,6 +30,16 @@ export const RenameBranchDialog = ({
 }) => {
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
+  const renameBranchMutation = useApiMutation({
+    mutationFn: async (name: string) => renameBranch(branch.id, { name }),
+    onSuccess: async () => {
+      toast.success("Branch renamed");
+      await queryClient.invalidateQueries({
+        queryKey: branchesQueryKey(orgId, projectId),
+      });
+      setOpen(false);
+    },
+  });
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -49,24 +58,7 @@ export const RenameBranchDialog = ({
           submitLabel="Rename"
           submittingLabel="Renaming..."
           onSubmit={async (name) => {
-            const result = await Effect.runPromise(
-              Effect.either(
-                Effect.tryPromise({
-                  try: async () => renameBranch(branch.id, { name }),
-                  catch: (error) => error,
-                }),
-              ),
-            );
-            if (Either.isLeft(result)) {
-              toast.error(getApiError(result.left));
-              return;
-            }
-
-            toast.success("Branch renamed");
-            await queryClient.invalidateQueries({
-              queryKey: ["org", orgId, "projects", projectId, "branches"],
-            });
-            setOpen(false);
+            await renameBranchMutation.mutateAsync(name);
           }}
         />
       </DialogContent>

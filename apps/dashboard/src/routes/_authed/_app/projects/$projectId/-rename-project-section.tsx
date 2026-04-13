@@ -1,5 +1,4 @@
-import { getApiError } from "@better-update/api-client";
-import { renameProject } from "@better-update/api-client/react";
+import { projectQueryKey, projectsQueryKey, renameProject } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Card,
@@ -12,40 +11,33 @@ import { Input } from "@better-update/ui/components/ui/input";
 import { Label } from "@better-update/ui/components/ui/label";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
-import { Either, Effect } from "effect";
 import { toast } from "sonner";
 
 import type { ProjectDetail } from "@better-update/api-client/react";
 
-import { nameSchema } from "../../../../../lib/form-utils";
+import { getFieldError, nameSchema } from "../../../../../lib/form-utils";
+import { useApiMutation } from "../../../../../lib/use-api-mutation";
 
 export const RenameProjectSection = ({ project }: { project: ProjectDetail }) => {
   const queryClient = useQueryClient();
+  const renameProjectMutation = useApiMutation({
+    mutationFn: async (value: { name: string }) => renameProject(project.id, { name: value.name }),
+    onSuccess: async () => {
+      toast.success("Project renamed");
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: projectsQueryKey(project.organizationId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: projectQueryKey(project.id),
+        }),
+      ]);
+    },
+  });
 
   const form = useForm({
     defaultValues: { name: project.name },
-    onSubmit: async ({ value }) => {
-      const result = await Effect.runPromise(
-        Effect.either(
-          Effect.tryPromise({
-            try: async () => renameProject(project.id, { name: value.name }),
-            catch: (error) => error,
-          }),
-        ),
-      );
-      if (Either.isLeft(result)) {
-        toast.error(getApiError(result.left));
-        return;
-      }
-
-      toast.success("Project renamed");
-      await queryClient.invalidateQueries({
-        queryKey: ["org", project.organizationId, "projects"],
-      });
-      await queryClient.invalidateQueries({
-        queryKey: ["project", project.id],
-      });
-    },
+    onSubmit: async ({ value }) => renameProjectMutation.mutateAsync(value),
   });
 
   return (
@@ -73,7 +65,7 @@ export const RenameProjectSection = ({ project }: { project: ProjectDetail }) =>
               }}
             >
               {(field) => {
-                const errorMessage = field.state.meta.errors.map(String).filter(Boolean).join(", ");
+                const errorMessage = getFieldError(field);
                 return (
                   <div className="flex flex-col gap-2">
                     <Label htmlFor="project-name">Project name</Label>

@@ -21,6 +21,7 @@ const MAX_VARS_PER_PROJECT_ENV = 100;
 const VALID_ENVIRONMENTS = new Set(["development", "preview", "production", "*"]);
 
 const SENSITIVE_MASK = "••••••";
+const vaultBadRequest = (message: string) => new BadRequest({ message });
 
 const maskValue = (row: EnvVarRow): string | null => {
   if (row.visibility === "plaintext") {
@@ -69,7 +70,9 @@ const encryptValue = (vaultKeyring: string, orgId: string, value: string) =>
     const keyring = yield* resolveKeyring(vaultKeyring).pipe(
       Effect.mapError(() => new BadRequest({ message: "Vault keyring is not configured" })),
     );
-    const result = yield* Effect.promise(async () => encryptSecret(keyring, orgId, value));
+    const result = yield* encryptSecret(keyring, orgId, value).pipe(
+      Effect.mapError(() => vaultBadRequest("Failed to encrypt environment variable")),
+    );
     return { encryptedValue: result.encrypted, keyVersion: result.keyVersion };
   });
 
@@ -78,7 +81,9 @@ const decryptValue = (vaultKeyring: string, orgId: string, keyVersion: number, e
     const keyring = yield* resolveKeyring(vaultKeyring).pipe(
       Effect.mapError(() => new BadRequest({ message: "Vault keyring is not configured" })),
     );
-    return yield* Effect.promise(async () => decryptSecret(keyring, orgId, keyVersion, encrypted));
+    return yield* decryptSecret(keyring, orgId, keyVersion, encrypted).pipe(
+      Effect.mapError(() => vaultBadRequest("Failed to decrypt environment variable")),
+    );
   });
 
 const stripQuotes = (raw: string): string =>
