@@ -17,6 +17,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient } from "@tanstack/react-query";
+import { Either, Effect } from "effect";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -52,11 +53,16 @@ export const UpdateCard = ({ update, channels, orgId, projectId }: UpdateCardPro
 
   const handleDelete = async () => {
     setIsDeleting(true);
-    // eslint-disable-next-line functional/no-try-statements -- imperative shell error handling
-    try {
-      await deleteUpdateGroup(update.groupId);
-    } catch (error) {
-      toast.error(getApiError(error));
+    const result = await Effect.runPromise(
+      Effect.either(
+        Effect.tryPromise({
+          try: async () => deleteUpdateGroup(update.groupId),
+          catch: (error) => error,
+        }),
+      ),
+    );
+    if (Either.isLeft(result)) {
+      toast.error(getApiError(result.left));
       setIsDeleting(false);
       return;
     }
@@ -72,11 +78,16 @@ export const UpdateCard = ({ update, channels, orgId, projectId }: UpdateCardPro
       return;
     }
     setIsUpdatingRollout(true);
-    // eslint-disable-next-line functional/no-try-statements -- imperative shell error handling
-    try {
-      await editUpdateRollout(update.id, { percentage });
-    } catch (error) {
-      toast.error(getApiError(error));
+    const result = await Effect.runPromise(
+      Effect.either(
+        Effect.tryPromise({
+          try: async () => editUpdateRollout(update.id, { percentage }),
+          catch: (error) => error,
+        }),
+      ),
+    );
+    if (Either.isLeft(result)) {
+      toast.error(getApiError(result.left));
       setIsUpdatingRollout(false);
       return;
     }
@@ -87,11 +98,16 @@ export const UpdateCard = ({ update, channels, orgId, projectId }: UpdateCardPro
 
   const handleComplete = async () => {
     setIsUpdatingRollout(true);
-    // eslint-disable-next-line functional/no-try-statements -- imperative shell error handling
-    try {
-      await completeUpdateRollout(update.id);
-    } catch (error) {
-      toast.error(getApiError(error));
+    const result = await Effect.runPromise(
+      Effect.either(
+        Effect.tryPromise({
+          try: async () => completeUpdateRollout(update.id),
+          catch: (error) => error,
+        }),
+      ),
+    );
+    if (Either.isLeft(result)) {
+      toast.error(getApiError(result.left));
       setIsUpdatingRollout(false);
       return;
     }
@@ -102,11 +118,16 @@ export const UpdateCard = ({ update, channels, orgId, projectId }: UpdateCardPro
 
   const handleRevert = async () => {
     setIsUpdatingRollout(true);
-    // eslint-disable-next-line functional/no-try-statements -- imperative shell error handling
-    try {
-      await revertUpdateRollout(update.id);
-    } catch (error) {
-      toast.error(getApiError(error));
+    const result = await Effect.runPromise(
+      Effect.either(
+        Effect.tryPromise({
+          try: async () => revertUpdateRollout(update.id),
+          catch: (error) => error,
+        }),
+      ),
+    );
+    if (Either.isLeft(result)) {
+      toast.error(getApiError(result.left));
       setIsUpdatingRollout(false);
       return;
     }

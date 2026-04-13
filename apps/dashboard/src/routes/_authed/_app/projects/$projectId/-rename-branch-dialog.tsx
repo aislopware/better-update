@@ -12,6 +12,7 @@ import {
 import { PencilEdit02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient } from "@tanstack/react-query";
+import { Either, Effect } from "effect";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -48,11 +49,16 @@ export const RenameBranchDialog = ({
           submitLabel="Rename"
           submittingLabel="Renaming..."
           onSubmit={async (name) => {
-            // eslint-disable-next-line functional/no-try-statements -- imperative shell error handling
-            try {
-              await renameBranch(branch.id, { name });
-            } catch (error) {
-              toast.error(getApiError(error));
+            const result = await Effect.runPromise(
+              Effect.either(
+                Effect.tryPromise({
+                  try: async () => renameBranch(branch.id, { name }),
+                  catch: (error) => error,
+                }),
+              ),
+            );
+            if (Either.isLeft(result)) {
+              toast.error(getApiError(result.left));
               return;
             }
 

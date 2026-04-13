@@ -20,6 +20,7 @@ import {
 import { Rocket01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient } from "@tanstack/react-query";
+import { Either, Effect } from "effect";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -51,14 +52,20 @@ export const PromoteUpdateDialog = ({
       return;
     }
     setIsPromoting(true);
-    // eslint-disable-next-line functional/no-try-statements -- imperative shell error handling
-    try {
-      await republishUpdate({
-        sourceUpdateId: update.id,
-        targetChannelId,
-      });
-    } catch (error) {
-      toast.error(getApiError(error));
+    const result = await Effect.runPromise(
+      Effect.either(
+        Effect.tryPromise({
+          try: async () =>
+            republishUpdate({
+              sourceUpdateId: update.id,
+              targetChannelId,
+            }),
+          catch: (error) => error,
+        }),
+      ),
+    );
+    if (Either.isLeft(result)) {
+      toast.error(getApiError(result.left));
       setIsPromoting(false);
       return;
     }

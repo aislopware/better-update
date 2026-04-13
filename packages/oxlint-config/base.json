@@ -152,7 +152,7 @@
     "dist",
     "node_modules",
     ".turbo",
-    "**/*.gen.*",
+    "**/*.gen.ts",
     "**/*.d.ts",
     "coverage",
     "vitest.config.*"

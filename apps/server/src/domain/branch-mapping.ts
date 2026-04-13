@@ -12,15 +12,11 @@ interface BranchMapping {
   salt: string;
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
 const isBranchMapping = (value: unknown): value is BranchMapping =>
-  typeof value === "object" &&
-  value !== null &&
-  "data" in value &&
-  // eslint-disable-next-line typescript/no-unsafe-type-assertion -- checked "data" in value above
-  Array.isArray((value as BranchMapping).data) &&
-  "salt" in value &&
-  // eslint-disable-next-line typescript/no-unsafe-type-assertion -- checked "salt" in value above
-  typeof (value as BranchMapping).salt === "string";
+  isRecord(value) && Array.isArray(value["data"]) && typeof value["salt"] === "string";
 
 const emptyMapping: BranchMapping = { data: [], salt: "" };
 

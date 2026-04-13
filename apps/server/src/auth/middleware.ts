@@ -31,18 +31,39 @@ interface SessionResult {
   user: { id: string; name: string; email: string };
 }
 
-/* eslint-disable typescript/no-unsafe-type-assertion -- plugin API types not inferred from betterAuth config */
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const isVerifyApiKeyApi = (
+  value: unknown,
+): value is {
+  verifyApiKey: (opts: { body: { key: string } }) => Promise<VerifyApiKeyResult>;
+} => isRecord(value) && typeof value["verifyApiKey"] === "function";
+
+const isSessionApi = (
+  value: unknown,
+): value is {
+  getSession: (opts: { headers: Headers }) => Promise<SessionResult | null>;
+} => isRecord(value) && typeof value["getSession"] === "function";
+
+const isActiveMemberApi = (
+  value: unknown,
+): value is {
+  getActiveMember: (opts: { headers: Headers }) => Promise<ActiveMember | null>;
+} => isRecord(value) && typeof value["getActiveMember"] === "function";
+
+const getApiErrorMessage = (value: unknown): string | null =>
+  isRecord(value) && typeof value["message"] === "string" ? value["message"] : null;
 
 const verifyApiKey = (key: string) =>
   Effect.gen(function* () {
     const env = yield* cloudflareEnv;
+    const { api } = createAuth(env);
+    if (!isVerifyApiKeyApi(api)) {
+      return yield* new Unauthorized({ message: "API key verification failed" });
+    }
     return yield* Effect.tryPromise({
-      try: async () =>
-        (
-          createAuth(env).api as unknown as {
-            verifyApiKey: (opts: { body: { key: string } }) => Promise<VerifyApiKeyResult>;
-          }
-        ).verifyApiKey({ body: { key } }),
+      try: async () => api.verifyApiKey({ body: { key } }),
       catch: () => new Unauthorized({ message: "API key verification failed" }),
     });
   });
@@ -50,13 +71,12 @@ const verifyApiKey = (key: string) =>
 const getSession = (headers: Headers) =>
   Effect.gen(function* () {
     const env = yield* cloudflareEnv;
+    const { api } = createAuth(env);
+    if (!isSessionApi(api)) {
+      return yield* new Unauthorized({ message: "Session verification failed" });
+    }
     return yield* Effect.tryPromise({
-      try: async () =>
-        (
-          createAuth(env).api as unknown as {
-            getSession: (opts: { headers: Headers }) => Promise<SessionResult | null>;
-          }
-        ).getSession({ headers }),
+      try: async () => api.getSession({ headers }),
       catch: () => new Unauthorized({ message: "Session verification failed" }),
     });
   });
@@ -64,21 +84,20 @@ const getSession = (headers: Headers) =>
 const getActiveMember = (headers: Headers) =>
   Effect.gen(function* () {
     const env = yield* cloudflareEnv;
+    const { api } = createAuth(env);
+    if (!isActiveMemberApi(api)) {
+      return yield* new Unauthorized({
+        message: "Not a member of the active organization",
+      });
+    }
     return yield* Effect.tryPromise({
-      try: async () =>
-        (
-          createAuth(env).api as unknown as {
-            getActiveMember: (opts: { headers: Headers }) => Promise<ActiveMember | null>;
-          }
-        ).getActiveMember({ headers }),
+      try: async () => api.getActiveMember({ headers }),
       catch: () =>
         new Unauthorized({
           message: "Not a member of the active organization",
         }),
     });
   });
-
-/* eslint-enable typescript/no-unsafe-type-assertion */
 
 // ── Helpers ────────────────────────────────────────────────────────
 
@@ -108,7 +127,7 @@ const resolveFromApiKey = (token: Redacted.Redacted) => {
       if (!result.valid || !result.key) {
         return Effect.fail(
           new Unauthorized({
-            message: result.error?.message ?? "Invalid API key",
+            message: getApiErrorMessage(result.error) ?? "Invalid API key",
           }),
         );
       }
@@ -150,7 +169,7 @@ const resolveFromSession = (_cookie: Redacted.Redacted) =>
 
     const member = yield* getActiveMember(headers);
 
-    if (!member || !isRole(member.role)) {
+    if (!isRole(member.role)) {
       return yield* new Unauthorized({
         message: "Not a member of the active organization",
       });

@@ -66,20 +66,18 @@ const validateKey = (key: string) =>
 
 const encryptValue = (vaultKeyring: string, orgId: string, value: string) =>
   Effect.gen(function* () {
-    const keyring = yield* Effect.try({
-      try: () => resolveKeyring(vaultKeyring),
-      catch: () => new BadRequest({ message: "Vault keyring is not configured" }),
-    });
+    const keyring = yield* resolveKeyring(vaultKeyring).pipe(
+      Effect.mapError(() => new BadRequest({ message: "Vault keyring is not configured" })),
+    );
     const result = yield* Effect.promise(async () => encryptSecret(keyring, orgId, value));
     return { encryptedValue: result.encrypted, keyVersion: result.keyVersion };
   });
 
 const decryptValue = (vaultKeyring: string, orgId: string, keyVersion: number, encrypted: string) =>
   Effect.gen(function* () {
-    const keyring = yield* Effect.try({
-      try: () => resolveKeyring(vaultKeyring),
-      catch: () => new BadRequest({ message: "Vault keyring is not configured" }),
-    });
+    const keyring = yield* resolveKeyring(vaultKeyring).pipe(
+      Effect.mapError(() => new BadRequest({ message: "Vault keyring is not configured" })),
+    );
     return yield* Effect.promise(async () => decryptSecret(keyring, orgId, keyVersion, encrypted));
   });
 

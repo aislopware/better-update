@@ -10,6 +10,7 @@ import {
 } from "@better-update/ui/components/ui/dialog";
 import { SmartPhone02Icon, Copy01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { Either, Effect } from "effect";
 import { QRCodeSVG } from "qrcode.react";
 import { useSyncExternalStore, useState } from "react";
 import { toast } from "sonner";
@@ -22,16 +23,22 @@ const CopyButton = ({ text }: { text: string }) => {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
-    // eslint-disable-next-line functional/no-try-statements -- imperative shell error handling
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => {
-        setCopied(false);
-      }, 2000);
-    } catch {
+    const result = await Effect.runPromise(
+      Effect.either(
+        Effect.tryPromise({
+          try: async () => navigator.clipboard.writeText(text),
+          catch: (error) => error,
+        }),
+      ),
+    );
+    if (Either.isLeft(result)) {
       toast.error("Failed to copy to clipboard");
+      return;
     }
+    setCopied(true);
+    setTimeout(() => {
+      setCopied(false);
+    }, 2000);
   };
 
   return (
@@ -74,13 +81,19 @@ export const InstallLinkDialog = ({ build }: { build: typeof BuildWithArtifact.T
 
   const doFetch = async () => {
     setState({ status: "loading" });
-    // eslint-disable-next-line functional/no-try-statements -- imperative shell error handling
-    try {
-      const data = await fetchInstallLink(build.id);
-      setState({ status: "success", data });
-    } catch {
+    const result = await Effect.runPromise(
+      Effect.either(
+        Effect.tryPromise({
+          try: async () => fetchInstallLink(build.id),
+          catch: (error) => error,
+        }),
+      ),
+    );
+    if (Either.isLeft(result)) {
       setState({ status: "error", message: "Failed to generate install link" });
+      return;
     }
+    setState({ status: "success", data: result.right });
   };
 
   const handleOpen = async () => {

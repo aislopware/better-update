@@ -20,6 +20,7 @@ import {
 import { Add01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { Either, Effect } from "effect";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -37,11 +38,16 @@ export const CreateChannelDialog = ({ orgId, projectId }: { orgId: string; proje
     }
 
     setIsSubmitting(true);
-    // eslint-disable-next-line functional/no-try-statements -- imperative shell error handling
-    try {
-      await createChannel({ projectId, name: name.trim(), branchId });
-    } catch (error) {
-      toast.error(getApiError(error));
+    const result = await Effect.runPromise(
+      Effect.either(
+        Effect.tryPromise({
+          try: async () => createChannel({ projectId, name: name.trim(), branchId }),
+          catch: (error) => error,
+        }),
+      ),
+    );
+    if (Either.isLeft(result)) {
+      toast.error(getApiError(result.left));
       setIsSubmitting(false);
       return;
     }

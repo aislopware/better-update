@@ -24,19 +24,23 @@ import { Add01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
+import { Either, Effect } from "effect";
 import { useState } from "react";
 import { toast } from "sonner";
-import { z } from "zod/v4";
 
-const keySchema = z
-  .string()
-  .check(
-    z.minLength(1, "Key is required"),
-    z.maxLength(256, "Key must be at most 256 characters"),
-    z.regex(/^[A-Z][A-Z0-9_]*$/, "Must be uppercase letters, digits, and underscores"),
-  );
+const validateKey = (value: string) => {
+  if (value.length === 0) {
+    return "Key is required";
+  }
+  if (value.length > 256) {
+    return "Key must be at most 256 characters";
+  }
+  return /^[A-Z][A-Z0-9_]*$/.test(value)
+    ? undefined
+    : "Must be uppercase letters, digits, and underscores";
+};
 
-const valueSchema = z.string().check(z.minLength(1, "Value is required"));
+const validateValue = (value: string) => (value.length === 0 ? "Value is required" : undefined);
 
 const CreateFormContent = ({
   orgId,
@@ -58,17 +62,23 @@ const CreateFormContent = ({
       visibility: "plaintext" as "plaintext" | "sensitive" | "secret",
     },
     onSubmit: async ({ value }) => {
-      // eslint-disable-next-line functional/no-try-statements -- imperative shell error handling
-      try {
-        await createEnvVar({
-          projectId,
-          environment,
-          key: value.key,
-          value: value.value,
-          visibility: value.visibility,
-        });
-      } catch (error) {
-        toast.error(getApiError(error));
+      const result = await Effect.runPromise(
+        Effect.either(
+          Effect.tryPromise({
+            try: async () =>
+              createEnvVar({
+                projectId,
+                environment,
+                key: value.key,
+                value: value.value,
+                visibility: value.visibility,
+              }),
+            catch: (error) => error,
+          }),
+        ),
+      );
+      if (Either.isLeft(result)) {
+        toast.error(getApiError(result.left));
         return;
       }
 
@@ -92,10 +102,7 @@ const CreateFormContent = ({
         <form.Field
           name="key"
           validators={{
-            onBlur: ({ value }) => {
-              const result = keySchema.safeParse(value);
-              return result.success ? undefined : result.error.issues[0]?.message;
-            },
+            onBlur: ({ value }) => validateKey(value),
           }}
         >
           {(field) => {
@@ -122,10 +129,7 @@ const CreateFormContent = ({
         <form.Field
           name="value"
           validators={{
-            onBlur: ({ value }) => {
-              const result = valueSchema.safeParse(value);
-              return result.success ? undefined : result.error.issues[0]?.message;
-            },
+            onBlur: ({ value }) => validateValue(value),
           }}
         >
           {(field) => {

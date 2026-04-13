@@ -11,6 +11,7 @@ import {
 import { Add01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient } from "@tanstack/react-query";
+import { Either, Effect } from "effect";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -41,11 +42,16 @@ export const CreateBranchDialog = ({ orgId, projectId }: { orgId: string; projec
           submittingLabel="Creating..."
           submitIcon={Add01Icon}
           onSubmit={async (name) => {
-            // eslint-disable-next-line functional/no-try-statements -- imperative shell error handling
-            try {
-              await createBranch({ projectId, name });
-            } catch (error) {
-              toast.error(getApiError(error));
+            const result = await Effect.runPromise(
+              Effect.either(
+                Effect.tryPromise({
+                  try: async () => createBranch({ projectId, name }),
+                  catch: (error) => error,
+                }),
+              ),
+            );
+            if (Either.isLeft(result)) {
+              toast.error(getApiError(result.left));
               return;
             }
 

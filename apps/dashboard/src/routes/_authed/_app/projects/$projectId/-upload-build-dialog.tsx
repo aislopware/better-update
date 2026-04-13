@@ -21,6 +21,7 @@ import {
 import { Add01Icon, CloudUploadIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient } from "@tanstack/react-query";
+import { Either, Effect } from "effect";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -59,6 +60,28 @@ interface MetadataValues {
   gitCommit: string;
   message: string;
 }
+
+const EMPTY_METADATA: MetadataValues = {
+  profile: "",
+  runtimeVersion: "",
+  appVersion: "",
+  buildNumber: "",
+  bundleId: "",
+  gitRef: "",
+  gitCommit: "",
+  message: "",
+};
+
+const buildMetadataPayload = (metadata: MetadataValues) => ({
+  ...(metadata.profile && { profile: metadata.profile }),
+  ...(metadata.runtimeVersion && { runtimeVersion: metadata.runtimeVersion }),
+  ...(metadata.appVersion && { appVersion: metadata.appVersion }),
+  ...(metadata.buildNumber && { buildNumber: metadata.buildNumber }),
+  ...(metadata.bundleId && { bundleId: metadata.bundleId }),
+  ...(metadata.gitRef && { gitRef: metadata.gitRef }),
+  ...(metadata.gitCommit && { gitCommit: metadata.gitCommit }),
+  ...(metadata.message && { message: metadata.message }),
+});
 
 const MetadataFields = ({
   values,
@@ -186,14 +209,7 @@ const UploadForm = ({
   const [platform, setPlatform] = useState<PlatformValue>("ios");
   const [distribution, setDistribution] = useState<DistributionValue>("development");
   const [artifactFormat, setArtifactFormat] = useState<ArtifactFormatValue | "">("");
-  const [profile, setProfile] = useState("");
-  const [runtimeVersion, setRuntimeVersion] = useState("");
-  const [appVersion, setAppVersion] = useState("");
-  const [buildNumber, setBuildNumber] = useState("");
-  const [bundleId, setBundleId] = useState("");
-  const [gitRef, setGitRef] = useState("");
-  const [gitCommit, setGitCommit] = useState("");
-  const [message, setMessage] = useState("");
+  const [metadata, setMetadata] = useState(EMPTY_METADATA);
   const [uploadPhase, setUploadPhase] = useState<UploadPhase>("idle");
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -203,6 +219,10 @@ const UploadForm = ({
   useMountEffect(() => () => {
     abortRef.current?.abort();
   });
+
+  const updateMetadata = (field: keyof MetadataValues, value: string) => {
+    setMetadata((current) => ({ ...current, [field]: value }));
+  };
 
   const handleFileSelect = (selectedFile: File) => {
     setFile(selectedFile);
@@ -244,38 +264,40 @@ const UploadForm = ({
       return;
     }
 
-    // Step 1: Reserve
     setUploadPhase("reserving");
     const controller = new AbortController();
     abortRef.current = controller;
-    // eslint-disable-next-line functional/no-try-statements -- imperative shell error handling
-    try {
-      const result = await reserveBuild({
-        projectId,
-        platform,
-        distribution,
-        artifactFormat,
-        ...(profile && { profile }),
-        ...(runtimeVersion && { runtimeVersion }),
-        ...(appVersion && { appVersion }),
-        ...(buildNumber && { buildNumber }),
-        ...(bundleId && { bundleId }),
-        ...(gitRef && { gitRef }),
-        ...(gitCommit && { gitCommit }),
-        ...(message && { message }),
-      });
+    const result = await Effect.runPromise(
+      Effect.either(
+        Effect.tryPromise({
+          try: async () => {
+            const reservedBuild = await reserveBuild({
+              projectId,
+              platform,
+              distribution,
+              artifactFormat,
+              ...buildMetadataPayload(metadata),
+            });
 
-      // Step 2: Upload
-      setUploadPhase("uploading");
-      await uploadWithProgress(result.uploadUrl, file, setUploadProgress, controller.signal);
+            setUploadPhase("uploading");
+            await uploadWithProgress(
+              reservedBuild.uploadUrl,
+              file,
+              setUploadProgress,
+              controller.signal,
+            );
 
-      // Step 3: Complete
-      setUploadPhase("completing");
-      const sha256 = await computeSha256(file);
-      await completeBuild(result.id, { sha256, byteSize: file.size });
-    } catch (error) {
-      if (!(error instanceof Error && error.message === "Upload aborted")) {
-        toast.error(getApiError(error));
+            setUploadPhase("completing");
+            const sha256 = await computeSha256(file);
+            return completeBuild(reservedBuild.id, { sha256, byteSize: file.size });
+          },
+          catch: (error) => error,
+        }),
+      ),
+    );
+    if (Either.isLeft(result)) {
+      if (!(result.left instanceof Error && result.left.message === "Upload aborted")) {
+        toast.error(getApiError(result.left));
       }
       setUploadPhase("idle");
       return;
@@ -400,31 +422,7 @@ const UploadForm = ({
       </div>
 
       {/* Optional metadata fields */}
-      <MetadataFields
-        values={{
-          profile,
-          runtimeVersion,
-          appVersion,
-          buildNumber,
-          bundleId,
-          gitRef,
-          gitCommit,
-          message,
-        }}
-        onChange={(field, value) => {
-          const setters: Record<keyof MetadataValues, (val: string) => void> = {
-            profile: setProfile,
-            runtimeVersion: setRuntimeVersion,
-            appVersion: setAppVersion,
-            buildNumber: setBuildNumber,
-            bundleId: setBundleId,
-            gitRef: setGitRef,
-            gitCommit: setGitCommit,
-            message: setMessage,
-          };
-          setters[field](value);
-        }}
-      />
+      <MetadataFields values={metadata} onChange={updateMetadata} />
 
       <ProgressBar phase={uploadPhase} progress={uploadProgress} />
 

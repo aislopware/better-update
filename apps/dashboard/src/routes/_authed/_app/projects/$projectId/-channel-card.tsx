@@ -30,6 +30,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient } from "@tanstack/react-query";
+import { Either, Effect } from "effect";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -41,43 +42,12 @@ import type {
 } from "@better-update/api";
 import type { BranchItem } from "@better-update/api-client/react";
 
-import { CompatibleBuildsSection, MissingMatchingBuilds } from "./-channel-compatibility";
-import { DeleteChannelDialog } from "./-delete-channel-dialog";
-
-interface RolloutEntry {
-  branchId: string;
-  branchMappingLogic: string;
-}
-
-interface BranchMappingShape {
-  data: RolloutEntry[];
-}
-
-const isBranchMapping = (value: unknown): value is BranchMappingShape =>
-  typeof value === "object" && value !== null && "data" in value && Array.isArray(value.data);
-
-const parseRolloutState = (json: string): { targetBranchId: string; percentage: number } | null => {
-  // eslint-disable-next-line functional/no-try-statements -- graceful fallback for malformed server JSON
-  try {
-    const parsed: unknown = JSON.parse(json);
-    if (!isBranchMapping(parsed) || parsed.data.length === 0) {
-      return null;
-    }
-    const [first] = parsed.data;
-    if (!first) {
-      return null;
-    }
-    const match = /hash_lt\(mappingId,\s*([\d.]+)\)/.exec(first.branchMappingLogic);
-    return match?.[1]
-      ? {
-          targetBranchId: first.branchId,
-          percentage: Math.round(Number.parseFloat(match[1]) * 100),
-        }
-      : null;
-  } catch {
-    return null;
-  }
-};
+import {
+  CompatibleBuildsSection,
+  DeleteChannelDialog,
+  MissingMatchingBuilds,
+  parseRolloutState,
+} from "./-channel-card-sections";
 
 interface BranchRolloutControlsProps {
   readonly channel: typeof Channel.Type;
@@ -104,44 +74,62 @@ const ActiveRolloutControls = ({
       return;
     }
     setIsUpdatingRollout(true);
-    // eslint-disable-next-line functional/no-try-statements -- imperative shell error handling
-    try {
-      await updateBranchRollout(channel.id, { percentage });
-      toast.success(`Rollout updated to ${percentage}%`);
-      await invalidateChannels();
-    } catch (error) {
-      toast.error(getApiError(error));
-    } finally {
+    const result = await Effect.runPromise(
+      Effect.either(
+        Effect.tryPromise({
+          try: async () => updateBranchRollout(channel.id, { percentage }),
+          catch: (error) => error,
+        }),
+      ),
+    );
+    if (Either.isLeft(result)) {
+      toast.error(getApiError(result.left));
       setIsUpdatingRollout(false);
+      return;
     }
+    toast.success(`Rollout updated to ${percentage}%`);
+    await invalidateChannels();
+    setIsUpdatingRollout(false);
   };
 
   const handleCompleteRollout = async () => {
     setIsUpdatingRollout(true);
-    // eslint-disable-next-line functional/no-try-statements -- imperative shell error handling
-    try {
-      await completeBranchRollout(channel.id);
-      toast.success("Rollout completed — channel now serves the new branch");
-      await invalidateChannels();
-    } catch (error) {
-      toast.error(getApiError(error));
-    } finally {
+    const result = await Effect.runPromise(
+      Effect.either(
+        Effect.tryPromise({
+          try: async () => completeBranchRollout(channel.id),
+          catch: (error) => error,
+        }),
+      ),
+    );
+    if (Either.isLeft(result)) {
+      toast.error(getApiError(result.left));
       setIsUpdatingRollout(false);
+      return;
     }
+    toast.success("Rollout completed — channel now serves the new branch");
+    await invalidateChannels();
+    setIsUpdatingRollout(false);
   };
 
   const handleRevertRollout = async () => {
     setIsUpdatingRollout(true);
-    // eslint-disable-next-line functional/no-try-statements -- imperative shell error handling
-    try {
-      await revertBranchRollout(channel.id);
-      toast.success("Rollout reverted — channel restored to original branch");
-      await invalidateChannels();
-    } catch (error) {
-      toast.error(getApiError(error));
-    } finally {
+    const result = await Effect.runPromise(
+      Effect.either(
+        Effect.tryPromise({
+          try: async () => revertBranchRollout(channel.id),
+          catch: (error) => error,
+        }),
+      ),
+    );
+    if (Either.isLeft(result)) {
+      toast.error(getApiError(result.left));
       setIsUpdatingRollout(false);
+      return;
     }
+    toast.success("Rollout reverted — channel restored to original branch");
+    await invalidateChannels();
+    setIsUpdatingRollout(false);
   };
 
   return (
@@ -222,19 +210,26 @@ const StartRolloutControls = ({
       return;
     }
     setIsSubmitting(true);
-    // eslint-disable-next-line functional/no-try-statements -- imperative shell error handling
-    try {
-      await createBranchRollout(channel.id, { newBranchId: rolloutBranchId, percentage });
-      toast.success(`Branch rollout started at ${percentage}%`);
-      await invalidateChannels();
-      setIsStartingRollout(false);
-      setRolloutBranchId("");
-      setRolloutInput("");
-    } catch (error) {
-      toast.error(getApiError(error));
-    } finally {
+    const result = await Effect.runPromise(
+      Effect.either(
+        Effect.tryPromise({
+          try: async () =>
+            createBranchRollout(channel.id, { newBranchId: rolloutBranchId, percentage }),
+          catch: (error) => error,
+        }),
+      ),
+    );
+    if (Either.isLeft(result)) {
+      toast.error(getApiError(result.left));
       setIsSubmitting(false);
+      return;
     }
+    toast.success(`Branch rollout started at ${percentage}%`);
+    await invalidateChannels();
+    setIsStartingRollout(false);
+    setRolloutBranchId("");
+    setRolloutInput("");
+    setIsSubmitting(false);
   };
 
   if (!isStartingRollout) {
@@ -350,11 +345,16 @@ export const ChannelCard = ({
   };
 
   const handleRelink = async (branchId: string) => {
-    // eslint-disable-next-line functional/no-try-statements -- imperative shell error handling
-    try {
-      await updateChannel(channel.id, { branchId });
-    } catch (error) {
-      toast.error(getApiError(error));
+    const result = await Effect.runPromise(
+      Effect.either(
+        Effect.tryPromise({
+          try: async () => updateChannel(channel.id, { branchId }),
+          catch: (error) => error,
+        }),
+      ),
+    );
+    if (Either.isLeft(result)) {
+      toast.error(getApiError(result.left));
       return;
     }
 
@@ -364,16 +364,23 @@ export const ChannelCard = ({
 
   const handleTogglePause = async () => {
     setIsToggling(true);
-    // eslint-disable-next-line functional/no-try-statements -- imperative shell error handling
-    try {
-      await (channel.isPaused ? resumeChannel(channel.id) : pauseChannel(channel.id));
-      toast.success(channel.isPaused ? "Channel resumed" : "Channel paused");
-      await invalidateChannels();
-    } catch (error) {
-      toast.error(getApiError(error));
-    } finally {
+    const result = await Effect.runPromise(
+      Effect.either(
+        Effect.tryPromise({
+          try: async () =>
+            channel.isPaused ? resumeChannel(channel.id) : pauseChannel(channel.id),
+          catch: (error) => error,
+        }),
+      ),
+    );
+    if (Either.isLeft(result)) {
+      toast.error(getApiError(result.left));
       setIsToggling(false);
+      return;
     }
+    toast.success(channel.isPaused ? "Channel resumed" : "Channel paused");
+    await invalidateChannels();
+    setIsToggling(false);
   };
 
   return (

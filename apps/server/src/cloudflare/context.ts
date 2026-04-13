@@ -14,15 +14,17 @@ export const setRequestContext = (env: Env, ctx: ExecutionContext) => {
   _state.ctx = ctx;
 };
 
-// eslint-disable-next-line typescript/no-non-null-assertion -- set in Worker.fetch before any handler runs
-const getEnv = (): Env => _state.env!;
-// eslint-disable-next-line typescript/no-non-null-assertion -- set in Worker.fetch before any handler runs
-const getCtx = (): ExecutionContext => _state.ctx!;
+const requireValue = <T>(value: T | undefined, label: string): Effect.Effect<T> =>
+  value === undefined ? Effect.dieMessage(`${label} is not set`) : Effect.succeed(value);
 
 // ── Effect accessors (for use inside adapters / middleware) ──────
 
 /** Lazily reads the per-request Cloudflare `Env`. `R = never`. */
-export const cloudflareEnv: Effect.Effect<Env> = Effect.sync(getEnv);
+export const cloudflareEnv: Effect.Effect<Env> = Effect.suspend(() =>
+  requireValue(_state.env, "Cloudflare env"),
+);
 
 /** Lazily reads the per-request `ExecutionContext`. `R = never`. */
-export const cloudflareCtx: Effect.Effect<ExecutionContext> = Effect.sync(getCtx);
+export const cloudflareCtx: Effect.Effect<ExecutionContext> = Effect.suspend(() =>
+  requireValue(_state.ctx, "Cloudflare execution context"),
+);

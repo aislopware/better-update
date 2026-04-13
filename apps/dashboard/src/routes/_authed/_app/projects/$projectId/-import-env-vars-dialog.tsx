@@ -22,6 +22,7 @@ import { Textarea } from "@better-update/ui/components/ui/textarea";
 import { FileImportIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient } from "@tanstack/react-query";
+import { Either, Effect } from "effect";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -52,27 +53,34 @@ export const ImportEnvVarsDialog = ({
     }
 
     setIsSubmitting(true);
-    // eslint-disable-next-line functional/no-try-statements -- imperative shell error handling
-    try {
-      const result = await bulkImportEnvVars({
-        projectId,
-        environment,
-        content,
-        visibility,
-      });
-      toast.success(
-        `Imported: ${result.created} created, ${result.updated} updated${result.skipped > 0 ? `, ${result.skipped} skipped` : ""}`,
-      );
-      await queryClient.invalidateQueries({
-        queryKey: envVarsQueryOptions(orgId, projectId).queryKey,
-      });
-      setOpen(false);
-      setContent("");
-    } catch (error) {
-      toast.error(getApiError(error));
-    } finally {
+    const result = await Effect.runPromise(
+      Effect.either(
+        Effect.tryPromise({
+          try: async () =>
+            bulkImportEnvVars({
+              projectId,
+              environment,
+              content,
+              visibility,
+            }),
+          catch: (error) => error,
+        }),
+      ),
+    );
+    if (Either.isLeft(result)) {
+      toast.error(getApiError(result.left));
       setIsSubmitting(false);
+      return;
     }
+    toast.success(
+      `Imported: ${result.right.created} created, ${result.right.updated} updated${result.right.skipped > 0 ? `, ${result.right.skipped} skipped` : ""}`,
+    );
+    await queryClient.invalidateQueries({
+      queryKey: envVarsQueryOptions(orgId, projectId).queryKey,
+    });
+    setOpen(false);
+    setContent("");
+    setIsSubmitting(false);
   };
 
   return (

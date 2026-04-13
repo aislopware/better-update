@@ -1,12 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 
 import type { ReactNode } from "react";
 
@@ -17,26 +10,9 @@ import {
   resolveTheme,
   setThemeCookie,
 } from "./theme";
+import { ThemeContext } from "./theme-context-value";
 
-import type { ResolvedTheme, Theme } from "./theme";
-
-interface ThemeContextValue {
-  theme: Theme;
-  resolvedTheme: ResolvedTheme;
-  updateTheme: (theme: Theme) => void;
-}
-
-const ThemeContext = createContext<ThemeContextValue | null>(null);
-
-// eslint-disable-next-line react-refresh/only-export-components -- co-exporting provider + hook is standard React context pattern
-export const useTheme = (): ThemeContextValue => {
-  const ctx = useContext(ThemeContext);
-  if (!ctx) {
-    // eslint-disable-next-line functional/no-throw-statements -- React context guard pattern
-    throw new Error("useTheme must be used within a ThemeProvider");
-  }
-  return ctx;
-};
+import type { Theme } from "./theme";
 
 const subscribeSystemPreference = (onStoreChange: () => void) => {
   const mql = globalThis.matchMedia("(prefers-color-scheme: dark)");

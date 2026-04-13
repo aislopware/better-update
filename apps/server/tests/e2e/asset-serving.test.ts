@@ -31,10 +31,8 @@ const parseCookies = (response: Response): string => {
 // ── Asset Serving E2E ───────────────────────────────────────────
 
 describe("Asset serving flow", () => {
-  /* eslint-disable functional/no-let -- mutable E2E test state */
   let cookies: string;
   let organizationId: string;
-  /* eslint-enable functional/no-let */
 
   const assetContent = "console.log('hello from asset')";
   const assetHash = "aabbccdd11223344";

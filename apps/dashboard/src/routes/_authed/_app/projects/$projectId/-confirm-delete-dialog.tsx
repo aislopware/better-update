@@ -12,6 +12,7 @@ import {
 } from "@better-update/ui/components/ui/dialog";
 import { Input } from "@better-update/ui/components/ui/input";
 import { Label } from "@better-update/ui/components/ui/label";
+import { Either, Effect } from "effect";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -56,11 +57,16 @@ export const ConfirmDeleteDialog = ({
 
   const handleDelete = async () => {
     setIsDeleting(true);
-    // eslint-disable-next-line functional/no-try-statements -- imperative shell error handling
-    try {
-      await onConfirm();
-    } catch (error) {
-      toast.error(getApiError(error));
+    const result = await Effect.runPromise(
+      Effect.either(
+        Effect.tryPromise({
+          try: onConfirm,
+          catch: (error) => error,
+        }),
+      ),
+    );
+    if (Either.isLeft(result)) {
+      toast.error(getApiError(result.left));
       setIsDeleting(false);
       return;
     }

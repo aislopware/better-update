@@ -61,7 +61,7 @@ import {
 import { Suspense, useState } from "react";
 
 import { authClient } from "../../lib/auth-client";
-import { useTheme } from "../../lib/theme-context";
+import { useTheme } from "../../lib/use-theme";
 import { orgsQueryOptions, sessionQueryOptions } from "../../queries/auth";
 import { CreateOrgDialog } from "./-create-org-dialog";
 

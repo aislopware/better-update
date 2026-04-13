@@ -1,5 +1,5 @@
 import { Conflict } from "@better-update/api";
-import { Effect } from "effect";
+import { Either, Effect } from "effect";
 
 export const d1RunWithUniqueCheck = (
   run: () => Promise<unknown>,
@@ -9,11 +9,14 @@ export const d1RunWithUniqueCheck = (
     try: run,
     catch: (error) => error,
   }).pipe(
-    // eslint-disable-next-line promise/prefer-await-to-callbacks -- Effect.catchAll is functional composition
-    Effect.catchAll((error) =>
-      String(error).includes("UNIQUE constraint failed")
-        ? Effect.fail(new Conflict({ message: conflictMessage }))
-        : Effect.die(error),
-    ),
-    Effect.asVoid,
+    Effect.either,
+    Effect.flatMap((result) => {
+      if (Either.isRight(result)) {
+        return Effect.void;
+      }
+      if (String(result.left).includes("UNIQUE constraint failed")) {
+        return Effect.fail(new Conflict({ message: conflictMessage }));
+      }
+      return Effect.die(result.left);
+    }),
   );

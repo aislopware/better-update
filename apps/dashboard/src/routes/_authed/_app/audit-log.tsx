@@ -30,6 +30,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 
+import { safeJsonParse } from "../../../lib/async";
 import { orgsQueryOptions, sessionQueryOptions } from "../../../queries/auth";
 
 const RESOURCE_TYPES = [
@@ -78,12 +79,7 @@ const parseMetadata = (metadata: string | null): unknown => {
   if (!metadata) {
     return null;
   }
-  // eslint-disable-next-line functional/no-try-statements -- JSON.parse can throw on malformed data
-  try {
-    return JSON.parse(metadata);
-  } catch {
-    return null;
-  }
+  return safeJsonParse(metadata);
 };
 
 const MetadataCell = ({ raw }: { raw: string | null }) => {

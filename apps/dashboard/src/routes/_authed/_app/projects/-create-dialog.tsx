@@ -16,6 +16,7 @@ import { Add01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
+import { Either, Effect } from "effect";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod/v4";
@@ -30,11 +31,16 @@ const CreateFormContent = ({ orgId, onSuccess }: { orgId: string; onSuccess: () 
   const form = useForm({
     defaultValues: { name: "", scopeKey: "" },
     onSubmit: async ({ value }) => {
-      // eslint-disable-next-line functional/no-try-statements -- imperative shell error handling
-      try {
-        await createProject({ name: value.name, scopeKey: value.scopeKey });
-      } catch (error) {
-        toast.error(getApiError(error));
+      const result = await Effect.runPromise(
+        Effect.either(
+          Effect.tryPromise({
+            try: async () => createProject({ name: value.name, scopeKey: value.scopeKey }),
+            catch: (error) => error,
+          }),
+        ),
+      );
+      if (Either.isLeft(result)) {
+        toast.error(getApiError(result.left));
         return;
       }
 

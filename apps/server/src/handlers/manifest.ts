@@ -1,21 +1,25 @@
 import { Effect } from "effect";
 
-import type { NotFound } from "@better-update/api";
+import type { BadRequest, NotFound } from "@better-update/api";
 
-import { cloudflareCtx, cloudflareEnv } from "../cloudflare/context";
+import { cloudflareEnv } from "../cloudflare/context";
 import { evaluateBranchMapping } from "../domain/branch-mapping";
 import { resolveUpdateRollout } from "../domain/update-rollout";
-import { addServerDefinedHeaders, parseProtocolHeaders } from "../protocol/headers";
+import { parseProtocolHeaders } from "../protocol/headers";
 import { buildDirective, buildExtensions, buildManifest } from "../protocol/manifest-builder";
 import { encodeMultipart } from "../protocol/multipart";
 import { ManifestRepo, ManifestRepoLive } from "../repositories/manifest";
+import { buildCacheKey, matchCachedResponse, storeCachedResponse } from "./manifest-cache";
+import { createTracker, respond, responseTypeFor } from "./manifest-helpers";
 
 import type { ProtocolHeaders } from "../protocol/headers";
 import type { PatchedAssetInfo } from "../protocol/manifest-builder";
 import type { Part } from "../protocol/multipart";
 import type { AssetRow, ChannelRow, UpdateRow } from "../repositories/manifest";
+import type { TrackManifestResponse } from "./manifest-helpers";
 
-type ResponseType = "manifest" | "directive" | "no_update";
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
 
 const COMMON_HEADERS: Record<string, string> = {
   "expo-protocol-version": "1",
@@ -83,39 +87,9 @@ const certChainParts = (ph: ProtocolHeaders, update: UpdateRow): readonly Part[]
       ]
     : [];
 
-// eslint-disable-next-line typescript/no-unsafe-type-assertion -- D1 JSON columns are trusted application data
-const parseJson = (raw: string) => JSON.parse(raw) as Record<string, unknown>;
-const CACHE_NAME = "manifests";
-const INTERNAL_TTL = 86_400;
-const buildCacheKey = (params: {
-  readonly cacheVersion: number;
-  readonly projectId: string;
-  readonly channelName: string;
-  readonly platform: string;
-  readonly runtimeVersion: string;
-  readonly resolvedBranchId: string;
-  readonly multipart: boolean;
-  readonly expectSignature: boolean;
-}) =>
-  `https://cache.internal/_cache/v${params.cacheVersion}/manifest/${params.projectId}/${params.channelName}/${params.platform}/${params.runtimeVersion}/${params.resolvedBranchId}/${params.multipart ? "mp" : "json"}/${params.expectSignature ? "sig" : "nosig"}`;
-
-interface CacheMeta {
-  readonly updateId: string;
-  readonly responseType: ResponseType;
-}
-const toCacheEntry = (response: Response, meta: CacheMeta) => {
-  const headers = new Headers(response.headers);
-  headers.set("cache-control", `public, max-age=${INTERNAL_TTL}`);
-  headers.set("x-cache-update-id", meta.updateId);
-  headers.set("x-cache-response-type", meta.responseType);
-  return new Response(response.clone().body, { status: response.status, headers });
-};
-const fromCacheEntry = (cached: Response) => {
-  const headers = new Headers(cached.headers);
-  headers.delete("x-cache-update-id");
-  headers.delete("x-cache-response-type");
-  headers.set("cache-control", "private, max-age=0");
-  return new Response(cached.body, { status: cached.status, headers });
+const parseJson = (raw: string): Record<string, unknown> => {
+  const parsed: unknown = JSON.parse(raw);
+  return isRecord(parsed) ? parsed : {};
 };
 
 const buildDirectiveResponse = (
@@ -186,6 +160,11 @@ const buildManifestFromData = (params: {
     ...certChainParts(ph, update),
     buildExtensionsPart(patchedAsset),
   ]);
+};
+
+const trackNoUpdate = (branchId: string, track: TrackManifestResponse) => {
+  track(branchId, "", "no_update");
+  return noContent();
 };
 
 const resolveRolledOutUpdate = (params: {
@@ -273,29 +252,18 @@ const buildUpdateResponse = (params: {
       patchedAsset,
     });
   });
-
-const openCache = () => Effect.promise(async () => caches.open(CACHE_NAME));
-const checkCache = (cache: Cache, cacheKey: string) =>
-  Effect.promise(async () => cache.match(cacheKey));
 const isCacheable = (candidates: readonly UpdateRow[]) =>
   candidates.every((candidate) => candidate.rollout_percentage === 100);
 
-const storeInCache = (cache: Cache, cacheKey: string, response: Response, meta: CacheMeta) =>
-  Effect.gen(function* () {
-    const ctx = yield* cloudflareCtx;
-    ctx.waitUntil(cache.put(cacheKey, toCacheEntry(response, meta)));
-  });
-
 const handleCacheMiss = (params: {
-  readonly cache: Cache;
   readonly projectId: string;
   readonly resolvedBranchId: string;
   readonly cacheKey: string;
   readonly ph: ProtocolHeaders;
-  readonly track: (branchId: string, updateId: string, responseType: ResponseType) => void;
+  readonly track: TrackManifestResponse;
 }): Effect.Effect<Response, NotFound, ManifestRepo> =>
   Effect.gen(function* () {
-    const { cache, projectId, resolvedBranchId, cacheKey, ph, track } = params;
+    const { projectId, resolvedBranchId, cacheKey, ph, track } = params;
     const repo = yield* ManifestRepo;
 
     const [scopeKey, candidates] = yield* Effect.all(
@@ -310,13 +278,8 @@ const handleCacheMiss = (params: {
       { concurrency: 2 },
     );
 
-    const trackNoUpdate = () => {
-      track(resolvedBranchId, "", "no_update");
-      return noContent();
-    };
-
     if (candidates.length === 0) {
-      return trackNoUpdate();
+      return trackNoUpdate(resolvedBranchId, track);
     }
 
     const update = yield* resolveRolledOutUpdate({
@@ -327,15 +290,15 @@ const handleCacheMiss = (params: {
       runtimeVersion: ph.runtimeVersion,
     });
     if (update === null) {
-      return trackNoUpdate();
+      return trackNoUpdate(resolvedBranchId, track);
     }
 
     const response = yield* buildUpdateResponse({ update, scopeKey, ph, patchedAsset: undefined });
-    const responseType: ResponseType = update.is_rollback === 1 ? "directive" : "manifest";
+    const responseType = responseTypeFor(update);
     track(resolvedBranchId, update.id, responseType);
 
     if (response.status === 200 && isCacheable(candidates)) {
-      yield* storeInCache(cache, cacheKey, response, { updateId: update.id, responseType });
+      yield* storeCachedResponse(cacheKey, response, { updateId: update.id, responseType });
     }
 
     return response;
@@ -375,8 +338,8 @@ const resolvePatchInfo = (params: {
 const handlePatchAwareRequest = (params: {
   readonly projectId: string;
   readonly resolvedBranchId: string;
-  readonly ph: ProtocolHeaders;
-  readonly track: (branchId: string, updateId: string, responseType: ResponseType) => void;
+  readonly ph: ProtocolHeaders & { currentUpdateId: string };
+  readonly track: TrackManifestResponse;
 }): Effect.Effect<Response, NotFound, ManifestRepo> =>
   Effect.gen(function* () {
     const { projectId, resolvedBranchId, ph, track } = params;
@@ -395,8 +358,7 @@ const handlePatchAwareRequest = (params: {
     );
 
     if (candidates.length === 0) {
-      track(resolvedBranchId, "", "no_update");
-      return noContent();
+      return trackNoUpdate(resolvedBranchId, track);
     }
 
     const update = yield* resolveRolledOutUpdate({
@@ -407,65 +369,32 @@ const handlePatchAwareRequest = (params: {
       runtimeVersion: ph.runtimeVersion,
     });
     if (update === null) {
-      track(resolvedBranchId, "", "no_update");
-      return noContent();
+      return trackNoUpdate(resolvedBranchId, track);
     }
 
     const patchedAsset = yield* resolvePatchInfo({
       update,
-      // eslint-disable-next-line typescript/no-non-null-assertion -- guarded by caller
-      currentUpdateId: ph.currentUpdateId!,
+      currentUpdateId: ph.currentUpdateId,
     });
 
     const response = yield* buildUpdateResponse({ update, scopeKey, ph, patchedAsset });
-    const responseType: ResponseType = update.is_rollback === 1 ? "directive" : "manifest";
+    const responseType = responseTypeFor(update);
     track(resolvedBranchId, update.id, responseType);
     return response;
   });
 
-const serve = (request: Request, projectId: string): Effect.Effect<Response, never, ManifestRepo> =>
+const serveCachedOrFresh = (params: {
+  readonly cacheVersion: number;
+  readonly projectId: string;
+  readonly resolvedBranchId: string;
+  readonly accept: string;
+  readonly ph: ProtocolHeaders;
+  readonly track: TrackManifestResponse;
+}): Effect.Effect<Response, NotFound, ManifestRepo> =>
   Effect.gen(function* () {
-    const startTime = Date.now();
-    const env = yield* cloudflareEnv;
-    const ph = yield* parseProtocolHeaders(request.headers);
-    const echo = (res: Response) => addServerDefinedHeaders(res, ph.extraParams);
-    const track = (branchId: string, updateId: string, responseType: ResponseType) => {
-      env.ANALYTICS.writeDataPoint({
-        indexes: [`${projectId}:${ph.easClientId ?? crypto.randomUUID()}`],
-        blobs: [
-          projectId,
-          ph.channelName,
-          branchId,
-          updateId,
-          ph.platform,
-          ph.runtimeVersion,
-          responseType,
-          ph.extraParams ?? "",
-        ],
-        doubles: [Date.now() - startTime, 0],
-      });
-    };
-
-    const accept = ph.accept ?? "*/*";
-    if (!supportsAny(accept)) {
-      return jsonError(406, "NOT_ACCEPTABLE", "Supported: multipart/mixed, application/expo+json");
-    }
-
-    const repo = yield* ManifestRepo;
-    const channel = yield* repo.resolveChannel({ projectId, channelName: ph.channelName });
-    if (channel.is_paused === 1) {
-      track(channel.branch_id, "", "no_update");
-      return echo(noContent());
-    }
-
-    const resolvedBranchId = yield* resolveBranchId(channel, ph.easClientId);
-    // Patch-aware path: bypass cache when client reports current update
-    if (ph.currentUpdateId) {
-      return echo(yield* handlePatchAwareRequest({ projectId, resolvedBranchId, ph, track }));
-    }
-
+    const { cacheVersion, projectId, resolvedBranchId, accept, ph, track } = params;
     const cacheKey = buildCacheKey({
-      cacheVersion: channel.cache_version,
+      cacheVersion,
       projectId,
       channelName: ph.channelName,
       platform: ph.platform,
@@ -474,27 +403,83 @@ const serve = (request: Request, projectId: string): Effect.Effect<Response, nev
       multipart: supportsMultipart(accept),
       expectSignature: Boolean(ph.expectSignature),
     });
-    const cache = yield* openCache();
-    const cached = yield* checkCache(cache, cacheKey);
+    const cached = yield* matchCachedResponse(cacheKey);
     if (cached) {
-      const updateId = cached.headers.get("x-cache-update-id") ?? "";
-      // eslint-disable-next-line typescript/no-unsafe-type-assertion -- internal header written by toCacheEntry
-      const responseType = (cached.headers.get("x-cache-response-type") ??
-        "manifest") as ResponseType;
-      track(resolvedBranchId, updateId, responseType);
-      return echo(fromCacheEntry(cached));
+      track(resolvedBranchId, cached.updateId, cached.responseType);
+      return cached.response;
     }
-    return echo(
-      yield* handleCacheMiss({ cache, projectId, resolvedBranchId, cacheKey, ph, track }),
-    );
-  }).pipe(
-    // eslint-disable-next-line promise/prefer-await-to-callbacks -- Effect error handler, not a callback
-    Effect.catchTag("BadRequest", (err) =>
-      Effect.succeed(jsonError(400, "BAD_REQUEST", err.message)),
-    ),
-    // eslint-disable-next-line promise/prefer-await-to-callbacks -- Effect error handler, not a callback
-    Effect.catchTag("NotFound", (err) => Effect.succeed(jsonError(404, "NOT_FOUND", err.message))),
-  );
+    return yield* handleCacheMiss({ projectId, resolvedBranchId, cacheKey, ph, track });
+  });
+
+const resolveRequestResponse = (params: {
+  readonly channel: ChannelRow;
+  readonly projectId: string;
+  readonly resolvedBranchId: string;
+  readonly accept: string;
+  readonly ph: ProtocolHeaders;
+  readonly track: TrackManifestResponse;
+}): Effect.Effect<Response, NotFound, ManifestRepo> => {
+  const { channel, projectId, resolvedBranchId, accept, ph, track } = params;
+  return ph.currentUpdateId
+    ? handlePatchAwareRequest({
+        projectId,
+        resolvedBranchId,
+        ph: { ...ph, currentUpdateId: ph.currentUpdateId },
+        track,
+      })
+    : serveCachedOrFresh({
+        cacheVersion: channel.cache_version,
+        projectId,
+        resolvedBranchId,
+        accept,
+        ph,
+        track,
+      });
+};
+
+const serveRequest = (
+  request: Request,
+  projectId: string,
+): Effect.Effect<Response, BadRequest | NotFound, ManifestRepo> =>
+  Effect.gen(function* () {
+    const startTime = Date.now();
+    const env = yield* cloudflareEnv;
+    const ph = yield* parseProtocolHeaders(request.headers);
+    const accept = ph.accept ?? "*/*";
+    if (!supportsAny(accept)) {
+      return jsonError(406, "NOT_ACCEPTABLE", "Supported: multipart/mixed, application/expo+json");
+    }
+
+    const repo = yield* ManifestRepo;
+    const channel = yield* repo.resolveChannel({ projectId, channelName: ph.channelName });
+    const track = createTracker({ env, projectId, ph, startTime });
+
+    if (channel.is_paused === 1) {
+      return respond(trackNoUpdate(channel.branch_id, track), ph);
+    }
+
+    const resolvedBranchId = yield* resolveBranchId(channel, ph.easClientId);
+    const response = yield* resolveRequestResponse({
+      channel,
+      projectId,
+      resolvedBranchId,
+      accept,
+      ph,
+      track,
+    });
+    return respond(response, ph);
+  });
+
+const toManifestErrorResponse = (error: BadRequest | NotFound) =>
+  error._tag === "BadRequest"
+    ? jsonError(400, "BAD_REQUEST", error.message)
+    : jsonError(404, "NOT_FOUND", error.message);
+
+const serve = (request: Request, projectId: string): Effect.Effect<Response, never, ManifestRepo> =>
+  Effect.match(serveRequest(request, projectId), {
+    onFailure: toManifestErrorResponse,
+    onSuccess: (response) => response,
+  });
 
 export const serveManifest = async (request: Request, projectId: string): Promise<Response> =>
   Effect.runPromise(serve(request, projectId).pipe(Effect.provide(ManifestRepoLive)));
