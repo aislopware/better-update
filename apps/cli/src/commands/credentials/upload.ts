@@ -1,8 +1,8 @@
 import { Command, Options } from "@effect/cli";
-import { FileSystem } from "@effect/platform";
 import { Console, Effect, Option } from "effect";
 
 import { readProjectId } from "../../lib/app-json";
+import { uploadCredentialFromFile } from "../../lib/credentials-manager";
 import { printKeyValue } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 
@@ -40,10 +40,6 @@ export const uploadCommand = Command.make(
         onSome: (id) => Effect.succeed(id),
       });
 
-      const fs = yield* FileSystem.FileSystem;
-      const fileBytes = yield* fs.readFile(opts.file);
-      const blob = Buffer.from(fileBytes).toString("base64");
-
       const optionalFields = {
         ...Option.match(opts.password, {
           onNone: () => ({}),
@@ -64,15 +60,13 @@ export const uploadCommand = Command.make(
       };
 
       const api = yield* apiClient;
-      const credential = yield* api.credentials.upload({
-        payload: {
-          platform: opts.platform,
-          type: opts.type,
-          name: opts.name,
-          blob,
-          projectId: resolvedProjectId,
-          ...optionalFields,
-        },
+      const credential = yield* uploadCredentialFromFile(api, {
+        projectId: resolvedProjectId,
+        platform: opts.platform,
+        type: opts.type,
+        name: opts.name,
+        filePath: opts.file,
+        ...optionalFields,
       });
 
       yield* Console.log("Credential uploaded successfully.");

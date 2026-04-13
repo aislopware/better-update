@@ -105,10 +105,11 @@ vi.mock(selectModule, async () => {
 });
 
 vi.mock(apiReactModule, async (importOriginal) => {
-  const actual = (await importOriginal()) as Record<string, unknown>;
+  const actual = await importOriginal();
+  const actualModule = typeof actual === "object" && actual !== null ? actual : {};
 
   return {
-    ...actual,
+    ...actualModule,
     createChannel: apiReactMocks.createChannel,
     deleteBranch: apiReactMocks.deleteBranch,
     deleteBuild: apiReactMocks.deleteBuild,
@@ -120,10 +121,11 @@ vi.mock(apiReactModule, async (importOriginal) => {
 });
 
 vi.mock(buildHelpersModule, async (importOriginal) => {
-  const actual = (await importOriginal()) as Record<string, unknown>;
+  const actual = await importOriginal();
+  const actualModule = typeof actual === "object" && actual !== null ? actual : {};
 
   return {
-    ...actual,
+    ...actualModule,
     computeSha256: buildHelpersMocks.computeSha256,
     uploadWithProgress: buildHelpersMocks.uploadWithProgress,
   };

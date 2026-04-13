@@ -46,6 +46,7 @@ describe("Updates & Assets API flow", () => {
   let cookies: string;
   let organizationId: string;
   let projectId: string;
+  let autoProjectId: string;
   let mainBranchId: string;
   let stagingBranchId: string;
   let productionChannelId: string;
@@ -102,6 +103,18 @@ describe("Updates & Assets API flow", () => {
     const body = await response.json();
     expect(body.id).toBeDefined();
     projectId = body.id;
+  });
+
+  it("creates a project for auto branch/channel creation", async () => {
+    const response = await post(
+      "/api/projects",
+      { name: "Updates Auto Project", scopeKey: "@updates/auto" },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    expect(body.id).toBeDefined();
+    autoProjectId = body.id;
   });
 
   it("creates main branch", async () => {
@@ -201,6 +214,54 @@ describe("Updates & Assets API flow", () => {
     expect(body.uploaded).toHaveLength(0);
     expect(body.deduplicated).toContain("abc123def456");
     expect(body.deduplicated).toContain("789abc012def");
+  });
+
+  it("auto-creates branch and channel on first publish", async () => {
+    const publishResponse = await post(
+      "/api/updates",
+      {
+        project: "@updates/auto",
+        branch: "preview-auto",
+        runtimeVersion: "1.0.0",
+        platform: "ios",
+        message: "Auto branch publish",
+        groupId: "group-auto-1",
+        metadata: {},
+        assets: [{ hash: "abc123def456", key: "bundles/ios.js", isLaunch: true }],
+      },
+      { cookie: cookies },
+    );
+    expect(publishResponse.status).toBe(201);
+    const publishBody = await publishResponse.json();
+    expect(publishBody.branchId).toBeDefined();
+
+    const branchesResponse = await get(`/api/branches?projectId=${autoProjectId}`, {
+      cookie: cookies,
+    });
+    expect(branchesResponse.status).toBe(200);
+    const branchesBody = await branchesResponse.json();
+    const previewBranch = branchesBody.items.find(
+      (branch: { id: string; name: string }) => branch.name === "preview-auto",
+    );
+    expect(previewBranch).toBeDefined();
+    if (!previewBranch) {
+      throw new Error("Expected auto-created branch to exist");
+    }
+
+    const channelsResponse = await get(`/api/channels?projectId=${autoProjectId}`, {
+      cookie: cookies,
+    });
+    expect(channelsResponse.status).toBe(200);
+    const channelsBody = await channelsResponse.json();
+    const previewChannel = channelsBody.items.find(
+      (channel: { name: string; branchId: string }) => channel.name === "preview-auto",
+    );
+    expect(previewChannel).toBeDefined();
+    if (!previewChannel) {
+      throw new Error("Expected auto-created channel to exist");
+    }
+    expect(previewChannel.branchId).toBe(previewBranch.id);
+    expect(previewChannel.branchId).toBe(publishBody.branchId);
   });
 
   // ── Section 4: Update CRUD ─────────────────────────────────────

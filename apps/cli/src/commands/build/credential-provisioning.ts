@@ -1,0 +1,232 @@
+import path from "node:path";
+
+import { Prompt } from "@effect/cli";
+import { FileSystem } from "@effect/platform";
+import { Console, Effect, Redacted } from "effect";
+
+import { generateAndroidKeystore, promptAndroidKeystoreDetails } from "../../lib/android-keystore";
+import { findActiveCredential, uploadAndActivateCredential } from "../../lib/credentials-manager";
+
+import type { IosDistribution } from "../../lib/build-profile";
+import type { ApiClient } from "../../services/api-client";
+
+const expandPromptPath = (value: string): string =>
+  value.startsWith("~/") ? path.join(process.env["HOME"] ?? "", value.slice(2)) : value;
+
+const resolvePromptPath = (value: string): string => path.resolve(expandPromptPath(value.trim()));
+
+const validateFilePath = (extensions: ReadonlyArray<string>) => (value: string) =>
+  Effect.gen(function* () {
+    const resolved = resolvePromptPath(value);
+    const fs = yield* FileSystem.FileSystem;
+
+    if (!extensions.some((extension) => resolved.toLowerCase().endsWith(extension))) {
+      return yield* Effect.fail(`Expected a file ending in ${extensions.join(" or ")}.`);
+    }
+
+    const exists = yield* fs.exists(resolved);
+    if (!exists) {
+      return yield* Effect.fail(`File not found: ${resolved}`);
+    }
+
+    return resolved;
+  });
+
+const validateRequiredText = (label: string) => (value: string) =>
+  value.trim().length > 0 ? Effect.succeed(value.trim()) : Effect.fail(`${label} is required.`);
+
+const promptExistingFilePath = (params: {
+  readonly message: string;
+  readonly extensions: ReadonlyArray<string>;
+}) =>
+  Prompt.text({
+    message: params.message,
+    validate: validateFilePath(params.extensions),
+  });
+
+const promptName = (message: string, defaultValue: string) =>
+  Prompt.text({
+    message,
+    default: defaultValue,
+    validate: validateRequiredText("Credential name"),
+  });
+
+const promptPassword = (message: string) =>
+  Prompt.password({
+    message,
+  }).pipe(Effect.map(Redacted.value));
+
+const uploadIosCertificate = (api: ApiClient, projectId: string) =>
+  Effect.gen(function* () {
+    const filePath = yield* promptExistingFilePath({
+      message: "Distribution certificate path (.p12):",
+      extensions: [".p12"],
+    });
+    const password = yield* promptPassword("Certificate password (leave blank if none):");
+    const name = yield* promptName("Certificate name:", path.basename(filePath));
+
+    const credential = yield* uploadAndActivateCredential(api, {
+      projectId,
+      platform: "ios",
+      type: "distribution-certificate",
+      name,
+      filePath,
+      password,
+    });
+
+    yield* Console.log(`Uploaded iOS distribution certificate: ${credential.name}`);
+  });
+
+const uploadIosProvisioningProfile = (
+  api: ApiClient,
+  projectId: string,
+  distribution: IosDistribution,
+) =>
+  Effect.gen(function* () {
+    const filePath = yield* promptExistingFilePath({
+      message: "Provisioning profile path (.mobileprovision):",
+      extensions: [".mobileprovision"],
+    });
+    const name = yield* promptName("Provisioning profile name:", path.basename(filePath));
+
+    const credential = yield* uploadAndActivateCredential(api, {
+      projectId,
+      platform: "ios",
+      type: "provisioning-profile",
+      distribution,
+      name,
+      filePath,
+    });
+
+    yield* Console.log(`Uploaded iOS provisioning profile: ${credential.name}`);
+  });
+
+const uploadExistingAndroidKeystore = (api: ApiClient, projectId: string) =>
+  Effect.gen(function* () {
+    const filePath = yield* promptExistingFilePath({
+      message: "Keystore path (.jks or .keystore):",
+      extensions: [".jks", ".keystore"],
+    });
+    const password = yield* promptPassword("Keystore password:");
+    const keyAlias = yield* Prompt.text({
+      message: "Key alias:",
+      validate: validateRequiredText("Key alias"),
+    });
+    const keyPassword = yield* promptPassword(
+      "Key password (leave blank to reuse keystore password):",
+    ).pipe(Effect.map((value) => (value.trim().length > 0 ? value : password)));
+    const name = yield* promptName("Keystore name:", path.basename(filePath));
+
+    const credential = yield* uploadAndActivateCredential(api, {
+      projectId,
+      platform: "android",
+      type: "keystore",
+      name,
+      filePath,
+      password,
+      keyAlias,
+      keyPassword,
+    });
+
+    yield* Console.log(`Uploaded Android keystore: ${credential.name}`);
+  });
+
+const generateAndUploadAndroidKeystore = (api: ApiClient, projectId: string) =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const tempDir = yield* fs.makeTempDirectoryScoped({ prefix: "better-update-keystore-" });
+    const details = yield* promptAndroidKeystoreDetails();
+    const outputPath = path.join(tempDir, "release.keystore");
+
+    yield* generateAndroidKeystore({
+      outputPath,
+      keyAlias: details.keyAlias,
+      storePassword: details.storePassword,
+      keyPassword: details.keyPassword,
+      commonName: details.commonName,
+      organization: details.organization,
+    });
+
+    const credential = yield* uploadAndActivateCredential(api, {
+      projectId,
+      platform: "android",
+      type: "keystore",
+      name: details.credentialName,
+      filePath: outputPath,
+      password: details.storePassword,
+      keyAlias: details.keyAlias,
+      keyPassword: details.keyPassword,
+    });
+
+    yield* Console.log(`Generated and uploaded Android keystore: ${credential.name}`);
+  });
+
+export const provisionIosCredentials = (params: {
+  readonly api: ApiClient;
+  readonly projectId: string;
+  readonly distribution: IosDistribution;
+}) =>
+  Effect.gen(function* () {
+    const activeCertificate = yield* findActiveCredential(params.api, {
+      projectId: params.projectId,
+      platform: "ios",
+      type: "distribution-certificate",
+    });
+    const activeProfile = yield* findActiveCredential(params.api, {
+      projectId: params.projectId,
+      platform: "ios",
+      type: "provisioning-profile",
+      distribution: params.distribution,
+    });
+
+    if (!activeCertificate) {
+      yield* Console.log("");
+      yield* Console.log("No active iOS distribution certificate found. Upload one now.");
+      yield* uploadIosCertificate(params.api, params.projectId);
+    }
+
+    if (!activeProfile) {
+      yield* Console.log("");
+      yield* Console.log(
+        `No active iOS provisioning profile found for "${params.distribution}". Upload one now.`,
+      );
+      yield* uploadIosProvisioningProfile(params.api, params.projectId, params.distribution);
+    }
+
+    if (activeCertificate && activeProfile) {
+      yield* Console.log("");
+      yield* Console.log("Active iOS credentials already exist. Retrying the build with them.");
+    }
+  });
+
+export const provisionAndroidCredentials = (params: {
+  readonly api: ApiClient;
+  readonly projectId: string;
+}) =>
+  Effect.gen(function* () {
+    yield* Console.log("");
+    yield* Console.log("No usable Android keystore found for this project.");
+
+    const method = yield* Prompt.select({
+      message: "How would you like to provide a keystore?",
+      choices: [
+        {
+          title: "Upload an existing keystore",
+          value: "upload" as const,
+          description: "Use a .jks or .keystore file you already manage.",
+        },
+        {
+          title: "Generate a new keystore",
+          value: "generate" as const,
+          description: "Create a new upload keystore locally, then upload it.",
+        },
+      ],
+    });
+
+    if (method === "upload") {
+      yield* uploadExistingAndroidKeystore(params.api, params.projectId);
+      return;
+    }
+
+    yield* generateAndUploadAndroidKeystore(params.api, params.projectId);
+  });

@@ -3,9 +3,18 @@ import { Console } from "effect";
 
 import { activateCommand } from "./activate";
 import { deleteCommand } from "./delete";
+import { generateKeystoreCommand } from "./generate-keystore";
 import { listCommand } from "./list";
 import { uploadCommand } from "./upload";
 
 export const credentialsCommand = Command.make("credentials", {}, () =>
   Console.log("Manage credentials. Run with --help for subcommands."),
-).pipe(Command.withSubcommands([listCommand, uploadCommand, activateCommand, deleteCommand]));
+).pipe(
+  Command.withSubcommands([
+    listCommand,
+    uploadCommand,
+    generateKeystoreCommand,
+    activateCommand,
+    deleteCommand,
+  ]),
+);
