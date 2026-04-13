@@ -1,5 +1,8 @@
-import { getApiError } from "@better-update/api-client";
-import { republishUpdate } from "@better-update/api-client/react";
+import {
+  buildCompatibilityMatrixQueryKey,
+  republishUpdate,
+  updatesQueryKey,
+} from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
@@ -20,11 +23,12 @@ import {
 import { Rocket01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Either, Effect } from "effect";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import type { Channel, Update } from "@better-update/api";
+
+import { useApiMutation } from "../../../../../lib/use-api-mutation";
 
 interface PromoteUpdateDialogProps {
   readonly update: typeof Update.Type;
@@ -45,42 +49,32 @@ export const PromoteUpdateDialog = ({
 }: PromoteUpdateDialogProps) => {
   const queryClient = useQueryClient();
   const [targetChannelId, setTargetChannelId] = useState("");
-  const [isPromoting, setIsPromoting] = useState(false);
+  const promoteUpdateMutation = useApiMutation({
+    mutationFn: async (channelId: string) =>
+      republishUpdate({
+        sourceUpdateId: update.id,
+        targetChannelId: channelId,
+      }),
+    onSuccess: async () => {
+      toast.success("Update promoted successfully");
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: updatesQueryKey(orgId, projectId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: buildCompatibilityMatrixQueryKey(orgId, projectId),
+        }),
+      ]);
+      setTargetChannelId("");
+      onOpenChange(false);
+    },
+  });
 
   const handlePromote = async () => {
     if (!targetChannelId) {
       return;
     }
-    setIsPromoting(true);
-    const result = await Effect.runPromise(
-      Effect.either(
-        Effect.tryPromise({
-          try: async () =>
-            republishUpdate({
-              sourceUpdateId: update.id,
-              targetChannelId,
-            }),
-          catch: (error) => error,
-        }),
-      ),
-    );
-    if (Either.isLeft(result)) {
-      toast.error(getApiError(result.left));
-      setIsPromoting(false);
-      return;
-    }
-    toast.success("Update promoted successfully");
-    await Promise.all([
-      queryClient.invalidateQueries({
-        queryKey: ["org", orgId, "projects", projectId, "updates"],
-      }),
-      queryClient.invalidateQueries({
-        queryKey: ["org", orgId, "projects", projectId, "build-compatibility-matrix"],
-      }),
-    ]);
-    setIsPromoting(false);
-    setTargetChannelId("");
-    onOpenChange(false);
+    await promoteUpdateMutation.mutateAsync(targetChannelId);
   };
 
   return (
@@ -133,9 +127,12 @@ export const PromoteUpdateDialog = ({
           </div>
         </div>
         <DialogFooter>
-          <Button onClick={handlePromote} disabled={!targetChannelId || isPromoting}>
+          <Button
+            onClick={handlePromote}
+            disabled={!targetChannelId || promoteUpdateMutation.isPending}
+          >
             <HugeiconsIcon icon={Rocket01Icon} strokeWidth={2} className="size-4" />
-            {isPromoting ? "Promoting..." : "Promote"}
+            {promoteUpdateMutation.isPending ? "Promoting..." : "Promote"}
           </Button>
         </DialogFooter>
       </DialogContent>

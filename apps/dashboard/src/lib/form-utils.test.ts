@@ -1,4 +1,4 @@
-import { generateScopeKey, generateSlug } from "./form-utils";
+import { envVarKeySchema, generateScopeKey, generateSlug } from "./form-utils";
 
 describe(generateSlug, () => {
   test("converts name to slug", () => {
@@ -34,4 +34,12 @@ describe(generateScopeKey, () => {
   test("preserves numbers", () => {
     expect(generateScopeKey("App 42")).toBe("@app-42/app");
   });
+});
+
+test("envVarKeySchema accepts valid uppercase env keys", () => {
+  expect(envVarKeySchema.safeParse("EXPO_PUBLIC_API_URL").success).toBe(true);
+});
+
+test("envVarKeySchema rejects invalid env keys", () => {
+  expect(envVarKeySchema.safeParse("expoPublicApiUrl").success).toBe(false);
 });

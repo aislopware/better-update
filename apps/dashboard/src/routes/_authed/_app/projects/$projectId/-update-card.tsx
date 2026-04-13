@@ -1,9 +1,10 @@
-import { getApiError } from "@better-update/api-client";
 import {
+  buildCompatibilityMatrixQueryKey,
   completeUpdateRollout,
   deleteUpdateGroup,
   editUpdateRollout,
   revertUpdateRollout,
+  updatesQueryKey,
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
@@ -17,12 +18,12 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Either, Effect } from "effect";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import type { Channel, Update } from "@better-update/api";
 
+import { useApiMutation } from "../../../../../lib/use-api-mutation";
 import { PromoteUpdateDialog } from "./-promote-update-dialog";
 
 interface UpdateCardProps {
@@ -34,9 +35,7 @@ interface UpdateCardProps {
 
 export const UpdateCard = ({ update, channels, orgId, projectId }: UpdateCardProps) => {
   const queryClient = useQueryClient();
-  const [isDeleting, setIsDeleting] = useState(false);
   const [rolloutInput, setRolloutInput] = useState(String(update.rolloutPercentage));
-  const [isUpdatingRollout, setIsUpdatingRollout] = useState(false);
   const [promoteOpen, setPromoteOpen] = useState(false);
 
   const eligibleChannels = channels.filter((channel) => channel.branchId !== update.branchId);
@@ -44,31 +43,48 @@ export const UpdateCard = ({ update, channels, orgId, projectId }: UpdateCardPro
   const invalidateUpdates = async () =>
     Promise.all([
       queryClient.invalidateQueries({
-        queryKey: ["org", orgId, "projects", projectId, "updates"],
+        queryKey: updatesQueryKey(orgId, projectId),
       }),
       queryClient.invalidateQueries({
-        queryKey: ["org", orgId, "projects", projectId, "build-compatibility-matrix"],
+        queryKey: buildCompatibilityMatrixQueryKey(orgId, projectId),
       }),
     ]);
+  const deleteUpdateGroupMutation = useApiMutation({
+    mutationFn: async () => deleteUpdateGroup(update.groupId),
+    onSuccess: async () => {
+      toast.success("Update group deleted");
+      await invalidateUpdates();
+    },
+  });
+  const editUpdateRolloutMutation = useApiMutation({
+    mutationFn: async (percentage: number) => editUpdateRollout(update.id, { percentage }),
+    onSuccess: async (_, percentage) => {
+      toast.success(`Rollout updated to ${percentage}%`);
+      await invalidateUpdates();
+    },
+  });
+  const completeUpdateRolloutMutation = useApiMutation({
+    mutationFn: async () => completeUpdateRollout(update.id),
+    onSuccess: async () => {
+      toast.success("Rollout completed — update available to all devices");
+      await invalidateUpdates();
+    },
+  });
+  const revertUpdateRolloutMutation = useApiMutation({
+    mutationFn: async () => revertUpdateRollout(update.id),
+    onSuccess: async () => {
+      toast.success("Rollout reverted");
+      await invalidateUpdates();
+    },
+  });
+  const isDeleting = deleteUpdateGroupMutation.isPending;
+  const isUpdatingRollout =
+    editUpdateRolloutMutation.isPending ||
+    completeUpdateRolloutMutation.isPending ||
+    revertUpdateRolloutMutation.isPending;
 
   const handleDelete = async () => {
-    setIsDeleting(true);
-    const result = await Effect.runPromise(
-      Effect.either(
-        Effect.tryPromise({
-          try: async () => deleteUpdateGroup(update.groupId),
-          catch: (error) => error,
-        }),
-      ),
-    );
-    if (Either.isLeft(result)) {
-      toast.error(getApiError(result.left));
-      setIsDeleting(false);
-      return;
-    }
-    toast.success("Update group deleted");
-    await invalidateUpdates();
-    setIsDeleting(false);
+    await deleteUpdateGroupMutation.mutateAsync();
   };
 
   const handleEditRollout = async () => {
@@ -77,64 +93,12 @@ export const UpdateCard = ({ update, channels, orgId, projectId }: UpdateCardPro
       toast.error("Rollout percentage must be between 1 and 100");
       return;
     }
-    setIsUpdatingRollout(true);
-    const result = await Effect.runPromise(
-      Effect.either(
-        Effect.tryPromise({
-          try: async () => editUpdateRollout(update.id, { percentage }),
-          catch: (error) => error,
-        }),
-      ),
-    );
-    if (Either.isLeft(result)) {
-      toast.error(getApiError(result.left));
-      setIsUpdatingRollout(false);
-      return;
-    }
-    toast.success(`Rollout updated to ${percentage}%`);
-    await invalidateUpdates();
-    setIsUpdatingRollout(false);
+    await editUpdateRolloutMutation.mutateAsync(percentage);
   };
 
-  const handleComplete = async () => {
-    setIsUpdatingRollout(true);
-    const result = await Effect.runPromise(
-      Effect.either(
-        Effect.tryPromise({
-          try: async () => completeUpdateRollout(update.id),
-          catch: (error) => error,
-        }),
-      ),
-    );
-    if (Either.isLeft(result)) {
-      toast.error(getApiError(result.left));
-      setIsUpdatingRollout(false);
-      return;
-    }
-    toast.success("Rollout completed — update available to all devices");
-    await invalidateUpdates();
-    setIsUpdatingRollout(false);
-  };
+  const handleComplete = async () => completeUpdateRolloutMutation.mutateAsync();
 
-  const handleRevert = async () => {
-    setIsUpdatingRollout(true);
-    const result = await Effect.runPromise(
-      Effect.either(
-        Effect.tryPromise({
-          try: async () => revertUpdateRollout(update.id),
-          catch: (error) => error,
-        }),
-      ),
-    );
-    if (Either.isLeft(result)) {
-      toast.error(getApiError(result.left));
-      setIsUpdatingRollout(false);
-      return;
-    }
-    toast.success("Rollout reverted");
-    await invalidateUpdates();
-    setIsUpdatingRollout(false);
-  };
+  const handleRevert = async () => revertUpdateRolloutMutation.mutateAsync();
 
   return (
     <Card>

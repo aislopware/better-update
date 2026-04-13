@@ -1,5 +1,4 @@
-import { getApiError } from "@better-update/api-client";
-import { uploadCredential } from "@better-update/api-client/react";
+import { credentialsQueryKey, uploadCredential } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
@@ -20,10 +19,11 @@ import {
 import { Add01Icon, CloudUploadIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Either, Effect } from "effect";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { toBase64 } from "../../../lib/base64";
+import { useApiMutation } from "../../../lib/use-api-mutation";
 import {
   ACCEPTED_EXTENSIONS,
   DISTRIBUTIONS,
@@ -88,6 +88,114 @@ const FileDropZone = ({
   </div>
 );
 
+const CredentialOptionalFields = ({
+  showDistribution,
+  distribution,
+  onDistributionChange,
+  showPassword,
+  password,
+  onPasswordChange,
+  showKeystoreFields,
+  keyAlias,
+  onKeyAliasChange,
+  keyPassword,
+  onKeyPasswordChange,
+  expiresAt,
+  onExpiresAtChange,
+}: {
+  showDistribution: boolean;
+  distribution: "" | DistributionValue;
+  onDistributionChange: (value: DistributionValue) => void;
+  showPassword: boolean;
+  password: string;
+  onPasswordChange: (value: string) => void;
+  showKeystoreFields: boolean;
+  keyAlias: string;
+  onKeyAliasChange: (value: string) => void;
+  keyPassword: string;
+  onKeyPasswordChange: (value: string) => void;
+  expiresAt: string;
+  onExpiresAtChange: (value: string) => void;
+}) => (
+  <>
+    {showDistribution && (
+      <div className="flex flex-col gap-2">
+        <Label>Distribution</Label>
+        <Select
+          value={distribution}
+          onValueChange={(value) => {
+            if (value && isDistribution(value)) {
+              onDistributionChange(value);
+            }
+          }}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Select distribution" />
+          </SelectTrigger>
+          <SelectContent>
+            {DISTRIBUTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    )}
+
+    {showPassword && (
+      <div className="flex flex-col gap-2">
+        <Label>Password</Label>
+        <Input
+          type="password"
+          value={password}
+          onChange={(ev) => {
+            onPasswordChange(ev.target.value);
+          }}
+          placeholder="Certificate / keystore password"
+        />
+      </div>
+    )}
+
+    {showKeystoreFields && (
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-2">
+          <Label>Key Alias</Label>
+          <Input
+            value={keyAlias}
+            onChange={(ev) => {
+              onKeyAliasChange(ev.target.value);
+            }}
+            placeholder="e.g. my-key-alias"
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label>Key Password</Label>
+          <Input
+            type="password"
+            value={keyPassword}
+            onChange={(ev) => {
+              onKeyPasswordChange(ev.target.value);
+            }}
+            placeholder="Key password"
+          />
+        </div>
+      </div>
+    )}
+
+    <div className="flex flex-col gap-2">
+      <Label>Expiry Date (optional)</Label>
+      <Input
+        type="date"
+        value={expiresAt}
+        onChange={(ev) => {
+          onExpiresAtChange(ev.target.value);
+        }}
+      />
+    </div>
+  </>
+);
+
 const UploadForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: () => void }) => {
   const [platform, setPlatform] = useState<"" | "ios" | "android">("");
   const [credentialType, setCredentialType] = useState<"" | CredentialTypeValue>("");
@@ -98,9 +206,41 @@ const UploadForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: () => void
   const [keyAlias, setKeyAlias] = useState("");
   const [keyPassword, setKeyPassword] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
-  const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
+  const uploadCredentialMutation = useApiMutation({
+    mutationFn: async (input: {
+      file: File;
+      platform: "ios" | "android";
+      credentialType: CredentialTypeValue;
+      name: string;
+      distribution: "" | DistributionValue;
+      password: string;
+      keyAlias: string;
+      keyPassword: string;
+      expiresAt: string;
+    }) => {
+      const bytes = new Uint8Array(await input.file.arrayBuffer());
+      return uploadCredential({
+        platform: input.platform,
+        type: input.credentialType,
+        name: input.name,
+        blob: toBase64(bytes),
+        ...(input.distribution ? { distribution: input.distribution } : {}),
+        ...(input.password ? { password: input.password } : {}),
+        ...(input.keyAlias ? { keyAlias: input.keyAlias } : {}),
+        ...(input.keyPassword ? { keyPassword: input.keyPassword } : {}),
+        ...(input.expiresAt ? { expiresAt: new Date(input.expiresAt).toISOString() } : {}),
+      });
+    },
+    onSuccess: async () => {
+      toast.success("Credential uploaded");
+      await queryClient.invalidateQueries({
+        queryKey: credentialsQueryKey(orgId),
+      });
+      onSuccess();
+    },
+  });
 
   const typeOptions = TYPE_OPTIONS_BY_PLATFORM[platform] ?? [];
   const showDistribution = credentialType === "provisioning-profile";
@@ -143,44 +283,22 @@ const UploadForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: () => void
     if (!file || !platform || !credentialType || !name) {
       return;
     }
-    setIsUploading(true);
-    const result = await Effect.runPromise(
-      Effect.either(
-        Effect.tryPromise({
-          try: async () => {
-            const arrayBuffer = await file.arrayBuffer();
-            const bytes = new Uint8Array(arrayBuffer);
-            const binary = [...bytes].map((byte) => String.fromCodePoint(byte)).join("");
-            const blob = btoa(binary);
-
-            return uploadCredential({
-              platform,
-              type: credentialType,
-              name,
-              blob,
-              ...(distribution ? { distribution } : {}),
-              ...(password ? { password } : {}),
-              ...(keyAlias ? { keyAlias } : {}),
-              ...(keyPassword ? { keyPassword } : {}),
-              ...(expiresAt ? { expiresAt: new Date(expiresAt).toISOString() } : {}),
-            });
-          },
-          catch: (error) => error,
-        }),
-      ),
-    );
-    if (Either.isLeft(result)) {
-      toast.error(getApiError(result.left));
-      setIsUploading(false);
-      return;
-    }
-    toast.success("Credential uploaded");
-    await queryClient.invalidateQueries({ queryKey: ["org", orgId, "credentials"] });
-    onSuccess();
-    setIsUploading(false);
+    await uploadCredentialMutation.mutateAsync({
+      file,
+      platform,
+      credentialType,
+      name,
+      distribution,
+      password,
+      keyAlias,
+      keyPassword,
+      expiresAt,
+    });
   };
 
-  const canSubmit = Boolean(file && platform && credentialType && name && !isUploading);
+  const canSubmit = Boolean(
+    file && platform && credentialType && name && !uploadCredentialMutation.isPending,
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -231,32 +349,6 @@ const UploadForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: () => void
         </div>
       )}
 
-      {/* Distribution (provisioning profiles only) */}
-      {showDistribution && (
-        <div className="flex flex-col gap-2">
-          <Label>Distribution</Label>
-          <Select
-            value={distribution}
-            onValueChange={(value) => {
-              if (value && isDistribution(value)) {
-                setDistribution(value);
-              }
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select distribution" />
-            </SelectTrigger>
-            <SelectContent>
-              {DISTRIBUTIONS.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      )}
-
       {/* Name */}
       {credentialType && (
         <div className="flex flex-col gap-2">
@@ -282,65 +374,27 @@ const UploadForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: () => void
         />
       )}
 
-      {/* Password (certs and keystores) */}
-      {showPassword && (
-        <div className="flex flex-col gap-2">
-          <Label>Password</Label>
-          <Input
-            type="password"
-            value={password}
-            onChange={(ev) => {
-              setPassword(ev.target.value);
-            }}
-            placeholder="Certificate / keystore password"
-          />
-        </div>
-      )}
-
-      {/* Keystore-specific fields */}
-      {showKeystoreFields && (
-        <div className="grid grid-cols-2 gap-3">
-          <div className="flex flex-col gap-2">
-            <Label>Key Alias</Label>
-            <Input
-              value={keyAlias}
-              onChange={(ev) => {
-                setKeyAlias(ev.target.value);
-              }}
-              placeholder="e.g. my-key-alias"
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label>Key Password</Label>
-            <Input
-              type="password"
-              value={keyPassword}
-              onChange={(ev) => {
-                setKeyPassword(ev.target.value);
-              }}
-              placeholder="Key password"
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Expiry date */}
       {credentialType && (
-        <div className="flex flex-col gap-2">
-          <Label>Expiry Date (optional)</Label>
-          <Input
-            type="date"
-            value={expiresAt}
-            onChange={(ev) => {
-              setExpiresAt(ev.target.value);
-            }}
-          />
-        </div>
+        <CredentialOptionalFields
+          showDistribution={showDistribution}
+          distribution={distribution}
+          onDistributionChange={setDistribution}
+          showPassword={showPassword}
+          password={password}
+          onPasswordChange={setPassword}
+          showKeystoreFields={showKeystoreFields}
+          keyAlias={keyAlias}
+          onKeyAliasChange={setKeyAlias}
+          keyPassword={keyPassword}
+          onKeyPasswordChange={setKeyPassword}
+          expiresAt={expiresAt}
+          onExpiresAtChange={setExpiresAt}
+        />
       )}
 
       {/* Submit */}
       <Button disabled={!canSubmit} onClick={handleUpload}>
-        {isUploading ? "Uploading..." : "Upload"}
+        {uploadCredentialMutation.isPending ? "Uploading..." : "Upload"}
       </Button>
     </div>
   );

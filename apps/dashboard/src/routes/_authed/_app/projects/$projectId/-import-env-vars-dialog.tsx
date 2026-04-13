@@ -1,5 +1,4 @@
-import { getApiError } from "@better-update/api-client";
-import { bulkImportEnvVars, envVarsQueryOptions } from "@better-update/api-client/react";
+import { bulkImportEnvVars, envVarsQueryKey } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
@@ -22,9 +21,10 @@ import { Textarea } from "@better-update/ui/components/ui/textarea";
 import { FileImportIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Either, Effect } from "effect";
 import { useState } from "react";
 import { toast } from "sonner";
+
+import { useApiMutation } from "../../../../../lib/use-api-mutation";
 
 export const ImportEnvVarsDialog = ({
   orgId,
@@ -38,8 +38,26 @@ export const ImportEnvVarsDialog = ({
   const [open, setOpen] = useState(false);
   const [content, setContent] = useState("");
   const [visibility, setVisibility] = useState<"plaintext" | "sensitive" | "secret">("plaintext");
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const queryClient = useQueryClient();
+  const importEnvVarsMutation = useApiMutation({
+    mutationFn: async () =>
+      bulkImportEnvVars({
+        projectId,
+        environment,
+        content,
+        visibility,
+      }),
+    onSuccess: async (result) => {
+      toast.success(
+        `Imported: ${result.created} created, ${result.updated} updated${result.skipped > 0 ? `, ${result.skipped} skipped` : ""}`,
+      );
+      await queryClient.invalidateQueries({
+        queryKey: envVarsQueryKey(orgId, projectId),
+      });
+      setOpen(false);
+      setContent("");
+    },
+  });
 
   const lineCount = content.split("\n").filter((line) => {
     const trimmed = line.trim();
@@ -52,35 +70,7 @@ export const ImportEnvVarsDialog = ({
       return;
     }
 
-    setIsSubmitting(true);
-    const result = await Effect.runPromise(
-      Effect.either(
-        Effect.tryPromise({
-          try: async () =>
-            bulkImportEnvVars({
-              projectId,
-              environment,
-              content,
-              visibility,
-            }),
-          catch: (error) => error,
-        }),
-      ),
-    );
-    if (Either.isLeft(result)) {
-      toast.error(getApiError(result.left));
-      setIsSubmitting(false);
-      return;
-    }
-    toast.success(
-      `Imported: ${result.right.created} created, ${result.right.updated} updated${result.right.skipped > 0 ? `, ${result.right.skipped} skipped` : ""}`,
-    );
-    await queryClient.invalidateQueries({
-      queryKey: envVarsQueryOptions(orgId, projectId).queryKey,
-    });
-    setOpen(false);
-    setContent("");
-    setIsSubmitting(false);
+    await importEnvVarsMutation.mutateAsync();
   };
 
   return (
@@ -161,8 +151,11 @@ export const ImportEnvVarsDialog = ({
           <DialogClose>
             <Button variant="outline">Cancel</Button>
           </DialogClose>
-          <Button onClick={handleSubmit} disabled={isSubmitting || lineCount === 0}>
-            {isSubmitting
+          <Button
+            onClick={handleSubmit}
+            disabled={importEnvVarsMutation.isPending || lineCount === 0}
+          >
+            {importEnvVarsMutation.isPending
               ? "Importing..."
               : `Import ${lineCount} variable${lineCount === 1 ? "" : "s"}`}
           </Button>

@@ -1,5 +1,10 @@
 import { getApiError } from "@better-update/api-client";
-import { completeBuild, reserveBuild } from "@better-update/api-client/react";
+import {
+  buildCompatibilityMatrixQueryKey,
+  buildsQueryKey,
+  completeBuild,
+  reserveBuild,
+} from "@better-update/api-client/react";
 import { useMountEffect } from "@better-update/react-hooks";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
@@ -20,8 +25,7 @@ import {
 } from "@better-update/ui/components/ui/select";
 import { Add01Icon, CloudUploadIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useQueryClient } from "@tanstack/react-query";
-import { Either, Effect } from "effect";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -215,6 +219,57 @@ const UploadForm = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const queryClient = useQueryClient();
+  const uploadBuildMutation = useMutation({
+    mutationFn: async (input: {
+      file: File;
+      platform: PlatformValue;
+      distribution: DistributionValue;
+      artifactFormat: ArtifactFormatValue;
+      metadata: MetadataValues;
+      controller: AbortController;
+    }) => {
+      const reservedBuild = await reserveBuild({
+        projectId,
+        platform: input.platform,
+        distribution: input.distribution,
+        artifactFormat: input.artifactFormat,
+        ...buildMetadataPayload(input.metadata),
+      });
+
+      setUploadPhase("uploading");
+      await uploadWithProgress(
+        reservedBuild.uploadUrl,
+        input.file,
+        setUploadProgress,
+        input.controller.signal,
+      );
+
+      setUploadPhase("completing");
+      const sha256 = await computeSha256(input.file);
+      return completeBuild(reservedBuild.id, { sha256, byteSize: input.file.size });
+    },
+    onSuccess: async () => {
+      toast.success("Build uploaded successfully");
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: buildsQueryKey(orgId, projectId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: buildCompatibilityMatrixQueryKey(orgId, projectId),
+        }),
+      ]);
+      onSuccess();
+    },
+    onError: (error) => {
+      if (!(error instanceof Error && error.message === "Upload aborted")) {
+        toast.error(getApiError(error));
+      }
+      setUploadPhase("idle");
+    },
+    onSettled: () => {
+      abortRef.current = null;
+    },
+  });
 
   useMountEffect(() => () => {
     abortRef.current?.abort();
@@ -267,52 +322,20 @@ const UploadForm = ({
     setUploadPhase("reserving");
     const controller = new AbortController();
     abortRef.current = controller;
-    const result = await Effect.runPromise(
-      Effect.either(
-        Effect.tryPromise({
-          try: async () => {
-            const reservedBuild = await reserveBuild({
-              projectId,
-              platform,
-              distribution,
-              artifactFormat,
-              ...buildMetadataPayload(metadata),
-            });
-
-            setUploadPhase("uploading");
-            await uploadWithProgress(
-              reservedBuild.uploadUrl,
-              file,
-              setUploadProgress,
-              controller.signal,
-            );
-
-            setUploadPhase("completing");
-            const sha256 = await computeSha256(file);
-            return completeBuild(reservedBuild.id, { sha256, byteSize: file.size });
-          },
-          catch: (error) => error,
-        }),
-      ),
-    );
-    if (Either.isLeft(result)) {
-      if (!(result.left instanceof Error && result.left.message === "Upload aborted")) {
-        toast.error(getApiError(result.left));
-      }
-      setUploadPhase("idle");
-      return;
-    }
-
-    toast.success("Build uploaded successfully");
-    await Promise.all([
-      queryClient.invalidateQueries({
-        queryKey: ["org", orgId, "projects", projectId, "builds"],
-      }),
-      queryClient.invalidateQueries({
-        queryKey: ["org", orgId, "projects", projectId, "build-compatibility-matrix"],
-      }),
-    ]);
-    onSuccess();
+    await uploadBuildMutation
+      .mutateAsync({
+        file,
+        platform,
+        distribution,
+        artifactFormat,
+        metadata,
+        controller,
+      })
+      .catch((error: unknown) => {
+        if (error instanceof Error && error.message === "Upload aborted") {
+          setUploadPhase("idle");
+        }
+      });
   };
 
   return (

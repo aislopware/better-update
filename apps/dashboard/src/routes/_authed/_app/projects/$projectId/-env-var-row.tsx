@@ -1,5 +1,4 @@
-import { getApiError } from "@better-update/api-client";
-import { deleteEnvVar, envVarsQueryOptions } from "@better-update/api-client/react";
+import { deleteEnvVar, envVarsQueryKey } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
@@ -21,12 +20,12 @@ import { TableCell, TableRow } from "@better-update/ui/components/ui/table";
 import { MoreVerticalIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Either, Effect } from "effect";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import type { EnvVar } from "@better-update/api";
 
+import { useApiMutation } from "../../../../../lib/use-api-mutation";
 import { EditEnvVarDialog } from "./-edit-env-var-dialog";
 
 const VISIBILITY_VARIANTS: Record<string, "secondary" | "outline" | "destructive"> = {
@@ -60,30 +59,20 @@ export const EnvVarRow = ({
 }) => {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const queryClient = useQueryClient();
+  const deleteEnvVarMutation = useApiMutation({
+    mutationFn: async () => deleteEnvVar(envVar.id),
+    onSuccess: async () => {
+      toast.success(`Variable "${envVar.key}" deleted`);
+      await queryClient.invalidateQueries({
+        queryKey: envVarsQueryKey(orgId, projectId),
+      });
+      setDeleteOpen(false);
+    },
+  });
 
   const handleDelete = async () => {
-    setIsDeleting(true);
-    const result = await Effect.runPromise(
-      Effect.either(
-        Effect.tryPromise({
-          try: async () => deleteEnvVar(envVar.id),
-          catch: (error) => error,
-        }),
-      ),
-    );
-    if (Either.isLeft(result)) {
-      toast.error(getApiError(result.left));
-      setIsDeleting(false);
-      return;
-    }
-    toast.success(`Variable "${envVar.key}" deleted`);
-    await queryClient.invalidateQueries({
-      queryKey: envVarsQueryOptions(orgId, projectId).queryKey,
-    });
-    setDeleteOpen(false);
-    setIsDeleting(false);
+    await deleteEnvVarMutation.mutateAsync();
   };
 
   return (
@@ -148,8 +137,12 @@ export const EnvVarRow = ({
             >
               Cancel
             </Button>
-            <Button variant="destructive" disabled={isDeleting} onClick={handleDelete}>
-              {isDeleting ? "Deleting..." : "Delete"}
+            <Button
+              variant="destructive"
+              disabled={deleteEnvVarMutation.isPending}
+              onClick={handleDelete}
+            >
+              {deleteEnvVarMutation.isPending ? "Deleting..." : "Delete"}
             </Button>
           </DialogFooter>
         </DialogContent>

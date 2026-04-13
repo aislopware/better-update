@@ -1,5 +1,6 @@
-import { getApiError } from "@better-update/api-client";
 import {
+  buildCompatibilityMatrixQueryKey,
+  channelsQueryKey,
   completeBranchRollout,
   createBranchRollout,
   pauseChannel,
@@ -30,7 +31,6 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Either, Effect } from "effect";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -42,6 +42,7 @@ import type {
 } from "@better-update/api";
 import type { BranchItem } from "@better-update/api-client/react";
 
+import { useApiMutation } from "../../../../../lib/use-api-mutation";
 import {
   CompatibleBuildsSection,
   DeleteChannelDialog,
@@ -64,8 +65,32 @@ const ActiveRolloutControls = ({
   readonly rolloutState: { targetBranchId: string; percentage: number };
 }) => {
   const [rolloutInput, setRolloutInput] = useState<string | null>(null);
-  const [isUpdatingRollout, setIsUpdatingRollout] = useState(false);
   const rolloutTargetBranch = branches.find((branch) => branch.id === rolloutState.targetBranchId);
+  const updateBranchRolloutMutation = useApiMutation({
+    mutationFn: async (percentage: number) => updateBranchRollout(channel.id, { percentage }),
+    onSuccess: async (_, percentage) => {
+      toast.success(`Rollout updated to ${percentage}%`);
+      await invalidateChannels();
+    },
+  });
+  const completeBranchRolloutMutation = useApiMutation({
+    mutationFn: async () => completeBranchRollout(channel.id),
+    onSuccess: async () => {
+      toast.success("Rollout completed — channel now serves the new branch");
+      await invalidateChannels();
+    },
+  });
+  const revertBranchRolloutMutation = useApiMutation({
+    mutationFn: async () => revertBranchRollout(channel.id),
+    onSuccess: async () => {
+      toast.success("Rollout reverted — channel restored to original branch");
+      await invalidateChannels();
+    },
+  });
+  const isUpdatingRollout =
+    updateBranchRolloutMutation.isPending ||
+    completeBranchRolloutMutation.isPending ||
+    revertBranchRolloutMutation.isPending;
 
   const handleUpdateRollout = async () => {
     const percentage = Number.parseInt(rolloutInput ?? String(rolloutState.percentage), 10);
@@ -73,64 +98,12 @@ const ActiveRolloutControls = ({
       toast.error("Rollout percentage must be between 1 and 100");
       return;
     }
-    setIsUpdatingRollout(true);
-    const result = await Effect.runPromise(
-      Effect.either(
-        Effect.tryPromise({
-          try: async () => updateBranchRollout(channel.id, { percentage }),
-          catch: (error) => error,
-        }),
-      ),
-    );
-    if (Either.isLeft(result)) {
-      toast.error(getApiError(result.left));
-      setIsUpdatingRollout(false);
-      return;
-    }
-    toast.success(`Rollout updated to ${percentage}%`);
-    await invalidateChannels();
-    setIsUpdatingRollout(false);
+    await updateBranchRolloutMutation.mutateAsync(percentage);
   };
 
-  const handleCompleteRollout = async () => {
-    setIsUpdatingRollout(true);
-    const result = await Effect.runPromise(
-      Effect.either(
-        Effect.tryPromise({
-          try: async () => completeBranchRollout(channel.id),
-          catch: (error) => error,
-        }),
-      ),
-    );
-    if (Either.isLeft(result)) {
-      toast.error(getApiError(result.left));
-      setIsUpdatingRollout(false);
-      return;
-    }
-    toast.success("Rollout completed — channel now serves the new branch");
-    await invalidateChannels();
-    setIsUpdatingRollout(false);
-  };
+  const handleCompleteRollout = async () => completeBranchRolloutMutation.mutateAsync();
 
-  const handleRevertRollout = async () => {
-    setIsUpdatingRollout(true);
-    const result = await Effect.runPromise(
-      Effect.either(
-        Effect.tryPromise({
-          try: async () => revertBranchRollout(channel.id),
-          catch: (error) => error,
-        }),
-      ),
-    );
-    if (Either.isLeft(result)) {
-      toast.error(getApiError(result.left));
-      setIsUpdatingRollout(false);
-      return;
-    }
-    toast.success("Rollout reverted — channel restored to original branch");
-    await invalidateChannels();
-    setIsUpdatingRollout(false);
-  };
+  const handleRevertRollout = async () => revertBranchRolloutMutation.mutateAsync();
 
   return (
     <div className="flex flex-col gap-2">
@@ -194,10 +167,21 @@ const StartRolloutControls = ({
   branches,
   invalidateChannels,
 }: BranchRolloutControlsProps) => {
-  const [isStartingRollout, setIsStartingRollout] = useState(false);
   const [rolloutBranchId, setRolloutBranchId] = useState("");
   const [rolloutInput, setRolloutInput] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isStartingRollout, setIsStartingRollout] = useState(false);
+  const createBranchRolloutMutation = useApiMutation({
+    mutationFn: async (input: { newBranchId: string; percentage: number }) =>
+      createBranchRollout(channel.id, input),
+    onSuccess: async (_, input) => {
+      toast.success(`Branch rollout started at ${input.percentage}%`);
+      await invalidateChannels();
+      setIsStartingRollout(false);
+      setRolloutBranchId("");
+      setRolloutInput("");
+    },
+  });
+  const isSubmitting = createBranchRolloutMutation.isPending;
 
   const handleStartRollout = async () => {
     const percentage = Number.parseInt(rolloutInput, 10);
@@ -209,27 +193,7 @@ const StartRolloutControls = ({
       toast.error("Rollout percentage must be between 1 and 100");
       return;
     }
-    setIsSubmitting(true);
-    const result = await Effect.runPromise(
-      Effect.either(
-        Effect.tryPromise({
-          try: async () =>
-            createBranchRollout(channel.id, { newBranchId: rolloutBranchId, percentage }),
-          catch: (error) => error,
-        }),
-      ),
-    );
-    if (Either.isLeft(result)) {
-      toast.error(getApiError(result.left));
-      setIsSubmitting(false);
-      return;
-    }
-    toast.success(`Branch rollout started at ${percentage}%`);
-    await invalidateChannels();
-    setIsStartingRollout(false);
-    setRolloutBranchId("");
-    setRolloutInput("");
-    setIsSubmitting(false);
+    await createBranchRolloutMutation.mutateAsync({ newBranchId: rolloutBranchId, percentage });
   };
 
   if (!isStartingRollout) {
@@ -326,7 +290,6 @@ export const ChannelCard = ({
   missingRuntimeVersions,
 }: ChannelCardProps) => {
   const queryClient = useQueryClient();
-  const [isToggling, setIsToggling] = useState(false);
   const linkedBranch = branches.find((branch) => branch.id === channel.branchId);
 
   const rolloutState = channel.branchMappingJson
@@ -336,52 +299,35 @@ export const ChannelCard = ({
   const invalidateChannels = async (): Promise<void> => {
     await Promise.all([
       queryClient.invalidateQueries({
-        queryKey: ["org", orgId, "projects", projectId, "channels"],
+        queryKey: channelsQueryKey(orgId, projectId),
       }),
       queryClient.invalidateQueries({
-        queryKey: ["org", orgId, "projects", projectId, "build-compatibility-matrix"],
+        queryKey: buildCompatibilityMatrixQueryKey(orgId, projectId),
       }),
     ]);
   };
+  const updateChannelMutation = useApiMutation({
+    mutationFn: async (branchId: string) => updateChannel(channel.id, { branchId }),
+    onSuccess: async () => {
+      toast.success("Channel relinked");
+      await invalidateChannels();
+    },
+  });
+  const togglePauseMutation = useApiMutation({
+    mutationFn: async () =>
+      channel.isPaused ? resumeChannel(channel.id) : pauseChannel(channel.id),
+    onSuccess: async () => {
+      toast.success(channel.isPaused ? "Channel resumed" : "Channel paused");
+      await invalidateChannels();
+    },
+  });
+  const isToggling = togglePauseMutation.isPending;
 
   const handleRelink = async (branchId: string) => {
-    const result = await Effect.runPromise(
-      Effect.either(
-        Effect.tryPromise({
-          try: async () => updateChannel(channel.id, { branchId }),
-          catch: (error) => error,
-        }),
-      ),
-    );
-    if (Either.isLeft(result)) {
-      toast.error(getApiError(result.left));
-      return;
-    }
-
-    toast.success("Channel relinked");
-    await invalidateChannels();
+    await updateChannelMutation.mutateAsync(branchId);
   };
 
-  const handleTogglePause = async () => {
-    setIsToggling(true);
-    const result = await Effect.runPromise(
-      Effect.either(
-        Effect.tryPromise({
-          try: async () =>
-            channel.isPaused ? resumeChannel(channel.id) : pauseChannel(channel.id),
-          catch: (error) => error,
-        }),
-      ),
-    );
-    if (Either.isLeft(result)) {
-      toast.error(getApiError(result.left));
-      setIsToggling(false);
-      return;
-    }
-    toast.success(channel.isPaused ? "Channel resumed" : "Channel paused");
-    await invalidateChannels();
-    setIsToggling(false);
-  };
+  const handleTogglePause = async () => togglePauseMutation.mutateAsync();
 
   return (
     <Card>

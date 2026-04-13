@@ -1,3 +1,5 @@
+import { fromBase64Url, toBase64Url } from "../lib/base64";
+
 const EXPIRY_MS = 3_600_000;
 
 const importKey = async (secret: string) =>
@@ -9,18 +11,10 @@ const importKey = async (secret: string) =>
     ["sign", "verify"],
   );
 
-const toBase64Url = (buffer: ArrayBuffer) => {
-  const binary = [...new Uint8Array(buffer)].map((byte) => String.fromCodePoint(byte)).join("");
-  return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
-};
-
-const fromBase64Url = (str: string) => {
-  const padded = str.replaceAll("-", "+").replaceAll("_", "/");
-  const binary = atob(padded);
-  const bytes = new Uint8Array(
-    Array.from({ length: binary.length }, (_, idx) => binary.codePointAt(idx) ?? 0),
-  );
-  return bytes.buffer;
+const asArrayBuffer = (bytes: Uint8Array): ArrayBuffer => {
+  const buffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(buffer).set(bytes);
+  return buffer;
 };
 
 export const generateInstallToken = async (buildId: string, secret: string) => {
@@ -43,5 +37,10 @@ export const verifyInstallToken = async (
   const payload = `${buildId}:${expires}`;
   const key = await importKey(secret);
   const signatureBytes = fromBase64Url(token);
-  return crypto.subtle.verify("HMAC", key, signatureBytes, new TextEncoder().encode(payload));
+  return crypto.subtle.verify(
+    "HMAC",
+    key,
+    asArrayBuffer(signatureBytes),
+    new TextEncoder().encode(payload),
+  );
 };

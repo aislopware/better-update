@@ -1,4 +1,10 @@
-import { deleteBranch } from "@better-update/api-client/react";
+import {
+  branchesQueryKey,
+  buildCompatibilityMatrixQueryKey,
+  channelsQueryKey,
+  deleteBranch,
+  updatesQueryKey,
+} from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import { Delete02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -29,16 +35,16 @@ export const DeleteBranchDialog = ({
       onSuccess={async () => {
         await Promise.all([
           queryClient.invalidateQueries({
-            queryKey: ["org", orgId, "projects", projectId, "branches"],
+            queryKey: branchesQueryKey(orgId, projectId),
           }),
           queryClient.invalidateQueries({
-            queryKey: ["org", orgId, "projects", projectId, "channels"],
+            queryKey: channelsQueryKey(orgId, projectId),
           }),
           queryClient.invalidateQueries({
-            queryKey: ["org", orgId, "projects", projectId, "updates"],
+            queryKey: updatesQueryKey(orgId, projectId),
           }),
           queryClient.invalidateQueries({
-            queryKey: ["org", orgId, "projects", projectId, "build-compatibility-matrix"],
+            queryKey: buildCompatibilityMatrixQueryKey(orgId, projectId),
           }),
         ]);
       }}

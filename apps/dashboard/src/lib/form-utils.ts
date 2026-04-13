@@ -4,6 +4,14 @@ export const nameSchema = z.string().check(z.minLength(2, "Name must be at least
 
 export const requiredStringSchema = z.string().check(z.minLength(1, "This field is required"));
 
+export const envVarKeySchema = z
+  .string()
+  .check(
+    z.minLength(1, "Key is required"),
+    z.maxLength(256, "Key must be at most 256 characters"),
+    z.regex(/^[A-Z][A-Z0-9_]*$/, "Must be uppercase letters, digits, and underscores"),
+  );
+
 export const passwordSchema = z
   .string()
   .check(z.minLength(8, "Password must be at least 8 characters"));

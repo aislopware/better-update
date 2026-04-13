@@ -1,5 +1,7 @@
 import { Effect } from "effect";
 
+import { fromBase64, toBase64 } from "../lib/base64";
+
 export interface Keyring {
   readonly secrets: Record<number, Uint8Array>;
   readonly currentVersion: number;
@@ -11,18 +13,6 @@ export interface EnvelopeEncryptResult {
   readonly keyVersion: number;
 }
 
-export const toBase64 = (data: Uint8Array): string => {
-  const binary = [...data].map((byte) => String.fromCodePoint(byte)).join("");
-  return btoa(binary);
-};
-
-export const fromBase64 = (str: string): Uint8Array => {
-  const binary = atob(str);
-  return new Uint8Array(
-    Array.from({ length: binary.length }, (_, idx) => binary.codePointAt(idx) ?? 0),
-  );
-};
-
 const asBuffer = (data: Uint8Array): ArrayBuffer => {
   const copy = new ArrayBuffer(data.byteLength);
   new Uint8Array(copy).set(data);
@@ -30,6 +20,8 @@ const asBuffer = (data: Uint8Array): ArrayBuffer => {
 };
 
 const keyringError = (message: string) => new Error(message);
+const asError = (cause: unknown): Error =>
+  cause instanceof Error ? cause : new Error(String(cause));
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -119,78 +111,98 @@ export const decryptAesGcm = async (key: CryptoKey, data: Uint8Array): Promise<U
 const importDekKey = async (dek: Uint8Array, usages: readonly KeyUsage[]): Promise<CryptoKey> =>
   crypto.subtle.importKey("raw", asBuffer(dek), { name: "AES-GCM" }, true, [...usages]);
 
-export const envelopeEncrypt = async (
+export const envelopeEncrypt = (
   keyring: Keyring,
   orgId: string,
   plaintext: Uint8Array,
-): Promise<EnvelopeEncryptResult> =>
-  Effect.runPromise(
-    Effect.gen(function* () {
-      const dek = generateDEK();
-      const secret = yield* getSecret(keyring, keyring.currentVersion);
-      const kek = yield* Effect.promise(async () =>
-        deriveKEK(secret, orgId, keyring.currentVersion),
-      );
-      const dekKey = yield* Effect.promise(async () => importDekKey(dek, ["encrypt", "decrypt"]));
-      const encryptedBlob = yield* Effect.promise(async () => encryptAesGcm(dekKey, plaintext));
-      const encryptedDek = yield* Effect.promise(async () => encryptAesGcm(kek, dek));
-      return {
-        encryptedBlob,
-        encryptedDek: toBase64(encryptedDek),
-        keyVersion: keyring.currentVersion,
-      };
-    }),
-  );
+): Effect.Effect<EnvelopeEncryptResult, Error> =>
+  Effect.gen(function* () {
+    const dek = generateDEK();
+    const secret = yield* getSecret(keyring, keyring.currentVersion);
+    const kek = yield* Effect.tryPromise({
+      try: async () => deriveKEK(secret, orgId, keyring.currentVersion),
+      catch: asError,
+    });
+    const dekKey = yield* Effect.tryPromise({
+      try: async () => importDekKey(dek, ["encrypt", "decrypt"]),
+      catch: asError,
+    });
+    const encryptedBlob = yield* Effect.tryPromise({
+      try: async () => encryptAesGcm(dekKey, plaintext),
+      catch: asError,
+    });
+    const encryptedDek = yield* Effect.tryPromise({
+      try: async () => encryptAesGcm(kek, dek),
+      catch: asError,
+    });
+    return {
+      encryptedBlob,
+      encryptedDek: toBase64(encryptedDek),
+      keyVersion: keyring.currentVersion,
+    };
+  });
 
-export const envelopeDecrypt = async (
+export const envelopeDecrypt = (
   keyring: Keyring,
   orgId: string,
   keyVersion: number,
   encryptedDekB64: string,
   encryptedBlob: Uint8Array,
-): Promise<Uint8Array> =>
-  Effect.runPromise(
-    Effect.gen(function* () {
-      const secret = yield* getSecret(keyring, keyVersion);
-      const kek = yield* Effect.promise(async () => deriveKEK(secret, orgId, keyVersion));
-      const dek = yield* Effect.promise(async () =>
-        decryptAesGcm(kek, fromBase64(encryptedDekB64)),
-      );
-      const dekKey = yield* Effect.promise(async () => importDekKey(dek, ["decrypt"]));
-      return yield* Effect.promise(async () => decryptAesGcm(dekKey, encryptedBlob));
-    }),
-  );
+): Effect.Effect<Uint8Array, Error> =>
+  Effect.gen(function* () {
+    const secret = yield* getSecret(keyring, keyVersion);
+    const kek = yield* Effect.tryPromise({
+      try: async () => deriveKEK(secret, orgId, keyVersion),
+      catch: asError,
+    });
+    const dek = yield* Effect.tryPromise({
+      try: async () => decryptAesGcm(kek, fromBase64(encryptedDekB64)),
+      catch: asError,
+    });
+    const dekKey = yield* Effect.tryPromise({
+      try: async () => importDekKey(dek, ["decrypt"]),
+      catch: asError,
+    });
+    return yield* Effect.tryPromise({
+      try: async () => decryptAesGcm(dekKey, encryptedBlob),
+      catch: asError,
+    });
+  });
 
-export const encryptSecret = async (
+export const encryptSecret = (
   keyring: Keyring,
   orgId: string,
   secret: string,
-): Promise<{ encrypted: string; keyVersion: number }> =>
-  Effect.runPromise(
-    Effect.gen(function* () {
-      const keySecret = yield* getSecret(keyring, keyring.currentVersion);
-      const kek = yield* Effect.promise(async () =>
-        deriveKEK(keySecret, orgId, keyring.currentVersion),
-      );
-      const plaintext = new TextEncoder().encode(secret);
-      const encrypted = yield* Effect.promise(async () => encryptAesGcm(kek, plaintext));
-      return { encrypted: toBase64(encrypted), keyVersion: keyring.currentVersion };
-    }),
-  );
+): Effect.Effect<{ encrypted: string; keyVersion: number }, Error> =>
+  Effect.gen(function* () {
+    const keySecret = yield* getSecret(keyring, keyring.currentVersion);
+    const kek = yield* Effect.tryPromise({
+      try: async () => deriveKEK(keySecret, orgId, keyring.currentVersion),
+      catch: asError,
+    });
+    const plaintext = new TextEncoder().encode(secret);
+    const encrypted = yield* Effect.tryPromise({
+      try: async () => encryptAesGcm(kek, plaintext),
+      catch: asError,
+    });
+    return { encrypted: toBase64(encrypted), keyVersion: keyring.currentVersion };
+  });
 
-export const decryptSecret = async (
+export const decryptSecret = (
   keyring: Keyring,
   orgId: string,
   keyVersion: number,
   encryptedB64: string,
-): Promise<string> =>
-  Effect.runPromise(
-    Effect.gen(function* () {
-      const secret = yield* getSecret(keyring, keyVersion);
-      const kek = yield* Effect.promise(async () => deriveKEK(secret, orgId, keyVersion));
-      const decrypted = yield* Effect.promise(async () =>
-        decryptAesGcm(kek, fromBase64(encryptedB64)),
-      );
-      return new TextDecoder().decode(decrypted);
-    }),
-  );
+): Effect.Effect<string, Error> =>
+  Effect.gen(function* () {
+    const secret = yield* getSecret(keyring, keyVersion);
+    const kek = yield* Effect.tryPromise({
+      try: async () => deriveKEK(secret, orgId, keyVersion),
+      catch: asError,
+    });
+    const decrypted = yield* Effect.tryPromise({
+      try: async () => decryptAesGcm(kek, fromBase64(encryptedB64)),
+      catch: asError,
+    });
+    return new TextDecoder().decode(decrypted);
+  });

@@ -1,4 +1,3 @@
-import { getApiError } from "@better-update/api-client";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
@@ -12,11 +11,12 @@ import {
 } from "@better-update/ui/components/ui/dialog";
 import { Input } from "@better-update/ui/components/ui/input";
 import { Label } from "@better-update/ui/components/ui/label";
-import { Either, Effect } from "effect";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import type { ReactNode } from "react";
+
+import { useApiMutation } from "../../../../../lib/use-api-mutation";
 
 interface ConfirmDeleteDialogProps {
   /** Entity name the user must type to confirm. */
@@ -46,7 +46,14 @@ export const ConfirmDeleteDialog = ({
 }: ConfirmDeleteDialogProps) => {
   const [open, setOpen] = useState(false);
   const [confirmText, setConfirmText] = useState("");
-  const [isDeleting, setIsDeleting] = useState(false);
+  const deleteMutation = useApiMutation({
+    mutationFn: onConfirm,
+    onSuccess: async () => {
+      toast.success(successMessage);
+      await onSuccess?.();
+      setOpen(false);
+    },
+  });
 
   const handleOpenChange = (nextOpen: boolean) => {
     setOpen(nextOpen);
@@ -55,26 +62,7 @@ export const ConfirmDeleteDialog = ({
     }
   };
 
-  const handleDelete = async () => {
-    setIsDeleting(true);
-    const result = await Effect.runPromise(
-      Effect.either(
-        Effect.tryPromise({
-          try: onConfirm,
-          catch: (error) => error,
-        }),
-      ),
-    );
-    if (Either.isLeft(result)) {
-      toast.error(getApiError(result.left));
-      setIsDeleting(false);
-      return;
-    }
-    setIsDeleting(false);
-    toast.success(successMessage);
-    await onSuccess?.();
-    setOpen(false);
-  };
+  const handleDelete = async () => deleteMutation.mutateAsync();
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -103,10 +91,10 @@ export const ConfirmDeleteDialog = ({
           </DialogClose>
           <Button
             variant="destructive"
-            disabled={confirmText !== name || isDeleting}
+            disabled={confirmText !== name || deleteMutation.isPending}
             onClick={handleDelete}
           >
-            {isDeleting ? "Deleting..." : "Delete permanently"}
+            {deleteMutation.isPending ? "Deleting..." : "Delete permanently"}
           </Button>
         </DialogFooter>
       </DialogContent>
