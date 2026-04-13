@@ -20,6 +20,7 @@ import {
 import { Add01Icon, CloudUploadIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient } from "@tanstack/react-query";
+import { Either, Effect } from "effect";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -143,33 +144,40 @@ const UploadForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: () => void
       return;
     }
     setIsUploading(true);
-    // eslint-disable-next-line functional/no-try-statements -- imperative shell error handling
-    try {
-      const arrayBuffer = await file.arrayBuffer();
-      const bytes = new Uint8Array(arrayBuffer);
-      const binary = [...bytes].map((byte) => String.fromCodePoint(byte)).join("");
-      const blob = btoa(binary);
+    const result = await Effect.runPromise(
+      Effect.either(
+        Effect.tryPromise({
+          try: async () => {
+            const arrayBuffer = await file.arrayBuffer();
+            const bytes = new Uint8Array(arrayBuffer);
+            const binary = [...bytes].map((byte) => String.fromCodePoint(byte)).join("");
+            const blob = btoa(binary);
 
-      await uploadCredential({
-        platform,
-        type: credentialType,
-        name,
-        blob,
-        ...(distribution ? { distribution } : {}),
-        ...(password ? { password } : {}),
-        ...(keyAlias ? { keyAlias } : {}),
-        ...(keyPassword ? { keyPassword } : {}),
-        ...(expiresAt ? { expiresAt: new Date(expiresAt).toISOString() } : {}),
-      });
-
-      toast.success("Credential uploaded");
-      await queryClient.invalidateQueries({ queryKey: ["org", orgId, "credentials"] });
-      onSuccess();
-    } catch (error) {
-      toast.error(getApiError(error));
-    } finally {
+            return uploadCredential({
+              platform,
+              type: credentialType,
+              name,
+              blob,
+              ...(distribution ? { distribution } : {}),
+              ...(password ? { password } : {}),
+              ...(keyAlias ? { keyAlias } : {}),
+              ...(keyPassword ? { keyPassword } : {}),
+              ...(expiresAt ? { expiresAt: new Date(expiresAt).toISOString() } : {}),
+            });
+          },
+          catch: (error) => error,
+        }),
+      ),
+    );
+    if (Either.isLeft(result)) {
+      toast.error(getApiError(result.left));
       setIsUploading(false);
+      return;
     }
+    toast.success("Credential uploaded");
+    await queryClient.invalidateQueries({ queryKey: ["org", orgId, "credentials"] });
+    onSuccess();
+    setIsUploading(false);
   };
 
   const canSubmit = Boolean(file && platform && credentialType && name && !isUploading);

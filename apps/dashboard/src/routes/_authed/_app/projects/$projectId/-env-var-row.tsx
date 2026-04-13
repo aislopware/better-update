@@ -21,6 +21,7 @@ import { TableCell, TableRow } from "@better-update/ui/components/ui/table";
 import { MoreVerticalIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient } from "@tanstack/react-query";
+import { Either, Effect } from "effect";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -64,19 +65,25 @@ export const EnvVarRow = ({
 
   const handleDelete = async () => {
     setIsDeleting(true);
-    // eslint-disable-next-line functional/no-try-statements -- imperative shell error handling
-    try {
-      await deleteEnvVar(envVar.id);
-      toast.success(`Variable "${envVar.key}" deleted`);
-      await queryClient.invalidateQueries({
-        queryKey: envVarsQueryOptions(orgId, projectId).queryKey,
-      });
-      setDeleteOpen(false);
-    } catch (error) {
-      toast.error(getApiError(error));
-    } finally {
+    const result = await Effect.runPromise(
+      Effect.either(
+        Effect.tryPromise({
+          try: async () => deleteEnvVar(envVar.id),
+          catch: (error) => error,
+        }),
+      ),
+    );
+    if (Either.isLeft(result)) {
+      toast.error(getApiError(result.left));
       setIsDeleting(false);
+      return;
     }
+    toast.success(`Variable "${envVar.key}" deleted`);
+    await queryClient.invalidateQueries({
+      queryKey: envVarsQueryOptions(orgId, projectId).queryKey,
+    });
+    setDeleteOpen(false);
+    setIsDeleting(false);
   };
 
   return (

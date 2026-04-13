@@ -1,5 +1,5 @@
 import { AuthContext } from "@better-update/api";
-import { Effect } from "effect";
+import { Either, Effect } from "effect";
 
 import { AuditLogRepo } from "../repositories/audit-logs";
 
@@ -25,6 +25,10 @@ export const logAudit = (params: {
       source: ctx.source,
     });
   }).pipe(
-    // eslint-disable-next-line promise/prefer-await-to-callbacks -- Effect.catchAll is functional composition
-    Effect.catchAll((error) => Effect.logWarning("Audit log insert failed", error)),
+    Effect.either,
+    Effect.flatMap((result) =>
+      Either.isRight(result)
+        ? Effect.void
+        : Effect.logWarning("Audit log insert failed", result.left),
+    ),
   );

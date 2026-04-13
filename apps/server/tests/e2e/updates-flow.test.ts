@@ -42,7 +42,6 @@ const parseCookies = (response: Response): string => {
 // ── Updates & Assets API E2E ─────────────────────────────────────
 
 describe("Updates & Assets API flow", () => {
-  /* eslint-disable functional/no-let -- mutable E2E test state */
   let cookies: string;
   let organizationId: string;
   let projectId: string;
@@ -53,7 +52,6 @@ describe("Updates & Assets API flow", () => {
   let updateId: string;
   let stagingUpdateId: string;
   let apiKeyValue: string;
-  /* eslint-enable functional/no-let */
 
   // ── Section 1: Auth bootstrap ──────────────────────────────────
 
@@ -528,9 +526,7 @@ describe("Updates & Assets API flow", () => {
 
   // ── Section 9: Cross-org isolation ─────────────────────────────
 
-  /* eslint-disable functional/no-let -- mutable cross-org test state */
   let projectIdB: string;
-  /* eslint-enable functional/no-let */
 
   it("creates org B and switches to it", async () => {
     const orgRes = await post(
@@ -595,10 +591,8 @@ describe("Updates & Assets API flow", () => {
 
   // ── Section 10: Same-runtime publish blocking ─────────────────
 
-  /* eslint-disable functional/no-let -- mutable publish-blocking test state */
   let blockingBranchId: string;
   let blockingUpdateId: string;
-  /* eslint-enable functional/no-let */
 
   it("creates branch for publish-blocking test", async () => {
     const response = await post(

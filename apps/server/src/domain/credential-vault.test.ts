@@ -1,3 +1,5 @@
+import { Effect } from "effect";
+
 import {
   decryptAesGcm,
   decryptSecret,
@@ -26,7 +28,7 @@ describe("credential-vault", () => {
     test("parses valid keyring JSON", () => {
       const secret = toBase64(crypto.getRandomValues(new Uint8Array(32)));
       const json = JSON.stringify({ "1": secret });
-      const keyring = resolveKeyring(json);
+      const keyring = Effect.runSync(resolveKeyring(json));
 
       expect(keyring.currentVersion).toBe(1);
       expect(keyring.secrets[1]).toBeInstanceOf(Uint8Array);
@@ -37,17 +39,17 @@ describe("credential-vault", () => {
       const s1 = toBase64(crypto.getRandomValues(new Uint8Array(32)));
       const s2 = toBase64(crypto.getRandomValues(new Uint8Array(32)));
       const json = JSON.stringify({ "1": s1, "3": s2 });
-      const keyring = resolveKeyring(json);
+      const keyring = Effect.runSync(resolveKeyring(json));
 
       expect(keyring.currentVersion).toBe(3);
     });
 
     test("throws on empty keyring", () => {
-      expect(() => resolveKeyring("{}")).toThrow("Vault keyring is empty");
+      expect(() => Effect.runSync(resolveKeyring("{}"))).toThrow("Vault keyring is empty");
     });
 
     test("throws on invalid JSON", () => {
-      expect(() => resolveKeyring("not-json")).toThrow();
+      expect(() => Effect.runSync(resolveKeyring("not-json"))).toThrow();
     });
   });
 

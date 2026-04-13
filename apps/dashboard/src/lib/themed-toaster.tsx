@@ -8,7 +8,7 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Toaster } from "sonner";
 
-import { useTheme } from "./theme-context";
+import { useTheme } from "./use-theme";
 
 const toasterStyle: React.CSSProperties & Record<`--${string}`, string> = {
   "--normal-bg": "var(--popover)",

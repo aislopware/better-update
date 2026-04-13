@@ -69,10 +69,9 @@ export const CredentialsGroupLive = HttpApiBuilder.group(ManagementApi, "credent
           });
         }
 
-        const keyring = yield* Effect.try({
-          try: () => resolveKeyring(env.VAULT_KEYRING),
-          catch: () => new BadRequest({ message: "Vault keyring is not configured" }),
-        });
+        const keyring = yield* resolveKeyring(env.VAULT_KEYRING).pipe(
+          Effect.mapError(() => new BadRequest({ message: "Vault keyring is not configured" })),
+        );
         const blobBytes = fromBase64(payload.blob);
 
         const { encryptedBlob, encryptedDek, keyVersion } = yield* Effect.promise(async () =>
@@ -172,10 +171,9 @@ export const CredentialsGroupLive = HttpApiBuilder.group(ManagementApi, "credent
         yield* assertOrgOwnership(encData.organizationId);
 
         const env = yield* cloudflareEnv;
-        const keyring = yield* Effect.try({
-          try: () => resolveKeyring(env.VAULT_KEYRING),
-          catch: () => new BadRequest({ message: "Vault keyring is not configured" }),
-        });
+        const keyring = yield* resolveKeyring(env.VAULT_KEYRING).pipe(
+          Effect.mapError(() => new BadRequest({ message: "Vault keyring is not configured" })),
+        );
 
         const r2Object = yield* Effect.promise(async () => env.BUILD_BUCKET.get(encData.r2Key));
         if (!r2Object) {

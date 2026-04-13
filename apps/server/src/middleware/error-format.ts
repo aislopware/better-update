@@ -61,5 +61,4 @@ export const rewriteErrorResponse = (
  * Better Auth already uses natively.
  */
 export const errorFormatMiddleware = (httpApp: HttpApp.Default): HttpApp.Default =>
-  // eslint-disable-next-line unicorn/no-array-method-this-argument -- Effect.flatMap, not an array method
-  Effect.flatMap(httpApp, rewriteErrorResponse);
+  httpApp.pipe(Effect.flatMap(rewriteErrorResponse));

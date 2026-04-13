@@ -20,6 +20,7 @@ import {
 import { Delete02Icon, MoreVerticalIcon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient } from "@tanstack/react-query";
+import { Either, Effect } from "effect";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -57,14 +58,20 @@ export const CredentialCard = ({
   const queryClient = useQueryClient();
 
   const handleActivate = async () => {
-    // eslint-disable-next-line functional/no-try-statements -- imperative shell error handling
-    try {
-      await activateCredential(credential.id);
-      toast.success("Credential activated");
-      await queryClient.invalidateQueries({ queryKey: ["org", orgId, "credentials"] });
-    } catch (error) {
-      toast.error(getApiError(error));
+    const result = await Effect.runPromise(
+      Effect.either(
+        Effect.tryPromise({
+          try: async () => activateCredential(credential.id),
+          catch: (error) => error,
+        }),
+      ),
+    );
+    if (Either.isLeft(result)) {
+      toast.error(getApiError(result.left));
+      return;
     }
+    toast.success("Credential activated");
+    await queryClient.invalidateQueries({ queryKey: ["org", orgId, "credentials"] });
   };
 
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -72,17 +79,23 @@ export const CredentialCard = ({
 
   const handleDelete = async () => {
     setIsDeleting(true);
-    // eslint-disable-next-line functional/no-try-statements -- imperative shell error handling
-    try {
-      await deleteCredential(credential.id);
-      toast.success("Credential deleted");
-      setDeleteOpen(false);
-      await queryClient.invalidateQueries({ queryKey: ["org", orgId, "credentials"] });
-    } catch (error) {
-      toast.error(getApiError(error));
-    } finally {
+    const result = await Effect.runPromise(
+      Effect.either(
+        Effect.tryPromise({
+          try: async () => deleteCredential(credential.id),
+          catch: (error) => error,
+        }),
+      ),
+    );
+    if (Either.isLeft(result)) {
+      toast.error(getApiError(result.left));
       setIsDeleting(false);
+      return;
     }
+    toast.success("Credential deleted");
+    setDeleteOpen(false);
+    await queryClient.invalidateQueries({ queryKey: ["org", orgId, "credentials"] });
+    setIsDeleting(false);
   };
 
   return (

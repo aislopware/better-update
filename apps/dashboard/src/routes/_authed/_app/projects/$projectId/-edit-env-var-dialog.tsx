@@ -22,6 +22,7 @@ import {
 import { Textarea } from "@better-update/ui/components/ui/textarea";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
+import { Either, Effect } from "effect";
 import { toast } from "sonner";
 
 import type { EnvVar } from "@better-update/api";
@@ -64,11 +65,16 @@ const EditFormContent = ({
         return;
       }
 
-      // eslint-disable-next-line functional/no-try-statements -- imperative shell error handling
-      try {
-        await updateEnvVar(envVar.id, payload);
-      } catch (error) {
-        toast.error(getApiError(error));
+      const result = await Effect.runPromise(
+        Effect.either(
+          Effect.tryPromise({
+            try: async () => updateEnvVar(envVar.id, payload),
+            catch: (error) => error,
+          }),
+        ),
+      );
+      if (Either.isLeft(result)) {
+        toast.error(getApiError(result.left));
         return;
       }
 

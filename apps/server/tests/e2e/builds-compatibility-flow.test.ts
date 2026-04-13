@@ -36,12 +36,10 @@ const runSeedSql = (sql: string) => {
 };
 
 describe("Build compatibility matrix endpoint", () => {
-  /* eslint-disable functional/no-let -- mutable end-to-end state */
   let cookies: string;
   let primaryOrgId: string;
   let secondaryOrgId: string;
   let projectId: string;
-  /* eslint-enable functional/no-let */
 
   it("rejects unauthenticated requests", async () => {
     const response = await get("/api/builds/compatibility-matrix?projectId=missing-project");

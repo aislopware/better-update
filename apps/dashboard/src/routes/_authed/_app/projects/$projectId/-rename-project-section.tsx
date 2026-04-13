@@ -12,6 +12,7 @@ import { Input } from "@better-update/ui/components/ui/input";
 import { Label } from "@better-update/ui/components/ui/label";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
+import { Either, Effect } from "effect";
 import { toast } from "sonner";
 
 import type { ProjectDetail } from "@better-update/api-client/react";
@@ -24,11 +25,16 @@ export const RenameProjectSection = ({ project }: { project: ProjectDetail }) =>
   const form = useForm({
     defaultValues: { name: project.name },
     onSubmit: async ({ value }) => {
-      // eslint-disable-next-line functional/no-try-statements -- imperative shell error handling
-      try {
-        await renameProject(project.id, { name: value.name });
-      } catch (error) {
-        toast.error(getApiError(error));
+      const result = await Effect.runPromise(
+        Effect.either(
+          Effect.tryPromise({
+            try: async () => renameProject(project.id, { name: value.name }),
+            catch: (error) => error,
+          }),
+        ),
+      );
+      if (Either.isLeft(result)) {
+        toast.error(getApiError(result.left));
         return;
       }
 

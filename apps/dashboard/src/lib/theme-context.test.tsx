@@ -4,7 +4,8 @@ import { act, renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
 
 import { THEME_COOKIE_NAME } from "./theme";
-import { ThemeProvider, useTheme } from "./theme-context";
+import { ThemeProvider } from "./theme-context";
+import { useTheme } from "./use-theme";
 
 const createWrapper = (initialTheme?: "light" | "dark" | "system") => {
   const Wrapper = ({ children }: { children: ReactNode }) => (
