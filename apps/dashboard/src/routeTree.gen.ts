@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as CliLoginRouteImport } from './routes/cli-login'
 import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as AuthedOnboardingRouteImport } from './routes/_authed/onboarding'
 import { Route as AuthedAppRouteImport } from './routes/_authed/_app'
@@ -26,6 +27,11 @@ import { Route as AuthedAppProjectsIndexRouteImport } from './routes/_authed/_ap
 import { Route as AuthedAppAccountIndexRouteImport } from './routes/_authed/_app/account/index'
 import { Route as AuthedAppProjectsProjectIdIndexRouteImport } from './routes/_authed/_app/projects/$projectId/index'
 
+const CliLoginRoute = CliLoginRouteImport.update({
+  id: '/cli-login',
+  path: '/cli-login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthedRoute = AuthedRouteImport.update({
   id: '/_authed',
   getParentRoute: () => rootRouteImport,
@@ -108,6 +114,7 @@ const AuthedAppProjectsProjectIdIndexRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthedAppIndexRoute
+  '/cli-login': typeof CliLoginRoute
   '/forgot-password': typeof authForgotPasswordRoute
   '/login': typeof authLoginRoute
   '/reset-password': typeof authResetPasswordRoute
@@ -124,6 +131,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof AuthedAppIndexRoute
+  '/cli-login': typeof CliLoginRoute
   '/forgot-password': typeof authForgotPasswordRoute
   '/login': typeof authLoginRoute
   '/reset-password': typeof authResetPasswordRoute
@@ -141,6 +149,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authed': typeof AuthedRouteWithChildren
+  '/cli-login': typeof CliLoginRoute
   '/(auth)/forgot-password': typeof authForgotPasswordRoute
   '/(auth)/login': typeof authLoginRoute
   '/(auth)/reset-password': typeof authResetPasswordRoute
@@ -161,6 +170,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/cli-login'
     | '/forgot-password'
     | '/login'
     | '/reset-password'
@@ -177,6 +187,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/cli-login'
     | '/forgot-password'
     | '/login'
     | '/reset-password'
@@ -193,6 +204,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_authed'
+    | '/cli-login'
     | '/(auth)/forgot-password'
     | '/(auth)/login'
     | '/(auth)/reset-password'
@@ -212,6 +224,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   AuthedRoute: typeof AuthedRouteWithChildren
+  CliLoginRoute: typeof CliLoginRoute
   authForgotPasswordRoute: typeof authForgotPasswordRoute
   authLoginRoute: typeof authLoginRoute
   authResetPasswordRoute: typeof authResetPasswordRoute
@@ -220,6 +233,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/cli-login': {
+      id: '/cli-login'
+      path: '/cli-login'
+      fullPath: '/cli-login'
+      preLoaderRoute: typeof CliLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authed': {
       id: '/_authed'
       path: ''
@@ -378,6 +398,7 @@ const AuthedRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   AuthedRoute: AuthedRouteWithChildren,
+  CliLoginRoute: CliLoginRoute,
   authForgotPasswordRoute: authForgotPasswordRoute,
   authLoginRoute: authLoginRoute,
   authResetPasswordRoute: authResetPasswordRoute,

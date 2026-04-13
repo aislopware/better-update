@@ -4,7 +4,7 @@ import { Schema } from "effect";
 import { Forbidden } from "../auth/errors";
 import { NotFound } from "../auth/ownership";
 import { Id, PaginationParams } from "../domain/common";
-import { Conflict } from "../domain/errors";
+import { BadRequest, Conflict } from "../domain/errors";
 import {
   CreateUpdateBody,
   DeleteUpdateResult,
@@ -106,6 +106,7 @@ export class UpdatesGroup extends HttpApiGroup.make("updates")
         }),
       ),
   )
+  .addError(BadRequest)
   .addError(NotFound)
   .addError(Forbidden)
   .annotateContext(

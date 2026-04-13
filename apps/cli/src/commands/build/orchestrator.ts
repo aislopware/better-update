@@ -1,5 +1,6 @@
 import process from "node:process";
 
+import { Prompt } from "@effect/cli";
 import { CommandExecutor, FetchHttpClient, FileSystem } from "@effect/platform";
 import { Console, Effect } from "effect";
 
@@ -17,6 +18,7 @@ import { apiClient } from "../../services/api-client";
 import { AuthStore } from "../../services/auth-store";
 import { ConfigStore } from "../../services/config-store";
 import { runAndroidBuild } from "./android";
+import { provisionAndroidCredentials, provisionIosCredentials } from "./credential-provisioning";
 import { runIosBuild } from "./ios";
 import { reserveAndUpload } from "./reserve-and-upload";
 
@@ -107,6 +109,7 @@ export const runBuildOrchestrator = (
             message: `Profile "${profile.name}" has no ios section.`,
           });
         }
+        const iosProfile = profile.ios;
         if (!appMeta.bundleId) {
           return yield* new BuildProfileError({
             message: "Missing expo.ios.bundleIdentifier in app.json.",
@@ -116,12 +119,47 @@ export const runBuildOrchestrator = (
           api,
           tempDir,
           projectRoot,
-          iosProfile: profile.ios,
+          iosProfile,
           bundleId: appMeta.bundleId,
           envVars,
           projectId,
-        });
-        distribution = profile.ios.distribution;
+        }).pipe(
+          Effect.catchTag("MissingCredentialsError", (error) =>
+            Effect.gen(function* () {
+              yield* Console.log("");
+              yield* Console.log(error.message);
+              yield* Console.log(error.hint);
+
+              const shouldProvision = yield* Prompt.confirm({
+                message: "Provision missing iOS credentials now?",
+                initial: true,
+              });
+              if (!shouldProvision) {
+                return yield* Effect.fail(error);
+              }
+
+              yield* provisionIosCredentials({
+                api,
+                projectId,
+                distribution: iosProfile.distribution,
+              });
+
+              yield* Console.log("");
+              yield* Console.log("Retrying iOS build...");
+
+              return yield* runIosBuild({
+                api,
+                tempDir,
+                projectRoot,
+                iosProfile,
+                bundleId: appMeta.bundleId,
+                envVars,
+                projectId,
+              });
+            }),
+          ),
+        );
+        distribution = iosProfile.distribution;
         artifactFormat = "ipa";
         bundleId = appMeta.bundleId;
       } else {
@@ -130,6 +168,7 @@ export const runBuildOrchestrator = (
             message: `Profile "${profile.name}" has no android section.`,
           });
         }
+        const androidProfile = profile.android;
         if (!appMeta.androidPackage) {
           return yield* new BuildProfileError({
             message: "Missing expo.android.package in app.json.",
@@ -139,12 +178,45 @@ export const runBuildOrchestrator = (
           api,
           tempDir,
           projectRoot,
-          androidProfile: profile.android,
+          androidProfile,
           envVars,
           projectId,
-        });
-        distribution = profile.android.distribution;
-        artifactFormat = profile.android.format;
+        }).pipe(
+          Effect.catchTag("MissingCredentialsError", (error) =>
+            Effect.gen(function* () {
+              yield* Console.log("");
+              yield* Console.log(error.message);
+              yield* Console.log(error.hint);
+
+              const shouldProvision = yield* Prompt.confirm({
+                message: "Provision missing Android credentials now?",
+                initial: true,
+              });
+              if (!shouldProvision) {
+                return yield* Effect.fail(error);
+              }
+
+              yield* provisionAndroidCredentials({
+                api,
+                projectId,
+              });
+
+              yield* Console.log("");
+              yield* Console.log("Retrying Android build...");
+
+              return yield* runAndroidBuild({
+                api,
+                tempDir,
+                projectRoot,
+                androidProfile,
+                envVars,
+                projectId,
+              });
+            }),
+          ),
+        );
+        distribution = androidProfile.distribution;
+        artifactFormat = androidProfile.format;
         bundleId = appMeta.androidPackage;
       }
 

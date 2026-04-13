@@ -2,11 +2,14 @@ import { Conflict, NotFound } from "@better-update/api";
 import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
+import type { CreateUpdateBody } from "@better-update/api";
+
 import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
 import { assertProjectOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
 import { cloudflareCtx, cloudflareEnv } from "../cloudflare/context";
+import { validateUpdatePublishInput } from "../domain/update-publish-validation";
 import { AssetRepo } from "../repositories/assets";
 import { BranchRepo } from "../repositories/branches";
 import { ChannelRepo } from "../repositories/channels";
@@ -89,100 +92,199 @@ const cascadeDeletePatches = (assetHash: string) =>
     }
   });
 
+const assertAssetsExist = (assets: readonly { readonly hash: string }[]) =>
+  Effect.gen(function* () {
+    const assetRepo = yield* AssetRepo;
+    const existingAssets = yield* assetRepo.findByHashes({
+      hashes: assets.map((asset) => asset.hash),
+    });
+    const existingHashes = new Set(existingAssets.map((asset) => asset.hash));
+    const missingHashes = assets.filter((asset) => !existingHashes.has(asset.hash));
+
+    if (missingHashes.length > 0) {
+      yield* new NotFound({
+        message: `Assets not found: ${missingHashes.map((asset) => asset.hash).join(", ")}`,
+      });
+    }
+  });
+
+const maybeEnqueuePublishPatchJob = (params: {
+  readonly branchId: string;
+  readonly platform: string;
+  readonly runtimeVersion: string;
+  readonly updateId: string;
+  readonly assets: readonly { readonly hash: string; readonly isLaunch: boolean }[];
+  readonly isRollback: boolean;
+}) =>
+  Effect.gen(function* () {
+    if (params.isRollback) {
+      return;
+    }
+
+    const newLaunchAsset = params.assets.find((asset) => asset.isLaunch);
+    if (!newLaunchAsset) {
+      return;
+    }
+
+    yield* enqueuePatchJob({
+      branchId: params.branchId,
+      platform: params.platform,
+      runtimeVersion: params.runtimeVersion,
+      newUpdateId: params.updateId,
+      newLaunchHash: newLaunchAsset.hash,
+    });
+  });
+
+const resolveOrCreatePublishBranch = (params: {
+  readonly projectId: string;
+  readonly branchName: string;
+}) =>
+  Effect.gen(function* () {
+    const branchRepo = yield* BranchRepo;
+    const existingBranch = yield* branchRepo
+      .findByProjectAndName({
+        projectId: params.projectId,
+        name: params.branchName,
+      })
+      .pipe(Effect.catchTag("NotFound", () => Effect.succeed(null)));
+
+    if (existingBranch) {
+      return existingBranch;
+    }
+
+    const branchId = crypto.randomUUID();
+    const createdAt = new Date().toISOString();
+    const insertedBranch = yield* branchRepo
+      .insert({
+        id: branchId,
+        projectId: params.projectId,
+        name: params.branchName,
+        createdAt,
+      })
+      .pipe(
+        Effect.as(true),
+        Effect.catchTag("Conflict", () => Effect.succeed(false)),
+      );
+
+    const branch = yield* branchRepo.findByProjectAndName({
+      projectId: params.projectId,
+      name: params.branchName,
+    });
+
+    if (insertedBranch) {
+      yield* logAudit({
+        action: "branch.create",
+        resourceType: "branch",
+        resourceId: branch.id,
+        metadata: { name: branch.name, projectId: params.projectId, source: "update.create" },
+      });
+    }
+
+    const channelRepo = yield* ChannelRepo;
+    const channel = yield* channelRepo
+      .insert({
+        projectId: params.projectId,
+        name: params.branchName,
+        branchId: branch.id,
+      })
+      .pipe(
+        Effect.map((createdChannel) => createdChannel),
+        Effect.catchTag("Conflict", () => Effect.succeed(null)),
+      );
+
+    if (channel) {
+      yield* logAudit({
+        action: "channel.create",
+        resourceType: "channel",
+        resourceId: channel.id,
+        metadata: { name: channel.name, projectId: params.projectId, source: "update.create" },
+      });
+    }
+
+    return branch;
+  });
+
+const handleCreateUpdate = ({ payload }: { readonly payload: typeof CreateUpdateBody.Type }) =>
+  Effect.gen(function* () {
+    yield* assertPermission("update", "create");
+
+    yield* validateUpdatePublishInput({
+      runtimeVersion: payload.runtimeVersion,
+      assets: payload.assets,
+      extra: payload.extra,
+      isRollback: payload.isRollback ?? false,
+      manifestBody: payload.manifestBody ?? null,
+      directiveBody: payload.directiveBody ?? null,
+    });
+
+    const projectRepo = yield* ProjectRepo;
+    const project = yield* projectRepo.findByScopeKey({ scopeKey: payload.project });
+    yield* assertProjectOwnership(project.id);
+
+    const branch = yield* resolveOrCreatePublishBranch({
+      projectId: project.id,
+      branchName: payload.branch,
+    });
+
+    const updateRepo = yield* UpdateRepo;
+    const hasActive = yield* updateRepo.hasActiveRollout({
+      branchId: branch.id,
+      platform: payload.platform,
+      runtimeVersion: payload.runtimeVersion,
+    });
+    if (hasActive) {
+      return yield* Effect.fail(
+        new Conflict({
+          message:
+            "Cannot publish while a per-update rollout is active. Complete or revert the rollout first.",
+        }),
+      );
+    }
+
+    yield* assertAssetsExist(payload.assets);
+
+    const result = yield* updateRepo.insert({
+      branchId: branch.id,
+      runtimeVersion: payload.runtimeVersion,
+      platform: payload.platform,
+      message: payload.message,
+      metadataJson: JSON.stringify(payload.metadata),
+      extraJson: payload.extra ? JSON.stringify(payload.extra) : null,
+      groupId: payload.groupId,
+      rolloutPercentage: payload.rolloutPercentage ?? 100,
+      isRollback: payload.isRollback ?? false,
+      signature: payload.signature ?? null,
+      certificateChain: payload.certificateChain ?? null,
+      manifestBody: payload.manifestBody ?? null,
+      directiveBody: payload.directiveBody ?? null,
+      assets: payload.assets,
+    });
+
+    yield* maybeEnqueuePublishPatchJob({
+      branchId: branch.id,
+      platform: payload.platform,
+      runtimeVersion: payload.runtimeVersion,
+      updateId: result.id,
+      assets: payload.assets,
+      isRollback: payload.isRollback ?? false,
+    });
+
+    const channelRepo = yield* ChannelRepo;
+    yield* channelRepo.bumpCacheVersionByBranch({ branchId: branch.id });
+
+    yield* logAudit({
+      action: "update.create",
+      resourceType: "update",
+      resourceId: result.id,
+      metadata: { branchId: branch.id, platform: payload.platform },
+    });
+
+    return result;
+  });
+
 export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (handlers) =>
   handlers
-    .handle("create", ({ payload }) =>
-      Effect.gen(function* () {
-        yield* assertPermission("update", "create");
-
-        // Resolve project by scope key
-        const projectRepo = yield* ProjectRepo;
-        const project = yield* projectRepo.findByScopeKey({ scopeKey: payload.project });
-        yield* assertProjectOwnership(project.id);
-
-        // Resolve branch by name within project
-        const branchRepo = yield* BranchRepo;
-        const branch = yield* branchRepo.findByProjectAndName({
-          projectId: project.id,
-          name: payload.branch,
-        });
-
-        // Check for active per-update rollout
-        const updateRepo = yield* UpdateRepo;
-        const hasActive = yield* updateRepo.hasActiveRollout({
-          branchId: branch.id,
-          platform: payload.platform,
-          runtimeVersion: payload.runtimeVersion,
-        });
-        if (hasActive) {
-          return yield* Effect.fail(
-            new Conflict({
-              message:
-                "Cannot publish while a per-update rollout is active. Complete or revert the rollout first.",
-            }),
-          );
-        }
-
-        // Verify all asset hashes exist
-        const assetRepo = yield* AssetRepo;
-        const existingAssets = yield* assetRepo.findByHashes({
-          hashes: payload.assets.map((asset) => asset.hash),
-        });
-        const existingHashes = new Set(existingAssets.map((asset) => asset.hash));
-        const missingHashes = payload.assets.filter((asset) => !existingHashes.has(asset.hash));
-        if (missingHashes.length > 0) {
-          return yield* Effect.fail(
-            new NotFound({
-              message: `Assets not found: ${missingHashes.map((asset) => asset.hash).join(", ")}`,
-            }),
-          );
-        }
-
-        // Create update with assets
-        const result = yield* updateRepo.insert({
-          branchId: branch.id,
-          runtimeVersion: payload.runtimeVersion,
-          platform: payload.platform,
-          message: payload.message,
-          metadataJson: JSON.stringify(payload.metadata),
-          extraJson: payload.extra ? JSON.stringify(payload.extra) : null,
-          groupId: payload.groupId,
-          rolloutPercentage: payload.rolloutPercentage ?? 100,
-          isRollback: payload.isRollback ?? false,
-          signature: payload.signature ?? null,
-          certificateChain: payload.certificateChain ?? null,
-          manifestBody: payload.manifestBody ?? null,
-          directiveBody: payload.directiveBody ?? null,
-          assets: payload.assets,
-        });
-
-        // Enqueue patch generation if previous update exists
-        if (!(payload.isRollback ?? false)) {
-          const newLaunchAsset = payload.assets.find((asset) => asset.isLaunch);
-          if (newLaunchAsset) {
-            yield* enqueuePatchJob({
-              branchId: branch.id,
-              platform: payload.platform,
-              runtimeVersion: payload.runtimeVersion,
-              newUpdateId: result.id,
-              newLaunchHash: newLaunchAsset.hash,
-            });
-          }
-        }
-
-        const channelRepo = yield* ChannelRepo;
-        yield* channelRepo.bumpCacheVersionByBranch({ branchId: branch.id });
-
-        yield* logAudit({
-          action: "update.create",
-          resourceType: "update",
-          resourceId: result.id,
-          metadata: { branchId: branch.id, platform: payload.platform },
-        });
-
-        return result;
-      }),
-    )
+    .handle("create", handleCreateUpdate)
     .handle("list", ({ urlParams }) =>
       Effect.gen(function* () {
         yield* assertPermission("update", "read");
