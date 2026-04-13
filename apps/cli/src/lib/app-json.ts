@@ -3,6 +3,9 @@ import { Effect } from "effect";
 
 import { ProjectNotLinkedError } from "./exit-codes";
 
+const asRecord = (value: unknown): Record<string, unknown> | undefined =>
+  typeof value === "object" && value !== null ? (value as Record<string, unknown>) : undefined;
+
 export const readAppJson = Effect.gen(function* () {
   const fs = yield* FileSystem.FileSystem;
   const content = yield* fs
@@ -20,9 +23,9 @@ export const readAppJson = Effect.gen(function* () {
 
 export const readProjectId = Effect.gen(function* () {
   const appJson = yield* readAppJson;
-  const expo = appJson["expo"] as Record<string, unknown> | undefined;
-  const extra = expo?.["extra"] as Record<string, unknown> | undefined;
-  const betterUpdate = extra?.["betterUpdate"] as Record<string, unknown> | undefined;
+  const expo = asRecord(appJson["expo"]);
+  const extra = asRecord(expo?.["extra"]);
+  const betterUpdate = asRecord(extra?.["betterUpdate"]);
   const projectId = betterUpdate?.["projectId"];
 
   if (typeof projectId !== "string") {
@@ -37,7 +40,7 @@ export const readProjectId = Effect.gen(function* () {
 
 export const readScopeKey = Effect.gen(function* () {
   const appJson = yield* readAppJson;
-  const expo = appJson["expo"] as Record<string, unknown> | undefined;
+  const expo = asRecord(appJson["expo"]);
   const owner = expo?.["owner"];
   const slug = expo?.["slug"];
 
