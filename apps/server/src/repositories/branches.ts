@@ -2,6 +2,7 @@ import { Branch, Conflict, NotFound } from "@better-update/api";
 import { Context, Effect, Layer } from "effect";
 
 import { cloudflareEnv } from "../cloudflare/context";
+import { CHANNEL_BRANCH_REFERENCE_PREDICATE } from "./channel-cache-version";
 import { d1RunWithUniqueCheck } from "./d1-helpers";
 
 // -- Port ------------------------------------------------------------------
@@ -154,7 +155,7 @@ export const BranchRepoLive = Layer.succeed(BranchRepo, {
       // (either as current branch_id OR as a rollout target in branch_mapping_json)
       const channelCount = yield* Effect.promise(async () =>
         env.DB.prepare(
-          `SELECT COUNT(*) as count FROM "channels" WHERE "branch_id" = ? OR ("branch_mapping_json" IS NOT NULL AND "branch_mapping_json" LIKE '%' || ? || '%')`,
+          `SELECT COUNT(*) as count FROM "channels" WHERE ${CHANNEL_BRANCH_REFERENCE_PREDICATE}`,
         )
           .bind(params.id, params.id)
           .first<{ count: number }>(),

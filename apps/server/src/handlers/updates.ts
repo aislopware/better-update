@@ -1,4 +1,4 @@
-import { Conflict, NotFound } from "@better-update/api";
+import { Conflict, NotFound, Update as ApiUpdate } from "@better-update/api";
 import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
@@ -8,7 +8,7 @@ import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
 import { assertProjectOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
-import { cloudflareCtx, cloudflareEnv } from "../cloudflare/context";
+import { cloudflareEnv } from "../cloudflare/context";
 import { validateUpdatePublishInput } from "../domain/update-publish-validation";
 import { AssetRepo } from "../repositories/assets";
 import { BranchRepo } from "../repositories/branches";
@@ -16,6 +16,24 @@ import { ChannelRepo } from "../repositories/channels";
 import { PatchRepo } from "../repositories/patches";
 import { ProjectRepo } from "../repositories/projects";
 import { UpdateRepo } from "../repositories/updates";
+
+interface SerializedUpdate {
+  readonly id: string;
+  readonly branchId: string;
+  readonly runtimeVersion: string;
+  readonly platform: "ios" | "android";
+  readonly message: string;
+  readonly metadataJson: string;
+  readonly extraJson: string | null;
+  readonly groupId: string;
+  readonly rolloutPercentage: number;
+  readonly isRollback: boolean;
+  readonly signature: string | null;
+  readonly certificateChain: string | null;
+  readonly manifestBody: string | null;
+  readonly directiveBody: string | null;
+  readonly createdAt: string;
+}
 
 const getUpdateAssets = (updateId: string) =>
   Effect.gen(function* () {
@@ -32,51 +50,6 @@ const getUpdateAssets = (updateId: string) =>
       hash: row.asset_hash,
       isLaunch: row.is_launch === 1,
     }));
-  });
-
-/** Find previous update's launch asset hash for a branch/platform/runtime combination */
-const findPrevLaunchHash = (params: {
-  readonly branchId: string;
-  readonly platform: string;
-  readonly runtimeVersion: string;
-  readonly excludeUpdateId: string;
-}) =>
-  Effect.gen(function* () {
-    const env = yield* cloudflareEnv;
-    return yield* Effect.promise(async () =>
-      env.DB.prepare(
-        `SELECT ua."asset_hash" FROM "updates" u JOIN "update_assets" ua ON ua."update_id" = u."id" AND ua."is_launch" = 1 WHERE u."branch_id" = ? AND u."platform" = ? AND u."runtime_version" = ? AND u."is_rollback" = 0 AND u."id" != ? ORDER BY u."created_at" DESC, u."id" DESC LIMIT 1`,
-      )
-        .bind(params.branchId, params.platform, params.runtimeVersion, params.excludeUpdateId)
-        .first<{ asset_hash: string }>(),
-    );
-  });
-
-/** Enqueue patch generation job if a previous launch asset exists and differs */
-const enqueuePatchJob = (params: {
-  readonly branchId: string;
-  readonly platform: string;
-  readonly runtimeVersion: string;
-  readonly newUpdateId: string;
-  readonly newLaunchHash: string;
-}) =>
-  Effect.gen(function* () {
-    const env = yield* cloudflareEnv;
-    const ctx = yield* cloudflareCtx;
-    const prevLaunch = yield* findPrevLaunchHash({
-      branchId: params.branchId,
-      platform: params.platform,
-      runtimeVersion: params.runtimeVersion,
-      excludeUpdateId: params.newUpdateId,
-    });
-    if (prevLaunch && prevLaunch.asset_hash !== params.newLaunchHash) {
-      ctx.waitUntil(
-        env.PATCH_QUEUE.send({
-          oldHash: prevLaunch.asset_hash,
-          newHash: params.newLaunchHash,
-        }),
-      );
-    }
   });
 
 /** Clean up patches associated with a launch asset hash */
@@ -108,100 +81,23 @@ const assertAssetsExist = (assets: readonly { readonly hash: string }[]) =>
     }
   });
 
-const maybeEnqueuePublishPatchJob = (params: {
-  readonly branchId: string;
-  readonly platform: string;
-  readonly runtimeVersion: string;
-  readonly updateId: string;
-  readonly assets: readonly { readonly hash: string; readonly isLaunch: boolean }[];
-  readonly isRollback: boolean;
-}) =>
-  Effect.gen(function* () {
-    if (params.isRollback) {
-      return;
-    }
-
-    const newLaunchAsset = params.assets.find((asset) => asset.isLaunch);
-    if (!newLaunchAsset) {
-      return;
-    }
-
-    yield* enqueuePatchJob({
-      branchId: params.branchId,
-      platform: params.platform,
-      runtimeVersion: params.runtimeVersion,
-      newUpdateId: params.updateId,
-      newLaunchHash: newLaunchAsset.hash,
-    });
-  });
-
-const resolveOrCreatePublishBranch = (params: {
-  readonly projectId: string;
-  readonly branchName: string;
-}) =>
-  Effect.gen(function* () {
-    const branchRepo = yield* BranchRepo;
-    const existingBranch = yield* branchRepo
-      .findByProjectAndName({
-        projectId: params.projectId,
-        name: params.branchName,
-      })
-      .pipe(Effect.catchTag("NotFound", () => Effect.succeed(null)));
-
-    if (existingBranch) {
-      return existingBranch;
-    }
-
-    const branchId = crypto.randomUUID();
-    const createdAt = new Date().toISOString();
-    const insertedBranch = yield* branchRepo
-      .insert({
-        id: branchId,
-        projectId: params.projectId,
-        name: params.branchName,
-        createdAt,
-      })
-      .pipe(
-        Effect.as(true),
-        Effect.catchTag("Conflict", () => Effect.succeed(false)),
-      );
-
-    const branch = yield* branchRepo.findByProjectAndName({
-      projectId: params.projectId,
-      name: params.branchName,
-    });
-
-    if (insertedBranch) {
-      yield* logAudit({
-        action: "branch.create",
-        resourceType: "branch",
-        resourceId: branch.id,
-        metadata: { name: branch.name, projectId: params.projectId, source: "update.create" },
-      });
-    }
-
-    const channelRepo = yield* ChannelRepo;
-    const channel = yield* channelRepo
-      .insert({
-        projectId: params.projectId,
-        name: params.branchName,
-        branchId: branch.id,
-      })
-      .pipe(
-        Effect.map((createdChannel) => createdChannel),
-        Effect.catchTag("Conflict", () => Effect.succeed(null)),
-      );
-
-    if (channel) {
-      yield* logAudit({
-        action: "channel.create",
-        resourceType: "channel",
-        resourceId: channel.id,
-        metadata: { name: channel.name, projectId: params.projectId, source: "update.create" },
-      });
-    }
-
-    return branch;
+const toApiUpdate = (update: SerializedUpdate) =>
+  new ApiUpdate({
+    id: update.id,
+    branchId: update.branchId,
+    runtimeVersion: update.runtimeVersion,
+    platform: update.platform,
+    message: update.message,
+    metadataJson: update.metadataJson,
+    extraJson: update.extraJson,
+    groupId: update.groupId,
+    rolloutPercentage: update.rolloutPercentage,
+    isRollback: update.isRollback,
+    signature: update.signature,
+    certificateChain: update.certificateChain,
+    manifestBody: update.manifestBody,
+    directiveBody: update.directiveBody,
+    createdAt: update.createdAt,
   });
 
 const handleCreateUpdate = ({ payload }: { readonly payload: typeof CreateUpdateBody.Type }) =>
@@ -221,62 +117,69 @@ const handleCreateUpdate = ({ payload }: { readonly payload: typeof CreateUpdate
     const project = yield* projectRepo.findByScopeKey({ scopeKey: payload.project });
     yield* assertProjectOwnership(project.id);
 
-    const branch = yield* resolveOrCreatePublishBranch({
-      projectId: project.id,
-      branchName: payload.branch,
-    });
-
-    const updateRepo = yield* UpdateRepo;
-    const hasActive = yield* updateRepo.hasActiveRollout({
-      branchId: branch.id,
-      platform: payload.platform,
-      runtimeVersion: payload.runtimeVersion,
-    });
-    if (hasActive) {
-      return yield* Effect.fail(
-        new Conflict({
-          message:
-            "Cannot publish while a per-update rollout is active. Complete or revert the rollout first.",
-        }),
-      );
-    }
-
     yield* assertAssetsExist(payload.assets);
 
-    const result = yield* updateRepo.insert({
-      branchId: branch.id,
-      runtimeVersion: payload.runtimeVersion,
-      platform: payload.platform,
-      message: payload.message,
-      metadataJson: JSON.stringify(payload.metadata),
-      extraJson: payload.extra ? JSON.stringify(payload.extra) : null,
-      groupId: payload.groupId,
-      rolloutPercentage: payload.rolloutPercentage ?? 100,
-      isRollback: payload.isRollback ?? false,
-      signature: payload.signature ?? null,
-      certificateChain: payload.certificateChain ?? null,
-      manifestBody: payload.manifestBody ?? null,
-      directiveBody: payload.directiveBody ?? null,
-      assets: payload.assets,
-    });
+    const env = yield* cloudflareEnv;
+    const branchCoordinator = env.CREATE_BRANCH_COORDINATOR.getByName(
+      `${project.id}:${payload.branch}`,
+    );
+    const branchResult = yield* Effect.promise(async () =>
+      branchCoordinator.ensureBranchChannel({
+        projectId: project.id,
+        branchName: payload.branch,
+      }),
+    );
+    if (!branchResult.ok) {
+      return yield* Effect.fail(new Conflict({ message: branchResult.message }));
+    }
 
-    yield* maybeEnqueuePublishPatchJob({
-      branchId: branch.id,
-      platform: payload.platform,
-      runtimeVersion: payload.runtimeVersion,
-      updateId: result.id,
-      assets: payload.assets,
-      isRollback: payload.isRollback ?? false,
-    });
+    if (branchResult.value.branchCreated) {
+      yield* logAudit({
+        action: "branch.create",
+        resourceType: "branch",
+        resourceId: branchResult.value.branchId,
+        metadata: { name: payload.branch, projectId: project.id, source: "update.create" },
+      });
+    }
 
-    const channelRepo = yield* ChannelRepo;
-    yield* channelRepo.bumpCacheVersionByBranch({ branchId: branch.id });
+    if (branchResult.value.channelCreated) {
+      yield* logAudit({
+        action: "channel.create",
+        resourceType: "channel",
+        resourceId: branchResult.value.channelId,
+        metadata: { name: payload.branch, projectId: project.id, source: "update.create" },
+      });
+    }
+
+    const publishResult = yield* Effect.promise(async () =>
+      env.PUBLISH_COORDINATOR.getByName(branchResult.value.branchId).createUpdate({
+        branchId: branchResult.value.branchId,
+        runtimeVersion: payload.runtimeVersion,
+        platform: payload.platform,
+        message: payload.message,
+        metadataJson: JSON.stringify(payload.metadata),
+        extraJson: payload.extra ? JSON.stringify(payload.extra) : null,
+        groupId: payload.groupId,
+        rolloutPercentage: payload.rolloutPercentage ?? 100,
+        isRollback: payload.isRollback ?? false,
+        signature: payload.signature ?? null,
+        certificateChain: payload.certificateChain ?? null,
+        manifestBody: payload.manifestBody ?? null,
+        directiveBody: payload.directiveBody ?? null,
+        assets: payload.assets,
+      }),
+    );
+    if (!publishResult.ok) {
+      return yield* Effect.fail(new Conflict({ message: publishResult.message }));
+    }
+
+    const result = toApiUpdate(publishResult.value);
 
     yield* logAudit({
       action: "update.create",
       resourceType: "update",
       resourceId: result.id,
-      metadata: { branchId: branch.id, platform: payload.platform },
+      metadata: { branchId: result.branchId, platform: payload.platform },
     });
 
     return result;
@@ -379,54 +282,29 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
           return yield* Effect.fail(new NotFound({ message: "Target channel not found" }));
         }
 
-        // Check for active per-update rollout on target branch
-        const hasActive = yield* updateRepo.hasActiveRollout({
-          branchId: targetChannel.branchId,
-          platform: sourceUpdate.platform,
-          runtimeVersion: sourceUpdate.runtimeVersion,
-        });
-        if (hasActive) {
-          return yield* Effect.fail(
-            new Conflict({
-              message:
-                "Cannot republish while a per-update rollout is active on the target branch. Complete or revert the rollout first.",
-            }),
-          );
-        }
-
         // Get source update's assets via update_assets table
         const sourceAssets = yield* getUpdateAssets(sourceUpdate.id);
-
-        const result = yield* updateRepo.insert({
-          branchId: targetChannel.branchId,
-          runtimeVersion: sourceUpdate.runtimeVersion,
-          platform: sourceUpdate.platform,
-          message: sourceUpdate.message,
-          metadataJson: sourceUpdate.metadataJson,
-          extraJson: sourceUpdate.extraJson,
-          groupId: crypto.randomUUID(),
-          rolloutPercentage: 100,
-          isRollback: false,
-          signature: sourceUpdate.signature,
-          certificateChain: sourceUpdate.certificateChain,
-          manifestBody: sourceUpdate.manifestBody,
-          directiveBody: sourceUpdate.directiveBody,
-          assets: sourceAssets,
-        });
-
-        // Enqueue patch generation on target branch
-        const newLaunchAsset = sourceAssets.find((asset) => asset.isLaunch);
-        if (newLaunchAsset) {
-          yield* enqueuePatchJob({
+        const env = yield* cloudflareEnv;
+        const publishResult = yield* Effect.promise(async () =>
+          env.PUBLISH_COORDINATOR.getByName(targetChannel.branchId).republishUpdate({
             branchId: targetChannel.branchId,
-            platform: sourceUpdate.platform,
             runtimeVersion: sourceUpdate.runtimeVersion,
-            newUpdateId: result.id,
-            newLaunchHash: newLaunchAsset.hash,
-          });
+            platform: sourceUpdate.platform,
+            message: sourceUpdate.message,
+            metadataJson: sourceUpdate.metadataJson,
+            extraJson: sourceUpdate.extraJson,
+            signature: sourceUpdate.signature,
+            certificateChain: sourceUpdate.certificateChain,
+            manifestBody: sourceUpdate.manifestBody,
+            directiveBody: sourceUpdate.directiveBody,
+            assets: sourceAssets,
+          }),
+        );
+        if (!publishResult.ok) {
+          return yield* Effect.fail(new Conflict({ message: publishResult.message }));
         }
 
-        yield* channelRepo.bumpCacheVersionByBranch({ branchId: targetChannel.branchId });
+        const result = toApiUpdate(publishResult.value);
 
         yield* logAudit({
           action: "update.promote",

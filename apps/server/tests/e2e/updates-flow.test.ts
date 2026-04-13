@@ -264,6 +264,52 @@ describe("Updates & Assets API flow", () => {
     expect(previewChannel.branchId).toBe(publishBody.branchId);
   });
 
+  it("rejects auto branch creation when the channel name is already linked elsewhere", async () => {
+    const conflictingBranchResponse = await post(
+      "/api/branches",
+      { projectId: autoProjectId, name: "conflict-source" },
+      { cookie: cookies },
+    );
+    expect(conflictingBranchResponse.status).toBe(201);
+    const conflictingBranchId = (await conflictingBranchResponse.json()).id as string;
+
+    const conflictingChannelResponse = await post(
+      "/api/channels",
+      {
+        projectId: autoProjectId,
+        name: "conflict-preview",
+        branchId: conflictingBranchId,
+      },
+      { cookie: cookies },
+    );
+    expect(conflictingChannelResponse.status).toBe(201);
+
+    const publishResponse = await post(
+      "/api/updates",
+      {
+        project: "@updates/auto",
+        branch: "conflict-preview",
+        runtimeVersion: "1.0.0",
+        platform: "ios",
+        message: "Should not auto-create",
+        groupId: "group-auto-conflict",
+        metadata: {},
+        assets: [{ hash: "abc123def456", key: "bundles/ios.js", isLaunch: true }],
+      },
+      { cookie: cookies },
+    );
+    expect(publishResponse.status).toBe(409);
+
+    const branchesResponse = await get(`/api/branches?projectId=${autoProjectId}`, {
+      cookie: cookies,
+    });
+    expect(branchesResponse.status).toBe(200);
+    const branchesBody = await branchesResponse.json();
+    expect(
+      branchesBody.items.some((branch: { name: string }) => branch.name === "conflict-preview"),
+    ).toBe(false);
+  });
+
   // ── Section 4: Update CRUD ─────────────────────────────────────
 
   it("creates an iOS update", async () => {
@@ -641,5 +687,63 @@ describe("Updates & Assets API flow", () => {
       { cookie: cookies },
     );
     expect(response.status).toBe(201);
+  });
+
+  it("serializes concurrent rollout publishes on the same branch", async () => {
+    const branchResponse = await post(
+      "/api/branches",
+      { projectId, name: "concurrent-rollout" },
+      { cookie: cookies },
+    );
+    expect(branchResponse.status).toBe(201);
+    const concurrentBranchId = (await branchResponse.json()).id as string;
+
+    const [first, second] = await Promise.all([
+      post(
+        "/api/updates",
+        {
+          project: "@updates/test",
+          branch: "concurrent-rollout",
+          runtimeVersion: "3.0.0",
+          platform: "ios",
+          message: "Concurrent rollout A",
+          groupId: "group-concurrent-a",
+          metadata: {},
+          rolloutPercentage: 50,
+          assets: [{ hash: "abc123def456", key: "bundles/ios.js", isLaunch: true }],
+        },
+        { cookie: cookies },
+      ),
+      post(
+        "/api/updates",
+        {
+          project: "@updates/test",
+          branch: "concurrent-rollout",
+          runtimeVersion: "3.0.0",
+          platform: "ios",
+          message: "Concurrent rollout B",
+          groupId: "group-concurrent-b",
+          metadata: {},
+          rolloutPercentage: 50,
+          assets: [{ hash: "abc123def456", key: "bundles/ios.js", isLaunch: true }],
+        },
+        { cookie: cookies },
+      ),
+    ]);
+
+    const statuses = [first.status, second.status].sort();
+    expect(statuses).toEqual([201, 409]);
+
+    const updatesResponse = await get(
+      `/api/updates?projectId=${projectId}&branchId=${concurrentBranchId}`,
+      { cookie: cookies },
+    );
+    expect(updatesResponse.status).toBe(200);
+    const updatesBody = await updatesResponse.json();
+    const matching = updatesBody.items.filter(
+      (update: { branchId: string; runtimeVersion: string; platform: string }) =>
+        update.runtimeVersion === "3.0.0" && update.platform === "ios",
+    );
+    expect(matching).toHaveLength(1);
   });
 });

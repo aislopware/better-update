@@ -38,6 +38,24 @@
       "dataset": "update_events",
     },
   ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "PUBLISH_COORDINATOR",
+        "class_name": "PublishCoordinator",
+      },
+      {
+        "name": "CREATE_BRANCH_COORDINATOR",
+        "class_name": "CreateBranchCoordinator",
+      },
+    ],
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["PublishCoordinator", "CreateBranchCoordinator"],
+    },
+  ],
   "queues": {
     "producers": [
       {

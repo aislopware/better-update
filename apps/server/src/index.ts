@@ -37,6 +37,11 @@ import {
   UpdateRepoLive,
 } from "./repositories";
 
+export {
+  CreateBranchCoordinator,
+  PublishCoordinator,
+} from "./durable-objects/publish-coordinators";
+
 const ProjectsGroupWithRepo = ProjectsGroupLive.pipe(
   Layer.provide(ProjectRepoLive),
   Layer.provide(AuditLogRepoLive),

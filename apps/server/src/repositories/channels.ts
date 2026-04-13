@@ -4,6 +4,7 @@ import { Context, Effect, Layer } from "effect";
 import type { Conflict } from "@better-update/api";
 
 import { cloudflareEnv } from "../cloudflare/context";
+import { bumpChannelCacheVersionByBranchReference } from "./channel-cache-version";
 import { d1RunWithUniqueCheck } from "./d1-helpers";
 
 // -- Port ------------------------------------------------------------------
@@ -218,11 +219,7 @@ export const ChannelRepoLive = Layer.succeed(ChannelRepo, {
       const env = yield* cloudflareEnv;
 
       yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `UPDATE "channels" SET "cache_version" = "cache_version" + 1 WHERE "branch_id" = ?`,
-        )
-          .bind(params.branchId)
-          .run(),
+        bumpChannelCacheVersionByBranchReference(env.DB, params.branchId),
       );
     }),
 
