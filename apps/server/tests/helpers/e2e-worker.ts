@@ -15,6 +15,7 @@ R2_ACCESS_KEY_ID=e2e-r2-access-key
 R2_SECRET_ACCESS_KEY=e2e-r2-secret-key
 INSTALL_TOKEN_SECRET=e2e-install-token-secret-at-least-32-chars
 ASSET_CDN_URL=https://assets.better-update.dev
+VAULT_KEYRING={"1":"MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="}
 `;
 
 export function setupE2EWorker(persistDir: string): { getBaseUrl: () => string } {
