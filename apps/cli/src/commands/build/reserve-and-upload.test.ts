@@ -22,9 +22,16 @@ import type { ApiClient } from "../../services/api-client";
 // ── helpers ───────────────────────────────────────────────────────
 
 interface ApiStubOptions {
-  readonly reserve?: (args: {
-    payload: Record<string, unknown>;
-  }) => Effect.Effect<{ id: string; uploadUrl: string; uploadExpiresAt: string }, unknown>;
+  readonly reserve?: (args: { payload: Record<string, unknown> }) => Effect.Effect<
+    {
+      id: string;
+      uploadMode: "single";
+      uploadUrl: string;
+      uploadExpiresAt: string;
+      uploadHeaders: Record<string, string>;
+    },
+    unknown
+  >;
   readonly complete?: (args: {
     path: { id: string };
     payload: { sha256: string; byteSize: number };
@@ -39,8 +46,13 @@ const makeApi = (opts: ApiStubOptions): ApiClient =>
         (() =>
           Effect.succeed({
             id: "build_1",
+            uploadMode: "single" as const,
             uploadUrl: "https://example.com/upload",
             uploadExpiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+            uploadHeaders: {
+              "content-type": "application/octet-stream",
+              "x-amz-checksum-sha256": "checksum",
+            },
           })),
       complete:
         opts.complete ??
@@ -117,8 +129,13 @@ describe(reserveAndUpload, () => {
           reservePayload = payload;
           return Effect.succeed({
             id: "build_123",
+            uploadMode: "single" as const,
             uploadUrl: "https://example.com/upload",
             uploadExpiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+            uploadHeaders: {
+              "content-type": "application/octet-stream",
+              "x-amz-checksum-sha256": "checksum",
+            },
           });
         },
         complete: ({ path, payload }) => {
@@ -151,6 +168,8 @@ describe(reserveAndUpload, () => {
       expect(reservePayload?.["gitRef"]).toBe("main");
       expect(reservePayload?.["gitCommit"]).toBe("abc123");
       expect(reservePayload?.["bundleId"]).toBe("com.example.app");
+      expect(reservePayload?.["sha256"]).toBe("deadbeef");
+      expect(reservePayload?.["byteSize"]).toBe(11);
       expect(completePath?.id).toBe("build_123");
     }),
   );
@@ -178,8 +197,13 @@ describe(reserveAndUpload, () => {
         reserve: () =>
           Effect.succeed({
             id: "build_1",
+            uploadMode: "single" as const,
             uploadUrl: "https://example.com/upload",
             uploadExpiresAt: new Date(Date.now() - 1000).toISOString(),
+            uploadHeaders: {
+              "content-type": "application/octet-stream",
+              "x-amz-checksum-sha256": "checksum",
+            },
           }),
       });
       const exit = yield* reserveAndUpload(api, baseInput("/dev/null")).pipe(

@@ -74,6 +74,8 @@ const buildReservePayload = (params: {
   readonly distribution: DistributionValue;
   readonly artifactFormat: ArtifactFormatValue;
   readonly metadata: MetadataValues;
+  readonly sha256: string;
+  readonly byteSize: number;
 }) => {
   const metadataPayload = buildMetadataPayload(params.metadata);
 
@@ -87,6 +89,8 @@ const buildReservePayload = (params: {
       platform: "ios" as const,
       distribution: "simulator" as const,
       artifactFormat: "tar.gz" as const,
+      sha256: params.sha256,
+      byteSize: params.byteSize,
       ...metadataPayload,
     };
   }
@@ -104,6 +108,8 @@ const buildReservePayload = (params: {
       platform: "ios" as const,
       distribution: params.distribution,
       artifactFormat: "ipa" as const,
+      sha256: params.sha256,
+      byteSize: params.byteSize,
       ...metadataPayload,
     };
   }
@@ -118,6 +124,8 @@ const buildReservePayload = (params: {
       platform: "android" as const,
       distribution: "play-store" as const,
       artifactFormat: "aab" as const,
+      sha256: params.sha256,
+      byteSize: params.byteSize,
       ...metadataPayload,
     };
   }
@@ -132,6 +140,8 @@ const buildReservePayload = (params: {
       platform: "android" as const,
       distribution: "direct" as const,
       artifactFormat: "apk" as const,
+      sha256: params.sha256,
+      byteSize: params.byteSize,
       ...metadataPayload,
     };
   }
@@ -166,6 +176,7 @@ const UploadForm = ({
       metadata: MetadataValues;
       controller: AbortController;
     }) => {
+      const sha256 = await computeSha256(input.file);
       const reservedBuild = await reserveBuild(
         buildReservePayload({
           projectId,
@@ -173,6 +184,8 @@ const UploadForm = ({
           distribution: input.distribution,
           artifactFormat: input.artifactFormat,
           metadata: input.metadata,
+          sha256,
+          byteSize: input.file.size,
         }),
       );
 
@@ -182,10 +195,10 @@ const UploadForm = ({
         input.file,
         setUploadProgress,
         input.controller.signal,
+        reservedBuild.uploadHeaders,
       );
 
       setUploadPhase("completing");
-      const sha256 = await computeSha256(input.file);
       return completeBuild(reservedBuild.id, { sha256, byteSize: input.file.size });
     },
     onSuccess: async () => {

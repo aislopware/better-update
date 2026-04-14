@@ -42,12 +42,15 @@ describe("Builds API flow", () => {
   let projectId: string;
   let buildId: string;
   let uploadUrl: string;
+  let uploadHeaders: Record<string, string>;
   let uploadExpiresAt: string;
   let mismatchBuildId: string;
   let mismatchUploadUrl: string;
+  let mismatchUploadHeaders: Record<string, string>;
 
   const artifactBytes = Buffer.from("e2e build artifact");
   const artifactSha256 = createHash("sha256").update(artifactBytes).digest("hex");
+  const mismatchedArtifactBytes = Buffer.from("e2e mismatched build artifact");
 
   // -- Auth bootstrap -------------------------------------------------------
 
@@ -110,6 +113,8 @@ describe("Builds API flow", () => {
         buildNumber: "42",
         bundleId: "com.test.app",
         message: "E2E test build",
+        sha256: artifactSha256,
+        byteSize: artifactBytes.byteLength,
       },
       { cookie: cookies },
     );
@@ -117,10 +122,18 @@ describe("Builds API flow", () => {
     const body = await response.json();
     buildId = body.id;
     uploadUrl = body.uploadUrl;
+    uploadHeaders = body.uploadHeaders as Record<string, string>;
     uploadExpiresAt = body.uploadExpiresAt;
     expect(buildId).toBeDefined();
+    expect(body.uploadMode).toBe("single");
     expect(body.uploadUrl).toBeDefined();
     expect(body.uploadExpiresAt).toBeDefined();
+    expect(body.uploadHeaders).toEqual(
+      expect.objectContaining({
+        "content-type": "application/octet-stream",
+        "x-amz-checksum-sha256": expect.any(String),
+      }),
+    );
   });
 
   it("rejects incompatible build reservations", async () => {
@@ -131,6 +144,8 @@ describe("Builds API flow", () => {
         platform: "android",
         distribution: "direct",
         artifactFormat: "aab",
+        sha256: artifactSha256,
+        byteSize: artifactBytes.byteLength,
       },
       { cookie: cookies },
     );
@@ -139,8 +154,8 @@ describe("Builds API flow", () => {
 
   it("uploads the artifact to the reserved URL", async () => {
     const response = await putAbsolute(uploadUrl, artifactBytes, {
-      "content-type": "application/octet-stream",
       "content-length": String(artifactBytes.byteLength),
+      ...uploadHeaders,
     });
     expect(response.status).toBe(200);
   });
@@ -154,8 +169,11 @@ describe("Builds API flow", () => {
       },
       { cookie: cookies },
     );
-    expect(response.status).toBe(200);
-    const body = await response.json();
+    const bodyText = await response.text();
+    if (response.status !== 200) {
+      throw new Error(`Expected build completion to succeed, got ${response.status}: ${bodyText}`);
+    }
+    const body = JSON.parse(bodyText);
     expect(body).toEqual(
       expect.objectContaining({
         id: buildId,
@@ -181,6 +199,8 @@ describe("Builds API flow", () => {
         buildNumber: "43",
         bundleId: "com.test.app",
         message: "Integrity check build",
+        sha256: artifactSha256,
+        byteSize: artifactBytes.byteLength,
       },
       { cookie: cookies },
     );
@@ -188,17 +208,18 @@ describe("Builds API flow", () => {
     const body = await response.json();
     mismatchBuildId = body.id as string;
     mismatchUploadUrl = body.uploadUrl as string;
+    mismatchUploadHeaders = body.uploadHeaders as Record<string, string>;
   });
 
-  it("uploads a second artifact to staging", async () => {
-    const response = await putAbsolute(mismatchUploadUrl, artifactBytes, {
-      "content-type": "application/vnd.android.package-archive",
-      "content-length": String(artifactBytes.byteLength),
+  it("rejects artifact upload when bytes do not match the signed SHA-256 checksum", async () => {
+    const response = await putAbsolute(mismatchUploadUrl, mismatchedArtifactBytes, {
+      "content-length": String(mismatchedArtifactBytes.byteLength),
+      ...mismatchUploadHeaders,
     });
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(400);
   });
 
-  it("rejects build completion when sha256 does not match the uploaded artifact", async () => {
+  it("rejects build completion when the completion payload does not match the reserved artifact", async () => {
     const response = await post(
       `/api/builds/${mismatchBuildId}/complete`,
       {
@@ -210,7 +231,7 @@ describe("Builds API flow", () => {
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual(
       expect.objectContaining({
-        message: expect.stringContaining("Artifact SHA-256 mismatch"),
+        message: expect.stringContaining("reserved artifact metadata"),
       }),
     );
   });

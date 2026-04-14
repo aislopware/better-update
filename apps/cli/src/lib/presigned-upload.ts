@@ -8,6 +8,7 @@ export interface PutToPresignedUrlOptions {
   readonly filePath: string;
   readonly byteSize: number;
   readonly expiresAt: string;
+  readonly headers?: Record<string, string>;
 }
 
 export const putToPresignedUrl = ({
@@ -15,6 +16,7 @@ export const putToPresignedUrl = ({
   filePath,
   byteSize,
   expiresAt,
+  headers,
 }: PutToPresignedUrlOptions): Effect.Effect<
   void,
   PresignedUrlExpiredError | UploadFailedError,
@@ -27,5 +29,6 @@ export const putToPresignedUrl = ({
       filePath,
       byteSize,
       expiresAt,
+      headers,
     });
   });

@@ -1,16 +1,8 @@
-import { FileSystem, HttpClient, HttpClientRequest } from "@effect/platform";
 import { Context, Effect, Layer } from "effect";
 
 import { UpdatePublishError } from "../lib/exit-codes";
-import { ConfigStore } from "./config-store";
-
-export interface UploadUpdateAssetInput {
-  readonly path: string;
-  readonly hash: string;
-  readonly uploadToken: string;
-  readonly byteSize: number;
-  readonly contentType: string;
-}
+import { apiClient } from "./api-client";
+import { PresignedUploadClient } from "./presigned-upload";
 
 const formatCause = (cause: unknown): string => {
   if (cause instanceof Error) {
@@ -29,6 +21,15 @@ const formatCause = (cause: unknown): string => {
   return String(cause);
 };
 
+export interface UploadUpdateAssetInput {
+  readonly path: string;
+  readonly hash: string;
+  readonly byteSize: number;
+  readonly uploadUrl: string;
+  readonly uploadExpiresAt: string;
+  readonly uploadHeaders: Record<string, string>;
+}
+
 export class UpdateAssetUploader extends Context.Tag("cli/UpdateAssetUploader")<
   UpdateAssetUploader,
   {
@@ -41,47 +42,37 @@ export class UpdateAssetUploader extends Context.Tag("cli/UpdateAssetUploader")<
 export const UpdateAssetUploaderLive = Layer.effect(
   UpdateAssetUploader,
   Effect.gen(function* () {
-    const client = yield* HttpClient.HttpClient;
-    const fileSystem = yield* FileSystem.FileSystem;
-    const configStore = yield* ConfigStore;
+    const presignedUploadClient = yield* PresignedUploadClient;
+    const api = yield* apiClient;
 
     return {
       uploadAssetBinary: (asset: UploadUpdateAssetInput) =>
         Effect.gen(function* () {
-          const baseUrl = yield* configStore.getBaseUrl;
-          const uploadUrl = new URL(`/api/assets/${encodeURIComponent(asset.hash)}`, baseUrl);
+          yield* presignedUploadClient
+            .putToPresignedUrl({
+              url: asset.uploadUrl,
+              filePath: asset.path,
+              byteSize: asset.byteSize,
+              expiresAt: asset.uploadExpiresAt,
+              headers: asset.uploadHeaders,
+            })
+            .pipe(
+              Effect.mapError(
+                (cause) =>
+                  new UpdatePublishError({
+                    message: `Asset upload failed for ${asset.hash}: ${formatCause(cause)}`,
+                  }),
+              ),
+            );
 
-          const request = yield* HttpClientRequest.put(uploadUrl.toString()).pipe(
-            HttpClientRequest.setHeaders({
-              "X-Better-Update-Upload-Token": asset.uploadToken,
-              "Content-Type": asset.contentType,
-              "Content-Length": String(asset.byteSize),
-            }),
-            HttpClientRequest.bodyFile(asset.path),
-            Effect.provideService(FileSystem.FileSystem, fileSystem),
+          yield* api.assets.finalize({ path: { hash: asset.hash } }).pipe(
             Effect.mapError(
               (cause) =>
                 new UpdatePublishError({
-                  message: `Failed to read asset for upload: ${formatCause(cause)}`,
+                  message: `Asset finalize failed for ${asset.hash}: ${formatCause(cause)}`,
                 }),
             ),
           );
-
-          const response = yield* client.execute(request).pipe(
-            Effect.mapError(
-              (cause) =>
-                new UpdatePublishError({
-                  message: `Asset upload request failed: ${formatCause(cause)}`,
-                }),
-            ),
-          );
-
-          if (response.status < 200 || response.status >= 300) {
-            const body = yield* response.text.pipe(Effect.orElseSucceed(() => ""));
-            return yield* new UpdatePublishError({
-              message: `Asset upload failed with status ${String(response.status)}: ${body}`,
-            });
-          }
         }),
     };
   }),

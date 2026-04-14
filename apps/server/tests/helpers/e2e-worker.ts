@@ -7,12 +7,18 @@ import { unstable_startWorker } from "wrangler";
 const PROJECT_ROOT = resolve(import.meta.dirname, "../..");
 const envLocalPath = resolve(PROJECT_ROOT, ".env.local");
 
-const envLocal = `BETTER_AUTH_SECRET=e2e-test-secret-that-is-at-least-32-chars
+const envValue = (primary: string, fallback: string, secondary?: string) =>
+  process.env[primary] ?? (secondary ? process.env[secondary] : undefined) ?? fallback;
+
+const envLocal = `ACCOUNT_ID=${envValue("E2E_CF_ACCOUNT_ID", "<account-id>", "ACCOUNT_ID")}
+ASSETS_BUCKET_NAME=${envValue("E2E_ASSETS_BUCKET_NAME", "better-update", "ASSETS_BUCKET_NAME")}
+BETTER_AUTH_SECRET=e2e-test-secret-that-is-at-least-32-chars
+BUILD_BUCKET_NAME=${envValue("E2E_BUILD_BUCKET_NAME", "better-update", "BUILD_BUCKET_NAME")}
 TEST_MODE=true
 GITHUB_CLIENT_ID=e2e-github-id
 GITHUB_CLIENT_SECRET=e2e-github-secret
-R2_ACCESS_KEY_ID=e2e-r2-access-key
-R2_SECRET_ACCESS_KEY=e2e-r2-secret-key
+R2_ACCESS_KEY_ID=${envValue("E2E_R2_ACCESS_KEY_ID", "e2e-r2-access-key", "R2_ACCESS_KEY_ID")}
+R2_SECRET_ACCESS_KEY=${envValue("E2E_R2_SECRET_ACCESS_KEY", "e2e-r2-secret-key", "R2_SECRET_ACCESS_KEY")}
 INSTALL_TOKEN_SECRET=e2e-install-token-secret-at-least-32-chars
 ASSET_CDN_URL=https://assets.better-update.dev
 VAULT_KEYRING={"1":"MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="}

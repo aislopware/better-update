@@ -6,28 +6,48 @@ Publishing is a two-phase process: upload assets, then create the update record.
 
 ### Phase 1: Asset Upload
 
-`POST /api/assets/upload` (`multipart/form-data`) — for each asset:
+`POST /api/assets/upload` (`application/json`) registers asset metadata and returns presigned upload details:
 
-| Field          | Type   | Description                         |
-| -------------- | ------ | ----------------------------------- |
-| `file`         | binary | Asset data                          |
-| `hash`         | string | base64url SHA-256 (client-computed) |
-| `content_type` | string | MIME type                           |
-| `file_ext`     | string | File extension (e.g., `.js`)        |
+| Field         | Type   | Description                         |
+| ------------- | ------ | ----------------------------------- |
+| `projectId`   | string | Project ID                          |
+| `assets[]`    | array  | `{ hash, contentType, fileExt }`    |
+| `hash`        | string | base64url SHA-256 (client-computed) |
+| `contentType` | string | MIME type                           |
+| `fileExt`     | string | File extension (e.g., `js`)         |
 
 Processing:
 
 ```mermaid
 flowchart TD
-    Start["For each asset"] --> Hash["Compute SHA-256"]
-    Hash --> Verify{"Hash matches<br/>client-provided?"}
-    Verify -->|No| Reject["Reject upload"]
-    Verify -->|Yes| Exists{"D1: asset<br/>already exists?"}
-    Exists -->|Yes| Skip["Skip (deduplication)"]
-    Exists -->|No| Upload["R2.put(assets/{hash}, bytes)<br/>contentType · cacheControl: immutable"]
-    Upload --> Insert["D1 INSERT INTO assets"]
-    Insert --> Done["Return asset hashes<br/>(uploaded + deduplicated)"]
-    Skip --> Done
+    Start["POST /api/assets/upload"] --> Exists{"D1: asset exists<br/>and byte_size > 0?"}
+    Exists -->|Yes| Skip["Return as deduplicated"]
+    Exists -->|No| Insert["Insert or reuse asset row<br/>byte_size = 0"]
+    Insert --> Sign["Generate presigned single PUT URL<br/>for assets/{hash}.{ext}"]
+    Sign --> Upload["Client uploads directly to R2<br/>with signed checksum header"]
+    Upload --> Finalize["POST /api/assets/{hash}/finalize"]
+    Finalize --> Verify["Server verifies R2 size + checksum + contentType"]
+    Verify --> Done["Set byte_size and return asset metadata"]
+```
+
+`POST /api/assets/upload` response:
+
+```json
+{
+  "uploaded": [
+    {
+      "hash": "base64url-sha256",
+      "uploadMode": "single",
+      "uploadUrl": "https://...",
+      "uploadExpiresAt": "2026-04-14T12:00:00.000Z",
+      "uploadHeaders": {
+        "content-type": "application/javascript",
+        "x-amz-checksum-sha256": "..."
+      }
+    }
+  ],
+  "deduplicated": ["already-uploaded-hash"]
+}
 ```
 
 ### Phase 2: Create Update

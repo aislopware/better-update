@@ -214,7 +214,12 @@ describe("Cloudflare bindings integration", () => {
       const result = await runBuildRuntime(
         Effect.gen(function* () {
           const runtime = yield* BuildRuntime;
-          const uploadUrl = yield* runtime.createUploadUrl({ key, expiresIn: 60 });
+          const uploadUrl = yield* runtime.createUploadUrl({
+            key,
+            expiresIn: 60,
+            contentType: "application/octet-stream",
+            checksumSha256Base64: Buffer.alloc(32, 1).toString("base64"),
+          });
           const downloadUrl = yield* runtime.createDownloadUrl({ key, expiresIn: 60 });
           const installTokenSecret = yield* runtime.getInstallTokenSecret;
 

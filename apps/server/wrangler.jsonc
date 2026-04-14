@@ -26,10 +26,14 @@
     {
       "binding": "ASSETS_BUCKET",
       "bucket_name": "better-update-assets",
+      "preview_bucket_name": "better-update",
+      "remote": true,
     },
     {
       "binding": "BUILD_BUCKET",
       "bucket_name": "better-update-builds",
+      "preview_bucket_name": "better-update",
+      "remote": true,
     },
   ],
   "analytics_engine_datasets": [
@@ -61,6 +65,7 @@
   },
   "vars": {
     "ACCOUNT_ID": "<account-id>",
+    "ASSETS_BUCKET_NAME": "better-update-assets",
     "BUILD_BUCKET_NAME": "better-update-builds",
     "BUILD_RETENTION_PRODUCTION": "90",
     "BUILD_RETENTION_PREVIEW": "30",

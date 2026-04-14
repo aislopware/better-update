@@ -193,18 +193,19 @@ const publishPlatform = (params: {
         ),
       );
 
-    const uploadTokensByHash = new Map(
-      assetRegistration.uploaded.map((asset) => [asset.hash, asset.uploadToken] as const),
+    const uploadDetailsByHash = new Map(
+      assetRegistration.uploaded.map((asset) => [asset.hash, asset] as const),
     );
     yield* Effect.forEach(
-      uniqueAssets.filter((asset) => uploadTokensByHash.has(asset.hash)),
+      uniqueAssets.filter((asset) => uploadDetailsByHash.has(asset.hash)),
       (asset) =>
         assetUploader.uploadAssetBinary({
           path: asset.path,
           hash: asset.hash,
-          uploadToken: uploadTokensByHash.get(asset.hash) ?? "",
           byteSize: asset.byteSize,
-          contentType: asset.contentType,
+          uploadUrl: uploadDetailsByHash.get(asset.hash)?.uploadUrl ?? "",
+          uploadExpiresAt: uploadDetailsByHash.get(asset.hash)?.uploadExpiresAt ?? "",
+          uploadHeaders: uploadDetailsByHash.get(asset.hash)?.uploadHeaders ?? {},
         }),
       { concurrency: 4 },
     );
