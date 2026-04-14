@@ -1,3 +1,5 @@
+import { Deferred, Effect } from "effect";
+
 export const CALLBACK_PAGE = `<!doctype html>
 <html lang="en">
   <head>
@@ -52,13 +54,13 @@ export const CALLBACK_PAGE = `<!doctype html>
 
 export interface BrowserLoginServer {
   readonly callbackUrl: string;
-  readonly waitForToken: Promise<string>;
+  readonly waitForToken: Effect.Effect<string, Error>;
   readonly stop: () => void;
 }
 
 export interface BrowserLoginSession {
   readonly callbackPath: string;
-  readonly waitForToken: Promise<string>;
+  readonly waitForToken: Effect.Effect<string, Error>;
   readonly handleRequest: (request: Request) => Promise<Response>;
   readonly dispose: () => void;
 }
@@ -70,39 +72,21 @@ export interface CreateBrowserLoginServerOptions {
 export const createBrowserLoginSession = (
   options: CreateBrowserLoginServerOptions = {},
 ): BrowserLoginSession => {
-  let settled = false;
-  let resolveToken!: (token: string) => void;
-  let rejectToken!: (error: Error) => void;
-
-  const waitForToken = new Promise<string>((resolve, reject) => {
-    resolveToken = resolve;
-    rejectToken = reject;
-  });
-
-  const finish = (callback: () => void) => {
-    if (settled) {
-      return;
-    }
-    settled = true;
-    callback();
-  };
-
-  const timeout = setTimeout(
-    () => {
-      finish(() => rejectToken(new Error("Timed out waiting for browser login to complete.")));
-    },
-    options.timeoutMs ?? 5 * 60 * 1000,
+  const tokenDeferred = Effect.runSync(Deferred.make<string, Error>());
+  const waitForToken = Deferred.await(tokenDeferred).pipe(
+    Effect.timeoutFail({
+      duration: options.timeoutMs ?? 5 * 60 * 1000,
+      onTimeout: () => new Error("Timed out waiting for browser login to complete."),
+    }),
   );
 
   const dispose = () => {
-    clearTimeout(timeout);
+    Effect.runSync(Deferred.fail(tokenDeferred, new Error("Browser login session closed.")));
   };
 
   return {
     callbackPath: "/callback",
-    waitForToken: waitForToken.finally(() => {
-      clearTimeout(timeout);
-    }),
+    waitForToken,
     handleRequest: async (request) => {
       const url = new URL(request.url);
 
@@ -120,7 +104,7 @@ export const createBrowserLoginSession = (
             return new Response("Missing token", { status: 400 });
           }
 
-          finish(() => resolveToken(token));
+          Effect.runSync(Deferred.succeed(tokenDeferred, token));
           return Response.json({ ok: true });
         } catch {
           return new Response("Invalid callback payload", { status: 400 });

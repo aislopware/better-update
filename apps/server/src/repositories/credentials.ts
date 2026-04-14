@@ -206,17 +206,22 @@ export const CredentialRepoLive = Layer.succeed(CredentialRepo, {
 
       const whereClause = conditions.join(" AND ");
 
-      const [countResult, rows] = yield* Effect.promise(async () =>
-        Promise.all([
-          env.DB.prepare(`SELECT COUNT(*) as count FROM "credentials" WHERE ${whereClause}`)
-            .bind(...bindValues)
-            .first<{ count: number }>(),
-          env.DB.prepare(
-            `SELECT ${SELECT_COLUMNS} FROM "credentials" WHERE ${whereClause} ORDER BY "created_at" DESC LIMIT ? OFFSET ?`,
-          )
-            .bind(...bindValues, params.limit, params.offset)
-            .all<CredentialRow>(),
-        ]),
+      const [countResult, rows] = yield* Effect.all(
+        [
+          Effect.promise(async () =>
+            env.DB.prepare(`SELECT COUNT(*) as count FROM "credentials" WHERE ${whereClause}`)
+              .bind(...bindValues)
+              .first<{ count: number }>(),
+          ),
+          Effect.promise(async () =>
+            env.DB.prepare(
+              `SELECT ${SELECT_COLUMNS} FROM "credentials" WHERE ${whereClause} ORDER BY "created_at" DESC LIMIT ? OFFSET ?`,
+            )
+              .bind(...bindValues, params.limit, params.offset)
+              .all<CredentialRow>(),
+          ),
+        ],
+        { concurrency: "unbounded" },
       );
 
       return { items: rows.results.map(toCredential), total: countResult?.count ?? 0 };

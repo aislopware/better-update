@@ -51,7 +51,7 @@ const browserLogin = Effect.scoped(
     yield* Console.log("");
     yield* openBrowser(loginUrl);
 
-    const token = yield* Effect.promise(() => loginServer.waitForToken);
+    const token = yield* loginServer.waitForToken;
     yield* authStore.saveToken(token);
     yield* Console.log("");
     yield* Console.log("Logged in successfully. Token saved to ~/.better-update/auth.json");

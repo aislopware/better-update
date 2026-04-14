@@ -1,10 +1,5 @@
 import { getApiError } from "@better-update/api-client";
-import {
-  buildCompatibilityMatrixQueryKey,
-  buildsQueryKey,
-  completeBuild,
-  reserveBuild,
-} from "@better-update/api-client/react";
+import { completeBuild, reserveBuild } from "@better-update/api-client/react";
 import { useMountEffect } from "@better-update/react-hooks";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
@@ -39,6 +34,7 @@ import {
   detectArtifactFormat,
   detectPlatform,
   formatBytes,
+  invalidateBuildQueries,
   progressWidth,
   uploadWithProgress,
 } from "./-build-helpers";
@@ -250,14 +246,7 @@ const UploadForm = ({
     },
     onSuccess: async () => {
       toast.success("Build uploaded successfully");
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: buildsQueryKey(orgId, projectId),
-        }),
-        queryClient.invalidateQueries({
-          queryKey: buildCompatibilityMatrixQueryKey(orgId, projectId),
-        }),
-      ]);
+      await invalidateBuildQueries(queryClient, orgId, projectId);
       onSuccess();
     },
     onError: (error) => {

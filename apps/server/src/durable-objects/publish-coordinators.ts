@@ -1,4 +1,7 @@
+import { Effect, Either } from "effect";
+
 import { bumpChannelCacheVersionByBranchReference } from "../repositories/channel-cache-version";
+import { settlePromise } from "./effect-interop";
 import { SerializedCoordinator } from "./serialized-coordinator";
 
 import type {
@@ -177,13 +180,13 @@ const resolveBranch = async (
     projectId: params.projectId,
     name: params.branchName,
   });
-  const [settledInsert] = await Promise.allSettled([insertResult]);
+  const settledInsert = await settlePromise(insertResult);
 
-  if (settledInsert.status === "fulfilled") {
+  if (Either.isRight(settledInsert)) {
     return { id, created: true };
   }
 
-  if (!isUniqueConstraintError(settledInsert.reason)) {
+  if (!isUniqueConstraintError(settledInsert.left)) {
     await insertResult;
     return { id, created: true };
   }
@@ -217,13 +220,13 @@ const resolveChannel = async (
     name: params.branchName,
     branchId: params.branchId,
   });
-  const [settledInsert] = await Promise.allSettled([insertResult]);
+  const settledInsert = await settlePromise(insertResult);
 
-  if (settledInsert.status === "fulfilled") {
+  if (Either.isRight(settledInsert)) {
     return { id, created: true };
   }
 
-  if (!isUniqueConstraintError(settledInsert.reason)) {
+  if (!isUniqueConstraintError(settledInsert.left)) {
     await insertResult;
     return { id, created: true };
   }
@@ -241,10 +244,19 @@ const ensureBranchChannel = async (
   db: D1Database,
   params: { readonly projectId: string; readonly branchName: string },
 ): Promise<CoordinatorResult<EnsureBranchChannelResult>> => {
-  const [existingBranch, existingChannel] = await Promise.all([
-    findBranchByProjectAndName(db, params.projectId, params.branchName),
-    findChannelByProjectAndName(db, params.projectId, params.branchName),
-  ]);
+  const [existingBranch, existingChannel] = await Effect.runPromise(
+    Effect.all(
+      [
+        Effect.promise(async () =>
+          findBranchByProjectAndName(db, params.projectId, params.branchName),
+        ),
+        Effect.promise(async () =>
+          findChannelByProjectAndName(db, params.projectId, params.branchName),
+        ),
+      ],
+      { concurrency: "unbounded" },
+    ),
+  );
 
   const invalidState = getExistingMismatch(existingBranch, existingChannel, params.branchName);
   if (invalidState !== null) {
@@ -378,15 +390,15 @@ const enqueuePatchJobSafely = async (
   env: Env,
   params: { readonly previousLaunchHash: string; readonly nextLaunchHash: string },
 ): Promise<void> => {
-  const [result] = await Promise.allSettled([
+  const result = await settlePromise(
     env.PATCH_QUEUE.send({
       oldHash: params.previousLaunchHash,
       newHash: params.nextLaunchHash,
     }),
-  ]);
+  );
 
-  if (result.status === "rejected") {
-    console.error("[patch-queue] failed to enqueue patch job", result.reason);
+  if (Either.isLeft(result)) {
+    console.error("[patch-queue] failed to enqueue patch job", result.left);
   }
 };
 

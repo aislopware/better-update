@@ -18,6 +18,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient } from "@tanstack/react-query";
+import { Effect } from "effect";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -41,14 +42,25 @@ export const UpdateCard = ({ update, channels, orgId, projectId }: UpdateCardPro
   const eligibleChannels = channels.filter((channel) => channel.branchId !== update.branchId);
 
   const invalidateUpdates = async () =>
-    Promise.all([
-      queryClient.invalidateQueries({
-        queryKey: updatesQueryKey(orgId, projectId),
-      }),
-      queryClient.invalidateQueries({
-        queryKey: buildCompatibilityMatrixQueryKey(orgId, projectId),
-      }),
-    ]);
+    Effect.runPromise(
+      Effect.asVoid(
+        Effect.all(
+          [
+            Effect.promise(async () =>
+              queryClient.invalidateQueries({
+                queryKey: updatesQueryKey(orgId, projectId),
+              }),
+            ),
+            Effect.promise(async () =>
+              queryClient.invalidateQueries({
+                queryKey: buildCompatibilityMatrixQueryKey(orgId, projectId),
+              }),
+            ),
+          ],
+          { concurrency: "unbounded" },
+        ),
+      ),
+    );
   const deleteUpdateGroupMutation = useApiMutation({
     mutationFn: async () => deleteUpdateGroup(update.groupId),
     onSuccess: async () => {

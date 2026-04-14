@@ -1,3 +1,5 @@
+import { Effect } from "effect";
+
 import { hashToFraction } from "./hash";
 
 describe(hashToFraction, () => {
@@ -9,7 +11,12 @@ describe(hashToFraction, () => {
 
   test("returns a value in [0, 1)", async () => {
     const salts = ["s1", "s2", "s3", "s4", "s5"];
-    const results = await Promise.all(salts.map(async (salt) => hashToFraction(salt, "client")));
+    const results = await Effect.runPromise(
+      Effect.all(
+        salts.map((salt) => Effect.promise(async () => hashToFraction(salt, "client"))),
+        { concurrency: "unbounded" },
+      ),
+    );
     for (const result of results) {
       expect(result).toBeGreaterThanOrEqual(0);
       expect(result).toBeLessThan(1);

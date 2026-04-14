@@ -1,3 +1,5 @@
+import { Effect } from "effect";
+
 interface PatchJobMessage {
   readonly oldHash: string;
   readonly newHash: string;
@@ -31,10 +33,15 @@ const alreadyExists = async (env: Env, message: PatchJobMessage) => {
 // -- R2 fetch ----------------------------------------------------------------
 
 const fetchBundles = async (env: Env, message: PatchJobMessage) => {
-  const [oldObject, newObject] = await Promise.all([
-    env.ASSETS_BUCKET.get(`assets/${message.oldHash}`),
-    env.ASSETS_BUCKET.get(`assets/${message.newHash}`),
-  ]);
+  const [oldObject, newObject] = await Effect.runPromise(
+    Effect.all(
+      [
+        Effect.promise(async () => env.ASSETS_BUCKET.get(`assets/${message.oldHash}`)),
+        Effect.promise(async () => env.ASSETS_BUCKET.get(`assets/${message.newHash}`)),
+      ],
+      { concurrency: "unbounded" },
+    ),
+  );
   return { oldObject, newObject };
 };
 
@@ -79,10 +86,15 @@ export const handlePatchMessage = async (message: PatchJobMessage, env: Env): Pr
     return;
   }
 
-  const [oldBytes, newBytes] = await Promise.all([
-    oldObject.arrayBuffer().then((buf) => new Uint8Array(buf)),
-    newObject.arrayBuffer().then((buf) => new Uint8Array(buf)),
-  ]);
+  const [oldBytes, newBytes] = await Effect.runPromise(
+    Effect.all(
+      [
+        Effect.promise(async () => new Uint8Array(await oldObject.arrayBuffer())),
+        Effect.promise(async () => new Uint8Array(await newObject.arrayBuffer())),
+      ],
+      { concurrency: "unbounded" },
+    ),
+  );
 
   // WASM init may be needed for Workers — see @better-update/bsdiff-wasm setup
   const { diff } = await import("@better-update/bsdiff-wasm");

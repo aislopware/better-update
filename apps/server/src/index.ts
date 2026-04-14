@@ -1,5 +1,5 @@
 import { HttpApiBuilder, HttpApiScalar, HttpServer } from "@effect/platform";
-import { Layer } from "effect";
+import { Effect, Layer } from "effect";
 
 import { ManagementApi } from "./api";
 import { createAuth } from "./auth";
@@ -365,17 +365,22 @@ export default {
   },
 
   async queue(batch, env) {
-    await Promise.all(
-      batch.messages.map(async (message) => {
-        // eslint-disable-next-line functional/no-try-statements -- imperative shell error boundary for queue messages
-        try {
-          await handlePatchMessage(message.body, env);
-          message.ack();
-        } catch (error) {
-          console.error("[patch-queue]", error);
-          message.retry();
-        }
-      }),
+    await Effect.runPromise(
+      Effect.forEach(
+        batch.messages,
+        (message) =>
+          Effect.promise(async () => {
+            // eslint-disable-next-line functional/no-try-statements -- imperative shell error boundary for queue messages
+            try {
+              await handlePatchMessage(message.body, env);
+              message.ack();
+            } catch (error) {
+              console.error("[patch-queue]", error);
+              message.retry();
+            }
+          }),
+        { concurrency: "unbounded", discard: true },
+      ),
     );
   },
 

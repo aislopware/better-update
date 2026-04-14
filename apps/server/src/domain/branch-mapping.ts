@@ -1,3 +1,5 @@
+import { Effect } from "effect";
+
 import { hashToFraction } from "./hash";
 
 // -- Types ------------------------------------------------------------------
@@ -114,8 +116,13 @@ export const evaluateBranchMapping = async (
     return fallback;
   }
 
-  const results = await Promise.all(
-    mapping.data.map(async (entry) => evaluateEntry(entry, mapping.salt, easClientId)),
+  const results = await Effect.runPromise(
+    Effect.all(
+      mapping.data.map((entry) =>
+        Effect.promise(async () => evaluateEntry(entry, mapping.salt, easClientId)),
+      ),
+      { concurrency: "unbounded" },
+    ),
   );
 
   return results.find((result) => result !== null) ?? fallback;

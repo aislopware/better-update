@@ -1,3 +1,4 @@
+import { safeJsonParse } from "@better-update/api";
 import { auditLogsQueryOptions } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
@@ -30,7 +31,6 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 
-import { safeJsonParse } from "../../../lib/async";
 import { orgsQueryOptions, sessionQueryOptions } from "../../../queries/auth";
 
 const RESOURCE_TYPES = [

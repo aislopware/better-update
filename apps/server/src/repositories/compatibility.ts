@@ -149,12 +149,19 @@ export const CompatibilityRepoLive = Layer.succeed(CompatibilityRepo, {
     Effect.gen(function* () {
       const env = yield* cloudflareEnv;
 
-      const [buildRows, channelRows, updateRows] = yield* Effect.promise(async () =>
-        Promise.all([
-          env.DB.prepare(SELECT_BUILDS_WITH_ARTIFACT).bind(params.projectId).all<BuildRow>(),
-          env.DB.prepare(SELECT_CHANNELS).bind(params.projectId).all<ChannelRow>(),
-          env.DB.prepare(SELECT_PROJECT_UPDATES).bind(params.projectId).all<UpdateRow>(),
-        ]),
+      const [buildRows, channelRows, updateRows] = yield* Effect.all(
+        [
+          Effect.promise(async () =>
+            env.DB.prepare(SELECT_BUILDS_WITH_ARTIFACT).bind(params.projectId).all<BuildRow>(),
+          ),
+          Effect.promise(async () =>
+            env.DB.prepare(SELECT_CHANNELS).bind(params.projectId).all<ChannelRow>(),
+          ),
+          Effect.promise(async () =>
+            env.DB.prepare(SELECT_PROJECT_UPDATES).bind(params.projectId).all<UpdateRow>(),
+          ),
+        ],
+        { concurrency: "unbounded" },
       );
 
       const channelDefinitions: readonly ChannelDefinition[] = yield* Effect.all(

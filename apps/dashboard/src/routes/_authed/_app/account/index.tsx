@@ -14,6 +14,7 @@ import { Separator } from "@better-update/ui/components/ui/separator";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { Effect } from "effect";
 import { toast } from "sonner";
 
 import { authClient } from "../../../../lib/auth-client";
@@ -461,10 +462,17 @@ const AccountPage = () => (
 
 export const Route = createFileRoute("/_authed/_app/account/")({
   loader: async ({ context }) => {
-    await Promise.all([
-      context.queryClient.ensureQueryData(accountsQueryOptions),
-      context.queryClient.ensureQueryData(sessionsQueryOptions),
-    ]);
+    await Effect.runPromise(
+      Effect.asVoid(
+        Effect.all(
+          [
+            Effect.promise(async () => context.queryClient.ensureQueryData(accountsQueryOptions)),
+            Effect.promise(async () => context.queryClient.ensureQueryData(sessionsQueryOptions)),
+          ],
+          { concurrency: "unbounded" },
+        ),
+      ),
+    );
   },
   component: AccountPage,
 });

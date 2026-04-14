@@ -1,6 +1,7 @@
 // Root API
 export { ManagementApi } from "./api";
 export { ProtocolApi } from "./protocol-api";
+export { safeJsonParse } from "./json";
 
 // Auth
 export { AuthContext } from "./auth/context";

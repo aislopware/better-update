@@ -1,3 +1,5 @@
+import { Effect } from "effect";
+
 import {
   buildBranchMapping,
   evaluateBranchMapping,
@@ -156,8 +158,13 @@ describe(evaluateBranchMapping, () => {
     });
 
     const clientIds = ["client-1", "client-2", "client-3", "client-4", "client-5"];
-    const results = await Promise.all(
-      clientIds.map(async (clientId) => evaluateBranchMapping(mapping, clientId)),
+    const results = await Effect.runPromise(
+      Effect.all(
+        clientIds.map((clientId) =>
+          Effect.promise(async () => evaluateBranchMapping(mapping, clientId)),
+        ),
+        { concurrency: "unbounded" },
+      ),
     );
     results.forEach((result) => expect(result).toBe(newBranchId));
   });
@@ -172,8 +179,13 @@ describe(evaluateBranchMapping, () => {
     });
 
     const clientIds = ["client-1", "client-2", "client-3", "client-4", "client-5"];
-    const results = await Promise.all(
-      clientIds.map(async (clientId) => evaluateBranchMapping(mapping, clientId)),
+    const results = await Effect.runPromise(
+      Effect.all(
+        clientIds.map((clientId) =>
+          Effect.promise(async () => evaluateBranchMapping(mapping, clientId)),
+        ),
+        { concurrency: "unbounded" },
+      ),
     );
     results.forEach((result) => expect(result).toBe(oldBranchId));
   });

@@ -1,6 +1,7 @@
 import { useForm } from "@tanstack/react-form";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { Deferred, Effect } from "effect";
 import { z } from "zod/v4";
 
 import { mockFetch } from "../../../tests/helpers/mock-fetch";
@@ -173,9 +174,13 @@ describe("login form submit", () => {
   test("submit button is disabled while submitting", async () => {
     const user = userEvent.setup();
 
-    const { promise: signInPromise, resolve: resolveSignIn } = Promise.withResolvers<undefined>();
+    const signInDeferred = Effect.runSync(Deferred.make<undefined>());
 
-    render(<LoginSubmitStateTestForm onSubmit={async () => signInPromise} />);
+    render(
+      <LoginSubmitStateTestForm
+        onSubmit={async () => Effect.runPromise(Deferred.await(signInDeferred))}
+      />,
+    );
 
     await user.click(screen.getByRole("button", { name: "Sign in" }));
 
@@ -183,7 +188,7 @@ describe("login form submit", () => {
       expect(screen.getByRole("button")).toBeDisabled();
     });
 
-    resolveSignIn(undefined);
+    await Effect.runPromise(Deferred.succeed(signInDeferred, undefined));
 
     await waitFor(() => {
       expect(screen.getByRole("button")).toBeEnabled();
