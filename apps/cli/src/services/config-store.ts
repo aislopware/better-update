@@ -1,35 +1,39 @@
 import path from "node:path";
 
 import { FileSystem } from "@effect/platform";
-import { Context, Effect, Layer } from "effect";
+import { Context, Data, Effect, Layer } from "effect";
 
 import { CliRuntime } from "./cli-runtime";
 
 const DEFAULT_BASE_URL = "https://api.better-update.dev";
 const DEFAULT_DASHBOARD_URL = "https://better-update.dev";
 
+class ConfigStoreParseError extends Data.TaggedError("ConfigStoreParseError")<{
+  readonly message: string;
+  readonly cause: unknown;
+}> {}
+
 const normalizeUrl = (value: string): string => value.replace(/\/$/, "");
 
 const deriveDashboardUrl = (serverUrl: string): string => {
   const normalized = normalizeUrl(serverUrl);
-
-  try {
-    const url = new URL(normalized);
-
-    if (url.hostname.startsWith("api.")) {
-      url.hostname = url.hostname.slice(4);
-      return normalizeUrl(url.toString());
-    }
-
-    if (url.pathname === "/api") {
-      url.pathname = "/";
-      return normalizeUrl(url.toString());
-    }
-
-    return normalized;
-  } catch {
+  if (!URL.canParse(normalized)) {
     return DEFAULT_DASHBOARD_URL;
   }
+
+  const url = new URL(normalized);
+
+  if (url.hostname.startsWith("api.")) {
+    url.hostname = url.hostname.slice(4);
+    return normalizeUrl(url.toString());
+  }
+
+  if (url.pathname === "/api") {
+    url.pathname = "/";
+    return normalizeUrl(url.toString());
+  }
+
+  return normalized;
 };
 
 export class ConfigStore extends Context.Tag("cli/ConfigStore")<
@@ -52,9 +56,14 @@ export const ConfigStoreLive = Layer.effect(
       Effect.flatMap((content) =>
         content.length === 0
           ? Effect.succeed(undefined)
-          : Effect.try(() => JSON.parse(content) as Record<string, unknown>).pipe(
-              Effect.catchAll(() => Effect.succeed(undefined)),
-            ),
+          : Effect.try({
+              try: () => JSON.parse(content) as Record<string, unknown>,
+              catch: (cause) =>
+                new ConfigStoreParseError({
+                  message: "Config file contains invalid JSON",
+                  cause,
+                }),
+            }).pipe(Effect.catchAll(() => Effect.succeed(undefined))),
       ),
     );
     const resolveBaseUrl = Effect.gen(function* () {

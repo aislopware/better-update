@@ -24,8 +24,8 @@ const exceedsSize = (oldSize: number, newSize: number, maxSize: number) =>
 const patchNotWorth = (patchSize: number, newSize: number, minSaving: number) =>
   patchSize >= minSaving * newSize;
 
-const runPatchEffect = async <Success, Error>(
-  effect: Effect.Effect<Success, Error, ServerInfrastructure>,
+const runPatchEffect = async <Success, Failure>(
+  effect: Effect.Effect<Success, Failure, ServerInfrastructure>,
   env: Env,
 ) =>
   Effect.runPromise(

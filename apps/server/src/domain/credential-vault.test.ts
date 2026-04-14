@@ -2,6 +2,8 @@ import { Effect } from "effect";
 
 import { fromBase64, toBase64 } from "../lib/base64";
 import {
+  CredentialVaultConfigError,
+  CredentialVaultCryptoError,
   decryptAesGcm,
   decryptSecret,
   encryptAesGcm,
@@ -47,8 +49,12 @@ describe("credential-vault", () => {
       expect(() => Effect.runSync(resolveKeyring("{}"))).toThrow("Vault keyring is empty");
     });
 
-    test("throws on invalid JSON", () => {
-      expect(() => Effect.runSync(resolveKeyring("not-json"))).toThrow();
+    test("returns a tagged config error on invalid JSON", async () => {
+      const error = await Effect.runPromise(Effect.flip(resolveKeyring("not-json")));
+
+      expect(error).toBeInstanceOf(CredentialVaultConfigError);
+      expect(error._tag).toBe("CredentialVaultConfigError");
+      expect(error.message).toBe("Vault keyring must be valid JSON");
     });
   });
 
@@ -113,14 +119,14 @@ describe("credential-vault", () => {
       expect(result1.encryptedDek).not.toBe(result2.encryptedDek);
     });
 
-    test("decryption fails with wrong orgId", async () => {
+    test("decryption fails with a tagged crypto error for wrong orgId", async () => {
       const keyring = makeTestKeyring();
       const plaintext = new TextEncoder().encode("secret");
 
       const result = await Effect.runPromise(envelopeEncrypt(keyring, "org-correct", plaintext));
 
-      await expect(
-        Effect.runPromise(
+      const error = await Effect.runPromise(
+        Effect.flip(
           envelopeDecrypt(
             keyring,
             "org-wrong",
@@ -129,7 +135,14 @@ describe("credential-vault", () => {
             result.encryptedBlob,
           ),
         ),
-      ).rejects.toThrow();
+      );
+
+      expect(error).toBeInstanceOf(CredentialVaultCryptoError);
+      expect(error._tag).toBe("CredentialVaultCryptoError");
+      if (error._tag !== "CredentialVaultCryptoError") {
+        throw new Error(`Unexpected error tag: ${error._tag}`);
+      }
+      expect(error.operation).toBe("decrypt DEK");
     });
   });
 

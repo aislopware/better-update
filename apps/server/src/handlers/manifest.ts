@@ -4,12 +4,12 @@ import type { BadRequest, NotFound } from "@better-update/api";
 
 import { provideCloudflareRequestContext } from "../cloudflare/context";
 import { manifestRuntime } from "../cloudflare/manifest-runtime";
-import { evaluateBranchMapping } from "../domain/branch-mapping";
 import { resolveUpdateRollout } from "../domain/update-rollout";
 import { parseProtocolHeaders } from "../protocol/headers";
 import { buildDirective, buildExtensions, buildManifest } from "../protocol/manifest-builder";
 import { encodeMultipart } from "../protocol/multipart";
 import { ManifestRepo, ManifestRepoLive } from "../repositories/manifest";
+import { resolveBranchId } from "./branch-resolution";
 import { buildCacheKey, matchCachedResponse, storeCachedResponse } from "./manifest-cache";
 import { respond, responseTypeFor } from "./manifest-helpers";
 
@@ -199,15 +199,6 @@ const resolveRolledOutUpdate = (params: {
 
     return null;
   });
-
-const resolveBranchId = (channel: ChannelRow, easClientId: string | undefined) => {
-  const { branch_mapping_json: mapping } = channel;
-  return mapping
-    ? Effect.tryPromise(async () => evaluateBranchMapping(mapping, easClientId)).pipe(
-        Effect.orElseSucceed(() => channel.branch_id),
-      )
-    : Effect.succeed(channel.branch_id);
-};
 
 const buildUpdateResponse = (params: {
   readonly update: UpdateRow;

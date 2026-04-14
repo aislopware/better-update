@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Data, Effect } from "effect";
 import { parseDictionary } from "structured-headers";
 
 import { BadRequest } from "../errors";
@@ -33,13 +33,25 @@ const MAX_EXTRA_PARAM_KEYS = 16;
 const MAX_EXTRA_PARAM_VALUE_BYTES = 256;
 const textEncoder = new TextEncoder();
 
+class ProtocolExtraParamsParseError extends Data.TaggedError("ProtocolExtraParamsParseError")<{
+  readonly message: string;
+  readonly cause: unknown;
+}> {}
+
 const parseExtraParams = (headers: Headers) =>
   Effect.gen(function* () {
     const raw = headers.get("expo-extra-params");
     if (!raw) {
       return undefined;
     }
-    const dict = yield* Effect.try(() => parseDictionary(raw));
+    const dict = yield* Effect.try({
+      try: () => parseDictionary(raw),
+      catch: (cause) =>
+        new ProtocolExtraParamsParseError({
+          message: "Invalid expo-extra-params header",
+          cause,
+        }),
+    });
     if (dict.size > MAX_EXTRA_PARAM_KEYS) {
       return undefined;
     }

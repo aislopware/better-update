@@ -30,13 +30,13 @@ export const cloudflareCtx: Effect.Effect<ExecutionContext> = fromFiberContext(
 export const makeCloudflareRequestContext = (env: Env, ctx: ExecutionContext) =>
   Context.make(CloudflareEnvTag, env).pipe(Context.add(CloudflareExecutionContextTag, ctx));
 
-export const provideCloudflareEnv = <Success, Error, Requirements>(
-  effect: Effect.Effect<Success, Error, Requirements>,
+export const provideCloudflareEnv = <Success, Failure, Requirements>(
+  effect: Effect.Effect<Success, Failure, Requirements>,
   env: Env,
 ) => effect.pipe(Effect.provideService(CloudflareEnvTag, env));
 
-export const provideCloudflareRequestContext = <Success, Error, Requirements>(
-  effect: Effect.Effect<Success, Error, Requirements>,
+export const provideCloudflareRequestContext = <Success, Failure, Requirements>(
+  effect: Effect.Effect<Success, Failure, Requirements>,
   env: Env,
   ctx: ExecutionContext,
 ) =>

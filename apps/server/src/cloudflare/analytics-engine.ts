@@ -1,10 +1,22 @@
-import { Context, Effect, Layer } from "effect";
+import { Context, Data, Effect, Layer } from "effect";
 
 import { cloudflareEnv } from "./context";
 
 export type AERow = Record<string, string>;
 
 const EMPTY_ROWS: readonly AERow[] = [];
+
+class AnalyticsEngineRequestError extends Data.TaggedError("AnalyticsEngineRequestError")<{
+  readonly message: string;
+  readonly cause: unknown;
+}> {}
+
+class AnalyticsEngineResponseParseError extends Data.TaggedError(
+  "AnalyticsEngineResponseParseError",
+)<{
+  readonly message: string;
+  readonly cause: unknown;
+}> {}
 
 const isAEResponse = (value: unknown): value is { data: readonly AERow[] } =>
   typeof value === "object" && value !== null && "data" in value && Array.isArray(value.data);
@@ -22,22 +34,35 @@ export const AnalyticsEngineLive = Layer.succeed(AnalyticsEngine, {
   query: (sql) =>
     Effect.gen(function* () {
       const env = yield* cloudflareEnv;
-      const response = yield* Effect.tryPromise(async () =>
-        fetch(
-          `https://api.cloudflare.com/client/v4/accounts/${env.ACCOUNT_ID}/analytics_engine/sql`,
-          {
-            method: "POST",
-            headers: { Authorization: `Bearer ${env.CF_API_TOKEN}` },
-            body: sql,
-          },
-        ),
-      );
+      const response = yield* Effect.tryPromise({
+        try: async () =>
+          fetch(
+            `https://api.cloudflare.com/client/v4/accounts/${env.ACCOUNT_ID}/analytics_engine/sql`,
+            {
+              method: "POST",
+              headers: { Authorization: `Bearer ${env.CF_API_TOKEN}` },
+              body: sql,
+            },
+          ),
+        catch: (cause) =>
+          new AnalyticsEngineRequestError({
+            message: "Analytics Engine request failed",
+            cause,
+          }),
+      });
 
       if (!response.ok) {
         return EMPTY_ROWS;
       }
 
-      const json: unknown = yield* Effect.tryPromise(async () => response.json());
+      const json: unknown = yield* Effect.tryPromise({
+        try: async () => response.json(),
+        catch: (cause) =>
+          new AnalyticsEngineResponseParseError({
+            message: "Analytics Engine response was not valid JSON",
+            cause,
+          }),
+      });
       return isAEResponse(json) ? json.data : EMPTY_ROWS;
     }).pipe(Effect.orElseSucceed(() => EMPTY_ROWS)),
 });

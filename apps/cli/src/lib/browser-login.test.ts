@@ -1,6 +1,11 @@
 import { Effect } from "effect";
 
-import { CALLBACK_PAGE, createBrowserLoginSession } from "./browser-login";
+import {
+  BrowserLoginSessionClosedError,
+  BrowserLoginTimeoutError,
+  CALLBACK_PAGE,
+  createBrowserLoginSession,
+} from "./browser-login";
 
 describe(createBrowserLoginSession, () => {
   test("serves the callback page HTML", async () => {
@@ -51,9 +56,9 @@ describe(createBrowserLoginSession, () => {
       );
 
       expect(response.status).toBe(400);
-      await expect(Effect.runPromise(session.waitForToken)).rejects.toThrow(
-        "Timed out waiting for browser login to complete.",
-      );
+      const error = await Effect.runPromise(Effect.flip(session.waitForToken));
+      expect(error).toBeInstanceOf(BrowserLoginTimeoutError);
+      expect(error._tag).toBe("BrowserLoginTimeoutError");
     } finally {
       session.dispose();
     }
@@ -63,11 +68,21 @@ describe(createBrowserLoginSession, () => {
     const session = createBrowserLoginSession({ timeoutMs: 20 });
 
     try {
-      await expect(Effect.runPromise(session.waitForToken)).rejects.toThrow(
-        "Timed out waiting for browser login to complete.",
-      );
+      const error = await Effect.runPromise(Effect.flip(session.waitForToken));
+      expect(error).toBeInstanceOf(BrowserLoginTimeoutError);
+      expect(error._tag).toBe("BrowserLoginTimeoutError");
     } finally {
       session.dispose();
     }
+  });
+
+  test("fails with a tagged error when the session is disposed", async () => {
+    const session = createBrowserLoginSession({ timeoutMs: 1_000 });
+
+    session.dispose();
+
+    const error = await Effect.runPromise(Effect.flip(session.waitForToken));
+    expect(error).toBeInstanceOf(BrowserLoginSessionClosedError);
+    expect(error._tag).toBe("BrowserLoginSessionClosedError");
   });
 });

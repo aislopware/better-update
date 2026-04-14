@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Data, Effect } from "effect";
 
 import { fromBase64, toBase64 } from "../lib/base64";
 
@@ -13,38 +13,74 @@ export interface EnvelopeEncryptResult {
   readonly keyVersion: number;
 }
 
+export class CredentialVaultConfigError extends Data.TaggedError("CredentialVaultConfigError")<{
+  readonly message: string;
+}> {}
+
+export class CredentialVaultKeyNotFoundError extends Data.TaggedError(
+  "CredentialVaultKeyNotFoundError",
+)<{
+  readonly version: number;
+  readonly message: string;
+}> {}
+
+export class CredentialVaultCryptoError extends Data.TaggedError("CredentialVaultCryptoError")<{
+  readonly operation: string;
+  readonly message: string;
+  readonly cause: Error;
+}> {}
+
+export type CredentialVaultError =
+  | CredentialVaultConfigError
+  | CredentialVaultKeyNotFoundError
+  | CredentialVaultCryptoError;
+
 const asBuffer = (data: Uint8Array): ArrayBuffer => {
   const copy = new ArrayBuffer(data.byteLength);
   new Uint8Array(copy).set(data);
   return copy;
 };
 
-const keyringError = (message: string) => new Error(message);
 const asError = (cause: unknown): Error =>
   cause instanceof Error ? cause : new Error(String(cause));
+const configError = (message: string) => new CredentialVaultConfigError({ message });
+const keyNotFoundError = (version: number) =>
+  new CredentialVaultKeyNotFoundError({
+    version,
+    message: `Keyring version ${String(version)} not found`,
+  });
+const cryptoError = (operation: string, cause: unknown) =>
+  new CredentialVaultCryptoError({
+    operation,
+    message: `Credential vault ${operation} failed`,
+    cause: asError(cause),
+  });
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-const getSecret = (keyring: Keyring, version: number): Effect.Effect<Uint8Array, Error> => {
+const getSecret = (
+  keyring: Keyring,
+  version: number,
+): Effect.Effect<Uint8Array, CredentialVaultKeyNotFoundError> => {
   const secret = keyring.secrets[version];
-  return secret
-    ? Effect.succeed(secret)
-    : Effect.fail(keyringError(`Keyring version ${version} not found`));
+  return secret ? Effect.succeed(secret) : Effect.fail(keyNotFoundError(version));
 };
 
-export const resolveKeyring = (vaultKeyringJson: string): Effect.Effect<Keyring, Error> =>
+export const resolveKeyring = (
+  vaultKeyringJson: string,
+): Effect.Effect<Keyring, CredentialVaultConfigError> =>
   Effect.gen(function* () {
     const raw = yield* Effect.try({
       try: () => JSON.parse(vaultKeyringJson) as unknown,
-      catch: () => keyringError("Vault keyring must be valid JSON"),
+      catch: () => configError("Vault keyring must be valid JSON"),
     });
     if (!isRecord(raw)) {
-      return yield* Effect.fail(keyringError("Vault keyring must be a JSON object"));
+      return yield* Effect.fail(configError("Vault keyring must be a JSON object"));
     }
     const entries = Object.entries(raw);
     if (entries.length === 0) {
-      return yield* Effect.fail(keyringError("Vault keyring is empty"));
+      return yield* Effect.fail(configError("Vault keyring is empty"));
     }
 
     const pairs = yield* Effect.forEach(
@@ -52,8 +88,11 @@ export const resolveKeyring = (vaultKeyringJson: string): Effect.Effect<Keyring,
       ([key, value]) => {
         const version = Number(key);
         return Number.isInteger(version) && version >= 1
-          ? Effect.succeed([version, fromBase64(String(value))] as const)
-          : Effect.fail(keyringError(`Invalid keyring version: ${key}`));
+          ? Effect.try({
+              try: () => [version, fromBase64(String(value))] as const,
+              catch: () => configError(`Invalid keyring secret: ${key}`),
+            })
+          : Effect.fail(configError(`Invalid keyring version: ${key}`));
       },
       { concurrency: 1 },
     );
@@ -115,25 +154,28 @@ export const envelopeEncrypt = (
   keyring: Keyring,
   orgId: string,
   plaintext: Uint8Array,
-): Effect.Effect<EnvelopeEncryptResult, Error> =>
+): Effect.Effect<
+  EnvelopeEncryptResult,
+  CredentialVaultKeyNotFoundError | CredentialVaultCryptoError
+> =>
   Effect.gen(function* () {
     const dek = generateDEK();
     const secret = yield* getSecret(keyring, keyring.currentVersion);
     const kek = yield* Effect.tryPromise({
       try: async () => deriveKEK(secret, orgId, keyring.currentVersion),
-      catch: asError,
+      catch: (cause) => cryptoError("derive KEK", cause),
     });
     const dekKey = yield* Effect.tryPromise({
       try: async () => importDekKey(dek, ["encrypt", "decrypt"]),
-      catch: asError,
+      catch: (cause) => cryptoError("import DEK", cause),
     });
     const encryptedBlob = yield* Effect.tryPromise({
       try: async () => encryptAesGcm(dekKey, plaintext),
-      catch: asError,
+      catch: (cause) => cryptoError("encrypt blob", cause),
     });
     const encryptedDek = yield* Effect.tryPromise({
       try: async () => encryptAesGcm(kek, dek),
-      catch: asError,
+      catch: (cause) => cryptoError("encrypt DEK", cause),
     });
     return {
       encryptedBlob,
@@ -148,24 +190,24 @@ export const envelopeDecrypt = (
   keyVersion: number,
   encryptedDekB64: string,
   encryptedBlob: Uint8Array,
-): Effect.Effect<Uint8Array, Error> =>
+): Effect.Effect<Uint8Array, CredentialVaultKeyNotFoundError | CredentialVaultCryptoError> =>
   Effect.gen(function* () {
     const secret = yield* getSecret(keyring, keyVersion);
     const kek = yield* Effect.tryPromise({
       try: async () => deriveKEK(secret, orgId, keyVersion),
-      catch: asError,
+      catch: (cause) => cryptoError("derive KEK", cause),
     });
     const dek = yield* Effect.tryPromise({
       try: async () => decryptAesGcm(kek, fromBase64(encryptedDekB64)),
-      catch: asError,
+      catch: (cause) => cryptoError("decrypt DEK", cause),
     });
     const dekKey = yield* Effect.tryPromise({
       try: async () => importDekKey(dek, ["decrypt"]),
-      catch: asError,
+      catch: (cause) => cryptoError("import DEK", cause),
     });
     return yield* Effect.tryPromise({
       try: async () => decryptAesGcm(dekKey, encryptedBlob),
-      catch: asError,
+      catch: (cause) => cryptoError("decrypt blob", cause),
     });
   });
 
@@ -173,17 +215,20 @@ export const encryptSecret = (
   keyring: Keyring,
   orgId: string,
   secret: string,
-): Effect.Effect<{ encrypted: string; keyVersion: number }, Error> =>
+): Effect.Effect<
+  { encrypted: string; keyVersion: number },
+  CredentialVaultKeyNotFoundError | CredentialVaultCryptoError
+> =>
   Effect.gen(function* () {
     const keySecret = yield* getSecret(keyring, keyring.currentVersion);
     const kek = yield* Effect.tryPromise({
       try: async () => deriveKEK(keySecret, orgId, keyring.currentVersion),
-      catch: asError,
+      catch: (cause) => cryptoError("derive KEK", cause),
     });
     const plaintext = new TextEncoder().encode(secret);
     const encrypted = yield* Effect.tryPromise({
       try: async () => encryptAesGcm(kek, plaintext),
-      catch: asError,
+      catch: (cause) => cryptoError("encrypt secret", cause),
     });
     return { encrypted: toBase64(encrypted), keyVersion: keyring.currentVersion };
   });
@@ -193,16 +238,16 @@ export const decryptSecret = (
   orgId: string,
   keyVersion: number,
   encryptedB64: string,
-): Effect.Effect<string, Error> =>
+): Effect.Effect<string, CredentialVaultKeyNotFoundError | CredentialVaultCryptoError> =>
   Effect.gen(function* () {
     const secret = yield* getSecret(keyring, keyVersion);
     const kek = yield* Effect.tryPromise({
       try: async () => deriveKEK(secret, orgId, keyVersion),
-      catch: asError,
+      catch: (cause) => cryptoError("derive KEK", cause),
     });
     const decrypted = yield* Effect.tryPromise({
       try: async () => decryptAesGcm(kek, fromBase64(encryptedB64)),
-      catch: asError,
+      catch: (cause) => cryptoError("decrypt secret", cause),
     });
     return new TextDecoder().decode(decrypted);
   });

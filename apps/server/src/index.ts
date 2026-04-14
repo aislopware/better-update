@@ -19,8 +19,8 @@ export {
 } from "./durable-objects/publish-coordinators";
 const { handler } = makeManagementWebHandler();
 
-const runServerEnvEffect = async <Success, Error>(
-  effect: Effect.Effect<Success, Error, ServerInfrastructure>,
+const runServerEnvEffect = async <Success, Failure>(
+  effect: Effect.Effect<Success, Failure, ServerInfrastructure>,
   env: Env,
 ) =>
   Effect.runPromise(

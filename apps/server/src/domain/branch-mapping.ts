@@ -1,3 +1,4 @@
+import { safeJsonParse } from "@better-update/api";
 import { Effect } from "effect";
 
 import { hashToFraction } from "./hash";
@@ -23,7 +24,7 @@ const isBranchMapping = (value: unknown): value is BranchMapping =>
 const emptyMapping: BranchMapping = { data: [], salt: "" };
 
 const parseBranchMapping = (json: string): BranchMapping => {
-  const raw: unknown = JSON.parse(json);
+  const raw = safeJsonParse(json);
   return isBranchMapping(raw) ? raw : emptyMapping;
 };
 

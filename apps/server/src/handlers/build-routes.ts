@@ -9,8 +9,8 @@ import { BuildRepo } from "../repositories";
 
 import type { ServerInfrastructure } from "../infrastructure-layer";
 
-const runBuildRouteEffect = async <Success, Error>(
-  effect: Effect.Effect<Success, Error, ServerInfrastructure>,
+const runBuildRouteEffect = async <Success, Failure>(
+  effect: Effect.Effect<Success, Failure, ServerInfrastructure>,
   env: Env,
 ) =>
   Effect.runPromise(
