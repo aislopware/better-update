@@ -209,17 +209,22 @@ export const BuildRepoLive = Layer.succeed(BuildRepo, {
 
       const whereClause = conditions.join(" AND ");
 
-      const [countResult, rows] = yield* Effect.promise(async () =>
-        Promise.all([
-          env.DB.prepare(`SELECT COUNT(*) as count FROM "builds" b WHERE ${whereClause}`)
-            .bind(...bindValues)
-            .first<{ count: number }>(),
-          env.DB.prepare(
-            `${SELECT_WITH_ARTIFACT} WHERE ${whereClause} ORDER BY b."created_at" DESC LIMIT ? OFFSET ?`,
-          )
-            .bind(...bindValues, params.limit, params.offset)
-            .all<BuildRow>(),
-        ]),
+      const [countResult, rows] = yield* Effect.all(
+        [
+          Effect.promise(async () =>
+            env.DB.prepare(`SELECT COUNT(*) as count FROM "builds" b WHERE ${whereClause}`)
+              .bind(...bindValues)
+              .first<{ count: number }>(),
+          ),
+          Effect.promise(async () =>
+            env.DB.prepare(
+              `${SELECT_WITH_ARTIFACT} WHERE ${whereClause} ORDER BY b."created_at" DESC LIMIT ? OFFSET ?`,
+            )
+              .bind(...bindValues, params.limit, params.offset)
+              .all<BuildRow>(),
+          ),
+        ],
+        { concurrency: "unbounded" },
       );
 
       return { items: rows.results.map(toBuildWithArtifact), total: countResult?.count ?? 0 };

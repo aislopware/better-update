@@ -120,17 +120,22 @@ export const AuditLogRepoLive = Layer.succeed(AuditLogRepo, {
       const whereClause = conditions.join(" AND ");
       const offset = (params.page - 1) * params.limit;
 
-      const [countResult, rows] = yield* Effect.promise(async () =>
-        Promise.all([
-          env.DB.prepare(`SELECT COUNT(*) as count FROM "audit_logs" WHERE ${whereClause}`)
-            .bind(...bindValues)
-            .first<{ count: number }>(),
-          env.DB.prepare(
-            `SELECT ${SELECT_COLUMNS} FROM "audit_logs" WHERE ${whereClause} ORDER BY "created_at" DESC LIMIT ? OFFSET ?`,
-          )
-            .bind(...bindValues, params.limit, offset)
-            .all<AuditLogRow>(),
-        ]),
+      const [countResult, rows] = yield* Effect.all(
+        [
+          Effect.promise(async () =>
+            env.DB.prepare(`SELECT COUNT(*) as count FROM "audit_logs" WHERE ${whereClause}`)
+              .bind(...bindValues)
+              .first<{ count: number }>(),
+          ),
+          Effect.promise(async () =>
+            env.DB.prepare(
+              `SELECT ${SELECT_COLUMNS} FROM "audit_logs" WHERE ${whereClause} ORDER BY "created_at" DESC LIMIT ? OFFSET ?`,
+            )
+              .bind(...bindValues, params.limit, offset)
+              .all<AuditLogRow>(),
+          ),
+        ],
+        { concurrency: "unbounded" },
       );
 
       return { items: rows.results, total: countResult?.count ?? 0 };

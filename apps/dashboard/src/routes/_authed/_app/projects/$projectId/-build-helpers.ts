@@ -1,4 +1,8 @@
+import { buildCompatibilityMatrixQueryKey, buildsQueryKey } from "@better-update/api-client/react";
+import { Effect } from "effect";
+
 import type { ArtifactFormat, Distribution, Platform } from "@better-update/api";
+import type { QueryClient } from "@tanstack/react-query";
 
 export type ArtifactFormatValue = typeof ArtifactFormat.Type;
 export type PlatformValue = typeof Platform.Type;
@@ -75,38 +79,97 @@ export const uploadWithProgress = async (
   onProgress: (percent: number) => void,
   signal?: AbortSignal,
 ): Promise<void> =>
-  // eslint-disable-next-line promise/avoid-new -- XHR upload progress requires manual Promise wrapping
-  new Promise((resolve, reject) => {
-    if (signal?.aborted) {
-      reject(new Error("Upload aborted"));
-      return;
-    }
-    const xhr = new XMLHttpRequest();
-    xhr.open("PUT", url);
-    xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
-    xhr.upload.addEventListener("progress", (event) => {
-      if (event.lengthComputable) {
-        onProgress(Math.round((event.loaded / event.total) * 100));
-      }
-    });
-    xhr.addEventListener("load", () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        resolve();
-      } else {
-        reject(new Error(`Upload failed with status ${xhr.status}`));
-      }
-    });
-    xhr.addEventListener("error", () => {
-      reject(new Error("Upload network error"));
-    });
-    if (signal) {
-      signal.addEventListener("abort", () => {
+  Effect.runPromise(
+    Effect.async<undefined, Error>((resume) => {
+      const xhr = new XMLHttpRequest();
+      const uploadState = { settled: false };
+
+      const settle = (effect: Effect.Effect<undefined, Error>) => {
+        if (uploadState.settled) {
+          return;
+        }
+        uploadState.settled = true;
+        signal?.removeEventListener("abort", onAbort);
+        xhr.upload.removeEventListener("progress", onProgressEvent);
+        xhr.removeEventListener("load", onLoad);
+        xhr.removeEventListener("error", onError);
+        resume(effect);
+      };
+
+      const onProgressEvent = (event: ProgressEvent<XMLHttpRequestEventTarget>) => {
+        if (event.lengthComputable) {
+          onProgress(Math.round((event.loaded / event.total) * 100));
+        }
+      };
+
+      const onLoad = () => {
+        settle(
+          xhr.status >= 200 && xhr.status < 300
+            ? Effect.succeed(undefined)
+            : Effect.fail(new Error(`Upload failed with status ${xhr.status}`)),
+        );
+      };
+
+      const onError = () => {
+        settle(Effect.fail(new Error("Upload network error")));
+      };
+
+      const onAbort = () => {
         xhr.abort();
-        reject(new Error("Upload aborted"));
+        settle(Effect.fail(new Error("Upload aborted")));
+      };
+
+      const cleanup = Effect.sync(() => {
+        signal?.removeEventListener("abort", onAbort);
+        xhr.upload.removeEventListener("progress", onProgressEvent);
+        xhr.removeEventListener("load", onLoad);
+        xhr.removeEventListener("error", onError);
+        if (!uploadState.settled) {
+          xhr.abort();
+        }
       });
-    }
-    xhr.send(file);
-  });
+
+      if (signal?.aborted) {
+        settle(Effect.fail(new Error("Upload aborted")));
+        return cleanup;
+      }
+
+      xhr.open("PUT", url);
+      xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+      xhr.upload.addEventListener("progress", onProgressEvent);
+      xhr.addEventListener("load", onLoad);
+      xhr.addEventListener("error", onError);
+      signal?.addEventListener("abort", onAbort, { once: true });
+      xhr.send(file);
+
+      return cleanup;
+    }),
+  );
+
+export const invalidateBuildQueries = async (
+  queryClient: QueryClient,
+  orgId: string,
+  projectId: string,
+) =>
+  Effect.runPromise(
+    Effect.asVoid(
+      Effect.all(
+        [
+          Effect.promise(async () =>
+            queryClient.invalidateQueries({
+              queryKey: buildsQueryKey(orgId, projectId),
+            }),
+          ),
+          Effect.promise(async () =>
+            queryClient.invalidateQueries({
+              queryKey: buildCompatibilityMatrixQueryKey(orgId, projectId),
+            }),
+          ),
+        ],
+        { concurrency: "unbounded" },
+      ),
+    ),
+  );
 
 export const formatBytes = (bytes: number): string => {
   if (bytes === 0) {

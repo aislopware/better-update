@@ -1,3 +1,5 @@
+import { Effect } from "effect";
+
 import { CALLBACK_PAGE, createBrowserLoginSession } from "./browser-login";
 
 describe(createBrowserLoginSession, () => {
@@ -30,7 +32,7 @@ describe(createBrowserLoginSession, () => {
       );
 
       expect(response.status).toBe(200);
-      await expect(session.waitForToken).resolves.toBe("bu_secret_123");
+      await expect(Effect.runPromise(session.waitForToken)).resolves.toBe("bu_secret_123");
     } finally {
       session.dispose();
     }
@@ -49,7 +51,7 @@ describe(createBrowserLoginSession, () => {
       );
 
       expect(response.status).toBe(400);
-      await expect(session.waitForToken).rejects.toThrow(
+      await expect(Effect.runPromise(session.waitForToken)).rejects.toThrow(
         "Timed out waiting for browser login to complete.",
       );
     } finally {
@@ -61,7 +63,7 @@ describe(createBrowserLoginSession, () => {
     const session = createBrowserLoginSession({ timeoutMs: 20 });
 
     try {
-      await expect(session.waitForToken).rejects.toThrow(
+      await expect(Effect.runPromise(session.waitForToken)).rejects.toThrow(
         "Timed out waiting for browser login to complete.",
       );
     } finally {

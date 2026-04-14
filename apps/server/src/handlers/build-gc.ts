@@ -1,3 +1,5 @@
+import { Effect } from "effect";
+
 import { GC_BATCH_SIZE, computeCutoff, parseRetentionDays } from "../domain/gc-utils";
 
 const fetchExpiredArtifactBatch = async (env: Env, profile: string, cutoff: string) => {
@@ -23,48 +25,90 @@ const processProfileRetention = async (
   profile: string,
   cutoff: string,
   totalDeleted: number,
-): Promise<number> => {
-  const batch = await fetchExpiredArtifactBatch(env, profile, cutoff);
-  if (batch.length === 0) {
-    return totalDeleted;
-  }
-
-  await deleteArtifactBatch(env, batch);
-  return processProfileRetention(env, profile, cutoff, totalDeleted + batch.length);
-};
+): Promise<number> =>
+  Effect.runPromise(
+    Effect.iterate(
+      { hasMore: true, totalDeleted },
+      {
+        while: (state) => state.hasMore,
+        body: (state) =>
+          Effect.gen(function* () {
+            const batch = yield* Effect.promise(async () =>
+              fetchExpiredArtifactBatch(env, profile, cutoff),
+            );
+            if (batch.length === 0) {
+              return { hasMore: false, totalDeleted: state.totalDeleted };
+            }
+            yield* Effect.promise(async () => deleteArtifactBatch(env, batch));
+            return { hasMore: true, totalDeleted: state.totalDeleted + batch.length };
+          }),
+      },
+    ).pipe(Effect.map((state) => state.totalDeleted)),
+  );
 
 const cleanupOrphanedStaging = async (
   env: Env,
   cursor?: string,
   accumulated = 0,
-): Promise<number> => {
-  const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000);
-  const listed = await env.BUILD_BUCKET.list(
-    cursor ? { prefix: "staging/", cursor } : { prefix: "staging/" },
+): Promise<number> =>
+  Effect.runPromise(
+    Effect.iterate(
+      { accumulated, cursor, hasMore: true },
+      {
+        while: (state) => state.hasMore,
+        body: (state) =>
+          Effect.gen(function* () {
+            const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000);
+            const listed = yield* Effect.promise(async () =>
+              env.BUILD_BUCKET.list(
+                state.cursor
+                  ? { prefix: "staging/", cursor: state.cursor }
+                  : { prefix: "staging/" },
+              ),
+            );
+            const orphans = listed.objects.filter((obj) => obj.uploaded < threeHoursAgo);
+
+            if (orphans.length > 0) {
+              yield* Effect.promise(async () =>
+                env.BUILD_BUCKET.delete(orphans.map((obj) => obj.key)),
+              );
+            }
+
+            return listed.truncated
+              ? {
+                  accumulated: state.accumulated + orphans.length,
+                  cursor: listed.cursor,
+                  hasMore: true,
+                }
+              : {
+                  accumulated: state.accumulated + orphans.length,
+                  cursor: undefined,
+                  hasMore: false,
+                };
+          }),
+      },
+    ).pipe(Effect.map((state) => state.accumulated)),
   );
-  const orphans = listed.objects.filter((obj) => obj.uploaded < threeHoursAgo);
-
-  if (orphans.length > 0) {
-    await env.BUILD_BUCKET.delete(orphans.map((obj) => obj.key));
-  }
-
-  const total = accumulated + orphans.length;
-  return listed.truncated ? cleanupOrphanedStaging(env, listed.cursor, total) : total;
-};
 
 const processProfiles = async (
   env: Env,
   profiles: readonly { name: string; days: number }[],
   accumulated: number,
-): Promise<number> => {
-  const [current, ...remaining] = profiles;
-  if (!current) {
-    return accumulated;
-  }
-  const cutoff = computeCutoff(current.days);
-  const deleted = await processProfileRetention(env, current.name, cutoff, 0);
-  return processProfiles(env, remaining, accumulated + deleted);
-};
+): Promise<number> =>
+  Effect.runPromise(
+    Effect.forEach(
+      profiles,
+      (profile) =>
+        Effect.promise(async () =>
+          processProfileRetention(env, profile.name, computeCutoff(profile.days), 0),
+        ),
+      { concurrency: 1 },
+    ).pipe(
+      Effect.map(
+        (deletedCounts) => accumulated + deletedCounts.reduce((sum, count) => sum + count, 0),
+      ),
+    ),
+  );
 
 export const handleBuildGc = async (env: Env): Promise<void> => {
   const profiles = [

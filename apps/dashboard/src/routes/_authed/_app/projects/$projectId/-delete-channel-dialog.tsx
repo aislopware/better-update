@@ -7,6 +7,7 @@ import { Button } from "@better-update/ui/components/ui/button";
 import { Delete02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient } from "@tanstack/react-query";
+import { Effect } from "effect";
 
 import type { Channel } from "@better-update/api";
 
@@ -31,14 +32,25 @@ export const DeleteChannelDialog = ({
       onConfirm={async () => deleteChannel(channel.id)}
       successMessage="Channel deleted"
       onSuccess={async () => {
-        await Promise.all([
-          queryClient.invalidateQueries({
-            queryKey: channelsQueryKey(orgId, projectId),
-          }),
-          queryClient.invalidateQueries({
-            queryKey: buildCompatibilityMatrixQueryKey(orgId, projectId),
-          }),
-        ]);
+        await Effect.runPromise(
+          Effect.asVoid(
+            Effect.all(
+              [
+                Effect.promise(async () =>
+                  queryClient.invalidateQueries({
+                    queryKey: channelsQueryKey(orgId, projectId),
+                  }),
+                ),
+                Effect.promise(async () =>
+                  queryClient.invalidateQueries({
+                    queryKey: buildCompatibilityMatrixQueryKey(orgId, projectId),
+                  }),
+                ),
+              ],
+              { concurrency: "unbounded" },
+            ),
+          ),
+        );
       }}
     >
       <Button variant="ghost" size="icon" className="size-8">

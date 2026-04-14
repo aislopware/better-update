@@ -1,23 +1,12 @@
 import { DurableObject } from "cloudflare:workers";
+import { Effect } from "effect";
 
 export abstract class SerializedCoordinator extends DurableObject {
-  #pendingOperation: Promise<undefined> = Promise.resolve(undefined);
+  readonly #semaphore = Effect.runSync(Effect.makeSemaphore(1));
 
   protected async runExclusive<Value>(operation: () => Promise<Value>): Promise<Value> {
-    const previousOperation = this.#pendingOperation;
-    const nextOperation = Promise.withResolvers<undefined>();
-    this.#pendingOperation = nextOperation.promise;
-
-    await Promise.allSettled([previousOperation]);
-
-    const operationResult = operation();
-    const [settledOperation] = await Promise.allSettled([operationResult]);
-    nextOperation.resolve(undefined);
-
-    if (settledOperation.status === "fulfilled") {
-      return settledOperation.value;
-    }
-
-    return operationResult;
+    return Effect.runPromise(
+      Effect.promise(async () => operation()).pipe(this.#semaphore.withPermits(1)),
+    );
   }
 }

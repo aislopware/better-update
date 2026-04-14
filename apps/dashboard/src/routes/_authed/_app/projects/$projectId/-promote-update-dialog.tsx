@@ -23,6 +23,7 @@ import {
 import { Rocket01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient } from "@tanstack/react-query";
+import { Effect } from "effect";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -57,14 +58,25 @@ export const PromoteUpdateDialog = ({
       }),
     onSuccess: async () => {
       toast.success("Update promoted successfully");
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: updatesQueryKey(orgId, projectId),
-        }),
-        queryClient.invalidateQueries({
-          queryKey: buildCompatibilityMatrixQueryKey(orgId, projectId),
-        }),
-      ]);
+      await Effect.runPromise(
+        Effect.asVoid(
+          Effect.all(
+            [
+              Effect.promise(async () =>
+                queryClient.invalidateQueries({
+                  queryKey: updatesQueryKey(orgId, projectId),
+                }),
+              ),
+              Effect.promise(async () =>
+                queryClient.invalidateQueries({
+                  queryKey: buildCompatibilityMatrixQueryKey(orgId, projectId),
+                }),
+              ),
+            ],
+            { concurrency: "unbounded" },
+          ),
+        ),
+      );
       setTargetChannelId("");
       onOpenChange(false);
     },

@@ -1,6 +1,7 @@
 import { useForm } from "@tanstack/react-form";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { Deferred, Effect } from "effect";
 import { useRef } from "react";
 
 import { mockFetch } from "../../../tests/helpers/mock-fetch";
@@ -159,13 +160,13 @@ describe("onboarding form submit", () => {
   test("button is disabled while submitting", async () => {
     const user = userEvent.setup();
 
-    const { promise: createPromise, resolve: resolveCreate } = Promise.withResolvers<undefined>();
+    const createDeferred = Effect.runSync(Deferred.make<undefined>());
 
     const SubmitStateForm = () => {
       const form = useForm({
         defaultValues: { name: "" },
         onSubmit: async () => {
-          await createPromise;
+          await Effect.runPromise(Deferred.await(createDeferred));
         },
       });
 
@@ -195,7 +196,7 @@ describe("onboarding form submit", () => {
       expect(screen.getByRole("button")).toBeDisabled();
     });
 
-    resolveCreate(undefined);
+    await Effect.runPromise(Deferred.succeed(createDeferred, undefined));
 
     await waitFor(() => {
       expect(screen.getByRole("button")).toBeEnabled();

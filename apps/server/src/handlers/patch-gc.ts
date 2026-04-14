@@ -1,3 +1,5 @@
+import { Effect } from "effect";
+
 import { GC_BATCH_SIZE, computeCutoff, parseRetentionDays } from "../domain/gc-utils";
 
 interface ExpiredPatch {
@@ -30,15 +32,25 @@ const processExpiredBatches = async (
   env: Env,
   cutoff: string,
   totalDeleted: number,
-): Promise<number> => {
-  const batch = await fetchExpiredBatch(env, cutoff);
-  if (batch.length === 0) {
-    return totalDeleted;
-  }
+): Promise<number> =>
+  Effect.runPromise(
+    Effect.iterate(
+      { hasMore: true, totalDeleted },
+      {
+        while: (state) => state.hasMore,
+        body: (state) =>
+          Effect.gen(function* () {
+            const batch = yield* Effect.promise(async () => fetchExpiredBatch(env, cutoff));
+            if (batch.length === 0) {
+              return { hasMore: false, totalDeleted: state.totalDeleted };
+            }
 
-  await deleteBatch(env, batch);
-  return processExpiredBatches(env, cutoff, totalDeleted + batch.length);
-};
+            yield* Effect.promise(async () => deleteBatch(env, batch));
+            return { hasMore: true, totalDeleted: state.totalDeleted + batch.length };
+          }),
+      },
+    ).pipe(Effect.map((state) => state.totalDeleted)),
+  );
 
 export { handlePatchMessage } from "./patch-queue";
 export { serveManifest } from "./manifest";

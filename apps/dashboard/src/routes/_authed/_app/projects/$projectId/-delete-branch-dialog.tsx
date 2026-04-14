@@ -9,6 +9,7 @@ import { Button } from "@better-update/ui/components/ui/button";
 import { Delete02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient } from "@tanstack/react-query";
+import { Effect } from "effect";
 
 import type { BranchItem } from "@better-update/api-client/react";
 
@@ -33,20 +34,35 @@ export const DeleteBranchDialog = ({
       onConfirm={async () => deleteBranch(branch.id)}
       successMessage="Branch deleted"
       onSuccess={async () => {
-        await Promise.all([
-          queryClient.invalidateQueries({
-            queryKey: branchesQueryKey(orgId, projectId),
-          }),
-          queryClient.invalidateQueries({
-            queryKey: channelsQueryKey(orgId, projectId),
-          }),
-          queryClient.invalidateQueries({
-            queryKey: updatesQueryKey(orgId, projectId),
-          }),
-          queryClient.invalidateQueries({
-            queryKey: buildCompatibilityMatrixQueryKey(orgId, projectId),
-          }),
-        ]);
+        await Effect.runPromise(
+          Effect.asVoid(
+            Effect.all(
+              [
+                Effect.promise(async () =>
+                  queryClient.invalidateQueries({
+                    queryKey: branchesQueryKey(orgId, projectId),
+                  }),
+                ),
+                Effect.promise(async () =>
+                  queryClient.invalidateQueries({
+                    queryKey: channelsQueryKey(orgId, projectId),
+                  }),
+                ),
+                Effect.promise(async () =>
+                  queryClient.invalidateQueries({
+                    queryKey: updatesQueryKey(orgId, projectId),
+                  }),
+                ),
+                Effect.promise(async () =>
+                  queryClient.invalidateQueries({
+                    queryKey: buildCompatibilityMatrixQueryKey(orgId, projectId),
+                  }),
+                ),
+              ],
+              { concurrency: "unbounded" },
+            ),
+          ),
+        );
       }}
     >
       <Button variant="ghost" size="icon" className="size-8">

@@ -1,9 +1,8 @@
+import { safeJsonParse } from "@better-update/api";
 import { HttpServerResponse } from "@effect/platform";
 import { Effect } from "effect";
 
 import type { HttpApp } from "@effect/platform";
-
-import { safeJsonParse } from "../lib/json";
 
 /** Convert PascalCase to UPPER_SNAKE_CASE: "OrgRequired" → "ORG_REQUIRED" */
 export const pascalToUpperSnake = (str: string): string =>

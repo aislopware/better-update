@@ -1,3 +1,5 @@
+import { Effect } from "effect";
+
 import { setupE2EWorker } from "../helpers/e2e-worker";
 
 const { getBaseUrl } = setupE2EWorker(".wrangler/state/e2e-updates");
@@ -692,38 +694,47 @@ describe("Updates & Assets API flow", () => {
     expect(branchResponse.status).toBe(201);
     const concurrentBranchId = (await branchResponse.json()).id as string;
 
-    const [first, second] = await Promise.all([
-      post(
-        "/api/updates",
-        {
-          project: "@updates/test",
-          branch: "concurrent-rollout",
-          runtimeVersion: "3.0.0",
-          platform: "ios",
-          message: "Concurrent rollout A",
-          groupId: "group-concurrent-a",
-          metadata: {},
-          rolloutPercentage: 50,
-          assets: [{ hash: "abc123def456", key: "bundles/ios.js", isLaunch: true }],
-        },
-        { cookie: cookies },
+    const [first, second] = await Effect.runPromise(
+      Effect.all(
+        [
+          Effect.promise(() =>
+            post(
+              "/api/updates",
+              {
+                project: "@updates/test",
+                branch: "concurrent-rollout",
+                runtimeVersion: "3.0.0",
+                platform: "ios",
+                message: "Concurrent rollout A",
+                groupId: "group-concurrent-a",
+                metadata: {},
+                rolloutPercentage: 50,
+                assets: [{ hash: "abc123def456", key: "bundles/ios.js", isLaunch: true }],
+              },
+              { cookie: cookies },
+            ),
+          ),
+          Effect.promise(() =>
+            post(
+              "/api/updates",
+              {
+                project: "@updates/test",
+                branch: "concurrent-rollout",
+                runtimeVersion: "3.0.0",
+                platform: "ios",
+                message: "Concurrent rollout B",
+                groupId: "group-concurrent-b",
+                metadata: {},
+                rolloutPercentage: 50,
+                assets: [{ hash: "abc123def456", key: "bundles/ios.js", isLaunch: true }],
+              },
+              { cookie: cookies },
+            ),
+          ),
+        ],
+        { concurrency: "unbounded" },
       ),
-      post(
-        "/api/updates",
-        {
-          project: "@updates/test",
-          branch: "concurrent-rollout",
-          runtimeVersion: "3.0.0",
-          platform: "ios",
-          message: "Concurrent rollout B",
-          groupId: "group-concurrent-b",
-          metadata: {},
-          rolloutPercentage: 50,
-          assets: [{ hash: "abc123def456", key: "bundles/ios.js", isLaunch: true }],
-        },
-        { cookie: cookies },
-      ),
-    ]);
+    );
 
     const statuses = [first.status, second.status].sort();
     expect(statuses).toEqual([201, 409]);

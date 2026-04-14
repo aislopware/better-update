@@ -11,6 +11,7 @@ import { Input } from "@better-update/ui/components/ui/input";
 import { Label } from "@better-update/ui/components/ui/label";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
+import { Effect } from "effect";
 import { toast } from "sonner";
 
 import type { ProjectDetail } from "@better-update/api-client/react";
@@ -24,14 +25,25 @@ export const RenameProjectSection = ({ project }: { project: ProjectDetail }) =>
     mutationFn: async (value: { name: string }) => renameProject(project.id, { name: value.name }),
     onSuccess: async () => {
       toast.success("Project renamed");
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: projectsQueryKey(project.organizationId),
-        }),
-        queryClient.invalidateQueries({
-          queryKey: projectQueryKey(project.id),
-        }),
-      ]);
+      await Effect.runPromise(
+        Effect.asVoid(
+          Effect.all(
+            [
+              Effect.promise(async () =>
+                queryClient.invalidateQueries({
+                  queryKey: projectsQueryKey(project.organizationId),
+                }),
+              ),
+              Effect.promise(async () =>
+                queryClient.invalidateQueries({
+                  queryKey: projectQueryKey(project.id),
+                }),
+              ),
+            ],
+            { concurrency: "unbounded" },
+          ),
+        ),
+      );
     },
   });
 
