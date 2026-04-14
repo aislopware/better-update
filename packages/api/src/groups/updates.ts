@@ -9,6 +9,7 @@ import {
   CreateUpdateBody,
   DeleteUpdateResult,
   RepublishBody,
+  RepublishResult,
   Update,
   UpdateRolloutBody,
 } from "../domain/update";
@@ -66,7 +67,7 @@ export class UpdatesGroup extends HttpApiGroup.make("updates")
   .add(
     HttpApiEndpoint.post("republish", "/api/updates/republish")
       .setPayload(RepublishBody)
-      .addSuccess(Update, { status: 201 })
+      .addSuccess(RepublishResult)
       .addError(Conflict)
       .annotateContext(
         OpenApi.annotations({

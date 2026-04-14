@@ -40,6 +40,7 @@ export {
   CreateUpdateBody,
   DeleteUpdateResult,
   RepublishBody,
+  RepublishResult,
   Update,
 } from "./domain/update";
 export { Asset, AssetUploadBody, AssetUploadResult } from "./domain/asset";

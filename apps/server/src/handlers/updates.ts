@@ -1,7 +1,7 @@
 import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
-import type { CreateUpdateBody } from "@better-update/api";
+import type { CreateUpdateBody, RepublishBody } from "@better-update/api";
 
 import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
@@ -9,7 +9,7 @@ import { assertProjectOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
 import { UpdateCoordinator } from "../cloudflare/update-coordinator";
 import { validateUpdatePublishInput } from "../domain/update-publish-validation";
-import { Conflict, NotFound } from "../errors";
+import { BadRequest, Conflict, NotFound } from "../errors";
 import { toApiUpdate } from "../http/to-api";
 import { toApiBadRequestReadEffect, toApiWriteEffect } from "../http/to-api-effect";
 import { AssetRepo, BranchRepo, ChannelRepo, ProjectRepo, UpdateRepo } from "../repositories";
@@ -28,12 +28,145 @@ const assertAssetsExist = (assets: readonly { readonly hash: string }[]) =>
     });
     const existingHashes = new Set(existingAssets.map((asset) => asset.hash));
     const missingHashes = assets.filter((asset) => !existingHashes.has(asset.hash));
+    const pendingHashes = existingAssets
+      .filter((asset) => asset.byteSize <= 0)
+      .map((asset) => asset.hash);
 
     if (missingHashes.length > 0) {
       yield* new NotFound({
         message: `Assets not found: ${missingHashes.map((asset) => asset.hash).join(", ")}`,
       });
     }
+
+    if (pendingHashes.length > 0) {
+      yield* new NotFound({
+        message: `Assets not uploaded: ${pendingHashes.join(", ")}`,
+      });
+    }
+  });
+
+const fail = (message: string) => new BadRequest({ message });
+
+const assertExactlyOneDefined = (params: {
+  readonly values: readonly [unknown, unknown];
+  readonly message: string;
+}) => {
+  const definedCount = params.values.filter((value) => value !== undefined).length;
+  return definedCount === 1 ? Effect.void : Effect.fail(fail(params.message));
+};
+
+const isSignedOrPrecomputedUpdate = (update: {
+  readonly signature: string | null;
+  readonly certificateChain: string | null;
+  readonly manifestBody: string | null;
+  readonly directiveBody: string | null;
+}) =>
+  update.signature !== null ||
+  update.certificateChain !== null ||
+  update.manifestBody !== null ||
+  update.directiveBody !== null;
+
+const resolveRepublishSource = ({ payload }: { readonly payload: typeof RepublishBody.Type }) =>
+  Effect.gen(function* () {
+    yield* assertExactlyOneDefined({
+      values: [payload.sourceUpdateId, payload.sourceGroupId],
+      message: "Provide exactly one of sourceUpdateId or sourceGroupId",
+    });
+
+    const updateRepo = yield* UpdateRepo;
+    const branchRepo = yield* BranchRepo;
+    const sourceUpdates = payload.sourceUpdateId
+      ? [yield* updateRepo.findById({ id: payload.sourceUpdateId })]
+      : yield* Effect.gen(function* () {
+          const updates = yield* updateRepo.findByGroupId({
+            groupId: payload.sourceGroupId ?? "",
+          });
+          if (updates.length === 0) {
+            yield* new NotFound({ message: "Update group not found" });
+          }
+          return updates;
+        });
+
+    const sourceBranches = yield* Effect.forEach(
+      sourceUpdates,
+      (update) => branchRepo.findById({ id: update.branchId }),
+      { concurrency: "unbounded" },
+    );
+    const projectIds = [...new Set(sourceBranches.map((branch) => branch.projectId))];
+    const [sourceProjectId = ""] = projectIds;
+    if (sourceProjectId.length === 0 || projectIds.length !== 1) {
+      yield* fail("All source updates must belong to the same project");
+    }
+
+    yield* assertProjectOwnership(sourceProjectId);
+
+    if (sourceUpdates.some((update) => update.isRollback)) {
+      yield* fail("Cannot republish a rollback directive");
+    }
+
+    if (sourceUpdates.some(isSignedOrPrecomputedUpdate)) {
+      yield* fail(
+        "Cannot republish in a signed project. Use POST /api/updates with a pre-signed manifest instead.",
+      );
+    }
+
+    const sourceUpdatesWithAssets = yield* Effect.forEach(
+      sourceUpdates,
+      (update) =>
+        Effect.map(getUpdateAssets(update.id), (assets) => ({
+          update,
+          assets,
+        })),
+      { concurrency: "unbounded" },
+    );
+
+    return {
+      projectId: sourceProjectId,
+      sourceUpdates: sourceUpdatesWithAssets.toSorted((left, right) =>
+        left.update.platform.localeCompare(right.update.platform),
+      ),
+    };
+  });
+
+const resolveRepublishDestination = (params: {
+  readonly payload: typeof RepublishBody.Type;
+  readonly projectId: string;
+}) =>
+  Effect.gen(function* () {
+    yield* assertExactlyOneDefined({
+      values: [params.payload.destinationBranchId, params.payload.destinationChannel],
+      message: "Provide exactly one of destinationBranchId or destinationChannel",
+    });
+
+    const branchRepo = yield* BranchRepo;
+    const channelRepo = yield* ChannelRepo;
+
+    if (params.payload.destinationBranchId) {
+      const destinationBranch = yield* branchRepo.findById({
+        id: params.payload.destinationBranchId,
+      });
+      if (destinationBranch.projectId !== params.projectId) {
+        yield* fail("Source and destination must belong to the same project");
+      }
+
+      return {
+        branchId: destinationBranch.id,
+        auditMetadata: { destinationBranchId: destinationBranch.id },
+      };
+    }
+
+    const destinationChannel = yield* channelRepo.findByProjectAndName({
+      projectId: params.projectId,
+      name: params.payload.destinationChannel ?? "",
+    });
+
+    return {
+      branchId: destinationChannel.branchId,
+      auditMetadata: {
+        destinationBranchId: destinationChannel.branchId,
+        destinationChannel: destinationChannel.name,
+      },
+    };
   });
 
 const handleCreateUpdate = ({ payload }: { readonly payload: typeof CreateUpdateBody.Type }) =>
@@ -186,55 +319,46 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
         Effect.gen(function* () {
           yield* assertPermission("update", "create");
 
-          // Find source update and verify ownership
-          const updateRepo = yield* UpdateRepo;
-          const sourceUpdate = yield* updateRepo.findById({ id: payload.sourceUpdateId });
-
-          const branchRepo = yield* BranchRepo;
-          const sourceBranch = yield* branchRepo.findById({ id: sourceUpdate.branchId });
-          yield* assertProjectOwnership(sourceBranch.projectId);
-
-          // Find target channel and get its branch
-          const channelRepo = yield* ChannelRepo;
-          const targetChannel = yield* channelRepo.findById({ id: payload.targetChannelId });
-
-          // Verify target channel belongs to same project
-          if (targetChannel.projectId !== sourceBranch.projectId) {
-            return yield* Effect.fail(new NotFound({ message: "Target channel not found" }));
-          }
-
-          // Get source update's assets via update_assets table
-          const sourceAssets = yield* getUpdateAssets(sourceUpdate.id);
+          const source = yield* resolveRepublishSource({ payload });
+          const destination = yield* resolveRepublishDestination({
+            payload,
+            projectId: source.projectId,
+          });
           const coordinator = yield* UpdateCoordinator;
           const publishResult = yield* coordinator.republishUpdate({
-            coordinatorName: targetChannel.branchId,
+            coordinatorName: destination.branchId,
             payload: {
-              branchId: targetChannel.branchId,
-              runtimeVersion: sourceUpdate.runtimeVersion,
-              platform: sourceUpdate.platform,
-              message: sourceUpdate.message,
-              metadataJson: sourceUpdate.metadataJson,
-              extraJson: sourceUpdate.extraJson,
-              signature: sourceUpdate.signature,
-              certificateChain: sourceUpdate.certificateChain,
-              manifestBody: sourceUpdate.manifestBody,
-              directiveBody: sourceUpdate.directiveBody,
-              assets: sourceAssets,
+              branchId: destination.branchId,
+              message: payload.message ?? null,
+              updates: source.sourceUpdates.map(({ update, assets }) => ({
+                runtimeVersion: update.runtimeVersion,
+                platform: update.platform,
+                message: update.message,
+                metadataJson: update.metadataJson,
+                extraJson: update.extraJson,
+                assets,
+              })),
             },
           });
           if (!publishResult.ok) {
             return yield* Effect.fail(new Conflict({ message: publishResult.message }));
           }
-          const republishedUpdate = publishResult.value;
 
-          const result = toApiUpdate(republishedUpdate);
+          const result = {
+            updates: publishResult.value.map(toApiUpdate),
+          };
 
-          yield* logAudit({
-            action: "update.promote",
-            resourceType: "update",
-            resourceId: result.id,
-            metadata: { channelId: payload.targetChannelId },
-          });
+          yield* Effect.forEach(
+            result.updates,
+            (update) =>
+              logAudit({
+                action: "update.promote",
+                resourceType: "update",
+                resourceId: update.id,
+                metadata: destination.auditMetadata,
+              }),
+            { concurrency: "unbounded" },
+          );
 
           return result;
         }),

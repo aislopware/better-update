@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { setupE2EWorker } from "../helpers/e2e-worker";
 
 const { getBaseUrl } = setupE2EWorker(".wrangler/state/e2e-asset-serving");
@@ -33,9 +35,11 @@ const parseCookies = (response: Response): string => {
 describe("Asset serving flow", () => {
   let cookies: string;
   let organizationId: string;
+  let projectId: string;
+  let uploadToken: string;
 
   const assetContent = "console.log('hello from asset')";
-  const assetHash = "aabbccdd11223344";
+  const assetHash = createHash("sha256").update(assetContent).digest("base64url");
   const assetContentType = "application/javascript";
 
   // ── Section 1: Auth bootstrap ──────────────────────────────────
@@ -72,26 +76,87 @@ describe("Asset serving flow", () => {
     cookies = parseCookies(response) || cookies;
   });
 
+  it("creates a project", async () => {
+    const response = await post(
+      "/api/projects",
+      { name: "Asset Test Project", scopeKey: "@asset/test" },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(201);
+    projectId = (await response.json()).id as string;
+  });
+
   // ── Section 2: Upload asset ────────────────────────────────────
 
   it("registers asset metadata", async () => {
     const response = await post(
       "/api/assets/upload",
-      { assets: [{ hash: assetHash, contentType: assetContentType, fileExt: "js" }] },
+      {
+        projectId,
+        assets: [{ hash: assetHash, contentType: assetContentType, fileExt: "js" }],
+      },
       { cookie: cookies },
     );
     expect(response.status).toBe(201);
     const body = await response.json();
-    expect(body.uploaded).toContain(assetHash);
+    expect(body.uploaded).toEqual([
+      expect.objectContaining({
+        hash: assetHash,
+        uploadToken: expect.any(String),
+      }),
+    ]);
+    uploadToken = body.uploaded[0]?.uploadToken as string;
+  });
+
+  it("rejects binary upload without a scoped upload token", async () => {
+    const response = await put(`/api/assets/${assetHash}`, new TextEncoder().encode(assetContent), {
+      "content-type": assetContentType,
+      "content-length": new TextEncoder().encode(assetContent).byteLength.toString(),
+    });
+    expect(response.status).toBe(401);
   });
 
   it("uploads asset binary", async () => {
     const response = await put(`/api/assets/${assetHash}`, new TextEncoder().encode(assetContent), {
-      cookie: cookies,
+      "x-better-update-upload-token": uploadToken,
       "content-type": assetContentType,
       "content-length": new TextEncoder().encode(assetContent).byteLength.toString(),
     });
     expect(response.status).toBe(200);
+  });
+
+  it("rejects binary upload when the body hash does not match the registered hash", async () => {
+    const expectedContent = "console.log('expected')";
+    const unexpectedContent = "console.log('unexpected')";
+    const mismatchedHash = createHash("sha256").update(expectedContent).digest("base64url");
+
+    const registerResponse = await post(
+      "/api/assets/upload",
+      {
+        projectId,
+        assets: [{ hash: mismatchedHash, contentType: assetContentType, fileExt: "js" }],
+      },
+      { cookie: cookies },
+    );
+    expect(registerResponse.status).toBe(201);
+    const registerBody = await registerResponse.json();
+    const mismatchedUploadToken = registerBody.uploaded[0]?.uploadToken as string;
+
+    const uploadResponse = await put(
+      `/api/assets/${mismatchedHash}`,
+      new TextEncoder().encode(unexpectedContent),
+      {
+        "x-better-update-upload-token": mismatchedUploadToken,
+        "content-type": assetContentType,
+        "content-length": new TextEncoder().encode(unexpectedContent).byteLength.toString(),
+      },
+    );
+    expect(uploadResponse.status).toBe(400);
+    expect(await uploadResponse.json()).toEqual(
+      expect.objectContaining({
+        message: expect.stringContaining("Asset hash mismatch"),
+      }),
+    );
   });
 
   // ── Section 3: Serve asset ─────────────────────────────────────

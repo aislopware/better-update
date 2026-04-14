@@ -49,12 +49,12 @@ export const PromoteUpdateDialog = ({
   onOpenChange,
 }: PromoteUpdateDialogProps) => {
   const queryClient = useQueryClient();
-  const [targetChannelId, setTargetChannelId] = useState("");
+  const [targetChannelName, setTargetChannelName] = useState("");
   const promoteUpdateMutation = useApiMutation({
-    mutationFn: async (channelId: string) =>
+    mutationFn: async (channelName: string) =>
       republishUpdate({
         sourceUpdateId: update.id,
-        targetChannelId: channelId,
+        destinationChannel: channelName,
       }),
     onSuccess: async () => {
       toast.success("Update promoted successfully");
@@ -77,16 +77,16 @@ export const PromoteUpdateDialog = ({
           ),
         ),
       );
-      setTargetChannelId("");
+      setTargetChannelName("");
       onOpenChange(false);
     },
   });
 
   const handlePromote = async () => {
-    if (!targetChannelId) {
+    if (!targetChannelName) {
       return;
     }
-    await promoteUpdateMutation.mutateAsync(targetChannelId);
+    await promoteUpdateMutation.mutateAsync(targetChannelName);
   };
 
   return (
@@ -94,7 +94,7 @@ export const PromoteUpdateDialog = ({
       open={open}
       onOpenChange={(nextOpen) => {
         if (!nextOpen) {
-          setTargetChannelId("");
+          setTargetChannelName("");
         }
         onOpenChange(nextOpen);
       }}
@@ -118,10 +118,10 @@ export const PromoteUpdateDialog = ({
           <div className="flex flex-col gap-2">
             <span className="text-sm font-medium">Target channel</span>
             <Select
-              value={targetChannelId}
+              value={targetChannelName}
               onValueChange={(value) => {
                 if (value) {
-                  setTargetChannelId(value);
+                  setTargetChannelName(value);
                 }
               }}
             >
@@ -130,7 +130,7 @@ export const PromoteUpdateDialog = ({
               </SelectTrigger>
               <SelectContent>
                 {channels.map((channel) => (
-                  <SelectItem key={channel.id} value={channel.id}>
+                  <SelectItem key={channel.id} value={channel.name}>
                     {channel.name}
                   </SelectItem>
                 ))}
@@ -141,7 +141,7 @@ export const PromoteUpdateDialog = ({
         <DialogFooter>
           <Button
             onClick={handlePromote}
-            disabled={!targetChannelId || promoteUpdateMutation.isPending}
+            disabled={!targetChannelName || promoteUpdateMutation.isPending}
           >
             <HugeiconsIcon icon={Rocket01Icon} strokeWidth={2} className="size-4" />
             {promoteUpdateMutation.isPending ? "Promoting..." : "Promote"}

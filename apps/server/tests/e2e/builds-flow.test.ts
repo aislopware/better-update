@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { setupE2EWorker } from "../helpers/e2e-worker";
 
 const { getBaseUrl } = setupE2EWorker(".wrangler/state/e2e-builds");
@@ -41,9 +43,11 @@ describe("Builds API flow", () => {
   let buildId: string;
   let uploadUrl: string;
   let uploadExpiresAt: string;
+  let mismatchBuildId: string;
+  let mismatchUploadUrl: string;
 
   const artifactBytes = Buffer.from("e2e build artifact");
-  const artifactSha256 = "e2e-build-sha256";
+  const artifactSha256 = createHash("sha256").update(artifactBytes).digest("hex");
 
   // -- Auth bootstrap -------------------------------------------------------
 
@@ -119,6 +123,20 @@ describe("Builds API flow", () => {
     expect(body.uploadExpiresAt).toBeDefined();
   });
 
+  it("rejects incompatible build reservations", async () => {
+    const response = await post(
+      "/api/builds",
+      {
+        projectId,
+        platform: "android",
+        distribution: "direct",
+        artifactFormat: "aab",
+      },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(400);
+  });
+
   it("uploads the artifact to the reserved URL", async () => {
     const response = await putAbsolute(uploadUrl, artifactBytes, {
       "content-type": "application/octet-stream",
@@ -147,6 +165,52 @@ describe("Builds API flow", () => {
           byteSize: artifactBytes.byteLength,
           format: "ipa",
         }),
+      }),
+    );
+  });
+
+  it("reserves another build for integrity validation", async () => {
+    const response = await post(
+      "/api/builds",
+      {
+        projectId,
+        platform: "android",
+        distribution: "direct",
+        artifactFormat: "apk",
+        appVersion: "1.0.0",
+        buildNumber: "43",
+        bundleId: "com.test.app",
+        message: "Integrity check build",
+      },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    mismatchBuildId = body.id as string;
+    mismatchUploadUrl = body.uploadUrl as string;
+  });
+
+  it("uploads a second artifact to staging", async () => {
+    const response = await putAbsolute(mismatchUploadUrl, artifactBytes, {
+      "content-type": "application/vnd.android.package-archive",
+      "content-length": String(artifactBytes.byteLength),
+    });
+    expect(response.status).toBe(200);
+  });
+
+  it("rejects build completion when sha256 does not match the uploaded artifact", async () => {
+    const response = await post(
+      `/api/builds/${mismatchBuildId}/complete`,
+      {
+        sha256: "0".repeat(64),
+        byteSize: artifactBytes.byteLength,
+      },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual(
+      expect.objectContaining({
+        message: expect.stringContaining("Artifact SHA-256 mismatch"),
       }),
     );
   });

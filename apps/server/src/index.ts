@@ -4,11 +4,12 @@ import type { Context } from "effect";
 
 import { makeManagementWebHandler } from "./app-layer";
 import { createAuth } from "./auth";
-import { API_KEY_PREFIX } from "./auth/constants";
 import { AssetStorage } from "./cloudflare/asset-storage";
 import { makeCloudflareRequestContext, provideCloudflareEnv } from "./cloudflare/context";
 import { handleScheduled, matchBuildRoute, serveManifest } from "./handlers";
 import { ServerInfrastructureLayer } from "./infrastructure-layer";
+import { verifyAssetUploadToken } from "./lib/asset-upload-token";
+import { toBase64Url } from "./lib/base64";
 import { AssetRepo } from "./repositories";
 
 import type { ServerInfrastructure } from "./infrastructure-layer";
@@ -63,44 +64,18 @@ const internalError = () =>
     { status: 500 },
   );
 
-interface VerifyApiKeyResult {
-  readonly valid: boolean;
-  readonly key: object | null;
-}
-
-interface VerifyApiKeyApi {
-  readonly verifyApiKey: (opts: { body: { key: string } }) => Promise<VerifyApiKeyResult>;
-}
-
-const isVerifyApiKeyApi = (value: unknown): value is VerifyApiKeyApi =>
-  typeof value === "object" &&
-  value !== null &&
-  "verifyApiKey" in value &&
-  typeof value.verifyApiKey === "function";
-
-const isAssetUploadAuthorized = async (headers: Headers, env: Env): Promise<boolean> => {
-  const auth = createAuth(env);
-  const session = await auth.api.getSession({ headers });
-  if (session) {
-    return true;
-  }
-
-  const authorization = headers.get("authorization");
-  if (!authorization?.startsWith("Bearer ")) {
+const isAssetUploadAuthorized = async (
+  headers: Headers,
+  env: Env,
+  hash: string,
+): Promise<boolean> => {
+  const token = headers.get("x-better-update-upload-token")?.trim();
+  if (!token) {
     return false;
   }
 
-  const token = authorization.slice("Bearer ".length).trim();
-  if (!token.startsWith(API_KEY_PREFIX)) {
-    return false;
-  }
-
-  if (!isVerifyApiKeyApi(auth.api)) {
-    return false;
-  }
-
-  const result = await auth.api.verifyApiKey({ body: { key: token } }).catch(() => null);
-  return result?.valid === true && result.key !== null;
+  const payload = await verifyAssetUploadToken(token, env.BETTER_AUTH_SECRET).catch(() => null);
+  return payload?.hash === hash;
 };
 
 /** Handle Better Auth routes with workarounds for dev-mode status codes and empty bodies */
@@ -181,7 +156,7 @@ const handleAssetDownload = async (
 
 /** Binary asset upload — outside Effect HttpApi (streams body to R2) */
 const handleAssetUpload = async (request: Request, env: Env, hash: string): Promise<Response> => {
-  if (!(await isAssetUploadAuthorized(request.headers, env))) {
+  if (!(await isAssetUploadAuthorized(request.headers, env, hash))) {
     return Response.json(
       { code: "UNAUTHORIZED", message: "Authentication required" },
       { status: 401 },
@@ -193,20 +168,34 @@ const handleAssetUpload = async (request: Request, env: Env, hash: string): Prom
     return Response.json({ code: "NOT_FOUND", message: "Asset not registered" }, { status: 404 });
   }
 
+  if (asset.byteSize > 0) {
+    return Response.json({ hash, r2Key: asset.r2Key }, { status: 200 });
+  }
+
+  const bodyBytes = new Uint8Array(await request.arrayBuffer());
+  const digest = await crypto.subtle.digest("SHA-256", bodyBytes);
+  const computedHash = toBase64Url(new Uint8Array(digest));
+
+  if (computedHash !== hash) {
+    return Response.json(
+      {
+        code: "BAD_REQUEST",
+        message: `Asset hash mismatch: expected ${hash}, got ${computedHash}`,
+      },
+      { status: 400 },
+    );
+  }
+
   await runServerEnvEffect(
     putAssetObject({
       key: asset.r2Key,
-      body: request.body ?? new Uint8Array(),
+      body: bodyBytes,
       contentType: asset.contentType,
     }),
     env,
   );
 
-  // Update byte size
-  const contentLength = request.headers.get("content-length");
-  if (contentLength) {
-    await runServerEnvEffect(updateAssetByteSize(hash, Number.parseInt(contentLength, 10)), env);
-  }
+  await runServerEnvEffect(updateAssetByteSize(hash, bodyBytes.byteLength), env);
 
   return Response.json({ hash, r2Key: asset.r2Key }, { status: 200 });
 };

@@ -41,7 +41,7 @@ export interface UpdateCoordinatorService {
   readonly republishUpdate: (params: {
     readonly coordinatorName: string;
     readonly payload: RepublishUpdateRequest;
-  }) => Effect.Effect<PublishUpdateResult<SerializedUpdate>>;
+  }) => Effect.Effect<PublishUpdateResult<readonly SerializedUpdate[]>>;
 }
 
 export class UpdateCoordinator extends Context.Tag("server/UpdateCoordinator")<

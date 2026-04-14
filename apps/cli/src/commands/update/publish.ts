@@ -12,10 +12,22 @@ const platform = Options.choice("platform", ["ios", "android", "all"] as const).
 const message = Options.text("message").pipe(Options.optional);
 const environment = Options.text("environment").pipe(Options.withDefault("production"));
 const clear = Options.boolean("clear");
+const manifestBodyFile = Options.text("manifest-body-file").pipe(Options.optional);
+const signatureFile = Options.text("signature-file").pipe(Options.optional);
+const certificateChainFile = Options.text("certificate-chain-file").pipe(Options.optional);
 
 export const publishCommand = Command.make(
   "publish",
-  { branch, platform, message, environment, clear },
+  {
+    branch,
+    platform,
+    message,
+    environment,
+    clear,
+    manifestBodyFile,
+    signatureFile,
+    certificateChainFile,
+  },
   (opts) =>
     Effect.gen(function* () {
       const result = yield* runUpdatePublish({
@@ -24,6 +36,9 @@ export const publishCommand = Command.make(
         message: Option.getOrUndefined(opts.message),
         environment: opts.environment,
         clear: opts.clear,
+        manifestBodyFile: Option.getOrUndefined(opts.manifestBodyFile),
+        signatureFile: Option.getOrUndefined(opts.signatureFile),
+        certificateChainFile: Option.getOrUndefined(opts.certificateChainFile),
       });
 
       yield* Console.log(`Published update group ${result.groupId} to branch "${result.branch}".`);

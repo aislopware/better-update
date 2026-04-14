@@ -77,7 +77,7 @@ export class PublishCoordinator extends SerializedCoordinator {
 
   async republishUpdate(
     params: RepublishUpdateRequest,
-  ): Promise<CoordinatorResult<SerializedUpdate>> {
+  ): Promise<CoordinatorResult<readonly SerializedUpdate[]>> {
     return this.runExclusive(async () => {
       const result = await runCoordinatorEffect(
         republishUpdate({
@@ -91,7 +91,7 @@ export class PublishCoordinator extends SerializedCoordinator {
         return result;
       }
 
-      return { ok: true as const, value: result.value.update };
+      return { ok: true as const, value: result.value.updates };
     });
   }
 }

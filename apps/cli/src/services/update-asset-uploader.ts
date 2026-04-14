@@ -2,14 +2,12 @@ import { FileSystem, HttpClient, HttpClientRequest } from "@effect/platform";
 import { Context, Effect, Layer } from "effect";
 
 import { UpdatePublishError } from "../lib/exit-codes";
-import { AuthStore } from "./auth-store";
 import { ConfigStore } from "./config-store";
-
-import type { AuthRequiredError } from "../lib/exit-codes";
 
 export interface UploadUpdateAssetInput {
   readonly path: string;
   readonly hash: string;
+  readonly uploadToken: string;
   readonly byteSize: number;
   readonly contentType: string;
 }
@@ -36,7 +34,7 @@ export class UpdateAssetUploader extends Context.Tag("cli/UpdateAssetUploader")<
   {
     readonly uploadAssetBinary: (
       input: UploadUpdateAssetInput,
-    ) => Effect.Effect<void, AuthRequiredError | UpdatePublishError>;
+    ) => Effect.Effect<void, UpdatePublishError>;
   }
 >() {}
 
@@ -45,19 +43,17 @@ export const UpdateAssetUploaderLive = Layer.effect(
   Effect.gen(function* () {
     const client = yield* HttpClient.HttpClient;
     const fileSystem = yield* FileSystem.FileSystem;
-    const authStore = yield* AuthStore;
     const configStore = yield* ConfigStore;
 
     return {
       uploadAssetBinary: (asset: UploadUpdateAssetInput) =>
         Effect.gen(function* () {
-          const token = yield* authStore.getToken;
           const baseUrl = yield* configStore.getBaseUrl;
           const uploadUrl = new URL(`/api/assets/${encodeURIComponent(asset.hash)}`, baseUrl);
 
           const request = yield* HttpClientRequest.put(uploadUrl.toString()).pipe(
             HttpClientRequest.setHeaders({
-              Authorization: `Bearer ${token}`,
+              "X-Better-Update-Upload-Token": asset.uploadToken,
               "Content-Type": asset.contentType,
               "Content-Length": String(asset.byteSize),
             }),

@@ -57,10 +57,29 @@ const parseCookies = (response: Response): string => {
 
 const sqlString = (value: string) => `'${value.replaceAll("'", "''")}'`;
 
-const isRetryableFetchError = (error: unknown) =>
-  error instanceof Error &&
-  typeof (error as NodeJS.ErrnoException).code === "string" &&
-  ["ECONNRESET", "EPIPE", "UND_ERR_SOCKET"].includes((error as NodeJS.ErrnoException).code!);
+const getNodeErrorCode = (error: unknown): string | undefined => {
+  if (!(error instanceof Error)) {
+    return undefined;
+  }
+
+  const directCode = (error as NodeJS.ErrnoException).code;
+  if (typeof directCode === "string") {
+    return directCode;
+  }
+
+  const cause = (error as Error & { readonly cause?: unknown }).cause;
+  if (typeof cause !== "object" || cause === null) {
+    return undefined;
+  }
+
+  const nestedCode = (cause as NodeJS.ErrnoException).code;
+  return typeof nestedCode === "string" ? nestedCode : undefined;
+};
+
+const isRetryableFetchError = (error: unknown) => {
+  const code = getNodeErrorCode(error);
+  return code !== undefined && ["ECONNRESET", "EPIPE", "UND_ERR_SOCKET"].includes(code);
+};
 
 export interface CliCommandResult {
   readonly stdout: string;

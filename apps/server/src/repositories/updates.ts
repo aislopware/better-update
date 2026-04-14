@@ -25,6 +25,25 @@ export interface UpdateRepository {
     readonly assets: readonly UpdateAssetRefModel[];
   }) => Effect.Effect<UpdateModel>;
 
+  readonly insertBatch: (params: {
+    readonly branchId: string;
+    readonly groupId: string;
+    readonly updates: readonly {
+      readonly runtimeVersion: string;
+      readonly platform: Platform;
+      readonly message: string;
+      readonly metadataJson: string;
+      readonly extraJson: string | null;
+      readonly rolloutPercentage: number;
+      readonly isRollback: boolean;
+      readonly signature: string | null;
+      readonly certificateChain: string | null;
+      readonly manifestBody: string | null;
+      readonly directiveBody: string | null;
+      readonly assets: readonly UpdateAssetRefModel[];
+    }[];
+  }) => Effect.Effect<readonly UpdateModel[]>;
+
   readonly findByProject: (params: {
     readonly projectId: string;
     readonly branchId?: string;
@@ -168,6 +187,70 @@ export const UpdateRepoLive = Layer.succeed(UpdateRepo, {
         directiveBody: params.directiveBody,
         createdAt: now,
       } satisfies UpdateModel;
+    }),
+
+  insertBatch: (params) =>
+    Effect.gen(function* () {
+      if (params.updates.length === 0) {
+        return [];
+      }
+
+      const env = yield* cloudflareEnv;
+      const now = new Date().toISOString();
+      const updatesWithIds = params.updates.map((update) => ({
+        id: crypto.randomUUID(),
+        ...update,
+      }));
+
+      const statements = updatesWithIds.flatMap((update) => [
+        env.DB.prepare(
+          `INSERT INTO "updates" ("id", "branch_id", "runtime_version", "platform", "message", "metadata_json", "extra_json", "group_id", "rollout_percentage", "is_rollback", "signature", "certificate_chain", "manifest_body", "directive_body", "created_at") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ).bind(
+          update.id,
+          params.branchId,
+          update.runtimeVersion,
+          update.platform,
+          update.message,
+          update.metadataJson,
+          update.extraJson,
+          params.groupId,
+          update.rolloutPercentage,
+          update.isRollback ? 1 : 0,
+          update.signature,
+          update.certificateChain,
+          update.manifestBody,
+          update.directiveBody,
+          now,
+        ),
+        ...update.assets.map((asset) =>
+          env.DB.prepare(
+            `INSERT INTO "update_assets" ("update_id", "asset_key", "asset_hash", "is_launch") VALUES (?, ?, ?, ?)`,
+          ).bind(update.id, asset.key, asset.hash, asset.isLaunch ? 1 : 0),
+        ),
+      ]);
+
+      yield* Effect.promise(async () => env.DB.batch(statements));
+
+      return updatesWithIds.map(
+        (update) =>
+          ({
+            id: update.id,
+            branchId: params.branchId,
+            runtimeVersion: update.runtimeVersion,
+            platform: update.platform,
+            message: update.message,
+            metadataJson: update.metadataJson,
+            extraJson: update.extraJson,
+            groupId: params.groupId,
+            rolloutPercentage: update.rolloutPercentage,
+            isRollback: update.isRollback,
+            signature: update.signature,
+            certificateChain: update.certificateChain,
+            manifestBody: update.manifestBody,
+            directiveBody: update.directiveBody,
+            createdAt: now,
+          }) satisfies UpdateModel,
+      );
     }),
 
   findByProject: (params) =>

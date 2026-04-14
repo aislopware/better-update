@@ -48,7 +48,9 @@ interface CreateRollbackParams {
   readonly platform: Platform;
   readonly message: string;
   readonly groupId: string;
-  readonly commitTime: string;
+  readonly directiveBody: string;
+  readonly signature: string | undefined;
+  readonly certificateChain: string | undefined;
 }
 
 export interface RollbackResultItem {
@@ -62,6 +64,9 @@ export interface RunUpdateRollbackOptions {
   readonly platform: UpdatePlatformOption;
   readonly message: string | undefined;
   readonly commitTime: string | undefined;
+  readonly directiveBodyFile: string | undefined;
+  readonly signatureFile: string | undefined;
+  readonly certificateChainFile: string | undefined;
 }
 
 export interface UpdateRollbackResult {
@@ -69,6 +74,12 @@ export interface UpdateRollbackResult {
   readonly branch: string;
   readonly commitTime: string;
   readonly results: readonly RollbackResultItem[];
+}
+
+interface SignedRollbackPayload {
+  readonly directiveBody: string;
+  readonly signature: string;
+  readonly certificateChain: string;
 }
 
 const resolveCommitTime = (input: string | undefined): Effect.Effect<string, UpdateRollbackError> =>
@@ -80,6 +91,92 @@ const resolveCommitTime = (input: string | undefined): Effect.Effect<string, Upd
       });
     }
     return commitTime;
+  });
+
+const extractDirectiveCommitTime = (
+  directiveBody: string,
+): Effect.Effect<string, UpdateRollbackError> =>
+  Effect.gen(function* () {
+    const directive = yield* Effect.try({
+      try: () => JSON.parse(directiveBody) as unknown,
+      catch: () =>
+        new UpdateRollbackError({
+          message: "directiveBody must be valid JSON.",
+        }),
+    });
+
+    if (typeof directive !== "object" || directive === null) {
+      return yield* new UpdateRollbackError({
+        message: "directiveBody must decode to a JSON object.",
+      });
+    }
+
+    const type = Reflect.get(directive, "type");
+    if (type !== "rollBackToEmbedded") {
+      return yield* new UpdateRollbackError({
+        message: 'directiveBody.type must be "rollBackToEmbedded".',
+      });
+    }
+
+    const parameters = Reflect.get(directive, "parameters");
+    if (typeof parameters !== "object" || parameters === null) {
+      return yield* new UpdateRollbackError({
+        message: "directiveBody.parameters must be an object.",
+      });
+    }
+
+    const commitTime = Reflect.get(parameters, "commitTime");
+    if (typeof commitTime !== "string" || Number.isNaN(Date.parse(commitTime))) {
+      return yield* new UpdateRollbackError({
+        message: "directiveBody.parameters.commitTime must be a valid ISO 8601 timestamp.",
+      });
+    }
+
+    return commitTime;
+  });
+
+const loadOptionalSignedRollbackPayload = (
+  options: RunUpdateRollbackOptions,
+): Effect.Effect<SignedRollbackPayload | null, UpdateRollbackError, FileSystem.FileSystem> =>
+  Effect.gen(function* () {
+    const fileSystem = yield* FileSystem.FileSystem;
+    const hasAnySigningInput =
+      options.directiveBodyFile !== undefined ||
+      options.signatureFile !== undefined ||
+      options.certificateChainFile !== undefined;
+
+    if (!hasAnySigningInput) {
+      return null;
+    }
+
+    if (!options.directiveBodyFile || !options.signatureFile || !options.certificateChainFile) {
+      return yield* new UpdateRollbackError({
+        message:
+          "Signed rollback requires --directive-body-file, --signature-file, and --certificate-chain-file together.",
+      });
+    }
+
+    const [directiveBody, signature, certificateChain] = yield* Effect.all(
+      [
+        fileSystem.readFileString(options.directiveBodyFile),
+        fileSystem.readFileString(options.signatureFile),
+        fileSystem.readFileString(options.certificateChainFile),
+      ],
+      { concurrency: "unbounded" },
+    ).pipe(
+      Effect.mapError(
+        (cause) =>
+          new UpdateRollbackError({
+            message: `Failed to read signed rollback inputs: ${formatCause(cause)}`,
+          }),
+      ),
+    );
+
+    return {
+      directiveBody,
+      signature: signature.trim(),
+      certificateChain: certificateChain.trimEnd(),
+    } satisfies SignedRollbackPayload;
   });
 
 const createRollbackForPlatform = (
@@ -99,7 +196,9 @@ const createRollbackForPlatform = (
           metadata: {},
           assets: [],
           isRollback: true,
-          directiveBody: buildRollbackDirectiveBody(params.commitTime),
+          directiveBody: params.directiveBody,
+          ...(params.signature ? { signature: params.signature } : {}),
+          ...(params.certificateChain ? { certificateChain: params.certificateChain } : {}),
         },
       })
       .pipe(
@@ -149,7 +248,20 @@ export const runUpdateRollback = (
       appVersion,
       projectRoot,
     });
-    const commitTime = yield* resolveCommitTime(options.commitTime);
+    const signedPayload = yield* loadOptionalSignedRollbackPayload(options);
+    const commitTime = signedPayload
+      ? yield* Effect.gen(function* () {
+          const directiveCommitTime = yield* extractDirectiveCommitTime(
+            signedPayload.directiveBody,
+          );
+          if (options.commitTime && options.commitTime !== directiveCommitTime) {
+            return yield* new UpdateRollbackError({
+              message: "commitTime must match directiveBody.parameters.commitTime in signed mode.",
+            });
+          }
+          return directiveCommitTime;
+        })
+      : yield* resolveCommitTime(options.commitTime);
     const groupId = randomUUID();
     const message = options.message ?? "Rollback to embedded via better-update CLI";
 
@@ -163,7 +275,9 @@ export const runUpdateRollback = (
           platform,
           message,
           groupId,
-          commitTime,
+          directiveBody: signedPayload?.directiveBody ?? buildRollbackDirectiveBody(commitTime),
+          signature: signedPayload?.signature,
+          certificateChain: signedPayload?.certificateChain,
         }),
       { concurrency: 1 },
     );

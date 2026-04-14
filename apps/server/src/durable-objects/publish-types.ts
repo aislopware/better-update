@@ -49,4 +49,17 @@ export interface CreateUpdateRequest extends PublishInputBase {
   readonly isRollback: boolean;
 }
 
-export type RepublishUpdateRequest = PublishInputBase;
+export interface RepublishSourceUpdate {
+  readonly runtimeVersion: string;
+  readonly platform: "ios" | "android";
+  readonly message: string;
+  readonly metadataJson: string;
+  readonly extraJson: string | null;
+  readonly assets: readonly SerializedAssetRef[];
+}
+
+export interface RepublishUpdateRequest {
+  readonly branchId: string;
+  readonly message: string | null;
+  readonly updates: readonly RepublishSourceUpdate[];
+}

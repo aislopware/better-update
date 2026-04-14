@@ -45,8 +45,15 @@ export const CreateUpdateBody = Schema.Struct({
 });
 
 export const RepublishBody = Schema.Struct({
-  sourceUpdateId: Id,
-  targetChannelId: Id,
+  sourceUpdateId: Schema.optional(Id),
+  sourceGroupId: Schema.optional(Schema.String.pipe(Schema.minLength(1))),
+  destinationBranchId: Schema.optional(Id),
+  destinationChannel: Schema.optional(Schema.String.pipe(Schema.minLength(1))),
+  message: Schema.optional(Schema.String),
+});
+
+export const RepublishResult = Schema.Struct({
+  updates: Schema.Array(Update),
 });
 
 export const DeleteUpdateResult = Schema.Struct({

@@ -13,7 +13,7 @@ export const DISTRIBUTIONS_BY_PLATFORM: Record<
   readonly [DistributionValue, ...DistributionValue[]]
 > = {
   ios: ["app-store", "ad-hoc", "development", "enterprise", "simulator"],
-  android: ["play-store", "development", "direct"],
+  android: ["play-store", "direct"],
 };
 
 export const FORMATS_BY_PLATFORM: Record<
@@ -21,7 +21,7 @@ export const FORMATS_BY_PLATFORM: Record<
   readonly [ArtifactFormatValue, ...ArtifactFormatValue[]]
 > = {
   ios: ["ipa", "tar.gz"],
-  android: ["apk", "aab", "tar.gz"],
+  android: ["apk", "aab"],
 };
 
 export const DISTRIBUTION_LABELS: Record<DistributionValue, string> = {
@@ -58,13 +58,50 @@ export const detectArtifactFormat = (filename: string): ArtifactFormatValue | nu
 };
 
 export const detectPlatform = (format: ArtifactFormatValue): PlatformValue | null => {
-  if (format === "ipa") {
+  if (format === "ipa" || format === "tar.gz") {
     return "ios";
   }
-  if (format === "apk" || format === "aab") {
-    return "android";
+  return "android";
+};
+
+export const defaultFormatForDistribution = (
+  platform: PlatformValue,
+  distribution: DistributionValue,
+): ArtifactFormatValue => {
+  if (platform === "ios") {
+    return distribution === "simulator" ? "tar.gz" : "ipa";
   }
-  return null;
+
+  return distribution === "play-store" ? "aab" : "apk";
+};
+
+export const defaultDistributionForFormat = (
+  platform: PlatformValue,
+  format: ArtifactFormatValue,
+): DistributionValue => {
+  if (platform === "ios") {
+    return format === "tar.gz" ? "simulator" : "development";
+  }
+
+  return format === "aab" ? "play-store" : "direct";
+};
+
+export const isCompatibleBuildSelection = (
+  platform: PlatformValue,
+  distribution: DistributionValue,
+  format: ArtifactFormatValue,
+) => {
+  if (platform === "ios") {
+    return (
+      (distribution === "simulator" && format === "tar.gz") ||
+      (distribution !== "simulator" && format === "ipa")
+    );
+  }
+
+  return (
+    (distribution === "play-store" && format === "aab") ||
+    (distribution === "direct" && format === "apk")
+  );
 };
 
 export const computeSha256 = async (file: File): Promise<string> => {

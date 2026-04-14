@@ -1,5 +1,7 @@
+import { createHash, randomUUID } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import path from "node:path";
+import { setTimeout as sleep } from "node:timers/promises";
 
 import { setupCliE2E } from "../helpers/cli-e2e";
 
@@ -7,6 +9,91 @@ const cli = setupCliE2E(".wrangler/state/e2e-cli");
 
 const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const sqlString = (value: string) => `'${value.replaceAll("'", "''")}'`;
+
+const getNodeErrorCode = (error: unknown): string | undefined => {
+  if (!(error instanceof Error)) {
+    return undefined;
+  }
+
+  const directCode = (error as NodeJS.ErrnoException).code;
+  if (typeof directCode === "string") {
+    return directCode;
+  }
+
+  const cause = (error as Error & { readonly cause?: unknown }).cause;
+  if (typeof cause !== "object" || cause === null) {
+    return undefined;
+  }
+
+  const nestedCode = (cause as NodeJS.ErrnoException).code;
+  return typeof nestedCode === "string" ? nestedCode : undefined;
+};
+
+const fetchWithRetry = async (url: string, init: RequestInit): Promise<Response> => {
+  const maxAttempts = 4;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await fetch(url, init);
+    } catch (error) {
+      const code = getNodeErrorCode(error);
+      if (
+        !code ||
+        !["ECONNRESET", "EPIPE", "UND_ERR_SOCKET"].includes(code) ||
+        attempt === maxAttempts
+      ) {
+        throw error;
+      }
+
+      await sleep(attempt * 100);
+    }
+  }
+
+  throw new Error("fetchWithRetry exhausted unexpectedly");
+};
+
+const createPromotableUpdate = async () => {
+  const assetBody = Buffer.from("console.log('cli promote source');\n");
+  const assetHash = createHash("sha256").update(assetBody).digest("base64url");
+  const registerResponse = await cli.postAuthorized("/api/assets/upload", {
+    projectId: cli.getProjectId(),
+    assets: [{ hash: assetHash, contentType: "application/javascript", fileExt: "js" }],
+  });
+  expect(registerResponse.status).toBe(201);
+
+  const registerBody = (await registerResponse.json()) as {
+    uploaded: Array<{ hash: string; uploadToken: string }>;
+  };
+  const uploadToken = registerBody.uploaded.find((asset) => asset.hash === assetHash)?.uploadToken;
+  expect(uploadToken).toBeDefined();
+
+  const uploadResponse = await fetchWithRetry(`${cli.getBaseUrl()}/api/assets/${assetHash}`, {
+    method: "PUT",
+    headers: {
+      "content-type": "application/javascript",
+      "x-better-update-upload-token": uploadToken!,
+    },
+    body: assetBody,
+  });
+  expect(uploadResponse.status).toBe(200);
+
+  const createUpdateResponse = await cli.postAuthorized("/api/updates", {
+    branch: "main",
+    project: "@cli-e2e/cli-e2e-app",
+    runtimeVersion: "1.0.0",
+    platform: "ios",
+    message: "CLI promotable update",
+    groupId: randomUUID(),
+    metadata: {},
+    assets: [{ hash: assetHash, key: "bundles/ios-launch.js", isLaunch: true }],
+  });
+  expect(createUpdateResponse.status).toBe(201);
+
+  return (await createUpdateResponse.json()) as {
+    id: string;
+    groupId: string;
+  };
+};
 
 const cliState = {
   rollbackGroupId: "",
@@ -172,6 +259,75 @@ describe("CLI command journey", () => {
     cliState.rollbackGroupId = rollbackMatch?.[2] ?? "";
   });
 
+  it("creates a signed rollback update from the CLI using pre-signed files", async () => {
+    const signedCommitTime = "2026-04-15T00:00:00.000Z";
+    const directiveBodyPath = path.join(cli.getProjectDir(), "signed-directive.json");
+    const signaturePath = path.join(cli.getProjectDir(), "signed-directive.sig");
+    const certificateChainPath = path.join(cli.getProjectDir(), "signed-directive.pem");
+    const signedMessage = "Signed rollback via CLI";
+
+    writeFileSync(
+      directiveBodyPath,
+      JSON.stringify({
+        type: "rollBackToEmbedded",
+        parameters: { commitTime: signedCommitTime },
+      }),
+    );
+    writeFileSync(signaturePath, 'sig="signed-cli-test", keyid="main", alg="rsa-v1_5_sha256"\n');
+    writeFileSync(
+      certificateChainPath,
+      "-----BEGIN CERTIFICATE-----\nSIGNED CLI TEST\n-----END CERTIFICATE-----\n",
+    );
+
+    const rollbackResult = cli.runCli(
+      "update",
+      "rollback",
+      "--branch",
+      "main",
+      "--platform",
+      "ios",
+      "--message",
+      signedMessage,
+      "--directive-body-file",
+      directiveBodyPath,
+      "--signature-file",
+      signaturePath,
+      "--certificate-chain-file",
+      certificateChainPath,
+    );
+
+    expect(rollbackResult.exitCode).toBe(0);
+    expect(rollbackResult.stderr).toBe("");
+    expect(rollbackResult.stdout).toContain("Created rollback group");
+    expect(rollbackResult.stdout).toContain(signedCommitTime);
+
+    const updatesResponse = await cli.getAuthorized(`/api/updates?projectId=${cli.getProjectId()}`);
+    expect(updatesResponse.status).toBe(200);
+    const updatesBody = (await updatesResponse.json()) as {
+      items: Array<{
+        message: string;
+        signature: string | null;
+        certificateChain: string | null;
+        directiveBody: string | null;
+      }>;
+    };
+
+    expect(updatesBody.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          message: signedMessage,
+          signature: 'sig="signed-cli-test", keyid="main", alg="rsa-v1_5_sha256"',
+          certificateChain:
+            "-----BEGIN CERTIFICATE-----\nSIGNED CLI TEST\n-----END CERTIFICATE-----",
+          directiveBody: JSON.stringify({
+            type: "rollBackToEmbedded",
+            parameters: { commitTime: signedCommitTime },
+          }),
+        }),
+      ]),
+    );
+  });
+
   it("uploads, activates, and deletes a credential", async () => {
     const credentialFile = path.join(cli.getProjectDir(), "cli-uploaded-cert.p12");
     writeFileSync(credentialFile, "uploaded-cert");
@@ -315,17 +471,19 @@ VALUES (
 );
 `);
 
+    const promotableUpdate = await createPromotableUpdate();
+
     const promoteResult = cli.runCli(
       "update",
       "promote",
-      cliState.rollbackUpdateId,
+      promotableUpdate.id,
       "--channel",
       targetName,
     );
     expect(promoteResult.exitCode).toBe(0);
     expect(promoteResult.stderr).toBe("");
     expect(promoteResult.stdout).toContain(
-      `Promoted update ${cliState.rollbackUpdateId} to channel "${targetName}" as update `,
+      `Promoted update ${promotableUpdate.id} to channel "${targetName}" as update `,
     );
 
     const promotedList = cli.runCli("update", "list", "--branch", targetName);

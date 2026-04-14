@@ -14,6 +14,19 @@ export const Distribution = Schema.Literal(
 
 export const ArtifactFormat = Schema.Literal("ipa", "apk", "aab", "tar.gz");
 
+const CreateBuildCommonFields = {
+  projectId: Id,
+  profile: Schema.optional(Schema.String),
+  runtimeVersion: Schema.optional(Schema.String),
+  appVersion: Schema.optional(Schema.String),
+  buildNumber: Schema.optional(Schema.String),
+  bundleId: Schema.optional(Schema.String),
+  gitRef: Schema.optional(Schema.String),
+  gitCommit: Schema.optional(Schema.String),
+  message: Schema.optional(Schema.String),
+  metadata: Schema.optional(Schema.Record({ key: Schema.String, value: Schema.Unknown })),
+} as const;
+
 export class Build extends Schema.Class<Build>("Build")({
   id: Id,
   projectId: Id,
@@ -91,25 +104,36 @@ export const BuildCompatibilityMatrixResult = Schema.Struct({
   missingRuntimeVersions: Schema.Array(MissingRuntimeVersionBuild),
 });
 
-export const CreateBuildBody = Schema.Struct({
-  projectId: Id,
-  platform: Platform,
-  profile: Schema.optional(Schema.String),
-  distribution: Distribution,
-  artifactFormat: ArtifactFormat,
-  runtimeVersion: Schema.optional(Schema.String),
-  appVersion: Schema.optional(Schema.String),
-  buildNumber: Schema.optional(Schema.String),
-  bundleId: Schema.optional(Schema.String),
-  gitRef: Schema.optional(Schema.String),
-  gitCommit: Schema.optional(Schema.String),
-  message: Schema.optional(Schema.String),
-  metadata: Schema.optional(Schema.Record({ key: Schema.String, value: Schema.Unknown })),
-});
+export const CreateBuildBody = Schema.Union(
+  Schema.Struct({
+    ...CreateBuildCommonFields,
+    platform: Schema.Literal("ios"),
+    distribution: Schema.Literal("app-store", "ad-hoc", "development", "enterprise"),
+    artifactFormat: Schema.Literal("ipa"),
+  }),
+  Schema.Struct({
+    ...CreateBuildCommonFields,
+    platform: Schema.Literal("ios"),
+    distribution: Schema.Literal("simulator"),
+    artifactFormat: Schema.Literal("tar.gz"),
+  }),
+  Schema.Struct({
+    ...CreateBuildCommonFields,
+    platform: Schema.Literal("android"),
+    distribution: Schema.Literal("play-store"),
+    artifactFormat: Schema.Literal("aab"),
+  }),
+  Schema.Struct({
+    ...CreateBuildCommonFields,
+    platform: Schema.Literal("android"),
+    distribution: Schema.Literal("direct"),
+    artifactFormat: Schema.Literal("apk"),
+  }),
+);
 
 export const CompleteBuildBody = Schema.Struct({
-  sha256: Schema.String,
-  byteSize: Schema.Number,
+  sha256: Schema.String.pipe(Schema.minLength(64), Schema.maxLength(64)),
+  byteSize: Schema.Number.pipe(Schema.nonNegative()),
 });
 
 export const ReserveBuildResult = Schema.Struct({

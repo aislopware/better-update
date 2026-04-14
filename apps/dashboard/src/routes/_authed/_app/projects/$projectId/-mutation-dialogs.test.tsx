@@ -48,7 +48,7 @@ const {
     deleteBuild: vi.fn<(id: string) => Promise<void>>(),
     deleteChannel: vi.fn<(id: string) => Promise<void>>(),
     republishUpdate:
-      vi.fn<(body: { sourceUpdateId: string; targetChannelId: string }) => Promise<void>>(),
+      vi.fn<(body: { sourceUpdateId: string; destinationChannel: string }) => Promise<void>>(),
     reserveBuild:
       vi.fn<
         (body: {
@@ -364,7 +364,7 @@ describe("mutation dialogs", () => {
     await waitFor(() => {
       expect(apiReactMocks.republishUpdate).toHaveBeenCalledWith({
         sourceUpdateId: update.id,
-        targetChannelId: channel.id,
+        destinationChannel: channel.name,
       });
     });
 

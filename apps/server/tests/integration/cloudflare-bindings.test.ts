@@ -309,16 +309,17 @@ describe("Cloudflare bindings integration", () => {
             coordinatorName: targetBranch.branchId,
             payload: {
               branchId: targetBranch.branchId,
-              runtimeVersion: "1.0.0",
-              platform: "ios",
-              message: "integration publish",
-              metadataJson: "{}",
-              extraJson: null,
-              signature: null,
-              certificateChain: null,
-              manifestBody: null,
-              directiveBody: null,
-              assets: [{ key: "bundle", hash: launchHash, isLaunch: true }],
+              message: null,
+              updates: [
+                {
+                  runtimeVersion: "1.0.0",
+                  platform: "ios",
+                  message: "integration publish",
+                  metadataJson: "{}",
+                  extraJson: null,
+                  assets: [{ key: "bundle", hash: launchHash, isLaunch: true }],
+                },
+              ],
             },
           });
         }),
@@ -328,11 +329,14 @@ describe("Cloudflare bindings integration", () => {
       if (!republished.ok) {
         throw new Error(republished.message);
       }
+      expect(republished.value).toHaveLength(1);
+      const [republishedUpdate] = republished.value;
+      expect(republishedUpdate).toBeDefined();
 
       const republishedRow = await env.DB.prepare(
         `SELECT "branch_id" AS "branchId", "group_id" AS "groupId" FROM "updates" WHERE "id" = ?`,
       )
-        .bind(republished.value.id)
+        .bind(republishedUpdate?.id ?? "")
         .first<{ branchId: string; groupId: string }>();
 
       expect(republishedRow?.branchId).toBe(targetBranch.branchId);
@@ -343,7 +347,7 @@ describe("Cloudflare bindings integration", () => {
       const updateAssets = await env.DB.prepare(
         `SELECT "asset_hash" AS "assetHash", "is_launch" AS "isLaunch" FROM "update_assets" WHERE "update_id" = ?`,
       )
-        .bind(republished.value.id)
+        .bind(republishedUpdate?.id ?? "")
         .all<{ assetHash: string; isLaunch: number }>();
 
       expect(updateAssets.results).toEqual([

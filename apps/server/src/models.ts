@@ -251,7 +251,10 @@ export interface InstallLinkResultModel {
 }
 
 export interface AssetUploadResultModel {
-  readonly uploaded: readonly string[];
+  readonly uploaded: readonly {
+    readonly hash: string;
+    readonly uploadToken: string;
+  }[];
   readonly deduplicated: readonly string[];
 }
 

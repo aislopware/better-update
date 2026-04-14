@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { Effect } from "effect";
 
 import { setupE2EWorker } from "../helpers/e2e-worker";
@@ -97,7 +99,19 @@ describe("Updates & Assets API flow", () => {
   let productionChannelId: string;
   let updateId: string;
   let stagingUpdateId: string;
+  let rollbackUpdateId: string;
+  let signedUpdateId: string;
   let apiKeyValue: string;
+  let firstAssetUploadToken: string;
+  let secondAssetUploadToken: string;
+  let apiKeyAssetUploadToken: string;
+
+  const firstAssetContent = "console.log('hello')";
+  const secondAssetContent = "console.log('world')";
+  const apiKeyAssetContent = "hello";
+  const firstAssetHash = createHash("sha256").update(firstAssetContent).digest("base64url");
+  const secondAssetHash = createHash("sha256").update(secondAssetContent).digest("base64url");
+  const apiKeyAssetHash = createHash("sha256").update(apiKeyAssetContent).digest("base64url");
 
   // ── Section 1: Auth bootstrap ──────────────────────────────────
 
@@ -231,34 +245,95 @@ describe("Updates & Assets API flow", () => {
     const response = await post(
       "/api/assets/upload",
       {
+        projectId,
         assets: [
-          { hash: "abc123def456", contentType: "application/javascript", fileExt: "js" },
-          { hash: "789abc012def", contentType: "application/javascript", fileExt: "js" },
+          { hash: firstAssetHash, contentType: "application/javascript", fileExt: "js" },
+          { hash: secondAssetHash, contentType: "application/javascript", fileExt: "js" },
         ],
       },
       { cookie: cookies },
     );
     expect(response.status).toBe(201);
     const body = await response.json();
-    expect(body.uploaded).toContain("abc123def456");
-    expect(body.uploaded).toContain("789abc012def");
+    expect(body.uploaded).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ hash: firstAssetHash, uploadToken: expect.any(String) }),
+        expect.objectContaining({ hash: secondAssetHash, uploadToken: expect.any(String) }),
+      ]),
+    );
     expect(body.deduplicated).toHaveLength(0);
+    firstAssetUploadToken =
+      (
+        body.uploaded.find((asset: { hash: string }) => asset.hash === firstAssetHash) as
+          | { uploadToken: string }
+          | undefined
+      )?.uploadToken ?? "";
+    secondAssetUploadToken =
+      (
+        body.uploaded.find((asset: { hash: string }) => asset.hash === secondAssetHash) as
+          | { uploadToken: string }
+          | undefined
+      )?.uploadToken ?? "";
+  });
+
+  it("rejects update creation while an asset is only registered but not uploaded", async () => {
+    const pendingAssetContent = "console.log('pending')";
+    const pendingAssetHash = createHash("sha256").update(pendingAssetContent).digest("base64url");
+
+    const registerResponse = await post(
+      "/api/assets/upload",
+      {
+        projectId,
+        assets: [{ hash: pendingAssetHash, contentType: "application/javascript", fileExt: "js" }],
+      },
+      { cookie: cookies },
+    );
+    expect(registerResponse.status).toBe(201);
+
+    const publishResponse = await post(
+      "/api/updates",
+      {
+        project: "@updates/test",
+        branch: "main",
+        runtimeVersion: "1.0.0",
+        platform: "ios",
+        message: "Pending asset publish",
+        groupId: "group-pending-asset",
+        metadata: {},
+        assets: [{ hash: pendingAssetHash, key: "bundles/pending.js", isLaunch: true }],
+      },
+      { cookie: cookies },
+    );
+    expect(publishResponse.status).toBe(404);
+    expect(await publishResponse.json()).toEqual(
+      expect.objectContaining({
+        message: expect.stringContaining("Assets not uploaded"),
+      }),
+    );
   });
 
   it("uploads first asset binary", async () => {
     const response = await put(
-      "/api/assets/abc123def456",
-      new TextEncoder().encode("console.log('hello')"),
-      { cookie: cookies, "content-type": "application/javascript", "content-length": "20" },
+      `/api/assets/${firstAssetHash}`,
+      new TextEncoder().encode(firstAssetContent),
+      {
+        "x-better-update-upload-token": firstAssetUploadToken,
+        "content-type": "application/javascript",
+        "content-length": new TextEncoder().encode(firstAssetContent).byteLength.toString(),
+      },
     );
     expect(response.status).toBe(200);
   });
 
   it("uploads second asset binary", async () => {
     const response = await put(
-      "/api/assets/789abc012def",
-      new TextEncoder().encode("console.log('world')"),
-      { cookie: cookies, "content-type": "application/javascript", "content-length": "20" },
+      `/api/assets/${secondAssetHash}`,
+      new TextEncoder().encode(secondAssetContent),
+      {
+        "x-better-update-upload-token": secondAssetUploadToken,
+        "content-type": "application/javascript",
+        "content-length": new TextEncoder().encode(secondAssetContent).byteLength.toString(),
+      },
     );
     expect(response.status).toBe(200);
   });
@@ -267,9 +342,10 @@ describe("Updates & Assets API flow", () => {
     const response = await post(
       "/api/assets/upload",
       {
+        projectId,
         assets: [
-          { hash: "abc123def456", contentType: "application/javascript", fileExt: "js" },
-          { hash: "789abc012def", contentType: "application/javascript", fileExt: "js" },
+          { hash: firstAssetHash, contentType: "application/javascript", fileExt: "js" },
+          { hash: secondAssetHash, contentType: "application/javascript", fileExt: "js" },
         ],
       },
       { cookie: cookies },
@@ -277,8 +353,8 @@ describe("Updates & Assets API flow", () => {
     expect(response.status).toBe(201);
     const body = await response.json();
     expect(body.uploaded).toHaveLength(0);
-    expect(body.deduplicated).toContain("abc123def456");
-    expect(body.deduplicated).toContain("789abc012def");
+    expect(body.deduplicated).toContain(firstAssetHash);
+    expect(body.deduplicated).toContain(secondAssetHash);
   });
 
   it("auto-creates branch and channel on first publish", async () => {
@@ -292,7 +368,7 @@ describe("Updates & Assets API flow", () => {
         message: "Auto branch publish",
         groupId: "group-auto-1",
         metadata: {},
-        assets: [{ hash: "abc123def456", key: "bundles/ios.js", isLaunch: true }],
+        assets: [{ hash: firstAssetHash, key: "bundles/ios.js", isLaunch: true }],
       },
       { cookie: cookies },
     );
@@ -359,7 +435,7 @@ describe("Updates & Assets API flow", () => {
         message: "Should not auto-create",
         groupId: "group-auto-conflict",
         metadata: {},
-        assets: [{ hash: "abc123def456", key: "bundles/ios.js", isLaunch: true }],
+        assets: [{ hash: firstAssetHash, key: "bundles/ios.js", isLaunch: true }],
       },
       { cookie: cookies },
     );
@@ -389,8 +465,8 @@ describe("Updates & Assets API flow", () => {
         groupId: "group-1",
         metadata: { buildNumber: "42" },
         assets: [
-          { hash: "abc123def456", key: "bundles/ios.js", isLaunch: true },
-          { hash: "789abc012def", key: "assets/logo.js", isLaunch: false },
+          { hash: firstAssetHash, key: "bundles/ios.js", isLaunch: true },
+          { hash: secondAssetHash, key: "assets/logo.js", isLaunch: false },
         ],
       },
       { cookie: cookies },
@@ -426,7 +502,7 @@ describe("Updates & Assets API flow", () => {
         message: "Initial release",
         groupId: "group-1",
         metadata: { buildNumber: "42" },
-        assets: [{ hash: "abc123def456", key: "bundles/android.js", isLaunch: true }],
+        assets: [{ hash: firstAssetHash, key: "bundles/android.js", isLaunch: true }],
       },
       { cookie: cookies },
     );
@@ -484,6 +560,7 @@ describe("Updates & Assets API flow", () => {
     const body = await response.json();
     expect(body.isRollback).toBe(true);
     expect(body.directiveBody).toBe(directiveBody);
+    rollbackUpdateId = body.id as string;
   });
 
   it("serves the rollback directive from the manifest endpoint", async () => {
@@ -552,7 +629,7 @@ describe("Updates & Assets API flow", () => {
         message: "Staging build",
         groupId: "group-staging",
         metadata: {},
-        assets: [{ hash: "abc123def456", key: "bundles/ios.js", isLaunch: true }],
+        assets: [{ hash: firstAssetHash, key: "bundles/ios.js", isLaunch: true }],
       },
       { cookie: cookies },
     );
@@ -566,14 +643,101 @@ describe("Updates & Assets API flow", () => {
       "/api/updates/republish",
       {
         sourceUpdateId: stagingUpdateId,
-        targetChannelId: productionChannelId,
+        destinationChannel: "production",
+      },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.updates).toHaveLength(1);
+    expect(body.updates[0]).toHaveProperty("id");
+    expect(body.updates[0]?.branchId).toBe(mainBranchId);
+  });
+
+  it("republishes an update group to a destination branch", async () => {
+    const response = await post(
+      "/api/updates/republish",
+      {
+        sourceGroupId: "group-1",
+        destinationBranchId: stagingBranchId,
+        message: "Promoted release train",
+      },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.updates).toHaveLength(2);
+    const groupIds = new Set(body.updates.map((update: { groupId: string }) => update.groupId));
+    expect(groupIds.size).toBe(1);
+    expect(groupIds.has("group-1")).toBe(false);
+    expect(
+      body.updates.every(
+        (update: { branchId: string; message: string }) =>
+          update.branchId === stagingBranchId && update.message === "Promoted release train",
+      ),
+    ).toBe(true);
+  });
+
+  it("creates a signed source update", async () => {
+    const manifestBody = JSON.stringify({
+      runtimeVersion: "1.0.0",
+      launchAsset: { key: "bundles/ios.js", hash: firstAssetHash },
+      assets: [],
+    });
+
+    const response = await post(
+      "/api/updates",
+      {
+        project: "@updates/test",
+        branch: "signed-source",
+        runtimeVersion: "1.0.0",
+        platform: "ios",
+        message: "Signed source",
+        groupId: "group-signed-source",
+        metadata: {},
+        assets: [{ hash: firstAssetHash, key: "bundles/ios.js", isLaunch: true }],
+        manifestBody,
+        signature: 'sig="test-signature", keyid="main", alg="rsa-v1_5-sha256"',
+        certificateChain: "-----BEGIN CERTIFICATE-----\nTEST\n-----END CERTIFICATE-----",
       },
       { cookie: cookies },
     );
     expect(response.status).toBe(201);
-    const body = await response.json();
-    expect(body).toHaveProperty("id");
-    expect(body.branchId).toBe(mainBranchId);
+    signedUpdateId = (await response.json()).id as string;
+  });
+
+  it("rejects republishing a signed source update", async () => {
+    const response = await post(
+      "/api/updates/republish",
+      {
+        sourceUpdateId: signedUpdateId,
+        destinationChannel: "production",
+      },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual(
+      expect.objectContaining({
+        message: expect.stringContaining("pre-signed manifest"),
+      }),
+    );
+  });
+
+  it("rejects republishing a rollback directive", async () => {
+    const response = await post(
+      "/api/updates/republish",
+      {
+        sourceUpdateId: rollbackUpdateId,
+        destinationChannel: "production",
+      },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual(
+      expect.objectContaining({
+        message: "Cannot republish a rollback directive",
+      }),
+    );
   });
 
   // ── Section 7: Delete group ────────────────────────────────────
@@ -593,7 +757,7 @@ describe("Updates & Assets API flow", () => {
     });
     expect(response.status).toBe(200);
     const body = await response.json();
-    // group-1 had 2 updates (ios + android); staging + republished remain
+    // group-1 had 2 updates (ios + android); only the original group is deleted
     expect(body.items.every((u: { groupId: string }) => u.groupId !== "group-1")).toBe(true);
   });
 
@@ -625,21 +789,32 @@ describe("Updates & Assets API flow", () => {
     const response = await post(
       "/api/assets/upload",
       {
-        assets: [{ hash: "AbCdEf_-123", contentType: "text/plain", fileExt: "txt" }],
+        projectId,
+        assets: [{ hash: apiKeyAssetHash, contentType: "text/plain", fileExt: "txt" }],
       },
       { authorization: `Bearer ${apiKeyValue}` },
     );
     expect(response.status).toBe(201);
     const body = await response.json();
-    expect(body.uploaded).toContain("AbCdEf_-123");
+    expect(body.uploaded).toEqual([
+      expect.objectContaining({
+        hash: apiKeyAssetHash,
+        uploadToken: expect.any(String),
+      }),
+    ]);
+    apiKeyAssetUploadToken = body.uploaded[0]?.uploadToken as string;
   });
 
   it("uploads asset binary via API key", async () => {
-    const response = await put("/api/assets/AbCdEf_-123", new TextEncoder().encode("hello"), {
-      authorization: `Bearer ${apiKeyValue}`,
-      "content-type": "text/plain",
-      "content-length": "5",
-    });
+    const response = await put(
+      `/api/assets/${apiKeyAssetHash}`,
+      new TextEncoder().encode(apiKeyAssetContent),
+      {
+        "x-better-update-upload-token": apiKeyAssetUploadToken,
+        "content-type": "text/plain",
+        "content-length": new TextEncoder().encode(apiKeyAssetContent).byteLength.toString(),
+      },
+    );
     expect(response.status).toBe(200);
   });
 
@@ -745,7 +920,7 @@ describe("Updates & Assets API flow", () => {
         groupId: "group-blocking-1",
         metadata: {},
         rolloutPercentage: 50,
-        assets: [{ hash: "abc123def456", key: "bundles/ios.js", isLaunch: true }],
+        assets: [{ hash: firstAssetHash, key: "bundles/ios.js", isLaunch: true }],
       },
       { cookie: cookies },
     );
@@ -766,7 +941,7 @@ describe("Updates & Assets API flow", () => {
         message: "Should be blocked",
         groupId: "group-blocking-2",
         metadata: {},
-        assets: [{ hash: "abc123def456", key: "bundles/ios.js", isLaunch: true }],
+        assets: [{ hash: firstAssetHash, key: "bundles/ios.js", isLaunch: true }],
       },
       { cookie: cookies },
     );
@@ -795,7 +970,7 @@ describe("Updates & Assets API flow", () => {
         message: "After rollout complete",
         groupId: "group-blocking-3",
         metadata: {},
-        assets: [{ hash: "abc123def456", key: "bundles/ios.js", isLaunch: true }],
+        assets: [{ hash: firstAssetHash, key: "bundles/ios.js", isLaunch: true }],
       },
       { cookie: cookies },
     );
@@ -826,7 +1001,7 @@ describe("Updates & Assets API flow", () => {
                 groupId: "group-concurrent-a",
                 metadata: {},
                 rolloutPercentage: 50,
-                assets: [{ hash: "abc123def456", key: "bundles/ios.js", isLaunch: true }],
+                assets: [{ hash: firstAssetHash, key: "bundles/ios.js", isLaunch: true }],
               },
               { cookie: cookies },
             ),
@@ -843,7 +1018,7 @@ describe("Updates & Assets API flow", () => {
                 groupId: "group-concurrent-b",
                 metadata: {},
                 rolloutPercentage: 50,
-                assets: [{ hash: "abc123def456", key: "bundles/ios.js", isLaunch: true }],
+                assets: [{ hash: firstAssetHash, key: "bundles/ios.js", isLaunch: true }],
               },
               { cookie: cookies },
             ),

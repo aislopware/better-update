@@ -29,6 +29,10 @@ export interface PublishedUpdateEffectResult {
   readonly nextLaunchHash: string | null;
 }
 
+export interface RepublishedUpdatesEffectResult {
+  readonly updates: readonly SerializedUpdate[];
+}
+
 interface PublishOperation extends CreateUpdateRequest {
   readonly conflictMessage: string;
 }
@@ -276,10 +280,47 @@ export const publishUpdate = (params: PublishOperation) =>
 export const republishUpdate = (
   params: RepublishUpdateRequest & { readonly conflictMessage: string },
 ) =>
-  publishUpdate({
-    ...params,
-    groupId: crypto.randomUUID(),
-    rolloutPercentage: 100,
-    isRollback: false,
-    conflictMessage: params.conflictMessage,
+  Effect.gen(function* () {
+    const updateRepo = yield* UpdateRepo;
+    const channelRepo = yield* ChannelRepo;
+
+    const rolloutStates = yield* Effect.forEach(
+      params.updates,
+      (update) =>
+        updateRepo.hasActiveRollout({
+          branchId: params.branchId,
+          platform: update.platform,
+          runtimeVersion: update.runtimeVersion,
+        }),
+      { concurrency: "unbounded" },
+    );
+
+    if (rolloutStates.some(Boolean)) {
+      return conflict<RepublishedUpdatesEffectResult>(params.conflictMessage);
+    }
+
+    const updates = yield* updateRepo.insertBatch({
+      branchId: params.branchId,
+      groupId: crypto.randomUUID(),
+      updates: params.updates.map((update) => ({
+        runtimeVersion: update.runtimeVersion,
+        platform: update.platform,
+        message: params.message ?? update.message,
+        metadataJson: update.metadataJson,
+        extraJson: update.extraJson,
+        rolloutPercentage: 100,
+        isRollback: false,
+        signature: null,
+        certificateChain: null,
+        manifestBody: null,
+        directiveBody: null,
+        assets: update.assets,
+      })),
+    });
+
+    yield* channelRepo.bumpCacheVersionByBranch({ branchId: params.branchId });
+
+    return success({
+      updates: updates.map(toSerializedUpdate),
+    });
   });
