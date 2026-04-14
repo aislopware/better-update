@@ -53,11 +53,7 @@ VALUES ('update-bd-2', 'bundle', 'launch-hash-new', 1);
 INSERT INTO "update_assets" ("update_id", "asset_key", "asset_hash", "is_launch")
 VALUES ('update-bd-2', 'logo.png', 'img-asset-1', 0);
 
--- Patch: old launch -> new launch
-INSERT INTO "patches" ("old_asset_hash", "new_asset_hash", "byte_size", "r2_key", "created_at")
-VALUES ('launch-hash-old', 'launch-hash-new', 450, 'patches/launch-hash-old/launch-hash-new.patch', '2024-01-20T10:01:00.000Z');
-
--- Update 3 + 4: on a different runtimeVersion, no patch exists for it
+-- Update 3 + 4: on a different runtimeVersion, manifest resolution should still be normal
 INSERT INTO "assets" ("hash", "content_type", "file_ext", "byte_size", "r2_key", "created_at")
 VALUES ('launch-hash-v11-old', 'application/javascript', 'js', 1500, 'assets/launch-hash-v11-old', '2024-02-01T00:00:00.000Z');
 
@@ -139,9 +135,9 @@ const getExtensionsPart = async (response: Response) => {
   return JSON.parse(extensionsPart!.body) as Record<string, unknown>;
 };
 
-// -- Tests: Manifest with patch extensions ------------------------------------
+// -- Tests: Manifest ignores patch hints --------------------------------------
 
-describe("Bundle diffing -- manifest extensions", () => {
+describe("Manifest patch hints", () => {
   it("does NOT include patchedAssets when no expo-current-update-id header", async () => {
     const response = await manifestGet("proj-bd-1", protocolHeaders());
     expect(response.status).toBe(200);
@@ -151,7 +147,7 @@ describe("Bundle diffing -- manifest extensions", () => {
     expect(extensions).not.toHaveProperty("patchedAssets");
   });
 
-  it("includes patchedAssets when patch is available for current update", async () => {
+  it("ignores expo-current-update-id when resolving from an older update", async () => {
     const response = await manifestGet(
       "proj-bd-1",
       protocolHeaders({ "expo-current-update-id": "update-bd-1" }),
@@ -160,15 +156,7 @@ describe("Bundle diffing -- manifest extensions", () => {
 
     const extensions = await getExtensionsPart(response);
     expect(extensions).toHaveProperty("assetRequestHeaders");
-    expect(extensions).toHaveProperty("patchedAssets");
-
-    const patchedAssets = extensions["patchedAssets"] as Array<Record<string, unknown>>;
-    expect(patchedAssets).toHaveLength(1);
-    expect(patchedAssets[0]!["baseHash"]).toBe("launch-hash-old");
-    expect(patchedAssets[0]!["size"]).toBe(450);
-
-    const patchUrl = patchedAssets[0]!["url"] as string;
-    expect(patchUrl).toContain("patches/launch-hash-old/launch-hash-new.patch");
+    expect(extensions).not.toHaveProperty("patchedAssets");
   });
 
   it("serves normal manifest without patchedAssets when no patch exists", async () => {
@@ -187,9 +175,7 @@ describe("Bundle diffing -- manifest extensions", () => {
     expect(extensions).not.toHaveProperty("patchedAssets");
   });
 
-  it("serves manifest without patchedAssets when currentUpdateId equals latest", async () => {
-    // Client already has update-bd-2 (the latest). resolvePatchInfo returns undefined
-    // when update.id === currentUpdateId, so no patchedAssets in extensions.
+  it("ignores expo-current-update-id when the client is already on the latest update", async () => {
     const response = await manifestGet(
       "proj-bd-1",
       protocolHeaders({ "expo-current-update-id": "update-bd-2" }),
@@ -198,16 +184,5 @@ describe("Bundle diffing -- manifest extensions", () => {
 
     const extensions = await getExtensionsPart(response);
     expect(extensions).not.toHaveProperty("patchedAssets");
-  });
-});
-
-// -- Tests: Patch download route ----------------------------------------------
-
-describe("Bundle diffing -- patch download", () => {
-  it("returns 404 for non-existent patch", async () => {
-    const response = await fetch(`${getBaseUrl()}/patches/aabbccdd/11223344.patch`);
-    expect(response.status).toBe(404);
-    const body = await response.json();
-    expect(body.code).toBe("NOT_FOUND");
   });
 });

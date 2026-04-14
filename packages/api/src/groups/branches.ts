@@ -62,7 +62,7 @@ export class BranchesGroup extends HttpApiGroup.make("branches")
       .annotateContext(
         OpenApi.annotations({
           title: "Delete branch",
-          description: "Delete a branch and all its updates and patches",
+          description: "Delete a branch and all its updates",
         }),
       ),
   )

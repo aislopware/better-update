@@ -19,7 +19,6 @@
 | KV               | `SESSION_KV`                | Better Auth session storage       |
 | Durable Object   | `PUBLISH_COORDINATOR`       | class `PublishCoordinator`        |
 | Durable Object   | `CREATE_BRANCH_COORDINATOR` | class `CreateBranchCoordinator`   |
-| Queue (producer) | `PATCH_QUEUE`               | `patch-gen` queue                 |
 | Analytics Engine | `ANALYTICS`                 | `better-update-analytics` dataset |
 
 **DO Migration:** tag `v1`, `new_sqlite_classes: ["PublishCoordinator", "CreateBranchCoordinator"]`
@@ -45,19 +44,8 @@
 
 Note: The legacy `API_KEY` secret is removed. Organization-scoped API keys (managed by Better Auth) replace the global Worker secret. See [spec 21](./21-authentication.md).
 
-## Queue Consumer
-
-| Setting             | Value           |
-| ------------------- | --------------- |
-| `queue`             | `patch-gen`     |
-| `max_batch_size`    | `10`            |
-| `max_retries`       | `3`             |
-| `dead_letter_queue` | `patch-gen-dlq` |
-
-The queue consumer handles asynchronous patch generation for bundle diffing. See [spec 19](./19-bundle-diffing.md).
-
 ## Cron Triggers
 
-| Cron expression | Purpose                                       |
-| --------------- | --------------------------------------------- |
-| `0 3 * * *`     | Patch garbage collection (daily at 03:00 UTC) |
+| Cron expression | Purpose                                   |
+| --------------- | ----------------------------------------- |
+| `0 3 * * *`     | Build artifact garbage collection (daily) |

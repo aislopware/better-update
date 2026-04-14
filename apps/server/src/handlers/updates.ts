@@ -7,36 +7,17 @@ import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
 import { assertProjectOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
-import { AssetStorage } from "../cloudflare/asset-storage";
 import { UpdateCoordinator } from "../cloudflare/update-coordinator";
 import { validateUpdatePublishInput } from "../domain/update-publish-validation";
 import { Conflict, NotFound } from "../errors";
 import { toApiUpdate } from "../http/to-api";
 import { toApiBadRequestReadEffect, toApiWriteEffect } from "../http/to-api-effect";
-import {
-  AssetRepo,
-  BranchRepo,
-  ChannelRepo,
-  PatchRepo,
-  ProjectRepo,
-  UpdateRepo,
-} from "../repositories";
+import { AssetRepo, BranchRepo, ChannelRepo, ProjectRepo, UpdateRepo } from "../repositories";
 
 const getUpdateAssets = (updateId: string) =>
   Effect.gen(function* () {
     const repo = yield* UpdateRepo;
     return yield* repo.findAssetsByUpdateId({ updateId });
-  });
-
-/** Clean up patches associated with a launch asset hash */
-const cascadeDeletePatches = (assetHash: string) =>
-  Effect.gen(function* () {
-    const patchRepo = yield* PatchRepo;
-    const storage = yield* AssetStorage;
-    const deletedPatches = yield* patchRepo.deleteByAssetHash({ assetHash });
-    if (deletedPatches.length > 0) {
-      yield* storage.deleteObjects({ keys: deletedPatches.map((patch) => patch.r2_key) });
-    }
   });
 
 const assertAssetsExist = (assets: readonly { readonly hash: string }[]) =>
@@ -184,21 +165,6 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
           }
           const branch = yield* branchRepo.findById({ id: firstUpdate.branchId });
           yield* assertProjectOwnership(branch.projectId);
-
-          // Clean up associated patches before deleting updates
-          yield* Effect.forEach(
-            updates,
-            (update) =>
-              Effect.gen(function* () {
-                const launchAssetHash = yield* updateRepo.findLaunchAssetHashByUpdateId({
-                  updateId: update.id,
-                });
-                if (launchAssetHash) {
-                  yield* cascadeDeletePatches(launchAssetHash);
-                }
-              }),
-            { concurrency: 1 },
-          );
 
           const result = yield* updateRepo.deleteGroup({ groupId: path.groupId });
 

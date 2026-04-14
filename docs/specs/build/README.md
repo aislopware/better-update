@@ -19,4 +19,3 @@ Implementation spec for better-update's build management — credential vault, e
 ## Scope Notes
 
 - **Cloud Build is out of scope** — this spec only supports builds that run on a developer machine or the user's own CI
-- **Auto-Submit** — Submit to App Store / Play Store after build

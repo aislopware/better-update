@@ -111,20 +111,16 @@ Implementation order based on dependency graph — each group builds on the prev
 
 **Deliverable:** Full multi-org auth with session and API key support.
 
-## 8. Bundle Diffing
+## 8. Delta Patch Support
 
-**Goal:** Delta updates via bsdiff patches to reduce download size.
+**Decision:** Not planned for the self-hosted server.
 
-| Task                                           | Cloudflare Service  |
-| ---------------------------------------------- | ------------------- |
-| bsdiff WASM module (compile from Rust)         | Worker              |
-| Patch generation queue consumer                | Queue + Worker + R2 |
-| Publish-time patch job enqueue                 | Worker              |
-| Manifest response with patch URL in extensions | Worker              |
-| Patch garbage collection (cron)                | Cron Trigger + D1   |
-| Cascade patch cleanup on update deletion       | Worker + D1 + R2    |
+Client-side flags such as `enableBsdiffPatchSupport` may still be present in Expo
+configuration, but the server ignores those hints and always serves standard full-asset
+manifests.
 
-**Deliverable:** Automatic delta updates for sequential publishes on a channel.
+**Deliverable:** No delta patch support. Full-asset delivery remains the only supported
+update path.
 
 ## 9. Analytics + Dashboard
 

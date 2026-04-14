@@ -56,7 +56,7 @@ For most deployments (< 10,000 apps, < 100 updates/day), a single D1 database is
 | Channel/branch management | GraphQL + EAS CLI      | REST API + Dashboard                                |
 | Code signing              | Server-side + client   | Publisher signs everything (manifests + directives) |
 | Rollbacks                 | GraphQL mutations      | REST API (publisher-constructed directives)         |
-| Delta updates (bsdiff)    | Supported (SDK 55+)    | Supported (Phase 7, pre-computed at publish time)   |
+| Delta updates (bsdiff)    | Supported (SDK 55+)    | Not supported; patch hints are ignored              |
 | Gradual rollouts          | Supported (percentage) | Supported (Phase 6, branch-based)                   |
 | Cache invalidation        | Internal               | Cloudflare Cache Purge API (~150ms global)          |
 | Update groups             | Automatic              | Manual (groupId in publish)                         |

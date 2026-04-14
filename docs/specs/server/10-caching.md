@@ -163,8 +163,10 @@ Set via `wrangler secret put`. These are only needed if using the Cloudflare Pur
 
 Long internal TTL + cache version token = optimal cache hit ratio. Stale entries expire naturally via LRU.
 
-## Bundle Diffing Cache Bypass
+## Client Patch Hints
 
-When the client sends an `expo-current-update-id` header (indicating it supports delta updates), the manifest response may include patch information personalized to the client's current update. These requests **bypass the Cache API** because the response depends on a per-client value (the current update ID) that would fragment the cache with low hit rates. See [spec 19](./19-bundle-diffing.md#cache-key-consideration) for details.
+Clients may send `expo-current-update-id` or enable bsdiff patch support in Expo
+configuration, but the self-hosted server ignores those patch-specific hints.
 
-This does not affect the caching of standard manifest responses (without `expo-current-update-id`). The performance impact is minimal — the extra D1 query for patch resolution adds ~2ms.
+Manifest responses therefore use the standard cache path regardless of
+`expo-current-update-id`, and no cache-bypass logic is required for patch resolution.

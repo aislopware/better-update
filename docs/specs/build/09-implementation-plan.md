@@ -173,5 +173,4 @@ flowchart TD
 
 | Phase                   | Description                                                      |
 | ----------------------- | ---------------------------------------------------------------- |
-| **Auto-Submit**         | Submit to App Store / Play Store after build                     |
 | **Apple Developer API** | Create certs/profiles programmatically via App Store Connect API |

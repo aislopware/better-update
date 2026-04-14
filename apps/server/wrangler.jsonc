@@ -56,30 +56,11 @@
       "new_sqlite_classes": ["PublishCoordinator", "CreateBranchCoordinator"],
     },
   ],
-  "queues": {
-    "producers": [
-      {
-        "binding": "PATCH_QUEUE",
-        "queue": "better-update-patch-queue",
-      },
-    ],
-    "consumers": [
-      {
-        "queue": "better-update-patch-queue",
-        "max_batch_size": 1,
-        "max_retries": 3,
-        "dead_letter_queue": "better-update-patch-dlq",
-      },
-    ],
-  },
   "triggers": {
     "crons": ["0 3 * * *"],
   },
   "vars": {
     "ACCOUNT_ID": "<account-id>",
-    "PATCH_MAX_BUNDLE_SIZE": "4194304",
-    "PATCH_MIN_SAVING": "0.8",
-    "PATCH_RETENTION_DAYS": "30",
     "BUILD_BUCKET_NAME": "better-update-builds",
     "BUILD_RETENTION_PRODUCTION": "90",
     "BUILD_RETENTION_PREVIEW": "30",

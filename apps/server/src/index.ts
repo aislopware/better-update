@@ -7,7 +7,7 @@ import { createAuth } from "./auth";
 import { API_KEY_PREFIX } from "./auth/constants";
 import { AssetStorage } from "./cloudflare/asset-storage";
 import { makeCloudflareRequestContext, provideCloudflareEnv } from "./cloudflare/context";
-import { handlePatchMessage, handleScheduled, matchBuildRoute, serveManifest } from "./handlers";
+import { handleScheduled, matchBuildRoute, serveManifest } from "./handlers";
 import { ServerInfrastructureLayer } from "./infrastructure-layer";
 import { AssetRepo } from "./repositories";
 
@@ -211,36 +211,6 @@ const handleAssetUpload = async (request: Request, env: Env, hash: string): Prom
   return Response.json({ hash, r2Key: asset.r2Key }, { status: 200 });
 };
 
-/** Public patch download — streams R2 object with edge caching */
-const handlePatchDownload = async (
-  request: Request,
-  env: Env,
-  ctx: ExecutionContext,
-  oldHash: string,
-  newHash: string,
-): Promise<Response> => {
-  const cache = await caches.open("patches");
-  const cached = await cache.match(request);
-  if (cached) {
-    return cached;
-  }
-
-  const r2Key = `patches/${oldHash}/${newHash}.patch`;
-  const object = await runServerEnvEffect(getAssetObject(r2Key), env);
-  if (!object) {
-    return Response.json({ code: "NOT_FOUND", message: "Patch not found" }, { status: 404 });
-  }
-
-  const headers = new Headers();
-  headers.set("content-type", "application/octet-stream");
-  headers.set("content-length", object.size.toString());
-  headers.set("cache-control", "public, max-age=31536000, immutable");
-
-  const response = new Response(object.body, { headers });
-  ctx.waitUntil(cache.put(request, response.clone()));
-  return response;
-};
-
 export default {
   async fetch(request, env, ctx) {
     // eslint-disable-next-line functional/no-try-statements -- imperative shell error boundary
@@ -281,20 +251,6 @@ export default {
         return buildResponse;
       }
 
-      // Patch download — GET /patches/:oldHash/:newHash.patch (public, edge-cached)
-      const patchDownloadMatch = /^\/patches\/([A-Za-z0-9_-]+)\/([A-Za-z0-9_-]+)\.patch$/.exec(
-        url.pathname,
-      );
-      if (patchDownloadMatch?.[1] && patchDownloadMatch[2] && request.method === "GET") {
-        return await handlePatchDownload(
-          request,
-          env,
-          ctx,
-          patchDownloadMatch[1],
-          patchDownloadMatch[2],
-        );
-      }
-
       // Effect HttpApi handles management routes + OpenAPI + Scalar docs
       return await handler(request, requestContext);
     } catch {
@@ -302,27 +258,7 @@ export default {
     }
   },
 
-  async queue(batch, env) {
-    await Effect.runPromise(
-      Effect.forEach(
-        batch.messages,
-        (message) =>
-          Effect.promise(async () => {
-            // eslint-disable-next-line functional/no-try-statements -- imperative shell error boundary for queue messages
-            try {
-              await handlePatchMessage(message.body, env);
-              message.ack();
-            } catch (error) {
-              console.error("[patch-queue]", error);
-              message.retry();
-            }
-          }),
-        { concurrency: "unbounded", discard: true },
-      ),
-    );
-  },
-
   scheduled(_event, env, ctx) {
     ctx.waitUntil(handleScheduled(env));
   },
-} satisfies ExportedHandler<Env, { readonly oldHash: string; readonly newHash: string }>;
+} satisfies ExportedHandler<Env>;
