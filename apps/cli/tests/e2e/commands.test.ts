@@ -52,9 +52,47 @@ const fetchWithRetry = async (url: string, init: RequestInit): Promise<Response>
   throw new Error("fetchWithRetry exhausted unexpectedly");
 };
 
-const createPromotableUpdate = async () => {
+const seedDestinationChannel = (name: string) => {
+  const branchId = `${name}-branch`;
+  const channelId = `${name}-channel`;
+  cli.seedSql(`
+INSERT INTO "branches" ("id", "project_id", "name", "created_at")
+VALUES (${sqlString(branchId)}, ${sqlString(cli.getProjectId())}, ${sqlString(name)}, '2026-04-14T00:00:00Z');
+
+INSERT INTO "channels" (
+  "id", "project_id", "name", "branch_id", "branch_mapping_json", "cache_version", "is_paused", "created_at"
+)
+VALUES (
+  ${sqlString(channelId)},
+  ${sqlString(cli.getProjectId())},
+  ${sqlString(name)},
+  ${sqlString(branchId)},
+  NULL,
+  0,
+  0,
+  '2026-04-14T00:00:00Z'
+);
+`);
+};
+
+interface PromotableUpdate {
+  readonly id: string;
+  readonly groupId: string;
+  readonly assetHash: string;
+  readonly launchAssetKey: string;
+}
+
+const createPromotableUpdate = async (options?: {
+  readonly signed?: {
+    readonly manifestId: string;
+    readonly createdAt: string;
+    readonly signature: string;
+    readonly certificateChain: string;
+  };
+}): Promise<PromotableUpdate> => {
   const assetBody = Buffer.from("console.log('cli promote source');\n");
   const assetHash = createHash("sha256").update(assetBody).digest("base64url");
+  const launchAssetKey = "bundles/ios-launch.js";
   const registerResponse = await cli.postAuthorized("/api/assets/upload", {
     projectId: cli.getProjectId(),
     assets: [{ hash: assetHash, contentType: "application/javascript", fileExt: "js" }],
@@ -63,35 +101,63 @@ const createPromotableUpdate = async () => {
 
   const registerBody = (await registerResponse.json()) as {
     uploaded: Array<{ hash: string; uploadToken: string }>;
+    deduplicated: string[];
   };
   const uploadToken = registerBody.uploaded.find((asset) => asset.hash === assetHash)?.uploadToken;
-  expect(uploadToken).toBeDefined();
+  if (uploadToken) {
+    const uploadResponse = await fetchWithRetry(`${cli.getBaseUrl()}/api/assets/${assetHash}`, {
+      method: "PUT",
+      headers: {
+        "content-type": "application/javascript",
+        "x-better-update-upload-token": uploadToken,
+      },
+      body: assetBody,
+    });
+    expect(uploadResponse.status).toBe(200);
+  } else {
+    expect(registerBody.deduplicated).toContain(assetHash);
+  }
 
-  const uploadResponse = await fetchWithRetry(`${cli.getBaseUrl()}/api/assets/${assetHash}`, {
-    method: "PUT",
-    headers: {
-      "content-type": "application/javascript",
-      "x-better-update-upload-token": uploadToken!,
-    },
-    body: assetBody,
-  });
-  expect(uploadResponse.status).toBe(200);
+  const manifestBody =
+    options?.signed === undefined
+      ? undefined
+      : JSON.stringify({
+          id: options.signed.manifestId,
+          createdAt: options.signed.createdAt,
+          runtimeVersion: "1.0.0",
+          launchAsset: { key: launchAssetKey, hash: assetHash },
+          assets: [],
+        });
 
   const createUpdateResponse = await cli.postAuthorized("/api/updates", {
     branch: "main",
     project: "@cli-e2e/cli-e2e-app",
     runtimeVersion: "1.0.0",
     platform: "ios",
-    message: "CLI promotable update",
+    message: options?.signed ? "CLI signed promotable update" : "CLI promotable update",
     groupId: randomUUID(),
     metadata: {},
-    assets: [{ hash: assetHash, key: "bundles/ios-launch.js", isLaunch: true }],
+    assets: [{ hash: assetHash, key: launchAssetKey, isLaunch: true }],
+    ...(manifestBody
+      ? {
+          manifestBody,
+          signature: options.signed?.signature,
+          certificateChain: options.signed?.certificateChain,
+        }
+      : {}),
   });
   expect(createUpdateResponse.status).toBe(201);
 
-  return (await createUpdateResponse.json()) as {
+  const update = (await createUpdateResponse.json()) as {
     id: string;
     groupId: string;
+  };
+
+  return {
+    id: update.id,
+    groupId: update.groupId,
+    assetHash,
+    launchAssetKey,
   };
 };
 
@@ -450,26 +516,7 @@ describe("CLI command journey", () => {
     );
 
     const targetName = `preview-${Date.now()}`;
-    const targetBranchId = `${targetName}-branch`;
-    const targetChannelId = `${targetName}-channel`;
-    cli.seedSql(`
-INSERT INTO "branches" ("id", "project_id", "name", "created_at")
-VALUES (${sqlString(targetBranchId)}, ${sqlString(cli.getProjectId())}, ${sqlString(targetName)}, '2026-04-14T00:00:00Z');
-
-INSERT INTO "channels" (
-  "id", "project_id", "name", "branch_id", "branch_mapping_json", "cache_version", "is_paused", "created_at"
-)
-VALUES (
-  ${sqlString(targetChannelId)},
-  ${sqlString(cli.getProjectId())},
-  ${sqlString(targetName)},
-  ${sqlString(targetBranchId)},
-  NULL,
-  0,
-  0,
-  '2026-04-14T00:00:00Z'
-);
-`);
+    seedDestinationChannel(targetName);
 
     const promotableUpdate = await createPromotableUpdate();
 
@@ -509,5 +556,88 @@ VALUES (
     expect(finalPromotedList.exitCode).toBe(0);
     expect(finalPromotedList.stderr).toBe("");
     expect(finalPromotedList.stdout).toContain("No updates found.");
+  });
+
+  it("promotes a signed update from the CLI using replacement signed files", async () => {
+    const targetName = `signed-preview-${Date.now()}`;
+    seedDestinationChannel(targetName);
+
+    const promotableUpdate = await createPromotableUpdate({
+      signed: {
+        manifestId: "cli-signed-source-manifest",
+        createdAt: "2026-04-14T10:00:00.000Z",
+        signature: 'sig="source-signature", keyid="main", alg="rsa-v1_5_sha256"',
+        certificateChain: "-----BEGIN CERTIFICATE-----\nSOURCE\n-----END CERTIFICATE-----",
+      },
+    });
+
+    const manifestBodyPath = path.join(
+      cli.getProjectDir(),
+      `signed-promote-manifest-${Date.now()}.json`,
+    );
+    const signaturePath = path.join(cli.getProjectDir(), `signed-promote-${Date.now()}.sig`);
+    const certificateChainPath = path.join(cli.getProjectDir(), `signed-promote-${Date.now()}.pem`);
+    const replacementManifestBody = JSON.stringify({
+      id: "cli-signed-promoted-manifest",
+      createdAt: "2026-04-15T10:00:00.000Z",
+      runtimeVersion: "1.0.0",
+      launchAsset: {
+        key: promotableUpdate.launchAssetKey,
+        hash: promotableUpdate.assetHash,
+      },
+      assets: [],
+    });
+
+    writeFileSync(manifestBodyPath, replacementManifestBody);
+    writeFileSync(
+      signaturePath,
+      'sig="replacement-signature", keyid="main", alg="rsa-v1_5_sha256"\n',
+    );
+    writeFileSync(
+      certificateChainPath,
+      "-----BEGIN CERTIFICATE-----\nREPLACEMENT\n-----END CERTIFICATE-----\n",
+    );
+
+    const promoteResult = cli.runCli(
+      "update",
+      "promote",
+      promotableUpdate.id,
+      "--channel",
+      targetName,
+      "--manifest-body-file",
+      manifestBodyPath,
+      "--signature-file",
+      signaturePath,
+      "--certificate-chain-file",
+      certificateChainPath,
+    );
+    expect(promoteResult.exitCode).toBe(0);
+    expect(promoteResult.stderr).toBe("");
+
+    const promotedUpdateId = promoteResult.stdout.match(/as update ([^\s.]+)\./)?.[1];
+    expect(promotedUpdateId).toBeDefined();
+
+    const updatesResponse = await cli.getAuthorized(`/api/updates?projectId=${cli.getProjectId()}`);
+    expect(updatesResponse.status).toBe(200);
+    const updatesBody = (await updatesResponse.json()) as {
+      items: Array<{
+        id: string;
+        branchId: string;
+        signature: string | null;
+        certificateChain: string | null;
+        manifestBody: string | null;
+      }>;
+    };
+
+    expect(updatesBody.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: promotedUpdateId,
+          signature: 'sig="replacement-signature", keyid="main", alg="rsa-v1_5_sha256"',
+          certificateChain: "-----BEGIN CERTIFICATE-----\nREPLACEMENT\n-----END CERTIFICATE-----",
+          manifestBody: replacementManifestBody,
+        }),
+      ]),
+    );
   });
 });

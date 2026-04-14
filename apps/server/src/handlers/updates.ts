@@ -1,7 +1,7 @@
 import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
-import type { CreateUpdateBody, RepublishBody } from "@better-update/api";
+import type { CreateUpdateBody } from "@better-update/api";
 
 import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
@@ -9,16 +9,15 @@ import { assertProjectOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
 import { UpdateCoordinator } from "../cloudflare/update-coordinator";
 import { validateUpdatePublishInput } from "../domain/update-publish-validation";
-import { BadRequest, Conflict, NotFound } from "../errors";
+import { Conflict, NotFound } from "../errors";
 import { toApiUpdate } from "../http/to-api";
 import { toApiBadRequestReadEffect, toApiWriteEffect } from "../http/to-api-effect";
 import { AssetRepo, BranchRepo, ChannelRepo, ProjectRepo, UpdateRepo } from "../repositories";
-
-const getUpdateAssets = (updateId: string) =>
-  Effect.gen(function* () {
-    const repo = yield* UpdateRepo;
-    return yield* repo.findAssetsByUpdateId({ updateId });
-  });
+import {
+  prepareRepublishUpdates,
+  resolveRepublishDestination,
+  resolveRepublishSource,
+} from "./update-republish";
 
 const assertAssetsExist = (assets: readonly { readonly hash: string }[]) =>
   Effect.gen(function* () {
@@ -44,131 +43,6 @@ const assertAssetsExist = (assets: readonly { readonly hash: string }[]) =>
       });
     }
   });
-
-const fail = (message: string) => new BadRequest({ message });
-
-const assertExactlyOneDefined = (params: {
-  readonly values: readonly [unknown, unknown];
-  readonly message: string;
-}) => {
-  const definedCount = params.values.filter((value) => value !== undefined).length;
-  return definedCount === 1 ? Effect.void : Effect.fail(fail(params.message));
-};
-
-const isSignedOrPrecomputedUpdate = (update: {
-  readonly signature: string | null;
-  readonly certificateChain: string | null;
-  readonly manifestBody: string | null;
-  readonly directiveBody: string | null;
-}) =>
-  update.signature !== null ||
-  update.certificateChain !== null ||
-  update.manifestBody !== null ||
-  update.directiveBody !== null;
-
-const resolveRepublishSource = ({ payload }: { readonly payload: typeof RepublishBody.Type }) =>
-  Effect.gen(function* () {
-    yield* assertExactlyOneDefined({
-      values: [payload.sourceUpdateId, payload.sourceGroupId],
-      message: "Provide exactly one of sourceUpdateId or sourceGroupId",
-    });
-
-    const updateRepo = yield* UpdateRepo;
-    const branchRepo = yield* BranchRepo;
-    const sourceUpdates = payload.sourceUpdateId
-      ? [yield* updateRepo.findById({ id: payload.sourceUpdateId })]
-      : yield* Effect.gen(function* () {
-          const updates = yield* updateRepo.findByGroupId({
-            groupId: payload.sourceGroupId ?? "",
-          });
-          if (updates.length === 0) {
-            yield* new NotFound({ message: "Update group not found" });
-          }
-          return updates;
-        });
-
-    const sourceBranches = yield* Effect.forEach(
-      sourceUpdates,
-      (update) => branchRepo.findById({ id: update.branchId }),
-      { concurrency: "unbounded" },
-    );
-    const projectIds = [...new Set(sourceBranches.map((branch) => branch.projectId))];
-    const [sourceProjectId = ""] = projectIds;
-    if (sourceProjectId.length === 0 || projectIds.length !== 1) {
-      yield* fail("All source updates must belong to the same project");
-    }
-
-    yield* assertProjectOwnership(sourceProjectId);
-
-    if (sourceUpdates.some((update) => update.isRollback)) {
-      yield* fail("Cannot republish a rollback directive");
-    }
-
-    if (sourceUpdates.some(isSignedOrPrecomputedUpdate)) {
-      yield* fail(
-        "Cannot republish in a signed project. Use POST /api/updates with a pre-signed manifest instead.",
-      );
-    }
-
-    const sourceUpdatesWithAssets = yield* Effect.forEach(
-      sourceUpdates,
-      (update) =>
-        Effect.map(getUpdateAssets(update.id), (assets) => ({
-          update,
-          assets,
-        })),
-      { concurrency: "unbounded" },
-    );
-
-    return {
-      projectId: sourceProjectId,
-      sourceUpdates: sourceUpdatesWithAssets.toSorted((left, right) =>
-        left.update.platform.localeCompare(right.update.platform),
-      ),
-    };
-  });
-
-const resolveRepublishDestination = (params: {
-  readonly payload: typeof RepublishBody.Type;
-  readonly projectId: string;
-}) =>
-  Effect.gen(function* () {
-    yield* assertExactlyOneDefined({
-      values: [params.payload.destinationBranchId, params.payload.destinationChannel],
-      message: "Provide exactly one of destinationBranchId or destinationChannel",
-    });
-
-    const branchRepo = yield* BranchRepo;
-    const channelRepo = yield* ChannelRepo;
-
-    if (params.payload.destinationBranchId) {
-      const destinationBranch = yield* branchRepo.findById({
-        id: params.payload.destinationBranchId,
-      });
-      if (destinationBranch.projectId !== params.projectId) {
-        yield* fail("Source and destination must belong to the same project");
-      }
-
-      return {
-        branchId: destinationBranch.id,
-        auditMetadata: { destinationBranchId: destinationBranch.id },
-      };
-    }
-
-    const destinationChannel = yield* channelRepo.findByProjectAndName({
-      projectId: params.projectId,
-      name: params.payload.destinationChannel ?? "",
-    });
-
-    return {
-      branchId: destinationChannel.branchId,
-      auditMetadata: {
-        destinationBranchId: destinationChannel.branchId,
-        destinationChannel: destinationChannel.name,
-      },
-    };
-  });
-
 const handleCreateUpdate = ({ payload }: { readonly payload: typeof CreateUpdateBody.Type }) =>
   toApiWriteEffect(
     Effect.gen(function* () {
@@ -324,20 +198,17 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
             payload,
             projectId: source.projectId,
           });
+          const republishUpdates = yield* prepareRepublishUpdates({
+            payload,
+            sourceUpdates: source.sourceUpdates,
+          });
           const coordinator = yield* UpdateCoordinator;
           const publishResult = yield* coordinator.republishUpdate({
             coordinatorName: destination.branchId,
             payload: {
               branchId: destination.branchId,
               message: payload.message ?? null,
-              updates: source.sourceUpdates.map(({ update, assets }) => ({
-                runtimeVersion: update.runtimeVersion,
-                platform: update.platform,
-                message: update.message,
-                metadataJson: update.metadataJson,
-                extraJson: update.extraJson,
-                assets,
-              })),
+              updates: republishUpdates,
             },
           });
           if (!publishResult.ok) {

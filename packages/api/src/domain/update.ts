@@ -50,6 +50,16 @@ export const RepublishBody = Schema.Struct({
   destinationBranchId: Schema.optional(Id),
   destinationChannel: Schema.optional(Schema.String.pipe(Schema.minLength(1))),
   message: Schema.optional(Schema.String),
+  signedUpdates: Schema.optional(
+    Schema.Array(
+      Schema.Struct({
+        sourceUpdateId: Id,
+        manifestBody: Schema.String.pipe(Schema.minLength(1)),
+        signature: Schema.String.pipe(Schema.minLength(1)),
+        certificateChain: Schema.String.pipe(Schema.minLength(1)),
+      }),
+    ),
+  ),
 });
 
 export const RepublishResult = Schema.Struct({

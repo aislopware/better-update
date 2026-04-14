@@ -6,6 +6,7 @@ import {
   AuthRequiredError,
   BuildProfileError,
   ProjectNotLinkedError,
+  UpdatePromoteError,
   RuntimeVersionError,
   UpdateRollbackError,
 } from "../../lib/exit-codes";
@@ -43,6 +44,7 @@ export const handleUpdateCommandErrors = <A, R>(effect: Effect.Effect<A, unknown
       BuildProfileError: (error: BuildProfileError) => exitWith(2, error.message),
       RuntimeVersionError: (error: RuntimeVersionError) => exitWith(2, error.message),
       UpdateRollbackError: (error: UpdateRollbackError) => exitWith(2, error.message),
+      UpdatePromoteError: (error: UpdatePromoteError) => exitWith(2, error.message),
       BadRequest: (error: BadRequest) => exitWith(2, error.message),
       NotFound: (error: NotFound) => exitWith(1, error.message),
       Conflict: (error: Conflict) => exitWith(1, error.message),

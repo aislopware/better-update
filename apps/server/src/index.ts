@@ -9,7 +9,7 @@ import { makeCloudflareRequestContext, provideCloudflareEnv } from "./cloudflare
 import { handleScheduled, matchBuildRoute, serveManifest } from "./handlers";
 import { ServerInfrastructureLayer } from "./infrastructure-layer";
 import { verifyAssetUploadToken } from "./lib/asset-upload-token";
-import { toBase64Url } from "./lib/base64";
+import { teeBodyWithSha256 } from "./lib/stream-digest";
 import { AssetRepo } from "./repositories";
 
 import type { ServerInfrastructure } from "./infrastructure-layer";
@@ -52,10 +52,42 @@ const putAssetObject = (params: {
     yield* storage.putObject(params);
   });
 
+const deleteAssetObject = (key: string) =>
+  Effect.gen(function* () {
+    const storage = yield* AssetStorage;
+    yield* storage.deleteObjects({ keys: [key] });
+  });
+
+const cleanupAssetObject = (key: string) =>
+  deleteAssetObject(key).pipe(Effect.catchAll(() => Effect.void));
+
 const updateAssetByteSize = (hash: string, byteSize: number) =>
   Effect.gen(function* () {
     const repo = yield* AssetRepo;
     yield* repo.updateByteSize({ hash, byteSize });
+  });
+
+const putAssetObjectWithDigest = (params: {
+  readonly key: string;
+  readonly body: ReadableStream<Uint8Array> | null;
+  readonly contentType: string;
+}) =>
+  Effect.gen(function* () {
+    const { uploadBody, digest } = teeBodyWithSha256(params.body);
+    return yield* Effect.all(
+      [
+        putAssetObject({
+          key: params.key,
+          body: uploadBody,
+          contentType: params.contentType,
+        }),
+        Effect.tryPromise({ try: async () => digest, catch: (cause) => cause }),
+      ],
+      { concurrency: "unbounded" },
+    ).pipe(
+      Effect.map(([, digestResult]) => digestResult),
+      Effect.tapError(() => cleanupAssetObject(params.key)),
+    );
   });
 
 const internalError = () =>
@@ -172,11 +204,17 @@ const handleAssetUpload = async (request: Request, env: Env, hash: string): Prom
     return Response.json({ hash, r2Key: asset.r2Key }, { status: 200 });
   }
 
-  const bodyBytes = new Uint8Array(await request.arrayBuffer());
-  const digest = await crypto.subtle.digest("SHA-256", bodyBytes);
-  const computedHash = toBase64Url(new Uint8Array(digest));
+  const { sha256Base64Url: computedHash, byteSize } = await runServerEnvEffect(
+    putAssetObjectWithDigest({
+      key: asset.r2Key,
+      body: request.body,
+      contentType: asset.contentType,
+    }),
+    env,
+  );
 
   if (computedHash !== hash) {
+    await runServerEnvEffect(cleanupAssetObject(asset.r2Key), env);
     return Response.json(
       {
         code: "BAD_REQUEST",
@@ -186,16 +224,7 @@ const handleAssetUpload = async (request: Request, env: Env, hash: string): Prom
     );
   }
 
-  await runServerEnvEffect(
-    putAssetObject({
-      key: asset.r2Key,
-      body: bodyBytes,
-      contentType: asset.contentType,
-    }),
-    env,
-  );
-
-  await runServerEnvEffect(updateAssetByteSize(hash, bodyBytes.byteLength), env);
+  await runServerEnvEffect(updateAssetByteSize(hash, byteSize), env);
 
   return Response.json({ hash, r2Key: asset.r2Key }, { status: 200 });
 };

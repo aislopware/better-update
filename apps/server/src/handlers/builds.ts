@@ -13,8 +13,12 @@ import { BuildRuntime } from "../cloudflare/build-runtime";
 import { cloudflareEnv, cloudflareRequest } from "../cloudflare/context";
 import { generateInstallToken } from "../domain/install-token";
 import { BadRequest, NotFound } from "../errors";
-import { toApiBuild, toApiBuildCompatibilityMatrix } from "../http/to-api";
-import { toApiBadRequestReadEffect } from "../http/to-api-effect";
+import {
+  toApiBadRequestReadEffect,
+  toApiBuild,
+  toApiBuildCompatibilityMatrix,
+} from "../http/build-http";
+import { teeBodyWithSha256 } from "../lib/stream-digest";
 import { BuildRepo, CompatibilityRepo } from "../repositories";
 
 const UPLOAD_EXPIRY_SECONDS = 7200;
@@ -33,15 +37,6 @@ const formatForContentType = (format: string) =>
 const artifactExt = (format: string) => (format === "tar.gz" ? "tar.gz" : format);
 
 const requestOrigin = (request: Request) => new URL(request.url).origin;
-
-const toHex = (bytes: Uint8Array) =>
-  Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
-
-const sha256Hex = async (bytes: Uint8Array) => {
-  const digestInput = new Uint8Array(bytes);
-  const digest = await crypto.subtle.digest("SHA-256", digestInput);
-  return toHex(new Uint8Array(digest));
-};
 
 const testBuildStorageUrl = ({
   origin,
@@ -80,6 +75,52 @@ const ReservationSchema = Schema.Struct({
 });
 
 const decodeReservation = Schema.decodeUnknownSync(ReservationSchema);
+
+const cleanupBuildObject = (key: string) =>
+  Effect.gen(function* () {
+    const runtime = yield* BuildRuntime;
+    yield* runtime.deleteObjects({ keys: [key] });
+  }).pipe(Effect.catchAll(() => Effect.void));
+
+const streamBuildArtifactToFinalKey = (params: {
+  readonly finalKey: string;
+  readonly contentType: string;
+  readonly body: ReadableStream<Uint8Array> | null;
+  readonly expectedSha256: string;
+}) =>
+  Effect.gen(function* () {
+    const runtime = yield* BuildRuntime;
+    const { uploadBody, digest } = teeBodyWithSha256(params.body);
+    const storedArtifact = yield* Effect.all(
+      [
+        runtime.putObject({
+          key: params.finalKey,
+          body: uploadBody,
+          contentType: params.contentType,
+        }),
+        Effect.tryPromise({
+          try: async () => digest,
+          catch: (cause) =>
+            new BadRequest({
+              message: `Failed to hash staged artifact: ${String(cause)}`,
+            }),
+        }),
+      ],
+      { concurrency: "unbounded" },
+    ).pipe(
+      Effect.map(([, digestResult]) => digestResult),
+      Effect.tapError(() => cleanupBuildObject(params.finalKey)),
+    );
+
+    if (storedArtifact.sha256Hex !== params.expectedSha256.toLowerCase()) {
+      yield* cleanupBuildObject(params.finalKey);
+      return yield* new BadRequest({
+        message: `Artifact SHA-256 mismatch: expected ${params.expectedSha256}, got ${storedArtifact.sha256Hex}`,
+      });
+    }
+
+    return storedArtifact;
+  });
 
 const handleReserve = ({ payload }: { readonly payload: typeof CreateBuildBody.Type }) =>
   toApiBadRequestReadEffect(
@@ -181,60 +222,39 @@ const handleComplete = ({
         );
       }
 
-      const artifactBytes = yield* Effect.tryPromise({
-        try: async () =>
-          new Uint8Array(await new Response(stagingObject.body ?? new Uint8Array()).arrayBuffer()),
-        catch: (cause) =>
-          new BadRequest({
-            message: `Failed to read staged artifact: ${String(cause)}`,
-          }),
-      });
-      const computedSha256 = yield* Effect.tryPromise({
-        try: async () => sha256Hex(artifactBytes),
-        catch: (cause) =>
-          new BadRequest({
-            message: `Failed to hash staged artifact: ${String(cause)}`,
-          }),
-      });
-      if (computedSha256 !== payload.sha256.toLowerCase()) {
-        return yield* Effect.fail(
-          new BadRequest({
-            message: `Artifact SHA-256 mismatch: expected ${payload.sha256}, got ${computedSha256}`,
-          }),
-        );
-      }
-
       const finalKey = `builds/${reservation.organizationId}/${reservation.projectId}/${path.id}.${artifactExt(reservation.artifactFormat)}`;
-
-      yield* runtime.putObject({
-        key: finalKey,
-        body: artifactBytes,
+      const storedArtifact = yield* streamBuildArtifactToFinalKey({
+        finalKey,
         contentType: formatForContentType(reservation.artifactFormat),
+        body: stagingObject.body,
+        expectedSha256: payload.sha256,
       });
 
       const repo = yield* BuildRepo;
-      const build = yield* repo.insert({
-        id: path.id,
-        projectId: reservation.projectId,
-        platform: reservation.platform,
-        profile: reservation.profile,
-        distribution: reservation.distribution,
-        runtimeVersion: reservation.runtimeVersion,
-        appVersion: reservation.appVersion,
-        buildNumber: reservation.buildNumber,
-        bundleId: reservation.bundleId,
-        gitRef: reservation.gitRef,
-        gitCommit: reservation.gitCommit,
-        message: reservation.message,
-        metadataJson: JSON.stringify(reservation.metadata),
-        artifact: {
-          r2Key: finalKey,
-          format: reservation.artifactFormat,
-          contentType: formatForContentType(reservation.artifactFormat),
-          byteSize: artifactBytes.byteLength,
-          sha256: computedSha256,
-        },
-      });
+      const build = yield* repo
+        .insert({
+          id: path.id,
+          projectId: reservation.projectId,
+          platform: reservation.platform,
+          profile: reservation.profile,
+          distribution: reservation.distribution,
+          runtimeVersion: reservation.runtimeVersion,
+          appVersion: reservation.appVersion,
+          buildNumber: reservation.buildNumber,
+          bundleId: reservation.bundleId,
+          gitRef: reservation.gitRef,
+          gitCommit: reservation.gitCommit,
+          message: reservation.message,
+          metadataJson: JSON.stringify(reservation.metadata),
+          artifact: {
+            r2Key: finalKey,
+            format: reservation.artifactFormat,
+            contentType: formatForContentType(reservation.artifactFormat),
+            byteSize: storedArtifact.byteSize,
+            sha256: storedArtifact.sha256Hex,
+          },
+        })
+        .pipe(Effect.tapError(() => cleanupBuildObject(finalKey)));
 
       yield* Effect.all(
         [

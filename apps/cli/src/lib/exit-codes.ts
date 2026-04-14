@@ -66,3 +66,7 @@ export class UpdatePublishError extends Data.TaggedError("UpdatePublishError")<{
 export class UpdateRollbackError extends Data.TaggedError("UpdateRollbackError")<{
   readonly message: string;
 }> {}
+
+export class UpdatePromoteError extends Data.TaggedError("UpdatePromoteError")<{
+  readonly message: string;
+}> {}

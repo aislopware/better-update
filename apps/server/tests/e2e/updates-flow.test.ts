@@ -680,6 +680,8 @@ describe("Updates & Assets API flow", () => {
 
   it("creates a signed source update", async () => {
     const manifestBody = JSON.stringify({
+      id: "signed-source-manifest",
+      createdAt: "2026-04-14T10:00:00.000Z",
       runtimeVersion: "1.0.0",
       launchAsset: { key: "bundles/ios.js", hash: firstAssetHash },
       assets: [],
@@ -706,7 +708,7 @@ describe("Updates & Assets API flow", () => {
     signedUpdateId = (await response.json()).id as string;
   });
 
-  it("rejects republishing a signed source update", async () => {
+  it("rejects republishing a signed source update without replacement signed manifests", async () => {
     const response = await post(
       "/api/updates/republish",
       {
@@ -718,8 +720,81 @@ describe("Updates & Assets API flow", () => {
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual(
       expect.objectContaining({
-        message: expect.stringContaining("pre-signed manifest"),
+        message: expect.stringContaining("replacement signed manifests"),
       }),
+    );
+  });
+
+  it("republishes a signed source update when replacement signed manifests are supplied", async () => {
+    const replacementManifestBody = JSON.stringify({
+      id: "signed-production-manifest",
+      createdAt: "2026-04-15T10:00:00.000Z",
+      runtimeVersion: "1.0.0",
+      launchAsset: { key: "bundles/ios.js", hash: firstAssetHash },
+      assets: [],
+    });
+
+    const response = await post(
+      "/api/updates/republish",
+      {
+        sourceUpdateId: signedUpdateId,
+        destinationChannel: "production",
+        signedUpdates: [
+          {
+            sourceUpdateId: signedUpdateId,
+            manifestBody: replacementManifestBody,
+            signature: 'sig="replacement-signature", keyid="main", alg="rsa-v1_5_sha256"',
+            certificateChain: "-----BEGIN CERTIFICATE-----\nREPLACEMENT\n-----END CERTIFICATE-----",
+          },
+        ],
+      },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as {
+      updates: Array<{
+        id: string;
+        branchId: string;
+        signature: string | null;
+        certificateChain: string | null;
+        manifestBody: string | null;
+      }>;
+    };
+    expect(body.updates).toHaveLength(1);
+    expect(body.updates[0]?.branchId).toBe(mainBranchId);
+    expect(body.updates[0]?.signature).toBe(
+      'sig="replacement-signature", keyid="main", alg="rsa-v1_5_sha256"',
+    );
+    expect(body.updates[0]?.certificateChain).toBe(
+      "-----BEGIN CERTIFICATE-----\nREPLACEMENT\n-----END CERTIFICATE-----",
+    );
+    expect(body.updates[0]?.manifestBody).toBe(replacementManifestBody);
+
+    const manifestResponse = await manifestGet(
+      projectId,
+      protocolHeaders("production", "1.0.0", "ios", {
+        "expo-expect-signature": 'sig, keyid="main", alg="rsa-v1_5_sha256"',
+      }),
+    );
+    expect(manifestResponse.status).toBe(200);
+
+    const parts = parseMultipart(
+      manifestResponse.headers.get("content-type") ?? "",
+      await manifestResponse.text(),
+    );
+    const manifestPart = parts.find((part) =>
+      part.headers["content-disposition"]?.includes('name="manifest"'),
+    );
+    const certificatePart = parts.find((part) =>
+      part.headers["content-disposition"]?.includes('name="certificate_chain"'),
+    );
+    expect(manifestPart?.headers["expo-signature"]).toBe(
+      'sig="replacement-signature", keyid="main", alg="rsa-v1_5_sha256"',
+    );
+    expect(manifestPart?.body).toBe(replacementManifestBody);
+    expect(certificatePart?.body).toBe(
+      "-----BEGIN CERTIFICATE-----\nREPLACEMENT\n-----END CERTIFICATE-----",
     );
   });
 

@@ -15,6 +15,14 @@ const clear = Options.boolean("clear");
 const manifestBodyFile = Options.text("manifest-body-file").pipe(Options.optional);
 const signatureFile = Options.text("signature-file").pipe(Options.optional);
 const certificateChainFile = Options.text("certificate-chain-file").pipe(Options.optional);
+const manifestBodyFileIos = Options.text("manifest-body-file-ios").pipe(Options.optional);
+const signatureFileIos = Options.text("signature-file-ios").pipe(Options.optional);
+const certificateChainFileIos = Options.text("certificate-chain-file-ios").pipe(Options.optional);
+const manifestBodyFileAndroid = Options.text("manifest-body-file-android").pipe(Options.optional);
+const signatureFileAndroid = Options.text("signature-file-android").pipe(Options.optional);
+const certificateChainFileAndroid = Options.text("certificate-chain-file-android").pipe(
+  Options.optional,
+);
 
 export const publishCommand = Command.make(
   "publish",
@@ -27,6 +35,12 @@ export const publishCommand = Command.make(
     manifestBodyFile,
     signatureFile,
     certificateChainFile,
+    manifestBodyFileIos,
+    signatureFileIos,
+    certificateChainFileIos,
+    manifestBodyFileAndroid,
+    signatureFileAndroid,
+    certificateChainFileAndroid,
   },
   (opts) =>
     Effect.gen(function* () {
@@ -39,6 +53,12 @@ export const publishCommand = Command.make(
         manifestBodyFile: Option.getOrUndefined(opts.manifestBodyFile),
         signatureFile: Option.getOrUndefined(opts.signatureFile),
         certificateChainFile: Option.getOrUndefined(opts.certificateChainFile),
+        manifestBodyFileIos: Option.getOrUndefined(opts.manifestBodyFileIos),
+        signatureFileIos: Option.getOrUndefined(opts.signatureFileIos),
+        certificateChainFileIos: Option.getOrUndefined(opts.certificateChainFileIos),
+        manifestBodyFileAndroid: Option.getOrUndefined(opts.manifestBodyFileAndroid),
+        signatureFileAndroid: Option.getOrUndefined(opts.signatureFileAndroid),
+        certificateChainFileAndroid: Option.getOrUndefined(opts.certificateChainFileAndroid),
       });
 
       yield* Console.log(`Published update group ${result.groupId} to branch "${result.branch}".`);

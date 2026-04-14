@@ -55,6 +55,10 @@ export interface RepublishSourceUpdate {
   readonly message: string;
   readonly metadataJson: string;
   readonly extraJson: string | null;
+  readonly signature: string | null;
+  readonly certificateChain: string | null;
+  readonly manifestBody: string | null;
+  readonly directiveBody: string | null;
   readonly assets: readonly SerializedAssetRef[];
 }
 

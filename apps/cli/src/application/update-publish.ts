@@ -11,6 +11,7 @@ import { EnvExportError, RuntimeVersionError, UpdatePublishError } from "../lib/
 import { readExpoExportAssets, readExpoPublicConfig, runExpoExport } from "../lib/expo-export";
 import { resolveRuntimeVersion } from "../lib/runtime-version";
 import { sha256FileBase64Url } from "../lib/sha256";
+import { loadSignedPublishPayloads, type SignedPayload } from "../lib/signed-payloads";
 import { acquireBuildTempDir } from "../lib/temp-dir";
 import { resolveUpdatePlatforms } from "../lib/update-platforms";
 import { ApiClientService, apiClient } from "../services/api-client";
@@ -33,6 +34,12 @@ export interface RunUpdatePublishOptions {
   readonly manifestBodyFile: string | undefined;
   readonly signatureFile: string | undefined;
   readonly certificateChainFile: string | undefined;
+  readonly manifestBodyFileIos: string | undefined;
+  readonly signatureFileIos: string | undefined;
+  readonly certificateChainFileIos: string | undefined;
+  readonly manifestBodyFileAndroid: string | undefined;
+  readonly signatureFileAndroid: string | undefined;
+  readonly certificateChainFileAndroid: string | undefined;
 }
 
 export interface PublishedPlatformResult {
@@ -57,12 +64,6 @@ interface PreparedAsset {
   readonly contentType: string;
   readonly fileExt: string;
   readonly isLaunch: boolean;
-}
-
-interface SignedPublishPayload {
-  readonly manifestBody: string;
-  readonly signature: string;
-  readonly certificateChain: string;
 }
 
 const formatCause = (cause: unknown): string => {
@@ -120,50 +121,6 @@ const preparePlatformAssets = ({
     );
   });
 
-const loadOptionalSignedPublishPayload = (
-  options: RunUpdatePublishOptions,
-): Effect.Effect<SignedPublishPayload | null, UpdatePublishError, FileSystem.FileSystem> =>
-  Effect.gen(function* () {
-    const fileSystem = yield* FileSystem.FileSystem;
-    const hasAnySigningInput =
-      options.manifestBodyFile !== undefined ||
-      options.signatureFile !== undefined ||
-      options.certificateChainFile !== undefined;
-
-    if (!hasAnySigningInput) {
-      return null;
-    }
-
-    if (!options.manifestBodyFile || !options.signatureFile || !options.certificateChainFile) {
-      return yield* new UpdatePublishError({
-        message:
-          "Signed publish requires --manifest-body-file, --signature-file, and --certificate-chain-file together.",
-      });
-    }
-
-    const [manifestBody, signature, certificateChain] = yield* Effect.all(
-      [
-        fileSystem.readFileString(options.manifestBodyFile),
-        fileSystem.readFileString(options.signatureFile),
-        fileSystem.readFileString(options.certificateChainFile),
-      ],
-      { concurrency: "unbounded" },
-    ).pipe(
-      Effect.mapError(
-        (cause) =>
-          new UpdatePublishError({
-            message: `Failed to read signed publish inputs: ${formatCause(cause)}`,
-          }),
-      ),
-    );
-
-    return {
-      manifestBody,
-      signature: signature.trim(),
-      certificateChain: certificateChain.trimEnd(),
-    } satisfies SignedPublishPayload;
-  });
-
 const publishPlatform = (params: {
   readonly projectRoot: string;
   readonly exportDir: string;
@@ -177,7 +134,7 @@ const publishPlatform = (params: {
   readonly clear: boolean;
   readonly appJson: Record<string, unknown>;
   readonly platform: Platform;
-  readonly signedPayload: SignedPublishPayload | null;
+  readonly signedPayload: SignedPayload | null;
 }): Effect.Effect<
   PublishedPlatformResult,
   | AuthRequiredError
@@ -347,13 +304,27 @@ export const runUpdatePublish = (
       );
       const groupId = randomUUID();
       const message = options.message ?? "Publish via better-update CLI";
-      const signedPayload = yield* loadOptionalSignedPublishPayload(options);
-      if (signedPayload !== null && platforms.length !== 1) {
-        return yield* new UpdatePublishError({
-          message:
-            "Signed publish currently requires exactly one target platform. Pass --platform ios or --platform android.",
-        });
-      }
+      const signedPayloads = yield* loadSignedPublishPayloads({
+        platforms,
+        globalFiles: {
+          manifestBodyFile: options.manifestBodyFile,
+          signatureFile: options.signatureFile,
+          certificateChainFile: options.certificateChainFile,
+        },
+        platformFiles: {
+          ios: {
+            manifestBodyFile: options.manifestBodyFileIos,
+            signatureFile: options.signatureFileIos,
+            certificateChainFile: options.certificateChainFileIos,
+          },
+          android: {
+            manifestBodyFile: options.manifestBodyFileAndroid,
+            signatureFile: options.signatureFileAndroid,
+            certificateChainFile: options.certificateChainFileAndroid,
+          },
+        },
+        makeError: (message) => new UpdatePublishError({ message }),
+      });
       const results: PublishedPlatformResult[] = [];
 
       yield* Effect.forEach(
@@ -372,7 +343,7 @@ export const runUpdatePublish = (
             clear: options.clear,
             appJson,
             platform,
-            signedPayload,
+            signedPayload: signedPayloads[platform] ?? null,
           }).pipe(
             Effect.tap((result) =>
               Effect.sync(() => {
