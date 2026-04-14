@@ -33,6 +33,49 @@ const put = (path: string, body: BodyInit, headers?: Record<string, string>) =>
     body,
   });
 
+const manifestGet = (projectId: string, headers: Record<string, string>) =>
+  fetch(`${getBaseUrl()}/manifest/${projectId}`, { headers });
+
+const protocolHeaders = (
+  channelName: string,
+  runtimeVersion: string,
+  platform: "ios" | "android",
+  overrides?: Record<string, string>,
+) => ({
+  "expo-protocol-version": "1",
+  "expo-platform": platform,
+  "expo-runtime-version": runtimeVersion,
+  "expo-channel-name": channelName,
+  accept: "multipart/mixed",
+  ...overrides,
+});
+
+interface MultipartPart {
+  readonly headers: Record<string, string>;
+  readonly body: string;
+}
+
+const parseMultipart = (contentType: string, rawBody: string): readonly MultipartPart[] => {
+  const boundaryMatch = /boundary=([^\s;]+)/.exec(contentType);
+  const boundary = boundaryMatch?.[1] ?? "";
+  return rawBody
+    .split(`--${boundary}`)
+    .slice(1, -1)
+    .map((part) => {
+      const [headerSection = "", ...bodySections] = part.split("\r\n\r\n");
+      const headers = Object.fromEntries(
+        headerSection
+          .split("\r\n")
+          .filter(Boolean)
+          .map((line) => {
+            const idx = line.indexOf(": ");
+            return [line.slice(0, idx).toLowerCase(), line.slice(idx + 2)];
+          }),
+      );
+      return { headers, body: bodySections.join("\r\n\r\n").replace(/\r\n$/, "") };
+    });
+};
+
 const parseCookies = (response: Response): string => {
   const setCookie = response.headers.getSetCookie();
   return setCookie
@@ -50,6 +93,7 @@ describe("Updates & Assets API flow", () => {
   let autoProjectId: string;
   let mainBranchId: string;
   let stagingBranchId: string;
+  let rollbackBranchId: string;
   let productionChannelId: string;
   let updateId: string;
   let stagingUpdateId: string;
@@ -158,6 +202,27 @@ describe("Updates & Assets API flow", () => {
     expect(response.status).toBe(201);
     const body = await response.json();
     expect(body.id).toBeDefined();
+  });
+
+  it("creates rollback branch", async () => {
+    const response = await post(
+      "/api/branches",
+      { projectId, name: "rollback" },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    expect(body.id).toBeDefined();
+    rollbackBranchId = body.id;
+  });
+
+  it("creates rollback channel linked to rollback branch", async () => {
+    const response = await post(
+      "/api/channels",
+      { projectId, name: "rollback", branchId: rollbackBranchId },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(201);
   });
 
   // ── Section 3: Asset upload flow ───────────────────────────────
@@ -389,6 +454,58 @@ describe("Updates & Assets API flow", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.total).toBe(2);
+  });
+
+  it("creates a rollback-to-embedded directive update", async () => {
+    const directiveBody = JSON.stringify({
+      type: "rollBackToEmbedded",
+      parameters: {
+        commitTime: "2026-04-14T00:00:00.000Z",
+      },
+    });
+
+    const response = await post(
+      "/api/updates",
+      {
+        project: "@updates/test",
+        branch: "rollback",
+        runtimeVersion: "9.0.0",
+        platform: "ios",
+        message: "Rollback to embedded",
+        groupId: "group-rollback-1",
+        metadata: {},
+        assets: [],
+        isRollback: true,
+        directiveBody,
+      },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    expect(body.isRollback).toBe(true);
+    expect(body.directiveBody).toBe(directiveBody);
+  });
+
+  it("serves the rollback directive from the manifest endpoint", async () => {
+    const response = await manifestGet(projectId, protocolHeaders("rollback", "9.0.0", "ios"));
+    expect(response.status).toBe(200);
+
+    const contentType = response.headers.get("content-type");
+    expect(contentType).toContain("multipart/mixed");
+
+    const body = await response.text();
+    const parts = parseMultipart(contentType ?? "", body);
+    const directivePart = parts.find((part) =>
+      part.headers["content-disposition"]?.includes('name="directive"'),
+    );
+
+    expect(directivePart).toBeDefined();
+    expect(JSON.parse(directivePart?.body ?? "")).toEqual({
+      type: "rollBackToEmbedded",
+      parameters: {
+        commitTime: "2026-04-14T00:00:00.000Z",
+      },
+    });
   });
 
   // ── Section 5: Rollout operations ──────────────────────────────

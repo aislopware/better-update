@@ -26,20 +26,34 @@ import type { Channel, Update } from "@better-update/api";
 
 import { useApiMutation } from "../../../../../lib/use-api-mutation";
 import { PromoteUpdateDialog } from "./-promote-update-dialog";
+import { RollbackToEmbeddedDialog } from "./-rollback-to-embedded-dialog";
 
 interface UpdateCardProps {
   readonly update: typeof Update.Type;
   readonly channels: readonly (typeof Channel.Type)[];
+  readonly branchName: string | undefined;
+  readonly scopeKey: string;
   readonly orgId: string;
   readonly projectId: string;
 }
 
-export const UpdateCard = ({ update, channels, orgId, projectId }: UpdateCardProps) => {
+export const UpdateCard = ({
+  update,
+  channels,
+  branchName,
+  scopeKey,
+  orgId,
+  projectId,
+}: UpdateCardProps) => {
   const queryClient = useQueryClient();
   const [rolloutInput, setRolloutInput] = useState(String(update.rolloutPercentage));
   const [promoteOpen, setPromoteOpen] = useState(false);
+  const [rollbackOpen, setRollbackOpen] = useState(false);
 
   const eligibleChannels = channels.filter((channel) => channel.branchId !== update.branchId);
+  const canCreateFollowupUpdate = !update.isRollback && !update.signature;
+  const canRollbackToEmbedded = canCreateFollowupUpdate && branchName !== undefined;
+  const canPromote = canCreateFollowupUpdate && eligibleChannels.length > 0;
 
   const invalidateUpdates = async () =>
     Effect.runPromise(
@@ -122,7 +136,20 @@ export const UpdateCard = ({ update, channels, orgId, projectId }: UpdateCardPro
             {update.isRollback && <Badge variant="destructive">Rollback</Badge>}
           </div>
           <div className="flex items-center gap-1">
-            {eligibleChannels.length > 0 && !update.isRollback && !update.signature && (
+            {canRollbackToEmbedded && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8"
+                title="Rollback to embedded"
+                onClick={() => {
+                  setRollbackOpen(true);
+                }}
+              >
+                <HugeiconsIcon icon={UndoIcon} strokeWidth={2} className="size-4" />
+              </Button>
+            )}
+            {canPromote && (
               <Button
                 variant="ghost"
                 size="icon"
@@ -200,7 +227,18 @@ export const UpdateCard = ({ update, channels, orgId, projectId }: UpdateCardPro
           </Button>
         </div>
       </CardContent>
-      {eligibleChannels.length > 0 && (
+      {canRollbackToEmbedded && (
+        <RollbackToEmbeddedDialog
+          update={update}
+          branchName={branchName}
+          scopeKey={scopeKey}
+          orgId={orgId}
+          projectId={projectId}
+          open={rollbackOpen}
+          onOpenChange={setRollbackOpen}
+        />
+      )}
+      {canPromote && (
         <PromoteUpdateDialog
           update={update}
           channels={eligibleChannels}

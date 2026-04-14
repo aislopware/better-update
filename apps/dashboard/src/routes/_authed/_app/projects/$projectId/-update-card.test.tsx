@@ -6,22 +6,29 @@ import type { Channel, Update } from "@better-update/api";
 import { renderWithQuery } from "../../../../../../tests/helpers/render-with-query";
 import { UpdateCard } from "./-update-card";
 
-const { apiReactModule, promoteUpdateDialogModule, sonnerModule, apiReactMocks, toastMocks } =
-  vi.hoisted(() => ({
-    apiReactModule: "@better-update/api-client/react",
-    promoteUpdateDialogModule: "./-promote-update-dialog",
-    sonnerModule: "sonner",
-    apiReactMocks: {
-      deleteUpdateGroup: vi.fn<(groupId: string) => Promise<void>>(),
-      editUpdateRollout: vi.fn<(id: string, body: { percentage: number }) => Promise<void>>(),
-      completeUpdateRollout: vi.fn<(id: string) => Promise<void>>(),
-      revertUpdateRollout: vi.fn<(id: string) => Promise<void>>(),
-    },
-    toastMocks: {
-      success: vi.fn<(message: string) => void>(),
-      error: vi.fn<(message: string) => void>(),
-    },
-  }));
+const {
+  apiReactModule,
+  promoteUpdateDialogModule,
+  rollbackDialogModule,
+  sonnerModule,
+  apiReactMocks,
+  toastMocks,
+} = vi.hoisted(() => ({
+  apiReactModule: "@better-update/api-client/react",
+  promoteUpdateDialogModule: "./-promote-update-dialog",
+  rollbackDialogModule: "./-rollback-to-embedded-dialog",
+  sonnerModule: "sonner",
+  apiReactMocks: {
+    deleteUpdateGroup: vi.fn<(groupId: string) => Promise<void>>(),
+    editUpdateRollout: vi.fn<(id: string, body: { percentage: number }) => Promise<void>>(),
+    completeUpdateRollout: vi.fn<(id: string) => Promise<void>>(),
+    revertUpdateRollout: vi.fn<(id: string) => Promise<void>>(),
+  },
+  toastMocks: {
+    success: vi.fn<(message: string) => void>(),
+    error: vi.fn<(message: string) => void>(),
+  },
+}));
 
 vi.mock(sonnerModule, () => ({
   toast: toastMocks,
@@ -45,8 +52,16 @@ vi.mock(promoteUpdateDialogModule, () => ({
   ),
 }));
 
+vi.mock(rollbackDialogModule, () => ({
+  RollbackToEmbeddedDialog: ({ open }: { open: boolean }) => (
+    <div>{open ? "Rollback dialog open" : "Rollback dialog closed"}</div>
+  ),
+}));
+
 const orgId = "org-1";
 const projectId = "proj-1";
+const scopeKey = "@updates/test";
+const branchName = "main";
 
 const update = {
   id: "update-1",
@@ -112,7 +127,14 @@ describe(UpdateCard, () => {
   test("deletes update groups and invalidates the compatibility matrix", async () => {
     const user = userEvent.setup();
     const { queryClient } = renderWithQuery(
-      <UpdateCard update={update} channels={channels} orgId={orgId} projectId={projectId} />,
+      <UpdateCard
+        update={update}
+        channels={channels}
+        branchName={branchName}
+        scopeKey={scopeKey}
+        orgId={orgId}
+        projectId={projectId}
+      />,
     );
     const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
 
@@ -128,7 +150,14 @@ describe(UpdateCard, () => {
   test("validates rollout input before sending the mutation", async () => {
     const user = userEvent.setup();
     renderWithQuery(
-      <UpdateCard update={update} channels={channels} orgId={orgId} projectId={projectId} />,
+      <UpdateCard
+        update={update}
+        channels={channels}
+        branchName={branchName}
+        scopeKey={scopeKey}
+        orgId={orgId}
+        projectId={projectId}
+      />,
     );
 
     await user.clear(screen.getByRole("spinbutton"));
@@ -142,7 +171,14 @@ describe(UpdateCard, () => {
   test("edits rollout percentages and invalidates the compatibility matrix", async () => {
     const user = userEvent.setup();
     const { queryClient } = renderWithQuery(
-      <UpdateCard update={update} channels={channels} orgId={orgId} projectId={projectId} />,
+      <UpdateCard
+        update={update}
+        channels={channels}
+        branchName={branchName}
+        scopeKey={scopeKey}
+        orgId={orgId}
+        projectId={projectId}
+      />,
     );
     const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
 
@@ -173,7 +209,14 @@ describe(UpdateCard, () => {
   ])("$name and invalidates the compatibility matrix", async ({ buttonName, expectCall }) => {
     const user = userEvent.setup();
     const { queryClient } = renderWithQuery(
-      <UpdateCard update={update} channels={channels} orgId={orgId} projectId={projectId} />,
+      <UpdateCard
+        update={update}
+        channels={channels}
+        branchName={branchName}
+        scopeKey={scopeKey}
+        orgId={orgId}
+        projectId={projectId}
+      />,
     );
     const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
 
@@ -189,7 +232,14 @@ describe(UpdateCard, () => {
   test("opens the promote dialog when a compatible target channel exists", async () => {
     const user = userEvent.setup();
     renderWithQuery(
-      <UpdateCard update={update} channels={channels} orgId={orgId} projectId={projectId} />,
+      <UpdateCard
+        update={update}
+        channels={channels}
+        branchName={branchName}
+        scopeKey={scopeKey}
+        orgId={orgId}
+        projectId={projectId}
+      />,
     );
 
     expect(screen.getByText("Promote dialog closed")).toBeInTheDocument();
@@ -197,5 +247,25 @@ describe(UpdateCard, () => {
     await user.click(screen.getByRole("button", { name: "Promote to another channel" }));
 
     expect(screen.getByText("Promote dialog open")).toBeInTheDocument();
+  });
+
+  test("opens the rollback dialog when branch context is available", async () => {
+    const user = userEvent.setup();
+    renderWithQuery(
+      <UpdateCard
+        update={update}
+        channels={channels}
+        branchName={branchName}
+        scopeKey={scopeKey}
+        orgId={orgId}
+        projectId={projectId}
+      />,
+    );
+
+    expect(screen.getByText("Rollback dialog closed")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Rollback to embedded" }));
+
+    expect(screen.getByText("Rollback dialog open")).toBeInTheDocument();
   });
 });

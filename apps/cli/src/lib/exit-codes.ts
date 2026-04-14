@@ -62,3 +62,7 @@ export class EnvExportError extends Data.TaggedError("EnvExportError")<{
 export class UpdatePublishError extends Data.TaggedError("UpdatePublishError")<{
   readonly message: string;
 }> {}
+
+export class UpdateRollbackError extends Data.TaggedError("UpdateRollbackError")<{
+  readonly message: string;
+}> {}

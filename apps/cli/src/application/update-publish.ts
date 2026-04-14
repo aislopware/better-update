@@ -12,6 +12,7 @@ import { readExpoExportAssets, readExpoPublicConfig, runExpoExport } from "../li
 import { resolveRuntimeVersion } from "../lib/runtime-version";
 import { sha256FileBase64Url } from "../lib/sha256";
 import { acquireBuildTempDir } from "../lib/temp-dir";
+import { resolveUpdatePlatforms } from "../lib/update-platforms";
 import { ApiClientService, apiClient } from "../services/api-client";
 import { CliRuntime } from "../services/cli-runtime";
 import { UpdateAssetUploader } from "../services/update-asset-uploader";
@@ -55,9 +56,6 @@ interface PreparedAsset {
   readonly isLaunch: boolean;
 }
 
-const asRecord = (value: unknown): Record<string, unknown> | undefined =>
-  typeof value === "object" && value !== null ? (value as Record<string, unknown>) : undefined;
-
 const formatCause = (cause: unknown): string => {
   if (cause instanceof Error) return cause.message;
   if (typeof cause === "object" && cause !== null) {
@@ -69,25 +67,6 @@ const formatCause = (cause: unknown): string => {
     if (tag) return tag;
   }
   return String(cause);
-};
-
-const resolvePublishPlatforms = (
-  appJson: Record<string, unknown>,
-  requestedPlatform: Platform | "all",
-): readonly Platform[] => {
-  if (requestedPlatform !== "all") {
-    return [requestedPlatform] as const;
-  }
-
-  const expo = asRecord(appJson["expo"]);
-  const platforms: Platform[] = [];
-  if (asRecord(expo?.["ios"])) {
-    platforms.push("ios");
-  }
-  if (asRecord(expo?.["android"])) {
-    platforms.push("android");
-  }
-  return platforms;
 };
 
 const buildUpdateExtra = (expoClient: Record<string, unknown>, projectId: string) => ({
@@ -277,7 +256,7 @@ export const runUpdatePublish = (
       const projectId = yield* readProjectId;
       const scopeKey = yield* readScopeKey;
       const appJson = yield* readAppJson;
-      const platforms = resolvePublishPlatforms(appJson, options.platform);
+      const platforms = resolveUpdatePlatforms(appJson, options.platform);
       if (platforms.length === 0) {
         return yield* new UpdatePublishError({
           message:

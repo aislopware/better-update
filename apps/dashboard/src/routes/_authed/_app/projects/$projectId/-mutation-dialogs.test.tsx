@@ -10,6 +10,7 @@ import { DeleteBranchDialog } from "./-delete-branch-dialog";
 import { DeleteBuildDialog } from "./-delete-build-dialog";
 import { DeleteChannelDialog } from "./-delete-channel-dialog";
 import { PromoteUpdateDialog } from "./-promote-update-dialog";
+import { RollbackToEmbeddedDialog } from "./-rollback-to-embedded-dialog";
 import { UploadBuildDialog } from "./-upload-build-dialog";
 
 const {
@@ -26,6 +27,21 @@ const {
   selectModule: "@better-update/ui/components/ui/select",
   sonnerModule: "sonner",
   apiReactMocks: {
+    createUpdate:
+      vi.fn<
+        (body: {
+          branch: string;
+          project: string;
+          runtimeVersion: string;
+          platform: "ios" | "android";
+          message: string;
+          groupId: string;
+          metadata: Record<string, unknown>;
+          assets: never[];
+          isRollback: true;
+          directiveBody: string;
+        }) => Promise<void>
+      >(),
     createChannel:
       vi.fn<(body: { projectId: string; name: string; branchId: string }) => Promise<void>>(),
     deleteBranch: vi.fn<(id: string) => Promise<void>>(),
@@ -110,6 +126,7 @@ vi.mock(apiReactModule, async (importOriginal) => {
 
   return {
     ...actualModule,
+    createUpdate: apiReactMocks.createUpdate,
     createChannel: apiReactMocks.createChannel,
     deleteBranch: apiReactMocks.deleteBranch,
     deleteBuild: apiReactMocks.deleteBuild,
@@ -133,6 +150,7 @@ vi.mock(buildHelpersModule, async (importOriginal) => {
 
 const orgId = "org-1";
 const projectId = "proj-1";
+const scopeKey = "@updates/test";
 
 const branch = {
   id: "branch-main",
@@ -210,6 +228,7 @@ const confirmDeletion = async (user: ReturnType<typeof userEvent.setup>, name: s
 describe("mutation dialogs", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    apiReactMocks.createUpdate.mockResolvedValue(undefined);
     apiReactMocks.createChannel.mockResolvedValue(undefined);
     apiReactMocks.deleteBranch.mockResolvedValue(undefined);
     apiReactMocks.deleteBuild.mockResolvedValue(undefined);
@@ -347,6 +366,58 @@ describe("mutation dialogs", () => {
         sourceUpdateId: update.id,
         targetChannelId: channel.id,
       });
+    });
+
+    await expectInvalidation(invalidateSpy, [
+      ["org", orgId, "projects", projectId, "updates"],
+      ["org", orgId, "projects", projectId, "build-compatibility-matrix"],
+    ]);
+
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  test("RollbackToEmbeddedDialog invalidates updates and compatibility matrix after create", async () => {
+    const user = userEvent.setup();
+    const onOpenChange = vi.fn<(open: boolean) => void>();
+    const { queryClient } = renderWithQuery(
+      <RollbackToEmbeddedDialog
+        update={update}
+        branchName="main"
+        scopeKey={scopeKey}
+        orgId={orgId}
+        projectId={projectId}
+        open
+        onOpenChange={onOpenChange}
+      />,
+    );
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+
+    await user.click(screen.getByRole("button", { name: "Create rollback" }));
+
+    await waitFor(() => {
+      expect(apiReactMocks.createUpdate).toHaveBeenCalledTimes(1);
+    });
+
+    const payload = apiReactMocks.createUpdate.mock.calls[0]?.[0];
+    expect(payload).toEqual(
+      expect.objectContaining({
+        branch: "main",
+        project: scopeKey,
+        runtimeVersion: update.runtimeVersion,
+        platform: update.platform,
+        message: "Rollback to embedded",
+        metadata: {},
+        assets: [],
+        isRollback: true,
+        groupId: expect.any(String),
+        directiveBody: expect.any(String),
+      }),
+    );
+    expect(JSON.parse(payload?.directiveBody ?? "")).toEqual({
+      type: "rollBackToEmbedded",
+      parameters: {
+        commitTime: expect.any(String),
+      },
     });
 
     await expectInvalidation(invalidateSpy, [

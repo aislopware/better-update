@@ -5,7 +5,7 @@ This file is the root instruction map for coding agents. Keep it short. Add deep
 ## Highest-Priority Rules
 
 - Use `bun` and `bunx`. Do not use `npm`, `npx`, or `yarn`.
-- Use `bun run lint` for linting and typechecking. Do not run `oxlint` or `tsgo` directly.
+- Use `bun run lint` for linting and typechecking. Do not run `oxlint`, `tsgo`, or `tsc` directly.
 - Do not disable lint rules to make a change pass. If a rule is genuinely wrong, stop and ask. If it must change, update the shared base config rather than a package-local override.
 - Prefer the smallest relevant check while iterating, then run the final relevant lint/test commands before finishing.
 - If the task is scoped to one workspace, inspect that workspace first instead of scanning the entire monorepo.
