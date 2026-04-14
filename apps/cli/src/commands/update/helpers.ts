@@ -2,7 +2,13 @@ import { BadRequest, Conflict, Forbidden, NotFound } from "@better-update/api";
 import { Data, Effect } from "effect";
 
 import { exitWith } from "../../application/command-exit";
-import { AuthRequiredError, ProjectNotLinkedError } from "../../lib/exit-codes";
+import {
+  AuthRequiredError,
+  BuildProfileError,
+  ProjectNotLinkedError,
+  RuntimeVersionError,
+  UpdateRollbackError,
+} from "../../lib/exit-codes";
 
 export class UpdateCommandError extends Data.TaggedError("UpdateCommandError")<{
   readonly message: string;
@@ -34,6 +40,9 @@ export const handleUpdateCommandErrors = <A, R>(effect: Effect.Effect<A, unknown
       AuthRequiredError: (error: AuthRequiredError) => exitWith(3, error.message),
       ProjectNotLinkedError: (error: ProjectNotLinkedError) => exitWith(4, error.message),
       UpdateCommandError: (error: UpdateCommandError) => exitWith(2, error.message),
+      BuildProfileError: (error: BuildProfileError) => exitWith(2, error.message),
+      RuntimeVersionError: (error: RuntimeVersionError) => exitWith(2, error.message),
+      UpdateRollbackError: (error: UpdateRollbackError) => exitWith(2, error.message),
       BadRequest: (error: BadRequest) => exitWith(2, error.message),
       NotFound: (error: NotFound) => exitWith(1, error.message),
       Conflict: (error: Conflict) => exitWith(1, error.message),

@@ -5,6 +5,7 @@ import { deleteCommand } from "./delete";
 import { listCommand } from "./list";
 import { promoteCommand } from "./promote";
 import { publishCommand } from "./publish";
+import { rollbackCommand } from "./rollback";
 import { rolloutCommand } from "./rollout";
 
 export const updateCommand = Command.make("update", {}, () =>
@@ -15,6 +16,7 @@ export const updateCommand = Command.make("update", {}, () =>
     listCommand,
     deleteCommand,
     promoteCommand,
+    rollbackCommand,
     rolloutCommand,
   ]),
 );

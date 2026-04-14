@@ -86,7 +86,7 @@ const ProjectDetail = () => {
         </TabsContent>
 
         <TabsContent value="updates">
-          <UpdatesTab orgId={orgId} projectId={projectId} />
+          <UpdatesTab orgId={orgId} projectId={projectId} scopeKey={project.scopeKey} />
         </TabsContent>
 
         <TabsContent value="builds">

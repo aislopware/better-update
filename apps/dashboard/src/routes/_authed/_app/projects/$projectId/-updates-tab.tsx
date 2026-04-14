@@ -34,13 +34,22 @@ const UpdatesEmptyState = () => (
   </Card>
 );
 
-export const UpdatesTab = ({ orgId, projectId }: { orgId: string; projectId: string }) => {
+export const UpdatesTab = ({
+  orgId,
+  projectId,
+  scopeKey,
+}: {
+  orgId: string;
+  projectId: string;
+  scopeKey: string;
+}) => {
   const [branchFilter, setBranchFilter] = useState<string | undefined>(undefined);
   const { data: updatesData } = useSuspenseQuery(
     updatesQueryOptions(orgId, projectId, branchFilter),
   );
   const { data: branchesData } = useSuspenseQuery(branchesQueryOptions(orgId, projectId));
   const { data: channelsData } = useSuspenseQuery(channelsQueryOptions(orgId, projectId, 1000));
+  const branchNames = new Map(branchesData.items.map((branch) => [branch.id, branch.name]));
 
   return (
     <div className="flex flex-col gap-4">
@@ -75,6 +84,8 @@ export const UpdatesTab = ({ orgId, projectId }: { orgId: string; projectId: str
               key={update.id}
               update={update}
               channels={channelsData.items}
+              branchName={branchNames.get(update.branchId)}
+              scopeKey={scopeKey}
               orgId={orgId}
               projectId={projectId}
             />
