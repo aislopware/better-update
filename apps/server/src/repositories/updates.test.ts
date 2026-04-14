@@ -1,7 +1,6 @@
-import { NotFound, Update } from "@better-update/api";
 import { Effect, Either, Exit } from "effect";
 
-import { setRequestContext } from "../cloudflare/context";
+import { runEitherWithLayerAndEnv, runWithLayerAndEnvExit } from "../../tests/helpers/runtime";
 import { UpdateRepo, UpdateRepoLive } from "./updates";
 
 // -- Mock D1 helpers -------------------------------------------------------
@@ -41,8 +40,13 @@ const makeUpdateRow = (overrides?: Partial<Record<string, unknown>>) => ({
   ...overrides,
 });
 
-const runWithRepo = async <Ret, Err>(effect: Effect.Effect<Ret, Err, UpdateRepo>) =>
-  effect.pipe(Effect.provide(UpdateRepoLive), Effect.runPromiseExit);
+const makeEnv = (db: unknown) => ({ DB: db }) as unknown as Env;
+
+const runWithRepo = async <Ret, Err>(effect: Effect.Effect<Ret, Err, UpdateRepo>, env: Env) =>
+  runWithLayerAndEnvExit(effect, UpdateRepoLive, env);
+
+const runWithRepoEither = async <Ret, Err>(effect: Effect.Effect<Ret, Err, UpdateRepo>, env: Env) =>
+  runEitherWithLayerAndEnv(effect, UpdateRepoLive, env);
 
 // -- Tests -----------------------------------------------------------------
 
@@ -50,7 +54,7 @@ describe("UpdateRepo -- D1 adapter", () => {
   describe("insert", () => {
     test("succeeds and returns Update", async () => {
       const db = mockBatchD1(async () => [{ results: [], success: true }]);
-      setRequestContext({ DB: db } as unknown as Env, {} as ExecutionContext);
+      const env = makeEnv(db);
 
       const exit = await runWithRepo(
         Effect.gen(function* () {
@@ -72,18 +76,22 @@ describe("UpdateRepo -- D1 adapter", () => {
             assets: [{ key: "bundle.js", hash: "abc123", isLaunch: true }],
           });
         }),
+        env,
       );
 
       expect(Exit.isSuccess(exit)).toBe(true);
       if (Exit.isSuccess(exit)) {
-        expect(exit.value).toBeInstanceOf(Update);
-        expect(exit.value.branchId).toBe("branch-1");
-        expect(exit.value.runtimeVersion).toBe("1.0.0");
-        expect(exit.value.platform).toBe("ios");
-        expect(exit.value.message).toBe("initial release");
-        expect(exit.value.rolloutPercentage).toBe(100);
-        expect(exit.value.isRollback).toBe(false);
-        expect(exit.value.groupId).toBe("group-1");
+        expect(exit.value).toEqual(
+          expect.objectContaining({
+            branchId: "branch-1",
+            runtimeVersion: "1.0.0",
+            platform: "ios",
+            message: "initial release",
+            rolloutPercentage: 100,
+            isRollback: false,
+            groupId: "group-1",
+          }),
+        );
       }
     });
   });
@@ -99,13 +107,14 @@ describe("UpdateRepo -- D1 adapter", () => {
           ],
         }),
       });
-      setRequestContext({ DB: db } as unknown as Env, {} as ExecutionContext);
+      const env = makeEnv(db);
 
       const exit = await runWithRepo(
         Effect.gen(function* () {
           const repo = yield* UpdateRepo;
           return yield* repo.findByProject({ projectId: "proj-1", limit: 20, offset: 0 });
         }),
+        env,
       );
 
       expect(Exit.isSuccess(exit)).toBe(true);
@@ -113,10 +122,10 @@ describe("UpdateRepo -- D1 adapter", () => {
         const result = exit.value;
         expect(result.total).toBe(2);
         expect(result.items).toHaveLength(2);
-        expect(result.items[0]).toBeInstanceOf(Update);
-        expect(result.items[0]!.message).toBe("first");
-        expect(result.items[0]!.isRollback).toBe(false);
-        expect(result.items[1]!.isRollback).toBe(true);
+        expect(result.items[0]).toEqual(
+          expect.objectContaining({ message: "first", isRollback: false }),
+        );
+        expect(result.items[1]).toEqual(expect.objectContaining({ isRollback: true }));
       }
     });
 
@@ -125,13 +134,14 @@ describe("UpdateRepo -- D1 adapter", () => {
         first: async () => ({ count: 0 }),
         all: async () => ({ results: [] }),
       });
-      setRequestContext({ DB: db } as unknown as Env, {} as ExecutionContext);
+      const env = makeEnv(db);
 
       const exit = await runWithRepo(
         Effect.gen(function* () {
           const repo = yield* UpdateRepo;
           return yield* repo.findByProject({ projectId: "proj-1", limit: 20, offset: 0 });
         }),
+        env,
       );
 
       expect(Exit.isSuccess(exit)).toBe(true);
@@ -148,7 +158,7 @@ describe("UpdateRepo -- D1 adapter", () => {
           results: [makeUpdateRow({ id: "upd-1", branch_id: "branch-2" })],
         }),
       });
-      setRequestContext({ DB: db } as unknown as Env, {} as ExecutionContext);
+      const env = makeEnv(db);
 
       const exit = await runWithRepo(
         Effect.gen(function* () {
@@ -160,6 +170,7 @@ describe("UpdateRepo -- D1 adapter", () => {
             offset: 0,
           });
         }),
+        env,
       );
 
       expect(Exit.isSuccess(exit)).toBe(true);
@@ -178,20 +189,21 @@ describe("UpdateRepo -- D1 adapter", () => {
       const db = mockD1.forQuery({
         first: async () => row,
       });
-      setRequestContext({ DB: db } as unknown as Env, {} as ExecutionContext);
+      const env = makeEnv(db);
 
       const exit = await runWithRepo(
         Effect.gen(function* () {
           const repo = yield* UpdateRepo;
           return yield* repo.findById({ id: "upd-1" });
         }),
+        env,
       );
 
       expect(Exit.isSuccess(exit)).toBe(true);
       if (Exit.isSuccess(exit)) {
-        expect(exit.value).toBeInstanceOf(Update);
-        expect(exit.value.message).toBe("initial release");
-        expect(exit.value.isRollback).toBe(true);
+        expect(exit.value).toEqual(
+          expect.objectContaining({ message: "initial release", isRollback: true }),
+        );
       }
     });
 
@@ -199,16 +211,19 @@ describe("UpdateRepo -- D1 adapter", () => {
       const db = mockD1.forQuery({
         first: async () => null,
       });
-      setRequestContext({ DB: db } as unknown as Env, {} as ExecutionContext);
+      const env = makeEnv(db);
 
-      const result = await Effect.gen(function* () {
-        const repo = yield* UpdateRepo;
-        return yield* repo.findById({ id: "nonexistent" });
-      }).pipe(Effect.provide(UpdateRepoLive), Effect.either, Effect.runPromise);
+      const result = await runWithRepoEither(
+        Effect.gen(function* () {
+          const repo = yield* UpdateRepo;
+          return yield* repo.findById({ id: "nonexistent" });
+        }),
+        env,
+      );
 
       expect(Either.isLeft(result)).toBe(true);
       if (Either.isLeft(result)) {
-        expect(result.left).toBeInstanceOf(NotFound);
+        expect(result.left).toMatchObject({ _tag: "NotFound" });
       }
     });
   });
@@ -223,20 +238,21 @@ describe("UpdateRepo -- D1 adapter", () => {
           ],
         }),
       });
-      setRequestContext({ DB: db } as unknown as Env, {} as ExecutionContext);
+      const env = makeEnv(db);
 
       const exit = await runWithRepo(
         Effect.gen(function* () {
           const repo = yield* UpdateRepo;
           return yield* repo.findByGroupId({ groupId: "group-1" });
         }),
+        env,
       );
 
       expect(Exit.isSuccess(exit)).toBe(true);
       if (Exit.isSuccess(exit)) {
         expect(exit.value).toHaveLength(2);
-        expect(exit.value[0]).toBeInstanceOf(Update);
-        expect(exit.value[1]!.platform).toBe("android");
+        expect(exit.value[0]).toEqual(expect.objectContaining({ id: "upd-1" }));
+        expect(exit.value[1]).toEqual(expect.objectContaining({ platform: "android" }));
       }
     });
   });
@@ -247,13 +263,14 @@ describe("UpdateRepo -- D1 adapter", () => {
         { results: [], success: true },
         { results: [], success: true, meta: { changes: 2 } },
       ]);
-      setRequestContext({ DB: db } as unknown as Env, {} as ExecutionContext);
+      const env = makeEnv(db);
 
       const exit = await runWithRepo(
         Effect.gen(function* () {
           const repo = yield* UpdateRepo;
           return yield* repo.deleteGroup({ groupId: "group-1" });
         }),
+        env,
       );
 
       expect(Exit.isSuccess(exit)).toBe(true);
@@ -272,13 +289,14 @@ describe("UpdateRepo -- D1 adapter", () => {
           }),
         }),
       };
-      setRequestContext({ DB: db } as unknown as Env, {} as ExecutionContext);
+      const env = makeEnv(db);
 
       const exit = await runWithRepo(
         Effect.gen(function* () {
           const repo = yield* UpdateRepo;
           yield* repo.updateRollout({ id: "upd-1", percentage: 50 });
         }),
+        env,
       );
 
       expect(Exit.isSuccess(exit)).toBe(true);

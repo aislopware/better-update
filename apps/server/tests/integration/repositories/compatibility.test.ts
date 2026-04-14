@@ -1,12 +1,12 @@
 import { env } from "cloudflare:test";
 import { Effect } from "effect";
 
-import { setRequestContext } from "../../../src/cloudflare/context";
 import { buildBranchMapping } from "../../../src/domain/branch-mapping";
 import { CompatibilityRepo, CompatibilityRepoLive } from "../../../src/repositories/compatibility";
+import { runWithLayerAndEnv } from "../../helpers/runtime";
 
 const run = <Ret, Err>(effect: Effect.Effect<Ret, Err, CompatibilityRepo>) =>
-  effect.pipe(Effect.provide(CompatibilityRepoLive), Effect.runPromise);
+  runWithLayerAndEnv(effect, CompatibilityRepoLive, env);
 
 const insertOrg = (id: string) =>
   env.DB.prepare(
@@ -113,10 +113,6 @@ const insertUpdate = (params: {
       params.createdAt,
     )
     .run();
-
-beforeAll(() => {
-  setRequestContext(env, {} as ExecutionContext);
-});
 
 const identityRolloutMapping = (branchId: string) =>
   buildBranchMapping({

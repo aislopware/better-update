@@ -1,8 +1,7 @@
 import { FileSystem } from "@effect/platform";
 import { Effect } from "effect";
 
-import type { Credential, CredentialDistribution, CredentialType } from "@better-update/api";
-import type { PlatformError } from "@effect/platform/Error";
+import type { CredentialDistribution, CredentialType } from "@better-update/api";
 
 import type { ApiClient } from "../services/api-client";
 
@@ -28,10 +27,7 @@ const optionalCredentialFields = (input: UploadCredentialFromFileInput) => ({
   ...(input.keyPassword !== undefined ? { keyPassword: input.keyPassword } : {}),
 });
 
-export const findActiveCredential = (
-  api: ApiClient,
-  filter: CredentialFilter,
-): Effect.Effect<Credential | null> =>
+export const findActiveCredential = (api: ApiClient, filter: CredentialFilter) =>
   api.credentials
     .list({
       urlParams: {
@@ -43,10 +39,7 @@ export const findActiveCredential = (
     })
     .pipe(Effect.map(({ items }) => items.find((item) => item.isActive) ?? null));
 
-export const uploadCredentialFromFile = (
-  api: ApiClient,
-  input: UploadCredentialFromFileInput,
-): Effect.Effect<Credential, PlatformError, FileSystem.FileSystem> =>
+export const uploadCredentialFromFile = (api: ApiClient, input: UploadCredentialFromFileInput) =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
     const fileBytes = yield* fs.readFile(input.filePath);
@@ -63,15 +56,10 @@ export const uploadCredentialFromFile = (
     });
   });
 
-export const activateCredential = (
-  api: ApiClient,
-  credentialId: string,
-): Effect.Effect<Credential> => api.credentials.activate({ path: { id: credentialId } });
+export const activateCredential = (api: ApiClient, credentialId: string) =>
+  api.credentials.activate({ path: { id: credentialId } });
 
-export const uploadAndActivateCredential = (
-  api: ApiClient,
-  input: UploadCredentialFromFileInput,
-): Effect.Effect<Credential, PlatformError, FileSystem.FileSystem> =>
+export const uploadAndActivateCredential = (api: ApiClient, input: UploadCredentialFromFileInput) =>
   uploadCredentialFromFile(api, input).pipe(
     Effect.flatMap((credential) => activateCredential(api, credential.id)),
   );

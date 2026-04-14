@@ -1,5 +1,9 @@
+import path from "node:path";
+
 import { FileSystem } from "@effect/platform";
 import { Context, Effect, Layer } from "effect";
+
+import { CliRuntime } from "./cli-runtime";
 
 const DEFAULT_BASE_URL = "https://api.better-update.dev";
 const DEFAULT_DASHBOARD_URL = "https://better-update.dev";
@@ -36,12 +40,13 @@ export class ConfigStore extends Context.Tag("cli/ConfigStore")<
   }
 >() {}
 
-const configFile = `${process.env["HOME"]}/.better-update/config.json`;
-
 export const ConfigStoreLive = Layer.effect(
   ConfigStore,
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
+    const runtime = yield* CliRuntime;
+    const homeDirectory = yield* runtime.homeDirectory;
+    const configFile = path.join(homeDirectory, ".better-update", "config.json");
     const readConfig = fs.readFileString(configFile).pipe(
       Effect.catchAll(() => Effect.succeed("")),
       Effect.flatMap((content) =>
@@ -53,7 +58,7 @@ export const ConfigStoreLive = Layer.effect(
       ),
     );
     const resolveBaseUrl = Effect.gen(function* () {
-      const envUrl = process.env["BETTER_UPDATE_URL"];
+      const envUrl = yield* runtime.getEnv("BETTER_UPDATE_URL");
       if (envUrl) return normalizeUrl(envUrl);
 
       const parsed = yield* readConfig;
@@ -67,7 +72,7 @@ export const ConfigStoreLive = Layer.effect(
       getBaseUrl: resolveBaseUrl,
 
       getDashboardUrl: Effect.gen(function* () {
-        const envUrl = process.env["BETTER_UPDATE_DASHBOARD_URL"];
+        const envUrl = yield* runtime.getEnv("BETTER_UPDATE_DASHBOARD_URL");
         if (envUrl) return normalizeUrl(envUrl);
 
         const parsed = yield* readConfig;

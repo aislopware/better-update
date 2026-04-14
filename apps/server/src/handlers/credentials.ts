@@ -1,23 +1,18 @@
-import { AuthContext, BadRequest, Forbidden, NotFound } from "@better-update/api";
 import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
 import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
+import { CurrentActor } from "../auth/current-actor";
 import { assertOrgOwnership, assertProjectOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
-import { cloudflareEnv } from "../cloudflare/context";
-import {
-  decryptSecret,
-  envelopeDecrypt,
-  envelopeEncrypt,
-  encryptSecret,
-  resolveKeyring,
-} from "../domain/credential-vault";
+import { BuildRuntime } from "../cloudflare/build-runtime";
+import { Vault } from "../cloudflare/vault";
+import { BadRequest, Forbidden, NotFound } from "../errors";
+import { toApiCredential } from "../http/to-api";
+import { toApiBadRequestReadEffect } from "../http/to-api-effect";
 import { fromBase64, toBase64 } from "../lib/base64";
 import { CredentialRepo } from "../repositories/credentials";
-
-import type { Keyring } from "../domain/credential-vault";
 
 const FILENAME_MAP: Record<string, { filename: string; contentType: string }> = {
   "distribution-certificate": { filename: "cert.p12", contentType: "application/x-pkcs12" },
@@ -35,266 +30,279 @@ const FILENAME_MAP: Record<string, { filename: string; contentType: string }> = 
 
 const vaultBadRequest = (message: string) => new BadRequest({ message });
 
-const encryptOptionalSecret = (keyring: Keyring, orgId: string, value: string | undefined) =>
+const encryptOptionalSecret = (orgId: string, value: string | undefined) =>
   value
-    ? encryptSecret(keyring, orgId, value).pipe(
-        Effect.map((result) => result.encrypted),
-        Effect.mapError(() => vaultBadRequest("Failed to encrypt credential secret")),
-      )
+    ? Effect.gen(function* () {
+        const vault = yield* Vault;
+        const result = yield* vault
+          .encryptSecret({ organizationId: orgId, value })
+          .pipe(Effect.mapError(() => vaultBadRequest("Failed to encrypt credential secret")));
+        return result.encrypted;
+      })
     : Effect.succeed(null as string | null);
 
-const decryptOptionalSecret = (
-  keyring: Keyring,
-  orgId: string,
-  keyVersion: number,
-  encrypted: string | null,
-) =>
+const decryptOptionalSecret = (orgId: string, keyVersion: number, encrypted: string | null) =>
   encrypted
-    ? decryptSecret(keyring, orgId, keyVersion, encrypted).pipe(
-        Effect.mapError(() => vaultBadRequest("Failed to decrypt credential secret")),
-      )
+    ? Effect.gen(function* () {
+        const vault = yield* Vault;
+        return yield* vault
+          .decryptSecret({ organizationId: orgId, keyVersion, encrypted })
+          .pipe(Effect.mapError(() => vaultBadRequest("Failed to decrypt credential secret")));
+      })
     : Effect.succeed(null as string | null);
 
 export const CredentialsGroupLive = HttpApiBuilder.group(ManagementApi, "credentials", (handlers) =>
   handlers
     .handle("upload", ({ payload }) =>
-      Effect.gen(function* () {
-        yield* assertPermission("credential", "create");
-        const ctx = yield* AuthContext;
-        const env = yield* cloudflareEnv;
+      toApiBadRequestReadEffect(
+        Effect.gen(function* () {
+          yield* assertPermission("credential", "create");
+          const ctx = yield* CurrentActor;
+          const runtime = yield* BuildRuntime;
 
-        if (payload.projectId) {
-          yield* assertProjectOwnership(payload.projectId);
-        }
+          if (payload.projectId) {
+            yield* assertProjectOwnership(payload.projectId);
+          }
 
-        if (payload.type === "provisioning-profile" && !payload.distribution) {
-          return yield* new BadRequest({
-            message: "distribution is required for provisioning profiles",
+          if (payload.type === "provisioning-profile" && !payload.distribution) {
+            return yield* new BadRequest({
+              message: "distribution is required for provisioning profiles",
+            });
+          }
+
+          const blobBytes = fromBase64(payload.blob);
+
+          const vault = yield* Vault;
+          const { encryptedBlob, encryptedDek, keyVersion } = yield* vault
+            .envelopeEncrypt({
+              organizationId: ctx.organizationId,
+              plaintext: blobBytes,
+            })
+            .pipe(Effect.mapError(() => vaultBadRequest("Failed to encrypt credential blob")));
+
+          const [encryptedPassword, encryptedKeyAlias, encryptedKeyPassword] = yield* Effect.all(
+            [
+              encryptOptionalSecret(ctx.organizationId, payload.password),
+              encryptOptionalSecret(ctx.organizationId, payload.keyAlias),
+              encryptOptionalSecret(ctx.organizationId, payload.keyPassword),
+            ],
+            { concurrency: "unbounded" },
+          );
+
+          const credentialId = crypto.randomUUID();
+          const r2Key = `credentials/${ctx.organizationId}/${credentialId}`;
+
+          yield* runtime.putObject({
+            key: r2Key,
+            body: encryptedBlob,
+            contentType: "application/octet-stream",
           });
-        }
 
-        const keyring = yield* resolveKeyring(env.VAULT_KEYRING).pipe(
-          Effect.mapError(() => new BadRequest({ message: "Vault keyring is not configured" })),
-        );
-        const blobBytes = fromBase64(payload.blob);
+          const repo = yield* CredentialRepo;
+          const credential = yield* repo.insert({
+            id: credentialId,
+            organizationId: ctx.organizationId,
+            projectId: payload.projectId ?? null,
+            platform: payload.platform,
+            type: payload.type,
+            name: payload.name,
+            distribution: payload.distribution ?? null,
+            r2Key,
+            encryptedDek,
+            keyVersion,
+            encryptedPassword,
+            encryptedKeyAlias,
+            encryptedKeyPassword,
+            metadataJson: payload.metadata ?? "{}",
+            expiresAt: payload.expiresAt ?? null,
+          });
 
-        const { encryptedBlob, encryptedDek, keyVersion } = yield* envelopeEncrypt(
-          keyring,
-          ctx.organizationId,
-          blobBytes,
-        ).pipe(Effect.mapError(() => vaultBadRequest("Failed to encrypt credential blob")));
+          yield* logAudit({
+            action: "credential.upload",
+            resourceType: "credential",
+            resourceId: credential.id,
+            metadata: { type: payload.type, platform: payload.platform, name: payload.name },
+          });
 
-        const [encryptedPassword, encryptedKeyAlias, encryptedKeyPassword] = yield* Effect.all(
-          [
-            encryptOptionalSecret(keyring, ctx.organizationId, payload.password),
-            encryptOptionalSecret(keyring, ctx.organizationId, payload.keyAlias),
-            encryptOptionalSecret(keyring, ctx.organizationId, payload.keyPassword),
-          ],
-          { concurrency: "unbounded" },
-        );
-
-        const credentialId = crypto.randomUUID();
-        const r2Key = `credentials/${ctx.organizationId}/${credentialId}`;
-
-        yield* Effect.promise(async () => env.BUILD_BUCKET.put(r2Key, encryptedBlob));
-
-        const repo = yield* CredentialRepo;
-        const credential = yield* repo.insert({
-          id: credentialId,
-          organizationId: ctx.organizationId,
-          projectId: payload.projectId ?? null,
-          platform: payload.platform,
-          type: payload.type,
-          name: payload.name,
-          distribution: payload.distribution ?? null,
-          r2Key,
-          encryptedDek,
-          keyVersion,
-          encryptedPassword,
-          encryptedKeyAlias,
-          encryptedKeyPassword,
-          metadataJson: payload.metadata ?? "{}",
-          expiresAt: payload.expiresAt ?? null,
-        });
-
-        yield* logAudit({
-          action: "credential.upload",
-          resourceType: "credential",
-          resourceId: credential.id,
-          metadata: { type: payload.type, platform: payload.platform, name: payload.name },
-        });
-
-        return credential;
-      }),
+          return toApiCredential(credential);
+        }),
+      ),
     )
     .handle("list", ({ urlParams }) =>
-      Effect.gen(function* () {
-        yield* assertPermission("credential", "read");
-        const ctx = yield* AuthContext;
-        const repo = yield* CredentialRepo;
+      toApiBadRequestReadEffect(
+        Effect.gen(function* () {
+          yield* assertPermission("credential", "read");
+          const ctx = yield* CurrentActor;
+          const repo = yield* CredentialRepo;
 
-        const page = urlParams.page ?? 1;
-        const limit = urlParams.limit ?? 20;
-        const offset = (page - 1) * limit;
+          const page = urlParams.page ?? 1;
+          const limit = urlParams.limit ?? 20;
+          const offset = (page - 1) * limit;
 
-        const { items, total } = yield* repo.list({
-          organizationId: ctx.organizationId,
-          ...(urlParams.projectId ? { projectId: urlParams.projectId } : {}),
-          ...(urlParams.platform ? { platform: urlParams.platform } : {}),
-          ...(urlParams.type ? { type: urlParams.type } : {}),
-          ...(urlParams.distribution ? { distribution: urlParams.distribution } : {}),
-          limit,
-          offset,
-        });
+          const { items, total } = yield* repo.list({
+            organizationId: ctx.organizationId,
+            ...(urlParams.projectId ? { projectId: urlParams.projectId } : {}),
+            ...(urlParams.platform ? { platform: urlParams.platform } : {}),
+            ...(urlParams.type ? { type: urlParams.type } : {}),
+            ...(urlParams.distribution ? { distribution: urlParams.distribution } : {}),
+            limit,
+            offset,
+          });
 
-        return { items, total, page, limit };
-      }),
+          return { items: items.map(toApiCredential), total, page, limit };
+        }),
+      ),
     )
     .handle("get", ({ path }) =>
-      Effect.gen(function* () {
-        yield* assertPermission("credential", "read");
+      toApiBadRequestReadEffect(
+        Effect.gen(function* () {
+          yield* assertPermission("credential", "read");
 
-        const repo = yield* CredentialRepo;
-        const credential = yield* repo.findById({ id: path.id });
-        yield* assertOrgOwnership(credential.organizationId);
+          const repo = yield* CredentialRepo;
+          const credential = yield* repo.findById({ id: path.id });
+          yield* assertOrgOwnership(credential.organizationId);
 
-        return credential;
-      }),
+          return toApiCredential(credential);
+        }),
+      ),
     )
     .handle("download", ({ path }) =>
-      Effect.gen(function* () {
-        const ctx = yield* AuthContext;
-        if (ctx.source !== "api-key") {
-          return yield* new Forbidden({
-            message: "This endpoint requires API key authentication",
+      toApiBadRequestReadEffect(
+        Effect.gen(function* () {
+          const ctx = yield* CurrentActor;
+          if (ctx.source !== "api-key") {
+            return yield* new Forbidden({
+              message: "This endpoint requires API key authentication",
+            });
+          }
+
+          yield* assertPermission("credential", "download");
+
+          const repo = yield* CredentialRepo;
+          const encData = yield* repo.findEncryptionData({ id: path.id });
+          yield* assertOrgOwnership(encData.organizationId);
+
+          const runtime = yield* BuildRuntime;
+          const vault = yield* Vault;
+          const r2Object = yield* runtime.getObject({ key: encData.r2Key });
+          if (!r2Object) {
+            return yield* Effect.fail(
+              new NotFound({ message: "Credential blob not found in storage" }),
+            );
+          }
+
+          const encryptedBlobBytes = yield* Effect.tryPromise({
+            try: async () =>
+              new Uint8Array(await new Response(r2Object.body ?? new Uint8Array()).arrayBuffer()),
+            catch: () => vaultBadRequest("Failed to read credential blob"),
           });
-        }
 
-        yield* assertPermission("credential", "download");
+          const plaintext = yield* vault
+            .envelopeDecrypt({
+              organizationId: encData.organizationId,
+              keyVersion: encData.keyVersion,
+              encryptedDek: encData.encryptedDek,
+              encryptedBlob: encryptedBlobBytes,
+            })
+            .pipe(Effect.mapError(() => vaultBadRequest("Failed to decrypt credential blob")));
 
-        const repo = yield* CredentialRepo;
-        const encData = yield* repo.findEncryptionData({ id: path.id });
-        yield* assertOrgOwnership(encData.organizationId);
-
-        const env = yield* cloudflareEnv;
-        const keyring = yield* resolveKeyring(env.VAULT_KEYRING).pipe(
-          Effect.mapError(() => new BadRequest({ message: "Vault keyring is not configured" })),
-        );
-
-        const r2Object = yield* Effect.promise(async () => env.BUILD_BUCKET.get(encData.r2Key));
-        if (!r2Object) {
-          return yield* Effect.fail(
-            new NotFound({ message: "Credential blob not found in storage" }),
+          const [password, keyAlias, keyPassword] = yield* Effect.all(
+            [
+              decryptOptionalSecret(
+                encData.organizationId,
+                encData.keyVersion,
+                encData.encryptedPassword,
+              ),
+              decryptOptionalSecret(
+                encData.organizationId,
+                encData.keyVersion,
+                encData.encryptedKeyAlias,
+              ),
+              decryptOptionalSecret(
+                encData.organizationId,
+                encData.keyVersion,
+                encData.encryptedKeyPassword,
+              ),
+            ],
+            { concurrency: "unbounded" },
           );
-        }
 
-        const encryptedBlobBytes = yield* Effect.promise(
-          async () => new Uint8Array(await r2Object.arrayBuffer()),
-        );
+          const fileInfo = FILENAME_MAP[encData.type] ?? {
+            filename: "credential",
+            contentType: "application/octet-stream",
+          };
 
-        const plaintext = yield* envelopeDecrypt(
-          keyring,
-          encData.organizationId,
-          encData.keyVersion,
-          encData.encryptedDek,
-          encryptedBlobBytes,
-        ).pipe(Effect.mapError(() => vaultBadRequest("Failed to decrypt credential blob")));
+          yield* logAudit({
+            action: "credential.download",
+            resourceType: "credential",
+            resourceId: path.id,
+          });
 
-        const [password, keyAlias, keyPassword] = yield* Effect.all(
-          [
-            decryptOptionalSecret(
-              keyring,
-              encData.organizationId,
-              encData.keyVersion,
-              encData.encryptedPassword,
-            ),
-            decryptOptionalSecret(
-              keyring,
-              encData.organizationId,
-              encData.keyVersion,
-              encData.encryptedKeyAlias,
-            ),
-            decryptOptionalSecret(
-              keyring,
-              encData.organizationId,
-              encData.keyVersion,
-              encData.encryptedKeyPassword,
-            ),
-          ],
-          { concurrency: "unbounded" },
-        );
-
-        const fileInfo = FILENAME_MAP[encData.type] ?? {
-          filename: "credential",
-          contentType: "application/octet-stream",
-        };
-
-        yield* logAudit({
-          action: "credential.download",
-          resourceType: "credential",
-          resourceId: path.id,
-        });
-
-        return {
-          blob: toBase64(plaintext),
-          password,
-          keyAlias,
-          keyPassword,
-          filename: fileInfo.filename,
-          contentType: fileInfo.contentType,
-        };
-      }),
+          return {
+            blob: toBase64(plaintext),
+            password,
+            keyAlias,
+            keyPassword,
+            filename: fileInfo.filename,
+            contentType: fileInfo.contentType,
+          };
+        }),
+      ),
     )
     .handle("activate", ({ path }) =>
-      Effect.gen(function* () {
-        yield* assertPermission("credential", "update");
+      toApiBadRequestReadEffect(
+        Effect.gen(function* () {
+          yield* assertPermission("credential", "update");
 
-        const repo = yield* CredentialRepo;
-        const credential = yield* repo.findById({ id: path.id });
-        yield* assertOrgOwnership(credential.organizationId);
+          const repo = yield* CredentialRepo;
+          const credential = yield* repo.findById({ id: path.id });
+          yield* assertOrgOwnership(credential.organizationId);
 
-        const activated = yield* repo.activate({
-          id: path.id,
-          organizationId: credential.organizationId,
-          projectId: credential.projectId,
-          platform: credential.platform,
-          type: credential.type,
-          distribution: credential.distribution,
-        });
+          const activated = yield* repo.activate({
+            id: path.id,
+            organizationId: credential.organizationId,
+            projectId: credential.projectId,
+            platform: credential.platform,
+            type: credential.type,
+            distribution: credential.distribution,
+          });
 
-        yield* logAudit({
-          action: "credential.activate",
-          resourceType: "credential",
-          resourceId: path.id,
-        });
+          yield* logAudit({
+            action: "credential.activate",
+            resourceType: "credential",
+            resourceId: path.id,
+          });
 
-        return activated;
-      }),
+          return toApiCredential(activated);
+        }),
+      ),
     )
     .handle("delete", ({ path }) =>
-      Effect.gen(function* () {
-        yield* assertPermission("credential", "delete");
+      toApiBadRequestReadEffect(
+        Effect.gen(function* () {
+          yield* assertPermission("credential", "delete");
 
-        const repo = yield* CredentialRepo;
-        const credential = yield* repo.findById({ id: path.id });
-        yield* assertOrgOwnership(credential.organizationId);
+          const repo = yield* CredentialRepo;
+          const credential = yield* repo.findById({ id: path.id });
+          yield* assertOrgOwnership(credential.organizationId);
 
-        const { r2Key } = yield* repo.deleteById({ id: path.id });
+          const { r2Key } = yield* repo.deleteById({ id: path.id });
 
-        if (r2Key) {
-          const env = yield* cloudflareEnv;
-          yield* Effect.promise(async () => env.BUILD_BUCKET.delete(r2Key)).pipe(
-            Effect.catchAll(() => Effect.void),
-          );
-        }
+          if (r2Key) {
+            const runtime = yield* BuildRuntime;
+            yield* runtime
+              .deleteObjects({ keys: [r2Key] })
+              .pipe(Effect.catchAll(() => Effect.void));
+          }
 
-        yield* logAudit({
-          action: "credential.delete",
-          resourceType: "credential",
-          resourceId: path.id,
-        });
+          yield* logAudit({
+            action: "credential.delete",
+            resourceType: "credential",
+            resourceId: path.id,
+          });
 
-        return { id: path.id };
-      }),
+          return { id: path.id };
+        }),
+      ),
     ),
 );

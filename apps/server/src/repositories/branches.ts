@@ -1,9 +1,11 @@
-import { Branch, Conflict, NotFound } from "@better-update/api";
 import { Context, Effect, Layer } from "effect";
 
 import { cloudflareEnv } from "../cloudflare/context";
+import { Conflict, NotFound } from "../errors";
 import { CHANNEL_BRANCH_REFERENCE_PREDICATE } from "./channel-cache-version";
 import { d1RunWithUniqueCheck } from "./d1-helpers";
+
+import type { BranchModel } from "../models";
 
 // -- Port ------------------------------------------------------------------
 
@@ -19,14 +21,14 @@ export interface BranchRepository {
     readonly projectId: string;
     readonly limit: number;
     readonly offset: number;
-  }) => Effect.Effect<{ readonly items: readonly Branch[]; readonly total: number }>;
+  }) => Effect.Effect<{ readonly items: readonly BranchModel[]; readonly total: number }>;
 
-  readonly findById: (params: { readonly id: string }) => Effect.Effect<Branch, NotFound>;
+  readonly findById: (params: { readonly id: string }) => Effect.Effect<BranchModel, NotFound>;
 
   readonly findByProjectAndName: (params: {
     readonly projectId: string;
     readonly name: string;
-  }) => Effect.Effect<Branch, NotFound>;
+  }) => Effect.Effect<BranchModel, NotFound>;
 
   readonly updateName: (params: {
     readonly id: string;
@@ -50,12 +52,12 @@ interface BranchRow {
 }
 
 const toBranch = (row: BranchRow) =>
-  new Branch({
+  ({
     id: row.id,
     projectId: row.project_id,
     name: row.name,
     createdAt: row.created_at,
-  });
+  }) satisfies BranchModel;
 
 export const BranchRepoLive = Layer.succeed(BranchRepo, {
   insert: (params) =>

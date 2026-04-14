@@ -1,10 +1,11 @@
-import { NotFound, Project } from "@better-update/api";
 import { Context, Effect, Layer } from "effect";
 
-import type { Conflict } from "@better-update/api";
-
 import { cloudflareEnv } from "../cloudflare/context";
+import { NotFound } from "../errors";
 import { d1RunWithUniqueCheck } from "./d1-helpers";
+
+import type { Conflict } from "../errors";
+import type { ProjectModel } from "../models";
 
 // ── Port ──────────────────────────────────────────────────────────
 
@@ -21,13 +22,13 @@ export interface ProjectRepository {
     readonly organizationId: string;
     readonly limit: number;
     readonly offset: number;
-  }) => Effect.Effect<{ readonly items: readonly Project[]; readonly total: number }>;
+  }) => Effect.Effect<{ readonly items: readonly ProjectModel[]; readonly total: number }>;
 
-  readonly findById: (params: { readonly id: string }) => Effect.Effect<Project, NotFound>;
+  readonly findById: (params: { readonly id: string }) => Effect.Effect<ProjectModel, NotFound>;
 
   readonly findByScopeKey: (params: {
     readonly scopeKey: string;
-  }) => Effect.Effect<Project, NotFound>;
+  }) => Effect.Effect<ProjectModel, NotFound>;
 
   readonly findOrgIdById: (params: { readonly id: string }) => Effect.Effect<string, NotFound>;
 
@@ -54,13 +55,13 @@ interface ProjectRow {
 }
 
 const toProject = (row: ProjectRow) =>
-  new Project({
+  ({
     id: row.id,
     organizationId: row.organization_id,
     name: row.name,
     scopeKey: row.scope_key,
     createdAt: row.created_at,
-  });
+  }) satisfies ProjectModel;
 
 export const ProjectRepoLive = Layer.succeed(ProjectRepo, {
   insert: (params) =>

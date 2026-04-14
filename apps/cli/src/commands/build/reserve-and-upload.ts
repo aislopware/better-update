@@ -1,9 +1,8 @@
 import { Distribution } from "@better-update/api";
-import { FileSystem, HttpClient } from "@effect/platform";
 import { Effect, Schema } from "effect";
 
 import { CompleteError, ReserveError } from "../../lib/exit-codes";
-import { putToPresignedUrl } from "../../lib/presigned-upload";
+import { PresignedUploadClient } from "../../services/presigned-upload";
 
 import type { PresignedUrlExpiredError, UploadFailedError } from "../../lib/exit-codes";
 import type { ApiClient } from "../../services/api-client";
@@ -46,9 +45,11 @@ export const reserveAndUpload = (
 ): Effect.Effect<
   ReserveAndUploadResult,
   ReserveError | UploadFailedError | PresignedUrlExpiredError | CompleteError,
-  HttpClient.HttpClient | FileSystem.FileSystem
+  PresignedUploadClient
 > =>
   Effect.gen(function* () {
+    const presignedUploadClient = yield* PresignedUploadClient;
+
     const reserveResult = yield* api.builds
       .reserve({
         payload: {
@@ -75,7 +76,7 @@ export const reserveAndUpload = (
         ),
       );
 
-    yield* putToPresignedUrl({
+    yield* presignedUploadClient.putToPresignedUrl({
       url: reserveResult.uploadUrl,
       filePath: input.artifactPath,
       byteSize: input.byteSize,

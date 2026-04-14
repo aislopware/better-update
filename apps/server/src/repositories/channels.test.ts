@@ -1,7 +1,6 @@
-import { Channel, Conflict, NotFound } from "@better-update/api";
 import { Effect, Either, Exit } from "effect";
 
-import { setRequestContext } from "../cloudflare/context";
+import { runEitherWithLayerAndEnv, runWithLayerAndEnvExit } from "../../tests/helpers/runtime";
 import { ChannelRepo, ChannelRepoLive } from "./channels";
 
 // -- Mock D1 helpers -------------------------------------------------------
@@ -33,8 +32,15 @@ const makeChannelRow = (overrides?: Partial<Record<string, unknown>>) => ({
   ...overrides,
 });
 
-const runWithRepo = async <Ret, Err>(effect: Effect.Effect<Ret, Err, ChannelRepo>) =>
-  effect.pipe(Effect.provide(ChannelRepoLive), Effect.runPromiseExit);
+const makeEnv = (db: unknown) => ({ DB: db }) as unknown as Env;
+
+const runWithRepo = async <Ret, Err>(effect: Effect.Effect<Ret, Err, ChannelRepo>, env: Env) =>
+  runWithLayerAndEnvExit(effect, ChannelRepoLive, env);
+
+const runWithRepoEither = async <Ret, Err>(
+  effect: Effect.Effect<Ret, Err, ChannelRepo>,
+  env: Env,
+) => runEitherWithLayerAndEnv(effect, ChannelRepoLive, env);
 
 // -- Tests -----------------------------------------------------------------
 
@@ -42,7 +48,7 @@ describe("ChannelRepo -- D1 adapter", () => {
   describe("insert", () => {
     test("succeeds and returns Channel", async () => {
       const db = mockD1.forRun(async () => ({ results: [], success: true }));
-      setRequestContext({ DB: db } as unknown as Env, {} as ExecutionContext);
+      const env = makeEnv(db);
 
       const exit = await runWithRepo(
         Effect.gen(function* () {
@@ -53,15 +59,19 @@ describe("ChannelRepo -- D1 adapter", () => {
             branchId: "branch-1",
           });
         }),
+        env,
       );
 
       expect(Exit.isSuccess(exit)).toBe(true);
       if (Exit.isSuccess(exit)) {
-        expect(exit.value).toBeInstanceOf(Channel);
-        expect(exit.value.name).toBe("production");
-        expect(exit.value.branchId).toBe("branch-1");
-        expect(exit.value.isPaused).toBe(false);
-        expect(exit.value.cacheVersion).toBe(0);
+        expect(exit.value).toEqual(
+          expect.objectContaining({
+            name: "production",
+            branchId: "branch-1",
+            isPaused: false,
+            cacheVersion: 0,
+          }),
+        );
       }
     });
 
@@ -69,16 +79,19 @@ describe("ChannelRepo -- D1 adapter", () => {
       const db = mockD1.forRun(() => {
         throw new Error("UNIQUE constraint failed: channels.name");
       });
-      setRequestContext({ DB: db } as unknown as Env, {} as ExecutionContext);
+      const env = makeEnv(db);
 
-      const result = await Effect.gen(function* () {
-        const repo = yield* ChannelRepo;
-        yield* repo.insert({ projectId: "proj-1", name: "production", branchId: "branch-1" });
-      }).pipe(Effect.provide(ChannelRepoLive), Effect.either, Effect.runPromise);
+      const result = await runWithRepoEither(
+        Effect.gen(function* () {
+          const repo = yield* ChannelRepo;
+          yield* repo.insert({ projectId: "proj-1", name: "production", branchId: "branch-1" });
+        }),
+        env,
+      );
 
       expect(Either.isLeft(result)).toBe(true);
       if (Either.isLeft(result)) {
-        expect(result.left).toBeInstanceOf(Conflict);
+        expect(result.left).toMatchObject({ _tag: "Conflict" });
       }
     });
   });
@@ -94,13 +107,14 @@ describe("ChannelRepo -- D1 adapter", () => {
           ],
         }),
       });
-      setRequestContext({ DB: db } as unknown as Env, {} as ExecutionContext);
+      const env = makeEnv(db);
 
       const exit = await runWithRepo(
         Effect.gen(function* () {
           const repo = yield* ChannelRepo;
           return yield* repo.findByProject({ projectId: "proj-1", limit: 20, offset: 0 });
         }),
+        env,
       );
 
       expect(Exit.isSuccess(exit)).toBe(true);
@@ -108,10 +122,10 @@ describe("ChannelRepo -- D1 adapter", () => {
         const result = exit.value;
         expect(result.total).toBe(2);
         expect(result.items).toHaveLength(2);
-        expect(result.items[0]).toBeInstanceOf(Channel);
-        expect(result.items[0]!.name).toBe("production");
-        expect(result.items[0]!.isPaused).toBe(false);
-        expect(result.items[1]!.isPaused).toBe(true);
+        expect(result.items[0]).toEqual(
+          expect.objectContaining({ name: "production", isPaused: false }),
+        );
+        expect(result.items[1]).toEqual(expect.objectContaining({ isPaused: true }));
       }
     });
 
@@ -120,13 +134,14 @@ describe("ChannelRepo -- D1 adapter", () => {
         first: async () => ({ count: 0 }),
         all: async () => ({ results: [] }),
       });
-      setRequestContext({ DB: db } as unknown as Env, {} as ExecutionContext);
+      const env = makeEnv(db);
 
       const exit = await runWithRepo(
         Effect.gen(function* () {
           const repo = yield* ChannelRepo;
           return yield* repo.findByProject({ projectId: "proj-1", limit: 20, offset: 0 });
         }),
+        env,
       );
 
       expect(Exit.isSuccess(exit)).toBe(true);
@@ -143,20 +158,19 @@ describe("ChannelRepo -- D1 adapter", () => {
       const db = mockD1.forQuery({
         first: async () => row,
       });
-      setRequestContext({ DB: db } as unknown as Env, {} as ExecutionContext);
+      const env = makeEnv(db);
 
       const exit = await runWithRepo(
         Effect.gen(function* () {
           const repo = yield* ChannelRepo;
           return yield* repo.findById({ id: "ch-1" });
         }),
+        env,
       );
 
       expect(Exit.isSuccess(exit)).toBe(true);
       if (Exit.isSuccess(exit)) {
-        expect(exit.value).toBeInstanceOf(Channel);
-        expect(exit.value.name).toBe("production");
-        expect(exit.value.isPaused).toBe(true);
+        expect(exit.value).toEqual(expect.objectContaining({ name: "production", isPaused: true }));
       }
     });
 
@@ -164,16 +178,19 @@ describe("ChannelRepo -- D1 adapter", () => {
       const db = mockD1.forQuery({
         first: async () => null,
       });
-      setRequestContext({ DB: db } as unknown as Env, {} as ExecutionContext);
+      const env = makeEnv(db);
 
-      const result = await Effect.gen(function* () {
-        const repo = yield* ChannelRepo;
-        return yield* repo.findById({ id: "nonexistent" });
-      }).pipe(Effect.provide(ChannelRepoLive), Effect.either, Effect.runPromise);
+      const result = await runWithRepoEither(
+        Effect.gen(function* () {
+          const repo = yield* ChannelRepo;
+          return yield* repo.findById({ id: "nonexistent" });
+        }),
+        env,
+      );
 
       expect(Either.isLeft(result)).toBe(true);
       if (Either.isLeft(result)) {
-        expect(result.left).toBeInstanceOf(NotFound);
+        expect(result.left).toMatchObject({ _tag: "NotFound" });
       }
     });
   });
@@ -181,13 +198,14 @@ describe("ChannelRepo -- D1 adapter", () => {
   describe("updateBranchId", () => {
     test("succeeds on valid update", async () => {
       const db = mockD1.forRun(async () => ({ results: [], success: true }));
-      setRequestContext({ DB: db } as unknown as Env, {} as ExecutionContext);
+      const env = makeEnv(db);
 
       const exit = await runWithRepo(
         Effect.gen(function* () {
           const repo = yield* ChannelRepo;
           yield* repo.updateBranchId({ id: "ch-1", branchId: "branch-2" });
         }),
+        env,
       );
 
       expect(Exit.isSuccess(exit)).toBe(true);
@@ -197,13 +215,14 @@ describe("ChannelRepo -- D1 adapter", () => {
   describe("setPaused", () => {
     test("succeeds with isPaused true", async () => {
       const db = mockD1.forRun(async () => ({ results: [], success: true }));
-      setRequestContext({ DB: db } as unknown as Env, {} as ExecutionContext);
+      const env = makeEnv(db);
 
       const exit = await runWithRepo(
         Effect.gen(function* () {
           const repo = yield* ChannelRepo;
           yield* repo.setPaused({ id: "ch-1", isPaused: true });
         }),
+        env,
       );
 
       expect(Exit.isSuccess(exit)).toBe(true);
@@ -211,13 +230,14 @@ describe("ChannelRepo -- D1 adapter", () => {
 
     test("succeeds with isPaused false", async () => {
       const db = mockD1.forRun(async () => ({ results: [], success: true }));
-      setRequestContext({ DB: db } as unknown as Env, {} as ExecutionContext);
+      const env = makeEnv(db);
 
       const exit = await runWithRepo(
         Effect.gen(function* () {
           const repo = yield* ChannelRepo;
           yield* repo.setPaused({ id: "ch-1", isPaused: false });
         }),
+        env,
       );
 
       expect(Exit.isSuccess(exit)).toBe(true);
@@ -227,7 +247,7 @@ describe("ChannelRepo -- D1 adapter", () => {
   describe("setBranchMapping", () => {
     test("succeeds on valid update", async () => {
       const db = mockD1.forRun(async () => ({ results: [], success: true }));
-      setRequestContext({ DB: db } as unknown as Env, {} as ExecutionContext);
+      const env = makeEnv(db);
 
       const exit = await runWithRepo(
         Effect.gen(function* () {
@@ -237,6 +257,7 @@ describe("ChannelRepo -- D1 adapter", () => {
             branchMappingJson: '{"data":[],"salt":"s"}',
           });
         }),
+        env,
       );
 
       expect(Exit.isSuccess(exit)).toBe(true);
@@ -246,13 +267,14 @@ describe("ChannelRepo -- D1 adapter", () => {
   describe("completeBranchRollout", () => {
     test("succeeds on valid update", async () => {
       const db = mockD1.forRun(async () => ({ results: [], success: true }));
-      setRequestContext({ DB: db } as unknown as Env, {} as ExecutionContext);
+      const env = makeEnv(db);
 
       const exit = await runWithRepo(
         Effect.gen(function* () {
           const repo = yield* ChannelRepo;
           yield* repo.completeBranchRollout({ id: "ch-1", branchId: "branch-2" });
         }),
+        env,
       );
 
       expect(Exit.isSuccess(exit)).toBe(true);
@@ -262,13 +284,14 @@ describe("ChannelRepo -- D1 adapter", () => {
   describe("revertBranchRollout", () => {
     test("succeeds on valid update", async () => {
       const db = mockD1.forRun(async () => ({ results: [], success: true }));
-      setRequestContext({ DB: db } as unknown as Env, {} as ExecutionContext);
+      const env = makeEnv(db);
 
       const exit = await runWithRepo(
         Effect.gen(function* () {
           const repo = yield* ChannelRepo;
           yield* repo.revertBranchRollout({ id: "ch-1" });
         }),
+        env,
       );
 
       expect(Exit.isSuccess(exit)).toBe(true);

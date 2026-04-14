@@ -1,11 +1,12 @@
-import { Channel, NotFound } from "@better-update/api";
 import { Context, Effect, Layer } from "effect";
 
-import type { Conflict } from "@better-update/api";
-
 import { cloudflareEnv } from "../cloudflare/context";
+import { NotFound } from "../errors";
 import { bumpChannelCacheVersionByBranchReference } from "./channel-cache-version";
 import { d1RunWithUniqueCheck } from "./d1-helpers";
+
+import type { Conflict } from "../errors";
+import type { ChannelModel } from "../models";
 
 // -- Port ------------------------------------------------------------------
 
@@ -14,15 +15,20 @@ export interface ChannelRepository {
     readonly projectId: string;
     readonly name: string;
     readonly branchId: string;
-  }) => Effect.Effect<Channel, Conflict>;
+  }) => Effect.Effect<ChannelModel, Conflict>;
 
   readonly findByProject: (params: {
     readonly projectId: string;
     readonly limit: number;
     readonly offset: number;
-  }) => Effect.Effect<{ readonly items: readonly Channel[]; readonly total: number }>;
+  }) => Effect.Effect<{ readonly items: readonly ChannelModel[]; readonly total: number }>;
 
-  readonly findById: (params: { readonly id: string }) => Effect.Effect<Channel, NotFound>;
+  readonly findById: (params: { readonly id: string }) => Effect.Effect<ChannelModel, NotFound>;
+
+  readonly findByProjectAndName: (params: {
+    readonly projectId: string;
+    readonly name: string;
+  }) => Effect.Effect<ChannelModel, NotFound>;
 
   readonly updateBranchId: (params: {
     readonly id: string;
@@ -67,7 +73,7 @@ interface ChannelRow {
 }
 
 const toChannel = (row: ChannelRow) =>
-  new Channel({
+  ({
     id: row.id,
     projectId: row.project_id,
     name: row.name,
@@ -76,7 +82,7 @@ const toChannel = (row: ChannelRow) =>
     cacheVersion: row.cache_version,
     isPaused: row.is_paused === 1,
     createdAt: row.created_at,
-  });
+  }) satisfies ChannelModel;
 
 export const ChannelRepoLive = Layer.succeed(ChannelRepo, {
   insert: (params) =>
@@ -95,7 +101,7 @@ export const ChannelRepoLive = Layer.succeed(ChannelRepo, {
         `A channel named "${params.name}" already exists in this project`,
       );
 
-      return new Channel({
+      return {
         id,
         projectId: params.projectId,
         name: params.name,
@@ -104,7 +110,7 @@ export const ChannelRepoLive = Layer.succeed(ChannelRepo, {
         cacheVersion: 0,
         isPaused: false,
         createdAt: now,
-      });
+      } satisfies ChannelModel;
     }),
 
   findByProject: (params) =>
@@ -139,6 +145,25 @@ export const ChannelRepoLive = Layer.succeed(ChannelRepo, {
           `SELECT "id", "project_id", "name", "branch_id", "branch_mapping_json", "cache_version", "is_paused", "created_at" FROM "channels" WHERE "id" = ?`,
         )
           .bind(params.id)
+          .first<ChannelRow>(),
+      );
+
+      if (row === null) {
+        return yield* Effect.fail(new NotFound({ message: "Channel not found" }));
+      }
+
+      return toChannel(row);
+    }),
+
+  findByProjectAndName: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+
+      const row = yield* Effect.promise(async () =>
+        env.DB.prepare(
+          `SELECT "id", "project_id", "name", "branch_id", "branch_mapping_json", "cache_version", "is_paused", "created_at" FROM "channels" WHERE "project_id" = ? AND "name" = ?`,
+        )
+          .bind(params.projectId, params.name)
           .first<ChannelRow>(),
       );
 

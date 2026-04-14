@@ -14,6 +14,7 @@ import {
   UploadFailedError,
 } from "../../lib/exit-codes";
 import { failureError } from "../../lib/test-utils";
+import { PresignedUploadClientLive } from "../../services/presigned-upload";
 import { reserveAndUpload } from "./reserve-and-upload";
 
 import type { ApiClient } from "../../services/api-client";
@@ -63,6 +64,14 @@ const makeHttpClientLayer = (
   Layer.succeed(
     HttpClient.HttpClient,
     HttpClient.make((request) => Effect.sync(() => HttpClientResponse.fromWeb(request, respond()))),
+  );
+
+const makePresignedUploadLayer = (
+  fileSystemLayer: Layer.Layer<FileSystem.FileSystem>,
+  respond: () => globalThis.Response,
+) =>
+  PresignedUploadClientLive.pipe(
+    Layer.provide(Layer.mergeAll(fileSystemLayer, makeHttpClientLayer(respond))),
   );
 
 const okResponse = () => new Response(null, { status: 200 });
@@ -128,8 +137,7 @@ describe(reserveAndUpload, () => {
       });
 
       const result = yield* reserveAndUpload(api, baseInput(file.path)).pipe(
-        Effect.provide(BunFileSystem.layer),
-        Effect.provide(makeHttpClientLayer(okResponse)),
+        Effect.provide(makePresignedUploadLayer(BunFileSystem.layer, okResponse)),
         Effect.ensuring(Effect.sync(file.dispose)),
       );
 
@@ -153,8 +161,7 @@ describe(reserveAndUpload, () => {
         reserve: () => Effect.fail(new Error("server down")),
       });
       const exit = yield* reserveAndUpload(api, baseInput("/dev/null")).pipe(
-        Effect.provide(FileSystem.layerNoop({})),
-        Effect.provide(makeHttpClientLayer(okResponse)),
+        Effect.provide(makePresignedUploadLayer(FileSystem.layerNoop({}), okResponse)),
         Effect.exit,
       );
       expect(Exit.isFailure(exit)).toBe(true);
@@ -176,8 +183,7 @@ describe(reserveAndUpload, () => {
           }),
       });
       const exit = yield* reserveAndUpload(api, baseInput("/dev/null")).pipe(
-        Effect.provide(FileSystem.layerNoop({})),
-        Effect.provide(makeHttpClientLayer(okResponse)),
+        Effect.provide(makePresignedUploadLayer(FileSystem.layerNoop({}), okResponse)),
         Effect.exit,
       );
       expect(Exit.isFailure(exit)).toBe(true);
@@ -193,9 +199,9 @@ describe(reserveAndUpload, () => {
       const file = withTempFile(Buffer.from("hello world"));
       const api = makeApi({});
       const exit = yield* reserveAndUpload(api, baseInput(file.path)).pipe(
-        Effect.provide(BunFileSystem.layer),
         Effect.provide(
-          makeHttpClientLayer(
+          makePresignedUploadLayer(
+            BunFileSystem.layer,
             () => new Response("AccessDenied", { status: 403, statusText: "Forbidden" }),
           ),
         ),
@@ -217,8 +223,7 @@ describe(reserveAndUpload, () => {
         complete: () => Effect.fail(new Error("db error")),
       });
       const exit = yield* reserveAndUpload(api, baseInput(file.path)).pipe(
-        Effect.provide(BunFileSystem.layer),
-        Effect.provide(makeHttpClientLayer(okResponse)),
+        Effect.provide(makePresignedUploadLayer(BunFileSystem.layer, okResponse)),
         Effect.ensuring(Effect.sync(file.dispose)),
         Effect.exit,
       );

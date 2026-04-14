@@ -2,7 +2,6 @@ import { it } from "@effect/vitest";
 import { Effect, Exit } from "effect";
 
 import { AuthContext } from "./context";
-import { Forbidden } from "./errors";
 import { assertPermission, permissions } from "./permissions";
 
 import type { Action, EffectivePermissions, Role } from "./context";
@@ -59,7 +58,10 @@ describe(assertPermission, () => {
       expect(Exit.isFailure(exit)).toBe(true);
       if (Exit.isFailure(exit)) {
         const error = exit.cause.pipe((cause) => (cause._tag === "Fail" ? cause.error : undefined));
-        expect(error).toBeInstanceOf(Forbidden);
+        expect(error).toMatchObject({
+          _tag: "Forbidden",
+          message: "Insufficient permission: billing:update",
+        });
       }
     }),
   );

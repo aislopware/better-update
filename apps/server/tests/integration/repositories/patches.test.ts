@@ -1,13 +1,13 @@
 import { env } from "cloudflare:test";
 import { Effect } from "effect";
 
-import { setRequestContext } from "../../../src/cloudflare/context";
 import { PatchRepo, PatchRepoLive } from "../../../src/repositories/patches";
+import { runWithLayerAndEnv } from "../../helpers/runtime";
 
 // -- Helpers ------------------------------------------------------------------
 
 const run = <Ret, Err>(effect: Effect.Effect<Ret, Err, PatchRepo>) =>
-  effect.pipe(Effect.provide(PatchRepoLive), Effect.runPromise);
+  runWithLayerAndEnv(effect, PatchRepoLive, env);
 
 const insertOrg = (id: string) =>
   env.DB.prepare(
@@ -33,8 +33,6 @@ const insertAsset = (hash: string) =>
 // -- Setup --------------------------------------------------------------------
 
 beforeAll(async () => {
-  setRequestContext(env, {} as ExecutionContext);
-
   await insertOrg("org-patch-1");
   await insertProject("proj-patch-1", "org-patch-1");
 

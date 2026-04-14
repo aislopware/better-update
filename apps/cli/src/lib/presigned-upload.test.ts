@@ -7,6 +7,7 @@ import { BunFileSystem } from "@effect/platform-bun";
 import { it } from "@effect/vitest";
 import { Effect, Exit, Layer } from "effect";
 
+import { PresignedUploadClientLive } from "../services/presigned-upload";
 import { PresignedUrlExpiredError, UploadFailedError } from "./exit-codes";
 import { putToPresignedUrl } from "./presigned-upload";
 import { failureError } from "./test-utils";
@@ -23,6 +24,14 @@ const makeHttpClientLayer = (
 
 // In-memory noop filesystem for the "expired" branch where the file is never opened.
 const noopFsLayer: Layer.Layer<FileSystem.FileSystem> = FileSystem.layerNoop({});
+
+const makePresignedUploadLayer = (
+  fileSystemLayer: Layer.Layer<FileSystem.FileSystem>,
+  respond: () => globalThis.Response,
+) =>
+  PresignedUploadClientLive.pipe(
+    Layer.provide(Layer.mergeAll(fileSystemLayer, makeHttpClientLayer(respond))),
+  );
 
 const withTempFile = (bytes: Buffer): { path: string; dispose: () => void } => {
   const dir = mkdtempSync(join(tmpdir(), "presigned-test-"));
@@ -48,8 +57,9 @@ describe(putToPresignedUrl, () => {
         byteSize: 0,
         expiresAt: pastExpiry(),
       }).pipe(
-        Effect.provide(noopFsLayer),
-        Effect.provide(makeHttpClientLayer(() => new Response(null, { status: 200 }))),
+        Effect.provide(
+          makePresignedUploadLayer(noopFsLayer, () => new Response(null, { status: 200 })),
+        ),
         Effect.exit,
       );
       expect(Exit.isFailure(exit)).toBe(true);
@@ -69,8 +79,9 @@ describe(putToPresignedUrl, () => {
         byteSize: 0,
         expiresAt: inTenSeconds,
       }).pipe(
-        Effect.provide(noopFsLayer),
-        Effect.provide(makeHttpClientLayer(() => new Response(null, { status: 200 }))),
+        Effect.provide(
+          makePresignedUploadLayer(noopFsLayer, () => new Response(null, { status: 200 })),
+        ),
         Effect.exit,
       );
       expect(Exit.isFailure(exit)).toBe(true);
@@ -90,8 +101,9 @@ describe(putToPresignedUrl, () => {
         byteSize: 11,
         expiresAt: futureExpiry(),
       }).pipe(
-        Effect.provide(BunFileSystem.layer),
-        Effect.provide(makeHttpClientLayer(() => new Response(null, { status: 200 }))),
+        Effect.provide(
+          makePresignedUploadLayer(BunFileSystem.layer, () => new Response(null, { status: 200 })),
+        ),
         Effect.ensuring(Effect.sync(file.dispose)),
         Effect.exit,
       );
@@ -108,9 +120,9 @@ describe(putToPresignedUrl, () => {
         byteSize: 11,
         expiresAt: futureExpiry(),
       }).pipe(
-        Effect.provide(BunFileSystem.layer),
         Effect.provide(
-          makeHttpClientLayer(
+          makePresignedUploadLayer(
+            BunFileSystem.layer,
             () => new Response("AccessDenied", { status: 403, statusText: "Forbidden" }),
           ),
         ),

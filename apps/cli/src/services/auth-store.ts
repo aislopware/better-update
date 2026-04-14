@@ -1,7 +1,10 @@
+import path from "node:path";
+
 import { FileSystem } from "@effect/platform";
 import { Context, Effect, Layer } from "effect";
 
 import { AuthRequiredError } from "../lib/exit-codes";
+import { CliRuntime } from "./cli-runtime";
 
 export class AuthStore extends Context.Tag("cli/AuthStore")<
   AuthStore,
@@ -12,20 +15,21 @@ export class AuthStore extends Context.Tag("cli/AuthStore")<
   }
 >() {}
 
-const getAuthDir = `${process.env["HOME"]}/.better-update`;
-const getAuthFile = `${getAuthDir}/auth.json`;
-
 export const AuthStoreLive = Layer.effect(
   AuthStore,
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
+    const runtime = yield* CliRuntime;
+    const homeDirectory = yield* runtime.homeDirectory;
+    const authDir = path.join(homeDirectory, ".better-update");
+    const authFile = path.join(authDir, "auth.json");
 
     return {
       getToken: Effect.gen(function* () {
-        const envToken = process.env["BETTER_UPDATE_TOKEN"];
+        const envToken = yield* runtime.getEnv("BETTER_UPDATE_TOKEN");
         if (envToken) return envToken;
 
-        const content = yield* fs.readFileString(getAuthFile).pipe(
+        const content = yield* fs.readFileString(authFile).pipe(
           Effect.mapError(
             () =>
               new AuthRequiredError({
@@ -53,13 +57,13 @@ export const AuthStoreLive = Layer.effect(
 
       saveToken: (token: string) =>
         Effect.gen(function* () {
-          yield* fs.makeDirectory(getAuthDir, { recursive: true });
-          yield* fs.chmod(getAuthDir, 0o700);
-          yield* fs.writeFileString(getAuthFile, `${JSON.stringify({ token }, null, 2)}\n`);
-          yield* fs.chmod(getAuthFile, 0o600);
+          yield* fs.makeDirectory(authDir, { recursive: true });
+          yield* fs.chmod(authDir, 0o700);
+          yield* fs.writeFileString(authFile, `${JSON.stringify({ token }, null, 2)}\n`);
+          yield* fs.chmod(authFile, 0o600);
         }).pipe(Effect.orDie),
 
-      clearToken: fs.remove(getAuthFile).pipe(Effect.catchAll(() => Effect.void)),
+      clearToken: fs.remove(authFile).pipe(Effect.catchAll(() => Effect.void)),
     };
   }),
 );

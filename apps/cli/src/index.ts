@@ -3,9 +3,10 @@
 import process from "node:process";
 
 import { Command } from "@effect/cli";
-import { BunContext, BunRuntime } from "@effect/platform-bun";
+import { BunRuntime } from "@effect/platform-bun";
 import { Console, Effect } from "effect";
 
+import { CliLive } from "./app-layer";
 import { buildCommand } from "./commands/build";
 import { buildsCommand } from "./commands/builds";
 import { credentialsCommand } from "./commands/credentials";
@@ -15,8 +16,6 @@ import { loginCommand } from "./commands/login";
 import { logoutCommand } from "./commands/logout";
 import { statusCommand } from "./commands/status";
 import { updateCommand } from "./commands/update";
-import { AuthStoreLive } from "./services/auth-store";
-import { ConfigStoreLive } from "./services/config-store";
 
 const command = Command.make("better-update", {}, () =>
   Console.log("better-update CLI - Run with --help to see available commands"),
@@ -39,9 +38,4 @@ const cli = Command.run(command, {
   version: "0.1.0",
 });
 
-cli(process.argv).pipe(
-  Effect.provide(ConfigStoreLive),
-  Effect.provide(AuthStoreLive),
-  Effect.provide(BunContext.layer),
-  BunRuntime.runMain,
-);
+cli(process.argv).pipe(Effect.provide(CliLive), BunRuntime.runMain);

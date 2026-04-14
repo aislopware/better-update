@@ -18,7 +18,9 @@ const createR2Object = (data: Uint8Array) => ({
   arrayBuffer: async () => data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength),
   writeHttpMetadata: () => {},
   httpEtag: '"mock"',
-  body: null,
+  body: new Response(Uint8Array.from(data)).body,
+  httpMetadata: { contentType: "application/javascript" },
+  uploaded: new Date("2026-01-01T00:00:00Z"),
 });
 
 const createMockEnv = (overrides?: {
@@ -34,12 +36,27 @@ const createMockEnv = (overrides?: {
 
   const putCalls: { key: string; body: unknown }[] = [];
   const runCalls: { query: string; bindings: unknown[] }[] = [];
+  const assetRows = new Map<string, { readonly r2_key: string }>([
+    ["oldhash123", { r2_key: "assets/oldhash123.bundle" }],
+    ["newhash456", { r2_key: "assets/newhash456.bundle" }],
+  ]);
 
   const env = {
     DB: {
       prepare: (query: string) => ({
         bind: (...bindings: unknown[]) => ({
-          first: async () => (existingPatch && query.includes("SELECT") ? { exists: 1 } : null),
+          first: async () => {
+            if (query.includes('FROM "patches"')) {
+              return existingPatch ? { exists: 1 } : null;
+            }
+
+            if (query.includes('FROM "assets"')) {
+              const [hash] = bindings;
+              return typeof hash === "string" ? (assetRows.get(hash) ?? null) : null;
+            }
+
+            return null;
+          },
           run: async () => {
             runCalls.push({ query, bindings });
           },
@@ -48,10 +65,10 @@ const createMockEnv = (overrides?: {
     },
     ASSETS_BUCKET: {
       get: async (key: string) => {
-        if (key.includes("old") && oldBundle) {
+        if (key === "assets/oldhash123.bundle" && oldBundle) {
           return createR2Object(oldBundle);
         }
-        if (key.includes("new") && newBundle) {
+        if (key === "assets/newhash456.bundle" && newBundle) {
           return createR2Object(newBundle);
         }
         return null;

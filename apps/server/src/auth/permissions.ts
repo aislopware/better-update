@@ -1,9 +1,9 @@
-import { AuthContext, Forbidden } from "@better-update/api";
 import { Effect } from "effect";
 
-import type { Action, Resource, Role } from "@better-update/api";
+import { Forbidden } from "../errors";
+import { CurrentActor } from "./current-actor";
 
-export type { Action, Resource } from "@better-update/api";
+import type { Action, Resource, Role } from "../models";
 
 type PermissionMap = Record<Role, Partial<Record<Resource, readonly Action[]>>>;
 
@@ -68,7 +68,7 @@ export const permissions: PermissionMap = {
 
 export const assertPermission = (resource: Resource, action: Action) =>
   Effect.gen(function* () {
-    const ctx = yield* AuthContext;
+    const ctx = yield* CurrentActor;
     const actions = ctx.effectivePermissions[resource];
     if (!actions?.includes(action)) {
       yield* new Forbidden({

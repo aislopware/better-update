@@ -1,7 +1,9 @@
-import { NotFound, Update } from "@better-update/api";
 import { Context, Effect, Layer } from "effect";
 
 import { cloudflareEnv } from "../cloudflare/context";
+import { NotFound } from "../errors";
+
+import type { Platform, UpdateAssetRefModel, UpdateModel } from "../models";
 
 // -- Port ------------------------------------------------------------------
 
@@ -9,7 +11,7 @@ export interface UpdateRepository {
   readonly insert: (params: {
     readonly branchId: string;
     readonly runtimeVersion: string;
-    readonly platform: "ios" | "android";
+    readonly platform: Platform;
     readonly message: string;
     readonly metadataJson: string;
     readonly extraJson: string | null;
@@ -20,25 +22,35 @@ export interface UpdateRepository {
     readonly certificateChain: string | null;
     readonly manifestBody: string | null;
     readonly directiveBody: string | null;
-    readonly assets: readonly {
-      readonly key: string;
-      readonly hash: string;
-      readonly isLaunch: boolean;
-    }[];
-  }) => Effect.Effect<Update>;
+    readonly assets: readonly UpdateAssetRefModel[];
+  }) => Effect.Effect<UpdateModel>;
 
   readonly findByProject: (params: {
     readonly projectId: string;
     readonly branchId?: string;
     readonly limit: number;
     readonly offset: number;
-  }) => Effect.Effect<{ readonly items: readonly Update[]; readonly total: number }>;
+  }) => Effect.Effect<{ readonly items: readonly UpdateModel[]; readonly total: number }>;
 
-  readonly findById: (params: { readonly id: string }) => Effect.Effect<Update, NotFound>;
+  readonly findById: (params: { readonly id: string }) => Effect.Effect<UpdateModel, NotFound>;
 
   readonly findByGroupId: (params: {
     readonly groupId: string;
-  }) => Effect.Effect<readonly Update[]>;
+  }) => Effect.Effect<readonly UpdateModel[]>;
+
+  readonly findAssetsByUpdateId: (params: {
+    readonly updateId: string;
+  }) => Effect.Effect<readonly UpdateAssetRefModel[]>;
+
+  readonly findLaunchAssetHashByUpdateId: (params: {
+    readonly updateId: string;
+  }) => Effect.Effect<string | null>;
+
+  readonly findLatestLaunchAssetHash: (params: {
+    readonly branchId: string;
+    readonly platform: Platform;
+    readonly runtimeVersion: string;
+  }) => Effect.Effect<string | null>;
 
   readonly deleteGroup: (params: {
     readonly groupId: string;
@@ -51,7 +63,7 @@ export interface UpdateRepository {
 
   readonly hasActiveRollout: (params: {
     readonly branchId: string;
-    readonly platform: "ios" | "android";
+    readonly platform: Platform;
     readonly runtimeVersion: string;
   }) => Effect.Effect<boolean>;
 }
@@ -64,7 +76,7 @@ interface UpdateRow {
   id: string;
   branch_id: string;
   runtime_version: string;
-  platform: "ios" | "android";
+  platform: Platform;
   message: string;
   metadata_json: string;
   extra_json: string | null;
@@ -78,8 +90,14 @@ interface UpdateRow {
   created_at: string;
 }
 
+interface UpdateAssetRow {
+  asset_key: string;
+  asset_hash: string;
+  is_launch: number;
+}
+
 const toUpdate = (row: UpdateRow) =>
-  new Update({
+  ({
     id: row.id,
     branchId: row.branch_id,
     runtimeVersion: row.runtime_version,
@@ -95,7 +113,7 @@ const toUpdate = (row: UpdateRow) =>
     manifestBody: row.manifest_body,
     directiveBody: row.directive_body,
     createdAt: row.created_at,
-  });
+  }) satisfies UpdateModel;
 
 export const UpdateRepoLive = Layer.succeed(UpdateRepo, {
   insert: (params) =>
@@ -133,7 +151,7 @@ export const UpdateRepoLive = Layer.succeed(UpdateRepo, {
 
       yield* Effect.promise(async () => env.DB.batch(stmts));
 
-      return new Update({
+      return {
         id,
         branchId: params.branchId,
         runtimeVersion: params.runtimeVersion,
@@ -149,7 +167,7 @@ export const UpdateRepoLive = Layer.succeed(UpdateRepo, {
         manifestBody: params.manifestBody,
         directiveBody: params.directiveBody,
         createdAt: now,
-      });
+      } satisfies UpdateModel;
     }),
 
   findByProject: (params) =>
@@ -211,6 +229,50 @@ export const UpdateRepoLive = Layer.succeed(UpdateRepo, {
       );
 
       return rows.results.map(toUpdate);
+    }),
+
+  findAssetsByUpdateId: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+      const rows = yield* Effect.promise(async () =>
+        env.DB.prepare(
+          `SELECT "asset_key", "asset_hash", "is_launch" FROM "update_assets" WHERE "update_id" = ?`,
+        )
+          .bind(params.updateId)
+          .all<UpdateAssetRow>(),
+      );
+
+      return rows.results.map((row) => ({
+        key: row.asset_key,
+        hash: row.asset_hash,
+        isLaunch: row.is_launch === 1,
+      }));
+    }),
+
+  findLaunchAssetHashByUpdateId: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+      const row = yield* Effect.promise(async () =>
+        env.DB.prepare(
+          `SELECT "asset_hash" FROM "update_assets" WHERE "update_id" = ? AND "is_launch" = 1`,
+        )
+          .bind(params.updateId)
+          .first<{ asset_hash: string }>(),
+      );
+      return row?.asset_hash ?? null;
+    }),
+
+  findLatestLaunchAssetHash: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+      const row = yield* Effect.promise(async () =>
+        env.DB.prepare(
+          `SELECT ua."asset_hash" AS "asset_hash" FROM "updates" u JOIN "update_assets" ua ON ua."update_id" = u."id" AND ua."is_launch" = 1 WHERE u."branch_id" = ? AND u."platform" = ? AND u."runtime_version" = ? AND u."is_rollback" = 0 ORDER BY u."created_at" DESC, u."id" DESC LIMIT 1`,
+        )
+          .bind(params.branchId, params.platform, params.runtimeVersion)
+          .first<{ asset_hash: string }>(),
+      );
+      return row?.asset_hash ?? null;
     }),
 
   deleteGroup: (params) =>

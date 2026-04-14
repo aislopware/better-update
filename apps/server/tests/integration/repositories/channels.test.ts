@@ -1,12 +1,12 @@
 import { env } from "cloudflare:test";
 import { Effect } from "effect";
 
-import { setRequestContext } from "../../../src/cloudflare/context";
 import { buildBranchMapping } from "../../../src/domain/branch-mapping";
 import { ChannelRepo, ChannelRepoLive } from "../../../src/repositories/channels";
+import { runWithLayerAndEnv } from "../../helpers/runtime";
 
 const run = <Ret, Err>(effect: Effect.Effect<Ret, Err, ChannelRepo>) =>
-  effect.pipe(Effect.provide(ChannelRepoLive), Effect.runPromise);
+  runWithLayerAndEnv(effect, ChannelRepoLive, env);
 
 const insertOrg = (id: string) =>
   env.DB.prepare(
@@ -51,10 +51,6 @@ const insertChannel = (params: {
       "2024-01-03T00:00:00Z",
     )
     .run();
-
-beforeAll(() => {
-  setRequestContext(env, {} as ExecutionContext);
-});
 
 describe("ChannelRepo -- cache version integration", () => {
   test("bumps cache version for direct channels and rollout target channels", async () => {

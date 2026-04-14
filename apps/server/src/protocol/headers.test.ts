@@ -1,7 +1,10 @@
-import { BadRequest } from "@better-update/api";
 import { Effect } from "effect";
 
 import { addServerDefinedHeaders, parseProtocolHeaders } from "./headers";
+
+const expectBadRequest = (error: { readonly _tag: string; readonly message: string }) => {
+  expect(error).toMatchObject({ _tag: "BadRequest" });
+};
 
 const validHeaders = () =>
   new Headers({
@@ -31,35 +34,35 @@ describe(parseProtocolHeaders, () => {
     const headers = validHeaders();
     headers.delete("expo-protocol-version");
     const error = await Effect.runPromise(Effect.flip(parseProtocolHeaders(headers)));
-    expect(error).toBeInstanceOf(BadRequest);
+    expectBadRequest(error);
   });
 
   test("wrong expo-protocol-version fails with BadRequest", async () => {
     const headers = validHeaders();
     headers.set("expo-protocol-version", "0");
     const error = await Effect.runPromise(Effect.flip(parseProtocolHeaders(headers)));
-    expect(error).toBeInstanceOf(BadRequest);
+    expectBadRequest(error);
   });
 
   test("invalid expo-platform fails with BadRequest", async () => {
     const headers = validHeaders();
     headers.set("expo-platform", "web");
     const error = await Effect.runPromise(Effect.flip(parseProtocolHeaders(headers)));
-    expect(error).toBeInstanceOf(BadRequest);
+    expectBadRequest(error);
   });
 
   test("missing expo-runtime-version fails with BadRequest", async () => {
     const headers = validHeaders();
     headers.delete("expo-runtime-version");
     const error = await Effect.runPromise(Effect.flip(parseProtocolHeaders(headers)));
-    expect(error).toBeInstanceOf(BadRequest);
+    expectBadRequest(error);
   });
 
   test("missing expo-channel-name fails with BadRequest", async () => {
     const headers = validHeaders();
     headers.delete("expo-channel-name");
     const error = await Effect.runPromise(Effect.flip(parseProtocolHeaders(headers)));
-    expect(error).toBeInstanceOf(BadRequest);
+    expectBadRequest(error);
   });
 
   test("optional headers absent returns undefined", async () => {

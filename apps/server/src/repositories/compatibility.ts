@@ -1,21 +1,22 @@
-import {
-  BuildCompatibilityChannel,
-  BuildCompatibilityRow,
-  MissingRuntimeVersionBuild,
-} from "@better-update/api";
 import { Context, Effect, Layer } from "effect";
 
 import { cloudflareEnv } from "../cloudflare/context";
 import { extractReachableBranchIds } from "../domain/branch-mapping";
 import { collectServableUpdates } from "../domain/update-rollout";
 
+import type {
+  BuildCompatibilityChannelModel,
+  BuildCompatibilityMatrixModel,
+  BuildCompatibilityRowModel,
+  MissingRuntimeVersionBuildModel,
+} from "../models";
+
 // -- Port ------------------------------------------------------------------
 
 export interface CompatibilityRepository {
-  readonly getBuildMatrix: (params: { readonly projectId: string }) => Effect.Effect<{
-    readonly rows: readonly BuildCompatibilityRow[];
-    readonly missingRuntimeVersions: readonly MissingRuntimeVersionBuild[];
-  }>;
+  readonly getBuildMatrix: (params: {
+    readonly projectId: string;
+  }) => Effect.Effect<BuildCompatibilityMatrixModel>;
 }
 
 export class CompatibilityRepo extends Context.Tag("api/CompatibilityRepo")<
@@ -267,7 +268,7 @@ export const CompatibilityRepoLive = Layer.succeed(CompatibilityRepo, {
           const summary =
             buildKey === null ? undefined : channelSummaries.get(channel.id)?.get(buildKey);
 
-          return new BuildCompatibilityChannel({
+          return {
             channelId: channel.id,
             channelName: channel.name,
             updateCount: summary?.updateCount ?? 0,
@@ -276,13 +277,27 @@ export const CompatibilityRepoLive = Layer.succeed(CompatibilityRepo, {
             latestUpdateCreatedAt: summary?.latestUpdate.created_at ?? null,
             isPaused: channel.is_paused === 1,
             rolloutActive: channel.branch_mapping_json !== null,
-          });
+          } satisfies BuildCompatibilityChannelModel;
         });
 
-        return new BuildCompatibilityRow({
-          ...build,
+        return {
+          id: build.id,
+          projectId: build.projectId,
+          platform: build.platform,
+          profile: build.profile,
+          distribution: build.distribution,
+          runtimeVersion: build.runtimeVersion,
+          appVersion: build.appVersion,
+          buildNumber: build.buildNumber,
+          bundleId: build.bundleId,
+          gitRef: build.gitRef,
+          gitCommit: build.gitCommit,
+          message: build.message,
+          metadataJson: build.metadataJson,
+          createdAt: build.createdAt,
+          artifact: build.artifact,
           channels: channelStatuses,
-        });
+        } satisfies BuildCompatibilityRowModel;
       });
 
       return {
@@ -300,7 +315,7 @@ export const CompatibilityRepoLive = Layer.succeed(CompatibilityRepo, {
                 )
                 .map(
                   (summary) =>
-                    new MissingRuntimeVersionBuild({
+                    ({
                       channelId: channel.id,
                       channelName: channel.name,
                       platform: summary.platform,
@@ -310,7 +325,7 @@ export const CompatibilityRepoLive = Layer.succeed(CompatibilityRepo, {
                       latestUpdateMessage: summary.latestUpdate.message,
                       latestUpdateCreatedAt: summary.latestUpdate.created_at,
                       rolloutActive: channel.branch_mapping_json !== null,
-                    }),
+                    }) satisfies MissingRuntimeVersionBuildModel,
                 ),
         ),
       };

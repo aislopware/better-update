@@ -1,5 +1,4 @@
 import path from "node:path";
-import process from "node:process";
 
 import { Command, CommandExecutor, FileSystem } from "@effect/platform";
 import { Effect } from "effect";
@@ -11,6 +10,7 @@ import { findAndroidArtifact } from "../../lib/artifact-finder";
 import { downloadAndroidCredentials } from "../../lib/credentials-downloader";
 import { sha256File } from "../../lib/sha256";
 import { capitalize } from "../../lib/string-utils";
+import { CliRuntime } from "../../services/cli-runtime";
 import { runStep } from "./run-step";
 
 import type { AndroidProfile } from "../../lib/build-profile";
@@ -61,10 +61,11 @@ export const runAndroidBuild = (
 ): Effect.Effect<
   RunAndroidBuildResult,
   BuildFailedError | MissingCredentialsError | ArtifactNotFoundError | PlatformError,
-  CommandExecutor.CommandExecutor | FileSystem.FileSystem
+  CliRuntime | CommandExecutor.CommandExecutor | FileSystem.FileSystem
 > =>
   Effect.gen(function* () {
     const { api, tempDir, projectRoot, androidProfile, envVars, projectId } = input;
+    const runtime = yield* CliRuntime;
 
     // Record build start so artifact-finder can reject stale outputs from
     // earlier builds that may still live in `android/app/build/outputs/`.
@@ -74,6 +75,7 @@ export const runAndroidBuild = (
     const flavor = androidProfile.flavor;
     const buildType = androidProfile.buildType ?? "release";
     const androidDir = path.join(projectRoot, "android");
+    const commandEnv = yield* runtime.commandEnvironment(envVars);
 
     const credentials = yield* downloadAndroidCredentials(api, {
       projectId,
@@ -81,9 +83,9 @@ export const runAndroidBuild = (
     });
 
     yield* runStep(
-      Command.make("npx", "expo", "prebuild", "--platform", "android", "--clean").pipe(
+      Command.make("bunx", "expo", "prebuild", "--platform", "android", "--clean").pipe(
         Command.workingDirectory(projectRoot),
-        Command.env({ ...process.env, ...envVars }),
+        Command.env(commandEnv),
       ),
       "expo prebuild android",
     );
@@ -104,7 +106,7 @@ export const runAndroidBuild = (
     yield* runStep(
       Command.make("./gradlew", "--init-script", signingGradlePath, `:app:${taskName}`).pipe(
         Command.workingDirectory(androidDir),
-        Command.env({ ...process.env, ...envVars }),
+        Command.env(commandEnv),
       ),
       "gradlew",
     );

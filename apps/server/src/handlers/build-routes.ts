@@ -1,6 +1,47 @@
+import { Effect } from "effect";
+
 import { createAuth } from "../auth";
+import { BuildRuntime } from "../cloudflare/build-runtime";
+import { provideCloudflareEnv } from "../cloudflare/context";
 import { verifyInstallToken } from "../domain/install-token";
-import { generateDownloadUrl } from "../domain/presigned-url";
+import { ServerInfrastructureLayer } from "../infrastructure-layer";
+import { BuildRepo } from "../repositories";
+
+import type { ServerInfrastructure } from "../infrastructure-layer";
+
+const runBuildRouteEffect = async <Success, Error>(
+  effect: Effect.Effect<Success, Error, ServerInfrastructure>,
+  env: Env,
+) =>
+  Effect.runPromise(
+    effect.pipe(Effect.provide(ServerInfrastructureLayer), (program) =>
+      provideCloudflareEnv(program, env),
+    ),
+  );
+
+const findArtifactR2KeyByIdAndOrg = (buildId: string, organizationId: string) =>
+  Effect.gen(function* () {
+    const repo = yield* BuildRepo;
+    return yield* repo.findArtifactR2KeyByIdAndOrg({ id: buildId, organizationId });
+  });
+
+const findArtifactR2KeyById = (buildId: string) =>
+  Effect.gen(function* () {
+    const repo = yield* BuildRepo;
+    return yield* repo.findArtifactR2KeyById({ id: buildId });
+  });
+
+const findInstallInfoById = (buildId: string) =>
+  Effect.gen(function* () {
+    const repo = yield* BuildRepo;
+    return yield* repo.findInstallInfoById({ id: buildId });
+  });
+
+const createBuildDownloadUrl = (key: string) =>
+  Effect.gen(function* () {
+    const runtime = yield* BuildRuntime;
+    return yield* runtime.createDownloadUrl({ key, expiresIn: 900 });
+  });
 
 const escapeXml = (str: string) =>
   str
@@ -55,35 +96,27 @@ export const handleBuildArtifactDownload = async (
       );
     }
 
-    const artifact = await env.DB.prepare(
-      `SELECT a."r2_key" FROM "build_artifacts" a JOIN "builds" b ON b."id" = a."build_id" JOIN "projects" p ON p."id" = b."project_id" WHERE a."build_id" = ? AND p."organization_id" = ?`,
-    )
-      .bind(buildId, orgId)
-      .first<{ r2_key: string }>();
-    if (!artifact) {
+    const r2Key = await runBuildRouteEffect(findArtifactR2KeyByIdAndOrg(buildId, orgId), env);
+    if (!r2Key) {
       return Response.json(
         { code: "NOT_FOUND", message: "Build artifact not found" },
         { status: 404 },
       );
     }
 
-    const downloadUrl = await generateDownloadUrl(env, artifact.r2_key, 900);
+    const downloadUrl = await runBuildRouteEffect(createBuildDownloadUrl(r2Key), env);
     return Response.redirect(downloadUrl, 302);
   }
 
-  const artifact = await env.DB.prepare(
-    `SELECT a."r2_key" FROM "build_artifacts" a WHERE a."build_id" = ?`,
-  )
-    .bind(buildId)
-    .first<{ r2_key: string }>();
-  if (!artifact) {
+  const r2Key = await runBuildRouteEffect(findArtifactR2KeyById(buildId), env);
+  if (!r2Key) {
     return Response.json(
       { code: "NOT_FOUND", message: "Build artifact not found" },
       { status: 404 },
     );
   }
 
-  const downloadUrl = await generateDownloadUrl(env, artifact.r2_key, 900);
+  const downloadUrl = await runBuildRouteEffect(createBuildDownloadUrl(r2Key), env);
   return Response.redirect(downloadUrl, 302);
 };
 
@@ -112,23 +145,13 @@ export const handleBuildInstallPlist = async (
     );
   }
 
-  const row = await env.DB.prepare(
-    `SELECT b."distribution", b."bundle_id", b."app_version", b."message", a."r2_key" FROM "builds" b JOIN "build_artifacts" a ON a."build_id" = b."id" WHERE b."id" = ?`,
-  )
-    .bind(buildId)
-    .first<{
-      distribution: string;
-      bundle_id: string | null;
-      app_version: string | null;
-      message: string | null;
-      r2_key: string;
-    }>();
+  const build = await runBuildRouteEffect(findInstallInfoById(buildId), env);
 
-  if (!row) {
+  if (!build) {
     return Response.json({ code: "NOT_FOUND", message: "Build not found" }, { status: 404 });
   }
 
-  if (row.distribution !== "ad-hoc" && row.distribution !== "enterprise") {
+  if (build.distribution !== "ad-hoc" && build.distribution !== "enterprise") {
     return Response.json(
       {
         code: "BAD_REQUEST",
@@ -138,11 +161,11 @@ export const handleBuildInstallPlist = async (
     );
   }
 
-  const artifactUrl = await generateDownloadUrl(env, row.r2_key, 900);
+  const artifactUrl = await runBuildRouteEffect(createBuildDownloadUrl(build.r2Key), env);
 
-  const bundleId = row.bundle_id ?? "com.unknown.app";
-  const appVersion = row.app_version ?? "1.0.0";
-  const title = row.message ?? "Build";
+  const bundleId = build.bundleId ?? "com.unknown.app";
+  const appVersion = build.appVersion ?? "1.0.0";
+  const title = build.message ?? "Build";
 
   const plist = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

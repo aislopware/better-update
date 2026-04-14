@@ -1,5 +1,19 @@
 import { Deferred, Effect } from "effect";
 
+interface BunServeServer {
+  readonly port: number;
+  readonly stop: (closeActiveConnections?: boolean) => void;
+}
+
+interface BunRuntime {
+  readonly serve: (options: {
+    readonly hostname: string;
+    readonly port: number;
+    readonly fetch: (request: Request) => Promise<Response>;
+    readonly error: () => Response;
+  }) => BunServeServer;
+}
+
 export const CALLBACK_PAGE = `<!doctype html>
 <html lang="en">
   <head>
@@ -120,12 +134,13 @@ export const createBrowserLoginSession = (
 export const createBrowserLoginServer = (
   options: CreateBrowserLoginServerOptions = {},
 ): BrowserLoginServer => {
-  if (typeof Bun === "undefined") {
+  const bunRuntime = (globalThis as typeof globalThis & { readonly Bun?: BunRuntime }).Bun;
+  if (!bunRuntime) {
     throw new Error("Browser login server requires the Bun runtime.");
   }
 
   const session = createBrowserLoginSession(options);
-  const server = Bun.serve({
+  const server = bunRuntime.serve({
     hostname: "127.0.0.1",
     port: 0,
     fetch: session.handleRequest,

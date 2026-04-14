@@ -2,7 +2,8 @@ import { Effect } from "effect";
 
 import type { BadRequest, NotFound } from "@better-update/api";
 
-import { cloudflareEnv } from "../cloudflare/context";
+import { provideCloudflareRequestContext } from "../cloudflare/context";
+import { manifestRuntime } from "../cloudflare/manifest-runtime";
 import { evaluateBranchMapping } from "../domain/branch-mapping";
 import { resolveUpdateRollout } from "../domain/update-rollout";
 import { parseProtocolHeaders } from "../protocol/headers";
@@ -10,7 +11,7 @@ import { buildDirective, buildExtensions, buildManifest } from "../protocol/mani
 import { encodeMultipart } from "../protocol/multipart";
 import { ManifestRepo, ManifestRepoLive } from "../repositories/manifest";
 import { buildCacheKey, matchCachedResponse, storeCachedResponse } from "./manifest-cache";
-import { createTracker, respond, responseTypeFor } from "./manifest-helpers";
+import { respond, responseTypeFor } from "./manifest-helpers";
 
 import type { ProtocolHeaders } from "../protocol/headers";
 import type { PatchedAssetInfo } from "../protocol/manifest-builder";
@@ -216,7 +217,7 @@ const buildUpdateResponse = (params: {
 }): Effect.Effect<Response, never, ManifestRepo> =>
   Effect.gen(function* () {
     const { update, scopeKey, ph, patchedAsset } = params;
-    const env = yield* cloudflareEnv;
+    const runtime = yield* manifestRuntime;
     const boundary = crypto.randomUUID();
     const useMultipart = supportsMultipart(ph.accept ?? "*/*");
 
@@ -245,7 +246,7 @@ const buildUpdateResponse = (params: {
       update,
       assetRows,
       scopeKey,
-      assetBaseUrl: env.ASSET_CDN_URL,
+      assetBaseUrl: runtime.assetBaseUrl,
       ph,
       boundary,
       useMultipart,
@@ -314,7 +315,7 @@ const resolvePatchInfo = (params: {
       return undefined;
     }
     const repo = yield* ManifestRepo;
-    const env = yield* cloudflareEnv;
+    const runtime = yield* manifestRuntime;
     const oldHash = yield* repo.findUpdateLaunchAssetHash({ updateId: currentUpdateId });
     if (!oldHash) {
       return undefined;
@@ -329,7 +330,7 @@ const resolvePatchInfo = (params: {
       return undefined;
     }
     return {
-      patchUrl: `${env.ASSET_CDN_URL}/patches/${oldHash}/${newLaunch.hash}.patch`,
+      patchUrl: `${runtime.assetBaseUrl}/patches/${oldHash}/${newLaunch.hash}.patch`,
       patchSize: patch.byteSize,
       baseHash: oldHash,
     };
@@ -443,7 +444,7 @@ const serveRequest = (
 ): Effect.Effect<Response, BadRequest | NotFound, ManifestRepo> =>
   Effect.gen(function* () {
     const startTime = Date.now();
-    const env = yield* cloudflareEnv;
+    const runtime = yield* manifestRuntime;
     const ph = yield* parseProtocolHeaders(request.headers);
     const accept = ph.accept ?? "*/*";
     if (!supportsAny(accept)) {
@@ -452,7 +453,7 @@ const serveRequest = (
 
     const repo = yield* ManifestRepo;
     const channel = yield* repo.resolveChannel({ projectId, channelName: ph.channelName });
-    const track = createTracker({ env, projectId, ph, startTime });
+    const track = runtime.createTracker({ projectId, ph, startTime });
 
     if (channel.is_paused === 1) {
       return respond(trackNoUpdate(channel.branch_id, track), ph);
@@ -481,5 +482,16 @@ const serve = (request: Request, projectId: string): Effect.Effect<Response, nev
     onSuccess: (response) => response,
   });
 
-export const serveManifest = async (request: Request, projectId: string): Promise<Response> =>
-  Effect.runPromise(serve(request, projectId).pipe(Effect.provide(ManifestRepoLive)));
+export const serveManifest = async (
+  request: Request,
+  env: Env,
+  ctx: ExecutionContext,
+  projectId: string,
+): Promise<Response> =>
+  Effect.runPromise(
+    provideCloudflareRequestContext(
+      serve(request, projectId).pipe(Effect.provide(ManifestRepoLive)),
+      env,
+      ctx,
+    ),
+  );

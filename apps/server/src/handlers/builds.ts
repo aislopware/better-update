@@ -1,22 +1,18 @@
-import {
-  ArtifactFormat,
-  AuthContext,
-  BadRequest,
-  Distribution,
-  NotFound,
-} from "@better-update/api";
+import { ArtifactFormat, Distribution } from "@better-update/api";
 import { HttpApiBuilder, HttpServerRequest } from "@effect/platform";
 import { Effect, Schema } from "effect";
 
 import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
+import { CurrentActor } from "../auth/current-actor";
 import { assertProjectOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
-import { cloudflareEnv } from "../cloudflare/context";
+import { BuildRuntime } from "../cloudflare/build-runtime";
 import { generateInstallToken } from "../domain/install-token";
-import { generateUploadUrl } from "../domain/presigned-url";
-import { BuildRepo } from "../repositories/builds";
-import { CompatibilityRepo } from "../repositories/compatibility";
+import { BadRequest, NotFound } from "../errors";
+import { toApiBuild, toApiBuildCompatibilityMatrix } from "../http/to-api";
+import { toApiBadRequestReadEffect } from "../http/to-api-effect";
+import { BuildRepo, CompatibilityRepo } from "../repositories";
 
 const UPLOAD_EXPIRY_SECONDS = 7200;
 const KV_RESERVATION_TTL = 10_800;
@@ -57,245 +53,259 @@ const decodeReservation = Schema.decodeUnknownSync(ReservationSchema);
 export const BuildsGroupLive = HttpApiBuilder.group(ManagementApi, "builds", (handlers) =>
   handlers
     .handle("reserve", ({ payload }) =>
-      Effect.gen(function* () {
-        yield* assertPermission("build", "create");
-        yield* assertProjectOwnership(payload.projectId);
+      toApiBadRequestReadEffect(
+        Effect.gen(function* () {
+          yield* assertPermission("build", "create");
+          yield* assertProjectOwnership(payload.projectId);
 
-        const env = yield* cloudflareEnv;
-        const ctx = yield* AuthContext;
+          const runtime = yield* BuildRuntime;
+          const ctx = yield* CurrentActor;
 
-        const buildId = crypto.randomUUID();
-        const stagingKey = `staging/${ctx.organizationId}/${buildId}.${artifactExt(payload.artifactFormat)}`;
+          const buildId = crypto.randomUUID();
+          const stagingKey = `staging/${ctx.organizationId}/${buildId}.${artifactExt(payload.artifactFormat)}`;
 
-        const uploadUrl = yield* Effect.promise(async () =>
-          generateUploadUrl(env, stagingKey, UPLOAD_EXPIRY_SECONDS),
-        );
+          const uploadUrl = yield* runtime.createUploadUrl({
+            key: stagingKey,
+            expiresIn: UPLOAD_EXPIRY_SECONDS,
+          });
 
-        const uploadExpiresAt = new Date(Date.now() + UPLOAD_EXPIRY_SECONDS * 1000).toISOString();
+          const uploadExpiresAt = new Date(Date.now() + UPLOAD_EXPIRY_SECONDS * 1000).toISOString();
 
-        const reservation = {
-          buildId,
-          projectId: payload.projectId,
-          platform: payload.platform,
-          profile: payload.profile ?? "production",
-          distribution: payload.distribution,
-          artifactFormat: payload.artifactFormat,
-          runtimeVersion: payload.runtimeVersion ?? null,
-          appVersion: payload.appVersion ?? null,
-          buildNumber: payload.buildNumber ?? null,
-          bundleId: payload.bundleId ?? null,
-          gitRef: payload.gitRef ?? null,
-          gitCommit: payload.gitCommit ?? null,
-          message: payload.message ?? null,
-          metadata: payload.metadata ?? {},
-          stagingKey,
-          organizationId: ctx.organizationId,
-        };
+          const reservation = {
+            buildId,
+            projectId: payload.projectId,
+            platform: payload.platform,
+            profile: payload.profile ?? "production",
+            distribution: payload.distribution,
+            artifactFormat: payload.artifactFormat,
+            runtimeVersion: payload.runtimeVersion ?? null,
+            appVersion: payload.appVersion ?? null,
+            buildNumber: payload.buildNumber ?? null,
+            bundleId: payload.bundleId ?? null,
+            gitRef: payload.gitRef ?? null,
+            gitCommit: payload.gitCommit ?? null,
+            message: payload.message ?? null,
+            metadata: payload.metadata ?? {},
+            stagingKey,
+            organizationId: ctx.organizationId,
+          };
 
-        yield* Effect.promise(async () =>
-          env.BUILD_RESERVATIONS.put(buildId, JSON.stringify(reservation), {
-            expirationTtl: KV_RESERVATION_TTL,
-          }),
-        );
+          yield* runtime.putReservation({
+            id: buildId,
+            value: JSON.stringify(reservation),
+            ttlSeconds: KV_RESERVATION_TTL,
+          });
 
-        yield* logAudit({
-          action: "build.reserve",
-          resourceType: "build",
-          resourceId: buildId,
-          metadata: { platform: payload.platform, projectId: payload.projectId },
-        });
+          yield* logAudit({
+            action: "build.reserve",
+            resourceType: "build",
+            resourceId: buildId,
+            metadata: { platform: payload.platform, projectId: payload.projectId },
+          });
 
-        return { id: buildId, uploadUrl, uploadExpiresAt };
-      }),
+          return { id: buildId, uploadUrl, uploadExpiresAt };
+        }),
+      ),
     )
     .handle("complete", ({ path, payload }) =>
-      Effect.gen(function* () {
-        yield* assertPermission("build", "create");
+      toApiBadRequestReadEffect(
+        Effect.gen(function* () {
+          yield* assertPermission("build", "create");
 
-        const env = yield* cloudflareEnv;
+          const runtime = yield* BuildRuntime;
 
-        const reservationJson = yield* Effect.promise(async () =>
-          env.BUILD_RESERVATIONS.get(path.id),
-        );
-        if (!reservationJson) {
-          return yield* Effect.fail(
-            new NotFound({ message: "Build reservation not found or expired" }),
-          );
-        }
+          const reservationJson = yield* runtime.getReservation({ id: path.id });
+          if (!reservationJson) {
+            return yield* Effect.fail(
+              new NotFound({ message: "Build reservation not found or expired" }),
+            );
+          }
 
-        const reservation = decodeReservation(JSON.parse(reservationJson));
+          const reservation = decodeReservation(JSON.parse(reservationJson));
 
-        yield* assertProjectOwnership(reservation.projectId);
+          yield* assertProjectOwnership(reservation.projectId);
 
-        const stagingObject = yield* Effect.promise(async () =>
-          env.BUILD_BUCKET.get(reservation.stagingKey),
-        );
-        if (!stagingObject) {
-          return yield* Effect.fail(new NotFound({ message: "Artifact not uploaded to staging" }));
-        }
+          const stagingObject = yield* runtime.getObject({ key: reservation.stagingKey });
+          if (!stagingObject) {
+            return yield* Effect.fail(
+              new NotFound({ message: "Artifact not uploaded to staging" }),
+            );
+          }
 
-        if (stagingObject.size !== payload.byteSize) {
-          return yield* Effect.fail(
-            new BadRequest({
-              message: `Artifact size mismatch: expected ${payload.byteSize}, got ${stagingObject.size}`,
-            }),
-          );
-        }
+          if (stagingObject.size !== payload.byteSize) {
+            return yield* Effect.fail(
+              new BadRequest({
+                message: `Artifact size mismatch: expected ${payload.byteSize}, got ${stagingObject.size}`,
+              }),
+            );
+          }
 
-        const finalKey = `builds/${reservation.organizationId}/${reservation.projectId}/${path.id}.${artifactExt(reservation.artifactFormat)}`;
+          const finalKey = `builds/${reservation.organizationId}/${reservation.projectId}/${path.id}.${artifactExt(reservation.artifactFormat)}`;
 
-        yield* Effect.promise(async () =>
-          env.BUILD_BUCKET.put(finalKey, stagingObject.body, {
-            httpMetadata: {
-              contentType: formatForContentType(reservation.artifactFormat),
-            },
-          }),
-        );
-
-        const repo = yield* BuildRepo;
-        const build = yield* repo.insert({
-          id: path.id,
-          projectId: reservation.projectId,
-          platform: reservation.platform,
-          profile: reservation.profile,
-          distribution: reservation.distribution,
-          runtimeVersion: reservation.runtimeVersion,
-          appVersion: reservation.appVersion,
-          buildNumber: reservation.buildNumber,
-          bundleId: reservation.bundleId,
-          gitRef: reservation.gitRef,
-          gitCommit: reservation.gitCommit,
-          message: reservation.message,
-          metadataJson: JSON.stringify(reservation.metadata),
-          artifact: {
-            r2Key: finalKey,
-            format: reservation.artifactFormat,
+          yield* runtime.putObject({
+            key: finalKey,
+            body: stagingObject.body ?? new Uint8Array(),
             contentType: formatForContentType(reservation.artifactFormat),
-            byteSize: payload.byteSize,
-            sha256: payload.sha256,
-          },
-        });
+          });
 
-        yield* Effect.all(
-          [
-            Effect.promise(async () => env.BUILD_BUCKET.delete(reservation.stagingKey)),
-            Effect.promise(async () => env.BUILD_RESERVATIONS.delete(path.id)),
-          ],
-          { concurrency: "unbounded" },
-        ).pipe(Effect.catchAll(() => Effect.void));
+          const repo = yield* BuildRepo;
+          const build = yield* repo.insert({
+            id: path.id,
+            projectId: reservation.projectId,
+            platform: reservation.platform,
+            profile: reservation.profile,
+            distribution: reservation.distribution,
+            runtimeVersion: reservation.runtimeVersion,
+            appVersion: reservation.appVersion,
+            buildNumber: reservation.buildNumber,
+            bundleId: reservation.bundleId,
+            gitRef: reservation.gitRef,
+            gitCommit: reservation.gitCommit,
+            message: reservation.message,
+            metadataJson: JSON.stringify(reservation.metadata),
+            artifact: {
+              r2Key: finalKey,
+              format: reservation.artifactFormat,
+              contentType: formatForContentType(reservation.artifactFormat),
+              byteSize: payload.byteSize,
+              sha256: payload.sha256,
+            },
+          });
 
-        yield* logAudit({
-          action: "build.complete",
-          resourceType: "build",
-          resourceId: path.id,
-        });
+          yield* Effect.all(
+            [
+              runtime.deleteObjects({ keys: [reservation.stagingKey] }),
+              runtime.deleteReservation({ id: path.id }),
+            ],
+            { concurrency: "unbounded" },
+          ).pipe(Effect.catchAll(() => Effect.void));
 
-        return build;
-      }),
+          yield* logAudit({
+            action: "build.complete",
+            resourceType: "build",
+            resourceId: path.id,
+          });
+
+          return toApiBuild(build);
+        }),
+      ),
     )
     .handle("list", ({ urlParams }) =>
-      Effect.gen(function* () {
-        yield* assertPermission("build", "read");
-        yield* assertProjectOwnership(urlParams.projectId);
+      toApiBadRequestReadEffect(
+        Effect.gen(function* () {
+          yield* assertPermission("build", "read");
+          yield* assertProjectOwnership(urlParams.projectId);
 
-        const repo = yield* BuildRepo;
-        const page = urlParams.page ?? 1;
-        const limit = urlParams.limit ?? 20;
-        const offset = (page - 1) * limit;
+          const repo = yield* BuildRepo;
+          const page = urlParams.page ?? 1;
+          const limit = urlParams.limit ?? 20;
+          const offset = (page - 1) * limit;
 
-        const { items, total } = yield* repo.list({
-          projectId: urlParams.projectId,
-          ...(urlParams.platform ? { platform: urlParams.platform } : {}),
-          ...(urlParams.profile ? { profile: urlParams.profile } : {}),
-          ...(urlParams.runtimeVersion ? { runtimeVersion: urlParams.runtimeVersion } : {}),
-          limit,
-          offset,
-        });
+          const { items, total } = yield* repo.list({
+            projectId: urlParams.projectId,
+            ...(urlParams.platform ? { platform: urlParams.platform } : {}),
+            ...(urlParams.profile ? { profile: urlParams.profile } : {}),
+            ...(urlParams.runtimeVersion ? { runtimeVersion: urlParams.runtimeVersion } : {}),
+            limit,
+            offset,
+          });
 
-        return { items, total, page, limit };
-      }),
+          return { items: items.map(toApiBuild), total, page, limit };
+        }),
+      ),
     )
     .handle("get", ({ path }) =>
-      Effect.gen(function* () {
-        yield* assertPermission("build", "read");
+      toApiBadRequestReadEffect(
+        Effect.gen(function* () {
+          yield* assertPermission("build", "read");
 
-        const repo = yield* BuildRepo;
-        const build = yield* repo.findById({ id: path.id });
-        yield* assertProjectOwnership(build.projectId);
+          const repo = yield* BuildRepo;
+          const build = yield* repo.findById({ id: path.id });
+          yield* assertProjectOwnership(build.projectId);
 
-        return build;
-      }),
+          return toApiBuild(build);
+        }),
+      ),
     )
     .handle("compatibilityMatrix", ({ urlParams }) =>
-      Effect.gen(function* () {
-        yield* assertPermission("build", "read");
-        yield* assertProjectOwnership(urlParams.projectId);
+      toApiBadRequestReadEffect(
+        Effect.gen(function* () {
+          yield* assertPermission("build", "read");
+          yield* assertProjectOwnership(urlParams.projectId);
 
-        const repo = yield* CompatibilityRepo;
-        return yield* repo.getBuildMatrix({ projectId: urlParams.projectId });
-      }),
+          const repo = yield* CompatibilityRepo;
+          return toApiBuildCompatibilityMatrix(
+            yield* repo.getBuildMatrix({ projectId: urlParams.projectId }),
+          );
+        }),
+      ),
     )
     .handle("delete", ({ path }) =>
-      Effect.gen(function* () {
-        yield* assertPermission("build", "delete");
+      toApiBadRequestReadEffect(
+        Effect.gen(function* () {
+          yield* assertPermission("build", "delete");
 
-        const repo = yield* BuildRepo;
-        const build = yield* repo.findById({ id: path.id });
-        yield* assertProjectOwnership(build.projectId);
+          const repo = yield* BuildRepo;
+          const build = yield* repo.findById({ id: path.id });
+          yield* assertProjectOwnership(build.projectId);
 
-        const { r2Key } = yield* repo.deleteById({ id: path.id });
+          const { r2Key } = yield* repo.deleteById({ id: path.id });
 
-        if (r2Key) {
-          const env = yield* cloudflareEnv;
-          yield* Effect.promise(async () => env.BUILD_BUCKET.delete(r2Key)).pipe(
-            Effect.catchAll(() => Effect.void),
-          );
-        }
+          if (r2Key) {
+            const runtime = yield* BuildRuntime;
+            yield* runtime
+              .deleteObjects({ keys: [r2Key] })
+              .pipe(Effect.catchAll(() => Effect.void));
+          }
 
-        yield* logAudit({
-          action: "build.delete",
-          resourceType: "build",
-          resourceId: path.id,
-        });
+          yield* logAudit({
+            action: "build.delete",
+            resourceType: "build",
+            resourceId: path.id,
+          });
 
-        return { deleted: 1 };
-      }),
+          return { deleted: 1 };
+        }),
+      ),
     )
     .handle("getInstallLink", ({ path }) =>
-      Effect.gen(function* () {
-        yield* assertPermission("build", "read");
+      toApiBadRequestReadEffect(
+        Effect.gen(function* () {
+          yield* assertPermission("build", "read");
 
-        const repo = yield* BuildRepo;
-        const build = yield* repo.findById({ id: path.id });
-        yield* assertProjectOwnership(build.projectId);
+          const repo = yield* BuildRepo;
+          const build = yield* repo.findById({ id: path.id });
+          yield* assertProjectOwnership(build.projectId);
 
-        const env = yield* cloudflareEnv;
-        if (!env.INSTALL_TOKEN_SECRET) {
-          return yield* Effect.fail(
-            new BadRequest({ message: "Install token secret not configured" }),
+          const runtime = yield* BuildRuntime;
+          const installTokenSecret = yield* runtime.getInstallTokenSecret;
+          if (!installTokenSecret) {
+            return yield* Effect.fail(
+              new BadRequest({ message: "Install token secret not configured" }),
+            );
+          }
+
+          const { token, expires } = yield* Effect.promise(async () =>
+            generateInstallToken(path.id, installTokenSecret),
           );
-        }
 
-        const { token, expires } = yield* Effect.promise(async () =>
-          generateInstallToken(path.id, env.INSTALL_TOKEN_SECRET),
-        );
+          const req = yield* HttpServerRequest.HttpServerRequest;
+          const url = new URL(req.url, `https://${req.headers["host"]}`);
+          const { origin } = url;
 
-        const req = yield* HttpServerRequest.HttpServerRequest;
-        const url = new URL(req.url, `https://${req.headers["host"]}`);
-        const { origin } = url;
+          const artifactUrl = `${origin}/api/builds/${path.id}/artifact?token=${token}&expires=${expires}`;
 
-        const artifactUrl = `${origin}/api/builds/${path.id}/artifact?token=${token}&expires=${expires}`;
+          const installUrl =
+            build.platform === "ios" &&
+            (build.distribution === "ad-hoc" || build.distribution === "enterprise") &&
+            build.artifact?.format === "ipa" &&
+            build.bundleId !== null &&
+            build.appVersion !== null
+              ? `itms-services://?action=download-manifest&url=${encodeURIComponent(`${origin}/api/builds/${path.id}/install?token=${token}&expires=${expires}`)}`
+              : null;
 
-        const installUrl =
-          build.platform === "ios" &&
-          (build.distribution === "ad-hoc" || build.distribution === "enterprise") &&
-          build.artifact?.format === "ipa" &&
-          build.bundleId !== null &&
-          build.appVersion !== null
-            ? `itms-services://?action=download-manifest&url=${encodeURIComponent(`${origin}/api/builds/${path.id}/install?token=${token}&expires=${expires}`)}`
-            : null;
-
-        return { token, expires, artifactUrl, installUrl };
-      }),
+          return { token, expires, artifactUrl, installUrl };
+        }),
+      ),
     ),
 );

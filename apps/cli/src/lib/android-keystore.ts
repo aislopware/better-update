@@ -2,6 +2,7 @@ import { Prompt } from "@effect/cli";
 import { Command, CommandExecutor } from "@effect/platform";
 import { Effect, Redacted } from "effect";
 
+import { CliRuntime } from "../services/cli-runtime";
 import { BuildFailedError } from "./exit-codes";
 
 const DEFAULT_KEYSTORE_VALIDITY_DAYS = 10_000;
@@ -44,6 +45,8 @@ export const renderDistinguishedName = (params: {
 
 export const promptAndroidKeystoreDetails = (defaults: AndroidKeystorePromptDefaults = {}) =>
   Effect.gen(function* () {
+    const runtime = yield* CliRuntime;
+    const userName = yield* runtime.userName;
     const credentialName = yield* Prompt.text({
       message: "Credential name:",
       default: defaults.credentialName ?? "Release Keystore",
@@ -71,7 +74,7 @@ export const promptAndroidKeystoreDetails = (defaults: AndroidKeystorePromptDefa
       );
     const commonName = yield* Prompt.text({
       message: "Your name (CN):",
-      default: defaults.commonName ?? process.env["USER"] ?? "better-update",
+      default: defaults.commonName ?? userName,
       validate: validateRequired("Common name"),
     });
     const organization = yield* Prompt.text({

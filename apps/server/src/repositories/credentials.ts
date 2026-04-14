@@ -1,9 +1,9 @@
-import { Credential, NotFound } from "@better-update/api";
 import { Context, Effect, Layer } from "effect";
 
-import type { CredentialDistribution, CredentialType } from "@better-update/api";
-
 import { cloudflareEnv } from "../cloudflare/context";
+import { NotFound } from "../errors";
+
+import type { CredentialDistribution, CredentialModel, CredentialType, Platform } from "../models";
 
 // -- Port ------------------------------------------------------------------
 
@@ -12,10 +12,10 @@ export interface CredentialRepository {
     readonly id: string;
     readonly organizationId: string;
     readonly projectId: string | null;
-    readonly platform: "ios" | "android";
-    readonly type: typeof CredentialType.Type;
+    readonly platform: Platform;
+    readonly type: CredentialType;
     readonly name: string;
-    readonly distribution: typeof CredentialDistribution.Type | null;
+    readonly distribution: CredentialDistribution | null;
     readonly r2Key: string;
     readonly encryptedDek: string;
     readonly keyVersion: number;
@@ -24,19 +24,19 @@ export interface CredentialRepository {
     readonly encryptedKeyPassword: string | null;
     readonly metadataJson: string;
     readonly expiresAt: string | null;
-  }) => Effect.Effect<Credential>;
+  }) => Effect.Effect<CredentialModel>;
 
-  readonly findById: (params: { readonly id: string }) => Effect.Effect<Credential, NotFound>;
+  readonly findById: (params: { readonly id: string }) => Effect.Effect<CredentialModel, NotFound>;
 
   readonly list: (params: {
     readonly organizationId: string;
     readonly projectId?: string;
-    readonly platform?: "ios" | "android";
+    readonly platform?: Platform;
     readonly type?: string;
     readonly distribution?: string;
     readonly limit: number;
     readonly offset: number;
-  }) => Effect.Effect<{ readonly items: readonly Credential[]; readonly total: number }>;
+  }) => Effect.Effect<{ readonly items: readonly CredentialModel[]; readonly total: number }>;
 
   readonly deleteById: (params: {
     readonly id: string;
@@ -49,7 +49,7 @@ export interface CredentialRepository {
     readonly platform: string;
     readonly type: string;
     readonly distribution: string | null;
-  }) => Effect.Effect<Credential, NotFound>;
+  }) => Effect.Effect<CredentialModel, NotFound>;
 
   readonly findEncryptionData: (params: { readonly id: string }) => Effect.Effect<
     {
@@ -78,10 +78,10 @@ interface CredentialRow {
   id: string;
   organization_id: string;
   project_id: string | null;
-  platform: "ios" | "android";
-  type: typeof CredentialType.Type;
+  platform: Platform;
+  type: CredentialType;
   name: string;
-  distribution: typeof CredentialDistribution.Type | null;
+  distribution: CredentialDistribution | null;
   is_active: number;
   metadata_json: string;
   expires_at: string | null;
@@ -101,7 +101,7 @@ interface EncryptionDataRow {
 }
 
 const toCredential = (row: CredentialRow) =>
-  new Credential({
+  ({
     id: row.id,
     organizationId: row.organization_id,
     projectId: row.project_id,
@@ -113,7 +113,7 @@ const toCredential = (row: CredentialRow) =>
     metadata: row.metadata_json,
     expiresAt: row.expires_at,
     createdAt: row.created_at,
-  });
+  }) satisfies CredentialModel;
 
 const SELECT_COLUMNS = `"id", "organization_id", "project_id", "platform", "type", "name", "distribution", "is_active", "metadata_json", "expires_at", "created_at"`;
 
@@ -148,7 +148,7 @@ export const CredentialRepoLive = Layer.succeed(CredentialRepo, {
           .run(),
       );
 
-      return new Credential({
+      return {
         id: params.id,
         organizationId: params.organizationId,
         projectId: params.projectId,
@@ -160,7 +160,7 @@ export const CredentialRepoLive = Layer.succeed(CredentialRepo, {
         metadata: params.metadataJson,
         expiresAt: params.expiresAt,
         createdAt: now,
-      });
+      } satisfies CredentialModel;
     }),
 
   findById: (params) =>

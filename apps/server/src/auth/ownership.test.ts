@@ -1,7 +1,7 @@
-import { NotFound } from "@better-update/api";
 import { it } from "@effect/vitest";
 import { Effect, Exit } from "effect";
 
+import { NotFound } from "../errors";
 import { ProjectRepo } from "../repositories/projects";
 import { AuthContext } from "./context";
 import { assertOrgOwnership, assertProjectOwnership } from "./ownership";
@@ -29,7 +29,7 @@ describe(assertOrgOwnership, () => {
       expect(Exit.isFailure(exit)).toBe(true);
       if (Exit.isFailure(exit)) {
         const error = exit.cause.pipe((cause) => (cause._tag === "Fail" ? cause.error : undefined));
-        expect(error).toBeInstanceOf(NotFound);
+        expect(error).toMatchObject({ _tag: "NotFound", message: "Resource not found" });
       }
     }),
   );
@@ -74,14 +74,14 @@ describe(assertProjectOwnership, () => {
       );
       expect(Exit.isFailure(exit)).toBe(true);
       if (Exit.isFailure(exit) && exit.cause._tag === "Fail") {
-        expect(exit.cause.error).toBeInstanceOf(NotFound);
+        expect(exit.cause.error).toMatchObject({ _tag: "NotFound" });
       }
     }),
   );
 
   it.effect("fails with NotFound when project belongs to different org", () =>
     Effect.gen(function* () {
-      expect.assertions(3);
+      expect.assertions(2);
       const exit = yield* assertProjectOwnership("project-1").pipe(
         mockProjectRepo("org-other"),
         provideAuth("org-1"),
@@ -89,8 +89,10 @@ describe(assertProjectOwnership, () => {
       );
       expect(Exit.isFailure(exit)).toBe(true);
       if (Exit.isFailure(exit) && exit.cause._tag === "Fail") {
-        expect(exit.cause.error).toBeInstanceOf(NotFound);
-        expect(exit.cause.error.message).toBe("Resource not found");
+        expect(exit.cause.error).toMatchObject({
+          _tag: "NotFound",
+          message: "Resource not found",
+        });
       }
     }),
   );

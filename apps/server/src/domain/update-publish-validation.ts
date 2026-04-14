@@ -1,5 +1,6 @@
-import { BadRequest } from "@better-update/api";
 import { Effect } from "effect";
+
+import { BadRequest } from "../errors";
 
 interface AssetRefInput {
   readonly key: string;

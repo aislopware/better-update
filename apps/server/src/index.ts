@@ -1,121 +1,61 @@
-import { HttpApiBuilder, HttpApiScalar, HttpServer } from "@effect/platform";
-import { Effect, Layer } from "effect";
+import { Effect } from "effect";
 
-import { ManagementApi } from "./api";
+import type { Context } from "effect";
+
+import { makeManagementWebHandler } from "./app-layer";
 import { createAuth } from "./auth";
 import { API_KEY_PREFIX } from "./auth/constants";
-import { AuthenticationLive } from "./auth/middleware";
-import { setRequestContext } from "./cloudflare/context";
-import {
-  AnalyticsGroupLive,
-  AssetsGroupLive,
-  AuditLogsGroupLive,
-  BranchesGroupLive,
-  BuildsGroupLive,
-  ChannelsGroupLive,
-  CredentialsGroupLive,
-  EnvVarsGroupLive,
-  ProjectsGroupLive,
-  UpdatesGroupLive,
-  handlePatchMessage,
-  handleScheduled,
-  matchBuildRoute,
-  serveManifest,
-} from "./handlers";
-import { errorFormatMiddleware } from "./middleware/error-format";
-import {
-  AssetRepoLive,
-  AuditLogRepoLive,
-  BranchRepoLive,
-  BuildRepoLive,
-  ChannelRepoLive,
-  CompatibilityRepoLive,
-  CredentialRepoLive,
-  EnvVarRepoLive,
-  PatchRepoLive,
-  ProjectRepoLive,
-  UpdateRepoLive,
-} from "./repositories";
+import { AssetStorage } from "./cloudflare/asset-storage";
+import { makeCloudflareRequestContext, provideCloudflareEnv } from "./cloudflare/context";
+import { handlePatchMessage, handleScheduled, matchBuildRoute, serveManifest } from "./handlers";
+import { ServerInfrastructureLayer } from "./infrastructure-layer";
+import { AssetRepo } from "./repositories";
+
+import type { ServerInfrastructure } from "./infrastructure-layer";
 
 export {
   CreateBranchCoordinator,
   PublishCoordinator,
 } from "./durable-objects/publish-coordinators";
+const { handler } = makeManagementWebHandler();
 
-const ProjectsGroupWithRepo = ProjectsGroupLive.pipe(
-  Layer.provide(ProjectRepoLive),
-  Layer.provide(AuditLogRepoLive),
-);
-const BranchesGroupWithRepo = BranchesGroupLive.pipe(
-  Layer.provide(BranchRepoLive),
-  Layer.provide(ProjectRepoLive),
-  Layer.provide(AuditLogRepoLive),
-);
+const runServerEnvEffect = async <Success, Error>(
+  effect: Effect.Effect<Success, Error, ServerInfrastructure>,
+  env: Env,
+) =>
+  Effect.runPromise(
+    effect.pipe(Effect.provide(ServerInfrastructureLayer), (program) =>
+      provideCloudflareEnv(program, env),
+    ),
+  );
 
-const ChannelsGroupWithRepo = ChannelsGroupLive.pipe(
-  Layer.provide(ChannelRepoLive),
-  Layer.provide(BranchRepoLive),
-  Layer.provide(ProjectRepoLive),
-  Layer.provide(AuditLogRepoLive),
-);
+const findAssetByHash = (hash: string) =>
+  Effect.gen(function* () {
+    const repo = yield* AssetRepo;
+    return yield* repo.findByHash({ hash });
+  });
 
-const UpdatesGroupWithRepo = UpdatesGroupLive.pipe(
-  Layer.provide(UpdateRepoLive),
-  Layer.provide(AssetRepoLive),
-  Layer.provide(PatchRepoLive),
-  Layer.provide(BranchRepoLive),
-  Layer.provide(ChannelRepoLive),
-  Layer.provide(ProjectRepoLive),
-  Layer.provide(AuditLogRepoLive),
-);
+const getAssetObject = (key: string) =>
+  Effect.gen(function* () {
+    const storage = yield* AssetStorage;
+    return yield* storage.getObject({ key });
+  });
 
-const BuildsGroupWithRepo = BuildsGroupLive.pipe(
-  Layer.provide(CompatibilityRepoLive),
-  Layer.provide(BuildRepoLive),
-  Layer.provide(ProjectRepoLive),
-  Layer.provide(AuditLogRepoLive),
-);
+const putAssetObject = (params: {
+  readonly key: string;
+  readonly body: ReadableStream | Uint8Array;
+  readonly contentType: string;
+}) =>
+  Effect.gen(function* () {
+    const storage = yield* AssetStorage;
+    yield* storage.putObject(params);
+  });
 
-const CredentialsGroupWithRepo = CredentialsGroupLive.pipe(
-  Layer.provide(CredentialRepoLive),
-  Layer.provide(ProjectRepoLive),
-  Layer.provide(AuditLogRepoLive),
-);
-
-const EnvVarsGroupWithRepo = EnvVarsGroupLive.pipe(
-  Layer.provide(EnvVarRepoLive),
-  Layer.provide(ProjectRepoLive),
-  Layer.provide(AuditLogRepoLive),
-);
-
-const AssetsGroupWithRepo = AssetsGroupLive.pipe(Layer.provide(AssetRepoLive));
-const AnalyticsGroupWithRepo = AnalyticsGroupLive.pipe(Layer.provide(ProjectRepoLive));
-const AuditLogsGroupWithRepo = AuditLogsGroupLive.pipe(Layer.provide(AuditLogRepoLive));
-
-const ApiLive = HttpApiBuilder.api(ManagementApi).pipe(
-  Layer.provide(ProjectsGroupWithRepo),
-  Layer.provide(BranchesGroupWithRepo),
-  Layer.provide(ChannelsGroupWithRepo),
-  Layer.provide(UpdatesGroupWithRepo),
-  Layer.provide(BuildsGroupWithRepo),
-  Layer.provide(CredentialsGroupWithRepo),
-  Layer.provide(EnvVarsGroupWithRepo),
-  Layer.provide(AssetsGroupWithRepo),
-  Layer.provide(AnalyticsGroupWithRepo),
-  Layer.provide(AuditLogsGroupWithRepo),
-  Layer.provide(AuthenticationLive),
-);
-
-// OpenAPI + Scalar require Api (provided by ApiLive)
-const DocsLive = Layer.merge(
-  HttpApiBuilder.middlewareOpenApi(),
-  HttpApiScalar.layerCdn({ path: "/docs" }),
-).pipe(Layer.provide(ApiLive));
-
-const { handler } = HttpApiBuilder.toWebHandler(
-  Layer.mergeAll(ApiLive, DocsLive, HttpServer.layerContext),
-  { middleware: errorFormatMiddleware },
-);
+const updateAssetByteSize = (hash: string, byteSize: number) =>
+  Effect.gen(function* () {
+    const repo = yield* AssetRepo;
+    yield* repo.updateByteSize({ hash, byteSize });
+  });
 
 const internalError = () =>
   Response.json(
@@ -210,26 +150,24 @@ const handleAssetDownload = async (
     return cached;
   }
 
-  // Look up asset in D1 to resolve r2Key
-  const asset = await env.DB.prepare(
-    `SELECT "r2_key", "content_type" FROM "assets" WHERE "hash" = ?`,
-  )
-    .bind(hash)
-    .first<{ r2_key: string; content_type: string }>();
+  const asset = await runServerEnvEffect(findAssetByHash(hash), env);
   if (!asset) {
     return Response.json({ code: "NOT_FOUND", message: "Asset not found" }, { status: 404 });
   }
 
-  // Fetch from R2
-  const object = await env.ASSETS_BUCKET.get(asset.r2_key);
+  const object = await runServerEnvEffect(getAssetObject(asset.r2Key), env);
   if (!object) {
     return Response.json({ code: "NOT_FOUND", message: "Asset not found" }, { status: 404 });
   }
 
   // Build response with immutable caching headers
   const headers = new Headers();
-  object.writeHttpMetadata(headers);
-  headers.set("etag", object.httpEtag);
+  if (object.contentType) {
+    headers.set("content-type", object.contentType);
+  }
+  if (object.etag) {
+    headers.set("etag", object.etag);
+  }
   headers.set("content-length", object.size.toString());
   headers.set("cache-control", "public, max-age=31536000, immutable");
 
@@ -250,30 +188,27 @@ const handleAssetUpload = async (request: Request, env: Env, hash: string): Prom
     );
   }
 
-  // Look up asset in D1 to get r2Key and contentType
-  const asset = await env.DB.prepare(
-    `SELECT "r2_key", "content_type" FROM "assets" WHERE "hash" = ?`,
-  )
-    .bind(hash)
-    .first<{ r2_key: string; content_type: string }>();
+  const asset = await runServerEnvEffect(findAssetByHash(hash), env);
   if (!asset) {
     return Response.json({ code: "NOT_FOUND", message: "Asset not registered" }, { status: 404 });
   }
 
-  // Stream body to R2
-  await env.ASSETS_BUCKET.put(asset.r2_key, request.body, {
-    httpMetadata: { contentType: asset.content_type },
-  });
+  await runServerEnvEffect(
+    putAssetObject({
+      key: asset.r2Key,
+      body: request.body ?? new Uint8Array(),
+      contentType: asset.contentType,
+    }),
+    env,
+  );
 
   // Update byte size
   const contentLength = request.headers.get("content-length");
   if (contentLength) {
-    await env.DB.prepare(`UPDATE "assets" SET "byte_size" = ? WHERE "hash" = ?`)
-      .bind(Number.parseInt(contentLength, 10), hash)
-      .run();
+    await runServerEnvEffect(updateAssetByteSize(hash, Number.parseInt(contentLength, 10)), env);
   }
 
-  return Response.json({ hash, r2Key: asset.r2_key }, { status: 200 });
+  return Response.json({ hash, r2Key: asset.r2Key }, { status: 200 });
 };
 
 /** Public patch download — streams R2 object with edge caching */
@@ -291,7 +226,7 @@ const handlePatchDownload = async (
   }
 
   const r2Key = `patches/${oldHash}/${newHash}.patch`;
-  const object = await env.ASSETS_BUCKET.get(r2Key);
+  const object = await runServerEnvEffect(getAssetObject(r2Key), env);
   if (!object) {
     return Response.json({ code: "NOT_FOUND", message: "Patch not found" }, { status: 404 });
   }
@@ -310,9 +245,8 @@ export default {
   async fetch(request, env, ctx) {
     // eslint-disable-next-line functional/no-try-statements -- imperative shell error boundary
     try {
-      setRequestContext(env, ctx);
-
       const url = new URL(request.url);
+      const requestContext = makeCloudflareRequestContext(env, ctx) as Context.Context<never>;
 
       // Better Auth handles its own auth routes
       if (url.pathname.startsWith("/api/auth")) {
@@ -322,7 +256,7 @@ export default {
       // Expo Updates protocol — unauthenticated manifest serving
       const manifestMatch = /^\/manifest\/([^/]+)\/?$/.exec(url.pathname);
       if (manifestMatch?.[1]) {
-        return await serveManifest(request, manifestMatch[1]);
+        return await serveManifest(request, env, ctx, manifestMatch[1]);
       }
 
       // Public asset download — GET /assets/:hash (no auth, edge-cached)
@@ -358,7 +292,7 @@ export default {
       }
 
       // Effect HttpApi handles management routes + OpenAPI + Scalar docs
-      return await handler(request);
+      return await handler(request, requestContext);
     } catch {
       return internalError();
     }

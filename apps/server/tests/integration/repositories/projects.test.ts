@@ -1,17 +1,16 @@
-import { Conflict, Project } from "@better-update/api";
 import { env } from "cloudflare:test";
 import { Effect, Either } from "effect";
 
-import { setRequestContext } from "../../../src/cloudflare/context";
 import { ProjectRepo, ProjectRepoLive } from "../../../src/repositories/projects";
+import { runEitherWithLayerAndEnv, runWithLayerAndEnv } from "../../helpers/runtime";
 
 // ── Helpers ───────────────────────────────────────────────────────
 
 const run = <Ret, Err>(effect: Effect.Effect<Ret, Err, ProjectRepo>) =>
-  effect.pipe(Effect.provide(ProjectRepoLive), Effect.runPromise);
+  runWithLayerAndEnv(effect, ProjectRepoLive, env);
 
 const runEither = <Ret, Err>(effect: Effect.Effect<Ret, Err, ProjectRepo>) =>
-  effect.pipe(Effect.provide(ProjectRepoLive), Effect.either, Effect.runPromise);
+  runEitherWithLayerAndEnv(effect, ProjectRepoLive, env);
 
 const insertOrg = (id: string, slug: string) =>
   env.DB.prepare(
@@ -23,7 +22,6 @@ const insertOrg = (id: string, slug: string) =>
 // ── Setup ─────────────────────────────────────────────────────────
 
 beforeAll(async () => {
-  setRequestContext(env, {} as ExecutionContext);
   await insertOrg("org-1", "org-one");
   await insertOrg("org-2", "org-two");
 });
@@ -85,7 +83,7 @@ describe("ProjectRepo — D1 integration", () => {
 
       expect(Either.isLeft(result)).toBe(true);
       if (Either.isLeft(result)) {
-        expect(result.left).toBeInstanceOf(Conflict);
+        expect(result.left).toMatchObject({ _tag: "Conflict" });
       }
     });
   });
@@ -140,8 +138,7 @@ describe("ProjectRepo — D1 integration", () => {
 
       expect(result.total).toBe(1);
       expect(result.items).toHaveLength(1);
-      expect(result.items[0]).toBeInstanceOf(Project);
-      expect(result.items[0]!.name).toBe("Org2 App");
+      expect(result.items[0]).toEqual(expect.objectContaining({ name: "Org2 App" }));
     });
 
     it("paginates with limit and offset", async () => {

@@ -1,14 +1,17 @@
-import { Asset } from "@better-update/api";
 import { Context, Effect, Layer } from "effect";
 
 import { cloudflareEnv } from "../cloudflare/context";
 
+import type { AssetModel } from "../models";
+
 // -- Port ------------------------------------------------------------------
 
 export interface AssetRepository {
+  readonly findByHash: (params: { readonly hash: string }) => Effect.Effect<AssetModel | null>;
+
   readonly findByHashes: (params: {
     readonly hashes: readonly string[];
-  }) => Effect.Effect<readonly Asset[]>;
+  }) => Effect.Effect<readonly AssetModel[]>;
 
   readonly insertBatch: (params: {
     readonly assets: readonly {
@@ -48,16 +51,30 @@ interface AssetRow {
 }
 
 const toAsset = (row: AssetRow) =>
-  new Asset({
+  ({
     hash: row.hash,
     contentType: row.content_type,
     fileExt: row.file_ext,
     byteSize: row.byte_size,
     r2Key: row.r2_key,
     createdAt: row.created_at,
-  });
+  }) satisfies AssetModel;
 
 export const AssetRepoLive = Layer.succeed(AssetRepo, {
+  findByHash: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+      const row = yield* Effect.promise(async () =>
+        env.DB.prepare(
+          `SELECT "hash", "content_type", "file_ext", "byte_size", "r2_key", "created_at" FROM "assets" WHERE "hash" = ?`,
+        )
+          .bind(params.hash)
+          .first<AssetRow>(),
+      );
+
+      return row ? toAsset(row) : null;
+    }),
+
   findByHashes: (params) =>
     Effect.gen(function* () {
       if (params.hashes.length === 0) {

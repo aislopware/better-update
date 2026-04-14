@@ -1,11 +1,16 @@
 import { Effect } from "effect";
 
+import { AssetStorage } from "../cloudflare/asset-storage";
+import { provideCloudflareEnv } from "../cloudflare/context";
+import { ServerInfrastructureLayer } from "../infrastructure-layer";
+import { AssetRepo, PatchRepo } from "../repositories";
+
+import type { ServerInfrastructure } from "../infrastructure-layer";
+
 interface PatchJobMessage {
   readonly oldHash: string;
   readonly newHash: string;
 }
-
-// -- Size + ratio guards (extracted to stay within max-statements) -----------
 
 const BYTES_PER_MB = 1_048_576;
 
@@ -19,58 +24,84 @@ const exceedsSize = (oldSize: number, newSize: number, maxSize: number) =>
 const patchNotWorth = (patchSize: number, newSize: number, minSaving: number) =>
   patchSize >= minSaving * newSize;
 
-// -- Idempotency check -------------------------------------------------------
-
-const alreadyExists = async (env: Env, message: PatchJobMessage) => {
-  const row = await env.DB.prepare(
-    `SELECT 1 FROM "patches" WHERE "old_asset_hash" = ? AND "new_asset_hash" = ?`,
-  )
-    .bind(message.oldHash, message.newHash)
-    .first();
-  return row !== null;
-};
-
-// -- R2 fetch ----------------------------------------------------------------
-
-const fetchBundles = async (env: Env, message: PatchJobMessage) => {
-  const [oldObject, newObject] = await Effect.runPromise(
-    Effect.all(
-      [
-        Effect.promise(async () => env.ASSETS_BUCKET.get(`assets/${message.oldHash}`)),
-        Effect.promise(async () => env.ASSETS_BUCKET.get(`assets/${message.newHash}`)),
-      ],
-      { concurrency: "unbounded" },
+const runPatchEffect = async <Success, Error>(
+  effect: Effect.Effect<Success, Error, ServerInfrastructure>,
+  env: Env,
+) =>
+  Effect.runPromise(
+    effect.pipe(Effect.provide(ServerInfrastructureLayer), (program) =>
+      provideCloudflareEnv(program, env),
     ),
   );
-  return { oldObject, newObject };
-};
 
-// -- Store result ------------------------------------------------------------
-
-const storePatch = async (
-  env: Env,
-  message: PatchJobMessage,
-  patchBytes: Uint8Array,
-  r2Key: string,
-) => {
-  await env.ASSETS_BUCKET.put(r2Key, patchBytes, {
-    httpMetadata: { contentType: "application/octet-stream" },
+const alreadyExists = (message: PatchJobMessage) =>
+  Effect.gen(function* () {
+    const repo = yield* PatchRepo;
+    return (
+      (yield* repo.findByHashes({ oldHash: message.oldHash, newHash: message.newHash })) !== null
+    );
   });
-  await env.DB.prepare(
-    `INSERT INTO "patches" ("old_asset_hash", "new_asset_hash", "byte_size", "r2_key", "created_at") VALUES (?, ?, ?, ?, ?)`,
-  )
-    .bind(message.oldHash, message.newHash, patchBytes.length, r2Key, new Date().toISOString())
-    .run();
-};
 
-// -- Main handler ------------------------------------------------------------
+const fetchBundles = (message: PatchJobMessage) =>
+  Effect.gen(function* () {
+    const assetRepo = yield* AssetRepo;
+    const storage = yield* AssetStorage;
+
+    const [oldAsset, newAsset] = yield* Effect.all(
+      [
+        assetRepo.findByHash({ hash: message.oldHash }),
+        assetRepo.findByHash({ hash: message.newHash }),
+      ],
+      { concurrency: "unbounded" },
+    );
+
+    const [oldObject, newObject] = yield* Effect.all(
+      [
+        oldAsset ? storage.getObject({ key: oldAsset.r2Key }) : Effect.succeed(null),
+        newAsset ? storage.getObject({ key: newAsset.r2Key }) : Effect.succeed(null),
+      ],
+      { concurrency: "unbounded" },
+    );
+
+    return { oldObject, newObject };
+  });
+
+const readBundleBytes = (
+  oldObject: { readonly body: ReadableStream | null },
+  newObject: { readonly body: ReadableStream | null },
+) =>
+  Effect.all(
+    [
+      Effect.promise(async () => new Uint8Array(await new Response(oldObject.body).arrayBuffer())),
+      Effect.promise(async () => new Uint8Array(await new Response(newObject.body).arrayBuffer())),
+    ],
+    { concurrency: "unbounded" },
+  );
+
+const storePatch = (message: PatchJobMessage, patchBytes: Uint8Array, r2Key: string) =>
+  Effect.gen(function* () {
+    const storage = yield* AssetStorage;
+    const repo = yield* PatchRepo;
+
+    yield* storage.putObject({
+      key: r2Key,
+      body: patchBytes,
+      contentType: "application/octet-stream",
+    });
+    yield* repo.insert({
+      oldHash: message.oldHash,
+      newHash: message.newHash,
+      byteSize: patchBytes.length,
+      r2Key,
+    });
+  });
 
 export const handlePatchMessage = async (message: PatchJobMessage, env: Env): Promise<void> => {
-  if (await alreadyExists(env, message)) {
+  if (await runPatchEffect(alreadyExists(message), env)) {
     return;
   }
 
-  const { oldObject, newObject } = await fetchBundles(env, message);
+  const { oldObject, newObject } = await runPatchEffect(fetchBundles(message), env);
   if (!oldObject || !newObject) {
     console.warn("[patch-queue] Asset not found in R2, skipping", message);
     return;
@@ -86,17 +117,8 @@ export const handlePatchMessage = async (message: PatchJobMessage, env: Env): Pr
     return;
   }
 
-  const [oldBytes, newBytes] = await Effect.runPromise(
-    Effect.all(
-      [
-        Effect.promise(async () => new Uint8Array(await oldObject.arrayBuffer())),
-        Effect.promise(async () => new Uint8Array(await newObject.arrayBuffer())),
-      ],
-      { concurrency: "unbounded" },
-    ),
-  );
+  const [oldBytes, newBytes] = await Effect.runPromise(readBundleBytes(oldObject, newObject));
 
-  // WASM init may be needed for Workers — see @better-update/bsdiff-wasm setup
   const { diff } = await import("@better-update/bsdiff-wasm");
   const patchBytes = diff(oldBytes, newBytes);
 
@@ -111,7 +133,7 @@ export const handlePatchMessage = async (message: PatchJobMessage, env: Env): Pr
   }
 
   const r2Key = `patches/${message.oldHash}/${message.newHash}.patch`;
-  await storePatch(env, message, patchBytes, r2Key);
+  await runPatchEffect(storePatch(message, patchBytes, r2Key), env);
 
   console.info("[patch-queue] Patch generated", {
     oldHash: message.oldHash,

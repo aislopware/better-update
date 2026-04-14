@@ -1,5 +1,4 @@
 import path from "node:path";
-import process from "node:process";
 
 import { Command, CommandExecutor, FileSystem } from "@effect/platform";
 import { Effect, Scope } from "effect";
@@ -13,6 +12,7 @@ import { renderExportOptionsPlist } from "../../lib/ios-export-options";
 import { acquireKeychain } from "../../lib/ios-keychain";
 import { installProvisioningProfile } from "../../lib/ios-provisioning";
 import { sha256File } from "../../lib/sha256";
+import { CliRuntime } from "../../services/cli-runtime";
 import { runStep } from "./run-step";
 
 import type { IosProfile } from "../../lib/build-profile";
@@ -67,13 +67,15 @@ export const runIosBuild = (
   | ProvisioningError
   | ArtifactNotFoundError
   | PlatformError,
-  CommandExecutor.CommandExecutor | FileSystem.FileSystem | Scope.Scope
+  CliRuntime | CommandExecutor.CommandExecutor | FileSystem.FileSystem | Scope.Scope
 > =>
   Effect.gen(function* () {
     const { api, tempDir, projectRoot, iosProfile, bundleId, envVars, projectId } = input;
+    const runtime = yield* CliRuntime;
 
     const iosDir = path.join(projectRoot, "ios");
     const distribution = iosProfile.distribution;
+    const commandEnv = yield* runtime.commandEnvironment(envVars);
 
     // 1. Download credentials (p12 + mobileprovision) into tempDir.
     const credentials = yield* downloadIosCredentials(api, {
@@ -84,9 +86,9 @@ export const runIosBuild = (
 
     // 2. Expo prebuild (ios).
     yield* runStep(
-      Command.make("npx", "expo", "prebuild", "--platform", "ios", "--clean").pipe(
+      Command.make("bunx", "expo", "prebuild", "--platform", "ios", "--clean").pipe(
         Command.workingDirectory(projectRoot),
-        Command.env({ ...process.env, ...envVars }),
+        Command.env(commandEnv),
       ),
       "expo prebuild ios",
     );
@@ -95,7 +97,7 @@ export const runIosBuild = (
     yield* runStep(
       Command.make("pod", "install").pipe(
         Command.workingDirectory(iosDir),
-        Command.env({ ...process.env, ...envVars }),
+        Command.env(commandEnv),
       ),
       "pod install",
     );
@@ -136,7 +138,7 @@ export const runIosBuild = (
         `DEVELOPMENT_TEAM=${provisioning.teamId}`,
         `CODE_SIGN_IDENTITY=${keychain.signingIdentity}`,
         `PROVISIONING_PROFILE_SPECIFIER=${provisioning.name}`,
-      ).pipe(Command.workingDirectory(iosDir), Command.env({ ...process.env, ...envVars })),
+      ).pipe(Command.workingDirectory(iosDir), Command.env(commandEnv)),
       "xcodebuild archive",
     );
 
@@ -165,7 +167,7 @@ export const runIosBuild = (
         "-exportOptionsPlist",
         exportOptionsPath,
         "-allowProvisioningUpdates",
-      ).pipe(Command.workingDirectory(iosDir), Command.env({ ...process.env, ...envVars })),
+      ).pipe(Command.workingDirectory(iosDir), Command.env(commandEnv)),
       "xcodebuild exportArchive",
     );
 

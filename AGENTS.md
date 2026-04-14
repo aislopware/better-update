@@ -1,69 +1,73 @@
 # Agent Project Guidance
 
-## Agent Behavior
+This file is the root instruction map for coding agents. Keep it short. Add deeper, workspace-specific guidance in nested `AGENTS.md` files only when a subproject needs rules that do not belong at the repo root. The nearest `AGENTS.md` applies to the files being edited.
 
-- Use package manager: `bun`, `bunx` for script execution. Do not use `npm`, `npx`, or `yarn` for running scripts or managing dependencies.
-- Do not run `oxlint` or `tsgo` directly; they are part of the `lint` script. Use `bun run lint` for both linting and typechecking.
-- Do not disable existing lint rules. If a rule is conflicted or annoying, should stop and ask for clarification instead of disabling it. If a rule needs to be disabled, it should be done globally in the base configuration file, not in package-scoped config files.
+## Highest-Priority Rules
 
-## Commits
+- Use `bun` and `bunx`. Do not use `npm`, `npx`, or `yarn`.
+- Use `bun run lint` for linting and typechecking. Do not run `oxlint` or `tsgo` directly.
+- Do not disable lint rules to make a change pass. If a rule is genuinely wrong, stop and ask. If it must change, update the shared base config rather than a package-local override.
+- Prefer the smallest relevant check while iterating, then run the final relevant lint/test commands before finishing.
+- If the task is scoped to one workspace, inspect that workspace first instead of scanning the entire monorepo.
 
-- Use Conventional Commits for any commit you create.
-- Format: `type(scope): short summary`.
-- Prefer scopes that match the workspace or package being changed: `cli`, `server`, `dashboard`, `api`, `api-client`, `ui`, `react-hooks`, `bsdiff-wasm`, `repo`.
-- Valid types include: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `build`, `ci`, `perf`, `revert`.
-- Keep the subject imperative, lowercase, and without a trailing period.
-- Use `!` for breaking changes and include a `BREAKING CHANGE:` footer in the commit body when needed.
-- If a change spans multiple workspaces and no single scope is dominant, use `repo` or omit the scope.
+## Repo Map
 
-## Functional Style
+- `apps/server`: Cloudflare Worker server.
+- `apps/dashboard`: web dashboard.
+- `apps/cli`: Bun-first TypeScript ESM CLI.
+- `packages/api`: shared HTTP contracts and transport schemas.
+- `packages/api-client`: typed client for `packages/api`.
+- `packages/ui`, `packages/react-hooks`: shared frontend building blocks.
+- `packages/bsdiff-wasm`: WASM patching package.
+- `docs/specs/eas-update-protocol.md`: protocol reference.
 
-- Prefer expressions over statements, composition over nesting, data over classes.
-- Model errors as values with Effect; model state with XState actors.
+## Style
 
-## API Architecture
+- Prefer expressions over statements, composition over nesting, and data over classes.
+- Model errors as values with Effect. Model complex state with XState actors.
 
-- Functional core, imperative shell — pure logic in Effect, side effects at the edges.
-- Use Effect `HttpApi` / `HttpApiGroup` / `HttpApiEndpoint` for web handlers.
+## Architecture Invariants
 
-## CLI Architecture
+- Use functional core + imperative shell with lightweight hexagonal boundaries.
+- Keep `domain/**` pure. Do not depend on `Request`, `Response`, Cloudflare bindings, Bun globals, D1 SQL, R2, KV, `process`, or `@better-update/api` transport DTOs in domain code.
+- Use `application/**` for flows that coordinate multiple ports. Application code may depend on ports and domain modules, but not concrete adapters.
+- Model boundaries as `Context.Tag` services and wire them with `Layer` at the composition root.
+- Keep service methods `R = never`; capture dependencies in layer implementations instead of leaking them through method signatures.
+- Avoid scattered `Effect.provide(...)` inside commands, handlers, repositories, or shared library code.
+- Repositories are adapters. Keep persistence/retrieval in repositories; put orchestration, authz, audit side effects, cache invalidation, and multi-step workflows in use-cases.
+- Keep transport contracts at the edge. `packages/api` defines DTOs; handlers map between transport models and application/domain models.
+- Prefer request-scoped server context over module-global mutable state.
+- Use Effect `HttpApi`, `HttpApiGroup`, and `HttpApiEndpoint` for HTTP handlers.
 
-- The CLI lives in `apps/cli` and is a Bun-first TypeScript ESM app.
-- `src/index.ts` is the composition root: define the root `@effect/cli` command tree there and provide runtime layers such as `BunContext`, `ConfigStoreLive`, and `AuthStoreLive`.
-- `src/commands/**` is the command surface. Keep command files thin: parse options, orchestrate flows, map typed domain errors to exit codes, and delegate reusable logic.
-- `src/services/**` contains boundary adapters such as auth/config persistence and the typed API client. Prefer `Context.Tag` + `Layer` for dependency injection.
-- `src/lib/**` is the reusable functional core for build/update helpers, app config parsing, git/runtime resolution, uploads, hashing, temp dirs, and output formatting. Keep this layer composable and easy to unit test.
-- For backend calls, use the shared `@better-update/api` contract through `HttpApiClient`; do not introduce ad hoc fetch wrappers when a typed endpoint already exists.
-- Use `@effect/platform` and `@effect/platform-bun` for filesystem, HTTP, and process boundaries. Keep side effects at the edges and return typed Effect errors from shared logic.
-- Follow the existing command grouping pattern for nested features such as `build`, `credentials`, `env`, and `update`: feature folder with an `index.ts` entry and dedicated subcommand modules.
+## CLI Notes
 
-## CLI Tech Stack
-
-- Runtime: Bun
-- Language/module system: TypeScript + ESM
-- CLI framework: `@effect/cli`
-- Effects/runtime: `effect`
-- Platform adapters: `@effect/platform`, `@effect/platform-bun`
-- Shared API contract: `@better-update/api`
-- Workspace/build orchestration: Bun workspaces + Turborepo
-- Tests: Vitest unit tests in `apps/cli/src/**/*.test.ts`
+- `apps/cli/src/index.ts` is the composition root for the command tree and runtime layers.
+- `apps/cli/src/commands/**` is the command surface. Keep command modules thin: parse options, call reusable flows, and map typed errors to exit codes/output.
+- `apps/cli/src/services/**` contains boundary adapters such as auth/config persistence and the typed API client.
+- `apps/cli/src/lib/**` is the reusable functional core for CLI-specific logic.
+- Use `HttpApiClient` with `@better-update/api` for backend calls instead of ad hoc fetch wrappers.
+- Use `@effect/platform` and `@effect/platform-bun` for filesystem, HTTP, and process boundaries.
 
 ## Testing
 
-- Single `vitest.config.ts` with 3 projects: `unit`, `integration`, `e2e`.
-- Use vitest globals (`describe`, `test`, `expect`) — do not import from `vitest`.
-- Use `@effect/vitest` (`it.effect`, `it.scoped`) for testing Effect programs. Provide services via `Effect.provideService`, not `vi.mock`.
-- Unit tests colocated in `src/**/*.test.ts`. Integration/E2E in `tests/`.
-- Integration tests run in Workers runtime via `@cloudflare/vitest-pool-workers` with real D1.
-- E2E tests use `unstable_startWorker` from `wrangler` with D1 migrations applied via CLI.
-- Unit test coverage enforced at 80% (istanbul). Coverage scope: `src/auth/`, `src/domain/`, `src/cloudflare/` — excludes imperative shell (`index.ts`, `api.ts`, `handlers/`, `groups/`, `auth/middleware.ts`).
-- `bun run test` = unit + coverage. `bun run test:integrations` = integration. `bun run test:e2e` = e2e. `bun run test:all` = everything.
+- `vitest.config.ts` defines `unit`, `integration`, and `e2e` projects.
+- Use Vitest globals. Do not import `describe`, `test`, or `expect` from `vitest`.
+- For Effect programs, prefer `@effect/vitest` (`it.effect`, `it.scoped`) and provide services with `Effect.provideService` rather than `vi.mock`.
+- Unit tests live in `src/**/*.test.ts`. Integration and E2E tests live in `tests/`.
+- Integration tests run in the Workers runtime with real D1. E2E tests use `unstable_startWorker` from `wrangler`.
+- Coverage is enforced at 80% for `src/auth/`, `src/domain/`, and `src/cloudflare/`; imperative shell files are excluded.
+- Commands: `bun run test`, `bun run test:integrations`, `bun run test:e2e`, `bun run test:all`.
+
+## Commits
+
+- Use Conventional Commits: `type(scope): short summary`.
+- Prefer scopes that match the dominant workspace/package: `cli`, `server`, `dashboard`, `api`, `api-client`, `ui`, `react-hooks`, `bsdiff-wasm`, `repo`.
+- Valid types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `build`, `ci`, `perf`, `revert`.
+- Keep the subject imperative, lowercase, and without a trailing period.
+- Use `!` for breaking changes and include a `BREAKING CHANGE:` footer when needed.
+- If no single workspace dominates, use `repo` or omit the scope.
 
 ## Skill Triggers
 
-Before writing or modifying code, trigger relevant skills for up-to-date patterns. Do not rely on training data. The cost of an unnecessary skill call is near zero — skipping a relevant one leads to suboptimal patterns.
-
-| File types     | Trigger skills                           |
-| -------------- | ---------------------------------------- |
-| `.ts`, `.tsx`  | `typescript-advanced`, `effect-advanced` |
-| `.tsx`, `.jsx` | `react-advanced`, `react-web-advanced`   |
+- `.ts`, `.tsx`: `typescript-advanced`, `effect-advanced`
+- `.tsx`, `.jsx`: `react-advanced`, `react-web-advanced`

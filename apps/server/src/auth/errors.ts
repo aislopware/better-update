@@ -1,1 +1,1 @@
-export { Forbidden, OrgRequired, Unauthorized } from "@better-update/api";
+export { Forbidden, OrgRequired, Unauthorized } from "../errors";

@@ -1,38 +1,34 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 
-import { CommandExecutor, FileSystem, HttpClient, HttpClientRequest } from "@effect/platform";
+import { CommandExecutor, FileSystem } from "@effect/platform";
 import { Effect } from "effect";
 
-import { readAppJson, readProjectId, readScopeKey } from "./app-json";
-import { readRuntimeVersionMeta, type Platform } from "./build-profile";
-import { pullEnvVars } from "./env-exporter";
-import { EnvExportError, UpdatePublishError } from "./exit-codes";
-import { readExpoExportAssets, readExpoPublicConfig, runExpoExport } from "./expo-export";
-import { resolveRuntimeVersion } from "./runtime-version";
-import { sha256FileBase64Url } from "./sha256";
-import { acquireBuildTempDir } from "./temp-dir";
+import { readAppJson, readProjectId, readScopeKey } from "../lib/app-json";
+import { readRuntimeVersionMeta, type Platform } from "../lib/build-profile";
+import { pullEnvVars } from "../lib/env-exporter";
+import { EnvExportError, RuntimeVersionError, UpdatePublishError } from "../lib/exit-codes";
+import { readExpoExportAssets, readExpoPublicConfig, runExpoExport } from "../lib/expo-export";
+import { resolveRuntimeVersion } from "../lib/runtime-version";
+import { sha256FileBase64Url } from "../lib/sha256";
+import { acquireBuildTempDir } from "../lib/temp-dir";
+import { ApiClientService, apiClient } from "../services/api-client";
+import { CliRuntime } from "../services/cli-runtime";
+import { UpdateAssetUploader } from "../services/update-asset-uploader";
 
-import type { ApiClient } from "../services/api-client";
 import type {
+  AuthRequiredError,
   BuildProfileError,
   BuildFailedError,
   ProjectNotLinkedError,
-  RuntimeVersionError,
-} from "./exit-codes";
+} from "../lib/exit-codes";
 
-export interface PublishUpdatesOptions {
-  readonly projectRoot: string;
+export interface RunUpdatePublishOptions {
   readonly branch: string;
   readonly platform: Platform | "all";
   readonly message: string | undefined;
   readonly environment: string;
   readonly clear: boolean;
-}
-
-export interface PublishUpdatesAuth {
-  readonly token: string;
-  readonly baseUrl: string;
 }
 
 export interface PublishedPlatformResult {
@@ -75,7 +71,7 @@ const formatCause = (cause: unknown): string => {
   return String(cause);
 };
 
-export const resolvePublishPlatforms = (
+const resolvePublishPlatforms = (
   appJson: Record<string, unknown>,
   requestedPlatform: Platform | "all",
 ): readonly Platform[] => {
@@ -109,50 +105,6 @@ const dedupeAssetsByHash = (assets: readonly PreparedAsset[]): readonly Prepared
   return Array.from(unique.values());
 };
 
-const uploadAssetBinary = (params: {
-  readonly asset: PreparedAsset;
-  readonly token: string;
-  readonly baseUrl: string;
-}): Effect.Effect<void, UpdatePublishError, HttpClient.HttpClient | FileSystem.FileSystem> =>
-  Effect.gen(function* () {
-    const client = yield* HttpClient.HttpClient;
-    const uploadUrl = new URL(
-      `/api/assets/${encodeURIComponent(params.asset.hash)}`,
-      params.baseUrl,
-    );
-
-    const request = yield* HttpClientRequest.put(uploadUrl.toString()).pipe(
-      HttpClientRequest.setHeaders({
-        Authorization: `Bearer ${params.token}`,
-        "Content-Type": params.asset.contentType,
-        "Content-Length": String(params.asset.byteSize),
-      }),
-      HttpClientRequest.bodyFile(params.asset.path),
-      Effect.mapError(
-        (cause) =>
-          new UpdatePublishError({
-            message: `Failed to read asset for upload: ${formatCause(cause)}`,
-          }),
-      ),
-    );
-
-    const response = yield* client.execute(request).pipe(
-      Effect.mapError(
-        (cause) =>
-          new UpdatePublishError({
-            message: `Asset upload request failed: ${formatCause(cause)}`,
-          }),
-      ),
-    );
-
-    if (response.status < 200 || response.status >= 300) {
-      const body = yield* response.text.pipe(Effect.orElseSucceed(() => ""));
-      return yield* new UpdatePublishError({
-        message: `Asset upload failed with status ${String(response.status)}: ${body}`,
-      });
-    }
-  });
-
 const preparePlatformAssets = ({
   exportDir,
   platform,
@@ -181,8 +133,6 @@ const preparePlatformAssets = ({
   });
 
 const publishPlatform = (params: {
-  readonly api: ApiClient;
-  readonly auth: PublishUpdatesAuth;
   readonly projectRoot: string;
   readonly exportDir: string;
   readonly projectId: string;
@@ -197,10 +147,21 @@ const publishPlatform = (params: {
   readonly platform: Platform;
 }): Effect.Effect<
   PublishedPlatformResult,
-  UpdatePublishError | BuildProfileError | BuildFailedError | RuntimeVersionError,
-  CommandExecutor.CommandExecutor | HttpClient.HttpClient | FileSystem.FileSystem
+  | AuthRequiredError
+  | UpdatePublishError
+  | BuildProfileError
+  | BuildFailedError
+  | RuntimeVersionError,
+  | ApiClientService
+  | CliRuntime
+  | UpdateAssetUploader
+  | CommandExecutor.CommandExecutor
+  | FileSystem.FileSystem
 > =>
   Effect.gen(function* () {
+    const api = yield* apiClient;
+    const assetUploader = yield* UpdateAssetUploader;
+
     const runtimeVersionMeta = yield* readRuntimeVersionMeta(params.appJson);
     const runtimeVersion = yield* resolveRuntimeVersion({
       raw: runtimeVersionMeta.rawRuntimeVersion,
@@ -222,7 +183,7 @@ const publishPlatform = (params: {
     });
     const uniqueAssets = dedupeAssetsByHash(preparedAssets);
 
-    const assetRegistration = yield* params.api.assets
+    const assetRegistration = yield* api.assets
       .upload({
         payload: {
           assets: uniqueAssets.map((asset) => ({
@@ -245,15 +206,16 @@ const publishPlatform = (params: {
     yield* Effect.forEach(
       uniqueAssets.filter((asset) => uploadedHashes.has(asset.hash)),
       (asset) =>
-        uploadAssetBinary({
-          asset,
-          token: params.auth.token,
-          baseUrl: params.auth.baseUrl,
+        assetUploader.uploadAssetBinary({
+          path: asset.path,
+          hash: asset.hash,
+          byteSize: asset.byteSize,
+          contentType: asset.contentType,
         }),
       { concurrency: 4 },
     );
 
-    const update = yield* params.api.updates
+    const update = yield* api.updates
       .create({
         payload: {
           branch: params.branch,
@@ -289,22 +251,29 @@ const publishPlatform = (params: {
     } as const satisfies PublishedPlatformResult;
   });
 
-export const publishUpdates = (
-  api: ApiClient,
-  auth: PublishUpdatesAuth,
-  options: PublishUpdatesOptions,
+export const runUpdatePublish = (
+  options: RunUpdatePublishOptions,
 ): Effect.Effect<
   PublishUpdatesResult,
+  | AuthRequiredError
   | UpdatePublishError
   | ProjectNotLinkedError
   | BuildProfileError
   | RuntimeVersionError
   | EnvExportError
   | BuildFailedError,
-  CommandExecutor.CommandExecutor | HttpClient.HttpClient | FileSystem.FileSystem
+  | ApiClientService
+  | CliRuntime
+  | UpdateAssetUploader
+  | CommandExecutor.CommandExecutor
+  | FileSystem.FileSystem
 > =>
   Effect.scoped(
     Effect.gen(function* () {
+      const runtime = yield* CliRuntime;
+      const projectRoot = yield* runtime.cwd;
+      const api = yield* apiClient;
+
       const projectId = yield* readProjectId;
       const scopeKey = yield* readScopeKey;
       const appJson = yield* readAppJson;
@@ -321,7 +290,7 @@ export const publishUpdates = (
         environment: options.environment,
       });
       const expoClientConfig = yield* readExpoPublicConfig({
-        projectRoot: options.projectRoot,
+        projectRoot,
         envVars: environmentVars,
       });
       const tempDir = yield* acquireBuildTempDir.pipe(
@@ -340,9 +309,7 @@ export const publishUpdates = (
         platforms,
         (platform) =>
           publishPlatform({
-            api,
-            auth,
-            projectRoot: options.projectRoot,
+            projectRoot,
             exportDir: path.join(tempDir, `export-${platform}`),
             projectId,
             scopeKey,
@@ -362,15 +329,6 @@ export const publishUpdates = (
             ),
           ),
         { concurrency: 1 },
-      ).pipe(
-        Effect.catchAll((error) =>
-          results.length === 0
-            ? Effect.fail(error)
-            : api.updates.deleteGroup({ path: { groupId } }).pipe(
-                Effect.catchAll(() => Effect.void),
-                Effect.zipRight(Effect.fail(error)),
-              ),
-        ),
       );
 
       return {

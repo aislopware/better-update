@@ -1,16 +1,18 @@
-import { AuthContext } from "@better-update/api";
 import { Either, Effect } from "effect";
 
+import { CurrentActor } from "../auth/current-actor";
 import { AuditLogRepo } from "../repositories/audit-logs";
+
+import type { AuditLogResourceType } from "../models";
 
 export const logAudit = (params: {
   action: string;
-  resourceType: string;
+  resourceType: AuditLogResourceType;
   resourceId?: string;
   metadata?: Record<string, unknown>;
 }) =>
   Effect.gen(function* () {
-    const ctx = yield* AuthContext;
+    const ctx = yield* CurrentActor;
     const repo = yield* AuditLogRepo;
 
     yield* repo.insert({

@@ -1,9 +1,9 @@
 import path from "node:path";
-import process from "node:process";
 
 import { Command, CommandExecutor, FileSystem } from "@effect/platform";
 import { Effect } from "effect";
 
+import { CliRuntime } from "../services/cli-runtime";
 import { BuildFailedError, UpdatePublishError } from "./exit-codes";
 
 import type { Platform } from "./build-profile";
@@ -117,40 +117,42 @@ export const readExpoPublicConfig = ({
 }: ReadExpoPublicConfigOptions): Effect.Effect<
   Record<string, unknown>,
   UpdatePublishError,
-  CommandExecutor.CommandExecutor
+  CliRuntime | CommandExecutor.CommandExecutor
 > =>
-  Command.string(
-    makeBunxCommand("expo", "config", "--type", "public", "--json").pipe(
-      Command.workingDirectory(projectRoot),
-      Command.env({ ...process.env, ...envVars }),
-    ),
-  ).pipe(
-    Effect.mapError(
-      (cause) =>
-        new UpdatePublishError({
-          message: `Failed to read Expo public config: ${String(cause)}`,
-        }),
-    ),
-    Effect.flatMap((stdout) =>
-      Effect.try({
-        try: () => JSON.parse(stdout) as unknown,
-        catch: () =>
+  Effect.gen(function* () {
+    const runtime = yield* CliRuntime;
+    const commandEnv = yield* runtime.commandEnvironment(envVars);
+    const stdout = yield* Command.string(
+      makeBunxCommand("expo", "config", "--type", "public", "--json").pipe(
+        Command.workingDirectory(projectRoot),
+        Command.env(commandEnv),
+      ),
+    ).pipe(
+      Effect.mapError(
+        (cause) =>
           new UpdatePublishError({
-            message: "Expo public config output was not valid JSON.",
+            message: `Failed to read Expo public config: ${String(cause)}`,
           }),
-      }),
-    ),
-    Effect.flatMap((parsed) => {
-      const config = asRecord(parsed);
-      return config
-        ? Effect.succeed(config)
-        : Effect.fail(
-            new UpdatePublishError({
-              message: "Expo public config did not decode to a JSON object.",
-            }),
-          );
-    }),
-  );
+      ),
+    );
+
+    const parsed = yield* Effect.try({
+      try: () => JSON.parse(stdout) as unknown,
+      catch: () =>
+        new UpdatePublishError({
+          message: "Expo public config output was not valid JSON.",
+        }),
+    });
+
+    const config = asRecord(parsed);
+    if (!config) {
+      return yield* new UpdatePublishError({
+        message: "Expo public config did not decode to a JSON object.",
+      });
+    }
+
+    return config;
+  });
 
 export const runExpoExport = ({
   projectRoot,
@@ -161,29 +163,29 @@ export const runExpoExport = ({
 }: RunExpoExportOptions): Effect.Effect<
   void,
   BuildFailedError,
-  CommandExecutor.CommandExecutor
-> => {
-  const args = [
-    "expo",
-    "export",
-    "--platform",
-    platform,
-    "--output-dir",
-    exportDir,
-    "--dump-assetmap",
-  ];
-  if (clear) {
-    args.push("--clear");
-  }
+  CliRuntime | CommandExecutor.CommandExecutor
+> =>
+  Effect.gen(function* () {
+    const runtime = yield* CliRuntime;
+    const commandEnv = yield* runtime.commandEnvironment(envVars);
+    const args = [
+      "expo",
+      "export",
+      "--platform",
+      platform,
+      "--output-dir",
+      exportDir,
+      "--dump-assetmap",
+    ];
+    if (clear) {
+      args.push("--clear");
+    }
 
-  return runCommand(
-    makeBunxCommand(...args).pipe(
-      Command.workingDirectory(projectRoot),
-      Command.env({ ...process.env, ...envVars }),
-    ),
-    `expo export ${platform}`,
-  );
-};
+    return yield* runCommand(
+      makeBunxCommand(...args).pipe(Command.workingDirectory(projectRoot), Command.env(commandEnv)),
+      `expo export ${platform}`,
+    );
+  });
 
 export const readExpoExportAssets = ({
   exportDir,

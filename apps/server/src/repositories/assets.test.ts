@@ -1,7 +1,6 @@
-import { Asset } from "@better-update/api";
 import { Effect, Exit } from "effect";
 
-import { setRequestContext } from "../cloudflare/context";
+import { runWithLayerAndEnvExit } from "../../tests/helpers/runtime";
 import { AssetRepo, AssetRepoLive } from "./assets";
 
 // -- Mock D1 helpers -------------------------------------------------------
@@ -41,8 +40,10 @@ const makeAssetRow = (overrides?: Partial<Record<string, unknown>>) => ({
   ...overrides,
 });
 
-const runWithRepo = async <Ret, Err>(effect: Effect.Effect<Ret, Err, AssetRepo>) =>
-  effect.pipe(Effect.provide(AssetRepoLive), Effect.runPromiseExit);
+const makeEnv = (db: unknown) => ({ DB: db, ASSETS_BUCKET: mockR2 }) as unknown as Env;
+
+const runWithRepo = async <Ret, Err>(effect: Effect.Effect<Ret, Err, AssetRepo>, env: Env) =>
+  runWithLayerAndEnvExit(effect, AssetRepoLive, env);
 
 // -- Tests -----------------------------------------------------------------
 
@@ -61,40 +62,35 @@ describe("AssetRepo -- D1 adapter", () => {
           ],
         }),
       });
-      setRequestContext(
-        { DB: db, ASSETS_BUCKET: mockR2 } as unknown as Env,
-        {} as ExecutionContext,
-      );
+      const env = makeEnv(db);
 
       const exit = await runWithRepo(
         Effect.gen(function* () {
           const repo = yield* AssetRepo;
           return yield* repo.findByHashes({ hashes: ["abc123", "def456"] });
         }),
+        env,
       );
 
       expect(Exit.isSuccess(exit)).toBe(true);
       if (Exit.isSuccess(exit)) {
         expect(exit.value).toHaveLength(2);
-        expect(exit.value[0]).toBeInstanceOf(Asset);
-        expect(exit.value[0]!.hash).toBe("abc123");
-        expect(exit.value[1]!.contentType).toBe("text/css");
+        expect(exit.value[0]).toEqual(expect.objectContaining({ hash: "abc123" }));
+        expect(exit.value[1]).toEqual(expect.objectContaining({ contentType: "text/css" }));
       }
     });
 
     test("returns empty array for empty hashes without querying DB", async () => {
       const allFn = vi.fn<() => Promise<{ results: never[] }>>(async () => ({ results: [] }));
       const db = mockD1.forQuery({ all: allFn });
-      setRequestContext(
-        { DB: db, ASSETS_BUCKET: mockR2 } as unknown as Env,
-        {} as ExecutionContext,
-      );
+      const env = makeEnv(db);
 
       const exit = await runWithRepo(
         Effect.gen(function* () {
           const repo = yield* AssetRepo;
           return yield* repo.findByHashes({ hashes: [] });
         }),
+        env,
       );
 
       expect(Exit.isSuccess(exit)).toBe(true);
@@ -108,10 +104,7 @@ describe("AssetRepo -- D1 adapter", () => {
   describe("insertBatch", () => {
     test("succeeds for batch of assets", async () => {
       const db = mockBatchD1(async () => [{ results: [], success: true }]);
-      setRequestContext(
-        { DB: db, ASSETS_BUCKET: mockR2 } as unknown as Env,
-        {} as ExecutionContext,
-      );
+      const env = makeEnv(db);
 
       const exit = await runWithRepo(
         Effect.gen(function* () {
@@ -128,6 +121,7 @@ describe("AssetRepo -- D1 adapter", () => {
             ],
           });
         }),
+        env,
       );
 
       expect(Exit.isSuccess(exit)).toBe(true);
@@ -136,16 +130,14 @@ describe("AssetRepo -- D1 adapter", () => {
     test("succeeds with empty array without querying DB", async () => {
       const batchFn = vi.fn<() => Promise<never[]>>(async () => []);
       const db = mockBatchD1(batchFn);
-      setRequestContext(
-        { DB: db, ASSETS_BUCKET: mockR2 } as unknown as Env,
-        {} as ExecutionContext,
-      );
+      const env = makeEnv(db);
 
       const exit = await runWithRepo(
         Effect.gen(function* () {
           const repo = yield* AssetRepo;
           yield* repo.insertBatch({ assets: [] });
         }),
+        env,
       );
 
       expect(Exit.isSuccess(exit)).toBe(true);
@@ -156,10 +148,7 @@ describe("AssetRepo -- D1 adapter", () => {
   describe("uploadBlob", () => {
     test("calls R2 put with correct arguments", async () => {
       const db = mockD1.forRun(async () => ({ results: [], success: true }));
-      setRequestContext(
-        { DB: db, ASSETS_BUCKET: mockR2 } as unknown as Env,
-        {} as ExecutionContext,
-      );
+      const env = makeEnv(db);
 
       const mockBody = new ReadableStream();
 
@@ -172,6 +161,7 @@ describe("AssetRepo -- D1 adapter", () => {
             contentType: "application/javascript",
           });
         }),
+        env,
       );
 
       expect(Exit.isSuccess(exit)).toBe(true);
@@ -184,16 +174,14 @@ describe("AssetRepo -- D1 adapter", () => {
   describe("updateByteSize", () => {
     test("succeeds on valid update", async () => {
       const db = mockD1.forRun(async () => ({ results: [], success: true }));
-      setRequestContext(
-        { DB: db, ASSETS_BUCKET: mockR2 } as unknown as Env,
-        {} as ExecutionContext,
-      );
+      const env = makeEnv(db);
 
       const exit = await runWithRepo(
         Effect.gen(function* () {
           const repo = yield* AssetRepo;
           yield* repo.updateByteSize({ hash: "abc123", byteSize: 2048 });
         }),
+        env,
       );
 
       expect(Exit.isSuccess(exit)).toBe(true);
@@ -203,16 +191,14 @@ describe("AssetRepo -- D1 adapter", () => {
   describe("deleteBlobs", () => {
     test("calls R2 delete with correct keys", async () => {
       const db = mockD1.forRun(async () => ({ results: [], success: true }));
-      setRequestContext(
-        { DB: db, ASSETS_BUCKET: mockR2 } as unknown as Env,
-        {} as ExecutionContext,
-      );
+      const env = makeEnv(db);
 
       const exit = await runWithRepo(
         Effect.gen(function* () {
           const repo = yield* AssetRepo;
           yield* repo.deleteBlobs({ r2Keys: ["assets/abc123.js", "assets/def456.css"] });
         }),
+        env,
       );
 
       expect(Exit.isSuccess(exit)).toBe(true);
@@ -221,16 +207,14 @@ describe("AssetRepo -- D1 adapter", () => {
 
     test("skips R2 call for empty array", async () => {
       const db = mockD1.forRun(async () => ({ results: [], success: true }));
-      setRequestContext(
-        { DB: db, ASSETS_BUCKET: mockR2 } as unknown as Env,
-        {} as ExecutionContext,
-      );
+      const env = makeEnv(db);
 
       const exit = await runWithRepo(
         Effect.gen(function* () {
           const repo = yield* AssetRepo;
           yield* repo.deleteBlobs({ r2Keys: [] });
         }),
+        env,
       );
 
       expect(Exit.isSuccess(exit)).toBe(true);

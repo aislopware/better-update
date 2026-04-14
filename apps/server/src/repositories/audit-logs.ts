@@ -2,6 +2,8 @@ import { Context, Effect, Layer } from "effect";
 
 import { cloudflareEnv } from "../cloudflare/context";
 
+import type { AuditLogModel, AuditLogResourceType } from "../models";
+
 // -- Row type ----------------------------------------------------------------
 
 export interface AuditLogRow {
@@ -33,7 +35,7 @@ export interface AuditLogRepository {
     readonly actorId: string | null;
     readonly actorEmail: string;
     readonly action: string;
-    readonly resourceType: string;
+    readonly resourceType: AuditLogResourceType;
     readonly resourceId: string | null;
     readonly metadata: string | null;
     readonly source: "session" | "api-key";
@@ -48,7 +50,7 @@ export interface AuditLogRepository {
     readonly to?: string | undefined;
     readonly page: number;
     readonly limit: number;
-  }) => Effect.Effect<{ readonly items: readonly AuditLogRow[]; readonly total: number }>;
+  }) => Effect.Effect<{ readonly items: readonly AuditLogModel[]; readonly total: number }>;
 }
 
 export class AuditLogRepo extends Context.Tag("api/AuditLogRepo")<
@@ -59,6 +61,20 @@ export class AuditLogRepo extends Context.Tag("api/AuditLogRepo")<
 // -- D1 Adapter --------------------------------------------------------------
 
 const SELECT_COLUMNS = `"id", "organization_id", "actor_id", "actor_email", "action", "resource_type", "resource_id", "metadata", "source", "created_at"`;
+
+const toAuditLogModel = (row: AuditLogRow) =>
+  ({
+    id: row.id,
+    organizationId: row.organization_id,
+    actorId: row.actor_id,
+    actorEmail: row.actor_email,
+    action: row.action,
+    resourceType: row.resource_type,
+    resourceId: row.resource_id,
+    metadata: row.metadata,
+    source: row.source,
+    createdAt: row.created_at,
+  }) satisfies AuditLogModel;
 
 export const AuditLogRepoLive = Layer.succeed(AuditLogRepo, {
   insert: (params) =>
@@ -138,6 +154,6 @@ export const AuditLogRepoLive = Layer.succeed(AuditLogRepo, {
         { concurrency: "unbounded" },
       );
 
-      return { items: rows.results, total: countResult?.count ?? 0 };
+      return { items: rows.results.map(toAuditLogModel), total: countResult?.count ?? 0 };
     }),
 });

@@ -1,6 +1,7 @@
-import { BadRequest } from "@better-update/api";
 import { Effect } from "effect";
 import { parseDictionary } from "structured-headers";
+
+import { BadRequest } from "../errors";
 
 export interface ProtocolHeaders {
   readonly protocolVersion: 1;

@@ -1,13 +1,14 @@
-import { Authentication, Unauthorized } from "@better-update/api";
+import { Authentication } from "@better-update/api";
 import { HttpServerRequest } from "@effect/platform";
 import { Effect, Layer, Redacted } from "effect";
 
-import type { AuthContextShape, EffectivePermissions, Role } from "@better-update/api";
-
 import { createAuth } from "../auth";
 import { cloudflareEnv } from "../cloudflare/context";
+import { Unauthorized } from "../errors";
 import { API_KEY_PREFIX } from "./constants";
 import { permissions } from "./permissions";
+
+import type { AuthContextShape, EffectivePermissions, Role } from "./context";
 
 // ── Plugin API helpers (types not inferred from betterAuth config) ─
 

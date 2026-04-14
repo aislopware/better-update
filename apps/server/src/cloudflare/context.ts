@@ -1,30 +1,46 @@
-import { Effect } from "effect";
+import { Context, Effect, Option } from "effect";
 
-// ── Module-level ref (safe: Workers are single-threaded) ────────
+class CloudflareEnvTag extends Context.Tag("server/CloudflareEnv")<CloudflareEnvTag, Env>() {}
+class CloudflareExecutionContextTag extends Context.Tag("server/CloudflareExecutionContext")<
+  CloudflareExecutionContextTag,
+  ExecutionContext
+>() {}
 
-interface RequestState {
-  env: Env | undefined;
-  ctx: ExecutionContext | undefined;
-}
+const fromFiberContext = <Identifier, Service>(
+  tag: Context.Tag<Identifier, Service>,
+  label: string,
+): Effect.Effect<Service> =>
+  Effect.withFiberRuntime((fiber) =>
+    Option.match(Context.getOption(fiber.currentContext, tag), {
+      onNone: () => Effect.dieMessage(`${label} is not set`),
+      onSome: Effect.succeed,
+    }),
+  );
 
-const _state: RequestState = { env: undefined, ctx: undefined };
-
-export const setRequestContext = (env: Env, ctx: ExecutionContext) => {
-  _state.env = env;
-  _state.ctx = ctx;
-};
-
-const requireValue = <T>(value: T | undefined, label: string): Effect.Effect<T> =>
-  value === undefined ? Effect.dieMessage(`${label} is not set`) : Effect.succeed(value);
-
-// ── Effect accessors (for use inside adapters / middleware) ──────
-
-/** Lazily reads the per-request Cloudflare `Env`. `R = never`. */
-export const cloudflareEnv: Effect.Effect<Env> = Effect.suspend(() =>
-  requireValue(_state.env, "Cloudflare env"),
+export const cloudflareEnv: Effect.Effect<Env> = fromFiberContext(
+  CloudflareEnvTag,
+  "Cloudflare env",
 );
 
-/** Lazily reads the per-request `ExecutionContext`. `R = never`. */
-export const cloudflareCtx: Effect.Effect<ExecutionContext> = Effect.suspend(() =>
-  requireValue(_state.ctx, "Cloudflare execution context"),
+export const cloudflareCtx: Effect.Effect<ExecutionContext> = fromFiberContext(
+  CloudflareExecutionContextTag,
+  "Cloudflare execution context",
 );
+
+export const makeCloudflareRequestContext = (env: Env, ctx: ExecutionContext) =>
+  Context.make(CloudflareEnvTag, env).pipe(Context.add(CloudflareExecutionContextTag, ctx));
+
+export const provideCloudflareEnv = <Success, Error, Requirements>(
+  effect: Effect.Effect<Success, Error, Requirements>,
+  env: Env,
+) => effect.pipe(Effect.provideService(CloudflareEnvTag, env));
+
+export const provideCloudflareRequestContext = <Success, Error, Requirements>(
+  effect: Effect.Effect<Success, Error, Requirements>,
+  env: Env,
+  ctx: ExecutionContext,
+) =>
+  effect.pipe(
+    Effect.provideService(CloudflareEnvTag, env),
+    Effect.provideService(CloudflareExecutionContextTag, ctx),
+  );

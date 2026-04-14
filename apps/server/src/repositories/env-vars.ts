@@ -1,7 +1,7 @@
-import { NotFound } from "@better-update/api";
 import { Context, Effect, Layer } from "effect";
 
 import { cloudflareEnv } from "../cloudflare/context";
+import { NotFound } from "../errors";
 
 // -- Row type ----------------------------------------------------------------
 

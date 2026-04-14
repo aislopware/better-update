@@ -4,33 +4,43 @@ import { Prompt } from "@effect/cli";
 import { FileSystem } from "@effect/platform";
 import { Console, Effect, Redacted } from "effect";
 
+import type * as Terminal from "@effect/platform/Terminal";
+
 import { generateAndroidKeystore, promptAndroidKeystoreDetails } from "../../lib/android-keystore";
 import { findActiveCredential, uploadAndActivateCredential } from "../../lib/credentials-manager";
+import { CliRuntime } from "../../services/cli-runtime";
 
 import type { IosDistribution } from "../../lib/build-profile";
 import type { ApiClient } from "../../services/api-client";
 
-const expandPromptPath = (value: string): string =>
-  value.startsWith("~/") ? path.join(process.env["HOME"] ?? "", value.slice(2)) : value;
+const resolvePromptPath = (homeDirectory: string, value: string): string => {
+  const trimmed = value.trim();
+  return path.resolve(
+    trimmed.startsWith("~/") ? path.join(homeDirectory, trimmed.slice(2)) : trimmed,
+  );
+};
 
-const resolvePromptPath = (value: string): string => path.resolve(expandPromptPath(value.trim()));
+const validateFilePath =
+  (homeDirectory: string, extensions: ReadonlyArray<string>) => (value: string) =>
+    Effect.gen(function* () {
+      const resolved = resolvePromptPath(homeDirectory, value);
+      const fs = yield* FileSystem.FileSystem;
 
-const validateFilePath = (extensions: ReadonlyArray<string>) => (value: string) =>
-  Effect.gen(function* () {
-    const resolved = resolvePromptPath(value);
-    const fs = yield* FileSystem.FileSystem;
+      if (!extensions.some((extension) => resolved.toLowerCase().endsWith(extension))) {
+        return yield* Effect.fail(`Expected a file ending in ${extensions.join(" or ")}.`);
+      }
 
-    if (!extensions.some((extension) => resolved.toLowerCase().endsWith(extension))) {
-      return yield* Effect.fail(`Expected a file ending in ${extensions.join(" or ")}.`);
-    }
+      const exists = yield* fs.exists(resolved);
+      if (!exists) {
+        return yield* Effect.fail(`File not found: ${resolved}`);
+      }
 
-    const exists = yield* fs.exists(resolved);
-    if (!exists) {
-      return yield* Effect.fail(`File not found: ${resolved}`);
-    }
-
-    return resolved;
-  });
+      return resolved;
+    }).pipe(
+      Effect.mapError((cause) =>
+        typeof cause === "string" ? cause : `Failed to inspect file path: ${String(cause)}`,
+      ),
+    );
 
 const validateRequiredText = (label: string) => (value: string) =>
   value.trim().length > 0 ? Effect.succeed(value.trim()) : Effect.fail(`${label} is required.`);
@@ -38,10 +48,26 @@ const validateRequiredText = (label: string) => (value: string) =>
 const promptExistingFilePath = (params: {
   readonly message: string;
   readonly extensions: ReadonlyArray<string>;
-}) =>
-  Prompt.text({
-    message: params.message,
-    validate: validateFilePath(params.extensions),
+}): Effect.Effect<
+  string,
+  Terminal.QuitException,
+  CliRuntime | FileSystem.FileSystem | Terminal.Terminal
+> =>
+  Effect.gen(function* () {
+    const runtime = yield* CliRuntime;
+    const homeDirectory = yield* runtime.homeDirectory;
+    const rawPath = yield* Prompt.text({
+      message: params.message,
+    });
+
+    return yield* validateFilePath(
+      homeDirectory,
+      params.extensions,
+    )(rawPath).pipe(
+      Effect.catchAll((message) =>
+        Console.error(message).pipe(Effect.zipRight(promptExistingFilePath(params))),
+      ),
+    );
   });
 
 const promptName = (message: string, defaultValue: string) =>

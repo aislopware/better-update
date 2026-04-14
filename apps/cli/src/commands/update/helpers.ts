@@ -1,22 +1,12 @@
-import process from "node:process";
-
 import { BadRequest, Conflict, Forbidden, NotFound } from "@better-update/api";
-import { Console, Data, Effect } from "effect";
+import { Data, Effect } from "effect";
 
+import { exitWith } from "../../application/command-exit";
 import { AuthRequiredError, ProjectNotLinkedError } from "../../lib/exit-codes";
 
 export class UpdateCommandError extends Data.TaggedError("UpdateCommandError")<{
   readonly message: string;
 }> {}
-
-export const exitWith = (code: number, text: string): Effect.Effect<void> =>
-  Console.error(text).pipe(
-    Effect.zipRight(
-      Effect.sync(() => {
-        process.exitCode = code;
-      }),
-    ),
-  );
 
 export const formatCause = (cause: unknown): string => {
   if (cause instanceof Error) {
@@ -64,8 +54,8 @@ export const resolveNamedResourceId = <T extends NamedResource>(params: {
 }): Effect.Effect<string, UpdateCommandError> =>
   Effect.gen(function* () {
     const match = params.items.find((item) => item.name === params.name);
-    if (!match) {
-      yield* new UpdateCommandError({
+    if (match === undefined) {
+      return yield* new UpdateCommandError({
         message: `${params.kind} "${params.name}" not found in the linked project.`,
       });
     }
