@@ -8,8 +8,8 @@ import { BuildRepo } from "../repositories";
 
 import type { ServerInfrastructure } from "../infrastructure-layer";
 
-const runBuildGcEffect = async <Success, Error>(
-  effect: Effect.Effect<Success, Error, ServerInfrastructure>,
+const runBuildGcEffect = async <Success, Failure>(
+  effect: Effect.Effect<Success, Failure, ServerInfrastructure>,
   env: Env,
 ) =>
   Effect.runPromise(

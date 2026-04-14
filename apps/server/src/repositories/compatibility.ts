@@ -139,10 +139,7 @@ const resolveChannelBranchIds = (channel: ChannelRow) => {
   const mappingJson = channel.branch_mapping_json;
   return mappingJson === null
     ? Effect.succeed([channel.branch_id])
-    : Effect.orElseSucceed(
-        Effect.try(() => extractReachableBranchIds(mappingJson)),
-        () => [channel.branch_id],
-      );
+    : Effect.succeed(extractReachableBranchIds(mappingJson));
 };
 
 export const CompatibilityRepoLive = Layer.succeed(CompatibilityRepo, {

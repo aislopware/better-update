@@ -3,6 +3,7 @@ import { Console, Effect } from "effect";
 
 import { readProjectId } from "../../lib/app-json";
 import { apiClient } from "../../services/api-client";
+import { EnvCommandError, handleEnvCommandErrors } from "./helpers";
 
 const keyValue = Args.text({ name: "KEY=VALUE" });
 const environment = Options.text("environment").pipe(Options.withDefault("production"));
@@ -16,8 +17,10 @@ export const setCommand = Command.make(
   ({ keyValue, environment, visibility }) =>
     Effect.gen(function* () {
       const eqIndex = keyValue.indexOf("=");
-      if (eqIndex === -1) {
-        return yield* Effect.fail(new Error("Invalid format. Use KEY=VALUE (e.g. API_KEY=abc123)"));
+      if (eqIndex <= 0) {
+        return yield* new EnvCommandError({
+          message: "Invalid format. Use KEY=VALUE (e.g. API_KEY=abc123)",
+        });
       }
 
       const key = keyValue.slice(0, eqIndex);
@@ -44,5 +47,5 @@ export const setCommand = Command.make(
         });
         yield* Console.log(`Created ${key} in ${environment}`);
       }
-    }),
+    }).pipe(handleEnvCommandErrors),
 );

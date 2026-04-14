@@ -1,5 +1,5 @@
 import { HttpApiBuilder } from "@effect/platform";
-import { Effect } from "effect";
+import { Data, Effect } from "effect";
 
 import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
@@ -28,7 +28,13 @@ const FILENAME_MAP: Record<string, { filename: string; contentType: string }> = 
   },
 };
 
-const vaultBadRequest = (message: string) => new BadRequest({ message });
+class CredentialBlobReadError extends Data.TaggedError("CredentialBlobReadError")<{
+  readonly message: string;
+  readonly cause: Error;
+}> {}
+
+const asError = (cause: unknown): Error =>
+  cause instanceof Error ? cause : new Error(String(cause));
 
 const encryptOptionalSecret = (orgId: string, value: string | undefined) =>
   value
@@ -36,7 +42,7 @@ const encryptOptionalSecret = (orgId: string, value: string | undefined) =>
         const vault = yield* Vault;
         const result = yield* vault
           .encryptSecret({ organizationId: orgId, value })
-          .pipe(Effect.mapError(() => vaultBadRequest("Failed to encrypt credential secret")));
+          .pipe(Effect.orDie);
         return result.encrypted;
       })
     : Effect.succeed(null as string | null);
@@ -47,7 +53,7 @@ const decryptOptionalSecret = (orgId: string, keyVersion: number, encrypted: str
         const vault = yield* Vault;
         return yield* vault
           .decryptSecret({ organizationId: orgId, keyVersion, encrypted })
-          .pipe(Effect.mapError(() => vaultBadRequest("Failed to decrypt credential secret")));
+          .pipe(Effect.orDie);
       })
     : Effect.succeed(null as string | null);
 
@@ -78,7 +84,7 @@ export const CredentialsGroupLive = HttpApiBuilder.group(ManagementApi, "credent
               organizationId: ctx.organizationId,
               plaintext: blobBytes,
             })
-            .pipe(Effect.mapError(() => vaultBadRequest("Failed to encrypt credential blob")));
+            .pipe(Effect.orDie);
 
           const [encryptedPassword, encryptedKeyAlias, encryptedKeyPassword] = yield* Effect.all(
             [
@@ -194,8 +200,12 @@ export const CredentialsGroupLive = HttpApiBuilder.group(ManagementApi, "credent
           const encryptedBlobBytes = yield* Effect.tryPromise({
             try: async () =>
               new Uint8Array(await new Response(r2Object.body ?? new Uint8Array()).arrayBuffer()),
-            catch: () => vaultBadRequest("Failed to read credential blob"),
-          });
+            catch: (cause) =>
+              new CredentialBlobReadError({
+                message: "Failed to read credential blob",
+                cause: asError(cause),
+              }),
+          }).pipe(Effect.orDie);
 
           const plaintext = yield* vault
             .envelopeDecrypt({
@@ -204,7 +214,7 @@ export const CredentialsGroupLive = HttpApiBuilder.group(ManagementApi, "credent
               encryptedDek: encData.encryptedDek,
               encryptedBlob: encryptedBlobBytes,
             })
-            .pipe(Effect.mapError(() => vaultBadRequest("Failed to decrypt credential blob")));
+            .pipe(Effect.orDie);
 
           const [password, keyAlias, keyPassword] = yield* Effect.all(
             [

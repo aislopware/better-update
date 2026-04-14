@@ -9,16 +9,21 @@ import {
 } from "../domain/credential-vault";
 import { cloudflareEnv } from "./context";
 
+import type { CredentialVaultError } from "../domain/credential-vault";
+
 export interface VaultService {
   readonly encryptSecret: (params: {
     readonly organizationId: string;
     readonly value: string;
-  }) => Effect.Effect<{ readonly encrypted: string; readonly keyVersion: number }, Error>;
+  }) => Effect.Effect<
+    { readonly encrypted: string; readonly keyVersion: number },
+    CredentialVaultError
+  >;
   readonly decryptSecret: (params: {
     readonly organizationId: string;
     readonly keyVersion: number;
     readonly encrypted: string;
-  }) => Effect.Effect<string, Error>;
+  }) => Effect.Effect<string, CredentialVaultError>;
   readonly envelopeEncrypt: (params: {
     readonly organizationId: string;
     readonly plaintext: Uint8Array;
@@ -28,14 +33,14 @@ export interface VaultService {
       readonly encryptedDek: string;
       readonly keyVersion: number;
     },
-    Error
+    CredentialVaultError
   >;
   readonly envelopeDecrypt: (params: {
     readonly organizationId: string;
     readonly keyVersion: number;
     readonly encryptedDek: string;
     readonly encryptedBlob: Uint8Array;
-  }) => Effect.Effect<Uint8Array, Error>;
+  }) => Effect.Effect<Uint8Array, CredentialVaultError>;
 }
 
 export class Vault extends Context.Tag("server/Vault")<Vault, VaultService>() {}

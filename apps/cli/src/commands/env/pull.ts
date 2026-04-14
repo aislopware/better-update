@@ -3,6 +3,7 @@ import { Console, Effect } from "effect";
 
 import { readProjectId } from "../../lib/app-json";
 import { apiClient } from "../../services/api-client";
+import { handleEnvCommandErrors } from "./helpers";
 
 const environment = Options.text("environment").pipe(Options.withDefault("production"));
 
@@ -19,5 +20,5 @@ export const pullCommand = Command.make("pull", { environment }, ({ environment 
       const escaped = item.value.replace(/'/g, "'\\''");
       yield* Console.log(`export ${item.key}='${escaped}'`);
     }
-  }),
+  }).pipe(handleEnvCommandErrors),
 );

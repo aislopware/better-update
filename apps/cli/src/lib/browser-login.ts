@@ -1,4 +1,4 @@
-import { Deferred, Effect } from "effect";
+import { Data, Deferred, Effect } from "effect";
 
 interface BunServeServer {
   readonly port: number;
@@ -13,6 +13,22 @@ interface BunRuntime {
     readonly error: () => Response;
   }) => BunServeServer;
 }
+
+export class BrowserLoginTimeoutError extends Data.TaggedError("BrowserLoginTimeoutError")<{
+  readonly message: string;
+}> {}
+
+export class BrowserLoginSessionClosedError extends Data.TaggedError(
+  "BrowserLoginSessionClosedError",
+)<{
+  readonly message: string;
+}> {}
+
+export class BrowserLoginRuntimeError extends Data.TaggedError("BrowserLoginRuntimeError")<{
+  readonly message: string;
+}> {}
+
+export type BrowserLoginError = BrowserLoginSessionClosedError | BrowserLoginTimeoutError;
 
 export const CALLBACK_PAGE = `<!doctype html>
 <html lang="en">
@@ -68,13 +84,13 @@ export const CALLBACK_PAGE = `<!doctype html>
 
 export interface BrowserLoginServer {
   readonly callbackUrl: string;
-  readonly waitForToken: Effect.Effect<string, Error>;
+  readonly waitForToken: Effect.Effect<string, BrowserLoginError>;
   readonly stop: () => void;
 }
 
 export interface BrowserLoginSession {
   readonly callbackPath: string;
-  readonly waitForToken: Effect.Effect<string, Error>;
+  readonly waitForToken: Effect.Effect<string, BrowserLoginError>;
   readonly handleRequest: (request: Request) => Promise<Response>;
   readonly dispose: () => void;
 }
@@ -86,16 +102,26 @@ export interface CreateBrowserLoginServerOptions {
 export const createBrowserLoginSession = (
   options: CreateBrowserLoginServerOptions = {},
 ): BrowserLoginSession => {
-  const tokenDeferred = Effect.runSync(Deferred.make<string, Error>());
+  const tokenDeferred = Effect.runSync(Deferred.make<string, BrowserLoginSessionClosedError>());
   const waitForToken = Deferred.await(tokenDeferred).pipe(
     Effect.timeoutFail({
       duration: options.timeoutMs ?? 5 * 60 * 1000,
-      onTimeout: () => new Error("Timed out waiting for browser login to complete."),
+      onTimeout: () =>
+        new BrowserLoginTimeoutError({
+          message: "Timed out waiting for browser login to complete.",
+        }),
     }),
   );
 
   const dispose = () => {
-    Effect.runSync(Deferred.fail(tokenDeferred, new Error("Browser login session closed.")));
+    Effect.runSync(
+      Deferred.fail(
+        tokenDeferred,
+        new BrowserLoginSessionClosedError({
+          message: "Browser login session closed.",
+        }),
+      ),
+    );
   };
 
   return {
@@ -136,7 +162,9 @@ export const createBrowserLoginServer = (
 ): BrowserLoginServer => {
   const bunRuntime = (globalThis as typeof globalThis & { readonly Bun?: BunRuntime }).Bun;
   if (!bunRuntime) {
-    throw new Error("Browser login server requires the Bun runtime.");
+    throw new BrowserLoginRuntimeError({
+      message: "Browser login server requires the Bun runtime.",
+    });
   }
 
   const session = createBrowserLoginSession(options);

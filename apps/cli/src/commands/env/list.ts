@@ -4,6 +4,7 @@ import { Console, Effect, Option } from "effect";
 import { readProjectId } from "../../lib/app-json";
 import { printTable } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
+import { handleEnvCommandErrors } from "./helpers";
 
 const environment = Options.text("environment").pipe(Options.optional);
 
@@ -35,5 +36,5 @@ export const listCommand = Command.make("list", { environment }, ({ environment 
         item.visibility === "plaintext" ? (item.value ?? "") : "••••••",
       ]),
     );
-  }),
+  }).pipe(handleEnvCommandErrors),
 );

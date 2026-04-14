@@ -4,6 +4,7 @@ import { Console, Effect } from "effect";
 
 import { readProjectId } from "../../lib/app-json";
 import { apiClient } from "../../services/api-client";
+import { handleEnvCommandErrors } from "./helpers";
 
 const file = Args.text({ name: "file" });
 const environment = Options.text("environment").pipe(Options.withDefault("production"));
@@ -26,5 +27,5 @@ export const importCommand = Command.make(
       yield* Console.log(
         `Imported: ${String(result.created)} created, ${String(result.updated)} updated, ${String(result.skipped)} skipped`,
       );
-    }),
+    }).pipe(handleEnvCommandErrors),
 );

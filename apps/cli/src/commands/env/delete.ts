@@ -3,6 +3,7 @@ import { Console, Effect } from "effect";
 
 import { readProjectId } from "../../lib/app-json";
 import { apiClient } from "../../services/api-client";
+import { EnvResourceNotFoundError, handleEnvCommandErrors } from "./helpers";
 
 const key = Args.text({ name: "KEY" });
 const environment = Options.text("environment").pipe(Options.withDefault("production"));
@@ -19,12 +20,12 @@ export const deleteCommand = Command.make("delete", { key, environment }, ({ key
     const match = existing.items.find((item) => item.key === key);
 
     if (!match) {
-      return yield* Effect.fail(
-        new Error(`Environment variable ${key} not found in ${environment}`),
-      );
+      return yield* new EnvResourceNotFoundError({
+        message: `Environment variable ${key} not found in ${environment}`,
+      });
     }
 
     yield* api["env-vars"].delete({ path: { id: match.id } });
     yield* Console.log(`Deleted ${key} from ${environment}`);
-  }),
+  }).pipe(handleEnvCommandErrors),
 );

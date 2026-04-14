@@ -23,7 +23,6 @@ const MAX_VARS_PER_PROJECT_ENV = 100;
 const VALID_ENVIRONMENTS = new Set(["development", "preview", "production", "*"]);
 
 const SENSITIVE_MASK = "••••••";
-const vaultBadRequest = (message: string) => new BadRequest({ message });
 interface EnvVarUpdateFields {
   readonly value?: string | null;
   readonly encryptedValue?: string | null;
@@ -74,9 +73,7 @@ const validateKey = (key: string) =>
 const encryptValue = (orgId: string, value: string) =>
   Effect.gen(function* () {
     const vault = yield* Vault;
-    const result = yield* vault
-      .encryptSecret({ organizationId: orgId, value })
-      .pipe(Effect.mapError(() => vaultBadRequest("Failed to encrypt environment variable")));
+    const result = yield* vault.encryptSecret({ organizationId: orgId, value }).pipe(Effect.orDie);
     return { encryptedValue: result.encrypted, keyVersion: result.keyVersion };
   });
 
@@ -85,7 +82,7 @@ const decryptValue = (orgId: string, keyVersion: number, encrypted: string) =>
     const vault = yield* Vault;
     return yield* vault
       .decryptSecret({ organizationId: orgId, keyVersion, encrypted })
-      .pipe(Effect.mapError(() => vaultBadRequest("Failed to decrypt environment variable")));
+      .pipe(Effect.orDie);
   });
 
 const stripQuotes = (raw: string): string =>
@@ -133,7 +130,7 @@ const resolveUpdateFields = (
   newVisibility: "plaintext" | "sensitive" | "secret",
   newValue: string | undefined,
   orgId: string,
-): Effect.Effect<EnvVarUpdateFields, BadRequest, Vault> =>
+): Effect.Effect<EnvVarUpdateFields, never, Vault> =>
   Effect.gen(function* () {
     if (newVisibility === "plaintext") {
       if (newValue !== undefined) {
