@@ -56,7 +56,7 @@ graph TB
 
 ### What better-update does NOT do
 
-- **Execute builds remotely** — builds run on the user's machine or CI (deferred to cloud build phase)
+- **Execute builds remotely** — builds run on the user's machine or CI, and remote Cloud Build is out of scope
 - **Submit to stores** — user submits to App Store / Play Store themselves
 - **Manage Apple Developer account** — user creates certs/profiles in Apple Developer portal themselves (better-update stores them, does not create them)
 

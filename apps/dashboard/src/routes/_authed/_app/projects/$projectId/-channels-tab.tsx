@@ -8,20 +8,12 @@ import { SatelliteIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 
-import type { BuildCompatibilityChannel, BuildCompatibilityRow } from "@better-update/api";
-
 import { ChannelCard } from "./-channel-card";
+import {
+  getCompatibleBuildsForChannel,
+  getMissingRuntimeVersionsForChannel,
+} from "./-channel-compatibility-helpers";
 import { CreateChannelDialog } from "./-create-channel-dialog";
-
-const isCompatibleBuild = (
-  entry: {
-    readonly build: typeof BuildCompatibilityRow.Type;
-    readonly status: typeof BuildCompatibilityChannel.Type;
-  } | null,
-): entry is {
-  readonly build: typeof BuildCompatibilityRow.Type;
-  readonly status: typeof BuildCompatibilityChannel.Type;
-} => entry !== null;
 
 const ChannelsEmptyState = () => (
   <Card className="border-dashed">
@@ -62,14 +54,10 @@ export const ChannelsTab = ({ orgId, projectId }: { orgId: string; projectId: st
               orgId={orgId}
               projectId={projectId}
               branches={branchesData.items}
-              compatibleBuilds={compatibilityData.rows
-                .map((build) => {
-                  const status = build.channels.find((entry) => entry.channelId === channel.id);
-                  return status ? { build, status } : null;
-                })
-                .filter(isCompatibleBuild)}
-              missingRuntimeVersions={compatibilityData.missingRuntimeVersions.filter(
-                (entry) => entry.channelId === channel.id,
+              compatibleBuilds={getCompatibleBuildsForChannel(compatibilityData.rows, channel.id)}
+              missingRuntimeVersions={getMissingRuntimeVersionsForChannel(
+                compatibilityData.missingRuntimeVersions,
+                channel.id,
               )}
             />
           ))}

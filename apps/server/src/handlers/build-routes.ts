@@ -37,11 +37,40 @@ const findInstallInfoById = (buildId: string) =>
     return yield* repo.findInstallInfoById({ id: buildId });
   });
 
+const getBuildObject = (key: string) =>
+  Effect.gen(function* () {
+    const runtime = yield* BuildRuntime;
+    return yield* runtime.getObject({ key });
+  });
+
+const putBuildObject = (params: {
+  readonly key: string;
+  readonly body: ReadableStream | Uint8Array;
+  readonly contentType: string;
+}) =>
+  Effect.gen(function* () {
+    const runtime = yield* BuildRuntime;
+    yield* runtime.putObject(params);
+  });
+
 const createBuildDownloadUrl = (key: string) =>
   Effect.gen(function* () {
     const runtime = yield* BuildRuntime;
     return yield* runtime.createDownloadUrl({ key, expiresIn: 900 });
   });
+
+const testBuildStorageUrl = (request: Request, mode: "upload" | "download", key: string) => {
+  const url = new URL(request.url);
+  url.pathname = mode === "upload" ? "/__test/build-upload" : "/__test/build-download";
+  url.search = "";
+  url.searchParams.set("key", key);
+  return url.toString();
+};
+
+const resolveBuildDownloadUrl = async (request: Request, env: Env, key: string) =>
+  env.TEST_MODE === "true"
+    ? testBuildStorageUrl(request, "download", key)
+    : runBuildRouteEffect(createBuildDownloadUrl(key), env);
 
 const escapeXml = (str: string) =>
   str
@@ -104,7 +133,7 @@ export const handleBuildArtifactDownload = async (
       );
     }
 
-    const downloadUrl = await runBuildRouteEffect(createBuildDownloadUrl(r2Key), env);
+    const downloadUrl = await resolveBuildDownloadUrl(request, env, r2Key);
     return Response.redirect(downloadUrl, 302);
   }
 
@@ -116,7 +145,7 @@ export const handleBuildArtifactDownload = async (
     );
   }
 
-  const downloadUrl = await runBuildRouteEffect(createBuildDownloadUrl(r2Key), env);
+  const downloadUrl = await resolveBuildDownloadUrl(request, env, r2Key);
   return Response.redirect(downloadUrl, 302);
 };
 
@@ -161,7 +190,7 @@ export const handleBuildInstallPlist = async (
     );
   }
 
-  const artifactUrl = await runBuildRouteEffect(createBuildDownloadUrl(build.r2Key), env);
+  const artifactUrl = await resolveBuildDownloadUrl(request, env, build.r2Key);
 
   const bundleId = build.bundleId ?? "com.unknown.app";
   const appVersion = build.appVersion ?? "1.0.0";
@@ -204,11 +233,69 @@ export const handleBuildInstallPlist = async (
   });
 };
 
+const handleTestBuildUpload = async (request: Request, env: Env): Promise<Response> => {
+  if (env.TEST_MODE !== "true") {
+    return Response.json({ code: "NOT_FOUND", message: "Not found" }, { status: 404 });
+  }
+
+  const key = new URL(request.url).searchParams.get("key");
+  if (!key) {
+    return Response.json(
+      { code: "BAD_REQUEST", message: "Missing build object key" },
+      { status: 400 },
+    );
+  }
+
+  await runBuildRouteEffect(
+    putBuildObject({
+      key,
+      body: request.body ?? new Uint8Array(),
+      contentType: request.headers.get("content-type") ?? "application/octet-stream",
+    }),
+    env,
+  );
+
+  return new Response(null, { status: 200 });
+};
+
+const handleTestBuildDownload = async (request: Request, env: Env): Promise<Response> => {
+  if (env.TEST_MODE !== "true") {
+    return Response.json({ code: "NOT_FOUND", message: "Not found" }, { status: 404 });
+  }
+
+  const key = new URL(request.url).searchParams.get("key");
+  if (!key) {
+    return Response.json(
+      { code: "BAD_REQUEST", message: "Missing build object key" },
+      { status: 400 },
+    );
+  }
+
+  const object = await runBuildRouteEffect(getBuildObject(key), env);
+  if (!object) {
+    return Response.json({ code: "NOT_FOUND", message: "Build object not found" }, { status: 404 });
+  }
+
+  const headers = new Headers();
+  headers.set("content-type", object.contentType ?? "application/octet-stream");
+  headers.set("content-length", object.size.toString());
+  headers.set("cache-control", "no-store");
+  return new Response(object.body, { headers });
+};
+
 export const matchBuildRoute = async (
   request: Request,
   env: Env,
   pathname: string,
 ): Promise<Response | null> => {
+  if (pathname === "/__test/build-upload" && request.method === "PUT") {
+    return handleTestBuildUpload(request, env);
+  }
+
+  if (pathname === "/__test/build-download" && request.method === "GET") {
+    return handleTestBuildDownload(request, env);
+  }
+
   const artifactMatch = /^\/api\/builds\/([^/]+)\/artifact$/.exec(pathname);
   if (artifactMatch?.[1] && request.method === "GET") {
     return handleBuildArtifactDownload(request, env, artifactMatch[1]);

@@ -5,6 +5,10 @@ class CloudflareExecutionContextTag extends Context.Tag("server/CloudflareExecut
   CloudflareExecutionContextTag,
   ExecutionContext
 >() {}
+class CloudflareRequestTag extends Context.Tag("server/CloudflareRequest")<
+  CloudflareRequestTag,
+  Request
+>() {}
 
 const fromFiberContext = <Identifier, Service>(
   tag: Context.Tag<Identifier, Service>,
@@ -27,8 +31,15 @@ export const cloudflareCtx: Effect.Effect<ExecutionContext> = fromFiberContext(
   "Cloudflare execution context",
 );
 
-export const makeCloudflareRequestContext = (env: Env, ctx: ExecutionContext) =>
-  Context.make(CloudflareEnvTag, env).pipe(Context.add(CloudflareExecutionContextTag, ctx));
+export const cloudflareRequest: Effect.Effect<Request> = fromFiberContext(
+  CloudflareRequestTag,
+  "Cloudflare request",
+);
+
+export const makeCloudflareRequestContext = (env: Env, ctx: ExecutionContext, request: Request) =>
+  Context.make(CloudflareEnvTag, env)
+    .pipe(Context.add(CloudflareExecutionContextTag, ctx))
+    .pipe(Context.add(CloudflareRequestTag, request));
 
 export const provideCloudflareEnv = <Success, Failure, Requirements>(
   effect: Effect.Effect<Success, Failure, Requirements>,
@@ -39,8 +50,10 @@ export const provideCloudflareRequestContext = <Success, Failure, Requirements>(
   effect: Effect.Effect<Success, Failure, Requirements>,
   env: Env,
   ctx: ExecutionContext,
+  request: Request,
 ) =>
   effect.pipe(
     Effect.provideService(CloudflareEnvTag, env),
     Effect.provideService(CloudflareExecutionContextTag, ctx),
+    Effect.provideService(CloudflareRequestTag, request),
   );

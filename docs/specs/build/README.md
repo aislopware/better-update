@@ -16,7 +16,7 @@ Implementation spec for better-update's build management — credential vault, e
 8. [OTA Integration](./08-ota-integration.md) — Linking builds to update channels via runtimeVersion
 9. [Implementation Plan](./09-implementation-plan.md) — Phased delivery roadmap
 
-## Future Phases (not in current scope)
+## Scope Notes
 
-- **Cloud Build** — GitHub Actions integration, remote build execution
+- **Cloud Build is out of scope** — this spec only supports builds that run on a developer machine or the user's own CI
 - **Auto-Submit** — Submit to App Store / Play Store after build

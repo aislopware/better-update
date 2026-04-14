@@ -1,6 +1,11 @@
 import { Effect } from "effect";
 
-import { cloudflareCtx, cloudflareEnv, provideCloudflareRequestContext } from "./context";
+import {
+  cloudflareCtx,
+  cloudflareEnv,
+  cloudflareRequest,
+  provideCloudflareRequestContext,
+} from "./context";
 
 describe("Cloudflare request context", () => {
   test("provideCloudflareRequestContext stores env and ctx", () => {
@@ -9,12 +14,18 @@ describe("Cloudflare request context", () => {
       waitUntil: () => {},
       passThroughOnException: () => {},
     } as unknown as ExecutionContext;
+    const mockRequest = new Request("https://example.com/manifest/test");
 
-    expect(Effect.runSync(provideCloudflareRequestContext(cloudflareEnv, mockEnv, mockCtx))).toBe(
-      mockEnv,
-    );
-    expect(Effect.runSync(provideCloudflareRequestContext(cloudflareCtx, mockEnv, mockCtx))).toBe(
-      mockCtx,
-    );
+    expect(
+      Effect.runSync(provideCloudflareRequestContext(cloudflareEnv, mockEnv, mockCtx, mockRequest)),
+    ).toBe(mockEnv);
+    expect(
+      Effect.runSync(provideCloudflareRequestContext(cloudflareCtx, mockEnv, mockCtx, mockRequest)),
+    ).toBe(mockCtx);
+    expect(
+      Effect.runSync(
+        provideCloudflareRequestContext(cloudflareRequest, mockEnv, mockCtx, mockRequest),
+      ),
+    ).toBe(mockRequest);
   });
 });

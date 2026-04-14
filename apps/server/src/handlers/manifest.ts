@@ -484,5 +484,6 @@ export const serveManifest = async (
       serve(request, projectId).pipe(Effect.provide(ManifestRepoLive)),
       env,
       ctx,
+      request,
     ),
   );

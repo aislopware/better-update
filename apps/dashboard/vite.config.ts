@@ -10,7 +10,8 @@ export default defineConfig({
     port: Number(process.env["PORT"]) || 6780,
     proxy: {
       "/api": {
-        target: "http://localhost:6781",
+        // eslint-disable-next-line node/no-process-env -- config file
+        target: process.env["DASHBOARD_API_PROXY_TARGET"] ?? "http://localhost:6781",
         changeOrigin: true,
       },
     },

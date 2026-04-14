@@ -246,7 +246,11 @@ export default {
     // eslint-disable-next-line functional/no-try-statements -- imperative shell error boundary
     try {
       const url = new URL(request.url);
-      const requestContext = makeCloudflareRequestContext(env, ctx) as Context.Context<never>;
+      const requestContext = makeCloudflareRequestContext(
+        env,
+        ctx,
+        request,
+      ) as Context.Context<never>;
 
       // Better Auth handles its own auth routes
       if (url.pathname.startsWith("/api/auth")) {

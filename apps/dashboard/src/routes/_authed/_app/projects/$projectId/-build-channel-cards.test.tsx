@@ -114,6 +114,10 @@ describe("build and channel cards", () => {
     expect(screen.getByText("✓ 2 updates")).toBeInTheDocument();
     expect(screen.getByText("Rollout active")).toBeInTheDocument();
     expect(screen.getByText("latest Canary release")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "View details" })).toHaveAttribute(
+      "href",
+      "/projects/proj-1/builds/build-1",
+    );
   });
 
   test("BuildCard shows missing runtimeVersion guidance when compatibility cannot be determined", () => {
@@ -146,6 +150,10 @@ describe("build and channel cards", () => {
     expect(screen.getByText("Missing matching builds")).toBeInTheDocument();
     expect(screen.getByText("latest Canary release")).toBeInTheDocument();
     expect(screen.getByText("android v3.0.0")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "View details" })).toHaveAttribute(
+      "href",
+      "/projects/proj-1/channels/channel-production",
+    );
   });
 
   test("ChannelCard still renders paused channels without rollout controls", () => {

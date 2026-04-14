@@ -2,6 +2,8 @@
 
 ## Phased Delivery
 
+Remote Cloud Build is intentionally out of scope for this plan. Builds run locally or in the user's own CI, and the server only manages credentials, metadata, and artifact storage.
+
 ### Phase 1: Credential Vault
 
 **Goal**: Store and manage signing credentials securely.
@@ -171,6 +173,5 @@ flowchart TD
 
 | Phase                   | Description                                                      |
 | ----------------------- | ---------------------------------------------------------------- |
-| **Cloud Build**         | GitHub Actions integration, remote build dispatch                |
 | **Auto-Submit**         | Submit to App Store / Play Store after build                     |
 | **Apple Developer API** | Create certs/profiles programmatically via App Store Connect API |

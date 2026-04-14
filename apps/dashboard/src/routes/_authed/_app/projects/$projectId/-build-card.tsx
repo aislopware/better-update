@@ -61,18 +61,28 @@ export const BuildCard = ({
   build,
   orgId,
   projectId,
+  showDetailsLink = true,
 }: {
   build: typeof BuildCompatibilityRow.Type;
   orgId: string;
   projectId: string;
+  showDetailsLink?: boolean;
 }) => (
   <Card>
     <CardHeader className="pb-2">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <CardTitle className="text-base">
             {(build.message ?? build.profile) || `Build ${build.id.slice(0, 8)}`}
           </CardTitle>
+          {showDetailsLink ? (
+            <a
+              href={`/projects/${projectId}/builds/${build.id}`}
+              className="text-muted-foreground hover:text-foreground text-sm transition-colors"
+            >
+              View details
+            </a>
+          ) : null}
           <Badge variant="outline">{build.platform}</Badge>
           <Badge variant="secondary">{build.distribution}</Badge>
           {build.artifact && <Badge variant="outline">{build.artifact.format.toUpperCase()}</Badge>}

@@ -280,6 +280,7 @@ interface ChannelCardProps {
     readonly status: typeof BuildCompatibilityChannel.Type;
   }[];
   readonly missingRuntimeVersions: readonly (typeof MissingRuntimeVersionBuild.Type)[];
+  readonly showDetailsLink?: boolean;
 }
 
 export const ChannelCard = ({
@@ -289,6 +290,7 @@ export const ChannelCard = ({
   branches,
   compatibleBuilds,
   missingRuntimeVersions,
+  showDetailsLink = true,
 }: ChannelCardProps) => {
   const queryClient = useQueryClient();
   const linkedBranch = branches.find((branch) => branch.id === channel.branchId);
@@ -345,13 +347,21 @@ export const ChannelCard = ({
     <Card>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <HugeiconsIcon
               icon={SatelliteIcon}
               strokeWidth={2}
               className="text-muted-foreground size-5"
             />
             <CardTitle className="text-base">{channel.name}</CardTitle>
+            {showDetailsLink ? (
+              <a
+                href={`/projects/${projectId}/channels/${channel.id}`}
+                className="text-muted-foreground hover:text-foreground text-sm transition-colors"
+              >
+                View details
+              </a>
+            ) : null}
           </div>
           <div className="flex items-center gap-1">
             {channel.isPaused && <Badge variant="outline">Paused</Badge>}

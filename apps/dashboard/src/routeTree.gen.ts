@@ -26,6 +26,8 @@ import { Route as AuthedAppSettingsIndexRouteImport } from './routes/_authed/_ap
 import { Route as AuthedAppProjectsIndexRouteImport } from './routes/_authed/_app/projects/index'
 import { Route as AuthedAppAccountIndexRouteImport } from './routes/_authed/_app/account/index'
 import { Route as AuthedAppProjectsProjectIdIndexRouteImport } from './routes/_authed/_app/projects/$projectId/index'
+import { Route as AuthedAppProjectsProjectIdChannelsChannelIdRouteImport } from './routes/_authed/_app/projects/$projectId/channels/$channelId'
+import { Route as AuthedAppProjectsProjectIdBuildsBuildIdRouteImport } from './routes/_authed/_app/projects/$projectId/builds/$buildId'
 
 const CliLoginRoute = CliLoginRouteImport.update({
   id: '/cli-login',
@@ -111,6 +113,18 @@ const AuthedAppProjectsProjectIdIndexRoute =
     path: '/projects/$projectId/',
     getParentRoute: () => AuthedAppRoute,
   } as any)
+const AuthedAppProjectsProjectIdChannelsChannelIdRoute =
+  AuthedAppProjectsProjectIdChannelsChannelIdRouteImport.update({
+    id: '/projects/$projectId/channels/$channelId',
+    path: '/projects/$projectId/channels/$channelId',
+    getParentRoute: () => AuthedAppRoute,
+  } as any)
+const AuthedAppProjectsProjectIdBuildsBuildIdRoute =
+  AuthedAppProjectsProjectIdBuildsBuildIdRouteImport.update({
+    id: '/projects/$projectId/builds/$buildId',
+    path: '/projects/$projectId/builds/$buildId',
+    getParentRoute: () => AuthedAppRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthedAppIndexRoute
@@ -128,6 +142,8 @@ export interface FileRoutesByFullPath {
   '/projects/': typeof AuthedAppProjectsIndexRoute
   '/settings/': typeof AuthedAppSettingsIndexRoute
   '/projects/$projectId/': typeof AuthedAppProjectsProjectIdIndexRoute
+  '/projects/$projectId/builds/$buildId': typeof AuthedAppProjectsProjectIdBuildsBuildIdRoute
+  '/projects/$projectId/channels/$channelId': typeof AuthedAppProjectsProjectIdChannelsChannelIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof AuthedAppIndexRoute
@@ -145,6 +161,8 @@ export interface FileRoutesByTo {
   '/projects': typeof AuthedAppProjectsIndexRoute
   '/settings': typeof AuthedAppSettingsIndexRoute
   '/projects/$projectId': typeof AuthedAppProjectsProjectIdIndexRoute
+  '/projects/$projectId/builds/$buildId': typeof AuthedAppProjectsProjectIdBuildsBuildIdRoute
+  '/projects/$projectId/channels/$channelId': typeof AuthedAppProjectsProjectIdChannelsChannelIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -165,6 +183,8 @@ export interface FileRoutesById {
   '/_authed/_app/projects/': typeof AuthedAppProjectsIndexRoute
   '/_authed/_app/settings/': typeof AuthedAppSettingsIndexRoute
   '/_authed/_app/projects/$projectId/': typeof AuthedAppProjectsProjectIdIndexRoute
+  '/_authed/_app/projects/$projectId/builds/$buildId': typeof AuthedAppProjectsProjectIdBuildsBuildIdRoute
+  '/_authed/_app/projects/$projectId/channels/$channelId': typeof AuthedAppProjectsProjectIdChannelsChannelIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -184,6 +204,8 @@ export interface FileRouteTypes {
     | '/projects/'
     | '/settings/'
     | '/projects/$projectId/'
+    | '/projects/$projectId/builds/$buildId'
+    | '/projects/$projectId/channels/$channelId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -201,6 +223,8 @@ export interface FileRouteTypes {
     | '/projects'
     | '/settings'
     | '/projects/$projectId'
+    | '/projects/$projectId/builds/$buildId'
+    | '/projects/$projectId/channels/$channelId'
   id:
     | '__root__'
     | '/_authed'
@@ -220,6 +244,8 @@ export interface FileRouteTypes {
     | '/_authed/_app/projects/'
     | '/_authed/_app/settings/'
     | '/_authed/_app/projects/$projectId/'
+    | '/_authed/_app/projects/$projectId/builds/$buildId'
+    | '/_authed/_app/projects/$projectId/channels/$channelId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -352,6 +378,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedAppProjectsProjectIdIndexRouteImport
       parentRoute: typeof AuthedAppRoute
     }
+    '/_authed/_app/projects/$projectId/channels/$channelId': {
+      id: '/_authed/_app/projects/$projectId/channels/$channelId'
+      path: '/projects/$projectId/channels/$channelId'
+      fullPath: '/projects/$projectId/channels/$channelId'
+      preLoaderRoute: typeof AuthedAppProjectsProjectIdChannelsChannelIdRouteImport
+      parentRoute: typeof AuthedAppRoute
+    }
+    '/_authed/_app/projects/$projectId/builds/$buildId': {
+      id: '/_authed/_app/projects/$projectId/builds/$buildId'
+      path: '/projects/$projectId/builds/$buildId'
+      fullPath: '/projects/$projectId/builds/$buildId'
+      preLoaderRoute: typeof AuthedAppProjectsProjectIdBuildsBuildIdRouteImport
+      parentRoute: typeof AuthedAppRoute
+    }
   }
 }
 
@@ -365,6 +405,8 @@ interface AuthedAppRouteChildren {
   AuthedAppProjectsIndexRoute: typeof AuthedAppProjectsIndexRoute
   AuthedAppSettingsIndexRoute: typeof AuthedAppSettingsIndexRoute
   AuthedAppProjectsProjectIdIndexRoute: typeof AuthedAppProjectsProjectIdIndexRoute
+  AuthedAppProjectsProjectIdBuildsBuildIdRoute: typeof AuthedAppProjectsProjectIdBuildsBuildIdRoute
+  AuthedAppProjectsProjectIdChannelsChannelIdRoute: typeof AuthedAppProjectsProjectIdChannelsChannelIdRoute
 }
 
 const AuthedAppRouteChildren: AuthedAppRouteChildren = {
@@ -377,6 +419,10 @@ const AuthedAppRouteChildren: AuthedAppRouteChildren = {
   AuthedAppProjectsIndexRoute: AuthedAppProjectsIndexRoute,
   AuthedAppSettingsIndexRoute: AuthedAppSettingsIndexRoute,
   AuthedAppProjectsProjectIdIndexRoute: AuthedAppProjectsProjectIdIndexRoute,
+  AuthedAppProjectsProjectIdBuildsBuildIdRoute:
+    AuthedAppProjectsProjectIdBuildsBuildIdRoute,
+  AuthedAppProjectsProjectIdChannelsChannelIdRoute:
+    AuthedAppProjectsProjectIdChannelsChannelIdRoute,
 }
 
 const AuthedAppRouteWithChildren = AuthedAppRoute._addFileChildren(

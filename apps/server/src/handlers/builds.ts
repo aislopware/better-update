@@ -1,5 +1,5 @@
 import { ArtifactFormat, Distribution } from "@better-update/api";
-import { HttpApiBuilder, HttpServerRequest } from "@effect/platform";
+import { HttpApiBuilder } from "@effect/platform";
 import { Effect, Schema } from "effect";
 
 import { ManagementApi } from "../api";
@@ -8,6 +8,7 @@ import { CurrentActor } from "../auth/current-actor";
 import { assertProjectOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
 import { BuildRuntime } from "../cloudflare/build-runtime";
+import { cloudflareEnv, cloudflareRequest } from "../cloudflare/context";
 import { generateInstallToken } from "../domain/install-token";
 import { BadRequest, NotFound } from "../errors";
 import { toApiBuild, toApiBuildCompatibilityMatrix } from "../http/to-api";
@@ -28,6 +29,25 @@ const formatForContentType = (format: string) =>
   FORMAT_CONTENT_TYPES[format] ?? "application/octet-stream";
 
 const artifactExt = (format: string) => (format === "tar.gz" ? "tar.gz" : format);
+
+const requestOrigin = (request: Request) => new URL(request.url).origin;
+
+const testBuildStorageUrl = ({
+  origin,
+  mode,
+  key,
+}: {
+  readonly origin: string;
+  readonly mode: "upload" | "download";
+  readonly key: string;
+}) => {
+  const url = new URL(
+    mode === "upload" ? "/__test/build-upload" : "/__test/build-download",
+    origin,
+  );
+  url.searchParams.set("key", key);
+  return url.toString();
+};
 
 const ReservationSchema = Schema.Struct({
   buildId: Schema.String,
@@ -59,15 +79,23 @@ export const BuildsGroupLive = HttpApiBuilder.group(ManagementApi, "builds", (ha
           yield* assertProjectOwnership(payload.projectId);
 
           const runtime = yield* BuildRuntime;
+          const env = yield* cloudflareEnv;
           const ctx = yield* CurrentActor;
+          const request = yield* cloudflareRequest;
 
           const buildId = crypto.randomUUID();
           const stagingKey = `staging/${ctx.organizationId}/${buildId}.${artifactExt(payload.artifactFormat)}`;
-
-          const uploadUrl = yield* runtime.createUploadUrl({
-            key: stagingKey,
-            expiresIn: UPLOAD_EXPIRY_SECONDS,
-          });
+          const uploadUrl =
+            env.TEST_MODE === "true"
+              ? testBuildStorageUrl({
+                  origin: requestOrigin(request),
+                  mode: "upload",
+                  key: stagingKey,
+                })
+              : yield* runtime.createUploadUrl({
+                  key: stagingKey,
+                  expiresIn: UPLOAD_EXPIRY_SECONDS,
+                });
 
           const uploadExpiresAt = new Date(Date.now() + UPLOAD_EXPIRY_SECONDS * 1000).toISOString();
 
@@ -289,9 +317,8 @@ export const BuildsGroupLive = HttpApiBuilder.group(ManagementApi, "builds", (ha
             generateInstallToken(path.id, installTokenSecret),
           );
 
-          const req = yield* HttpServerRequest.HttpServerRequest;
-          const url = new URL(req.url, `https://${req.headers["host"]}`);
-          const { origin } = url;
+          const request = yield* cloudflareRequest;
+          const { origin } = new URL(request.url);
 
           const artifactUrl = `${origin}/api/builds/${path.id}/artifact?token=${token}&expires=${expires}`;
 

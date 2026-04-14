@@ -17,6 +17,7 @@ import { useSyncExternalStore, useState } from "react";
 import { toast } from "sonner";
 
 import type { BuildWithArtifact } from "@better-update/api";
+import type { ComponentProps } from "react";
 
 const CopyButton = ({ text }: { text: string }) => {
   const [copied, setCopied] = useState(false);
@@ -65,7 +66,17 @@ const ExpiryBadge = ({ expires }: { expires: number }) => {
   );
 };
 
-export const InstallLinkDialog = ({ build }: { build: typeof BuildWithArtifact.Type }) => {
+export const InstallLinkDialog = ({
+  build,
+  buttonLabel,
+  buttonVariant = "ghost",
+  buttonSize = "icon",
+}: {
+  build: typeof BuildWithArtifact.Type;
+  buttonLabel?: string;
+  buttonVariant?: ComponentProps<typeof Button>["variant"];
+  buttonSize?: ComponentProps<typeof Button>["size"];
+}) => {
   const [open, setOpen] = useState(false);
   const fetchInstallLinkMutation = useMutation({
     mutationFn: async () => fetchInstallLink(build.id),
@@ -87,13 +98,14 @@ export const InstallLinkDialog = ({ build }: { build: typeof BuildWithArtifact.T
   return (
     <>
       <Button
-        variant="ghost"
-        size="icon"
-        className="size-8"
-        title="Install link"
+        variant={buttonVariant}
+        size={buttonSize}
+        className={buttonLabel ? undefined : "size-8"}
+        title={buttonLabel ?? "Install link"}
         onClick={handleOpen}
       >
         <HugeiconsIcon icon={SmartPhone02Icon} strokeWidth={2} className="size-4" />
+        {buttonLabel ? <span>{buttonLabel}</span> : null}
       </Button>
       <Dialog
         open={open}
