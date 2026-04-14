@@ -10,6 +10,7 @@ export interface PutToPresignedUrlInput {
   readonly filePath: string;
   readonly byteSize: number;
   readonly expiresAt: string;
+  readonly headers?: Record<string, string>;
 }
 
 export class PresignedUploadClient extends Context.Tag("cli/PresignedUploadClient")<
@@ -28,7 +29,13 @@ export const PresignedUploadClientLive = Layer.effect(
     const fileSystem = yield* FileSystem.FileSystem;
 
     return {
-      putToPresignedUrl: ({ url, filePath, byteSize, expiresAt }: PutToPresignedUrlInput) =>
+      putToPresignedUrl: ({
+        url,
+        filePath,
+        byteSize,
+        expiresAt,
+        headers,
+      }: PutToPresignedUrlInput) =>
         Effect.gen(function* () {
           const now = Date.now();
           const expiryMs = new Date(expiresAt).getTime();
@@ -40,8 +47,8 @@ export const PresignedUploadClientLive = Layer.effect(
 
           const request = yield* HttpClientRequest.put(url).pipe(
             HttpClientRequest.setHeaders({
-              "Content-Type": "application/octet-stream",
-              "Content-Length": String(byteSize),
+              "content-length": String(byteSize),
+              ...headers,
             }),
             HttpClientRequest.bodyFile(filePath),
             Effect.provideService(FileSystem.FileSystem, fileSystem),

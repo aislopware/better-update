@@ -100,20 +100,30 @@ const createPromotableUpdate = async (options?: {
   expect(registerResponse.status).toBe(201);
 
   const registerBody = (await registerResponse.json()) as {
-    uploaded: Array<{ hash: string; uploadToken: string }>;
+    uploaded: Array<{
+      hash: string;
+      uploadUrl: string;
+      uploadHeaders: Record<string, string>;
+    }>;
     deduplicated: string[];
   };
-  const uploadToken = registerBody.uploaded.find((asset) => asset.hash === assetHash)?.uploadToken;
-  if (uploadToken) {
-    const uploadResponse = await fetchWithRetry(`${cli.getBaseUrl()}/api/assets/${assetHash}`, {
+  const upload = registerBody.uploaded.find((asset) => asset.hash === assetHash);
+  if (upload) {
+    const uploadResponse = await fetchWithRetry(upload.uploadUrl, {
       method: "PUT",
       headers: {
-        "content-type": "application/javascript",
-        "x-better-update-upload-token": uploadToken,
+        "content-length": String(assetBody.byteLength),
+        ...upload.uploadHeaders,
       },
       body: assetBody,
     });
     expect(uploadResponse.status).toBe(200);
+
+    const finalizeResponse = await cli.postAuthorized(
+      `/api/assets/${assetHash}/finalize`,
+      undefined,
+    );
+    expect(finalizeResponse.status).toBe(200);
   } else {
     expect(registerBody.deduplicated).toContain(assetHash);
   }

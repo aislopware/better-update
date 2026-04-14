@@ -14,10 +14,15 @@ const CliStoreLayer = Layer.mergeAll(AuthStoreLive, ConfigStoreLive).pipe(
   Layer.provide(CliPlatformLayer),
 );
 const CliAdapterDependencies = Layer.mergeAll(CliPlatformLayer, CliStoreLayer);
+const ApiClientLayer = ApiClientLive.pipe(Layer.provide(CliAdapterDependencies));
+const PresignedUploadLayer = PresignedUploadClientLive.pipe(Layer.provide(CliPlatformLayer));
+const UpdateAssetUploaderLayer = UpdateAssetUploaderLive.pipe(
+  Layer.provide(Layer.mergeAll(ApiClientLayer, PresignedUploadLayer)),
+);
 
 export const CliLive = Layer.mergeAll(
   CliAdapterDependencies,
-  ApiClientLive.pipe(Layer.provide(CliAdapterDependencies)),
-  PresignedUploadClientLive.pipe(Layer.provide(CliPlatformLayer)),
-  UpdateAssetUploaderLive.pipe(Layer.provide(CliAdapterDependencies)),
+  ApiClientLayer,
+  PresignedUploadLayer,
+  UpdateAssetUploaderLayer,
 );

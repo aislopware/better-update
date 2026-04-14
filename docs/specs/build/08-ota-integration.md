@@ -56,6 +56,8 @@ RUNTIME_VERSION=$(npx expo config --json | jq -r '.runtimeVersion')
 
 # appVersion policy (computed from expo.version)
 RUNTIME_VERSION=$(npx expo config --json | jq -r '.version')
+SHA256=$(shasum -a 256 build/MyApp.ipa | cut -d' ' -f1)
+SIZE=$(stat -f%z build/MyApp.ipa)
 
 # Step 1: Reserve build + get presigned upload URL
 RESPONSE=$(curl -s -X POST \
@@ -70,20 +72,23 @@ RESPONSE=$(curl -s -X POST \
     \"appVersion\": \"1.2.0\",
     \"buildNumber\": \"42\",
     \"bundleId\": \"com.example.app\",
-    \"artifactFormat\": \"ipa\"
+    \"artifactFormat\": \"ipa\",
+    \"sha256\": \"$SHA256\",
+    \"byteSize\": $SIZE
   }" \
   https://updates.example.com/api/builds)
 
 BUILD_ID=$(echo $RESPONSE | jq -r '.id')
 UPLOAD_URL=$(echo $RESPONSE | jq -r '.uploadUrl')
+UPLOAD_CHECKSUM=$(echo $RESPONSE | jq -r '.uploadHeaders["x-amz-checksum-sha256"]')
 
-# Step 2: Upload artifact directly to R2 via presigned URL
-curl -X PUT -H "Content-Type: application/octet-stream" \
+# Step 2: Upload artifact directly to R2 via presigned single PUT URL
+curl -X PUT \
+  -H "Content-Type: application/octet-stream" \
+  -H "x-amz-checksum-sha256: $UPLOAD_CHECKSUM" \
   --data-binary @build/MyApp.ipa "$UPLOAD_URL"
 
 # Step 3: Finalize build
-SHA256=$(shasum -a 256 build/MyApp.ipa | cut -d' ' -f1)
-SIZE=$(stat -f%z build/MyApp.ipa)
 curl -X POST \
   -H "Authorization: Bearer $BETTER_UPDATE_TOKEN" \
   -H "Content-Type: application/json" \

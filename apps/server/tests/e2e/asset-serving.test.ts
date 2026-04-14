@@ -13,10 +13,16 @@ const post = (path: string, body: unknown, headers?: Record<string, string>) =>
     body: JSON.stringify(body),
   });
 
-const put = (path: string, body: BodyInit, headers?: Record<string, string>) =>
+const postNoBody = (path: string, headers?: Record<string, string>) =>
   fetch(`${getBaseUrl()}${path}`, {
+    method: "POST",
+    ...(headers ? { headers } : {}),
+  });
+
+const putAbsolute = (url: string, body: BodyInit, headers?: Record<string, string>) =>
+  fetch(url, {
     method: "PUT",
-    headers,
+    ...(headers ? { headers } : {}),
     body,
   });
 
@@ -36,7 +42,8 @@ describe("Asset serving flow", () => {
   let cookies: string;
   let organizationId: string;
   let projectId: string;
-  let uploadToken: string;
+  let uploadUrl: string;
+  let uploadHeaders: Record<string, string>;
 
   const assetContent = "console.log('hello from asset')";
   const assetHash = createHash("sha256").update(assetContent).digest("base64url");
@@ -102,30 +109,40 @@ describe("Asset serving flow", () => {
     expect(body.uploaded).toEqual([
       expect.objectContaining({
         hash: assetHash,
-        uploadToken: expect.any(String),
+        uploadMode: "single",
+        uploadUrl: expect.any(String),
+        uploadHeaders: expect.objectContaining({
+          "content-type": assetContentType,
+          "x-amz-checksum-sha256": expect.any(String),
+        }),
       }),
     ]);
-    uploadToken = body.uploaded[0]?.uploadToken as string;
-  });
-
-  it("rejects binary upload without a scoped upload token", async () => {
-    const response = await put(`/api/assets/${assetHash}`, new TextEncoder().encode(assetContent), {
-      "content-type": assetContentType,
-      "content-length": new TextEncoder().encode(assetContent).byteLength.toString(),
-    });
-    expect(response.status).toBe(401);
+    uploadUrl = body.uploaded[0]?.uploadUrl as string;
+    uploadHeaders = body.uploaded[0]?.uploadHeaders as Record<string, string>;
   });
 
   it("uploads asset binary", async () => {
-    const response = await put(`/api/assets/${assetHash}`, new TextEncoder().encode(assetContent), {
-      "x-better-update-upload-token": uploadToken,
-      "content-type": assetContentType,
-      "content-length": new TextEncoder().encode(assetContent).byteLength.toString(),
+    const bytes = new TextEncoder().encode(assetContent);
+    const response = await putAbsolute(uploadUrl, bytes, {
+      "content-length": bytes.byteLength.toString(),
+      ...uploadHeaders,
     });
     expect(response.status).toBe(200);
   });
 
-  it("rejects binary upload when the body hash does not match the registered hash", async () => {
+  it("finalizes asset upload", async () => {
+    const response = await postNoBody(`/api/assets/${assetHash}/finalize`, { cookie: cookies });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual(
+      expect.objectContaining({
+        hash: assetHash,
+        contentType: assetContentType,
+        byteSize: new TextEncoder().encode(assetContent).byteLength,
+      }),
+    );
+  });
+
+  it("rejects direct upload when bytes do not match the signed hash", async () => {
     const expectedContent = "console.log('expected')";
     const unexpectedContent = "console.log('unexpected')";
     const mismatchedHash = createHash("sha256").update(expectedContent).digest("base64url");
@@ -140,23 +157,21 @@ describe("Asset serving flow", () => {
     );
     expect(registerResponse.status).toBe(201);
     const registerBody = await registerResponse.json();
-    const mismatchedUploadToken = registerBody.uploaded[0]?.uploadToken as string;
+    const mismatchedUploadUrl = registerBody.uploaded[0]?.uploadUrl as string;
+    const mismatchedUploadHeaders = registerBody.uploaded[0]?.uploadHeaders as Record<
+      string,
+      string
+    >;
 
-    const uploadResponse = await put(
-      `/api/assets/${mismatchedHash}`,
+    const uploadResponse = await putAbsolute(
+      mismatchedUploadUrl,
       new TextEncoder().encode(unexpectedContent),
       {
-        "x-better-update-upload-token": mismatchedUploadToken,
-        "content-type": assetContentType,
         "content-length": new TextEncoder().encode(unexpectedContent).byteLength.toString(),
+        ...mismatchedUploadHeaders,
       },
     );
     expect(uploadResponse.status).toBe(400);
-    expect(await uploadResponse.json()).toEqual(
-      expect.objectContaining({
-        message: expect.stringContaining("Asset hash mismatch"),
-      }),
-    );
   });
 
   // ── Section 3: Serve asset ─────────────────────────────────────

@@ -13,6 +13,8 @@ export const Distribution = Schema.Literal(
 );
 
 export const ArtifactFormat = Schema.Literal("ipa", "apk", "aab", "tar.gz");
+const Sha256Hex = Schema.String.pipe(Schema.pattern(/^[a-fA-F0-9]{64}$/), Schema.maxLength(64));
+const UploadHeaders = Schema.Record({ key: Schema.String, value: Schema.String });
 
 const CreateBuildCommonFields = {
   projectId: Id,
@@ -25,6 +27,8 @@ const CreateBuildCommonFields = {
   gitCommit: Schema.optional(Schema.String),
   message: Schema.optional(Schema.String),
   metadata: Schema.optional(Schema.Record({ key: Schema.String, value: Schema.Unknown })),
+  sha256: Sha256Hex,
+  byteSize: Schema.Number.pipe(Schema.nonNegative()),
 } as const;
 
 export class Build extends Schema.Class<Build>("Build")({
@@ -132,14 +136,16 @@ export const CreateBuildBody = Schema.Union(
 );
 
 export const CompleteBuildBody = Schema.Struct({
-  sha256: Schema.String.pipe(Schema.minLength(64), Schema.maxLength(64)),
+  sha256: Sha256Hex,
   byteSize: Schema.Number.pipe(Schema.nonNegative()),
 });
 
 export const ReserveBuildResult = Schema.Struct({
   id: Id,
+  uploadMode: Schema.Literal("single"),
   uploadUrl: Schema.String,
   uploadExpiresAt: DateTimeString,
+  uploadHeaders: UploadHeaders,
 });
 
 export const DeleteBuildResult = Schema.Struct({

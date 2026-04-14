@@ -115,6 +115,7 @@ export const uploadWithProgress = async (
   file: File,
   onProgress: (percent: number) => void,
   signal?: AbortSignal,
+  headers?: Record<string, string>,
 ): Promise<void> =>
   Effect.runPromise(
     Effect.async<undefined, Error>((resume) => {
@@ -172,7 +173,13 @@ export const uploadWithProgress = async (
       }
 
       xhr.open("PUT", url);
-      xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+      const requestHeaders = new Headers(headers);
+      if (!requestHeaders.has("content-type")) {
+        requestHeaders.set("content-type", file.type || "application/octet-stream");
+      }
+      requestHeaders.forEach((value, key) => {
+        xhr.setRequestHeader(key, value);
+      });
       xhr.upload.addEventListener("progress", onProgressEvent);
       xhr.addEventListener("load", onLoad);
       xhr.addEventListener("error", onError);

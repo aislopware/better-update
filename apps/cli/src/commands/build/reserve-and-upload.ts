@@ -65,6 +65,8 @@ export const reserveAndUpload = (
           ...(input.gitContext.ref !== undefined ? { gitRef: input.gitContext.ref } : {}),
           ...(input.gitContext.commit !== undefined ? { gitCommit: input.gitContext.commit } : {}),
           ...(input.message !== undefined ? { message: input.message } : {}),
+          sha256: input.sha256,
+          byteSize: input.byteSize,
         },
       })
       .pipe(
@@ -76,12 +78,17 @@ export const reserveAndUpload = (
         ),
       );
 
-    yield* presignedUploadClient.putToPresignedUrl({
-      url: reserveResult.uploadUrl,
-      filePath: input.artifactPath,
-      byteSize: input.byteSize,
-      expiresAt: reserveResult.uploadExpiresAt,
-    });
+    switch (reserveResult.uploadMode) {
+      case "single":
+        yield* presignedUploadClient.putToPresignedUrl({
+          url: reserveResult.uploadUrl,
+          filePath: input.artifactPath,
+          byteSize: input.byteSize,
+          expiresAt: reserveResult.uploadExpiresAt,
+          headers: reserveResult.uploadHeaders,
+        });
+        break;
+    }
 
     const completed = yield* api.builds
       .complete({

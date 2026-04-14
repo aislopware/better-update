@@ -239,8 +239,10 @@ export interface BuildCompatibilityMatrixModel {
 
 export interface ReserveBuildResultModel {
   readonly id: string;
+  readonly uploadMode: "single";
   readonly uploadUrl: string;
   readonly uploadExpiresAt: string;
+  readonly uploadHeaders: Record<string, string>;
 }
 
 export interface InstallLinkResultModel {
@@ -253,7 +255,10 @@ export interface InstallLinkResultModel {
 export interface AssetUploadResultModel {
   readonly uploaded: readonly {
     readonly hash: string;
-    readonly uploadToken: string;
+    readonly uploadMode: "single";
+    readonly uploadUrl: string;
+    readonly uploadExpiresAt: string;
+    readonly uploadHeaders: Record<string, string>;
   }[];
   readonly deduplicated: readonly string[];
 }

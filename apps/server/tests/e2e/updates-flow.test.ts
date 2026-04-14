@@ -28,11 +28,17 @@ const patch = (path: string, body: unknown, headers?: Record<string, string>) =>
 const del = (path: string, headers?: Record<string, string>) =>
   fetch(`${getBaseUrl()}${path}`, { method: "DELETE", ...(headers ? { headers } : {}) });
 
-const put = (path: string, body: BodyInit, headers?: Record<string, string>) =>
-  fetch(`${getBaseUrl()}${path}`, {
+const putAbsolute = (url: string, body: BodyInit, headers?: Record<string, string>) =>
+  fetch(url, {
     method: "PUT",
     ...(headers ? { headers } : {}),
     body,
+  });
+
+const postNoBody = (path: string, headers?: Record<string, string>) =>
+  fetch(`${getBaseUrl()}${path}`, {
+    method: "POST",
+    ...(headers ? { headers } : {}),
   });
 
 const manifestGet = (projectId: string, headers: Record<string, string>) =>
@@ -102,9 +108,9 @@ describe("Updates & Assets API flow", () => {
   let rollbackUpdateId: string;
   let signedUpdateId: string;
   let apiKeyValue: string;
-  let firstAssetUploadToken: string;
-  let secondAssetUploadToken: string;
-  let apiKeyAssetUploadToken: string;
+  let firstAssetUpload: { uploadUrl: string; uploadHeaders: Record<string, string> };
+  let secondAssetUpload: { uploadUrl: string; uploadHeaders: Record<string, string> };
+  let apiKeyAssetUpload: { uploadUrl: string; uploadHeaders: Record<string, string> };
 
   const firstAssetContent = "console.log('hello')";
   const secondAssetContent = "console.log('world')";
@@ -257,23 +263,25 @@ describe("Updates & Assets API flow", () => {
     const body = await response.json();
     expect(body.uploaded).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ hash: firstAssetHash, uploadToken: expect.any(String) }),
-        expect.objectContaining({ hash: secondAssetHash, uploadToken: expect.any(String) }),
+        expect.objectContaining({
+          hash: firstAssetHash,
+          uploadMode: "single",
+          uploadUrl: expect.any(String),
+          uploadHeaders: expect.any(Object),
+        }),
+        expect.objectContaining({
+          hash: secondAssetHash,
+          uploadMode: "single",
+          uploadUrl: expect.any(String),
+          uploadHeaders: expect.any(Object),
+        }),
       ]),
     );
     expect(body.deduplicated).toHaveLength(0);
-    firstAssetUploadToken =
-      (
-        body.uploaded.find((asset: { hash: string }) => asset.hash === firstAssetHash) as
-          | { uploadToken: string }
-          | undefined
-      )?.uploadToken ?? "";
-    secondAssetUploadToken =
-      (
-        body.uploaded.find((asset: { hash: string }) => asset.hash === secondAssetHash) as
-          | { uploadToken: string }
-          | undefined
-      )?.uploadToken ?? "";
+    firstAssetUpload =
+      body.uploaded.find((asset: { hash: string }) => asset.hash === firstAssetHash) ?? {};
+    secondAssetUpload =
+      body.uploaded.find((asset: { hash: string }) => asset.hash === secondAssetHash) ?? {};
   });
 
   it("rejects update creation while an asset is only registered but not uploaded", async () => {
@@ -313,28 +321,34 @@ describe("Updates & Assets API flow", () => {
   });
 
   it("uploads first asset binary", async () => {
-    const response = await put(
-      `/api/assets/${firstAssetHash}`,
-      new TextEncoder().encode(firstAssetContent),
-      {
-        "x-better-update-upload-token": firstAssetUploadToken,
-        "content-type": "application/javascript",
-        "content-length": new TextEncoder().encode(firstAssetContent).byteLength.toString(),
-      },
-    );
+    const bytes = new TextEncoder().encode(firstAssetContent);
+    const response = await putAbsolute(firstAssetUpload.uploadUrl, bytes, {
+      "content-length": bytes.byteLength.toString(),
+      ...firstAssetUpload.uploadHeaders,
+    });
+    expect(response.status).toBe(200);
+  });
+
+  it("finalizes first asset binary", async () => {
+    const response = await postNoBody(`/api/assets/${firstAssetHash}/finalize`, {
+      cookie: cookies,
+    });
     expect(response.status).toBe(200);
   });
 
   it("uploads second asset binary", async () => {
-    const response = await put(
-      `/api/assets/${secondAssetHash}`,
-      new TextEncoder().encode(secondAssetContent),
-      {
-        "x-better-update-upload-token": secondAssetUploadToken,
-        "content-type": "application/javascript",
-        "content-length": new TextEncoder().encode(secondAssetContent).byteLength.toString(),
-      },
-    );
+    const bytes = new TextEncoder().encode(secondAssetContent);
+    const response = await putAbsolute(secondAssetUpload.uploadUrl, bytes, {
+      "content-length": bytes.byteLength.toString(),
+      ...secondAssetUpload.uploadHeaders,
+    });
+    expect(response.status).toBe(200);
+  });
+
+  it("finalizes second asset binary", async () => {
+    const response = await postNoBody(`/api/assets/${secondAssetHash}/finalize`, {
+      cookie: cookies,
+    });
     expect(response.status).toBe(200);
   });
 
@@ -874,22 +888,30 @@ describe("Updates & Assets API flow", () => {
     expect(body.uploaded).toEqual([
       expect.objectContaining({
         hash: apiKeyAssetHash,
-        uploadToken: expect.any(String),
+        uploadMode: "single",
+        uploadUrl: expect.any(String),
+        uploadHeaders: expect.any(Object),
       }),
     ]);
-    apiKeyAssetUploadToken = body.uploaded[0]?.uploadToken as string;
+    apiKeyAssetUpload = body.uploaded[0] as {
+      uploadUrl: string;
+      uploadHeaders: Record<string, string>;
+    };
   });
 
   it("uploads asset binary via API key", async () => {
-    const response = await put(
-      `/api/assets/${apiKeyAssetHash}`,
-      new TextEncoder().encode(apiKeyAssetContent),
-      {
-        "x-better-update-upload-token": apiKeyAssetUploadToken,
-        "content-type": "text/plain",
-        "content-length": new TextEncoder().encode(apiKeyAssetContent).byteLength.toString(),
-      },
-    );
+    const bytes = new TextEncoder().encode(apiKeyAssetContent);
+    const response = await putAbsolute(apiKeyAssetUpload.uploadUrl, bytes, {
+      "content-length": bytes.byteLength.toString(),
+      ...apiKeyAssetUpload.uploadHeaders,
+    });
+    expect(response.status).toBe(200);
+  });
+
+  it("finalizes API key asset upload", async () => {
+    const response = await postNoBody(`/api/assets/${apiKeyAssetHash}/finalize`, {
+      authorization: `Bearer ${apiKeyValue}`,
+    });
     expect(response.status).toBe(200);
   });
 

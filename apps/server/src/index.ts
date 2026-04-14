@@ -8,8 +8,6 @@ import { AssetStorage } from "./cloudflare/asset-storage";
 import { makeCloudflareRequestContext, provideCloudflareEnv } from "./cloudflare/context";
 import { handleScheduled, matchBuildRoute, serveManifest } from "./handlers";
 import { ServerInfrastructureLayer } from "./infrastructure-layer";
-import { verifyAssetUploadToken } from "./lib/asset-upload-token";
-import { teeBodyWithSha256 } from "./lib/stream-digest";
 import { AssetRepo } from "./repositories";
 
 import type { ServerInfrastructure } from "./infrastructure-layer";
@@ -42,73 +40,11 @@ const getAssetObject = (key: string) =>
     return yield* storage.getObject({ key });
   });
 
-const putAssetObject = (params: {
-  readonly key: string;
-  readonly body: ReadableStream | Uint8Array;
-  readonly contentType: string;
-}) =>
-  Effect.gen(function* () {
-    const storage = yield* AssetStorage;
-    yield* storage.putObject(params);
-  });
-
-const deleteAssetObject = (key: string) =>
-  Effect.gen(function* () {
-    const storage = yield* AssetStorage;
-    yield* storage.deleteObjects({ keys: [key] });
-  });
-
-const cleanupAssetObject = (key: string) =>
-  deleteAssetObject(key).pipe(Effect.catchAll(() => Effect.void));
-
-const updateAssetByteSize = (hash: string, byteSize: number) =>
-  Effect.gen(function* () {
-    const repo = yield* AssetRepo;
-    yield* repo.updateByteSize({ hash, byteSize });
-  });
-
-const putAssetObjectWithDigest = (params: {
-  readonly key: string;
-  readonly body: ReadableStream<Uint8Array> | null;
-  readonly contentType: string;
-}) =>
-  Effect.gen(function* () {
-    const { uploadBody, digest } = teeBodyWithSha256(params.body);
-    return yield* Effect.all(
-      [
-        putAssetObject({
-          key: params.key,
-          body: uploadBody,
-          contentType: params.contentType,
-        }),
-        Effect.tryPromise({ try: async () => digest, catch: (cause) => cause }),
-      ],
-      { concurrency: "unbounded" },
-    ).pipe(
-      Effect.map(([, digestResult]) => digestResult),
-      Effect.tapError(() => cleanupAssetObject(params.key)),
-    );
-  });
-
 const internalError = () =>
   Response.json(
     { code: "INTERNAL_SERVER_ERROR", message: "An unexpected error occurred" },
     { status: 500 },
   );
-
-const isAssetUploadAuthorized = async (
-  headers: Headers,
-  env: Env,
-  hash: string,
-): Promise<boolean> => {
-  const token = headers.get("x-better-update-upload-token")?.trim();
-  if (!token) {
-    return false;
-  }
-
-  const payload = await verifyAssetUploadToken(token, env.BETTER_AUTH_SECRET).catch(() => null);
-  return payload?.hash === hash;
-};
 
 /** Handle Better Auth routes with workarounds for dev-mode status codes and empty bodies */
 const handleAuth = async (request: Request, env: Env): Promise<Response> => {
@@ -186,49 +122,6 @@ const handleAssetDownload = async (
   return response;
 };
 
-/** Binary asset upload — outside Effect HttpApi (streams body to R2) */
-const handleAssetUpload = async (request: Request, env: Env, hash: string): Promise<Response> => {
-  if (!(await isAssetUploadAuthorized(request.headers, env, hash))) {
-    return Response.json(
-      { code: "UNAUTHORIZED", message: "Authentication required" },
-      { status: 401 },
-    );
-  }
-
-  const asset = await runServerEnvEffect(findAssetByHash(hash), env);
-  if (!asset) {
-    return Response.json({ code: "NOT_FOUND", message: "Asset not registered" }, { status: 404 });
-  }
-
-  if (asset.byteSize > 0) {
-    return Response.json({ hash, r2Key: asset.r2Key }, { status: 200 });
-  }
-
-  const { sha256Base64Url: computedHash, byteSize } = await runServerEnvEffect(
-    putAssetObjectWithDigest({
-      key: asset.r2Key,
-      body: request.body,
-      contentType: asset.contentType,
-    }),
-    env,
-  );
-
-  if (computedHash !== hash) {
-    await runServerEnvEffect(cleanupAssetObject(asset.r2Key), env);
-    return Response.json(
-      {
-        code: "BAD_REQUEST",
-        message: `Asset hash mismatch: expected ${hash}, got ${computedHash}`,
-      },
-      { status: 400 },
-    );
-  }
-
-  await runServerEnvEffect(updateAssetByteSize(hash, byteSize), env);
-
-  return Response.json({ hash, r2Key: asset.r2Key }, { status: 200 });
-};
-
 export default {
   async fetch(request, env, ctx) {
     // eslint-disable-next-line functional/no-try-statements -- imperative shell error boundary
@@ -255,12 +148,6 @@ export default {
       const assetDownloadMatch = /^\/assets\/([A-Za-z0-9_-]+)$/.exec(url.pathname);
       if (assetDownloadMatch?.[1] && request.method === "GET") {
         return await handleAssetDownload(request, env, ctx, assetDownloadMatch[1]);
-      }
-
-      // Binary asset upload — PUT /api/assets/:hash
-      const assetUploadMatch = /^\/api\/assets\/([A-Za-z0-9_-]+)$/.exec(url.pathname);
-      if (assetUploadMatch?.[1] && request.method === "PUT") {
-        return await handleAssetUpload(request, env, assetUploadMatch[1]);
       }
 
       // Build routes — artifact download + iOS install plist

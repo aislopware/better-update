@@ -214,6 +214,9 @@ export const revertUpdateRollout = (id: string) =>
 export const uploadAssets = (body: typeof AssetUploadBody.Type) =>
   runApi((api) => api.assets.upload({ payload: body }));
 
+export const finalizeAsset = (hash: string) =>
+  runApi((api) => api.assets.finalize({ path: { hash } }));
+
 // ---------------------------------------------------------------------------
 // Builds — Query options
 // ---------------------------------------------------------------------------

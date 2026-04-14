@@ -59,18 +59,8 @@ const createBuildDownloadUrl = (key: string) =>
     return yield* runtime.createDownloadUrl({ key, expiresIn: 900 });
   });
 
-const testBuildStorageUrl = (request: Request, mode: "upload" | "download", key: string) => {
-  const url = new URL(request.url);
-  url.pathname = mode === "upload" ? "/__test/build-upload" : "/__test/build-download";
-  url.search = "";
-  url.searchParams.set("key", key);
-  return url.toString();
-};
-
-const resolveBuildDownloadUrl = async (request: Request, env: Env, key: string) =>
-  env.TEST_MODE === "true"
-    ? testBuildStorageUrl(request, "download", key)
-    : runBuildRouteEffect(createBuildDownloadUrl(key), env);
+const resolveBuildDownloadUrl = async (_request: Request, env: Env, key: string) =>
+  runBuildRouteEffect(createBuildDownloadUrl(key), env);
 
 const escapeXml = (str: string) =>
   str

@@ -6,13 +6,14 @@
 BUILD_BUCKET (private R2, separate from public ASSETS_BUCKET):
   staging/                          ← presigned upload target (temporary)
     {org_id}/
-      {build_id}.{ext}             ← deleted after /complete promotes to artifacts/
-  artifacts/                        ← finalized, immutable after /complete
+      {build_id}.{ext}             ← deleted after /complete promotes to builds/
+  builds/                           ← finalized, immutable after /complete
     {org_id}/
-      {build_id}.ipa
-      {build_id}.aab
-      {build_id}.apk
-      {build_id}.tar.gz
+      {project_id}/
+        {build_id}.ipa
+        {build_id}.aab
+        {build_id}.apk
+        {build_id}.tar.gz
   credentials/
     {org_id}/
       {credential_id}
@@ -82,15 +83,15 @@ Artifacts are uploaded directly to `BUILD_BUCKET` via presigned R2 URLs, bypassi
 
 ```mermaid
 sequenceDiagram
-    CLI->>Server: POST /api/builds (metadata, no binary)
+    CLI->>Server: POST /api/builds (metadata + sha256 + byteSize, no binary)
     Note over Server: Reserve in KV (3 hour TTL), no D1 row
-    Server->>R2: Generate presigned PUT URL → staging/ prefix (2 hour expiry)
-    Server-->>CLI: { id, uploadUrl, uploadExpiresAt }
-    CLI->>R2: PUT artifact to staging/{org}/{id}.ext (up to 500 MB)
+    Server->>R2: Generate presigned single PUT URL → staging/ prefix (2 hour expiry)
+    Server-->>CLI: { id, uploadMode, uploadUrl, uploadExpiresAt, uploadHeaders }
+    CLI->>R2: PUT artifact to staging/{org}/{id}.ext with signed checksum header
     R2-->>CLI: 200 OK
     CLI->>Server: POST /api/builds/:id/complete { sha256, byteSize }
-    Server->>R2: Verify staging object exists + size matches
-    Server->>R2: Copy staging → artifacts/ (final, immutable)
+    Server->>R2: Verify staging object exists + size + checksum match
+    Server->>R2: Copy staging → builds/ (final, immutable)
     Server->>D1: Insert builds + build_artifacts rows atomically
     Note over Server: If D1 fails → delete copied final object (rollback)
     Server->>R2: Delete staging object (after D1 success)
@@ -102,13 +103,13 @@ If the `/complete` call never arrives (client crash), only an orphaned R2 stagin
 
 ## Integrity Verification
 
-| Check              | When        | How                                                                                                                          |
-| ------------------ | ----------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Upload size        | On finalize | Server verifies `byteSize` matches R2 object `size` — rejects if mismatch                                                    |
-| Content hash       | On finalize | CLI computes SHA-256 locally, sends in `/complete` request; server stores as **client-reported** in `build_artifacts.sha256` |
-| Download integrity | Client-side | Client can re-compute SHA-256 after download and compare against `build_artifacts.sha256`                                    |
+| Check              | When        | How                                                                                                                         |
+| ------------------ | ----------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Upload size        | On finalize | Server verifies `byteSize` matches R2 object `size` — rejects if mismatch                                                   |
+| Content hash       | On finalize | CLI computes SHA-256 locally, signs it into the presigned PUT contract, and server verifies the R2 object's stored checksum |
+| Download integrity | Client-side | Client can re-compute SHA-256 after download and compare against `build_artifacts.sha256`                                   |
 
-**Note**: The server does not independently verify the SHA-256 hash against the R2 object content. Streaming a 500 MB object through a Worker isolate for hashing would exceed memory/CPU limits. The `byteSize` check provides a basic tamper signal; the SHA-256 is stored for client-side verification only.
+**Note**: The Worker does not stream and hash uploaded binaries. Integrity comes from the direct-to-R2 upload contract: the client supplies SHA-256 up front, R2 stores checksum metadata for the single PUT, and `/complete` verifies that metadata. Multipart upload is intentionally not part of the current production path.
 
 ## Download
 

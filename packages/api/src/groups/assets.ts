@@ -1,9 +1,12 @@
-import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "@effect/platform";
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "@effect/platform";
+import { Schema } from "effect";
 
 import { Forbidden } from "../auth/errors";
 import { NotFound } from "../auth/ownership";
-import { AssetUploadBody, AssetUploadResult } from "../domain/asset";
+import { Asset, AssetUploadBody, AssetUploadResult } from "../domain/asset";
 import { BadRequest } from "../domain/errors";
+
+const hashParam = HttpApiSchema.param("hash", Schema.String);
 
 export class AssetsGroup extends HttpApiGroup.make("assets")
   .add(
@@ -14,6 +17,16 @@ export class AssetsGroup extends HttpApiGroup.make("assets")
         OpenApi.annotations({
           title: "Upload assets",
           description: "Upload asset files to R2 storage (deduplicated by content hash)",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.post("finalize")`/api/assets/${hashParam}/finalize`
+      .addSuccess(Asset)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Finalize asset upload",
+          description: "Verify a directly uploaded asset in R2 and mark it available for updates",
         }),
       ),
   )

@@ -102,7 +102,9 @@ Content-Type: application/json
   "message": "v1.2.0 release build",
   "gitRef": "main",
   "gitCommit": "abc123",
-  "metadata": { "xcode": "16.4", "sdk": "ios17" }
+  "metadata": { "xcode": "16.4", "sdk": "ios17" },
+  "sha256": "4f8c5e6d...",
+  "byteSize": 52428800
 }
 ```
 
@@ -111,12 +113,20 @@ Response `201 Created`:
 ```json
 {
   "id": "01JXYZ...",
+  "uploadMode": "single",
   "uploadUrl": "https://build-bucket.r2.cloudflarestorage.com/staging/org123/01JXYZ....ipa?X-Amz-...",
-  "uploadExpiresAt": "2026-04-11T13:00:00.000Z"
+  "uploadExpiresAt": "2026-04-11T13:00:00.000Z",
+  "uploadHeaders": {
+    "content-type": "application/octet-stream",
+    "x-amz-checksum-sha256": "T4xe..."
+  }
 }
 ```
 
-The `uploadUrl` is a **presigned R2 PUT URL** targeting a **staging prefix** (`staging/{org_id}/{build_id}.{ext}`), valid for **2 hours** (to accommodate the worst case: 500 MB on a 1 Mbps uplink takes ~67 minutes, plus retries). The presigned URL includes signed headers for `Content-Type` to prevent type confusion.
+The `uploadUrl` is a **presigned R2 single-PUT URL** targeting a **staging prefix** (`staging/{org_id}/{build_id}.{ext}`), valid for **2 hours**. The client must send the exact `uploadHeaders` returned by the server. These currently include:
+
+- `content-type`
+- `x-amz-checksum-sha256`
 
 **Why staging prefix**: The presigned PUT URL is reusable until expiry. Using a staging prefix means the artifact is not yet "live" — `/complete` copies it to the final `artifacts/` key and deletes the staging object. This prevents mutation of finalized artifacts.
 
@@ -125,6 +135,7 @@ The CLI uploads the artifact directly:
 ```bash
 curl -X PUT \
   -H "Content-Type: application/octet-stream" \
+  -H "x-amz-checksum-sha256: $CHECKSUM_BASE64" \
   --data-binary @MyApp.ipa "$UPLOAD_URL"
 ```
 
@@ -132,7 +143,7 @@ curl -X PUT \
 
 - Generated using R2's S3-compatible API via `@aws-sdk/s3-request-presigner` with R2 API credentials (access key ID + secret, configured as Worker secrets)
 - Target key: `staging/{org_id}/{build_id}.{ext}` (staging prefix — promoted to `artifacts/` on `/complete`)
-- Signed headers: `Content-Type`
+- Signed headers: `Content-Type`, `x-amz-checksum-sha256`
 - Expiry: 2 hours (handles worst-case 500 MB on slow connections with retry margin)
 - Reuse safety: the URL targets a staging key, so reuse before `/complete` merely overwrites the staging object; after `/complete` the staging object is deleted and the final artifact is immutable
 - If the URL expires before upload completes, the CLI must call `POST /api/builds` again to get a fresh URL and reservation (the previous KV reservation expires naturally after 3 hours; orphaned staging objects are cleaned by Cron)
@@ -157,11 +168,12 @@ Server-side:
 1. Read reservation from KV (`BUILD_RESERVATIONS`) using the build ID. Return `404` if expired or missing.
 2. Verify the R2 **staging** object exists at `staging/{org_id}/{build_id}.{ext}`
 3. Verify `byteSize` matches the R2 object size
-4. **Copy** the staging object to the final key (`artifacts/{org_id}/{build_id}.{ext}`)
-5. **Insert `builds` and `build_artifacts` rows in D1 atomically** (this is when the build record is created — see [data model](./04-data-model.md)). If the D1 insert fails, **delete the copied final object** (compensating rollback) and return `500`.
-6. **Delete** the staging object (only after D1 commit succeeds — if this delete fails, staging cleanup happens via Cron, no data loss)
-7. Delete the KV reservation (best-effort — TTL handles eventual cleanup)
-8. Return the complete build record
+4. Verify the R2 object's stored SHA-256 checksum matches the reserved checksum
+5. **Copy** the staging object to the final key (`builds/{org_id}/{project_id}/{build_id}.{ext}`)
+6. **Insert `builds` and `build_artifacts` rows in D1 atomically** (this is when the build record is created — see [data model](./04-data-model.md)). If the D1 insert fails, **delete the copied final object** (compensating rollback) and return `500`.
+7. **Delete** the staging object (only after D1 commit succeeds — if this delete fails, staging cleanup happens via Cron, no data loss)
+8. Delete the KV reservation (best-effort — TTL handles eventual cleanup)
+9. Return the complete build record
 
 Response `200 OK`: full build record (same shape as `GET /api/builds/:id`).
 
@@ -169,7 +181,7 @@ Response `409 Conflict`: if `/complete` has already been called for this build I
 
 If the CLI never calls `/complete` (crash, timeout), only an orphaned R2 staging object and an expiring KV entry remain — no dangling D1 rows. The daily Cron handler cleans up R2 objects under `staging/` older than 2 hours.
 
-**Note**: The `sha256` is stored as **client-reported** — the server does not independently verify it against the R2 object content (streaming a 500 MB object through a Worker for hashing is impractical). Clients can verify integrity on download by comparing against the stored hash.
+**Integrity model**: The CLI computes SHA-256 locally, the server signs that checksum into the presigned upload contract, and `/complete` verifies the checksum reported by R2 metadata. The Worker does **not** stream and hash the uploaded body itself.
 
 ### GET /api/builds — List Builds
 

@@ -10,7 +10,8 @@ import { CurrentActor } from "../auth/current-actor";
 import { assertProjectOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
 import { BuildRuntime } from "../cloudflare/build-runtime";
-import { cloudflareEnv, cloudflareRequest } from "../cloudflare/context";
+import { cloudflareRequest } from "../cloudflare/context";
+import { createDirectUploadHeaders } from "../cloudflare/signed-url";
 import { generateInstallToken } from "../domain/install-token";
 import { BadRequest, NotFound } from "../errors";
 import {
@@ -18,7 +19,6 @@ import {
   toApiBuild,
   toApiBuildCompatibilityMatrix,
 } from "../http/build-http";
-import { teeBodyWithSha256 } from "../lib/stream-digest";
 import { BuildRepo, CompatibilityRepo } from "../repositories";
 
 const UPLOAD_EXPIRY_SECONDS = 7200;
@@ -36,24 +36,11 @@ const formatForContentType = (format: string) =>
 
 const artifactExt = (format: string) => (format === "tar.gz" ? "tar.gz" : format);
 
-const requestOrigin = (request: Request) => new URL(request.url).origin;
+const fromHex = (hex: string): Uint8Array =>
+  new Uint8Array((hex.match(/.{2}/g) ?? []).map((byte) => Number.parseInt(byte, 16)));
 
-const testBuildStorageUrl = ({
-  origin,
-  mode,
-  key,
-}: {
-  readonly origin: string;
-  readonly mode: "upload" | "download";
-  readonly key: string;
-}) => {
-  const url = new URL(
-    mode === "upload" ? "/__test/build-upload" : "/__test/build-download",
-    origin,
-  );
-  url.searchParams.set("key", key);
-  return url.toString();
-};
+const sha256HexToBase64 = (sha256: string): string =>
+  btoa(String.fromCodePoint(...fromHex(sha256)));
 
 const ReservationSchema = Schema.Struct({
   buildId: Schema.String,
@@ -70,6 +57,9 @@ const ReservationSchema = Schema.Struct({
   gitCommit: Schema.NullOr(Schema.String),
   message: Schema.NullOr(Schema.String),
   metadata: Schema.Record({ key: Schema.String, value: Schema.Unknown }),
+  sha256: Schema.String,
+  byteSize: Schema.Number,
+  checksumSha256Base64: Schema.String,
   stagingKey: Schema.String,
   organizationId: Schema.String,
 });
@@ -82,46 +72,6 @@ const cleanupBuildObject = (key: string) =>
     yield* runtime.deleteObjects({ keys: [key] });
   }).pipe(Effect.catchAll(() => Effect.void));
 
-const streamBuildArtifactToFinalKey = (params: {
-  readonly finalKey: string;
-  readonly contentType: string;
-  readonly body: ReadableStream<Uint8Array> | null;
-  readonly expectedSha256: string;
-}) =>
-  Effect.gen(function* () {
-    const runtime = yield* BuildRuntime;
-    const { uploadBody, digest } = teeBodyWithSha256(params.body);
-    const storedArtifact = yield* Effect.all(
-      [
-        runtime.putObject({
-          key: params.finalKey,
-          body: uploadBody,
-          contentType: params.contentType,
-        }),
-        Effect.tryPromise({
-          try: async () => digest,
-          catch: (cause) =>
-            new BadRequest({
-              message: `Failed to hash staged artifact: ${String(cause)}`,
-            }),
-        }),
-      ],
-      { concurrency: "unbounded" },
-    ).pipe(
-      Effect.map(([, digestResult]) => digestResult),
-      Effect.tapError(() => cleanupBuildObject(params.finalKey)),
-    );
-
-    if (storedArtifact.sha256Hex !== params.expectedSha256.toLowerCase()) {
-      yield* cleanupBuildObject(params.finalKey);
-      return yield* new BadRequest({
-        message: `Artifact SHA-256 mismatch: expected ${params.expectedSha256}, got ${storedArtifact.sha256Hex}`,
-      });
-    }
-
-    return storedArtifact;
-  });
-
 const handleReserve = ({ payload }: { readonly payload: typeof CreateBuildBody.Type }) =>
   toApiBadRequestReadEffect(
     Effect.gen(function* () {
@@ -129,25 +79,23 @@ const handleReserve = ({ payload }: { readonly payload: typeof CreateBuildBody.T
       yield* assertProjectOwnership(payload.projectId);
 
       const runtime = yield* BuildRuntime;
-      const env = yield* cloudflareEnv;
       const ctx = yield* CurrentActor;
-      const request = yield* cloudflareRequest;
-
       const buildId = crypto.randomUUID();
       const stagingKey = `staging/${ctx.organizationId}/${buildId}.${artifactExt(payload.artifactFormat)}`;
-      const uploadUrl =
-        env.TEST_MODE === "true"
-          ? testBuildStorageUrl({
-              origin: requestOrigin(request),
-              mode: "upload",
-              key: stagingKey,
-            })
-          : yield* runtime.createUploadUrl({
-              key: stagingKey,
-              expiresIn: UPLOAD_EXPIRY_SECONDS,
-            });
+      const contentType = formatForContentType(payload.artifactFormat);
+      const checksumSha256Base64 = sha256HexToBase64(payload.sha256);
+      const uploadUrl = yield* runtime.createUploadUrl({
+        key: stagingKey,
+        expiresIn: UPLOAD_EXPIRY_SECONDS,
+        contentType,
+        checksumSha256Base64,
+      });
 
       const uploadExpiresAt = new Date(Date.now() + UPLOAD_EXPIRY_SECONDS * 1000).toISOString();
+      const uploadHeaders = createDirectUploadHeaders({
+        checksumSha256Base64,
+        contentType,
+      });
 
       const reservation = {
         buildId,
@@ -164,6 +112,9 @@ const handleReserve = ({ payload }: { readonly payload: typeof CreateBuildBody.T
         gitCommit: payload.gitCommit ?? null,
         message: payload.message ?? null,
         metadata: payload.metadata ?? {},
+        sha256: payload.sha256.toLowerCase(),
+        byteSize: payload.byteSize,
+        checksumSha256Base64,
         stagingKey,
         organizationId: ctx.organizationId,
       };
@@ -181,7 +132,13 @@ const handleReserve = ({ payload }: { readonly payload: typeof CreateBuildBody.T
         metadata: { platform: payload.platform, projectId: payload.projectId },
       });
 
-      return { id: buildId, uploadUrl, uploadExpiresAt };
+      return {
+        id: buildId,
+        uploadMode: "single" as const,
+        uploadUrl,
+        uploadExpiresAt,
+        uploadHeaders,
+      };
     }),
   );
 
@@ -209,25 +166,50 @@ const handleComplete = ({
 
       yield* assertProjectOwnership(reservation.projectId);
 
-      const stagingObject = yield* runtime.getObject({ key: reservation.stagingKey });
+      if (
+        payload.sha256.toLowerCase() !== reservation.sha256 ||
+        payload.byteSize !== reservation.byteSize
+      ) {
+        return yield* Effect.fail(
+          new BadRequest({
+            message: "Build completion payload does not match the reserved artifact metadata",
+          }),
+        );
+      }
+
+      const stagingObject = yield* runtime.headObject({ key: reservation.stagingKey });
       if (!stagingObject) {
         return yield* Effect.fail(new NotFound({ message: "Artifact not uploaded to staging" }));
       }
 
-      if (stagingObject.size !== payload.byteSize) {
+      if (stagingObject.size !== reservation.byteSize) {
         return yield* Effect.fail(
           new BadRequest({
-            message: `Artifact size mismatch: expected ${payload.byteSize}, got ${stagingObject.size}`,
+            message: `Artifact size mismatch: expected ${reservation.byteSize}, got ${stagingObject.size}`,
+          }),
+        );
+      }
+
+      if (stagingObject.checksumSha256Base64 === null) {
+        return yield* Effect.fail(
+          new BadRequest({
+            message: "Uploaded artifact is missing an R2 SHA-256 checksum",
+          }),
+        );
+      }
+
+      if (stagingObject.checksumSha256Base64 !== reservation.checksumSha256Base64) {
+        return yield* Effect.fail(
+          new BadRequest({
+            message: `Artifact SHA-256 mismatch for build ${path.id}`,
           }),
         );
       }
 
       const finalKey = `builds/${reservation.organizationId}/${reservation.projectId}/${path.id}.${artifactExt(reservation.artifactFormat)}`;
-      const storedArtifact = yield* streamBuildArtifactToFinalKey({
-        finalKey,
-        contentType: formatForContentType(reservation.artifactFormat),
-        body: stagingObject.body,
-        expectedSha256: payload.sha256,
+      yield* runtime.copyObject({
+        sourceKey: reservation.stagingKey,
+        destinationKey: finalKey,
       });
 
       const repo = yield* BuildRepo;
@@ -250,8 +232,8 @@ const handleComplete = ({
             r2Key: finalKey,
             format: reservation.artifactFormat,
             contentType: formatForContentType(reservation.artifactFormat),
-            byteSize: storedArtifact.byteSize,
-            sha256: storedArtifact.sha256Hex,
+            byteSize: stagingObject.size,
+            sha256: reservation.sha256,
           },
         })
         .pipe(Effect.tapError(() => cleanupBuildObject(finalKey)));
@@ -347,9 +329,10 @@ const handleGetInstallLink = ({ path }: { readonly path: { readonly id: string }
         );
       }
 
-      const { token, expires } = yield* Effect.promise(async () =>
-        generateInstallToken(path.id, installTokenSecret),
-      );
+      const { token, expires } = yield* Effect.tryPromise({
+        try: async () => generateInstallToken(path.id, installTokenSecret),
+        catch: () => new BadRequest({ message: "Failed to generate install token" }),
+      });
 
       const request = yield* cloudflareRequest;
       const { origin } = new URL(request.url);
