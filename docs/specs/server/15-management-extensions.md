@@ -177,13 +177,12 @@ Returns `{ deleted: number }` indicating how many update rows were removed.
 
 ### Deletion Scope
 
-| Table           | Action                                                                                       |
-| --------------- | -------------------------------------------------------------------------------------------- |
-| `update_assets` | DELETE WHERE `update_id` IN (updates being deleted)                                          |
-| `updates`       | DELETE WHERE `group_id = :groupId`                                                           |
-| `assets`        | **No change** -- other updates may reference these assets                                    |
-| R2 objects      | **No change** -- orphaned R2 cleanup is a separate process                                   |
-| `patches`       | **Cascade delete** — see [Bundle Diffing](./19-bundle-diffing.md#cascade-on-update-deletion) |
+| Table           | Action                                                     |
+| --------------- | ---------------------------------------------------------- |
+| `update_assets` | DELETE WHERE `update_id` IN (updates being deleted)        |
+| `updates`       | DELETE WHERE `group_id = :groupId`                         |
+| `assets`        | **No change** -- other updates may reference these assets  |
+| R2 objects      | **No change** -- orphaned R2 cleanup is a separate process |
 
 Both deletes execute within a single D1 transaction to maintain referential integrity.
 

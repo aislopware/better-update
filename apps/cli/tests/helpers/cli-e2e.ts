@@ -2,6 +2,7 @@ import { execSync, spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { setTimeout as sleep } from "node:timers/promises";
 
 const CLI_DIR = path.resolve(import.meta.dirname, "../..");
 const SERVER_DIR = path.resolve(import.meta.dirname, "../../../server");
@@ -56,6 +57,11 @@ const parseCookies = (response: Response): string => {
 
 const sqlString = (value: string) => `'${value.replaceAll("'", "''")}'`;
 
+const isRetryableFetchError = (error: unknown) =>
+  error instanceof Error &&
+  typeof (error as NodeJS.ErrnoException).code === "string" &&
+  ["ECONNRESET", "EPIPE", "UND_ERR_SOCKET"].includes((error as NodeJS.ErrnoException).code!);
+
 export interface CliCommandResult {
   readonly stdout: string;
   readonly stderr: string;
@@ -68,6 +74,7 @@ export interface CliE2EContext {
   readonly getProjectId: () => string;
   readonly readAppJson: () => Record<string, unknown>;
   readonly runCli: (...args: readonly string[]) => CliCommandResult;
+  readonly seedSql: (sql: string) => void;
   readonly post: (
     path: string,
     body: unknown,
@@ -75,6 +82,21 @@ export interface CliE2EContext {
   ) => Promise<Response>;
   readonly get: (path: string, headers?: Record<string, string>) => Promise<Response>;
   readonly getAuthorized: (path: string, headers?: Record<string, string>) => Promise<Response>;
+  readonly postAuthorized: (
+    path: string,
+    body: unknown,
+    headers?: Record<string, string>,
+  ) => Promise<Response>;
+  readonly patchAuthorized: (
+    path: string,
+    body: unknown,
+    headers?: Record<string, string>,
+  ) => Promise<Response>;
+  readonly deleteAuthorized: (
+    path: string,
+    body: unknown,
+    headers?: Record<string, string>,
+  ) => Promise<Response>;
 }
 
 export const setupCliE2E = (persistDir: string): CliE2EContext => {
@@ -99,14 +121,34 @@ export const setupCliE2E = (persistDir: string): CliE2EContext => {
   const seedFile = path.resolve(SERVER_DIR, ".wrangler/seed-cli-e2e.sql");
 
   const post = async (requestPath: string, body: unknown, headers?: Record<string, string>) =>
-    fetch(`${state.baseUrl}${requestPath}`, {
-      method: "POST",
-      headers: { "content-type": "application/json", ...headers },
-      body: JSON.stringify(body),
-    });
+    requestWithRetry(() =>
+      fetch(`${state.baseUrl}${requestPath}`, {
+        method: "POST",
+        headers: { "content-type": "application/json", ...headers },
+        body: JSON.stringify(body),
+      }),
+    );
 
   const get = async (requestPath: string, headers?: Record<string, string>) =>
-    fetch(`${state.baseUrl}${requestPath}`, headers ? { headers } : {});
+    requestWithRetry(() => fetch(`${state.baseUrl}${requestPath}`, headers ? { headers } : {}));
+
+  const patch = async (requestPath: string, body: unknown, headers?: Record<string, string>) =>
+    requestWithRetry(() =>
+      fetch(`${state.baseUrl}${requestPath}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json", ...headers },
+        body: JSON.stringify(body),
+      }),
+    );
+
+  const del = async (requestPath: string, body: unknown, headers?: Record<string, string>) =>
+    requestWithRetry(() =>
+      fetch(`${state.baseUrl}${requestPath}`, {
+        method: "DELETE",
+        headers: { "content-type": "application/json", ...headers },
+        body: JSON.stringify(body),
+      }),
+    );
 
   const seedSql = (sql: string) => {
     writeFileSync(seedFile, sql);
@@ -121,6 +163,24 @@ export const setupCliE2E = (persistDir: string): CliE2EContext => {
     } finally {
       rmSync(seedFile, { force: true });
     }
+  };
+
+  const requestWithRetry = async (run: () => Promise<Response>): Promise<Response> => {
+    const maxAttempts = 4;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      try {
+        return await run();
+      } catch (error) {
+        if (!isRetryableFetchError(error) || attempt === maxAttempts) {
+          throw error;
+        }
+
+        await sleep(attempt * 100);
+      }
+    }
+
+    throw new Error("requestWithRetry exhausted unexpectedly");
   };
 
   const writeAppJson = () => {
@@ -321,9 +381,16 @@ VALUES (
         unknown
       >,
     runCli,
+    seedSql,
     post,
     get,
     getAuthorized: (requestPath, headers) =>
       get(requestPath, { authorization: `Bearer ${state.apiKey}`, ...headers }),
+    postAuthorized: (requestPath, body, headers) =>
+      post(requestPath, body, { authorization: `Bearer ${state.apiKey}`, ...headers }),
+    patchAuthorized: (requestPath, body, headers) =>
+      patch(requestPath, body, { authorization: `Bearer ${state.apiKey}`, ...headers }),
+    deleteAuthorized: (requestPath, body, headers) =>
+      del(requestPath, body, { authorization: `Bearer ${state.apiKey}`, ...headers }),
   };
 };

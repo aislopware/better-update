@@ -56,7 +56,7 @@ const mockProjectRepo = (orgId: string | null) =>
         ? Effect.fail(new NotFound({ message: "Project not found" }))
         : Effect.succeed(orgId),
     updateName: () => Effect.void,
-    delete: () => Effect.succeed({ patchR2Keys: [] }),
+    delete: () => Effect.void,
   });
 
 describe(assertProjectOwnership, () => {

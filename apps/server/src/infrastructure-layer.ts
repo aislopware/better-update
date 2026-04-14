@@ -15,7 +15,6 @@ import {
   CompatibilityRepoLive,
   CredentialRepoLive,
   EnvVarRepoLive,
-  PatchRepoLive,
   ProjectRepoLive,
   UpdateRepoLive,
 } from "./repositories";
@@ -35,7 +34,6 @@ import type {
   CompatibilityRepo,
   CredentialRepo,
   EnvVarRepo,
-  PatchRepo,
   ProjectRepo,
   UpdateRepo,
 } from "./repositories";
@@ -53,7 +51,6 @@ export type ServerInfrastructure =
   | CompatibilityRepo
   | CredentialRepo
   | EnvVarRepo
-  | PatchRepo
   | ProjectRepo
   | UpdateCoordinator
   | UpdateRepo
@@ -69,7 +66,6 @@ export const RepositoryLayer = Layer.mergeAll(
   CompatibilityRepoLive,
   CredentialRepoLive,
   EnvVarRepoLive,
-  PatchRepoLive,
   ProjectRepoLive,
   UpdateRepoLive,
 );

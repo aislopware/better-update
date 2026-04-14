@@ -1125,20 +1125,20 @@ type UseUpdatesReturnType = {
 
 ### app.json Properties
 
-| Property                              | Type                     | Default     | Description                                                                                                                                  |
-| ------------------------------------- | ------------------------ | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `updates.enabled`                     | `boolean`                | `true`      | Enable/disable OTA updates                                                                                                                   |
-| `updates.url`                         | `string`                 | required    | Update server URL                                                                                                                            |
-| `updates.requestHeaders`              | `Record<string, string>` | none        | Extra headers sent with manifest and asset requests                                                                                          |
-| `updates.checkAutomatically`          | `string`                 | `"ON_LOAD"` | When to check (`ON_LOAD`, `ON_ERROR_RECOVERY`, `WIFI_ONLY`, `NEVER`)                                                                         |
-| `updates.fallbackToCacheTimeout`      | `number`                 | `0`         | Max ms to wait for update before launching cached (0 = no wait)                                                                              |
-| `updates.useEmbeddedUpdate`           | `boolean`                | `true`      | Whether the build includes an embedded update                                                                                                |
-| `updates.codeSigningCertificate`      | `string`                 | none        | Path to PEM certificate file                                                                                                                 |
-| `updates.codeSigningMetadata`         | `object`                 | none        | `{ keyid, alg }` for code signing                                                                                                            |
-| `updates.assetPatternsToBeBundled`    | `string[]`               | none        | Glob patterns for OTA-bundled assets                                                                                                         |
-| `updates.disableAntiBrickingMeasures` | `boolean`                | `false`     | Disable error recovery protections                                                                                                           |
-| `updates.enableBsdiffPatchSupport`    | `boolean`                | `false`     | Enable binary diff patching for assets. **Note:** Requires EAS-hosted infrastructure; no public protocol spec exists for self-hosted servers |
-| `runtimeVersion`                      | `string \| { policy }`   | required    | Runtime version or policy                                                                                                                    |
+| Property                              | Type                     | Default     | Description                                                                                                                              |
+| ------------------------------------- | ------------------------ | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `updates.enabled`                     | `boolean`                | `true`      | Enable/disable OTA updates                                                                                                               |
+| `updates.url`                         | `string`                 | required    | Update server URL                                                                                                                        |
+| `updates.requestHeaders`              | `Record<string, string>` | none        | Extra headers sent with manifest and asset requests                                                                                      |
+| `updates.checkAutomatically`          | `string`                 | `"ON_LOAD"` | When to check (`ON_LOAD`, `ON_ERROR_RECOVERY`, `WIFI_ONLY`, `NEVER`)                                                                     |
+| `updates.fallbackToCacheTimeout`      | `number`                 | `0`         | Max ms to wait for update before launching cached (0 = no wait)                                                                          |
+| `updates.useEmbeddedUpdate`           | `boolean`                | `true`      | Whether the build includes an embedded update                                                                                            |
+| `updates.codeSigningCertificate`      | `string`                 | none        | Path to PEM certificate file                                                                                                             |
+| `updates.codeSigningMetadata`         | `object`                 | none        | `{ keyid, alg }` for code signing                                                                                                        |
+| `updates.assetPatternsToBeBundled`    | `string[]`               | none        | Glob patterns for OTA-bundled assets                                                                                                     |
+| `updates.disableAntiBrickingMeasures` | `boolean`                | `false`     | Disable error recovery protections                                                                                                       |
+| `updates.enableBsdiffPatchSupport`    | `boolean`                | `false`     | Client hint for EAS-hosted binary diff patching. The self-hosted `better-update` server ignores this flag and always serves full assets. |
+| `runtimeVersion`                      | `string \| { policy }`   | required    | Runtime version or policy                                                                                                                |
 
 ### iOS (Expo.plist)
 
@@ -1154,7 +1154,7 @@ type UseUpdatesReturnType = {
 | `EXUpdatesCodeSigningCertificate`      | `String`     | `updates.codeSigningCertificate` (XML-escaped PEM)                                           |
 | `EXUpdatesCodeSigningMetadata`         | `Dictionary` | `updates.codeSigningMetadata`                                                                |
 | `EXUpdatesDisableAntiBrickingMeasures` | `Boolean`    | `updates.disableAntiBrickingMeasures`                                                        |
-| `EXUpdatesEnableBsdiffPatchSupport`    | `Boolean`    | `updates.enableBsdiffPatchSupport`                                                           |
+| `EXUpdatesEnableBsdiffPatchSupport`    | `Boolean`    | `updates.enableBsdiffPatchSupport` (ignored by self-hosted `better-update`)                  |
 
 ### Android (AndroidManifest.xml)
 
@@ -1170,7 +1170,7 @@ type UseUpdatesReturnType = {
 | `expo.modules.updates.CODE_SIGNING_CERTIFICATE`                  | `string`  | `updates.codeSigningCertificate` (XML-escaped PEM)                                           |
 | `expo.modules.updates.CODE_SIGNING_METADATA`                     | `string`  | `updates.codeSigningMetadata` (JSON string)                                                  |
 | `expo.modules.updates.DISABLE_ANTI_BRICKING_MEASURES`            | `boolean` | `updates.disableAntiBrickingMeasures`                                                        |
-| `expo.modules.updates.ENABLE_BSDIFF_PATCH_SUPPORT`               | `boolean` | `updates.enableBsdiffPatchSupport`                                                           |
+| `expo.modules.updates.ENABLE_BSDIFF_PATCH_SUPPORT`               | `boolean` | `updates.enableBsdiffPatchSupport` (ignored by self-hosted `better-update`)                  |
 
 ---
 

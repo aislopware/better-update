@@ -24,6 +24,6 @@ Implementation spec for `better-update` — a self-hosted EAS Update server on C
 16. [Cross-Channel Republish](./16-cross-channel-republish.md) — Promote updates across channels/branches
 17. [Per-Update Rollouts](./17-per-update-rollouts.md) — Percentage-based rollout per individual update
 18. [Deployment Analytics](./18-deployment-analytics.md) — WAE-based adoption tracking & dashboard metrics
-19. [Bundle Diffing](./19-bundle-diffing.md) — Delta updates via bsdiff, R2 patch storage
+19. [Delta Patch Flags](./19-bundle-diffing.md) — Self-hosted server ignores bsdiff patch hints
 20. [Extra Params](./20-extra-params.md) — Custom client targeting headers & analytics integration
 21. [Authentication](./21-authentication.md) — Better Auth integration, multi-org, RBAC, API keys

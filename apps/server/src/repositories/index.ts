@@ -8,6 +8,5 @@ export { CompatibilityRepo, CompatibilityRepoLive } from "./compatibility";
 export { CredentialRepo, CredentialRepoLive } from "./credentials";
 export { EnvVarRepo, EnvVarRepoLive } from "./env-vars";
 export { ManifestRepo, ManifestRepoLive } from "./manifest";
-export { PatchRepo, PatchRepoLive } from "./patches";
 export { ProjectRepo, ProjectRepoLive } from "./projects";
 export { UpdateRepo, UpdateRepoLive } from "./updates";

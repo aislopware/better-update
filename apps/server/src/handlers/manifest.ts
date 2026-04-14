@@ -14,7 +14,6 @@ import { buildCacheKey, matchCachedResponse, storeCachedResponse } from "./manif
 import { respond, responseTypeFor } from "./manifest-helpers";
 
 import type { ProtocolHeaders } from "../protocol/headers";
-import type { PatchedAssetInfo } from "../protocol/manifest-builder";
 import type { Part } from "../protocol/multipart";
 import type { AssetRow, ChannelRow, UpdateRow } from "../repositories/manifest";
 import type { TrackManifestResponse } from "./manifest-helpers";
@@ -66,15 +65,6 @@ const extensionsPart: Part = {
   body: JSON.stringify(buildExtensions()),
 };
 
-const buildExtensionsPart = (patchedAsset?: PatchedAssetInfo): Part =>
-  patchedAsset
-    ? {
-        name: "extensions",
-        contentType: "application/json",
-        body: JSON.stringify(buildExtensions({ patchedAsset })),
-      }
-    : extensionsPart;
-
 const signatureFor = (ph: ProtocolHeaders, update: UpdateRow) =>
   ph.expectSignature ? (update.signature ?? undefined) : undefined;
 const certChainParts = (ph: ProtocolHeaders, update: UpdateRow): readonly Part[] =>
@@ -93,12 +83,7 @@ const parseJson = (raw: string): Record<string, unknown> => {
   return isRecord(parsed) ? parsed : {};
 };
 
-const buildDirectiveResponse = (
-  update: UpdateRow,
-  ph: ProtocolHeaders,
-  boundary: string,
-  patchedAsset?: PatchedAssetInfo,
-) => {
+const buildDirectiveResponse = (update: UpdateRow, ph: ProtocolHeaders, boundary: string) => {
   const directiveJson = update.directive_body
     ? parseJson(update.directive_body)
     : buildDirective({
@@ -114,7 +99,7 @@ const buildDirectiveResponse = (
   return multipartResponse(boundary, [
     signedPart("directive", JSON.stringify(directiveJson), signatureFor(ph, update)),
     ...certChainParts(ph, update),
-    buildExtensionsPart(patchedAsset),
+    extensionsPart,
   ]);
 };
 
@@ -126,10 +111,8 @@ const buildManifestFromData = (params: {
   readonly ph: ProtocolHeaders;
   readonly boundary: string;
   readonly useMultipart: boolean;
-  readonly patchedAsset: PatchedAssetInfo | undefined;
 }) => {
-  const { update, assetRows, scopeKey, assetBaseUrl, ph, boundary, useMultipart, patchedAsset } =
-    params;
+  const { update, assetRows, scopeKey, assetBaseUrl, ph, boundary, useMultipart } = params;
   const manifestStr = JSON.stringify(
     buildManifest({
       update: {
@@ -159,7 +142,7 @@ const buildManifestFromData = (params: {
   return multipartResponse(boundary, [
     signedPart("manifest", manifestStr, sig),
     ...certChainParts(ph, update),
-    buildExtensionsPart(patchedAsset),
+    extensionsPart,
   ]);
 };
 
@@ -204,10 +187,9 @@ const buildUpdateResponse = (params: {
   readonly update: UpdateRow;
   readonly scopeKey: string;
   readonly ph: ProtocolHeaders;
-  readonly patchedAsset: PatchedAssetInfo | undefined;
 }): Effect.Effect<Response, never, ManifestRepo> =>
   Effect.gen(function* () {
-    const { update, scopeKey, ph, patchedAsset } = params;
+    const { update, scopeKey, ph } = params;
     const runtime = yield* manifestRuntime;
     const boundary = crypto.randomUUID();
     const useMultipart = supportsMultipart(ph.accept ?? "*/*");
@@ -216,7 +198,7 @@ const buildUpdateResponse = (params: {
       if (!useMultipart) {
         return jsonError(406, "NOT_ACCEPTABLE", "Directive requires multipart/mixed");
       }
-      return buildDirectiveResponse(update, ph, boundary, patchedAsset);
+      return buildDirectiveResponse(update, ph, boundary);
     }
 
     if (update.manifest_body !== null) {
@@ -227,7 +209,7 @@ const buildUpdateResponse = (params: {
       return multipartResponse(boundary, [
         signedPart("manifest", update.manifest_body, sig),
         ...certChainParts(ph, update),
-        buildExtensionsPart(patchedAsset),
+        extensionsPart,
       ]);
     }
 
@@ -241,7 +223,6 @@ const buildUpdateResponse = (params: {
       ph,
       boundary,
       useMultipart,
-      patchedAsset,
     });
   });
 const isCacheable = (candidates: readonly UpdateRow[]) =>
@@ -285,7 +266,7 @@ const handleCacheMiss = (params: {
       return trackNoUpdate(resolvedBranchId, track);
     }
 
-    const response = yield* buildUpdateResponse({ update, scopeKey, ph, patchedAsset: undefined });
+    const response = yield* buildUpdateResponse({ update, scopeKey, ph });
     const responseType = responseTypeFor(update);
     track(resolvedBranchId, update.id, responseType);
 
@@ -293,85 +274,6 @@ const handleCacheMiss = (params: {
       yield* storeCachedResponse(cacheKey, response, { updateId: update.id, responseType });
     }
 
-    return response;
-  });
-
-const resolvePatchInfo = (params: {
-  readonly update: UpdateRow;
-  readonly currentUpdateId: string;
-}): Effect.Effect<PatchedAssetInfo | undefined, never, ManifestRepo> =>
-  Effect.gen(function* () {
-    const { update, currentUpdateId } = params;
-    if (update.id === currentUpdateId || update.is_rollback === 1) {
-      return undefined;
-    }
-    const repo = yield* ManifestRepo;
-    const runtime = yield* manifestRuntime;
-    const oldHash = yield* repo.findUpdateLaunchAssetHash({ updateId: currentUpdateId });
-    if (!oldHash) {
-      return undefined;
-    }
-    const newAssets = yield* repo.findUpdateAssets({ updateId: update.id });
-    const newLaunch = newAssets.find((asset) => asset.is_launch === 1);
-    if (!newLaunch || oldHash === newLaunch.hash) {
-      return undefined;
-    }
-    const patch = yield* repo.findPatchForAssets({ oldHash, newHash: newLaunch.hash });
-    if (!patch) {
-      return undefined;
-    }
-    return {
-      patchUrl: `${runtime.assetBaseUrl}/patches/${oldHash}/${newLaunch.hash}.patch`,
-      patchSize: patch.byteSize,
-      baseHash: oldHash,
-    };
-  });
-
-const handlePatchAwareRequest = (params: {
-  readonly projectId: string;
-  readonly resolvedBranchId: string;
-  readonly ph: ProtocolHeaders & { currentUpdateId: string };
-  readonly track: TrackManifestResponse;
-}): Effect.Effect<Response, NotFound, ManifestRepo> =>
-  Effect.gen(function* () {
-    const { projectId, resolvedBranchId, ph, track } = params;
-    const repo = yield* ManifestRepo;
-
-    const [scopeKey, candidates] = yield* Effect.all(
-      [
-        repo.findProjectScopeKey({ projectId }),
-        repo.resolveUpdates({
-          branchId: resolvedBranchId,
-          platform: ph.platform,
-          runtimeVersion: ph.runtimeVersion,
-        }),
-      ],
-      { concurrency: 2 },
-    );
-
-    if (candidates.length === 0) {
-      return trackNoUpdate(resolvedBranchId, track);
-    }
-
-    const update = yield* resolveRolledOutUpdate({
-      candidates,
-      easClientId: ph.easClientId,
-      branchId: resolvedBranchId,
-      platform: ph.platform,
-      runtimeVersion: ph.runtimeVersion,
-    });
-    if (update === null) {
-      return trackNoUpdate(resolvedBranchId, track);
-    }
-
-    const patchedAsset = yield* resolvePatchInfo({
-      update,
-      currentUpdateId: ph.currentUpdateId,
-    });
-
-    const response = yield* buildUpdateResponse({ update, scopeKey, ph, patchedAsset });
-    const responseType = responseTypeFor(update);
-    track(resolvedBranchId, update.id, responseType);
     return response;
   });
 
@@ -412,21 +314,14 @@ const resolveRequestResponse = (params: {
   readonly track: TrackManifestResponse;
 }): Effect.Effect<Response, NotFound, ManifestRepo> => {
   const { channel, projectId, resolvedBranchId, accept, ph, track } = params;
-  return ph.currentUpdateId
-    ? handlePatchAwareRequest({
-        projectId,
-        resolvedBranchId,
-        ph: { ...ph, currentUpdateId: ph.currentUpdateId },
-        track,
-      })
-    : serveCachedOrFresh({
-        cacheVersion: channel.cache_version,
-        projectId,
-        resolvedBranchId,
-        accept,
-        ph,
-        track,
-      });
+  return serveCachedOrFresh({
+    cacheVersion: channel.cache_version,
+    projectId,
+    resolvedBranchId,
+    accept,
+    ph,
+    track,
+  });
 };
 
 const serveRequest = (

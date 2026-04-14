@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect } from "effect";
 
 import {
   ensureBranchChannel,
@@ -7,7 +7,6 @@ import {
 } from "../application/publish-coordination";
 import { provideCloudflareEnv } from "../cloudflare/context";
 import { ServerInfrastructureLayer } from "../infrastructure-layer";
-import { settlePromise } from "./effect-interop";
 import { SerializedCoordinator } from "./serialized-coordinator";
 
 import type { ServerInfrastructure } from "../infrastructure-layer";
@@ -46,43 +45,6 @@ const runCoordinatorEffect = async <Success>(
     ),
   );
 
-const enqueuePatchJobSafely = async (
-  env: Env,
-  params: { readonly previousLaunchHash: string; readonly nextLaunchHash: string },
-): Promise<void> => {
-  const result = await settlePromise(
-    env.PATCH_QUEUE.send({
-      oldHash: params.previousLaunchHash,
-      newHash: params.nextLaunchHash,
-    }),
-  );
-
-  if (Either.isLeft(result)) {
-    console.error("[patch-queue] failed to enqueue patch job", result.left);
-  }
-};
-
-const schedulePatchGeneration = (
-  ctx: DurableObjectState,
-  env: Env,
-  params: { readonly previousLaunchHash: string | null; readonly nextLaunchHash: string | null },
-): void => {
-  if (
-    params.previousLaunchHash === null ||
-    params.nextLaunchHash === null ||
-    params.previousLaunchHash === params.nextLaunchHash
-  ) {
-    return;
-  }
-
-  ctx.waitUntil(
-    enqueuePatchJobSafely(env, {
-      previousLaunchHash: params.previousLaunchHash,
-      nextLaunchHash: params.nextLaunchHash,
-    }),
-  );
-};
-
 export class CreateBranchCoordinator extends SerializedCoordinator {
   async ensureBranchChannel(params: {
     readonly projectId: string;
@@ -96,25 +58,18 @@ export class CreateBranchCoordinator extends SerializedCoordinator {
 
 export class PublishCoordinator extends SerializedCoordinator {
   async createUpdate(params: CreateUpdateRequest): Promise<CoordinatorResult<SerializedUpdate>> {
-    const { ctx, env } = this;
-
     return this.runExclusive(async () => {
       const result = await runCoordinatorEffect(
         publishUpdate({
           ...params,
           conflictMessage: CREATE_ROLLOUT_CONFLICT_MESSAGE,
         }),
-        env,
+        this.env,
       );
 
       if (!result.ok) {
         return result;
       }
-
-      schedulePatchGeneration(ctx, env, {
-        previousLaunchHash: result.value.previousLaunchHash,
-        nextLaunchHash: result.value.nextLaunchHash,
-      });
 
       return { ok: true as const, value: result.value.update };
     });
@@ -123,25 +78,18 @@ export class PublishCoordinator extends SerializedCoordinator {
   async republishUpdate(
     params: RepublishUpdateRequest,
   ): Promise<CoordinatorResult<SerializedUpdate>> {
-    const { ctx, env } = this;
-
     return this.runExclusive(async () => {
       const result = await runCoordinatorEffect(
         republishUpdate({
           ...params,
           conflictMessage: REPUBLISH_ROLLOUT_CONFLICT_MESSAGE,
         }),
-        env,
+        this.env,
       );
 
       if (!result.ok) {
         return result;
       }
-
-      schedulePatchGeneration(ctx, env, {
-        previousLaunchHash: result.value.previousLaunchHash,
-        nextLaunchHash: result.value.nextLaunchHash,
-      });
 
       return { ok: true as const, value: result.value.update };
     });

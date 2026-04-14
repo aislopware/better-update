@@ -59,25 +59,6 @@ export const buildDirective = (params: { readonly update: UpdateData }): object 
   },
 });
 
-export interface PatchedAssetInfo {
-  readonly patchUrl: string;
-  readonly patchSize: number;
-  readonly baseHash: string;
-}
-
-export const buildExtensions = (options?: {
-  readonly patchedAsset?: PatchedAssetInfo;
-}): object => ({
+export const buildExtensions = (): object => ({
   assetRequestHeaders: {},
-  ...(options?.patchedAsset
-    ? {
-        patchedAssets: [
-          {
-            url: options.patchedAsset.patchUrl,
-            size: options.patchedAsset.patchSize,
-            baseHash: options.patchedAsset.baseHash,
-          },
-        ],
-      }
-    : {}),
 });

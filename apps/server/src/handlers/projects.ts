@@ -6,17 +6,9 @@ import { logAudit } from "../audit/logger";
 import { CurrentActor } from "../auth/current-actor";
 import { assertOrgOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
-import { AssetStorage } from "../cloudflare/asset-storage";
 import { toApiProject } from "../http/to-api";
 import { toApiCrudEffect } from "../http/to-api-effect";
 import { ProjectRepo } from "../repositories/projects";
-
-const R2_BATCH_SIZE = 1000;
-
-const chunkArray = <T>(array: readonly T[], size: number): T[][] =>
-  Array.from({ length: Math.ceil(array.length / size) }, (_, idx) =>
-    array.slice(idx * size, idx * size + size),
-  );
 
 export const ProjectsGroupLive = HttpApiBuilder.group(ManagementApi, "projects", (handlers) =>
   handlers
@@ -108,24 +100,7 @@ export const ProjectsGroupLive = HttpApiBuilder.group(ManagementApi, "projects",
           const projectRepo = yield* ProjectRepo;
           const project = yield* projectRepo.findById({ id: path.id });
           yield* assertOrgOwnership(project.organizationId);
-
-          const { patchR2Keys } = yield* projectRepo.delete({ id: path.id });
-
-          // Clean up patch R2 blobs in batches (R2 API limit: 1000 keys per call)
-          if (patchR2Keys.length > 0) {
-            const storage = yield* AssetStorage;
-            yield* Effect.forEach(
-              chunkArray(patchR2Keys, R2_BATCH_SIZE),
-              (batch) =>
-                Effect.catchAll(storage.deleteObjects({ keys: batch }), (error) =>
-                  Effect.logWarning("Failed to delete patch R2 blobs", {
-                    error,
-                    count: batch.length,
-                  }),
-                ),
-              { concurrency: 1 },
-            );
-          }
+          yield* projectRepo.delete({ id: path.id });
 
           yield* logAudit({
             action: "project.delete",

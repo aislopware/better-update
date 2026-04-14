@@ -1,6 +1,17 @@
+import { writeFileSync } from "node:fs";
+import path from "node:path";
+
 import { setupCliE2E } from "../helpers/cli-e2e";
 
 const cli = setupCliE2E(".wrangler/state/e2e-cli");
+
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const sqlString = (value: string) => `'${value.replaceAll("'", "''")}'`;
+
+const cliState = {
+  rollbackGroupId: "",
+  rollbackUpdateId: "",
+};
 
 describe("CLI command journey", () => {
   it("links the current Expo app to the existing project", () => {
@@ -53,6 +64,70 @@ describe("CLI command journey", () => {
     expect(result.stdout).toContain("••••••");
   });
 
+  it("imports, exports, pulls, sets, and deletes environment variables", () => {
+    const envFile = path.join(cli.getProjectDir(), ".env.preview");
+    writeFileSync(envFile, "EXPO_PUBLIC_API_URL=https://preview.example.com\nFEATURE_FLAG=true\n");
+
+    const importResult = cli.runCli("env", "import", envFile, "--environment", "preview");
+    expect(importResult.exitCode).toBe(0);
+    expect(importResult.stderr).toBe("");
+    expect(importResult.stdout).toContain("Imported: 2 created, 0 updated, 0 skipped");
+
+    const exportResult = cli.runCli("env", "export", "--environment", "preview");
+    expect(exportResult.exitCode).toBe(0);
+    expect(exportResult.stderr).toBe("");
+    expect(exportResult.stdout).toContain("EXPO_PUBLIC_API_URL='https://preview.example.com'");
+    expect(exportResult.stdout).toContain("FEATURE_FLAG='true'");
+
+    const pullResult = cli.runCli("env", "pull", "--environment", "preview");
+    expect(pullResult.exitCode).toBe(0);
+    expect(pullResult.stderr).toBe("");
+    expect(pullResult.stdout).toContain("export EXPO_PUBLIC_API_URL='https://preview.example.com'");
+
+    const createResult = cli.runCli(
+      "env",
+      "set",
+      "APP_PUBLIC_URL=https://app.example.com",
+      "--environment",
+      "production",
+    );
+    expect(createResult.exitCode).toBe(0);
+    expect(createResult.stderr).toBe("");
+    expect(createResult.stdout).toContain("Created APP_PUBLIC_URL in production");
+
+    const updateResult = cli.runCli(
+      "env",
+      "set",
+      "APP_PUBLIC_URL=https://app-v2.example.com",
+      "--environment",
+      "production",
+    );
+    expect(updateResult.exitCode).toBe(0);
+    expect(updateResult.stderr).toBe("");
+    expect(updateResult.stdout).toContain("Updated APP_PUBLIC_URL in production");
+
+    const listResult = cli.runCli("env", "list", "--environment", "production");
+    expect(listResult.exitCode).toBe(0);
+    expect(listResult.stderr).toBe("");
+    expect(listResult.stdout).toContain("APP_PUBLIC_URL");
+    expect(listResult.stdout).toContain("https://app-v2.example.com");
+
+    const deleteResult = cli.runCli(
+      "env",
+      "delete",
+      "APP_PUBLIC_URL",
+      "--environment",
+      "production",
+    );
+    expect(deleteResult.exitCode).toBe(0);
+    expect(deleteResult.stderr).toBe("");
+    expect(deleteResult.stdout).toContain("Deleted APP_PUBLIC_URL from production");
+
+    const finalList = cli.runCli("env", "list", "--environment", "production");
+    expect(finalList.exitCode).toBe(0);
+    expect(finalList.stdout).not.toContain("APP_PUBLIC_URL");
+  });
+
   it("lists builds for the linked project", () => {
     const result = cli.runCli("builds");
     expect(result.exitCode).toBe(0);
@@ -89,20 +164,192 @@ describe("CLI command journey", () => {
     expect(listResult.stdout).toContain("ios");
     expect(listResult.stdout).toContain("1.0.0");
     expect(listResult.stdout).toContain("yes");
-
-    const response = await cli.getAuthorized(`/api/updates?projectId=${cli.getProjectId()}`);
-    expect(response.status).toBe(200);
-    const body = await response.json();
-    expect(body.items).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          branchId: expect.any(String),
-          isRollback: true,
-          platform: "ios",
-          runtimeVersion: "1.0.0",
-          rolloutPercentage: 100,
-        }),
-      ]),
+    const rollbackMatch = listResult.stdout.match(
+      /^([^\s]+)\s+([^\s]+)\s+main\s+ios\s+1\.0\.0\s+100%\s+yes\s+.+$/m,
     );
+    expect(rollbackMatch).toBeDefined();
+    cliState.rollbackUpdateId = rollbackMatch?.[1] ?? "";
+    cliState.rollbackGroupId = rollbackMatch?.[2] ?? "";
+  });
+
+  it("uploads, activates, and deletes a credential", async () => {
+    const credentialFile = path.join(cli.getProjectDir(), "cli-uploaded-cert.p12");
+    writeFileSync(credentialFile, "uploaded-cert");
+
+    const uploadResult = cli.runCli(
+      "credentials",
+      "upload",
+      "--platform",
+      "ios",
+      "--type",
+      "distribution-certificate",
+      "--name",
+      "CLI Uploaded Certificate",
+      "--file",
+      credentialFile,
+      "--password",
+      "uploaded-password",
+    );
+    expect(uploadResult.exitCode).toBe(0);
+    expect(uploadResult.stderr).toBe("");
+    expect(uploadResult.stdout).toContain("Credential uploaded successfully.");
+    expect(uploadResult.stdout).toContain("CLI Uploaded Certificate");
+    const uploadedCredentialId = uploadResult.stdout.match(/^ID\s+([^\s]+)$/m)?.[1];
+    expect(uploadedCredentialId).toBeDefined();
+
+    const listAfterUpload = cli.runCli("credentials", "list", "--platform", "ios");
+    expect(listAfterUpload.exitCode).toBe(0);
+    expect(listAfterUpload.stderr).toBe("");
+    expect(listAfterUpload.stdout).toMatch(
+      new RegExp(
+        `^${uploadedCredentialId}\\s+CLI Uploaded Certificate\\s+ios\\s+distribution-certificate\\s+no`,
+        "m",
+      ),
+    );
+
+    const activateResult = cli.runCli("credentials", "activate", uploadedCredentialId!);
+    expect(activateResult.exitCode).toBe(0);
+    expect(activateResult.stderr).toBe("");
+    expect(activateResult.stdout).toContain(`Credential ${uploadedCredentialId} activated.`);
+
+    const listAfterActivate = cli.runCli("credentials", "list", "--platform", "ios");
+    expect(listAfterActivate.exitCode).toBe(0);
+    expect(listAfterActivate.stderr).toBe("");
+    expect(listAfterActivate.stdout).toMatch(
+      new RegExp(
+        `^${uploadedCredentialId}\\s+CLI Uploaded Certificate\\s+ios\\s+distribution-certificate\\s+yes`,
+        "m",
+      ),
+    );
+
+    const deleteResult = cli.runCli("credentials", "delete", uploadedCredentialId!);
+    expect(deleteResult.exitCode).toBe(0);
+    expect(deleteResult.stderr).toBe("");
+    expect(deleteResult.stdout).toContain(`Credential ${uploadedCredentialId} deleted.`);
+
+    const listAfterDelete = cli.runCli("credentials", "list", "--platform", "ios");
+    expect(listAfterDelete.exitCode).toBe(0);
+    expect(listAfterDelete.stderr).toBe("");
+    expect(listAfterDelete.stdout).not.toContain(uploadedCredentialId!);
+  });
+
+  it("manages rollout state, promotes an update, and deletes the promoted group", async () => {
+    expect(cliState.rollbackUpdateId).not.toBe("");
+    expect(cliState.rollbackGroupId).not.toBe("");
+
+    const setResult = cli.runCli(
+      "update",
+      "rollout",
+      "set",
+      cliState.rollbackUpdateId,
+      "--percentage",
+      "25",
+    );
+    expect(setResult.exitCode).toBe(0);
+    expect(setResult.stderr).toBe("");
+    expect(setResult.stdout).toContain(`Updated rollout for ${cliState.rollbackUpdateId} to 25%.`);
+
+    const listAfterSet = cli.runCli("update", "list", "--branch", "main");
+    expect(listAfterSet.exitCode).toBe(0);
+    expect(listAfterSet.stderr).toBe("");
+    expect(listAfterSet.stdout).toMatch(
+      new RegExp(
+        `^${escapeRegExp(cliState.rollbackUpdateId)}\\s+${escapeRegExp(cliState.rollbackGroupId)}\\s+main\\s+ios\\s+1\\.0\\.0\\s+25%\\s+yes\\s+.+$`,
+        "m",
+      ),
+    );
+
+    const completeResult = cli.runCli("update", "rollout", "complete", cliState.rollbackUpdateId);
+    expect(completeResult.exitCode).toBe(0);
+    expect(completeResult.stderr).toBe("");
+    expect(completeResult.stdout).toContain(
+      `Completed rollout for ${cliState.rollbackUpdateId}. Current rollout is 100%.`,
+    );
+
+    const listAfterComplete = cli.runCli("update", "list", "--branch", "main");
+    expect(listAfterComplete.exitCode).toBe(0);
+    expect(listAfterComplete.stderr).toBe("");
+    expect(listAfterComplete.stdout).toMatch(
+      new RegExp(
+        `^${escapeRegExp(cliState.rollbackUpdateId)}\\s+${escapeRegExp(cliState.rollbackGroupId)}\\s+main\\s+ios\\s+1\\.0\\.0\\s+100%\\s+yes\\s+.+$`,
+        "m",
+      ),
+    );
+
+    const revertResult = cli.runCli("update", "rollout", "revert", cliState.rollbackUpdateId);
+    expect(revertResult.exitCode).toBe(0);
+    expect(revertResult.stderr).toBe("");
+    expect(revertResult.stdout).toContain(
+      `Reverted rollout for ${cliState.rollbackUpdateId}. Current rollout is 0%.`,
+    );
+
+    const listAfterRevert = cli.runCli("update", "list", "--branch", "main");
+    expect(listAfterRevert.exitCode).toBe(0);
+    expect(listAfterRevert.stderr).toBe("");
+    expect(listAfterRevert.stdout).toMatch(
+      new RegExp(
+        `^${escapeRegExp(cliState.rollbackUpdateId)}\\s+${escapeRegExp(cliState.rollbackGroupId)}\\s+main\\s+ios\\s+1\\.0\\.0\\s+0%\\s+yes\\s+.+$`,
+        "m",
+      ),
+    );
+
+    const targetName = `preview-${Date.now()}`;
+    const targetBranchId = `${targetName}-branch`;
+    const targetChannelId = `${targetName}-channel`;
+    cli.seedSql(`
+INSERT INTO "branches" ("id", "project_id", "name", "created_at")
+VALUES (${sqlString(targetBranchId)}, ${sqlString(cli.getProjectId())}, ${sqlString(targetName)}, '2026-04-14T00:00:00Z');
+
+INSERT INTO "channels" (
+  "id", "project_id", "name", "branch_id", "branch_mapping_json", "cache_version", "is_paused", "created_at"
+)
+VALUES (
+  ${sqlString(targetChannelId)},
+  ${sqlString(cli.getProjectId())},
+  ${sqlString(targetName)},
+  ${sqlString(targetBranchId)},
+  NULL,
+  0,
+  0,
+  '2026-04-14T00:00:00Z'
+);
+`);
+
+    const promoteResult = cli.runCli(
+      "update",
+      "promote",
+      cliState.rollbackUpdateId,
+      "--channel",
+      targetName,
+    );
+    expect(promoteResult.exitCode).toBe(0);
+    expect(promoteResult.stderr).toBe("");
+    expect(promoteResult.stdout).toContain(
+      `Promoted update ${cliState.rollbackUpdateId} to channel "${targetName}" as update `,
+    );
+
+    const promotedList = cli.runCli("update", "list", "--branch", targetName);
+    expect(promotedList.exitCode).toBe(0);
+    expect(promotedList.stderr).toBe("");
+    const promotedMatch = promotedList.stdout.match(
+      new RegExp(
+        `^([^\\s]+)\\s+([^\\s]+)\\s+${escapeRegExp(targetName)}\\s+ios\\s+1\\.0\\.0\\s+100%\\s+no\\s+.+$`,
+        "m",
+      ),
+    );
+    expect(promotedMatch).toBeDefined();
+
+    const promotedGroupId = promotedMatch?.[2] ?? "";
+    expect(promotedGroupId).not.toBe("");
+
+    const deleteResult = cli.runCli("update", "delete", promotedGroupId);
+    expect(deleteResult.exitCode).toBe(0);
+    expect(deleteResult.stderr).toBe("");
+    expect(deleteResult.stdout).toContain(`Deleted 1 update(s) from group ${promotedGroupId}.`);
+
+    const finalPromotedList = cli.runCli("update", "list", "--branch", targetName);
+    expect(finalPromotedList.exitCode).toBe(0);
+    expect(finalPromotedList.stderr).toBe("");
+    expect(finalPromotedList.stdout).toContain("No updates found.");
   });
 });
