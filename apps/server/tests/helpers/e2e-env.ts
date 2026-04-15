@@ -48,7 +48,9 @@ const parseEnvFile = (filePath: string): Record<string, string> => {
 
       const key = trimmed.slice(0, separatorIndex).trim();
       const value = stripWrappingQuotes(trimmed.slice(separatorIndex + 1).trim());
-      result[key] = value;
+      if (value !== "") {
+        result[key] = value;
+      }
       return result;
     }, {});
 };
@@ -88,13 +90,20 @@ export const createServerE2EEnvironment = (options?: {
   const projectRoot = options?.projectRoot ?? resolve(import.meta.dirname, "../..");
   const fileSource = readFileEnvSource(projectRoot);
 
+  const accountId = envValue({
+    fileSource,
+    primary: "E2E_CF_ACCOUNT_ID",
+    fallback: FALLBACKS.cloudflareAccountId,
+    secondary: "ACCOUNT_ID",
+  });
+
   const processOverrides = {
-    ACCOUNT_ID: envValue({
-      fileSource,
-      primary: "E2E_CF_ACCOUNT_ID",
-      fallback: FALLBACKS.cloudflareAccountId,
-      secondary: "ACCOUNT_ID",
-    }),
+    ACCOUNT_ID: accountId,
+    // Wrangler's `unstable_startWorker` reads CLOUDFLARE_ACCOUNT_ID from the
+    // environment to disambiguate between multiple authenticated accounts.
+    // Without it, the local runtime errors out when the user has more than one
+    // account and then silently fails to serve HTTP requests.
+    CLOUDFLARE_ACCOUNT_ID: accountId,
     ASSETS_BUCKET_NAME: envValue({
       fileSource,
       primary: "E2E_ASSETS_BUCKET_NAME",

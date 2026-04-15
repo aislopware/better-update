@@ -1,4 +1,5 @@
 import { execSync, spawn } from "node:child_process";
+import { once } from "node:events";
 import { rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { env } from "node:process";
@@ -29,6 +30,7 @@ export const setupE2EDashboard = (persistDir: string) => {
     worker: null as Awaited<ReturnType<typeof unstable_startWorker>> | null,
     dashboardDev: null as ReturnType<typeof spawn> | null,
     baseUrl: "",
+    workerUrl: "",
     restoreProcessEnv: undefined as (() => void) | undefined,
   };
 
@@ -104,13 +106,17 @@ export const setupE2EDashboard = (persistDir: string) => {
     }
 
     const url = await state.worker.url;
-    const apiBaseUrl = url.href.replace(/\/$/, "");
+    // Force IPv4 — on Node 17+ `localhost` resolves to `::1` first, but the
+    // Wrangler worker binds to 127.0.0.1, which breaks vite's http proxy.
+    const apiBaseUrl = url.href.replace(/\/$/, "").replace("localhost", "127.0.0.1");
+    state.workerUrl = apiBaseUrl;
 
     state.dashboardDev = spawn(
       "bun",
       ["x", "vite", "--host", "127.0.0.1", "--port", String(DASHBOARD_PORT), "--strictPort"],
       {
         cwd: DASHBOARD_DIR,
+        detached: true,
         env: {
           ...env,
           FORCE_COLOR: "0",
@@ -124,8 +130,23 @@ export const setupE2EDashboard = (persistDir: string) => {
     state.baseUrl = `http://127.0.0.1:${String(DASHBOARD_PORT)}`;
   });
 
+  const waitForChildExit = async (child: ReturnType<typeof spawn>): Promise<void> => {
+    if (child.exitCode !== null) {
+      return;
+    }
+    await Promise.race([once(child, "exit"), sleep(3000)]);
+  };
+
   afterAll(async () => {
-    state.dashboardDev?.kill("SIGTERM");
+    const child = state.dashboardDev;
+    if (child?.pid) {
+      try {
+        process.kill(-child.pid, "SIGKILL");
+      } catch {
+        child.kill("SIGKILL");
+      }
+      await waitForChildExit(child);
+    }
     await state.worker?.dispose();
     state.restoreProcessEnv?.();
     rmSync(persistPath, { recursive: true, force: true });
@@ -156,5 +177,14 @@ export const setupE2EDashboard = (persistDir: string) => {
       body: JSON.stringify(body),
     });
 
-  return { getBaseUrl: () => state.baseUrl, post, get, del, patch, seedSql, parseCookies };
+  return {
+    getBaseUrl: () => state.baseUrl,
+    getWorkerUrl: () => state.workerUrl,
+    post,
+    get,
+    del,
+    patch,
+    seedSql,
+    parseCookies,
+  };
 };
