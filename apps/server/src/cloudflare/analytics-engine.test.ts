@@ -3,7 +3,7 @@ import { AnalyticsEngineLive, queryAnalyticsEngine } from "./analytics-engine";
 
 const mockEnv = {
   ACCOUNT_ID: "test-account",
-  CF_API_TOKEN: "test-token",
+  CLOUDFLARE_API_TOKEN: "test-token",
 } as unknown as Env;
 
 afterEach(() => {

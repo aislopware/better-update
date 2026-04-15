@@ -1,40 +1,27 @@
 import { execSync } from "node:child_process";
-import { rmSync, writeFileSync } from "node:fs";
+import { rmSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { unstable_startWorker } from "wrangler";
 
+import { applyProcessEnv, createServerE2EEnvironment } from "./e2e-env";
+
 const PROJECT_ROOT = resolve(import.meta.dirname, "../..");
-const envLocalPath = resolve(PROJECT_ROOT, ".env.local");
-
-const envValue = (primary: string, fallback: string, secondary?: string) =>
-  process.env[primary] ?? (secondary ? process.env[secondary] : undefined) ?? fallback;
-
-const envLocal = `ACCOUNT_ID=${envValue("E2E_CF_ACCOUNT_ID", "<account-id>", "ACCOUNT_ID")}
-ASSETS_BUCKET_NAME=${envValue("E2E_ASSETS_BUCKET_NAME", "better-update", "ASSETS_BUCKET_NAME")}
-BETTER_AUTH_SECRET=e2e-test-secret-that-is-at-least-32-chars
-BUILD_BUCKET_NAME=${envValue("E2E_BUILD_BUCKET_NAME", "better-update", "BUILD_BUCKET_NAME")}
-TEST_MODE=true
-GITHUB_CLIENT_ID=e2e-github-id
-GITHUB_CLIENT_SECRET=e2e-github-secret
-R2_ACCESS_KEY_ID=${envValue("E2E_R2_ACCESS_KEY_ID", "e2e-r2-access-key", "R2_ACCESS_KEY_ID")}
-R2_SECRET_ACCESS_KEY=${envValue("E2E_R2_SECRET_ACCESS_KEY", "e2e-r2-secret-key", "R2_SECRET_ACCESS_KEY")}
-INSTALL_TOKEN_SECRET=e2e-install-token-secret-at-least-32-chars
-ASSET_CDN_URL=https://assets.better-update.dev
-VAULT_KEYRING={"1":"MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="}
-`;
 
 export function setupE2EWorker(persistDir: string): { getBaseUrl: () => string } {
   let worker: Awaited<ReturnType<typeof unstable_startWorker>>;
   let baseUrl: string;
+  let restoreProcessEnv: (() => void) | undefined;
   const persistPath = resolve(PROJECT_ROOT, persistDir);
 
   beforeAll(async () => {
     rmSync(persistPath, { recursive: true, force: true });
-    writeFileSync(envLocalPath, envLocal);
+    const e2eEnv = createServerE2EEnvironment({ projectRoot: PROJECT_ROOT });
+    restoreProcessEnv = applyProcessEnv(e2eEnv.processOverrides);
 
     execSync(`bunx wrangler d1 migrations apply DB --local --persist-to ${persistDir}`, {
       cwd: PROJECT_ROOT,
+      env: e2eEnv.wranglerEnv,
       stdio: "pipe",
     });
 
@@ -44,6 +31,8 @@ export function setupE2EWorker(persistDir: string): { getBaseUrl: () => string }
     try {
       worker = await unstable_startWorker({
         config: resolve(PROJECT_ROOT, "wrangler.jsonc"),
+        envFiles: [],
+        bindings: e2eEnv.workerBindings,
         build: { nodejsCompatMode: "v2" },
         dev: {
           server: { port: 0 },
@@ -62,8 +51,8 @@ export function setupE2EWorker(persistDir: string): { getBaseUrl: () => string }
 
   afterAll(async () => {
     await worker?.dispose();
+    restoreProcessEnv?.();
     rmSync(persistPath, { recursive: true, force: true });
-    rmSync(envLocalPath, { force: true });
   });
 
   return { getBaseUrl: () => baseUrl };
