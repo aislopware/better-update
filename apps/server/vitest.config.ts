@@ -51,7 +51,7 @@ export default defineConfig(async () => {
                   ACCOUNT_ID: "integration-account",
                   BETTER_AUTH_SECRET: "integration-test-secret-that-is-at-least-32-chars",
                   BETTER_AUTH_URL: "http://localhost",
-                  CF_API_TOKEN: "integration-cf-api-token",
+                  CLOUDFLARE_API_TOKEN: "integration-cf-api-token",
                   DASHBOARD_URL: "http://localhost",
                   GITHUB_CLIENT_ID: "test-github-id",
                   GITHUB_CLIENT_SECRET: "test-github-secret",

@@ -4,25 +4,10 @@ import os from "node:os";
 import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 
+import { applyProcessEnv, createServerE2EEnvironment } from "../../../server/tests/helpers/e2e-env";
+
 const CLI_DIR = path.resolve(import.meta.dirname, "../..");
 const SERVER_DIR = path.resolve(import.meta.dirname, "../../../server");
-
-const envValue = (primary: string, fallback: string, secondary?: string) =>
-  process.env[primary] ?? (secondary ? process.env[secondary] : undefined) ?? fallback;
-
-const envLocal = `ACCOUNT_ID=${envValue("E2E_CF_ACCOUNT_ID", "<account-id>", "ACCOUNT_ID")}
-ASSETS_BUCKET_NAME=${envValue("E2E_ASSETS_BUCKET_NAME", "better-update", "ASSETS_BUCKET_NAME")}
-BETTER_AUTH_SECRET=e2e-test-secret-that-is-at-least-32-chars
-BUILD_BUCKET_NAME=${envValue("E2E_BUILD_BUCKET_NAME", "better-update", "BUILD_BUCKET_NAME")}
-TEST_MODE=true
-GITHUB_CLIENT_ID=e2e-github-id
-GITHUB_CLIENT_SECRET=e2e-github-secret
-R2_ACCESS_KEY_ID=${envValue("E2E_R2_ACCESS_KEY_ID", "e2e-r2-access-key", "R2_ACCESS_KEY_ID")}
-R2_SECRET_ACCESS_KEY=${envValue("E2E_R2_SECRET_ACCESS_KEY", "e2e-r2-secret-key", "R2_SECRET_ACCESS_KEY")}
-INSTALL_TOKEN_SECRET=e2e-install-token-secret-at-least-32-chars
-ASSET_CDN_URL=https://assets.better-update.dev
-VAULT_KEYRING={"1":"MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="}
-`;
 
 const appJsonTemplate = {
   expo: {
@@ -138,9 +123,9 @@ export const setupCliE2E = (persistDir: string): CliE2EContext => {
     apiKey: "",
     projectDir: "",
     homeDir: "",
+    restoreProcessEnv: undefined as (() => void) | undefined,
   };
 
-  const envLocalPath = path.resolve(SERVER_DIR, ".env.local");
   const persistPath = path.resolve(SERVER_DIR, persistDir);
   const persistArg = path.relative(SERVER_DIR, persistPath) || ".";
   const seedFile = path.resolve(SERVER_DIR, ".wrangler/seed-cli-e2e.sql");
@@ -238,10 +223,12 @@ export const setupCliE2E = (persistDir: string): CliE2EContext => {
 
   beforeAll(async () => {
     rmSync(persistPath, { recursive: true, force: true });
-    writeFileSync(envLocalPath, envLocal);
+    const e2eEnv = createServerE2EEnvironment({ projectRoot: SERVER_DIR });
+    state.restoreProcessEnv = applyProcessEnv(e2eEnv.processOverrides);
 
     execSync(`bunx wrangler d1 migrations apply DB --local --persist-to ${persistArg}`, {
       cwd: SERVER_DIR,
+      env: e2eEnv.wranglerEnv,
       stdio: "pipe",
     });
 
@@ -252,6 +239,8 @@ export const setupCliE2E = (persistDir: string): CliE2EContext => {
         await import("/Users/congtran/Workspace/better-update/apps/server/node_modules/wrangler");
       state.worker = await unstable_startWorker({
         config: path.resolve(SERVER_DIR, "wrangler.jsonc"),
+        envFiles: [],
+        bindings: e2eEnv.workerBindings,
         build: { nodejsCompatMode: "v2" },
         dev: {
           server: { port: 0 },
@@ -390,8 +379,8 @@ VALUES (
 
   afterAll(async () => {
     await state.worker?.dispose();
+    state.restoreProcessEnv?.();
     rmSync(persistPath, { recursive: true, force: true });
-    rmSync(envLocalPath, { force: true });
     rmSync(state.projectDir, { recursive: true, force: true });
     rmSync(state.homeDir, { recursive: true, force: true });
   });

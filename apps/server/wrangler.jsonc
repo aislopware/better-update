@@ -8,31 +8,31 @@
     {
       "binding": "DB",
       "database_name": "better-update-db",
-      "database_id": "<database-id>",
+      "database_id": "65193d32-c1ec-4a66-8bdb-f7cf6b1b0fa8",
       "migrations_dir": "migrations",
     },
   ],
   "kv_namespaces": [
     {
       "binding": "SESSION_KV",
-      "id": "<kv-namespace-id>",
+      "id": "7a1d100b40af43019d660b93ae83d093",
     },
     {
       "binding": "BUILD_RESERVATIONS",
-      "id": "<kv-namespace-id>",
+      "id": "96a25063fcd44f9b93d5bf31e63b48fe",
     },
   ],
   "r2_buckets": [
     {
       "binding": "ASSETS_BUCKET",
       "bucket_name": "better-update-assets",
-      "preview_bucket_name": "better-update",
+      "preview_bucket_name": "better-update-assets-e2e",
       "remote": true,
     },
     {
       "binding": "BUILD_BUCKET",
       "bucket_name": "better-update-builds",
-      "preview_bucket_name": "better-update",
+      "preview_bucket_name": "better-update-builds-e2e",
       "remote": true,
     },
   ],

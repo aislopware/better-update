@@ -40,7 +40,7 @@ export const AnalyticsEngineLive = Layer.succeed(AnalyticsEngine, {
             `https://api.cloudflare.com/client/v4/accounts/${env.ACCOUNT_ID}/analytics_engine/sql`,
             {
               method: "POST",
-              headers: { Authorization: `Bearer ${env.CF_API_TOKEN}` },
+              headers: { Authorization: `Bearer ${env.CLOUDFLARE_API_TOKEN}` },
               body: sql,
             },
           ),
