@@ -352,8 +352,9 @@ const UploadForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: () => void
       {/* Name */}
       {credentialType && (
         <div className="flex flex-col gap-2">
-          <Label>Name</Label>
+          <Label htmlFor="credential-name">Name</Label>
           <Input
+            id="credential-name"
             value={name}
             onChange={(ev) => {
               setName(ev.target.value);

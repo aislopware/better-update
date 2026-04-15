@@ -4,6 +4,7 @@ import { chromium } from "playwright";
 
 import type { Browser, Page } from "playwright";
 
+import { E2E_DEFAULT_TIMEOUT_MS } from "../helpers/browser-helpers";
 import { setupE2EDashboard } from "../helpers/e2e-dashboard";
 
 const { getBaseUrl, post } = setupE2EDashboard(".wrangler/state/e2e-dash-browser-ui");
@@ -90,6 +91,7 @@ const withBrowserPage = async (
 ): Promise<void> => {
   const context = await browser.newContext();
   const page = await context.newPage();
+  page.setDefaultTimeout(E2E_DEFAULT_TIMEOUT_MS);
 
   try {
     await run(page);

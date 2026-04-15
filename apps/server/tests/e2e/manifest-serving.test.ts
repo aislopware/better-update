@@ -202,14 +202,14 @@ describe("Manifest serving protocol", () => {
     expect(manifest.launchAsset.hash).toBe("abc123hash");
     expect(manifest.launchAsset.key).toBe("bundle");
     expect(manifest.launchAsset.contentType).toBe("application/javascript");
-    expect(manifest.launchAsset.url).toBe("https://assets.better-update.dev/assets/abc123hash");
+    expect(manifest.launchAsset.url).toBe(`${process.env["ASSET_CDN_URL"]}/assets/abc123hash`);
 
     // Regular assets (non-launch)
     expect(manifest.assets).toHaveLength(1);
     expect(manifest.assets[0].hash).toBe("img456hash");
     expect(manifest.assets[0].key).toBe("logo.png");
     expect(manifest.assets[0].fileExtension).toBe(".png");
-    expect(manifest.assets[0].url).toBe("https://assets.better-update.dev/assets/img456hash");
+    expect(manifest.assets[0].url).toBe(`${process.env["ASSET_CDN_URL"]}/assets/img456hash`);
 
     // Extra with scopeKey
     expect(manifest.extra.scopeKey).toBe("@test/my-app");
