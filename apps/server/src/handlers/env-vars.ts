@@ -10,6 +10,7 @@ import { Vault } from "../cloudflare/vault";
 import { BadRequest, Forbidden } from "../errors";
 import { toApiEnvVar } from "../http/to-api";
 import { toApiBadRequestReadEffect, toApiWriteEffect } from "../http/to-api-effect";
+import { parsePagination } from "../lib/pagination";
 import { EnvVarRepo } from "../repositories/env-vars";
 
 import type { EnvVarRow } from "../repositories/env-vars";
@@ -30,13 +31,20 @@ interface EnvVarUpdateFields {
 }
 
 const maskValue = (row: EnvVarRow): string | null => {
-  if (row.visibility === "plaintext") {
-    return row.value;
+  switch (row.visibility) {
+    case "plaintext": {
+      return row.value;
+    }
+    case "sensitive": {
+      return SENSITIVE_MASK;
+    }
+    case "secret": {
+      return null;
+    }
+    default: {
+      return null;
+    }
   }
-  if (row.visibility === "sensitive") {
-    return SENSITIVE_MASK;
-  }
-  return null;
 };
 
 const toEnvVarModel = (row: EnvVarRow) => ({
@@ -73,7 +81,9 @@ const validateKey = (key: string) =>
 const encryptValue = (orgId: string, value: string) =>
   Effect.gen(function* () {
     const vault = yield* Vault;
-    const result = yield* vault.encryptSecret({ organizationId: orgId, value }).pipe(Effect.orDie);
+    const result = yield* vault
+      .encryptSecret({ organizationId: orgId, value })
+      .pipe(Effect.mapError(() => new BadRequest({ message: "Encryption failed" })));
     return { encryptedValue: result.encrypted, keyVersion: result.keyVersion };
   });
 
@@ -82,7 +92,7 @@ const decryptValue = (orgId: string, keyVersion: number, encrypted: string) =>
     const vault = yield* Vault;
     return yield* vault
       .decryptSecret({ organizationId: orgId, keyVersion, encrypted })
-      .pipe(Effect.orDie);
+      .pipe(Effect.mapError(() => new BadRequest({ message: "Decryption failed" })));
   });
 
 const stripQuotes = (raw: string): string =>
@@ -130,7 +140,7 @@ const resolveUpdateFields = (
   newVisibility: "plaintext" | "sensitive" | "secret",
   newValue: string | undefined,
   orgId: string,
-): Effect.Effect<EnvVarUpdateFields, never, Vault> =>
+): Effect.Effect<EnvVarUpdateFields, BadRequest, Vault> =>
   Effect.gen(function* () {
     if (newVisibility === "plaintext") {
       if (newValue !== undefined) {
@@ -285,9 +295,7 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
           yield* assertProjectOwnership(urlParams.projectId);
 
           const repo = yield* EnvVarRepo;
-          const page = urlParams.page ?? 1;
-          const limit = urlParams.limit ?? 50;
-          const offset = (page - 1) * limit;
+          const { page, limit, offset } = parsePagination(urlParams, 50);
 
           const { items, total } = yield* repo.list({
             organizationId: ctx.organizationId,

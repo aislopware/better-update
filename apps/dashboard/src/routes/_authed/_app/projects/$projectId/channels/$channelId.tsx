@@ -147,7 +147,7 @@ const ChannelDetailPage = () => {
   const activeOrgId = session?.session.activeOrganizationId ?? "";
   const activeOrg = orgs.find((org) => org.id === activeOrgId) ?? orgs[0];
   const orgId = activeOrg?.id ?? "";
-  const { data: project } = useSuspenseQuery(projectQueryOptions(projectId));
+  const { data: project } = useSuspenseQuery(projectQueryOptions(orgId, projectId));
   const { data: channelsData } = useSuspenseQuery(channelsQueryOptions(orgId, projectId));
   const { data: branchesData } = useSuspenseQuery(branchesQueryOptions(orgId, projectId));
   const { data: compatibilityData } = useSuspenseQuery(
@@ -217,13 +217,13 @@ export const Route = createFileRoute("/_authed/_app/projects/$projectId/channels
     const [session, orgs] = await Promise.all([
       context.queryClient.ensureQueryData(sessionQueryOptions),
       context.queryClient.ensureQueryData(orgsQueryOptions),
-      context.queryClient.ensureQueryData(projectQueryOptions(params.projectId)),
     ]);
     const activeOrgId = session?.session.activeOrganizationId ?? "";
     const activeOrg = orgs.find((org) => org.id === activeOrgId) ?? orgs[0];
     const orgId = activeOrg?.id ?? "";
 
     await Promise.all([
+      context.queryClient.ensureQueryData(projectQueryOptions(orgId, params.projectId)),
       context.queryClient.ensureQueryData(channelsQueryOptions(orgId, params.projectId)),
       context.queryClient.ensureQueryData(branchesQueryOptions(orgId, params.projectId)),
       context.queryClient.ensureQueryData(

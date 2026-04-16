@@ -39,7 +39,8 @@ export type BranchItem = typeof Branch.Type;
 
 export const projectsQueryKey = (orgId: string) => ["org", orgId, "projects"] as const;
 
-export const projectQueryKey = (projectId: string) => ["project", projectId] as const;
+export const projectQueryKey = (orgId: string, projectId: string) =>
+  ["org", orgId, "project", projectId] as const;
 
 export const branchesQueryKey = (orgId: string, projectId: string) =>
   ["org", orgId, "projects", projectId, "branches"] as const;
@@ -50,17 +51,17 @@ export const channelsQueryKey = (orgId: string, projectId: string) =>
 export const updatesQueryKey = (orgId: string, projectId: string) =>
   ["org", orgId, "projects", projectId, "updates"] as const;
 
-export const adoptionQueryKey = (projectId: string) =>
-  ["project", projectId, "analytics", "adoption"] as const;
+export const adoptionQueryKey = (orgId: string, projectId: string) =>
+  ["org", orgId, "project", projectId, "analytics", "adoption"] as const;
 
-export const updateAnalyticsQueryKey = (projectId: string, updateId: string) =>
-  ["project", projectId, "analytics", "updates", updateId] as const;
+export const updateAnalyticsQueryKey = (orgId: string, projectId: string, updateId: string) =>
+  ["org", orgId, "project", projectId, "analytics", "updates", updateId] as const;
 
-export const channelAnalyticsQueryKey = (projectId: string, channel: string) =>
-  ["project", projectId, "analytics", "channels", channel] as const;
+export const channelAnalyticsQueryKey = (orgId: string, projectId: string, channel: string) =>
+  ["org", orgId, "project", projectId, "analytics", "channels", channel] as const;
 
-export const platformAnalyticsQueryKey = (projectId: string) =>
-  ["project", projectId, "analytics", "platforms"] as const;
+export const platformAnalyticsQueryKey = (orgId: string, projectId: string) =>
+  ["org", orgId, "project", projectId, "analytics", "platforms"] as const;
 
 export const projectsQueryOptions = (orgId: string, page?: number) =>
   queryOptions({
@@ -69,9 +70,9 @@ export const projectsQueryOptions = (orgId: string, page?: number) =>
     staleTime: 30_000,
   });
 
-export const projectQueryOptions = (projectId: string) =>
+export const projectQueryOptions = (orgId: string, projectId: string) =>
   queryOptions({
-    queryKey: projectQueryKey(projectId),
+    queryKey: projectQueryKey(orgId, projectId),
     queryFn: ({ signal }) => runApi((api) => api.projects.get({ path: { id: projectId } }), signal),
     staleTime: 30_000,
   });
@@ -109,21 +110,22 @@ export const updatesQueryOptions = (
     staleTime: 30_000,
   });
 
-export const adoptionQueryOptions = (projectId: string, period?: AnalyticsPeriod) =>
+export const adoptionQueryOptions = (orgId: string, projectId: string, period?: AnalyticsPeriod) =>
   queryOptions({
-    queryKey: [...adoptionQueryKey(projectId), ...(period ? [period] : [])],
+    queryKey: [...adoptionQueryKey(orgId, projectId), ...(period ? [period] : [])],
     queryFn: ({ signal }) =>
       runApi((api) => api.analytics.adoption({ urlParams: { projectId, period } }), signal),
     staleTime: 60_000,
   });
 
 export const updateAnalyticsQueryOptions = (
+  orgId: string,
   projectId: string,
   updateId: string,
   period?: AnalyticsPeriod,
 ) =>
   queryOptions({
-    queryKey: [...updateAnalyticsQueryKey(projectId, updateId), ...(period ? [period] : [])],
+    queryKey: [...updateAnalyticsQueryKey(orgId, projectId, updateId), ...(period ? [period] : [])],
     queryFn: ({ signal }) =>
       runApi(
         (api) => api.analytics.updates({ urlParams: { projectId, updateId, period } }),
@@ -133,12 +135,13 @@ export const updateAnalyticsQueryOptions = (
   });
 
 export const channelAnalyticsQueryOptions = (
+  orgId: string,
   projectId: string,
   channel: string,
   period?: AnalyticsPeriod,
 ) =>
   queryOptions({
-    queryKey: [...channelAnalyticsQueryKey(projectId, channel), ...(period ? [period] : [])],
+    queryKey: [...channelAnalyticsQueryKey(orgId, projectId, channel), ...(period ? [period] : [])],
     queryFn: ({ signal }) =>
       runApi(
         (api) => api.analytics.channels({ urlParams: { projectId, channel, period } }),
@@ -147,9 +150,13 @@ export const channelAnalyticsQueryOptions = (
     staleTime: 60_000,
   });
 
-export const platformAnalyticsQueryOptions = (projectId: string, period?: AnalyticsPeriod) =>
+export const platformAnalyticsQueryOptions = (
+  orgId: string,
+  projectId: string,
+  period?: AnalyticsPeriod,
+) =>
   queryOptions({
-    queryKey: [...platformAnalyticsQueryKey(projectId), ...(period ? [period] : [])],
+    queryKey: [...platformAnalyticsQueryKey(orgId, projectId), ...(period ? [period] : [])],
     queryFn: ({ signal }) =>
       runApi((api) => api.analytics.platforms({ urlParams: { projectId, period } }), signal),
     staleTime: 60_000,
@@ -235,7 +242,8 @@ export const finalizeAsset = (hash: string) =>
 export const buildsQueryKey = (orgId: string, projectId: string) =>
   ["org", orgId, "projects", projectId, "builds"] as const;
 
-export const buildQueryKey = (buildId: string) => ["build", buildId] as const;
+export const buildQueryKey = (orgId: string, buildId: string) =>
+  ["org", orgId, "build", buildId] as const;
 
 export const buildCompatibilityMatrixQueryKey = (orgId: string, projectId: string) =>
   ["org", orgId, "projects", projectId, "build-compatibility-matrix"] as const;
@@ -273,9 +281,9 @@ export const buildsQueryOptions = (
     staleTime: 30_000,
   });
 
-export const buildQueryOptions = (buildId: string) =>
+export const buildQueryOptions = (orgId: string, buildId: string) =>
   queryOptions({
-    queryKey: buildQueryKey(buildId),
+    queryKey: buildQueryKey(orgId, buildId),
     queryFn: ({ signal }) => runApi((api) => api.builds.get({ path: { id: buildId } }), signal),
     staleTime: 30_000,
   });

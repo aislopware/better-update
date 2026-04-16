@@ -23,7 +23,7 @@ const ProjectDetail = () => {
   const activeOrg = orgs.find((org) => org.id === activeOrgId) ?? orgs[0];
   const orgId = activeOrg?.id ?? "";
 
-  const { data: project } = useSuspenseQuery(projectQueryOptions(projectId));
+  const { data: project } = useSuspenseQuery(projectQueryOptions(orgId, projectId));
   const { data: branchesData } = useSuspenseQuery(branchesQueryOptions(orgId, projectId));
 
   return (

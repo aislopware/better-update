@@ -9,7 +9,7 @@ import {
 } from "../domain/credential-vault";
 import { cloudflareEnv } from "./context";
 
-import type { CredentialVaultError } from "../domain/credential-vault";
+import type { CredentialVaultError, Keyring } from "../domain/credential-vault";
 
 export interface VaultService {
   readonly encryptSecret: (params: {
@@ -45,9 +45,18 @@ export interface VaultService {
 
 export class Vault extends Context.Tag("server/Vault")<Vault, VaultService>() {}
 
+// Module-level keyring cache — env bindings are constant per worker isolate
+// eslint-disable-next-line functional/no-let -- mutable cache for per-isolate keyring memoization
+let keyringCache: { keyring: Keyring; source: string } | null = null;
+
 const resolveConfiguredKeyring = Effect.gen(function* () {
   const env = yield* cloudflareEnv;
-  return yield* resolveKeyring(env.VAULT_KEYRING);
+  if (keyringCache && keyringCache.source === env.VAULT_KEYRING) {
+    return keyringCache.keyring;
+  }
+  const keyring = yield* resolveKeyring(env.VAULT_KEYRING);
+  keyringCache = { keyring, source: env.VAULT_KEYRING };
+  return keyring;
 });
 
 export const VaultLive = Layer.succeed(Vault, {

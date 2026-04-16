@@ -13,6 +13,7 @@ import {
 import { Conflict, NotFound } from "../errors";
 import { toApiChannel } from "../http/to-api";
 import { toApiCrudEffect } from "../http/to-api-effect";
+import { parsePagination } from "../lib/pagination";
 import { BranchRepo } from "../repositories/branches";
 import { ChannelRepo } from "../repositories/channels";
 
@@ -54,9 +55,7 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
           yield* assertPermission("channel", "read");
           yield* assertProjectOwnership(urlParams.projectId);
           const repo = yield* ChannelRepo;
-          const page = urlParams.page ?? 1;
-          const limit = urlParams.limit ?? 20;
-          const offset = (page - 1) * limit;
+          const { page, limit, offset } = parsePagination(urlParams);
 
           const { items, total } = yield* repo.findByProject({
             projectId: urlParams.projectId,

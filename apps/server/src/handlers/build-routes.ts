@@ -115,6 +115,15 @@ export const handleBuildArtifactDownload = async (
       );
     }
 
+    const member = await auth.api.getActiveMember({ headers: request.headers });
+    // eslint-disable-next-line typescript-eslint/no-unnecessary-condition -- runtime null when membership revoked while session alive
+    if (!member) {
+      return Response.json(
+        { code: "FORBIDDEN", message: "Not a member of this organization" },
+        { status: 403 },
+      );
+    }
+
     const r2Key = await runBuildRouteEffect(findArtifactR2KeyByIdAndOrg(buildId, orgId), env);
     if (!r2Key) {
       return Response.json(

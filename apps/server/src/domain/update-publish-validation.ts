@@ -1,6 +1,7 @@
 import { Effect } from "effect";
 
 import { BadRequest } from "../errors";
+import { isRecord } from "../lib/type-guards";
 
 interface AssetRefInput {
   readonly key: string;
@@ -21,9 +22,6 @@ interface ManifestAssetRef {
   readonly key: string;
   readonly hash: string;
 }
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
 
 const fail = (message: string) => new BadRequest({ message });
 

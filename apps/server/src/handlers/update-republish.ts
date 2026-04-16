@@ -6,6 +6,7 @@ import type { RepublishBody } from "@better-update/api";
 import { assertProjectOwnership } from "../auth/ownership";
 import { validateUpdatePublishInput } from "../domain/update-publish-validation";
 import { BadRequest, NotFound } from "../errors";
+import { isRecord } from "../lib/type-guards";
 import { BranchRepo, ChannelRepo, UpdateRepo } from "../repositories";
 
 type RepublishPayload = typeof RepublishBody.Type;
@@ -33,9 +34,6 @@ interface RepublishSourceUpdateWithAssets {
 }
 
 const fail = (message: string) => new BadRequest({ message });
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
 
 const assertExactlyOneDefined = (params: {
   readonly values: readonly [unknown, unknown];

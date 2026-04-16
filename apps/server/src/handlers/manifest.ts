@@ -5,6 +5,7 @@ import type { BadRequest, NotFound } from "@better-update/api";
 import { provideCloudflareRequestContext } from "../cloudflare/context";
 import { manifestRuntime } from "../cloudflare/manifest-runtime";
 import { resolveUpdateRollout } from "../domain/update-rollout";
+import { isRecord } from "../lib/type-guards";
 import { parseProtocolHeaders } from "../protocol/headers";
 import { buildDirective, buildExtensions, buildManifest } from "../protocol/manifest-builder";
 import { encodeMultipart } from "../protocol/multipart";
@@ -17,9 +18,6 @@ import type { ProtocolHeaders } from "../protocol/headers";
 import type { Part } from "../protocol/multipart";
 import type { AssetRow, ChannelRow, UpdateRow } from "../repositories/manifest";
 import type { TrackManifestResponse } from "./manifest-helpers";
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
 
 const COMMON_HEADERS: Record<string, string> = {
   "expo-protocol-version": "1",

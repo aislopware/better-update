@@ -62,8 +62,16 @@ const ChartSummary = ({ requests, devices }: { requests: number; devices: number
   </p>
 );
 
-const AdoptionChart = ({ projectId, period }: { projectId: string; period: AnalyticsPeriod }) => {
-  const { data } = useSuspenseQuery(adoptionQueryOptions(projectId, period));
+const AdoptionChart = ({
+  orgId,
+  projectId,
+  period,
+}: {
+  orgId: string;
+  projectId: string;
+  period: AnalyticsPeriod;
+}) => {
+  const { data } = useSuspenseQuery(adoptionQueryOptions(orgId, projectId, period));
 
   if (data.updates.length === 0) {
     return <ChartEmptyState message="No analytics data available yet" />;
@@ -87,8 +95,16 @@ const AdoptionChart = ({ projectId, period }: { projectId: string; period: Analy
   );
 };
 
-const PlatformChart = ({ projectId, period }: { projectId: string; period: AnalyticsPeriod }) => {
-  const { data } = useSuspenseQuery(platformAnalyticsQueryOptions(projectId, period));
+const PlatformChart = ({
+  orgId,
+  projectId,
+  period,
+}: {
+  orgId: string;
+  projectId: string;
+  period: AnalyticsPeriod;
+}) => {
+  const { data } = useSuspenseQuery(platformAnalyticsQueryOptions(orgId, projectId, period));
 
   if (data.platforms.length === 0) {
     return <ChartEmptyState message="No analytics data available yet" />;
@@ -119,15 +135,19 @@ const PlatformChart = ({ projectId, period }: { projectId: string; period: Analy
 };
 
 const ChannelHealthInner = ({
+  orgId,
   projectId,
   channel,
   period,
 }: {
+  orgId: string;
   projectId: string;
   channel: string;
   period: AnalyticsPeriod;
 }) => {
-  const { data } = useSuspenseQuery(channelAnalyticsQueryOptions(projectId, channel, period));
+  const { data } = useSuspenseQuery(
+    channelAnalyticsQueryOptions(orgId, projectId, channel, period),
+  );
 
   const chartData = [
     { name: "Manifest", value: data.responseTypeDistribution.manifest },
@@ -193,7 +213,12 @@ const ChannelHealthChart = ({
         </SelectContent>
       </Select>
       <Suspense fallback={chartSkeleton}>
-        <ChannelHealthInner projectId={projectId} channel={effectiveSelected} period={period} />
+        <ChannelHealthInner
+          orgId={orgId}
+          projectId={projectId}
+          channel={effectiveSelected}
+          period={period}
+        />
       </Suspense>
     </div>
   );
@@ -209,15 +234,19 @@ const formatTimestamp = (timestamp: string) => {
 };
 
 const UpdateTrafficInner = ({
+  orgId,
   projectId,
   updateId,
   period,
 }: {
+  orgId: string;
   projectId: string;
   updateId: string;
   period: AnalyticsPeriod;
 }) => {
-  const { data } = useSuspenseQuery(updateAnalyticsQueryOptions(projectId, updateId, period));
+  const { data } = useSuspenseQuery(
+    updateAnalyticsQueryOptions(orgId, projectId, updateId, period),
+  );
 
   const chartData = data.timeSeries.map((entry) => ({
     timestamp: formatTimestamp(entry.timestamp),
@@ -290,7 +319,12 @@ const UpdateTrafficChart = ({
         </SelectContent>
       </Select>
       <Suspense fallback={chartSkeleton}>
-        <UpdateTrafficInner projectId={projectId} updateId={effectiveUpdateId} period={period} />
+        <UpdateTrafficInner
+          orgId={orgId}
+          projectId={projectId}
+          updateId={effectiveUpdateId}
+          period={period}
+        />
       </Suspense>
     </div>
   );
@@ -331,7 +365,7 @@ export const AnalyticsTab = ({ orgId, projectId }: { orgId: string; projectId: s
           </CardHeader>
           <CardContent>
             <Suspense fallback={chartSkeleton}>
-              <AdoptionChart projectId={projectId} period={period} />
+              <AdoptionChart orgId={orgId} projectId={projectId} period={period} />
             </Suspense>
           </CardContent>
         </Card>
@@ -343,7 +377,7 @@ export const AnalyticsTab = ({ orgId, projectId }: { orgId: string; projectId: s
           </CardHeader>
           <CardContent>
             <Suspense fallback={chartSkeleton}>
-              <PlatformChart projectId={projectId} period={period} />
+              <PlatformChart orgId={orgId} projectId={projectId} period={period} />
             </Suspense>
           </CardContent>
         </Card>

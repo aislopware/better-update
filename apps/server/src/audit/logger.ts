@@ -31,6 +31,6 @@ export const logAudit = (params: {
     Effect.flatMap((result) =>
       Either.isRight(result)
         ? Effect.void
-        : Effect.logWarning("Audit log insert failed", result.left),
+        : Effect.logError("Audit log insert failed", result.left),
     ),
   );
