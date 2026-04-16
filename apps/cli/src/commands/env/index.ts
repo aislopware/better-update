@@ -3,6 +3,7 @@ import { Console } from "effect";
 
 import { deleteCommand } from "./delete";
 import { exportCommand } from "./export";
+import { getCommand } from "./get";
 import { importCommand } from "./import";
 import { listCommand } from "./list";
 import { pullCommand } from "./pull";
@@ -13,6 +14,7 @@ export const envCommand = Command.make("env", {}, () =>
 ).pipe(
   Command.withSubcommands([
     listCommand,
+    getCommand,
     setCommand,
     deleteCommand,
     importCommand,

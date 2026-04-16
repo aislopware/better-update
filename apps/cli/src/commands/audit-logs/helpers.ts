@@ -1,0 +1,34 @@
+import { Forbidden } from "@better-update/api";
+import { Effect } from "effect";
+
+import { exitWith } from "../../application/command-exit";
+import { AuthRequiredError } from "../../lib/exit-codes";
+
+const formatCause = (cause: unknown): string => {
+  if (cause instanceof Error) {
+    return cause.message;
+  }
+
+  if (typeof cause === "object" && cause !== null) {
+    const tagged = cause as { readonly _tag?: unknown; readonly message?: unknown };
+    const message = typeof tagged.message === "string" ? tagged.message : undefined;
+    const tag = typeof tagged._tag === "string" ? tagged._tag : undefined;
+    if (message) {
+      return message;
+    }
+    if (tag) {
+      return tag;
+    }
+  }
+
+  return String(cause);
+};
+
+export const handleAuditLogCommandErrors = <A, R>(effect: Effect.Effect<A, unknown, R>) =>
+  effect.pipe(
+    Effect.catchTags({
+      AuthRequiredError: (error: AuthRequiredError) => exitWith(3, error.message),
+      Forbidden: (error: Forbidden) => exitWith(1, error.message),
+    }),
+    Effect.catchAll((cause) => exitWith(1, formatCause(cause))),
+  );

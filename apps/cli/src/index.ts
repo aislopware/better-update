@@ -7,13 +7,18 @@ import { BunRuntime } from "@effect/platform-bun";
 import { Console, Effect } from "effect";
 
 import { CliLive } from "./app-layer";
+import { analyticsCommand } from "./commands/analytics";
+import { auditLogsCommand } from "./commands/audit-logs";
+import { branchesCommand } from "./commands/branches";
 import { buildCommand } from "./commands/build";
 import { buildsCommand } from "./commands/builds";
+import { channelsCommand } from "./commands/channels";
 import { credentialsCommand } from "./commands/credentials";
 import { envCommand } from "./commands/env";
 import { initCommand } from "./commands/init";
 import { loginCommand } from "./commands/login";
 import { logoutCommand } from "./commands/logout";
+import { projectsCommand } from "./commands/projects";
 import { statusCommand } from "./commands/status";
 import { updateCommand } from "./commands/update";
 
@@ -25,11 +30,16 @@ const command = Command.make("better-update", {}, () =>
     logoutCommand,
     initCommand,
     statusCommand,
+    projectsCommand,
+    branchesCommand,
+    channelsCommand,
     buildCommand,
     buildsCommand,
     credentialsCommand,
     envCommand,
     updateCommand,
+    analyticsCommand,
+    auditLogsCommand,
   ]),
 );
 

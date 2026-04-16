@@ -1,14 +1,15 @@
 import { Command, Options } from "@effect/cli";
 import { Effect, Option } from "effect";
 
-import { readProjectId } from "../lib/app-json";
-import { printTable } from "../lib/output";
-import { apiClient } from "../services/api-client";
+import { readProjectId } from "../../lib/app-json";
+import { printTable } from "../../lib/output";
+import { apiClient } from "../../services/api-client";
+import { handleBuildsCommandErrors } from "./helpers";
 
 const platform = Options.choice("platform", ["ios", "android"]).pipe(Options.optional);
 const limit = Options.integer("limit").pipe(Options.withDefault(10));
 
-export const buildsCommand = Command.make("builds", { platform, limit }, (opts) =>
+export const listCommand = Command.make("list", { platform, limit }, (opts) =>
   Effect.gen(function* () {
     const projectId = yield* readProjectId;
     const api = yield* apiClient;
@@ -33,5 +34,5 @@ export const buildsCommand = Command.make("builds", { platform, limit }, (opts) 
         b.createdAt,
       ]),
     );
-  }),
+  }).pipe(handleBuildsCommandErrors),
 );

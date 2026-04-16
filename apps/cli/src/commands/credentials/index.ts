@@ -3,7 +3,9 @@ import { Console } from "effect";
 
 import { activateCommand } from "./activate";
 import { deleteCommand } from "./delete";
+import { downloadCommand } from "./download";
 import { generateKeystoreCommand } from "./generate-keystore";
+import { getCommand } from "./get";
 import { listCommand } from "./list";
 import { uploadCommand } from "./upload";
 
@@ -12,7 +14,9 @@ export const credentialsCommand = Command.make("credentials", {}, () =>
 ).pipe(
   Command.withSubcommands([
     listCommand,
+    getCommand,
     uploadCommand,
+    downloadCommand,
     generateKeystoreCommand,
     activateCommand,
     deleteCommand,
