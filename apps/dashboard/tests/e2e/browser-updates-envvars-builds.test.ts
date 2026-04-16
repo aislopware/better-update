@@ -1,7 +1,7 @@
 import type { BrowserContext, Page } from "playwright";
 
 import {
-  createBrowserRuntime,
+  createSharedBrowserRuntime,
   dismissToasts,
   E2E_DEFAULT_TIMEOUT_MS,
   expectToast,
@@ -22,8 +22,8 @@ import {
 } from "../helpers/dashboard-seeder";
 import { setupE2EDashboard } from "../helpers/e2e-dashboard";
 
-const dashboard = setupE2EDashboard(".wrangler/state/e2e-dash-updates-envvars-builds");
-const runtime = createBrowserRuntime();
+const dashboard = setupE2EDashboard();
+const runtime = createSharedBrowserRuntime();
 
 const suffix = shortId();
 const owner = {

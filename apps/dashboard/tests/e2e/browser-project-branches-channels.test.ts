@@ -2,7 +2,7 @@ import type { BrowserContext, Page } from "playwright";
 
 import {
   completeOnboardingViaUI,
-  createBrowserRuntime,
+  createSharedBrowserRuntime,
   createProjectViaUI,
   E2E_DEFAULT_TIMEOUT_MS,
   expectToast,
@@ -15,8 +15,8 @@ import {
 } from "../helpers/browser-helpers";
 import { setupE2EDashboard } from "../helpers/e2e-dashboard";
 
-const dashboard = setupE2EDashboard(".wrangler/state/e2e-dash-project-branches-channels");
-const runtime = createBrowserRuntime();
+const dashboard = setupE2EDashboard();
+const runtime = createSharedBrowserRuntime();
 
 const suffix = shortId();
 const owner = {

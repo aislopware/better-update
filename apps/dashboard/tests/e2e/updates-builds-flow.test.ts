@@ -1,8 +1,6 @@
 import { setupE2EDashboard } from "../helpers/e2e-dashboard";
 
-const { post, get, patch, parseCookies, seedSql } = setupE2EDashboard(
-  ".wrangler/state/e2e-dash-updates-builds",
-);
+const { post, get, patch, parseCookies, seedSql } = setupE2EDashboard();
 
 const sqlString = (value: string) => `'${value.replaceAll("'", "''")}'`;
 

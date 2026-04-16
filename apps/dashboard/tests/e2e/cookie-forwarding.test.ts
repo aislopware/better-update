@@ -1,6 +1,6 @@
 import { setupE2EDashboard } from "../helpers/e2e-dashboard";
 
-const { post, get, parseCookies } = setupE2EDashboard(".wrangler/state/e2e-dash-cookie");
+const { post, get, parseCookies } = setupE2EDashboard();
 
 describe("Cookie-based auth", () => {
   const state = { cookies: "", organizationId: "" };

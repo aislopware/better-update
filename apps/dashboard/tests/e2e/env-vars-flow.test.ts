@@ -1,8 +1,6 @@
 import { setupE2EDashboard } from "../helpers/e2e-dashboard";
 
-const { post, get, patch, del, parseCookies } = setupE2EDashboard(
-  ".wrangler/state/e2e-dash-env-vars",
-);
+const { post, get, patch, del, parseCookies } = setupE2EDashboard();
 
 describe("Dashboard environment variables flow", () => {
   const state = {
