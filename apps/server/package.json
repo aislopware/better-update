@@ -17,11 +17,11 @@
     "typegen:cf": "wrangler types"
   },
   "dependencies": {
-    "@better-auth/api-key": "^1.6.3",
+    "@better-auth/api-key": "^1.6.4",
     "@better-update/api": "workspace:*",
     "@effect/platform": "^0.96.0",
     "@noble/hashes": "^2.2.0",
-    "better-auth": "^1.6.3",
+    "better-auth": "^1.6.4",
     "effect": "^3.21.0",
     "s3mini": "^0.9.4",
     "structured-headers": "^2.0.2"
@@ -29,10 +29,10 @@
   "devDependencies": {
     "@better-update/oxlint-config": "workspace:*",
     "@better-update/typescript-config": "workspace:*",
-    "@cloudflare/vite-plugin": "^1.32.2",
-    "@cloudflare/vitest-pool-workers": "^0.14.6",
+    "@cloudflare/vite-plugin": "^1.32.3",
+    "@cloudflare/vitest-pool-workers": "^0.14.7",
     "@vitest/coverage-istanbul": "^4.1.4",
     "vite": "^8.0.8",
-    "wrangler": "^4.82.2"
+    "wrangler": "^4.83.0"
   }
 }

@@ -64,13 +64,13 @@ export const ImportEnvVarsDialog = ({
     return trimmed.length > 0 && !trimmed.startsWith("#") && trimmed.includes("=");
   }).length;
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!content.trim()) {
       toast.error("Please paste .env content");
       return;
     }
 
-    await importEnvVarsMutation.mutateAsync();
+    importEnvVarsMutation.mutate();
   };
 
   return (

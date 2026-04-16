@@ -7,7 +7,7 @@ import { CurrentActor } from "../auth/current-actor";
 import { assertOrgOwnership, assertProjectOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
 import { Vault } from "../cloudflare/vault";
-import { BadRequest, Conflict, Forbidden } from "../errors";
+import { BadRequest, Forbidden } from "../errors";
 import { toApiEnvVar } from "../http/to-api";
 import { toApiBadRequestReadEffect, toApiWriteEffect } from "../http/to-api-effect";
 import { EnvVarRepo } from "../repositories/env-vars";
@@ -250,29 +250,15 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
             ctx.organizationId,
           );
 
-          const row = yield* repo
-            .insert({
-              id: crypto.randomUUID(),
-              organizationId: ctx.organizationId,
-              projectId: payload.projectId,
-              environment: payload.environment,
-              key: payload.key,
-              visibility: payload.visibility,
-              ...fields,
-            })
-            .pipe(
-              Effect.catchAllDefect((defect) => {
-                const msg = defect instanceof Error ? defect.message : String(defect);
-                if (msg.includes("UNIQUE constraint failed")) {
-                  return Effect.fail(
-                    new Conflict({
-                      message: `Variable "${payload.key}" already exists in this environment`,
-                    }),
-                  );
-                }
-                return Effect.die(defect);
-              }),
-            );
+          const row = yield* repo.insert({
+            id: crypto.randomUUID(),
+            organizationId: ctx.organizationId,
+            projectId: payload.projectId,
+            environment: payload.environment,
+            key: payload.key,
+            visibility: payload.visibility,
+            ...fields,
+          });
 
           const envVar = toEnvVarModel(row);
 

@@ -9,9 +9,26 @@
     "restriction": "warn",
     "nursery": "warn"
   },
-  "plugins": ["typescript", "unicorn", "oxc", "import", "promise", "vitest", "jsdoc", "node"],
+  "plugins": ["typescript", "unicorn", "oxc", "import", "vitest", "jsdoc", "node", "promise"],
   "jsPlugins": ["eslint-plugin-functional"],
   "rules": {
+    "promise/prefer-await-to-then": ["warn", { "strict": true }],
+    "promise/always-return": "off",
+    "promise/avoid-new": "off",
+    "promise/catch-or-return": "off",
+    "promise/no-callback-in-promise": "off",
+    "promise/no-multiple-resolved": "off",
+    "promise/no-nesting": "off",
+    "promise/no-new-statics": "off",
+    "promise/no-promise-in-callback": "off",
+    "promise/no-return-in-finally": "off",
+    "promise/no-return-wrap": "off",
+    "promise/param-names": "off",
+    "promise/prefer-await-to-callbacks": "off",
+    "promise/prefer-catch": "off",
+    "promise/spec-only": "off",
+    "promise/valid-params": "off",
+
     "functional/immutable-data": "off",
     "functional/no-let": "warn",
     "functional/no-loop-statements": "warn",
@@ -49,7 +66,9 @@
     "no-undef": "off",
     "no-undefined": "off",
     "no-unreachable": "off",
+    "no-use-before-define": "off",
     "require-await": "off",
+    "require-yield": "off",
     "no-duplicate-imports": "off",
     "sort-imports": "off",
     "sort-keys": "off",
@@ -100,20 +119,6 @@
       }
     },
     {
-      "files": [
-        "**/routes/**/*.ts",
-        "**/routes/**/*.tsx",
-        "**/queries/**/*.ts",
-        "**/serverFns/**/*.ts"
-      ],
-      "rules": {
-        "functional/no-throw-statements": "off",
-        "functional/no-promise-reject": "off",
-        "no-use-before-define": "off",
-        "typescript/only-throw-error": "off"
-      }
-    },
-    {
       "files": ["**/*.test.*", "**/*.spec.*", "**/__tests__/**", "**/tests/**"],
       "rules": {
         "init-declarations": "off",
@@ -125,6 +130,7 @@
         "functional/no-throw-statements": "off",
         "functional/no-promise-reject": "off",
         "functional/no-try-statements": "off",
+        "promise/prefer-await-to-then": "off",
         "typescript/require-await": "off",
 
         "import/no-nodejs-modules": "off",

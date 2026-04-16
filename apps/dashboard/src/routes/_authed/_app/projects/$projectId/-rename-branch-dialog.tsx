@@ -16,7 +16,7 @@ import { toast } from "sonner";
 
 import type { BranchItem } from "@better-update/api-client/react";
 
-import { useApiMutation } from "../../../../../lib/use-api-mutation";
+import { safeSubmit, useApiMutation } from "../../../../../lib/use-api-mutation";
 import { BranchNameForm } from "./-branch-name-form";
 
 export const RenameBranchDialog = ({
@@ -57,9 +57,7 @@ export const RenameBranchDialog = ({
           defaultName={branch.name}
           submitLabel="Rename"
           submittingLabel="Renaming..."
-          onSubmit={async (name) => {
-            await renameBranchMutation.mutateAsync(name);
-          }}
+          onSubmit={async (name) => safeSubmit(renameBranchMutation.mutateAsync(name))}
         />
       </DialogContent>
     </Dialog>

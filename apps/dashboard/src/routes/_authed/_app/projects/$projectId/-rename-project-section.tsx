@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import type { ProjectDetail } from "@better-update/api-client/react";
 
 import { getFieldError, nameSchema } from "../../../../../lib/form-utils";
-import { useApiMutation } from "../../../../../lib/use-api-mutation";
+import { safeSubmit, useApiMutation } from "../../../../../lib/use-api-mutation";
 
 export const RenameProjectSection = ({ project }: { project: ProjectDetail }) => {
   const queryClient = useQueryClient();
@@ -49,7 +49,7 @@ export const RenameProjectSection = ({ project }: { project: ProjectDetail }) =>
 
   const form = useForm({
     defaultValues: { name: project.name },
-    onSubmit: async ({ value }) => renameProjectMutation.mutateAsync(value),
+    onSubmit: async ({ value }) => safeSubmit(renameProjectMutation.mutateAsync(value)),
   });
 
   return (

@@ -21,13 +21,14 @@ import { Input } from "@better-update/ui/components/ui/input";
 import { Label } from "@better-update/ui/components/ui/label";
 import { Separator } from "@better-update/ui/components/ui/separator";
 import { useForm } from "@tanstack/react-form";
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { authClient } from "../../../../lib/auth-client";
 import { generateSlug, nameSchema, slugSchema } from "../../../../lib/form-utils";
+import { deleteOrg } from "../../../../lib/org-mutations";
 import { orgsQueryOptions, sessionQueryOptions } from "../../../../queries/auth";
 
 const OrgGeneralForm = () => {
@@ -157,26 +158,24 @@ const DeleteOrgSection = () => {
   const activeOrgId = session?.session.activeOrganizationId;
   const activeOrg = orgs.find((org) => org.id === activeOrgId) ?? orgs[0];
   const [confirmText, setConfirmText] = useState("");
-  const [isDeleting, setIsDeleting] = useState(false);
 
-  const handleDelete = async () => {
+  const deleteOrgMutation = useMutation({
+    mutationFn: async () => deleteOrg(activeOrg?.id ?? ""),
+    onSuccess: async () => {
+      toast.success("Organization deleted");
+      await queryClient.resetQueries({ queryKey: ["auth"] });
+      await router.invalidate();
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to delete organization");
+    },
+  });
+
+  const handleDelete = () => {
     if (!activeOrg) {
       return;
     }
-    setIsDeleting(true);
-    const { error } = await authClient.organization.delete({
-      organizationId: activeOrg.id,
-    });
-    setIsDeleting(false);
-
-    if (error) {
-      toast.error(error.message ?? "Failed to delete organization");
-      return;
-    }
-
-    toast.success("Organization deleted");
-    await queryClient.resetQueries({ queryKey: ["auth"] });
-    await router.invalidate();
+    deleteOrgMutation.mutate();
   };
 
   return (
@@ -217,10 +216,10 @@ const DeleteOrgSection = () => {
               </DialogClose>
               <Button
                 variant="destructive"
-                disabled={confirmText !== activeOrg?.slug || isDeleting}
+                disabled={confirmText !== activeOrg?.slug || deleteOrgMutation.isPending}
                 onClick={handleDelete}
               >
-                {isDeleting ? "Deleting..." : "Delete permanently"}
+                {deleteOrgMutation.isPending ? "Deleting..." : "Delete permanently"}
               </Button>
             </DialogFooter>
           </DialogContent>

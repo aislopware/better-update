@@ -24,7 +24,7 @@ import {
   nameSchema,
   requiredStringSchema,
 } from "../../../../lib/form-utils";
-import { useApiMutation } from "../../../../lib/use-api-mutation";
+import { safeSubmit, useApiMutation } from "../../../../lib/use-api-mutation";
 
 const CreateFormContent = ({ orgId, onSuccess }: { orgId: string; onSuccess: () => void }) => {
   const queryClient = useQueryClient();
@@ -43,7 +43,7 @@ const CreateFormContent = ({ orgId, onSuccess }: { orgId: string; onSuccess: () 
 
   const form = useForm({
     defaultValues: { name: "", scopeKey: "" },
-    onSubmit: async ({ value }) => createProjectMutation.mutateAsync(value),
+    onSubmit: async ({ value }) => safeSubmit(createProjectMutation.mutateAsync(value)),
   });
 
   return (

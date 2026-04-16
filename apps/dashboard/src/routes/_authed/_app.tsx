@@ -50,22 +50,16 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import {
-  Link,
-  Outlet,
-  createFileRoute,
-  redirect,
-  useRouter,
-  useRouterState,
-} from "@tanstack/react-router";
+import { Link, Outlet, createFileRoute, useRouter, useRouterState } from "@tanstack/react-router";
 import { Suspense, useState } from "react";
 
 import { authClient } from "../../lib/auth-client";
+import { throwRedirect } from "../../lib/throw-redirect";
 import { useTheme } from "../../lib/use-theme";
 import { orgsQueryOptions, sessionQueryOptions } from "../../queries/auth";
 import { CreateOrgDialog } from "./-create-org-dialog";
 
-import type { Theme } from "../../lib/theme";
+import type { Theme } from "../../lib/use-theme";
 
 const THEMES = new Set<string>(["light", "dark", "system"]);
 const isTheme = (value: unknown): value is Theme => typeof value === "string" && THEMES.has(value);
@@ -334,7 +328,7 @@ export const Route = createFileRoute("/_authed/_app")({
   beforeLoad: async ({ context }) => {
     const [firstOrg] = context.orgs;
     if (!firstOrg) {
-      throw redirect({ to: "/onboarding" });
+      throwRedirect({ to: "/onboarding" });
     }
 
     const activeOrgId = context.session?.session.activeOrganizationId;

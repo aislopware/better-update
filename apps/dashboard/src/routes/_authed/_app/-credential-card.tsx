@@ -80,9 +80,13 @@ export const CredentialCard = ({
     },
   });
 
-  const handleActivate = async () => activateCredentialMutation.mutateAsync();
+  const handleActivate = () => {
+    activateCredentialMutation.mutate();
+  };
 
-  const handleDelete = async () => deleteCredentialMutation.mutateAsync();
+  const handleDelete = () => {
+    deleteCredentialMutation.mutate();
+  };
 
   return (
     <Card>

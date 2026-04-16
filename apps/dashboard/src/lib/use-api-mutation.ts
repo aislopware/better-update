@@ -1,5 +1,6 @@
 import { getApiError } from "@better-update/api-client";
 import { useMutation } from "@tanstack/react-query";
+import { Effect } from "effect";
 import { toast } from "sonner";
 
 import type { MutationFunctionContext, UseMutationOptions } from "@tanstack/react-query";
@@ -17,3 +18,12 @@ export const useApiMutation = <TData, TVariables = void, TOnMutateResult = unkno
     },
   });
 };
+
+/**
+ * Wraps a Promise so it never rejects — errors resolve as void.
+ * Use in TanStack Form `onSubmit` with `mutateAsync` to prevent unhandled
+ * rejections while keeping `isSubmitting` tracking intact.
+ * Error display is still handled by `useApiMutation`'s `onError`.
+ */
+export const safeSubmit = async <T>(promise: Promise<T>): Promise<void> =>
+  Effect.runPromise(Effect.ignore(Effect.tryPromise(async () => promise)));

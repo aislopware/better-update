@@ -10,9 +10,11 @@ import {
 import { Input } from "@better-update/ui/components/ui/input";
 import { Label } from "@better-update/ui/components/ui/label";
 import { useForm } from "@tanstack/react-form";
-import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { z } from "zod/v4";
+
+import { throwRedirect } from "../../lib/throw-redirect";
 
 const emailSchema = z.email("Please enter a valid email address");
 
@@ -106,7 +108,7 @@ const ForgotPassword = () => {
 export const Route = createFileRoute("/(auth)/forgot-password")({
   beforeLoad: ({ context }) => {
     if (context.session?.user) {
-      throw redirect({ to: "/" });
+      throwRedirect({ to: "/" });
     }
   },
   component: ForgotPassword,

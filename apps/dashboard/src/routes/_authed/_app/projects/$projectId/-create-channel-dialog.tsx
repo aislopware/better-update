@@ -66,12 +66,12 @@ export const CreateChannelDialog = ({ orgId, projectId }: { orgId: string; proje
     },
   });
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!name.trim() || !branchId) {
       return;
     }
 
-    await createChannelMutation.mutateAsync({ name: name.trim(), branchId });
+    createChannelMutation.mutate({ name: name.trim(), branchId });
   };
 
   return (
@@ -92,9 +92,9 @@ export const CreateChannelDialog = ({ orgId, projectId }: { orgId: string; proje
           </DialogDescription>
         </DialogHeader>
         <form
-          onSubmit={async (event) => {
+          onSubmit={(event) => {
             event.preventDefault();
-            await handleSubmit();
+            handleSubmit();
           }}
           className="flex flex-col gap-4"
         >

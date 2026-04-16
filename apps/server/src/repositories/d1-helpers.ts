@@ -10,10 +10,10 @@ export class D1StatementError extends Data.TaggedError("D1StatementError")<{
 const isUniqueConstraintError = (error: D1StatementError) =>
   String(error.cause).includes("UNIQUE constraint failed");
 
-export const d1RunWithUniqueCheck = (
-  run: () => Promise<unknown>,
+export const d1WithUniqueCheck = <T>(
+  run: () => Promise<T>,
   conflictMessage: string,
-): Effect.Effect<void, Conflict> =>
+): Effect.Effect<T, Conflict> =>
   Effect.tryPromise({
     try: run,
     catch: (cause) =>
@@ -25,7 +25,7 @@ export const d1RunWithUniqueCheck = (
     Effect.either,
     Effect.flatMap((result) => {
       if (Either.isRight(result)) {
-        return Effect.void;
+        return Effect.succeed(result.right);
       }
       if (isUniqueConstraintError(result.left)) {
         return Effect.fail(new Conflict({ message: conflictMessage }));
@@ -33,3 +33,8 @@ export const d1RunWithUniqueCheck = (
       return Effect.die(result.left);
     }),
   );
+
+export const d1RunWithUniqueCheck = (
+  run: () => Promise<unknown>,
+  conflictMessage: string,
+): Effect.Effect<void, Conflict> => Effect.asVoid(d1WithUniqueCheck(run, conflictMessage));
