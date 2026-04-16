@@ -182,7 +182,7 @@ describe("CLI command journey", () => {
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toBe("");
     expect(result.stdout).toContain("Linking project: CLI E2E App (@cli-e2e/cli-e2e-app)");
-    expect(result.stdout).toContain("Found existing project: CLI Linked Project");
+    expect(result.stdout).toContain("Found existing project: CLI E2E App Project");
     expect(result.stdout).toContain("Project linked successfully");
 
     const appJson = cli.readAppJson();
@@ -200,7 +200,7 @@ describe("CLI command journey", () => {
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toBe("");
     expect(result.stdout).toContain("Project");
-    expect(result.stdout).toContain("CLI Linked Project");
+    expect(result.stdout).toContain("CLI E2E App Project");
     expect(result.stdout).toContain("@cli-e2e/cli-e2e-app");
     expect(result.stdout).toContain("Credentials");
     expect(result.stdout).toContain("iOS");

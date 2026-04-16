@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "E2E Publish App",
+    "slug": "e2e-publish-app",
+    "owner": "e2e-publish",
+    "version": "1.0.0",
+    "runtimeVersion": "1.0.0",
+    "ios": {
+      "bundleIdentifier": "com.example.e2epublish",
+      "buildNumber": "1"
+    },
+    "android": {
+      "package": "com.example.e2epublish",
+      "versionCode": 1
+    },
+    "extra": {
+      "betterUpdate": {
+        "profiles": {
+          "production": {
+            "environment": "production",
+            "ios": { "distribution": "ad-hoc" },
+            "android": { "distribution": "direct", "format": "apk" }
+          }
+        }
+      }
+    }
+  }
+}

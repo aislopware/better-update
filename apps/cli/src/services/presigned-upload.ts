@@ -46,12 +46,14 @@ export const PresignedUploadClientLive = Layer.effect(
           }
 
           const request = yield* HttpClientRequest.put(url).pipe(
-            HttpClientRequest.setHeaders({
-              "content-length": String(byteSize),
-              ...headers,
-            }),
             HttpClientRequest.bodyFile(filePath),
             Effect.provideService(FileSystem.FileSystem, fileSystem),
+            Effect.map(
+              HttpClientRequest.setHeaders({
+                "content-length": String(byteSize),
+                ...headers,
+              }),
+            ),
             Effect.mapError(
               (cause) =>
                 new UploadFailedError({

@@ -1,5 +1,5 @@
 import { execSync, spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -9,7 +9,14 @@ import { applyProcessEnv, createServerE2EEnvironment } from "../../../server/tes
 const CLI_DIR = path.resolve(import.meta.dirname, "../..");
 const SERVER_DIR = path.resolve(import.meta.dirname, "../../../server");
 
-const appJsonTemplate = {
+export interface SetupCliE2EOptions {
+  /** Use an existing directory as the CLI project root instead of creating a temp dir. */
+  readonly projectDir?: string;
+  /** Custom app.json template. ScopeKey and project name are derived from expo.owner/slug/name. */
+  readonly appJsonTemplate?: Record<string, unknown>;
+}
+
+const defaultAppJsonTemplate = {
   expo: {
     name: "CLI E2E App",
     slug: "cli-e2e-app",
@@ -109,7 +116,13 @@ export interface CliE2EContext {
   ) => Promise<Response>;
 }
 
-export const setupCliE2E = (persistDir: string): CliE2EContext => {
+export const setupCliE2E = (persistDir: string, options?: SetupCliE2EOptions): CliE2EContext => {
+  const template = options?.appJsonTemplate ?? defaultAppJsonTemplate;
+  const expoConfig = (template as { expo?: Record<string, unknown> }).expo ?? {};
+  const scopeKey = `@${String(expoConfig["owner"] ?? "cli-e2e")}/${String(expoConfig["slug"] ?? "cli-e2e-app")}`;
+  const projectName = `${String(expoConfig["name"] ?? "E2E")} Project`;
+  const useExternalProjectDir = options?.projectDir !== undefined;
+
   const state = {
     worker: null as Awaited<
       ReturnType<
@@ -124,6 +137,7 @@ export const setupCliE2E = (persistDir: string): CliE2EContext => {
     projectDir: "",
     homeDir: "",
     restoreProcessEnv: undefined as (() => void) | undefined,
+    originalAppJson: undefined as string | undefined,
   };
 
   const persistPath = path.resolve(SERVER_DIR, persistDir);
@@ -196,7 +210,7 @@ export const setupCliE2E = (persistDir: string): CliE2EContext => {
   const writeAppJson = () => {
     writeFileSync(
       path.join(state.projectDir, "app.json"),
-      `${JSON.stringify(appJsonTemplate, null, 2)}\n`,
+      `${JSON.stringify(template, null, 2)}\n`,
     );
   };
 
@@ -257,7 +271,16 @@ export const setupCliE2E = (persistDir: string): CliE2EContext => {
     state.baseUrl = url.href.replace(/\/$/, "");
 
     state.homeDir = mkdtempSync(path.join(os.tmpdir(), "better-update-cli-home-"));
-    state.projectDir = mkdtempSync(path.join(os.tmpdir(), "better-update-cli-project-"));
+
+    if (useExternalProjectDir) {
+      state.projectDir = options!.projectDir!;
+      const appJsonPath = path.join(state.projectDir, "app.json");
+      if (existsSync(appJsonPath)) {
+        state.originalAppJson = readFileSync(appJsonPath, "utf8");
+      }
+    } else {
+      state.projectDir = mkdtempSync(path.join(os.tmpdir(), "better-update-cli-project-"));
+    }
     writeAppJson();
 
     const signUpResponse = await post("/api/auth/sign-up/email", {
@@ -287,7 +310,7 @@ export const setupCliE2E = (persistDir: string): CliE2EContext => {
 
     const createProjectResponse = await post(
       "/api/projects",
-      { name: "CLI Linked Project", scopeKey: "@cli-e2e/cli-e2e-app" },
+      { name: projectName, scopeKey },
       { cookie: state.cookies },
     );
     expect(createProjectResponse.status).toBe(201);
@@ -381,7 +404,13 @@ VALUES (
     await state.worker?.dispose();
     state.restoreProcessEnv?.();
     rmSync(persistPath, { recursive: true, force: true });
-    rmSync(state.projectDir, { recursive: true, force: true });
+    if (useExternalProjectDir) {
+      if (state.originalAppJson !== undefined) {
+        writeFileSync(path.join(state.projectDir, "app.json"), state.originalAppJson);
+      }
+    } else {
+      rmSync(state.projectDir, { recursive: true, force: true });
+    }
     rmSync(state.homeDir, { recursive: true, force: true });
   });
 
