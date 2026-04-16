@@ -15,6 +15,7 @@ import { buildsCommand } from "./commands/builds";
 import { channelsCommand } from "./commands/channels";
 import { credentialsCommand } from "./commands/credentials";
 import { envCommand } from "./commands/env";
+import { fingerprintCommand } from "./commands/fingerprint";
 import { initCommand } from "./commands/init";
 import { loginCommand } from "./commands/login";
 import { logoutCommand } from "./commands/logout";
@@ -37,6 +38,7 @@ const command = Command.make("better-update", {}, () =>
     buildsCommand,
     credentialsCommand,
     envCommand,
+    fingerprintCommand,
     updateCommand,
     analyticsCommand,
     auditLogsCommand,

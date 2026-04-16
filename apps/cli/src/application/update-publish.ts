@@ -10,6 +10,7 @@ import { readRuntimeVersionMeta, type Platform } from "../lib/build-profile";
 import { pullEnvVars } from "../lib/env-exporter";
 import { EnvExportError, RuntimeVersionError, UpdatePublishError } from "../lib/exit-codes";
 import { readExpoExportAssets, readExpoPublicConfig, runExpoExport } from "../lib/expo-export";
+import { readGitContext } from "../lib/git-context";
 import { resolveRuntimeVersion } from "../lib/runtime-version";
 import { sha256File, sha256Namespaced } from "../lib/sha256";
 import { loadSignedPublishPayloads, type SignedPayload } from "../lib/signed-payloads";
@@ -27,9 +28,10 @@ import type {
 } from "../lib/exit-codes";
 
 export interface RunUpdatePublishOptions {
-  readonly branch: string;
+  readonly branch: string | undefined;
   readonly platform: Platform | "all";
   readonly message: string | undefined;
+  readonly auto: boolean;
   readonly environment: string;
   readonly clear: boolean;
   readonly manifestBodyFile: string | undefined;
@@ -81,9 +83,14 @@ const formatCause = (cause: unknown): string => {
   return String(cause);
 };
 
-const buildUpdateExtra = (expoClient: Record<string, unknown>, projectId: string) => ({
+const buildUpdateExtra = (
+  expoClient: Record<string, unknown>,
+  projectId: string,
+  environment: string,
+) => ({
   expoClient,
   eas: { projectId },
+  environment,
 });
 
 const dedupeAssetsByHash = (assets: readonly PreparedAsset[]): readonly PreparedAsset[] => {
@@ -132,6 +139,7 @@ const publishPlatform = (params: {
   readonly branch: string;
   readonly groupId: string;
   readonly message: string;
+  readonly environment: string;
   readonly environmentVars: Record<string, string>;
   readonly expoClientConfig: Record<string, unknown>;
   readonly clear: boolean;
@@ -224,7 +232,7 @@ const publishPlatform = (params: {
           message: params.message,
           groupId: params.groupId,
           metadata: {},
-          extra: buildUpdateExtra(params.expoClientConfig, params.projectId),
+          extra: buildUpdateExtra(params.expoClientConfig, params.projectId, params.environment),
           assets: preparedAssets.map((asset) => ({
             hash: asset.hash,
             key: asset.key,
@@ -307,8 +315,34 @@ export const runUpdatePublish = (
             }),
         ),
       );
+      let resolvedBranch = options.branch;
+      let resolvedMessage = options.message;
+
+      if (options.auto) {
+        const gitContext = yield* readGitContext(projectRoot);
+        if (!resolvedBranch) {
+          if (!gitContext.ref) {
+            return yield* new UpdatePublishError({
+              message:
+                "Cannot infer branch from git. Ensure you are in a git repo with a checked-out branch, or provide --branch explicitly.",
+            });
+          }
+          resolvedBranch = gitContext.ref;
+        }
+        if (!resolvedMessage && gitContext.commitMessage) {
+          resolvedMessage = gitContext.commitMessage;
+        }
+      }
+
+      if (!resolvedBranch) {
+        return yield* new UpdatePublishError({
+          message: "Missing --branch. Provide it explicitly or use --auto to infer from git.",
+        });
+      }
+
+      const branch = resolvedBranch;
       const groupId = randomUUID();
-      const message = options.message ?? "Publish via better-update CLI";
+      const message = resolvedMessage ?? "Publish via better-update CLI";
       const signedPayloads = yield* loadSignedPublishPayloads({
         platforms,
         globalFiles: {
@@ -340,9 +374,10 @@ export const runUpdatePublish = (
             exportDir: path.join(tempDir, `export-${platform}`),
             projectId,
             scopeKey,
-            branch: options.branch,
+            branch,
             groupId,
             message,
+            environment: options.environment,
             environmentVars,
             expoClientConfig,
             clear: options.clear,
@@ -361,7 +396,7 @@ export const runUpdatePublish = (
 
       return {
         groupId,
-        branch: options.branch,
+        branch,
         results,
       } as const satisfies PublishUpdatesResult;
     }),

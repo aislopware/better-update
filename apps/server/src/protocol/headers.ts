@@ -1,5 +1,5 @@
 import { Data, Effect } from "effect";
-import { parseDictionary } from "structured-headers";
+import { parseDictionary, serializeDictionary } from "structured-headers";
 
 import { BadRequest } from "../errors";
 
@@ -62,6 +62,9 @@ const parseExtraParams = (headers: Headers) =>
     );
     return hasOversized ? undefined : raw;
   }).pipe(Effect.catchAll(() => Effect.succeed(undefined)));
+
+export const buildManifestFiltersHeader = (scopeKey: string): string =>
+  serializeDictionary(new Map([["scopekey", [scopeKey, new Map()]]]));
 
 export const addServerDefinedHeaders = (
   response: Response,
