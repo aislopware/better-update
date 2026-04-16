@@ -45,8 +45,6 @@
   },
   "ignoreDependencies": ["@better-update/oxlint-config"],
   "ignoreWorkspaces": [
-    "fixtures/e2e-app",
-    "fixtures/build-e2e-app",
     "packages/oxlint-config",
     "packages/typescript-config"
   ],
