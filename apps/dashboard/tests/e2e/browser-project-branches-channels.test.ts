@@ -210,11 +210,25 @@ describe("Dashboard project + branches + channels (browser)", () => {
     await card.getByText(/Rolling out/u).waitFor({ state: "detached" });
   });
 
-  test("navigates to the channel detail page", async () => {
+  test("navigates to channel detail and verifies summary cards + compatible builds", async () => {
     const card = channelCardLocator();
     await card.getByRole("link", { name: "View details" }).click();
     await page.waitForURL(/\/projects\/[^/]+\/channels\/[^/]+$/u);
     await page.getByRole("heading", { name: channelName }).waitFor();
+
+    // Summary cards
+    await page.getByText("Linked branch").waitFor();
+    await page.getByText(rolloutBranchName).first().waitFor();
+    await page.getByText("Channel state").waitFor();
+    await page.getByText("Live").first().waitFor();
+    await page.getByText("Build coverage").waitFor();
+    await page.getByText("0 compatible builds").waitFor();
+
+    // Compatible builds card — no builds seeded for this project
+    await page.getByText("Open compatible builds").waitFor();
+    await page
+      .getByText("No compatible builds are currently available for this channel.")
+      .waitFor();
 
     await page.goBack();
     await page.waitForURL(/\/projects\/[^/]+$/u);
