@@ -46,7 +46,7 @@ export interface RuntimeVersionMeta {
 const asRecord = (value: unknown): Record<string, unknown> | undefined =>
   typeof value === "object" && value !== null ? (value as Record<string, unknown>) : undefined;
 
-const asString = (value: unknown): string | undefined =>
+export const asString = (value: unknown): string | undefined =>
   typeof value === "string" ? value : undefined;
 
 const getBetterUpdateExtra = (

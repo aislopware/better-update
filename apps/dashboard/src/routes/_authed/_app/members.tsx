@@ -11,7 +11,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { authClient } from "../../../lib/auth-client";
+import { authClient, rejectOnAuthClientError } from "../../../lib/auth-client";
+import { useApiMutation } from "../../../lib/use-api-mutation";
 import { orgsQueryOptions, sessionQueryOptions } from "../../../queries/auth";
 import { invitationsQueryOptions, membersQueryOptions } from "../../../queries/org";
 import { InviteDialog, RemoveDialog } from "./-invite-dialog";
@@ -38,69 +39,67 @@ const Members = () => {
   );
 
   const [removeMemberId, setRemoveMemberId] = useState<string | null>(null);
-  const [isRemoving, setIsRemoving] = useState(false);
 
-  const handleRoleChange = async (memberId: string, role: string) => {
+  const roleChangeMutation = useApiMutation({
+    mutationFn: async (input: { memberId: string; role: "member" | "admin" | "owner" }) =>
+      rejectOnAuthClientError(
+        authClient.organization.updateMemberRole({
+          memberId: input.memberId,
+          role: input.role,
+          organizationId: orgId,
+        }),
+        "Failed to update role",
+      ),
+    onSuccess: async () => {
+      toast.success("Role updated");
+      await queryClient.invalidateQueries({ queryKey: ["org", orgId, "members"] });
+    },
+  });
+
+  const removeMemberMutation = useApiMutation({
+    mutationFn: async (memberId: string) =>
+      rejectOnAuthClientError(
+        authClient.organization.removeMember({
+          memberIdOrEmail: memberId,
+          organizationId: orgId,
+        }),
+        "Failed to remove member",
+      ),
+    onSuccess: async () => {
+      setRemoveMemberId(null);
+      toast.success("Member removed");
+      await queryClient.invalidateQueries({ queryKey: ["org", orgId, "members"] });
+    },
+  });
+
+  const cancelInvitationMutation = useApiMutation({
+    mutationFn: async (invitationId: string) =>
+      rejectOnAuthClientError(
+        authClient.organization.cancelInvitation({ invitationId }),
+        "Failed to cancel invitation",
+      ),
+    onSuccess: async () => {
+      toast.success("Invitation canceled");
+      await queryClient.invalidateQueries({ queryKey: ["org", orgId, "invitations"] });
+    },
+  });
+
+  const handleRoleChange = (memberId: string, role: string) => {
     if (role !== "member" && role !== "admin" && role !== "owner") {
       return;
     }
-
-    const { error } = await authClient.organization.updateMemberRole({
-      memberId,
-      role,
-      organizationId: orgId,
-    });
-
-    if (error) {
-      toast.error(error.message ?? "Failed to update role");
-      return;
-    }
-
-    toast.success("Role updated");
-    await queryClient.invalidateQueries({
-      queryKey: ["org", orgId, "members"],
-    });
+    roleChangeMutation.mutate({ memberId, role });
   };
 
-  const handleRemove = async () => {
+  const handleRemove = () => {
     if (!removeMemberId) {
       return;
     }
-    setIsRemoving(true);
-
-    const { error } = await authClient.organization.removeMember({
-      memberIdOrEmail: removeMemberId,
-      organizationId: orgId,
-    });
-
-    setIsRemoving(false);
-
-    if (error) {
-      toast.error(error.message ?? "Failed to remove member");
-      return;
-    }
-
-    setRemoveMemberId(null);
-    toast.success("Member removed");
-    await queryClient.invalidateQueries({
-      queryKey: ["org", orgId, "members"],
-    });
+    removeMemberMutation.mutate(removeMemberId);
   };
 
-  const handleCancelInvitation = async (invitationId: string) => {
-    const { error } = await authClient.organization.cancelInvitation({
-      invitationId,
-    });
-
-    if (error) {
-      toast.error(error.message ?? "Failed to cancel invitation");
-      return;
-    }
-
-    toast.success("Invitation canceled");
-    await queryClient.invalidateQueries({
-      queryKey: ["org", orgId, "invitations"],
-    });
+  const handleCancelInvitation = (invitationId: string) => {
+    cancelInvitationMutation.mutate(invitationId);
   };
 
   return (
@@ -160,7 +159,7 @@ const Members = () => {
           }
         }}
         onConfirm={handleRemove}
-        isRemoving={isRemoving}
+        isRemoving={removeMemberMutation.isPending}
       />
     </div>
   );

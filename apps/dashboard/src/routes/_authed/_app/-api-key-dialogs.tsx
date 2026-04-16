@@ -19,6 +19,7 @@ import { toast } from "sonner";
 
 import { authClient } from "../../../lib/auth-client";
 import { getFieldError, requiredStringSchema } from "../../../lib/form-utils";
+import { useCopyToClipboard } from "../../../lib/use-copy-to-clipboard";
 import { apiKeysQueryOptions } from "../../../queries/api-keys";
 
 // ── Create Form ──────────────────────────────────────────────────
@@ -111,14 +112,10 @@ const CreateFormContent = ({
 // ── Key Reveal ───────────────────────────────────────────────────
 
 const KeyRevealContent = ({ apiKey, onClose }: { apiKey: string; onClose: () => void }) => {
-  const [copied, setCopied] = useState(false);
+  const { copied, copy } = useCopyToClipboard();
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(apiKey);
-    setCopied(true);
-    setTimeout(() => {
-      setCopied(false);
-    }, 2000);
+    await copy(apiKey);
   };
 
   return (
@@ -215,7 +212,7 @@ export const RevokeDialog = ({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onConfirm: () => Promise<void>;
+  onConfirm: () => void;
   isRevoking: boolean;
 }) => (
   <Dialog open={open} onOpenChange={onOpenChange}>

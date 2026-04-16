@@ -25,11 +25,6 @@ const mockBatchD1 = (batchFn: () => Promise<unknown>) => ({
   batch: batchFn,
 });
 
-const mockR2 = {
-  put: vi.fn<() => Promise<null>>(async () => null),
-  delete: vi.fn<() => Promise<null>>(async () => null),
-};
-
 const makeAssetRow = (overrides?: Partial<Record<string, unknown>>) => ({
   hash: "abc123",
   content_type: "application/javascript",
@@ -41,7 +36,7 @@ const makeAssetRow = (overrides?: Partial<Record<string, unknown>>) => ({
   ...overrides,
 });
 
-const makeEnv = (db: unknown) => ({ DB: db, ASSETS_BUCKET: mockR2 }) as unknown as Env;
+const makeEnv = (db: unknown) => ({ DB: db }) as unknown as Env;
 
 const runWithRepo = async <Ret, Err>(effect: Effect.Effect<Ret, Err, AssetRepo>, env: Env) =>
   runWithLayerAndEnvExit(effect, AssetRepoLive, env);
@@ -147,32 +142,6 @@ describe("AssetRepo -- D1 adapter", () => {
     });
   });
 
-  describe("uploadBlob", () => {
-    test("calls R2 put with correct arguments", async () => {
-      const db = mockD1.forRun(async () => ({ results: [], success: true }));
-      const env = makeEnv(db);
-
-      const mockBody = new ReadableStream();
-
-      const exit = await runWithRepo(
-        Effect.gen(function* () {
-          const repo = yield* AssetRepo;
-          yield* repo.uploadBlob({
-            r2Key: "assets/abc123.js",
-            body: mockBody,
-            contentType: "application/javascript",
-          });
-        }),
-        env,
-      );
-
-      expect(Exit.isSuccess(exit)).toBe(true);
-      expect(mockR2.put).toHaveBeenCalledWith("assets/abc123.js", mockBody, {
-        httpMetadata: { contentType: "application/javascript" },
-      });
-    });
-  });
-
   describe("updateByteSize", () => {
     test("succeeds on valid update", async () => {
       const db = mockD1.forRun(async () => ({ results: [], success: true }));
@@ -187,40 +156,6 @@ describe("AssetRepo -- D1 adapter", () => {
       );
 
       expect(Exit.isSuccess(exit)).toBe(true);
-    });
-  });
-
-  describe("deleteBlobs", () => {
-    test("calls R2 delete with correct keys", async () => {
-      const db = mockD1.forRun(async () => ({ results: [], success: true }));
-      const env = makeEnv(db);
-
-      const exit = await runWithRepo(
-        Effect.gen(function* () {
-          const repo = yield* AssetRepo;
-          yield* repo.deleteBlobs({ r2Keys: ["assets/abc123.js", "assets/def456.css"] });
-        }),
-        env,
-      );
-
-      expect(Exit.isSuccess(exit)).toBe(true);
-      expect(mockR2.delete).toHaveBeenCalledWith(["assets/abc123.js", "assets/def456.css"]);
-    });
-
-    test("skips R2 call for empty array", async () => {
-      const db = mockD1.forRun(async () => ({ results: [], success: true }));
-      const env = makeEnv(db);
-
-      const exit = await runWithRepo(
-        Effect.gen(function* () {
-          const repo = yield* AssetRepo;
-          yield* repo.deleteBlobs({ r2Keys: [] });
-        }),
-        env,
-      );
-
-      expect(Exit.isSuccess(exit)).toBe(true);
-      expect(mockR2.delete).not.toHaveBeenCalled();
     });
   });
 });

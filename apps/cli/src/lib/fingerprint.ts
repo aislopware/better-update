@@ -48,7 +48,7 @@ export const runFingerprintFull = (
       });
     }
 
-    // eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- @expo/fingerprint output shape is stable; sources only used for display (count)
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- @expo/fingerprint output shape is stable; sources only used for display (count)
     const sources: readonly FingerprintSource[] = Array.isArray(parsed.sources)
       ? (parsed.sources as readonly FingerprintSource[])
       : [];

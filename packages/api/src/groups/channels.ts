@@ -9,9 +9,8 @@ import {
   CreateChannelBody,
   DeleteChannelResult,
   UpdateChannelBody,
-  UpdateRolloutBody,
 } from "../domain/channel";
-import { Id, PaginationParams } from "../domain/common";
+import { Id, PaginationParams, UpdateRolloutBody } from "../domain/common";
 import { Conflict } from "../domain/errors";
 
 const idParam = HttpApiSchema.param("id", Schema.String);

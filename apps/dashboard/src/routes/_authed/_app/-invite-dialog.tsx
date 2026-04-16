@@ -176,7 +176,7 @@ export const RemoveDialog = ({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onConfirm: () => Promise<void>;
+  onConfirm: () => void;
   isRemoving: boolean;
 }) => (
   <Dialog open={open} onOpenChange={onOpenChange}>

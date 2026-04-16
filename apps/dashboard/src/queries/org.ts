@@ -11,6 +11,7 @@ export const membersQueryOptions = (orgId: string) =>
       });
       return data?.members ?? [];
     },
+    staleTime: 30_000,
   });
 
 export const invitationsQueryOptions = (orgId: string) =>
@@ -22,4 +23,5 @@ export const invitationsQueryOptions = (orgId: string) =>
       });
       return data ?? [];
     },
+    staleTime: 30_000,
   });

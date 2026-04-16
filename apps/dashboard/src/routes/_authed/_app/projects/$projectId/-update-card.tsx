@@ -1,11 +1,8 @@
-import { safeJsonParse } from "@better-update/api";
 import {
-  buildCompatibilityMatrixQueryKey,
   completeUpdateRollout,
   deleteUpdateGroup,
   editUpdateRollout,
   revertUpdateRollout,
-  updatesQueryKey,
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
@@ -19,7 +16,6 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Effect } from "effect";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -28,6 +24,7 @@ import type { Channel, Update } from "@better-update/api";
 import { useApiMutation } from "../../../../../lib/use-api-mutation";
 import { PromoteUpdateDialog } from "./-promote-update-dialog";
 import { RollbackToEmbeddedDialog } from "./-rollback-to-embedded-dialog";
+import { invalidateUpdates, readUpdateEnvironment } from "./-update-helpers";
 
 interface UpdateCardProps {
   readonly update: typeof Update.Type;
@@ -51,69 +48,39 @@ export const UpdateCard = ({
   const [promoteOpen, setPromoteOpen] = useState(false);
   const [rollbackOpen, setRollbackOpen] = useState(false);
 
-  const environment = useMemo(() => {
-    if (!update.extraJson) {
-      return undefined;
-    }
-    const parsed = safeJsonParse(update.extraJson);
-    if (typeof parsed !== "object" || parsed === null) {
-      return undefined;
-    }
-    // eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- extraJson is always a JSON object written by our CLI
-    const value = (parsed as Record<string, unknown>)["environment"];
-    return typeof value === "string" ? value : undefined;
-  }, [update.extraJson]);
+  const environment = useMemo(() => readUpdateEnvironment(update.extraJson), [update.extraJson]);
   const eligibleChannels = channels.filter((channel) => channel.branchId !== update.branchId);
   const canCreateFollowupUpdate = !update.isRollback && !update.signature;
   const canRollbackToEmbedded = canCreateFollowupUpdate && branchName !== undefined;
   const canPromote = canCreateFollowupUpdate && eligibleChannels.length > 0;
 
-  const invalidateUpdates = async () =>
-    Effect.runPromise(
-      Effect.asVoid(
-        Effect.all(
-          [
-            Effect.promise(async () =>
-              queryClient.invalidateQueries({
-                queryKey: updatesQueryKey(orgId, projectId),
-              }),
-            ),
-            Effect.promise(async () =>
-              queryClient.invalidateQueries({
-                queryKey: buildCompatibilityMatrixQueryKey(orgId, projectId),
-              }),
-            ),
-          ],
-          { concurrency: "unbounded" },
-        ),
-      ),
-    );
+  const invalidate = async () => invalidateUpdates(queryClient, orgId, projectId);
   const deleteUpdateGroupMutation = useApiMutation({
     mutationFn: async () => deleteUpdateGroup(update.groupId),
     onSuccess: async () => {
       toast.success("Update group deleted");
-      await invalidateUpdates();
+      await invalidate();
     },
   });
   const editUpdateRolloutMutation = useApiMutation({
     mutationFn: async (percentage: number) => editUpdateRollout(update.id, { percentage }),
     onSuccess: async (_, percentage) => {
       toast.success(`Rollout updated to ${percentage}%`);
-      await invalidateUpdates();
+      await invalidate();
     },
   });
   const completeUpdateRolloutMutation = useApiMutation({
     mutationFn: async () => completeUpdateRollout(update.id),
     onSuccess: async () => {
       toast.success("Rollout completed — update available to all devices");
-      await invalidateUpdates();
+      await invalidate();
     },
   });
   const revertUpdateRolloutMutation = useApiMutation({
     mutationFn: async () => revertUpdateRollout(update.id),
     onSuccess: async () => {
       toast.success("Rollout reverted");
-      await invalidateUpdates();
+      await invalidate();
     },
   });
   const isDeleting = deleteUpdateGroupMutation.isPending;

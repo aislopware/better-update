@@ -12,7 +12,6 @@ import {
 import { SmartPhone02Icon, Copy01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation } from "@tanstack/react-query";
-import { Effect, Exit } from "effect";
 import { QRCodeSVG } from "qrcode.react";
 import { useSyncExternalStore, useState } from "react";
 import { toast } from "sonner";
@@ -20,21 +19,16 @@ import { toast } from "sonner";
 import type { BuildWithArtifact } from "@better-update/api";
 import type { ComponentProps } from "react";
 
+import { useCopyToClipboard } from "../../../../../lib/use-copy-to-clipboard";
+
 const CopyButton = ({ text }: { text: string }) => {
-  const [copied, setCopied] = useState(false);
+  const { copied, copy } = useCopyToClipboard();
 
   const handleCopy = async () => {
-    const exit = await Effect.runPromiseExit(
-      Effect.tryPromise(async () => navigator.clipboard.writeText(text)),
-    );
-    if (Exit.isFailure(exit)) {
+    const ok = await copy(text);
+    if (!ok) {
       toast.error("Failed to copy to clipboard");
-      return;
     }
-    setCopied(true);
-    setTimeout(() => {
-      setCopied(false);
-    }, 2000);
   };
 
   return (

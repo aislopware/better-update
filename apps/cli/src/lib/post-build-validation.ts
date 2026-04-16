@@ -33,29 +33,29 @@ export const validateIosBuild = (
   CommandExecutor.CommandExecutor | FileSystem.FileSystem
 > =>
   Effect.gen(function* () {
-    const warnings: string[] = [];
-
-    // Find the .app directory inside the archive
     const appDir = yield* findAppDirectory(params.archivePath).pipe(
       Effect.catchAll(() => Effect.succeed(undefined)),
     );
 
     if (!appDir) {
-      warnings.push("Could not locate .app bundle in archive — skipping post-build validation");
-      return { passed: warnings.length === 0, warnings };
+      const warnings = ["Could not locate .app bundle in archive — skipping post-build validation"];
+      return { passed: false, warnings };
     }
 
-    // 1. Check bundle ID from Info.plist
-    yield* checkBundleId(appDir, params.expectedBundleId).pipe(
-      Effect.tap((w) => (w ? Effect.sync(() => warnings.push(w)) : Effect.void)),
-      Effect.catchAll(() => Effect.void),
+    const bundleWarning = yield* checkBundleId(appDir, params.expectedBundleId).pipe(
+      Effect.catchAll(() => Effect.succeed(undefined)),
     );
 
-    // 2. Check embedded provisioning profile
-    yield* checkEmbeddedProfile(appDir, params.expectedProfileUuid, params.expectedTeamId).pipe(
-      Effect.tap((ws) => Effect.sync(() => warnings.push(...ws))),
-      Effect.catchAll(() => Effect.void),
-    );
+    const profileWarnings = yield* checkEmbeddedProfile(
+      appDir,
+      params.expectedProfileUuid,
+      params.expectedTeamId,
+    ).pipe(Effect.catchAll(() => Effect.succeed([] as readonly string[])));
+
+    const warnings: readonly string[] = [
+      ...(bundleWarning ? [bundleWarning] : []),
+      ...profileWarnings,
+    ];
 
     if (warnings.length > 0) {
       yield* Console.warn("Post-build validation warnings:");

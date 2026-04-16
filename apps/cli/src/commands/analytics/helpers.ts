@@ -3,26 +3,7 @@ import { Effect } from "effect";
 
 import { exitWith } from "../../application/command-exit";
 import { AuthRequiredError, ProjectNotLinkedError } from "../../lib/exit-codes";
-
-const formatCause = (cause: unknown): string => {
-  if (cause instanceof Error) {
-    return cause.message;
-  }
-
-  if (typeof cause === "object" && cause !== null) {
-    const tagged = cause as { readonly _tag?: unknown; readonly message?: unknown };
-    const message = typeof tagged.message === "string" ? tagged.message : undefined;
-    const tag = typeof tagged._tag === "string" ? tagged._tag : undefined;
-    if (message) {
-      return message;
-    }
-    if (tag) {
-      return tag;
-    }
-  }
-
-  return String(cause);
-};
+import { formatCause } from "../../lib/format-error";
 
 export const handleAnalyticsCommandErrors = <A, R>(effect: Effect.Effect<A, unknown, R>) =>
   effect.pipe(

@@ -14,6 +14,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { z } from "zod/v4";
 
+import { authClient } from "../../lib/auth-client";
 import { throwRedirect } from "../../lib/throw-redirect";
 
 const emailSchema = z.email("Please enter a valid email address");
@@ -22,18 +23,12 @@ const ForgotPassword = () => {
   const form = useForm({
     defaultValues: { email: "" },
     onSubmit: async ({ value }) => {
-      const response = await fetch("/api/auth/forget-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: value.email, redirectTo: "/reset-password" }),
+      const { error } = await authClient.requestPasswordReset({
+        email: value.email,
+        redirectTo: "/reset-password",
       });
-      if (!response.ok) {
-        const data: unknown = await response.json();
-        const message =
-          typeof data === "object" && data !== null && "message" in data
-            ? String(data.message)
-            : "Failed to send reset link";
-        toast.error(message);
+      if (error) {
+        toast.error(error.message ?? "Failed to send reset link");
         return;
       }
       toast.success("Check your email for a reset link");

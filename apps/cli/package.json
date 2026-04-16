@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@better-update/api": "workspace:*",
+    "@better-update/safe-json": "workspace:*",
     "@effect/cli": "^0.75.0",
     "@effect/platform": "^0.96.0",
     "@effect/platform-bun": "^0.89.0",

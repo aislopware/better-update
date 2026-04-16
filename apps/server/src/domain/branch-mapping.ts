@@ -1,5 +1,4 @@
-import { safeJsonParse } from "@better-update/api";
-import { Effect } from "effect";
+import { safeJsonParse } from "@better-update/safe-json";
 
 import { isRecord } from "../lib/type-guards";
 import { hashToFraction } from "./hash";
@@ -115,13 +114,8 @@ export const evaluateBranchMapping = async (
     return fallback;
   }
 
-  const results = await Effect.runPromise(
-    Effect.all(
-      mapping.data.map((entry) =>
-        Effect.promise(async () => evaluateEntry(entry, mapping.salt, easClientId)),
-      ),
-      { concurrency: "unbounded" },
-    ),
+  const results = await Promise.all(
+    mapping.data.map(async (entry) => evaluateEntry(entry, mapping.salt, easClientId)),
   );
 
   return results.find((result) => result !== null) ?? fallback;

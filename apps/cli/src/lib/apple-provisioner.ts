@@ -129,6 +129,36 @@ const distributionToProfileType = (appleUtils: AppleUtilsModule, distribution: I
 const needsDevices = (distribution: IosDistribution): boolean =>
   distribution === "ad-hoc" || distribution === "development";
 
+const fetchDeviceIds = (
+  appleUtils: AppleUtilsModule,
+  ctx: AppleAuthContext["requestContext"],
+  distribution: IosDistribution,
+): Effect.Effect<readonly string[], AppleProvisioningError> =>
+  Effect.gen(function* () {
+    yield* Console.log("Fetching registered devices...");
+
+    const devices = yield* Effect.tryPromise({
+      try: () => appleUtils.Device.getAllIOSProfileDevicesAsync(ctx),
+      catch: (error) =>
+        new AppleProvisioningError({
+          message: `Failed to fetch registered devices: ${String(error)}`,
+          step: "devices",
+        }),
+    });
+
+    if (devices.length === 0) {
+      return yield* new AppleProvisioningError({
+        message:
+          `No registered iOS devices found. ${distribution} profiles require at least one device. ` +
+          "Register a device in Apple Developer Portal or via `better-update credentials` first.",
+        step: "devices",
+      });
+    }
+
+    yield* Console.log(`Including ${devices.length} device(s) in profile.`);
+    return devices.map((d) => d.id);
+  });
+
 const createProvisioningProfile = (params: {
   readonly ctx: AppleAuthContext["requestContext"];
   readonly bundleIdOpaqueId: string;
@@ -143,33 +173,9 @@ const createProvisioningProfile = (params: {
     const profileType = distributionToProfileType(appleUtils, distribution);
     const profileName = `*[better-update] ${bundleIdentifier} ${distribution} ${new Date().toISOString()}`;
 
-    // Fetch device IDs for ad-hoc / development profiles.
-    let deviceIds: string[] = [];
-
-    if (needsDevices(distribution)) {
-      yield* Console.log("Fetching registered devices...");
-
-      const devices = yield* Effect.tryPromise({
-        try: () => appleUtils.Device.getAllIOSProfileDevicesAsync(ctx),
-        catch: (error) =>
-          new AppleProvisioningError({
-            message: `Failed to fetch registered devices: ${String(error)}`,
-            step: "devices",
-          }),
-      });
-
-      if (devices.length === 0) {
-        return yield* new AppleProvisioningError({
-          message:
-            `No registered iOS devices found. ${distribution} profiles require at least one device. ` +
-            "Register a device in Apple Developer Portal or via `better-update credentials` first.",
-          step: "devices",
-        });
-      }
-
-      deviceIds = devices.map((d) => d.id);
-      yield* Console.log(`Including ${devices.length} device(s) in profile.`);
-    }
+    const deviceIds = needsDevices(distribution)
+      ? yield* fetchDeviceIds(appleUtils, ctx, distribution)
+      : [];
 
     yield* Console.log(`Creating ${distribution} provisioning profile...`);
 
@@ -178,7 +184,7 @@ const createProvisioningProfile = (params: {
         appleUtils.Profile.createAsync(ctx, {
           bundleId: bundleIdOpaqueId,
           certificates: [certificateId],
-          devices: deviceIds,
+          devices: [...deviceIds],
           name: profileName,
           profileType,
         }),

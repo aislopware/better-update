@@ -242,10 +242,7 @@ export const ChannelRepoLive = Layer.succeed(ChannelRepo, {
   bumpCacheVersionByBranch: (params) =>
     Effect.gen(function* () {
       const env = yield* cloudflareEnv;
-
-      yield* Effect.promise(async () =>
-        bumpChannelCacheVersionByBranchReference(env.DB, params.branchId),
-      );
+      yield* bumpChannelCacheVersionByBranchReference(env.DB, params.branchId);
     }),
 
   delete: (params) =>

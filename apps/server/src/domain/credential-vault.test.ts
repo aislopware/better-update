@@ -1,15 +1,17 @@
 import { Effect } from "effect";
 
+import {
+  decryptSecretEffect as decryptSecret,
+  encryptSecretEffect as encryptSecret,
+  envelopeDecrypt,
+  envelopeEncrypt,
+} from "../cloudflare/vault";
 import { fromBase64, toBase64 } from "../lib/base64";
 import {
   CredentialVaultConfigError,
   CredentialVaultCryptoError,
   decryptAesGcm,
-  decryptSecret,
   encryptAesGcm,
-  encryptSecret,
-  envelopeDecrypt,
-  envelopeEncrypt,
   resolveKeyring,
 } from "./credential-vault";
 

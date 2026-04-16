@@ -1,4 +1,4 @@
-import { safeJsonParse } from "@better-update/api";
+import { safeJsonParse } from "@better-update/safe-json";
 import { Effect } from "effect";
 
 import type { RepublishBody } from "@better-update/api";

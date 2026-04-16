@@ -3,6 +3,7 @@ import { Layer } from "effect";
 import { AnalyticsEngineLive } from "./cloudflare/analytics-engine";
 import { AssetStorageLive } from "./cloudflare/asset-storage";
 import { BuildRuntimeLive } from "./cloudflare/build-runtime";
+import { ManifestCacheStorageLive } from "./cloudflare/manifest-cache-storage";
 import { UpdateCoordinatorLive } from "./cloudflare/update-coordinator";
 import { VaultLive } from "./cloudflare/vault";
 import {
@@ -22,6 +23,7 @@ import {
 import type { AnalyticsEngine } from "./cloudflare/analytics-engine";
 import type { AssetStorage } from "./cloudflare/asset-storage";
 import type { BuildRuntime } from "./cloudflare/build-runtime";
+import type { ManifestCacheStorage } from "./cloudflare/manifest-cache-storage";
 import type { UpdateCoordinator } from "./cloudflare/update-coordinator";
 import type { Vault } from "./cloudflare/vault";
 import type {
@@ -51,6 +53,7 @@ export type ServerInfrastructure =
   | CompatibilityRepo
   | CredentialRepo
   | EnvVarRepo
+  | ManifestCacheStorage
   | ProjectRepo
   | UpdateCoordinator
   | UpdateRepo
@@ -74,6 +77,7 @@ export const AdapterLayer = Layer.mergeAll(
   AnalyticsEngineLive,
   AssetStorageLive,
   BuildRuntimeLive,
+  ManifestCacheStorageLive,
   UpdateCoordinatorLive,
   VaultLive,
 );

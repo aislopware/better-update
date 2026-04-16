@@ -10,6 +10,7 @@ import { readRuntimeVersionMeta, type Platform } from "../lib/build-profile";
 import { pullEnvVars } from "../lib/env-exporter";
 import { EnvExportError, RuntimeVersionError, UpdatePublishError } from "../lib/exit-codes";
 import { readExpoExportAssets, readExpoPublicConfig, runExpoExport } from "../lib/expo-export";
+import { formatCause } from "../lib/format-error";
 import { readGitContext } from "../lib/git-context";
 import { resolveRuntimeVersion } from "../lib/runtime-version";
 import { sha256File, sha256Namespaced } from "../lib/sha256";
@@ -69,19 +70,6 @@ interface PreparedAsset {
   readonly fileExt: string;
   readonly isLaunch: boolean;
 }
-
-const formatCause = (cause: unknown): string => {
-  if (cause instanceof Error) return cause.message;
-  if (typeof cause === "object" && cause !== null) {
-    const tagged = cause as { readonly _tag?: unknown; readonly message?: unknown };
-    const tag = typeof tagged._tag === "string" ? tagged._tag : undefined;
-    const message = typeof tagged.message === "string" ? tagged.message : undefined;
-    if (tag && message) return `${tag}: ${message}`;
-    if (message) return message;
-    if (tag) return tag;
-  }
-  return String(cause);
-};
 
 const buildUpdateExtra = (
   expoClient: Record<string, unknown>,
@@ -364,9 +352,7 @@ export const runUpdatePublish = (
         },
         makeError: (message) => new UpdatePublishError({ message }),
       });
-      const results: PublishedPlatformResult[] = [];
-
-      yield* Effect.forEach(
+      const results = yield* Effect.forEach(
         platforms,
         (platform) =>
           publishPlatform({
@@ -384,13 +370,7 @@ export const runUpdatePublish = (
             appJson,
             platform,
             signedPayload: signedPayloads[platform] ?? null,
-          }).pipe(
-            Effect.tap((result) =>
-              Effect.sync(() => {
-                results.push(result);
-              }),
-            ),
-          ),
+          }),
         { concurrency: 1 },
       );
 

@@ -10,6 +10,7 @@ import {
   CreateProjectBody,
   CreateUpdateBody,
   PeriodLiteral,
+  Platform,
   Project,
   RepublishBody,
   UpdateBranchBody,
@@ -19,16 +20,16 @@ import {
 } from "@better-update/api";
 import { queryOptions } from "@tanstack/react-query";
 
-type AnalyticsPeriod = typeof PeriodLiteral.Type;
-
 import { runApi } from "./index";
 
 // ---------------------------------------------------------------------------
 // Type aliases
 // ---------------------------------------------------------------------------
 
+export type AnalyticsPeriod = typeof PeriodLiteral.Type;
+export type PlatformValue = typeof Platform.Type;
 export type ProjectItem = typeof Project.Type;
-export type ProjectDetail = typeof Project.Type;
+export type ProjectDetail = ProjectItem;
 export type BranchItem = typeof Branch.Type;
 
 // ---------------------------------------------------------------------------
@@ -249,7 +250,7 @@ export const buildCompatibilityMatrixQueryKey = (orgId: string, projectId: strin
 export const buildsQueryOptions = (
   orgId: string,
   projectId: string,
-  filters?: { platform?: "ios" | "android"; profile?: string; runtimeVersion?: string },
+  filters?: { platform?: PlatformValue; profile?: string; runtimeVersion?: string },
   page?: number,
 ) =>
   queryOptions({
@@ -308,7 +309,7 @@ export const credentialsQueryKey = (orgId: string) => ["org", orgId, "credential
 
 export const credentialsQueryOptions = (
   orgId: string,
-  filters?: { platform?: "ios" | "android"; type?: string; distribution?: string },
+  filters?: { platform?: PlatformValue; type?: string; distribution?: string },
   page?: number,
 ) =>
   queryOptions({

@@ -120,7 +120,11 @@ export const downloadIosCredentials = (
           if (warning) yield* Console.warn(warning);
         }),
       ),
-      Effect.catchAll(() => Effect.void),
+      Effect.catchAll(() =>
+        Console.warn(
+          "  Warning: could not validate distribution certificate (skipping expiry check)",
+        ),
+      ),
     );
 
     // 2. Provisioning profile (filtered by distribution)
@@ -264,7 +268,9 @@ export const downloadAndroidCredentials = (
           }
         }),
       ),
-      Effect.catchAll(() => Effect.void),
+      Effect.catchAll(() =>
+        Console.warn("  Warning: could not validate keystore (skipping alias/expiry checks)"),
+      ),
     );
 
     return {

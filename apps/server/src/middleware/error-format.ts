@@ -1,4 +1,4 @@
-import { safeJsonParse } from "@better-update/api";
+import { safeJsonParse } from "@better-update/safe-json";
 import { HttpServerResponse } from "@effect/platform";
 import { Effect } from "effect";
 

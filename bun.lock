@@ -32,6 +32,7 @@
       },
       "dependencies": {
         "@better-update/api": "workspace:*",
+        "@better-update/safe-json": "workspace:*",
         "@effect/cli": "^0.75.0",
         "@effect/platform": "^0.96.0",
         "@effect/platform-bun": "^0.89.0",
@@ -59,6 +60,8 @@
         "@better-auth/api-key": "^1.6.5",
         "@better-update/api": "workspace:*",
         "@better-update/api-client": "workspace:*",
+        "@better-update/react-hooks": "workspace:*",
+        "@better-update/safe-json": "workspace:*",
         "@better-update/ui": "workspace:*",
         "@fontsource-variable/geist": "^5.2.8",
         "@hugeicons/core-free-icons": "^4.1.1",
@@ -101,6 +104,7 @@
       "dependencies": {
         "@better-auth/api-key": "^1.6.5",
         "@better-update/api": "workspace:*",
+        "@better-update/safe-json": "workspace:*",
         "@effect/platform": "^0.96.0",
         "@noble/hashes": "^2.2.0",
         "better-auth": "^1.6.5",
@@ -150,13 +154,24 @@
     },
     "packages/react-hooks": {
       "name": "@better-update/react-hooks",
-      "dependencies": {
-        "react": "^19.2.5",
-      },
       "devDependencies": {
         "@better-update/oxlint-config": "workspace:*",
         "@better-update/typescript-config": "workspace:*",
         "@types/react": "^19.2.14",
+        "react": "^19.2.5",
+      },
+      "peerDependencies": {
+        "react": ">=19.2.5",
+      },
+    },
+    "packages/safe-json": {
+      "name": "@better-update/safe-json",
+      "dependencies": {
+        "effect": "^3.21.0",
+      },
+      "devDependencies": {
+        "@better-update/oxlint-config": "workspace:*",
+        "@better-update/typescript-config": "workspace:*",
       },
     },
     "packages/typescript-config": {
@@ -171,13 +186,16 @@
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "next-themes": "^0.4.6",
-        "react": "^19.2.5",
         "sonner": "^2.0.7",
         "tailwind-merge": "^3.5.0",
       },
       "devDependencies": {
         "@better-update/typescript-config": "workspace:*",
         "@types/react": "^19.2.14",
+        "react": "^19.2.5",
+      },
+      "peerDependencies": {
+        "react": ">=19.2.5",
       },
     },
   },
@@ -281,6 +299,8 @@
     "@better-update/oxlint-config": ["@better-update/oxlint-config@workspace:packages/oxlint-config"],
 
     "@better-update/react-hooks": ["@better-update/react-hooks@workspace:packages/react-hooks"],
+
+    "@better-update/safe-json": ["@better-update/safe-json@workspace:packages/safe-json"],
 
     "@better-update/server": ["@better-update/server@workspace:apps/server"],
 

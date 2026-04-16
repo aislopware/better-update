@@ -1,5 +1,3 @@
-import process from "node:process";
-
 import { Prompt } from "@effect/cli";
 import { Console, Effect } from "effect";
 
@@ -23,7 +21,7 @@ import { acquireBuildTempDir } from "../lib/temp-dir";
 import { apiClient } from "../services/api-client";
 import { CliRuntime } from "../services/cli-runtime";
 
-import type { DistributionValue } from "../commands/build/reserve-and-upload";
+import type { BuildTarget } from "../commands/build/reserve-and-upload";
 import type { Platform } from "../lib/build-profile";
 
 export interface RunBuildWorkflowOptions {
@@ -52,13 +50,10 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
         environment: profile.environment,
       });
 
-      // Set env vars so @expo/config's getConfig() picks them up
-      for (const [key, value] of Object.entries(envVars)) {
-        process.env[key] = value;
-      }
-
-      // Try @expo/config for dynamic configs (app.config.js/ts), fall back to static app.json
-      const expoConfig = yield* readExpoConfig(projectRoot);
+      // Try @expo/config for dynamic configs (app.config.js/ts), fall back to static app.json.
+      // envVars are applied as a scoped process.env overlay inside readExpoConfig and restored
+      // after the call so secrets do not leak to child processes spawned later.
+      const expoConfig = yield* readExpoConfig(projectRoot, envVars);
       const appMeta = expoConfig
         ? yield* readAppMetaFromConfig(expoConfig, options.platform).pipe(
             Effect.tap(() => Console.log("Resolved app config via @expo/config")),
@@ -79,8 +74,7 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
       );
 
       let build: { artifactPath: string; byteSize: number; sha256: string };
-      let distribution: DistributionValue;
-      let artifactFormat: "ipa" | "apk" | "aab";
+      let target: BuildTarget;
       let bundleId: string;
 
       if (options.platform === "ios") {
@@ -149,8 +143,11 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
             }),
           ),
         );
-        distribution = iosProfile.distribution;
-        artifactFormat = "ipa";
+        target = {
+          platform: "ios",
+          distribution: iosProfile.distribution,
+          artifactFormat: "ipa",
+        };
         bundleId = iosBundleId;
       } else {
         if (!profile.android) {
@@ -213,8 +210,18 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
             }),
           ),
         );
-        distribution = androidProfile.distribution;
-        artifactFormat = androidProfile.format;
+        target =
+          androidProfile.format === "aab"
+            ? {
+                platform: "android",
+                distribution: "play-store",
+                artifactFormat: "aab",
+              }
+            : {
+                platform: "android",
+                distribution: "direct",
+                artifactFormat: "apk",
+              };
         bundleId = androidBundleId;
       }
 
@@ -242,10 +249,8 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
       };
 
       const result = yield* reserveAndUpload(api, {
+        target,
         projectId,
-        platform: options.platform,
-        distribution,
-        artifactFormat,
         profileName: profile.name,
         runtimeVersion,
         ...(appMeta.appVersion !== undefined ? { appVersion: appMeta.appVersion } : {}),

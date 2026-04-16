@@ -24,18 +24,10 @@ export interface AssetRepository {
     }[];
   }) => Effect.Effect<void>;
 
-  readonly uploadBlob: (params: {
-    readonly r2Key: string;
-    readonly body: ReadableStream;
-    readonly contentType: string;
-  }) => Effect.Effect<void>;
-
   readonly updateByteSize: (params: {
     readonly hash: string;
     readonly byteSize: number;
   }) => Effect.Effect<void>;
-
-  readonly deleteBlobs: (params: { readonly r2Keys: readonly string[] }) => Effect.Effect<void>;
 }
 
 export class AssetRepo extends Context.Tag("api/AssetRepo")<AssetRepo, AssetRepository>() {}
@@ -124,17 +116,6 @@ export const AssetRepoLive = Layer.succeed(AssetRepo, {
       yield* Effect.promise(async () => env.DB.batch(statements));
     }),
 
-  uploadBlob: (params) =>
-    Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
-
-      yield* Effect.promise(async () =>
-        env.ASSETS_BUCKET.put(params.r2Key, params.body, {
-          httpMetadata: { contentType: params.contentType },
-        }),
-      );
-    }),
-
   updateByteSize: (params) =>
     Effect.gen(function* () {
       const env = yield* cloudflareEnv;
@@ -144,16 +125,5 @@ export const AssetRepoLive = Layer.succeed(AssetRepo, {
           .bind(params.byteSize, params.hash)
           .run(),
       );
-    }),
-
-  deleteBlobs: (params) =>
-    Effect.gen(function* () {
-      if (params.r2Keys.length === 0) {
-        return;
-      }
-
-      const env = yield* cloudflareEnv;
-
-      yield* Effect.promise(async () => env.ASSETS_BUCKET.delete([...params.r2Keys]));
     }),
 });

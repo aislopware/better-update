@@ -5,6 +5,7 @@ import type { BadArgument, SystemError } from "@effect/platform/Error";
 
 import { exitWith } from "../../application/command-exit";
 import { AuthRequiredError, ProjectNotLinkedError } from "../../lib/exit-codes";
+import { formatCause } from "../../lib/format-error";
 
 export class EnvCommandError extends Data.TaggedError("EnvCommandError")<{
   readonly message: string;
@@ -13,26 +14,6 @@ export class EnvCommandError extends Data.TaggedError("EnvCommandError")<{
 export class EnvResourceNotFoundError extends Data.TaggedError("EnvResourceNotFoundError")<{
   readonly message: string;
 }> {}
-
-const formatCause = (cause: unknown): string => {
-  if (cause instanceof Error) {
-    return cause.message;
-  }
-
-  if (typeof cause === "object" && cause !== null) {
-    const tagged = cause as { readonly _tag?: unknown; readonly message?: unknown };
-    const tag = typeof tagged._tag === "string" ? tagged._tag : undefined;
-    const message = typeof tagged.message === "string" ? tagged.message : undefined;
-    if (message) {
-      return message;
-    }
-    if (tag) {
-      return tag;
-    }
-  }
-
-  return String(cause);
-};
 
 export const handleEnvCommandErrors = <A, R>(effect: Effect.Effect<A, unknown, R>) =>
   effect.pipe(

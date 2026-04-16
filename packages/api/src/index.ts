@@ -1,7 +1,6 @@
 // Root API
 export { ManagementApi } from "./api";
 export { ProtocolApi } from "./protocol-api";
-export { safeJsonParse } from "./json";
 
 // Auth
 export { AuthContext } from "./auth/context";
@@ -19,7 +18,14 @@ export type {
 
 // Domain schemas
 export { AuditLog, AuditLogResourceType, AuditLogSource } from "./domain/audit-log";
-export { DateTimeString, Id, PaginationParams, Platform } from "./domain/common";
+export {
+  DateTimeString,
+  Id,
+  PaginationParams,
+  Platform,
+  UpdateRolloutBody,
+  UploadHeaders,
+} from "./domain/common";
 export { BadRequest, Conflict, NotAcceptable } from "./domain/errors";
 export {
   CreateProjectBody,
