@@ -1,3 +1,5 @@
+import { X509Certificate } from "node:crypto";
+
 import { Effect } from "effect";
 
 import { CredentialValidationError } from "./exit-codes";
@@ -6,6 +8,7 @@ export interface KeystoreKeyEntry {
   readonly alias: string;
   readonly hasCert: boolean;
   readonly hasKey: boolean;
+  readonly expiresAt: Date | undefined;
 }
 
 export interface KeystoreInfo {
@@ -34,11 +37,24 @@ export const inspectKeystore = (params: {
 
       const pem = jks.toPem(params.data, params.password);
       const aliases = Object.keys(pem);
-      const entries: KeystoreKeyEntry[] = aliases.map((alias) => ({
-        alias,
-        hasCert: !!(pem[alias]?.cert || pem[alias]?.ca),
-        hasKey: !!pem[alias]?.key,
-      }));
+      const entries: KeystoreKeyEntry[] = aliases.map((alias) => {
+        const certPem = pem[alias]?.cert;
+        let expiresAt: Date | undefined;
+        if (certPem) {
+          try {
+            const x509 = new X509Certificate(certPem);
+            expiresAt = new Date(x509.validTo);
+          } catch {
+            // cert parsing failure is non-fatal
+          }
+        }
+        return {
+          alias,
+          hasCert: !!(certPem || pem[alias]?.ca),
+          hasKey: !!pem[alias]?.key,
+          expiresAt,
+        };
+      });
 
       return { aliases, entries };
     },

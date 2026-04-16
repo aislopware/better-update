@@ -3,7 +3,6 @@ import path from "node:path";
 import { Command, CommandExecutor, FileSystem } from "@effect/platform";
 import { Console, Effect } from "effect";
 
-import { inspectKeystore, validateKeystoreAlias } from "./keystore-parser";
 import { parsePlist, parsePlistXml } from "./plist";
 
 export interface IosValidationParams {
@@ -139,36 +138,4 @@ const checkEmbeddedProfile = (
     }
 
     return warnings;
-  });
-
-/**
- * Validate an Android keystore before build. Checks that the expected alias exists.
- * Non-blocking — logs warnings, never fails.
- */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- wired into Android build in follow-up
-const _validateAndroidKeystore = (params: {
-  readonly keystoreData: Buffer;
-  readonly keystorePassword: string;
-  readonly expectedAlias: string;
-}): Effect.Effect<ValidationResult> =>
-  Effect.gen(function* () {
-    const warnings: string[] = [];
-
-    const info = yield* inspectKeystore({
-      data: params.keystoreData,
-      password: params.keystorePassword,
-    }).pipe(Effect.catchAll(() => Effect.succeed(undefined)));
-
-    if (!info) {
-      warnings.push("Could not parse keystore for validation");
-      return { passed: false, warnings };
-    }
-
-    const aliasWarning = validateKeystoreAlias(info, params.expectedAlias);
-    if (aliasWarning) {
-      warnings.push(aliasWarning);
-      yield* Console.warn(aliasWarning);
-    }
-
-    return { passed: warnings.length === 0, warnings };
   });

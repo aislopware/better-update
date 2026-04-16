@@ -251,8 +251,17 @@ export const downloadAndroidCredentials = (
       Effect.tap((info) =>
         Effect.gen(function* () {
           yield* Console.log(`  Keystore aliases: ${info.aliases.join(", ")}`);
-          const warning = validateKeystoreAlias(info, keystoreDownload.keyAlias!);
-          if (warning) yield* Console.warn(warning);
+          const aliasWarning = validateKeystoreAlias(info, keystoreDownload.keyAlias!);
+          if (aliasWarning) yield* Console.warn(aliasWarning);
+          // Check certificate expiry for the signing key
+          const entry = info.entries.find((e) => e.alias === keystoreDownload.keyAlias);
+          if (entry?.expiresAt) {
+            const expiryWarning = checkCertExpiry(
+              entry.expiresAt,
+              `Keystore certificate "${keystoreDownload.keyAlias}"`,
+            );
+            if (expiryWarning) yield* Console.warn(expiryWarning);
+          }
         }),
       ),
       Effect.catchAll(() => Effect.void),
