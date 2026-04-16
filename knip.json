@@ -44,9 +44,6 @@
     }
   },
   "ignoreDependencies": ["@better-update/oxlint-config"],
-  "ignoreWorkspaces": [
-    "packages/oxlint-config",
-    "packages/typescript-config"
-  ],
+  "ignoreWorkspaces": ["packages/oxlint-config", "packages/typescript-config"],
   "ignoreExportsUsedInFile": true
 }

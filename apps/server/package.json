@@ -17,11 +17,11 @@
     "typegen:cf": "wrangler types"
   },
   "dependencies": {
-    "@better-auth/api-key": "^1.6.4",
+    "@better-auth/api-key": "^1.6.5",
     "@better-update/api": "workspace:*",
     "@effect/platform": "^0.96.0",
     "@noble/hashes": "^2.2.0",
-    "better-auth": "^1.6.4",
+    "better-auth": "^1.6.5",
     "effect": "^3.21.0",
     "s3mini": "^0.9.4",
     "structured-headers": "^2.0.2"
