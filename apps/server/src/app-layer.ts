@@ -17,6 +17,7 @@ import {
 } from "./handlers";
 import { AdapterLayer, RepositoryLayer } from "./infrastructure-layer";
 import { errorFormatMiddleware } from "./middleware/error-format";
+import { JsonLoggerLayer, requestAnnotationMiddleware } from "./middleware/request-logging";
 
 const ManagementGroupsLayer = Layer.mergeAll(
   AnalyticsGroupLive,
@@ -43,6 +44,9 @@ const ScalarDocsLive = Layer.provide(HttpApiScalar.layerCdn({ path: "/docs" }), 
 export const DocsLive = Layer.mergeAll(OpenApiLive, ScalarDocsLive);
 
 export const makeManagementWebHandler = () =>
-  HttpApiBuilder.toWebHandler(Layer.mergeAll(ApiLive, DocsLive, HttpServer.layerContext), {
-    middleware: errorFormatMiddleware,
-  });
+  HttpApiBuilder.toWebHandler(
+    Layer.mergeAll(ApiLive, DocsLive, HttpServer.layerContext, JsonLoggerLayer),
+    {
+      middleware: (httpApp) => requestAnnotationMiddleware(errorFormatMiddleware(httpApp)),
+    },
+  );

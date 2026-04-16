@@ -130,6 +130,15 @@ export const handleBuildGc = async (env: Env): Promise<void> => {
   const orphansDeleted = await cleanupOrphanedStaging(env);
 
   if (totalArtifactsDeleted > 0 || orphansDeleted > 0) {
-    console.info("[build-gc] Cleanup complete", { totalArtifactsDeleted, orphansDeleted });
+    // eslint-disable-next-line no-console -- structured log for Workers Logpush
+    console.info(
+      JSON.stringify({
+        timestamp: new Date().toISOString(),
+        logLevel: "INFO",
+        message: "Build GC cleanup complete",
+        totalArtifactsDeleted,
+        orphansDeleted,
+      }),
+    );
   }
 };

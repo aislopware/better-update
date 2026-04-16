@@ -8,6 +8,7 @@ import { AssetStorage } from "./cloudflare/asset-storage";
 import { makeCloudflareRequestContext, provideCloudflareEnv } from "./cloudflare/context";
 import { handleScheduled, matchBuildRoute, serveManifest } from "./handlers";
 import { ServerInfrastructureLayer } from "./infrastructure-layer";
+import { structuredLog, withRequestLogging } from "./middleware/request-logging";
 import { AssetRepo } from "./repositories";
 
 import type { ServerInfrastructure } from "./infrastructure-layer";
@@ -74,7 +75,10 @@ const handleAuth = async (request: Request, env: Env): Promise<Response> => {
 
     return response;
   } catch (error) {
-    console.error("[auth]", error);
+    structuredLog("error", "Auth handler error", {
+      error: error instanceof Error ? error.message : String(error),
+      ...(error instanceof Error && error.stack ? { stack: error.stack } : {}),
+    });
     return internalError();
   }
 };
@@ -124,8 +128,7 @@ const handleAssetDownload = async (
 
 export default {
   async fetch(request, env, ctx) {
-    // eslint-disable-next-line functional/no-try-statements -- imperative shell error boundary
-    try {
+    return withRequestLogging(request, async () => {
       const url = new URL(request.url);
       const requestContext = makeCloudflareRequestContext(
         env,
@@ -135,19 +138,19 @@ export default {
 
       // Better Auth handles its own auth routes
       if (url.pathname.startsWith("/api/auth")) {
-        return await handleAuth(request, env);
+        return handleAuth(request, env);
       }
 
       // Expo Updates protocol — unauthenticated manifest serving
       const manifestMatch = /^\/manifest\/([^/]+)\/?$/.exec(url.pathname);
       if (manifestMatch?.[1]) {
-        return await serveManifest(request, env, ctx, manifestMatch[1]);
+        return serveManifest(request, env, ctx, manifestMatch[1]);
       }
 
       // Public asset download — GET /assets/:hash (no auth, edge-cached)
       const assetDownloadMatch = /^\/assets\/([A-Za-z0-9_-]+)$/.exec(url.pathname);
       if (assetDownloadMatch?.[1] && request.method === "GET") {
-        return await handleAssetDownload(request, env, ctx, assetDownloadMatch[1]);
+        return handleAssetDownload(request, env, ctx, assetDownloadMatch[1]);
       }
 
       // Build routes — artifact download + iOS install plist
@@ -157,11 +160,8 @@ export default {
       }
 
       // Effect HttpApi handles management routes + OpenAPI + Scalar docs
-      return await handler(request, requestContext);
-    } catch (error) {
-      console.error("[server]", error);
-      return internalError();
-    }
+      return handler(request, requestContext);
+    });
   },
 
   scheduled(_event, env, ctx) {
