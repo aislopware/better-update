@@ -1,11 +1,13 @@
 import path from "node:path";
 
 import { FileSystem } from "@effect/platform";
-import { Effect } from "effect";
+import { Console, Effect } from "effect";
 
 import type { PlatformError } from "@effect/platform/Error";
 
 import { MissingCredentialsError } from "./exit-codes";
+import { inspectKeystore, validateKeystoreAlias } from "./keystore-parser";
+import { checkCertExpiry, inspectP12 } from "./pkcs12";
 
 import type { ApiClient } from "../services/api-client";
 
@@ -108,6 +110,18 @@ export const downloadIosCredentials = (
 
     const p12Path = path.join(tempDir, "cert.p12");
     yield* writeSecret(fs, p12Path, certDownload.blob);
+
+    // Validate downloaded certificate
+    yield* inspectP12({ data: certDownload.blob, password: certDownload.password ?? "" }).pipe(
+      Effect.tap((info) =>
+        Effect.gen(function* () {
+          yield* Console.log(`  Signing identity: ${info.signingIdentity}`);
+          const warning = checkCertExpiry(info.expiresAt, "Distribution certificate");
+          if (warning) yield* Console.warn(warning);
+        }),
+      ),
+      Effect.catchAll(() => Effect.void),
+    );
 
     // 2. Provisioning profile (filtered by distribution)
     const profileList = yield* api.credentials
@@ -228,6 +242,21 @@ export const downloadAndroidCredentials = (
 
     const keystorePath = path.join(tempDir, "release.keystore");
     yield* writeSecret(fs, keystorePath, keystoreDownload.blob);
+
+    // Validate downloaded keystore
+    yield* inspectKeystore({
+      data: keystoreDownload.blob,
+      password: keystoreDownload.password,
+    }).pipe(
+      Effect.tap((info) =>
+        Effect.gen(function* () {
+          yield* Console.log(`  Keystore aliases: ${info.aliases.join(", ")}`);
+          const warning = validateKeystoreAlias(info, keystoreDownload.keyAlias!);
+          if (warning) yield* Console.warn(warning);
+        }),
+      ),
+      Effect.catchAll(() => Effect.void),
+    );
 
     return {
       keystorePath,

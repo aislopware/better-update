@@ -5,12 +5,13 @@ import { CommandExecutor, FileSystem } from "@effect/platform";
 import { Effect } from "effect";
 
 import { readAppJson, readProjectId, readScopeKey } from "../lib/app-json";
+import { toBase64Url } from "../lib/base64-url";
 import { readRuntimeVersionMeta, type Platform } from "../lib/build-profile";
 import { pullEnvVars } from "../lib/env-exporter";
 import { EnvExportError, RuntimeVersionError, UpdatePublishError } from "../lib/exit-codes";
 import { readExpoExportAssets, readExpoPublicConfig, runExpoExport } from "../lib/expo-export";
 import { resolveRuntimeVersion } from "../lib/runtime-version";
-import { sha256FileBase64Url } from "../lib/sha256";
+import { sha256File, sha256Namespaced } from "../lib/sha256";
 import { loadSignedPublishPayloads, type SignedPayload } from "../lib/signed-payloads";
 import { acquireBuildTempDir } from "../lib/temp-dir";
 import { resolveUpdatePlatforms } from "../lib/update-platforms";
@@ -60,6 +61,7 @@ interface PreparedAsset {
   readonly path: string;
   readonly key: string;
   readonly hash: string;
+  readonly contentChecksum: string;
   readonly byteSize: number;
   readonly contentType: string;
   readonly fileExt: string;
@@ -110,10 +112,11 @@ const preparePlatformAssets = ({
     return yield* Effect.forEach(
       exportedAssets,
       (asset) =>
-        sha256FileBase64Url(asset.path).pipe(
-          Effect.map(({ sha256Base64Url, byteSize }) => ({
+        sha256File(asset.path).pipe(
+          Effect.map(({ sha256: contentSha256Hex, byteSize }) => ({
             ...asset,
-            hash: sha256Base64Url,
+            hash: sha256Namespaced(asset.contentType, contentSha256Hex),
+            contentChecksum: toBase64Url(Buffer.from(contentSha256Hex, "hex")),
             byteSize,
           })),
         ),
@@ -181,6 +184,7 @@ const publishPlatform = (params: {
             hash: asset.hash,
             contentType: asset.contentType,
             fileExt: asset.fileExt,
+            contentChecksum: asset.contentChecksum,
           })),
         },
       })

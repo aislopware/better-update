@@ -9,6 +9,7 @@ interface UpdateData {
 interface AssetData {
   readonly key: string;
   readonly hash: string;
+  readonly contentChecksum: string;
   readonly contentType: string;
   readonly fileExt: string;
   readonly isLaunch: boolean;
@@ -17,7 +18,9 @@ interface AssetData {
 const assetUrl = (baseUrl: string, hash: string) => `${baseUrl}/assets/${hash}`;
 
 const toAssetEntry = (baseUrl: string, asset: AssetData) => ({
-  hash: asset.hash,
+  // ContentChecksum = raw SHA-256 of file bytes (client uses for integrity verification).
+  // Hash = namespaced dedup key (used for URL routing to the correct R2 object).
+  hash: asset.contentChecksum || asset.hash,
   key: asset.key,
   contentType: asset.contentType,
   fileExtension: `.${asset.fileExt}`,
@@ -25,7 +28,7 @@ const toAssetEntry = (baseUrl: string, asset: AssetData) => ({
 });
 
 const toLaunchEntry = (baseUrl: string, asset: AssetData) => ({
-  hash: asset.hash,
+  hash: asset.contentChecksum || asset.hash,
   key: asset.key,
   contentType: asset.contentType,
   url: assetUrl(baseUrl, asset.hash),

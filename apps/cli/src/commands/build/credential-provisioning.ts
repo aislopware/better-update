@@ -7,7 +7,13 @@ import { Console, Effect, Redacted } from "effect";
 import type * as Terminal from "@effect/platform/Terminal";
 
 import { generateAndroidKeystore, promptAndroidKeystoreDetails } from "../../lib/android-keystore";
-import { findActiveCredential, uploadAndActivateCredential } from "../../lib/credentials-manager";
+import { authenticateWithApple } from "../../lib/apple-auth";
+import { autoProvisionIosCredentials } from "../../lib/apple-provisioner";
+import {
+  findActiveCredential,
+  uploadAndActivateCredential,
+  uploadAndActivateCredentialFromBlob,
+} from "../../lib/credentials-manager";
 import { CliRuntime } from "../../services/cli-runtime";
 
 import type { IosDistribution } from "../../lib/build-profile";
@@ -191,38 +197,95 @@ export const provisionIosCredentials = (params: {
   readonly api: ApiClient;
   readonly projectId: string;
   readonly distribution: IosDistribution;
+  readonly bundleIdentifier: string;
+  readonly appName: string;
 }) =>
   Effect.gen(function* () {
-    const activeCertificate = yield* findActiveCredential(params.api, {
-      projectId: params.projectId,
-      platform: "ios",
-      type: "distribution-certificate",
-    });
-    const activeProfile = yield* findActiveCredential(params.api, {
-      projectId: params.projectId,
-      platform: "ios",
-      type: "provisioning-profile",
-      distribution: params.distribution,
-    });
-
-    if (!activeCertificate) {
-      yield* Console.log("");
-      yield* Console.log("No active iOS distribution certificate found. Upload one now.");
-      yield* uploadIosCertificate(params.api, params.projectId);
-    }
-
-    if (!activeProfile) {
-      yield* Console.log("");
-      yield* Console.log(
-        `No active iOS provisioning profile found for "${params.distribution}". Upload one now.`,
-      );
-      yield* uploadIosProvisioningProfile(params.api, params.projectId, params.distribution);
-    }
+    const [activeCertificate, activeProfile] = yield* Effect.all(
+      [
+        findActiveCredential(params.api, {
+          projectId: params.projectId,
+          platform: "ios",
+          type: "distribution-certificate",
+        }),
+        findActiveCredential(params.api, {
+          projectId: params.projectId,
+          platform: "ios",
+          type: "provisioning-profile",
+          distribution: params.distribution,
+        }),
+      ],
+      { concurrency: 2 },
+    );
 
     if (activeCertificate && activeProfile) {
       yield* Console.log("");
       yield* Console.log("Active iOS credentials already exist. Retrying the build with them.");
+      return;
     }
+
+    yield* Console.log("");
+    if (!activeCertificate) {
+      yield* Console.log("No active iOS distribution certificate found.");
+    }
+    if (!activeProfile) {
+      yield* Console.log(`No active iOS provisioning profile found for "${params.distribution}".`);
+    }
+
+    const method = yield* Prompt.select({
+      message: "How would you like to set up iOS credentials?",
+      choices: [
+        {
+          title: "Upload existing files",
+          value: "upload" as const,
+          description: "Provide .p12 certificate and .mobileprovision files you already have.",
+        },
+        {
+          title: "Auto-provision via Apple Developer Portal",
+          value: "auto" as const,
+          description: "Log in to Apple and create credentials automatically.",
+        },
+      ],
+    });
+
+    if (method === "upload") {
+      if (!activeCertificate) {
+        yield* uploadIosCertificate(params.api, params.projectId);
+      }
+      if (!activeProfile) {
+        yield* uploadIosProvisioningProfile(params.api, params.projectId, params.distribution);
+      }
+      return;
+    }
+
+    // Auto-provision path.
+    const authContext = yield* authenticateWithApple;
+    const result = yield* autoProvisionIosCredentials({
+      authContext,
+      bundleIdentifier: params.bundleIdentifier,
+      distribution: params.distribution,
+      appName: params.appName,
+    });
+
+    yield* uploadAndActivateCredentialFromBlob(params.api, {
+      projectId: params.projectId,
+      platform: "ios",
+      type: "distribution-certificate",
+      name: "Apple Distribution (auto-provisioned)",
+      blob: result.certificate.p12Base64,
+      password: result.certificate.p12Password,
+    });
+
+    yield* uploadAndActivateCredentialFromBlob(params.api, {
+      projectId: params.projectId,
+      platform: "ios",
+      type: "provisioning-profile",
+      distribution: params.distribution,
+      name: result.profile.name,
+      blob: result.profile.contentBase64,
+    });
+
+    yield* Console.log("iOS credentials uploaded to Better Update server.");
   });
 
 export const provisionAndroidCredentials = (params: {

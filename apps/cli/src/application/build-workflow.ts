@@ -1,3 +1,5 @@
+import process from "node:process";
+
 import { Prompt } from "@effect/cli";
 import { Console, Effect } from "effect";
 
@@ -12,7 +14,9 @@ import { readAppJson, readProjectId } from "../lib/app-json";
 import { readAppMeta, readBuildProfile } from "../lib/build-profile";
 import { pullEnvVars } from "../lib/env-exporter";
 import { BuildProfileError } from "../lib/exit-codes";
+import { readAppMetaFromConfig, readExpoConfig } from "../lib/expo-config";
 import { readGitContext } from "../lib/git-context";
+import { readGradleConfig, warnOnGradleMismatch } from "../lib/gradle-config";
 import { printKeyValue } from "../lib/output";
 import { resolveRuntimeVersion } from "../lib/runtime-version";
 import { acquireBuildTempDir } from "../lib/temp-dir";
@@ -27,6 +31,7 @@ export interface RunBuildWorkflowOptions {
   readonly profileName: string;
   readonly message: string | undefined;
   readonly noUpload: boolean;
+  readonly rawOutput?: boolean;
 }
 
 export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
@@ -40,17 +45,31 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
       const projectId = yield* readProjectId;
 
       const profile = yield* readBuildProfile(appJson, options.profileName);
-      const appMeta = yield* readAppMeta(appJson, options.platform);
+
+      // Load env vars BEFORE resolving dynamic config — app.config.js may read process.env
+      const envVars = yield* pullEnvVars(api, {
+        projectId,
+        environment: profile.environment,
+      });
+
+      // Set env vars so @expo/config's getConfig() picks them up
+      for (const [key, value] of Object.entries(envVars)) {
+        process.env[key] = value;
+      }
+
+      // Try @expo/config for dynamic configs (app.config.js/ts), fall back to static app.json
+      const expoConfig = yield* readExpoConfig(projectRoot);
+      const appMeta = expoConfig
+        ? yield* readAppMetaFromConfig(expoConfig, options.platform).pipe(
+            Effect.tap(() => Console.log("Resolved app config via @expo/config")),
+            Effect.catchAll(() => readAppMeta(appJson, options.platform)),
+          )
+        : yield* readAppMeta(appJson, options.platform);
 
       const runtimeVersion = yield* resolveRuntimeVersion({
         raw: appMeta.rawRuntimeVersion,
         appVersion: appMeta.appVersion,
         projectRoot,
-      });
-
-      const envVars = yield* pullEnvVars(api, {
-        projectId,
-        environment: profile.environment,
       });
 
       const tempDir = yield* acquireBuildTempDir;
@@ -87,6 +106,7 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
           bundleId: iosBundleId,
           envVars,
           projectId,
+          rawOutput: options.rawOutput,
         }).pipe(
           Effect.catchTag("MissingCredentialsError", (error) =>
             Effect.gen(function* () {
@@ -102,10 +122,15 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
                 return yield* Effect.fail(error);
               }
 
+              const expo = appJson["expo"] as Record<string, unknown> | undefined;
+              const appName = typeof expo?.["name"] === "string" ? expo["name"] : iosBundleId;
+
               yield* provisionIosCredentials({
                 api,
                 projectId,
                 distribution: iosProfile.distribution,
+                bundleIdentifier: iosBundleId,
+                appName,
               });
 
               yield* Console.log("");
@@ -119,6 +144,7 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
                 bundleId: iosBundleId,
                 envVars,
                 projectId,
+                rawOutput: options.rawOutput,
               });
             }),
           ),
@@ -140,6 +166,11 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
             message: "Missing expo.android.package in app.json.",
           });
         }
+
+        // Cross-validate Gradle config against app.json (Groovy only)
+        const androidDir = `${projectRoot}/android`;
+        const gradleConfig = yield* readGradleConfig(androidDir);
+        yield* warnOnGradleMismatch(gradleConfig, androidBundleId);
 
         build = yield* runAndroidBuild({
           api,

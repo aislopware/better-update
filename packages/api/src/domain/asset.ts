@@ -20,6 +20,7 @@ export const AssetUploadBody = Schema.Struct({
       hash: Schema.String,
       contentType: Schema.String,
       fileExt: Schema.String,
+      contentChecksum: Schema.optional(Schema.String),
     }),
   ),
 });

@@ -66,3 +66,15 @@ export const sha256FileBase64Url = (
   hashFile(path, toBase64Url).pipe(
     Effect.map(({ digest, byteSize }) => ({ sha256Base64Url: digest, byteSize })),
   );
+
+/**
+ * Compute a content-type-namespaced hash: `SHA-256(contentType + '\0' + SHA-256_hex(fileBytes))`.
+ *
+ * This prevents hash collisions when identical bytes are served with different
+ * MIME types (e.g. same file used as both `application/javascript` and `text/plain`).
+ * The raw content hash is still needed separately for R2 upload verification.
+ */
+export const sha256Namespaced = (contentType: string, contentSha256Hex: string): string => {
+  const input = `${contentType}\0${contentSha256Hex}`;
+  return toBase64Url(createHash("sha256").update(input).digest());
+};

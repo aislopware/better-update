@@ -127,6 +127,7 @@ export interface AssetModel {
   readonly fileExt: string;
   readonly byteSize: number;
   readonly r2Key: string;
+  readonly contentChecksum: string;
   readonly createdAt: string;
 }
 

@@ -11,6 +11,7 @@ const baseUpdate = {
 const launchAsset = {
   key: "bundle",
   hash: "abc123",
+  contentChecksum: "abc123-raw",
   contentType: "application/javascript",
   fileExt: "js",
   isLaunch: true,
@@ -19,6 +20,7 @@ const launchAsset = {
 const regularAsset = {
   key: "icon",
   hash: "def456",
+  contentChecksum: "def456-raw",
   contentType: "image/png",
   fileExt: "png",
   isLaunch: false,
@@ -38,14 +40,16 @@ describe(buildManifest, () => {
     expect(manifest["runtimeVersion"]).toBe("1.0.0");
 
     const launch = manifest["launchAsset"] as Record<string, unknown>;
-    expect(launch["hash"]).toBe("abc123");
+    // ContentChecksum (raw SHA-256) used for client integrity verification
+    expect(launch["hash"]).toBe("abc123-raw");
     expect(launch["key"]).toBe("bundle");
+    // Namespaced hash used for URL routing
     expect(launch["url"]).toBe("https://cdn.example.com/assets/abc123");
     expect(launch).not.toHaveProperty("fileExtension");
 
     const assets = manifest["assets"] as Record<string, unknown>[];
     expect(assets).toHaveLength(1);
-    expect(assets[0]!["hash"]).toBe("def456");
+    expect(assets[0]!["hash"]).toBe("def456-raw");
     expect(assets[0]!["fileExtension"]).toBe(".png");
     expect(assets[0]!["url"]).toBe("https://cdn.example.com/assets/def456");
   });

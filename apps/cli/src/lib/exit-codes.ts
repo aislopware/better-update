@@ -70,3 +70,16 @@ export class UpdateRollbackError extends Data.TaggedError("UpdateRollbackError")
 export class UpdatePromoteError extends Data.TaggedError("UpdatePromoteError")<{
   readonly message: string;
 }> {}
+
+export class CredentialValidationError extends Data.TaggedError("CredentialValidationError")<{
+  readonly message: string;
+}> {}
+
+export class AppleAuthError extends Data.TaggedError("AppleAuthError")<{
+  readonly message: string;
+}> {}
+
+export class AppleProvisioningError extends Data.TaggedError("AppleProvisioningError")<{
+  readonly message: string;
+  readonly step: string;
+}> {}

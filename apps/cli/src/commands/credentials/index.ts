@@ -4,6 +4,7 @@ import { Console } from "effect";
 import { activateCommand } from "./activate";
 import { deleteCommand } from "./delete";
 import { downloadCommand } from "./download";
+import { generateIosCredentialsCommand } from "./generate-ios-credentials";
 import { generateKeystoreCommand } from "./generate-keystore";
 import { getCommand } from "./get";
 import { listCommand } from "./list";
@@ -18,6 +19,7 @@ export const credentialsCommand = Command.make("credentials", {}, () =>
     uploadCommand,
     downloadCommand,
     generateKeystoreCommand,
+    generateIosCredentialsCommand,
     activateCommand,
     deleteCommand,
   ]),

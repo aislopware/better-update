@@ -40,6 +40,7 @@ export interface AssetRow {
   file_ext: string;
   byte_size: number;
   r2_key: string;
+  content_checksum: string;
   created_at: string;
 }
 
@@ -137,7 +138,7 @@ export const ManifestRepoLive = Layer.succeed(ManifestRepo, {
 
       const rows = yield* Effect.promise(async () =>
         env.DB.prepare(
-          `SELECT ua."update_id", ua."asset_key", ua."asset_hash", ua."is_launch", a."hash", a."content_type", a."file_ext", a."byte_size", a."r2_key", a."created_at" FROM "update_assets" ua JOIN "assets" a ON ua."asset_hash" = a."hash" WHERE ua."update_id" = ?`,
+          `SELECT ua."update_id", ua."asset_key", ua."asset_hash", ua."is_launch", a."hash", a."content_type", a."file_ext", a."byte_size", a."r2_key", a."content_checksum", a."created_at" FROM "update_assets" ua JOIN "assets" a ON ua."asset_hash" = a."hash" WHERE ua."update_id" = ?`,
         )
           .bind(params.updateId)
           .all<AssetRow>(),

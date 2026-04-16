@@ -36,6 +36,7 @@ const makeAssetRow = (overrides?: Partial<Record<string, unknown>>) => ({
   file_ext: ".js",
   byte_size: 1024,
   r2_key: "assets/abc123.js",
+  content_checksum: "abc123",
   created_at: "2026-01-01T00:00:00Z",
   ...overrides,
 });
@@ -117,6 +118,7 @@ describe("AssetRepo -- D1 adapter", () => {
                 fileExt: ".js",
                 byteSize: 1024,
                 r2Key: "assets/abc123.js",
+                contentChecksum: "abc123",
               },
             ],
           });

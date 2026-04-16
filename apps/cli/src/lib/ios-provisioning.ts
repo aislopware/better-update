@@ -5,6 +5,9 @@ import { Command, CommandExecutor, FileSystem } from "@effect/platform";
 import { Effect, Scope } from "effect";
 
 import { ProvisioningError } from "./exit-codes";
+import { parsePlistXml } from "./plist";
+
+import type { PlistObject } from "./plist";
 
 // ── pure extraction ───────────────────────────────────────────────
 
@@ -14,18 +17,17 @@ export interface ProvisioningInfo {
   readonly teamId: string;
 }
 
-const matchString = (xml: string, key: string): string | undefined => {
-  // <key>KeyName</key>(optional whitespace)<string>VALUE</string>
-  const pattern = new RegExp(`<key>${key}</key>\\s*<string>([^<]+)</string>`);
-  const match = xml.match(pattern);
-  return match && match[1] ? match[1] : undefined;
+const getString = (obj: PlistObject, key: string): string | undefined => {
+  const value = obj[key];
+  return typeof value === "string" ? value : undefined;
 };
 
-const matchFirstArrayString = (xml: string, key: string): string | undefined => {
-  // <key>KeyName</key>(optional whitespace)<array>(optional whitespace)<string>VALUE</string>
-  const pattern = new RegExp(`<key>${key}</key>\\s*<array>\\s*<string>([^<]+)</string>`);
-  const match = xml.match(pattern);
-  return match && match[1] ? match[1] : undefined;
+const getFirstArrayString = (obj: PlistObject, key: string): string | undefined => {
+  const value = obj[key];
+  if (Array.isArray(value) && typeof value[0] === "string") {
+    return value[0];
+  }
+  return undefined;
 };
 
 /**
@@ -37,9 +39,18 @@ export const extractProvisioningInfo = (
   plistXml: string,
 ): Effect.Effect<ProvisioningInfo, ProvisioningError> =>
   Effect.gen(function* () {
-    const uuid = matchString(plistXml, "UUID");
-    const name = matchString(plistXml, "Name");
-    const teamId = matchFirstArrayString(plistXml, "TeamIdentifier");
+    let parsed: PlistObject;
+    try {
+      parsed = parsePlistXml(plistXml);
+    } catch (error) {
+      return yield* new ProvisioningError({
+        message: `Failed to parse provisioning profile plist: ${error instanceof Error ? error.message : String(error)}`,
+      });
+    }
+
+    const uuid = getString(parsed, "UUID");
+    const name = getString(parsed, "Name");
+    const teamId = getFirstArrayString(parsed, "TeamIdentifier");
 
     if (!uuid || !name || !teamId) {
       return yield* new ProvisioningError({

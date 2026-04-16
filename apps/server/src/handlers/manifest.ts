@@ -123,6 +123,7 @@ const buildManifestFromData = (params: {
       assets: assetRows.map((row) => ({
         key: row.asset_key,
         hash: row.hash,
+        contentChecksum: row.content_checksum,
         contentType: row.content_type,
         fileExt: row.file_ext,
         isLaunch: row.is_launch === 1,

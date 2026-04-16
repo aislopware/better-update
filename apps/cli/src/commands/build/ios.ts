@@ -11,9 +11,11 @@ import { BuildFailedError } from "../../lib/exit-codes";
 import { renderExportOptionsPlist } from "../../lib/ios-export-options";
 import { acquireKeychain } from "../../lib/ios-keychain";
 import { installProvisioningProfile } from "../../lib/ios-provisioning";
+import { validateIosBuild } from "../../lib/post-build-validation";
 import { sha256File } from "../../lib/sha256";
+import { createXcodebuildFormatter } from "../../lib/xcpretty-formatter";
 import { CliRuntime } from "../../services/cli-runtime";
-import { runStep } from "./run-step";
+import { runStep, runStepFormatted } from "./run-step";
 
 import type { IosProfile } from "../../lib/build-profile";
 import type {
@@ -32,6 +34,7 @@ export interface RunIosBuildInput {
   readonly bundleId: string;
   readonly envVars: Record<string, string>;
   readonly projectId: string;
+  readonly rawOutput?: boolean | undefined;
 }
 
 export interface RunIosBuildResult {
@@ -121,26 +124,28 @@ export const runIosBuild = (
 
     // 7. xcodebuild archive.
     const archivePath = path.join(tempDir, "build.xcarchive");
-    yield* runStep(
-      Command.make(
-        "xcodebuild",
-        "-workspace",
-        workspaceFilename,
-        "-scheme",
-        scheme,
-        "-configuration",
-        configuration,
-        "-archivePath",
-        archivePath,
-        "-allowProvisioningUpdates",
-        "archive",
-        "CODE_SIGN_STYLE=Manual",
-        `DEVELOPMENT_TEAM=${provisioning.teamId}`,
-        `CODE_SIGN_IDENTITY=${keychain.signingIdentity}`,
-        `PROVISIONING_PROFILE_SPECIFIER=${provisioning.name}`,
-      ).pipe(Command.workingDirectory(iosDir), Command.env(commandEnv)),
-      "xcodebuild archive",
-    );
+    const archiveCmd = Command.make(
+      "xcodebuild",
+      "-workspace",
+      workspaceFilename,
+      "-scheme",
+      scheme,
+      "-configuration",
+      configuration,
+      "-archivePath",
+      archivePath,
+      "-allowProvisioningUpdates",
+      "archive",
+      "CODE_SIGN_STYLE=Manual",
+      `DEVELOPMENT_TEAM=${provisioning.teamId}`,
+      `CODE_SIGN_IDENTITY=${keychain.signingIdentity}`,
+      `PROVISIONING_PROFILE_SPECIFIER=${provisioning.name}`,
+    ).pipe(Command.workingDirectory(iosDir), Command.env(commandEnv));
+
+    const formatter = input.rawOutput ? undefined : createXcodebuildFormatter(projectRoot);
+    yield* formatter
+      ? runStepFormatted(archiveCmd, "xcodebuild archive", formatter)
+      : runStep(archiveCmd, "xcodebuild archive");
 
     const fs = yield* FileSystem.FileSystem;
     const exportOptionsPath = path.join(tempDir, "ExportOptions.plist");
@@ -156,25 +161,34 @@ export const runIosBuild = (
 
     // 9. xcodebuild exportArchive.
     const exportPath = path.join(tempDir, "export");
-    yield* runStep(
-      Command.make(
-        "xcodebuild",
-        "-exportArchive",
-        "-archivePath",
-        archivePath,
-        "-exportPath",
-        exportPath,
-        "-exportOptionsPlist",
-        exportOptionsPath,
-        "-allowProvisioningUpdates",
-      ).pipe(Command.workingDirectory(iosDir), Command.env(commandEnv)),
-      "xcodebuild exportArchive",
-    );
+    const exportCmd = Command.make(
+      "xcodebuild",
+      "-exportArchive",
+      "-archivePath",
+      archivePath,
+      "-exportPath",
+      exportPath,
+      "-exportOptionsPlist",
+      exportOptionsPath,
+      "-allowProvisioningUpdates",
+    ).pipe(Command.workingDirectory(iosDir), Command.env(commandEnv));
 
-    // 10. Locate artifact.
+    yield* formatter
+      ? runStepFormatted(exportCmd, "xcodebuild exportArchive", formatter)
+      : runStep(exportCmd, "xcodebuild exportArchive");
+
+    // 10. Post-build validation (non-blocking).
+    yield* validateIosBuild({
+      archivePath,
+      expectedBundleId: bundleId,
+      expectedTeamId: provisioning.teamId,
+      expectedProfileUuid: provisioning.uuid,
+    });
+
+    // 11. Locate artifact.
     const artifactPath = yield* findIosArtifact({ exportPath });
 
-    // 11. SHA-256 + byte size.
+    // 12. SHA-256 + byte size.
     const { sha256, byteSize } = yield* sha256File(artifactPath);
 
     return { artifactPath, byteSize, sha256 };

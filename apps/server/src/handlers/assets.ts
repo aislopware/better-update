@@ -27,6 +27,7 @@ const assertConsistentRequestedAssets = (params: {
     readonly hash: string;
     readonly contentType: string;
     readonly fileExt: string;
+    readonly contentChecksum?: string | undefined;
   }[];
 }) => {
   const conflictingHash = params.assets.reduce<string | null>((current, asset, index, assets) => {
@@ -56,6 +57,7 @@ const assertStoredMetadataMatches = (params: {
     readonly hash: string;
     readonly contentType: string;
     readonly fileExt: string;
+    readonly contentChecksum?: string | undefined;
   }[];
   readonly existingAssets: readonly {
     readonly hash: string;
@@ -104,6 +106,7 @@ const handleUpload = ({
       readonly hash: string;
       readonly contentType: string;
       readonly fileExt: string;
+      readonly contentChecksum?: string | undefined;
     }[];
   };
 }) =>
@@ -142,6 +145,7 @@ const handleUpload = ({
             fileExt: asset.fileExt,
             byteSize: 0,
             r2Key: assetR2Key(asset),
+            contentChecksum: asset.contentChecksum ?? asset.hash,
           })),
         });
       }
@@ -150,7 +154,10 @@ const handleUpload = ({
         uploadableAssets,
         (asset) =>
           Effect.gen(function* () {
-            const checksumSha256Base64 = sha256Base64UrlToBase64(asset.hash);
+            // Use contentChecksum (raw file hash) for R2 verification.
+            // Fall back to hash for backward compat with old CLIs (where hash IS the content hash).
+            const rawChecksum = asset.contentChecksum ?? asset.hash;
+            const checksumSha256Base64 = sha256Base64UrlToBase64(rawChecksum);
             const uploadUrl = yield* storage.createUploadUrl({
               key: assetR2Key(asset),
               contentType: asset.contentType,
@@ -212,7 +219,10 @@ const handleFinalize = ({ path }: { readonly path: { readonly hash: string } }) 
         );
       }
 
-      if (sha256Base64ToBase64Url(stored.checksumSha256Base64) !== asset.hash) {
+      // Compare R2's stored checksum against contentChecksum (raw file hash).
+      // For old assets (pre-namespaced), contentChecksum equals hash — still correct.
+      const expectedChecksum = asset.contentChecksum || asset.hash;
+      if (sha256Base64ToBase64Url(stored.checksumSha256Base64) !== expectedChecksum) {
         return yield* Effect.fail(
           new BadRequest({ message: `Asset ${asset.hash} checksum does not match uploaded bytes` }),
         );

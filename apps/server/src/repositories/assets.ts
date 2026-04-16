@@ -20,6 +20,7 @@ export interface AssetRepository {
       readonly fileExt: string;
       readonly byteSize: number;
       readonly r2Key: string;
+      readonly contentChecksum: string;
     }[];
   }) => Effect.Effect<void>;
 
@@ -47,6 +48,7 @@ interface AssetRow {
   file_ext: string;
   byte_size: number;
   r2_key: string;
+  content_checksum: string;
   created_at: string;
 }
 
@@ -57,6 +59,7 @@ const toAsset = (row: AssetRow) =>
     fileExt: row.file_ext,
     byteSize: row.byte_size,
     r2Key: row.r2_key,
+    contentChecksum: row.content_checksum,
     createdAt: row.created_at,
   }) satisfies AssetModel;
 
@@ -66,7 +69,7 @@ export const AssetRepoLive = Layer.succeed(AssetRepo, {
       const env = yield* cloudflareEnv;
       const row = yield* Effect.promise(async () =>
         env.DB.prepare(
-          `SELECT "hash", "content_type", "file_ext", "byte_size", "r2_key", "created_at" FROM "assets" WHERE "hash" = ?`,
+          `SELECT "hash", "content_type", "file_ext", "byte_size", "r2_key", "content_checksum", "created_at" FROM "assets" WHERE "hash" = ?`,
         )
           .bind(params.hash)
           .first<AssetRow>(),
@@ -86,7 +89,7 @@ export const AssetRepoLive = Layer.succeed(AssetRepo, {
 
       const rows = yield* Effect.promise(async () =>
         env.DB.prepare(
-          `SELECT "hash", "content_type", "file_ext", "byte_size", "r2_key", "created_at" FROM "assets" WHERE "hash" IN (${placeholders})`,
+          `SELECT "hash", "content_type", "file_ext", "byte_size", "r2_key", "content_checksum", "created_at" FROM "assets" WHERE "hash" IN (${placeholders})`,
         )
           .bind(...params.hashes)
           .all<AssetRow>(),
@@ -106,8 +109,16 @@ export const AssetRepoLive = Layer.succeed(AssetRepo, {
 
       const statements = params.assets.map((asset) =>
         env.DB.prepare(
-          `INSERT OR IGNORE INTO "assets" ("hash", "content_type", "file_ext", "byte_size", "r2_key", "created_at") VALUES (?, ?, ?, ?, ?, ?)`,
-        ).bind(asset.hash, asset.contentType, asset.fileExt, asset.byteSize, asset.r2Key, now),
+          `INSERT OR IGNORE INTO "assets" ("hash", "content_type", "file_ext", "byte_size", "r2_key", "content_checksum", "created_at") VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        ).bind(
+          asset.hash,
+          asset.contentType,
+          asset.fileExt,
+          asset.byteSize,
+          asset.r2Key,
+          asset.contentChecksum,
+          now,
+        ),
       );
 
       yield* Effect.promise(async () => env.DB.batch(statements));

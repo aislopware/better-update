@@ -7,6 +7,8 @@ import { runBuildWorkflow } from "../../application/build-workflow";
 import { exitWith } from "../../application/command-exit";
 
 import type {
+  AppleAuthError,
+  AppleProvisioningError,
   ArtifactNotFoundError,
   AuthRequiredError,
   BuildFailedError,
@@ -27,18 +29,23 @@ const platform = Options.choice("platform", ["ios", "android"] as const);
 const profile = Options.text("profile").pipe(Options.withDefault("production"));
 const message = Options.text("message").pipe(Options.optional);
 const noUpload = Options.boolean("no-upload");
+const rawOutput = Options.boolean("raw-output");
 
 export const buildCommand = Command.make(
   "build",
-  { platform, profile, message, noUpload },
+  { platform, profile, message, noUpload, rawOutput },
   (opts) =>
     runBuildWorkflow({
       platform: opts.platform,
       profileName: opts.profile,
       message: Option.getOrUndefined(opts.message),
       noUpload: opts.noUpload,
+      rawOutput: opts.rawOutput,
     }).pipe(
       Effect.catchTags({
+        AppleAuthError: (e: AppleAuthError) => exitWith(5, e.message),
+        AppleProvisioningError: (e: AppleProvisioningError) =>
+          exitWith(5, `Apple provisioning failed (${e.step}): ${e.message}`),
         AuthRequiredError: (e: AuthRequiredError) => exitWith(3, e.message),
         ProjectNotLinkedError: (e: ProjectNotLinkedError) => exitWith(4, e.message),
         BuildProfileError: (e: BuildProfileError) => exitWith(2, e.message),

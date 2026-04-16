@@ -6,7 +6,7 @@ import { it } from "@effect/vitest";
 import { Effect, Exit } from "effect";
 
 import { BuildFailedError } from "./exit-codes";
-import { sha256File, sha256FileBase64Url } from "./sha256";
+import { sha256File, sha256FileBase64Url, sha256Namespaced } from "./sha256";
 import { failureError } from "./test-utils";
 
 // ── fixtures ──────────────────────────────────────────────────────
@@ -83,4 +83,26 @@ describe(sha256FileBase64Url, () => {
       expect(result.byteSize).toBe(HELLO_WORLD.length);
     }),
   );
+});
+
+describe(sha256Namespaced, () => {
+  test("produces different hashes for same content with different content types", () => {
+    const jsHash = sha256Namespaced("application/javascript", HELLO_WORLD_SHA256);
+    const textHash = sha256Namespaced("text/plain", HELLO_WORLD_SHA256);
+
+    expect(jsHash).not.toBe(textHash);
+    expect(jsHash).not.toBe(HELLO_WORLD_SHA256);
+  });
+
+  test("produces same hash for same content type + content hash", () => {
+    const a = sha256Namespaced("application/javascript", HELLO_WORLD_SHA256);
+    const b = sha256Namespaced("application/javascript", HELLO_WORLD_SHA256);
+    expect(a).toBe(b);
+  });
+
+  test("returns base64url-encoded string", () => {
+    const result = sha256Namespaced("application/javascript", HELLO_WORLD_SHA256);
+    // base64url: no +, /, or =
+    expect(result).toMatch(/^[A-Za-z0-9_-]+$/u);
+  });
 });
