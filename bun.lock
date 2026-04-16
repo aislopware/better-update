@@ -48,7 +48,6 @@
         "@better-auth/api-key": "^1.6.4",
         "@better-update/api": "workspace:*",
         "@better-update/api-client": "workspace:*",
-        "@better-update/react-hooks": "workspace:*",
         "@better-update/ui": "workspace:*",
         "@fontsource-variable/geist": "^5.2.8",
         "@hugeicons/core-free-icons": "^4.1.1",

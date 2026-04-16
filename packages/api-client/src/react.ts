@@ -2,10 +2,8 @@ import {
   AssetUploadBody,
   Branch,
   BulkImportEnvVarsBody,
-  CompleteBuildBody,
   CreateBranchBody,
   CreateBranchRolloutBody,
-  CreateBuildBody,
   CreateChannelBody,
   CreateCredentialBody,
   CreateEnvVarBody,
@@ -297,12 +295,6 @@ export const buildCompatibilityMatrixQueryOptions = (orgId: string, projectId: s
   });
 
 // Builds — Mutations
-export const reserveBuild = (body: typeof CreateBuildBody.Type) =>
-  runApi((api) => api.builds.reserve({ payload: body }));
-
-export const completeBuild = (id: string, body: typeof CompleteBuildBody.Type) =>
-  runApi((api) => api.builds.complete({ path: { id }, payload: body }));
-
 export const deleteBuild = (id: string) => runApi((api) => api.builds.delete({ path: { id } }));
 
 export const fetchInstallLink = (buildId: string) =>

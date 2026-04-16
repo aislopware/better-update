@@ -4,19 +4,13 @@ import { renderWithQuery } from "../../../../../../tests/helpers/render-with-que
 import { BuildsTab } from "./-builds-tab";
 import { ChannelsTab } from "./-channels-tab";
 
-const {
-  buildCardModule,
-  compatibilityMatrixModule,
-  uploadBuildDialogModule,
-  channelCardModule,
-  createChannelDialogModule,
-} = vi.hoisted(() => ({
-  buildCardModule: "./-build-card",
-  compatibilityMatrixModule: "./-compatibility-matrix",
-  uploadBuildDialogModule: "./-upload-build-dialog",
-  channelCardModule: "./-channel-card",
-  createChannelDialogModule: "./-create-channel-dialog",
-}));
+const { buildCardModule, compatibilityMatrixModule, channelCardModule, createChannelDialogModule } =
+  vi.hoisted(() => ({
+    buildCardModule: "./-build-card",
+    compatibilityMatrixModule: "./-compatibility-matrix",
+    channelCardModule: "./-channel-card",
+    createChannelDialogModule: "./-create-channel-dialog",
+  }));
 
 vi.mock(buildCardModule, () => ({
   BuildCard: ({ build }: { build: { message: string } }) => <div>Build card: {build.message}</div>,
@@ -32,10 +26,6 @@ vi.mock(compatibilityMatrixModule, () => ({
   }) => (
     <div>{`Matrix rows: ${rows.length}; Missing runtimes: ${missingRuntimeVersions.length}`}</div>
   ),
-}));
-
-vi.mock(uploadBuildDialogModule, () => ({
-  UploadBuildDialog: () => <button type="button">Upload build</button>,
 }));
 
 vi.mock(channelCardModule, () => ({
@@ -230,7 +220,7 @@ describe("builds and channels tabs", () => {
 
     expect(screen.getByText("No builds yet")).toBeInTheDocument();
     expect(
-      screen.getByText("Upload your first build artifact to get started."),
+      screen.getByText("Upload your first build using the CLI to get started."),
     ).toBeInTheDocument();
   });
 

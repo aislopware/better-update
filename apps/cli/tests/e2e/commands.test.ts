@@ -292,7 +292,7 @@ describe("CLI command journey", () => {
   });
 
   it("lists builds for the linked project", () => {
-    const result = cli.runCli("builds");
+    const result = cli.runCli("builds", "list");
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toBe("");
     expect(result.stdout).toContain("cli-build-1");

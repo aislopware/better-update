@@ -11,73 +11,42 @@ import { DeleteBuildDialog } from "./-delete-build-dialog";
 import { DeleteChannelDialog } from "./-delete-channel-dialog";
 import { PromoteUpdateDialog } from "./-promote-update-dialog";
 import { RollbackToEmbeddedDialog } from "./-rollback-to-embedded-dialog";
-import { UploadBuildDialog } from "./-upload-build-dialog";
 
-const {
-  apiReactModule,
-  buildHelpersModule,
-  selectModule,
-  sonnerModule,
-  apiReactMocks,
-  buildHelpersMocks,
-  toastMocks,
-} = vi.hoisted(() => ({
-  apiReactModule: "@better-update/api-client/react",
-  buildHelpersModule: "./-build-helpers",
-  selectModule: "@better-update/ui/components/ui/select",
-  sonnerModule: "sonner",
-  apiReactMocks: {
-    createUpdate:
-      vi.fn<
-        (body: {
-          branch: string;
-          project: string;
-          runtimeVersion: string;
-          platform: "ios" | "android";
-          message: string;
-          groupId: string;
-          metadata: Record<string, unknown>;
-          assets: never[];
-          isRollback: true;
-          directiveBody: string;
-        }) => Promise<void>
-      >(),
-    createChannel:
-      vi.fn<(body: { projectId: string; name: string; branchId: string }) => Promise<void>>(),
-    deleteBranch: vi.fn<(id: string) => Promise<void>>(),
-    deleteBuild: vi.fn<(id: string) => Promise<void>>(),
-    deleteChannel: vi.fn<(id: string) => Promise<void>>(),
-    republishUpdate:
-      vi.fn<(body: { sourceUpdateId: string; destinationChannel: string }) => Promise<void>>(),
-    reserveBuild:
-      vi.fn<
-        (body: {
-          projectId: string;
-          platform: "ios" | "android";
-          distribution: string;
-          artifactFormat: string;
-        }) => Promise<{ id: string; uploadUrl: string; uploadExpiresAt: string }>
-      >(),
-    completeBuild:
-      vi.fn<(id: string, body: { sha256: string; byteSize: number }) => Promise<void>>(),
-  },
-  buildHelpersMocks: {
-    computeSha256: vi.fn<(file: File) => Promise<string>>(),
-    uploadWithProgress:
-      vi.fn<
-        (
-          url: string,
-          file: File,
-          onProgress: (progress: number) => void,
-          signal?: AbortSignal,
-        ) => Promise<void>
-      >(),
-  },
-  toastMocks: {
-    success: vi.fn<(message: string) => void>(),
-    error: vi.fn<(message: string) => void>(),
-  },
-}));
+const { apiReactModule, selectModule, sonnerModule, apiReactMocks, toastMocks } = vi.hoisted(
+  () => ({
+    apiReactModule: "@better-update/api-client/react",
+    selectModule: "@better-update/ui/components/ui/select",
+    sonnerModule: "sonner",
+    apiReactMocks: {
+      createUpdate:
+        vi.fn<
+          (body: {
+            branch: string;
+            project: string;
+            runtimeVersion: string;
+            platform: "ios" | "android";
+            message: string;
+            groupId: string;
+            metadata: Record<string, unknown>;
+            assets: never[];
+            isRollback: true;
+            directiveBody: string;
+          }) => Promise<void>
+        >(),
+      createChannel:
+        vi.fn<(body: { projectId: string; name: string; branchId: string }) => Promise<void>>(),
+      deleteBranch: vi.fn<(id: string) => Promise<void>>(),
+      deleteBuild: vi.fn<(id: string) => Promise<void>>(),
+      deleteChannel: vi.fn<(id: string) => Promise<void>>(),
+      republishUpdate:
+        vi.fn<(body: { sourceUpdateId: string; destinationChannel: string }) => Promise<void>>(),
+    },
+    toastMocks: {
+      success: vi.fn<(message: string) => void>(),
+      error: vi.fn<(message: string) => void>(),
+    },
+  }),
+);
 
 vi.mock(sonnerModule, () => ({
   toast: toastMocks,
@@ -132,19 +101,6 @@ vi.mock(apiReactModule, async (importOriginal) => {
     deleteBuild: apiReactMocks.deleteBuild,
     deleteChannel: apiReactMocks.deleteChannel,
     republishUpdate: apiReactMocks.republishUpdate,
-    reserveBuild: apiReactMocks.reserveBuild,
-    completeBuild: apiReactMocks.completeBuild,
-  };
-});
-
-vi.mock(buildHelpersModule, async (importOriginal) => {
-  const actual = await importOriginal();
-  const actualModule = typeof actual === "object" && actual !== null ? actual : {};
-
-  return {
-    ...actualModule,
-    computeSha256: buildHelpersMocks.computeSha256,
-    uploadWithProgress: buildHelpersMocks.uploadWithProgress,
   };
 });
 
@@ -234,18 +190,6 @@ describe("mutation dialogs", () => {
     apiReactMocks.deleteBuild.mockResolvedValue(undefined);
     apiReactMocks.deleteChannel.mockResolvedValue(undefined);
     apiReactMocks.republishUpdate.mockResolvedValue(undefined);
-    apiReactMocks.reserveBuild.mockResolvedValue({
-      id: "build-uploaded",
-      uploadUrl: "https://example.com/upload",
-      uploadExpiresAt: "2026-01-03T00:00:00Z",
-    });
-    apiReactMocks.completeBuild.mockResolvedValue(undefined);
-    buildHelpersMocks.computeSha256.mockResolvedValue("deadbeef");
-    buildHelpersMocks.uploadWithProgress.mockImplementation(
-      async (_url: string, _file: File, onProgress: (progress: number) => void) => {
-        onProgress(100);
-      },
-    );
   });
 
   test("CreateChannelDialog invalidates channels and compatibility matrix after creation", async () => {
@@ -426,49 +370,5 @@ describe("mutation dialogs", () => {
     ]);
 
     expect(onOpenChange).toHaveBeenCalledWith(false);
-  });
-
-  test("UploadBuildDialog invalidates builds and compatibility matrix after upload completes", async () => {
-    const user = userEvent.setup();
-    const { queryClient } = renderWithQuery(
-      <UploadBuildDialog orgId={orgId} projectId={projectId} />,
-    );
-    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
-
-    await user.click(screen.getByRole("button", { name: "Upload build" }));
-
-    const dialog = screen.getByRole("dialog");
-    const fileInput = dialog.querySelector("input[type='file']");
-    expect(fileInput).not.toBeNull();
-
-    const artifact = new File(["test"], "app.ipa", { type: "application/octet-stream" });
-    await user.upload(fileInput as HTMLInputElement, artifact);
-
-    await user.click(within(dialog).getByRole("button", { name: "Upload" }));
-
-    await waitFor(() => {
-      expect(apiReactMocks.reserveBuild).toHaveBeenCalledWith({
-        projectId,
-        platform: "ios",
-        distribution: "development",
-        artifactFormat: "ipa",
-        sha256: "deadbeef",
-        byteSize: artifact.size,
-      });
-    });
-
-    await waitFor(() => {
-      expect(apiReactMocks.completeBuild).toHaveBeenCalledWith("build-uploaded", {
-        sha256: "deadbeef",
-        byteSize: artifact.size,
-      });
-    });
-
-    expect(buildHelpersMocks.uploadWithProgress).toHaveBeenCalled();
-
-    await expectInvalidation(invalidateSpy, [
-      ["org", orgId, "projects", projectId, "builds"],
-      ["org", orgId, "projects", projectId, "build-compatibility-matrix"],
-    ]);
   });
 });

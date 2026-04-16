@@ -16,7 +16,6 @@ import { useState } from "react";
 import { BuildCard } from "./-build-card";
 import { DISTRIBUTION_LABELS } from "./-build-helpers";
 import { CompatibilityMatrix } from "./-compatibility-matrix";
-import { UploadBuildDialog } from "./-upload-build-dialog";
 
 const BuildsEmptyState = () => (
   <Card className="border-dashed">
@@ -28,7 +27,7 @@ const BuildsEmptyState = () => (
       />
       <p className="text-lg font-medium">No builds yet</p>
       <p className="text-muted-foreground mt-1 text-sm">
-        Upload your first build artifact to get started.
+        Upload your first build using the CLI to get started.
       </p>
     </CardContent>
   </Card>
@@ -59,7 +58,6 @@ export const BuildsTab = ({ orgId, projectId }: { orgId: string; projectId: stri
         missingRuntimeVersions={compatibilityData.missingRuntimeVersions}
       />
       <div className="flex justify-end gap-2">
-        <UploadBuildDialog projectId={projectId} orgId={orgId} />
         <Select
           value={platformFilter ?? "all"}
           onValueChange={(value) => {
