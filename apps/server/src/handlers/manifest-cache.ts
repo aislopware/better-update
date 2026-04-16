@@ -1,8 +1,11 @@
 import { Effect } from "effect";
 
-import { cloudflareCtx } from "../cloudflare/context";
+import { ManifestCacheStorage } from "../cloudflare/manifest-cache-storage";
+import { isResponseType } from "../protocol/response-type";
 
-export type ResponseType = "manifest" | "directive" | "no_update";
+import type { ResponseType } from "../protocol/response-type";
+
+export type { ResponseType } from "../protocol/response-type";
 
 interface CacheMeta {
   readonly updateId: string;
@@ -15,11 +18,7 @@ interface CachedResponse {
   readonly responseType: ResponseType;
 }
 
-const CACHE_NAME = "manifests";
 const INTERNAL_TTL = 86_400;
-
-const isResponseType = (value: string | null): value is ResponseType =>
-  value === "manifest" || value === "directive" || value === "no_update";
 
 export const buildCacheKey = (params: {
   readonly cacheVersion: number;
@@ -49,10 +48,12 @@ const fromCacheEntry = (cached: Response) => {
   return new Response(cached.body, { status: cached.status, headers });
 };
 
-export const matchCachedResponse = (cacheKey: string) =>
-  Effect.promise(async (): Promise<CachedResponse | null> => {
-    const cache = await caches.open(CACHE_NAME);
-    const cached = await cache.match(cacheKey);
+export const matchCachedResponse = (
+  cacheKey: string,
+): Effect.Effect<CachedResponse | null, never, ManifestCacheStorage> =>
+  Effect.gen(function* () {
+    const storage = yield* ManifestCacheStorage;
+    const cached = yield* storage.match(cacheKey);
     if (!cached) {
       return null;
     }
@@ -67,7 +68,6 @@ export const matchCachedResponse = (cacheKey: string) =>
 
 export const storeCachedResponse = (cacheKey: string, response: Response, meta: CacheMeta) =>
   Effect.gen(function* () {
-    const ctx = yield* cloudflareCtx;
-    const cache = yield* Effect.promise(async () => caches.open(CACHE_NAME));
-    ctx.waitUntil(cache.put(cacheKey, toCacheEntry(response, meta)));
+    const storage = yield* ManifestCacheStorage;
+    yield* storage.put(cacheKey, toCacheEntry(response, meta));
   });

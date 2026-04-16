@@ -4,13 +4,14 @@ import { FileSystem } from "@effect/platform";
 import { Context, Effect, Layer } from "effect";
 
 import { AuthRequiredError } from "../lib/exit-codes";
+import { formatCause } from "../lib/format-error";
 import { CliRuntime } from "./cli-runtime";
 
 export class AuthStore extends Context.Tag("cli/AuthStore")<
   AuthStore,
   {
     readonly getToken: Effect.Effect<string, AuthRequiredError>;
-    readonly saveToken: (token: string) => Effect.Effect<void>;
+    readonly saveToken: (token: string) => Effect.Effect<void, AuthRequiredError>;
     readonly clearToken: Effect.Effect<void>;
   }
 >() {}
@@ -61,7 +62,14 @@ export const AuthStoreLive = Layer.effect(
           yield* fs.chmod(authDir, 0o700);
           yield* fs.writeFileString(authFile, `${JSON.stringify({ token }, null, 2)}\n`);
           yield* fs.chmod(authFile, 0o600);
-        }).pipe(Effect.orDie),
+        }).pipe(
+          Effect.mapError(
+            (cause) =>
+              new AuthRequiredError({
+                message: `Failed to save auth token: ${formatCause(cause)}`,
+              }),
+          ),
+        ),
 
       clearToken: fs.remove(authFile).pipe(Effect.catchAll(() => Effect.void)),
     };

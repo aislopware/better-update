@@ -1,3 +1,5 @@
+import { Effect } from "effect";
+
 export const CHANNEL_BRANCH_REFERENCE_PREDICATE = `
   "branch_id" = ?
   OR (
@@ -10,14 +12,15 @@ export const CHANNEL_BRANCH_REFERENCE_PREDICATE = `
   )
 `;
 
-export const bumpChannelCacheVersionByBranchReference = async (
+export const bumpChannelCacheVersionByBranchReference = (
   db: D1Database,
   branchId: string,
-): Promise<void> => {
-  await db
-    .prepare(
-      `UPDATE "channels" SET "cache_version" = "cache_version" + 1 WHERE ${CHANNEL_BRANCH_REFERENCE_PREDICATE}`,
-    )
-    .bind(branchId, branchId)
-    .run();
-};
+): Effect.Effect<void> =>
+  Effect.promise(async () => {
+    await db
+      .prepare(
+        `UPDATE "channels" SET "cache_version" = "cache_version" + 1 WHERE ${CHANNEL_BRANCH_REFERENCE_PREDICATE}`,
+      )
+      .bind(branchId, branchId)
+      .run();
+  });

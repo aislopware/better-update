@@ -100,9 +100,11 @@ const withTempFile = (bytes: Buffer): { path: string; dispose: () => void } => {
 
 const baseInput = (artifactPath: string) => ({
   projectId: "proj_1",
-  platform: "ios" as const,
-  distribution: "app-store" as const,
-  artifactFormat: "ipa" as const,
+  target: {
+    platform: "ios" as const,
+    distribution: "app-store" as const,
+    artifactFormat: "ipa" as const,
+  },
   profileName: "production",
   runtimeVersion: "1.2.3",
   appVersion: "1.2.0",

@@ -14,7 +14,9 @@ import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { z } from "zod/v4";
 
+import { authClient } from "../../lib/auth-client";
 import { throwRedirect } from "../../lib/throw-redirect";
+
 const passwordSchema = z.string().check(z.minLength(8, "Password must be at least 8 characters"));
 
 const ResetPasswordForm = ({
@@ -27,18 +29,12 @@ const ResetPasswordForm = ({
   const form = useForm({
     defaultValues: { password: "", confirmPassword: "" },
     onSubmit: async ({ value }) => {
-      const response = await fetch("/api/auth/reset-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ newPassword: value.password, token }),
+      const { error } = await authClient.resetPassword({
+        newPassword: value.password,
+        token,
       });
-      if (!response.ok) {
-        const data: unknown = await response.json();
-        const message =
-          typeof data === "object" && data !== null && "message" in data
-            ? String(data.message)
-            : "Failed to reset password";
-        toast.error(message);
+      if (error) {
+        toast.error(error.message ?? "Failed to reset password");
         return;
       }
       toast.success("Password reset successfully");

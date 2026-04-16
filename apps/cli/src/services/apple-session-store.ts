@@ -1,12 +1,23 @@
 import path from "node:path";
 
+import { safeJsonParse } from "@better-update/safe-json";
 import { FileSystem } from "@effect/platform";
 import { Context, Effect, Layer } from "effect";
 
+import type * as AppleUtils from "@expo/apple-utils";
+
+import { AppleAuthError } from "../lib/exit-codes";
+import { formatCause } from "../lib/format-error";
 import { CliRuntime } from "./cli-runtime";
 
+// The cookies payload accepted by @expo/apple-utils Auth.loginWithCookiesAsync.
+// Derived structurally so we don't depend on the un-exported `CookiesJSON` alias.
+export type AppleSessionCookies = Parameters<
+  typeof AppleUtils.Auth.loginWithCookiesAsync
+>[0]["cookies"];
+
 export interface SerializedAppleSession {
-  readonly cookies: unknown;
+  readonly cookies: AppleSessionCookies;
   readonly teamId: string;
   readonly username: string;
 }
@@ -15,7 +26,7 @@ export class AppleSessionStore extends Context.Tag("cli/AppleSessionStore")<
   AppleSessionStore,
   {
     readonly loadSession: Effect.Effect<SerializedAppleSession | null>;
-    readonly saveSession: (session: SerializedAppleSession) => Effect.Effect<void>;
+    readonly saveSession: (session: SerializedAppleSession) => Effect.Effect<void, AppleAuthError>;
     readonly clearSession: Effect.Effect<void>;
   }
 >() {}
@@ -37,25 +48,22 @@ export const AppleSessionStoreLive = Layer.effect(
 
         if (!content) return null;
 
-        let parsed: Record<string, unknown>;
-        try {
-          parsed = JSON.parse(content) as Record<string, unknown>;
-        } catch {
-          return null;
-        }
+        const parsed = safeJsonParse(content);
+        if (typeof parsed !== "object" || parsed === null) return null;
 
+        const record = parsed as Record<string, unknown>;
         if (
-          typeof parsed["teamId"] !== "string" ||
-          typeof parsed["username"] !== "string" ||
-          !parsed["cookies"]
+          typeof record["teamId"] !== "string" ||
+          typeof record["username"] !== "string" ||
+          !record["cookies"]
         ) {
           return null;
         }
 
         return {
-          cookies: parsed["cookies"],
-          teamId: parsed["teamId"] as string,
-          username: parsed["username"] as string,
+          cookies: record["cookies"] as AppleSessionCookies,
+          teamId: record["teamId"],
+          username: record["username"],
         } satisfies SerializedAppleSession;
       }),
 
@@ -65,7 +73,14 @@ export const AppleSessionStoreLive = Layer.effect(
           yield* fs.chmod(sessionDir, 0o700);
           yield* fs.writeFileString(sessionFile, `${JSON.stringify(session, null, 2)}\n`);
           yield* fs.chmod(sessionFile, 0o600);
-        }).pipe(Effect.orDie),
+        }).pipe(
+          Effect.mapError(
+            (cause) =>
+              new AppleAuthError({
+                message: `Failed to save Apple session: ${formatCause(cause)}`,
+              }),
+          ),
+        ),
 
       clearSession: fs.remove(sessionFile).pipe(Effect.catchAll(() => Effect.void)),
     };

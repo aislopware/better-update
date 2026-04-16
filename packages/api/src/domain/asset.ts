@@ -1,8 +1,6 @@
 import { Schema } from "effect";
 
-import { DateTimeString, Id } from "./common";
-
-const UploadHeaders = Schema.Record({ key: Schema.String, value: Schema.String });
+import { DateTimeString, Id, UploadHeaders } from "./common";
 
 export class Asset extends Schema.Class<Asset>("Asset")({
   hash: Schema.String,

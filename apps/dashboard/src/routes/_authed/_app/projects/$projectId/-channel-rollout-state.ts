@@ -1,4 +1,4 @@
-import { safeJsonParse } from "@better-update/api";
+import { safeJsonParse } from "@better-update/safe-json";
 
 interface RolloutEntry {
   branchId: string;

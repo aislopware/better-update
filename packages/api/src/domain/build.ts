@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 
-import { DateTimeString, Id, Platform } from "./common";
+import { DateTimeString, Id, Platform, UploadHeaders } from "./common";
 
 export const Distribution = Schema.Literal(
   "app-store",
@@ -14,7 +14,6 @@ export const Distribution = Schema.Literal(
 
 export const ArtifactFormat = Schema.Literal("ipa", "apk", "aab", "tar.gz");
 const Sha256Hex = Schema.String.pipe(Schema.pattern(/^[a-fA-F0-9]{64}$/), Schema.maxLength(64));
-const UploadHeaders = Schema.Record({ key: Schema.String, value: Schema.String });
 
 const CreateBuildCommonFields = {
   projectId: Id,

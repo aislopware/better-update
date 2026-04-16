@@ -52,6 +52,9 @@ export const AnalyticsEngineLive = Layer.succeed(AnalyticsEngine, {
       });
 
       if (!response.ok) {
+        yield* Effect.logWarning("Analytics Engine non-2xx response").pipe(
+          Effect.annotateLogs({ status: response.status }),
+        );
         return EMPTY_ROWS;
       }
 
@@ -64,7 +67,14 @@ export const AnalyticsEngineLive = Layer.succeed(AnalyticsEngine, {
           }),
       });
       return isAEResponse(json) ? json.data : EMPTY_ROWS;
-    }).pipe(Effect.orElseSucceed(() => EMPTY_ROWS)),
+    }).pipe(
+      Effect.tapError((error) =>
+        Effect.logWarning("Analytics Engine query failed").pipe(
+          Effect.annotateLogs({ error: error.message }),
+        ),
+      ),
+      Effect.orElseSucceed(() => EMPTY_ROWS),
+    ),
 });
 
 export const queryAnalyticsEngine = (sql: string) =>

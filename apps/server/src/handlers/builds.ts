@@ -65,7 +65,20 @@ const ReservationSchema = Schema.Struct({
   organizationId: Schema.String,
 });
 
-const decodeReservation = Schema.decodeUnknownSync(ReservationSchema);
+const decodeReservation = Schema.decodeUnknown(ReservationSchema);
+
+const parseReservation = (json: string) =>
+  Effect.gen(function* () {
+    const raw = yield* Effect.try({
+      try: () => JSON.parse(json) as unknown,
+      catch: () => new BadRequest({ message: "Build reservation payload is not valid JSON" }),
+    });
+    return yield* decodeReservation(raw).pipe(
+      Effect.mapError(
+        () => new BadRequest({ message: "Build reservation payload failed schema decode" }),
+      ),
+    );
+  });
 
 const cleanupBuildObject = (key: string) =>
   Effect.gen(function* () {
@@ -163,7 +176,7 @@ const handleComplete = ({
         );
       }
 
-      const reservation = decodeReservation(JSON.parse(reservationJson));
+      const reservation = yield* parseReservation(reservationJson);
 
       yield* assertProjectOwnership(reservation.projectId);
 

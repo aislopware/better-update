@@ -2,8 +2,8 @@ import { Effect } from "effect";
 
 import { cloudflareEnv } from "./context";
 
-import type { ResponseType } from "../handlers/manifest-cache";
 import type { ProtocolHeaders } from "../protocol/headers";
+import type { ResponseType } from "../protocol/response-type";
 
 export type TrackManifestResponse = (
   branchId: string,

@@ -46,6 +46,7 @@ export interface BuildRuntimeService {
     readonly key: string;
   }) => Effect.Effect<StoredBuildObjectMetadata | null>;
   readonly getObject: (params: { readonly key: string }) => Effect.Effect<StoredBuildBlob | null>;
+  readonly getObjectBytes: (params: { readonly key: string }) => Effect.Effect<Uint8Array | null>;
   readonly putObject: (params: {
     readonly key: string;
     readonly body: ReadableStream | ArrayBuffer | ArrayBufferView | Uint8Array;
@@ -148,6 +149,16 @@ export const BuildRuntimeLive = Layer.succeed(BuildRuntime, {
       const env = yield* cloudflareEnv;
       const object = yield* Effect.promise(async () => env.BUILD_BUCKET.get(params.key));
       return object ? toStoredBuildBlob(object) : null;
+    }),
+
+  getObjectBytes: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+      const object = yield* Effect.promise(async () => env.BUILD_BUCKET.get(params.key));
+      if (!object) {
+        return null;
+      }
+      return yield* Effect.promise(async () => new Uint8Array(await object.arrayBuffer()));
     }),
 
   putObject: (params) =>

@@ -14,3 +14,9 @@ export const PaginationParams = Schema.Struct({
   page: Schema.optional(Schema.NumberFromString),
   limit: Schema.optional(Schema.NumberFromString),
 });
+
+export const UpdateRolloutBody = Schema.Struct({
+  percentage: Schema.Number.pipe(Schema.int(), Schema.between(1, 100)),
+});
+
+export const UploadHeaders = Schema.Record({ key: Schema.String, value: Schema.String });

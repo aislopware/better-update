@@ -2,6 +2,7 @@ import { FileSystem } from "@effect/platform";
 import { Effect } from "effect";
 
 import { ProjectNotLinkedError } from "./exit-codes";
+import { formatCause } from "./format-error";
 
 const asRecord = (value: unknown): Record<string, unknown> | undefined =>
   typeof value === "object" && value !== null ? (value as Record<string, unknown>) : undefined;
@@ -69,4 +70,12 @@ export const writeProjectId = (id: string) =>
     appJson["expo"] = expo;
 
     yield* fs.writeFileString("./app.json", `${JSON.stringify(appJson, null, 2)}\n`);
-  }).pipe(Effect.orDie);
+  }).pipe(
+    Effect.mapError((cause) =>
+      cause instanceof ProjectNotLinkedError
+        ? cause
+        : new ProjectNotLinkedError({
+            message: `Failed to write project ID to app.json: ${formatCause(cause)}`,
+          }),
+    ),
+  );

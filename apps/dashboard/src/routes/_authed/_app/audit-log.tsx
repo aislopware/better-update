@@ -1,5 +1,5 @@
-import { safeJsonParse } from "@better-update/api";
 import { auditLogsQueryOptions } from "@better-update/api-client/react";
+import { safeJsonParse } from "@better-update/safe-json";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import {

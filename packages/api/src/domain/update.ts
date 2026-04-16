@@ -69,7 +69,3 @@ export const RepublishResult = Schema.Struct({
 export const DeleteUpdateResult = Schema.Struct({
   deleted: Schema.Number,
 });
-
-export const UpdateRolloutBody = Schema.Struct({
-  percentage: Schema.Number.pipe(Schema.int(), Schema.between(1, 100)),
-});

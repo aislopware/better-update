@@ -3,6 +3,7 @@ import { FileSystem } from "@effect/platform";
 import { Console, Effect } from "effect";
 
 import type * as Terminal from "@effect/platform/Terminal";
+import type { RequestContext } from "@expo/apple-utils";
 
 import { AppleSessionStore } from "../services/apple-session-store";
 import { CliRuntime } from "../services/cli-runtime";
@@ -13,9 +14,7 @@ import { AppleAuthError } from "./exit-codes";
 
 export interface AppleAuthContext {
   readonly teamId: string;
-  // Opaque RequestContext from @expo/apple-utils — threaded through all portal calls.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- typed internally by apple-utils
-  readonly requestContext: any;
+  readonly requestContext: RequestContext;
 }
 
 // ── internal helpers ─────────────────────────────────────────────
@@ -140,8 +139,7 @@ const authenticateWithAppleId: Effect.Effect<
     const restored = yield* Effect.tryPromise({
       try: () =>
         appleUtils.Auth.loginWithCookiesAsync(
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- CookiesJSON from tough-cookie
-          { cookies: savedSession.cookies as never },
+          { cookies: savedSession.cookies },
           { autoResolveProvider: true },
         ),
       catch: () => undefined,

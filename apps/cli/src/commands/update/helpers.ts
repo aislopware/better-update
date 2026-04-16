@@ -10,30 +10,11 @@ import {
   RuntimeVersionError,
   UpdateRollbackError,
 } from "../../lib/exit-codes";
+import { formatCause } from "../../lib/format-error";
 
 export class UpdateCommandError extends Data.TaggedError("UpdateCommandError")<{
   readonly message: string;
 }> {}
-
-export const formatCause = (cause: unknown): string => {
-  if (cause instanceof Error) {
-    return cause.message;
-  }
-
-  if (typeof cause === "object" && cause !== null) {
-    const tagged = cause as { readonly _tag?: unknown; readonly message?: unknown };
-    const tag = typeof tagged._tag === "string" ? tagged._tag : undefined;
-    const message = typeof tagged.message === "string" ? tagged.message : undefined;
-    if (message) {
-      return message;
-    }
-    if (tag) {
-      return tag;
-    }
-  }
-
-  return String(cause);
-};
 
 export const handleUpdateCommandErrors = <A, R>(effect: Effect.Effect<A, unknown, R>) =>
   effect.pipe(

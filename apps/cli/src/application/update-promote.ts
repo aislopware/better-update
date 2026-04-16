@@ -1,8 +1,8 @@
-import { BadRequest, Conflict, Forbidden, NotFound } from "@better-update/api";
 import { FileSystem } from "@effect/platform";
 import { Effect } from "effect";
 
 import { AuthRequiredError, UpdatePromoteError } from "../lib/exit-codes";
+import { formatCause } from "../lib/format-error";
 import { loadOptionalSignedPayload } from "../lib/signed-payloads";
 import { apiClient, type ApiClientService } from "../services/api-client";
 
@@ -24,7 +24,7 @@ export const runUpdatePromote = (
   options: RunUpdatePromoteOptions,
 ): Effect.Effect<
   UpdatePromoteResult,
-  AuthRequiredError | UpdatePromoteError | BadRequest | NotFound | Conflict | Forbidden,
+  AuthRequiredError | UpdatePromoteError,
   ApiClientService | FileSystem.FileSystem
 > =>
   Effect.gen(function* () {
@@ -39,24 +39,35 @@ export const runUpdatePromote = (
       makeError: (message) => new UpdatePromoteError({ message }),
     });
 
-    const result = yield* api.updates.republish({
-      payload: {
-        sourceUpdateId: options.updateId,
-        destinationChannel: options.channel,
-        ...(signedPayload
-          ? {
-              signedUpdates: [
-                {
-                  sourceUpdateId: options.updateId,
-                  manifestBody: signedPayload.manifestBody,
-                  signature: signedPayload.signature,
-                  certificateChain: signedPayload.certificateChain,
-                },
-              ],
-            }
-          : {}),
-      },
-    });
+    const result = yield* api.updates
+      .republish({
+        payload: {
+          sourceUpdateId: options.updateId,
+          destinationChannel: options.channel,
+          ...(signedPayload
+            ? {
+                signedUpdates: [
+                  {
+                    sourceUpdateId: options.updateId,
+                    manifestBody: signedPayload.manifestBody,
+                    signature: signedPayload.signature,
+                    certificateChain: signedPayload.certificateChain,
+                  },
+                ],
+              }
+            : {}),
+        },
+      })
+      .pipe(
+        Effect.catchIf(
+          (cause): cause is Exclude<typeof cause, AuthRequiredError> =>
+            (cause as { readonly _tag?: string })._tag !== "AuthRequiredError",
+          (cause) =>
+            new UpdatePromoteError({
+              message: `Failed to promote update: ${formatCause(cause)}`,
+            }),
+        ),
+      );
 
     const [promotedUpdate] = result.updates;
     if (!promotedUpdate) {

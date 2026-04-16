@@ -24,13 +24,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
-const getInitials = (name: string) =>
-  name
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
+import { getInitials } from "../../../lib/avatar";
 
 const roleBadgeVariant = (role: string): "default" | "secondary" | "outline" => {
   if (role === "owner") {
@@ -57,7 +51,7 @@ const MemberActions = ({
   memberRole: string;
   currentRole: string;
   isSelf: boolean;
-  onRoleChange: (memberId: string, role: string) => Promise<void>;
+  onRoleChange: (memberId: string, role: string) => void;
   onRemove: (memberId: string) => void;
 }) => {
   if (isSelf || !canManageRole(currentRole, memberRole)) {
@@ -73,13 +67,21 @@ const MemberActions = ({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         {memberRole === "admin" ? null : (
-          <DropdownMenuItem onClick={async () => onRoleChange(memberId, "admin")}>
+          <DropdownMenuItem
+            onClick={() => {
+              onRoleChange(memberId, "admin");
+            }}
+          >
             <HugeiconsIcon icon={Shield01Icon} strokeWidth={2} className="size-4" />
             <span>Set as Admin</span>
           </DropdownMenuItem>
         )}
         {memberRole === "member" ? null : (
-          <DropdownMenuItem onClick={async () => onRoleChange(memberId, "member")}>
+          <DropdownMenuItem
+            onClick={() => {
+              onRoleChange(memberId, "member");
+            }}
+          >
             <HugeiconsIcon icon={Shield01Icon} strokeWidth={2} className="size-4" />
             <span>Set as Member</span>
           </DropdownMenuItem>
@@ -136,7 +138,7 @@ export const MembersTableView = ({
   }[];
   currentUserId: string;
   currentRole: string;
-  onRoleChange: (memberId: string, role: string) => Promise<void>;
+  onRoleChange: (memberId: string, role: string) => void;
   onRemove: (memberId: string) => void;
 }) => (
   <Table>
@@ -191,7 +193,7 @@ export const InvitationsTableView = ({
     status: string;
     expiresAt: Date;
   }[];
-  onCancel: (invitationId: string) => Promise<void>;
+  onCancel: (invitationId: string) => void;
 }) => (
   <Table>
     <TableHeader>
@@ -213,7 +215,13 @@ export const InvitationsTableView = ({
             {new Date(invitation.expiresAt).toLocaleDateString()}
           </TableCell>
           <TableCell>
-            <Button variant="ghost" size="icon-sm" onClick={async () => onCancel(invitation.id)}>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => {
+                onCancel(invitation.id);
+              }}
+            >
               <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} className="size-4" />
             </Button>
           </TableCell>

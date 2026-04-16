@@ -9,12 +9,13 @@
     "lint": "oxlint --fix",
     "lint:check": "oxlint"
   },
-  "dependencies": {
-    "react": "^19.2.5"
-  },
   "devDependencies": {
     "@better-update/oxlint-config": "workspace:*",
     "@better-update/typescript-config": "workspace:*",
-    "@types/react": "^19.2.14"
+    "@types/react": "^19.2.14",
+    "react": "^19.2.5"
+  },
+  "peerDependencies": {
+    "react": ">=19.2.5"
   }
 }

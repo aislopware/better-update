@@ -3,7 +3,7 @@ import { Schema } from "effect";
 
 import { Forbidden } from "../auth/errors";
 import { NotFound } from "../auth/ownership";
-import { Id, PaginationParams } from "../domain/common";
+import { Id, PaginationParams, UpdateRolloutBody } from "../domain/common";
 import { BadRequest, Conflict } from "../domain/errors";
 import {
   CreateUpdateBody,
@@ -11,7 +11,6 @@ import {
   RepublishBody,
   RepublishResult,
   Update,
-  UpdateRolloutBody,
 } from "../domain/update";
 
 const idParam = HttpApiSchema.param("id", Schema.String);

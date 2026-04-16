@@ -29,6 +29,6 @@ export const putToPresignedUrl = ({
       filePath,
       byteSize,
       expiresAt,
-      headers,
+      ...(headers !== undefined ? { headers } : {}),
     });
   });

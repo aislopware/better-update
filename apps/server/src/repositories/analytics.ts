@@ -23,11 +23,12 @@ const periodToDays = (period: AnalyticsPeriod | undefined): string =>
   PERIOD_TO_DAYS[period ?? "7d"];
 
 const UUID_RE = /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i;
+const CHANNEL_NAME_RE = /^[A-Za-z0-9._-]{1,64}$/;
 
-const sanitizeLiteral = (value: string): string => {
-  const sanitized = value.replaceAll("'", "''");
-  return UUID_RE.test(sanitized) ? sanitized : "";
-};
+const sanitizeUuid = (value: string): string => (UUID_RE.test(value) ? value : "");
+
+const sanitizeChannelName = (value: string): string =>
+  CHANNEL_NAME_RE.test(value) ? value.replaceAll("'", "''") : "";
 
 const toNumber = (value: string | undefined): number => Number(value ?? 0);
 
@@ -103,7 +104,7 @@ export const AnalyticsRepoLive = Layer.effect(
               MAX(timestamp) AS last_seen
             FROM update_events
             WHERE
-              blob1 = '${sanitizeLiteral(params.projectId)}'
+              blob1 = '${sanitizeUuid(params.projectId)}'
               AND blob7 = 'manifest'
               AND timestamp > NOW() - INTERVAL '${periodToDays(params.period)}' DAY
             GROUP BY blob4
@@ -122,8 +123,8 @@ export const AnalyticsRepoLive = Layer.effect(
 
       getUpdateMetrics: (params) =>
         Effect.gen(function* () {
-          const projectId = sanitizeLiteral(params.projectId);
-          const updateId = sanitizeLiteral(params.updateId);
+          const projectId = sanitizeUuid(params.projectId);
+          const updateId = sanitizeUuid(params.updateId);
           const days = periodToDays(params.period);
 
           const [summaryRows, timeSeriesRows, deviceRows] = yield* Effect.all(
@@ -171,8 +172,8 @@ export const AnalyticsRepoLive = Layer.effect(
 
       getChannelMetrics: (params) =>
         Effect.gen(function* () {
-          const projectId = sanitizeLiteral(params.projectId);
-          const channel = sanitizeLiteral(params.channel);
+          const projectId = sanitizeUuid(params.projectId);
+          const channel = sanitizeChannelName(params.channel);
           const days = periodToDays(params.period);
 
           const [distributionRows, totalRows] = yield* Effect.all(
@@ -211,7 +212,7 @@ export const AnalyticsRepoLive = Layer.effect(
               SUM(_sample_interval) AS requests,
               COUNT(DISTINCT index1) AS unique_devices
             FROM update_events
-            WHERE blob1 = '${sanitizeLiteral(params.projectId)}'
+            WHERE blob1 = '${sanitizeUuid(params.projectId)}'
               AND timestamp > NOW() - INTERVAL '${periodToDays(params.period)}' DAY
             GROUP BY blob5
             ORDER BY requests DESC

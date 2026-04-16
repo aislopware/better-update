@@ -1,19 +1,37 @@
-import { Distribution } from "@better-update/api";
-import { Effect, Schema } from "effect";
+import { Effect } from "effect";
 
 import { CompleteError, ReserveError } from "../../lib/exit-codes";
+import { formatCause } from "../../lib/format-error";
 import { PresignedUploadClient } from "../../services/presigned-upload";
 
 import type { PresignedUrlExpiredError, UploadFailedError } from "../../lib/exit-codes";
 import type { ApiClient } from "../../services/api-client";
 
-export type DistributionValue = Schema.Schema.Type<typeof Distribution>;
+export type BuildTarget =
+  | {
+      readonly platform: "ios";
+      readonly distribution: "app-store" | "ad-hoc" | "development" | "enterprise";
+      readonly artifactFormat: "ipa";
+    }
+  | {
+      readonly platform: "ios";
+      readonly distribution: "simulator";
+      readonly artifactFormat: "tar.gz";
+    }
+  | {
+      readonly platform: "android";
+      readonly distribution: "play-store";
+      readonly artifactFormat: "aab";
+    }
+  | {
+      readonly platform: "android";
+      readonly distribution: "direct";
+      readonly artifactFormat: "apk";
+    };
 
 export interface ReserveAndUploadInput {
+  readonly target: BuildTarget;
   readonly projectId: string;
-  readonly platform: "ios" | "android";
-  readonly distribution: DistributionValue;
-  readonly artifactFormat: "ipa" | "apk" | "aab";
   readonly profileName: string;
   readonly runtimeVersion: string;
   readonly appVersion?: string;
@@ -29,6 +47,57 @@ export interface ReserveAndUploadInput {
   readonly sha256: string;
   readonly byteSize: number;
 }
+
+const buildReserveCommon = (input: ReserveAndUploadInput) =>
+  ({
+    projectId: input.projectId,
+    profile: input.profileName,
+    runtimeVersion: input.runtimeVersion,
+    bundleId: input.bundleId,
+    sha256: input.sha256,
+    byteSize: input.byteSize,
+    ...(input.appVersion !== undefined ? { appVersion: input.appVersion } : {}),
+    ...(input.buildNumber !== undefined ? { buildNumber: input.buildNumber } : {}),
+    ...(input.gitContext.ref !== undefined ? { gitRef: input.gitContext.ref } : {}),
+    ...(input.gitContext.commit !== undefined ? { gitCommit: input.gitContext.commit } : {}),
+    ...(input.message !== undefined ? { message: input.message } : {}),
+  }) as const;
+
+const callReserve = (api: ApiClient, input: ReserveAndUploadInput) => {
+  const common = buildReserveCommon(input);
+  const { target } = input;
+  if (target.platform === "ios") {
+    return target.distribution === "simulator"
+      ? api.builds.reserve({
+          payload: {
+            ...common,
+            platform: "ios",
+            distribution: "simulator",
+            artifactFormat: "tar.gz",
+          },
+        })
+      : api.builds.reserve({
+          payload: {
+            ...common,
+            platform: "ios",
+            distribution: target.distribution,
+            artifactFormat: "ipa",
+          },
+        });
+  }
+  return target.distribution === "play-store"
+    ? api.builds.reserve({
+        payload: {
+          ...common,
+          platform: "android",
+          distribution: "play-store",
+          artifactFormat: "aab",
+        },
+      })
+    : api.builds.reserve({
+        payload: { ...common, platform: "android", distribution: "direct", artifactFormat: "apk" },
+      });
+};
 
 export interface ReserveAndUploadResult {
   readonly id: string;
@@ -50,33 +119,14 @@ export const reserveAndUpload = (
   Effect.gen(function* () {
     const presignedUploadClient = yield* PresignedUploadClient;
 
-    const reserveResult = yield* api.builds
-      .reserve({
-        payload: {
-          projectId: input.projectId,
-          platform: input.platform,
-          profile: input.profileName,
-          distribution: input.distribution,
-          artifactFormat: input.artifactFormat,
-          runtimeVersion: input.runtimeVersion,
-          ...(input.appVersion !== undefined ? { appVersion: input.appVersion } : {}),
-          ...(input.buildNumber !== undefined ? { buildNumber: input.buildNumber } : {}),
-          bundleId: input.bundleId,
-          ...(input.gitContext.ref !== undefined ? { gitRef: input.gitContext.ref } : {}),
-          ...(input.gitContext.commit !== undefined ? { gitCommit: input.gitContext.commit } : {}),
-          ...(input.message !== undefined ? { message: input.message } : {}),
-          sha256: input.sha256,
-          byteSize: input.byteSize,
-        },
-      })
-      .pipe(
-        Effect.mapError(
-          (cause) =>
-            new ReserveError({
-              message: `Failed to reserve build: ${formatCause(cause)}`,
-            }),
-        ),
-      );
+    const reserveResult = yield* callReserve(api, input).pipe(
+      Effect.mapError(
+        (cause) =>
+          new ReserveError({
+            message: `Failed to reserve build: ${formatCause(cause)}`,
+          }),
+      ),
+    );
 
     switch (reserveResult.uploadMode) {
       case "single":
@@ -112,16 +162,3 @@ export const reserveAndUpload = (
 
     return { id: completed.id, status: "uploaded" };
   });
-
-const formatCause = (cause: unknown): string => {
-  if (cause instanceof Error) return cause.message;
-  if (typeof cause === "object" && cause !== null) {
-    const tagged = cause as { readonly _tag?: unknown; readonly message?: unknown };
-    const tag = typeof tagged._tag === "string" ? tagged._tag : undefined;
-    const msg = typeof tagged.message === "string" ? tagged.message : undefined;
-    if (tag && msg) return `${tag}: ${msg}`;
-    if (tag) return tag;
-    if (msg) return msg;
-  }
-  return String(cause);
-};

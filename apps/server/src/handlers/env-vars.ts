@@ -24,6 +24,12 @@ const MAX_VARS_PER_PROJECT_ENV = 100;
 const VALID_ENVIRONMENTS = new Set(["development", "preview", "production", "*"]);
 
 const SENSITIVE_MASK = "••••••";
+interface EnvVarStorageFields {
+  readonly value: string | null;
+  readonly encryptedValue: string | null;
+  readonly keyVersion: number | null;
+}
+
 interface EnvVarUpdateFields {
   readonly value?: string | null;
   readonly encryptedValue?: string | null;
@@ -119,19 +125,19 @@ const prepareStorageFields = (
   visibility: "plaintext" | "sensitive" | "secret",
   rawValue: string,
   orgId: string,
-) =>
+): Effect.Effect<EnvVarStorageFields, BadRequest, Vault> =>
   visibility === "plaintext"
     ? Effect.succeed({
-        value: rawValue as string | null,
-        encryptedValue: null as string | null,
-        keyVersion: null as number | null,
+        value: rawValue,
+        encryptedValue: null,
+        keyVersion: null,
       })
     : Effect.gen(function* () {
         const encrypted = yield* encryptValue(orgId, rawValue);
         return {
-          value: null as string | null,
-          encryptedValue: encrypted.encryptedValue as string | null,
-          keyVersion: encrypted.keyVersion as number | null,
+          value: null,
+          encryptedValue: encrypted.encryptedValue,
+          keyVersion: encrypted.keyVersion,
         };
       });
 

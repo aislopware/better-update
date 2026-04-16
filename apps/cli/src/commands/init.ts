@@ -2,13 +2,14 @@ import { Command } from "@effect/cli";
 import { Console, Effect } from "effect";
 
 import { readAppJson, readScopeKey, writeProjectId } from "../lib/app-json";
+import { asString } from "../lib/build-profile";
 import { apiClient } from "../services/api-client";
 
 export const initCommand = Command.make("init", {}, () =>
   Effect.gen(function* () {
     const appJson = yield* readAppJson;
     const expo = appJson["expo"] as Record<string, unknown> | undefined;
-    const name = (expo?.["name"] as string) ?? (expo?.["slug"] as string) ?? "untitled";
+    const name = asString(expo?.["name"]) ?? asString(expo?.["slug"]) ?? "untitled";
     const scopeKey = yield* readScopeKey;
 
     yield* Console.log(`Linking project: ${name} (${scopeKey})`);
