@@ -1,8 +1,6 @@
 import { Prompt } from "@effect/cli";
 import { Console, Effect } from "effect";
 
-import type { PlatformError } from "@effect/platform/Error";
-
 import { runAndroidBuild } from "../commands/build/android";
 import {
   provisionAndroidCredentials,
@@ -13,7 +11,7 @@ import { reserveAndUpload } from "../commands/build/reserve-and-upload";
 import { readAppJson, readProjectId } from "../lib/app-json";
 import { readAppMeta, readBuildProfile } from "../lib/build-profile";
 import { pullEnvVars } from "../lib/env-exporter";
-import { BuildProfileError, RuntimeVersionError } from "../lib/exit-codes";
+import { BuildProfileError } from "../lib/exit-codes";
 import { readGitContext } from "../lib/git-context";
 import { printKeyValue } from "../lib/output";
 import { resolveRuntimeVersion } from "../lib/runtime-version";
@@ -23,20 +21,6 @@ import { CliRuntime } from "../services/cli-runtime";
 
 import type { DistributionValue } from "../commands/build/reserve-and-upload";
 import type { Platform } from "../lib/build-profile";
-import type {
-  ArtifactNotFoundError,
-  AuthRequiredError,
-  BuildFailedError,
-  CompleteError,
-  EnvExportError,
-  KeychainError,
-  MissingCredentialsError,
-  PresignedUrlExpiredError,
-  ProjectNotLinkedError,
-  ProvisioningError,
-  ReserveError,
-  UploadFailedError,
-} from "../lib/exit-codes";
 
 export interface RunBuildWorkflowOptions {
   readonly platform: Platform;
@@ -44,23 +28,6 @@ export interface RunBuildWorkflowOptions {
   readonly message: string | undefined;
   readonly noUpload: boolean;
 }
-
-export type BuildWorkflowError =
-  | AuthRequiredError
-  | ProjectNotLinkedError
-  | BuildProfileError
-  | RuntimeVersionError
-  | EnvExportError
-  | MissingCredentialsError
-  | BuildFailedError
-  | KeychainError
-  | ProvisioningError
-  | ArtifactNotFoundError
-  | UploadFailedError
-  | PresignedUrlExpiredError
-  | ReserveError
-  | CompleteError
-  | PlatformError;
 
 export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
   Effect.scoped(

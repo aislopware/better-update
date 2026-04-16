@@ -144,15 +144,6 @@ export interface CredentialModel {
   readonly createdAt: string;
 }
 
-export interface CredentialDownloadModel {
-  readonly blob: string;
-  readonly password: string | null;
-  readonly keyAlias: string | null;
-  readonly keyPassword: string | null;
-  readonly filename: string;
-  readonly contentType: string;
-}
-
 export interface EnvVarModel {
   readonly id: string;
   readonly organizationId: string;
@@ -163,17 +154,6 @@ export interface EnvVarModel {
   readonly value: string | null;
   readonly createdAt: string;
   readonly updatedAt: string;
-}
-
-export interface EnvVarExportItemModel {
-  readonly key: string;
-  readonly value: string;
-  readonly visibility: EnvVarVisibility;
-}
-
-export interface EnvVarExportResultModel {
-  readonly items: readonly EnvVarExportItemModel[];
-  readonly environment: string;
 }
 
 export interface BuildArtifactModel {
@@ -235,32 +215,6 @@ export interface MissingRuntimeVersionBuildModel {
 export interface BuildCompatibilityMatrixModel {
   readonly rows: readonly BuildCompatibilityRowModel[];
   readonly missingRuntimeVersions: readonly MissingRuntimeVersionBuildModel[];
-}
-
-export interface ReserveBuildResultModel {
-  readonly id: string;
-  readonly uploadMode: "single";
-  readonly uploadUrl: string;
-  readonly uploadExpiresAt: string;
-  readonly uploadHeaders: Record<string, string>;
-}
-
-export interface InstallLinkResultModel {
-  readonly token: string;
-  readonly expires: number;
-  readonly artifactUrl: string;
-  readonly installUrl: string | null;
-}
-
-export interface AssetUploadResultModel {
-  readonly uploaded: readonly {
-    readonly hash: string;
-    readonly uploadMode: "single";
-    readonly uploadUrl: string;
-    readonly uploadExpiresAt: string;
-    readonly uploadHeaders: Record<string, string>;
-  }[];
-  readonly deduplicated: readonly string[];
 }
 
 export interface AuditLogModel {

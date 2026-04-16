@@ -1,0 +1,49 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "workspaces": {
+    ".": {
+      "ignoreDependencies": [
+        "@tanstack/eslint-plugin-router",
+        "@tanstack/react-query",
+        "@tanstack/react-router",
+        "@typescript/native-preview",
+        "eslint-plugin-functional",
+        "type-fest"
+      ]
+    },
+    "apps/server": {
+      "entry": ["src/app-layer.ts", "src/infrastructure-layer.ts"],
+      "project": ["src/**/*.ts", "tests/**/*.ts"],
+      "ignoreDependencies": ["cloudflare"]
+    },
+    "apps/dashboard": {
+      "project": ["src/**/*.{ts,tsx}", "tests/**/*.ts"],
+      "ignoreDependencies": [
+        "@fontsource-variable/geist",
+        "tailwindcss",
+        "tw-animate-css",
+        "shadcn"
+      ]
+    },
+    "apps/cli": {
+      "project": ["src/**/*.ts", "tests/**/*.ts"],
+      "ignoreDependencies": ["wrangler"]
+    },
+    "packages/api": {
+      "project": ["src/**/*.ts"]
+    },
+    "packages/api-client": {
+      "project": ["src/**/*.ts"]
+    },
+    "packages/react-hooks": {
+      "project": ["src/**/*.ts"]
+    },
+    "packages/ui": {
+      "entry": ["src/components/**/*.tsx", "src/hooks/*.ts", "src/lib/*.ts"],
+      "project": ["src/**/*.{ts,tsx}"]
+    }
+  },
+  "ignoreDependencies": ["@better-update/oxlint-config"],
+  "ignoreWorkspaces": ["packages/oxlint-config", "packages/typescript-config"],
+  "ignoreExportsUsedInFile": true
+}

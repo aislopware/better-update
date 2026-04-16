@@ -1,34 +1,17 @@
 import {
   AuditLog,
-  BadRequest as ApiBadRequest,
   Branch,
-  Channel,
   BuildCompatibilityChannel,
   BuildCompatibilityRow,
   BuildWithArtifact,
-  Conflict as ApiConflict,
+  Channel,
   Credential,
   EnvVar,
-  Forbidden as ApiForbidden,
   MissingRuntimeVersionBuild,
-  NotAcceptable as ApiNotAcceptable,
-  NotFound as ApiNotFound,
-  OrgRequired as ApiOrgRequired,
   Project,
-  Unauthorized as ApiUnauthorized,
   Update,
 } from "@better-update/api";
 
-import type {
-  AppError,
-  BadRequest,
-  Conflict,
-  Forbidden,
-  NotAcceptable,
-  NotFound,
-  OrgRequired,
-  Unauthorized,
-} from "../errors";
 import type {
   AuditLogModel,
   BranchModel,
@@ -43,15 +26,6 @@ import type {
   ProjectModel,
   UpdateModel,
 } from "../models";
-
-export type ApiError =
-  | ApiBadRequest
-  | ApiConflict
-  | ApiForbidden
-  | ApiNotAcceptable
-  | ApiNotFound
-  | ApiOrgRequired
-  | ApiUnauthorized;
 
 export const toApiProject = (project: ProjectModel) =>
   new Project({
@@ -211,41 +185,3 @@ export const toApiAuditLog = (log: AuditLogModel) =>
     source: log.source,
     createdAt: log.createdAt,
   });
-
-export function toApiError(error: AppError): ApiError;
-export function toApiError(error: BadRequest): ApiBadRequest;
-export function toApiError(error: Conflict): ApiConflict;
-export function toApiError(error: Forbidden): ApiForbidden;
-export function toApiError(error: NotAcceptable): ApiNotAcceptable;
-export function toApiError(error: NotFound): ApiNotFound;
-export function toApiError(error: OrgRequired): ApiOrgRequired;
-export function toApiError(error: Unauthorized): ApiUnauthorized;
-export function toApiError(error: AppError): ApiError {
-  switch (error._tag) {
-    case "BadRequest": {
-      return new ApiBadRequest({ message: error.message });
-    }
-    case "Conflict": {
-      return new ApiConflict({ message: error.message });
-    }
-    case "Forbidden": {
-      return new ApiForbidden({ message: error.message });
-    }
-    case "NotAcceptable": {
-      return new ApiNotAcceptable({ message: error.message });
-    }
-    case "NotFound": {
-      return new ApiNotFound({ message: error.message });
-    }
-    case "OrgRequired": {
-      return new ApiOrgRequired({ message: error.message });
-    }
-    case "Unauthorized": {
-      return new ApiUnauthorized({ message: error.message });
-    }
-    default: {
-      const exhaustive: never = error;
-      return exhaustive;
-    }
-  }
-}

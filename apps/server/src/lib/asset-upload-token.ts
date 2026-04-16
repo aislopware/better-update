@@ -44,6 +44,7 @@ const decodePayload = (value: string): AssetUploadTokenPayload | null => {
 const importSecretKey = async (secret: string) =>
   crypto.subtle.importKey("raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, [
     "sign",
+    "verify",
   ]);
 
 const signPayload = async (secret: string, payloadPart: string) => {
@@ -52,7 +53,22 @@ const signPayload = async (secret: string, payloadPart: string) => {
   return toBase64Url(new Uint8Array(signature));
 };
 
-const timingSafeEquals = (left: string, right: string) => left === right;
+const asArrayBuffer = (bytes: Uint8Array): ArrayBuffer => {
+  const buffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(buffer).set(bytes);
+  return buffer;
+};
+
+const verifySignature = async (secret: string, payloadPart: string, signaturePart: string) => {
+  const key = await importSecretKey(secret);
+  const signatureBytes = fromBase64Url(signaturePart);
+  return crypto.subtle.verify(
+    "HMAC",
+    key,
+    asArrayBuffer(signatureBytes),
+    encoder.encode(payloadPart),
+  );
+};
 
 export const createAssetUploadToken = async (
   payload: AssetUploadTokenPayload,
@@ -72,8 +88,8 @@ export const verifyAssetUploadToken = async (
     return null;
   }
 
-  const expectedSignature = await signPayload(secret, payloadPart);
-  if (!timingSafeEquals(expectedSignature, signaturePart)) {
+  const valid = await verifySignature(secret, payloadPart, signaturePart);
+  if (!valid) {
     return null;
   }
 

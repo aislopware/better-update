@@ -19,15 +19,6 @@ export interface AndroidKeystorePromptDefaults {
   readonly organization?: string;
 }
 
-export interface AndroidKeystorePromptResult {
-  readonly credentialName: string;
-  readonly keyAlias: string;
-  readonly storePassword: string;
-  readonly keyPassword: string;
-  readonly commonName: string;
-  readonly organization: string;
-}
-
 export interface GenerateAndroidKeystoreInput {
   readonly outputPath: string;
   readonly keyAlias: string;
