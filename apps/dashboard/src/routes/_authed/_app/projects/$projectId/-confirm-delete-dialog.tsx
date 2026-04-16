@@ -62,7 +62,9 @@ export const ConfirmDeleteDialog = ({
     }
   };
 
-  const handleDelete = async () => deleteMutation.mutateAsync();
+  const handleDelete = () => {
+    deleteMutation.mutate();
+  };
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>

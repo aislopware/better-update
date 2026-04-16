@@ -109,22 +109,26 @@ export const UpdateCard = ({
     completeUpdateRolloutMutation.isPending ||
     revertUpdateRolloutMutation.isPending;
 
-  const handleDelete = async () => {
-    await deleteUpdateGroupMutation.mutateAsync();
+  const handleDelete = () => {
+    deleteUpdateGroupMutation.mutate();
   };
 
-  const handleEditRollout = async () => {
+  const handleEditRollout = () => {
     const percentage = Number.parseInt(rolloutInput, 10);
     if (Number.isNaN(percentage) || percentage < 1 || percentage > 100) {
       toast.error("Rollout percentage must be between 1 and 100");
       return;
     }
-    await editUpdateRolloutMutation.mutateAsync(percentage);
+    editUpdateRolloutMutation.mutate(percentage);
   };
 
-  const handleComplete = async () => completeUpdateRolloutMutation.mutateAsync();
+  const handleComplete = () => {
+    completeUpdateRolloutMutation.mutate();
+  };
 
-  const handleRevert = async () => revertUpdateRolloutMutation.mutateAsync();
+  const handleRevert = () => {
+    revertUpdateRolloutMutation.mutate();
+  };
 
   return (
     <Card>

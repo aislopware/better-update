@@ -25,7 +25,7 @@ import { toast } from "sonner";
 
 import type { EnvVar } from "@better-update/api";
 
-import { useApiMutation } from "../../../../../lib/use-api-mutation";
+import { safeSubmit, useApiMutation } from "../../../../../lib/use-api-mutation";
 
 const EditFormContent = ({
   orgId,
@@ -78,7 +78,7 @@ const EditFormContent = ({
         return;
       }
 
-      await updateEnvVarMutation.mutateAsync(payload);
+      await safeSubmit(updateEnvVarMutation.mutateAsync(payload));
     },
   });
 

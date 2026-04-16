@@ -16,7 +16,7 @@
     "typegen:cf": "wrangler types"
   },
   "dependencies": {
-    "@better-auth/api-key": "^1.6.3",
+    "@better-auth/api-key": "^1.6.4",
     "@better-update/api": "workspace:*",
     "@better-update/api-client": "workspace:*",
     "@better-update/react-hooks": "workspace:*",
@@ -29,7 +29,7 @@
     "@tanstack/react-query": "^5.99.0",
     "@tanstack/react-router": "^1.168.22",
     "@xstate/react": "^6.1.0",
-    "better-auth": "^1.6.3",
+    "better-auth": "^1.6.4",
     "effect": "^3.21.0",
     "qrcode.react": "^4.2.0",
     "react": "^19.2.5",
@@ -56,6 +56,6 @@
     "playwright": "^1.59.1",
     "vite": "^8.0.8",
     "vitest": "^4.1.4",
-    "wrangler": "^4.82.2"
+    "wrangler": "^4.83.0"
   }
 }

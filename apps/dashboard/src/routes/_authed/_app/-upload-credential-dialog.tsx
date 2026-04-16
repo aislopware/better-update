@@ -279,11 +279,11 @@ const UploadForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: () => void
     }
   };
 
-  const handleUpload = async () => {
+  const handleUpload = () => {
     if (!file || !platform || !credentialType || !name) {
       return;
     }
-    await uploadCredentialMutation.mutateAsync({
+    uploadCredentialMutation.mutate({
       file,
       platform,
       credentialType,

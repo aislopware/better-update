@@ -1,5 +1,4 @@
-import { getApiError } from "@better-update/api-client";
-import { completeBuild, reserveBuild } from "@better-update/api-client/react";
+import { getApiError, runApi } from "@better-update/api-client";
 import { useMountEffect } from "@better-update/react-hooks";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
@@ -12,6 +11,7 @@ import {
 import { Add01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Effect } from "effect";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -146,8 +146,10 @@ const buildReservePayload = (params: {
     };
   }
 
-  throw new Error("Invalid build combination");
+  return null;
 };
+
+type ReservePayload = NonNullable<ReturnType<typeof buildReservePayload>>;
 
 const UploadForm = ({
   projectId,
@@ -170,44 +172,40 @@ const UploadForm = ({
   const uploadBuildMutation = useMutation({
     mutationFn: async (input: {
       file: File;
-      platform: PlatformValue;
-      distribution: DistributionValue;
-      artifactFormat: ArtifactFormatValue;
-      metadata: MetadataValues;
+      reservePayload: ReservePayload;
+      sha256: string;
       controller: AbortController;
-    }) => {
-      const sha256 = await computeSha256(input.file);
-      const reservedBuild = await reserveBuild(
-        buildReservePayload({
-          projectId,
-          platform: input.platform,
-          distribution: input.distribution,
-          artifactFormat: input.artifactFormat,
-          metadata: input.metadata,
-          sha256,
-          byteSize: input.file.size,
-        }),
-      );
-
-      setUploadPhase("uploading");
-      await uploadWithProgress(
-        reservedBuild.uploadUrl,
-        input.file,
-        setUploadProgress,
+    }) =>
+      runApi(
+        (api) =>
+          Effect.gen(function* () {
+            // eslint-disable-next-line typescript/no-unsafe-type-assertion -- ReservePayload is validated by buildReservePayload; assertion bridges TS union-in-object distribution limitation with HttpApiClient's discriminated parameter
+            const reserved = yield* api.builds.reserve({ payload: input.reservePayload } as never);
+            setUploadPhase("uploading");
+            yield* Effect.tryPromise(async () =>
+              uploadWithProgress(
+                reserved.uploadUrl,
+                input.file,
+                setUploadProgress,
+                input.controller.signal,
+                reserved.uploadHeaders,
+              ),
+            );
+            setUploadPhase("completing");
+            return yield* api.builds.complete({
+              path: { id: reserved.id },
+              payload: { sha256: input.sha256, byteSize: input.file.size },
+            });
+          }),
         input.controller.signal,
-        reservedBuild.uploadHeaders,
-      );
-
-      setUploadPhase("completing");
-      return completeBuild(reservedBuild.id, { sha256, byteSize: input.file.size });
-    },
+      ),
     onSuccess: async () => {
       toast.success("Build uploaded successfully");
       await invalidateBuildQueries(queryClient, orgId, projectId);
       onSuccess();
     },
     onError: (error) => {
-      if (!(error instanceof Error && error.message === "Upload aborted")) {
+      if (!abortRef.current?.signal.aborted) {
         toast.error(getApiError(error));
       }
       setUploadPhase("idle");
@@ -293,22 +291,25 @@ const UploadForm = ({
     }
 
     setUploadPhase("reserving");
+    const sha256 = await computeSha256(file);
+    const reservePayload = buildReservePayload({
+      projectId,
+      platform,
+      distribution,
+      artifactFormat,
+      metadata,
+      sha256,
+      byteSize: file.size,
+    });
+    if (!reservePayload) {
+      toast.error("Invalid build combination");
+      setUploadPhase("idle");
+      return;
+    }
+
     const controller = new AbortController();
     abortRef.current = controller;
-    await uploadBuildMutation
-      .mutateAsync({
-        file,
-        platform,
-        distribution,
-        artifactFormat,
-        metadata,
-        controller,
-      })
-      .catch((error: unknown) => {
-        if (error instanceof Error && error.message === "Upload aborted") {
-          setUploadPhase("idle");
-        }
-      });
+    uploadBuildMutation.mutate({ file, reservePayload, sha256, controller });
   };
 
   return (

@@ -71,8 +71,8 @@ export const EnvVarRow = ({
     },
   });
 
-  const handleDelete = async () => {
-    await deleteEnvVarMutation.mutateAsync();
+  const handleDelete = () => {
+    deleteEnvVarMutation.mutate();
   };
 
   return (

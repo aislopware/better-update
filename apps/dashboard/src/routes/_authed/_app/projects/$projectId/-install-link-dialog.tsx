@@ -12,6 +12,7 @@ import {
 import { SmartPhone02Icon, Copy01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation } from "@tanstack/react-query";
+import { Effect, Exit } from "effect";
 import { QRCodeSVG } from "qrcode.react";
 import { useSyncExternalStore, useState } from "react";
 import { toast } from "sonner";
@@ -23,11 +24,10 @@ const CopyButton = ({ text }: { text: string }) => {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
-    const didCopy = await navigator.clipboard.writeText(text).then(
-      () => true,
-      () => false,
+    const exit = await Effect.runPromiseExit(
+      Effect.tryPromise(async () => navigator.clipboard.writeText(text)),
     );
-    if (!didCopy) {
+    if (Exit.isFailure(exit)) {
       toast.error("Failed to copy to clipboard");
       return;
     }

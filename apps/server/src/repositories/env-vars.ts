@@ -2,6 +2,9 @@ import { Context, Effect, Layer } from "effect";
 
 import { cloudflareEnv } from "../cloudflare/context";
 import { NotFound } from "../errors";
+import { d1WithUniqueCheck } from "./d1-helpers";
+
+import type { Conflict } from "../errors";
 
 // -- Row type ----------------------------------------------------------------
 
@@ -32,7 +35,7 @@ export interface EnvVarRepository {
     readonly value: string | null;
     readonly encryptedValue: string | null;
     readonly keyVersion: number | null;
-  }) => Effect.Effect<EnvVarRow>;
+  }) => Effect.Effect<EnvVarRow, Conflict>;
 
   readonly findById: (params: { readonly id: string }) => Effect.Effect<EnvVarRow, NotFound>;
 
@@ -89,24 +92,26 @@ export const EnvVarRepoLive = Layer.succeed(EnvVarRepo, {
       const env = yield* cloudflareEnv;
       const now = new Date().toISOString();
 
-      yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `INSERT INTO "env_vars" ("id", "organization_id", "project_id", "environment", "key", "visibility", "value", "encrypted_value", "key_version", "created_at", "updated_at") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        )
-          .bind(
-            params.id,
-            params.organizationId,
-            params.projectId,
-            params.environment,
-            params.key,
-            params.visibility,
-            params.value,
-            params.encryptedValue,
-            params.keyVersion,
-            now,
-            now,
+      yield* d1WithUniqueCheck(
+        async () =>
+          env.DB.prepare(
+            `INSERT INTO "env_vars" ("id", "organization_id", "project_id", "environment", "key", "visibility", "value", "encrypted_value", "key_version", "created_at", "updated_at") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           )
-          .run(),
+            .bind(
+              params.id,
+              params.organizationId,
+              params.projectId,
+              params.environment,
+              params.key,
+              params.visibility,
+              params.value,
+              params.encryptedValue,
+              params.keyVersion,
+              now,
+              now,
+            )
+            .run(),
+        `Variable "${params.key}" already exists in this environment`,
       );
 
       return {

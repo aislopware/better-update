@@ -93,18 +93,22 @@ const ActiveRolloutControls = ({
     completeBranchRolloutMutation.isPending ||
     revertBranchRolloutMutation.isPending;
 
-  const handleUpdateRollout = async () => {
+  const handleUpdateRollout = () => {
     const percentage = Number.parseInt(rolloutInput ?? String(rolloutState.percentage), 10);
     if (Number.isNaN(percentage) || percentage < 1 || percentage > 100) {
       toast.error("Rollout percentage must be between 1 and 100");
       return;
     }
-    await updateBranchRolloutMutation.mutateAsync(percentage);
+    updateBranchRolloutMutation.mutate(percentage);
   };
 
-  const handleCompleteRollout = async () => completeBranchRolloutMutation.mutateAsync();
+  const handleCompleteRollout = () => {
+    completeBranchRolloutMutation.mutate();
+  };
 
-  const handleRevertRollout = async () => revertBranchRolloutMutation.mutateAsync();
+  const handleRevertRollout = () => {
+    revertBranchRolloutMutation.mutate();
+  };
 
   return (
     <div className="flex flex-col gap-2">
@@ -184,7 +188,7 @@ const StartRolloutControls = ({
   });
   const isSubmitting = createBranchRolloutMutation.isPending;
 
-  const handleStartRollout = async () => {
+  const handleStartRollout = () => {
     const percentage = Number.parseInt(rolloutInput, 10);
     if (!rolloutBranchId) {
       toast.error("Select a target branch");
@@ -194,7 +198,7 @@ const StartRolloutControls = ({
       toast.error("Rollout percentage must be between 1 and 100");
       return;
     }
-    await createBranchRolloutMutation.mutateAsync({ newBranchId: rolloutBranchId, percentage });
+    createBranchRolloutMutation.mutate({ newBranchId: rolloutBranchId, percentage });
   };
 
   if (!isStartingRollout) {
@@ -337,11 +341,13 @@ export const ChannelCard = ({
   });
   const isToggling = togglePauseMutation.isPending;
 
-  const handleRelink = async (branchId: string) => {
-    await updateChannelMutation.mutateAsync(branchId);
+  const handleRelink = (branchId: string) => {
+    updateChannelMutation.mutate(branchId);
   };
 
-  const handleTogglePause = async () => togglePauseMutation.mutateAsync();
+  const handleTogglePause = () => {
+    togglePauseMutation.mutate();
+  };
 
   return (
     <Card>
@@ -392,9 +398,9 @@ export const ChannelCard = ({
           <Select
             value={channel.branchId}
             disabled={rolloutState !== null}
-            onValueChange={async (value) => {
+            onValueChange={(value) => {
               if (value) {
-                await handleRelink(value);
+                handleRelink(value);
               }
             }}
           >

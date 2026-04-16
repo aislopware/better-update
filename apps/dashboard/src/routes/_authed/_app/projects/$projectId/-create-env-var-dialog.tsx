@@ -31,7 +31,7 @@ import {
   getFieldError,
   requiredStringSchema,
 } from "../../../../../lib/form-utils";
-import { useApiMutation } from "../../../../../lib/use-api-mutation";
+import { safeSubmit, useApiMutation } from "../../../../../lib/use-api-mutation";
 
 const CreateFormContent = ({
   orgId,
@@ -73,7 +73,7 @@ const CreateFormContent = ({
       value: "",
       visibility: "plaintext" as "plaintext" | "sensitive" | "secret",
     },
-    onSubmit: async ({ value }) => createEnvVarMutation.mutateAsync(value),
+    onSubmit: async ({ value }) => safeSubmit(createEnvVarMutation.mutateAsync(value)),
   });
 
   return (

@@ -10,9 +10,11 @@ import {
 import { Input } from "@better-update/ui/components/ui/input";
 import { Label } from "@better-update/ui/components/ui/label";
 import { useForm } from "@tanstack/react-form";
-import { createFileRoute, Link, redirect, useRouter } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { z } from "zod/v4";
+
+import { throwRedirect } from "../../lib/throw-redirect";
 const passwordSchema = z.string().check(z.minLength(8, "Password must be at least 8 characters"));
 
 const ResetPasswordForm = ({
@@ -169,7 +171,7 @@ export const Route = createFileRoute("/(auth)/reset-password")({
   }),
   beforeLoad: ({ context }) => {
     if (context.session?.user) {
-      throw redirect({ to: "/" });
+      throwRedirect({ to: "/" });
     }
   },
   component: ResetPassword,

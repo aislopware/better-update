@@ -158,7 +158,8 @@ export default {
 
       // Effect HttpApi handles management routes + OpenAPI + Scalar docs
       return await handler(request, requestContext);
-    } catch {
+    } catch (error) {
+      console.error("[server]", error);
       return internalError();
     }
   },

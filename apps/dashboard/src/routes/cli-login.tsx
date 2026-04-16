@@ -61,6 +61,7 @@ export const Route = createFileRoute("/cli-login")({
     }
 
     if (!context.session?.user) {
+      // eslint-disable-next-line functional/no-throw-statements, functional/no-promise-reject, typescript/only-throw-error -- TanStack Router idiom: throw redirect preserves typed search-param inference (`redirectTo` on `/login`) that the generic-erasing `throwRedirect` helper loses.
       throw redirect({
         to: "/login",
         search: { redirectTo: buildCliLoginRedirectTarget(search.callbackUrl) },

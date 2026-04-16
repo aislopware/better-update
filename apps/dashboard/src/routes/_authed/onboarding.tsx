@@ -11,12 +11,12 @@ import { Input } from "@better-update/ui/components/ui/input";
 import { Label } from "@better-update/ui/components/ui/label";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useRef } from "react";
-import { toast } from "sonner";
 
-import { authClient } from "../../lib/auth-client";
 import { generateSlug, nameSchema, slugSchema } from "../../lib/form-utils";
+import { createAndActivateOrg } from "../../lib/org-mutations";
+import { throwRedirect } from "../../lib/throw-redirect";
 
 const Onboarding = () => {
   const router = useRouter();
@@ -26,21 +26,10 @@ const Onboarding = () => {
   const form = useForm({
     defaultValues: { name: "", slug: "" },
     onSubmit: async ({ value }) => {
-      const { data, error } = await authClient.organization.create({
-        name: value.name,
-        slug: value.slug,
-      });
-
-      if (error) {
-        toast.error(error.message ?? "Failed to create organization");
+      const result = await createAndActivateOrg(value);
+      if (!result) {
         return;
       }
-
-      // Explicitly activate the new org — create may not update the session cookie
-      if (data.id) {
-        await authClient.organization.setActive({ organizationId: data.id });
-      }
-
       await queryClient.resetQueries({ queryKey: ["auth"] });
       await router.navigate({ to: "/" });
     },
@@ -150,7 +139,7 @@ const Onboarding = () => {
 export const Route = createFileRoute("/_authed/onboarding")({
   beforeLoad: ({ context }) => {
     if (context.orgs.length > 0) {
-      throw redirect({ to: "/" });
+      throwRedirect({ to: "/" });
     }
   },
   component: Onboarding,

@@ -82,11 +82,11 @@ export const PromoteUpdateDialog = ({
     },
   });
 
-  const handlePromote = async () => {
+  const handlePromote = () => {
     if (!targetChannelName) {
       return;
     }
-    await promoteUpdateMutation.mutateAsync(targetChannelName);
+    promoteUpdateMutation.mutate(targetChannelName);
   };
 
   return (

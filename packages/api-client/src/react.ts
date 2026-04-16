@@ -65,28 +65,30 @@ export const platformAnalyticsQueryKey = (projectId: string) =>
 export const projectsQueryOptions = (orgId: string, page?: number) =>
   queryOptions({
     queryKey: [...projectsQueryKey(orgId), ...(page != null ? [page] : [])],
-    queryFn: () => runApi((api) => api.projects.list({ urlParams: { page } })),
+    queryFn: ({ signal }) => runApi((api) => api.projects.list({ urlParams: { page } }), signal),
     staleTime: 30_000,
   });
 
 export const projectQueryOptions = (projectId: string) =>
   queryOptions({
     queryKey: projectQueryKey(projectId),
-    queryFn: () => runApi((api) => api.projects.get({ path: { id: projectId } })),
+    queryFn: ({ signal }) => runApi((api) => api.projects.get({ path: { id: projectId } }), signal),
     staleTime: 30_000,
   });
 
 export const branchesQueryOptions = (orgId: string, projectId: string) =>
   queryOptions({
     queryKey: branchesQueryKey(orgId, projectId),
-    queryFn: () => runApi((api) => api.branches.list({ urlParams: { projectId, limit: 1000 } })),
+    queryFn: ({ signal }) =>
+      runApi((api) => api.branches.list({ urlParams: { projectId, limit: 1000 } }), signal),
     staleTime: 30_000,
   });
 
 export const channelsQueryOptions = (orgId: string, projectId: string, limit?: number) =>
   queryOptions({
     queryKey: [...channelsQueryKey(orgId, projectId), ...(limit != null ? [limit] : [])],
-    queryFn: () => runApi((api) => api.channels.list({ urlParams: { projectId, limit } })),
+    queryFn: ({ signal }) =>
+      runApi((api) => api.channels.list({ urlParams: { projectId, limit } }), signal),
     staleTime: 30_000,
   });
 
@@ -102,14 +104,16 @@ export const updatesQueryOptions = (
       ...(branchId ? [branchId] : []),
       ...(limit != null ? [limit] : []),
     ],
-    queryFn: () => runApi((api) => api.updates.list({ urlParams: { projectId, branchId, limit } })),
+    queryFn: ({ signal }) =>
+      runApi((api) => api.updates.list({ urlParams: { projectId, branchId, limit } }), signal),
     staleTime: 30_000,
   });
 
 export const adoptionQueryOptions = (projectId: string, period?: AnalyticsPeriod) =>
   queryOptions({
     queryKey: [...adoptionQueryKey(projectId), ...(period ? [period] : [])],
-    queryFn: () => runApi((api) => api.analytics.adoption({ urlParams: { projectId, period } })),
+    queryFn: ({ signal }) =>
+      runApi((api) => api.analytics.adoption({ urlParams: { projectId, period } }), signal),
     staleTime: 60_000,
   });
 
@@ -120,8 +124,11 @@ export const updateAnalyticsQueryOptions = (
 ) =>
   queryOptions({
     queryKey: [...updateAnalyticsQueryKey(projectId, updateId), ...(period ? [period] : [])],
-    queryFn: () =>
-      runApi((api) => api.analytics.updates({ urlParams: { projectId, updateId, period } })),
+    queryFn: ({ signal }) =>
+      runApi(
+        (api) => api.analytics.updates({ urlParams: { projectId, updateId, period } }),
+        signal,
+      ),
     staleTime: 60_000,
   });
 
@@ -132,15 +139,19 @@ export const channelAnalyticsQueryOptions = (
 ) =>
   queryOptions({
     queryKey: [...channelAnalyticsQueryKey(projectId, channel), ...(period ? [period] : [])],
-    queryFn: () =>
-      runApi((api) => api.analytics.channels({ urlParams: { projectId, channel, period } })),
+    queryFn: ({ signal }) =>
+      runApi(
+        (api) => api.analytics.channels({ urlParams: { projectId, channel, period } }),
+        signal,
+      ),
     staleTime: 60_000,
   });
 
 export const platformAnalyticsQueryOptions = (projectId: string, period?: AnalyticsPeriod) =>
   queryOptions({
     queryKey: [...platformAnalyticsQueryKey(projectId), ...(period ? [period] : [])],
-    queryFn: () => runApi((api) => api.analytics.platforms({ urlParams: { projectId, period } })),
+    queryFn: ({ signal }) =>
+      runApi((api) => api.analytics.platforms({ urlParams: { projectId, period } }), signal),
     staleTime: 60_000,
   });
 
@@ -245,17 +256,19 @@ export const buildsQueryOptions = (
         page,
       },
     ],
-    queryFn: () =>
-      runApi((api) =>
-        api.builds.list({
-          urlParams: {
-            projectId,
-            platform: filters?.platform,
-            profile: filters?.profile,
-            runtimeVersion: filters?.runtimeVersion,
-            page,
-          },
-        }),
+    queryFn: ({ signal }) =>
+      runApi(
+        (api) =>
+          api.builds.list({
+            urlParams: {
+              projectId,
+              platform: filters?.platform,
+              profile: filters?.profile,
+              runtimeVersion: filters?.runtimeVersion,
+              page,
+            },
+          }),
+        signal,
       ),
     staleTime: 30_000,
   });
@@ -263,14 +276,15 @@ export const buildsQueryOptions = (
 export const buildQueryOptions = (buildId: string) =>
   queryOptions({
     queryKey: buildQueryKey(buildId),
-    queryFn: () => runApi((api) => api.builds.get({ path: { id: buildId } })),
+    queryFn: ({ signal }) => runApi((api) => api.builds.get({ path: { id: buildId } }), signal),
     staleTime: 30_000,
   });
 
 export const buildCompatibilityMatrixQueryOptions = (orgId: string, projectId: string) =>
   queryOptions({
     queryKey: buildCompatibilityMatrixQueryKey(orgId, projectId),
-    queryFn: () => runApi((api) => api.builds.compatibilityMatrix({ urlParams: { projectId } })),
+    queryFn: ({ signal }) =>
+      runApi((api) => api.builds.compatibilityMatrix({ urlParams: { projectId } }), signal),
     staleTime: 30_000,
   });
 
@@ -307,16 +321,18 @@ export const credentialsQueryOptions = (
         page,
       },
     ],
-    queryFn: () =>
-      runApi((api) =>
-        api.credentials.list({
-          urlParams: {
-            platform: filters?.platform,
-            type: filters?.type,
-            distribution: filters?.distribution,
-            page,
-          },
-        }),
+    queryFn: ({ signal }) =>
+      runApi(
+        (api) =>
+          api.credentials.list({
+            urlParams: {
+              platform: filters?.platform,
+              type: filters?.type,
+              distribution: filters?.distribution,
+              page,
+            },
+          }),
+        signal,
       ),
     staleTime: 30_000,
   });
@@ -341,11 +357,13 @@ export const envVarsQueryKey = (orgId: string, projectId: string) =>
 export const envVarsQueryOptions = (orgId: string, projectId: string, environment?: string) =>
   queryOptions({
     queryKey: [...envVarsQueryKey(orgId, projectId), ...(environment ? [environment] : [])],
-    queryFn: () =>
-      runApi((api) =>
-        api["env-vars"].list({
-          urlParams: { projectId, ...(environment ? { environment } : {}), limit: 100 },
-        }),
+    queryFn: ({ signal }) =>
+      runApi(
+        (api) =>
+          api["env-vars"].list({
+            urlParams: { projectId, ...(environment ? { environment } : {}), limit: 100 },
+          }),
+        signal,
       ),
     staleTime: 30_000,
   });
@@ -383,11 +401,13 @@ export const auditLogsQueryOptions = (
 ) =>
   queryOptions({
     queryKey: [...auditLogsQueryKey(orgId), filters],
-    queryFn: () =>
-      runApi((api) =>
-        api["audit-logs"].list({
-          urlParams: { ...filters },
-        }),
+    queryFn: ({ signal }) =>
+      runApi(
+        (api) =>
+          api["audit-logs"].list({
+            urlParams: { ...filters },
+          }),
+        signal,
       ),
     staleTime: 10_000,
   });

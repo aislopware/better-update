@@ -13,7 +13,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { useApiMutation } from "../../../../../lib/use-api-mutation";
+import { safeSubmit, useApiMutation } from "../../../../../lib/use-api-mutation";
 import { BranchNameForm } from "./-branch-name-form";
 
 export const CreateBranchDialog = ({ orgId, projectId }: { orgId: string; projectId: string }) => {
@@ -50,9 +50,7 @@ export const CreateBranchDialog = ({ orgId, projectId }: { orgId: string; projec
           submitLabel="Create branch"
           submittingLabel="Creating..."
           submitIcon={Add01Icon}
-          onSubmit={async (name) => {
-            await createBranchMutation.mutateAsync(name);
-          }}
+          onSubmit={async (name) => safeSubmit(createBranchMutation.mutateAsync(name))}
         />
       </DialogContent>
     </Dialog>

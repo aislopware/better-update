@@ -10,11 +10,12 @@ import {
 import { Input } from "@better-update/ui/components/ui/input";
 import { Label } from "@better-update/ui/components/ui/label";
 import { useForm } from "@tanstack/react-form";
-import { createFileRoute, Link, redirect, useRouter } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { z } from "zod/v4";
 
 import { authClient } from "../../lib/auth-client";
+import { throwRedirect } from "../../lib/throw-redirect";
 
 const nameValidator = z.string().check(z.minLength(2, "Name must be at least 2 characters"));
 const emailValidator = z.email("Invalid email address");
@@ -211,7 +212,7 @@ const SignupPage = () => {
 export const Route = createFileRoute("/(auth)/signup")({
   beforeLoad: ({ context }) => {
     if (context.session?.user) {
-      throw redirect({ to: "/" });
+      throwRedirect({ to: "/" });
     }
   },
   component: SignupPage,

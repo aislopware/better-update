@@ -115,7 +115,9 @@ export const RollbackToEmbeddedDialog = ({
         </div>
         <DialogFooter>
           <Button
-            onClick={async () => rollbackMutation.mutateAsync()}
+            onClick={() => {
+              rollbackMutation.mutate();
+            }}
             disabled={rollbackMutation.isPending}
           >
             <HugeiconsIcon icon={UndoIcon} strokeWidth={2} className="size-4" />
