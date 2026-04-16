@@ -54,9 +54,8 @@ const handleAuth = async (request: Request, env: Env): Promise<Response> => {
     const response = await createAuth(env).handler(request);
 
     // Workaround: @cloudflare/vite-plugin crashes on HTTP 401 from auxiliary
-    // Workers (all other 4xx/5xx codes work). Remap 401 → 403 in development
-    // So the client still receives a parseable JSON error body.
-    if (response.status === 401) {
+    // Workers (all other 4xx/5xx codes work). Remap 401 → 403 in dev only.
+    if (response.status === 401 && env.TEST_MODE === "true") {
       const body = response.body ? await response.text() : null;
       return new Response(body, {
         status: 403,

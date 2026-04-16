@@ -36,11 +36,12 @@ const formatForContentType = (format: string) =>
 
 const artifactExt = (format: string) => (format === "tar.gz" ? "tar.gz" : format);
 
-const fromHex = (hex: string): Uint8Array =>
-  new Uint8Array((hex.match(/.{2}/g) ?? []).map((byte) => Number.parseInt(byte, 16)));
-
-const sha256HexToBase64 = (sha256: string): string =>
-  btoa(String.fromCodePoint(...fromHex(sha256)));
+const sha256HexToBase64 = (sha256: string): string => {
+  const bytes = new Uint8Array(
+    (sha256.match(/.{2}/g) ?? []).map((byte) => Number.parseInt(byte, 16)),
+  );
+  return btoa(String.fromCodePoint(...bytes));
+};
 
 const ReservationSchema = Schema.Struct({
   buildId: Schema.String,

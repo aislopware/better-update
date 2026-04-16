@@ -7,6 +7,7 @@ import { assertProjectOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
 import { toApiBranch } from "../http/to-api";
 import { toApiCrudEffect } from "../http/to-api-effect";
+import { parsePagination } from "../lib/pagination";
 import { BranchRepo } from "../repositories/branches";
 
 export const BranchesGroupLive = HttpApiBuilder.group(ManagementApi, "branches", (handlers) =>
@@ -46,9 +47,7 @@ export const BranchesGroupLive = HttpApiBuilder.group(ManagementApi, "branches",
           yield* assertPermission("branch", "read");
           yield* assertProjectOwnership(urlParams.projectId);
           const repo = yield* BranchRepo;
-          const page = urlParams.page ?? 1;
-          const limit = urlParams.limit ?? 20;
-          const offset = (page - 1) * limit;
+          const { page, limit, offset } = parsePagination(urlParams);
 
           const { items, total } = yield* repo.findByProject({
             projectId: urlParams.projectId,

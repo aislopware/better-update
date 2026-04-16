@@ -22,7 +22,12 @@ const PERIOD_TO_DAYS: Record<AnalyticsPeriod, string> = {
 const periodToDays = (period: AnalyticsPeriod | undefined): string =>
   PERIOD_TO_DAYS[period ?? "7d"];
 
-const sanitizeLiteral = (value: string): string => value.replaceAll("'", "''");
+const UUID_RE = /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i;
+
+const sanitizeLiteral = (value: string): string => {
+  const sanitized = value.replaceAll("'", "''");
+  return UUID_RE.test(sanitized) ? sanitized : "";
+};
 
 const toNumber = (value: string | undefined): number => Number(value ?? 0);
 

@@ -36,7 +36,7 @@ export const RenameProjectSection = ({ project }: { project: ProjectDetail }) =>
               ),
               Effect.promise(async () =>
                 queryClient.invalidateQueries({
-                  queryKey: projectQueryKey(project.id),
+                  queryKey: projectQueryKey(project.organizationId, project.id),
                 }),
               ),
             ],

@@ -1,9 +1,6 @@
-import { Effect } from "effect";
 import { S3mini } from "s3mini";
 
 const CHECKSUM_SHA256_HEADER = "x-amz-checksum-sha256";
-
-const failSignedUrl = async (message: string) => Effect.runPromise(Effect.fail(new Error(message)));
 
 const makeS3Client = (env: Env, bucketName: string) =>
   new S3mini({
@@ -63,8 +60,8 @@ export const copyObject = async (
   },
 ) => {
   if (params.sourceBucketName !== params.destinationBucketName) {
-    await failSignedUrl("Cross-bucket copy is not supported by the current s3mini adapter");
-    return;
+    // eslint-disable-next-line functional/no-throw-statements, functional/no-promise-reject -- programming error guard, not control flow
+    throw new Error("Cross-bucket copy is not supported by the current s3mini adapter");
   }
 
   await makeS3Client(env, params.destinationBucketName).copyObject(

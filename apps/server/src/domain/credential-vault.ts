@@ -1,6 +1,7 @@
 import { Data, Effect } from "effect";
 
 import { fromBase64, toBase64 } from "../lib/base64";
+import { isRecord } from "../lib/type-guards";
 
 export interface Keyring {
   readonly secrets: Record<number, Uint8Array>;
@@ -55,9 +56,6 @@ const cryptoError = (operation: string, cause: unknown) =>
     message: `Credential vault ${operation} failed`,
     cause: asError(cause),
   });
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
 
 const getSecret = (
   keyring: Keyring,

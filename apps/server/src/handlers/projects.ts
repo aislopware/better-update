@@ -8,6 +8,7 @@ import { assertOrgOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
 import { toApiProject } from "../http/to-api";
 import { toApiCrudEffect } from "../http/to-api-effect";
+import { parsePagination } from "../lib/pagination";
 import { ProjectRepo } from "../repositories/projects";
 
 export const ProjectsGroupLive = HttpApiBuilder.group(ManagementApi, "projects", (handlers) =>
@@ -48,9 +49,7 @@ export const ProjectsGroupLive = HttpApiBuilder.group(ManagementApi, "projects",
           yield* assertPermission("project", "read");
           const ctx = yield* CurrentActor;
           const repo = yield* ProjectRepo;
-          const page = urlParams.page ?? 1;
-          const limit = urlParams.limit ?? 20;
-          const offset = (page - 1) * limit;
+          const { page, limit, offset } = parsePagination(urlParams);
 
           const { items, total } = yield* repo.findByOrg({
             organizationId: ctx.organizationId,

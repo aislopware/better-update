@@ -226,8 +226,8 @@ const BuildDetailPage = () => {
   const activeOrgId = session?.session.activeOrganizationId ?? "";
   const activeOrg = orgs.find((org) => org.id === activeOrgId) ?? orgs[0];
   const orgId = activeOrg?.id ?? "";
-  const { data: project } = useSuspenseQuery(projectQueryOptions(projectId));
-  const { data: build } = useSuspenseQuery(buildQueryOptions(buildId));
+  const { data: project } = useSuspenseQuery(projectQueryOptions(orgId, projectId));
+  const { data: build } = useSuspenseQuery(buildQueryOptions(orgId, buildId));
   const { data: compatibilityData } = useSuspenseQuery(
     buildCompatibilityMatrixQueryOptions(orgId, projectId),
   );
@@ -271,16 +271,18 @@ export const Route = createFileRoute("/_authed/_app/projects/$projectId/builds/$
     const [session, orgs] = await Promise.all([
       context.queryClient.ensureQueryData(sessionQueryOptions),
       context.queryClient.ensureQueryData(orgsQueryOptions),
-      context.queryClient.ensureQueryData(projectQueryOptions(params.projectId)),
-      context.queryClient.ensureQueryData(buildQueryOptions(params.buildId)),
     ]);
     const activeOrgId = session?.session.activeOrganizationId ?? "";
     const activeOrg = orgs.find((org) => org.id === activeOrgId) ?? orgs[0];
     const orgId = activeOrg?.id ?? "";
 
-    await context.queryClient.ensureQueryData(
-      buildCompatibilityMatrixQueryOptions(orgId, params.projectId),
-    );
+    await Promise.all([
+      context.queryClient.ensureQueryData(projectQueryOptions(orgId, params.projectId)),
+      context.queryClient.ensureQueryData(buildQueryOptions(orgId, params.buildId)),
+      context.queryClient.ensureQueryData(
+        buildCompatibilityMatrixQueryOptions(orgId, params.projectId),
+      ),
+    ]);
   },
   component: BuildDetailPage,
 });

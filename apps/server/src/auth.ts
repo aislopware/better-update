@@ -3,6 +3,7 @@ import { betterAuth } from "better-auth";
 import { organization } from "better-auth/plugins";
 
 import { API_KEY_PREFIX } from "./auth/constants";
+import { fromHex } from "./lib/hex";
 
 // --- Workers-compatible password hashing (PBKDF2 via Web Crypto) ---
 // Better Auth's default scrypt (N:16384, r:16) needs ~64 MB and crashes workerd.
@@ -11,9 +12,6 @@ const PBKDF2_ITERATIONS = 100_000;
 
 const toHex = (bytes: Uint8Array): string =>
   [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
-
-const fromHex = (hex: string): Uint8Array<ArrayBuffer> =>
-  new Uint8Array((hex.match(/.{2}/g) ?? []).map((byte) => Number.parseInt(byte, 16)));
 
 const deriveKey = async (password: string, salt: Uint8Array<ArrayBuffer>): Promise<ArrayBuffer> => {
   const key = await crypto.subtle.importKey(

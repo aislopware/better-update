@@ -1,6 +1,7 @@
 import { safeJsonParse } from "@better-update/api";
 import { Effect } from "effect";
 
+import { isRecord } from "../lib/type-guards";
 import { hashToFraction } from "./hash";
 
 // -- Types ------------------------------------------------------------------
@@ -14,9 +15,6 @@ interface BranchMapping {
   data: BranchMappingEntry[];
   salt: string;
 }
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
 
 const isBranchMapping = (value: unknown): value is BranchMapping =>
   isRecord(value) && Array.isArray(value["data"]) && typeof value["salt"] === "string";

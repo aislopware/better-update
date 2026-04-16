@@ -5,6 +5,7 @@ import { Effect, Layer, Redacted } from "effect";
 import { createAuth } from "../auth";
 import { cloudflareEnv } from "../cloudflare/context";
 import { Unauthorized } from "../errors";
+import { isRecord } from "../lib/type-guards";
 import { API_KEY_PREFIX } from "./constants";
 import { permissions } from "./permissions";
 
@@ -31,9 +32,6 @@ interface SessionResult {
   session: Record<string, unknown>;
   user: { id: string; name: string; email: string };
 }
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null;
 
 const isVerifyApiKeyApi = (
   value: unknown,
@@ -133,7 +131,7 @@ const resolveFromApiKey = (token: Redacted.Redacted) => {
         );
       }
 
-      const keyPermissions: EffectivePermissions = result.key.permissions ?? permissions.owner;
+      const keyPermissions: EffectivePermissions = result.key.permissions ?? permissions.admin;
 
       return Effect.succeed({
         userId: null,
@@ -170,7 +168,8 @@ const resolveFromSession = (_cookie: Redacted.Redacted) =>
 
     const member = yield* getActiveMember(headers);
 
-    if (!isRole(member.role)) {
+    // eslint-disable-next-line typescript-eslint/no-unnecessary-condition -- runtime null when membership revoked while session alive
+    if (!member || !isRole(member.role)) {
       return yield* new Unauthorized({
         message: "Not a member of the active organization",
       });

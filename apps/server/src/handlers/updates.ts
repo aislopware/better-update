@@ -12,6 +12,7 @@ import { validateUpdatePublishInput } from "../domain/update-publish-validation"
 import { Conflict, NotFound } from "../errors";
 import { toApiUpdate } from "../http/to-api";
 import { toApiBadRequestReadEffect, toApiWriteEffect } from "../http/to-api-effect";
+import { parsePagination } from "../lib/pagination";
 import { AssetRepo, BranchRepo, ChannelRepo, ProjectRepo, UpdateRepo } from "../repositories";
 import {
   prepareRepublishUpdates,
@@ -128,6 +129,25 @@ const handleCreateUpdate = ({ payload }: { readonly payload: typeof CreateUpdate
     }),
   );
 
+const updateRolloutPercentage = (id: string, percentage: number) =>
+  Effect.gen(function* () {
+    yield* assertPermission("rollout", "update");
+
+    const updateRepo = yield* UpdateRepo;
+    const update = yield* updateRepo.findById({ id });
+
+    const branchRepo = yield* BranchRepo;
+    const branch = yield* branchRepo.findById({ id: update.branchId });
+    yield* assertProjectOwnership(branch.projectId);
+
+    yield* updateRepo.updateRollout({ id, percentage });
+
+    const channelRepo = yield* ChannelRepo;
+    yield* channelRepo.bumpCacheVersionByBranch({ branchId: update.branchId });
+
+    return toApiUpdate(yield* updateRepo.findById({ id }));
+  });
+
 export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (handlers) =>
   handlers
     .handle("create", handleCreateUpdate)
@@ -138,9 +158,7 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
           yield* assertProjectOwnership(urlParams.projectId);
 
           const repo = yield* UpdateRepo;
-          const page = urlParams.page ?? 1;
-          const limit = urlParams.limit ?? 20;
-          const offset = (page - 1) * limit;
+          const { page, limit, offset } = parsePagination(urlParams);
 
           const { items, total } = yield* repo.findByProject({
             projectId: urlParams.projectId,
@@ -236,66 +254,12 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
       ),
     )
     .handle("editRollout", ({ path, payload }) =>
-      toApiBadRequestReadEffect(
-        Effect.gen(function* () {
-          yield* assertPermission("rollout", "update");
-
-          const updateRepo = yield* UpdateRepo;
-          const update = yield* updateRepo.findById({ id: path.id });
-
-          const branchRepo = yield* BranchRepo;
-          const branch = yield* branchRepo.findById({ id: update.branchId });
-          yield* assertProjectOwnership(branch.projectId);
-
-          yield* updateRepo.updateRollout({ id: path.id, percentage: payload.percentage });
-
-          const channelRepo = yield* ChannelRepo;
-          yield* channelRepo.bumpCacheVersionByBranch({ branchId: update.branchId });
-
-          return toApiUpdate(yield* updateRepo.findById({ id: path.id }));
-        }),
-      ),
+      toApiBadRequestReadEffect(updateRolloutPercentage(path.id, payload.percentage)),
     )
     .handle("completeRollout", ({ path }) =>
-      toApiBadRequestReadEffect(
-        Effect.gen(function* () {
-          yield* assertPermission("rollout", "update");
-
-          const updateRepo = yield* UpdateRepo;
-          const update = yield* updateRepo.findById({ id: path.id });
-
-          const branchRepo = yield* BranchRepo;
-          const branch = yield* branchRepo.findById({ id: update.branchId });
-          yield* assertProjectOwnership(branch.projectId);
-
-          yield* updateRepo.updateRollout({ id: path.id, percentage: 100 });
-
-          const channelRepo = yield* ChannelRepo;
-          yield* channelRepo.bumpCacheVersionByBranch({ branchId: update.branchId });
-
-          return toApiUpdate(yield* updateRepo.findById({ id: path.id }));
-        }),
-      ),
+      toApiBadRequestReadEffect(updateRolloutPercentage(path.id, 100)),
     )
     .handle("revertRollout", ({ path }) =>
-      toApiBadRequestReadEffect(
-        Effect.gen(function* () {
-          yield* assertPermission("rollout", "update");
-
-          const updateRepo = yield* UpdateRepo;
-          const update = yield* updateRepo.findById({ id: path.id });
-
-          const branchRepo = yield* BranchRepo;
-          const branch = yield* branchRepo.findById({ id: update.branchId });
-          yield* assertProjectOwnership(branch.projectId);
-
-          yield* updateRepo.updateRollout({ id: path.id, percentage: 0 });
-
-          const channelRepo = yield* ChannelRepo;
-          yield* channelRepo.bumpCacheVersionByBranch({ branchId: update.branchId });
-
-          return toApiUpdate(yield* updateRepo.findById({ id: path.id }));
-        }),
-      ),
+      toApiBadRequestReadEffect(updateRolloutPercentage(path.id, 0)),
     ),
 );

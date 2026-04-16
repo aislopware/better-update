@@ -252,13 +252,6 @@ export const CredentialRepoLive = Layer.succeed(CredentialRepo, {
     Effect.gen(function* () {
       const env = yield* cloudflareEnv;
 
-      const checkRow = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT 1 FROM "credentials" WHERE "id" = ?`).bind(params.id).first(),
-      );
-      if (checkRow === null) {
-        return yield* Effect.fail(new NotFound({ message: "Credential not found" }));
-      }
-
       yield* Effect.promise(async () =>
         env.DB.batch([
           env.DB.prepare(

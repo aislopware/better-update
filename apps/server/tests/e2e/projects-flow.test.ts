@@ -95,6 +95,17 @@ describe("Projects API flow", () => {
     projectId = body.id;
   });
 
+  it("gets the project by id", async () => {
+    const response = await get(`/api/projects/${projectId}`, { cookie: cookies });
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.id).toBe(projectId);
+    expect(body.name).toBe("My Project");
+    expect(body.scopeKey).toBe("@my/project");
+    expect(body).toHaveProperty("organizationId");
+    expect(body).toHaveProperty("createdAt");
+  });
+
   it("renames the project", async () => {
     const response = await patch(
       `/api/projects/${projectId}`,
@@ -191,6 +202,36 @@ describe("Projects API flow", () => {
       { name: "Hijacked" },
       { cookie: cookies },
     );
+    expect(response.status).toBe(404);
+  });
+
+  it("org B cannot delete org A project (404)", async () => {
+    const response = await del(`/api/projects/${projectId}`, { cookie: cookies });
+    expect(response.status).toBe(404);
+  });
+
+  // ── Section 6: Delete project ─────────────────────────────────
+
+  it("switches back to original org", async () => {
+    const response = await post(
+      "/api/auth/organization/set-active",
+      { organizationId },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(200);
+    cookies = parseCookies(response) || cookies;
+  });
+
+  it("deletes the project", async () => {
+    const response = await del(`/api/projects/${projectId}`, { cookie: cookies });
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body).toHaveProperty("deleted");
+    expect(body.deleted).toBe(1);
+  });
+
+  it("confirms deleted project returns 404", async () => {
+    const response = await get(`/api/projects/${projectId}`, { cookie: cookies });
     expect(response.status).toBe(404);
   });
 });

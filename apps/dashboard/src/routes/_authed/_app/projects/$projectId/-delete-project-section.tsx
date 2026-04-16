@@ -40,7 +40,9 @@ export const DeleteProjectSection = ({ project }: { project: ProjectDetail }) =>
               await queryClient.invalidateQueries({
                 queryKey: projectsQueryKey(project.organizationId),
               });
-              queryClient.removeQueries({ queryKey: projectQueryKey(project.id) });
+              queryClient.removeQueries({
+                queryKey: projectQueryKey(project.organizationId, project.id),
+              });
               await router.navigate({ to: "/projects" });
             }}
           >
