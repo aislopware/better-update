@@ -3,7 +3,7 @@ import path from "node:path";
 
 import { setupCliE2E } from "../helpers/cli-e2e";
 
-const FIXTURE_DIR = path.resolve(import.meta.dirname, "../../../e2e-app");
+const FIXTURE_DIR = path.resolve(import.meta.dirname, "../../../../fixtures/e2e-app");
 
 const otaAppJsonTemplate = {
   expo: {

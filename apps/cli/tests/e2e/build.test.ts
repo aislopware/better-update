@@ -8,7 +8,7 @@ import { setupCliE2E } from "../helpers/cli-e2e";
 
 const hasAndroidSdk = !!process.env.ANDROID_HOME;
 
-const FIXTURE_DIR = path.resolve(import.meta.dirname, "../../../build-e2e-app");
+const FIXTURE_DIR = path.resolve(import.meta.dirname, "../../../../fixtures/build-e2e-app");
 
 const buildAppJsonTemplate = {
   expo: {
