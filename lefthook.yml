@@ -7,3 +7,6 @@ pre-commit:
     format:
       glob: "**/*.{ts,tsx,js,jsx,json,jsonc,yml,yaml,css,md,html}"
       run: bun run format:check
+    knip:
+      glob: "**/*.{ts,tsx}"
+      run: bun run knip

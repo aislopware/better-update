@@ -13,11 +13,6 @@ const exhaust = (value: never): never => value;
 const mapForbiddenError = (error: Forbidden): ApiForbidden =>
   new ApiForbidden({ message: error.message });
 
-const mapReadError = (error: Forbidden | NotFound): ApiForbidden | ApiNotFound =>
-  error._tag === "Forbidden"
-    ? new ApiForbidden({ message: error.message })
-    : new ApiNotFound({ message: error.message });
-
 const mapCrudError = (
   error: Conflict | Forbidden | NotFound,
 ): ApiConflict | ApiForbidden | ApiNotFound => {
@@ -81,10 +76,6 @@ const mapBadRequestReadError = (
 export const toApiForbiddenEffect = <Success, Requirements>(
   effect: Effect.Effect<Success, Forbidden, Requirements>,
 ) => Effect.mapError(effect, mapForbiddenError);
-
-export const toApiReadEffect = <Success, Requirements>(
-  effect: Effect.Effect<Success, Forbidden | NotFound, Requirements>,
-) => Effect.mapError(effect, mapReadError);
 
 export const toApiCrudEffect = <Success, Requirements>(
   effect: Effect.Effect<Success, Conflict | Forbidden | NotFound, Requirements>,
