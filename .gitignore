@@ -12,6 +12,7 @@ coverage/
 __screenshots__/
 .vitest-attachments/
 test-results/
+.e2e-shared-env.json
 
 # Claude Code (keep CLAUDE.md, settings/, commands/)
 .claude/*

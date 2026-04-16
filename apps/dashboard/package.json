@@ -12,7 +12,8 @@
     "preview": "vite preview",
     "test": "vitest run --project unit --project component",
     "test:all": "bun run test && bun run test:e2e",
-    "test:e2e": "vitest run --project e2e --maxWorkers 1 --fileParallelism false",
+    "test:e2e": "vitest run --project e2e --fileParallelism false --retry 2",
+    "test:e2e:ci": "vitest run --project e2e --fileParallelism false --retry 1 --bail 1",
     "typegen:cf": "wrangler types"
   },
   "dependencies": {

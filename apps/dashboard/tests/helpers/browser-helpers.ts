@@ -1,8 +1,13 @@
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
 
 import { chromium } from "playwright";
 
 import type { Browser, BrowserContext, Page } from "playwright";
+
+import { ENV_FILE } from "../e2e/global-setup";
+
+import type { SharedE2EEnv } from "../e2e/global-setup";
 
 export const DEFAULT_PASSWORD = "SecureP@ss123";
 
@@ -21,28 +26,38 @@ export interface BrowserRuntime {
   readonly withPage: (run: (page: Page, context: BrowserContext) => Promise<void>) => Promise<void>;
 }
 
-export const createBrowserRuntime = (): BrowserRuntime => {
+let _sharedEnv: SharedE2EEnv | undefined;
+
+const getSharedEnv = (): SharedE2EEnv => {
+  _sharedEnv ??= JSON.parse(readFileSync(ENV_FILE, "utf8")) as SharedE2EEnv;
+  return _sharedEnv;
+};
+
+/**
+ * Connects to the shared Chromium instance launched by globalSetup.
+ * `teardown()` disconnects without killing the browser process.
+ */
+export const createSharedBrowserRuntime = (): BrowserRuntime => {
   let browser: Browser | undefined;
 
   return {
     getBrowser: () => {
       if (!browser) {
-        throw new Error("Browser has not been launched. Call setup() first.");
+        throw new Error("Browser not connected. Call setup() first.");
       }
       return browser;
     },
     setup: async () => {
-      browser = await chromium.launch();
+      const { browserWSEndpoint } = getSharedEnv();
+      browser = await chromium.connect(browserWSEndpoint);
     },
     teardown: async () => {
-      if (browser) {
-        await browser.close();
-        browser = undefined;
-      }
+      // Disconnect only — the shared browser is managed by globalSetup.
+      browser = undefined;
     },
     withPage: async (run) => {
       if (!browser) {
-        throw new Error("Browser has not been launched. Call setup() first.");
+        throw new Error("Browser not connected. Call setup() first.");
       }
       const context = await browser.newContext();
       const page = await context.newPage();

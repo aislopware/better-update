@@ -1,6 +1,6 @@
 import { setupE2EDashboard } from "../helpers/e2e-dashboard";
 
-const { post, get, parseCookies } = setupE2EDashboard(".wrangler/state/e2e-dash-proxy");
+const { post, get, parseCookies } = setupE2EDashboard();
 
 describe("API proxy contract", () => {
   it("GET /api/auth/ok returns 200", async () => {

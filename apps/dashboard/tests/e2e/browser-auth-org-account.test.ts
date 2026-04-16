@@ -1,7 +1,7 @@
 import {
   DEFAULT_PASSWORD,
   completeOnboardingViaUI,
-  createBrowserRuntime,
+  createSharedBrowserRuntime,
   expectToast,
   loginViaUI,
   logoutViaUI,
@@ -12,8 +12,8 @@ import {
 } from "../helpers/browser-helpers";
 import { setupE2EDashboard } from "../helpers/e2e-dashboard";
 
-const dashboard = setupE2EDashboard(".wrangler/state/e2e-dash-auth-org");
-const runtime = createBrowserRuntime();
+const dashboard = setupE2EDashboard();
+const runtime = createSharedBrowserRuntime();
 
 beforeAll(async () => {
   await runtime.setup();

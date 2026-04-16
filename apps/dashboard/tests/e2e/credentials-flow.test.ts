@@ -1,6 +1,6 @@
 import { setupE2EDashboard } from "../helpers/e2e-dashboard";
 
-const { post, get, del, parseCookies } = setupE2EDashboard(".wrangler/state/e2e-dash-credentials");
+const { post, get, del, parseCookies } = setupE2EDashboard();
 
 describe("Dashboard credentials flow", () => {
   const state = {

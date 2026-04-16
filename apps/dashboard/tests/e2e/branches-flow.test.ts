@@ -1,6 +1,6 @@
 import { setupE2EDashboard } from "../helpers/e2e-dashboard";
 
-const { post, get, patch, parseCookies } = setupE2EDashboard(".wrangler/state/e2e-dash-branches");
+const { post, get, patch, parseCookies } = setupE2EDashboard();
 
 describe("Dashboard branches journey", () => {
   const state = { cookies: "", organizationId: "", projectId: "", branchId: "" };

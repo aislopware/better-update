@@ -1,13 +1,12 @@
 import { randomUUID } from "node:crypto";
 
-import { chromium } from "playwright";
+import type { Page } from "playwright";
 
-import type { Browser, Page } from "playwright";
-
-import { E2E_DEFAULT_TIMEOUT_MS } from "../helpers/browser-helpers";
+import { createSharedBrowserRuntime } from "../helpers/browser-helpers";
 import { setupE2EDashboard } from "../helpers/e2e-dashboard";
 
-const { getBaseUrl, post } = setupE2EDashboard(".wrangler/state/e2e-dash-browser-ui");
+const { getBaseUrl, post } = setupE2EDashboard();
+const runtime = createSharedBrowserRuntime();
 
 const password = "SecureP@ss123";
 const toSlug = (value: string) => value.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-");
@@ -85,36 +84,17 @@ const completeProjectJourney = async (
   return { projectName };
 };
 
-const withBrowserPage = async (
-  browser: Browser,
-  run: (page: Page) => Promise<void>,
-): Promise<void> => {
-  const context = await browser.newContext();
-  const page = await context.newPage();
-  page.setDefaultTimeout(E2E_DEFAULT_TIMEOUT_MS);
-
-  try {
-    await run(page);
-  } finally {
-    await context.close();
-  }
-};
-
 describe("Dashboard browser UI journey", () => {
-  let browser: Browser | undefined;
-
   beforeAll(async () => {
-    browser = await chromium.launch();
+    await runtime.setup();
   });
 
   afterAll(async () => {
-    if (browser) {
-      await browser.close();
-    }
+    await runtime.teardown();
   });
 
   test("signs in, completes onboarding, creates a project, and creates a branch", async () => {
-    await withBrowserPage(browser!, async (page) => {
+    await runtime.withPage(async (page) => {
       const { projectName } = await completeProjectJourney(page, "Branch Browser", "browser");
       const branchSuffix = randomUUID().slice(0, 8);
       const branchName = `staging-${branchSuffix}`;
@@ -130,7 +110,7 @@ describe("Dashboard browser UI journey", () => {
   });
 
   test("signs in, completes onboarding, creates a project, and adds an environment variable", async () => {
-    await withBrowserPage(browser!, async (page) => {
+    await runtime.withPage(async (page) => {
       await completeProjectJourney(page, "Env Browser", "env-browser");
       const envSuffix = randomUUID().slice(0, 8);
       const envKey = `EXPO_PUBLIC_BROWSER_${envSuffix.toUpperCase()}`;

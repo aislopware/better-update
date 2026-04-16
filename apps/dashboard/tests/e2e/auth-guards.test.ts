@@ -1,6 +1,6 @@
 import { setupE2EDashboard } from "../helpers/e2e-dashboard";
 
-const { post, get, parseCookies } = setupE2EDashboard(".wrangler/state/e2e-dash-auth");
+const { post, get, parseCookies } = setupE2EDashboard();
 
 describe("Auth guards contract", () => {
   it("unauthenticated GET /api/projects returns 401", async () => {
