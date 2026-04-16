@@ -1,3 +1,4 @@
+import { safeJsonParse } from "@better-update/api";
 import {
   buildCompatibilityMatrixQueryKey,
   completeUpdateRollout,
@@ -19,7 +20,7 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Effect } from "effect";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import type { Channel, Update } from "@better-update/api";
@@ -50,6 +51,18 @@ export const UpdateCard = ({
   const [promoteOpen, setPromoteOpen] = useState(false);
   const [rollbackOpen, setRollbackOpen] = useState(false);
 
+  const environment = useMemo(() => {
+    if (!update.extraJson) {
+      return undefined;
+    }
+    const parsed = safeJsonParse(update.extraJson);
+    if (typeof parsed !== "object" || parsed === null) {
+      return undefined;
+    }
+    // eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- extraJson is always a JSON object written by our CLI
+    const value = (parsed as Record<string, unknown>)["environment"];
+    return typeof value === "string" ? value : undefined;
+  }, [update.extraJson]);
   const eligibleChannels = channels.filter((channel) => channel.branchId !== update.branchId);
   const canCreateFollowupUpdate = !update.isRollback && !update.signature;
   const canRollbackToEmbedded = canCreateFollowupUpdate && branchName !== undefined;
@@ -137,6 +150,7 @@ export const UpdateCard = ({
           <div className="flex items-center gap-2">
             <CardTitle className="text-base">{update.message}</CardTitle>
             <Badge variant="outline">{update.platform}</Badge>
+            {typeof environment === "string" && <Badge variant="secondary">{environment}</Badge>}
             {update.isRollback && <Badge variant="destructive">Rollback</Badge>}
           </div>
           <div className="flex items-center gap-1">

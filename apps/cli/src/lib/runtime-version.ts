@@ -1,7 +1,8 @@
-import { Command, CommandExecutor } from "@effect/platform";
+import { CommandExecutor } from "@effect/platform";
 import { Effect } from "effect";
 
 import { RuntimeVersionError } from "./exit-codes";
+import { runFingerprintFull } from "./fingerprint";
 
 import type { RawRuntimeVersion } from "./build-profile";
 
@@ -41,7 +42,10 @@ export const resolveRuntimeVersion = ({
     }
 
     if (policy === "fingerprint") {
-      return yield* runFingerprint(projectRoot);
+      return yield* runFingerprintFull(projectRoot).pipe(
+        Effect.map((result) => result.hash),
+        Effect.mapError((cause) => new RuntimeVersionError({ message: cause.message })),
+      );
     }
 
     if (policy === "nativeVersion") {
@@ -54,37 +58,4 @@ export const resolveRuntimeVersion = ({
     return yield* new RuntimeVersionError({
       message: `Unsupported runtimeVersion policy "${policy}". Use a static string, "appVersion", or "fingerprint".`,
     });
-  });
-
-const runFingerprint = (
-  projectRoot: string,
-): Effect.Effect<string, RuntimeVersionError, CommandExecutor.CommandExecutor> =>
-  Effect.gen(function* () {
-    const cmd = Command.make("bunx", "@expo/fingerprint", projectRoot).pipe(
-      Command.workingDirectory(projectRoot),
-    );
-    const stdout = yield* Command.string(cmd).pipe(
-      Effect.mapError(
-        (cause) =>
-          new RuntimeVersionError({
-            message: `Failed to run "@expo/fingerprint": ${cause.message}`,
-          }),
-      ),
-    );
-
-    const parsed = yield* Effect.try({
-      try: () => JSON.parse(stdout) as { readonly hash?: unknown },
-      catch: () =>
-        new RuntimeVersionError({
-          message: "Failed to parse @expo/fingerprint output as JSON.",
-        }),
-    });
-
-    const hash = parsed.hash;
-    if (typeof hash !== "string" || hash.length === 0) {
-      return yield* new RuntimeVersionError({
-        message: '@expo/fingerprint output did not contain a "hash" string field.',
-      });
-    }
-    return hash;
   });

@@ -5,12 +5,13 @@ import { exitWith } from "../../application/command-exit";
 import { runUpdatePublish } from "../../application/update-publish";
 import { printTable } from "../../lib/output";
 
-const branch = Options.text("branch");
+const branch = Options.text("branch").pipe(Options.optional);
 const platform = Options.choice("platform", ["ios", "android", "all"] as const).pipe(
   Options.withDefault("all"),
 );
 const message = Options.text("message").pipe(Options.optional);
 const environment = Options.text("environment").pipe(Options.withDefault("production"));
+const auto = Options.boolean("auto").pipe(Options.withDefault(false));
 const clear = Options.boolean("clear");
 const manifestBodyFile = Options.text("manifest-body-file").pipe(Options.optional);
 const signatureFile = Options.text("signature-file").pipe(Options.optional);
@@ -31,6 +32,7 @@ export const publishCommand = Command.make(
     platform,
     message,
     environment,
+    auto,
     clear,
     manifestBodyFile,
     signatureFile,
@@ -45,9 +47,10 @@ export const publishCommand = Command.make(
   (opts) =>
     Effect.gen(function* () {
       const result = yield* runUpdatePublish({
-        branch: opts.branch,
+        branch: Option.getOrUndefined(opts.branch),
         platform: opts.platform,
         message: Option.getOrUndefined(opts.message),
+        auto: opts.auto,
         environment: opts.environment,
         clear: opts.clear,
         manifestBodyFile: Option.getOrUndefined(opts.manifestBodyFile),
