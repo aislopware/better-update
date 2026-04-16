@@ -391,12 +391,32 @@ describe("Dashboard updates + env vars + builds (browser)", () => {
     await waitForPortalCleanup(page);
   });
 
-  test("opens the build detail page", async () => {
+  test("opens build detail and verifies metadata, artifact, and compatible channels", async () => {
     await gotoTabViaUI(page, "Builds");
     const iosCard = page.locator('[data-slot="card"]').filter({ hasText: "iOS seed build" }).last();
     await iosCard.getByRole("link", { name: "View details" }).click();
     await page.waitForURL(new RegExp(`/projects/${projectId}/builds/${iosBuildId}$`, "u"));
     await page.getByRole("heading", { name: "iOS seed build" }).waitFor();
+
+    // Build metadata card
+    await page.getByText("Build metadata").waitFor();
+    await page.getByText("Runtime version").waitFor();
+    await page.locator("text=1.0.0").first().waitFor();
+    await page.getByText("Bundle ID").waitFor();
+    await page.getByText("com.test.ios").waitFor();
+    await page.getByText("App version").waitFor();
+    await page.getByText("Build number").waitFor();
+
+    // Artifact card
+    await page.getByText("Artifact").first().waitFor();
+    await page.getByRole("link", { name: "Download artifact" }).waitFor();
+    await page.getByRole("button", { name: /Install.*copy link/iu }).waitFor();
+    await page.getByText("SHA-256").waitFor();
+
+    // Related channels card
+    await page
+      .getByText("Open a channel detail page to inspect rollout and update state.")
+      .waitFor();
 
     await page.goBack();
     await page.waitForURL(new RegExp(`/projects/${projectId}$`, "u"));
