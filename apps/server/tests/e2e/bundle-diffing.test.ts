@@ -175,14 +175,11 @@ describe("Manifest patch hints", () => {
     expect(extensions).not.toHaveProperty("patchedAssets");
   });
 
-  it("ignores expo-current-update-id when the client is already on the latest update", async () => {
+  it("returns 204 when the client is already on the latest update", async () => {
     const response = await manifestGet(
       "proj-bd-1",
       protocolHeaders({ "expo-current-update-id": "update-bd-2" }),
     );
-    expect(response.status).toBe(200);
-
-    const extensions = await getExtensionsPart(response);
-    expect(extensions).not.toHaveProperty("patchedAssets");
+    expect(response.status).toBe(204);
   });
 });

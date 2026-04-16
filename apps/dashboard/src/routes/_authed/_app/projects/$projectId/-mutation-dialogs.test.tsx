@@ -452,6 +452,8 @@ describe("mutation dialogs", () => {
         platform: "ios",
         distribution: "development",
         artifactFormat: "ipa",
+        sha256: "deadbeef",
+        byteSize: artifact.size,
       });
     });
 

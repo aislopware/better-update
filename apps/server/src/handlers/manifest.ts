@@ -266,6 +266,10 @@ const handleCacheMiss = (params: {
       return trackNoUpdate(resolvedBranchId, track);
     }
 
+    if (ph.currentUpdateId && update.id === ph.currentUpdateId) {
+      return trackNoUpdate(resolvedBranchId, track);
+    }
+
     const response = yield* buildUpdateResponse({ update, scopeKey, ph });
     const responseType = responseTypeFor(update);
     track(resolvedBranchId, update.id, responseType);
@@ -299,6 +303,10 @@ const serveCachedOrFresh = (params: {
     });
     const cached = yield* matchCachedResponse(cacheKey);
     if (cached) {
+      if (ph.currentUpdateId && cached.updateId === ph.currentUpdateId) {
+        track(resolvedBranchId, "", "no_update");
+        return noContent();
+      }
       track(resolvedBranchId, cached.updateId, cached.responseType);
       return cached.response;
     }

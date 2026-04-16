@@ -70,9 +70,8 @@ export const addServerDefinedHeaders = (
   if (!extraParams) {
     return response;
   }
-  const headers = new Headers(response.headers);
-  headers.set("expo-server-defined-headers", `expo-extra-params=:${btoa(extraParams)}:`);
-  return new Response(response.body, { status: response.status, headers });
+  response.headers.set("expo-server-defined-headers", `expo-extra-params=:${btoa(extraParams)}:`);
+  return response;
 };
 
 export const parseProtocolHeaders = (

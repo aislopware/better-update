@@ -1,4 +1,5 @@
-import { getApiError, runApi } from "@better-update/api-client";
+import { getApiError } from "@better-update/api-client";
+import { completeBuild, reserveBuild } from "@better-update/api-client/react";
 import { useMountEffect } from "@better-update/react-hooks";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
@@ -11,7 +12,6 @@ import {
 import { Add01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Effect } from "effect";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -175,30 +175,19 @@ const UploadForm = ({
       reservePayload: ReservePayload;
       sha256: string;
       controller: AbortController;
-    }) =>
-      runApi(
-        (api) =>
-          Effect.gen(function* () {
-            // eslint-disable-next-line typescript/no-unsafe-type-assertion -- ReservePayload is validated by buildReservePayload; assertion bridges TS union-in-object distribution limitation with HttpApiClient's discriminated parameter
-            const reserved = yield* api.builds.reserve({ payload: input.reservePayload } as never);
-            setUploadPhase("uploading");
-            yield* Effect.tryPromise(async () =>
-              uploadWithProgress(
-                reserved.uploadUrl,
-                input.file,
-                setUploadProgress,
-                input.controller.signal,
-                reserved.uploadHeaders,
-              ),
-            );
-            setUploadPhase("completing");
-            return yield* api.builds.complete({
-              path: { id: reserved.id },
-              payload: { sha256: input.sha256, byteSize: input.file.size },
-            });
-          }),
+    }) => {
+      const reserved = await reserveBuild(input.reservePayload);
+      setUploadPhase("uploading");
+      await uploadWithProgress(
+        reserved.uploadUrl,
+        input.file,
+        setUploadProgress,
         input.controller.signal,
-      ),
+        reserved.uploadHeaders,
+      );
+      setUploadPhase("completing");
+      return completeBuild(reserved.id, { sha256: input.sha256, byteSize: input.file.size });
+    },
     onSuccess: async () => {
       toast.success("Build uploaded successfully");
       await invalidateBuildQueries(queryClient, orgId, projectId);
