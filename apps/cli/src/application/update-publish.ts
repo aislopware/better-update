@@ -35,6 +35,7 @@ export interface RunUpdatePublishOptions {
   readonly auto: boolean;
   readonly environment: string;
   readonly clear: boolean;
+  readonly rolloutPercentage: number | undefined;
   readonly manifestBodyFile: string | undefined;
   readonly signatureFile: string | undefined;
   readonly certificateChainFile: string | undefined;
@@ -134,6 +135,7 @@ const publishPlatform = (params: {
   readonly appJson: Record<string, unknown>;
   readonly platform: Platform;
   readonly signedPayload: SignedPayload | null;
+  readonly rolloutPercentage: number | undefined;
 }): Effect.Effect<
   PublishedPlatformResult,
   | AuthRequiredError
@@ -232,6 +234,9 @@ const publishPlatform = (params: {
                 signature: params.signedPayload.signature,
                 certificateChain: params.signedPayload.certificateChain,
               }
+            : {}),
+          ...(params.rolloutPercentage !== undefined
+            ? { rolloutPercentage: params.rolloutPercentage }
             : {}),
         },
       })
@@ -370,6 +375,7 @@ export const runUpdatePublish = (
             appJson,
             platform,
             signedPayload: signedPayloads[platform] ?? null,
+            rolloutPercentage: options.rolloutPercentage,
           }),
         { concurrency: 1 },
       );

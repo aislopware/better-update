@@ -2,25 +2,16 @@ import { Args, Command, Options } from "@effect/cli";
 import { Console, Effect } from "effect";
 
 import { readProjectId } from "../../../lib/app-json";
+import { rolloutPercentageOption } from "../../../lib/cli-schemas";
 import { apiClient } from "../../../services/api-client";
-import {
-  ChannelCommandError,
-  handleChannelCommandErrors,
-  resolveNamedResourceId,
-} from "../helpers";
+import { handleChannelCommandErrors, resolveNamedResourceId } from "../helpers";
 
 const channelId = Args.text({ name: "channelId" });
 const branch = Options.text("branch");
-const percentage = Options.integer("percentage");
+const percentage = rolloutPercentageOption("percentage");
 
 export const createCommand = Command.make("create", { channelId, branch, percentage }, (opts) =>
   Effect.gen(function* () {
-    if (opts.percentage < 1 || opts.percentage > 100) {
-      yield* new ChannelCommandError({
-        message: "Rollout percentage must be between 1 and 100.",
-      });
-    }
-
     const projectId = yield* readProjectId;
     const api = yield* apiClient;
 

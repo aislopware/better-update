@@ -1,11 +1,12 @@
-import { Args, Command, Options } from "@effect/cli";
+import { Command, Options } from "@effect/cli";
 import { Console, Effect } from "effect";
 
 import { readProjectId } from "../../lib/app-json";
+import { keyValueArg } from "../../lib/cli-schemas";
 import { apiClient } from "../../services/api-client";
-import { EnvCommandError, handleEnvCommandErrors } from "./helpers";
+import { handleEnvCommandErrors } from "./helpers";
 
-const keyValue = Args.text({ name: "KEY=VALUE" });
+const keyValue = keyValueArg("KEY=VALUE");
 const environment = Options.text("environment").pipe(Options.withDefault("production"));
 const visibility = Options.choice("visibility", ["plaintext", "sensitive", "secret"]).pipe(
   Options.withDefault("plaintext" as const),
@@ -14,18 +15,8 @@ const visibility = Options.choice("visibility", ["plaintext", "sensitive", "secr
 export const setCommand = Command.make(
   "set",
   { keyValue, environment, visibility },
-  ({ keyValue, environment, visibility }) =>
+  ({ keyValue: { key, value }, environment, visibility }) =>
     Effect.gen(function* () {
-      const eqIndex = keyValue.indexOf("=");
-      if (eqIndex <= 0) {
-        return yield* new EnvCommandError({
-          message: "Invalid format. Use KEY=VALUE (e.g. API_KEY=abc123)",
-        });
-      }
-
-      const key = keyValue.slice(0, eqIndex);
-      const value = keyValue.slice(eqIndex + 1);
-
       const projectId = yield* readProjectId;
       const api = yield* apiClient;
 
