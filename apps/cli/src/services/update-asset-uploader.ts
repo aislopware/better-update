@@ -2,7 +2,7 @@ import { Context, Effect, Layer } from "effect";
 
 import { UpdatePublishError } from "../lib/exit-codes";
 import { formatCause } from "../lib/format-error";
-import { apiClient } from "./api-client";
+import { ApiClientService } from "./api-client";
 import { PresignedUploadClient } from "./presigned-upload";
 
 export interface UploadUpdateAssetInput {
@@ -27,11 +27,20 @@ export const UpdateAssetUploaderLive = Layer.effect(
   UpdateAssetUploader,
   Effect.gen(function* () {
     const presignedUploadClient = yield* PresignedUploadClient;
-    const api = yield* apiClient;
+    const apiService = yield* ApiClientService;
 
     return {
       uploadAssetBinary: (asset: UploadUpdateAssetInput) =>
         Effect.gen(function* () {
+          const api = yield* apiService.get.pipe(
+            Effect.mapError(
+              (cause) =>
+                new UpdatePublishError({
+                  message: `Asset upload requires authentication: ${formatCause(cause)}`,
+                }),
+            ),
+          );
+
           yield* presignedUploadClient
             .putToPresignedUrl({
               url: asset.uploadUrl,

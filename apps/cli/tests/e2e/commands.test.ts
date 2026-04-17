@@ -1,9 +1,60 @@
+import { execFileSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 
 import { setupCliE2E } from "../helpers/cli-e2e";
+
+const generateSelfSignedP12 = (password: string, subject: string): Buffer => {
+  const tmp = mkdtempSync(path.join(os.tmpdir(), "cli-e2e-p12-"));
+  const keyPath = path.join(tmp, "key.pem");
+  const certPath = path.join(tmp, "cert.pem");
+  const p12Path = path.join(tmp, "cert.p12");
+  try {
+    execFileSync(
+      "openssl",
+      [
+        "req",
+        "-x509",
+        "-newkey",
+        "rsa:2048",
+        "-sha256",
+        "-days",
+        "365",
+        "-nodes",
+        "-keyout",
+        keyPath,
+        "-out",
+        certPath,
+        "-subj",
+        subject,
+      ],
+      { stdio: "pipe" },
+    );
+    execFileSync(
+      "openssl",
+      [
+        "pkcs12",
+        "-export",
+        "-out",
+        p12Path,
+        "-inkey",
+        keyPath,
+        "-in",
+        certPath,
+        "-passout",
+        `pass:${password}`,
+        "-legacy",
+      ],
+      { stdio: "pipe" },
+    );
+    return readFileSync(p12Path);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+};
 
 const cli = setupCliE2E(".wrangler/state/e2e-cli");
 
@@ -406,7 +457,11 @@ describe("CLI command journey", () => {
 
   it("uploads, activates, and deletes a credential", async () => {
     const credentialFile = path.join(cli.getProjectDir(), "cli-uploaded-cert.p12");
-    writeFileSync(credentialFile, "uploaded-cert");
+    const p12Password = "uploaded-password";
+    writeFileSync(
+      credentialFile,
+      generateSelfSignedP12(p12Password, "/CN=CLI Uploaded Certificate/O=Better Update Test"),
+    );
 
     const uploadResult = cli.runCli(
       "credentials",
@@ -420,7 +475,7 @@ describe("CLI command journey", () => {
       "--file",
       credentialFile,
       "--password",
-      "uploaded-password",
+      p12Password,
     );
     expect(uploadResult.exitCode).toBe(0);
     expect(uploadResult.stderr).toBe("");
