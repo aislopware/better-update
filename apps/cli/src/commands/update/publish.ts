@@ -3,6 +3,7 @@ import { Console, Effect, Option } from "effect";
 
 import { exitWith } from "../../application/command-exit";
 import { runUpdatePublish } from "../../application/update-publish";
+import { rolloutPercentageOption } from "../../lib/cli-schemas";
 import { printTable } from "../../lib/output";
 
 const branch = Options.text("branch").pipe(Options.optional);
@@ -13,6 +14,7 @@ const message = Options.text("message").pipe(Options.optional);
 const environment = Options.text("environment").pipe(Options.withDefault("production"));
 const auto = Options.boolean("auto").pipe(Options.withDefault(false));
 const clear = Options.boolean("clear");
+const rolloutPercentage = rolloutPercentageOption("rollout-percentage").pipe(Options.optional);
 const manifestBodyFile = Options.text("manifest-body-file").pipe(Options.optional);
 const signatureFile = Options.text("signature-file").pipe(Options.optional);
 const certificateChainFile = Options.text("certificate-chain-file").pipe(Options.optional);
@@ -34,6 +36,7 @@ export const publishCommand = Command.make(
     environment,
     auto,
     clear,
+    rolloutPercentage,
     manifestBodyFile,
     signatureFile,
     certificateChainFile,
@@ -53,6 +56,7 @@ export const publishCommand = Command.make(
         auto: opts.auto,
         environment: opts.environment,
         clear: opts.clear,
+        rolloutPercentage: Option.getOrUndefined(opts.rolloutPercentage),
         manifestBodyFile: Option.getOrUndefined(opts.manifestBodyFile),
         signatureFile: Option.getOrUndefined(opts.signatureFile),
         certificateChainFile: Option.getOrUndefined(opts.certificateChainFile),
