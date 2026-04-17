@@ -20,6 +20,15 @@ export default defineConfig({
           testTimeout: 120_000,
         },
       },
+      {
+        test: {
+          name: "interactive",
+          globals: true,
+          include: ["tests/interactive/**/*.test.ts"],
+          hookTimeout: 30_000,
+          testTimeout: 30_000,
+        },
+      },
     ],
   },
 });

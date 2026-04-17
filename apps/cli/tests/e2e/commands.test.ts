@@ -151,8 +151,8 @@ const createPromotableUpdate = async (options?: {
     ...(manifestBody
       ? {
           manifestBody,
-          signature: options.signed?.signature,
-          certificateChain: options.signed?.certificateChain,
+          signature: options?.signed?.signature,
+          certificateChain: options?.signed?.certificateChain,
         }
       : {}),
   });

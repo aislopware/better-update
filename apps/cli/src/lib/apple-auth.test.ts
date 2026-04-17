@@ -1,6 +1,6 @@
 import { Terminal } from "@effect/platform";
 import { it } from "@effect/vitest";
-import { Effect, Exit, Layer } from "effect";
+import { Effect, Exit, Layer, Mailbox, Option } from "effect";
 
 import type * as AppleUtils from "@expo/apple-utils";
 
@@ -272,5 +272,128 @@ describe("resolveProvider", () => {
         expect((err as AppleAuthError).message).toContain("Failed to switch");
       }
     }).pipe(Effect.provide(provideTestServices({ APPLE_PROVIDER_ID: "2" }))),
+  );
+});
+
+// ── resolveProvider (prompt branch via scripted Terminal) ────────
+
+type KeyEvent = {
+  readonly name: string;
+  readonly input?: string;
+  readonly ctrl?: boolean;
+  readonly meta?: boolean;
+  readonly shift?: boolean;
+};
+
+const toUserInput = (event: KeyEvent): Terminal.UserInput => ({
+  input: event.input ? Option.some(event.input) : Option.none(),
+  key: {
+    name: event.name,
+    ctrl: event.ctrl ?? false,
+    meta: event.meta ?? false,
+    shift: event.shift ?? false,
+  },
+});
+
+/**
+ * Build a Terminal layer backed by a pre-filled Mailbox of scripted keystrokes.
+ * `display` output is captured into `displayed` for optional assertions.
+ */
+const makeScriptedTerminalLayer = (events: ReadonlyArray<KeyEvent>, displayed: string[]) =>
+  Layer.effect(
+    Terminal.Terminal,
+    Effect.gen(function* () {
+      const mailbox = yield* Mailbox.make<Terminal.UserInput>();
+      yield* mailbox.offerAll(events.map(toUserInput));
+      return {
+        columns: Effect.succeed(80),
+        rows: Effect.succeed(24),
+        isTTY: Effect.succeed(true),
+        readInput: Effect.succeed(mailbox),
+        readLine: Effect.dieMessage("readLine not used in prompt tests") as never,
+        display: (text: string) =>
+          Effect.sync(() => {
+            displayed.push(text);
+          }),
+      };
+    }),
+  );
+
+const provideScriptedPrompt = (
+  events: ReadonlyArray<KeyEvent>,
+  displayed: string[],
+  env: Readonly<Record<string, string | undefined>> = {},
+) => Layer.mergeAll(makeCliRuntimeLayer(env), makeScriptedTerminalLayer(events, displayed));
+
+describe("resolveProvider (prompt branch)", () => {
+  it.effect("prompts when multi-provider + no env + no cache + no auto-current", () =>
+    Effect.gen(function* () {
+      const displayed: string[] = [];
+      const calls: number[] = [];
+      const appleUtils = makeAppleUtilsStub(async (id) => {
+        calls.push(id);
+        return null;
+      });
+
+      const result = yield* resolveProvider(
+        appleUtils,
+        [provider(10, "Org A"), provider(20, "Org B"), provider(30, "Org C")],
+        undefined,
+        undefined,
+      ).pipe(
+        Effect.provide(
+          provideScriptedPrompt(
+            [{ name: "down" }, { name: "down" }, { name: "return" }],
+            displayed,
+          ),
+        ),
+      );
+
+      expect(result).toEqual({ providerId: 30, switched: true });
+      expect(calls).toEqual([30]);
+      const allDisplay = displayed.join("");
+      expect(allDisplay).toContain("Select App Store Connect provider");
+      expect(allDisplay).toContain("Org C");
+    }),
+  );
+
+  it.effect("enter on first item picks it without arrow keys", () =>
+    Effect.gen(function* () {
+      const displayed: string[] = [];
+      const calls: number[] = [];
+      const appleUtils = makeAppleUtilsStub(async (id) => {
+        calls.push(id);
+        return null;
+      });
+
+      const result = yield* resolveProvider(
+        appleUtils,
+        [provider(1), provider(2)],
+        undefined,
+        undefined,
+      ).pipe(Effect.provide(provideScriptedPrompt([{ name: "return" }], displayed)));
+
+      expect(result).toEqual({ providerId: 1, switched: true });
+      expect(calls).toEqual([1]);
+    }),
+  );
+
+  it.effect("up-arrow wraps around from top to bottom", () =>
+    Effect.gen(function* () {
+      const displayed: string[] = [];
+      const appleUtils = makeAppleUtilsStub(async () => null);
+
+      const result = yield* resolveProvider(
+        appleUtils,
+        [provider(1), provider(2), provider(3)],
+        undefined,
+        undefined,
+      ).pipe(
+        Effect.provide(provideScriptedPrompt([{ name: "up" }, { name: "return" }], displayed)),
+      );
+
+      expect(result.providerId).toBe(3);
+      expect(result.switched).toBe(true);
+    }),
   );
 });
