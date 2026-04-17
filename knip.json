@@ -26,6 +26,7 @@
       ]
     },
     "apps/cli": {
+      "entry": ["tests/interactive/harness/**/*.ts"],
       "project": ["src/**/*.ts", "tests/**/*.ts"],
       "ignoreDependencies": ["wrangler"]
     },
