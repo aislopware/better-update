@@ -74,12 +74,16 @@ const verifySignedToken = async (
   token: string | null,
   expires: string | null,
   secret: string,
+  env: Env,
 ): Promise<boolean> => {
   if (!token || !expires) {
     return false;
   }
   const expiresNum = Number.parseInt(expires, 10);
-  return verifyInstallToken(buildId, token, expiresNum, secret);
+  return runBuildRouteEffect(
+    verifyInstallToken(buildId, token, expiresNum, secret).pipe(Effect.orElseSucceed(() => false)),
+    env,
+  );
 };
 
 export const handleBuildArtifactDownload = async (
@@ -94,6 +98,7 @@ export const handleBuildArtifactDownload = async (
         url.searchParams.get("token"),
         url.searchParams.get("expires"),
         env.INSTALL_TOKEN_SECRET,
+        env,
       )
     : false;
 
@@ -165,7 +170,12 @@ export const handleBuildInstallPlist = async (
   }
 
   const expiresNum = Number.parseInt(expires, 10);
-  const valid = await verifyInstallToken(buildId, token, expiresNum, env.INSTALL_TOKEN_SECRET);
+  const valid = await runBuildRouteEffect(
+    verifyInstallToken(buildId, token, expiresNum, env.INSTALL_TOKEN_SECRET).pipe(
+      Effect.orElseSucceed(() => false),
+    ),
+    env,
+  );
   if (!valid) {
     return Response.json(
       { code: "UNAUTHORIZED", message: "Invalid or expired token" },

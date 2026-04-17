@@ -1,15 +1,7 @@
 import { Context, Effect, Layer } from "effect";
 
-import {
-  cryptoError,
-  decryptAesGcm,
-  deriveKEK,
-  encryptAesGcm,
-  generateDEK,
-  getSecret,
-  importDekKey,
-  resolveKeyring,
-} from "../domain/credential-vault";
+import { cryptoError, generateDEK, getSecret, resolveKeyring } from "../domain/credential-vault";
+import { CryptoService } from "../domain/crypto-service";
 import { fromBase64, toBase64 } from "../lib/base64";
 import { cloudflareEnv } from "./context";
 
@@ -20,8 +12,16 @@ import type {
   EnvelopeEncryptResult,
   Keyring,
 } from "../domain/credential-vault";
+import type { CryptoError } from "../domain/crypto-service";
 
-// -- Effect orchestrators over low-level crypto ----------------------------
+// -- Error mapping ---------------------------------------------------------
+
+const toVaultCryptoError =
+  (operation: string) =>
+  (error: CryptoError): CredentialVaultCryptoError =>
+    cryptoError(operation, error.cause);
+
+// -- Effect orchestrators over CryptoService -------------------------------
 
 const envelopeEncrypt = (
   keyring: Keyring,
@@ -29,27 +29,25 @@ const envelopeEncrypt = (
   plaintext: Uint8Array,
 ): Effect.Effect<
   EnvelopeEncryptResult,
-  CredentialVaultKeyNotFoundError | CredentialVaultCryptoError
+  CredentialVaultKeyNotFoundError | CredentialVaultCryptoError,
+  CryptoService
 > =>
   Effect.gen(function* () {
+    const service = yield* CryptoService;
     const dek = generateDEK();
     const secret = yield* getSecret(keyring, keyring.currentVersion);
-    const kek = yield* Effect.tryPromise({
-      try: async () => deriveKEK(secret, orgId, keyring.currentVersion),
-      catch: (cause) => cryptoError("derive KEK", cause),
-    });
-    const dekKey = yield* Effect.tryPromise({
-      try: async () => importDekKey(dek, ["encrypt", "decrypt"]),
-      catch: (cause) => cryptoError("import DEK", cause),
-    });
-    const encryptedBlob = yield* Effect.tryPromise({
-      try: async () => encryptAesGcm(dekKey, plaintext),
-      catch: (cause) => cryptoError("encrypt blob", cause),
-    });
-    const encryptedDek = yield* Effect.tryPromise({
-      try: async () => encryptAesGcm(kek, dek),
-      catch: (cause) => cryptoError("encrypt DEK", cause),
-    });
+    const kek = yield* service
+      .deriveKek(secret, orgId, keyring.currentVersion)
+      .pipe(Effect.mapError(toVaultCryptoError("derive KEK")));
+    const dekKey = yield* service
+      .importDekKey(dek, ["encrypt", "decrypt"])
+      .pipe(Effect.mapError(toVaultCryptoError("import DEK")));
+    const encryptedBlob = yield* service
+      .encryptAesGcm(dekKey, plaintext)
+      .pipe(Effect.mapError(toVaultCryptoError("encrypt blob")));
+    const encryptedDek = yield* service
+      .encryptAesGcm(kek, dek)
+      .pipe(Effect.mapError(toVaultCryptoError("encrypt DEK")));
     return {
       encryptedBlob,
       encryptedDek: toBase64(encryptedDek),
@@ -63,25 +61,26 @@ const envelopeDecrypt = (
   keyVersion: number,
   encryptedDekB64: string,
   encryptedBlob: Uint8Array,
-): Effect.Effect<Uint8Array, CredentialVaultKeyNotFoundError | CredentialVaultCryptoError> =>
+): Effect.Effect<
+  Uint8Array,
+  CredentialVaultKeyNotFoundError | CredentialVaultCryptoError,
+  CryptoService
+> =>
   Effect.gen(function* () {
+    const service = yield* CryptoService;
     const secret = yield* getSecret(keyring, keyVersion);
-    const kek = yield* Effect.tryPromise({
-      try: async () => deriveKEK(secret, orgId, keyVersion),
-      catch: (cause) => cryptoError("derive KEK", cause),
-    });
-    const dek = yield* Effect.tryPromise({
-      try: async () => decryptAesGcm(kek, fromBase64(encryptedDekB64)),
-      catch: (cause) => cryptoError("decrypt DEK", cause),
-    });
-    const dekKey = yield* Effect.tryPromise({
-      try: async () => importDekKey(dek, ["decrypt"]),
-      catch: (cause) => cryptoError("import DEK", cause),
-    });
-    return yield* Effect.tryPromise({
-      try: async () => decryptAesGcm(dekKey, encryptedBlob),
-      catch: (cause) => cryptoError("decrypt blob", cause),
-    });
+    const kek = yield* service
+      .deriveKek(secret, orgId, keyVersion)
+      .pipe(Effect.mapError(toVaultCryptoError("derive KEK")));
+    const dek = yield* service
+      .decryptAesGcm(kek, fromBase64(encryptedDekB64))
+      .pipe(Effect.mapError(toVaultCryptoError("decrypt DEK")));
+    const dekKey = yield* service
+      .importDekKey(dek, ["decrypt"])
+      .pipe(Effect.mapError(toVaultCryptoError("import DEK")));
+    return yield* service
+      .decryptAesGcm(dekKey, encryptedBlob)
+      .pipe(Effect.mapError(toVaultCryptoError("decrypt blob")));
   });
 
 const encryptSecretEffect = (
@@ -90,19 +89,19 @@ const encryptSecretEffect = (
   secret: string,
 ): Effect.Effect<
   { encrypted: string; keyVersion: number },
-  CredentialVaultKeyNotFoundError | CredentialVaultCryptoError
+  CredentialVaultKeyNotFoundError | CredentialVaultCryptoError,
+  CryptoService
 > =>
   Effect.gen(function* () {
+    const service = yield* CryptoService;
     const keySecret = yield* getSecret(keyring, keyring.currentVersion);
-    const kek = yield* Effect.tryPromise({
-      try: async () => deriveKEK(keySecret, orgId, keyring.currentVersion),
-      catch: (cause) => cryptoError("derive KEK", cause),
-    });
+    const kek = yield* service
+      .deriveKek(keySecret, orgId, keyring.currentVersion)
+      .pipe(Effect.mapError(toVaultCryptoError("derive KEK")));
     const plaintext = new TextEncoder().encode(secret);
-    const encrypted = yield* Effect.tryPromise({
-      try: async () => encryptAesGcm(kek, plaintext),
-      catch: (cause) => cryptoError("encrypt secret", cause),
-    });
+    const encrypted = yield* service
+      .encryptAesGcm(kek, plaintext)
+      .pipe(Effect.mapError(toVaultCryptoError("encrypt secret")));
     return { encrypted: toBase64(encrypted), keyVersion: keyring.currentVersion };
   });
 
@@ -111,17 +110,20 @@ const decryptSecretEffect = (
   orgId: string,
   keyVersion: number,
   encryptedB64: string,
-): Effect.Effect<string, CredentialVaultKeyNotFoundError | CredentialVaultCryptoError> =>
+): Effect.Effect<
+  string,
+  CredentialVaultKeyNotFoundError | CredentialVaultCryptoError,
+  CryptoService
+> =>
   Effect.gen(function* () {
+    const service = yield* CryptoService;
     const secret = yield* getSecret(keyring, keyVersion);
-    const kek = yield* Effect.tryPromise({
-      try: async () => deriveKEK(secret, orgId, keyVersion),
-      catch: (cause) => cryptoError("derive KEK", cause),
-    });
-    const decrypted = yield* Effect.tryPromise({
-      try: async () => decryptAesGcm(kek, fromBase64(encryptedB64)),
-      catch: (cause) => cryptoError("decrypt secret", cause),
-    });
+    const kek = yield* service
+      .deriveKek(secret, orgId, keyVersion)
+      .pipe(Effect.mapError(toVaultCryptoError("derive KEK")));
+    const decrypted = yield* service
+      .decryptAesGcm(kek, fromBase64(encryptedB64))
+      .pipe(Effect.mapError(toVaultCryptoError("decrypt secret")));
     return new TextDecoder().decode(decrypted);
   });
 
@@ -177,39 +179,47 @@ const resolveConfiguredKeyring = Effect.gen(function* () {
   return keyring;
 });
 
-export const VaultLive = Layer.succeed(Vault, {
-  encryptSecret: (params) =>
-    Effect.gen(function* () {
-      const keyring = yield* resolveConfiguredKeyring;
-      return yield* encryptSecretEffect(keyring, params.organizationId, params.value);
-    }),
+export const VaultLive = Layer.effect(
+  Vault,
+  Effect.gen(function* () {
+    const service = yield* CryptoService;
+    const provideCrypto = Effect.provideService(CryptoService, service);
 
-  decryptSecret: (params) =>
-    Effect.gen(function* () {
-      const keyring = yield* resolveConfiguredKeyring;
-      return yield* decryptSecretEffect(
-        keyring,
-        params.organizationId,
-        params.keyVersion,
-        params.encrypted,
-      );
-    }),
+    return {
+      encryptSecret: (params) =>
+        Effect.gen(function* () {
+          const keyring = yield* resolveConfiguredKeyring;
+          return yield* encryptSecretEffect(keyring, params.organizationId, params.value);
+        }).pipe(provideCrypto),
 
-  envelopeEncrypt: (params) =>
-    Effect.gen(function* () {
-      const keyring = yield* resolveConfiguredKeyring;
-      return yield* envelopeEncrypt(keyring, params.organizationId, params.plaintext);
-    }),
+      decryptSecret: (params) =>
+        Effect.gen(function* () {
+          const keyring = yield* resolveConfiguredKeyring;
+          return yield* decryptSecretEffect(
+            keyring,
+            params.organizationId,
+            params.keyVersion,
+            params.encrypted,
+          );
+        }).pipe(provideCrypto),
 
-  envelopeDecrypt: (params) =>
-    Effect.gen(function* () {
-      const keyring = yield* resolveConfiguredKeyring;
-      return yield* envelopeDecrypt(
-        keyring,
-        params.organizationId,
-        params.keyVersion,
-        params.encryptedDek,
-        params.encryptedBlob,
-      );
-    }),
-});
+      envelopeEncrypt: (params) =>
+        Effect.gen(function* () {
+          const keyring = yield* resolveConfiguredKeyring;
+          return yield* envelopeEncrypt(keyring, params.organizationId, params.plaintext);
+        }).pipe(provideCrypto),
+
+      envelopeDecrypt: (params) =>
+        Effect.gen(function* () {
+          const keyring = yield* resolveConfiguredKeyring;
+          return yield* envelopeDecrypt(
+            keyring,
+            params.organizationId,
+            params.keyVersion,
+            params.encryptedDek,
+            params.encryptedBlob,
+          );
+        }).pipe(provideCrypto),
+    };
+  }),
+);

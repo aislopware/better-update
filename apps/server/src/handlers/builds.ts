@@ -343,10 +343,9 @@ const handleGetInstallLink = ({ path }: { readonly path: { readonly id: string }
         );
       }
 
-      const { token, expires } = yield* Effect.tryPromise({
-        try: async () => generateInstallToken(path.id, installTokenSecret),
-        catch: () => new BadRequest({ message: "Failed to generate install token" }),
-      });
+      const { token, expires } = yield* generateInstallToken(path.id, installTokenSecret).pipe(
+        Effect.mapError(() => new BadRequest({ message: "Failed to generate install token" })),
+      );
 
       const request = yield* cloudflareRequest;
       const { origin } = new URL(request.url);

@@ -42,13 +42,7 @@ export type CredentialVaultError =
 
 // -- Helpers ----------------------------------------------------------------
 
-export const asBuffer = (data: Uint8Array): ArrayBuffer => {
-  const copy = new ArrayBuffer(data.byteLength);
-  new Uint8Array(copy).set(data);
-  return copy;
-};
-
-export const asError = (cause: unknown): Error =>
+const asError = (cause: unknown): Error =>
   cause instanceof Error ? cause : new Error(String(cause));
 const configError = (message: string) => new CredentialVaultConfigError({ message });
 const keyNotFoundError = (version: number) =>
@@ -108,55 +102,6 @@ export const resolveKeyring = (
     return { secrets, currentVersion };
   });
 
-// -- Low-level crypto primitives -------------------------------------------
-
-export const deriveKEK = async (
-  secret: Uint8Array,
-  orgId: string,
-  keyVersion: number,
-): Promise<CryptoKey> => {
-  const baseKey = await crypto.subtle.importKey("raw", asBuffer(secret), "HKDF", false, [
-    "deriveKey",
-  ]);
-  return crypto.subtle.deriveKey(
-    {
-      name: "HKDF",
-      hash: "SHA-256",
-      salt: asBuffer(new TextEncoder().encode(orgId)),
-      info: asBuffer(new TextEncoder().encode(`credential-vault:${keyVersion}`)),
-    },
-    baseKey,
-    { name: "AES-GCM", length: 256 },
-    false,
-    ["encrypt", "decrypt"],
-  );
-};
+// -- Sync primitives (no I/O) ----------------------------------------------
 
 export const generateDEK = (): Uint8Array => crypto.getRandomValues(new Uint8Array(32));
-
-export const encryptAesGcm = async (key: CryptoKey, plaintext: Uint8Array): Promise<Uint8Array> => {
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const encrypted = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv: asBuffer(iv) },
-    key,
-    asBuffer(plaintext),
-  );
-  return new Uint8Array([...iv, ...new Uint8Array(encrypted)]);
-};
-
-export const decryptAesGcm = async (key: CryptoKey, data: Uint8Array): Promise<Uint8Array> => {
-  const iv = data.slice(0, 12);
-  const ciphertext = data.slice(12);
-  const decrypted = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv: asBuffer(iv) },
-    key,
-    asBuffer(ciphertext),
-  );
-  return new Uint8Array(decrypted);
-};
-
-export const importDekKey = async (
-  dek: Uint8Array,
-  usages: readonly KeyUsage[],
-): Promise<CryptoKey> =>
-  crypto.subtle.importKey("raw", asBuffer(dek), { name: "AES-GCM" }, true, [...usages]);

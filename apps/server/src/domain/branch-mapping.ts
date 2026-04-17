@@ -1,7 +1,10 @@
 import { safeJsonParse } from "@better-update/safe-json";
+import { Effect } from "effect";
 
 import { isRecord } from "../lib/type-guards";
-import { hashToFraction } from "./hash";
+import { CryptoService } from "./crypto-service";
+
+import type { CryptoError } from "./crypto-service";
 
 // -- Types ------------------------------------------------------------------
 
@@ -86,37 +89,37 @@ export const extractReachableBranchIds = (branchMappingJson: string): readonly s
   }, []);
 };
 
-const evaluateEntry = async (
-  entry: BranchMappingEntry,
-  salt: string,
-  easClientId: string,
-): Promise<string | null> => {
-  if (entry.branchMappingLogic === "true") {
-    return entry.branchId;
-  }
-  const threshold = parseThreshold(entry.branchMappingLogic);
-  if (threshold === null) {
-    return null;
-  }
-  const value = await hashToFraction(salt, easClientId);
-  return value < threshold ? entry.branchId : null;
-};
+const evaluateEntry = (entry: BranchMappingEntry, salt: string, easClientId: string) =>
+  Effect.gen(function* () {
+    if (entry.branchMappingLogic === "true") {
+      return entry.branchId;
+    }
+    const threshold = parseThreshold(entry.branchMappingLogic);
+    if (threshold === null) {
+      return null;
+    }
+    const service = yield* CryptoService;
+    const value = yield* service.sha256Fraction(salt, easClientId);
+    return value < threshold ? entry.branchId : null;
+  });
 
-export const evaluateBranchMapping = async (
+export const evaluateBranchMapping = (
   branchMappingJson: string,
   easClientId: string | undefined,
-): Promise<string> => {
-  const mapping = parseBranchMapping(branchMappingJson);
-  const fallback = mapping.data.at(-1)?.branchId ?? "";
+): Effect.Effect<string, CryptoError, CryptoService> =>
+  Effect.gen(function* () {
+    const mapping = parseBranchMapping(branchMappingJson);
+    const fallback = mapping.data.at(-1)?.branchId ?? "";
 
-  // No client ID -> always fallback (last "true" entry)
-  if (!easClientId) {
-    return fallback;
-  }
+    if (!easClientId) {
+      return fallback;
+    }
 
-  const results = await Promise.all(
-    mapping.data.map(async (entry) => evaluateEntry(entry, mapping.salt, easClientId)),
-  );
+    const results = yield* Effect.forEach(
+      mapping.data,
+      (entry) => evaluateEntry(entry, mapping.salt, easClientId),
+      { concurrency: "unbounded" },
+    );
 
-  return results.find((result) => result !== null) ?? fallback;
-};
+    return results.find((result): result is string => result !== null) ?? fallback;
+  });

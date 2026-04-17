@@ -1,6 +1,8 @@
-import { hashToFraction } from "./hash";
+import { Effect } from "effect";
 
-// -- Types ------------------------------------------------------------------
+import { CryptoService } from "./crypto-service";
+
+import type { CryptoError } from "./crypto-service";
 
 interface RolloutCandidate {
   readonly id: string;
@@ -10,8 +12,6 @@ interface RolloutCandidate {
 export type RolloutResolution<T extends RolloutCandidate> =
   | { readonly resolved: true; readonly update: T }
   | { readonly resolved: false; readonly needsFallbackQuery: boolean };
-
-// -- Core -------------------------------------------------------------------
 
 export const collectServableUpdates = <T extends RolloutCandidate>(
   candidates: readonly T[],
@@ -27,66 +27,62 @@ export const collectServableUpdates = <T extends RolloutCandidate>(
     : [...current, ...collectServableUpdates(rest)];
 };
 
-const isInRollout = async (
-  updateId: string,
-  easClientId: string,
-  rolloutPercentage: number,
-): Promise<boolean> => {
-  const fraction = await hashToFraction(updateId, easClientId);
-  return fraction < rolloutPercentage / 100;
-};
+const isInRollout = (updateId: string, easClientId: string, rolloutPercentage: number) =>
+  Effect.gen(function* () {
+    const service = yield* CryptoService;
+    const fraction = yield* service.sha256Fraction(updateId, easClientId);
+    return fraction < rolloutPercentage / 100;
+  });
 
-const evaluateFallback = async <T extends RolloutCandidate>(
+const evaluateFallback = <T extends RolloutCandidate>(
   previous: T | undefined,
   easClientId: string | undefined,
-): Promise<RolloutResolution<T>> => {
-  if (!previous) {
-    return { resolved: false, needsFallbackQuery: false };
-  }
-  if (previous.rollout_percentage === 100) {
-    return { resolved: true, update: previous };
-  }
-  if (previous.rollout_percentage === 0) {
-    return { resolved: false, needsFallbackQuery: true };
-  }
-  // Previous at 1-99% — no client ID means legacy client, serve previous directly
-  if (!easClientId) {
-    return { resolved: true, update: previous };
-  }
-  const inRollout = await isInRollout(previous.id, easClientId, previous.rollout_percentage);
-  return inRollout
-    ? { resolved: true, update: previous }
-    : { resolved: false, needsFallbackQuery: true };
-};
+): Effect.Effect<RolloutResolution<T>, CryptoError, CryptoService> =>
+  Effect.gen(function* () {
+    if (!previous) {
+      return { resolved: false, needsFallbackQuery: false };
+    }
+    if (previous.rollout_percentage === 100) {
+      return { resolved: true, update: previous };
+    }
+    if (previous.rollout_percentage === 0) {
+      return { resolved: false, needsFallbackQuery: true };
+    }
+    if (!easClientId) {
+      return { resolved: true, update: previous };
+    }
+    const inRollout = yield* isInRollout(previous.id, easClientId, previous.rollout_percentage);
+    return inRollout
+      ? { resolved: true, update: previous }
+      : { resolved: false, needsFallbackQuery: true };
+  });
 
-export const resolveUpdateRollout = async <T extends RolloutCandidate>(
+export const resolveUpdateRollout = <T extends RolloutCandidate>(
   candidates: readonly T[],
   easClientId?: string,
-): Promise<RolloutResolution<T> | null> => {
-  const [latest, previous] = candidates;
-  if (!latest) {
-    return null;
-  }
+): Effect.Effect<RolloutResolution<T> | null, CryptoError, CryptoService> =>
+  Effect.gen(function* () {
+    const [latest, previous] = candidates;
+    if (!latest) {
+      return null;
+    }
 
-  // Full rollout — serve immediately
-  if (latest.rollout_percentage === 100) {
-    return { resolved: true, update: latest };
-  }
+    if (latest.rollout_percentage === 100) {
+      return { resolved: true, update: latest };
+    }
 
-  // Reverted (0%) — skip to previous
-  if (latest.rollout_percentage === 0) {
-    return evaluateFallback(previous, easClientId);
-  }
+    if (latest.rollout_percentage === 0) {
+      return yield* evaluateFallback(previous, easClientId);
+    }
 
-  // Partial rollout (1-99%)
-  if (!easClientId) {
-    return evaluateFallback(previous, easClientId);
-  }
+    if (!easClientId) {
+      return yield* evaluateFallback(previous, easClientId);
+    }
 
-  const inRollout = await isInRollout(latest.id, easClientId, latest.rollout_percentage);
-  if (inRollout) {
-    return { resolved: true, update: latest };
-  }
+    const inRollout = yield* isInRollout(latest.id, easClientId, latest.rollout_percentage);
+    if (inRollout) {
+      return { resolved: true, update: latest };
+    }
 
-  return evaluateFallback(previous, easClientId);
-};
+    return yield* evaluateFallback(previous, easClientId);
+  });

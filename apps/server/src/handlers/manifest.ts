@@ -3,23 +3,24 @@ import { Effect } from "effect";
 import type { BadRequest, NotFound } from "@better-update/api";
 
 import { provideCloudflareRequestContext } from "../cloudflare/context";
-import { ManifestCacheStorageLive } from "../cloudflare/manifest-cache-storage";
 import { manifestRuntime } from "../cloudflare/manifest-runtime";
 import { resolveUpdateRollout } from "../domain/update-rollout";
 import { isRecord } from "../lib/type-guards";
 import { parseProtocolHeaders } from "../protocol/headers";
 import { buildDirective, buildExtensions, buildManifest } from "../protocol/manifest-builder";
 import { encodeMultipart } from "../protocol/multipart";
-import { ManifestRepo, ManifestRepoLive } from "../repositories/manifest";
+import { ManifestRepo } from "../repositories/manifest";
 import { resolveBranchId } from "./branch-resolution";
 import { buildCacheKey, matchCachedResponse, storeCachedResponse } from "./manifest-cache";
 import { respond, responseTypeFor } from "./manifest-helpers";
+import { ManifestServicesLive } from "./manifest-layer";
 
-import type { ManifestCacheStorage } from "../cloudflare/manifest-cache-storage";
+import type { CryptoService } from "../domain/crypto-service";
 import type { ProtocolHeaders } from "../protocol/headers";
 import type { Part } from "../protocol/multipart";
 import type { AssetRow, ChannelRow, UpdateRow } from "../repositories/manifest";
 import type { TrackManifestResponse } from "./manifest-helpers";
+import type { ManifestCacheStorage } from "./manifest-layer";
 
 const COMMON_HEADERS: Record<string, string> = {
   "expo-protocol-version": "1",
@@ -158,10 +159,10 @@ const resolveRolledOutUpdate = (params: {
   readonly branchId: string;
   readonly platform: string;
   readonly runtimeVersion: string;
-}): Effect.Effect<UpdateRow | null, never, ManifestRepo> =>
+}): Effect.Effect<UpdateRow | null, never, ManifestRepo | CryptoService> =>
   Effect.gen(function* () {
-    const rolloutResult = yield* Effect.promise(async () =>
-      resolveUpdateRollout(params.candidates, params.easClientId),
+    const rolloutResult = yield* resolveUpdateRollout(params.candidates, params.easClientId).pipe(
+      Effect.orDie,
     );
 
     if (rolloutResult === null) {
@@ -235,7 +236,7 @@ const handleCacheMiss = (params: {
   readonly cacheKey: string;
   readonly ph: ProtocolHeaders;
   readonly track: TrackManifestResponse;
-}): Effect.Effect<Response, NotFound, ManifestRepo | ManifestCacheStorage> =>
+}): Effect.Effect<Response, NotFound, ManifestRepo | ManifestCacheStorage | CryptoService> =>
   Effect.gen(function* () {
     const { scopeKey, resolvedBranchId, cacheKey, ph, track } = params;
     const repo = yield* ManifestRepo;
@@ -284,7 +285,7 @@ const serveCachedOrFresh = (params: {
   readonly accept: string;
   readonly ph: ProtocolHeaders;
   readonly track: TrackManifestResponse;
-}): Effect.Effect<Response, NotFound, ManifestRepo | ManifestCacheStorage> =>
+}): Effect.Effect<Response, NotFound, ManifestRepo | ManifestCacheStorage | CryptoService> =>
   Effect.gen(function* () {
     const { cacheVersion, projectId, scopeKey, resolvedBranchId, accept, ph, track } = params;
     const cacheKey = buildCacheKey({
@@ -317,7 +318,7 @@ const resolveRequestResponse = (params: {
   readonly accept: string;
   readonly ph: ProtocolHeaders;
   readonly track: TrackManifestResponse;
-}): Effect.Effect<Response, NotFound, ManifestRepo | ManifestCacheStorage> => {
+}): Effect.Effect<Response, NotFound, ManifestRepo | ManifestCacheStorage | CryptoService> => {
   const { channel, projectId, scopeKey, resolvedBranchId, accept, ph, track } = params;
   return serveCachedOrFresh({
     cacheVersion: channel.cache_version,
@@ -333,7 +334,11 @@ const resolveRequestResponse = (params: {
 const serveRequest = (
   request: Request,
   projectId: string,
-): Effect.Effect<Response, BadRequest | NotFound, ManifestRepo | ManifestCacheStorage> =>
+): Effect.Effect<
+  Response,
+  BadRequest | NotFound,
+  ManifestRepo | ManifestCacheStorage | CryptoService
+> =>
   Effect.gen(function* () {
     const startTime = Date.now();
     const runtime = yield* manifestRuntime;
@@ -378,7 +383,7 @@ const toManifestErrorResponse = (error: BadRequest | NotFound) =>
 const serve = (
   request: Request,
   projectId: string,
-): Effect.Effect<Response, never, ManifestRepo | ManifestCacheStorage> =>
+): Effect.Effect<Response, never, ManifestRepo | ManifestCacheStorage | CryptoService> =>
   Effect.match(serveRequest(request, projectId), {
     onFailure: toManifestErrorResponse,
     onSuccess: (response) => response,
@@ -392,10 +397,7 @@ export const serveManifest = async (
 ): Promise<Response> =>
   Effect.runPromise(
     provideCloudflareRequestContext(
-      serve(request, projectId).pipe(
-        Effect.provide(ManifestRepoLive),
-        Effect.provide(ManifestCacheStorageLive),
-      ),
+      serve(request, projectId).pipe(Effect.provide(ManifestServicesLive)),
       env,
       ctx,
       request,

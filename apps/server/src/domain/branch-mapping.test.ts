@@ -1,12 +1,16 @@
+import { it } from "@effect/vitest";
 import { Effect } from "effect";
 
+import { CryptoServiceLive } from "../cloudflare/crypto-service";
 import {
   buildBranchMapping,
   evaluateBranchMapping,
-  extractReachableBranchIds,
   extractNewBranchId,
+  extractReachableBranchIds,
   updateBranchMappingPercentage,
 } from "./branch-mapping";
+
+const withCrypto = Effect.provide(CryptoServiceLive);
 
 describe(buildBranchMapping, () => {
   test("produces correct JSON with two entries", () => {
@@ -120,140 +124,125 @@ describe(evaluateBranchMapping, () => {
   const oldBranchId = "branch-old";
   const salt = "test-salt-uuid";
 
-  test("returns fallback branch when no clientId is provided", async () => {
-    const mapping = buildBranchMapping({
-      newBranchId,
-      oldBranchId,
-      percentage: 50,
-      salt,
-    });
+  it.effect("returns fallback branch when no clientId is provided", () =>
+    Effect.gen(function* () {
+      const mapping = buildBranchMapping({ newBranchId, oldBranchId, percentage: 50, salt });
+      const result = yield* evaluateBranchMapping(mapping, undefined);
+      expect(result).toBe(oldBranchId);
+    }).pipe(withCrypto),
+  );
 
-    const result = await evaluateBranchMapping(mapping, undefined);
-    expect(result).toBe(oldBranchId);
-  });
+  it.effect("is deterministic for same salt + clientId", () =>
+    Effect.gen(function* () {
+      const mapping = buildBranchMapping({ newBranchId, oldBranchId, percentage: 50, salt });
+      const clientId = "client-abc-123";
+      const result1 = yield* evaluateBranchMapping(mapping, clientId);
+      const result2 = yield* evaluateBranchMapping(mapping, clientId);
+      const result3 = yield* evaluateBranchMapping(mapping, clientId);
+      expect(result1).toBe(result2);
+      expect(result2).toBe(result3);
+    }).pipe(withCrypto),
+  );
 
-  test("is deterministic for same salt + clientId", async () => {
-    const mapping = buildBranchMapping({
-      newBranchId,
-      oldBranchId,
-      percentage: 50,
-      salt,
-    });
-
-    const clientId = "client-abc-123";
-    const result1 = await evaluateBranchMapping(mapping, clientId);
-    const result2 = await evaluateBranchMapping(mapping, clientId);
-    const result3 = await evaluateBranchMapping(mapping, clientId);
-
-    expect(result1).toBe(result2);
-    expect(result2).toBe(result3);
-  });
-
-  test("at 100% threshold all clients get new branch", async () => {
-    const mapping = buildBranchMapping({
-      newBranchId,
-      oldBranchId,
-      percentage: 100,
-      salt,
-    });
-
-    const clientIds = ["client-1", "client-2", "client-3", "client-4", "client-5"];
-    const results = await Effect.runPromise(
-      Effect.all(
-        clientIds.map((clientId) =>
-          Effect.promise(async () => evaluateBranchMapping(mapping, clientId)),
-        ),
+  it.effect("at 100% threshold all clients get new branch", () =>
+    Effect.gen(function* () {
+      const mapping = buildBranchMapping({ newBranchId, oldBranchId, percentage: 100, salt });
+      const clientIds = ["client-1", "client-2", "client-3", "client-4", "client-5"];
+      const results = yield* Effect.forEach(
+        clientIds,
+        (clientId) => evaluateBranchMapping(mapping, clientId),
         { concurrency: "unbounded" },
-      ),
-    );
-    results.forEach((result) => expect(result).toBe(newBranchId));
-  });
+      );
+      results.forEach((result) => expect(result).toBe(newBranchId));
+    }).pipe(withCrypto),
+  );
 
-  test("at 0% threshold no clients get new branch", async () => {
-    const mapping = JSON.stringify({
-      data: [
-        { branchId: newBranchId, branchMappingLogic: "hash_lt(mappingId, 0.00)" },
-        { branchId: oldBranchId, branchMappingLogic: "true" },
-      ],
-      salt,
-    });
-
-    const clientIds = ["client-1", "client-2", "client-3", "client-4", "client-5"];
-    const results = await Effect.runPromise(
-      Effect.all(
-        clientIds.map((clientId) =>
-          Effect.promise(async () => evaluateBranchMapping(mapping, clientId)),
-        ),
+  it.effect("at 0% threshold no clients get new branch", () =>
+    Effect.gen(function* () {
+      const mapping = JSON.stringify({
+        data: [
+          { branchId: newBranchId, branchMappingLogic: "hash_lt(mappingId, 0.00)" },
+          { branchId: oldBranchId, branchMappingLogic: "true" },
+        ],
+        salt,
+      });
+      const clientIds = ["client-1", "client-2", "client-3", "client-4", "client-5"];
+      const results = yield* Effect.forEach(
+        clientIds,
+        (clientId) => evaluateBranchMapping(mapping, clientId),
         { concurrency: "unbounded" },
-      ),
-    );
-    results.forEach((result) => expect(result).toBe(oldBranchId));
-  });
+      );
+      results.forEach((result) => expect(result).toBe(oldBranchId));
+    }).pipe(withCrypto),
+  );
 
-  test("skips entries with unrecognized branchMappingLogic", async () => {
-    const mapping = JSON.stringify({
-      data: [
-        { branchId: newBranchId, branchMappingLogic: "unknown_operator(foo, 0.50)" },
-        { branchId: oldBranchId, branchMappingLogic: "true" },
-      ],
-      salt,
-    });
+  it.effect("skips entries with unrecognized branchMappingLogic", () =>
+    Effect.gen(function* () {
+      const mapping = JSON.stringify({
+        data: [
+          { branchId: newBranchId, branchMappingLogic: "unknown_operator(foo, 0.50)" },
+          { branchId: oldBranchId, branchMappingLogic: "true" },
+        ],
+        salt,
+      });
+      const result = yield* evaluateBranchMapping(mapping, "any-client");
+      expect(result).toBe(oldBranchId);
+    }).pipe(withCrypto),
+  );
 
-    const result = await evaluateBranchMapping(mapping, "any-client");
-    expect(result).toBe(oldBranchId);
-  });
+  it.effect("returns empty fallback for valid JSON with wrong shape", () =>
+    Effect.gen(function* () {
+      const mapping = JSON.stringify({ notData: true });
+      const result = yield* evaluateBranchMapping(mapping, "any-client");
+      expect(result).toBe("");
+    }).pipe(withCrypto),
+  );
 
-  test("returns empty fallback for valid JSON with wrong shape", async () => {
-    const mapping = JSON.stringify({ notData: true });
-    const result = await evaluateBranchMapping(mapping, "any-client");
-    expect(result).toBe("");
-  });
+  it.effect("returns empty fallback for malformed JSON string", () =>
+    Effect.gen(function* () {
+      const result = yield* evaluateBranchMapping("not-json", "any-client");
+      expect(result).toBe("");
+    }).pipe(withCrypto),
+  );
 
-  test("returns empty fallback for malformed JSON string", async () => {
-    const result = await evaluateBranchMapping("not-json", "any-client");
-    expect(result).toBe("");
-  });
+  it.effect("hash correctness for known salt + clientId", () =>
+    Effect.gen(function* () {
+      const testSalt = "known-salt";
+      const testClientId = "known-client";
+      const input = new TextEncoder().encode(`${testSalt}:${testClientId}`);
+      const hashBuffer = yield* Effect.promise(async () => crypto.subtle.digest("SHA-256", input));
+      const view = new DataView(hashBuffer);
+      const uint32 = view.getUint32(0, false);
+      const expectedValue = uint32 / 4_294_967_296;
 
-  test("hash correctness for known salt + clientId", async () => {
-    // Compute the expected hash manually for verification
-    const testSalt = "known-salt";
-    const testClientId = "known-client";
-    const input = new TextEncoder().encode(`${testSalt}:${testClientId}`);
-    const hashBuffer = await crypto.subtle.digest("SHA-256", input);
-    const view = new DataView(hashBuffer);
-    const uint32 = view.getUint32(0, false);
-    const expectedValue = uint32 / 4_294_967_296;
+      const thresholdAbove = Math.min(expectedValue + 0.01, 1);
+      const thresholdBelow = Math.max(expectedValue - 0.01, 0);
 
-    // Use a threshold that we know the value falls on the correct side of
-    const thresholdAbove = Math.min(expectedValue + 0.01, 1);
-    const thresholdBelow = Math.max(expectedValue - 0.01, 0);
+      const mappingAbove = JSON.stringify({
+        data: [
+          {
+            branchId: newBranchId,
+            branchMappingLogic: `hash_lt(mappingId, ${thresholdAbove.toFixed(10)})`,
+          },
+          { branchId: oldBranchId, branchMappingLogic: "true" },
+        ],
+        salt: testSalt,
+      });
+      const resultAbove = yield* evaluateBranchMapping(mappingAbove, testClientId);
+      expect(resultAbove).toBe(newBranchId);
 
-    // With threshold above the hash value, client should get new branch
-    const mappingAbove = JSON.stringify({
-      data: [
-        {
-          branchId: newBranchId,
-          branchMappingLogic: `hash_lt(mappingId, ${thresholdAbove.toFixed(10)})`,
-        },
-        { branchId: oldBranchId, branchMappingLogic: "true" },
-      ],
-      salt: testSalt,
-    });
-    const resultAbove = await evaluateBranchMapping(mappingAbove, testClientId);
-    expect(resultAbove).toBe(newBranchId);
-
-    // With threshold below the hash value, client should get old branch
-    const mappingBelow = JSON.stringify({
-      data: [
-        {
-          branchId: newBranchId,
-          branchMappingLogic: `hash_lt(mappingId, ${thresholdBelow.toFixed(10)})`,
-        },
-        { branchId: oldBranchId, branchMappingLogic: "true" },
-      ],
-      salt: testSalt,
-    });
-    const resultBelow = await evaluateBranchMapping(mappingBelow, testClientId);
-    expect(resultBelow).toBe(oldBranchId);
-  });
+      const mappingBelow = JSON.stringify({
+        data: [
+          {
+            branchId: newBranchId,
+            branchMappingLogic: `hash_lt(mappingId, ${thresholdBelow.toFixed(10)})`,
+          },
+          { branchId: oldBranchId, branchMappingLogic: "true" },
+        ],
+        salt: testSalt,
+      });
+      const resultBelow = yield* evaluateBranchMapping(mappingBelow, testClientId);
+      expect(resultBelow).toBe(oldBranchId);
+    }).pipe(withCrypto),
+  );
 });

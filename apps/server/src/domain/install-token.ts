@@ -1,46 +1,38 @@
-import { fromBase64Url, toBase64Url } from "../lib/base64";
+import { Effect } from "effect";
+
+import { CryptoService } from "./crypto-service";
+
+import type { CryptoError } from "./crypto-service";
 
 const EXPIRY_MS = 3_600_000;
 
-const importKey = async (secret: string) =>
-  crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign", "verify"],
-  );
+export const generateInstallToken = (
+  buildId: string,
+  secret: string,
+): Effect.Effect<
+  { readonly token: string; readonly expires: number },
+  CryptoError,
+  CryptoService
+> =>
+  Effect.gen(function* () {
+    const expires = Math.floor((Date.now() + EXPIRY_MS) / 1000);
+    const payload = `${buildId}:${expires}`;
+    const service = yield* CryptoService;
+    const token = yield* service.hmacSignBase64Url(secret, payload);
+    return { token, expires };
+  });
 
-const asArrayBuffer = (bytes: Uint8Array): ArrayBuffer => {
-  const buffer = new ArrayBuffer(bytes.byteLength);
-  new Uint8Array(buffer).set(bytes);
-  return buffer;
-};
-
-export const generateInstallToken = async (buildId: string, secret: string) => {
-  const expires = Math.floor((Date.now() + EXPIRY_MS) / 1000);
-  const payload = `${buildId}:${expires}`;
-  const key = await importKey(secret);
-  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payload));
-  return { token: toBase64Url(signature), expires };
-};
-
-export const verifyInstallToken = async (
+export const verifyInstallToken = (
   buildId: string,
   token: string,
   expires: number,
   secret: string,
-) => {
-  if (Math.floor(Date.now() / 1000) > expires) {
-    return false;
-  }
-  const payload = `${buildId}:${expires}`;
-  const key = await importKey(secret);
-  const signatureBytes = fromBase64Url(token);
-  return crypto.subtle.verify(
-    "HMAC",
-    key,
-    asArrayBuffer(signatureBytes),
-    new TextEncoder().encode(payload),
-  );
-};
+): Effect.Effect<boolean, CryptoError, CryptoService> =>
+  Effect.gen(function* () {
+    if (Math.floor(Date.now() / 1000) > expires) {
+      return false;
+    }
+    const payload = `${buildId}:${expires}`;
+    const service = yield* CryptoService;
+    return yield* service.hmacVerifyBase64Url(secret, payload, token);
+  });
