@@ -3,12 +3,16 @@ import { FileSystem } from "@effect/platform";
 import { Console, Effect } from "effect";
 
 import type * as Terminal from "@effect/platform/Terminal";
+import type * as AppleUtils from "@expo/apple-utils";
 import type { RequestContext } from "@expo/apple-utils";
 
 import { AppleSessionStore } from "../services/apple-session-store";
 import { CliRuntime } from "../services/cli-runtime";
 import { importAppleUtils } from "./apple-utils-import";
 import { AppleAuthError } from "./exit-codes";
+
+type SessionProvider = AppleUtils.Session.SessionProvider;
+type CookiesJSON = AppleUtils.CookieFileCache.CookiesJSON;
 
 // ── types ────────────────────────────────────────────────────────
 
@@ -17,9 +21,15 @@ export interface AppleAuthContext {
   readonly requestContext: RequestContext;
 }
 
+interface ProviderResolution {
+  readonly providerId: number | undefined;
+  readonly switched: boolean;
+}
+
 // ── internal helpers ─────────────────────────────────────────────
 
 const KEYCHAIN_SERVICE = "better-update-apple-id";
+const APPLE_PROVIDER_ID_ENV = "APPLE_PROVIDER_ID";
 
 const loadAppleUtils = () => importAppleUtils((message) => new AppleAuthError({ message }));
 
@@ -28,6 +38,14 @@ const readEnv = (name: string) =>
     const runtime = yield* CliRuntime;
     return yield* runtime.getEnv(name);
   });
+
+const withProviderId = <T extends object>(
+  base: T,
+  providerId: number | undefined,
+): T & { providerId?: number } => (providerId === undefined ? base : { ...base, providerId });
+
+const formatProviderSuffix = (providerId: number | undefined) =>
+  providerId === undefined ? "" : `, Provider: ${providerId}`;
 
 // ── macOS Keychain helpers (non-blocking, darwin-only) ───────────
 
@@ -84,6 +102,121 @@ const saveKeychainPassword = (
     }).pipe(Effect.catchAll(() => Effect.void));
   });
 
+// ── Provider resolution ──────────────────────────────────────────
+
+export const parseProviderId = (raw: string): Effect.Effect<number, AppleAuthError> => {
+  const id = Number(raw);
+  return Number.isInteger(id)
+    ? Effect.succeed(id)
+    : Effect.fail(
+        new AppleAuthError({
+          message: `${APPLE_PROVIDER_ID_ENV} must be a numeric provider ID, got "${raw}".`,
+        }),
+      );
+};
+
+const readEnvProviderId: Effect.Effect<number | undefined, AppleAuthError, CliRuntime> = Effect.gen(
+  function* () {
+    const raw = yield* readEnv(APPLE_PROVIDER_ID_ENV);
+    if (!raw) return undefined;
+    return yield* parseProviderId(raw);
+  },
+);
+
+const switchSessionProvider = (
+  appleUtils: typeof AppleUtils,
+  providerId: number,
+): Effect.Effect<void, AppleAuthError> =>
+  Effect.tryPromise({
+    try: () => appleUtils.Session.setSessionProviderIdAsync(providerId),
+    catch: (error) =>
+      new AppleAuthError({
+        message: `Failed to switch App Store Connect provider (${providerId}): ${String(error)}`,
+      }),
+  }).pipe(Effect.asVoid);
+
+const extractCurrentCookies = (appleUtils: typeof AppleUtils): CookiesJSON =>
+  appleUtils.CookieFileCache.getCookiesJSON();
+
+const isProviderAvailable = (
+  providers: ReadonlyArray<SessionProvider>,
+  providerId: number,
+): boolean => providers.some((p) => p.providerId === providerId);
+
+/**
+ * Resolve App Store Connect provider for an interactive session.
+ *
+ * Selection order: APPLE_PROVIDER_ID env → valid cached pick → single available
+ * → preserve apple-utils' auto-resolved provider → prompt.
+ *
+ * `switched` flags that the apple-utils cookie jar was mutated; previously-captured
+ * cookies are stale and callers should re-extract via {@link extractCurrentCookies}.
+ *
+ * Headless-safe: prompt only fires when no env, no valid cache, multiple providers,
+ * AND apple-utils returned no auto-resolved provider.
+ */
+export const resolveProvider = (
+  appleUtils: typeof AppleUtils,
+  availableProviders: ReadonlyArray<SessionProvider>,
+  currentProviderId: number | undefined,
+  cachedProviderId: number | undefined,
+): Effect.Effect<
+  ProviderResolution,
+  AppleAuthError | Terminal.QuitException,
+  CliRuntime | Terminal.Terminal
+> =>
+  Effect.gen(function* () {
+    let switched = false;
+
+    const applyChoice = (picked: number) =>
+      Effect.gen(function* () {
+        if (currentProviderId !== picked) {
+          yield* switchSessionProvider(appleUtils, picked);
+          switched = true;
+        }
+        return picked;
+      });
+
+    const envId = yield* readEnvProviderId;
+    if (envId !== undefined) {
+      const id = yield* applyChoice(envId);
+      return { providerId: id, switched };
+    }
+
+    if (
+      cachedProviderId !== undefined &&
+      isProviderAvailable(availableProviders, cachedProviderId)
+    ) {
+      const id = yield* applyChoice(cachedProviderId);
+      return { providerId: id, switched };
+    }
+
+    if (availableProviders.length === 0) {
+      return { providerId: currentProviderId, switched };
+    }
+    if (availableProviders.length === 1) {
+      const id = yield* applyChoice(availableProviders[0]!.providerId);
+      return { providerId: id, switched };
+    }
+
+    // Multi-provider, no explicit signal: respect apple-utils auto-resolution
+    // (CI-safe). Only fall through to prompt when apple-utils returned nothing.
+    if (currentProviderId !== undefined) {
+      return { providerId: currentProviderId, switched };
+    }
+
+    const picked = yield* Prompt.select({
+      message: "Select App Store Connect provider:",
+      choices: availableProviders.map((provider) => ({
+        title: `${provider.name} [${provider.subType}] (${provider.providerId})`,
+        value: provider.providerId,
+      })),
+    });
+
+    const id = yield* applyChoice(picked);
+    return { providerId: id, switched };
+  });
+
 // ── ASC API key auth (CI) ────────────────────────────────────────
 
 const authenticateWithAscApiKey: Effect.Effect<
@@ -115,9 +248,16 @@ const authenticateWithAscApiKey: Effect.Effect<
   const appleUtils = yield* loadAppleUtils();
   const token = new appleUtils.Token({ key: keyContent, keyId, issuerId, duration: 1200 });
 
-  yield* Console.log(`Authenticated with ASC API Key (Team: ${teamId})`);
+  const providerId = yield* readEnvProviderId;
 
-  return { teamId, requestContext: { token, teamId } } satisfies AppleAuthContext;
+  yield* Console.log(
+    `Authenticated with ASC API Key (Team: ${teamId}${formatProviderSuffix(providerId)})`,
+  );
+
+  return {
+    teamId,
+    requestContext: withProviderId({ token, teamId }, providerId),
+  } satisfies AppleAuthContext;
 });
 
 // ── Apple ID auth (interactive) ──────────────────────────────────
@@ -147,9 +287,31 @@ const authenticateWithAppleId: Effect.Effect<
 
     if (restored) {
       yield* Console.log("Apple session restored successfully.");
+      const { providerId: restoredProviderId, switched } = yield* resolveProvider(
+        appleUtils,
+        restored.session.availableProviders,
+        restored.session.provider?.providerId,
+        savedSession.providerId,
+      );
+
+      const providerChanged = restoredProviderId !== savedSession.providerId;
+      if (switched || providerChanged) {
+        const cookiesToPersist = switched ? extractCurrentCookies(appleUtils) : restored.cookies;
+        yield* sessionStore.saveSession(
+          withProviderId(
+            {
+              cookies: cookiesToPersist,
+              teamId: savedSession.teamId,
+              username: savedSession.username,
+            },
+            restoredProviderId,
+          ),
+        );
+      }
+
       return {
         teamId: savedSession.teamId,
-        requestContext: restored.context,
+        requestContext: withProviderId(restored.context, restoredProviderId),
       } satisfies AppleAuthContext;
     }
 
@@ -230,23 +392,32 @@ const authenticateWithAppleId: Effect.Effect<
     }
   }
 
-  // 5. Persist session for next run.
-  yield* sessionStore.saveSession({
-    cookies: authState.cookies,
-    teamId,
-    username,
-  });
+  // 5. Resolve App Store Connect provider.
+  const { providerId, switched } = yield* resolveProvider(
+    appleUtils,
+    authState.session.availableProviders,
+    authState.session.provider?.providerId,
+    undefined,
+  );
 
-  // 6. Cache password in macOS Keychain for next session expiry.
+  // 6. Persist session for next run (use post-switch cookies if provider changed).
+  const cookiesToPersist = switched ? extractCurrentCookies(appleUtils) : authState.cookies;
+  yield* sessionStore.saveSession(
+    withProviderId({ cookies: cookiesToPersist, teamId, username }, providerId),
+  );
+
+  // 7. Cache password in macOS Keychain for next session expiry.
   if (!envPassword) {
     yield* saveKeychainPassword(username, password);
   }
 
-  yield* Console.log(`Authenticated as ${username} (Team: ${teamId})`);
+  yield* Console.log(
+    `Authenticated as ${username} (Team: ${teamId}${formatProviderSuffix(providerId)})`,
+  );
 
   return {
     teamId,
-    requestContext: { ...authState.context, teamId },
+    requestContext: withProviderId({ ...authState.context, teamId }, providerId),
   } satisfies AppleAuthContext;
 });
 
@@ -258,6 +429,12 @@ const authenticateWithAppleId: Effect.Effect<
  * Auto-detects auth mode:
  * - If APPLE_ASC_KEY_PATH + APPLE_ASC_KEY_ID + APPLE_ASC_ISSUER_ID are set → ASC API Key (CI)
  * - Otherwise → interactive Apple ID + password + 2FA
+ *
+ * Team selection (Apple ID flow): APPLE_TEAM_ID env > cached session > prompt when multiple.
+ * Provider selection (Apple ID flow): APPLE_PROVIDER_ID env > valid cached pick > single
+ *   available > apple-utils auto-resolution > prompt. CI-safe — only prompts when no
+ *   explicit signal and apple-utils returned no auto-resolved provider.
+ * ASC API key flow honors APPLE_PROVIDER_ID env only (never prompts, never caches).
  */
 export const authenticateWithApple: Effect.Effect<
   AppleAuthContext,

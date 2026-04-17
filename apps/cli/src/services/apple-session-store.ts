@@ -20,6 +20,7 @@ export interface SerializedAppleSession {
   readonly cookies: AppleSessionCookies;
   readonly teamId: string;
   readonly username: string;
+  readonly providerId?: number;
 }
 
 export class AppleSessionStore extends Context.Tag("cli/AppleSessionStore")<
@@ -60,10 +61,14 @@ export const AppleSessionStoreLive = Layer.effect(
           return null;
         }
 
+        const providerIdRaw = record["providerId"];
+        const hasProviderId = typeof providerIdRaw === "number" && Number.isInteger(providerIdRaw);
+
         return {
           cookies: record["cookies"] as AppleSessionCookies,
           teamId: record["teamId"],
           username: record["username"],
+          ...(hasProviderId ? { providerId: providerIdRaw } : {}),
         } satisfies SerializedAppleSession;
       }),
 
