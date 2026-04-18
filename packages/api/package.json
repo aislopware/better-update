@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@effect/platform": "^0.96.0",
-    "effect": "^3.21.0"
+    "effect": "^3.21.1"
   },
   "devDependencies": {
     "@better-update/oxlint-config": "workspace:*",
