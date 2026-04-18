@@ -95,7 +95,7 @@
     "import/no-named-export": "off",
     "import/no-relative-parent-imports": "off",
     "import/prefer-default-export": "off",
-    "import/max-dependencies": ["warn", { "max": 15 }],
+    "import/max-dependencies": "off",
     "import/no-unassigned-import": ["warn", { "allow": ["**/*.css", "**/*.scss"] }],
 
     "jsdoc/require-param": "off",

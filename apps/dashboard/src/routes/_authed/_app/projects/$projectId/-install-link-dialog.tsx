@@ -11,7 +11,6 @@ import {
 } from "@better-update/ui/components/ui/dialog";
 import { SmartPhone02Icon, Copy01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useMutation } from "@tanstack/react-query";
 import { QRCodeSVG } from "qrcode.react";
 import { useSyncExternalStore, useState } from "react";
 import { toast } from "sonner";
@@ -19,6 +18,7 @@ import { toast } from "sonner";
 import type { BuildWithArtifact } from "@better-update/api";
 import type { ComponentProps } from "react";
 
+import { useApiMutation } from "../../../../../lib/use-api-mutation";
 import { useCopyToClipboard } from "../../../../../lib/use-copy-to-clipboard";
 
 const CopyButton = ({ text }: { text: string }) => {
@@ -72,7 +72,7 @@ export const InstallLinkDialog = ({
   buttonSize?: ComponentProps<typeof Button>["size"];
 }) => {
   const [open, setOpen] = useState(false);
-  const fetchInstallLinkMutation = useMutation({
+  const fetchInstallLinkMutation = useApiMutation({
     mutationFn: async () => fetchInstallLink(build.id),
   });
 

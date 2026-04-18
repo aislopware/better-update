@@ -21,14 +21,14 @@ import { Input } from "@better-update/ui/components/ui/input";
 import { Label } from "@better-update/ui/components/ui/label";
 import { Separator } from "@better-update/ui/components/ui/separator";
 import { useForm } from "@tanstack/react-form";
-import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { authClient } from "../../../../lib/auth-client";
 import { generateSlug, nameSchema, slugSchema } from "../../../../lib/form-utils";
-import { deleteOrg } from "../../../../lib/org-mutations";
+import { useDeleteOrgMutation } from "../../../../lib/org-mutations";
 import { orgsQueryOptions, sessionQueryOptions } from "../../../../queries/auth";
 
 const OrgGeneralForm = () => {
@@ -159,15 +159,12 @@ const DeleteOrgSection = () => {
   const activeOrg = orgs.find((org) => org.id === activeOrgId) ?? orgs[0];
   const [confirmText, setConfirmText] = useState("");
 
-  const deleteOrgMutation = useMutation({
-    mutationFn: async () => deleteOrg(activeOrg?.id ?? ""),
+  const deleteOrgMutation = useDeleteOrgMutation({
+    orgId: activeOrg?.id ?? "",
     onSuccess: async () => {
       toast.success("Organization deleted");
       await queryClient.resetQueries({ queryKey: ["auth"] });
       await router.invalidate();
-    },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to delete organization");
     },
   });
 

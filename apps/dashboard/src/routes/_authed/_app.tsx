@@ -54,6 +54,7 @@ import { Link, Outlet, createFileRoute, useRouter, useRouterState } from "@tanst
 import { Suspense, useState } from "react";
 
 import { authClient } from "../../lib/auth-client";
+import { ErrorBoundary } from "../../lib/error-boundary";
 import { throwRedirect } from "../../lib/throw-redirect";
 import { useTheme } from "../../lib/use-theme";
 import { orgsQueryOptions, sessionQueryOptions } from "../../queries/auth";
@@ -305,24 +306,29 @@ const AppSidebar = () => (
   </Sidebar>
 );
 
-const AppLayout = () => (
-  <TooltipProvider>
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>
-        <header className="relative flex h-14 shrink-0 items-center gap-2 border-b px-4">
-          <SidebarTrigger className="-ml-1" />
-          <NavigationProgress />
-        </header>
-        <main className="flex-1 p-4">
-          <Suspense fallback={pageSkeleton}>
-            <Outlet />
-          </Suspense>
-        </main>
-      </SidebarInset>
-    </SidebarProvider>
-  </TooltipProvider>
-);
+const AppLayout = () => {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  return (
+    <TooltipProvider>
+      <SidebarProvider>
+        <AppSidebar />
+        <SidebarInset>
+          <header className="relative flex h-14 shrink-0 items-center gap-2 border-b px-4">
+            <SidebarTrigger className="-ml-1" />
+            <NavigationProgress />
+          </header>
+          <main className="flex-1 p-4">
+            <ErrorBoundary key={pathname}>
+              <Suspense fallback={pageSkeleton}>
+                <Outlet />
+              </Suspense>
+            </ErrorBoundary>
+          </main>
+        </SidebarInset>
+      </SidebarProvider>
+    </TooltipProvider>
+  );
+};
 
 export const Route = createFileRoute("/_authed/_app")({
   beforeLoad: async ({ context }) => {
