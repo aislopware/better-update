@@ -20,7 +20,7 @@
   "dependencies": {
     "@better-update/api": "workspace:*",
     "@better-update/safe-json": "workspace:*",
-    "@effect/cli": "^0.75.0",
+    "@effect/cli": "^0.75.1",
     "@effect/platform": "^0.96.0",
     "@effect/platform-bun": "^0.89.0",
     "@expo/apple-utils": "^2.1.21",
@@ -29,7 +29,7 @@
     "@expo/plist": "^0.5.2",
     "@expo/xcpretty": "^4.4.3",
     "bplist-parser": "^0.3.2",
-    "effect": "^3.21.0",
+    "effect": "^3.21.1",
     "gradle-to-js": "^2.0.1",
     "jks-js": "^1.1.6"
   },
