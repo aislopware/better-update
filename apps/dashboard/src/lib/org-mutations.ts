@@ -2,6 +2,7 @@ import { Effect } from "effect";
 import { toast } from "sonner";
 
 import { authClient } from "./auth-client";
+import { useApiMutation } from "./use-api-mutation";
 
 /**
  * Creates an organization and activates it in the session.
@@ -43,3 +44,12 @@ export const deleteOrg = async (organizationId: string): Promise<void> =>
       }),
     ),
   );
+
+export const useDeleteOrgMutation = (options: {
+  orgId: string;
+  onSuccess: () => Promise<void> | void;
+}) =>
+  useApiMutation({
+    mutationFn: async () => deleteOrg(options.orgId),
+    onSuccess: options.onSuccess,
+  });
