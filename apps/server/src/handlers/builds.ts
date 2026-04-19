@@ -15,11 +15,8 @@ import { cloudflareRequest } from "../cloudflare/context";
 import { createDirectUploadHeaders } from "../cloudflare/signed-url";
 import { generateInstallToken } from "../domain/install-token";
 import { BadRequest, NotFound } from "../errors";
-import {
-  toApiBadRequestReadEffect,
-  toApiBuild,
-  toApiBuildCompatibilityMatrix,
-} from "../http/build-http";
+import { toApiBuild, toApiBuildCompatibilityMatrix } from "../http/to-api";
+import { toApiBadRequestReadEffect } from "../http/to-api-effect";
 import { toDbNull } from "../lib/nullable";
 import { parsePagination } from "../lib/pagination";
 import { BuildRepo, CompatibilityRepo } from "../repositories";

@@ -41,12 +41,9 @@ import type {
 import type { BranchItem } from "@better-update/api-client/react";
 
 import { useApiMutation } from "../../../../../lib/use-api-mutation";
-import {
-  CompatibleBuildsSection,
-  DeleteChannelDialog,
-  MissingMatchingBuilds,
-  parseRolloutState,
-} from "./-channel-card-sections";
+import { CompatibleBuildsSection, MissingMatchingBuilds } from "./-channel-compatibility";
+import { parseRolloutState } from "./-channel-rollout-state";
+import { DeleteChannelDialog } from "./-delete-channel-dialog";
 import { invalidateChannels as invalidateChannelsHelper } from "./-update-helpers";
 
 interface BranchRolloutControlsProps {
