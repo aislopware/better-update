@@ -24,7 +24,6 @@ import {
   SidebarMenuItem,
   SidebarProvider,
   SidebarRail,
-  SidebarSeparator,
   useSidebar,
 } from "@better-update/ui/components/ui/sidebar";
 import { Skeleton } from "@better-update/ui/components/ui/skeleton";
@@ -271,7 +270,7 @@ const AppSidebarRail = () => {
 };
 
 const AppSidebar = ({ projectSlug }: { projectSlug: string | undefined }) => (
-  <Sidebar variant="inset" collapsible="icon">
+  <Sidebar collapsible="icon">
     <SidebarHeader>
       <SidebarMenu>
         <SidebarMenuItem>
@@ -279,7 +278,6 @@ const AppSidebar = ({ projectSlug }: { projectSlug: string | undefined }) => (
         </SidebarMenuItem>
       </SidebarMenu>
     </SidebarHeader>
-    <SidebarSeparator />
     <SidebarContent>
       {projectSlug ? <ProjectNavSections projectSlug={projectSlug} /> : <OrgNavSections />}
     </SidebarContent>
@@ -302,16 +300,16 @@ const AppLayout = () => {
     <TooltipProvider>
       <SidebarProvider>
         <AppSidebar projectSlug={projectSlug} />
-        <SidebarInset className="relative">
+        <SidebarInset className="bg-sidebar relative">
           <NavigationProgress />
-          <header className="bg-background/80 sticky top-0 z-30 flex h-12 shrink-0 items-center gap-2 border-b px-4 backdrop-blur">
+          <header className="bg-sidebar/80 sticky top-0 z-30 flex h-12 shrink-0 items-center gap-2 border-b px-4 backdrop-blur">
             <AppBreadcrumb
               orgId={activeOrg.id}
               orgName={activeOrg.name}
               projectSlug={projectSlug}
             />
           </header>
-          <main className="flex-1 p-4">
+          <main className="flex-1 p-4 md:p-6">
             <ErrorBoundary key={pathname}>
               <Suspense fallback={pageSkeleton}>
                 <Outlet />

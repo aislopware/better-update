@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@better-update/ui/components/ui/card";
-import { Input } from "@better-update/ui/components/ui/input";
+import { DateRangePicker } from "@better-update/ui/components/ui/date-range-picker";
 import {
   Select,
   SelectContent,
@@ -28,6 +28,8 @@ import {
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { ScrollTextIcon } from "lucide-react";
 import { useState } from "react";
+
+import type { DateRange } from "react-day-picker";
 
 const RESOURCE_TYPES = [
   { value: "all", label: "All" },
@@ -155,17 +157,21 @@ export interface AuditLogViewProps {
   readonly scopeLabel: string;
 }
 
+const startOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+const endOfDay = (date: Date) =>
+  new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59);
+
 export const AuditLogView = ({ orgId, projectId, scopeLabel }: AuditLogViewProps) => {
   const [resourceType, setResourceType] = useState("all");
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [page, setPage] = useState(1);
 
   const filters = {
     ...(projectId ? { projectId } : {}),
     ...(resourceType === "all" ? {} : { resourceType }),
-    ...(fromDate ? { from: new Date(`${fromDate}T00:00:00`).toISOString() } : {}),
-    ...(toDate ? { to: new Date(`${toDate}T23:59:59`).toISOString() } : {}),
+    ...(dateRange?.from ? { from: startOfDay(dateRange.from).toISOString() } : {}),
+    ...(dateRange?.to ? { to: endOfDay(dateRange.to).toISOString() } : {}),
     page,
     limit: 50,
   };
@@ -173,13 +179,8 @@ export const AuditLogView = ({ orgId, projectId, scopeLabel }: AuditLogViewProps
   const { data } = useSuspenseQuery(auditLogsQueryOptions(orgId, filters));
   const totalPages = Math.ceil(data.total / data.limit);
 
-  const handleFromChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setFromDate(event.target.value);
-    setPage(1);
-  };
-
-  const handleToChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setToDate(event.target.value);
+  const handleRangeChange = (value: DateRange | undefined) => {
+    setDateRange(value);
     setPage(1);
   };
 
@@ -207,14 +208,7 @@ export const AuditLogView = ({ orgId, projectId, scopeLabel }: AuditLogViewProps
             ))}
           </SelectContent>
         </Select>
-        <div className="flex items-center gap-2">
-          <span className="text-muted-foreground text-sm">From</span>
-          <Input type="date" className="w-40" value={fromDate} onChange={handleFromChange} />
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-muted-foreground text-sm">To</span>
-          <Input type="date" className="w-40" value={toDate} onChange={handleToChange} />
-        </div>
+        <DateRangePicker value={dateRange} onChange={handleRangeChange} />
       </div>
 
       {data.items.length === 0 ? (

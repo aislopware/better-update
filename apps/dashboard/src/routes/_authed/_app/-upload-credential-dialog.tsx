@@ -1,6 +1,7 @@
 import { credentialsQueryKey, uploadCredential } from "@better-update/api-client/react";
 import { toBase64 } from "@better-update/encoding";
 import { Button } from "@better-update/ui/components/ui/button";
+import { DatePicker } from "@better-update/ui/components/ui/date-picker";
 import {
   Dialog,
   DialogContent,
@@ -19,6 +20,7 @@ import {
 } from "@better-update/ui/components/ui/select";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
+import { format } from "date-fns";
 import { PlusIcon, CloudUploadIcon } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -388,18 +390,22 @@ const UploadForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: () => void
               {showKeystoreFields && <KeystoreFields form={form} />}
 
               <form.Field name="expiresAt">
-                {(field) => (
-                  <div className="flex flex-col gap-2">
-                    <Label>Expiry Date (optional)</Label>
-                    <Input
-                      type="date"
-                      value={field.state.value}
-                      onChange={(ev) => {
-                        field.handleChange(ev.target.value);
-                      }}
-                    />
-                  </div>
-                )}
+                {(field) => {
+                  const dateValue = field.state.value
+                    ? new Date(`${field.state.value}T00:00:00`)
+                    : undefined;
+                  return (
+                    <div className="flex flex-col gap-2">
+                      <Label>Expiry Date (optional)</Label>
+                      <DatePicker
+                        value={dateValue}
+                        onChange={(value) => {
+                          field.handleChange(value ? format(value, "yyyy-MM-dd") : "");
+                        }}
+                      />
+                    </div>
+                  );
+                }}
               </form.Field>
             </>
           );
