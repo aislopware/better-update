@@ -6,15 +6,7 @@ import { AuditLogView } from "../../-audit-log-view";
 const ProjectAuditLogPage = () => {
   const { activeOrg, project } = Route.useRouteContext();
 
-  return (
-    <AuditLogView
-      orgId={activeOrg.id}
-      projectId={project.id}
-      title="Audit Log"
-      description="Track all actions performed in this project."
-      scopeLabel="this project"
-    />
-  );
+  return <AuditLogView orgId={activeOrg.id} projectId={project.id} scopeLabel="this project" />;
 };
 
 export const Route = createFileRoute("/_authed/_app/projects/$projectSlug/audit-log")({

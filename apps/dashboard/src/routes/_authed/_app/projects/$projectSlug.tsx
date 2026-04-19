@@ -2,7 +2,7 @@ import { projectBySlugQueryOptions } from "@better-update/api-client/react";
 import { Outlet, createFileRoute } from "@tanstack/react-router";
 
 const ProjectShell = () => (
-  <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
+  <div className="flex w-full flex-col gap-4">
     <Outlet />
   </div>
 );

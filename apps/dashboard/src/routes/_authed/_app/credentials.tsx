@@ -41,24 +41,17 @@ const Credentials = () => {
   };
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Credentials</h1>
-          <p className="text-muted-foreground mt-1">
-            Manage signing credentials for iOS and Android builds.
-          </p>
-        </div>
+    <div className="flex w-full flex-col gap-4">
+      <div className="flex items-center justify-between gap-4">
+        <Tabs value={platformFilter} onValueChange={handlePlatformChange}>
+          <TabsList>
+            <TabsTrigger value="all">All</TabsTrigger>
+            <TabsTrigger value="ios">iOS</TabsTrigger>
+            <TabsTrigger value="android">Android</TabsTrigger>
+          </TabsList>
+        </Tabs>
         <UploadCredentialDialog orgId={orgId} />
       </div>
-
-      <Tabs value={platformFilter} onValueChange={handlePlatformChange}>
-        <TabsList>
-          <TabsTrigger value="all">All</TabsTrigger>
-          <TabsTrigger value="ios">iOS</TabsTrigger>
-          <TabsTrigger value="android">Android</TabsTrigger>
-        </TabsList>
-      </Tabs>
 
       {data.items.length === 0 ? (
         <EmptyState />

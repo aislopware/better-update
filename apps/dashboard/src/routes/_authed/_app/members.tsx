@@ -5,7 +5,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@better-update/ui/components/ui/card";
-import { Separator } from "@better-update/ui/components/ui/separator";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
@@ -99,14 +98,12 @@ const Members = () => {
   };
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Members</h1>
-          <p className="text-muted-foreground mt-1">Manage who has access to your organization.</p>
+    <div className="flex w-full flex-col gap-4">
+      {isOwnerOrAdmin ? (
+        <div className="flex justify-end">
+          <InviteDialog orgId={orgId} />
         </div>
-        {isOwnerOrAdmin ? <InviteDialog orgId={orgId} /> : null}
-      </div>
+      ) : null}
 
       <Card>
         <CardHeader>
@@ -127,24 +124,21 @@ const Members = () => {
       </Card>
 
       {pendingInvitations.length > 0 ? (
-        <>
-          <Separator />
-          <Card>
-            <CardHeader>
-              <CardTitle>Pending invitations</CardTitle>
-              <CardDescription>
-                {pendingInvitations.length} pending{" "}
-                {pendingInvitations.length === 1 ? "invitation" : "invitations"}.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <InvitationsTableView
-                invitations={pendingInvitations}
-                onCancel={handleCancelInvitation}
-              />
-            </CardContent>
-          </Card>
-        </>
+        <Card>
+          <CardHeader>
+            <CardTitle>Pending invitations</CardTitle>
+            <CardDescription>
+              {pendingInvitations.length} pending{" "}
+              {pendingInvitations.length === 1 ? "invitation" : "invitations"}.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <InvitationsTableView
+              invitations={pendingInvitations}
+              onCancel={handleCancelInvitation}
+            />
+          </CardContent>
+        </Card>
       ) : null}
 
       <RemoveDialog

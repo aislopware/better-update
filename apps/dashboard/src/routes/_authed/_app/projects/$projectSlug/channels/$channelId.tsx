@@ -153,14 +153,8 @@ const ChannelDetailPage = () => {
 
   if (!channel) {
     return (
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
-        <ProjectSubpageHeader
-          projectSlug={project.slug}
-          projectName={project.name}
-          sectionLabel="Channels"
-          title="Channel details"
-          description="Inspect branch routing, rollout state, and build compatibility."
-        />
+      <div className="flex w-full flex-col gap-4">
+        <ProjectSubpageHeader title="Channel details" />
         <ChannelNotFoundState projectSlug={project.slug} />
       </div>
     );
@@ -175,14 +169,8 @@ const ChannelDetailPage = () => {
   const rolloutActive = compatibleBuilds.some(({ status }) => status.rolloutActive);
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
-      <ProjectSubpageHeader
-        projectSlug={project.slug}
-        projectName={project.name}
-        sectionLabel="Channels"
-        title={channel.name}
-        description="Inspect branch routing, rollout state, and build compatibility."
-      />
+    <div className="flex w-full flex-col gap-4">
+      <ProjectSubpageHeader title={channel.name} />
 
       <ChannelSummaryCards
         linkedBranchName={linkedBranch?.name ?? channel.branchId}

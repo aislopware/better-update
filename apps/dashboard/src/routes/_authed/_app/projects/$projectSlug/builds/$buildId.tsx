@@ -225,13 +225,9 @@ const BuildDetailPage = () => {
     compatibilityData.rows.find((row) => row.id === buildId) ?? toBuildCompatibilityRow(build);
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
+    <div className="flex w-full flex-col gap-4">
       <ProjectSubpageHeader
-        projectSlug={project.slug}
-        projectName={project.name}
-        sectionLabel="Builds"
         title={(build.message ?? build.profile) || `Build ${build.id.slice(0, 8)}`}
-        description="Inspect artifact metadata, install actions, and OTA compatibility."
       />
 
       {build.projectId === projectId ? (

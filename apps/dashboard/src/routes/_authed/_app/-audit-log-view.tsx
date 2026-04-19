@@ -152,18 +152,10 @@ const EmptyState = ({ scopeLabel }: { scopeLabel: string }) => (
 export interface AuditLogViewProps {
   readonly orgId: string;
   readonly projectId?: string;
-  readonly title: string;
-  readonly description: string;
   readonly scopeLabel: string;
 }
 
-export const AuditLogView = ({
-  orgId,
-  projectId,
-  title,
-  description,
-  scopeLabel,
-}: AuditLogViewProps) => {
+export const AuditLogView = ({ orgId, projectId, scopeLabel }: AuditLogViewProps) => {
   const [resourceType, setResourceType] = useState("all");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -192,13 +184,8 @@ export const AuditLogView = ({
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold">{title}</h1>
-        <p className="text-muted-foreground mt-1">{description}</p>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
+    <div className="flex w-full flex-col gap-4">
+      <div className="flex flex-wrap items-center gap-2">
         <Select
           items={RESOURCE_TYPE_LABELS}
           value={resourceType}
