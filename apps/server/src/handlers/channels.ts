@@ -96,7 +96,7 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
             metadata: { branchId: payload.branchId },
           });
 
-          return toApiChannel(yield* repo.findById({ id: path.id }));
+          return toApiChannel({ ...channel, branchId: payload.branchId });
         }),
       ),
     )
@@ -108,7 +108,7 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
           const channel = yield* repo.findById({ id: path.id });
           yield* assertProjectOwnership(channel.projectId);
           yield* repo.setPaused({ id: path.id, isPaused: true });
-          return toApiChannel(yield* repo.findById({ id: path.id }));
+          return toApiChannel({ ...channel, isPaused: true });
         }),
       ),
     )
@@ -120,7 +120,7 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
           const channel = yield* repo.findById({ id: path.id });
           yield* assertProjectOwnership(channel.projectId);
           yield* repo.setPaused({ id: path.id, isPaused: false });
-          return toApiChannel(yield* repo.findById({ id: path.id }));
+          return toApiChannel({ ...channel, isPaused: false });
         }),
       ),
     )
@@ -154,7 +154,7 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
             salt: crypto.randomUUID(),
           });
           yield* repo.setBranchMapping({ id: path.id, branchMappingJson });
-          return toApiChannel(yield* repo.findById({ id: path.id }));
+          return toApiChannel({ ...channel, branchMappingJson });
         }),
       ),
     )
@@ -175,7 +175,7 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
             payload.percentage,
           );
           yield* repo.setBranchMapping({ id: path.id, branchMappingJson });
-          return toApiChannel(yield* repo.findById({ id: path.id }));
+          return toApiChannel({ ...channel, branchMappingJson });
         }),
       ),
     )
@@ -196,7 +196,7 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
             return yield* Effect.fail(new NotFound({ message: "Branch mapping is empty" }));
           }
           yield* repo.completeBranchRollout({ id: path.id, branchId: newBranchId });
-          return toApiChannel(yield* repo.findById({ id: path.id }));
+          return toApiChannel({ ...channel, branchId: newBranchId, branchMappingJson: null });
         }),
       ),
     )
@@ -213,7 +213,7 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
           }
 
           yield* repo.revertBranchRollout({ id: path.id });
-          return toApiChannel(yield* repo.findById({ id: path.id }));
+          return toApiChannel({ ...channel, branchMappingJson: null });
         }),
       ),
     )

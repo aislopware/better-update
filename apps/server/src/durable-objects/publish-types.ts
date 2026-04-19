@@ -1,7 +1,20 @@
+export interface CoordinatorFailure {
+  readonly ok: false;
+  readonly message: string;
+}
+
+export interface CoordinatorSuccess<Value> {
+  readonly ok: true;
+  readonly value: Value;
+}
+
+export type CoordinatorResult<Value> = CoordinatorFailure | CoordinatorSuccess<Value>;
+
 export interface SerializedAssetRef {
   readonly key: string;
   readonly hash: string;
   readonly isLaunch: boolean;
+  readonly contentChecksum?: string | undefined;
 }
 
 export interface SerializedUpdate {

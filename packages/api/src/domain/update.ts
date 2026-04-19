@@ -24,6 +24,7 @@ export const AssetRef = Schema.Struct({
   hash: Schema.String,
   key: Schema.String,
   isLaunch: Schema.Boolean,
+  contentChecksum: Schema.optional(Schema.String),
 });
 
 export const CreateUpdateBody = Schema.Struct({

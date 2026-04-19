@@ -3,6 +3,7 @@ import { Context, Effect, Layer } from "effect";
 import { toDbNull } from "../lib/nullable";
 import { toChecksumSha256Base64 } from "../lib/r2-helpers";
 import { cloudflareEnv } from "./context";
+import { r2Checksums } from "./r2-accessors";
 import { generateUploadUrl } from "./signed-url";
 
 export interface StoredBlob {
@@ -52,7 +53,7 @@ const toStoredBlob = (object: R2ObjectBody): StoredBlob => ({
   etag: object.httpEtag,
   contentType: toDbNull(object.httpMetadata?.contentType),
   uploaded: object.uploaded,
-  checksumSha256Base64: toChecksumSha256Base64(Reflect.get(object, "checksums")),
+  checksumSha256Base64: toChecksumSha256Base64(r2Checksums(object)),
 });
 
 const toStoredBlobMetadata = (object: R2Object): StoredBlobMetadata => ({
@@ -60,7 +61,7 @@ const toStoredBlobMetadata = (object: R2Object): StoredBlobMetadata => ({
   etag: object.httpEtag,
   contentType: toDbNull(object.httpMetadata?.contentType),
   uploaded: object.uploaded,
-  checksumSha256Base64: toChecksumSha256Base64(Reflect.get(object, "checksums")),
+  checksumSha256Base64: toChecksumSha256Base64(r2Checksums(object)),
 });
 
 export const AssetStorageLive = Layer.succeed(AssetStorage, {

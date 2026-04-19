@@ -4,13 +4,20 @@ import { cloudflareEnv } from "../cloudflare/context";
 import { extractReachableBranchIds } from "../domain/branch-mapping";
 import { collectServableUpdates } from "../domain/update-rollout";
 import { toDbNull } from "../lib/nullable";
+import {
+  BUILD_WITH_ARTIFACT_COLUMNS,
+  BUILD_WITH_ARTIFACT_JOIN,
+  toBuildWithArtifact,
+} from "./build-row";
 
 import type {
   BuildCompatibilityChannelModel,
   BuildCompatibilityMatrixModel,
   BuildCompatibilityRowModel,
   MissingRuntimeVersionBuildModel,
+  Platform,
 } from "../models";
+import type { BuildWithArtifactRow } from "./build-row";
 
 // -- Port ------------------------------------------------------------------
 
@@ -27,34 +34,7 @@ export class CompatibilityRepo extends Context.Tag("api/CompatibilityRepo")<
 
 // -- D1 Adapter ------------------------------------------------------------
 
-interface BuildRow {
-  id: string;
-  project_id: string;
-  platform: "ios" | "android";
-  profile: string;
-  distribution:
-    | "app-store"
-    | "ad-hoc"
-    | "development"
-    | "enterprise"
-    | "simulator"
-    | "play-store"
-    | "direct";
-  runtime_version: string | null;
-  app_version: string | null;
-  build_number: string | null;
-  bundle_id: string | null;
-  git_ref: string | null;
-  git_commit: string | null;
-  message: string | null;
-  metadata_json: string;
-  created_at: string;
-  a_r2_key: string | null;
-  a_format: "ipa" | "apk" | "aab" | "tar.gz" | null;
-  a_content_type: string | null;
-  a_byte_size: number | null;
-  a_sha256: string | null;
-}
+type BuildRow = BuildWithArtifactRow;
 
 interface ChannelRow {
   id: string;
@@ -67,47 +47,20 @@ interface ChannelRow {
 interface UpdateRow {
   id: string;
   branch_id: string;
-  platform: "ios" | "android";
+  platform: Platform;
   runtime_version: string;
   message: string;
   created_at: string;
   rollout_percentage: number;
 }
 
-const SELECT_BUILDS_WITH_ARTIFACT = `SELECT b."id", b."project_id", b."platform", b."profile", b."distribution", b."runtime_version", b."app_version", b."build_number", b."bundle_id", b."git_ref", b."git_commit", b."message", b."metadata_json", b."created_at", a."r2_key" AS "a_r2_key", a."format" AS "a_format", a."content_type" AS "a_content_type", a."byte_size" AS "a_byte_size", a."sha256" AS "a_sha256" FROM "builds" b LEFT JOIN "build_artifacts" a ON a."build_id" = b."id" WHERE b."project_id" = ? ORDER BY b."created_at" DESC`;
+const SELECT_BUILDS_WITH_ARTIFACT = `SELECT ${BUILD_WITH_ARTIFACT_COLUMNS} ${BUILD_WITH_ARTIFACT_JOIN} WHERE b."project_id" = ? ORDER BY b."created_at" DESC`;
 
 const SELECT_CHANNELS = `SELECT "id", "name", "branch_id", "branch_mapping_json", "is_paused" FROM "channels" WHERE "project_id" = ? ORDER BY "name" ASC`;
 
 const SELECT_PROJECT_UPDATES = `SELECT u."id", u."branch_id", u."platform", u."runtime_version", u."message", u."created_at", u."rollout_percentage" FROM "updates" u JOIN "branches" b ON b."id" = u."branch_id" WHERE b."project_id" = ? ORDER BY u."branch_id" ASC, u."platform" ASC, u."runtime_version" ASC, u."created_at" DESC, u."id" DESC`;
 
-const toBuildRow = (row: BuildRow) => ({
-  id: row.id,
-  projectId: row.project_id,
-  platform: row.platform,
-  profile: row.profile,
-  distribution: row.distribution,
-  runtimeVersion: row.runtime_version,
-  appVersion: row.app_version,
-  buildNumber: row.build_number,
-  bundleId: row.bundle_id,
-  gitRef: row.git_ref,
-  gitCommit: row.git_commit,
-  message: row.message,
-  metadataJson: row.metadata_json,
-  createdAt: row.created_at,
-  artifact:
-    row.a_r2_key && row.a_format && row.a_sha256 && row.a_byte_size !== null
-      ? {
-          r2Key: row.a_r2_key,
-          format: row.a_format,
-          contentType: row.a_content_type ?? "application/octet-stream",
-          byteSize: row.a_byte_size,
-          sha256: row.a_sha256,
-        }
-      : null,
-});
-
-type Platform = UpdateRow["platform"];
+const toBuildRow = toBuildWithArtifact;
 
 interface BranchRuntimeSummary {
   readonly platform: Platform;

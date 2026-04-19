@@ -1,8 +1,8 @@
+import { fromBase64, toBase64 } from "@better-update/encoding";
 import { Context, Effect, Layer } from "effect";
 
 import { cryptoError, generateDEK, getSecret, resolveKeyring } from "../domain/credential-vault";
 import { CryptoService } from "../domain/crypto-service";
-import { fromBase64, toBase64 } from "../lib/base64";
 import { cloudflareEnv } from "./context";
 
 import type {
@@ -165,7 +165,10 @@ export interface VaultService {
 
 export class Vault extends Context.Tag("server/Vault")<Vault, VaultService>() {}
 
-// Module-level keyring cache — env bindings are constant per worker isolate
+// Module-level keyring cache — env bindings are constant per worker isolate.
+// Cache keyed by the raw VAULT_KEYRING string so in-place rotations invalidate
+// On next request. Rotating VAULT_KEYRING in prod requires a deploy to flush
+// Live isolates; decoded DEKs otherwise stay in V8 heap for isolate lifetime.
 // eslint-disable-next-line functional/no-let -- mutable cache for per-isolate keyring memoization
 let keyringCache: { keyring: Keyring; source: string } | null = null;
 

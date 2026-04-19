@@ -1,8 +1,8 @@
+import { fromBase64, toBase64 } from "@better-update/encoding";
 import { it } from "@effect/vitest";
 import { Effect } from "effect";
 
 import { CredentialVaultCryptoError } from "../domain/credential-vault";
-import { fromBase64, toBase64 } from "../lib/base64";
 import { CryptoServiceLive } from "./crypto-service";
 import {
   decryptSecretEffect as decryptSecret,

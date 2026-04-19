@@ -4,6 +4,7 @@ import { toDbNull } from "../lib/nullable";
 import { BranchRepo, ChannelRepo, UpdateRepo } from "../repositories";
 
 import type {
+  CoordinatorResult,
   CreateUpdateRequest,
   EnsureBranchChannelResult,
   RepublishUpdateRequest,
@@ -12,17 +13,7 @@ import type {
 } from "../durable-objects/publish-types";
 import type { UpdateModel } from "../models";
 
-interface CoordinatorFailure {
-  readonly ok: false;
-  readonly message: string;
-}
-
-interface CoordinatorSuccess<Value> {
-  readonly ok: true;
-  readonly value: Value;
-}
-
-export type CoordinatorResult<Value> = CoordinatorFailure | CoordinatorSuccess<Value>;
+export type { CoordinatorResult } from "../durable-objects/publish-types";
 
 export interface PublishedUpdateEffectResult {
   readonly update: SerializedUpdate;
@@ -218,6 +209,8 @@ export const ensureBranchChannel = (params: {
       branchName: params.branchName,
       branchId: branch.id,
     });
+    // Re-read by id as a sanity check for D1's ack-but-not-commit window; this
+    // Runs inside a Durable Object so there is no concurrent writer to race.
     const resolvedChannel = yield* findChannelByIdOptional({ id: channel.id });
 
     if (resolvedChannel === null || resolvedChannel.branchId !== branch.id) {

@@ -1,6 +1,6 @@
+import { toBase64 } from "@better-update/encoding";
 import { Effect } from "effect";
 
-import { toBase64 } from "../lib/base64";
 import { CredentialVaultConfigError, resolveKeyring } from "./credential-vault";
 
 describe("credential-vault", () => {

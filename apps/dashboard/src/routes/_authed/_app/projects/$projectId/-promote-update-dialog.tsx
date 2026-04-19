@@ -1,8 +1,4 @@
-import {
-  buildCompatibilityMatrixQueryKey,
-  republishUpdate,
-  updatesQueryKey,
-} from "@better-update/api-client/react";
+import { republishUpdate } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
@@ -23,13 +19,13 @@ import {
 import { Rocket01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Effect } from "effect";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import type { Channel, Update } from "@better-update/api";
 
 import { useApiMutation } from "../../../../../lib/use-api-mutation";
+import { invalidateUpdates } from "./-update-helpers";
 
 interface PromoteUpdateDialogProps {
   readonly update: typeof Update.Type;
@@ -58,25 +54,7 @@ export const PromoteUpdateDialog = ({
       }),
     onSuccess: async () => {
       toast.success("Update promoted successfully");
-      await Effect.runPromise(
-        Effect.asVoid(
-          Effect.all(
-            [
-              Effect.promise(async () =>
-                queryClient.invalidateQueries({
-                  queryKey: updatesQueryKey(orgId, projectId),
-                }),
-              ),
-              Effect.promise(async () =>
-                queryClient.invalidateQueries({
-                  queryKey: buildCompatibilityMatrixQueryKey(orgId, projectId),
-                }),
-              ),
-            ],
-            { concurrency: "unbounded" },
-          ),
-        ),
-      );
+      await invalidateUpdates(queryClient, orgId, projectId);
       setTargetChannelName("");
       onOpenChange(false);
     },

@@ -114,6 +114,7 @@ interface UpdateAssetRow {
   asset_key: string;
   asset_hash: string;
   is_launch: number;
+  content_checksum: string | null;
 }
 
 const toUpdate = (row: UpdateRow) =>
@@ -320,17 +321,26 @@ export const UpdateRepoLive = Layer.succeed(UpdateRepo, {
       const env = yield* cloudflareEnv;
       const rows = yield* Effect.promise(async () =>
         env.DB.prepare(
-          `SELECT "asset_key", "asset_hash", "is_launch" FROM "update_assets" WHERE "update_id" = ?`,
+          `SELECT ua."asset_key", ua."asset_hash", ua."is_launch", a."content_checksum" FROM "update_assets" ua JOIN "assets" a ON ua."asset_hash" = a."hash" WHERE ua."update_id" = ?`,
         )
           .bind(params.updateId)
           .all<UpdateAssetRow>(),
       );
 
-      return rows.results.map((row) => ({
-        key: row.asset_key,
-        hash: row.asset_hash,
-        isLaunch: row.is_launch === 1,
-      }));
+      return rows.results.map((row) =>
+        row.content_checksum === null
+          ? {
+              key: row.asset_key,
+              hash: row.asset_hash,
+              isLaunch: row.is_launch === 1,
+            }
+          : {
+              key: row.asset_key,
+              hash: row.asset_hash,
+              isLaunch: row.is_launch === 1,
+              contentChecksum: row.content_checksum,
+            },
+      );
     }),
 
   findLaunchAssetHashByUpdateId: (params) =>

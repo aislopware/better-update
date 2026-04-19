@@ -3,6 +3,7 @@ import { Context, Effect, Layer } from "effect";
 import { toDbNull } from "../lib/nullable";
 import { toChecksumSha256Base64 } from "../lib/r2-helpers";
 import { cloudflareEnv } from "./context";
+import { r2Checksums, r2ListCursor } from "./r2-accessors";
 import { copyObject, generateDownloadUrl, generateUploadUrl } from "./signed-url";
 
 export interface StoredBuildBlob {
@@ -79,14 +80,14 @@ const toStoredBuildBlob = (object: R2ObjectBody): StoredBuildBlob => ({
   size: object.size,
   contentType: toDbNull(object.httpMetadata?.contentType),
   uploaded: object.uploaded,
-  checksumSha256Base64: toChecksumSha256Base64(Reflect.get(object, "checksums")),
+  checksumSha256Base64: toChecksumSha256Base64(r2Checksums(object)),
 });
 
 const toStoredBuildObjectMetadata = (object: R2Object): StoredBuildObjectMetadata => ({
   size: object.size,
   contentType: toDbNull(object.httpMetadata?.contentType),
   uploaded: object.uploaded,
-  checksumSha256Base64: toChecksumSha256Base64(Reflect.get(object, "checksums")),
+  checksumSha256Base64: toChecksumSha256Base64(r2Checksums(object)),
 });
 
 export const BuildRuntimeLive = Layer.succeed(BuildRuntime, {
@@ -177,9 +178,8 @@ export const BuildRuntimeLive = Layer.succeed(BuildRuntime, {
       const env = yield* cloudflareEnv;
       yield* Effect.promise(async () =>
         copyObject(env, {
-          sourceBucketName: env.BUILD_BUCKET_NAME,
+          bucketName: env.BUILD_BUCKET_NAME,
           sourceKey: params.sourceKey,
-          destinationBucketName: env.BUILD_BUCKET_NAME,
           destinationKey: params.destinationKey,
         }),
       );
@@ -212,10 +212,7 @@ export const BuildRuntimeLive = Layer.succeed(BuildRuntime, {
           uploaded: object.uploaded,
         })),
         truncated: listed.truncated,
-        cursor: (() => {
-          const nextCursor: unknown = Reflect.get(listed, "cursor");
-          return typeof nextCursor === "string" ? nextCursor : undefined;
-        })(),
+        cursor: r2ListCursor(listed),
       };
     }),
 

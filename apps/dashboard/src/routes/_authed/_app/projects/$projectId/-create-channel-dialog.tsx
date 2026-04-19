@@ -1,9 +1,4 @@
-import {
-  branchesQueryOptions,
-  channelsQueryKey,
-  createChannel,
-  buildCompatibilityMatrixQueryKey,
-} from "@better-update/api-client/react";
+import { branchesQueryOptions, createChannel } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
@@ -25,12 +20,12 @@ import { Add01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { Effect } from "effect";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { getFieldError, requiredStringSchema } from "../../../../../lib/form-utils";
 import { safeSubmit, useApiMutation } from "../../../../../lib/use-api-mutation";
+import { invalidateChannels } from "./-update-helpers";
 
 export const CreateChannelDialog = ({ orgId, projectId }: { orgId: string; projectId: string }) => {
   const [open, setOpen] = useState(false);
@@ -42,25 +37,7 @@ export const CreateChannelDialog = ({ orgId, projectId }: { orgId: string; proje
       createChannel({ projectId, name: input.name, branchId: input.branchId }),
     onSuccess: async () => {
       toast.success("Channel created");
-      await Effect.runPromise(
-        Effect.asVoid(
-          Effect.all(
-            [
-              Effect.promise(async () =>
-                queryClient.invalidateQueries({
-                  queryKey: channelsQueryKey(orgId, projectId),
-                }),
-              ),
-              Effect.promise(async () =>
-                queryClient.invalidateQueries({
-                  queryKey: buildCompatibilityMatrixQueryKey(orgId, projectId),
-                }),
-              ),
-            ],
-            { concurrency: "unbounded" },
-          ),
-        ),
-      );
+      await invalidateChannels(queryClient, orgId, projectId);
       form.reset();
       setOpen(false);
     },

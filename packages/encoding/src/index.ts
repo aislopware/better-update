@@ -21,3 +21,9 @@ export const toBase64Url = (data: Uint8Array | ArrayBuffer): string =>
 
 export const fromBase64Url = (str: string): Uint8Array =>
   fromBase64(padBase64(str.replaceAll("-", "+").replaceAll("_", "/")));
+
+export const toHex = (bytes: Uint8Array | ArrayBuffer): string =>
+  [...asUint8Array(bytes)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+
+export const fromHex = (hex: string): Uint8Array<ArrayBuffer> =>
+  new Uint8Array((hex.match(/.{2}/g) ?? []).map((byte) => Number.parseInt(byte, 16)));

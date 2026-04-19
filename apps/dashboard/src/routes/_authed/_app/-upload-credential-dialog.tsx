@@ -1,4 +1,5 @@
 import { credentialsQueryKey, uploadCredential } from "@better-update/api-client/react";
+import { toBase64 } from "@better-update/encoding";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
@@ -23,7 +24,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { toBase64 } from "../../../lib/base64";
 import { useApiMutation } from "../../../lib/use-api-mutation";
 import {
   ACCEPTED_EXTENSIONS,

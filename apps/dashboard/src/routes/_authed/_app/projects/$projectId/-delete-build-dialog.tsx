@@ -1,17 +1,13 @@
-import {
-  buildCompatibilityMatrixQueryKey,
-  buildsQueryKey,
-  deleteBuild,
-} from "@better-update/api-client/react";
+import { deleteBuild } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import { Delete02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Effect } from "effect";
 
 import type { BuildWithArtifact } from "@better-update/api";
 
 import { ConfirmDeleteDialog } from "./-confirm-delete-dialog";
+import { invalidateBuilds } from "./-update-helpers";
 
 export const DeleteBuildDialog = ({
   build,
@@ -32,25 +28,7 @@ export const DeleteBuildDialog = ({
       onConfirm={async () => deleteBuild(build.id)}
       successMessage="Build deleted"
       onSuccess={async () => {
-        await Effect.runPromise(
-          Effect.asVoid(
-            Effect.all(
-              [
-                Effect.promise(async () =>
-                  queryClient.invalidateQueries({
-                    queryKey: buildsQueryKey(orgId, projectId),
-                  }),
-                ),
-                Effect.promise(async () =>
-                  queryClient.invalidateQueries({
-                    queryKey: buildCompatibilityMatrixQueryKey(orgId, projectId),
-                  }),
-                ),
-              ],
-              { concurrency: "unbounded" },
-            ),
-          ),
-        );
+        await invalidateBuilds(queryClient, orgId, projectId);
       }}
     >
       <Button variant="ghost" size="icon" className="size-8" title="Delete build">

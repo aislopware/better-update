@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 
+import { toBase64Url } from "@better-update/encoding";
 import { CommandExecutor, FileSystem } from "@effect/platform";
 import { Effect } from "effect";
 
 import { readAppJson, readProjectId, readScopeKey } from "../lib/app-json";
-import { toBase64Url } from "../lib/base64-url";
 import { readRuntimeVersionMeta, type Platform } from "../lib/build-profile";
 import { pullEnvVars } from "../lib/env-exporter";
 import { EnvExportError, RuntimeVersionError, UpdatePublishError } from "../lib/exit-codes";
@@ -82,15 +82,8 @@ const buildUpdateExtra = (
   environment,
 });
 
-const dedupeAssetsByHash = (assets: readonly PreparedAsset[]): readonly PreparedAsset[] => {
-  const unique = new Map<string, PreparedAsset>();
-  for (const asset of assets) {
-    if (!unique.has(asset.hash)) {
-      unique.set(asset.hash, asset);
-    }
-  }
-  return Array.from(unique.values());
-};
+const dedupeAssetsByHash = (assets: readonly PreparedAsset[]): readonly PreparedAsset[] =>
+  Array.from(new Map(assets.map((asset) => [asset.hash, asset])).values());
 
 const preparePlatformAssets = ({
   exportDir,
@@ -237,6 +230,7 @@ const publishPlatform = (params: {
             hash: asset.hash,
             key: asset.key,
             isLaunch: asset.isLaunch,
+            contentChecksum: asset.contentChecksum,
           })),
           ...(params.signedPayload
             ? {

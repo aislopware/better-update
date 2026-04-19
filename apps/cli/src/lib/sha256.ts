@@ -1,9 +1,9 @@
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 
+import { toBase64Url } from "@better-update/encoding";
 import { Effect } from "effect";
 
-import { toBase64Url } from "./base64-url";
 import { BuildFailedError } from "./exit-codes";
 
 export interface Sha256FileResult {

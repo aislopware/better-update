@@ -1,33 +1,13 @@
-import { BadRequest, Conflict, Forbidden, NotFound } from "@better-update/api";
-import { Data, Effect } from "effect";
+import { Data } from "effect";
 
-import type { BadArgument, SystemError } from "@effect/platform/Error";
-
-import { exitWith } from "../../application/command-exit";
-import { AuthRequiredError, ProjectNotLinkedError } from "../../lib/exit-codes";
-import { formatCause } from "../../lib/format-error";
-
-export class EnvCommandError extends Data.TaggedError("EnvCommandError")<{
-  readonly message: string;
-}> {}
+import { makeCommandErrorHandler } from "../../lib/command-errors";
 
 export class EnvResourceNotFoundError extends Data.TaggedError("EnvResourceNotFoundError")<{
   readonly message: string;
 }> {}
 
-export const handleEnvCommandErrors = <A, R>(effect: Effect.Effect<A, unknown, R>) =>
-  effect.pipe(
-    Effect.catchTags({
-      AuthRequiredError: (error: AuthRequiredError) => exitWith(3, error.message),
-      ProjectNotLinkedError: (error: ProjectNotLinkedError) => exitWith(4, error.message),
-      EnvCommandError: (error: EnvCommandError) => exitWith(2, error.message),
-      EnvResourceNotFoundError: (error: EnvResourceNotFoundError) => exitWith(1, error.message),
-      BadRequest: (error: BadRequest) => exitWith(2, error.message),
-      NotFound: (error: NotFound) => exitWith(1, error.message),
-      Conflict: (error: Conflict) => exitWith(1, error.message),
-      Forbidden: (error: Forbidden) => exitWith(1, error.message),
-      SystemError: (error: SystemError) => exitWith(6, `Filesystem error: ${error.message}`),
-      BadArgument: (error: BadArgument) => exitWith(6, `Invalid argument: ${error.message}`),
-    }),
-    Effect.catchAll((cause) => exitWith(1, formatCause(cause))),
-  );
+export const handleEnvCommandErrors = makeCommandErrorHandler({
+  EnvResourceNotFoundError: 1,
+  SystemError: 6,
+  BadArgument: 6,
+});

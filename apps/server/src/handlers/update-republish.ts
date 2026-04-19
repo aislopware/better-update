@@ -31,6 +31,7 @@ interface RepublishSourceUpdateWithAssets {
     readonly key: string;
     readonly hash: string;
     readonly isLaunch: boolean;
+    readonly contentChecksum?: string | undefined;
   }[];
 }
 
@@ -73,16 +74,21 @@ const parseExtraJson = (extraJson: string | null): Record<string, unknown> | und
 const resolveSignedRepublishOverrides = (payload: RepublishPayload) =>
   Effect.gen(function* () {
     const overrides = payload.signedUpdates ?? [];
-    const duplicateSourceUpdateIds = overrides.reduce<string[]>((duplicates, override, index) => {
-      const alreadySeen = overrides
-        .slice(0, index)
-        .some((candidate) => candidate.sourceUpdateId === override.sourceUpdateId);
-      return alreadySeen ? [...duplicates, override.sourceUpdateId] : duplicates;
-    }, []);
+    const { duplicateSourceUpdateIds } = overrides.reduce(
+      (acc, override) => {
+        if (acc.seen.has(override.sourceUpdateId)) {
+          acc.duplicateSourceUpdateIds.add(override.sourceUpdateId);
+        } else {
+          acc.seen.add(override.sourceUpdateId);
+        }
+        return acc;
+      },
+      { seen: new Set<string>(), duplicateSourceUpdateIds: new Set<string>() },
+    );
 
-    if (duplicateSourceUpdateIds.length > 0) {
+    if (duplicateSourceUpdateIds.size > 0) {
       yield* fail(
-        `signedUpdates must contain unique sourceUpdateId values: ${[...new Set(duplicateSourceUpdateIds)].join(", ")}`,
+        `signedUpdates must contain unique sourceUpdateId values: ${[...duplicateSourceUpdateIds].join(", ")}`,
       );
     }
 
@@ -175,7 +181,7 @@ export const resolveRepublishSource = ({ payload }: { readonly payload: Republis
           const groupId = yield* requireValue(payload.sourceGroupId, "sourceGroupId");
           const updates = yield* updateRepo.findByGroupId({ groupId });
           if (updates.length === 0) {
-            yield* new NotFound({ message: "Update group not found" });
+            return yield* new NotFound({ message: "Update group not found" });
           }
           return updates;
         });

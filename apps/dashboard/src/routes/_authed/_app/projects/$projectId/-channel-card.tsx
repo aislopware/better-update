@@ -1,6 +1,4 @@
 import {
-  buildCompatibilityMatrixQueryKey,
-  channelsQueryKey,
   completeBranchRollout,
   createBranchRollout,
   pauseChannel,
@@ -31,7 +29,6 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Effect } from "effect";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -50,6 +47,7 @@ import {
   MissingMatchingBuilds,
   parseRolloutState,
 } from "./-channel-card-sections";
+import { invalidateChannels as invalidateChannelsHelper } from "./-update-helpers";
 
 interface BranchRolloutControlsProps {
   readonly channel: typeof Channel.Type;
@@ -306,27 +304,8 @@ export const ChannelCard = ({
     ? parseRolloutState(channel.branchMappingJson)
     : null;
 
-  const invalidateChannels = async (): Promise<void> => {
-    await Effect.runPromise(
-      Effect.asVoid(
-        Effect.all(
-          [
-            Effect.promise(async () =>
-              queryClient.invalidateQueries({
-                queryKey: channelsQueryKey(orgId, projectId),
-              }),
-            ),
-            Effect.promise(async () =>
-              queryClient.invalidateQueries({
-                queryKey: buildCompatibilityMatrixQueryKey(orgId, projectId),
-              }),
-            ),
-          ],
-          { concurrency: "unbounded" },
-        ),
-      ),
-    );
-  };
+  const invalidateChannels = async (): Promise<void> =>
+    invalidateChannelsHelper(queryClient, orgId, projectId);
   const updateChannelMutation = useApiMutation({
     mutationFn: async (branchId: string) => updateChannel(channel.id, { branchId }),
     onSuccess: async () => {

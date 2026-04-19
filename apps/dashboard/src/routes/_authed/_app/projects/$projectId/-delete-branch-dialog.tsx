@@ -1,19 +1,13 @@
-import {
-  branchesQueryKey,
-  buildCompatibilityMatrixQueryKey,
-  channelsQueryKey,
-  deleteBranch,
-  updatesQueryKey,
-} from "@better-update/api-client/react";
+import { deleteBranch } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import { Delete02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Effect } from "effect";
 
 import type { BranchItem } from "@better-update/api-client/react";
 
 import { ConfirmDeleteDialog } from "./-confirm-delete-dialog";
+import { invalidateBranches } from "./-update-helpers";
 
 export const DeleteBranchDialog = ({
   branch,
@@ -34,35 +28,7 @@ export const DeleteBranchDialog = ({
       onConfirm={async () => deleteBranch(branch.id)}
       successMessage="Branch deleted"
       onSuccess={async () => {
-        await Effect.runPromise(
-          Effect.asVoid(
-            Effect.all(
-              [
-                Effect.promise(async () =>
-                  queryClient.invalidateQueries({
-                    queryKey: branchesQueryKey(orgId, projectId),
-                  }),
-                ),
-                Effect.promise(async () =>
-                  queryClient.invalidateQueries({
-                    queryKey: channelsQueryKey(orgId, projectId),
-                  }),
-                ),
-                Effect.promise(async () =>
-                  queryClient.invalidateQueries({
-                    queryKey: updatesQueryKey(orgId, projectId),
-                  }),
-                ),
-                Effect.promise(async () =>
-                  queryClient.invalidateQueries({
-                    queryKey: buildCompatibilityMatrixQueryKey(orgId, projectId),
-                  }),
-                ),
-              ],
-              { concurrency: "unbounded" },
-            ),
-          ),
-        );
+        await invalidateBranches(queryClient, orgId, projectId);
       }}
     >
       <Button variant="ghost" size="icon" className="size-8">
