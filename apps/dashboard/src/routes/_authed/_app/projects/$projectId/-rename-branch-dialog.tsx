@@ -8,9 +8,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
-import { PencilEdit02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient } from "@tanstack/react-query";
+import { PencilIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -45,7 +44,7 @@ export const RenameBranchDialog = ({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger>
         <Button variant="ghost" size="icon" className="size-8">
-          <HugeiconsIcon icon={PencilEdit02Icon} strokeWidth={2} className="size-4" />
+          <PencilIcon strokeWidth={2} className="size-4" />
         </Button>
       </DialogTrigger>
       <DialogContent>

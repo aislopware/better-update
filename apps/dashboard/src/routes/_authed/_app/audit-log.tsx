@@ -25,10 +25,9 @@ import {
   TableHeader,
   TableRow,
 } from "@better-update/ui/components/ui/table";
-import { Audit01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { ScrollTextIcon } from "lucide-react";
 import { useState } from "react";
 
 const RESOURCE_TYPES = [
@@ -140,11 +139,7 @@ const ActorCell = ({
 const EmptyState = () => (
   <Card className="border-dashed">
     <CardContent className="flex flex-col items-center justify-center py-12">
-      <HugeiconsIcon
-        icon={Audit01Icon}
-        strokeWidth={1.5}
-        className="text-muted-foreground mb-4 size-12"
-      />
+      <ScrollTextIcon strokeWidth={1.5} className="text-muted-foreground mb-4 size-12" />
       <p className="text-lg font-medium">No audit log entries yet</p>
       <p className="text-muted-foreground mt-1 text-sm">
         Actions performed in your organization will appear here.

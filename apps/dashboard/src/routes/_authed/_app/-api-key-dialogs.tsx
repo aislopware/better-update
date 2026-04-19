@@ -10,10 +10,9 @@ import {
 } from "@better-update/ui/components/ui/dialog";
 import { Input } from "@better-update/ui/components/ui/input";
 import { Label } from "@better-update/ui/components/ui/label";
-import { Key01Icon, Copy01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
+import { KeyIcon, CopyIcon, CheckIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -99,7 +98,7 @@ const CreateFormContent = ({
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
           {([canSubmit, isSubmitting]) => (
             <Button type="submit" disabled={!canSubmit || isSubmitting}>
-              <HugeiconsIcon icon={Key01Icon} strokeWidth={2} className="size-4" />
+              <KeyIcon strokeWidth={2} className="size-4" />
               {isSubmitting ? "Creating..." : "Create key"}
             </Button>
           )}
@@ -129,11 +128,10 @@ const KeyRevealContent = ({ apiKey, onClose }: { apiKey: string; onClose: () => 
             {apiKey}
           </code>
           <Button variant="outline" size="icon" onClick={handleCopy}>
-            <HugeiconsIcon
-              icon={copied ? Tick02Icon : Copy01Icon}
-              strokeWidth={2}
-              className="size-4"
-            />
+            {(() => {
+              const Icon = copied ? CheckIcon : CopyIcon;
+              return <Icon strokeWidth={2} className="size-4" />;
+            })()}
           </Button>
         </div>
       </div>
@@ -180,7 +178,7 @@ export const CreateApiKeyDialog = ({ orgId }: { orgId: string }) => {
           setOpen(true);
         }}
       >
-        <HugeiconsIcon icon={Key01Icon} strokeWidth={2} className="size-4" />
+        <KeyIcon strokeWidth={2} className="size-4" />
         Create API key
       </Button>
       <DialogContent>

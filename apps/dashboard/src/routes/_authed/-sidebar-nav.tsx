@@ -6,30 +6,29 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@better-update/ui/components/ui/sidebar";
+import { Link } from "@tanstack/react-router";
 import {
-  ArrowLeft01Icon,
-  Audit01Icon,
+  ArrowLeftIcon,
+  ScrollTextIcon,
   CloudUploadIcon,
   CodeIcon,
-  DashboardSquare02Icon,
-  Folder02Icon,
+  LayoutDashboardIcon,
+  FolderIcon,
   GitBranchIcon,
-  Key01Icon,
-  Package02Icon,
+  KeyIcon,
+  PackageIcon,
   SatelliteIcon,
-  Settings02Icon,
-  ShieldKeyIcon,
-  UserGroupIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { Link } from "@tanstack/react-router";
+  SettingsIcon,
+  ShieldCheckIcon,
+  UsersIcon,
+} from "lucide-react";
 
-import type { IconSvgElement } from "@hugeicons/react";
+import type { LucideIcon } from "lucide-react";
 
 interface OrgNavItem {
   to: "/projects" | "/members" | "/audit-log" | "/credentials" | "/api-keys" | "/settings";
   label: string;
-  icon: IconSvgElement;
+  icon: LucideIcon;
 }
 
 interface OrgNavSection {
@@ -47,7 +46,7 @@ interface ProjectNavItem {
     | "/projects/$projectId/settings"
     | "/projects/$projectId/environment-variables";
   label: string;
-  icon: IconSvgElement;
+  icon: LucideIcon;
   exact?: boolean;
 }
 
@@ -59,24 +58,24 @@ interface ProjectNavSection {
 const ORG_NAV: OrgNavSection[] = [
   {
     label: "Platform",
-    items: [{ to: "/projects", label: "Overview", icon: Folder02Icon }],
+    items: [{ to: "/projects", label: "Overview", icon: FolderIcon }],
   },
   {
     label: "Organization",
     items: [
-      { to: "/members", label: "Members", icon: UserGroupIcon },
-      { to: "/audit-log", label: "Audit log", icon: Audit01Icon },
+      { to: "/members", label: "Members", icon: UsersIcon },
+      { to: "/audit-log", label: "Audit log", icon: ScrollTextIcon },
     ],
   },
   {
     label: "Credentials",
-    items: [{ to: "/credentials", label: "Credentials", icon: ShieldKeyIcon }],
+    items: [{ to: "/credentials", label: "Credentials", icon: ShieldCheckIcon }],
   },
   {
     label: "Settings",
     items: [
-      { to: "/api-keys", label: "API Keys", icon: Key01Icon },
-      { to: "/settings", label: "Organization settings", icon: Settings02Icon },
+      { to: "/api-keys", label: "API Keys", icon: KeyIcon },
+      { to: "/settings", label: "Organization settings", icon: SettingsIcon },
     ],
   },
 ];
@@ -88,7 +87,7 @@ const PROJECT_NAV: ProjectNavSection[] = [
       {
         to: "/projects/$projectId",
         label: "Overview",
-        icon: DashboardSquare02Icon,
+        icon: LayoutDashboardIcon,
         exact: true,
       },
     ],
@@ -96,7 +95,7 @@ const PROJECT_NAV: ProjectNavSection[] = [
   {
     label: "Deploy",
     items: [
-      { to: "/projects/$projectId/builds", label: "Builds", icon: Package02Icon },
+      { to: "/projects/$projectId/builds", label: "Builds", icon: PackageIcon },
       { to: "/projects/$projectId/channels", label: "Channels", icon: SatelliteIcon },
       { to: "/projects/$projectId/branches", label: "Branches", icon: GitBranchIcon },
       { to: "/projects/$projectId/updates", label: "Updates", icon: CloudUploadIcon },
@@ -105,7 +104,7 @@ const PROJECT_NAV: ProjectNavSection[] = [
   {
     label: "Project settings",
     items: [
-      { to: "/projects/$projectId/settings", label: "General", icon: Settings02Icon },
+      { to: "/projects/$projectId/settings", label: "General", icon: SettingsIcon },
       {
         to: "/projects/$projectId/environment-variables",
         label: "Environment variables",
@@ -127,7 +126,7 @@ export const OrgNavSections = () => (
                 <Link to={item.to}>
                   {({ isActive }) => (
                     <SidebarMenuButton isActive={isActive} tooltip={item.label}>
-                      <HugeiconsIcon icon={item.icon} strokeWidth={2} />
+                      <item.icon strokeWidth={2} />
                       <span>{item.label}</span>
                     </SidebarMenuButton>
                   )}
@@ -154,7 +153,7 @@ export const ProjectNavSections = ({ projectId }: { projectId: string }) => (
                   <Link to={item.to} params={{ projectId }} activeOptions={{ exact: true }}>
                     {({ isActive }) => (
                       <SidebarMenuButton isActive={isActive} tooltip={item.label}>
-                        <HugeiconsIcon icon={item.icon} strokeWidth={2} />
+                        <item.icon strokeWidth={2} />
                         <span>{item.label}</span>
                       </SidebarMenuButton>
                     )}
@@ -163,7 +162,7 @@ export const ProjectNavSections = ({ projectId }: { projectId: string }) => (
                   <Link to={item.to} params={{ projectId }}>
                     {({ isActive }) => (
                       <SidebarMenuButton isActive={isActive} tooltip={item.label}>
-                        <HugeiconsIcon icon={item.icon} strokeWidth={2} />
+                        <item.icon strokeWidth={2} />
                         <span>{item.label}</span>
                       </SidebarMenuButton>
                     )}
@@ -185,7 +184,7 @@ export const ProjectBackLink = () => (
         <SidebarMenuItem>
           <Link to="/projects">
             <SidebarMenuButton tooltip="Account">
-              <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={2} />
+              <ArrowLeftIcon strokeWidth={2} />
               <span>Account</span>
             </SidebarMenuButton>
           </Link>

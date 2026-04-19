@@ -11,9 +11,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
-import { CloudUploadIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
+import { CloudUploadIcon } from "lucide-react";
 import { useState } from "react";
 
 import { UpdateCard } from "./-update-card";
@@ -21,11 +20,7 @@ import { UpdateCard } from "./-update-card";
 const UpdatesEmptyState = () => (
   <Card className="border-dashed">
     <CardContent className="flex flex-col items-center justify-center py-12">
-      <HugeiconsIcon
-        icon={CloudUploadIcon}
-        strokeWidth={1.5}
-        className="text-muted-foreground mb-4 size-12"
-      />
+      <CloudUploadIcon strokeWidth={1.5} className="text-muted-foreground mb-4 size-12" />
       <p className="text-lg font-medium">No updates yet</p>
       <p className="text-muted-foreground mt-1 text-sm">
         Publish your first update using the CLI to see it here.

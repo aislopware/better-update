@@ -7,9 +7,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
-import { Add01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient } from "@tanstack/react-query";
+import { PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -37,7 +36,7 @@ export const CreateBranchDialog = ({ orgId, projectId }: { orgId: string; projec
           setOpen(true);
         }}
       >
-        <HugeiconsIcon icon={Add01Icon} strokeWidth={2} className="size-4" />
+        <PlusIcon strokeWidth={2} className="size-4" />
         Create branch
       </Button>
       <DialogContent>
@@ -49,7 +48,7 @@ export const CreateBranchDialog = ({ orgId, projectId }: { orgId: string; projec
           defaultName=""
           submitLabel="Create branch"
           submittingLabel="Creating..."
-          submitIcon={Add01Icon}
+          submitIcon={PlusIcon}
           onSubmit={async (name) => safeSubmit(createBranchMutation.mutateAsync(name))}
         />
       </DialogContent>

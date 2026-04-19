@@ -18,9 +18,8 @@ import {
   SelectValue,
 } from "@better-update/ui/components/ui/select";
 import { Textarea } from "@better-update/ui/components/ui/textarea";
-import { FileImportIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient } from "@tanstack/react-query";
+import { FileInputIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -89,7 +88,7 @@ export const ImportEnvVarsDialog = ({
           setOpen(true);
         }}
       >
-        <HugeiconsIcon icon={FileImportIcon} strokeWidth={2} className="size-4" />
+        <FileInputIcon strokeWidth={2} className="size-4" />
         Import .env
       </Button>
       <DialogContent>
@@ -127,7 +126,7 @@ export const ImportEnvVarsDialog = ({
             <Select
               value={visibility}
               onValueChange={(val) => {
-                if (val) {
+                if (val === "plaintext" || val === "sensitive" || val === "secret") {
                   setVisibility(val);
                 }
               }}

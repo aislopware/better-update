@@ -1,7 +1,6 @@
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@better-update/ui/components/ui/card";
-import { GitBranchIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { GitBranchIcon } from "lucide-react";
 
 import type { BranchItem } from "@better-update/api-client/react";
 
@@ -21,11 +20,7 @@ export const BranchCard = ({
     <CardHeader className="pb-2">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <HugeiconsIcon
-            icon={GitBranchIcon}
-            strokeWidth={2}
-            className="text-muted-foreground size-5"
-          />
+          <GitBranchIcon strokeWidth={2} className="text-muted-foreground size-5" />
           <CardTitle className="text-base">{branch.name}</CardTitle>
         </div>
         <div className="flex items-center gap-1">

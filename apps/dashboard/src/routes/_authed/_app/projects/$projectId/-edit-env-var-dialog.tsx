@@ -129,7 +129,7 @@ const EditFormContent = ({
               <Select
                 value={field.state.value}
                 onValueChange={(val) => {
-                  if (val) {
+                  if (val === "plaintext" || val === "sensitive" || val === "secret") {
                     field.handleChange(val);
                   }
                 }}

@@ -11,10 +11,9 @@ import {
 } from "@better-update/ui/components/ui/dialog";
 import { Input } from "@better-update/ui/components/ui/input";
 import { Label } from "@better-update/ui/components/ui/label";
-import { Add01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
+import { PlusIcon } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -132,7 +131,7 @@ const CreateFormContent = ({ orgId, onSuccess }: { orgId: string; onSuccess: () 
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
           {([canSubmit, isSubmitting]) => (
             <Button type="submit" disabled={!canSubmit || isSubmitting}>
-              <HugeiconsIcon icon={Add01Icon} strokeWidth={2} className="size-4" />
+              <PlusIcon strokeWidth={2} className="size-4" />
               {isSubmitting ? "Creating..." : "Create project"}
             </Button>
           )}
@@ -152,7 +151,7 @@ export const CreateProjectDialog = ({ orgId }: { orgId: string }) => {
           setOpen(true);
         }}
       >
-        <HugeiconsIcon icon={Add01Icon} strokeWidth={2} className="size-4" />
+        <PlusIcon strokeWidth={2} className="size-4" />
         Create project
       </Button>
       <DialogContent>

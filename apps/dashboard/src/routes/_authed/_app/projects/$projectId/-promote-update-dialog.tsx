@@ -16,9 +16,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
-import { Rocket01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient } from "@tanstack/react-query";
+import { RocketIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -121,7 +120,7 @@ export const PromoteUpdateDialog = ({
             onClick={handlePromote}
             disabled={!targetChannelName || promoteUpdateMutation.isPending}
           >
-            <HugeiconsIcon icon={Rocket01Icon} strokeWidth={2} className="size-4" />
+            <RocketIcon strokeWidth={2} className="size-4" />
             {promoteUpdateMutation.isPending ? "Promoting..." : "Promote"}
           </Button>
         </DialogFooter>

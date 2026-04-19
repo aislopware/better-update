@@ -20,9 +20,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@better-update/ui/components/ui/dropdown-menu";
-import { Delete02Icon, MoreVerticalIcon, Tick02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient } from "@tanstack/react-query";
+import { Trash2Icon, EllipsisVerticalIcon, CheckIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -95,7 +94,7 @@ export const CredentialCard = ({
         <div className="flex items-center gap-2">
           {credential.isActive && (
             <Badge variant="default">
-              <HugeiconsIcon icon={Tick02Icon} strokeWidth={2} className="mr-1 size-3" />
+              <CheckIcon strokeWidth={2} className="mr-1 size-3" />
               Active
             </Badge>
           )}
@@ -103,13 +102,13 @@ export const CredentialCard = ({
           <DropdownMenu>
             <DropdownMenuTrigger>
               <Button variant="ghost" size="icon-sm">
-                <HugeiconsIcon icon={MoreVerticalIcon} strokeWidth={2} className="size-4" />
+                <EllipsisVerticalIcon strokeWidth={2} className="size-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               {!credential.isActive && (
                 <DropdownMenuItem onClick={handleActivate}>
-                  <HugeiconsIcon icon={Tick02Icon} strokeWidth={2} className="size-4" />
+                  <CheckIcon strokeWidth={2} className="size-4" />
                   <span>Set as active</span>
                 </DropdownMenuItem>
               )}
@@ -119,7 +118,7 @@ export const CredentialCard = ({
                   setDeleteOpen(true);
                 }}
               >
-                <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} className="size-4" />
+                <Trash2Icon strokeWidth={2} className="size-4" />
                 <span>Delete</span>
               </DropdownMenuItem>
             </DropdownMenuContent>

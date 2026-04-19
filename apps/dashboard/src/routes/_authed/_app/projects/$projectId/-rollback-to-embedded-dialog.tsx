@@ -10,9 +10,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
-import { UndoIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient } from "@tanstack/react-query";
+import { Undo2Icon } from "lucide-react";
 import { toast } from "sonner";
 
 import type { Update } from "@better-update/api";
@@ -91,7 +90,7 @@ export const RollbackToEmbeddedDialog = ({
             }}
             disabled={rollbackMutation.isPending}
           >
-            <HugeiconsIcon icon={UndoIcon} strokeWidth={2} className="size-4" />
+            <Undo2Icon strokeWidth={2} className="size-4" />
             {rollbackMutation.isPending ? "Creating..." : "Create rollback"}
           </Button>
         </DialogFooter>

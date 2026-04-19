@@ -19,10 +19,9 @@ import {
   SelectValue,
 } from "@better-update/ui/components/ui/select";
 import { Textarea } from "@better-update/ui/components/ui/textarea";
-import { Add01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
+import { PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -153,7 +152,7 @@ const CreateFormContent = ({
               <Select
                 value={field.state.value}
                 onValueChange={(val) => {
-                  if (val) {
+                  if (val === "plaintext" || val === "sensitive" || val === "secret") {
                     field.handleChange(val);
                   }
                 }}
@@ -179,7 +178,7 @@ const CreateFormContent = ({
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
           {([canSubmit, isSubmitting]) => (
             <Button type="submit" disabled={!canSubmit || isSubmitting}>
-              <HugeiconsIcon icon={Add01Icon} strokeWidth={2} className="size-4" />
+              <PlusIcon strokeWidth={2} className="size-4" />
               {isSubmitting ? "Creating..." : "Add variable"}
             </Button>
           )}
@@ -207,7 +206,7 @@ export const CreateEnvVarDialog = ({
           setOpen(true);
         }}
       >
-        <HugeiconsIcon icon={Add01Icon} strokeWidth={2} className="size-4" />
+        <PlusIcon strokeWidth={2} className="size-4" />
         Add variable
       </Button>
       <DialogContent>

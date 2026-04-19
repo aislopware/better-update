@@ -15,9 +15,8 @@ import {
   TableHeader,
   TableRow,
 } from "@better-update/ui/components/ui/table";
-import { Settings02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
+import { SettingsIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -37,11 +36,7 @@ const ENVIRONMENTS = [
 const EnvVarsEmptyState = () => (
   <Card className="border-dashed">
     <CardContent className="flex flex-col items-center justify-center py-12">
-      <HugeiconsIcon
-        icon={Settings02Icon}
-        strokeWidth={1.5}
-        className="text-muted-foreground mb-4 size-12"
-      />
+      <SettingsIcon strokeWidth={1.5} className="text-muted-foreground mb-4 size-12" />
       <p className="text-lg font-medium">No environment variables</p>
       <p className="text-muted-foreground mt-1 text-sm">
         Add variables to configure your builds for this environment.

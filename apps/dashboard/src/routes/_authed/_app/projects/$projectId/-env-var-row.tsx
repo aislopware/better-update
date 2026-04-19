@@ -17,9 +17,8 @@ import {
   DropdownMenuTrigger,
 } from "@better-update/ui/components/ui/dropdown-menu";
 import { TableCell, TableRow } from "@better-update/ui/components/ui/table";
-import { MoreVerticalIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient } from "@tanstack/react-query";
+import { EllipsisVerticalIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -89,7 +88,7 @@ export const EnvVarRow = ({
           <DropdownMenu>
             <DropdownMenuTrigger>
               <Button variant="ghost" size="icon-sm">
-                <HugeiconsIcon icon={MoreVerticalIcon} strokeWidth={2} className="size-4" />
+                <EllipsisVerticalIcon strokeWidth={2} className="size-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">

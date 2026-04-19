@@ -8,9 +8,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
-import { Package02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
+import { PackageIcon } from "lucide-react";
 import { useState } from "react";
 
 import { BuildCard } from "./-build-card";
@@ -20,11 +19,7 @@ import { CompatibilityMatrix } from "./-compatibility-matrix";
 const BuildsEmptyState = () => (
   <Card className="border-dashed">
     <CardContent className="flex flex-col items-center justify-center py-12">
-      <HugeiconsIcon
-        icon={Package02Icon}
-        strokeWidth={1.5}
-        className="text-muted-foreground mb-4 size-12"
-      />
+      <PackageIcon strokeWidth={1.5} className="text-muted-foreground mb-4 size-12" />
       <p className="text-lg font-medium">No builds yet</p>
       <p className="text-muted-foreground mt-1 text-sm">
         Upload your first build using the CLI to get started.

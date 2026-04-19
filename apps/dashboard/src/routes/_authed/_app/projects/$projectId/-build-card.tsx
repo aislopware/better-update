@@ -1,8 +1,7 @@
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@better-update/ui/components/ui/card";
-import { Download04Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { DownloadIcon } from "lucide-react";
 
 import type { BuildCompatibilityRow } from "@better-update/api";
 
@@ -93,7 +92,7 @@ export const BuildCard = ({
               <InstallLinkDialog build={build} />
               <a href={`/api/builds/${build.id}/artifact`}>
                 <Button variant="ghost" size="icon" className="size-8" title="Download artifact">
-                  <HugeiconsIcon icon={Download04Icon} strokeWidth={2} className="size-4" />
+                  <DownloadIcon strokeWidth={2} className="size-4" />
                 </Button>
               </a>
             </>

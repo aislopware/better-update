@@ -17,10 +17,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
-import { Add01Icon, CloudUploadIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
+import { PlusIcon, CloudUploadIcon } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -116,8 +115,7 @@ const FileDropZone = ({
         <p className="font-medium">{file.name}</p>
       ) : (
         <div>
-          <HugeiconsIcon
-            icon={CloudUploadIcon}
+          <CloudUploadIcon
             strokeWidth={1.5}
             className="text-muted-foreground mx-auto mb-2 size-8"
           />
@@ -433,7 +431,7 @@ export const UploadCredentialDialog = ({ orgId }: { orgId: string }) => {
           setOpen(true);
         }}
       >
-        <HugeiconsIcon icon={Add01Icon} strokeWidth={2} className="size-4" />
+        <PlusIcon strokeWidth={2} className="size-4" />
         Upload
       </Button>
       <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">

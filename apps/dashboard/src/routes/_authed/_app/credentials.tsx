@@ -2,10 +2,9 @@ import { credentialsQueryOptions } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import { Card, CardContent } from "@better-update/ui/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@better-update/ui/components/ui/tabs";
-import { ShieldKeyIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { ShieldCheckIcon } from "lucide-react";
 import { useState } from "react";
 
 import { CredentialCard } from "./-credential-card";
@@ -14,11 +13,7 @@ import { UploadCredentialDialog } from "./-upload-credential-dialog";
 const EmptyState = () => (
   <Card className="border-dashed">
     <CardContent className="flex flex-col items-center justify-center py-12">
-      <HugeiconsIcon
-        icon={ShieldKeyIcon}
-        strokeWidth={1.5}
-        className="text-muted-foreground mb-4 size-12"
-      />
+      <ShieldCheckIcon strokeWidth={1.5} className="text-muted-foreground mb-4 size-12" />
       <p className="text-lg font-medium">No credentials</p>
       <p className="text-muted-foreground mt-1 text-sm">
         Upload signing credentials to use with CLI builds.

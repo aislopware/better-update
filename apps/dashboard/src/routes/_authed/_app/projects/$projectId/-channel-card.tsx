@@ -18,17 +18,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
+import { useQueryClient } from "@tanstack/react-query";
 import {
-  CheckmarkCircle02Icon,
+  CircleCheckIcon,
   GitBranchIcon,
   PauseIcon,
   PlayIcon,
-  Rocket01Icon,
+  RocketIcon,
   SatelliteIcon,
-  UndoIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { useQueryClient } from "@tanstack/react-query";
+  Undo2Icon,
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -145,7 +144,7 @@ const ActiveRolloutControls = ({
           disabled={isUpdatingRollout}
           onClick={handleCompleteRollout}
         >
-          <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={2} className="size-4" />
+          <CircleCheckIcon strokeWidth={2} className="size-4" />
         </Button>
         <Button
           size="icon"
@@ -155,7 +154,7 @@ const ActiveRolloutControls = ({
           disabled={isUpdatingRollout}
           onClick={handleRevertRollout}
         >
-          <HugeiconsIcon icon={UndoIcon} strokeWidth={2} className="size-4" />
+          <Undo2Icon strokeWidth={2} className="size-4" />
         </Button>
       </div>
     </div>
@@ -206,7 +205,7 @@ const StartRolloutControls = ({
           setIsStartingRollout(true);
         }}
       >
-        <HugeiconsIcon icon={Rocket01Icon} strokeWidth={2} className="mr-1 size-4" />
+        <RocketIcon strokeWidth={2} className="mr-1 size-4" />
         Start Rollout
       </Button>
     );
@@ -333,11 +332,7 @@ export const ChannelCard = ({
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <div className="flex flex-wrap items-center gap-2">
-            <HugeiconsIcon
-              icon={SatelliteIcon}
-              strokeWidth={2}
-              className="text-muted-foreground size-5"
-            />
+            <SatelliteIcon strokeWidth={2} className="text-muted-foreground size-5" />
             <CardTitle className="text-base">{channel.name}</CardTitle>
             {showDetailsLink ? (
               <a
@@ -357,11 +352,10 @@ export const ChannelCard = ({
               disabled={isToggling}
               onClick={handleTogglePause}
             >
-              <HugeiconsIcon
-                icon={channel.isPaused ? PlayIcon : PauseIcon}
-                strokeWidth={2}
-                className="size-4"
-              />
+              {(() => {
+                const Icon = channel.isPaused ? PlayIcon : PauseIcon;
+                return <Icon strokeWidth={2} className="size-4" />;
+              })()}
             </Button>
             <DeleteChannelDialog channel={channel} orgId={orgId} projectId={projectId} />
           </div>
@@ -369,11 +363,7 @@ export const ChannelCard = ({
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <div className="flex items-center gap-2">
-          <HugeiconsIcon
-            icon={GitBranchIcon}
-            strokeWidth={2}
-            className="text-muted-foreground size-4"
-          />
+          <GitBranchIcon strokeWidth={2} className="text-muted-foreground size-4" />
           <Select
             value={channel.branchId}
             disabled={rolloutState !== null}

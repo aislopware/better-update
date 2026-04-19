@@ -2,10 +2,9 @@ import { Button } from "@better-update/ui/components/ui/button";
 import { DialogClose, DialogFooter } from "@better-update/ui/components/ui/dialog";
 import { Input } from "@better-update/ui/components/ui/input";
 import { Label } from "@better-update/ui/components/ui/label";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { useForm } from "@tanstack/react-form";
 
-import type { ComponentProps } from "react";
+import type { LucideIcon } from "lucide-react";
 
 import { nameSchema } from "../../../../../lib/form-utils";
 
@@ -14,7 +13,7 @@ interface BranchNameFormProps {
   onSubmit: (name: string) => Promise<void>;
   submitLabel: string;
   submittingLabel: string;
-  submitIcon?: ComponentProps<typeof HugeiconsIcon>["icon"];
+  submitIcon?: LucideIcon;
 }
 
 export const BranchNameForm = ({
@@ -22,7 +21,7 @@ export const BranchNameForm = ({
   onSubmit,
   submitLabel,
   submittingLabel,
-  submitIcon,
+  submitIcon: SubmitIcon,
 }: BranchNameFormProps) => {
   const form = useForm({
     defaultValues: { name: defaultName },
@@ -77,9 +76,7 @@ export const BranchNameForm = ({
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
           {([canSubmit, isSubmitting]) => (
             <Button type="submit" disabled={!canSubmit || isSubmitting}>
-              {submitIcon ? (
-                <HugeiconsIcon icon={submitIcon} strokeWidth={2} className="size-4" />
-              ) : null}
+              {SubmitIcon ? <SubmitIcon strokeWidth={2} className="size-4" /> : null}
               {isSubmitting ? submittingLabel : submitLabel}
             </Button>
           )}

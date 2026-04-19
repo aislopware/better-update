@@ -1,8 +1,7 @@
 import { deleteBranch } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
-import { Delete02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient } from "@tanstack/react-query";
+import { Trash2Icon } from "lucide-react";
 
 import type { BranchItem } from "@better-update/api-client/react";
 
@@ -32,7 +31,7 @@ export const DeleteBranchDialog = ({
       }}
     >
       <Button variant="ghost" size="icon" className="size-8">
-        <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} className="text-destructive size-4" />
+        <Trash2Icon strokeWidth={2} className="text-destructive size-4" />
       </Button>
     </ConfirmDeleteDialog>
   );

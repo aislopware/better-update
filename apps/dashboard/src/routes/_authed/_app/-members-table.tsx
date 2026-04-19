@@ -16,13 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@better-update/ui/components/ui/table";
-import {
-  MoreVerticalIcon,
-  UserRemove01Icon,
-  Shield01Icon,
-  Cancel01Icon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { EllipsisVerticalIcon, UserMinusIcon, ShieldIcon, XIcon } from "lucide-react";
 
 import { getInitials } from "../../../lib/avatar";
 
@@ -62,7 +56,7 @@ const MemberActions = ({
     <DropdownMenu>
       <DropdownMenuTrigger>
         <Button variant="ghost" size="icon-sm">
-          <HugeiconsIcon icon={MoreVerticalIcon} strokeWidth={2} className="size-4" />
+          <EllipsisVerticalIcon strokeWidth={2} className="size-4" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
@@ -72,7 +66,7 @@ const MemberActions = ({
               onRoleChange(memberId, "admin");
             }}
           >
-            <HugeiconsIcon icon={Shield01Icon} strokeWidth={2} className="size-4" />
+            <ShieldIcon strokeWidth={2} className="size-4" />
             <span>Set as Admin</span>
           </DropdownMenuItem>
         )}
@@ -82,7 +76,7 @@ const MemberActions = ({
               onRoleChange(memberId, "member");
             }}
           >
-            <HugeiconsIcon icon={Shield01Icon} strokeWidth={2} className="size-4" />
+            <ShieldIcon strokeWidth={2} className="size-4" />
             <span>Set as Member</span>
           </DropdownMenuItem>
         )}
@@ -93,7 +87,7 @@ const MemberActions = ({
             onRemove(memberId);
           }}
         >
-          <HugeiconsIcon icon={UserRemove01Icon} strokeWidth={2} className="size-4" />
+          <UserMinusIcon strokeWidth={2} className="size-4" />
           <span>Remove member</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
@@ -227,7 +221,7 @@ export const InvitationsTableView = ({
                 onCancel(invitation.id);
               }}
             >
-              <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} className="size-4" />
+              <XIcon strokeWidth={2} className="size-4" />
             </Button>
           </TableCell>
         </TableRow>

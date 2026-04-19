@@ -8,14 +8,8 @@ import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@better-update/ui/components/ui/card";
 import { Input } from "@better-update/ui/components/ui/input";
-import {
-  CheckmarkCircle02Icon,
-  Delete02Icon,
-  Rocket01Icon,
-  UndoIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient } from "@tanstack/react-query";
+import { CircleCheckIcon, Trash2Icon, RocketIcon, Undo2Icon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -131,7 +125,7 @@ export const UpdateCard = ({
                   setRollbackOpen(true);
                 }}
               >
-                <HugeiconsIcon icon={UndoIcon} strokeWidth={2} className="size-4" />
+                <Undo2Icon strokeWidth={2} className="size-4" />
               </Button>
             )}
             {canPromote && (
@@ -144,7 +138,7 @@ export const UpdateCard = ({
                   setPromoteOpen(true);
                 }}
               >
-                <HugeiconsIcon icon={Rocket01Icon} strokeWidth={2} className="size-4" />
+                <RocketIcon strokeWidth={2} className="size-4" />
               </Button>
             )}
             <Button
@@ -155,7 +149,7 @@ export const UpdateCard = ({
               disabled={isDeleting}
               onClick={handleDelete}
             >
-              <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} className="size-4" />
+              <Trash2Icon strokeWidth={2} className="size-4" />
             </Button>
           </div>
         </div>
@@ -198,7 +192,7 @@ export const UpdateCard = ({
             disabled={isUpdatingRollout || update.rolloutPercentage === 100}
             onClick={handleComplete}
           >
-            <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={2} className="size-4" />
+            <CircleCheckIcon strokeWidth={2} className="size-4" />
           </Button>
           <Button
             size="icon"
@@ -208,7 +202,7 @@ export const UpdateCard = ({
             disabled={isUpdatingRollout || update.rolloutPercentage === 0}
             onClick={handleRevert}
           >
-            <HugeiconsIcon icon={UndoIcon} strokeWidth={2} className="size-4" />
+            <Undo2Icon strokeWidth={2} className="size-4" />
           </Button>
         </div>
       </CardContent>

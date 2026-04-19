@@ -1,9 +1,8 @@
 import { branchesQueryOptions } from "@better-update/api-client/react";
 import { Card, CardContent } from "@better-update/ui/components/ui/card";
-import { GitBranchIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { GitBranchIcon } from "lucide-react";
 
 import { BranchCard } from "../-branch-card";
 import { CreateBranchDialog } from "../-create-branch-dialog";
@@ -11,11 +10,7 @@ import { CreateBranchDialog } from "../-create-branch-dialog";
 const BranchesEmptyState = () => (
   <Card className="border-dashed">
     <CardContent className="flex flex-col items-center justify-center py-12">
-      <HugeiconsIcon
-        icon={GitBranchIcon}
-        strokeWidth={1.5}
-        className="text-muted-foreground mb-4 size-12"
-      />
+      <GitBranchIcon strokeWidth={1.5} className="text-muted-foreground mb-4 size-12" />
       <p className="text-lg font-medium">No branches yet</p>
       <p className="text-muted-foreground mt-1 text-sm">
         Create your first branch to start managing deployments.

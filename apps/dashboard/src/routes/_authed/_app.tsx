@@ -28,20 +28,19 @@ import {
 } from "@better-update/ui/components/ui/sidebar";
 import { Skeleton } from "@better-update/ui/components/ui/skeleton";
 import { TooltipProvider } from "@better-update/ui/components/ui/tooltip";
-import {
-  Add01Icon,
-  ArrowDown01Icon,
-  Building06Icon,
-  ComputerIcon,
-  Logout03Icon,
-  Moon02Icon,
-  Sun02Icon,
-  Tick02Icon,
-  UserAccountIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { Outlet, createFileRoute, useRouter, useRouterState } from "@tanstack/react-router";
+import {
+  PlusIcon,
+  ChevronDownIcon,
+  Building2Icon,
+  MonitorIcon,
+  LogOutIcon,
+  MoonIcon,
+  SunIcon,
+  CheckIcon,
+  UserIcon,
+} from "lucide-react";
 import { Suspense, useState } from "react";
 
 import { authClient } from "../../lib/auth-client";
@@ -107,13 +106,13 @@ const OrgSwitcher = () => {
         <DropdownMenuTrigger className="w-full">
           <SidebarMenuButton size="lg" className="data-open:bg-sidebar-accent">
             <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-              <HugeiconsIcon icon={Building06Icon} strokeWidth={2} className="size-4" />
+              <Building2Icon strokeWidth={2} className="size-4" />
             </div>
             <div className="grid flex-1 text-left text-sm leading-tight">
               <span className="truncate font-semibold">{displayName}</span>
               <span className="text-muted-foreground truncate text-xs">{activeOrg?.slug}</span>
             </div>
-            <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={2} className="ml-auto size-4" />
+            <ChevronDownIcon strokeWidth={2} className="ml-auto size-4" />
           </SidebarMenuButton>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" side="bottom" sideOffset={4} className="w-64">
@@ -122,14 +121,10 @@ const OrgSwitcher = () => {
             <DropdownMenuSeparator />
             {orgs.map((org) => (
               <DropdownMenuItem key={org.id} onClick={async () => handleOrgSwitch(org.id)}>
-                <HugeiconsIcon icon={Building06Icon} strokeWidth={2} className="size-4" />
+                <Building2Icon strokeWidth={2} className="size-4" />
                 <span className="flex-1 truncate">{org.name}</span>
                 {org.id === activeOrgId ? (
-                  <HugeiconsIcon
-                    icon={Tick02Icon}
-                    strokeWidth={2}
-                    className="text-primary size-4"
-                  />
+                  <CheckIcon strokeWidth={2} className="text-primary size-4" />
                 ) : null}
               </DropdownMenuItem>
             ))}
@@ -140,7 +135,7 @@ const OrgSwitcher = () => {
               setCreateOrgOpen(true);
             }}
           >
-            <HugeiconsIcon icon={Add01Icon} strokeWidth={2} className="size-4" />
+            <PlusIcon strokeWidth={2} className="size-4" />
             <span>Create organization</span>
           </DropdownMenuItem>
         </DropdownMenuContent>
@@ -150,7 +145,7 @@ const OrgSwitcher = () => {
   );
 };
 
-const themeIcons = { light: Sun02Icon, dark: Moon02Icon, system: ComputerIcon } as const;
+const themeIcons = { light: SunIcon, dark: MoonIcon, system: MonitorIcon } as const;
 
 const UserMenu = () => {
   const router = useRouter();
@@ -191,7 +186,10 @@ const UserMenu = () => {
           <DropdownMenuSeparator />
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
-              <HugeiconsIcon icon={themeIcons[theme]} strokeWidth={2} className="size-4" />
+              {(() => {
+                const ThemeIcon = themeIcons[theme];
+                return <ThemeIcon strokeWidth={2} className="size-4" />;
+              })()}
               <span>Theme</span>
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent>
@@ -214,12 +212,12 @@ const UserMenu = () => {
               await router.navigate({ to: "/account" });
             }}
           >
-            <HugeiconsIcon icon={UserAccountIcon} strokeWidth={2} className="size-4" />
+            <UserIcon strokeWidth={2} className="size-4" />
             <span>Account</span>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleLogout}>
-            <HugeiconsIcon icon={Logout03Icon} strokeWidth={2} className="size-4" />
+            <LogOutIcon strokeWidth={2} className="size-4" />
             <span>Log out</span>
           </DropdownMenuItem>
         </DropdownMenuGroup>

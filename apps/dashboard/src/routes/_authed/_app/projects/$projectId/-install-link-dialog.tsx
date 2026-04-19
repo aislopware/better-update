@@ -9,8 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
-import { SmartPhone02Icon, Copy01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { SmartphoneIcon, CopyIcon, CheckIcon } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useSyncExternalStore, useState } from "react";
 import { toast } from "sonner";
@@ -31,9 +30,11 @@ const CopyButton = ({ text }: { text: string }) => {
     }
   };
 
+  const Icon = copied ? CheckIcon : CopyIcon;
+
   return (
     <Button variant="outline" size="sm" onClick={handleCopy}>
-      <HugeiconsIcon icon={copied ? Tick02Icon : Copy01Icon} strokeWidth={2} className="size-4" />
+      <Icon strokeWidth={2} className="size-4" />
       {copied ? "Copied" : "Copy link"}
     </Button>
   );
@@ -98,7 +99,7 @@ export const InstallLinkDialog = ({
         title={buttonLabel ?? "Install link"}
         onClick={handleOpen}
       >
-        <HugeiconsIcon icon={SmartPhone02Icon} strokeWidth={2} className="size-4" />
+        <SmartphoneIcon strokeWidth={2} className="size-4" />
         {buttonLabel ? <span>{buttonLabel}</span> : null}
       </Button>
       <Dialog

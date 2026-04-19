@@ -1,8 +1,7 @@
 import { projectQueryOptions } from "@better-update/api-client/react";
-import { Folder02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Outlet, createFileRoute } from "@tanstack/react-router";
+import { FolderIcon } from "lucide-react";
 
 const ProjectShell = () => {
   const { projectId } = Route.useParams();
@@ -13,7 +12,7 @@ const ProjectShell = () => {
     <div className="mx-auto flex max-w-5xl flex-col gap-6">
       <div className="flex items-center gap-3">
         <div className="bg-muted flex aspect-square size-10 items-center justify-center rounded-lg">
-          <HugeiconsIcon icon={Folder02Icon} strokeWidth={2} className="size-5" />
+          <FolderIcon strokeWidth={2} className="size-5" />
         </div>
         <div>
           <h1 className="text-2xl font-bold">{project.name}</h1>

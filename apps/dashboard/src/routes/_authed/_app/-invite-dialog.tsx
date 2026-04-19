@@ -10,10 +10,9 @@ import {
 } from "@better-update/ui/components/ui/dialog";
 import { Input } from "@better-update/ui/components/ui/input";
 import { Label } from "@better-update/ui/components/ui/label";
-import { UserAdd01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
+import { UserPlusIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod/v4";
@@ -129,7 +128,7 @@ const InviteFormContent = ({ orgId, onSuccess }: { orgId: string; onSuccess: () 
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
           {([canSubmit, isSubmitting]) => (
             <Button type="submit" disabled={!canSubmit || isSubmitting}>
-              <HugeiconsIcon icon={UserAdd01Icon} strokeWidth={2} className="size-4" />
+              <UserPlusIcon strokeWidth={2} className="size-4" />
               {isSubmitting ? "Sending..." : "Send invitation"}
             </Button>
           )}
@@ -149,7 +148,7 @@ export const InviteDialog = ({ orgId }: { orgId: string }) => {
           setOpen(true);
         }}
       >
-        <HugeiconsIcon icon={UserAdd01Icon} strokeWidth={2} className="size-4" />
+        <UserPlusIcon strokeWidth={2} className="size-4" />
         Invite member
       </Button>
       <DialogContent>

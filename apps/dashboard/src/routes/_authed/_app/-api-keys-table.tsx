@@ -15,8 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@better-update/ui/components/ui/table";
-import { Key01Icon, Delete02Icon, MoreVerticalIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { KeyIcon, Trash2Icon, EllipsisVerticalIcon } from "lucide-react";
 
 import type { ApiKeyItem } from "../../../queries/api-keys";
 
@@ -34,12 +33,12 @@ const KeyActions = ({ onRevoke }: { onRevoke: () => void }) => (
   <DropdownMenu>
     <DropdownMenuTrigger>
       <Button variant="ghost" size="icon-sm">
-        <HugeiconsIcon icon={MoreVerticalIcon} strokeWidth={2} className="size-4" />
+        <EllipsisVerticalIcon strokeWidth={2} className="size-4" />
       </Button>
     </DropdownMenuTrigger>
     <DropdownMenuContent align="end">
       <DropdownMenuItem className="text-destructive" onClick={onRevoke}>
-        <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} className="size-4" />
+        <Trash2Icon strokeWidth={2} className="size-4" />
         <span>Revoke key</span>
       </DropdownMenuItem>
     </DropdownMenuContent>
@@ -98,11 +97,7 @@ export const ApiKeysTable = ({
 export const ApiKeysEmptyState = () => (
   <Card className="border-dashed">
     <CardContent className="flex flex-col items-center justify-center py-12">
-      <HugeiconsIcon
-        icon={Key01Icon}
-        strokeWidth={1.5}
-        className="text-muted-foreground mb-4 size-12"
-      />
+      <KeyIcon strokeWidth={1.5} className="text-muted-foreground mb-4 size-12" />
       <p className="text-lg font-medium">No API keys</p>
       <p className="text-muted-foreground mt-1 text-sm">
         Create an API key to authenticate requests to the management API.

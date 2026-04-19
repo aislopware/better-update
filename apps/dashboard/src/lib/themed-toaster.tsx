@@ -1,11 +1,10 @@
 import {
-  Alert02Icon,
-  CheckmarkCircle02Icon,
-  InformationCircleIcon,
-  Loading03Icon,
-  MultiplicationSignCircleIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+  TriangleAlertIcon,
+  CircleCheckIcon,
+  InfoIcon,
+  LoaderCircleIcon,
+  CircleXIcon,
+} from "lucide-react";
 import { Toaster } from "sonner";
 
 import { useTheme } from "./use-theme";
@@ -27,15 +26,11 @@ export const ThemedToaster = () => {
       closeButton
       className="toaster group"
       icons={{
-        success: <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={2} className="size-4" />,
-        info: <HugeiconsIcon icon={InformationCircleIcon} strokeWidth={2} className="size-4" />,
-        warning: <HugeiconsIcon icon={Alert02Icon} strokeWidth={2} className="size-4" />,
-        error: (
-          <HugeiconsIcon icon={MultiplicationSignCircleIcon} strokeWidth={2} className="size-4" />
-        ),
-        loading: (
-          <HugeiconsIcon icon={Loading03Icon} strokeWidth={2} className="size-4 animate-spin" />
-        ),
+        success: <CircleCheckIcon strokeWidth={2} className="size-4" />,
+        info: <InfoIcon strokeWidth={2} className="size-4" />,
+        warning: <TriangleAlertIcon strokeWidth={2} className="size-4" />,
+        error: <CircleXIcon strokeWidth={2} className="size-4" />,
+        loading: <LoaderCircleIcon strokeWidth={2} className="size-4 animate-spin" />,
       }}
       style={toasterStyle}
       toastOptions={{ classNames: { toast: "cn-toast" } }}
