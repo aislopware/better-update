@@ -9,8 +9,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
-import { Label } from "@better-update/ui/components/ui/label";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { PlusIcon } from "lucide-react";
@@ -54,7 +60,7 @@ export const CreateProjectFormContent = ({
         await form.handleSubmit();
       }}
     >
-      <div className="flex flex-col gap-4 py-4">
+      <FieldGroup className="py-4">
         <form.Field
           name="name"
           validators={{
@@ -67,8 +73,8 @@ export const CreateProjectFormContent = ({
           {(field) => {
             const errorMessage = getFieldError(field);
             return (
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="project-name">Project name</Label>
+              <Field data-invalid={errorMessage ? true : undefined}>
+                <FieldLabel htmlFor="project-name">Project name</FieldLabel>
                 <Input
                   id="project-name"
                   placeholder="My App"
@@ -84,9 +90,10 @@ export const CreateProjectFormContent = ({
                     }
                   }}
                   onBlur={field.handleBlur}
+                  aria-invalid={errorMessage ? true : undefined}
                 />
-                {errorMessage ? <p className="text-destructive text-sm">{errorMessage}</p> : null}
-              </div>
+                <FieldError>{errorMessage}</FieldError>
+              </Field>
             );
           }}
         </form.Field>
@@ -103,8 +110,8 @@ export const CreateProjectFormContent = ({
           {(field) => {
             const errorMessage = getFieldError(field);
             return (
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="project-slug">Slug</Label>
+              <Field data-invalid={errorMessage ? true : undefined}>
+                <FieldLabel htmlFor="project-slug">Slug</FieldLabel>
                 <Input
                   id="project-slug"
                   placeholder="my-app"
@@ -114,17 +121,18 @@ export const CreateProjectFormContent = ({
                     slugEdited.current = event.target.value !== "";
                   }}
                   onBlur={field.handleBlur}
+                  aria-invalid={errorMessage ? true : undefined}
                 />
-                <p className="text-muted-foreground text-xs">
+                <FieldDescription>
                   Lowercase URL-safe identifier. Must match <code>expo.slug</code> in your{" "}
                   <code>app.json</code>.
-                </p>
-                {errorMessage ? <p className="text-destructive text-sm">{errorMessage}</p> : null}
-              </div>
+                </FieldDescription>
+                <FieldError>{errorMessage}</FieldError>
+              </Field>
             );
           }}
         </form.Field>
-      </div>
+      </FieldGroup>
 
       <DialogFooter>
         <DialogClose>
@@ -133,7 +141,7 @@ export const CreateProjectFormContent = ({
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
           {([canSubmit, isSubmitting]) => (
             <Button type="submit" disabled={!canSubmit || isSubmitting}>
-              <PlusIcon strokeWidth={2} className="size-4" />
+              <PlusIcon strokeWidth={2} data-icon="inline-start" />
               {isSubmitting ? "Creating..." : "Create project"}
             </Button>
           )}
@@ -153,7 +161,7 @@ export const CreateProjectDialog = ({ orgId }: { orgId: string }) => {
           setOpen(true);
         }}
       >
-        <PlusIcon strokeWidth={2} className="size-4" />
+        <PlusIcon strokeWidth={2} data-icon="inline-start" />
         Create project
       </Button>
       <DialogContent>

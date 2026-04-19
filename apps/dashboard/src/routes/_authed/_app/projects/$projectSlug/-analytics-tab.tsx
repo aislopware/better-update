@@ -16,6 +16,7 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -219,11 +220,13 @@ const ChannelHealthChart = ({
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {channelsData.items.map((channel) => (
-            <SelectItem key={channel.id} value={channel.name}>
-              {channel.name}
-            </SelectItem>
-          ))}
+          <SelectGroup>
+            {channelsData.items.map((channel) => (
+              <SelectItem key={channel.id} value={channel.name}>
+                {channel.name}
+              </SelectItem>
+            ))}
+          </SelectGroup>
         </SelectContent>
       </Select>
       <Suspense fallback={chartSkeleton}>
@@ -332,11 +335,13 @@ const UpdateTrafficChart = ({
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {updatesData.items.map((update) => (
-            <SelectItem key={update.id} value={update.id}>
-              {truncateId(update.id)}
-            </SelectItem>
-          ))}
+          <SelectGroup>
+            {updatesData.items.map((update) => (
+              <SelectItem key={update.id} value={update.id}>
+                {truncateId(update.id)}
+              </SelectItem>
+            ))}
+          </SelectGroup>
         </SelectContent>
       </Select>
       <Suspense fallback={chartSkeleton}>
@@ -371,10 +376,12 @@ export const AnalyticsTab = ({ orgId, projectId }: { orgId: string; projectId: s
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="1d">Last 24 hours</SelectItem>
-            <SelectItem value="7d">Last 7 days</SelectItem>
-            <SelectItem value="30d">Last 30 days</SelectItem>
-            <SelectItem value="90d">Last 90 days</SelectItem>
+            <SelectGroup>
+              <SelectItem value="1d">Last 24 hours</SelectItem>
+              <SelectItem value="7d">Last 7 days</SelectItem>
+              <SelectItem value="30d">Last 30 days</SelectItem>
+              <SelectItem value="90d">Last 90 days</SelectItem>
+            </SelectGroup>
           </SelectContent>
         </Select>
       </div>

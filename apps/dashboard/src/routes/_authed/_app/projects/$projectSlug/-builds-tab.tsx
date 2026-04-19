@@ -1,9 +1,16 @@
 import { buildCompatibilityMatrixQueryOptions } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
-import { Card, CardContent } from "@better-update/ui/components/ui/card";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@better-update/ui/components/ui/empty";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -28,15 +35,15 @@ const DISTRIBUTION_FILTER_LABELS: Record<string, string> = {
 };
 
 const BuildsEmptyState = () => (
-  <Card className="border-dashed">
-    <CardContent className="flex flex-col items-center justify-center py-12">
-      <PackageIcon strokeWidth={1.5} className="text-muted-foreground mb-4 size-12" />
-      <p className="text-lg font-medium">No builds yet</p>
-      <p className="text-muted-foreground mt-1 text-sm">
-        Upload your first build using the CLI to get started.
-      </p>
-    </CardContent>
-  </Card>
+  <Empty className="border">
+    <EmptyHeader>
+      <EmptyMedia variant="icon">
+        <PackageIcon strokeWidth={1.5} />
+      </EmptyMedia>
+      <EmptyTitle>No builds yet</EmptyTitle>
+      <EmptyDescription>Upload your first build using the CLI to get started.</EmptyDescription>
+    </EmptyHeader>
+  </Empty>
 );
 
 export const BuildsTab = ({
@@ -88,9 +95,11 @@ export const BuildsTab = ({
             <SelectValue placeholder="All platforms" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All platforms</SelectItem>
-            <SelectItem value="ios">iOS</SelectItem>
-            <SelectItem value="android">Android</SelectItem>
+            <SelectGroup>
+              <SelectItem value="all">All platforms</SelectItem>
+              <SelectItem value="ios">iOS</SelectItem>
+              <SelectItem value="android">Android</SelectItem>
+            </SelectGroup>
           </SelectContent>
         </Select>
         <Select
@@ -107,12 +116,14 @@ export const BuildsTab = ({
             <SelectValue placeholder="All distributions" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All distributions</SelectItem>
-            {Object.entries(DISTRIBUTION_LABELS).map(([value, label]) => (
-              <SelectItem key={value} value={value}>
-                {label}
-              </SelectItem>
-            ))}
+            <SelectGroup>
+              <SelectItem value="all">All distributions</SelectItem>
+              {Object.entries(DISTRIBUTION_LABELS).map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
           </SelectContent>
         </Select>
       </div>

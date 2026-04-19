@@ -7,8 +7,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@better-update/ui/components/ui/card";
+import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
-import { Label } from "@better-update/ui/components/ui/label";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -65,8 +65,8 @@ export const AccountProfileCard = () => {
             {(field) => {
               const errorMessage = getFieldError(field);
               return (
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="profile-name">Name</Label>
+                <Field data-invalid={errorMessage ? true : undefined}>
+                  <FieldLabel htmlFor="profile-name">Name</FieldLabel>
                   <Input
                     id="profile-name"
                     value={field.state.value}
@@ -74,9 +74,10 @@ export const AccountProfileCard = () => {
                       field.handleChange(event.target.value);
                     }}
                     onBlur={field.handleBlur}
+                    aria-invalid={errorMessage ? true : undefined}
                   />
-                  {errorMessage ? <p className="text-destructive text-sm">{errorMessage}</p> : null}
-                </div>
+                  <FieldError>{errorMessage}</FieldError>
+                </Field>
               );
             }}
           </form.Field>

@@ -9,8 +9,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
+import { Field, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
-import { Label } from "@better-update/ui/components/ui/label";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -74,10 +74,10 @@ export const ConfirmDeleteDialog = ({
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
-        <div className="flex flex-col gap-2 py-4">
-          <Label htmlFor="confirm-delete">
+        <Field className="py-4">
+          <FieldLabel htmlFor="confirm-delete">
             Type <span className="font-mono font-bold">{name}</span> to confirm
-          </Label>
+          </FieldLabel>
           <Input
             id="confirm-delete"
             value={confirmText}
@@ -86,7 +86,7 @@ export const ConfirmDeleteDialog = ({
             }}
             placeholder={name}
           />
-        </div>
+        </Field>
         <DialogFooter>
           <DialogClose>
             <Button variant="outline">Cancel</Button>

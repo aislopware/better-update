@@ -3,7 +3,13 @@ import {
   buildCompatibilityMatrixQueryOptions,
   channelsQueryOptions,
 } from "@better-update/api-client/react";
-import { Card, CardContent } from "@better-update/ui/components/ui/card";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@better-update/ui/components/ui/empty";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { SatelliteIcon } from "lucide-react";
 
@@ -15,15 +21,15 @@ import {
 import { CreateChannelDialog } from "./-create-channel-dialog";
 
 const ChannelsEmptyState = () => (
-  <Card className="border-dashed">
-    <CardContent className="flex flex-col items-center justify-center py-12">
-      <SatelliteIcon strokeWidth={1.5} className="text-muted-foreground mb-4 size-12" />
-      <p className="text-lg font-medium">No channels yet</p>
-      <p className="text-muted-foreground mt-1 text-sm">
-        Create your first channel to start distributing updates.
-      </p>
-    </CardContent>
-  </Card>
+  <Empty className="border">
+    <EmptyHeader>
+      <EmptyMedia variant="icon">
+        <SatelliteIcon strokeWidth={1.5} />
+      </EmptyMedia>
+      <EmptyTitle>No channels yet</EmptyTitle>
+      <EmptyDescription>Create your first channel to start distributing updates.</EmptyDescription>
+    </EmptyHeader>
+  </Empty>
 );
 
 export const ChannelsTab = ({

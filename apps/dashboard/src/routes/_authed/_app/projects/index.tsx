@@ -12,6 +12,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@better-update/ui/components/ui/dropdown-menu";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@better-update/ui/components/ui/empty";
 import { Input } from "@better-update/ui/components/ui/input";
 import {
   Table,
@@ -164,7 +171,7 @@ const SORT_OPTIONS: readonly { value: SortId; label: string }[] = [
 
 const sortTriggerButton = (
   <Button variant="outline" size="sm">
-    <SlidersHorizontalIcon strokeWidth={2} className="size-4" />
+    <SlidersHorizontalIcon strokeWidth={2} data-icon="inline-start" />
     <span>Sort</span>
   </Button>
 );
@@ -184,9 +191,7 @@ const SortDropdown = ({ value, onChange }: { value: SortId; onChange: (next: Sor
             }}
           >
             <span className="flex-1">{option.label}</span>
-            {option.value === value ? (
-              <CheckIcon strokeWidth={2} className="text-primary size-4" />
-            ) : null}
+            {option.value === value ? <CheckIcon strokeWidth={2} className="text-primary" /> : null}
           </DropdownMenuItem>
         ))}
       </DropdownMenuGroup>
@@ -195,15 +200,15 @@ const SortDropdown = ({ value, onChange }: { value: SortId; onChange: (next: Sor
 );
 
 const EmptyState = () => (
-  <Card className="border-dashed">
-    <CardContent className="flex flex-col items-center justify-center py-12">
-      <FolderIcon strokeWidth={1.5} className="text-muted-foreground mb-4 size-12" />
-      <p className="text-lg font-medium">No projects yet</p>
-      <p className="text-muted-foreground mt-1 text-sm">
-        Create your first project to start publishing updates.
-      </p>
-    </CardContent>
-  </Card>
+  <Empty className="border">
+    <EmptyHeader>
+      <EmptyMedia variant="icon">
+        <FolderIcon strokeWidth={1.5} />
+      </EmptyMedia>
+      <EmptyTitle>No projects yet</EmptyTitle>
+      <EmptyDescription>Create your first project to start publishing updates.</EmptyDescription>
+    </EmptyHeader>
+  </Empty>
 );
 
 const ProjectsTable = ({ table }: { table: TableInstance<ProjectItem> }) => {

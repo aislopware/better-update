@@ -8,8 +8,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldLabel,
+} from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
-import { Label } from "@better-update/ui/components/ui/label";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { KeyIcon, CopyIcon, CheckIcon } from "lucide-react";
@@ -57,7 +62,7 @@ const CreateFormContent = ({
         await form.handleSubmit();
       }}
     >
-      <div className="flex flex-col gap-4 py-4">
+      <div className="py-4">
         <form.Field
           name="name"
           validators={{
@@ -70,8 +75,8 @@ const CreateFormContent = ({
           {(field) => {
             const errorMessage = getFieldError(field);
             return (
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="api-key-name">Name</Label>
+              <Field data-invalid={errorMessage ? true : undefined}>
+                <FieldLabel htmlFor="api-key-name">Name</FieldLabel>
                 <Input
                   id="api-key-name"
                   placeholder="My API Key"
@@ -80,12 +85,11 @@ const CreateFormContent = ({
                     field.handleChange(event.target.value);
                   }}
                   onBlur={field.handleBlur}
+                  aria-invalid={errorMessage ? true : undefined}
                 />
-                <p className="text-muted-foreground text-xs">
-                  A memorable name to identify this key.
-                </p>
-                {errorMessage ? <p className="text-destructive text-sm">{errorMessage}</p> : null}
-              </div>
+                <FieldDescription>A memorable name to identify this key.</FieldDescription>
+                <FieldError>{errorMessage}</FieldError>
+              </Field>
             );
           }}
         </form.Field>
@@ -98,7 +102,7 @@ const CreateFormContent = ({
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
           {([canSubmit, isSubmitting]) => (
             <Button type="submit" disabled={!canSubmit || isSubmitting}>
-              <KeyIcon strokeWidth={2} className="size-4" />
+              <KeyIcon strokeWidth={2} data-icon="inline-start" />
               {isSubmitting ? "Creating..." : "Create key"}
             </Button>
           )}
@@ -130,7 +134,7 @@ const KeyRevealContent = ({ apiKey, onClose }: { apiKey: string; onClose: () => 
           <Button variant="outline" size="icon" onClick={handleCopy}>
             {(() => {
               const Icon = copied ? CheckIcon : CopyIcon;
-              return <Icon strokeWidth={2} className="size-4" />;
+              return <Icon strokeWidth={2} />;
             })()}
           </Button>
         </div>
@@ -178,7 +182,7 @@ export const CreateApiKeyDialog = ({ orgId }: { orgId: string }) => {
           setOpen(true);
         }}
       >
-        <KeyIcon strokeWidth={2} className="size-4" />
+        <KeyIcon strokeWidth={2} data-icon="inline-start" />
         Create API key
       </Button>
       <DialogContent>

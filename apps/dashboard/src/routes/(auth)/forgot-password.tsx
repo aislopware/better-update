@@ -7,8 +7,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@better-update/ui/components/ui/card";
+import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
-import { Label } from "@better-update/ui/components/ui/label";
 import { useForm } from "@tanstack/react-form";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { toast } from "sonner";
@@ -62,8 +62,8 @@ const ForgotPassword = () => {
               {(field) => {
                 const errorMessage = field.state.meta.errors.map(String).filter(Boolean).join(", ");
                 return (
-                  <div className="flex flex-col gap-2">
-                    <Label htmlFor="email">Email</Label>
+                  <Field data-invalid={errorMessage ? true : undefined}>
+                    <FieldLabel htmlFor="email">Email</FieldLabel>
                     <Input
                       id="email"
                       type="email"
@@ -73,11 +73,10 @@ const ForgotPassword = () => {
                         field.handleChange(event.target.value);
                       }}
                       onBlur={field.handleBlur}
+                      aria-invalid={errorMessage ? true : undefined}
                     />
-                    {errorMessage ? (
-                      <p className="text-destructive text-sm">{errorMessage}</p>
-                    ) : null}
-                  </div>
+                    <FieldError>{errorMessage}</FieldError>
+                  </Field>
                 );
               }}
             </form.Field>

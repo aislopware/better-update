@@ -36,7 +36,7 @@ export const CreateBranchDialog = ({ orgId, projectId }: { orgId: string; projec
           setOpen(true);
         }}
       >
-        <PlusIcon strokeWidth={2} className="size-4" />
+        <PlusIcon strokeWidth={2} data-icon="inline-start" />
         Create branch
       </Button>
       <DialogContent>

@@ -3,10 +3,17 @@ import {
   channelsQueryOptions,
   updatesQueryOptions,
 } from "@better-update/api-client/react";
-import { Card, CardContent } from "@better-update/ui/components/ui/card";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@better-update/ui/components/ui/empty";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -18,15 +25,15 @@ import { useState } from "react";
 import { UpdateCard } from "./-update-card";
 
 const UpdatesEmptyState = () => (
-  <Card className="border-dashed">
-    <CardContent className="flex flex-col items-center justify-center py-12">
-      <CloudUploadIcon strokeWidth={1.5} className="text-muted-foreground mb-4 size-12" />
-      <p className="text-lg font-medium">No updates yet</p>
-      <p className="text-muted-foreground mt-1 text-sm">
-        Publish your first update using the CLI to see it here.
-      </p>
-    </CardContent>
-  </Card>
+  <Empty className="border">
+    <EmptyHeader>
+      <EmptyMedia variant="icon">
+        <CloudUploadIcon strokeWidth={1.5} />
+      </EmptyMedia>
+      <EmptyTitle>No updates yet</EmptyTitle>
+      <EmptyDescription>Publish your first update using the CLI to see it here.</EmptyDescription>
+    </EmptyHeader>
+  </Empty>
 );
 
 export const UpdatesTab = ({
@@ -66,12 +73,14 @@ export const UpdatesTab = ({
             <SelectValue placeholder="All branches" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All branches</SelectItem>
-            {branchesData.items.map((branch) => (
-              <SelectItem key={branch.id} value={branch.id}>
-                {branch.name}
-              </SelectItem>
-            ))}
+            <SelectGroup>
+              <SelectItem value="all">All branches</SelectItem>
+              {branchesData.items.map((branch) => (
+                <SelectItem key={branch.id} value={branch.id}>
+                  {branch.name}
+                </SelectItem>
+              ))}
+            </SelectGroup>
           </SelectContent>
         </Select>
       </div>

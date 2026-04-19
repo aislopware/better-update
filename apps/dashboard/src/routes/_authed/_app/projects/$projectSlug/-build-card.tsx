@@ -12,6 +12,16 @@ import { InstallLinkDialog } from "./-install-link-dialog";
 const statusText = (count: number) =>
   count > 0 ? `✓ ${count} updates` : "✗ no updates for this runtimeVersion";
 
+const renderStatusBadge = (channel: (typeof BuildCompatibilityRow.Type)["channels"][number]) => {
+  if (channel.isPaused) {
+    return <Badge variant="outline">Paused</Badge>;
+  }
+  if (channel.updateCount > 0) {
+    return <Badge variant="default">{statusText(channel.updateCount)}</Badge>;
+  }
+  return <span className="text-muted-foreground">{statusText(channel.updateCount)}</span>;
+};
+
 const CompatibleChannels = ({ build }: { build: typeof BuildCompatibilityRow.Type }) => {
   if (build.runtimeVersion === null) {
     return (
@@ -35,19 +45,7 @@ const CompatibleChannels = ({ build }: { build: typeof BuildCompatibilityRow.Typ
       className="flex flex-wrap items-center gap-2 text-sm"
     >
       <Badge variant="outline">{channel.channelName}</Badge>
-      {channel.isPaused ? (
-        <Badge variant="outline">Paused</Badge>
-      ) : (
-        <span
-          className={
-            channel.updateCount > 0
-              ? "font-medium text-emerald-700 dark:text-emerald-400"
-              : "font-medium text-amber-700 dark:text-amber-400"
-          }
-        >
-          {statusText(channel.updateCount)}
-        </span>
-      )}
+      {renderStatusBadge(channel)}
       {channel.rolloutActive && <Badge variant="outline">Rollout active</Badge>}
       {channel.latestUpdateMessage && (
         <span className="text-muted-foreground">latest {channel.latestUpdateMessage}</span>
@@ -93,8 +91,8 @@ export const BuildCard = ({
             <>
               <InstallLinkDialog build={build} />
               <a href={`/api/builds/${build.id}/artifact`}>
-                <Button variant="ghost" size="icon" className="size-8" title="Download artifact">
-                  <DownloadIcon strokeWidth={2} className="size-4" />
+                <Button variant="ghost" size="icon" title="Download artifact">
+                  <DownloadIcon strokeWidth={2} />
                 </Button>
               </a>
             </>

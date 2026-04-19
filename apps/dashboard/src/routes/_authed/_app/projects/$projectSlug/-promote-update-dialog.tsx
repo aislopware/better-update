@@ -12,6 +12,7 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -111,11 +112,13 @@ export const PromoteUpdateDialog = ({
                 <SelectValue placeholder="Select a channel" />
               </SelectTrigger>
               <SelectContent>
-                {channels.map((channel) => (
-                  <SelectItem key={channel.id} value={channel.name}>
-                    {channel.name}
-                  </SelectItem>
-                ))}
+                <SelectGroup>
+                  {channels.map((channel) => (
+                    <SelectItem key={channel.id} value={channel.name}>
+                      {channel.name}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
               </SelectContent>
             </Select>
           </div>
@@ -125,7 +128,7 @@ export const PromoteUpdateDialog = ({
             onClick={handlePromote}
             disabled={!targetChannelName || promoteUpdateMutation.isPending}
           >
-            <RocketIcon strokeWidth={2} className="size-4" />
+            <RocketIcon strokeWidth={2} data-icon="inline-start" />
             {promoteUpdateMutation.isPending ? "Promoting..." : "Promote"}
           </Button>
         </DialogFooter>

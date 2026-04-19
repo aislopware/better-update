@@ -7,8 +7,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@better-update/ui/components/ui/card";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
-import { Label } from "@better-update/ui/components/ui/label";
 import { useForm } from "@tanstack/react-form";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { toast } from "sonner";
@@ -59,81 +59,86 @@ const LoginPage = () => {
               event.stopPropagation();
               await form.handleSubmit();
             }}
-            className="flex flex-col gap-4"
           >
-            <form.Field
-              name="email"
-              validators={{
-                onBlur: ({ value }) => {
-                  const result = z.email("Invalid email address").safeParse(value);
-                  return result.success ? undefined : result.error.issues[0]?.message;
-                },
-              }}
-            >
-              {(field) => {
-                const errorMessage = field.state.meta.errors.map(String).filter(Boolean).join(", ");
-                return (
-                  <div className="flex flex-col gap-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="you@example.com"
-                      value={field.state.value}
-                      onBlur={field.handleBlur}
-                      onChange={(ev) => {
-                        field.handleChange(ev.target.value);
-                      }}
-                    />
-                    {errorMessage ? (
-                      <p className="text-destructive text-sm">{errorMessage}</p>
-                    ) : null}
-                  </div>
-                );
-              }}
-            </form.Field>
+            <FieldGroup>
+              <form.Field
+                name="email"
+                validators={{
+                  onBlur: ({ value }) => {
+                    const result = z.email("Invalid email address").safeParse(value);
+                    return result.success ? undefined : result.error.issues[0]?.message;
+                  },
+                }}
+              >
+                {(field) => {
+                  const errorMessage = field.state.meta.errors
+                    .map(String)
+                    .filter(Boolean)
+                    .join(", ");
+                  return (
+                    <Field data-invalid={errorMessage ? true : undefined}>
+                      <FieldLabel htmlFor="email">Email</FieldLabel>
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="you@example.com"
+                        value={field.state.value}
+                        onBlur={field.handleBlur}
+                        onChange={(ev) => {
+                          field.handleChange(ev.target.value);
+                        }}
+                        aria-invalid={errorMessage ? true : undefined}
+                      />
+                      <FieldError>{errorMessage}</FieldError>
+                    </Field>
+                  );
+                }}
+              </form.Field>
 
-            <form.Field
-              name="password"
-              validators={{
-                onBlur: ({ value }) => {
-                  const result = z
-                    .string()
-                    .check(z.minLength(8, "Password must be at least 8 characters"))
-                    .safeParse(value);
-                  return result.success ? undefined : result.error.issues[0]?.message;
-                },
-              }}
-            >
-              {(field) => {
-                const errorMessage = field.state.meta.errors.map(String).filter(Boolean).join(", ");
-                return (
-                  <div className="flex flex-col gap-2">
-                    <Label htmlFor="password">Password</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      value={field.state.value}
-                      onBlur={field.handleBlur}
-                      onChange={(ev) => {
-                        field.handleChange(ev.target.value);
-                      }}
-                    />
-                    {errorMessage ? (
-                      <p className="text-destructive text-sm">{errorMessage}</p>
-                    ) : null}
-                  </div>
-                );
-              }}
-            </form.Field>
+              <form.Field
+                name="password"
+                validators={{
+                  onBlur: ({ value }) => {
+                    const result = z
+                      .string()
+                      .check(z.minLength(8, "Password must be at least 8 characters"))
+                      .safeParse(value);
+                    return result.success ? undefined : result.error.issues[0]?.message;
+                  },
+                }}
+              >
+                {(field) => {
+                  const errorMessage = field.state.meta.errors
+                    .map(String)
+                    .filter(Boolean)
+                    .join(", ");
+                  return (
+                    <Field data-invalid={errorMessage ? true : undefined}>
+                      <FieldLabel htmlFor="password">Password</FieldLabel>
+                      <Input
+                        id="password"
+                        type="password"
+                        value={field.state.value}
+                        onBlur={field.handleBlur}
+                        onChange={(ev) => {
+                          field.handleChange(ev.target.value);
+                        }}
+                        aria-invalid={errorMessage ? true : undefined}
+                      />
+                      <FieldError>{errorMessage}</FieldError>
+                    </Field>
+                  );
+                }}
+              </form.Field>
 
-            <form.Subscribe selector={(state) => state.isSubmitting}>
-              {(isSubmitting) => (
-                <Button type="submit" disabled={isSubmitting} className="w-full">
-                  {isSubmitting ? "Signing in..." : "Sign in"}
-                </Button>
-              )}
-            </form.Subscribe>
+              <form.Subscribe selector={(state) => state.isSubmitting}>
+                {(isSubmitting) => (
+                  <Button type="submit" disabled={isSubmitting} className="w-full">
+                    {isSubmitting ? "Signing in..." : "Sign in"}
+                  </Button>
+                )}
+              </form.Subscribe>
+            </FieldGroup>
           </form>
 
           {config.githubEnabled ? (

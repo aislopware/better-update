@@ -3,6 +3,7 @@ import { Button } from "@better-update/ui/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -55,40 +56,44 @@ const MemberActions = ({
     <DropdownMenu>
       <DropdownMenuTrigger>
         <Button variant="ghost" size="icon-sm">
-          <EllipsisVerticalIcon strokeWidth={2} className="size-4" />
+          <EllipsisVerticalIcon strokeWidth={2} />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        {memberRole === "admin" ? null : (
-          <DropdownMenuItem
-            onClick={() => {
-              onRoleChange(memberId, "admin");
-            }}
-          >
-            <ShieldIcon strokeWidth={2} className="size-4" />
-            <span>Set as Admin</span>
-          </DropdownMenuItem>
-        )}
-        {memberRole === "member" ? null : (
-          <DropdownMenuItem
-            onClick={() => {
-              onRoleChange(memberId, "member");
-            }}
-          >
-            <ShieldIcon strokeWidth={2} className="size-4" />
-            <span>Set as Member</span>
-          </DropdownMenuItem>
-        )}
+        <DropdownMenuGroup>
+          {memberRole === "admin" ? null : (
+            <DropdownMenuItem
+              onClick={() => {
+                onRoleChange(memberId, "admin");
+              }}
+            >
+              <ShieldIcon strokeWidth={2} />
+              <span>Set as Admin</span>
+            </DropdownMenuItem>
+          )}
+          {memberRole === "member" ? null : (
+            <DropdownMenuItem
+              onClick={() => {
+                onRoleChange(memberId, "member");
+              }}
+            >
+              <ShieldIcon strokeWidth={2} />
+              <span>Set as Member</span>
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem
-          className="text-destructive"
-          onClick={() => {
-            onRemove(memberId);
-          }}
-        >
-          <UserMinusIcon strokeWidth={2} className="size-4" />
-          <span>Remove member</span>
-        </DropdownMenuItem>
+        <DropdownMenuGroup>
+          <DropdownMenuItem
+            className="text-destructive"
+            onClick={() => {
+              onRemove(memberId);
+            }}
+          >
+            <UserMinusIcon strokeWidth={2} />
+            <span>Remove member</span>
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -212,7 +217,7 @@ export const InvitationsTableView = ({
                 onCancel(invitation.id);
               }}
             >
-              <XIcon strokeWidth={2} className="size-4" />
+              <XIcon strokeWidth={2} />
             </Button>
           </TableCell>
         </TableRow>

@@ -9,10 +9,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
-import { Label } from "@better-update/ui/components/ui/label";
+import { Field, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -94,7 +95,7 @@ export const ImportEnvVarsDialog = ({
           setOpen(true);
         }}
       >
-        <FileInputIcon strokeWidth={2} className="size-4" />
+        <FileInputIcon strokeWidth={2} data-icon="inline-start" />
         Import .env
       </Button>
       <DialogContent>
@@ -105,9 +106,9 @@ export const ImportEnvVarsDialog = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-4 py-4">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="env-content">Content</Label>
+        <FieldGroup className="py-4">
+          <Field>
+            <FieldLabel htmlFor="env-content">Content</FieldLabel>
             <Textarea
               id="env-content"
               placeholder={
@@ -125,10 +126,10 @@ export const ImportEnvVarsDialog = ({
                 {lineCount} variable{lineCount === 1 ? "" : "s"} detected
               </p>
             ) : null}
-          </div>
+          </Field>
 
-          <div className="flex flex-col gap-2">
-            <Label>Default visibility</Label>
+          <Field>
+            <FieldLabel>Default visibility</FieldLabel>
             <Select
               items={VISIBILITY_LABELS}
               value={visibility}
@@ -142,16 +143,18 @@ export const ImportEnvVarsDialog = ({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="plaintext">Plaintext</SelectItem>
-                <SelectItem value="sensitive">Sensitive</SelectItem>
-                <SelectItem value="secret">Secret</SelectItem>
+                <SelectGroup>
+                  <SelectItem value="plaintext">Plaintext</SelectItem>
+                  <SelectItem value="sensitive">Sensitive</SelectItem>
+                  <SelectItem value="secret">Secret</SelectItem>
+                </SelectGroup>
               </SelectContent>
             </Select>
             <p className="text-muted-foreground text-xs">
               All imported variables will use this visibility tier.
             </p>
-          </div>
-        </div>
+          </Field>
+        </FieldGroup>
 
         <DialogFooter>
           <DialogClose>

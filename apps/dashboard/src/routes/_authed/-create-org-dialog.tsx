@@ -7,8 +7,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
-import { Label } from "@better-update/ui/components/ui/label";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
@@ -68,7 +68,7 @@ export const CreateOrgDialog = ({
             await form.handleSubmit();
           }}
         >
-          <div className="flex flex-col gap-4">
+          <FieldGroup>
             <form.Field
               name="name"
               validators={{
@@ -81,8 +81,8 @@ export const CreateOrgDialog = ({
               {(field) => {
                 const errorMessage = field.state.meta.errors.map(String).filter(Boolean).join(", ");
                 return (
-                  <div className="flex flex-col gap-2">
-                    <Label htmlFor="create-org-name">Organization name</Label>
+                  <Field data-invalid={errorMessage ? true : undefined}>
+                    <FieldLabel htmlFor="create-org-name">Organization name</FieldLabel>
                     <Input
                       id="create-org-name"
                       placeholder="Acme Inc."
@@ -97,11 +97,10 @@ export const CreateOrgDialog = ({
                         }
                       }}
                       onBlur={field.handleBlur}
+                      aria-invalid={errorMessage ? true : undefined}
                     />
-                    {errorMessage ? (
-                      <p className="text-destructive text-sm">{errorMessage}</p>
-                    ) : null}
-                  </div>
+                    <FieldError>{errorMessage}</FieldError>
+                  </Field>
                 );
               }}
             </form.Field>
@@ -118,8 +117,8 @@ export const CreateOrgDialog = ({
               {(field) => {
                 const errorMessage = field.state.meta.errors.map(String).filter(Boolean).join(", ");
                 return (
-                  <div className="flex flex-col gap-2">
-                    <Label htmlFor="create-org-slug">URL slug</Label>
+                  <Field data-invalid={errorMessage ? true : undefined}>
+                    <FieldLabel htmlFor="create-org-slug">URL slug</FieldLabel>
                     <Input
                       id="create-org-slug"
                       placeholder="acme-inc"
@@ -129,15 +128,14 @@ export const CreateOrgDialog = ({
                         slugEdited.current = event.target.value !== "";
                       }}
                       onBlur={field.handleBlur}
+                      aria-invalid={errorMessage ? true : undefined}
                     />
-                    {errorMessage ? (
-                      <p className="text-destructive text-sm">{errorMessage}</p>
-                    ) : null}
-                  </div>
+                    <FieldError>{errorMessage}</FieldError>
+                  </Field>
                 );
               }}
             </form.Field>
-          </div>
+          </FieldGroup>
 
           <DialogFooter className="mt-6">
             <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>

@@ -9,11 +9,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
+import { Field, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
-import { Label } from "@better-update/ui/components/ui/label";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -38,6 +39,30 @@ import {
 } from "./-credential-helpers";
 
 import type { CredentialTypeValue, DistributionValue } from "./-credential-helpers";
+
+const TypeOptionsContent = ({ platform }: { platform: "ios" | "android" }) => (
+  <SelectContent>
+    <SelectGroup>
+      {TYPE_OPTIONS_BY_PLATFORM[platform].map((opt) => (
+        <SelectItem key={opt.value} value={opt.value}>
+          {opt.label}
+        </SelectItem>
+      ))}
+    </SelectGroup>
+  </SelectContent>
+);
+
+const DistributionOptionsContent = () => (
+  <SelectContent>
+    <SelectGroup>
+      {DISTRIBUTIONS.map((opt) => (
+        <SelectItem key={opt.value} value={opt.value}>
+          {opt.label}
+        </SelectItem>
+      ))}
+    </SelectGroup>
+  </SelectContent>
+);
 
 interface UploadFormValues {
   platform: "" | "ios" | "android";
@@ -107,8 +132,8 @@ const FileDropZone = ({
   onDrop: (event: React.DragEvent) => void;
   onFileChange: (file: File) => void;
 }) => (
-  <div className="flex flex-col gap-2">
-    <Label>File</Label>
+  <Field>
+    <FieldLabel>File</FieldLabel>
     <button
       type="button"
       className={`hover:border-primary/50 cursor-pointer rounded-lg border-2 border-dashed p-6 text-center transition-colors ${file ? "border-primary bg-primary/5" : ""}`}
@@ -140,7 +165,7 @@ const FileDropZone = ({
         }}
       />
     </button>
-  </div>
+  </Field>
 );
 
 const buildSubmitInput = (value: UploadFormValues) =>
@@ -166,12 +191,36 @@ const useUploadForm = (onSubmit: (input: SubmitInput) => Promise<unknown>) =>
 
 type UploadFormApi = ReturnType<typeof useUploadForm>;
 
+const DistributionField = ({ form }: { form: UploadFormApi }) => (
+  <form.Field name="distribution">
+    {(field) => (
+      <Field>
+        <FieldLabel>Distribution</FieldLabel>
+        <Select
+          items={DISTRIBUTION_LABELS}
+          value={field.state.value}
+          onValueChange={(value) => {
+            if (value && isDistribution(value)) {
+              field.handleChange(value);
+            }
+          }}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Select distribution" />
+          </SelectTrigger>
+          <DistributionOptionsContent />
+        </Select>
+      </Field>
+    )}
+  </form.Field>
+);
+
 const KeystoreFields = ({ form }: { form: UploadFormApi }) => (
   <div className="grid grid-cols-2 gap-3">
     <form.Field name="keyAlias">
       {(field) => (
-        <div className="flex flex-col gap-2">
-          <Label>Key Alias</Label>
+        <Field>
+          <FieldLabel>Key Alias</FieldLabel>
           <Input
             value={field.state.value}
             onChange={(ev) => {
@@ -179,13 +228,13 @@ const KeystoreFields = ({ form }: { form: UploadFormApi }) => (
             }}
             placeholder="e.g. my-key-alias"
           />
-        </div>
+        </Field>
       )}
     </form.Field>
     <form.Field name="keyPassword">
       {(field) => (
-        <div className="flex flex-col gap-2">
-          <Label>Key Password</Label>
+        <Field>
+          <FieldLabel>Key Password</FieldLabel>
           <Input
             type="password"
             value={field.state.value}
@@ -194,7 +243,7 @@ const KeystoreFields = ({ form }: { form: UploadFormApi }) => (
             }}
             placeholder="Key password"
           />
-        </div>
+        </Field>
       )}
     </form.Field>
   </div>
@@ -222,206 +271,175 @@ const UploadForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: () => void
 
   return (
     <form
-      className="flex flex-col gap-4"
       onSubmit={async (event) => {
         event.preventDefault();
         event.stopPropagation();
         await form.handleSubmit();
       }}
     >
-      <form.Field name="platform">
-        {(field) => (
-          <div className="flex flex-col gap-2">
-            <Label>Platform</Label>
-            <Select
-              items={PLATFORM_LABELS}
-              value={field.state.value}
-              onValueChange={(value) => {
-                if (value === "ios" || value === "android") {
-                  field.handleChange(value);
-                  form.setFieldValue("credentialType", "");
-                  resetDependentFields();
-                }
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select platform" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ios">iOS</SelectItem>
-                <SelectItem value="android">Android</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-      </form.Field>
+      <FieldGroup>
+        <form.Field name="platform">
+          {(field) => (
+            <Field>
+              <FieldLabel>Platform</FieldLabel>
+              <Select
+                items={PLATFORM_LABELS}
+                value={field.state.value}
+                onValueChange={(value) => {
+                  if (value === "ios" || value === "android") {
+                    field.handleChange(value);
+                    form.setFieldValue("credentialType", "");
+                    resetDependentFields();
+                  }
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select platform" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="ios">iOS</SelectItem>
+                    <SelectItem value="android">Android</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </Field>
+          )}
+        </form.Field>
 
-      <form.Subscribe selector={(state) => state.values.platform}>
-        {(platform) =>
-          platform ? (
-            <form.Field name="credentialType">
-              {(field) => (
-                <div className="flex flex-col gap-2">
-                  <Label>Type</Label>
-                  <Select
-                    items={TYPE_LABELS_BY_PLATFORM[platform]}
-                    value={field.state.value}
-                    onValueChange={(value) => {
-                      if (value && isCredentialType(value)) {
-                        field.handleChange(value);
-                        resetDependentFields();
-                      }
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select credential type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {TYPE_OPTIONS_BY_PLATFORM[platform].map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-            </form.Field>
-          ) : null
-        }
-      </form.Subscribe>
-
-      <form.Subscribe selector={(state) => state.values.credentialType}>
-        {(credentialType) => {
-          if (!credentialType) {
-            return null;
-          }
-          const showDistribution = credentialType === "provisioning-profile";
-          const showPassword =
-            credentialType === "distribution-certificate" || credentialType === "keystore";
-          const showKeystoreFields = credentialType === "keystore";
-          const acceptedExtension = ACCEPTED_EXTENSIONS[credentialType];
-
-          return (
-            <>
-              <form.Field name="name">
+        <form.Subscribe selector={(state) => state.values.platform}>
+          {(platform) =>
+            platform ? (
+              <form.Field name="credentialType">
                 {(field) => (
-                  <div className="flex flex-col gap-2">
-                    <Label htmlFor="credential-name">Name</Label>
-                    <Input
-                      id="credential-name"
+                  <Field>
+                    <FieldLabel>Type</FieldLabel>
+                    <Select
+                      items={TYPE_LABELS_BY_PLATFORM[platform]}
                       value={field.state.value}
-                      onChange={(ev) => {
-                        field.handleChange(ev.target.value);
+                      onValueChange={(value) => {
+                        if (value && isCredentialType(value)) {
+                          field.handleChange(value);
+                          resetDependentFields();
+                        }
                       }}
-                      placeholder="e.g. Production Distribution Cert"
-                    />
-                  </div>
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select credential type" />
+                      </SelectTrigger>
+                      <TypeOptionsContent platform={platform} />
+                    </Select>
+                  </Field>
                 )}
               </form.Field>
+            ) : null
+          }
+        </form.Subscribe>
 
-              <form.Field name="file">
-                {(field) => (
-                  <FileDropZone
-                    file={field.state.value}
-                    accept={acceptedExtension}
-                    fileInputRef={fileInputRef}
-                    onDrop={(event) => {
-                      event.preventDefault();
-                      if (event.dataTransfer.files[0]) {
-                        field.handleChange(event.dataTransfer.files[0]);
-                      }
-                    }}
-                    onFileChange={(newFile) => {
-                      field.handleChange(newFile);
-                    }}
-                  />
-                )}
-              </form.Field>
+        <form.Subscribe selector={(state) => state.values.credentialType}>
+          {(credentialType) => {
+            if (!credentialType) {
+              return null;
+            }
+            const showDistribution = credentialType === "provisioning-profile";
+            const showPassword =
+              credentialType === "distribution-certificate" || credentialType === "keystore";
+            const showKeystoreFields = credentialType === "keystore";
+            const acceptedExtension = ACCEPTED_EXTENSIONS[credentialType];
 
-              {showDistribution && (
-                <form.Field name="distribution">
+            return (
+              <>
+                <form.Field name="name">
                   {(field) => (
-                    <div className="flex flex-col gap-2">
-                      <Label>Distribution</Label>
-                      <Select
-                        items={DISTRIBUTION_LABELS}
-                        value={field.state.value}
-                        onValueChange={(value) => {
-                          if (value && isDistribution(value)) {
-                            field.handleChange(value);
-                          }
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select distribution" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {DISTRIBUTIONS.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                </form.Field>
-              )}
-
-              {showPassword && (
-                <form.Field name="password">
-                  {(field) => (
-                    <div className="flex flex-col gap-2">
-                      <Label>Password</Label>
+                    <Field>
+                      <FieldLabel htmlFor="credential-name">Name</FieldLabel>
                       <Input
-                        type="password"
+                        id="credential-name"
                         value={field.state.value}
                         onChange={(ev) => {
                           field.handleChange(ev.target.value);
                         }}
-                        placeholder="Certificate / keystore password"
+                        placeholder="e.g. Production Distribution Cert"
                       />
-                    </div>
+                    </Field>
                   )}
                 </form.Field>
-              )}
 
-              {showKeystoreFields && <KeystoreFields form={form} />}
+                <form.Field name="file">
+                  {(field) => (
+                    <FileDropZone
+                      file={field.state.value}
+                      accept={acceptedExtension}
+                      fileInputRef={fileInputRef}
+                      onDrop={(event) => {
+                        event.preventDefault();
+                        if (event.dataTransfer.files[0]) {
+                          field.handleChange(event.dataTransfer.files[0]);
+                        }
+                      }}
+                      onFileChange={(newFile) => {
+                        field.handleChange(newFile);
+                      }}
+                    />
+                  )}
+                </form.Field>
 
-              <form.Field name="expiresAt">
-                {(field) => {
-                  const dateValue = field.state.value
-                    ? new Date(`${field.state.value}T00:00:00`)
-                    : undefined;
-                  return (
-                    <div className="flex flex-col gap-2">
-                      <Label>Expiry Date (optional)</Label>
-                      <DatePicker
-                        value={dateValue}
-                        onChange={(value) => {
-                          field.handleChange(value ? format(value, "yyyy-MM-dd") : "");
-                        }}
-                      />
-                    </div>
-                  );
-                }}
-              </form.Field>
-            </>
-          );
-        }}
-      </form.Subscribe>
+                {showDistribution && <DistributionField form={form} />}
 
-      <form.Subscribe selector={submitSelector}>
-        {([hasRequired, isSubmitting]) => (
-          <Button
-            type="submit"
-            disabled={!hasRequired || isSubmitting || uploadCredentialMutation.isPending}
-          >
-            {isSubmitting || uploadCredentialMutation.isPending ? "Uploading..." : "Upload"}
-          </Button>
-        )}
-      </form.Subscribe>
+                {showPassword && (
+                  <form.Field name="password">
+                    {(field) => (
+                      <Field>
+                        <FieldLabel>Password</FieldLabel>
+                        <Input
+                          type="password"
+                          value={field.state.value}
+                          onChange={(ev) => {
+                            field.handleChange(ev.target.value);
+                          }}
+                          placeholder="Certificate / keystore password"
+                        />
+                      </Field>
+                    )}
+                  </form.Field>
+                )}
+
+                {showKeystoreFields && <KeystoreFields form={form} />}
+
+                <form.Field name="expiresAt">
+                  {(field) => {
+                    const dateValue = field.state.value
+                      ? new Date(`${field.state.value}T00:00:00`)
+                      : undefined;
+                    return (
+                      <Field>
+                        <FieldLabel>Expiry Date (optional)</FieldLabel>
+                        <DatePicker
+                          value={dateValue}
+                          onChange={(value) => {
+                            field.handleChange(value ? format(value, "yyyy-MM-dd") : "");
+                          }}
+                        />
+                      </Field>
+                    );
+                  }}
+                </form.Field>
+              </>
+            );
+          }}
+        </form.Subscribe>
+
+        <form.Subscribe selector={submitSelector}>
+          {([hasRequired, isSubmitting]) => (
+            <Button
+              type="submit"
+              disabled={!hasRequired || isSubmitting || uploadCredentialMutation.isPending}
+            >
+              {isSubmitting || uploadCredentialMutation.isPending ? "Uploading..." : "Upload"}
+            </Button>
+          )}
+        </form.Subscribe>
+      </FieldGroup>
     </form>
   );
 };
@@ -450,7 +468,7 @@ export const UploadCredentialDialog = ({ orgId }: { orgId: string }) => {
           setOpen(true);
         }}
       >
-        <PlusIcon strokeWidth={2} className="size-4" />
+        <PlusIcon strokeWidth={2} data-icon="inline-start" />
         Upload
       </Button>
       <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">

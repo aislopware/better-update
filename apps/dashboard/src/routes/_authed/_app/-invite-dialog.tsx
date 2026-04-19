@@ -8,8 +8,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
-import { Label } from "@better-update/ui/components/ui/label";
+import { ToggleGroup, ToggleGroupItem } from "@better-update/ui/components/ui/toggle-group";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { UserPlusIcon } from "lucide-react";
@@ -59,7 +60,7 @@ const InviteFormContent = ({ orgId, onSuccess }: { orgId: string; onSuccess: () 
         await form.handleSubmit();
       }}
     >
-      <div className="flex flex-col gap-4 py-4">
+      <FieldGroup className="py-4">
         <form.Field
           name="email"
           validators={{
@@ -72,8 +73,8 @@ const InviteFormContent = ({ orgId, onSuccess }: { orgId: string; onSuccess: () 
           {(field) => {
             const errorMessage = field.state.meta.errors.map(String).filter(Boolean).join(", ");
             return (
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="invite-email">Email address</Label>
+              <Field data-invalid={errorMessage ? true : undefined}>
+                <FieldLabel htmlFor="invite-email">Email address</FieldLabel>
                 <Input
                   id="invite-email"
                   type="email"
@@ -83,43 +84,34 @@ const InviteFormContent = ({ orgId, onSuccess }: { orgId: string; onSuccess: () 
                     field.handleChange(event.target.value);
                   }}
                   onBlur={field.handleBlur}
+                  aria-invalid={errorMessage ? true : undefined}
                 />
-                {errorMessage ? <p className="text-destructive text-sm">{errorMessage}</p> : null}
-              </div>
+                <FieldError>{errorMessage}</FieldError>
+              </Field>
             );
           }}
         </form.Field>
 
         <form.Field name="role">
           {(field) => (
-            <div className="flex flex-col gap-2">
-              <Label>Role</Label>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant={field.state.value === "member" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => {
-                    field.handleChange("member");
-                  }}
-                >
-                  Member
-                </Button>
-                <Button
-                  type="button"
-                  variant={field.state.value === "admin" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => {
-                    field.handleChange("admin");
-                  }}
-                >
-                  Admin
-                </Button>
-              </div>
-            </div>
+            <Field>
+              <FieldLabel>Role</FieldLabel>
+              <ToggleGroup
+                value={[field.state.value]}
+                onValueChange={(value) => {
+                  const [next] = value;
+                  if (next) {
+                    field.handleChange(next);
+                  }
+                }}
+              >
+                <ToggleGroupItem value="member">Member</ToggleGroupItem>
+                <ToggleGroupItem value="admin">Admin</ToggleGroupItem>
+              </ToggleGroup>
+            </Field>
           )}
         </form.Field>
-      </div>
+      </FieldGroup>
 
       <DialogFooter>
         <DialogClose>
@@ -128,7 +120,7 @@ const InviteFormContent = ({ orgId, onSuccess }: { orgId: string; onSuccess: () 
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
           {([canSubmit, isSubmitting]) => (
             <Button type="submit" disabled={!canSubmit || isSubmitting}>
-              <UserPlusIcon strokeWidth={2} className="size-4" />
+              <UserPlusIcon strokeWidth={2} data-icon="inline-start" />
               {isSubmitting ? "Sending..." : "Send invitation"}
             </Button>
           )}
@@ -148,7 +140,7 @@ export const InviteDialog = ({ orgId }: { orgId: string }) => {
           setOpen(true);
         }}
       >
-        <UserPlusIcon strokeWidth={2} className="size-4" />
+        <UserPlusIcon strokeWidth={2} data-icon="inline-start" />
         Invite member
       </Button>
       <DialogContent>

@@ -19,8 +19,8 @@ import { safeSubmit, useApiMutation } from "../../../../../lib/use-api-mutation"
 import { BranchNameForm } from "./-branch-name-form";
 
 const renameTrigger = (
-  <Button variant="ghost" size="icon" className="size-8">
-    <PencilIcon strokeWidth={2} className="size-4" />
+  <Button variant="ghost" size="icon">
+    <PencilIcon strokeWidth={2} />
   </Button>
 );
 

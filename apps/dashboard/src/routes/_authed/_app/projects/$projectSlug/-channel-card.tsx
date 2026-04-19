@@ -14,6 +14,7 @@ import { Input } from "@better-update/ui/components/ui/input";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -139,22 +140,20 @@ const ActiveRolloutControls = ({
         <Button
           size="icon"
           variant="outline"
-          className="size-8"
           title="Complete rollout — switch channel to new branch"
           disabled={isUpdatingRollout}
           onClick={handleCompleteRollout}
         >
-          <CircleCheckIcon strokeWidth={2} className="size-4" />
+          <CircleCheckIcon strokeWidth={2} />
         </Button>
         <Button
           size="icon"
           variant="outline"
-          className="size-8"
           title="Revert rollout — keep original branch"
           disabled={isUpdatingRollout}
           onClick={handleRevertRollout}
         >
-          <Undo2Icon strokeWidth={2} className="size-4" />
+          <Undo2Icon strokeWidth={2} />
         </Button>
       </div>
     </div>
@@ -205,7 +204,7 @@ const StartRolloutControls = ({
           setIsStartingRollout(true);
         }}
       >
-        <RocketIcon strokeWidth={2} className="mr-1 size-4" />
+        <RocketIcon strokeWidth={2} data-icon="inline-start" />
         Start Rollout
       </Button>
     );
@@ -232,11 +231,13 @@ const StartRolloutControls = ({
           <SelectValue placeholder="Target branch" />
         </SelectTrigger>
         <SelectContent>
-          {targetBranches.map((branch) => (
-            <SelectItem key={branch.id} value={branch.id}>
-              {branch.name}
-            </SelectItem>
-          ))}
+          <SelectGroup>
+            {targetBranches.map((branch) => (
+              <SelectItem key={branch.id} value={branch.id}>
+                {branch.name}
+              </SelectItem>
+            ))}
+          </SelectGroup>
         </SelectContent>
       </Select>
       <Input
@@ -354,16 +355,10 @@ export const ChannelCard = ({
           </div>
           <div className="flex items-center gap-1">
             {channel.isPaused && <Badge variant="outline">Paused</Badge>}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-8"
-              disabled={isToggling}
-              onClick={handleTogglePause}
-            >
+            <Button variant="ghost" size="icon" disabled={isToggling} onClick={handleTogglePause}>
               {(() => {
                 const Icon = channel.isPaused ? PlayIcon : PauseIcon;
-                return <Icon strokeWidth={2} className="size-4" />;
+                return <Icon strokeWidth={2} />;
               })()}
             </Button>
             <DeleteChannelDialog channel={channel} orgId={orgId} projectId={projectId} />
@@ -387,11 +382,13 @@ export const ChannelCard = ({
               <SelectValue>{linkedBranch?.name ?? channel.branchId}</SelectValue>
             </SelectTrigger>
             <SelectContent>
-              {branches.map((branch) => (
-                <SelectItem key={branch.id} value={branch.id}>
-                  {branch.name}
-                </SelectItem>
-              ))}
+              <SelectGroup>
+                {branches.map((branch) => (
+                  <SelectItem key={branch.id} value={branch.id}>
+                    {branch.name}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
             </SelectContent>
           </Select>
         </div>

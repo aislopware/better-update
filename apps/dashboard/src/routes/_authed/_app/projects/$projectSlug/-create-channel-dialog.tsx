@@ -7,11 +7,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
-import { Label } from "@better-update/ui/components/ui/label";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -22,9 +23,86 @@ import { PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import type { BranchItem } from "@better-update/api-client/react";
+
 import { getFieldError, requiredStringSchema } from "../../../../../lib/form-utils";
 import { safeSubmit, useApiMutation } from "../../../../../lib/use-api-mutation";
 import { invalidateChannels } from "./-update-helpers";
+
+interface CreateChannelFormValues {
+  name: string;
+  branchId: string;
+}
+
+const useCreateChannelForm = (onSubmit: (value: CreateChannelFormValues) => Promise<void>) =>
+  useForm({
+    defaultValues: { name: "", branchId: "" } satisfies CreateChannelFormValues,
+    onSubmit: async ({ value }) => {
+      await onSubmit(value);
+    },
+  });
+
+type CreateChannelFormApi = ReturnType<typeof useCreateChannelForm>;
+
+const BranchField = ({
+  form,
+  branches,
+}: {
+  form: CreateChannelFormApi;
+  branches: readonly BranchItem[];
+}) => {
+  const branchLabels: Record<string, string> = Object.fromEntries(
+    branches.map((branch) => [branch.id, branch.name]),
+  );
+  return (
+    <form.Field
+      name="branchId"
+      validators={{
+        onChange: ({ value }) => {
+          const result = requiredStringSchema.safeParse(value);
+          return result.success ? undefined : "Branch is required";
+        },
+      }}
+    >
+      {(field) => {
+        const errorMessage = getFieldError(field);
+        return (
+          <Field data-invalid={errorMessage ? true : undefined}>
+            <FieldLabel>Branch</FieldLabel>
+            <Select
+              items={branchLabels}
+              value={field.state.value}
+              onValueChange={(next) => {
+                if (next === null) {
+                  return;
+                }
+                field.handleChange(next);
+              }}
+            >
+              <SelectTrigger aria-invalid={errorMessage ? true : undefined}>
+                <SelectValue placeholder="Select a branch" />
+              </SelectTrigger>
+              <BranchOptions branches={branches} />
+            </Select>
+            <FieldError>{errorMessage}</FieldError>
+          </Field>
+        );
+      }}
+    </form.Field>
+  );
+};
+
+const BranchOptions = ({ branches }: { branches: readonly BranchItem[] }) => (
+  <SelectContent>
+    <SelectGroup>
+      {branches.map((branch) => (
+        <SelectItem key={branch.id} value={branch.id}>
+          {branch.name}
+        </SelectItem>
+      ))}
+    </SelectGroup>
+  </SelectContent>
+);
 
 export const CreateChannelDialog = ({ orgId, projectId }: { orgId: string; projectId: string }) => {
   const [open, setOpen] = useState(false);
@@ -42,16 +120,13 @@ export const CreateChannelDialog = ({ orgId, projectId }: { orgId: string; proje
     },
   });
 
-  const form = useForm({
-    defaultValues: { name: "", branchId: "" },
-    onSubmit: async ({ value }) => {
-      await safeSubmit(
-        createChannelMutation.mutateAsync({
-          name: value.name.trim(),
-          branchId: value.branchId,
-        }),
-      );
-    },
+  const form = useCreateChannelForm(async (value) => {
+    await safeSubmit(
+      createChannelMutation.mutateAsync({
+        name: value.name.trim(),
+        branchId: value.branchId,
+      }),
+    );
   });
 
   return (
@@ -69,7 +144,7 @@ export const CreateChannelDialog = ({ orgId, projectId }: { orgId: string; proje
           setOpen(true);
         }}
       >
-        <PlusIcon strokeWidth={2} className="size-4" />
+        <PlusIcon strokeWidth={2} data-icon="inline-start" />
         Create channel
       </Button>
       <DialogContent>
@@ -85,89 +160,49 @@ export const CreateChannelDialog = ({ orgId, projectId }: { orgId: string; proje
             event.stopPropagation();
             await form.handleSubmit();
           }}
-          className="flex flex-col gap-4"
         >
-          <form.Field
-            name="name"
-            validators={{
-              onBlur: ({ value }) => {
-                const result = requiredStringSchema.safeParse(value.trim());
-                return result.success ? undefined : "Name is required";
-              },
-            }}
-          >
-            {(field) => {
-              const errorMessage = getFieldError(field);
-              return (
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="channel-name">Name</Label>
-                  <Input
-                    id="channel-name"
-                    value={field.state.value}
-                    onBlur={field.handleBlur}
-                    onChange={(event) => {
-                      field.handleChange(event.target.value);
-                    }}
-                    placeholder="e.g. production, staging"
-                  />
-                  {errorMessage ? <p className="text-destructive text-sm">{errorMessage}</p> : null}
-                </div>
-              );
-            }}
-          </form.Field>
+          <FieldGroup>
+            <form.Field
+              name="name"
+              validators={{
+                onBlur: ({ value }) => {
+                  const result = requiredStringSchema.safeParse(value.trim());
+                  return result.success ? undefined : "Name is required";
+                },
+              }}
+            >
+              {(field) => {
+                const errorMessage = getFieldError(field);
+                return (
+                  <Field data-invalid={errorMessage ? true : undefined}>
+                    <FieldLabel htmlFor="channel-name">Name</FieldLabel>
+                    <Input
+                      id="channel-name"
+                      value={field.state.value}
+                      onBlur={field.handleBlur}
+                      onChange={(event) => {
+                        field.handleChange(event.target.value);
+                      }}
+                      aria-invalid={errorMessage ? true : undefined}
+                      placeholder="e.g. production, staging"
+                    />
+                    <FieldError>{errorMessage}</FieldError>
+                  </Field>
+                );
+              }}
+            </form.Field>
 
-          <form.Field
-            name="branchId"
-            validators={{
-              onChange: ({ value }) => {
-                const result = requiredStringSchema.safeParse(value);
-                return result.success ? undefined : "Branch is required";
-              },
-            }}
-          >
-            {(field) => {
-              const errorMessage = getFieldError(field);
-              const branchLabels: Record<string, string> = Object.fromEntries(
-                branchesData.items.map((branch) => [branch.id, branch.name]),
-              );
-              return (
-                <div className="flex flex-col gap-2">
-                  <Label>Branch</Label>
-                  <Select
-                    items={branchLabels}
-                    value={field.state.value}
-                    onValueChange={(next) => {
-                      if (next === null) {
-                        return;
-                      }
-                      field.handleChange(next);
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a branch" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {branchesData.items.map((branch) => (
-                        <SelectItem key={branch.id} value={branch.id}>
-                          {branch.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {errorMessage ? <p className="text-destructive text-sm">{errorMessage}</p> : null}
-                </div>
-              );
-            }}
-          </form.Field>
+            <BranchField form={form} branches={branchesData.items} />
 
-          <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting] as const}>
-            {([canSubmit, isSubmitting]) => (
-              <Button type="submit" disabled={!canSubmit || isSubmitting}>
-                <PlusIcon strokeWidth={2} className="size-4" />
-                {isSubmitting ? "Creating..." : "Create channel"}
-              </Button>
-            )}
-          </form.Subscribe>
+            <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting] as const}>
+              {([canSubmit, isSubmitting]) => (
+                <Button type="submit" disabled={!canSubmit || isSubmitting}>
+                  <PlusIcon strokeWidth={2} data-icon="inline-start" />
+                  {isSubmitting ? "Creating..." : "Create channel"}
+                </Button>
+              )}
+            </form.Subscribe>
+          </FieldGroup>
         </form>
       </DialogContent>
     </Dialog>

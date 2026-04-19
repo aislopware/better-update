@@ -9,11 +9,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
+import { Field, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
-import { Label } from "@better-update/ui/components/ui/label";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -98,16 +99,16 @@ const EditFormContent = ({
         await form.handleSubmit();
       }}
     >
-      <div className="flex flex-col gap-4 py-4">
-        <div className="flex flex-col gap-2">
-          <Label>Key</Label>
+      <FieldGroup className="py-4">
+        <Field>
+          <FieldLabel>Key</FieldLabel>
           <Input value={envVar.key} disabled className="font-mono" />
-        </div>
+        </Field>
 
         <form.Field name="value">
           {(field) => (
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="env-var-value">Value</Label>
+            <Field>
+              <FieldLabel htmlFor="env-var-value">Value</FieldLabel>
               <Textarea
                 id="env-var-value"
                 placeholder={isEncrypted ? "Enter new value to replace existing" : ""}
@@ -124,14 +125,14 @@ const EditFormContent = ({
                   keep unchanged.
                 </p>
               ) : null}
-            </div>
+            </Field>
           )}
         </form.Field>
 
         <form.Field name="visibility">
           {(field) => (
-            <div className="flex flex-col gap-2">
-              <Label>Visibility</Label>
+            <Field>
+              <FieldLabel>Visibility</FieldLabel>
               <Select
                 items={VISIBILITY_LABELS}
                 value={field.state.value}
@@ -145,15 +146,17 @@ const EditFormContent = ({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="plaintext">Plaintext</SelectItem>
-                  <SelectItem value="sensitive">Sensitive</SelectItem>
-                  <SelectItem value="secret">Secret</SelectItem>
+                  <SelectGroup>
+                    <SelectItem value="plaintext">Plaintext</SelectItem>
+                    <SelectItem value="sensitive">Sensitive</SelectItem>
+                    <SelectItem value="secret">Secret</SelectItem>
+                  </SelectGroup>
                 </SelectContent>
               </Select>
-            </div>
+            </Field>
           )}
         </form.Field>
-      </div>
+      </FieldGroup>
 
       <DialogFooter>
         <DialogClose>

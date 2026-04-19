@@ -34,7 +34,7 @@ const CopyButton = ({ text }: { text: string }) => {
 
   return (
     <Button variant="outline" size="sm" onClick={handleCopy}>
-      <Icon strokeWidth={2} className="size-4" />
+      <Icon strokeWidth={2} data-icon="inline-start" />
       {copied ? "Copied" : "Copy link"}
     </Button>
   );
@@ -95,11 +95,10 @@ export const InstallLinkDialog = ({
       <Button
         variant={buttonVariant}
         size={buttonSize}
-        className={buttonLabel ? undefined : "size-8"}
         title={buttonLabel ?? "Install link"}
         onClick={handleOpen}
       >
-        <SmartphoneIcon strokeWidth={2} className="size-4" />
+        <SmartphoneIcon strokeWidth={2} data-icon={buttonLabel ? "inline-start" : undefined} />
         {buttonLabel ? <span>{buttonLabel}</span> : null}
       </Button>
       <Dialog

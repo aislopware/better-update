@@ -1,7 +1,7 @@
 import { Button } from "@better-update/ui/components/ui/button";
 import { DialogClose, DialogFooter } from "@better-update/ui/components/ui/dialog";
+import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
-import { Label } from "@better-update/ui/components/ui/label";
 import { useForm } from "@tanstack/react-form";
 
 import type { LucideIcon } from "lucide-react";
@@ -38,7 +38,7 @@ export const BranchNameForm = ({
         await form.handleSubmit();
       }}
     >
-      <div className="flex flex-col gap-4 py-4">
+      <div className="py-4">
         <form.Field
           name="name"
           validators={{
@@ -51,8 +51,8 @@ export const BranchNameForm = ({
           {(field) => {
             const errorMessage = field.state.meta.errors.map(String).filter(Boolean).join(", ");
             return (
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="branch-name">Branch name</Label>
+              <Field data-invalid={errorMessage ? true : undefined}>
+                <FieldLabel htmlFor="branch-name">Branch name</FieldLabel>
                 <Input
                   id="branch-name"
                   placeholder="production"
@@ -61,9 +61,10 @@ export const BranchNameForm = ({
                     field.handleChange(event.target.value);
                   }}
                   onBlur={field.handleBlur}
+                  aria-invalid={errorMessage ? true : undefined}
                 />
-                {errorMessage ? <p className="text-destructive text-sm">{errorMessage}</p> : null}
-              </div>
+                <FieldError>{errorMessage}</FieldError>
+              </Field>
             );
           }}
         </form.Field>
@@ -76,7 +77,7 @@ export const BranchNameForm = ({
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
           {([canSubmit, isSubmitting]) => (
             <Button type="submit" disabled={!canSubmit || isSubmitting}>
-              {SubmitIcon ? <SubmitIcon strokeWidth={2} className="size-4" /> : null}
+              {SubmitIcon ? <SubmitIcon strokeWidth={2} data-icon="inline-start" /> : null}
               {isSubmitting ? submittingLabel : submitLabel}
             </Button>
           )}

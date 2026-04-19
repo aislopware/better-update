@@ -7,8 +7,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@better-update/ui/components/ui/card";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
-import { Label } from "@better-update/ui/components/ui/label";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
@@ -51,75 +51,81 @@ const Onboarding = () => {
             await form.handleSubmit();
           }}
         >
-          <CardContent className="flex flex-col gap-4">
-            <form.Field
-              name="name"
-              validators={{
-                onBlur: ({ value }) => {
-                  const result = nameSchema.safeParse(value);
-                  return result.success ? undefined : result.error.issues[0]?.message;
-                },
-              }}
-            >
-              {(field) => {
-                const errorMessage = field.state.meta.errors.map(String).filter(Boolean).join(", ");
-                return (
-                  <div className="flex flex-col gap-2">
-                    <Label htmlFor="name">Organization name</Label>
-                    <Input
-                      id="name"
-                      placeholder="Acme Inc."
-                      value={field.state.value}
-                      onChange={(event) => {
-                        field.handleChange(event.target.value);
-                        if (!slugEdited.current) {
-                          form.setFieldValue("slug", generateSlug(event.target.value), {
-                            dontUpdateMeta: true,
-                            dontValidate: true,
-                          });
-                        }
-                      }}
-                      onBlur={field.handleBlur}
-                    />
-                    {errorMessage ? (
-                      <p className="text-destructive text-sm">{errorMessage}</p>
-                    ) : null}
-                  </div>
-                );
-              }}
-            </form.Field>
+          <CardContent>
+            <FieldGroup>
+              <form.Field
+                name="name"
+                validators={{
+                  onBlur: ({ value }) => {
+                    const result = nameSchema.safeParse(value);
+                    return result.success ? undefined : result.error.issues[0]?.message;
+                  },
+                }}
+              >
+                {(field) => {
+                  const errorMessage = field.state.meta.errors
+                    .map(String)
+                    .filter(Boolean)
+                    .join(", ");
+                  return (
+                    <Field data-invalid={errorMessage ? true : undefined}>
+                      <FieldLabel htmlFor="name">Organization name</FieldLabel>
+                      <Input
+                        id="name"
+                        placeholder="Acme Inc."
+                        value={field.state.value}
+                        onChange={(event) => {
+                          field.handleChange(event.target.value);
+                          if (!slugEdited.current) {
+                            form.setFieldValue("slug", generateSlug(event.target.value), {
+                              dontUpdateMeta: true,
+                              dontValidate: true,
+                            });
+                          }
+                        }}
+                        onBlur={field.handleBlur}
+                        aria-invalid={errorMessage ? true : undefined}
+                      />
+                      <FieldError>{errorMessage}</FieldError>
+                    </Field>
+                  );
+                }}
+              </form.Field>
 
-            <form.Field
-              name="slug"
-              validators={{
-                onBlur: ({ value }) => {
-                  const result = slugSchema.safeParse(value);
-                  return result.success ? undefined : result.error.issues[0]?.message;
-                },
-              }}
-            >
-              {(field) => {
-                const errorMessage = field.state.meta.errors.map(String).filter(Boolean).join(", ");
-                return (
-                  <div className="flex flex-col gap-2">
-                    <Label htmlFor="slug">URL slug</Label>
-                    <Input
-                      id="slug"
-                      placeholder="acme-inc"
-                      value={field.state.value}
-                      onChange={(event) => {
-                        field.handleChange(event.target.value);
-                        slugEdited.current = event.target.value !== "";
-                      }}
-                      onBlur={field.handleBlur}
-                    />
-                    {errorMessage ? (
-                      <p className="text-destructive text-sm">{errorMessage}</p>
-                    ) : null}
-                  </div>
-                );
-              }}
-            </form.Field>
+              <form.Field
+                name="slug"
+                validators={{
+                  onBlur: ({ value }) => {
+                    const result = slugSchema.safeParse(value);
+                    return result.success ? undefined : result.error.issues[0]?.message;
+                  },
+                }}
+              >
+                {(field) => {
+                  const errorMessage = field.state.meta.errors
+                    .map(String)
+                    .filter(Boolean)
+                    .join(", ");
+                  return (
+                    <Field data-invalid={errorMessage ? true : undefined}>
+                      <FieldLabel htmlFor="slug">URL slug</FieldLabel>
+                      <Input
+                        id="slug"
+                        placeholder="acme-inc"
+                        value={field.state.value}
+                        onChange={(event) => {
+                          field.handleChange(event.target.value);
+                          slugEdited.current = event.target.value !== "";
+                        }}
+                        onBlur={field.handleBlur}
+                        aria-invalid={errorMessage ? true : undefined}
+                      />
+                      <FieldError>{errorMessage}</FieldError>
+                    </Field>
+                  );
+                }}
+              </form.Field>
+            </FieldGroup>
           </CardContent>
           <CardFooter>
             <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>

@@ -9,11 +9,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
-import { Label } from "@better-update/ui/components/ui/label";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -89,7 +90,7 @@ const CreateFormContent = ({
         await form.handleSubmit();
       }}
     >
-      <div className="flex flex-col gap-4 py-4">
+      <FieldGroup className="py-4">
         <form.Field
           name="key"
           validators={{
@@ -102,8 +103,8 @@ const CreateFormContent = ({
           {(field) => {
             const errorMessage = getFieldError(field);
             return (
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="env-var-key">Key</Label>
+              <Field data-invalid={errorMessage ? true : undefined}>
+                <FieldLabel htmlFor="env-var-key">Key</FieldLabel>
                 <Input
                   id="env-var-key"
                   placeholder="EXPO_PUBLIC_API_URL"
@@ -112,10 +113,11 @@ const CreateFormContent = ({
                     field.handleChange(event.target.value.toUpperCase());
                   }}
                   onBlur={field.handleBlur}
+                  aria-invalid={errorMessage ? true : undefined}
                   className="font-mono"
                 />
-                {errorMessage ? <p className="text-destructive text-sm">{errorMessage}</p> : null}
-              </div>
+                <FieldError>{errorMessage}</FieldError>
+              </Field>
             );
           }}
         </form.Field>
@@ -132,8 +134,8 @@ const CreateFormContent = ({
           {(field) => {
             const errorMessage = getFieldError(field);
             return (
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="env-var-value">Value</Label>
+              <Field data-invalid={errorMessage ? true : undefined}>
+                <FieldLabel htmlFor="env-var-value">Value</FieldLabel>
                 <Textarea
                   id="env-var-value"
                   placeholder="https://api.example.com"
@@ -142,19 +144,20 @@ const CreateFormContent = ({
                     field.handleChange(event.target.value);
                   }}
                   onBlur={field.handleBlur}
+                  aria-invalid={errorMessage ? true : undefined}
                   rows={3}
                   className="font-mono"
                 />
-                {errorMessage ? <p className="text-destructive text-sm">{errorMessage}</p> : null}
-              </div>
+                <FieldError>{errorMessage}</FieldError>
+              </Field>
             );
           }}
         </form.Field>
 
         <form.Field name="visibility">
           {(field) => (
-            <div className="flex flex-col gap-2">
-              <Label>Visibility</Label>
+            <Field>
+              <FieldLabel>Visibility</FieldLabel>
               <Select
                 items={VISIBILITY_LABELS}
                 value={field.state.value}
@@ -168,15 +171,17 @@ const CreateFormContent = ({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="plaintext">Plaintext — visible everywhere</SelectItem>
-                  <SelectItem value="sensitive">Sensitive — masked in dashboard</SelectItem>
-                  <SelectItem value="secret">Secret — hidden in dashboard, CLI only</SelectItem>
+                  <SelectGroup>
+                    <SelectItem value="plaintext">Plaintext — visible everywhere</SelectItem>
+                    <SelectItem value="sensitive">Sensitive — masked in dashboard</SelectItem>
+                    <SelectItem value="secret">Secret — hidden in dashboard, CLI only</SelectItem>
+                  </SelectGroup>
                 </SelectContent>
               </Select>
-            </div>
+            </Field>
           )}
         </form.Field>
-      </div>
+      </FieldGroup>
 
       <DialogFooter>
         <DialogClose>
@@ -185,7 +190,7 @@ const CreateFormContent = ({
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
           {([canSubmit, isSubmitting]) => (
             <Button type="submit" disabled={!canSubmit || isSubmitting}>
-              <PlusIcon strokeWidth={2} className="size-4" />
+              <PlusIcon strokeWidth={2} data-icon="inline-start" />
               {isSubmitting ? "Creating..." : "Add variable"}
             </Button>
           )}
@@ -213,7 +218,7 @@ export const CreateEnvVarDialog = ({
           setOpen(true);
         }}
       >
-        <PlusIcon strokeWidth={2} className="size-4" />
+        <PlusIcon strokeWidth={2} data-icon="inline-start" />
         Add variable
       </Button>
       <DialogContent>

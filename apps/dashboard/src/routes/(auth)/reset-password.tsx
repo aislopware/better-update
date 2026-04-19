@@ -7,8 +7,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@better-update/ui/components/ui/card";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
-import { Label } from "@better-update/ui/components/ui/label";
 import { useForm } from "@tanstack/react-form";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { toast } from "sonner";
@@ -50,65 +50,69 @@ const ResetPasswordForm = ({
         await form.handleSubmit();
       }}
     >
-      <CardContent className="flex flex-col gap-4">
-        <form.Field
-          name="password"
-          validators={{
-            onBlur: ({ value }) => {
-              const result = passwordSchema.safeParse(value);
-              return result.success ? undefined : result.error.issues[0]?.message;
-            },
-          }}
-        >
-          {(field) => {
-            const errorMessage = field.state.meta.errors.map(String).filter(Boolean).join(", ");
-            return (
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="password">New password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={field.state.value}
-                  onChange={(event) => {
-                    field.handleChange(event.target.value);
-                  }}
-                  onBlur={field.handleBlur}
-                />
-                {errorMessage ? <p className="text-destructive text-sm">{errorMessage}</p> : null}
-              </div>
-            );
-          }}
-        </form.Field>
+      <CardContent>
+        <FieldGroup>
+          <form.Field
+            name="password"
+            validators={{
+              onBlur: ({ value }) => {
+                const result = passwordSchema.safeParse(value);
+                return result.success ? undefined : result.error.issues[0]?.message;
+              },
+            }}
+          >
+            {(field) => {
+              const errorMessage = field.state.meta.errors.map(String).filter(Boolean).join(", ");
+              return (
+                <Field data-invalid={errorMessage ? true : undefined}>
+                  <FieldLabel htmlFor="password">New password</FieldLabel>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={field.state.value}
+                    onChange={(event) => {
+                      field.handleChange(event.target.value);
+                    }}
+                    onBlur={field.handleBlur}
+                    aria-invalid={errorMessage ? true : undefined}
+                  />
+                  <FieldError>{errorMessage}</FieldError>
+                </Field>
+              );
+            }}
+          </form.Field>
 
-        <form.Field
-          name="confirmPassword"
-          validators={{
-            onChangeListenTo: ["password"],
-            onChange: ({ value, fieldApi }) =>
-              value === fieldApi.form.getFieldValue("password")
-                ? undefined
-                : "Passwords do not match",
-          }}
-        >
-          {(field) => {
-            const errorMessage = field.state.meta.errors.map(String).filter(Boolean).join(", ");
-            return (
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="confirmPassword">Confirm password</Label>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  value={field.state.value}
-                  onChange={(event) => {
-                    field.handleChange(event.target.value);
-                  }}
-                  onBlur={field.handleBlur}
-                />
-                {errorMessage ? <p className="text-destructive text-sm">{errorMessage}</p> : null}
-              </div>
-            );
-          }}
-        </form.Field>
+          <form.Field
+            name="confirmPassword"
+            validators={{
+              onChangeListenTo: ["password"],
+              onChange: ({ value, fieldApi }) =>
+                value === fieldApi.form.getFieldValue("password")
+                  ? undefined
+                  : "Passwords do not match",
+            }}
+          >
+            {(field) => {
+              const errorMessage = field.state.meta.errors.map(String).filter(Boolean).join(", ");
+              return (
+                <Field data-invalid={errorMessage ? true : undefined}>
+                  <FieldLabel htmlFor="confirmPassword">Confirm password</FieldLabel>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    value={field.state.value}
+                    onChange={(event) => {
+                      field.handleChange(event.target.value);
+                    }}
+                    onBlur={field.handleBlur}
+                    aria-invalid={errorMessage ? true : undefined}
+                  />
+                  <FieldError>{errorMessage}</FieldError>
+                </Field>
+              );
+            }}
+          </form.Field>
+        </FieldGroup>
       </CardContent>
       <CardFooter className="flex flex-col gap-4">
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>

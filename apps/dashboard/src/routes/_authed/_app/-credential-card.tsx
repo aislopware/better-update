@@ -17,6 +17,7 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@better-update/ui/components/ui/dropdown-menu";
@@ -89,12 +90,12 @@ export const CredentialCard = ({
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-base font-medium">{credential.name}</CardTitle>
         <div className="flex items-center gap-2">
           {credential.isActive && (
             <Badge variant="default">
-              <CheckIcon strokeWidth={2} className="mr-1 size-3" />
+              <CheckIcon strokeWidth={2} />
               Active
             </Badge>
           )}
@@ -102,25 +103,27 @@ export const CredentialCard = ({
           <DropdownMenu>
             <DropdownMenuTrigger>
               <Button variant="ghost" size="icon-sm">
-                <EllipsisVerticalIcon strokeWidth={2} className="size-4" />
+                <EllipsisVerticalIcon strokeWidth={2} />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              {!credential.isActive && (
-                <DropdownMenuItem onClick={handleActivate}>
-                  <CheckIcon strokeWidth={2} className="size-4" />
-                  <span>Set as active</span>
+              <DropdownMenuGroup>
+                {!credential.isActive && (
+                  <DropdownMenuItem onClick={handleActivate}>
+                    <CheckIcon strokeWidth={2} />
+                    <span>Set as active</span>
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem
+                  className="text-destructive"
+                  onClick={() => {
+                    setDeleteOpen(true);
+                  }}
+                >
+                  <Trash2Icon strokeWidth={2} />
+                  <span>Delete</span>
                 </DropdownMenuItem>
-              )}
-              <DropdownMenuItem
-                className="text-destructive"
-                onClick={() => {
-                  setDeleteOpen(true);
-                }}
-              >
-                <Trash2Icon strokeWidth={2} className="size-4" />
-                <span>Delete</span>
-              </DropdownMenuItem>
+              </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
           <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>

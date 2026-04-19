@@ -11,8 +11,16 @@ import {
 } from "@better-update/ui/components/ui/card";
 import { DateRangePicker } from "@better-update/ui/components/ui/date-range-picker";
 import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@better-update/ui/components/ui/empty";
+import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -140,15 +148,15 @@ const ActorCell = ({
 );
 
 const EmptyState = ({ scopeLabel }: { scopeLabel: string }) => (
-  <Card className="border-dashed">
-    <CardContent className="flex flex-col items-center justify-center py-12">
-      <ScrollTextIcon strokeWidth={1.5} className="text-muted-foreground mb-4 size-12" />
-      <p className="text-lg font-medium">No audit log entries yet</p>
-      <p className="text-muted-foreground mt-1 text-sm">
-        Actions performed in {scopeLabel} will appear here.
-      </p>
-    </CardContent>
-  </Card>
+  <Empty className="border">
+    <EmptyHeader>
+      <EmptyMedia variant="icon">
+        <ScrollTextIcon strokeWidth={1.5} />
+      </EmptyMedia>
+      <EmptyTitle>No audit log entries yet</EmptyTitle>
+      <EmptyDescription>Actions performed in {scopeLabel} will appear here.</EmptyDescription>
+    </EmptyHeader>
+  </Empty>
 );
 
 export interface AuditLogViewProps {
@@ -201,11 +209,13 @@ export const AuditLogView = ({ orgId, projectId, scopeLabel }: AuditLogViewProps
             <SelectValue placeholder="Resource type" />
           </SelectTrigger>
           <SelectContent>
-            {RESOURCE_TYPES.map((rt) => (
-              <SelectItem key={rt.value} value={rt.value}>
-                {rt.label}
-              </SelectItem>
-            ))}
+            <SelectGroup>
+              {RESOURCE_TYPES.map((rt) => (
+                <SelectItem key={rt.value} value={rt.value}>
+                  {rt.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
           </SelectContent>
         </Select>
         <DateRangePicker value={dateRange} onChange={handleRangeChange} />

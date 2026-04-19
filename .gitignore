@@ -15,11 +15,8 @@ test-results/
 .e2e-shared-env.json
 
 # Claude Code (keep CLAUDE.md, settings/, commands/)
-.claude/*
-!.claude/CLAUDE.md
-!.claude/settings/
-!.claude/commands/
-!.claude/rules/
+.claude/worktree
+.claude/*.local.*
 
 # macOS
 .DS_Store

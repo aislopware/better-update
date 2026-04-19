@@ -1,12 +1,19 @@
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
-import { Card, CardContent } from "@better-update/ui/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@better-update/ui/components/ui/dropdown-menu";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@better-update/ui/components/ui/empty";
 import {
   Table,
   TableBody,
@@ -33,14 +40,16 @@ const KeyActions = ({ onRevoke }: { onRevoke: () => void }) => (
   <DropdownMenu>
     <DropdownMenuTrigger>
       <Button variant="ghost" size="icon-sm">
-        <EllipsisVerticalIcon strokeWidth={2} className="size-4" />
+        <EllipsisVerticalIcon strokeWidth={2} />
       </Button>
     </DropdownMenuTrigger>
     <DropdownMenuContent align="end">
-      <DropdownMenuItem className="text-destructive" onClick={onRevoke}>
-        <Trash2Icon strokeWidth={2} className="size-4" />
-        <span>Revoke key</span>
-      </DropdownMenuItem>
+      <DropdownMenuGroup>
+        <DropdownMenuItem className="text-destructive" onClick={onRevoke}>
+          <Trash2Icon strokeWidth={2} />
+          <span>Revoke key</span>
+        </DropdownMenuItem>
+      </DropdownMenuGroup>
     </DropdownMenuContent>
   </DropdownMenu>
 );
@@ -95,13 +104,15 @@ export const ApiKeysTable = ({
 );
 
 export const ApiKeysEmptyState = () => (
-  <Card className="border-dashed">
-    <CardContent className="flex flex-col items-center justify-center py-12">
-      <KeyIcon strokeWidth={1.5} className="text-muted-foreground mb-4 size-12" />
-      <p className="text-lg font-medium">No API keys</p>
-      <p className="text-muted-foreground mt-1 text-sm">
+  <Empty className="border">
+    <EmptyHeader>
+      <EmptyMedia variant="icon">
+        <KeyIcon strokeWidth={1.5} />
+      </EmptyMedia>
+      <EmptyTitle>No API keys</EmptyTitle>
+      <EmptyDescription>
         Create an API key to authenticate requests to the management API.
-      </p>
-    </CardContent>
-  </Card>
+      </EmptyDescription>
+    </EmptyHeader>
+  </Empty>
 );

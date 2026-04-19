@@ -12,6 +12,7 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -88,26 +89,30 @@ export const EnvVarRow = ({
           <DropdownMenu>
             <DropdownMenuTrigger>
               <Button variant="ghost" size="icon-sm">
-                <EllipsisVerticalIcon strokeWidth={2} className="size-4" />
+                <EllipsisVerticalIcon strokeWidth={2} />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                onClick={() => {
-                  setEditOpen(true);
-                }}
-              >
-                Edit
-              </DropdownMenuItem>
+              <DropdownMenuGroup>
+                <DropdownMenuItem
+                  onClick={() => {
+                    setEditOpen(true);
+                  }}
+                >
+                  Edit
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
               <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-destructive"
-                onClick={() => {
-                  setDeleteOpen(true);
-                }}
-              >
-                Delete
-              </DropdownMenuItem>
+              <DropdownMenuGroup>
+                <DropdownMenuItem
+                  className="text-destructive"
+                  onClick={() => {
+                    setDeleteOpen(true);
+                  }}
+                >
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
         </TableCell>

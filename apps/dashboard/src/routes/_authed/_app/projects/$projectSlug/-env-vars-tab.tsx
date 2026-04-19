@@ -1,9 +1,16 @@
 import { envVarsQueryOptions } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
-import { Card, CardContent } from "@better-update/ui/components/ui/card";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@better-update/ui/components/ui/empty";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -38,15 +45,17 @@ const ENVIRONMENT_LABELS: Record<string, string> = Object.fromEntries(
 );
 
 const EnvVarsEmptyState = () => (
-  <Card className="border-dashed">
-    <CardContent className="flex flex-col items-center justify-center py-12">
-      <SettingsIcon strokeWidth={1.5} className="text-muted-foreground mb-4 size-12" />
-      <p className="text-lg font-medium">No environment variables</p>
-      <p className="text-muted-foreground mt-1 text-sm">
+  <Empty className="border">
+    <EmptyHeader>
+      <EmptyMedia variant="icon">
+        <SettingsIcon strokeWidth={1.5} />
+      </EmptyMedia>
+      <EmptyTitle>No environment variables</EmptyTitle>
+      <EmptyDescription>
         Add variables to configure your builds for this environment.
-      </p>
-    </CardContent>
-  </Card>
+      </EmptyDescription>
+    </EmptyHeader>
+  </Empty>
 );
 
 const ExportButton = ({ items }: { items: readonly (typeof EnvVar.Type)[] }) => {
@@ -95,11 +104,13 @@ export const EnvVarsTab = ({ orgId, projectId }: { orgId: string; projectId: str
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {ENVIRONMENTS.map((env) => (
-              <SelectItem key={env.value} value={env.value}>
-                {env.label}
-              </SelectItem>
-            ))}
+            <SelectGroup>
+              {ENVIRONMENTS.map((env) => (
+                <SelectItem key={env.value} value={env.value}>
+                  {env.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
           </SelectContent>
         </Select>
 
