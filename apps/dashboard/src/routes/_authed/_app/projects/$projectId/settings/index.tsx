@@ -1,25 +1,35 @@
-import { renameProject } from "@better-update/api-client/react";
+import {
+  deleteProject,
+  projectQueryKey,
+  projectQueryOptions,
+  projectsQueryKey,
+  renameProject,
+} from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@better-update/ui/components/ui/card";
 import { Input } from "@better-update/ui/components/ui/input";
 import { Label } from "@better-update/ui/components/ui/label";
+import { Separator } from "@better-update/ui/components/ui/separator";
 import { useForm } from "@tanstack/react-form";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { toast } from "sonner";
 
 import type { ProjectDetail } from "@better-update/api-client/react";
 
-import { getFieldError, nameSchema } from "../../../../../lib/form-utils";
-import { safeSubmit, useApiMutation } from "../../../../../lib/use-api-mutation";
-import { invalidateProjects } from "./-update-helpers";
+import { ConfirmDeleteDialog } from "../-confirm-delete-dialog";
+import { invalidateProjects } from "../-update-helpers";
+import { getFieldError, nameSchema } from "../../../../../../lib/form-utils";
+import { safeSubmit, useApiMutation } from "../../../../../../lib/use-api-mutation";
 
-export const RenameProjectSection = ({ project }: { project: ProjectDetail }) => {
+const RenameSection = ({ project }: { project: ProjectDetail }) => {
   const queryClient = useQueryClient();
   const renameProjectMutation = useApiMutation({
     mutationFn: async (value: { name: string }) => renameProject(project.id, { name: value.name }),
@@ -37,7 +47,7 @@ export const RenameProjectSection = ({ project }: { project: ProjectDetail }) =>
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Project settings</CardTitle>
+        <CardTitle>General</CardTitle>
         <CardDescription>Rename this project.</CardDescription>
       </CardHeader>
       <CardContent>
@@ -93,3 +103,59 @@ export const RenameProjectSection = ({ project }: { project: ProjectDetail }) =>
     </Card>
   );
 };
+
+const DeleteSection = ({ project }: { project: ProjectDetail }) => {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+
+  return (
+    <>
+      <Separator />
+      <Card className="border-destructive">
+        <CardHeader>
+          <CardTitle>Danger zone</CardTitle>
+          <CardDescription>
+            Permanently delete this project and all of its branches, channels, and updates.
+          </CardDescription>
+        </CardHeader>
+        <CardFooter>
+          <ConfirmDeleteDialog
+            name={project.name}
+            title={`Delete ${project.name}?`}
+            description="This action cannot be undone. All branches, channels, and updates will be permanently removed."
+            onConfirm={async () => deleteProject(project.id)}
+            successMessage="Project deleted"
+            onSuccess={async () => {
+              await queryClient.invalidateQueries({
+                queryKey: projectsQueryKey(project.organizationId),
+              });
+              queryClient.removeQueries({
+                queryKey: projectQueryKey(project.organizationId, project.id),
+              });
+              await router.navigate({ to: "/projects" });
+            }}
+          >
+            <Button variant="destructive">Delete project</Button>
+          </ConfirmDeleteDialog>
+        </CardFooter>
+      </Card>
+    </>
+  );
+};
+
+const SettingsPage = () => {
+  const { projectId } = Route.useParams();
+  const { activeOrg } = Route.useRouteContext();
+  const { data: project } = useSuspenseQuery(projectQueryOptions(activeOrg.id, projectId));
+
+  return (
+    <div className="flex flex-col gap-6">
+      <RenameSection project={project} />
+      <DeleteSection project={project} />
+    </div>
+  );
+};
+
+export const Route = createFileRoute("/_authed/_app/projects/$projectId/settings/")({
+  component: SettingsPage,
+});

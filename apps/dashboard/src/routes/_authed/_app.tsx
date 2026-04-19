@@ -17,9 +17,6 @@ import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
@@ -32,25 +29,19 @@ import {
 import { Skeleton } from "@better-update/ui/components/ui/skeleton";
 import { TooltipProvider } from "@better-update/ui/components/ui/tooltip";
 import {
-  Audit01Icon,
-  Folder02Icon,
-  Settings02Icon,
-  Logout03Icon,
+  Add01Icon,
   ArrowDown01Icon,
   Building06Icon,
-  Tick02Icon,
-  Add01Icon,
-  UserGroupIcon,
-  Key01Icon,
-  ShieldKeyIcon,
-  Sun02Icon,
-  Moon02Icon,
   ComputerIcon,
+  Logout03Icon,
+  Moon02Icon,
+  Sun02Icon,
+  Tick02Icon,
   UserAccountIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { Link, Outlet, createFileRoute, useRouter, useRouterState } from "@tanstack/react-router";
+import { Outlet, createFileRoute, useRouter, useRouterState } from "@tanstack/react-router";
 import { Suspense, useState } from "react";
 
 import { authClient } from "../../lib/auth-client";
@@ -59,20 +50,25 @@ import { throwRedirect } from "../../lib/throw-redirect";
 import { useTheme } from "../../lib/use-theme";
 import { orgsQueryOptions, sessionQueryOptions } from "../../queries/auth";
 import { CreateOrgDialog } from "./-create-org-dialog";
+import { OrgNavSections, ProjectBackLink, ProjectNavSections } from "./-sidebar-nav";
 
 import type { Theme } from "../../lib/use-theme";
 
 const THEMES = new Set<string>(["light", "dark", "system"]);
 const isTheme = (value: unknown): value is Theme => typeof value === "string" && THEMES.has(value);
 
-const navItems = [
-  { to: "/projects", label: "Projects", icon: Folder02Icon },
-  { to: "/members", label: "Members", icon: UserGroupIcon },
-  { to: "/api-keys", label: "API Keys", icon: Key01Icon },
-  { to: "/credentials", label: "Credentials", icon: ShieldKeyIcon },
-  { to: "/audit-log", label: "Audit Log", icon: Audit01Icon },
-  { to: "/settings", label: "Settings", icon: Settings02Icon },
-] as const;
+const PROJECT_ID_REGEX = /^\/projects\/([^/]+)(?:\/|$)/;
+const extractProjectId = (pathname: string) => {
+  const match = PROJECT_ID_REGEX.exec(pathname);
+  if (!match) {
+    return undefined;
+  }
+  const [, projectId] = match;
+  if (!projectId) {
+    return undefined;
+  }
+  return projectId;
+};
 
 const getInitials = (name: string) =>
   name
@@ -232,28 +228,6 @@ const UserMenu = () => {
   );
 };
 
-const NavGroup = () => (
-  <SidebarGroup>
-    <SidebarGroupLabel>Platform</SidebarGroupLabel>
-    <SidebarGroupContent>
-      <SidebarMenu>
-        {navItems.map((item) => (
-          <SidebarMenuItem key={item.to}>
-            <Link to={item.to}>
-              {({ isActive }) => (
-                <SidebarMenuButton isActive={isActive} tooltip={item.label}>
-                  <HugeiconsIcon icon={item.icon} strokeWidth={2} />
-                  <span>{item.label}</span>
-                </SidebarMenuButton>
-              )}
-            </Link>
-          </SidebarMenuItem>
-        ))}
-      </SidebarMenu>
-    </SidebarGroupContent>
-  </SidebarGroup>
-);
-
 const PageSkeleton = () => (
   <div className="mx-auto flex max-w-4xl flex-col gap-6">
     <div className="flex items-center justify-between">
@@ -288,7 +262,7 @@ const NavigationProgress = () => {
   );
 };
 
-const AppSidebar = () => (
+const AppSidebar = ({ projectId }: { projectId: string | undefined }) => (
   <Sidebar variant="inset" collapsible="icon">
     <SidebarHeader>
       <SidebarMenu>
@@ -299,7 +273,14 @@ const AppSidebar = () => (
     </SidebarHeader>
     <SidebarSeparator />
     <SidebarContent>
-      <NavGroup />
+      {projectId ? (
+        <>
+          <ProjectBackLink />
+          <ProjectNavSections projectId={projectId} />
+        </>
+      ) : (
+        <OrgNavSections />
+      )}
     </SidebarContent>
     <SidebarFooter>
       <SidebarMenu>
@@ -313,10 +294,11 @@ const AppSidebar = () => (
 
 const AppLayout = () => {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const projectId = extractProjectId(pathname);
   return (
     <TooltipProvider>
       <SidebarProvider>
-        <AppSidebar />
+        <AppSidebar projectId={projectId} />
         <SidebarInset>
           <header className="relative flex h-14 shrink-0 items-center gap-2 border-b px-4">
             <SidebarTrigger className="-ml-1" />
