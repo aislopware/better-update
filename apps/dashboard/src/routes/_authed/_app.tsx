@@ -13,7 +13,6 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@better-update/ui/components/ui/dropdown-menu";
-import { Separator } from "@better-update/ui/components/ui/separator";
 import {
   Sidebar,
   SidebarContent,
@@ -26,7 +25,7 @@ import {
   SidebarProvider,
   SidebarRail,
   SidebarSeparator,
-  SidebarTrigger,
+  useSidebar,
 } from "@better-update/ui/components/ui/sidebar";
 import { Skeleton } from "@better-update/ui/components/ui/skeleton";
 import { TooltipProvider } from "@better-update/ui/components/ui/tooltip";
@@ -35,6 +34,8 @@ import { Outlet, createFileRoute, useRouter, useRouterState } from "@tanstack/re
 import {
   PlusIcon,
   ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   Building2Icon,
   MonitorIcon,
   LogOutIcon,
@@ -230,14 +231,8 @@ const UserMenu = () => {
 };
 
 const PageSkeleton = () => (
-  <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
-    <div className="flex items-center justify-between">
-      <div className="space-y-2">
-        <Skeleton className="h-8 w-36 rounded-md" />
-        <Skeleton className="h-5 w-72 rounded-md" />
-      </div>
-      <Skeleton className="h-9 w-28 rounded-md" />
-    </div>
+  <div className="flex w-full flex-col gap-4">
+    <Skeleton className="h-9 w-full rounded-md" />
     <Skeleton className="h-48 w-full rounded-xl" />
   </div>
 );
@@ -263,6 +258,18 @@ const NavigationProgress = () => {
   );
 };
 
+const AppSidebarRail = () => {
+  const { state } = useSidebar();
+  const Icon = state === "expanded" ? ChevronLeftIcon : ChevronRightIcon;
+  return (
+    <SidebarRail className="group/rail z-40">
+      <span className="bg-background pointer-events-none absolute top-1/2 left-1/2 z-50 flex size-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border opacity-0 shadow-sm transition-opacity group-hover/rail:opacity-100">
+        <Icon strokeWidth={2} className="size-3.5" />
+      </span>
+    </SidebarRail>
+  );
+};
+
 const AppSidebar = ({ projectSlug }: { projectSlug: string | undefined }) => (
   <Sidebar variant="inset" collapsible="icon">
     <SidebarHeader>
@@ -283,7 +290,7 @@ const AppSidebar = ({ projectSlug }: { projectSlug: string | undefined }) => (
         </SidebarMenuItem>
       </SidebarMenu>
     </SidebarFooter>
-    <SidebarRail />
+    <AppSidebarRail />
   </Sidebar>
 );
 
@@ -298,8 +305,6 @@ const AppLayout = () => {
         <SidebarInset className="relative">
           <NavigationProgress />
           <header className="bg-background/80 sticky top-0 z-30 flex h-12 shrink-0 items-center gap-2 border-b px-4 backdrop-blur">
-            <SidebarTrigger />
-            <Separator orientation="vertical" className="h-4" />
             <AppBreadcrumb
               orgId={activeOrg.id}
               orgName={activeOrg.name}

@@ -19,7 +19,6 @@ import {
 } from "@better-update/ui/components/ui/dialog";
 import { Input } from "@better-update/ui/components/ui/input";
 import { Label } from "@better-update/ui/components/ui/label";
-import { Separator } from "@better-update/ui/components/ui/separator";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
@@ -217,15 +216,8 @@ const DeleteOrgSection = () => {
 };
 
 const Settings = () => (
-  <div className="mx-auto flex max-w-2xl flex-col gap-6">
-    <div>
-      <h1 className="text-2xl font-bold">Organization Settings</h1>
-      <p className="text-muted-foreground mt-1">
-        Manage your organization details and preferences.
-      </p>
-    </div>
+  <div className="flex w-full flex-col gap-4">
     <OrgGeneralForm />
-    <Separator />
     <DeleteOrgSection />
   </div>
 );

@@ -108,6 +108,7 @@ interface FiltersBarProps {
   onClear: () => void;
   filteredCount: number;
   totalCount: number;
+  action?: React.ReactNode;
 }
 
 const FiltersBar = ({
@@ -120,6 +121,7 @@ const FiltersBar = ({
   onClear,
   filteredCount,
   totalCount,
+  action,
 }: FiltersBarProps) => {
   const hasActive = Boolean(search || fromDate || toDate);
   const countLabel =
@@ -127,7 +129,7 @@ const FiltersBar = ({
       ? `${totalCount} ${totalCount === 1 ? "project" : "projects"}`
       : `${filteredCount} of ${totalCount}`;
   return (
-    <div className="flex flex-wrap items-center gap-3">
+    <div className="flex flex-wrap items-center gap-2">
       <div className="relative w-64">
         <SearchIcon className="text-muted-foreground absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
         <Input
@@ -139,34 +141,29 @@ const FiltersBar = ({
           className="pl-8"
         />
       </div>
-      <div className="flex items-center gap-2">
-        <span className="text-muted-foreground text-sm">From</span>
-        <Input
-          type="date"
-          className="w-40"
-          value={fromDate}
-          onChange={(event) => {
-            onFromDateChange(event.target.value);
-          }}
-        />
-      </div>
-      <div className="flex items-center gap-2">
-        <span className="text-muted-foreground text-sm">To</span>
-        <Input
-          type="date"
-          className="w-40"
-          value={toDate}
-          onChange={(event) => {
-            onToDateChange(event.target.value);
-          }}
-        />
-      </div>
+      <Input
+        type="date"
+        className="w-40"
+        value={fromDate}
+        onChange={(event) => {
+          onFromDateChange(event.target.value);
+        }}
+      />
+      <Input
+        type="date"
+        className="w-40"
+        value={toDate}
+        onChange={(event) => {
+          onToDateChange(event.target.value);
+        }}
+      />
       {hasActive && (
         <Button variant="ghost" size="sm" onClick={onClear}>
           Clear
         </Button>
       )}
-      <div className="text-muted-foreground ml-auto text-sm">{countLabel}</div>
+      <div className="text-muted-foreground text-sm">{countLabel}</div>
+      {action ? <div className="ml-auto">{action}</div> : null}
     </div>
   );
 };
@@ -323,19 +320,15 @@ const Projects = () => {
 
   const totalCount = data.items.length;
   const filteredCount = rows.length;
+  const createCta = useMemo(() => <CreateProjectDialog orgId={orgId} />, [orgId]);
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Projects</h1>
-          <p className="text-muted-foreground mt-1">All projects in this organization.</p>
-        </div>
-        <CreateProjectDialog orgId={orgId} />
-      </div>
-
+    <div className="flex w-full flex-col gap-4">
       {totalCount === 0 ? (
-        <EmptyState />
+        <>
+          <div className="flex justify-end">{createCta}</div>
+          <EmptyState />
+        </>
       ) : (
         <>
           <FiltersBar
@@ -352,6 +345,7 @@ const Projects = () => {
             }}
             filteredCount={filteredCount}
             totalCount={totalCount}
+            action={createCta}
           />
           <ProjectsTable
             rows={rows}
