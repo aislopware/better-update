@@ -3,7 +3,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@better-update/ui/comp
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 
-import { orgsQueryOptions, sessionQueryOptions } from "../../../../../queries/auth";
 import { AnalyticsTab } from "./-analytics-tab";
 import { BranchCard } from "./-branch-card";
 import { BranchesEmptyState } from "./-branches-empty-state";
@@ -17,11 +16,8 @@ import { UpdatesTab } from "./-updates-tab";
 
 const ProjectDetail = () => {
   const { projectId } = Route.useParams();
-  const { data: session } = useSuspenseQuery(sessionQueryOptions);
-  const { data: orgs } = useSuspenseQuery(orgsQueryOptions);
-  const activeOrgId = session?.session.activeOrganizationId ?? "";
-  const activeOrg = orgs.find((org) => org.id === activeOrgId) ?? orgs[0];
-  const orgId = activeOrg?.id ?? "";
+  const { activeOrg } = Route.useRouteContext();
+  const orgId = activeOrg.id;
 
   const { data: project } = useSuspenseQuery(projectQueryOptions(orgId, projectId));
   const { data: branchesData } = useSuspenseQuery(branchesQueryOptions(orgId, projectId));

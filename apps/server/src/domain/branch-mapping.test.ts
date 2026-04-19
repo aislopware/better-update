@@ -190,18 +190,18 @@ describe(evaluateBranchMapping, () => {
     }).pipe(withCrypto),
   );
 
-  it.effect("returns empty fallback for valid JSON with wrong shape", () =>
+  it.effect("returns null fallback for valid JSON with wrong shape", () =>
     Effect.gen(function* () {
       const mapping = JSON.stringify({ notData: true });
       const result = yield* evaluateBranchMapping(mapping, "any-client");
-      expect(result).toBe("");
+      expect(result).toBeNull();
     }).pipe(withCrypto),
   );
 
-  it.effect("returns empty fallback for malformed JSON string", () =>
+  it.effect("returns null fallback for malformed JSON string", () =>
     Effect.gen(function* () {
       const result = yield* evaluateBranchMapping("not-json", "any-client");
-      expect(result).toBe("");
+      expect(result).toBeNull();
     }).pipe(withCrypto),
   );
 

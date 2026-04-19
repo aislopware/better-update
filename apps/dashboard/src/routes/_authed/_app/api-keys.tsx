@@ -13,17 +13,13 @@ import { toast } from "sonner";
 import { authClient, rejectOnAuthClientError } from "../../../lib/auth-client";
 import { useApiMutation } from "../../../lib/use-api-mutation";
 import { apiKeysQueryOptions } from "../../../queries/api-keys";
-import { orgsQueryOptions, sessionQueryOptions } from "../../../queries/auth";
 import { CreateApiKeyDialog, RevokeDialog } from "./-api-key-dialogs";
 import { ApiKeysEmptyState, ApiKeysTable } from "./-api-keys-table";
 
 const ApiKeys = () => {
   const queryClient = useQueryClient();
-  const { data: session } = useSuspenseQuery(sessionQueryOptions);
-  const { data: orgs } = useSuspenseQuery(orgsQueryOptions);
-  const activeOrgId = session?.session.activeOrganizationId ?? "";
-  const activeOrg = orgs.find((org) => org.id === activeOrgId) ?? orgs[0];
-  const orgId = activeOrg?.id ?? "";
+  const { activeOrg } = Route.useRouteContext();
+  const orgId = activeOrg.id;
 
   const { data: apiKeys } = useSuspenseQuery(apiKeysQueryOptions(orgId));
 

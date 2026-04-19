@@ -13,23 +13,19 @@ import { toast } from "sonner";
 
 import { authClient, rejectOnAuthClientError } from "../../../lib/auth-client";
 import { useApiMutation } from "../../../lib/use-api-mutation";
-import { orgsQueryOptions, sessionQueryOptions } from "../../../queries/auth";
 import { invitationsQueryOptions, membersQueryOptions } from "../../../queries/org";
 import { InviteDialog, RemoveDialog } from "./-invite-dialog";
 import { InvitationsTableView, MembersTableView } from "./-members-table";
 
 const Members = () => {
   const queryClient = useQueryClient();
-  const { data: session } = useSuspenseQuery(sessionQueryOptions);
-  const { data: orgs } = useSuspenseQuery(orgsQueryOptions);
-  const activeOrgId = session?.session.activeOrganizationId ?? "";
-  const activeOrg = orgs.find((org) => org.id === activeOrgId) ?? orgs[0];
-  const orgId = activeOrg?.id ?? "";
+  const { activeOrg, user } = Route.useRouteContext();
+  const orgId = activeOrg.id;
 
   const { data: members } = useSuspenseQuery(membersQueryOptions(orgId));
   const { data: invitations } = useSuspenseQuery(invitationsQueryOptions(orgId));
 
-  const currentMember = members.find((member) => member.userId === session?.user.id);
+  const currentMember = members.find((member) => member.userId === user.id);
   const currentRole = currentMember?.role ?? "member";
   const isOwnerOrAdmin = currentRole === "owner" || currentRole === "admin";
 
@@ -122,7 +118,7 @@ const Members = () => {
         <CardContent>
           <MembersTableView
             members={members}
-            currentUserId={session?.user.id ?? ""}
+            currentUserId={user.id}
             currentRole={currentRole}
             onRoleChange={handleRoleChange}
             onRemove={setRemoveMemberId}

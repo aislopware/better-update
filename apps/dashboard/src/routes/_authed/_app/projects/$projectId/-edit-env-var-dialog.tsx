@@ -56,6 +56,7 @@ const EditFormContent = ({
 
   const form = useForm({
     defaultValues: {
+      // eslint-disable-next-line eslint-js/no-restricted-syntax -- controlled input requires string; encrypted fields render blank by design
       value: isEncrypted ? "" : (envVar.value ?? ""),
       visibility: envVar.visibility,
     },
@@ -65,6 +66,7 @@ const EditFormContent = ({
         if (value.value.length > 0) {
           payload.value = value.value;
         }
+        // eslint-disable-next-line eslint-js/no-restricted-syntax -- compare against normalized default used in form
       } else if (value.value !== (envVar.value ?? "")) {
         payload.value = value.value;
       }

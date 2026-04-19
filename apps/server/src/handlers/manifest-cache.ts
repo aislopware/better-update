@@ -58,10 +58,14 @@ export const matchCachedResponse = (
       return null;
     }
 
+    const cachedUpdateId = cached.headers.get("x-cache-update-id");
+    if (cachedUpdateId === null || cachedUpdateId.length === 0) {
+      return null;
+    }
     const cachedResponseType = cached.headers.get("x-cache-response-type");
     return {
       response: fromCacheEntry(cached),
-      updateId: cached.headers.get("x-cache-update-id") ?? "",
+      updateId: cachedUpdateId,
       responseType: isResponseType(cachedResponseType) ? cachedResponseType : "manifest",
     };
   });

@@ -21,7 +21,7 @@ import { Input } from "@better-update/ui/components/ui/input";
 import { Label } from "@better-update/ui/components/ui/label";
 import { Separator } from "@better-update/ui/components/ui/separator";
 import { useForm } from "@tanstack/react-form";
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -29,20 +29,16 @@ import { toast } from "sonner";
 import { authClient } from "../../../../lib/auth-client";
 import { generateSlug, nameSchema, slugSchema } from "../../../../lib/form-utils";
 import { useDeleteOrgMutation } from "../../../../lib/org-mutations";
-import { orgsQueryOptions, sessionQueryOptions } from "../../../../queries/auth";
 
 const OrgGeneralForm = () => {
   const queryClient = useQueryClient();
-  const { data: session } = useSuspenseQuery(sessionQueryOptions);
-  const { data: orgs } = useSuspenseQuery(orgsQueryOptions);
-  const activeOrgId = session?.session.activeOrganizationId;
-  const activeOrg = orgs.find((org) => org.id === activeOrgId) ?? orgs[0];
+  const { activeOrg } = Route.useRouteContext();
   const slugEdited = useRef(false);
 
   const form = useForm({
     defaultValues: {
-      name: activeOrg?.name ?? "",
-      slug: activeOrg?.slug ?? "",
+      name: activeOrg.name,
+      slug: activeOrg.slug,
     },
     onSubmit: async ({ value }) => {
       const { error } = await authClient.organization.update({
@@ -153,14 +149,11 @@ const OrgGeneralForm = () => {
 const DeleteOrgSection = () => {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { data: session } = useSuspenseQuery(sessionQueryOptions);
-  const { data: orgs } = useSuspenseQuery(orgsQueryOptions);
-  const activeOrgId = session?.session.activeOrganizationId;
-  const activeOrg = orgs.find((org) => org.id === activeOrgId) ?? orgs[0];
+  const { activeOrg } = Route.useRouteContext();
   const [confirmText, setConfirmText] = useState("");
 
   const deleteOrgMutation = useDeleteOrgMutation({
-    orgId: activeOrg?.id ?? "",
+    orgId: activeOrg.id,
     onSuccess: async () => {
       toast.success("Organization deleted");
       await queryClient.resetQueries({ queryKey: ["auth"] });
@@ -169,9 +162,6 @@ const DeleteOrgSection = () => {
   });
 
   const handleDelete = () => {
-    if (!activeOrg) {
-      return;
-    }
     deleteOrgMutation.mutate();
   };
 
@@ -188,7 +178,7 @@ const DeleteOrgSection = () => {
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Delete {activeOrg?.name}?</DialogTitle>
+              <DialogTitle>Delete {activeOrg.name}?</DialogTitle>
               <DialogDescription>
                 This action cannot be undone. All projects, API keys, and members will be
                 permanently removed.
@@ -196,7 +186,7 @@ const DeleteOrgSection = () => {
             </DialogHeader>
             <div className="flex flex-col gap-2 py-4">
               <Label htmlFor="confirm-delete">
-                Type <span className="font-mono font-bold">{activeOrg?.slug}</span> to confirm
+                Type <span className="font-mono font-bold">{activeOrg.slug}</span> to confirm
               </Label>
               <Input
                 id="confirm-delete"
@@ -204,7 +194,7 @@ const DeleteOrgSection = () => {
                 onChange={(event) => {
                   setConfirmText(event.target.value);
                 }}
-                placeholder={activeOrg?.slug ?? ""}
+                placeholder={activeOrg.slug}
               />
             </div>
             <DialogFooter>
@@ -213,7 +203,7 @@ const DeleteOrgSection = () => {
               </DialogClose>
               <Button
                 variant="destructive"
-                disabled={confirmText !== activeOrg?.slug || deleteOrgMutation.isPending}
+                disabled={confirmText !== activeOrg.slug || deleteOrgMutation.isPending}
                 onClick={handleDelete}
               >
                 {deleteOrgMutation.isPending ? "Deleting..." : "Delete permanently"}

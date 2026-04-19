@@ -2,6 +2,7 @@ import { Context, Effect, Layer } from "effect";
 
 import { cloudflareEnv } from "../cloudflare/context";
 import { NotFound } from "../errors";
+import { toDbNull } from "../lib/nullable";
 
 import type { CredentialDistribution, CredentialModel, CredentialType, Platform } from "../models";
 
@@ -245,7 +246,7 @@ export const CredentialRepoLive = Layer.succeed(CredentialRepo, {
         return yield* Effect.fail(new NotFound({ message: "Credential not found" }));
       }
 
-      return { r2Key: r2Row?.r2_key ?? null };
+      return { r2Key: toDbNull(r2Row?.r2_key) };
     }),
 
   activate: (params) =>
@@ -258,9 +259,11 @@ export const CredentialRepoLive = Layer.succeed(CredentialRepo, {
             `UPDATE "credentials" SET "is_active" = 0 WHERE "organization_id" = ? AND COALESCE("project_id", '') = ? AND "platform" = ? AND "type" = ? AND COALESCE("distribution", '') = ? AND "is_active" = 1`,
           ).bind(
             params.organizationId,
+            // eslint-disable-next-line eslint-js/no-restricted-syntax -- SQL COALESCE(project_id, '') = ? matches NULL-valued column against empty-string bind
             params.projectId ?? "",
             params.platform,
             params.type,
+            // eslint-disable-next-line eslint-js/no-restricted-syntax -- SQL COALESCE(distribution, '') = ? matches NULL-valued column against empty-string bind
             params.distribution ?? "",
           ),
           env.DB.prepare(`UPDATE "credentials" SET "is_active" = 1 WHERE "id" = ?`).bind(params.id),

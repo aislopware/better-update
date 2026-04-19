@@ -181,6 +181,7 @@ const ChannelHealthChart = ({
   period: AnalyticsPeriod;
 }) => {
   const { data: channelsData } = useSuspenseQuery(channelsQueryOptions(orgId, projectId, 1000));
+  // eslint-disable-next-line eslint-js/no-restricted-syntax -- useState initial before items.length guard; Select does not render when items empty
   const [selected, setSelected] = useState(channelsData.items[0]?.name ?? "");
 
   if (channelsData.items.length === 0) {
@@ -189,7 +190,8 @@ const ChannelHealthChart = ({
 
   const effectiveSelected = channelsData.items.some((ch) => ch.name === selected)
     ? selected
-    : (channelsData.items[0]?.name ?? "");
+    : // eslint-disable-next-line eslint-js/no-restricted-syntax -- items.length > 0 guaranteed by guard above
+      (channelsData.items[0]?.name ?? "");
 
   return (
     <div className="flex flex-col gap-3">
@@ -287,6 +289,7 @@ const UpdateTrafficChart = ({
   const { data: updatesData } = useSuspenseQuery(
     updatesQueryOptions(orgId, projectId, undefined, 1000),
   );
+  // eslint-disable-next-line eslint-js/no-restricted-syntax -- useState initial before items.length guard; Select does not render when items empty
   const [selectedUpdateId, setSelectedUpdateId] = useState(updatesData.items[0]?.id ?? "");
 
   if (updatesData.items.length === 0) {
@@ -295,7 +298,8 @@ const UpdateTrafficChart = ({
 
   const effectiveUpdateId = updatesData.items.some((upd) => upd.id === selectedUpdateId)
     ? selectedUpdateId
-    : (updatesData.items[0]?.id ?? "");
+    : // eslint-disable-next-line eslint-js/no-restricted-syntax -- items.length > 0 guaranteed by guard above
+      (updatesData.items[0]?.id ?? "");
 
   return (
     <div className="flex flex-col gap-3">

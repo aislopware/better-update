@@ -192,6 +192,9 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
           }
 
           const newBranchId = extractNewBranchId(channel.branchMappingJson);
+          if (newBranchId === null) {
+            return yield* Effect.fail(new NotFound({ message: "Branch mapping is empty" }));
+          }
           yield* repo.completeBranchRollout({ id: path.id, branchId: newBranchId });
           return toApiChannel(yield* repo.findById({ id: path.id }));
         }),

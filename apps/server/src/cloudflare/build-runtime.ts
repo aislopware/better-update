@@ -1,5 +1,6 @@
 import { Context, Effect, Layer } from "effect";
 
+import { toDbNull } from "../lib/nullable";
 import { toChecksumSha256Base64 } from "../lib/r2-helpers";
 import { cloudflareEnv } from "./context";
 import { copyObject, generateDownloadUrl, generateUploadUrl } from "./signed-url";
@@ -76,14 +77,14 @@ export class BuildRuntime extends Context.Tag("server/BuildRuntime")<
 const toStoredBuildBlob = (object: R2ObjectBody): StoredBuildBlob => ({
   body: object.body,
   size: object.size,
-  contentType: object.httpMetadata?.contentType ?? null,
+  contentType: toDbNull(object.httpMetadata?.contentType),
   uploaded: object.uploaded,
   checksumSha256Base64: toChecksumSha256Base64(Reflect.get(object, "checksums")),
 });
 
 const toStoredBuildObjectMetadata = (object: R2Object): StoredBuildObjectMetadata => ({
   size: object.size,
-  contentType: object.httpMetadata?.contentType ?? null,
+  contentType: toDbNull(object.httpMetadata?.contentType),
   uploaded: object.uploaded,
   checksumSha256Base64: toChecksumSha256Base64(Reflect.get(object, "checksums")),
 });

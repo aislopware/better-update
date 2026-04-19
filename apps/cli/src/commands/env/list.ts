@@ -33,6 +33,7 @@ export const listCommand = Command.make("list", { environment }, ({ environment 
         item.key,
         item.environment,
         item.visibility,
+        // eslint-disable-next-line eslint-js/no-restricted-syntax -- EnvVar.value nullable at storage; display empty when absent
         item.visibility === "plaintext" ? (item.value ?? "") : "••••••",
       ]),
     );

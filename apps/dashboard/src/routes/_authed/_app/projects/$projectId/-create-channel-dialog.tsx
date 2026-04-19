@@ -157,7 +157,10 @@ export const CreateChannelDialog = ({ orgId, projectId }: { orgId: string; proje
                   <Select
                     value={field.state.value}
                     onValueChange={(next) => {
-                      field.handleChange(next ?? "");
+                      if (next === null) {
+                        return;
+                      }
+                      field.handleChange(next);
                     }}
                   >
                     <SelectTrigger>

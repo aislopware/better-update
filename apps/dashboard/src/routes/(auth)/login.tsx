@@ -17,6 +17,7 @@ import { z } from "zod/v4";
 import { authClient } from "../../lib/auth-client";
 
 const readRedirectTo = (): string =>
+  // eslint-disable-next-line eslint-js/no-restricted-syntax -- no redirectTo param means stay on default post-login target
   new URLSearchParams(globalThis.location.search).get("redirectTo") ?? "";
 
 const LoginPage = () => {

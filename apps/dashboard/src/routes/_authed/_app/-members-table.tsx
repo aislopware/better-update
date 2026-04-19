@@ -109,18 +109,23 @@ const MemberInfo = ({
   name: string;
   email: string;
   image?: string | null | undefined;
-}) => (
-  <div className="flex items-center gap-3">
-    <Avatar className="size-8">
-      <AvatarImage src={image ?? undefined} alt={name} />
-      <AvatarFallback>{getInitials(name || "U")}</AvatarFallback>
-    </Avatar>
-    <div>
-      <p className="leading-none font-medium">{name}</p>
-      <p className="text-muted-foreground text-xs">{email}</p>
+}) => {
+  // eslint-disable-next-line eslint-js/no-restricted-syntax -- DOM prop coercion; AvatarImage src typed string | undefined
+  const src = image ?? undefined;
+  const initials = getInitials(name || "U");
+  return (
+    <div className="flex items-center gap-3">
+      <Avatar className="size-8">
+        <AvatarImage src={src} alt={name} />
+        <AvatarFallback>{initials}</AvatarFallback>
+      </Avatar>
+      <div>
+        <p className="leading-none font-medium">{name}</p>
+        <p className="text-muted-foreground text-xs">{email}</p>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 export const MembersTableView = ({
   members,

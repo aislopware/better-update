@@ -112,6 +112,7 @@ export const downloadIosCredentials = (
     yield* writeSecret(fs, p12Path, certDownload.blob);
 
     // Validate downloaded certificate
+    // eslint-disable-next-line eslint-js/no-restricted-syntax -- P12 password optional; empty string means no password (valid case)
     yield* inspectP12({ data: certDownload.blob, password: certDownload.password ?? "" }).pipe(
       Effect.tap((info) =>
         Effect.gen(function* () {
@@ -170,6 +171,7 @@ export const downloadIosCredentials = (
 
     return {
       p12Path,
+      // eslint-disable-next-line eslint-js/no-restricted-syntax -- P12 password optional; empty string means no password (valid case)
       p12Password: certDownload.password ?? "",
       profilePath,
       profileFilename: profileDownload.filename,

@@ -12,6 +12,7 @@ import { BadRequest, Forbidden, NotFound } from "../errors";
 import { toApiCredential } from "../http/to-api";
 import { toApiBadRequestReadEffect } from "../http/to-api-effect";
 import { fromBase64, toBase64 } from "../lib/base64";
+import { toDbNull } from "../lib/nullable";
 import { parsePagination } from "../lib/pagination";
 import { CredentialRepo } from "../repositories/credentials";
 
@@ -108,11 +109,11 @@ export const CredentialsGroupLive = HttpApiBuilder.group(ManagementApi, "credent
           const credential = yield* repo.insert({
             id: credentialId,
             organizationId: ctx.organizationId,
-            projectId: payload.projectId ?? null,
+            projectId: toDbNull(payload.projectId),
             platform: payload.platform,
             type: payload.type,
             name: payload.name,
-            distribution: payload.distribution ?? null,
+            distribution: toDbNull(payload.distribution),
             r2Key,
             encryptedDek,
             keyVersion,
@@ -120,7 +121,7 @@ export const CredentialsGroupLive = HttpApiBuilder.group(ManagementApi, "credent
             encryptedKeyAlias,
             encryptedKeyPassword,
             metadataJson: payload.metadata ?? "{}",
-            expiresAt: payload.expiresAt ?? null,
+            expiresAt: toDbNull(payload.expiresAt),
           });
 
           yield* logAudit({

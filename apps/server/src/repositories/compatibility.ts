@@ -3,6 +3,7 @@ import { Context, Effect, Layer } from "effect";
 import { cloudflareEnv } from "../cloudflare/context";
 import { extractReachableBranchIds } from "../domain/branch-mapping";
 import { collectServableUpdates } from "../domain/update-rollout";
+import { toDbNull } from "../lib/nullable";
 
 import type {
   BuildCompatibilityChannelModel,
@@ -95,13 +96,13 @@ const toBuildRow = (row: BuildRow) => ({
   metadataJson: row.metadata_json,
   createdAt: row.created_at,
   artifact:
-    row.a_r2_key && row.a_format
+    row.a_r2_key && row.a_format && row.a_sha256 && row.a_byte_size !== null
       ? {
           r2Key: row.a_r2_key,
           format: row.a_format,
           contentType: row.a_content_type ?? "application/octet-stream",
-          byteSize: row.a_byte_size ?? 0,
-          sha256: row.a_sha256 ?? "",
+          byteSize: row.a_byte_size,
+          sha256: row.a_sha256,
         }
       : null,
 });
@@ -269,9 +270,9 @@ export const CompatibilityRepoLive = Layer.succeed(CompatibilityRepo, {
             channelId: channel.id,
             channelName: channel.name,
             updateCount: summary?.updateCount ?? 0,
-            latestUpdateId: summary?.latestUpdate.id ?? null,
-            latestUpdateMessage: summary?.latestUpdate.message ?? null,
-            latestUpdateCreatedAt: summary?.latestUpdate.created_at ?? null,
+            latestUpdateId: toDbNull(summary?.latestUpdate.id),
+            latestUpdateMessage: toDbNull(summary?.latestUpdate.message),
+            latestUpdateCreatedAt: toDbNull(summary?.latestUpdate.created_at),
             isPaused: channel.is_paused === 1,
             rolloutActive: channel.branch_mapping_json !== null,
           } satisfies BuildCompatibilityChannelModel;

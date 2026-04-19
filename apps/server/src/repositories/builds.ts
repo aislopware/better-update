@@ -2,6 +2,7 @@ import { Context, Effect, Layer } from "effect";
 
 import { cloudflareEnv } from "../cloudflare/context";
 import { NotFound } from "../errors";
+import { toDbNull } from "../lib/nullable";
 
 import type { ArtifactFormat, BuildWithArtifactModel, Distribution, Platform } from "../models";
 
@@ -128,13 +129,13 @@ const toBuildWithArtifact = (row: BuildRow) =>
     metadataJson: row.metadata_json,
     createdAt: row.created_at,
     artifact:
-      row.a_r2_key && row.a_format
+      row.a_r2_key && row.a_format && row.a_sha256 && row.a_byte_size !== null
         ? {
             r2Key: row.a_r2_key,
             format: row.a_format,
             contentType: row.a_content_type ?? "application/octet-stream",
-            byteSize: row.a_byte_size ?? 0,
-            sha256: row.a_sha256 ?? "",
+            byteSize: row.a_byte_size,
+            sha256: row.a_sha256,
           }
         : null,
   }) satisfies BuildWithArtifactModel;
@@ -231,7 +232,7 @@ export const BuildRepoLive = Layer.succeed(BuildRepo, {
           .bind(params.id)
           .first<{ r2_key: string }>(),
       );
-      return row?.r2_key ?? null;
+      return toDbNull(row?.r2_key);
     }),
 
   findArtifactR2KeyByIdAndOrg: (params) =>
@@ -244,7 +245,7 @@ export const BuildRepoLive = Layer.succeed(BuildRepo, {
           .bind(params.id, params.organizationId)
           .first<{ r2_key: string }>(),
       );
-      return row?.r2_key ?? null;
+      return toDbNull(row?.r2_key);
     }),
 
   findInstallInfoById: (params) =>
@@ -360,6 +361,6 @@ export const BuildRepoLive = Layer.succeed(BuildRepo, {
         return yield* Effect.fail(new NotFound({ message: "Build not found" }));
       }
 
-      return { r2Key: artifact?.r2_key ?? null };
+      return { r2Key: toDbNull(artifact?.r2_key) };
     }),
 });

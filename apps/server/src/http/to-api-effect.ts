@@ -7,6 +7,7 @@ import {
 import { Effect } from "effect";
 
 import type { BadRequest, Conflict, Forbidden, NotFound } from "../errors";
+import type { MissingValueError } from "../lib/require-value";
 
 const exhaust = (value: never): never => value;
 
@@ -33,7 +34,7 @@ const mapCrudError = (
 };
 
 const mapWriteError = (
-  error: BadRequest | Conflict | Forbidden | NotFound,
+  error: BadRequest | Conflict | Forbidden | MissingValueError | NotFound,
 ): ApiBadRequest | ApiConflict | ApiForbidden | ApiNotFound => {
   switch (error._tag) {
     case "BadRequest": {
@@ -45,6 +46,9 @@ const mapWriteError = (
     case "Forbidden": {
       return new ApiForbidden({ message: error.message });
     }
+    case "MissingValueError": {
+      return new ApiBadRequest({ message: `Missing required field: ${error.field}` });
+    }
     case "NotFound": {
       return new ApiNotFound({ message: error.message });
     }
@@ -55,7 +59,7 @@ const mapWriteError = (
 };
 
 const mapBadRequestReadError = (
-  error: BadRequest | Forbidden | NotFound,
+  error: BadRequest | Forbidden | MissingValueError | NotFound,
 ): ApiBadRequest | ApiForbidden | ApiNotFound => {
   switch (error._tag) {
     case "BadRequest": {
@@ -63,6 +67,9 @@ const mapBadRequestReadError = (
     }
     case "Forbidden": {
       return new ApiForbidden({ message: error.message });
+    }
+    case "MissingValueError": {
+      return new ApiBadRequest({ message: `Missing required field: ${error.field}` });
     }
     case "NotFound": {
       return new ApiNotFound({ message: error.message });
@@ -82,9 +89,17 @@ export const toApiCrudEffect = <Success, Requirements>(
 ) => Effect.mapError(effect, mapCrudError);
 
 export const toApiWriteEffect = <Success, Requirements>(
-  effect: Effect.Effect<Success, BadRequest | Conflict | Forbidden | NotFound, Requirements>,
+  effect: Effect.Effect<
+    Success,
+    BadRequest | Conflict | Forbidden | MissingValueError | NotFound,
+    Requirements
+  >,
 ) => Effect.mapError(effect, mapWriteError);
 
 export const toApiBadRequestReadEffect = <Success, Requirements>(
-  effect: Effect.Effect<Success, BadRequest | Forbidden | NotFound, Requirements>,
+  effect: Effect.Effect<
+    Success,
+    BadRequest | Forbidden | MissingValueError | NotFound,
+    Requirements
+  >,
 ) => Effect.mapError(effect, mapBadRequestReadError);

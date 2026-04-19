@@ -1,5 +1,6 @@
 import { Context, Effect, Layer } from "effect";
 
+import { toDbNull } from "../lib/nullable";
 import { cloudflareCtx } from "./context";
 
 const CACHE_NAME = "manifests";
@@ -19,7 +20,7 @@ export const ManifestCacheStorageLive = Layer.succeed(ManifestCacheStorage, {
     Effect.promise(async () => {
       const cache = await caches.open(CACHE_NAME);
       const cached = await cache.match(cacheKey);
-      return cached ?? null;
+      return toDbNull(cached);
     }),
   put: (cacheKey, response) =>
     Effect.gen(function* () {

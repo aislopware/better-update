@@ -37,6 +37,7 @@ export const manifestRuntime: Effect.Effect<ManifestRuntime> = Effect.gen(functi
             ph.platform,
             ph.runtimeVersion,
             responseType,
+            // eslint-disable-next-line eslint-js/no-restricted-syntax -- Analytics Engine blob slot requires string; missing extraParams logged as empty
             ph.extraParams ?? "",
           ],
           doubles: [Date.now() - startTime, 0],

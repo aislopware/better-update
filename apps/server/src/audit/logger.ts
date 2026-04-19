@@ -1,6 +1,7 @@
 import { Either, Effect } from "effect";
 
 import { CurrentActor } from "../auth/current-actor";
+import { toDbNull } from "../lib/nullable";
 import { AuditLogRepo } from "../repositories/audit-logs";
 
 import type { AuditLogResourceType } from "../models";
@@ -22,7 +23,7 @@ export const logAudit = (params: {
       actorEmail: ctx.actorEmail,
       action: params.action,
       resourceType: params.resourceType,
-      resourceId: params.resourceId ?? null,
+      resourceId: toDbNull(params.resourceId),
       metadata: params.metadata ? JSON.stringify(params.metadata) : null,
       source: ctx.source,
     });

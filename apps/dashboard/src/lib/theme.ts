@@ -10,8 +10,8 @@ const isValidTheme = (value: string): value is Theme => VALID_THEMES.has(value);
 /** Client-only — parses `document.cookie` for the theme value. */
 export const getThemeFromCookie = (): Theme => {
   const match = /(?:^|;\s*)theme=([\w]+)/.exec(document.cookie);
-  const value = match?.[1] ?? "";
-  return value && isValidTheme(value) ? value : "system";
+  const value = match?.[1];
+  return value !== undefined && isValidTheme(value) ? value : "system";
 };
 
 export const setThemeCookie = (theme: Theme): void => {

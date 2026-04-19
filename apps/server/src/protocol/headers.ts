@@ -3,6 +3,11 @@ import { parseDictionary, serializeDictionary } from "structured-headers";
 
 import { BadRequest } from "../errors";
 
+const getHeaderOrUndefined = (headers: Headers, name: string): string | undefined => {
+  const value = headers.get(name);
+  return value === null ? undefined : value;
+};
+
 export interface ProtocolHeaders {
   readonly protocolVersion: 1;
   readonly platform: "ios" | "android";
@@ -102,10 +107,10 @@ export const parseProtocolHeaders = (
       platform,
       runtimeVersion,
       channelName,
-      expectSignature: headers.get("expo-expect-signature") ?? undefined,
-      easClientId: headers.get("eas-client-id") ?? undefined,
-      accept: headers.get("accept") ?? undefined,
-      currentUpdateId: headers.get("expo-current-update-id") ?? undefined,
+      expectSignature: getHeaderOrUndefined(headers, "expo-expect-signature"),
+      easClientId: getHeaderOrUndefined(headers, "eas-client-id"),
+      accept: getHeaderOrUndefined(headers, "accept"),
+      currentUpdateId: getHeaderOrUndefined(headers, "expo-current-update-id"),
       extraParams,
     };
   });
