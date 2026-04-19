@@ -2,6 +2,7 @@ import { projectsQueryOptions } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import { Card, CardContent } from "@better-update/ui/components/ui/card";
+import { DateRangePicker } from "@better-update/ui/components/ui/date-range-picker";
 import { Input } from "@better-update/ui/components/ui/input";
 import {
   Table,
@@ -23,6 +24,7 @@ import {
 import { useMemo, useState } from "react";
 
 import type { ProjectItem } from "@better-update/api-client/react";
+import type { DateRange } from "react-day-picker";
 
 import { CreateProjectDialog } from "./-create-dialog";
 
@@ -101,10 +103,8 @@ const NoResultsRow = () => (
 interface FiltersBarProps {
   search: string;
   onSearchChange: (value: string) => void;
-  fromDate: string;
-  onFromDateChange: (value: string) => void;
-  toDate: string;
-  onToDateChange: (value: string) => void;
+  dateRange: DateRange | undefined;
+  onDateRangeChange: (value: DateRange | undefined) => void;
   onClear: () => void;
   filteredCount: number;
   totalCount: number;
@@ -114,16 +114,14 @@ interface FiltersBarProps {
 const FiltersBar = ({
   search,
   onSearchChange,
-  fromDate,
-  onFromDateChange,
-  toDate,
-  onToDateChange,
+  dateRange,
+  onDateRangeChange,
   onClear,
   filteredCount,
   totalCount,
   action,
 }: FiltersBarProps) => {
-  const hasActive = Boolean(search || fromDate || toDate);
+  const hasActive = Boolean(search || dateRange?.from || dateRange?.to);
   const countLabel =
     filteredCount === totalCount
       ? `${totalCount} ${totalCount === 1 ? "project" : "projects"}`
@@ -141,22 +139,7 @@ const FiltersBar = ({
           className="pl-8"
         />
       </div>
-      <Input
-        type="date"
-        className="w-40"
-        value={fromDate}
-        onChange={(event) => {
-          onFromDateChange(event.target.value);
-        }}
-      />
-      <Input
-        type="date"
-        className="w-40"
-        value={toDate}
-        onChange={(event) => {
-          onToDateChange(event.target.value);
-        }}
-      />
+      <DateRangePicker value={dateRange} onChange={onDateRangeChange} placeholder="Created date" />
       {hasActive && (
         <Button variant="ghost" size="sm" onClick={onClear}>
           Clear
@@ -274,15 +257,29 @@ const Projects = () => {
   const { data } = useSuspenseQuery(projectsQueryOptions(orgId, 1, 1000));
 
   const [search, setSearch] = useState("");
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [sortKey, setSortKey] = useState<SortKey>("lastActivityAt");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
   const rows = useMemo(() => {
     const query = search.trim().toLowerCase();
-    const fromTs = fromDate ? new Date(`${fromDate}T00:00:00`).getTime() : null;
-    const toTs = toDate ? new Date(`${toDate}T23:59:59`).getTime() : null;
+    const fromTs = dateRange?.from
+      ? new Date(
+          dateRange.from.getFullYear(),
+          dateRange.from.getMonth(),
+          dateRange.from.getDate(),
+        ).getTime()
+      : null;
+    const toTs = dateRange?.to
+      ? new Date(
+          dateRange.to.getFullYear(),
+          dateRange.to.getMonth(),
+          dateRange.to.getDate(),
+          23,
+          59,
+          59,
+        ).getTime()
+      : null;
 
     const filtered = data.items.filter((project: ProjectItem) => {
       const name = project.name.toLowerCase();
@@ -307,7 +304,7 @@ const Projects = () => {
       }
       return cmp(left[sortKey].toLowerCase(), right[sortKey].toLowerCase());
     });
-  }, [data.items, search, fromDate, toDate, sortKey, sortDir]);
+  }, [data.items, search, dateRange, sortKey, sortDir]);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -334,14 +331,11 @@ const Projects = () => {
           <FiltersBar
             search={search}
             onSearchChange={setSearch}
-            fromDate={fromDate}
-            onFromDateChange={setFromDate}
-            toDate={toDate}
-            onToDateChange={setToDate}
+            dateRange={dateRange}
+            onDateRangeChange={setDateRange}
             onClear={() => {
               setSearch("");
-              setFromDate("");
-              setToDate("");
+              setDateRange(undefined);
             }}
             filteredCount={filteredCount}
             totalCount={totalCount}
