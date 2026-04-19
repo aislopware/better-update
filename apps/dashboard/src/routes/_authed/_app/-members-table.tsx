@@ -1,4 +1,3 @@
-import { Avatar, AvatarFallback, AvatarImage } from "@better-update/ui/components/ui/avatar";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
@@ -18,7 +17,7 @@ import {
 } from "@better-update/ui/components/ui/table";
 import { EllipsisVerticalIcon, UserMinusIcon, ShieldIcon, XIcon } from "lucide-react";
 
-import { getInitials } from "../../../lib/avatar";
+import { EntityAvatar } from "../../../lib/entity-avatar";
 
 const roleBadgeVariant = (role: string): "default" | "secondary" | "outline" => {
   if (role === "owner") {
@@ -103,23 +102,15 @@ const MemberInfo = ({
   name: string;
   email: string;
   image?: string | null | undefined;
-}) => {
-  // eslint-disable-next-line eslint-js/no-restricted-syntax -- DOM prop coercion; AvatarImage src typed string | undefined
-  const src = image ?? undefined;
-  const initials = getInitials(name || "U");
-  return (
-    <div className="flex items-center gap-3">
-      <Avatar className="size-8">
-        <AvatarImage src={src} alt={name} />
-        <AvatarFallback>{initials}</AvatarFallback>
-      </Avatar>
-      <div>
-        <p className="leading-none font-medium">{name}</p>
-        <p className="text-muted-foreground text-xs">{email}</p>
-      </div>
+}) => (
+  <div className="flex items-center gap-3">
+    <EntityAvatar name={name || "U"} image={image} />
+    <div>
+      <p className="leading-none font-medium">{name}</p>
+      <p className="text-muted-foreground text-xs">{email}</p>
     </div>
-  );
-};
+  </div>
+);
 
 export const MembersTableView = ({
   members,

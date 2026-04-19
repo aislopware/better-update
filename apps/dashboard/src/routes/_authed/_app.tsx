@@ -1,4 +1,3 @@
-import { Avatar, AvatarFallback, AvatarImage } from "@better-update/ui/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,7 +34,6 @@ import {
   ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  Building2Icon,
   MonitorIcon,
   LogOutIcon,
   MoonIcon,
@@ -46,6 +44,7 @@ import {
 import { Suspense, useState } from "react";
 
 import { authClient } from "../../lib/auth-client";
+import { EntityAvatar } from "../../lib/entity-avatar";
 import { ErrorBoundary } from "../../lib/error-boundary";
 import { throwRedirect } from "../../lib/throw-redirect";
 import { useTheme } from "../../lib/use-theme";
@@ -72,13 +71,30 @@ const extractProjectSlug = (pathname: string) => {
   return projectSlug;
 };
 
-const getInitials = (name: string) =>
-  name
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
+const renderOrgTrigger = (name: string, slug: string | undefined) => (
+  <SidebarMenuButton size="lg" className="data-open:bg-sidebar-accent w-full">
+    <EntityAvatar name={name} shape="square" className="size-8" />
+    <div className="grid flex-1 text-left text-sm leading-tight">
+      <span className="truncate font-semibold">{name}</span>
+      <span className="text-muted-foreground truncate text-xs">{slug}</span>
+    </div>
+    <ChevronDownIcon strokeWidth={2} className="ml-auto size-4" />
+  </SidebarMenuButton>
+);
+
+const renderUserTrigger = (
+  name: string | undefined,
+  image: string | null | undefined,
+  email: string | undefined,
+) => (
+  <SidebarMenuButton size="lg" className="data-open:bg-sidebar-accent w-full">
+    <EntityAvatar name={name ?? "U"} image={image} className="size-8" />
+    <div className="grid flex-1 text-left text-sm leading-tight">
+      <span className="truncate font-semibold">{name}</span>
+      <span className="text-muted-foreground truncate text-xs">{email}</span>
+    </div>
+  </SidebarMenuButton>
+);
 
 const OrgSwitcher = () => {
   const router = useRouter();
@@ -106,25 +122,14 @@ const OrgSwitcher = () => {
   return (
     <>
       <DropdownMenu>
-        <DropdownMenuTrigger className="w-full">
-          <SidebarMenuButton size="lg" className="data-open:bg-sidebar-accent">
-            <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-              <Building2Icon strokeWidth={2} className="size-4" />
-            </div>
-            <div className="grid flex-1 text-left text-sm leading-tight">
-              <span className="truncate font-semibold">{displayName}</span>
-              <span className="text-muted-foreground truncate text-xs">{activeOrg?.slug}</span>
-            </div>
-            <ChevronDownIcon strokeWidth={2} className="ml-auto size-4" />
-          </SidebarMenuButton>
-        </DropdownMenuTrigger>
+        <DropdownMenuTrigger render={renderOrgTrigger(displayName, activeOrg?.slug)} />
         <DropdownMenuContent align="start" side="bottom" sideOffset={4} className="w-64">
           <DropdownMenuGroup>
             <DropdownMenuLabel>Organizations</DropdownMenuLabel>
             <DropdownMenuSeparator />
             {orgs.map((org) => (
               <DropdownMenuItem key={org.id} onClick={async () => handleOrgSwitch(org.id)}>
-                <Building2Icon strokeWidth={2} className="size-4" />
+                <EntityAvatar name={org.name} size="sm" shape="square" />
                 <span className="flex-1 truncate">{org.name}</span>
                 {org.id === activeOrgId ? (
                   <CheckIcon strokeWidth={2} className="text-primary size-4" />
@@ -163,26 +168,9 @@ const UserMenu = () => {
     await router.navigate({ to: "/login" });
   };
 
-  // eslint-disable-next-line eslint-js/no-restricted-syntax -- DOM prop coercion; AvatarImage src typed string | undefined
-  const avatarSrc = user?.image ?? undefined;
-  // eslint-disable-next-line eslint-js/no-restricted-syntax -- DOM alt attribute requires string
-  const avatarAlt = user?.name ?? "";
-  const initials = getInitials(user?.name ?? "U");
-
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="w-full">
-        <SidebarMenuButton size="lg" className="data-open:bg-sidebar-accent">
-          <Avatar className="size-8 rounded-lg">
-            <AvatarImage src={avatarSrc} alt={avatarAlt} />
-            <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
-          </Avatar>
-          <div className="grid flex-1 text-left text-sm leading-tight">
-            <span className="truncate font-semibold">{user?.name}</span>
-            <span className="text-muted-foreground truncate text-xs">{user?.email}</span>
-          </div>
-        </SidebarMenuButton>
-      </DropdownMenuTrigger>
+      <DropdownMenuTrigger render={renderUserTrigger(user?.name, user?.image, user?.email)} />
       <DropdownMenuContent align="start" side="top" sideOffset={4} className="w-56">
         <DropdownMenuGroup>
           <DropdownMenuLabel>{user?.name}</DropdownMenuLabel>
