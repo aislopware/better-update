@@ -26,6 +26,11 @@ Each dir under `apps/server/src/` = one layer. Respect boundary — no cross, no
 - Handlers no throw. Errors = Effect values mapped via `http/to-api-effect.ts`.
 - No new top-level dir under `apps/server/src/`. No "application service" class layer. Stop + ask if think need one.
 
+## UI primitives
+
+- Use `@base-ui/react` only. No `@radix-ui/*` — shadcn `base` preset (not `radix`).
+- `shadcn add/apply` must preserve `base: "base"` in `components.json`. If CLI suggests radix variant, pass `--base base` explicitly.
+
 ## Functional style
 
 - Expressions over statements, composition over nesting, data over classes.
