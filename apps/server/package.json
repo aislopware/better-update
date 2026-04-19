@@ -5,7 +5,8 @@
   "scripts": {
     "build": "vite build",
     "deploy": "vite build && wrangler deploy",
-    "dev": "vite dev",
+    "dev": "PORTLESS=1 portless api.better-update vite dev",
+    "dev:local": "vite dev",
     "lint": "oxlint --fix",
     "lint:check": "oxlint",
     "preview": "vite preview",

@@ -9,6 +9,9 @@
     "build": "turbo run build",
     "check": "turbo run lint:check format:check",
     "dev": "turbo run dev",
+    "dev:proxy": "portless proxy start",
+    "dev:proxy:stop": "portless proxy stop",
+    "dev:trust": "portless trust",
     "fix": "turbo run lint format",
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",
@@ -38,6 +41,7 @@
     "oxlint": "^1.60.0",
     "oxlint-plugin-eslint": "1.60.0",
     "oxlint-tsgolint": "^0.21.1",
+    "portless": "^0.10.3",
     "turbo": "^2.9.6",
     "type-fest": "^5.6.0",
     "vitest": "^4.1.4"
