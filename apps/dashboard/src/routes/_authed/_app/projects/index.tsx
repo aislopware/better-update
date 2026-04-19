@@ -3,6 +3,15 @@ import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import { Card, CardContent } from "@better-update/ui/components/ui/card";
 import { DateRangePicker } from "@better-update/ui/components/ui/date-range-picker";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@better-update/ui/components/ui/dropdown-menu";
 import { Input } from "@better-update/ui/components/ui/input";
 import {
   Table,
@@ -15,21 +24,36 @@ import {
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import {
-  ArrowDownIcon,
-  ArrowUpIcon,
-  ChevronsUpDownIcon,
-  FolderIcon,
-  SearchIcon,
-} from "lucide-react";
+  flexRender,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getSortedRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
+import { CheckIcon, FolderIcon, SearchIcon, SlidersHorizontalIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import type { ProjectItem } from "@better-update/api-client/react";
+import type {
+  ColumnDef,
+  ColumnFiltersState,
+  FilterFn,
+  SortingState,
+  Table as TableInstance,
+} from "@tanstack/react-table";
 import type { DateRange } from "react-day-picker";
 
+import { EntityAvatar } from "../../../../lib/entity-avatar";
 import { CreateProjectDialog } from "./-create-dialog";
 
-type SortKey = "name" | "slug" | "lastActivityAt" | "createdAt";
-type SortDir = "asc" | "desc";
+type SortId = "lastActivityAt" | "name";
+
+const DEFAULT_SORTING: SortingState = [{ id: "lastActivityAt", desc: true }];
+
+const isSortId = (value: string): value is SortId => value === "lastActivityAt" || value === "name";
+
+const isDateRange = (value: unknown): value is DateRange =>
+  typeof value === "object" && value !== null && ("from" in value || "to" in value);
 
 const formatRelativeTime = (dateString: string): string => {
   const now = Date.now();
@@ -38,7 +62,6 @@ const formatRelativeTime = (dateString: string): string => {
   const diffMin = Math.floor(diffSec / 60);
   const diffHr = Math.floor(diffMin / 60);
   const diffDay = Math.floor(diffHr / 24);
-
   if (diffSec < 60) {
     return "just now";
   }
@@ -54,31 +77,122 @@ const formatRelativeTime = (dateString: string): string => {
   return new Date(dateString).toLocaleDateString();
 };
 
-const SortHeader = ({
-  label,
-  active,
-  dir,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  dir: SortDir;
-  onClick: () => void;
-}) => {
-  const activeIcon = dir === "asc" ? ArrowUpIcon : ArrowDownIcon;
-  const Icon = active ? activeIcon : ChevronsUpDownIcon;
-  return (
-    <Button
-      variant="ghost"
-      size="sm"
-      className="data-[state=open]:bg-accent -ml-2 h-8 px-2"
-      onClick={onClick}
-    >
-      <span>{label}</span>
-      <Icon className="ml-1 size-3.5" />
-    </Button>
-  );
+const nameSlugFilter: FilterFn<ProjectItem> = (row, _columnId, rawValue) => {
+  const query = String(rawValue).trim().toLowerCase();
+  if (!query) {
+    return true;
+  }
+  const name = row.original.name.toLowerCase();
+  const slug = row.original.slug.toLowerCase();
+  return name.includes(query) || slug.includes(query);
 };
+
+const createdAtRangeFilter: FilterFn<ProjectItem> = (row, columnId, rawValue) => {
+  if (!isDateRange(rawValue)) {
+    return true;
+  }
+  const { from, to } = rawValue;
+  if (!from && !to) {
+    return true;
+  }
+  const ts = new Date(row.getValue<string>(columnId)).getTime();
+  if (from) {
+    const fromTs = new Date(from.getFullYear(), from.getMonth(), from.getDate()).getTime();
+    if (ts < fromTs) {
+      return false;
+    }
+  }
+  if (to) {
+    const toTs = new Date(to.getFullYear(), to.getMonth(), to.getDate(), 23, 59, 59).getTime();
+    if (ts > toTs) {
+      return false;
+    }
+  }
+  return true;
+};
+
+const columns: ColumnDef<ProjectItem>[] = [
+  {
+    accessorKey: "name",
+    header: "Name",
+    cell: ({ row }) => {
+      const project = row.original;
+      return (
+        <Link
+          to="/projects/$projectSlug"
+          params={{ projectSlug: project.slug }}
+          className="flex items-center gap-2 font-medium"
+        >
+          <EntityAvatar name={project.name} size="sm" shape="square" />
+          {project.name}
+        </Link>
+      );
+    },
+  },
+  {
+    accessorKey: "slug",
+    header: "Slug",
+    cell: ({ row }) => (
+      <code className="bg-muted rounded px-1.5 py-0.5 font-mono text-xs">{row.original.slug}</code>
+    ),
+  },
+  {
+    accessorKey: "lastActivityAt",
+    header: "Last activity",
+    cell: ({ row }) => (
+      <span className="text-muted-foreground text-sm">
+        {formatRelativeTime(row.original.lastActivityAt)}
+      </span>
+    ),
+    sortingFn: "datetime",
+  },
+  {
+    accessorKey: "createdAt",
+    header: "Created",
+    cell: ({ row }) => (
+      <Badge variant="outline">{new Date(row.original.createdAt).toLocaleDateString()}</Badge>
+    ),
+    sortingFn: "datetime",
+    filterFn: createdAtRangeFilter,
+  },
+];
+
+const SORT_OPTIONS: readonly { value: SortId; label: string }[] = [
+  { value: "lastActivityAt", label: "Activity" },
+  { value: "name", label: "Name" },
+];
+
+const sortTriggerButton = (
+  <Button variant="outline" size="sm">
+    <SlidersHorizontalIcon strokeWidth={2} className="size-4" />
+    <span>Sort</span>
+  </Button>
+);
+
+const SortDropdown = ({ value, onChange }: { value: SortId; onChange: (next: SortId) => void }) => (
+  <DropdownMenu>
+    <DropdownMenuTrigger render={sortTriggerButton} />
+    <DropdownMenuContent align="end" className="w-44">
+      <DropdownMenuGroup>
+        <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {SORT_OPTIONS.map((option) => (
+          <DropdownMenuItem
+            key={option.value}
+            onClick={() => {
+              onChange(option.value);
+            }}
+          >
+            <span className="flex-1">{option.label}</span>
+            {option.value === value ? (
+              <CheckIcon strokeWidth={2} className="text-primary size-4" />
+            ) : null}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuGroup>
+    </DropdownMenuContent>
+  </DropdownMenu>
+);
 
 const EmptyState = () => (
   <Card className="border-dashed">
@@ -92,263 +206,145 @@ const EmptyState = () => (
   </Card>
 );
 
-const NoResultsRow = () => (
-  <TableRow>
-    <TableCell colSpan={4} className="text-muted-foreground h-24 text-center">
-      No projects match your filters.
-    </TableCell>
-  </TableRow>
-);
-
-interface FiltersBarProps {
-  search: string;
-  onSearchChange: (value: string) => void;
-  dateRange: DateRange | undefined;
-  onDateRangeChange: (value: DateRange | undefined) => void;
-  onClear: () => void;
-  filteredCount: number;
-  totalCount: number;
-  action?: React.ReactNode;
-}
-
-const FiltersBar = ({
-  search,
-  onSearchChange,
-  dateRange,
-  onDateRangeChange,
-  onClear,
-  filteredCount,
-  totalCount,
-  action,
-}: FiltersBarProps) => {
-  const hasActive = Boolean(search || dateRange?.from || dateRange?.to);
-  const countLabel =
-    filteredCount === totalCount
-      ? `${totalCount} ${totalCount === 1 ? "project" : "projects"}`
-      : `${filteredCount} of ${totalCount}`;
+const ProjectsTable = ({ table }: { table: TableInstance<ProjectItem> }) => {
+  const { rows } = table.getRowModel();
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <div className="relative w-64">
-        <SearchIcon className="text-muted-foreground absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
-        <Input
-          placeholder="Search name or scope key…"
-          value={search}
-          onChange={(event) => {
-            onSearchChange(event.target.value);
-          }}
-          className="pl-8"
-        />
-      </div>
-      <DateRangePicker value={dateRange} onChange={onDateRangeChange} placeholder="Created date" />
-      {hasActive && (
-        <Button variant="ghost" size="sm" onClick={onClear}>
-          Clear
-        </Button>
-      )}
-      <div className="text-muted-foreground text-sm">{countLabel}</div>
-      {action ? <div className="ml-auto">{action}</div> : null}
-    </div>
+    <Card className="gap-0 py-0">
+      <CardContent className="p-0">
+        <Table className="[&_td]:px-4 [&_td]:py-3 [&_th]:h-9 [&_th]:px-4">
+          <TableHeader>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id} className="hover:bg-transparent">
+                {headerGroup.headers.map((header) => (
+                  <TableHead key={header.id} className="text-muted-foreground text-xs font-medium">
+                    {flexRender(header.column.columnDef.header, header.getContext())}
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {rows.length === 0 ? (
+              <TableRow className="hover:bg-transparent">
+                <TableCell
+                  colSpan={columns.length}
+                  className="text-muted-foreground h-24 text-center"
+                >
+                  No projects match your filters.
+                </TableCell>
+              </TableRow>
+            ) : (
+              rows.map((row) => (
+                <TableRow key={row.id}>
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
   );
 };
 
-const ProjectRow = ({ project }: { project: ProjectItem }) => (
-  <TableRow className="cursor-pointer">
-    <TableCell className="font-medium">
-      <Link
-        to="/projects/$projectSlug"
-        params={{ projectSlug: project.slug }}
-        className="flex items-center gap-2 hover:underline"
-      >
-        <FolderIcon strokeWidth={2} className="text-muted-foreground size-4" />
-        {project.name}
-      </Link>
-    </TableCell>
-    <TableCell>
-      <code className="bg-muted rounded px-1.5 py-0.5 font-mono text-xs">{project.slug}</code>
-    </TableCell>
-    <TableCell className="text-muted-foreground text-sm">
-      {formatRelativeTime(project.lastActivityAt)}
-    </TableCell>
-    <TableCell>
-      <Badge variant="outline">{new Date(project.createdAt).toLocaleDateString()}</Badge>
-    </TableCell>
-  </TableRow>
-);
-
-interface ProjectsTableProps {
-  rows: readonly ProjectItem[];
-  sortKey: SortKey;
-  sortDir: SortDir;
-  onToggleSort: (key: SortKey) => void;
-}
-
-const ProjectsTable = ({ rows, sortKey, sortDir, onToggleSort }: ProjectsTableProps) => (
-  <Card className="gap-0 py-0">
-    <CardContent className="p-0">
-      <Table className="[&_td]:px-4 [&_td]:py-3 [&_th]:px-4 [&_th]:py-3">
-        <TableHeader>
-          <TableRow>
-            <TableHead>
-              <SortHeader
-                label="Name"
-                active={sortKey === "name"}
-                dir={sortDir}
-                onClick={() => {
-                  onToggleSort("name");
-                }}
-              />
-            </TableHead>
-            <TableHead>
-              <SortHeader
-                label="Slug"
-                active={sortKey === "slug"}
-                dir={sortDir}
-                onClick={() => {
-                  onToggleSort("slug");
-                }}
-              />
-            </TableHead>
-            <TableHead className="w-40">
-              <SortHeader
-                label="Last activity"
-                active={sortKey === "lastActivityAt"}
-                dir={sortDir}
-                onClick={() => {
-                  onToggleSort("lastActivityAt");
-                }}
-              />
-            </TableHead>
-            <TableHead className="w-40">
-              <SortHeader
-                label="Created"
-                active={sortKey === "createdAt"}
-                dir={sortDir}
-                onClick={() => {
-                  onToggleSort("createdAt");
-                }}
-              />
-            </TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.length === 0 ? (
-            <NoResultsRow />
-          ) : (
-            rows.map((project) => <ProjectRow key={project.id} project={project} />)
-          )}
-        </TableBody>
-      </Table>
-    </CardContent>
-  </Card>
-);
-
-const compareBy = (dir: SortDir) => (left: string | number, right: string | number) => {
-  if (left === right) {
-    return 0;
-  }
-  const result = left < right ? -1 : 1;
-  return dir === "asc" ? result : -result;
-};
+const pluralProjects = (count: number) => (count === 1 ? "project" : "projects");
 
 const Projects = () => {
   const { activeOrg } = Route.useRouteContext();
   const orgId = activeOrg.id;
-
   const { data } = useSuspenseQuery(projectsQueryOptions(orgId, 1, 1000));
 
-  const [search, setSearch] = useState("");
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-  const [sortKey, setSortKey] = useState<SortKey>("lastActivityAt");
-  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [globalFilter, setGlobalFilter] = useState("");
+  const [sorting, setSorting] = useState<SortingState>(DEFAULT_SORTING);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 
-  const rows = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    const fromTs = dateRange?.from
-      ? new Date(
-          dateRange.from.getFullYear(),
-          dateRange.from.getMonth(),
-          dateRange.from.getDate(),
-        ).getTime()
-      : null;
-    const toTs = dateRange?.to
-      ? new Date(
-          dateRange.to.getFullYear(),
-          dateRange.to.getMonth(),
-          dateRange.to.getDate(),
-          23,
-          59,
-          59,
-        ).getTime()
-      : null;
+  const dateRange = useMemo<DateRange | undefined>(() => {
+    const entry = columnFilters.find((filter) => filter.id === "createdAt");
+    return isDateRange(entry?.value) ? entry.value : undefined;
+  }, [columnFilters]);
 
-    const filtered = data.items.filter((project: ProjectItem) => {
-      const name = project.name.toLowerCase();
-      const slug = project.slug.toLowerCase();
-      if (query && !name.includes(query) && !slug.includes(query)) {
-        return false;
+  const handleDateRangeChange = (next: DateRange | undefined) => {
+    setColumnFilters((previous) => {
+      const rest = previous.filter((filter) => filter.id !== "createdAt");
+      if (!next?.from && !next?.to) {
+        return rest;
       }
-      const createdTs = new Date(project.createdAt).getTime();
-      if (fromTs !== null && createdTs < fromTs) {
-        return false;
-      }
-      if (toTs !== null && createdTs > toTs) {
-        return false;
-      }
-      return true;
+      return [...rest, { id: "createdAt", value: next }];
     });
-
-    const cmp = compareBy(sortDir);
-    return [...filtered].toSorted((left, right) => {
-      if (sortKey === "createdAt" || sortKey === "lastActivityAt") {
-        return cmp(new Date(left[sortKey]).getTime(), new Date(right[sortKey]).getTime());
-      }
-      return cmp(left[sortKey].toLowerCase(), right[sortKey].toLowerCase());
-    });
-  }, [data.items, search, dateRange, sortKey, sortDir]);
-
-  const toggleSort = (key: SortKey) => {
-    if (sortKey === key) {
-      setSortDir((prev) => (prev === "asc" ? "desc" : "asc"));
-      return;
-    }
-    setSortKey(key);
-    setSortDir(key === "createdAt" || key === "lastActivityAt" ? "desc" : "asc");
   };
 
+  const firstSortId = sorting[0]?.id;
+  const sortId: SortId = firstSortId && isSortId(firstSortId) ? firstSortId : "lastActivityAt";
+  const handleSortChange = (next: SortId) => {
+    setSorting((previous) => {
+      if (previous[0]?.id === next) {
+        return previous;
+      }
+      return [{ id: next, desc: next === "lastActivityAt" }];
+    });
+  };
+
+  const tableData = useMemo<ProjectItem[]>(() => [...data.items], [data.items]);
+
+  const table = useReactTable<ProjectItem>({
+    data: tableData,
+    columns,
+    state: { sorting, globalFilter, columnFilters },
+    onSortingChange: setSorting,
+    onGlobalFilterChange: setGlobalFilter,
+    onColumnFiltersChange: setColumnFilters,
+    globalFilterFn: nameSlugFilter,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+  });
+
   const totalCount = data.items.length;
-  const filteredCount = rows.length;
+  const filteredCount = table.getFilteredRowModel().rows.length;
   const createCta = useMemo(() => <CreateProjectDialog orgId={orgId} />, [orgId]);
 
+  if (totalCount === 0) {
+    return (
+      <div className="flex w-full flex-col gap-4">
+        <div className="flex justify-end">{createCta}</div>
+        <EmptyState />
+      </div>
+    );
+  }
+
+  const countLabel =
+    filteredCount === totalCount
+      ? `${totalCount} ${pluralProjects(totalCount)}`
+      : `${filteredCount} of ${totalCount} ${pluralProjects(totalCount)}`;
+
   return (
-    <div className="flex w-full flex-col gap-4">
-      {totalCount === 0 ? (
-        <>
-          <div className="flex justify-end">{createCta}</div>
-          <EmptyState />
-        </>
-      ) : (
-        <>
-          <FiltersBar
-            search={search}
-            onSearchChange={setSearch}
-            dateRange={dateRange}
-            onDateRangeChange={setDateRange}
-            onClear={() => {
-              setSearch("");
-              setDateRange(undefined);
+    <div className="flex w-full flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative max-w-sm flex-1">
+          <SearchIcon className="text-muted-foreground absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
+          <Input
+            placeholder="Search projects…"
+            value={globalFilter}
+            onChange={(event) => {
+              setGlobalFilter(event.target.value);
             }}
-            filteredCount={filteredCount}
-            totalCount={totalCount}
-            action={createCta}
+            className="pl-8"
           />
-          <ProjectsTable
-            rows={rows}
-            sortKey={sortKey}
-            sortDir={sortDir}
-            onToggleSort={toggleSort}
-          />
-        </>
-      )}
+        </div>
+        <DateRangePicker
+          value={dateRange}
+          onChange={handleDateRangeChange}
+          placeholder="Created date"
+        />
+        <SortDropdown value={sortId} onChange={handleSortChange} />
+        <div className="ml-auto">{createCta}</div>
+      </div>
+      <ProjectsTable table={table} />
+      <p className="text-muted-foreground text-sm">{countLabel}</p>
     </div>
   );
 };

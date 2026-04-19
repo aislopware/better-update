@@ -18,9 +18,10 @@ import {
 } from "@better-update/ui/components/ui/dropdown-menu";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
-import { CheckIcon, ChevronsUpDownIcon, FolderIcon, PlusIcon } from "lucide-react";
+import { CheckIcon, ChevronsUpDownIcon, PlusIcon } from "lucide-react";
 import { useState } from "react";
 
+import { EntityAvatar } from "../../lib/entity-avatar";
 import { CreateProjectFormContent } from "./_app/projects/-create-dialog";
 
 const switcherTrigger = (displayName: string) => (
@@ -65,7 +66,7 @@ export const ProjectSwitcher = ({ orgId, currentProjectSlug }: ProjectSwitcherPr
             ) : (
               data.items.map((project) => (
                 <DropdownMenuItem key={project.id} onClick={async () => handleSelect(project.slug)}>
-                  <FolderIcon strokeWidth={2} className="size-4" />
+                  <EntityAvatar name={project.name} size="sm" shape="square" />
                   <span className="flex-1 truncate">{project.name}</span>
                   {project.slug === currentProjectSlug ? (
                     <CheckIcon strokeWidth={2} className="text-primary size-4" />
