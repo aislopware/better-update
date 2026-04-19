@@ -53,19 +53,10 @@ export const generateDownloadUrl = async (
 export const copyObject = async (
   env: Env,
   params: {
-    readonly sourceBucketName: string;
+    readonly bucketName: string;
     readonly sourceKey: string;
-    readonly destinationBucketName: string;
     readonly destinationKey: string;
   },
 ) => {
-  if (params.sourceBucketName !== params.destinationBucketName) {
-    // eslint-disable-next-line functional/no-throw-statements, functional/no-promise-reject -- programming error guard, not control flow
-    throw new Error("Cross-bucket copy is not supported by the current s3mini adapter");
-  }
-
-  await makeS3Client(env, params.destinationBucketName).copyObject(
-    params.sourceKey,
-    params.destinationKey,
-  );
+  await makeS3Client(env, params.bucketName).copyObject(params.sourceKey, params.destinationKey);
 };

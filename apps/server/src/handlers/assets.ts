@@ -1,3 +1,4 @@
+import { fromBase64, fromBase64Url, toBase64, toBase64Url } from "@better-update/encoding";
 import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
@@ -8,7 +9,6 @@ import { AssetStorage } from "../cloudflare/asset-storage";
 import { createDirectUploadHeaders } from "../cloudflare/signed-url";
 import { BadRequest, NotFound } from "../errors";
 import { toApiBadRequestReadEffect } from "../http/to-api-effect";
-import { fromBase64, fromBase64Url, toBase64, toBase64Url } from "../lib/base64";
 import { AssetRepo } from "../repositories/assets";
 
 const UPLOAD_EXPIRY_SECONDS = 7200;
@@ -30,13 +30,15 @@ const assertConsistentRequestedAssets = (params: {
     readonly contentChecksum?: string | undefined;
   }[];
 }) => {
-  const conflictingHash = params.assets.reduce<string | null>((current, asset, index, assets) => {
+  const seen = new Map<string, { contentType: string; fileExt: string }>();
+  const conflictingHash = params.assets.reduce<string | null>((current, asset) => {
     if (current !== null) {
       return current;
     }
 
-    const existing = assets.slice(0, index).find((candidate) => candidate.hash === asset.hash);
-    if (!existing) {
+    const existing = seen.get(asset.hash);
+    if (existing === undefined) {
+      seen.set(asset.hash, { contentType: asset.contentType, fileExt: asset.fileExt });
       return null;
     }
 
@@ -121,21 +123,25 @@ const handleUpload = ({
 
       const hashes = payload.assets.map((asset) => asset.hash);
       const existingAssets = yield* repo.findByHashes({ hashes });
-      const existingHashes = new Set(existingAssets.map((asset) => asset.hash));
+      const existingByHash = new Map(existingAssets.map((asset) => [asset.hash, asset]));
       yield* assertStoredMetadataMatches({
         requestedAssets: payload.assets,
         existingAssets,
       });
 
       const uploadableAssets = payload.assets.filter((asset) => {
-        const existing = existingAssets.find((candidate) => candidate.hash === asset.hash);
+        const existing = existingByHash.get(asset.hash);
         return existing === undefined || existing.byteSize === 0;
       });
-      const newAssets = uploadableAssets.filter((asset) => !existingHashes.has(asset.hash));
+      const newAssets = uploadableAssets.filter((asset) => !existingByHash.has(asset.hash));
       const uploadableHashes = new Set(uploadableAssets.map((asset) => asset.hash));
-      const deduplicatedRequestedHashes = payload.assets
-        .filter((asset) => !uploadableHashes.has(asset.hash))
-        .map((asset) => asset.hash);
+      const deduplicatedRequestedHashes = [
+        ...new Set(
+          payload.assets
+            .filter((asset) => !uploadableHashes.has(asset.hash))
+            .map((asset) => asset.hash),
+        ),
+      ];
 
       if (newAssets.length > 0) {
         yield* repo.insertBatch({
@@ -184,9 +190,7 @@ const handleUpload = ({
 
       return {
         uploaded,
-        deduplicated: deduplicatedRequestedHashes.filter(
-          (hash, index, values) => values.indexOf(hash) === index,
-        ),
+        deduplicated: deduplicatedRequestedHashes,
       };
     }),
   );

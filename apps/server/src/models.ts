@@ -101,6 +101,7 @@ export interface UpdateAssetRefModel {
   readonly hash: string;
   readonly key: string;
   readonly isLaunch: boolean;
+  readonly contentChecksum?: string | undefined;
 }
 
 export interface UpdateModel {

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 
+import { buildRollbackDirectiveBody } from "@better-update/expo-protocol";
 import { CommandExecutor, FileSystem } from "@effect/platform";
 import { Effect } from "effect";
 
@@ -13,7 +14,6 @@ import {
   UpdateRollbackError,
 } from "../lib/exit-codes";
 import { formatCause } from "../lib/format-error";
-import { buildRollbackDirectiveBody } from "../lib/rollback-directive";
 import { resolveRuntimeVersion } from "../lib/runtime-version";
 import { resolveUpdatePlatforms, type UpdatePlatformOption } from "../lib/update-platforms";
 import { ApiClientService, apiClient } from "../services/api-client";

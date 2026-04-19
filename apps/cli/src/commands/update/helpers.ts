@@ -1,55 +1,24 @@
-import { BadRequest, Conflict, Forbidden, NotFound } from "@better-update/api";
-import { Data, Effect } from "effect";
+import { Data } from "effect";
 
-import { exitWith } from "../../application/command-exit";
-import {
-  AuthRequiredError,
-  BuildProfileError,
-  ProjectNotLinkedError,
-  UpdatePromoteError,
-  RuntimeVersionError,
-  UpdateRollbackError,
-} from "../../lib/exit-codes";
-import { formatCause } from "../../lib/format-error";
+import { makeCommandErrorHandler } from "../../lib/command-errors";
+import { resolveNamedResourceId as resolveNamedResourceIdBase } from "../../lib/resolve-named-resource";
 
 export class UpdateCommandError extends Data.TaggedError("UpdateCommandError")<{
   readonly message: string;
 }> {}
 
-export const handleUpdateCommandErrors = <A, R>(effect: Effect.Effect<A, unknown, R>) =>
-  effect.pipe(
-    Effect.catchTags({
-      AuthRequiredError: (error: AuthRequiredError) => exitWith(3, error.message),
-      ProjectNotLinkedError: (error: ProjectNotLinkedError) => exitWith(4, error.message),
-      UpdateCommandError: (error: UpdateCommandError) => exitWith(2, error.message),
-      BuildProfileError: (error: BuildProfileError) => exitWith(2, error.message),
-      RuntimeVersionError: (error: RuntimeVersionError) => exitWith(2, error.message),
-      UpdateRollbackError: (error: UpdateRollbackError) => exitWith(2, error.message),
-      UpdatePromoteError: (error: UpdatePromoteError) => exitWith(2, error.message),
-      BadRequest: (error: BadRequest) => exitWith(2, error.message),
-      NotFound: (error: NotFound) => exitWith(1, error.message),
-      Conflict: (error: Conflict) => exitWith(1, error.message),
-      Forbidden: (error: Forbidden) => exitWith(1, error.message),
-    }),
-    Effect.catchAll((cause) => exitWith(1, formatCause(cause))),
-  );
+export const handleUpdateCommandErrors = makeCommandErrorHandler({
+  UpdateCommandError: 2,
+  BuildProfileError: 2,
+  RuntimeVersionError: 2,
+  UpdateRollbackError: 2,
+  UpdatePromoteError: 2,
+});
 
-interface NamedResource {
-  readonly id: string;
-  readonly name: string;
-}
-
-export const resolveNamedResourceId = <T extends NamedResource>(params: {
+export const resolveNamedResourceId = <
+  T extends { readonly id: string; readonly name: string },
+>(params: {
   readonly items: readonly T[];
   readonly kind: string;
   readonly name: string;
-}): Effect.Effect<string, UpdateCommandError> =>
-  Effect.gen(function* () {
-    const match = params.items.find((item) => item.name === params.name);
-    if (match === undefined) {
-      return yield* new UpdateCommandError({
-        message: `${params.kind} "${params.name}" not found in the linked project.`,
-      });
-    }
-    return match.id;
-  });
+}) => resolveNamedResourceIdBase(params, (message) => new UpdateCommandError({ message }));

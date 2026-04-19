@@ -3,31 +3,16 @@ import { Context, Effect, Layer } from "effect";
 import { cloudflareEnv } from "./context";
 
 import type {
+  CoordinatorResult,
   CreateUpdateRequest,
   EnsureBranchChannelResult as DurableEnsureBranchChannelResult,
   RepublishUpdateRequest,
   SerializedUpdate,
 } from "../durable-objects/publish-types";
 
-export type EnsureBranchChannelResult =
-  | {
-      readonly ok: true;
-      readonly value: DurableEnsureBranchChannelResult;
-    }
-  | {
-      readonly ok: false;
-      readonly message: string;
-    };
+export type EnsureBranchChannelResult = CoordinatorResult<DurableEnsureBranchChannelResult>;
 
-export type PublishUpdateResult<TValue> =
-  | {
-      readonly ok: true;
-      readonly value: TValue;
-    }
-  | {
-      readonly ok: false;
-      readonly message: string;
-    };
+export type PublishUpdateResult<TValue> = CoordinatorResult<TValue>;
 
 export interface UpdateCoordinatorService {
   readonly ensureBranchChannel: (params: {

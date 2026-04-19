@@ -3,7 +3,7 @@ import { Effect } from "effect";
 import type { Context } from "effect";
 
 import { makeManagementWebHandler } from "./app-layer";
-import { createAuth } from "./auth";
+import { createAuth, isGithubEnabled } from "./auth";
 import { AssetStorage } from "./cloudflare/asset-storage";
 import { makeCloudflareRequestContext, provideCloudflareEnv } from "./cloudflare/context";
 import { handleScheduled, matchBuildRoute, serveManifest } from "./handlers";
@@ -54,8 +54,12 @@ const handleAuth = async (request: Request, env: Env): Promise<Response> => {
     const response = await createAuth(env).handler(request);
 
     // Workaround: @cloudflare/vite-plugin crashes on HTTP 401 from auxiliary
-    // Workers (all other 4xx/5xx codes work). Remap 401 → 403 in dev only.
-    if (response.status === 401 && env.TEST_MODE === "true") {
+    // Workers (all other 4xx/5xx codes work). Remap 401 → 403 in dev + test,
+    // I.e. any non-production environment. ENVIRONMENT is "production" for
+    // Deployed Workers; TEST_MODE covers vitest + e2e harnesses that do not
+    // Set ENVIRONMENT.
+    const isDevOrTest = env.TEST_MODE === "true" || env.ENVIRONMENT !== "production";
+    if (response.status === 401 && isDevOrTest) {
       const body = response.body ? await response.text() : null;
       return new Response(body, {
         status: 403,
@@ -138,6 +142,12 @@ export default {
       // Better Auth handles its own auth routes
       if (url.pathname.startsWith("/api/auth")) {
         return handleAuth(request, env);
+      }
+
+      // Public server capabilities — called by the dashboard before login to
+      // Decide which auth providers to render. Must stay unauthenticated.
+      if (url.pathname === "/api/config" && request.method === "GET") {
+        return Response.json({ githubEnabled: isGithubEnabled(env) });
       }
 
       // Expo Updates protocol — unauthenticated manifest serving

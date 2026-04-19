@@ -20,6 +20,8 @@
     "@better-auth/api-key": "^1.6.5",
     "@better-update/api": "workspace:*",
     "@better-update/api-client": "workspace:*",
+    "@better-update/encoding": "workspace:*",
+    "@better-update/expo-protocol": "workspace:*",
     "@better-update/react-hooks": "workspace:*",
     "@better-update/safe-json": "workspace:*",
     "@better-update/ui": "workspace:*",

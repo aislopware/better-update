@@ -1,3 +1,4 @@
+import { fromBase64, toBase64 } from "@better-update/encoding";
 import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
@@ -11,7 +12,6 @@ import { Vault } from "../cloudflare/vault";
 import { BadRequest, Forbidden, NotFound } from "../errors";
 import { toApiCredential } from "../http/to-api";
 import { toApiBadRequestReadEffect } from "../http/to-api-effect";
-import { fromBase64, toBase64 } from "../lib/base64";
 import { toDbNull } from "../lib/nullable";
 import { parsePagination } from "../lib/pagination";
 import { CredentialRepo } from "../repositories/credentials";

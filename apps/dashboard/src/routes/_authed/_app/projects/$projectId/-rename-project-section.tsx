@@ -1,4 +1,4 @@
-import { projectQueryKey, projectsQueryKey, renameProject } from "@better-update/api-client/react";
+import { renameProject } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Card,
@@ -11,13 +11,13 @@ import { Input } from "@better-update/ui/components/ui/input";
 import { Label } from "@better-update/ui/components/ui/label";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
-import { Effect } from "effect";
 import { toast } from "sonner";
 
 import type { ProjectDetail } from "@better-update/api-client/react";
 
 import { getFieldError, nameSchema } from "../../../../../lib/form-utils";
 import { safeSubmit, useApiMutation } from "../../../../../lib/use-api-mutation";
+import { invalidateProjects } from "./-update-helpers";
 
 export const RenameProjectSection = ({ project }: { project: ProjectDetail }) => {
   const queryClient = useQueryClient();
@@ -25,25 +25,7 @@ export const RenameProjectSection = ({ project }: { project: ProjectDetail }) =>
     mutationFn: async (value: { name: string }) => renameProject(project.id, { name: value.name }),
     onSuccess: async () => {
       toast.success("Project renamed");
-      await Effect.runPromise(
-        Effect.asVoid(
-          Effect.all(
-            [
-              Effect.promise(async () =>
-                queryClient.invalidateQueries({
-                  queryKey: projectsQueryKey(project.organizationId),
-                }),
-              ),
-              Effect.promise(async () =>
-                queryClient.invalidateQueries({
-                  queryKey: projectQueryKey(project.organizationId, project.id),
-                }),
-              ),
-            ],
-            { concurrency: "unbounded" },
-          ),
-        ),
-      );
+      await invalidateProjects(queryClient, project.organizationId, project.id);
     },
   });
 

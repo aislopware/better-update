@@ -172,7 +172,6 @@ const resolveUpdateFields = (
       return {} satisfies EnvVarUpdateFields;
     }
 
-    // Sensitive or secret — need to encrypt
     const rawValue = newValue ?? (existing.visibility === "plaintext" ? existing.value : null);
 
     if (rawValue !== null) {
@@ -422,16 +421,14 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
             });
           }
 
-          // Validate all keys
           yield* Effect.forEach(entries, (entry) => validateKey(entry.key), { discard: true });
 
           const repo = yield* EnvVarRepo;
 
-          // Deduplicate: last entry wins
+          // Last entry wins on duplicate key.
           const deduped = new Map(entries.map((entry) => [entry.key, entry.value] as const));
           const skipped = entries.length - deduped.size;
 
-          // Check limit accounting for keys that already exist (updates don't count as new)
           const existingRows = yield* repo.findAllByProjectEnvs({
             projectId: payload.projectId,
             environments: [payload.environment],

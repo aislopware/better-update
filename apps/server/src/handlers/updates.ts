@@ -40,7 +40,7 @@ const assertAssetsExist = (assets: readonly { readonly hash: string }[]) =>
     }
 
     if (pendingHashes.length > 0) {
-      yield* new NotFound({
+      yield* new Conflict({
         message: `Assets not uploaded: ${pendingHashes.join(", ")}`,
       });
     }

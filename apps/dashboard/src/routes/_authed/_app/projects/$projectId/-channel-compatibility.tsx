@@ -1,15 +1,8 @@
 import { Badge } from "@better-update/ui/components/ui/badge";
 
-import type {
-  BuildCompatibilityChannel,
-  BuildCompatibilityRow,
-  MissingRuntimeVersionBuild,
-} from "@better-update/api";
+import type { BuildCompatibilityChannel, MissingRuntimeVersionBuild } from "@better-update/api";
 
-interface CompatibleBuildEntry {
-  readonly build: typeof BuildCompatibilityRow.Type;
-  readonly status: typeof BuildCompatibilityChannel.Type;
-}
+import type { CompatibleBuildEntry } from "./-channel-compatibility-helpers";
 
 const StatusBadge = ({ status }: { status: typeof BuildCompatibilityChannel.Type }) => {
   if (status.isPaused) {

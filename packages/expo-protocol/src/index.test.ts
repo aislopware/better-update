@@ -1,4 +1,6 @@
-import { buildRollbackDirectiveBody } from "./rollback-directive";
+import { describe, expect, test } from "vitest";
+
+import { buildRollbackDirectiveBody } from "./index";
 
 describe(buildRollbackDirectiveBody, () => {
   test("encodes a rollback directive with the provided commit time", () => {

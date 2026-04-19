@@ -7,6 +7,7 @@ import { getThemeFromCookie } from "../lib/theme";
 import { ThemeProvider } from "../lib/theme-context";
 import { ThemedToaster } from "../lib/themed-toaster";
 import { sessionQueryOptions } from "../queries/auth";
+import { configQueryOptions } from "../queries/config";
 
 import type { Theme } from "../lib/theme";
 
@@ -31,9 +32,12 @@ const RootComponent = () => {
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   beforeLoad: async ({ context: { queryClient } }) => {
-    const session = await queryClient.ensureQueryData(sessionQueryOptions);
+    const [session, config] = await Promise.all([
+      queryClient.ensureQueryData(sessionQueryOptions),
+      queryClient.ensureQueryData(configQueryOptions),
+    ]);
     const theme = getThemeFromCookie();
-    return { session, theme };
+    return { session, theme, config };
   },
   component: RootComponent,
 });

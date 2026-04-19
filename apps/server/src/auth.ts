@@ -1,14 +1,14 @@
 import { apiKey } from "@better-auth/api-key";
+import { fromHex } from "@better-update/encoding";
 import { betterAuth } from "better-auth";
 import { organization } from "better-auth/plugins";
 
 import { API_KEY_PREFIX } from "./auth/constants";
-import { fromHex } from "./lib/hex";
 
 // --- Workers-compatible password hashing (PBKDF2 via Web Crypto) ---
 // Better Auth's default scrypt (N:16384, r:16) needs ~64 MB and crashes workerd.
 
-const PBKDF2_ITERATIONS = 100_000;
+const PBKDF2_ITERATIONS = 600_000;
 
 const toHex = (bytes: Uint8Array): string =>
   [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -65,6 +65,12 @@ type AuthEnv = Env & {
 const trimOptionalBinding = (value: string | undefined): string =>
   // eslint-disable-next-line eslint-js/no-restricted-syntax -- optional OAuth env feature-gate; empty string means feature disabled
   value?.trim() ?? "";
+
+export const isGithubEnabled = (env: AuthEnv): boolean => {
+  const id = trimOptionalBinding(env.GITHUB_CLIENT_ID);
+  const secret = trimOptionalBinding(env.GITHUB_CLIENT_SECRET);
+  return id.length > 0 && secret.length > 0;
+};
 
 export const createAuth = (env: AuthEnv) => {
   const githubClientId = trimOptionalBinding(env.GITHUB_CLIENT_ID);

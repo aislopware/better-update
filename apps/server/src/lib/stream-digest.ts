@@ -1,7 +1,6 @@
+import { toBase64Url } from "@better-update/encoding";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
-
-import { toBase64Url } from "./base64";
 
 export interface Sha256StreamDigest {
   readonly sha256Hex: string;

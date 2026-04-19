@@ -4,6 +4,7 @@ import {
   buildQueryOptions,
   projectQueryOptions,
 } from "@better-update/api-client/react";
+import { safeJsonParse } from "@better-update/safe-json";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
@@ -15,7 +16,6 @@ import {
 } from "@better-update/ui/components/ui/card";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { Effect } from "effect";
 
 import type { BuildWithArtifact } from "@better-update/api";
 
@@ -24,16 +24,10 @@ import { FORMAT_LABELS, formatBytes } from "../-build-helpers";
 import { InstallLinkDialog } from "../-install-link-dialog";
 import { ProjectSubpageHeader } from "../-project-subpage-header";
 
-const formatMetadataJson = (metadataJson: string) =>
-  Effect.runSync(
-    Effect.orElseSucceed(
-      Effect.try({
-        try: () => JSON.stringify(JSON.parse(metadataJson), null, 2),
-        catch: () => new Error("Invalid metadata JSON"),
-      }),
-      () => metadataJson,
-    ),
-  );
+const formatMetadataJson = (metadataJson: string) => {
+  const parsed = safeJsonParse(metadataJson);
+  return parsed === null ? metadataJson : JSON.stringify(parsed, null, 2);
+};
 
 const toBuildCompatibilityRow = (build: typeof BuildWithArtifact.Type) =>
   new BuildCompatibilityRow({

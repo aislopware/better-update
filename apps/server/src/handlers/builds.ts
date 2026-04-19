@@ -1,4 +1,5 @@
 import { ArtifactFormat, Distribution } from "@better-update/api";
+import { fromHex, toBase64 } from "@better-update/encoding";
 import { HttpApiBuilder } from "@effect/platform";
 import { Effect, Schema } from "effect";
 
@@ -20,6 +21,7 @@ import {
   toApiBuildCompatibilityMatrix,
 } from "../http/build-http";
 import { toDbNull } from "../lib/nullable";
+import { parsePagination } from "../lib/pagination";
 import { BuildRepo, CompatibilityRepo } from "../repositories";
 
 const UPLOAD_EXPIRY_SECONDS = 7200;
@@ -37,12 +39,7 @@ const formatForContentType = (format: string) =>
 
 const artifactExt = (format: string) => (format === "tar.gz" ? "tar.gz" : format);
 
-const sha256HexToBase64 = (sha256: string): string => {
-  const bytes = new Uint8Array(
-    (sha256.match(/.{2}/g) ?? []).map((byte) => Number.parseInt(byte, 16)),
-  );
-  return btoa(String.fromCodePoint(...bytes));
-};
+const sha256HexToBase64 = (sha256: string): string => toBase64(fromHex(sha256));
 
 const ReservationSchema = Schema.Struct({
   buildId: Schema.String,
@@ -377,9 +374,7 @@ export const BuildsGroupLive = HttpApiBuilder.group(ManagementApi, "builds", (ha
           yield* assertProjectOwnership(urlParams.projectId);
 
           const repo = yield* BuildRepo;
-          const page = urlParams.page ?? 1;
-          const limit = urlParams.limit ?? 20;
-          const offset = (page - 1) * limit;
+          const { page, limit, offset } = parsePagination(urlParams);
 
           const { items, total } = yield* repo.list({
             projectId: urlParams.projectId,

@@ -11,23 +11,12 @@ import { SerializedCoordinator } from "./serialized-coordinator";
 
 import type { ServerInfrastructure } from "../infrastructure-layer";
 import type {
+  CoordinatorResult,
   CreateUpdateRequest,
   EnsureBranchChannelResult,
   RepublishUpdateRequest,
   SerializedUpdate,
 } from "./publish-types";
-
-interface CoordinatorFailure {
-  readonly ok: false;
-  readonly message: string;
-}
-
-interface CoordinatorSuccess<Value> {
-  readonly ok: true;
-  readonly value: Value;
-}
-
-type CoordinatorResult<Value> = CoordinatorFailure | CoordinatorSuccess<Value>;
 
 const CREATE_ROLLOUT_CONFLICT_MESSAGE =
   "Cannot publish while a per-update rollout is active. Complete or revert the rollout first.";

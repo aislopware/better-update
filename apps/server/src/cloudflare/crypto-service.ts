@@ -1,7 +1,7 @@
+import { fromBase64Url, toBase64Url } from "@better-update/encoding";
 import { Effect, Layer } from "effect";
 
 import { CryptoError, CryptoService } from "../domain/crypto-service";
-import { fromBase64Url, toBase64Url } from "../lib/base64";
 
 const asBuffer = (bytes: Uint8Array): ArrayBuffer => {
   const buffer = new ArrayBuffer(bytes.byteLength);

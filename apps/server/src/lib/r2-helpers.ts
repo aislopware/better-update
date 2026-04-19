@@ -1,4 +1,4 @@
-import { toBase64 } from "./base64";
+import { toBase64 } from "@better-update/encoding";
 
 export const toChecksumSha256Base64 = (checksums: unknown): string | null => {
   if (typeof checksums !== "object" || checksums === null) {

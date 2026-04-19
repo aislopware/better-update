@@ -1,6 +1,6 @@
+import { fromBase64 } from "@better-update/encoding";
 import { Data, Effect } from "effect";
 
-import { fromBase64 } from "../lib/base64";
 import { isRecord } from "../lib/type-guards";
 
 // -- Types ------------------------------------------------------------------

@@ -11,7 +11,7 @@ import { permissions } from "./permissions";
 
 import type { AuthContextShape, EffectivePermissions, Role } from "./context";
 
-// ── Plugin API helpers (types not inferred from betterAuth config) ─
+// ── Plugin API facade (types not inferred from betterAuth config) ──
 
 interface VerifyApiKeyResult {
   valid: boolean;
@@ -33,34 +33,43 @@ interface SessionResult {
   user: { id: string; name: string; email: string };
 }
 
-const isVerifyApiKeyApi = (
-  value: unknown,
-): value is {
-  verifyApiKey: (opts: { body: { key: string } }) => Promise<VerifyApiKeyResult>;
-} => isRecord(value) && typeof value["verifyApiKey"] === "function";
+interface BetterAuthApi {
+  readonly verifyApiKey: (opts: { body: { key: string } }) => Promise<VerifyApiKeyResult>;
+  readonly getSession: (opts: { headers: Headers }) => Promise<SessionResult | null>;
+  readonly getActiveMember: (opts: { headers: Headers }) => Promise<ActiveMember | null>;
+}
 
-const isSessionApi = (
-  value: unknown,
-): value is {
-  getSession: (opts: { headers: Headers }) => Promise<SessionResult | null>;
-} => isRecord(value) && typeof value["getSession"] === "function";
+// Better Auth's api object is inferred from the plugin set at runtime. We
+// Assert the expected shape once per isolate; if a plugin is removed, this
+// Throws at first use and the error surfaces as a request failure — cleaner
+// Than silently returning a generic Unauthorized per call.
+const assertBetterAuthApi = (api: unknown): BetterAuthApi => {
+  if (
+    !isRecord(api) ||
+    typeof api["verifyApiKey"] !== "function" ||
+    typeof api["getSession"] !== "function" ||
+    typeof api["getActiveMember"] !== "function"
+  ) {
+    // eslint-disable-next-line functional/no-throw-statements -- bootstrap invariant; plugin misconfiguration is unrecoverable
+    throw new Error(
+      "Better Auth api is missing expected plugin methods (verifyApiKey / getSession / getActiveMember)",
+    );
+  }
+  // eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- runtime shape validated above; BetterAuthApi narrows Better Auth's opaque plugin object
+  return api as unknown as BetterAuthApi;
+};
 
-const isActiveMemberApi = (
-  value: unknown,
-): value is {
-  getActiveMember: (opts: { headers: Headers }) => Promise<ActiveMember | null>;
-} => isRecord(value) && typeof value["getActiveMember"] === "function";
+const authApi = Effect.gen(function* () {
+  const env = yield* cloudflareEnv;
+  return assertBetterAuthApi(createAuth(env).api);
+});
 
 const getApiErrorMessage = (value: unknown): string | null =>
   isRecord(value) && typeof value["message"] === "string" ? value["message"] : null;
 
 const verifyApiKey = (key: string) =>
   Effect.gen(function* () {
-    const env = yield* cloudflareEnv;
-    const { api } = createAuth(env);
-    if (!isVerifyApiKeyApi(api)) {
-      return yield* new Unauthorized({ message: "API key verification failed" });
-    }
+    const api = yield* authApi;
     return yield* Effect.tryPromise({
       try: async () => api.verifyApiKey({ body: { key } }),
       catch: () => new Unauthorized({ message: "API key verification failed" }),
@@ -69,11 +78,7 @@ const verifyApiKey = (key: string) =>
 
 const getSession = (headers: Headers) =>
   Effect.gen(function* () {
-    const env = yield* cloudflareEnv;
-    const { api } = createAuth(env);
-    if (!isSessionApi(api)) {
-      return yield* new Unauthorized({ message: "Session verification failed" });
-    }
+    const api = yield* authApi;
     return yield* Effect.tryPromise({
       try: async () => api.getSession({ headers }),
       catch: () => new Unauthorized({ message: "Session verification failed" }),
@@ -82,13 +87,7 @@ const getSession = (headers: Headers) =>
 
 const getActiveMember = (headers: Headers) =>
   Effect.gen(function* () {
-    const env = yield* cloudflareEnv;
-    const { api } = createAuth(env);
-    if (!isActiveMemberApi(api)) {
-      return yield* new Unauthorized({
-        message: "Not a member of the active organization",
-      });
-    }
+    const api = yield* authApi;
     return yield* Effect.tryPromise({
       try: async () => api.getActiveMember({ headers }),
       catch: () =>
@@ -168,7 +167,6 @@ const resolveFromSession = (_cookie: Redacted.Redacted) =>
 
     const member = yield* getActiveMember(headers);
 
-    // eslint-disable-next-line typescript-eslint/no-unnecessary-condition -- runtime null when membership revoked while session alive
     if (!member || !isRole(member.role)) {
       return yield* new Unauthorized({
         message: "Not a member of the active organization",

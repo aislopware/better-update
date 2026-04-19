@@ -7,6 +7,7 @@ interface AssetRefInput {
   readonly key: string;
   readonly hash: string;
   readonly isLaunch: boolean;
+  readonly contentChecksum?: string | undefined;
 }
 
 interface UpdatePublishValidationInput {
@@ -182,11 +183,15 @@ const assertManifestBodyMatchesRequest = (
       "manifestBody.launchAsset",
     );
     const expectedLaunchAsset = input.assets.find((asset) => asset.isLaunch);
+    const expectedLaunchHash =
+      expectedLaunchAsset === undefined
+        ? undefined
+        : (expectedLaunchAsset.contentChecksum ?? expectedLaunchAsset.hash);
 
     if (
       expectedLaunchAsset === undefined ||
       launchAsset.key !== expectedLaunchAsset.key ||
-      launchAsset.hash !== expectedLaunchAsset.hash
+      launchAsset.hash !== expectedLaunchHash
     ) {
       yield* fail("manifestBody.launchAsset must match the request launch asset");
     }
@@ -194,7 +199,7 @@ const assertManifestBodyMatchesRequest = (
     const actualAssets = yield* parseManifestAssetArray(manifest["assets"]);
     const expectedAssets = input.assets
       .filter((asset) => !asset.isLaunch)
-      .map((asset) => ({ key: asset.key, hash: asset.hash }));
+      .map((asset) => ({ key: asset.key, hash: asset.contentChecksum ?? asset.hash }));
     yield* assertMatchingAssetRefs({
       actual: actualAssets,
       expected: expectedAssets,

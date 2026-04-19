@@ -312,7 +312,7 @@ describe("Updates & Assets API flow", () => {
       },
       { cookie: cookies },
     );
-    expect(publishResponse.status).toBe(404);
+    expect(publishResponse.status).toBe(409);
     expect(await publishResponse.json()).toEqual(
       expect.objectContaining({
         message: expect.stringContaining("Assets not uploaded"),
