@@ -82,7 +82,7 @@ describe("Branches API flow", () => {
   it("creates a project", async () => {
     const response = await post(
       "/api/projects",
-      { name: "Branch Test Project", scopeKey: "@branch/test" },
+      { name: "Branch Test Project", slug: "branch-test" },
       { cookie: cookies },
     );
     expect(response.status).toBe(201);
@@ -243,7 +243,7 @@ describe("Branches API flow", () => {
   it("creates a project in org B", async () => {
     const response = await post(
       "/api/projects",
-      { name: "Org B Project", scopeKey: "@orgb/app" },
+      { name: "Org B Project", slug: "orgb-app" },
       { cookie: cookies },
     );
     expect(response.status).toBe(201);

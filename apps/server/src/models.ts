@@ -75,8 +75,9 @@ export interface ProjectModel {
   readonly id: string;
   readonly organizationId: string;
   readonly name: string;
-  readonly scopeKey: string;
+  readonly slug: string;
   readonly createdAt: string;
+  readonly lastActivityAt: string;
 }
 
 export interface BranchModel {
@@ -222,6 +223,7 @@ export interface BuildCompatibilityMatrixModel {
 export interface AuditLogModel {
   readonly id: string;
   readonly organizationId: string;
+  readonly projectId: string | null;
   readonly actorId: string | null;
   readonly actorEmail: string;
   readonly action: string;

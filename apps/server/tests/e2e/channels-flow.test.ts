@@ -84,7 +84,7 @@ describe("Channels API flow", () => {
   it("creates a project", async () => {
     const response = await post(
       "/api/projects",
-      { name: "Channel Test Project", scopeKey: "@channel/test" },
+      { name: "Channel Test Project", slug: "channel-test" },
       { cookie: cookies },
     );
     expect(response.status).toBe(201);
@@ -197,7 +197,7 @@ describe("Channels API flow", () => {
     // Create a second project with its own branch
     const projRes = await post(
       "/api/projects",
-      { name: "Other Project", scopeKey: "@other/proj" },
+      { name: "Other Project", slug: "other-proj" },
       { cookie: cookies },
     );
     expect(projRes.status).toBe(201);
@@ -280,7 +280,7 @@ describe("Channels API flow", () => {
   it("creates a project and branch in org B", async () => {
     const projRes = await post(
       "/api/projects",
-      { name: "Org B Project", scopeKey: "@orgb/channel" },
+      { name: "Org B Project", slug: "orgb-channel" },
       { cookie: cookies },
     );
     expect(projRes.status).toBe(201);

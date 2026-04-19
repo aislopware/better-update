@@ -43,11 +43,11 @@ const completeOnboarding = async (
   await page.waitForURL(/\/projects$/);
 };
 
-const createProject = async (page: Page, projectName: string, scopeKey: string) => {
+const createProject = async (page: Page, projectName: string, slug: string) => {
   await page.getByRole("button", { name: "Create project" }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("Project name").fill(projectName);
-  await dialog.getByLabel("Scope key").fill(scopeKey);
+  await dialog.getByLabel("Slug").fill(slug);
   await dialog.getByRole("button", { name: "Create project" }).click();
   await page.getByRole("link", { name: new RegExp(projectName) }).waitFor();
 };
@@ -62,11 +62,7 @@ interface ProjectJourney {
   readonly projectName: string;
 }
 
-const completeProjectJourney = async (
-  page: Page,
-  label: string,
-  scopeOwner: string,
-): Promise<ProjectJourney> => {
+const completeProjectJourney = async (page: Page, label: string): Promise<ProjectJourney> => {
   const user = await createUser(label);
   const orgSuffix = randomUUID().slice(0, 8);
   const projectSuffix = randomUUID().slice(0, 8);
@@ -74,11 +70,11 @@ const completeProjectJourney = async (
   const organizationName = `${label} org ${orgSuffix}`;
   const organizationSlug = `${normalizedLabel}-org-${orgSuffix}`;
   const projectName = `${label} project ${projectSuffix}`;
-  const scopeKey = `@${scopeOwner}/${projectSuffix}`;
+  const slug = `${normalizedLabel}-${projectSuffix}`;
 
   await login(page, user.email);
   await completeOnboarding(page, organizationName, organizationSlug);
-  await createProject(page, projectName, scopeKey);
+  await createProject(page, projectName, slug);
   await openProject(page, projectName);
 
   return { projectName };
@@ -95,7 +91,7 @@ describe("Dashboard browser UI journey", () => {
 
   test("signs in, completes onboarding, creates a project, and creates a branch", async () => {
     await runtime.withPage(async (page) => {
-      const { projectName } = await completeProjectJourney(page, "Branch Browser", "browser");
+      const { projectName } = await completeProjectJourney(page, "Branch Browser");
       const branchSuffix = randomUUID().slice(0, 8);
       const branchName = `staging-${branchSuffix}`;
 
@@ -111,7 +107,7 @@ describe("Dashboard browser UI journey", () => {
 
   test("signs in, completes onboarding, creates a project, and adds an environment variable", async () => {
     await runtime.withPage(async (page) => {
-      await completeProjectJourney(page, "Env Browser", "env-browser");
+      await completeProjectJourney(page, "Env Browser");
       const envSuffix = randomUUID().slice(0, 8);
       const envKey = `EXPO_PUBLIC_BROWSER_${envSuffix.toUpperCase()}`;
       const envValue = `https://browser-${envSuffix}.example.com`;

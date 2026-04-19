@@ -8,7 +8,6 @@ import {
 } from "@better-update/ui/components/ui/sidebar";
 import { Link } from "@tanstack/react-router";
 import {
-  ArrowLeftIcon,
   ScrollTextIcon,
   CloudUploadIcon,
   CodeIcon,
@@ -38,13 +37,14 @@ interface OrgNavSection {
 
 interface ProjectNavItem {
   to:
-    | "/projects/$projectId"
-    | "/projects/$projectId/builds"
-    | "/projects/$projectId/channels"
-    | "/projects/$projectId/branches"
-    | "/projects/$projectId/updates"
-    | "/projects/$projectId/settings"
-    | "/projects/$projectId/environment-variables";
+    | "/projects/$projectSlug"
+    | "/projects/$projectSlug/audit-log"
+    | "/projects/$projectSlug/builds"
+    | "/projects/$projectSlug/channels"
+    | "/projects/$projectSlug/branches"
+    | "/projects/$projectSlug/updates"
+    | "/projects/$projectSlug/settings"
+    | "/projects/$projectSlug/environment-variables";
   label: string;
   icon: LucideIcon;
   exact?: boolean;
@@ -58,7 +58,7 @@ interface ProjectNavSection {
 const ORG_NAV: OrgNavSection[] = [
   {
     label: "Platform",
-    items: [{ to: "/projects", label: "Overview", icon: FolderIcon }],
+    items: [{ to: "/projects", label: "Projects", icon: FolderIcon }],
   },
   {
     label: "Organization",
@@ -85,28 +85,33 @@ const PROJECT_NAV: ProjectNavSection[] = [
     label: "Project",
     items: [
       {
-        to: "/projects/$projectId",
+        to: "/projects/$projectSlug",
         label: "Overview",
         icon: LayoutDashboardIcon,
         exact: true,
+      },
+      {
+        to: "/projects/$projectSlug/audit-log",
+        label: "Audit log",
+        icon: ScrollTextIcon,
       },
     ],
   },
   {
     label: "Deploy",
     items: [
-      { to: "/projects/$projectId/builds", label: "Builds", icon: PackageIcon },
-      { to: "/projects/$projectId/channels", label: "Channels", icon: SatelliteIcon },
-      { to: "/projects/$projectId/branches", label: "Branches", icon: GitBranchIcon },
-      { to: "/projects/$projectId/updates", label: "Updates", icon: CloudUploadIcon },
+      { to: "/projects/$projectSlug/builds", label: "Builds", icon: PackageIcon },
+      { to: "/projects/$projectSlug/channels", label: "Channels", icon: SatelliteIcon },
+      { to: "/projects/$projectSlug/branches", label: "Branches", icon: GitBranchIcon },
+      { to: "/projects/$projectSlug/updates", label: "Updates", icon: CloudUploadIcon },
     ],
   },
   {
     label: "Project settings",
     items: [
-      { to: "/projects/$projectId/settings", label: "General", icon: SettingsIcon },
+      { to: "/projects/$projectSlug/settings", label: "General", icon: SettingsIcon },
       {
-        to: "/projects/$projectId/environment-variables",
+        to: "/projects/$projectSlug/environment-variables",
         label: "Environment variables",
         icon: CodeIcon,
       },
@@ -140,7 +145,7 @@ export const OrgNavSections = () => (
   </>
 );
 
-export const ProjectNavSections = ({ projectId }: { projectId: string }) => (
+export const ProjectNavSections = ({ projectSlug }: { projectSlug: string }) => (
   <>
     {PROJECT_NAV.map((section) => (
       <SidebarGroup key={section.label}>
@@ -150,7 +155,7 @@ export const ProjectNavSections = ({ projectId }: { projectId: string }) => (
             {section.items.map((item) => (
               <SidebarMenuItem key={item.to}>
                 {item.exact ? (
-                  <Link to={item.to} params={{ projectId }} activeOptions={{ exact: true }}>
+                  <Link to={item.to} params={{ projectSlug }} activeOptions={{ exact: true }}>
                     {({ isActive }) => (
                       <SidebarMenuButton isActive={isActive} tooltip={item.label}>
                         <item.icon strokeWidth={2} />
@@ -159,7 +164,7 @@ export const ProjectNavSections = ({ projectId }: { projectId: string }) => (
                     )}
                   </Link>
                 ) : (
-                  <Link to={item.to} params={{ projectId }}>
+                  <Link to={item.to} params={{ projectSlug }}>
                     {({ isActive }) => (
                       <SidebarMenuButton isActive={isActive} tooltip={item.label}>
                         <item.icon strokeWidth={2} />
@@ -175,21 +180,4 @@ export const ProjectNavSections = ({ projectId }: { projectId: string }) => (
       </SidebarGroup>
     ))}
   </>
-);
-
-export const ProjectBackLink = () => (
-  <SidebarGroup>
-    <SidebarGroupContent>
-      <SidebarMenu>
-        <SidebarMenuItem>
-          <Link to="/projects">
-            <SidebarMenuButton tooltip="Account">
-              <ArrowLeftIcon strokeWidth={2} />
-              <span>Account</span>
-            </SidebarMenuButton>
-          </Link>
-        </SidebarMenuItem>
-      </SidebarMenu>
-    </SidebarGroupContent>
-  </SidebarGroup>
 );

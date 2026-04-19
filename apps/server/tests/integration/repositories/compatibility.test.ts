@@ -17,9 +17,9 @@ const insertOrg = (id: string) =>
 
 const insertProject = (id: string, organizationId: string) =>
   env.DB.prepare(
-    `INSERT INTO "projects" ("id", "organization_id", "name", "scope_key", "created_at") VALUES (?, ?, ?, ?, ?)`,
+    `INSERT INTO "projects" ("id", "organization_id", "name", "slug", "created_at") VALUES (?, ?, ?, ?, ?)`,
   )
-    .bind(id, organizationId, `Project ${id}`, `@test/${id}`, "2024-01-01T00:00:00Z")
+    .bind(id, organizationId, `Project ${id}`, `test-${id}`, "2024-01-01T00:00:00Z")
     .run();
 
 const insertBranch = (id: string, projectId: string, name: string) =>

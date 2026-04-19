@@ -119,7 +119,7 @@ export interface CliE2EContext {
 export const setupCliE2E = (persistDir: string, options?: SetupCliE2EOptions): CliE2EContext => {
   const template = options?.appJsonTemplate ?? defaultAppJsonTemplate;
   const expoConfig = (template as { expo?: Record<string, unknown> }).expo ?? {};
-  const scopeKey = `@${String(expoConfig["owner"] ?? "cli-e2e")}/${String(expoConfig["slug"] ?? "cli-e2e-app")}`;
+  const slug = String(expoConfig["slug"] ?? "cli-e2e-app");
   const projectName = `${String(expoConfig["name"] ?? "E2E")} Project`;
   const useExternalProjectDir = options?.projectDir !== undefined;
 
@@ -310,7 +310,7 @@ export const setupCliE2E = (persistDir: string, options?: SetupCliE2EOptions): C
 
     const createProjectResponse = await post(
       "/api/projects",
-      { name: projectName, scopeKey },
+      { name: projectName, slug },
       { cookie: state.cookies },
     );
     expect(createProjectResponse.status).toBe(201);

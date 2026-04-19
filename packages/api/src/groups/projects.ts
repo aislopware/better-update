@@ -13,6 +13,7 @@ import {
 } from "../domain/project";
 
 const idParam = HttpApiSchema.param("id", Schema.String);
+const slugParam = HttpApiSchema.param("slug", Schema.String);
 
 export class ProjectsGroup extends HttpApiGroup.make("projects")
   .add(
@@ -51,6 +52,16 @@ export class ProjectsGroup extends HttpApiGroup.make("projects")
         description: "Get a single project by ID",
       }),
     ),
+  )
+  .add(
+    HttpApiEndpoint.get("getBySlug")`/api/projects/by-slug/${slugParam}`
+      .addSuccess(Project)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Get project by slug",
+          description: "Get a single project by slug within the caller's active organization",
+        }),
+      ),
   )
   .add(
     HttpApiEndpoint.patch("rename")`/api/projects/${idParam}`

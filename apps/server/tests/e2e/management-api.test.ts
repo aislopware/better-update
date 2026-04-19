@@ -94,14 +94,14 @@ describe("Management API happy path", () => {
   it("POST /api/projects returns 201 with active org session", async () => {
     const response = await post(
       "/api/projects",
-      { name: "My Project", scopeKey: "@test/app" },
+      { name: "My Project", slug: "test-app" },
       { cookie: cookies },
     );
     expect(response.status).toBe(201);
     const body = await response.json();
     expect(body).toHaveProperty("id");
     expect(body).toHaveProperty("name");
-    expect(body).toHaveProperty("scopeKey");
+    expect(body).toHaveProperty("slug");
   });
 
   it("management API still rejects requests without auth", async () => {
@@ -137,7 +137,7 @@ describe("Management API happy path", () => {
   it("POST /api/projects works with API key", async () => {
     const response = await post(
       "/api/projects",
-      { name: "API Key Project", scopeKey: "@key/app" },
+      { name: "API Key Project", slug: "key-app" },
       { authorization: `Bearer ${apiKeyValue}` },
     );
     expect(response.status).toBe(201);

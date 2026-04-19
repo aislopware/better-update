@@ -138,7 +138,7 @@ describe("Golden path cross-flow", () => {
   let promotedV1UpdateId: string;
   let productionV2UpdateId: string;
 
-  const projectScope = "@golden/path";
+  const projectSlug = "golden-path";
   const stagingV1GroupId = "golden-group-staging-v1";
   const productionV2GroupId = "golden-group-prod-v2";
   const productionV3GroupId = "golden-group-prod-v3";
@@ -184,7 +184,7 @@ describe("Golden path cross-flow", () => {
   it("creates the golden path project", async () => {
     const response = await post(
       "/api/projects",
-      { name: "Golden Path Project", scopeKey: projectScope },
+      { name: "Golden Path Project", slug: projectSlug },
       { cookie: cookies },
     );
     expect(response.status).toBe(201);
@@ -263,7 +263,7 @@ describe("Golden path cross-flow", () => {
     const response = await post(
       "/api/updates",
       {
-        project: projectScope,
+        slug: projectSlug,
         branch: "staging",
         runtimeVersion: "1.0.0",
         platform: "ios",
@@ -285,7 +285,7 @@ describe("Golden path cross-flow", () => {
     const response = await post(
       "/api/updates",
       {
-        project: projectScope,
+        slug: projectSlug,
         branch: "staging",
         runtimeVersion: "1.0.0",
         platform: "android",
@@ -372,7 +372,7 @@ describe("Golden path cross-flow", () => {
     const response = await post(
       "/api/updates",
       {
-        project: projectScope,
+        slug: projectSlug,
         branch: "production",
         runtimeVersion: "1.0.0",
         platform: "ios",
@@ -394,7 +394,7 @@ describe("Golden path cross-flow", () => {
     const response = await post(
       "/api/updates",
       {
-        project: projectScope,
+        slug: projectSlug,
         branch: "production",
         runtimeVersion: "1.0.0",
         platform: "ios",
@@ -432,7 +432,7 @@ describe("Golden path cross-flow", () => {
     const response = await post(
       "/api/updates",
       {
-        project: projectScope,
+        slug: projectSlug,
         branch: "production",
         runtimeVersion: "1.0.0",
         platform: "ios",
@@ -471,7 +471,7 @@ describe("Golden path cross-flow", () => {
     const response = await post(
       "/api/updates",
       {
-        project: projectScope,
+        slug: projectSlug,
         branch: "rollback",
         runtimeVersion: "9.0.0",
         platform: "ios",

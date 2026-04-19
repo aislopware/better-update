@@ -34,6 +34,7 @@ export const BranchesGroupLive = HttpApiBuilder.group(ManagementApi, "branches",
             action: "branch.create",
             resourceType: "branch",
             resourceId: branch.id,
+            projectId: payload.projectId,
             metadata: { name: payload.name, projectId: payload.projectId },
           });
 
@@ -72,6 +73,7 @@ export const BranchesGroupLive = HttpApiBuilder.group(ManagementApi, "branches",
             action: "branch.rename",
             resourceType: "branch",
             resourceId: path.id,
+            projectId: branch.projectId,
             metadata: { name: payload.name },
           });
 
@@ -92,6 +94,7 @@ export const BranchesGroupLive = HttpApiBuilder.group(ManagementApi, "branches",
             action: "branch.delete",
             resourceType: "branch",
             resourceId: path.id,
+            projectId: branch.projectId,
           });
 
           return { deleted: 1 };

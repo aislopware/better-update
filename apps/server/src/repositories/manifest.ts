@@ -67,10 +67,6 @@ export interface ManifestRepository {
   readonly findUpdateAssets: (params: {
     readonly updateId: string;
   }) => Effect.Effect<readonly AssetRow[]>;
-
-  readonly findProjectScopeKey: (params: {
-    readonly projectId: string;
-  }) => Effect.Effect<string, NotFound>;
 }
 
 export class ManifestRepo extends Context.Tag("api/ManifestRepo")<
@@ -145,22 +141,5 @@ export const ManifestRepoLive = Layer.succeed(ManifestRepo, {
       );
 
       return rows.results;
-    }),
-
-  findProjectScopeKey: (params) =>
-    Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
-
-      const row = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT "scope_key" FROM "projects" WHERE "id" = ?`)
-          .bind(params.projectId)
-          .first<{ scope_key: string }>(),
-      );
-
-      if (row === null) {
-        return yield* Effect.fail(new NotFound({ message: "Project not found" }));
-      }
-
-      return row.scope_key;
     }),
 });

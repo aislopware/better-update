@@ -85,7 +85,7 @@ describe("Multi-org data isolation", () => {
   it("creates a project in org A (session auth)", async () => {
     const res = await post(
       "/api/projects",
-      { name: "Alpha Project", scopeKey: "@alpha/app" },
+      { name: "Alpha Project", slug: "alpha-app" },
       { cookie: cookies },
     );
     expect(res.status).toBe(201);
@@ -122,7 +122,7 @@ describe("Multi-org data isolation", () => {
   it("creates a project in org B", async () => {
     const res = await post(
       "/api/projects",
-      { name: "Beta Project", scopeKey: "@beta/app" },
+      { name: "Beta Project", slug: "beta-app" },
       { cookie: cookies },
     );
     expect(res.status).toBe(201);
@@ -180,7 +180,7 @@ describe("Multi-org data isolation", () => {
   it("project created via org A key stays in org A", async () => {
     const createRes = await post(
       "/api/projects",
-      { name: "Extra Alpha", scopeKey: "@alpha/extra" },
+      { name: "Extra Alpha", slug: "alpha-extra" },
       { authorization: `Bearer ${apiKeyA}` },
     );
     expect(createRes.status).toBe(201);

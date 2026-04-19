@@ -6,13 +6,14 @@ export class Project extends Schema.Class<Project>("Project")({
   id: Id,
   organizationId: Id,
   name: Schema.String,
-  scopeKey: Schema.String,
+  slug: Schema.String,
   createdAt: DateTimeString,
+  lastActivityAt: DateTimeString,
 }) {}
 
 export const CreateProjectBody = Schema.Struct({
   name: Schema.String.pipe(Schema.minLength(1)),
-  scopeKey: Schema.String.pipe(Schema.minLength(1)),
+  slug: Schema.String.pipe(Schema.minLength(1)),
 });
 
 export const UpdateProjectBody = Schema.Struct({

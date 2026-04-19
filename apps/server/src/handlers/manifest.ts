@@ -108,13 +108,12 @@ const buildDirectiveResponse = (update: UpdateRow, ph: ProtocolHeaders, boundary
 const buildManifestFromData = (params: {
   readonly update: UpdateRow;
   readonly assetRows: readonly AssetRow[];
-  readonly scopeKey: string;
   readonly assetBaseUrl: string;
   readonly ph: ProtocolHeaders;
   readonly boundary: string;
   readonly useMultipart: boolean;
 }) => {
-  const { update, assetRows, scopeKey, assetBaseUrl, ph, boundary, useMultipart } = params;
+  const { update, assetRows, assetBaseUrl, ph, boundary, useMultipart } = params;
   const manifestStr = JSON.stringify(
     buildManifest({
       update: {
@@ -132,7 +131,6 @@ const buildManifestFromData = (params: {
         fileExt: row.file_ext,
         isLaunch: row.is_launch === 1,
       })),
-      scopeKey,
       assetBaseUrl,
     }),
   );
@@ -188,11 +186,10 @@ const resolveRolledOutUpdate = (params: {
 
 const buildUpdateResponse = (params: {
   readonly update: UpdateRow;
-  readonly scopeKey: string;
   readonly ph: ProtocolHeaders;
 }): Effect.Effect<Response, never, ManifestRepo> =>
   Effect.gen(function* () {
-    const { update, scopeKey, ph } = params;
+    const { update, ph } = params;
     const runtime = yield* manifestRuntime;
     const boundary = crypto.randomUUID();
     const useMultipart = supportsMultipart(ph.accept ?? "*/*");
@@ -221,7 +218,6 @@ const buildUpdateResponse = (params: {
     return buildManifestFromData({
       update,
       assetRows,
-      scopeKey,
       assetBaseUrl: runtime.assetBaseUrl,
       ph,
       boundary,
@@ -232,14 +228,13 @@ const isCacheable = (candidates: readonly UpdateRow[]) =>
   candidates.every((candidate) => candidate.rollout_percentage === 100);
 
 const handleCacheMiss = (params: {
-  readonly scopeKey: string;
   readonly resolvedBranchId: string;
   readonly cacheKey: string;
   readonly ph: ProtocolHeaders;
   readonly track: TrackManifestResponse;
 }): Effect.Effect<Response, NotFound, ManifestRepo | ManifestCacheStorage | CryptoService> =>
   Effect.gen(function* () {
-    const { scopeKey, resolvedBranchId, cacheKey, ph, track } = params;
+    const { resolvedBranchId, cacheKey, ph, track } = params;
     const repo = yield* ManifestRepo;
 
     const candidates = yield* repo.resolveUpdates({
@@ -267,7 +262,7 @@ const handleCacheMiss = (params: {
       return trackNoUpdate(resolvedBranchId, track);
     }
 
-    const response = yield* buildUpdateResponse({ update, scopeKey, ph });
+    const response = yield* buildUpdateResponse({ update, ph });
     const responseType = responseTypeFor(update);
     track(resolvedBranchId, update.id, responseType);
 
@@ -281,14 +276,13 @@ const handleCacheMiss = (params: {
 const serveCachedOrFresh = (params: {
   readonly cacheVersion: number;
   readonly projectId: string;
-  readonly scopeKey: string;
   readonly resolvedBranchId: string;
   readonly accept: string;
   readonly ph: ProtocolHeaders;
   readonly track: TrackManifestResponse;
 }): Effect.Effect<Response, NotFound, ManifestRepo | ManifestCacheStorage | CryptoService> =>
   Effect.gen(function* () {
-    const { cacheVersion, projectId, scopeKey, resolvedBranchId, accept, ph, track } = params;
+    const { cacheVersion, projectId, resolvedBranchId, accept, ph, track } = params;
     const cacheKey = buildCacheKey({
       cacheVersion,
       projectId,
@@ -308,23 +302,21 @@ const serveCachedOrFresh = (params: {
       track(resolvedBranchId, cached.updateId, cached.responseType);
       return cached.response;
     }
-    return yield* handleCacheMiss({ scopeKey, resolvedBranchId, cacheKey, ph, track });
+    return yield* handleCacheMiss({ resolvedBranchId, cacheKey, ph, track });
   });
 
 const resolveRequestResponse = (params: {
   readonly channel: ChannelRow;
   readonly projectId: string;
-  readonly scopeKey: string;
   readonly resolvedBranchId: string;
   readonly accept: string;
   readonly ph: ProtocolHeaders;
   readonly track: TrackManifestResponse;
 }): Effect.Effect<Response, NotFound, ManifestRepo | ManifestCacheStorage | CryptoService> => {
-  const { channel, projectId, scopeKey, resolvedBranchId, accept, ph, track } = params;
+  const { channel, projectId, resolvedBranchId, accept, ph, track } = params;
   return serveCachedOrFresh({
     cacheVersion: channel.cache_version,
     projectId,
-    scopeKey,
     resolvedBranchId,
     accept,
     ph,
@@ -350,30 +342,23 @@ const serveRequest = (
     }
 
     const repo = yield* ManifestRepo;
-    const [channel, scopeKey] = yield* Effect.all(
-      [
-        repo.resolveChannel({ projectId, channelName: ph.channelName }),
-        repo.findProjectScopeKey({ projectId }),
-      ],
-      { concurrency: 2 },
-    );
+    const channel = yield* repo.resolveChannel({ projectId, channelName: ph.channelName });
     const track = runtime.createTracker({ projectId, ph, startTime });
 
     if (channel.is_paused === 1) {
-      return respond(trackNoUpdate(channel.branch_id, track), ph, scopeKey);
+      return respond(trackNoUpdate(channel.branch_id, track), ph);
     }
 
     const resolvedBranchId = yield* resolveBranchId(channel, ph.easClientId);
     const response = yield* resolveRequestResponse({
       channel,
       projectId,
-      scopeKey,
       resolvedBranchId,
       accept,
       ph,
       track,
     });
-    return respond(response, ph, scopeKey);
+    return respond(response, ph);
   });
 
 const toManifestErrorResponse = (error: BadRequest | NotFound) =>

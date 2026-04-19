@@ -21,6 +21,7 @@ export const AuditLogsGroupLive = HttpApiBuilder.group(ManagementApi, "audit-log
 
         const result = yield* repo.list({
           organizationId: ctx.organizationId,
+          projectId: urlParams.projectId,
           action: urlParams.action,
           resourceType: urlParams.resourceType,
           actorId: urlParams.actorId,

@@ -77,7 +77,7 @@ describe("Environment variables API flow", () => {
   it("creates a project", async () => {
     const response = await post(
       "/api/projects",
-      { name: "Env Project", scopeKey: "@env/app" },
+      { name: "Env Project", slug: "env-app" },
       { cookie: state.cookies },
     );
     expect(response.status).toBe(201);

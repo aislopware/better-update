@@ -41,6 +41,9 @@ export const projectsQueryKey = (orgId: string) => ["org", orgId, "projects"] as
 export const projectQueryKey = (orgId: string, projectId: string) =>
   ["org", orgId, "project", projectId] as const;
 
+export const projectBySlugQueryKey = (orgId: string, slug: string) =>
+  ["org", orgId, "project", "by-slug", slug] as const;
+
 export const branchesQueryKey = (orgId: string, projectId: string) =>
   ["org", orgId, "projects", projectId, "branches"] as const;
 
@@ -62,10 +65,15 @@ export const channelAnalyticsQueryKey = (orgId: string, projectId: string, chann
 export const platformAnalyticsQueryKey = (orgId: string, projectId: string) =>
   ["org", orgId, "project", projectId, "analytics", "platforms"] as const;
 
-export const projectsQueryOptions = (orgId: string, page?: number) =>
+export const projectsQueryOptions = (orgId: string, page?: number, limit?: number) =>
   queryOptions({
-    queryKey: [...projectsQueryKey(orgId), ...(page != null ? [page] : [])],
-    queryFn: ({ signal }) => runApi((api) => api.projects.list({ urlParams: { page } }), signal),
+    queryKey: [
+      ...projectsQueryKey(orgId),
+      ...(page != null ? [page] : []),
+      ...(limit != null ? [limit] : []),
+    ],
+    queryFn: ({ signal }) =>
+      runApi((api) => api.projects.list({ urlParams: { page, limit } }), signal),
     staleTime: 30_000,
   });
 
@@ -73,6 +81,13 @@ export const projectQueryOptions = (orgId: string, projectId: string) =>
   queryOptions({
     queryKey: projectQueryKey(orgId, projectId),
     queryFn: ({ signal }) => runApi((api) => api.projects.get({ path: { id: projectId } }), signal),
+    staleTime: 30_000,
+  });
+
+export const projectBySlugQueryOptions = (orgId: string, slug: string) =>
+  queryOptions({
+    queryKey: projectBySlugQueryKey(orgId, slug),
+    queryFn: ({ signal }) => runApi((api) => api.projects.getBySlug({ path: { slug } }), signal),
     staleTime: 30_000,
   });
 
@@ -386,11 +401,15 @@ export const bulkImportEnvVars = (body: typeof BulkImportEnvVarsBody.Type) =>
 // Audit Logs — Query options
 // ---------------------------------------------------------------------------
 
-export const auditLogsQueryKey = (orgId: string) => ["org", orgId, "audit-logs"] as const;
+export const auditLogsQueryKey = (orgId: string, projectId?: string) =>
+  projectId
+    ? (["org", orgId, "project", projectId, "audit-logs"] as const)
+    : (["org", orgId, "audit-logs"] as const);
 
 export const auditLogsQueryOptions = (
   orgId: string,
   filters?: {
+    projectId?: string;
     action?: string;
     resourceType?: string;
     actorId?: string;
@@ -401,7 +420,7 @@ export const auditLogsQueryOptions = (
   },
 ) =>
   queryOptions({
-    queryKey: [...auditLogsQueryKey(orgId), filters],
+    queryKey: [...auditLogsQueryKey(orgId, filters?.projectId), filters],
     queryFn: ({ signal }) =>
       runApi(
         (api) =>

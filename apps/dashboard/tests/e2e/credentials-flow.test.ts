@@ -47,7 +47,7 @@ describe("Dashboard credentials flow", () => {
   it("creates a project and API key", async () => {
     const createProjectResponse = await post(
       "/api/projects",
-      { name: "Dashboard Credential Project", scopeKey: "@dashboard/credentials" },
+      { name: "Dashboard Credential Project", slug: "dashboard-credentials" },
       { cookie: state.cookies },
     );
     expect(createProjectResponse.status).toBe(201);

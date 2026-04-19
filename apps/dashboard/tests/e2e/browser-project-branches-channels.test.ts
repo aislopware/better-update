@@ -25,7 +25,7 @@ const owner = {
 };
 const orgName = `Lifecycle Org ${suffix}`;
 const projectName = `Lifecycle Project ${suffix}`;
-const scopeKey = `@lifecycle/${suffix}`;
+const slug = `lifecycle-${suffix}`;
 
 const mainBranchName = `main-${suffix}`;
 const stagingBranchName = `staging-${suffix}`;
@@ -76,7 +76,7 @@ const channelCardLocator = () =>
 
 describe("Dashboard project + branches + channels (browser)", () => {
   test("creates a project", async () => {
-    await createProjectViaUI(page, { name: projectName, scopeKey });
+    await createProjectViaUI(page, { name: projectName, slug });
     await openProjectFromListViaUI(page, projectName);
   });
 

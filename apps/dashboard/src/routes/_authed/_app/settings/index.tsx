@@ -30,6 +30,8 @@ import { authClient } from "../../../../lib/auth-client";
 import { generateSlug, nameSchema, slugSchema } from "../../../../lib/form-utils";
 import { useDeleteOrgMutation } from "../../../../lib/org-mutations";
 
+const deleteOrgTrigger = <Button variant="destructive">Delete organization</Button>;
+
 const OrgGeneralForm = () => {
   const queryClient = useQueryClient();
   const { activeOrg } = Route.useRouteContext();
@@ -173,9 +175,7 @@ const DeleteOrgSection = () => {
       </CardHeader>
       <CardFooter>
         <Dialog>
-          <DialogTrigger>
-            <Button variant="destructive">Delete organization</Button>
-          </DialogTrigger>
+          <DialogTrigger render={deleteOrgTrigger} />
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Delete {activeOrg.name}?</DialogTitle>

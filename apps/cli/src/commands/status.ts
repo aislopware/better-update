@@ -24,7 +24,7 @@ export const statusCommand = Command.make("status", {}, () =>
     yield* printKeyValue([
       ["Name", project.name],
       ["ID", project.id],
-      ["Scope Key", project.scopeKey],
+      ["Slug", project.slug],
       ["Created", project.createdAt],
     ]);
 

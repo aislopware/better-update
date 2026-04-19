@@ -138,6 +138,7 @@ const handleReserve = ({ payload }: { readonly payload: typeof CreateBuildBody.T
         action: "build.reserve",
         resourceType: "build",
         resourceId: buildId,
+        projectId: payload.projectId,
         metadata: { platform: payload.platform, projectId: payload.projectId },
       });
 
@@ -259,6 +260,7 @@ const handleComplete = ({
         action: "build.complete",
         resourceType: "build",
         resourceId: path.id,
+        projectId: reservation.projectId,
       });
 
       return toApiBuild(build);
@@ -315,6 +317,7 @@ const handleDelete = ({ path }: { readonly path: { readonly id: string } }) =>
         action: "build.delete",
         resourceType: "build",
         resourceId: path.id,
+        projectId: build.projectId,
       });
 
       return { deleted: 1 };

@@ -5,7 +5,7 @@ import { toBase64Url } from "@better-update/encoding";
 import { CommandExecutor, FileSystem } from "@effect/platform";
 import { Effect } from "effect";
 
-import { readAppJson, readProjectId, readScopeKey } from "../lib/app-json";
+import { readAppJson, readProjectId, readSlug } from "../lib/app-json";
 import { readRuntimeVersionMeta, type Platform } from "../lib/build-profile";
 import { pullEnvVars } from "../lib/env-exporter";
 import { EnvExportError, RuntimeVersionError, UpdatePublishError } from "../lib/exit-codes";
@@ -117,7 +117,7 @@ const publishPlatform = (params: {
   readonly projectRoot: string;
   readonly exportDir: string;
   readonly projectId: string;
-  readonly scopeKey: string;
+  readonly slug: string;
   readonly branch: string;
   readonly groupId: string;
   readonly message: string;
@@ -219,7 +219,7 @@ const publishPlatform = (params: {
       .create({
         payload: {
           branch: params.branch,
-          project: params.scopeKey,
+          slug: params.slug,
           runtimeVersion,
           platform: params.platform,
           message: params.message,
@@ -286,7 +286,7 @@ export const runUpdatePublish = (
       const api = yield* apiClient;
 
       const projectId = yield* readProjectId;
-      const scopeKey = yield* readScopeKey;
+      const slug = yield* readSlug;
       const appJson = yield* readAppJson;
       const platforms = resolveUpdatePlatforms(appJson, options.platform);
       if (platforms.length === 0) {
@@ -368,7 +368,7 @@ export const runUpdatePublish = (
             projectRoot,
             exportDir: path.join(tempDir, `export-${platform}`),
             projectId,
-            scopeKey,
+            slug,
             branch,
             groupId,
             message,

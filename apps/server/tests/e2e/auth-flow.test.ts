@@ -19,7 +19,7 @@ describe("Unauthenticated access", () => {
     const response = await fetch(`${getBaseUrl()}/api/projects`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name: "test", scopeKey: "@test/app" }),
+      body: JSON.stringify({ name: "test", slug: "test-app" }),
     });
     expect(response.status).toBe(401);
   });

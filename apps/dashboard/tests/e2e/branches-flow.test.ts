@@ -48,7 +48,7 @@ describe("Dashboard branches journey", () => {
   it("creates a project", async () => {
     const response = await post(
       "/api/projects",
-      { name: "Branch Dashboard Project", scopeKey: "@branch-dash/app" },
+      { name: "Branch Dashboard Project", slug: "branch-dash" },
       { cookie: state.cookies },
     );
     expect(response.status).toBe(201);

@@ -23,7 +23,7 @@ const owner = {
 };
 const orgName = `Admin Org ${suffix}`;
 const projectName = `Admin Project ${suffix}`;
-const scopeKey = `@admin/${suffix}`;
+const slug = `admin-${suffix}`;
 
 let context: BrowserContext;
 let page: Page;
@@ -44,7 +44,7 @@ beforeAll(async () => {
   });
 
   // Create a project so the audit log has project-scoped events to filter on
-  await createProjectViaUI(page, { name: projectName, scopeKey });
+  await createProjectViaUI(page, { name: projectName, slug });
 });
 
 afterAll(async () => {

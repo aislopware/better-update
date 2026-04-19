@@ -79,7 +79,7 @@ describe("Build compatibility matrix endpoint", () => {
   it("creates a project and seeds compatibility data", async () => {
     const createProjectResponse = await post(
       "/api/projects",
-      { name: "Compatibility Project", scopeKey: "@compatibility/e2e" },
+      { name: "Compatibility Project", slug: "compatibility-e2e" },
       { cookie: cookies },
     );
     expect(createProjectResponse.status).toBe(201);

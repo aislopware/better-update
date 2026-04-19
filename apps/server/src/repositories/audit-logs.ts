@@ -9,6 +9,7 @@ import type { AuditLogModel, AuditLogResourceType } from "../models";
 export interface AuditLogRow {
   readonly id: string;
   readonly organization_id: string;
+  readonly project_id: string | null;
   readonly actor_id: string | null;
   readonly actor_email: string;
   readonly action: string;
@@ -32,6 +33,7 @@ export interface AuditLogRepository {
   readonly insert: (params: {
     readonly id: string;
     readonly organizationId: string;
+    readonly projectId: string | null;
     readonly actorId: string | null;
     readonly actorEmail: string;
     readonly action: string;
@@ -43,6 +45,7 @@ export interface AuditLogRepository {
 
   readonly list: (params: {
     readonly organizationId: string;
+    readonly projectId?: string | undefined;
     readonly action?: string | undefined;
     readonly resourceType?: string | undefined;
     readonly actorId?: string | undefined;
@@ -60,12 +63,13 @@ export class AuditLogRepo extends Context.Tag("api/AuditLogRepo")<
 
 // -- D1 Adapter --------------------------------------------------------------
 
-const SELECT_COLUMNS = `"id", "organization_id", "actor_id", "actor_email", "action", "resource_type", "resource_id", "metadata", "source", "created_at"`;
+const SELECT_COLUMNS = `"id", "organization_id", "project_id", "actor_id", "actor_email", "action", "resource_type", "resource_id", "metadata", "source", "created_at"`;
 
 const toAuditLogModel = (row: AuditLogRow) =>
   ({
     id: row.id,
     organizationId: row.organization_id,
+    projectId: row.project_id,
     actorId: row.actor_id,
     actorEmail: row.actor_email,
     action: row.action,
@@ -83,11 +87,12 @@ export const AuditLogRepoLive = Layer.succeed(AuditLogRepo, {
 
       yield* Effect.promise(async () =>
         env.DB.prepare(
-          `INSERT INTO "audit_logs" ("id", "organization_id", "actor_id", "actor_email", "action", "resource_type", "resource_id", "metadata", "source") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO "audit_logs" ("id", "organization_id", "project_id", "actor_id", "actor_email", "action", "resource_type", "resource_id", "metadata", "source") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
           .bind(
             params.id,
             params.organizationId,
+            params.projectId,
             params.actorId,
             params.actorEmail,
             params.action,
@@ -107,6 +112,11 @@ export const AuditLogRepoLive = Layer.succeed(AuditLogRepo, {
       // SECURITY: All condition strings are hardcoded literals. Never interpolate user input into conditions.
       const conditions: string[] = ['"organization_id" = ?'];
       const bindValues: (string | number)[] = [params.organizationId];
+
+      if (params.projectId) {
+        conditions.push('"project_id" = ?');
+        bindValues.push(params.projectId);
+      }
 
       if (params.action) {
         conditions.push('"action" = ?');

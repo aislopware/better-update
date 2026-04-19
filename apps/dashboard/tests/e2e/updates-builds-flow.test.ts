@@ -45,7 +45,7 @@ describe("Dashboard updates and builds flow", () => {
   it("creates project, branches, channel, and starts a rollout", async () => {
     const createProjectResponse = await post(
       "/api/projects",
-      { name: "Dashboard OTA Project", scopeKey: "@dashboard/ota" },
+      { name: "Dashboard OTA Project", slug: "dashboard-ota" },
       { cookie: state.cookies },
     );
     expect(createProjectResponse.status).toBe(201);

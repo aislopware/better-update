@@ -74,7 +74,7 @@ describe("Credentials API flow", () => {
   it("creates a project", async () => {
     const response = await post(
       "/api/projects",
-      { name: "Credential Project", scopeKey: "@credentials/app" },
+      { name: "Credential Project", slug: "credentials-app" },
       { cookie: state.cookies },
     );
     expect(response.status).toBe(201);

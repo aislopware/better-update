@@ -86,7 +86,7 @@ describe("Asset serving flow", () => {
   it("creates a project", async () => {
     const response = await post(
       "/api/projects",
-      { name: "Asset Test Project", scopeKey: "@asset/test" },
+      { name: "Asset Test Project", slug: "asset-test" },
       { cookie: cookies },
     );
     expect(response.status).toBe(201);

@@ -32,9 +32,3 @@ export const generateSlug = (name: string) =>
     .toLowerCase()
     .replaceAll(/[^a-z0-9]+/g, "-")
     .replaceAll(/^-|-$/g, "");
-
-export const generateScopeKey = (name: string) =>
-  `@${name
-    .toLowerCase()
-    .replaceAll(/[^a-z0-9]+/g, "-")
-    .replaceAll(/^-|-$/g, "")}/app`;

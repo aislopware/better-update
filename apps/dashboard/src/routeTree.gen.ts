@@ -25,16 +25,17 @@ import { Route as AuthedAppApiKeysRouteImport } from './routes/_authed/_app/api-
 import { Route as AuthedAppSettingsIndexRouteImport } from './routes/_authed/_app/settings/index'
 import { Route as AuthedAppProjectsIndexRouteImport } from './routes/_authed/_app/projects/index'
 import { Route as AuthedAppAccountIndexRouteImport } from './routes/_authed/_app/account/index'
-import { Route as AuthedAppProjectsProjectIdRouteImport } from './routes/_authed/_app/projects/$projectId'
-import { Route as AuthedAppProjectsProjectIdIndexRouteImport } from './routes/_authed/_app/projects/$projectId/index'
-import { Route as AuthedAppProjectsProjectIdUpdatesIndexRouteImport } from './routes/_authed/_app/projects/$projectId/updates/index'
-import { Route as AuthedAppProjectsProjectIdSettingsIndexRouteImport } from './routes/_authed/_app/projects/$projectId/settings/index'
-import { Route as AuthedAppProjectsProjectIdEnvironmentVariablesIndexRouteImport } from './routes/_authed/_app/projects/$projectId/environment-variables/index'
-import { Route as AuthedAppProjectsProjectIdChannelsIndexRouteImport } from './routes/_authed/_app/projects/$projectId/channels/index'
-import { Route as AuthedAppProjectsProjectIdBuildsIndexRouteImport } from './routes/_authed/_app/projects/$projectId/builds/index'
-import { Route as AuthedAppProjectsProjectIdBranchesIndexRouteImport } from './routes/_authed/_app/projects/$projectId/branches/index'
-import { Route as AuthedAppProjectsProjectIdChannelsChannelIdRouteImport } from './routes/_authed/_app/projects/$projectId/channels/$channelId'
-import { Route as AuthedAppProjectsProjectIdBuildsBuildIdRouteImport } from './routes/_authed/_app/projects/$projectId/builds/$buildId'
+import { Route as AuthedAppProjectsProjectSlugRouteImport } from './routes/_authed/_app/projects/$projectSlug'
+import { Route as AuthedAppProjectsProjectSlugIndexRouteImport } from './routes/_authed/_app/projects/$projectSlug/index'
+import { Route as AuthedAppProjectsProjectSlugAuditLogRouteImport } from './routes/_authed/_app/projects/$projectSlug/audit-log'
+import { Route as AuthedAppProjectsProjectSlugUpdatesIndexRouteImport } from './routes/_authed/_app/projects/$projectSlug/updates/index'
+import { Route as AuthedAppProjectsProjectSlugSettingsIndexRouteImport } from './routes/_authed/_app/projects/$projectSlug/settings/index'
+import { Route as AuthedAppProjectsProjectSlugEnvironmentVariablesIndexRouteImport } from './routes/_authed/_app/projects/$projectSlug/environment-variables/index'
+import { Route as AuthedAppProjectsProjectSlugChannelsIndexRouteImport } from './routes/_authed/_app/projects/$projectSlug/channels/index'
+import { Route as AuthedAppProjectsProjectSlugBuildsIndexRouteImport } from './routes/_authed/_app/projects/$projectSlug/builds/index'
+import { Route as AuthedAppProjectsProjectSlugBranchesIndexRouteImport } from './routes/_authed/_app/projects/$projectSlug/branches/index'
+import { Route as AuthedAppProjectsProjectSlugChannelsChannelIdRouteImport } from './routes/_authed/_app/projects/$projectSlug/channels/$channelId'
+import { Route as AuthedAppProjectsProjectSlugBuildsBuildIdRouteImport } from './routes/_authed/_app/projects/$projectSlug/builds/$buildId'
 
 const CliLoginRoute = CliLoginRouteImport.update({
   id: '/cli-login',
@@ -114,65 +115,71 @@ const AuthedAppAccountIndexRoute = AuthedAppAccountIndexRouteImport.update({
   path: '/account/',
   getParentRoute: () => AuthedAppRoute,
 } as any)
-const AuthedAppProjectsProjectIdRoute =
-  AuthedAppProjectsProjectIdRouteImport.update({
-    id: '/projects/$projectId',
-    path: '/projects/$projectId',
+const AuthedAppProjectsProjectSlugRoute =
+  AuthedAppProjectsProjectSlugRouteImport.update({
+    id: '/projects/$projectSlug',
+    path: '/projects/$projectSlug',
     getParentRoute: () => AuthedAppRoute,
   } as any)
-const AuthedAppProjectsProjectIdIndexRoute =
-  AuthedAppProjectsProjectIdIndexRouteImport.update({
+const AuthedAppProjectsProjectSlugIndexRoute =
+  AuthedAppProjectsProjectSlugIndexRouteImport.update({
     id: '/',
     path: '/',
-    getParentRoute: () => AuthedAppProjectsProjectIdRoute,
+    getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
   } as any)
-const AuthedAppProjectsProjectIdUpdatesIndexRoute =
-  AuthedAppProjectsProjectIdUpdatesIndexRouteImport.update({
+const AuthedAppProjectsProjectSlugAuditLogRoute =
+  AuthedAppProjectsProjectSlugAuditLogRouteImport.update({
+    id: '/audit-log',
+    path: '/audit-log',
+    getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
+  } as any)
+const AuthedAppProjectsProjectSlugUpdatesIndexRoute =
+  AuthedAppProjectsProjectSlugUpdatesIndexRouteImport.update({
     id: '/updates/',
     path: '/updates/',
-    getParentRoute: () => AuthedAppProjectsProjectIdRoute,
+    getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
   } as any)
-const AuthedAppProjectsProjectIdSettingsIndexRoute =
-  AuthedAppProjectsProjectIdSettingsIndexRouteImport.update({
+const AuthedAppProjectsProjectSlugSettingsIndexRoute =
+  AuthedAppProjectsProjectSlugSettingsIndexRouteImport.update({
     id: '/settings/',
     path: '/settings/',
-    getParentRoute: () => AuthedAppProjectsProjectIdRoute,
+    getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
   } as any)
-const AuthedAppProjectsProjectIdEnvironmentVariablesIndexRoute =
-  AuthedAppProjectsProjectIdEnvironmentVariablesIndexRouteImport.update({
+const AuthedAppProjectsProjectSlugEnvironmentVariablesIndexRoute =
+  AuthedAppProjectsProjectSlugEnvironmentVariablesIndexRouteImport.update({
     id: '/environment-variables/',
     path: '/environment-variables/',
-    getParentRoute: () => AuthedAppProjectsProjectIdRoute,
+    getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
   } as any)
-const AuthedAppProjectsProjectIdChannelsIndexRoute =
-  AuthedAppProjectsProjectIdChannelsIndexRouteImport.update({
+const AuthedAppProjectsProjectSlugChannelsIndexRoute =
+  AuthedAppProjectsProjectSlugChannelsIndexRouteImport.update({
     id: '/channels/',
     path: '/channels/',
-    getParentRoute: () => AuthedAppProjectsProjectIdRoute,
+    getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
   } as any)
-const AuthedAppProjectsProjectIdBuildsIndexRoute =
-  AuthedAppProjectsProjectIdBuildsIndexRouteImport.update({
+const AuthedAppProjectsProjectSlugBuildsIndexRoute =
+  AuthedAppProjectsProjectSlugBuildsIndexRouteImport.update({
     id: '/builds/',
     path: '/builds/',
-    getParentRoute: () => AuthedAppProjectsProjectIdRoute,
+    getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
   } as any)
-const AuthedAppProjectsProjectIdBranchesIndexRoute =
-  AuthedAppProjectsProjectIdBranchesIndexRouteImport.update({
+const AuthedAppProjectsProjectSlugBranchesIndexRoute =
+  AuthedAppProjectsProjectSlugBranchesIndexRouteImport.update({
     id: '/branches/',
     path: '/branches/',
-    getParentRoute: () => AuthedAppProjectsProjectIdRoute,
+    getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
   } as any)
-const AuthedAppProjectsProjectIdChannelsChannelIdRoute =
-  AuthedAppProjectsProjectIdChannelsChannelIdRouteImport.update({
+const AuthedAppProjectsProjectSlugChannelsChannelIdRoute =
+  AuthedAppProjectsProjectSlugChannelsChannelIdRouteImport.update({
     id: '/channels/$channelId',
     path: '/channels/$channelId',
-    getParentRoute: () => AuthedAppProjectsProjectIdRoute,
+    getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
   } as any)
-const AuthedAppProjectsProjectIdBuildsBuildIdRoute =
-  AuthedAppProjectsProjectIdBuildsBuildIdRouteImport.update({
+const AuthedAppProjectsProjectSlugBuildsBuildIdRoute =
+  AuthedAppProjectsProjectSlugBuildsBuildIdRouteImport.update({
     id: '/builds/$buildId',
     path: '/builds/$buildId',
-    getParentRoute: () => AuthedAppProjectsProjectIdRoute,
+    getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -187,19 +194,20 @@ export interface FileRoutesByFullPath {
   '/audit-log': typeof AuthedAppAuditLogRoute
   '/credentials': typeof AuthedAppCredentialsRoute
   '/members': typeof AuthedAppMembersRoute
-  '/projects/$projectId': typeof AuthedAppProjectsProjectIdRouteWithChildren
+  '/projects/$projectSlug': typeof AuthedAppProjectsProjectSlugRouteWithChildren
   '/account/': typeof AuthedAppAccountIndexRoute
   '/projects/': typeof AuthedAppProjectsIndexRoute
   '/settings/': typeof AuthedAppSettingsIndexRoute
-  '/projects/$projectId/': typeof AuthedAppProjectsProjectIdIndexRoute
-  '/projects/$projectId/builds/$buildId': typeof AuthedAppProjectsProjectIdBuildsBuildIdRoute
-  '/projects/$projectId/channels/$channelId': typeof AuthedAppProjectsProjectIdChannelsChannelIdRoute
-  '/projects/$projectId/branches/': typeof AuthedAppProjectsProjectIdBranchesIndexRoute
-  '/projects/$projectId/builds/': typeof AuthedAppProjectsProjectIdBuildsIndexRoute
-  '/projects/$projectId/channels/': typeof AuthedAppProjectsProjectIdChannelsIndexRoute
-  '/projects/$projectId/environment-variables/': typeof AuthedAppProjectsProjectIdEnvironmentVariablesIndexRoute
-  '/projects/$projectId/settings/': typeof AuthedAppProjectsProjectIdSettingsIndexRoute
-  '/projects/$projectId/updates/': typeof AuthedAppProjectsProjectIdUpdatesIndexRoute
+  '/projects/$projectSlug/audit-log': typeof AuthedAppProjectsProjectSlugAuditLogRoute
+  '/projects/$projectSlug/': typeof AuthedAppProjectsProjectSlugIndexRoute
+  '/projects/$projectSlug/builds/$buildId': typeof AuthedAppProjectsProjectSlugBuildsBuildIdRoute
+  '/projects/$projectSlug/channels/$channelId': typeof AuthedAppProjectsProjectSlugChannelsChannelIdRoute
+  '/projects/$projectSlug/branches/': typeof AuthedAppProjectsProjectSlugBranchesIndexRoute
+  '/projects/$projectSlug/builds/': typeof AuthedAppProjectsProjectSlugBuildsIndexRoute
+  '/projects/$projectSlug/channels/': typeof AuthedAppProjectsProjectSlugChannelsIndexRoute
+  '/projects/$projectSlug/environment-variables/': typeof AuthedAppProjectsProjectSlugEnvironmentVariablesIndexRoute
+  '/projects/$projectSlug/settings/': typeof AuthedAppProjectsProjectSlugSettingsIndexRoute
+  '/projects/$projectSlug/updates/': typeof AuthedAppProjectsProjectSlugUpdatesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof AuthedAppIndexRoute
@@ -216,15 +224,16 @@ export interface FileRoutesByTo {
   '/account': typeof AuthedAppAccountIndexRoute
   '/projects': typeof AuthedAppProjectsIndexRoute
   '/settings': typeof AuthedAppSettingsIndexRoute
-  '/projects/$projectId': typeof AuthedAppProjectsProjectIdIndexRoute
-  '/projects/$projectId/builds/$buildId': typeof AuthedAppProjectsProjectIdBuildsBuildIdRoute
-  '/projects/$projectId/channels/$channelId': typeof AuthedAppProjectsProjectIdChannelsChannelIdRoute
-  '/projects/$projectId/branches': typeof AuthedAppProjectsProjectIdBranchesIndexRoute
-  '/projects/$projectId/builds': typeof AuthedAppProjectsProjectIdBuildsIndexRoute
-  '/projects/$projectId/channels': typeof AuthedAppProjectsProjectIdChannelsIndexRoute
-  '/projects/$projectId/environment-variables': typeof AuthedAppProjectsProjectIdEnvironmentVariablesIndexRoute
-  '/projects/$projectId/settings': typeof AuthedAppProjectsProjectIdSettingsIndexRoute
-  '/projects/$projectId/updates': typeof AuthedAppProjectsProjectIdUpdatesIndexRoute
+  '/projects/$projectSlug/audit-log': typeof AuthedAppProjectsProjectSlugAuditLogRoute
+  '/projects/$projectSlug': typeof AuthedAppProjectsProjectSlugIndexRoute
+  '/projects/$projectSlug/builds/$buildId': typeof AuthedAppProjectsProjectSlugBuildsBuildIdRoute
+  '/projects/$projectSlug/channels/$channelId': typeof AuthedAppProjectsProjectSlugChannelsChannelIdRoute
+  '/projects/$projectSlug/branches': typeof AuthedAppProjectsProjectSlugBranchesIndexRoute
+  '/projects/$projectSlug/builds': typeof AuthedAppProjectsProjectSlugBuildsIndexRoute
+  '/projects/$projectSlug/channels': typeof AuthedAppProjectsProjectSlugChannelsIndexRoute
+  '/projects/$projectSlug/environment-variables': typeof AuthedAppProjectsProjectSlugEnvironmentVariablesIndexRoute
+  '/projects/$projectSlug/settings': typeof AuthedAppProjectsProjectSlugSettingsIndexRoute
+  '/projects/$projectSlug/updates': typeof AuthedAppProjectsProjectSlugUpdatesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -241,19 +250,20 @@ export interface FileRoutesById {
   '/_authed/_app/credentials': typeof AuthedAppCredentialsRoute
   '/_authed/_app/members': typeof AuthedAppMembersRoute
   '/_authed/_app/': typeof AuthedAppIndexRoute
-  '/_authed/_app/projects/$projectId': typeof AuthedAppProjectsProjectIdRouteWithChildren
+  '/_authed/_app/projects/$projectSlug': typeof AuthedAppProjectsProjectSlugRouteWithChildren
   '/_authed/_app/account/': typeof AuthedAppAccountIndexRoute
   '/_authed/_app/projects/': typeof AuthedAppProjectsIndexRoute
   '/_authed/_app/settings/': typeof AuthedAppSettingsIndexRoute
-  '/_authed/_app/projects/$projectId/': typeof AuthedAppProjectsProjectIdIndexRoute
-  '/_authed/_app/projects/$projectId/builds/$buildId': typeof AuthedAppProjectsProjectIdBuildsBuildIdRoute
-  '/_authed/_app/projects/$projectId/channels/$channelId': typeof AuthedAppProjectsProjectIdChannelsChannelIdRoute
-  '/_authed/_app/projects/$projectId/branches/': typeof AuthedAppProjectsProjectIdBranchesIndexRoute
-  '/_authed/_app/projects/$projectId/builds/': typeof AuthedAppProjectsProjectIdBuildsIndexRoute
-  '/_authed/_app/projects/$projectId/channels/': typeof AuthedAppProjectsProjectIdChannelsIndexRoute
-  '/_authed/_app/projects/$projectId/environment-variables/': typeof AuthedAppProjectsProjectIdEnvironmentVariablesIndexRoute
-  '/_authed/_app/projects/$projectId/settings/': typeof AuthedAppProjectsProjectIdSettingsIndexRoute
-  '/_authed/_app/projects/$projectId/updates/': typeof AuthedAppProjectsProjectIdUpdatesIndexRoute
+  '/_authed/_app/projects/$projectSlug/audit-log': typeof AuthedAppProjectsProjectSlugAuditLogRoute
+  '/_authed/_app/projects/$projectSlug/': typeof AuthedAppProjectsProjectSlugIndexRoute
+  '/_authed/_app/projects/$projectSlug/builds/$buildId': typeof AuthedAppProjectsProjectSlugBuildsBuildIdRoute
+  '/_authed/_app/projects/$projectSlug/channels/$channelId': typeof AuthedAppProjectsProjectSlugChannelsChannelIdRoute
+  '/_authed/_app/projects/$projectSlug/branches/': typeof AuthedAppProjectsProjectSlugBranchesIndexRoute
+  '/_authed/_app/projects/$projectSlug/builds/': typeof AuthedAppProjectsProjectSlugBuildsIndexRoute
+  '/_authed/_app/projects/$projectSlug/channels/': typeof AuthedAppProjectsProjectSlugChannelsIndexRoute
+  '/_authed/_app/projects/$projectSlug/environment-variables/': typeof AuthedAppProjectsProjectSlugEnvironmentVariablesIndexRoute
+  '/_authed/_app/projects/$projectSlug/settings/': typeof AuthedAppProjectsProjectSlugSettingsIndexRoute
+  '/_authed/_app/projects/$projectSlug/updates/': typeof AuthedAppProjectsProjectSlugUpdatesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -269,19 +279,20 @@ export interface FileRouteTypes {
     | '/audit-log'
     | '/credentials'
     | '/members'
-    | '/projects/$projectId'
+    | '/projects/$projectSlug'
     | '/account/'
     | '/projects/'
     | '/settings/'
-    | '/projects/$projectId/'
-    | '/projects/$projectId/builds/$buildId'
-    | '/projects/$projectId/channels/$channelId'
-    | '/projects/$projectId/branches/'
-    | '/projects/$projectId/builds/'
-    | '/projects/$projectId/channels/'
-    | '/projects/$projectId/environment-variables/'
-    | '/projects/$projectId/settings/'
-    | '/projects/$projectId/updates/'
+    | '/projects/$projectSlug/audit-log'
+    | '/projects/$projectSlug/'
+    | '/projects/$projectSlug/builds/$buildId'
+    | '/projects/$projectSlug/channels/$channelId'
+    | '/projects/$projectSlug/branches/'
+    | '/projects/$projectSlug/builds/'
+    | '/projects/$projectSlug/channels/'
+    | '/projects/$projectSlug/environment-variables/'
+    | '/projects/$projectSlug/settings/'
+    | '/projects/$projectSlug/updates/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -298,15 +309,16 @@ export interface FileRouteTypes {
     | '/account'
     | '/projects'
     | '/settings'
-    | '/projects/$projectId'
-    | '/projects/$projectId/builds/$buildId'
-    | '/projects/$projectId/channels/$channelId'
-    | '/projects/$projectId/branches'
-    | '/projects/$projectId/builds'
-    | '/projects/$projectId/channels'
-    | '/projects/$projectId/environment-variables'
-    | '/projects/$projectId/settings'
-    | '/projects/$projectId/updates'
+    | '/projects/$projectSlug/audit-log'
+    | '/projects/$projectSlug'
+    | '/projects/$projectSlug/builds/$buildId'
+    | '/projects/$projectSlug/channels/$channelId'
+    | '/projects/$projectSlug/branches'
+    | '/projects/$projectSlug/builds'
+    | '/projects/$projectSlug/channels'
+    | '/projects/$projectSlug/environment-variables'
+    | '/projects/$projectSlug/settings'
+    | '/projects/$projectSlug/updates'
   id:
     | '__root__'
     | '/_authed'
@@ -322,19 +334,20 @@ export interface FileRouteTypes {
     | '/_authed/_app/credentials'
     | '/_authed/_app/members'
     | '/_authed/_app/'
-    | '/_authed/_app/projects/$projectId'
+    | '/_authed/_app/projects/$projectSlug'
     | '/_authed/_app/account/'
     | '/_authed/_app/projects/'
     | '/_authed/_app/settings/'
-    | '/_authed/_app/projects/$projectId/'
-    | '/_authed/_app/projects/$projectId/builds/$buildId'
-    | '/_authed/_app/projects/$projectId/channels/$channelId'
-    | '/_authed/_app/projects/$projectId/branches/'
-    | '/_authed/_app/projects/$projectId/builds/'
-    | '/_authed/_app/projects/$projectId/channels/'
-    | '/_authed/_app/projects/$projectId/environment-variables/'
-    | '/_authed/_app/projects/$projectId/settings/'
-    | '/_authed/_app/projects/$projectId/updates/'
+    | '/_authed/_app/projects/$projectSlug/audit-log'
+    | '/_authed/_app/projects/$projectSlug/'
+    | '/_authed/_app/projects/$projectSlug/builds/$buildId'
+    | '/_authed/_app/projects/$projectSlug/channels/$channelId'
+    | '/_authed/_app/projects/$projectSlug/branches/'
+    | '/_authed/_app/projects/$projectSlug/builds/'
+    | '/_authed/_app/projects/$projectSlug/channels/'
+    | '/_authed/_app/projects/$projectSlug/environment-variables/'
+    | '/_authed/_app/projects/$projectSlug/settings/'
+    | '/_authed/_app/projects/$projectSlug/updates/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -460,115 +473,126 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedAppAccountIndexRouteImport
       parentRoute: typeof AuthedAppRoute
     }
-    '/_authed/_app/projects/$projectId': {
-      id: '/_authed/_app/projects/$projectId'
-      path: '/projects/$projectId'
-      fullPath: '/projects/$projectId'
-      preLoaderRoute: typeof AuthedAppProjectsProjectIdRouteImport
+    '/_authed/_app/projects/$projectSlug': {
+      id: '/_authed/_app/projects/$projectSlug'
+      path: '/projects/$projectSlug'
+      fullPath: '/projects/$projectSlug'
+      preLoaderRoute: typeof AuthedAppProjectsProjectSlugRouteImport
       parentRoute: typeof AuthedAppRoute
     }
-    '/_authed/_app/projects/$projectId/': {
-      id: '/_authed/_app/projects/$projectId/'
+    '/_authed/_app/projects/$projectSlug/': {
+      id: '/_authed/_app/projects/$projectSlug/'
       path: '/'
-      fullPath: '/projects/$projectId/'
-      preLoaderRoute: typeof AuthedAppProjectsProjectIdIndexRouteImport
-      parentRoute: typeof AuthedAppProjectsProjectIdRoute
+      fullPath: '/projects/$projectSlug/'
+      preLoaderRoute: typeof AuthedAppProjectsProjectSlugIndexRouteImport
+      parentRoute: typeof AuthedAppProjectsProjectSlugRoute
     }
-    '/_authed/_app/projects/$projectId/updates/': {
-      id: '/_authed/_app/projects/$projectId/updates/'
+    '/_authed/_app/projects/$projectSlug/audit-log': {
+      id: '/_authed/_app/projects/$projectSlug/audit-log'
+      path: '/audit-log'
+      fullPath: '/projects/$projectSlug/audit-log'
+      preLoaderRoute: typeof AuthedAppProjectsProjectSlugAuditLogRouteImport
+      parentRoute: typeof AuthedAppProjectsProjectSlugRoute
+    }
+    '/_authed/_app/projects/$projectSlug/updates/': {
+      id: '/_authed/_app/projects/$projectSlug/updates/'
       path: '/updates'
-      fullPath: '/projects/$projectId/updates/'
-      preLoaderRoute: typeof AuthedAppProjectsProjectIdUpdatesIndexRouteImport
-      parentRoute: typeof AuthedAppProjectsProjectIdRoute
+      fullPath: '/projects/$projectSlug/updates/'
+      preLoaderRoute: typeof AuthedAppProjectsProjectSlugUpdatesIndexRouteImport
+      parentRoute: typeof AuthedAppProjectsProjectSlugRoute
     }
-    '/_authed/_app/projects/$projectId/settings/': {
-      id: '/_authed/_app/projects/$projectId/settings/'
+    '/_authed/_app/projects/$projectSlug/settings/': {
+      id: '/_authed/_app/projects/$projectSlug/settings/'
       path: '/settings'
-      fullPath: '/projects/$projectId/settings/'
-      preLoaderRoute: typeof AuthedAppProjectsProjectIdSettingsIndexRouteImport
-      parentRoute: typeof AuthedAppProjectsProjectIdRoute
+      fullPath: '/projects/$projectSlug/settings/'
+      preLoaderRoute: typeof AuthedAppProjectsProjectSlugSettingsIndexRouteImport
+      parentRoute: typeof AuthedAppProjectsProjectSlugRoute
     }
-    '/_authed/_app/projects/$projectId/environment-variables/': {
-      id: '/_authed/_app/projects/$projectId/environment-variables/'
+    '/_authed/_app/projects/$projectSlug/environment-variables/': {
+      id: '/_authed/_app/projects/$projectSlug/environment-variables/'
       path: '/environment-variables'
-      fullPath: '/projects/$projectId/environment-variables/'
-      preLoaderRoute: typeof AuthedAppProjectsProjectIdEnvironmentVariablesIndexRouteImport
-      parentRoute: typeof AuthedAppProjectsProjectIdRoute
+      fullPath: '/projects/$projectSlug/environment-variables/'
+      preLoaderRoute: typeof AuthedAppProjectsProjectSlugEnvironmentVariablesIndexRouteImport
+      parentRoute: typeof AuthedAppProjectsProjectSlugRoute
     }
-    '/_authed/_app/projects/$projectId/channels/': {
-      id: '/_authed/_app/projects/$projectId/channels/'
+    '/_authed/_app/projects/$projectSlug/channels/': {
+      id: '/_authed/_app/projects/$projectSlug/channels/'
       path: '/channels'
-      fullPath: '/projects/$projectId/channels/'
-      preLoaderRoute: typeof AuthedAppProjectsProjectIdChannelsIndexRouteImport
-      parentRoute: typeof AuthedAppProjectsProjectIdRoute
+      fullPath: '/projects/$projectSlug/channels/'
+      preLoaderRoute: typeof AuthedAppProjectsProjectSlugChannelsIndexRouteImport
+      parentRoute: typeof AuthedAppProjectsProjectSlugRoute
     }
-    '/_authed/_app/projects/$projectId/builds/': {
-      id: '/_authed/_app/projects/$projectId/builds/'
+    '/_authed/_app/projects/$projectSlug/builds/': {
+      id: '/_authed/_app/projects/$projectSlug/builds/'
       path: '/builds'
-      fullPath: '/projects/$projectId/builds/'
-      preLoaderRoute: typeof AuthedAppProjectsProjectIdBuildsIndexRouteImport
-      parentRoute: typeof AuthedAppProjectsProjectIdRoute
+      fullPath: '/projects/$projectSlug/builds/'
+      preLoaderRoute: typeof AuthedAppProjectsProjectSlugBuildsIndexRouteImport
+      parentRoute: typeof AuthedAppProjectsProjectSlugRoute
     }
-    '/_authed/_app/projects/$projectId/branches/': {
-      id: '/_authed/_app/projects/$projectId/branches/'
+    '/_authed/_app/projects/$projectSlug/branches/': {
+      id: '/_authed/_app/projects/$projectSlug/branches/'
       path: '/branches'
-      fullPath: '/projects/$projectId/branches/'
-      preLoaderRoute: typeof AuthedAppProjectsProjectIdBranchesIndexRouteImport
-      parentRoute: typeof AuthedAppProjectsProjectIdRoute
+      fullPath: '/projects/$projectSlug/branches/'
+      preLoaderRoute: typeof AuthedAppProjectsProjectSlugBranchesIndexRouteImport
+      parentRoute: typeof AuthedAppProjectsProjectSlugRoute
     }
-    '/_authed/_app/projects/$projectId/channels/$channelId': {
-      id: '/_authed/_app/projects/$projectId/channels/$channelId'
+    '/_authed/_app/projects/$projectSlug/channels/$channelId': {
+      id: '/_authed/_app/projects/$projectSlug/channels/$channelId'
       path: '/channels/$channelId'
-      fullPath: '/projects/$projectId/channels/$channelId'
-      preLoaderRoute: typeof AuthedAppProjectsProjectIdChannelsChannelIdRouteImport
-      parentRoute: typeof AuthedAppProjectsProjectIdRoute
+      fullPath: '/projects/$projectSlug/channels/$channelId'
+      preLoaderRoute: typeof AuthedAppProjectsProjectSlugChannelsChannelIdRouteImport
+      parentRoute: typeof AuthedAppProjectsProjectSlugRoute
     }
-    '/_authed/_app/projects/$projectId/builds/$buildId': {
-      id: '/_authed/_app/projects/$projectId/builds/$buildId'
+    '/_authed/_app/projects/$projectSlug/builds/$buildId': {
+      id: '/_authed/_app/projects/$projectSlug/builds/$buildId'
       path: '/builds/$buildId'
-      fullPath: '/projects/$projectId/builds/$buildId'
-      preLoaderRoute: typeof AuthedAppProjectsProjectIdBuildsBuildIdRouteImport
-      parentRoute: typeof AuthedAppProjectsProjectIdRoute
+      fullPath: '/projects/$projectSlug/builds/$buildId'
+      preLoaderRoute: typeof AuthedAppProjectsProjectSlugBuildsBuildIdRouteImport
+      parentRoute: typeof AuthedAppProjectsProjectSlugRoute
     }
   }
 }
 
-interface AuthedAppProjectsProjectIdRouteChildren {
-  AuthedAppProjectsProjectIdIndexRoute: typeof AuthedAppProjectsProjectIdIndexRoute
-  AuthedAppProjectsProjectIdBuildsBuildIdRoute: typeof AuthedAppProjectsProjectIdBuildsBuildIdRoute
-  AuthedAppProjectsProjectIdChannelsChannelIdRoute: typeof AuthedAppProjectsProjectIdChannelsChannelIdRoute
-  AuthedAppProjectsProjectIdBranchesIndexRoute: typeof AuthedAppProjectsProjectIdBranchesIndexRoute
-  AuthedAppProjectsProjectIdBuildsIndexRoute: typeof AuthedAppProjectsProjectIdBuildsIndexRoute
-  AuthedAppProjectsProjectIdChannelsIndexRoute: typeof AuthedAppProjectsProjectIdChannelsIndexRoute
-  AuthedAppProjectsProjectIdEnvironmentVariablesIndexRoute: typeof AuthedAppProjectsProjectIdEnvironmentVariablesIndexRoute
-  AuthedAppProjectsProjectIdSettingsIndexRoute: typeof AuthedAppProjectsProjectIdSettingsIndexRoute
-  AuthedAppProjectsProjectIdUpdatesIndexRoute: typeof AuthedAppProjectsProjectIdUpdatesIndexRoute
+interface AuthedAppProjectsProjectSlugRouteChildren {
+  AuthedAppProjectsProjectSlugAuditLogRoute: typeof AuthedAppProjectsProjectSlugAuditLogRoute
+  AuthedAppProjectsProjectSlugIndexRoute: typeof AuthedAppProjectsProjectSlugIndexRoute
+  AuthedAppProjectsProjectSlugBuildsBuildIdRoute: typeof AuthedAppProjectsProjectSlugBuildsBuildIdRoute
+  AuthedAppProjectsProjectSlugChannelsChannelIdRoute: typeof AuthedAppProjectsProjectSlugChannelsChannelIdRoute
+  AuthedAppProjectsProjectSlugBranchesIndexRoute: typeof AuthedAppProjectsProjectSlugBranchesIndexRoute
+  AuthedAppProjectsProjectSlugBuildsIndexRoute: typeof AuthedAppProjectsProjectSlugBuildsIndexRoute
+  AuthedAppProjectsProjectSlugChannelsIndexRoute: typeof AuthedAppProjectsProjectSlugChannelsIndexRoute
+  AuthedAppProjectsProjectSlugEnvironmentVariablesIndexRoute: typeof AuthedAppProjectsProjectSlugEnvironmentVariablesIndexRoute
+  AuthedAppProjectsProjectSlugSettingsIndexRoute: typeof AuthedAppProjectsProjectSlugSettingsIndexRoute
+  AuthedAppProjectsProjectSlugUpdatesIndexRoute: typeof AuthedAppProjectsProjectSlugUpdatesIndexRoute
 }
 
-const AuthedAppProjectsProjectIdRouteChildren: AuthedAppProjectsProjectIdRouteChildren =
+const AuthedAppProjectsProjectSlugRouteChildren: AuthedAppProjectsProjectSlugRouteChildren =
   {
-    AuthedAppProjectsProjectIdIndexRoute: AuthedAppProjectsProjectIdIndexRoute,
-    AuthedAppProjectsProjectIdBuildsBuildIdRoute:
-      AuthedAppProjectsProjectIdBuildsBuildIdRoute,
-    AuthedAppProjectsProjectIdChannelsChannelIdRoute:
-      AuthedAppProjectsProjectIdChannelsChannelIdRoute,
-    AuthedAppProjectsProjectIdBranchesIndexRoute:
-      AuthedAppProjectsProjectIdBranchesIndexRoute,
-    AuthedAppProjectsProjectIdBuildsIndexRoute:
-      AuthedAppProjectsProjectIdBuildsIndexRoute,
-    AuthedAppProjectsProjectIdChannelsIndexRoute:
-      AuthedAppProjectsProjectIdChannelsIndexRoute,
-    AuthedAppProjectsProjectIdEnvironmentVariablesIndexRoute:
-      AuthedAppProjectsProjectIdEnvironmentVariablesIndexRoute,
-    AuthedAppProjectsProjectIdSettingsIndexRoute:
-      AuthedAppProjectsProjectIdSettingsIndexRoute,
-    AuthedAppProjectsProjectIdUpdatesIndexRoute:
-      AuthedAppProjectsProjectIdUpdatesIndexRoute,
+    AuthedAppProjectsProjectSlugAuditLogRoute:
+      AuthedAppProjectsProjectSlugAuditLogRoute,
+    AuthedAppProjectsProjectSlugIndexRoute:
+      AuthedAppProjectsProjectSlugIndexRoute,
+    AuthedAppProjectsProjectSlugBuildsBuildIdRoute:
+      AuthedAppProjectsProjectSlugBuildsBuildIdRoute,
+    AuthedAppProjectsProjectSlugChannelsChannelIdRoute:
+      AuthedAppProjectsProjectSlugChannelsChannelIdRoute,
+    AuthedAppProjectsProjectSlugBranchesIndexRoute:
+      AuthedAppProjectsProjectSlugBranchesIndexRoute,
+    AuthedAppProjectsProjectSlugBuildsIndexRoute:
+      AuthedAppProjectsProjectSlugBuildsIndexRoute,
+    AuthedAppProjectsProjectSlugChannelsIndexRoute:
+      AuthedAppProjectsProjectSlugChannelsIndexRoute,
+    AuthedAppProjectsProjectSlugEnvironmentVariablesIndexRoute:
+      AuthedAppProjectsProjectSlugEnvironmentVariablesIndexRoute,
+    AuthedAppProjectsProjectSlugSettingsIndexRoute:
+      AuthedAppProjectsProjectSlugSettingsIndexRoute,
+    AuthedAppProjectsProjectSlugUpdatesIndexRoute:
+      AuthedAppProjectsProjectSlugUpdatesIndexRoute,
   }
 
-const AuthedAppProjectsProjectIdRouteWithChildren =
-  AuthedAppProjectsProjectIdRoute._addFileChildren(
-    AuthedAppProjectsProjectIdRouteChildren,
+const AuthedAppProjectsProjectSlugRouteWithChildren =
+  AuthedAppProjectsProjectSlugRoute._addFileChildren(
+    AuthedAppProjectsProjectSlugRouteChildren,
   )
 
 interface AuthedAppRouteChildren {
@@ -577,7 +601,7 @@ interface AuthedAppRouteChildren {
   AuthedAppCredentialsRoute: typeof AuthedAppCredentialsRoute
   AuthedAppMembersRoute: typeof AuthedAppMembersRoute
   AuthedAppIndexRoute: typeof AuthedAppIndexRoute
-  AuthedAppProjectsProjectIdRoute: typeof AuthedAppProjectsProjectIdRouteWithChildren
+  AuthedAppProjectsProjectSlugRoute: typeof AuthedAppProjectsProjectSlugRouteWithChildren
   AuthedAppAccountIndexRoute: typeof AuthedAppAccountIndexRoute
   AuthedAppProjectsIndexRoute: typeof AuthedAppProjectsIndexRoute
   AuthedAppSettingsIndexRoute: typeof AuthedAppSettingsIndexRoute
@@ -589,7 +613,8 @@ const AuthedAppRouteChildren: AuthedAppRouteChildren = {
   AuthedAppCredentialsRoute: AuthedAppCredentialsRoute,
   AuthedAppMembersRoute: AuthedAppMembersRoute,
   AuthedAppIndexRoute: AuthedAppIndexRoute,
-  AuthedAppProjectsProjectIdRoute: AuthedAppProjectsProjectIdRouteWithChildren,
+  AuthedAppProjectsProjectSlugRoute:
+    AuthedAppProjectsProjectSlugRouteWithChildren,
   AuthedAppAccountIndexRoute: AuthedAppAccountIndexRoute,
   AuthedAppProjectsIndexRoute: AuthedAppProjectsIndexRoute,
   AuthedAppSettingsIndexRoute: AuthedAppSettingsIndexRoute,
