@@ -9,7 +9,8 @@ import type { AuditLogResourceType } from "../models";
 export const logAudit = (params: {
   action: string;
   resourceType: AuditLogResourceType;
-  resourceId?: string;
+  resourceId?: string | undefined;
+  projectId?: string | undefined;
   metadata?: Record<string, unknown>;
 }) =>
   Effect.gen(function* () {
@@ -19,6 +20,7 @@ export const logAudit = (params: {
     yield* repo.insert({
       id: crypto.randomUUID(),
       organizationId: ctx.organizationId,
+      projectId: toDbNull(params.projectId),
       actorId: ctx.userId,
       actorEmail: ctx.actorEmail,
       action: params.action,

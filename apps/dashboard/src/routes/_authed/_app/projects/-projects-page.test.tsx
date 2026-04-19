@@ -21,12 +21,12 @@ import { renderWithQuery } from "../../../../../tests/helpers/render-with-query"
 const ProjectCard = ({
   project,
 }: {
-  project: { name: string; scopeKey: string; createdAt: string };
+  project: { name: string; slug: string; createdAt: string };
 }) => (
   <Card>
     <CardHeader className="pb-2">
       <CardTitle className="text-base">{project.name}</CardTitle>
-      <CardDescription>{project.scopeKey}</CardDescription>
+      <CardDescription>{project.slug}</CardDescription>
     </CardHeader>
     <CardContent>
       <Badge variant="outline">{new Date(project.createdAt).toLocaleDateString()}</Badge>
@@ -97,12 +97,12 @@ describe("projects page rendering", () => {
     ).toBeInTheDocument();
   });
 
-  test("renders project cards with name and scopeKey", () => {
+  test("renders project cards with name and slug", () => {
     const session = makeSession();
     const org = makeOrg();
     const projects = [
-      makeProject({ id: "proj-1", name: "Alpha", scopeKey: "@alpha/app" }),
-      makeProject({ id: "proj-2", name: "Beta", scopeKey: "@beta/app" }),
+      makeProject({ id: "proj-1", name: "Alpha", slug: "alpha" }),
+      makeProject({ id: "proj-2", name: "Beta", slug: "beta" }),
     ];
 
     renderWithQuery(<ProjectsTestPage />, {
@@ -114,9 +114,9 @@ describe("projects page rendering", () => {
     });
 
     expect(screen.getByText("Alpha")).toBeInTheDocument();
-    expect(screen.getByText("@alpha/app")).toBeInTheDocument();
+    expect(screen.getByText("alpha")).toBeInTheDocument();
     expect(screen.getByText("Beta")).toBeInTheDocument();
-    expect(screen.getByText("@beta/app")).toBeInTheDocument();
+    expect(screen.getByText("beta")).toBeInTheDocument();
   });
 
   test("renders creation date on project cards", () => {

@@ -160,7 +160,7 @@ describe("Updates & Assets API flow", () => {
   it("creates a project", async () => {
     const response = await post(
       "/api/projects",
-      { name: "Updates Test Project", scopeKey: "@updates/test" },
+      { name: "Updates Test Project", slug: "updates-test" },
       { cookie: cookies },
     );
     expect(response.status).toBe(201);
@@ -172,7 +172,7 @@ describe("Updates & Assets API flow", () => {
   it("creates a project for auto branch/channel creation", async () => {
     const response = await post(
       "/api/projects",
-      { name: "Updates Auto Project", scopeKey: "@updates/auto" },
+      { name: "Updates Auto Project", slug: "updates-auto" },
       { cookie: cookies },
     );
     expect(response.status).toBe(201);
@@ -301,7 +301,7 @@ describe("Updates & Assets API flow", () => {
     const publishResponse = await post(
       "/api/updates",
       {
-        project: "@updates/test",
+        slug: "updates-test",
         branch: "main",
         runtimeVersion: "1.0.0",
         platform: "ios",
@@ -375,7 +375,7 @@ describe("Updates & Assets API flow", () => {
     const publishResponse = await post(
       "/api/updates",
       {
-        project: "@updates/auto",
+        slug: "updates-auto",
         branch: "preview-auto",
         runtimeVersion: "1.0.0",
         platform: "ios",
@@ -442,7 +442,7 @@ describe("Updates & Assets API flow", () => {
     const publishResponse = await post(
       "/api/updates",
       {
-        project: "@updates/auto",
+        slug: "updates-auto",
         branch: "conflict-preview",
         runtimeVersion: "1.0.0",
         platform: "ios",
@@ -471,7 +471,7 @@ describe("Updates & Assets API flow", () => {
     const response = await post(
       "/api/updates",
       {
-        project: "@updates/test",
+        slug: "updates-test",
         branch: "main",
         runtimeVersion: "1.0.0",
         platform: "ios",
@@ -509,7 +509,7 @@ describe("Updates & Assets API flow", () => {
     const response = await post(
       "/api/updates",
       {
-        project: "@updates/test",
+        slug: "updates-test",
         branch: "main",
         runtimeVersion: "1.0.0",
         platform: "android",
@@ -557,7 +557,7 @@ describe("Updates & Assets API flow", () => {
     const response = await post(
       "/api/updates",
       {
-        project: "@updates/test",
+        slug: "updates-test",
         branch: "rollback",
         runtimeVersion: "9.0.0",
         platform: "ios",
@@ -636,7 +636,7 @@ describe("Updates & Assets API flow", () => {
     const response = await post(
       "/api/updates",
       {
-        project: "@updates/test",
+        slug: "updates-test",
         branch: "staging",
         runtimeVersion: "1.0.0",
         platform: "ios",
@@ -704,7 +704,7 @@ describe("Updates & Assets API flow", () => {
     const response = await post(
       "/api/updates",
       {
-        project: "@updates/test",
+        slug: "updates-test",
         branch: "signed-source",
         runtimeVersion: "1.0.0",
         platform: "ios",
@@ -941,7 +941,7 @@ describe("Updates & Assets API flow", () => {
   it("creates a project and branch in org B", async () => {
     const projRes = await post(
       "/api/projects",
-      { name: "Org B Project", scopeKey: "@orgb/updates" },
+      { name: "Org B Project", slug: "orgb-updates" },
       { cookie: cookies },
     );
     expect(projRes.status).toBe(201);
@@ -1009,7 +1009,7 @@ describe("Updates & Assets API flow", () => {
     const response = await post(
       "/api/updates",
       {
-        project: "@updates/test",
+        slug: "updates-test",
         branch: "blocking-test",
         runtimeVersion: "2.0.0",
         platform: "ios",
@@ -1031,7 +1031,7 @@ describe("Updates & Assets API flow", () => {
     const response = await post(
       "/api/updates",
       {
-        project: "@updates/test",
+        slug: "updates-test",
         branch: "blocking-test",
         runtimeVersion: "2.0.0",
         platform: "ios",
@@ -1060,7 +1060,7 @@ describe("Updates & Assets API flow", () => {
     const response = await post(
       "/api/updates",
       {
-        project: "@updates/test",
+        slug: "updates-test",
         branch: "blocking-test",
         runtimeVersion: "2.0.0",
         platform: "ios",
@@ -1090,7 +1090,7 @@ describe("Updates & Assets API flow", () => {
             post(
               "/api/updates",
               {
-                project: "@updates/test",
+                slug: "updates-test",
                 branch: "concurrent-rollout",
                 runtimeVersion: "3.0.0",
                 platform: "ios",
@@ -1107,7 +1107,7 @@ describe("Updates & Assets API flow", () => {
             post(
               "/api/updates",
               {
-                project: "@updates/test",
+                slug: "updates-test",
                 branch: "concurrent-rollout",
                 runtimeVersion: "3.0.0",
                 platform: "ios",

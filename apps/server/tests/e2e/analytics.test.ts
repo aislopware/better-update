@@ -62,7 +62,7 @@ describe("Analytics endpoints", () => {
     // Create project
     const projectResponse = await post(
       "/api/projects",
-      { name: "Analytics Project", scopeKey: "@test/analytics" },
+      { name: "Analytics Project", slug: "analytics" },
       { cookie: cookies },
     );
     expect(projectResponse.status).toBe(201);

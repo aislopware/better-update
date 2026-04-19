@@ -9,7 +9,7 @@ const handleErrors = makeCommandErrorHandler();
 
 const idArg = Args.text({ name: "id" });
 const nameOption = Options.text("name");
-const scopeKeyOption = Options.text("scope-key");
+const slugOption = Options.text("slug");
 
 const listCommand = Command.make("list", {}, () =>
   Effect.gen(function* () {
@@ -24,28 +24,25 @@ const listCommand = Command.make("list", {}, () =>
     }
 
     yield* printTable(
-      ["ID", "Name", "Scope Key", "Created"],
-      items.map((p) => [p.id, p.name, p.scopeKey, p.createdAt]),
+      ["ID", "Name", "Slug", "Created"],
+      items.map((p) => [p.id, p.name, p.slug, p.createdAt]),
     );
   }).pipe(handleErrors),
 );
 
-const createCommand = Command.make(
-  "create",
-  { name: nameOption, scopeKey: scopeKeyOption },
-  (opts) =>
-    Effect.gen(function* () {
-      const api = yield* apiClient;
-      const project = yield* api.projects.create({
-        payload: { name: opts.name, scopeKey: opts.scopeKey },
-      });
-      yield* printKeyValue([
-        ["ID", project.id],
-        ["Name", project.name],
-        ["Scope Key", project.scopeKey],
-        ["Created", project.createdAt],
-      ]);
-    }).pipe(handleErrors),
+const createCommand = Command.make("create", { name: nameOption, slug: slugOption }, (opts) =>
+  Effect.gen(function* () {
+    const api = yield* apiClient;
+    const project = yield* api.projects.create({
+      payload: { name: opts.name, slug: opts.slug },
+    });
+    yield* printKeyValue([
+      ["ID", project.id],
+      ["Name", project.name],
+      ["Slug", project.slug],
+      ["Created", project.createdAt],
+    ]);
+  }).pipe(handleErrors),
 );
 
 const getCommand = Command.make("get", { id: idArg }, (opts) =>
@@ -55,7 +52,7 @@ const getCommand = Command.make("get", { id: idArg }, (opts) =>
     yield* printKeyValue([
       ["ID", project.id],
       ["Name", project.name],
-      ["Scope Key", project.scopeKey],
+      ["Slug", project.slug],
       ["Created", project.createdAt],
     ]);
   }).pipe(handleErrors),

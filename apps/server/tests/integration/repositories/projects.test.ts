@@ -38,7 +38,7 @@ describe("ProjectRepo — D1 integration", () => {
             id: "proj-insert-1",
             organizationId: "org-1",
             name: "My App",
-            scopeKey: "@test/insert-1",
+            slug: "test-insert-1",
             createdAt: "2026-01-01T00:00:00Z",
           });
         }),
@@ -50,11 +50,11 @@ describe("ProjectRepo — D1 integration", () => {
 
       expect(row).not.toBeNull();
       expect(row!.name).toBe("My App");
-      expect(row!.scope_key).toBe("@test/insert-1");
+      expect(row!.slug).toBe("test-insert-1");
       expect(row!.organization_id).toBe("org-1");
     });
 
-    it("returns Conflict on duplicate scope_key", async () => {
+    it("returns Conflict on duplicate slug in same org", async () => {
       await run(
         Effect.gen(function* () {
           const repo = yield* ProjectRepo;
@@ -62,7 +62,7 @@ describe("ProjectRepo — D1 integration", () => {
             id: "proj-dup-1",
             organizationId: "org-1",
             name: "First",
-            scopeKey: "@test/duplicate",
+            slug: "test-duplicate",
             createdAt: "2026-01-01T00:00:00Z",
           });
         }),
@@ -75,7 +75,7 @@ describe("ProjectRepo — D1 integration", () => {
             id: "proj-dup-2",
             organizationId: "org-1",
             name: "Second",
-            scopeKey: "@test/duplicate",
+            slug: "test-duplicate",
             createdAt: "2026-01-02T00:00:00Z",
           });
         }),
@@ -99,21 +99,21 @@ describe("ProjectRepo — D1 integration", () => {
             id: "proj-find-1",
             organizationId: "org-1",
             name: "Org1 App A",
-            scopeKey: "@org1/app-a",
+            slug: "org1-app-a",
             createdAt: "2026-01-01T00:00:00Z",
           });
           yield* repo.insert({
             id: "proj-find-2",
             organizationId: "org-1",
             name: "Org1 App B",
-            scopeKey: "@org1/app-b",
+            slug: "org1-app-b",
             createdAt: "2026-01-02T00:00:00Z",
           });
           yield* repo.insert({
             id: "proj-find-3",
             organizationId: "org-1",
             name: "Org1 App C",
-            scopeKey: "@org1/app-c",
+            slug: "org1-app-c",
             createdAt: "2026-01-03T00:00:00Z",
           });
 
@@ -121,7 +121,7 @@ describe("ProjectRepo — D1 integration", () => {
             id: "proj-find-4",
             organizationId: "org-2",
             name: "Org2 App",
-            scopeKey: "@org2/app",
+            slug: "org2-app",
             createdAt: "2026-01-01T00:00:00Z",
           });
         }),

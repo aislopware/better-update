@@ -39,20 +39,18 @@ export const readProjectId = Effect.gen(function* () {
   return projectId;
 });
 
-export const readScopeKey = Effect.gen(function* () {
+export const readSlug = Effect.gen(function* () {
   const appJson = yield* readAppJson;
   const expo = asRecord(appJson["expo"]);
-  const owner = expo?.["owner"];
   const slug = expo?.["slug"];
 
-  if (typeof owner !== "string" || typeof slug !== "string") {
+  if (typeof slug !== "string") {
     return yield* new ProjectNotLinkedError({
-      message:
-        "Missing expo.owner or expo.slug in app.json. Both are required to compute the scope key.",
+      message: "Missing expo.slug in app.json. Required to identify the project.",
     });
   }
 
-  return `@${owner}/${slug}`;
+  return slug;
 });
 
 export const writeProjectId = (id: string) =>

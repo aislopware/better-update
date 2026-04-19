@@ -288,6 +288,7 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
             action: "envVar.create",
             resourceType: "envVar",
             resourceId: envVar.id,
+            projectId: payload.projectId,
             metadata: {
               key: payload.key,
               environment: payload.environment,
@@ -373,6 +374,7 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
             action: "envVar.update",
             resourceType: "envVar",
             resourceId: path.id,
+            projectId: existing.project_id,
             metadata: payload.visibility ? { visibility: payload.visibility } : {},
           });
 
@@ -395,6 +397,7 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
             action: "envVar.delete",
             resourceType: "envVar",
             resourceId: path.id,
+            projectId: row.project_id,
           });
 
           return { id: path.id };
@@ -470,6 +473,7 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
           yield* logAudit({
             action: "envVar.bulkImport",
             resourceType: "envVar",
+            projectId: payload.projectId,
             metadata: {
               projectId: payload.projectId,
               environment: payload.environment,

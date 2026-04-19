@@ -32,8 +32,9 @@ export const toApiProject = (project: ProjectModel) =>
     id: project.id,
     organizationId: project.organizationId,
     name: project.name,
-    scopeKey: project.scopeKey,
+    slug: project.slug,
     createdAt: project.createdAt,
+    lastActivityAt: project.lastActivityAt,
   });
 
 export const toApiBranch = (branch: BranchModel) =>

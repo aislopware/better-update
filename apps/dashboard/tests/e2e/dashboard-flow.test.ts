@@ -53,14 +53,14 @@ describe("Dashboard full journey", () => {
   it("creates a project - returns 201", async () => {
     const response = await post(
       "/api/projects",
-      { name: "Flow Project", scopeKey: "@flow/app" },
+      { name: "Flow Project", slug: "flow" },
       { cookie: state.cookies },
     );
     expect(response.status).toBe(201);
     const body = await response.json();
     expect(body).toHaveProperty("id");
     expect(body.name).toBe("Flow Project");
-    expect(body.scopeKey).toBe("@flow/app");
+    expect(body.slug).toBe("flow");
   });
 
   it("lists projects - project appears", async () => {

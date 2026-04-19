@@ -14,7 +14,7 @@ export interface ProjectRepository {
     readonly id: string;
     readonly organizationId: string;
     readonly name: string;
-    readonly scopeKey: string;
+    readonly slug: string;
     readonly createdAt: string;
   }) => Effect.Effect<void, Conflict>;
 
@@ -26,9 +26,14 @@ export interface ProjectRepository {
 
   readonly findById: (params: { readonly id: string }) => Effect.Effect<ProjectModel, NotFound>;
 
-  readonly findByScopeKey: (params: {
-    readonly scopeKey: string;
+  readonly findBySlug: (params: {
+    readonly organizationId: string;
+    readonly slug: string;
   }) => Effect.Effect<ProjectModel, NotFound>;
+
+  readonly findByIds: (params: {
+    readonly ids: readonly string[];
+  }) => Effect.Effect<ReadonlyMap<string, ProjectModel>>;
 
   readonly findOrgIdById: (params: { readonly id: string }) => Effect.Effect<string, NotFound>;
 
@@ -48,17 +53,21 @@ interface ProjectRow {
   id: string;
   organization_id: string;
   name: string;
-  scope_key: string;
+  slug: string;
   created_at: string;
+  last_activity_at: string;
 }
+
+const PROJECT_COLUMNS = `"projects"."id", "projects"."organization_id", "projects"."name", "projects"."slug", "projects"."created_at", COALESCE((SELECT MAX("updates"."created_at") FROM "updates" JOIN "branches" ON "updates"."branch_id" = "branches"."id" WHERE "branches"."project_id" = "projects"."id"), "projects"."created_at") AS "last_activity_at"`;
 
 const toProject = (row: ProjectRow) =>
   ({
     id: row.id,
     organizationId: row.organization_id,
     name: row.name,
-    scopeKey: row.scope_key,
+    slug: row.slug,
     createdAt: row.created_at,
+    lastActivityAt: row.last_activity_at,
   }) satisfies ProjectModel;
 
 export const ProjectRepoLive = Layer.succeed(ProjectRepo, {
@@ -69,11 +78,11 @@ export const ProjectRepoLive = Layer.succeed(ProjectRepo, {
       yield* d1RunWithUniqueCheck(
         async () =>
           env.DB.prepare(
-            `INSERT INTO "projects" ("id", "organization_id", "name", "scope_key", "created_at") VALUES (?, ?, ?, ?, ?)`,
+            `INSERT INTO "projects" ("id", "organization_id", "name", "slug", "created_at") VALUES (?, ?, ?, ?, ?)`,
           )
-            .bind(params.id, params.organizationId, params.name, params.scopeKey, params.createdAt)
+            .bind(params.id, params.organizationId, params.name, params.slug, params.createdAt)
             .run(),
-        `A project with scope key "${params.scopeKey}" already exists`,
+        `A project with slug "${params.slug}" already exists`,
       );
     }),
 
@@ -91,7 +100,7 @@ export const ProjectRepoLive = Layer.succeed(ProjectRepo, {
 
       const rows = yield* Effect.promise(async () =>
         env.DB.prepare(
-          `SELECT "id", "organization_id", "name", "scope_key", "created_at" FROM "projects" WHERE "organization_id" = ? ORDER BY "created_at" DESC LIMIT ? OFFSET ?`,
+          `SELECT ${PROJECT_COLUMNS} FROM "projects" WHERE "organization_id" = ? ORDER BY "last_activity_at" DESC LIMIT ? OFFSET ?`,
         )
           .bind(params.organizationId, params.limit, params.offset)
           .all<ProjectRow>(),
@@ -105,9 +114,7 @@ export const ProjectRepoLive = Layer.succeed(ProjectRepo, {
       const env = yield* cloudflareEnv;
 
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT "id", "organization_id", "name", "scope_key", "created_at" FROM "projects" WHERE "id" = ?`,
-        )
+        env.DB.prepare(`SELECT ${PROJECT_COLUMNS} FROM "projects" WHERE "id" = ?`)
           .bind(params.id)
           .first<ProjectRow>(),
       );
@@ -119,15 +126,15 @@ export const ProjectRepoLive = Layer.succeed(ProjectRepo, {
       return toProject(row);
     }),
 
-  findByScopeKey: (params) =>
+  findBySlug: (params) =>
     Effect.gen(function* () {
       const env = yield* cloudflareEnv;
 
       const row = yield* Effect.promise(async () =>
         env.DB.prepare(
-          `SELECT "id", "organization_id", "name", "scope_key", "created_at" FROM "projects" WHERE "scope_key" = ?`,
+          `SELECT ${PROJECT_COLUMNS} FROM "projects" WHERE "organization_id" = ? AND "slug" = ?`,
         )
-          .bind(params.scopeKey)
+          .bind(params.organizationId, params.slug)
           .first<ProjectRow>(),
       );
 
@@ -136,6 +143,27 @@ export const ProjectRepoLive = Layer.succeed(ProjectRepo, {
       }
 
       return toProject(row);
+    }),
+
+  findByIds: (params) =>
+    Effect.gen(function* () {
+      if (params.ids.length === 0) {
+        return new Map<string, ProjectModel>();
+      }
+
+      const env = yield* cloudflareEnv;
+      const placeholders = params.ids.map(() => "?").join(", ");
+      const rows = yield* Effect.promise(async () =>
+        env.DB.prepare(`SELECT ${PROJECT_COLUMNS} FROM "projects" WHERE "id" IN (${placeholders})`)
+          .bind(...params.ids)
+          .all<ProjectRow>(),
+      );
+
+      const map = new Map<string, ProjectModel>();
+      rows.results.forEach((row) => {
+        map.set(row.id, toProject(row));
+      });
+      return map;
     }),
 
   findOrgIdById: (params) =>

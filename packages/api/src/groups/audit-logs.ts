@@ -10,6 +10,7 @@ export class AuditLogsGroup extends HttpApiGroup.make("audit-logs")
     HttpApiEndpoint.get("list", "/api/audit-logs")
       .setUrlParams(
         Schema.Struct({
+          projectId: Schema.optional(Schema.String),
           action: Schema.optional(Schema.String),
           resourceType: Schema.optional(Schema.String),
           actorId: Schema.optional(Schema.String),

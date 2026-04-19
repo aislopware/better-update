@@ -17,20 +17,21 @@ import { PlusIcon } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
-import {
-  generateScopeKey,
-  getFieldError,
-  nameSchema,
-  requiredStringSchema,
-} from "../../../../lib/form-utils";
+import { generateSlug, getFieldError, nameSchema, slugSchema } from "../../../../lib/form-utils";
 import { safeSubmit, useApiMutation } from "../../../../lib/use-api-mutation";
 
-const CreateFormContent = ({ orgId, onSuccess }: { orgId: string; onSuccess: () => void }) => {
+export const CreateProjectFormContent = ({
+  orgId,
+  onSuccess,
+}: {
+  orgId: string;
+  onSuccess: () => void;
+}) => {
   const queryClient = useQueryClient();
-  const scopeKeyEdited = useRef(false);
+  const slugEdited = useRef(false);
   const createProjectMutation = useApiMutation({
-    mutationFn: async (value: { name: string; scopeKey: string }) =>
-      createProject({ name: value.name, scopeKey: value.scopeKey }),
+    mutationFn: async (value: { name: string; slug: string }) =>
+      createProject({ name: value.name, slug: value.slug }),
     onSuccess: async () => {
       toast.success("Project created");
       await queryClient.invalidateQueries({
@@ -41,7 +42,7 @@ const CreateFormContent = ({ orgId, onSuccess }: { orgId: string; onSuccess: () 
   });
 
   const form = useForm({
-    defaultValues: { name: "", scopeKey: "" },
+    defaultValues: { name: "", slug: "" },
     onSubmit: async ({ value }) => safeSubmit(createProjectMutation.mutateAsync(value)),
   });
 
@@ -75,8 +76,8 @@ const CreateFormContent = ({ orgId, onSuccess }: { orgId: string; onSuccess: () 
                   onChange={(event) => {
                     const name = event.target.value;
                     field.handleChange(name);
-                    if (!scopeKeyEdited.current) {
-                      form.setFieldValue("scopeKey", generateScopeKey(name), {
+                    if (!slugEdited.current) {
+                      form.setFieldValue("slug", generateSlug(name), {
                         dontUpdateMeta: true,
                         dontValidate: true,
                       });
@@ -91,10 +92,10 @@ const CreateFormContent = ({ orgId, onSuccess }: { orgId: string; onSuccess: () 
         </form.Field>
 
         <form.Field
-          name="scopeKey"
+          name="slug"
           validators={{
             onBlur: ({ value }) => {
-              const result = requiredStringSchema.safeParse(value);
+              const result = slugSchema.safeParse(value);
               return result.success ? undefined : result.error.issues[0]?.message;
             },
           }}
@@ -103,19 +104,20 @@ const CreateFormContent = ({ orgId, onSuccess }: { orgId: string; onSuccess: () 
             const errorMessage = getFieldError(field);
             return (
               <div className="flex flex-col gap-2">
-                <Label htmlFor="project-scope-key">Scope key</Label>
+                <Label htmlFor="project-slug">Slug</Label>
                 <Input
-                  id="project-scope-key"
-                  placeholder="@my-app/app"
+                  id="project-slug"
+                  placeholder="my-app"
                   value={field.state.value}
                   onChange={(event) => {
                     field.handleChange(event.target.value);
-                    scopeKeyEdited.current = event.target.value !== "";
+                    slugEdited.current = event.target.value !== "";
                   }}
                   onBlur={field.handleBlur}
                 />
                 <p className="text-muted-foreground text-xs">
-                  Unique identifier used by the update client SDK.
+                  Lowercase URL-safe identifier. Must match <code>expo.slug</code> in your{" "}
+                  <code>app.json</code>.
                 </p>
                 {errorMessage ? <p className="text-destructive text-sm">{errorMessage}</p> : null}
               </div>
@@ -161,7 +163,7 @@ export const CreateProjectDialog = ({ orgId }: { orgId: string }) => {
             Projects organize your OTA updates and deployment channels.
           </DialogDescription>
         </DialogHeader>
-        <CreateFormContent
+        <CreateProjectFormContent
           orgId={orgId}
           onSuccess={() => {
             setOpen(false);

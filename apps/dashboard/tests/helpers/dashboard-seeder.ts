@@ -19,7 +19,7 @@ export interface SeededOrg {
   readonly userEmail: string;
   readonly orgId: string;
   readonly projectId: string;
-  readonly scopeKey: string;
+  readonly slug: string;
 }
 
 export interface CreateDashboardSeederParams {
@@ -29,7 +29,7 @@ export interface CreateDashboardSeederParams {
   readonly orgName: string;
   readonly orgSlug: string;
   readonly projectName: string;
-  readonly scopeKey: string;
+  readonly slug: string;
 }
 
 export const seedUserOrgProject = async (
@@ -64,7 +64,7 @@ export const seedUserOrgProject = async (
 
   const projectResponse = await dashboard.post(
     "/api/projects",
-    { name: params.projectName, scopeKey: params.scopeKey },
+    { name: params.projectName, slug: params.slug },
     { cookie: cookies },
   );
   expect(projectResponse.status).toBe(201);
@@ -75,7 +75,7 @@ export const seedUserOrgProject = async (
     userEmail: params.email,
     orgId: orgBody.id,
     projectId: projectBody.id,
-    scopeKey: params.scopeKey,
+    slug: params.slug,
   };
 };
 
@@ -163,7 +163,7 @@ export const seedAssetAndFinalize = async (params: {
 export const seedUpdate = async (params: {
   readonly dashboard: Dashboard;
   readonly cookies: string;
-  readonly scopeKey: string;
+  readonly slug: string;
   readonly branch: string;
   readonly assetHash: string;
   readonly message: string;
@@ -172,7 +172,7 @@ export const seedUpdate = async (params: {
   const response = await params.dashboard.post(
     "/api/updates",
     {
-      project: params.scopeKey,
+      slug: params.slug,
       branch: params.branch,
       runtimeVersion: "1.0.0",
       platform: "ios",

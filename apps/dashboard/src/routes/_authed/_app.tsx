@@ -13,6 +13,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@better-update/ui/components/ui/dropdown-menu";
+import { Separator } from "@better-update/ui/components/ui/separator";
 import {
   Sidebar,
   SidebarContent,
@@ -23,6 +24,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
+  SidebarRail,
   SidebarSeparator,
   SidebarTrigger,
 } from "@better-update/ui/components/ui/sidebar";
@@ -48,25 +50,26 @@ import { ErrorBoundary } from "../../lib/error-boundary";
 import { throwRedirect } from "../../lib/throw-redirect";
 import { useTheme } from "../../lib/use-theme";
 import { orgsQueryOptions, sessionQueryOptions } from "../../queries/auth";
+import { AppBreadcrumb } from "./-app-breadcrumb";
 import { CreateOrgDialog } from "./-create-org-dialog";
-import { OrgNavSections, ProjectBackLink, ProjectNavSections } from "./-sidebar-nav";
+import { OrgNavSections, ProjectNavSections } from "./-sidebar-nav";
 
 import type { Theme } from "../../lib/use-theme";
 
 const THEMES = new Set<string>(["light", "dark", "system"]);
 const isTheme = (value: unknown): value is Theme => typeof value === "string" && THEMES.has(value);
 
-const PROJECT_ID_REGEX = /^\/projects\/([^/]+)(?:\/|$)/;
-const extractProjectId = (pathname: string) => {
-  const match = PROJECT_ID_REGEX.exec(pathname);
+const PROJECT_SLUG_REGEX = /^\/projects\/([^/]+)(?:\/|$)/;
+const extractProjectSlug = (pathname: string) => {
+  const match = PROJECT_SLUG_REGEX.exec(pathname);
   if (!match) {
     return undefined;
   }
-  const [, projectId] = match;
-  if (!projectId) {
+  const [, projectSlug] = match;
+  if (!projectSlug) {
     return undefined;
   }
-  return projectId;
+  return projectSlug;
 };
 
 const getInitials = (name: string) =>
@@ -227,7 +230,7 @@ const UserMenu = () => {
 };
 
 const PageSkeleton = () => (
-  <div className="mx-auto flex max-w-4xl flex-col gap-6">
+  <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
     <div className="flex items-center justify-between">
       <div className="space-y-2">
         <Skeleton className="h-8 w-36 rounded-md" />
@@ -251,7 +254,7 @@ const NavigationProgress = () => {
   }
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-0">
+    <div className="pointer-events-none absolute inset-x-0 top-0 z-50">
       <div
         className="bg-primary h-0.5"
         style={{ animation: "progress-grow 8s cubic-bezier(0.1, 0.05, 0, 1) forwards" }}
@@ -260,7 +263,7 @@ const NavigationProgress = () => {
   );
 };
 
-const AppSidebar = ({ projectId }: { projectId: string | undefined }) => (
+const AppSidebar = ({ projectSlug }: { projectSlug: string | undefined }) => (
   <Sidebar variant="inset" collapsible="icon">
     <SidebarHeader>
       <SidebarMenu>
@@ -271,14 +274,7 @@ const AppSidebar = ({ projectId }: { projectId: string | undefined }) => (
     </SidebarHeader>
     <SidebarSeparator />
     <SidebarContent>
-      {projectId ? (
-        <>
-          <ProjectBackLink />
-          <ProjectNavSections projectId={projectId} />
-        </>
-      ) : (
-        <OrgNavSections />
-      )}
+      {projectSlug ? <ProjectNavSections projectSlug={projectSlug} /> : <OrgNavSections />}
     </SidebarContent>
     <SidebarFooter>
       <SidebarMenu>
@@ -287,20 +283,28 @@ const AppSidebar = ({ projectId }: { projectId: string | undefined }) => (
         </SidebarMenuItem>
       </SidebarMenu>
     </SidebarFooter>
+    <SidebarRail />
   </Sidebar>
 );
 
 const AppLayout = () => {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const projectId = extractProjectId(pathname);
+  const projectSlug = extractProjectSlug(pathname);
+  const { activeOrg } = Route.useRouteContext();
   return (
     <TooltipProvider>
       <SidebarProvider>
-        <AppSidebar projectId={projectId} />
-        <SidebarInset>
-          <header className="relative flex h-14 shrink-0 items-center gap-2 border-b px-4">
-            <SidebarTrigger className="-ml-1" />
-            <NavigationProgress />
+        <AppSidebar projectSlug={projectSlug} />
+        <SidebarInset className="relative">
+          <NavigationProgress />
+          <header className="bg-background/80 sticky top-0 z-30 flex h-12 shrink-0 items-center gap-2 border-b px-4 backdrop-blur">
+            <SidebarTrigger />
+            <Separator orientation="vertical" className="h-4" />
+            <AppBreadcrumb
+              orgId={activeOrg.id}
+              orgName={activeOrg.name}
+              projectSlug={projectSlug}
+            />
           </header>
           <main className="flex-1 p-4">
             <ErrorBoundary key={pathname}>

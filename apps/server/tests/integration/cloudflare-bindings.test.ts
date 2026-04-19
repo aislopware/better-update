@@ -26,11 +26,11 @@ const insertOrganization = (id: string, slug: string) =>
     .bind(id, `Org ${slug}`, slug, "2026-01-01T00:00:00Z")
     .run();
 
-const insertProject = (id: string, organizationId: string, scopeKey: string) =>
+const insertProject = (id: string, organizationId: string, slug: string) =>
   env.DB.prepare(
-    `INSERT INTO "projects" ("id", "organization_id", "name", "scope_key", "created_at") VALUES (?, ?, ?, ?, ?)`,
+    `INSERT INTO "projects" ("id", "organization_id", "name", "slug", "created_at") VALUES (?, ?, ?, ?, ?)`,
   )
-    .bind(id, organizationId, `Project ${id}`, scopeKey, "2026-01-01T00:00:00Z")
+    .bind(id, organizationId, `Project ${id}`, slug, "2026-01-01T00:00:00Z")
     .run();
 
 const insertAsset = (hash: string) =>

@@ -12,7 +12,7 @@ import { Vault } from "../cloudflare/vault";
 import { BadRequest, Forbidden, NotFound } from "../errors";
 import { toApiCredential } from "../http/to-api";
 import { toApiBadRequestReadEffect } from "../http/to-api-effect";
-import { toDbNull } from "../lib/nullable";
+import { toDbNull, toOptional } from "../lib/nullable";
 import { parsePagination } from "../lib/pagination";
 import { CredentialRepo } from "../repositories/credentials";
 
@@ -128,6 +128,7 @@ export const CredentialsGroupLive = HttpApiBuilder.group(ManagementApi, "credent
             action: "credential.upload",
             resourceType: "credential",
             resourceId: credential.id,
+            projectId: toOptional(payload.projectId),
             metadata: { type: payload.type, platform: payload.platform, name: payload.name },
           });
 
@@ -270,6 +271,7 @@ export const CredentialsGroupLive = HttpApiBuilder.group(ManagementApi, "credent
             action: "credential.activate",
             resourceType: "credential",
             resourceId: path.id,
+            projectId: toOptional(credential.projectId),
           });
 
           return toApiCredential(activated);
@@ -298,6 +300,7 @@ export const CredentialsGroupLive = HttpApiBuilder.group(ManagementApi, "credent
             action: "credential.delete",
             resourceType: "credential",
             resourceId: path.id,
+            projectId: toOptional(credential.projectId),
           });
 
           return { id: path.id };

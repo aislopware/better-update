@@ -31,7 +31,6 @@ describe(buildManifest, () => {
     const manifest = buildManifest({
       update: baseUpdate,
       assets: [launchAsset, regularAsset],
-      scopeKey: "scope-1",
       assetBaseUrl: "https://cdn.example.com",
     }) as Record<string, unknown>;
 
@@ -40,10 +39,8 @@ describe(buildManifest, () => {
     expect(manifest["runtimeVersion"]).toBe("1.0.0");
 
     const launch = manifest["launchAsset"] as Record<string, unknown>;
-    // ContentChecksum (raw SHA-256) used for client integrity verification
     expect(launch["hash"]).toBe("abc123-raw");
     expect(launch["key"]).toBe("bundle");
-    // Namespaced hash used for URL routing
     expect(launch["url"]).toBe("https://cdn.example.com/assets/abc123");
     expect(launch).not.toHaveProperty("fileExtension");
 
@@ -54,29 +51,26 @@ describe(buildManifest, () => {
     expect(assets[0]!["url"]).toBe("https://cdn.example.com/assets/def456");
   });
 
-  test("puts scopeKey in extra alongside update.extra", () => {
+  test("emits extra from update without injecting scopeKey", () => {
     const manifest = buildManifest({
       update: baseUpdate,
       assets: [launchAsset],
-      scopeKey: "scope-1",
       assetBaseUrl: "https://cdn.example.com",
     }) as Record<string, unknown>;
 
     const extra = manifest["extra"] as Record<string, unknown>;
-    expect(extra["scopeKey"]).toBe("scope-1");
+    expect(extra).not.toHaveProperty("scopeKey");
     expect(extra["expoClient"]).toEqual({ name: "test-app" });
   });
 
-  test("handles undefined extra on update", () => {
+  test("emits empty extra when update.extra is undefined", () => {
     const manifest = buildManifest({
       update: { ...baseUpdate, extra: undefined },
       assets: [launchAsset],
-      scopeKey: "scope-1",
       assetBaseUrl: "https://cdn.example.com",
     }) as Record<string, unknown>;
 
-    const extra = manifest["extra"] as Record<string, unknown>;
-    expect(extra["scopeKey"]).toBe("scope-1");
+    expect(manifest["extra"]).toEqual({});
   });
 });
 

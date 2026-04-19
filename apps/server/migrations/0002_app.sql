@@ -5,8 +5,9 @@ CREATE TABLE "projects" (
   "id" TEXT NOT NULL PRIMARY KEY,
   "organization_id" TEXT NOT NULL REFERENCES "organization" ("id"),
   "name" TEXT NOT NULL,
-  "scope_key" TEXT NOT NULL UNIQUE,
-  "created_at" TEXT NOT NULL
+  "slug" TEXT NOT NULL,
+  "created_at" TEXT NOT NULL,
+  UNIQUE ("organization_id", "slug")
 );
 
 CREATE TABLE "branches" (

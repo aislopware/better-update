@@ -60,7 +60,7 @@ describe("Audit Logs API flow", () => {
     // Create a project to generate a "project.create" audit log
     const projectResponse = await post(
       "/api/projects",
-      { name: "Audit Project", scopeKey: "@test/audit" },
+      { name: "Audit Project", slug: "audit" },
       { cookie: cookies },
     );
     expect(projectResponse.status).toBe(201);

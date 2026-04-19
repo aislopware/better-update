@@ -27,6 +27,9 @@ import { useApiMutation } from "../../../lib/use-api-mutation";
 import {
   ACCEPTED_EXTENSIONS,
   DISTRIBUTIONS,
+  DISTRIBUTION_LABELS,
+  PLATFORM_LABELS,
+  TYPE_LABELS_BY_PLATFORM,
   TYPE_OPTIONS_BY_PLATFORM,
   isCredentialType,
   isDistribution,
@@ -148,6 +151,53 @@ const buildSubmitInput = (value: UploadFormValues) =>
         credentialType: value.credentialType,
       } satisfies SubmitInput);
 
+const useUploadForm = (onSubmit: (input: SubmitInput) => Promise<unknown>) =>
+  useForm({
+    defaultValues: DEFAULT_VALUES,
+    onSubmit: async ({ value }) => {
+      const input = buildSubmitInput(value);
+      if (input) {
+        await onSubmit(input);
+      }
+    },
+  });
+
+type UploadFormApi = ReturnType<typeof useUploadForm>;
+
+const KeystoreFields = ({ form }: { form: UploadFormApi }) => (
+  <div className="grid grid-cols-2 gap-3">
+    <form.Field name="keyAlias">
+      {(field) => (
+        <div className="flex flex-col gap-2">
+          <Label>Key Alias</Label>
+          <Input
+            value={field.state.value}
+            onChange={(ev) => {
+              field.handleChange(ev.target.value);
+            }}
+            placeholder="e.g. my-key-alias"
+          />
+        </div>
+      )}
+    </form.Field>
+    <form.Field name="keyPassword">
+      {(field) => (
+        <div className="flex flex-col gap-2">
+          <Label>Key Password</Label>
+          <Input
+            type="password"
+            value={field.state.value}
+            onChange={(ev) => {
+              field.handleChange(ev.target.value);
+            }}
+            placeholder="Key password"
+          />
+        </div>
+      )}
+    </form.Field>
+  </div>
+);
+
 const UploadForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: () => void }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
@@ -159,15 +209,7 @@ const UploadForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: () => void
       onSuccess();
     },
   });
-  const form = useForm({
-    defaultValues: DEFAULT_VALUES,
-    onSubmit: async ({ value }) => {
-      const input = buildSubmitInput(value);
-      if (input) {
-        await uploadCredentialMutation.mutateAsync(input);
-      }
-    },
-  });
+  const form = useUploadForm(uploadCredentialMutation.mutateAsync);
   const resetDependentFields = () => {
     form.setFieldValue("distribution", "");
     form.setFieldValue("file", null);
@@ -190,6 +232,7 @@ const UploadForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: () => void
           <div className="flex flex-col gap-2">
             <Label>Platform</Label>
             <Select
+              items={PLATFORM_LABELS}
               value={field.state.value}
               onValueChange={(value) => {
                 if (value === "ios" || value === "android") {
@@ -219,6 +262,7 @@ const UploadForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: () => void
                 <div className="flex flex-col gap-2">
                   <Label>Type</Label>
                   <Select
+                    items={TYPE_LABELS_BY_PLATFORM[platform]}
                     value={field.state.value}
                     onValueChange={(value) => {
                       if (value && isCredentialType(value)) {
@@ -299,6 +343,7 @@ const UploadForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: () => void
                     <div className="flex flex-col gap-2">
                       <Label>Distribution</Label>
                       <Select
+                        items={DISTRIBUTION_LABELS}
                         value={field.state.value}
                         onValueChange={(value) => {
                           if (value && isDistribution(value)) {
@@ -340,39 +385,7 @@ const UploadForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: () => void
                 </form.Field>
               )}
 
-              {showKeystoreFields && (
-                <div className="grid grid-cols-2 gap-3">
-                  <form.Field name="keyAlias">
-                    {(field) => (
-                      <div className="flex flex-col gap-2">
-                        <Label>Key Alias</Label>
-                        <Input
-                          value={field.state.value}
-                          onChange={(ev) => {
-                            field.handleChange(ev.target.value);
-                          }}
-                          placeholder="e.g. my-key-alias"
-                        />
-                      </div>
-                    )}
-                  </form.Field>
-                  <form.Field name="keyPassword">
-                    {(field) => (
-                      <div className="flex flex-col gap-2">
-                        <Label>Key Password</Label>
-                        <Input
-                          type="password"
-                          value={field.state.value}
-                          onChange={(ev) => {
-                            field.handleChange(ev.target.value);
-                          }}
-                          placeholder="Key password"
-                        />
-                      </div>
-                    )}
-                  </form.Field>
-                </div>
-              )}
+              {showKeystoreFields && <KeystoreFields form={form} />}
 
               <form.Field name="expiresAt">
                 {(field) => (

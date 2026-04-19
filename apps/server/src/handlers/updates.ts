@@ -5,6 +5,7 @@ import type { CreateUpdateBody } from "@better-update/api";
 
 import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
+import { CurrentActor } from "../auth/current-actor";
 import { assertProjectOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
 import { UpdateCoordinator } from "../cloudflare/update-coordinator";
@@ -59,8 +60,12 @@ const handleCreateUpdate = ({ payload }: { readonly payload: typeof CreateUpdate
         directiveBody: toDbNull(payload.directiveBody),
       });
 
+      const ctx = yield* CurrentActor;
       const projectRepo = yield* ProjectRepo;
-      const project = yield* projectRepo.findByScopeKey({ scopeKey: payload.project });
+      const project = yield* projectRepo.findBySlug({
+        organizationId: ctx.organizationId,
+        slug: payload.slug,
+      });
       yield* assertProjectOwnership(project.id);
 
       yield* assertAssetsExist(payload.assets);
@@ -80,6 +85,7 @@ const handleCreateUpdate = ({ payload }: { readonly payload: typeof CreateUpdate
           action: "branch.create",
           resourceType: "branch",
           resourceId: branchValue.branchId,
+          projectId: project.id,
           metadata: { name: payload.branch, projectId: project.id, source: "update.create" },
         });
       }
@@ -89,6 +95,7 @@ const handleCreateUpdate = ({ payload }: { readonly payload: typeof CreateUpdate
           action: "channel.create",
           resourceType: "channel",
           resourceId: branchValue.channelId,
+          projectId: project.id,
           metadata: { name: payload.branch, projectId: project.id, source: "update.create" },
         });
       }
@@ -123,6 +130,7 @@ const handleCreateUpdate = ({ payload }: { readonly payload: typeof CreateUpdate
         action: "update.create",
         resourceType: "update",
         resourceId: result.id,
+        projectId: project.id,
         metadata: { branchId: result.branchId, platform: payload.platform },
       });
 
@@ -201,6 +209,7 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
             action: "update.delete",
             resourceType: "update",
             resourceId: path.groupId,
+            projectId: branch.projectId,
           });
 
           return result;
@@ -245,6 +254,7 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
                 action: "update.promote",
                 resourceType: "update",
                 resourceId: update.id,
+                projectId: source.projectId,
                 metadata: destination.auditMetadata,
               }),
             { concurrency: "unbounded" },

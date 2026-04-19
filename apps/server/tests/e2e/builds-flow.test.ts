@@ -90,7 +90,7 @@ describe("Builds API flow", () => {
   it("creates a project", async () => {
     const response = await post(
       "/api/projects",
-      { name: "Build Test Project", scopeKey: "@build/test" },
+      { name: "Build Test Project", slug: "build-test" },
       { cookie: cookies },
     );
     expect(response.status).toBe(201);

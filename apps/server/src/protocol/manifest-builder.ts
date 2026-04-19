@@ -37,10 +37,9 @@ const toLaunchEntry = (baseUrl: string, asset: AssetData) => ({
 export const buildManifest = (params: {
   readonly update: UpdateData;
   readonly assets: readonly AssetData[];
-  readonly scopeKey: string;
   readonly assetBaseUrl: string;
 }): object => {
-  const { update, assets, scopeKey, assetBaseUrl } = params;
+  const { update, assets, assetBaseUrl } = params;
   const launch = assets.find((asset) => asset.isLaunch);
   const regular = assets.filter((asset) => !asset.isLaunch);
 
@@ -51,7 +50,7 @@ export const buildManifest = (params: {
     launchAsset: launch ? toLaunchEntry(assetBaseUrl, launch) : undefined,
     assets: regular.map((asset) => toAssetEntry(assetBaseUrl, asset)),
     metadata: update.metadata,
-    extra: { scopeKey, ...update.extra },
+    extra: update.extra ?? {},
   };
 };
 

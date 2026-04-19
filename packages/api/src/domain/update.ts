@@ -29,7 +29,7 @@ export const AssetRef = Schema.Struct({
 
 export const CreateUpdateBody = Schema.Struct({
   branch: Schema.String.pipe(Schema.minLength(1)),
-  project: Schema.String.pipe(Schema.minLength(1)),
+  slug: Schema.String.pipe(Schema.minLength(1)),
   runtimeVersion: Schema.String.pipe(Schema.minLength(1)),
   platform: Platform,
   message: Schema.String,

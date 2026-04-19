@@ -80,7 +80,7 @@ describe("Projects API flow", () => {
   it("creates a project", async () => {
     const response = await post(
       "/api/projects",
-      { name: "My Project", scopeKey: "@my/project" },
+      { name: "My Project", slug: "my-project" },
       { cookie: cookies },
     );
     expect(response.status).toBe(201);
@@ -88,10 +88,10 @@ describe("Projects API flow", () => {
     expect(body).toHaveProperty("id");
     expect(body).toHaveProperty("organizationId");
     expect(body).toHaveProperty("name");
-    expect(body).toHaveProperty("scopeKey");
+    expect(body).toHaveProperty("slug");
     expect(body).toHaveProperty("createdAt");
     expect(body.name).toBe("My Project");
-    expect(body.scopeKey).toBe("@my/project");
+    expect(body.slug).toBe("my-project");
     projectId = body.id;
   });
 
@@ -101,7 +101,7 @@ describe("Projects API flow", () => {
     const body = await response.json();
     expect(body.id).toBe(projectId);
     expect(body.name).toBe("My Project");
-    expect(body.scopeKey).toBe("@my/project");
+    expect(body.slug).toBe("my-project");
     expect(body).toHaveProperty("organizationId");
     expect(body).toHaveProperty("createdAt");
   });
@@ -116,7 +116,7 @@ describe("Projects API flow", () => {
     const body = await response.json();
     expect(body.id).toBe(projectId);
     expect(body.name).toBe("New Name");
-    expect(body.scopeKey).toBe("@my/project");
+    expect(body.slug).toBe("my-project");
     expect(body).toHaveProperty("createdAt");
   });
 
@@ -133,14 +133,14 @@ describe("Projects API flow", () => {
   it("creates 2 more projects (total 3)", async () => {
     const res1 = await post(
       "/api/projects",
-      { name: "Project B", scopeKey: "@my/project-b" },
+      { name: "Project B", slug: "project-b" },
       { cookie: cookies },
     );
     expect(res1.status).toBe(201);
 
     const res2 = await post(
       "/api/projects",
-      { name: "Project C", scopeKey: "@my/project-c" },
+      { name: "Project C", slug: "project-c" },
       { cookie: cookies },
     );
     expect(res2.status).toBe(201);

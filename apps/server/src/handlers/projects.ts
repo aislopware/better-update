@@ -26,8 +26,9 @@ export const ProjectsGroupLive = HttpApiBuilder.group(ManagementApi, "projects",
             id,
             organizationId: ctx.organizationId,
             name: payload.name,
-            scopeKey: payload.scopeKey,
+            slug: payload.slug,
             createdAt: now,
+            lastActivityAt: now,
           };
 
           yield* repo.insert(project);
@@ -36,7 +37,8 @@ export const ProjectsGroupLive = HttpApiBuilder.group(ManagementApi, "projects",
             action: "project.create",
             resourceType: "project",
             resourceId: project.id,
-            metadata: { name: payload.name, scopeKey: payload.scopeKey },
+            projectId: project.id,
+            metadata: { name: payload.name, slug: payload.slug },
           });
 
           return toApiProject(project);
@@ -72,6 +74,20 @@ export const ProjectsGroupLive = HttpApiBuilder.group(ManagementApi, "projects",
         }),
       ),
     )
+    .handle("getBySlug", ({ path }) =>
+      toApiCrudEffect(
+        Effect.gen(function* () {
+          yield* assertPermission("project", "read");
+          const ctx = yield* CurrentActor;
+          const repo = yield* ProjectRepo;
+          const project = yield* repo.findBySlug({
+            organizationId: ctx.organizationId,
+            slug: path.slug,
+          });
+          return toApiProject(project);
+        }),
+      ),
+    )
     .handle("rename", ({ path, payload }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
@@ -85,6 +101,7 @@ export const ProjectsGroupLive = HttpApiBuilder.group(ManagementApi, "projects",
             action: "project.rename",
             resourceType: "project",
             resourceId: path.id,
+            projectId: path.id,
             metadata: { name: payload.name },
           });
 
@@ -105,6 +122,7 @@ export const ProjectsGroupLive = HttpApiBuilder.group(ManagementApi, "projects",
             action: "project.delete",
             resourceType: "project",
             resourceId: path.id,
+            projectId: path.id,
           });
 
           return { deleted: 1 };

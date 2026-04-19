@@ -31,7 +31,7 @@ const owner = {
   email: uniqueEmail("updates"),
 };
 const projectName = `Updates Project ${suffix}`;
-const scopeKey = `@updates/${suffix}`;
+const slug = `updates-${suffix}`;
 const mainBranchName = "main";
 const stagingBranchName = "staging";
 const stagingChannelName = "staging";
@@ -52,7 +52,7 @@ beforeAll(async () => {
     orgName: `Updates Org ${suffix}`,
     orgSlug: `updates-${suffix}`,
     projectName,
-    scopeKey,
+    slug,
   });
   ({ cookies, projectId } = seeded);
 
@@ -93,7 +93,7 @@ beforeAll(async () => {
   const updateMainId = await seedUpdate({
     dashboard,
     cookies,
-    scopeKey,
+    slug,
     branch: mainBranchName,
     assetHash,
     message: "Main update",
@@ -110,7 +110,7 @@ beforeAll(async () => {
   await seedUpdate({
     dashboard,
     cookies,
-    scopeKey,
+    slug,
     branch: stagingBranchName,
     assetHash: stagingAssetHash,
     message: "Staging update",
@@ -143,7 +143,7 @@ beforeAll(async () => {
   page.setDefaultTimeout(E2E_DEFAULT_TIMEOUT_MS);
   await loginViaUI(page, dashboard.getBaseUrl(), { email: owner.email });
   await page.waitForURL(/\/projects(?:$|\/|\?)/u);
-  await page.goto(`${dashboard.getBaseUrl()}/projects/${projectId}`);
+  await page.goto(`${dashboard.getBaseUrl()}/projects/${slug}`);
   await page.getByRole("heading", { name: projectName }).waitFor();
 });
 
@@ -395,7 +395,7 @@ describe("Dashboard updates + env vars + builds (browser)", () => {
     await gotoTabViaUI(page, "Builds");
     const iosCard = page.locator('[data-slot="card"]').filter({ hasText: "iOS seed build" }).last();
     await iosCard.getByRole("link", { name: "View details" }).click();
-    await page.waitForURL(new RegExp(`/projects/${projectId}/builds/${iosBuildId}$`, "u"));
+    await page.waitForURL(new RegExp(`/projects/${slug}/builds/${iosBuildId}$`, "u"));
     await page.getByRole("heading", { name: "iOS seed build" }).waitFor();
 
     // Build metadata card
@@ -419,7 +419,7 @@ describe("Dashboard updates + env vars + builds (browser)", () => {
       .waitFor();
 
     await page.goBack();
-    await page.waitForURL(new RegExp(`/projects/${projectId}$`, "u"));
+    await page.waitForURL(new RegExp(`/projects/${slug}$`, "u"));
     await page.getByRole("tab", { name: "Branches" }).waitFor();
   });
 

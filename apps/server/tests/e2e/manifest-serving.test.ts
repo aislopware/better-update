@@ -14,8 +14,8 @@ const seedSQL = `
 INSERT INTO "organization" ("id", "name", "slug", "created_at")
 VALUES ('org-1', 'Test Org', 'test-org', '2024-01-01');
 
-INSERT INTO "projects" ("id", "organization_id", "name", "scope_key", "created_at")
-VALUES ('proj-1', 'org-1', 'Test Project', '@test/my-app', '2024-01-01T00:00:00.000Z');
+INSERT INTO "projects" ("id", "organization_id", "name", "slug", "created_at")
+VALUES ('proj-1', 'org-1', 'Test Project', 'my-app', '2024-01-01T00:00:00.000Z');
 
 INSERT INTO "branches" ("id", "project_id", "name", "created_at")
 VALUES ('branch-1', 'proj-1', 'main', '2024-01-01T00:00:00.000Z');
@@ -45,7 +45,7 @@ INSERT INTO "update_assets" ("update_id", "asset_key", "asset_hash", "is_launch"
 VALUES ('update-ios', 'logo.png', 'img456hash', 0);
 
 INSERT INTO "updates" ("id", "branch_id", "runtime_version", "platform", "message", "metadata_json", "group_id", "is_rollback", "manifest_body", "created_at")
-VALUES ('update-precomputed', 'branch-1', '2.0.0', 'ios', 'precomputed', '{}', 'group-3', 0, '{"id":"update-precomputed","createdAt":"2024-02-01T00:00:00.000Z","runtimeVersion":"2.0.0","launchAsset":null,"assets":[],"metadata":{},"extra":{"scopeKey":"@test/my-app"}}', '2024-02-01T00:00:00.000Z');
+VALUES ('update-precomputed', 'branch-1', '2.0.0', 'ios', 'precomputed', '{}', 'group-3', 0, '{"id":"update-precomputed","createdAt":"2024-02-01T00:00:00.000Z","runtimeVersion":"2.0.0","launchAsset":null,"assets":[],"metadata":{},"extra":{}}', '2024-02-01T00:00:00.000Z');
 
 INSERT INTO "updates" ("id", "branch_id", "runtime_version", "platform", "message", "metadata_json", "group_id", "is_rollback", "signature", "certificate_chain", "created_at")
 VALUES ('update-signed', 'branch-1', '3.0.0', 'ios', 'signed update', '{}', 'group-4', 0, 'sig=test-signature', '-----BEGIN CERTIFICATE-----\nTEST\n-----END CERTIFICATE-----', '2024-03-01T00:00:00.000Z');
@@ -70,10 +70,10 @@ INSERT INTO "channels" ("id", "project_id", "name", "branch_id", "is_paused", "c
 VALUES ('chan-no-rollout', 'proj-1', 'no-rollout', 'branch-rollout-old', 0, '2024-04-01T00:00:00.000Z');
 
 INSERT INTO "updates" ("id", "branch_id", "runtime_version", "platform", "message", "metadata_json", "group_id", "is_rollback", "manifest_body", "created_at")
-VALUES ('update-rollout-old', 'branch-rollout-old', '5.0.0', 'ios', 'old branch update', '{}', 'group-ro-1', 0, '{"id":"update-rollout-old","createdAt":"2024-04-01T00:00:00.000Z","runtimeVersion":"5.0.0","launchAsset":null,"assets":[],"metadata":{},"extra":{"scopeKey":"@test/my-app"}}', '2024-04-01T00:00:00.000Z');
+VALUES ('update-rollout-old', 'branch-rollout-old', '5.0.0', 'ios', 'old branch update', '{}', 'group-ro-1', 0, '{"id":"update-rollout-old","createdAt":"2024-04-01T00:00:00.000Z","runtimeVersion":"5.0.0","launchAsset":null,"assets":[],"metadata":{},"extra":{}}', '2024-04-01T00:00:00.000Z');
 
 INSERT INTO "updates" ("id", "branch_id", "runtime_version", "platform", "message", "metadata_json", "group_id", "is_rollback", "manifest_body", "created_at")
-VALUES ('update-rollout-new', 'branch-rollout-new', '5.0.0', 'ios', 'new branch update', '{}', 'group-ro-2', 0, '{"id":"update-rollout-new","createdAt":"2024-04-02T00:00:00.000Z","runtimeVersion":"5.0.0","launchAsset":null,"assets":[],"metadata":{},"extra":{"scopeKey":"@test/my-app"}}', '2024-04-02T00:00:00.000Z');
+VALUES ('update-rollout-new', 'branch-rollout-new', '5.0.0', 'ios', 'new branch update', '{}', 'group-ro-2', 0, '{"id":"update-rollout-new","createdAt":"2024-04-02T00:00:00.000Z","runtimeVersion":"5.0.0","launchAsset":null,"assets":[],"metadata":{},"extra":{}}', '2024-04-02T00:00:00.000Z');
 
 -- Per-update rollout test data
 INSERT INTO "branches" ("id", "project_id", "name", "created_at")
@@ -84,22 +84,22 @@ VALUES ('chan-update-rollout', 'proj-1', 'update-rollout', 'branch-update-rollou
 
 -- Previous update: fully rolled out (100%)
 INSERT INTO "updates" ("id", "branch_id", "runtime_version", "platform", "message", "metadata_json", "group_id", "rollout_percentage", "is_rollback", "manifest_body", "created_at")
-VALUES ('update-ur-prev', 'branch-update-rollout', '6.0.0', 'ios', 'previous stable', '{}', 'group-ur-1', 100, 0, '{"id":"update-ur-prev","createdAt":"2024-05-01T00:00:00.000Z","runtimeVersion":"6.0.0","launchAsset":null,"assets":[],"metadata":{},"extra":{"scopeKey":"@test/my-app"}}', '2024-05-01T00:00:00.000Z');
+VALUES ('update-ur-prev', 'branch-update-rollout', '6.0.0', 'ios', 'previous stable', '{}', 'group-ur-1', 100, 0, '{"id":"update-ur-prev","createdAt":"2024-05-01T00:00:00.000Z","runtimeVersion":"6.0.0","launchAsset":null,"assets":[],"metadata":{},"extra":{}}', '2024-05-01T00:00:00.000Z');
 
 -- Latest update: partial rollout at 50%
 INSERT INTO "updates" ("id", "branch_id", "runtime_version", "platform", "message", "metadata_json", "group_id", "rollout_percentage", "is_rollback", "manifest_body", "created_at")
-VALUES ('update-ur-latest', 'branch-update-rollout', '6.0.0', 'ios', 'canary release', '{}', 'group-ur-2', 50, 0, '{"id":"update-ur-latest","createdAt":"2024-05-02T00:00:00.000Z","runtimeVersion":"6.0.0","launchAsset":null,"assets":[],"metadata":{},"extra":{"scopeKey":"@test/my-app"}}', '2024-05-02T00:00:00.000Z');
+VALUES ('update-ur-latest', 'branch-update-rollout', '6.0.0', 'ios', 'canary release', '{}', 'group-ur-2', 50, 0, '{"id":"update-ur-latest","createdAt":"2024-05-02T00:00:00.000Z","runtimeVersion":"6.0.0","launchAsset":null,"assets":[],"metadata":{},"extra":{}}', '2024-05-02T00:00:00.000Z');
 
 -- Reverted update test data (separate runtimeVersion)
 INSERT INTO "updates" ("id", "branch_id", "runtime_version", "platform", "message", "metadata_json", "group_id", "rollout_percentage", "is_rollback", "manifest_body", "created_at")
-VALUES ('update-ur-reverted-prev', 'branch-update-rollout', '7.0.0', 'ios', 'old stable', '{}', 'group-ur-3', 100, 0, '{"id":"update-ur-reverted-prev","createdAt":"2024-05-03T00:00:00.000Z","runtimeVersion":"7.0.0","launchAsset":null,"assets":[],"metadata":{},"extra":{"scopeKey":"@test/my-app"}}', '2024-05-03T00:00:00.000Z');
+VALUES ('update-ur-reverted-prev', 'branch-update-rollout', '7.0.0', 'ios', 'old stable', '{}', 'group-ur-3', 100, 0, '{"id":"update-ur-reverted-prev","createdAt":"2024-05-03T00:00:00.000Z","runtimeVersion":"7.0.0","launchAsset":null,"assets":[],"metadata":{},"extra":{}}', '2024-05-03T00:00:00.000Z');
 
 INSERT INTO "updates" ("id", "branch_id", "runtime_version", "platform", "message", "metadata_json", "group_id", "rollout_percentage", "is_rollback", "manifest_body", "created_at")
-VALUES ('update-ur-reverted', 'branch-update-rollout', '7.0.0', 'ios', 'reverted release', '{}', 'group-ur-4', 0, 0, '{"id":"update-ur-reverted","createdAt":"2024-05-04T00:00:00.000Z","runtimeVersion":"7.0.0","launchAsset":null,"assets":[],"metadata":{},"extra":{"scopeKey":"@test/my-app"}}', '2024-05-04T00:00:00.000Z');
+VALUES ('update-ur-reverted', 'branch-update-rollout', '7.0.0', 'ios', 'reverted release', '{}', 'group-ur-4', 0, 0, '{"id":"update-ur-reverted","createdAt":"2024-05-04T00:00:00.000Z","runtimeVersion":"7.0.0","launchAsset":null,"assets":[],"metadata":{},"extra":{}}', '2024-05-04T00:00:00.000Z');
 
 -- Cache invalidation test data (runtime 8.0.0)
 INSERT INTO "updates" ("id", "branch_id", "runtime_version", "platform", "message", "metadata_json", "group_id", "is_rollback", "manifest_body", "created_at")
-VALUES ('update-cache-v1', 'branch-1', '8.0.0', 'ios', 'cache test v1', '{}', 'group-cache-1', 0, '{"id":"update-cache-v1","createdAt":"2024-06-01T00:00:00.000Z","runtimeVersion":"8.0.0","launchAsset":null,"assets":[],"metadata":{},"extra":{"scopeKey":"@test/my-app"}}', '2024-06-01T00:00:00.000Z');
+VALUES ('update-cache-v1', 'branch-1', '8.0.0', 'ios', 'cache test v1', '{}', 'group-cache-1', 0, '{"id":"update-cache-v1","createdAt":"2024-06-01T00:00:00.000Z","runtimeVersion":"8.0.0","launchAsset":null,"assets":[],"metadata":{},"extra":{}}', '2024-06-01T00:00:00.000Z');
 `;
 
 beforeAll(() => {
@@ -211,8 +211,11 @@ describe("Manifest serving protocol", () => {
     expect(manifest.assets[0].fileExtension).toBe(".png");
     expect(manifest.assets[0].url).toBe(`${process.env["ASSET_CDN_URL"]}/assets/img456hash`);
 
-    // Extra with scopeKey
-    expect(manifest.extra.scopeKey).toBe("@test/my-app");
+    // Extra emitted as-is from update.extra (no scopeKey injection per Expo compat)
+    expect(manifest.extra).not.toHaveProperty("scopeKey");
+
+    // expo-manifest-filters header is NOT emitted (no dead filter)
+    expect(response.headers.get("expo-manifest-filters")).toBeNull();
 
     // Extensions part
     const extensionsPart = parts.find((part) =>
@@ -311,7 +314,7 @@ describe("Manifest serving protocol", () => {
     const manifest = await response.json();
     expect(manifest.id).toBe("update-ios");
     expect(manifest.runtimeVersion).toBe("1.0.0");
-    expect(manifest.extra.scopeKey).toBe("@test/my-app");
+    expect(manifest.extra).not.toHaveProperty("scopeKey");
   });
 
   it("returns pre-computed manifest_body as-is", async () => {
@@ -556,7 +559,7 @@ describe("Manifest caching", () => {
     writeFileSync(
       bumpFile,
       `INSERT INTO "updates" ("id", "branch_id", "runtime_version", "platform", "message", "metadata_json", "group_id", "is_rollback", "manifest_body", "created_at")
-VALUES ('update-cache-v2', 'branch-1', '8.0.0', 'ios', 'cache test v2', '{}', 'group-cache-2', 0, '{"id":"update-cache-v2","createdAt":"2024-07-01T00:00:00.000Z","runtimeVersion":"8.0.0","launchAsset":null,"assets":[],"metadata":{},"extra":{"scopeKey":"@test/my-app"}}', '2024-07-01T00:00:00.000Z');
+VALUES ('update-cache-v2', 'branch-1', '8.0.0', 'ios', 'cache test v2', '{}', 'group-cache-2', 0, '{"id":"update-cache-v2","createdAt":"2024-07-01T00:00:00.000Z","runtimeVersion":"8.0.0","launchAsset":null,"assets":[],"metadata":{},"extra":{}}', '2024-07-01T00:00:00.000Z');
 UPDATE "channels" SET "cache_version" = "cache_version" + 1 WHERE "id" = 'chan-prod';`,
     );
     execSync(`bunx wrangler d1 execute DB --local --persist-to ${persistDir} --file ${bumpFile}`, {

@@ -67,7 +67,7 @@ describe("Dashboard environment variables flow", () => {
   it("creates a project and export API key", async () => {
     const createProjectResponse = await post(
       "/api/projects",
-      { name: "Dashboard Env Project", scopeKey: "@dashboard/env" },
+      { name: "Dashboard Env Project", slug: "dashboard-env" },
       { cookie: state.cookies },
     );
     expect(createProjectResponse.status).toBe(201);

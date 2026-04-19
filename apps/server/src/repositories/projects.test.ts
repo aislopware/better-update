@@ -24,7 +24,7 @@ const makeInsertParams = () => ({
   id: "proj-1",
   organizationId: "org-1",
   name: "My App",
-  scopeKey: "@my/app",
+  slug: "my-app",
   createdAt: "2026-01-01T00:00:00Z",
 });
 
@@ -59,7 +59,7 @@ describe("ProjectRepo — D1 adapter", () => {
 
     test("returns Conflict on UNIQUE constraint violation", async () => {
       const db = mockD1.forRun(() => {
-        throw new Error("UNIQUE constraint failed: projects.scope_key");
+        throw new Error("UNIQUE constraint failed: projects.slug");
       });
       const env = makeEnv(db);
 
@@ -88,14 +88,14 @@ describe("ProjectRepo — D1 adapter", () => {
               id: "p1",
               organization_id: "org-1",
               name: "App One",
-              scope_key: "@scope/one",
+              slug: "scope-one",
               created_at: "2026-01-01T00:00:00Z",
             },
             {
               id: "p2",
               organization_id: "org-1",
               name: "App Two",
-              scope_key: "@scope/two",
+              slug: "scope-two",
               created_at: "2026-01-02T00:00:00Z",
             },
           ],
@@ -150,7 +150,7 @@ describe("ProjectRepo — D1 adapter", () => {
           id: "p1",
           organization_id: "org-1",
           name: "App One",
-          scope_key: "@scope/one",
+          slug: "scope-one",
           created_at: "2026-01-01T00:00:00Z",
         }),
       });

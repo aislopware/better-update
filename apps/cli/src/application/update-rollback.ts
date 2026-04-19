@@ -4,7 +4,7 @@ import { buildRollbackDirectiveBody } from "@better-update/expo-protocol";
 import { CommandExecutor, FileSystem } from "@effect/platform";
 import { Effect } from "effect";
 
-import { readAppJson, readProjectId, readScopeKey } from "../lib/app-json";
+import { readAppJson, readProjectId, readSlug } from "../lib/app-json";
 import { readRuntimeVersionMeta, type Platform } from "../lib/build-profile";
 import {
   AuthRequiredError,
@@ -21,7 +21,7 @@ import { CliRuntime } from "../services/cli-runtime";
 
 interface CreateRollbackParams {
   readonly branch: string;
-  readonly projectScopeKey: string;
+  readonly projectSlug: string;
   readonly runtimeVersion: string;
   readonly platform: Platform;
   readonly message: string;
@@ -166,7 +166,7 @@ const createRollbackForPlatform = (
       .create({
         payload: {
           branch: params.branch,
-          project: params.projectScopeKey,
+          slug: params.projectSlug,
           runtimeVersion: params.runtimeVersion,
           platform: params.platform,
           message: params.message,
@@ -210,7 +210,7 @@ export const runUpdateRollback = (
     const runtime = yield* CliRuntime;
     const projectRoot = yield* runtime.cwd;
     yield* readProjectId;
-    const projectScopeKey = yield* readScopeKey;
+    const projectSlug = yield* readSlug;
     const appJson = yield* readAppJson;
     const platforms = resolveUpdatePlatforms(appJson, options.platform);
     if (platforms.length === 0) {
@@ -248,7 +248,7 @@ export const runUpdateRollback = (
       (platform) =>
         createRollbackForPlatform({
           branch: options.branch,
-          projectScopeKey,
+          projectSlug,
           runtimeVersion,
           platform,
           message,

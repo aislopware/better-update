@@ -42,6 +42,7 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
             action: "channel.create",
             resourceType: "channel",
             resourceId: channel.id,
+            projectId: payload.projectId,
             metadata: { name: payload.name, projectId: payload.projectId },
           });
 
@@ -93,6 +94,7 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
             action: "channel.update",
             resourceType: "channel",
             resourceId: path.id,
+            projectId: channel.projectId,
             metadata: { branchId: payload.branchId },
           });
 
@@ -230,6 +232,7 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
             action: "channel.delete",
             resourceType: "channel",
             resourceId: path.id,
+            projectId: channel.projectId,
           });
 
           return { deleted: 1 };

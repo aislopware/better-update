@@ -1,4 +1,4 @@
-import { envVarKeySchema, generateScopeKey, generateSlug } from "./form-utils";
+import { envVarKeySchema, generateSlug } from "./form-utils";
 
 describe(generateSlug, () => {
   test("converts name to slug", () => {
@@ -15,24 +15,6 @@ describe(generateSlug, () => {
 
   test("preserves numbers", () => {
     expect(generateSlug("Team 42")).toBe("team-42");
-  });
-});
-
-describe(generateScopeKey, () => {
-  test("generates scope key from name", () => {
-    expect(generateScopeKey("My App")).toBe("@my-app/app");
-  });
-
-  test("handles special characters", () => {
-    expect(generateScopeKey("Hello World!")).toBe("@hello-world/app");
-  });
-
-  test("strips leading/trailing hyphens", () => {
-    expect(generateScopeKey("  Test  ")).toBe("@test/app");
-  });
-
-  test("preserves numbers", () => {
-    expect(generateScopeKey("App 42")).toBe("@app-42/app");
   });
 });
 

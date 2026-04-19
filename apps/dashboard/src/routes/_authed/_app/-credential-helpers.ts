@@ -60,3 +60,10 @@ export const TYPE_OPTIONS_BY_PLATFORM = {
   ios: IOS_TYPES,
   android: ANDROID_TYPES,
 } as const satisfies Record<"ios" | "android", typeof IOS_TYPES | typeof ANDROID_TYPES>;
+
+export const PLATFORM_LABELS: Record<string, string> = { ios: "iOS", android: "Android" };
+
+export const TYPE_LABELS_BY_PLATFORM: Record<"ios" | "android", Record<string, string>> = {
+  ios: Object.fromEntries(IOS_TYPES.map((opt) => [opt.value, opt.label])),
+  android: Object.fromEntries(ANDROID_TYPES.map((opt) => [opt.value, opt.label])),
+};

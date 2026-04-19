@@ -3,11 +3,11 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useRef } from "react";
 
-import { generateScopeKey, generateSlug } from "../../lib/form-utils";
+import { generateSlug } from "../../lib/form-utils";
 
 /**
  * These tests verify the derived-state wiring pattern used in org and project
- * forms: typing a name field auto-fills a secondary field (slug or scopeKey).
+ * forms: typing a name field auto-fills a secondary field (slug).
  *
  * Each TestForm replicates the real component's onChange logic so the pattern
  * itself is covered without needing provider mocks.
@@ -119,12 +119,12 @@ const SettingsTestForm = () => {
   );
 };
 
-// ── Create project pattern: name → scopeKey (ref guard) ────────
+// ── Create project pattern: name → slug (ref guard) ───────────
 
 const CreateProjectTestForm = () => {
-  const scopeKeyEdited = useRef(false);
+  const slugEdited = useRef(false);
   const form = useForm({
-    defaultValues: { name: "", scopeKey: "" },
+    defaultValues: { name: "", slug: "" },
     onSubmit: async () => {},
   });
 
@@ -140,8 +140,8 @@ const CreateProjectTestForm = () => {
               onChange={(event) => {
                 const name = event.target.value;
                 field.handleChange(name);
-                if (!scopeKeyEdited.current) {
-                  form.setFieldValue("scopeKey", generateScopeKey(name), {
+                if (!slugEdited.current) {
+                  form.setFieldValue("slug", generateSlug(name), {
                     dontUpdateMeta: true,
                     dontValidate: true,
                   });
@@ -151,16 +151,16 @@ const CreateProjectTestForm = () => {
           </div>
         )}
       </form.Field>
-      <form.Field name="scopeKey">
+      <form.Field name="slug">
         {(field) => (
           <div>
-            <label htmlFor="cp-scope">Scope key</label>
+            <label htmlFor="cp-slug">Slug</label>
             <input
-              id="cp-scope"
+              id="cp-slug"
               value={field.state.value}
               onChange={(event) => {
                 field.handleChange(event.target.value);
-                scopeKeyEdited.current = event.target.value !== "";
+                slugEdited.current = event.target.value !== "";
               }}
             />
           </div>
@@ -271,41 +271,36 @@ describe("settings: name to slug sync", () => {
   });
 });
 
-describe("create project: name to scopeKey sync", () => {
-  test("typing name auto-generates scope key", async () => {
+describe("create project: name to slug sync", () => {
+  test("typing name auto-generates slug", async () => {
     const user = userEvent.setup();
     render(<CreateProjectTestForm />);
 
     await user.type(screen.getByLabelText("Project name"), "My App");
 
-    expect(screen.getByLabelText<HTMLInputElement>("Scope key").value).toBe("@my-app/app");
+    expect(screen.getByLabelText<HTMLInputElement>("Slug").value).toBe("my-app");
   });
 
-  test("manually editing scopeKey stops auto-generation", async () => {
+  test("manually editing slug stops auto-generation", async () => {
     const user = userEvent.setup();
     render(<CreateProjectTestForm />);
 
-    // Type in scopeKey first
-    await user.type(screen.getByLabelText("Scope key"), "@custom/pkg");
-
-    // Type name — scopeKey should NOT change
+    await user.type(screen.getByLabelText("Slug"), "custom-pkg");
     await user.type(screen.getByLabelText("Project name"), "New App");
 
-    expect(screen.getByLabelText<HTMLInputElement>("Scope key").value).toBe("@custom/pkg");
+    expect(screen.getByLabelText<HTMLInputElement>("Slug").value).toBe("custom-pkg");
   });
 
-  test("clearing scopeKey re-enables auto-generation", async () => {
+  test("clearing slug re-enables auto-generation", async () => {
     const user = userEvent.setup();
     render(<CreateProjectTestForm />);
 
-    // Type scopeKey then clear it
-    const scopeInput = screen.getByLabelText("Scope key");
-    await user.type(scopeInput, "@temp/pkg");
-    await user.clear(scopeInput);
+    const slugInput = screen.getByLabelText("Slug");
+    await user.type(slugInput, "temp-pkg");
+    await user.clear(slugInput);
 
-    // Type name — scopeKey should auto-fill
     await user.type(screen.getByLabelText("Project name"), "Fresh App");
 
-    expect(screen.getByLabelText<HTMLInputElement>("Scope key").value).toBe("@fresh-app/app");
+    expect(screen.getByLabelText<HTMLInputElement>("Slug").value).toBe("fresh-app");
   });
 });

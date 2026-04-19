@@ -159,13 +159,13 @@ export const createProjectViaUI = async (
   page: Page,
   params: {
     readonly name: string;
-    readonly scopeKey: string;
+    readonly slug: string;
   },
 ): Promise<void> => {
   await page.getByRole("button", { name: "Create project" }).first().click();
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("Project name").fill(params.name);
-  await dialog.getByLabel("Scope key").fill(params.scopeKey);
+  await dialog.getByLabel("Slug").fill(params.slug);
   await dialog.getByRole("button", { name: "Create project" }).click();
   await expectToast(page, "Project created");
   await page.getByRole("link", { name: new RegExp(params.name, "u") }).waitFor();

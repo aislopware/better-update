@@ -14,8 +14,8 @@ const seedSQL = `
 INSERT INTO "organization" ("id", "name", "slug", "created_at")
 VALUES ('org-bd-1', 'Bundle Diff Org', 'bd-org', '2024-01-01');
 
-INSERT INTO "projects" ("id", "organization_id", "name", "scope_key", "created_at")
-VALUES ('proj-bd-1', 'org-bd-1', 'BD Project', '@test/bd-app', '2024-01-01T00:00:00.000Z');
+INSERT INTO "projects" ("id", "organization_id", "name", "slug", "created_at")
+VALUES ('proj-bd-1', 'org-bd-1', 'BD Project', 'bd-app', '2024-01-01T00:00:00.000Z');
 
 INSERT INTO "branches" ("id", "project_id", "name", "created_at")
 VALUES ('branch-bd-1', 'proj-bd-1', 'main', '2024-01-01T00:00:00.000Z');
