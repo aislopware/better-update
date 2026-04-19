@@ -16,6 +16,7 @@ export const getCommand = Command.make("get", { id }, (opts) =>
       ["Key", envVar.key],
       ["Environment", envVar.environment],
       ["Visibility", envVar.visibility],
+      // eslint-disable-next-line eslint-js/no-restricted-syntax -- EnvVar.value nullable at storage; display empty when absent
       ["Value", envVar.visibility === "plaintext" ? (envVar.value ?? "") : "******"],
       ["Created", envVar.createdAt],
       ["Updated", envVar.updatedAt],

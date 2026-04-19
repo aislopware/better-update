@@ -5,6 +5,7 @@ import type { BadRequest, NotFound } from "@better-update/api";
 import { provideCloudflareRequestContext } from "../cloudflare/context";
 import { manifestRuntime } from "../cloudflare/manifest-runtime";
 import { resolveUpdateRollout } from "../domain/update-rollout";
+import { toOptional } from "../lib/nullable";
 import { isRecord } from "../lib/type-guards";
 import { parseProtocolHeaders } from "../protocol/headers";
 import { buildDirective, buildExtensions, buildManifest } from "../protocol/manifest-builder";
@@ -67,7 +68,7 @@ const extensionsPart: Part = {
 };
 
 const signatureFor = (ph: ProtocolHeaders, update: UpdateRow) =>
-  ph.expectSignature ? (update.signature ?? undefined) : undefined;
+  ph.expectSignature ? toOptional(update.signature) : undefined;
 const certChainParts = (ph: ProtocolHeaders, update: UpdateRow): readonly Part[] =>
   ph.expectSignature && update.certificate_chain
     ? [

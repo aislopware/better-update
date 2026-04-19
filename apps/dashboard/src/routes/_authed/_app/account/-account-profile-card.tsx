@@ -23,6 +23,7 @@ export const AccountProfileCard = () => {
 
   const form = useForm({
     defaultValues: {
+      // eslint-disable-next-line eslint-js/no-restricted-syntax -- controlled input requires string; session.user non-null on /account route
       name: session?.user.name ?? "",
     },
     onSubmit: async ({ value }) => {

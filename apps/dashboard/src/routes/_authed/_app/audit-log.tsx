@@ -31,8 +31,6 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 
-import { orgsQueryOptions, sessionQueryOptions } from "../../../queries/auth";
-
 const RESOURCE_TYPES = [
   { value: "all", label: "All" },
   { value: "project", label: "Project" },
@@ -156,11 +154,8 @@ const EmptyState = () => (
 );
 
 const AuditLogPage = () => {
-  const { data: session } = useSuspenseQuery(sessionQueryOptions);
-  const { data: orgs } = useSuspenseQuery(orgsQueryOptions);
-  const activeOrgId = session?.session.activeOrganizationId ?? "";
-  const activeOrg = orgs.find((org) => org.id === activeOrgId) ?? orgs[0];
-  const orgId = activeOrg?.id ?? "";
+  const { activeOrg } = Route.useRouteContext();
+  const orgId = activeOrg.id;
 
   const [resourceType, setResourceType] = useState("all");
   const [fromDate, setFromDate] = useState("");

@@ -16,7 +16,6 @@ import { useState } from "react";
 
 import type { ProjectItem } from "@better-update/api-client/react";
 
-import { orgsQueryOptions, sessionQueryOptions } from "../../../../queries/auth";
 import { CreateProjectDialog } from "./-create-dialog";
 
 const ProjectCard = ({ project }: { project: ProjectItem }) => (
@@ -59,11 +58,8 @@ const EmptyState = () => (
 );
 
 const Projects = () => {
-  const { data: session } = useSuspenseQuery(sessionQueryOptions);
-  const { data: orgs } = useSuspenseQuery(orgsQueryOptions);
-  const activeOrgId = session?.session.activeOrganizationId ?? "";
-  const activeOrg = orgs.find((org) => org.id === activeOrgId) ?? orgs[0];
-  const orgId = activeOrg?.id ?? "";
+  const { activeOrg } = Route.useRouteContext();
+  const orgId = activeOrg.id;
 
   const [page, setPage] = useState(1);
   const { data } = useSuspenseQuery(projectsQueryOptions(orgId, page));

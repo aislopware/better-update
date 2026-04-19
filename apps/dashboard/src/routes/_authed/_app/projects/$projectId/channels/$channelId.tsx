@@ -21,7 +21,6 @@ import {
   getMissingRuntimeVersionsForChannel,
 } from "../-channel-compatibility-helpers";
 import { ProjectSubpageHeader } from "../-project-subpage-header";
-import { orgsQueryOptions, sessionQueryOptions } from "../../../../../../queries/auth";
 
 const ChannelNotFoundState = ({ projectId }: { projectId: string }) => (
   <Card className="border-dashed">
@@ -142,11 +141,8 @@ const CompatibleBuildLinksCard = ({
 
 const ChannelDetailPage = () => {
   const { projectId, channelId } = Route.useParams();
-  const { data: session } = useSuspenseQuery(sessionQueryOptions);
-  const { data: orgs } = useSuspenseQuery(orgsQueryOptions);
-  const activeOrgId = session?.session.activeOrganizationId ?? "";
-  const activeOrg = orgs.find((org) => org.id === activeOrgId) ?? orgs[0];
-  const orgId = activeOrg?.id ?? "";
+  const { activeOrg } = Route.useRouteContext();
+  const orgId = activeOrg.id;
   const { data: project } = useSuspenseQuery(projectQueryOptions(orgId, projectId));
   const { data: channelsData } = useSuspenseQuery(channelsQueryOptions(orgId, projectId));
   const { data: branchesData } = useSuspenseQuery(branchesQueryOptions(orgId, projectId));
@@ -214,13 +210,7 @@ const ChannelDetailPage = () => {
 
 export const Route = createFileRoute("/_authed/_app/projects/$projectId/channels/$channelId")({
   loader: async ({ context, params }) => {
-    const [session, orgs] = await Promise.all([
-      context.queryClient.ensureQueryData(sessionQueryOptions),
-      context.queryClient.ensureQueryData(orgsQueryOptions),
-    ]);
-    const activeOrgId = session?.session.activeOrganizationId ?? "";
-    const activeOrg = orgs.find((org) => org.id === activeOrgId) ?? orgs[0];
-    const orgId = activeOrg?.id ?? "";
+    const orgId = context.activeOrg.id;
 
     await Promise.all([
       context.queryClient.ensureQueryData(projectQueryOptions(orgId, params.projectId)),

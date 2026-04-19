@@ -40,6 +40,7 @@ export const findActiveCredential = (api: ApiClient, filter: CredentialFilter) =
         ...(filter.distribution !== undefined ? { distribution: filter.distribution } : {}),
       },
     })
+    // eslint-disable-next-line eslint-js/no-restricted-syntax -- find returns undefined on no-match; caller expects null sentinel for "no active credential"
     .pipe(Effect.map(({ items }) => items.find((item) => item.isActive) ?? null));
 
 export const uploadCredentialFromFile = (api: ApiClient, input: UploadCredentialFromFileInput) =>

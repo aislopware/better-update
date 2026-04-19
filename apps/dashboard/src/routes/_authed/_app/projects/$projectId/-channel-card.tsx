@@ -222,7 +222,10 @@ const StartRolloutControls = ({
       <Select
         value={rolloutBranchId}
         onValueChange={(value) => {
-          setRolloutBranchId(value ?? "");
+          if (value === null) {
+            return;
+          }
+          setRolloutBranchId(value);
         }}
       >
         <SelectTrigger size="sm">

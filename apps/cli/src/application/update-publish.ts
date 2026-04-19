@@ -201,13 +201,23 @@ const publishPlatform = (params: {
     yield* Effect.forEach(
       uniqueAssets.filter((asset) => uploadDetailsByHash.has(asset.hash)),
       (asset) =>
-        assetUploader.uploadAssetBinary({
-          path: asset.path,
-          hash: asset.hash,
-          byteSize: asset.byteSize,
-          uploadUrl: uploadDetailsByHash.get(asset.hash)?.uploadUrl ?? "",
-          uploadExpiresAt: uploadDetailsByHash.get(asset.hash)?.uploadExpiresAt ?? "",
-          uploadHeaders: uploadDetailsByHash.get(asset.hash)?.uploadHeaders ?? {},
+        Effect.gen(function* () {
+          const detail = uploadDetailsByHash.get(asset.hash);
+          if (!detail) {
+            return yield* Effect.fail(
+              new UpdatePublishError({
+                message: `Missing upload details for asset ${asset.hash}`,
+              }),
+            );
+          }
+          return yield* assetUploader.uploadAssetBinary({
+            path: asset.path,
+            hash: asset.hash,
+            byteSize: asset.byteSize,
+            uploadUrl: detail.uploadUrl,
+            uploadExpiresAt: detail.uploadExpiresAt,
+            uploadHeaders: detail.uploadHeaders,
+          });
         }),
       { concurrency: 4 },
     );
@@ -374,6 +384,7 @@ export const runUpdatePublish = (
             clear: options.clear,
             appJson,
             platform,
+            // eslint-disable-next-line eslint-js/no-restricted-syntax -- signedPayload absence means unsigned; null is correct downstream
             signedPayload: signedPayloads[platform] ?? null,
             rolloutPercentage: options.rolloutPercentage,
           }),

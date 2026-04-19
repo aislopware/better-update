@@ -23,7 +23,6 @@ import { BuildCard } from "../-build-card";
 import { FORMAT_LABELS, formatBytes } from "../-build-helpers";
 import { InstallLinkDialog } from "../-install-link-dialog";
 import { ProjectSubpageHeader } from "../-project-subpage-header";
-import { orgsQueryOptions, sessionQueryOptions } from "../../../../../../queries/auth";
 
 const formatMetadataJson = (metadataJson: string) =>
   Effect.runSync(
@@ -221,11 +220,8 @@ const BuildNotFoundState = ({ projectId }: { projectId: string }) => (
 
 const BuildDetailPage = () => {
   const { projectId, buildId } = Route.useParams();
-  const { data: session } = useSuspenseQuery(sessionQueryOptions);
-  const { data: orgs } = useSuspenseQuery(orgsQueryOptions);
-  const activeOrgId = session?.session.activeOrganizationId ?? "";
-  const activeOrg = orgs.find((org) => org.id === activeOrgId) ?? orgs[0];
-  const orgId = activeOrg?.id ?? "";
+  const { activeOrg } = Route.useRouteContext();
+  const orgId = activeOrg.id;
   const { data: project } = useSuspenseQuery(projectQueryOptions(orgId, projectId));
   const { data: build } = useSuspenseQuery(buildQueryOptions(orgId, buildId));
   const { data: compatibilityData } = useSuspenseQuery(
@@ -268,13 +264,7 @@ const BuildDetailPage = () => {
 
 export const Route = createFileRoute("/_authed/_app/projects/$projectId/builds/$buildId")({
   loader: async ({ context, params }) => {
-    const [session, orgs] = await Promise.all([
-      context.queryClient.ensureQueryData(sessionQueryOptions),
-      context.queryClient.ensureQueryData(orgsQueryOptions),
-    ]);
-    const activeOrgId = session?.session.activeOrganizationId ?? "";
-    const activeOrg = orgs.find((org) => org.id === activeOrgId) ?? orgs[0];
-    const orgId = activeOrg?.id ?? "";
+    const orgId = context.activeOrg.id;
 
     await Promise.all([
       context.queryClient.ensureQueryData(projectQueryOptions(orgId, params.projectId)),

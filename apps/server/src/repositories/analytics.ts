@@ -1,6 +1,7 @@
 import { Context, Effect, Layer } from "effect";
 
 import { AnalyticsEngine } from "../cloudflare/analytics-engine";
+import { DataIntegrityError } from "../lib/require-value";
 
 import type {
   AnalyticsPeriod,
@@ -67,6 +68,11 @@ export class AnalyticsRepo extends Context.Tag("api/AnalyticsRepo")<
   AnalyticsRepository
 >() {}
 
+const requireBlob = (value: string | undefined, source: string, field: string) =>
+  value === undefined || value === ""
+    ? Effect.die(new DataIntegrityError({ source, field }))
+    : Effect.succeed(value);
+
 const queryByResponseType = (rows: readonly Record<string, string>[]): ResponseTypeBreakdown =>
   rows.reduce((breakdown, row) => {
     const responseType = row["response_type"];
@@ -111,14 +117,33 @@ export const AnalyticsRepoLive = Layer.effect(
             ORDER BY first_seen DESC
           `);
 
-          return {
-            updates: rows.map((row) => ({
-              updateId: row["updateId"] ?? "",
-              devices: toNumber(row["unique_devices"]),
-              firstSeen: row["first_seen"] ?? "",
-              lastSeen: row["last_seen"] ?? "",
-            })),
-          };
+          // eslint-disable-next-line unicorn/no-array-method-this-argument -- Effect.forEach, not Array.forEach
+          const updates = yield* Effect.forEach(rows, (row) =>
+            Effect.gen(function* () {
+              const updateId = yield* requireBlob(
+                row["updateId"],
+                "analytics.getAdoption",
+                "updateId",
+              );
+              const firstSeen = yield* requireBlob(
+                row["first_seen"],
+                "analytics.getAdoption",
+                "first_seen",
+              );
+              const lastSeen = yield* requireBlob(
+                row["last_seen"],
+                "analytics.getAdoption",
+                "last_seen",
+              );
+              return {
+                updateId,
+                devices: toNumber(row["unique_devices"]),
+                firstSeen,
+                lastSeen,
+              };
+            }),
+          );
+          return { updates };
         }),
 
       getUpdateMetrics: (params) =>
@@ -158,15 +183,23 @@ export const AnalyticsRepoLive = Layer.effect(
           const totalRequests =
             byResponseType.manifest + byResponseType.directive + byResponseType.noUpdate;
 
+          // eslint-disable-next-line unicorn/no-array-method-this-argument -- Effect.forEach, not Array.forEach
+          const timeSeries = yield* Effect.forEach(timeSeriesRows, (row) =>
+            Effect.gen(function* () {
+              const timestamp = yield* requireBlob(
+                row["hour"],
+                "analytics.getUpdateMetrics",
+                "hour",
+              );
+              return { timestamp, requests: toNumber(row["requests"]) };
+            }),
+          );
           return {
             updateId: params.updateId,
             totalRequests,
             uniqueDevices: toNumber(deviceRows[0]?.["unique_devices"]),
             byResponseType,
-            timeSeries: timeSeriesRows.map((row) => ({
-              timestamp: row["hour"] ?? "",
-              requests: toNumber(row["requests"]),
-            })),
+            timeSeries,
           };
         }),
 
@@ -218,13 +251,22 @@ export const AnalyticsRepoLive = Layer.effect(
             ORDER BY requests DESC
           `);
 
-          return {
-            platforms: rows.map((row) => ({
-              platform: row["platform"] ?? "",
-              requests: toNumber(row["requests"]),
-              devices: toNumber(row["unique_devices"]),
-            })),
-          };
+          // eslint-disable-next-line unicorn/no-array-method-this-argument -- Effect.forEach, not Array.forEach
+          const platforms = yield* Effect.forEach(rows, (row) =>
+            Effect.gen(function* () {
+              const platform = yield* requireBlob(
+                row["platform"],
+                "analytics.getPlatformMetrics",
+                "platform",
+              );
+              return {
+                platform,
+                requests: toNumber(row["requests"]),
+                devices: toNumber(row["unique_devices"]),
+              };
+            }),
+          );
+          return { platforms };
         }),
     } satisfies AnalyticsRepository;
   }),

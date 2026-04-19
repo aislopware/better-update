@@ -233,7 +233,7 @@ const UploadForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: () => void
                       <SelectValue placeholder="Select credential type" />
                     </SelectTrigger>
                     <SelectContent>
-                      {(TYPE_OPTIONS_BY_PLATFORM[platform] ?? []).map((opt) => (
+                      {TYPE_OPTIONS_BY_PLATFORM[platform].map((opt) => (
                         <SelectItem key={opt.value} value={opt.value}>
                           {opt.label}
                         </SelectItem>
@@ -256,7 +256,7 @@ const UploadForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: () => void
           const showPassword =
             credentialType === "distribution-certificate" || credentialType === "keystore";
           const showKeystoreFields = credentialType === "keystore";
-          const acceptedExtension = ACCEPTED_EXTENSIONS[credentialType] ?? "";
+          const acceptedExtension = ACCEPTED_EXTENSIONS[credentialType];
 
           return (
             <>

@@ -10,8 +10,28 @@
     "nursery": "warn"
   },
   "plugins": ["typescript", "unicorn", "oxc", "import", "vitest", "jsdoc", "node", "promise"],
-  "jsPlugins": ["eslint-plugin-functional"],
+  "jsPlugins": ["eslint-plugin-functional", "oxlint-plugin-eslint"],
   "rules": {
+    "eslint-js/no-restricted-syntax": [
+      "error",
+      {
+        "selector": "LogicalExpression[operator='??'][right.type='Literal'][right.value='']",
+        "message": "Silent empty-string fallback hides missing data. Use `yield* requireValue(x, 'fieldName')` or move default into Schema.optionalWith."
+      },
+      {
+        "selector": "LogicalExpression[operator='||'][right.type='Literal'][right.value='']",
+        "message": "Silent empty-string fallback hides missing data. Use `yield* requireValue(x, 'fieldName')` or move default into Schema.optionalWith."
+      },
+      {
+        "selector": "LogicalExpression[operator='??'][right.type='Literal'][right.raw='null']",
+        "message": "Use toDbNull() for DB nullable-column inserts or Option.fromNullable for domain absence."
+      },
+      {
+        "selector": "LogicalExpression[operator='??'][right.type='Identifier'][right.name='undefined']",
+        "message": "Use toOptional() for null\u2192undefined type normalization or Schema.optionalWith({ default }) for defaults."
+      }
+    ],
+
     "promise/prefer-await-to-then": ["warn", { "strict": true }],
     "promise/always-return": "off",
     "promise/avoid-new": "off",
@@ -78,6 +98,7 @@
     "typescript/strict-boolean-expressions": "off",
     "typescript/explicit-module-boundary-types": "off",
     "typescript/prefer-readonly-parameter-types": "off",
+    "typescript/prefer-nullish-coalescing": "off",
 
     "unicorn/filename-case": "off",
     "unicorn/no-abusive-eslint-disable": "off",
@@ -121,6 +142,7 @@
     {
       "files": ["**/*.test.*", "**/*.spec.*", "**/__tests__/**", "**/tests/**"],
       "rules": {
+        "eslint-js/no-restricted-syntax": "off",
         "init-declarations": "off",
         "max-lines-per-function": "off",
         "no-magic-numbers": "off",

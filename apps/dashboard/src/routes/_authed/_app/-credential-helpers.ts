@@ -48,15 +48,15 @@ export const isCredentialType = (value: string): value is CredentialTypeValue =>
 export const isDistribution = (value: string): value is DistributionValue =>
   DISTRIBUTION_VALUES.has(value);
 
-export const ACCEPTED_EXTENSIONS: Record<string, string> = {
+export const ACCEPTED_EXTENSIONS = {
   "distribution-certificate": ".p12",
   "provisioning-profile": ".mobileprovision",
   "push-key": ".p8",
   keystore: ".jks,.keystore",
   "play-service-account": ".json",
-};
+} as const satisfies Record<CredentialTypeValue, string>;
 
-export const TYPE_OPTIONS_BY_PLATFORM: Record<string, typeof IOS_TYPES | typeof ANDROID_TYPES> = {
+export const TYPE_OPTIONS_BY_PLATFORM = {
   ios: IOS_TYPES,
   android: ANDROID_TYPES,
-};
+} as const satisfies Record<"ios" | "android", typeof IOS_TYPES | typeof ANDROID_TYPES>;

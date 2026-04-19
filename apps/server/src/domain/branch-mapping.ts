@@ -65,9 +65,10 @@ export const updateBranchMappingPercentage = (existing: string, percentage: numb
   return JSON.stringify(updated);
 };
 
-export const extractNewBranchId = (branchMappingJson: string): string => {
+export const extractNewBranchId = (branchMappingJson: string): string | null => {
   const mapping = parseBranchMapping(branchMappingJson);
-  return mapping.data[0]?.branchId ?? "";
+  const branchId = mapping.data[0]?.branchId;
+  return branchId === undefined ? null : branchId;
 };
 
 // -- Evaluator (manifest resolution) ---------------------------------------
@@ -106,10 +107,11 @@ const evaluateEntry = (entry: BranchMappingEntry, salt: string, easClientId: str
 export const evaluateBranchMapping = (
   branchMappingJson: string,
   easClientId: string | undefined,
-): Effect.Effect<string, CryptoError, CryptoService> =>
+): Effect.Effect<string | null, CryptoError, CryptoService> =>
   Effect.gen(function* () {
     const mapping = parseBranchMapping(branchMappingJson);
-    const fallback = mapping.data.at(-1)?.branchId ?? "";
+    const last = mapping.data.at(-1)?.branchId;
+    const fallback = last === undefined ? null : last;
 
     if (!easClientId) {
       return fallback;

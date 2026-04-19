@@ -6,6 +6,7 @@ import type { RepublishBody } from "@better-update/api";
 import { assertProjectOwnership } from "../auth/ownership";
 import { validateUpdatePublishInput } from "../domain/update-publish-validation";
 import { BadRequest, NotFound } from "../errors";
+import { requireValue } from "../lib/require-value";
 import { isRecord } from "../lib/type-guards";
 import { BranchRepo, ChannelRepo, UpdateRepo } from "../repositories";
 
@@ -171,9 +172,8 @@ export const resolveRepublishSource = ({ payload }: { readonly payload: Republis
     const sourceUpdates = payload.sourceUpdateId
       ? [yield* updateRepo.findById({ id: payload.sourceUpdateId })]
       : yield* Effect.gen(function* () {
-          const updates = yield* updateRepo.findByGroupId({
-            groupId: payload.sourceGroupId ?? "",
-          });
+          const groupId = yield* requireValue(payload.sourceGroupId, "sourceGroupId");
+          const updates = yield* updateRepo.findByGroupId({ groupId });
           if (updates.length === 0) {
             yield* new NotFound({ message: "Update group not found" });
           }
@@ -186,10 +186,10 @@ export const resolveRepublishSource = ({ payload }: { readonly payload: Republis
       { concurrency: "unbounded" },
     );
     const projectIds = [...new Set(sourceBranches.map((branch) => branch.projectId))];
-    const [sourceProjectId = ""] = projectIds;
-    if (sourceProjectId.length === 0 || projectIds.length !== 1) {
+    if (projectIds.length !== 1) {
       yield* fail("All source updates must belong to the same project");
     }
+    const sourceProjectId = yield* requireValue(projectIds[0], "projectId");
 
     yield* assertProjectOwnership(sourceProjectId);
 
@@ -242,9 +242,10 @@ export const resolveRepublishDestination = (params: {
       };
     }
 
+    const name = yield* requireValue(params.payload.destinationChannel, "destinationChannel");
     const destinationChannel = yield* channelRepo.findByProjectAndName({
       projectId: params.projectId,
-      name: params.payload.destinationChannel ?? "",
+      name,
     });
 
     return {

@@ -19,6 +19,7 @@ import {
   toApiBuild,
   toApiBuildCompatibilityMatrix,
 } from "../http/build-http";
+import { toDbNull } from "../lib/nullable";
 import { BuildRepo, CompatibilityRepo } from "../repositories";
 
 const UPLOAD_EXPIRY_SECONDS = 7200;
@@ -118,13 +119,13 @@ const handleReserve = ({ payload }: { readonly payload: typeof CreateBuildBody.T
         profile: payload.profile ?? "production",
         distribution: payload.distribution,
         artifactFormat: payload.artifactFormat,
-        runtimeVersion: payload.runtimeVersion ?? null,
-        appVersion: payload.appVersion ?? null,
-        buildNumber: payload.buildNumber ?? null,
-        bundleId: payload.bundleId ?? null,
-        gitRef: payload.gitRef ?? null,
-        gitCommit: payload.gitCommit ?? null,
-        message: payload.message ?? null,
+        runtimeVersion: toDbNull(payload.runtimeVersion),
+        appVersion: toDbNull(payload.appVersion),
+        buildNumber: toDbNull(payload.buildNumber),
+        bundleId: toDbNull(payload.bundleId),
+        gitRef: toDbNull(payload.gitRef),
+        gitCommit: toDbNull(payload.gitCommit),
+        message: toDbNull(payload.message),
         metadata: payload.metadata ?? {},
         sha256: payload.sha256.toLowerCase(),
         byteSize: payload.byteSize,

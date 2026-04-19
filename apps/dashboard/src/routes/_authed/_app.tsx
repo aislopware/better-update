@@ -90,6 +90,7 @@ const OrgSwitcher = () => {
   const { data: session } = useSuspenseQuery(sessionQueryOptions);
   const activeOrgId = session?.session.activeOrganizationId;
   const activeOrg = orgs.find((org) => org.id === activeOrgId) ?? orgs[0];
+  const displayName = activeOrg?.name ?? "No org";
 
   const handleOrgSwitch = async (orgId: string) => {
     if (orgId === activeOrgId) {
@@ -113,10 +114,8 @@ const OrgSwitcher = () => {
               <HugeiconsIcon icon={Building06Icon} strokeWidth={2} className="size-4" />
             </div>
             <div className="grid flex-1 text-left text-sm leading-tight">
-              <span className="truncate font-semibold">{activeOrg?.name ?? "No org"}</span>
-              <span className="text-muted-foreground truncate text-xs">
-                {activeOrg?.slug ?? ""}
-              </span>
+              <span className="truncate font-semibold">{displayName}</span>
+              <span className="text-muted-foreground truncate text-xs">{activeOrg?.slug}</span>
             </div>
             <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={2} className="ml-auto size-4" />
           </SidebarMenuButton>
@@ -170,13 +169,19 @@ const UserMenu = () => {
     await router.navigate({ to: "/login" });
   };
 
+  // eslint-disable-next-line eslint-js/no-restricted-syntax -- DOM prop coercion; AvatarImage src typed string | undefined
+  const avatarSrc = user?.image ?? undefined;
+  // eslint-disable-next-line eslint-js/no-restricted-syntax -- DOM alt attribute requires string
+  const avatarAlt = user?.name ?? "";
+  const initials = getInitials(user?.name ?? "U");
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="w-full">
         <SidebarMenuButton size="lg" className="data-open:bg-sidebar-accent">
           <Avatar className="size-8 rounded-lg">
-            <AvatarImage src={user?.image ?? undefined} alt={user?.name ?? ""} />
-            <AvatarFallback className="rounded-lg">{getInitials(user?.name ?? "U")}</AvatarFallback>
+            <AvatarImage src={avatarSrc} alt={avatarAlt} />
+            <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
           </Avatar>
           <div className="grid flex-1 text-left text-sm leading-tight">
             <span className="truncate font-semibold">{user?.name}</span>

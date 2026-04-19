@@ -62,7 +62,9 @@ type AuthEnv = Env & {
   readonly TEST_MODE?: string;
 };
 
-const trimOptionalBinding = (value: string | undefined): string => value?.trim() ?? "";
+const trimOptionalBinding = (value: string | undefined): string =>
+  // eslint-disable-next-line eslint-js/no-restricted-syntax -- optional OAuth env feature-gate; empty string means feature disabled
+  value?.trim() ?? "";
 
 export const createAuth = (env: AuthEnv) => {
   const githubClientId = trimOptionalBinding(env.GITHUB_CLIENT_ID);

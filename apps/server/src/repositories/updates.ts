@@ -2,6 +2,7 @@ import { Context, Effect, Layer } from "effect";
 
 import { cloudflareEnv } from "../cloudflare/context";
 import { NotFound } from "../errors";
+import { toDbNull } from "../lib/nullable";
 
 import type { Platform, UpdateAssetRefModel, UpdateModel } from "../models";
 
@@ -342,7 +343,7 @@ export const UpdateRepoLive = Layer.succeed(UpdateRepo, {
           .bind(params.updateId)
           .first<{ asset_hash: string }>(),
       );
-      return row?.asset_hash ?? null;
+      return toDbNull(row?.asset_hash);
     }),
 
   findLatestLaunchAssetHash: (params) =>
@@ -355,7 +356,7 @@ export const UpdateRepoLive = Layer.succeed(UpdateRepo, {
           .bind(params.branchId, params.platform, params.runtimeVersion)
           .first<{ asset_hash: string }>(),
       );
-      return row?.asset_hash ?? null;
+      return toDbNull(row?.asset_hash);
     }),
 
   deleteGroup: (params) =>

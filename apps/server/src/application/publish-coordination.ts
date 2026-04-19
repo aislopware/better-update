@@ -1,5 +1,6 @@
 import { Effect } from "effect";
 
+import { toDbNull } from "../lib/nullable";
 import { BranchRepo, ChannelRepo, UpdateRepo } from "../repositories";
 
 import type {
@@ -186,7 +187,7 @@ const getNextLaunchHash = (params: {
   readonly isRollback: boolean;
   readonly assets: readonly SerializedAssetRef[];
 }): string | null =>
-  params.isRollback ? null : (params.assets.find((asset) => asset.isLaunch)?.hash ?? null);
+  params.isRollback ? null : toDbNull(params.assets.find((asset) => asset.isLaunch)?.hash);
 
 export const ensureBranchChannel = (params: {
   readonly projectId: string;
@@ -310,10 +311,10 @@ export const republishUpdate = (
         extraJson: update.extraJson,
         rolloutPercentage: 100,
         isRollback: false,
-        signature: update.signature ?? null,
-        certificateChain: update.certificateChain ?? null,
-        manifestBody: update.manifestBody ?? null,
-        directiveBody: update.directiveBody ?? null,
+        signature: toDbNull(update.signature),
+        certificateChain: toDbNull(update.certificateChain),
+        manifestBody: toDbNull(update.manifestBody),
+        directiveBody: toDbNull(update.directiveBody),
         assets: update.assets,
       })),
     });

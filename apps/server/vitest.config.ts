@@ -1,9 +1,47 @@
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 import { cloudflareTest, readD1Migrations } from "@cloudflare/vitest-pool-workers";
 import { defineConfig } from "vitest/config";
 
+const parseEnvFile = (filePath: string): Record<string, string> => {
+  if (!existsSync(filePath)) {
+    return {};
+  }
+  return readFileSync(filePath, "utf8")
+    .split(/\r?\n/u)
+    .reduce<Record<string, string>>((result, line) => {
+      const trimmed = line.trim();
+      if (trimmed === "" || trimmed.startsWith("#")) return result;
+      const separatorIndex = trimmed.indexOf("=");
+      if (separatorIndex < 1) return result;
+      const key = trimmed.slice(0, separatorIndex).trim();
+      const value = trimmed
+        .slice(separatorIndex + 1)
+        .trim()
+        .replace(/^["']|["']$/gu, "");
+      if (value !== "") result[key] = value;
+      return result;
+    }, {});
+};
+
+/**
+ * Wrangler's remote R2 proxy needs `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN`
+ * in process env. Map them from `.env.local` (which uses `E2E_*` prefix) so
+ * `bun run test:integrations` works without the caller exporting them manually.
+ */
+const hydrateCloudflareProcessEnv = () => {
+  const envFile = parseEnvFile(path.join(__dirname, ".env.local"));
+  if (!process.env["CLOUDFLARE_ACCOUNT_ID"] && envFile["E2E_CF_ACCOUNT_ID"]) {
+    process.env["CLOUDFLARE_ACCOUNT_ID"] = envFile["E2E_CF_ACCOUNT_ID"];
+  }
+  if (!process.env["CLOUDFLARE_API_TOKEN"] && envFile["E2E_CLOUDFLARE_API_TOKEN"]) {
+    process.env["CLOUDFLARE_API_TOKEN"] = envFile["E2E_CLOUDFLARE_API_TOKEN"];
+  }
+};
+
 export default defineConfig(async () => {
+  hydrateCloudflareProcessEnv();
   const migrations = await readD1Migrations(path.join(__dirname, "migrations"));
 
   return {

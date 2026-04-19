@@ -11,6 +11,7 @@ import { BadRequest, Forbidden } from "../errors";
 import { toApiEnvVar } from "../http/to-api";
 import { toApiBadRequestReadEffect, toApiWriteEffect } from "../http/to-api-effect";
 import { parsePagination } from "../lib/pagination";
+import { requireValue } from "../lib/require-value";
 import { EnvVarRepo } from "../repositories/env-vars";
 
 import type { EnvVarRow } from "../repositories/env-vars";
@@ -218,12 +219,18 @@ const handleExport = (urlParams: { projectId: string; environment: string }) =>
     const items = yield* Effect.forEach(
       [...merged.values()],
       (row) =>
-        row.visibility === "plaintext" || !row.encrypted_value || !row.key_version
-          ? Effect.succeed({ key: row.key, value: row.value ?? "", visibility: row.visibility })
-          : Effect.map(
-              decryptValue(ctx.organizationId, row.key_version, row.encrypted_value),
-              (decrypted) => ({ key: row.key, value: decrypted, visibility: row.visibility }),
-            ),
+        Effect.gen(function* () {
+          if (row.visibility === "plaintext" || !row.encrypted_value || !row.key_version) {
+            const value = yield* requireValue(row.value, `env-var:${row.key}`);
+            return { key: row.key, value, visibility: row.visibility };
+          }
+          const decrypted = yield* decryptValue(
+            ctx.organizationId,
+            row.key_version,
+            row.encrypted_value,
+          );
+          return { key: row.key, value: decrypted, visibility: row.visibility };
+        }),
       { concurrency: 5 },
     );
 

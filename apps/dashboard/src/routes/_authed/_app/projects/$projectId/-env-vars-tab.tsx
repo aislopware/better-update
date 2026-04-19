@@ -54,6 +54,7 @@ const ExportButton = ({ items }: { items: readonly (typeof EnvVar.Type)[] }) => 
   const plaintextItems = items.filter((item) => item.visibility === "plaintext");
 
   const handleExport = () => {
+    // eslint-disable-next-line eslint-js/no-restricted-syntax -- EnvVar.value schema is nullable at storage; plaintext export renders empty when missing
     const content = plaintextItems.map((item) => `${item.key}=${item.value ?? ""}`).join("\n");
 
     const blob = new Blob([content], { type: "text/plain" });

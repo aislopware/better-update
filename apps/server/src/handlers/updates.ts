@@ -12,6 +12,7 @@ import { validateUpdatePublishInput } from "../domain/update-publish-validation"
 import { Conflict, NotFound } from "../errors";
 import { toApiUpdate } from "../http/to-api";
 import { toApiBadRequestReadEffect, toApiWriteEffect } from "../http/to-api-effect";
+import { toDbNull } from "../lib/nullable";
 import { parsePagination } from "../lib/pagination";
 import { AssetRepo, BranchRepo, ChannelRepo, ProjectRepo, UpdateRepo } from "../repositories";
 import {
@@ -54,8 +55,8 @@ const handleCreateUpdate = ({ payload }: { readonly payload: typeof CreateUpdate
         assets: payload.assets,
         extra: payload.extra,
         isRollback: payload.isRollback ?? false,
-        manifestBody: payload.manifestBody ?? null,
-        directiveBody: payload.directiveBody ?? null,
+        manifestBody: toDbNull(payload.manifestBody),
+        directiveBody: toDbNull(payload.directiveBody),
       });
 
       const projectRepo = yield* ProjectRepo;
@@ -104,10 +105,10 @@ const handleCreateUpdate = ({ payload }: { readonly payload: typeof CreateUpdate
           groupId: payload.groupId,
           rolloutPercentage: payload.rolloutPercentage ?? 100,
           isRollback: payload.isRollback ?? false,
-          signature: payload.signature ?? null,
-          certificateChain: payload.certificateChain ?? null,
-          manifestBody: payload.manifestBody ?? null,
-          directiveBody: payload.directiveBody ?? null,
+          signature: toDbNull(payload.signature),
+          certificateChain: toDbNull(payload.certificateChain),
+          manifestBody: toDbNull(payload.manifestBody),
+          directiveBody: toDbNull(payload.directiveBody),
           assets: payload.assets,
         },
       });
@@ -225,7 +226,7 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
             coordinatorName: destination.branchId,
             payload: {
               branchId: destination.branchId,
-              message: payload.message ?? null,
+              message: toDbNull(payload.message),
               updates: republishUpdates,
             },
           });

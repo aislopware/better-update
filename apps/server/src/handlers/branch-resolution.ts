@@ -12,6 +12,7 @@ export const resolveBranchId = (
   const { branch_mapping_json: mapping } = channel;
   return mapping
     ? evaluateBranchMapping(mapping, easClientId).pipe(
+        Effect.map((branchId) => (branchId === null ? channel.branch_id : branchId)),
         Effect.orElseSucceed(() => channel.branch_id),
       )
     : Effect.succeed(channel.branch_id);
