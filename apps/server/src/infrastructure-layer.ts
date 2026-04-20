@@ -4,6 +4,7 @@ import { AnalyticsEngineLive } from "./cloudflare/analytics-engine";
 import { AppleAppStoreConnectLive } from "./cloudflare/apple-app-store-connect";
 import { AssetStorageLive } from "./cloudflare/asset-storage";
 import { BuildRuntimeLive } from "./cloudflare/build-runtime";
+import { CredentialArtifactsLive } from "./cloudflare/credential-artifacts";
 import { CryptoServiceLive } from "./cloudflare/crypto-service";
 import { ManifestCacheStorageLive } from "./cloudflare/manifest-cache-storage";
 import { UpdateCoordinatorLive } from "./cloudflare/update-coordinator";
@@ -37,6 +38,7 @@ import type { AnalyticsEngine } from "./cloudflare/analytics-engine";
 import type { AppleAppStoreConnect } from "./cloudflare/apple-app-store-connect";
 import type { AssetStorage } from "./cloudflare/asset-storage";
 import type { BuildRuntime } from "./cloudflare/build-runtime";
+import type { CredentialArtifacts } from "./cloudflare/credential-artifacts";
 import type { ManifestCacheStorage } from "./cloudflare/manifest-cache-storage";
 import type { UpdateCoordinator } from "./cloudflare/update-coordinator";
 import type { Vault } from "./cloudflare/vault";
@@ -86,6 +88,7 @@ export type ServerInfrastructure =
   | BuildRuntime
   | ChannelRepo
   | CompatibilityRepo
+  | CredentialArtifacts
   | CryptoService
   | DeviceRegistrationRequestRepo
   | DeviceRepo
@@ -128,6 +131,7 @@ export const AdapterLayer = Layer.mergeAll(
   AppleAppStoreConnectLive,
   AssetStorageLive,
   BuildRuntimeLive,
+  CredentialArtifactsLive,
   CryptoServiceLive,
   ManifestCacheStorageLive,
   UpdateCoordinatorLive,

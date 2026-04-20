@@ -18,6 +18,8 @@ export interface AppleProvisioningProfileRepository {
     readonly profileName: string | null;
     readonly validUntil: string | null;
     readonly r2Key: string;
+    readonly isManaged: boolean;
+    readonly deviceRosterHash: string | null;
   }) => Effect.Effect<{
     readonly model: AppleProvisioningProfileModel;
     readonly previousR2Key: string | null;
@@ -55,11 +57,13 @@ interface Row {
   profile_name: string | null;
   valid_until: string | null;
   r2_key: string;
+  is_managed: number;
+  device_roster_hash: string | null;
   created_at: string;
   updated_at: string;
 }
 
-const COLUMNS = `"id", "organization_id", "apple_team_id", "apple_distribution_certificate_id", "bundle_identifier", "distribution_type", "developer_portal_identifier", "profile_name", "valid_until", "r2_key", "created_at", "updated_at"`;
+const COLUMNS = `"id", "organization_id", "apple_team_id", "apple_distribution_certificate_id", "bundle_identifier", "distribution_type", "developer_portal_identifier", "profile_name", "valid_until", "r2_key", "is_managed", "device_roster_hash", "created_at", "updated_at"`;
 
 const toModel = (row: Row): AppleProvisioningProfileModel => ({
   id: row.id,
@@ -72,6 +76,8 @@ const toModel = (row: Row): AppleProvisioningProfileModel => ({
   profileName: row.profile_name,
   validUntil: row.valid_until,
   r2Key: row.r2_key,
+  isManaged: row.is_managed === 1,
+  deviceRosterHash: row.device_roster_hash,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
@@ -100,13 +106,15 @@ export const AppleProvisioningProfileRepoLive = Layer.succeed(AppleProvisioningP
 
       yield* Effect.promise(async () =>
         env.DB.prepare(
-          `INSERT INTO "apple_provisioning_profiles" (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `INSERT INTO "apple_provisioning_profiles" (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
            ON CONFLICT ("organization_id", "apple_team_id", "bundle_identifier", "distribution_type") DO UPDATE SET
              "apple_distribution_certificate_id" = excluded."apple_distribution_certificate_id",
              "developer_portal_identifier" = excluded."developer_portal_identifier",
              "profile_name" = excluded."profile_name",
              "valid_until" = excluded."valid_until",
              "r2_key" = excluded."r2_key",
+             "is_managed" = excluded."is_managed",
+             "device_roster_hash" = excluded."device_roster_hash",
              "updated_at" = excluded."updated_at"`,
         )
           .bind(
@@ -120,6 +128,8 @@ export const AppleProvisioningProfileRepoLive = Layer.succeed(AppleProvisioningP
             params.profileName,
             params.validUntil,
             params.r2Key,
+            params.isManaged ? 1 : 0,
+            params.deviceRosterHash,
             now,
             now,
           )

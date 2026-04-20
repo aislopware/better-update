@@ -21,6 +21,11 @@ export interface AndroidApplicationIdentifierRepository {
     readonly projectId: string;
   }) => Effect.Effect<readonly AndroidApplicationIdentifierModel[]>;
 
+  readonly findByProjectAndPackage: (params: {
+    readonly projectId: string;
+    readonly packageName: string;
+  }) => Effect.Effect<AndroidApplicationIdentifierModel, NotFound>;
+
   readonly findById: (params: {
     readonly id: string;
   }) => Effect.Effect<AndroidApplicationIdentifierModel, NotFound>;
@@ -87,6 +92,26 @@ export const AndroidApplicationIdentifierRepoLive = Layer.succeed(
             .all<Row>(),
         );
         return rows.results.map(toModel);
+      }),
+
+    findByProjectAndPackage: (params) =>
+      Effect.gen(function* () {
+        const env = yield* cloudflareEnv;
+        const row = yield* Effect.promise(async () =>
+          env.DB.prepare(
+            `SELECT ${COLUMNS} FROM "android_application_identifiers" WHERE "project_id" = ? AND "package_name" = ?`,
+          )
+            .bind(params.projectId, params.packageName)
+            .first<Row>(),
+        );
+        if (row === null) {
+          return yield* Effect.fail(
+            new NotFound({
+              message: `No Android application identifier registered for ${params.packageName}`,
+            }),
+          );
+        }
+        return toModel(row);
       }),
 
     findById: (params) =>

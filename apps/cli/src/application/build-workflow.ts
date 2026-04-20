@@ -1,11 +1,6 @@
-import { Prompt } from "@effect/cli";
 import { Console, Effect } from "effect";
 
 import { runAndroidBuild } from "../commands/build/android";
-import {
-  provisionAndroidCredentials,
-  provisionIosCredentials,
-} from "../commands/build/credential-provisioning";
 import { runIosBuild } from "../commands/build/ios";
 import { reserveAndUpload } from "../commands/build/reserve-and-upload";
 import { readAppJson, readProjectId } from "../lib/app-json";
@@ -101,48 +96,7 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
           envVars,
           projectId,
           rawOutput: options.rawOutput,
-        }).pipe(
-          Effect.catchTag("MissingCredentialsError", (error) =>
-            Effect.gen(function* () {
-              yield* Console.log("");
-              yield* Console.log(error.message);
-              yield* Console.log(error.hint);
-
-              const shouldProvision = yield* Prompt.confirm({
-                message: "Provision missing iOS credentials now?",
-                initial: true,
-              });
-              if (!shouldProvision) {
-                return yield* Effect.fail(error);
-              }
-
-              const expo = appJson["expo"] as Record<string, unknown> | undefined;
-              const appName = typeof expo?.["name"] === "string" ? expo["name"] : iosBundleId;
-
-              yield* provisionIosCredentials({
-                api,
-                projectId,
-                distribution: iosProfile.distribution,
-                bundleIdentifier: iosBundleId,
-                appName,
-              });
-
-              yield* Console.log("");
-              yield* Console.log("Retrying iOS build...");
-
-              return yield* runIosBuild({
-                api,
-                tempDir,
-                projectRoot,
-                iosProfile,
-                bundleId: iosBundleId,
-                envVars,
-                projectId,
-                rawOutput: options.rawOutput,
-              });
-            }),
-          ),
-        );
+        });
         target = {
           platform: "ios",
           distribution: iosProfile.distribution,
@@ -164,52 +118,26 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
           });
         }
 
-        // Cross-validate Gradle config against app.json (Groovy only)
+        // Cross-validate Gradle config against app.json (Groovy only). When
+        // Gradle resolves a different applicationId (flavors, config-plugin
+        // mutations), the built APK/AAB is signed under that id — so the
+        // credential resolver must also key off the Gradle value, or it will
+        // fetch the wrong keystore binding.
         const androidDir = `${projectRoot}/android`;
         const gradleConfig = yield* readGradleConfig(androidDir);
         yield* warnOnGradleMismatch(gradleConfig, androidBundleId);
+        const applicationIdentifier = gradleConfig?.applicationId ?? androidBundleId;
 
         build = yield* runAndroidBuild({
           api,
           tempDir,
           projectRoot,
           androidProfile,
+          applicationIdentifier,
           envVars,
           projectId,
-        }).pipe(
-          Effect.catchTag("MissingCredentialsError", (error) =>
-            Effect.gen(function* () {
-              yield* Console.log("");
-              yield* Console.log(error.message);
-              yield* Console.log(error.hint);
-
-              const shouldProvision = yield* Prompt.confirm({
-                message: "Provision missing Android credentials now?",
-                initial: true,
-              });
-              if (!shouldProvision) {
-                return yield* Effect.fail(error);
-              }
-
-              yield* provisionAndroidCredentials({
-                api,
-                projectId,
-              });
-
-              yield* Console.log("");
-              yield* Console.log("Retrying Android build...");
-
-              return yield* runAndroidBuild({
-                api,
-                tempDir,
-                projectRoot,
-                androidProfile,
-                envVars,
-                projectId,
-              });
-            }),
-          ),
-        );
+        });
+        bundleId = applicationIdentifier;
         target =
           androidProfile.format === "aab"
             ? {
@@ -222,7 +150,6 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
                 distribution: "direct",
                 artifactFormat: "apk",
               };
-        bundleId = androidBundleId;
       }
 
       yield* Console.log(`Artifact produced: ${build.artifactPath}`);

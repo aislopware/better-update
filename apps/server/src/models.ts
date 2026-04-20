@@ -223,6 +223,8 @@ export interface AppleProvisioningProfileModel {
   readonly profileName: string | null;
   readonly validUntil: string | null;
   readonly r2Key: string;
+  readonly isManaged: boolean;
+  readonly deviceRosterHash: string | null;
   readonly createdAt: string;
   readonly updatedAt: string;
 }

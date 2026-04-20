@@ -83,6 +83,7 @@ export const runIosBuild = (
     // 1. Download credentials (p12 + mobileprovision) into tempDir.
     const credentials = yield* downloadIosCredentials(api, {
       projectId,
+      bundleIdentifier: bundleId,
       distribution,
       tempDir,
     });

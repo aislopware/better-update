@@ -13,6 +13,7 @@ import { AscApiKeysGroup } from "./groups/asc-api-keys";
 import { AssetsGroup } from "./groups/assets";
 import { AuditLogsGroup } from "./groups/audit-logs";
 import { BranchesGroup } from "./groups/branches";
+import { BuildCredentialsGroup } from "./groups/build-credentials";
 import { BuildsGroup } from "./groups/builds";
 import { ChannelsGroup } from "./groups/channels";
 import { DevicesGroup } from "./groups/devices";
@@ -43,6 +44,7 @@ export class ManagementApi extends HttpApi.make("management-api")
   .add(AndroidApplicationIdentifiersGroup)
   .add(AndroidUploadKeystoresGroup)
   .add(AndroidBuildCredentialsGroup)
+  .add(BuildCredentialsGroup)
   .middleware(Authentication)
   .annotateContext(
     OpenApi.annotations({
