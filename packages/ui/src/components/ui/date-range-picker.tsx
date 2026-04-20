@@ -42,7 +42,7 @@ export function DateRangePicker({
     <Popover>
       <PopoverTrigger
         className={cn(
-          "border-border bg-background hover:bg-muted aria-expanded:bg-muted inline-flex h-9 w-64 items-center gap-1.5 rounded-md border px-2.5 text-sm font-normal shadow-xs outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
+          "border-border bg-background hover:bg-muted aria-expanded:bg-muted inline-flex h-10 w-64 items-center gap-1.5 rounded-[6px] border px-3 text-sm font-normal shadow-xs outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
           triggerClassName
         )}
       >

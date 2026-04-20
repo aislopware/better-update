@@ -63,6 +63,7 @@ const OrgGeneralForm = () => {
         <CardDescription>Update your organization details.</CardDescription>
       </CardHeader>
       <form
+        className="flex flex-col gap-4"
         onSubmit={async (event) => {
           event.preventDefault();
           event.stopPropagation();

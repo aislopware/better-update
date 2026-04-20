@@ -161,7 +161,6 @@ export const CreateProjectDialog = ({ orgId }: { orgId: string }) => {
           setOpen(true);
         }}
       >
-        <PlusIcon strokeWidth={2} data-icon="inline-start" />
         Create project
       </Button>
       <DialogContent>

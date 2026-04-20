@@ -43,6 +43,7 @@ const ForgotPassword = () => {
           <CardDescription>Enter your email and we&apos;ll send you a reset link</CardDescription>
         </CardHeader>
         <form
+          className="flex flex-col gap-4"
           onSubmit={async (event) => {
             event.preventDefault();
             event.stopPropagation();

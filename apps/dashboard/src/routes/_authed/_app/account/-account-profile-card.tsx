@@ -46,6 +46,7 @@ export const AccountProfileCard = () => {
         <CardDescription>Update your display name.</CardDescription>
       </CardHeader>
       <form
+        className="flex flex-col gap-4"
         onSubmit={async (event) => {
           event.preventDefault();
           event.stopPropagation();
