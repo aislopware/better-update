@@ -81,6 +81,8 @@ export const AppleProvisioningProfilesGroupLive = HttpApiBuilder.group(
                 profileName: parsed.profileName,
                 validUntil: parsed.validUntil,
                 r2Key,
+                isManaged: false,
+                deviceRosterHash: null,
               }),
             );
 

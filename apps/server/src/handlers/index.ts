@@ -12,6 +12,7 @@ export { AuditLogsGroupLive } from "./audit-logs";
 export { BranchesGroupLive } from "./branches";
 export { handleBuildGc as handleScheduled } from "./build-gc";
 export { matchBuildRoute } from "./build-routes";
+export { BuildCredentialsGroupLive } from "./build-credentials";
 export { BuildsGroupLive } from "./builds";
 export { ChannelsGroupLive } from "./channels";
 export { matchDeviceRegistrationRoute } from "./device-registration-routes";

@@ -6,11 +6,10 @@ import path from "node:path";
 
 import { setupCliE2E } from "../helpers/cli-e2e";
 
-// CLI build pipeline provisioning + download is pending migration to the new
-// credential store (iOS Bundle Configurations, Android Build Credentials
-// groups). Re-enable once downloadAndroidCredentials/downloadIosCredentials are
-// wired to the new endpoints.
-const hasAndroidSdk = !!process.env["ANDROID_HOME"] && process.env["CLI_BUILD_E2E"] === "1";
+// Gated on ANDROID_HOME because gradlew requires a functioning Android SDK
+// toolchain; the build-credentials resolve endpoint is covered in the server
+// E2E suite independently.
+const hasAndroidSdk = !!process.env["ANDROID_HOME"];
 
 const FIXTURE_DIR = path.resolve(import.meta.dirname, "../../../../fixtures/build-e2e-app");
 
@@ -101,6 +100,26 @@ describe.skipIf(!hasAndroidSdk)("CLI build journey — Android", () => {
       keyPassword: KEY_PASSWORD,
     });
     expect(createResponse.status).toBe(201);
+    const keystoreId = (await createResponse.json()).id as string;
+
+    // Register Android application identifier + default build credentials group so the
+    // resolve endpoint can find a keystore binding for package name.
+    const appResponse = await cli.postAuthorized(
+      `/api/projects/${cli.getProjectId()}/android-application-identifiers`,
+      { packageName: "com.example.e2ebuild" },
+    );
+    expect(appResponse.status).toBe(201);
+    const appId = (await appResponse.json()).id as string;
+
+    const groupResponse = await cli.postAuthorized(
+      `/api/android-application-identifiers/${appId}/build-credentials`,
+      {
+        name: "Default",
+        isDefault: true,
+        androidUploadKeystoreId: keystoreId,
+      },
+    );
+    expect(groupResponse.status).toBe(201);
   });
 
   it("links the fixture app to the seeded project", () => {

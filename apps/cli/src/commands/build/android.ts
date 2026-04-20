@@ -26,6 +26,7 @@ export interface RunAndroidBuildInput {
   readonly tempDir: string;
   readonly projectRoot: string;
   readonly androidProfile: AndroidProfile;
+  readonly applicationIdentifier: string;
   readonly envVars: Record<string, string>;
   readonly projectId: string;
 }
@@ -64,7 +65,8 @@ export const runAndroidBuild = (
   CliRuntime | CommandExecutor.CommandExecutor | FileSystem.FileSystem
 > =>
   Effect.gen(function* () {
-    const { api, tempDir, projectRoot, androidProfile, envVars, projectId } = input;
+    const { api, tempDir, projectRoot, androidProfile, applicationIdentifier, envVars, projectId } =
+      input;
     const runtime = yield* CliRuntime;
 
     // Record build start so artifact-finder can reject stale outputs from
@@ -79,6 +81,7 @@ export const runAndroidBuild = (
 
     const credentials = yield* downloadAndroidCredentials(api, {
       projectId,
+      applicationIdentifier,
       tempDir,
     });
 

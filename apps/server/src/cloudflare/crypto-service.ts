@@ -1,4 +1,4 @@
-import { fromBase64Url, toBase64Url } from "@better-update/encoding";
+import { fromBase64Url, toBase64Url, toHex } from "@better-update/encoding";
 import { Effect, Layer } from "effect";
 
 import { CryptoError, CryptoService } from "../domain/crypto-service";
@@ -13,6 +13,14 @@ const tryWebCrypto = <T>(operation: string, run: () => Promise<T>) =>
   Effect.tryPromise({
     try: run,
     catch: (cause) => new CryptoError({ operation, cause }),
+  });
+
+const sha256Hex = (input: string) =>
+  Effect.gen(function* () {
+    const buffer = yield* tryWebCrypto("sha256Hex", async () =>
+      crypto.subtle.digest("SHA-256", new TextEncoder().encode(input)),
+    );
+    return toHex(buffer);
   });
 
 const sha256Fraction = (salt: string, clientId: string) =>
@@ -107,6 +115,7 @@ const decryptAesGcm = (key: CryptoKey, data: Uint8Array) =>
   });
 
 export const CryptoServiceLive = Layer.succeed(CryptoService, {
+  sha256Hex,
   sha256Fraction,
   hmacSignBase64Url,
   hmacVerifyBase64Url,

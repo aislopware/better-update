@@ -132,6 +132,18 @@ export {
   UpdateAndroidBuildCredentialsBody,
 } from "./domain/android-build-credentials";
 export {
+  AndroidBuildKeystore,
+  IosBuildDistributionCertificate,
+  IosBuildProvisioningProfile,
+  IosBuildPushKey,
+  ResolveBuildCredentialsAndroidBody,
+  ResolveBuildCredentialsAndroidResult,
+  ResolveBuildCredentialsBody,
+  ResolveBuildCredentialsIosBody,
+  ResolveBuildCredentialsIosResult,
+  ResolveBuildCredentialsResult,
+} from "./domain/build-credentials";
+export {
   ArtifactFormat,
   Build,
   BuildCompatibilityChannel,
@@ -178,6 +190,7 @@ export { IosBundleConfigurationsGroup } from "./groups/ios-bundle-configurations
 export { AndroidApplicationIdentifiersGroup } from "./groups/android-application-identifiers";
 export { AndroidUploadKeystoresGroup } from "./groups/android-upload-keystores";
 export { AndroidBuildCredentialsGroup } from "./groups/android-build-credentials";
+export { BuildCredentialsGroup } from "./groups/build-credentials";
 export { ManifestGroup } from "./groups/manifest";
 export { ProjectsGroup } from "./groups/projects";
 export { UpdatesGroup } from "./groups/updates";

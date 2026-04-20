@@ -8,6 +8,7 @@ export class CryptoError extends Data.TaggedError("CryptoError")<{
 }> {}
 
 export interface CryptoServiceImpl {
+  readonly sha256Hex: (input: string) => Effect.Effect<string, CryptoError>;
   readonly sha256Fraction: (salt: string, clientId: string) => Effect.Effect<number, CryptoError>;
   readonly hmacSignBase64Url: (
     secret: string,

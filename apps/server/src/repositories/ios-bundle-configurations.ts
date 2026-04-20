@@ -27,6 +27,12 @@ export interface IosBundleConfigurationRepository {
     readonly projectId: string;
   }) => Effect.Effect<readonly IosBundleConfigurationModel[]>;
 
+  readonly findByProjectAndBundle: (params: {
+    readonly projectId: string;
+    readonly bundleIdentifier: string;
+    readonly distributionType: DistributionType;
+  }) => Effect.Effect<IosBundleConfigurationModel, NotFound>;
+
   readonly findById: (params: {
     readonly id: string;
   }) => Effect.Effect<IosBundleConfigurationModel, NotFound>;
@@ -119,6 +125,26 @@ export const IosBundleConfigurationRepoLive = Layer.succeed(IosBundleConfigurati
           .all<Row>(),
       );
       return rows.results.map(toModel);
+    }),
+
+  findByProjectAndBundle: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+      const row = yield* Effect.promise(async () =>
+        env.DB.prepare(
+          `SELECT ${COLUMNS} FROM "ios_bundle_configurations" WHERE "project_id" = ? AND "bundle_identifier" = ? AND "distribution_type" = ?`,
+        )
+          .bind(params.projectId, params.bundleIdentifier, params.distributionType)
+          .first<Row>(),
+      );
+      if (row === null) {
+        return yield* Effect.fail(
+          new NotFound({
+            message: `No iOS bundle configuration found for ${params.bundleIdentifier} (${params.distributionType})`,
+          }),
+        );
+      }
+      return toModel(row);
     }),
 
   findById: (params) =>

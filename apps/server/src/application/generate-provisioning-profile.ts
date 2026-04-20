@@ -3,7 +3,9 @@ import { Effect } from "effect";
 
 import { AppleAppStoreConnect } from "../cloudflare/apple-app-store-connect";
 import { cloudflareEnv } from "../cloudflare/context";
+import { CredentialArtifacts } from "../cloudflare/credential-artifacts";
 import { Vault } from "../cloudflare/vault";
+import { computeDeviceRosterHash } from "../domain/device-roster-hash";
 import { BadRequest, NotFound } from "../errors";
 import { withR2Compensation } from "../lib/r2-helpers";
 import { AppleDistributionCertificateRepo } from "../repositories/apple-distribution-certificates";
@@ -49,7 +51,7 @@ const mapAppleError = (error: { _tag: string; message?: string }) =>
 
 const loadAscCredentials = (organizationId: string, ascKey: AscApiKeyModel, teamAppleId: string) =>
   Effect.gen(function* () {
-    const env = yield* cloudflareEnv;
+    const artifacts = yield* CredentialArtifacts;
     const vault = yield* Vault;
     const issuerId = yield* vault
       .decryptSecret({
@@ -58,11 +60,7 @@ const loadAscCredentials = (organizationId: string, ascKey: AscApiKeyModel, team
         encrypted: ascKey.issuerIdEncrypted,
       })
       .pipe(Effect.mapError(decryptFailure));
-    const p8Blob = yield* Effect.promise(async () => env.CREDENTIAL_ARTIFACTS.get(ascKey.r2Key));
-    if (p8Blob === null) {
-      return yield* Effect.fail(new NotFound({ message: "ASC API key artifact missing" }));
-    }
-    const p8Encrypted = new Uint8Array(yield* Effect.promise(async () => p8Blob.arrayBuffer()));
+    const p8Encrypted = yield* artifacts.get(ascKey.r2Key, "ASC API key");
     const p8Bytes = yield* vault
       .envelopeDecrypt({
         organizationId,
@@ -120,7 +118,7 @@ const resolveRemoteCertificateId = (
     return match.id;
   });
 
-const collectDeviceAscIds = (params: {
+export const collectDeviceAscIds = (params: {
   readonly organizationId: string;
   readonly appleTeamId: string;
   readonly deviceIds?: readonly string[];
@@ -171,6 +169,7 @@ const loadPreconditions = (params: GenerateProvisioningProfileParams) =>
 export const generateProvisioningProfile = (params: GenerateProvisioningProfileParams) =>
   Effect.gen(function* () {
     const env = yield* cloudflareEnv;
+    const artifacts = yield* CredentialArtifacts;
     const apple = yield* AppleAppStoreConnect;
     const profiles = yield* AppleProvisioningProfileRepo;
     const { ascKey, cert, team } = yield* loadPreconditions(params);
@@ -212,11 +211,15 @@ export const generateProvisioningProfile = (params: GenerateProvisioningProfileP
       )
       .pipe(Effect.mapError(mapAppleError));
 
+    const deviceRosterHash = useDevices
+      ? yield* computeDeviceRosterHash(deviceAscIds).pipe(
+          Effect.mapError(() => new BadRequest({ message: "Failed to hash device roster" })),
+        )
+      : null;
+
     const id = crypto.randomUUID();
     const r2Key = `apple-provisioning-profiles/${params.organizationId}/${id}.mobileprovision`;
-    yield* Effect.promise(async () =>
-      env.CREDENTIAL_ARTIFACTS.put(r2Key, fromBase64(generated.profileContent)),
-    );
+    yield* artifacts.put(r2Key, fromBase64(generated.profileContent));
 
     const { model: saved, previousR2Key } = yield* withR2Compensation(
       env.CREDENTIAL_ARTIFACTS,
@@ -232,11 +235,13 @@ export const generateProvisioningProfile = (params: GenerateProvisioningProfileP
         profileName: generated.name,
         validUntil: generated.expirationDate,
         r2Key,
+        isManaged: true,
+        deviceRosterHash,
       }),
     );
 
     if (previousR2Key !== null) {
-      yield* Effect.promise(async () => env.CREDENTIAL_ARTIFACTS.delete(previousR2Key));
+      yield* artifacts.delete(previousR2Key);
     }
 
     return saved;
