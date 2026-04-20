@@ -54,6 +54,7 @@ export default defineConfig(async () => {
           "src/**/*.d.ts",
           "src/auth/middleware.ts",
           // Imperative shell adapters are covered indirectly via repo/handler tests.
+          "src/cloudflare/apple-app-store-connect.ts",
           "src/cloudflare/asset-storage.ts",
           "src/cloudflare/build-runtime.ts",
           "src/cloudflare/manifest-runtime.ts",

@@ -142,7 +142,8 @@ export const setupCliE2E = (persistDir: string, options?: SetupCliE2EOptions): C
 
   const persistPath = path.resolve(SERVER_DIR, persistDir);
   const persistArg = path.relative(SERVER_DIR, persistPath) || ".";
-  const seedFile = path.resolve(SERVER_DIR, ".wrangler/seed-cli-e2e.sql");
+  const seedFileId = persistDir.replace(/[^a-zA-Z0-9]+/gu, "-");
+  const seedFile = path.resolve(SERVER_DIR, `.wrangler/seed-${seedFileId}.sql`);
 
   const post = async (requestPath: string, body: unknown, headers?: Record<string, string>) =>
     requestWithRetry(() =>
@@ -330,24 +331,6 @@ export const setupCliE2E = (persistDir: string, options?: SetupCliE2EOptions): C
       { cookie: state.cookies },
     );
     expect(createBranchResponse.status).toBe(201);
-
-    const createCredentialResponse = await post(
-      "/api/credentials",
-      {
-        projectId: state.projectId,
-        platform: "ios",
-        type: "distribution-certificate",
-        name: "CLI iOS Distribution Certificate",
-        blob: Buffer.from("fake-p12-binary").toString("base64"),
-        password: "cert-password",
-        metadata: JSON.stringify({
-          commonName: "Apple Distribution: Better Update",
-          teamId: "TEAM123456",
-        }),
-      },
-      { cookie: state.cookies },
-    );
-    expect(createCredentialResponse.status).toBe(201);
 
     const createEnvVarResponse = await post(
       "/api/env-vars",

@@ -8,8 +8,11 @@ export const AuditLogResourceType = Schema.Literal(
   "channel",
   "update",
   "build",
-  "credential",
+  "appleCredential",
+  "androidCredential",
+  "iosBundleConfiguration",
   "envVar",
+  "device",
 );
 
 export const AuditLogSource = Schema.Literal("session", "api-key");

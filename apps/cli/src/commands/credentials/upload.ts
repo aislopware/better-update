@@ -1,73 +1,86 @@
 import { Command, Options } from "@effect/cli";
 import { Console, Effect, Option } from "effect";
 
-import { readProjectId } from "../../lib/app-json";
-import { uploadCredentialFromFile } from "../../lib/credentials-manager";
+import { uploadCredential } from "../../lib/credentials-manager";
 import { printKeyValue } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 
-const platform = Options.choice("platform", ["ios", "android"]);
+import type { CliCredentialType } from "../../lib/credentials-manager";
+
+const platform = Options.choice("platform", ["ios", "android"] as const);
 const type = Options.choice("type", [
   "distribution-certificate",
   "provisioning-profile",
   "push-key",
+  "asc-api-key",
   "keystore",
-  "play-service-account",
-]);
+  "google-service-account-key",
+] as const);
 const name = Options.text("name");
 const file = Options.text("file");
 
 const password = Options.text("password").pipe(Options.optional);
-const distribution = Options.choice("distribution", [
-  "ad-hoc",
-  "app-store",
-  "development",
-  "enterprise",
-  "play-store",
-  "direct",
-]).pipe(Options.optional);
 const keyAlias = Options.text("key-alias").pipe(Options.optional);
 const keyPassword = Options.text("key-password").pipe(Options.optional);
-const projectIdOption = Options.text("project-id").pipe(Options.optional);
+const keyId = Options.text("key-id").pipe(Options.optional);
+const issuerId = Options.text("issuer-id").pipe(Options.optional);
+const appleTeamIdentifier = Options.text("apple-team-identifier").pipe(Options.optional);
+
+const optional = <A>(value: Option.Option<A>) =>
+  Option.match(value, { onNone: () => undefined, onSome: (v) => v });
 
 export const uploadCommand = Command.make(
   "upload",
-  { platform, type, name, file, password, distribution, keyAlias, keyPassword, projectIdOption },
+  {
+    platform,
+    type,
+    name,
+    file,
+    password,
+    keyAlias,
+    keyPassword,
+    keyId,
+    issuerId,
+    appleTeamIdentifier,
+  },
   (opts) =>
     Effect.gen(function* () {
-      const resolvedProjectId = yield* Option.match(opts.projectIdOption, {
-        onNone: () => readProjectId,
-        onSome: (id) => Effect.succeed(id),
-      });
-
-      const optionalFields = {
-        ...Option.match(opts.password, {
-          onNone: () => ({}),
-          onSome: (v) => ({ password: v }),
-        }),
-        ...Option.match(opts.distribution, {
-          onNone: () => ({}),
-          onSome: (v) => ({ distribution: v }),
-        }),
-        ...Option.match(opts.keyAlias, {
-          onNone: () => ({}),
-          onSome: (v) => ({ keyAlias: v }),
-        }),
-        ...Option.match(opts.keyPassword, {
-          onNone: () => ({}),
-          onSome: (v) => ({ keyPassword: v }),
-        }),
-      };
-
       const api = yield* apiClient;
-      const credential = yield* uploadCredentialFromFile(api, {
-        projectId: resolvedProjectId,
+
+      const passwordOpt = optional(opts.password);
+      const keyAliasOpt = optional(opts.keyAlias);
+      const keyPasswordOpt = optional(opts.keyPassword);
+      const keyIdOpt = optional(opts.keyId);
+      const issuerIdOpt = optional(opts.issuerId);
+      const appleTeamIdentifierOpt = optional(opts.appleTeamIdentifier);
+
+      const input: {
+        readonly platform: typeof opts.platform;
+        readonly type: CliCredentialType;
+        readonly name: string;
+        readonly filePath: string;
+        readonly password?: string;
+        readonly keyAlias?: string;
+        readonly keyPassword?: string;
+        readonly keyId?: string;
+        readonly issuerId?: string;
+        readonly appleTeamIdentifier?: string;
+      } = {
         platform: opts.platform,
         type: opts.type,
         name: opts.name,
         filePath: opts.file,
-        ...optionalFields,
-      });
+        ...(passwordOpt === undefined ? {} : { password: passwordOpt }),
+        ...(keyAliasOpt === undefined ? {} : { keyAlias: keyAliasOpt }),
+        ...(keyPasswordOpt === undefined ? {} : { keyPassword: keyPasswordOpt }),
+        ...(keyIdOpt === undefined ? {} : { keyId: keyIdOpt }),
+        ...(issuerIdOpt === undefined ? {} : { issuerId: issuerIdOpt }),
+        ...(appleTeamIdentifierOpt === undefined
+          ? {}
+          : { appleTeamIdentifier: appleTeamIdentifierOpt }),
+      };
+
+      const credential = yield* uploadCredential(api, input);
 
       yield* Console.log("Credential uploaded successfully.");
       yield* Console.log("");
@@ -76,7 +89,6 @@ export const uploadCommand = Command.make(
         ["Name", credential.name],
         ["Platform", credential.platform],
         ["Type", credential.type],
-        ["Active", credential.isActive ? "yes" : "no"],
       ]);
     }),
 );

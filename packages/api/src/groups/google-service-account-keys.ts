@@ -1,0 +1,56 @@
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "@effect/platform";
+import { Schema } from "effect";
+
+import { Forbidden } from "../auth/errors";
+import { NotFound } from "../auth/ownership";
+import { BadRequest, Conflict } from "../domain/errors";
+import {
+  DeleteGoogleServiceAccountKeyResult,
+  GoogleServiceAccountKey,
+  UploadGoogleServiceAccountKeyBody,
+} from "../domain/google-service-account-key";
+
+const idParam = HttpApiSchema.param("id", Schema.String);
+
+export class GoogleServiceAccountKeysGroup extends HttpApiGroup.make("googleServiceAccountKeys")
+  .add(
+    HttpApiEndpoint.get("list", "/api/google/service-account-keys")
+      .addSuccess(Schema.Struct({ items: Schema.Array(GoogleServiceAccountKey) }))
+      .annotateContext(
+        OpenApi.annotations({
+          title: "List Google service account keys",
+          description: "List uploaded Google service account JSON keys",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.post("upload", "/api/google/service-account-keys")
+      .setPayload(UploadGoogleServiceAccountKeyBody)
+      .addSuccess(GoogleServiceAccountKey, { status: 201 })
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Upload service account key",
+          description: "Upload a Google service account JSON key",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.del("delete")`/api/google/service-account-keys/${idParam}`
+      .addSuccess(DeleteGoogleServiceAccountKeyResult)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Delete service account key",
+          description: "Remove a stored Google service account key",
+        }),
+      ),
+  )
+  .addError(NotFound)
+  .addError(Conflict)
+  .addError(BadRequest)
+  .addError(Forbidden)
+  .annotateContext(
+    OpenApi.annotations({
+      title: "Google Service Account Keys",
+      description: "Manage Google Play + FCM service account JSON keys",
+    }),
+  ) {}

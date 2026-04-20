@@ -34,7 +34,6 @@
     "@tanstack/react-router": "^1.168.23",
     "@tanstack/react-table": "^8.21.3",
     "better-auth": "^1.6.5",
-    "date-fns": "^4.1.0",
     "effect": "^3.21.1",
     "lucide-react": "^0.546.0",
     "qrcode.react": "^4.2.0",

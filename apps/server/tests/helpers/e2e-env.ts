@@ -65,12 +65,31 @@ const envValue = (options: {
   readonly primary: string;
   readonly fallback: string;
   readonly secondary?: string;
-}) =>
-  (options.secondary ? process.env[options.secondary] : undefined) ??
-  process.env[options.primary] ??
-  (options.secondary ? options.fileSource[options.secondary] : undefined) ??
-  options.fileSource[options.primary] ??
-  options.fallback;
+  readonly accept?: (candidate: string) => boolean;
+}) => {
+  const accept = options.accept ?? (() => true);
+  const candidates = [
+    options.secondary ? process.env[options.secondary] : undefined,
+    process.env[options.primary],
+    options.secondary ? options.fileSource[options.secondary] : undefined,
+    options.fileSource[options.primary],
+  ];
+  const found = candidates.find((value) => value !== undefined && value !== "" && accept(value));
+  return found ?? options.fallback;
+};
+
+const isJsonObject = (value: string) => {
+  const trimmed = value.trim();
+  if (!trimmed.startsWith("{")) {
+    return false;
+  }
+  try {
+    const parsed: unknown = JSON.parse(trimmed);
+    return typeof parsed === "object" && parsed !== null;
+  } catch {
+    return false;
+  }
+};
 
 const toPlainTextBindings = (values: Record<string, string>) =>
   Object.fromEntries(
@@ -173,8 +192,10 @@ export const createServerE2EEnvironment = (options?: {
     TEST_MODE: "true",
     VAULT_KEYRING: envValue({
       fileSource,
-      primary: "VAULT_KEYRING",
+      primary: "E2E_VAULT_KEYRING",
+      secondary: "VAULT_KEYRING",
       fallback: FALLBACKS.vaultKeyring,
+      accept: isJsonObject,
     }),
   } satisfies Record<string, string>;
 

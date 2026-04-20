@@ -2,6 +2,7 @@ import { Command } from "@effect/cli";
 import { Console, Effect } from "effect";
 
 import { readProjectId } from "../lib/app-json";
+import { listAllCredentials } from "../lib/credentials-manager";
 import { printKeyValue } from "../lib/output";
 import { apiClient } from "../services/api-client";
 
@@ -13,7 +14,7 @@ export const statusCommand = Command.make("status", {}, () =>
     const { project, credentials, builds } = yield* Effect.all(
       {
         project: api.projects.get({ path: { id: projectId } }),
-        credentials: api.credentials.list({ urlParams: { projectId } }),
+        credentials: listAllCredentials(api),
         builds: api.builds.list({ urlParams: { projectId } }),
       },
       { concurrency: "unbounded" },
@@ -31,12 +32,12 @@ export const statusCommand = Command.make("status", {}, () =>
     yield* Console.log("");
     yield* Console.log("Credentials");
     yield* Console.log("-----------");
-    const iosCreds = credentials.items.filter((c) => c.platform === "ios").length;
-    const androidCreds = credentials.items.filter((c) => c.platform === "android").length;
+    const iosCreds = credentials.filter((c) => c.platform === "ios").length;
+    const androidCreds = credentials.filter((c) => c.platform === "android").length;
     yield* printKeyValue([
       ["iOS", String(iosCreds)],
       ["Android", String(androidCreds)],
-      ["Total", String(credentials.total)],
+      ["Total", String(credentials.length)],
     ]);
 
     yield* Console.log("");

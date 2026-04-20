@@ -7,8 +7,6 @@ import { runBuildWorkflow } from "../../application/build-workflow";
 import { exitWith } from "../../application/command-exit";
 
 import type {
-  AppleAuthError,
-  AppleProvisioningError,
   ArtifactNotFoundError,
   AuthRequiredError,
   BuildFailedError,
@@ -43,9 +41,6 @@ export const buildCommand = Command.make(
       rawOutput: opts.rawOutput,
     }).pipe(
       Effect.catchTags({
-        AppleAuthError: (e: AppleAuthError) => exitWith(5, e.message),
-        AppleProvisioningError: (e: AppleProvisioningError) =>
-          exitWith(5, `Apple provisioning failed (${e.step}): ${e.message}`),
         AuthRequiredError: (e: AuthRequiredError) => exitWith(3, e.message),
         ProjectNotLinkedError: (e: ProjectNotLinkedError) => exitWith(4, e.message),
         BuildProfileError: (e: BuildProfileError) => exitWith(2, e.message),

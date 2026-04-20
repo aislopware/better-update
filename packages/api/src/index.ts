@@ -51,14 +51,6 @@ export {
 } from "./domain/update";
 export { Asset, AssetUploadBody, AssetUploadResult } from "./domain/asset";
 export {
-  Credential,
-  CreateCredentialBody,
-  CredentialDistribution,
-  CredentialDownload,
-  CredentialType,
-  DeleteCredentialResult,
-} from "./domain/credential";
-export {
   BulkImportEnvVarsBody,
   BulkImportResult,
   CreateEnvVarBody,
@@ -69,6 +61,76 @@ export {
   EnvVarVisibility,
   UpdateEnvVarBody,
 } from "./domain/env-var";
+export {
+  CreateRegistrationRequestBody,
+  DeleteDeviceResult,
+  Device,
+  DeviceClass,
+  DeviceIdentifier,
+  DeviceRegistrationRequest,
+  ListDevicesParams,
+  ListRegistrationRequestsParams,
+  RegisterDeviceBody,
+  UpdateDeviceBody,
+} from "./domain/device";
+export { AppleTeam, AppleTeamIdentifier, AppleTeamType } from "./domain/apple-team";
+export {
+  AppleDistributionCertificate,
+  DeleteAppleDistributionCertificateResult,
+  UploadAppleDistributionCertificateBody,
+} from "./domain/apple-distribution-certificate";
+export {
+  ApplePushKey,
+  ApplePushKeyId,
+  DeleteApplePushKeyResult,
+  UploadApplePushKeyBody,
+} from "./domain/apple-push-key";
+export {
+  AscApiKey,
+  AscApiKeyId,
+  DeleteAscApiKeyResult,
+  IssuerId,
+  SyncDevicesResult,
+  SyncedDeviceSummary,
+  UploadAscApiKeyBody,
+} from "./domain/asc-api-key";
+export {
+  AppleProvisioningProfile,
+  BundleIdentifier,
+  DeleteAppleProvisioningProfileResult,
+  DistributionType,
+  GenerateAppleProvisioningProfileBody,
+  ListAppleProvisioningProfilesParams,
+  UploadAppleProvisioningProfileBody,
+} from "./domain/apple-provisioning-profile";
+export {
+  DeleteGoogleServiceAccountKeyResult,
+  GoogleServiceAccountKey,
+  UploadGoogleServiceAccountKeyBody,
+} from "./domain/google-service-account-key";
+export {
+  CreateIosBundleConfigurationBody,
+  DeleteIosBundleConfigurationResult,
+  IosBundleConfiguration,
+  UpdateIosBundleConfigurationBody,
+} from "./domain/ios-bundle-configuration";
+export {
+  AndroidApplicationIdentifier,
+  AndroidPackageName,
+  CreateAndroidApplicationIdentifierBody,
+  DeleteAndroidApplicationIdentifierResult,
+} from "./domain/android-application-identifier";
+export {
+  AndroidUploadKeystore,
+  DeleteAndroidUploadKeystoreResult,
+  UploadAndroidUploadKeystoreBody,
+} from "./domain/android-upload-keystore";
+export {
+  AndroidBuildCredentials,
+  CreateAndroidBuildCredentialsBody,
+  DeleteAndroidBuildCredentialsResult,
+  UpdateAndroidBuildCredentialsBody,
+} from "./domain/android-build-credentials";
 export {
   ArtifactFormat,
   Build,
@@ -103,9 +165,19 @@ export { AnalyticsGroup } from "./groups/analytics";
 export { AssetsGroup } from "./groups/assets";
 export { BranchesGroup } from "./groups/branches";
 export { BuildsGroup } from "./groups/builds";
-export { CredentialsGroup } from "./groups/credentials";
 export { EnvVarsGroup } from "./groups/env-vars";
 export { ChannelsGroup } from "./groups/channels";
+export { DevicesGroup } from "./groups/devices";
+export { AppleTeamsGroup } from "./groups/apple-teams";
+export { AppleDistributionCertificatesGroup } from "./groups/apple-distribution-certificates";
+export { ApplePushKeysGroup } from "./groups/apple-push-keys";
+export { AscApiKeysGroup } from "./groups/asc-api-keys";
+export { AppleProvisioningProfilesGroup } from "./groups/apple-provisioning-profiles";
+export { GoogleServiceAccountKeysGroup } from "./groups/google-service-account-keys";
+export { IosBundleConfigurationsGroup } from "./groups/ios-bundle-configurations";
+export { AndroidApplicationIdentifiersGroup } from "./groups/android-application-identifiers";
+export { AndroidUploadKeystoresGroup } from "./groups/android-upload-keystores";
+export { AndroidBuildCredentialsGroup } from "./groups/android-build-credentials";
 export { ManifestGroup } from "./groups/manifest";
 export { ProjectsGroup } from "./groups/projects";
 export { UpdatesGroup } from "./groups/updates";

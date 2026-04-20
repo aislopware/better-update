@@ -24,9 +24,11 @@ import { Route as AuthedAppAuditLogRouteImport } from './routes/_authed/_app/aud
 import { Route as AuthedAppApiKeysRouteImport } from './routes/_authed/_app/api-keys'
 import { Route as AuthedAppSettingsIndexRouteImport } from './routes/_authed/_app/settings/index'
 import { Route as AuthedAppProjectsIndexRouteImport } from './routes/_authed/_app/projects/index'
+import { Route as AuthedAppAppleDevicesIndexRouteImport } from './routes/_authed/_app/apple-devices/index'
 import { Route as AuthedAppAccountIndexRouteImport } from './routes/_authed/_app/account/index'
 import { Route as AuthedAppProjectsProjectSlugRouteImport } from './routes/_authed/_app/projects/$projectSlug'
 import { Route as AuthedAppProjectsProjectSlugIndexRouteImport } from './routes/_authed/_app/projects/$projectSlug/index'
+import { Route as AuthedAppProjectsProjectSlugCredentialsRouteImport } from './routes/_authed/_app/projects/$projectSlug/credentials'
 import { Route as AuthedAppProjectsProjectSlugAuditLogRouteImport } from './routes/_authed/_app/projects/$projectSlug/audit-log'
 import { Route as AuthedAppProjectsProjectSlugUpdatesIndexRouteImport } from './routes/_authed/_app/projects/$projectSlug/updates/index'
 import { Route as AuthedAppProjectsProjectSlugSettingsIndexRouteImport } from './routes/_authed/_app/projects/$projectSlug/settings/index'
@@ -110,6 +112,12 @@ const AuthedAppProjectsIndexRoute = AuthedAppProjectsIndexRouteImport.update({
   path: '/projects/',
   getParentRoute: () => AuthedAppRoute,
 } as any)
+const AuthedAppAppleDevicesIndexRoute =
+  AuthedAppAppleDevicesIndexRouteImport.update({
+    id: '/apple-devices/',
+    path: '/apple-devices/',
+    getParentRoute: () => AuthedAppRoute,
+  } as any)
 const AuthedAppAccountIndexRoute = AuthedAppAccountIndexRouteImport.update({
   id: '/account/',
   path: '/account/',
@@ -125,6 +133,12 @@ const AuthedAppProjectsProjectSlugIndexRoute =
   AuthedAppProjectsProjectSlugIndexRouteImport.update({
     id: '/',
     path: '/',
+    getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
+  } as any)
+const AuthedAppProjectsProjectSlugCredentialsRoute =
+  AuthedAppProjectsProjectSlugCredentialsRouteImport.update({
+    id: '/credentials',
+    path: '/credentials',
     getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
   } as any)
 const AuthedAppProjectsProjectSlugAuditLogRoute =
@@ -196,9 +210,11 @@ export interface FileRoutesByFullPath {
   '/members': typeof AuthedAppMembersRoute
   '/projects/$projectSlug': typeof AuthedAppProjectsProjectSlugRouteWithChildren
   '/account/': typeof AuthedAppAccountIndexRoute
+  '/apple-devices/': typeof AuthedAppAppleDevicesIndexRoute
   '/projects/': typeof AuthedAppProjectsIndexRoute
   '/settings/': typeof AuthedAppSettingsIndexRoute
   '/projects/$projectSlug/audit-log': typeof AuthedAppProjectsProjectSlugAuditLogRoute
+  '/projects/$projectSlug/credentials': typeof AuthedAppProjectsProjectSlugCredentialsRoute
   '/projects/$projectSlug/': typeof AuthedAppProjectsProjectSlugIndexRoute
   '/projects/$projectSlug/builds/$buildId': typeof AuthedAppProjectsProjectSlugBuildsBuildIdRoute
   '/projects/$projectSlug/channels/$channelId': typeof AuthedAppProjectsProjectSlugChannelsChannelIdRoute
@@ -222,9 +238,11 @@ export interface FileRoutesByTo {
   '/credentials': typeof AuthedAppCredentialsRoute
   '/members': typeof AuthedAppMembersRoute
   '/account': typeof AuthedAppAccountIndexRoute
+  '/apple-devices': typeof AuthedAppAppleDevicesIndexRoute
   '/projects': typeof AuthedAppProjectsIndexRoute
   '/settings': typeof AuthedAppSettingsIndexRoute
   '/projects/$projectSlug/audit-log': typeof AuthedAppProjectsProjectSlugAuditLogRoute
+  '/projects/$projectSlug/credentials': typeof AuthedAppProjectsProjectSlugCredentialsRoute
   '/projects/$projectSlug': typeof AuthedAppProjectsProjectSlugIndexRoute
   '/projects/$projectSlug/builds/$buildId': typeof AuthedAppProjectsProjectSlugBuildsBuildIdRoute
   '/projects/$projectSlug/channels/$channelId': typeof AuthedAppProjectsProjectSlugChannelsChannelIdRoute
@@ -252,9 +270,11 @@ export interface FileRoutesById {
   '/_authed/_app/': typeof AuthedAppIndexRoute
   '/_authed/_app/projects/$projectSlug': typeof AuthedAppProjectsProjectSlugRouteWithChildren
   '/_authed/_app/account/': typeof AuthedAppAccountIndexRoute
+  '/_authed/_app/apple-devices/': typeof AuthedAppAppleDevicesIndexRoute
   '/_authed/_app/projects/': typeof AuthedAppProjectsIndexRoute
   '/_authed/_app/settings/': typeof AuthedAppSettingsIndexRoute
   '/_authed/_app/projects/$projectSlug/audit-log': typeof AuthedAppProjectsProjectSlugAuditLogRoute
+  '/_authed/_app/projects/$projectSlug/credentials': typeof AuthedAppProjectsProjectSlugCredentialsRoute
   '/_authed/_app/projects/$projectSlug/': typeof AuthedAppProjectsProjectSlugIndexRoute
   '/_authed/_app/projects/$projectSlug/builds/$buildId': typeof AuthedAppProjectsProjectSlugBuildsBuildIdRoute
   '/_authed/_app/projects/$projectSlug/channels/$channelId': typeof AuthedAppProjectsProjectSlugChannelsChannelIdRoute
@@ -281,9 +301,11 @@ export interface FileRouteTypes {
     | '/members'
     | '/projects/$projectSlug'
     | '/account/'
+    | '/apple-devices/'
     | '/projects/'
     | '/settings/'
     | '/projects/$projectSlug/audit-log'
+    | '/projects/$projectSlug/credentials'
     | '/projects/$projectSlug/'
     | '/projects/$projectSlug/builds/$buildId'
     | '/projects/$projectSlug/channels/$channelId'
@@ -307,9 +329,11 @@ export interface FileRouteTypes {
     | '/credentials'
     | '/members'
     | '/account'
+    | '/apple-devices'
     | '/projects'
     | '/settings'
     | '/projects/$projectSlug/audit-log'
+    | '/projects/$projectSlug/credentials'
     | '/projects/$projectSlug'
     | '/projects/$projectSlug/builds/$buildId'
     | '/projects/$projectSlug/channels/$channelId'
@@ -336,9 +360,11 @@ export interface FileRouteTypes {
     | '/_authed/_app/'
     | '/_authed/_app/projects/$projectSlug'
     | '/_authed/_app/account/'
+    | '/_authed/_app/apple-devices/'
     | '/_authed/_app/projects/'
     | '/_authed/_app/settings/'
     | '/_authed/_app/projects/$projectSlug/audit-log'
+    | '/_authed/_app/projects/$projectSlug/credentials'
     | '/_authed/_app/projects/$projectSlug/'
     | '/_authed/_app/projects/$projectSlug/builds/$buildId'
     | '/_authed/_app/projects/$projectSlug/channels/$channelId'
@@ -466,6 +492,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedAppProjectsIndexRouteImport
       parentRoute: typeof AuthedAppRoute
     }
+    '/_authed/_app/apple-devices/': {
+      id: '/_authed/_app/apple-devices/'
+      path: '/apple-devices'
+      fullPath: '/apple-devices/'
+      preLoaderRoute: typeof AuthedAppAppleDevicesIndexRouteImport
+      parentRoute: typeof AuthedAppRoute
+    }
     '/_authed/_app/account/': {
       id: '/_authed/_app/account/'
       path: '/account'
@@ -485,6 +518,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/projects/$projectSlug/'
       preLoaderRoute: typeof AuthedAppProjectsProjectSlugIndexRouteImport
+      parentRoute: typeof AuthedAppProjectsProjectSlugRoute
+    }
+    '/_authed/_app/projects/$projectSlug/credentials': {
+      id: '/_authed/_app/projects/$projectSlug/credentials'
+      path: '/credentials'
+      fullPath: '/projects/$projectSlug/credentials'
+      preLoaderRoute: typeof AuthedAppProjectsProjectSlugCredentialsRouteImport
       parentRoute: typeof AuthedAppProjectsProjectSlugRoute
     }
     '/_authed/_app/projects/$projectSlug/audit-log': {
@@ -555,6 +595,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthedAppProjectsProjectSlugRouteChildren {
   AuthedAppProjectsProjectSlugAuditLogRoute: typeof AuthedAppProjectsProjectSlugAuditLogRoute
+  AuthedAppProjectsProjectSlugCredentialsRoute: typeof AuthedAppProjectsProjectSlugCredentialsRoute
   AuthedAppProjectsProjectSlugIndexRoute: typeof AuthedAppProjectsProjectSlugIndexRoute
   AuthedAppProjectsProjectSlugBuildsBuildIdRoute: typeof AuthedAppProjectsProjectSlugBuildsBuildIdRoute
   AuthedAppProjectsProjectSlugChannelsChannelIdRoute: typeof AuthedAppProjectsProjectSlugChannelsChannelIdRoute
@@ -570,6 +611,8 @@ const AuthedAppProjectsProjectSlugRouteChildren: AuthedAppProjectsProjectSlugRou
   {
     AuthedAppProjectsProjectSlugAuditLogRoute:
       AuthedAppProjectsProjectSlugAuditLogRoute,
+    AuthedAppProjectsProjectSlugCredentialsRoute:
+      AuthedAppProjectsProjectSlugCredentialsRoute,
     AuthedAppProjectsProjectSlugIndexRoute:
       AuthedAppProjectsProjectSlugIndexRoute,
     AuthedAppProjectsProjectSlugBuildsBuildIdRoute:
@@ -603,6 +646,7 @@ interface AuthedAppRouteChildren {
   AuthedAppIndexRoute: typeof AuthedAppIndexRoute
   AuthedAppProjectsProjectSlugRoute: typeof AuthedAppProjectsProjectSlugRouteWithChildren
   AuthedAppAccountIndexRoute: typeof AuthedAppAccountIndexRoute
+  AuthedAppAppleDevicesIndexRoute: typeof AuthedAppAppleDevicesIndexRoute
   AuthedAppProjectsIndexRoute: typeof AuthedAppProjectsIndexRoute
   AuthedAppSettingsIndexRoute: typeof AuthedAppSettingsIndexRoute
 }
@@ -616,6 +660,7 @@ const AuthedAppRouteChildren: AuthedAppRouteChildren = {
   AuthedAppProjectsProjectSlugRoute:
     AuthedAppProjectsProjectSlugRouteWithChildren,
   AuthedAppAccountIndexRoute: AuthedAppAccountIndexRoute,
+  AuthedAppAppleDevicesIndexRoute: AuthedAppAppleDevicesIndexRoute,
   AuthedAppProjectsIndexRoute: AuthedAppProjectsIndexRoute,
   AuthedAppSettingsIndexRoute: AuthedAppSettingsIndexRoute,
 }

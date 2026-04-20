@@ -11,20 +11,9 @@ export type Distribution =
 
 export type ArtifactFormat = "ipa" | "apk" | "aab" | "tar.gz";
 
-export type CredentialType =
-  | "distribution-certificate"
-  | "provisioning-profile"
-  | "push-key"
-  | "keystore"
-  | "play-service-account";
+export type DistributionType = "APP_STORE" | "AD_HOC" | "ENTERPRISE" | "DEVELOPMENT";
 
-export type CredentialDistribution =
-  | "ad-hoc"
-  | "app-store"
-  | "development"
-  | "enterprise"
-  | "play-store"
-  | "direct";
+export type AppleTeamType = "IN_HOUSE" | "COMPANY_ORGANIZATION" | "INDIVIDUAL";
 
 export type EnvVarVisibility = "plaintext" | "sensitive" | "secret";
 
@@ -34,8 +23,13 @@ export type AuditLogResourceType =
   | "channel"
   | "update"
   | "build"
-  | "credential"
-  | "envVar";
+  | "appleCredential"
+  | "androidCredential"
+  | "iosBundleConfiguration"
+  | "envVar"
+  | "device";
+
+export type DeviceClass = "IPHONE" | "IPAD" | "MAC" | "UNKNOWN";
 
 export type AuditLogSource = "session" | "api-key";
 export type AnalyticsPeriod = "1d" | "7d" | "30d" | "90d";
@@ -54,9 +48,12 @@ export type Resource =
   | "billing"
   | "apiKey"
   | "build"
-  | "credential"
+  | "appleCredential"
+  | "androidCredential"
+  | "iosBundleConfiguration"
   | "envVar"
-  | "auditLog";
+  | "auditLog"
+  | "device";
 
 export type Action = "read" | "create" | "update" | "delete" | "cancel" | "download";
 
@@ -133,18 +130,169 @@ export interface AssetModel {
   readonly createdAt: string;
 }
 
-export interface CredentialModel {
+export interface DeviceModel {
   readonly id: string;
   readonly organizationId: string;
-  readonly projectId: string | null;
-  readonly platform: Platform;
-  readonly type: CredentialType;
+  readonly appleTeamId: string | null;
+  readonly identifier: string;
   readonly name: string;
-  readonly distribution: CredentialDistribution | null;
-  readonly isActive: boolean;
-  readonly metadata: string;
-  readonly expiresAt: string | null;
+  readonly model: string | null;
+  readonly deviceClass: DeviceClass;
+  readonly enabled: boolean;
+  readonly appleDevicePortalId: string | null;
   readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface DeviceRegistrationRequestModel {
+  readonly id: string;
+  readonly organizationId: string;
+  readonly appleTeamId: string | null;
+  readonly createdByUserId: string;
+  readonly deviceNameHint: string | null;
+  readonly deviceClassHint: DeviceClass | null;
+  readonly expiresAt: string;
+  readonly consumedAt: string | null;
+  readonly consumedDeviceId: string | null;
+  readonly createdAt: string;
+}
+
+export interface AppleTeamModel {
+  readonly id: string;
+  readonly organizationId: string;
+  readonly appleTeamId: string;
+  readonly appleTeamType: AppleTeamType;
+  readonly name: string | null;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface AppleDistributionCertificateModel {
+  readonly id: string;
+  readonly organizationId: string;
+  readonly appleTeamId: string;
+  readonly serialNumber: string;
+  readonly developerIdIdentifier: string | null;
+  readonly validFrom: string;
+  readonly validUntil: string;
+  readonly r2Key: string;
+  readonly encryptedDek: string;
+  readonly encryptedPassword: string;
+  readonly passwordKeyVersion: number;
+  readonly dekKeyVersion: number;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface ApplePushKeyModel {
+  readonly id: string;
+  readonly organizationId: string;
+  readonly appleTeamId: string;
+  readonly keyId: string;
+  readonly r2Key: string;
+  readonly encryptedDek: string;
+  readonly dekKeyVersion: number;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface AscApiKeyModel {
+  readonly id: string;
+  readonly organizationId: string;
+  readonly appleTeamId: string | null;
+  readonly keyId: string;
+  readonly name: string;
+  readonly roles: string;
+  readonly issuerIdEncrypted: string;
+  readonly issuerIdKeyVersion: number;
+  readonly r2Key: string;
+  readonly encryptedDek: string;
+  readonly dekKeyVersion: number;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface AppleProvisioningProfileModel {
+  readonly id: string;
+  readonly organizationId: string;
+  readonly appleTeamId: string;
+  readonly appleDistributionCertificateId: string | null;
+  readonly bundleIdentifier: string;
+  readonly distributionType: DistributionType;
+  readonly developerPortalIdentifier: string | null;
+  readonly profileName: string | null;
+  readonly validUntil: string | null;
+  readonly r2Key: string;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface GoogleServiceAccountKeyModel {
+  readonly id: string;
+  readonly organizationId: string;
+  readonly clientEmail: string;
+  readonly privateKeyId: string;
+  readonly googleProjectId: string;
+  readonly r2Key: string;
+  readonly encryptedDek: string;
+  readonly dekKeyVersion: number;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface IosBundleConfigurationModel {
+  readonly id: string;
+  readonly organizationId: string;
+  readonly projectId: string;
+  readonly bundleIdentifier: string;
+  readonly distributionType: DistributionType;
+  readonly appleTeamId: string;
+  readonly appleDistributionCertificateId: string | null;
+  readonly appleProvisioningProfileId: string | null;
+  readonly applePushKeyId: string | null;
+  readonly ascApiKeyId: string | null;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface AndroidApplicationIdentifierModel {
+  readonly id: string;
+  readonly organizationId: string;
+  readonly projectId: string;
+  readonly packageName: string;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface AndroidUploadKeystoreModel {
+  readonly id: string;
+  readonly organizationId: string;
+  readonly keyAlias: string;
+  readonly encryptedKeystorePassword: string;
+  readonly keystorePasswordKeyVersion: number;
+  readonly encryptedKeyPassword: string;
+  readonly keyPasswordKeyVersion: number;
+  readonly r2Key: string;
+  readonly encryptedDek: string;
+  readonly dekKeyVersion: number;
+  readonly md5Fingerprint: string | null;
+  readonly sha1Fingerprint: string | null;
+  readonly sha256Fingerprint: string | null;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface AndroidBuildCredentialsModel {
+  readonly id: string;
+  readonly organizationId: string;
+  readonly androidApplicationIdentifierId: string;
+  readonly androidUploadKeystoreId: string | null;
+  readonly googleServiceAccountKeyForSubmissionsId: string | null;
+  readonly googleServiceAccountKeyForFcmV1Id: string | null;
+  readonly name: string;
+  readonly isDefault: boolean;
+  readonly createdAt: string;
+  readonly updatedAt: string;
 }
 
 export interface EnvVarModel {
