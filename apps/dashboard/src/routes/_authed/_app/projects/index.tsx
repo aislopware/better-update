@@ -2,7 +2,6 @@ import { projectsQueryOptions } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import { Card, CardContent } from "@better-update/ui/components/ui/card";
-import { DateRangePicker } from "@better-update/ui/components/ui/date-range-picker";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,18 +36,23 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { CheckIcon, FolderIcon, SearchIcon, SlidersHorizontalIcon } from "lucide-react";
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  CheckIcon,
+  FolderIcon,
+  SearchIcon,
+  SlidersHorizontalIcon,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 
 import type { ProjectItem } from "@better-update/api-client/react";
 import type {
   ColumnDef,
-  ColumnFiltersState,
   FilterFn,
   SortingState,
   Table as TableInstance,
 } from "@tanstack/react-table";
-import type { DateRange } from "react-day-picker";
 
 import { EntityAvatar } from "../../../../lib/entity-avatar";
 import { CreateProjectDialog } from "./-create-dialog";
@@ -58,9 +62,6 @@ type SortId = "lastActivityAt" | "name";
 const DEFAULT_SORTING: SortingState = [{ id: "lastActivityAt", desc: true }];
 
 const isSortId = (value: string): value is SortId => value === "lastActivityAt" || value === "name";
-
-const isDateRange = (value: unknown): value is DateRange =>
-  typeof value === "object" && value !== null && ("from" in value || "to" in value);
 
 const formatRelativeTime = (dateString: string): string => {
   const now = Date.now();
@@ -92,30 +93,6 @@ const nameSlugFilter: FilterFn<ProjectItem> = (row, _columnId, rawValue) => {
   const name = row.original.name.toLowerCase();
   const slug = row.original.slug.toLowerCase();
   return name.includes(query) || slug.includes(query);
-};
-
-const createdAtRangeFilter: FilterFn<ProjectItem> = (row, columnId, rawValue) => {
-  if (!isDateRange(rawValue)) {
-    return true;
-  }
-  const { from, to } = rawValue;
-  if (!from && !to) {
-    return true;
-  }
-  const ts = new Date(row.getValue<string>(columnId)).getTime();
-  if (from) {
-    const fromTs = new Date(from.getFullYear(), from.getMonth(), from.getDate()).getTime();
-    if (ts < fromTs) {
-      return false;
-    }
-  }
-  if (to) {
-    const toTs = new Date(to.getFullYear(), to.getMonth(), to.getDate(), 23, 59, 59).getTime();
-    if (ts > toTs) {
-      return false;
-    }
-  }
-  return true;
 };
 
 const columns: ColumnDef<ProjectItem>[] = [
@@ -160,25 +137,28 @@ const columns: ColumnDef<ProjectItem>[] = [
       <Badge variant="outline">{new Date(row.original.createdAt).toLocaleDateString()}</Badge>
     ),
     sortingFn: "datetime",
-    filterFn: createdAtRangeFilter,
   },
 ];
 
+const SORT_LABELS: Record<SortId, string> = {
+  lastActivityAt: "Activity",
+  name: "Name",
+};
+
 const SORT_OPTIONS: readonly { value: SortId; label: string }[] = [
-  { value: "lastActivityAt", label: "Activity" },
-  { value: "name", label: "Name" },
+  { value: "lastActivityAt", label: SORT_LABELS.lastActivityAt },
+  { value: "name", label: SORT_LABELS.name },
 ];
 
-const sortTriggerButton = (
-  <Button variant="outline" size="sm">
-    <SlidersHorizontalIcon strokeWidth={2} data-icon="inline-start" />
-    <span>Sort</span>
+const sortTrigger = (
+  <Button variant="outline" size="icon" aria-label="Sort">
+    <SlidersHorizontalIcon strokeWidth={2} />
   </Button>
 );
 
 const SortDropdown = ({ value, onChange }: { value: SortId; onChange: (next: SortId) => void }) => (
   <DropdownMenu>
-    <DropdownMenuTrigger render={sortTriggerButton} />
+    <DropdownMenuTrigger render={sortTrigger} />
     <DropdownMenuContent align="end" className="w-44">
       <DropdownMenuGroup>
         <DropdownMenuLabel>Sort by</DropdownMenuLabel>
@@ -220,11 +200,25 @@ const ProjectsTable = ({ table }: { table: TableInstance<ProjectItem> }) => {
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id} className="hover:bg-transparent">
-                {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id} className="text-muted-foreground text-xs font-medium">
-                    {flexRender(header.column.columnDef.header, header.getContext())}
-                  </TableHead>
-                ))}
+                {headerGroup.headers.map((header) => {
+                  const sorted = header.column.getIsSorted();
+                  return (
+                    <TableHead
+                      key={header.id}
+                      className="text-muted-foreground text-xs font-medium"
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                        {sorted === "asc" ? (
+                          <ArrowUpIcon strokeWidth={2} className="size-3.5" />
+                        ) : null}
+                        {sorted === "desc" ? (
+                          <ArrowDownIcon strokeWidth={2} className="size-3.5" />
+                        ) : null}
+                      </span>
+                    </TableHead>
+                  );
+                })}
               </TableRow>
             ))}
           </TableHeader>
@@ -265,22 +259,6 @@ const Projects = () => {
 
   const [globalFilter, setGlobalFilter] = useState("");
   const [sorting, setSorting] = useState<SortingState>(DEFAULT_SORTING);
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-
-  const dateRange = useMemo<DateRange | undefined>(() => {
-    const entry = columnFilters.find((filter) => filter.id === "createdAt");
-    return isDateRange(entry?.value) ? entry.value : undefined;
-  }, [columnFilters]);
-
-  const handleDateRangeChange = (next: DateRange | undefined) => {
-    setColumnFilters((previous) => {
-      const rest = previous.filter((filter) => filter.id !== "createdAt");
-      if (!next?.from && !next?.to) {
-        return rest;
-      }
-      return [...rest, { id: "createdAt", value: next }];
-    });
-  };
 
   const firstSortId = sorting[0]?.id;
   const sortId: SortId = firstSortId && isSortId(firstSortId) ? firstSortId : "lastActivityAt";
@@ -298,10 +276,9 @@ const Projects = () => {
   const table = useReactTable<ProjectItem>({
     data: tableData,
     columns,
-    state: { sorting, globalFilter, columnFilters },
+    state: { sorting, globalFilter },
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
-    onColumnFiltersChange: setColumnFilters,
     globalFilterFn: nameSlugFilter,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -329,7 +306,7 @@ const Projects = () => {
   return (
     <div className="flex w-full flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative max-w-sm flex-1">
+        <div className="relative flex-1">
           <SearchIcon className="text-muted-foreground absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
           <Input
             placeholder="Search projects…"
@@ -340,13 +317,8 @@ const Projects = () => {
             className="pl-8"
           />
         </div>
-        <DateRangePicker
-          value={dateRange}
-          onChange={handleDateRangeChange}
-          placeholder="Created date"
-        />
         <SortDropdown value={sortId} onChange={handleSortChange} />
-        <div className="ml-auto">{createCta}</div>
+        {createCta}
       </div>
       <ProjectsTable table={table} />
       <p className="text-muted-foreground text-sm">{countLabel}</p>

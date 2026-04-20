@@ -44,6 +44,7 @@ const ResetPasswordForm = ({
 
   return (
     <form
+      className="flex flex-col gap-4"
       onSubmit={async (event) => {
         event.preventDefault();
         event.stopPropagation();

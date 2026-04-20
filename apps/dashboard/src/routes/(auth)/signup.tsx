@@ -52,6 +52,7 @@ const SignupPage = () => {
           <CardDescription>Enter your details to get started</CardDescription>
         </CardHeader>
         <form
+          className="flex flex-col gap-4"
           onSubmit={async (event) => {
             event.preventDefault();
             event.stopPropagation();

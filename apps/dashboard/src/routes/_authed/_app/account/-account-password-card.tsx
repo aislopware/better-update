@@ -69,6 +69,7 @@ export const AccountPasswordCard = () => {
         <CardDescription>Change your account password.</CardDescription>
       </CardHeader>
       <form
+        className="flex flex-col gap-4"
         onSubmit={async (event) => {
           event.preventDefault();
           event.stopPropagation();
