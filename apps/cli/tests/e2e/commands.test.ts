@@ -192,7 +192,7 @@ const createPromotableUpdate = async (options?: {
 
   const createUpdateResponse = await cli.postAuthorized("/api/updates", {
     branch: "main",
-    project: "@cli-e2e/cli-e2e-app",
+    slug: "cli-e2e-app",
     runtimeVersion: "1.0.0",
     platform: "ios",
     message: options?.signed ? "CLI signed promotable update" : "CLI promotable update",
@@ -232,7 +232,7 @@ describe("CLI command journey", () => {
     const result = cli.runCli("init");
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toBe("");
-    expect(result.stdout).toContain("Linking project: CLI E2E App (@cli-e2e/cli-e2e-app)");
+    expect(result.stdout).toContain("Linking project: CLI E2E App (cli-e2e-app)");
     expect(result.stdout).toContain("Found existing project: CLI E2E App Project");
     expect(result.stdout).toContain("Project linked successfully");
 
@@ -252,20 +252,18 @@ describe("CLI command journey", () => {
     expect(result.stderr).toBe("");
     expect(result.stdout).toContain("Project");
     expect(result.stdout).toContain("CLI E2E App Project");
-    expect(result.stdout).toContain("@cli-e2e/cli-e2e-app");
+    expect(result.stdout).toContain("cli-e2e-app");
     expect(result.stdout).toContain("Credentials");
     expect(result.stdout).toContain("iOS");
     expect(result.stdout).toContain("1");
     expect(result.stdout).toContain("Builds");
   });
 
-  it("lists credentials for the linked project", () => {
+  it("lists credentials for an empty project", () => {
     const result = cli.runCli("credentials", "list");
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toBe("");
-    expect(result.stdout).toContain("CLI iOS Distribution Certificate");
-    expect(result.stdout).toContain("distribution-certificate");
-    expect(result.stdout).toContain("ios");
+    expect(result.stdout).toContain("No credentials found.");
   });
 
   it("lists environment variables with masked secret values", () => {
@@ -455,12 +453,12 @@ describe("CLI command journey", () => {
     );
   });
 
-  it("uploads, activates, and deletes a credential", async () => {
+  it("uploads and deletes a distribution certificate", async () => {
     const credentialFile = path.join(cli.getProjectDir(), "cli-uploaded-cert.p12");
     const p12Password = "uploaded-password";
     writeFileSync(
       credentialFile,
-      generateSelfSignedP12(p12Password, "/CN=CLI Uploaded Certificate/O=Better Update Test"),
+      generateSelfSignedP12(p12Password, "/OU=CLIE2ETEAM/CN=Apple Distribution: CLI E2E"),
     );
 
     const uploadResult = cli.runCli(
@@ -487,29 +485,19 @@ describe("CLI command journey", () => {
     const listAfterUpload = cli.runCli("credentials", "list", "--platform", "ios");
     expect(listAfterUpload.exitCode).toBe(0);
     expect(listAfterUpload.stderr).toBe("");
-    expect(listAfterUpload.stdout).toMatch(
-      new RegExp(
-        `^${uploadedCredentialId}\\s+CLI Uploaded Certificate\\s+ios\\s+distribution-certificate\\s+no`,
-        "m",
-      ),
+    expect(listAfterUpload.stdout).toContain(uploadedCredentialId!);
+    expect(listAfterUpload.stdout).toContain("distribution-certificate");
+    expect(listAfterUpload.stdout).toContain("ios");
+
+    const deleteResult = cli.runCli(
+      "credentials",
+      "delete",
+      uploadedCredentialId!,
+      "--platform",
+      "ios",
+      "--type",
+      "distribution-certificate",
     );
-
-    const activateResult = cli.runCli("credentials", "activate", uploadedCredentialId!);
-    expect(activateResult.exitCode).toBe(0);
-    expect(activateResult.stderr).toBe("");
-    expect(activateResult.stdout).toContain(`Credential ${uploadedCredentialId} activated.`);
-
-    const listAfterActivate = cli.runCli("credentials", "list", "--platform", "ios");
-    expect(listAfterActivate.exitCode).toBe(0);
-    expect(listAfterActivate.stderr).toBe("");
-    expect(listAfterActivate.stdout).toMatch(
-      new RegExp(
-        `^${uploadedCredentialId}\\s+CLI Uploaded Certificate\\s+ios\\s+distribution-certificate\\s+yes`,
-        "m",
-      ),
-    );
-
-    const deleteResult = cli.runCli("credentials", "delete", uploadedCredentialId!);
     expect(deleteResult.exitCode).toBe(0);
     expect(deleteResult.stderr).toBe("");
     expect(deleteResult.stdout).toContain(`Credential ${uploadedCredentialId} deleted.`);

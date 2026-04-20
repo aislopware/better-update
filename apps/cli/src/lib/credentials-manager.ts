@@ -1,134 +1,300 @@
 import { FileSystem } from "@effect/platform";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
-import type { CredentialDistribution, CredentialType } from "@better-update/api";
-
-import { inspectKeystore, validateKeystoreAlias } from "./keystore-parser";
-import { checkCertExpiry, inspectP12 } from "./pkcs12";
+import { CredentialValidationError } from "./exit-codes";
+import { inspectP12 } from "./pkcs12";
 
 import type { ApiClient } from "../services/api-client";
 
-export interface CredentialFilter {
-  readonly projectId: string;
-  readonly platform: "ios" | "android";
-  readonly type: typeof CredentialType.Type;
-  readonly distribution?: typeof CredentialDistribution.Type;
+export type CliCredentialType =
+  | "distribution-certificate"
+  | "push-key"
+  | "asc-api-key"
+  | "provisioning-profile"
+  | "keystore"
+  | "google-service-account-key";
+
+export type CliCredentialPlatform = "ios" | "android";
+
+export interface CliCredentialRow {
+  readonly id: string;
+  readonly name: string;
+  readonly platform: CliCredentialPlatform;
+  readonly type: CliCredentialType;
+  readonly distribution: string | null;
 }
 
-export interface UploadCredentialFromFileInput extends CredentialFilter {
+const formatDistribution = (value: string): string => value.toLowerCase().replaceAll("_", "-");
+
+export const listAllCredentials = (api: ApiClient) =>
+  Effect.gen(function* () {
+    const [certs, pushKeys, ascKeys, profiles, keystores, googleKeys] = yield* Effect.all(
+      [
+        api.appleDistributionCertificates.list(),
+        api.applePushKeys.list(),
+        api.ascApiKeys.list(),
+        api.appleProvisioningProfiles.list({ urlParams: {} }),
+        api.androidUploadKeystores.list(),
+        api.googleServiceAccountKeys.list(),
+      ],
+      { concurrency: "unbounded" },
+    );
+
+    const rows: CliCredentialRow[] = [
+      ...certs.items.map(
+        (cert): CliCredentialRow => ({
+          id: cert.id,
+          name: cert.serialNumber,
+          platform: "ios",
+          type: "distribution-certificate",
+          distribution: null,
+        }),
+      ),
+      ...pushKeys.items.map(
+        (key): CliCredentialRow => ({
+          id: key.id,
+          name: key.keyId,
+          platform: "ios",
+          type: "push-key",
+          distribution: null,
+        }),
+      ),
+      ...ascKeys.items.map(
+        (key): CliCredentialRow => ({
+          id: key.id,
+          name: key.name,
+          platform: "ios",
+          type: "asc-api-key",
+          distribution: null,
+        }),
+      ),
+      ...profiles.items.map(
+        (profile): CliCredentialRow => ({
+          id: profile.id,
+          name: profile.profileName ?? profile.bundleIdentifier,
+          platform: "ios",
+          type: "provisioning-profile",
+          distribution: formatDistribution(profile.distributionType),
+        }),
+      ),
+      ...keystores.items.map(
+        (ks): CliCredentialRow => ({
+          id: ks.id,
+          name: ks.keyAlias,
+          platform: "android",
+          type: "keystore",
+          distribution: null,
+        }),
+      ),
+      ...googleKeys.items.map(
+        (key): CliCredentialRow => ({
+          id: key.id,
+          name: key.clientEmail,
+          platform: "android",
+          type: "google-service-account-key",
+          distribution: null,
+        }),
+      ),
+    ];
+
+    return rows;
+  });
+
+export const filterCredentials = (
+  rows: readonly CliCredentialRow[],
+  filter: {
+    readonly platform?: CliCredentialPlatform;
+    readonly type?: CliCredentialType;
+    readonly distribution?: string;
+  },
+): CliCredentialRow[] =>
+  rows.filter((row) => {
+    if (filter.platform && row.platform !== filter.platform) return false;
+    if (filter.type && row.type !== filter.type) return false;
+    if (filter.distribution && row.distribution !== filter.distribution) return false;
+    return true;
+  });
+
+export interface UploadCredentialInput {
+  readonly platform: CliCredentialPlatform;
+  readonly type: CliCredentialType;
   readonly name: string;
   readonly filePath: string;
   readonly password?: string;
+  readonly distribution?: string;
   readonly keyAlias?: string;
   readonly keyPassword?: string;
+  readonly keyId?: string;
+  readonly issuerId?: string;
+  readonly appleTeamIdentifier?: string;
 }
 
-const optionalCredentialFields = (input: UploadCredentialFromFileInput) => ({
-  ...(input.distribution !== undefined ? { distribution: input.distribution } : {}),
-  ...(input.password !== undefined ? { password: input.password } : {}),
-  ...(input.keyAlias !== undefined ? { keyAlias: input.keyAlias } : {}),
-  ...(input.keyPassword !== undefined ? { keyPassword: input.keyPassword } : {}),
-});
+const toBase64 = (bytes: Uint8Array): string => Buffer.from(bytes).toString("base64");
 
-export const findActiveCredential = (api: ApiClient, filter: CredentialFilter) =>
-  api.credentials
-    .list({
-      urlParams: {
-        projectId: filter.projectId,
-        platform: filter.platform,
-        type: filter.type,
-        ...(filter.distribution !== undefined ? { distribution: filter.distribution } : {}),
-      },
-    })
-    // eslint-disable-next-line eslint-js/no-restricted-syntax -- find returns undefined on no-match; caller expects null sentinel for "no active credential"
-    .pipe(Effect.map(({ items }) => items.find((item) => item.isActive) ?? null));
+const toUtf8 = (bytes: Uint8Array): string => Buffer.from(bytes).toString("utf8");
 
-export const uploadCredentialFromFile = (api: ApiClient, input: UploadCredentialFromFileInput) =>
+const missing = (label: string) =>
+  new CredentialValidationError({
+    message: `Missing --${label} required for the selected credential type.`,
+  });
+
+export const uploadCredential = (api: ApiClient, input: UploadCredentialInput) =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
-    const fileBytes = yield* fs.readFile(input.filePath);
-    const fileBuffer = Buffer.from(fileBytes);
-    const blob = fileBuffer.toString("base64");
+    const bytes = yield* fs.readFile(input.filePath);
 
-    let expiresAt: string | undefined;
-    let metadata: string | undefined;
-
-    // Validate and extract metadata based on credential type
-    if (input.type === "distribution-certificate" && input.password !== undefined) {
-      const info = yield* inspectP12({ data: fileBuffer, password: input.password }).pipe(
-        Effect.catchAll((e) => Console.warn(e.message).pipe(Effect.as(undefined))),
-      );
-      if (info) {
-        expiresAt = info.expiresAt?.toISOString();
-        metadata = JSON.stringify({
-          serialNumber: info.serialNumber,
-          subject: info.subject,
-          issuerCN: info.issuerCN,
+    if (input.platform === "ios" && input.type === "distribution-certificate") {
+      if (input.password === undefined) return yield* missing("password");
+      const info = yield* inspectP12({ data: Buffer.from(bytes), password: input.password });
+      if (!info.teamId) {
+        return yield* new CredentialValidationError({
+          message:
+            "Could not derive Apple Team ID from certificate subject (expected OU=TEAMID or CN with (TEAMID)).",
         });
-        yield* Console.log(`  Certificate: ${info.signingIdentity}`);
-        yield* Console.log(`  Serial: ${info.serialNumber}`);
-        if (info.expiresAt) yield* Console.log(`  Expires: ${info.expiresAt.toISOString()}`);
-        const warning = checkCertExpiry(info.expiresAt, "Distribution certificate");
-        if (warning) yield* Console.warn(warning);
       }
-    } else if (input.type === "keystore" && input.password !== undefined) {
-      const info = yield* inspectKeystore({ data: fileBuffer, password: input.password }).pipe(
-        Effect.catchAll((e) => Console.warn(e.message).pipe(Effect.as(undefined))),
-      );
-      if (info) {
-        metadata = JSON.stringify({ aliases: info.aliases });
-        yield* Console.log(`  Keystore aliases: ${info.aliases.join(", ")}`);
-        if (input.keyAlias) {
-          const warning = validateKeystoreAlias(info, input.keyAlias);
-          if (warning) yield* Console.warn(warning);
-        }
+      if (!info.validFrom || !info.expiresAt) {
+        return yield* new CredentialValidationError({
+          message: "Certificate is missing notBefore/notAfter dates.",
+        });
       }
+
+      const created = yield* api.appleDistributionCertificates.upload({
+        payload: {
+          p12Base64: toBase64(bytes),
+          p12Password: input.password,
+          serialNumber: info.serialNumber,
+          appleTeamIdentifier: info.teamId,
+          validFrom: info.validFrom.toISOString(),
+          validUntil: info.expiresAt.toISOString(),
+        },
+      });
+
+      return {
+        id: created.id,
+        name: input.name,
+        platform: "ios" as const,
+        type: "distribution-certificate" as const,
+      };
     }
 
-    return yield* api.credentials.upload({
-      payload: {
-        projectId: input.projectId,
-        platform: input.platform,
-        type: input.type,
+    if (input.platform === "ios" && input.type === "push-key") {
+      if (!input.keyId) return yield* missing("key-id");
+      if (!input.appleTeamIdentifier) return yield* missing("apple-team-identifier");
+      const created = yield* api.applePushKeys.upload({
+        payload: {
+          keyId: input.keyId,
+          p8Pem: toUtf8(bytes),
+          appleTeamIdentifier: input.appleTeamIdentifier,
+        },
+      });
+      return {
+        id: created.id,
         name: input.name,
-        blob,
-        ...optionalCredentialFields(input),
-        ...(expiresAt !== undefined ? { expiresAt } : {}),
-        ...(metadata !== undefined ? { metadata } : {}),
-      },
+        platform: "ios" as const,
+        type: "push-key" as const,
+      };
+    }
+
+    if (input.platform === "ios" && input.type === "asc-api-key") {
+      if (!input.keyId) return yield* missing("key-id");
+      if (!input.issuerId) return yield* missing("issuer-id");
+      const created = yield* api.ascApiKeys.upload({
+        payload: {
+          name: input.name,
+          keyId: input.keyId,
+          issuerId: input.issuerId,
+          p8Pem: toUtf8(bytes),
+          ...(input.appleTeamIdentifier !== undefined
+            ? { appleTeamIdentifier: input.appleTeamIdentifier }
+            : {}),
+        },
+      });
+      return {
+        id: created.id,
+        name: input.name,
+        platform: "ios" as const,
+        type: "asc-api-key" as const,
+      };
+    }
+
+    if (input.platform === "ios" && input.type === "provisioning-profile") {
+      const created = yield* api.appleProvisioningProfiles.upload({
+        payload: { profileBase64: toBase64(bytes) },
+      });
+      return {
+        id: created.id,
+        name: input.name,
+        platform: "ios" as const,
+        type: "provisioning-profile" as const,
+      };
+    }
+
+    if (input.platform === "android" && input.type === "keystore") {
+      if (input.password === undefined) return yield* missing("password");
+      if (!input.keyAlias) return yield* missing("key-alias");
+      if (!input.keyPassword) return yield* missing("key-password");
+      const created = yield* api.androidUploadKeystores.upload({
+        payload: {
+          keystoreBase64: toBase64(bytes),
+          keyAlias: input.keyAlias,
+          keystorePassword: input.password,
+          keyPassword: input.keyPassword,
+        },
+      });
+      return {
+        id: created.id,
+        name: input.name,
+        platform: "android" as const,
+        type: "keystore" as const,
+      };
+    }
+
+    if (input.platform === "android" && input.type === "google-service-account-key") {
+      const created = yield* api.googleServiceAccountKeys.upload({
+        payload: { json: toUtf8(bytes) },
+      });
+      return {
+        id: created.id,
+        name: input.name,
+        platform: "android" as const,
+        type: "google-service-account-key" as const,
+      };
+    }
+
+    return yield* new CredentialValidationError({
+      message: `Unsupported credential combination: platform=${input.platform} type=${input.type}`,
     });
   });
 
-export const activateCredential = (api: ApiClient, credentialId: string) =>
-  api.credentials.activate({ path: { id: credentialId } });
-
-export const uploadAndActivateCredential = (api: ApiClient, input: UploadCredentialFromFileInput) =>
-  uploadCredentialFromFile(api, input).pipe(
-    Effect.flatMap((credential) => activateCredential(api, credential.id)),
-  );
-
-export interface UploadCredentialFromBlobInput extends CredentialFilter {
-  readonly name: string;
-  readonly blob: string;
-  readonly password?: string;
-  readonly expiresAt?: string;
-}
-
-export const uploadAndActivateCredentialFromBlob = (
+export const deleteCredential = (
   api: ApiClient,
-  input: UploadCredentialFromBlobInput,
-) =>
-  api.credentials
-    .upload({
-      payload: {
-        projectId: input.projectId,
-        platform: input.platform,
-        type: input.type,
-        name: input.name,
-        blob: input.blob,
-        ...(input.distribution !== undefined ? { distribution: input.distribution } : {}),
-        ...(input.password !== undefined ? { password: input.password } : {}),
-        ...(input.expiresAt !== undefined ? { expiresAt: input.expiresAt } : {}),
-      },
-    })
-    .pipe(Effect.flatMap((credential) => activateCredential(api, credential.id)));
+  input: {
+    readonly id: string;
+    readonly platform: CliCredentialPlatform;
+    readonly type: CliCredentialType;
+  },
+) => {
+  if (input.platform === "ios" && input.type === "distribution-certificate") {
+    return api.appleDistributionCertificates.delete({ path: { id: input.id } });
+  }
+  if (input.platform === "ios" && input.type === "push-key") {
+    return api.applePushKeys.delete({ path: { id: input.id } });
+  }
+  if (input.platform === "ios" && input.type === "asc-api-key") {
+    return api.ascApiKeys.delete({ path: { id: input.id } });
+  }
+  if (input.platform === "ios" && input.type === "provisioning-profile") {
+    return api.appleProvisioningProfiles.delete({ path: { id: input.id } });
+  }
+  if (input.platform === "android" && input.type === "keystore") {
+    return api.androidUploadKeystores.delete({ path: { id: input.id } });
+  }
+  if (input.platform === "android" && input.type === "google-service-account-key") {
+    return api.googleServiceAccountKeys.delete({ path: { id: input.id } });
+  }
+  return Effect.fail(
+    new CredentialValidationError({
+      message: `Unsupported credential combination: platform=${input.platform} type=${input.type}`,
+    }),
+  );
+};

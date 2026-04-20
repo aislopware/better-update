@@ -19,13 +19,21 @@ import {
   SatelliteIcon,
   SettingsIcon,
   ShieldCheckIcon,
+  SmartphoneIcon,
   UsersIcon,
 } from "lucide-react";
 
 import type { LucideIcon } from "lucide-react";
 
 interface OrgNavItem {
-  to: "/projects" | "/members" | "/audit-log" | "/credentials" | "/api-keys" | "/settings";
+  to:
+    | "/projects"
+    | "/members"
+    | "/audit-log"
+    | "/credentials"
+    | "/apple-devices"
+    | "/api-keys"
+    | "/settings";
   label: string;
   icon: LucideIcon;
 }
@@ -69,7 +77,10 @@ const ORG_NAV: OrgNavSection[] = [
   },
   {
     label: "Credentials",
-    items: [{ to: "/credentials", label: "Credentials", icon: ShieldCheckIcon }],
+    items: [
+      { to: "/credentials", label: "Credentials", icon: ShieldCheckIcon },
+      { to: "/apple-devices", label: "Apple Devices", icon: SmartphoneIcon },
+    ],
   },
   {
     label: "Settings",

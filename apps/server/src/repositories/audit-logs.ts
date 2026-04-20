@@ -13,14 +13,7 @@ export interface AuditLogRow {
   readonly actor_id: string | null;
   readonly actor_email: string;
   readonly action: string;
-  readonly resource_type:
-    | "project"
-    | "branch"
-    | "channel"
-    | "update"
-    | "build"
-    | "credential"
-    | "envVar";
+  readonly resource_type: AuditLogResourceType;
   readonly resource_id: string | null;
   readonly metadata: string | null;
   readonly source: "session" | "api-key";

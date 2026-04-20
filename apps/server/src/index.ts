@@ -6,7 +6,12 @@ import { makeManagementWebHandler } from "./app-layer";
 import { createAuth, isGithubEnabled } from "./auth";
 import { AssetStorage } from "./cloudflare/asset-storage";
 import { makeCloudflareRequestContext, provideCloudflareEnv } from "./cloudflare/context";
-import { handleScheduled, matchBuildRoute, serveManifest } from "./handlers";
+import {
+  handleScheduled,
+  matchBuildRoute,
+  matchDeviceRegistrationRoute,
+  serveManifest,
+} from "./handlers";
 import { ServerInfrastructureLayer } from "./infrastructure-layer";
 import { structuredLog, withRequestLogging } from "./middleware/request-logging";
 import { AssetRepo } from "./repositories";
@@ -166,6 +171,12 @@ export default {
       const buildResponse = await matchBuildRoute(request, env, url.pathname);
       if (buildResponse) {
         return buildResponse;
+      }
+
+      // Device registration — Safari + mobileconfig flow (no auth)
+      const registrationResponse = await matchDeviceRegistrationRoute(request, env, url.pathname);
+      if (registrationResponse) {
+        return registrationResponse;
       }
 
       // Effect HttpApi handles management routes + OpenAPI + Scalar docs

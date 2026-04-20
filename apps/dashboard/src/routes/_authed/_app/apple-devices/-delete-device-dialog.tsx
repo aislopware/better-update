@@ -1,0 +1,71 @@
+import { deleteDevice, devicesQueryKey } from "@better-update/api-client/react";
+import { Button } from "@better-update/ui/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@better-update/ui/components/ui/dialog";
+import { useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { toast } from "sonner";
+
+import type { DeviceItem } from "@better-update/api-client/react";
+import type { ReactElement } from "react";
+
+import { useApiMutation } from "../../../../lib/use-api-mutation";
+
+export const DeleteDeviceDialog = ({
+  orgId,
+  device,
+  children,
+}: {
+  orgId: string;
+  device: DeviceItem;
+  children: ReactElement;
+}) => {
+  const [open, setOpen] = useState(false);
+  const queryClient = useQueryClient();
+
+  const deleteMutation = useApiMutation({
+    mutationFn: async () => deleteDevice(device.id),
+    onSuccess: async () => {
+      toast.success("Device removed");
+      await queryClient.invalidateQueries({ queryKey: devicesQueryKey(orgId) });
+      setOpen(false);
+    },
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger render={children} />
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Remove device?</DialogTitle>
+          <DialogDescription>
+            <strong className="font-semibold">{device.name}</strong> will no longer be eligible for
+            ad-hoc builds. You can re-register the UDID later if needed.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <DialogClose>
+            <Button variant="outline">Cancel</Button>
+          </DialogClose>
+          <Button
+            variant="destructive"
+            disabled={deleteMutation.isPending}
+            onClick={() => {
+              deleteMutation.mutate();
+            }}
+          >
+            {deleteMutation.isPending ? "Removing..." : "Remove device"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};

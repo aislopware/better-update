@@ -1,22 +1,50 @@
 import {
+  AndroidApplicationIdentifier,
+  AndroidBuildCredentials,
+  AndroidUploadKeystore,
+  AppleDistributionCertificate,
+  AppleProvisioningProfile,
+  ApplePushKey,
+  AppleTeam,
+  AscApiKey,
   AssetUploadBody,
   Branch,
   BulkImportEnvVarsBody,
+  CreateAndroidApplicationIdentifierBody,
+  CreateAndroidBuildCredentialsBody,
   CreateBranchBody,
   CreateBranchRolloutBody,
   CreateChannelBody,
-  CreateCredentialBody,
   CreateEnvVarBody,
+  CreateIosBundleConfigurationBody,
   CreateProjectBody,
+  CreateRegistrationRequestBody,
   CreateUpdateBody,
+  Device,
+  DeviceClass,
+  DeviceRegistrationRequest,
+  GenerateAppleProvisioningProfileBody,
+  GoogleServiceAccountKey,
+  IosBundleConfiguration,
   PeriodLiteral,
   Platform,
   Project,
+  RegisterDeviceBody,
   RepublishBody,
+  SyncDevicesResult,
+  UpdateAndroidBuildCredentialsBody,
   UpdateBranchBody,
   UpdateChannelBody,
+  UpdateDeviceBody,
   UpdateEnvVarBody,
+  UpdateIosBundleConfigurationBody,
   UpdateProjectBody,
+  UploadAndroidUploadKeystoreBody,
+  UploadAppleDistributionCertificateBody,
+  UploadAppleProvisioningProfileBody,
+  UploadApplePushKeyBody,
+  UploadAscApiKeyBody,
+  UploadGoogleServiceAccountKeyBody,
 } from "@better-update/api";
 import { queryOptions } from "@tanstack/react-query";
 
@@ -31,6 +59,20 @@ export type PlatformValue = typeof Platform.Type;
 export type ProjectItem = typeof Project.Type;
 export type ProjectDetail = ProjectItem;
 export type BranchItem = typeof Branch.Type;
+export type DeviceItem = typeof Device.Type;
+export type DeviceClassValue = typeof DeviceClass.Type;
+export type DeviceRegistrationRequestItem = typeof DeviceRegistrationRequest.Type;
+export type SyncDevicesResultValue = typeof SyncDevicesResult.Type;
+export type AppleTeamItem = typeof AppleTeam.Type;
+export type AppleDistributionCertificateItem = typeof AppleDistributionCertificate.Type;
+export type ApplePushKeyItem = typeof ApplePushKey.Type;
+export type AscApiKeyItem = typeof AscApiKey.Type;
+export type AppleProvisioningProfileItem = typeof AppleProvisioningProfile.Type;
+export type GoogleServiceAccountKeyItem = typeof GoogleServiceAccountKey.Type;
+export type IosBundleConfigurationItem = typeof IosBundleConfiguration.Type;
+export type AndroidApplicationIdentifierItem = typeof AndroidApplicationIdentifier.Type;
+export type AndroidUploadKeystoreItem = typeof AndroidUploadKeystore.Type;
+export type AndroidBuildCredentialsItem = typeof AndroidBuildCredentials.Type;
 
 // ---------------------------------------------------------------------------
 // Query options factories
@@ -317,35 +359,111 @@ export const fetchInstallLink = (buildId: string) =>
   runApi((api) => api.builds.getInstallLink({ path: { id: buildId } }));
 
 // ---------------------------------------------------------------------------
-// Credentials — Query options
+// Apple Teams — Query options
 // ---------------------------------------------------------------------------
 
-export const credentialsQueryKey = (orgId: string) => ["org", orgId, "credentials"] as const;
+export const appleTeamsQueryKey = (orgId: string) => ["org", orgId, "apple-teams"] as const;
 
-export const credentialsQueryOptions = (
+export const appleTeamsQueryOptions = (orgId: string) =>
+  queryOptions({
+    queryKey: appleTeamsQueryKey(orgId),
+    queryFn: ({ signal }) => runApi((api) => api.appleTeams.list(), signal),
+    staleTime: 30_000,
+  });
+
+// ---------------------------------------------------------------------------
+// Apple Distribution Certificates — Query options + Mutations
+// ---------------------------------------------------------------------------
+
+export const appleDistributionCertificatesQueryKey = (orgId: string) =>
+  ["org", orgId, "apple-distribution-certificates"] as const;
+
+export const appleDistributionCertificatesQueryOptions = (orgId: string) =>
+  queryOptions({
+    queryKey: appleDistributionCertificatesQueryKey(orgId),
+    queryFn: ({ signal }) => runApi((api) => api.appleDistributionCertificates.list(), signal),
+    staleTime: 30_000,
+  });
+
+export const uploadAppleDistributionCertificate = (
+  body: typeof UploadAppleDistributionCertificateBody.Type,
+) => runApi((api) => api.appleDistributionCertificates.upload({ payload: body }));
+
+export const deleteAppleDistributionCertificate = (id: string) =>
+  runApi((api) => api.appleDistributionCertificates.delete({ path: { id } }));
+
+// ---------------------------------------------------------------------------
+// Apple Push Keys — Query options + Mutations
+// ---------------------------------------------------------------------------
+
+export const applePushKeysQueryKey = (orgId: string) => ["org", orgId, "apple-push-keys"] as const;
+
+export const applePushKeysQueryOptions = (orgId: string) =>
+  queryOptions({
+    queryKey: applePushKeysQueryKey(orgId),
+    queryFn: ({ signal }) => runApi((api) => api.applePushKeys.list(), signal),
+    staleTime: 30_000,
+  });
+
+export const uploadApplePushKey = (body: typeof UploadApplePushKeyBody.Type) =>
+  runApi((api) => api.applePushKeys.upload({ payload: body }));
+
+export const deleteApplePushKey = (id: string) =>
+  runApi((api) => api.applePushKeys.delete({ path: { id } }));
+
+// ---------------------------------------------------------------------------
+// ASC API Keys — Query options + Mutations
+// ---------------------------------------------------------------------------
+
+export const ascApiKeysQueryKey = (orgId: string) => ["org", orgId, "asc-api-keys"] as const;
+
+export const ascApiKeysQueryOptions = (orgId: string) =>
+  queryOptions({
+    queryKey: ascApiKeysQueryKey(orgId),
+    queryFn: ({ signal }) => runApi((api) => api.ascApiKeys.list(), signal),
+    staleTime: 30_000,
+  });
+
+export const uploadAscApiKey = (body: typeof UploadAscApiKeyBody.Type) =>
+  runApi((api) => api.ascApiKeys.upload({ payload: body }));
+
+export const deleteAscApiKey = (id: string) =>
+  runApi((api) => api.ascApiKeys.delete({ path: { id } }));
+
+export const syncDevicesViaAscApiKey = (id: string) =>
+  runApi((api) => api.ascApiKeys.syncDevices({ path: { id } }));
+
+// ---------------------------------------------------------------------------
+// Apple Provisioning Profiles — Query options + Mutations
+// ---------------------------------------------------------------------------
+
+export const appleProvisioningProfilesQueryKey = (
   orgId: string,
-  filters?: { platform?: PlatformValue; type?: string; distribution?: string },
-  page?: number,
+  filters?: {
+    bundleIdentifier?: string;
+    distributionType?: "APP_STORE" | "AD_HOC" | "ENTERPRISE" | "DEVELOPMENT";
+    appleTeamId?: string;
+  },
+) => ["org", orgId, "apple-provisioning-profiles", filters ?? {}] as const;
+
+export const appleProvisioningProfilesQueryOptions = (
+  orgId: string,
+  filters?: {
+    bundleIdentifier?: string;
+    distributionType?: "APP_STORE" | "AD_HOC" | "ENTERPRISE" | "DEVELOPMENT";
+    appleTeamId?: string;
+  },
 ) =>
   queryOptions({
-    queryKey: [
-      ...credentialsQueryKey(orgId),
-      {
-        platform: filters?.platform,
-        type: filters?.type,
-        distribution: filters?.distribution,
-        page,
-      },
-    ],
+    queryKey: appleProvisioningProfilesQueryKey(orgId, filters),
     queryFn: ({ signal }) =>
       runApi(
         (api) =>
-          api.credentials.list({
+          api.appleProvisioningProfiles.list({
             urlParams: {
-              platform: filters?.platform,
-              type: filters?.type,
-              distribution: filters?.distribution,
-              page,
+              ...(filters?.bundleIdentifier ? { bundleIdentifier: filters.bundleIdentifier } : {}),
+              ...(filters?.distributionType ? { distributionType: filters.distributionType } : {}),
+              ...(filters?.appleTeamId ? { appleTeamId: filters.appleTeamId } : {}),
             },
           }),
         signal,
@@ -353,15 +471,152 @@ export const credentialsQueryOptions = (
     staleTime: 30_000,
   });
 
-// Credentials — Mutations
-export const uploadCredential = (body: typeof CreateCredentialBody.Type) =>
-  runApi((api) => api.credentials.upload({ payload: body }));
+export const uploadAppleProvisioningProfile = (
+  body: typeof UploadAppleProvisioningProfileBody.Type,
+) => runApi((api) => api.appleProvisioningProfiles.upload({ payload: body }));
 
-export const activateCredential = (id: string) =>
-  runApi((api) => api.credentials.activate({ path: { id } }));
+export const generateAppleProvisioningProfile = (
+  body: typeof GenerateAppleProvisioningProfileBody.Type,
+) => runApi((api) => api.appleProvisioningProfiles.generate({ payload: body }));
 
-export const deleteCredential = (id: string) =>
-  runApi((api) => api.credentials.delete({ path: { id } }));
+export const deleteAppleProvisioningProfile = (id: string) =>
+  runApi((api) => api.appleProvisioningProfiles.delete({ path: { id } }));
+
+// ---------------------------------------------------------------------------
+// Google Service Account Keys — Query options + Mutations
+// ---------------------------------------------------------------------------
+
+export const googleServiceAccountKeysQueryKey = (orgId: string) =>
+  ["org", orgId, "google-service-account-keys"] as const;
+
+export const googleServiceAccountKeysQueryOptions = (orgId: string) =>
+  queryOptions({
+    queryKey: googleServiceAccountKeysQueryKey(orgId),
+    queryFn: ({ signal }) => runApi((api) => api.googleServiceAccountKeys.list(), signal),
+    staleTime: 30_000,
+  });
+
+export const uploadGoogleServiceAccountKey = (
+  body: typeof UploadGoogleServiceAccountKeyBody.Type,
+) => runApi((api) => api.googleServiceAccountKeys.upload({ payload: body }));
+
+export const deleteGoogleServiceAccountKey = (id: string) =>
+  runApi((api) => api.googleServiceAccountKeys.delete({ path: { id } }));
+
+// ---------------------------------------------------------------------------
+// iOS Bundle Configurations — Query options + Mutations
+// ---------------------------------------------------------------------------
+
+export const iosBundleConfigurationsQueryKey = (orgId: string, projectId: string) =>
+  ["org", orgId, "projects", projectId, "ios-bundle-configurations"] as const;
+
+export const iosBundleConfigurationsQueryOptions = (orgId: string, projectId: string) =>
+  queryOptions({
+    queryKey: iosBundleConfigurationsQueryKey(orgId, projectId),
+    queryFn: ({ signal }) =>
+      runApi((api) => api.iosBundleConfigurations.list({ path: { projectId } }), signal),
+    staleTime: 30_000,
+  });
+
+export const createIosBundleConfiguration = (
+  projectId: string,
+  body: typeof CreateIosBundleConfigurationBody.Type,
+) => runApi((api) => api.iosBundleConfigurations.create({ path: { projectId }, payload: body }));
+
+export const updateIosBundleConfiguration = (
+  id: string,
+  body: typeof UpdateIosBundleConfigurationBody.Type,
+) => runApi((api) => api.iosBundleConfigurations.update({ path: { id }, payload: body }));
+
+export const deleteIosBundleConfiguration = (id: string) =>
+  runApi((api) => api.iosBundleConfigurations.delete({ path: { id } }));
+
+// ---------------------------------------------------------------------------
+// Android Application Identifiers — Query options + Mutations
+// ---------------------------------------------------------------------------
+
+export const androidApplicationIdentifiersQueryKey = (orgId: string, projectId: string) =>
+  ["org", orgId, "projects", projectId, "android-application-identifiers"] as const;
+
+export const androidApplicationIdentifiersQueryOptions = (orgId: string, projectId: string) =>
+  queryOptions({
+    queryKey: androidApplicationIdentifiersQueryKey(orgId, projectId),
+    queryFn: ({ signal }) =>
+      runApi((api) => api.androidApplicationIdentifiers.list({ path: { projectId } }), signal),
+    staleTime: 30_000,
+  });
+
+export const createAndroidApplicationIdentifier = (
+  projectId: string,
+  body: typeof CreateAndroidApplicationIdentifierBody.Type,
+) =>
+  runApi((api) => api.androidApplicationIdentifiers.create({ path: { projectId }, payload: body }));
+
+export const deleteAndroidApplicationIdentifier = (id: string) =>
+  runApi((api) => api.androidApplicationIdentifiers.delete({ path: { id } }));
+
+// ---------------------------------------------------------------------------
+// Android Upload Keystores — Query options + Mutations
+// ---------------------------------------------------------------------------
+
+export const androidUploadKeystoresQueryKey = (orgId: string) =>
+  ["org", orgId, "android-upload-keystores"] as const;
+
+export const androidUploadKeystoresQueryOptions = (orgId: string) =>
+  queryOptions({
+    queryKey: androidUploadKeystoresQueryKey(orgId),
+    queryFn: ({ signal }) => runApi((api) => api.androidUploadKeystores.list(), signal),
+    staleTime: 30_000,
+  });
+
+export const uploadAndroidUploadKeystore = (body: typeof UploadAndroidUploadKeystoreBody.Type) =>
+  runApi((api) => api.androidUploadKeystores.upload({ payload: body }));
+
+export const deleteAndroidUploadKeystore = (id: string) =>
+  runApi((api) => api.androidUploadKeystores.delete({ path: { id } }));
+
+// ---------------------------------------------------------------------------
+// Android Build Credentials — Query options + Mutations
+// ---------------------------------------------------------------------------
+
+export const androidBuildCredentialsQueryKey = (orgId: string, applicationIdentifierId: string) =>
+  [
+    "org",
+    orgId,
+    "android-application-identifiers",
+    applicationIdentifierId,
+    "build-credentials",
+  ] as const;
+
+export const androidBuildCredentialsQueryOptions = (
+  orgId: string,
+  applicationIdentifierId: string,
+) =>
+  queryOptions({
+    queryKey: androidBuildCredentialsQueryKey(orgId, applicationIdentifierId),
+    queryFn: ({ signal }) =>
+      runApi(
+        (api) => api.androidBuildCredentials.list({ path: { applicationIdentifierId } }),
+        signal,
+      ),
+    staleTime: 30_000,
+  });
+
+export const createAndroidBuildCredentials = (
+  applicationIdentifierId: string,
+  body: typeof CreateAndroidBuildCredentialsBody.Type,
+) =>
+  runApi((api) =>
+    api.androidBuildCredentials.create({ path: { applicationIdentifierId }, payload: body }),
+  );
+
+export const updateAndroidBuildCredentials = (
+  id: string,
+  body: typeof UpdateAndroidBuildCredentialsBody.Type,
+) => runApi((api) => api.androidBuildCredentials.update({ path: { id }, payload: body }));
+
+export const deleteAndroidBuildCredentials = (id: string) =>
+  runApi((api) => api.androidBuildCredentials.delete({ path: { id } }));
 
 // ---------------------------------------------------------------------------
 // Env Vars — Query options
@@ -396,6 +651,78 @@ export const deleteEnvVar = (id: string) =>
 
 export const bulkImportEnvVars = (body: typeof BulkImportEnvVarsBody.Type) =>
   runApi((api) => api["env-vars"].bulkImport({ payload: body }));
+
+// ---------------------------------------------------------------------------
+// Devices — Query options + Mutations
+// ---------------------------------------------------------------------------
+
+export const devicesQueryKey = (orgId: string) => ["org", orgId, "devices"] as const;
+
+export const devicesQueryOptions = (
+  orgId: string,
+  filters?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    deviceClass?: DeviceClassValue;
+    appleTeamId?: string;
+  },
+) =>
+  queryOptions({
+    queryKey: [
+      ...devicesQueryKey(orgId),
+      {
+        page: filters?.page,
+        limit: filters?.limit,
+        search: filters?.search,
+        deviceClass: filters?.deviceClass,
+        appleTeamId: filters?.appleTeamId,
+      },
+    ],
+    queryFn: ({ signal }) =>
+      runApi(
+        (api) =>
+          api.devices.list({
+            urlParams: {
+              page: filters?.page,
+              limit: filters?.limit,
+              search: filters?.search,
+              deviceClass: filters?.deviceClass,
+              appleTeamId: filters?.appleTeamId,
+            },
+          }),
+        signal,
+      ),
+    staleTime: 30_000,
+  });
+
+export const registerDevice = (body: typeof RegisterDeviceBody.Type) =>
+  runApi((api) => api.devices.register({ payload: body }));
+
+export const updateDevice = (id: string, body: typeof UpdateDeviceBody.Type) =>
+  runApi((api) => api.devices.update({ path: { id }, payload: body }));
+
+export const deleteDevice = (id: string) => runApi((api) => api.devices.delete({ path: { id } }));
+
+export const registrationRequestsQueryKey = (orgId: string) =>
+  ["org", orgId, "device-registration-requests"] as const;
+
+export const registrationRequestsQueryOptions = (orgId: string, activeOnly = true) =>
+  queryOptions({
+    queryKey: [...registrationRequestsQueryKey(orgId), { activeOnly }],
+    queryFn: ({ signal }) =>
+      runApi(
+        (api) =>
+          api.devices.listRegistrationRequests({
+            urlParams: { active: activeOnly ? "true" : "false" },
+          }),
+        signal,
+      ),
+    staleTime: 15_000,
+  });
+
+export const createRegistrationRequest = (body: typeof CreateRegistrationRequestBody.Type) =>
+  runApi((api) => api.devices.createRegistrationRequest({ payload: body }));
 
 // ---------------------------------------------------------------------------
 // Audit Logs — Query options

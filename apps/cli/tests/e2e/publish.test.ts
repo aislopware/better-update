@@ -52,9 +52,7 @@ describe("CLI publish journey", () => {
     const result = cli.runCli("init");
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toBe("");
-    expect(result.stdout).toContain(
-      "Linking project: E2E Publish App (@e2e-publish/e2e-publish-app)",
-    );
+    expect(result.stdout).toContain("Linking project: E2E Publish App (e2e-publish-app)");
     expect(result.stdout).toContain("Found existing project: E2E Publish App Project");
     expect(result.stdout).toContain("Project linked successfully");
 

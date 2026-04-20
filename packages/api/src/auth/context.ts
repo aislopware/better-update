@@ -14,9 +14,12 @@ export type Resource =
   | "billing"
   | "apiKey"
   | "build"
-  | "credential"
+  | "appleCredential"
+  | "androidCredential"
+  | "iosBundleConfiguration"
   | "envVar"
-  | "auditLog";
+  | "auditLog"
+  | "device";
 
 export type Action = "read" | "create" | "update" | "delete" | "cancel" | "download";
 

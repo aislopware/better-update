@@ -5,11 +5,26 @@ import { CredentialValidationError } from "./exit-codes";
 
 export interface P12Info {
   readonly serialNumber: string;
+  readonly validFrom: Date | undefined;
   readonly expiresAt: Date | undefined;
   readonly subject: string;
   readonly issuerCN: string | undefined;
   readonly signingIdentity: string;
+  readonly teamId: string | undefined;
 }
+
+const APPLE_TEAM_ID_RE = /^[A-Z0-9]{10}$/u;
+
+const extractTeamId = (params: {
+  readonly signingIdentity: string;
+  readonly orgUnit: string | undefined;
+}): string | undefined => {
+  if (params.orgUnit && APPLE_TEAM_ID_RE.test(params.orgUnit)) {
+    return params.orgUnit;
+  }
+  const parenMatch = params.signingIdentity.match(/\(([A-Z0-9]{10})\)\s*$/u);
+  return parenMatch?.[1];
+};
 
 /**
  * Parse a PKCS#12 (.p12) buffer and extract certificate metadata.
@@ -25,10 +40,13 @@ export const inspectP12 = (params: {
 
       const serialNumber = getFormattedSerialNumber(cert) ?? "unknown";
 
+      const validFrom =
+        cert.validity.notBefore instanceof Date ? cert.validity.notBefore : undefined;
       const expiresAt = cert.validity.notAfter instanceof Date ? cert.validity.notAfter : undefined;
 
       const subjectParts = cert.subject.attributes.map(
-        (attr) => `${attr.shortName ?? attr.name}=${attr.value}`,
+        (attr: { shortName?: string; name: string; value: unknown }) =>
+          `${attr.shortName ?? attr.name}=${String(attr.value)}`,
       );
       const subject = subjectParts.join(", ");
 
@@ -37,33 +55,14 @@ export const inspectP12 = (params: {
       // Signing identity = Common Name from subject, e.g. "Apple Distribution: Name (TEAMID)"
       const cn = cert.subject.getField("CN")?.value as string | undefined;
       const signingIdentity = cn ?? subject;
+      const orgUnit = cert.subject.getField("OU")?.value as string | undefined;
 
-      return { serialNumber, expiresAt, subject, issuerCN, signingIdentity };
+      const teamId = extractTeamId({ signingIdentity, orgUnit });
+
+      return { serialNumber, validFrom, expiresAt, subject, issuerCN, signingIdentity, teamId };
     },
     catch: (error) =>
       new CredentialValidationError({
         message: `Failed to parse P12 certificate: ${error instanceof Error ? error.message : String(error)}`,
       }),
   });
-
-const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
-const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
-
-/**
- * Check certificate expiry and return a warning message if applicable.
- */
-export const checkCertExpiry = (expiresAt: Date | undefined, label: string): string | undefined => {
-  if (!expiresAt) return undefined;
-  const now = Date.now();
-  const expiryMs = expiresAt.getTime();
-  if (expiryMs < now) {
-    return `WARNING: ${label} expired on ${expiresAt.toISOString()}`;
-  }
-  if (expiryMs - now < SEVEN_DAYS_MS) {
-    return `WARNING: ${label} expires in less than 7 days (${expiresAt.toISOString()})`;
-  }
-  if (expiryMs - now < THIRTY_DAYS_MS) {
-    return `WARNING: ${label} expires within 30 days (${expiresAt.toISOString()})`;
-  }
-  return undefined;
-};

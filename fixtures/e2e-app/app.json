@@ -18,8 +18,13 @@
         "profiles": {
           "production": {
             "environment": "production",
-            "ios": { "distribution": "ad-hoc" },
-            "android": { "distribution": "direct", "format": "apk" }
+            "ios": {
+              "distribution": "ad-hoc"
+            },
+            "android": {
+              "distribution": "direct",
+              "format": "apk"
+            }
           }
         }
       }

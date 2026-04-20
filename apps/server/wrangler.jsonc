@@ -35,6 +35,15 @@
       "preview_bucket_name": "better-update-builds-e2e",
       "remote": true,
     },
+    {
+      // Binding name intentionally generic: this bucket stores Apple, Android,
+      // and Google credential artifacts. Physical bucket rename is deferred to
+      // an infra migration; the binding is the source of truth in code.
+      "binding": "CREDENTIAL_ARTIFACTS",
+      "bucket_name": "better-update-apple-credentials",
+      "preview_bucket_name": "better-update-apple-credentials-e2e",
+      "remote": true,
+    },
   ],
   "analytics_engine_datasets": [
     {

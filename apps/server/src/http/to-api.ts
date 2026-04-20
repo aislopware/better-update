@@ -1,18 +1,37 @@
 import {
+  AndroidApplicationIdentifier,
+  AndroidBuildCredentials,
+  AndroidUploadKeystore,
+  AppleDistributionCertificate,
+  AppleProvisioningProfile,
+  ApplePushKey,
+  AppleTeam,
+  AscApiKey,
   AuditLog,
   Branch,
   BuildCompatibilityChannel,
   BuildCompatibilityRow,
   BuildWithArtifact,
   Channel,
-  Credential,
+  Device,
+  DeviceRegistrationRequest,
   EnvVar,
+  GoogleServiceAccountKey,
+  IosBundleConfiguration,
   MissingRuntimeVersionBuild,
   Project,
   Update,
 } from "@better-update/api";
+import { safeJsonParse } from "@better-update/safe-json";
 
 import type {
+  AndroidApplicationIdentifierModel,
+  AndroidBuildCredentialsModel,
+  AndroidUploadKeystoreModel,
+  AppleDistributionCertificateModel,
+  AppleProvisioningProfileModel,
+  ApplePushKeyModel,
+  AscApiKeyModel,
   AuditLogModel,
   BranchModel,
   BuildCompatibilityChannelModel,
@@ -20,12 +39,16 @@ import type {
   BuildCompatibilityRowModel,
   BuildWithArtifactModel,
   ChannelModel,
-  CredentialModel,
+  DeviceModel,
+  DeviceRegistrationRequestModel,
   EnvVarModel,
+  GoogleServiceAccountKeyModel,
+  IosBundleConfigurationModel,
   MissingRuntimeVersionBuildModel,
   ProjectModel,
   UpdateModel,
 } from "../models";
+import type { AppleTeamWithCounts } from "../repositories/apple-teams";
 
 export const toApiProject = (project: ProjectModel) =>
   new Project({
@@ -74,21 +97,6 @@ export const toApiUpdate = (update: UpdateModel) =>
     manifestBody: update.manifestBody,
     directiveBody: update.directiveBody,
     createdAt: update.createdAt,
-  });
-
-export const toApiCredential = (credential: CredentialModel) =>
-  new Credential({
-    id: credential.id,
-    organizationId: credential.organizationId,
-    projectId: credential.projectId,
-    platform: credential.platform,
-    type: credential.type,
-    name: credential.name,
-    distribution: credential.distribution,
-    isActive: credential.isActive,
-    metadata: credential.metadata,
-    expiresAt: credential.expiresAt,
-    createdAt: credential.createdAt,
   });
 
 export const toApiEnvVar = (envVar: EnvVarModel) =>
@@ -173,6 +181,38 @@ export const toApiBuildCompatibilityMatrix = (matrix: BuildCompatibilityMatrixMo
   missingRuntimeVersions: matrix.missingRuntimeVersions.map(toApiMissingRuntimeVersionBuild),
 });
 
+export const toApiDevice = (device: DeviceModel) =>
+  new Device({
+    id: device.id,
+    organizationId: device.organizationId,
+    appleTeamId: device.appleTeamId,
+    identifier: device.identifier,
+    name: device.name,
+    model: device.model,
+    deviceClass: device.deviceClass,
+    enabled: device.enabled,
+    appleDevicePortalId: device.appleDevicePortalId,
+    createdAt: device.createdAt,
+    updatedAt: device.updatedAt,
+  });
+
+export const toApiDeviceRegistrationRequest = (
+  model: DeviceRegistrationRequestModel,
+  url: string,
+) =>
+  new DeviceRegistrationRequest({
+    id: model.id,
+    organizationId: model.organizationId,
+    appleTeamId: model.appleTeamId,
+    deviceNameHint: model.deviceNameHint,
+    deviceClassHint: model.deviceClassHint,
+    url,
+    expiresAt: model.expiresAt,
+    consumedAt: model.consumedAt,
+    consumedDeviceId: model.consumedDeviceId,
+    createdAt: model.createdAt,
+  });
+
 export const toApiAuditLog = (log: AuditLogModel) =>
   new AuditLog({
     id: log.id,
@@ -185,4 +225,155 @@ export const toApiAuditLog = (log: AuditLogModel) =>
     metadata: log.metadata,
     source: log.source,
     createdAt: log.createdAt,
+  });
+
+export const toApiAppleTeamWithCounts = (team: AppleTeamWithCounts): AppleTeam =>
+  new AppleTeam({
+    id: team.id,
+    organizationId: team.organizationId,
+    appleTeamId: team.appleTeamId,
+    appleTeamType: team.appleTeamType,
+    name: team.name,
+    distributionCertificateCount: team.distributionCertificateCount,
+    pushKeyCount: team.pushKeyCount,
+    ascApiKeyCount: team.ascApiKeyCount,
+    provisioningProfileCount: team.provisioningProfileCount,
+    deviceCount: team.deviceCount,
+    createdAt: team.createdAt,
+    updatedAt: team.updatedAt,
+  });
+
+export const toApiAppleDistributionCertificate = (
+  model: AppleDistributionCertificateModel,
+): AppleDistributionCertificate =>
+  new AppleDistributionCertificate({
+    id: model.id,
+    organizationId: model.organizationId,
+    appleTeamId: model.appleTeamId,
+    serialNumber: model.serialNumber,
+    developerIdIdentifier: model.developerIdIdentifier,
+    validFrom: model.validFrom,
+    validUntil: model.validUntil,
+    createdAt: model.createdAt,
+    updatedAt: model.updatedAt,
+  });
+
+export const toApiApplePushKey = (model: ApplePushKeyModel): ApplePushKey =>
+  new ApplePushKey({
+    id: model.id,
+    organizationId: model.organizationId,
+    appleTeamId: model.appleTeamId,
+    keyId: model.keyId,
+    createdAt: model.createdAt,
+    updatedAt: model.updatedAt,
+  });
+
+const parseRoles = (roles: string): readonly string[] => {
+  const parsed = safeJsonParse(roles);
+  if (!Array.isArray(parsed)) {
+    return [];
+  }
+  return parsed.filter((value): value is string => typeof value === "string");
+};
+
+export const toApiAscApiKey = (model: AscApiKeyModel): AscApiKey =>
+  new AscApiKey({
+    id: model.id,
+    organizationId: model.organizationId,
+    appleTeamId: model.appleTeamId,
+    keyId: model.keyId,
+    name: model.name,
+    roles: parseRoles(model.roles),
+    createdAt: model.createdAt,
+    updatedAt: model.updatedAt,
+  });
+
+export const toApiAppleProvisioningProfile = (
+  model: AppleProvisioningProfileModel,
+): AppleProvisioningProfile =>
+  new AppleProvisioningProfile({
+    id: model.id,
+    organizationId: model.organizationId,
+    appleTeamId: model.appleTeamId,
+    appleDistributionCertificateId: model.appleDistributionCertificateId,
+    bundleIdentifier: model.bundleIdentifier,
+    distributionType: model.distributionType,
+    developerPortalIdentifier: model.developerPortalIdentifier,
+    profileName: model.profileName,
+    validUntil: model.validUntil,
+    createdAt: model.createdAt,
+    updatedAt: model.updatedAt,
+  });
+
+export const toApiGoogleServiceAccountKey = (
+  model: GoogleServiceAccountKeyModel,
+): GoogleServiceAccountKey =>
+  new GoogleServiceAccountKey({
+    id: model.id,
+    organizationId: model.organizationId,
+    clientEmail: model.clientEmail,
+    privateKeyId: model.privateKeyId,
+    googleProjectId: model.googleProjectId,
+    createdAt: model.createdAt,
+    updatedAt: model.updatedAt,
+  });
+
+export const toApiIosBundleConfiguration = (
+  model: IosBundleConfigurationModel,
+): IosBundleConfiguration =>
+  new IosBundleConfiguration({
+    id: model.id,
+    organizationId: model.organizationId,
+    projectId: model.projectId,
+    bundleIdentifier: model.bundleIdentifier,
+    distributionType: model.distributionType,
+    appleTeamId: model.appleTeamId,
+    appleDistributionCertificateId: model.appleDistributionCertificateId,
+    appleProvisioningProfileId: model.appleProvisioningProfileId,
+    applePushKeyId: model.applePushKeyId,
+    ascApiKeyId: model.ascApiKeyId,
+    createdAt: model.createdAt,
+    updatedAt: model.updatedAt,
+  });
+
+export const toApiAndroidApplicationIdentifier = (
+  model: AndroidApplicationIdentifierModel,
+): AndroidApplicationIdentifier =>
+  new AndroidApplicationIdentifier({
+    id: model.id,
+    organizationId: model.organizationId,
+    projectId: model.projectId,
+    packageName: model.packageName,
+    createdAt: model.createdAt,
+    updatedAt: model.updatedAt,
+  });
+
+export const toApiAndroidUploadKeystore = (
+  model: AndroidUploadKeystoreModel,
+): AndroidUploadKeystore =>
+  new AndroidUploadKeystore({
+    id: model.id,
+    organizationId: model.organizationId,
+    keyAlias: model.keyAlias,
+    md5Fingerprint: model.md5Fingerprint,
+    sha1Fingerprint: model.sha1Fingerprint,
+    sha256Fingerprint: model.sha256Fingerprint,
+    createdAt: model.createdAt,
+    updatedAt: model.updatedAt,
+  });
+
+export const toApiAndroidBuildCredentials = (
+  model: AndroidBuildCredentialsModel,
+): AndroidBuildCredentials =>
+  new AndroidBuildCredentials({
+    id: model.id,
+    organizationId: model.organizationId,
+    androidApplicationIdentifierId: model.androidApplicationIdentifierId,
+    androidUploadKeystoreId: model.androidUploadKeystoreId,
+    googleServiceAccountKeyForSubmissionsId: model.googleServiceAccountKeyForSubmissionsId,
+    googleServiceAccountKeyForFcmV1Id: model.googleServiceAccountKeyForFcmV1Id,
+    name: model.name,
+    isDefault: model.isDefault,
+    createdAt: model.createdAt,
+    updatedAt: model.updatedAt,
   });

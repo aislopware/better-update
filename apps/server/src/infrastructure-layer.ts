@@ -1,6 +1,7 @@
 import { Layer } from "effect";
 
 import { AnalyticsEngineLive } from "./cloudflare/analytics-engine";
+import { AppleAppStoreConnectLive } from "./cloudflare/apple-app-store-connect";
 import { AssetStorageLive } from "./cloudflare/asset-storage";
 import { BuildRuntimeLive } from "./cloudflare/build-runtime";
 import { CryptoServiceLive } from "./cloudflare/crypto-service";
@@ -9,19 +10,31 @@ import { UpdateCoordinatorLive } from "./cloudflare/update-coordinator";
 import { VaultLive } from "./cloudflare/vault";
 import {
   AnalyticsRepoLive,
+  AndroidApplicationIdentifierRepoLive,
+  AndroidBuildCredentialsRepoLive,
+  AndroidUploadKeystoreRepoLive,
+  AppleDistributionCertificateRepoLive,
+  AppleProvisioningProfileRepoLive,
+  ApplePushKeyRepoLive,
+  AppleTeamRepoLive,
+  AscApiKeyRepoLive,
   AssetRepoLive,
   AuditLogRepoLive,
   BranchRepoLive,
   BuildRepoLive,
   ChannelRepoLive,
   CompatibilityRepoLive,
-  CredentialRepoLive,
+  DeviceRegistrationRequestRepoLive,
+  DeviceRepoLive,
   EnvVarRepoLive,
+  GoogleServiceAccountKeyRepoLive,
+  IosBundleConfigurationRepoLive,
   ProjectRepoLive,
   UpdateRepoLive,
 } from "./repositories";
 
 import type { AnalyticsEngine } from "./cloudflare/analytics-engine";
+import type { AppleAppStoreConnect } from "./cloudflare/apple-app-store-connect";
 import type { AssetStorage } from "./cloudflare/asset-storage";
 import type { BuildRuntime } from "./cloudflare/build-runtime";
 import type { ManifestCacheStorage } from "./cloudflare/manifest-cache-storage";
@@ -30,14 +43,25 @@ import type { Vault } from "./cloudflare/vault";
 import type { CryptoService } from "./domain/crypto-service";
 import type {
   AnalyticsRepo,
+  AndroidApplicationIdentifierRepo,
+  AndroidBuildCredentialsRepo,
+  AndroidUploadKeystoreRepo,
+  AppleDistributionCertificateRepo,
+  AppleProvisioningProfileRepo,
+  ApplePushKeyRepo,
+  AppleTeamRepo,
+  AscApiKeyRepo,
   AssetRepo,
   AuditLogRepo,
   BranchRepo,
   BuildRepo,
   ChannelRepo,
   CompatibilityRepo,
-  CredentialRepo,
+  DeviceRegistrationRequestRepo,
+  DeviceRepo,
   EnvVarRepo,
+  GoogleServiceAccountKeyRepo,
+  IosBundleConfigurationRepo,
   ProjectRepo,
   UpdateRepo,
 } from "./repositories";
@@ -45,6 +69,15 @@ import type {
 export type ServerInfrastructure =
   | AnalyticsEngine
   | AnalyticsRepo
+  | AndroidApplicationIdentifierRepo
+  | AndroidBuildCredentialsRepo
+  | AndroidUploadKeystoreRepo
+  | AppleAppStoreConnect
+  | AppleDistributionCertificateRepo
+  | AppleProvisioningProfileRepo
+  | ApplePushKeyRepo
+  | AppleTeamRepo
+  | AscApiKeyRepo
   | AssetRepo
   | AssetStorage
   | AuditLogRepo
@@ -53,9 +86,12 @@ export type ServerInfrastructure =
   | BuildRuntime
   | ChannelRepo
   | CompatibilityRepo
-  | CredentialRepo
   | CryptoService
+  | DeviceRegistrationRequestRepo
+  | DeviceRepo
   | EnvVarRepo
+  | GoogleServiceAccountKeyRepo
+  | IosBundleConfigurationRepo
   | ManifestCacheStorage
   | ProjectRepo
   | UpdateCoordinator
@@ -64,20 +100,32 @@ export type ServerInfrastructure =
 
 export const RepositoryLayer = Layer.mergeAll(
   AnalyticsRepoLive,
+  AndroidApplicationIdentifierRepoLive,
+  AndroidBuildCredentialsRepoLive,
+  AndroidUploadKeystoreRepoLive,
+  AppleDistributionCertificateRepoLive,
+  AppleProvisioningProfileRepoLive,
+  ApplePushKeyRepoLive,
+  AppleTeamRepoLive,
+  AscApiKeyRepoLive,
   AssetRepoLive,
   AuditLogRepoLive,
   BranchRepoLive,
   BuildRepoLive,
   ChannelRepoLive,
   CompatibilityRepoLive,
-  CredentialRepoLive,
+  DeviceRegistrationRequestRepoLive,
+  DeviceRepoLive,
   EnvVarRepoLive,
+  GoogleServiceAccountKeyRepoLive,
+  IosBundleConfigurationRepoLive,
   ProjectRepoLive,
   UpdateRepoLive,
 );
 
 export const AdapterLayer = Layer.mergeAll(
   AnalyticsEngineLive,
+  AppleAppStoreConnectLive,
   AssetStorageLive,
   BuildRuntimeLive,
   CryptoServiceLive,

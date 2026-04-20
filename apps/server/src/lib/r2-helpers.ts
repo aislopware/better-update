@@ -1,4 +1,5 @@
 import { toBase64 } from "@better-update/encoding";
+import { Effect } from "effect";
 
 export const toChecksumSha256Base64 = (checksums: unknown): string | null => {
   if (typeof checksums !== "object" || checksums === null) {
@@ -8,3 +9,17 @@ export const toChecksumSha256Base64 = (checksums: unknown): string | null => {
   const { sha256 } = checksums as { readonly sha256?: unknown };
   return sha256 instanceof Uint8Array || sha256 instanceof ArrayBuffer ? toBase64(sha256) : null;
 };
+
+// Compensate an R2 put-then-DB-insert sequence: on error, delete the object
+// To avoid orphan blobs. The delete is best-effort; its own errors are ignored
+// So the caller sees the primary cause.
+export const withR2Compensation = <Success, Failure, Requirements>(
+  bucket: R2Bucket,
+  r2Key: string,
+  effect: Effect.Effect<Success, Failure, Requirements>,
+): Effect.Effect<Success, Failure, Requirements> =>
+  effect.pipe(
+    Effect.tapErrorCause(() =>
+      Effect.tryPromise(async () => bucket.delete(r2Key)).pipe(Effect.ignore),
+    ),
+  );
