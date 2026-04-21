@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.3.2](https://github.com/better-update/better-update/compare/@better-update/cli@0.3.1...@better-update/cli@0.3.2) (2026-04-21)
+
+### Bug Fixes
+
+* **cli:** drop prepublishOnly hook and move workspace deps to devDependencies ([61b504b](https://github.com/better-update/better-update/commit/61b504b6ea3affae9ed38b8150d63b1c4a06fa06)) - by @trancong12102
+
 ## [0.3.1](https://github.com/better-update/better-update/compare/@better-update/cli@0.3.0...@better-update/cli@0.3.1) (2026-04-21)
 
 **Note:** Version bump only for package @better-update/cli
