@@ -1,17 +1,34 @@
 import { ManagementApi } from "@better-update/api";
 import { FetchHttpClient, HttpApiClient } from "@effect/platform";
-import { Cause, Effect, Option, Runtime } from "effect";
+import { Cause, Effect, Option, Ref, Runtime } from "effect";
 
-const client = HttpApiClient.make(ManagementApi);
+const baseUrlRef = Effect.runSync(Ref.make<string>(""));
 
-export type ApiClient = Effect.Effect.Success<typeof client>;
+/**
+ * Configures the absolute base URL used when issuing typed API requests.
+ * Called once at app startup, before any query fires, with the host SPA's
+ * `VITE_API_URL` (console + accounts both call into this package).
+ *
+ * Defaults to an empty string, which resolves fetch calls against the
+ * current page origin — useful for Vite dev proxying `/api/*` to the
+ * server worker.
+ */
+export const configureApiBaseUrl = (baseUrl: string): void => {
+  Effect.runSync(Ref.set(baseUrlRef, baseUrl));
+};
+
+const getClient = Effect.flatMap(Ref.get(baseUrlRef), (baseUrl) =>
+  HttpApiClient.make(ManagementApi, { baseUrl }),
+);
+
+export type ApiClient = Effect.Effect.Success<typeof getClient>;
 
 export const runApi = async <Success, Failure>(
   fn: (api: ApiClient) => Effect.Effect<Success, Failure>,
   signal?: AbortSignal,
 ): Promise<Success> =>
   Effect.runPromise(
-    client.pipe(
+    getClient.pipe(
       Effect.flatMap(fn),
       Effect.provide(FetchHttpClient.layer),
       Effect.provideService(FetchHttpClient.RequestInit, {

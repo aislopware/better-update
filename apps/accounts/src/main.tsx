@@ -1,15 +1,10 @@
 import "./app.css";
 
-import { configureApiBaseUrl } from "@better-update/api-client";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import { createRoot } from "react-dom/client";
 
 import { getRouter } from "./router";
-
-// eslint-disable-next-line eslint-js/no-restricted-syntax -- Vite build-time env; empty fallback resolves API calls against current origin via Vite dev proxy.
-const apiBaseUrl: string = import.meta.env.VITE_API_URL ?? "";
-configureApiBaseUrl(apiBaseUrl);
 
 const router = getRouter();
 const { queryClient } = router.options.context;

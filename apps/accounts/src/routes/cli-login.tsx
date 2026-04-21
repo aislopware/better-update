@@ -16,6 +16,7 @@ import {
   buildCliLoginRedirectTarget,
   isAllowedCliCallbackUrl,
 } from "../lib/cli-login";
+import { redirectToConsole } from "../lib/console-redirect";
 import { orgsQueryOptions } from "../queries/auth";
 
 const CliLoginPage = () => {
@@ -40,7 +41,7 @@ const CliLoginPage = () => {
           <Button
             variant="outline"
             onClick={() => {
-              globalThis.location.assign("/");
+              redirectToConsole();
             }}
           >
             Go to dashboard

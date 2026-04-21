@@ -43,6 +43,7 @@ import {
 } from "lucide-react";
 import { Suspense, useState } from "react";
 
+import { redirectToAccounts } from "../../lib/accounts-redirect";
 import { authClient } from "../../lib/auth-client";
 import { EntityAvatar } from "../../lib/entity-avatar";
 import { ErrorBoundary } from "../../lib/error-boundary";
@@ -166,7 +167,7 @@ const UserMenu = () => {
   const handleLogout = async () => {
     await authClient.signOut();
     await queryClient.resetQueries({ queryKey: ["auth"] });
-    await router.navigate({ to: "/login" });
+    redirectToAccounts("/login");
   };
 
   return (

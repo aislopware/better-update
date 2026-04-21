@@ -13,15 +13,15 @@ export default defineConfig({
   plugins: [tailwindcss(), tanstackRouter(), react()],
   server: {
     // eslint-disable-next-line node/no-process-env -- config file
-    port: Number(process.env["PORT"]) || 6780,
+    port: Number(process.env["PORT"]) || 6782,
     ...(portless && {
-      hmr: { host: "console.better-update.localhost", protocol: "wss" as const, clientPort: 443 },
-      allowedHosts: ["console.better-update.localhost"],
+      hmr: { host: "accounts.better-update.localhost", protocol: "wss" as const, clientPort: 443 },
+      allowedHosts: ["accounts.better-update.localhost"],
     }),
     proxy: {
       "/api": {
         // eslint-disable-next-line node/no-process-env -- config file
-        target: process.env["DASHBOARD_API_PROXY_TARGET"] ?? defaultProxyTarget,
+        target: process.env["ACCOUNTS_API_PROXY_TARGET"] ?? defaultProxyTarget,
         changeOrigin: true,
         ws: true,
       },

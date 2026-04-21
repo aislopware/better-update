@@ -10,11 +10,12 @@ import {
 import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
 import { useForm } from "@tanstack/react-form";
-import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { z } from "zod/v4";
 
 import { authClient } from "../../lib/auth-client";
+import { consoleUrl, redirectToConsole } from "../../lib/console-redirect";
 import { throwRedirect } from "../../lib/throw-redirect";
 
 const nameValidator = z.string().check(z.minLength(2, "Name must be at least 2 characters"));
@@ -25,7 +26,6 @@ const passwordValidator = z
 
 const SignupPage = () => {
   const { queryClient } = Route.useRouteContext();
-  const router = useRouter();
 
   const form = useForm({
     defaultValues: { name: "", email: "", password: "", confirmPassword: "" },
@@ -40,7 +40,7 @@ const SignupPage = () => {
         return;
       }
       await queryClient.resetQueries({ queryKey: ["auth"] });
-      await router.invalidate();
+      redirectToConsole();
     },
   });
 
@@ -223,7 +223,10 @@ const SignupPage = () => {
 export const Route = createFileRoute("/(auth)/signup")({
   beforeLoad: ({ context }) => {
     if (context.session?.user) {
-      throwRedirect({ to: "/" });
+      throwRedirect({ href: consoleUrl() });
+    }
+    if (!context.config.passwordEnabled) {
+      throwRedirect({ to: "/login" });
     }
   },
   component: SignupPage,
