@@ -16,7 +16,7 @@ export const listCommand = Command.make("list", { platform }, (opts) =>
       rows,
       Option.match(opts.platform, {
         onNone: () => ({}),
-        onSome: (p) => ({ platform: p }),
+        onSome: (platformValue) => ({ platform: platformValue }),
       }),
     );
 

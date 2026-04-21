@@ -2,6 +2,8 @@ import { Terminal } from "@effect/platform";
 import { it } from "@effect/vitest";
 import { Effect, Exit, Layer, Mailbox, Option } from "effect";
 
+import type { Session } from "@expo/apple-utils";
+// eslint-disable-next-line import-plugin/no-namespace -- stub factory typed as `typeof AppleUtils` (whole module shape); no named type covers the full module
 import type * as AppleUtils from "@expo/apple-utils";
 
 import { CliRuntime } from "../services/cli-runtime";
@@ -14,7 +16,7 @@ const provider = (
   providerId: number,
   name = `Provider ${providerId}`,
   subType = "ORGANIZATION",
-): AppleUtils.Session.SessionProvider => ({
+): Session.SessionProvider => ({
   providerId,
   publicProviderId: `pub-${providerId}`,
   name,
@@ -25,7 +27,8 @@ const provider = (
 const makeAppleUtilsStub = (setProviderSpy?: (id: number) => Promise<unknown>) =>
   ({
     Session: {
-      setSessionProviderIdAsync: (id: number) => setProviderSpy?.(id) ?? Promise.resolve(null),
+      setSessionProviderIdAsync: async (id: number) =>
+        setProviderSpy?.(id) ?? Promise.resolve(null),
     },
   }) as unknown as typeof AppleUtils;
 
@@ -56,11 +59,11 @@ const provideTestServices = (env: Readonly<Record<string, string | undefined>> =
 
 // ── parseProviderId ──────────────────────────────────────────────
 
-describe("parseProviderId", () => {
+describe(parseProviderId, () => {
   it.effect("accepts a positive integer string", () =>
     Effect.gen(function* () {
       const result = yield* parseProviderId("118573544");
-      expect(result).toBe(118573544);
+      expect(result).toBe(118_573_544);
     }),
   );
 
@@ -78,7 +81,7 @@ describe("parseProviderId", () => {
       if (Exit.isFailure(exit)) {
         const err = exit.cause._tag === "Fail" ? exit.cause.error : null;
         expect(err).toBeInstanceOf(AppleAuthError);
-        expect((err as AppleAuthError).message).toContain("APPLE_PROVIDER_ID");
+        expect(err!.message).toContain("APPLE_PROVIDER_ID");
       }
     }),
   );
@@ -93,7 +96,7 @@ describe("parseProviderId", () => {
   it.effect("rejects an empty string", () =>
     Effect.gen(function* () {
       // Number("") === 0, which IS an integer — guard at call site (readEnvProviderId)
-      // skips empty strings. Document that parseProviderId treats "" as 0.
+      // Skips empty strings. Document that parseProviderId treats "" as 0.
       const result = yield* parseProviderId("");
       expect(result).toBe(0);
     }),
@@ -102,7 +105,7 @@ describe("parseProviderId", () => {
 
 // ── resolveProvider ──────────────────────────────────────────────
 
-describe("resolveProvider", () => {
+describe(resolveProvider, () => {
   it.effect("uses APPLE_PROVIDER_ID env when set, switching when it differs from current", () =>
     Effect.gen(function* () {
       const calls: number[] = [];
@@ -222,7 +225,7 @@ describe("resolveProvider", () => {
           return null;
         });
 
-        // currentProviderId is set (apple-utils auto-resolved). No prompt — CI-safe.
+        // CurrentProviderId is set (apple-utils auto-resolved). No prompt — CI-safe.
         const result = yield* resolveProvider(
           appleUtils,
           [provider(1), provider(2), provider(3)],
@@ -277,13 +280,13 @@ describe("resolveProvider", () => {
 
 // ── resolveProvider (prompt branch via scripted Terminal) ────────
 
-type KeyEvent = {
+interface KeyEvent {
   readonly name: string;
   readonly input?: string;
   readonly ctrl?: boolean;
   readonly meta?: boolean;
   readonly shift?: boolean;
-};
+}
 
 const toUserInput = (event: KeyEvent): Terminal.UserInput => ({
   input: event.input ? Option.some(event.input) : Option.none(),
@@ -299,7 +302,7 @@ const toUserInput = (event: KeyEvent): Terminal.UserInput => ({
  * Build a Terminal layer backed by a pre-filled Mailbox of scripted keystrokes.
  * `display` output is captured into `displayed` for optional assertions.
  */
-const makeScriptedTerminalLayer = (events: ReadonlyArray<KeyEvent>, displayed: string[]) =>
+const makeScriptedTerminalLayer = (events: readonly KeyEvent[], displayed: string[]) =>
   Layer.effect(
     Terminal.Terminal,
     Effect.gen(function* () {
@@ -320,7 +323,7 @@ const makeScriptedTerminalLayer = (events: ReadonlyArray<KeyEvent>, displayed: s
   );
 
 const provideScriptedPrompt = (
-  events: ReadonlyArray<KeyEvent>,
+  events: readonly KeyEvent[],
   displayed: string[],
   env: Readonly<Record<string, string | undefined>> = {},
 ) => Layer.mergeAll(makeCliRuntimeLayer(env), makeScriptedTerminalLayer(events, displayed));

@@ -1,5 +1,6 @@
-import { CommandExecutor } from "@effect/platform";
 import { Effect } from "effect";
+
+import type { CommandExecutor } from "@effect/platform";
 
 import { RuntimeVersionError } from "./exit-codes";
 import { runFingerprintFull } from "./fingerprint";
@@ -31,7 +32,7 @@ export const resolveRuntimeVersion = ({
       });
     }
 
-    const policy = raw.policy;
+    const { policy } = raw;
     if (policy === "appVersion") {
       if (appVersion === undefined) {
         return yield* new RuntimeVersionError({

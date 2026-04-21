@@ -38,24 +38,26 @@ const mkInfo = (entry: FakeEntry) =>
 const makeFakeFs = (entries: Record<string, FakeEntry>) => {
   const paths = new Set(Object.keys(entries));
   return FileSystem.layerNoop({
-    exists: (p: string) => Effect.succeed(paths.has(p)),
-    readDirectory: (p: string) =>
+    exists: (targetPath: string) => Effect.succeed(paths.has(targetPath)),
+    readDirectory: (targetPath: string) =>
       Effect.sync(() => {
-        const prefix = `${p}/`;
+        const prefix = `${targetPath}/`;
         const children = new Set<string>();
         for (const full of paths) {
-          if (!full.startsWith(prefix)) continue;
-          const rest = full.slice(prefix.length);
-          const head = rest.split("/")[0];
-          if (head) children.add(head);
+          if (full.startsWith(prefix)) {
+            const rest = full.slice(prefix.length);
+            const [head] = rest.split("/");
+            if (head) {
+              children.add(head);
+            }
+          }
         }
-        return Array.from(children);
+        return [...children];
       }),
-    stat: (p: string) => {
-      const entry = entries[p];
+    stat: (targetPath: string) => {
+      const entry = entries[targetPath];
       if (!entry) {
-        // Simulate a missing file — tests rely on .option() to catch.
-        return Effect.die(new Error(`ENOENT: ${p}`));
+        return Effect.die(new Error(`ENOENT: ${targetPath}`));
       }
       return Effect.succeed(mkInfo(entry));
     },

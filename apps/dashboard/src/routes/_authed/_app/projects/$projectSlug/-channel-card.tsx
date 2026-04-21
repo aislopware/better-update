@@ -356,10 +356,7 @@ export const ChannelCard = ({
           <div className="flex items-center gap-1">
             {channel.isPaused && <Badge variant="outline">Paused</Badge>}
             <Button variant="ghost" size="icon" disabled={isToggling} onClick={handleTogglePause}>
-              {(() => {
-                const Icon = channel.isPaused ? PlayIcon : PauseIcon;
-                return <Icon strokeWidth={2} />;
-              })()}
+              {channel.isPaused ? <PlayIcon strokeWidth={2} /> : <PauseIcon strokeWidth={2} />}
             </Button>
             <DeleteChannelDialog channel={channel} orgId={orgId} projectId={projectId} />
           </div>

@@ -9,14 +9,14 @@ import type { ApiClient } from "../services/api-client";
 
 // ── helpers ───────────────────────────────────────────────────────
 
-type ExportResult = {
+interface ExportResult {
   readonly environment: string;
-  readonly items: ReadonlyArray<{
+  readonly items: readonly {
     readonly key: string;
     readonly value: string;
     readonly visibility: "plaintext" | "sensitive" | "secret";
-  }>;
-};
+  }[];
+}
 
 const makeApiStub = (
   exportFn: (args: {

@@ -1,3 +1,5 @@
+export type KeychainModuleMarker = never;
+
 declare module "keychain" {
   interface KeychainOptions {
     account: string;

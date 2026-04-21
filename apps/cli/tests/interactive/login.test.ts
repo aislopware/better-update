@@ -2,8 +2,6 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { afterEach, beforeEach, describe, expect, test } from "vitest";
-
 import { spawnPty } from "../helpers/pty-driver";
 
 const CLI_ENTRY = path.resolve(import.meta.dirname, "../../src/index.ts");
@@ -26,8 +24,8 @@ describe("login --api-key (interactive PoC)", () => {
         FORCE_COLOR: "0",
         NO_COLOR: "1",
         // Layer construction currently yields apiClient eagerly via UpdateAssetUploaderLive,
-        // so every CLI invocation resolves a token. Pass a placeholder — login still writes
-        // the prompted token to auth.json, which is what we assert.
+        // So every CLI invocation resolves a token. Pass a placeholder — login still writes
+        // The prompted token to auth.json, which is what we assert.
         BETTER_UPDATE_TOKEN: "startup-placeholder",
       },
     });
@@ -38,7 +36,7 @@ describe("login --api-key (interactive PoC)", () => {
     driver.enter();
 
     await driver.expect("Logged in successfully", { timeoutMs: 10_000 });
-    const code = await driver.waitExit({ timeoutMs: 5_000 });
+    const code = await driver.waitExit({ timeoutMs: 5000 });
     expect(code).toBe(0);
 
     const authJson = JSON.parse(

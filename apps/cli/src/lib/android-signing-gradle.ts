@@ -11,7 +11,10 @@ export interface RenderSigningGradleInput {
  * though we use single quotes everywhere for safety).
  */
 const escapeGroovySingleQuoted = (value: string): string =>
-  value.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\$/g, "\\$");
+  value
+    .replaceAll("\\", String.raw`\\`)
+    .replaceAll("'", String.raw`\'`)
+    .replaceAll("$", String.raw`\$`);
 
 /**
  * Render a Gradle init script that injects a `release` signing config into

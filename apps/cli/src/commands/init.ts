@@ -3,12 +3,13 @@ import { Console, Effect } from "effect";
 
 import { readAppJson, readSlug, writeProjectId } from "../lib/app-json";
 import { asString } from "../lib/build-profile";
+import { asRecord } from "../lib/record";
 import { apiClient } from "../services/api-client";
 
 export const initCommand = Command.make("init", {}, () =>
   Effect.gen(function* () {
     const appJson = yield* readAppJson;
-    const expo = appJson["expo"] as Record<string, unknown> | undefined;
+    const expo = asRecord(appJson["expo"]);
     const name = asString(expo?.["name"]) ?? asString(expo?.["slug"]) ?? "untitled";
     const slug = yield* readSlug;
 
@@ -17,7 +18,7 @@ export const initCommand = Command.make("init", {}, () =>
     const api = yield* apiClient;
     const { items } = yield* api.projects.list({ urlParams: { page: 1, limit: 100 } });
 
-    const existing = items.find((p) => p.slug === slug);
+    const existing = items.find((project) => project.slug === slug);
 
     if (existing) {
       yield* Console.log(`Found existing project: ${existing.name} (${existing.id})`);

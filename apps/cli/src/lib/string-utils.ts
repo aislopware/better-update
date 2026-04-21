@@ -1,2 +1,4 @@
-export const capitalize = (value: string): string =>
-  value.length === 0 ? value : value[0]!.toUpperCase() + value.slice(1);
+export const capitalize = (value: string): string => {
+  const [first] = value;
+  return first === undefined ? value : `${first.toUpperCase()}${value.slice(1)}`;
+};

@@ -32,8 +32,8 @@ export const statusCommand = Command.make("status", {}, () =>
     yield* Console.log("");
     yield* Console.log("Credentials");
     yield* Console.log("-----------");
-    const iosCreds = credentials.filter((c) => c.platform === "ios").length;
-    const androidCreds = credentials.filter((c) => c.platform === "android").length;
+    const iosCreds = credentials.filter((cred) => cred.platform === "ios").length;
+    const androidCreds = credentials.filter((cred) => cred.platform === "android").length;
     yield* printKeyValue([
       ["iOS", String(iosCreds)],
       ["Android", String(androidCreds)],

@@ -21,23 +21,23 @@ export const listCommand = Command.make(
       const filters = {
         ...Option.match(opts.action, {
           onNone: () => ({}),
-          onSome: (v) => ({ action: v }),
+          onSome: (value) => ({ action: value }),
         }),
         ...Option.match(opts.resourceType, {
           onNone: () => ({}),
-          onSome: (v) => ({ resourceType: v }),
+          onSome: (value) => ({ resourceType: value }),
         }),
         ...Option.match(opts.actorId, {
           onNone: () => ({}),
-          onSome: (v) => ({ actorId: v }),
+          onSome: (value) => ({ actorId: value }),
         }),
         ...Option.match(opts.from, {
           onNone: () => ({}),
-          onSome: (v) => ({ from: v }),
+          onSome: (value) => ({ from: value }),
         }),
         ...Option.match(opts.to, {
           onNone: () => ({}),
-          onSome: (v) => ({ to: v }),
+          onSome: (value) => ({ to: value }),
         }),
       } as Record<string, string>;
 
@@ -52,14 +52,14 @@ export const listCommand = Command.make(
 
       yield* printTable(
         ["ID", "Action", "Resource Type", "Resource ID", "Actor", "Source", "Created"],
-        items.map((l) => [
-          l.id,
-          l.action,
-          l.resourceType,
-          l.resourceId ?? "-",
-          l.actorEmail,
-          l.source,
-          l.createdAt,
+        items.map((log) => [
+          log.id,
+          log.action,
+          log.resourceType,
+          log.resourceId ?? "-",
+          log.actorEmail,
+          log.source,
+          log.createdAt,
         ]),
       );
     }).pipe(handleAuditLogCommandErrors),

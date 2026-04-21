@@ -1,9 +1,8 @@
+import { asRecord } from "./record";
+
 import type { Platform } from "./build-profile";
 
 export type UpdatePlatformOption = Platform | "all";
-
-const asRecord = (value: unknown): Record<string, unknown> | undefined =>
-  typeof value === "object" && value !== null ? (value as Record<string, unknown>) : undefined;
 
 export const resolveUpdatePlatforms = (
   appJson: Record<string, unknown>,

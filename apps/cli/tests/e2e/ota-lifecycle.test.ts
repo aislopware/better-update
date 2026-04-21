@@ -78,7 +78,7 @@ const manifestHeaders = (overrides?: Record<string, string>) => ({
   ...overrides,
 });
 
-const fetchManifest = (projectId: string, overrides?: Record<string, string>) =>
+const fetchManifest = async (projectId: string, overrides?: Record<string, string>) =>
   cli.get(`/manifest/${projectId}`, manifestHeaders(overrides));
 
 const extractManifestId = async (response: Response): Promise<string> => {
@@ -105,12 +105,18 @@ const findRolloutClients = (
   const threshold = percentage / 100;
   let inClient = "";
   let outClient = "";
-  for (let i = 0; i < 200; i++) {
-    const clientId = `ota-test-client-${i}`;
+  for (let index = 0; index < 200; index++) {
+    const clientId = `ota-test-client-${index}`;
     const fraction = hashToFraction(updateId, clientId);
-    if (fraction < threshold && !inClient) inClient = clientId;
-    if (fraction >= threshold && !outClient) outClient = clientId;
-    if (inClient && outClient) break;
+    if (fraction < threshold && !inClient) {
+      inClient = clientId;
+    }
+    if (fraction >= threshold && !outClient) {
+      outClient = clientId;
+    }
+    if (inClient && outClient) {
+      break;
+    }
   }
   if (!inClient || !outClient) {
     throw new Error(`Could not find rollout test clients for ${updateId} at ${percentage}%`);
@@ -142,7 +148,7 @@ describe("OTA lifecycle: CLI publish → manifest → rollout → rollback", () 
     const result = cli.runCli("update", "publish", "--branch", "main", "--platform", "ios");
     expect(result.exitCode).toBe(0);
 
-    const iosRow = result.stdout.match(iosRowPattern);
+    const iosRow = iosRowPattern.exec(result.stdout);
     expect(iosRow).toBeDefined();
     state.v1UpdateId = iosRow![1]!;
   });
@@ -175,7 +181,7 @@ describe("OTA lifecycle: CLI publish → manifest → rollout → rollback", () 
     );
     expect(result.exitCode).toBe(0);
 
-    const iosRow = result.stdout.match(iosRowPattern);
+    const iosRow = iosRowPattern.exec(result.stdout);
     expect(iosRow).toBeDefined();
     state.v2UpdateId = iosRow![1]!;
     expect(state.v2UpdateId).not.toBe(state.v1UpdateId);

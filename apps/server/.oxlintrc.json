@@ -1,4 +1,0 @@
-{
-  "extends": ["./node_modules/@better-update/oxlint-config/base.json"],
-  "ignorePatterns": ["**/*.d.ts", "coverage", "vitest.config.*", "tests"]
-}

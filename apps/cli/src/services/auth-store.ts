@@ -5,6 +5,7 @@ import { Context, Effect, Layer } from "effect";
 
 import { AuthRequiredError } from "../lib/exit-codes";
 import { formatCause } from "../lib/format-error";
+import { isRecord } from "../lib/record";
 import { CliRuntime } from "./cli-runtime";
 
 export class AuthStore extends Context.Tag("cli/AuthStore")<
@@ -28,7 +29,9 @@ export const AuthStoreLive = Layer.effect(
     return {
       getToken: Effect.gen(function* () {
         const envToken = yield* runtime.getEnv("BETTER_UPDATE_TOKEN");
-        if (envToken) return envToken;
+        if (envToken) {
+          return envToken;
+        }
 
         const content = yield* fs.readFileString(authFile).pipe(
           Effect.mapError(
@@ -40,13 +43,18 @@ export const AuthStoreLive = Layer.effect(
         );
 
         const parsed = yield* Effect.try({
-          try: () => JSON.parse(content) as Record<string, unknown>,
+          try: (): unknown => JSON.parse(content),
           catch: () =>
             new AuthRequiredError({
               message: "Corrupted auth file. Run `better-update login` to re-authenticate.",
             }),
         });
-        const token = parsed["token"];
+        if (!isRecord(parsed)) {
+          return yield* new AuthRequiredError({
+            message: "Invalid auth file. Run `better-update login` to re-authenticate.",
+          });
+        }
+        const { token } = parsed;
         if (typeof token !== "string") {
           return yield* new AuthRequiredError({
             message: "Invalid auth file. Run `better-update login` to re-authenticate.",

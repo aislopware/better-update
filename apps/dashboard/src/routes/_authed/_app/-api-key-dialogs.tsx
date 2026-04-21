@@ -132,10 +132,7 @@ const KeyRevealContent = ({ apiKey, onClose }: { apiKey: string; onClose: () => 
             {apiKey}
           </code>
           <Button variant="outline" size="icon" onClick={handleCopy}>
-            {(() => {
-              const Icon = copied ? CheckIcon : CopyIcon;
-              return <Icon strokeWidth={2} />;
-            })()}
+            {copied ? <CheckIcon strokeWidth={2} /> : <CopyIcon strokeWidth={2} />}
           </Button>
         </div>
       </div>

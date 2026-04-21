@@ -1,7 +1,8 @@
 import { Effect } from "effect";
 
 import { PresignedUploadClient } from "../services/presigned-upload";
-import { PresignedUrlExpiredError, UploadFailedError } from "./exit-codes";
+
+import type { PresignedUrlExpiredError, UploadFailedError } from "./exit-codes";
 
 export interface PutToPresignedUrlOptions {
   readonly url: string;
@@ -29,6 +30,6 @@ export const putToPresignedUrl = ({
       filePath,
       byteSize,
       expiresAt,
-      ...(headers !== undefined ? { headers } : {}),
+      ...(headers === undefined ? {} : { headers }),
     });
   });

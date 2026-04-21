@@ -4,6 +4,8 @@ import process from "node:process";
 import { BunContext, BunRuntime } from "@effect/platform-bun";
 import { Effect, Layer } from "effect";
 
+import type { Session } from "@expo/apple-utils";
+// eslint-disable-next-line import-plugin/no-namespace -- harness casts a stub as `typeof AppleUtils` (whole module shape) to satisfy resolveProvider's injected module param
 import type * as AppleUtils from "@expo/apple-utils";
 
 import { resolveProvider } from "../../../src/lib/apple-auth";
@@ -18,7 +20,7 @@ const fakeAppleUtils = {
   },
 } as unknown as typeof AppleUtils;
 
-const providers: ReadonlyArray<AppleUtils.Session.SessionProvider> = [
+const providers: readonly Session.SessionProvider[] = [
   {
     providerId: 10,
     publicProviderId: "pub-10",
@@ -45,6 +47,7 @@ const providers: ReadonlyArray<AppleUtils.Session.SessionProvider> = [
 const program = Effect.gen(function* () {
   const result = yield* resolveProvider(fakeAppleUtils, providers, undefined, undefined);
   // Distinctive marker so the PTY test can extract the JSON past any rendered prompt text.
+  // eslint-disable-next-line eslint/no-console -- interactive PTY harness prints a parseable marker to stdout; Effect.Console adds formatting that breaks the parser
   console.log(`RESULT=${JSON.stringify(result)}`);
 });
 

@@ -3,6 +3,7 @@ import path from "node:path";
 import { FileSystem } from "@effect/platform";
 import { Context, Data, Effect, Layer } from "effect";
 
+import { isRecord } from "../lib/record";
 import { CliRuntime } from "./cli-runtime";
 
 const DEFAULT_BASE_URL = "https://api.better-update.dev";
@@ -57,22 +58,29 @@ export const ConfigStoreLive = Layer.effect(
         content.length === 0
           ? Effect.succeed(undefined)
           : Effect.try({
-              try: () => JSON.parse(content) as Record<string, unknown>,
+              try: (): unknown => JSON.parse(content),
               catch: (cause) =>
                 new ConfigStoreParseError({
                   message: "Config file contains invalid JSON",
                   cause,
                 }),
-            }).pipe(Effect.catchAll(() => Effect.succeed(undefined))),
+            }).pipe(
+              Effect.map((parsed) => (isRecord(parsed) ? parsed : undefined)),
+              Effect.catchAll(() => Effect.succeed(undefined)),
+            ),
       ),
     );
     const resolveBaseUrl = Effect.gen(function* () {
       const envUrl = yield* runtime.getEnv("BETTER_UPDATE_URL");
-      if (envUrl) return normalizeUrl(envUrl);
+      if (envUrl) {
+        return normalizeUrl(envUrl);
+      }
 
       const parsed = yield* readConfig;
       const serverUrl = parsed?.["serverUrl"];
-      if (typeof serverUrl === "string") return normalizeUrl(serverUrl);
+      if (typeof serverUrl === "string") {
+        return normalizeUrl(serverUrl);
+      }
 
       return DEFAULT_BASE_URL;
     });
@@ -82,11 +90,15 @@ export const ConfigStoreLive = Layer.effect(
 
       getDashboardUrl: Effect.gen(function* () {
         const envUrl = yield* runtime.getEnv("BETTER_UPDATE_DASHBOARD_URL");
-        if (envUrl) return normalizeUrl(envUrl);
+        if (envUrl) {
+          return normalizeUrl(envUrl);
+        }
 
         const parsed = yield* readConfig;
         const dashboardUrl = parsed?.["dashboardUrl"];
-        if (typeof dashboardUrl === "string") return normalizeUrl(dashboardUrl);
+        if (typeof dashboardUrl === "string") {
+          return normalizeUrl(dashboardUrl);
+        }
 
         const serverUrl = yield* resolveBaseUrl;
         return deriveDashboardUrl(serverUrl);

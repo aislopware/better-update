@@ -1,7 +1,5 @@
 import path from "node:path";
 
-import { describe, expect, test } from "vitest";
-
 import { spawnPty } from "../helpers/pty-driver";
 
 const HARNESS = path.resolve(import.meta.dirname, "./harness/provider-prompt.ts");
@@ -19,7 +17,7 @@ const runHarness = async (actions: (driver: ReturnType<typeof spawnPty>) => Prom
   await driver.expect("Select App Store Connect provider", { timeoutMs: 15_000 });
   await actions(driver);
   await driver.expect(RESULT_RE, { timeoutMs: 10_000 });
-  const code = await driver.waitExit({ timeoutMs: 5_000 });
+  const code = await driver.waitExit({ timeoutMs: 5000 });
   expect(code).toBe(0);
 
   const match = RESULT_RE.exec(driver.stripped());

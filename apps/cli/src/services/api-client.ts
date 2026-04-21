@@ -18,6 +18,7 @@ export class ApiClientService extends Context.Tag("cli/ApiClient")<
 >() {}
 
 export const apiClient: Effect.Effect<ApiClient, AuthRequiredError, ApiClientService> =
+  // eslint-disable-next-line unicorn/no-array-method-this-argument -- Effect.flatMap, not Array.prototype.flatMap; the second arg is a continuation, not a thisArg
   Effect.flatMap(ApiClientService, ({ get }) => get);
 
 export const ApiClientLive = Layer.effect(

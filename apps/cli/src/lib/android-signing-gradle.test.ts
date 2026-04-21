@@ -56,9 +56,9 @@ describe(renderSigningGradle, () => {
       keyAlias: "won't",
       keyPassword: "pass'word",
     });
-    expect(script).toContain("storePassword 'can\\'t'");
-    expect(script).toContain("keyAlias 'won\\'t'");
-    expect(script).toContain("keyPassword 'pass\\'word'");
+    expect(script).toContain(String.raw`storePassword 'can\'t'`);
+    expect(script).toContain(String.raw`keyAlias 'won\'t'`);
+    expect(script).toContain(String.raw`keyPassword 'pass\'word'`);
   });
 
   test("escapes backslashes in path", () => {
@@ -68,7 +68,7 @@ describe(renderSigningGradle, () => {
       keyAlias: "a",
       keyPassword: "k",
     });
-    expect(script).toContain("storeFile file('C:\\\\keys\\\\release.keystore')");
+    expect(script).toContain(String.raw`storeFile file('C:\\keys\\release.keystore')`);
   });
 
   test("escapes combined backslash and quote", () => {
@@ -79,7 +79,7 @@ describe(renderSigningGradle, () => {
       keyPassword: "y",
     });
     // \\ → \\\\ and ' → \\'
-    expect(script).toContain("storePassword 'a\\\\\\'b'");
+    expect(script).toContain(String.raw`storePassword 'a\\\'b'`);
   });
 
   test("escapes `$` in passwords to prevent Groovy interpolation", () => {
@@ -89,7 +89,7 @@ describe(renderSigningGradle, () => {
       keyAlias: "a",
       keyPassword: "$secret",
     });
-    expect(script).toContain("storePassword 'p@ss\\$word'");
-    expect(script).toContain("keyPassword '\\$secret'");
+    expect(script).toContain(String.raw`storePassword 'p@ss\$word'`);
+    expect(script).toContain(String.raw`keyPassword '\$secret'`);
   });
 });

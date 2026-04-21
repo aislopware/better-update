@@ -84,7 +84,7 @@ describe("android keystore helpers", () => {
       if (Exit.isFailure(exit)) {
         const error = failureError(exit);
         expect(error).toBeInstanceOf(BuildFailedError);
-        expect((error as BuildFailedError).message).toContain("exited with code 23");
+        expect(error!.message).toContain("exited with code 23");
       }
     }),
   );
@@ -107,7 +107,7 @@ describe("android keystore helpers", () => {
       if (Exit.isFailure(exit)) {
         const error = failureError(exit);
         expect(error).toBeInstanceOf(BuildFailedError);
-        expect((error as BuildFailedError).message).toContain("failed to spawn");
+        expect(error!.message).toContain("failed to spawn");
       }
     }),
   );

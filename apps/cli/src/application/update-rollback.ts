@@ -1,23 +1,30 @@
 import { randomUUID } from "node:crypto";
 
 import { buildRollbackDirectiveBody } from "@better-update/expo-protocol";
-import { CommandExecutor, FileSystem } from "@effect/platform";
+import { FileSystem } from "@effect/platform";
 import { Effect } from "effect";
 
+import type { CommandExecutor } from "@effect/platform";
+
 import { readAppJson, readProjectId, readSlug } from "../lib/app-json";
-import { readRuntimeVersionMeta, type Platform } from "../lib/build-profile";
-import {
+import { readRuntimeVersionMeta } from "../lib/build-profile";
+import { UpdateRollbackError } from "../lib/exit-codes";
+import { formatCause } from "../lib/format-error";
+import { isRecord } from "../lib/record";
+import { resolveRuntimeVersion } from "../lib/runtime-version";
+import { resolveUpdatePlatforms } from "../lib/update-platforms";
+import { apiClient } from "../services/api-client";
+import { CliRuntime } from "../services/cli-runtime";
+
+import type { Platform } from "../lib/build-profile";
+import type {
   AuthRequiredError,
   BuildProfileError,
   ProjectNotLinkedError,
   RuntimeVersionError,
-  UpdateRollbackError,
 } from "../lib/exit-codes";
-import { formatCause } from "../lib/format-error";
-import { resolveRuntimeVersion } from "../lib/runtime-version";
-import { resolveUpdatePlatforms, type UpdatePlatformOption } from "../lib/update-platforms";
-import { ApiClientService, apiClient } from "../services/api-client";
-import { CliRuntime } from "../services/cli-runtime";
+import type { UpdatePlatformOption } from "../lib/update-platforms";
+import type { ApiClientService } from "../services/api-client";
 
 interface CreateRollbackParams {
   readonly branch: string;
@@ -76,34 +83,33 @@ const extractDirectiveCommitTime = (
 ): Effect.Effect<string, UpdateRollbackError> =>
   Effect.gen(function* () {
     const directive = yield* Effect.try({
-      try: () => JSON.parse(directiveBody) as unknown,
+      try: (): unknown => JSON.parse(directiveBody),
       catch: () =>
         new UpdateRollbackError({
           message: "directiveBody must be valid JSON.",
         }),
     });
 
-    if (typeof directive !== "object" || directive === null) {
+    if (!isRecord(directive)) {
       return yield* new UpdateRollbackError({
         message: "directiveBody must decode to a JSON object.",
       });
     }
 
-    const type = Reflect.get(directive, "type");
-    if (type !== "rollBackToEmbedded") {
+    if (directive["type"] !== "rollBackToEmbedded") {
       return yield* new UpdateRollbackError({
         message: 'directiveBody.type must be "rollBackToEmbedded".',
       });
     }
 
-    const parameters = Reflect.get(directive, "parameters");
-    if (typeof parameters !== "object" || parameters === null) {
+    const { parameters } = directive;
+    if (!isRecord(parameters)) {
       return yield* new UpdateRollbackError({
         message: "directiveBody.parameters must be an object.",
       });
     }
 
-    const commitTime = Reflect.get(parameters, "commitTime");
+    const { commitTime } = parameters;
     if (typeof commitTime !== "string" || Number.isNaN(Date.parse(commitTime))) {
       return yield* new UpdateRollbackError({
         message: "directiveBody.parameters.commitTime must be a valid ISO 8601 timestamp.",

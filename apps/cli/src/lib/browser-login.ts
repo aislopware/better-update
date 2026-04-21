@@ -1,5 +1,7 @@
 import { Data, Deferred, Effect } from "effect";
 
+import { isRecord } from "./record";
+
 interface BunServeServer {
   readonly port: number;
   readonly stop: (closeActiveConnections?: boolean) => void;
@@ -138,7 +140,10 @@ export const createBrowserLoginSession = (
 
       if (request.method === "POST" && url.pathname === "/callback/token") {
         try {
-          const body = (await request.json()) as Record<string, unknown>;
+          const body: unknown = await request.json();
+          if (!isRecord(body)) {
+            return new Response("Invalid callback payload", { status: 400 });
+          }
           const token = typeof body["token"] === "string" ? body["token"].trim() : "";
           if (token.length === 0) {
             return new Response("Missing token", { status: 400 });
@@ -162,6 +167,7 @@ export const createBrowserLoginServer = (
 ): BrowserLoginServer => {
   const bunRuntime = (globalThis as typeof globalThis & { readonly Bun?: BunRuntime }).Bun;
   if (!bunRuntime) {
+    // eslint-disable-next-line functional/no-throw-statements -- sync factory surfaces an environment invariant; lifting to Effect would cascade through every caller for a condition that is effectively a precondition
     throw new BrowserLoginRuntimeError({
       message: "Browser login server requires the Bun runtime.",
     });

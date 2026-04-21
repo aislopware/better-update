@@ -58,7 +58,7 @@ const generateSelfSignedP12 = (password: string, subject: string): Buffer => {
 
 const cli = setupCliE2E(".wrangler/state/e2e-cli");
 
-const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const escapeRegExp = (value: string) => value.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 const sqlString = (value: string) => `'${value.replaceAll("'", "''")}'`;
 
 const getNodeErrorCode = (error: unknown): string | undefined => {
@@ -71,7 +71,7 @@ const getNodeErrorCode = (error: unknown): string | undefined => {
     return directCode;
   }
 
-  const cause = (error as Error & { readonly cause?: unknown }).cause;
+  const { cause } = error as Error & { readonly cause?: unknown };
   if (typeof cause !== "object" || cause === null) {
     return undefined;
   }
@@ -151,11 +151,11 @@ const createPromotableUpdate = async (options?: {
   expect(registerResponse.status).toBe(201);
 
   const registerBody = (await registerResponse.json()) as {
-    uploaded: Array<{
+    uploaded: {
       hash: string;
       uploadUrl: string;
       uploadHeaders: Record<string, string>;
-    }>;
+    }[];
     deduplicated: string[];
   };
   const upload = registerBody.uploaded.find((asset) => asset.hash === assetHash);
@@ -376,8 +376,8 @@ describe("CLI command journey", () => {
     expect(listResult.stdout).toContain("ios");
     expect(listResult.stdout).toContain("1.0.0");
     expect(listResult.stdout).toContain("yes");
-    const rollbackMatch = listResult.stdout.match(
-      /^([^\s]+)\s+([^\s]+)\s+main\s+ios\s+1\.0\.0\s+100%\s+yes\s+.+$/m,
+    const rollbackMatch = /^([^\s]+)\s+([^\s]+)\s+main\s+ios\s+1\.0\.0\s+100%\s+yes\s+.+$/m.exec(
+      listResult.stdout,
     );
     expect(rollbackMatch).toBeDefined();
     cliState.rollbackUpdateId = rollbackMatch?.[1] ?? "";
@@ -429,12 +429,12 @@ describe("CLI command journey", () => {
     const updatesResponse = await cli.getAuthorized(`/api/updates?projectId=${cli.getProjectId()}`);
     expect(updatesResponse.status).toBe(200);
     const updatesBody = (await updatesResponse.json()) as {
-      items: Array<{
+      items: {
         message: string;
         signature: string | null;
         certificateChain: string | null;
         directiveBody: string | null;
-      }>;
+      }[];
     };
 
     expect(updatesBody.items).toEqual(
@@ -479,7 +479,7 @@ describe("CLI command journey", () => {
     expect(uploadResult.stderr).toBe("");
     expect(uploadResult.stdout).toContain("Credential uploaded successfully.");
     expect(uploadResult.stdout).toContain("CLI Uploaded Certificate");
-    const uploadedCredentialId = uploadResult.stdout.match(/^ID\s+([^\s]+)$/m)?.[1];
+    const uploadedCredentialId = /^ID\s+([^\s]+)$/m.exec(uploadResult.stdout)?.[1];
     expect(uploadedCredentialId).toBeDefined();
 
     const listAfterUpload = cli.runCli("credentials", "list", "--platform", "ios");
@@ -589,12 +589,10 @@ describe("CLI command journey", () => {
     const promotedList = cli.runCli("update", "list", "--branch", targetName);
     expect(promotedList.exitCode).toBe(0);
     expect(promotedList.stderr).toBe("");
-    const promotedMatch = promotedList.stdout.match(
-      new RegExp(
-        `^([^\\s]+)\\s+([^\\s]+)\\s+${escapeRegExp(targetName)}\\s+ios\\s+1\\.0\\.0\\s+100%\\s+no\\s+.+$`,
-        "m",
-      ),
-    );
+    const promotedMatch = new RegExp(
+      `^([^\\s]+)\\s+([^\\s]+)\\s+${escapeRegExp(targetName)}\\s+ios\\s+1\\.0\\.0\\s+100%\\s+no\\s+.+$`,
+      "m",
+    ).exec(promotedList.stdout);
     expect(promotedMatch).toBeDefined();
 
     const promotedGroupId = promotedMatch?.[2] ?? "";
@@ -667,19 +665,19 @@ describe("CLI command journey", () => {
     expect(promoteResult.exitCode).toBe(0);
     expect(promoteResult.stderr).toBe("");
 
-    const promotedUpdateId = promoteResult.stdout.match(/as update ([^\s.]+)\./)?.[1];
+    const promotedUpdateId = /as update ([^\s.]+)\./.exec(promoteResult.stdout)?.[1];
     expect(promotedUpdateId).toBeDefined();
 
     const updatesResponse = await cli.getAuthorized(`/api/updates?projectId=${cli.getProjectId()}`);
     expect(updatesResponse.status).toBe(200);
     const updatesBody = (await updatesResponse.json()) as {
-      items: Array<{
+      items: {
         id: string;
         branchId: string;
         signature: string | null;
         certificateChain: string | null;
         manifestBody: string | null;
-      }>;
+      }[];
     };
 
     expect(updatesBody.items).toEqual(

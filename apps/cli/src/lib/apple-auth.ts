@@ -1,13 +1,15 @@
 import { Prompt } from "@effect/cli";
 import { Effect } from "effect";
 
-import type * as Terminal from "@effect/platform/Terminal";
+import type { QuitException, Terminal } from "@effect/platform/Terminal";
+import type { Session } from "@expo/apple-utils";
+// eslint-disable-next-line import-plugin/no-namespace -- the `appleUtils` injected dependency is typed as `typeof AppleUtils` (the whole module shape); no equivalent named type exists
 import type * as AppleUtils from "@expo/apple-utils";
 
 import { CliRuntime } from "../services/cli-runtime";
 import { AppleAuthError } from "./exit-codes";
 
-type SessionProvider = AppleUtils.Session.SessionProvider;
+type SessionProvider = Session.SessionProvider;
 
 interface ProviderResolution {
   readonly providerId: number | undefined;
@@ -36,7 +38,9 @@ export const parseProviderId = (raw: string): Effect.Effect<number, AppleAuthErr
 const readEnvProviderId: Effect.Effect<number | undefined, AppleAuthError, CliRuntime> = Effect.gen(
   function* () {
     const raw = yield* readEnv(APPLE_PROVIDER_ID_ENV);
-    if (!raw) return undefined;
+    if (!raw) {
+      return undefined;
+    }
     return yield* parseProviderId(raw);
   },
 );
@@ -46,17 +50,15 @@ const switchSessionProvider = (
   providerId: number,
 ): Effect.Effect<void, AppleAuthError> =>
   Effect.tryPromise({
-    try: () => appleUtils.Session.setSessionProviderIdAsync(providerId),
+    try: async () => appleUtils.Session.setSessionProviderIdAsync(providerId),
     catch: (error) =>
       new AppleAuthError({
         message: `Failed to switch App Store Connect provider (${providerId}): ${String(error)}`,
       }),
   }).pipe(Effect.asVoid);
 
-const isProviderAvailable = (
-  providers: ReadonlyArray<SessionProvider>,
-  providerId: number,
-): boolean => providers.some((p) => p.providerId === providerId);
+const isProviderAvailable = (providers: readonly SessionProvider[], providerId: number): boolean =>
+  providers.some((provider) => provider.providerId === providerId);
 
 /**
  * Resolve App Store Connect provider for an interactive session.
@@ -72,14 +74,10 @@ const isProviderAvailable = (
  */
 export const resolveProvider = (
   appleUtils: typeof AppleUtils,
-  availableProviders: ReadonlyArray<SessionProvider>,
+  availableProviders: readonly SessionProvider[],
   currentProviderId: number | undefined,
   cachedProviderId: number | undefined,
-): Effect.Effect<
-  ProviderResolution,
-  AppleAuthError | Terminal.QuitException,
-  CliRuntime | Terminal.Terminal
-> =>
+): Effect.Effect<ProviderResolution, AppleAuthError | QuitException, CliRuntime | Terminal> =>
   Effect.gen(function* () {
     let switched = false;
 
@@ -109,8 +107,9 @@ export const resolveProvider = (
     if (availableProviders.length === 0) {
       return { providerId: currentProviderId, switched };
     }
-    if (availableProviders.length === 1) {
-      const id = yield* applyChoice(availableProviders[0]!.providerId);
+    const [firstProvider] = availableProviders;
+    if (availableProviders.length === 1 && firstProvider) {
+      const id = yield* applyChoice(firstProvider.providerId);
       return { providerId: id, switched };
     }
 

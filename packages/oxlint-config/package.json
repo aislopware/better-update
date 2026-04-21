@@ -1,4 +1,13 @@
 {
   "name": "@better-update/oxlint-config",
-  "private": true
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./base": "./src/base.ts",
+    "./cli": "./src/cli.ts",
+    "./react": "./src/react.ts"
+  },
+  "peerDependencies": {
+    "oxlint": "*"
+  }
 }

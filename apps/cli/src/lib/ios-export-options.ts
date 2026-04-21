@@ -10,11 +10,11 @@ export interface RenderExportOptionsPlistInput {
 
 const escapeXml = (value: string): string =>
   value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&apos;");
 
 const boolTag = (value: boolean): string => (value ? "<true/>" : "<false/>");
 
@@ -33,7 +33,7 @@ export const renderExportOptionsPlist = ({
   provisioningProfileName,
   compileBitcode = false,
 }: RenderExportOptionsPlistInput): string => {
-  const lines: Array<string> = [
+  const lines: string[] = [
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">',
     '<plist version="1.0">',

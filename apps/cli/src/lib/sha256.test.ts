@@ -16,9 +16,9 @@ const HELLO_WORLD_SHA256 = "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088
 
 // ── helpers ───────────────────────────────────────────────────────
 
-const withTempFile = <A>(
+const withTempFile = <Result>(
   content: Buffer,
-  run: (path: string) => Effect.Effect<A, BuildFailedError>,
+  run: (path: string) => Effect.Effect<Result, BuildFailedError>,
 ) =>
   Effect.gen(function* () {
     const dir = mkdtempSync(join(tmpdir(), "sha256-test-"));
@@ -95,14 +95,14 @@ describe(sha256Namespaced, () => {
   });
 
   test("produces same hash for same content type + content hash", () => {
-    const a = sha256Namespaced("application/javascript", HELLO_WORLD_SHA256);
-    const b = sha256Namespaced("application/javascript", HELLO_WORLD_SHA256);
-    expect(a).toBe(b);
+    const first = sha256Namespaced("application/javascript", HELLO_WORLD_SHA256);
+    const second = sha256Namespaced("application/javascript", HELLO_WORLD_SHA256);
+    expect(first).toBe(second);
   });
 
   test("returns base64url-encoded string", () => {
     const result = sha256Namespaced("application/javascript", HELLO_WORLD_SHA256);
-    // base64url: no +, /, or =
+    // Base64url: no +, /, or =
     expect(result).toMatch(/^[A-Za-z0-9_-]+$/u);
   });
 });

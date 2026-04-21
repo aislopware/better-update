@@ -1,12 +1,15 @@
 import { Effect } from "effect";
 
 import { exitWith } from "../application/command-exit";
-import { CliRuntime } from "../services/cli-runtime";
 import { formatCause } from "./format-error";
+
+import type { CliRuntime } from "../services/cli-runtime";
 
 type ExitCode = 1 | 2 | 3 | 4 | 5 | 6;
 
-type TaggedError = { readonly message: string };
+interface TaggedError {
+  readonly message: string;
+}
 
 type Handler = (error: TaggedError) => Effect.Effect<void, never, CliRuntime>;
 
@@ -31,7 +34,9 @@ const SYSTEM_TAG_CODE: Record<string, ExitCode> = {
 
 export const makeCommandErrorHandler = (
   extras: Record<string, ExitCode> = {},
-): (<A, R>(effect: Effect.Effect<A, unknown, R>) => Effect.Effect<A, never, R | CliRuntime>) => {
+): (<Success, Requirements>(
+  effect: Effect.Effect<Success, unknown, Requirements>,
+) => Effect.Effect<Success, never, Requirements | CliRuntime>) => {
   const combined = { ...BASE_TAG_MAP, ...extras };
   const handlers: Record<string, Handler> = {};
   for (const [tag, code] of Object.entries(combined)) {
@@ -41,11 +46,15 @@ export const makeCommandErrorHandler = (
       exitWith(resolvedCode, systemFormat ? systemFormat(error) : error.message);
   }
 
-  return <A, R>(effect: Effect.Effect<A, unknown, R>): Effect.Effect<A, never, R | CliRuntime> =>
-    effect.pipe(
-      // Cast: Effect.catchTags' inference is tied to the exact tags it sees;
-      // pass a dynamic record so we narrow once at the boundary.
+  return <Success, Requirements>(
+    effect: Effect.Effect<Success, unknown, Requirements>,
+  ): Effect.Effect<Success, never, Requirements | CliRuntime> => {
+    const piped = effect.pipe(
+      // eslint-disable-next-line typescript/no-unsafe-type-assertion -- Effect.catchTags tag-inference requires a literal object; we accept a dynamic handler map so tags are chosen at runtime
       Effect.catchTags(handlers as never),
       Effect.catchAll((cause) => exitWith(1, formatCause(cause))),
-    ) as Effect.Effect<A, never, R | CliRuntime>;
+    );
+    // eslint-disable-next-line typescript/no-unsafe-type-assertion -- catchTags narrowing lost when handlers is dynamic; re-narrow at the boundary
+    return piped as Effect.Effect<Success, never, Requirements | CliRuntime>;
+  };
 };

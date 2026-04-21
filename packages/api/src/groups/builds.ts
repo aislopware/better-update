@@ -4,7 +4,6 @@ import { Schema } from "effect";
 import { Forbidden } from "../auth/errors";
 import { NotFound } from "../auth/ownership";
 import {
-  BuildCompatibilityMatrixResult,
   BuildWithArtifact,
   CompleteBuildBody,
   CreateBuildBody,
@@ -12,6 +11,7 @@ import {
   InstallLinkResult,
   ReserveBuildResult,
 } from "../domain/build";
+import { BuildCompatibilityMatrixResult } from "../domain/build-compatibility";
 import { Id, PaginationParams, Platform } from "../domain/common";
 import { BadRequest, Conflict } from "../domain/errors";
 

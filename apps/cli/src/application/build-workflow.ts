@@ -27,6 +27,95 @@ export interface RunBuildWorkflowOptions {
   readonly rawOutput?: boolean;
 }
 
+type AppMeta = Effect.Effect.Success<ReturnType<typeof readAppMeta>>;
+type BuildProfile = Effect.Effect.Success<ReturnType<typeof readBuildProfile>>;
+type ApiClient = Effect.Effect.Success<typeof apiClient>;
+
+interface PlatformBuildInput {
+  readonly api: ApiClient;
+  readonly options: RunBuildWorkflowOptions;
+  readonly profile: BuildProfile;
+  readonly appMeta: AppMeta;
+  readonly envVars: Record<string, string>;
+  readonly projectId: string;
+  readonly projectRoot: string;
+  readonly tempDir: string;
+}
+
+const runIosPlatformBuild = (input: PlatformBuildInput) =>
+  Effect.gen(function* () {
+    const { api, appMeta, envVars, options, profile, projectId, projectRoot, tempDir } = input;
+    if (!profile.ios) {
+      return yield* new BuildProfileError({
+        message: `Profile "${profile.name}" has no ios section.`,
+      });
+    }
+    const iosProfile = profile.ios;
+    const iosBundleId = appMeta.bundleId;
+    if (!iosBundleId) {
+      return yield* new BuildProfileError({
+        message: "Missing expo.ios.bundleIdentifier in app.json.",
+      });
+    }
+    const build = yield* runIosBuild({
+      api,
+      tempDir,
+      projectRoot,
+      iosProfile,
+      bundleId: iosBundleId,
+      envVars,
+      projectId,
+      rawOutput: options.rawOutput,
+    });
+    const target: BuildTarget = {
+      platform: "ios",
+      distribution: iosProfile.distribution,
+      artifactFormat: "ipa",
+    };
+    return { build, target, bundleId: iosBundleId };
+  });
+
+const runAndroidPlatformBuild = (input: PlatformBuildInput) =>
+  Effect.gen(function* () {
+    const { api, appMeta, envVars, profile, projectId, projectRoot, tempDir } = input;
+    if (!profile.android) {
+      return yield* new BuildProfileError({
+        message: `Profile "${profile.name}" has no android section.`,
+      });
+    }
+    const androidProfile = profile.android;
+    const androidBundleId = appMeta.androidPackage;
+    if (!androidBundleId) {
+      return yield* new BuildProfileError({
+        message: "Missing expo.android.package in app.json.",
+      });
+    }
+    // Cross-validate Gradle config against app.json (Groovy only). When
+    // Gradle resolves a different applicationId, the built APK/AAB is signed
+    // Under that id — so the Credential resolver must key off the Gradle value.
+    const androidDir = `${projectRoot}/android`;
+    const gradleConfig = yield* readGradleConfig(androidDir);
+    yield* warnOnGradleMismatch(gradleConfig, androidBundleId);
+    const applicationIdentifier = gradleConfig?.applicationId ?? androidBundleId;
+    const build = yield* runAndroidBuild({
+      api,
+      tempDir,
+      projectRoot,
+      androidProfile,
+      applicationIdentifier,
+      envVars,
+      projectId,
+    });
+    const target: BuildTarget =
+      androidProfile.format === "aab"
+        ? { platform: "android", distribution: "play-store", artifactFormat: "aab" }
+        : { platform: "android", distribution: "direct", artifactFormat: "apk" };
+    return { build, target, bundleId: applicationIdentifier };
+  });
+
+const runPlatformBuild = (input: PlatformBuildInput) =>
+  input.options.platform === "ios" ? runIosPlatformBuild(input) : runAndroidPlatformBuild(input);
+
 export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
   Effect.scoped(
     Effect.gen(function* () {
@@ -46,8 +135,8 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
       });
 
       // Try @expo/config for dynamic configs (app.config.js/ts), fall back to static app.json.
-      // envVars are applied as a scoped process.env overlay inside readExpoConfig and restored
-      // after the call so secrets do not leak to child processes spawned later.
+      // EnvVars are applied as a scoped process.env overlay inside readExpoConfig and restored
+      // After the call so secrets do not leak to child processes spawned later.
       const expoConfig = yield* readExpoConfig(projectRoot, envVars);
       const appMeta = expoConfig
         ? yield* readAppMetaFromConfig(expoConfig, options.platform).pipe(
@@ -68,89 +157,17 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
         `Building ${options.platform} artifact for profile "${profile.name}" (runtimeVersion=${runtimeVersion})`,
       );
 
-      let build: { artifactPath: string; byteSize: number; sha256: string };
-      let target: BuildTarget;
-      let bundleId: string;
-
-      if (options.platform === "ios") {
-        if (!profile.ios) {
-          return yield* new BuildProfileError({
-            message: `Profile "${profile.name}" has no ios section.`,
-          });
-        }
-
-        const iosProfile = profile.ios;
-        const iosBundleId = appMeta.bundleId;
-        if (!iosBundleId) {
-          return yield* new BuildProfileError({
-            message: "Missing expo.ios.bundleIdentifier in app.json.",
-          });
-        }
-
-        build = yield* runIosBuild({
-          api,
-          tempDir,
-          projectRoot,
-          iosProfile,
-          bundleId: iosBundleId,
-          envVars,
-          projectId,
-          rawOutput: options.rawOutput,
-        });
-        target = {
-          platform: "ios",
-          distribution: iosProfile.distribution,
-          artifactFormat: "ipa",
-        };
-        bundleId = iosBundleId;
-      } else {
-        if (!profile.android) {
-          return yield* new BuildProfileError({
-            message: `Profile "${profile.name}" has no android section.`,
-          });
-        }
-
-        const androidProfile = profile.android;
-        const androidBundleId = appMeta.androidPackage;
-        if (!androidBundleId) {
-          return yield* new BuildProfileError({
-            message: "Missing expo.android.package in app.json.",
-          });
-        }
-
-        // Cross-validate Gradle config against app.json (Groovy only). When
-        // Gradle resolves a different applicationId (flavors, config-plugin
-        // mutations), the built APK/AAB is signed under that id — so the
-        // credential resolver must also key off the Gradle value, or it will
-        // fetch the wrong keystore binding.
-        const androidDir = `${projectRoot}/android`;
-        const gradleConfig = yield* readGradleConfig(androidDir);
-        yield* warnOnGradleMismatch(gradleConfig, androidBundleId);
-        const applicationIdentifier = gradleConfig?.applicationId ?? androidBundleId;
-
-        build = yield* runAndroidBuild({
-          api,
-          tempDir,
-          projectRoot,
-          androidProfile,
-          applicationIdentifier,
-          envVars,
-          projectId,
-        });
-        bundleId = applicationIdentifier;
-        target =
-          androidProfile.format === "aab"
-            ? {
-                platform: "android",
-                distribution: "play-store",
-                artifactFormat: "aab",
-              }
-            : {
-                platform: "android",
-                distribution: "direct",
-                artifactFormat: "apk",
-              };
-      }
+      const outcome = yield* runPlatformBuild({
+        api,
+        options,
+        profile,
+        appMeta,
+        envVars,
+        projectId,
+        projectRoot,
+        tempDir,
+      });
+      const { build, target, bundleId } = outcome;
 
       yield* Console.log(`Artifact produced: ${build.artifactPath}`);
 
@@ -170,8 +187,8 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
         readonly commit?: string;
         readonly dirty: boolean;
       } = {
-        ...(rawGitContext.ref !== undefined ? { ref: rawGitContext.ref } : {}),
-        ...(rawGitContext.commit !== undefined ? { commit: rawGitContext.commit } : {}),
+        ...(rawGitContext.ref === undefined ? {} : { ref: rawGitContext.ref }),
+        ...(rawGitContext.commit === undefined ? {} : { commit: rawGitContext.commit }),
         dirty: rawGitContext.dirty,
       };
 
@@ -180,11 +197,11 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
         projectId,
         profileName: profile.name,
         runtimeVersion,
-        ...(appMeta.appVersion !== undefined ? { appVersion: appMeta.appVersion } : {}),
-        ...(appMeta.buildNumber !== undefined ? { buildNumber: appMeta.buildNumber } : {}),
+        ...(appMeta.appVersion === undefined ? {} : { appVersion: appMeta.appVersion }),
+        ...(appMeta.buildNumber === undefined ? {} : { buildNumber: appMeta.buildNumber }),
         bundleId,
         gitContext,
-        ...(options.message !== undefined ? { message: options.message } : {}),
+        ...(options.message === undefined ? {} : { message: options.message }),
         artifactPath: build.artifactPath,
         sha256: build.sha256,
         byteSize: build.byteSize,

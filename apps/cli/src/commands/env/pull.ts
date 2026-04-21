@@ -5,20 +5,23 @@ import { readProjectId } from "../../lib/app-json";
 import { apiClient } from "../../services/api-client";
 import { handleEnvCommandErrors } from "./helpers";
 
-const environment = Options.text("environment").pipe(Options.withDefault("production"));
+const environmentOption = Options.text("environment").pipe(Options.withDefault("production"));
 
-export const pullCommand = Command.make("pull", { environment }, ({ environment }) =>
-  Effect.gen(function* () {
-    const projectId = yield* readProjectId;
-    const api = yield* apiClient;
+export const pullCommand = Command.make(
+  "pull",
+  { environment: environmentOption },
+  ({ environment }) =>
+    Effect.gen(function* () {
+      const projectId = yield* readProjectId;
+      const api = yield* apiClient;
 
-    const result = yield* api["env-vars"].export({
-      urlParams: { projectId, environment },
-    });
+      const result = yield* api["env-vars"].export({
+        urlParams: { projectId, environment },
+      });
 
-    for (const item of result.items) {
-      const escaped = item.value.replace(/'/g, "'\\''");
-      yield* Console.log(`export ${item.key}='${escaped}'`);
-    }
-  }).pipe(handleEnvCommandErrors),
+      for (const item of result.items) {
+        const escaped = item.value.replaceAll("'", String.raw`'\''`);
+        yield* Console.log(`export ${item.key}='${escaped}'`);
+      }
+    }).pipe(handleEnvCommandErrors),
 );

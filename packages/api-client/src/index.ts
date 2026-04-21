@@ -6,10 +6,10 @@ const client = HttpApiClient.make(ManagementApi);
 
 export type ApiClient = Effect.Effect.Success<typeof client>;
 
-export const runApi = <A, E>(
-  fn: (api: ApiClient) => Effect.Effect<A, E, never>,
+export const runApi = async <Success, Failure>(
+  fn: (api: ApiClient) => Effect.Effect<Success, Failure>,
   signal?: AbortSignal,
-): Promise<A> =>
+): Promise<Success> =>
   Effect.runPromise(
     client.pipe(
       Effect.flatMap(fn),
@@ -37,7 +37,7 @@ export const getTypedApiError = (
   if (Option.isNone(option)) {
     return null;
   }
-  const value = option.value;
+  const { value } = option;
   if (typeof value === "object" && value !== null && "_tag" in value && "message" in value) {
     return { _tag: String(value._tag), message: String(value.message) };
   }
@@ -53,7 +53,6 @@ export const getApiError = (error: unknown): string => {
     return error.message;
   }
   if (typeof error === "object" && error !== null && "message" in error) {
-    // eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed by `in` guard above
     return String((error as { message: unknown }).message);
   }
   return "An unexpected error occurred";

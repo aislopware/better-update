@@ -16,7 +16,7 @@ export const listCommand = Command.make("list", { platform, limit }, (opts) =>
 
     const platformFilter = Option.match(opts.platform, {
       onNone: () => ({}) as Record<string, string>,
-      onSome: (p) => ({ platform: p }) as Record<string, string>,
+      onSome: (platformValue) => ({ platform: platformValue }) as Record<string, string>,
     });
 
     const { items } = yield* api.builds.list({
@@ -25,13 +25,13 @@ export const listCommand = Command.make("list", { platform, limit }, (opts) =>
 
     yield* printTable(
       ["ID", "Platform", "Profile", "Distribution", "Version", "Created"],
-      items.map((b) => [
-        b.id,
-        b.platform,
-        b.profile,
-        b.distribution,
-        b.appVersion ?? "-",
-        b.createdAt,
+      items.map((build) => [
+        build.id,
+        build.platform,
+        build.profile,
+        build.distribution,
+        build.appVersion ?? "-",
+        build.createdAt,
       ]),
     );
   }).pipe(handleBuildsCommandErrors),

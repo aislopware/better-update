@@ -7,9 +7,9 @@ import path from "node:path";
 import { setupCliE2E } from "../helpers/cli-e2e";
 
 // Gated on ANDROID_HOME because gradlew requires a functioning Android SDK
-// toolchain; the build-credentials resolve endpoint is covered in the server
+// Toolchain; the build-credentials resolve endpoint is covered in the server
 // E2E suite independently.
-const hasAndroidSdk = !!process.env["ANDROID_HOME"];
+const hasAndroidSdk = Boolean(process.env["ANDROID_HOME"]);
 
 const FIXTURE_DIR = path.resolve(import.meta.dirname, "../../../../fixtures/build-e2e-app");
 
@@ -59,7 +59,9 @@ const buildState = {
 
 describe.skipIf(!hasAndroidSdk)("CLI build journey — Android", () => {
   beforeAll(async () => {
-    if (!hasAndroidSdk) return;
+    if (!hasAndroidSdk) {
+      return;
+    }
     // Generate a self-signed Android keystore for signing the build.
     const tmpDir = mkdtempSync(path.join(os.tmpdir(), "build-e2e-keystore-"));
     const keystorePath = path.join(tmpDir, "e2e.keystore");
@@ -100,16 +102,18 @@ describe.skipIf(!hasAndroidSdk)("CLI build journey — Android", () => {
       keyPassword: KEY_PASSWORD,
     });
     expect(createResponse.status).toBe(201);
-    const keystoreId = (await createResponse.json()).id as string;
+    const createBody = await createResponse.json();
+    const keystoreId = createBody.id as string;
 
     // Register Android application identifier + default build credentials group so the
-    // resolve endpoint can find a keystore binding for package name.
+    // Resolve endpoint can find a keystore binding for package name.
     const appResponse = await cli.postAuthorized(
       `/api/projects/${cli.getProjectId()}/android-application-identifiers`,
       { packageName: "com.example.e2ebuild" },
     );
     expect(appResponse.status).toBe(201);
-    const appId = (await appResponse.json()).id as string;
+    const appBody = await appResponse.json();
+    const appId = appBody.id as string;
 
     const groupResponse = await cli.postAuthorized(
       `/api/android-application-identifiers/${appId}/build-credentials`,
@@ -145,7 +149,7 @@ describe.skipIf(!hasAndroidSdk)("CLI build journey — Android", () => {
     expect(result.stdout).toContain("Artifact produced:");
 
     // After upload, key-value summary is printed.
-    const buildIdMatch = result.stdout.match(/^Build ID\s+(.+)$/m);
+    const buildIdMatch = /^Build ID\s+(.+)$/m.exec(result.stdout);
     expect(buildIdMatch).toBeDefined();
     buildState.buildId = buildIdMatch![1]!.trim();
 

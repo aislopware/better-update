@@ -1,7 +1,10 @@
 import process from "node:process";
 
-import { Command, CommandExecutor } from "@effect/platform";
-import { Effect, Fiber, Scope, Stream } from "effect";
+import { Command } from "@effect/platform";
+import { Effect, Fiber, Stream } from "effect";
+
+import type { CommandExecutor } from "@effect/platform";
+import type { Scope } from "effect";
 
 import { BuildFailedError } from "../../lib/exit-codes";
 
@@ -64,7 +67,7 @@ export const runStepFormatted = (
         return formatted.length > 0
           ? Effect.sync(() => {
               for (const output of formatted) {
-                process.stdout.write(output + "\n");
+                process.stdout.write(`${output}\n`);
               }
             })
           : Effect.void;
@@ -83,7 +86,7 @@ export const runStepFormatted = (
     const stderrFiber = yield* proc.stderr.pipe(
       Stream.decodeText(),
       Stream.splitLines,
-      Stream.runForEach((line) => Effect.sync(() => process.stderr.write(line + "\n"))),
+      Stream.runForEach((line) => Effect.sync(() => process.stderr.write(`${line}\n`))),
       Effect.mapError(
         (cause) =>
           new BuildFailedError({
@@ -114,7 +117,9 @@ export const runStepFormatted = (
     if (code !== 0) {
       // Print build summary on failure for xcpretty diagnostics
       const summary = formatter.getBuildSummary();
-      if (summary) process.stderr.write(summary + "\n");
+      if (summary) {
+        process.stderr.write(`${summary}\n`);
+      }
 
       return yield* new BuildFailedError({
         step,
@@ -122,4 +127,5 @@ export const runStepFormatted = (
         message: `${step} exited with code ${code}`,
       });
     }
+    return undefined;
   });

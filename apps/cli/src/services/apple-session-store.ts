@@ -4,17 +4,16 @@ import { safeJsonParse } from "@better-update/safe-json";
 import { FileSystem } from "@effect/platform";
 import { Context, Effect, Layer } from "effect";
 
-import type * as AppleUtils from "@expo/apple-utils";
+import type { Auth } from "@expo/apple-utils";
 
 import { AppleAuthError } from "../lib/exit-codes";
 import { formatCause } from "../lib/format-error";
+import { isRecord } from "../lib/record";
 import { CliRuntime } from "./cli-runtime";
 
 // The cookies payload accepted by @expo/apple-utils Auth.loginWithCookiesAsync.
 // Derived structurally so we don't depend on the un-exported `CookiesJSON` alias.
-export type AppleSessionCookies = Parameters<
-  typeof AppleUtils.Auth.loginWithCookiesAsync
->[0]["cookies"];
+export type AppleSessionCookies = Parameters<typeof Auth.loginWithCookiesAsync>[0]["cookies"];
 
 export interface SerializedAppleSession {
   readonly cookies: AppleSessionCookies;
@@ -47,29 +46,37 @@ export const AppleSessionStoreLive = Layer.effect(
           .readFileString(sessionFile)
           .pipe(Effect.catchAll(() => Effect.succeed(null)));
 
-        if (!content) return null;
+        if (!content) {
+          return null;
+        }
 
         const parsed = safeJsonParse(content);
-        if (typeof parsed !== "object" || parsed === null) return null;
+        if (!isRecord(parsed)) {
+          return null;
+        }
 
-        const record = parsed as Record<string, unknown>;
         if (
-          typeof record["teamId"] !== "string" ||
-          typeof record["username"] !== "string" ||
-          !record["cookies"]
+          typeof parsed["teamId"] !== "string" ||
+          typeof parsed["username"] !== "string" ||
+          !parsed["cookies"]
         ) {
           return null;
         }
 
-        const providerIdRaw = record["providerId"];
+        const providerIdRaw = parsed["providerId"];
         const hasProviderId = typeof providerIdRaw === "number" && Number.isInteger(providerIdRaw);
 
-        return {
-          cookies: record["cookies"] as AppleSessionCookies,
-          teamId: record["teamId"],
-          username: record["username"],
+        // eslint-disable-next-line typescript/no-unsafe-type-assertion, typescript/no-unsafe-assignment -- AppleSessionCookies is an opaque cookies payload from @expo/apple-utils; round-tripped verbatim from disk
+        const cookies = parsed["cookies"] as AppleSessionCookies;
+
+        const session: SerializedAppleSession = {
+          // eslint-disable-next-line typescript/no-unsafe-assignment -- see disable on the `cookies` declaration above; same opaque value
+          cookies,
+          teamId: parsed["teamId"],
+          username: parsed["username"],
           ...(hasProviderId ? { providerId: providerIdRaw } : {}),
-        } satisfies SerializedAppleSession;
+        };
+        return session;
       }),
 
       saveSession: (session: SerializedAppleSession) =>

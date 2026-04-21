@@ -1,3 +1,5 @@
+/* eslint-disable eslint/max-classes-per-file -- dedicated error-taxonomy module: each error class is a small, purpose-built tag used across the CLI for Effect.catchTag */
+
 import { Data } from "effect";
 
 export class AuthRequiredError extends Data.TaggedError("AuthRequiredError")<{

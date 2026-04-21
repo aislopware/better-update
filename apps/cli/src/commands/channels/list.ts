@@ -21,17 +21,17 @@ export const listCommand = Command.make("list", {}, () =>
       return;
     }
 
-    const branchNames = new Map(branches.map((b) => [b.id, b.name]));
+    const branchNames = new Map(branches.map((branch) => [branch.id, branch.name]));
 
     yield* printTable(
       ["ID", "Name", "Branch", "Paused", "Rollout", "Created"],
-      items.map((c) => [
-        c.id,
-        c.name,
-        branchNames.get(c.branchId) ?? c.branchId,
-        c.isPaused ? "yes" : "no",
-        c.branchMappingJson !== null ? "active" : "-",
-        c.createdAt,
+      items.map((channel) => [
+        channel.id,
+        channel.name,
+        branchNames.get(channel.branchId) ?? channel.branchId,
+        channel.isPaused ? "yes" : "no",
+        channel.branchMappingJson === null ? "-" : "active",
+        channel.createdAt,
       ]),
     );
   }).pipe(handleChannelCommandErrors),

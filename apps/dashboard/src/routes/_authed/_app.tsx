@@ -161,6 +161,7 @@ const UserMenu = () => {
   const { data: session } = useSuspenseQuery(sessionQueryOptions);
   const { theme, updateTheme } = useTheme();
   const user = session?.user;
+  const ThemeIcon = themeIcons[theme];
 
   const handleLogout = async () => {
     await authClient.signOut();
@@ -177,10 +178,7 @@ const UserMenu = () => {
           <DropdownMenuSeparator />
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
-              {(() => {
-                const ThemeIcon = themeIcons[theme];
-                return <ThemeIcon strokeWidth={2} className="size-4" />;
-              })()}
+              <ThemeIcon strokeWidth={2} className="size-4" />
               <span>Theme</span>
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent>

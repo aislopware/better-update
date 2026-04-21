@@ -23,11 +23,11 @@ export const compatibilityMatrixCommand = Command.make("compatibility-matrix", {
       yield* Console.log("Build-to-Channel Compatibility:");
       yield* printTable(
         ["Build ID", "Platform", "Runtime Version", "Channels"],
-        result.rows.map((r) => [
-          r.id,
-          r.platform,
-          r.runtimeVersion ?? "-",
-          r.channels.map((c) => c.channelName).join(", ") || "-",
+        result.rows.map((row) => [
+          row.id,
+          row.platform,
+          row.runtimeVersion ?? "-",
+          row.channels.map((channel) => channel.channelName).join(", ") || "-",
         ]),
       );
     }
@@ -36,11 +36,11 @@ export const compatibilityMatrixCommand = Command.make("compatibility-matrix", {
       yield* Console.log("\nMissing Runtime Versions:");
       yield* printTable(
         ["Channel", "Platform", "Runtime Version", "Updates"],
-        result.missingRuntimeVersions.map((m) => [
-          m.channelName,
-          m.platform,
-          m.runtimeVersion,
-          String(m.updateCount),
+        result.missingRuntimeVersions.map((missing) => [
+          missing.channelName,
+          missing.platform,
+          missing.runtimeVersion,
+          String(missing.updateCount),
         ]),
       );
     }

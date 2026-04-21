@@ -1,9 +1,11 @@
 import path from "node:path";
 
-import { Command, CommandExecutor, FileSystem } from "@effect/platform";
-import { Effect, Scope } from "effect";
+import { Command, FileSystem } from "@effect/platform";
+import { Effect } from "effect";
 
+import type { CommandExecutor } from "@effect/platform";
 import type { PlatformError } from "@effect/platform/Error";
+import type { Scope } from "effect";
 
 import { findIosArtifact } from "../../lib/artifact-finder";
 import { downloadIosCredentials } from "../../lib/credentials-downloader";
@@ -72,12 +74,13 @@ export const runIosBuild = (
   | PlatformError,
   CliRuntime | CommandExecutor.CommandExecutor | FileSystem.FileSystem | Scope.Scope
 > =>
+  // eslint-disable-next-line eslint/max-statements -- ios build orchestration is inherently sequential (prebuild → pod → credentials → archive → exportArchive → find artifact → sha256); splitting further fragments the pipeline without clarifying it
   Effect.gen(function* () {
     const { api, tempDir, projectRoot, iosProfile, bundleId, envVars, projectId } = input;
     const runtime = yield* CliRuntime;
 
     const iosDir = path.join(projectRoot, "ios");
-    const distribution = iosProfile.distribution;
+    const { distribution } = iosProfile;
     const commandEnv = yield* runtime.commandEnvironment(envVars);
 
     // 1. Download credentials (p12 + mobileprovision) into tempDir.

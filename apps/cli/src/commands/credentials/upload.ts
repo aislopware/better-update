@@ -26,8 +26,8 @@ const keyId = Options.text("key-id").pipe(Options.optional);
 const issuerId = Options.text("issuer-id").pipe(Options.optional);
 const appleTeamIdentifier = Options.text("apple-team-identifier").pipe(Options.optional);
 
-const optional = <A>(value: Option.Option<A>) =>
-  Option.match(value, { onNone: () => undefined, onSome: (v) => v });
+const optional = <Value>(value: Option.Option<Value>) =>
+  Option.match(value, { onNone: () => undefined, onSome: (inner) => inner });
 
 export const uploadCommand = Command.make(
   "upload",

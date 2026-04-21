@@ -6,12 +6,12 @@ import { readProjectId } from "../../lib/app-json";
 import { apiClient } from "../../services/api-client";
 import { handleEnvCommandErrors } from "./helpers";
 
-const file = Args.text({ name: "file" });
-const environment = Options.text("environment").pipe(Options.withDefault("production"));
+const fileArg = Args.text({ name: "file" });
+const environmentOption = Options.text("environment").pipe(Options.withDefault("production"));
 
 export const importCommand = Command.make(
   "import",
-  { file, environment },
+  { file: fileArg, environment: environmentOption },
   ({ file, environment }) =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
