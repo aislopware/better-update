@@ -1,0 +1,10 @@
+# Change Log
+
+All notable changes to this project will be documented in this file.
+See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
+## 0.1.0 (2026-04-21)
+
+### Features
+
+* enforce FP patterns with Effect-TS, XState v5, and eslint-plugin-functional ([79c60c0](https://github.com/better-update/better-update/commit/79c60c09e13cfafd027d122646af5d23a2dbdb11)) - by @trancong12102
