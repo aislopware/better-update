@@ -2,7 +2,6 @@ import { queryOptions } from "@tanstack/react-query";
 
 interface ServerConfig {
   readonly githubEnabled: boolean;
-  readonly passwordEnabled: boolean;
 }
 
 // eslint-disable-next-line eslint-js/no-restricted-syntax -- Vite build-time env; empty fallback resolves `/api/config` against current origin via Vite dev proxy.
@@ -13,7 +12,7 @@ const fetchServerConfig = async (): Promise<ServerConfig> => {
     credentials: "include",
   });
   if (!response.ok) {
-    return { githubEnabled: false, passwordEnabled: false };
+    return { githubEnabled: false };
   }
   return response.json();
 };

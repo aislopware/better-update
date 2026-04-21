@@ -28,5 +28,12 @@
   "sortPackageJson": {
     "sortScripts": true
   },
-  "ignorePatterns": ["**/*.gen.ts", "*.d.ts", "packages/ui/src/components/", "**/CHANGELOG.md"]
+  "ignorePatterns": [
+    "**/*.gen.ts",
+    "*.d.ts",
+    "packages/ui/src/components/",
+    "**/CHANGELOG.md",
+    ".agents/**",
+    ".claude/**"
+  ]
 }

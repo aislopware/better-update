@@ -63,7 +63,7 @@ export default async function setup() {
 
   const e2eEnv = createServerE2EEnvironment({
     projectRoot: API_DIR,
-    dashboardUrl: `http://127.0.0.1:${String(DASHBOARD_PORT)}`,
+    consoleUrl: `http://127.0.0.1:${String(DASHBOARD_PORT)}`,
   });
   const restoreProcessEnv = applyProcessEnv(e2eEnv.processOverrides);
 

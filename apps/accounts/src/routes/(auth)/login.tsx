@@ -1,213 +1,215 @@
 import { Button } from "@better-update/ui/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@better-update/ui/components/ui/card";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
-import { Input } from "@better-update/ui/components/ui/input";
-import { useForm } from "@tanstack/react-form";
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { toast } from "sonner";
-import { z } from "zod/v4";
+import { createFileRoute } from "@tanstack/react-router";
 
+import { BrandWordmark } from "../../components/brand-mark";
+import { HeroMotion } from "../../components/hero-motion";
 import { authClient } from "../../lib/auth-client";
-import { consoleUrl, redirectToConsole } from "../../lib/console-redirect";
+import { consoleUrl } from "../../lib/console-redirect";
 
 const readRedirectTo = (): string =>
   // eslint-disable-next-line eslint-js/no-restricted-syntax -- no redirectTo param means stay on default post-login target
   new URLSearchParams(globalThis.location.search).get("redirectTo") ?? "";
 
-const finishLogin = (redirectTo: string): void => {
-  if (redirectTo) {
-    globalThis.location.assign(redirectTo);
-    return;
-  }
-  redirectToConsole();
-};
+const CheckIcon = ({ className }: { readonly className?: string }) => (
+  <svg
+    viewBox="0 0 16 16"
+    aria-hidden="true"
+    className={className}
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M3 8.5 L6.5 12 L13 4.5" />
+  </svg>
+);
+
+const ArrowIcon = ({ className }: { readonly className?: string }) => (
+  <svg
+    viewBox="0 0 16 16"
+    aria-hidden="true"
+    className={className}
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M3 8 H13 M9 4 L13 8 L9 12" />
+  </svg>
+);
+
+const GithubIcon = ({ className }: { readonly className?: string }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    aria-hidden="true"
+    className={className}
+  >
+    <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12Z" />
+  </svg>
+);
+
+const LeftHero = () => (
+  <section className="border-border/60 relative flex min-h-[38dvh] flex-col overflow-hidden border-b lg:min-h-dvh lg:border-r lg:border-b-0">
+    <div className="relative mx-auto flex h-full w-full max-w-[1180px] flex-1 flex-col">
+      <HeroMotion />
+      <div className="pointer-events-none relative z-10 flex h-full flex-col justify-between gap-10 px-8 pt-8 pb-8 sm:px-12 lg:px-16 lg:pt-12 lg:pb-12">
+        <BrandWordmark />
+        <HeroHeadline />
+        <HeroMeta />
+      </div>
+    </div>
+  </section>
+);
+
+const HeroHeadline = () => (
+  <div className="hidden max-w-[22ch] flex-col gap-3 lg:flex">
+    <h1 className="font-heading text-foreground text-3xl leading-[1.1] font-semibold tracking-tight text-balance xl:text-4xl">
+      Ship updates at the speed of code.
+    </h1>
+    <p className="text-muted-foreground max-w-[32ch] text-sm leading-relaxed">
+      Over-the-air delivery for React Native, across 330+ edge cities in 125+ countries.
+    </p>
+  </div>
+);
+
+const HeroMeta = () => (
+  <div className="hidden flex-wrap items-center gap-x-5 gap-y-2 font-mono text-[11px] tracking-wide lg:flex">
+    <LiveIndicator />
+    <span className="text-border" aria-hidden="true">
+      ·
+    </span>
+    <span className="text-muted-foreground">330+ edge cities</span>
+    <span className="text-border" aria-hidden="true">
+      ·
+    </span>
+    <span className="text-muted-foreground">99.99% SLA</span>
+  </div>
+);
+
+const LiveIndicator = () => (
+  <span className="inline-flex items-center gap-2">
+    <span className="relative flex size-1.5">
+      <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500 opacity-75" />
+      <span className="relative inline-flex size-full rounded-full bg-emerald-500" />
+    </span>
+    <span className="text-muted-foreground uppercase">Live</span>
+  </span>
+);
+
+interface AuthPanelProps {
+  readonly githubEnabled: boolean;
+  readonly onGithub: () => void;
+}
+
+const AuthPanel = ({ githubEnabled, onGithub }: AuthPanelProps) => (
+  <section className="bg-background/60 relative flex items-center justify-center px-6 py-12 backdrop-blur-sm sm:px-10 lg:px-12">
+    <div className="flex w-full max-w-sm flex-col gap-8">
+      <AuthHeader />
+      <div className="flex flex-col gap-3">
+        {githubEnabled ? <GithubButton onClick={onGithub} /> : <UnavailableNotice />}
+      </div>
+      <SecureDivider />
+      <TrustPoints />
+      <LegalFootnote />
+    </div>
+  </section>
+);
+
+const AuthHeader = () => (
+  <div className="flex flex-col gap-2">
+    <h2 className="font-heading text-foreground text-3xl leading-tight font-semibold tracking-tight">
+      Welcome back
+    </h2>
+    <p className="text-muted-foreground text-sm leading-relaxed">
+      Sign in to continue shipping updates to your users.
+    </p>
+  </div>
+);
+
+const GithubButton = ({ onClick }: { readonly onClick: () => void }) => (
+  <Button
+    size="lg"
+    className="group relative h-12 w-full gap-2.5 text-sm font-medium"
+    onClick={onClick}
+  >
+    <GithubIcon className="size-5" />
+    Continue with GitHub
+    <ArrowIcon className="size-4 opacity-70 transition-transform duration-200 ease-out group-hover:translate-x-0.5 group-hover:opacity-100" />
+  </Button>
+);
+
+const UnavailableNotice = () => (
+  <div className="border-border/60 bg-muted/40 text-muted-foreground rounded-md border px-4 py-6 text-center text-sm">
+    Sign-in is temporarily unavailable. Please contact support.
+  </div>
+);
+
+const SecureDivider = () => (
+  <div className="flex items-center gap-3">
+    <span className="border-border/60 flex-1 border-t" />
+    <span className="text-muted-foreground text-[0.7rem] tracking-wider uppercase">
+      Secure by default
+    </span>
+    <span className="border-border/60 flex-1 border-t" />
+  </div>
+);
+
+const TRUST_POINTS = [
+  "Signed tokens, short-lived sessions.",
+  "SOC 2 controls, audit log on every change.",
+] as const;
+
+const TrustPoints = () => (
+  <ul className="text-muted-foreground flex flex-col gap-2 text-xs leading-relaxed">
+    {TRUST_POINTS.map((text) => (
+      <li key={text} className="flex items-center gap-2">
+        <CheckIcon className="text-primary size-3.5" />
+        {text}
+      </li>
+    ))}
+  </ul>
+);
+
+const LegalFootnote = () => (
+  <p className="text-muted-foreground max-w-[38ch] text-[0.7rem] leading-relaxed">
+    By continuing you agree to our{" "}
+    <a href="/terms" className="text-foreground underline-offset-4 hover:underline">
+      Terms of Service
+    </a>{" "}
+    and{" "}
+    <a href="/privacy" className="text-foreground underline-offset-4 hover:underline">
+      Privacy Policy
+    </a>
+    .
+  </p>
+);
 
 const LoginPage = () => {
-  const { queryClient, session, config } = Route.useRouteContext();
+  const { session, config } = Route.useRouteContext();
   const redirectTo = readRedirectTo();
 
-  const form = useForm({
-    defaultValues: { email: "", password: "" },
-    onSubmit: async ({ value }) => {
-      const { error } = await authClient.signIn.email({
-        email: value.email,
-        password: value.password,
-      });
-      if (error) {
-        toast.error(error.message ?? "Failed to sign in");
-        return;
-      }
-      await queryClient.resetQueries({ queryKey: ["auth"] });
-      finishLogin(redirectTo);
-    },
-  });
-
   if (session?.user) {
-    if (redirectTo) {
-      globalThis.location.replace(redirectTo);
-    } else {
-      globalThis.location.replace(consoleUrl());
-    }
+    globalThis.location.replace(redirectTo || consoleUrl());
     return null;
   }
 
+  const signInWithGithub = async () => {
+    await authClient.signIn.social({
+      provider: "github",
+      callbackURL: redirectTo || consoleUrl(),
+    });
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle>Sign in</CardTitle>
-          <CardDescription>Enter your credentials to access your account</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {config.passwordEnabled ? (
-            <form
-              onSubmit={async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                await form.handleSubmit();
-              }}
-            >
-              <FieldGroup>
-                <form.Field
-                  name="email"
-                  validators={{
-                    onBlur: ({ value }) => {
-                      const result = z.email("Invalid email address").safeParse(value);
-                      return result.success ? undefined : result.error.issues[0]?.message;
-                    },
-                  }}
-                >
-                  {(field) => {
-                    const errorMessage = field.state.meta.errors
-                      .map(String)
-                      .filter(Boolean)
-                      .join(", ");
-                    return (
-                      <Field data-invalid={errorMessage ? true : undefined}>
-                        <FieldLabel htmlFor="email">Email</FieldLabel>
-                        <Input
-                          id="email"
-                          type="email"
-                          placeholder="you@example.com"
-                          value={field.state.value}
-                          onBlur={field.handleBlur}
-                          onChange={(ev) => {
-                            field.handleChange(ev.target.value);
-                          }}
-                          aria-invalid={errorMessage ? true : undefined}
-                        />
-                        <FieldError>{errorMessage}</FieldError>
-                      </Field>
-                    );
-                  }}
-                </form.Field>
-
-                <form.Field
-                  name="password"
-                  validators={{
-                    onBlur: ({ value }) => {
-                      const result = z
-                        .string()
-                        .check(z.minLength(8, "Password must be at least 8 characters"))
-                        .safeParse(value);
-                      return result.success ? undefined : result.error.issues[0]?.message;
-                    },
-                  }}
-                >
-                  {(field) => {
-                    const errorMessage = field.state.meta.errors
-                      .map(String)
-                      .filter(Boolean)
-                      .join(", ");
-                    return (
-                      <Field data-invalid={errorMessage ? true : undefined}>
-                        <FieldLabel htmlFor="password">Password</FieldLabel>
-                        <Input
-                          id="password"
-                          type="password"
-                          value={field.state.value}
-                          onBlur={field.handleBlur}
-                          onChange={(ev) => {
-                            field.handleChange(ev.target.value);
-                          }}
-                          aria-invalid={errorMessage ? true : undefined}
-                        />
-                        <FieldError>{errorMessage}</FieldError>
-                      </Field>
-                    );
-                  }}
-                </form.Field>
-
-                <form.Subscribe selector={(state) => state.isSubmitting}>
-                  {(isSubmitting) => (
-                    <Button type="submit" disabled={isSubmitting} className="w-full">
-                      {isSubmitting ? "Signing in..." : "Sign in"}
-                    </Button>
-                  )}
-                </form.Subscribe>
-              </FieldGroup>
-            </form>
-          ) : null}
-
-          {config.passwordEnabled && config.githubEnabled ? (
-            <div className="relative my-4">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card text-muted-foreground px-2">Or continue with</span>
-              </div>
-            </div>
-          ) : null}
-
-          {config.githubEnabled ? (
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={async () =>
-                authClient.signIn.social({
-                  provider: "github",
-                  callbackURL: redirectTo || consoleUrl(),
-                })
-              }
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12Z" />
-              </svg>
-              GitHub
-            </Button>
-          ) : null}
-
-          {!config.passwordEnabled && !config.githubEnabled ? (
-            <p className="text-muted-foreground text-center text-sm">
-              No sign-in methods are available.
-            </p>
-          ) : null}
-        </CardContent>
-        {config.passwordEnabled ? (
-          <CardFooter className="flex-col gap-2 text-sm">
-            <p className="text-muted-foreground">
-              Don&apos;t have an account?{" "}
-              <Link to="/signup" className="text-primary underline-offset-4 hover:underline">
-                Sign up
-              </Link>
-            </p>
-            <Link
-              to="/forgot-password"
-              className="text-muted-foreground underline-offset-4 hover:underline"
-            >
-              Forgot your password?
-            </Link>
-          </CardFooter>
-        ) : null}
-      </Card>
+    <div className="bg-background relative min-h-dvh overflow-hidden">
+      <div className="relative grid min-h-dvh lg:grid-cols-[1.15fr_1fr]">
+        <LeftHero />
+        <AuthPanel githubEnabled={config.githubEnabled} onGithub={signInWithGithub} />
+      </div>
     </div>
   );
 };
