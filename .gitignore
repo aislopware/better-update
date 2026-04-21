@@ -15,6 +15,9 @@ __screenshots__/
 test-results/
 .e2e-shared-env.json
 
+# Playwright MCP scratch output
+.playwright-mcp/
+
 # Claude Code (keep CLAUDE.md, settings/, commands/)
 .claude/worktree
 .claude/*.local.*

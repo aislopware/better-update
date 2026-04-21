@@ -3,7 +3,7 @@ import { Effect } from "effect";
 import type { Context } from "effect";
 
 import { makeManagementWebHandler } from "./app-layer";
-import { createAuth, isGithubEnabled, isPasswordEnabled } from "./auth";
+import { createAuth, isGithubEnabled } from "./auth";
 import { AssetStorage } from "./cloudflare/asset-storage";
 import { makeCloudflareRequestContext, provideCloudflareEnv } from "./cloudflare/context";
 import {
@@ -200,7 +200,6 @@ export default {
         return withCors(
           Response.json({
             githubEnabled: isGithubEnabled(env),
-            passwordEnabled: isPasswordEnabled(env),
           }),
           cors,
         );

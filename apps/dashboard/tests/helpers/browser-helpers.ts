@@ -71,7 +71,10 @@ export const createSharedBrowserRuntime = (): BrowserRuntime => {
   };
 };
 
-// ── Auth flows via the dashboard UI ───────────────────────────────────────
+// ── Auth flows via the dashboard API ──────────────────────────────────────
+// The login UI is GitHub-only, so tests create + authenticate users by
+// Hitting Better Auth's email endpoints directly. Cookies propagate onto
+// The Playwright BrowserContext automatically via `page.context().request`.
 
 export const signUpViaUI = async (
   page: Page,
@@ -83,12 +86,13 @@ export const signUpViaUI = async (
   },
 ): Promise<void> => {
   const password = params.password ?? DEFAULT_PASSWORD;
-  await page.goto(`${baseUrl}/signup`);
-  await page.getByLabel("Name").fill(params.name);
-  await page.getByLabel("Email").fill(params.email);
-  await page.getByLabel("Password", { exact: true }).fill(password);
-  await page.getByLabel("Confirm password").fill(password);
-  await page.getByRole("button", { name: "Create account" }).click();
+  const response = await page.context().request.post(`${baseUrl}/api/auth/sign-up/email`, {
+    data: { name: params.name, email: params.email, password },
+  });
+  if (!response.ok()) {
+    throw new Error(`signUpViaUI failed: ${response.status()} ${await response.text()}`);
+  }
+  await page.goto(`${baseUrl}/`);
   await page.waitForURL(/\/onboarding$/u);
 };
 
@@ -115,10 +119,13 @@ export const loginViaUI = async (
   },
 ): Promise<void> => {
   const password = params.password ?? DEFAULT_PASSWORD;
-  await page.goto(`${baseUrl}/login`);
-  await page.getByLabel("Email").fill(params.email);
-  await page.getByLabel("Password").fill(password);
-  await page.getByRole("button", { name: "Sign in" }).click();
+  const response = await page.context().request.post(`${baseUrl}/api/auth/sign-in/email`, {
+    data: { email: params.email, password },
+  });
+  if (!response.ok()) {
+    throw new Error(`loginViaUI failed: ${response.status()} ${await response.text()}`);
+  }
+  await page.goto(`${baseUrl}/`);
 };
 
 export const logoutViaUI = async (page: Page, userName: string): Promise<void> => {

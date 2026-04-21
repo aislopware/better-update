@@ -7,7 +7,8 @@ const FALLBACKS = {
   betterAuthUrl: "http://localhost:6781",
   buildBucketName: "better-update",
   cloudflareAccountId: "<account-id>",
-  dashboardUrl: "http://localhost:6780",
+  accountsUrl: "http://localhost:6782",
+  consoleUrl: "http://localhost:6780",
   githubClientId: "e2e-github-id",
   githubClientSecret: "e2e-github-secret",
   installTokenSecret: "e2e-install-token-secret-at-least-32-chars",
@@ -104,7 +105,8 @@ export interface ServerE2EEnvironment {
 
 export const createServerE2EEnvironment = (options?: {
   readonly projectRoot?: string;
-  readonly dashboardUrl?: string;
+  readonly accountsUrl?: string;
+  readonly consoleUrl?: string;
 }): ServerE2EEnvironment => {
   const projectRoot = options?.projectRoot ?? resolve(import.meta.dirname, "../..");
   const fileSource = readFileEnvSource(projectRoot);
@@ -155,12 +157,19 @@ export const createServerE2EEnvironment = (options?: {
       primary: "CLOUDFLARE_API_TOKEN",
       fallback: "",
     }),
-    DASHBOARD_URL:
-      options?.dashboardUrl ??
+    ACCOUNTS_URL:
+      options?.accountsUrl ??
       envValue({
         fileSource,
-        primary: "DASHBOARD_URL",
-        fallback: FALLBACKS.dashboardUrl,
+        primary: "ACCOUNTS_URL",
+        fallback: FALLBACKS.accountsUrl,
+      }),
+    CONSOLE_URL:
+      options?.consoleUrl ??
+      envValue({
+        fileSource,
+        primary: "CONSOLE_URL",
+        fallback: FALLBACKS.consoleUrl,
       }),
     GITHUB_CLIENT_ID: envValue({
       fileSource,

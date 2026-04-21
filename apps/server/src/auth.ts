@@ -75,8 +75,6 @@ export const isGithubEnabled = (env: AuthEnv): boolean => {
   return id.length > 0 && secret.length > 0;
 };
 
-export const isPasswordEnabled = (env: AuthEnv): boolean => env.TEST_MODE === "true";
-
 export const createAuth = (env: AuthEnv) => {
   const githubClientId = trimOptionalBinding(env.GITHUB_CLIENT_ID);
   const githubClientSecret = trimOptionalBinding(env.GITHUB_CLIENT_SECRET);
