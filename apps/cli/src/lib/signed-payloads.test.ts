@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { BunFileSystem } from "@effect/platform-bun";
+import { NodeFileSystem } from "@effect/platform-node";
 import { it } from "@effect/vitest";
 import { Effect, Exit } from "effect";
 
@@ -39,7 +39,7 @@ describe(loadOptionalSignedPayload, () => {
         },
         label: "Signed promote",
         makeError: (message) => new Error(message),
-      }).pipe(Effect.provide(BunFileSystem.layer), Effect.ensuring(Effect.sync(files.dispose)));
+      }).pipe(Effect.provide(NodeFileSystem.layer), Effect.ensuring(Effect.sync(files.dispose)));
 
       expect(payload).toStrictEqual({
         manifestBody: '{"runtimeVersion":"1.0.0"}\n',
@@ -69,7 +69,7 @@ describe(loadSignedPublishPayloads, () => {
           },
         },
         makeError: (message) => new Error(message),
-      }).pipe(Effect.provide(BunFileSystem.layer), Effect.ensuring(Effect.sync(iosFiles.dispose)));
+      }).pipe(Effect.provide(NodeFileSystem.layer), Effect.ensuring(Effect.sync(iosFiles.dispose)));
 
       expect(payloads.ios?.manifestBody).toBe('{"runtimeVersion":"1.0.0"}\n');
       expect(payloads.android).toBeUndefined();
@@ -101,7 +101,7 @@ describe(loadSignedPublishPayloads, () => {
         },
         makeError: (message) => new Error(message),
       }).pipe(
-        Effect.provide(BunFileSystem.layer),
+        Effect.provide(NodeFileSystem.layer),
         Effect.ensuring(
           Effect.sync(() => {
             iosFiles.dispose();
@@ -128,7 +128,7 @@ describe(loadSignedPublishPayloads, () => {
         platformFiles: {},
         makeError: (message) => new Error(message),
       }).pipe(
-        Effect.provide(BunFileSystem.layer),
+        Effect.provide(NodeFileSystem.layer),
         Effect.ensuring(Effect.sync(files.dispose)),
         Effect.exit,
       );
@@ -163,7 +163,7 @@ describe(loadSignedPublishPayloads, () => {
         },
         makeError: (message) => new Error(message),
       }).pipe(
-        Effect.provide(BunFileSystem.layer),
+        Effect.provide(NodeFileSystem.layer),
         Effect.ensuring(Effect.sync(files.dispose)),
         Effect.exit,
       );

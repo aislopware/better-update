@@ -1,20 +1,9 @@
+import { createServer } from "node:http";
+import type { IncomingMessage, Server, ServerResponse } from "node:http";
+
 import { Data, Deferred, Duration, Effect } from "effect";
 
 import { isRecord } from "./record";
-
-interface BunServeServer {
-  readonly port: number;
-  readonly stop: (closeActiveConnections?: boolean) => void;
-}
-
-interface BunRuntime {
-  readonly serve: (options: {
-    readonly hostname: string;
-    readonly port: number;
-    readonly fetch: (request: Request) => Promise<Response>;
-    readonly error: () => Response;
-  }) => BunServeServer;
-}
 
 export class BrowserLoginTimeoutError extends Data.TaggedError("BrowserLoginTimeoutError")<{
   readonly message: string;
@@ -23,10 +12,6 @@ export class BrowserLoginTimeoutError extends Data.TaggedError("BrowserLoginTime
 export class BrowserLoginSessionClosedError extends Data.TaggedError(
   "BrowserLoginSessionClosedError",
 )<{
-  readonly message: string;
-}> {}
-
-export class BrowserLoginRuntimeError extends Data.TaggedError("BrowserLoginRuntimeError")<{
   readonly message: string;
 }> {}
 
@@ -163,31 +148,82 @@ export const createBrowserLoginSession = (
   };
 };
 
+const readBody = async (req: IncomingMessage): Promise<Buffer> => {
+  const chunks: Buffer[] = [];
+  for await (const chunk of req as AsyncIterable<Buffer>) {
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks);
+};
+
+const toFetchRequest = async (req: IncomingMessage, origin: string): Promise<Request> => {
+  const url = new URL(req.url ?? "/", origin);
+  const method = req.method ?? "GET";
+  const headers = new Headers();
+  for (const [key, value] of Object.entries(req.headers)) {
+    if (value === undefined) {
+      // eslint-disable-next-line no-continue -- forEach would require push-style state mutation; continue keeps the filter inline
+      continue;
+    }
+    if (Array.isArray(value)) {
+      for (const entry of value) {
+        headers.append(key, entry);
+      }
+    } else {
+      headers.append(key, value);
+    }
+  }
+  const init: RequestInit = { method, headers };
+  if (method !== "GET" && method !== "HEAD") {
+    const body = await readBody(req);
+    init.body = new Uint8Array(body);
+  }
+  return new Request(url, init);
+};
+
+const writeFetchResponse = async (res: ServerResponse, response: Response): Promise<void> => {
+  res.statusCode = response.status;
+  response.headers.forEach((value, key) => {
+    res.setHeader(key, value);
+  });
+  const body = await response.arrayBuffer();
+  res.end(Buffer.from(body));
+};
+
+const handleIncoming = async (
+  req: IncomingMessage,
+  res: ServerResponse,
+  session: BrowserLoginSession,
+): Promise<void> => {
+  try {
+    const request = await toFetchRequest(req, "http://127.0.0.1");
+    const response = await session.handleRequest(request);
+    await writeFetchResponse(res, response);
+  } catch {
+    res.statusCode = 500;
+    res.end("Local callback failed");
+  }
+};
+
 export const createBrowserLoginServer = (
   options: CreateBrowserLoginServerOptions = {},
 ): BrowserLoginServer => {
-  const bunRuntime = (globalThis as typeof globalThis & { readonly Bun?: BunRuntime }).Bun;
-  if (!bunRuntime) {
-    // eslint-disable-next-line functional/no-throw-statements -- sync factory surfaces an environment invariant; lifting to Effect would cascade through every caller for a condition that is effectively a precondition
-    throw new BrowserLoginRuntimeError({
-      message: "Browser login server requires the Bun runtime.",
-    });
-  }
-
   const session = createBrowserLoginSession(options);
-  const server = bunRuntime.serve({
-    hostname: "127.0.0.1",
-    port: 0,
-    fetch: session.handleRequest,
-    error: () => new Response("Local callback failed", { status: 500 }),
+  const server: Server = createServer((req, res) => {
+    // eslint-disable-next-line promise/prefer-await-to-then -- node createServer callback is sync; rejections already swallowed inside handleIncoming, so .catch here is a safety net, not a control-flow then()
+    handleIncoming(req, res, session).catch(() => undefined);
   });
 
+  server.listen(0, "127.0.0.1");
+  const address = server.address();
+  const port = address !== null && typeof address === "object" ? address.port : 0;
+
   return {
-    callbackUrl: `http://127.0.0.1:${server.port}${session.callbackPath}`,
+    callbackUrl: `http://127.0.0.1:${port}${session.callbackPath}`,
     waitForToken: session.waitForToken,
     stop: () => {
       session.dispose();
-      server.stop(true);
+      server.close();
     },
   };
 };
