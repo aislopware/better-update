@@ -8,7 +8,7 @@
       "conventionalCommits": true,
       "createRelease": "github",
       "changelogIncludeCommitsClientLogin": " - by @%l",
-      "message": "chore(release): publish %s",
+      "message": "chore(release): publish new versions",
       "allowBranch": "main",
       "syncWorkspaceLock": true
     },
