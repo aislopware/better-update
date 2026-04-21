@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { z } from "zod/v4";
 
 import { authClient } from "../../lib/auth-client";
+import { consoleUrl } from "../../lib/console-redirect";
 import { throwRedirect } from "../../lib/throw-redirect";
 
 const passwordSchema = z.string().check(z.minLength(8, "Password must be at least 8 characters"));
@@ -172,7 +173,10 @@ export const Route = createFileRoute("/(auth)/reset-password")({
   }),
   beforeLoad: ({ context }) => {
     if (context.session?.user) {
-      throwRedirect({ to: "/" });
+      throwRedirect({ href: consoleUrl() });
+    }
+    if (!context.config.passwordEnabled) {
+      throwRedirect({ to: "/login" });
     }
   },
   component: ResetPassword,

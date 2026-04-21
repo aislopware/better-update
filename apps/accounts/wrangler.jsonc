@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "better-update-dashboard",
+  "name": "better-update-accounts",
   "compatibility_flags": ["nodejs_compat"],
   "compatibility_date": "2026-04-19",
   "assets": {
@@ -9,7 +9,7 @@
   },
   "routes": [
     {
-      "pattern": "console.better-update.dev/*",
+      "pattern": "accounts.better-update.dev/*",
       "zone_id": "02ffa0c8760a5554d9b09a05d7ccbd9e",
     },
   ],

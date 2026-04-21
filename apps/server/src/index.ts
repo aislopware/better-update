@@ -3,7 +3,7 @@ import { Effect } from "effect";
 import type { Context } from "effect";
 
 import { makeManagementWebHandler } from "./app-layer";
-import { createAuth, isGithubEnabled } from "./auth";
+import { createAuth, isGithubEnabled, isPasswordEnabled } from "./auth";
 import { AssetStorage } from "./cloudflare/asset-storage";
 import { makeCloudflareRequestContext, provideCloudflareEnv } from "./cloudflare/context";
 import {
@@ -51,6 +51,43 @@ const internalError = () =>
     { code: "INTERNAL_SERVER_ERROR", message: "An unexpected error occurred" },
     { status: 500 },
   );
+
+/**
+ * Builds CORS response headers when the request's Origin matches a trusted
+ * SPA subdomain. Non-SPA clients (CLI, mobile OTA) don't send matching
+ * Origins and receive no CORS headers — they don't need them.
+ */
+const corsHeaders = (env: Env, origin: string | null): Record<string, string> => {
+  if (!origin) {
+    return {};
+  }
+  const allowed = [env.ACCOUNTS_URL, env.CONSOLE_URL].filter(
+    (value): value is string => typeof value === "string" && value.length > 0,
+  );
+  if (!allowed.includes(origin)) {
+    return {};
+  }
+  return {
+    "access-control-allow-origin": origin,
+    "access-control-allow-credentials": "true",
+    "access-control-allow-headers":
+      "content-type, authorization, traceparent, tracestate, baggage, b3",
+    "access-control-allow-methods": "GET, POST, PATCH, PUT, DELETE, OPTIONS",
+    vary: "origin",
+  };
+};
+
+const withCors = (response: Response, cors: Record<string, string>): Response => {
+  if (Object.keys(cors).length === 0) {
+    return response;
+  }
+  const headers = new Headers([...response.headers, ...Object.entries(cors)]);
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+};
 
 /** Handle Better Auth routes with workarounds for dev-mode status codes and empty bodies */
 const handleAuth = async (request: Request, env: Env): Promise<Response> => {
@@ -138,6 +175,14 @@ export default {
   async fetch(request, env, ctx) {
     return withRequestLogging(request, async () => {
       const url = new URL(request.url);
+      const origin = request.headers.get("origin");
+      const cors = corsHeaders(env, origin);
+
+      // CORS preflight — respond before any route matching
+      if (request.method === "OPTIONS" && Object.keys(cors).length > 0) {
+        return new Response(null, { status: 204, headers: cors });
+      }
+
       const requestContext = makeCloudflareRequestContext(
         env,
         ctx,
@@ -146,13 +191,19 @@ export default {
 
       // Better Auth handles its own auth routes
       if (url.pathname.startsWith("/api/auth")) {
-        return handleAuth(request, env);
+        return withCors(await handleAuth(request, env), cors);
       }
 
-      // Public server capabilities — called by the dashboard before login to
-      // Decide which auth providers to render. Must stay unauthenticated.
+      // Public server capabilities — called by the accounts SPA before login
+      // To decide which auth providers to render. Must stay unauthenticated.
       if (url.pathname === "/api/config" && request.method === "GET") {
-        return Response.json({ githubEnabled: isGithubEnabled(env) });
+        return withCors(
+          Response.json({
+            githubEnabled: isGithubEnabled(env),
+            passwordEnabled: isPasswordEnabled(env),
+          }),
+          cors,
+        );
       }
 
       // Expo Updates protocol — unauthenticated manifest serving
@@ -180,7 +231,7 @@ export default {
       }
 
       // Effect HttpApi handles management routes + OpenAPI + Scalar docs
-      return handler(request, requestContext);
+      return withCors(await handler(request, requestContext), cors);
     });
   },
 

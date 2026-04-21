@@ -60,6 +60,9 @@ type AuthEnv = Env & {
   readonly GITHUB_CLIENT_ID?: string;
   readonly GITHUB_CLIENT_SECRET?: string;
   readonly TEST_MODE?: string;
+  readonly ACCOUNTS_URL?: string;
+  readonly CONSOLE_URL?: string;
+  readonly COOKIE_DOMAIN?: string;
 };
 
 const trimOptionalBinding = (value: string | undefined): string =>
@@ -72,21 +75,27 @@ export const isGithubEnabled = (env: AuthEnv): boolean => {
   return id.length > 0 && secret.length > 0;
 };
 
+export const isPasswordEnabled = (env: AuthEnv): boolean => env.TEST_MODE === "true";
+
 export const createAuth = (env: AuthEnv) => {
   const githubClientId = trimOptionalBinding(env.GITHUB_CLIENT_ID);
   const githubClientSecret = trimOptionalBinding(env.GITHUB_CLIENT_SECRET);
   const githubEnabled = githubClientId.length > 0 && githubClientSecret.length > 0;
   const testMode = env.TEST_MODE === "true";
 
+  const trustedOrigins = [env.ACCOUNTS_URL, env.CONSOLE_URL].filter(
+    (value): value is string => typeof value === "string" && value.length > 0,
+  );
+
   return betterAuth({
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL,
-    trustedOrigins: env.DASHBOARD_URL ? [env.DASHBOARD_URL] : [],
+    trustedOrigins,
     database: env.DB,
     logger: testMode ? { disabled: true } : undefined,
 
     emailAndPassword: {
-      enabled: true,
+      enabled: testMode,
       password: { hash: hashPassword, verify: verifyPassword },
     },
     socialProviders: githubEnabled
@@ -236,6 +245,14 @@ export const createAuth = (env: AuthEnv) => {
 
     advanced: {
       useSecureCookies: env.BETTER_AUTH_URL.startsWith("https://"),
+      ...(env.COOKIE_DOMAIN && env.COOKIE_DOMAIN.length > 0
+        ? {
+            crossSubDomainCookies: {
+              enabled: true,
+              domain: env.COOKIE_DOMAIN,
+            },
+          }
+        : {}),
     },
   });
 };

@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { z } from "zod/v4";
 
 import { authClient } from "../../lib/auth-client";
+import { consoleUrl } from "../../lib/console-redirect";
 import { throwRedirect } from "../../lib/throw-redirect";
 
 const emailSchema = z.email("Please enter a valid email address");
@@ -103,7 +104,10 @@ const ForgotPassword = () => {
 export const Route = createFileRoute("/(auth)/forgot-password")({
   beforeLoad: ({ context }) => {
     if (context.session?.user) {
-      throwRedirect({ to: "/" });
+      throwRedirect({ href: consoleUrl() });
+    }
+    if (!context.config.passwordEnabled) {
+      throwRedirect({ to: "/login" });
     }
   },
   component: ForgotPassword,

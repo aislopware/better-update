@@ -6,8 +6,8 @@ import { Context, Data, Effect, Layer } from "effect";
 import { isRecord } from "../lib/record";
 import { CliRuntime } from "./cli-runtime";
 
-const DEFAULT_BASE_URL = "https://api.better-update.dev";
-const DEFAULT_DASHBOARD_URL = "https://better-update.dev";
+const DEFAULT_BASE_URL = "https://server.better-update.dev";
+const DEFAULT_ACCOUNTS_URL = "https://accounts.better-update.dev";
 
 class ConfigStoreParseError extends Data.TaggedError("ConfigStoreParseError")<{
   readonly message: string;
@@ -16,32 +16,32 @@ class ConfigStoreParseError extends Data.TaggedError("ConfigStoreParseError")<{
 
 const normalizeUrl = (value: string): string => value.replace(/\/$/, "");
 
-const deriveDashboardUrl = (serverUrl: string): string => {
+const deriveAccountsUrl = (serverUrl: string): string => {
   const normalized = normalizeUrl(serverUrl);
   if (!URL.canParse(normalized)) {
-    return DEFAULT_DASHBOARD_URL;
+    return DEFAULT_ACCOUNTS_URL;
   }
 
   const url = new URL(normalized);
+  const { hostname } = url;
+  const firstDot = hostname.indexOf(".");
 
-  if (url.hostname.startsWith("api.")) {
-    url.hostname = url.hostname.slice(4);
-    return normalizeUrl(url.toString());
-  }
-
-  if (url.pathname === "/api") {
+  // Server.foo.com or api.foo.com → accounts.foo.com
+  if ((hostname.startsWith("server.") || hostname.startsWith("api.")) && firstDot > 0) {
+    url.hostname = `accounts.${hostname.slice(firstDot + 1)}`;
     url.pathname = "/";
     return normalizeUrl(url.toString());
   }
 
-  return normalized;
+  // Localhost or bare hostname — no accounts derivation possible
+  return DEFAULT_ACCOUNTS_URL;
 };
 
 export class ConfigStore extends Context.Tag("cli/ConfigStore")<
   ConfigStore,
   {
     readonly getBaseUrl: Effect.Effect<string>;
-    readonly getDashboardUrl: Effect.Effect<string>;
+    readonly getAccountsUrl: Effect.Effect<string>;
   }
 >() {}
 
@@ -88,20 +88,20 @@ export const ConfigStoreLive = Layer.effect(
     return {
       getBaseUrl: resolveBaseUrl,
 
-      getDashboardUrl: Effect.gen(function* () {
-        const envUrl = yield* runtime.getEnv("BETTER_UPDATE_DASHBOARD_URL");
+      getAccountsUrl: Effect.gen(function* () {
+        const envUrl = yield* runtime.getEnv("BETTER_UPDATE_ACCOUNTS_URL");
         if (envUrl) {
           return normalizeUrl(envUrl);
         }
 
         const parsed = yield* readConfig;
-        const dashboardUrl = parsed?.["dashboardUrl"];
-        if (typeof dashboardUrl === "string") {
-          return normalizeUrl(dashboardUrl);
+        const accountsUrl = parsed?.["accountsUrl"];
+        if (typeof accountsUrl === "string") {
+          return normalizeUrl(accountsUrl);
         }
 
         const serverUrl = yield* resolveBaseUrl;
-        return deriveDashboardUrl(serverUrl);
+        return deriveAccountsUrl(serverUrl);
       }),
     };
   }),

@@ -7,7 +7,7 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "better-update-db",
+      "database_name": "better-update",
       "database_id": "65193d32-c1ec-4a66-8bdb-f7cf6b1b0fa8",
       "migrations_dir": "migrations",
     },
@@ -73,7 +73,7 @@
     "crons": ["0 3 * * *"],
   },
   "vars": {
-    "ACCOUNT_ID": "<account-id>",
+    "ACCOUNT_ID": "fe2fd3fe8d711b3f812f9819c7b2c2d9",
     "ASSETS_BUCKET_NAME": "better-update-assets",
     "BUILD_BUCKET_NAME": "better-update-builds",
     "BUILD_RETENTION_PRODUCTION": "90",
@@ -81,4 +81,10 @@
     "BUILD_RETENTION_DEVELOPMENT": "7",
     "ENVIRONMENT": "production",
   },
+  "routes": [
+    {
+      "pattern": "server.better-update.dev/*",
+      "zone_id": "02ffa0c8760a5554d9b09a05d7ccbd9e",
+    },
+  ],
 }
