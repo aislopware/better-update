@@ -1,7 +1,7 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 import process from "node:process";
 
-import { BunContext, BunRuntime } from "@effect/platform-bun";
+import { NodeContext, NodeRuntime } from "@effect/platform-node";
 import { Effect, Layer } from "effect";
 
 import type { Session } from "@expo/apple-utils";
@@ -51,4 +51,7 @@ const program = Effect.gen(function* () {
   console.log(`RESULT=${JSON.stringify(result)}`);
 });
 
-program.pipe(Effect.provide(Layer.mergeAll(BunContext.layer, CliRuntimeLive)), BunRuntime.runMain);
+program.pipe(
+  Effect.provide(Layer.mergeAll(NodeContext.layer, CliRuntimeLive)),
+  NodeRuntime.runMain,
+);

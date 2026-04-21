@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { HttpClient, HttpClientResponse, FileSystem } from "@effect/platform";
-import { BunFileSystem } from "@effect/platform-bun";
+import { NodeFileSystem } from "@effect/platform-node";
 import { it } from "@effect/vitest";
 import { Effect, Exit, Layer } from "effect";
 
@@ -102,7 +102,7 @@ describe(putToPresignedUrl, () => {
         expiresAt: futureExpiry(),
       }).pipe(
         Effect.provide(
-          makePresignedUploadLayer(BunFileSystem.layer, () => new Response(null, { status: 200 })),
+          makePresignedUploadLayer(NodeFileSystem.layer, () => new Response(null, { status: 200 })),
         ),
         Effect.ensuring(Effect.sync(file.dispose)),
         Effect.exit,
@@ -122,7 +122,7 @@ describe(putToPresignedUrl, () => {
       }).pipe(
         Effect.provide(
           makePresignedUploadLayer(
-            BunFileSystem.layer,
+            NodeFileSystem.layer,
             () => new Response("AccessDenied", { status: 403, statusText: "Forbidden" }),
           ),
         ),

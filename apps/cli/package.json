@@ -2,18 +2,25 @@
   "name": "@better-update/cli",
   "version": "0.3.0",
   "bin": {
-    "better-update": "./src/index.ts"
+    "better-update": "./dist/index.js"
   },
+  "files": [
+    "dist"
+  ],
   "type": "module",
+  "main": "./dist/index.js",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./dist/index.js"
   },
   "publishConfig": {
     "access": "public"
   },
   "scripts": {
+    "build": "tsdown",
+    "build:watch": "tsdown --watch",
     "lint": "oxlint --fix",
     "lint:check": "oxlint",
+    "prepublishOnly": "bun run build",
     "test": "vitest run --project unit",
     "test:e2e": "vitest run --project e2e --maxWorkers 1 --fileParallelism false",
     "test:interactive": "vitest run --project interactive --maxWorkers 1 --fileParallelism false",
@@ -26,7 +33,7 @@
     "@better-update/safe-json": "workspace:*",
     "@effect/cli": "^0.75.1",
     "@effect/platform": "^0.96.0",
-    "@effect/platform-bun": "^0.89.0",
+    "@effect/platform-node": "^0.106.0",
     "@expo/apple-utils": "^2.1.21",
     "@expo/config": "^55.0.15",
     "@expo/pkcs12": "^0.4.2",
@@ -40,9 +47,13 @@
   "devDependencies": {
     "@better-update/oxlint-config": "workspace:*",
     "@better-update/typescript-config": "workspace:*",
-    "node-pty": "^1.1.0"
+    "node-pty": "^1.1.0",
+    "tsdown": "^0.9.0"
   },
   "optionalDependencies": {
     "keychain": "^1.5.0"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

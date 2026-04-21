@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { FileSystem, HttpClient, HttpClientResponse } from "@effect/platform";
-import { BunFileSystem } from "@effect/platform-bun";
+import { NodeFileSystem } from "@effect/platform-node";
 import { it } from "@effect/vitest";
 import { Effect, Exit, Layer } from "effect";
 
@@ -156,7 +156,7 @@ describe(reserveAndUpload, () => {
       });
 
       const result = yield* reserveAndUpload(api, baseInput(file.path)).pipe(
-        Effect.provide(makePresignedUploadLayer(BunFileSystem.layer, okResponse)),
+        Effect.provide(makePresignedUploadLayer(NodeFileSystem.layer, okResponse)),
         Effect.ensuring(Effect.sync(file.dispose)),
       );
 
@@ -227,7 +227,7 @@ describe(reserveAndUpload, () => {
       const exit = yield* reserveAndUpload(api, baseInput(file.path)).pipe(
         Effect.provide(
           makePresignedUploadLayer(
-            BunFileSystem.layer,
+            NodeFileSystem.layer,
             () => new Response("AccessDenied", { status: 403, statusText: "Forbidden" }),
           ),
         ),
@@ -249,7 +249,7 @@ describe(reserveAndUpload, () => {
         complete: () => Effect.fail(new Error("db error")),
       });
       const exit = yield* reserveAndUpload(api, baseInput(file.path)).pipe(
-        Effect.provide(makePresignedUploadLayer(BunFileSystem.layer, okResponse)),
+        Effect.provide(makePresignedUploadLayer(NodeFileSystem.layer, okResponse)),
         Effect.ensuring(Effect.sync(file.dispose)),
         Effect.exit,
       );

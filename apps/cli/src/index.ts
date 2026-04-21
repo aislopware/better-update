@@ -1,9 +1,9 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 
 import process from "node:process";
 
 import { Command } from "@effect/cli";
-import { BunRuntime } from "@effect/platform-bun";
+import { NodeRuntime } from "@effect/platform-node";
 import { Console, Effect } from "effect";
 
 import { CliLive } from "./app-layer";
@@ -50,4 +50,4 @@ const cli = Command.run(command, {
   version: "0.1.0",
 });
 
-cli(process.argv).pipe(Effect.provide(CliLive), BunRuntime.runMain);
+cli(process.argv).pipe(Effect.provide(CliLive), NodeRuntime.runMain);
