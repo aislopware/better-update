@@ -57,7 +57,7 @@ const missingRuntimeVersion = {
 };
 
 describe("compatibility UI", () => {
-  test("renders compatibility matrix and missing build warnings", () => {
+  it("renders compatibility matrix and missing build warnings", () => {
     render(<CompatibilityMatrix rows={[build]} missingRuntimeVersions={[missingRuntimeVersion]} />);
 
     expect(screen.getByText("Builds × Channels")).toBeInTheDocument();
@@ -68,7 +68,7 @@ describe("compatibility UI", () => {
     expect(screen.getByText("1 updates, latest Native change")).toBeInTheDocument();
   });
 
-  test("renders compatible builds and missing matching builds sections", () => {
+  it("renders compatible builds and missing matching builds sections", () => {
     render(
       <>
         <CompatibleBuildsSection
@@ -90,7 +90,7 @@ describe("compatibility UI", () => {
     expect(screen.getByText("android v3.0.0")).toBeInTheDocument();
   });
 
-  test("renders empty state when no compatible builds exist", () => {
+  it("renders empty state when no compatible builds exist", () => {
     render(<CompatibleBuildsSection compatibleBuilds={[]} />);
 
     expect(

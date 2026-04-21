@@ -4,81 +4,47 @@ import {
   Forbidden as ApiForbidden,
   NotFound as ApiNotFound,
 } from "@better-update/api";
-import { Effect } from "effect";
+import { Effect, Match } from "effect";
 
 import type { BadRequest, Conflict, Forbidden, NotFound } from "../errors";
 import type { MissingValueError } from "../lib/require-value";
 
-const exhaust = (value: never): never => value;
-
 const mapForbiddenError = (error: Forbidden): ApiForbidden =>
   new ApiForbidden({ message: error.message });
 
-const mapCrudError = (
-  error: Conflict | Forbidden | NotFound,
-): ApiConflict | ApiForbidden | ApiNotFound => {
-  switch (error._tag) {
-    case "Conflict": {
-      return new ApiConflict({ message: error.message });
-    }
-    case "Forbidden": {
-      return new ApiForbidden({ message: error.message });
-    }
-    case "NotFound": {
-      return new ApiNotFound({ message: error.message });
-    }
-    default: {
-      return exhaust(error);
-    }
-  }
-};
+const mapCrudError = Match.type<Conflict | Forbidden | NotFound>().pipe(
+  Match.tag("Conflict", (error) => new ApiConflict({ message: error.message })),
+  Match.tag("Forbidden", (error) => new ApiForbidden({ message: error.message })),
+  Match.tag("NotFound", (error) => new ApiNotFound({ message: error.message })),
+  Match.exhaustive,
+);
 
-const mapWriteError = (
-  error: BadRequest | Conflict | Forbidden | MissingValueError | NotFound,
-): ApiBadRequest | ApiConflict | ApiForbidden | ApiNotFound => {
-  switch (error._tag) {
-    case "BadRequest": {
-      return new ApiBadRequest({ message: error.message });
-    }
-    case "Conflict": {
-      return new ApiConflict({ message: error.message });
-    }
-    case "Forbidden": {
-      return new ApiForbidden({ message: error.message });
-    }
-    case "MissingValueError": {
-      return new ApiBadRequest({ message: `Missing required field: ${error.field}` });
-    }
-    case "NotFound": {
-      return new ApiNotFound({ message: error.message });
-    }
-    default: {
-      return exhaust(error);
-    }
-  }
-};
+const mapWriteError = Match.type<
+  BadRequest | Conflict | Forbidden | MissingValueError | NotFound
+>().pipe(
+  Match.tag("BadRequest", (error) => new ApiBadRequest({ message: error.message })),
+  Match.tag("Conflict", (error) => new ApiConflict({ message: error.message })),
+  Match.tag("Forbidden", (error) => new ApiForbidden({ message: error.message })),
+  Match.tag(
+    "MissingValueError",
+    (error) => new ApiBadRequest({ message: `Missing required field: ${error.field}` }),
+  ),
+  Match.tag("NotFound", (error) => new ApiNotFound({ message: error.message })),
+  Match.exhaustive,
+);
 
-const mapBadRequestReadError = (
-  error: BadRequest | Forbidden | MissingValueError | NotFound,
-): ApiBadRequest | ApiForbidden | ApiNotFound => {
-  switch (error._tag) {
-    case "BadRequest": {
-      return new ApiBadRequest({ message: error.message });
-    }
-    case "Forbidden": {
-      return new ApiForbidden({ message: error.message });
-    }
-    case "MissingValueError": {
-      return new ApiBadRequest({ message: `Missing required field: ${error.field}` });
-    }
-    case "NotFound": {
-      return new ApiNotFound({ message: error.message });
-    }
-    default: {
-      return exhaust(error);
-    }
-  }
-};
+const mapBadRequestReadError = Match.type<
+  BadRequest | Forbidden | MissingValueError | NotFound
+>().pipe(
+  Match.tag("BadRequest", (error) => new ApiBadRequest({ message: error.message })),
+  Match.tag("Forbidden", (error) => new ApiForbidden({ message: error.message })),
+  Match.tag(
+    "MissingValueError",
+    (error) => new ApiBadRequest({ message: `Missing required field: ${error.field}` }),
+  ),
+  Match.tag("NotFound", (error) => new ApiNotFound({ message: error.message })),
+  Match.exhaustive,
+);
 
 export const toApiForbiddenEffect = <Success, Requirements>(
   effect: Effect.Effect<Success, Forbidden, Requirements>,

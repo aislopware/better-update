@@ -2,18 +2,18 @@ import { setupE2EDashboard } from "../helpers/e2e-dashboard";
 
 const { post, get, parseCookies } = setupE2EDashboard();
 
-describe("API proxy contract", () => {
-  it("GET /api/auth/ok returns 200", async () => {
+describe("aPI proxy contract", () => {
+  it("gET /api/auth/ok returns 200", async () => {
     const response = await get("/api/auth/ok");
     expect(response.status).toBe(200);
   });
 
-  it("GET /api/projects without auth returns 401", async () => {
+  it("gET /api/projects without auth returns 401", async () => {
     const response = await get("/api/projects");
     expect(response.status).toBe(401);
   });
 
-  it("POST /api/auth/sign-up/email creates user with set-cookie", async () => {
+  it("pOST /api/auth/sign-up/email creates user with set-cookie", async () => {
     const response = await post("/api/auth/sign-up/email", {
       name: "Proxy User",
       email: "proxy@example.com",

@@ -7,8 +7,8 @@ import {
   provideCloudflareRequestContext,
 } from "./context";
 
-describe("Cloudflare request context", () => {
-  test("provideCloudflareRequestContext stores env and ctx", () => {
+describe("cloudflare request context", () => {
+  it("provideCloudflareRequestContext stores env and ctx", () => {
     const mockEnv = { DB: {}, SESSION_KV: {} } as unknown as Env;
     const mockCtx = {
       waitUntil: () => {},

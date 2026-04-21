@@ -15,9 +15,9 @@ const validHeaders = () =>
   });
 
 describe(parseProtocolHeaders, () => {
-  test("valid headers returns ProtocolHeaders", async () => {
+  it("valid headers returns ProtocolHeaders", async () => {
     const result = await Effect.runPromise(parseProtocolHeaders(validHeaders()));
-    expect(result).toEqual({
+    expect(result).toStrictEqual({
       protocolVersion: 1,
       platform: "ios",
       runtimeVersion: "1.0.0",
@@ -30,49 +30,49 @@ describe(parseProtocolHeaders, () => {
     });
   });
 
-  test("missing expo-protocol-version fails with BadRequest", async () => {
+  it("missing expo-protocol-version fails with BadRequest", async () => {
     const headers = validHeaders();
     headers.delete("expo-protocol-version");
     const error = await Effect.runPromise(Effect.flip(parseProtocolHeaders(headers)));
     expectBadRequest(error);
   });
 
-  test("wrong expo-protocol-version fails with BadRequest", async () => {
+  it("wrong expo-protocol-version fails with BadRequest", async () => {
     const headers = validHeaders();
     headers.set("expo-protocol-version", "0");
     const error = await Effect.runPromise(Effect.flip(parseProtocolHeaders(headers)));
     expectBadRequest(error);
   });
 
-  test("invalid expo-platform fails with BadRequest", async () => {
+  it("invalid expo-platform fails with BadRequest", async () => {
     const headers = validHeaders();
     headers.set("expo-platform", "web");
     const error = await Effect.runPromise(Effect.flip(parseProtocolHeaders(headers)));
     expectBadRequest(error);
   });
 
-  test("missing expo-runtime-version fails with BadRequest", async () => {
+  it("missing expo-runtime-version fails with BadRequest", async () => {
     const headers = validHeaders();
     headers.delete("expo-runtime-version");
     const error = await Effect.runPromise(Effect.flip(parseProtocolHeaders(headers)));
     expectBadRequest(error);
   });
 
-  test("missing expo-channel-name fails with BadRequest", async () => {
+  it("missing expo-channel-name fails with BadRequest", async () => {
     const headers = validHeaders();
     headers.delete("expo-channel-name");
     const error = await Effect.runPromise(Effect.flip(parseProtocolHeaders(headers)));
     expectBadRequest(error);
   });
 
-  test("optional headers absent returns undefined", async () => {
+  it("optional headers absent returns undefined", async () => {
     const result = await Effect.runPromise(parseProtocolHeaders(validHeaders()));
     expect(result.expectSignature).toBeUndefined();
     expect(result.easClientId).toBeUndefined();
     expect(result.accept).toBeUndefined();
   });
 
-  test("optional headers present returns values", async () => {
+  it("optional headers present returns values", async () => {
     const headers = validHeaders();
     headers.set("expo-expect-signature", "sig-abc");
     headers.set("eas-client-id", "client-123");
@@ -83,7 +83,7 @@ describe(parseProtocolHeaders, () => {
     expect(result.accept).toBe("multipart/mixed");
   });
 
-  test("valid extra params returns raw string", async () => {
+  it("valid extra params returns raw string", async () => {
     const headers = validHeaders();
     const raw = 'user-cohort="beta", flag=?1';
     headers.set("expo-extra-params", raw);
@@ -91,14 +91,14 @@ describe(parseProtocolHeaders, () => {
     expect(result.extraParams).toBe(raw);
   });
 
-  test("malformed extra params returns undefined", async () => {
+  it("malformed extra params returns undefined", async () => {
     const headers = validHeaders();
     headers.set("expo-extra-params", ";;;invalid");
     const result = await Effect.runPromise(parseProtocolHeaders(headers));
     expect(result.extraParams).toBeUndefined();
   });
 
-  test("extra params with exactly 16 keys returns raw string", async () => {
+  it("extra params with exactly 16 keys returns raw string", async () => {
     const headers = validHeaders();
     const keys = Array.from({ length: 16 }, (_, idx) => `k${idx}=?1`).join(", ");
     headers.set("expo-extra-params", keys);
@@ -106,7 +106,7 @@ describe(parseProtocolHeaders, () => {
     expect(result.extraParams).toBe(keys);
   });
 
-  test("extra params exceeding 16 keys returns undefined", async () => {
+  it("extra params exceeding 16 keys returns undefined", async () => {
     const headers = validHeaders();
     const keys = Array.from({ length: 17 }, (_, idx) => `k${idx}=?1`).join(", ");
     headers.set("expo-extra-params", keys);
@@ -114,7 +114,7 @@ describe(parseProtocolHeaders, () => {
     expect(result.extraParams).toBeUndefined();
   });
 
-  test("extra params with string value of exactly 256 bytes returns raw string", async () => {
+  it("extra params with string value of exactly 256 bytes returns raw string", async () => {
     const headers = validHeaders();
     const exactValue = "a".repeat(256);
     const raw = `key="${exactValue}"`;
@@ -123,7 +123,7 @@ describe(parseProtocolHeaders, () => {
     expect(result.extraParams).toBe(raw);
   });
 
-  test("extra params with string value exceeding 256 bytes returns undefined", async () => {
+  it("extra params with string value exceeding 256 bytes returns undefined", async () => {
     const headers = validHeaders();
     const longValue = "a".repeat(257);
     headers.set("expo-extra-params", `key="${longValue}"`);
@@ -133,12 +133,12 @@ describe(parseProtocolHeaders, () => {
 });
 
 describe(addServerDefinedHeaders, () => {
-  test("returns same response when extraParams is undefined", () => {
+  it("returns same response when extraParams is undefined", () => {
     const response = new Response(null, { status: 204 });
     expect(addServerDefinedHeaders(response, undefined)).toBe(response);
   });
 
-  test("sets expo-server-defined-headers with base64 byte sequence", async () => {
+  it("sets expo-server-defined-headers with base64 byte sequence", async () => {
     const response = new Response("body", { status: 200 });
     const raw = 'cohort="beta"';
     const result = addServerDefinedHeaders(response, raw);
@@ -146,10 +146,10 @@ describe(addServerDefinedHeaders, () => {
       `expo-extra-params=:${btoa(raw)}:`,
     );
     expect(result.status).toBe(200);
-    expect(await result.text()).toBe("body");
+    await expect(result.text()).resolves.toBe("body");
   });
 
-  test("preserves existing response headers", () => {
+  it("preserves existing response headers", () => {
     const response = new Response(null, { status: 200, headers: { "x-custom": "keep" } });
     const result = addServerDefinedHeaders(response, "k=?1");
     expect(result.headers.get("x-custom")).toBe("keep");

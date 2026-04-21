@@ -35,7 +35,7 @@ const runCoordinatorEffect = async <Success>(
   );
 
 export class CreateBranchCoordinator extends SerializedCoordinator {
-  async ensureBranchChannel(params: {
+  public async ensureBranchChannel(params: {
     readonly projectId: string;
     readonly branchName: string;
   }): Promise<CoordinatorResult<EnsureBranchChannelResult>> {
@@ -46,7 +46,9 @@ export class CreateBranchCoordinator extends SerializedCoordinator {
 }
 
 export class PublishCoordinator extends SerializedCoordinator {
-  async createUpdate(params: CreateUpdateRequest): Promise<CoordinatorResult<SerializedUpdate>> {
+  public async createUpdate(
+    params: CreateUpdateRequest,
+  ): Promise<CoordinatorResult<SerializedUpdate>> {
     return this.runExclusive(async () => {
       const result = await runCoordinatorEffect(
         publishUpdate({
@@ -64,7 +66,7 @@ export class PublishCoordinator extends SerializedCoordinator {
     });
   }
 
-  async republishUpdate(
+  public async republishUpdate(
     params: RepublishUpdateRequest,
   ): Promise<CoordinatorResult<readonly SerializedUpdate[]>> {
     return this.runExclusive(async () => {

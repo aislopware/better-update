@@ -74,18 +74,18 @@ const channelCardLocator = () =>
 
 // ── Tests ─────────────────────────────────────────────────────────────────
 
-describe("Dashboard project + branches + channels (browser)", () => {
-  test("creates a project", async () => {
+describe("dashboard project + branches + channels (browser)", () => {
+  it("creates a project", async () => {
     await createProjectViaUI(page, { name: projectName, slug });
     await openProjectFromListViaUI(page, projectName);
   });
 
-  test("creates branches", async () => {
+  it("creates branches", async () => {
     await createBranchViaUI(mainBranchName);
     await createBranchViaUI(stagingBranchName);
   });
 
-  test("renames a branch", async () => {
+  it("renames a branch", async () => {
     const card = branchCardLocator(stagingBranchName);
     // Rename is the first icon-only ghost button inside the branch card header
     const iconButtons = card.locator("button").filter({ hasNotText: /\S/u });
@@ -100,7 +100,7 @@ describe("Dashboard project + branches + channels (browser)", () => {
     await page.getByText(renamedStagingBranchName).first().waitFor();
   });
 
-  test("deletes a branch via confirm dialog", async () => {
+  it("deletes a branch via confirm dialog", async () => {
     const card = branchCardLocator(renamedStagingBranchName);
     const iconButtons = card.locator("button").filter({ hasNotText: /\S/u });
     await iconButtons.nth(1).click();
@@ -116,7 +116,7 @@ describe("Dashboard project + branches + channels (browser)", () => {
     await branchCardLocator(renamedStagingBranchName).waitFor({ state: "detached" });
   });
 
-  test("creates a channel linked to the main branch", async () => {
+  it("creates a channel linked to the main branch", async () => {
     await gotoTabViaUI(page, "Channels");
 
     await page.getByRole("button", { name: "Create channel" }).click();
@@ -133,7 +133,7 @@ describe("Dashboard project + branches + channels (browser)", () => {
     await page.getByText(channelName, { exact: true }).waitFor();
   });
 
-  test("relinks channel to a different branch", async () => {
+  it("relinks channel to a different branch", async () => {
     // Seed an extra branch for rollout/relink scenarios
     await gotoTabViaUI(page, "Branches");
     await createBranchViaUI(rolloutBranchName);
@@ -151,7 +151,7 @@ describe("Dashboard project + branches + channels (browser)", () => {
     await expectToast(page, "Channel relinked");
   });
 
-  test("pauses and resumes the channel", async () => {
+  it("pauses and resumes the channel", async () => {
     const card = channelCardLocator();
     // Pause/resume is an unlabeled ghost icon button in the card header.
     // It is the first icon-only button in the card (rename/delete channel follows).
@@ -167,7 +167,7 @@ describe("Dashboard project + branches + channels (browser)", () => {
     await card.getByText("Paused").waitFor({ state: "detached" });
   });
 
-  test("starts a branch rollout and adjusts percentage", async () => {
+  it("starts a branch rollout and adjusts percentage", async () => {
     const card = channelCardLocator();
 
     await card.getByRole("button", { name: /Start Rollout/iu }).click();
@@ -188,14 +188,14 @@ describe("Dashboard project + branches + channels (browser)", () => {
     await expectToast(page, /Rollout updated to 50%/u);
   });
 
-  test("reverts the in-progress rollout", async () => {
+  it("reverts the in-progress rollout", async () => {
     const card = channelCardLocator();
     await card.getByRole("button", { name: /Revert rollout/iu }).click();
     await expectToast(page, /Rollout reverted/u);
     await card.getByText(/Rolling out/u).waitFor({ state: "detached" });
   });
 
-  test("starts a second rollout and completes it", async () => {
+  it("starts a second rollout and completes it", async () => {
     const card = channelCardLocator();
     await card.getByRole("button", { name: /Start Rollout/iu }).click();
     await card.getByRole("combobox").nth(1).click();
@@ -210,7 +210,7 @@ describe("Dashboard project + branches + channels (browser)", () => {
     await card.getByText(/Rolling out/u).waitFor({ state: "detached" });
   });
 
-  test("navigates to channel detail and verifies summary cards + compatible builds", async () => {
+  it("navigates to channel detail and verifies summary cards + compatible builds", async () => {
     const card = channelCardLocator();
     await card.getByRole("link", { name: "View details" }).click();
     await page.waitForURL(/\/projects\/[^/]+\/channels\/[^/]+$/u);
@@ -235,7 +235,7 @@ describe("Dashboard project + branches + channels (browser)", () => {
     await page.getByRole("tab", { name: "Branches" }).waitFor();
   });
 
-  test("deletes the channel via confirm dialog", async () => {
+  it("deletes the channel via confirm dialog", async () => {
     await gotoTabViaUI(page, "Channels");
     const card = channelCardLocator();
     const iconButtons = card.locator("button").filter({ hasNotText: /\S/u });
@@ -251,7 +251,7 @@ describe("Dashboard project + branches + channels (browser)", () => {
     await channelCardLocator().waitFor({ state: "detached" });
   });
 
-  test("renames the project via the settings section", async () => {
+  it("renames the project via the settings section", async () => {
     const newName = `${projectName} renamed`;
     await page.getByLabel("Project name").fill(newName);
     await page.getByRole("button", { name: "Save", exact: true }).click();
@@ -259,7 +259,7 @@ describe("Dashboard project + branches + channels (browser)", () => {
     await page.getByRole("heading", { name: newName }).waitFor();
   });
 
-  test("deletes the project via the danger zone confirm dialog", async () => {
+  it("deletes the project via the danger zone confirm dialog", async () => {
     const currentName = `${projectName} renamed`;
     await page.getByRole("button", { name: "Delete project" }).click();
     const dialog = page.getByRole("dialog");

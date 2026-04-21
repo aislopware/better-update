@@ -1,4 +1,4 @@
-import { Either, Effect } from "effect";
+import { Effect } from "effect";
 
 import { CurrentActor } from "../auth/current-actor";
 import { toDbNull } from "../lib/nullable";
@@ -29,11 +29,4 @@ export const logAudit = (params: {
       metadata: params.metadata ? JSON.stringify(params.metadata) : null,
       source: ctx.source,
     });
-  }).pipe(
-    Effect.either,
-    Effect.flatMap((result) =>
-      Either.isRight(result)
-        ? Effect.void
-        : Effect.logError("Audit log insert failed", result.left),
-    ),
-  );
+  }).pipe(Effect.catchAll((error) => Effect.logError("Audit log insert failed", error)));

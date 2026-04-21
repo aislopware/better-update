@@ -116,8 +116,8 @@ describe(resolveProvider, () => {
 
       const result = yield* resolveProvider(appleUtils, [provider(1), provider(2)], 1, undefined);
 
-      expect(result).toEqual({ providerId: 2, switched: true });
-      expect(calls).toEqual([2]);
+      expect(result).toStrictEqual({ providerId: 2, switched: true });
+      expect(calls).toStrictEqual([2]);
     }).pipe(Effect.provide(provideTestServices({ APPLE_PROVIDER_ID: "2" }))),
   );
 
@@ -131,8 +131,8 @@ describe(resolveProvider, () => {
 
       const result = yield* resolveProvider(appleUtils, [provider(1), provider(2)], 1, undefined);
 
-      expect(result).toEqual({ providerId: 1, switched: false });
-      expect(calls).toEqual([]);
+      expect(result).toStrictEqual({ providerId: 1, switched: false });
+      expect(calls).toStrictEqual([]);
     }).pipe(Effect.provide(provideTestServices({ APPLE_PROVIDER_ID: "1" }))),
   );
 
@@ -159,8 +159,8 @@ describe(resolveProvider, () => {
         3,
       );
 
-      expect(result).toEqual({ providerId: 3, switched: true });
-      expect(calls).toEqual([3]);
+      expect(result).toStrictEqual({ providerId: 3, switched: true });
+      expect(calls).toStrictEqual([3]);
     }).pipe(Effect.provide(provideTestServices())),
   );
 
@@ -175,8 +175,8 @@ describe(resolveProvider, () => {
       // Cached provider 99 no longer in availableProviders → fall through.
       const result = yield* resolveProvider(appleUtils, [provider(7)], 7, 99);
 
-      expect(result).toEqual({ providerId: 7, switched: false });
-      expect(calls).toEqual([]);
+      expect(result).toStrictEqual({ providerId: 7, switched: false });
+      expect(calls).toStrictEqual([]);
     }).pipe(Effect.provide(provideTestServices())),
   );
 
@@ -186,7 +186,7 @@ describe(resolveProvider, () => {
 
       const result = yield* resolveProvider(appleUtils, [], 5, undefined);
 
-      expect(result).toEqual({ providerId: 5, switched: false });
+      expect(result).toStrictEqual({ providerId: 5, switched: false });
     }).pipe(Effect.provide(provideTestServices())),
   );
 
@@ -196,7 +196,7 @@ describe(resolveProvider, () => {
 
       const result = yield* resolveProvider(appleUtils, [], undefined, undefined);
 
-      expect(result).toEqual({ providerId: undefined, switched: false });
+      expect(result).toStrictEqual({ providerId: undefined, switched: false });
     }).pipe(Effect.provide(provideTestServices())),
   );
 
@@ -210,8 +210,8 @@ describe(resolveProvider, () => {
 
       const result = yield* resolveProvider(appleUtils, [provider(42)], undefined, undefined);
 
-      expect(result).toEqual({ providerId: 42, switched: true });
-      expect(calls).toEqual([42]);
+      expect(result).toStrictEqual({ providerId: 42, switched: true });
+      expect(calls).toStrictEqual([42]);
     }).pipe(Effect.provide(provideTestServices())),
   );
 
@@ -233,8 +233,8 @@ describe(resolveProvider, () => {
           undefined,
         );
 
-        expect(result).toEqual({ providerId: 2, switched: false });
-        expect(calls).toEqual([]);
+        expect(result).toStrictEqual({ providerId: 2, switched: false });
+        expect(calls).toStrictEqual([]);
       }).pipe(Effect.provide(provideTestServices())),
   );
 
@@ -253,8 +253,8 @@ describe(resolveProvider, () => {
         3,
       );
 
-      expect(result).toEqual({ providerId: 2, switched: true });
-      expect(calls).toEqual([2]);
+      expect(result).toStrictEqual({ providerId: 2, switched: true });
+      expect(calls).toStrictEqual([2]);
     }).pipe(Effect.provide(provideTestServices({ APPLE_PROVIDER_ID: "2" }))),
   );
 
@@ -352,8 +352,8 @@ describe("resolveProvider (prompt branch)", () => {
         ),
       );
 
-      expect(result).toEqual({ providerId: 30, switched: true });
-      expect(calls).toEqual([30]);
+      expect(result).toStrictEqual({ providerId: 30, switched: true });
+      expect(calls).toStrictEqual([30]);
       const allDisplay = displayed.join("");
       expect(allDisplay).toContain("Select App Store Connect provider");
       expect(allDisplay).toContain("Org C");
@@ -376,8 +376,8 @@ describe("resolveProvider (prompt branch)", () => {
         undefined,
       ).pipe(Effect.provide(provideScriptedPrompt([{ name: "return" }], displayed)));
 
-      expect(result).toEqual({ providerId: 1, switched: true });
-      expect(calls).toEqual([1]);
+      expect(result).toStrictEqual({ providerId: 1, switched: true });
+      expect(calls).toStrictEqual([1]);
     }),
   );
 

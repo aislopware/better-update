@@ -2,7 +2,7 @@ import { setupE2EDashboard } from "../helpers/e2e-dashboard";
 
 const { post, get, parseCookies } = setupE2EDashboard();
 
-describe("Auth guards contract", () => {
+describe("auth guards contract", () => {
   it("unauthenticated GET /api/projects returns 401", async () => {
     const response = await get("/api/projects");
     expect(response.status).toBe(401);

@@ -154,14 +154,14 @@ afterAll(async () => {
 
 // ── Tests ─────────────────────────────────────────────────────────────────
 
-describe("Dashboard updates + env vars + builds (browser)", () => {
-  test("updates tab shows seeded updates", async () => {
+describe("dashboard updates + env vars + builds (browser)", () => {
+  it("updates tab shows seeded updates", async () => {
     await gotoTabViaUI(page, "Updates");
     await page.getByText("Main update").first().waitFor();
     await page.getByText("Staging update").first().waitFor();
   });
 
-  test("filters updates by branch", async () => {
+  it("filters updates by branch", async () => {
     await gotoTabViaUI(page, "Updates");
     await page.getByRole("combobox").first().click();
     await page.getByRole("option", { name: stagingBranchName }).click();
@@ -177,7 +177,7 @@ describe("Dashboard updates + env vars + builds (browser)", () => {
     await page.getByText("Main update").first().waitFor();
   });
 
-  test("promotes an update to another channel via dialog", async () => {
+  it("promotes an update to another channel via dialog", async () => {
     await gotoTabViaUI(page, "Updates");
     const mainCard = page.locator('[data-slot="card"]').filter({ hasText: "Main update" }).first();
     await mainCard.getByRole("button", { name: /Promote to another channel/iu }).click();
@@ -191,7 +191,7 @@ describe("Dashboard updates + env vars + builds (browser)", () => {
     await dialog.waitFor({ state: "detached" });
   });
 
-  test("creates a rollback-to-embedded directive via dialog", async () => {
+  it("creates a rollback-to-embedded directive via dialog", async () => {
     await gotoTabViaUI(page, "Updates");
     const mainCard = page.locator('[data-slot="card"]').filter({ hasText: "Main update" }).first();
     await mainCard.getByRole("button", { name: /Rollback to embedded/iu }).click();
@@ -205,7 +205,7 @@ describe("Dashboard updates + env vars + builds (browser)", () => {
     await page.getByText("Rollback to embedded").first().waitFor();
   });
 
-  test("adjusts update rollout percentage via Apply", async () => {
+  it("adjusts update rollout percentage via Apply", async () => {
     await gotoTabViaUI(page, "Updates");
     const mainCard = page.locator('[data-slot="card"]').filter({ hasText: "Main update" }).first();
     const input = mainCard.getByRole("spinbutton");
@@ -214,14 +214,14 @@ describe("Dashboard updates + env vars + builds (browser)", () => {
     await expectToast(page, /Rollout updated to 75%/u);
   });
 
-  test("reverts update rollout to 0%", async () => {
+  it("reverts update rollout to 0%", async () => {
     await gotoTabViaUI(page, "Updates");
     const mainCard = page.locator('[data-slot="card"]').filter({ hasText: "Main update" }).first();
     await mainCard.getByRole("button", { name: /Revert rollout/iu }).click();
     await expectToast(page, /Rollout reverted/u);
   });
 
-  test("completes update rollout to 100%", async () => {
+  it("completes update rollout to 100%", async () => {
     await gotoTabViaUI(page, "Updates");
     const mainCard = page.locator('[data-slot="card"]').filter({ hasText: "Main update" }).first();
     // After revert, percentage is 0. Bump it so Apply works, then click Complete.
@@ -234,7 +234,7 @@ describe("Dashboard updates + env vars + builds (browser)", () => {
     await expectToast(page, /Rollout completed/u);
   });
 
-  test("deletes an update group", async () => {
+  it("deletes an update group", async () => {
     await gotoTabViaUI(page, "Updates");
     const stagingCard = page
       .locator('[data-slot="card"]')
@@ -250,7 +250,7 @@ describe("Dashboard updates + env vars + builds (browser)", () => {
 
   // ── Env vars ─────────────────────────────────────────────────────────────
 
-  test("creates a plaintext env variable", async () => {
+  it("creates a plaintext env variable", async () => {
     await gotoTabViaUI(page, "Env Variables");
 
     await page.getByRole("button", { name: "Add variable" }).click();
@@ -264,7 +264,7 @@ describe("Dashboard updates + env vars + builds (browser)", () => {
     await page.getByRole("cell", { name: `EXPO_PUBLIC_API_URL_${suffix.toUpperCase()}` }).waitFor();
   });
 
-  test("edits the env variable value", async () => {
+  it("edits the env variable value", async () => {
     await gotoTabViaUI(page, "Env Variables");
 
     const row = page
@@ -282,7 +282,7 @@ describe("Dashboard updates + env vars + builds (browser)", () => {
     await page.getByRole("cell", { name: "https://api.updated.example.com" }).waitFor();
   });
 
-  test("deletes the env variable", async () => {
+  it("deletes the env variable", async () => {
     await gotoTabViaUI(page, "Env Variables");
 
     const row = page
@@ -301,7 +301,7 @@ describe("Dashboard updates + env vars + builds (browser)", () => {
       .waitFor({ state: "detached" });
   });
 
-  test("opens the import env vars dialog", async () => {
+  it("opens the import env vars dialog", async () => {
     await gotoTabViaUI(page, "Env Variables");
     await page.getByRole("button", { name: "Import .env" }).click();
 
@@ -319,7 +319,7 @@ describe("Dashboard updates + env vars + builds (browser)", () => {
 
   // ── Builds ───────────────────────────────────────────────────────────────
 
-  test("builds tab lists seeded builds", async () => {
+  it("builds tab lists seeded builds", async () => {
     await gotoTabViaUI(page, "Builds");
     await page
       .locator('[data-slot="card"]')
@@ -333,7 +333,7 @@ describe("Dashboard updates + env vars + builds (browser)", () => {
       .waitFor();
   });
 
-  test("filters builds by platform", async () => {
+  it("filters builds by platform", async () => {
     await dismissToasts(page);
     await gotoTabViaUI(page, "Builds");
     await page
@@ -373,7 +373,7 @@ describe("Dashboard updates + env vars + builds (browser)", () => {
       .waitFor();
   });
 
-  test("opens the install link dialog for a build", async () => {
+  it("opens the install link dialog for a build", async () => {
     await gotoTabViaUI(page, "Builds");
     // `.last()` skips the CompatibilityMatrix Card (which also contains the
     // Build message) and picks the BuildCard that owns the action buttons.
@@ -391,7 +391,7 @@ describe("Dashboard updates + env vars + builds (browser)", () => {
     await waitForPortalCleanup(page);
   });
 
-  test("opens build detail and verifies metadata, artifact, and compatible channels", async () => {
+  it("opens build detail and verifies metadata, artifact, and compatible channels", async () => {
     await gotoTabViaUI(page, "Builds");
     const iosCard = page.locator('[data-slot="card"]').filter({ hasText: "iOS seed build" }).last();
     await iosCard.getByRole("link", { name: "View details" }).click();
@@ -423,7 +423,7 @@ describe("Dashboard updates + env vars + builds (browser)", () => {
     await page.getByRole("tab", { name: "Branches" }).waitFor();
   });
 
-  test("deletes a build via confirm dialog", async () => {
+  it("deletes a build via confirm dialog", async () => {
     await gotoTabViaUI(page, "Builds");
     const androidCard = page
       .locator('[data-slot="card"]')

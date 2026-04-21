@@ -146,7 +146,7 @@ const LoginSubmitStateTestForm = ({ onSubmit }: { onSubmit: () => Promise<void> 
 };
 
 describe("login form submit", () => {
-  test("submitting with valid credentials calls sign-in endpoint", async () => {
+  it("submitting with valid credentials calls sign-in endpoint", async () => {
     const user = userEvent.setup();
 
     const fetchMock = mockFetch({
@@ -160,7 +160,7 @@ describe("login form submit", () => {
     await user.click(screen.getByRole("button", { name: "Sign in" }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalled();
+      expect(fetchMock).toHaveBeenCalledWith();
     });
 
     const call = fetchMock.mock.calls[0]!;
@@ -171,7 +171,7 @@ describe("login form submit", () => {
     vi.restoreAllMocks();
   });
 
-  test("submit button is disabled while submitting", async () => {
+  it("submit button is disabled while submitting", async () => {
     const user = userEvent.setup();
 
     const signInDeferred = Effect.runSync(Deferred.make<undefined>());
@@ -195,7 +195,7 @@ describe("login form submit", () => {
     });
   });
 
-  test("email validation error shows on blur", async () => {
+  it("email validation error shows on blur", async () => {
     const user = userEvent.setup();
     render(<LoginTestForm />);
 
@@ -207,7 +207,7 @@ describe("login form submit", () => {
     });
   });
 
-  test("password validation error shows on blur", async () => {
+  it("password validation error shows on blur", async () => {
     const user = userEvent.setup();
     render(<LoginTestForm />);
 

@@ -6,7 +6,7 @@ const buildProfile = (body: string) =>
   new TextEncoder().encode(`binary-prefix<?xml version="1.0"?>\n<plist>${body}</plist>trailer`);
 
 describe(parseProvisioningProfile, () => {
-  test("parses app-store profile", async () => {
+  it("parses app-store profile", async () => {
     const plist = `
       <dict>
         <key>TeamIdentifier</key><array><string>ABCDE12345</string></array>
@@ -22,10 +22,10 @@ describe(parseProvisioningProfile, () => {
     expect(result.bundleIdentifier).toBe("com.example.app");
     expect(result.distributionType).toBe("APP_STORE");
     expect(result.validUntil).toMatch(/2027/);
-    expect(result.certificateSerialNumbers).toEqual(["CERTBASE64"]);
+    expect(result.certificateSerialNumbers).toStrictEqual(["CERTBASE64"]);
   });
 
-  test("infers AD_HOC from ProvisionedDevices", async () => {
+  it("infers AD_HOC from ProvisionedDevices", async () => {
     const plist = `
       <dict>
         <key>TeamIdentifier</key><array><string>ABCDE12345</string></array>
@@ -37,7 +37,7 @@ describe(parseProvisioningProfile, () => {
     expect(result.distributionType).toBe("AD_HOC");
   });
 
-  test("infers DEVELOPMENT from get-task-allow", async () => {
+  it("infers DEVELOPMENT from get-task-allow", async () => {
     const plist = `
       <dict>
         <key>TeamIdentifier</key><array><string>ABCDE12345</string></array>
@@ -50,7 +50,7 @@ describe(parseProvisioningProfile, () => {
     expect(result.distributionType).toBe("DEVELOPMENT");
   });
 
-  test("infers ENTERPRISE from ProvisionsAllDevices", async () => {
+  it("infers ENTERPRISE from ProvisionsAllDevices", async () => {
     const plist = `
       <dict>
         <key>TeamIdentifier</key><array><string>ABCDE12345</string></array>
@@ -62,14 +62,14 @@ describe(parseProvisioningProfile, () => {
     expect(result.distributionType).toBe("ENTERPRISE");
   });
 
-  test("rejects missing plist", async () => {
+  it("rejects missing plist", async () => {
     const error = await Effect.runPromise(
       Effect.flip(parseProvisioningProfile(new TextEncoder().encode("no-plist"))),
     );
     expect(error.message).toMatch(/plist/);
   });
 
-  test("rejects missing TeamIdentifier", async () => {
+  it("rejects missing TeamIdentifier", async () => {
     const plist = `<dict><key>application-identifier</key><string>X.com</string></dict>`;
     const error = await Effect.runPromise(
       Effect.flip(parseProvisioningProfile(buildProfile(plist))),
@@ -77,7 +77,7 @@ describe(parseProvisioningProfile, () => {
     expect(error.message).toMatch(/TeamIdentifier/);
   });
 
-  test("rejects missing application-identifier", async () => {
+  it("rejects missing application-identifier", async () => {
     const plist = `<dict><key>TeamIdentifier</key><array><string>ABCDE12345</string></array></dict>`;
     const error = await Effect.runPromise(
       Effect.flip(parseProvisioningProfile(buildProfile(plist))),

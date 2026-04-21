@@ -41,14 +41,14 @@ const extractClassNames = (content: string): string[] => {
   return matches;
 };
 
-describe("CSS audit: no hardcoded colors in app code", () => {
+describe("cSS audit: no hardcoded colors in app code", () => {
   const files = walk(APP_SRC).filter((file) => !TEST_SUFFIX.test(file));
 
-  test("found app .tsx files to audit", () => {
+  it("found app .tsx files to audit", () => {
     expect(files.length).toBeGreaterThan(0);
   });
 
-  test("no hex color values in className attributes", () => {
+  it("no hex color values in className attributes", () => {
     const violations: string[] = [];
 
     for (const file of files) {
@@ -61,10 +61,10 @@ describe("CSS audit: no hardcoded colors in app code", () => {
       }
     }
 
-    expect(violations).toEqual([]);
+    expect(violations).toStrictEqual([]);
   });
 
-  test("no rgb/rgba/hsl/hsla function calls in className attributes", () => {
+  it("no rgb/rgba/hsl/hsla function calls in className attributes", () => {
     const violations: string[] = [];
 
     for (const file of files) {
@@ -77,10 +77,10 @@ describe("CSS audit: no hardcoded colors in app code", () => {
       }
     }
 
-    expect(violations).toEqual([]);
+    expect(violations).toStrictEqual([]);
   });
 
-  test("no Tailwind hardcoded color utility classes in className attributes", () => {
+  it("no Tailwind hardcoded color utility classes in className attributes", () => {
     const violations: string[] = [];
 
     for (const file of files) {
@@ -93,6 +93,6 @@ describe("CSS audit: no hardcoded colors in app code", () => {
       }
     }
 
-    expect(violations).toEqual([]);
+    expect(violations).toStrictEqual([]);
   });
 });

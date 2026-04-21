@@ -189,9 +189,7 @@ export const resolveIosBuildCredentials = (input: IosResolveInput) =>
       [
         artifacts.get(cert.r2Key, "Distribution certificate"),
         artifacts.get(profile.r2Key, "Provisioning profile"),
-        pushKey === null
-          ? Effect.succeed(null)
-          : artifacts.get(pushKey.r2Key, "Push key").pipe(Effect.map((bytes) => bytes)),
+        pushKey === null ? Effect.succeed(null) : artifacts.get(pushKey.r2Key, "Push key"),
       ],
       { concurrency: "unbounded" },
     );

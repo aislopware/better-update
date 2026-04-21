@@ -40,9 +40,9 @@ const runWithRepoEither = async <Ret, Err>(
 
 // ── Tests ─────────────────────────────────────────────────────────
 
-describe("ProjectRepo — D1 adapter", () => {
+describe("projectRepo — D1 adapter", () => {
   describe("insert", () => {
-    test("succeeds on valid insert", async () => {
+    it("succeeds on valid insert", async () => {
       const db = mockD1.forRun(async () => ({ results: [], success: true }));
       const env = makeEnv(db);
 
@@ -57,7 +57,7 @@ describe("ProjectRepo — D1 adapter", () => {
       expect(Exit.isSuccess(exit)).toBe(true);
     });
 
-    test("returns Conflict on UNIQUE constraint violation", async () => {
+    it("returns Conflict on UNIQUE constraint violation", async () => {
       const db = mockD1.forRun(() => {
         throw new Error("UNIQUE constraint failed: projects.slug");
       });
@@ -79,7 +79,7 @@ describe("ProjectRepo — D1 adapter", () => {
   });
 
   describe("findByOrg", () => {
-    test("returns items and total count", async () => {
+    it("returns items and total count", async () => {
       const db = mockD1.forQuery({
         first: async () => ({ count: 2 }),
         all: async () => ({
@@ -116,11 +116,11 @@ describe("ProjectRepo — D1 adapter", () => {
         const result = exit.value;
         expect(result.total).toBe(2);
         expect(result.items).toHaveLength(2);
-        expect(result.items[0]).toEqual(expect.objectContaining({ name: "App One" }));
+        expect(result.items[0]).toStrictEqual(expect.objectContaining({ name: "App One" }));
       }
     });
 
-    test("returns empty items when no projects exist", async () => {
+    it("returns empty items when no projects exist", async () => {
       const db = mockD1.forQuery({
         first: async () => ({ count: 0 }),
         all: async () => ({ results: [] }),
@@ -144,7 +144,7 @@ describe("ProjectRepo — D1 adapter", () => {
   });
 
   describe("findById", () => {
-    test("returns project when found", async () => {
+    it("returns project when found", async () => {
       const db = mockD1.forQuery({
         first: async () => ({
           id: "p1",
@@ -166,11 +166,11 @@ describe("ProjectRepo — D1 adapter", () => {
 
       expect(Exit.isSuccess(exit)).toBe(true);
       if (Exit.isSuccess(exit)) {
-        expect(exit.value).toEqual(expect.objectContaining({ name: "App One" }));
+        expect(exit.value).toStrictEqual(expect.objectContaining({ name: "App One" }));
       }
     });
 
-    test("returns NotFound when not found", async () => {
+    it("returns NotFound when not found", async () => {
       const db = mockD1.forQuery({
         first: async () => null,
       });
@@ -192,7 +192,7 @@ describe("ProjectRepo — D1 adapter", () => {
   });
 
   describe("findOrgIdById", () => {
-    test("returns organization ID when project exists", async () => {
+    it("returns organization ID when project exists", async () => {
       const db = mockD1.forQuery({
         first: async () => ({ organization_id: "org-1" }),
       });
@@ -212,7 +212,7 @@ describe("ProjectRepo — D1 adapter", () => {
       }
     });
 
-    test("returns NotFound when project does not exist", async () => {
+    it("returns NotFound when project does not exist", async () => {
       const db = mockD1.forQuery({
         first: async () => null,
       });

@@ -111,8 +111,8 @@ const acceptInvitationApi = async (params: {
 
 // ── Tests ─────────────────────────────────────────────────────────────────
 
-describe("Dashboard auth + org + account (browser)", () => {
-  test("signup form + onboarding + logout + login round-trip", async () => {
+describe("dashboard auth + org + account (browser)", () => {
+  it("signup form + onboarding + logout + login round-trip", async () => {
     await runtime.withPage(async (page) => {
       const suffix = shortId();
       const user = {
@@ -138,7 +138,7 @@ describe("Dashboard auth + org + account (browser)", () => {
     });
   });
 
-  test("create additional organization from sidebar and switch active org", async () => {
+  it("create additional organization from sidebar and switch active org", async () => {
     await runtime.withPage(async (page) => {
       const suffix = shortId();
       const user = {
@@ -191,7 +191,7 @@ describe("Dashboard auth + org + account (browser)", () => {
     });
   });
 
-  test("invite member, cancel pending invitation", async () => {
+  it("invite member, cancel pending invitation", async () => {
     await runtime.withPage(async (page) => {
       const suffix = shortId();
       const owner = {
@@ -228,7 +228,7 @@ describe("Dashboard auth + org + account (browser)", () => {
     });
   });
 
-  test("change role and remove member (seeded via API)", async () => {
+  it("change role and remove member (seeded via API)", async () => {
     const suffix = shortId();
     const owner = {
       name: `Owner ${suffix}`,
@@ -296,7 +296,7 @@ describe("Dashboard auth + org + account (browser)", () => {
     });
   });
 
-  test("rename organization from settings", async () => {
+  it("rename organization from settings", async () => {
     await runtime.withPage(async (page) => {
       const suffix = shortId();
       const user = {
@@ -328,7 +328,7 @@ describe("Dashboard auth + org + account (browser)", () => {
     });
   });
 
-  test("update profile name, change password, revoke other sessions", async () => {
+  it("update profile name, change password, revoke other sessions", async () => {
     const suffix = shortId();
     const user = {
       name: `Account ${suffix}`,

@@ -43,13 +43,13 @@ const runWithRepo = async <Ret, Err>(effect: Effect.Effect<Ret, Err, AssetRepo>,
 
 // -- Tests -----------------------------------------------------------------
 
-describe("AssetRepo -- D1 adapter", () => {
+describe("assetRepo -- D1 adapter", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   describe("findByHashes", () => {
-    test("returns assets for given hashes", async () => {
+    it("returns assets for given hashes", async () => {
       const db = mockD1.forQuery({
         all: async () => ({
           results: [
@@ -71,12 +71,12 @@ describe("AssetRepo -- D1 adapter", () => {
       expect(Exit.isSuccess(exit)).toBe(true);
       if (Exit.isSuccess(exit)) {
         expect(exit.value).toHaveLength(2);
-        expect(exit.value[0]).toEqual(expect.objectContaining({ hash: "abc123" }));
-        expect(exit.value[1]).toEqual(expect.objectContaining({ contentType: "text/css" }));
+        expect(exit.value[0]).toStrictEqual(expect.objectContaining({ hash: "abc123" }));
+        expect(exit.value[1]).toStrictEqual(expect.objectContaining({ contentType: "text/css" }));
       }
     });
 
-    test("returns empty array for empty hashes without querying DB", async () => {
+    it("returns empty array for empty hashes without querying DB", async () => {
       const allFn = vi.fn<() => Promise<{ results: never[] }>>(async () => ({ results: [] }));
       const db = mockD1.forQuery({ all: allFn });
       const env = makeEnv(db);
@@ -98,7 +98,7 @@ describe("AssetRepo -- D1 adapter", () => {
   });
 
   describe("insertBatch", () => {
-    test("succeeds for batch of assets", async () => {
+    it("succeeds for batch of assets", async () => {
       const db = mockBatchD1(async () => [{ results: [], success: true }]);
       const env = makeEnv(db);
 
@@ -124,7 +124,7 @@ describe("AssetRepo -- D1 adapter", () => {
       expect(Exit.isSuccess(exit)).toBe(true);
     });
 
-    test("succeeds with empty array without querying DB", async () => {
+    it("succeeds with empty array without querying DB", async () => {
       const batchFn = vi.fn<() => Promise<never[]>>(async () => []);
       const db = mockBatchD1(batchFn);
       const env = makeEnv(db);
@@ -143,7 +143,7 @@ describe("AssetRepo -- D1 adapter", () => {
   });
 
   describe("updateByteSize", () => {
-    test("succeeds on valid update", async () => {
+    it("succeeds on valid update", async () => {
       const db = mockD1.forRun(async () => ({ results: [], success: true }));
       const env = makeEnv(db);
 

@@ -47,11 +47,11 @@ describe(readBuildProfile, () => {
       const profile = yield* readBuildProfile(fullAppJson, "production");
       expect(profile.name).toBe("production");
       expect(profile.environment).toBe("production");
-      expect(profile.ios).toEqual({
+      expect(profile.ios).toStrictEqual({
         buildConfiguration: "Release",
         distribution: "app-store",
       });
-      expect(profile.android).toEqual({
+      expect(profile.android).toStrictEqual({
         buildType: "release",
         format: "aab",
         flavor: "prod",
@@ -169,7 +169,7 @@ describe(readRuntimeVersionMeta, () => {
         },
       } as Record<string, unknown>;
       const meta = yield* readRuntimeVersionMeta(appJson);
-      expect(meta).toEqual({
+      expect(meta).toStrictEqual({
         appVersion: "1.0.0",
         rawRuntimeVersion: { policy: "fingerprint" },
       });
@@ -196,7 +196,7 @@ describe(readAppMeta, () => {
       const meta = yield* readAppMeta(fullAppJson, "ios");
       expect(meta.bundleId).toBe("com.example.app");
       expect(meta.appVersion).toBe("1.2.0");
-      expect(meta.rawRuntimeVersion).toEqual({ policy: "fingerprint" });
+      expect(meta.rawRuntimeVersion).toStrictEqual({ policy: "fingerprint" });
     }),
   );
 

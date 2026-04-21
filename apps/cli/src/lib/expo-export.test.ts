@@ -18,7 +18,7 @@ const makeFs = (files: Record<string, string>) =>
   });
 
 describe(readExpoExportAssets, () => {
-  test("parses launch bundle and regular assets from metadata.json", async () => {
+  it("parses launch bundle and regular assets from metadata.json", async () => {
     const exportDir = "/tmp/export-ios";
     const metadataPath = path.join(exportDir, "metadata.json");
     const exit = await Effect.runPromiseExit(
@@ -42,7 +42,7 @@ describe(readExpoExportAssets, () => {
 
     expect(Exit.isSuccess(exit)).toBe(true);
     if (Exit.isSuccess(exit)) {
-      expect(exit.value).toEqual([
+      expect(exit.value).toStrictEqual([
         {
           path: path.join(
             exportDir,
@@ -64,7 +64,7 @@ describe(readExpoExportAssets, () => {
     }
   });
 
-  test("fails when the requested platform is missing from metadata", async () => {
+  it("fails when the requested platform is missing from metadata", async () => {
     const exportDir = "/tmp/export-android";
     const metadataPath = path.join(exportDir, "metadata.json");
     const exit = await Effect.runPromiseExit(

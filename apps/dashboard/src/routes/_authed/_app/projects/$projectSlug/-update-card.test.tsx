@@ -124,7 +124,7 @@ describe(UpdateCard, () => {
     apiReactMocks.revertUpdateRollout.mockResolvedValue(undefined);
   });
 
-  test("deletes update groups and invalidates the compatibility matrix", async () => {
+  it("deletes update groups and invalidates the compatibility matrix", async () => {
     const user = userEvent.setup();
     const { queryClient } = renderWithQuery(
       <UpdateCard
@@ -147,7 +147,7 @@ describe(UpdateCard, () => {
     await expectUpdatesInvalidated(invalidateSpy);
   });
 
-  test("validates rollout input before sending the mutation", async () => {
+  it("validates rollout input before sending the mutation", async () => {
     const user = userEvent.setup();
     renderWithQuery(
       <UpdateCard
@@ -168,7 +168,7 @@ describe(UpdateCard, () => {
     expect(toastMocks.error).toHaveBeenCalledWith("Rollout percentage must be between 1 and 100");
   });
 
-  test("edits rollout percentages and invalidates the compatibility matrix", async () => {
+  it("edits rollout percentages and invalidates the compatibility matrix", async () => {
     const user = userEvent.setup();
     const { queryClient } = renderWithQuery(
       <UpdateCard
@@ -195,7 +195,7 @@ describe(UpdateCard, () => {
     await expectUpdatesInvalidated(invalidateSpy);
   });
 
-  test.each([
+  it.each([
     {
       name: "completes rollouts",
       buttonName: "Complete rollout (100%)",
@@ -229,7 +229,7 @@ describe(UpdateCard, () => {
     await expectUpdatesInvalidated(invalidateSpy);
   });
 
-  test("opens the promote dialog when a compatible target channel exists", async () => {
+  it("opens the promote dialog when a compatible target channel exists", async () => {
     const user = userEvent.setup();
     renderWithQuery(
       <UpdateCard
@@ -249,7 +249,7 @@ describe(UpdateCard, () => {
     expect(screen.getByText("Promote dialog open")).toBeInTheDocument();
   });
 
-  test("opens the rollback dialog when branch context is available", async () => {
+  it("opens the rollback dialog when branch context is available", async () => {
     const user = userEvent.setup();
     renderWithQuery(
       <UpdateCard

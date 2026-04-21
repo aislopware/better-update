@@ -192,7 +192,7 @@ describe("mutation dialogs", () => {
     apiReactMocks.republishUpdate.mockResolvedValue(undefined);
   });
 
-  test("CreateChannelDialog invalidates channels and compatibility matrix after creation", async () => {
+  it("createChannelDialog invalidates channels and compatibility matrix after creation", async () => {
     const user = userEvent.setup();
     const { queryClient } = renderWithQuery(
       <CreateChannelDialog orgId={orgId} projectId={projectId} />,
@@ -228,7 +228,7 @@ describe("mutation dialogs", () => {
     ]);
   });
 
-  test("DeleteBranchDialog invalidates branches, channels, updates, and compatibility matrix", async () => {
+  it("deleteBranchDialog invalidates branches, channels, updates, and compatibility matrix", async () => {
     const user = userEvent.setup();
     const { queryClient } = renderWithQuery(
       <DeleteBranchDialog branch={branch} orgId={orgId} projectId={projectId} />,
@@ -249,7 +249,7 @@ describe("mutation dialogs", () => {
     ]);
   });
 
-  test("DeleteBuildDialog invalidates builds and compatibility matrix", async () => {
+  it("deleteBuildDialog invalidates builds and compatibility matrix", async () => {
     const user = userEvent.setup();
     const { queryClient } = renderWithQuery(
       <DeleteBuildDialog build={build} orgId={orgId} projectId={projectId} />,
@@ -268,7 +268,7 @@ describe("mutation dialogs", () => {
     ]);
   });
 
-  test("DeleteChannelDialog invalidates channels and compatibility matrix", async () => {
+  it("deleteChannelDialog invalidates channels and compatibility matrix", async () => {
     const user = userEvent.setup();
     const { queryClient } = renderWithQuery(
       <DeleteChannelDialog channel={channel} orgId={orgId} projectId={projectId} />,
@@ -287,7 +287,7 @@ describe("mutation dialogs", () => {
     ]);
   });
 
-  test("PromoteUpdateDialog invalidates updates and compatibility matrix after republish", async () => {
+  it("promoteUpdateDialog invalidates updates and compatibility matrix after republish", async () => {
     const user = userEvent.setup();
     const onOpenChange = vi.fn<(open: boolean) => void>();
     const { queryClient } = renderWithQuery(
@@ -320,7 +320,7 @@ describe("mutation dialogs", () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
-  test("RollbackToEmbeddedDialog invalidates updates and compatibility matrix after create", async () => {
+  it("rollbackToEmbeddedDialog invalidates updates and compatibility matrix after create", async () => {
     const user = userEvent.setup();
     const onOpenChange = vi.fn<(open: boolean) => void>();
     const { queryClient } = renderWithQuery(
@@ -343,7 +343,7 @@ describe("mutation dialogs", () => {
     });
 
     const payload = apiReactMocks.createUpdate.mock.calls[0]?.[0];
-    expect(payload).toEqual(
+    expect(payload).toStrictEqual(
       expect.objectContaining({
         branch: "main",
         slug,
@@ -357,7 +357,7 @@ describe("mutation dialogs", () => {
         directiveBody: expect.any(String),
       }),
     );
-    expect(JSON.parse(payload?.directiveBody ?? "")).toEqual({
+    expect(JSON.parse(payload?.directiveBody ?? "")).toStrictEqual({
       type: "rollBackToEmbedded",
       parameters: {
         commitTime: expect.any(String),

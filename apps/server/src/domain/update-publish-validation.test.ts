@@ -40,7 +40,7 @@ const expectBadRequest = async (effect: Effect.Effect<void, unknown>, message: s
 };
 
 describe(validateUpdatePublishInput, () => {
-  test("accepts an unsigned regular update with one launch asset", async () => {
+  it("accepts an unsigned regular update with one launch asset", async () => {
     await expect(
       Effect.runPromise(
         validateUpdatePublishInput({
@@ -55,7 +55,7 @@ describe(validateUpdatePublishInput, () => {
     ).resolves.toBeUndefined();
   });
 
-  test("rejects a regular update without exactly one launch asset", async () => {
+  it("rejects a regular update without exactly one launch asset", async () => {
     await expectBadRequest(
       validateUpdatePublishInput({
         runtimeVersion: "1.0.0",
@@ -69,7 +69,7 @@ describe(validateUpdatePublishInput, () => {
     );
   });
 
-  test("rejects rollback directives that include assets", async () => {
+  it("rejects rollback directives that include assets", async () => {
     await expectBadRequest(
       validateUpdatePublishInput({
         runtimeVersion: "1.0.0",
@@ -86,7 +86,7 @@ describe(validateUpdatePublishInput, () => {
     );
   });
 
-  test("accepts a signed manifest body that matches assets and extra", async () => {
+  it("accepts a signed manifest body that matches assets and extra", async () => {
     await expect(
       Effect.runPromise(
         validateUpdatePublishInput({
@@ -104,7 +104,7 @@ describe(validateUpdatePublishInput, () => {
     ).resolves.toBeUndefined();
   });
 
-  test("rejects a signed manifest body with mismatched runtimeVersion", async () => {
+  it("rejects a signed manifest body with mismatched runtimeVersion", async () => {
     await expectBadRequest(
       validateUpdatePublishInput({
         runtimeVersion: "2.0.0",
@@ -118,7 +118,7 @@ describe(validateUpdatePublishInput, () => {
     );
   });
 
-  test("rejects a signed manifest body with mismatched extra payload", async () => {
+  it("rejects a signed manifest body with mismatched extra payload", async () => {
     await expectBadRequest(
       validateUpdatePublishInput({
         runtimeVersion: "1.0.0",
@@ -134,7 +134,7 @@ describe(validateUpdatePublishInput, () => {
     );
   });
 
-  test("accepts a rollback directive body with valid commitTime", async () => {
+  it("accepts a rollback directive body with valid commitTime", async () => {
     await expect(
       Effect.runPromise(
         validateUpdatePublishInput({
@@ -152,7 +152,7 @@ describe(validateUpdatePublishInput, () => {
     ).resolves.toBeUndefined();
   });
 
-  test("rejects a rollback directive body with invalid type", async () => {
+  it("rejects a rollback directive body with invalid type", async () => {
     await expectBadRequest(
       validateUpdatePublishInput({
         runtimeVersion: "1.0.0",

@@ -8,7 +8,7 @@ import {
 } from "./browser-login";
 
 describe(createBrowserLoginSession, () => {
-  test("serves the callback page HTML", async () => {
+  it("serves the callback page HTML", async () => {
     const session = createBrowserLoginSession({ timeoutMs: 1000 });
 
     try {
@@ -24,7 +24,7 @@ describe(createBrowserLoginSession, () => {
     }
   });
 
-  test("resolves the submitted token", async () => {
+  it("resolves the submitted token", async () => {
     const session = createBrowserLoginSession({ timeoutMs: 1000 });
 
     try {
@@ -43,7 +43,7 @@ describe(createBrowserLoginSession, () => {
     }
   });
 
-  test("rejects invalid callback payloads", async () => {
+  it("rejects invalid callback payloads", async () => {
     const session = createBrowserLoginSession({ timeoutMs: 50 });
 
     try {
@@ -64,7 +64,7 @@ describe(createBrowserLoginSession, () => {
     }
   });
 
-  test("times out when no token arrives", async () => {
+  it("times out when no token arrives", async () => {
     const session = createBrowserLoginSession({ timeoutMs: 20 });
 
     try {
@@ -76,7 +76,7 @@ describe(createBrowserLoginSession, () => {
     }
   });
 
-  test("fails with a tagged error when the session is disposed", async () => {
+  it("fails with a tagged error when the session is disposed", async () => {
     const session = createBrowserLoginSession({ timeoutMs: 1000 });
 
     session.dispose();

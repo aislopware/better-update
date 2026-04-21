@@ -41,7 +41,7 @@ describe(loadOptionalSignedPayload, () => {
         makeError: (message) => new Error(message),
       }).pipe(Effect.provide(BunFileSystem.layer), Effect.ensuring(Effect.sync(files.dispose)));
 
-      expect(payload).toEqual({
+      expect(payload).toStrictEqual({
         manifestBody: '{"runtimeVersion":"1.0.0"}\n',
         signature: 'sig="test-signature"',
         certificateChain: "-----BEGIN CERTIFICATE-----\nTEST\n-----END CERTIFICATE-----",
@@ -135,7 +135,7 @@ describe(loadSignedPublishPayloads, () => {
 
       expect(Exit.isFailure(exit)).toBe(true);
       if (Exit.isFailure(exit)) {
-        expect(failureError(exit)).toEqual(
+        expect(failureError(exit)).toStrictEqual(
           new Error(
             "Signed multi-platform publish requires per-platform file sets. Use the --*-ios and --*-android options.",
           ),
@@ -170,7 +170,7 @@ describe(loadSignedPublishPayloads, () => {
 
       expect(Exit.isFailure(exit)).toBe(true);
       if (Exit.isFailure(exit)) {
-        expect(failureError(exit)).toEqual(
+        expect(failureError(exit)).toStrictEqual(
           new Error(
             "Signed publish for ios is ambiguous. Use either the generic file options or the ios-specific file options, not both.",
           ),

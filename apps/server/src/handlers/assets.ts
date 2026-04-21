@@ -1,6 +1,7 @@
 import { fromBase64, fromBase64Url, toBase64, toBase64Url } from "@better-update/encoding";
 import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
+import { uniq } from "es-toolkit";
 
 import { ManagementApi } from "../api";
 import { assertProjectOwnership } from "../auth/ownership";
@@ -135,13 +136,11 @@ const handleUpload = ({
       });
       const newAssets = uploadableAssets.filter((asset) => !existingByHash.has(asset.hash));
       const uploadableHashes = new Set(uploadableAssets.map((asset) => asset.hash));
-      const deduplicatedRequestedHashes = [
-        ...new Set(
-          payload.assets
-            .filter((asset) => !uploadableHashes.has(asset.hash))
-            .map((asset) => asset.hash),
-        ),
-      ];
+      const deduplicatedRequestedHashes = uniq(
+        payload.assets
+          .filter((asset) => !uploadableHashes.has(asset.hash))
+          .map((asset) => asset.hash),
+      );
 
       if (newAssets.length > 0) {
         yield* repo.insertBatch({

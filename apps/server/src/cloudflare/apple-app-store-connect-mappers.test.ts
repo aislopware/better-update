@@ -13,39 +13,45 @@ import {
 } from "./apple-app-store-connect-mappers";
 
 describe(isRecord, () => {
-  test("detects object", () => {
+  it("detects object", () => {
     expect(isRecord({ key: 1 })).toBe(true);
   });
-  test("rejects null", () => {
+
+  it("rejects null", () => {
     expect(isRecord(null)).toBe(false);
   });
-  test("rejects primitives", () => {
+
+  it("rejects primitives", () => {
     expect(isRecord("x")).toBe(false);
     expect(isRecord(1)).toBe(false);
   });
 });
 
 describe(extractErrors, () => {
-  test("returns [] for non-object", () => {
-    expect(extractErrors(null)).toEqual([]);
+  it("returns [] for non-object", () => {
+    expect(extractErrors(null)).toStrictEqual([]);
   });
-  test("returns [] when errors not array", () => {
-    expect(extractErrors({ errors: "x" })).toEqual([]);
+
+  it("returns [] when errors not array", () => {
+    expect(extractErrors({ errors: "x" })).toStrictEqual([]);
   });
-  test("parses valid error bodies", () => {
+
+  it("parses valid error bodies", () => {
     const body = { errors: [{ status: "400", code: "X", title: "T", detail: "D" }] };
     expect(extractErrors(body)[0]?.code).toBe("X");
   });
-  test("filters non-objects", () => {
-    expect(extractErrors({ errors: [null, 1, { code: "Y" }] })).toEqual([{ code: "Y" }]);
+
+  it("filters non-objects", () => {
+    expect(extractErrors({ errors: [null, 1, { code: "Y" }] })).toStrictEqual([{ code: "Y" }]);
   });
 });
 
 describe(toDeviceResource, () => {
-  test("returns null for non-object", () => {
+  it("returns null for non-object", () => {
     expect(toDeviceResource(null)).toBeNull();
   });
-  test("parses valid device", () => {
+
+  it("parses valid device", () => {
     const value = {
       id: "dev1",
       attributes: {
@@ -59,13 +65,14 @@ describe(toDeviceResource, () => {
     };
     expect(toDeviceResource(value)?.attributes.model).toBe("iPhone 15");
   });
-  test("returns null for bad attributes", () => {
+
+  it("returns null for bad attributes", () => {
     expect(toDeviceResource({ id: "x", attributes: {} })).toBeNull();
   });
 });
 
 describe(mapDevice, () => {
-  test("defaults null deviceClass to IPHONE", () => {
+  it("defaults null deviceClass to IPHONE", () => {
     const mapped = mapDevice({
       type: "devices",
       id: "x",
@@ -84,37 +91,39 @@ describe(mapDevice, () => {
 });
 
 describe(extractDevicesPage, () => {
-  test("returns empty for non-record", () => {
-    expect(extractDevicesPage(null)).toEqual({ data: [], next: null });
+  it("returns empty for non-record", () => {
+    expect(extractDevicesPage(null)).toStrictEqual({ data: [], next: null });
   });
-  test("extracts next link", () => {
+
+  it("extracts next link", () => {
     const page = extractDevicesPage({ data: [], links: { next: "https://..." } });
     expect(page.next).toBe("https://...");
   });
 });
 
 describe(extractDeviceSingle, () => {
-  test("returns null for non-record", () => {
+  it("returns null for non-record", () => {
     expect(extractDeviceSingle(null)).toBeNull();
   });
 });
 
 describe(toBundleId, () => {
-  test("parses valid", () => {
-    expect(toBundleId({ id: "b1", attributes: { identifier: "com.x", name: "X" } })).toEqual({
+  it("parses valid", () => {
+    expect(toBundleId({ id: "b1", attributes: { identifier: "com.x", name: "X" } })).toStrictEqual({
       id: "b1",
       identifier: "com.x",
       name: "X",
     });
   });
-  test("returns null for invalid", () => {
+
+  it("returns null for invalid", () => {
     expect(toBundleId(null)).toBeNull();
     expect(toBundleId({ id: "x", attributes: {} })).toBeNull();
   });
 });
 
 describe(toCertificate, () => {
-  test("parses valid", () => {
+  it("parses valid", () => {
     expect(
       toCertificate({
         id: "c1",
@@ -127,7 +136,8 @@ describe(toCertificate, () => {
       })?.displayName,
     ).toBe("My cert");
   });
-  test("null displayName when not string", () => {
+
+  it("null displayName when not string", () => {
     expect(
       toCertificate({
         id: "c1",
@@ -139,14 +149,15 @@ describe(toCertificate, () => {
       })?.displayName,
     ).toBeNull();
   });
-  test("returns null for invalid", () => {
+
+  it("returns null for invalid", () => {
     expect(toCertificate(null)).toBeNull();
     expect(toCertificate({ id: "x", attributes: {} })).toBeNull();
   });
 });
 
 describe(toProfile, () => {
-  test("parses valid", () => {
+  it("parses valid", () => {
     const value = {
       id: "p1",
       attributes: {
@@ -159,7 +170,8 @@ describe(toProfile, () => {
     };
     expect(toProfile(value)?.profileType).toBe("IOS_APP_STORE");
   });
-  test("rejects unknown profileType", () => {
+
+  it("rejects unknown profileType", () => {
     const value = {
       id: "p1",
       attributes: {
@@ -172,27 +184,30 @@ describe(toProfile, () => {
     };
     expect(toProfile(value)).toBeNull();
   });
-  test("null for non-object", () => {
+
+  it("null for non-object", () => {
     expect(toProfile(null)).toBeNull();
   });
 });
 
 describe(extractList, () => {
-  test("extracts items", () => {
+  it("extracts items", () => {
     const body = { data: [{ id: "1", attributes: { identifier: "a", name: "A" } }] };
     expect(extractList(body, toBundleId)).toHaveLength(1);
   });
-  test("returns [] for non-object", () => {
-    expect(extractList(null, toBundleId)).toEqual([]);
+
+  it("returns [] for non-object", () => {
+    expect(extractList(null, toBundleId)).toStrictEqual([]);
   });
 });
 
 describe(extractSingle, () => {
-  test("extracts item", () => {
+  it("extracts item", () => {
     const body = { data: { id: "1", attributes: { identifier: "a", name: "A" } } };
     expect(extractSingle(body, toBundleId)?.identifier).toBe("a");
   });
-  test("returns null for non-object", () => {
+
+  it("returns null for non-object", () => {
     expect(extractSingle(null, toBundleId)).toBeNull();
   });
 });

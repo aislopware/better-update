@@ -115,7 +115,7 @@ const SettingsFormTest = ({
 };
 
 describe("settings org general form submit", () => {
-  test("submitting with valid data calls organization update endpoint", async () => {
+  it("submitting with valid data calls organization update endpoint", async () => {
     const user = userEvent.setup();
 
     const fetchMock = mockFetch({
@@ -131,7 +131,7 @@ describe("settings org general form submit", () => {
     await user.click(screen.getByRole("button", { name: "Save changes" }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalled();
+      expect(fetchMock).toHaveBeenCalledWith();
     });
 
     const call = fetchMock.mock.calls[0]!;
@@ -142,7 +142,7 @@ describe("settings org general form submit", () => {
     vi.restoreAllMocks();
   });
 
-  test("name validation shows error for too-short name", async () => {
+  it("name validation shows error for too-short name", async () => {
     const user = userEvent.setup();
     render(<SettingsFormTest initialName="" initialSlug="" />);
 
@@ -155,7 +155,7 @@ describe("settings org general form submit", () => {
     });
   });
 
-  test("slug validation shows error for invalid slug", async () => {
+  it("slug validation shows error for invalid slug", async () => {
     const user = userEvent.setup();
     render(<SettingsFormTest initialName="Test" initialSlug="" />);
 

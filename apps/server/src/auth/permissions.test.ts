@@ -17,7 +17,7 @@ const provideAuth = (role: Role, overrides?: Partial<EffectivePermissions>) =>
   });
 
 describe("permissions map", () => {
-  test("owner has all resources", () => {
+  it("owner has all resources", () => {
     const ownerResources = Object.keys(permissions.owner);
     expect(ownerResources).toContain("organization");
     expect(ownerResources).toContain("billing");
@@ -25,17 +25,17 @@ describe("permissions map", () => {
     expect(ownerResources).toContain("project");
   });
 
-  test("viewer has only read actions", () => {
+  it("viewer has only read actions", () => {
     for (const actions of Object.values(permissions.viewer)) {
-      expect(actions).toEqual(["read"]);
+      expect(actions).toStrictEqual(["read"]);
     }
   });
 
-  test("developer cannot access billing", () => {
+  it("developer cannot access billing", () => {
     expect(permissions.developer.billing).toBeUndefined();
   });
 
-  test("developer cannot manage organization", () => {
+  it("developer cannot manage organization", () => {
     expect(permissions.developer.organization).toBeUndefined();
   });
 });
@@ -86,7 +86,7 @@ describe(assertPermission, () => {
     }),
   );
 
-  test.each<[Role, string, Action]>([
+  it.each<[Role, string, Action]>([
     ["owner", "project", "delete"],
     ["admin", "member", "create"],
     ["developer", "channel", "update"],

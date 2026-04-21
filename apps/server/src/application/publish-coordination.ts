@@ -77,29 +77,30 @@ const resolveBranch = (params: {
 
     const repo = yield* BranchRepo;
     const branchId = crypto.randomUUID();
-    const result = yield* repo
+    return yield* repo
       .insert({
         id: branchId,
         projectId: params.projectId,
         name: params.branchName,
         createdAt: nowIso(),
       })
-      .pipe(Effect.either);
-
-    if (result._tag === "Right") {
-      return { id: branchId, created: true } as const;
-    }
-
-    const branch = yield* findBranchOptional({
-      projectId: params.projectId,
-      name: params.branchName,
-    });
-
-    if (branch === null) {
-      return yield* Effect.dieMessage("Branch conflict detected but branch could not be reloaded");
-    }
-
-    return { id: branch.id, created: false } as const;
+      .pipe(
+        Effect.as({ id: branchId, created: true } as const),
+        Effect.orElse(() =>
+          Effect.gen(function* () {
+            const branch = yield* findBranchOptional({
+              projectId: params.projectId,
+              name: params.branchName,
+            });
+            if (branch === null) {
+              return yield* Effect.dieMessage(
+                "Branch conflict detected but branch could not be reloaded",
+              );
+            }
+            return { id: branch.id, created: false } as const;
+          }),
+        ),
+      );
   });
 
 const resolveChannel = (params: {
@@ -114,30 +115,29 @@ const resolveChannel = (params: {
     }
 
     const repo = yield* ChannelRepo;
-    const result = yield* repo
+    return yield* repo
       .insert({
         projectId: params.projectId,
         name: params.branchName,
         branchId: params.branchId,
       })
-      .pipe(Effect.either);
-
-    if (result._tag === "Right") {
-      return { id: result.right.id, created: true } as const;
-    }
-
-    const channel = yield* findChannelOptional({
-      projectId: params.projectId,
-      name: params.branchName,
-    });
-
-    if (channel === null) {
-      return yield* Effect.dieMessage(
-        "Channel conflict detected but channel could not be reloaded",
+      .pipe(
+        Effect.map((inserted) => ({ id: inserted.id, created: true }) as const),
+        Effect.orElse(() =>
+          Effect.gen(function* () {
+            const channel = yield* findChannelOptional({
+              projectId: params.projectId,
+              name: params.branchName,
+            });
+            if (channel === null) {
+              return yield* Effect.dieMessage(
+                "Channel conflict detected but channel could not be reloaded",
+              );
+            }
+            return { id: channel.id, created: false } as const;
+          }),
+        ),
       );
-    }
-
-    return { id: channel.id, created: false } as const;
   });
 
 const getExistingMismatch = (

@@ -2,21 +2,21 @@ import { GC_BATCH_SIZE, computeCutoff, parseRetentionDays } from "./gc-utils";
 
 describe("gc-utils", () => {
   describe(parseRetentionDays, () => {
-    test("parses a numeric string", () => {
+    it("parses a numeric string", () => {
       expect(parseRetentionDays("7")).toBe(7);
     });
 
-    test("defaults to 30 when undefined", () => {
+    it("defaults to 30 when undefined", () => {
       expect(parseRetentionDays(undefined)).toBe(30);
     });
 
-    test("returns NaN for non-numeric string", () => {
+    it("returns NaN for non-numeric string", () => {
       expect(parseRetentionDays("abc")).toBeNaN();
     });
   });
 
   describe(computeCutoff, () => {
-    test("returns an ISO string in the past", () => {
+    it("returns an ISO string in the past", () => {
       const cutoff = computeCutoff(30);
       const cutoffDate = new Date(cutoff);
 
@@ -24,7 +24,7 @@ describe("gc-utils", () => {
       expect(cutoff).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     });
 
-    test("cutoff is approximately retentionDays ago", () => {
+    it("cutoff is approximately retentionDays ago", () => {
       const days = 7;
       const before = Date.now();
       const cutoff = computeCutoff(days);
@@ -37,7 +37,7 @@ describe("gc-utils", () => {
       expect(after - cutoffMs).toBeLessThanOrEqual(expectedMs + 100);
     });
 
-    test("zero retention days returns approximately now", () => {
+    it("zero retention days returns approximately now", () => {
       const before = Date.now();
       const cutoff = computeCutoff(0);
       const cutoffMs = new Date(cutoff).getTime();
@@ -47,7 +47,7 @@ describe("gc-utils", () => {
   });
 
   describe("gc batch size constant", () => {
-    test("is 100", () => {
+    it("is 100", () => {
       expect(GC_BATCH_SIZE).toBe(100);
     });
   });

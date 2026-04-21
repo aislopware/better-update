@@ -13,7 +13,7 @@ import {
 const withCrypto = Effect.provide(CryptoServiceLive);
 
 describe(buildBranchMapping, () => {
-  test("produces correct JSON with two entries", () => {
+  it("produces correct JSON with two entries", () => {
     const result = buildBranchMapping({
       newBranchId: "new-branch-1",
       oldBranchId: "old-branch-1",
@@ -30,7 +30,7 @@ describe(buildBranchMapping, () => {
     expect(parsed.salt).toBe("salt-uuid");
   });
 
-  test("formats percentage correctly", () => {
+  it("formats percentage correctly", () => {
     const result = buildBranchMapping({
       newBranchId: "new",
       oldBranchId: "old",
@@ -42,7 +42,7 @@ describe(buildBranchMapping, () => {
     expect(parsed.data[0].branchMappingLogic).toBe("hash_lt(mappingId, 0.10)");
   });
 
-  test("handles 100% rollout", () => {
+  it("handles 100% rollout", () => {
     const result = buildBranchMapping({
       newBranchId: "new",
       oldBranchId: "old",
@@ -56,7 +56,7 @@ describe(buildBranchMapping, () => {
 });
 
 describe(updateBranchMappingPercentage, () => {
-  test("updates threshold in first entry and preserves salt and fallback", () => {
+  it("updates threshold in first entry and preserves salt and fallback", () => {
     const original = buildBranchMapping({
       newBranchId: "new-1",
       oldBranchId: "old-1",
@@ -76,7 +76,7 @@ describe(updateBranchMappingPercentage, () => {
 });
 
 describe(extractNewBranchId, () => {
-  test("returns first entry branchId", () => {
+  it("returns first entry branchId", () => {
     const mapping = buildBranchMapping({
       newBranchId: "target-branch",
       oldBranchId: "fallback-branch",
@@ -89,7 +89,7 @@ describe(extractNewBranchId, () => {
 });
 
 describe(extractReachableBranchIds, () => {
-  test("returns both rollout target and fallback branch ids", () => {
+  it("returns both rollout target and fallback branch ids", () => {
     const mapping = buildBranchMapping({
       newBranchId: "branch-new",
       oldBranchId: "branch-old",
@@ -97,10 +97,10 @@ describe(extractReachableBranchIds, () => {
       salt: "salt",
     });
 
-    expect(extractReachableBranchIds(mapping)).toEqual(["branch-new", "branch-old"]);
+    expect(extractReachableBranchIds(mapping)).toStrictEqual(["branch-new", "branch-old"]);
   });
 
-  test("skips zero-threshold and invalid entries while deduplicating branch ids", () => {
+  it("skips zero-threshold and invalid entries while deduplicating branch ids", () => {
     const mapping = JSON.stringify({
       data: [
         { branchId: "branch-zero", branchMappingLogic: "hash_lt(mappingId, 0.00)" },
@@ -111,11 +111,11 @@ describe(extractReachableBranchIds, () => {
       salt: "salt",
     });
 
-    expect(extractReachableBranchIds(mapping)).toEqual(["branch-valid"]);
+    expect(extractReachableBranchIds(mapping)).toStrictEqual(["branch-valid"]);
   });
 
-  test("returns empty array for valid JSON with wrong shape", () => {
-    expect(extractReachableBranchIds(JSON.stringify({ nope: true }))).toEqual([]);
+  it("returns empty array for valid JSON with wrong shape", () => {
+    expect(extractReachableBranchIds(JSON.stringify({ nope: true }))).toStrictEqual([]);
   });
 });
 

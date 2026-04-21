@@ -1,5 +1,6 @@
+import { toBase64 } from "@better-update/encoding";
 import { FileSystem } from "@effect/platform";
-import { Effect } from "effect";
+import { Effect, Match } from "effect";
 
 import { CredentialValidationError } from "./exit-codes";
 import { inspectP12 } from "./pkcs12";
@@ -135,9 +136,7 @@ export interface UploadCredentialInput {
   readonly appleTeamIdentifier?: string;
 }
 
-const toBase64 = (bytes: Uint8Array): string => Buffer.from(bytes).toString("base64");
-
-const toUtf8 = (bytes: Uint8Array): string => Buffer.from(bytes).toString("utf8");
+const toUtf8 = (bytes: Uint8Array): string => new TextDecoder().decode(bytes);
 
 const missing = (label: string) =>
   new CredentialValidationError({
@@ -328,27 +327,28 @@ export const deleteCredential = (
     readonly type: CliCredentialType;
   },
 ) => {
-  if (input.platform === "ios" && input.type === "distribution-certificate") {
-    return api.appleDistributionCertificates.delete({ path: { id: input.id } });
-  }
-  if (input.platform === "ios" && input.type === "push-key") {
-    return api.applePushKeys.delete({ path: { id: input.id } });
-  }
-  if (input.platform === "ios" && input.type === "asc-api-key") {
-    return api.ascApiKeys.delete({ path: { id: input.id } });
-  }
-  if (input.platform === "ios" && input.type === "provisioning-profile") {
-    return api.appleProvisioningProfiles.delete({ path: { id: input.id } });
-  }
-  if (input.platform === "android" && input.type === "keystore") {
-    return api.androidUploadKeystores.delete({ path: { id: input.id } });
-  }
-  if (input.platform === "android" && input.type === "google-service-account-key") {
-    return api.googleServiceAccountKeys.delete({ path: { id: input.id } });
-  }
-  return Effect.fail(
-    new CredentialValidationError({
-      message: `Unsupported credential combination: platform=${input.platform} type=${input.type}`,
-    }),
+  const path = { id: input.id };
+  return Match.value({ platform: input.platform, type: input.type }).pipe(
+    Match.when({ platform: "ios", type: "distribution-certificate" }, () =>
+      api.appleDistributionCertificates.delete({ path }),
+    ),
+    Match.when({ platform: "ios", type: "push-key" }, () => api.applePushKeys.delete({ path })),
+    Match.when({ platform: "ios", type: "asc-api-key" }, () => api.ascApiKeys.delete({ path })),
+    Match.when({ platform: "ios", type: "provisioning-profile" }, () =>
+      api.appleProvisioningProfiles.delete({ path }),
+    ),
+    Match.when({ platform: "android", type: "keystore" }, () =>
+      api.androidUploadKeystores.delete({ path }),
+    ),
+    Match.when({ platform: "android", type: "google-service-account-key" }, () =>
+      api.googleServiceAccountKeys.delete({ path }),
+    ),
+    Match.orElse(() =>
+      Effect.fail(
+        new CredentialValidationError({
+          message: `Unsupported credential combination: platform=${input.platform} type=${input.type}`,
+        }),
+      ),
+    ),
   );
 };

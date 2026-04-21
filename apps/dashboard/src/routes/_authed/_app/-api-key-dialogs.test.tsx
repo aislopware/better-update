@@ -21,7 +21,7 @@ describe(RevokeDialog, () => {
       ...overrides,
     }) as const;
 
-  test("renders title and description", () => {
+  it("renders title and description", () => {
     const props = makeProps();
     render(
       <RevokeDialog
@@ -36,7 +36,7 @@ describe(RevokeDialog, () => {
     expect(screen.getByText(/Are you sure you want to revoke this API key/)).toBeInTheDocument();
   });
 
-  test("Revoke key button calls onConfirm", async () => {
+  it("revoke key button calls onConfirm", async () => {
     const user = userEvent.setup();
     const onConfirm = vi.fn<() => Promise<void>>(async () => {});
     const props = makeProps({ onConfirm });
@@ -54,7 +54,7 @@ describe(RevokeDialog, () => {
     expect(onConfirm).toHaveBeenCalledTimes(1);
   });
 
-  test("button shows Revoking... and is disabled when isRevoking=true", () => {
+  it("button shows Revoking... and is disabled when isRevoking=true", () => {
     const props = makeProps({ isRevoking: true });
     render(
       <RevokeDialog
@@ -69,7 +69,7 @@ describe(RevokeDialog, () => {
     expect(button).toBeDisabled();
   });
 
-  test("Cancel button is visible", () => {
+  it("cancel button is visible", () => {
     const props = makeProps();
     render(
       <RevokeDialog
@@ -140,8 +140,8 @@ const CreateApiKeyTestForm = ({ onSubmit }: { onSubmit: (name: string) => Promis
   );
 };
 
-describe("CreateApiKeyDialog form", () => {
-  test("empty name shows Name is required on blur", async () => {
+describe("createApiKeyDialog form", () => {
+  it("empty name shows Name is required on blur", async () => {
     const user = userEvent.setup();
     render(<CreateApiKeyTestForm onSubmit={vi.fn<(name: string) => Promise<void>>()} />);
 
@@ -154,7 +154,7 @@ describe("CreateApiKeyDialog form", () => {
     });
   });
 
-  test("submitting with name calls fetch to create API key", async () => {
+  it("submitting with name calls fetch to create API key", async () => {
     const user = userEvent.setup();
 
     const fetchMock = mockFetch({
@@ -179,7 +179,7 @@ describe("CreateApiKeyDialog form", () => {
     });
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalled();
+      expect(fetchMock).toHaveBeenCalledWith();
     });
 
     vi.restoreAllMocks();
@@ -207,14 +207,14 @@ const KeyRevealTestComponent = ({ apiKey }: { apiKey: string }) => {
   );
 };
 
-describe("KeyRevealContent", () => {
-  test("key text is visible", () => {
+describe("keyRevealContent", () => {
+  it("key text is visible", () => {
     render(<KeyRevealTestComponent apiKey="bu_secret_abc_123" />);
 
     expect(screen.getByText("bu_secret_abc_123")).toBeInTheDocument();
   });
 
-  test("copy button exists", () => {
+  it("copy button exists", () => {
     render(<KeyRevealTestComponent apiKey="bu_secret_abc_123" />);
 
     expect(screen.getByRole("button", { name: "Copy" })).toBeInTheDocument();

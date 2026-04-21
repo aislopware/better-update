@@ -80,7 +80,7 @@ const completeProjectJourney = async (page: Page, label: string): Promise<Projec
   return { projectName };
 };
 
-describe("Dashboard browser UI journey", () => {
+describe("dashboard browser UI journey", () => {
   beforeAll(async () => {
     await runtime.setup();
   });
@@ -89,7 +89,7 @@ describe("Dashboard browser UI journey", () => {
     await runtime.teardown();
   });
 
-  test("signs in, completes onboarding, creates a project, and creates a branch", async () => {
+  it("signs in, completes onboarding, creates a project, and creates a branch", async () => {
     await runtime.withPage(async (page) => {
       const { projectName } = await completeProjectJourney(page, "Branch Browser");
       const branchSuffix = randomUUID().slice(0, 8);
@@ -105,7 +105,7 @@ describe("Dashboard browser UI journey", () => {
     });
   });
 
-  test("signs in, completes onboarding, creates a project, and adds an environment variable", async () => {
+  it("signs in, completes onboarding, creates a project, and adds an environment variable", async () => {
     await runtime.withPage(async (page) => {
       await completeProjectJourney(page, "Env Browser");
       const envSuffix = randomUUID().slice(0, 8);

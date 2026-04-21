@@ -10,7 +10,7 @@ const makePart = (overrides?: Partial<Part>): Part => ({
 });
 
 describe(encodeMultipart, () => {
-  test("encodes 2 parts with correct boundary markers and CRLF", () => {
+  it("encodes 2 parts with correct boundary markers and CRLF", () => {
     const parts: readonly Part[] = [
       makePart({ name: "manifest", body: '{"id":"1"}' }),
       makePart({ name: "extensions", contentType: "application/json", body: '{"extra":true}' }),
@@ -24,7 +24,7 @@ describe(encodeMultipart, () => {
     expect(result).toContain('{"extra":true}');
   });
 
-  test("extra headers on parts are included", () => {
+  it("extra headers on parts are included", () => {
     const parts: readonly Part[] = [
       makePart({ headers: { "expo-signature": "sig-abc", "x-custom": "val" } }),
     ];
@@ -35,7 +35,7 @@ describe(encodeMultipart, () => {
     expect(result).toContain("x-custom: val\r\n");
   });
 
-  test("parts have correct content-disposition with name", () => {
+  it("parts have correct content-disposition with name", () => {
     const parts: readonly Part[] = [makePart({ name: "directive" })];
 
     const result = encodeMultipart("b", parts);
@@ -43,7 +43,7 @@ describe(encodeMultipart, () => {
     expect(result).toContain('content-disposition: inline; name="directive"');
   });
 
-  test("headers and body separated by blank CRLF line", () => {
+  it("headers and body separated by blank CRLF line", () => {
     const parts: readonly Part[] = [makePart({ body: "BODY_CONTENT" })];
 
     const result = encodeMultipart("sep", parts);

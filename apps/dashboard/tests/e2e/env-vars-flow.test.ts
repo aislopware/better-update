@@ -2,7 +2,7 @@ import { setupE2EDashboard } from "../helpers/e2e-dashboard";
 
 const { post, get, patch, del, parseCookies } = setupE2EDashboard();
 
-describe("Dashboard environment variables flow", () => {
+describe("dashboard environment variables flow", () => {
   const state = {
     cookies: "",
     organizationId: "",
@@ -111,7 +111,7 @@ describe("Dashboard environment variables flow", () => {
     );
     expect(importResponse.status).toBe(200);
     const importBody = await importResponse.json();
-    expect(importBody).toEqual({
+    expect(importBody).toStrictEqual({
       created: 2,
       updated: 0,
       skipped: 0,
@@ -125,7 +125,7 @@ describe("Dashboard environment variables flow", () => {
     );
     expect(listResponse.status).toBe(200);
     const listBody = await listResponse.json();
-    expect(listBody.items).toEqual(
+    expect(listBody.items).toStrictEqual(
       expect.arrayContaining([
         expect.objectContaining({ key: "APP_SECRET", value: null, visibility: "secret" }),
         expect.objectContaining({
@@ -147,7 +147,7 @@ describe("Dashboard environment variables flow", () => {
     );
     expect(exportResponse.status).toBe(200);
     const exportBody = await exportResponse.json();
-    expect(exportBody.items).toEqual(
+    expect(exportBody.items).toStrictEqual(
       expect.arrayContaining([
         expect.objectContaining({ key: "APP_SECRET", value: "super-secret" }),
         expect.objectContaining({ key: "SENTRY_AUTH_TOKEN", value: "sentry-token" }),
@@ -161,7 +161,7 @@ describe("Dashboard environment variables flow", () => {
     );
     expect(updateResponse.status).toBe(200);
     const updateBody = await updateResponse.json();
-    expect(updateBody).toEqual(
+    expect(updateBody).toStrictEqual(
       expect.objectContaining({
         id: state.sensitiveVarId,
         visibility: "plaintext",

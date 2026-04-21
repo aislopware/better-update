@@ -13,12 +13,7 @@ export const resolveUpdatePlatforms = (
   }
 
   const expo = asRecord(appJson["expo"]);
-  const platforms: Platform[] = [];
-  if (asRecord(expo?.["ios"])) {
-    platforms.push("ios");
-  }
-  if (asRecord(expo?.["android"])) {
-    platforms.push("android");
-  }
-  return platforms;
+  return (["ios", "android"] as const).filter(
+    (platform) => asRecord(expo?.[platform]) !== undefined,
+  );
 };

@@ -31,7 +31,7 @@ describe(MembersTableView, () => {
   const onRoleChange = vi.fn<(memberId: string, role: string) => Promise<void>>(async () => {});
   const onRemove = vi.fn<(memberId: string) => void>();
 
-  test("renders member rows with name, email, and role badge", () => {
+  it("renders member rows with name, email, and role badge", () => {
     render(
       <MembersTableView
         members={allMembers}
@@ -55,7 +55,7 @@ describe(MembersTableView, () => {
     expect(screen.getByText("member")).toBeInTheDocument();
   });
 
-  test("owner sees action buttons for non-owner members", () => {
+  it("owner sees action buttons for non-owner members", () => {
     render(
       <MembersTableView
         members={allMembers}
@@ -71,7 +71,7 @@ describe(MembersTableView, () => {
     expect(actionButtons.length).toBeGreaterThanOrEqual(2);
   });
 
-  test("owner does NOT see actions for self", () => {
+  it("owner does NOT see actions for self", () => {
     render(
       <MembersTableView
         members={[ownerMember]}
@@ -85,7 +85,7 @@ describe(MembersTableView, () => {
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
-  test("member (non-owner) sees NO action dropdowns", () => {
+  it("member (non-owner) sees NO action dropdowns", () => {
     render(
       <MembersTableView
         members={allMembers}
@@ -99,7 +99,7 @@ describe(MembersTableView, () => {
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
-  test("admin does NOT see actions (only owner can manage)", () => {
+  it("admin does NOT see actions (only owner can manage)", () => {
     render(
       <MembersTableView
         members={allMembers}
@@ -115,7 +115,7 @@ describe(MembersTableView, () => {
 });
 
 describe(InvitationsTableView, () => {
-  test("renders invitation rows with email, role, and expiry", () => {
+  it("renders invitation rows with email, role, and expiry", () => {
     const invitation = makeInvitation({
       email: "new-hire@example.com",
       role: "admin",
@@ -130,7 +130,7 @@ describe(InvitationsTableView, () => {
     expect(screen.getByText(new Date("2027-06-15").toLocaleDateString())).toBeInTheDocument();
   });
 
-  test("cancel button calls onCancel with invitation id", async () => {
+  it("cancel button calls onCancel with invitation id", async () => {
     const user = userEvent.setup();
     const invitation = makeInvitation({ id: "inv-42" });
     const onCancel = vi.fn<(invitationId: string) => Promise<void>>(async () => {});

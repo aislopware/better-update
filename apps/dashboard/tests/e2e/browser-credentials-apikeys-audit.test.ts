@@ -54,8 +54,8 @@ afterAll(async () => {
 
 // ── Tests ─────────────────────────────────────────────────────────────────
 
-describe("Dashboard credentials + API keys + audit log (browser)", () => {
-  test("uploads an iOS push notification credential", async () => {
+describe("dashboard credentials + API keys + audit log (browser)", () => {
+  it("uploads an iOS push notification credential", async () => {
     await page.getByRole("link", { name: "Credentials" }).click();
     await page.waitForURL(/\/credentials$/u);
 
@@ -95,7 +95,7 @@ describe("Dashboard credentials + API keys + audit log (browser)", () => {
     await page.getByText(credentialName).waitFor();
   });
 
-  test("uploads an Android credential and tests platform tab filter", async () => {
+  it("uploads an Android credential and tests platform tab filter", async () => {
     // Upload an Android distribution credential (Play Service Account .json)
     await page.getByRole("button", { name: "Upload" }).click();
     const dialog = page.getByRole("dialog");
@@ -145,7 +145,7 @@ describe("Dashboard credentials + API keys + audit log (browser)", () => {
     await page.getByText(androidName).waitFor();
   });
 
-  test("activates a credential via the dropdown menu", async () => {
+  it("activates a credential via the dropdown menu", async () => {
     const androidName = `Play Service ${suffix}`;
     const row = page.locator('[data-slot="card"]').filter({ hasText: androidName }).first();
     await row.getByRole("button").filter({ hasNotText: /\S/u }).click();
@@ -156,7 +156,7 @@ describe("Dashboard credentials + API keys + audit log (browser)", () => {
     await row.getByText("Active").waitFor();
   });
 
-  test("deletes a credential via the dropdown menu and confirm dialog", async () => {
+  it("deletes a credential via the dropdown menu and confirm dialog", async () => {
     const androidName = `Play Service ${suffix}`;
     const row = page.locator('[data-slot="card"]').filter({ hasText: androidName }).first();
     await row.getByRole("button").filter({ hasNotText: /\S/u }).click();
@@ -171,7 +171,7 @@ describe("Dashboard credentials + API keys + audit log (browser)", () => {
 
   // ── API Keys ─────────────────────────────────────────────────────────────
 
-  test("creates an API key via the 2-step dialog and reveals the secret", async () => {
+  it("creates an API key via the 2-step dialog and reveals the secret", async () => {
     await page.getByRole("link", { name: "API Keys" }).click();
     await page.waitForURL(/\/api-keys$/u);
 
@@ -196,7 +196,7 @@ describe("Dashboard credentials + API keys + audit log (browser)", () => {
     await page.getByRole("cell", { name: apiKeyName }).waitFor();
   });
 
-  test("revokes an API key via the dropdown menu and confirm dialog", async () => {
+  it("revokes an API key via the dropdown menu and confirm dialog", async () => {
     const row = page.getByRole("row").filter({ hasText: apiKeyName });
     await row.getByRole("button").click();
     await page.getByRole("menuitem", { name: "Revoke key" }).click();
@@ -210,7 +210,7 @@ describe("Dashboard credentials + API keys + audit log (browser)", () => {
 
   // ── Audit Log ────────────────────────────────────────────────────────────
 
-  test("audit log shows seeded events and filters by resource type", async () => {
+  it("audit log shows seeded events and filters by resource type", async () => {
     await page.getByRole("link", { name: "Audit Log" }).click();
     await page.waitForURL(/\/audit-log$/u);
 
@@ -232,7 +232,7 @@ describe("Dashboard credentials + API keys + audit log (browser)", () => {
     await page.getByText("Activity", { exact: true }).first().waitFor();
   });
 
-  test("audit log applies a date-range filter", async () => {
+  it("audit log applies a date-range filter", async () => {
     // Use a wide date range to keep rows visible
     const today = new Date();
     const from = new Date(today.getTime() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);

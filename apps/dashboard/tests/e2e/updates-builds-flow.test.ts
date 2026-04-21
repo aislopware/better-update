@@ -4,7 +4,7 @@ const { post, get, patch, parseCookies, seedSql } = setupE2EDashboard();
 
 const sqlString = (value: string) => `'${value.replaceAll("'", "''")}'`;
 
-describe("Dashboard updates and builds flow", () => {
+describe("dashboard updates and builds flow", () => {
   const state = {
     cookies: "",
     organizationId: "",
@@ -123,7 +123,7 @@ VALUES
     );
     expect(compatibilityResponse.status).toBe(200);
     const compatibilityBody = await compatibilityResponse.json();
-    expect(compatibilityBody.rows).toEqual(
+    expect(compatibilityBody.rows).toStrictEqual(
       expect.arrayContaining([
         expect.objectContaining({
           id: "dash-build-next",
@@ -139,7 +139,7 @@ VALUES
         }),
       ]),
     );
-    expect(compatibilityBody.missingRuntimeVersions).toEqual(
+    expect(compatibilityBody.missingRuntimeVersions).toStrictEqual(
       expect.arrayContaining([
         expect.objectContaining({
           channelName: "production",
@@ -155,7 +155,7 @@ VALUES
     });
     expect(installLinkResponse.status).toBe(200);
     const installLinkBody = await installLinkResponse.json();
-    expect(installLinkBody).toEqual(
+    expect(installLinkBody).toStrictEqual(
       expect.objectContaining({
         artifactUrl: expect.stringContaining("/api/builds/dash-build-next/artifact?token="),
         installUrl: expect.stringContaining("itms-services://?action=download-manifest"),
@@ -208,7 +208,7 @@ VALUES
     );
     expect(editUpdateRolloutResponse.status).toBe(200);
     const editUpdateRolloutBody = await editUpdateRolloutResponse.json();
-    expect(editUpdateRolloutBody).toEqual(
+    expect(editUpdateRolloutBody).toStrictEqual(
       expect.objectContaining({
         id: "dash-update-stable-current",
         rolloutPercentage: 25,
@@ -222,7 +222,7 @@ VALUES
     );
     expect(completeUpdateRolloutResponse.status).toBe(200);
     const completeUpdateRolloutBody = await completeUpdateRolloutResponse.json();
-    expect(completeUpdateRolloutBody).toEqual(
+    expect(completeUpdateRolloutBody).toStrictEqual(
       expect.objectContaining({
         id: "dash-update-stable-current",
         rolloutPercentage: 100,

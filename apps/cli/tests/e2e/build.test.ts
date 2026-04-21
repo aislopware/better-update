@@ -126,7 +126,7 @@ describe.skipIf(!hasAndroidSdk)("CLI build journey — Android", () => {
     expect(groupResponse.status).toBe(201);
   });
 
-  it("links the fixture app to the seeded project", () => {
+  test("links the fixture app to the seeded project", () => {
     const result = cli.runCli("init");
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toBe("");
@@ -141,7 +141,7 @@ describe.skipIf(!hasAndroidSdk)("CLI build journey — Android", () => {
     expect(betterUpdate["projectId"]).toBe(cli.getProjectId());
   });
 
-  it("builds an Android APK and uploads it", () => {
+  test("builds an Android APK and uploads it", () => {
     const result = cli.runCli("build", "--platform", "android", "--message", "E2E Android build");
     expect(result.exitCode).toBe(0);
 
@@ -161,7 +161,7 @@ describe.skipIf(!hasAndroidSdk)("CLI build journey — Android", () => {
     expect(result.stdout).toMatch(/^Bytes\s+\d+$/m);
   }, 600_000);
 
-  it("lists the uploaded build via CLI", () => {
+  test("lists the uploaded build via CLI", () => {
     expect(buildState.buildId).not.toBe("");
 
     const result = cli.runCli("builds", "list");
@@ -173,7 +173,7 @@ describe.skipIf(!hasAndroidSdk)("CLI build journey — Android", () => {
     expect(result.stdout).toContain("direct");
   });
 
-  it("gets build details via CLI", () => {
+  test("gets build details via CLI", () => {
     const result = cli.runCli("builds", "get", buildState.buildId);
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toBe("");
@@ -186,7 +186,7 @@ describe.skipIf(!hasAndroidSdk)("CLI build journey — Android", () => {
     expect(result.stdout).toContain("apk");
   });
 
-  it("verifies build metadata in API", async () => {
+  test("verifies build metadata in API", async () => {
     const response = await cli.getAuthorized(`/api/builds/${buildState.buildId}`);
     expect(response.status).toBe(200);
 
@@ -217,7 +217,7 @@ describe.skipIf(!hasAndroidSdk)("CLI build journey — Android", () => {
     buildState.expectedSha256 = build.artifact!.sha256;
   });
 
-  it("gets install link for the build", () => {
+  test("gets install link for the build", () => {
     const result = cli.runCli("builds", "install-link", buildState.buildId);
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toBe("");
@@ -226,7 +226,7 @@ describe.skipIf(!hasAndroidSdk)("CLI build journey — Android", () => {
     expect(result.stdout).toMatch(/^Install URL\s+-$/m);
   });
 
-  it("downloads the uploaded artifact and verifies its integrity", async () => {
+  test("downloads the uploaded artifact and verifies its integrity", async () => {
     expect(buildState.expectedByteSize).toBeGreaterThan(0);
     expect(buildState.expectedSha256).not.toBe("");
 
@@ -246,7 +246,7 @@ describe.skipIf(!hasAndroidSdk)("CLI build journey — Android", () => {
     expect(actualSha256).toBe(buildState.expectedSha256);
   });
 
-  it("deletes the build and confirms removal", () => {
+  test("deletes the build and confirms removal", () => {
     const deleteResult = cli.runCli("builds", "delete", buildState.buildId);
     expect(deleteResult.exitCode).toBe(0);
     expect(deleteResult.stderr).toBe("");
@@ -257,7 +257,7 @@ describe.skipIf(!hasAndroidSdk)("CLI build journey — Android", () => {
     expect(listResult.stdout).not.toContain(buildState.buildId);
   });
 
-  it("builds with --no-upload and skips the upload step", () => {
+  test("builds with --no-upload and skips the upload step", () => {
     const result = cli.runCli("build", "--platform", "android", "--no-upload");
     expect(result.exitCode).toBe(0);
 

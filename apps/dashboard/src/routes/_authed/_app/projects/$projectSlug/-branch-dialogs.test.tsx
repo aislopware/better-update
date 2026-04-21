@@ -103,7 +103,7 @@ const RenameBranchTestForm = ({ onSubmit }: { onSubmit: (name: string) => Promis
 // -- Tests ------------------------------------------------------------------
 
 describe("create branch form", () => {
-  test("shows validation error when name is empty on blur", async () => {
+  it("shows validation error when name is empty on blur", async () => {
     const user = userEvent.setup();
     render(<CreateBranchTestForm onSubmit={vi.fn<(name: string) => Promise<void>>()} />);
 
@@ -116,7 +116,7 @@ describe("create branch form", () => {
     });
   });
 
-  test("calls onSubmit with branch name", async () => {
+  it("calls onSubmit with branch name", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn<(name: string) => Promise<void>>(async () => {});
 
@@ -132,7 +132,7 @@ describe("create branch form", () => {
 });
 
 describe("rename branch form", () => {
-  test("pre-populates with current branch name", () => {
+  it("pre-populates with current branch name", () => {
     render(<RenameBranchTestForm onSubmit={vi.fn<(name: string) => Promise<void>>()} />);
 
     expect(screen.getByLabelText("Branch name")).toHaveValue("main");

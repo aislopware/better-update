@@ -4,13 +4,13 @@ import { Conflict } from "../errors";
 import { D1StatementError, d1RunWithUniqueCheck } from "./d1-helpers";
 
 describe(d1RunWithUniqueCheck, () => {
-  test("returns void on success", async () => {
+  it("returns void on success", async () => {
     await expect(
       Effect.runPromise(d1RunWithUniqueCheck(async () => ({}), "unused")),
     ).resolves.toBeUndefined();
   });
 
-  test("maps unique constraint errors to Conflict", async () => {
+  it("maps unique constraint errors to Conflict", async () => {
     const error = await Effect.runPromise(
       Effect.flip(
         d1RunWithUniqueCheck(async () => {
@@ -23,7 +23,7 @@ describe(d1RunWithUniqueCheck, () => {
     expect(error.message).toBe("Branch already exists");
   });
 
-  test("dies with a tagged D1 statement error for non-unique failures", async () => {
+  it("dies with a tagged D1 statement error for non-unique failures", async () => {
     const cause = await Effect.runPromise(
       Effect.flip(
         Effect.sandbox(

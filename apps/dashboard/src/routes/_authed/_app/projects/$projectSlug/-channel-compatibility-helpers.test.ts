@@ -68,8 +68,8 @@ const missingRuntimeVersions = [
 ];
 
 describe("channel compatibility helpers", () => {
-  test("maps build rows into compatible builds for a channel", () => {
-    expect(getCompatibleBuildsForChannel(compatibilityRows, "channel-production")).toEqual([
+  it("maps build rows into compatible builds for a channel", () => {
+    expect(getCompatibleBuildsForChannel(compatibilityRows, "channel-production")).toStrictEqual([
       {
         build: compatibilityRows[0],
         status: productionStatus,
@@ -77,12 +77,12 @@ describe("channel compatibility helpers", () => {
     ]);
   });
 
-  test("filters missing runtime versions by channel", () => {
+  it("filters missing runtime versions by channel", () => {
     expect(
       getMissingRuntimeVersionsForChannel(missingRuntimeVersions, "channel-production"),
-    ).toEqual(missingRuntimeVersions);
-    expect(getMissingRuntimeVersionsForChannel(missingRuntimeVersions, "channel-staging")).toEqual(
-      [],
-    );
+    ).toStrictEqual(missingRuntimeVersions);
+    expect(
+      getMissingRuntimeVersionsForChannel(missingRuntimeVersions, "channel-staging"),
+    ).toStrictEqual([]);
   });
 });

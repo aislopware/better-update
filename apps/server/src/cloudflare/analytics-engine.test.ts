@@ -14,7 +14,7 @@ const runQuery = async (sql: string) =>
   runWithLayerAndEnv(queryAnalyticsEngine(sql), AnalyticsEngineLive, mockEnv);
 
 describe(queryAnalyticsEngine, () => {
-  test("returns data rows on successful query", async () => {
+  it("returns data rows on successful query", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(
@@ -35,38 +35,38 @@ describe(queryAnalyticsEngine, () => {
     expect(result[0]?.["blob1"]).toBe("proj-1");
   });
 
-  test("returns empty array on non-OK response", async () => {
+  it("returns empty array on non-OK response", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("error", { status: 500 })));
 
     const result = await runQuery("SELECT 1");
-    expect(result).toEqual([]);
+    expect(result).toStrictEqual([]);
   });
 
-  test("returns empty array when fetch throws", async () => {
+  it("returns empty array when fetch throws", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network error")));
 
     const result = await runQuery("SELECT 1");
-    expect(result).toEqual([]);
+    expect(result).toStrictEqual([]);
   });
 
-  test("returns empty array on invalid JSON response", async () => {
+  it("returns empty array on invalid JSON response", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("not json", { status: 200 })));
 
     const result = await runQuery("SELECT 1");
-    expect(result).toEqual([]);
+    expect(result).toStrictEqual([]);
   });
 
-  test("returns empty array when response JSON lacks data field", async () => {
+  it("returns empty array when response JSON lacks data field", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(Response.json({ error: "bad query" }, { status: 200 })),
     );
 
     const result = await runQuery("SELECT 1");
-    expect(result).toEqual([]);
+    expect(result).toStrictEqual([]);
   });
 
-  test("calls correct WAE API endpoint with auth", async () => {
+  it("calls correct WAE API endpoint with auth", async () => {
     const mockFetch = vi.fn<typeof fetch>().mockResolvedValue(
       Response.json({
         data: [],

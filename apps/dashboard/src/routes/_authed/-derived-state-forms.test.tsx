@@ -173,7 +173,7 @@ const CreateProjectTestForm = () => {
 // ── Tests ───────────────────────────────────────────────────────
 
 describe("onboarding: name to slug sync", () => {
-  test("typing name auto-generates slug", async () => {
+  it("typing name auto-generates slug", async () => {
     const user = userEvent.setup();
     render(<OnboardingTestForm />);
 
@@ -182,7 +182,7 @@ describe("onboarding: name to slug sync", () => {
     expect(screen.getByLabelText<HTMLInputElement>("URL slug").value).toBe("acme-inc");
   });
 
-  test("manually editing slug stops auto-generation", async () => {
+  it("manually editing slug stops auto-generation", async () => {
     const user = userEvent.setup();
     render(<OnboardingTestForm />);
 
@@ -203,7 +203,7 @@ describe("onboarding: name to slug sync", () => {
     expect(screen.getByLabelText<HTMLInputElement>("URL slug").value).toBe("custom-slug");
   });
 
-  test("clearing slug re-enables auto-generation", async () => {
+  it("clearing slug re-enables auto-generation", async () => {
     const user = userEvent.setup();
     render(<OnboardingTestForm />);
 
@@ -225,7 +225,7 @@ describe("onboarding: name to slug sync", () => {
 });
 
 describe("settings: name to slug sync", () => {
-  test("typing name auto-generates slug when slug untouched", async () => {
+  it("typing name auto-generates slug when slug untouched", async () => {
     const user = userEvent.setup();
     render(<SettingsTestForm />);
 
@@ -236,7 +236,7 @@ describe("settings: name to slug sync", () => {
     expect(screen.getByLabelText<HTMLInputElement>("URL slug").value).toBe("new-org-name");
   });
 
-  test("manually editing slug stops auto-generation", async () => {
+  it("manually editing slug stops auto-generation", async () => {
     const user = userEvent.setup();
     render(<SettingsTestForm />);
 
@@ -253,7 +253,7 @@ describe("settings: name to slug sync", () => {
     expect(screen.getByLabelText<HTMLInputElement>("URL slug").value).toBe("my-custom-slug");
   });
 
-  test("clearing slug re-enables auto-generation", async () => {
+  it("clearing slug re-enables auto-generation", async () => {
     const user = userEvent.setup();
     render(<SettingsTestForm />);
 
@@ -272,7 +272,7 @@ describe("settings: name to slug sync", () => {
 });
 
 describe("create project: name to slug sync", () => {
-  test("typing name auto-generates slug", async () => {
+  it("typing name auto-generates slug", async () => {
     const user = userEvent.setup();
     render(<CreateProjectTestForm />);
 
@@ -281,7 +281,7 @@ describe("create project: name to slug sync", () => {
     expect(screen.getByLabelText<HTMLInputElement>("Slug").value).toBe("my-app");
   });
 
-  test("manually editing slug stops auto-generation", async () => {
+  it("manually editing slug stops auto-generation", async () => {
     const user = userEvent.setup();
     render(<CreateProjectTestForm />);
 
@@ -291,7 +291,7 @@ describe("create project: name to slug sync", () => {
     expect(screen.getByLabelText<HTMLInputElement>("Slug").value).toBe("custom-pkg");
   });
 
-  test("clearing slug re-enables auto-generation", async () => {
+  it("clearing slug re-enables auto-generation", async () => {
     const user = userEvent.setup();
     render(<CreateProjectTestForm />);
 

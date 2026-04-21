@@ -61,6 +61,7 @@ import type {
 } from "@tanstack/react-table";
 
 import { formatAppleTeamLabel } from "../-credentials-utils";
+import { formatRelativeTime } from "../../../../lib/format-relative-time";
 import { DeleteDeviceDialog } from "./-delete-device-dialog";
 import { InviteDeviceDialog } from "./-invite-dialog";
 import { PendingInvitesList } from "./-pending-invites-list";
@@ -82,27 +83,6 @@ const CLASS_LABEL: Record<DeviceClassValue, string> = {
   IPAD: "iPad",
   MAC: "Mac",
   UNKNOWN: "Unknown",
-};
-
-const formatRelativeTime = (dateString: string): string => {
-  const diff = Date.now() - new Date(dateString).getTime();
-  const sec = Math.floor(diff / 1000);
-  const min = Math.floor(sec / 60);
-  const hr = Math.floor(min / 60);
-  const day = Math.floor(hr / 24);
-  if (sec < 60) {
-    return "just now";
-  }
-  if (min < 60) {
-    return `${min}m ago`;
-  }
-  if (hr < 24) {
-    return `${hr}h ago`;
-  }
-  if (day < 30) {
-    return `${day}d ago`;
-  }
-  return new Date(dateString).toLocaleDateString();
 };
 
 const nameIdentifierFilter: FilterFn<DeviceItem> = (row, _columnId, rawValue) => {

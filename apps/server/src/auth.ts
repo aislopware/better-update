@@ -81,7 +81,7 @@ export const createAuth = (env: AuthEnv) => {
   return betterAuth({
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL,
-    trustedOrigins: [env.DASHBOARD_URL].filter(Boolean),
+    trustedOrigins: env.DASHBOARD_URL ? [env.DASHBOARD_URL] : [],
     database: env.DB,
     logger: testMode ? { disabled: true } : undefined,
 

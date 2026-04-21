@@ -9,22 +9,7 @@ import { toast } from "sonner";
 
 import type { DeviceRegistrationRequestItem } from "@better-update/api-client/react";
 
-const formatRelativeFuture = (iso: string): string => {
-  const diff = new Date(iso).getTime() - Date.now();
-  if (diff <= 0) {
-    return "expired";
-  }
-  const min = Math.floor(diff / 60_000);
-  const hr = Math.floor(min / 60);
-  const day = Math.floor(hr / 24);
-  if (min < 60) {
-    return `in ${min}m`;
-  }
-  if (hr < 24) {
-    return `in ${hr}h`;
-  }
-  return `in ${day}d`;
-};
+import { formatRelativeFuture } from "../../../../lib/format-relative-time";
 
 const InviteRow = ({ invite }: { invite: DeviceRegistrationRequestItem }) => {
   const [copied, setCopied] = useState(false);

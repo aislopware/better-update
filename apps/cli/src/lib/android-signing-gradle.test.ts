@@ -1,7 +1,7 @@
 import { renderSigningGradle } from "./android-signing-gradle";
 
 describe(renderSigningGradle, () => {
-  test("renders standard release signing config", () => {
+  it("renders standard release signing config", () => {
     const script = renderSigningGradle({
       keystorePath: "/tmp/release.keystore",
       storePassword: "store-pass",
@@ -34,7 +34,7 @@ describe(renderSigningGradle, () => {
     `);
   });
 
-  test("references com.android.application plugin check + afterEvaluate", () => {
+  it("references com.android.application plugin check + afterEvaluate", () => {
     const script = renderSigningGradle({
       keystorePath: "/k",
       storePassword: "s",
@@ -49,7 +49,7 @@ describe(renderSigningGradle, () => {
     expect(script).toContain("signingConfig signingConfigs.release");
   });
 
-  test("escapes single quotes in passwords", () => {
+  it("escapes single quotes in passwords", () => {
     const script = renderSigningGradle({
       keystorePath: "/k",
       storePassword: "can't",
@@ -61,7 +61,7 @@ describe(renderSigningGradle, () => {
     expect(script).toContain(String.raw`keyPassword 'pass\'word'`);
   });
 
-  test("escapes backslashes in path", () => {
+  it("escapes backslashes in path", () => {
     const script = renderSigningGradle({
       keystorePath: "C:\\keys\\release.keystore",
       storePassword: "s",
@@ -71,7 +71,7 @@ describe(renderSigningGradle, () => {
     expect(script).toContain(String.raw`storeFile file('C:\\keys\\release.keystore')`);
   });
 
-  test("escapes combined backslash and quote", () => {
+  it("escapes combined backslash and quote", () => {
     const script = renderSigningGradle({
       keystorePath: "/k",
       storePassword: "a\\'b",
@@ -82,7 +82,7 @@ describe(renderSigningGradle, () => {
     expect(script).toContain(String.raw`storePassword 'a\\\'b'`);
   });
 
-  test("escapes `$` in passwords to prevent Groovy interpolation", () => {
+  it("escapes `$` in passwords to prevent Groovy interpolation", () => {
     const script = renderSigningGradle({
       keystorePath: "/k",
       storePassword: "p@ss$word",

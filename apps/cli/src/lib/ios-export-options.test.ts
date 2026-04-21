@@ -3,7 +3,7 @@ import { renderExportOptionsPlist } from "./ios-export-options";
 // ── snapshot-style tests for each method ──────────────────────────
 
 describe(renderExportOptionsPlist, () => {
-  test("app-store method includes uploadSymbols=true", () => {
+  it("app-store method includes uploadSymbols=true", () => {
     const plist = renderExportOptionsPlist({
       method: "app-store",
       teamId: "ABCD1234EF",
@@ -36,7 +36,7 @@ describe(renderExportOptionsPlist, () => {
     `);
   });
 
-  test("ad-hoc method omits uploadSymbols", () => {
+  it("ad-hoc method omits uploadSymbols", () => {
     const plist = renderExportOptionsPlist({
       method: "ad-hoc",
       teamId: "ABCD1234EF",
@@ -47,7 +47,7 @@ describe(renderExportOptionsPlist, () => {
     expect(plist).not.toContain("uploadSymbols");
   });
 
-  test("enterprise method omits uploadSymbols", () => {
+  it("enterprise method omits uploadSymbols", () => {
     const plist = renderExportOptionsPlist({
       method: "enterprise",
       teamId: "XYZ9876543",
@@ -58,7 +58,7 @@ describe(renderExportOptionsPlist, () => {
     expect(plist).not.toContain("uploadSymbols");
   });
 
-  test("development method omits uploadSymbols", () => {
+  it("development method omits uploadSymbols", () => {
     const plist = renderExportOptionsPlist({
       method: "development",
       teamId: "DEV1234567",
@@ -69,7 +69,7 @@ describe(renderExportOptionsPlist, () => {
     expect(plist).not.toContain("uploadSymbols");
   });
 
-  test("compileBitcode=true renders <true/>", () => {
+  it("compileBitcode=true renders <true/>", () => {
     const plist = renderExportOptionsPlist({
       method: "ad-hoc",
       teamId: "ABCD1234EF",
@@ -80,7 +80,7 @@ describe(renderExportOptionsPlist, () => {
     expect(plist).toContain("<key>compileBitcode</key>\n\t<true/>");
   });
 
-  test("XML-escapes &, <, >, ', \" in bundleId and profile name", () => {
+  it("xML-escapes &, <, >, ', \" in bundleId and profile name", () => {
     const plist = renderExportOptionsPlist({
       method: "ad-hoc",
       teamId: "T1",

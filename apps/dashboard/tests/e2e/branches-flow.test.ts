@@ -2,7 +2,7 @@ import { setupE2EDashboard } from "../helpers/e2e-dashboard";
 
 const { post, get, patch, parseCookies } = setupE2EDashboard();
 
-describe("Dashboard branches journey", () => {
+describe("dashboard branches journey", () => {
   const state = { cookies: "", organizationId: "", projectId: "", branchId: "" };
 
   // ── Section 1: Auth bootstrap ──────────────────────────────────

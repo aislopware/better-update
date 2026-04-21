@@ -32,6 +32,7 @@
     "@expo/xcpretty": "^4.4.3",
     "bplist-parser": "^0.3.2",
     "effect": "^3.21.1",
+    "es-toolkit": "^1.45.1",
     "gradle-to-js": "^2.0.1"
   },
   "devDependencies": {

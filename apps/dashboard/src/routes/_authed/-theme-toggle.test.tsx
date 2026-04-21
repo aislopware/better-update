@@ -47,14 +47,14 @@ const ThemeSubmenuDropdown = ({
   </DropdownMenu>
 );
 
-describe("Theme toggle dropdown composition", () => {
-  test("renders theme submenu without context errors", () => {
+describe("theme toggle dropdown composition", () => {
+  it("renders theme submenu without context errors", () => {
     render(<ThemeSubmenuDropdown theme="system" onThemeChange={() => {}} />);
 
     expect(screen.getByText("Theme")).toBeInTheDocument();
   });
 
-  test("shows Light, Dark, System radio items", () => {
+  it("shows Light, Dark, System radio items", () => {
     render(<ThemeSubmenuDropdown theme="system" onThemeChange={() => {}} />);
 
     expect(screen.getByText("Light")).toBeInTheDocument();
@@ -62,7 +62,7 @@ describe("Theme toggle dropdown composition", () => {
     expect(screen.getByText("System")).toBeInTheDocument();
   });
 
-  test("renders all three radio items as menu radio items", () => {
+  it("renders all three radio items as menu radio items", () => {
     render(<ThemeSubmenuDropdown theme="light" onThemeChange={() => {}} />);
 
     const radioItems = document.querySelectorAll('[data-slot="dropdown-menu-radio-item"]');

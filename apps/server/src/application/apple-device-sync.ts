@@ -1,4 +1,5 @@
 import { Effect } from "effect";
+import { uniqBy } from "es-toolkit";
 
 import { AppleAppStoreConnect } from "../cloudflare/apple-app-store-connect";
 import { DeviceRepo } from "../repositories/devices";
@@ -186,21 +187,10 @@ export const syncDevices = (params: {
     const skipped = pullOutcomes.length - pulled;
     const pushed = pushOutcomes.length;
 
-    const seenIds = new Set<string>();
-    const summaries: SyncedDeviceSummary[] = [];
-    const addSummary = (summary: SyncedDeviceSummary): void => {
-      if (seenIds.has(summary.id)) {
-        return;
-      }
-      seenIds.add(summary.id);
-      summaries.push(summary);
-    };
-    pullOutcomes.forEach((outcome) => {
-      addSummary(outcome.summary);
-    });
-    pushOutcomes.forEach((outcome) => {
-      addSummary(outcome.summary);
-    });
+    const summaries = uniqBy(
+      [...pullOutcomes, ...pushOutcomes].map((outcome) => outcome.summary),
+      (summary) => summary.id,
+    );
 
     return { pulled, pushed, skipped, devices: summaries };
   });

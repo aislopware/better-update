@@ -12,7 +12,7 @@ const withMagic = (hex: string) => {
 };
 
 describe(validateAndroidKeystore, () => {
-  test("detects JKS magic", async () => {
+  it("detects JKS magic", async () => {
     const result = await Effect.runPromise(
       validateAndroidKeystore({
         bytes: withMagic("FEEDFEED"),
@@ -24,7 +24,7 @@ describe(validateAndroidKeystore, () => {
     expect(result.format).toBe("JKS");
   });
 
-  test("detects PKCS12 magic", async () => {
+  it("detects PKCS12 magic", async () => {
     const result = await Effect.runPromise(
       validateAndroidKeystore({
         bytes: withMagic("3082"),
@@ -36,7 +36,7 @@ describe(validateAndroidKeystore, () => {
     expect(result.format).toBe("PKCS12");
   });
 
-  test("normalizes fingerprints", async () => {
+  it("normalizes fingerprints", async () => {
     const result = await Effect.runPromise(
       validateAndroidKeystore({
         bytes: withMagic("FEEDFEED"),
@@ -53,7 +53,7 @@ describe(validateAndroidKeystore, () => {
     expect(result.sha1Fingerprint).toBeNull();
   });
 
-  test("rejects too-small files", async () => {
+  it("rejects too-small files", async () => {
     const error = await Effect.runPromise(
       Effect.flip(
         validateAndroidKeystore({
@@ -67,7 +67,7 @@ describe(validateAndroidKeystore, () => {
     expect(error.message).toMatch(/too small/);
   });
 
-  test("rejects empty alias", async () => {
+  it("rejects empty alias", async () => {
     const error = await Effect.runPromise(
       Effect.flip(
         validateAndroidKeystore({
@@ -81,7 +81,7 @@ describe(validateAndroidKeystore, () => {
     expect(error.message).toMatch(/alias/);
   });
 
-  test("rejects missing passwords", async () => {
+  it("rejects missing passwords", async () => {
     const error = await Effect.runPromise(
       Effect.flip(
         validateAndroidKeystore({
@@ -95,7 +95,7 @@ describe(validateAndroidKeystore, () => {
     expect(error.message).toMatch(/passwords/);
   });
 
-  test("rejects unknown magic", async () => {
+  it("rejects unknown magic", async () => {
     const error = await Effect.runPromise(
       Effect.flip(
         validateAndroidKeystore({
