@@ -20,17 +20,12 @@
     "build:watch": "tsdown --watch",
     "lint": "oxlint --fix",
     "lint:check": "oxlint",
-    "prepublishOnly": "bun run build",
     "test": "vitest run --project unit",
     "test:e2e": "vitest run --project e2e --maxWorkers 1 --fileParallelism false",
     "test:interactive": "vitest run --project interactive --maxWorkers 1 --fileParallelism false",
     "test:watch": "vitest --project unit"
   },
   "dependencies": {
-    "@better-update/api": "workspace:*",
-    "@better-update/encoding": "workspace:*",
-    "@better-update/expo-protocol": "workspace:*",
-    "@better-update/safe-json": "workspace:*",
     "@effect/cli": "^0.75.1",
     "@effect/platform": "^0.96.0",
     "@effect/platform-node": "^0.106.0",
@@ -45,7 +40,11 @@
     "gradle-to-js": "^2.0.1"
   },
   "devDependencies": {
+    "@better-update/api": "workspace:*",
+    "@better-update/encoding": "workspace:*",
+    "@better-update/expo-protocol": "workspace:*",
     "@better-update/oxlint-config": "workspace:*",
+    "@better-update/safe-json": "workspace:*",
     "@better-update/typescript-config": "workspace:*",
     "node-pty": "^1.1.0",
     "tsdown": "^0.9.0"
