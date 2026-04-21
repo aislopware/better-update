@@ -11,28 +11,28 @@ const VALID = JSON.stringify({
 });
 
 describe(parseGoogleServiceAccountKey, () => {
-  test("extracts metadata", async () => {
+  it("extracts metadata", async () => {
     const result = await Effect.runPromise(parseGoogleServiceAccountKey(VALID));
     expect(result.googleProjectId).toBe("my-project");
     expect(result.privateKeyId).toBe("abc123");
     expect(result.clientEmail).toMatch(/iam.gserviceaccount.com$/);
   });
 
-  test("rejects non-JSON", async () => {
+  it("rejects non-JSON", async () => {
     const error = await Effect.runPromise(
       Effect.flip(parseGoogleServiceAccountKey("not json at all")),
     );
     expect(error.message).toMatch(/JSON/);
   });
 
-  test("rejects non-service-account type", async () => {
+  it("rejects non-service-account type", async () => {
     const error = await Effect.runPromise(
       Effect.flip(parseGoogleServiceAccountKey(JSON.stringify({ type: "user" }))),
     );
     expect(error.message).toMatch(/service_account/);
   });
 
-  test("rejects missing private_key", async () => {
+  it("rejects missing private_key", async () => {
     const error = await Effect.runPromise(
       Effect.flip(
         parseGoogleServiceAccountKey(

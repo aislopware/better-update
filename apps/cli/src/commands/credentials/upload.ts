@@ -26,9 +26,6 @@ const keyId = Options.text("key-id").pipe(Options.optional);
 const issuerId = Options.text("issuer-id").pipe(Options.optional);
 const appleTeamIdentifier = Options.text("apple-team-identifier").pipe(Options.optional);
 
-const optional = <Value>(value: Option.Option<Value>) =>
-  Option.match(value, { onNone: () => undefined, onSome: (inner) => inner });
-
 export const uploadCommand = Command.make(
   "upload",
   {
@@ -47,12 +44,12 @@ export const uploadCommand = Command.make(
     Effect.gen(function* () {
       const api = yield* apiClient;
 
-      const passwordOpt = optional(opts.password);
-      const keyAliasOpt = optional(opts.keyAlias);
-      const keyPasswordOpt = optional(opts.keyPassword);
-      const keyIdOpt = optional(opts.keyId);
-      const issuerIdOpt = optional(opts.issuerId);
-      const appleTeamIdentifierOpt = optional(opts.appleTeamIdentifier);
+      const passwordOpt = Option.getOrUndefined(opts.password);
+      const keyAliasOpt = Option.getOrUndefined(opts.keyAlias);
+      const keyPasswordOpt = Option.getOrUndefined(opts.keyPassword);
+      const keyIdOpt = Option.getOrUndefined(opts.keyId);
+      const issuerIdOpt = Option.getOrUndefined(opts.issuerId);
+      const appleTeamIdentifierOpt = Option.getOrUndefined(opts.appleTeamIdentifier);
 
       const input: {
         readonly platform: typeof opts.platform;

@@ -2,6 +2,7 @@ import path from "node:path";
 
 import { FileSystem } from "@effect/platform";
 import { Effect, Option } from "effect";
+import { maxBy } from "es-toolkit";
 
 import type { PlatformError } from "@effect/platform/Error";
 
@@ -48,9 +49,7 @@ const walkAndFind = (
         const info = stat.value;
         if (info.type === "Directory") {
           const nested = yield* walkAndFind(fullPath, extension);
-          for (const nestedFile of nested) {
-            results.push(nestedFile);
-          }
+          results.push(...nested);
         } else if (info.type === "File" && entry.toLowerCase().endsWith(extension)) {
           results.push({
             path: fullPath,
@@ -68,10 +67,7 @@ const walkAndFind = (
 const newest = (files: readonly FoundFile[], minMtimeMs?: number): FoundFile | undefined => {
   const eligible =
     minMtimeMs === undefined ? files : files.filter((file) => file.mtimeMs >= minMtimeMs);
-  if (eligible.length === 0) {
-    return undefined;
-  }
-  return eligible.reduce((acc, current) => (current.mtimeMs > acc.mtimeMs ? current : acc));
+  return maxBy(eligible, (file) => file.mtimeMs);
 };
 
 export const findIosArtifact = ({

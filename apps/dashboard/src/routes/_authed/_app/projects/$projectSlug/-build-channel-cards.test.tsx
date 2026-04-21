@@ -106,7 +106,7 @@ const missingRuntimeVersion = {
 };
 
 describe("build and channel cards", () => {
-  test("BuildCard renders compatibility statuses from the matrix data", () => {
+  it("buildCard renders compatibility statuses from the matrix data", () => {
     renderWithQuery(
       <BuildCard build={build} orgId="org-1" projectId="proj-1" projectSlug="my-app" />,
     );
@@ -122,7 +122,7 @@ describe("build and channel cards", () => {
     );
   });
 
-  test("BuildCard shows missing runtimeVersion guidance when compatibility cannot be determined", () => {
+  it("buildCard shows missing runtimeVersion guidance when compatibility cannot be determined", () => {
     renderWithQuery(
       <BuildCard
         build={{ ...build, runtimeVersion: null }}
@@ -139,7 +139,7 @@ describe("build and channel cards", () => {
     ).toBeInTheDocument();
   });
 
-  test("ChannelCard renders rollout state, compatible builds, and missing build warnings", () => {
+  it("channelCard renders rollout state, compatible builds, and missing build warnings", () => {
     renderWithQuery(
       <ChannelCard
         channel={activeRolloutChannel}
@@ -164,7 +164,7 @@ describe("build and channel cards", () => {
     );
   });
 
-  test("ChannelCard still renders paused channels without rollout controls", () => {
+  it("channelCard still renders paused channels without rollout controls", () => {
     renderWithQuery(
       <ChannelCard
         channel={pausedChannel}

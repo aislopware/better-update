@@ -167,12 +167,12 @@ describe("vault orchestrators", () => {
   });
 
   describe("base64 round-trip", () => {
-    test("toBase64 and fromBase64 round-trip", () => {
+    it("toBase64 and fromBase64 round-trip", () => {
       const data = crypto.getRandomValues(new Uint8Array(64));
       const encoded = toBase64(data);
       const decoded = fromBase64(encoded);
 
-      expect(decoded).toEqual(data);
+      expect(decoded).toStrictEqual(data);
     });
   });
 });

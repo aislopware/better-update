@@ -26,7 +26,7 @@ describe(RemoveDialog, () => {
       ...overrides,
     }) as const;
 
-  test("renders title and description", () => {
+  it("renders title and description", () => {
     const props = makeProps();
     render(
       <RemoveDialog
@@ -41,7 +41,7 @@ describe(RemoveDialog, () => {
     expect(screen.getByText(/Are you sure you want to remove this member/)).toBeInTheDocument();
   });
 
-  test("Remove button calls onConfirm", async () => {
+  it("remove button calls onConfirm", async () => {
     const user = userEvent.setup();
     const onConfirm = vi.fn<() => Promise<void>>(async () => {});
     const props = makeProps({ onConfirm });
@@ -59,7 +59,7 @@ describe(RemoveDialog, () => {
     expect(onConfirm).toHaveBeenCalledTimes(1);
   });
 
-  test("button shows Removing... and is disabled when isRemoving=true", () => {
+  it("button shows Removing... and is disabled when isRemoving=true", () => {
     const props = makeProps({ isRemoving: true });
     render(
       <RemoveDialog
@@ -74,7 +74,7 @@ describe(RemoveDialog, () => {
     expect(button).toBeDisabled();
   });
 
-  test("Cancel button is visible", () => {
+  it("cancel button is visible", () => {
     const props = makeProps();
     render(
       <RemoveDialog
@@ -174,7 +174,7 @@ const InviteTestForm = ({
 };
 
 describe("invite form", () => {
-  test("empty email shows validation error on blur", async () => {
+  it("empty email shows validation error on blur", async () => {
     const user = userEvent.setup();
     render(<InviteTestForm onSubmit={vi.fn<(email: string, role: string) => Promise<void>>()} />);
 
@@ -187,7 +187,7 @@ describe("invite form", () => {
     });
   });
 
-  test("invalid email shows validation error on blur", async () => {
+  it("invalid email shows validation error on blur", async () => {
     const user = userEvent.setup();
     render(<InviteTestForm onSubmit={vi.fn<(email: string, role: string) => Promise<void>>()} />);
 
@@ -199,7 +199,7 @@ describe("invite form", () => {
     });
   });
 
-  test("submitting with valid email calls invite endpoint", async () => {
+  it("submitting with valid email calls invite endpoint", async () => {
     const user = userEvent.setup();
 
     const fetchMock = mockFetch({
@@ -224,7 +224,7 @@ describe("invite form", () => {
     });
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalled();
+      expect(fetchMock).toHaveBeenCalledWith();
     });
 
     const call = fetchMock.mock.calls[0]!;
@@ -235,7 +235,7 @@ describe("invite form", () => {
     vi.restoreAllMocks();
   });
 
-  test("selecting Admin role then submitting sends admin role", async () => {
+  it("selecting Admin role then submitting sends admin role", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn<(email: string, role: string) => Promise<void>>(async () => {});
 
@@ -250,7 +250,7 @@ describe("invite form", () => {
     });
   });
 
-  test("default role is member", () => {
+  it("default role is member", () => {
     render(<InviteTestForm onSubmit={vi.fn<(email: string, role: string) => Promise<void>>()} />);
 
     expect(screen.getByRole("button", { name: "Member" })).toHaveAttribute("aria-pressed", "true");

@@ -14,48 +14,48 @@ const VALID = {
 };
 
 describe(validateAscApiKey, () => {
-  test("accepts valid metadata without team", async () => {
+  it("accepts valid metadata without team", async () => {
     const result = await Effect.runPromise(validateAscApiKey(VALID));
     expect(result.keyId).toBe("ABCDE12345");
     expect(result.appleTeamId).toBeNull();
-    expect(result.roles).toEqual([]);
+    expect(result.roles).toStrictEqual([]);
   });
 
-  test("accepts optional team + roles", async () => {
+  it("accepts optional team + roles", async () => {
     const result = await Effect.runPromise(
       validateAscApiKey({ ...VALID, appleTeamId: "FGHIJ67890", roles: ["ADMIN"] }),
     );
     expect(result.appleTeamId).toBe("FGHIJ67890");
-    expect(result.roles).toEqual(["ADMIN"]);
+    expect(result.roles).toStrictEqual(["ADMIN"]);
   });
 
-  test("rejects bad keyId", async () => {
+  it("rejects bad keyId", async () => {
     const error = await Effect.runPromise(
       Effect.flip(validateAscApiKey({ ...VALID, keyId: "bad" })),
     );
     expect(error.message).toMatch(/ASC API Key ID/);
   });
 
-  test("rejects bad issuerId", async () => {
+  it("rejects bad issuerId", async () => {
     const error = await Effect.runPromise(
       Effect.flip(validateAscApiKey({ ...VALID, issuerId: "not-uuid" })),
     );
     expect(error.message).toMatch(/Issuer ID/);
   });
 
-  test("rejects empty name", async () => {
+  it("rejects empty name", async () => {
     const error = await Effect.runPromise(Effect.flip(validateAscApiKey({ ...VALID, name: " " })));
     expect(error.message).toMatch(/Name must be/);
   });
 
-  test("rejects bad team identifier when provided", async () => {
+  it("rejects bad team identifier when provided", async () => {
     const error = await Effect.runPromise(
       Effect.flip(validateAscApiKey({ ...VALID, appleTeamId: "lower12345" })),
     );
     expect(error.message).toMatch(/Team identifier/);
   });
 
-  test("rejects invalid PEM", async () => {
+  it("rejects invalid PEM", async () => {
     const error = await Effect.runPromise(Effect.flip(validateAscApiKey({ ...VALID, pem: "x" })));
     expect(error.message).toMatch(/PKCS8 PEM/);
   });

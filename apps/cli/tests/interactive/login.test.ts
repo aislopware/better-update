@@ -17,7 +17,7 @@ describe("login --api-key (interactive PoC)", () => {
     rmSync(homeDir, { recursive: true, force: true });
   });
 
-  test("prompts for API key, stores token on enter", async () => {
+  it("prompts for API key, stores token on enter", async () => {
     const driver = spawnPty("bun", [CLI_ENTRY, "login", "--api-key"], {
       env: {
         HOME: homeDir,

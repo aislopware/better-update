@@ -1,5 +1,6 @@
 import { safeJsonParse } from "@better-update/safe-json";
 import { Effect } from "effect";
+import { countBy, uniq } from "es-toolkit";
 
 import type { RepublishBody } from "@better-update/api";
 
@@ -74,21 +75,15 @@ const parseExtraJson = (extraJson: string | null): Record<string, unknown> | und
 const resolveSignedRepublishOverrides = (payload: RepublishPayload) =>
   Effect.gen(function* () {
     const overrides = payload.signedUpdates ?? [];
-    const { duplicateSourceUpdateIds } = overrides.reduce(
-      (acc, override) => {
-        if (acc.seen.has(override.sourceUpdateId)) {
-          acc.duplicateSourceUpdateIds.add(override.sourceUpdateId);
-        } else {
-          acc.seen.add(override.sourceUpdateId);
-        }
-        return acc;
-      },
-      { seen: new Set<string>(), duplicateSourceUpdateIds: new Set<string>() },
-    );
+    const duplicateSourceUpdateIds = Object.entries(
+      countBy(overrides, (override) => override.sourceUpdateId),
+    )
+      .filter(([, count]) => count > 1)
+      .map(([id]) => id);
 
-    if (duplicateSourceUpdateIds.size > 0) {
+    if (duplicateSourceUpdateIds.length > 0) {
       yield* fail(
-        `signedUpdates must contain unique sourceUpdateId values: ${[...duplicateSourceUpdateIds].join(", ")}`,
+        `signedUpdates must contain unique sourceUpdateId values: ${duplicateSourceUpdateIds.join(", ")}`,
       );
     }
 
@@ -191,7 +186,7 @@ export const resolveRepublishSource = ({ payload }: { readonly payload: Republis
       (update) => branchRepo.findById({ id: update.branchId }),
       { concurrency: "unbounded" },
     );
-    const projectIds = [...new Set(sourceBranches.map((branch) => branch.projectId))];
+    const projectIds = uniq(sourceBranches.map((branch) => branch.projectId));
     if (projectIds.length !== 1) {
       yield* fail("All source updates must belong to the same project");
     }

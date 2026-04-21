@@ -114,8 +114,8 @@ const ApiKeysTestPage = () => {
   );
 };
 
-describe("API keys page rendering", () => {
-  test("shows empty state when no API keys", () => {
+describe("aPI keys page rendering", () => {
+  it("shows empty state when no API keys", () => {
     const session = makeSession();
     const org = makeOrg();
 
@@ -133,7 +133,7 @@ describe("API keys page rendering", () => {
     ).toBeInTheDocument();
   });
 
-  test("renders API key rows with name and masked key", () => {
+  it("renders API key rows with name and masked key", () => {
     const session = makeSession();
     const org = makeOrg();
     const keys = [
@@ -155,7 +155,7 @@ describe("API keys page rendering", () => {
     expect(screen.getByText("bu_stag********")).toBeInTheDocument();
   });
 
-  test("shows Never for keys without expiry", () => {
+  it("shows Never for keys without expiry", () => {
     const session = makeSession();
     const org = makeOrg();
     const key = makeApiKey({ expiresAt: null });
@@ -171,7 +171,7 @@ describe("API keys page rendering", () => {
     expect(screen.getByText("Never")).toBeInTheDocument();
   });
 
-  test("shows expiry date for keys with expiration", () => {
+  it("shows expiry date for keys with expiration", () => {
     const session = makeSession();
     const org = makeOrg();
     const key = makeApiKey({ expiresAt: new Date("2026-12-31T00:00:00Z") });
@@ -189,7 +189,7 @@ describe("API keys page rendering", () => {
     ).toBeInTheDocument();
   });
 
-  test("shows correct count in description", () => {
+  it("shows correct count in description", () => {
     const session = makeSession();
     const org = makeOrg();
     const keys = [
@@ -209,7 +209,7 @@ describe("API keys page rendering", () => {
     expect(screen.getByText("3 keys in this organization.")).toBeInTheDocument();
   });
 
-  test("shows singular key count", () => {
+  it("shows singular key count", () => {
     const session = makeSession();
     const org = makeOrg();
 
@@ -224,7 +224,7 @@ describe("API keys page rendering", () => {
     expect(screen.getByText("1 key in this organization.")).toBeInTheDocument();
   });
 
-  test("shows Unnamed for keys without name", () => {
+  it("shows Unnamed for keys without name", () => {
     const session = makeSession();
     const org = makeOrg();
     const key = makeApiKey({ name: null });

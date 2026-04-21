@@ -28,13 +28,13 @@ const DeleteConfirmTestForm = ({ slug }: { slug: string }) => {
 };
 
 describe("delete org confirmation gate", () => {
-  test("delete button is disabled when confirmation is empty", () => {
+  it("delete button is disabled when confirmation is empty", () => {
     render(<DeleteConfirmTestForm slug="my-org" />);
 
     expect(screen.getByRole("button", { name: "Delete permanently" })).toBeDisabled();
   });
 
-  test("delete button is disabled when confirmation does not match", async () => {
+  it("delete button is disabled when confirmation does not match", async () => {
     const user = userEvent.setup();
     render(<DeleteConfirmTestForm slug="my-org" />);
 
@@ -43,7 +43,7 @@ describe("delete org confirmation gate", () => {
     expect(screen.getByRole("button", { name: "Delete permanently" })).toBeDisabled();
   });
 
-  test("delete button enables when confirmation matches slug exactly", async () => {
+  it("delete button enables when confirmation matches slug exactly", async () => {
     const user = userEvent.setup();
     render(<DeleteConfirmTestForm slug="my-org" />);
 
@@ -52,7 +52,7 @@ describe("delete org confirmation gate", () => {
     expect(screen.getByRole("button", { name: "Delete permanently" })).toBeEnabled();
   });
 
-  test("delete button disables again when confirmation is modified", async () => {
+  it("delete button disables again when confirmation is modified", async () => {
     const user = userEvent.setup();
     render(<DeleteConfirmTestForm slug="my-org" />);
 

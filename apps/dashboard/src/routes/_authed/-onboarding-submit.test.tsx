@@ -125,7 +125,7 @@ const OnboardingSubmitTestForm = () => {
 };
 
 describe("onboarding form submit", () => {
-  test("submitting calls organization create then set-active", async () => {
+  it("submitting calls organization create then set-active", async () => {
     const user = userEvent.setup();
 
     const fetchMock = mockFetch({
@@ -157,7 +157,7 @@ describe("onboarding form submit", () => {
     vi.restoreAllMocks();
   });
 
-  test("button is disabled while submitting", async () => {
+  it("button is disabled while submitting", async () => {
     const user = userEvent.setup();
 
     const createDeferred = Effect.runSync(Deferred.make<undefined>());
@@ -203,7 +203,7 @@ describe("onboarding form submit", () => {
     });
   });
 
-  test("name validation shows error for empty name on blur", async () => {
+  it("name validation shows error for empty name on blur", async () => {
     const user = userEvent.setup();
     render(<OnboardingSubmitTestForm />);
 

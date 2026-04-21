@@ -13,7 +13,7 @@ const streamFromChunks = (...chunks: readonly string[]) =>
   });
 
 describe(teeBodyWithSha256, () => {
-  test("computes sha256 and byte size while preserving the upload stream", async () => {
+  it("computes sha256 and byte size while preserving the upload stream", async () => {
     const body = streamFromChunks("hello ", "world");
     const { uploadBody, digest } = teeBodyWithSha256(body);
 
@@ -27,7 +27,7 @@ describe(teeBodyWithSha256, () => {
     );
   });
 
-  test("handles empty bodies without buffering", async () => {
+  it("handles empty bodies without buffering", async () => {
     const { uploadBody, digest } = teeBodyWithSha256(null);
     const [copiedText, digestResult] = await Promise.all([new Response(uploadBody).text(), digest]);
 

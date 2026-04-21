@@ -25,21 +25,21 @@ const DefaultFallback = ({ error, reset }: { error: Error; reset: () => void }) 
 );
 
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  constructor(props: ErrorBoundaryProps) {
+  public constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { error: null };
   }
 
-  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+  public static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { error };
   }
 
-  reset = (): void => {
+  public reset = (): void => {
     // eslint-disable-next-line react/no-set-state -- Class error boundary requires setState to clear error; no hook equivalent exists in React 19.
     this.setState({ error: null });
   };
 
-  override render(): ReactNode {
+  public override render(): ReactNode {
     const { error } = this.state;
     if (error) {
       if (this.props.fallback) {

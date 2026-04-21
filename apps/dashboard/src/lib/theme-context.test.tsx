@@ -63,12 +63,12 @@ beforeEach(() => {
 });
 
 describe(ThemeProvider, () => {
-  test('provides default theme as "system"', () => {
+  it('provides default theme as "system"', () => {
     const { result } = renderHook(() => useTheme(), { wrapper });
     expect(result.current.theme).toBe("system");
   });
 
-  test('updateTheme("dark") updates context and applies dark class', () => {
+  it('updateTheme("dark") updates context and applies dark class', () => {
     const { result } = renderHook(() => useTheme(), { wrapper });
 
     act(() => result.current.updateTheme("dark"));
@@ -78,7 +78,7 @@ describe(ThemeProvider, () => {
     expect(document.documentElement.classList.contains("dark")).toBe(true);
   });
 
-  test('updateTheme("light") updates context and removes dark class', () => {
+  it('updateTheme("light") updates context and removes dark class', () => {
     const { result } = renderHook(() => useTheme(), { wrapper });
 
     act(() => result.current.updateTheme("dark"));
@@ -89,7 +89,7 @@ describe(ThemeProvider, () => {
     expect(document.documentElement.classList.contains("dark")).toBe(false);
   });
 
-  test("persists theme to cookie on change", () => {
+  it("persists theme to cookie on change", () => {
     const { result } = renderHook(() => useTheme(), { wrapper });
 
     act(() => result.current.updateTheme("dark"));
@@ -97,14 +97,14 @@ describe(ThemeProvider, () => {
     expect(document.cookie).toContain(`${THEME_COOKIE_NAME}=dark`);
   });
 
-  test("uses initialTheme prop for initial state", () => {
+  it("uses initialTheme prop for initial state", () => {
     const { result } = renderHook(() => useTheme(), { wrapper: createWrapper("dark") });
 
     expect(result.current.theme).toBe("dark");
     expect(result.current.resolvedTheme).toBe("dark");
   });
 
-  test("resolves system theme based on matchMedia", () => {
+  it("resolves system theme based on matchMedia", () => {
     stubMatchMedia(true);
 
     const { result } = renderHook(() => useTheme(), { wrapper });
@@ -113,7 +113,7 @@ describe(ThemeProvider, () => {
     expect(result.current.resolvedTheme).toBe("dark");
   });
 
-  test("responds to system preference changes when theme is system", () => {
+  it("responds to system preference changes when theme is system", () => {
     const mql = stubMatchMedia(false);
 
     const { result } = renderHook(() => useTheme(), { wrapper });
@@ -125,7 +125,7 @@ describe(ThemeProvider, () => {
 });
 
 describe(useTheme, () => {
-  test("throws when used without ThemeProvider", () => {
+  it("throws when used without ThemeProvider", () => {
     const errorWrapper = ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>
     );

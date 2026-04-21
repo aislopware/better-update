@@ -2,7 +2,7 @@ import { setupE2EDashboard } from "../helpers/e2e-dashboard";
 
 const { post, get, parseCookies } = setupE2EDashboard();
 
-describe("Cookie-based auth", () => {
+describe("cookie-based auth", () => {
   const state = { cookies: "", organizationId: "" };
 
   it("sign up returns session cookie", async () => {
@@ -16,7 +16,7 @@ describe("Cookie-based auth", () => {
     expect(state.cookies.length).toBeGreaterThan(0);
   });
 
-  it("GET /api/auth/get-session with cookie returns session", async () => {
+  it("gET /api/auth/get-session with cookie returns session", async () => {
     const response = await get("/api/auth/get-session", { cookie: state.cookies });
     expect(response.status).toBe(200);
     const body = await response.json();
@@ -44,14 +44,14 @@ describe("Cookie-based auth", () => {
     state.cookies = parseCookies(activateResponse) || state.cookies;
   });
 
-  it("GET /api/projects with cookie returns 200", async () => {
+  it("gET /api/projects with cookie returns 200", async () => {
     const response = await get("/api/projects", { cookie: state.cookies });
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body).toHaveProperty("items");
   });
 
-  it("GET /api/projects without cookie returns 401", async () => {
+  it("gET /api/projects without cookie returns 401", async () => {
     const response = await get("/api/projects");
     expect(response.status).toBe(401);
   });

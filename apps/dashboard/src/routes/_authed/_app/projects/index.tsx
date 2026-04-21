@@ -55,6 +55,7 @@ import type {
 } from "@tanstack/react-table";
 
 import { EntityAvatar } from "../../../../lib/entity-avatar";
+import { formatRelativeTime } from "../../../../lib/format-relative-time";
 import { CreateProjectDialog } from "./-create-dialog";
 
 type SortId = "lastActivityAt" | "name";
@@ -62,28 +63,6 @@ type SortId = "lastActivityAt" | "name";
 const DEFAULT_SORTING: SortingState = [{ id: "lastActivityAt", desc: true }];
 
 const isSortId = (value: string): value is SortId => value === "lastActivityAt" || value === "name";
-
-const formatRelativeTime = (dateString: string): string => {
-  const now = Date.now();
-  const date = new Date(dateString).getTime();
-  const diffSec = Math.floor((now - date) / 1000);
-  const diffMin = Math.floor(diffSec / 60);
-  const diffHr = Math.floor(diffMin / 60);
-  const diffDay = Math.floor(diffHr / 24);
-  if (diffSec < 60) {
-    return "just now";
-  }
-  if (diffMin < 60) {
-    return `${diffMin}m ago`;
-  }
-  if (diffHr < 24) {
-    return `${diffHr}h ago`;
-  }
-  if (diffDay < 30) {
-    return `${diffDay}d ago`;
-  }
-  return new Date(dateString).toLocaleDateString();
-};
 
 const nameSlugFilter: FilterFn<ProjectItem> = (row, _columnId, rawValue) => {
   const query = String(rawValue).trim().toLowerCase();

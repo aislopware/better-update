@@ -227,7 +227,7 @@ const cliState = {
   rollbackUpdateId: "",
 };
 
-describe("CLI command journey", () => {
+describe("cLI command journey", () => {
   it("links the current Expo app to the existing project", () => {
     const result = cli.runCli("init");
     expect(result.exitCode).toBe(0);
@@ -437,7 +437,7 @@ describe("CLI command journey", () => {
       }[];
     };
 
-    expect(updatesBody.items).toEqual(
+    expect(updatesBody.items).toStrictEqual(
       expect.arrayContaining([
         expect.objectContaining({
           message: signedMessage,
@@ -680,7 +680,7 @@ describe("CLI command journey", () => {
       }[];
     };
 
-    expect(updatesBody.items).toEqual(
+    expect(updatesBody.items).toStrictEqual(
       expect.arrayContaining([
         expect.objectContaining({
           id: promotedUpdateId,

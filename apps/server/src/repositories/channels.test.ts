@@ -44,9 +44,9 @@ const runWithRepoEither = async <Ret, Err>(
 
 // -- Tests -----------------------------------------------------------------
 
-describe("ChannelRepo -- D1 adapter", () => {
+describe("channelRepo -- D1 adapter", () => {
   describe("insert", () => {
-    test("succeeds and returns Channel", async () => {
+    it("succeeds and returns Channel", async () => {
       const db = mockD1.forRun(async () => ({ results: [], success: true }));
       const env = makeEnv(db);
 
@@ -64,7 +64,7 @@ describe("ChannelRepo -- D1 adapter", () => {
 
       expect(Exit.isSuccess(exit)).toBe(true);
       if (Exit.isSuccess(exit)) {
-        expect(exit.value).toEqual(
+        expect(exit.value).toStrictEqual(
           expect.objectContaining({
             name: "production",
             branchId: "branch-1",
@@ -75,7 +75,7 @@ describe("ChannelRepo -- D1 adapter", () => {
       }
     });
 
-    test("returns Conflict on UNIQUE constraint violation", async () => {
+    it("returns Conflict on UNIQUE constraint violation", async () => {
       const db = mockD1.forRun(() => {
         throw new Error("UNIQUE constraint failed: channels.name");
       });
@@ -97,7 +97,7 @@ describe("ChannelRepo -- D1 adapter", () => {
   });
 
   describe("findByProject", () => {
-    test("returns items and total count", async () => {
+    it("returns items and total count", async () => {
       const db = mockD1.forQuery({
         first: async () => ({ count: 2 }),
         all: async () => ({
@@ -122,14 +122,14 @@ describe("ChannelRepo -- D1 adapter", () => {
         const result = exit.value;
         expect(result.total).toBe(2);
         expect(result.items).toHaveLength(2);
-        expect(result.items[0]).toEqual(
+        expect(result.items[0]).toStrictEqual(
           expect.objectContaining({ name: "production", isPaused: false }),
         );
-        expect(result.items[1]).toEqual(expect.objectContaining({ isPaused: true }));
+        expect(result.items[1]).toStrictEqual(expect.objectContaining({ isPaused: true }));
       }
     });
 
-    test("returns empty items when no channels exist", async () => {
+    it("returns empty items when no channels exist", async () => {
       const db = mockD1.forQuery({
         first: async () => ({ count: 0 }),
         all: async () => ({ results: [] }),
@@ -153,7 +153,7 @@ describe("ChannelRepo -- D1 adapter", () => {
   });
 
   describe("findById", () => {
-    test("returns channel when found", async () => {
+    it("returns channel when found", async () => {
       const row = makeChannelRow({ is_paused: 1 });
       const db = mockD1.forQuery({
         first: async () => row,
@@ -170,11 +170,13 @@ describe("ChannelRepo -- D1 adapter", () => {
 
       expect(Exit.isSuccess(exit)).toBe(true);
       if (Exit.isSuccess(exit)) {
-        expect(exit.value).toEqual(expect.objectContaining({ name: "production", isPaused: true }));
+        expect(exit.value).toStrictEqual(
+          expect.objectContaining({ name: "production", isPaused: true }),
+        );
       }
     });
 
-    test("returns NotFound when not found", async () => {
+    it("returns NotFound when not found", async () => {
       const db = mockD1.forQuery({
         first: async () => null,
       });
@@ -196,7 +198,7 @@ describe("ChannelRepo -- D1 adapter", () => {
   });
 
   describe("updateBranchId", () => {
-    test("succeeds on valid update", async () => {
+    it("succeeds on valid update", async () => {
       const db = mockD1.forRun(async () => ({ results: [], success: true }));
       const env = makeEnv(db);
 
@@ -213,7 +215,7 @@ describe("ChannelRepo -- D1 adapter", () => {
   });
 
   describe("setPaused", () => {
-    test("succeeds with isPaused true", async () => {
+    it("succeeds with isPaused true", async () => {
       const db = mockD1.forRun(async () => ({ results: [], success: true }));
       const env = makeEnv(db);
 
@@ -228,7 +230,7 @@ describe("ChannelRepo -- D1 adapter", () => {
       expect(Exit.isSuccess(exit)).toBe(true);
     });
 
-    test("succeeds with isPaused false", async () => {
+    it("succeeds with isPaused false", async () => {
       const db = mockD1.forRun(async () => ({ results: [], success: true }));
       const env = makeEnv(db);
 
@@ -245,7 +247,7 @@ describe("ChannelRepo -- D1 adapter", () => {
   });
 
   describe("setBranchMapping", () => {
-    test("succeeds on valid update", async () => {
+    it("succeeds on valid update", async () => {
       const db = mockD1.forRun(async () => ({ results: [], success: true }));
       const env = makeEnv(db);
 
@@ -265,7 +267,7 @@ describe("ChannelRepo -- D1 adapter", () => {
   });
 
   describe("completeBranchRollout", () => {
-    test("succeeds on valid update", async () => {
+    it("succeeds on valid update", async () => {
       const db = mockD1.forRun(async () => ({ results: [], success: true }));
       const env = makeEnv(db);
 
@@ -282,7 +284,7 @@ describe("ChannelRepo -- D1 adapter", () => {
   });
 
   describe("revertBranchRollout", () => {
-    test("succeeds on valid update", async () => {
+    it("succeeds on valid update", async () => {
       const db = mockD1.forRun(async () => ({ results: [], success: true }));
       const env = makeEnv(db);
 

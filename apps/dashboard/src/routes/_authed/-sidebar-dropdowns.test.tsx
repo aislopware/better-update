@@ -53,36 +53,36 @@ const orgs = [
   { id: "org-2", name: "Globex Inc" },
 ];
 
-describe("OrgSwitcher dropdown composition", () => {
-  test("renders dropdown content without context errors", () => {
+describe("orgSwitcher dropdown composition", () => {
+  it("renders dropdown content without context errors", () => {
     render(<OrgSwitcherDropdown orgs={orgs} />);
 
     expect(screen.getByText("Organizations")).toBeInTheDocument();
   });
 
-  test("lists all organizations", () => {
+  it("lists all organizations", () => {
     render(<OrgSwitcherDropdown orgs={orgs} />);
 
     expect(screen.getByText("Acme Corp")).toBeInTheDocument();
     expect(screen.getByText("Globex Inc")).toBeInTheDocument();
   });
 
-  test("shows create organization option", () => {
+  it("shows create organization option", () => {
     render(<OrgSwitcherDropdown orgs={orgs} />);
 
     expect(screen.getByText("Create organization")).toBeInTheDocument();
   });
 });
 
-describe("UserMenu dropdown composition", () => {
-  test("renders dropdown content without context errors", () => {
+describe("userMenu dropdown composition", () => {
+  it("renders dropdown content without context errors", () => {
     render(<UserMenuDropdown name="Test User" />);
 
     const label = document.querySelector('[data-slot="dropdown-menu-label"]');
     expect(label).toHaveTextContent("Test User");
   });
 
-  test("shows logout option", () => {
+  it("shows logout option", () => {
     render(<UserMenuDropdown name="Test User" />);
 
     expect(screen.getByText("Log out")).toBeInTheDocument();

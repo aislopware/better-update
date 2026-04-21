@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 
-import { toBase64Url } from "@better-update/encoding";
+import { fromHex, toBase64Url } from "@better-update/encoding";
 import { Effect } from "effect";
+import { uniqBy } from "es-toolkit";
 
 import type { CommandExecutor, FileSystem } from "@effect/platform";
 
@@ -88,9 +89,8 @@ const buildUpdateExtra = (
   environment,
 });
 
-const dedupeAssetsByHash = (assets: readonly PreparedAsset[]): readonly PreparedAsset[] => [
-  ...new Map(assets.map((asset) => [asset.hash, asset])).values(),
-];
+const dedupeAssetsByHash = (assets: readonly PreparedAsset[]): readonly PreparedAsset[] =>
+  uniqBy(assets, (asset) => asset.hash);
 
 const preparePlatformAssets = ({
   exportDir,
@@ -112,7 +112,7 @@ const preparePlatformAssets = ({
           Effect.map(({ sha256: contentSha256Hex, byteSize }) => ({
             ...asset,
             hash: sha256Namespaced(asset.contentType, contentSha256Hex),
-            contentChecksum: toBase64Url(Buffer.from(contentSha256Hex, "hex")),
+            contentChecksum: toBase64Url(fromHex(contentSha256Hex)),
             byteSize,
           })),
         ),

@@ -14,25 +14,25 @@ describe(buildDeviceRegistrationProfile, () => {
     profileUuid: "11111111-2222-3333-4444-555555555555",
   };
 
-  test("includes Profile Service payload type", () => {
+  it("includes Profile Service payload type", () => {
     const xml = buildDeviceRegistrationProfile(params);
     expect(xml).toContain("<string>Profile Service</string>");
   });
 
-  test("includes callback URL + challenge", () => {
+  it("includes callback URL + challenge", () => {
     const xml = buildDeviceRegistrationProfile(params);
     expect(xml).toContain("<string>https://example.com/register-device/abc-123/callback</string>");
     expect(xml).toContain("<string>abc-123</string>");
   });
 
-  test("requests UDID + product + device name attributes", () => {
+  it("requests UDID + product + device name attributes", () => {
     const xml = buildDeviceRegistrationProfile(params);
     expect(xml).toContain("<string>UDID</string>");
     expect(xml).toContain("<string>PRODUCT</string>");
     expect(xml).toContain("<string>DEVICE_NAME</string>");
   });
 
-  test("escapes XML special chars in organization + URL", () => {
+  it("escapes XML special chars in organization + URL", () => {
     const xml = buildDeviceRegistrationProfile({
       ...params,
       organization: "Acme & Co <test>",
@@ -60,7 +60,7 @@ describe(parseProfileCallbackPlist, () => {
 </dict>
 </plist>`;
 
-  test("extracts every top-level string key/value", () => {
+  it("extracts every top-level string key/value", () => {
     const result = parseProfileCallbackPlist(samplePlist);
     expect(result["UDID"]).toBe("00008030-001c45663c90802e");
     expect(result["PRODUCT"]).toBe("iPhone14,2");
@@ -68,17 +68,17 @@ describe(parseProfileCallbackPlist, () => {
     expect(result["CHALLENGE"]).toBe("abc-123");
   });
 
-  test("returns empty record for unrelated body", () => {
-    expect(parseProfileCallbackPlist("not xml")).toEqual({});
+  it("returns empty record for unrelated body", () => {
+    expect(parseProfileCallbackPlist("not xml")).toStrictEqual({});
   });
 
-  test("ignores empty bodies", () => {
-    expect(parseProfileCallbackPlist("")).toEqual({});
+  it("ignores empty bodies", () => {
+    expect(parseProfileCallbackPlist("")).toStrictEqual({});
   });
 });
 
 describe("registration HTML renderers", () => {
-  test("landing page escapes hint + expiry", () => {
+  it("landing page escapes hint + expiry", () => {
     const html = renderRegistrationLandingHtml({
       profileUrl: "https://host/register-device/abc/profile.mobileconfig",
       deviceNameHint: "Alex <script>alert(1)</script>",
@@ -88,12 +88,12 @@ describe("registration HTML renderers", () => {
     expect(html).toContain("https://host/register-device/abc/profile.mobileconfig");
   });
 
-  test("done page escapes device name", () => {
+  it("done page escapes device name", () => {
     const html = renderRegistrationDoneHtml("A&B");
     expect(html).toContain("A&amp;B");
   });
 
-  test("error page escapes message", () => {
+  it("error page escapes message", () => {
     const html = renderRegistrationErrorHtml("bad <tag>");
     expect(html).toContain("bad &lt;tag&gt;");
   });

@@ -159,11 +159,7 @@ export const ProjectRepoLive = Layer.succeed(ProjectRepo, {
           .all<ProjectRow>(),
       );
 
-      const map = new Map<string, ProjectModel>();
-      rows.results.forEach((row) => {
-        map.set(row.id, toProject(row));
-      });
-      return map;
+      return new Map(rows.results.map((row) => [row.id, toProject(row)] as const));
     }),
 
   findOrgIdById: (params) =>

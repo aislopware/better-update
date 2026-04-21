@@ -8,16 +8,16 @@ describe(resolveUpdatePlatforms, () => {
     },
   } satisfies Record<string, unknown>;
 
-  test('returns both platforms when "all" is requested', () => {
-    expect(resolveUpdatePlatforms(fullConfig, "all")).toEqual(["ios", "android"]);
+  it('returns both platforms when "all" is requested', () => {
+    expect(resolveUpdatePlatforms(fullConfig, "all")).toStrictEqual(["ios", "android"]);
   });
 
-  test("returns only the requested platform when it exists", () => {
-    expect(resolveUpdatePlatforms(fullConfig, "ios")).toEqual(["ios"]);
-    expect(resolveUpdatePlatforms(fullConfig, "android")).toEqual(["android"]);
+  it("returns only the requested platform when it exists", () => {
+    expect(resolveUpdatePlatforms(fullConfig, "ios")).toStrictEqual(["ios"]);
+    expect(resolveUpdatePlatforms(fullConfig, "android")).toStrictEqual(["android"]);
   });
 
-  test('returns configured platforms when "all" is requested against a partial config', () => {
+  it('returns configured platforms when "all" is requested against a partial config', () => {
     expect(
       resolveUpdatePlatforms(
         {
@@ -27,10 +27,10 @@ describe(resolveUpdatePlatforms, () => {
         },
         "all",
       ),
-    ).toEqual(["ios"]);
+    ).toStrictEqual(["ios"]);
   });
 
-  test("returns the explicitly requested platform even when app.json omits that section", () => {
+  it("returns the explicitly requested platform even when app.json omits that section", () => {
     expect(
       resolveUpdatePlatforms(
         {
@@ -40,6 +40,6 @@ describe(resolveUpdatePlatforms, () => {
         },
         "android",
       ),
-    ).toEqual(["android"]);
+    ).toStrictEqual(["android"]);
   });
 });

@@ -50,9 +50,9 @@ const runWithRepoEither = async <Ret, Err>(effect: Effect.Effect<Ret, Err, Updat
 
 // -- Tests -----------------------------------------------------------------
 
-describe("UpdateRepo -- D1 adapter", () => {
+describe("updateRepo -- D1 adapter", () => {
   describe("insert", () => {
-    test("succeeds and returns Update", async () => {
+    it("succeeds and returns Update", async () => {
       const db = mockBatchD1(async () => [{ results: [], success: true }]);
       const env = makeEnv(db);
 
@@ -81,7 +81,7 @@ describe("UpdateRepo -- D1 adapter", () => {
 
       expect(Exit.isSuccess(exit)).toBe(true);
       if (Exit.isSuccess(exit)) {
-        expect(exit.value).toEqual(
+        expect(exit.value).toStrictEqual(
           expect.objectContaining({
             branchId: "branch-1",
             runtimeVersion: "1.0.0",
@@ -97,7 +97,7 @@ describe("UpdateRepo -- D1 adapter", () => {
   });
 
   describe("findByProject", () => {
-    test("returns items and total count", async () => {
+    it("returns items and total count", async () => {
       const db = mockD1.forQuery({
         first: async () => ({ count: 2 }),
         all: async () => ({
@@ -122,14 +122,14 @@ describe("UpdateRepo -- D1 adapter", () => {
         const result = exit.value;
         expect(result.total).toBe(2);
         expect(result.items).toHaveLength(2);
-        expect(result.items[0]).toEqual(
+        expect(result.items[0]).toStrictEqual(
           expect.objectContaining({ message: "first", isRollback: false }),
         );
-        expect(result.items[1]).toEqual(expect.objectContaining({ isRollback: true }));
+        expect(result.items[1]).toStrictEqual(expect.objectContaining({ isRollback: true }));
       }
     });
 
-    test("returns empty items when no updates exist", async () => {
+    it("returns empty items when no updates exist", async () => {
       const db = mockD1.forQuery({
         first: async () => ({ count: 0 }),
         all: async () => ({ results: [] }),
@@ -151,7 +151,7 @@ describe("UpdateRepo -- D1 adapter", () => {
       }
     });
 
-    test("filters by branchId when provided", async () => {
+    it("filters by branchId when provided", async () => {
       const db = mockD1.forQuery({
         first: async () => ({ count: 1 }),
         all: async () => ({
@@ -184,7 +184,7 @@ describe("UpdateRepo -- D1 adapter", () => {
   });
 
   describe("findById", () => {
-    test("returns update when found", async () => {
+    it("returns update when found", async () => {
       const row = makeUpdateRow({ is_rollback: 1 });
       const db = mockD1.forQuery({
         first: async () => row,
@@ -201,13 +201,13 @@ describe("UpdateRepo -- D1 adapter", () => {
 
       expect(Exit.isSuccess(exit)).toBe(true);
       if (Exit.isSuccess(exit)) {
-        expect(exit.value).toEqual(
+        expect(exit.value).toStrictEqual(
           expect.objectContaining({ message: "initial release", isRollback: true }),
         );
       }
     });
 
-    test("returns NotFound when not found", async () => {
+    it("returns NotFound when not found", async () => {
       const db = mockD1.forQuery({
         first: async () => null,
       });
@@ -229,7 +229,7 @@ describe("UpdateRepo -- D1 adapter", () => {
   });
 
   describe("findByGroupId", () => {
-    test("returns array of updates", async () => {
+    it("returns array of updates", async () => {
       const db = mockD1.forQuery({
         all: async () => ({
           results: [
@@ -251,14 +251,14 @@ describe("UpdateRepo -- D1 adapter", () => {
       expect(Exit.isSuccess(exit)).toBe(true);
       if (Exit.isSuccess(exit)) {
         expect(exit.value).toHaveLength(2);
-        expect(exit.value[0]).toEqual(expect.objectContaining({ id: "upd-1" }));
-        expect(exit.value[1]).toEqual(expect.objectContaining({ platform: "android" }));
+        expect(exit.value[0]).toStrictEqual(expect.objectContaining({ id: "upd-1" }));
+        expect(exit.value[1]).toStrictEqual(expect.objectContaining({ platform: "android" }));
       }
     });
   });
 
   describe("deleteGroup", () => {
-    test("returns deleted count", async () => {
+    it("returns deleted count", async () => {
       const db = mockBatchD1(async () => [
         { results: [], success: true },
         { results: [], success: true, meta: { changes: 2 } },
@@ -281,7 +281,7 @@ describe("UpdateRepo -- D1 adapter", () => {
   });
 
   describe("updateRollout", () => {
-    test("succeeds on valid update", async () => {
+    it("succeeds on valid update", async () => {
       const db = {
         prepare: () => ({
           bind: (..._args: unknown[]) => ({

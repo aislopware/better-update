@@ -106,7 +106,7 @@ const TestForm = () => {
 };
 
 describe("auth form validation errors", () => {
-  test("invalid email shows readable message", async () => {
+  it("invalid email shows readable message", async () => {
     const user = userEvent.setup();
     render(<TestForm />);
 
@@ -121,7 +121,7 @@ describe("auth form validation errors", () => {
     });
   });
 
-  test("short password shows readable message", async () => {
+  it("short password shows readable message", async () => {
     const user = userEvent.setup();
     render(<TestForm />);
 
@@ -137,7 +137,7 @@ describe("auth form validation errors", () => {
     });
   });
 
-  test("short name shows readable message", async () => {
+  it("short name shows readable message", async () => {
     const user = userEvent.setup();
     render(<TestForm />);
 
@@ -153,7 +153,7 @@ describe("auth form validation errors", () => {
     });
   });
 
-  test("valid inputs show no error messages", async () => {
+  it("valid inputs show no error messages", async () => {
     const user = userEvent.setup();
     render(<TestForm />);
 

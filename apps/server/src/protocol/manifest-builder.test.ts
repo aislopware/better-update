@@ -27,7 +27,7 @@ const regularAsset = {
 };
 
 describe(buildManifest, () => {
-  test("separates launch asset from regular assets with correct URLs", () => {
+  it("separates launch asset from regular assets with correct URLs", () => {
     const manifest = buildManifest({
       update: baseUpdate,
       assets: [launchAsset, regularAsset],
@@ -51,7 +51,7 @@ describe(buildManifest, () => {
     expect(assets[0]!["url"]).toBe("https://cdn.example.com/assets/def456");
   });
 
-  test("emits extra from update without injecting scopeKey", () => {
+  it("emits extra from update without injecting scopeKey", () => {
     const manifest = buildManifest({
       update: baseUpdate,
       assets: [launchAsset],
@@ -60,22 +60,22 @@ describe(buildManifest, () => {
 
     const extra = manifest["extra"] as Record<string, unknown>;
     expect(extra).not.toHaveProperty("scopeKey");
-    expect(extra["expoClient"]).toEqual({ name: "test-app" });
+    expect(extra["expoClient"]).toStrictEqual({ name: "test-app" });
   });
 
-  test("emits empty extra when update.extra is undefined", () => {
+  it("emits empty extra when update.extra is undefined", () => {
     const manifest = buildManifest({
       update: { ...baseUpdate, extra: undefined },
       assets: [launchAsset],
       assetBaseUrl: "https://cdn.example.com",
     }) as Record<string, unknown>;
 
-    expect(manifest["extra"]).toEqual({});
+    expect(manifest["extra"]).toStrictEqual({});
   });
 });
 
 describe(buildDirective, () => {
-  test("returns rollBackToEmbedded structure with commitTime", () => {
+  it("returns rollBackToEmbedded structure with commitTime", () => {
     const directive = buildDirective({ update: baseUpdate }) as Record<string, unknown>;
 
     expect(directive["type"]).toBe("rollBackToEmbedded");
@@ -85,9 +85,9 @@ describe(buildDirective, () => {
 });
 
 describe(buildExtensions, () => {
-  test("returns only assetRequestHeaders when called with no args", () => {
+  it("returns only assetRequestHeaders when called with no args", () => {
     const extensions = buildExtensions() as Record<string, unknown>;
-    expect(extensions["assetRequestHeaders"]).toEqual({});
+    expect(extensions["assetRequestHeaders"]).toStrictEqual({});
     expect(extensions).not.toHaveProperty("patchedAssets");
   });
 });

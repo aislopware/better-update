@@ -3,7 +3,7 @@ import { Either } from "effect";
 import { DurableObjectPromiseError, settlePromise } from "./effect-interop";
 
 describe(settlePromise, () => {
-  test("returns a right Either on success", async () => {
+  it("returns a right Either on success", async () => {
     const result = await settlePromise(Promise.resolve("ok"));
 
     expect(Either.isRight(result)).toBe(true);
@@ -12,7 +12,7 @@ describe(settlePromise, () => {
     }
   });
 
-  test("returns a tagged durable object error on failure", async () => {
+  it("returns a tagged durable object error on failure", async () => {
     const result = await settlePromise(Promise.reject(new Error("queue down")));
 
     expect(Either.isLeft(result)).toBe(true);

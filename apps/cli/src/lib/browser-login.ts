@@ -1,4 +1,4 @@
-import { Data, Deferred, Effect } from "effect";
+import { Data, Deferred, Duration, Effect } from "effect";
 
 import { isRecord } from "./record";
 
@@ -107,7 +107,8 @@ export const createBrowserLoginSession = (
   const tokenDeferred = Effect.runSync(Deferred.make<string, BrowserLoginSessionClosedError>());
   const waitForToken = Deferred.await(tokenDeferred).pipe(
     Effect.timeoutFail({
-      duration: options.timeoutMs ?? 5 * 60 * 1000,
+      duration:
+        options.timeoutMs === undefined ? Duration.minutes(5) : Duration.millis(options.timeoutMs),
       onTimeout: () =>
         new BrowserLoginTimeoutError({
           message: "Timed out waiting for browser login to complete.",

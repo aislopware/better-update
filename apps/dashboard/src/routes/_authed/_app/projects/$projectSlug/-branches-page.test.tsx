@@ -74,7 +74,7 @@ const BranchesTestPage = () => {
 };
 
 describe("branches page rendering", () => {
-  test("shows empty state message when no branches", () => {
+  it("shows empty state message when no branches", () => {
     const session = makeSession();
     const org = makeOrg();
 
@@ -95,7 +95,7 @@ describe("branches page rendering", () => {
     ).toBeInTheDocument();
   });
 
-  test("renders branch cards with names", () => {
+  it("renders branch cards with names", () => {
     const session = makeSession();
     const org = makeOrg();
     const branches = [
@@ -118,7 +118,7 @@ describe("branches page rendering", () => {
     expect(screen.getByText("staging")).toBeInTheDocument();
   });
 
-  test("renders creation date on branch cards", () => {
+  it("renders creation date on branch cards", () => {
     const session = makeSession();
     const org = makeOrg();
     const branch = makeBranch({ createdAt: "2026-03-15T00:00:00Z" });

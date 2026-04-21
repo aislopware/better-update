@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Effect, Match } from "effect";
 
 import type { BadRequest, NotFound } from "@better-update/api";
 
@@ -361,10 +361,11 @@ const serveRequest = (
     return respond(response, ph);
   });
 
-const toManifestErrorResponse = (error: BadRequest | NotFound) =>
-  error._tag === "BadRequest"
-    ? jsonError(400, "BAD_REQUEST", error.message)
-    : jsonError(404, "NOT_FOUND", error.message);
+const toManifestErrorResponse = Match.type<BadRequest | NotFound>().pipe(
+  Match.tag("BadRequest", (error) => jsonError(400, "BAD_REQUEST", error.message)),
+  Match.tag("NotFound", (error) => jsonError(404, "NOT_FOUND", error.message)),
+  Match.exhaustive,
+);
 
 const serve = (
   request: Request,

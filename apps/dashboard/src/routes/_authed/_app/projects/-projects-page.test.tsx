@@ -79,7 +79,7 @@ const ProjectsTestPage = () => {
 };
 
 describe("projects page rendering", () => {
-  test("shows empty state message when no projects", () => {
+  it("shows empty state message when no projects", () => {
     const session = makeSession();
     const org = makeOrg();
 
@@ -97,7 +97,7 @@ describe("projects page rendering", () => {
     ).toBeInTheDocument();
   });
 
-  test("renders project cards with name and slug", () => {
+  it("renders project cards with name and slug", () => {
     const session = makeSession();
     const org = makeOrg();
     const projects = [
@@ -119,7 +119,7 @@ describe("projects page rendering", () => {
     expect(screen.getByText("beta")).toBeInTheDocument();
   });
 
-  test("renders creation date on project cards", () => {
+  it("renders creation date on project cards", () => {
     const session = makeSession();
     const org = makeOrg();
     const project = makeProject({ createdAt: "2026-03-15T00:00:00Z" });

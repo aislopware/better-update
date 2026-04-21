@@ -7,7 +7,7 @@ MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgqIOEeXH1hSPYy+1c
 -----END PRIVATE KEY-----`;
 
 describe(validatePushKey, () => {
-  test("accepts valid metadata", async () => {
+  it("accepts valid metadata", async () => {
     const result = await Effect.runPromise(
       validatePushKey({ keyId: "ABCDE12345", appleTeamId: "FGHIJ67890", pem: VALID_PEM }),
     );
@@ -16,7 +16,7 @@ describe(validatePushKey, () => {
     expect(result.derBytes.byteLength).toBeGreaterThan(0);
   });
 
-  test("rejects invalid keyId", async () => {
+  it("rejects invalid keyId", async () => {
     const error = await Effect.runPromise(
       Effect.flip(
         validatePushKey({ keyId: "lower12345", appleTeamId: "FGHIJ67890", pem: VALID_PEM }),
@@ -25,14 +25,14 @@ describe(validatePushKey, () => {
     expect(error.message).toMatch(/Push Key ID/);
   });
 
-  test("rejects invalid appleTeamId", async () => {
+  it("rejects invalid appleTeamId", async () => {
     const error = await Effect.runPromise(
       Effect.flip(validatePushKey({ keyId: "ABCDE12345", appleTeamId: "bad", pem: VALID_PEM })),
     );
     expect(error.message).toMatch(/Team identifier/);
   });
 
-  test("rejects non-PEM", async () => {
+  it("rejects non-PEM", async () => {
     const error = await Effect.runPromise(
       Effect.flip(validatePushKey({ keyId: "ABCDE12345", appleTeamId: "FGHIJ67890", pem: "nope" })),
     );

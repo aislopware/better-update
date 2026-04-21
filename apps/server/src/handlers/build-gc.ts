@@ -1,4 +1,5 @@
-import { Effect } from "effect";
+import { Duration, Effect } from "effect";
+import { sum } from "es-toolkit";
 
 import { BuildRuntime } from "../cloudflare/build-runtime";
 import { provideCloudflareEnv } from "../cloudflare/context";
@@ -9,7 +10,7 @@ import { BuildRepo } from "../repositories";
 
 import type { ServerInfrastructure } from "../infrastructure-layer";
 
-const STAGING_ORPHAN_CUTOFF_MS = 3 * 60 * 60 * 1000;
+const STAGING_ORPHAN_CUTOFF = Duration.hours(3);
 
 const provideGcLayer = <Success, Failure>(
   effect: Effect.Effect<Success, Failure, ServerInfrastructure>,
@@ -47,7 +48,7 @@ const processProfileRetention = (profile: string, cutoff: string) =>
   ).pipe(Effect.map((state) => state.totalDeleted));
 
 const cleanupOrphanedStaging = Effect.gen(function* () {
-  const threeHoursAgo = new Date(Date.now() - STAGING_ORPHAN_CUTOFF_MS);
+  const threeHoursAgo = new Date(Date.now() - Duration.toMillis(STAGING_ORPHAN_CUTOFF));
   return yield* Effect.iterate(
     { accumulated: 0, cursor: undefined as string | undefined, hasMore: true },
     {
@@ -94,7 +95,7 @@ export const handleBuildGc = async (env: Env): Promise<void> => {
       (profile) => processProfileRetention(profile.name, computeCutoff(profile.days)),
       { concurrency: 1 },
     );
-    const totalArtifactsDeleted = profileResults.reduce((sum, count) => sum + count, 0);
+    const totalArtifactsDeleted = sum(profileResults);
     const orphansDeleted = yield* cleanupOrphanedStaging;
     return { totalArtifactsDeleted, orphansDeleted };
   });

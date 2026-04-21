@@ -86,7 +86,7 @@ describe(sha256FileBase64Url, () => {
 });
 
 describe(sha256Namespaced, () => {
-  test("produces different hashes for same content with different content types", () => {
+  it("produces different hashes for same content with different content types", () => {
     const jsHash = sha256Namespaced("application/javascript", HELLO_WORLD_SHA256);
     const textHash = sha256Namespaced("text/plain", HELLO_WORLD_SHA256);
 
@@ -94,13 +94,13 @@ describe(sha256Namespaced, () => {
     expect(jsHash).not.toBe(HELLO_WORLD_SHA256);
   });
 
-  test("produces same hash for same content type + content hash", () => {
+  it("produces same hash for same content type + content hash", () => {
     const first = sha256Namespaced("application/javascript", HELLO_WORLD_SHA256);
     const second = sha256Namespaced("application/javascript", HELLO_WORLD_SHA256);
     expect(first).toBe(second);
   });
 
-  test("returns base64url-encoded string", () => {
+  it("returns base64url-encoded string", () => {
     const result = sha256Namespaced("application/javascript", HELLO_WORLD_SHA256);
     // Base64url: no +, /, or =
     expect(result).toMatch(/^[A-Za-z0-9_-]+$/u);

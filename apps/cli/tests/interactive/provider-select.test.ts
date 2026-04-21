@@ -26,34 +26,34 @@ const runHarness = async (actions: (driver: ReturnType<typeof spawnPty>) => Prom
 };
 
 describe("provider select prompt (PTY)", () => {
-  test("enter without navigation picks the first provider", async () => {
+  it("enter without navigation picks the first provider", async () => {
     const result = await runHarness(async (driver) => {
       driver.enter();
     });
-    expect(result).toEqual({ providerId: 10, switched: true });
+    expect(result).toStrictEqual({ providerId: 10, switched: true });
   });
 
-  test("down + enter picks the second provider", async () => {
+  it("down + enter picks the second provider", async () => {
     const result = await runHarness(async (driver) => {
       driver.down();
       driver.enter();
     });
-    expect(result).toEqual({ providerId: 20, switched: true });
+    expect(result).toStrictEqual({ providerId: 20, switched: true });
   });
 
-  test("down + down + enter picks the third provider", async () => {
+  it("down + down + enter picks the third provider", async () => {
     const result = await runHarness(async (driver) => {
       driver.down(2);
       driver.enter();
     });
-    expect(result).toEqual({ providerId: 30, switched: true });
+    expect(result).toStrictEqual({ providerId: 30, switched: true });
   });
 
-  test("up wraps to the last provider", async () => {
+  it("up wraps to the last provider", async () => {
     const result = await runHarness(async (driver) => {
       driver.up();
       driver.enter();
     });
-    expect(result).toEqual({ providerId: 30, switched: true });
+    expect(result).toStrictEqual({ providerId: 30, switched: true });
   });
 });

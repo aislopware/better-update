@@ -47,7 +47,7 @@ const publishState = {
 const iosRowPattern = /^ios\s+([0-9a-f-]+)\s+1\.0\.0\s+(\d+)\s+(\d+)\s*$/m;
 const androidRowPattern = /^android\s+([0-9a-f-]+)\s+1\.0\.0\s+(\d+)\s+(\d+)\s*$/m;
 
-describe("CLI publish journey", () => {
+describe("cLI publish journey", () => {
   it("links the fixture app to the seeded project", () => {
     const result = cli.runCli("init");
     expect(result.exitCode).toBe(0);
@@ -132,7 +132,7 @@ describe("CLI publish journey", () => {
     const body = (await updatesResponse.json()) as {
       items: { message: string }[];
     };
-    expect(body.items).toEqual(
+    expect(body.items).toStrictEqual(
       expect.arrayContaining([expect.objectContaining({ message: customMessage })]),
     );
   });

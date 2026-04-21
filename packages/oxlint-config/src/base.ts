@@ -147,6 +147,20 @@ export default defineConfig({
     "vitest/prefer-to-be-truthy": "off",
     "vitest/prefer-to-be-falsy": "off",
     "vitest/require-hook": "off",
+
+    "jest/prefer-importing-jest-globals": "off",
+    "jest/no-standalone-expect": "off",
+    "jest/max-expects": "off",
+    "jest/valid-title": "off",
+    "jest/prefer-ending-with-an-expect": "off",
+    "jest/no-conditional-in-test": "off",
+    "jest/no-hooks": "off",
+    "jest/no-conditional-expect": "off",
+    "jest/valid-expect": "off",
+    "jest/require-top-level-describe": "off",
+    "jest/expect-expect": "off",
+    "jest/no-untyped-mock-factory": "off",
+    "jest/prefer-mock-return-shorthand": "off",
   },
   overrides: [
     {

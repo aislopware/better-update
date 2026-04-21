@@ -13,19 +13,19 @@ const VALID_META = {
 };
 
 describe(validatePkcs12Blob, () => {
-  test("accepts valid ASN.1 SEQUENCE blob", async () => {
+  it("accepts valid ASN.1 SEQUENCE blob", async () => {
     const bytes = new Uint8Array(64);
     bytes[0] = 0x30;
     const result = await Effect.runPromise(validatePkcs12Blob(bytes));
     expect(result.byteLength).toBe(64);
   });
 
-  test("rejects too-small blob", async () => {
+  it("rejects too-small blob", async () => {
     const error = await Effect.runPromise(Effect.flip(validatePkcs12Blob(new Uint8Array(8))));
     expect(error.message).toMatch(/too small/);
   });
 
-  test("rejects blob without SEQUENCE tag", async () => {
+  it("rejects blob without SEQUENCE tag", async () => {
     const bytes = new Uint8Array(64);
     bytes[0] = 0x00;
     const error = await Effect.runPromise(Effect.flip(validatePkcs12Blob(bytes)));
@@ -34,27 +34,27 @@ describe(validatePkcs12Blob, () => {
 });
 
 describe(validateDistributionCertificateMetadata, () => {
-  test("accepts valid metadata", async () => {
+  it("accepts valid metadata", async () => {
     const result = await Effect.runPromise(validateDistributionCertificateMetadata(VALID_META));
     expect(result.appleTeamId).toBe("ABCDE12345");
     expect(result.appleTeamName).toBeNull();
   });
 
-  test("rejects bad team id", async () => {
+  it("rejects bad team id", async () => {
     const error = await Effect.runPromise(
       Effect.flip(validateDistributionCertificateMetadata({ ...VALID_META, appleTeamId: "bad" })),
     );
     expect(error.message).toMatch(/Team identifier/);
   });
 
-  test("rejects empty serial", async () => {
+  it("rejects empty serial", async () => {
     const error = await Effect.runPromise(
       Effect.flip(validateDistributionCertificateMetadata({ ...VALID_META, serialNumber: "  " })),
     );
     expect(error.message).toMatch(/serial/);
   });
 
-  test("rejects non-ISO dates", async () => {
+  it("rejects non-ISO dates", async () => {
     const error = await Effect.runPromise(
       Effect.flip(
         validateDistributionCertificateMetadata({ ...VALID_META, validFrom: "not-a-date" }),
@@ -63,7 +63,7 @@ describe(validateDistributionCertificateMetadata, () => {
     expect(error.message).toMatch(/ISO/);
   });
 
-  test("rejects validUntil <= validFrom", async () => {
+  it("rejects validUntil <= validFrom", async () => {
     const error = await Effect.runPromise(
       Effect.flip(
         validateDistributionCertificateMetadata({

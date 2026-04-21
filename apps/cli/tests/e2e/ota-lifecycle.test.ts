@@ -133,7 +133,7 @@ const state = {
 
 // ── Tests ────────────────────────────────────────────────────────
 
-describe("OTA lifecycle: CLI publish → manifest → rollout → rollback", () => {
+describe("oTA lifecycle: CLI publish → manifest → rollout → rollback", () => {
   // ── Section 1: Setup ────────────────────────────────────────────
 
   it("links the fixture app to the seeded project", () => {
@@ -156,7 +156,7 @@ describe("OTA lifecycle: CLI publish → manifest → rollout → rollback", () 
   it("manifest endpoint serves v1 to an Expo app", async () => {
     const response = await fetchManifest(cli.getProjectId());
     expect(response.status).toBe(200);
-    expect(await extractManifestId(response)).toBe(state.v1UpdateId);
+    await expect(extractManifestId(response)).resolves.toBe(state.v1UpdateId);
   });
 
   it("returns 204 when app already has the latest update", async () => {
@@ -190,7 +190,7 @@ describe("OTA lifecycle: CLI publish → manifest → rollout → rollback", () 
   it("manifest endpoint now serves v2 (latest)", async () => {
     const response = await fetchManifest(cli.getProjectId());
     expect(response.status).toBe(200);
-    expect(await extractManifestId(response)).toBe(state.v2UpdateId);
+    await expect(extractManifestId(response)).resolves.toBe(state.v2UpdateId);
   });
 
   // ── Section 4: Per-update rollout → manifest routing ────────────
@@ -204,7 +204,7 @@ describe("OTA lifecycle: CLI publish → manifest → rollout → rollback", () 
   it("falls back to v1 when no eas-client-id is provided", async () => {
     const response = await fetchManifest(cli.getProjectId());
     expect(response.status).toBe(200);
-    expect(await extractManifestId(response)).toBe(state.v1UpdateId);
+    await expect(extractManifestId(response)).resolves.toBe(state.v1UpdateId);
   });
 
   it("serves v2 to in-rollout client and v1 to out-rollout client", async () => {
@@ -214,13 +214,13 @@ describe("OTA lifecycle: CLI publish → manifest → rollout → rollback", () 
       "eas-client-id": inClient,
     });
     expect(inResponse.status).toBe(200);
-    expect(await extractManifestId(inResponse)).toBe(state.v2UpdateId);
+    await expect(extractManifestId(inResponse)).resolves.toBe(state.v2UpdateId);
 
     const outResponse = await fetchManifest(cli.getProjectId(), {
       "eas-client-id": outClient,
     });
     expect(outResponse.status).toBe(200);
-    expect(await extractManifestId(outResponse)).toBe(state.v1UpdateId);
+    await expect(extractManifestId(outResponse)).resolves.toBe(state.v1UpdateId);
   });
 
   it("completing rollout makes v2 available to all clients", async () => {
@@ -230,7 +230,7 @@ describe("OTA lifecycle: CLI publish → manifest → rollout → rollback", () 
 
     const response = await fetchManifest(cli.getProjectId());
     expect(response.status).toBe(200);
-    expect(await extractManifestId(response)).toBe(state.v2UpdateId);
+    await expect(extractManifestId(response)).resolves.toBe(state.v2UpdateId);
   });
 
   // ── Section 5: Rollback → manifest directive ────────────────────
@@ -261,7 +261,7 @@ describe("OTA lifecycle: CLI publish → manifest → rollout → rollback", () 
       part.headers["content-disposition"]?.includes('name="directive"'),
     );
     expect(directivePart).toBeDefined();
-    expect(JSON.parse(directivePart!.body)).toEqual({
+    expect(JSON.parse(directivePart!.body)).toStrictEqual({
       type: "rollBackToEmbedded",
       parameters: { commitTime: "2026-04-15T00:00:00.000Z" },
     });

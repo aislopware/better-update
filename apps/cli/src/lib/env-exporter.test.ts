@@ -47,7 +47,7 @@ describe(pullEnvVars, () => {
         projectId: "proj_123",
         environment: "production",
       });
-      expect(result).toEqual({
+      expect(result).toStrictEqual({
         API_URL: "https://api.example.com",
         SECRET: "xyz",
       });
@@ -61,7 +61,7 @@ describe(pullEnvVars, () => {
         projectId: "proj_123",
         environment: "development",
       });
-      expect(result).toEqual({});
+      expect(result).toStrictEqual({});
     }),
   );
 
@@ -88,7 +88,7 @@ describe(pullEnvVars, () => {
         return Effect.succeed({ environment: args.urlParams.environment, items: [] });
       });
       yield* pullEnvVars(api, { projectId: "p_1", environment: "staging" });
-      expect(receivedArgs).toEqual({
+      expect(receivedArgs).toStrictEqual({
         urlParams: { projectId: "p_1", environment: "staging" },
       });
     }),

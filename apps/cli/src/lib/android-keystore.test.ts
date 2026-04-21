@@ -19,7 +19,7 @@ const provideStubExecutor = (
 ) => Effect.provideService(CommandExecutor.CommandExecutor, makeStubExecutor(exitCode));
 
 describe("android keystore helpers", () => {
-  test("renderDistinguishedName formats CN and O", () => {
+  it("renderDistinguishedName formats CN and O", () => {
     expect(
       renderDistinguishedName({
         commonName: "Jane Doe",
@@ -47,7 +47,7 @@ describe("android keystore helpers", () => {
       );
 
       expect(executedCommand?.["command"]).toBe("keytool");
-      expect(executedCommand?.["args"]).toEqual(
+      expect(executedCommand?.["args"]).toStrictEqual(
         expect.arrayContaining([
           "-genkeypair",
           "-keystore",

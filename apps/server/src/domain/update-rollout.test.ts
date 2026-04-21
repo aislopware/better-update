@@ -15,28 +15,28 @@ const candidate = (id: string, rollout: number) => ({ id, rollout_percentage: ro
 const withCrypto = Effect.provide(CryptoServiceLive);
 
 describe(collectServableUpdates, () => {
-  test("returns all updates that remain servable through a partial rollout chain", () => {
+  it("returns all updates that remain servable through a partial rollout chain", () => {
     expect(
       collectServableUpdates([
         candidate("latest-canary", 50),
         candidate("previous-stable", 100),
         candidate("older-stable", 100),
       ]),
-    ).toEqual([candidate("latest-canary", 50), candidate("previous-stable", 100)]);
+    ).toStrictEqual([candidate("latest-canary", 50), candidate("previous-stable", 100)]);
   });
 
-  test("skips reverted updates and keeps searching until a fully rolled out fallback", () => {
+  it("skips reverted updates and keeps searching until a fully rolled out fallback", () => {
     expect(
       collectServableUpdates([
         candidate("latest-reverted", 0),
         candidate("previous-reverted", 0),
         candidate("stable", 100),
       ]),
-    ).toEqual([candidate("stable", 100)]);
+    ).toStrictEqual([candidate("stable", 100)]);
   });
 
-  test("returns an empty array when no candidate is servable", () => {
-    expect(collectServableUpdates([candidate("latest-reverted", 0)])).toEqual([]);
+  it("returns an empty array when no candidate is servable", () => {
+    expect(collectServableUpdates([candidate("latest-reverted", 0)])).toStrictEqual([]);
   });
 });
 
@@ -51,7 +51,7 @@ describe(resolveUpdateRollout, () => {
   it.effect("single candidate at 100% resolves immediately", () =>
     Effect.gen(function* () {
       const result = yield* resolveUpdateRollout([candidate("update-1", 100)], "client-c");
-      expect(result).toEqual({ resolved: true, update: candidate("update-1", 100) });
+      expect(result).toStrictEqual({ resolved: true, update: candidate("update-1", 100) });
     }).pipe(withCrypto),
   );
 
@@ -61,14 +61,14 @@ describe(resolveUpdateRollout, () => {
         [candidate("update-1", 0), candidate("update-0", 100)],
         "client-c",
       );
-      expect(result).toEqual({ resolved: true, update: candidate("update-0", 100) });
+      expect(result).toStrictEqual({ resolved: true, update: candidate("update-0", 100) });
     }).pipe(withCrypto),
   );
 
   it.effect("latest at 0% with no previous returns no-update", () =>
     Effect.gen(function* () {
       const result = yield* resolveUpdateRollout([candidate("update-1", 0)], "client-c");
-      expect(result).toEqual({ resolved: false, needsFallbackQuery: false });
+      expect(result).toStrictEqual({ resolved: false, needsFallbackQuery: false });
     }).pipe(withCrypto),
   );
 
@@ -78,14 +78,14 @@ describe(resolveUpdateRollout, () => {
         [candidate("update-1", 0), candidate("update-0", 0)],
         "client-c",
       );
-      expect(result).toEqual({ resolved: false, needsFallbackQuery: true });
+      expect(result).toStrictEqual({ resolved: false, needsFallbackQuery: true });
     }).pipe(withCrypto),
   );
 
   it.effect("latest at 50%, device in rollout resolves to latest", () =>
     Effect.gen(function* () {
       const result = yield* resolveUpdateRollout([candidate("update-1", 50)], "client-c");
-      expect(result).toEqual({ resolved: true, update: candidate("update-1", 50) });
+      expect(result).toStrictEqual({ resolved: true, update: candidate("update-1", 50) });
     }).pipe(withCrypto),
   );
 
@@ -95,14 +95,14 @@ describe(resolveUpdateRollout, () => {
         [candidate("update-1", 50), candidate("update-0", 100)],
         "client-a",
       );
-      expect(result).toEqual({ resolved: true, update: candidate("update-0", 100) });
+      expect(result).toStrictEqual({ resolved: true, update: candidate("update-0", 100) });
     }).pipe(withCrypto),
   );
 
   it.effect("latest at 50%, device not in rollout, no previous returns no-update", () =>
     Effect.gen(function* () {
       const result = yield* resolveUpdateRollout([candidate("update-1", 50)], "client-a");
-      expect(result).toEqual({ resolved: false, needsFallbackQuery: false });
+      expect(result).toStrictEqual({ resolved: false, needsFallbackQuery: false });
     }).pipe(withCrypto),
   );
 
@@ -112,7 +112,7 @@ describe(resolveUpdateRollout, () => {
         [candidate("update-1", 50), candidate("update-0", 100)],
         undefined,
       );
-      expect(result).toEqual({ resolved: true, update: candidate("update-0", 100) });
+      expect(result).toStrictEqual({ resolved: true, update: candidate("update-0", 100) });
     }).pipe(withCrypto),
   );
 
@@ -122,14 +122,14 @@ describe(resolveUpdateRollout, () => {
         [candidate("update-1", 50), candidate("update-0", 30)],
         undefined,
       );
-      expect(result).toEqual({ resolved: true, update: candidate("update-0", 30) });
+      expect(result).toStrictEqual({ resolved: true, update: candidate("update-0", 30) });
     }).pipe(withCrypto),
   );
 
   it.effect("latest at 50%, no easClientId, no previous returns no-update", () =>
     Effect.gen(function* () {
       const result = yield* resolveUpdateRollout([candidate("update-1", 50)], undefined);
-      expect(result).toEqual({ resolved: false, needsFallbackQuery: false });
+      expect(result).toStrictEqual({ resolved: false, needsFallbackQuery: false });
     }).pipe(withCrypto),
   );
 
@@ -139,7 +139,7 @@ describe(resolveUpdateRollout, () => {
         [candidate("update-1", 50), candidate("update-0", 0)],
         "client-a",
       );
-      expect(result).toEqual({ resolved: false, needsFallbackQuery: true });
+      expect(result).toStrictEqual({ resolved: false, needsFallbackQuery: true });
     }).pipe(withCrypto),
   );
 
@@ -151,7 +151,7 @@ describe(resolveUpdateRollout, () => {
           [candidate("update-1", 50), candidate("update-0", 30)],
           "device-5",
         );
-        expect(result).toEqual({ resolved: true, update: candidate("update-0", 30) });
+        expect(result).toStrictEqual({ resolved: true, update: candidate("update-0", 30) });
       }).pipe(withCrypto),
   );
 
@@ -163,7 +163,7 @@ describe(resolveUpdateRollout, () => {
           [candidate("update-1", 50), candidate("update-0", 30)],
           "client-a",
         );
-        expect(result).toEqual({ resolved: false, needsFallbackQuery: true });
+        expect(result).toStrictEqual({ resolved: false, needsFallbackQuery: true });
       }).pipe(withCrypto),
   );
 });

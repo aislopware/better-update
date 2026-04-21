@@ -1,4 +1,5 @@
 import { Context, Effect, Layer } from "effect";
+import { groupBy } from "es-toolkit";
 
 import { cloudflareEnv } from "../cloudflare/context";
 import { extractReachableBranchIds } from "../domain/branch-mapping";
@@ -125,18 +126,11 @@ export const CompatibilityRepoLive = Layer.succeed(CompatibilityRepo, {
         ),
       );
 
-      const updatesByBranchRuntime = updateRows.results.reduce((groups, update) => {
-        const key = groupRuntimeKey(update.branch_id, update.platform, update.runtime_version);
-        const existing = groups.get(key);
-        if (existing) {
-          existing.push(update);
-        } else {
-          groups.set(key, [update]);
-        }
-        return groups;
-      }, new Map<string, UpdateRow[]>());
+      const updatesByBranchRuntime = groupBy(updateRows.results, (update) =>
+        groupRuntimeKey(update.branch_id, update.platform, update.runtime_version),
+      );
 
-      const branchSummariesByBranchId = [...updatesByBranchRuntime.values()].reduce(
+      const branchSummariesByBranchId = Object.values(updatesByBranchRuntime).reduce(
         (branches, updates) => {
           const [latestCandidate] = updates;
           if (!latestCandidate) {

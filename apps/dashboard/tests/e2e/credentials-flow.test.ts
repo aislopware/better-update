@@ -2,7 +2,7 @@ import { setupE2EDashboard } from "../helpers/e2e-dashboard";
 
 const { post, get, del, parseCookies } = setupE2EDashboard();
 
-describe("Dashboard credentials flow", () => {
+describe("dashboard credentials flow", () => {
   const state = {
     cookies: "",
     organizationId: "",
@@ -21,7 +21,7 @@ describe("Dashboard credentials flow", () => {
     });
     expect(response.status).toBe(200);
     state.cookies = parseCookies(response);
-    expect(state.cookies.length > 0).toBe(true);
+    expect(state.cookies.length).toBeGreaterThan(0);
   });
 
   it("creates and activates an organization", async () => {
@@ -91,7 +91,7 @@ describe("Dashboard credentials flow", () => {
     });
     expect(listResponse.status).toBe(200);
     const listed = await listResponse.json();
-    expect(listed.items).toEqual(
+    expect(listed.items).toStrictEqual(
       expect.arrayContaining([
         expect.objectContaining({
           id: state.credentialId,
@@ -108,7 +108,7 @@ describe("Dashboard credentials flow", () => {
     );
     expect(activateResponse.status).toBe(200);
     const activateBody = await activateResponse.json();
-    expect(activateBody).toEqual(
+    expect(activateBody).toStrictEqual(
       expect.objectContaining({
         id: state.credentialId,
         isActive: true,
@@ -120,7 +120,7 @@ describe("Dashboard credentials flow", () => {
     });
     expect(downloadResponse.status).toBe(200);
     const downloadBody = await downloadResponse.json();
-    expect(downloadBody).toEqual(
+    expect(downloadBody).toStrictEqual(
       expect.objectContaining({
         blob: blobBase64,
         password: "dashboard-password",

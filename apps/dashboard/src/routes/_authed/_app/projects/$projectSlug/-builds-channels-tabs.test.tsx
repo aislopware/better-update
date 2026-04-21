@@ -196,7 +196,7 @@ const branchesData = {
 };
 
 describe("builds and channels tabs", () => {
-  test("BuildsTab renders matrix summary and build cards from compatibility data", () => {
+  it("buildsTab renders matrix summary and build cards from compatibility data", () => {
     renderWithQuery(<BuildsTab orgId="org-1" projectId="proj-1" projectSlug="my-app" />, {
       seedCache: [
         [["org", "org-1", "projects", "proj-1", "build-compatibility-matrix"], compatibilityData],
@@ -208,7 +208,7 @@ describe("builds and channels tabs", () => {
     expect(screen.getByText("Build card: Android build")).toBeInTheDocument();
   });
 
-  test("BuildsTab shows empty state when there are no builds", () => {
+  it("buildsTab shows empty state when there are no builds", () => {
     renderWithQuery(<BuildsTab orgId="org-1" projectId="proj-1" projectSlug="my-app" />, {
       seedCache: [
         [
@@ -224,7 +224,7 @@ describe("builds and channels tabs", () => {
     ).toBeInTheDocument();
   });
 
-  test("ChannelsTab maps compatibility data into per-channel card props", () => {
+  it("channelsTab maps compatibility data into per-channel card props", () => {
     renderWithQuery(<ChannelsTab orgId="org-1" projectId="proj-1" projectSlug="my-app" />, {
       seedCache: [
         [["org", "org-1", "projects", "proj-1", "channels"], channelsData],
@@ -237,7 +237,7 @@ describe("builds and channels tabs", () => {
     expect(screen.getByText("Channel card: staging / builds 2 / missing 1")).toBeInTheDocument();
   });
 
-  test("ChannelsTab shows empty state when there are no channels", () => {
+  it("channelsTab shows empty state when there are no channels", () => {
     renderWithQuery(<ChannelsTab orgId="org-1" projectId="proj-1" projectSlug="my-app" />, {
       seedCache: [
         [

@@ -1,4 +1,4 @@
-import { Data, Either, Effect } from "effect";
+import { Data, Effect } from "effect";
 
 import { Conflict } from "../errors";
 
@@ -22,16 +22,11 @@ export const d1WithUniqueCheck = <T>(
         cause,
       }),
   }).pipe(
-    Effect.either,
-    Effect.flatMap((result) => {
-      if (Either.isRight(result)) {
-        return Effect.succeed(result.right);
-      }
-      if (isUniqueConstraintError(result.left)) {
-        return Effect.fail(new Conflict({ message: conflictMessage }));
-      }
-      return Effect.die(result.left);
-    }),
+    Effect.catchAll((error) =>
+      isUniqueConstraintError(error)
+        ? Effect.fail(new Conflict({ message: conflictMessage }))
+        : Effect.die(error),
+    ),
   );
 
 export const d1RunWithUniqueCheck = (

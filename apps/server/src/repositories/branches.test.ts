@@ -37,9 +37,9 @@ const runWithRepoEither = async <Ret, Err>(effect: Effect.Effect<Ret, Err, Branc
 
 // -- Tests -----------------------------------------------------------------
 
-describe("BranchRepo -- D1 adapter", () => {
+describe("branchRepo -- D1 adapter", () => {
   describe("insert", () => {
-    test("succeeds on valid insert", async () => {
+    it("succeeds on valid insert", async () => {
       const db = mockD1.forRun(async () => ({ results: [], success: true }));
       const env = makeEnv(db);
 
@@ -54,7 +54,7 @@ describe("BranchRepo -- D1 adapter", () => {
       expect(Exit.isSuccess(exit)).toBe(true);
     });
 
-    test("returns Conflict on UNIQUE constraint violation", async () => {
+    it("returns Conflict on UNIQUE constraint violation", async () => {
       const db = mockD1.forRun(() => {
         throw new Error("UNIQUE constraint failed: branches.name");
       });
@@ -76,7 +76,7 @@ describe("BranchRepo -- D1 adapter", () => {
   });
 
   describe("findByProject", () => {
-    test("returns items and total count", async () => {
+    it("returns items and total count", async () => {
       const db = mockD1.forQuery({
         first: async () => ({ count: 2 }),
         all: async () => ({
@@ -111,11 +111,11 @@ describe("BranchRepo -- D1 adapter", () => {
         const result = exit.value;
         expect(result.total).toBe(2);
         expect(result.items).toHaveLength(2);
-        expect(result.items[0]).toEqual(expect.objectContaining({ name: "production" }));
+        expect(result.items[0]).toStrictEqual(expect.objectContaining({ name: "production" }));
       }
     });
 
-    test("returns empty items when no branches exist", async () => {
+    it("returns empty items when no branches exist", async () => {
       const db = mockD1.forQuery({
         first: async () => ({ count: 0 }),
         all: async () => ({ results: [] }),
@@ -139,7 +139,7 @@ describe("BranchRepo -- D1 adapter", () => {
   });
 
   describe("findById", () => {
-    test("returns branch when found", async () => {
+    it("returns branch when found", async () => {
       const db = mockD1.forQuery({
         first: async () => ({
           id: "b1",
@@ -160,11 +160,11 @@ describe("BranchRepo -- D1 adapter", () => {
 
       expect(Exit.isSuccess(exit)).toBe(true);
       if (Exit.isSuccess(exit)) {
-        expect(exit.value).toEqual(expect.objectContaining({ name: "production" }));
+        expect(exit.value).toStrictEqual(expect.objectContaining({ name: "production" }));
       }
     });
 
-    test("returns NotFound when not found", async () => {
+    it("returns NotFound when not found", async () => {
       const db = mockD1.forQuery({
         first: async () => null,
       });
@@ -186,7 +186,7 @@ describe("BranchRepo -- D1 adapter", () => {
   });
 
   describe("updateName", () => {
-    test("succeeds on valid update", async () => {
+    it("succeeds on valid update", async () => {
       const db = mockD1.forRun(async () => ({ results: [], success: true }));
       const env = makeEnv(db);
 
@@ -201,7 +201,7 @@ describe("BranchRepo -- D1 adapter", () => {
       expect(Exit.isSuccess(exit)).toBe(true);
     });
 
-    test("returns Conflict on UNIQUE constraint violation", async () => {
+    it("returns Conflict on UNIQUE constraint violation", async () => {
       const db = mockD1.forRun(() => {
         throw new Error("UNIQUE constraint failed: branches.name");
       });

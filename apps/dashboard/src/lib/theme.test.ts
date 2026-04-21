@@ -8,19 +8,19 @@ import {
 } from "./theme";
 
 describe(resolveTheme, () => {
-  test('returns "light" for light theme', () => {
+  it('returns "light" for light theme', () => {
     expect(resolveTheme("light")).toBe("light");
   });
 
-  test('returns "dark" for dark theme', () => {
+  it('returns "dark" for dark theme', () => {
     expect(resolveTheme("dark")).toBe("dark");
   });
 
-  test('returns "dark" for system when systemIsDark is true', () => {
+  it('returns "dark" for system when systemIsDark is true', () => {
     expect(resolveTheme("system", true)).toBe("dark");
   });
 
-  test('returns "light" for system when systemIsDark is false', () => {
+  it('returns "light" for system when systemIsDark is false', () => {
     expect(resolveTheme("system", false)).toBe("light");
   });
 });
@@ -32,33 +32,33 @@ describe(getThemeFromCookie, () => {
 
   beforeEach(() => stubCookie(""));
 
-  test('returns "system" when no theme cookie exists', () => {
+  it('returns "system" when no theme cookie exists', () => {
     expect(getThemeFromCookie()).toBe("system");
   });
 
-  test('returns "dark" when cookie is "theme=dark"', () => {
+  it('returns "dark" when cookie is "theme=dark"', () => {
     stubCookie("theme=dark");
     expect(getThemeFromCookie()).toBe("dark");
   });
 
-  test('returns "light" when cookie is "theme=light"', () => {
+  it('returns "light" when cookie is "theme=light"', () => {
     stubCookie("theme=light");
     expect(getThemeFromCookie()).toBe("light");
   });
 
-  test('returns "system" for invalid cookie values', () => {
+  it('returns "system" for invalid cookie values', () => {
     stubCookie("theme=invalid");
     expect(getThemeFromCookie()).toBe("system");
   });
 
-  test("parses theme from among other cookies", () => {
+  it("parses theme from among other cookies", () => {
     stubCookie("session=abc; theme=dark; other=xyz");
     expect(getThemeFromCookie()).toBe("dark");
   });
 });
 
 describe(setThemeCookie, () => {
-  test("writes cookie with correct format", () => {
+  it("writes cookie with correct format", () => {
     let written = "";
     Object.defineProperty(document, "cookie", {
       set: (value: string) => {
@@ -75,20 +75,20 @@ describe(setThemeCookie, () => {
 });
 
 describe(THEME_INIT_SCRIPT, () => {
-  test("is a non-empty string", () => {
+  it("is a non-empty string", () => {
     expect(THEME_INIT_SCRIPT.length).toBeGreaterThan(0);
     expectTypeOf(THEME_INIT_SCRIPT).toBeString();
   });
 
-  test("reads from document.cookie", () => {
+  it("reads from document.cookie", () => {
     expect(THEME_INIT_SCRIPT).toContain("cookie");
   });
 
-  test("references prefers-color-scheme", () => {
+  it("references prefers-color-scheme", () => {
     expect(THEME_INIT_SCRIPT).toContain("prefers-color-scheme");
   });
 
-  test("does not contain HTML tags", () => {
+  it("does not contain HTML tags", () => {
     expect(THEME_INIT_SCRIPT).not.toMatch(/<[a-z]/i);
   });
 });
