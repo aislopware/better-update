@@ -16,7 +16,7 @@ export const updatesCommand = Command.make("updates", { updateId, period }, (opt
 
     const periodFilter = Option.match(opts.period, {
       onNone: () => ({}) as Record<string, string>,
-      onSome: (p) => ({ period: p }) as Record<string, string>,
+      onSome: (periodValue) => ({ period: periodValue }) as Record<string, string>,
     });
 
     const result = yield* api.analytics.updates({

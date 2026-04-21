@@ -6,6 +6,8 @@ import { setTimeout as sleep } from "node:timers/promises";
 
 import { applyProcessEnv, createServerE2EEnvironment } from "../../../server/tests/helpers/e2e-env";
 
+import type { unstable_startWorker } from "../../../server/node_modules/wrangler";
+
 const CLI_DIR = path.resolve(import.meta.dirname, "../..");
 const SERVER_DIR = path.resolve(import.meta.dirname, "../../../server");
 
@@ -65,7 +67,7 @@ const getNodeErrorCode = (error: unknown): string | undefined => {
     return directCode;
   }
 
-  const cause = (error as Error & { readonly cause?: unknown }).cause;
+  const { cause } = error as Error & { readonly cause?: unknown };
   if (typeof cause !== "object" || cause === null) {
     return undefined;
   }
@@ -119,16 +121,14 @@ export interface CliE2EContext {
 export const setupCliE2E = (persistDir: string, options?: SetupCliE2EOptions): CliE2EContext => {
   const template = options?.appJsonTemplate ?? defaultAppJsonTemplate;
   const expoConfig = (template as { expo?: Record<string, unknown> }).expo ?? {};
-  const slug = String(expoConfig["slug"] ?? "cli-e2e-app");
-  const projectName = `${String(expoConfig["name"] ?? "E2E")} Project`;
+  const slugRaw = expoConfig["slug"];
+  const slug = typeof slugRaw === "string" ? slugRaw : "cli-e2e-app";
+  const nameRaw = expoConfig["name"];
+  const projectName = `${typeof nameRaw === "string" ? nameRaw : "E2E"} Project`;
   const useExternalProjectDir = options?.projectDir !== undefined;
 
   const state = {
-    worker: null as Awaited<
-      ReturnType<
-        (typeof import("/Users/congtran/Workspace/better-update/apps/server/node_modules/wrangler"))["unstable_startWorker"]
-      >
-    > | null,
+    worker: null as Awaited<ReturnType<typeof unstable_startWorker>> | null,
     baseUrl: "",
     cookies: "",
     organizationId: "",
@@ -142,11 +142,11 @@ export const setupCliE2E = (persistDir: string, options?: SetupCliE2EOptions): C
 
   const persistPath = path.resolve(SERVER_DIR, persistDir);
   const persistArg = path.relative(SERVER_DIR, persistPath) || ".";
-  const seedFileId = persistDir.replace(/[^a-zA-Z0-9]+/gu, "-");
+  const seedFileId = persistDir.replaceAll(/[^a-zA-Z0-9]+/gu, "-");
   const seedFile = path.resolve(SERVER_DIR, `.wrangler/seed-${seedFileId}.sql`);
 
   const post = async (requestPath: string, body: unknown, headers?: Record<string, string>) =>
-    requestWithRetry(() =>
+    requestWithRetry(async () =>
       fetch(`${state.baseUrl}${requestPath}`, {
         method: "POST",
         headers: { "content-type": "application/json", ...headers },
@@ -155,10 +155,12 @@ export const setupCliE2E = (persistDir: string, options?: SetupCliE2EOptions): C
     );
 
   const get = async (requestPath: string, headers?: Record<string, string>) =>
-    requestWithRetry(() => fetch(`${state.baseUrl}${requestPath}`, headers ? { headers } : {}));
+    requestWithRetry(async () =>
+      fetch(`${state.baseUrl}${requestPath}`, headers ? { headers } : {}),
+    );
 
   const patch = async (requestPath: string, body: unknown, headers?: Record<string, string>) =>
-    requestWithRetry(() =>
+    requestWithRetry(async () =>
       fetch(`${state.baseUrl}${requestPath}`, {
         method: "PATCH",
         headers: { "content-type": "application/json", ...headers },
@@ -167,7 +169,7 @@ export const setupCliE2E = (persistDir: string, options?: SetupCliE2EOptions): C
     );
 
   const del = async (requestPath: string, body: unknown, headers?: Record<string, string>) =>
-    requestWithRetry(() =>
+    requestWithRetry(async () =>
       fetch(`${state.baseUrl}${requestPath}`, {
         method: "DELETE",
         headers: { "content-type": "application/json", ...headers },
@@ -230,8 +232,8 @@ export const setupCliE2E = (persistDir: string, options?: SetupCliE2EOptions): C
     });
 
     return {
-      stdout: result.stdout ?? "",
-      stderr: result.stderr ?? "",
+      stdout: result.stdout,
+      stderr: result.stderr,
       exitCode: result.status ?? 1,
     };
   };
@@ -250,8 +252,7 @@ export const setupCliE2E = (persistDir: string, options?: SetupCliE2EOptions): C
     const originalCwd = process.cwd();
     process.chdir(SERVER_DIR);
     try {
-      const { unstable_startWorker } =
-        await import("/Users/congtran/Workspace/better-update/apps/server/node_modules/wrangler");
+      const { unstable_startWorker } = await import("../../../server/node_modules/wrangler");
       state.worker = await unstable_startWorker({
         config: path.resolve(SERVER_DIR, "wrangler.jsonc"),
         envFiles: [],
@@ -274,7 +275,7 @@ export const setupCliE2E = (persistDir: string, options?: SetupCliE2EOptions): C
     state.homeDir = mkdtempSync(path.join(os.tmpdir(), "better-update-cli-home-"));
 
     if (useExternalProjectDir) {
-      state.projectDir = options!.projectDir!;
+      state.projectDir = options.projectDir!;
       const appJsonPath = path.join(state.projectDir, "app.json");
       if (existsSync(appJsonPath)) {
         state.originalAppJson = readFileSync(appJsonPath, "utf8");
@@ -298,7 +299,8 @@ export const setupCliE2E = (persistDir: string, options?: SetupCliE2EOptions): C
       { cookie: state.cookies },
     );
     expect(createOrgResponse.status).toBe(200);
-    state.organizationId = (await createOrgResponse.json()).id;
+    const createOrgBody = await createOrgResponse.json();
+    state.organizationId = createOrgBody.id;
     state.cookies = parseCookies(createOrgResponse) || state.cookies;
 
     const setActiveResponse = await post(
@@ -315,7 +317,8 @@ export const setupCliE2E = (persistDir: string, options?: SetupCliE2EOptions): C
       { cookie: state.cookies },
     );
     expect(createProjectResponse.status).toBe(201);
-    state.projectId = (await createProjectResponse.json()).id;
+    const createProjectBody = await createProjectResponse.json();
+    state.projectId = createProjectBody.id;
 
     const createKeyResponse = await post(
       "/api/auth/api-key/create",
@@ -323,7 +326,8 @@ export const setupCliE2E = (persistDir: string, options?: SetupCliE2EOptions): C
       { cookie: state.cookies },
     );
     expect(createKeyResponse.status).toBe(200);
-    state.apiKey = (await createKeyResponse.json()).key;
+    const createKeyBody = await createKeyResponse.json();
+    state.apiKey = createKeyBody.key;
 
     const createBranchResponse = await post(
       "/api/branches",
@@ -410,13 +414,13 @@ VALUES (
     seedSql,
     post,
     get,
-    getAuthorized: (requestPath, headers) =>
+    getAuthorized: async (requestPath, headers) =>
       get(requestPath, { authorization: `Bearer ${state.apiKey}`, ...headers }),
-    postAuthorized: (requestPath, body, headers) =>
+    postAuthorized: async (requestPath, body, headers) =>
       post(requestPath, body, { authorization: `Bearer ${state.apiKey}`, ...headers }),
-    patchAuthorized: (requestPath, body, headers) =>
+    patchAuthorized: async (requestPath, body, headers) =>
       patch(requestPath, body, { authorization: `Bearer ${state.apiKey}`, ...headers }),
-    deleteAuthorized: (requestPath, body, headers) =>
+    deleteAuthorized: async (requestPath, body, headers) =>
       del(requestPath, body, { authorization: `Bearer ${state.apiKey}`, ...headers }),
   };
 };

@@ -1,7 +1,9 @@
 import path from "node:path";
 
-import { Command, CommandExecutor, FileSystem } from "@effect/platform";
+import { Command, FileSystem } from "@effect/platform";
 import { Console, Effect } from "effect";
+
+import type { CommandExecutor } from "@effect/platform";
 
 import { parsePlist, parsePlistXml } from "./plist";
 
@@ -59,8 +61,8 @@ export const validateIosBuild = (
 
     if (warnings.length > 0) {
       yield* Console.warn("Post-build validation warnings:");
-      for (const w of warnings) {
-        yield* Console.warn(`  - ${w}`);
+      for (const warning of warnings) {
+        yield* Console.warn(`  - ${warning}`);
       }
     }
 
@@ -76,8 +78,10 @@ const findAppDirectory = (
     const fs = yield* FileSystem.FileSystem;
     const productsDir = path.join(archivePath, "Products", "Applications");
     const entries = yield* fs.readDirectory(productsDir);
-    const appEntry = entries.find((e) => e.endsWith(".app"));
-    if (!appEntry) return yield* Effect.fail("No .app found");
+    const appEntry = entries.find((entry) => entry.endsWith(".app"));
+    if (!appEntry) {
+      return yield* Effect.fail("No .app found");
+    }
     return path.join(productsDir, appEntry);
   });
 
@@ -124,9 +128,10 @@ const checkEmbeddedProfile = (
     }
 
     const teamIdentifiers = parsed["TeamIdentifier"];
-    if (Array.isArray(teamIdentifiers) && typeof teamIdentifiers[0] === "string") {
-      const actualTeamId = teamIdentifiers[0] as string;
-      if (actualTeamId !== expectedTeamId) {
+    if (Array.isArray(teamIdentifiers)) {
+      // eslint-disable-next-line typescript/no-unsafe-assignment -- @expo/plist types array entries as any; narrowed via typeof check below
+      const [actualTeamId] = teamIdentifiers;
+      if (typeof actualTeamId === "string" && actualTeamId !== expectedTeamId) {
         warnings.push(`Team ID mismatch: expected "${expectedTeamId}", got "${actualTeamId}"`);
       }
     }

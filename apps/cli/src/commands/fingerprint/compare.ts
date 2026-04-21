@@ -15,11 +15,11 @@ export const compareCommand = Command.make("compare", { hash }, (opts) =>
 
     if (result.hash === opts.hash) {
       yield* Console.log("Fingerprints match.");
-    } else {
-      yield* Console.log("Fingerprints differ.");
-      yield* Console.log(`  Local:    ${result.hash}`);
-      yield* Console.log(`  Provided: ${opts.hash}`);
-      return yield* exitWith(1, "Fingerprint mismatch");
+      return undefined;
     }
+    yield* Console.log("Fingerprints differ.");
+    yield* Console.log(`  Local:    ${result.hash}`);
+    yield* Console.log(`  Provided: ${opts.hash}`);
+    return yield* exitWith(1, "Fingerprint mismatch");
   }).pipe(Effect.catchTag("FingerprintError", (error) => exitWith(2, error.message))),
 );

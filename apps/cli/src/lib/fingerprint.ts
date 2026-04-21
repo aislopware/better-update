@@ -1,5 +1,9 @@
-import { Command, CommandExecutor } from "@effect/platform";
+import { Command } from "@effect/platform";
 import { Data, Effect } from "effect";
+
+import type { CommandExecutor } from "@effect/platform";
+
+import { isRecord } from "./record";
 
 export class FingerprintError extends Data.TaggedError("FingerprintError")<{
   readonly message: string;
@@ -34,23 +38,29 @@ export const runFingerprintFull = (
     );
 
     const parsed = yield* Effect.try({
-      try: () => JSON.parse(stdout) as { readonly hash?: unknown; readonly sources?: unknown },
+      try: (): unknown => JSON.parse(stdout),
       catch: () =>
         new FingerprintError({
           message: "Failed to parse @expo/fingerprint output as JSON.",
         }),
     });
 
-    const hash = parsed.hash;
+    if (!isRecord(parsed)) {
+      return yield* new FingerprintError({
+        message: "@expo/fingerprint output was not a JSON object.",
+      });
+    }
+
+    const { hash } = parsed;
     if (typeof hash !== "string" || hash.length === 0) {
       return yield* new FingerprintError({
         message: '@expo/fingerprint output did not contain a "hash" string field.',
       });
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- @expo/fingerprint output shape is stable; sources only used for display (count)
-    const sources: readonly FingerprintSource[] = Array.isArray(parsed.sources)
-      ? (parsed.sources as readonly FingerprintSource[])
+    const sourcesRaw = parsed["sources"];
+    const sources: readonly FingerprintSource[] = Array.isArray(sourcesRaw)
+      ? (sourcesRaw as readonly FingerprintSource[])
       : [];
 
     return { hash, sources };

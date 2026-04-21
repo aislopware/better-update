@@ -1,6 +1,7 @@
 import { Effect } from "effect";
 
 import { BuildProfileError } from "./exit-codes";
+import { asRecord } from "./record";
 
 export type Platform = "ios" | "android";
 
@@ -43,9 +44,6 @@ export interface RuntimeVersionMeta {
   readonly rawRuntimeVersion: RawRuntimeVersion | undefined;
 }
 
-const asRecord = (value: unknown): Record<string, unknown> | undefined =>
-  typeof value === "object" && value !== null ? (value as Record<string, unknown>) : undefined;
-
 export const asString = (value: unknown): string | undefined =>
   typeof value === "string" ? value : undefined;
 
@@ -57,53 +55,68 @@ const getBetterUpdateExtra = (
   return asRecord(extra?.["betterUpdate"]);
 };
 
-const VALID_IOS_DISTRIBUTIONS: ReadonlyArray<IosDistribution> = [
+const VALID_IOS_DISTRIBUTIONS: readonly IosDistribution[] = [
   "app-store",
   "ad-hoc",
   "development",
   "enterprise",
 ];
 
+const isIosDistribution = (value: string): value is IosDistribution =>
+  (VALID_IOS_DISTRIBUTIONS as readonly string[]).includes(value);
+
 const readIosProfile = (raw: unknown): IosProfile | undefined => {
   const iosRaw = asRecord(raw);
-  if (!iosRaw) return undefined;
-  const distributionRaw = asString(iosRaw["distribution"]);
-  if (!distributionRaw) return undefined;
-  if (!VALID_IOS_DISTRIBUTIONS.includes(distributionRaw as IosDistribution)) {
+  if (!iosRaw) {
     return undefined;
   }
-  const distribution = distributionRaw as IosDistribution;
+  const distributionRaw = asString(iosRaw["distribution"]);
+  if (!distributionRaw) {
+    return undefined;
+  }
+  if (!isIosDistribution(distributionRaw)) {
+    return undefined;
+  }
+  const distribution: IosDistribution = distributionRaw;
   const buildConfiguration = asString(iosRaw["buildConfiguration"]);
   const scheme = asString(iosRaw["scheme"]);
   return {
     distribution,
-    ...(buildConfiguration !== undefined ? { buildConfiguration } : {}),
-    ...(scheme !== undefined ? { scheme } : {}),
+    ...(buildConfiguration === undefined ? {} : { buildConfiguration }),
+    ...(scheme === undefined ? {} : { scheme }),
   };
+};
+
+const resolveAndroidDistribution = (
+  raw: string | undefined,
+  format: "apk" | "aab",
+): AndroidDistribution => {
+  if (raw === "play-store" || raw === "direct") {
+    return raw;
+  }
+  return format === "aab" ? "play-store" : "direct";
 };
 
 const readAndroidProfile = (raw: unknown): AndroidProfile | undefined => {
   const androidRaw = asRecord(raw);
-  if (!androidRaw) return undefined;
+  if (!androidRaw) {
+    return undefined;
+  }
   const formatValue = asString(androidRaw["format"]);
   const format = formatValue === "apk" || formatValue === "aab" ? formatValue : undefined;
-  if (!format) return undefined;
+  if (!format) {
+    return undefined;
+  }
   const buildTypeValue = asString(androidRaw["buildType"]);
   const buildType =
     buildTypeValue === "debug" || buildTypeValue === "release" ? buildTypeValue : undefined;
   const flavor = asString(androidRaw["flavor"]);
-  const distributionRaw = asString(androidRaw["distribution"]);
-  const distribution: AndroidDistribution =
-    distributionRaw === "play-store" || distributionRaw === "direct"
-      ? distributionRaw
-      : format === "aab"
-        ? "play-store"
-        : "direct";
+  const distribution = resolveAndroidDistribution(asString(androidRaw["distribution"]), format);
   return {
     format,
     distribution,
-    ...(buildType !== undefined ? { buildType } : {}),
-    ...(flavor !== undefined ? { flavor } : {}),
+    ...(buildType === undefined ? {} : { buildType }),
+    ...(flavor === undefined ? {} : { flavor }),
   };
 };
 
@@ -131,8 +144,8 @@ export const readBuildProfile = (
     return {
       name: profileName,
       environment,
-      ...(ios !== undefined ? { ios } : {}),
-      ...(android !== undefined ? { android } : {}),
+      ...(ios === undefined ? {} : { ios }),
+      ...(android === undefined ? {} : { android }),
     };
   });
 
@@ -199,15 +212,23 @@ export const readAppMeta = (
   });
 
 const asStringOrNumber = (value: unknown): string | undefined => {
-  if (typeof value === "string") return value;
-  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  if (typeof value === "string") {
+    return value;
+  }
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
   return undefined;
 };
 
 const readRawRuntimeVersion = (value: unknown): RawRuntimeVersion | undefined => {
-  if (typeof value === "string") return value;
+  if (typeof value === "string") {
+    return value;
+  }
   const record = asRecord(value);
   const policy = asString(record?.["policy"]);
-  if (policy) return { policy };
+  if (policy) {
+    return { policy };
+  }
   return undefined;
 };

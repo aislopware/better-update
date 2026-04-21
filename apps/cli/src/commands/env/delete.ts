@@ -5,27 +5,31 @@ import { readProjectId } from "../../lib/app-json";
 import { apiClient } from "../../services/api-client";
 import { EnvResourceNotFoundError, handleEnvCommandErrors } from "./helpers";
 
-const key = Args.text({ name: "KEY" });
-const environment = Options.text("environment").pipe(Options.withDefault("production"));
+const keyArg = Args.text({ name: "KEY" });
+const environmentOption = Options.text("environment").pipe(Options.withDefault("production"));
 
-export const deleteCommand = Command.make("delete", { key, environment }, ({ key, environment }) =>
-  Effect.gen(function* () {
-    const projectId = yield* readProjectId;
-    const api = yield* apiClient;
+export const deleteCommand = Command.make(
+  "delete",
+  { key: keyArg, environment: environmentOption },
+  ({ key, environment }) =>
+    Effect.gen(function* () {
+      const projectId = yield* readProjectId;
+      const api = yield* apiClient;
 
-    const existing = yield* api["env-vars"].list({
-      urlParams: { projectId, environment },
-    });
-
-    const match = existing.items.find((item) => item.key === key);
-
-    if (!match) {
-      return yield* new EnvResourceNotFoundError({
-        message: `Environment variable ${key} not found in ${environment}`,
+      const existing = yield* api["env-vars"].list({
+        urlParams: { projectId, environment },
       });
-    }
 
-    yield* api["env-vars"].delete({ path: { id: match.id } });
-    yield* Console.log(`Deleted ${key} from ${environment}`);
-  }).pipe(handleEnvCommandErrors),
+      const match = existing.items.find((item) => item.key === key);
+
+      if (!match) {
+        return yield* new EnvResourceNotFoundError({
+          message: `Environment variable ${key} not found in ${environment}`,
+        });
+      }
+
+      yield* api["env-vars"].delete({ path: { id: match.id } });
+      yield* Console.log(`Deleted ${key} from ${environment}`);
+      return undefined;
+    }).pipe(handleEnvCommandErrors),
 );

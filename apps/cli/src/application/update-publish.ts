@@ -2,31 +2,37 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 
 import { toBase64Url } from "@better-update/encoding";
-import { CommandExecutor, FileSystem } from "@effect/platform";
 import { Effect } from "effect";
 
+import type { CommandExecutor, FileSystem } from "@effect/platform";
+
 import { readAppJson, readProjectId, readSlug } from "../lib/app-json";
-import { readRuntimeVersionMeta, type Platform } from "../lib/build-profile";
+import { readRuntimeVersionMeta } from "../lib/build-profile";
 import { pullEnvVars } from "../lib/env-exporter";
-import { EnvExportError, RuntimeVersionError, UpdatePublishError } from "../lib/exit-codes";
+import { UpdatePublishError } from "../lib/exit-codes";
 import { readExpoExportAssets, readExpoPublicConfig, runExpoExport } from "../lib/expo-export";
 import { formatCause } from "../lib/format-error";
 import { readGitContext } from "../lib/git-context";
 import { resolveRuntimeVersion } from "../lib/runtime-version";
 import { sha256File, sha256Namespaced } from "../lib/sha256";
-import { loadSignedPublishPayloads, type SignedPayload } from "../lib/signed-payloads";
+import { loadSignedPublishPayloads } from "../lib/signed-payloads";
 import { acquireBuildTempDir } from "../lib/temp-dir";
 import { resolveUpdatePlatforms } from "../lib/update-platforms";
-import { ApiClientService, apiClient } from "../services/api-client";
+import { apiClient } from "../services/api-client";
 import { CliRuntime } from "../services/cli-runtime";
 import { UpdateAssetUploader } from "../services/update-asset-uploader";
 
+import type { Platform } from "../lib/build-profile";
 import type {
   AuthRequiredError,
   BuildProfileError,
   BuildFailedError,
   ProjectNotLinkedError,
+  EnvExportError,
+  RuntimeVersionError,
 } from "../lib/exit-codes";
+import type { SignedPayload } from "../lib/signed-payloads";
+import type { ApiClientService } from "../services/api-client";
 
 export interface RunUpdatePublishOptions {
   readonly branch: string | undefined;
@@ -82,8 +88,9 @@ const buildUpdateExtra = (
   environment,
 });
 
-const dedupeAssetsByHash = (assets: readonly PreparedAsset[]): readonly PreparedAsset[] =>
-  Array.from(new Map(assets.map((asset) => [asset.hash, asset])).values());
+const dedupeAssetsByHash = (assets: readonly PreparedAsset[]): readonly PreparedAsset[] => [
+  ...new Map(assets.map((asset) => [asset.hash, asset])).values(),
+];
 
 const preparePlatformAssets = ({
   exportDir,
@@ -239,9 +246,9 @@ const publishPlatform = (params: {
                 certificateChain: params.signedPayload.certificateChain,
               }
             : {}),
-          ...(params.rolloutPercentage !== undefined
-            ? { rolloutPercentage: params.rolloutPercentage }
-            : {}),
+          ...(params.rolloutPercentage === undefined
+            ? {}
+            : { rolloutPercentage: params.rolloutPercentage }),
         },
       })
       .pipe(
@@ -280,6 +287,7 @@ export const runUpdatePublish = (
   | FileSystem.FileSystem
 > =>
   Effect.scoped(
+    // eslint-disable-next-line eslint/max-statements -- update publish orchestration is inherently sequential (read config → resolve runtime version → expo export → register assets → publish per platform); splitting further fragments the pipeline without improving readability
     Effect.gen(function* () {
       const runtime = yield* CliRuntime;
       const projectRoot = yield* runtime.cwd;
@@ -359,7 +367,7 @@ export const runUpdatePublish = (
             certificateChainFile: options.certificateChainFileAndroid,
           },
         },
-        makeError: (message) => new UpdatePublishError({ message }),
+        makeError: (errorMessage) => new UpdatePublishError({ message: errorMessage }),
       });
       const results = yield* Effect.forEach(
         platforms,

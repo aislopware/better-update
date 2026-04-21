@@ -25,7 +25,7 @@ const listCommand = Command.make("list", {}, () =>
 
     yield* printTable(
       ["ID", "Name", "Slug", "Created"],
-      items.map((p) => [p.id, p.name, p.slug, p.createdAt]),
+      items.map((project) => [project.id, project.name, project.slug, project.createdAt]),
     );
   }).pipe(handleErrors),
 );

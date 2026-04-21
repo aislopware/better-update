@@ -7,14 +7,14 @@ import { apiClient } from "../../services/api-client";
 import { handleEnvCommandErrors } from "./helpers";
 
 const keyValue = keyValueArg("KEY=VALUE");
-const environment = Options.text("environment").pipe(Options.withDefault("production"));
-const visibility = Options.choice("visibility", ["plaintext", "sensitive", "secret"]).pipe(
+const environmentOption = Options.text("environment").pipe(Options.withDefault("production"));
+const visibilityOption = Options.choice("visibility", ["plaintext", "sensitive", "secret"]).pipe(
   Options.withDefault("plaintext" as const),
 );
 
 export const setCommand = Command.make(
   "set",
-  { keyValue, environment, visibility },
+  { keyValue, environment: environmentOption, visibility: visibilityOption },
   ({ keyValue: { key, value }, environment, visibility }) =>
     Effect.gen(function* () {
       const projectId = yield* readProjectId;

@@ -11,10 +11,8 @@ export const handleChannelCommandErrors = makeCommandErrorHandler({
   ChannelCommandError: 2,
 });
 
-export const resolveNamedResourceId = <
-  T extends { readonly id: string; readonly name: string },
->(params: {
-  readonly items: readonly T[];
+export const resolveNamedResourceId = (params: {
+  readonly items: readonly { readonly id: string; readonly name: string }[];
   readonly kind: string;
   readonly name: string;
 }) => resolveNamedResourceIdBase(params, (message) => new ChannelCommandError({ message }));

@@ -1,5 +1,7 @@
-import { Command, CommandExecutor } from "@effect/platform";
+import { Command } from "@effect/platform";
 import { Effect } from "effect";
+
+import type { CommandExecutor } from "@effect/platform";
 
 export interface GitContext {
   readonly ref: string | undefined;
@@ -27,15 +29,15 @@ export const readGitContext = (
     const [commit, ref, commitMessage, status] = yield* Effect.all(
       [
         runString(Command.make("git", "rev-parse", "HEAD"), projectRoot).pipe(
-          Effect.map((s) => s.trim()),
+          Effect.map((output) => output.trim()),
           Effect.catchAll(() => Effect.succeed("")),
         ),
         runString(Command.make("git", "symbolic-ref", "--short", "HEAD"), projectRoot).pipe(
-          Effect.map((s) => s.trim()),
+          Effect.map((output) => output.trim()),
           Effect.catchAll(() => Effect.succeed("")),
         ),
         runString(Command.make("git", "log", "-1", "--format=%s"), projectRoot).pipe(
-          Effect.map((s) => s.trim()),
+          Effect.map((output) => output.trim()),
           Effect.catchAll(() => Effect.succeed("")),
         ),
         runString(Command.make("git", "status", "--porcelain"), projectRoot).pipe(

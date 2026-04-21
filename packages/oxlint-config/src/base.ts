@@ -1,38 +1,54 @@
-{
-  "$schema": "../../node_modules/oxlint/configuration_schema.json",
-  "categories": {
-    "correctness": "warn",
-    "suspicious": "warn",
-    "pedantic": "warn",
-    "perf": "warn",
-    "style": "warn",
-    "restriction": "warn",
-    "nursery": "warn"
+import { defineConfig } from "oxlint";
+
+export default defineConfig({
+  categories: {
+    correctness: "warn",
+    suspicious: "warn",
+    pedantic: "warn",
+    perf: "warn",
+    style: "warn",
+    restriction: "warn",
+    nursery: "warn",
   },
-  "plugins": ["typescript", "unicorn", "oxc", "import", "vitest", "jsdoc", "node", "promise"],
-  "jsPlugins": ["eslint-plugin-functional", "oxlint-plugin-eslint"],
-  "rules": {
+  plugins: ["typescript", "unicorn", "oxc", "import", "vitest", "jsdoc", "node", "promise"],
+  jsPlugins: ["eslint-plugin-functional", "oxlint-plugin-eslint"],
+  rules: {
     "eslint-js/no-restricted-syntax": [
       "error",
       {
-        "selector": "LogicalExpression[operator='??'][right.type='Literal'][right.value='']",
-        "message": "Silent empty-string fallback hides missing data. Use `yield* requireValue(x, 'fieldName')` or move default into Schema.optionalWith."
+        selector: "LogicalExpression[operator='??'][right.type='Literal'][right.value='']",
+        message:
+          "Silent empty-string fallback hides missing data. Use `yield* requireValue(x, 'fieldName')` or move default into Schema.optionalWith.",
       },
       {
-        "selector": "LogicalExpression[operator='||'][right.type='Literal'][right.value='']",
-        "message": "Silent empty-string fallback hides missing data. Use `yield* requireValue(x, 'fieldName')` or move default into Schema.optionalWith."
+        selector: "LogicalExpression[operator='||'][right.type='Literal'][right.value='']",
+        message:
+          "Silent empty-string fallback hides missing data. Use `yield* requireValue(x, 'fieldName')` or move default into Schema.optionalWith.",
       },
       {
-        "selector": "LogicalExpression[operator='??'][right.type='Literal'][right.raw='null']",
-        "message": "Use toDbNull() for DB nullable-column inserts or Option.fromNullable for domain absence."
+        selector: "LogicalExpression[operator='??'][right.type='Literal'][right.raw='null']",
+        message:
+          "Use toDbNull() for DB nullable-column inserts or Option.fromNullable for domain absence.",
       },
       {
-        "selector": "LogicalExpression[operator='??'][right.type='Identifier'][right.name='undefined']",
-        "message": "Use toOptional() for null\u2192undefined type normalization or Schema.optionalWith({ default }) for defaults."
-      }
+        selector:
+          "LogicalExpression[operator='??'][right.type='Identifier'][right.name='undefined']",
+        message:
+          "Use toOptional() for null→undefined type normalization or Schema.optionalWith({ default }) for defaults.",
+      },
+      {
+        selector: "CallExpression > ArrowFunctionExpression.callee",
+        message:
+          "Anonymous arrow IIFE forbidden. Extract to a named arrow function (const helper = () => {...}) above the call site.",
+      },
+      {
+        selector: "CallExpression > FunctionExpression.callee",
+        message:
+          "Anonymous function IIFE forbidden. Extract to a named function above the call site.",
+      },
     ],
 
-    "promise/prefer-await-to-then": ["warn", { "strict": true }],
+    "promise/prefer-await-to-then": ["warn", { strict: true }],
     "promise/always-return": "off",
     "promise/avoid-new": "off",
     "promise/catch-or-return": "off",
@@ -57,18 +73,18 @@
     "functional/no-try-statements": "warn",
 
     "constructor-super": "off",
-    "func-names": ["warn", "as-needed", { "generators": "never" }],
+    "func-names": ["warn", "as-needed", { generators: "never" }],
     "getter-return": "off",
-    "max-classes-per-file": ["warn", { "max": 5, "ignoreExpressions": true }],
-    "max-lines": ["warn", { "max": 500 }],
+    "max-classes-per-file": ["warn", { max: 5, ignoreExpressions: true }],
+    "max-lines": ["warn", { max: 500 }],
     "max-lines-per-function": [
       "warn",
-      { "max": 250, "skipBlankLines": true, "skipComments": true, "IIFEs": true }
+      { max: 250, skipBlankLines: true, skipComments: true, IIFEs: true },
     ],
     "max-params": ["warn", 5],
     "max-statements": ["warn", 25],
-    "new-cap": ["warn", { "properties": false }],
-    "id-length": ["warn", { "min": 2, "exceptions": ["_", "T", "K", "V", "R"] }],
+    "new-cap": ["warn", { properties: false }],
+    "id-length": ["warn", { min: 2, exceptions: ["_", "T", "K", "V", "R"] }],
     "no-console": "warn",
     "no-const-assign": "off",
     "no-dupe-class-members": "off",
@@ -117,7 +133,7 @@
     "import/no-relative-parent-imports": "off",
     "import/prefer-default-export": "off",
     "import/max-dependencies": "off",
-    "import/no-unassigned-import": ["warn", { "allow": ["**/*.css", "**/*.scss"] }],
+    "import/no-unassigned-import": ["warn", { allow: ["**/*.css", "**/*.scss"] }],
 
     "jsdoc/require-param": "off",
     "jsdoc/require-returns": "off",
@@ -130,21 +146,23 @@
     "vitest/prefer-called-once": "off",
     "vitest/prefer-to-be-truthy": "off",
     "vitest/prefer-to-be-falsy": "off",
-    "vitest/require-hook": "off"
+    "vitest/require-hook": "off",
   },
-  "overrides": [
+  overrides: [
     {
-      "files": ["**/*.machine.ts"],
-      "rules": {
-        "typescript/no-unsafe-type-assertion": "off"
-      }
+      files: ["**/*.machine.ts"],
+      rules: {
+        "typescript/no-unsafe-type-assertion": "off",
+      },
     },
     {
-      "files": ["**/*.test.*", "**/*.spec.*", "**/__tests__/**", "**/tests/**"],
-      "rules": {
+      files: ["**/*.test.*", "**/*.spec.*", "**/__tests__/**", "**/tests/**"],
+      rules: {
         "eslint-js/no-restricted-syntax": "off",
         "init-declarations": "off",
         "max-lines-per-function": "off",
+        "max-lines": "off",
+        "max-statements": "off",
         "no-magic-numbers": "off",
 
         "functional/no-let": "off",
@@ -172,23 +190,23 @@
         "unicorn/consistent-function-scoping": "off",
 
         "vitest/require-test-timeout": "off",
-        "vitest/prefer-importing-vitest-globals": "off"
-      }
-    }
+        "vitest/prefer-importing-vitest-globals": "off",
+      },
+    },
   ],
-  "ignorePatterns": [
+  ignorePatterns: [
     "dist",
     "node_modules",
     ".turbo",
     "**/*.gen.ts",
     "**/*.d.ts",
     "coverage",
-    "vitest.config.*"
+    "vitest.config.*",
   ],
-  "options": {
-    "typeAware": true,
-    "denyWarnings": true,
-    "reportUnusedDisableDirectives": "warn",
-    "typeCheck": true
-  }
-}
+  options: {
+    typeAware: true,
+    denyWarnings: true,
+    reportUnusedDisableDirectives: "warn",
+    typeCheck: true,
+  },
+});

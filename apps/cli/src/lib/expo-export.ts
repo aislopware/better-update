@@ -1,10 +1,13 @@
 import path from "node:path";
 
-import { Command, CommandExecutor, FileSystem } from "@effect/platform";
+import { Command, FileSystem } from "@effect/platform";
 import { Effect } from "effect";
+
+import type { CommandExecutor } from "@effect/platform";
 
 import { CliRuntime } from "../services/cli-runtime";
 import { BuildFailedError, UpdatePublishError } from "./exit-codes";
+import { asRecord } from "./record";
 
 import type { Platform } from "./build-profile";
 
@@ -32,14 +35,13 @@ interface ReadExpoExportAssetsOptions {
   readonly platform: Platform;
 }
 
-const asRecord = (value: unknown): Record<string, unknown> | undefined =>
-  typeof value === "object" && value !== null ? (value as Record<string, unknown>) : undefined;
-
 const asString = (value: unknown): string | undefined =>
   typeof value === "string" ? value : undefined;
 
 const normalizeExtension = (value: string | undefined): string | undefined => {
-  if (!value) return undefined;
+  if (!value) {
+    return undefined;
+  }
   return value.startsWith(".") ? value.slice(1) : value;
 };
 
@@ -50,39 +52,53 @@ const inferContentType = (fileExt: string, isLaunch: boolean): string => {
   }
 
   switch (normalized) {
-    case "png":
+    case "png": {
       return "image/png";
+    }
     case "jpg":
-    case "jpeg":
+    case "jpeg": {
       return "image/jpeg";
-    case "webp":
+    }
+    case "webp": {
       return "image/webp";
-    case "gif":
+    }
+    case "gif": {
       return "image/gif";
-    case "svg":
+    }
+    case "svg": {
       return "image/svg+xml";
-    case "json":
+    }
+    case "json": {
       return "application/json";
-    case "mp4":
+    }
+    case "mp4": {
       return "video/mp4";
-    case "mp3":
+    }
+    case "mp3": {
       return "audio/mpeg";
-    case "wav":
+    }
+    case "wav": {
       return "audio/wav";
-    case "ttf":
+    }
+    case "ttf": {
       return "font/ttf";
-    case "otf":
+    }
+    case "otf": {
       return "font/otf";
-    case "woff":
+    }
+    case "woff": {
       return "font/woff";
-    case "woff2":
+    }
+    case "woff2": {
       return "font/woff2";
-    default:
+    }
+    default: {
       return "application/octet-stream";
+    }
   }
 };
 
-const makeBunxCommand = (...args: ReadonlyArray<string>): Command.Command =>
+const makeBunxCommand = (...args: readonly string[]): Command.Command =>
   Command.make("bunx", ...args);
 
 const runCommand = (
@@ -226,6 +242,7 @@ export const readExpoExportAssets = ({
     const bundleExt = normalizeExtension(path.extname(bundlePath)) ?? "js";
     const rawAssets = Array.isArray(platformMetadata?.["assets"]) ? platformMetadata["assets"] : [];
 
+    // eslint-disable-next-line unicorn/no-array-method-this-argument -- Effect.forEach, not Array.prototype.forEach; the second arg is a mapping effect, not a thisArg
     const assets = yield* Effect.forEach(rawAssets, (rawAsset, index) =>
       Effect.gen(function* () {
         const asset = asRecord(rawAsset);

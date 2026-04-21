@@ -12,7 +12,7 @@ const definedEnvironment = (): Readonly<Record<string, string>> =>
 export class CliRuntime extends Context.Tag("cli/CliRuntime")<
   CliRuntime,
   {
-    readonly argv: ReadonlyArray<string>;
+    readonly argv: readonly string[];
     readonly platform: NodeJS.Platform;
     readonly cwd: Effect.Effect<string>;
     readonly getEnv: (name: string) => Effect.Effect<string | undefined>;

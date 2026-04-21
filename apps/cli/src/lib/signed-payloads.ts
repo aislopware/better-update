@@ -28,11 +28,11 @@ const hasAnySignedPayloadFile = (files: SignedPayloadFileSet) =>
   files.signatureFile !== undefined ||
   files.certificateChainFile !== undefined;
 
-const loadSignedPayloadFromFiles = <E>(params: {
+const loadSignedPayloadFromFiles = <Err>(params: {
   readonly files: SignedPayloadFileSet;
   readonly label: string;
-  readonly makeError: (message: string) => E;
-}): Effect.Effect<SignedPayload | null, E, FileSystem.FileSystem> =>
+  readonly makeError: (message: string) => Err;
+}): Effect.Effect<SignedPayload | null, Err, FileSystem.FileSystem> =>
   Effect.gen(function* () {
     const fileSystem = yield* FileSystem.FileSystem;
     if (!hasAnySignedPayloadFile(params.files)) {
@@ -79,12 +79,12 @@ const loadSignedPayloadFromFiles = <E>(params: {
 
 export const loadOptionalSignedPayload = loadSignedPayloadFromFiles;
 
-export const loadSignedPublishPayloads = <E>(params: {
+export const loadSignedPublishPayloads = <Err>(params: {
   readonly platforms: readonly Platform[];
   readonly globalFiles: SignedPayloadFileSet;
   readonly platformFiles: Partial<Record<Platform, SignedPayloadFileSet>>;
-  readonly makeError: (message: string) => E;
-}): Effect.Effect<Partial<Record<Platform, SignedPayload>>, E, FileSystem.FileSystem> =>
+  readonly makeError: (message: string) => Err;
+}): Effect.Effect<Partial<Record<Platform, SignedPayload>>, Err, FileSystem.FileSystem> =>
   Effect.gen(function* () {
     const targetedPlatforms = new Set(params.platforms);
     const nonTargetedPlatforms = (["ios", "android"] as const).filter(
@@ -103,9 +103,7 @@ export const loadSignedPublishPayloads = <E>(params: {
     const hasGlobalFiles = hasAnySignedPayloadFile(params.globalFiles);
     if (
       !hasGlobalFiles &&
-      Object.values(params.platformFiles).every(
-        (files) => !files || !hasAnySignedPayloadFile(files),
-      )
+      Object.values(params.platformFiles).every((files) => !hasAnySignedPayloadFile(files))
     ) {
       return {};
     }

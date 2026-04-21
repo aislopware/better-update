@@ -9,7 +9,7 @@ import {
 
 describe(createBrowserLoginSession, () => {
   test("serves the callback page HTML", async () => {
-    const session = createBrowserLoginSession({ timeoutMs: 1_000 });
+    const session = createBrowserLoginSession({ timeoutMs: 1000 });
 
     try {
       const response = await session.handleRequest(new Request("http://127.0.0.1/callback"));
@@ -25,7 +25,7 @@ describe(createBrowserLoginSession, () => {
   });
 
   test("resolves the submitted token", async () => {
-    const session = createBrowserLoginSession({ timeoutMs: 1_000 });
+    const session = createBrowserLoginSession({ timeoutMs: 1000 });
 
     try {
       const response = await session.handleRequest(
@@ -77,7 +77,7 @@ describe(createBrowserLoginSession, () => {
   });
 
   test("fails with a tagged error when the session is disposed", async () => {
-    const session = createBrowserLoginSession({ timeoutMs: 1_000 });
+    const session = createBrowserLoginSession({ timeoutMs: 1000 });
 
     session.dispose();
 

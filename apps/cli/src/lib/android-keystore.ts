@@ -1,5 +1,7 @@
-import { Command, CommandExecutor } from "@effect/platform";
+import { Command } from "@effect/platform";
 import { Effect } from "effect";
+
+import type { CommandExecutor } from "@effect/platform";
 
 import { BuildFailedError } from "./exit-codes";
 

@@ -5,14 +5,14 @@ interface NamedResource {
   readonly name: string;
 }
 
-export const resolveNamedResourceId = <T extends NamedResource, E>(
+export const resolveNamedResourceId = <Err>(
   params: {
-    readonly items: readonly T[];
+    readonly items: readonly NamedResource[];
     readonly kind: string;
     readonly name: string;
   },
-  makeError: (message: string) => E,
-): Effect.Effect<string, E> =>
+  makeError: (message: string) => Err,
+): Effect.Effect<string, Err> =>
   Effect.gen(function* () {
     const match = params.items.find((item) => item.name === params.name);
     if (match === undefined) {

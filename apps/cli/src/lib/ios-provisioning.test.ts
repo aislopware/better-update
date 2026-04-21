@@ -76,7 +76,7 @@ describe(extractProvisioningInfo, () => {
       if (Exit.isFailure(exit)) {
         const error = failureError(exit);
         expect(error).toBeInstanceOf(ProvisioningError);
-        expect((error as ProvisioningError).message).toContain("UUID");
+        expect(error!.message).toContain("UUID");
       }
     }),
   );
@@ -91,7 +91,7 @@ describe(extractProvisioningInfo, () => {
       expect(Exit.isFailure(exit)).toBe(true);
       if (Exit.isFailure(exit)) {
         const error = failureError(exit);
-        expect((error as ProvisioningError).message).toContain("TeamIdentifier");
+        expect(error!.message).toContain("TeamIdentifier");
       }
     }),
   );

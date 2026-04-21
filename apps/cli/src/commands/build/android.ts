@@ -1,8 +1,9 @@
 import path from "node:path";
 
-import { Command, CommandExecutor, FileSystem } from "@effect/platform";
+import { Command, FileSystem } from "@effect/platform";
 import { Effect } from "effect";
 
+import type { CommandExecutor } from "@effect/platform";
 import type { PlatformError } from "@effect/platform/Error";
 
 import { renderSigningGradle } from "../../lib/android-signing-gradle";
@@ -70,11 +71,11 @@ export const runAndroidBuild = (
     const runtime = yield* CliRuntime;
 
     // Record build start so artifact-finder can reject stale outputs from
-    // earlier builds that may still live in `android/app/build/outputs/`.
+    // Earlier builds that may still live in `android/app/build/outputs/`.
     const buildStartMs = Date.now();
 
-    const format = androidProfile.format;
-    const flavor = androidProfile.flavor;
+    const { format } = androidProfile;
+    const { flavor } = androidProfile;
     const buildType = androidProfile.buildType ?? "release";
     const androidDir = path.join(projectRoot, "android");
     const commandEnv = yield* runtime.commandEnvironment(envVars);
@@ -117,7 +118,7 @@ export const runAndroidBuild = (
     const artifactPath = yield* findAndroidArtifact({
       projectRoot,
       format,
-      ...(flavor !== undefined ? { flavor } : {}),
+      ...(flavor === undefined ? {} : { flavor }),
       buildType,
       minMtimeMs: buildStartMs,
     });

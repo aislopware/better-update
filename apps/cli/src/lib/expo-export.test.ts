@@ -11,9 +11,9 @@ const makeFs = (files: Record<string, string>) =>
   FileSystem.layerNoop({
     readFileString: (filePath: string) => {
       const value = files[filePath];
-      return value !== undefined
-        ? Effect.succeed(value)
-        : Effect.die(new Error(`ENOENT: ${filePath}`));
+      return value === undefined
+        ? Effect.die(new Error(`ENOENT: ${filePath}`))
+        : Effect.succeed(value);
     },
   });
 

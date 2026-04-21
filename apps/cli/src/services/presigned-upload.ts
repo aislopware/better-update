@@ -77,6 +77,7 @@ export const PresignedUploadClientLive = Layer.effect(
               message: `Presigned URL upload failed with status ${response.status}: ${body}`,
             });
           }
+          return undefined;
         }),
     };
   }),

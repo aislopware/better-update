@@ -67,13 +67,11 @@ describe("CLI publish journey", () => {
     const result = cli.runCli("update", "publish", "--branch", "main", "--platform", "ios");
     expect(result.exitCode).toBe(0);
 
-    const groupMatch = result.stdout.match(
-      /Published update group ([0-9a-f-]+) to branch "main"\./,
-    );
+    const groupMatch = /Published update group ([0-9a-f-]+) to branch "main"\./.exec(result.stdout);
     expect(groupMatch).toBeDefined();
     publishState.firstGroupId = groupMatch![1]!;
 
-    const iosRow = result.stdout.match(iosRowPattern);
+    const iosRow = iosRowPattern.exec(result.stdout);
     expect(iosRow).toBeDefined();
     publishState.firstIosUpdateId = iosRow![1]!;
 
@@ -87,13 +85,11 @@ describe("CLI publish journey", () => {
     const result = cli.runCli("update", "publish", "--branch", "main", "--platform", "ios");
     expect(result.exitCode).toBe(0);
 
-    const groupMatch = result.stdout.match(
-      /Published update group ([0-9a-f-]+) to branch "main"\./,
-    );
+    const groupMatch = /Published update group ([0-9a-f-]+) to branch "main"\./.exec(result.stdout);
     expect(groupMatch).toBeDefined();
     expect(groupMatch![1]).not.toBe(publishState.firstGroupId);
 
-    const iosRow = result.stdout.match(iosRowPattern);
+    const iosRow = iosRowPattern.exec(result.stdout);
     expect(iosRow).toBeDefined();
     // Hermes bytecode is non-deterministic, so bundle hash changes each export.
     // Verify table structure without asserting exact dedup counts.
@@ -104,13 +100,11 @@ describe("CLI publish journey", () => {
     const result = cli.runCli("update", "publish", "--branch", "main", "--platform", "all");
     expect(result.exitCode).toBe(0);
 
-    const groupMatch = result.stdout.match(
-      /Published update group ([0-9a-f-]+) to branch "main"\./,
-    );
+    const groupMatch = /Published update group ([0-9a-f-]+) to branch "main"\./.exec(result.stdout);
     expect(groupMatch).toBeDefined();
 
-    const iosRow = result.stdout.match(iosRowPattern);
-    const androidRow = result.stdout.match(androidRowPattern);
+    const iosRow = iosRowPattern.exec(result.stdout);
+    const androidRow = androidRowPattern.exec(result.stdout);
     expect(iosRow).toBeDefined();
     expect(androidRow).toBeDefined();
 
@@ -136,7 +130,7 @@ describe("CLI publish journey", () => {
     const updatesResponse = await cli.getAuthorized(`/api/updates?projectId=${cli.getProjectId()}`);
     expect(updatesResponse.status).toBe(200);
     const body = (await updatesResponse.json()) as {
-      items: Array<{ message: string }>;
+      items: { message: string }[];
     };
     expect(body.items).toEqual(
       expect.arrayContaining([expect.objectContaining({ message: customMessage })]),

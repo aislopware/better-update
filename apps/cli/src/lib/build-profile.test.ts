@@ -66,7 +66,7 @@ describe(readBuildProfile, () => {
       expect(profile.ios?.distribution).toBe("ad-hoc");
       expect(profile.android?.format).toBe("apk");
       expect(profile.android?.flavor).toBeUndefined();
-      // apk defaults to "direct" distribution when not explicitly set
+      // Apk defaults to "direct" distribution when not explicitly set
       expect(profile.android?.distribution).toBe("direct");
     }),
   );

@@ -19,8 +19,8 @@ export default defineConfig({
           hookTimeout: 120_000,
           testTimeout: 120_000,
           // E2E tests share a common fixture dir (fixtures/e2e-app) and a
-          // wrangler seed SQL path — serialize via fileParallelism=false and
-          // the --maxWorkers 1 flag set on test:e2e in package.json.
+          // Wrangler seed SQL path — serialize via fileParallelism=false and
+          // The --maxWorkers 1 flag set on test:e2e in package.json.
           fileParallelism: false,
         },
       },

@@ -33,39 +33,45 @@ interface FoundFile {
 const walkAndFind = (
   root: string,
   extension: string,
-): Effect.Effect<ReadonlyArray<FoundFile>, PlatformError, FileSystem.FileSystem> =>
+): Effect.Effect<readonly FoundFile[], PlatformError, FileSystem.FileSystem> =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
     // No fs.exists pre-check: readDirectory on a missing/non-dir path fails
-    // with a PlatformError that we catch into an empty list below.
+    // With a PlatformError that we catch into an empty list below.
     const entries = yield* fs.readDirectory(root).pipe(Effect.orElseSucceed(() => []));
 
-    const results: Array<FoundFile> = [];
+    const results: FoundFile[] = [];
     for (const entry of entries) {
       const fullPath = path.join(root, entry);
       const stat = yield* fs.stat(fullPath).pipe(Effect.option);
-      if (Option.isNone(stat)) continue;
-      const info = stat.value;
-      if (info.type === "Directory") {
-        const nested = yield* walkAndFind(fullPath, extension);
-        for (const n of nested) results.push(n);
-      } else if (info.type === "File" && entry.toLowerCase().endsWith(extension)) {
-        results.push({
-          path: fullPath,
-          mtimeMs: Option.match(info.mtime, {
-            onNone: () => 0,
-            onSome: (d) => d.getTime(),
-          }),
-        });
+      if (Option.isSome(stat)) {
+        const info = stat.value;
+        if (info.type === "Directory") {
+          const nested = yield* walkAndFind(fullPath, extension);
+          for (const nestedFile of nested) {
+            results.push(nestedFile);
+          }
+        } else if (info.type === "File" && entry.toLowerCase().endsWith(extension)) {
+          results.push({
+            path: fullPath,
+            mtimeMs: Option.match(info.mtime, {
+              onNone: () => 0,
+              onSome: (date) => date.getTime(),
+            }),
+          });
+        }
       }
     }
     return results;
   });
 
-const newest = (files: ReadonlyArray<FoundFile>, minMtimeMs?: number): FoundFile | undefined => {
-  const eligible = minMtimeMs === undefined ? files : files.filter((f) => f.mtimeMs >= minMtimeMs);
-  if (eligible.length === 0) return undefined;
-  return eligible.reduce((acc, cur) => (cur.mtimeMs > acc.mtimeMs ? cur : acc));
+const newest = (files: readonly FoundFile[], minMtimeMs?: number): FoundFile | undefined => {
+  const eligible =
+    minMtimeMs === undefined ? files : files.filter((file) => file.mtimeMs >= minMtimeMs);
+  if (eligible.length === 0) {
+    return undefined;
+  }
+  return eligible.reduce((acc, current) => (current.mtimeMs > acc.mtimeMs ? current : acc));
 };
 
 export const findIosArtifact = ({
@@ -100,18 +106,20 @@ export const findAndroidArtifact = ({
   Effect.gen(function* () {
     const outputsRoot = path.join(projectRoot, "android", "app", "build", "outputs");
     const subdir = format === "aab" ? "bundle" : "apk";
-    const variantDir = (flavor ? flavor : "") + (flavor ? capitalize(buildType) : buildType);
+    const variantDir = flavor ? `${flavor}${capitalize(buildType)}` : buildType;
     const expectedDir = path.join(outputsRoot, subdir, variantDir);
 
     const direct = yield* walkAndFind(expectedDir, `.${format}`);
     const pickedDirect = newest(direct, minMtimeMs);
-    if (pickedDirect) return pickedDirect.path;
+    if (pickedDirect) {
+      return pickedDirect.path;
+    }
 
     const fallback = yield* walkAndFind(outputsRoot, `.${format}`);
     const pickedFallback = newest(fallback, minMtimeMs);
     if (!pickedFallback) {
       return yield* new ArtifactNotFoundError({
-        message: `No .${format} artifact found under "${outputsRoot}"${minMtimeMs !== undefined ? " (newer than build start)" : ""}.`,
+        message: `No .${format} artifact found under "${outputsRoot}"${minMtimeMs === undefined ? "" : " (newer than build start)"}.`,
       });
     }
     return pickedFallback.path;

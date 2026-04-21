@@ -3,9 +3,7 @@ import { Effect } from "effect";
 
 import { ProjectNotLinkedError } from "./exit-codes";
 import { formatCause } from "./format-error";
-
-const asRecord = (value: unknown): Record<string, unknown> | undefined =>
-  typeof value === "object" && value !== null ? (value as Record<string, unknown>) : undefined;
+import { asRecord, isRecord } from "./record";
 
 export const readAppJson = Effect.gen(function* () {
   const fs = yield* FileSystem.FileSystem;
@@ -16,10 +14,14 @@ export const readAppJson = Effect.gen(function* () {
         () => new ProjectNotLinkedError({ message: "app.json not found in current directory" }),
       ),
     );
-  return yield* Effect.try({
-    try: () => JSON.parse(content) as Record<string, unknown>,
+  const parsed = yield* Effect.try({
+    try: (): unknown => JSON.parse(content),
     catch: () => new ProjectNotLinkedError({ message: "app.json contains malformed JSON" }),
   });
+  if (!isRecord(parsed)) {
+    return yield* new ProjectNotLinkedError({ message: "app.json must be a JSON object" });
+  }
+  return parsed;
 });
 
 export const readProjectId = Effect.gen(function* () {
@@ -58,9 +60,9 @@ export const writeProjectId = (id: string) =>
     const fs = yield* FileSystem.FileSystem;
     const appJson = yield* readAppJson;
 
-    const expo = (appJson["expo"] ?? {}) as Record<string, unknown>;
-    const extra = (expo["extra"] ?? {}) as Record<string, unknown>;
-    const betterUpdate = (extra["betterUpdate"] ?? {}) as Record<string, unknown>;
+    const expo = asRecord(appJson["expo"]) ?? {};
+    const extra = asRecord(expo["extra"]) ?? {};
+    const betterUpdate = asRecord(extra["betterUpdate"]) ?? {};
 
     betterUpdate["projectId"] = id;
     extra["betterUpdate"] = betterUpdate;

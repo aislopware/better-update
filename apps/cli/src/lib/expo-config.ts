@@ -48,13 +48,15 @@ export const readExpoConfig = (
     () =>
       Effect.try({
         try: () => {
-          // eslint-disable-next-line @typescript-eslint/no-require-imports -- @expo/config is CJS
-          const { getConfig } = require("@expo/config") as {
-            getConfig: (
-              projectRoot: string,
-              options?: { skipSDKVersionRequirement?: boolean },
-            ) => { exp: ExpoConfig };
-          };
+          const expoConfigCjs =
+            // eslint-disable-next-line typescript/no-unsafe-type-assertion -- CJS require returns `any`; narrow to @expo/config's shape at this boundary
+            require("@expo/config") as {
+              getConfig: (
+                projectRoot: string,
+                options?: { skipSDKVersionRequirement?: boolean },
+              ) => { exp: ExpoConfig };
+            };
+          const { getConfig } = expoConfigCjs;
 
           const { exp } = getConfig(projectRoot, {
             skipSDKVersionRequirement: true,
@@ -68,6 +70,7 @@ export const readExpoConfig = (
       Effect.sync(() => {
         for (const [key, value] of Object.entries(previous)) {
           if (value === undefined) {
+            // eslint-disable-next-line typescript/no-dynamic-delete -- restoring previous process.env snapshot; keys are arbitrary env var names we captured earlier
             delete process.env[key];
           } else {
             process.env[key] = value;
@@ -75,6 +78,26 @@ export const readExpoConfig = (
         }
       }),
   );
+
+const extractBuildNumber = (config: ExpoConfig, platform: Platform): string | undefined => {
+  if (platform === "ios") {
+    return config.ios?.buildNumber;
+  }
+  if (config.android?.versionCode === undefined) {
+    return undefined;
+  }
+  return String(config.android.versionCode);
+};
+
+const extractRawRuntimeVersion = (config: ExpoConfig): RawRuntimeVersion | undefined => {
+  if (typeof config.runtimeVersion === "string") {
+    return config.runtimeVersion;
+  }
+  if (typeof config.runtimeVersion === "object") {
+    return config.runtimeVersion;
+  }
+  return undefined;
+};
 
 /**
  * Extract AppMeta from a resolved ExpoConfig (from `@expo/config`).
@@ -97,25 +120,11 @@ export const readAppMetaFromConfig = (
       });
     }
 
-    const buildNumber =
-      platform === "ios"
-        ? config.ios?.buildNumber
-        : config.android?.versionCode !== undefined
-          ? String(config.android.versionCode)
-          : undefined;
-
-    const rawRuntimeVersion: RawRuntimeVersion | undefined =
-      typeof config.runtimeVersion === "string"
-        ? config.runtimeVersion
-        : typeof config.runtimeVersion === "object" && config.runtimeVersion !== null
-          ? config.runtimeVersion
-          : undefined;
-
     return {
       bundleId: config.ios?.bundleIdentifier,
       androidPackage: config.android?.package,
       appVersion: config.version,
-      buildNumber,
-      rawRuntimeVersion,
+      buildNumber: extractBuildNumber(config, platform),
+      rawRuntimeVersion: extractRawRuntimeVersion(config),
     };
   });

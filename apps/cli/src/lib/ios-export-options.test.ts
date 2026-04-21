@@ -87,11 +87,11 @@ describe(renderExportOptionsPlist, () => {
       bundleId: "com.a&b.app",
       provisioningProfileName: '<test & "name">',
     });
-    // bundleId escaped
+    // BundleId escaped
     expect(plist).toContain("com.a&amp;b.app");
-    // profile name escaped
+    // Profile name escaped
     expect(plist).toContain("&lt;test &amp; &quot;name&quot;&gt;");
-    // no raw special chars present inside the escaped segments
+    // No raw special chars present inside the escaped segments
     expect(plist).not.toContain("com.a&b.app");
     expect(plist).not.toContain('<test & "name">');
   });

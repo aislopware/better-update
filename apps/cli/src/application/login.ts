@@ -1,6 +1,8 @@
 import { Prompt } from "@effect/cli";
-import { Command, CommandExecutor } from "@effect/platform";
+import { Command } from "@effect/platform";
 import { Console, Effect, Redacted } from "effect";
+
+import type { CommandExecutor } from "@effect/platform";
 
 import { createBrowserLoginServer } from "../lib/browser-login";
 import { AuthStore } from "../services/auth-store";
@@ -11,17 +13,22 @@ const tokenPrompt = Prompt.password({
   message: "Paste your API key (from dashboard > API Keys):",
 });
 
+const buildOpenBrowserCommand = (platform: NodeJS.Platform, url: string) => {
+  if (platform === "darwin") {
+    return Command.make("open", url);
+  }
+  if (platform === "win32") {
+    return Command.make("cmd", "/c", "start", "", url);
+  }
+  return Command.make("xdg-open", url);
+};
+
 const openBrowser = (
   url: string,
 ): Effect.Effect<void, never, CliRuntime | CommandExecutor.CommandExecutor> =>
   Effect.gen(function* () {
     const runtime = yield* CliRuntime;
-    const command =
-      runtime.platform === "darwin"
-        ? Command.make("open", url)
-        : runtime.platform === "win32"
-          ? Command.make("cmd", "/c", "start", "", url)
-          : Command.make("xdg-open", url);
+    const command = buildOpenBrowserCommand(runtime.platform, url);
 
     const opened = yield* Command.exitCode(command).pipe(
       Effect.map((code) => code === 0),

@@ -56,11 +56,11 @@ const buildReserveCommon = (input: ReserveAndUploadInput) =>
     bundleId: input.bundleId,
     sha256: input.sha256,
     byteSize: input.byteSize,
-    ...(input.appVersion !== undefined ? { appVersion: input.appVersion } : {}),
-    ...(input.buildNumber !== undefined ? { buildNumber: input.buildNumber } : {}),
-    ...(input.gitContext.ref !== undefined ? { gitRef: input.gitContext.ref } : {}),
-    ...(input.gitContext.commit !== undefined ? { gitCommit: input.gitContext.commit } : {}),
-    ...(input.message !== undefined ? { message: input.message } : {}),
+    ...(input.appVersion === undefined ? {} : { appVersion: input.appVersion }),
+    ...(input.buildNumber === undefined ? {} : { buildNumber: input.buildNumber }),
+    ...(input.gitContext.ref === undefined ? {} : { gitRef: input.gitContext.ref }),
+    ...(input.gitContext.commit === undefined ? {} : { gitCommit: input.gitContext.commit }),
+    ...(input.message === undefined ? {} : { message: input.message }),
   }) as const;
 
 const callReserve = (api: ApiClient, input: ReserveAndUploadInput) => {
@@ -128,17 +128,13 @@ export const reserveAndUpload = (
       ),
     );
 
-    switch (reserveResult.uploadMode) {
-      case "single":
-        yield* presignedUploadClient.putToPresignedUrl({
-          url: reserveResult.uploadUrl,
-          filePath: input.artifactPath,
-          byteSize: input.byteSize,
-          expiresAt: reserveResult.uploadExpiresAt,
-          headers: reserveResult.uploadHeaders,
-        });
-        break;
-    }
+    yield* presignedUploadClient.putToPresignedUrl({
+      url: reserveResult.uploadUrl,
+      filePath: input.artifactPath,
+      byteSize: input.byteSize,
+      expiresAt: reserveResult.uploadExpiresAt,
+      headers: reserveResult.uploadHeaders,
+    });
 
     const completed = yield* api.builds
       .complete({

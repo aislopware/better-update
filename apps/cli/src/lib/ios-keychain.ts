@@ -1,8 +1,11 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import path from "node:path";
 
-import { Command, CommandExecutor } from "@effect/platform";
-import { Effect, Scope } from "effect";
+import { Command } from "@effect/platform";
+import { Effect } from "effect";
+
+import type { CommandExecutor } from "@effect/platform";
+import type { Scope } from "effect";
 
 import { KeychainError } from "./exit-codes";
 
@@ -35,7 +38,7 @@ const runOrFail = (
 
 const listCurrentKeychains = Effect.gen(function* () {
   // `security list-keychains -d user` returns each keychain path on its own line,
-  // surrounded by double quotes and optionally preceded by whitespace.
+  // Surrounded by double quotes and optionally preceded by whitespace.
   const output = yield* runOrFail(
     Command.make("security", "list-keychains", "-d", "user"),
     "list-keychains",
@@ -47,13 +50,15 @@ const listCurrentKeychains = Effect.gen(function* () {
 });
 
 // Parse `security find-identity -v <keychain>` output to extract the first
-// signing identity. Lines look like:
+// Signing identity. Lines look like:
 //   1) 1A2B3C4D... "Apple Distribution: Your Name (TEAMID)"
 const parseSigningIdentity = (output: string): string | undefined => {
   const lines = output.split("\n");
   for (const line of lines) {
-    const match = line.match(/"([^"]+)"/);
-    if (match && match[1]) return match[1];
+    const match = /"([^"]+)"/.exec(line);
+    if (match?.[1]) {
+      return match[1];
+    }
   }
   return undefined;
 };
@@ -129,7 +134,7 @@ export const acquireKeychain = ({
       );
 
       // Prepend our keychain to the search list while preserving the user's
-      // existing ones.
+      // Existing ones.
       yield* runOrFail(
         Command.make(
           "security",

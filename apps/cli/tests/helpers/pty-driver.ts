@@ -1,6 +1,8 @@
 import { setTimeout as sleep } from "node:timers/promises";
 
-import { spawn, type IPty } from "node-pty";
+import { spawn } from "node-pty";
+
+import type { IPty } from "node-pty";
 
 export interface PtySpawnOptions {
   readonly cwd?: string;
@@ -26,13 +28,13 @@ export interface PtyDriver {
 
 const ANSI_REGEX =
   // eslint-disable-next-line no-control-regex -- stripping ANSI escapes
-  /[\u001b\u009b][[()#;?]*(?:\d{1,4}(?:;\d{0,4})*)?[\dA-ORZcf-ntqry=><]/g;
+  /[\u001B\u009B][[()#;?]*(?:\d{1,4}(?:;\d{0,4})*)?[\dA-ORZcf-ntqry=><]/g;
 
 export const stripAnsi = (input: string) => input.replace(ANSI_REGEX, "");
 
 export const spawnPty = (
   command: string,
-  args: ReadonlyArray<string>,
+  args: readonly string[],
   options?: PtySpawnOptions,
 ): PtyDriver => {
   const ptyProcess: IPty = spawn(command, [...args], {
@@ -45,11 +47,13 @@ export const spawnPty = (
 
   let buffer = "";
   let exitCode: number | null = null;
-  const waiters: Array<() => void> = [];
+  const waiters: (() => void)[] = [];
 
   const drainWaiters = () => {
     const pending = waiters.splice(0);
-    for (const waiter of pending) waiter();
+    for (const waiter of pending) {
+      waiter();
+    }
   };
 
   ptyProcess.onData((chunk) => {
@@ -62,7 +66,7 @@ export const spawnPty = (
     drainWaiters();
   });
 
-  const waitFor = (timeoutMs: number, predicate: () => boolean) =>
+  const waitFor = async (timeoutMs: number, predicate: () => boolean) =>
     new Promise<void>((resolve, reject) => {
       if (predicate()) {
         resolve();
@@ -70,12 +74,16 @@ export const spawnPty = (
       }
       let settled = false;
       const tick = () => {
-        if (settled) return;
+        if (settled) {
+          return;
+        }
         if (predicate()) {
           settled = true;
           clearTimeout(timer);
           resolve();
-        } else if (exitCode !== null) {
+        } else if (exitCode === null) {
+          waiters.push(tick);
+        } else {
           settled = true;
           clearTimeout(timer);
           reject(
@@ -83,12 +91,12 @@ export const spawnPty = (
               `pty exited (code=${exitCode}) before predicate matched. Buffer:\n${stripAnsi(buffer)}`,
             ),
           );
-        } else {
-          waiters.push(tick);
         }
       };
       const timer = setTimeout(() => {
-        if (settled) return;
+        if (settled) {
+          return;
+        }
         settled = true;
         reject(new Error(`pty wait timed out after ${timeoutMs}ms. Buffer:\n${stripAnsi(buffer)}`));
       }, timeoutMs);
@@ -98,7 +106,7 @@ export const spawnPty = (
   return {
     output: () => buffer,
     stripped: () => stripAnsi(buffer),
-    expect: async (pattern, { timeoutMs = 5_000 } = {}) => {
+    expect: async (pattern, { timeoutMs = 5000 } = {}) => {
       const matcher =
         typeof pattern === "string"
           ? (text: string) => text.includes(pattern)
@@ -112,10 +120,14 @@ export const spawnPty = (
       ptyProcess.write("\r");
     },
     down: (count = 1) => {
-      for (let i = 0; i < count; i += 1) ptyProcess.write("\u001b[B");
+      for (let index = 0; index < count; index += 1) {
+        ptyProcess.write("\u001B[B");
+      }
     },
     up: (count = 1) => {
-      for (let i = 0; i < count; i += 1) ptyProcess.write("\u001b[A");
+      for (let index = 0; index < count; index += 1) {
+        ptyProcess.write("\u001B[A");
+      }
     },
     waitExit: async ({ timeoutMs = 10_000 } = {}) => {
       await waitFor(timeoutMs, () => exitCode !== null);

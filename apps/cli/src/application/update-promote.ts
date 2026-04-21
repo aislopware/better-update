@@ -1,10 +1,14 @@
-import { FileSystem } from "@effect/platform";
 import { Effect } from "effect";
 
-import { AuthRequiredError, UpdatePromoteError } from "../lib/exit-codes";
+import type { FileSystem } from "@effect/platform";
+
+import { UpdatePromoteError } from "../lib/exit-codes";
 import { formatCause } from "../lib/format-error";
 import { loadOptionalSignedPayload } from "../lib/signed-payloads";
-import { apiClient, type ApiClientService } from "../services/api-client";
+import { apiClient } from "../services/api-client";
+
+import type { AuthRequiredError } from "../lib/exit-codes";
+import type { ApiClientService } from "../services/api-client";
 
 export interface RunUpdatePromoteOptions {
   readonly updateId: string;

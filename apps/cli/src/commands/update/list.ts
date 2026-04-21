@@ -30,7 +30,7 @@ export const listCommand = Command.make("list", { branch, limit }, (opts) =>
     const { items } = yield* api.updates.list({
       urlParams: {
         projectId,
-        ...(branchId !== undefined ? { branchId } : {}),
+        ...(branchId === undefined ? {} : { branchId }),
         page: 1,
         limit: opts.limit,
       },

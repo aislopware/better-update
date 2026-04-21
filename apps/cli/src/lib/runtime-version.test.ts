@@ -101,7 +101,7 @@ describe(resolveRuntimeVersion, () => {
       if (Exit.isFailure(exit)) {
         const error = failureError(exit);
         expect(error).toBeInstanceOf(RuntimeVersionError);
-        expect((error as RuntimeVersionError).message).toContain("nativeVersion");
+        expect(error!.message).toContain("nativeVersion");
       }
     }),
   );

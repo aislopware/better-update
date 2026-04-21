@@ -1,8 +1,8 @@
 import { Console, Effect } from "effect";
 
 export const printTable = (
-  headers: ReadonlyArray<string>,
-  rows: ReadonlyArray<ReadonlyArray<string>>,
+  headers: readonly string[],
+  rows: readonly (readonly string[])[],
 ): Effect.Effect<void> =>
   Effect.gen(function* () {
     const allRows = [headers, ...rows];
@@ -11,21 +11,18 @@ export const printTable = (
       Math.max(...allRows.map((row) => (row[colIndex] ?? "").length)),
     );
 
-    const formatRow = (row: ReadonlyArray<string>): string =>
-      // eslint-disable-next-line eslint-js/no-restricted-syntax -- table padding for ragged rows; missing cell rendered as empty
-      row.map((cell, i) => (cell ?? "").padEnd(colWidths[i] ?? 0)).join("  ");
+    const formatRow = (row: readonly string[]): string =>
+      row.map((cell, idx) => cell.padEnd(colWidths[idx] ?? 0)).join("  ");
 
     yield* Console.log(formatRow(headers));
-    yield* Console.log(colWidths.map((w) => "-".repeat(w)).join("  "));
+    yield* Console.log(colWidths.map((width) => "-".repeat(width)).join("  "));
 
     for (const row of rows) {
       yield* Console.log(formatRow(row));
     }
   });
 
-export const printKeyValue = (
-  pairs: ReadonlyArray<readonly [string, string]>,
-): Effect.Effect<void> =>
+export const printKeyValue = (pairs: readonly (readonly [string, string])[]): Effect.Effect<void> =>
   Effect.gen(function* () {
     const maxKeyLen = Math.max(...pairs.map(([key]) => key.length));
 

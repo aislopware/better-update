@@ -1,8 +1,11 @@
 import os from "node:os";
 import path from "node:path";
 
-import { Command, CommandExecutor, FileSystem } from "@effect/platform";
-import { Effect, Scope } from "effect";
+import { Command, FileSystem } from "@effect/platform";
+import { Effect } from "effect";
+
+import type { CommandExecutor } from "@effect/platform";
+import type { Scope } from "effect";
 
 import { ProvisioningError } from "./exit-codes";
 import { parsePlistXml } from "./plist";
@@ -39,14 +42,13 @@ export const extractProvisioningInfo = (
   plistXml: string,
 ): Effect.Effect<ProvisioningInfo, ProvisioningError> =>
   Effect.gen(function* () {
-    let parsed: PlistObject;
-    try {
-      parsed = parsePlistXml(plistXml);
-    } catch (error) {
-      return yield* new ProvisioningError({
-        message: `Failed to parse provisioning profile plist: ${error instanceof Error ? error.message : String(error)}`,
-      });
-    }
+    const parsed: PlistObject = yield* Effect.try({
+      try: () => parsePlistXml(plistXml),
+      catch: (error) =>
+        new ProvisioningError({
+          message: `Failed to parse provisioning profile plist: ${error instanceof Error ? error.message : String(error)}`,
+        }),
+    });
 
     const uuid = getString(parsed, "UUID");
     const name = getString(parsed, "Name");
@@ -55,7 +57,7 @@ export const extractProvisioningInfo = (
     if (!uuid || !name || !teamId) {
       return yield* new ProvisioningError({
         message:
-          `Failed to parse provisioning profile: missing ${!uuid ? "UUID " : ""}${!name ? "Name " : ""}${!teamId ? "TeamIdentifier " : ""}`.trim(),
+          `Failed to parse provisioning profile: missing ${uuid ? "" : "UUID "}${name ? "" : "Name "}${teamId ? "" : "TeamIdentifier "}`.trim(),
       });
     }
 
@@ -159,7 +161,9 @@ export const installProvisioningProfile = ({
     }),
     (acquired) =>
       Effect.gen(function* () {
-        if (!acquired.ownsInstallation) return;
+        if (!acquired.ownsInstallation) {
+          return;
+        }
         const fs = yield* FileSystem.FileSystem;
         yield* fs.remove(acquired.installedPath).pipe(Effect.catchAll(() => Effect.void));
       }),
