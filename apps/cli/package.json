@@ -1,5 +1,5 @@
 {
-  "name": "better-update",
+  "name": "@better-update/cli",
   "version": "0.2.0",
   "bin": {
     "better-update": "./src/index.ts"
@@ -7,6 +7,9 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "lint": "oxlint --fix",
