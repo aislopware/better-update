@@ -1,4 +1,5 @@
 .wrangler/
+lerna-debug.log*
 .env.local
 .env.*.local
 .dev.vars

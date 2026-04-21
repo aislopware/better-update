@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/@lerna-lite/cli/schemas/lerna-schema.json",
+  "version": "independent",
+  "npmClient": "bun",
+  "changelogPreset": "conventionalcommits",
+  "command": {
+    "version": {
+      "conventionalCommits": true,
+      "createRelease": "github",
+      "changelogIncludeCommitsClientLogin": " - by @%l",
+      "message": "chore(release): publish %s",
+      "allowBranch": "main",
+      "syncWorkspaceLock": true
+    },
+    "publish": {
+      "stripPackageKeys": ["devDependencies", "scripts"]
+    }
+  },
+  "ignoreChanges": ["**/*.md", "**/__tests__/**", "**/tests/**", "**/*.test.ts", "**/*.test.tsx"],
+  "packages": ["packages/*", "apps/*"]
+}
