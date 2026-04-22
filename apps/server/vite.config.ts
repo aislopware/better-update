@@ -9,6 +9,10 @@ export default defineConfig({
   server: {
     // eslint-disable-next-line node/no-process-env -- config file
     port: Number(process.env["PORT"]) || 6781,
+    // Worker owns CORS (see src/index.ts corsHeaders). Vite's default CORS
+    // Middleware intercepts OPTIONS preflights and strips `credentials: true`,
+    // Breaking cross-subdomain auth from accounts/console SPAs.
+    cors: false,
     ...(portless && {
       hmr: { host: "api.better-update.localhost", protocol: "wss" as const, clientPort: 443 },
       allowedHosts: ["api.better-update.localhost"],
