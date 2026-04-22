@@ -1,6 +1,7 @@
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
+import { reactDevtools } from "agent-react-devtools/vite";
 import { defineConfig } from "vite";
 
 // eslint-disable-next-line node/no-process-env -- config file
@@ -10,7 +11,7 @@ const defaultProxyTarget = portless
   : "http://localhost:6781";
 
 export default defineConfig({
-  plugins: [tailwindcss(), tanstackRouter(), react()],
+  plugins: [reactDevtools(), tailwindcss(), tanstackRouter(), react()],
   server: {
     // eslint-disable-next-line node/no-process-env -- config file
     port: Number(process.env["PORT"]) || 6782,
