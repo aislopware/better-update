@@ -53,3 +53,13 @@ jobs:
         run: bun run release:version
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+
+      - name: Push commit and tags individually
+        if: ${{ !inputs.dry-run }}
+        run: |
+          git push origin HEAD
+          for tag in $(git tag --points-at HEAD); do
+            echo "Pushing $tag"
+            git push origin "refs/tags/$tag"
+            sleep 2
+          done
