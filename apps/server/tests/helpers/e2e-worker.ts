@@ -1,5 +1,6 @@
 import { execSync } from "node:child_process";
 import { rmSync } from "node:fs";
+import { createServer } from "node:net";
 import { resolve } from "node:path";
 
 import { unstable_startWorker } from "wrangler";
@@ -7,6 +8,23 @@ import { unstable_startWorker } from "wrangler";
 import { applyProcessEnv, createServerE2EEnvironment } from "./e2e-env";
 
 const PROJECT_ROOT = resolve(import.meta.dirname, "../..");
+
+const pickFreePort = () =>
+  new Promise<number>((resolvePort, rejectPort) => {
+    const srv = createServer();
+    srv.unref();
+    srv.on("error", rejectPort);
+    srv.listen(0, "127.0.0.1", () => {
+      const address = srv.address();
+      if (address === null || typeof address === "string") {
+        srv.close();
+        rejectPort(new Error("Failed to acquire free port"));
+        return;
+      }
+      const { port } = address;
+      srv.close(() => resolvePort(port));
+    });
+  });
 
 export function setupE2EWorker(persistDir: string): { getBaseUrl: () => string } {
   let worker: Awaited<ReturnType<typeof unstable_startWorker>>;
@@ -16,7 +34,9 @@ export function setupE2EWorker(persistDir: string): { getBaseUrl: () => string }
 
   beforeAll(async () => {
     rmSync(persistPath, { recursive: true, force: true });
-    const e2eEnv = createServerE2EEnvironment({ projectRoot: PROJECT_ROOT });
+    const port = await pickFreePort();
+    const publicApiUrl = `http://127.0.0.1:${port}`;
+    const e2eEnv = createServerE2EEnvironment({ projectRoot: PROJECT_ROOT, publicApiUrl });
     restoreProcessEnv = applyProcessEnv(e2eEnv.processOverrides);
 
     execSync(`bunx wrangler d1 migrations apply DB --local --persist-to ${persistDir}`, {
@@ -35,7 +55,7 @@ export function setupE2EWorker(persistDir: string): { getBaseUrl: () => string }
         bindings: e2eEnv.workerBindings,
         build: { nodejsCompatMode: "v2" },
         dev: {
-          server: { port: 0 },
+          server: { port },
           inspector: false,
           logLevel: "error",
           persist: persistPath,

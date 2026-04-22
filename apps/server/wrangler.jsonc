@@ -81,6 +81,7 @@
     "BUILD_RETENTION_DEVELOPMENT": "7",
     "ENVIRONMENT": "production",
     "BETTER_AUTH_URL": "https://graph.better-update.dev",
+    "PUBLIC_API_URL": "https://graph.better-update.dev",
     "ACCOUNTS_URL": "https://accounts.better-update.dev",
     "CONSOLE_URL": "https://console.better-update.dev",
     "ASSET_CDN_URL": "https://assets.better-update.dev",
