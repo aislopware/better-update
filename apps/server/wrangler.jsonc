@@ -80,6 +80,13 @@
     "BUILD_RETENTION_PREVIEW": "30",
     "BUILD_RETENTION_DEVELOPMENT": "7",
     "ENVIRONMENT": "production",
+    "BETTER_AUTH_URL": "https://graph.better-update.dev",
+    "ACCOUNTS_URL": "https://accounts.better-update.dev",
+    "CONSOLE_URL": "https://console.better-update.dev",
+    "ASSET_CDN_URL": "https://assets.better-update.dev",
+    "COOKIE_DOMAIN": ".better-update.dev",
+    "GITHUB_CLIENT_ID": "Ov23liH7s8ndT7tk6M1f",
+    "R2_ACCESS_KEY_ID": "9aae555d945464e4c3dd00852d329eb6",
   },
   "routes": [
     {

@@ -1,50 +1,21 @@
-import { Effect } from "effect";
-
 import type { Context } from "effect";
 
 import { makeManagementWebHandler } from "./app-layer";
 import { createAuth, isGithubEnabled } from "./auth";
-import { AssetStorage } from "./cloudflare/asset-storage";
-import { makeCloudflareRequestContext, provideCloudflareEnv } from "./cloudflare/context";
+import { makeCloudflareRequestContext } from "./cloudflare/context";
 import {
   handleScheduled,
   matchBuildRoute,
   matchDeviceRegistrationRoute,
   serveManifest,
 } from "./handlers";
-import { ServerInfrastructureLayer } from "./infrastructure-layer";
 import { structuredLog } from "./middleware/logging";
-import { AssetRepo } from "./repositories";
-
-import type { ServerInfrastructure } from "./infrastructure-layer";
 
 export {
   CreateBranchCoordinator,
   PublishCoordinator,
 } from "./durable-objects/publish-coordinators";
 const { handler } = makeManagementWebHandler();
-
-const runServerEnvEffect = async <Success, Failure>(
-  effect: Effect.Effect<Success, Failure, ServerInfrastructure>,
-  env: Env,
-) =>
-  Effect.runPromise(
-    effect.pipe(Effect.provide(ServerInfrastructureLayer), (program) =>
-      provideCloudflareEnv(program, env),
-    ),
-  );
-
-const findAssetByHash = (hash: string) =>
-  Effect.gen(function* () {
-    const repo = yield* AssetRepo;
-    return yield* repo.findByHash({ hash });
-  });
-
-const getAssetObject = (key: string) =>
-  Effect.gen(function* () {
-    const storage = yield* AssetStorage;
-    return yield* storage.getObject({ key });
-  });
 
 const internalError = () =>
   Response.json(
@@ -128,49 +99,6 @@ const handleAuth = async (request: Request, env: Env): Promise<Response> => {
   }
 };
 
-/** Public asset download — streams R2 object with edge caching */
-const handleAssetDownload = async (
-  request: Request,
-  env: Env,
-  ctx: ExecutionContext,
-  hash: string,
-): Promise<Response> => {
-  // Check edge cache first (named cache for isolation from default CDN cache)
-  const cache = await caches.open("assets");
-  const cached = await cache.match(request);
-  if (cached) {
-    return cached;
-  }
-
-  const asset = await runServerEnvEffect(findAssetByHash(hash), env);
-  if (!asset) {
-    return Response.json({ code: "NOT_FOUND", message: "Asset not found" }, { status: 404 });
-  }
-
-  const object = await runServerEnvEffect(getAssetObject(asset.r2Key), env);
-  if (!object) {
-    return Response.json({ code: "NOT_FOUND", message: "Asset not found" }, { status: 404 });
-  }
-
-  // Build response with immutable caching headers
-  const headers = new Headers();
-  if (object.contentType) {
-    headers.set("content-type", object.contentType);
-  }
-  if (object.etag) {
-    headers.set("etag", object.etag);
-  }
-  headers.set("content-length", object.size.toString());
-  headers.set("cache-control", "public, max-age=31536000, immutable");
-
-  const response = new Response(object.body, { headers });
-
-  // Populate edge cache asynchronously
-  ctx.waitUntil(cache.put(request, response.clone()));
-
-  return response;
-};
-
 const routeRequest = async (
   request: Request,
   env: Env,
@@ -207,12 +135,6 @@ const routeRequest = async (
   const manifestMatch = /^\/manifest\/([^/]+)\/?$/.exec(url.pathname);
   if (manifestMatch?.[1]) {
     return serveManifest(request, env, ctx, manifestMatch[1]);
-  }
-
-  // Public asset download — GET /assets/:hash (no auth, edge-cached)
-  const assetDownloadMatch = /^\/assets\/([A-Za-z0-9_-]+)$/.exec(url.pathname);
-  if (assetDownloadMatch?.[1] && request.method === "GET") {
-    return handleAssetDownload(request, env, ctx, assetDownloadMatch[1]);
   }
 
   // Build routes — artifact download + iOS install plist

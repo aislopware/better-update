@@ -14,10 +14,11 @@ import { AssetRepo } from "../repositories/assets";
 
 const UPLOAD_EXPIRY_SECONDS = 7200;
 
+const ASSET_CACHE_CONTROL = "public, max-age=31536000, immutable";
+
 const fail = (message: string) => new BadRequest({ message });
 
-const assetR2Key = (params: { readonly hash: string; readonly fileExt: string }) =>
-  `assets/${params.hash}.${params.fileExt}`;
+const assetR2Key = (params: { readonly hash: string }) => `assets/${params.hash}`;
 
 const sha256Base64UrlToBase64 = (hash: string): string => toBase64(fromBase64Url(hash));
 
@@ -167,6 +168,7 @@ const handleUpload = ({
               key: assetR2Key(asset),
               contentType: asset.contentType,
               checksumSha256Base64,
+              cacheControl: ASSET_CACHE_CONTROL,
               expiresIn: UPLOAD_EXPIRY_SECONDS,
             });
             const uploadExpiresAt = new Date(
@@ -181,6 +183,7 @@ const handleUpload = ({
               uploadHeaders: createDirectUploadHeaders({
                 checksumSha256Base64,
                 contentType: asset.contentType,
+                cacheControl: ASSET_CACHE_CONTROL,
               }),
             };
           }),

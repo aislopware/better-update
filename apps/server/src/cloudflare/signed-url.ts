@@ -14,9 +14,11 @@ const makeS3Client = (env: Env, bucketName: string) =>
 export const createDirectUploadHeaders = (params: {
   readonly checksumSha256Base64: string;
   readonly contentType: string;
+  readonly cacheControl?: string;
 }) => ({
   [CHECKSUM_SHA256_HEADER]: params.checksumSha256Base64,
   "content-type": params.contentType,
+  ...(params.cacheControl ? { "cache-control": params.cacheControl } : {}),
 });
 
 export const generateUploadUrl = async (
@@ -26,6 +28,7 @@ export const generateUploadUrl = async (
     readonly key: string;
     readonly contentType: string;
     readonly checksumSha256Base64: string;
+    readonly cacheControl?: string;
     readonly expiresIn?: number;
   },
 ) =>
@@ -37,6 +40,7 @@ export const generateUploadUrl = async (
     createDirectUploadHeaders({
       checksumSha256Base64: params.checksumSha256Base64,
       contentType: params.contentType,
+      ...(params.cacheControl ? { cacheControl: params.cacheControl } : {}),
     }),
   );
 

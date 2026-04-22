@@ -28,6 +28,7 @@ export interface AssetStorageService {
     readonly key: string;
     readonly contentType: string;
     readonly checksumSha256Base64: string;
+    readonly cacheControl?: string;
     readonly expiresIn: number;
   }) => Effect.Effect<string>;
   readonly headObject: (params: {
@@ -75,6 +76,7 @@ export const AssetStorageLive = Layer.succeed(AssetStorage, {
           contentType: params.contentType,
           checksumSha256Base64: params.checksumSha256Base64,
           expiresIn: params.expiresIn,
+          ...(params.cacheControl ? { cacheControl: params.cacheControl } : {}),
         }),
       );
     }),
