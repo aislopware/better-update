@@ -6,7 +6,7 @@ import { Context, Data, Effect, Layer } from "effect";
 import { isRecord } from "../lib/record";
 import { CliRuntime } from "./cli-runtime";
 
-const DEFAULT_BASE_URL = "https://server.better-update.dev";
+const DEFAULT_BASE_URL = "https://graph.better-update.dev";
 const DEFAULT_ACCOUNTS_URL = "https://accounts.better-update.dev";
 
 class ConfigStoreParseError extends Data.TaggedError("ConfigStoreParseError")<{
@@ -15,27 +15,6 @@ class ConfigStoreParseError extends Data.TaggedError("ConfigStoreParseError")<{
 }> {}
 
 const normalizeUrl = (value: string): string => value.replace(/\/$/, "");
-
-const deriveAccountsUrl = (serverUrl: string): string => {
-  const normalized = normalizeUrl(serverUrl);
-  if (!URL.canParse(normalized)) {
-    return DEFAULT_ACCOUNTS_URL;
-  }
-
-  const url = new URL(normalized);
-  const { hostname } = url;
-  const firstDot = hostname.indexOf(".");
-
-  // Server.foo.com or api.foo.com → accounts.foo.com
-  if ((hostname.startsWith("server.") || hostname.startsWith("api.")) && firstDot > 0) {
-    url.hostname = `accounts.${hostname.slice(firstDot + 1)}`;
-    url.pathname = "/";
-    return normalizeUrl(url.toString());
-  }
-
-  // Localhost or bare hostname — no accounts derivation possible
-  return DEFAULT_ACCOUNTS_URL;
-};
 
 export class ConfigStore extends Context.Tag("cli/ConfigStore")<
   ConfigStore,
@@ -77,9 +56,9 @@ export const ConfigStoreLive = Layer.effect(
       }
 
       const parsed = yield* readConfig;
-      const serverUrl = parsed?.["serverUrl"];
-      if (typeof serverUrl === "string") {
-        return normalizeUrl(serverUrl);
+      const baseUrl = parsed?.["baseUrl"];
+      if (typeof baseUrl === "string") {
+        return normalizeUrl(baseUrl);
       }
 
       return DEFAULT_BASE_URL;
@@ -100,8 +79,7 @@ export const ConfigStoreLive = Layer.effect(
           return normalizeUrl(accountsUrl);
         }
 
-        const serverUrl = yield* resolveBaseUrl;
-        return deriveAccountsUrl(serverUrl);
+        return DEFAULT_ACCOUNTS_URL;
       }),
     };
   }),

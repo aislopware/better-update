@@ -305,7 +305,7 @@ Build profiles define how `--profile <name>` maps to platform-specific build set
     "extra": {
       "betterUpdate": {
         "projectId": "uuid",
-        "serverUrl": "https://updates.example.com",
+        "baseUrl": "https://updates.example.com",
         "profiles": {
           "development": {
             "environment": "development",

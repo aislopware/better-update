@@ -83,7 +83,7 @@
   },
   "routes": [
     {
-      "pattern": "server.better-update.dev/*",
+      "pattern": "graph.better-update.dev/*",
       "zone_id": "02ffa0c8760a5554d9b09a05d7ccbd9e",
     },
   ],
