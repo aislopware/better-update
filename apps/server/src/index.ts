@@ -13,7 +13,7 @@ import {
   serveManifest,
 } from "./handlers";
 import { ServerInfrastructureLayer } from "./infrastructure-layer";
-import { structuredLog, withRequestLogging } from "./middleware/request-logging";
+import { structuredLog } from "./middleware/logging";
 import { AssetRepo } from "./repositories";
 
 import type { ServerInfrastructure } from "./infrastructure-layer";
@@ -171,67 +171,80 @@ const handleAssetDownload = async (
   return response;
 };
 
+const routeRequest = async (
+  request: Request,
+  env: Env,
+  ctx: ExecutionContext,
+): Promise<Response> => {
+  const url = new URL(request.url);
+  const origin = request.headers.get("origin");
+  const cors = corsHeaders(env, origin);
+
+  // CORS preflight — respond before any route matching
+  if (request.method === "OPTIONS" && Object.keys(cors).length > 0) {
+    return new Response(null, { status: 204, headers: cors });
+  }
+
+  const requestContext = makeCloudflareRequestContext(env, ctx, request) as Context.Context<never>;
+
+  // Better Auth handles its own auth routes
+  if (url.pathname.startsWith("/api/auth")) {
+    return withCors(await handleAuth(request, env), cors);
+  }
+
+  // Public server capabilities — called by the accounts SPA before login
+  // To decide which auth providers to render. Must stay unauthenticated.
+  if (url.pathname === "/api/config" && request.method === "GET") {
+    return withCors(
+      Response.json({
+        githubEnabled: isGithubEnabled(env),
+      }),
+      cors,
+    );
+  }
+
+  // Expo Updates protocol — unauthenticated manifest serving
+  const manifestMatch = /^\/manifest\/([^/]+)\/?$/.exec(url.pathname);
+  if (manifestMatch?.[1]) {
+    return serveManifest(request, env, ctx, manifestMatch[1]);
+  }
+
+  // Public asset download — GET /assets/:hash (no auth, edge-cached)
+  const assetDownloadMatch = /^\/assets\/([A-Za-z0-9_-]+)$/.exec(url.pathname);
+  if (assetDownloadMatch?.[1] && request.method === "GET") {
+    return handleAssetDownload(request, env, ctx, assetDownloadMatch[1]);
+  }
+
+  // Build routes — artifact download + iOS install plist
+  const buildResponse = await matchBuildRoute(request, env, url.pathname);
+  if (buildResponse) {
+    return buildResponse;
+  }
+
+  // Device registration — Safari + mobileconfig flow (no auth)
+  const registrationResponse = await matchDeviceRegistrationRoute(request, env, url.pathname);
+  if (registrationResponse) {
+    return registrationResponse;
+  }
+
+  // Effect HttpApi handles management routes + OpenAPI + Scalar docs
+  return withCors(await handler(request, requestContext), cors);
+};
+
 export default {
   async fetch(request, env, ctx) {
-    return withRequestLogging(request, async () => {
-      const url = new URL(request.url);
-      const origin = request.headers.get("origin");
-      const cors = corsHeaders(env, origin);
-
-      // CORS preflight — respond before any route matching
-      if (request.method === "OPTIONS" && Object.keys(cors).length > 0) {
-        return new Response(null, { status: 204, headers: cors });
-      }
-
-      const requestContext = makeCloudflareRequestContext(
-        env,
-        ctx,
-        request,
-      ) as Context.Context<never>;
-
-      // Better Auth handles its own auth routes
-      if (url.pathname.startsWith("/api/auth")) {
-        return withCors(await handleAuth(request, env), cors);
-      }
-
-      // Public server capabilities — called by the accounts SPA before login
-      // To decide which auth providers to render. Must stay unauthenticated.
-      if (url.pathname === "/api/config" && request.method === "GET") {
-        return withCors(
-          Response.json({
-            githubEnabled: isGithubEnabled(env),
-          }),
-          cors,
-        );
-      }
-
-      // Expo Updates protocol — unauthenticated manifest serving
-      const manifestMatch = /^\/manifest\/([^/]+)\/?$/.exec(url.pathname);
-      if (manifestMatch?.[1]) {
-        return serveManifest(request, env, ctx, manifestMatch[1]);
-      }
-
-      // Public asset download — GET /assets/:hash (no auth, edge-cached)
-      const assetDownloadMatch = /^\/assets\/([A-Za-z0-9_-]+)$/.exec(url.pathname);
-      if (assetDownloadMatch?.[1] && request.method === "GET") {
-        return handleAssetDownload(request, env, ctx, assetDownloadMatch[1]);
-      }
-
-      // Build routes — artifact download + iOS install plist
-      const buildResponse = await matchBuildRoute(request, env, url.pathname);
-      if (buildResponse) {
-        return buildResponse;
-      }
-
-      // Device registration — Safari + mobileconfig flow (no auth)
-      const registrationResponse = await matchDeviceRegistrationRoute(request, env, url.pathname);
-      if (registrationResponse) {
-        return registrationResponse;
-      }
-
-      // Effect HttpApi handles management routes + OpenAPI + Scalar docs
-      return withCors(await handler(request, requestContext), cors);
-    });
+    // eslint-disable-next-line functional/no-try-statements -- imperative shell error boundary
+    try {
+      return await routeRequest(request, env, ctx);
+    } catch (error) {
+      structuredLog("error", "Unhandled request error", {
+        method: request.method,
+        path: new URL(request.url).pathname,
+        error: error instanceof Error ? error.message : String(error),
+        ...(error instanceof Error && error.stack ? { stack: error.stack } : {}),
+      });
+      return internalError();
+    }
   },
 
   scheduled(_event, env, ctx) {

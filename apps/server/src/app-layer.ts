@@ -28,7 +28,7 @@ import {
 } from "./handlers";
 import { AdapterLayer, RepositoryLayer } from "./infrastructure-layer";
 import { errorFormatMiddleware } from "./middleware/error-format";
-import { JsonLoggerLayer, requestAnnotationMiddleware } from "./middleware/request-logging";
+import { JsonLoggerLayer } from "./middleware/logging";
 
 const ManagementGroupsLayer = Layer.mergeAll(
   AnalyticsGroupLive,
@@ -69,6 +69,6 @@ export const makeManagementWebHandler = () =>
   HttpApiBuilder.toWebHandler(
     Layer.mergeAll(ApiLive, DocsLive, HttpServer.layerContext, JsonLoggerLayer),
     {
-      middleware: (httpApp) => requestAnnotationMiddleware(errorFormatMiddleware(httpApp)),
+      middleware: errorFormatMiddleware,
     },
   );
