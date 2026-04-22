@@ -21,7 +21,7 @@
     "prepare": "lefthook install --force",
     "release:preview": "lerna version --conventional-commits --dry-run",
     "release:publish": "lerna publish from-package --yes",
-    "release:version": "lerna version --conventional-commits --yes",
+    "release:version": "lerna version --conventional-commits --yes --no-push",
     "test": "turbo run test",
     "test:all": "bun run test && bun run test:integrations && bun run test:e2e",
     "test:e2e": "turbo run test:e2e --concurrency=1",
