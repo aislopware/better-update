@@ -2,80 +2,40 @@ import { randomUUID } from "node:crypto";
 
 import type { Page } from "playwright";
 
-import { createSharedBrowserRuntime } from "../helpers/browser-helpers";
+import {
+  completeOnboardingViaUI,
+  createProjectViaUI,
+  createSharedBrowserRuntime,
+  gotoTabViaUI,
+  openProjectFromListViaUI,
+  signUpViaUI,
+  toSlug,
+  uniqueEmail,
+} from "../helpers/browser-helpers";
 import { setupE2EDashboard } from "../helpers/e2e-dashboard";
 
-const { getBaseUrl, post } = setupE2EDashboard();
+const dashboard = setupE2EDashboard();
 const runtime = createSharedBrowserRuntime();
-
-const password = "SecureP@ss123";
-const toSlug = (value: string) => value.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-");
-
-const createUser = async (label: string) => {
-  const suffix = `${toSlug(label)}-${randomUUID().slice(0, 8)}`;
-  const email = `${suffix}@example.com`;
-  const response = await post("/api/auth/sign-up/email", {
-    name: `Browser ${label}`,
-    email,
-    password,
-  });
-
-  expect(response.status).toBe(200);
-  return { email, password };
-};
-
-const login = async (page: Page, email: string) => {
-  await page.goto(`${getBaseUrl()}/login`);
-  await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(password);
-  await page.getByRole("button", { name: "Sign in" }).click();
-};
-
-const completeOnboarding = async (
-  page: Page,
-  organizationName: string,
-  organizationSlug: string,
-) => {
-  await page.waitForURL(/\/onboarding$/);
-  await page.getByLabel("Organization name").fill(organizationName);
-  await page.getByLabel("URL slug").fill(organizationSlug);
-  await page.getByRole("button", { name: "Create organization" }).click();
-  await page.waitForURL(/\/projects$/);
-};
-
-const createProject = async (page: Page, projectName: string, slug: string) => {
-  await page.getByRole("button", { name: "Create project" }).click();
-  const dialog = page.getByRole("dialog");
-  await dialog.getByLabel("Project name").fill(projectName);
-  await dialog.getByLabel("Slug").fill(slug);
-  await dialog.getByRole("button", { name: "Create project" }).click();
-  await page.getByRole("link", { name: new RegExp(projectName) }).waitFor();
-};
-
-const openProject = async (page: Page, projectName: string) => {
-  await page.getByRole("link", { name: new RegExp(projectName) }).click();
-  await page.waitForURL(/\/projects\/[^/]+$/);
-  await page.getByRole("heading", { name: projectName }).waitFor();
-};
 
 interface ProjectJourney {
   readonly projectName: string;
 }
 
 const completeProjectJourney = async (page: Page, label: string): Promise<ProjectJourney> => {
-  const user = await createUser(label);
-  const orgSuffix = randomUUID().slice(0, 8);
-  const projectSuffix = randomUUID().slice(0, 8);
+  const suffix = randomUUID().slice(0, 8);
   const normalizedLabel = toSlug(label);
-  const organizationName = `${label} org ${orgSuffix}`;
-  const organizationSlug = `${normalizedLabel}-org-${orgSuffix}`;
-  const projectName = `${label} project ${projectSuffix}`;
-  const slug = `${normalizedLabel}-${projectSuffix}`;
+  const organizationName = `${label} org ${suffix}`;
+  const organizationSlug = `${normalizedLabel}-org-${suffix}`;
+  const projectName = `${label} project ${suffix}`;
+  const projectSlug = `${normalizedLabel}-${suffix}`;
 
-  await login(page, user.email);
-  await completeOnboarding(page, organizationName, organizationSlug);
-  await createProject(page, projectName, slug);
-  await openProject(page, projectName);
+  await signUpViaUI(page, dashboard.getBaseUrl(), {
+    name: `Browser ${label}`,
+    email: uniqueEmail(normalizedLabel),
+  });
+  await completeOnboardingViaUI(page, { organizationName, organizationSlug });
+  await createProjectViaUI(page, { name: projectName, slug: projectSlug });
+  await openProjectFromListViaUI(page, projectName);
 
   return { projectName };
 };
@@ -95,12 +55,16 @@ describe("dashboard browser UI journey", () => {
       const branchSuffix = randomUUID().slice(0, 8);
       const branchName = `staging-${branchSuffix}`;
 
+      await gotoTabViaUI(page, "Branches");
       await page.getByRole("button", { name: "Create branch" }).click();
       const dialog = page.getByRole("dialog");
       await dialog.getByLabel("Branch name").fill(branchName);
       await dialog.getByRole("button", { name: "Create branch" }).click();
 
-      await page.getByRole("heading", { name: projectName }).waitFor();
+      await page
+        .getByRole("button", { name: new RegExp(projectName, "u") })
+        .first()
+        .waitFor();
       await page.getByText(branchName).waitFor();
     });
   });
@@ -112,7 +76,7 @@ describe("dashboard browser UI journey", () => {
       const envKey = `EXPO_PUBLIC_BROWSER_${envSuffix.toUpperCase()}`;
       const envValue = `https://browser-${envSuffix}.example.com`;
 
-      await page.getByRole("tab", { name: "Env Variables" }).click();
+      await gotoTabViaUI(page, "Env Variables");
       await page.getByRole("button", { name: "Add variable" }).click();
       const dialog = page.getByRole("dialog");
       await dialog.getByLabel("Key").fill(envKey);

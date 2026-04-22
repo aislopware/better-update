@@ -144,7 +144,10 @@ beforeAll(async () => {
   await loginViaUI(page, dashboard.getBaseUrl(), { email: owner.email });
   await page.waitForURL(/\/projects(?:$|\/|\?)/u);
   await page.goto(`${dashboard.getBaseUrl()}/projects/${slug}`);
-  await page.getByRole("heading", { name: projectName }).waitFor();
+  await page
+    .getByRole("button", { name: new RegExp(projectName, "u") })
+    .first()
+    .waitFor();
 });
 
 afterAll(async () => {
@@ -419,8 +422,8 @@ describe("dashboard updates + env vars + builds (browser)", () => {
       .waitFor();
 
     await page.goBack();
-    await page.waitForURL(new RegExp(`/projects/${slug}$`, "u"));
-    await page.getByRole("tab", { name: "Branches" }).waitFor();
+    await page.waitForURL(new RegExp(`/projects/${slug}/builds$`, "u"));
+    await page.getByRole("link", { name: "Branches", exact: true }).first().waitFor();
   });
 
   it("deletes a build via confirm dialog", async () => {

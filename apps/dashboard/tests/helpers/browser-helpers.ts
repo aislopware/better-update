@@ -181,12 +181,36 @@ export const createProjectViaUI = async (
 export const openProjectFromListViaUI = async (page: Page, projectName: string): Promise<void> => {
   await page.getByRole("link", { name: new RegExp(projectName, "u") }).click();
   await page.waitForURL(/\/projects\/[^/]+$/u);
-  await page.getByRole("heading", { name: projectName }).waitFor();
+  // The project overview page no longer renders the project name as a heading
+  // (see refactor 593b8ad). Project identity now lives in the breadcrumb's
+  // ProjectSwitcher button — match that as the readiness signal instead.
+  await page
+    .getByRole("button", { name: new RegExp(projectName, "u") })
+    .first()
+    .waitFor();
 };
 
-export const gotoTabViaUI = async (
-  page: Page,
-  tabName: "Branches" | "Channels" | "Updates" | "Builds" | "Analytics" | "Env Variables",
-): Promise<void> => {
-  await page.getByRole("tab", { name: tabName }).click();
+type ProjectTabName =
+  | "Branches"
+  | "Channels"
+  | "Updates"
+  | "Builds"
+  | "Analytics"
+  | "Env Variables";
+
+// The old per-project tabs were replaced by dedicated sidebar routes in
+// Refactor 593b8ad. Map the legacy tab label to the current sidebar link
+// Label so existing tests keep reading left-to-right.
+const PROJECT_TAB_LINK_LABEL: Record<ProjectTabName, string> = {
+  Analytics: "Overview",
+  Branches: "Branches",
+  Builds: "Builds",
+  Channels: "Channels",
+  Updates: "Updates",
+  "Env Variables": "Environment variables",
+};
+
+export const gotoTabViaUI = async (page: Page, tabName: ProjectTabName): Promise<void> => {
+  const label = PROJECT_TAB_LINK_LABEL[tabName];
+  await page.getByRole("link", { name: label, exact: true }).first().click();
 };

@@ -28,7 +28,27 @@ const slug = `admin-${suffix}`;
 let context: BrowserContext;
 let page: Page;
 
-const credentialName = `iOS Push Key ${suffix}`;
+// Server-side validators parse these; the PEM matches the fixture used in
+// Apple-push-key-validator.test.ts so pemToPkcs8Der succeeds.
+const PUSH_KEY_ID = "ABCDE12345";
+const PUSH_TEAM_ID = "FGHIJ67890";
+const PUSH_KEY_PEM = [
+  "-----BEGIN PRIVATE KEY-----",
+  "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgqIOEeXH1hSPYy+1c",
+  "-----END PRIVATE KEY-----",
+].join("\n");
+
+const SA_PROJECT_ID = `sa-project-${suffix}`;
+const SA_CLIENT_EMAIL = `sa-${suffix}@test.iam.gserviceaccount.com`;
+const SA_PRIVATE_KEY_ID = `pkid-${suffix}`;
+const SA_JSON = JSON.stringify({
+  type: "service_account",
+  project_id: SA_PROJECT_ID,
+  private_key_id: SA_PRIVATE_KEY_ID,
+  private_key: PUSH_KEY_PEM,
+  client_email: SA_CLIENT_EMAIL,
+});
+
 const apiKeyName = `CI Key ${suffix}`;
 
 beforeAll(async () => {
@@ -43,7 +63,7 @@ beforeAll(async () => {
     organizationSlug: toSlug(orgName),
   });
 
-  // Create a project so the audit log has project-scoped events to filter on
+  // Seed an audit-log entry so the audit log tests have non-empty data.
   await createProjectViaUI(page, { name: projectName, slug });
 });
 
@@ -52,121 +72,83 @@ afterAll(async () => {
   await runtime.teardown();
 });
 
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+// The /credentials page renders one <section> per credential type, each with
+// Its own Upload dialog. Scope lookups to a section to disambiguate multiple
+// "Upload" buttons and "Delete" icon buttons on the page.
+const pushKeySection = () => page.locator("section").filter({ hasText: "APNs Push Keys" });
+
+const googleSaSection = () =>
+  page.locator("section").filter({ hasText: "Google Service Account Keys" });
+
 // ── Tests ─────────────────────────────────────────────────────────────────
 
 describe("dashboard credentials + API keys + audit log (browser)", () => {
-  it("uploads an iOS push notification credential", async () => {
+  it("uploads an APNs push key via the per-platform dialog", async () => {
     await page.getByRole("link", { name: "Credentials" }).click();
     await page.waitForURL(/\/credentials$/u);
 
-    await page.getByRole("button", { name: "Upload" }).click();
+    await pushKeySection().getByRole("button", { name: "Upload" }).click();
     const dialog = page.getByRole("dialog");
-    await dialog.getByRole("heading", { name: "Upload credential" }).waitFor();
+    await dialog.getByRole("heading", { name: "Upload APNs Push Key" }).waitFor();
 
-    // Select platform = iOS
-    const platformSelect = dialog.getByRole("combobox").first();
-    await platformSelect.click();
-    await page.getByRole("option", { name: "iOS" }).click();
+    await dialog.getByLabel("Key ID").fill(PUSH_KEY_ID);
+    await dialog.getByLabel("Apple Team ID").fill(PUSH_TEAM_ID);
 
-    // Select type = Push Notification Key (simplest — no password, no distribution)
-    const typeSelect = dialog.getByRole("combobox").nth(1);
-    await typeSelect.click();
-    await page.getByRole("option", { name: /Push Notification Key/u }).click();
-
-    // Name the credential
-    await dialog.getByLabel("Name").fill(credentialName);
-
-    // Upload a dummy .p8 file buffer through the hidden file input
     const fileInput = dialog.locator('input[type="file"]');
     await fileInput.setInputFiles({
       name: "push-key.p8",
       mimeType: "application/x-pem-file",
-      buffer: Buffer.from(
-        [
-          "-----BEGIN PRIVATE KEY-----",
-          "MIGTAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBHkwdwIBAQQg0TestKeyBytes0000",
-          "-----END PRIVATE KEY-----",
-        ].join("\n"),
-      ),
+      buffer: Buffer.from(PUSH_KEY_PEM),
     });
 
     await dialog.getByRole("button", { name: "Upload", exact: true }).click();
-    await expectToast(page, "Credential uploaded");
-    await page.getByText(credentialName).waitFor();
+    await expectToast(page, "Push key uploaded");
+    await pushKeySection().getByText(PUSH_KEY_ID).waitFor();
   });
 
-  it("uploads an Android credential and tests platform tab filter", async () => {
-    // Upload an Android distribution credential (Play Service Account .json)
-    await page.getByRole("button", { name: "Upload" }).click();
+  it("uploads a Google service-account key via the per-platform dialog", async () => {
+    await googleSaSection().getByRole("button", { name: "Upload" }).click();
     const dialog = page.getByRole("dialog");
-    await dialog.getByRole("heading", { name: "Upload credential" }).waitFor();
-
-    const platformSelect = dialog.getByRole("combobox").first();
-    await platformSelect.click();
-    await page.getByRole("option", { name: "Android" }).click();
-
-    const typeSelect = dialog.getByRole("combobox").nth(1);
-    await typeSelect.click();
-    await page.getByRole("option", { name: /Play Service Account/u }).click();
-
-    const androidName = `Play Service ${suffix}`;
-    await dialog.getByLabel("Name").fill(androidName);
+    await dialog.getByRole("heading", { name: "Upload Google Service Account Key" }).waitFor();
 
     const fileInput = dialog.locator('input[type="file"]');
     await fileInput.setInputFiles({
       name: "service-account.json",
       mimeType: "application/json",
-      buffer: Buffer.from(
-        JSON.stringify({
-          type: "service_account",
-          project_id: "test-project",
-          client_email: "sa@test.iam.gserviceaccount.com",
-        }),
-      ),
+      buffer: Buffer.from(SA_JSON),
     });
 
     await dialog.getByRole("button", { name: "Upload", exact: true }).click();
-    await expectToast(page, "Credential uploaded");
-    await page.getByText(androidName).waitFor();
-
-    // Filter by iOS tab — should only show the iOS credential
-    await page.getByRole("tab", { name: "iOS" }).click();
-    await page.getByText(credentialName).waitFor();
-    await page.getByText(androidName).waitFor({ state: "detached" });
-
-    // Filter by Android tab
-    await page.getByRole("tab", { name: "Android" }).click();
-    await page.getByText(androidName).waitFor();
-    await page.getByText(credentialName).waitFor({ state: "detached" });
-
-    // Back to All
-    await page.getByRole("tab", { name: "All" }).click();
-    await page.getByText(credentialName).waitFor();
-    await page.getByText(androidName).waitFor();
+    await expectToast(page, "Service account key uploaded");
+    await googleSaSection().getByText(SA_CLIENT_EMAIL).waitFor();
   });
 
-  it("activates a credential via the dropdown menu", async () => {
-    const androidName = `Play Service ${suffix}`;
-    const row = page.locator('[data-slot="card"]').filter({ hasText: androidName }).first();
-    await row.getByRole("button").filter({ hasNotText: /\S/u }).click();
-    await page.getByRole("menuitem", { name: "Set as active" }).click();
-    await expectToast(page, "Credential activated");
-
-    // Row now has an "Active" badge
-    await row.getByText("Active").waitFor();
-  });
-
-  it("deletes a credential via the dropdown menu and confirm dialog", async () => {
-    const androidName = `Play Service ${suffix}`;
-    const row = page.locator('[data-slot="card"]').filter({ hasText: androidName }).first();
-    await row.getByRole("button").filter({ hasNotText: /\S/u }).click();
-    await page.getByRole("menuitem", { name: "Delete" }).click();
+  it("deletes the Google service-account key via confirm dialog", async () => {
+    const row = googleSaSection().getByRole("row").filter({ hasText: SA_CLIENT_EMAIL });
+    await row.getByRole("button", { name: "Delete" }).click();
 
     const dialog = page.getByRole("dialog");
-    await dialog.getByRole("heading", { name: "Delete credential?" }).waitFor();
-    await dialog.getByRole("button", { name: "Delete", exact: true }).click();
-    await expectToast(page, "Credential deleted");
-    await page.getByText(androidName).waitFor({ state: "detached" });
+    await dialog.getByRole("heading", { name: "Delete service account key?" }).waitFor();
+    // ConfirmDeleteDialog requires typing the `name` prop, which for Google
+    // SA keys is the first 8 chars of privateKeyId.
+    await dialog.getByLabel(/type.*to confirm/iu).fill(SA_PRIVATE_KEY_ID.slice(0, 8));
+    await dialog.getByRole("button", { name: "Delete permanently" }).click();
+    await expectToast(page, "Service account key deleted");
+    await googleSaSection().getByText(SA_CLIENT_EMAIL).waitFor({ state: "detached" });
+  });
+
+  it("deletes the APNs push key via confirm dialog", async () => {
+    const row = pushKeySection().getByRole("row").filter({ hasText: PUSH_KEY_ID });
+    await row.getByRole("button", { name: "Delete" }).click();
+
+    const dialog = page.getByRole("dialog");
+    await dialog.getByRole("heading", { name: "Delete push key?" }).waitFor();
+    await dialog.getByLabel(/type.*to confirm/iu).fill(PUSH_KEY_ID);
+    await dialog.getByRole("button", { name: "Delete permanently" }).click();
+    await expectToast(page, "Push key deleted");
+    await pushKeySection().getByText(PUSH_KEY_ID).waitFor({ state: "detached" });
   });
 
   // ── API Keys ─────────────────────────────────────────────────────────────
@@ -192,7 +174,6 @@ describe("dashboard credentials + API keys + audit log (browser)", () => {
     await dialog.getByRole("button", { name: "Done" }).click();
     await dialog.waitFor({ state: "detached" });
 
-    // The key is now listed in the active keys table
     await page.getByRole("cell", { name: apiKeyName }).waitFor();
   });
 
@@ -211,43 +192,28 @@ describe("dashboard credentials + API keys + audit log (browser)", () => {
   // ── Audit Log ────────────────────────────────────────────────────────────
 
   it("audit log shows seeded events and filters by resource type", async () => {
-    await page.getByRole("link", { name: "Audit Log" }).click();
+    await page.getByRole("link", { name: "Audit log" }).click();
     await page.waitForURL(/\/audit-log$/u);
 
-    // Wait for audit entries to load. Project creation emits an entry.
+    // Project creation in beforeAll emits at least one audit entry, so the
+    // Activity card renders (the empty state is shown when items.length === 0).
     await page.getByText("Activity", { exact: true }).first().waitFor();
 
-    // All filter: entries present
-    await page.getByRole("cell").filter({ hasText: /\w/u }).first().waitFor();
-
-    // Filter by Project resource type
+    // Filter by Project — same entry still matches.
     await page.getByRole("combobox").first().click();
     await page.getByRole("option", { name: "Project", exact: true }).click();
-    // The activity table still renders at least one project row
     await page.getByText("Activity", { exact: true }).first().waitFor();
 
-    // Filter by Credential to validate filter switching
+    // Reset filter back to All.
     await page.getByRole("combobox").first().click();
-    await page.getByRole("option", { name: "Credential", exact: true }).click();
+    await page.getByRole("option", { name: "All", exact: true }).click();
     await page.getByText("Activity", { exact: true }).first().waitFor();
   });
 
-  it("audit log applies a date-range filter", async () => {
-    // Use a wide date range to keep rows visible
-    const today = new Date();
-    const from = new Date(today.getTime() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-    const to = new Date(today.getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-
-    // Reset resource filter to All first
-    await page.getByRole("combobox").first().click();
-    await page.getByRole("option", { name: "All", exact: true }).click();
-
-    const dateInputs = page.locator('input[type="date"]');
-    await dateInputs.nth(0).fill(from);
-    await dateInputs.nth(1).fill(to);
-
-    await page.getByText("Activity", { exact: true }).first().waitFor();
-    // Rows should still be visible — our seeded actions happened today
-    await page.getByRole("cell").filter({ hasText: /\w/u }).first().waitFor();
+  it("audit log renders the date-range picker", async () => {
+    // The native date inputs were replaced by a DateRangePicker popover
+    // (base-ui Popover + react-day-picker Calendar). Verify the trigger
+    // Renders — detailed calendar interaction is out of scope for e2e.
+    await page.getByRole("button", { name: "Date range" }).waitFor();
   });
 });

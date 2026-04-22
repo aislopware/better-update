@@ -57,6 +57,7 @@ afterAll(async () => {
 // ── Local helpers ─────────────────────────────────────────────────────────
 
 const createBranchViaUI = async (branchName: string): Promise<void> => {
+  await gotoTabViaUI(page, "Branches");
   await page.getByRole("button", { name: "Create branch" }).first().click();
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("Branch name").fill(branchName);
@@ -231,8 +232,8 @@ describe("dashboard project + branches + channels (browser)", () => {
       .waitFor();
 
     await page.goBack();
-    await page.waitForURL(/\/projects\/[^/]+$/u);
-    await page.getByRole("tab", { name: "Branches" }).waitFor();
+    await page.waitForURL(/\/projects\/[^/]+\/channels$/u);
+    await page.getByRole("link", { name: "Branches", exact: true }).first().waitFor();
   });
 
   it("deletes the channel via confirm dialog", async () => {
@@ -252,11 +253,16 @@ describe("dashboard project + branches + channels (browser)", () => {
   });
 
   it("renames the project via the settings section", async () => {
+    await page.getByRole("link", { name: "General", exact: true }).first().click();
+    await page.waitForURL(/\/projects\/[^/]+\/settings$/u);
     const newName = `${projectName} renamed`;
     await page.getByLabel("Project name").fill(newName);
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await expectToast(page, "Project renamed");
-    await page.getByRole("heading", { name: newName }).waitFor();
+    await page
+      .getByRole("button", { name: new RegExp(newName, "u") })
+      .first()
+      .waitFor();
   });
 
   it("deletes the project via the danger zone confirm dialog", async () => {
