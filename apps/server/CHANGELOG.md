@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.2.0](https://github.com/better-update/better-update/compare/@better-update/server@0.1.0...@better-update/server@0.2.0) (2026-04-22)
+
+### Features
+
+* **accounts:** github-only login redesign + dashboard→console split cleanup ([121f822](https://github.com/better-update/better-update/commit/121f822bcfd9e379d23d4d6b3e5c01849cf625d1)) - by @trancong12102
+* **deploy:** auto-deploy wrangler apps on release tag ([4e1912c](https://github.com/better-update/better-update/commit/4e1912c0d59d52a5028d6ddd61e4407309584643)) - by @trancong12102
+
+### Bug Fixes
+
+* **server:** disable Vite dev CORS so Worker owns preflight ([5ada572](https://github.com/better-update/better-update/commit/5ada572e2065004aeb6ff74a16ddd0c421717811)) - by @trancong12102
+
 ## 0.1.0 (2026-04-21)
 
 ### Features
