@@ -132,7 +132,15 @@ const Onboarding = () => {
             <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
               {([canSubmit, isSubmitting]) => (
                 <Button type="submit" className="w-full" disabled={!canSubmit || isSubmitting}>
-                  {isSubmitting ? "Creating..." : "Create organization"}
+                  <span
+                    className="transition-[filter,opacity] duration-150 ease-out"
+                    style={{
+                      filter: isSubmitting ? "blur(2px)" : "blur(0)",
+                      opacity: isSubmitting ? 0.7 : 1,
+                    }}
+                  >
+                    {isSubmitting ? "Creating..." : "Create organization"}
+                  </span>
                 </Button>
               )}
             </form.Subscribe>

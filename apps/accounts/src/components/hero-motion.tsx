@@ -268,16 +268,11 @@ export const HeroMotion = () => {
       attributeFilter: ["class"],
     });
 
-    const revealTimer = globalThis.setTimeout(() => {
-      canvas.style.opacity = "1";
-    }, 120);
-
     return () => {
       handleRef.current.globe.destroy();
       handleRef.current.stop();
       globalThis.removeEventListener("resize", onResize);
       themeObserver.disconnect();
-      globalThis.clearTimeout(revealTimer);
     };
   });
 
@@ -315,7 +310,7 @@ export const HeroMotion = () => {
                 onMove(event.touches[0].clientX);
               }
             }}
-            className="size-full cursor-grab opacity-0 transition-opacity duration-700 [contain:layout_paint_size]"
+            className="size-full cursor-grab opacity-100 transition-opacity duration-500 ease-out [contain:layout_paint_size] starting:opacity-0"
           />
           {EDGES.map((edge) => (
             <span
