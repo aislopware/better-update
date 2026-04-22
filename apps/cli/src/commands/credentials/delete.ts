@@ -1,24 +1,38 @@
-import { Args, Command, Options } from "@effect/cli";
+import { defineCommand } from "citty";
 import { Console, Effect } from "effect";
 
+import { runEffect } from "../../lib/citty-effect";
 import { deleteCredential } from "../../lib/credentials-manager";
 import { apiClient } from "../../services/api-client";
 
-const id = Args.text({ name: "id" });
-const platform = Options.choice("platform", ["ios", "android"] as const);
-const type = Options.choice("type", [
+import type { CliCredentialType } from "../../lib/credentials-manager";
+
+const CREDENTIAL_TYPES = [
   "distribution-certificate",
   "provisioning-profile",
   "push-key",
   "asc-api-key",
   "keystore",
   "google-service-account-key",
-] as const);
+] as const;
 
-export const deleteCommand = Command.make("delete", { id, platform, type }, (opts) =>
-  Effect.gen(function* () {
-    const api = yield* apiClient;
-    yield* deleteCredential(api, { id: opts.id, platform: opts.platform, type: opts.type });
-    yield* Console.log(`Credential ${opts.id} deleted.`);
-  }),
-);
+export const deleteCommand = defineCommand({
+  meta: { name: "delete", description: "Delete a credential" },
+  args: {
+    id: { type: "positional", required: true, description: "Credential ID" },
+    platform: { type: "enum", options: ["ios", "android"], required: true },
+    type: { type: "enum", options: [...CREDENTIAL_TYPES], required: true },
+  },
+  run: async ({ args }) =>
+    runEffect(
+      Effect.gen(function* () {
+        const api = yield* apiClient;
+        yield* deleteCredential(api, {
+          id: args.id,
+          platform: args.platform,
+          type: args.type as CliCredentialType,
+        });
+        yield* Console.log(`Credential ${args.id} deleted.`);
+      }),
+    ),
+});

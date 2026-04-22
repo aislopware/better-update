@@ -1,15 +1,22 @@
-import { Args, Command } from "@effect/cli";
+import { defineCommand } from "citty";
 import { Console, Effect } from "effect";
 
+import { runEffect } from "../../lib/citty-effect";
 import { apiClient } from "../../services/api-client";
-import { handleChannelCommandErrors } from "./helpers";
+import { channelErrorExtras } from "./helpers";
 
-const id = Args.text({ name: "id" });
-
-export const pauseCommand = Command.make("pause", { id }, (opts) =>
-  Effect.gen(function* () {
-    const api = yield* apiClient;
-    const channel = yield* api.channels.pause({ path: { id: opts.id } });
-    yield* Console.log(`Channel "${channel.name}" paused.`);
-  }).pipe(handleChannelCommandErrors),
-);
+export const pauseCommand = defineCommand({
+  meta: { name: "pause", description: "Pause a channel" },
+  args: {
+    id: { type: "positional", required: true, description: "Channel ID" },
+  },
+  run: async ({ args }) =>
+    runEffect(
+      Effect.gen(function* () {
+        const api = yield* apiClient;
+        const channel = yield* api.channels.pause({ path: { id: args.id } });
+        yield* Console.log(`Channel "${channel.name}" paused.`);
+      }),
+      channelErrorExtras,
+    ),
+});

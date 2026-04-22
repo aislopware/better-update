@@ -1,84 +1,115 @@
-import { Args, Command, Options } from "@effect/cli";
+import { defineCommand } from "citty";
 import { Console, Effect } from "effect";
 
-import { makeCommandErrorHandler } from "../lib/command-errors";
+import { runEffect } from "../lib/citty-effect";
 import { printKeyValue, printTable } from "../lib/output";
 import { apiClient } from "../services/api-client";
 
-const handleErrors = makeCommandErrorHandler();
+const listCommand = defineCommand({
+  meta: { name: "list", description: "List all projects" },
+  run: async () =>
+    runEffect(
+      Effect.gen(function* () {
+        const api = yield* apiClient;
+        const { items } = yield* api.projects.list({ urlParams: { page: 1, limit: 1000 } });
 
-const idArg = Args.text({ name: "id" });
-const nameOption = Options.text("name");
-const slugOption = Options.text("slug");
+        if (items.length === 0) {
+          yield* Console.log("No projects found.");
+          return;
+        }
 
-const listCommand = Command.make("list", {}, () =>
-  Effect.gen(function* () {
-    const api = yield* apiClient;
-    const { items } = yield* api.projects.list({
-      urlParams: { page: 1, limit: 1000 },
-    });
+        yield* printTable(
+          ["ID", "Name", "Slug", "Created"],
+          items.map((project) => [project.id, project.name, project.slug, project.createdAt]),
+        );
+      }),
+    ),
+});
 
-    if (items.length === 0) {
-      yield* Console.log("No projects found.");
-      return;
-    }
+const createCommand = defineCommand({
+  meta: { name: "create", description: "Create a new project" },
+  args: {
+    name: { type: "string", required: true, description: "Display name" },
+    slug: { type: "string", required: true, description: "URL-safe slug" },
+  },
+  run: async ({ args }) =>
+    runEffect(
+      Effect.gen(function* () {
+        const api = yield* apiClient;
+        const project = yield* api.projects.create({
+          payload: { name: args.name, slug: args.slug },
+        });
+        yield* printKeyValue([
+          ["ID", project.id],
+          ["Name", project.name],
+          ["Slug", project.slug],
+          ["Created", project.createdAt],
+        ]);
+      }),
+    ),
+});
 
-    yield* printTable(
-      ["ID", "Name", "Slug", "Created"],
-      items.map((project) => [project.id, project.name, project.slug, project.createdAt]),
-    );
-  }).pipe(handleErrors),
-);
+const getCommand = defineCommand({
+  meta: { name: "get", description: "Show a project" },
+  args: {
+    id: { type: "positional", required: true, description: "Project ID" },
+  },
+  run: async ({ args }) =>
+    runEffect(
+      Effect.gen(function* () {
+        const api = yield* apiClient;
+        const project = yield* api.projects.get({ path: { id: args.id } });
+        yield* printKeyValue([
+          ["ID", project.id],
+          ["Name", project.name],
+          ["Slug", project.slug],
+          ["Created", project.createdAt],
+        ]);
+      }),
+    ),
+});
 
-const createCommand = Command.make("create", { name: nameOption, slug: slugOption }, (opts) =>
-  Effect.gen(function* () {
-    const api = yield* apiClient;
-    const project = yield* api.projects.create({
-      payload: { name: opts.name, slug: opts.slug },
-    });
-    yield* printKeyValue([
-      ["ID", project.id],
-      ["Name", project.name],
-      ["Slug", project.slug],
-      ["Created", project.createdAt],
-    ]);
-  }).pipe(handleErrors),
-);
+const renameCommand = defineCommand({
+  meta: { name: "rename", description: "Rename a project" },
+  args: {
+    id: { type: "positional", required: true, description: "Project ID" },
+    name: { type: "string", required: true, description: "New display name" },
+  },
+  run: async ({ args }) =>
+    runEffect(
+      Effect.gen(function* () {
+        const api = yield* apiClient;
+        const project = yield* api.projects.rename({
+          path: { id: args.id },
+          payload: { name: args.name },
+        });
+        yield* Console.log(`Project renamed to "${project.name}".`);
+      }),
+    ),
+});
 
-const getCommand = Command.make("get", { id: idArg }, (opts) =>
-  Effect.gen(function* () {
-    const api = yield* apiClient;
-    const project = yield* api.projects.get({ path: { id: opts.id } });
-    yield* printKeyValue([
-      ["ID", project.id],
-      ["Name", project.name],
-      ["Slug", project.slug],
-      ["Created", project.createdAt],
-    ]);
-  }).pipe(handleErrors),
-);
+const deleteCommand = defineCommand({
+  meta: { name: "delete", description: "Delete a project" },
+  args: {
+    id: { type: "positional", required: true, description: "Project ID" },
+  },
+  run: async ({ args }) =>
+    runEffect(
+      Effect.gen(function* () {
+        const api = yield* apiClient;
+        yield* api.projects.delete({ path: { id: args.id } });
+        yield* Console.log(`Project ${args.id} deleted.`);
+      }),
+    ),
+});
 
-const renameCommand = Command.make("rename", { id: idArg, name: nameOption }, (opts) =>
-  Effect.gen(function* () {
-    const api = yield* apiClient;
-    const project = yield* api.projects.rename({
-      path: { id: opts.id },
-      payload: { name: opts.name },
-    });
-    yield* Console.log(`Project renamed to "${project.name}".`);
-  }).pipe(handleErrors),
-);
-
-const deleteCommand = Command.make("delete", { id: idArg }, (opts) =>
-  Effect.gen(function* () {
-    const api = yield* apiClient;
-    yield* api.projects.delete({ path: { id: opts.id } });
-    yield* Console.log(`Project ${opts.id} deleted.`);
-  }).pipe(handleErrors),
-);
-
-export const projectsCommand = Command.make("projects", {}, () =>
-  Console.log("Manage projects. Run with --help for subcommands."),
-).pipe(
-  Command.withSubcommands([listCommand, createCommand, getCommand, renameCommand, deleteCommand]),
-);
+export const projectsCommand = defineCommand({
+  meta: { name: "projects", description: "Manage projects" },
+  subCommands: {
+    list: listCommand,
+    create: createCommand,
+    get: getCommand,
+    rename: renameCommand,
+    delete: deleteCommand,
+  },
+});

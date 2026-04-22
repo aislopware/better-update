@@ -1,5 +1,4 @@
-import { Command } from "@effect/cli";
-import { Console } from "effect";
+import { defineCommand } from "citty";
 
 import { createCommand } from "./create";
 import { deleteCommand } from "./delete";
@@ -9,16 +8,15 @@ import { resumeCommand } from "./resume";
 import { rolloutCommand } from "./rollout";
 import { updateCommand } from "./update";
 
-export const channelsCommand = Command.make("channels", {}, () =>
-  Console.log("Manage channels. Run with --help for subcommands."),
-).pipe(
-  Command.withSubcommands([
-    listCommand,
-    createCommand,
-    updateCommand,
-    pauseCommand,
-    resumeCommand,
-    deleteCommand,
-    rolloutCommand,
-  ]),
-);
+export const channelsCommand = defineCommand({
+  meta: { name: "channels", description: "Manage channels" },
+  subCommands: {
+    list: listCommand,
+    create: createCommand,
+    update: updateCommand,
+    pause: pauseCommand,
+    resume: resumeCommand,
+    delete: deleteCommand,
+    rollout: rolloutCommand,
+  },
+});

@@ -1,13 +1,15 @@
-import { Command as CliCommand, Options } from "@effect/cli";
-import { Cause, Effect } from "effect";
+import { defineCommand } from "citty";
 
-import { exitWith } from "../application/command-exit";
 import { runLogin } from "../application/login";
+import { runEffect } from "../lib/citty-effect";
 
-const manualApiKey = Options.boolean("api-key");
-
-const loginFailed = (cause: Cause.Cause<unknown>) => exitWith(1, Cause.pretty(cause));
-
-export const loginCommand = CliCommand.make("login", { manualApiKey }, (opts) =>
-  runLogin({ manualApiKey: opts.manualApiKey }).pipe(Effect.catchAllCause(loginFailed)),
-);
+export const loginCommand = defineCommand({
+  meta: { name: "login", description: "Log in to better-update" },
+  args: {
+    "api-key": {
+      type: "boolean",
+      description: "Paste an API key manually instead of opening the browser",
+    },
+  },
+  run: async ({ args }) => runEffect(runLogin({ manualApiKey: args["api-key"] ?? false })),
+});

@@ -1,27 +1,31 @@
-import { Command, Options } from "@effect/cli";
+import { defineCommand } from "citty";
 import { Console, Effect } from "effect";
 
 import { readProjectId } from "../../lib/app-json";
+import { runEffect } from "../../lib/citty-effect";
 import { apiClient } from "../../services/api-client";
-import { handleEnvCommandErrors } from "./helpers";
+import { envErrorExtras } from "./helpers";
 
-const environmentOption = Options.text("environment").pipe(Options.withDefault("production"));
+export const exportCommand = defineCommand({
+  meta: { name: "export", description: "Print env vars in KEY='value' format" },
+  args: {
+    environment: { type: "string", default: "production", description: "Target environment" },
+  },
+  run: async ({ args }) =>
+    runEffect(
+      Effect.gen(function* () {
+        const projectId = yield* readProjectId;
+        const api = yield* apiClient;
 
-export const exportCommand = Command.make(
-  "export",
-  { environment: environmentOption },
-  ({ environment }) =>
-    Effect.gen(function* () {
-      const projectId = yield* readProjectId;
-      const api = yield* apiClient;
+        const result = yield* api["env-vars"].export({
+          urlParams: { projectId, environment: args.environment },
+        });
 
-      const result = yield* api["env-vars"].export({
-        urlParams: { projectId, environment },
-      });
-
-      for (const item of result.items) {
-        const escaped = item.value.replaceAll("'", String.raw`'\''`);
-        yield* Console.log(`${item.key}='${escaped}'`);
-      }
-    }).pipe(handleEnvCommandErrors),
-);
+        for (const item of result.items) {
+          const escaped = item.value.replaceAll("'", String.raw`'\''`);
+          yield* Console.log(`${item.key}='${escaped}'`);
+        }
+      }),
+      envErrorExtras,
+    ),
+});

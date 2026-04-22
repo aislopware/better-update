@@ -1,40 +1,42 @@
-import { Command, Options } from "@effect/cli";
-import { Console, Effect, Option } from "effect";
+import { defineCommand } from "citty";
+import { Console, Effect } from "effect";
 
 import { readProjectId } from "../../lib/app-json";
+import { runEffect } from "../../lib/citty-effect";
 import { printTable } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
-import { handleAnalyticsCommandErrors } from "./helpers";
 
-const period = Options.choice("period", ["1d", "7d", "30d", "90d"]).pipe(Options.optional);
+export const adoptionCommand = defineCommand({
+  meta: { name: "adoption", description: "Show update adoption across devices" },
+  args: {
+    period: { type: "enum", options: ["1d", "7d", "30d", "90d"], description: "Time window" },
+  },
+  run: async ({ args }) =>
+    runEffect(
+      Effect.gen(function* () {
+        const projectId = yield* readProjectId;
+        const api = yield* apiClient;
 
-export const adoptionCommand = Command.make("adoption", { period }, (opts) =>
-  Effect.gen(function* () {
-    const projectId = yield* readProjectId;
-    const api = yield* apiClient;
+        const periodFilter = args.period ? { period: args.period } : {};
 
-    const periodFilter = Option.match(opts.period, {
-      onNone: () => ({}) as Record<string, string>,
-      onSome: (periodValue) => ({ period: periodValue }) as Record<string, string>,
-    });
+        const result = yield* api.analytics.adoption({
+          urlParams: { projectId, ...periodFilter },
+        });
 
-    const result = yield* api.analytics.adoption({
-      urlParams: { projectId, ...periodFilter },
-    });
+        if (result.updates.length === 0) {
+          yield* Console.log("No adoption data found.");
+          return;
+        }
 
-    if (result.updates.length === 0) {
-      yield* Console.log("No adoption data found.");
-      return;
-    }
-
-    yield* printTable(
-      ["Update ID", "Devices", "First Seen", "Last Seen"],
-      result.updates.map((update) => [
-        update.updateId,
-        String(update.devices),
-        update.firstSeen,
-        update.lastSeen,
-      ]),
-    );
-  }).pipe(handleAnalyticsCommandErrors),
-);
+        yield* printTable(
+          ["Update ID", "Devices", "First Seen", "Last Seen"],
+          result.updates.map((update) => [
+            update.updateId,
+            String(update.devices),
+            update.firstSeen,
+            update.lastSeen,
+          ]),
+        );
+      }),
+    ),
+});

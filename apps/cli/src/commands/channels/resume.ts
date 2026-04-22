@@ -1,15 +1,22 @@
-import { Args, Command } from "@effect/cli";
+import { defineCommand } from "citty";
 import { Console, Effect } from "effect";
 
+import { runEffect } from "../../lib/citty-effect";
 import { apiClient } from "../../services/api-client";
-import { handleChannelCommandErrors } from "./helpers";
+import { channelErrorExtras } from "./helpers";
 
-const id = Args.text({ name: "id" });
-
-export const resumeCommand = Command.make("resume", { id }, (opts) =>
-  Effect.gen(function* () {
-    const api = yield* apiClient;
-    const channel = yield* api.channels.resume({ path: { id: opts.id } });
-    yield* Console.log(`Channel "${channel.name}" resumed.`);
-  }).pipe(handleChannelCommandErrors),
-);
+export const resumeCommand = defineCommand({
+  meta: { name: "resume", description: "Resume a paused channel" },
+  args: {
+    id: { type: "positional", required: true, description: "Channel ID" },
+  },
+  run: async ({ args }) =>
+    runEffect(
+      Effect.gen(function* () {
+        const api = yield* apiClient;
+        const channel = yield* api.channels.resume({ path: { id: args.id } });
+        yield* Console.log(`Channel "${channel.name}" resumed.`);
+      }),
+      channelErrorExtras,
+    ),
+});

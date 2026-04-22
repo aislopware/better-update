@@ -1,38 +1,42 @@
-import { Command, Options } from "@effect/cli";
-import { Effect, Option } from "effect";
+import { defineCommand } from "citty";
+import { Effect } from "effect";
 
 import { readProjectId } from "../../lib/app-json";
+import { runEffect } from "../../lib/citty-effect";
+import { parseLimit } from "../../lib/cli-schemas";
 import { printTable } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
-import { handleBuildsCommandErrors } from "./helpers";
 
-const platform = Options.choice("platform", ["ios", "android"]).pipe(Options.optional);
-const limit = Options.integer("limit").pipe(Options.withDefault(10));
+export const listCommand = defineCommand({
+  meta: { name: "list", description: "List builds for the linked project" },
+  args: {
+    platform: { type: "enum", options: ["ios", "android"], description: "Filter by platform" },
+    limit: { type: "string", default: "10", description: "Max rows (default 10)" },
+  },
+  run: async ({ args }) =>
+    runEffect(
+      Effect.gen(function* () {
+        const limit = yield* parseLimit(args.limit, 10);
+        const projectId = yield* readProjectId;
+        const api = yield* apiClient;
 
-export const listCommand = Command.make("list", { platform, limit }, (opts) =>
-  Effect.gen(function* () {
-    const projectId = yield* readProjectId;
-    const api = yield* apiClient;
+        const platformFilter = args.platform ? { platform: args.platform } : {};
 
-    const platformFilter = Option.match(opts.platform, {
-      onNone: () => ({}) as Record<string, string>,
-      onSome: (platformValue) => ({ platform: platformValue }) as Record<string, string>,
-    });
+        const { items } = yield* api.builds.list({
+          urlParams: { projectId, ...platformFilter, page: 1, limit },
+        });
 
-    const { items } = yield* api.builds.list({
-      urlParams: { projectId, ...platformFilter, page: 1, limit: opts.limit },
-    });
-
-    yield* printTable(
-      ["ID", "Platform", "Profile", "Distribution", "Version", "Created"],
-      items.map((build) => [
-        build.id,
-        build.platform,
-        build.profile,
-        build.distribution,
-        build.appVersion ?? "-",
-        build.createdAt,
-      ]),
-    );
-  }).pipe(handleBuildsCommandErrors),
-);
+        yield* printTable(
+          ["ID", "Platform", "Profile", "Distribution", "Version", "Created"],
+          items.map((build) => [
+            build.id,
+            build.platform,
+            build.profile,
+            build.distribution,
+            build.appVersion ?? "-",
+            build.createdAt,
+          ]),
+        );
+      }),
+    ),
+});

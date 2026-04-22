@@ -1,35 +1,37 @@
-import { Command, Options } from "@effect/cli";
-import { Effect, Option } from "effect";
+import { defineCommand } from "citty";
+import { Effect } from "effect";
 
 import { readProjectId } from "../../lib/app-json";
+import { runEffect } from "../../lib/citty-effect";
 import { printKeyValue } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
-import { handleAnalyticsCommandErrors } from "./helpers";
 
-const updateId = Options.text("update-id");
-const period = Options.choice("period", ["1d", "7d", "30d", "90d"]).pipe(Options.optional);
+export const updatesCommand = defineCommand({
+  meta: { name: "updates", description: "Stats for a specific update" },
+  args: {
+    "update-id": { type: "string", required: true, description: "Update ID" },
+    period: { type: "enum", options: ["1d", "7d", "30d", "90d"], description: "Time window" },
+  },
+  run: async ({ args }) =>
+    runEffect(
+      Effect.gen(function* () {
+        const projectId = yield* readProjectId;
+        const api = yield* apiClient;
 
-export const updatesCommand = Command.make("updates", { updateId, period }, (opts) =>
-  Effect.gen(function* () {
-    const projectId = yield* readProjectId;
-    const api = yield* apiClient;
+        const periodFilter = args.period ? { period: args.period } : {};
 
-    const periodFilter = Option.match(opts.period, {
-      onNone: () => ({}) as Record<string, string>,
-      onSome: (periodValue) => ({ period: periodValue }) as Record<string, string>,
-    });
+        const result = yield* api.analytics.updates({
+          urlParams: { projectId, updateId: args["update-id"], ...periodFilter },
+        });
 
-    const result = yield* api.analytics.updates({
-      urlParams: { projectId, updateId: opts.updateId, ...periodFilter },
-    });
-
-    yield* printKeyValue([
-      ["Update ID", result.updateId],
-      ["Total Requests", String(result.totalRequests)],
-      ["Unique Devices", String(result.uniqueDevices)],
-      ["Manifest", String(result.byResponseType.manifest)],
-      ["Directive", String(result.byResponseType.directive)],
-      ["No Update", String(result.byResponseType.no_update)],
-    ]);
-  }).pipe(handleAnalyticsCommandErrors),
-);
+        yield* printKeyValue([
+          ["Update ID", result.updateId],
+          ["Total Requests", String(result.totalRequests)],
+          ["Unique Devices", String(result.uniqueDevices)],
+          ["Manifest", String(result.byResponseType.manifest)],
+          ["Directive", String(result.byResponseType.directive)],
+          ["No Update", String(result.byResponseType.no_update)],
+        ]);
+      }),
+    ),
+});
