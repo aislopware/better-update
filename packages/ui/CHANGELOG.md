@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.3.0](https://github.com/better-update/better-update/compare/@better-update/ui@0.1.0...@better-update/ui@0.3.0) (2026-04-22)
+
+### Features
+
+* **ui,apps:** tighten motion curves, press feedback, reduced-motion ([67dc84d](https://github.com/better-update/better-update/commit/67dc84df176212db51ad8692991b5435b2f2e2a7)) - by @trancong12102
+* **ui:** scoped transitions, pending state, motion-reduce ([80e3f83](https://github.com/better-update/better-update/commit/80e3f83ba08dcc72bf3a0ab41c5bb8ac0d0946a8)) - by @
+
 ## [0.2.0](https://github.com/better-update/better-update/compare/@better-update/ui@0.1.0...@better-update/ui@0.2.0) (2026-04-22)
 
 ### Features

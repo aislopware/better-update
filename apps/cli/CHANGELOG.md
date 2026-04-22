@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.6.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.5.0...@better-update/cli@0.6.0) (2026-04-22)
+
+### Features
+
+* **cli:** add `builds upload` for push-only flow ([a5ff2a8](https://github.com/better-update/better-update/commit/a5ff2a8260dc4ee948da1121c667f8b07b5fa501)) - by @trancong12102
+
 ## [0.5.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.4.1...@better-update/cli@0.5.0) (2026-04-22)
 
 ### Features

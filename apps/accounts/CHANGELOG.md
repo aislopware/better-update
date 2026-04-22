@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.4.0](https://github.com/better-update/better-update/compare/@better-update/accounts@0.3.0...@better-update/accounts@0.4.0) (2026-04-22)
+
+### Features
+
+* **ui,apps:** tighten motion curves, press feedback, reduced-motion ([67dc84d](https://github.com/better-update/better-update/commit/67dc84df176212db51ad8692991b5435b2f2e2a7)) - by @trancong12102
+
 ## [0.3.0](https://github.com/better-update/better-update/compare/@better-update/accounts@0.2.0...@better-update/accounts@0.3.0) (2026-04-22)
 
 ### Features
