@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.6.2](https://github.com/better-update/better-update/compare/@better-update/cli@0.6.1...@better-update/cli@0.6.2) (2026-04-22)
+
+### Bug Fixes
+
+* **cli:** point bin/main/exports at .mjs to match tsdown output ([11b131c](https://github.com/better-update/better-update/commit/11b131caff0fcb0cee082232674aa4aff35ddb6d)) - by @trancong12102
+
 ## [0.6.1](https://github.com/better-update/better-update/compare/@better-update/cli@0.6.0...@better-update/cli@0.6.1) (2026-04-22)
 
 **Note:** Version bump only for package @better-update/cli
