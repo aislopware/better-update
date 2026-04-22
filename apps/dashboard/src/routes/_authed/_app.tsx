@@ -237,29 +237,14 @@ const UserMenu = () => {
             variant="destructive"
             onClick={handleLogout}
             disabled={isLoggingOut}
-            data-pending={isLoggingOut || undefined}
             closeOnClick={false}
           >
-            <span className="relative inline-flex size-4 items-center justify-center">
-              <Loader2Icon
-                className="absolute size-4 animate-spin transition-opacity duration-150 ease-out"
-                style={{ opacity: isLoggingOut ? 1 : 0 }}
-              />
-              <LogOutIcon
-                strokeWidth={2}
-                className="absolute size-4 transition-[opacity,filter] duration-150 ease-out"
-                style={{
-                  opacity: isLoggingOut ? 0 : 1,
-                  filter: isLoggingOut ? "blur(2px)" : "blur(0)",
-                }}
-              />
-            </span>
-            <span
-              className="transition-[opacity,filter] duration-150 ease-out"
-              style={{ filter: isLoggingOut ? "blur(1px)" : "blur(0)" }}
-            >
-              {isLoggingOut ? "Logging out…" : "Log out"}
-            </span>
+            {isLoggingOut ? (
+              <Loader2Icon className="size-4 animate-spin" />
+            ) : (
+              <LogOutIcon strokeWidth={2} className="size-4" />
+            )}
+            <span>{isLoggingOut ? "Logging out…" : "Log out"}</span>
           </DropdownMenuItem>
         </DropdownMenuGroup>
       </DropdownMenuContent>
