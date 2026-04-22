@@ -5,7 +5,7 @@ import { formatCause } from "./format-error";
 
 import type { CliRuntime } from "../services/cli-runtime";
 
-type ExitCode = 1 | 2 | 3 | 4 | 5 | 6;
+type ExitCode = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 interface TaggedError {
   readonly message: string;
@@ -20,6 +20,7 @@ const BASE_TAG_MAP: Record<string, ExitCode> = {
   Conflict: 1,
   Forbidden: 1,
   BadRequest: 2,
+  InvalidArgumentError: 2,
 };
 
 const SYSTEM_TAG_MESSAGE: Record<string, (error: TaggedError) => string> = {

@@ -1,15 +1,24 @@
-import { Args, Command } from "@effect/cli";
+import { defineCommand } from "citty";
 import { Console, Effect } from "effect";
 
+import { runEffect } from "../../lib/citty-effect";
 import { apiClient } from "../../services/api-client";
-import { handleUpdateCommandErrors } from "./helpers";
+import { updateErrorExtras } from "./helpers";
 
-const groupId = Args.text({ name: "groupId" });
-
-export const deleteCommand = Command.make("delete", { groupId }, (opts) =>
-  Effect.gen(function* () {
-    const api = yield* apiClient;
-    const result = yield* api.updates.deleteGroup({ path: { groupId: opts.groupId } });
-    yield* Console.log(`Deleted ${String(result.deleted)} update(s) from group ${opts.groupId}.`);
-  }).pipe(handleUpdateCommandErrors),
-);
+export const deleteCommand = defineCommand({
+  meta: { name: "delete", description: "Delete an update group" },
+  args: {
+    groupId: { type: "positional", required: true, description: "Update group ID" },
+  },
+  run: async ({ args }) =>
+    runEffect(
+      Effect.gen(function* () {
+        const api = yield* apiClient;
+        const result = yield* api.updates.deleteGroup({ path: { groupId: args.groupId } });
+        yield* Console.log(
+          `Deleted ${String(result.deleted)} update(s) from group ${args.groupId}.`,
+        );
+      }),
+      updateErrorExtras,
+    ),
+});

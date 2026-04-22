@@ -1,12 +1,7 @@
 #!/usr/bin/env node
 
-import process from "node:process";
+import { defineCommand, runMain } from "citty";
 
-import { Command } from "@effect/cli";
-import { NodeRuntime } from "@effect/platform-node";
-import { Console, Effect } from "effect";
-
-import { CliLive } from "./app-layer";
 import { analyticsCommand } from "./commands/analytics";
 import { auditLogsCommand } from "./commands/audit-logs";
 import { branchesCommand } from "./commands/branches";
@@ -23,31 +18,29 @@ import { projectsCommand } from "./commands/projects";
 import { statusCommand } from "./commands/status";
 import { updateCommand } from "./commands/update";
 
-const command = Command.make("better-update", {}, () =>
-  Console.log("better-update CLI - Run with --help to see available commands"),
-).pipe(
-  Command.withSubcommands([
-    loginCommand,
-    logoutCommand,
-    initCommand,
-    statusCommand,
-    projectsCommand,
-    branchesCommand,
-    channelsCommand,
-    buildCommand,
-    buildsCommand,
-    credentialsCommand,
-    envCommand,
-    fingerprintCommand,
-    updateCommand,
-    analyticsCommand,
-    auditLogsCommand,
-  ]),
-);
-
-const cli = Command.run(command, {
-  name: "better-update",
-  version: "0.1.0",
+const main = defineCommand({
+  meta: {
+    name: "better-update",
+    version: "0.1.0",
+    description: "Publish OTA updates and builds for Expo apps",
+  },
+  subCommands: {
+    login: loginCommand,
+    logout: logoutCommand,
+    init: initCommand,
+    status: statusCommand,
+    projects: projectsCommand,
+    branches: branchesCommand,
+    channels: channelsCommand,
+    build: buildCommand,
+    builds: buildsCommand,
+    credentials: credentialsCommand,
+    env: envCommand,
+    fingerprint: fingerprintCommand,
+    update: updateCommand,
+    analytics: analyticsCommand,
+    "audit-logs": auditLogsCommand,
+  },
 });
 
-cli(process.argv).pipe(Effect.provide(CliLive), NodeRuntime.runMain);
+await runMain(main);

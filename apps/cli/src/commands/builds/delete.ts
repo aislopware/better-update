@@ -1,15 +1,20 @@
-import { Args, Command } from "@effect/cli";
+import { defineCommand } from "citty";
 import { Console, Effect } from "effect";
 
+import { runEffect } from "../../lib/citty-effect";
 import { apiClient } from "../../services/api-client";
-import { handleBuildsCommandErrors } from "./helpers";
 
-const id = Args.text({ name: "id" });
-
-export const deleteCommand = Command.make("delete", { id }, (opts) =>
-  Effect.gen(function* () {
-    const api = yield* apiClient;
-    yield* api.builds.delete({ path: { id: opts.id } });
-    yield* Console.log(`Build ${opts.id} deleted.`);
-  }).pipe(handleBuildsCommandErrors),
-);
+export const deleteCommand = defineCommand({
+  meta: { name: "delete", description: "Delete a build" },
+  args: {
+    id: { type: "positional", required: true, description: "Build ID" },
+  },
+  run: async ({ args }) =>
+    runEffect(
+      Effect.gen(function* () {
+        const api = yield* apiClient;
+        yield* api.builds.delete({ path: { id: args.id } });
+        yield* Console.log(`Build ${args.id} deleted.`);
+      }),
+    ),
+});

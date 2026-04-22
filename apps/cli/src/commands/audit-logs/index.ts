@@ -1,8 +1,10 @@
-import { Command } from "@effect/cli";
-import { Console } from "effect";
+import { defineCommand } from "citty";
 
 import { listCommand } from "./list";
 
-export const auditLogsCommand = Command.make("audit-logs", {}, () =>
-  Console.log("View audit logs. Run with --help for subcommands."),
-).pipe(Command.withSubcommands([listCommand]));
+export const auditLogsCommand = defineCommand({
+  meta: { name: "audit-logs", description: "View audit logs" },
+  subCommands: {
+    list: listCommand,
+  },
+});

@@ -271,7 +271,7 @@ describe.skipIf(!hasAndroidSdk)("CLI build journey — Android", () => {
     expect(result.stdout).toMatch(/^Bytes\s+\d+$/m);
     expect(result.stdout).toMatch(/^Upload\s+skipped \(--no-upload\)$/m);
 
-    const artifactMatch = /^Artifact\s+(.+\.apk)\s*$/m.exec(result.stdout);
+    const artifactMatch = /^Artifact\s{2,}(.+\.apk)\s*$/m.exec(result.stdout);
     expect(artifactMatch).not.toBeNull();
     const sha256Match = /^SHA-256\s+([a-f0-9]{64})\s*$/m.exec(result.stdout);
     expect(sha256Match).not.toBeNull();

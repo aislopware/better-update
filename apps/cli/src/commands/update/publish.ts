@@ -1,94 +1,85 @@
-import { Command, Options } from "@effect/cli";
-import { Console, Effect, Option } from "effect";
+import { defineCommand } from "citty";
+import { Console, Effect } from "effect";
 
-import { exitWith } from "../../application/command-exit";
 import { runUpdatePublish } from "../../application/update-publish";
-import { rolloutPercentageOption } from "../../lib/cli-schemas";
+import { runEffect } from "../../lib/citty-effect";
+import { parseRolloutPercentage } from "../../lib/cli-schemas";
 import { printTable } from "../../lib/output";
 
-const branch = Options.text("branch").pipe(Options.optional);
-const platform = Options.choice("platform", ["ios", "android", "all"] as const).pipe(
-  Options.withDefault("all"),
-);
-const message = Options.text("message").pipe(Options.optional);
-const environment = Options.text("environment").pipe(Options.withDefault("production"));
-const auto = Options.boolean("auto").pipe(Options.withDefault(false));
-const clear = Options.boolean("clear");
-const rolloutPercentage = rolloutPercentageOption("rollout-percentage").pipe(Options.optional);
-const manifestBodyFile = Options.text("manifest-body-file").pipe(Options.optional);
-const signatureFile = Options.text("signature-file").pipe(Options.optional);
-const certificateChainFile = Options.text("certificate-chain-file").pipe(Options.optional);
-const manifestBodyFileIos = Options.text("manifest-body-file-ios").pipe(Options.optional);
-const signatureFileIos = Options.text("signature-file-ios").pipe(Options.optional);
-const certificateChainFileIos = Options.text("certificate-chain-file-ios").pipe(Options.optional);
-const manifestBodyFileAndroid = Options.text("manifest-body-file-android").pipe(Options.optional);
-const signatureFileAndroid = Options.text("signature-file-android").pipe(Options.optional);
-const certificateChainFileAndroid = Options.text("certificate-chain-file-android").pipe(
-  Options.optional,
-);
+const PUBLISH_EXIT_EXTRAS = {
+  BuildProfileError: 2,
+  RuntimeVersionError: 2,
+  EnvExportError: 7,
+  BuildFailedError: 6,
+  UpdatePublishError: 7,
+} as const;
 
-export const publishCommand = Command.make(
-  "publish",
-  {
-    branch,
-    platform,
-    message,
-    environment,
-    auto,
-    clear,
-    rolloutPercentage,
-    manifestBodyFile,
-    signatureFile,
-    certificateChainFile,
-    manifestBodyFileIos,
-    signatureFileIos,
-    certificateChainFileIos,
-    manifestBodyFileAndroid,
-    signatureFileAndroid,
-    certificateChainFileAndroid,
+export const publishCommand = defineCommand({
+  meta: { name: "publish", description: "Publish a new OTA update group" },
+  args: {
+    branch: { type: "string", description: "Target branch name" },
+    platform: {
+      type: "enum",
+      options: ["ios", "android", "all"],
+      default: "all",
+      description: "Platform(s) to publish",
+    },
+    message: { type: "string", description: "Optional update message" },
+    environment: { type: "string", default: "production", description: "Env vars scope" },
+    auto: { type: "boolean", description: "Skip prompts (for CI)" },
+    clear: { type: "boolean", description: "Drop existing assets before upload" },
+    "rollout-percentage": { type: "string", description: "Initial rollout percentage (1-100)" },
+    "manifest-body-file": { type: "string" },
+    "signature-file": { type: "string" },
+    "certificate-chain-file": { type: "string" },
+    "manifest-body-file-ios": { type: "string" },
+    "signature-file-ios": { type: "string" },
+    "certificate-chain-file-ios": { type: "string" },
+    "manifest-body-file-android": { type: "string" },
+    "signature-file-android": { type: "string" },
+    "certificate-chain-file-android": { type: "string" },
   },
-  (opts) =>
-    Effect.gen(function* () {
-      const result = yield* runUpdatePublish({
-        branch: Option.getOrUndefined(opts.branch),
-        platform: opts.platform,
-        message: Option.getOrUndefined(opts.message),
-        auto: opts.auto,
-        environment: opts.environment,
-        clear: opts.clear,
-        rolloutPercentage: Option.getOrUndefined(opts.rolloutPercentage),
-        manifestBodyFile: Option.getOrUndefined(opts.manifestBodyFile),
-        signatureFile: Option.getOrUndefined(opts.signatureFile),
-        certificateChainFile: Option.getOrUndefined(opts.certificateChainFile),
-        manifestBodyFileIos: Option.getOrUndefined(opts.manifestBodyFileIos),
-        signatureFileIos: Option.getOrUndefined(opts.signatureFileIos),
-        certificateChainFileIos: Option.getOrUndefined(opts.certificateChainFileIos),
-        manifestBodyFileAndroid: Option.getOrUndefined(opts.manifestBodyFileAndroid),
-        signatureFileAndroid: Option.getOrUndefined(opts.signatureFileAndroid),
-        certificateChainFileAndroid: Option.getOrUndefined(opts.certificateChainFileAndroid),
-      });
+  run: async ({ args }) =>
+    runEffect(
+      Effect.gen(function* () {
+        const rolloutPercentage = args["rollout-percentage"]
+          ? yield* parseRolloutPercentage(args["rollout-percentage"], "rollout-percentage")
+          : undefined;
 
-      yield* Console.log(`Published update group ${result.groupId} to branch "${result.branch}".`);
-      yield* Console.log("");
-      yield* printTable(
-        ["Platform", "Update ID", "Runtime Version", "Uploaded", "Reused"],
-        result.results.map((entry) => [
-          entry.platform,
-          entry.updateId,
-          entry.runtimeVersion,
-          String(entry.uploadedAssets),
-          String(entry.deduplicatedAssets),
-        ]),
-      );
-    }).pipe(
-      Effect.catchTags({
-        AuthRequiredError: (error) => exitWith(3, error.message),
-        ProjectNotLinkedError: (error) => exitWith(4, error.message),
-        BuildProfileError: (error) => exitWith(2, error.message),
-        RuntimeVersionError: (error) => exitWith(2, error.message),
-        EnvExportError: (error) => exitWith(7, error.message),
-        BuildFailedError: (error) => exitWith(6, error.message),
-        UpdatePublishError: (error) => exitWith(7, error.message),
+        const result = yield* runUpdatePublish({
+          branch: args.branch,
+          platform: args.platform,
+          message: args.message,
+          auto: args.auto ?? false,
+          environment: args.environment,
+          clear: args.clear ?? false,
+          rolloutPercentage,
+          manifestBodyFile: args["manifest-body-file"],
+          signatureFile: args["signature-file"],
+          certificateChainFile: args["certificate-chain-file"],
+          manifestBodyFileIos: args["manifest-body-file-ios"],
+          signatureFileIos: args["signature-file-ios"],
+          certificateChainFileIos: args["certificate-chain-file-ios"],
+          manifestBodyFileAndroid: args["manifest-body-file-android"],
+          signatureFileAndroid: args["signature-file-android"],
+          certificateChainFileAndroid: args["certificate-chain-file-android"],
+        });
+
+        yield* Console.log(
+          `Published update group ${result.groupId} to branch "${result.branch}".`,
+        );
+        yield* Console.log("");
+        yield* printTable(
+          ["Platform", "Update ID", "Runtime Version", "Uploaded", "Reused"],
+          result.results.map((entry) => [
+            entry.platform,
+            entry.updateId,
+            entry.runtimeVersion,
+            String(entry.uploadedAssets),
+            String(entry.deduplicatedAssets),
+          ]),
+        );
       }),
+      PUBLISH_EXIT_EXTRAS,
     ),
-);
+});

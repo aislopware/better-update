@@ -1,5 +1,4 @@
-import { Command } from "@effect/cli";
-import { Console } from "effect";
+import { defineCommand } from "citty";
 
 import { deleteCommand } from "./delete";
 import { exportCommand } from "./export";
@@ -9,16 +8,15 @@ import { listCommand } from "./list";
 import { pullCommand } from "./pull";
 import { setCommand } from "./set";
 
-export const envCommand = Command.make("env", {}, () =>
-  Console.log("Manage environment variables. Run with --help for subcommands."),
-).pipe(
-  Command.withSubcommands([
-    listCommand,
-    getCommand,
-    setCommand,
-    deleteCommand,
-    importCommand,
-    exportCommand,
-    pullCommand,
-  ]),
-);
+export const envCommand = defineCommand({
+  meta: { name: "env", description: "Manage environment variables" },
+  subCommands: {
+    list: listCommand,
+    get: getCommand,
+    set: setCommand,
+    delete: deleteCommand,
+    import: importCommand,
+    export: exportCommand,
+    pull: pullCommand,
+  },
+});

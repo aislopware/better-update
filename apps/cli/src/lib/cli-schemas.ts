@@ -1,5 +1,6 @@
-import { Args, Options } from "@effect/cli";
-import { ParseResult, Schema } from "effect";
+import { Effect, ParseResult, Schema } from "effect";
+
+import { InvalidArgumentError } from "./exit-codes";
 
 export const RolloutPercentage = Schema.Number.pipe(
   Schema.int(),
@@ -8,9 +9,6 @@ export const RolloutPercentage = Schema.Number.pipe(
   message: () => "Rollout percentage must be between 1 and 100.",
   identifier: "RolloutPercentage",
 });
-
-export const rolloutPercentageOption = (name: string): Options.Options<number> =>
-  Options.integer(name).pipe(Options.withSchema(RolloutPercentage));
 
 export const KeyValuePair = Schema.Struct({
   key: Schema.String,
@@ -35,5 +33,39 @@ export const KeyValueFromString = Schema.transformOrFail(Schema.String, KeyValue
   encode: ({ key, value }) => ParseResult.succeed(`${key}=${value}`),
 });
 
-export const keyValueArg = (name: string): Args.Args<KeyValuePair> =>
-  Args.text({ name }).pipe(Args.withSchema(KeyValueFromString));
+export const parseRolloutPercentage = (
+  raw: string,
+  flag: string,
+): Effect.Effect<number, InvalidArgumentError> =>
+  Effect.try({
+    try: () => Schema.decodeUnknownSync(RolloutPercentage)(Number(raw)),
+    catch: () =>
+      new InvalidArgumentError({
+        message: `--${flag} must be an integer between 1 and 100, got "${raw}".`,
+      }),
+  });
+
+export const parseKeyValue = (raw: string): Effect.Effect<KeyValuePair, InvalidArgumentError> =>
+  Effect.try({
+    try: () => Schema.decodeUnknownSync(KeyValueFromString)(raw),
+    catch: () =>
+      new InvalidArgumentError({
+        message: "Invalid format. Use KEY=VALUE (e.g. API_KEY=abc123)",
+      }),
+  });
+
+export const parseLimit = (
+  raw: string | undefined,
+  defaultValue: number,
+): Effect.Effect<number, InvalidArgumentError> => {
+  if (raw === undefined) {
+    return Effect.succeed(defaultValue);
+  }
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    return Effect.fail(
+      new InvalidArgumentError({ message: `--limit must be a positive integer, got "${raw}".` }),
+    );
+  }
+  return Effect.succeed(parsed);
+};

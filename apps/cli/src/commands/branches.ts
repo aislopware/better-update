@@ -1,70 +1,97 @@
-import { Args, Command, Options } from "@effect/cli";
+import { defineCommand } from "citty";
 import { Console, Effect } from "effect";
 
 import { readProjectId } from "../lib/app-json";
-import { makeCommandErrorHandler } from "../lib/command-errors";
+import { runEffect } from "../lib/citty-effect";
 import { printKeyValue, printTable } from "../lib/output";
 import { apiClient } from "../services/api-client";
 
-const handleErrors = makeCommandErrorHandler();
+const listCommand = defineCommand({
+  meta: { name: "list", description: "List branches for the linked project" },
+  run: async () =>
+    runEffect(
+      Effect.gen(function* () {
+        const projectId = yield* readProjectId;
+        const api = yield* apiClient;
+        const { items } = yield* api.branches.list({
+          urlParams: { projectId, page: 1, limit: 1000 },
+        });
 
-const idArg = Args.text({ name: "id" });
-const nameOption = Options.text("name");
+        if (items.length === 0) {
+          yield* Console.log("No branches found.");
+          return;
+        }
 
-const listCommand = Command.make("list", {}, () =>
-  Effect.gen(function* () {
-    const projectId = yield* readProjectId;
-    const api = yield* apiClient;
-    const { items } = yield* api.branches.list({
-      urlParams: { projectId, page: 1, limit: 1000 },
-    });
+        yield* printTable(
+          ["ID", "Name", "Created"],
+          items.map((branch) => [branch.id, branch.name, branch.createdAt]),
+        );
+      }),
+    ),
+});
 
-    if (items.length === 0) {
-      yield* Console.log("No branches found.");
-      return;
-    }
+const createCommand = defineCommand({
+  meta: { name: "create", description: "Create a branch" },
+  args: {
+    name: { type: "string", required: true, description: "Branch name" },
+  },
+  run: async ({ args }) =>
+    runEffect(
+      Effect.gen(function* () {
+        const projectId = yield* readProjectId;
+        const api = yield* apiClient;
+        const branch = yield* api.branches.create({
+          payload: { projectId, name: args.name },
+        });
+        yield* printKeyValue([
+          ["ID", branch.id],
+          ["Name", branch.name],
+          ["Created", branch.createdAt],
+        ]);
+      }),
+    ),
+});
 
-    yield* printTable(
-      ["ID", "Name", "Created"],
-      items.map((branch) => [branch.id, branch.name, branch.createdAt]),
-    );
-  }).pipe(handleErrors),
-);
+const renameCommand = defineCommand({
+  meta: { name: "rename", description: "Rename a branch" },
+  args: {
+    id: { type: "positional", required: true, description: "Branch ID" },
+    name: { type: "string", required: true, description: "New branch name" },
+  },
+  run: async ({ args }) =>
+    runEffect(
+      Effect.gen(function* () {
+        const api = yield* apiClient;
+        const branch = yield* api.branches.rename({
+          path: { id: args.id },
+          payload: { name: args.name },
+        });
+        yield* Console.log(`Branch renamed to "${branch.name}".`);
+      }),
+    ),
+});
 
-const createCommand = Command.make("create", { name: nameOption }, (opts) =>
-  Effect.gen(function* () {
-    const projectId = yield* readProjectId;
-    const api = yield* apiClient;
-    const branch = yield* api.branches.create({
-      payload: { projectId, name: opts.name },
-    });
-    yield* printKeyValue([
-      ["ID", branch.id],
-      ["Name", branch.name],
-      ["Created", branch.createdAt],
-    ]);
-  }).pipe(handleErrors),
-);
+const deleteCommand = defineCommand({
+  meta: { name: "delete", description: "Delete a branch" },
+  args: {
+    id: { type: "positional", required: true, description: "Branch ID" },
+  },
+  run: async ({ args }) =>
+    runEffect(
+      Effect.gen(function* () {
+        const api = yield* apiClient;
+        yield* api.branches.delete({ path: { id: args.id } });
+        yield* Console.log(`Branch ${args.id} deleted.`);
+      }),
+    ),
+});
 
-const renameCommand = Command.make("rename", { id: idArg, name: nameOption }, (opts) =>
-  Effect.gen(function* () {
-    const api = yield* apiClient;
-    const branch = yield* api.branches.rename({
-      path: { id: opts.id },
-      payload: { name: opts.name },
-    });
-    yield* Console.log(`Branch renamed to "${branch.name}".`);
-  }).pipe(handleErrors),
-);
-
-const deleteCommand = Command.make("delete", { id: idArg }, (opts) =>
-  Effect.gen(function* () {
-    const api = yield* apiClient;
-    yield* api.branches.delete({ path: { id: opts.id } });
-    yield* Console.log(`Branch ${opts.id} deleted.`);
-  }).pipe(handleErrors),
-);
-
-export const branchesCommand = Command.make("branches", {}, () =>
-  Console.log("Manage branches. Run with --help for subcommands."),
-).pipe(Command.withSubcommands([listCommand, createCommand, renameCommand, deleteCommand]));
+export const branchesCommand = defineCommand({
+  meta: { name: "branches", description: "Manage branches" },
+  subCommands: {
+    list: listCommand,
+    create: createCommand,
+    rename: renameCommand,
+    delete: deleteCommand,
+  },
+});

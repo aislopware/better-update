@@ -1,10 +1,14 @@
-import { Command } from "@effect/cli";
-import { Console } from "effect";
+import { defineCommand } from "citty";
 
 import { deleteCommand } from "./delete";
 import { listCommand } from "./list";
 import { uploadCommand } from "./upload";
 
-export const credentialsCommand = Command.make("credentials", {}, () =>
-  Console.log("Manage credentials. Run with --help for subcommands."),
-).pipe(Command.withSubcommands([listCommand, uploadCommand, deleteCommand]));
+export const credentialsCommand = defineCommand({
+  meta: { name: "credentials", description: "Manage credentials" },
+  subCommands: {
+    list: listCommand,
+    upload: uploadCommand,
+    delete: deleteCommand,
+  },
+});

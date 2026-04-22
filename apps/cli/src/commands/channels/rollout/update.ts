@@ -1,23 +1,31 @@
-import { Args, Command } from "@effect/cli";
+import { defineCommand } from "citty";
 import { Console, Effect } from "effect";
 
-import { rolloutPercentageOption } from "../../../lib/cli-schemas";
+import { runEffect } from "../../../lib/citty-effect";
+import { parseRolloutPercentage } from "../../../lib/cli-schemas";
 import { apiClient } from "../../../services/api-client";
-import { handleChannelCommandErrors } from "../helpers";
+import { channelErrorExtras } from "../helpers";
 
-const channelId = Args.text({ name: "channelId" });
-const percentage = rolloutPercentageOption("percentage");
+export const updateCommand = defineCommand({
+  meta: { name: "update", description: "Update the rollout percentage on a channel" },
+  args: {
+    channelId: { type: "positional", required: true, description: "Channel ID" },
+    percentage: { type: "string", required: true, description: "New rollout percentage (1-100)" },
+  },
+  run: async ({ args }) =>
+    runEffect(
+      Effect.gen(function* () {
+        const percentage = yield* parseRolloutPercentage(args.percentage, "percentage");
+        const api = yield* apiClient;
+        const channel = yield* api.channels.updateBranchRollout({
+          path: { id: args.channelId },
+          payload: { percentage },
+        });
 
-export const updateCommand = Command.make("update", { channelId, percentage }, (opts) =>
-  Effect.gen(function* () {
-    const api = yield* apiClient;
-    const channel = yield* api.channels.updateBranchRollout({
-      path: { id: opts.channelId },
-      payload: { percentage: opts.percentage },
-    });
-
-    yield* Console.log(
-      `Updated rollout on channel "${channel.name}" to ${String(opts.percentage)}%.`,
-    );
-  }).pipe(handleChannelCommandErrors),
-);
+        yield* Console.log(
+          `Updated rollout on channel "${channel.name}" to ${String(percentage)}%.`,
+        );
+      }),
+      channelErrorExtras,
+    ),
+});

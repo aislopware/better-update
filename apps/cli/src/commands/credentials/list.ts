@@ -1,33 +1,39 @@
-import { Command, Options } from "@effect/cli";
-import { Console, Effect, Option } from "effect";
+import { defineCommand } from "citty";
+import { Console, Effect } from "effect";
 
+import { runEffect } from "../../lib/citty-effect";
 import { filterCredentials, listAllCredentials } from "../../lib/credentials-manager";
 import { printTable } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 
-const platform = Options.choice("platform", ["ios", "android"] as const).pipe(Options.optional);
+export const listCommand = defineCommand({
+  meta: { name: "list", description: "List credentials across platforms" },
+  args: {
+    platform: { type: "enum", options: ["ios", "android"], description: "Filter by platform" },
+  },
+  run: async ({ args }) =>
+    runEffect(
+      Effect.gen(function* () {
+        const api = yield* apiClient;
+        const rows = yield* listAllCredentials(api);
 
-export const listCommand = Command.make("list", { platform }, (opts) =>
-  Effect.gen(function* () {
-    const api = yield* apiClient;
-    const rows = yield* listAllCredentials(api);
+        const filtered = filterCredentials(rows, args.platform ? { platform: args.platform } : {});
 
-    const filtered = filterCredentials(
-      rows,
-      Option.match(opts.platform, {
-        onNone: () => ({}),
-        onSome: (platformValue) => ({ platform: platformValue }),
+        if (filtered.length === 0) {
+          yield* Console.log("No credentials found.");
+          return;
+        }
+
+        yield* printTable(
+          ["ID", "Name", "Platform", "Type", "Distribution"],
+          filtered.map((row) => [
+            row.id,
+            row.name,
+            row.platform,
+            row.type,
+            row.distribution ?? "-",
+          ]),
+        );
       }),
-    );
-
-    if (filtered.length === 0) {
-      yield* Console.log("No credentials found.");
-      return;
-    }
-
-    yield* printTable(
-      ["ID", "Name", "Platform", "Type", "Distribution"],
-      filtered.map((row) => [row.id, row.name, row.platform, row.type, row.distribution ?? "-"]),
-    );
-  }),
-);
+    ),
+});

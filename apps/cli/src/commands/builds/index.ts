@@ -1,5 +1,4 @@
-import { Command } from "@effect/cli";
-import { Console } from "effect";
+import { defineCommand } from "citty";
 
 import { compatibilityMatrixCommand } from "./compatibility-matrix";
 import { deleteCommand } from "./delete";
@@ -8,15 +7,14 @@ import { installLinkCommand } from "./install-link";
 import { listCommand } from "./list";
 import { uploadCommand } from "./upload";
 
-export const buildsCommand = Command.make("builds", {}, () =>
-  Console.log("Manage builds. Run with --help for subcommands."),
-).pipe(
-  Command.withSubcommands([
-    listCommand,
-    getCommand,
-    deleteCommand,
-    installLinkCommand,
-    compatibilityMatrixCommand,
-    uploadCommand,
-  ]),
-);
+export const buildsCommand = defineCommand({
+  meta: { name: "builds", description: "Manage builds" },
+  subCommands: {
+    list: listCommand,
+    get: getCommand,
+    delete: deleteCommand,
+    "install-link": installLinkCommand,
+    "compatibility-matrix": compatibilityMatrixCommand,
+    upload: uploadCommand,
+  },
+});

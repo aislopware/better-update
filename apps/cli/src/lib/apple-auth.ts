@@ -1,13 +1,12 @@
-import { Prompt } from "@effect/cli";
 import { Effect } from "effect";
 
-import type { QuitException, Terminal } from "@effect/platform/Terminal";
 import type { Session } from "@expo/apple-utils";
 // eslint-disable-next-line import-plugin/no-namespace -- the `appleUtils` injected dependency is typed as `typeof AppleUtils` (the whole module shape); no equivalent named type exists
 import type * as AppleUtils from "@expo/apple-utils";
 
 import { CliRuntime } from "../services/cli-runtime";
 import { AppleAuthError } from "./exit-codes";
+import { promptSelect } from "./prompts";
 
 type SessionProvider = Session.SessionProvider;
 
@@ -77,7 +76,7 @@ export const resolveProvider = (
   availableProviders: readonly SessionProvider[],
   currentProviderId: number | undefined,
   cachedProviderId: number | undefined,
-): Effect.Effect<ProviderResolution, AppleAuthError | QuitException, CliRuntime | Terminal> =>
+): Effect.Effect<ProviderResolution, AppleAuthError, CliRuntime> =>
   Effect.gen(function* () {
     let switched = false;
 
@@ -119,13 +118,15 @@ export const resolveProvider = (
       return { providerId: currentProviderId, switched };
     }
 
-    const picked = yield* Prompt.select({
-      message: "Select App Store Connect provider:",
-      choices: availableProviders.map((provider) => ({
-        title: `${provider.name} [${provider.subType}] (${provider.providerId})`,
-        value: provider.providerId,
-      })),
-    });
+    const picked = yield* Effect.promise(async () =>
+      promptSelect<number>(
+        "Select App Store Connect provider:",
+        availableProviders.map((provider) => ({
+          value: provider.providerId,
+          label: `${provider.name} [${provider.subType}] (${provider.providerId})`,
+        })),
+      ),
+    );
 
     const id = yield* applyChoice(picked);
     return { providerId: id, switched };

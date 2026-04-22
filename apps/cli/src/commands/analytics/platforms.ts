@@ -1,39 +1,41 @@
-import { Command, Options } from "@effect/cli";
-import { Console, Effect, Option } from "effect";
+import { defineCommand } from "citty";
+import { Console, Effect } from "effect";
 
 import { readProjectId } from "../../lib/app-json";
+import { runEffect } from "../../lib/citty-effect";
 import { printTable } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
-import { handleAnalyticsCommandErrors } from "./helpers";
 
-const period = Options.choice("period", ["1d", "7d", "30d", "90d"]).pipe(Options.optional);
+export const platformsCommand = defineCommand({
+  meta: { name: "platforms", description: "Stats by platform" },
+  args: {
+    period: { type: "enum", options: ["1d", "7d", "30d", "90d"], description: "Time window" },
+  },
+  run: async ({ args }) =>
+    runEffect(
+      Effect.gen(function* () {
+        const projectId = yield* readProjectId;
+        const api = yield* apiClient;
 
-export const platformsCommand = Command.make("platforms", { period }, (opts) =>
-  Effect.gen(function* () {
-    const projectId = yield* readProjectId;
-    const api = yield* apiClient;
+        const periodFilter = args.period ? { period: args.period } : {};
 
-    const periodFilter = Option.match(opts.period, {
-      onNone: () => ({}) as Record<string, string>,
-      onSome: (periodValue) => ({ period: periodValue }) as Record<string, string>,
-    });
+        const result = yield* api.analytics.platforms({
+          urlParams: { projectId, ...periodFilter },
+        });
 
-    const result = yield* api.analytics.platforms({
-      urlParams: { projectId, ...periodFilter },
-    });
+        if (result.platforms.length === 0) {
+          yield* Console.log("No platform data found.");
+          return;
+        }
 
-    if (result.platforms.length === 0) {
-      yield* Console.log("No platform data found.");
-      return;
-    }
-
-    yield* printTable(
-      ["Platform", "Requests", "Devices"],
-      result.platforms.map((platform) => [
-        platform.platform,
-        String(platform.requests),
-        String(platform.devices),
-      ]),
-    );
-  }).pipe(handleAnalyticsCommandErrors),
-);
+        yield* printTable(
+          ["Platform", "Requests", "Devices"],
+          result.platforms.map((platform) => [
+            platform.platform,
+            String(platform.requests),
+            String(platform.devices),
+          ]),
+        );
+      }),
+    ),
+});

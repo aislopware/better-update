@@ -1,36 +1,48 @@
-import { Args, Command, Options } from "@effect/cli";
+import { defineCommand } from "citty";
 import { Console, Effect } from "effect";
 
 import { readProjectId } from "../../../lib/app-json";
-import { rolloutPercentageOption } from "../../../lib/cli-schemas";
+import { runEffect } from "../../../lib/citty-effect";
+import { parseRolloutPercentage } from "../../../lib/cli-schemas";
 import { apiClient } from "../../../services/api-client";
-import { handleChannelCommandErrors, resolveNamedResourceId } from "../helpers";
+import { channelErrorExtras, resolveNamedResourceId } from "../helpers";
 
-const channelId = Args.text({ name: "channelId" });
-const branch = Options.text("branch");
-const percentage = rolloutPercentageOption("percentage");
+export const createCommand = defineCommand({
+  meta: { name: "create", description: "Start a branch rollout on a channel" },
+  args: {
+    channelId: { type: "positional", required: true, description: "Channel ID" },
+    branch: { type: "string", required: true, description: "Target branch name" },
+    percentage: {
+      type: "string",
+      required: true,
+      description: "Initial rollout percentage (1-100)",
+    },
+  },
+  run: async ({ args }) =>
+    runEffect(
+      Effect.gen(function* () {
+        const percentage = yield* parseRolloutPercentage(args.percentage, "percentage");
+        const projectId = yield* readProjectId;
+        const api = yield* apiClient;
 
-export const createCommand = Command.make("create", { channelId, branch, percentage }, (opts) =>
-  Effect.gen(function* () {
-    const projectId = yield* readProjectId;
-    const api = yield* apiClient;
+        const { items: branches } = yield* api.branches.list({
+          urlParams: { projectId, page: 1, limit: 1000 },
+        });
+        const newBranchId = yield* resolveNamedResourceId({
+          items: branches,
+          kind: "Branch",
+          name: args.branch,
+        });
 
-    const { items: branches } = yield* api.branches.list({
-      urlParams: { projectId, page: 1, limit: 1000 },
-    });
-    const newBranchId = yield* resolveNamedResourceId({
-      items: branches,
-      kind: "Branch",
-      name: opts.branch,
-    });
+        const channel = yield* api.channels.createBranchRollout({
+          path: { id: args.channelId },
+          payload: { newBranchId, percentage },
+        });
 
-    const channel = yield* api.channels.createBranchRollout({
-      path: { id: opts.channelId },
-      payload: { newBranchId, percentage: opts.percentage },
-    });
-
-    yield* Console.log(
-      `Started rollout on channel "${channel.name}" to branch "${opts.branch}" at ${String(opts.percentage)}%.`,
-    );
-  }).pipe(handleChannelCommandErrors),
-);
+        yield* Console.log(
+          `Started rollout on channel "${channel.name}" to branch "${args.branch}" at ${String(percentage)}%.`,
+        );
+      }),
+      channelErrorExtras,
+    ),
+});

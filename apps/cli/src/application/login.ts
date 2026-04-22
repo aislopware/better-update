@@ -1,17 +1,13 @@
-import { Prompt } from "@effect/cli";
 import { Command } from "@effect/platform";
-import { Console, Effect, Redacted } from "effect";
+import { Console, Effect } from "effect";
 
 import type { CommandExecutor } from "@effect/platform";
 
 import { createBrowserLoginServer } from "../lib/browser-login";
+import { promptPassword } from "../lib/prompts";
 import { AuthStore } from "../services/auth-store";
 import { CliRuntime } from "../services/cli-runtime";
 import { ConfigStore } from "../services/config-store";
-
-const tokenPrompt = Prompt.password({
-  message: "Paste your API key (from dashboard > API Keys):",
-});
 
 const buildOpenBrowserCommand = (platform: NodeJS.Platform, url: string) => {
   if (platform === "darwin") {
@@ -69,7 +65,9 @@ const manualLogin = Effect.gen(function* () {
   yield* Console.log("Get your API key from the dashboard > API Keys page");
   yield* Console.log("");
 
-  const token = Redacted.value(yield* tokenPrompt);
+  const token = yield* Effect.promise(async () =>
+    promptPassword("Paste your API key (from dashboard > API Keys):"),
+  );
   const authStore = yield* AuthStore;
   yield* authStore.saveToken(token);
   yield* Console.log("");
