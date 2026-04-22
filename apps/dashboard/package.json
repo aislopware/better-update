@@ -4,6 +4,11 @@
   "private": true,
   "description": "Better Update console dashboard on Cloudflare Workers",
   "homepage": "https://github.com/better-update/better-update",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/better-update/better-update.git",
+    "directory": "apps/dashboard"
+  },
   "type": "module",
   "scripts": {
     "build": "vite build",

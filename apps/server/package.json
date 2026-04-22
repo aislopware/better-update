@@ -4,6 +4,11 @@
   "private": true,
   "description": "Better Update API server on Cloudflare Workers",
   "homepage": "https://github.com/better-update/better-update",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/better-update/better-update.git",
+    "directory": "apps/server"
+  },
   "type": "module",
   "scripts": {
     "build": "vite build",
