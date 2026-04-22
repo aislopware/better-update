@@ -2,6 +2,7 @@
 
 import { defineCommand, runMain } from "citty";
 
+import pkg from "../package.json" with { type: "json" };
 import { analyticsCommand } from "./commands/analytics";
 import { auditLogsCommand } from "./commands/audit-logs";
 import { branchesCommand } from "./commands/branches";
@@ -21,7 +22,7 @@ import { updateCommand } from "./commands/update";
 const main = defineCommand({
   meta: {
     name: "better-update",
-    version: "0.1.0",
+    version: pkg.version,
     description: "Publish OTA updates and builds for Expo apps",
   },
   subCommands: {
