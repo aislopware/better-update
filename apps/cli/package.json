@@ -8,15 +8,15 @@
     "directory": "apps/cli"
   },
   "bin": {
-    "better-update": "./dist/index.js"
+    "better-update": "./dist/index.mjs"
   },
   "files": [
     "dist"
   ],
   "type": "module",
-  "main": "./dist/index.js",
+  "main": "./dist/index.mjs",
   "exports": {
-    ".": "./dist/index.js"
+    ".": "./dist/index.mjs"
   },
   "publishConfig": {
     "access": "public"
