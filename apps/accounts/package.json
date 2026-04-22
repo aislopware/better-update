@@ -1,6 +1,6 @@
 {
   "name": "@better-update/accounts",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "private": true,
   "description": "Better Update accounts portal on Cloudflare Workers",
   "homepage": "https://github.com/better-update/better-update",

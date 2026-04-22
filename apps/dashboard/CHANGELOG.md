@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.3.0](https://github.com/better-update/better-update/compare/@better-update/dashboard@0.2.1...@better-update/dashboard@0.3.0) (2026-04-22)
+
+### Features
+
+* **dashboard,accounts:** pending state + loader on async actions ([9ce8e6d](https://github.com/better-update/better-update/commit/9ce8e6d947bd42abdb116422950c776d6bae28c5)) - by @trancong12102
+* **dashboard:** dynamic page titles per route ([9ba917c](https://github.com/better-update/better-update/commit/9ba917cf79a0c3dd1e9f04d8d2be8afca97749eb)) - by @trancong12102
+
 ## [0.2.1](https://github.com/better-update/better-update/compare/@better-update/dashboard@0.2.0...@better-update/dashboard@0.2.1) (2026-04-22)
 
 **Note:** Version bump only for package @better-update/dashboard
