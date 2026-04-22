@@ -6,6 +6,7 @@ import { deleteCommand } from "./delete";
 import { getCommand } from "./get";
 import { installLinkCommand } from "./install-link";
 import { listCommand } from "./list";
+import { uploadCommand } from "./upload";
 
 export const buildsCommand = Command.make("builds", {}, () =>
   Console.log("Manage builds. Run with --help for subcommands."),
@@ -16,5 +17,6 @@ export const buildsCommand = Command.make("builds", {}, () =>
     deleteCommand,
     installLinkCommand,
     compatibilityMatrixCommand,
+    uploadCommand,
   ]),
 );

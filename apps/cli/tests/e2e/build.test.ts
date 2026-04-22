@@ -55,6 +55,10 @@ const buildState = {
   buildId: "",
   expectedByteSize: 0,
   expectedSha256: "",
+  prebuiltArtifactPath: "",
+  prebuiltSha256: "",
+  prebuiltByteSize: 0,
+  reuploadedBuildId: "",
 };
 
 describe.skipIf(!hasAndroidSdk)("CLI build journey — Android", () => {
@@ -266,5 +270,65 @@ describe.skipIf(!hasAndroidSdk)("CLI build journey — Android", () => {
     expect(result.stdout).toMatch(/^SHA-256\s+[a-f0-9]{64}$/m);
     expect(result.stdout).toMatch(/^Bytes\s+\d+$/m);
     expect(result.stdout).toMatch(/^Upload\s+skipped \(--no-upload\)$/m);
+
+    const artifactMatch = /^Artifact\s+(.+\.apk)\s*$/m.exec(result.stdout);
+    expect(artifactMatch).not.toBeNull();
+    const sha256Match = /^SHA-256\s+([a-f0-9]{64})\s*$/m.exec(result.stdout);
+    expect(sha256Match).not.toBeNull();
+    const bytesMatch = /^Bytes\s+(\d+)\s*$/m.exec(result.stdout);
+    expect(bytesMatch).not.toBeNull();
+
+    buildState.prebuiltArtifactPath = artifactMatch![1]!.trim();
+    buildState.prebuiltSha256 = sha256Match![1]!.trim();
+    buildState.prebuiltByteSize = Number(bytesMatch![1]!.trim());
   }, 600_000);
+
+  test("uploads a pre-built artifact via `builds upload`", () => {
+    expect(buildState.prebuiltArtifactPath).not.toBe("");
+
+    const result = cli.runCli(
+      "builds",
+      "upload",
+      buildState.prebuiltArtifactPath,
+      "--platform",
+      "android",
+      "--message",
+      "E2E upload-only",
+    );
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+
+    const buildIdMatch = /^Build ID\s+(.+)$/m.exec(result.stdout);
+    expect(buildIdMatch).not.toBeNull();
+    buildState.reuploadedBuildId = buildIdMatch![1]!.trim();
+    expect(buildState.reuploadedBuildId).not.toBe("");
+
+    expect(result.stdout).toMatch(/^Status\s+uploaded$/m);
+    expect(result.stdout).toMatch(/^Platform\s+android$/m);
+    expect(result.stdout).toMatch(/^Profile\s+production$/m);
+    expect(result.stdout).toMatch(new RegExp(`^SHA-256\\s+${buildState.prebuiltSha256}$`, "m"));
+    expect(result.stdout).toMatch(new RegExp(`^Bytes\\s+${buildState.prebuiltByteSize}$`, "m"));
+  }, 600_000);
+
+  test("reuploaded build is visible via API with matching artifact", async () => {
+    expect(buildState.reuploadedBuildId).not.toBe("");
+
+    const response = await cli.getAuthorized(`/api/builds/${buildState.reuploadedBuildId}`);
+    expect(response.status).toBe(200);
+    const build = (await response.json()) as {
+      id: string;
+      platform: string;
+      distribution: string;
+      message: string;
+      artifact: { format: string; byteSize: number; sha256: string } | null;
+    };
+    expect(build.id).toBe(buildState.reuploadedBuildId);
+    expect(build.platform).toBe("android");
+    expect(build.distribution).toBe("direct");
+    expect(build.message).toBe("E2E upload-only");
+    expect(build.artifact).not.toBeNull();
+    expect(build.artifact!.format).toBe("apk");
+    expect(build.artifact!.byteSize).toBe(buildState.prebuiltByteSize);
+    expect(build.artifact!.sha256).toBe(buildState.prebuiltSha256);
+  });
 });
