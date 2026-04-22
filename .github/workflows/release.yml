@@ -56,10 +56,14 @@ jobs:
 
       - name: Push commit and tags individually
         if: ${{ !inputs.dry-run }}
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
         run: |
           git push origin HEAD
           for tag in $(git tag --points-at HEAD); do
             echo "Pushing $tag"
             git push origin "refs/tags/$tag"
             sleep 2
+            echo "Publishing release $tag"
+            gh release edit "$tag" --draft=false
           done
