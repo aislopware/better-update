@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.1.1](https://github.com/better-update/better-update/compare/@better-update/oxlint-config@0.1.0...@better-update/oxlint-config@0.1.1) (2026-04-22)
+
+### Bug Fixes
+
+* **ui,dashboard:** resolve nested-button bug in dialog/dropdown triggers ([8e02327](https://github.com/better-update/better-update/commit/8e023278593d508c2a1ba617220b3f67d4d46e1b)) - by @trancong12102
+
 ## 0.1.0 (2026-04-21)
 
 ### Features
