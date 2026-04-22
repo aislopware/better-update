@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@better-update/ui/components/ui/table";
-import { EllipsisVerticalIcon, UserMinusIcon, ShieldIcon, XIcon } from "lucide-react";
+import { EllipsisVerticalIcon, Loader2Icon, UserMinusIcon, ShieldIcon, XIcon } from "lucide-react";
 
 import { EntityAvatar } from "../../../lib/entity-avatar";
 
@@ -38,6 +38,7 @@ const MemberActions = ({
   memberRole,
   currentRole,
   isSelf,
+  isPending,
   onRoleChange,
   onRemove,
 }: {
@@ -45,6 +46,7 @@ const MemberActions = ({
   memberRole: string;
   currentRole: string;
   isSelf: boolean;
+  isPending: boolean;
   onRoleChange: (memberId: string, role: string) => void;
   onRemove: (memberId: string) => void;
 }) => {
@@ -55,8 +57,12 @@ const MemberActions = ({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger>
-        <Button variant="ghost" size="icon-sm">
-          <EllipsisVerticalIcon strokeWidth={2} />
+        <Button variant="ghost" size="icon-sm" disabled={isPending} aria-busy={isPending}>
+          {isPending ? (
+            <Loader2Icon className="animate-spin" />
+          ) : (
+            <EllipsisVerticalIcon strokeWidth={2} />
+          )}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
@@ -85,7 +91,7 @@ const MemberActions = ({
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           <DropdownMenuItem
-            className="text-destructive"
+            variant="destructive"
             onClick={() => {
               onRemove(memberId);
             }}
@@ -121,6 +127,7 @@ export const MembersTableView = ({
   members,
   currentUserId,
   currentRole,
+  pendingMemberId,
   onRoleChange,
   onRemove,
 }: {
@@ -133,6 +140,7 @@ export const MembersTableView = ({
   }[];
   currentUserId: string;
   currentRole: string;
+  pendingMemberId?: string | undefined;
   onRoleChange: (memberId: string, role: string) => void;
   onRemove: (memberId: string) => void;
 }) => (
@@ -158,7 +166,7 @@ export const MembersTableView = ({
           <TableCell>
             <Badge variant={roleBadgeVariant(member.role)}>{member.role}</Badge>
           </TableCell>
-          <TableCell className="text-muted-foreground">
+          <TableCell className="text-muted-foreground tabular-nums">
             {new Date(member.createdAt).toLocaleDateString()}
           </TableCell>
           <TableCell>
@@ -167,6 +175,7 @@ export const MembersTableView = ({
               memberRole={member.role}
               currentRole={currentRole}
               isSelf={member.userId === currentUserId}
+              isPending={pendingMemberId === member.id}
               onRoleChange={onRoleChange}
               onRemove={onRemove}
             />
@@ -179,6 +188,7 @@ export const MembersTableView = ({
 
 export const InvitationsTableView = ({
   invitations,
+  pendingInvitationId,
   onCancel,
 }: {
   invitations: {
@@ -188,6 +198,7 @@ export const InvitationsTableView = ({
     status: string;
     expiresAt: Date;
   }[];
+  pendingInvitationId?: string | undefined;
   onCancel: (invitationId: string) => void;
 }) => (
   <Table>
@@ -200,28 +211,33 @@ export const InvitationsTableView = ({
       </TableRow>
     </TableHeader>
     <TableBody>
-      {invitations.map((invitation) => (
-        <TableRow key={invitation.id}>
-          <TableCell className="font-medium">{invitation.email}</TableCell>
-          <TableCell>
-            <Badge variant={roleBadgeVariant(invitation.role)}>{invitation.role}</Badge>
-          </TableCell>
-          <TableCell className="text-muted-foreground">
-            {new Date(invitation.expiresAt).toLocaleDateString()}
-          </TableCell>
-          <TableCell>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={() => {
-                onCancel(invitation.id);
-              }}
-            >
-              <XIcon strokeWidth={2} />
-            </Button>
-          </TableCell>
-        </TableRow>
-      ))}
+      {invitations.map((invitation) => {
+        const isPending = pendingInvitationId === invitation.id;
+        return (
+          <TableRow key={invitation.id}>
+            <TableCell className="font-medium">{invitation.email}</TableCell>
+            <TableCell>
+              <Badge variant={roleBadgeVariant(invitation.role)}>{invitation.role}</Badge>
+            </TableCell>
+            <TableCell className="text-muted-foreground tabular-nums">
+              {new Date(invitation.expiresAt).toLocaleDateString()}
+            </TableCell>
+            <TableCell>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => {
+                  onCancel(invitation.id);
+                }}
+                disabled={isPending}
+                aria-busy={isPending}
+              >
+                {isPending ? <Loader2Icon className="animate-spin" /> : <XIcon strokeWidth={2} />}
+              </Button>
+            </TableCell>
+          </TableRow>
+        );
+      })}
     </TableBody>
   </Table>
 );

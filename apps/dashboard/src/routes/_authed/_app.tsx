@@ -35,6 +35,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   MonitorIcon,
+  Loader2Icon,
   LogOutIcon,
   MoonIcon,
   SunIcon,
@@ -73,6 +74,16 @@ const extractProjectSlug = (pathname: string) => {
   return projectSlug;
 };
 
+const renderSwitcherIndicator = (isPending: boolean, isActive: boolean) => {
+  if (isPending) {
+    return <Loader2Icon className="text-muted-foreground size-4 animate-spin" />;
+  }
+  if (isActive) {
+    return <CheckIcon strokeWidth={2} className="text-primary size-4" />;
+  }
+  return null;
+};
+
 const renderOrgTrigger = (name: string, slug: string | undefined) => (
   <SidebarMenuButton size="lg" className="data-open:bg-sidebar-accent w-full">
     <EntityAvatar name={name} shape="square" className="size-8" />
@@ -102,6 +113,7 @@ const OrgSwitcher = () => {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [createOrgOpen, setCreateOrgOpen] = useState(false);
+  const [switchingOrgId, setSwitchingOrgId] = useState<string | undefined>(undefined);
   const { data: orgs } = useSuspenseQuery(orgsQueryOptions);
   const { data: session } = useSuspenseQuery(sessionQueryOptions);
   const activeOrgId = session?.session.activeOrganizationId;
@@ -109,9 +121,10 @@ const OrgSwitcher = () => {
   const displayName = activeOrg?.name ?? "No org";
 
   const handleOrgSwitch = async (orgId: string) => {
-    if (orgId === activeOrgId) {
+    if (orgId === activeOrgId || switchingOrgId) {
       return;
     }
+    setSwitchingOrgId(orgId);
     const prevOrgId = activeOrgId;
     await authClient.organization.setActive({ organizationId: orgId });
     if (prevOrgId) {
@@ -119,6 +132,7 @@ const OrgSwitcher = () => {
     }
     await queryClient.resetQueries({ queryKey: ["auth", "session"] });
     await router.invalidate();
+    setSwitchingOrgId(undefined);
   };
 
   return (
@@ -129,21 +143,29 @@ const OrgSwitcher = () => {
           <DropdownMenuGroup>
             <DropdownMenuLabel>Organizations</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            {orgs.map((org) => (
-              <DropdownMenuItem key={org.id} onClick={async () => handleOrgSwitch(org.id)}>
-                <EntityAvatar name={org.name} size="sm" shape="square" />
-                <span className="flex-1 truncate">{org.name}</span>
-                {org.id === activeOrgId ? (
-                  <CheckIcon strokeWidth={2} className="text-primary size-4" />
-                ) : null}
-              </DropdownMenuItem>
-            ))}
+            {orgs.map((org) => {
+              const isSwitching = switchingOrgId === org.id;
+              const isActive = org.id === activeOrgId;
+              return (
+                <DropdownMenuItem
+                  key={org.id}
+                  onClick={async () => handleOrgSwitch(org.id)}
+                  data-pending={isSwitching || undefined}
+                  disabled={Boolean(switchingOrgId) && !isSwitching}
+                >
+                  <EntityAvatar name={org.name} size="sm" shape="square" />
+                  <span className="flex-1 truncate">{org.name}</span>
+                  {renderSwitcherIndicator(isSwitching, isActive)}
+                </DropdownMenuItem>
+              );
+            })}
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuItem
             onClick={() => {
               setCreateOrgOpen(true);
             }}
+            disabled={Boolean(switchingOrgId)}
           >
             <PlusIcon strokeWidth={2} className="size-4" />
             <span>Create organization</span>
@@ -159,15 +181,18 @@ const themeIcons = { light: SunIcon, dark: MoonIcon, system: MonitorIcon } as co
 
 const UserMenu = () => {
   const router = useRouter();
-  const queryClient = useQueryClient();
   const { data: session } = useSuspenseQuery(sessionQueryOptions);
   const { theme, updateTheme } = useTheme();
   const user = session?.user;
   const ThemeIcon = themeIcons[theme];
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleLogout = async () => {
+    if (isLoggingOut) {
+      return;
+    }
+    setIsLoggingOut(true);
     await authClient.signOut();
-    await queryClient.resetQueries({ queryKey: ["auth"] });
     redirectToAccounts("/login");
   };
 
@@ -202,14 +227,25 @@ const UserMenu = () => {
             onClick={async () => {
               await router.navigate({ to: "/account" });
             }}
+            disabled={isLoggingOut}
           >
             <UserIcon strokeWidth={2} className="size-4" />
             <span>Account</span>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleLogout}>
-            <LogOutIcon strokeWidth={2} className="size-4" />
-            <span>Log out</span>
+          <DropdownMenuItem
+            variant="destructive"
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+            data-pending={isLoggingOut || undefined}
+            closeOnClick={false}
+          >
+            {isLoggingOut ? (
+              <Loader2Icon className="size-4 animate-spin" />
+            ) : (
+              <LogOutIcon strokeWidth={2} className="size-4" />
+            )}
+            <span>{isLoggingOut ? "Logging out…" : "Log out"}</span>
           </DropdownMenuItem>
         </DropdownMenuGroup>
       </DropdownMenuContent>
@@ -225,25 +261,6 @@ const PageSkeleton = () => (
 );
 
 const pageSkeleton = <PageSkeleton />;
-
-const NavigationProgress = () => {
-  const isNavigating = useRouterState({
-    select: (state) => state.isLoading || state.isTransitioning,
-  });
-
-  if (!isNavigating) {
-    return null;
-  }
-
-  return (
-    <div className="pointer-events-none absolute inset-x-0 top-0 z-50">
-      <div
-        className="bg-primary h-0.5"
-        style={{ animation: "progress-grow 8s cubic-bezier(0.1, 0.05, 0, 1) forwards" }}
-      />
-    </div>
-  );
-};
 
 const AppSidebarRail = () => {
   const { state } = useSidebar();
@@ -290,7 +307,6 @@ const AppLayout = () => {
       <SidebarProvider>
         <AppSidebar projectSlug={projectSlug} />
         <SidebarInset className="bg-sidebar relative">
-          <NavigationProgress />
           <header className="bg-sidebar/80 sticky top-0 z-30 flex h-12 shrink-0 items-center gap-2 border-b px-4 backdrop-blur">
             <AppBreadcrumb
               orgId={activeOrg.id}

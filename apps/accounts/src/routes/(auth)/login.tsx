@@ -1,10 +1,13 @@
 import { Button } from "@better-update/ui/components/ui/button";
 import { createFileRoute } from "@tanstack/react-router";
+import { Loader2Icon } from "lucide-react";
+import { useState } from "react";
 
 import { BrandWordmark } from "../../components/brand-mark";
 import { HeroMotion } from "../../components/hero-motion";
 import { authClient } from "../../lib/auth-client";
 import { consoleUrl } from "../../lib/console-redirect";
+import { throwRedirect } from "../../lib/throw-redirect";
 
 const readRedirectTo = (): string =>
   // eslint-disable-next-line eslint-js/no-restricted-syntax -- no redirectTo param means stay on default post-login target
@@ -102,15 +105,20 @@ const LiveIndicator = () => (
 
 interface AuthPanelProps {
   readonly githubEnabled: boolean;
-  readonly onGithub: () => void;
+  readonly onGithub: () => void | Promise<void>;
+  readonly isPending: boolean;
 }
 
-const AuthPanel = ({ githubEnabled, onGithub }: AuthPanelProps) => (
+const AuthPanel = ({ githubEnabled, onGithub, isPending }: AuthPanelProps) => (
   <section className="bg-background/60 relative flex items-center justify-center px-6 py-12 backdrop-blur-sm sm:px-10 lg:px-12">
     <div className="flex w-full max-w-sm flex-col gap-8">
       <AuthHeader />
       <div className="flex flex-col gap-3">
-        {githubEnabled ? <GithubButton onClick={onGithub} /> : <UnavailableNotice />}
+        {githubEnabled ? (
+          <GithubButton onClick={onGithub} isPending={isPending} />
+        ) : (
+          <UnavailableNotice />
+        )}
       </div>
       <SecureDivider />
       <TrustPoints />
@@ -130,15 +138,31 @@ const AuthHeader = () => (
   </div>
 );
 
-const GithubButton = ({ onClick }: { readonly onClick: () => void }) => (
+interface GithubButtonProps {
+  readonly onClick: () => void | Promise<void>;
+  readonly isPending: boolean;
+}
+
+const GithubButton = ({ onClick, isPending }: GithubButtonProps) => (
   <Button
     size="lg"
     className="group relative h-12 w-full gap-2.5 text-sm font-medium"
     onClick={onClick}
+    disabled={isPending}
+    aria-busy={isPending}
   >
-    <GithubIcon className="size-5" />
-    Continue with GitHub
-    <ArrowIcon className="size-4 opacity-70 transition-transform duration-200 ease-out group-hover:translate-x-0.5 group-hover:opacity-100" />
+    {isPending ? (
+      <>
+        <Loader2Icon className="size-5 animate-spin" />
+        Connecting to GitHub…
+      </>
+    ) : (
+      <>
+        <GithubIcon className="size-5" />
+        Continue with GitHub
+        <ArrowIcon className="size-4 opacity-70 transition-transform duration-200 ease-out group-hover:translate-x-0.5 group-hover:opacity-100" />
+      </>
+    )}
   </Button>
 );
 
@@ -189,31 +213,39 @@ const LegalFootnote = () => (
 );
 
 const LoginPage = () => {
-  const { session, config } = Route.useRouteContext();
-  const redirectTo = readRedirectTo();
-
-  if (session?.user) {
-    globalThis.location.replace(redirectTo || consoleUrl());
-    return null;
-  }
+  const { config } = Route.useRouteContext();
+  const [isPending, setIsPending] = useState(false);
 
   const signInWithGithub = async () => {
-    await authClient.signIn.social({
+    setIsPending(true);
+    const { error } = await authClient.signIn.social({
       provider: "github",
-      callbackURL: redirectTo || consoleUrl(),
+      callbackURL: readRedirectTo() || consoleUrl(),
     });
+    if (error) {
+      setIsPending(false);
+    }
   };
 
   return (
     <div className="bg-background relative min-h-dvh overflow-hidden">
       <div className="relative grid min-h-dvh lg:grid-cols-[1.15fr_1fr]">
         <LeftHero />
-        <AuthPanel githubEnabled={config.githubEnabled} onGithub={signInWithGithub} />
+        <AuthPanel
+          githubEnabled={config.githubEnabled}
+          onGithub={signInWithGithub}
+          isPending={isPending}
+        />
       </div>
     </div>
   );
 };
 
 export const Route = createFileRoute("/(auth)/login")({
+  beforeLoad: ({ context }) => {
+    if (context.session?.user) {
+      throwRedirect({ href: readRedirectTo() || consoleUrl() });
+    }
+  },
   component: LoginPage,
 });
