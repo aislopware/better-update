@@ -160,9 +160,7 @@ export const UploadPushKeyDialog = ({ orgId }: { orgId: string }) => {
             </form.Field>
           </div>
           <DialogFooter>
-            <DialogClose>
-              <Button variant="outline">Cancel</Button>
-            </DialogClose>
+            <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
             <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
               {([canSubmit, isSubmitting]) => (
                 <Button type="submit" disabled={!canSubmit || isSubmitting}>

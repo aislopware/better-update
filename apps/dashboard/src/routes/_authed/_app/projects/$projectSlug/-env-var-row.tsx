@@ -87,10 +87,8 @@ export const EnvVarRow = ({
         </TableCell>
         <TableCell className="text-right">
           <DropdownMenu>
-            <DropdownMenuTrigger>
-              <Button variant="ghost" size="icon-sm">
-                <EllipsisVerticalIcon strokeWidth={2} />
-              </Button>
+            <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" />}>
+              <EllipsisVerticalIcon strokeWidth={2} />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuGroup>

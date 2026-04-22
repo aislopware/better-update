@@ -38,10 +38,8 @@ const maskKey = (start: string | null, prefix: string | null): string => {
 
 const KeyActions = ({ onRevoke }: { onRevoke: () => void }) => (
   <DropdownMenu>
-    <DropdownMenuTrigger>
-      <Button variant="ghost" size="icon-sm">
-        <EllipsisVerticalIcon strokeWidth={2} />
-      </Button>
+    <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" />}>
+      <EllipsisVerticalIcon strokeWidth={2} />
     </DropdownMenuTrigger>
     <DropdownMenuContent align="end">
       <DropdownMenuGroup>

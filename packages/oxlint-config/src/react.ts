@@ -41,6 +41,7 @@ export default defineConfig({
     "react-perf/jsx-no-new-array-as-prop": "off",
     "react-perf/jsx-no-new-function-as-prop": "off",
     "react-perf/jsx-no-new-object-as-prop": "off",
+    "react-perf/jsx-no-jsx-as-prop": "off",
 
     "react/jsx-max-depth": ["warn", { max: 7 }],
     "react/react-in-jsx-scope": "off",

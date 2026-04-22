@@ -114,9 +114,7 @@ const InviteFormContent = ({ orgId, onSuccess }: { orgId: string; onSuccess: () 
       </FieldGroup>
 
       <DialogFooter>
-        <DialogClose>
-          <Button variant="outline">Cancel</Button>
-        </DialogClose>
+        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
           {([canSubmit, isSubmitting]) => (
             <Button type="submit" disabled={!canSubmit || isSubmitting}>
@@ -180,9 +178,7 @@ export const RemoveDialog = ({
         </DialogDescription>
       </DialogHeader>
       <DialogFooter>
-        <DialogClose>
-          <Button variant="outline">Cancel</Button>
-        </DialogClose>
+        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
         <Button variant="destructive" disabled={isRemoving} onClick={onConfirm}>
           {isRemoving ? "Removing..." : "Remove"}
         </Button>

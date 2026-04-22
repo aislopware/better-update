@@ -157,9 +157,7 @@ export const ImportEnvVarsDialog = ({
         </FieldGroup>
 
         <DialogFooter>
-          <DialogClose>
-            <Button variant="outline">Cancel</Button>
-          </DialogClose>
+          <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
           <Button
             onClick={handleSubmit}
             disabled={importEnvVarsMutation.isPending || lineCount === 0}

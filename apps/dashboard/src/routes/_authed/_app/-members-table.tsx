@@ -56,14 +56,16 @@ const MemberActions = ({
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger>
-        <Button variant="ghost" size="icon-sm" disabled={isPending} aria-busy={isPending}>
-          {isPending ? (
-            <Loader2Icon className="animate-spin" />
-          ) : (
-            <EllipsisVerticalIcon strokeWidth={2} />
-          )}
-        </Button>
+      <DropdownMenuTrigger
+        render={
+          <Button variant="ghost" size="icon-sm" disabled={isPending} aria-busy={isPending} />
+        }
+      >
+        {isPending ? (
+          <Loader2Icon className="animate-spin" />
+        ) : (
+          <EllipsisVerticalIcon strokeWidth={2} />
+        )}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuGroup>

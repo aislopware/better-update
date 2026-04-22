@@ -88,9 +88,7 @@ export const ConfirmDeleteDialog = ({
           />
         </Field>
         <DialogFooter>
-          <DialogClose>
-            <Button variant="outline">Cancel</Button>
-          </DialogClose>
+          <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
           <Button
             variant="destructive"
             disabled={confirmText !== name || deleteMutation.isPending}
