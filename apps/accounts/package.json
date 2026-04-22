@@ -2,6 +2,7 @@
   "name": "@better-update/accounts",
   "version": "0.0.1",
   "private": true,
+  "description": "Better Update accounts portal on Cloudflare Workers",
   "type": "module",
   "scripts": {
     "build": "vite build",

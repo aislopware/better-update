@@ -1,12 +1,12 @@
-name: Deploy Server
+name: Deploy Accounts
 
 on:
   push:
     tags:
-      - "@better-update/server@*"
+      - "@better-update/accounts@*"
 
 concurrency:
-  group: deploy-server
+  group: deploy-accounts
   cancel-in-progress: false
 
 jobs:
@@ -22,15 +22,8 @@ jobs:
       - name: Install deps
         run: bun install --frozen-lockfile
 
-      - name: Apply D1 migrations
-        working-directory: apps/server
-        run: bunx wrangler d1 migrations apply better-update --remote
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
       - name: Deploy to Cloudflare
-        working-directory: apps/server
+        working-directory: apps/accounts
         run: bun run deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
