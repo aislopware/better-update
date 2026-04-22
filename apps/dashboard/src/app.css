@@ -49,6 +49,8 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 :root {
@@ -130,5 +132,27 @@
   html {
     @apply font-sans;
     font-size: 16px;
+  }
+}
+
+[data-sidebar-skip-anim="true"] [data-slot="sidebar-gap"],
+[data-sidebar-skip-anim="true"] [data-slot="sidebar-container"] {
+  transition-duration: 0ms !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-iteration-count: 1 !important;
+  }
+
+  [data-slot="sidebar-gap"],
+  [data-slot="sidebar-container"] {
+    transition: none !important;
+  }
+
+  .animate-spin {
+    animation: none !important;
   }
 }

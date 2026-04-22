@@ -240,12 +240,26 @@ const UserMenu = () => {
             data-pending={isLoggingOut || undefined}
             closeOnClick={false}
           >
-            {isLoggingOut ? (
-              <Loader2Icon className="size-4 animate-spin" />
-            ) : (
-              <LogOutIcon strokeWidth={2} className="size-4" />
-            )}
-            <span>{isLoggingOut ? "Logging out…" : "Log out"}</span>
+            <span className="relative inline-flex size-4 items-center justify-center">
+              <Loader2Icon
+                className="absolute size-4 animate-spin transition-opacity duration-150 ease-out"
+                style={{ opacity: isLoggingOut ? 1 : 0 }}
+              />
+              <LogOutIcon
+                strokeWidth={2}
+                className="absolute size-4 transition-[opacity,filter] duration-150 ease-out"
+                style={{
+                  opacity: isLoggingOut ? 0 : 1,
+                  filter: isLoggingOut ? "blur(2px)" : "blur(0)",
+                }}
+              />
+            </span>
+            <span
+              className="transition-[opacity,filter] duration-150 ease-out"
+              style={{ filter: isLoggingOut ? "blur(1px)" : "blur(0)" }}
+            >
+              {isLoggingOut ? "Logging out…" : "Log out"}
+            </span>
           </DropdownMenuItem>
         </DropdownMenuGroup>
       </DropdownMenuContent>
@@ -267,7 +281,7 @@ const AppSidebarRail = () => {
   const Icon = state === "expanded" ? ChevronLeftIcon : ChevronRightIcon;
   return (
     <SidebarRail className="group/rail z-40">
-      <span className="bg-background pointer-events-none absolute top-1/2 left-1/2 z-50 flex size-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border opacity-0 shadow-sm transition-opacity group-hover/rail:opacity-100">
+      <span className="bg-background pointer-events-none absolute top-1/2 left-1/2 z-50 flex size-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border opacity-0 shadow-sm transition-opacity duration-150 ease-out group-hover/rail:opacity-100">
         <Icon strokeWidth={2} className="size-3.5" />
       </span>
     </SidebarRail>

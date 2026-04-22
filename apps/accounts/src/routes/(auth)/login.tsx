@@ -160,7 +160,7 @@ const GithubButton = ({ onClick, isPending }: GithubButtonProps) => (
       <>
         <GithubIcon className="size-5" />
         Continue with GitHub
-        <ArrowIcon className="size-4 opacity-70 transition-transform duration-200 ease-out group-hover:translate-x-0.5 group-hover:opacity-100" />
+        <ArrowIcon className="size-4 opacity-70 transition-[transform,opacity] duration-200 ease-out pointer-fine:group-hover:translate-x-0.5 pointer-fine:group-hover:opacity-100" />
       </>
     )}
   </Button>

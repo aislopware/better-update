@@ -36,6 +36,8 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 :root {
@@ -94,60 +96,15 @@
   }
 }
 
-@keyframes glow-breathe {
-  0%,
-  100% {
-    transform: scale(1);
-    opacity: 0.9;
-  }
-  50% {
-    transform: scale(1.08);
-    opacity: 1;
-  }
-}
-
-@keyframes deploy-sweep-v {
-  0% {
-    transform: translate3d(0, -5vh, 0);
-    opacity: 0;
-  }
-  6% {
-    opacity: 1;
-  }
-  44% {
-    transform: translate3d(0, 105vh, 0);
-    opacity: 0;
-  }
-  100% {
-    transform: translate3d(0, 105vh, 0);
-    opacity: 0;
-  }
-}
-
-@keyframes deploy-sweep-h {
-  0% {
-    transform: translate3d(-5vw, 0, 0);
-    opacity: 0;
-  }
-  6% {
-    opacity: 1;
-  }
-  44% {
-    transform: translate3d(105vw, 0, 0);
-    opacity: 0;
-  }
-  100% {
-    transform: translate3d(105vw, 0, 0);
-    opacity: 0;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
-    animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+  }
+
+  .animate-ping,
+  .animate-spin {
+    animation: none !important;
   }
 }
