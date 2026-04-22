@@ -2,6 +2,11 @@
   "name": "@better-update/cli",
   "version": "0.4.1",
   "homepage": "https://github.com/better-update/better-update",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/better-update/better-update.git",
+    "directory": "apps/cli"
+  },
   "bin": {
     "better-update": "./dist/index.js"
   },
