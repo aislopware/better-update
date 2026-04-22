@@ -45,6 +45,7 @@ import { Suspense, useState } from "react";
 
 import { redirectToAccounts } from "../../lib/accounts-redirect";
 import { authClient } from "../../lib/auth-client";
+import { DocumentTitle } from "../../lib/document-title";
 import { EntityAvatar } from "../../lib/entity-avatar";
 import { ErrorBoundary } from "../../lib/error-boundary";
 import { throwRedirect } from "../../lib/throw-redirect";
@@ -285,6 +286,7 @@ const AppLayout = () => {
   const { activeOrg } = Route.useRouteContext();
   return (
     <TooltipProvider>
+      <DocumentTitle />
       <SidebarProvider>
         <AppSidebar projectSlug={projectSlug} />
         <SidebarInset className="bg-sidebar relative">
