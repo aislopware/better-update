@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.3.0](https://github.com/better-update/better-update/compare/@better-update/accounts@0.2.0...@better-update/accounts@0.3.0) (2026-04-22)
+
+### Features
+
+* **apps:** add repository metadata to app manifests ([c9cd84b](https://github.com/better-update/better-update/commit/c9cd84b8dd8c0f57f262d92b76cc19aa4fcdf6d9)) - by @trancong12102
+
 ## [0.2.0](https://github.com/better-update/better-update/compare/@better-update/accounts@0.1.1...@better-update/accounts@0.2.0) (2026-04-22)
 
 ### Features
