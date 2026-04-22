@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.3.3](https://github.com/better-update/better-update/compare/@better-update/server@0.3.2...@better-update/server@0.3.3) (2026-04-22)
+
+### Bug Fixes
+
+* **server:** use PUBLIC_API_URL for install/registration origins ([395bfae](https://github.com/better-update/better-update/commit/395bfae8d70cb193de9b72c9df1d23a2b3f86087)) - by @trancong12102
+
 ## [0.3.2](https://github.com/better-update/better-update/compare/@better-update/server@0.3.1...@better-update/server@0.3.2) (2026-04-22)
 
 **Note:** Version bump only for package @better-update/server
