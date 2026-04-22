@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.4.0](https://github.com/better-update/better-update/compare/@better-update/dashboard@0.2.1...@better-update/dashboard@0.4.0) (2026-04-22)
+
+### Features
+
+* **apps:** add repository metadata to app manifests ([c9cd84b](https://github.com/better-update/better-update/commit/c9cd84b8dd8c0f57f262d92b76cc19aa4fcdf6d9)) - by @trancong12102
+* **dashboard,accounts:** pending state + loader on async actions ([9ce8e6d](https://github.com/better-update/better-update/commit/9ce8e6d947bd42abdb116422950c776d6bae28c5)) - by @
+* **dashboard:** dynamic page titles per route ([9ba917c](https://github.com/better-update/better-update/commit/9ba917cf79a0c3dd1e9f04d8d2be8afca97749eb)) - by @
+
 ## [0.3.0](https://github.com/better-update/better-update/compare/@better-update/dashboard@0.2.1...@better-update/dashboard@0.3.0) (2026-04-22)
 
 ### Features
