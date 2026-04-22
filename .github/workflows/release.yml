@@ -64,6 +64,6 @@ jobs:
             echo "Pushing $tag"
             git push origin "refs/tags/$tag"
             sleep 2
-            echo "Publishing release $tag"
-            gh release edit "$tag" --draft=false
+            echo "Creating release $tag"
+            gh release create "$tag" --verify-tag --title "$tag" --generate-notes
           done
