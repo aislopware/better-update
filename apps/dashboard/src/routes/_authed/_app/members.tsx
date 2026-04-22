@@ -109,7 +109,8 @@ const Members = () => {
         <CardHeader>
           <CardTitle>Team members</CardTitle>
           <CardDescription>
-            {members.length} {members.length === 1 ? "member" : "members"} in this organization.
+            <span className="tabular-nums">{members.length}</span>{" "}
+            {members.length === 1 ? "member" : "members"} in this organization.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -117,6 +118,11 @@ const Members = () => {
             members={members}
             currentUserId={user.id}
             currentRole={currentRole}
+            pendingMemberId={
+              roleChangeMutation.isPending || removeMemberMutation.isPending
+                ? (roleChangeMutation.variables?.memberId ?? removeMemberMutation.variables)
+                : undefined
+            }
             onRoleChange={handleRoleChange}
             onRemove={setRemoveMemberId}
           />
@@ -128,13 +134,16 @@ const Members = () => {
           <CardHeader>
             <CardTitle>Pending invitations</CardTitle>
             <CardDescription>
-              {pendingInvitations.length} pending{" "}
+              <span className="tabular-nums">{pendingInvitations.length}</span> pending{" "}
               {pendingInvitations.length === 1 ? "invitation" : "invitations"}.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <InvitationsTableView
               invitations={pendingInvitations}
+              pendingInvitationId={
+                cancelInvitationMutation.isPending ? cancelInvitationMutation.variables : undefined
+              }
               onCancel={handleCancelInvitation}
             />
           </CardContent>

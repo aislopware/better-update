@@ -18,11 +18,21 @@ import {
 } from "@better-update/ui/components/ui/dropdown-menu";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
-import { CheckIcon, ChevronsUpDownIcon, PlusIcon } from "lucide-react";
+import { CheckIcon, ChevronsUpDownIcon, Loader2Icon, PlusIcon } from "lucide-react";
 import { useState } from "react";
 
 import { EntityAvatar } from "../../lib/entity-avatar";
 import { CreateProjectFormContent } from "./_app/projects/-create-dialog";
+
+const renderProjectIndicator = (isPending: boolean, isActive: boolean) => {
+  if (isPending) {
+    return <Loader2Icon className="text-muted-foreground size-4 animate-spin" />;
+  }
+  if (isActive) {
+    return <CheckIcon strokeWidth={2} className="text-primary size-4" />;
+  }
+  return null;
+};
 
 const switcherTrigger = (displayName: string) => (
   <Button variant="ghost" size="sm" className="h-7 gap-1.5 px-2 font-medium">
@@ -40,15 +50,18 @@ export const ProjectSwitcher = ({ orgId, currentProjectSlug }: ProjectSwitcherPr
   const router = useRouter();
   const { data } = useSuspenseQuery(projectsQueryOptions(orgId));
   const [createOpen, setCreateOpen] = useState(false);
+  const [navigatingSlug, setNavigatingSlug] = useState<string | undefined>(undefined);
 
   const currentProject = data.items.find((project) => project.slug === currentProjectSlug);
   const displayName = currentProject?.name ?? "Unknown project";
 
   const handleSelect = async (projectSlug: string) => {
-    if (projectSlug === currentProjectSlug) {
+    if (projectSlug === currentProjectSlug || navigatingSlug) {
       return;
     }
+    setNavigatingSlug(projectSlug);
     await router.navigate({ to: "/projects/$projectSlug", params: { projectSlug } });
+    setNavigatingSlug(undefined);
   };
 
   return (
@@ -64,15 +77,22 @@ export const ProjectSwitcher = ({ orgId, currentProjectSlug }: ProjectSwitcherPr
                 No projects yet
               </DropdownMenuLabel>
             ) : (
-              data.items.map((project) => (
-                <DropdownMenuItem key={project.id} onClick={async () => handleSelect(project.slug)}>
-                  <EntityAvatar name={project.name} size="sm" shape="square" />
-                  <span className="flex-1 truncate">{project.name}</span>
-                  {project.slug === currentProjectSlug ? (
-                    <CheckIcon strokeWidth={2} className="text-primary size-4" />
-                  ) : null}
-                </DropdownMenuItem>
-              ))
+              data.items.map((project) => {
+                const isNavigating = navigatingSlug === project.slug;
+                const isActive = project.slug === currentProjectSlug;
+                return (
+                  <DropdownMenuItem
+                    key={project.id}
+                    onClick={async () => handleSelect(project.slug)}
+                    data-pending={isNavigating || undefined}
+                    disabled={Boolean(navigatingSlug) && !isNavigating}
+                  >
+                    <EntityAvatar name={project.name} size="sm" shape="square" />
+                    <span className="flex-1 truncate">{project.name}</span>
+                    {renderProjectIndicator(isNavigating, isActive)}
+                  </DropdownMenuItem>
+                );
+              })
             )}
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
@@ -80,6 +100,7 @@ export const ProjectSwitcher = ({ orgId, currentProjectSlug }: ProjectSwitcherPr
             onClick={() => {
               setCreateOpen(true);
             }}
+            disabled={Boolean(navigatingSlug)}
           >
             <PlusIcon strokeWidth={2} className="size-4" />
             <span>Create project</span>
