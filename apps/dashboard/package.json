@@ -2,6 +2,7 @@
   "name": "@better-update/dashboard",
   "version": "0.1.0",
   "private": true,
+  "description": "Better Update console dashboard on Cloudflare Workers",
   "type": "module",
   "scripts": {
     "build": "vite build",
