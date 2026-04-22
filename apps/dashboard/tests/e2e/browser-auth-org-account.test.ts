@@ -313,7 +313,7 @@ describe("dashboard auth + org + account (browser)", () => {
         organizationSlug: toSlug(originalOrg),
       });
 
-      await page.getByRole("link", { name: "Settings" }).click();
+      await page.getByRole("link", { name: "Organization settings" }).click();
       await page.waitForURL(/\/settings$/u);
 
       await page.getByLabel("Organization name").fill(renamedOrg);

@@ -1,6 +1,7 @@
 import { execSync, spawn } from "node:child_process";
 import { once } from "node:events";
 import { rmSync, writeFileSync } from "node:fs";
+import { createServer } from "node:net";
 import { resolve } from "node:path";
 import { env } from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -16,6 +17,23 @@ const API_DIR = resolve(import.meta.dirname, "../../../server");
 const DASHBOARD_DIR = resolve(import.meta.dirname, "../..");
 const DASHBOARD_PORT = 6780;
 const PERSIST_DIR = ".wrangler/state/e2e-dashboard-shared";
+
+const pickFreePort = async () =>
+  new Promise<number>((resolvePort, rejectPort) => {
+    const srv = createServer();
+    srv.unref();
+    srv.on("error", rejectPort);
+    srv.listen(0, "127.0.0.1", () => {
+      const address = srv.address();
+      if (address === null || typeof address === "string") {
+        srv.close();
+        rejectPort(new Error("Failed to acquire free port"));
+        return;
+      }
+      const { port } = address;
+      srv.close(() => resolvePort(port));
+    });
+  });
 
 export const ENV_FILE = resolve(import.meta.dirname, ".e2e-shared-env.json");
 
@@ -61,9 +79,12 @@ export default async function setup() {
   const persistPath = resolve(API_DIR, PERSIST_DIR);
   rmSync(persistPath, { recursive: true, force: true });
 
+  const workerPort = await pickFreePort();
+  const publicApiUrl = `http://127.0.0.1:${String(workerPort)}`;
   const e2eEnv = createServerE2EEnvironment({
     projectRoot: API_DIR,
     consoleUrl: `http://127.0.0.1:${String(DASHBOARD_PORT)}`,
+    publicApiUrl,
   });
   const restoreProcessEnv = applyProcessEnv(e2eEnv.processOverrides);
 
@@ -84,7 +105,12 @@ export default async function setup() {
       envFiles: [],
       bindings: e2eEnv.workerBindings,
       build: { nodejsCompatMode: "v2" },
-      dev: { server: { port: 0 }, inspector: false, logLevel: "error", persist: persistPath },
+      dev: {
+        server: { port: workerPort },
+        inspector: false,
+        logLevel: "error",
+        persist: persistPath,
+      },
     });
   } finally {
     process.chdir(originalCwd);
@@ -105,6 +131,12 @@ export default async function setup() {
         FORCE_COLOR: "0",
         NO_COLOR: "1",
         DASHBOARD_API_PROXY_TARGET: apiBaseUrl,
+        // .env.local points VITE_API_URL at the portless dev domain
+        // (`https://api.better-update.localhost`). E2E runs over plain HTTP
+        // On 127.0.0.1, so force same-origin auth + API calls through the
+        // Vite `/api` proxy by clearing these VITE_* build-time envs.
+        VITE_API_URL: "",
+        VITE_ACCOUNTS_URL: "",
       },
       stdio: "pipe",
     },

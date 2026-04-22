@@ -182,7 +182,7 @@ VALUES
       "/api/updates",
       {
         branch: "main",
-        project: "@dashboard/ota",
+        slug: "dashboard-ota",
         runtimeVersion: "1.0.0",
         platform: "ios",
         message: "Rollback to embedded",
