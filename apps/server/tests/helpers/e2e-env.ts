@@ -12,6 +12,7 @@ const FALLBACKS = {
   githubClientId: "e2e-github-id",
   githubClientSecret: "e2e-github-secret",
   installTokenSecret: "e2e-install-token-secret-at-least-32-chars",
+  publicApiUrl: "http://localhost:6781",
   r2AccessKeyId: "e2e-r2-access-key",
   r2SecretAccessKey: "e2e-r2-secret-key",
   assetsBucketName: "better-update",
@@ -107,6 +108,7 @@ export const createServerE2EEnvironment = (options?: {
   readonly projectRoot?: string;
   readonly accountsUrl?: string;
   readonly consoleUrl?: string;
+  readonly publicApiUrl?: string;
 }): ServerE2EEnvironment => {
   const projectRoot = options?.projectRoot ?? resolve(import.meta.dirname, "../..");
   const fileSource = readFileEnvSource(projectRoot);
@@ -152,6 +154,12 @@ export const createServerE2EEnvironment = (options?: {
       fallback: FALLBACKS.buildBucketName,
       secondary: "BUILD_BUCKET_NAME",
     }),
+    // wrangler.jsonc defines COOKIE_DOMAIN=".better-update.dev" for prod.
+    // In e2e the worker serves over plain HTTP on 127.0.0.1, so Set-Cookie
+    // with Domain=.better-update.dev + Secure gets dropped by browsers and
+    // fetch clients — breaking every subsequent authed request. Clearing it
+    // makes better-auth emit host-only cookies that ride the proxy cleanly.
+    COOKIE_DOMAIN: "",
     CLOUDFLARE_API_TOKEN: envValue({
       fileSource,
       primary: "CLOUDFLARE_API_TOKEN",
@@ -186,6 +194,13 @@ export const createServerE2EEnvironment = (options?: {
       primary: "INSTALL_TOKEN_SECRET",
       fallback: FALLBACKS.installTokenSecret,
     }),
+    PUBLIC_API_URL:
+      options?.publicApiUrl ??
+      envValue({
+        fileSource,
+        primary: "PUBLIC_API_URL",
+        fallback: FALLBACKS.publicApiUrl,
+      }),
     R2_ACCESS_KEY_ID: envValue({
       fileSource,
       primary: "E2E_R2_ACCESS_KEY_ID",

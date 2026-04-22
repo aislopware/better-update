@@ -11,7 +11,7 @@ import { CurrentActor } from "../auth/current-actor";
 import { assertProjectOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
 import { BuildRuntime } from "../cloudflare/build-runtime";
-import { cloudflareRequest } from "../cloudflare/context";
+import { cloudflareEnv } from "../cloudflare/context";
 import { createDirectUploadHeaders } from "../cloudflare/signed-url";
 import { generateInstallToken } from "../domain/install-token";
 import { BadRequest, NotFound } from "../errors";
@@ -345,8 +345,8 @@ const handleGetInstallLink = ({ path }: { readonly path: { readonly id: string }
         Effect.mapError(() => new BadRequest({ message: "Failed to generate install token" })),
       );
 
-      const request = yield* cloudflareRequest;
-      const { origin } = new URL(request.url);
+      const env = yield* cloudflareEnv;
+      const origin = env.PUBLIC_API_URL;
 
       const artifactUrl = `${origin}/api/builds/${path.id}/artifact?token=${token}&expires=${expires}`;
 

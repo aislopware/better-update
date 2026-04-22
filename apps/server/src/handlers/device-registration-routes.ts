@@ -50,7 +50,7 @@ const htmlResponse = (body: string, status = 200): Response =>
 const isExpired = (expiresAt: string, now: Date = new Date()): boolean =>
   new Date(expiresAt).getTime() < now.getTime();
 
-const handleLanding = async (request: Request, env: Env, id: string): Promise<Response> => {
+const handleLanding = async (env: Env, id: string): Promise<Response> => {
   const req = await runInfra(findRequestOptional(id), env);
   if (req === null) {
     return htmlResponse(renderRegistrationErrorHtml("Registration request not found."), 404);
@@ -65,7 +65,7 @@ const handleLanding = async (request: Request, env: Env, id: string): Promise<Re
     return htmlResponse(renderRegistrationErrorHtml("This registration link has expired."), 410);
   }
 
-  const { origin } = new URL(request.url);
+  const origin = env.PUBLIC_API_URL;
   return htmlResponse(
     renderRegistrationLandingHtml({
       profileUrl: `${origin}/register-device/${id}/profile.mobileconfig`,
@@ -75,7 +75,7 @@ const handleLanding = async (request: Request, env: Env, id: string): Promise<Re
   );
 };
 
-const handleProfile = async (request: Request, env: Env, id: string): Promise<Response> => {
+const handleProfile = async (env: Env, id: string): Promise<Response> => {
   const req = await runInfra(findRequestOptional(id), env);
   if (req === null) {
     return new Response("Not found", { status: 404 });
@@ -84,7 +84,7 @@ const handleProfile = async (request: Request, env: Env, id: string): Promise<Re
     return new Response("Gone", { status: 410 });
   }
 
-  const { origin } = new URL(request.url);
+  const origin = env.PUBLIC_API_URL;
   const profileUuid = crypto.randomUUID();
   const xml = buildDeviceRegistrationProfile({
     requestId: id,
@@ -229,10 +229,10 @@ export const matchDeviceRegistrationRoute = async (
   const [, id, suffix] = match;
 
   if (suffix === undefined && request.method === "GET") {
-    return handleLanding(request, env, id);
+    return handleLanding(env, id);
   }
   if (suffix === "/profile.mobileconfig" && request.method === "GET") {
-    return handleProfile(request, env, id);
+    return handleProfile(env, id);
   }
   if (suffix === "/callback" && request.method === "POST") {
     return handleCallback(request, env, id);

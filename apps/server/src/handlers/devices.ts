@@ -6,7 +6,7 @@ import { logAudit } from "../audit/logger";
 import { CurrentActor } from "../auth/current-actor";
 import { assertOrgOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
-import { cloudflareRequest } from "../cloudflare/context";
+import { cloudflareEnv } from "../cloudflare/context";
 import { normalizeIdentifier } from "../domain/device";
 import { toApiDevice, toApiDeviceRegistrationRequest } from "../http/to-api";
 import { toApiCrudEffect } from "../http/to-api-effect";
@@ -158,8 +158,8 @@ export const DevicesGroupLive = HttpApiBuilder.group(ManagementApi, "devices", (
           yield* assertPermission("device", "create");
           const ctx = yield* CurrentActor;
           const repo = yield* DeviceRegistrationRequestRepo;
-          const request = yield* cloudflareRequest;
-          const { origin } = new URL(request.url);
+          const env = yield* cloudflareEnv;
+          const origin = env.PUBLIC_API_URL;
 
           const id = crypto.randomUUID();
           const now = new Date();
@@ -201,8 +201,8 @@ export const DevicesGroupLive = HttpApiBuilder.group(ManagementApi, "devices", (
           yield* assertPermission("device", "read");
           const ctx = yield* CurrentActor;
           const repo = yield* DeviceRegistrationRequestRepo;
-          const request = yield* cloudflareRequest;
-          const { origin } = new URL(request.url);
+          const env = yield* cloudflareEnv;
+          const origin = env.PUBLIC_API_URL;
           const activeOnly = urlParams.active === "true";
 
           const items = yield* repo.findByOrg({

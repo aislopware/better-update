@@ -26,8 +26,6 @@ const putAbsolute = (url: string, body: BodyInit, headers?: Record<string, strin
     body,
   });
 
-const get = (path: string) => fetch(`${getBaseUrl()}${path}`);
-
 const parseCookies = (response: Response): string => {
   const setCookie = response.headers.getSetCookie();
   return setCookie
@@ -174,22 +172,6 @@ describe("Asset serving flow", () => {
     expect(uploadResponse.status).toBe(400);
   });
 
-  // ── Section 3: Serve asset ─────────────────────────────────────
-
-  it("serves asset via GET /assets/:hash", async () => {
-    const response = await get(`/assets/${assetHash}`);
-    expect(response.status).toBe(200);
-
-    const body = await response.text();
-    expect(body).toBe(assetContent);
-
-    expect(response.headers.get("content-type")).toBe(assetContentType);
-    expect(response.headers.get("cache-control")).toBe("public, max-age=31536000, immutable");
-    expect(response.headers.get("etag")).toBeTruthy();
-  });
-
-  it("returns 404 for non-existent asset", async () => {
-    const response = await get("/assets/0000000000000000");
-    expect(response.status).toBe(404);
-  });
+  // Asset download is served directly by R2 at ASSET_CDN_URL — no Worker
+  // handler to test here. Upload + integrity flow covered above.
 });
