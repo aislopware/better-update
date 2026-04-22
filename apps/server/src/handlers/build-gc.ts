@@ -5,7 +5,7 @@ import { BuildRuntime } from "../cloudflare/build-runtime";
 import { provideCloudflareEnv } from "../cloudflare/context";
 import { GC_BATCH_SIZE, computeCutoff, parseRetentionDays } from "../domain/gc-utils";
 import { ServerInfrastructureLayer } from "../infrastructure-layer";
-import { structuredLog } from "../middleware/request-logging";
+import { structuredLog } from "../middleware/logging";
 import { BuildRepo } from "../repositories";
 
 import type { ServerInfrastructure } from "../infrastructure-layer";
