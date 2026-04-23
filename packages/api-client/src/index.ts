@@ -7,7 +7,7 @@ const baseUrlRef = Effect.runSync(Ref.make<string>(""));
 /**
  * Configures the absolute base URL used when issuing typed API requests.
  * Called once at app startup, before any query fires, with the host SPA's
- * `VITE_API_URL` (console + accounts both call into this package).
+ * `VITE_API_URL` (apps/web calls into this package).
  *
  * Defaults to an empty string, which resolves fetch calls against the
  * current page origin — useful for Vite dev proxying `/api/*` to the
@@ -36,7 +36,7 @@ export const runApi = async <Success, Failure>(
       }),
       Effect.scoped,
     ),
-    { signal },
+    signal ? { signal } : undefined,
   );
 
 /**

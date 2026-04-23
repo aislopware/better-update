@@ -7,7 +7,7 @@ import { isRecord } from "../lib/record";
 import { CliRuntime } from "./cli-runtime";
 
 const DEFAULT_BASE_URL = "https://graph.better-update.dev";
-const DEFAULT_ACCOUNTS_URL = "https://accounts.better-update.dev";
+const DEFAULT_WEB_URL = "https://better-update.dev";
 
 class ConfigStoreParseError extends Data.TaggedError("ConfigStoreParseError")<{
   readonly message: string;
@@ -20,7 +20,7 @@ export class ConfigStore extends Context.Tag("cli/ConfigStore")<
   ConfigStore,
   {
     readonly getBaseUrl: Effect.Effect<string>;
-    readonly getAccountsUrl: Effect.Effect<string>;
+    readonly getWebUrl: Effect.Effect<string>;
   }
 >() {}
 
@@ -67,19 +67,19 @@ export const ConfigStoreLive = Layer.effect(
     return {
       getBaseUrl: resolveBaseUrl,
 
-      getAccountsUrl: Effect.gen(function* () {
-        const envUrl = yield* runtime.getEnv("BETTER_UPDATE_ACCOUNTS_URL");
+      getWebUrl: Effect.gen(function* () {
+        const envUrl = yield* runtime.getEnv("BETTER_UPDATE_WEB_URL");
         if (envUrl) {
           return normalizeUrl(envUrl);
         }
 
         const parsed = yield* readConfig;
-        const accountsUrl = parsed?.["accountsUrl"];
-        if (typeof accountsUrl === "string") {
-          return normalizeUrl(accountsUrl);
+        const webUrl = parsed?.["webUrl"];
+        if (typeof webUrl === "string") {
+          return normalizeUrl(webUrl);
         }
 
-        return DEFAULT_ACCOUNTS_URL;
+        return DEFAULT_WEB_URL;
       }),
     };
   }),

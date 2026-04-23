@@ -1,0 +1,19 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "better-update-web",
+  "main": "@tanstack/react-start/server-entry",
+  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_date": "2026-04-19",
+  "observability": {
+    "enabled": true,
+  },
+  "routes": [
+    {
+      "pattern": "better-update.dev/*",
+      "zone_id": "02ffa0c8760a5554d9b09a05d7ccbd9e",
+    },
+  ],
+  "vars": {
+    "API_URL": "https://graph.better-update.dev",
+  },
+}

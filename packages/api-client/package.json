@@ -13,15 +13,15 @@
   },
   "dependencies": {
     "@better-update/api": "workspace:*",
-    "@effect/platform": "^0.96.0",
-    "effect": "^3.21.1"
+    "@effect/platform": "^0.96.1",
+    "effect": "^3.21.2"
   },
   "devDependencies": {
     "@better-update/oxlint-config": "workspace:*",
     "@better-update/typescript-config": "workspace:*"
   },
   "peerDependencies": {
-    "@tanstack/react-query": ">=5.99.2",
+    "@tanstack/react-query": ">=5.100.0",
     "react": ">=19.2.5"
   }
 }

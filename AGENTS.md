@@ -13,7 +13,7 @@ This file is the root instruction map for coding agents. Keep it short. Add deep
 ## Repo Map
 
 - `apps/server`: Cloudflare Worker server.
-- `apps/dashboard`: web dashboard.
+- `apps/web`: web app (accounts + dashboard merged, TanStack Start SSR).
 - `apps/cli`: Bun-first TypeScript ESM CLI.
 - `packages/api`: shared HTTP contracts and transport schemas.
 - `packages/api-client`: typed client for `packages/api`.
@@ -61,7 +61,7 @@ This file is the root instruction map for coding agents. Keep it short. Add deep
 ## Commits
 
 - Use Conventional Commits: `type(scope): short summary`.
-- Prefer scopes that match the dominant workspace/package: `cli`, `server`, `dashboard`, `api`, `api-client`, `ui`, `react-hooks`, `bsdiff-wasm`, `repo`.
+- Prefer scopes that match the dominant workspace/package: `cli`, `server`, `web`, `api`, `api-client`, `ui`, `react-hooks`, `bsdiff-wasm`, `repo`.
 - Valid types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `build`, `ci`, `perf`, `revert`.
 - Keep the subject imperative, lowercase, and without a trailing period.
 - Use `!` for breaking changes and include a `BREAKING CHANGE:` footer when needed.

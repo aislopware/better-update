@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0a0a0a"/>
+      <stop offset="1" stop-color="#18181b"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.82" cy="0.28" r="0.45">
+      <stop offset="0" stop-color="#6366f1" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#6366f1" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="0.14" cy="0.88" r="0.4">
+      <stop offset="0" stop-color="#06b6d4" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#06b6d4" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+  <rect width="1200" height="630" fill="url(#glow2)"/>
+
+  <g transform="translate(96 96)">
+    <g transform="translate(0 0) scale(3)">
+      <rect x="10.5" y="10.5" width="19" height="19" rx="3.5" transform="rotate(45 20 20)" fill="#fafafa"/>
+    </g>
+    <text x="160" y="88" font-family="ui-sans-serif, -apple-system, Inter, Segoe UI, sans-serif" font-size="44" font-weight="600" fill="#fafafa" letter-spacing="-1">Better Update</text>
+    <text x="160" y="122" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" fill="#71717a" letter-spacing="3">SHIP FASTER</text>
+  </g>
+
+  <text x="96" y="400" font-family="ui-sans-serif, -apple-system, Inter, Segoe UI, sans-serif" font-size="76" font-weight="600" fill="#fafafa" letter-spacing="-2.5">Your React Native</text>
+  <text x="96" y="458" font-family="ui-sans-serif, -apple-system, Inter, Segoe UI, sans-serif" font-size="76" font-weight="600" fill="#a1a1aa" letter-spacing="-2.5">OTA command center.</text>
+
+  <g transform="translate(96 540)" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18" fill="#71717a" letter-spacing="1">
+    <circle cx="8" cy="-6" r="4" fill="#10b981"/>
+    <text x="24" y="0">LIVE</text>
+    <text x="96" y="0" fill="#52525b">·</text>
+    <text x="120" y="0">Deploy · Monitor · Rollback</text>
+    <text x="448" y="0" fill="#52525b">·</text>
+    <text x="472" y="0">Signed releases</text>
+  </g>
+
+  <text x="1104" y="560" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18" fill="#a1a1aa" text-anchor="end" letter-spacing="1">better-update.dev</text>
+</svg>

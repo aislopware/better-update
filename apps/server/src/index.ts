@@ -28,13 +28,17 @@ const internalError = () =>
  * SPA subdomain. Non-SPA clients (CLI, mobile OTA) don't send matching
  * Origins and receive no CORS headers — they don't need them.
  */
+const parseAllowedOrigins = (webUrl: string): readonly string[] =>
+  webUrl
+    .split(",")
+    .map((url) => url.trim())
+    .filter((url) => url.length > 0);
+
 const corsHeaders = (env: Env, origin: string | null): Record<string, string> => {
   if (!origin) {
     return {};
   }
-  const allowed = [env.ACCOUNTS_URL, env.CONSOLE_URL].filter(
-    (value): value is string => typeof value === "string" && value.length > 0,
-  );
+  const allowed = parseAllowedOrigins(env.WEB_URL);
   if (!allowed.includes(origin)) {
     return {};
   }

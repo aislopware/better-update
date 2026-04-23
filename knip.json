@@ -19,7 +19,7 @@
       "project": ["src/**/*.ts", "tests/**/*.ts"],
       "ignoreDependencies": ["cloudflare"]
     },
-    "apps/dashboard": {
+    "apps/web": {
       "project": ["src/**/*.{ts,tsx}", "tests/**/*.ts"],
       "ignoreDependencies": [
         "@fontsource-variable/geist",

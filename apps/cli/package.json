@@ -33,7 +33,7 @@
   },
   "dependencies": {
     "@clack/prompts": "^1.2.0",
-    "@effect/platform": "^0.96.0",
+    "@effect/platform": "^0.96.1",
     "@effect/platform-node": "^0.106.0",
     "@expo/apple-utils": "^2.1.21",
     "@expo/config": "^55.0.15",
@@ -42,8 +42,8 @@
     "@expo/xcpretty": "^4.4.3",
     "bplist-parser": "^0.3.2",
     "citty": "^0.2.2",
-    "effect": "^3.21.1",
-    "es-toolkit": "^1.45.1",
+    "effect": "^3.21.2",
+    "es-toolkit": "^1.46.0",
     "gradle-to-js": "^2.0.1"
   },
   "devDependencies": {
@@ -54,7 +54,7 @@
     "@better-update/safe-json": "workspace:*",
     "@better-update/typescript-config": "workspace:*",
     "node-pty": "^1.1.0",
-    "tsdown": "^0.21.9"
+    "tsdown": "^0.21.10"
   },
   "optionalDependencies": {
     "keychain": "^1.5.0"

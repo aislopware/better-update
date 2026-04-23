@@ -40,14 +40,14 @@ const browserLogin = Effect.scoped(
   Effect.gen(function* () {
     const configStore = yield* ConfigStore;
     const authStore = yield* AuthStore;
-    const accountsUrl = yield* configStore.getAccountsUrl;
+    const webUrl = yield* configStore.getWebUrl;
 
     const loginServer = yield* Effect.acquireRelease(
       Effect.sync(createBrowserLoginServer),
       (server) => Effect.sync(server.stop),
     );
 
-    const loginUrl = `${accountsUrl}/cli-login?callbackUrl=${encodeURIComponent(loginServer.callbackUrl)}`;
+    const loginUrl = `${webUrl}/auth/cli-login?callbackUrl=${encodeURIComponent(loginServer.callbackUrl)}`;
 
     yield* Console.log("Opening browser for better-update login...");
     yield* Console.log("");

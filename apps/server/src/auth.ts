@@ -4,6 +4,7 @@ import { betterAuth } from "better-auth";
 import { organization } from "better-auth/plugins";
 
 import { API_KEY_PREFIX } from "./auth/constants";
+import { findFirstMembershipOrgId } from "./auth/memberships";
 
 // --- Workers-compatible password hashing (PBKDF2 via Web Crypto) ---
 // Better Auth's default scrypt (N:16384, r:16) needs ~64 MB and crashes workerd.
@@ -60,8 +61,7 @@ type AuthEnv = Env & {
   readonly GITHUB_CLIENT_ID?: string;
   readonly GITHUB_CLIENT_SECRET?: string;
   readonly TEST_MODE?: string;
-  readonly ACCOUNTS_URL?: string;
-  readonly CONSOLE_URL?: string;
+  readonly WEB_URL?: string;
   readonly COOKIE_DOMAIN?: string;
 };
 
@@ -81,9 +81,8 @@ export const createAuth = (env: AuthEnv) => {
   const githubEnabled = githubClientId.length > 0 && githubClientSecret.length > 0;
   const testMode = env.TEST_MODE === "true";
 
-  const trustedOrigins = [env.ACCOUNTS_URL, env.CONSOLE_URL].filter(
-    (value): value is string => typeof value === "string" && value.length > 0,
-  );
+  const trustedOrigins =
+    typeof env.WEB_URL === "string" && env.WEB_URL.length > 0 ? [env.WEB_URL] : [];
 
   return betterAuth({
     secret: env.BETTER_AUTH_SECRET,
@@ -240,6 +239,22 @@ export const createAuth = (env: AuthEnv) => {
         },
       ),
     ],
+
+    databaseHooks: {
+      session: {
+        create: {
+          before: async (session) => {
+            const organizationId = await findFirstMembershipOrgId(env.DB, session.userId);
+            if (organizationId === null) {
+              return { data: session };
+            }
+            return {
+              data: { ...session, activeOrganizationId: organizationId },
+            };
+          },
+        },
+      },
+    },
 
     advanced: {
       useSecureCookies: env.BETTER_AUTH_URL.startsWith("https://"),

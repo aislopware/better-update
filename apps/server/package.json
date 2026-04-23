@@ -13,7 +13,7 @@
   "scripts": {
     "build": "vite build",
     "deploy": "vite build && wrangler deploy",
-    "dev": "PORTLESS=1 portless api.better-update vite dev",
+    "dev": "PORTLESS=1 portless graph.better-update vite dev",
     "dev:local": "vite dev",
     "lint": "oxlint --fix",
     "lint:check": "oxlint",
@@ -26,15 +26,15 @@
     "typegen:cf": "wrangler types"
   },
   "dependencies": {
-    "@better-auth/api-key": "^1.6.6",
+    "@better-auth/api-key": "^1.6.8",
     "@better-update/api": "workspace:*",
     "@better-update/encoding": "workspace:*",
     "@better-update/safe-json": "workspace:*",
-    "@effect/platform": "^0.96.0",
+    "@effect/platform": "^0.96.1",
     "@noble/hashes": "^2.2.0",
-    "better-auth": "^1.6.6",
-    "effect": "^3.21.1",
-    "es-toolkit": "^1.45.1",
+    "better-auth": "^1.6.8",
+    "effect": "^3.21.2",
+    "es-toolkit": "^1.46.0",
     "s3mini": "^0.9.4",
     "structured-headers": "^2.0.2"
   },
@@ -44,7 +44,7 @@
     "@cloudflare/vite-plugin": "^1.33.1",
     "@cloudflare/vitest-pool-workers": "^0.14.9",
     "@vitest/coverage-istanbul": "^4.1.5",
-    "vite": "^8.0.9",
+    "vite": "^8.0.10",
     "wrangler": "^4.84.1"
   }
 }

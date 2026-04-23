@@ -29,13 +29,13 @@ graph TB
             DO --> Purge["Cache Purge API<br/>(global)"]
         end
 
-        Dashboard["Worker<br/>(apps/dashboard, SSR)"]
+        Web["Worker<br/>(apps/web, SSR)"]
     end
 
     ExpoM["Expo App"] -->|"GET /manifest/:projectId"| API
     ExpoA["Expo App"] -->|"GET /assets/{hash}"| CDN
     Pub[Publisher] -->|"POST /api/*"| API
-    Dash[Dashboard] --> Dashboard
+    Dash[Browser] --> Web
 ```
 
 ## Request Flows

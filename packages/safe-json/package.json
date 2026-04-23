@@ -11,7 +11,7 @@
     "lint:check": "oxlint"
   },
   "dependencies": {
-    "effect": "^3.21.1"
+    "effect": "^3.21.2"
   },
   "devDependencies": {
     "@better-update/oxlint-config": "workspace:*",
