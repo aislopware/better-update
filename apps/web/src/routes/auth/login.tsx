@@ -1,19 +1,25 @@
 import { Button } from "@better-update/ui/components/ui/button";
 import { createFileRoute, redirect } from "@tanstack/react-router";
+import { zodValidator } from "@tanstack/zod-adapter";
 import { Loader2Icon } from "lucide-react";
 import { useState } from "react";
+import { z } from "zod";
 
 import { BrandWordmark } from "../../components/brand-mark";
 import { HeroMotion } from "../../components/hero-motion";
 import { authClient } from "../../lib/auth-client";
 
-const SEARCH_KEYS = { redirectTo: "redirectTo" } as const;
+const isSafeRedirect = (value: string): boolean =>
+  value.startsWith("/") && !value.startsWith("//") && !value.startsWith("/\\");
 
-interface LoginSearch {
-  readonly redirectTo?: string;
-}
+const loginSearchSchema = z.object({
+  // eslint-disable-next-line unicorn/prefer-top-level-await, promise/prefer-await-to-then -- zod's .catch() is a sync validator fallback, not a Promise handler
+  redirectTo: z.string().refine(isSafeRedirect).catch("/"),
+});
 
-const readRedirectTo = (search: LoginSearch): string => search.redirectTo ?? "/";
+type LoginSearch = z.infer<typeof loginSearchSchema>;
+
+const readRedirectTo = (search: LoginSearch): string => search.redirectTo;
 
 const CheckIcon = ({ className }: { readonly className?: string }) => (
   <svg
@@ -229,19 +235,12 @@ const LoginPage = () => {
   );
 };
 
-const isSafeRedirect = (value: string): boolean =>
-  value.startsWith("/") && !value.startsWith("//") && !value.startsWith("/\\");
-
 export const Route = createFileRoute("/auth/login")({
-  validateSearch: (search): LoginSearch => {
-    const raw = search[SEARCH_KEYS.redirectTo];
-    const safe = typeof raw === "string" && isSafeRedirect(raw) ? raw : "/";
-    return { redirectTo: safe };
-  },
+  validateSearch: zodValidator(loginSearchSchema),
   beforeLoad: ({ context, search }) => {
     if (context.session?.user) {
       // eslint-disable-next-line functional/no-throw-statements, typescript/only-throw-error -- TanStack Router idiom: throw redirect preserves typed search-param inference
-      throw redirect({ href: search.redirectTo ?? "/" });
+      throw redirect({ href: search.redirectTo });
     }
   },
   component: LoginPage,
