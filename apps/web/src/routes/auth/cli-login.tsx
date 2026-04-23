@@ -8,6 +8,8 @@ import {
   CardTitle,
 } from "@better-update/ui/components/ui/card";
 import { createFileRoute, redirect } from "@tanstack/react-router";
+import { zodValidator } from "@tanstack/zod-adapter";
+import { z } from "zod";
 
 import { authClient } from "../../lib/auth-client";
 import {
@@ -18,9 +20,10 @@ import {
 } from "../../lib/cli-login";
 import { orgsQueryOptions } from "../../queries/auth";
 
-interface CliLoginSearch {
-  readonly callbackUrl: string;
-}
+const cliLoginSearchSchema = z.object({
+  // eslint-disable-next-line unicorn/prefer-top-level-await, promise/prefer-await-to-then -- zod's .catch() is a sync validator fallback, not a Promise handler
+  callbackUrl: z.string().catch(""),
+});
 
 const CliLoginPage = () => {
   const { error } = Route.useRouteContext();
@@ -53,9 +56,7 @@ const CliLoginPage = () => {
 };
 
 export const Route = createFileRoute("/auth/cli-login")({
-  validateSearch: (search): CliLoginSearch => ({
-    callbackUrl: typeof search["callbackUrl"] === "string" ? search["callbackUrl"] : "",
-  }),
+  validateSearch: zodValidator(cliLoginSearchSchema),
   beforeLoad: async ({ context, search }) => {
     if (!search.callbackUrl || !isAllowedCliCallbackUrl(search.callbackUrl)) {
       return { error: "Invalid CLI callback URL." };
