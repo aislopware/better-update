@@ -61,8 +61,6 @@ type AuthEnv = Env & {
   readonly GITHUB_CLIENT_ID?: string;
   readonly GITHUB_CLIENT_SECRET?: string;
   readonly TEST_MODE?: string;
-  readonly WEB_URL?: string;
-  readonly COOKIE_DOMAIN?: string;
 };
 
 const trimOptionalBinding = (value: string | undefined): string =>
@@ -81,13 +79,9 @@ export const createAuth = (env: AuthEnv) => {
   const githubEnabled = githubClientId.length > 0 && githubClientSecret.length > 0;
   const testMode = env.TEST_MODE === "true";
 
-  const trustedOrigins =
-    typeof env.WEB_URL === "string" && env.WEB_URL.length > 0 ? [env.WEB_URL] : [];
-
   return betterAuth({
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL,
-    trustedOrigins,
     database: env.DB,
     logger: testMode ? { disabled: true } : undefined,
 
@@ -257,15 +251,7 @@ export const createAuth = (env: AuthEnv) => {
     },
 
     advanced: {
-      useSecureCookies: env.BETTER_AUTH_URL.startsWith("https://"),
-      ...(env.COOKIE_DOMAIN && env.COOKIE_DOMAIN.length > 0
-        ? {
-            crossSubDomainCookies: {
-              enabled: true,
-              domain: env.COOKIE_DOMAIN,
-            },
-          }
-        : {}),
+      useSecureCookies: true,
     },
   });
 };

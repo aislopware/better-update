@@ -13,7 +13,4 @@
       "zone_id": "02ffa0c8760a5554d9b09a05d7ccbd9e",
     },
   ],
-  "vars": {
-    "API_URL": "https://graph.better-update.dev",
-  },
 }

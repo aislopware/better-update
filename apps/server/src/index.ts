@@ -23,47 +23,6 @@ const internalError = () =>
     { status: 500 },
   );
 
-/**
- * Builds CORS response headers when the request's Origin matches a trusted
- * SPA subdomain. Non-SPA clients (CLI, mobile OTA) don't send matching
- * Origins and receive no CORS headers — they don't need them.
- */
-const parseAllowedOrigins = (webUrl: string): readonly string[] =>
-  webUrl
-    .split(",")
-    .map((url) => url.trim())
-    .filter((url) => url.length > 0);
-
-const corsHeaders = (env: Env, origin: string | null): Record<string, string> => {
-  if (!origin) {
-    return {};
-  }
-  const allowed = parseAllowedOrigins(env.WEB_URL);
-  if (!allowed.includes(origin)) {
-    return {};
-  }
-  return {
-    "access-control-allow-origin": origin,
-    "access-control-allow-credentials": "true",
-    "access-control-allow-headers":
-      "content-type, authorization, traceparent, tracestate, baggage, b3",
-    "access-control-allow-methods": "GET, POST, PATCH, PUT, DELETE, OPTIONS",
-    vary: "origin",
-  };
-};
-
-const withCors = (response: Response, cors: Record<string, string>): Response => {
-  if (Object.keys(cors).length === 0) {
-    return response;
-  }
-  const headers = new Headers([...response.headers, ...Object.entries(cors)]);
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers,
-  });
-};
-
 /** Handle Better Auth routes with workarounds for dev-mode status codes and empty bodies */
 const handleAuth = async (request: Request, env: Env): Promise<Response> => {
   // eslint-disable-next-line functional/no-try-statements -- Better Auth may throw unhandled exceptions
@@ -109,30 +68,17 @@ const routeRequest = async (
   ctx: ExecutionContext,
 ): Promise<Response> => {
   const url = new URL(request.url);
-  const origin = request.headers.get("origin");
-  const cors = corsHeaders(env, origin);
-
-  // CORS preflight — respond before any route matching
-  if (request.method === "OPTIONS" && Object.keys(cors).length > 0) {
-    return new Response(null, { status: 204, headers: cors });
-  }
-
   const requestContext = makeCloudflareRequestContext(env, ctx, request) as Context.Context<never>;
 
   // Better Auth handles its own auth routes
   if (url.pathname.startsWith("/api/auth")) {
-    return withCors(await handleAuth(request, env), cors);
+    return handleAuth(request, env);
   }
 
-  // Public server capabilities — called by the accounts SPA before login
-  // To decide which auth providers to render. Must stay unauthenticated.
+  // Public server capabilities — unauthenticated; called before login to
+  // Decide which auth providers to render.
   if (url.pathname === "/api/config" && request.method === "GET") {
-    return withCors(
-      Response.json({
-        githubEnabled: isGithubEnabled(env),
-      }),
-      cors,
-    );
+    return Response.json({ githubEnabled: isGithubEnabled(env) });
   }
 
   // Expo Updates protocol — unauthenticated manifest serving
@@ -154,7 +100,7 @@ const routeRequest = async (
   }
 
   // Effect HttpApi handles management routes + OpenAPI + Scalar docs
-  return withCors(await handler(request, requestContext), cors);
+  return handler(request, requestContext);
 };
 
 export default {
