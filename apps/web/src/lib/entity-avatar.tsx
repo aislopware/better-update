@@ -34,7 +34,7 @@ export const EntityAvatar = ({
     <Avatar size={size} className={joinClasses(isSquare && squareRoot, className)}>
       <AvatarImage src={src} alt={name} className={joinClasses(isSquare && squareChild)} />
       <AvatarFallback
-        className={joinClasses("font-semibold text-white", isSquare && squareChild)}
+        className={joinClasses("font-semibold text-white!", isSquare && squareChild)}
         style={{ backgroundColor }}
       >
         {initial}
