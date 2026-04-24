@@ -1,5 +1,6 @@
 import { execSync, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createServer } from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -10,6 +11,23 @@ import type { unstable_startWorker } from "../../../server/node_modules/wrangler
 
 const CLI_DIR = path.resolve(import.meta.dirname, "../..");
 const SERVER_DIR = path.resolve(import.meta.dirname, "../../../server");
+
+const pickFreePort = async () =>
+  new Promise<number>((resolvePort, rejectPort) => {
+    const srv = createServer();
+    srv.unref();
+    srv.on("error", rejectPort);
+    srv.listen(0, "127.0.0.1", () => {
+      const address = srv.address();
+      if (address === null || typeof address === "string") {
+        srv.close();
+        rejectPort(new Error("Failed to acquire free port"));
+        return;
+      }
+      const { port } = address;
+      srv.close(() => resolvePort(port));
+    });
+  });
 
 export interface SetupCliE2EOptions {
   /** Use an existing directory as the CLI project root instead of creating a temp dir. */
@@ -240,7 +258,12 @@ export const setupCliE2E = (persistDir: string, options?: SetupCliE2EOptions): C
 
   beforeAll(async () => {
     rmSync(persistPath, { recursive: true, force: true });
-    const e2eEnv = createServerE2EEnvironment({ projectRoot: SERVER_DIR });
+    const port = await pickFreePort();
+    const publicApiUrl = `http://127.0.0.1:${String(port)}`;
+    const e2eEnv = createServerE2EEnvironment({
+      projectRoot: SERVER_DIR,
+      publicApiUrl,
+    });
     state.restoreProcessEnv = applyProcessEnv(e2eEnv.processOverrides);
 
     execSync(`bunx wrangler d1 migrations apply DB --local --persist-to ${persistArg}`, {
@@ -259,7 +282,7 @@ export const setupCliE2E = (persistDir: string, options?: SetupCliE2EOptions): C
         bindings: e2eEnv.workerBindings,
         build: { nodejsCompatMode: "v2" },
         dev: {
-          server: { port: 0 },
+          server: { port },
           inspector: false,
           logLevel: "error",
           persist: persistPath,
