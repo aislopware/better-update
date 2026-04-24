@@ -1,10 +1,10 @@
+import { isRecord } from "../lib/type-guards";
 import {
   extractDeviceSingle,
   extractDevicesPage,
   extractErrors,
   extractList,
   extractSingle,
-  isRecord,
   mapDevice,
   toBundleId,
   toCertificate,

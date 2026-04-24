@@ -13,7 +13,7 @@ import { BadRequest } from "../errors";
 import { toApiApplePushKey } from "../http/to-api";
 import { toApiCrudEffect, toApiWriteEffect } from "../http/to-api-effect";
 import { toDbNull } from "../lib/nullable";
-import { withR2Compensation } from "../lib/r2-helpers";
+import { r2Operation, withR2Compensation } from "../lib/r2-helpers";
 import { ApplePushKeyRepo } from "../repositories/apple-push-keys";
 import { AppleTeamRepo } from "../repositories/apple-teams";
 
@@ -67,7 +67,7 @@ export const ApplePushKeysGroupLive = HttpApiBuilder.group(
 
             const id = crypto.randomUUID();
             const r2Key = `apple-push-keys/${ctx.organizationId}/${id}.p8.enc`;
-            yield* Effect.promise(async () =>
+            yield* r2Operation(async () =>
               env.CREDENTIAL_ARTIFACTS.put(r2Key, encrypted.encryptedBlob),
             );
 

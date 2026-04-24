@@ -1,7 +1,7 @@
 import { Context, Effect, Layer } from "effect";
 
 import { toDbNull } from "../lib/nullable";
-import { toChecksumSha256Base64 } from "../lib/r2-helpers";
+import { r2Operation, toChecksumSha256Base64 } from "../lib/r2-helpers";
 import { cloudflareEnv } from "./context";
 import { r2Checksums } from "./r2-accessors";
 import { generateUploadUrl } from "./signed-url";
@@ -84,7 +84,7 @@ export const AssetStorageLive = Layer.succeed(AssetStorage, {
   headObject: (params) =>
     Effect.gen(function* () {
       const env = yield* cloudflareEnv;
-      const object = yield* Effect.promise(async () => env.ASSETS_BUCKET.head(params.key));
+      const object = yield* r2Operation(async () => env.ASSETS_BUCKET.head(params.key));
       return object ? toStoredBlobMetadata(object) : null;
     }),
 
@@ -98,7 +98,7 @@ export const AssetStorageLive = Layer.succeed(AssetStorage, {
   putObject: (params) =>
     Effect.gen(function* () {
       const env = yield* cloudflareEnv;
-      yield* Effect.promise(async () =>
+      yield* r2Operation(async () =>
         env.ASSETS_BUCKET.put(params.key, params.body, {
           httpMetadata: { contentType: params.contentType },
         }),
@@ -112,6 +112,6 @@ export const AssetStorageLive = Layer.succeed(AssetStorage, {
       }
 
       const env = yield* cloudflareEnv;
-      yield* Effect.promise(async () => env.ASSETS_BUCKET.delete([...params.keys]));
+      yield* r2Operation(async () => env.ASSETS_BUCKET.delete([...params.keys]));
     }),
 });

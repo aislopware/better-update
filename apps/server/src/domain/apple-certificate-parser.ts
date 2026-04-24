@@ -1,6 +1,7 @@
 import { Data, Effect } from "effect";
 
 import { toDbNull } from "../lib/nullable";
+import { APPLE_TEAM_ID_PATTERN } from "./apple-identifiers";
 
 export class InvalidAppleCertificate extends Data.TaggedError("InvalidAppleCertificate")<{
   readonly message: string;
@@ -45,8 +46,6 @@ export const validatePkcs12Blob = (bytes: Uint8Array) =>
     return bytes;
   });
 
-const TEAM_ID_PATTERN = /^[A-Z0-9]{10}$/u;
-
 const isIsoDate = (value: string) => {
   const date = new Date(value);
   return !Number.isNaN(date.getTime());
@@ -56,7 +55,7 @@ export const validateDistributionCertificateMetadata = (
   metadata: DistributionCertificateMetadata,
 ) =>
   Effect.gen(function* () {
-    if (!TEAM_ID_PATTERN.test(metadata.appleTeamId)) {
+    if (!APPLE_TEAM_ID_PATTERN.test(metadata.appleTeamId)) {
       return yield* Effect.fail(
         new InvalidAppleCertificate({
           message: "Apple Team identifier must be 10 uppercase alphanumeric characters",

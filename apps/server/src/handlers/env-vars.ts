@@ -10,6 +10,7 @@ import { Vault } from "../cloudflare/vault";
 import { BadRequest, Forbidden } from "../errors";
 import { toApiEnvVar } from "../http/to-api";
 import { toApiBadRequestReadEffect, toApiWriteEffect } from "../http/to-api-effect";
+import { parseDotenvEntries } from "../lib/dotenv";
 import { parsePagination } from "../lib/pagination";
 import { requireValue } from "../lib/require-value";
 import { EnvVarRepo } from "../repositories/env-vars";
@@ -102,25 +103,7 @@ const decryptValue = (orgId: string, keyVersion: number, encrypted: string) =>
       .pipe(Effect.mapError(() => new BadRequest({ message: "Decryption failed" })));
   });
 
-const stripQuotes = (raw: string): string =>
-  (raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))
-    ? raw.slice(1, -1)
-    : raw;
-
-const parseEnvContent = (content: string): readonly { key: string; value: string }[] =>
-  content
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0 && !line.startsWith("#"))
-    .flatMap((line) => {
-      const eqIdx = line.indexOf("=");
-      if (eqIdx === -1) {
-        return [];
-      }
-      return [
-        { key: line.slice(0, eqIdx).trim(), value: stripQuotes(line.slice(eqIdx + 1).trim()) },
-      ];
-    });
+const parseEnvContent = parseDotenvEntries;
 
 const prepareStorageFields = (
   visibility: "plaintext" | "sensitive" | "secret",

@@ -1,7 +1,7 @@
 import { Context, Effect, Layer } from "effect";
 
 import { toDbNull } from "../lib/nullable";
-import { toChecksumSha256Base64 } from "../lib/r2-helpers";
+import { r2Operation, toChecksumSha256Base64 } from "../lib/r2-helpers";
 import { cloudflareEnv } from "./context";
 import { r2Checksums, r2ListCursor } from "./r2-accessors";
 import { copyObject, generateDownloadUrl, generateUploadUrl } from "./signed-url";
@@ -142,31 +142,31 @@ export const BuildRuntimeLive = Layer.succeed(BuildRuntime, {
   headObject: (params) =>
     Effect.gen(function* () {
       const env = yield* cloudflareEnv;
-      const object = yield* Effect.promise(async () => env.BUILD_BUCKET.head(params.key));
+      const object = yield* r2Operation(async () => env.BUILD_BUCKET.head(params.key));
       return object ? toStoredBuildObjectMetadata(object) : null;
     }),
 
   getObject: (params) =>
     Effect.gen(function* () {
       const env = yield* cloudflareEnv;
-      const object = yield* Effect.promise(async () => env.BUILD_BUCKET.get(params.key));
+      const object = yield* r2Operation(async () => env.BUILD_BUCKET.get(params.key));
       return object ? toStoredBuildBlob(object) : null;
     }),
 
   getObjectBytes: (params) =>
     Effect.gen(function* () {
       const env = yield* cloudflareEnv;
-      const object = yield* Effect.promise(async () => env.BUILD_BUCKET.get(params.key));
+      const object = yield* r2Operation(async () => env.BUILD_BUCKET.get(params.key));
       if (!object) {
         return null;
       }
-      return yield* Effect.promise(async () => new Uint8Array(await object.arrayBuffer()));
+      return yield* r2Operation(async () => new Uint8Array(await object.arrayBuffer()));
     }),
 
   putObject: (params) =>
     Effect.gen(function* () {
       const env = yield* cloudflareEnv;
-      yield* Effect.promise(async () =>
+      yield* r2Operation(async () =>
         env.BUILD_BUCKET.put(params.key, params.body, {
           httpMetadata: { contentType: params.contentType },
         }),
@@ -176,7 +176,7 @@ export const BuildRuntimeLive = Layer.succeed(BuildRuntime, {
   copyObject: (params) =>
     Effect.gen(function* () {
       const env = yield* cloudflareEnv;
-      yield* Effect.promise(async () =>
+      yield* r2Operation(async () =>
         copyObject(env, {
           bucketName: env.BUILD_BUCKET_NAME,
           sourceKey: params.sourceKey,
@@ -192,13 +192,13 @@ export const BuildRuntimeLive = Layer.succeed(BuildRuntime, {
       }
 
       const env = yield* cloudflareEnv;
-      yield* Effect.promise(async () => env.BUILD_BUCKET.delete([...params.keys]));
+      yield* r2Operation(async () => env.BUILD_BUCKET.delete([...params.keys]));
     }),
 
   listObjects: (params) =>
     Effect.gen(function* () {
       const env = yield* cloudflareEnv;
-      const listed = yield* Effect.promise(async () =>
+      const listed = yield* r2Operation(async () =>
         env.BUILD_BUCKET.list(
           params.cursor
             ? { prefix: params.prefix, cursor: params.cursor }

@@ -18,5 +18,10 @@ export const pemToPkcs8Der = (pem: string): Uint8Array | null => {
   if (body.length === 0) {
     return null;
   }
-  return fromBase64(body);
+  // eslint-disable-next-line functional/no-try-statements -- PEM parsing is a pure validation boundary; invalid base64 should return null, not escape as a defect
+  try {
+    return fromBase64(body);
+  } catch {
+    return null;
+  }
 };

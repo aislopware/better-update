@@ -2,15 +2,15 @@ import { Data, Effect } from "effect";
 
 import { pemToPkcs8Der } from "../lib/apple-pem";
 import { toDbNull } from "../lib/nullable";
+import {
+  APPLE_ISSUER_ID_PATTERN,
+  APPLE_KEY_ID_PATTERN,
+  APPLE_TEAM_ID_PATTERN,
+} from "./apple-identifiers";
 
 export class InvalidAscApiKey extends Data.TaggedError("InvalidAscApiKey")<{
   readonly message: string;
 }> {}
-
-const KEY_ID_PATTERN = /^[A-Z0-9]{10}$/u;
-const ISSUER_ID_PATTERN =
-  /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/u;
-const TEAM_ID_PATTERN = /^[A-Z0-9]{10}$/u;
 
 export interface AscApiKeyMetadata {
   readonly keyId: string;
@@ -23,20 +23,20 @@ export interface AscApiKeyMetadata {
 
 export const validateAscApiKey = (metadata: AscApiKeyMetadata) =>
   Effect.gen(function* () {
-    if (!KEY_ID_PATTERN.test(metadata.keyId)) {
+    if (!APPLE_KEY_ID_PATTERN.test(metadata.keyId)) {
       return yield* Effect.fail(
         new InvalidAscApiKey({
           message: "ASC API Key ID must be 10 uppercase alphanumeric characters",
         }),
       );
     }
-    if (!ISSUER_ID_PATTERN.test(metadata.issuerId)) {
+    if (!APPLE_ISSUER_ID_PATTERN.test(metadata.issuerId)) {
       return yield* Effect.fail(new InvalidAscApiKey({ message: "Issuer ID must be a UUID" }));
     }
     if (metadata.name.trim().length === 0 || metadata.name.length > 120) {
       return yield* Effect.fail(new InvalidAscApiKey({ message: "Name must be 1-120 characters" }));
     }
-    if (metadata.appleTeamId !== undefined && !TEAM_ID_PATTERN.test(metadata.appleTeamId)) {
+    if (metadata.appleTeamId !== undefined && !APPLE_TEAM_ID_PATTERN.test(metadata.appleTeamId)) {
       return yield* Effect.fail(
         new InvalidAscApiKey({
           message: "Apple Team identifier must be 10 uppercase alphanumeric characters",

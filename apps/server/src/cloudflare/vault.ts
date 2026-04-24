@@ -21,6 +21,12 @@ const toVaultCryptoError =
   (error: CryptoError): CredentialVaultCryptoError =>
     cryptoError(operation, error.cause);
 
+const decodeBase64 = (operation: string, value: string) =>
+  Effect.try({
+    try: () => fromBase64(value),
+    catch: (cause) => cryptoError(operation, cause),
+  });
+
 // -- Effect orchestrators over CryptoService -------------------------------
 
 const envelopeEncrypt = (
@@ -72,8 +78,9 @@ const envelopeDecrypt = (
     const kek = yield* service
       .deriveKek(secret, orgId, keyVersion)
       .pipe(Effect.mapError(toVaultCryptoError("derive KEK")));
+    const encryptedDek = yield* decodeBase64("decode encrypted DEK", encryptedDekB64);
     const dek = yield* service
-      .decryptAesGcm(kek, fromBase64(encryptedDekB64))
+      .decryptAesGcm(kek, encryptedDek)
       .pipe(Effect.mapError(toVaultCryptoError("decrypt DEK")));
     const dekKey = yield* service
       .importDekKey(dek, ["decrypt"])
@@ -121,8 +128,9 @@ const decryptSecretEffect = (
     const kek = yield* service
       .deriveKek(secret, orgId, keyVersion)
       .pipe(Effect.mapError(toVaultCryptoError("derive KEK")));
+    const encrypted = yield* decodeBase64("decode encrypted secret", encryptedB64);
     const decrypted = yield* service
-      .decryptAesGcm(kek, fromBase64(encryptedB64))
+      .decryptAesGcm(kek, encrypted)
       .pipe(Effect.mapError(toVaultCryptoError("decrypt secret")));
     return new TextDecoder().decode(decrypted);
   });

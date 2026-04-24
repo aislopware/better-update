@@ -1,7 +1,17 @@
 import { Data, Effect } from "effect";
 
 import { toDbNull } from "../lib/nullable";
+import {
+  getPlistBoolean,
+  getPlistDateString,
+  getPlistObject,
+  getPlistString,
+  getPlistStringArray,
+  parsePlistXml,
+} from "../lib/plist";
+import { APPLE_TEAM_ID_PATTERN } from "./apple-identifiers";
 
+import type { PlistObject } from "../lib/plist";
 import type { DistributionType } from "../models";
 
 export class InvalidProvisioningProfile extends Data.TaggedError("InvalidProvisioningProfile")<{
@@ -21,32 +31,6 @@ export interface ParsedProvisioningProfile {
 const PLIST_START = "<?xml";
 const PLIST_END = "</plist>";
 
-const TEAM_ID_PATTERN = /^[A-Z0-9]{10}$/u;
-
-const matchStringTag = (plist: string, key: string): string | null => {
-  const pattern = new RegExp(`<key>${key}</key>\\s*<string>([^<]+)</string>`, "u");
-  const match = pattern.exec(plist);
-  return match === null ? null : toDbNull(match[1]);
-};
-
-const matchDateTag = (plist: string, key: string): string | null => {
-  const pattern = new RegExp(`<key>${key}</key>\\s*<date>([^<]+)</date>`, "u");
-  const match = pattern.exec(plist);
-  return match === null ? null : toDbNull(match[1]);
-};
-
-const matchArrayBlock = (plist: string, key: string): string | null => {
-  const pattern = new RegExp(`<key>${key}</key>\\s*<array>([\\s\\S]*?)</array>`, "u");
-  const match = pattern.exec(plist);
-  return match === null ? null : toDbNull(match[1]);
-};
-
-const matchBoolTag = (plist: string, key: string): boolean => {
-  const pattern = new RegExp(`<key>${key}</key>\\s*<(true|false)/>`, "u");
-  const match = pattern.exec(plist);
-  return match?.[1] === "true";
-};
-
 const extractPlist = (bytes: Uint8Array): string | null => {
   const text = new TextDecoder("latin1").decode(bytes);
   const start = text.indexOf(PLIST_START);
@@ -60,31 +44,27 @@ const extractPlist = (bytes: Uint8Array): string | null => {
   return text.slice(start, end + PLIST_END.length);
 };
 
-const extractStringArray = (plist: string, key: string): readonly string[] => {
-  const body = matchArrayBlock(plist, key);
-  if (body === null) {
-    return [];
-  }
-  const matches = [...body.matchAll(/<string>([^<]+)<\/string>/gu)];
-  return matches.flatMap((match) => {
-    const [, value] = match;
-    if (value === undefined) {
-      return [];
-    }
-    const trimmed = value.trim();
-    return trimmed.length > 0 ? [trimmed] : [];
-  });
+const readApplicationIdentifier = (plist: PlistObject): string | null =>
+  getPlistString(getPlistObject(plist, "Entitlements") ?? plist, "application-identifier");
+
+const hasProvisionedDevices = (plist: PlistObject): boolean =>
+  getPlistStringArray(plist, "ProvisionedDevices").length > 0;
+
+const hasGetTaskAllow = (plist: PlistObject): boolean => {
+  const entitlements = getPlistObject(plist, "Entitlements");
+  return (
+    getPlistBoolean(plist, "get-task-allow") ||
+    (entitlements === null ? false : getPlistBoolean(entitlements, "get-task-allow"))
+  );
 };
 
-const inferDistributionType = (plist: string): DistributionType => {
-  if (matchBoolTag(plist, "ProvisionsAllDevices")) {
+const inferDistributionType = (plist: PlistObject): DistributionType => {
+  if (getPlistBoolean(plist, "ProvisionsAllDevices")) {
     return "ENTERPRISE";
   }
-  const provisionedBody = matchArrayBlock(plist, "ProvisionedDevices");
-  const hasDevices = provisionedBody !== null && /<string>/u.test(provisionedBody);
-  const hasGetTaskAllow = matchBoolTag(plist, "get-task-allow");
+  const hasDevices = hasProvisionedDevices(plist);
 
-  if (hasDevices && hasGetTaskAllow) {
+  if (hasDevices && hasGetTaskAllow(plist)) {
     return "DEVELOPMENT";
   }
   if (hasDevices) {
@@ -93,10 +73,20 @@ const inferDistributionType = (plist: string): DistributionType => {
   return "APP_STORE";
 };
 
+const malformedPlist = () =>
+  new InvalidProvisioningProfile({
+    message: "Embedded provisioning profile plist is malformed",
+  });
+
+const parseEmbeddedPlist = (plistXml: string) => {
+  const parsed = parsePlistXml(plistXml);
+  return parsed === null ? Effect.fail(malformedPlist()) : Effect.succeed(parsed);
+};
+
 export const parseProvisioningProfile = (bytes: Uint8Array) =>
   Effect.gen(function* () {
-    const plist = extractPlist(bytes);
-    if (plist === null) {
+    const plistXml = extractPlist(bytes);
+    if (plistXml === null) {
       return yield* Effect.fail(
         new InvalidProvisioningProfile({
           message: "Could not find embedded plist in .mobileprovision",
@@ -104,16 +94,17 @@ export const parseProvisioningProfile = (bytes: Uint8Array) =>
       );
     }
 
-    const teamSingle = matchStringTag(plist, "TeamIdentifier");
-    const teamArray = extractStringArray(plist, "TeamIdentifier");
+    const plist = yield* parseEmbeddedPlist(plistXml);
+    const teamSingle = getPlistString(plist, "TeamIdentifier");
+    const teamArray = getPlistStringArray(plist, "TeamIdentifier");
     const appleTeamId = toDbNull(teamSingle ?? teamArray[0]);
-    if (appleTeamId === null || !TEAM_ID_PATTERN.test(appleTeamId)) {
+    if (appleTeamId === null || !APPLE_TEAM_ID_PATTERN.test(appleTeamId)) {
       return yield* Effect.fail(
         new InvalidProvisioningProfile({ message: "TeamIdentifier missing or malformed" }),
       );
     }
 
-    const appIdentifier = matchStringTag(plist, "application-identifier");
+    const appIdentifier = readApplicationIdentifier(plist);
     if (appIdentifier === null) {
       return yield* Effect.fail(
         new InvalidProvisioningProfile({
@@ -131,19 +122,14 @@ export const parseProvisioningProfile = (bytes: Uint8Array) =>
       );
     }
 
-    const profileName = matchStringTag(plist, "Name");
-    const portalIdentifier = matchStringTag(plist, "UUID");
-    const validUntil = matchDateTag(plist, "ExpirationDate");
-    const certificateSerialNumbers = extractStringArray(plist, "DeveloperCertificates");
-
     const parsed: ParsedProvisioningProfile = {
       bundleIdentifier,
       distributionType: inferDistributionType(plist),
       appleTeamId,
-      developerPortalIdentifier: portalIdentifier,
-      profileName,
-      validUntil,
-      certificateSerialNumbers,
+      developerPortalIdentifier: getPlistString(plist, "UUID"),
+      profileName: getPlistString(plist, "Name"),
+      validUntil: getPlistDateString(plist, "ExpirationDate"),
+      certificateSerialNumbers: getPlistStringArray(plist, "DeveloperCertificates"),
     };
     return parsed;
   });

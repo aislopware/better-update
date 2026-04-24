@@ -1,3 +1,5 @@
+import { getPlistString, parsePlistXml } from "./plist";
+
 const escape = (value: string): string =>
   value
     .replaceAll("&", "&amp;")
@@ -57,19 +59,22 @@ export const buildDeviceRegistrationProfile = (params: {
 </plist>`;
 };
 
-const STRING_PAIR = /<key>([^<]+)<\/key>\s*<string>([^<]*)<\/string>/g;
-
 /**
  * Extract the top-level `<dict>` key/string pairs from an iOS profile service
  * callback plist body. Returns a plain record. Ignores non-string values.
  */
-export const parseProfileCallbackPlist = (body: string): Record<string, string> =>
-  Object.fromEntries(
-    Array.from(body.matchAll(STRING_PAIR), (match) => [match[1], match[2]] as const).filter(
-      (entry): entry is readonly [string, string] =>
-        entry[0] !== undefined && entry[1] !== undefined,
-    ),
+export const parseProfileCallbackPlist = (body: string): Record<string, string> => {
+  const parsed = parsePlistXml(body);
+  if (parsed === null) {
+    return {};
+  }
+  return Object.fromEntries(
+    Object.keys(parsed).flatMap((key) => {
+      const value = getPlistString(parsed, key);
+      return value === null ? [] : [[key, value] as const];
+    }),
   );
+};
 
 export const renderRegistrationLandingHtml = (params: {
   readonly profileUrl: string;

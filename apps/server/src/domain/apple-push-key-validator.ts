@@ -1,13 +1,11 @@
 import { Data, Effect } from "effect";
 
 import { pemToPkcs8Der } from "../lib/apple-pem";
+import { APPLE_KEY_ID_PATTERN, APPLE_TEAM_ID_PATTERN } from "./apple-identifiers";
 
 export class InvalidApplePushKey extends Data.TaggedError("InvalidApplePushKey")<{
   readonly message: string;
 }> {}
-
-const KEY_ID_PATTERN = /^[A-Z0-9]{10}$/u;
-const TEAM_ID_PATTERN = /^[A-Z0-9]{10}$/u;
 
 export interface PushKeyMetadata {
   readonly keyId: string;
@@ -17,14 +15,14 @@ export interface PushKeyMetadata {
 
 export const validatePushKey = (metadata: PushKeyMetadata) =>
   Effect.gen(function* () {
-    if (!KEY_ID_PATTERN.test(metadata.keyId)) {
+    if (!APPLE_KEY_ID_PATTERN.test(metadata.keyId)) {
       return yield* Effect.fail(
         new InvalidApplePushKey({
           message: "Push Key ID must be 10 uppercase alphanumeric characters",
         }),
       );
     }
-    if (!TEAM_ID_PATTERN.test(metadata.appleTeamId)) {
+    if (!APPLE_TEAM_ID_PATTERN.test(metadata.appleTeamId)) {
       return yield* Effect.fail(
         new InvalidApplePushKey({
           message: "Apple Team identifier must be 10 uppercase alphanumeric characters",

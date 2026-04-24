@@ -1,5 +1,5 @@
 import { apiKey } from "@better-auth/api-key";
-import { fromHex } from "@better-update/encoding";
+import { fromHex, toHex } from "@better-update/encoding";
 import { betterAuth } from "better-auth";
 import { organization } from "better-auth/plugins";
 
@@ -10,9 +10,7 @@ import { findFirstMembershipOrgId } from "./auth/memberships";
 // Better Auth's default scrypt (N:16384, r:16) needs ~64 MB and crashes workerd.
 
 const PBKDF2_ITERATIONS = 600_000;
-
-const toHex = (bytes: Uint8Array): string =>
-  [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+const HEX_BYTES_PATTERN = /^(?:[0-9A-Fa-f]{2})+$/u;
 
 const deriveKey = async (password: string, salt: Uint8Array<ArrayBuffer>): Promise<ArrayBuffer> => {
   const key = await crypto.subtle.importKey(
@@ -43,7 +41,7 @@ const verifyPassword = async ({
   password: string;
 }): Promise<boolean> => {
   const [saltHex, keyHex] = hash.split(":");
-  if (!saltHex || !keyHex) {
+  if (!saltHex || !keyHex || !HEX_BYTES_PATTERN.test(saltHex) || !HEX_BYTES_PATTERN.test(keyHex)) {
     return false;
   }
   const derived = new Uint8Array(await deriveKey(password, fromHex(saltHex)));

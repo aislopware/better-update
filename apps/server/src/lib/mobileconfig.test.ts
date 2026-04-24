@@ -68,6 +68,21 @@ describe(parseProfileCallbackPlist, () => {
     expect(result["CHALLENGE"]).toBe("abc-123");
   });
 
+  it("unescapes XML entities in callback values", () => {
+    const result = parseProfileCallbackPlist(`<?xml version="1.0"?><plist><dict>
+      <key>DEVICE_NAME</key><string>Alex &amp; Sam</string>
+    </dict></plist>`);
+    expect(result["DEVICE_NAME"]).toBe("Alex & Sam");
+  });
+
+  it("ignores nested string values", () => {
+    const result = parseProfileCallbackPlist(`<?xml version="1.0"?><plist><dict>
+      <key>UDID</key><string>top-level</string>
+      <key>Nested</key><dict><key>UDID</key><string>nested</string></dict>
+    </dict></plist>`);
+    expect(result).toStrictEqual({ UDID: "top-level" });
+  });
+
   it("returns empty record for unrelated body", () => {
     expect(parseProfileCallbackPlist("not xml")).toStrictEqual({});
   });

@@ -25,6 +25,22 @@ describe(parseProvisioningProfile, () => {
     expect(result.certificateSerialNumbers).toStrictEqual(["CERTBASE64"]);
   });
 
+  it("parses escaped values and application identifier from Entitlements", async () => {
+    const plist = `
+      <dict>
+        <key>TeamIdentifier</key><array><string>ABCDE12345</string></array>
+        <key>Entitlements</key>
+        <dict>
+          <key>application-identifier</key><string>ABCDE12345.com.example.&amp;app</string>
+        </dict>
+        <key>Name</key><string>Example &amp; Profile</string>
+      </dict>
+    `;
+    const result = await Effect.runPromise(parseProvisioningProfile(buildProfile(plist)));
+    expect(result.bundleIdentifier).toBe("com.example.&app");
+    expect(result.profileName).toBe("Example & Profile");
+  });
+
   it("infers AD_HOC from ProvisionedDevices", async () => {
     const plist = `
       <dict>

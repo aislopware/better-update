@@ -1,13 +1,11 @@
+import { fromHex } from "@better-update/encoding";
 import { Effect } from "effect";
 
 import { validateAndroidKeystore } from "./android-keystore-parser";
 
 const withMagic = (hex: string) => {
   const bytes = new Uint8Array(64);
-  const magic = hex.match(/.{2}/g) ?? [];
-  magic.forEach((byte, index) => {
-    bytes[index] = Number.parseInt(byte, 16);
-  });
+  bytes.set(fromHex(hex));
   return bytes;
 };
 

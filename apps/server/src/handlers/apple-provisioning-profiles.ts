@@ -14,7 +14,7 @@ import { BadRequest } from "../errors";
 import { toApiAppleProvisioningProfile } from "../http/to-api";
 import { toApiCrudEffect, toApiWriteEffect } from "../http/to-api-effect";
 import { toDbNull } from "../lib/nullable";
-import { withR2Compensation } from "../lib/r2-helpers";
+import { r2Operation, withR2Compensation } from "../lib/r2-helpers";
 import { AppleProvisioningProfileRepo } from "../repositories/apple-provisioning-profiles";
 import { AppleTeamRepo } from "../repositories/apple-teams";
 
@@ -22,6 +22,12 @@ import type { InvalidProvisioningProfile } from "../domain/apple-provisioning-pr
 
 const mapInvalid = (error: InvalidProvisioningProfile) =>
   new BadRequest({ message: error.message });
+
+const decodeBase64 = (value: string) =>
+  Effect.try({
+    try: () => fromBase64(value),
+    catch: () => new BadRequest({ message: "Provisioning profile must be valid base64" }),
+  });
 
 export const AppleProvisioningProfilesGroupLive = HttpApiBuilder.group(
   ManagementApi,
@@ -53,7 +59,7 @@ export const AppleProvisioningProfilesGroupLive = HttpApiBuilder.group(
             const teams = yield* AppleTeamRepo;
             const repo = yield* AppleProvisioningProfileRepo;
 
-            const bytes = fromBase64(payload.profileBase64);
+            const bytes = yield* decodeBase64(payload.profileBase64);
             const parsed = yield* parseProvisioningProfile(bytes).pipe(Effect.mapError(mapInvalid));
 
             const team = yield* teams.upsertByAppleTeamId({
@@ -65,7 +71,7 @@ export const AppleProvisioningProfilesGroupLive = HttpApiBuilder.group(
 
             const id = crypto.randomUUID();
             const r2Key = `apple-provisioning-profiles/${ctx.organizationId}/${id}.mobileprovision`;
-            yield* Effect.promise(async () => env.CREDENTIAL_ARTIFACTS.put(r2Key, bytes));
+            yield* r2Operation(async () => env.CREDENTIAL_ARTIFACTS.put(r2Key, bytes));
 
             const { model: profile, previousR2Key } = yield* withR2Compensation(
               env.CREDENTIAL_ARTIFACTS,
@@ -87,7 +93,7 @@ export const AppleProvisioningProfilesGroupLive = HttpApiBuilder.group(
             );
 
             if (previousR2Key !== null) {
-              yield* Effect.promise(async () => env.CREDENTIAL_ARTIFACTS.delete(previousR2Key));
+              yield* r2Operation(async () => env.CREDENTIAL_ARTIFACTS.delete(previousR2Key));
             }
 
             yield* logAudit({

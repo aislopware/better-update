@@ -13,12 +13,18 @@ import { validateAndroidKeystore } from "../domain/android-keystore-parser";
 import { BadRequest } from "../errors";
 import { toApiAndroidUploadKeystore } from "../http/to-api";
 import { toApiCrudEffect, toApiWriteEffect } from "../http/to-api-effect";
-import { withR2Compensation } from "../lib/r2-helpers";
+import { r2Operation, withR2Compensation } from "../lib/r2-helpers";
 import { AndroidUploadKeystoreRepo } from "../repositories/android-upload-keystores";
 
 import type { InvalidAndroidKeystore } from "../domain/android-keystore-parser";
 
 const mapInvalid = (error: InvalidAndroidKeystore) => new BadRequest({ message: error.message });
+
+const decodeBase64 = (value: string) =>
+  Effect.try({
+    try: () => fromBase64(value),
+    catch: () => new BadRequest({ message: "Keystore must be valid base64" }),
+  });
 
 export const AndroidUploadKeystoresGroupLive = HttpApiBuilder.group(
   ManagementApi,
@@ -45,7 +51,7 @@ export const AndroidUploadKeystoresGroupLive = HttpApiBuilder.group(
             const vault = yield* Vault;
             const repo = yield* AndroidUploadKeystoreRepo;
 
-            const bytes = fromBase64(payload.keystoreBase64);
+            const bytes = yield* decodeBase64(payload.keystoreBase64);
             const parsed = yield* validateAndroidKeystore({
               bytes,
               keyAlias: payload.keyAlias,
@@ -80,7 +86,7 @@ export const AndroidUploadKeystoresGroupLive = HttpApiBuilder.group(
 
             const id = crypto.randomUUID();
             const r2Key = `android-upload-keystores/${ctx.organizationId}/${id}.keystore.enc`;
-            yield* Effect.promise(async () =>
+            yield* r2Operation(async () =>
               env.CREDENTIAL_ARTIFACTS.put(r2Key, encrypted.encryptedBlob),
             );
 

@@ -36,7 +36,11 @@ const formatForContentType = (format: string) =>
 
 const artifactExt = (format: string) => (format === "tar.gz" ? "tar.gz" : format);
 
-const sha256HexToBase64 = (sha256: string): string => toBase64(fromHex(sha256));
+const sha256HexToBase64 = (sha256: string) =>
+  Effect.try({
+    try: () => toBase64(fromHex(sha256)),
+    catch: () => new BadRequest({ message: "Build SHA-256 must be valid hex" }),
+  });
 
 const ReservationSchema = Schema.Struct({
   buildId: Schema.String,
@@ -92,7 +96,7 @@ const handleReserve = ({ payload }: { readonly payload: typeof CreateBuildBody.T
       const buildId = crypto.randomUUID();
       const stagingKey = `staging/${ctx.organizationId}/${buildId}.${artifactExt(payload.artifactFormat)}`;
       const contentType = formatForContentType(payload.artifactFormat);
-      const checksumSha256Base64 = sha256HexToBase64(payload.sha256);
+      const checksumSha256Base64 = yield* sha256HexToBase64(payload.sha256);
       const uploadUrl = yield* runtime.createUploadUrl({
         key: stagingKey,
         expiresIn: UPLOAD_EXPIRY_SECONDS,

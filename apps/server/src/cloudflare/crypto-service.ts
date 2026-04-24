@@ -44,6 +44,12 @@ const importHmacKey = (secret: string) =>
     ),
   );
 
+const decodeBase64Url = (operation: string, value: string) =>
+  Effect.try({
+    try: () => fromBase64Url(value),
+    catch: (cause) => new CryptoError({ operation, cause }),
+  });
+
 const hmacSignBase64Url = (secret: string, payload: string) =>
   Effect.gen(function* () {
     const key = yield* importHmacKey(secret);
@@ -56,7 +62,7 @@ const hmacSignBase64Url = (secret: string, payload: string) =>
 const hmacVerifyBase64Url = (secret: string, payload: string, token: string) =>
   Effect.gen(function* () {
     const key = yield* importHmacKey(secret);
-    const signatureBytes = fromBase64Url(token);
+    const signatureBytes = yield* decodeBase64Url("hmacVerifyDecode", token);
     return yield* tryWebCrypto("hmacVerify", async () =>
       crypto.subtle.verify(
         "HMAC",

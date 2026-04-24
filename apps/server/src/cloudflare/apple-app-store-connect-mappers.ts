@@ -1,3 +1,5 @@
+import { isRecord } from "../lib/type-guards";
+
 import type {
   AppleBundleId,
   AppleCertificate,
@@ -29,9 +31,6 @@ export interface AppleErrorBody {
   readonly title?: string;
   readonly detail?: string;
 }
-
-export const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null;
 
 const toErrorBody = (value: unknown): AppleErrorBody | null => {
   if (!isRecord(value)) {

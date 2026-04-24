@@ -20,9 +20,17 @@ const fail = (message: string) => new BadRequest({ message });
 
 const assetR2Key = (params: { readonly hash: string }) => `assets/${params.hash}`;
 
-const sha256Base64UrlToBase64 = (hash: string): string => toBase64(fromBase64Url(hash));
+const sha256Base64UrlToBase64 = (hash: string) =>
+  Effect.try({
+    try: () => toBase64(fromBase64Url(hash)),
+    catch: () => fail("Invalid base64url SHA-256 checksum"),
+  });
 
-const sha256Base64ToBase64Url = (hash: string): string => toBase64Url(fromBase64(hash));
+const sha256Base64ToBase64Url = (hash: string) =>
+  Effect.try({
+    try: () => toBase64Url(fromBase64(hash)),
+    catch: () => fail("Invalid base64 SHA-256 checksum"),
+  });
 
 const assertConsistentRequestedAssets = (params: {
   readonly assets: readonly {
@@ -163,7 +171,7 @@ const handleUpload = ({
             // Use contentChecksum (raw file hash) for R2 verification.
             // Fall back to hash for backward compat with old CLIs (where hash IS the content hash).
             const rawChecksum = asset.contentChecksum ?? asset.hash;
-            const checksumSha256Base64 = sha256Base64UrlToBase64(rawChecksum);
+            const checksumSha256Base64 = yield* sha256Base64UrlToBase64(rawChecksum);
             const uploadUrl = yield* storage.createUploadUrl({
               key: assetR2Key(asset),
               contentType: asset.contentType,
@@ -228,7 +236,8 @@ const handleFinalize = ({ path }: { readonly path: { readonly hash: string } }) 
       // Compare R2's stored checksum against contentChecksum (raw file hash).
       // For old assets (pre-namespaced), contentChecksum equals hash — still correct.
       const expectedChecksum = asset.contentChecksum || asset.hash;
-      if (sha256Base64ToBase64Url(stored.checksumSha256Base64) !== expectedChecksum) {
+      const storedChecksum = yield* sha256Base64ToBase64Url(stored.checksumSha256Base64);
+      if (storedChecksum !== expectedChecksum) {
         return yield* Effect.fail(
           new BadRequest({ message: `Asset ${asset.hash} checksum does not match uploaded bytes` }),
         );

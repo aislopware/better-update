@@ -14,7 +14,7 @@ import { BadRequest, NotFound } from "../errors";
 import { toApiAscApiKey } from "../http/to-api";
 import { toApiCrudEffect, toApiWriteEffect } from "../http/to-api-effect";
 import { toDbNull } from "../lib/nullable";
-import { withR2Compensation } from "../lib/r2-helpers";
+import { r2Operation, withR2Compensation } from "../lib/r2-helpers";
 import { AppleTeamRepo } from "../repositories/apple-teams";
 import { AscApiKeyRepo } from "../repositories/asc-api-keys";
 
@@ -75,7 +75,7 @@ export const AscApiKeysGroupLive = HttpApiBuilder.group(ManagementApi, "ascApiKe
 
           const id = crypto.randomUUID();
           const r2Key = `asc-api-keys/${ctx.organizationId}/${id}.p8.enc`;
-          yield* Effect.promise(async () =>
+          yield* r2Operation(async () =>
             env.CREDENTIAL_ARTIFACTS.put(r2Key, encrypted.encryptedBlob),
           );
 

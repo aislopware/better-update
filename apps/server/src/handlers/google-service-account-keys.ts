@@ -12,7 +12,7 @@ import { parseGoogleServiceAccountKey } from "../domain/google-service-account-k
 import { BadRequest } from "../errors";
 import { toApiGoogleServiceAccountKey } from "../http/to-api";
 import { toApiCrudEffect, toApiWriteEffect } from "../http/to-api-effect";
-import { withR2Compensation } from "../lib/r2-helpers";
+import { r2Operation, withR2Compensation } from "../lib/r2-helpers";
 import { GoogleServiceAccountKeyRepo } from "../repositories/google-service-account-keys";
 
 import type { InvalidGoogleServiceAccountKey } from "../domain/google-service-account-key-parser";
@@ -56,7 +56,7 @@ export const GoogleServiceAccountKeysGroupLive = HttpApiBuilder.group(
 
             const id = crypto.randomUUID();
             const r2Key = `google-service-account-keys/${ctx.organizationId}/${id}.json.enc`;
-            yield* Effect.promise(async () =>
+            yield* r2Operation(async () =>
               env.CREDENTIAL_ARTIFACTS.put(r2Key, encrypted.encryptedBlob),
             );
 

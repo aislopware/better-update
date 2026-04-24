@@ -16,13 +16,19 @@ import {
 import { BadRequest } from "../errors";
 import { toApiAppleDistributionCertificate } from "../http/to-api";
 import { toApiCrudEffect, toApiWriteEffect } from "../http/to-api-effect";
-import { withR2Compensation } from "../lib/r2-helpers";
+import { r2Operation, withR2Compensation } from "../lib/r2-helpers";
 import { AppleDistributionCertificateRepo } from "../repositories/apple-distribution-certificates";
 import { AppleTeamRepo } from "../repositories/apple-teams";
 
 import type { InvalidAppleCertificate } from "../domain/apple-certificate-parser";
 
 const mapInvalid = (error: InvalidAppleCertificate) => new BadRequest({ message: error.message });
+
+const decodeBase64 = (value: string) =>
+  Effect.try({
+    try: () => fromBase64(value),
+    catch: () => new BadRequest({ message: "Distribution certificate must be valid base64" }),
+  });
 
 export const AppleDistributionCertificatesGroupLive = HttpApiBuilder.group(
   ManagementApi,
@@ -50,7 +56,7 @@ export const AppleDistributionCertificatesGroupLive = HttpApiBuilder.group(
             const teams = yield* AppleTeamRepo;
             const repo = yield* AppleDistributionCertificateRepo;
 
-            const blob = fromBase64(payload.p12Base64);
+            const blob = yield* decodeBase64(payload.p12Base64);
             yield* validatePkcs12Blob(blob).pipe(Effect.mapError(mapInvalid));
             const parsed = yield* validateDistributionCertificateMetadata({
               serialNumber: payload.serialNumber,
@@ -81,7 +87,7 @@ export const AppleDistributionCertificatesGroupLive = HttpApiBuilder.group(
 
             const id = crypto.randomUUID();
             const r2Key = `apple-distribution-certificates/${ctx.organizationId}/${id}.p12.enc`;
-            yield* Effect.promise(async () =>
+            yield* r2Operation(async () =>
               env.CREDENTIAL_ARTIFACTS.put(r2Key, encrypted.encryptedBlob),
             );
 

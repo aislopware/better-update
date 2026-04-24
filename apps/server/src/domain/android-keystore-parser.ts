@@ -1,14 +1,12 @@
+import { fromHex } from "@better-update/encoding";
 import { Data, Effect } from "effect";
 
 export class InvalidAndroidKeystore extends Data.TaggedError("InvalidAndroidKeystore")<{
   readonly message: string;
 }> {}
 
-const bytesFromHex = (hex: string): Uint8Array =>
-  Uint8Array.from(hex.match(/.{2}/g) ?? [], (byte) => Number.parseInt(byte, 16));
-
-const JKS_MAGIC = bytesFromHex("FEEDFEED");
-const PKCS12_MAGIC = bytesFromHex("3082");
+const JKS_MAGIC = fromHex("FEEDFEED");
+const PKCS12_MAGIC = fromHex("3082");
 
 export type KeystoreFormat = "JKS" | "PKCS12" | "UNKNOWN";
 
