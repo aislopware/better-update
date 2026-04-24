@@ -8,16 +8,19 @@ import {
   getSystemPreference,
   getThemeFromCookie,
   resolveTheme,
+  setResolvedThemeCookie,
   setThemeCookie,
 } from "./theme";
 import { ThemeContext } from "./theme-context-value";
 
-import type { Theme } from "./theme";
+import type { ResolvedTheme, Theme } from "./theme";
 
 const subscribeSystemPreference = (onStoreChange: () => void) => {
   const mql = globalThis.matchMedia("(prefers-color-scheme: dark)");
   const handler = () => {
-    applyTheme(resolveTheme(getThemeFromCookie(), mql.matches));
+    const resolvedTheme = resolveTheme(getThemeFromCookie(), mql.matches);
+    applyTheme(resolvedTheme);
+    setResolvedThemeCookie(resolvedTheme);
     onStoreChange();
   };
   mql.addEventListener("change", handler);
@@ -28,9 +31,11 @@ const subscribeSystemPreference = (onStoreChange: () => void) => {
 
 export const ThemeProvider = ({
   initialTheme,
+  initialResolvedTheme,
   children,
 }: {
   initialTheme?: Theme;
+  initialResolvedTheme?: ResolvedTheme;
   children: ReactNode;
 }) => {
   const queryClient = useQueryClient();
@@ -40,17 +45,18 @@ export const ThemeProvider = ({
   const systemPreference = useSyncExternalStore(
     subscribeSystemPreference,
     getSystemPreference,
-    () => (initialTheme === "dark" ? "dark" : ("light" as const)),
+    () => initialResolvedTheme ?? resolveTheme(initialTheme ?? "system", false),
   );
 
   const resolvedTheme = resolveTheme(theme, systemPreference === "dark");
 
   const updateTheme = useCallback(
     (next: Theme) => {
+      const nextResolvedTheme = resolveTheme(next, getSystemPreference() === "dark");
       setTheme(next);
-      setThemeCookie(next);
+      setThemeCookie(next, nextResolvedTheme);
       queryClient.setQueryData(["theme"], next);
-      applyTheme(resolveTheme(next, getSystemPreference() === "dark"));
+      applyTheme(nextResolvedTheme);
     },
     [queryClient],
   );

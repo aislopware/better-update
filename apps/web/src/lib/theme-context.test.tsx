@@ -22,6 +22,21 @@ const createWrapper = (initialTheme?: "light" | "dark" | "system") => {
 
 const wrapper = createWrapper();
 
+const stubCookieJar = () => {
+  const cookies = new Map<string, string>();
+  Object.defineProperty(document, "cookie", {
+    set: (cookie: string) => {
+      const [pair] = cookie.split(";");
+      const [name, value] = pair?.split("=") ?? [];
+      if (name && value !== undefined) {
+        cookies.set(name.trim(), value.trim());
+      }
+    },
+    get: () => [...cookies.entries()].map(([name, value]) => `${name}=${value}`).join("; "),
+    configurable: true,
+  });
+};
+
 type MqlListener = (event: MediaQueryListEvent) => void;
 
 const stubMatchMedia = (isDark: boolean) => {
@@ -57,8 +72,9 @@ const stubMatchMedia = (isDark: boolean) => {
 };
 
 beforeEach(() => {
-  Object.defineProperty(document, "cookie", { writable: true, configurable: true, value: "" });
+  stubCookieJar();
   document.documentElement.classList.remove("dark");
+  document.documentElement.style.colorScheme = "";
   stubMatchMedia(false);
 });
 
