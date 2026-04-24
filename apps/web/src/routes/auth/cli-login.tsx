@@ -80,6 +80,7 @@ export const Route = createFileRoute("/auth/cli-login")({
     if (!context.session.session.activeOrganizationId) {
       const { error } = await authClient.organization.setActive({
         organizationId: activeOrganizationId,
+        fetchOptions: { disableSignal: true },
       });
       if (error) {
         return { error: error.message ?? "Failed to select an organization for CLI login." };

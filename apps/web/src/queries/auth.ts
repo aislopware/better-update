@@ -22,7 +22,9 @@ const loadSessions = async () => {
 };
 
 const loadOrgs = async () => {
-  const { data } = await authClient.organization.list();
+  const { data } = await authClient.organization.list({
+    fetchOptions: { disableSignal: true },
+  });
   return data ?? [];
 };
 

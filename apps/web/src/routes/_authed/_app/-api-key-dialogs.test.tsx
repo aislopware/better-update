@@ -180,7 +180,10 @@ describe("createApiKeyDialog form", () => {
     });
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith();
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/auth/api-key/create",
+        expect.objectContaining({ method: "POST" }),
+      );
     });
 
     vi.restoreAllMocks();

@@ -360,6 +360,7 @@ const Devices = () => {
     state: { sorting, globalFilter },
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
+    autoResetPageIndex: false,
     globalFilterFn: nameIdentifierFilter,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),

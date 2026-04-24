@@ -225,7 +225,10 @@ describe("invite form", () => {
     });
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith();
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/auth/organization/invite-member",
+        expect.objectContaining({ method: "POST" }),
+      );
     });
 
     const call = fetchMock.mock.calls[0]!;

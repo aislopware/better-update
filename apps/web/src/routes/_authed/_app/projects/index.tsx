@@ -257,6 +257,7 @@ const Projects = () => {
     state: { sorting, globalFilter },
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
+    autoResetPageIndex: false,
     globalFilterFn: nameSlugFilter,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),

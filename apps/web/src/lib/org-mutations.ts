@@ -12,7 +12,10 @@ export const createAndActivateOrg = async (params: {
   name: string;
   slug: string;
 }): Promise<{ id: string } | null> => {
-  const { data, error } = await authClient.organization.create(params);
+  const { data, error } = await authClient.organization.create({
+    ...params,
+    fetchOptions: { disableSignal: true },
+  });
 
   if (error) {
     toast.error(error.message ?? "Failed to create organization");
@@ -20,7 +23,10 @@ export const createAndActivateOrg = async (params: {
   }
 
   if (data.id) {
-    await authClient.organization.setActive({ organizationId: data.id });
+    await authClient.organization.setActive({
+      organizationId: data.id,
+      fetchOptions: { disableSignal: true },
+    });
   }
 
   return data;
