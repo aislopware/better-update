@@ -1,16 +1,17 @@
-import { Data, Effect } from "effect";
+export type JsonParseResult =
+  | { readonly ok: true; readonly value: unknown }
+  | { readonly ok: false };
 
-class SafeJsonParseError extends Data.TaggedError("SafeJsonParseError")<{
-  readonly message: string;
-}> {}
+export const parseJsonResult = (text: string): JsonParseResult => {
+  // eslint-disable-next-line functional/no-try-statements -- JSON.parse exposes syntax errors via throw; this helper converts them to an explicit result value
+  try {
+    return { ok: true, value: JSON.parse(text) as unknown };
+  } catch {
+    return { ok: false };
+  }
+};
 
-export const safeJsonParse = (text: string): unknown =>
-  Effect.runSync(
-    Effect.orElseSucceed(
-      Effect.try({
-        try: () => JSON.parse(text) as unknown,
-        catch: () => new SafeJsonParseError({ message: "Invalid JSON" }),
-      }),
-      () => null,
-    ),
-  );
+export const safeJsonParse = (text: string): unknown => {
+  const result = parseJsonResult(text);
+  return result.ok ? result.value : null;
+};
