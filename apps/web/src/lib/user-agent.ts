@@ -15,6 +15,12 @@ const parseBrowser = (ua: string): string => {
 };
 
 const parseOS = (ua: string): string => {
+  if (ua.includes("Android")) {
+    return "Android";
+  }
+  if (ua.includes("iPhone") || ua.includes("iPad")) {
+    return "iOS";
+  }
   if (ua.includes("Mac OS X")) {
     return "macOS";
   }
@@ -23,12 +29,6 @@ const parseOS = (ua: string): string => {
   }
   if (ua.includes("Linux")) {
     return "Linux";
-  }
-  if (ua.includes("Android")) {
-    return "Android";
-  }
-  if (ua.includes("iPhone") || ua.includes("iPad")) {
-    return "iOS";
   }
   return "Unknown OS";
 };
