@@ -1,24 +1,8 @@
 import { Effect, Either, Exit } from "effect";
 
+import { mockD1 } from "../../tests/helpers/mock-d1";
 import { runEitherWithLayerAndEnv, runWithLayerAndEnvExit } from "../../tests/helpers/runtime";
 import { ChannelRepo, ChannelRepoLive } from "./channels";
-
-// -- Mock D1 helpers -------------------------------------------------------
-
-const mockD1 = {
-  forRun: (fn: () => Promise<unknown>) => ({
-    prepare: () => ({ bind: () => ({ run: fn }) }),
-  }),
-
-  forQuery: (opts: { first?: () => Promise<unknown>; all?: () => Promise<unknown> }) => ({
-    prepare: () => ({
-      bind: () => ({
-        first: opts.first ?? (async () => null),
-        all: opts.all ?? (async () => ({ results: [] })),
-      }),
-    }),
-  }),
-};
 
 const makeChannelRow = (overrides?: Partial<Record<string, unknown>>) => ({
   id: "ch-1",

@@ -2,28 +2,9 @@ import { createHash } from "node:crypto";
 
 import { setupE2EWorker } from "../helpers/e2e-worker";
 
-const { getBaseUrl } = setupE2EWorker(".wrangler/state/e2e-golden-path");
-
-// ── HTTP helpers ─────────────────────────────────────────────────
-
-const post = (path: string, body: unknown, headers?: Record<string, string>) =>
-  fetch(`${getBaseUrl()}${path}`, {
-    method: "POST",
-    headers: { "content-type": "application/json", ...headers },
-    body: JSON.stringify(body),
-  });
-
-const get = (path: string, headers?: Record<string, string>) =>
-  fetch(`${getBaseUrl()}${path}`, headers ? { headers } : {});
-
-const del = (path: string, headers?: Record<string, string>) =>
-  fetch(`${getBaseUrl()}${path}`, { method: "DELETE", ...(headers ? { headers } : {}) });
-
-const putAbsolute = (url: string, body: BodyInit, headers?: Record<string, string>) =>
-  fetch(url, { method: "PUT", ...(headers ? { headers } : {}), body });
-
-const postNoBody = (path: string, headers?: Record<string, string>) =>
-  fetch(`${getBaseUrl()}${path}`, { method: "POST", ...(headers ? { headers } : {}) });
+const { del, get, getBaseUrl, parseCookies, post, postNoBody, putAbsolute } = setupE2EWorker(
+  ".wrangler/state/e2e-golden-path",
+);
 
 const manifestGet = (projectId: string, headers: Record<string, string>) =>
   fetch(`${getBaseUrl()}/manifest/${projectId}`, { headers });
@@ -66,14 +47,6 @@ const parseMultipart = (contentType: string, rawBody: string): readonly Multipar
       );
       return { headers, body: bodySections.join("\r\n\r\n").replace(/\r\n$/, "") };
     });
-};
-
-const parseCookies = (response: Response): string => {
-  const setCookie = response.headers.getSetCookie();
-  return setCookie
-    .map((c) => c.split(";")[0])
-    .filter(Boolean)
-    .join("; ");
 };
 
 interface UploadSlot {

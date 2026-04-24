@@ -26,7 +26,27 @@ const pickFreePort = () =>
     });
   });
 
-export function setupE2EWorker(persistDir: string): { getBaseUrl: () => string } {
+const parseCookies = (response: Response): string =>
+  response.headers
+    .getSetCookie()
+    .map((cookie) => cookie.split(";")[0])
+    .filter(Boolean)
+    .join("; ");
+
+const jsonRequest = (
+  getBaseUrl: () => string,
+  method: "POST" | "PATCH" | "PUT",
+  path: string,
+  body: unknown,
+  headers?: Record<string, string>,
+) =>
+  fetch(`${getBaseUrl()}${path}`, {
+    method,
+    headers: { "content-type": "application/json", ...headers },
+    body: JSON.stringify(body),
+  });
+
+export function setupE2EWorker(persistDir: string) {
   let worker: Awaited<ReturnType<typeof unstable_startWorker>>;
   let baseUrl: string;
   let restoreProcessEnv: (() => void) | undefined;
@@ -75,5 +95,24 @@ export function setupE2EWorker(persistDir: string): { getBaseUrl: () => string }
     rmSync(persistPath, { recursive: true, force: true });
   });
 
-  return { getBaseUrl: () => baseUrl };
+  const getBaseUrl = () => baseUrl;
+
+  return {
+    getBaseUrl,
+    parseCookies,
+    get: (path: string, headers?: Record<string, string>) =>
+      fetch(`${getBaseUrl()}${path}`, headers ? { headers } : {}),
+    post: (path: string, body: unknown, headers?: Record<string, string>) =>
+      jsonRequest(getBaseUrl, "POST", path, body, headers),
+    patch: (path: string, body: unknown, headers?: Record<string, string>) =>
+      jsonRequest(getBaseUrl, "PATCH", path, body, headers),
+    put: (path: string, body: unknown, headers?: Record<string, string>) =>
+      jsonRequest(getBaseUrl, "PUT", path, body, headers),
+    del: (path: string, headers?: Record<string, string>) =>
+      fetch(`${getBaseUrl()}${path}`, { method: "DELETE", ...(headers ? { headers } : {}) }),
+    postNoBody: (path: string, headers?: Record<string, string>) =>
+      fetch(`${getBaseUrl()}${path}`, { method: "POST", ...(headers ? { headers } : {}) }),
+    putAbsolute: (url: string, body: BodyInit, headers?: Record<string, string>) =>
+      fetch(url, { method: "PUT", ...(headers ? { headers } : {}), body }),
+  };
 }

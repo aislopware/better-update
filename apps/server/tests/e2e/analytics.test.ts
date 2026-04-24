@@ -1,26 +1,6 @@
 import { setupE2EWorker } from "../helpers/e2e-worker";
 
-const { getBaseUrl } = setupE2EWorker(".wrangler/state/e2e-analytics");
-
-// ── Helpers ───────────────────────────────────────────────────────
-
-const post = (path: string, body: unknown, headers?: Record<string, string>) =>
-  fetch(`${getBaseUrl()}${path}`, {
-    method: "POST",
-    headers: { "content-type": "application/json", ...headers },
-    body: JSON.stringify(body),
-  });
-
-const get = (path: string, headers?: Record<string, string>) =>
-  fetch(`${getBaseUrl()}${path}`, headers ? { headers } : {});
-
-const parseCookies = (response: Response): string => {
-  const setCookie = response.headers.getSetCookie();
-  return setCookie
-    .map((c) => c.split(";")[0])
-    .filter(Boolean)
-    .join("; ");
-};
+const { get, parseCookies, post } = setupE2EWorker(".wrangler/state/e2e-analytics");
 
 // ── Analytics endpoints ──────────────────────────────────────────
 

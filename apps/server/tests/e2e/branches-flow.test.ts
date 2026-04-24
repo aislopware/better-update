@@ -1,36 +1,6 @@
 import { setupE2EWorker } from "../helpers/e2e-worker";
 
-const { getBaseUrl } = setupE2EWorker(".wrangler/state/e2e-branches");
-
-// ── Helpers ───────────────────────────────────────────────────────
-
-const post = (path: string, body: unknown, headers?: Record<string, string>) =>
-  fetch(`${getBaseUrl()}${path}`, {
-    method: "POST",
-    headers: { "content-type": "application/json", ...headers },
-    body: JSON.stringify(body),
-  });
-
-const get = (path: string, headers?: Record<string, string>) =>
-  fetch(`${getBaseUrl()}${path}`, headers ? { headers } : {});
-
-const patch = (path: string, body: unknown, headers?: Record<string, string>) =>
-  fetch(`${getBaseUrl()}${path}`, {
-    method: "PATCH",
-    headers: { "content-type": "application/json", ...headers },
-    body: JSON.stringify(body),
-  });
-
-const del = (path: string, headers?: Record<string, string>) =>
-  fetch(`${getBaseUrl()}${path}`, { method: "DELETE", ...(headers ? { headers } : {}) });
-
-const parseCookies = (response: Response): string => {
-  const setCookie = response.headers.getSetCookie();
-  return setCookie
-    .map((c) => c.split(";")[0])
-    .filter(Boolean)
-    .join("; ");
-};
+const { del, get, parseCookies, patch, post } = setupE2EWorker(".wrangler/state/e2e-branches");
 
 // ── Branches API E2E ─────────────────────────────────────────────
 

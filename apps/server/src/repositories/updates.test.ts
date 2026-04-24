@@ -1,25 +1,8 @@
 import { Effect, Either, Exit } from "effect";
 
+import { mockBatchD1, mockD1 } from "../../tests/helpers/mock-d1";
 import { runEitherWithLayerAndEnv, runWithLayerAndEnvExit } from "../../tests/helpers/runtime";
 import { UpdateRepo, UpdateRepoLive } from "./updates";
-
-// -- Mock D1 helpers -------------------------------------------------------
-
-const mockD1 = {
-  forQuery: (opts: { first?: () => Promise<unknown>; all?: () => Promise<unknown> }) => ({
-    prepare: () => ({
-      bind: (..._args: unknown[]) => ({
-        first: opts.first ?? (async () => null),
-        all: opts.all ?? (async () => ({ results: [] })),
-      }),
-    }),
-  }),
-};
-
-const mockBatchD1 = (batchFn: () => Promise<unknown>) => ({
-  prepare: () => ({ bind: (..._args: unknown[]) => ({}) }),
-  batch: batchFn,
-});
 
 const makeUpdateRow = (overrides?: Partial<Record<string, unknown>>) => ({
   id: "upd-1",

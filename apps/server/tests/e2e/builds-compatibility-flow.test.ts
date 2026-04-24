@@ -5,25 +5,7 @@ import { setupE2EWorker } from "../helpers/e2e-worker";
 
 const persistDir = ".wrangler/state/e2e-builds-compatibility";
 const seedFile = ".wrangler/seed-builds-compatibility.sql";
-const { getBaseUrl } = setupE2EWorker(persistDir);
-
-const post = (path: string, body: unknown, headers?: Record<string, string>) =>
-  fetch(`${getBaseUrl()}${path}`, {
-    method: "POST",
-    headers: { "content-type": "application/json", ...headers },
-    body: JSON.stringify(body),
-  });
-
-const get = (path: string, headers?: Record<string, string>) =>
-  fetch(`${getBaseUrl()}${path}`, headers ? { headers } : {});
-
-const parseCookies = (response: Response): string => {
-  const setCookie = response.headers.getSetCookie();
-  return setCookie
-    .map((cookie) => cookie.split(";")[0])
-    .filter(Boolean)
-    .join("; ");
-};
+const { get, parseCookies, post } = setupE2EWorker(persistDir);
 
 const sqlString = (value: string) => `'${value.replaceAll("'", "''")}'`;
 
