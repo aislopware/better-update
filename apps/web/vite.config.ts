@@ -1,3 +1,5 @@
+// eslint-disable-next-line eslint-plugin-import/no-nodejs-modules -- Vite config executes in Node; proxy uses http module
+import http from "node:http";
 // eslint-disable-next-line eslint-plugin-import/no-nodejs-modules -- Vite config executes in Node; proxy uses https module
 import https from "node:https";
 
@@ -25,20 +27,22 @@ const apiProxyPlugin = (target: string): Plugin => {
           return;
         }
         const headers = { ...req.headers, host: targetUrl.host };
-        const proxyReq = https.request(
-          {
-            hostname: targetUrl.hostname,
-            port: targetUrl.port === "" ? 443 : Number(targetUrl.port),
-            path: req.url,
-            method: req.method,
-            headers,
-            rejectUnauthorized: false,
-          },
-          (proxyRes) => {
-            res.writeHead(proxyRes.statusCode ?? 502, proxyRes.headers);
-            proxyRes.pipe(res);
-          },
-        );
+        const defaultPort = targetUrl.protocol === "https:" ? 443 : 80;
+        const proxyOptions = {
+          hostname: targetUrl.hostname,
+          port: targetUrl.port === "" ? defaultPort : Number(targetUrl.port),
+          path: req.url,
+          method: req.method,
+          headers,
+        };
+        const handleProxyResponse = (proxyRes: http.IncomingMessage) => {
+          res.writeHead(proxyRes.statusCode ?? 502, proxyRes.headers);
+          proxyRes.pipe(res);
+        };
+        const proxyReq =
+          targetUrl.protocol === "https:"
+            ? https.request({ ...proxyOptions, rejectUnauthorized: false }, handleProxyResponse)
+            : http.request(proxyOptions, handleProxyResponse);
         proxyReq.on("error", (err) => {
           res.statusCode = 502;
           res.end(`proxy error: ${err.message}`);
