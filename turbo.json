@@ -2,6 +2,8 @@
   "$schema": "./node_modules/turbo/schema.json",
   "globalPassThroughEnv": [
     "ACCOUNT_ID",
+    "ANDROID_HOME",
+    "ANDROID_SDK_ROOT",
     "ASSETS_BUCKET_NAME",
     "BUILD_BUCKET_NAME",
     "CLOUDFLARE_ACCOUNT_ID",
@@ -10,6 +12,7 @@
     "E2E_CF_ACCOUNT_ID",
     "E2E_R2_ACCESS_KEY_ID",
     "E2E_R2_SECRET_ACCESS_KEY",
+    "JAVA_HOME",
     "R2_ACCESS_KEY_ID",
     "R2_SECRET_ACCESS_KEY"
   ],
