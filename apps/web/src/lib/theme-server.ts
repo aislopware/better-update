@@ -1,11 +1,18 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getCookie } from "@tanstack/react-start/server";
 
-import { isValidTheme } from "./theme";
+import {
+  RESOLVED_THEME_COOKIE_NAME,
+  THEME_COOKIE_NAME,
+  getServerThemeSnapshotFromCookieValues,
+} from "./theme";
 
-import type { Theme } from "./theme";
+import type { ThemeSnapshot } from "./theme";
 
-export const getServerTheme = createServerFn({ method: "GET" }).handler((): Theme => {
-  const value = getCookie("theme");
-  return value !== undefined && isValidTheme(value) ? value : "system";
-});
+export const getServerThemeSnapshot = createServerFn({ method: "GET" }).handler(
+  (): ThemeSnapshot =>
+    getServerThemeSnapshotFromCookieValues(
+      getCookie(THEME_COOKIE_NAME),
+      getCookie(RESOLVED_THEME_COOKIE_NAME),
+    ),
+);
