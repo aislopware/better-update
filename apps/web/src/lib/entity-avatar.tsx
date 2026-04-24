@@ -1,4 +1,5 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@better-update/ui/components/ui/avatar";
+import { cn } from "@better-update/ui/lib/utils";
 
 import { getAvatarColor, getInitial } from "./avatar";
 
@@ -10,9 +11,6 @@ interface EntityAvatarProps {
   readonly size?: "sm" | "default" | "lg";
   readonly shape?: "circle" | "square";
 }
-
-const joinClasses = (...parts: readonly (string | false | undefined)[]): string =>
-  parts.filter(Boolean).join(" ");
 
 export const EntityAvatar = ({
   name,
@@ -31,10 +29,10 @@ export const EntityAvatar = ({
   const squareRoot = "rounded-md! after:rounded-md!";
   const squareChild = "rounded-md!";
   return (
-    <Avatar size={size} className={joinClasses(isSquare && squareRoot, className)}>
-      <AvatarImage src={src} alt={name} className={joinClasses(isSquare && squareChild)} />
+    <Avatar size={size} className={cn(isSquare && squareRoot, className)}>
+      <AvatarImage src={src} alt={name} className={cn(isSquare && squareChild)} />
       <AvatarFallback
-        className={joinClasses("font-semibold text-white!", isSquare && squareChild)}
+        className={cn("font-semibold text-white!", isSquare && squareChild)}
         style={{ backgroundColor }}
       >
         {initial}

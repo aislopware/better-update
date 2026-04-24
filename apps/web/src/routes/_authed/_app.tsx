@@ -27,7 +27,7 @@ import {
 } from "@better-update/ui/components/ui/sidebar";
 import { Skeleton } from "@better-update/ui/components/ui/skeleton";
 import { TooltipProvider } from "@better-update/ui/components/ui/tooltip";
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Outlet,
   createFileRoute,
@@ -57,7 +57,7 @@ import { ErrorBoundary } from "../../lib/error-boundary";
 import { logout } from "../../lib/logout";
 import { isValidTheme } from "../../lib/theme";
 import { useTheme } from "../../lib/use-theme";
-import { orgsQueryOptions, sessionQueryOptions } from "../../queries/auth";
+import { sessionQueryOptions } from "../../queries/auth";
 import { AppBreadcrumb } from "./-app-breadcrumb";
 import { CreateOrgDialog } from "./-create-org-dialog";
 import { OrgNavSections, ProjectNavSections } from "./-sidebar-nav";
@@ -110,11 +110,9 @@ const OrgSwitcher = () => {
   const queryClient = useQueryClient();
   const [createOrgOpen, setCreateOrgOpen] = useState(false);
   const [switchingOrgId, setSwitchingOrgId] = useState<string | undefined>(undefined);
-  const { data: orgs } = useSuspenseQuery(orgsQueryOptions);
-  const { data: session } = useSuspenseQuery(sessionQueryOptions);
-  const activeOrgId = session?.session.activeOrganizationId;
-  const activeOrg = orgs.find((org) => org.id === activeOrgId) ?? orgs[0];
-  const displayName = activeOrg?.name ?? "No org";
+  const { activeOrg, orgs } = Route.useRouteContext();
+  const activeOrgId = activeOrg.id;
+  const displayName = activeOrg.name;
 
   const handleOrgSwitch = async (orgId: string) => {
     if (orgId === activeOrgId || switchingOrgId) {
@@ -122,7 +120,10 @@ const OrgSwitcher = () => {
     }
     setSwitchingOrgId(orgId);
     const prevOrgId = activeOrgId;
-    await authClient.organization.setActive({ organizationId: orgId });
+    await authClient.organization.setActive({
+      organizationId: orgId,
+      fetchOptions: { disableSignal: true },
+    });
     if (prevOrgId) {
       queryClient.removeQueries({ queryKey: ["org", prevOrgId] });
     }
@@ -134,7 +135,7 @@ const OrgSwitcher = () => {
   return (
     <>
       <DropdownMenu>
-        <DropdownMenuTrigger render={renderOrgTrigger(displayName, activeOrg?.slug)} />
+        <DropdownMenuTrigger render={renderOrgTrigger(displayName, activeOrg.slug)} />
         <DropdownMenuContent align="start" side="bottom" sideOffset={4} className="w-64">
           <DropdownMenuGroup>
             <DropdownMenuLabel>Organizations</DropdownMenuLabel>
@@ -178,9 +179,9 @@ const themeIcons = { light: SunIcon, dark: MoonIcon, system: MonitorIcon } as co
 const UserMenu = () => {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { data: session } = useSuspenseQuery(sessionQueryOptions);
+  const { session } = Route.useRouteContext();
+  const { user } = session;
   const { theme, updateTheme } = useTheme();
-  const user = session?.user;
   const ThemeIcon = themeIcons[theme];
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
@@ -194,10 +195,10 @@ const UserMenu = () => {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={renderUserTrigger(user?.name, user?.image, user?.email)} />
+      <DropdownMenuTrigger render={renderUserTrigger(user.name, user.image, user.email)} />
       <DropdownMenuContent align="start" side="top" sideOffset={4} className="w-56">
         <DropdownMenuGroup>
-          <DropdownMenuLabel>{user?.name}</DropdownMenuLabel>
+          <DropdownMenuLabel>{user.name}</DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
@@ -332,7 +333,16 @@ export const Route = createFileRoute("/_authed/_app")({
     const activeOrgId = context.session.session.activeOrganizationId;
     const activeOrg = context.orgs.find((org) => org.id === activeOrgId) ?? firstOrg;
     if (activeOrg.id !== activeOrgId) {
-      await authClient.organization.setActive({ organizationId: activeOrg.id });
+      const { error } = await authClient.organization.setActive({
+        organizationId: activeOrg.id,
+        fetchOptions: { disableSignal: true },
+      });
+      if (!error) {
+        context.queryClient.setQueryData(sessionQueryOptions.queryKey, {
+          ...context.session,
+          session: { ...context.session.session, activeOrganizationId: activeOrg.id },
+        });
+      }
     }
     return { activeOrg };
   },

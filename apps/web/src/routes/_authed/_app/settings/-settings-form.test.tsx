@@ -131,7 +131,10 @@ describe("settings org general form submit", () => {
     await user.click(screen.getByRole("button", { name: "Save changes" }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith();
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/auth/organization/update",
+        expect.objectContaining({ method: "POST" }),
+      );
     });
 
     const call = fetchMock.mock.calls[0]!;

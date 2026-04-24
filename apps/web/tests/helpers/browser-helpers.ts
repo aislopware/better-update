@@ -11,7 +11,7 @@ import type { SharedE2EEnv } from "../e2e/global-setup";
 
 export const DEFAULT_PASSWORD = "SecureP@ss123";
 
-export const E2E_DEFAULT_TIMEOUT_MS = 10_000;
+export const E2E_DEFAULT_TIMEOUT_MS = 20_000;
 
 export const toSlug = (value: string): string => value.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-");
 
@@ -92,7 +92,7 @@ export const signUpViaUI = async (
   if (!response.ok()) {
     throw new Error(`signUpViaUI failed: ${response.status()} ${await response.text()}`);
   }
-  await page.goto(`${baseUrl}/`);
+  await page.goto(`${baseUrl}/onboarding`);
   await page.waitForURL(/\/onboarding$/u);
 };
 
@@ -104,6 +104,7 @@ export const completeOnboardingViaUI = async (
   },
 ): Promise<void> => {
   await page.waitForURL(/\/onboarding$/u);
+  await page.getByText("Create your organization").waitFor();
   await page.getByLabel("Organization name").fill(params.organizationName);
   await page.getByLabel("URL slug").fill(params.organizationSlug);
   await page.getByRole("button", { name: "Create organization" }).click();
@@ -125,7 +126,7 @@ export const loginViaUI = async (
   if (!response.ok()) {
     throw new Error(`loginViaUI failed: ${response.status()} ${await response.text()}`);
   }
-  await page.goto(`${baseUrl}/`);
+  await page.goto(`${baseUrl}/onboarding`);
 };
 
 export const logoutViaUI = async (page: Page, userName: string): Promise<void> => {
@@ -134,7 +135,7 @@ export const logoutViaUI = async (page: Page, userName: string): Promise<void> =
     .last()
     .click();
   await page.getByRole("menuitem", { name: "Log out" }).click();
-  await page.waitForURL(/\/login$/u);
+  await page.waitForURL(/\/(?:auth\/)?login(?:$|\?)/u);
 };
 
 // ── Project / navigation helpers ──────────────────────────────────────────

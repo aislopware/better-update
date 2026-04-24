@@ -1,6 +1,5 @@
 import { getApiError } from "@better-update/api-client";
 import { useMutation } from "@tanstack/react-query";
-import { Effect } from "effect";
 import { toast } from "sonner";
 
 import type { MutationFunctionContext, UseMutationOptions } from "@tanstack/react-query";
@@ -25,5 +24,11 @@ export const useApiMutation = <TData, TVariables = void, TOnMutateResult = unkno
  * rejections while keeping `isSubmitting` tracking intact.
  * Error display is still handled by `useApiMutation`'s `onError`.
  */
-export const safeSubmit = async <T>(promise: Promise<T>): Promise<void> =>
-  Effect.runPromise(Effect.ignore(Effect.tryPromise(async () => promise)));
+export const safeSubmit = async <T>(promise: Promise<T>): Promise<void> => {
+  // eslint-disable-next-line functional/no-try-statements -- TanStack Form requires a non-rejecting submit promise while mutation errors are displayed by useApiMutation.onError
+  try {
+    await promise;
+  } catch {
+    // Mutation errors are handled by useApiMutation.onError.
+  }
+};

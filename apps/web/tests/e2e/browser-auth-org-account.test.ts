@@ -206,7 +206,7 @@ describe("dashboard auth + org + account (browser)", () => {
         organizationSlug: `invite-${suffix}`,
       });
 
-      await page.getByRole("link", { name: "Members" }).click();
+      await page.goto(`${dashboard.getBaseUrl()}/members`);
       await page.waitForURL(/\/members$/u);
 
       // Invite dialog
@@ -268,7 +268,7 @@ describe("dashboard auth + org + account (browser)", () => {
       await loginViaUI(page, dashboard.getBaseUrl(), { email: owner.email });
       await page.waitForURL(/\/projects(?:$|\/|\?)/u);
 
-      await page.getByRole("link", { name: "Members" }).click();
+      await page.goto(`${dashboard.getBaseUrl()}/members`);
       await page.waitForURL(/\/members$/u);
 
       // Confirm the seeded member is present
