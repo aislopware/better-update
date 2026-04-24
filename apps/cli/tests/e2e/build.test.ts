@@ -6,10 +6,10 @@ import path from "node:path";
 
 import { setupCliE2E } from "../helpers/cli-e2e";
 
-// Gated on ANDROID_HOME because gradlew requires a functioning Android SDK
+// Gated on Android SDK env because gradlew requires a functioning Android SDK
 // Toolchain; the build-credentials resolve endpoint is covered in the server
 // E2E suite independently.
-const hasAndroidSdk = Boolean(process.env["ANDROID_HOME"]);
+const hasAndroidSdk = Boolean(process.env["ANDROID_HOME"] ?? process.env["ANDROID_SDK_ROOT"]);
 
 const FIXTURE_DIR = path.resolve(import.meta.dirname, "../../../../fixtures/build-e2e-app");
 
@@ -239,11 +239,13 @@ describe.skipIf(!hasAndroidSdk)("CLI build journey — Android", () => {
     expect(linkResponse.status).toBe(200);
     const { artifactUrl } = (await linkResponse.json()) as { artifactUrl: string };
 
-    // Download the full artifact binary.
-    const downloadResponse = await fetch(artifactUrl);
-    expect(downloadResponse.status).toBe(200);
-
-    const body = Buffer.from(await downloadResponse.arrayBuffer());
+    // Download the full artifact binary. Local E2E R2 proxies can present a
+    // Self-signed certificate chain, so use curl's explicit test-only TLS bypass.
+    const body = execFileSync(
+      "curl",
+      ["--fail", "--silent", "--show-error", "--location", "--insecure", artifactUrl],
+      { maxBuffer: buildState.expectedByteSize + 1024 * 1024 },
+    );
     expect(body.byteLength).toBe(buildState.expectedByteSize);
 
     const actualSha256 = createHash("sha256").update(body).digest("hex");
