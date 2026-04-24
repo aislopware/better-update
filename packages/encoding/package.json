@@ -8,7 +8,8 @@
   },
   "scripts": {
     "lint": "oxlint --fix",
-    "lint:check": "oxlint"
+    "lint:check": "oxlint",
+    "test": "vitest run --globals"
   },
   "devDependencies": {
     "@better-update/oxlint-config": "workspace:*",
