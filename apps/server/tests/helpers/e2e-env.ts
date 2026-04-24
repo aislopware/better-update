@@ -1,6 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+import { parseDotenvContent } from "../../src/lib/dotenv";
+
 const FALLBACKS = {
   assetCdnUrl: "https://assets.better-update.dev",
   betterAuthSecret: "e2e-test-secret-that-is-at-least-32-chars",
@@ -18,42 +20,16 @@ const FALLBACKS = {
   vaultKeyring: '{"1":"MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="}',
 } as const;
 
-const stripWrappingQuotes = (value: string) => {
-  if (
-    (value.startsWith('"') && value.endsWith('"')) ||
-    (value.startsWith("'") && value.endsWith("'"))
-  ) {
-    return value.slice(1, -1);
-  }
-
-  return value;
-};
-
 const parseEnvFile = (filePath: string): Record<string, string> => {
   if (!existsSync(filePath)) {
     return {};
   }
 
-  return readFileSync(filePath, "utf8")
-    .split(/\r?\n/u)
-    .reduce<Record<string, string>>((result, line) => {
-      const trimmed = line.trim();
-      if (trimmed === "" || trimmed.startsWith("#")) {
-        return result;
-      }
-
-      const separatorIndex = trimmed.indexOf("=");
-      if (separatorIndex < 1) {
-        return result;
-      }
-
-      const key = trimmed.slice(0, separatorIndex).trim();
-      const value = stripWrappingQuotes(trimmed.slice(separatorIndex + 1).trim());
-      if (value !== "") {
-        result[key] = value;
-      }
-      return result;
-    }, {});
+  return Object.fromEntries(
+    Object.entries(parseDotenvContent(readFileSync(filePath, "utf8"))).filter(
+      ([, value]) => value !== "",
+    ),
+  );
 };
 
 const readFileEnvSource = (projectRoot: string) => ({

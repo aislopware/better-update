@@ -2,37 +2,7 @@ import { createHash } from "node:crypto";
 
 import { setupE2EWorker } from "../helpers/e2e-worker";
 
-const { getBaseUrl } = setupE2EWorker(".wrangler/state/e2e-builds");
-
-// -- Helpers ---------------------------------------------------------------
-
-const post = (path: string, body: unknown, headers?: Record<string, string>) =>
-  fetch(`${getBaseUrl()}${path}`, {
-    method: "POST",
-    headers: { "content-type": "application/json", ...headers },
-    body: JSON.stringify(body),
-  });
-
-const get = (path: string, headers?: Record<string, string>) =>
-  fetch(`${getBaseUrl()}${path}`, headers ? { headers } : {});
-
-const putAbsolute = (url: string, body: BodyInit, headers?: Record<string, string>) =>
-  fetch(url, {
-    method: "PUT",
-    ...(headers ? { headers } : {}),
-    body,
-  });
-
-const del = (path: string, headers?: Record<string, string>) =>
-  fetch(`${getBaseUrl()}${path}`, { method: "DELETE", ...(headers ? { headers } : {}) });
-
-const parseCookies = (response: Response): string => {
-  const setCookie = response.headers.getSetCookie();
-  return setCookie
-    .map((c) => c.split(";")[0])
-    .filter(Boolean)
-    .join("; ");
-};
+const { del, get, parseCookies, post, putAbsolute } = setupE2EWorker(".wrangler/state/e2e-builds");
 
 // -- Tests -----------------------------------------------------------------
 

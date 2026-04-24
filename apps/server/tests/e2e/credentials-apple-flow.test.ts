@@ -1,34 +1,8 @@
+import { toBase64 } from "@better-update/encoding";
+
 import { setupE2EWorker } from "../helpers/e2e-worker";
 
-const { getBaseUrl } = setupE2EWorker(".wrangler/state/e2e-credentials-apple");
-
-const post = (path: string, body: unknown, headers?: Record<string, string>) =>
-  fetch(`${getBaseUrl()}${path}`, {
-    method: "POST",
-    headers: { "content-type": "application/json", ...headers },
-    body: JSON.stringify(body),
-  });
-
-const get = (path: string, headers?: Record<string, string>) =>
-  fetch(`${getBaseUrl()}${path}`, headers ? { headers } : {});
-
-const del = (path: string, headers?: Record<string, string>) =>
-  fetch(`${getBaseUrl()}${path}`, { method: "DELETE", ...(headers ? { headers } : {}) });
-
-const parseCookies = (response: Response): string =>
-  response.headers
-    .getSetCookie()
-    .map((c) => c.split(";")[0])
-    .filter(Boolean)
-    .join("; ");
-
-const toBase64 = (bytes: Uint8Array): string => {
-  let bin = "";
-  for (const byte of bytes) {
-    bin += String.fromCodePoint(byte);
-  }
-  return btoa(bin);
-};
+const { del, get, parseCookies, post } = setupE2EWorker(".wrangler/state/e2e-credentials-apple");
 
 // Valid-looking .p12: ASN.1 SEQUENCE tag (0x30) + >= 32 bytes.
 const dummyP12 = new Uint8Array([0x30, 0x82, 0x01, 0x00, ...Array(40).fill(0xab)]);

@@ -4,26 +4,16 @@ import path from "node:path";
 import { cloudflareTest, readD1Migrations } from "@cloudflare/vitest-pool-workers";
 import { defineConfig } from "vitest/config";
 
-const parseEnvFile = (filePath: string): Record<string, string> => {
-  if (!existsSync(filePath)) {
-    return {};
-  }
-  return readFileSync(filePath, "utf8")
-    .split(/\r?\n/u)
-    .reduce<Record<string, string>>((result, line) => {
-      const trimmed = line.trim();
-      if (trimmed === "" || trimmed.startsWith("#")) return result;
-      const separatorIndex = trimmed.indexOf("=");
-      if (separatorIndex < 1) return result;
-      const key = trimmed.slice(0, separatorIndex).trim();
-      const value = trimmed
-        .slice(separatorIndex + 1)
-        .trim()
-        .replace(/^["']|["']$/gu, "");
-      if (value !== "") result[key] = value;
-      return result;
-    }, {});
-};
+import { parseDotenvContent } from "./src/lib/dotenv";
+
+const parseEnvFile = (filePath: string): Record<string, string> =>
+  existsSync(filePath)
+    ? Object.fromEntries(
+        Object.entries(parseDotenvContent(readFileSync(filePath, "utf8"))).filter(
+          ([, value]) => value !== "",
+        ),
+      )
+    : {};
 
 /**
  * Wrangler's remote R2 proxy needs `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN`

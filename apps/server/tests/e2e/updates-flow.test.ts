@@ -4,42 +4,11 @@ import { Effect } from "effect";
 
 import { setupE2EWorker } from "../helpers/e2e-worker";
 
-const { getBaseUrl } = setupE2EWorker(".wrangler/state/e2e-updates");
+const { del, get, getBaseUrl, parseCookies, patch, post, postNoBody, putAbsolute } = setupE2EWorker(
+  ".wrangler/state/e2e-updates",
+);
 
 // ── Helpers ───────────────────────────────────────────────────────
-
-const post = (path: string, body: unknown, headers?: Record<string, string>) =>
-  fetch(`${getBaseUrl()}${path}`, {
-    method: "POST",
-    headers: { "content-type": "application/json", ...headers },
-    body: JSON.stringify(body),
-  });
-
-const get = (path: string, headers?: Record<string, string>) =>
-  fetch(`${getBaseUrl()}${path}`, headers ? { headers } : {});
-
-const patch = (path: string, body: unknown, headers?: Record<string, string>) =>
-  fetch(`${getBaseUrl()}${path}`, {
-    method: "PATCH",
-    headers: { "content-type": "application/json", ...headers },
-    body: JSON.stringify(body),
-  });
-
-const del = (path: string, headers?: Record<string, string>) =>
-  fetch(`${getBaseUrl()}${path}`, { method: "DELETE", ...(headers ? { headers } : {}) });
-
-const putAbsolute = (url: string, body: BodyInit, headers?: Record<string, string>) =>
-  fetch(url, {
-    method: "PUT",
-    ...(headers ? { headers } : {}),
-    body,
-  });
-
-const postNoBody = (path: string, headers?: Record<string, string>) =>
-  fetch(`${getBaseUrl()}${path}`, {
-    method: "POST",
-    ...(headers ? { headers } : {}),
-  });
 
 const manifestGet = (projectId: string, headers: Record<string, string>) =>
   fetch(`${getBaseUrl()}/manifest/${projectId}`, { headers });
@@ -82,14 +51,6 @@ const parseMultipart = (contentType: string, rawBody: string): readonly Multipar
       );
       return { headers, body: bodySections.join("\r\n\r\n").replace(/\r\n$/, "") };
     });
-};
-
-const parseCookies = (response: Response): string => {
-  const setCookie = response.headers.getSetCookie();
-  return setCookie
-    .map((c) => c.split(";")[0])
-    .filter(Boolean)
-    .join("; ");
 };
 
 // ── Updates & Assets API E2E ─────────────────────────────────────

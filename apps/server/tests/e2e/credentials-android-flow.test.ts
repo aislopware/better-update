@@ -1,38 +1,8 @@
+import { toBase64 } from "@better-update/encoding";
+
 import { setupE2EWorker } from "../helpers/e2e-worker";
 
-const { getBaseUrl } = setupE2EWorker(".wrangler/state/e2e-credentials-android");
-
-const post = (path: string, body: unknown, headers?: Record<string, string>) =>
-  fetch(`${getBaseUrl()}${path}`, {
-    method: "POST",
-    headers: { "content-type": "application/json", ...headers },
-    body: JSON.stringify(body),
-  });
-
-const get = (path: string, headers?: Record<string, string>) =>
-  fetch(`${getBaseUrl()}${path}`, headers ? { headers } : {});
-
-const put = (path: string, body: unknown, headers?: Record<string, string>) =>
-  fetch(`${getBaseUrl()}${path}`, {
-    method: "PUT",
-    headers: { "content-type": "application/json", ...headers },
-    body: JSON.stringify(body),
-  });
-
-const parseCookies = (response: Response): string =>
-  response.headers
-    .getSetCookie()
-    .map((c) => c.split(";")[0])
-    .filter(Boolean)
-    .join("; ");
-
-const toBase64 = (bytes: Uint8Array): string => {
-  let bin = "";
-  for (const byte of bytes) {
-    bin += String.fromCodePoint(byte);
-  }
-  return btoa(bin);
-};
+const { get, parseCookies, post, put } = setupE2EWorker(".wrangler/state/e2e-credentials-android");
 
 // JKS magic bytes 0xFE 0xED 0xFE 0xED + padding >= 16 bytes
 const jksBytes = new Uint8Array([0xfe, 0xed, 0xfe, 0xed, ...Array(40).fill(0xaa)]);

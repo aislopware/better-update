@@ -1,33 +1,8 @@
 import { setupE2EWorker } from "../helpers/e2e-worker";
 
-const { getBaseUrl } = setupE2EWorker(".wrangler/state/e2e-devices");
-
-const post = (path: string, body: unknown, headers?: Record<string, string>) =>
-  fetch(`${getBaseUrl()}${path}`, {
-    method: "POST",
-    headers: { "content-type": "application/json", ...headers },
-    body: JSON.stringify(body),
-  });
-
-const get = (path: string, headers?: Record<string, string>) =>
-  fetch(`${getBaseUrl()}${path}`, headers ? { headers } : {});
-
-const patch = (path: string, body: unknown, headers?: Record<string, string>) =>
-  fetch(`${getBaseUrl()}${path}`, {
-    method: "PATCH",
-    headers: { "content-type": "application/json", ...headers },
-    body: JSON.stringify(body),
-  });
-
-const del = (path: string, headers?: Record<string, string>) =>
-  fetch(`${getBaseUrl()}${path}`, { method: "DELETE", ...(headers ? { headers } : {}) });
-
-const parseCookies = (response: Response): string =>
-  response.headers
-    .getSetCookie()
-    .map((c) => c.split(";")[0])
-    .filter(Boolean)
-    .join("; ");
+const { del, get, getBaseUrl, parseCookies, patch, post } = setupE2EWorker(
+  ".wrangler/state/e2e-devices",
+);
 
 const UDID_A = "00008030-001c45663c90802e";
 const UDID_B = "abcdef0123456789abcdef0123456789abcdef01";
