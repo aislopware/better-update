@@ -1,7 +1,7 @@
+import { isRecord } from "@better-update/type-guards";
 import { Effect } from "effect";
 
 import { BadRequest } from "../errors";
-import { isRecord } from "../lib/type-guards";
 
 interface AssetRefInput {
   readonly key: string;

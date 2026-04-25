@@ -1,7 +1,7 @@
+import { asRecord } from "@better-update/type-guards";
 import { Effect } from "effect";
 
 import { BuildProfileError } from "./exit-codes";
-import { asRecord } from "./record";
 
 export type Platform = "ios" | "android";
 

@@ -30,6 +30,7 @@
     "@better-update/api": "workspace:*",
     "@better-update/encoding": "workspace:*",
     "@better-update/safe-json": "workspace:*",
+    "@better-update/type-guards": "workspace:*",
     "@effect/platform": "^0.96.1",
     "@noble/hashes": "^2.2.0",
     "@xmldom/xmldom": "^0.9.10",

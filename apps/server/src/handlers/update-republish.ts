@@ -1,4 +1,5 @@
 import { safeJsonParse } from "@better-update/safe-json";
+import { isRecord } from "@better-update/type-guards";
 import { Effect } from "effect";
 import { countBy, uniq } from "es-toolkit";
 
@@ -8,7 +9,6 @@ import { assertProjectOwnership } from "../auth/ownership";
 import { validateUpdatePublishInput } from "../domain/update-publish-validation";
 import { BadRequest, NotFound } from "../errors";
 import { requireValue } from "../lib/require-value";
-import { isRecord } from "../lib/type-guards";
 import { BranchRepo, ChannelRepo, UpdateRepo } from "../repositories";
 
 type RepublishPayload = typeof RepublishBody.Type;

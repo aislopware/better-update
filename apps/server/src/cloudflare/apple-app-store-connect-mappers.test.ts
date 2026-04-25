@@ -1,4 +1,3 @@
-import { isRecord } from "../lib/type-guards";
 import {
   extractDeviceSingle,
   extractDevicesPage,
@@ -11,21 +10,6 @@ import {
   toDeviceResource,
   toProfile,
 } from "./apple-app-store-connect-mappers";
-
-describe(isRecord, () => {
-  it("detects object", () => {
-    expect(isRecord({ key: 1 })).toBe(true);
-  });
-
-  it("rejects null", () => {
-    expect(isRecord(null)).toBe(false);
-  });
-
-  it("rejects primitives", () => {
-    expect(isRecord("x")).toBe(false);
-    expect(isRecord(1)).toBe(false);
-  });
-});
 
 describe(extractErrors, () => {
   it("returns [] for non-object", () => {

@@ -1,4 +1,4 @@
-import { asRecord } from "./record";
+import { asRecord } from "@better-update/type-guards";
 
 import type { Platform } from "./build-profile";
 

@@ -1,9 +1,9 @@
+import { asRecord, isRecord } from "@better-update/type-guards";
 import { FileSystem } from "@effect/platform";
 import { Effect } from "effect";
 
 import { ProjectNotLinkedError } from "./exit-codes";
 import { formatCause } from "./format-error";
-import { asRecord, isRecord } from "./record";
 
 export const readAppJson = Effect.gen(function* () {
   const fs = yield* FileSystem.FileSystem;

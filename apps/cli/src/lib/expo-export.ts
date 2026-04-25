@@ -1,5 +1,6 @@
 import path from "node:path";
 
+import { asRecord } from "@better-update/type-guards";
 import { Command, FileSystem } from "@effect/platform";
 import { Effect } from "effect";
 
@@ -7,7 +8,6 @@ import type { CommandExecutor } from "@effect/platform";
 
 import { CliRuntime } from "../services/cli-runtime";
 import { BuildFailedError, UpdatePublishError } from "./exit-codes";
-import { asRecord } from "./record";
 
 import type { Platform } from "./build-profile";
 

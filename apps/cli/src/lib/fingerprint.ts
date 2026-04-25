@@ -1,9 +1,8 @@
+import { isRecord } from "@better-update/type-guards";
 import { Command } from "@effect/platform";
 import { Data, Effect } from "effect";
 
 import type { CommandExecutor } from "@effect/platform";
-
-import { isRecord } from "./record";
 
 export class FingerprintError extends Data.TaggedError("FingerprintError")<{
   readonly message: string;

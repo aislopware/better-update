@@ -1,4 +1,4 @@
-import { isRecord } from "../lib/type-guards";
+import { isRecord } from "@better-update/type-guards";
 
 import type {
   AppleBundleId,

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import { buildRollbackDirectiveBody } from "@better-update/expo-protocol";
+import { isRecord } from "@better-update/type-guards";
 import { FileSystem } from "@effect/platform";
 import { Effect } from "effect";
 
@@ -10,7 +11,6 @@ import { readAppJson, readProjectId, readSlug } from "../lib/app-json";
 import { readRuntimeVersionMeta } from "../lib/build-profile";
 import { UpdateRollbackError } from "../lib/exit-codes";
 import { formatCause } from "../lib/format-error";
-import { isRecord } from "../lib/record";
 import { resolveRuntimeVersion } from "../lib/runtime-version";
 import { resolveUpdatePlatforms } from "../lib/update-platforms";
 import { apiClient } from "../services/api-client";

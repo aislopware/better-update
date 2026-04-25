@@ -1,9 +1,8 @@
 import path from "node:path";
 
+import { asRecord } from "@better-update/type-guards";
 import { FileSystem } from "@effect/platform";
 import { Console, Effect } from "effect";
-
-import { asRecord } from "./record";
 
 export interface GradleConfig {
   readonly applicationId?: string;

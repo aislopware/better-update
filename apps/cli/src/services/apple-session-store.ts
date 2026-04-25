@@ -1,6 +1,7 @@
 import path from "node:path";
 
 import { safeJsonParse } from "@better-update/safe-json";
+import { isRecord } from "@better-update/type-guards";
 import { FileSystem } from "@effect/platform";
 import { Context, Effect, Layer } from "effect";
 
@@ -8,7 +9,6 @@ import type { Auth } from "@expo/apple-utils";
 
 import { AppleAuthError } from "../lib/exit-codes";
 import { formatCause } from "../lib/format-error";
-import { isRecord } from "../lib/record";
 import { CliRuntime } from "./cli-runtime";
 
 // The cookies payload accepted by @expo/apple-utils Auth.loginWithCookiesAsync.

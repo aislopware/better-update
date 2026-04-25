@@ -1,9 +1,8 @@
 import { createServer } from "node:http";
 import type { IncomingMessage, Server, ServerResponse } from "node:http";
 
+import { isRecord } from "@better-update/type-guards";
 import { Data, Deferred, Duration, Effect } from "effect";
-
-import { isRecord } from "./record";
 
 export class BrowserLoginTimeoutError extends Data.TaggedError("BrowserLoginTimeoutError")<{
   readonly message: string;

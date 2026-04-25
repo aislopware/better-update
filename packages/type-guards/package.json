@@ -1,0 +1,18 @@
+{
+  "name": "@better-update/type-guards",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "oxlint --fix",
+    "lint:check": "oxlint",
+    "test": "vitest run --globals"
+  },
+  "devDependencies": {
+    "@better-update/oxlint-config": "workspace:*",
+    "@better-update/typescript-config": "workspace:*"
+  }
+}

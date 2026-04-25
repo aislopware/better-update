@@ -1,3 +1,4 @@
+import { isRecord } from "@better-update/type-guards";
 import { Effect, Match } from "effect";
 
 import type { BadRequest, NotFound } from "@better-update/api";
@@ -6,7 +7,6 @@ import { provideCloudflareRequestContext } from "../cloudflare/context";
 import { manifestRuntime } from "../cloudflare/manifest-runtime";
 import { resolveUpdateRollout } from "../domain/update-rollout";
 import { toOptional } from "../lib/nullable";
-import { isRecord } from "../lib/type-guards";
 import { parseProtocolHeaders } from "../protocol/headers";
 import { buildDirective, buildExtensions, buildManifest } from "../protocol/manifest-builder";
 import { encodeMultipart } from "../protocol/multipart";

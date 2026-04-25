@@ -1,7 +1,7 @@
 import { safeJsonParse } from "@better-update/safe-json";
+import { isRecord } from "@better-update/type-guards";
 import { Effect } from "effect";
 
-import { isRecord } from "../lib/type-guards";
 import { CryptoService } from "./crypto-service";
 
 import type { CryptoError } from "./crypto-service";

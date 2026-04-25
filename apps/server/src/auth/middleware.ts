@@ -1,11 +1,11 @@
 import { Authentication } from "@better-update/api";
+import { isRecord } from "@better-update/type-guards";
 import { HttpServerRequest } from "@effect/platform";
 import { Effect, Layer, Redacted } from "effect";
 
 import { createAuth } from "../auth";
 import { cloudflareEnv } from "../cloudflare/context";
 import { Unauthorized } from "../errors";
-import { isRecord } from "../lib/type-guards";
 import { API_KEY_PREFIX } from "./constants";
 import { permissions } from "./permissions";
 

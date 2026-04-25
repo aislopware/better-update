@@ -1,9 +1,9 @@
 import path from "node:path";
 
+import { isRecord } from "@better-update/type-guards";
 import { FileSystem } from "@effect/platform";
 import { Context, Data, Effect, Layer } from "effect";
 
-import { isRecord } from "../lib/record";
 import { CliRuntime } from "./cli-runtime";
 
 const DEFAULT_BASE_URL = "https://graph.better-update.dev";

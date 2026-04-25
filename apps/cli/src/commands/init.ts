@@ -1,10 +1,10 @@
+import { asRecord } from "@better-update/type-guards";
 import { defineCommand } from "citty";
 import { Console, Effect } from "effect";
 
 import { readAppJson, readSlug, writeProjectId } from "../lib/app-json";
 import { asString } from "../lib/build-profile";
 import { runEffect } from "../lib/citty-effect";
-import { asRecord } from "../lib/record";
 import { apiClient } from "../services/api-client";
 
 export const initCommand = defineCommand({

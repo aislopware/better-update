@@ -1,11 +1,11 @@
 import path from "node:path";
 
+import { isRecord } from "@better-update/type-guards";
 import { FileSystem } from "@effect/platform";
 import { Context, Effect, Layer } from "effect";
 
 import { AuthRequiredError } from "../lib/exit-codes";
 import { formatCause } from "../lib/format-error";
-import { isRecord } from "../lib/record";
 import { CliRuntime } from "./cli-runtime";
 
 export class AuthStore extends Context.Tag("cli/AuthStore")<
