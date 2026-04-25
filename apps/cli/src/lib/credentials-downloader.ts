@@ -1,3 +1,5 @@
+import path from "node:path";
+
 import { fromBase64 } from "@better-update/encoding";
 import { FileSystem } from "@effect/platform";
 import { Effect } from "effect";
@@ -107,9 +109,9 @@ export const downloadIosCredentials = (
       );
     }
 
-    const p12Path = `${options.tempDir}/signing.p12`;
+    const p12Path = path.join(options.tempDir, "signing.p12");
     const profileFilename = `${resolved.provisioningProfile.uuid ?? "profile"}.mobileprovision`;
-    const profilePath = `${options.tempDir}/${profileFilename}`;
+    const profilePath = path.join(options.tempDir, profileFilename);
 
     yield* fs.writeFile(p12Path, fromBase64(resolved.distributionCertificate.p12Base64));
     yield* fs.writeFile(
@@ -169,7 +171,7 @@ export const downloadAndroidCredentials = (
       );
     }
 
-    const keystorePath = `${options.tempDir}/upload.keystore`;
+    const keystorePath = path.join(options.tempDir, "upload.keystore");
     yield* fs.writeFile(keystorePath, fromBase64(resolved.keystore.keystoreBase64));
 
     return {
