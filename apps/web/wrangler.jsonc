@@ -3,7 +3,7 @@
   "name": "better-update-web",
   "main": "@tanstack/react-start/server-entry",
   "compatibility_flags": ["nodejs_compat"],
-  "compatibility_date": "2026-04-19",
+  "compatibility_date": "2026-04-25",
   "observability": {
     "enabled": true,
   },
