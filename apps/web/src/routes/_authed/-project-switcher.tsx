@@ -2,20 +2,20 @@ import { projectsQueryOptions } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
-  DialogContent,
+  DialogPopup,
   DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
 import {
   DropdownMenu,
-  DropdownMenuContent,
+  DropdownMenuPopup,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@better-update/ui/components/ui/dropdown-menu";
+} from "@better-update/ui/components/ui/menu";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 import { ChevronsUpDownIcon, PlusIcon } from "lucide-react";
@@ -59,7 +59,7 @@ export const ProjectSwitcher = ({ orgId, currentProjectSlug }: ProjectSwitcherPr
     <>
       <DropdownMenu>
         <DropdownMenuTrigger render={switcherTrigger(displayName)} />
-        <DropdownMenuContent align="start" side="bottom" sideOffset={4} className="w-64">
+        <DropdownMenuPopup align="start" side="bottom" sideOffset={4} className="w-64">
           <DropdownMenuGroup>
             <DropdownMenuLabel>Projects</DropdownMenuLabel>
             <DropdownMenuSeparator />
@@ -101,10 +101,10 @@ export const ProjectSwitcher = ({ orgId, currentProjectSlug }: ProjectSwitcherPr
             <PlusIcon strokeWidth={2} className="size-4" />
             <span>Create project</span>
           </DropdownMenuItem>
-        </DropdownMenuContent>
+        </DropdownMenuPopup>
       </DropdownMenu>
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent>
+        <DialogPopup>
           <DialogHeader>
             <DialogTitle>Create a project</DialogTitle>
             <DialogDescription>
@@ -117,7 +117,7 @@ export const ProjectSwitcher = ({ orgId, currentProjectSlug }: ProjectSwitcherPr
               setCreateOpen(false);
             }}
           />
-        </DialogContent>
+        </DialogPopup>
       </Dialog>
     </>
   );

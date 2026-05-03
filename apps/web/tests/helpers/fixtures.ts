@@ -64,6 +64,9 @@ export const makeProject = (overrides?: Partial<ProjectItem>): ProjectItem => ({
   slug: "my-project",
   createdAt: "2026-01-01T00:00:00Z",
   lastActivityAt: "2026-01-01T00:00:00Z",
+  branchCount: 0,
+  channelCount: 0,
+  updateCount: 0,
   ...overrides,
 });
 

@@ -75,6 +75,9 @@ export interface ProjectModel {
   readonly slug: string;
   readonly createdAt: string;
   readonly lastActivityAt: string;
+  readonly branchCount: number;
+  readonly channelCount: number;
+  readonly updateCount: number;
 }
 
 export interface BranchModel {

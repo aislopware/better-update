@@ -3,24 +3,25 @@ import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
-  DialogContent,
+  DialogPopup,
   DialogDescription,
   DialogFooter,
   DialogHeader,
+  DialogPanel,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
 import {
   Select,
-  SelectContent,
+  SelectPopup,
   SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
+import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { RocketIcon } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import type { Channel, Update } from "@better-update/api";
 
@@ -53,7 +54,7 @@ export const PromoteUpdateDialog = ({
         destinationChannel: channelName,
       }),
     onSuccess: async () => {
-      toast.success("Update promoted successfully");
+      toastManager.add({ title: "Update promoted successfully", type: "success" });
       await invalidateUpdates(queryClient, orgId, projectId);
       setTargetChannelName("");
       onOpenChange(false);
@@ -81,48 +82,50 @@ export const PromoteUpdateDialog = ({
         onOpenChange(nextOpen);
       }}
     >
-      <DialogContent>
+      <DialogPopup>
         <DialogHeader>
           <DialogTitle>Promote update</DialogTitle>
           <DialogDescription>
             Republish this update to another channel with 100% rollout.
           </DialogDescription>
         </DialogHeader>
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <span className="text-sm font-medium">Source update</span>
-            <div className="flex items-center gap-2 text-sm">
-              <span>{update.message}</span>
-              <Badge variant="outline">{update.platform}</Badge>
-              <span className="text-muted-foreground">v{update.runtimeVersion}</span>
+        <DialogPanel>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <span className="text-sm font-medium">Source update</span>
+              <div className="flex items-center gap-2 text-sm">
+                <span>{update.message}</span>
+                <Badge variant="outline">{update.platform}</Badge>
+                <span className="text-muted-foreground">v{update.runtimeVersion}</span>
+              </div>
+            </div>
+            <div className="flex flex-col gap-2">
+              <span className="text-sm font-medium">Target channel</span>
+              <Select
+                items={channelLabels}
+                value={targetChannelName}
+                onValueChange={(value) => {
+                  if (value) {
+                    setTargetChannelName(value);
+                  }
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a channel" />
+                </SelectTrigger>
+                <SelectPopup>
+                  <SelectGroup>
+                    {channels.map((channel) => (
+                      <SelectItem key={channel.id} value={channel.name}>
+                        {channel.name}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectPopup>
+              </Select>
             </div>
           </div>
-          <div className="flex flex-col gap-2">
-            <span className="text-sm font-medium">Target channel</span>
-            <Select
-              items={channelLabels}
-              value={targetChannelName}
-              onValueChange={(value) => {
-                if (value) {
-                  setTargetChannelName(value);
-                }
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select a channel" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {channels.map((channel) => (
-                    <SelectItem key={channel.id} value={channel.name}>
-                      {channel.name}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+        </DialogPanel>
         <DialogFooter>
           <Button
             onClick={handlePromote}
@@ -132,7 +135,7 @@ export const PromoteUpdateDialog = ({
             {promoteUpdateMutation.isPending ? "Promoting..." : "Promote"}
           </Button>
         </DialogFooter>
-      </DialogContent>
+      </DialogPopup>
     </Dialog>
   );
 };

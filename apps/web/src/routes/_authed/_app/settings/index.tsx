@@ -1,30 +1,25 @@
 import { Button } from "@better-update/ui/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@better-update/ui/components/ui/card";
-import {
   Dialog,
   DialogClose,
-  DialogContent,
+  DialogPopup,
   DialogDescription,
   DialogFooter,
   DialogHeader,
+  DialogPanel,
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
-import { Label } from "@better-update/ui/components/ui/label";
+import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useRef, useState } from "react";
-import { toast } from "sonner";
 
+import { PageHeader } from "../../../../components/page-header";
+import { SettingCard } from "../../../../components/setting-card";
 import { authClient } from "../../../../lib/auth-client";
 import { generateSlug, getFieldError, nameSchema, slugSchema } from "../../../../lib/form-utils";
 import { useDeleteOrgMutation } from "../../../../lib/org-mutations";
@@ -47,30 +42,40 @@ const OrgGeneralForm = () => {
       });
 
       if (error) {
-        toast.error(error.message ?? "Failed to update organization");
+        toastManager.add({
+          title: error.message ?? "Failed to update organization",
+          type: "error",
+        });
         return;
       }
 
-      toast.success("Organization updated");
+      toastManager.add({ title: "Organization updated", type: "success" });
       await queryClient.resetQueries({ queryKey: ["auth"] });
     },
   });
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>General</CardTitle>
-        <CardDescription>Update your organization details.</CardDescription>
-      </CardHeader>
-      <form
-        className="flex flex-col gap-4"
-        onSubmit={async (event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          await form.handleSubmit();
-        }}
+    <form
+      onSubmit={async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        await form.handleSubmit();
+      }}
+    >
+      <SettingCard
+        title="General"
+        description="Update your organization details."
+        footer={
+          <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
+            {([canSubmit, isSubmitting]) => (
+              <Button type="submit" disabled={!canSubmit || isSubmitting} size="sm">
+                {isSubmitting ? "Saving…" : "Save changes"}
+              </Button>
+            )}
+          </form.Subscribe>
+        }
       >
-        <CardContent className="flex flex-col gap-4">
+        <FieldGroup>
           <form.Field
             name="name"
             validators={{
@@ -83,8 +88,8 @@ const OrgGeneralForm = () => {
             {(field) => {
               const errorMessage = getFieldError(field);
               return (
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="org-name">Organization name</Label>
+                <Field data-invalid={errorMessage ? true : undefined}>
+                  <FieldLabel htmlFor="org-name">Organization name</FieldLabel>
                   <Input
                     id="org-name"
                     value={field.state.value}
@@ -98,9 +103,10 @@ const OrgGeneralForm = () => {
                       }
                     }}
                     onBlur={field.handleBlur}
+                    aria-invalid={errorMessage ? true : undefined}
                   />
-                  {errorMessage ? <p className="text-destructive text-sm">{errorMessage}</p> : null}
-                </div>
+                  <FieldError>{errorMessage}</FieldError>
+                </Field>
               );
             }}
           </form.Field>
@@ -117,8 +123,8 @@ const OrgGeneralForm = () => {
             {(field) => {
               const errorMessage = getFieldError(field);
               return (
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="org-slug">URL slug</Label>
+                <Field data-invalid={errorMessage ? true : undefined}>
+                  <FieldLabel htmlFor="org-slug">URL slug</FieldLabel>
                   <Input
                     id="org-slug"
                     value={field.state.value}
@@ -127,24 +133,16 @@ const OrgGeneralForm = () => {
                       slugEdited.current = event.target.value !== "";
                     }}
                     onBlur={field.handleBlur}
+                    aria-invalid={errorMessage ? true : undefined}
                   />
-                  {errorMessage ? <p className="text-destructive text-sm">{errorMessage}</p> : null}
-                </div>
+                  <FieldError>{errorMessage}</FieldError>
+                </Field>
               );
             }}
           </form.Field>
-        </CardContent>
-        <CardFooter>
-          <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
-            {([canSubmit, isSubmitting]) => (
-              <Button type="submit" disabled={!canSubmit || isSubmitting}>
-                {isSubmitting ? "Saving..." : "Save changes"}
-              </Button>
-            )}
-          </form.Subscribe>
-        </CardFooter>
-      </form>
-    </Card>
+        </FieldGroup>
+      </SettingCard>
+    </form>
   );
 };
 
@@ -157,7 +155,7 @@ const DeleteOrgSection = () => {
   const deleteOrgMutation = useDeleteOrgMutation({
     orgId: activeOrg.id,
     onSuccess: async () => {
-      toast.success("Organization deleted");
+      toastManager.add({ title: "Organization deleted", type: "success" });
       await queryClient.resetQueries({ queryKey: ["auth"] });
       await router.invalidate();
     },
@@ -168,15 +166,14 @@ const DeleteOrgSection = () => {
   };
 
   return (
-    <Card className="border-destructive">
-      <CardHeader>
-        <CardTitle>Danger zone</CardTitle>
-        <CardDescription>Permanently delete this organization and all of its data.</CardDescription>
-      </CardHeader>
-      <CardFooter>
+    <SettingCard
+      className="border-destructive"
+      title="Danger zone"
+      description="Permanently delete this organization and all of its data."
+      footer={
         <Dialog>
           <DialogTrigger render={deleteOrgTrigger} />
-          <DialogContent>
+          <DialogPopup>
             <DialogHeader>
               <DialogTitle>Delete {activeOrg.name}?</DialogTitle>
               <DialogDescription>
@@ -184,19 +181,21 @@ const DeleteOrgSection = () => {
                 permanently removed.
               </DialogDescription>
             </DialogHeader>
-            <div className="flex flex-col gap-2 py-4">
-              <Label htmlFor="confirm-delete">
-                Type <span className="font-mono font-bold">{activeOrg.slug}</span> to confirm
-              </Label>
-              <Input
-                id="confirm-delete"
-                value={confirmText}
-                onChange={(event) => {
-                  setConfirmText(event.target.value);
-                }}
-                placeholder={activeOrg.slug}
-              />
-            </div>
+            <DialogPanel>
+              <Field>
+                <FieldLabel htmlFor="confirm-delete">
+                  Type <span className="font-mono font-bold">{activeOrg.slug}</span> to confirm
+                </FieldLabel>
+                <Input
+                  id="confirm-delete"
+                  value={confirmText}
+                  onChange={(event) => {
+                    setConfirmText(event.target.value);
+                  }}
+                  placeholder={activeOrg.slug}
+                />
+              </Field>
+            </DialogPanel>
             <DialogFooter>
               <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
               <Button
@@ -204,18 +203,22 @@ const DeleteOrgSection = () => {
                 disabled={confirmText !== activeOrg.slug || deleteOrgMutation.isPending}
                 onClick={handleDelete}
               >
-                {deleteOrgMutation.isPending ? "Deleting..." : "Delete permanently"}
+                {deleteOrgMutation.isPending ? "Deleting…" : "Delete permanently"}
               </Button>
             </DialogFooter>
-          </DialogContent>
+          </DialogPopup>
         </Dialog>
-      </CardFooter>
-    </Card>
+      }
+    />
   );
 };
 
 const Settings = () => (
-  <div className="flex w-full flex-col gap-4">
+  <div className="flex w-full flex-col gap-6">
+    <PageHeader
+      title="Organization settings"
+      description="Update organization details or permanently delete the organization."
+    />
     <OrgGeneralForm />
     <DeleteOrgSection />
   </div>

@@ -12,7 +12,8 @@ import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
   DialogClose,
-  DialogContent,
+  DialogPopup,
+  DialogPanel,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -22,15 +23,15 @@ import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/f
 import { Input } from "@better-update/ui/components/ui/input";
 import {
   Select,
-  SelectContent,
+  SelectPopup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
+import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { WandIcon } from "lucide-react";
 import { useMemo, useState } from "react";
-import { toast } from "sonner";
 
 import { formatAppleTeamLabel } from "../../-credentials-utils";
 import { safeSubmit, useApiMutation } from "../../../../../lib/use-api-mutation";
@@ -101,7 +102,7 @@ const StepCertificate = ({
         <SelectTrigger id="wiz-cert">
           <SelectValue placeholder="Select a certificate" />
         </SelectTrigger>
-        <SelectContent>
+        <SelectPopup>
           {certs.items.map((cert) => {
             const team = teamById.get(cert.appleTeamId);
             const label =
@@ -114,7 +115,7 @@ const StepCertificate = ({
               </SelectItem>
             );
           })}
-        </SelectContent>
+        </SelectPopup>
       </Select>
     </Field>
   );
@@ -231,13 +232,13 @@ const StepProfile = ({
           <SelectTrigger id="wiz-asc">
             <SelectValue placeholder="Select an ASC API Key" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectPopup>
             {availableKeys.map((key) => (
               <SelectItem key={key.id} value={key.id}>
                 {key.name} ({key.keyId})
               </SelectItem>
             ))}
-          </SelectContent>
+          </SelectPopup>
         </Select>
       </Field>
       <Field>
@@ -344,7 +345,7 @@ export const AdHocIosWizard = ({ orgId, projectId }: { orgId: string; projectId:
       await queryClient.invalidateQueries({
         queryKey: appleProvisioningProfilesQueryOptions(orgId).queryKey,
       });
-      toast.success("Provisioning profile generated");
+      toastManager.add({ title: "Provisioning profile generated", type: "success" });
     },
   });
 
@@ -359,7 +360,7 @@ export const AdHocIosWizard = ({ orgId, projectId }: { orgId: string; projectId:
         ascApiKeyId: state.ascKeyId,
       }),
     onSuccess: async () => {
-      toast.success("Ad-Hoc bundle configuration saved");
+      toastManager.add({ title: "Ad-Hoc bundle configuration saved", type: "success" });
       await queryClient.invalidateQueries({
         queryKey: iosBundleConfigurationsQueryOptions(orgId, projectId).queryKey,
       });
@@ -400,15 +401,15 @@ export const AdHocIosWizard = ({ orgId, projectId }: { orgId: string; projectId:
         <WandIcon data-icon="inline-start" />
         Ad-Hoc Wizard
       </Button>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogPopup className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Ad-Hoc iOS Bundle</DialogTitle>
           <DialogDescription>
             Generate an Ad-Hoc provisioning profile and save the iOS bundle configuration.
           </DialogDescription>
         </DialogHeader>
-        <StepperHeader steps={STEPS} currentStep={step} />
-        <div className="py-4">
+        <DialogPanel>
+          <StepperHeader steps={STEPS} currentStep={step} />
           {step === 1 ? <StepCertificate orgId={orgId} state={state} onChange={setState} /> : null}
           {step === 2 ? <StepDevices orgId={orgId} state={state} onChange={setState} /> : null}
           {step === 3 ? (
@@ -431,7 +432,7 @@ export const AdHocIosWizard = ({ orgId, projectId }: { orgId: string; projectId:
             />
           ) : null}
           {step === 4 ? <StepSave state={state} /> : null}
-        </div>
+        </DialogPanel>
         <DialogFooter>
           <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
           {step > 1 ? (
@@ -457,7 +458,7 @@ export const AdHocIosWizard = ({ orgId, projectId }: { orgId: string; projectId:
             <SaveButton orgId={orgId} state={state} saveMutation={saveMutation} />
           )}
         </DialogFooter>
-      </DialogContent>
+      </DialogPopup>
     </Dialog>
   );
 };

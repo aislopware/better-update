@@ -7,6 +7,14 @@ import {
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
 import {
+  DropdownMenu,
+  DropdownMenuPopup,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@better-update/ui/components/ui/menu";
+import {
   Table,
   TableBody,
   TableCell,
@@ -17,6 +25,7 @@ import {
 import {
   BellRingIcon,
   CloudIcon,
+  EllipsisVerticalIcon,
   KeyRoundIcon,
   RefreshCwIcon,
   ShieldCheckIcon,
@@ -66,7 +75,7 @@ const DeleteAction = (props: DeleteActionProps) => (
 );
 
 export const DistributionCertificatesEmptyState = () => (
-  <Empty className="border">
+  <Empty>
     <EmptyHeader>
       <EmptyMedia variant="icon">
         <ShieldCheckIcon strokeWidth={1.5} />
@@ -88,12 +97,12 @@ export const DistributionCertificatesTable = ({
   onDelete: (id: string) => Promise<unknown>;
   onInvalidate: () => Promise<void>;
 }) => (
-  <Table>
+  <Table variant="card">
     <TableHeader>
       <TableRow>
         <TableHead>Serial</TableHead>
         <TableHead>Valid until</TableHead>
-        <TableHead aria-label="Actions" />
+        <TableHead className="w-12" aria-label="Actions" />
       </TableRow>
     </TableHeader>
     <TableBody>
@@ -118,7 +127,7 @@ export const DistributionCertificatesTable = ({
 );
 
 export const PushKeysEmptyState = () => (
-  <Empty className="border">
+  <Empty>
     <EmptyHeader>
       <EmptyMedia variant="icon">
         <BellRingIcon strokeWidth={1.5} />
@@ -140,12 +149,12 @@ export const PushKeysTable = ({
   onDelete: (id: string) => Promise<unknown>;
   onInvalidate: () => Promise<void>;
 }) => (
-  <Table>
+  <Table variant="card">
     <TableHeader>
       <TableRow>
         <TableHead>Key ID</TableHead>
         <TableHead>Added</TableHead>
-        <TableHead aria-label="Actions" />
+        <TableHead className="w-12" aria-label="Actions" />
       </TableRow>
     </TableHeader>
     <TableBody>
@@ -170,7 +179,7 @@ export const PushKeysTable = ({
 );
 
 export const AscApiKeysEmptyState = () => (
-  <Empty className="border">
+  <Empty>
     <EmptyHeader>
       <EmptyMedia variant="icon">
         <KeyRoundIcon strokeWidth={1.5} />
@@ -181,6 +190,57 @@ export const AscApiKeysEmptyState = () => (
       </EmptyDescription>
     </EmptyHeader>
   </Empty>
+);
+
+const AscApiKeyActions = ({
+  keyId,
+  onSync,
+  syncPending,
+  onDelete,
+  onInvalidate,
+}: {
+  keyId: string;
+  onSync: () => void;
+  syncPending: boolean;
+  onDelete: () => Promise<unknown>;
+  onInvalidate: () => Promise<void>;
+}) => (
+  <DropdownMenu>
+    <DropdownMenuTrigger
+      render={<Button variant="ghost" size="icon" aria-label="ASC key actions" />}
+    >
+      <EllipsisVerticalIcon strokeWidth={2} />
+    </DropdownMenuTrigger>
+    <DropdownMenuPopup align="end">
+      <DropdownMenuGroup>
+        <DropdownMenuItem disabled={syncPending} onClick={onSync}>
+          <RefreshCwIcon strokeWidth={2} />
+          <span>Sync devices</span>
+        </DropdownMenuItem>
+      </DropdownMenuGroup>
+      <DropdownMenuSeparator />
+      <DropdownMenuGroup>
+        <ConfirmDeleteDialog
+          name={keyId}
+          title="Delete ASC API key?"
+          description="This permanently removes the .p8 key."
+          onConfirm={onDelete}
+          successMessage="ASC API key deleted"
+          onSuccess={onInvalidate}
+        >
+          <DropdownMenuItem
+            variant="destructive"
+            onSelect={(event) => {
+              event.preventDefault();
+            }}
+          >
+            <Trash2Icon strokeWidth={2} />
+            <span>Delete</span>
+          </DropdownMenuItem>
+        </ConfirmDeleteDialog>
+      </DropdownMenuGroup>
+    </DropdownMenuPopup>
+  </DropdownMenu>
 );
 
 export const AscApiKeysTable = ({
@@ -196,12 +256,12 @@ export const AscApiKeysTable = ({
   onSync: (id: string) => void;
   syncPending: boolean;
 }) => (
-  <Table>
+  <Table variant="card">
     <TableHeader>
       <TableRow>
         <TableHead>Name</TableHead>
         <TableHead>Key ID</TableHead>
-        <TableHead aria-label="Actions" />
+        <TableHead className="w-12" aria-label="Actions" />
       </TableRow>
     </TableHeader>
     <TableBody>
@@ -209,25 +269,15 @@ export const AscApiKeysTable = ({
         <TableRow key={key.id}>
           <TableCell className="font-medium">{key.name}</TableCell>
           <TableCell className="font-mono">{key.keyId}</TableCell>
-          <TableCell className="flex justify-end gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              disabled={syncPending}
-              onClick={() => {
+          <TableCell className="text-right">
+            <AscApiKeyActions
+              keyId={key.keyId}
+              onSync={() => {
                 onSync(key.id);
               }}
-              aria-label="Sync devices"
-            >
-              <RefreshCwIcon strokeWidth={2} />
-            </Button>
-            <DeleteAction
-              name={key.keyId}
-              title="Delete ASC API key?"
-              description="This permanently removes the .p8 key."
-              onConfirm={async () => onDelete(key.id)}
-              successMessage="ASC API key deleted"
-              onSuccess={onInvalidate}
+              syncPending={syncPending}
+              onDelete={async () => onDelete(key.id)}
+              onInvalidate={onInvalidate}
             />
           </TableCell>
         </TableRow>
@@ -237,7 +287,7 @@ export const AscApiKeysTable = ({
 );
 
 export const AppleTeamsEmptyState = () => (
-  <Empty className="border">
+  <Empty>
     <EmptyHeader>
       <EmptyMedia variant="icon">
         <UsersRoundIcon strokeWidth={1.5} />
@@ -251,7 +301,7 @@ export const AppleTeamsEmptyState = () => (
 );
 
 export const AppleTeamsTable = ({ items }: { items: readonly AppleTeamItem[] }) => (
-  <Table>
+  <Table variant="card">
     <TableHeader>
       <TableRow>
         <TableHead>Team</TableHead>
@@ -280,7 +330,7 @@ export const AppleTeamsTable = ({ items }: { items: readonly AppleTeamItem[] }) 
 );
 
 export const GoogleServiceAccountKeysEmptyState = () => (
-  <Empty className="border">
+  <Empty>
     <EmptyHeader>
       <EmptyMedia variant="icon">
         <CloudIcon strokeWidth={1.5} />
@@ -302,12 +352,12 @@ export const GoogleServiceAccountKeysTable = ({
   onDelete: (id: string) => Promise<unknown>;
   onInvalidate: () => Promise<void>;
 }) => (
-  <Table>
+  <Table variant="card">
     <TableHeader>
       <TableRow>
         <TableHead>Client email</TableHead>
         <TableHead>Project</TableHead>
-        <TableHead aria-label="Actions" />
+        <TableHead className="w-12" aria-label="Actions" />
       </TableRow>
     </TableHeader>
     <TableBody>

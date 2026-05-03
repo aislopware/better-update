@@ -3,10 +3,11 @@ import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
   DialogClose,
-  DialogContent,
+  DialogPopup,
   DialogDescription,
   DialogFooter,
   DialogHeader,
+  DialogPanel,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
 import {
@@ -19,17 +20,17 @@ import {
 import { Input } from "@better-update/ui/components/ui/input";
 import {
   Select,
-  SelectContent,
+  SelectPopup,
   SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
+import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { PlusIcon } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 import { z } from "zod/v4";
 
 import type { DeviceClassValue } from "@better-update/api-client/react";
@@ -68,7 +69,7 @@ const DEVICE_CLASS_OPTIONS: { value: DeviceClassValue; label: string }[] = [
 ];
 
 const DeviceClassOptions = () => (
-  <SelectContent>
+  <SelectPopup>
     <SelectGroup>
       {DEVICE_CLASS_OPTIONS.map((option) => (
         <SelectItem key={option.value} value={option.value}>
@@ -76,7 +77,7 @@ const DeviceClassOptions = () => (
         </SelectItem>
       ))}
     </SelectGroup>
-  </SelectContent>
+  </SelectPopup>
 );
 
 const DeviceClassField = ({
@@ -124,7 +125,7 @@ export const RegisterDeviceDialog = ({ orgId }: { orgId: string }) => {
         ...(value.model.trim() ? { model: value.model.trim() } : {}),
       }),
     onSuccess: async () => {
-      toast.success("Device registered");
+      toastManager.add({ title: "Device registered", type: "success" });
       await queryClient.invalidateQueries({ queryKey: devicesQueryKey(orgId) });
       form.reset();
       setOpen(false);
@@ -154,7 +155,7 @@ export const RegisterDeviceDialog = ({ orgId }: { orgId: string }) => {
         <PlusIcon strokeWidth={2} data-icon="inline-start" />
         Add device
       </Button>
-      <DialogContent>
+      <DialogPopup>
         <DialogHeader>
           <DialogTitle>Register a device</DialogTitle>
           <DialogDescription>
@@ -163,115 +164,118 @@ export const RegisterDeviceDialog = ({ orgId }: { orgId: string }) => {
           </DialogDescription>
         </DialogHeader>
         <form
+          className="contents"
           onSubmit={async (event) => {
             event.preventDefault();
             event.stopPropagation();
             await form.handleSubmit();
           }}
         >
-          <FieldGroup className="py-4">
-            <form.Field
-              name="identifier"
-              validators={{
-                onBlur: ({ value }) => {
-                  const result = identifierSchema.safeParse(value.trim());
-                  return result.success ? undefined : result.error.issues[0]?.message;
-                },
-              }}
-            >
-              {(field) => {
-                const errorMessage = getFieldError(field);
-                return (
-                  <Field data-invalid={errorMessage ? true : undefined}>
-                    <FieldLabel htmlFor="device-identifier">UDID</FieldLabel>
-                    <Input
-                      id="device-identifier"
-                      placeholder="00008030-001C45663C90802E"
-                      value={field.state.value}
-                      onChange={(event) => {
-                        const next = event.target.value;
-                        field.handleChange(next);
-                        const inferred = inferClass(next);
-                        if (inferred !== null) {
-                          form.setFieldValue("deviceClass", inferred, {
-                            dontUpdateMeta: true,
-                            dontValidate: true,
-                          });
-                        }
-                      }}
-                      onBlur={field.handleBlur}
-                      aria-invalid={errorMessage ? true : undefined}
-                      className="font-mono"
-                    />
-                    <FieldDescription>
-                      40 hex chars (legacy) · 8-16 hex (modern iOS) · UUID (Mac).
-                    </FieldDescription>
-                    <FieldError>{errorMessage}</FieldError>
-                  </Field>
-                );
-              }}
-            </form.Field>
+          <DialogPanel>
+            <FieldGroup>
+              <form.Field
+                name="identifier"
+                validators={{
+                  onBlur: ({ value }) => {
+                    const result = identifierSchema.safeParse(value.trim());
+                    return result.success ? undefined : result.error.issues[0]?.message;
+                  },
+                }}
+              >
+                {(field) => {
+                  const errorMessage = getFieldError(field);
+                  return (
+                    <Field data-invalid={errorMessage ? true : undefined}>
+                      <FieldLabel htmlFor="device-identifier">UDID</FieldLabel>
+                      <Input
+                        id="device-identifier"
+                        placeholder="00008030-001C45663C90802E"
+                        value={field.state.value}
+                        onChange={(event) => {
+                          const next = event.target.value;
+                          field.handleChange(next);
+                          const inferred = inferClass(next);
+                          if (inferred !== null) {
+                            form.setFieldValue("deviceClass", inferred, {
+                              dontUpdateMeta: true,
+                              dontValidate: true,
+                            });
+                          }
+                        }}
+                        onBlur={field.handleBlur}
+                        aria-invalid={errorMessage ? true : undefined}
+                        className="font-mono"
+                      />
+                      <FieldDescription>
+                        40 hex chars (legacy) · 8-16 hex (modern iOS) · UUID (Mac).
+                      </FieldDescription>
+                      <FieldError>{errorMessage}</FieldError>
+                    </Field>
+                  );
+                }}
+              </form.Field>
 
-            <form.Field
-              name="name"
-              validators={{
-                onBlur: ({ value }) => {
-                  const result = nameSchema.safeParse(value.trim());
-                  return result.success ? undefined : result.error.issues[0]?.message;
-                },
-              }}
-            >
-              {(field) => {
-                const errorMessage = getFieldError(field);
-                return (
-                  <Field data-invalid={errorMessage ? true : undefined}>
-                    <FieldLabel htmlFor="device-name">Name</FieldLabel>
+              <form.Field
+                name="name"
+                validators={{
+                  onBlur: ({ value }) => {
+                    const result = nameSchema.safeParse(value.trim());
+                    return result.success ? undefined : result.error.issues[0]?.message;
+                  },
+                }}
+              >
+                {(field) => {
+                  const errorMessage = getFieldError(field);
+                  return (
+                    <Field data-invalid={errorMessage ? true : undefined}>
+                      <FieldLabel htmlFor="device-name">Name</FieldLabel>
+                      <Input
+                        id="device-name"
+                        placeholder="Alex's iPhone 15 Pro"
+                        value={field.state.value}
+                        onChange={(event) => {
+                          field.handleChange(event.target.value);
+                        }}
+                        onBlur={field.handleBlur}
+                        aria-invalid={errorMessage ? true : undefined}
+                      />
+                      <FieldError>{errorMessage}</FieldError>
+                    </Field>
+                  );
+                }}
+              </form.Field>
+
+              <form.Field name="deviceClass">
+                {(field) => (
+                  <Field>
+                    <FieldLabel>Class</FieldLabel>
+                    <DeviceClassField
+                      value={field.state.value}
+                      onChange={(next) => {
+                        field.handleChange(next);
+                      }}
+                    />
+                  </Field>
+                )}
+              </form.Field>
+
+              <form.Field name="model">
+                {(field) => (
+                  <Field>
+                    <FieldLabel htmlFor="device-model">Model (optional)</FieldLabel>
                     <Input
-                      id="device-name"
-                      placeholder="Alex's iPhone 15 Pro"
+                      id="device-model"
+                      placeholder="iPhone 15 Pro"
                       value={field.state.value}
                       onChange={(event) => {
                         field.handleChange(event.target.value);
                       }}
-                      onBlur={field.handleBlur}
-                      aria-invalid={errorMessage ? true : undefined}
                     />
-                    <FieldError>{errorMessage}</FieldError>
                   </Field>
-                );
-              }}
-            </form.Field>
-
-            <form.Field name="deviceClass">
-              {(field) => (
-                <Field>
-                  <FieldLabel>Class</FieldLabel>
-                  <DeviceClassField
-                    value={field.state.value}
-                    onChange={(next) => {
-                      field.handleChange(next);
-                    }}
-                  />
-                </Field>
-              )}
-            </form.Field>
-
-            <form.Field name="model">
-              {(field) => (
-                <Field>
-                  <FieldLabel htmlFor="device-model">Model (optional)</FieldLabel>
-                  <Input
-                    id="device-model"
-                    placeholder="iPhone 15 Pro"
-                    value={field.state.value}
-                    onChange={(event) => {
-                      field.handleChange(event.target.value);
-                    }}
-                  />
-                </Field>
-              )}
-            </form.Field>
-          </FieldGroup>
+                )}
+              </form.Field>
+            </FieldGroup>
+          </DialogPanel>
 
           <DialogFooter>
             <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
@@ -285,7 +289,7 @@ export const RegisterDeviceDialog = ({ orgId }: { orgId: string }) => {
             </form.Subscribe>
           </DialogFooter>
         </form>
-      </DialogContent>
+      </DialogPopup>
     </Dialog>
   );
 };

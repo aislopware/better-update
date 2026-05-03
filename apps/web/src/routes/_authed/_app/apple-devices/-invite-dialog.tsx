@@ -6,10 +6,11 @@ import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
   DialogClose,
-  DialogContent,
+  DialogPopup,
   DialogDescription,
   DialogFooter,
   DialogHeader,
+  DialogPanel,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
 import {
@@ -22,18 +23,18 @@ import {
 import { Input } from "@better-update/ui/components/ui/input";
 import {
   Select,
-  SelectContent,
+  SelectPopup,
   SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
+import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { CheckIcon, CopyIcon, LinkIcon } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useState } from "react";
-import { toast } from "sonner";
 import { z } from "zod/v4";
 
 import type {
@@ -62,7 +63,7 @@ const DEVICE_CLASS_OPTIONS: { value: DeviceClassValue | "NONE"; label: string }[
 ];
 
 const DeviceClassOptions = () => (
-  <SelectContent>
+  <SelectPopup>
     <SelectGroup>
       {DEVICE_CLASS_OPTIONS.map((option) => (
         <SelectItem key={option.value} value={option.value}>
@@ -70,11 +71,11 @@ const DeviceClassOptions = () => (
         </SelectItem>
       ))}
     </SelectGroup>
-  </SelectContent>
+  </SelectPopup>
 );
 
 const TtlOptions = () => (
-  <SelectContent>
+  <SelectPopup>
     <SelectGroup>
       {TTL_OPTIONS.map((option) => (
         <SelectItem key={option.value} value={option.value}>
@@ -82,7 +83,7 @@ const TtlOptions = () => (
         </SelectItem>
       ))}
     </SelectGroup>
-  </SelectContent>
+  </SelectPopup>
 );
 
 const DeviceClassHintSelect = ({
@@ -149,43 +150,47 @@ const ShareInvite = ({
   const handleCopy = async () => {
     const ok = await copy(invite.url);
     if (ok) {
-      toast.success("Link copied");
+      toastManager.add({ title: "Link copied", type: "success" });
     }
   };
 
   return (
-    <div className="flex flex-col gap-4 py-2">
-      <div className="flex items-center justify-center rounded-lg border bg-white p-4">
-        <QRCodeSVG value={invite.url} size={192} marginSize={2} />
-      </div>
-      <Field>
-        <FieldLabel>Invite link</FieldLabel>
-        <div className="flex items-center gap-2">
-          <Input readOnly value={invite.url} className="font-mono text-xs" />
-          <Button
-            variant="outline"
-            size="icon"
-            aria-label="Copy link"
-            onClick={async () => {
-              await handleCopy();
-            }}
-          >
-            {copied ? (
-              <CheckIcon strokeWidth={2} className="size-4" />
-            ) : (
-              <CopyIcon strokeWidth={2} className="size-4" />
-            )}
-          </Button>
+    <>
+      <DialogPanel>
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-center rounded-xl border bg-white p-4">
+            <QRCodeSVG value={invite.url} size={192} marginSize={2} />
+          </div>
+          <Field>
+            <FieldLabel>Invite link</FieldLabel>
+            <div className="flex items-center gap-2">
+              <Input readOnly value={invite.url} className="font-mono text-xs" />
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label="Copy link"
+                onClick={async () => {
+                  await handleCopy();
+                }}
+              >
+                {copied ? (
+                  <CheckIcon strokeWidth={2} className="size-4" />
+                ) : (
+                  <CopyIcon strokeWidth={2} className="size-4" />
+                )}
+              </Button>
+            </div>
+            <FieldDescription>
+              Expires {new Date(invite.expiresAt).toLocaleString()}. Open on iOS Safari to install
+              the profile.
+            </FieldDescription>
+          </Field>
         </div>
-        <FieldDescription>
-          Expires {new Date(invite.expiresAt).toLocaleString()}. Open on iOS Safari to install the
-          profile.
-        </FieldDescription>
-      </Field>
+      </DialogPanel>
       <DialogFooter>
         <Button onClick={onClose}>Done</Button>
       </DialogFooter>
-    </div>
+    </>
   );
 };
 
@@ -240,7 +245,7 @@ export const InviteDeviceDialog = ({ orgId }: { orgId: string }) => {
         <LinkIcon strokeWidth={2} data-icon="inline-start" />
         Invite link
       </Button>
-      <DialogContent>
+      <DialogPopup>
         <DialogHeader>
           <DialogTitle>{invite ? "Share invite link" : "Create invite link"}</DialogTitle>
           <DialogDescription>
@@ -254,73 +259,76 @@ export const InviteDeviceDialog = ({ orgId }: { orgId: string }) => {
           <ShareInvite invite={invite} onClose={handleClose} />
         ) : (
           <form
+            className="contents"
             onSubmit={async (event) => {
               event.preventDefault();
               event.stopPropagation();
               await form.handleSubmit();
             }}
           >
-            <FieldGroup className="py-4">
-              <form.Field
-                name="deviceNameHint"
-                validators={{
-                  onBlur: ({ value }) => {
-                    const result = hintNameSchema.safeParse(value.trim());
-                    return result.success ? undefined : result.error.issues[0]?.message;
-                  },
-                }}
-              >
-                {(field) => {
-                  const errorMessage = getFieldError(field);
-                  return (
-                    <Field data-invalid={errorMessage ? true : undefined}>
-                      <FieldLabel htmlFor="invite-name">Device name hint (optional)</FieldLabel>
-                      <Input
-                        id="invite-name"
-                        placeholder="Alex's iPhone"
+            <DialogPanel>
+              <FieldGroup>
+                <form.Field
+                  name="deviceNameHint"
+                  validators={{
+                    onBlur: ({ value }) => {
+                      const result = hintNameSchema.safeParse(value.trim());
+                      return result.success ? undefined : result.error.issues[0]?.message;
+                    },
+                  }}
+                >
+                  {(field) => {
+                    const errorMessage = getFieldError(field);
+                    return (
+                      <Field data-invalid={errorMessage ? true : undefined}>
+                        <FieldLabel htmlFor="invite-name">Device name hint (optional)</FieldLabel>
+                        <Input
+                          id="invite-name"
+                          placeholder="Alex's iPhone"
+                          value={field.state.value}
+                          onChange={(event) => {
+                            field.handleChange(event.target.value);
+                          }}
+                          onBlur={field.handleBlur}
+                        />
+                        <FieldDescription>
+                          Shown on the landing page. Device owner can override.
+                        </FieldDescription>
+                        <FieldError>{errorMessage}</FieldError>
+                      </Field>
+                    );
+                  }}
+                </form.Field>
+
+                <form.Field name="deviceClassHint">
+                  {(field) => (
+                    <Field>
+                      <FieldLabel>Device class (optional)</FieldLabel>
+                      <DeviceClassHintSelect
                         value={field.state.value}
-                        onChange={(event) => {
-                          field.handleChange(event.target.value);
+                        onChange={(next) => {
+                          field.handleChange(next);
                         }}
-                        onBlur={field.handleBlur}
                       />
-                      <FieldDescription>
-                        Shown on the landing page. Device owner can override.
-                      </FieldDescription>
-                      <FieldError>{errorMessage}</FieldError>
                     </Field>
-                  );
-                }}
-              </form.Field>
+                  )}
+                </form.Field>
 
-              <form.Field name="deviceClassHint">
-                {(field) => (
-                  <Field>
-                    <FieldLabel>Device class (optional)</FieldLabel>
-                    <DeviceClassHintSelect
-                      value={field.state.value}
-                      onChange={(next) => {
-                        field.handleChange(next);
-                      }}
-                    />
-                  </Field>
-                )}
-              </form.Field>
-
-              <form.Field name="ttlHours">
-                {(field) => (
-                  <Field>
-                    <FieldLabel>Expires after</FieldLabel>
-                    <TtlSelect
-                      value={field.state.value}
-                      onChange={(next) => {
-                        field.handleChange(next);
-                      }}
-                    />
-                  </Field>
-                )}
-              </form.Field>
-            </FieldGroup>
+                <form.Field name="ttlHours">
+                  {(field) => (
+                    <Field>
+                      <FieldLabel>Expires after</FieldLabel>
+                      <TtlSelect
+                        value={field.state.value}
+                        onChange={(next) => {
+                          field.handleChange(next);
+                        }}
+                      />
+                    </Field>
+                  )}
+                </form.Field>
+              </FieldGroup>
+            </DialogPanel>
 
             <DialogFooter>
               <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
@@ -334,7 +342,7 @@ export const InviteDeviceDialog = ({ orgId }: { orgId: string }) => {
             </DialogFooter>
           </form>
         )}
-      </DialogContent>
+      </DialogPopup>
     </Dialog>
   );
 };

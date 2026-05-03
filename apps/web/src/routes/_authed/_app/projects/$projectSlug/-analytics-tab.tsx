@@ -15,7 +15,7 @@ import {
 } from "@better-update/ui/components/ui/card";
 import {
   Select,
-  SelectContent,
+  SelectPopup,
   SelectGroup,
   SelectItem,
   SelectTrigger,
@@ -224,7 +224,7 @@ const ChannelHealthChart = ({
         <SelectTrigger className="w-48">
           <SelectValue />
         </SelectTrigger>
-        <SelectContent>
+        <SelectPopup>
           <SelectGroup>
             {channelsData.items.map((channel) => (
               <SelectItem key={channel.id} value={channel.name}>
@@ -232,7 +232,7 @@ const ChannelHealthChart = ({
               </SelectItem>
             ))}
           </SelectGroup>
-        </SelectContent>
+        </SelectPopup>
       </Select>
       <Suspense fallback={chartSkeleton}>
         <ChannelHealthInner
@@ -339,7 +339,7 @@ const UpdateTrafficChart = ({
         <SelectTrigger className="w-48">
           <SelectValue />
         </SelectTrigger>
-        <SelectContent>
+        <SelectPopup>
           <SelectGroup>
             {updatesData.items.map((update) => (
               <SelectItem key={update.id} value={update.id}>
@@ -347,7 +347,7 @@ const UpdateTrafficChart = ({
               </SelectItem>
             ))}
           </SelectGroup>
-        </SelectContent>
+        </SelectPopup>
       </Select>
       <Suspense fallback={chartSkeleton}>
         <UpdateTrafficInner
@@ -380,14 +380,14 @@ export const AnalyticsTab = ({ orgId, projectId }: { orgId: string; projectId: s
           <SelectTrigger className="w-[160px]">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
+          <SelectPopup>
             <SelectGroup>
               <SelectItem value="1d">Last 24 hours</SelectItem>
               <SelectItem value="7d">Last 7 days</SelectItem>
               <SelectItem value="30d">Last 30 days</SelectItem>
               <SelectItem value="90d">Last 90 days</SelectItem>
             </SelectGroup>
-          </SelectContent>
+          </SelectPopup>
         </Select>
       </div>
 

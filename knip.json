@@ -25,8 +25,7 @@
         "@fontsource-variable/geist",
         "@fontsource-variable/inter",
         "tailwindcss",
-        "tw-animate-css",
-        "shadcn"
+        "tw-animate-css"
       ]
     },
     "apps/cli": {

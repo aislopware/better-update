@@ -8,16 +8,17 @@ import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
   DialogClose,
-  DialogContent,
+  DialogPopup,
+  DialogPanel,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
+import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { WandIcon } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import { safeSubmit, useApiMutation } from "../../../../../lib/use-api-mutation";
 import { canAdvance, INITIAL } from "./-ios-wizard-state";
@@ -109,7 +110,7 @@ export const IosGeneralBuildWizard = ({
       await queryClient.invalidateQueries({
         queryKey: appleProvisioningProfilesQueryOptions(orgId).queryKey,
       });
-      toast.success("Provisioning profile generated");
+      toastManager.add({ title: "Provisioning profile generated", type: "success" });
     },
   });
 
@@ -125,7 +126,7 @@ export const IosGeneralBuildWizard = ({
         ...(state.pushKeyId.length > 0 ? { applePushKeyId: state.pushKeyId } : {}),
       }),
     onSuccess: async () => {
-      toast.success("iOS bundle configuration saved");
+      toastManager.add({ title: "iOS bundle configuration saved", type: "success" });
       await queryClient.invalidateQueries({
         queryKey: iosBundleConfigurationsQueryOptions(orgId, projectId).queryKey,
       });
@@ -167,15 +168,15 @@ export const IosGeneralBuildWizard = ({
         <WandIcon data-icon="inline-start" />
         iOS General Wizard
       </Button>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogPopup className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>iOS Bundle Configuration</DialogTitle>
           <DialogDescription>
             Build credentials for App Store, Development, or Enterprise distribution.
           </DialogDescription>
         </DialogHeader>
-        <StepperHeader steps={STEPS} currentStep={step} />
-        <div className="py-4">
+        <DialogPanel>
+          <StepperHeader steps={STEPS} currentStep={step} />
           {renderStep(step, {
             orgId,
             state,
@@ -183,7 +184,7 @@ export const IosGeneralBuildWizard = ({
             isGenerating: generateMutation.isPending,
             onGenerate,
           })}
-        </div>
+        </DialogPanel>
         <DialogFooter>
           <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
           {step > 1 ? (
@@ -216,7 +217,7 @@ export const IosGeneralBuildWizard = ({
             </Button>
           )}
         </DialogFooter>
-      </DialogContent>
+      </DialogPopup>
     </Dialog>
   );
 };

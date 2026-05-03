@@ -4,15 +4,16 @@ import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
-  DialogContent,
+  DialogPopup,
   DialogDescription,
   DialogHeader,
+  DialogPanel,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
+import { toastManager } from "@better-update/ui/components/ui/toast";
 import { SmartphoneIcon, CopyIcon, CheckIcon } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useSyncExternalStore, useState } from "react";
-import { toast } from "sonner";
 
 import type { BuildWithArtifact } from "@better-update/api";
 import type { ComponentProps } from "react";
@@ -26,7 +27,7 @@ const CopyButton = ({ text }: { text: string }) => {
   const handleCopy = async () => {
     const ok = await copy(text);
     if (!ok) {
-      toast.error("Failed to copy to clipboard");
+      toastManager.add({ title: "Failed to copy to clipboard", type: "error" });
     }
   };
 
@@ -110,7 +111,7 @@ export const InstallLinkDialog = ({
           }
         }}
       >
-        <DialogContent className="sm:max-w-md">
+        <DialogPopup className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Install link</DialogTitle>
             <DialogDescription>
@@ -120,62 +121,64 @@ export const InstallLinkDialog = ({
             </DialogDescription>
           </DialogHeader>
 
-          {fetchInstallLinkMutation.isPending && (
-            <div className="flex items-center justify-center py-12">
-              <div className="text-muted-foreground text-sm">Generating install link...</div>
-            </div>
-          )}
-
-          {fetchInstallLinkMutation.isError && (
-            <div className="flex flex-col items-center gap-4 py-8">
-              <p className="text-destructive text-sm">
-                {getApiError(fetchInstallLinkMutation.error)}
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  fetchInstallLinkMutation.mutate();
-                }}
-              >
-                Retry
-              </Button>
-            </div>
-          )}
-
-          {fetchInstallLinkMutation.status === "success" && (
-            <div className="flex flex-col items-center gap-4">
-              <div className="rounded-lg border bg-white p-4">
-                <QRCodeSVG value={primaryUrl} size={200} level="M" />
+          <DialogPanel>
+            {fetchInstallLinkMutation.isPending && (
+              <div className="flex items-center justify-center py-6">
+                <div className="text-muted-foreground text-sm">Generating install link...</div>
               </div>
+            )}
 
-              <div className="flex items-center gap-2">
-                {isIosInstall ? (
-                  <Badge variant="secondary">iOS Install</Badge>
-                ) : (
-                  <Badge variant="outline">Download link</Badge>
-                )}
-                <ExpiryBadge expires={fetchInstallLinkMutation.data.expires} />
+            {fetchInstallLinkMutation.isError && (
+              <div className="flex flex-col items-center gap-4 py-4">
+                <p className="text-destructive text-sm">
+                  {getApiError(fetchInstallLinkMutation.error)}
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    fetchInstallLinkMutation.mutate();
+                  }}
+                >
+                  Retry
+                </Button>
               </div>
+            )}
 
-              <div className="flex w-full flex-col gap-2">
-                <div className="bg-muted flex items-center gap-2 rounded-md px-3 py-2">
-                  <code className="flex-1 truncate text-xs">{primaryUrl}</code>
-                  <CopyButton text={primaryUrl} />
+            {fetchInstallLinkMutation.status === "success" && (
+              <div className="flex flex-col items-center gap-4">
+                <div className="rounded-xl border bg-white p-4">
+                  <QRCodeSVG value={primaryUrl} size={200} level="M" />
                 </div>
 
-                {isIosInstall && (
+                <div className="flex items-center gap-2">
+                  {isIosInstall ? (
+                    <Badge variant="secondary">iOS Install</Badge>
+                  ) : (
+                    <Badge variant="outline">Download link</Badge>
+                  )}
+                  <ExpiryBadge expires={fetchInstallLinkMutation.data.expires} />
+                </div>
+
+                <div className="flex w-full flex-col gap-2">
                   <div className="bg-muted flex items-center gap-2 rounded-md px-3 py-2">
-                    <code className="flex-1 truncate text-xs">
-                      {fetchInstallLinkMutation.data.artifactUrl}
-                    </code>
-                    <CopyButton text={fetchInstallLinkMutation.data.artifactUrl} />
+                    <code className="flex-1 truncate text-xs">{primaryUrl}</code>
+                    <CopyButton text={primaryUrl} />
                   </div>
-                )}
+
+                  {isIosInstall && (
+                    <div className="bg-muted flex items-center gap-2 rounded-md px-3 py-2">
+                      <code className="flex-1 truncate text-xs">
+                        {fetchInstallLinkMutation.data.artifactUrl}
+                      </code>
+                      <CopyButton text={fetchInstallLinkMutation.data.artifactUrl} />
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
-        </DialogContent>
+            )}
+          </DialogPanel>
+        </DialogPopup>
       </Dialog>
     </>
   );

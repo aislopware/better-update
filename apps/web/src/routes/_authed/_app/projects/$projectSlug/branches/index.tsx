@@ -14,7 +14,7 @@ import { BranchCard } from "../-branch-card";
 import { CreateBranchDialog } from "../-create-branch-dialog";
 
 const BranchesEmptyState = () => (
-  <Empty className="border">
+  <Empty>
     <EmptyHeader>
       <EmptyMedia variant="icon">
         <GitBranchIcon strokeWidth={1.5} />

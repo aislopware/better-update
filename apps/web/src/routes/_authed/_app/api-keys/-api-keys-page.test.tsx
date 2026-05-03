@@ -1,10 +1,9 @@
 import { Badge } from "@better-update/ui/components/ui/badge";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
+  CardFrame,
+  CardFrameDescription,
+  CardFrameHeader,
+  CardFrameTitle,
 } from "@better-update/ui/components/ui/card";
 import {
   Table,
@@ -39,7 +38,7 @@ const maskKey = (start: string | null, prefix: string | null): string => {
 };
 
 const ApiKeysTable = ({ apiKeys }: { apiKeys: ApiKeyResponse[] }) => (
-  <Table>
+  <Table variant="card">
     <TableHeader>
       <TableRow>
         <TableHead>Name</TableHead>
@@ -100,17 +99,15 @@ const ApiKeysTestPage = () => {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Active keys</CardTitle>
-        <CardDescription>
+    <CardFrame>
+      <CardFrameHeader>
+        <CardFrameTitle>Active keys</CardFrameTitle>
+        <CardFrameDescription>
           {apiKeys.length} {apiKeys.length === 1 ? "key" : "keys"} in this organization.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <ApiKeysTable apiKeys={apiKeys} />
-      </CardContent>
-    </Card>
+        </CardFrameDescription>
+      </CardFrameHeader>
+      <ApiKeysTable apiKeys={apiKeys} />
+    </CardFrame>
   );
 };
 

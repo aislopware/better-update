@@ -1,6 +1,6 @@
 import { getApiError } from "@better-update/api-client";
+import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useMutation } from "@tanstack/react-query";
-import { toast } from "sonner";
 
 import type { MutationFunctionContext, UseMutationOptions } from "@tanstack/react-query";
 
@@ -12,7 +12,7 @@ export const useApiMutation = <TData, TVariables = void, TOnMutateResult = unkno
   return useMutation({
     ...rest,
     onError: async (error, variables, onMutateResult, context: MutationFunctionContext) => {
-      toast.error(getApiError(error));
+      toastManager.add({ title: getApiError(error), type: "error" });
       await onError?.(error, variables, onMutateResult, context);
     },
   });

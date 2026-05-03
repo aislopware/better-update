@@ -58,6 +58,9 @@ export const toApiProject = (project: ProjectModel) =>
     slug: project.slug,
     createdAt: project.createdAt,
     lastActivityAt: project.lastActivityAt,
+    branchCount: project.branchCount,
+    channelCount: project.channelCount,
+    updateCount: project.updateCount,
   });
 
 export const toApiBranch = (branch: BranchModel) =>

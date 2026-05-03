@@ -1,16 +1,12 @@
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@better-update/ui/components/ui/card";
+import { CardFrame, CardFrameHeader, CardFrameTitle } from "@better-update/ui/components/ui/card";
+import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { toast } from "sonner";
 
+import { PageHeader } from "../../../components/page-header";
 import { authClient, rejectOnAuthClientError } from "../../../lib/auth-client";
+import { pluralize } from "../../../lib/pluralize";
 import { useApiMutation } from "../../../lib/use-api-mutation";
 import { apiKeysQueryOptions } from "../../../queries/api-keys";
 import { CreateApiKeyDialog, RevokeDialog } from "./-api-key-dialogs";
@@ -30,7 +26,7 @@ const ApiKeys = () => {
       rejectOnAuthClientError(authClient.apiKey.delete({ keyId }), "Failed to revoke API key"),
     onSuccess: async () => {
       setRevokeKeyId(null);
-      toast.success("API key revoked");
+      toastManager.add({ title: "API key revoked", type: "success" });
       await queryClient.invalidateQueries({
         queryKey: apiKeysQueryOptions(orgId).queryKey,
       });
@@ -45,25 +41,26 @@ const ApiKeys = () => {
   };
 
   return (
-    <div className="flex w-full flex-col gap-4">
-      <div className="flex justify-end">
-        <CreateApiKeyDialog orgId={orgId} />
-      </div>
+    <div className="flex w-full flex-col gap-6">
+      <PageHeader
+        title="API keys"
+        description="Authenticate requests to the management API and CLI."
+        actions={apiKeys.length > 0 ? <CreateApiKeyDialog orgId={orgId} /> : undefined}
+      />
 
       {apiKeys.length === 0 ? (
-        <ApiKeysEmptyState />
+        <ApiKeysEmptyState>
+          <CreateApiKeyDialog orgId={orgId} />
+        </ApiKeysEmptyState>
       ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>Active keys</CardTitle>
-            <CardDescription>
-              {apiKeys.length} {apiKeys.length === 1 ? "key" : "keys"} in this organization.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ApiKeysTable apiKeys={apiKeys} onRevoke={setRevokeKeyId} />
-          </CardContent>
-        </Card>
+        <CardFrame>
+          <CardFrameHeader>
+            <CardFrameTitle>
+              {apiKeys.length} {pluralize(apiKeys.length, "key")}
+            </CardFrameTitle>
+          </CardFrameHeader>
+          <ApiKeysTable apiKeys={apiKeys} onRevoke={setRevokeKeyId} />
+        </CardFrame>
       )}
 
       <RevokeDialog

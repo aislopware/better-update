@@ -7,14 +7,7 @@ import {
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
-import { Card, CardContent } from "@better-update/ui/components/ui/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@better-update/ui/components/ui/dropdown-menu";
+import { CardFrame, CardFrameFooter } from "@better-update/ui/components/ui/card";
 import {
   Empty,
   EmptyDescription,
@@ -24,8 +17,15 @@ import {
 } from "@better-update/ui/components/ui/empty";
 import { Input } from "@better-update/ui/components/ui/input";
 import {
+  DropdownMenu,
+  DropdownMenuPopup,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@better-update/ui/components/ui/menu";
+import {
   Select,
-  SelectContent,
+  SelectPopup,
   SelectGroup,
   SelectItem,
   SelectTrigger,
@@ -39,6 +39,7 @@ import {
   TableHeader,
   TableRow,
 } from "@better-update/ui/components/ui/table";
+import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import {
@@ -48,9 +49,14 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { CheckIcon, CopyIcon, MoreHorizontalIcon, SearchIcon, SmartphoneIcon } from "lucide-react";
+import {
+  CheckIcon,
+  CopyIcon,
+  EllipsisVerticalIcon,
+  SearchIcon,
+  SmartphoneIcon,
+} from "lucide-react";
 import { useMemo, useState } from "react";
-import { toast } from "sonner";
 
 import type { DeviceClassValue, DeviceItem } from "@better-update/api-client/react";
 import type {
@@ -61,6 +67,7 @@ import type {
 } from "@tanstack/react-table";
 
 import { formatAppleTeamLabel } from "../-credentials-utils";
+import { PageHeader } from "../../../../components/page-header";
 import { formatRelativeTime } from "../../../../lib/format-relative-time";
 import { pluralize } from "../../../../lib/pluralize";
 import { useCopyToClipboard } from "../../../../lib/use-copy-to-clipboard";
@@ -104,7 +111,7 @@ const IdentifierCell = ({ identifier }: { identifier: string }) => {
   const handleCopy = async () => {
     const ok = await copy(identifier);
     if (ok) {
-      toast.success("UDID copied");
+      toastManager.add({ title: "UDID copied", type: "success" });
     }
   };
 
@@ -115,7 +122,7 @@ const IdentifierCell = ({ identifier }: { identifier: string }) => {
       </code>
       <Button
         variant="ghost"
-        size="icon"
+        size="icon-sm"
         aria-label="Copy UDID"
         onClick={async () => {
           await handleCopy();
@@ -133,7 +140,7 @@ const IdentifierCell = ({ identifier }: { identifier: string }) => {
 
 const actionsTrigger = (
   <Button variant="ghost" size="icon" aria-label="Device actions">
-    <MoreHorizontalIcon strokeWidth={2} />
+    <EllipsisVerticalIcon strokeWidth={2} />
   </Button>
 );
 
@@ -142,18 +149,21 @@ const RowActions = ({ orgId, device }: { orgId: string; device: DeviceItem }) =>
   const toggleEnabled = useMutation({
     mutationFn: async () => updateDevice(device.id, { enabled: !device.enabled }),
     onSuccess: async () => {
-      toast.success(device.enabled ? "Device disabled" : "Device enabled");
+      toastManager.add({
+        title: device.enabled ? "Device disabled" : "Device enabled",
+        type: "success",
+      });
       await queryClient.invalidateQueries({ queryKey: devicesQueryKey(orgId) });
     },
     onError: (error) => {
-      toast.error(getApiError(error));
+      toastManager.add({ title: getApiError(error), type: "error" });
     },
   });
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger render={actionsTrigger} />
-      <DropdownMenuContent align="end" className="w-40">
+      <DropdownMenuPopup align="end" className="w-40">
         <RenameDeviceDialog orgId={orgId} device={device}>
           <DropdownMenuItem
             onSelect={(event) => {
@@ -182,7 +192,7 @@ const RowActions = ({ orgId, device }: { orgId: string; device: DeviceItem }) =>
             Delete
           </DropdownMenuItem>
         </DeleteDeviceDialog>
-      </DropdownMenuContent>
+      </DropdownMenuPopup>
     </DropdownMenu>
   );
 };
@@ -259,7 +269,7 @@ const buildColumns = (
 ];
 
 const EmptyState = ({ orgId, inviteCta }: { orgId: string; inviteCta: React.ReactNode }) => (
-  <Empty className="border">
+  <Empty>
     <EmptyHeader>
       <EmptyMedia variant="icon">
         <SmartphoneIcon strokeWidth={1.5} />
@@ -280,48 +290,51 @@ const EmptyState = ({ orgId, inviteCta }: { orgId: string; inviteCta: React.Reac
 const DevicesTable = ({
   table,
   columnCount,
+  countLabel,
 }: {
   table: TableInstance<DeviceItem>;
   columnCount: number;
+  countLabel: string;
 }) => {
   const { rows } = table.getRowModel();
   return (
-    <Card className="gap-0 py-0">
-      <CardContent className="p-0">
-        <Table className="[&_td]:px-4 [&_td]:py-3 [&_th]:h-9 [&_th]:px-4">
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id} className="hover:bg-transparent">
-                {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id} className="text-muted-foreground text-xs font-medium">
-                    {flexRender(header.column.columnDef.header, header.getContext())}
-                  </TableHead>
+    <CardFrame>
+      <Table variant="card">
+        <TableHeader>
+          {table.getHeaderGroups().map((headerGroup) => (
+            <TableRow key={headerGroup.id}>
+              {headerGroup.headers.map((header) => (
+                <TableHead key={header.id}>
+                  {flexRender(header.column.columnDef.header, header.getContext())}
+                </TableHead>
+              ))}
+            </TableRow>
+          ))}
+        </TableHeader>
+        <TableBody>
+          {rows.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={columnCount} className="text-muted-foreground h-24 text-center">
+                No devices match your filters.
+              </TableCell>
+            </TableRow>
+          ) : (
+            rows.map((row) => (
+              <TableRow key={row.id}>
+                {row.getVisibleCells().map((cell) => (
+                  <TableCell key={cell.id}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </TableCell>
                 ))}
               </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {rows.length === 0 ? (
-              <TableRow className="hover:bg-transparent">
-                <TableCell colSpan={columnCount} className="text-muted-foreground h-24 text-center">
-                  No devices match your filters.
-                </TableCell>
-              </TableRow>
-            ) : (
-              rows.map((row) => (
-                <TableRow key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+            ))
+          )}
+        </TableBody>
+      </Table>
+      <CardFrameFooter className="text-muted-foreground justify-end text-sm">
+        {countLabel}
+      </CardFrameFooter>
+    </CardFrame>
   );
 };
 
@@ -372,9 +385,21 @@ const Devices = () => {
   const registerCta = useMemo(() => <RegisterDeviceDialog orgId={orgId} />, [orgId]);
   const inviteCta = useMemo(() => <InviteDeviceDialog orgId={orgId} />, [orgId]);
 
+  const headerActions = (
+    <>
+      {inviteCta}
+      {registerCta}
+    </>
+  );
+
   if (totalCount === 0 && classFilter === "ALL" && globalFilter === "") {
     return (
-      <div className="flex w-full flex-col gap-4">
+      <div className="flex w-full flex-col gap-6">
+        <PageHeader
+          title="Apple devices"
+          description="Register UDIDs or invite team members to enroll their devices for ad-hoc builds."
+          actions={headerActions}
+        />
         <PendingInvitesList orgId={orgId} />
         <EmptyState orgId={orgId} inviteCta={inviteCta} />
       </div>
@@ -387,70 +412,74 @@ const Devices = () => {
       : `${filteredCount} of ${data.items.length} loaded`;
 
   return (
-    <div className="flex w-full flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative flex-1">
-          <SearchIcon className="text-muted-foreground absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
-          <Input
-            placeholder="Search devices…"
-            value={globalFilter}
-            onChange={(event) => {
-              setGlobalFilter(event.target.value);
+    <div className="flex w-full flex-col gap-6">
+      <PageHeader
+        title="Apple devices"
+        description="Register UDIDs or invite team members to enroll their devices for ad-hoc builds."
+        actions={headerActions}
+      />
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative flex-1">
+            <SearchIcon className="text-muted-foreground absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
+            <Input
+              placeholder="Search devices…"
+              value={globalFilter}
+              onChange={(event) => {
+                setGlobalFilter(event.target.value);
+              }}
+              className="pl-8"
+            />
+          </div>
+          <Select
+            value={classFilter}
+            onValueChange={(next) => {
+              if (next === null) {
+                return;
+              }
+              setClassFilter(next);
             }}
-            className="pl-8"
-          />
+          >
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="All classes" />
+            </SelectTrigger>
+            <SelectPopup>
+              <SelectGroup>
+                {CLASS_FILTER_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectPopup>
+          </Select>
+          <Select
+            value={teamFilter}
+            onValueChange={(next) => {
+              if (next === null) {
+                return;
+              }
+              setTeamFilter(next);
+            }}
+          >
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="All teams" />
+            </SelectTrigger>
+            <SelectPopup>
+              <SelectGroup>
+                <SelectItem value="ALL">All teams</SelectItem>
+                {teams.items.map((team) => (
+                  <SelectItem key={team.id} value={team.id}>
+                    {formatAppleTeamLabel(team)}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectPopup>
+          </Select>
         </div>
-        <Select
-          value={classFilter}
-          onValueChange={(next) => {
-            if (next === null) {
-              return;
-            }
-            setClassFilter(next);
-          }}
-        >
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="All classes" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              {CLASS_FILTER_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-        <Select
-          value={teamFilter}
-          onValueChange={(next) => {
-            if (next === null) {
-              return;
-            }
-            setTeamFilter(next);
-          }}
-        >
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="All teams" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              <SelectItem value="ALL">All teams</SelectItem>
-              {teams.items.map((team) => (
-                <SelectItem key={team.id} value={team.id}>
-                  {formatAppleTeamLabel(team)}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-        {inviteCta}
-        {registerCta}
+        <PendingInvitesList orgId={orgId} />
+        <DevicesTable table={table} columnCount={columns.length} countLabel={countLabel} />
       </div>
-      <PendingInvitesList orgId={orgId} />
-      <DevicesTable table={table} columnCount={columns.length} />
-      <p className="text-muted-foreground text-sm">{countLabel}</p>
     </div>
   );
 };

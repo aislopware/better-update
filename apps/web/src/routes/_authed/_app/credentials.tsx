@@ -10,11 +10,12 @@ import {
   googleServiceAccountKeysQueryOptions,
   syncDevicesViaAscApiKey,
 } from "@better-update/api-client/react";
-import { Card, CardContent } from "@better-update/ui/components/ui/card";
+import { CardFrame } from "@better-update/ui/components/ui/card";
+import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { toast } from "sonner";
 
+import { PageHeader, SectionHeader } from "../../../components/page-header";
 import { useApiMutation } from "../../../lib/use-api-mutation";
 import {
   AppleTeamsEmptyState,
@@ -33,19 +34,6 @@ import { UploadDistributionCertificateDialog } from "./-upload-distribution-cert
 import { UploadGoogleServiceAccountKeyDialog } from "./-upload-google-sa-key-dialog";
 import { UploadPushKeyDialog } from "./-upload-push-key-dialog";
 
-const SectionHeading = ({
-  title,
-  description,
-}: {
-  readonly title: string;
-  readonly description: string;
-}) => (
-  <div className="flex flex-col gap-1">
-    <h2 className="text-base leading-none font-semibold">{title}</h2>
-    <p className="text-muted-foreground text-sm">{description}</p>
-  </div>
-);
-
 const DistributionCertificatesSection = ({ orgId }: { orgId: string }) => {
   const queryClient = useQueryClient();
   const { data } = useSuspenseQuery(appleDistributionCertificatesQueryOptions(orgId));
@@ -60,25 +48,21 @@ const DistributionCertificatesSection = ({ orgId }: { orgId: string }) => {
 
   return (
     <section className="flex flex-col gap-3">
-      <div className="flex items-start justify-between gap-4">
-        <SectionHeading
-          title="Distribution Certificates"
-          description=".p12 certs for signing iOS builds."
-        />
-        <UploadDistributionCertificateDialog orgId={orgId} />
-      </div>
+      <SectionHeader
+        title="Distribution Certificates"
+        description=".p12 certs for signing iOS builds."
+        actions={<UploadDistributionCertificateDialog orgId={orgId} />}
+      />
       {data.items.length === 0 ? (
         <DistributionCertificatesEmptyState />
       ) : (
-        <Card>
-          <CardContent>
-            <DistributionCertificatesTable
-              items={data.items}
-              onDelete={deleteAppleDistributionCertificate}
-              onInvalidate={invalidate}
-            />
-          </CardContent>
-        </Card>
+        <CardFrame>
+          <DistributionCertificatesTable
+            items={data.items}
+            onDelete={deleteAppleDistributionCertificate}
+            onInvalidate={invalidate}
+          />
+        </CardFrame>
       )}
     </section>
   );
@@ -96,25 +80,21 @@ const PushKeysSection = ({ orgId }: { orgId: string }) => {
 
   return (
     <section className="flex flex-col gap-3">
-      <div className="flex items-start justify-between gap-4">
-        <SectionHeading
-          title="APNs Push Keys"
-          description=".p8 keys for Apple Push Notification service."
-        />
-        <UploadPushKeyDialog orgId={orgId} />
-      </div>
+      <SectionHeader
+        title="APNs Push Keys"
+        description=".p8 keys for Apple Push Notification service."
+        actions={<UploadPushKeyDialog orgId={orgId} />}
+      />
       {data.items.length === 0 ? (
         <PushKeysEmptyState />
       ) : (
-        <Card>
-          <CardContent>
-            <PushKeysTable
-              items={data.items}
-              onDelete={deleteApplePushKey}
-              onInvalidate={invalidate}
-            />
-          </CardContent>
-        </Card>
+        <CardFrame>
+          <PushKeysTable
+            items={data.items}
+            onDelete={deleteApplePushKey}
+            onInvalidate={invalidate}
+          />
+        </CardFrame>
       )}
     </section>
   );
@@ -127,9 +107,10 @@ const AscApiKeysSection = ({ orgId }: { orgId: string }) => {
   const syncMutation = useApiMutation({
     mutationFn: syncDevicesViaAscApiKey,
     onSuccess: async (result) => {
-      toast.success(
-        `Synced ${String(result.pulled)} pulled, ${String(result.pushed)} pushed, ${String(result.skipped)} skipped`,
-      );
+      toastManager.add({
+        title: `Synced ${String(result.pulled)} pulled, ${String(result.pushed)} pushed, ${String(result.skipped)} skipped`,
+        type: "success",
+      });
       await queryClient.invalidateQueries({ queryKey: ["org", orgId, "devices"] });
     },
   });
@@ -143,29 +124,25 @@ const AscApiKeysSection = ({ orgId }: { orgId: string }) => {
 
   return (
     <section className="flex flex-col gap-3">
-      <div className="flex items-start justify-between gap-4">
-        <SectionHeading
-          title="App Store Connect API Keys"
-          description=".p8 keys for the ASC API."
-        />
-        <UploadAscApiKeyDialog orgId={orgId} />
-      </div>
+      <SectionHeader
+        title="App Store Connect API Keys"
+        description=".p8 keys for the ASC API."
+        actions={<UploadAscApiKeyDialog orgId={orgId} />}
+      />
       {data.items.length === 0 ? (
         <AscApiKeysEmptyState />
       ) : (
-        <Card>
-          <CardContent>
-            <AscApiKeysTable
-              items={data.items}
-              onDelete={deleteAscApiKey}
-              onInvalidate={invalidate}
-              onSync={(id) => {
-                syncMutation.mutate(id);
-              }}
-              syncPending={syncMutation.isPending}
-            />
-          </CardContent>
-        </Card>
+        <CardFrame>
+          <AscApiKeysTable
+            items={data.items}
+            onDelete={deleteAscApiKey}
+            onInvalidate={invalidate}
+            onSync={(id) => {
+              syncMutation.mutate(id);
+            }}
+            syncPending={syncMutation.isPending}
+          />
+        </CardFrame>
       )}
     </section>
   );
@@ -176,18 +153,16 @@ const AppleTeamsSection = ({ orgId }: { orgId: string }) => {
 
   return (
     <section className="flex flex-col gap-3">
-      <SectionHeading
+      <SectionHeader
         title="Apple Teams"
         description="Teams are auto-derived from uploaded certificates, push keys, and ASC API keys."
       />
       {teams.items.length === 0 ? (
         <AppleTeamsEmptyState />
       ) : (
-        <Card>
-          <CardContent>
-            <AppleTeamsTable items={teams.items} />
-          </CardContent>
-        </Card>
+        <CardFrame>
+          <AppleTeamsTable items={teams.items} />
+        </CardFrame>
       )}
     </section>
   );
@@ -204,25 +179,21 @@ const GoogleServiceAccountSection = ({ orgId }: { orgId: string }) => {
 
   return (
     <section className="flex flex-col gap-3">
-      <div className="flex items-start justify-between gap-4">
-        <SectionHeading
-          title="Google Service Account Keys"
-          description=".json keys for FCM v1 and Play Store submissions."
-        />
-        <UploadGoogleServiceAccountKeyDialog orgId={orgId} />
-      </div>
+      <SectionHeader
+        title="Google Service Account Keys"
+        description=".json keys for FCM v1 and Play Store submissions."
+        actions={<UploadGoogleServiceAccountKeyDialog orgId={orgId} />}
+      />
       {data.items.length === 0 ? (
         <GoogleServiceAccountKeysEmptyState />
       ) : (
-        <Card>
-          <CardContent>
-            <GoogleServiceAccountKeysTable
-              items={data.items}
-              onDelete={deleteGoogleServiceAccountKey}
-              onInvalidate={invalidate}
-            />
-          </CardContent>
-        </Card>
+        <CardFrame>
+          <GoogleServiceAccountKeysTable
+            items={data.items}
+            onDelete={deleteGoogleServiceAccountKey}
+            onInvalidate={invalidate}
+          />
+        </CardFrame>
       )}
     </section>
   );
@@ -233,6 +204,10 @@ const Credentials = () => {
   const orgId = activeOrg.id;
   return (
     <div className="flex w-full flex-col gap-8">
+      <PageHeader
+        title="Credentials"
+        description="Apple and Google credentials shared across all projects in this organization."
+      />
       <DistributionCertificatesSection orgId={orgId} />
       <PushKeysSection orgId={orgId} />
       <AscApiKeysSection orgId={orgId} />

@@ -21,7 +21,7 @@ import {
 import { CreateChannelDialog } from "./-create-channel-dialog";
 
 const ChannelsEmptyState = () => (
-  <Empty className="border">
+  <Empty>
     <EmptyHeader>
       <EmptyMedia variant="icon">
         <SatelliteIcon strokeWidth={1.5} />

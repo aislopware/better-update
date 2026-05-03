@@ -2,15 +2,15 @@ import { branchesQueryKey, createBranch } from "@better-update/api-client/react"
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
-  DialogContent,
+  DialogPopup,
   DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
+import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { PlusIcon } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import { safeSubmit, useApiMutation } from "../../../../../lib/use-api-mutation";
 import { BranchNameForm } from "./-branch-name-form";
@@ -21,7 +21,7 @@ export const CreateBranchDialog = ({ orgId, projectId }: { orgId: string; projec
   const createBranchMutation = useApiMutation({
     mutationFn: async (name: string) => createBranch({ projectId, name }),
     onSuccess: async () => {
-      toast.success("Branch created");
+      toastManager.add({ title: "Branch created", type: "success" });
       await queryClient.invalidateQueries({
         queryKey: branchesQueryKey(orgId, projectId),
       });
@@ -39,7 +39,7 @@ export const CreateBranchDialog = ({ orgId, projectId }: { orgId: string; projec
         <PlusIcon strokeWidth={2} data-icon="inline-start" />
         Create branch
       </Button>
-      <DialogContent>
+      <DialogPopup>
         <DialogHeader>
           <DialogTitle>Create a branch</DialogTitle>
           <DialogDescription>Create a new branch within this project.</DialogDescription>
@@ -51,7 +51,7 @@ export const CreateBranchDialog = ({ orgId, projectId }: { orgId: string; projec
           submitIcon={PlusIcon}
           onSubmit={async (name) => safeSubmit(createBranchMutation.mutateAsync(name))}
         />
-      </DialogContent>
+      </DialogPopup>
     </Dialog>
   );
 };

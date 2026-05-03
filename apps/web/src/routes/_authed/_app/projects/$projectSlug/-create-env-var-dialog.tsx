@@ -3,28 +3,29 @@ import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
   DialogClose,
-  DialogContent,
+  DialogPopup,
   DialogDescription,
   DialogFooter,
   DialogHeader,
+  DialogPanel,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
 import {
   Select,
-  SelectContent,
+  SelectPopup,
   SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
 import { Textarea } from "@better-update/ui/components/ui/textarea";
+import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { PlusIcon } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import {
   envVarKeySchema,
@@ -65,7 +66,7 @@ const CreateFormContent = ({
         visibility: value.visibility,
       }),
     onSuccess: async (_, value) => {
-      toast.success(`Variable "${value.key}" created`);
+      toastManager.add({ title: `Variable "${value.key}" created`, type: "success" });
       await queryClient.invalidateQueries({
         queryKey: envVarsQueryKey(orgId, projectId),
       });
@@ -84,104 +85,107 @@ const CreateFormContent = ({
 
   return (
     <form
+      className="contents"
       onSubmit={async (event) => {
         event.preventDefault();
         event.stopPropagation();
         await form.handleSubmit();
       }}
     >
-      <FieldGroup className="py-4">
-        <form.Field
-          name="key"
-          validators={{
-            onBlur: ({ value }) => {
-              const result = envVarKeySchema.safeParse(value);
-              return result.success ? undefined : result.error.issues[0]?.message;
-            },
-          }}
-        >
-          {(field) => {
-            const errorMessage = getFieldError(field);
-            return (
-              <Field data-invalid={errorMessage ? true : undefined}>
-                <FieldLabel htmlFor="env-var-key">Key</FieldLabel>
-                <Input
-                  id="env-var-key"
-                  placeholder="EXPO_PUBLIC_API_URL"
-                  value={field.state.value}
-                  onChange={(event) => {
-                    field.handleChange(event.target.value.toUpperCase());
-                  }}
-                  onBlur={field.handleBlur}
-                  aria-invalid={errorMessage ? true : undefined}
-                  className="font-mono"
-                />
-                <FieldError>{errorMessage}</FieldError>
-              </Field>
-            );
-          }}
-        </form.Field>
+      <DialogPanel>
+        <FieldGroup>
+          <form.Field
+            name="key"
+            validators={{
+              onBlur: ({ value }) => {
+                const result = envVarKeySchema.safeParse(value);
+                return result.success ? undefined : result.error.issues[0]?.message;
+              },
+            }}
+          >
+            {(field) => {
+              const errorMessage = getFieldError(field);
+              return (
+                <Field data-invalid={errorMessage ? true : undefined}>
+                  <FieldLabel htmlFor="env-var-key">Key</FieldLabel>
+                  <Input
+                    id="env-var-key"
+                    placeholder="EXPO_PUBLIC_API_URL"
+                    value={field.state.value}
+                    onChange={(event) => {
+                      field.handleChange(event.target.value.toUpperCase());
+                    }}
+                    onBlur={field.handleBlur}
+                    aria-invalid={errorMessage ? true : undefined}
+                    className="font-mono"
+                  />
+                  <FieldError>{errorMessage}</FieldError>
+                </Field>
+              );
+            }}
+          </form.Field>
 
-        <form.Field
-          name="value"
-          validators={{
-            onBlur: ({ value }) => {
-              const result = requiredStringSchema.safeParse(value);
-              return result.success ? undefined : result.error.issues[0]?.message;
-            },
-          }}
-        >
-          {(field) => {
-            const errorMessage = getFieldError(field);
-            return (
-              <Field data-invalid={errorMessage ? true : undefined}>
-                <FieldLabel htmlFor="env-var-value">Value</FieldLabel>
-                <Textarea
-                  id="env-var-value"
-                  placeholder="https://api.example.com"
-                  value={field.state.value}
-                  onChange={(event) => {
-                    field.handleChange(event.target.value);
-                  }}
-                  onBlur={field.handleBlur}
-                  aria-invalid={errorMessage ? true : undefined}
-                  rows={3}
-                  className="font-mono"
-                />
-                <FieldError>{errorMessage}</FieldError>
-              </Field>
-            );
-          }}
-        </form.Field>
+          <form.Field
+            name="value"
+            validators={{
+              onBlur: ({ value }) => {
+                const result = requiredStringSchema.safeParse(value);
+                return result.success ? undefined : result.error.issues[0]?.message;
+              },
+            }}
+          >
+            {(field) => {
+              const errorMessage = getFieldError(field);
+              return (
+                <Field data-invalid={errorMessage ? true : undefined}>
+                  <FieldLabel htmlFor="env-var-value">Value</FieldLabel>
+                  <Textarea
+                    id="env-var-value"
+                    placeholder="https://api.example.com"
+                    value={field.state.value}
+                    onChange={(event) => {
+                      field.handleChange(event.target.value);
+                    }}
+                    onBlur={field.handleBlur}
+                    aria-invalid={errorMessage ? true : undefined}
+                    rows={3}
+                    className="font-mono"
+                  />
+                  <FieldError>{errorMessage}</FieldError>
+                </Field>
+              );
+            }}
+          </form.Field>
 
-        <form.Field name="visibility">
-          {(field) => (
-            <Field>
-              <FieldLabel>Visibility</FieldLabel>
-              <Select
-                items={VISIBILITY_LABELS}
-                value={field.state.value}
-                onValueChange={(val) => {
-                  if (val === "plaintext" || val === "sensitive" || val === "secret") {
-                    field.handleChange(val);
-                  }
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectItem value="plaintext">Plaintext — visible everywhere</SelectItem>
-                    <SelectItem value="sensitive">Sensitive — masked in dashboard</SelectItem>
-                    <SelectItem value="secret">Secret — hidden in dashboard, CLI only</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </Field>
-          )}
-        </form.Field>
-      </FieldGroup>
+          <form.Field name="visibility">
+            {(field) => (
+              <Field>
+                <FieldLabel>Visibility</FieldLabel>
+                <Select
+                  items={VISIBILITY_LABELS}
+                  value={field.state.value}
+                  onValueChange={(val) => {
+                    if (val === "plaintext" || val === "sensitive" || val === "secret") {
+                      field.handleChange(val);
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectPopup>
+                    <SelectGroup>
+                      <SelectItem value="plaintext">Plaintext — visible everywhere</SelectItem>
+                      <SelectItem value="sensitive">Sensitive — masked in dashboard</SelectItem>
+                      <SelectItem value="secret">Secret — hidden in dashboard, CLI only</SelectItem>
+                    </SelectGroup>
+                  </SelectPopup>
+                </Select>
+              </Field>
+            )}
+          </form.Field>
+        </FieldGroup>
+      </DialogPanel>
 
       <DialogFooter>
         <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
@@ -219,7 +223,7 @@ export const CreateEnvVarDialog = ({
         <PlusIcon strokeWidth={2} data-icon="inline-start" />
         Add variable
       </Button>
-      <DialogContent>
+      <DialogPopup>
         <DialogHeader>
           <DialogTitle>Add environment variable</DialogTitle>
           <DialogDescription>
@@ -236,7 +240,7 @@ export const CreateEnvVarDialog = ({
             }}
           />
         )}
-      </DialogContent>
+      </DialogPopup>
     </Dialog>
   );
 };

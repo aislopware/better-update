@@ -119,7 +119,7 @@ describe(InvitationsTableView, () => {
     const invitation = makeInvitation({
       email: "new-hire@example.com",
       role: "admin",
-      expiresAt: new Date("2027-06-15"),
+      expiresAt: new Date("2099-06-15"),
     });
 
     const onCancel = vi.fn<(invitationId: string) => Promise<void>>(async () => {});
@@ -127,18 +127,19 @@ describe(InvitationsTableView, () => {
 
     expect(screen.getByText("new-hire@example.com")).toBeInTheDocument();
     expect(screen.getByText("admin")).toBeInTheDocument();
-    expect(screen.getByText(new Date("2027-06-15").toLocaleDateString())).toBeInTheDocument();
+    // Expiry rendered as relative future time (e.g., "Expires in 26781 days").
+    expect(screen.getByText(/^Expires/)).toBeInTheDocument();
   });
 
-  it("cancel button calls onCancel with invitation id", async () => {
+  it("cancel invitation menu item calls onCancel with invitation id", async () => {
     const user = userEvent.setup();
     const invitation = makeInvitation({ id: "inv-42" });
     const onCancel = vi.fn<(invitationId: string) => Promise<void>>(async () => {});
 
     render(<InvitationsTableView invitations={[invitation]} onCancel={onCancel} />);
 
-    const cancelButton = screen.getByRole("button");
-    await user.click(cancelButton);
+    await user.click(screen.getByRole("button", { name: /invitation actions/i }));
+    await user.click(await screen.findByRole("menuitem", { name: /cancel invitation/i }));
 
     expect(onCancel).toHaveBeenCalledWith("inv-42");
   });

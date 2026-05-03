@@ -2,10 +2,11 @@ import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
   DialogClose,
-  DialogContent,
+  DialogPopup,
   DialogDescription,
   DialogFooter,
   DialogHeader,
+  DialogPanel,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
 import {
@@ -15,11 +16,11 @@ import {
   FieldLabel,
 } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
+import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { KeyIcon, CopyIcon, CheckIcon } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import { authClient } from "../../../lib/auth-client";
 import { getFieldError, requiredStringSchema } from "../../../lib/form-utils";
@@ -44,7 +45,7 @@ const CreateFormContent = ({
       });
 
       if (error) {
-        toast.error(error.message ?? "Failed to create API key");
+        toastManager.add({ title: error.message ?? "Failed to create API key", type: "error" });
         return;
       }
 
@@ -56,13 +57,14 @@ const CreateFormContent = ({
 
   return (
     <form
+      className="contents"
       onSubmit={async (event) => {
         event.preventDefault();
         event.stopPropagation();
         await form.handleSubmit();
       }}
     >
-      <div className="py-4">
+      <DialogPanel>
         <form.Field
           name="name"
           validators={{
@@ -93,7 +95,7 @@ const CreateFormContent = ({
             );
           }}
         </form.Field>
-      </div>
+      </DialogPanel>
 
       <DialogFooter>
         <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
@@ -121,19 +123,21 @@ const KeyRevealContent = ({ apiKey, onClose }: { apiKey: string; onClose: () => 
 
   return (
     <>
-      <div className="flex flex-col gap-2 py-4">
-        <p className="text-muted-foreground text-sm">
-          Copy your API key now. You will not be able to see it again.
-        </p>
-        <div className="flex items-center gap-2">
-          <code className="bg-muted flex-1 rounded-md px-3 py-2 font-mono text-sm break-all">
-            {apiKey}
-          </code>
-          <Button variant="outline" size="icon" onClick={handleCopy}>
-            {copied ? <CheckIcon strokeWidth={2} /> : <CopyIcon strokeWidth={2} />}
-          </Button>
+      <DialogPanel>
+        <div className="flex flex-col gap-2">
+          <p className="text-muted-foreground text-sm">
+            Copy your API key now. You will not be able to see it again.
+          </p>
+          <div className="flex items-center gap-2">
+            <code className="bg-muted flex-1 rounded-md px-3 py-2 font-mono text-sm break-all">
+              {apiKey}
+            </code>
+            <Button variant="outline" size="icon" onClick={handleCopy}>
+              {copied ? <CheckIcon strokeWidth={2} /> : <CopyIcon strokeWidth={2} />}
+            </Button>
+          </div>
         </div>
-      </div>
+      </DialogPanel>
       <DialogFooter>
         <Button onClick={onClose}>Done</Button>
       </DialogFooter>
@@ -150,7 +154,7 @@ export const CreateApiKeyDialog = ({ orgId }: { orgId: string }) => {
 
   const handleSuccess = async (key: string) => {
     setCreatedKey(key);
-    toast.success("API key created");
+    toastManager.add({ title: "API key created", type: "success" });
     await queryClient.invalidateQueries({
       queryKey: apiKeysQueryOptions(orgId).queryKey,
     });
@@ -180,7 +184,7 @@ export const CreateApiKeyDialog = ({ orgId }: { orgId: string }) => {
         <KeyIcon strokeWidth={2} data-icon="inline-start" />
         Create API key
       </Button>
-      <DialogContent>
+      <DialogPopup>
         <DialogHeader>
           <DialogTitle>{createdKey ? "API key created" : "Create an API key"}</DialogTitle>
           <DialogDescription>
@@ -194,7 +198,7 @@ export const CreateApiKeyDialog = ({ orgId }: { orgId: string }) => {
         ) : (
           <CreateFormContent orgId={orgId} onSuccess={handleSuccess} />
         )}
-      </DialogContent>
+      </DialogPopup>
     </Dialog>
   );
 };
@@ -213,7 +217,7 @@ export const RevokeDialog = ({
   isRevoking: boolean;
 }) => (
   <Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogContent>
+    <DialogPopup>
       <DialogHeader>
         <DialogTitle>Revoke API key</DialogTitle>
         <DialogDescription>
@@ -227,6 +231,6 @@ export const RevokeDialog = ({
           {isRevoking ? "Revoking..." : "Revoke key"}
         </Button>
       </DialogFooter>
-    </DialogContent>
+    </DialogPopup>
   </Dialog>
 );

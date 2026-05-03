@@ -9,16 +9,17 @@ import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
   DialogClose,
-  DialogContent,
+  DialogPopup,
+  DialogPanel,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
+import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { WandIcon } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import { safeSubmit, useApiMutation } from "../../../../../lib/use-api-mutation";
 import {
@@ -100,7 +101,7 @@ export const AndroidBuildWizard = ({ orgId, projectId }: { orgId: string; projec
       });
     },
     onSuccess: async () => {
-      toast.success("Android build credentials saved");
+      toastManager.add({ title: "Android build credentials saved", type: "success" });
       await invalidateKeys(queryClient, orgId, projectId, state);
       setOpen(false);
       reset();
@@ -126,15 +127,15 @@ export const AndroidBuildWizard = ({ orgId, projectId }: { orgId: string; projec
         <WandIcon data-icon="inline-start" />
         Android Build Wizard
       </Button>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogPopup className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Android Build Credentials</DialogTitle>
           <DialogDescription>
             Upload keystore + Google Service Account keys for a project application identifier.
           </DialogDescription>
         </DialogHeader>
-        <StepperHeader steps={STEPS} currentStep={step} />
-        <div className="py-4">
+        <DialogPanel>
+          <StepperHeader steps={STEPS} currentStep={step} />
           {step === 1 ? (
             <StepAppId orgId={orgId} projectId={projectId} state={state} onChange={setState} />
           ) : null}
@@ -174,7 +175,7 @@ export const AndroidBuildWizard = ({ orgId, projectId }: { orgId: string; projec
             />
           ) : null}
           {step === 5 ? <StepReview state={state} /> : null}
-        </div>
+        </DialogPanel>
         <DialogFooter>
           <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
           {step > 1 ? (
@@ -207,7 +208,7 @@ export const AndroidBuildWizard = ({ orgId, projectId }: { orgId: string; projec
             </Button>
           )}
         </DialogFooter>
-      </DialogContent>
+      </DialogPopup>
     </Dialog>
   );
 };

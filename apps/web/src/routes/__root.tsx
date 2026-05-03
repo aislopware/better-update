@@ -114,8 +114,9 @@ const RootComponent = () => {
   useMountEffect(() => subscribeToSignoutBroadcast(queryClient));
   return (
     <ThemeProvider initialTheme={theme.theme} initialResolvedTheme={theme.resolvedTheme}>
-      <Outlet />
-      <ThemedToaster />
+      <ThemedToaster>
+        <Outlet />
+      </ThemedToaster>
     </ThemeProvider>
   );
 };

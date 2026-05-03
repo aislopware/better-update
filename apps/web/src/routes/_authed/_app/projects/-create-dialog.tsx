@@ -3,26 +3,22 @@ import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
   DialogClose,
-  DialogContent,
+  DialogPopup,
   DialogDescription,
   DialogFooter,
   DialogHeader,
+  DialogPanel,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
-import {
-  Field,
-  FieldDescription,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "@better-update/ui/components/ui/field";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
+import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { PlusIcon } from "lucide-react";
 import { useRef, useState } from "react";
-import { toast } from "sonner";
 
+import { SlugInput } from "../../../../components/slug-input";
 import { generateSlug, getFieldError, nameSchema, slugSchema } from "../../../../lib/form-utils";
 import { safeSubmit, useApiMutation } from "../../../../lib/use-api-mutation";
 
@@ -39,7 +35,7 @@ export const CreateProjectFormContent = ({
     mutationFn: async (value: { name: string; slug: string }) =>
       createProject({ name: value.name, slug: value.slug }),
     onSuccess: async () => {
-      toast.success("Project created");
+      toastManager.add({ title: "Project created", type: "success" });
       await queryClient.invalidateQueries({
         queryKey: projectsQueryKey(orgId),
       });
@@ -54,85 +50,89 @@ export const CreateProjectFormContent = ({
 
   return (
     <form
+      className="contents"
       onSubmit={async (event) => {
         event.preventDefault();
         event.stopPropagation();
         await form.handleSubmit();
       }}
     >
-      <FieldGroup className="py-4">
-        <form.Field
-          name="name"
-          validators={{
-            onBlur: ({ value }) => {
-              const result = nameSchema.safeParse(value);
-              return result.success ? undefined : result.error.issues[0]?.message;
-            },
-          }}
-        >
-          {(field) => {
-            const errorMessage = getFieldError(field);
-            return (
-              <Field data-invalid={errorMessage ? true : undefined}>
-                <FieldLabel htmlFor="project-name">Project name</FieldLabel>
-                <Input
-                  id="project-name"
-                  placeholder="My App"
-                  value={field.state.value}
-                  onChange={(event) => {
-                    const name = event.target.value;
-                    field.handleChange(name);
-                    if (!slugEdited.current) {
-                      form.setFieldValue("slug", generateSlug(name), {
-                        dontUpdateMeta: true,
-                        dontValidate: true,
-                      });
-                    }
-                  }}
-                  onBlur={field.handleBlur}
-                  aria-invalid={errorMessage ? true : undefined}
-                />
-                <FieldError>{errorMessage}</FieldError>
-              </Field>
-            );
-          }}
-        </form.Field>
+      <DialogPanel>
+        <FieldGroup>
+          <form.Field
+            name="name"
+            validators={{
+              onBlur: ({ value }) => {
+                const result = nameSchema.safeParse(value);
+                return result.success ? undefined : result.error.issues[0]?.message;
+              },
+            }}
+          >
+            {(field) => {
+              const errorMessage = getFieldError(field);
+              const invalid = Boolean(errorMessage);
+              return (
+                <Field invalid={invalid}>
+                  <FieldLabel htmlFor="project-name">Project name</FieldLabel>
+                  <Input
+                    id="project-name"
+                    placeholder="My App"
+                    value={field.state.value}
+                    onChange={(event) => {
+                      const name = event.target.value;
+                      field.handleChange(name);
+                      if (!slugEdited.current) {
+                        form.setFieldValue("slug", generateSlug(name), {
+                          dontUpdateMeta: true,
+                          dontValidate: true,
+                        });
+                      }
+                    }}
+                    onBlur={field.handleBlur}
+                  />
+                  <FieldError match={invalid}>{errorMessage}</FieldError>
+                </Field>
+              );
+            }}
+          </form.Field>
 
-        <form.Field
-          name="slug"
-          validators={{
-            onBlur: ({ value }) => {
-              const result = slugSchema.safeParse(value);
-              return result.success ? undefined : result.error.issues[0]?.message;
-            },
-          }}
-        >
-          {(field) => {
-            const errorMessage = getFieldError(field);
-            return (
-              <Field data-invalid={errorMessage ? true : undefined}>
-                <FieldLabel htmlFor="project-slug">Slug</FieldLabel>
-                <Input
-                  id="project-slug"
-                  placeholder="my-app"
-                  value={field.state.value}
-                  onChange={(event) => {
-                    field.handleChange(event.target.value);
-                    slugEdited.current = event.target.value !== "";
-                  }}
-                  onBlur={field.handleBlur}
-                  aria-invalid={errorMessage ? true : undefined}
-                />
-                <FieldDescription>
-                  Lowercase URL-safe identifier. Must match <code>expo.slug</code> in your{" "}
-                  <code>app.json</code>.
-                </FieldDescription>
-                <FieldError>{errorMessage}</FieldError>
-              </Field>
-            );
-          }}
-        </form.Field>
-      </FieldGroup>
+          <form.Field
+            name="slug"
+            validators={{
+              onBlur: ({ value }) => {
+                const result = slugSchema.safeParse(value);
+                return result.success ? undefined : result.error.issues[0]?.message;
+              },
+            }}
+          >
+            {(field) => {
+              const errorMessage = getFieldError(field);
+              const invalid = Boolean(errorMessage);
+              return (
+                <Field invalid={invalid}>
+                  <FieldLabel htmlFor="project-slug">Slug</FieldLabel>
+                  <SlugInput
+                    addonStart="expo.slug ="
+                    id="project-slug"
+                    placeholder="my-app"
+                    value={field.state.value}
+                    onChange={(event) => {
+                      field.handleChange(event.target.value);
+                      slugEdited.current = event.target.value !== "";
+                    }}
+                    onBlur={field.handleBlur}
+                  />
+                  <p className="text-muted-foreground text-xs">
+                    Must match <code className="bg-muted/72 rounded px-1 font-mono">expo.slug</code>{" "}
+                    in your <code className="bg-muted/72 rounded px-1 font-mono">app.json</code>.
+                  </p>
+                  <FieldError match={invalid}>{errorMessage}</FieldError>
+                </Field>
+              );
+            }}
+          </form.Field>
+        </FieldGroup>
+      </DialogPanel>
 
       <DialogFooter>
         <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
@@ -161,7 +161,7 @@ export const CreateProjectDialog = ({ orgId }: { orgId: string }) => {
       >
         Create project
       </Button>
-      <DialogContent>
+      <DialogPopup>
         <DialogHeader>
           <DialogTitle>Create a project</DialogTitle>
           <DialogDescription>
@@ -174,7 +174,7 @@ export const CreateProjectDialog = ({ orgId }: { orgId: string }) => {
             setOpen(false);
           }}
         />
-      </DialogContent>
+      </DialogPopup>
     </Dialog>
   );
 };

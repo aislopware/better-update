@@ -1,16 +1,5 @@
 import { projectsQueryOptions } from "@better-update/api-client/react";
-import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
-import { Card, CardContent } from "@better-update/ui/components/ui/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@better-update/ui/components/ui/dropdown-menu";
 import {
   Empty,
   EmptyDescription,
@@ -20,26 +9,20 @@ import {
 } from "@better-update/ui/components/ui/empty";
 import { Input } from "@better-update/ui/components/ui/input";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@better-update/ui/components/ui/table";
+  DropdownMenu,
+  DropdownMenuPopup,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@better-update/ui/components/ui/menu";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import {
-  flexRender,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
-import {
-  ArrowDownIcon,
-  ArrowUpIcon,
   CheckIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   FolderIcon,
   SearchIcon,
   SlidersHorizontalIcon,
@@ -47,81 +30,20 @@ import {
 import { useMemo, useState } from "react";
 
 import type { ProjectItem } from "@better-update/api-client/react";
-import type {
-  ColumnDef,
-  FilterFn,
-  SortingState,
-  Table as TableInstance,
-} from "@tanstack/react-table";
 
+import { List, ListFooter, ListItem, ListSectionHeader } from "../../../../components/list-item";
+import { PageHeader } from "../../../../components/page-header";
 import { EntityAvatar } from "../../../../lib/entity-avatar";
 import { formatRelativeTime } from "../../../../lib/format-relative-time";
 import { pluralize } from "../../../../lib/pluralize";
 import { CreateProjectDialog } from "./-create-dialog";
 
+const PAGE_SIZE = 50;
+
 type SortId = "lastActivityAt" | "name";
 
-const DEFAULT_SORTING: SortingState = [{ id: "lastActivityAt", desc: true }];
-
-const isSortId = (value: string): value is SortId => value === "lastActivityAt" || value === "name";
-
-const nameSlugFilter: FilterFn<ProjectItem> = (row, _columnId, rawValue) => {
-  const query = String(rawValue).trim().toLowerCase();
-  if (!query) {
-    return true;
-  }
-  const name = row.original.name.toLowerCase();
-  const slug = row.original.slug.toLowerCase();
-  return name.includes(query) || slug.includes(query);
-};
-
-const columns: ColumnDef<ProjectItem>[] = [
-  {
-    accessorKey: "name",
-    header: "Name",
-    cell: ({ row }) => {
-      const project = row.original;
-      return (
-        <Link
-          to="/projects/$projectSlug"
-          params={{ projectSlug: project.slug }}
-          className="flex items-center gap-2 font-medium"
-        >
-          <EntityAvatar name={project.name} seed={project.slug} size="sm" shape="square" />
-          {project.name}
-        </Link>
-      );
-    },
-  },
-  {
-    accessorKey: "slug",
-    header: "Slug",
-    cell: ({ row }) => (
-      <code className="bg-muted rounded px-1.5 py-0.5 font-mono text-xs">{row.original.slug}</code>
-    ),
-  },
-  {
-    accessorKey: "lastActivityAt",
-    header: "Last activity",
-    cell: ({ row }) => (
-      <span className="text-muted-foreground text-sm">
-        {formatRelativeTime(row.original.lastActivityAt)}
-      </span>
-    ),
-    sortingFn: "datetime",
-  },
-  {
-    accessorKey: "createdAt",
-    header: "Created",
-    cell: ({ row }) => (
-      <Badge variant="outline">{new Date(row.original.createdAt).toLocaleDateString()}</Badge>
-    ),
-    sortingFn: "datetime",
-  },
-];
-
 const SORT_LABELS: Record<SortId, string> = {
-  lastActivityAt: "Activity",
+  lastActivityAt: "Last activity",
   name: "Name",
 };
 
@@ -139,7 +61,7 @@ const sortTrigger = (
 const SortDropdown = ({ value, onChange }: { value: SortId; onChange: (next: SortId) => void }) => (
   <DropdownMenu>
     <DropdownMenuTrigger render={sortTrigger} />
-    <DropdownMenuContent align="end" className="w-44">
+    <DropdownMenuPopup align="end" className="w-44">
       <DropdownMenuGroup>
         <DropdownMenuLabel>Sort by</DropdownMenuLabel>
         <DropdownMenuSeparator />
@@ -155,12 +77,12 @@ const SortDropdown = ({ value, onChange }: { value: SortId; onChange: (next: Sor
           </DropdownMenuItem>
         ))}
       </DropdownMenuGroup>
-    </DropdownMenuContent>
+    </DropdownMenuPopup>
   </DropdownMenu>
 );
 
 const EmptyState = () => (
-  <Empty className="border">
+  <Empty>
     <EmptyHeader>
       <EmptyMedia variant="icon">
         <FolderIcon strokeWidth={1.5} />
@@ -171,64 +93,66 @@ const EmptyState = () => (
   </Empty>
 );
 
-const ProjectsTable = ({ table }: { table: TableInstance<ProjectItem> }) => {
-  const { rows } = table.getRowModel();
-  return (
-    <Card className="gap-0 py-0">
-      <CardContent className="p-0">
-        <Table className="[&_td]:px-4 [&_td]:py-3 [&_th]:h-9 [&_th]:px-4">
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id} className="hover:bg-transparent">
-                {headerGroup.headers.map((header) => {
-                  const sorted = header.column.getIsSorted();
-                  return (
-                    <TableHead
-                      key={header.id}
-                      className="text-muted-foreground text-xs font-medium"
-                    >
-                      <span className="inline-flex items-center gap-1">
-                        {flexRender(header.column.columnDef.header, header.getContext())}
-                        {sorted === "asc" ? (
-                          <ArrowUpIcon strokeWidth={2} className="size-3.5" />
-                        ) : null}
-                        {sorted === "desc" ? (
-                          <ArrowDownIcon strokeWidth={2} className="size-3.5" />
-                        ) : null}
-                      </span>
-                    </TableHead>
-                  );
-                })}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {rows.length === 0 ? (
-              <TableRow className="hover:bg-transparent">
-                <TableCell
-                  colSpan={columns.length}
-                  className="text-muted-foreground h-24 text-center"
-                >
-                  No projects match your filters.
-                </TableCell>
-              </TableRow>
-            ) : (
-              rows.map((row) => (
-                <TableRow key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
-  );
-};
+const formatShortDate = (value: string) =>
+  new Date(value).toLocaleDateString(undefined, {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+
+const MetaSeparator = () => (
+  <span aria-hidden="true" className="text-muted-foreground/40">
+    ·
+  </span>
+);
+
+const ProjectRow = ({ project }: { project: ProjectItem }) => (
+  <Link
+    to="/projects/$projectSlug"
+    params={{ projectSlug: project.slug }}
+    className="focus-visible:bg-muted/40 block outline-none"
+  >
+    <ListItem
+      aside={
+        <>
+          <span className="text-foreground text-sm leading-5 font-medium">
+            Active {formatRelativeTime(project.lastActivityAt)}
+          </span>
+          <span className="text-muted-foreground/72 text-xs">
+            Created {formatShortDate(project.createdAt)}
+          </span>
+        </>
+      }
+      leading={
+        <EntityAvatar name={project.name} seed={project.slug} size="default" shape="square" />
+      }
+      title={project.name}
+      subtitle={
+        <span className="inline-flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+          <code className="font-mono">/{project.slug}</code>
+          <MetaSeparator />
+          <span className="tabular-nums">
+            {project.branchCount} {pluralize(project.branchCount, "branch", "branches")}
+          </span>
+          <MetaSeparator />
+          <span className="tabular-nums">
+            {project.channelCount} {pluralize(project.channelCount, "channel")}
+          </span>
+          <MetaSeparator />
+          <span className="tabular-nums">
+            {project.updateCount} {pluralize(project.updateCount, "update")}
+          </span>
+        </span>
+      }
+      trailing={
+        <ChevronRightIcon
+          strokeWidth={2}
+          className="text-muted-foreground/72 group-hover:text-foreground size-4 transition-colors"
+        />
+      }
+    />
+  </Link>
+);
 
 const Projects = () => {
   const { activeOrg } = Route.useRouteContext();
@@ -236,42 +160,57 @@ const Projects = () => {
   const { data } = useSuspenseQuery(projectsQueryOptions(orgId, 1, 1000));
 
   const [globalFilter, setGlobalFilter] = useState("");
-  const [sorting, setSorting] = useState<SortingState>(DEFAULT_SORTING);
+  const [sortId, setSortId] = useState<SortId>("lastActivityAt");
+  const [page, setPage] = useState(1);
 
-  const firstSortId = sorting[0]?.id;
-  const sortId: SortId = firstSortId && isSortId(firstSortId) ? firstSortId : "lastActivityAt";
-  const handleSortChange = (next: SortId) => {
-    setSorting((previous) => {
-      if (previous[0]?.id === next) {
-        return previous;
-      }
-      return [{ id: next, desc: next === "lastActivityAt" }];
-    });
+  const handleFilterChange = (value: string) => {
+    setGlobalFilter(value);
+    setPage(1);
   };
 
-  const tableData = useMemo<ProjectItem[]>(() => [...data.items], [data.items]);
+  const handleSortChange = (next: SortId) => {
+    setSortId(next);
+    setPage(1);
+  };
 
-  const table = useReactTable<ProjectItem>({
-    data: tableData,
-    columns,
-    state: { sorting, globalFilter },
-    onSortingChange: setSorting,
-    onGlobalFilterChange: setGlobalFilter,
-    autoResetPageIndex: false,
-    globalFilterFn: nameSlugFilter,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-  });
+  const filtered = useMemo(() => {
+    const query = globalFilter.trim().toLowerCase();
+    const items = query
+      ? data.items.filter(
+          (project) =>
+            project.name.toLowerCase().includes(query) ||
+            project.slug.toLowerCase().includes(query),
+        )
+      : [...data.items];
+    items.sort((left, right) => {
+      if (sortId === "name") {
+        return left.name.localeCompare(right.name);
+      }
+      return new Date(right.lastActivityAt).getTime() - new Date(left.lastActivityAt).getTime();
+    });
+    return items;
+  }, [data.items, globalFilter, sortId]);
 
   const totalCount = data.items.length;
-  const filteredCount = table.getFilteredRowModel().rows.length;
+  const filteredCount = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(filteredCount / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const paginated = useMemo(
+    () => filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
+    [filtered, safePage],
+  );
+  const fromIndex = paginated.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
+  const toIndex = (safePage - 1) * PAGE_SIZE + paginated.length;
   const createCta = useMemo(() => <CreateProjectDialog orgId={orgId} />, [orgId]);
 
   if (totalCount === 0) {
     return (
-      <div className="flex w-full flex-col gap-4">
-        <div className="flex justify-end">{createCta}</div>
+      <div className="flex w-full flex-col gap-6">
+        <PageHeader
+          title="Projects"
+          description="Manage your over-the-air update projects."
+          actions={createCta}
+        />
         <EmptyState />
       </div>
     );
@@ -279,28 +218,71 @@ const Projects = () => {
 
   const countLabel =
     filteredCount === totalCount
-      ? `${totalCount} ${pluralize(totalCount, "project")}`
-      : `${filteredCount} of ${totalCount} ${pluralize(totalCount, "project")}`;
+      ? `${fromIndex}–${toIndex} of ${totalCount} ${pluralize(totalCount, "project")}`
+      : `${fromIndex}–${toIndex} of ${filteredCount} ${pluralize(filteredCount, "project")} (filtered)`;
 
   return (
-    <div className="flex w-full flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative flex-1">
-          <SearchIcon className="text-muted-foreground absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
-          <Input
-            placeholder="Search projects…"
-            value={globalFilter}
-            onChange={(event) => {
-              setGlobalFilter(event.target.value);
-            }}
-            className="pl-8"
-          />
+    <div className="flex w-full flex-col gap-6">
+      <PageHeader
+        title="Projects"
+        description="Manage your over-the-air update projects."
+        actions={createCta}
+      />
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative flex-1">
+            <SearchIcon className="text-muted-foreground absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
+            <Input
+              placeholder="Search projects…"
+              value={globalFilter}
+              onChange={(event) => {
+                handleFilterChange(event.target.value);
+              }}
+              className="pl-8"
+            />
+          </div>
+          <SortDropdown value={sortId} onChange={handleSortChange} />
         </div>
-        <SortDropdown value={sortId} onChange={handleSortChange} />
-        {createCta}
+        {filteredCount === 0 ? (
+          <p className="text-muted-foreground rounded-xl border border-dashed py-10 text-center text-sm">
+            No projects match your search.
+          </p>
+        ) : (
+          <List>
+            <ListSectionHeader>All projects</ListSectionHeader>
+            {paginated.map((project) => (
+              <ProjectRow key={project.id} project={project} />
+            ))}
+            <ListFooter>
+              <span className="tabular-nums">{countLabel}</span>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="icon-xs"
+                  disabled={safePage === 1}
+                  onClick={() => {
+                    setPage((prev) => prev - 1);
+                  }}
+                  aria-label="Previous page"
+                >
+                  <ChevronLeftIcon strokeWidth={2} />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon-xs"
+                  disabled={safePage >= totalPages}
+                  onClick={() => {
+                    setPage((prev) => prev + 1);
+                  }}
+                  aria-label="Next page"
+                >
+                  <ChevronRightIcon strokeWidth={2} />
+                </Button>
+              </div>
+            </ListFooter>
+          </List>
+        )}
       </div>
-      <ProjectsTable table={table} />
-      <p className="text-muted-foreground text-sm">{countLabel}</p>
     </div>
   );
 };

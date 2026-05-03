@@ -29,6 +29,9 @@ export const ProjectsGroupLive = HttpApiBuilder.group(ManagementApi, "projects",
             slug: payload.slug,
             createdAt: now,
             lastActivityAt: now,
+            branchCount: 0,
+            channelCount: 0,
+            updateCount: 0,
           };
 
           yield* repo.insert(project);

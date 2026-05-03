@@ -3,6 +3,12 @@ import { cn } from "@better-update/ui/lib/utils";
 
 import { getAvatarColor, getInitial } from "./avatar";
 
+const SIZE_CLASS = {
+  sm: "size-6 text-[10px]",
+  default: "size-8",
+  lg: "size-10 text-sm",
+} as const;
+
 interface EntityAvatarProps {
   readonly name: string;
   readonly seed?: string;
@@ -28,8 +34,9 @@ export const EntityAvatar = ({
   const isSquare = shape === "square";
   const squareRoot = "rounded-md! after:rounded-md!";
   const squareChild = "rounded-md!";
+  const sizeClass = SIZE_CLASS[size];
   return (
-    <Avatar size={size} className={cn(isSquare && squareRoot, className)}>
+    <Avatar className={cn(sizeClass, isSquare && squareRoot, className)}>
       <AvatarImage src={src} alt={name} className={cn(isSquare && squareChild)} />
       <AvatarFallback
         className={cn("font-semibold text-white!", isSquare && squareChild)}

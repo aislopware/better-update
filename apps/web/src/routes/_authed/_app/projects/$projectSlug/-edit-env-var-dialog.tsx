@@ -3,26 +3,27 @@ import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
   DialogClose,
-  DialogContent,
+  DialogPopup,
   DialogDescription,
   DialogFooter,
   DialogHeader,
+  DialogPanel,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
 import { Field, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
 import {
   Select,
-  SelectContent,
+  SelectPopup,
   SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
 import { Textarea } from "@better-update/ui/components/ui/textarea";
+import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
 
 import type { EnvVar } from "@better-update/api";
 
@@ -53,7 +54,7 @@ const EditFormContent = ({
       visibility?: "plaintext" | "sensitive" | "secret";
     }) => updateEnvVar(envVar.id, payload),
     onSuccess: async () => {
-      toast.success(`Variable "${envVar.key}" updated`);
+      toastManager.add({ title: `Variable "${envVar.key}" updated`, type: "success" });
       await queryClient.invalidateQueries({
         queryKey: envVarsQueryKey(orgId, projectId),
       });
@@ -82,7 +83,7 @@ const EditFormContent = ({
       }
 
       if (Object.keys(payload).length === 0) {
-        toast.info("No changes to save");
+        toastManager.add({ title: "No changes to save", type: "info" });
         onSuccess();
         return;
       }
@@ -93,70 +94,73 @@ const EditFormContent = ({
 
   return (
     <form
+      className="contents"
       onSubmit={async (event) => {
         event.preventDefault();
         event.stopPropagation();
         await form.handleSubmit();
       }}
     >
-      <FieldGroup className="py-4">
-        <Field>
-          <FieldLabel>Key</FieldLabel>
-          <Input value={envVar.key} disabled className="font-mono" />
-        </Field>
+      <DialogPanel>
+        <FieldGroup>
+          <Field>
+            <FieldLabel>Key</FieldLabel>
+            <Input value={envVar.key} disabled className="font-mono" />
+          </Field>
 
-        <form.Field name="value">
-          {(field) => (
-            <Field>
-              <FieldLabel htmlFor="env-var-value">Value</FieldLabel>
-              <Textarea
-                id="env-var-value"
-                placeholder={isEncrypted ? "Enter new value to replace existing" : ""}
-                value={field.state.value}
-                onChange={(event) => {
-                  field.handleChange(event.target.value);
-                }}
-                rows={3}
-                className="font-mono"
-              />
-              {isEncrypted ? (
-                <p className="text-muted-foreground text-xs">
-                  Current value is encrypted. Enter a new value to replace it, or leave empty to
-                  keep unchanged.
-                </p>
-              ) : null}
-            </Field>
-          )}
-        </form.Field>
+          <form.Field name="value">
+            {(field) => (
+              <Field>
+                <FieldLabel htmlFor="env-var-value">Value</FieldLabel>
+                <Textarea
+                  id="env-var-value"
+                  placeholder={isEncrypted ? "Enter new value to replace existing" : ""}
+                  value={field.state.value}
+                  onChange={(event) => {
+                    field.handleChange(event.target.value);
+                  }}
+                  rows={3}
+                  className="font-mono"
+                />
+                {isEncrypted ? (
+                  <p className="text-muted-foreground text-xs">
+                    Current value is encrypted. Enter a new value to replace it, or leave empty to
+                    keep unchanged.
+                  </p>
+                ) : null}
+              </Field>
+            )}
+          </form.Field>
 
-        <form.Field name="visibility">
-          {(field) => (
-            <Field>
-              <FieldLabel>Visibility</FieldLabel>
-              <Select
-                items={VISIBILITY_LABELS}
-                value={field.state.value}
-                onValueChange={(val) => {
-                  if (val === "plaintext" || val === "sensitive" || val === "secret") {
-                    field.handleChange(val);
-                  }
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectItem value="plaintext">Plaintext</SelectItem>
-                    <SelectItem value="sensitive">Sensitive</SelectItem>
-                    <SelectItem value="secret">Secret</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </Field>
-          )}
-        </form.Field>
-      </FieldGroup>
+          <form.Field name="visibility">
+            {(field) => (
+              <Field>
+                <FieldLabel>Visibility</FieldLabel>
+                <Select
+                  items={VISIBILITY_LABELS}
+                  value={field.state.value}
+                  onValueChange={(val) => {
+                    if (val === "plaintext" || val === "sensitive" || val === "secret") {
+                      field.handleChange(val);
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectPopup>
+                    <SelectGroup>
+                      <SelectItem value="plaintext">Plaintext</SelectItem>
+                      <SelectItem value="sensitive">Sensitive</SelectItem>
+                      <SelectItem value="secret">Secret</SelectItem>
+                    </SelectGroup>
+                  </SelectPopup>
+                </Select>
+              </Field>
+            )}
+          </form.Field>
+        </FieldGroup>
+      </DialogPanel>
 
       <DialogFooter>
         <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
@@ -186,7 +190,7 @@ export const EditEnvVarDialog = ({
   onOpenChange: (open: boolean) => void;
 }) => (
   <Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogContent>
+    <DialogPopup>
       <DialogHeader>
         <DialogTitle>Edit variable</DialogTitle>
         <DialogDescription>Update the value or visibility of {envVar.key}.</DialogDescription>
@@ -201,6 +205,6 @@ export const EditEnvVarDialog = ({
           }}
         />
       )}
-    </DialogContent>
+    </DialogPopup>
   </Dialog>
 );

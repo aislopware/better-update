@@ -3,26 +3,27 @@ import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
   DialogClose,
-  DialogContent,
+  DialogPopup,
   DialogDescription,
   DialogFooter,
   DialogHeader,
+  DialogPanel,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
 import { Field, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import {
   Select,
-  SelectContent,
+  SelectPopup,
   SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
 import { Textarea } from "@better-update/ui/components/ui/textarea";
+import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { FileInputIcon } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import { pluralize } from "../../../../../lib/pluralize";
 import { useApiMutation } from "../../../../../lib/use-api-mutation";
@@ -55,9 +56,10 @@ export const ImportEnvVarsDialog = ({
         visibility,
       }),
     onSuccess: async (result) => {
-      toast.success(
-        `Imported: ${result.created} created, ${result.updated} updated${result.skipped > 0 ? `, ${result.skipped} skipped` : ""}`,
-      );
+      toastManager.add({
+        title: `Imported: ${result.created} created, ${result.updated} updated${result.skipped > 0 ? `, ${result.skipped} skipped` : ""}`,
+        type: "success",
+      });
       await queryClient.invalidateQueries({
         queryKey: envVarsQueryKey(orgId, projectId),
       });
@@ -73,7 +75,7 @@ export const ImportEnvVarsDialog = ({
 
   const handleSubmit = () => {
     if (!content.trim()) {
-      toast.error("Please paste .env content");
+      toastManager.add({ title: "Please paste .env content", type: "error" });
       return;
     }
 
@@ -99,7 +101,7 @@ export const ImportEnvVarsDialog = ({
         <FileInputIcon strokeWidth={2} data-icon="inline-start" />
         Import .env
       </Button>
-      <DialogContent>
+      <DialogPopup>
         <DialogHeader>
           <DialogTitle>Import environment variables</DialogTitle>
           <DialogDescription>
@@ -107,55 +109,57 @@ export const ImportEnvVarsDialog = ({
           </DialogDescription>
         </DialogHeader>
 
-        <FieldGroup className="py-4">
-          <Field>
-            <FieldLabel htmlFor="env-content">Content</FieldLabel>
-            <Textarea
-              id="env-content"
-              placeholder={
-                "# API configuration\nEXPO_PUBLIC_API_URL=https://api.example.com\nSENTRY_AUTH_TOKEN=xxx"
-              }
-              value={content}
-              onChange={(event) => {
-                setContent(event.target.value);
-              }}
-              rows={8}
-              className="font-mono text-sm"
-            />
-            {lineCount > 0 ? (
-              <p className="text-muted-foreground text-xs">
-                {lineCount} {pluralize(lineCount, "variable")} detected
-              </p>
-            ) : null}
-          </Field>
-
-          <Field>
-            <FieldLabel>Default visibility</FieldLabel>
-            <Select
-              items={VISIBILITY_LABELS}
-              value={visibility}
-              onValueChange={(val) => {
-                if (val === "plaintext" || val === "sensitive" || val === "secret") {
-                  setVisibility(val);
+        <DialogPanel>
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="env-content">Content</FieldLabel>
+              <Textarea
+                id="env-content"
+                placeholder={
+                  "# API configuration\nEXPO_PUBLIC_API_URL=https://api.example.com\nSENTRY_AUTH_TOKEN=xxx"
                 }
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectItem value="plaintext">Plaintext</SelectItem>
-                  <SelectItem value="sensitive">Sensitive</SelectItem>
-                  <SelectItem value="secret">Secret</SelectItem>
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            <p className="text-muted-foreground text-xs">
-              All imported variables will use this visibility tier.
-            </p>
-          </Field>
-        </FieldGroup>
+                value={content}
+                onChange={(event) => {
+                  setContent(event.target.value);
+                }}
+                rows={8}
+                className="font-mono text-sm"
+              />
+              {lineCount > 0 ? (
+                <p className="text-muted-foreground text-xs">
+                  {lineCount} {pluralize(lineCount, "variable")} detected
+                </p>
+              ) : null}
+            </Field>
+
+            <Field>
+              <FieldLabel>Default visibility</FieldLabel>
+              <Select
+                items={VISIBILITY_LABELS}
+                value={visibility}
+                onValueChange={(val) => {
+                  if (val === "plaintext" || val === "sensitive" || val === "secret") {
+                    setVisibility(val);
+                  }
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectPopup>
+                  <SelectGroup>
+                    <SelectItem value="plaintext">Plaintext</SelectItem>
+                    <SelectItem value="sensitive">Sensitive</SelectItem>
+                    <SelectItem value="secret">Secret</SelectItem>
+                  </SelectGroup>
+                </SelectPopup>
+              </Select>
+              <p className="text-muted-foreground text-xs">
+                All imported variables will use this visibility tier.
+              </p>
+            </Field>
+          </FieldGroup>
+        </DialogPanel>
 
         <DialogFooter>
           <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
@@ -168,7 +172,7 @@ export const ImportEnvVarsDialog = ({
               : `Import ${lineCount} ${pluralize(lineCount, "variable")}`}
           </Button>
         </DialogFooter>
-      </DialogContent>
+      </DialogPopup>
     </Dialog>
   );
 };

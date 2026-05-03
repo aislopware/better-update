@@ -71,7 +71,7 @@ vi.mock(selectModule, async () => {
     ),
     SelectTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
     SelectValue: ({ placeholder }: { placeholder?: string }) => <span>{placeholder}</span>,
-    SelectContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+    SelectPopup: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
     SelectGroup: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
     SelectLabel: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
     SelectItem: ({ value, children }: { value: string; children: React.ReactNode }) => {

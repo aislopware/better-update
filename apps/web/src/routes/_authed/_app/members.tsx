@@ -1,17 +1,12 @@
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@better-update/ui/components/ui/card";
+import { CardFrame, CardFrameHeader, CardFrameTitle } from "@better-update/ui/components/ui/card";
+import { Tabs, TabsList, TabsPanel, TabsTab } from "@better-update/ui/components/ui/tabs";
+import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { toast } from "sonner";
 
+import { PageHeader } from "../../../components/page-header";
 import { authClient, rejectOnAuthClientError } from "../../../lib/auth-client";
-import { pluralize } from "../../../lib/pluralize";
 import { useApiMutation } from "../../../lib/use-api-mutation";
 import { invitationsQueryOptions, membersQueryOptions } from "../../../queries/org";
 import { InviteDialog, RemoveDialog } from "./-invite-dialog";
@@ -40,6 +35,7 @@ const Members = () => {
   );
 
   const [removeMemberId, setRemoveMemberId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<string>("members");
 
   const roleChangeMutation = useApiMutation({
     mutationFn: async (input: { memberId: string; role: OrgRole }) =>
@@ -52,7 +48,7 @@ const Members = () => {
         "Failed to update role",
       ),
     onSuccess: async () => {
-      toast.success("Role updated");
+      toastManager.add({ title: "Role updated", type: "success" });
       await queryClient.invalidateQueries({ queryKey: ["org", orgId, "members"] });
     },
   });
@@ -68,7 +64,7 @@ const Members = () => {
       ),
     onSuccess: async () => {
       setRemoveMemberId(null);
-      toast.success("Member removed");
+      toastManager.add({ title: "Member removed", type: "success" });
       await queryClient.invalidateQueries({ queryKey: ["org", orgId, "members"] });
     },
   });
@@ -80,7 +76,7 @@ const Members = () => {
         "Failed to cancel invitation",
       ),
     onSuccess: async () => {
-      toast.success("Invitation canceled");
+      toastManager.add({ title: "Invitation canceled", type: "success" });
       await queryClient.invalidateQueries({ queryKey: ["org", orgId, "invitations"] });
     },
   });
@@ -103,58 +99,77 @@ const Members = () => {
     cancelInvitationMutation.mutate(invitationId);
   };
 
+  const memberPendingId =
+    roleChangeMutation.isPending || removeMemberMutation.isPending
+      ? (roleChangeMutation.variables?.memberId ?? removeMemberMutation.variables)
+      : undefined;
+
   return (
-    <div className="flex w-full flex-col gap-4">
-      {isOwnerOrAdmin ? (
-        <div className="flex justify-end">
-          <InviteDialog orgId={orgId} />
-        </div>
-      ) : null}
+    <div className="flex w-full flex-col gap-6">
+      <PageHeader
+        title="Members"
+        description="Invite teammates and manage their roles within this organization."
+        actions={isOwnerOrAdmin ? <InviteDialog orgId={orgId} /> : undefined}
+      />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Team members</CardTitle>
-          <CardDescription>
-            <span className="tabular-nums">{members.length}</span>{" "}
-            {pluralize(members.length, "member")} in this organization.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <MembersTableView
-            members={members}
-            currentUserId={user.id}
-            currentRole={currentRole}
-            pendingMemberId={
-              roleChangeMutation.isPending || removeMemberMutation.isPending
-                ? (roleChangeMutation.variables?.memberId ?? removeMemberMutation.variables)
-                : undefined
-            }
-            onRoleChange={handleRoleChange}
-            onRemove={setRemoveMemberId}
-          />
-        </CardContent>
-      </Card>
-
-      {pendingInvitations.length > 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Pending invitations</CardTitle>
-            <CardDescription>
-              <span className="tabular-nums">{pendingInvitations.length}</span> pending{" "}
-              {pluralize(pendingInvitations.length, "invitation")}.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <InvitationsTableView
-              invitations={pendingInvitations}
-              pendingInvitationId={
-                cancelInvitationMutation.isPending ? cancelInvitationMutation.variables : undefined
-              }
-              onCancel={handleCancelInvitation}
+      <CardFrame>
+        <CardFrameHeader>
+          <Tabs
+            value={activeTab}
+            onValueChange={(value) => {
+              setActiveTab(String(value));
+            }}
+            className="w-full"
+          >
+            <TabsList variant="underline" className="-mb-2">
+              <TabsTab value="members">
+                Members
+                <span className="text-muted-foreground/72 ml-1.5 tabular-nums">
+                  {members.length}
+                </span>
+              </TabsTab>
+              <TabsTab value="invitations">
+                Pending invitations
+                <span className="text-muted-foreground/72 ml-1.5 tabular-nums">
+                  {pendingInvitations.length}
+                </span>
+              </TabsTab>
+            </TabsList>
+          </Tabs>
+          <CardFrameTitle className="sr-only">
+            {activeTab === "members" ? "Team members" : "Pending invitations"}
+          </CardFrameTitle>
+        </CardFrameHeader>
+        <Tabs value={activeTab}>
+          <TabsPanel value="members">
+            <MembersTableView
+              members={members}
+              currentUserId={user.id}
+              currentRole={currentRole}
+              pendingMemberId={memberPendingId}
+              onRoleChange={handleRoleChange}
+              onRemove={setRemoveMemberId}
             />
-          </CardContent>
-        </Card>
-      ) : null}
+          </TabsPanel>
+          <TabsPanel value="invitations">
+            {pendingInvitations.length === 0 ? (
+              <p className="text-muted-foreground p-6 text-center text-sm">
+                No pending invitations.
+              </p>
+            ) : (
+              <InvitationsTableView
+                invitations={pendingInvitations}
+                pendingInvitationId={
+                  cancelInvitationMutation.isPending
+                    ? cancelInvitationMutation.variables
+                    : undefined
+                }
+                onCancel={handleCancelInvitation}
+              />
+            )}
+          </TabsPanel>
+        </Tabs>
+      </CardFrame>
 
       <RemoveDialog
         open={removeMemberId !== null}

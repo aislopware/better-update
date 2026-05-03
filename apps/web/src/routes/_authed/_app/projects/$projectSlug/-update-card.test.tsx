@@ -10,14 +10,14 @@ const {
   apiReactModule,
   promoteUpdateDialogModule,
   rollbackDialogModule,
-  sonnerModule,
+  toastModule,
   apiReactMocks,
   toastMocks,
 } = vi.hoisted(() => ({
   apiReactModule: "@better-update/api-client/react",
   promoteUpdateDialogModule: "./-promote-update-dialog",
   rollbackDialogModule: "./-rollback-to-embedded-dialog",
-  sonnerModule: "sonner",
+  toastModule: "@better-update/ui/components/ui/toast",
   apiReactMocks: {
     deleteUpdateGroup: vi.fn<(groupId: string) => Promise<void>>(),
     editUpdateRollout: vi.fn<(id: string, body: { percentage: number }) => Promise<void>>(),
@@ -25,13 +25,12 @@ const {
     revertUpdateRollout: vi.fn<(id: string) => Promise<void>>(),
   },
   toastMocks: {
-    success: vi.fn<(message: string) => void>(),
-    error: vi.fn<(message: string) => void>(),
+    add: vi.fn<(args: { title: string; type?: string }) => void>(),
   },
 }));
 
-vi.mock(sonnerModule, () => ({
-  toast: toastMocks,
+vi.mock(toastModule, () => ({
+  toastManager: toastMocks,
 }));
 
 vi.mock(apiReactModule, async (importOriginal) => {
@@ -165,7 +164,10 @@ describe(UpdateCard, () => {
     await user.click(screen.getByRole("button", { name: "Apply" }));
 
     expect(apiReactMocks.editUpdateRollout).not.toHaveBeenCalled();
-    expect(toastMocks.error).toHaveBeenCalledWith("Rollout percentage must be between 1 and 100");
+    expect(toastMocks.add).toHaveBeenCalledWith({
+      title: "Rollout percentage must be between 1 and 100",
+      type: "error",
+    });
   });
 
   it("edits rollout percentages and invalidates the compatibility matrix", async () => {

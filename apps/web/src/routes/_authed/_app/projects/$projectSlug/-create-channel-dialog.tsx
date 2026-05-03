@@ -2,26 +2,29 @@ import { branchesQueryOptions, createChannel } from "@better-update/api-client/r
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
-  DialogContent,
+  DialogClose,
+  DialogPopup,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
+  DialogPanel,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
 import {
   Select,
-  SelectContent,
+  SelectPopup,
   SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
+import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { PlusIcon } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import type { BranchItem } from "@better-update/api-client/react";
 
@@ -93,7 +96,7 @@ const BranchField = ({
 };
 
 const BranchOptions = ({ branches }: { branches: readonly BranchItem[] }) => (
-  <SelectContent>
+  <SelectPopup>
     <SelectGroup>
       {branches.map((branch) => (
         <SelectItem key={branch.id} value={branch.id}>
@@ -101,7 +104,7 @@ const BranchOptions = ({ branches }: { branches: readonly BranchItem[] }) => (
         </SelectItem>
       ))}
     </SelectGroup>
-  </SelectContent>
+  </SelectPopup>
 );
 
 export const CreateChannelDialog = ({ orgId, projectId }: { orgId: string; projectId: string }) => {
@@ -113,7 +116,7 @@ export const CreateChannelDialog = ({ orgId, projectId }: { orgId: string; proje
     mutationFn: async (input: { name: string; branchId: string }) =>
       createChannel({ projectId, name: input.name, branchId: input.branchId }),
     onSuccess: async () => {
-      toast.success("Channel created");
+      toastManager.add({ title: "Channel created", type: "success" });
       await invalidateChannels(queryClient, orgId, projectId);
       form.reset();
       setOpen(false);
@@ -147,7 +150,7 @@ export const CreateChannelDialog = ({ orgId, projectId }: { orgId: string; proje
         <PlusIcon strokeWidth={2} data-icon="inline-start" />
         Create channel
       </Button>
-      <DialogContent>
+      <DialogPopup>
         <DialogHeader>
           <DialogTitle>Create a channel</DialogTitle>
           <DialogDescription>
@@ -155,45 +158,51 @@ export const CreateChannelDialog = ({ orgId, projectId }: { orgId: string; proje
           </DialogDescription>
         </DialogHeader>
         <form
+          className="contents"
           onSubmit={async (event) => {
             event.preventDefault();
             event.stopPropagation();
             await form.handleSubmit();
           }}
         >
-          <FieldGroup>
-            <form.Field
-              name="name"
-              validators={{
-                onBlur: ({ value }) => {
-                  const result = requiredStringSchema.safeParse(value.trim());
-                  return result.success ? undefined : "Name is required";
-                },
-              }}
-            >
-              {(field) => {
-                const errorMessage = getFieldError(field);
-                return (
-                  <Field data-invalid={errorMessage ? true : undefined}>
-                    <FieldLabel htmlFor="channel-name">Name</FieldLabel>
-                    <Input
-                      id="channel-name"
-                      value={field.state.value}
-                      onBlur={field.handleBlur}
-                      onChange={(event) => {
-                        field.handleChange(event.target.value);
-                      }}
-                      aria-invalid={errorMessage ? true : undefined}
-                      placeholder="e.g. production, staging"
-                    />
-                    <FieldError>{errorMessage}</FieldError>
-                  </Field>
-                );
-              }}
-            </form.Field>
+          <DialogPanel>
+            <FieldGroup>
+              <form.Field
+                name="name"
+                validators={{
+                  onBlur: ({ value }) => {
+                    const result = requiredStringSchema.safeParse(value.trim());
+                    return result.success ? undefined : "Name is required";
+                  },
+                }}
+              >
+                {(field) => {
+                  const errorMessage = getFieldError(field);
+                  return (
+                    <Field data-invalid={errorMessage ? true : undefined}>
+                      <FieldLabel htmlFor="channel-name">Name</FieldLabel>
+                      <Input
+                        id="channel-name"
+                        value={field.state.value}
+                        onBlur={field.handleBlur}
+                        onChange={(event) => {
+                          field.handleChange(event.target.value);
+                        }}
+                        aria-invalid={errorMessage ? true : undefined}
+                        placeholder="e.g. production, staging"
+                      />
+                      <FieldError>{errorMessage}</FieldError>
+                    </Field>
+                  );
+                }}
+              </form.Field>
 
-            <BranchField form={form} branches={branchesData.items} />
+              <BranchField form={form} branches={branchesData.items} />
+            </FieldGroup>
+          </DialogPanel>
 
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
             <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting] as const}>
               {([canSubmit, isSubmitting]) => (
                 <Button type="submit" disabled={!canSubmit || isSubmitting}>
@@ -202,9 +211,9 @@ export const CreateChannelDialog = ({ orgId, projectId }: { orgId: string; proje
                 </Button>
               )}
             </form.Subscribe>
-          </FieldGroup>
+          </DialogFooter>
         </form>
-      </DialogContent>
+      </DialogPopup>
     </Dialog>
   );
 };

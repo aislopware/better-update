@@ -3,7 +3,7 @@ import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
-  DialogContent,
+  DialogPopup,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -11,27 +11,27 @@ import {
 } from "@better-update/ui/components/ui/dialog";
 import {
   DropdownMenu,
-  DropdownMenuContent,
+  DropdownMenuPopup,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@better-update/ui/components/ui/dropdown-menu";
+} from "@better-update/ui/components/ui/menu";
 import { TableCell, TableRow } from "@better-update/ui/components/ui/table";
+import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { EllipsisVerticalIcon } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import type { EnvVar } from "@better-update/api";
 
 import { useApiMutation } from "../../../../../lib/use-api-mutation";
 import { EditEnvVarDialog } from "./-edit-env-var-dialog";
 
-const VISIBILITY_VARIANTS: Record<string, "secondary" | "outline" | "destructive"> = {
+const VISIBILITY_VARIANTS: Record<string, "secondary" | "warning" | "error"> = {
   plaintext: "secondary",
-  sensitive: "outline",
-  secret: "destructive",
+  sensitive: "warning",
+  secret: "error",
 };
 
 const VisibilityBadge = ({ visibility }: { visibility: string }) => (
@@ -63,7 +63,7 @@ export const EnvVarRow = ({
   const deleteEnvVarMutation = useApiMutation({
     mutationFn: async () => deleteEnvVar(envVar.id),
     onSuccess: async () => {
-      toast.success(`Variable "${envVar.key}" deleted`);
+      toastManager.add({ title: `Variable "${envVar.key}" deleted`, type: "success" });
       await queryClient.invalidateQueries({
         queryKey: envVarsQueryKey(orgId, projectId),
       });
@@ -87,10 +87,10 @@ export const EnvVarRow = ({
         </TableCell>
         <TableCell className="text-right">
           <DropdownMenu>
-            <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" />}>
+            <DropdownMenuTrigger render={<Button variant="ghost" size="icon" />}>
               <EllipsisVerticalIcon strokeWidth={2} />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuPopup align="end">
               <DropdownMenuGroup>
                 <DropdownMenuItem
                   onClick={() => {
@@ -103,7 +103,7 @@ export const EnvVarRow = ({
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
                 <DropdownMenuItem
-                  className="text-destructive"
+                  variant="destructive"
                   onClick={() => {
                     setDeleteOpen(true);
                   }}
@@ -111,7 +111,7 @@ export const EnvVarRow = ({
                   Delete
                 </DropdownMenuItem>
               </DropdownMenuGroup>
-            </DropdownMenuContent>
+            </DropdownMenuPopup>
           </DropdownMenu>
         </TableCell>
       </TableRow>
@@ -123,7 +123,7 @@ export const EnvVarRow = ({
         onOpenChange={setEditOpen}
       />
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent>
+        <DialogPopup>
           <DialogHeader>
             <DialogTitle>Delete variable?</DialogTitle>
             <DialogDescription>
@@ -147,7 +147,7 @@ export const EnvVarRow = ({
               {deleteEnvVarMutation.isPending ? "Deleting..." : "Delete"}
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </DialogPopup>
       </Dialog>
     </>
   );

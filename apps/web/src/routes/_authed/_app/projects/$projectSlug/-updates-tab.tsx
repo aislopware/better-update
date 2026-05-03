@@ -12,7 +12,7 @@ import {
 } from "@better-update/ui/components/ui/empty";
 import {
   Select,
-  SelectContent,
+  SelectPopup,
   SelectGroup,
   SelectItem,
   SelectTrigger,
@@ -25,7 +25,7 @@ import { useState } from "react";
 import { UpdateCard } from "./-update-card";
 
 const UpdatesEmptyState = () => (
-  <Empty className="border">
+  <Empty>
     <EmptyHeader>
       <EmptyMedia variant="icon">
         <CloudUploadIcon strokeWidth={1.5} />
@@ -72,7 +72,7 @@ export const UpdatesTab = ({
           <SelectTrigger className="w-48">
             <SelectValue placeholder="All branches" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectPopup>
             <SelectGroup>
               <SelectItem value="all">All branches</SelectItem>
               {branchesData.items.map((branch) => (
@@ -81,7 +81,7 @@ export const UpdatesTab = ({
                 </SelectItem>
               ))}
             </SelectGroup>
-          </SelectContent>
+          </SelectPopup>
         </Select>
       </div>
       {updatesData.items.length === 0 ? (

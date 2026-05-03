@@ -2,9 +2,9 @@ import { registrationRequestsQueryOptions } from "@better-update/api-client/reac
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@better-update/ui/components/ui/card";
+import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { CheckIcon, CopyIcon } from "lucide-react";
-import { toast } from "sonner";
 
 import type { DeviceRegistrationRequestItem } from "@better-update/api-client/react";
 
@@ -17,7 +17,7 @@ const InviteRow = ({ invite }: { invite: DeviceRegistrationRequestItem }) => {
   const handleCopy = async () => {
     const ok = await copy(invite.url);
     if (ok) {
-      toast.success("Link copied");
+      toastManager.add({ title: "Link copied", type: "success" });
     }
   };
 

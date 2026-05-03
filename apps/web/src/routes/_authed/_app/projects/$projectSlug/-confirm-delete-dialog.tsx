@@ -2,17 +2,18 @@ import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
   DialogClose,
-  DialogContent,
+  DialogPopup,
   DialogDescription,
   DialogFooter,
   DialogHeader,
+  DialogPanel,
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
 import { Field, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
+import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import type { ReactElement } from "react";
 
@@ -49,7 +50,7 @@ export const ConfirmDeleteDialog = ({
   const deleteMutation = useApiMutation({
     mutationFn: onConfirm,
     onSuccess: async () => {
-      toast.success(successMessage);
+      toastManager.add({ title: successMessage, type: "success" });
       await onSuccess?.();
       setOpen(false);
     },
@@ -69,24 +70,26 @@ export const ConfirmDeleteDialog = ({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger render={children} />
-      <DialogContent>
+      <DialogPopup>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
-        <Field className="py-4">
-          <FieldLabel htmlFor="confirm-delete">
-            Type <span className="font-mono font-bold">{name}</span> to confirm
-          </FieldLabel>
-          <Input
-            id="confirm-delete"
-            value={confirmText}
-            onChange={(event) => {
-              setConfirmText(event.target.value);
-            }}
-            placeholder={name}
-          />
-        </Field>
+        <DialogPanel>
+          <Field>
+            <FieldLabel htmlFor="confirm-delete">
+              Type <span className="font-mono font-bold">{name}</span> to confirm
+            </FieldLabel>
+            <Input
+              id="confirm-delete"
+              value={confirmText}
+              onChange={(event) => {
+                setConfirmText(event.target.value);
+              }}
+              placeholder={name}
+            />
+          </Field>
+        </DialogPanel>
         <DialogFooter>
           <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
           <Button
@@ -97,7 +100,7 @@ export const ConfirmDeleteDialog = ({
             {deleteMutation.isPending ? "Deleting..." : "Delete permanently"}
           </Button>
         </DialogFooter>
-      </DialogContent>
+      </DialogPopup>
     </Dialog>
   );
 };

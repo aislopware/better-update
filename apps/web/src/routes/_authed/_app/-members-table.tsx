@@ -2,23 +2,16 @@ import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   DropdownMenu,
-  DropdownMenuContent,
+  DropdownMenuPopup,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@better-update/ui/components/ui/dropdown-menu";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@better-update/ui/components/ui/table";
-import { EllipsisVerticalIcon, Loader2Icon, UserMinusIcon, ShieldIcon, XIcon } from "lucide-react";
+} from "@better-update/ui/components/ui/menu";
+import { EllipsisVerticalIcon, Loader2Icon, ShieldIcon, UserMinusIcon } from "lucide-react";
 
 import { EntityAvatar } from "../../../lib/entity-avatar";
+import { formatRelativeFuture, formatRelativeTime } from "../../../lib/format-relative-time";
 
 const roleBadgeVariant = (role: string): "default" | "secondary" | "outline" => {
   if (role === "owner") {
@@ -57,9 +50,7 @@ const MemberActions = ({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        render={
-          <Button variant="ghost" size="icon-sm" disabled={isPending} aria-busy={isPending} />
-        }
+        render={<Button variant="ghost" size="icon" disabled={isPending} aria-busy={isPending} />}
       >
         {isPending ? (
           <Loader2Icon className="animate-spin" />
@@ -67,7 +58,7 @@ const MemberActions = ({
           <EllipsisVerticalIcon strokeWidth={2} />
         )}
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuPopup align="end">
         <DropdownMenuGroup>
           {memberRole === "admin" ? null : (
             <DropdownMenuItem
@@ -102,28 +93,10 @@ const MemberActions = ({
             <span>Remove member</span>
           </DropdownMenuItem>
         </DropdownMenuGroup>
-      </DropdownMenuContent>
+      </DropdownMenuPopup>
     </DropdownMenu>
   );
 };
-
-const MemberInfo = ({
-  name,
-  email,
-  image,
-}: {
-  name: string;
-  email: string;
-  image?: string | null | undefined;
-}) => (
-  <div className="flex items-center gap-3">
-    <EntityAvatar name={name || "U"} image={image} />
-    <div>
-      <p className="leading-none font-medium">{name}</p>
-      <p className="text-muted-foreground text-xs">{email}</p>
-    </div>
-  </div>
-);
 
 export const MembersTableView = ({
   members,
@@ -146,46 +119,34 @@ export const MembersTableView = ({
   onRoleChange: (memberId: string, role: string) => void;
   onRemove: (memberId: string) => void;
 }) => (
-  <Table>
-    <TableHeader>
-      <TableRow>
-        <TableHead>Member</TableHead>
-        <TableHead>Role</TableHead>
-        <TableHead>Joined</TableHead>
-        <TableHead className="w-12" />
-      </TableRow>
-    </TableHeader>
-    <TableBody>
-      {members.map((member) => (
-        <TableRow key={member.id}>
-          <TableCell>
-            <MemberInfo
-              name={member.user.name}
-              email={member.user.email}
-              image={member.user.image}
-            />
-          </TableCell>
-          <TableCell>
-            <Badge variant={roleBadgeVariant(member.role)}>{member.role}</Badge>
-          </TableCell>
-          <TableCell className="text-muted-foreground tabular-nums">
-            {new Date(member.createdAt).toLocaleDateString()}
-          </TableCell>
-          <TableCell>
-            <MemberActions
-              memberId={member.id}
-              memberRole={member.role}
-              currentRole={currentRole}
-              isSelf={member.userId === currentUserId}
-              isPending={pendingMemberId === member.id}
-              onRoleChange={onRoleChange}
-              onRemove={onRemove}
-            />
-          </TableCell>
-        </TableRow>
-      ))}
-    </TableBody>
-  </Table>
+  <ul className="flex flex-col divide-y">
+    {members.map((member) => (
+      <li key={member.id} className="flex items-center gap-3 px-6 py-3">
+        <EntityAvatar name={member.user.name || "U"} image={member.user.image} className="size-9" />
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span className="truncate text-sm leading-none font-medium">{member.user.name}</span>
+          <span className="text-muted-foreground truncate text-xs">{member.user.email}</span>
+        </div>
+        <Badge variant={roleBadgeVariant(member.role)} className="capitalize">
+          {member.role}
+        </Badge>
+        <span className="text-muted-foreground hidden w-32 text-xs tabular-nums sm:block">
+          Joined {formatRelativeTime(new Date(member.createdAt).toISOString())}
+        </span>
+        <div className="flex w-9 justify-end">
+          <MemberActions
+            memberId={member.id}
+            memberRole={member.role}
+            currentRole={currentRole}
+            isSelf={member.userId === currentUserId}
+            isPending={pendingMemberId === member.id}
+            onRoleChange={onRoleChange}
+            onRemove={onRemove}
+          />
+        </div>
+      </li>
+    ))}
+  </ul>
 );
 
 export const InvitationsTableView = ({
@@ -203,43 +164,57 @@ export const InvitationsTableView = ({
   pendingInvitationId?: string | undefined;
   onCancel: (invitationId: string) => void;
 }) => (
-  <Table>
-    <TableHeader>
-      <TableRow>
-        <TableHead>Email</TableHead>
-        <TableHead>Role</TableHead>
-        <TableHead>Expires</TableHead>
-        <TableHead className="w-12" />
-      </TableRow>
-    </TableHeader>
-    <TableBody>
-      {invitations.map((invitation) => {
-        const isPending = pendingInvitationId === invitation.id;
-        return (
-          <TableRow key={invitation.id}>
-            <TableCell className="font-medium">{invitation.email}</TableCell>
-            <TableCell>
-              <Badge variant={roleBadgeVariant(invitation.role)}>{invitation.role}</Badge>
-            </TableCell>
-            <TableCell className="text-muted-foreground tabular-nums">
-              {new Date(invitation.expiresAt).toLocaleDateString()}
-            </TableCell>
-            <TableCell>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => {
-                  onCancel(invitation.id);
-                }}
-                disabled={isPending}
-                aria-busy={isPending}
+  <ul className="flex flex-col divide-y">
+    {invitations.map((invitation) => {
+      const isPending = pendingInvitationId === invitation.id;
+      return (
+        <li key={invitation.id} className="flex items-center gap-3 px-6 py-3">
+          <span className="bg-muted/72 text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-md border text-sm font-medium">
+            {invitation.email.charAt(0).toUpperCase()}
+          </span>
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span className="truncate text-sm leading-none font-medium">{invitation.email}</span>
+            <span className="text-muted-foreground text-xs">
+              Expires {formatRelativeFuture(new Date(invitation.expiresAt).toISOString())}
+            </span>
+          </div>
+          <Badge variant={roleBadgeVariant(invitation.role)} className="capitalize">
+            {invitation.role}
+          </Badge>
+          <div className="flex w-9 justify-end">
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    disabled={isPending}
+                    aria-busy={isPending}
+                    aria-label="Invitation actions"
+                  />
+                }
               >
-                {isPending ? <Loader2Icon className="animate-spin" /> : <XIcon strokeWidth={2} />}
-              </Button>
-            </TableCell>
-          </TableRow>
-        );
-      })}
-    </TableBody>
-  </Table>
+                {isPending ? (
+                  <Loader2Icon className="animate-spin" />
+                ) : (
+                  <EllipsisVerticalIcon strokeWidth={2} />
+                )}
+              </DropdownMenuTrigger>
+              <DropdownMenuPopup align="end">
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => {
+                    onCancel(invitation.id);
+                  }}
+                >
+                  <UserMinusIcon strokeWidth={2} />
+                  <span>Cancel invitation</span>
+                </DropdownMenuItem>
+              </DropdownMenuPopup>
+            </DropdownMenu>
+          </div>
+        </li>
+      );
+    })}
+  </ul>
 );

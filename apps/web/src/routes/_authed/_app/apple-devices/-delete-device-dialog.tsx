@@ -3,16 +3,16 @@ import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
   DialogClose,
-  DialogContent,
+  DialogPopup,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
+import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import type { DeviceItem } from "@better-update/api-client/react";
 import type { ReactElement } from "react";
@@ -34,7 +34,7 @@ export const DeleteDeviceDialog = ({
   const deleteMutation = useApiMutation({
     mutationFn: async () => deleteDevice(device.id),
     onSuccess: async () => {
-      toast.success("Device removed");
+      toastManager.add({ title: "Device removed", type: "success" });
       await queryClient.invalidateQueries({ queryKey: devicesQueryKey(orgId) });
       setOpen(false);
     },
@@ -43,7 +43,7 @@ export const DeleteDeviceDialog = ({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={children} />
-      <DialogContent>
+      <DialogPopup>
         <DialogHeader>
           <DialogTitle>Remove device?</DialogTitle>
           <DialogDescription>
@@ -63,7 +63,7 @@ export const DeleteDeviceDialog = ({
             {deleteMutation.isPending ? "Removing..." : "Remove device"}
           </Button>
         </DialogFooter>
-      </DialogContent>
+      </DialogPopup>
     </Dialog>
   );
 };

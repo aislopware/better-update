@@ -13,12 +13,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@better-update/ui/comp
 import { Input } from "@better-update/ui/components/ui/input";
 import {
   Select,
-  SelectContent,
+  SelectPopup,
   SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
+import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   CircleCheckIcon,
@@ -30,7 +31,6 @@ import {
   Undo2Icon,
 } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import type {
   BuildCompatibilityChannel,
@@ -65,21 +65,27 @@ const ActiveRolloutControls = ({
   const updateBranchRolloutMutation = useApiMutation({
     mutationFn: async (percentage: number) => updateBranchRollout(channel.id, { percentage }),
     onSuccess: async (_, percentage) => {
-      toast.success(`Rollout updated to ${percentage}%`);
+      toastManager.add({ title: `Rollout updated to ${percentage}%`, type: "success" });
       await invalidateChannels();
     },
   });
   const completeBranchRolloutMutation = useApiMutation({
     mutationFn: async () => completeBranchRollout(channel.id),
     onSuccess: async () => {
-      toast.success("Rollout completed — channel now serves the new branch");
+      toastManager.add({
+        title: "Rollout completed — channel now serves the new branch",
+        type: "success",
+      });
       await invalidateChannels();
     },
   });
   const revertBranchRolloutMutation = useApiMutation({
     mutationFn: async () => revertBranchRollout(channel.id),
     onSuccess: async () => {
-      toast.success("Rollout reverted — channel restored to original branch");
+      toastManager.add({
+        title: "Rollout reverted — channel restored to original branch",
+        type: "success",
+      });
       await invalidateChannels();
     },
   });
@@ -91,7 +97,7 @@ const ActiveRolloutControls = ({
   const handleUpdateRollout = () => {
     const percentage = Number.parseInt(rolloutInput ?? String(rolloutState.percentage), 10);
     if (Number.isNaN(percentage) || percentage < 1 || percentage > 100) {
-      toast.error("Rollout percentage must be between 1 and 100");
+      toastManager.add({ title: "Rollout percentage must be between 1 and 100", type: "error" });
       return;
     }
     updateBranchRolloutMutation.mutate(percentage);
@@ -172,7 +178,10 @@ const StartRolloutControls = ({
     mutationFn: async (input: { newBranchId: string; percentage: number }) =>
       createBranchRollout(channel.id, input),
     onSuccess: async (_, input) => {
-      toast.success(`Branch rollout started at ${input.percentage}%`);
+      toastManager.add({
+        title: `Branch rollout started at ${input.percentage}%`,
+        type: "success",
+      });
       await invalidateChannels();
       setIsStartingRollout(false);
       setRolloutBranchId("");
@@ -184,11 +193,11 @@ const StartRolloutControls = ({
   const handleStartRollout = () => {
     const percentage = Number.parseInt(rolloutInput, 10);
     if (!rolloutBranchId) {
-      toast.error("Select a target branch");
+      toastManager.add({ title: "Select a target branch", type: "error" });
       return;
     }
     if (Number.isNaN(percentage) || percentage < 1 || percentage > 100) {
-      toast.error("Rollout percentage must be between 1 and 100");
+      toastManager.add({ title: "Rollout percentage must be between 1 and 100", type: "error" });
       return;
     }
     createBranchRolloutMutation.mutate({ newBranchId: rolloutBranchId, percentage });
@@ -230,7 +239,7 @@ const StartRolloutControls = ({
         <SelectTrigger size="sm">
           <SelectValue placeholder="Target branch" />
         </SelectTrigger>
-        <SelectContent>
+        <SelectPopup>
           <SelectGroup>
             {targetBranches.map((branch) => (
               <SelectItem key={branch.id} value={branch.id}>
@@ -238,7 +247,7 @@ const StartRolloutControls = ({
               </SelectItem>
             ))}
           </SelectGroup>
-        </SelectContent>
+        </SelectPopup>
       </Select>
       <Input
         type="number"
@@ -315,7 +324,7 @@ export const ChannelCard = ({
   const updateChannelMutation = useApiMutation({
     mutationFn: async (branchId: string) => updateChannel(channel.id, { branchId }),
     onSuccess: async () => {
-      toast.success("Channel relinked");
+      toastManager.add({ title: "Channel relinked", type: "success" });
       await invalidateChannels();
     },
   });
@@ -323,7 +332,10 @@ export const ChannelCard = ({
     mutationFn: async () =>
       channel.isPaused ? resumeChannel(channel.id) : pauseChannel(channel.id),
     onSuccess: async () => {
-      toast.success(channel.isPaused ? "Channel resumed" : "Channel paused");
+      toastManager.add({
+        title: channel.isPaused ? "Channel resumed" : "Channel paused",
+        type: "success",
+      });
       await invalidateChannels();
     },
   });
@@ -354,7 +366,7 @@ export const ChannelCard = ({
             ) : null}
           </div>
           <div className="flex items-center gap-1">
-            {channel.isPaused && <Badge variant="outline">Paused</Badge>}
+            {channel.isPaused && <Badge variant="warning">Paused</Badge>}
             <Button variant="ghost" size="icon" disabled={isToggling} onClick={handleTogglePause}>
               {channel.isPaused ? <PlayIcon strokeWidth={2} /> : <PauseIcon strokeWidth={2} />}
             </Button>
@@ -378,7 +390,7 @@ export const ChannelCard = ({
             <SelectTrigger size="sm">
               <SelectValue>{linkedBranch?.name ?? channel.branchId}</SelectValue>
             </SelectTrigger>
-            <SelectContent>
+            <SelectPopup>
               <SelectGroup>
                 {branches.map((branch) => (
                   <SelectItem key={branch.id} value={branch.id}>
@@ -386,7 +398,7 @@ export const ChannelCard = ({
                   </SelectItem>
                 ))}
               </SelectGroup>
-            </SelectContent>
+            </SelectPopup>
           </Select>
         </div>
 

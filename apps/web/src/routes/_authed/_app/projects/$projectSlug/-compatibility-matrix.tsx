@@ -3,6 +3,10 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFrame,
+  CardFrameDescription,
+  CardFrameHeader,
+  CardFrameTitle,
   CardHeader,
   CardTitle,
 } from "@better-update/ui/components/ui/card";
@@ -127,32 +131,30 @@ export const CompatibilityMatrix = ({
       )}
 
       {rows.length > 0 && channels.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle>Builds × Channels</CardTitle>
-            <CardDescription>
+        <CardFrame>
+          <CardFrameHeader>
+            <CardFrameTitle>Builds × Channels</CardFrameTitle>
+            <CardFrameDescription>
               Check which builds can receive OTA updates from each channel.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Build</TableHead>
-                  <TableHead>Runtime Version</TableHead>
-                  {channels.map((channel) => (
-                    <TableHead key={channel.channelId}>{channel.channelName}</TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map((build) => (
-                  <MatrixBuildRow key={build.id} build={build} />
+            </CardFrameDescription>
+          </CardFrameHeader>
+          <Table variant="card">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Build</TableHead>
+                <TableHead>Runtime Version</TableHead>
+                {channels.map((channel) => (
+                  <TableHead key={channel.channelId}>{channel.channelName}</TableHead>
                 ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((build) => (
+                <MatrixBuildRow key={build.id} build={build} />
+              ))}
+            </TableBody>
+          </Table>
+        </CardFrame>
       )}
     </div>
   );

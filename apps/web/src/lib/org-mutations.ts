@@ -1,5 +1,5 @@
+import { toastManager } from "@better-update/ui/components/ui/toast";
 import { Effect } from "effect";
-import { toast } from "sonner";
 
 import { authClient } from "./auth-client";
 import { useApiMutation } from "./use-api-mutation";
@@ -18,7 +18,7 @@ export const createAndActivateOrg = async (params: {
   });
 
   if (error) {
-    toast.error(error.message ?? "Failed to create organization");
+    toastManager.add({ title: error.message ?? "Failed to create organization", type: "error" });
     return null;
   }
 

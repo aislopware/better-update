@@ -3,19 +3,20 @@ import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
   DialogClose,
-  DialogContent,
+  DialogPopup,
   DialogDescription,
   DialogFooter,
   DialogHeader,
+  DialogPanel,
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
+import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import type { DeviceItem } from "@better-update/api-client/react";
 import type { ReactElement } from "react";
@@ -38,7 +39,7 @@ export const RenameDeviceDialog = ({
   const renameMutation = useApiMutation({
     mutationFn: async (value: { name: string }) => updateDevice(device.id, { name: value.name }),
     onSuccess: async () => {
-      toast.success("Device renamed");
+      toastManager.add({ title: "Device renamed", type: "success" });
       await queryClient.invalidateQueries({ queryKey: devicesQueryKey(orgId) });
       setOpen(false);
     },
@@ -61,48 +62,51 @@ export const RenameDeviceDialog = ({
       }}
     >
       <DialogTrigger render={children} />
-      <DialogContent>
+      <DialogPopup>
         <DialogHeader>
           <DialogTitle>Rename device</DialogTitle>
           <DialogDescription>Give this device a clearer label.</DialogDescription>
         </DialogHeader>
         <form
+          className="contents"
           onSubmit={async (event) => {
             event.preventDefault();
             event.stopPropagation();
             await form.handleSubmit();
           }}
         >
-          <FieldGroup className="py-4">
-            <form.Field
-              name="name"
-              validators={{
-                onBlur: ({ value }) => {
-                  const result = nameSchema.safeParse(value.trim());
-                  return result.success ? undefined : result.error.issues[0]?.message;
-                },
-              }}
-            >
-              {(field) => {
-                const errorMessage = getFieldError(field);
-                return (
-                  <Field data-invalid={errorMessage ? true : undefined}>
-                    <FieldLabel htmlFor="device-rename">Name</FieldLabel>
-                    <Input
-                      id="device-rename"
-                      value={field.state.value}
-                      onChange={(event) => {
-                        field.handleChange(event.target.value);
-                      }}
-                      onBlur={field.handleBlur}
-                      aria-invalid={errorMessage ? true : undefined}
-                    />
-                    <FieldError>{errorMessage}</FieldError>
-                  </Field>
-                );
-              }}
-            </form.Field>
-          </FieldGroup>
+          <DialogPanel>
+            <FieldGroup>
+              <form.Field
+                name="name"
+                validators={{
+                  onBlur: ({ value }) => {
+                    const result = nameSchema.safeParse(value.trim());
+                    return result.success ? undefined : result.error.issues[0]?.message;
+                  },
+                }}
+              >
+                {(field) => {
+                  const errorMessage = getFieldError(field);
+                  return (
+                    <Field data-invalid={errorMessage ? true : undefined}>
+                      <FieldLabel htmlFor="device-rename">Name</FieldLabel>
+                      <Input
+                        id="device-rename"
+                        value={field.state.value}
+                        onChange={(event) => {
+                          field.handleChange(event.target.value);
+                        }}
+                        onBlur={field.handleBlur}
+                        aria-invalid={errorMessage ? true : undefined}
+                      />
+                      <FieldError>{errorMessage}</FieldError>
+                    </Field>
+                  );
+                }}
+              </form.Field>
+            </FieldGroup>
+          </DialogPanel>
           <DialogFooter>
             <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
             <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting] as const}>
@@ -114,7 +118,7 @@ export const RenameDeviceDialog = ({
             </form.Subscribe>
           </DialogFooter>
         </form>
-      </DialogContent>
+      </DialogPopup>
     </Dialog>
   );
 };

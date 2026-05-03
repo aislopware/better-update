@@ -56,9 +56,12 @@ interface ProjectRow {
   slug: string;
   created_at: string;
   last_activity_at: string;
+  branch_count: number;
+  channel_count: number;
+  update_count: number;
 }
 
-const PROJECT_COLUMNS = `"projects"."id", "projects"."organization_id", "projects"."name", "projects"."slug", "projects"."created_at", COALESCE((SELECT MAX("updates"."created_at") FROM "updates" JOIN "branches" ON "updates"."branch_id" = "branches"."id" WHERE "branches"."project_id" = "projects"."id"), "projects"."created_at") AS "last_activity_at"`;
+const PROJECT_COLUMNS = `"projects"."id", "projects"."organization_id", "projects"."name", "projects"."slug", "projects"."created_at", COALESCE((SELECT MAX("updates"."created_at") FROM "updates" JOIN "branches" ON "updates"."branch_id" = "branches"."id" WHERE "branches"."project_id" = "projects"."id"), "projects"."created_at") AS "last_activity_at", (SELECT COUNT(*) FROM "branches" WHERE "branches"."project_id" = "projects"."id") AS "branch_count", (SELECT COUNT(*) FROM "channels" WHERE "channels"."project_id" = "projects"."id") AS "channel_count", (SELECT COUNT(*) FROM "updates" JOIN "branches" ON "updates"."branch_id" = "branches"."id" WHERE "branches"."project_id" = "projects"."id") AS "update_count"`;
 
 const toProject = (row: ProjectRow) =>
   ({
@@ -68,6 +71,9 @@ const toProject = (row: ProjectRow) =>
     slug: row.slug,
     createdAt: row.created_at,
     lastActivityAt: row.last_activity_at,
+    branchCount: row.branch_count,
+    channelCount: row.channel_count,
+    updateCount: row.update_count,
   }) satisfies ProjectModel;
 
 export const ProjectRepoLive = Layer.succeed(ProjectRepo, {

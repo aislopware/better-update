@@ -4,15 +4,16 @@ import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
-  DialogContent,
+  DialogPopup,
   DialogDescription,
   DialogFooter,
   DialogHeader,
+  DialogPanel,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
+import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { Undo2Icon } from "lucide-react";
-import { toast } from "sonner";
 
 import type { Update } from "@better-update/api";
 
@@ -54,7 +55,7 @@ export const RollbackToEmbeddedDialog = ({
         directiveBody: buildRollbackDirectiveBody(new Date().toISOString()),
       }),
     onSuccess: async () => {
-      toast.success("Rollback directive created");
+      toastManager.add({ title: "Rollback directive created", type: "success" });
       await invalidateUpdates(queryClient, orgId, projectId);
       onOpenChange(false);
     },
@@ -62,7 +63,7 @@ export const RollbackToEmbeddedDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogPopup>
         <DialogHeader>
           <DialogTitle>Rollback to embedded</DialogTitle>
           <DialogDescription>
@@ -70,19 +71,21 @@ export const RollbackToEmbeddedDialog = ({
             app binary.
           </DialogDescription>
         </DialogHeader>
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <span className="text-sm font-medium">Target</span>
-            <div className="flex items-center gap-2 text-sm">
-              <span>{branchName}</span>
-              <Badge variant="outline">{update.platform}</Badge>
-              <span className="text-muted-foreground">v{update.runtimeVersion}</span>
+        <DialogPanel>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <span className="text-sm font-medium">Target</span>
+              <div className="flex items-center gap-2 text-sm">
+                <span>{branchName}</span>
+                <Badge variant="outline">{update.platform}</Badge>
+                <span className="text-muted-foreground">v{update.runtimeVersion}</span>
+              </div>
             </div>
+            <p className="text-muted-foreground text-sm">
+              This creates a new rollback directive entry on the branch. No assets will be uploaded.
+            </p>
           </div>
-          <p className="text-muted-foreground text-sm">
-            This creates a new rollback directive entry on the branch. No assets will be uploaded.
-          </p>
-        </div>
+        </DialogPanel>
         <DialogFooter>
           <Button
             onClick={() => {
@@ -94,7 +97,7 @@ export const RollbackToEmbeddedDialog = ({
             {rollbackMutation.isPending ? "Creating..." : "Create rollback"}
           </Button>
         </DialogFooter>
-      </DialogContent>
+      </DialogPopup>
     </Dialog>
   );
 };

@@ -9,6 +9,9 @@ export class Project extends Schema.Class<Project>("Project")({
   slug: Schema.String,
   createdAt: DateTimeString,
   lastActivityAt: DateTimeString,
+  branchCount: Schema.Number,
+  channelCount: Schema.Number,
+  updateCount: Schema.Number,
 }) {}
 
 export const CreateProjectBody = Schema.Struct({

@@ -1,10 +1,12 @@
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
-  DialogContent,
+  DialogClose,
+  DialogPopup,
   DialogDescription,
   DialogFooter,
   DialogHeader,
+  DialogPanel,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
@@ -14,6 +16,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 import { useRef } from "react";
 
+import { SlugInput } from "../../components/slug-input";
 import { generateSlug, getFieldError, nameSchema, slugSchema } from "../../lib/form-utils";
 import { createAndActivateOrg } from "../../lib/org-mutations";
 
@@ -54,100 +57,108 @@ export const CreateOrgDialog = ({
         }
       }}
     >
-      <DialogContent>
+      <DialogPopup>
         <DialogHeader>
           <DialogTitle>Create organization</DialogTitle>
           <DialogDescription>
-            Organizations are shared workspaces where teams manage projects and API keys together.
+            A workspace where teams collaborate on projects, credentials, and API keys.
           </DialogDescription>
         </DialogHeader>
         <form
+          className="contents"
           onSubmit={async (event) => {
             event.preventDefault();
             event.stopPropagation();
             await form.handleSubmit();
           }}
         >
-          <FieldGroup>
-            <form.Field
-              name="name"
-              validators={{
-                onBlur: ({ value }) => {
-                  const result = nameSchema.safeParse(value);
-                  return result.success ? undefined : result.error.issues[0]?.message;
-                },
-              }}
-            >
-              {(field) => {
-                const errorMessage = getFieldError(field);
-                return (
-                  <Field data-invalid={errorMessage ? true : undefined}>
-                    <FieldLabel htmlFor="create-org-name">Organization name</FieldLabel>
-                    <Input
-                      id="create-org-name"
-                      placeholder="Acme Inc."
-                      value={field.state.value}
-                      onChange={(event) => {
-                        field.handleChange(event.target.value);
-                        if (!slugEdited.current) {
-                          form.setFieldValue("slug", generateSlug(event.target.value), {
-                            dontUpdateMeta: true,
-                            dontValidate: true,
-                          });
-                        }
-                      }}
-                      onBlur={field.handleBlur}
-                      aria-invalid={errorMessage ? true : undefined}
-                    />
-                    <FieldError>{errorMessage}</FieldError>
-                  </Field>
-                );
-              }}
-            </form.Field>
+          <DialogPanel>
+            <FieldGroup>
+              <form.Field
+                name="name"
+                validators={{
+                  onBlur: ({ value }) => {
+                    const result = nameSchema.safeParse(value);
+                    return result.success ? undefined : result.error.issues[0]?.message;
+                  },
+                }}
+              >
+                {(field) => {
+                  const errorMessage = getFieldError(field);
+                  const invalid = Boolean(errorMessage);
+                  return (
+                    <Field invalid={invalid}>
+                      <FieldLabel htmlFor="create-org-name">Organization name</FieldLabel>
+                      <Input
+                        id="create-org-name"
+                        placeholder="Acme Inc."
+                        value={field.state.value}
+                        onChange={(event) => {
+                          field.handleChange(event.target.value);
+                          if (!slugEdited.current) {
+                            form.setFieldValue("slug", generateSlug(event.target.value), {
+                              dontUpdateMeta: true,
+                              dontValidate: true,
+                            });
+                          }
+                        }}
+                        onBlur={field.handleBlur}
+                      />
+                      <FieldError match={invalid}>{errorMessage}</FieldError>
+                    </Field>
+                  );
+                }}
+              </form.Field>
 
-            <form.Field
-              name="slug"
-              validators={{
-                onBlur: ({ value }) => {
-                  const result = slugSchema.safeParse(value);
-                  return result.success ? undefined : result.error.issues[0]?.message;
-                },
-              }}
-            >
-              {(field) => {
-                const errorMessage = getFieldError(field);
-                return (
-                  <Field data-invalid={errorMessage ? true : undefined}>
-                    <FieldLabel htmlFor="create-org-slug">URL slug</FieldLabel>
-                    <Input
-                      id="create-org-slug"
-                      placeholder="acme-inc"
-                      value={field.state.value}
-                      onChange={(event) => {
-                        field.handleChange(event.target.value);
-                        slugEdited.current = event.target.value !== "";
-                      }}
-                      onBlur={field.handleBlur}
-                      aria-invalid={errorMessage ? true : undefined}
-                    />
-                    <FieldError>{errorMessage}</FieldError>
-                  </Field>
-                );
-              }}
-            </form.Field>
-          </FieldGroup>
+              <form.Field
+                name="slug"
+                validators={{
+                  onBlur: ({ value }) => {
+                    const result = slugSchema.safeParse(value);
+                    return result.success ? undefined : result.error.issues[0]?.message;
+                  },
+                }}
+              >
+                {(field) => {
+                  const errorMessage = getFieldError(field);
+                  const invalid = Boolean(errorMessage);
+                  return (
+                    <Field invalid={invalid}>
+                      <FieldLabel htmlFor="create-org-slug">Workspace URL</FieldLabel>
+                      <SlugInput
+                        addonStart="better-update.dev/"
+                        id="create-org-slug"
+                        placeholder="acme-inc"
+                        value={field.state.value}
+                        onChange={(event) => {
+                          field.handleChange(event.target.value);
+                          slugEdited.current = event.target.value !== "";
+                        }}
+                        onBlur={field.handleBlur}
+                      />
+                      <p className="text-muted-foreground text-xs">
+                        Lowercase letters, numbers and dashes only.
+                      </p>
+                      <FieldError match={invalid}>{errorMessage}</FieldError>
+                    </Field>
+                  );
+                }}
+              </form.Field>
+            </FieldGroup>
+          </DialogPanel>
 
-          <DialogFooter className="mt-6">
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
             <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
               {([canSubmit, isSubmitting]) => (
-                <Button type="submit" className="w-full" disabled={!canSubmit || isSubmitting}>
-                  {isSubmitting ? "Creating..." : "Create organization"}
+                <Button type="submit" disabled={!canSubmit || isSubmitting}>
+                  {isSubmitting ? "Creating…" : "Create organization"}
                 </Button>
               )}
             </form.Subscribe>
           </DialogFooter>
         </form>
-      </DialogContent>
+      </DialogPopup>
     </Dialog>
   );
 };

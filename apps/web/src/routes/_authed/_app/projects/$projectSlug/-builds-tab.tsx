@@ -9,7 +9,7 @@ import {
 } from "@better-update/ui/components/ui/empty";
 import {
   Select,
-  SelectContent,
+  SelectPopup,
   SelectGroup,
   SelectItem,
   SelectTrigger,
@@ -35,7 +35,7 @@ const DISTRIBUTION_FILTER_LABELS: Record<string, string> = {
 };
 
 const BuildsEmptyState = () => (
-  <Empty className="border">
+  <Empty>
     <EmptyHeader>
       <EmptyMedia variant="icon">
         <PackageIcon strokeWidth={1.5} />
@@ -94,13 +94,13 @@ export const BuildsTab = ({
           <SelectTrigger className="w-36">
             <SelectValue placeholder="All platforms" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectPopup>
             <SelectGroup>
               <SelectItem value="all">All platforms</SelectItem>
               <SelectItem value="ios">iOS</SelectItem>
               <SelectItem value="android">Android</SelectItem>
             </SelectGroup>
-          </SelectContent>
+          </SelectPopup>
         </Select>
         <Select
           items={DISTRIBUTION_FILTER_LABELS}
@@ -115,7 +115,7 @@ export const BuildsTab = ({
           <SelectTrigger className="w-44">
             <SelectValue placeholder="All distributions" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectPopup>
             <SelectGroup>
               <SelectItem value="all">All distributions</SelectItem>
               {Object.entries(DISTRIBUTION_LABELS).map(([value, label]) => (
@@ -124,7 +124,7 @@ export const BuildsTab = ({
                 </SelectItem>
               ))}
             </SelectGroup>
-          </SelectContent>
+          </SelectPopup>
         </Select>
       </div>
       {compatibilityData.rows.length === 0 && <BuildsEmptyState />}

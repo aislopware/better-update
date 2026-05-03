@@ -6,20 +6,21 @@ import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
   DialogClose,
-  DialogContent,
+  DialogPopup,
   DialogDescription,
   DialogFooter,
   DialogHeader,
+  DialogPanel,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
-import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
 import { Textarea } from "@better-update/ui/components/ui/textarea";
+import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { PlusIcon } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import { getFieldError } from "../../../lib/form-utils";
 import { safeSubmit, useApiMutation } from "../../../lib/use-api-mutation";
@@ -32,7 +33,7 @@ export const UploadGoogleServiceAccountKeyDialog = ({ orgId }: { orgId: string }
   const mutation = useApiMutation({
     mutationFn: uploadGoogleServiceAccountKey,
     onSuccess: async () => {
-      toast.success("Service account key uploaded");
+      toastManager.add({ title: "Service account key uploaded", type: "success" });
       await queryClient.invalidateQueries({
         queryKey: googleServiceAccountKeysQueryOptions(orgId).queryKey,
       });
@@ -57,7 +58,7 @@ export const UploadGoogleServiceAccountKeyDialog = ({ orgId }: { orgId: string }
         <PlusIcon strokeWidth={2} data-icon="inline-start" />
         Upload
       </Button>
-      <DialogContent>
+      <DialogPopup>
         <DialogHeader>
           <DialogTitle>Upload Google Service Account Key</DialogTitle>
           <DialogDescription>
@@ -65,51 +66,54 @@ export const UploadGoogleServiceAccountKeyDialog = ({ orgId }: { orgId: string }
           </DialogDescription>
         </DialogHeader>
         <form
+          className="contents"
           onSubmit={async (event) => {
             event.preventDefault();
             await form.handleSubmit();
           }}
         >
-          <div className="flex flex-col gap-4 py-2">
-            <form.Field
-              name="json"
-              validators={{
-                onChange: ({ value }) =>
-                  value.includes('"private_key"') ? undefined : "Valid JSON key required",
-              }}
-            >
-              {(field) => (
-                <Field data-invalid={getFieldError(field) ? true : undefined}>
-                  <FieldLabel htmlFor="google-sa-file">Key file</FieldLabel>
-                  <Input
-                    id="google-sa-file"
-                    type="file"
-                    accept="application/json,.json"
-                    onChange={async (event) => {
-                      const file = event.target.files?.[0];
-                      if (file === undefined) {
-                        return;
-                      }
-                      const value = await safeReadFileAsText(file);
-                      if (value === null) {
-                        toast.error("Failed to read file");
-                        return;
-                      }
-                      field.handleChange(value);
-                    }}
-                  />
-                  <Textarea
-                    readOnly
-                    value={field.state.value}
-                    rows={5}
-                    className="mt-2 font-mono text-xs"
-                    placeholder="JSON content will appear here after file selection"
-                  />
-                  <FieldError>{getFieldError(field)}</FieldError>
-                </Field>
-              )}
-            </form.Field>
-          </div>
+          <DialogPanel>
+            <FieldGroup>
+              <form.Field
+                name="json"
+                validators={{
+                  onChange: ({ value }) =>
+                    value.includes('"private_key"') ? undefined : "Valid JSON key required",
+                }}
+              >
+                {(field) => (
+                  <Field data-invalid={getFieldError(field) ? true : undefined}>
+                    <FieldLabel htmlFor="google-sa-file">Key file</FieldLabel>
+                    <Input
+                      id="google-sa-file"
+                      type="file"
+                      accept="application/json,.json"
+                      onChange={async (event) => {
+                        const file = event.target.files?.[0];
+                        if (file === undefined) {
+                          return;
+                        }
+                        const value = await safeReadFileAsText(file);
+                        if (value === null) {
+                          toastManager.add({ title: "Failed to read file", type: "error" });
+                          return;
+                        }
+                        field.handleChange(value);
+                      }}
+                    />
+                    <Textarea
+                      readOnly
+                      value={field.state.value}
+                      rows={5}
+                      className="mt-2 font-mono text-xs"
+                      placeholder="JSON content will appear here after file selection"
+                    />
+                    <FieldError>{getFieldError(field)}</FieldError>
+                  </Field>
+                )}
+              </form.Field>
+            </FieldGroup>
+          </DialogPanel>
           <DialogFooter>
             <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
             <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
@@ -121,7 +125,7 @@ export const UploadGoogleServiceAccountKeyDialog = ({ orgId }: { orgId: string }
             </form.Subscribe>
           </DialogFooter>
         </form>
-      </DialogContent>
+      </DialogPopup>
     </Dialog>
   );
 };

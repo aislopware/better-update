@@ -1,12 +1,12 @@
 import {
   DropdownMenu,
-  DropdownMenuContent,
+  DropdownMenuPopup,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@better-update/ui/components/ui/dropdown-menu";
+} from "@better-update/ui/components/ui/menu";
 import { render, screen } from "@testing-library/react";
 
 /**
@@ -21,7 +21,7 @@ import { render, screen } from "@testing-library/react";
 const OrgSwitcherDropdown = ({ orgs }: { orgs: { id: string; name: string }[] }) => (
   <DropdownMenu open>
     <DropdownMenuTrigger>Switch org</DropdownMenuTrigger>
-    <DropdownMenuContent>
+    <DropdownMenuPopup>
       <DropdownMenuGroup>
         <DropdownMenuLabel>Organizations</DropdownMenuLabel>
         <DropdownMenuSeparator />
@@ -31,20 +31,20 @@ const OrgSwitcherDropdown = ({ orgs }: { orgs: { id: string; name: string }[] })
       </DropdownMenuGroup>
       <DropdownMenuSeparator />
       <DropdownMenuItem>Create organization</DropdownMenuItem>
-    </DropdownMenuContent>
+    </DropdownMenuPopup>
   </DropdownMenu>
 );
 
 const UserMenuDropdown = ({ name }: { name: string }) => (
   <DropdownMenu open>
     <DropdownMenuTrigger>{name}</DropdownMenuTrigger>
-    <DropdownMenuContent>
+    <DropdownMenuPopup>
       <DropdownMenuGroup>
         <DropdownMenuLabel>{name}</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem>Log out</DropdownMenuItem>
       </DropdownMenuGroup>
-    </DropdownMenuContent>
+    </DropdownMenuPopup>
   </DropdownMenu>
 );
 
@@ -78,7 +78,7 @@ describe("userMenu dropdown composition", () => {
   it("renders dropdown content without context errors", () => {
     render(<UserMenuDropdown name="Test User" />);
 
-    const label = document.querySelector('[data-slot="dropdown-menu-label"]');
+    const label = document.querySelector('[data-slot="menu-label"]');
     expect(label).toHaveTextContent("Test User");
   });
 

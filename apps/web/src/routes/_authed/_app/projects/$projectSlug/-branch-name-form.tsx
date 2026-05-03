@@ -1,5 +1,5 @@
 import { Button } from "@better-update/ui/components/ui/button";
-import { DialogClose, DialogFooter } from "@better-update/ui/components/ui/dialog";
+import { DialogClose, DialogFooter, DialogPanel } from "@better-update/ui/components/ui/dialog";
 import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
 import { useForm } from "@tanstack/react-form";
@@ -32,13 +32,14 @@ export const BranchNameForm = ({
 
   return (
     <form
+      className="contents"
       onSubmit={async (event) => {
         event.preventDefault();
         event.stopPropagation();
         await form.handleSubmit();
       }}
     >
-      <div className="py-4">
+      <DialogPanel>
         <form.Field
           name="name"
           validators={{
@@ -68,7 +69,7 @@ export const BranchNameForm = ({
             );
           }}
         </form.Field>
-      </div>
+      </DialogPanel>
 
       <DialogFooter>
         <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>

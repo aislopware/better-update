@@ -1,13 +1,16 @@
+"use client"
+
 import { format } from "date-fns"
 import { CalendarIcon } from "lucide-react"
 
-import { cn } from "#/lib/utils"
+import { Button } from "#/components/ui/button"
 import { Calendar } from "#/components/ui/calendar"
 import {
   Popover,
-  PopoverContent,
+  PopoverPopup,
   PopoverTrigger,
 } from "#/components/ui/popover"
+import { cn } from "#/lib/utils"
 
 export interface DatePickerProps {
   value: Date | undefined
@@ -27,19 +30,28 @@ export function DatePicker({
   return (
     <Popover>
       <PopoverTrigger
-        className={cn(
-          "border-border bg-background hover:bg-muted aria-expanded:bg-muted inline-flex h-9 w-full items-center gap-1.5 rounded-md border px-2.5 text-sm font-normal shadow-xs outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
-          triggerClassName
-        )}
+        render={
+          <Button
+            className={cn("w-full justify-start", triggerClassName)}
+            variant="outline"
+          />
+        }
       >
-        <CalendarIcon className="size-4" />
-        <span className={value ? undefined : "text-muted-foreground"}>
-          {value ? format(value, "MMM d, yyyy") : placeholder}
-        </span>
+        <CalendarIcon aria-hidden="true" />
+        {value ? (
+          format(value, "PPP")
+        ) : (
+          <span className="text-muted-foreground">{placeholder}</span>
+        )}
       </PopoverTrigger>
-      <PopoverContent align="start" className={cn("w-auto p-0", className)}>
-        <Calendar mode="single" selected={value} onSelect={onChange} />
-      </PopoverContent>
+      <PopoverPopup align="start" className={cn("w-auto p-0", className)}>
+        <Calendar
+          mode="single"
+          onSelect={onChange}
+          selected={value}
+          {...(value ? { defaultMonth: value } : {})}
+        />
+      </PopoverPopup>
     </Popover>
   )
 }

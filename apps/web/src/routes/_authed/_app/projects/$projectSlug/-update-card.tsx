@@ -8,10 +8,10 @@ import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@better-update/ui/components/ui/card";
 import { Input } from "@better-update/ui/components/ui/input";
+import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { CircleCheckIcon, Trash2Icon, RocketIcon, Undo2Icon } from "lucide-react";
 import { useMemo, useState } from "react";
-import { toast } from "sonner";
 
 import type { Channel, Update } from "@better-update/api";
 
@@ -52,28 +52,31 @@ export const UpdateCard = ({
   const deleteUpdateGroupMutation = useApiMutation({
     mutationFn: async () => deleteUpdateGroup(update.groupId),
     onSuccess: async () => {
-      toast.success("Update group deleted");
+      toastManager.add({ title: "Update group deleted", type: "success" });
       await invalidate();
     },
   });
   const editUpdateRolloutMutation = useApiMutation({
     mutationFn: async (percentage: number) => editUpdateRollout(update.id, { percentage }),
     onSuccess: async (_, percentage) => {
-      toast.success(`Rollout updated to ${percentage}%`);
+      toastManager.add({ title: `Rollout updated to ${percentage}%`, type: "success" });
       await invalidate();
     },
   });
   const completeUpdateRolloutMutation = useApiMutation({
     mutationFn: async () => completeUpdateRollout(update.id),
     onSuccess: async () => {
-      toast.success("Rollout completed — update available to all devices");
+      toastManager.add({
+        title: "Rollout completed — update available to all devices",
+        type: "success",
+      });
       await invalidate();
     },
   });
   const revertUpdateRolloutMutation = useApiMutation({
     mutationFn: async () => revertUpdateRollout(update.id),
     onSuccess: async () => {
-      toast.success("Rollout reverted");
+      toastManager.add({ title: "Rollout reverted", type: "success" });
       await invalidate();
     },
   });
@@ -90,7 +93,7 @@ export const UpdateCard = ({
   const handleEditRollout = () => {
     const percentage = Number.parseInt(rolloutInput, 10);
     if (Number.isNaN(percentage) || percentage < 1 || percentage > 100) {
-      toast.error("Rollout percentage must be between 1 and 100");
+      toastManager.add({ title: "Rollout percentage must be between 1 and 100", type: "error" });
       return;
     }
     editUpdateRolloutMutation.mutate(percentage);

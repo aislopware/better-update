@@ -1,17 +1,12 @@
 import {
   DropdownMenu,
-  DropdownMenuContent,
+  DropdownMenuPopup,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-} from "@better-update/ui/components/ui/dropdown-menu";
+} from "@better-update/ui/components/ui/menu";
 import {
   Sidebar,
   SidebarContent,
@@ -40,11 +35,8 @@ import {
   ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  MonitorIcon,
   Loader2Icon,
   LogOutIcon,
-  MoonIcon,
-  SunIcon,
   UserIcon,
 } from "lucide-react";
 import { Suspense, useState } from "react";
@@ -55,17 +47,10 @@ import { DocumentTitle } from "../../lib/document-title";
 import { EntityAvatar } from "../../lib/entity-avatar";
 import { ErrorBoundary } from "../../lib/error-boundary";
 import { logout } from "../../lib/logout";
-import { isValidTheme } from "../../lib/theme";
-import { useTheme } from "../../lib/use-theme";
 import { sessionQueryOptions } from "../../queries/auth";
 import { AppBreadcrumb } from "./-app-breadcrumb";
 import { CreateOrgDialog } from "./-create-org-dialog";
 import { OrgNavSections, ProjectNavSections } from "./-sidebar-nav";
-
-import type { Theme } from "../../lib/theme";
-
-const isTheme = (value: unknown): value is Theme =>
-  typeof value === "string" && isValidTheme(value);
 
 const PROJECT_SLUG_REGEX = /^\/projects\/([^/]+)(?:\/|$)/;
 const extractProjectSlug = (pathname: string) => {
@@ -136,7 +121,7 @@ const OrgSwitcher = () => {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger render={renderOrgTrigger(displayName, activeOrg.slug)} />
-        <DropdownMenuContent align="start" side="bottom" sideOffset={4} className="w-64">
+        <DropdownMenuPopup align="start" side="bottom" sideOffset={4} className="w-64">
           <DropdownMenuGroup>
             <DropdownMenuLabel>Organizations</DropdownMenuLabel>
             <DropdownMenuSeparator />
@@ -167,22 +152,18 @@ const OrgSwitcher = () => {
             <PlusIcon strokeWidth={2} className="size-4" />
             <span>Create organization</span>
           </DropdownMenuItem>
-        </DropdownMenuContent>
+        </DropdownMenuPopup>
       </DropdownMenu>
       <CreateOrgDialog open={createOrgOpen} onOpenChange={setCreateOrgOpen} />
     </>
   );
 };
 
-const themeIcons = { light: SunIcon, dark: MoonIcon, system: MonitorIcon } as const;
-
 const UserMenu = () => {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { session } = Route.useRouteContext();
   const { user } = session;
-  const { theme, updateTheme } = useTheme();
-  const ThemeIcon = themeIcons[theme];
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleLogout = async () => {
@@ -196,33 +177,13 @@ const UserMenu = () => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger render={renderUserTrigger(user.name, user.image, user.email)} />
-      <DropdownMenuContent align="start" side="top" sideOffset={4} className="w-56">
+      <DropdownMenuPopup align="start" side="top" sideOffset={4} className="w-56">
         <DropdownMenuGroup>
           <DropdownMenuLabel>{user.name}</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger>
-              <ThemeIcon strokeWidth={2} className="size-4" />
-              <span>Theme</span>
-            </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent>
-              <DropdownMenuRadioGroup
-                value={theme}
-                onValueChange={(value: unknown) => {
-                  if (isTheme(value)) {
-                    updateTheme(value);
-                  }
-                }}
-              >
-                <DropdownMenuRadioItem value="light">Light</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="dark">Dark</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="system">System</DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
           <DropdownMenuItem
             onClick={async () => {
-              await router.navigate({ to: "/account" });
+              await router.navigate({ to: "/account/profile" });
             }}
             disabled={isLoggingOut}
           >
@@ -244,7 +205,7 @@ const UserMenu = () => {
             <span>{isLoggingOut ? "Logging out…" : "Log out"}</span>
           </DropdownMenuItem>
         </DropdownMenuGroup>
-      </DropdownMenuContent>
+      </DropdownMenuPopup>
     </DropdownMenu>
   );
 };
@@ -302,15 +263,15 @@ const AppLayout = () => {
       <DocumentTitle />
       <SidebarProvider>
         <AppSidebar projectSlug={projectSlug} />
-        <SidebarInset className="bg-sidebar relative">
-          <header className="bg-sidebar/80 sticky top-0 z-30 flex h-12 shrink-0 items-center gap-2 border-b px-4 backdrop-blur">
+        <SidebarInset className="relative">
+          <header className="bg-background/80 sticky top-0 z-30 flex h-(--header-height) shrink-0 items-center gap-2 border-b px-4 backdrop-blur lg:px-6">
             <AppBreadcrumb
               orgId={activeOrg.id}
               orgName={activeOrg.name}
               projectSlug={projectSlug}
             />
           </header>
-          <main className="flex-1 p-4 md:p-6">
+          <main className="flex-1 px-4 py-6 lg:px-6 lg:py-8">
             <ErrorBoundary key={pathname}>
               <Suspense fallback={pageSkeleton}>
                 <Outlet />

@@ -8,13 +8,13 @@ import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/f
 import { Input } from "@better-update/ui/components/ui/input";
 import {
   Select,
-  SelectContent,
+  SelectPopup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
+import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { toast } from "sonner";
 
 import { safeReadFileAsBase64, safeReadFileAsText } from "../../-credentials-utils";
 
@@ -54,13 +54,13 @@ export const StepAppId = ({
             <SelectTrigger id="wiz-app-existing">
               <SelectValue placeholder="Select existing or create new below" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectPopup>
               {data.items.map((item) => (
                 <SelectItem key={item.id} value={item.id}>
                   {item.packageName}
                 </SelectItem>
               ))}
-            </SelectContent>
+            </SelectPopup>
           </Select>
         </Field>
       ) : null}
@@ -106,7 +106,7 @@ const KeystoreUploadFields = ({
           }
           const value = await safeReadFileAsBase64(file);
           if (value === null) {
-            toast.error("Failed to read keystore");
+            toastManager.add({ title: "Failed to read keystore", type: "error" });
             return;
           }
           onChange({ ...state, keystoreFile: value });
@@ -195,13 +195,13 @@ export const StepKeystore = ({
             <SelectTrigger id="wiz-keystore-existing">
               <SelectValue placeholder="Select a keystore" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectPopup>
               {data.items.map((item) => (
                 <SelectItem key={item.id} value={item.id}>
                   {item.keyAlias}
                 </SelectItem>
               ))}
-            </SelectContent>
+            </SelectPopup>
           </Select>
         </Field>
       ) : (
@@ -221,7 +221,7 @@ const readJsonFile = async (
   }
   const value = await safeReadFileAsText(file);
   if (value === null) {
-    toast.error("Failed to read JSON");
+    toastManager.add({ title: "Failed to read JSON", type: "error" });
     return;
   }
   setter(value);
@@ -290,13 +290,13 @@ export const StepGoogleSa = ({
             <SelectTrigger id={`wiz-sa-${label}`}>
               <SelectValue placeholder="Select key" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectPopup>
               {data.items.map((item) => (
                 <SelectItem key={item.id} value={item.id}>
                   {item.clientEmail}
                 </SelectItem>
               ))}
-            </SelectContent>
+            </SelectPopup>
           </Select>
         </Field>
       ) : null}

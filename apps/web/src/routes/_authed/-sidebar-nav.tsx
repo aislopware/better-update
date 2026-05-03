@@ -33,7 +33,8 @@ interface OrgNavItem {
     | "/credentials"
     | "/apple-devices"
     | "/api-keys"
-    | "/settings";
+    | "/settings"
+    | "/account/profile";
   label: string;
   icon: LucideIcon;
 }

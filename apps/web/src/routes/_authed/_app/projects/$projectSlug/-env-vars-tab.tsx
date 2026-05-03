@@ -1,5 +1,6 @@
 import { envVarsQueryOptions } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
+import { CardFrame } from "@better-update/ui/components/ui/card";
 import {
   Empty,
   EmptyDescription,
@@ -9,7 +10,7 @@ import {
 } from "@better-update/ui/components/ui/empty";
 import {
   Select,
-  SelectContent,
+  SelectPopup,
   SelectGroup,
   SelectItem,
   SelectTrigger,
@@ -22,10 +23,10 @@ import {
   TableHeader,
   TableRow,
 } from "@better-update/ui/components/ui/table";
+import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { SettingsIcon } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import type { EnvVar } from "@better-update/api";
 
@@ -46,7 +47,7 @@ const ENVIRONMENT_LABELS: Record<string, string> = Object.fromEntries(
 );
 
 const EnvVarsEmptyState = () => (
-  <Empty className="border">
+  <Empty>
     <EmptyHeader>
       <EmptyMedia variant="icon">
         <SettingsIcon strokeWidth={1.5} />
@@ -73,9 +74,10 @@ const ExportButton = ({ items }: { items: readonly (typeof EnvVar.Type)[] }) => 
     anchor.download = ".env";
     anchor.click();
     URL.revokeObjectURL(url);
-    toast.success(
-      `Exported ${plaintextItems.length} plaintext ${pluralize(plaintextItems.length, "variable")}`,
-    );
+    toastManager.add({
+      title: `Exported ${plaintextItems.length} plaintext ${pluralize(plaintextItems.length, "variable")}`,
+      type: "success",
+    });
   };
 
   return (
@@ -104,7 +106,7 @@ export const EnvVarsTab = ({ orgId, projectId }: { orgId: string; projectId: str
           <SelectTrigger className="w-48">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
+          <SelectPopup>
             <SelectGroup>
               {ENVIRONMENTS.map((env) => (
                 <SelectItem key={env.value} value={env.value}>
@@ -112,7 +114,7 @@ export const EnvVarsTab = ({ orgId, projectId }: { orgId: string; projectId: str
                 </SelectItem>
               ))}
             </SelectGroup>
-          </SelectContent>
+          </SelectPopup>
         </Select>
 
         <div className="flex gap-2">
@@ -125,21 +127,23 @@ export const EnvVarsTab = ({ orgId, projectId }: { orgId: string; projectId: str
       {data.items.length === 0 ? (
         <EnvVarsEmptyState />
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Key</TableHead>
-              <TableHead>Value</TableHead>
-              <TableHead>Visibility</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.items.map((envVar) => (
-              <EnvVarRow key={envVar.id} envVar={envVar} orgId={orgId} projectId={projectId} />
-            ))}
-          </TableBody>
-        </Table>
+        <CardFrame>
+          <Table variant="card">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Key</TableHead>
+                <TableHead>Value</TableHead>
+                <TableHead>Visibility</TableHead>
+                <TableHead className="w-12" aria-label="Actions" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.items.map((envVar) => (
+                <EnvVarRow key={envVar.id} envVar={envVar} orgId={orgId} projectId={projectId} />
+              ))}
+            </TableBody>
+          </Table>
+        </CardFrame>
       )}
     </div>
   );

@@ -11,7 +11,7 @@ import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/f
 import { Input } from "@better-update/ui/components/ui/input";
 import {
   Select,
-  SelectContent,
+  SelectPopup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -63,11 +63,11 @@ export const StepBundle = ({
         <SelectTrigger id="wiz-dist">
           <SelectValue />
         </SelectTrigger>
-        <SelectContent>
+        <SelectPopup>
           <SelectItem value="APP_STORE">App Store</SelectItem>
           <SelectItem value="DEVELOPMENT">Development</SelectItem>
           <SelectItem value="ENTERPRISE">Enterprise</SelectItem>
-        </SelectContent>
+        </SelectPopup>
       </Select>
     </Field>
   </div>
@@ -110,13 +110,13 @@ export const StepTeam = ({
         <SelectTrigger id="wiz-team">
           <SelectValue placeholder="Select a team" />
         </SelectTrigger>
-        <SelectContent>
+        <SelectPopup>
           {data.items.map((team) => (
             <SelectItem key={team.id} value={team.id}>
               {formatAppleTeamLabel(team)}
             </SelectItem>
           ))}
-        </SelectContent>
+        </SelectPopup>
       </Select>
     </Field>
   );
@@ -152,13 +152,13 @@ export const StepCert = ({
         <SelectTrigger id="wiz-cert">
           <SelectValue placeholder="Select a certificate" />
         </SelectTrigger>
-        <SelectContent>
+        <SelectPopup>
           {candidates.map((cert) => (
             <SelectItem key={cert.id} value={cert.id}>
               {cert.serialNumber.slice(0, 16)}...
             </SelectItem>
           ))}
-        </SelectContent>
+        </SelectPopup>
       </Select>
     </Field>
   );
@@ -194,13 +194,13 @@ export const StepPush = ({
             <SelectTrigger id="wiz-push">
               <SelectValue placeholder="(none)" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectPopup>
               {candidates.map((key) => (
                 <SelectItem key={key.id} value={key.id}>
                   {key.keyId}
                 </SelectItem>
               ))}
-            </SelectContent>
+            </SelectPopup>
           </Select>
         </Field>
       )}
@@ -238,13 +238,13 @@ export const StepAsc = ({
         <SelectTrigger id="wiz-asc">
           <SelectValue placeholder="Select a key" />
         </SelectTrigger>
-        <SelectContent>
+        <SelectPopup>
           {candidates.map((key) => (
             <SelectItem key={key.id} value={key.id}>
               {key.name} ({key.keyId})
             </SelectItem>
           ))}
-        </SelectContent>
+        </SelectPopup>
       </Select>
     </Field>
   );
@@ -347,13 +347,13 @@ export const StepProfile = ({
             <SelectTrigger id="wiz-profile">
               <SelectValue placeholder="Select or generate below" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectPopup>
               {data.items.map((profile) => (
                 <SelectItem key={profile.id} value={profile.id}>
                   {profileLabel(profile)}
                 </SelectItem>
               ))}
-            </SelectContent>
+            </SelectPopup>
           </Select>
         </Field>
       ) : (

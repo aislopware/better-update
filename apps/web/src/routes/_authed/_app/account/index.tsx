@@ -1,26 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
-
-import { accountsQueryOptions, sessionsQueryOptions } from "../../../../queries/auth";
-import { AccountConnectedAccountsCard } from "./-account-connected-accounts-card";
-import { AccountPasswordCard } from "./-account-password-card";
-import { AccountProfileCard } from "./-account-profile-card";
-import { AccountSessionsCard } from "./-account-sessions-card";
-
-const AccountPage = () => (
-  <div className="flex w-full flex-col gap-4">
-    <AccountProfileCard />
-    <AccountPasswordCard />
-    <AccountConnectedAccountsCard />
-    <AccountSessionsCard />
-  </div>
-);
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_authed/_app/account/")({
-  loader: async ({ context }) => {
-    await Promise.all([
-      context.queryClient.ensureQueryData(accountsQueryOptions),
-      context.queryClient.ensureQueryData(sessionsQueryOptions),
-    ]);
+  beforeLoad: () => {
+    // eslint-disable-next-line functional/no-throw-statements, typescript/only-throw-error -- TanStack Router idiom
+    throw redirect({ to: "/account/profile" });
   },
-  component: AccountPage,
 });
