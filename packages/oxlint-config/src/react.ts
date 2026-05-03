@@ -47,5 +47,7 @@ export default defineConfig({
     "react/react-in-jsx-scope": "off",
     "react/jsx-filename-extension": "off",
     "react/no-multi-comp": "off",
+    "react/forbid-component-props": "off",
+    "react/only-export-components": "off",
   },
 });

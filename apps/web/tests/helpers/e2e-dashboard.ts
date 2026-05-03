@@ -8,11 +8,11 @@ import type { SharedE2EEnv } from "../e2e/global-setup";
 
 const API_DIR = resolve(import.meta.dirname, "../../../server");
 
-let _sharedEnv: SharedE2EEnv | undefined;
+let cachedEnv: SharedE2EEnv | undefined;
 
 const getSharedEnv = (): SharedE2EEnv => {
-  _sharedEnv ??= JSON.parse(readFileSync(ENV_FILE, "utf8")) as SharedE2EEnv;
-  return _sharedEnv;
+  cachedEnv ??= JSON.parse(readFileSync(ENV_FILE, "utf8")) as SharedE2EEnv;
+  return cachedEnv;
 };
 
 const parseCookies = (response: Response): string => {

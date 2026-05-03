@@ -26,11 +26,11 @@ export interface BrowserRuntime {
   readonly withPage: (run: (page: Page, context: BrowserContext) => Promise<void>) => Promise<void>;
 }
 
-let _sharedEnv: SharedE2EEnv | undefined;
+let cachedEnv: SharedE2EEnv | undefined;
 
 const getSharedEnv = (): SharedE2EEnv => {
-  _sharedEnv ??= JSON.parse(readFileSync(ENV_FILE, "utf8")) as SharedE2EEnv;
-  return _sharedEnv;
+  cachedEnv ??= JSON.parse(readFileSync(ENV_FILE, "utf8")) as SharedE2EEnv;
+  return cachedEnv;
 };
 
 /**
