@@ -1,7 +1,8 @@
 import {
-  branchesQueryOptions,
+  branchesInfiniteQueryOptions,
   buildCompatibilityMatrixQueryOptions,
-  channelsQueryOptions,
+  buildsInfiniteQueryOptions,
+  channelsInfiniteQueryOptions,
 } from "@better-update/api-client/react";
 import {
   Empty,
@@ -10,7 +11,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseInfiniteQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { SatelliteIcon } from "lucide-react";
 
 import { ChannelCard } from "./-channel-card";
@@ -41,30 +42,44 @@ export const ChannelsTab = ({
   projectId: string;
   projectSlug: string;
 }) => {
-  const { data: channelsData } = useSuspenseQuery(channelsQueryOptions(orgId, projectId));
-  const { data: branchesData } = useSuspenseQuery(branchesQueryOptions(orgId, projectId));
+  const { data: channelsData } = useSuspenseInfiniteQuery(
+    channelsInfiniteQueryOptions(orgId, projectId, { limit: 100 }),
+  );
+  const { data: branchesData } = useSuspenseInfiniteQuery(
+    branchesInfiniteQueryOptions(orgId, projectId, { limit: 100 }),
+  );
   const { data: compatibilityData } = useSuspenseQuery(
     buildCompatibilityMatrixQueryOptions(orgId, projectId),
   );
+  const { data: buildsData } = useSuspenseInfiniteQuery(
+    buildsInfiniteQueryOptions(orgId, projectId),
+  );
+  const channels = channelsData.pages.flatMap((page) => page.items);
+  const branches = branchesData.pages.flatMap((page) => page.items);
+  const builds = buildsData.pages.flatMap((page) => page.items);
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex justify-end">
         <CreateChannelDialog orgId={orgId} projectId={projectId} />
       </div>
-      {channelsData.items.length === 0 ? (
+      {channels.length === 0 ? (
         <ChannelsEmptyState />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
-          {channelsData.items.map((channel) => (
+          {channels.map((channel) => (
             <ChannelCard
               key={channel.id}
               channel={channel}
               orgId={orgId}
               projectId={projectId}
               projectSlug={projectSlug}
-              branches={branchesData.items}
-              compatibleBuilds={getCompatibleBuildsForChannel(compatibilityData.rows, channel.id)}
+              branches={branches}
+              compatibleBuilds={getCompatibleBuildsForChannel(
+                builds,
+                compatibilityData,
+                channel.id,
+              )}
               missingRuntimeVersions={getMissingRuntimeVersionsForChannel(
                 compatibilityData.missingRuntimeVersions,
                 channel.id,

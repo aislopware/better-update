@@ -491,11 +491,9 @@ describe("Updates & Assets API flow", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body).toHaveProperty("items");
-    expect(body).toHaveProperty("total");
-    expect(body).toHaveProperty("page");
-    expect(body).toHaveProperty("limit");
-    expect(body.total).toBe(2);
+    expect(body).toHaveProperty("nextCursor");
     expect(body.items).toHaveLength(2);
+    expect(body.nextCursor).toBeNull();
   });
 
   it("lists updates filtered by branchId", async () => {
@@ -504,7 +502,16 @@ describe("Updates & Assets API flow", () => {
     });
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.total).toBe(2);
+    expect(body.items).toHaveLength(2);
+  });
+
+  it("lists updates filtered by platform", async () => {
+    const response = await get(`/api/updates?projectId=${projectId}&platform=ios`, {
+      cookie: cookies,
+    });
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.items.every((item: { platform: string }) => item.platform === "ios")).toBe(true);
   });
 
   it("creates a rollback-to-embedded directive update", async () => {
@@ -832,7 +839,7 @@ describe("Updates & Assets API flow", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body).toHaveProperty("items");
-    expect(body).toHaveProperty("total");
+    expect(body).toHaveProperty("nextCursor");
   });
 
   it("registers asset metadata via API key", async () => {

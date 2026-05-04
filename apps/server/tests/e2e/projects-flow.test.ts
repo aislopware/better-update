@@ -134,6 +134,81 @@ describe("Projects API flow", () => {
     expect(body.page).toBe(2);
   });
 
+  // ── Section 3.5: FTS substring search and sort ─────────────────
+
+  it("filters projects by FTS substring (3+ chars)", async () => {
+    // FTS5 trigram tokenizer is case-insensitive and searches both name + slug,
+    // so "Project" matches "Project B"/"Project C" by name and "New Name"
+    // (slug "my-project") by slug.
+    const response = await get("/api/projects?query=Project", { cookie: cookies });
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.total).toBe(3);
+    expect(body.items.map((p: { name: string }) => p.name).sort()).toEqual([
+      "New Name",
+      "Project B",
+      "Project C",
+    ]);
+  });
+
+  it("filters projects by name-only term", async () => {
+    // "Project " (with trailing space) is unique to "Project B"/"Project C" names;
+    // none of the slugs contain a space.
+    const response = await get(`/api/projects?query=${encodeURIComponent("Project ")}`, {
+      cookie: cookies,
+    });
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.total).toBe(2);
+    expect(body.items.map((p: { name: string }) => p.name).sort()).toEqual([
+      "Project B",
+      "Project C",
+    ]);
+  });
+
+  it("falls back to LIKE for short query (<3 chars)", async () => {
+    const response = await get("/api/projects?query=Ne", { cookie: cookies });
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.total).toBe(1);
+    expect(body.items[0].name).toBe("New Name");
+  });
+
+  it("sorts by name ascending when sort=name", async () => {
+    const response = await get("/api/projects?sort=name", { cookie: cookies });
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.items.map((p: { name: string }) => p.name)).toEqual([
+      "New Name",
+      "Project B",
+      "Project C",
+    ]);
+  });
+
+  it("rejects unknown sort value via schema", async () => {
+    const response = await get("/api/projects?sort=invalid", { cookie: cookies });
+    expect(response.status).toBe(400);
+  });
+
+  it("bumps lastActivityAt when a branch is created", async () => {
+    const beforeRes = await get(`/api/projects/${projectId}`, { cookie: cookies });
+    const before: string = (await beforeRes.json()).lastActivityAt;
+
+    // Sleep to ensure a strictly newer ISO timestamp.
+    await new Promise((resolve) => setTimeout(resolve, 25));
+
+    const branchRes = await post(
+      "/api/branches",
+      { projectId, name: "phase3-branch" },
+      { cookie: cookies },
+    );
+    expect(branchRes.status).toBe(201);
+
+    const afterRes = await get(`/api/projects/${projectId}`, { cookie: cookies });
+    const after: string = (await afterRes.json()).lastActivityAt;
+    expect(new Date(after).getTime()).toBeGreaterThan(new Date(before).getTime());
+  });
+
   // ── Section 4: Error cases ─────────────────────────────────────
 
   it("rejects renaming non-existent project (404)", async () => {

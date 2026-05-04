@@ -30,7 +30,9 @@ export { BadRequest, Conflict, NotAcceptable } from "./domain/errors";
 export {
   CreateProjectBody,
   DeleteProjectResult,
+  ListProjectsParams,
   Project,
+  ProjectSort,
   UpdateProjectBody,
 } from "./domain/project";
 export { Branch, CreateBranchBody, DeleteBranchResult, UpdateBranchBody } from "./domain/branch";
@@ -158,7 +160,7 @@ export {
 export {
   BuildCompatibilityChannel,
   BuildCompatibilityMatrixResult,
-  BuildCompatibilityRow,
+  CompatibilityChannelInfo,
   MissingRuntimeVersionBuild,
 } from "./domain/build-compatibility";
 export {

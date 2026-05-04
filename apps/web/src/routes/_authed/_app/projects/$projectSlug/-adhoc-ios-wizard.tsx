@@ -4,7 +4,7 @@ import {
   appleTeamsQueryOptions,
   ascApiKeysQueryOptions,
   createIosBundleConfiguration,
-  devicesQueryOptions,
+  devicesInfiniteQueryOptions,
   generateAppleProvisioningProfile,
   iosBundleConfigurationsQueryOptions,
 } from "@better-update/api-client/react";
@@ -29,7 +29,7 @@ import {
   SelectValue,
 } from "@better-update/ui/components/ui/select";
 import { toastManager } from "@better-update/ui/components/ui/toast";
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useQueryClient, useSuspenseInfiniteQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { WandIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -133,13 +133,14 @@ const StepDevices = ({
   const { data: certs } = useSuspenseQuery(appleDistributionCertificatesQueryOptions(orgId));
   const cert = certs.items.find((item) => item.id === state.certId);
   const teamId = cert?.appleTeamId;
-  const { data: devices } = useSuspenseQuery(
-    devicesQueryOptions(orgId, {
+  const { data: devices } = useSuspenseInfiniteQuery(
+    devicesInfiniteQueryOptions(orgId, {
       limit: 100,
       ...(teamId === undefined ? {} : { appleTeamId: teamId }),
     }),
   );
-  if (devices.items.length === 0) {
+  const deviceItems = devices.pages.flatMap((page) => page.items);
+  if (deviceItems.length === 0) {
     return (
       <p className="text-muted-foreground text-sm">
         No devices registered under this Apple Team. Register devices on the Apple Devices page
@@ -160,10 +161,10 @@ const StepDevices = ({
   return (
     <div className="flex flex-col gap-2">
       <p className="text-muted-foreground text-xs">
-        {selected.size} / {devices.items.length} selected
+        {selected.size} / {deviceItems.length} selected
       </p>
       <div className="flex max-h-64 flex-col gap-1 overflow-y-auto rounded-md border p-2">
-        {devices.items.map((device) => {
+        {deviceItems.map((device) => {
           const isSelected = selected.has(device.id);
           return (
             <button
@@ -251,10 +252,10 @@ const StepProfile = ({
           }}
           placeholder="com.example.app"
         />
-        <FieldError>
-          {state.bundleIdentifier.length > 0 && !BUNDLE_PATTERN.test(state.bundleIdentifier)
-            ? "Invalid bundle identifier"
-            : null}
+        <FieldError
+          match={state.bundleIdentifier.length > 0 && !BUNDLE_PATTERN.test(state.bundleIdentifier)}
+        >
+          Invalid bundle identifier
         </FieldError>
       </Field>
       <Button

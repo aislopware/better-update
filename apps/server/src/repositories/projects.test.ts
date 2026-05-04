@@ -74,6 +74,7 @@ describe("projectRepo — D1 adapter", () => {
               name: "App One",
               slug: "scope-one",
               created_at: "2026-01-01T00:00:00Z",
+              last_activity_at: "2026-01-01T00:00:00Z",
             },
             {
               id: "p2",
@@ -81,6 +82,7 @@ describe("projectRepo — D1 adapter", () => {
               name: "App Two",
               slug: "scope-two",
               created_at: "2026-01-02T00:00:00Z",
+              last_activity_at: "2026-01-02T00:00:00Z",
             },
           ],
         }),
@@ -90,7 +92,12 @@ describe("projectRepo — D1 adapter", () => {
       const exit = await runWithRepo(
         Effect.gen(function* () {
           const repo = yield* ProjectRepo;
-          return yield* repo.findByOrg({ organizationId: "org-1", limit: 20, offset: 0 });
+          return yield* repo.findByOrg({
+            organizationId: "org-1",
+            sort: "lastActivityAt",
+            limit: 20,
+            offset: 0,
+          });
         }),
         env,
       );
@@ -114,7 +121,12 @@ describe("projectRepo — D1 adapter", () => {
       const exit = await runWithRepo(
         Effect.gen(function* () {
           const repo = yield* ProjectRepo;
-          return yield* repo.findByOrg({ organizationId: "org-1", limit: 20, offset: 0 });
+          return yield* repo.findByOrg({
+            organizationId: "org-1",
+            sort: "lastActivityAt",
+            limit: 20,
+            offset: 0,
+          });
         }),
         env,
       );

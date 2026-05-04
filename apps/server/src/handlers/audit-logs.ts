@@ -6,6 +6,7 @@ import { CurrentActor } from "../auth/current-actor";
 import { assertPermission } from "../auth/permissions";
 import { toApiAuditLog } from "../http/to-api";
 import { toApiForbiddenEffect } from "../http/to-api-effect";
+import { parseCursorPagination } from "../lib/cursor";
 import { AuditLogRepo } from "../repositories/audit-logs";
 
 export const AuditLogsGroupLive = HttpApiBuilder.group(ManagementApi, "audit-logs", (handlers) =>
@@ -16,26 +17,21 @@ export const AuditLogsGroupLive = HttpApiBuilder.group(ManagementApi, "audit-log
         const ctx = yield* CurrentActor;
         const repo = yield* AuditLogRepo;
 
-        const page = urlParams.page ?? 1;
-        const limit = Math.min(urlParams.limit ?? 50, 100);
+        const { cursor, limit } = parseCursorPagination(urlParams);
 
         const result = yield* repo.list({
           organizationId: ctx.organizationId,
           projectId: urlParams.projectId,
-          action: urlParams.action,
           resourceType: urlParams.resourceType,
-          actorId: urlParams.actorId,
           from: urlParams.from,
           to: urlParams.to,
-          page,
+          cursor,
           limit,
         });
 
         return {
           items: result.items.map(toApiAuditLog),
-          total: result.total,
-          page,
-          limit,
+          nextCursor: result.nextCursor,
         };
       }),
     ),

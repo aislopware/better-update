@@ -1,4 +1,4 @@
-import { queryOptions } from "@tanstack/react-query";
+import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 
 import type {
   CreateBranchBody,
@@ -14,7 +14,7 @@ import type {
 
 import { runApi } from "../index";
 
-import type { AnalyticsPeriod } from "./types";
+import type { AnalyticsPeriod, PlatformValue } from "./types";
 
 export const projectsQueryKey = (orgId: string) => ["org", orgId, "projects"] as const;
 
@@ -45,15 +45,31 @@ export const channelAnalyticsQueryKey = (orgId: string, projectId: string, chann
 export const platformAnalyticsQueryKey = (orgId: string, projectId: string) =>
   ["org", orgId, "project", projectId, "analytics", "platforms"] as const;
 
-export const projectsQueryOptions = (orgId: string, page?: number, limit?: number) =>
+export type ProjectSortKey = "lastActivityAt" | "name";
+
+export interface ProjectsFilters {
+  readonly page?: number;
+  readonly limit?: number;
+  readonly query?: string;
+  readonly sort?: ProjectSortKey;
+}
+
+export const projectsQueryOptions = (orgId: string, filters?: ProjectsFilters) =>
   queryOptions({
-    queryKey: [
-      ...projectsQueryKey(orgId),
-      ...(page === undefined ? [] : [page]),
-      ...(limit === undefined ? [] : [limit]),
-    ],
+    queryKey: [...projectsQueryKey(orgId), filters ?? {}],
     queryFn: async ({ signal }) =>
-      runApi((api) => api.projects.list({ urlParams: { page, limit } }), signal),
+      runApi(
+        (api) =>
+          api.projects.list({
+            urlParams: {
+              ...(filters?.page === undefined ? {} : { page: filters.page }),
+              ...(filters?.limit === undefined ? {} : { limit: filters.limit }),
+              ...(filters?.query ? { query: filters.query } : {}),
+              ...(filters?.sort ? { sort: filters.sort } : {}),
+            },
+          }),
+        signal,
+      ),
     staleTime: 30_000,
   });
 
@@ -73,36 +89,97 @@ export const projectBySlugQueryOptions = (orgId: string, slug: string) =>
     staleTime: 30_000,
   });
 
-export const branchesQueryOptions = (orgId: string, projectId: string) =>
-  queryOptions({
-    queryKey: branchesQueryKey(orgId, projectId),
-    queryFn: async ({ signal }) =>
-      runApi((api) => api.branches.list({ urlParams: { projectId, limit: 1000 } }), signal),
-    staleTime: 30_000,
-  });
+export interface BranchesFilters {
+  readonly limit?: number;
+}
 
-export const channelsQueryOptions = (orgId: string, projectId: string, limit?: number) =>
-  queryOptions({
-    queryKey: [...channelsQueryKey(orgId, projectId), ...(limit === undefined ? [] : [limit])],
-    queryFn: async ({ signal }) =>
-      runApi((api) => api.channels.list({ urlParams: { projectId, limit } }), signal),
-    staleTime: 30_000,
-  });
-
-export const updatesQueryOptions = (
+export const branchesInfiniteQueryOptions = (
   orgId: string,
   projectId: string,
-  branchId?: string,
-  limit?: number,
+  filters?: BranchesFilters,
 ) =>
-  queryOptions({
-    queryKey: [
-      ...updatesQueryKey(orgId, projectId),
-      ...(branchId === undefined ? [] : [branchId]),
-      ...(limit === undefined ? [] : [limit]),
-    ],
-    queryFn: async ({ signal }) =>
-      runApi((api) => api.updates.list({ urlParams: { projectId, branchId, limit } }), signal),
+  infiniteQueryOptions({
+    queryKey: [...branchesQueryKey(orgId, projectId), filters ?? {}],
+    queryFn: async ({ signal, pageParam }) =>
+      runApi(
+        (api) =>
+          api.branches.list({
+            urlParams: {
+              projectId,
+              ...(filters?.limit ? { limit: filters.limit } : {}),
+              cursor: pageParam,
+            },
+          }),
+        signal,
+      ),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) =>
+      // eslint-disable-next-line eslint-js/no-restricted-syntax -- react-query getNextPageParam contract: undefined terminates; API schema returns null
+      lastPage.nextCursor ?? undefined,
+    staleTime: 30_000,
+  });
+
+export interface ChannelsFilters {
+  readonly limit?: number;
+}
+
+export const channelsInfiniteQueryOptions = (
+  orgId: string,
+  projectId: string,
+  filters?: ChannelsFilters,
+) =>
+  infiniteQueryOptions({
+    queryKey: [...channelsQueryKey(orgId, projectId), filters ?? {}],
+    queryFn: async ({ signal, pageParam }) =>
+      runApi(
+        (api) =>
+          api.channels.list({
+            urlParams: {
+              projectId,
+              ...(filters?.limit ? { limit: filters.limit } : {}),
+              cursor: pageParam,
+            },
+          }),
+        signal,
+      ),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) =>
+      // eslint-disable-next-line eslint-js/no-restricted-syntax -- react-query getNextPageParam contract: undefined terminates; API schema returns null
+      lastPage.nextCursor ?? undefined,
+    staleTime: 30_000,
+  });
+
+export interface UpdatesFilters {
+  readonly branchId?: string;
+  readonly platform?: PlatformValue;
+  readonly limit?: number;
+}
+
+export const updatesInfiniteQueryOptions = (
+  orgId: string,
+  projectId: string,
+  filters?: UpdatesFilters,
+) =>
+  infiniteQueryOptions({
+    queryKey: [...updatesQueryKey(orgId, projectId), filters ?? {}],
+    queryFn: async ({ signal, pageParam }) =>
+      runApi(
+        (api) =>
+          api.updates.list({
+            urlParams: {
+              projectId,
+              ...(filters?.branchId ? { branchId: filters.branchId } : {}),
+              ...(filters?.platform ? { platform: filters.platform } : {}),
+              ...(filters?.limit ? { limit: filters.limit } : {}),
+              cursor: pageParam,
+            },
+          }),
+        signal,
+      ),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) =>
+      // eslint-disable-next-line eslint-js/no-restricted-syntax -- react-query getNextPageParam contract: undefined terminates; API schema returns null
+      lastPage.nextCursor ?? undefined,
     staleTime: 30_000,
   });
 

@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 
-import { DateTimeString, Id } from "./common";
+import { PaginationParams, DateTimeString, Id } from "./common";
 
 export class Project extends Schema.Class<Project>("Project")({
   id: Id,
@@ -13,6 +13,14 @@ export class Project extends Schema.Class<Project>("Project")({
   channelCount: Schema.Number,
   updateCount: Schema.Number,
 }) {}
+
+export const ProjectSort = Schema.Literal("lastActivityAt", "name");
+
+export const ListProjectsParams = Schema.Struct({
+  ...PaginationParams.fields,
+  query: Schema.optional(Schema.String),
+  sort: Schema.optional(ProjectSort),
+});
 
 export const CreateProjectBody = Schema.Struct({
   name: Schema.String.pipe(Schema.minLength(1)),

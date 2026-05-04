@@ -1,7 +1,9 @@
 import { Context, Effect, Layer } from "effect";
 
 import { cloudflareEnv } from "../cloudflare/context";
+import { encodeCursor } from "../lib/cursor";
 
+import type { Cursor } from "../lib/cursor";
 import type { AuditLogModel, AuditLogResourceType } from "../models";
 
 // -- Row type ----------------------------------------------------------------
@@ -39,14 +41,15 @@ export interface AuditLogRepository {
   readonly list: (params: {
     readonly organizationId: string;
     readonly projectId?: string | undefined;
-    readonly action?: string | undefined;
     readonly resourceType?: string | undefined;
-    readonly actorId?: string | undefined;
     readonly from?: string | undefined;
     readonly to?: string | undefined;
-    readonly page: number;
+    readonly cursor: Cursor | null;
     readonly limit: number;
-  }) => Effect.Effect<{ readonly items: readonly AuditLogModel[]; readonly total: number }>;
+  }) => Effect.Effect<{
+    readonly items: readonly AuditLogModel[];
+    readonly nextCursor: string | null;
+  }>;
 }
 
 export class AuditLogRepo extends Context.Tag("api/AuditLogRepo")<
@@ -111,19 +114,9 @@ export const AuditLogRepoLive = Layer.succeed(AuditLogRepo, {
         bindValues.push(params.projectId);
       }
 
-      if (params.action) {
-        conditions.push('"action" = ?');
-        bindValues.push(params.action);
-      }
-
       if (params.resourceType) {
         conditions.push('"resource_type" = ?');
         bindValues.push(params.resourceType);
-      }
-
-      if (params.actorId) {
-        conditions.push('"actor_id" = ?');
-        bindValues.push(params.actorId);
       }
 
       if (params.from) {
@@ -136,27 +129,27 @@ export const AuditLogRepoLive = Layer.succeed(AuditLogRepo, {
         bindValues.push(params.to);
       }
 
-      const whereClause = conditions.join(" AND ");
-      const offset = (params.page - 1) * params.limit;
+      if (params.cursor) {
+        conditions.push('("created_at" < ? OR ("created_at" = ? AND "id" < ?))');
+        bindValues.push(params.cursor.createdAt, params.cursor.createdAt, params.cursor.id);
+      }
 
-      const [countResult, rows] = yield* Effect.all(
-        [
-          Effect.promise(async () =>
-            env.DB.prepare(`SELECT COUNT(*) as count FROM "audit_logs" WHERE ${whereClause}`)
-              .bind(...bindValues)
-              .first<{ count: number }>(),
-          ),
-          Effect.promise(async () =>
-            env.DB.prepare(
-              `SELECT ${SELECT_COLUMNS} FROM "audit_logs" WHERE ${whereClause} ORDER BY "created_at" DESC LIMIT ? OFFSET ?`,
-            )
-              .bind(...bindValues, params.limit, offset)
-              .all<AuditLogRow>(),
-          ),
-        ],
-        { concurrency: "unbounded" },
+      const whereClause = conditions.join(" AND ");
+
+      const rows = yield* Effect.promise(async () =>
+        env.DB.prepare(
+          `SELECT ${SELECT_COLUMNS} FROM "audit_logs" WHERE ${whereClause} ORDER BY "created_at" DESC, "id" DESC LIMIT ?`,
+        )
+          .bind(...bindValues, params.limit + 1)
+          .all<AuditLogRow>(),
       );
 
-      return { items: rows.results.map(toAuditLogModel), total: countResult?.count ?? 0 };
+      const hasMore = rows.results.length > params.limit;
+      const trimmed = hasMore ? rows.results.slice(0, params.limit) : rows.results;
+      const last = trimmed.at(-1);
+      const nextCursor =
+        hasMore && last ? encodeCursor({ createdAt: last.created_at, id: last.id }) : null;
+
+      return { items: trimmed.map(toAuditLogModel), nextCursor };
     }),
 });

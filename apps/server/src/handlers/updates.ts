@@ -13,8 +13,8 @@ import { validateUpdatePublishInput } from "../domain/update-publish-validation"
 import { Conflict, NotFound } from "../errors";
 import { toApiUpdate } from "../http/to-api";
 import { toApiBadRequestReadEffect, toApiWriteEffect } from "../http/to-api-effect";
+import { parseCursorPagination } from "../lib/cursor";
 import { toDbNull } from "../lib/nullable";
-import { parsePagination } from "../lib/pagination";
 import { AssetRepo, BranchRepo, ChannelRepo, ProjectRepo, UpdateRepo } from "../repositories";
 import {
   prepareRepublishUpdates,
@@ -167,16 +167,17 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
           yield* assertProjectOwnership(urlParams.projectId);
 
           const repo = yield* UpdateRepo;
-          const { page, limit, offset } = parsePagination(urlParams);
+          const { cursor, limit } = parseCursorPagination(urlParams);
 
-          const { items, total } = yield* repo.findByProject({
+          const { items, nextCursor } = yield* repo.findByProject({
             projectId: urlParams.projectId,
             ...(urlParams.branchId ? { branchId: urlParams.branchId } : {}),
+            ...(urlParams.platform ? { platform: urlParams.platform } : {}),
+            cursor,
             limit,
-            offset,
           });
 
-          return { items: items.map(toApiUpdate), total, page, limit };
+          return { items: items.map(toApiUpdate), nextCursor };
         }),
       ),
     )

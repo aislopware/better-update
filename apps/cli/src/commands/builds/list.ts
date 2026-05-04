@@ -23,7 +23,7 @@ export const listCommand = defineCommand({
         const platformFilter = args.platform ? { platform: args.platform } : {};
 
         const { items } = yield* api.builds.list({
-          urlParams: { projectId, ...platformFilter, page: 1, limit },
+          urlParams: { projectId, ...platformFilter, limit },
         });
 
         yield* printTable(

@@ -75,10 +75,10 @@ export const StepAppId = ({
           }}
           placeholder="com.example.app"
         />
-        <FieldError>
-          {state.packageName.length > 0 && !PACKAGE_PATTERN.test(state.packageName)
-            ? "Invalid package name"
-            : null}
+        <FieldError
+          match={state.packageName.length > 0 && !PACKAGE_PATTERN.test(state.packageName)}
+        >
+          Invalid package name
         </FieldError>
       </Field>
     </div>

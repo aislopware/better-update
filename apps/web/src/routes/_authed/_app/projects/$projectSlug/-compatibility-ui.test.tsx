@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { CompatibleBuildsSection, MissingMatchingBuilds } from "./-channel-compatibility";
 import { CompatibilityMatrix } from "./-compatibility-matrix";
 
-const productionChannel = {
+const productionStatus = {
   channelId: "channel-production",
   channelName: "production",
   updateCount: 2,
@@ -14,7 +14,7 @@ const productionChannel = {
   rolloutActive: true,
 };
 
-const pausedChannel = {
+const pausedStatus = {
   channelId: "channel-paused",
   channelName: "paused",
   updateCount: 0,
@@ -41,7 +41,47 @@ const build = {
   metadataJson: "{}",
   createdAt: "2026-01-01T00:00:00Z",
   artifact: null,
-  channels: [productionChannel, pausedChannel],
+};
+
+const synthesizedBuild = {
+  ...build,
+  channels: [productionStatus, pausedStatus],
+};
+
+const matrix = {
+  channels: [
+    {
+      channelId: "channel-production",
+      channelName: "production",
+      isPaused: false,
+      rolloutActive: true,
+    },
+    {
+      channelId: "channel-paused",
+      channelName: "paused",
+      isPaused: true,
+      rolloutActive: false,
+    },
+  ],
+  channelStatusByKey: {
+    "ios:1.0.0": [
+      {
+        channelId: "channel-production",
+        updateCount: 2,
+        latestUpdateId: "update-canary",
+        latestUpdateMessage: "Canary release",
+        latestUpdateCreatedAt: "2026-01-02T00:00:00Z",
+      },
+      {
+        channelId: "channel-paused",
+        updateCount: 0,
+        latestUpdateId: null,
+        latestUpdateMessage: null,
+        latestUpdateCreatedAt: null,
+      },
+    ],
+  },
+  missingRuntimeVersions: [],
 };
 
 const missingRuntimeVersion = {
@@ -58,7 +98,13 @@ const missingRuntimeVersion = {
 
 describe("compatibility UI", () => {
   it("renders compatibility matrix and missing build warnings", () => {
-    render(<CompatibilityMatrix rows={[build]} missingRuntimeVersions={[missingRuntimeVersion]} />);
+    render(
+      <CompatibilityMatrix
+        builds={[build]}
+        matrix={matrix}
+        missingRuntimeVersions={[missingRuntimeVersion]}
+      />,
+    );
 
     expect(screen.getByText("Builds × Channels")).toBeInTheDocument();
     expect(screen.getByText("Missing native builds")).toBeInTheDocument();
@@ -74,8 +120,8 @@ describe("compatibility UI", () => {
         <CompatibleBuildsSection
           compatibleBuilds={[
             {
-              build,
-              status: productionChannel,
+              build: synthesizedBuild,
+              status: productionStatus,
             },
           ]}
         />

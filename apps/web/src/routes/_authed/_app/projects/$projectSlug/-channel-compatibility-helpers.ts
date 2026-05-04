@@ -1,21 +1,27 @@
 import type {
-  BuildCompatibilityChannel,
-  BuildCompatibilityRow,
+  BuildCompatibilityMatrixResult,
+  BuildWithArtifact,
   MissingRuntimeVersionBuild,
 } from "@better-update/api";
 
+import { synthesizeBuildChannels } from "./-compatibility-join";
+
+import type { BuildWithSyntheticChannels, SyntheticBuildChannel } from "./-compatibility-join";
+
 export interface CompatibleBuildEntry {
-  readonly build: typeof BuildCompatibilityRow.Type;
-  readonly status: typeof BuildCompatibilityChannel.Type;
+  readonly build: BuildWithSyntheticChannels;
+  readonly status: SyntheticBuildChannel;
 }
 
 export const getCompatibleBuildsForChannel = (
-  rows: readonly (typeof BuildCompatibilityRow.Type)[],
+  builds: readonly (typeof BuildWithArtifact.Type)[],
+  matrix: typeof BuildCompatibilityMatrixResult.Type,
   channelId: string,
 ): CompatibleBuildEntry[] =>
-  rows.flatMap((build) => {
+  builds.flatMap((rawBuild) => {
+    const build = synthesizeBuildChannels(rawBuild, matrix);
     const status = build.channels.find((entry) => entry.channelId === channelId);
-    return status ? [{ build, status }] : [];
+    return status && status.updateCount > 0 ? [{ build, status }] : [];
   });
 
 export const getMissingRuntimeVersionsForChannel = (

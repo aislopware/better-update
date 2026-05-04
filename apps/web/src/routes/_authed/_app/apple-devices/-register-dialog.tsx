@@ -209,7 +209,7 @@ export const RegisterDeviceDialog = ({ orgId }: { orgId: string }) => {
                       <FieldDescription>
                         40 hex chars (legacy) · 8-16 hex (modern iOS) · UUID (Mac).
                       </FieldDescription>
-                      <FieldError>{errorMessage}</FieldError>
+                      <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
                     </Field>
                   );
                 }}
@@ -239,7 +239,7 @@ export const RegisterDeviceDialog = ({ orgId }: { orgId: string }) => {
                         onBlur={field.handleBlur}
                         aria-invalid={errorMessage ? true : undefined}
                       />
-                      <FieldError>{errorMessage}</FieldError>
+                      <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
                     </Field>
                   );
                 }}

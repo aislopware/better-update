@@ -103,12 +103,43 @@ describe("Channels API flow", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body).toHaveProperty("items");
-    expect(body).toHaveProperty("total");
-    expect(body).toHaveProperty("page");
-    expect(body).toHaveProperty("limit");
-    expect(body.total).toBe(1);
+    expect(body).toHaveProperty("nextCursor");
+    expect(body.nextCursor).toBeNull();
     expect(body.items).toHaveLength(1);
     expect(body.items[0].name).toBe("production");
+  });
+
+  it("paginates channels via cursor (creates 2nd channel + walks pages, then deletes it)", async () => {
+    // Channels enforce unique (project, name); reuse the existing branch.
+    const ch2Res = await post(
+      "/api/channels",
+      { projectId, name: "staging-cursor", branchId },
+      { cookie: cookies },
+    );
+    expect(ch2Res.status).toBe(201);
+    const ch2Id = (await ch2Res.json()).id;
+
+    const firstRes = await get(`/api/channels?projectId=${projectId}&limit=1`, {
+      cookie: cookies,
+    });
+    expect(firstRes.status).toBe(200);
+    const firstBody = await firstRes.json();
+    expect(firstBody.items).toHaveLength(1);
+    expect(firstBody.nextCursor).not.toBeNull();
+
+    const secondRes = await get(
+      `/api/channels?projectId=${projectId}&limit=1&cursor=${encodeURIComponent(firstBody.nextCursor)}`,
+      { cookie: cookies },
+    );
+    expect(secondRes.status).toBe(200);
+    const secondBody = await secondRes.json();
+    expect(secondBody.items).toHaveLength(1);
+    expect(secondBody.items[0].id).not.toBe(firstBody.items[0].id);
+    expect(secondBody.nextCursor).toBeNull();
+
+    // Restore prior state for downstream tests that count channels.
+    const cleanup = await del(`/api/channels/${ch2Id}`, { cookie: cookies });
+    expect(cleanup.status).toBe(200);
   });
 
   it("creates a second branch for relink test", async () => {

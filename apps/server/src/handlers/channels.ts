@@ -13,9 +13,10 @@ import {
 import { Conflict, NotFound } from "../errors";
 import { toApiChannel } from "../http/to-api";
 import { toApiCrudEffect } from "../http/to-api-effect";
-import { parsePagination } from "../lib/pagination";
+import { parseCursorPagination } from "../lib/cursor";
 import { BranchRepo } from "../repositories/branches";
 import { ChannelRepo } from "../repositories/channels";
+import { ProjectRepo } from "../repositories/projects";
 
 export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels", (handlers) =>
   handlers
@@ -32,10 +33,15 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
           }
 
           const repo = yield* ChannelRepo;
+          const projectRepo = yield* ProjectRepo;
           const channel = yield* repo.insert({
             projectId: payload.projectId,
             name: payload.name,
             branchId: payload.branchId,
+          });
+          yield* projectRepo.bumpLastActivity({
+            projectId: payload.projectId,
+            at: new Date().toISOString(),
           });
 
           yield* logAudit({
@@ -56,15 +62,15 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
           yield* assertPermission("channel", "read");
           yield* assertProjectOwnership(urlParams.projectId);
           const repo = yield* ChannelRepo;
-          const { page, limit, offset } = parsePagination(urlParams);
+          const { cursor, limit } = parseCursorPagination(urlParams);
 
-          const { items, total } = yield* repo.findByProject({
+          const { items, nextCursor } = yield* repo.findByProject({
             projectId: urlParams.projectId,
+            cursor,
             limit,
-            offset,
           });
 
-          return { items: items.map(toApiChannel), total, page, limit };
+          return { items: items.map(toApiChannel), nextCursor };
         }),
       ),
     )

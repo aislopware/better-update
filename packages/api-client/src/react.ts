@@ -1,15 +1,17 @@
 export { finalizeAsset, uploadAssets } from "./react/assets";
-export { auditLogsQueryKey, auditLogsQueryOptions } from "./react/audit-logs";
+export { auditLogsInfiniteQueryOptions, auditLogsQueryKey } from "./react/audit-logs";
+export type { AuditLogsFilters } from "./react/audit-logs";
 export {
   buildCompatibilityMatrixQueryKey,
   buildCompatibilityMatrixQueryOptions,
   buildQueryKey,
   buildQueryOptions,
+  buildsInfiniteQueryOptions,
   buildsQueryKey,
-  buildsQueryOptions,
   deleteBuild,
   fetchInstallLink,
 } from "./react/builds";
+export type { BuildsFilters } from "./react/builds";
 export {
   androidApplicationIdentifiersQueryKey,
   androidApplicationIdentifiersQueryOptions,
@@ -57,13 +59,14 @@ export {
 export {
   createRegistrationRequest,
   deleteDevice,
+  devicesInfiniteQueryOptions,
   devicesQueryKey,
-  devicesQueryOptions,
   registerDevice,
   registrationRequestsQueryKey,
   registrationRequestsQueryOptions,
   updateDevice,
 } from "./react/devices";
+export type { DevicesFilters } from "./react/devices";
 export {
   bulkImportEnvVars,
   createEnvVar,
@@ -75,12 +78,12 @@ export {
 export {
   adoptionQueryKey,
   adoptionQueryOptions,
+  branchesInfiniteQueryOptions,
   branchesQueryKey,
-  branchesQueryOptions,
   channelAnalyticsQueryKey,
   channelAnalyticsQueryOptions,
+  channelsInfiniteQueryOptions,
   channelsQueryKey,
-  channelsQueryOptions,
   completeBranchRollout,
   completeUpdateRollout,
   createBranch,
@@ -112,8 +115,15 @@ export {
   updateChannel,
   updateAnalyticsQueryKey,
   updateAnalyticsQueryOptions,
+  updatesInfiniteQueryOptions,
   updatesQueryKey,
-  updatesQueryOptions,
+} from "./react/projects";
+export type {
+  BranchesFilters,
+  ChannelsFilters,
+  ProjectSortKey,
+  ProjectsFilters,
+  UpdatesFilters,
 } from "./react/projects";
 export type {
   AnalyticsPeriod,

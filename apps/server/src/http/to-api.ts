@@ -10,9 +10,9 @@ import {
   AuditLog,
   Branch,
   BuildCompatibilityChannel,
-  BuildCompatibilityRow,
   BuildWithArtifact,
   Channel,
+  CompatibilityChannelInfo,
   Device,
   DeviceRegistrationRequest,
   EnvVar,
@@ -36,8 +36,8 @@ import type {
   BranchModel,
   BuildCompatibilityChannelModel,
   BuildCompatibilityMatrixModel,
-  BuildCompatibilityRowModel,
   BuildWithArtifactModel,
+  CompatibilityChannelInfoModel,
   ChannelModel,
   DeviceModel,
   DeviceRegistrationRequestModel,
@@ -137,33 +137,18 @@ export const toApiBuild = (build: BuildWithArtifactModel) =>
 const toApiBuildCompatibilityChannel = (channel: BuildCompatibilityChannelModel) =>
   new BuildCompatibilityChannel({
     channelId: channel.channelId,
-    channelName: channel.channelName,
     updateCount: channel.updateCount,
     latestUpdateId: channel.latestUpdateId,
     latestUpdateMessage: channel.latestUpdateMessage,
     latestUpdateCreatedAt: channel.latestUpdateCreatedAt,
-    isPaused: channel.isPaused,
-    rolloutActive: channel.rolloutActive,
   });
 
-const toApiBuildCompatibilityRow = (row: BuildCompatibilityRowModel) =>
-  new BuildCompatibilityRow({
-    id: row.id,
-    projectId: row.projectId,
-    platform: row.platform,
-    profile: row.profile,
-    distribution: row.distribution,
-    runtimeVersion: row.runtimeVersion,
-    appVersion: row.appVersion,
-    buildNumber: row.buildNumber,
-    bundleId: row.bundleId,
-    gitRef: row.gitRef,
-    gitCommit: row.gitCommit,
-    message: row.message,
-    metadataJson: row.metadataJson,
-    createdAt: row.createdAt,
-    artifact: row.artifact,
-    channels: row.channels.map(toApiBuildCompatibilityChannel),
+const toApiCompatibilityChannelInfo = (channel: CompatibilityChannelInfoModel) =>
+  new CompatibilityChannelInfo({
+    channelId: channel.channelId,
+    channelName: channel.channelName,
+    isPaused: channel.isPaused,
+    rolloutActive: channel.rolloutActive,
   });
 
 const toApiMissingRuntimeVersionBuild = (build: MissingRuntimeVersionBuildModel) =>
@@ -180,7 +165,13 @@ const toApiMissingRuntimeVersionBuild = (build: MissingRuntimeVersionBuildModel)
   });
 
 export const toApiBuildCompatibilityMatrix = (matrix: BuildCompatibilityMatrixModel) => ({
-  rows: matrix.rows.map(toApiBuildCompatibilityRow),
+  channels: matrix.channels.map(toApiCompatibilityChannelInfo),
+  channelStatusByKey: Object.fromEntries(
+    Object.entries(matrix.channelStatusByKey).map(([key, statuses]) => [
+      key,
+      statuses.map(toApiBuildCompatibilityChannel),
+    ]),
+  ),
   missingRuntimeVersions: matrix.missingRuntimeVersions.map(toApiMissingRuntimeVersionBuild),
 });
 

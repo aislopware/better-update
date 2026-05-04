@@ -3,7 +3,7 @@ import { Schema } from "effect";
 
 import { Forbidden } from "../auth/errors";
 import { AuditLog } from "../domain/audit-log";
-import { PaginationParams } from "../domain/common";
+import { CursorPaginationParams, cursorPageResult } from "../domain/common";
 
 export class AuditLogsGroup extends HttpApiGroup.make("audit-logs")
   .add(
@@ -11,22 +11,13 @@ export class AuditLogsGroup extends HttpApiGroup.make("audit-logs")
       .setUrlParams(
         Schema.Struct({
           projectId: Schema.optional(Schema.String),
-          action: Schema.optional(Schema.String),
           resourceType: Schema.optional(Schema.String),
-          actorId: Schema.optional(Schema.String),
           from: Schema.optional(Schema.String),
           to: Schema.optional(Schema.String),
-          ...PaginationParams.fields,
+          ...CursorPaginationParams.fields,
         }),
       )
-      .addSuccess(
-        Schema.Struct({
-          items: Schema.Array(AuditLog),
-          total: Schema.Number,
-          page: Schema.Number,
-          limit: Schema.Number,
-        }),
-      )
+      .addSuccess(cursorPageResult(AuditLog))
       .annotateContext(
         OpenApi.annotations({
           title: "List audit logs",

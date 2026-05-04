@@ -1,4 +1,3 @@
-import { BuildCompatibilityRow } from "@better-update/api";
 import {
   buildCompatibilityMatrixQueryOptions,
   buildQueryOptions,
@@ -20,33 +19,16 @@ import type { BuildWithArtifact } from "@better-update/api";
 
 import { BuildCard } from "../-build-card";
 import { FORMAT_LABELS, formatBytes } from "../-build-helpers";
+import { synthesizeBuildChannels } from "../-compatibility-join";
 import { InstallLinkDialog } from "../-install-link-dialog";
 import { ProjectSubpageHeader } from "../-project-subpage-header";
+
+import type { BuildWithSyntheticChannels } from "../-compatibility-join";
 
 const formatMetadataJson = (metadataJson: string) => {
   const parsed = safeJsonParse(metadataJson);
   return parsed === null ? metadataJson : JSON.stringify(parsed, null, 2);
 };
-
-const toBuildCompatibilityRow = (build: typeof BuildWithArtifact.Type) =>
-  new BuildCompatibilityRow({
-    id: build.id,
-    projectId: build.projectId,
-    platform: build.platform,
-    profile: build.profile,
-    distribution: build.distribution,
-    runtimeVersion: build.runtimeVersion,
-    appVersion: build.appVersion,
-    buildNumber: build.buildNumber,
-    bundleId: build.bundleId,
-    gitRef: build.gitRef,
-    gitCommit: build.gitCommit,
-    message: build.message,
-    metadataJson: build.metadataJson,
-    createdAt: build.createdAt,
-    artifact: build.artifact,
-    channels: [],
-  });
 
 const BuildMetadataCard = ({ build }: { build: typeof BuildWithArtifact.Type }) => (
   <Card>
@@ -145,7 +127,7 @@ const RelatedChannelsCard = ({
   build,
 }: {
   projectSlug: string;
-  build: typeof BuildCompatibilityRow.Type;
+  build: BuildWithSyntheticChannels;
 }) => (
   <Card>
     <CardHeader>
@@ -221,8 +203,7 @@ const BuildDetailPage = () => {
     buildCompatibilityMatrixQueryOptions(orgId, projectId),
   );
 
-  const buildWithChannels =
-    compatibilityData.rows.find((row) => row.id === buildId) ?? toBuildCompatibilityRow(build);
+  const buildWithChannels = synthesizeBuildChannels(build, compatibilityData);
 
   return (
     <div className="flex w-full flex-col gap-4">

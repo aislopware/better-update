@@ -47,7 +47,8 @@ export const statusCommand = defineCommand({
         yield* Console.log("");
         yield* Console.log("Builds");
         yield* Console.log("------");
-        yield* printKeyValue([["Total", String(builds.total)]]);
+        const moreSuffix = builds.nextCursor === null ? "" : "+";
+        yield* printKeyValue([["Recent", `${String(builds.items.length)}${moreSuffix}`]]);
       }),
     ),
 });

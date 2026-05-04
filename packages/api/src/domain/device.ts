@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 
-import { DateTimeString, Id, PaginationParams } from "./common";
+import { CursorPaginationParams, DateTimeString, Id } from "./common";
 
 export const DeviceClass = Schema.Literal("IPHONE", "IPAD", "MAC", "UNKNOWN");
 export type DeviceClassValue = typeof DeviceClass.Type;
@@ -46,10 +46,10 @@ export const UpdateDeviceBody = Schema.Struct({
 export const DeleteDeviceResult = Schema.Struct({ deleted: Schema.Number });
 
 export const ListDevicesParams = Schema.Struct({
-  ...PaginationParams.fields,
-  search: Schema.optional(Schema.String),
+  ...CursorPaginationParams.fields,
   deviceClass: Schema.optional(DeviceClass),
   appleTeamId: Schema.optional(Id),
+  query: Schema.optional(Schema.String),
 });
 
 export class DeviceRegistrationRequest extends Schema.Class<DeviceRegistrationRequest>(

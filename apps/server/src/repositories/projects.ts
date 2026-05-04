@@ -9,6 +9,8 @@ import type { ProjectModel } from "../models";
 
 // ── Port ──────────────────────────────────────────────────────────
 
+export type ProjectSortKey = "lastActivityAt" | "name";
+
 export interface ProjectRepository {
   readonly insert: (params: {
     readonly id: string;
@@ -20,6 +22,8 @@ export interface ProjectRepository {
 
   readonly findByOrg: (params: {
     readonly organizationId: string;
+    readonly query?: string | undefined;
+    readonly sort: ProjectSortKey;
     readonly limit: number;
     readonly offset: number;
   }) => Effect.Effect<{ readonly items: readonly ProjectModel[]; readonly total: number }>;
@@ -43,6 +47,16 @@ export interface ProjectRepository {
   }) => Effect.Effect<void>;
 
   readonly delete: (params: { readonly id: string }) => Effect.Effect<void>;
+
+  readonly bumpLastActivity: (params: {
+    readonly projectId: string;
+    readonly at: string;
+  }) => Effect.Effect<void>;
+
+  readonly bumpLastActivityByBranch: (params: {
+    readonly branchId: string;
+    readonly at: string;
+  }) => Effect.Effect<void>;
 }
 
 export class ProjectRepo extends Context.Tag("api/ProjectRepo")<ProjectRepo, ProjectRepository>() {}
@@ -61,7 +75,7 @@ interface ProjectRow {
   update_count: number;
 }
 
-const PROJECT_COLUMNS = `"projects"."id", "projects"."organization_id", "projects"."name", "projects"."slug", "projects"."created_at", COALESCE((SELECT MAX("updates"."created_at") FROM "updates" JOIN "branches" ON "updates"."branch_id" = "branches"."id" WHERE "branches"."project_id" = "projects"."id"), "projects"."created_at") AS "last_activity_at", (SELECT COUNT(*) FROM "branches" WHERE "branches"."project_id" = "projects"."id") AS "branch_count", (SELECT COUNT(*) FROM "channels" WHERE "channels"."project_id" = "projects"."id") AS "channel_count", (SELECT COUNT(*) FROM "updates" JOIN "branches" ON "updates"."branch_id" = "branches"."id" WHERE "branches"."project_id" = "projects"."id") AS "update_count"`;
+const PROJECT_COLUMNS = `p."id", p."organization_id", p."name", p."slug", p."created_at", COALESCE(p."last_activity_at", p."created_at") AS "last_activity_at", (SELECT COUNT(*) FROM "branches" WHERE "branches"."project_id" = p."id") AS "branch_count", (SELECT COUNT(*) FROM "channels" WHERE "channels"."project_id" = p."id") AS "channel_count", (SELECT COUNT(*) FROM "updates" JOIN "branches" ON "updates"."branch_id" = "branches"."id" WHERE "branches"."project_id" = p."id") AS "update_count"`;
 
 const toProject = (row: ProjectRow) =>
   ({
@@ -76,6 +90,42 @@ const toProject = (row: ProjectRow) =>
     updateCount: row.update_count,
   }) satisfies ProjectModel;
 
+// FTS5 trigram tokenizer requires 3+ char queries. Wrap in phrase quotes so
+// Special chars (-, ", *, etc.) are treated as literal text rather than FTS
+// Operators. Doubling embedded quotes is the standard FTS5 escape.
+const escapeFtsPhrase = (value: string): string => `"${value.replaceAll('"', '""')}"`;
+
+interface SearchClause {
+  readonly join: string;
+  readonly where: string;
+  readonly binds: readonly string[];
+}
+
+const buildSearchClause = (query: string | undefined): SearchClause | null => {
+  if (query === undefined || query.length === 0) {
+    return null;
+  }
+  if (query.length >= 3) {
+    return {
+      join: 'JOIN "projects_fts" ON "projects_fts"."project_id" = p."id"',
+      where: '"projects_fts" MATCH ?',
+      binds: [escapeFtsPhrase(query)],
+    };
+  }
+  // Trigram FTS can't index 1-2 char tokens; LIKE keeps short queries usable.
+  const pattern = `%${query.toLowerCase()}%`;
+  return {
+    join: "",
+    where: '(LOWER(p."name") LIKE ? OR LOWER(p."slug") LIKE ?)',
+    binds: [pattern, pattern],
+  };
+};
+
+const sortClause = (sort: ProjectSortKey): string =>
+  sort === "name"
+    ? 'p."name" COLLATE NOCASE ASC, p."id" ASC'
+    : 'p."last_activity_at" DESC, p."id" DESC';
+
 export const ProjectRepoLive = Layer.succeed(ProjectRepo, {
   insert: (params) =>
     Effect.gen(function* () {
@@ -84,9 +134,16 @@ export const ProjectRepoLive = Layer.succeed(ProjectRepo, {
       yield* d1RunWithUniqueCheck(
         async () =>
           env.DB.prepare(
-            `INSERT INTO "projects" ("id", "organization_id", "name", "slug", "created_at") VALUES (?, ?, ?, ?, ?)`,
+            `INSERT INTO "projects" ("id", "organization_id", "name", "slug", "created_at", "last_activity_at") VALUES (?, ?, ?, ?, ?, ?)`,
           )
-            .bind(params.id, params.organizationId, params.name, params.slug, params.createdAt)
+            .bind(
+              params.id,
+              params.organizationId,
+              params.name,
+              params.slug,
+              params.createdAt,
+              params.createdAt,
+            )
             .run(),
         `A project with slug "${params.slug}" already exists`,
       );
@@ -96,9 +153,20 @@ export const ProjectRepoLive = Layer.succeed(ProjectRepo, {
     Effect.gen(function* () {
       const env = yield* cloudflareEnv;
 
+      const search = buildSearchClause(params.query);
+      const joinClause = search ? ` ${search.join}` : "";
+      const whereClause = search
+        ? `${search.where} AND p."organization_id" = ?`
+        : 'p."organization_id" = ?';
+      const filterBinds = search
+        ? [...search.binds, params.organizationId]
+        : [params.organizationId];
+
       const countResult = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT COUNT(*) as count FROM "projects" WHERE "organization_id" = ?`)
-          .bind(params.organizationId)
+        env.DB.prepare(
+          `SELECT COUNT(*) as count FROM "projects" p${joinClause} WHERE ${whereClause}`,
+        )
+          .bind(...filterBinds)
           .first<{ count: number }>(),
       );
 
@@ -106,9 +174,9 @@ export const ProjectRepoLive = Layer.succeed(ProjectRepo, {
 
       const rows = yield* Effect.promise(async () =>
         env.DB.prepare(
-          `SELECT ${PROJECT_COLUMNS} FROM "projects" WHERE "organization_id" = ? ORDER BY "last_activity_at" DESC LIMIT ? OFFSET ?`,
+          `SELECT ${PROJECT_COLUMNS} FROM "projects" p${joinClause} WHERE ${whereClause} ORDER BY ${sortClause(params.sort)} LIMIT ? OFFSET ?`,
         )
-          .bind(params.organizationId, params.limit, params.offset)
+          .bind(...filterBinds, params.limit, params.offset)
           .all<ProjectRow>(),
       );
 
@@ -120,7 +188,7 @@ export const ProjectRepoLive = Layer.succeed(ProjectRepo, {
       const env = yield* cloudflareEnv;
 
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT ${PROJECT_COLUMNS} FROM "projects" WHERE "id" = ?`)
+        env.DB.prepare(`SELECT ${PROJECT_COLUMNS} FROM "projects" p WHERE p."id" = ?`)
           .bind(params.id)
           .first<ProjectRow>(),
       );
@@ -138,7 +206,7 @@ export const ProjectRepoLive = Layer.succeed(ProjectRepo, {
 
       const row = yield* Effect.promise(async () =>
         env.DB.prepare(
-          `SELECT ${PROJECT_COLUMNS} FROM "projects" WHERE "organization_id" = ? AND "slug" = ?`,
+          `SELECT ${PROJECT_COLUMNS} FROM "projects" p WHERE p."organization_id" = ? AND p."slug" = ?`,
         )
           .bind(params.organizationId, params.slug)
           .first<ProjectRow>(),
@@ -160,7 +228,9 @@ export const ProjectRepoLive = Layer.succeed(ProjectRepo, {
       const env = yield* cloudflareEnv;
       const placeholders = params.ids.map(() => "?").join(", ");
       const rows = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT ${PROJECT_COLUMNS} FROM "projects" WHERE "id" IN (${placeholders})`)
+        env.DB.prepare(
+          `SELECT ${PROJECT_COLUMNS} FROM "projects" p WHERE p."id" IN (${placeholders})`,
+        )
           .bind(...params.ids)
           .all<ProjectRow>(),
       );
@@ -221,6 +291,32 @@ export const ProjectRepoLive = Layer.succeed(ProjectRepo, {
           env.DB.prepare(`DELETE FROM "branches" WHERE "project_id" = ?`).bind(params.id),
           env.DB.prepare(`DELETE FROM "projects" WHERE "id" = ?`).bind(params.id),
         ]),
+      );
+    }),
+
+  // Guard with `last_activity_at < ?` so out-of-order writes (e.g. backdated
+  // Republish) don't regress a more recent activity timestamp.
+  bumpLastActivity: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+      yield* Effect.promise(async () =>
+        env.DB.prepare(
+          `UPDATE "projects" SET "last_activity_at" = ? WHERE "id" = ? AND ("last_activity_at" IS NULL OR "last_activity_at" < ?)`,
+        )
+          .bind(params.at, params.projectId, params.at)
+          .run(),
+      );
+    }),
+
+  bumpLastActivityByBranch: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+      yield* Effect.promise(async () =>
+        env.DB.prepare(
+          `UPDATE "projects" SET "last_activity_at" = ? WHERE "id" = (SELECT "project_id" FROM "branches" WHERE "id" = ?) AND ("last_activity_at" IS NULL OR "last_activity_at" < ?)`,
+        )
+          .bind(params.at, params.branchId, params.at)
+          .run(),
       );
     }),
 });

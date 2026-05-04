@@ -4,7 +4,7 @@ import {
   applePushKeysQueryOptions,
   appleTeamsQueryOptions,
   ascApiKeysQueryOptions,
-  devicesQueryOptions,
+  devicesInfiniteQueryOptions,
 } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseInfiniteQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { WandIcon } from "lucide-react";
 
 import { formatAppleTeamLabel } from "../../-credentials-utils";
@@ -42,10 +42,10 @@ export const StepBundle = ({
         }}
         placeholder="com.example.app"
       />
-      <FieldError>
-        {state.bundleIdentifier.length > 0 && !BUNDLE_PATTERN.test(state.bundleIdentifier)
-          ? "Invalid bundle identifier"
-          : null}
+      <FieldError
+        match={state.bundleIdentifier.length > 0 && !BUNDLE_PATTERN.test(state.bundleIdentifier)}
+      >
+        Invalid bundle identifier
       </FieldError>
     </Field>
     <Field>
@@ -261,13 +261,14 @@ const DevicesPicker = ({
   selected: readonly string[];
   onChange: (next: readonly string[]) => void;
 }) => {
-  const { data } = useSuspenseQuery(
-    devicesQueryOptions(orgId, { limit: 100, appleTeamId: teamId }),
+  const { data } = useSuspenseInfiniteQuery(
+    devicesInfiniteQueryOptions(orgId, { limit: 100, appleTeamId: teamId }),
   );
+  const items = data.pages.flatMap((page) => page.items);
   const set = new Set(selected);
   return (
     <div className="flex max-h-48 flex-col gap-1 overflow-y-auto rounded-md border p-2">
-      {data.items.map((device) => {
+      {items.map((device) => {
         const isSelected = set.has(device.id);
         return (
           <button

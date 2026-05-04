@@ -1,7 +1,8 @@
 import {
-  branchesQueryOptions,
+  branchesInfiniteQueryOptions,
   buildCompatibilityMatrixQueryOptions,
-  channelsQueryOptions,
+  buildsInfiniteQueryOptions,
+  channelsInfiniteQueryOptions,
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import {
@@ -11,7 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@better-update/ui/components/ui/card";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseInfiniteQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 
 import { ChannelCard } from "../-channel-card";
@@ -143,13 +144,23 @@ const ChannelDetailPage = () => {
   const { activeOrg, project } = Route.useRouteContext();
   const orgId = activeOrg.id;
   const projectId = project.id;
-  const { data: channelsData } = useSuspenseQuery(channelsQueryOptions(orgId, projectId));
-  const { data: branchesData } = useSuspenseQuery(branchesQueryOptions(orgId, projectId));
+  const { data: channelsData } = useSuspenseInfiniteQuery(
+    channelsInfiniteQueryOptions(orgId, projectId, { limit: 100 }),
+  );
+  const { data: branchesData } = useSuspenseInfiniteQuery(
+    branchesInfiniteQueryOptions(orgId, projectId, { limit: 100 }),
+  );
   const { data: compatibilityData } = useSuspenseQuery(
     buildCompatibilityMatrixQueryOptions(orgId, projectId),
   );
+  const { data: buildsData } = useSuspenseInfiniteQuery(
+    buildsInfiniteQueryOptions(orgId, projectId),
+  );
+  const builds = buildsData.pages.flatMap((page) => page.items);
+  const channels = channelsData.pages.flatMap((page) => page.items);
+  const branches = branchesData.pages.flatMap((page) => page.items);
 
-  const channel = channelsData.items.find((item) => item.id === channelId);
+  const channel = channels.find((item) => item.id === channelId);
 
   if (!channel) {
     return (
@@ -160,8 +171,8 @@ const ChannelDetailPage = () => {
     );
   }
 
-  const linkedBranch = branchesData.items.find((branch) => branch.id === channel.branchId);
-  const compatibleBuilds = getCompatibleBuildsForChannel(compatibilityData.rows, channel.id);
+  const linkedBranch = branches.find((branch) => branch.id === channel.branchId);
+  const compatibleBuilds = getCompatibleBuildsForChannel(builds, compatibilityData, channel.id);
   const missingRuntimeVersions = getMissingRuntimeVersionsForChannel(
     compatibilityData.missingRuntimeVersions,
     channel.id,
@@ -185,7 +196,7 @@ const ChannelDetailPage = () => {
         orgId={orgId}
         projectId={projectId}
         projectSlug={project.slug}
-        branches={branchesData.items}
+        branches={branches}
         compatibleBuilds={compatibleBuilds}
         missingRuntimeVersions={missingRuntimeVersions}
         showDetailsLink={false}
@@ -201,9 +212,14 @@ export const Route = createFileRoute("/_authed/_app/projects/$projectSlug/channe
     const orgId = context.activeOrg.id;
     const projectId = context.project.id;
     await Promise.all([
-      context.queryClient.ensureQueryData(channelsQueryOptions(orgId, projectId)),
-      context.queryClient.ensureQueryData(branchesQueryOptions(orgId, projectId)),
+      context.queryClient.ensureInfiniteQueryData(
+        channelsInfiniteQueryOptions(orgId, projectId, { limit: 100 }),
+      ),
+      context.queryClient.ensureInfiniteQueryData(
+        branchesInfiniteQueryOptions(orgId, projectId, { limit: 100 }),
+      ),
       context.queryClient.ensureQueryData(buildCompatibilityMatrixQueryOptions(orgId, projectId)),
+      context.queryClient.ensureInfiniteQueryData(buildsInfiniteQueryOptions(orgId, projectId)),
     ]);
   },
   component: ChannelDetailPage,

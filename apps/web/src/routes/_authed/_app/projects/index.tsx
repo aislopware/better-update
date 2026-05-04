@@ -24,12 +24,13 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   FolderIcon,
+  Loader2Icon,
   SearchIcon,
   SlidersHorizontalIcon,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 
-import type { ProjectItem } from "@better-update/api-client/react";
+import type { ProjectItem, ProjectSortKey } from "@better-update/api-client/react";
 
 import { List, ListFooter, ListItem, ListSectionHeader } from "../../../../components/list-item";
 import { PageHeader } from "../../../../components/page-header";
@@ -39,15 +40,14 @@ import { pluralize } from "../../../../lib/pluralize";
 import { CreateProjectDialog } from "./-create-dialog";
 
 const PAGE_SIZE = 50;
+const SEARCH_DEBOUNCE_MS = 300;
 
-type SortId = "lastActivityAt" | "name";
-
-const SORT_LABELS: Record<SortId, string> = {
+const SORT_LABELS: Record<ProjectSortKey, string> = {
   lastActivityAt: "Last activity",
   name: "Name",
 };
 
-const SORT_OPTIONS: readonly { value: SortId; label: string }[] = [
+const SORT_OPTIONS: readonly { value: ProjectSortKey; label: string }[] = [
   { value: "lastActivityAt", label: SORT_LABELS.lastActivityAt },
   { value: "name", label: SORT_LABELS.name },
 ];
@@ -58,7 +58,13 @@ const sortTrigger = (
   </Button>
 );
 
-const SortDropdown = ({ value, onChange }: { value: SortId; onChange: (next: SortId) => void }) => (
+const SortDropdown = ({
+  value,
+  onChange,
+}: {
+  value: ProjectSortKey;
+  onChange: (next: ProjectSortKey) => void;
+}) => (
   <DropdownMenu>
     <DropdownMenuTrigger render={sortTrigger} />
     <DropdownMenuPopup align="end" className="w-44">
@@ -157,53 +163,59 @@ const ProjectRow = ({ project }: { project: ProjectItem }) => (
 const Projects = () => {
   const { activeOrg } = Route.useRouteContext();
   const orgId = activeOrg.id;
-  const { data } = useSuspenseQuery(projectsQueryOptions(orgId, 1, 1000));
 
-  const [globalFilter, setGlobalFilter] = useState("");
-  const [sortId, setSortId] = useState<SortId>("lastActivityAt");
+  const [search, setSearch] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [sort, setSort] = useState<ProjectSortKey>("lastActivityAt");
   const [page, setPage] = useState(1);
+  const [isPending, startTransition] = useTransition();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleFilterChange = (value: string) => {
-    setGlobalFilter(value);
-    setPage(1);
+  const handleSearchChange = (value: string) => {
+    setSearch(value);
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+    debounceRef.current = setTimeout(() => {
+      startTransition(() => {
+        setDebouncedQuery(value.trim());
+        setPage(1);
+      });
+    }, SEARCH_DEBOUNCE_MS);
   };
 
-  const handleSortChange = (next: SortId) => {
-    setSortId(next);
-    setPage(1);
-  };
-
-  const filtered = useMemo(() => {
-    const query = globalFilter.trim().toLowerCase();
-    const items = query
-      ? data.items.filter(
-          (project) =>
-            project.name.toLowerCase().includes(query) ||
-            project.slug.toLowerCase().includes(query),
-        )
-      : [...data.items];
-    items.sort((left, right) => {
-      if (sortId === "name") {
-        return left.name.localeCompare(right.name);
-      }
-      return new Date(right.lastActivityAt).getTime() - new Date(left.lastActivityAt).getTime();
+  const handleSortChange = (next: ProjectSortKey) => {
+    startTransition(() => {
+      setSort(next);
+      setPage(1);
     });
-    return items;
-  }, [data.items, globalFilter, sortId]);
+  };
 
-  const totalCount = data.items.length;
-  const filteredCount = filtered.length;
-  const totalPages = Math.max(1, Math.ceil(filteredCount / PAGE_SIZE));
-  const safePage = Math.min(page, totalPages);
-  const paginated = useMemo(
-    () => filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
-    [filtered, safePage],
+  const handlePageChange = (next: number) => {
+    startTransition(() => {
+      setPage(next);
+    });
+  };
+
+  const { data } = useSuspenseQuery(
+    projectsQueryOptions(orgId, {
+      page,
+      limit: PAGE_SIZE,
+      ...(debouncedQuery ? { query: debouncedQuery } : {}),
+      sort,
+    }),
   );
-  const fromIndex = paginated.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
-  const toIndex = (safePage - 1) * PAGE_SIZE + paginated.length;
+
+  const totalPages = Math.max(1, Math.ceil(data.total / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const fromIndex = data.items.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
+  const toIndex = (safePage - 1) * PAGE_SIZE + data.items.length;
   const createCta = useMemo(() => <CreateProjectDialog orgId={orgId} />, [orgId]);
 
-  if (totalCount === 0) {
+  const showsFilteredEmpty = data.total === 0 && debouncedQuery.length > 0;
+  const showsGlobalEmpty = data.total === 0 && debouncedQuery.length === 0 && search.length === 0;
+
+  if (showsGlobalEmpty) {
     return (
       <div className="flex w-full flex-col gap-6">
         <PageHeader
@@ -216,10 +228,9 @@ const Projects = () => {
     );
   }
 
-  const countLabel =
-    filteredCount === totalCount
-      ? `${fromIndex}–${toIndex} of ${totalCount} ${pluralize(totalCount, "project")}`
-      : `${fromIndex}–${toIndex} of ${filteredCount} ${pluralize(filteredCount, "project")} (filtered)`;
+  const countLabel = `${fromIndex}–${toIndex} of ${data.total} ${pluralize(data.total, "project")}${
+    debouncedQuery ? " (filtered)" : ""
+  }`;
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -234,23 +245,30 @@ const Projects = () => {
             <SearchIcon className="text-muted-foreground absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
             <Input
               placeholder="Search projects…"
-              value={globalFilter}
+              value={search}
               onChange={(event) => {
-                handleFilterChange(event.target.value);
+                handleSearchChange(event.target.value);
               }}
-              className="pl-8"
+              className="pr-8 pl-8"
             />
+            {isPending ? (
+              <Loader2Icon className="text-muted-foreground absolute top-1/2 right-2.5 size-4 -translate-y-1/2 animate-spin" />
+            ) : null}
           </div>
-          <SortDropdown value={sortId} onChange={handleSortChange} />
+          <SortDropdown value={sort} onChange={handleSortChange} />
         </div>
-        {filteredCount === 0 ? (
+        {showsFilteredEmpty ? (
           <p className="text-muted-foreground rounded-xl border border-dashed py-10 text-center text-sm">
             No projects match your search.
           </p>
         ) : (
-          <List>
+          <List
+            className={
+              isPending ? "opacity-60 transition-opacity" : "opacity-100 transition-opacity"
+            }
+          >
             <ListSectionHeader>All projects</ListSectionHeader>
-            {paginated.map((project) => (
+            {data.items.map((project) => (
               <ProjectRow key={project.id} project={project} />
             ))}
             <ListFooter>
@@ -259,9 +277,9 @@ const Projects = () => {
                 <Button
                   variant="outline"
                   size="icon-xs"
-                  disabled={safePage === 1}
+                  disabled={safePage === 1 || isPending}
                   onClick={() => {
-                    setPage((prev) => prev - 1);
+                    handlePageChange(safePage - 1);
                   }}
                   aria-label="Previous page"
                 >
@@ -270,9 +288,9 @@ const Projects = () => {
                 <Button
                   variant="outline"
                   size="icon-xs"
-                  disabled={safePage >= totalPages}
+                  disabled={safePage >= totalPages || isPending}
                   onClick={() => {
-                    setPage((prev) => prev + 1);
+                    handlePageChange(safePage + 1);
                   }}
                   aria-label="Next page"
                 >

@@ -201,8 +201,8 @@ describe("mutation dialogs", () => {
       {
         seedCache: [
           [
-            ["org", orgId, "projects", projectId, "branches"],
-            { items: [branch], total: 1, page: 1, limit: 1000 },
+            ["org", orgId, "projects", projectId, "branches", { limit: 100 }],
+            { pages: [{ items: [branch], nextCursor: null }], pageParams: [undefined] },
           ],
         ],
       },

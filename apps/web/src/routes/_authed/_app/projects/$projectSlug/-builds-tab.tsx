@@ -1,4 +1,7 @@
-import { buildCompatibilityMatrixQueryOptions } from "@better-update/api-client/react";
+import {
+  buildCompatibilityMatrixQueryOptions,
+  buildsInfiniteQueryOptions,
+} from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Empty,
@@ -15,12 +18,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseInfiniteQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { PackageIcon } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { BuildCard } from "./-build-card";
 import { DISTRIBUTION_LABELS } from "./-build-helpers";
+import { synthesizeBuildChannels } from "./-compatibility-join";
 import { CompatibilityMatrix } from "./-compatibility-matrix";
 
 const PLATFORM_FILTER_LABELS: Record<string, string> = {
@@ -57,26 +61,36 @@ export const BuildsTab = ({
 }) => {
   const [platformFilter, setPlatformFilter] = useState<"ios" | "android" | undefined>(undefined);
   const [distributionFilter, setDistributionFilter] = useState<string | undefined>(undefined);
-  const [page, setPage] = useState(1);
-  const { data: compatibilityData } = useSuspenseQuery(
-    buildCompatibilityMatrixQueryOptions(orgId, projectId),
+
+  const { data: matrix } = useSuspenseQuery(buildCompatibilityMatrixQueryOptions(orgId, projectId));
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useSuspenseInfiniteQuery(
+    buildsInfiniteQueryOptions(
+      orgId,
+      projectId,
+      platformFilter ? { platform: platformFilter } : {},
+    ),
   );
 
-  const pageSize = 20;
-  const filteredBuilds = compatibilityData.rows.filter(
-    (build) =>
-      (platformFilter === undefined || build.platform === platformFilter) &&
-      (distributionFilter === undefined || build.distribution === distributionFilter),
+  const allBuilds = useMemo(() => data.pages.flatMap((page) => page.items), [data.pages]);
+  const visibleBuilds = useMemo(
+    () =>
+      distributionFilter === undefined
+        ? allBuilds
+        : allBuilds.filter((build) => build.distribution === distributionFilter),
+    [allBuilds, distributionFilter],
   );
-  const totalPages = Math.max(1, Math.ceil(filteredBuilds.length / pageSize));
-  const currentPage = Math.min(page, totalPages);
-  const visibleBuilds = filteredBuilds.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  const synthesizedBuilds = useMemo(
+    () => visibleBuilds.map((build) => synthesizeBuildChannels(build, matrix)),
+    [visibleBuilds, matrix],
+  );
 
   return (
     <div className="flex flex-col gap-4">
       <CompatibilityMatrix
-        rows={visibleBuilds}
-        missingRuntimeVersions={compatibilityData.missingRuntimeVersions}
+        builds={visibleBuilds}
+        matrix={matrix}
+        missingRuntimeVersions={matrix.missingRuntimeVersions}
       />
       <div className="flex justify-end gap-2">
         <Select
@@ -88,7 +102,6 @@ export const BuildsTab = ({
             } else {
               setPlatformFilter(undefined);
             }
-            setPage(1);
           }}
         >
           <SelectTrigger className="w-36">
@@ -109,7 +122,6 @@ export const BuildsTab = ({
             if (value) {
               setDistributionFilter(value === "all" ? undefined : value);
             }
-            setPage(1);
           }}
         >
           <SelectTrigger className="w-44">
@@ -127,15 +139,15 @@ export const BuildsTab = ({
           </SelectPopup>
         </Select>
       </div>
-      {compatibilityData.rows.length === 0 && <BuildsEmptyState />}
-      {compatibilityData.rows.length > 0 && filteredBuilds.length === 0 && (
+      {allBuilds.length === 0 && <BuildsEmptyState />}
+      {allBuilds.length > 0 && synthesizedBuilds.length === 0 && (
         <p className="text-muted-foreground py-8 text-center text-sm">
           No builds match the selected filters.
         </p>
       )}
-      {visibleBuilds.length > 0 && (
+      {synthesizedBuilds.length > 0 && (
         <div className="flex flex-col gap-3">
-          {visibleBuilds.map((build) => (
+          {synthesizedBuilds.map((build) => (
             <BuildCard
               key={build.id}
               build={build}
@@ -146,30 +158,17 @@ export const BuildsTab = ({
           ))}
         </div>
       )}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2">
+      {hasNextPage && (
+        <div className="flex items-center justify-center">
           <Button
             variant="outline"
             size="sm"
-            disabled={page === 1}
-            onClick={() => {
-              setPage((prev) => prev - 1);
+            disabled={isFetchingNextPage}
+            onClick={async () => {
+              await fetchNextPage();
             }}
           >
-            Previous
-          </Button>
-          <span className="text-muted-foreground text-sm">
-            Page {currentPage} of {totalPages}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={currentPage >= totalPages}
-            onClick={() => {
-              setPage((prev) => prev + 1);
-            }}
-          >
-            Next
+            {isFetchingNextPage ? "Loading…" : "Load more"}
           </Button>
         </div>
       )}

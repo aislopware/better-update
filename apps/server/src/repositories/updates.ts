@@ -2,8 +2,10 @@ import { Context, Effect, Layer } from "effect";
 
 import { cloudflareEnv } from "../cloudflare/context";
 import { NotFound } from "../errors";
+import { encodeCursor } from "../lib/cursor";
 import { toDbNull } from "../lib/nullable";
 
+import type { Cursor } from "../lib/cursor";
 import type { Platform, UpdateAssetRefModel, UpdateModel } from "../models";
 
 // -- Port ------------------------------------------------------------------
@@ -48,9 +50,13 @@ export interface UpdateRepository {
   readonly findByProject: (params: {
     readonly projectId: string;
     readonly branchId?: string;
+    readonly platform?: Platform;
+    readonly cursor: Cursor | null;
     readonly limit: number;
-    readonly offset: number;
-  }) => Effect.Effect<{ readonly items: readonly UpdateModel[]; readonly total: number }>;
+  }) => Effect.Effect<{
+    readonly items: readonly UpdateModel[];
+    readonly nextCursor: string | null;
+  }>;
 
   readonly findById: (params: { readonly id: string }) => Effect.Effect<UpdateModel, NotFound>;
 
@@ -259,27 +265,42 @@ export const UpdateRepoLive = Layer.succeed(UpdateRepo, {
     Effect.gen(function* () {
       const env = yield* cloudflareEnv;
 
-      const baseWhere = `FROM "updates" u JOIN "branches" b ON u."branch_id" = b."id" WHERE b."project_id" = ?`;
-      const branchFilter = params.branchId ? ` AND u."branch_id" = ?` : "";
-      const bindValues = params.branchId ? [params.projectId, params.branchId] : [params.projectId];
+      // SECURITY: All condition strings are hardcoded literals. Never interpolate user input into conditions.
+      const conditions: string[] = ['b."project_id" = ?'];
+      const bindValues: (string | number)[] = [params.projectId];
 
-      const countResult = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT COUNT(*) as count ${baseWhere}${branchFilter}`)
-          .bind(...bindValues)
-          .first<{ count: number }>(),
-      );
+      if (params.branchId) {
+        conditions.push('u."branch_id" = ?');
+        bindValues.push(params.branchId);
+      }
 
-      const total = countResult?.count ?? 0;
+      if (params.platform) {
+        conditions.push('u."platform" = ?');
+        bindValues.push(params.platform);
+      }
+
+      if (params.cursor) {
+        conditions.push('(u."created_at" < ? OR (u."created_at" = ? AND u."id" < ?))');
+        bindValues.push(params.cursor.createdAt, params.cursor.createdAt, params.cursor.id);
+      }
+
+      const whereClause = conditions.join(" AND ");
 
       const rows = yield* Effect.promise(async () =>
         env.DB.prepare(
-          `SELECT u."id", u."branch_id", u."runtime_version", u."platform", u."message", u."metadata_json", u."extra_json", u."group_id", u."rollout_percentage", u."is_rollback", u."signature", u."certificate_chain", u."manifest_body", u."directive_body", u."created_at" ${baseWhere}${branchFilter} ORDER BY u."created_at" DESC LIMIT ? OFFSET ?`,
+          `SELECT u."id", u."branch_id", u."runtime_version", u."platform", u."message", u."metadata_json", u."extra_json", u."group_id", u."rollout_percentage", u."is_rollback", u."signature", u."certificate_chain", u."manifest_body", u."directive_body", u."created_at" FROM "updates" u JOIN "branches" b ON u."branch_id" = b."id" WHERE ${whereClause} ORDER BY u."created_at" DESC, u."id" DESC LIMIT ?`,
         )
-          .bind(...bindValues, params.limit, params.offset)
+          .bind(...bindValues, params.limit + 1)
           .all<UpdateRow>(),
       );
 
-      return { items: rows.results.map(toUpdate), total };
+      const hasMore = rows.results.length > params.limit;
+      const trimmed = hasMore ? rows.results.slice(0, params.limit) : rows.results;
+      const last = trimmed.at(-1);
+      const nextCursor =
+        hasMore && last ? encodeCursor({ createdAt: last.created_at, id: last.id }) : null;
+
+      return { items: trimmed.map(toUpdate), nextCursor };
     }),
 
   findById: (params) =>

@@ -1,4 +1,4 @@
-import { branchesQueryOptions, createChannel } from "@better-update/api-client/react";
+import { branchesInfiniteQueryOptions, createChannel } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
@@ -22,7 +22,7 @@ import {
 } from "@better-update/ui/components/ui/select";
 import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useQueryClient, useSuspenseInfiniteQuery } from "@tanstack/react-query";
 import { PlusIcon } from "lucide-react";
 import { useState } from "react";
 
@@ -87,7 +87,7 @@ const BranchField = ({
               </SelectTrigger>
               <BranchOptions branches={branches} />
             </Select>
-            <FieldError>{errorMessage}</FieldError>
+            <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
           </Field>
         );
       }}
@@ -110,7 +110,10 @@ const BranchOptions = ({ branches }: { branches: readonly BranchItem[] }) => (
 export const CreateChannelDialog = ({ orgId, projectId }: { orgId: string; projectId: string }) => {
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
-  const { data: branchesData } = useSuspenseQuery(branchesQueryOptions(orgId, projectId));
+  const { data: branchesData } = useSuspenseInfiniteQuery(
+    branchesInfiniteQueryOptions(orgId, projectId, { limit: 100 }),
+  );
+  const branches = branchesData.pages.flatMap((page) => page.items);
 
   const createChannelMutation = useApiMutation({
     mutationFn: async (input: { name: string; branchId: string }) =>
@@ -191,13 +194,13 @@ export const CreateChannelDialog = ({ orgId, projectId }: { orgId: string; proje
                         aria-invalid={errorMessage ? true : undefined}
                         placeholder="e.g. production, staging"
                       />
-                      <FieldError>{errorMessage}</FieldError>
+                      <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
                     </Field>
                   );
                 }}
               </form.Field>
 
-              <BranchField form={form} branches={branchesData.items} />
+              <BranchField form={form} branches={branches} />
             </FieldGroup>
           </DialogPanel>
 

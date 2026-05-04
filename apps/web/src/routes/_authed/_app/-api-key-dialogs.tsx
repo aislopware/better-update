@@ -90,7 +90,7 @@ const CreateFormContent = ({
                   aria-invalid={errorMessage ? true : undefined}
                 />
                 <FieldDescription>A memorable name to identify this key.</FieldDescription>
-                <FieldError>{errorMessage}</FieldError>
+                <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
               </Field>
             );
           }}

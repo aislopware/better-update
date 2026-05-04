@@ -19,6 +19,13 @@ const insertOrg = (id: string, slug: string) =>
     .bind(id, `Org ${slug}`, slug, "2026-01-01T00:00:00Z")
     .run();
 
+const insertBranch = (id: string, projectId: string) =>
+  env.DB.prepare(
+    `INSERT INTO "branches" ("id", "project_id", "name", "created_at") VALUES (?, ?, 'main', ?)`,
+  )
+    .bind(id, projectId, "2026-01-01T00:00:00Z")
+    .run();
+
 // ── Setup ─────────────────────────────────────────────────────────
 
 beforeAll(async () => {
@@ -52,6 +59,7 @@ describe("ProjectRepo — D1 integration", () => {
       expect(row!.name).toBe("My App");
       expect(row!.slug).toBe("test-insert-1");
       expect(row!.organization_id).toBe("org-1");
+      expect(row!.last_activity_at).toBe("2026-01-01T00:00:00Z");
     });
 
     it("returns Conflict on duplicate slug in same org", async () => {
@@ -85,6 +93,31 @@ describe("ProjectRepo — D1 integration", () => {
       if (Either.isLeft(result)) {
         expect(result.left).toMatchObject({ _tag: "Conflict" });
       }
+    });
+
+    it("populates projects_fts on insert via trigger", async () => {
+      await run(
+        Effect.gen(function* () {
+          const repo = yield* ProjectRepo;
+          yield* repo.insert({
+            id: "proj-fts-trigger",
+            organizationId: "org-1",
+            name: "Searchable Trigger Project",
+            slug: "searchable-trigger",
+            createdAt: "2026-01-01T00:00:00Z",
+          });
+        }),
+      );
+
+      const ftsRow = await env.DB.prepare(
+        `SELECT "name", "slug" FROM "projects_fts" WHERE "project_id" = ?`,
+      )
+        .bind("proj-fts-trigger")
+        .first();
+
+      expect(ftsRow).not.toBeNull();
+      expect(ftsRow!.name).toBe("Searchable Trigger Project");
+      expect(ftsRow!.slug).toBe("searchable-trigger");
     });
   });
 
@@ -132,7 +165,12 @@ describe("ProjectRepo — D1 integration", () => {
       const result = await run(
         Effect.gen(function* () {
           const repo = yield* ProjectRepo;
-          return yield* repo.findByOrg({ organizationId: "org-2", limit: 20, offset: 0 });
+          return yield* repo.findByOrg({
+            organizationId: "org-2",
+            sort: "lastActivityAt",
+            limit: 20,
+            offset: 0,
+          });
         }),
       );
 
@@ -145,7 +183,12 @@ describe("ProjectRepo — D1 integration", () => {
       const page1 = await run(
         Effect.gen(function* () {
           const repo = yield* ProjectRepo;
-          return yield* repo.findByOrg({ organizationId: "org-1", limit: 2, offset: 0 });
+          return yield* repo.findByOrg({
+            organizationId: "org-1",
+            sort: "lastActivityAt",
+            limit: 2,
+            offset: 0,
+          });
         }),
       );
 
@@ -156,7 +199,12 @@ describe("ProjectRepo — D1 integration", () => {
       const page2 = await run(
         Effect.gen(function* () {
           const repo = yield* ProjectRepo;
-          return yield* repo.findByOrg({ organizationId: "org-1", limit: 2, offset: 2 });
+          return yield* repo.findByOrg({
+            organizationId: "org-1",
+            sort: "lastActivityAt",
+            limit: 2,
+            offset: 2,
+          });
         }),
       );
 
@@ -175,12 +223,311 @@ describe("ProjectRepo — D1 integration", () => {
       const result = await run(
         Effect.gen(function* () {
           const repo = yield* ProjectRepo;
-          return yield* repo.findByOrg({ organizationId: "org-empty", limit: 20, offset: 0 });
+          return yield* repo.findByOrg({
+            organizationId: "org-empty",
+            sort: "lastActivityAt",
+            limit: 20,
+            offset: 0,
+          });
         }),
       );
 
       expect(result.total).toBe(0);
       expect(result.items).toHaveLength(0);
+    });
+
+    it("sorts by name ascending (case-insensitive)", async () => {
+      await insertOrg("org-sort", "org-sort");
+      await run(
+        Effect.gen(function* () {
+          const repo = yield* ProjectRepo;
+          yield* repo.insert({
+            id: "sort-c",
+            organizationId: "org-sort",
+            name: "charlie",
+            slug: "sort-charlie",
+            createdAt: "2026-01-03T00:00:00Z",
+          });
+          yield* repo.insert({
+            id: "sort-a",
+            organizationId: "org-sort",
+            name: "Alpha",
+            slug: "sort-alpha",
+            createdAt: "2026-01-01T00:00:00Z",
+          });
+          yield* repo.insert({
+            id: "sort-b",
+            organizationId: "org-sort",
+            name: "bravo",
+            slug: "sort-bravo",
+            createdAt: "2026-01-02T00:00:00Z",
+          });
+        }),
+      );
+
+      const result = await run(
+        Effect.gen(function* () {
+          const repo = yield* ProjectRepo;
+          return yield* repo.findByOrg({
+            organizationId: "org-sort",
+            sort: "name",
+            limit: 20,
+            offset: 0,
+          });
+        }),
+      );
+
+      expect(result.items.map((item) => item.name)).toEqual(["Alpha", "bravo", "charlie"]);
+    });
+  });
+
+  describe("FTS substring search", () => {
+    beforeAll(async () => {
+      await insertOrg("org-fts", "org-fts");
+      await run(
+        Effect.gen(function* () {
+          const repo = yield* ProjectRepo;
+          yield* repo.insert({
+            id: "fts-mobile",
+            organizationId: "org-fts",
+            name: "Mobile Banking",
+            slug: "mobile-banking",
+            createdAt: "2026-01-01T00:00:00Z",
+          });
+          yield* repo.insert({
+            id: "fts-web",
+            organizationId: "org-fts",
+            name: "Web Dashboard",
+            slug: "web-dashboard",
+            createdAt: "2026-01-02T00:00:00Z",
+          });
+          yield* repo.insert({
+            id: "fts-api",
+            organizationId: "org-fts",
+            name: "Public API",
+            slug: "public-api",
+            createdAt: "2026-01-03T00:00:00Z",
+          });
+        }),
+      );
+    });
+
+    it("matches 3+ char substring via FTS5 trigram", async () => {
+      const result = await run(
+        Effect.gen(function* () {
+          const repo = yield* ProjectRepo;
+          return yield* repo.findByOrg({
+            organizationId: "org-fts",
+            query: "ban",
+            sort: "lastActivityAt",
+            limit: 20,
+            offset: 0,
+          });
+        }),
+      );
+
+      expect(result.total).toBe(1);
+      expect(result.items[0]?.id).toBe("fts-mobile");
+    });
+
+    it("matches by slug substring", async () => {
+      const result = await run(
+        Effect.gen(function* () {
+          const repo = yield* ProjectRepo;
+          return yield* repo.findByOrg({
+            organizationId: "org-fts",
+            query: "dashboard",
+            sort: "lastActivityAt",
+            limit: 20,
+            offset: 0,
+          });
+        }),
+      );
+
+      expect(result.total).toBe(1);
+      expect(result.items[0]?.id).toBe("fts-web");
+    });
+
+    it("falls back to LIKE for short queries (<3 chars)", async () => {
+      const result = await run(
+        Effect.gen(function* () {
+          const repo = yield* ProjectRepo;
+          return yield* repo.findByOrg({
+            organizationId: "org-fts",
+            query: "ap",
+            sort: "name",
+            limit: 20,
+            offset: 0,
+          });
+        }),
+      );
+
+      // "ap" is contained in "Public API" (slug contains "api"), "public-api" (also "api")
+      // Only Public API matches the "ap" substring
+      expect(result.total).toBe(1);
+      expect(result.items[0]?.id).toBe("fts-api");
+    });
+
+    it("respects org isolation in FTS results", async () => {
+      const result = await run(
+        Effect.gen(function* () {
+          const repo = yield* ProjectRepo;
+          return yield* repo.findByOrg({
+            organizationId: "org-1",
+            query: "Mobile",
+            sort: "lastActivityAt",
+            limit: 20,
+            offset: 0,
+          });
+        }),
+      );
+
+      expect(result.total).toBe(0);
+    });
+
+    it("returns empty when no match", async () => {
+      const result = await run(
+        Effect.gen(function* () {
+          const repo = yield* ProjectRepo;
+          return yield* repo.findByOrg({
+            organizationId: "org-fts",
+            query: "doesnotexist",
+            sort: "lastActivityAt",
+            limit: 20,
+            offset: 0,
+          });
+        }),
+      );
+
+      expect(result.total).toBe(0);
+      expect(result.items).toHaveLength(0);
+    });
+  });
+
+  describe("bumpLastActivity", () => {
+    beforeAll(async () => {
+      await insertOrg("org-bump", "org-bump");
+      await run(
+        Effect.gen(function* () {
+          const repo = yield* ProjectRepo;
+          yield* repo.insert({
+            id: "bump-proj",
+            organizationId: "org-bump",
+            name: "Bump Project",
+            slug: "bump-project",
+            createdAt: "2026-01-01T00:00:00Z",
+          });
+        }),
+      );
+      await insertBranch("bump-branch", "bump-proj");
+    });
+
+    it("updates last_activity_at when newer", async () => {
+      await run(
+        Effect.gen(function* () {
+          const repo = yield* ProjectRepo;
+          yield* repo.bumpLastActivity({
+            projectId: "bump-proj",
+            at: "2026-02-01T00:00:00Z",
+          });
+        }),
+      );
+
+      const project = await run(
+        Effect.gen(function* () {
+          const repo = yield* ProjectRepo;
+          return yield* repo.findById({ id: "bump-proj" });
+        }),
+      );
+      expect(project.lastActivityAt).toBe("2026-02-01T00:00:00Z");
+    });
+
+    it("does not regress when older timestamp provided", async () => {
+      await run(
+        Effect.gen(function* () {
+          const repo = yield* ProjectRepo;
+          yield* repo.bumpLastActivity({
+            projectId: "bump-proj",
+            at: "2025-01-01T00:00:00Z",
+          });
+        }),
+      );
+
+      const project = await run(
+        Effect.gen(function* () {
+          const repo = yield* ProjectRepo;
+          return yield* repo.findById({ id: "bump-proj" });
+        }),
+      );
+      expect(project.lastActivityAt).toBe("2026-02-01T00:00:00Z");
+    });
+
+    it("bumpLastActivityByBranch resolves project via branch lookup", async () => {
+      await run(
+        Effect.gen(function* () {
+          const repo = yield* ProjectRepo;
+          yield* repo.bumpLastActivityByBranch({
+            branchId: "bump-branch",
+            at: "2026-03-01T00:00:00Z",
+          });
+        }),
+      );
+
+      const project = await run(
+        Effect.gen(function* () {
+          const repo = yield* ProjectRepo;
+          return yield* repo.findById({ id: "bump-proj" });
+        }),
+      );
+      expect(project.lastActivityAt).toBe("2026-03-01T00:00:00Z");
+    });
+  });
+
+  describe("FTS sync via triggers", () => {
+    it("removes project from projects_fts after delete", async () => {
+      await run(
+        Effect.gen(function* () {
+          const repo = yield* ProjectRepo;
+          yield* repo.insert({
+            id: "delete-fts-proj",
+            organizationId: "org-1",
+            name: "Doomed Project",
+            slug: "doomed-project",
+            createdAt: "2026-01-01T00:00:00Z",
+          });
+          yield* repo.delete({ id: "delete-fts-proj" });
+        }),
+      );
+
+      const ftsRow = await env.DB.prepare(
+        `SELECT "project_id" FROM "projects_fts" WHERE "project_id" = ?`,
+      )
+        .bind("delete-fts-proj")
+        .first();
+      expect(ftsRow).toBeNull();
+    });
+
+    it("updates projects_fts when project is renamed", async () => {
+      await run(
+        Effect.gen(function* () {
+          const repo = yield* ProjectRepo;
+          yield* repo.insert({
+            id: "rename-fts-proj",
+            organizationId: "org-1",
+            name: "Original Name",
+            slug: "rename-fts",
+            createdAt: "2026-01-01T00:00:00Z",
+          });
+          yield* repo.updateName({ id: "rename-fts-proj", name: "Updated Name" });
+        }),
+      );
+
+      const ftsRow = await env.DB.prepare(
+        `SELECT "name" FROM "projects_fts" WHERE "project_id" = ?`,
+      )
+        .bind("rename-fts-proj")
+        .first();
+      expect(ftsRow!.name).toBe("Updated Name");
     });
   });
 });

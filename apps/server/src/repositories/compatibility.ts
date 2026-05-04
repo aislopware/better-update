@@ -5,20 +5,13 @@ import { cloudflareEnv } from "../cloudflare/context";
 import { extractReachableBranchIds } from "../domain/branch-mapping";
 import { collectServableUpdates } from "../domain/update-rollout";
 import { toDbNull } from "../lib/nullable";
-import {
-  BUILD_WITH_ARTIFACT_COLUMNS,
-  BUILD_WITH_ARTIFACT_JOIN,
-  toBuildWithArtifact,
-} from "./build-row";
 
 import type {
   BuildCompatibilityChannelModel,
   BuildCompatibilityMatrixModel,
-  BuildCompatibilityRowModel,
   MissingRuntimeVersionBuildModel,
   Platform,
 } from "../models";
-import type { BuildWithArtifactRow } from "./build-row";
 
 // -- Port ------------------------------------------------------------------
 
@@ -34,8 +27,6 @@ export class CompatibilityRepo extends Context.Tag("api/CompatibilityRepo")<
 >() {}
 
 // -- D1 Adapter ------------------------------------------------------------
-
-type BuildRow = BuildWithArtifactRow;
 
 interface ChannelRow {
   id: string;
@@ -55,13 +46,12 @@ interface UpdateRow {
   rollout_percentage: number;
 }
 
-const SELECT_BUILDS_WITH_ARTIFACT = `SELECT ${BUILD_WITH_ARTIFACT_COLUMNS} ${BUILD_WITH_ARTIFACT_JOIN} WHERE b."project_id" = ? ORDER BY b."created_at" DESC`;
-
 const SELECT_CHANNELS = `SELECT "id", "name", "branch_id", "branch_mapping_json", "is_paused" FROM "channels" WHERE "project_id" = ? ORDER BY "name" ASC`;
 
 const SELECT_PROJECT_UPDATES = `SELECT u."id", u."branch_id", u."platform", u."runtime_version", u."message", u."created_at", u."rollout_percentage" FROM "updates" u JOIN "branches" b ON b."id" = u."branch_id" WHERE b."project_id" = ? ORDER BY u."branch_id" ASC, u."platform" ASC, u."runtime_version" ASC, u."created_at" DESC, u."id" DESC`;
 
-const toBuildRow = toBuildWithArtifact;
+const platformRuntimeKey = (platform: Platform, runtimeVersion: string) =>
+  `${platform}:${runtimeVersion}`;
 
 interface BranchRuntimeSummary {
   readonly platform: Platform;
@@ -75,9 +65,6 @@ type ChannelRuntimeSummary = BranchRuntimeSummary;
 type ChannelDefinition = ChannelRow & {
   readonly branchIds: readonly string[];
 };
-
-const platformRuntimeKey = (platform: Platform, runtimeVersion: string) =>
-  `${platform}:${runtimeVersion}`;
 
 const groupRuntimeKey = (branchId: string, platform: Platform, runtimeVersion: string) =>
   `${branchId}:${platformRuntimeKey(platform, runtimeVersion)}`;
@@ -102,10 +89,14 @@ export const CompatibilityRepoLive = Layer.succeed(CompatibilityRepo, {
     Effect.gen(function* () {
       const env = yield* cloudflareEnv;
 
-      const [buildRows, channelRows, updateRows] = yield* Effect.all(
+      const [buildKeysResult, channelRows, updateRows] = yield* Effect.all(
         [
           Effect.promise(async () =>
-            env.DB.prepare(SELECT_BUILDS_WITH_ARTIFACT).bind(params.projectId).all<BuildRow>(),
+            env.DB.prepare(
+              `SELECT DISTINCT "platform", "runtime_version" FROM "builds" WHERE "project_id" = ? AND "runtime_version" IS NOT NULL`,
+            )
+              .bind(params.projectId)
+              .all<{ platform: Platform; runtime_version: string }>(),
           ),
           Effect.promise(async () =>
             env.DB.prepare(SELECT_CHANNELS).bind(params.projectId).all<ChannelRow>(),
@@ -195,58 +186,33 @@ export const CompatibilityRepoLive = Layer.succeed(CompatibilityRepo, {
         return channels;
       }, new Map<string, Map<string, ChannelRuntimeSummary>>());
 
-      const uploadedBuildKeys = buildRows.results.reduce((keys, build) => {
-        if (build.runtime_version !== null) {
-          keys.add(platformRuntimeKey(build.platform, build.runtime_version));
-        }
+      const uploadedBuildKeys = buildKeysResult.results.reduce((keys, row) => {
+        keys.add(platformRuntimeKey(row.platform, row.runtime_version));
         return keys;
       }, new Set<string>());
 
-      const rows = buildRows.results.map((buildRow) => {
-        const build = toBuildRow(buildRow);
-        const buildKey =
-          build.runtimeVersion === null
-            ? null
-            : platformRuntimeKey(build.platform, build.runtimeVersion);
-
-        const channelStatuses = channelDefinitions.map((channel) => {
-          const summary =
-            buildKey === null ? undefined : channelSummaries.get(channel.id)?.get(buildKey);
-
+      const channelStatusByKey: Record<string, BuildCompatibilityChannelModel[]> = {};
+      uploadedBuildKeys.forEach((key) => {
+        channelStatusByKey[key] = channelDefinitions.map((channel) => {
+          const summary = channelSummaries.get(channel.id)?.get(key);
           return {
             channelId: channel.id,
-            channelName: channel.name,
             updateCount: summary?.updateCount ?? 0,
             latestUpdateId: toDbNull(summary?.latestUpdate.id),
             latestUpdateMessage: toDbNull(summary?.latestUpdate.message),
             latestUpdateCreatedAt: toDbNull(summary?.latestUpdate.created_at),
-            isPaused: channel.is_paused === 1,
-            rolloutActive: channel.branch_mapping_json !== null,
           } satisfies BuildCompatibilityChannelModel;
         });
-
-        return {
-          id: build.id,
-          projectId: build.projectId,
-          platform: build.platform,
-          profile: build.profile,
-          distribution: build.distribution,
-          runtimeVersion: build.runtimeVersion,
-          appVersion: build.appVersion,
-          buildNumber: build.buildNumber,
-          bundleId: build.bundleId,
-          gitRef: build.gitRef,
-          gitCommit: build.gitCommit,
-          message: build.message,
-          metadataJson: build.metadataJson,
-          createdAt: build.createdAt,
-          artifact: build.artifact,
-          channels: channelStatuses,
-        } satisfies BuildCompatibilityRowModel;
       });
 
       return {
-        rows,
+        channels: channelDefinitions.map((channel) => ({
+          channelId: channel.id,
+          channelName: channel.name,
+          isPaused: channel.is_paused === 1,
+          rolloutActive: channel.branch_mapping_json !== null,
+        })),
+        channelStatusByKey,
         missingRuntimeVersions: channelDefinitions.flatMap((channel) =>
           channel.is_paused === 1
             ? []

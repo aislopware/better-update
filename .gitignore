@@ -18,9 +18,13 @@ test-results/
 # Playwright MCP scratch output
 .playwright-mcp/
 
-# Claude Code (keep CLAUDE.md, settings/, commands/)
-.claude/worktree
-.claude/*.local.*
+# Claude Code — share team artifacts (CLAUDE.md, settings.json, commands/, agents/, skills/, hooks/, mcp.json); ignore personal/runtime files
+.claude/worktree/
+.claude/**/*.local.*
+.claude/scheduled_tasks.lock
+.claude/cache/
+.claude/logs/
+.claude/.last-conversation
 
 # macOS
 .DS_Store

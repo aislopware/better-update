@@ -6,12 +6,30 @@ import { printKeyValue, printTable } from "../lib/output";
 import { apiClient } from "../services/api-client";
 
 const listCommand = defineCommand({
-  meta: { name: "list", description: "List all projects" },
-  run: async () =>
+  meta: { name: "list", description: "List projects (most recently active first)" },
+  args: {
+    query: { type: "string", description: "Substring search on name or slug" },
+    sort: {
+      type: "string",
+      description: "Sort key: lastActivityAt (default) or name",
+      default: "lastActivityAt",
+    },
+    limit: { type: "string", description: "Page size (default 50, max 100)", default: "50" },
+    page: { type: "string", description: "1-based page number", default: "1" },
+  },
+  run: async ({ args }) =>
     runEffect(
       Effect.gen(function* () {
         const api = yield* apiClient;
-        const { items } = yield* api.projects.list({ urlParams: { page: 1, limit: 1000 } });
+        const sort = args.sort === "name" ? "name" : "lastActivityAt";
+        const { items, total, page } = yield* api.projects.list({
+          urlParams: {
+            page: Number(args.page),
+            limit: Number(args.limit),
+            sort,
+            ...(args.query ? { query: args.query } : {}),
+          },
+        });
 
         if (items.length === 0) {
           yield* Console.log("No projects found.");
@@ -19,9 +37,10 @@ const listCommand = defineCommand({
         }
 
         yield* printTable(
-          ["ID", "Name", "Slug", "Created"],
-          items.map((project) => [project.id, project.name, project.slug, project.createdAt]),
+          ["ID", "Name", "Slug", "Last activity"],
+          items.map((project) => [project.id, project.name, project.slug, project.lastActivityAt]),
         );
+        yield* Console.log(`Page ${page} · ${items.length} of ${total} project(s)`);
       }),
     ),
 });

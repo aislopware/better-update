@@ -102,7 +102,7 @@ const PasswordPage = () => {
                     onBlur={field.handleBlur}
                     aria-invalid={errorMessage ? true : undefined}
                   />
-                  <FieldError>{errorMessage}</FieldError>
+                  <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
                 </Field>
               );
             }}
@@ -132,7 +132,7 @@ const PasswordPage = () => {
                     onBlur={field.handleBlur}
                     aria-invalid={errorMessage ? true : undefined}
                   />
-                  <FieldError>{errorMessage}</FieldError>
+                  <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
                 </Field>
               );
             }}
@@ -163,7 +163,7 @@ const PasswordPage = () => {
                     onBlur={field.handleBlur}
                     aria-invalid={errorMessage ? true : undefined}
                   />
-                  <FieldError>{errorMessage}</FieldError>
+                  <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
                 </Field>
               );
             }}

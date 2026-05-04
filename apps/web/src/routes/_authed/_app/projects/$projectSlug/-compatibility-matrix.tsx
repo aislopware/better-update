@@ -19,17 +19,25 @@ import {
   TableRow,
 } from "@better-update/ui/components/ui/table";
 
-import type { BuildCompatibilityRow, MissingRuntimeVersionBuild } from "@better-update/api";
+import type {
+  BuildCompatibilityMatrixResult,
+  BuildWithArtifact,
+  MissingRuntimeVersionBuild,
+} from "@better-update/api";
 
-const buildLabel = (build: typeof BuildCompatibilityRow.Type) =>
+import { synthesizeBuildChannels } from "./-compatibility-join";
+
+import type { BuildWithSyntheticChannels, SyntheticBuildChannel } from "./-compatibility-join";
+
+const buildLabel = (build: BuildWithSyntheticChannels) =>
   (build.message ?? build.profile) || build.id.slice(0, 8);
 
 const MatrixStatusCell = ({
   build,
   channel,
 }: {
-  build: typeof BuildCompatibilityRow.Type;
-  channel: (typeof BuildCompatibilityRow.Type)["channels"][number];
+  build: BuildWithSyntheticChannels;
+  channel: SyntheticBuildChannel;
 }) => {
   if (channel.isPaused) {
     return (
@@ -50,7 +58,7 @@ const MatrixStatusCell = ({
   );
 };
 
-const MatrixBuildRow = ({ build }: { build: typeof BuildCompatibilityRow.Type }) => (
+const MatrixBuildRow = ({ build }: { build: BuildWithSyntheticChannels }) => (
   <TableRow key={build.id}>
     <TableCell className="whitespace-normal">
       <div className="flex flex-col gap-1">
@@ -88,15 +96,18 @@ const MatrixBuildRow = ({ build }: { build: typeof BuildCompatibilityRow.Type })
 );
 
 export const CompatibilityMatrix = ({
-  rows,
+  builds,
+  matrix,
   missingRuntimeVersions,
 }: {
-  rows: readonly (typeof BuildCompatibilityRow.Type)[];
+  builds: readonly (typeof BuildWithArtifact.Type)[];
+  matrix: typeof BuildCompatibilityMatrixResult.Type;
   missingRuntimeVersions: readonly (typeof MissingRuntimeVersionBuild.Type)[];
 }) => {
-  const channels = rows[0]?.channels ?? [];
+  const synthesized = builds.map((build) => synthesizeBuildChannels(build, matrix));
+  const { channels } = matrix;
 
-  if (rows.length === 0 && missingRuntimeVersions.length === 0) {
+  if (synthesized.length === 0 && missingRuntimeVersions.length === 0) {
     return null;
   }
 
@@ -130,7 +141,7 @@ export const CompatibilityMatrix = ({
         </Card>
       )}
 
-      {rows.length > 0 && channels.length > 0 && (
+      {synthesized.length > 0 && channels.length > 0 && (
         <CardFrame>
           <CardFrameHeader>
             <CardFrameTitle>Builds × Channels</CardFrameTitle>
@@ -149,7 +160,7 @@ export const CompatibilityMatrix = ({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map((build) => (
+              {synthesized.map((build) => (
                 <MatrixBuildRow key={build.id} build={build} />
               ))}
             </TableBody>

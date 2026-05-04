@@ -3,7 +3,13 @@ import { Schema } from "effect";
 
 import { Forbidden } from "../auth/errors";
 import { NotFound } from "../auth/ownership";
-import { Id, PaginationParams, UpdateRolloutBody } from "../domain/common";
+import {
+  CursorPaginationParams,
+  cursorPageResult,
+  Id,
+  Platform,
+  UpdateRolloutBody,
+} from "../domain/common";
 import { BadRequest, Conflict } from "../domain/errors";
 import {
   CreateUpdateBody,
@@ -35,17 +41,11 @@ export class UpdatesGroup extends HttpApiGroup.make("updates")
         Schema.Struct({
           projectId: Id,
           branchId: Schema.optional(Id),
-          ...PaginationParams.fields,
+          platform: Schema.optional(Platform),
+          ...CursorPaginationParams.fields,
         }),
       )
-      .addSuccess(
-        Schema.Struct({
-          items: Schema.Array(Update),
-          total: Schema.Number,
-          page: Schema.Number,
-          limit: Schema.Number,
-        }),
-      )
+      .addSuccess(cursorPageResult(Update))
       .annotateContext(
         OpenApi.annotations({
           title: "List updates",

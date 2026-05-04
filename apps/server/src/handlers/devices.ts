@@ -10,8 +10,8 @@ import { cloudflareEnv } from "../cloudflare/context";
 import { normalizeIdentifier } from "../domain/device";
 import { toApiDevice, toApiDeviceRegistrationRequest } from "../http/to-api";
 import { toApiCrudEffect } from "../http/to-api-effect";
+import { parseCursorPagination } from "../lib/cursor";
 import { toDbNull } from "../lib/nullable";
-import { parsePagination } from "../lib/pagination";
 import { DeviceRegistrationRequestRepo } from "../repositories/device-registration-requests";
 import { DeviceRepo } from "../repositories/devices";
 
@@ -60,18 +60,18 @@ export const DevicesGroupLive = HttpApiBuilder.group(ManagementApi, "devices", (
           yield* assertPermission("device", "read");
           const ctx = yield* CurrentActor;
           const repo = yield* DeviceRepo;
-          const { page, limit, offset } = parsePagination(urlParams);
+          const { cursor, limit } = parseCursorPagination(urlParams);
 
-          const { items, total } = yield* repo.findByOrg({
+          const { items, nextCursor } = yield* repo.findByOrg({
             organizationId: ctx.organizationId,
+            cursor,
             limit,
-            offset,
-            search: urlParams.search,
             deviceClass: urlParams.deviceClass,
             appleTeamId: urlParams.appleTeamId,
+            query: urlParams.query,
           });
 
-          return { items: items.map(toApiDevice), total, page, limit };
+          return { items: items.map(toApiDevice), nextCursor };
         }),
       ),
     )

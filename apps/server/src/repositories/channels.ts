@@ -2,10 +2,12 @@ import { Context, Effect, Layer } from "effect";
 
 import { cloudflareEnv } from "../cloudflare/context";
 import { NotFound } from "../errors";
+import { encodeCursor } from "../lib/cursor";
 import { bumpChannelCacheVersionByBranchReference } from "./channel-cache-version";
 import { d1RunWithUniqueCheck } from "./d1-helpers";
 
 import type { Conflict } from "../errors";
+import type { Cursor } from "../lib/cursor";
 import type { ChannelModel } from "../models";
 
 // -- Port ------------------------------------------------------------------
@@ -19,9 +21,12 @@ export interface ChannelRepository {
 
   readonly findByProject: (params: {
     readonly projectId: string;
+    readonly cursor: Cursor | null;
     readonly limit: number;
-    readonly offset: number;
-  }) => Effect.Effect<{ readonly items: readonly ChannelModel[]; readonly total: number }>;
+  }) => Effect.Effect<{
+    readonly items: readonly ChannelModel[];
+    readonly nextCursor: string | null;
+  }>;
 
   readonly findById: (params: { readonly id: string }) => Effect.Effect<ChannelModel, NotFound>;
 
@@ -117,23 +122,28 @@ export const ChannelRepoLive = Layer.succeed(ChannelRepo, {
     Effect.gen(function* () {
       const env = yield* cloudflareEnv;
 
-      const countResult = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT COUNT(*) as count FROM "channels" WHERE "project_id" = ?`)
-          .bind(params.projectId)
-          .first<{ count: number }>(),
-      );
-
-      const total = countResult?.count ?? 0;
+      const filters: string[] = [`"project_id" = ?`];
+      const bindings: (string | number)[] = [params.projectId];
+      if (params.cursor) {
+        filters.push(`("created_at" < ? OR ("created_at" = ? AND "id" < ?))`);
+        bindings.push(params.cursor.createdAt, params.cursor.createdAt, params.cursor.id);
+      }
 
       const rows = yield* Effect.promise(async () =>
         env.DB.prepare(
-          `SELECT "id", "project_id", "name", "branch_id", "branch_mapping_json", "cache_version", "is_paused", "created_at" FROM "channels" WHERE "project_id" = ? ORDER BY "created_at" DESC LIMIT ? OFFSET ?`,
+          `SELECT "id", "project_id", "name", "branch_id", "branch_mapping_json", "cache_version", "is_paused", "created_at" FROM "channels" WHERE ${filters.join(" AND ")} ORDER BY "created_at" DESC, "id" DESC LIMIT ?`,
         )
-          .bind(params.projectId, params.limit, params.offset)
+          .bind(...bindings, params.limit + 1)
           .all<ChannelRow>(),
       );
 
-      return { items: rows.results.map(toChannel), total };
+      const hasMore = rows.results.length > params.limit;
+      const trimmed = hasMore ? rows.results.slice(0, params.limit) : rows.results;
+      const last = trimmed.at(-1);
+      const nextCursor =
+        hasMore && last ? encodeCursor({ createdAt: last.created_at, id: last.id }) : null;
+
+      return { items: trimmed.map(toChannel), nextCursor };
     }),
 
   findById: (params) =>

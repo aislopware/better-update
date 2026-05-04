@@ -43,9 +43,6 @@ export class EnvVarsGroup extends HttpApiGroup.make("env-vars")
       .addSuccess(
         Schema.Struct({
           items: Schema.Array(EnvVar),
-          total: Schema.Number,
-          page: Schema.Number,
-          limit: Schema.Number,
         }),
       )
       .annotateContext(

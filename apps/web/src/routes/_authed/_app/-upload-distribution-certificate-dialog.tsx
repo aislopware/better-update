@@ -125,7 +125,9 @@ export const UploadDistributionCertificateDialog = ({ orgId }: { orgId: string }
                         field.handleChange(value);
                       }}
                     />
-                    <FieldError>{getFieldError(field)}</FieldError>
+                    <FieldError match={Boolean(getFieldError(field))}>
+                      {getFieldError(field)}
+                    </FieldError>
                   </Field>
                 )}
               </form.Field>
@@ -147,7 +149,9 @@ export const UploadDistributionCertificateDialog = ({ orgId }: { orgId: string }
                         field.handleChange(event.target.value);
                       }}
                     />
-                    <FieldError>{getFieldError(field)}</FieldError>
+                    <FieldError match={Boolean(getFieldError(field))}>
+                      {getFieldError(field)}
+                    </FieldError>
                   </Field>
                 )}
               </form.Field>
@@ -170,7 +174,9 @@ export const UploadDistributionCertificateDialog = ({ orgId }: { orgId: string }
                         field.handleChange(event.target.value.toUpperCase());
                       }}
                     />
-                    <FieldError>{getFieldError(field)}</FieldError>
+                    <FieldError match={Boolean(getFieldError(field))}>
+                      {getFieldError(field)}
+                    </FieldError>
                   </Field>
                 )}
               </form.Field>
@@ -191,7 +197,9 @@ export const UploadDistributionCertificateDialog = ({ orgId }: { orgId: string }
                         field.handleChange(event.target.value);
                       }}
                     />
-                    <FieldError>{getFieldError(field)}</FieldError>
+                    <FieldError match={Boolean(getFieldError(field))}>
+                      {getFieldError(field)}
+                    </FieldError>
                   </Field>
                 )}
               </form.Field>
@@ -212,7 +220,9 @@ export const UploadDistributionCertificateDialog = ({ orgId }: { orgId: string }
                           field.handleChange(dateToIsoBoundary(value, "start"));
                         }}
                       />
-                      <FieldError>{getFieldError(field)}</FieldError>
+                      <FieldError match={Boolean(getFieldError(field))}>
+                        {getFieldError(field)}
+                      </FieldError>
                     </Field>
                   )}
                 </form.Field>
@@ -231,7 +241,9 @@ export const UploadDistributionCertificateDialog = ({ orgId }: { orgId: string }
                           field.handleChange(dateToIsoBoundary(value, "end"));
                         }}
                       />
-                      <FieldError>{getFieldError(field)}</FieldError>
+                      <FieldError match={Boolean(getFieldError(field))}>
+                        {getFieldError(field)}
+                      </FieldError>
                     </Field>
                   )}
                 </form.Field>

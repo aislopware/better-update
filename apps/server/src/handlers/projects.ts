@@ -58,6 +58,8 @@ export const ProjectsGroupLive = HttpApiBuilder.group(ManagementApi, "projects",
 
           const { items, total } = yield* repo.findByOrg({
             organizationId: ctx.organizationId,
+            ...(urlParams.query ? { query: urlParams.query } : {}),
+            sort: urlParams.sort ?? "lastActivityAt",
             limit,
             offset,
           });

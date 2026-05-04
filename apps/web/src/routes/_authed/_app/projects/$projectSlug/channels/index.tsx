@@ -1,7 +1,8 @@
 import {
-  branchesQueryOptions,
+  branchesInfiniteQueryOptions,
   buildCompatibilityMatrixQueryOptions,
-  channelsQueryOptions,
+  buildsInfiniteQueryOptions,
+  channelsInfiniteQueryOptions,
 } from "@better-update/api-client/react";
 import { createFileRoute } from "@tanstack/react-router";
 
@@ -18,9 +19,14 @@ export const Route = createFileRoute("/_authed/_app/projects/$projectSlug/channe
     const orgId = context.activeOrg.id;
     const projectId = context.project.id;
     await Promise.all([
-      context.queryClient.ensureQueryData(channelsQueryOptions(orgId, projectId)),
-      context.queryClient.ensureQueryData(branchesQueryOptions(orgId, projectId)),
+      context.queryClient.ensureInfiniteQueryData(
+        channelsInfiniteQueryOptions(orgId, projectId, { limit: 100 }),
+      ),
+      context.queryClient.ensureInfiniteQueryData(
+        branchesInfiniteQueryOptions(orgId, projectId, { limit: 100 }),
+      ),
       context.queryClient.ensureQueryData(buildCompatibilityMatrixQueryOptions(orgId, projectId)),
+      context.queryClient.ensureInfiniteQueryData(buildsInfiniteQueryOptions(orgId, projectId)),
     ]);
   },
   component: ChannelsPage,

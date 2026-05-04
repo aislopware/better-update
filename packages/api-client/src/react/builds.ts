@@ -1,4 +1,4 @@
-import { queryOptions } from "@tanstack/react-query";
+import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 
 import { runApi } from "../index";
 
@@ -13,36 +13,39 @@ export const buildQueryKey = (orgId: string, buildId: string) =>
 export const buildCompatibilityMatrixQueryKey = (orgId: string, projectId: string) =>
   ["org", orgId, "projects", projectId, "build-compatibility-matrix"] as const;
 
-export const buildsQueryOptions = (
+export interface BuildsFilters {
+  readonly platform?: PlatformValue;
+  readonly profile?: string;
+  readonly runtimeVersion?: string;
+  readonly limit?: number;
+}
+
+export const buildsInfiniteQueryOptions = (
   orgId: string,
   projectId: string,
-  filters?: { platform?: PlatformValue; profile?: string; runtimeVersion?: string },
-  page?: number,
+  filters?: BuildsFilters,
 ) =>
-  queryOptions({
-    queryKey: [
-      ...buildsQueryKey(orgId, projectId),
-      {
-        platform: filters?.platform,
-        profile: filters?.profile,
-        runtimeVersion: filters?.runtimeVersion,
-        page,
-      },
-    ],
-    queryFn: async ({ signal }) =>
+  infiniteQueryOptions({
+    queryKey: [...buildsQueryKey(orgId, projectId), filters ?? {}],
+    queryFn: async ({ signal, pageParam }) =>
       runApi(
         (api) =>
           api.builds.list({
             urlParams: {
               projectId,
-              platform: filters?.platform,
-              profile: filters?.profile,
-              runtimeVersion: filters?.runtimeVersion,
-              page,
+              ...(filters?.platform ? { platform: filters.platform } : {}),
+              ...(filters?.profile ? { profile: filters.profile } : {}),
+              ...(filters?.runtimeVersion ? { runtimeVersion: filters.runtimeVersion } : {}),
+              ...(filters?.limit ? { limit: filters.limit } : {}),
+              cursor: pageParam,
             },
           }),
         signal,
       ),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) =>
+      // eslint-disable-next-line eslint-js/no-restricted-syntax -- react-query getNextPageParam contract: undefined terminates; API schema returns null
+      lastPage.nextCursor ?? undefined,
     staleTime: 30_000,
   });
 
