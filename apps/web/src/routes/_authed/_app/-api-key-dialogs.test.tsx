@@ -1,3 +1,5 @@
+import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
+import { Input } from "@better-update/ui/components/ui/input";
 import { useForm } from "@tanstack/react-form";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -116,17 +118,18 @@ const CreateApiKeyTestForm = ({ onSubmit }: { onSubmit: (name: string) => Promis
       >
         {(field) => {
           const errorMessage = getFieldError(field);
+          const invalid = Boolean(errorMessage);
           return (
-            <div>
-              <label htmlFor="api-key-name">Name</label>
-              <input
+            <Field invalid={invalid}>
+              <FieldLabel htmlFor="api-key-name">Name</FieldLabel>
+              <Input
                 id="api-key-name"
                 value={field.state.value}
                 onChange={(event) => field.handleChange(event.target.value)}
                 onBlur={field.handleBlur}
               />
-              {errorMessage ? <span role="alert">{errorMessage}</span> : null}
-            </div>
+              <FieldError match={invalid}>{errorMessage}</FieldError>
+            </Field>
           );
         }}
       </form.Field>
@@ -151,8 +154,21 @@ describe("createApiKeyDialog form", () => {
     await user.tab();
 
     await waitFor(() => {
-      expect(screen.getByRole("alert")).toHaveTextContent("Name is required");
+      expect(screen.getByText("Name is required")).toBeInTheDocument();
     });
+  });
+
+  it("submitting empty form (no prior blur) shows the inline error via FieldError", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn<(name: string) => Promise<void>>();
+    render(<CreateApiKeyTestForm onSubmit={onSubmit} />);
+
+    await user.click(screen.getByRole("button", { name: "Create key" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Name is required")).toBeInTheDocument();
+    });
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 
   it("submitting with name calls fetch to create API key", async () => {

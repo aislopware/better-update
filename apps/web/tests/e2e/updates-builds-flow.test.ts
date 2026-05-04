@@ -123,22 +123,26 @@ VALUES
     );
     expect(compatibilityResponse.status).toBe(200);
     const compatibilityBody = await compatibilityResponse.json();
-    expect(compatibilityBody.rows).toStrictEqual(
+    expect(compatibilityBody.channels).toStrictEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          id: "dash-build-next",
-          runtimeVersion: "2.0.0",
-          channels: expect.arrayContaining([
-            expect.objectContaining({
-              channelName: "production",
-              rolloutActive: true,
-              latestUpdateMessage: "Next release",
-              updateCount: 1,
-            }),
-          ]),
+          channelName: "production",
+          rolloutActive: true,
         }),
       ]),
     );
+    const productionChannelId = compatibilityBody.channels.find(
+      (channel: { channelName: string }) => channel.channelName === "production",
+    )?.channelId;
+    expect(compatibilityBody.channelStatusByKey).toHaveProperty("ios:2.0.0");
+    expect(
+      compatibilityBody.channelStatusByKey["ios:2.0.0"].find(
+        (entry: { channelId: string }) => entry.channelId === productionChannelId,
+      ),
+    ).toMatchObject({
+      latestUpdateMessage: "Next release",
+      updateCount: 1,
+    });
     expect(compatibilityBody.missingRuntimeVersions).toStrictEqual(
       expect.arrayContaining([
         expect.objectContaining({

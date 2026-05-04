@@ -213,9 +213,7 @@ describe("Builds API flow", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.items).toBeDefined();
-    expect(body.total).toBeDefined();
-    expect(body.page).toBe(1);
-    expect(body.limit).toBe(20);
+    expect(body.nextCursor).toBeNull();
     expect(body.items).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -226,6 +224,76 @@ describe("Builds API flow", () => {
         }),
       ]),
     );
+  });
+
+  it("paginates builds via cursor with stable order", async () => {
+    const extraBuildIds: string[] = [];
+    for (let i = 0; i < 3; i++) {
+      const reserve = await post(
+        "/api/builds",
+        {
+          projectId,
+          platform: "ios",
+          distribution: "ad-hoc",
+          artifactFormat: "ipa",
+          appVersion: `1.0.${i + 1}`,
+          buildNumber: `${100 + i}`,
+          bundleId: "com.test.app",
+          message: `Cursor pagination build ${i}`,
+          sha256: artifactSha256,
+          byteSize: artifactBytes.byteLength,
+        },
+        { cookie: cookies },
+      );
+      expect(reserve.status).toBe(201);
+      const reserveBody = await reserve.json();
+      extraBuildIds.push(reserveBody.id);
+
+      const upload = await putAbsolute(reserveBody.uploadUrl, artifactBytes, {
+        "content-length": String(artifactBytes.byteLength),
+        ...(reserveBody.uploadHeaders as Record<string, string>),
+      });
+      expect(upload.status).toBe(200);
+
+      const complete = await post(
+        `/api/builds/${reserveBody.id}/complete`,
+        { sha256: artifactSha256, byteSize: artifactBytes.byteLength },
+        { cookie: cookies },
+      );
+      expect(complete.status).toBe(200);
+    }
+
+    const firstResponse = await get(`/api/builds?projectId=${projectId}&limit=2`, {
+      cookie: cookies,
+    });
+    expect(firstResponse.status).toBe(200);
+    const firstBody = await firstResponse.json();
+    expect(firstBody.items).toHaveLength(2);
+    expect(firstBody.nextCursor).toBeTruthy();
+
+    const secondResponse = await get(
+      `/api/builds?projectId=${projectId}&limit=2&cursor=${encodeURIComponent(firstBody.nextCursor)}`,
+      { cookie: cookies },
+    );
+    expect(secondResponse.status).toBe(200);
+    const secondBody = await secondResponse.json();
+    expect(secondBody.items.length).toBeGreaterThan(0);
+
+    const firstIds = new Set(firstBody.items.map((build: { id: string }) => build.id));
+    const secondIds = secondBody.items.map((build: { id: string }) => build.id);
+    secondIds.forEach((id: string) => {
+      expect(firstIds.has(id)).toBe(false);
+    });
+  });
+
+  it("rejects malformed cursor", async () => {
+    const response = await get(
+      `/api/builds?projectId=${projectId}&limit=2&cursor=not-a-base64-cursor`,
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.items).toBeDefined();
   });
 
   it("gets the completed build by id", async () => {

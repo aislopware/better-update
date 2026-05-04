@@ -149,7 +149,6 @@ describe("Environment variables API flow", () => {
     );
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.total).toBe(2);
     expect(body.items).toHaveLength(2);
     expect(body.items.map((item: { key: string }) => item.key)).toEqual([
       "APP_SECRET",

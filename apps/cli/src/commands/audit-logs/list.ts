@@ -2,32 +2,27 @@ import { defineCommand } from "citty";
 import { Console, Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
+import { parseLimit } from "../../lib/cli-schemas";
 import { printTable } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 
 export const listCommand = defineCommand({
   meta: { name: "list", description: "List audit log entries" },
   args: {
-    action: { type: "string", description: "Filter by action" },
     "resource-type": { type: "string", description: "Filter by resource type" },
-    "actor-id": { type: "string", description: "Filter by actor ID" },
     from: { type: "string", description: "ISO timestamp lower bound" },
     to: { type: "string", description: "ISO timestamp upper bound" },
+    limit: { type: "string", default: "100", description: "Max rows (default 100)" },
   },
   run: async ({ args }) =>
     runEffect(
       Effect.gen(function* () {
+        const limit = yield* parseLimit(args.limit, 100);
         const api = yield* apiClient;
 
         const filters: Record<string, string> = {};
-        if (args.action) {
-          filters["action"] = args.action;
-        }
         if (args["resource-type"]) {
           filters["resourceType"] = args["resource-type"];
-        }
-        if (args["actor-id"]) {
-          filters["actorId"] = args["actor-id"];
         }
         if (args.from) {
           filters["from"] = args.from;
@@ -37,7 +32,7 @@ export const listCommand = defineCommand({
         }
 
         const { items } = yield* api["audit-logs"].list({
-          urlParams: { ...filters, page: 1, limit: 100 },
+          urlParams: { ...filters, limit },
         });
 
         if (items.length === 0) {

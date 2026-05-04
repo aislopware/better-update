@@ -1,8 +1,9 @@
 import {
-  branchesQueryOptions,
-  channelsQueryOptions,
-  updatesQueryOptions,
+  branchesInfiniteQueryOptions,
+  channelsInfiniteQueryOptions,
+  updatesInfiniteQueryOptions,
 } from "@better-update/api-client/react";
+import { Button } from "@better-update/ui/components/ui/button";
 import {
   Empty,
   EmptyDescription,
@@ -18,11 +19,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseInfiniteQuery } from "@tanstack/react-query";
 import { CloudUploadIcon } from "lucide-react";
 import { useState } from "react";
 
 import { UpdateCard } from "./-update-card";
+
+const PLATFORM_FILTER_LABELS: Record<string, string> = {
+  all: "All platforms",
+  ios: "iOS",
+  android: "Android",
+};
 
 const UpdatesEmptyState = () => (
   <Empty>
@@ -46,20 +53,60 @@ export const UpdatesTab = ({
   slug: string;
 }) => {
   const [branchFilter, setBranchFilter] = useState<string | undefined>(undefined);
-  const { data: updatesData } = useSuspenseQuery(
-    updatesQueryOptions(orgId, projectId, branchFilter),
+  const [platformFilter, setPlatformFilter] = useState<"ios" | "android" | undefined>(undefined);
+
+  const {
+    data: updatesData,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useSuspenseInfiniteQuery(
+    updatesInfiniteQueryOptions(orgId, projectId, {
+      ...(branchFilter ? { branchId: branchFilter } : {}),
+      ...(platformFilter ? { platform: platformFilter } : {}),
+    }),
   );
-  const { data: branchesData } = useSuspenseQuery(branchesQueryOptions(orgId, projectId));
-  const { data: channelsData } = useSuspenseQuery(channelsQueryOptions(orgId, projectId, 1000));
-  const branchNames = new Map(branchesData.items.map((branch) => [branch.id, branch.name]));
+  const { data: branchesData } = useSuspenseInfiniteQuery(
+    branchesInfiniteQueryOptions(orgId, projectId, { limit: 100 }),
+  );
+  const { data: channelsData } = useSuspenseInfiniteQuery(
+    channelsInfiniteQueryOptions(orgId, projectId, { limit: 100 }),
+  );
+  const branches = branchesData.pages.flatMap((page) => page.items);
+  const channels = channelsData.pages.flatMap((page) => page.items);
+
+  const items = updatesData.pages.flatMap((page) => page.items);
+  const branchNames = new Map(branches.map((branch) => [branch.id, branch.name]));
   const branchFilterLabels: Record<string, string> = {
     all: "All branches",
-    ...Object.fromEntries(branchesData.items.map((branch) => [branch.id, branch.name])),
+    ...Object.fromEntries(branches.map((branch) => [branch.id, branch.name])),
   };
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap justify-end gap-2">
+        <Select
+          items={PLATFORM_FILTER_LABELS}
+          value={platformFilter ?? "all"}
+          onValueChange={(value) => {
+            if (value === "ios" || value === "android") {
+              setPlatformFilter(value);
+            } else {
+              setPlatformFilter(undefined);
+            }
+          }}
+        >
+          <SelectTrigger className="w-36">
+            <SelectValue placeholder="All platforms" />
+          </SelectTrigger>
+          <SelectPopup>
+            <SelectGroup>
+              <SelectItem value="all">All platforms</SelectItem>
+              <SelectItem value="ios">iOS</SelectItem>
+              <SelectItem value="android">Android</SelectItem>
+            </SelectGroup>
+          </SelectPopup>
+        </Select>
         <Select
           items={branchFilterLabels}
           value={branchFilter ?? "all"}
@@ -75,7 +122,7 @@ export const UpdatesTab = ({
           <SelectPopup>
             <SelectGroup>
               <SelectItem value="all">All branches</SelectItem>
-              {branchesData.items.map((branch) => (
+              {branches.map((branch) => (
                 <SelectItem key={branch.id} value={branch.id}>
                   {branch.name}
                 </SelectItem>
@@ -84,21 +131,35 @@ export const UpdatesTab = ({
           </SelectPopup>
         </Select>
       </div>
-      {updatesData.items.length === 0 ? (
+      {items.length === 0 ? (
         <UpdatesEmptyState />
       ) : (
         <div className="flex flex-col gap-3">
-          {updatesData.items.map((update) => (
+          {items.map((update) => (
             <UpdateCard
               key={update.id}
               update={update}
-              channels={channelsData.items}
+              channels={channels}
               branchName={branchNames.get(update.branchId)}
               slug={slug}
               orgId={orgId}
               projectId={projectId}
             />
           ))}
+          {hasNextPage && (
+            <div className="flex justify-center">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isFetchingNextPage}
+                onClick={async () => {
+                  await fetchNextPage();
+                }}
+              >
+                {isFetchingNextPage ? "Loading…" : "Load more"}
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>

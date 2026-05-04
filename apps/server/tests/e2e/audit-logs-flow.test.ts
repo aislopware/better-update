@@ -48,16 +48,14 @@ describe("Audit Logs API flow", () => {
 
   // ── Section 2: Audit log queries ──────────────────────────────
 
-  it("lists audit logs with valid shape", async () => {
+  it("lists audit logs with cursor-paginated shape", async () => {
     const response = await get("/api/audit-logs", { cookie: cookies });
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body).toHaveProperty("items");
-    expect(body).toHaveProperty("total");
-    expect(body).toHaveProperty("page");
-    expect(body).toHaveProperty("limit");
+    expect(body).toHaveProperty("nextCursor");
     expect(Array.isArray(body.items)).toBe(true);
-    expect(body.total).toBeGreaterThanOrEqual(1);
+    expect(body.items.length).toBeGreaterThanOrEqual(1);
 
     const item = body.items[0];
     expect(item).toHaveProperty("id");
@@ -88,18 +86,52 @@ describe("Audit Logs API flow", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.items).toHaveLength(0);
-    expect(body.total).toBe(0);
+    expect(body.nextCursor).toBeNull();
   });
 
-  it("supports pagination", async () => {
-    const response = await get("/api/audit-logs?limit=1&page=1", {
-      cookie: cookies,
-    });
+  it("paginates via cursor across multiple pages without overlap", async () => {
+    // Generate enough rows to span 2 pages: create extra projects (each emits an audit log).
+    for (let i = 0; i < 3; i++) {
+      const created = await post(
+        "/api/projects",
+        { name: `Audit Extra ${i}`, slug: `audit-extra-${i}` },
+        { cookie: cookies },
+      );
+      expect(created.status).toBe(201);
+    }
+
+    const firstResponse = await get("/api/audit-logs?limit=2", { cookie: cookies });
+    expect(firstResponse.status).toBe(200);
+    const firstBody = await firstResponse.json();
+    expect(firstBody.items).toHaveLength(2);
+    expect(firstBody.nextCursor).toBeTruthy();
+
+    const secondResponse = await get(
+      `/api/audit-logs?limit=2&cursor=${encodeURIComponent(firstBody.nextCursor)}`,
+      { cookie: cookies },
+    );
+    expect(secondResponse.status).toBe(200);
+    const secondBody = await secondResponse.json();
+    expect(secondBody.items.length).toBeGreaterThanOrEqual(1);
+
+    // No id overlap between pages
+    const firstIds = new Set(firstBody.items.map((i: { id: string }) => i.id));
+    for (const item of secondBody.items) {
+      expect(firstIds.has(item.id)).toBe(false);
+    }
+
+    // Stable order: every second-page createdAt should be ≤ last item of first page
+    const lastFirstAt = firstBody.items.at(-1).createdAt;
+    for (const item of secondBody.items) {
+      expect(item.createdAt <= lastFirstAt).toBe(true);
+    }
+  });
+
+  it("ignores invalid cursor and returns first page", async () => {
+    const response = await get("/api/audit-logs?cursor=garbage&limit=5", { cookie: cookies });
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.items).toHaveLength(1);
-    expect(body.page).toBe(1);
-    expect(body.limit).toBe(1);
+    expect(Array.isArray(body.items)).toBe(true);
   });
 
   // ── Section 3: Auth enforcement ───────────────────────────────

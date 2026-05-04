@@ -216,42 +216,43 @@ describe("CompatibilityRepo -- D1 integration", () => {
       }),
     );
 
-    expect(result.rows).toHaveLength(2);
+    expect(Object.keys(result.channelStatusByKey)).toEqual(
+      expect.arrayContaining(["ios:1.0.0", "android:1.0.0"]),
+    );
+    expect(result.channels).toHaveLength(3);
 
-    const iosBuild = result.rows.find((row) => row.platform === "ios");
-    expect(iosBuild).toBeDefined();
-    expect(iosBuild!.channels).toHaveLength(3);
+    const findChannelId = (name: string) =>
+      result.channels.find((entry) => entry.channelName === name)?.channelId;
+    const lookup = (key: string, name: string) => {
+      const channelId = findChannelId(name);
+      return result.channelStatusByKey[key]?.find((entry) => entry.channelId === channelId);
+    };
 
-    const production = iosBuild!.channels.find((entry) => entry.channelName === "production");
-    expect(production).toMatchObject({
-      updateCount: 1,
-      latestUpdateMessage: "Latest iOS release",
+    expect(result.channels.find((entry) => entry.channelName === "production")).toMatchObject({
       isPaused: false,
       rolloutActive: false,
     });
-
-    const preview = iosBuild!.channels.find((entry) => entry.channelName === "preview");
-    expect(preview).toMatchObject({
-      updateCount: 1,
-      latestUpdateMessage: "Preview rollout",
+    expect(result.channels.find((entry) => entry.channelName === "preview")).toMatchObject({
       isPaused: false,
       rolloutActive: true,
     });
-
-    const paused = iosBuild!.channels.find((entry) => entry.channelName === "paused");
-    expect(paused).toMatchObject({
-      updateCount: 0,
+    expect(result.channels.find((entry) => entry.channelName === "paused")).toMatchObject({
       isPaused: true,
       rolloutActive: false,
     });
 
-    const androidBuild = result.rows.find((row) => row.platform === "android");
-    expect(
-      androidBuild?.channels.find((entry) => entry.channelName === "production")?.updateCount,
-    ).toBe(1);
-    expect(
-      androidBuild?.channels.find((entry) => entry.channelName === "preview")?.updateCount,
-    ).toBe(0);
+    expect(lookup("ios:1.0.0", "production")).toMatchObject({
+      updateCount: 1,
+      latestUpdateMessage: "Latest iOS release",
+    });
+    expect(lookup("ios:1.0.0", "preview")).toMatchObject({
+      updateCount: 1,
+      latestUpdateMessage: "Preview rollout",
+    });
+    expect(lookup("ios:1.0.0", "paused")).toMatchObject({ updateCount: 0 });
+
+    expect(lookup("android:1.0.0", "production")?.updateCount).toBe(1);
+    expect(lookup("android:1.0.0", "preview")?.updateCount).toBe(0);
   });
 
   test("reports runtime versions that have updates but no matching builds", async () => {
@@ -401,10 +402,13 @@ describe("CompatibilityRepo -- D1 integration", () => {
       }),
     );
 
+    const productionChannelId = result.channels.find(
+      (entry) => entry.channelName === "production",
+    )?.channelId;
     expect(
-      result.rows
-        .find((row) => row.runtimeVersion === "6.0.0")
-        ?.channels.find((entry) => entry.channelName === "production"),
+      result.channelStatusByKey["ios:6.0.0"]?.find(
+        (entry) => entry.channelId === productionChannelId,
+      ),
     ).toMatchObject({
       updateCount: 2,
       latestUpdateMessage: "Canary release",
@@ -483,13 +487,15 @@ describe("CompatibilityRepo -- D1 integration", () => {
       }),
     );
 
-    const newRuntimeBuild = result.rows.find((row) => row.runtimeVersion === "2.0.0");
+    const productionChannel = result.channels.find((entry) => entry.channelName === "production");
+    expect(productionChannel).toMatchObject({ rolloutActive: true });
     expect(
-      newRuntimeBuild?.channels.find((entry) => entry.channelName === "production"),
+      result.channelStatusByKey["ios:2.0.0"]?.find(
+        (entry) => entry.channelId === productionChannel?.channelId,
+      ),
     ).toMatchObject({
       updateCount: 1,
       latestUpdateMessage: "New branch release",
-      rolloutActive: true,
     });
 
     expect(result.missingRuntimeVersions).toEqual(
@@ -574,10 +580,13 @@ describe("CompatibilityRepo -- D1 integration", () => {
       }),
     );
 
+    const productionChannelId = result.channels.find(
+      (entry) => entry.channelName === "production",
+    )?.channelId;
     expect(
-      result.rows
-        .find((row) => row.runtimeVersion === "7.0.0")
-        ?.channels.find((entry) => entry.channelName === "production"),
+      result.channelStatusByKey["ios:7.0.0"]?.find(
+        (entry) => entry.channelId === productionChannelId,
+      ),
     ).toMatchObject({
       updateCount: 1,
       latestUpdateMessage: "Stable release",

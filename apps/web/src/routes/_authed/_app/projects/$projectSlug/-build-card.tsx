@@ -3,16 +3,16 @@ import { Button } from "@better-update/ui/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@better-update/ui/components/ui/card";
 import { DownloadIcon } from "lucide-react";
 
-import type { BuildCompatibilityRow } from "@better-update/api";
-
 import { formatBytes } from "./-build-helpers";
 import { DeleteBuildDialog } from "./-delete-build-dialog";
 import { InstallLinkDialog } from "./-install-link-dialog";
 
+import type { BuildWithSyntheticChannels, SyntheticBuildChannel } from "./-compatibility-join";
+
 const statusText = (count: number) =>
   count > 0 ? `✓ ${count} updates` : "✗ no updates for this runtimeVersion";
 
-const renderStatusBadge = (channel: (typeof BuildCompatibilityRow.Type)["channels"][number]) => {
+const renderStatusBadge = (channel: SyntheticBuildChannel) => {
   if (channel.isPaused) {
     return <Badge variant="outline">Paused</Badge>;
   }
@@ -22,7 +22,7 @@ const renderStatusBadge = (channel: (typeof BuildCompatibilityRow.Type)["channel
   return <span className="text-muted-foreground">{statusText(channel.updateCount)}</span>;
 };
 
-const CompatibleChannels = ({ build }: { build: typeof BuildCompatibilityRow.Type }) => {
+const CompatibleChannels = ({ build }: { build: BuildWithSyntheticChannels }) => {
   if (build.runtimeVersion === null) {
     return (
       <p className="text-muted-foreground text-sm">
@@ -61,7 +61,7 @@ export const BuildCard = ({
   projectSlug,
   showDetailsLink = true,
 }: {
-  build: typeof BuildCompatibilityRow.Type;
+  build: BuildWithSyntheticChannels;
   orgId: string;
   projectId: string;
   projectSlug: string;

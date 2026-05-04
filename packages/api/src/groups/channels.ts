@@ -10,7 +10,7 @@ import {
   DeleteChannelResult,
   UpdateChannelBody,
 } from "../domain/channel";
-import { Id, PaginationParams, UpdateRolloutBody } from "../domain/common";
+import { CursorPaginationParams, cursorPageResult, Id, UpdateRolloutBody } from "../domain/common";
 import { Conflict } from "../domain/errors";
 
 const idParam = HttpApiSchema.param("id", Schema.String);
@@ -43,17 +43,10 @@ export class ChannelsGroup extends HttpApiGroup.make("channels")
       .setUrlParams(
         Schema.Struct({
           projectId: Id,
-          ...PaginationParams.fields,
+          ...CursorPaginationParams.fields,
         }),
       )
-      .addSuccess(
-        Schema.Struct({
-          items: Schema.Array(Channel),
-          total: Schema.Number,
-          page: Schema.Number,
-          limit: Schema.Number,
-        }),
-      )
+      .addSuccess(cursorPageResult(Channel))
       .annotateContext(
         OpenApi.annotations({
           title: "List channels",

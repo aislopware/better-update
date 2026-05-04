@@ -1,10 +1,10 @@
 import {
   adoptionQueryOptions,
   channelAnalyticsQueryOptions,
-  channelsQueryOptions,
+  channelsInfiniteQueryOptions,
   platformAnalyticsQueryOptions,
   updateAnalyticsQueryOptions,
-  updatesQueryOptions,
+  updatesInfiniteQueryOptions,
 } from "@better-update/api-client/react";
 import {
   Card,
@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseInfiniteQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { Suspense, useState } from "react";
 import {
   Area,
@@ -193,22 +193,23 @@ const ChannelHealthChart = ({
   projectId: string;
   period: AnalyticsPeriod;
 }) => {
-  const { data: channelsData } = useSuspenseQuery(channelsQueryOptions(orgId, projectId, 1000));
+  const { data: channelsData } = useSuspenseInfiniteQuery(
+    channelsInfiniteQueryOptions(orgId, projectId, { limit: 100 }),
+  );
+  const channels = channelsData.pages.flatMap((page) => page.items);
   // eslint-disable-next-line eslint-js/no-restricted-syntax -- useState initial before items.length guard; Select does not render when items empty
-  const [selected, setSelected] = useState(channelsData.items[0]?.name ?? "");
+  const [selected, setSelected] = useState(channels[0]?.name ?? "");
 
-  if (channelsData.items.length === 0) {
+  if (channels.length === 0) {
     return <ChartEmptyState message="No channels available yet" />;
   }
 
-  const effectiveSelected = channelsData.items.some((ch) => ch.name === selected)
+  const effectiveSelected = channels.some((ch) => ch.name === selected)
     ? selected
     : // eslint-disable-next-line eslint-js/no-restricted-syntax -- items.length > 0 guaranteed by guard above
-      (channelsData.items[0]?.name ?? "");
+      (channels[0]?.name ?? "");
 
-  const channelLabels = Object.fromEntries(
-    channelsData.items.map((channel) => [channel.name, channel.name]),
-  );
+  const channelLabels = Object.fromEntries(channels.map((channel) => [channel.name, channel.name]));
 
   return (
     <div className="flex flex-col gap-3">
@@ -226,7 +227,7 @@ const ChannelHealthChart = ({
         </SelectTrigger>
         <SelectPopup>
           <SelectGroup>
-            {channelsData.items.map((channel) => (
+            {channels.map((channel) => (
               <SelectItem key={channel.id} value={channel.name}>
                 {channel.name}
               </SelectItem>
@@ -306,23 +307,24 @@ const UpdateTrafficChart = ({
   projectId: string;
   period: AnalyticsPeriod;
 }) => {
-  const { data: updatesData } = useSuspenseQuery(
-    updatesQueryOptions(orgId, projectId, undefined, 1000),
+  const { data: updatesData } = useSuspenseInfiniteQuery(
+    updatesInfiniteQueryOptions(orgId, projectId, { limit: 100 }),
   );
+  const items = updatesData.pages.flatMap((page) => page.items);
   // eslint-disable-next-line eslint-js/no-restricted-syntax -- useState initial before items.length guard; Select does not render when items empty
-  const [selectedUpdateId, setSelectedUpdateId] = useState(updatesData.items[0]?.id ?? "");
+  const [selectedUpdateId, setSelectedUpdateId] = useState(items[0]?.id ?? "");
 
-  if (updatesData.items.length === 0) {
+  if (items.length === 0) {
     return <ChartEmptyState message="No updates available yet" />;
   }
 
-  const effectiveUpdateId = updatesData.items.some((upd) => upd.id === selectedUpdateId)
+  const effectiveUpdateId = items.some((upd) => upd.id === selectedUpdateId)
     ? selectedUpdateId
     : // eslint-disable-next-line eslint-js/no-restricted-syntax -- items.length > 0 guaranteed by guard above
-      (updatesData.items[0]?.id ?? "");
+      (items[0]?.id ?? "");
 
   const updateLabels = Object.fromEntries(
-    updatesData.items.map((update) => [update.id, truncateId(update.id)]),
+    items.map((update) => [update.id, truncateId(update.id)]),
   );
 
   return (
@@ -341,7 +343,7 @@ const UpdateTrafficChart = ({
         </SelectTrigger>
         <SelectPopup>
           <SelectGroup>
-            {updatesData.items.map((update) => (
+            {items.map((update) => (
               <SelectItem key={update.id} value={update.id}>
                 {truncateId(update.id)}
               </SelectItem>

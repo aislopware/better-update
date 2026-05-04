@@ -12,7 +12,7 @@ import {
   ReserveBuildResult,
 } from "../domain/build";
 import { BuildCompatibilityMatrixResult } from "../domain/build-compatibility";
-import { Id, PaginationParams, Platform } from "../domain/common";
+import { CursorPaginationParams, cursorPageResult, Id, Platform } from "../domain/common";
 import { BadRequest, Conflict } from "../domain/errors";
 
 const idParam = HttpApiSchema.param("id", Schema.String);
@@ -49,17 +49,10 @@ export class BuildsGroup extends HttpApiGroup.make("builds")
           platform: Schema.optional(Platform),
           profile: Schema.optional(Schema.String),
           runtimeVersion: Schema.optional(Schema.String),
-          ...PaginationParams.fields,
+          ...CursorPaginationParams.fields,
         }),
       )
-      .addSuccess(
-        Schema.Struct({
-          items: Schema.Array(BuildWithArtifact),
-          total: Schema.Number,
-          page: Schema.Number,
-          limit: Schema.Number,
-        }),
-      )
+      .addSuccess(cursorPageResult(BuildWithArtifact))
       .annotateContext(
         OpenApi.annotations({
           title: "List builds",

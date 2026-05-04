@@ -1,4 +1,4 @@
-import { queryOptions } from "@tanstack/react-query";
+import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 
 import type {
   CreateRegistrationRequestBody,
@@ -12,41 +12,34 @@ import type { DeviceClassValue } from "./types";
 
 export const devicesQueryKey = (orgId: string) => ["org", orgId, "devices"] as const;
 
-export const devicesQueryOptions = (
-  orgId: string,
-  filters?: {
-    page?: number;
-    limit?: number;
-    search?: string;
-    deviceClass?: DeviceClassValue;
-    appleTeamId?: string;
-  },
-) =>
-  queryOptions({
-    queryKey: [
-      ...devicesQueryKey(orgId),
-      {
-        page: filters?.page,
-        limit: filters?.limit,
-        search: filters?.search,
-        deviceClass: filters?.deviceClass,
-        appleTeamId: filters?.appleTeamId,
-      },
-    ],
-    queryFn: async ({ signal }) =>
+export interface DevicesFilters {
+  readonly deviceClass?: DeviceClassValue;
+  readonly appleTeamId?: string;
+  readonly limit?: number;
+  readonly query?: string;
+}
+
+export const devicesInfiniteQueryOptions = (orgId: string, filters?: DevicesFilters) =>
+  infiniteQueryOptions({
+    queryKey: [...devicesQueryKey(orgId), filters ?? {}],
+    queryFn: async ({ signal, pageParam }) =>
       runApi(
         (api) =>
           api.devices.list({
             urlParams: {
-              page: filters?.page,
-              limit: filters?.limit,
-              search: filters?.search,
-              deviceClass: filters?.deviceClass,
-              appleTeamId: filters?.appleTeamId,
+              ...(filters?.deviceClass ? { deviceClass: filters.deviceClass } : {}),
+              ...(filters?.appleTeamId ? { appleTeamId: filters.appleTeamId } : {}),
+              ...(filters?.limit ? { limit: filters.limit } : {}),
+              ...(filters?.query ? { query: filters.query } : {}),
+              cursor: pageParam,
             },
           }),
         signal,
       ),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) =>
+      // eslint-disable-next-line eslint-js/no-restricted-syntax -- react-query getNextPageParam contract: undefined terminates; API schema returns null
+      lastPage.nextCursor ?? undefined,
     staleTime: 30_000,
   });
 

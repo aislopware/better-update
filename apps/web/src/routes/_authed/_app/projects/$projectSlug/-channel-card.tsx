@@ -32,12 +32,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
-import type {
-  BuildCompatibilityChannel,
-  BuildCompatibilityRow,
-  Channel,
-  MissingRuntimeVersionBuild,
-} from "@better-update/api";
+import type { Channel, MissingRuntimeVersionBuild } from "@better-update/api";
 import type { BranchItem } from "@better-update/api-client/react";
 
 import { useApiMutation } from "../../../../../lib/use-api-mutation";
@@ -45,6 +40,8 @@ import { CompatibleBuildsSection, MissingMatchingBuilds } from "./-channel-compa
 import { parseRolloutState } from "./-channel-rollout-state";
 import { DeleteChannelDialog } from "./-delete-channel-dialog";
 import { invalidateChannels as invalidateChannelsHelper } from "./-update-helpers";
+
+import type { BuildWithSyntheticChannels, SyntheticBuildChannel } from "./-compatibility-join";
 
 interface BranchRolloutControlsProps {
   readonly channel: typeof Channel.Type;
@@ -292,8 +289,8 @@ interface ChannelCardProps {
   readonly projectSlug: string;
   readonly branches: readonly BranchItem[];
   readonly compatibleBuilds: readonly {
-    readonly build: typeof BuildCompatibilityRow.Type;
-    readonly status: typeof BuildCompatibilityChannel.Type;
+    readonly build: BuildWithSyntheticChannels;
+    readonly status: SyntheticBuildChannel;
   }[];
   readonly missingRuntimeVersions: readonly (typeof MissingRuntimeVersionBuild.Type)[];
   readonly showDetailsLink?: boolean;

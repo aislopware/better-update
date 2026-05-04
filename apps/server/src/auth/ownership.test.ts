@@ -58,6 +58,8 @@ const mockProjectRepo = (orgId: string | null) =>
         : Effect.succeed(orgId),
     updateName: () => Effect.void,
     delete: () => Effect.void,
+    bumpLastActivity: () => Effect.void,
+    bumpLastActivityByBranch: () => Effect.void,
   });
 
 describe(assertProjectOwnership, () => {

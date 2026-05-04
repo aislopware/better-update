@@ -109,21 +109,30 @@ VALUES
     expect(response.status).toBe(200);
 
     const body = await response.json();
-    expect(body.rows).toHaveLength(2);
 
-    const nextBuild = body.rows.find(
-      (row: { runtimeVersion: string; channels: Array<Record<string, unknown>> }) =>
-        row.runtimeVersion === "2.0.0",
+    expect(body.channels).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          channelName: "production",
+          isPaused: false,
+          rolloutActive: true,
+        }),
+      ]),
     );
-    expect(
-      nextBuild?.channels.find(
-        (channel: { channelName: string }) => channel.channelName === "production",
-      ),
-    ).toMatchObject({
+
+    expect(body.channelStatusByKey).toHaveProperty("ios:2.0.0");
+    const productionChannel = body.channels.find(
+      (channel: { channelName: string }) => channel.channelName === "production",
+    );
+    const nextStatus = body.channelStatusByKey["ios:2.0.0"].find(
+      (entry: { channelId: string }) => entry.channelId === productionChannel?.channelId,
+    );
+    expect(nextStatus).toMatchObject({
       updateCount: 1,
       latestUpdateMessage: "Next branch release",
-      rolloutActive: true,
     });
+
+    expect(body.channelStatusByKey).toHaveProperty("ios:1.0.0");
 
     expect(body.missingRuntimeVersions).toEqual(
       expect.arrayContaining([

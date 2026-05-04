@@ -15,6 +15,17 @@ export const PaginationParams = Schema.Struct({
   limit: Schema.optional(Schema.NumberFromString),
 });
 
+export const CursorPaginationParams = Schema.Struct({
+  cursor: Schema.optional(Schema.String),
+  limit: Schema.optional(Schema.NumberFromString),
+});
+
+export const cursorPageResult = <T, Encoded, R>(itemSchema: Schema.Schema<T, Encoded, R>) =>
+  Schema.Struct({
+    items: Schema.Array(itemSchema),
+    nextCursor: Schema.NullOr(Schema.String),
+  });
+
 export const UpdateRolloutBody = Schema.Struct({
   percentage: Schema.Number.pipe(Schema.int(), Schema.between(1, 100)),
 });

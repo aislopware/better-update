@@ -3,6 +3,7 @@ import { Console, Effect } from "effect";
 
 import { readProjectId } from "../../lib/app-json";
 import { runEffect } from "../../lib/citty-effect";
+import { drainCursor } from "../../lib/drain-cursor";
 import { printTable } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 import { channelErrorExtras } from "./helpers";
@@ -15,9 +16,17 @@ export const listCommand = defineCommand({
         const projectId = yield* readProjectId;
         const api = yield* apiClient;
 
-        const [{ items }, { items: branches }] = yield* Effect.all([
-          api.channels.list({ urlParams: { projectId, page: 1, limit: 1000 } }),
-          api.branches.list({ urlParams: { projectId, page: 1, limit: 1000 } }),
+        const [items, branches] = yield* Effect.all([
+          drainCursor((cursor) =>
+            api.channels.list({
+              urlParams: { projectId, limit: 100, ...(cursor ? { cursor } : {}) },
+            }),
+          ),
+          drainCursor((cursor) =>
+            api.branches.list({
+              urlParams: { projectId, limit: 100, ...(cursor ? { cursor } : {}) },
+            }),
+          ),
         ]);
 
         if (items.length === 0) {

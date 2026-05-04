@@ -18,21 +18,30 @@ export const compatibilityMatrixCommand = defineCommand({
         const api = yield* apiClient;
         const result = yield* api.builds.compatibilityMatrix({ urlParams: { projectId } });
 
-        if (result.rows.length === 0 && result.missingRuntimeVersions.length === 0) {
+        const matrixKeys = Object.keys(result.channelStatusByKey);
+
+        if (matrixKeys.length === 0 && result.missingRuntimeVersions.length === 0) {
           yield* Console.log("No compatibility data found.");
           return;
         }
 
-        if (result.rows.length > 0) {
-          yield* Console.log("Build-to-Channel Compatibility:");
+        const channelLookup: Record<string, string> = Object.fromEntries(
+          result.channels.map((channel) => [channel.channelId, channel.channelName]),
+        );
+
+        if (matrixKeys.length > 0) {
+          yield* Console.log("Channel Status by (Platform / Runtime Version):");
           yield* printTable(
-            ["Build ID", "Platform", "Runtime Version", "Channels"],
-            result.rows.map((row) => [
-              row.id,
-              row.platform,
-              row.runtimeVersion ?? "-",
-              row.channels.map((channel) => channel.channelName).join(", ") || "-",
-            ]),
+            ["Platform / Runtime", "Channel", "Updates"],
+            matrixKeys.flatMap((key) =>
+              (result.channelStatusByKey[key] ?? [])
+                .filter((entry) => entry.updateCount > 0)
+                .map((entry) => [
+                  key,
+                  channelLookup[entry.channelId] ?? entry.channelId,
+                  String(entry.updateCount),
+                ]),
+            ),
           );
         }
 

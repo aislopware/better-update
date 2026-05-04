@@ -45,7 +45,7 @@ export interface EnvVarRepository {
     readonly environment?: string;
     readonly limit: number;
     readonly offset: number;
-  }) => Effect.Effect<{ readonly items: readonly EnvVarRow[]; readonly total: number }>;
+  }) => Effect.Effect<{ readonly items: readonly EnvVarRow[] }>;
 
   readonly update: (params: {
     readonly id: string;
@@ -160,25 +160,15 @@ export const EnvVarRepoLive = Layer.succeed(EnvVarRepo, {
 
       const whereClause = conditions.join(" AND ");
 
-      const [countResult, rows] = yield* Effect.all(
-        [
-          Effect.promise(async () =>
-            env.DB.prepare(`SELECT COUNT(*) as count FROM "env_vars" WHERE ${whereClause}`)
-              .bind(...bindValues)
-              .first<{ count: number }>(),
-          ),
-          Effect.promise(async () =>
-            env.DB.prepare(
-              `SELECT ${SELECT_COLUMNS} FROM "env_vars" WHERE ${whereClause} ORDER BY "key" ASC LIMIT ? OFFSET ?`,
-            )
-              .bind(...bindValues, params.limit, params.offset)
-              .all<EnvVarRow>(),
-          ),
-        ],
-        { concurrency: "unbounded" },
+      const rows = yield* Effect.promise(async () =>
+        env.DB.prepare(
+          `SELECT ${SELECT_COLUMNS} FROM "env_vars" WHERE ${whereClause} ORDER BY "key" ASC LIMIT ? OFFSET ?`,
+        )
+          .bind(...bindValues, params.limit, params.offset)
+          .all<EnvVarRow>(),
       );
 
-      return { items: rows.results, total: countResult?.count ?? 0 };
+      return { items: rows.results };
     }),
 
   update: (params) =>

@@ -1,4 +1,4 @@
-import { auditLogsQueryOptions } from "@better-update/api-client/react";
+import { auditLogsInfiniteQueryOptions } from "@better-update/api-client/react";
 import { safeJsonParse } from "@better-update/safe-json";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
@@ -18,15 +18,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
-import { useSuspenseQuery } from "@tanstack/react-query";
-import { ChevronLeftIcon, ChevronRightIcon, ScrollTextIcon } from "lucide-react";
+import { useSuspenseInfiniteQuery } from "@tanstack/react-query";
+import { ScrollTextIcon } from "lucide-react";
 import { useState } from "react";
 
 import type { DateRange } from "react-day-picker";
 
 import { List, ListFooter, ListItem, ListSectionHeader } from "../../../components/list-item";
 import { formatRelativeTime } from "../../../lib/format-relative-time";
-import { pluralize } from "../../../lib/pluralize";
 import { truncateId } from "../../../lib/truncate-id";
 
 const RESOURCE_TYPES = [
@@ -157,34 +156,20 @@ const AuditLogRow = ({
 export const AuditLogView = ({ orgId, projectId, scopeLabel }: AuditLogViewProps) => {
   const [resourceType, setResourceType] = useState("all");
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-  const [page, setPage] = useState(1);
-
-  const dateFilter =
-    dateRange?.from && dateRange.to
-      ? {
-          from: dateRange.from.toISOString(),
-          to: dateRange.to.toISOString(),
-        }
-      : {};
 
   const filters = {
     ...(projectId ? { projectId } : {}),
     ...(resourceType === "all" ? {} : { resourceType }),
-    ...dateFilter,
-    page,
-    limit: 50,
+    ...(dateRange?.from && dateRange.to
+      ? { from: dateRange.from.toISOString(), to: dateRange.to.toISOString() }
+      : {}),
   };
 
-  const { data } = useSuspenseQuery(auditLogsQueryOptions(orgId, filters));
-  const totalPages = Math.ceil(data.total / data.limit);
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useSuspenseInfiniteQuery(
+    auditLogsInfiniteQueryOptions(orgId, filters),
+  );
 
-  const handleRangeChange = (value: DateRange | undefined) => {
-    setDateRange(value);
-    setPage(1);
-  };
-
-  const fromIndex = data.items.length === 0 ? 0 : (data.page - 1) * data.limit + 1;
-  const toIndex = (data.page - 1) * data.limit + data.items.length;
+  const items = data.pages.flatMap((page) => page.items);
 
   return (
     <div className="flex w-full flex-col gap-4">
@@ -195,7 +180,6 @@ export const AuditLogView = ({ orgId, projectId, scopeLabel }: AuditLogViewProps
           onValueChange={(value) => {
             if (value) {
               setResourceType(value);
-              setPage(1);
             }
           }}
         >
@@ -212,50 +196,31 @@ export const AuditLogView = ({ orgId, projectId, scopeLabel }: AuditLogViewProps
             </SelectGroup>
           </SelectPopup>
         </Select>
-        <DateRangePicker
-          value={dateRange}
-          onChange={handleRangeChange}
-          triggerClassName="max-w-sm"
-        />
+        <DateRangePicker value={dateRange} onChange={setDateRange} triggerClassName="max-w-sm" />
       </div>
 
-      {data.items.length === 0 ? (
+      {items.length === 0 ? (
         <EmptyState scopeLabel={scopeLabel} />
       ) : (
         <List>
           <ListSectionHeader>Activity</ListSectionHeader>
-          {data.items.map((entry) => (
+          {items.map((entry) => (
             <AuditLogRow key={entry.id} entry={entry} />
           ))}
-          <ListFooter>
-            <span className="tabular-nums">
-              {fromIndex}–{toIndex} of {data.total} {pluralize(data.total, "entry", "entries")}
-            </span>
-            <div className="flex items-center gap-1">
+          {hasNextPage ? (
+            <ListFooter>
               <Button
                 variant="outline"
-                size="icon-xs"
-                disabled={page === 1}
-                onClick={() => {
-                  setPage((prev) => prev - 1);
+                size="sm"
+                disabled={isFetchingNextPage}
+                onClick={async () => {
+                  await fetchNextPage();
                 }}
-                aria-label="Previous page"
               >
-                <ChevronLeftIcon strokeWidth={2} />
+                {isFetchingNextPage ? "Loading…" : "Load more"}
               </Button>
-              <Button
-                variant="outline"
-                size="icon-xs"
-                disabled={page >= totalPages}
-                onClick={() => {
-                  setPage((prev) => prev + 1);
-                }}
-                aria-label="Next page"
-              >
-                <ChevronRightIcon strokeWidth={2} />
-              </Button>
-            </div>
-          </ListFooter>
+            </ListFooter>
+          ) : null}
         </List>
       )}
     </div>

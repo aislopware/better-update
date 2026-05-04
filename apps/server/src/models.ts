@@ -343,17 +343,17 @@ export interface BuildWithArtifactModel extends BuildModel {
 
 export interface BuildCompatibilityChannelModel {
   readonly channelId: string;
-  readonly channelName: string;
   readonly updateCount: number;
   readonly latestUpdateId: string | null;
   readonly latestUpdateMessage: string | null;
   readonly latestUpdateCreatedAt: string | null;
-  readonly isPaused: boolean;
-  readonly rolloutActive: boolean;
 }
 
-export interface BuildCompatibilityRowModel extends BuildWithArtifactModel {
-  readonly channels: readonly BuildCompatibilityChannelModel[];
+export interface CompatibilityChannelInfoModel {
+  readonly channelId: string;
+  readonly channelName: string;
+  readonly isPaused: boolean;
+  readonly rolloutActive: boolean;
 }
 
 export interface MissingRuntimeVersionBuildModel {
@@ -369,7 +369,8 @@ export interface MissingRuntimeVersionBuildModel {
 }
 
 export interface BuildCompatibilityMatrixModel {
-  readonly rows: readonly BuildCompatibilityRowModel[];
+  readonly channels: readonly CompatibilityChannelInfoModel[];
+  readonly channelStatusByKey: Readonly<Record<string, readonly BuildCompatibilityChannelModel[]>>;
   readonly missingRuntimeVersions: readonly MissingRuntimeVersionBuildModel[];
 }
 

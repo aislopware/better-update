@@ -2,9 +2,11 @@ import { Context, Effect, Layer } from "effect";
 
 import { cloudflareEnv } from "../cloudflare/context";
 import { Conflict, NotFound } from "../errors";
+import { encodeCursor } from "../lib/cursor";
 import { CHANNEL_BRANCH_REFERENCE_PREDICATE } from "./channel-cache-version";
 import { d1RunWithUniqueCheck } from "./d1-helpers";
 
+import type { Cursor } from "../lib/cursor";
 import type { BranchModel } from "../models";
 
 // -- Port ------------------------------------------------------------------
@@ -19,9 +21,12 @@ export interface BranchRepository {
 
   readonly findByProject: (params: {
     readonly projectId: string;
+    readonly cursor: Cursor | null;
     readonly limit: number;
-    readonly offset: number;
-  }) => Effect.Effect<{ readonly items: readonly BranchModel[]; readonly total: number }>;
+  }) => Effect.Effect<{
+    readonly items: readonly BranchModel[];
+    readonly nextCursor: string | null;
+  }>;
 
   readonly findById: (params: { readonly id: string }) => Effect.Effect<BranchModel, NotFound>;
 
@@ -77,23 +82,28 @@ export const BranchRepoLive = Layer.succeed(BranchRepo, {
     Effect.gen(function* () {
       const env = yield* cloudflareEnv;
 
-      const countResult = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT COUNT(*) as count FROM "branches" WHERE "project_id" = ?`)
-          .bind(params.projectId)
-          .first<{ count: number }>(),
-      );
-
-      const total = countResult?.count ?? 0;
+      const filters: string[] = [`"project_id" = ?`];
+      const bindings: (string | number)[] = [params.projectId];
+      if (params.cursor) {
+        filters.push(`("created_at" < ? OR ("created_at" = ? AND "id" < ?))`);
+        bindings.push(params.cursor.createdAt, params.cursor.createdAt, params.cursor.id);
+      }
 
       const rows = yield* Effect.promise(async () =>
         env.DB.prepare(
-          `SELECT "id", "project_id", "name", "created_at" FROM "branches" WHERE "project_id" = ? ORDER BY "created_at" DESC LIMIT ? OFFSET ?`,
+          `SELECT "id", "project_id", "name", "created_at" FROM "branches" WHERE ${filters.join(" AND ")} ORDER BY "created_at" DESC, "id" DESC LIMIT ?`,
         )
-          .bind(params.projectId, params.limit, params.offset)
+          .bind(...bindings, params.limit + 1)
           .all<BranchRow>(),
       );
 
-      return { items: rows.results.map(toBranch), total };
+      const hasMore = rows.results.length > params.limit;
+      const trimmed = hasMore ? rows.results.slice(0, params.limit) : rows.results;
+      const last = trimmed.at(-1);
+      const nextCursor =
+        hasMore && last ? encodeCursor({ createdAt: last.created_at, id: last.id }) : null;
+
+      return { items: trimmed.map(toBranch), nextCursor };
     }),
 
   findById: (params) =>

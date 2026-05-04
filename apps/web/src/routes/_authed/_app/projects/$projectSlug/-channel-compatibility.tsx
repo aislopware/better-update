@@ -1,10 +1,11 @@
 import { Badge } from "@better-update/ui/components/ui/badge";
 
-import type { BuildCompatibilityChannel, MissingRuntimeVersionBuild } from "@better-update/api";
+import type { MissingRuntimeVersionBuild } from "@better-update/api";
 
 import type { CompatibleBuildEntry } from "./-channel-compatibility-helpers";
+import type { SyntheticBuildChannel } from "./-compatibility-join";
 
-const StatusBadge = ({ status }: { status: typeof BuildCompatibilityChannel.Type }) => {
+const StatusBadge = ({ status }: { status: SyntheticBuildChannel }) => {
   if (status.isPaused) {
     return <Badge variant="outline">Paused</Badge>;
   }

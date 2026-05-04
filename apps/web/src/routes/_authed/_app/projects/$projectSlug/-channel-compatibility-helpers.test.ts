@@ -2,19 +2,9 @@ import {
   getCompatibleBuildsForChannel,
   getMissingRuntimeVersionsForChannel,
 } from "./-channel-compatibility-helpers";
+import { synthesizeBuildChannels } from "./-compatibility-join";
 
-const productionStatus = {
-  channelId: "channel-production",
-  channelName: "production",
-  updateCount: 2,
-  latestUpdateId: "update-1",
-  latestUpdateMessage: "Release",
-  latestUpdateCreatedAt: "2026-01-02T00:00:00Z",
-  isPaused: false,
-  rolloutActive: false,
-};
-
-const compatibilityRows = [
+const builds = [
   {
     id: "build-1",
     projectId: "proj-1",
@@ -31,7 +21,6 @@ const compatibilityRows = [
     metadataJson: "{}",
     createdAt: "2026-01-01T00:00:00Z",
     artifact: null,
-    channels: [productionStatus],
   },
   {
     id: "build-2",
@@ -49,40 +38,73 @@ const compatibilityRows = [
     metadataJson: "{}",
     createdAt: "2026-01-03T00:00:00Z",
     artifact: null,
-    channels: [],
   },
 ];
 
-const missingRuntimeVersions = [
-  {
-    channelId: "channel-production",
-    channelName: "production",
-    platform: "android" as const,
-    runtimeVersion: "3.0.0",
-    updateCount: 1,
-    latestUpdateId: "update-2",
-    latestUpdateMessage: "Native change",
-    latestUpdateCreatedAt: "2026-01-04T00:00:00Z",
-    rolloutActive: true,
+const matrix = {
+  channels: [
+    {
+      channelId: "channel-production",
+      channelName: "production",
+      isPaused: false,
+      rolloutActive: false,
+    },
+  ],
+  channelStatusByKey: {
+    "ios:1.0.0": [
+      {
+        channelId: "channel-production",
+        updateCount: 2,
+        latestUpdateId: "update-1",
+        latestUpdateMessage: "Release",
+        latestUpdateCreatedAt: "2026-01-02T00:00:00Z",
+      },
+    ],
+    "android:2.0.0": [
+      {
+        channelId: "channel-production",
+        updateCount: 0,
+        latestUpdateId: null,
+        latestUpdateMessage: null,
+        latestUpdateCreatedAt: null,
+      },
+    ],
   },
-];
+  missingRuntimeVersions: [
+    {
+      channelId: "channel-production",
+      channelName: "production",
+      platform: "android" as const,
+      runtimeVersion: "3.0.0",
+      updateCount: 1,
+      latestUpdateId: "update-2",
+      latestUpdateMessage: "Native change",
+      latestUpdateCreatedAt: "2026-01-04T00:00:00Z",
+      rolloutActive: true,
+    },
+  ],
+};
 
 describe("channel compatibility helpers", () => {
   it("maps build rows into compatible builds for a channel", () => {
-    expect(getCompatibleBuildsForChannel(compatibilityRows, "channel-production")).toStrictEqual([
+    const expectedBuild = synthesizeBuildChannels(builds[0]!, matrix);
+    const expectedStatus = expectedBuild.channels.find(
+      (entry) => entry.channelId === "channel-production",
+    );
+    expect(getCompatibleBuildsForChannel(builds, matrix, "channel-production")).toStrictEqual([
       {
-        build: compatibilityRows[0],
-        status: productionStatus,
+        build: expectedBuild,
+        status: expectedStatus,
       },
     ]);
   });
 
   it("filters missing runtime versions by channel", () => {
     expect(
-      getMissingRuntimeVersionsForChannel(missingRuntimeVersions, "channel-production"),
-    ).toStrictEqual(missingRuntimeVersions);
+      getMissingRuntimeVersionsForChannel(matrix.missingRuntimeVersions, "channel-production"),
+    ).toStrictEqual(matrix.missingRuntimeVersions);
     expect(
-      getMissingRuntimeVersionsForChannel(missingRuntimeVersions, "channel-staging"),
+      getMissingRuntimeVersionsForChannel(matrix.missingRuntimeVersions, "channel-staging"),
     ).toStrictEqual([]);
   });
 });

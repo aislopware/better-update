@@ -3,6 +3,7 @@ import { Console, Effect } from "effect";
 
 import { readProjectId } from "../../lib/app-json";
 import { runEffect } from "../../lib/citty-effect";
+import { drainCursor } from "../../lib/drain-cursor";
 import { apiClient } from "../../services/api-client";
 import { channelErrorExtras, resolveNamedResourceId } from "./helpers";
 
@@ -18,9 +19,11 @@ export const updateCommand = defineCommand({
         const projectId = yield* readProjectId;
         const api = yield* apiClient;
 
-        const { items: branches } = yield* api.branches.list({
-          urlParams: { projectId, page: 1, limit: 1000 },
-        });
+        const branches = yield* drainCursor((cursor) =>
+          api.branches.list({
+            urlParams: { projectId, limit: 100, ...(cursor ? { cursor } : {}) },
+          }),
+        );
         const branchId = yield* resolveNamedResourceId({
           items: branches,
           kind: "Branch",

@@ -106,7 +106,9 @@ export const UploadAscApiKeyDialog = ({ orgId }: { orgId: string }) => {
                         field.handleChange(event.target.value);
                       }}
                     />
-                    <FieldError>{getFieldError(field)}</FieldError>
+                    <FieldError match={Boolean(getFieldError(field))}>
+                      {getFieldError(field)}
+                    </FieldError>
                   </Field>
                 )}
               </form.Field>
@@ -130,7 +132,9 @@ export const UploadAscApiKeyDialog = ({ orgId }: { orgId: string }) => {
                           field.handleChange(event.target.value.toUpperCase());
                         }}
                       />
-                      <FieldError>{getFieldError(field)}</FieldError>
+                      <FieldError match={Boolean(getFieldError(field))}>
+                        {getFieldError(field)}
+                      </FieldError>
                     </Field>
                   )}
                 </form.Field>
@@ -154,7 +158,9 @@ export const UploadAscApiKeyDialog = ({ orgId }: { orgId: string }) => {
                           field.handleChange(event.target.value.toUpperCase());
                         }}
                       />
-                      <FieldError>{getFieldError(field)}</FieldError>
+                      <FieldError match={Boolean(getFieldError(field))}>
+                        {getFieldError(field)}
+                      </FieldError>
                     </Field>
                   )}
                 </form.Field>
@@ -177,7 +183,9 @@ export const UploadAscApiKeyDialog = ({ orgId }: { orgId: string }) => {
                         field.handleChange(event.target.value);
                       }}
                     />
-                    <FieldError>{getFieldError(field)}</FieldError>
+                    <FieldError match={Boolean(getFieldError(field))}>
+                      {getFieldError(field)}
+                    </FieldError>
                   </Field>
                 )}
               </form.Field>
@@ -216,7 +224,9 @@ export const UploadAscApiKeyDialog = ({ orgId }: { orgId: string }) => {
                       className="mt-2 font-mono text-xs"
                       placeholder="PEM content will appear here after file selection"
                     />
-                    <FieldError>{getFieldError(field)}</FieldError>
+                    <FieldError match={Boolean(getFieldError(field))}>
+                      {getFieldError(field)}
+                    </FieldError>
                   </Field>
                 )}
               </form.Field>

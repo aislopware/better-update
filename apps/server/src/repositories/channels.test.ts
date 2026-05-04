@@ -81,9 +81,8 @@ describe("channelRepo -- D1 adapter", () => {
   });
 
   describe("findByProject", () => {
-    it("returns items and total count", async () => {
+    it("returns items and null nextCursor when results fit page", async () => {
       const db = mockD1.forQuery({
-        first: async () => ({ count: 2 }),
         all: async () => ({
           results: [
             makeChannelRow({ id: "ch-1", name: "production" }),
@@ -96,7 +95,7 @@ describe("channelRepo -- D1 adapter", () => {
       const exit = await runWithRepo(
         Effect.gen(function* () {
           const repo = yield* ChannelRepo;
-          return yield* repo.findByProject({ projectId: "proj-1", limit: 20, offset: 0 });
+          return yield* repo.findByProject({ projectId: "proj-1", cursor: null, limit: 20 });
         }),
         env,
       );
@@ -104,7 +103,7 @@ describe("channelRepo -- D1 adapter", () => {
       expect(Exit.isSuccess(exit)).toBe(true);
       if (Exit.isSuccess(exit)) {
         const result = exit.value;
-        expect(result.total).toBe(2);
+        expect(result.nextCursor).toBeNull();
         expect(result.items).toHaveLength(2);
         expect(result.items[0]).toStrictEqual(
           expect.objectContaining({ name: "production", isPaused: false }),
@@ -113,9 +112,34 @@ describe("channelRepo -- D1 adapter", () => {
       }
     });
 
+    it("returns nextCursor when results overflow page", async () => {
+      const db = mockD1.forQuery({
+        all: async () => ({
+          results: [
+            makeChannelRow({ id: "ch-1", name: "production" }),
+            makeChannelRow({ id: "ch-2", name: "staging" }),
+          ],
+        }),
+      });
+      const env = makeEnv(db);
+
+      const exit = await runWithRepo(
+        Effect.gen(function* () {
+          const repo = yield* ChannelRepo;
+          return yield* repo.findByProject({ projectId: "proj-1", cursor: null, limit: 1 });
+        }),
+        env,
+      );
+
+      expect(Exit.isSuccess(exit)).toBe(true);
+      if (Exit.isSuccess(exit)) {
+        expect(exit.value.items).toHaveLength(1);
+        expect(exit.value.nextCursor).not.toBeNull();
+      }
+    });
+
     it("returns empty items when no channels exist", async () => {
       const db = mockD1.forQuery({
-        first: async () => ({ count: 0 }),
         all: async () => ({ results: [] }),
       });
       const env = makeEnv(db);
@@ -123,14 +147,14 @@ describe("channelRepo -- D1 adapter", () => {
       const exit = await runWithRepo(
         Effect.gen(function* () {
           const repo = yield* ChannelRepo;
-          return yield* repo.findByProject({ projectId: "proj-1", limit: 20, offset: 0 });
+          return yield* repo.findByProject({ projectId: "proj-1", cursor: null, limit: 20 });
         }),
         env,
       );
 
       expect(Exit.isSuccess(exit)).toBe(true);
       if (Exit.isSuccess(exit)) {
-        expect(exit.value.total).toBe(0);
+        expect(exit.value.nextCursor).toBeNull();
         expect(exit.value.items).toHaveLength(0);
       }
     });

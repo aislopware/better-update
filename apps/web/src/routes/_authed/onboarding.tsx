@@ -83,7 +83,7 @@ const Onboarding = () => {
                         onBlur={field.handleBlur}
                         aria-invalid={errorMessage ? true : undefined}
                       />
-                      <FieldError>{errorMessage}</FieldError>
+                      <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
                     </Field>
                   );
                 }}
@@ -114,7 +114,7 @@ const Onboarding = () => {
                         onBlur={field.handleBlur}
                         aria-invalid={errorMessage ? true : undefined}
                       />
-                      <FieldError>{errorMessage}</FieldError>
+                      <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
                     </Field>
                   );
                 }}

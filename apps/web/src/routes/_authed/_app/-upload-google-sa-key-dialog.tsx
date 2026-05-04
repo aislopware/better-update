@@ -108,7 +108,9 @@ export const UploadGoogleServiceAccountKeyDialog = ({ orgId }: { orgId: string }
                       className="mt-2 font-mono text-xs"
                       placeholder="JSON content will appear here after file selection"
                     />
-                    <FieldError>{getFieldError(field)}</FieldError>
+                    <FieldError match={Boolean(getFieldError(field))}>
+                      {getFieldError(field)}
+                    </FieldError>
                   </Field>
                 )}
               </form.Field>

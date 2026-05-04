@@ -85,7 +85,7 @@ describe("Devices API flow", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.items).toHaveLength(1);
-    expect(body.total).toBe(1);
+    expect(body.nextCursor).toBeNull();
     expect(body.items[0].identifier).toBe(UDID_A);
   });
 
@@ -141,12 +141,32 @@ describe("Devices API flow", () => {
     const macBody = await onlyMac.json();
     expect(macBody.items).toHaveLength(1);
     expect(macBody.items[0].deviceClass).toBe("MAC");
+    expect(macBody.nextCursor).toBeNull();
 
-    const searchQA = await get("/api/devices?search=qa", { cookie: cookies });
-    expect(searchQA.status).toBe(200);
-    const searchBody = await searchQA.json();
-    expect(searchBody.items).toHaveLength(1);
-    expect(searchBody.items[0].name).toBe("QA iPad");
+    const onlyIpad = await get("/api/devices?deviceClass=IPAD", { cookie: cookies });
+    expect(onlyIpad.status).toBe(200);
+    const ipadBody = await onlyIpad.json();
+    expect(ipadBody.items).toHaveLength(1);
+    expect(ipadBody.items[0].deviceClass).toBe("IPAD");
+  });
+
+  it("paginates devices via cursor with stable order", async () => {
+    const firstRes = await get("/api/devices?limit=2", { cookie: cookies });
+    expect(firstRes.status).toBe(200);
+    const firstBody = await firstRes.json();
+    expect(firstBody.items.length).toBeLessThanOrEqual(2);
+    if (firstBody.nextCursor !== null) {
+      const secondRes = await get(
+        `/api/devices?limit=2&cursor=${encodeURIComponent(firstBody.nextCursor)}`,
+        { cookie: cookies },
+      );
+      expect(secondRes.status).toBe(200);
+      const secondBody = await secondRes.json();
+      const firstIds = new Set(firstBody.items.map((d: { id: string }) => d.id));
+      secondBody.items.forEach((d: { id: string }) => {
+        expect(firstIds.has(d.id)).toBe(false);
+      });
+    }
   });
 
   it("cross-org: devices from other org are not visible", async () => {
@@ -301,6 +321,45 @@ describe("Devices API flow", () => {
         `${getBaseUrl()}/register-device/00000000-0000-0000-0000-000000000000`,
       );
       expect(res.status).toBe(404);
+    });
+  });
+
+  // ── Section 6: FTS substring search ─────────────────────────────
+  // Note: by this point UDID_A "Renamed iPhone" has been deleted.
+  // Remaining devices: UDID_MAC "Team Mac", UDID_B "QA iPad",
+  // callbackUdid "Tester's iPhone".
+
+  describe("FTS5 substring search", () => {
+    it("matches by name substring (3+ chars)", async () => {
+      const res = await get("/api/devices?query=Tester", { cookie: cookies });
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.items.length).toBeGreaterThanOrEqual(1);
+      expect(body.items.some((d: { name: string }) => d.name.includes("Tester"))).toBe(true);
+    });
+
+    it("matches by identifier substring (3+ chars)", async () => {
+      // UDID_B = "abcdef0123456789abcdef0123456789abcdef01" — search by prefix.
+      const res = await get(`/api/devices?query=${UDID_B.slice(0, 8)}`, { cookie: cookies });
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.items.some((d: { identifier: string }) => d.identifier === UDID_B)).toBe(true);
+    });
+
+    it("falls back to LIKE for short query (<3 chars)", async () => {
+      // "QA" → LIKE "%qa%" → matches "QA iPad" by name.
+      const res = await get("/api/devices?query=QA", { cookie: cookies });
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.items.some((d: { name: string }) => d.name.includes("QA"))).toBe(true);
+    });
+
+    it("returns no items for non-matching substring", async () => {
+      const res = await get("/api/devices?query=zzzz-no-such-device", { cookie: cookies });
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.items).toHaveLength(0);
+      expect(body.nextCursor).toBeNull();
     });
   });
 });

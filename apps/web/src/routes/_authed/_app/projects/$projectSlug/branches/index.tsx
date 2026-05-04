@@ -1,4 +1,5 @@
-import { branchesQueryOptions } from "@better-update/api-client/react";
+import { branchesInfiniteQueryOptions } from "@better-update/api-client/react";
+import { Button } from "@better-update/ui/components/ui/button";
 import {
   Empty,
   EmptyDescription,
@@ -6,7 +7,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseInfiniteQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { GitBranchIcon } from "lucide-react";
 
@@ -29,21 +30,40 @@ const BranchesPage = () => {
   const { activeOrg, project } = Route.useRouteContext();
   const orgId = activeOrg.id;
   const projectId = project.id;
-  const { data: branchesData } = useSuspenseQuery(branchesQueryOptions(orgId, projectId));
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useSuspenseInfiniteQuery(
+    branchesInfiniteQueryOptions(orgId, projectId),
+  );
+  const branches = data.pages.flatMap((page) => page.items);
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex justify-end">
         <CreateBranchDialog orgId={orgId} projectId={projectId} />
       </div>
-      {branchesData.items.length === 0 ? (
+      {branches.length === 0 ? (
         <BranchesEmptyState />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
-          {branchesData.items.map((branch) => (
-            <BranchCard key={branch.id} branch={branch} orgId={orgId} projectId={projectId} />
-          ))}
-        </div>
+        <>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {branches.map((branch) => (
+              <BranchCard key={branch.id} branch={branch} orgId={orgId} projectId={projectId} />
+            ))}
+          </div>
+          {hasNextPage && (
+            <div className="flex justify-center">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isFetchingNextPage}
+                onClick={async () => {
+                  await fetchNextPage();
+                }}
+              >
+                {isFetchingNextPage ? "Loading…" : "Load more"}
+              </Button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -52,8 +72,8 @@ const BranchesPage = () => {
 export const Route = createFileRoute("/_authed/_app/projects/$projectSlug/branches/")({
   loader: async ({ context }) => {
     const projectId = context.project.id;
-    await context.queryClient.ensureQueryData(
-      branchesQueryOptions(context.activeOrg.id, projectId),
+    await context.queryClient.ensureInfiniteQueryData(
+      branchesInfiniteQueryOptions(context.activeOrg.id, projectId),
     );
   },
   component: BranchesPage,

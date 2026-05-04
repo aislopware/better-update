@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 
 import { toDbNull } from "../lib/nullable";
-import { BranchRepo, ChannelRepo, UpdateRepo } from "../repositories";
+import { BranchRepo, ChannelRepo, ProjectRepo, UpdateRepo } from "../repositories";
 
 import type {
   CoordinatorResult,
@@ -229,6 +229,7 @@ export const publishUpdate = (params: PublishOperation) =>
   Effect.gen(function* () {
     const updateRepo = yield* UpdateRepo;
     const channelRepo = yield* ChannelRepo;
+    const projectRepo = yield* ProjectRepo;
 
     const activeRollout = yield* updateRepo.hasActiveRollout({
       branchId: params.branchId,
@@ -263,6 +264,10 @@ export const publishUpdate = (params: PublishOperation) =>
     });
 
     yield* channelRepo.bumpCacheVersionByBranch({ branchId: params.branchId });
+    yield* projectRepo.bumpLastActivityByBranch({
+      branchId: params.branchId,
+      at: update.createdAt,
+    });
 
     return success({
       update: toSerializedUpdate(update),
@@ -277,6 +282,7 @@ export const republishUpdate = (
   Effect.gen(function* () {
     const updateRepo = yield* UpdateRepo;
     const channelRepo = yield* ChannelRepo;
+    const projectRepo = yield* ProjectRepo;
 
     const rolloutStates = yield* Effect.forEach(
       params.updates,
@@ -313,6 +319,16 @@ export const republishUpdate = (
     });
 
     yield* channelRepo.bumpCacheVersionByBranch({ branchId: params.branchId });
+    const latestAt = updates.reduce<string | null>(
+      (acc, update) => (acc === null || update.createdAt > acc ? update.createdAt : acc),
+      null,
+    );
+    if (latestAt !== null) {
+      yield* projectRepo.bumpLastActivityByBranch({
+        branchId: params.branchId,
+        at: latestAt,
+      });
+    }
 
     return success({
       updates: updates.map(toSerializedUpdate),

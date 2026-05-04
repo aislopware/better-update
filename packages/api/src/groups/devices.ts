@@ -3,6 +3,7 @@ import { Schema } from "effect";
 
 import { Forbidden } from "../auth/errors";
 import { NotFound } from "../auth/ownership";
+import { cursorPageResult } from "../domain/common";
 import {
   CreateRegistrationRequestBody,
   DeleteDeviceResult,
@@ -32,14 +33,7 @@ export class DevicesGroup extends HttpApiGroup.make("devices")
   .add(
     HttpApiEndpoint.get("list", "/api/devices")
       .setUrlParams(ListDevicesParams)
-      .addSuccess(
-        Schema.Struct({
-          items: Schema.Array(Device),
-          total: Schema.Number,
-          page: Schema.Number,
-          limit: Schema.Number,
-        }),
-      )
+      .addSuccess(cursorPageResult(Device))
       .annotateContext(
         OpenApi.annotations({
           title: "List devices",

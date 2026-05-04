@@ -90,7 +90,7 @@ const InviteFormContent = ({ orgId, onSuccess }: { orgId: string; onSuccess: () 
                     onBlur={field.handleBlur}
                     aria-invalid={errorMessage ? true : undefined}
                   />
-                  <FieldError>{errorMessage}</FieldError>
+                  <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
                 </Field>
               );
             }}

@@ -7,8 +7,9 @@ import { assertProjectOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
 import { toApiBranch } from "../http/to-api";
 import { toApiCrudEffect } from "../http/to-api-effect";
-import { parsePagination } from "../lib/pagination";
+import { parseCursorPagination } from "../lib/cursor";
 import { BranchRepo } from "../repositories/branches";
+import { ProjectRepo } from "../repositories/projects";
 
 export const BranchesGroupLive = HttpApiBuilder.group(ManagementApi, "branches", (handlers) =>
   handlers
@@ -18,6 +19,7 @@ export const BranchesGroupLive = HttpApiBuilder.group(ManagementApi, "branches",
           yield* assertPermission("branch", "create");
           yield* assertProjectOwnership(payload.projectId);
           const repo = yield* BranchRepo;
+          const projectRepo = yield* ProjectRepo;
           const id = crypto.randomUUID();
           const now = new Date().toISOString();
 
@@ -29,6 +31,7 @@ export const BranchesGroupLive = HttpApiBuilder.group(ManagementApi, "branches",
           };
 
           yield* repo.insert(branch);
+          yield* projectRepo.bumpLastActivity({ projectId: payload.projectId, at: now });
 
           yield* logAudit({
             action: "branch.create",
@@ -48,15 +51,15 @@ export const BranchesGroupLive = HttpApiBuilder.group(ManagementApi, "branches",
           yield* assertPermission("branch", "read");
           yield* assertProjectOwnership(urlParams.projectId);
           const repo = yield* BranchRepo;
-          const { page, limit, offset } = parsePagination(urlParams);
+          const { cursor, limit } = parseCursorPagination(urlParams);
 
-          const { items, total } = yield* repo.findByProject({
+          const { items, nextCursor } = yield* repo.findByProject({
             projectId: urlParams.projectId,
+            cursor,
             limit,
-            offset,
           });
 
-          return { items: items.map(toApiBranch), total, page, limit };
+          return { items: items.map(toApiBranch), nextCursor };
         }),
       ),
     )

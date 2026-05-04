@@ -291,9 +291,9 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
           yield* assertProjectOwnership(urlParams.projectId);
 
           const repo = yield* EnvVarRepo;
-          const { page, limit, offset } = parsePagination(urlParams, 50);
+          const { limit, offset } = parsePagination(urlParams, 50);
 
-          const { items, total } = yield* repo.list({
+          const { items } = yield* repo.list({
             organizationId: ctx.organizationId,
             projectId: urlParams.projectId,
             ...(urlParams.environment ? { environment: urlParams.environment } : {}),
@@ -303,9 +303,6 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
 
           return {
             items: items.map((item) => toApiEnvVar(toEnvVarModel(item))),
-            total,
-            page,
-            limit,
           };
         }),
       ),

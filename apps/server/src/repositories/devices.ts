@@ -2,9 +2,11 @@ import { Context, Effect, Layer } from "effect";
 
 import { cloudflareEnv } from "../cloudflare/context";
 import { NotFound } from "../errors";
+import { encodeCursor } from "../lib/cursor";
 import { d1RunWithUniqueCheck } from "./d1-helpers";
 
 import type { Conflict } from "../errors";
+import type { Cursor } from "../lib/cursor";
 import type { DeviceClass, DeviceModel } from "../models";
 
 // ── Port ──────────────────────────────────────────────────────────
@@ -26,12 +28,15 @@ export interface DeviceRepository {
 
   readonly findByOrg: (params: {
     readonly organizationId: string;
+    readonly cursor: Cursor | null;
     readonly limit: number;
-    readonly offset: number;
-    readonly search?: string | undefined;
     readonly deviceClass?: DeviceClass | undefined;
     readonly appleTeamId?: string | undefined;
-  }) => Effect.Effect<{ readonly items: readonly DeviceModel[]; readonly total: number }>;
+    readonly query?: string | undefined;
+  }) => Effect.Effect<{
+    readonly items: readonly DeviceModel[];
+    readonly nextCursor: string | null;
+  }>;
 
   readonly findAllByOrg: (params: {
     readonly organizationId: string;
@@ -81,7 +86,38 @@ interface DeviceRow {
   updated_at: string;
 }
 
-const DEVICE_COLUMNS = `"id", "organization_id", "apple_team_id", "identifier", "name", "model", "device_class", "enabled", "apple_device_portal_id", "created_at", "updated_at"`;
+const DEVICE_COLUMNS = `d."id", d."organization_id", d."apple_team_id", d."identifier", d."name", d."model", d."device_class", d."enabled", d."apple_device_portal_id", d."created_at", d."updated_at"`;
+
+// FTS5 trigram tokenizer requires 3+ char queries. Wrap in phrase quotes so
+// Special chars (-, ", *, etc.) are treated as literal text rather than FTS
+// Operators. Doubling embedded quotes is the standard FTS5 escape.
+const escapeFtsPhrase = (value: string): string => `"${value.replaceAll('"', '""')}"`;
+
+interface DeviceSearchClause {
+  readonly join: string;
+  readonly where: string;
+  readonly binds: readonly string[];
+}
+
+const buildDeviceSearchClause = (query: string | undefined): DeviceSearchClause | null => {
+  if (query === undefined || query.length === 0) {
+    return null;
+  }
+  if (query.length >= 3) {
+    return {
+      join: 'JOIN "devices_fts" ON "devices_fts"."device_id" = d."id"',
+      where: '"devices_fts" MATCH ?',
+      binds: [escapeFtsPhrase(query)],
+    };
+  }
+  // Trigram FTS can't index 1-2 char tokens; LIKE keeps short queries usable.
+  const pattern = `%${query.toLowerCase()}%`;
+  return {
+    join: "",
+    where: '(LOWER(d."name") LIKE ? OR LOWER(d."identifier") LIKE ?)',
+    binds: [pattern, pattern],
+  };
+};
 
 const toDevice = (row: DeviceRow): DeviceModel => ({
   id: row.id,
@@ -127,55 +163,62 @@ export const DeviceRepoLive = Layer.succeed(DeviceRepo, {
   findByOrg: (params) =>
     Effect.gen(function* () {
       const env = yield* cloudflareEnv;
-      const filters: string[] = [`"organization_id" = ?`];
+      // SECURITY: All condition strings are hardcoded literals. Never interpolate user input into conditions.
+      const filters: string[] = [`d."organization_id" = ?`];
       const bindings: (string | number)[] = [params.organizationId];
 
       if (params.deviceClass !== undefined) {
-        filters.push(`"device_class" = ?`);
+        filters.push(`d."device_class" = ?`);
         bindings.push(params.deviceClass);
       }
       if (params.appleTeamId !== undefined) {
-        filters.push(`"apple_team_id" = ?`);
+        filters.push(`d."apple_team_id" = ?`);
         bindings.push(params.appleTeamId);
       }
-      if (params.search !== undefined && params.search.length > 0) {
-        filters.push(`(LOWER("name") LIKE ? OR LOWER("identifier") LIKE ?)`);
-        const needle = `%${params.search.toLowerCase()}%`;
-        bindings.push(needle, needle);
+
+      const search = buildDeviceSearchClause(params.query);
+      if (search) {
+        filters.push(search.where);
+        bindings.push(...search.binds);
       }
 
-      const whereClause = filters.join(" AND ");
+      if (params.cursor) {
+        filters.push(`(d."created_at" < ? OR (d."created_at" = ? AND d."id" < ?))`);
+        bindings.push(params.cursor.createdAt, params.cursor.createdAt, params.cursor.id);
+      }
 
-      const countResult = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT COUNT(*) as count FROM "devices" WHERE ${whereClause}`)
-          .bind(...bindings)
-          .first<{ count: number }>(),
-      );
-      const total = countResult?.count ?? 0;
+      const joinClause = search ? ` ${search.join}` : "";
+      const whereClause = filters.join(" AND ");
 
       const rows = yield* Effect.promise(async () =>
         env.DB.prepare(
-          `SELECT ${DEVICE_COLUMNS} FROM "devices" WHERE ${whereClause} ORDER BY "created_at" DESC LIMIT ? OFFSET ?`,
+          `SELECT ${DEVICE_COLUMNS} FROM "devices" d${joinClause} WHERE ${whereClause} ORDER BY d."created_at" DESC, d."id" DESC LIMIT ?`,
         )
-          .bind(...bindings, params.limit, params.offset)
+          .bind(...bindings, params.limit + 1)
           .all<DeviceRow>(),
       );
 
-      return { items: rows.results.map(toDevice), total };
+      const hasMore = rows.results.length > params.limit;
+      const trimmed = hasMore ? rows.results.slice(0, params.limit) : rows.results;
+      const last = trimmed.at(-1);
+      const nextCursor =
+        hasMore && last ? encodeCursor({ createdAt: last.created_at, id: last.id }) : null;
+
+      return { items: trimmed.map(toDevice), nextCursor };
     }),
 
   findAllByOrg: (params) =>
     Effect.gen(function* () {
       const env = yield* cloudflareEnv;
-      const filters: string[] = [`"organization_id" = ?`];
+      const filters: string[] = [`d."organization_id" = ?`];
       const bindings: (string | number)[] = [params.organizationId];
       if (params.appleTeamId !== undefined) {
-        filters.push(`"apple_team_id" = ?`);
+        filters.push(`d."apple_team_id" = ?`);
         bindings.push(params.appleTeamId);
       }
       const rows = yield* Effect.promise(async () =>
         env.DB.prepare(
-          `SELECT ${DEVICE_COLUMNS} FROM "devices" WHERE ${filters.join(" AND ")} ORDER BY "created_at" DESC`,
+          `SELECT ${DEVICE_COLUMNS} FROM "devices" d WHERE ${filters.join(" AND ")} ORDER BY d."created_at" DESC`,
         )
           .bind(...bindings)
           .all<DeviceRow>(),
@@ -187,7 +230,7 @@ export const DeviceRepoLive = Layer.succeed(DeviceRepo, {
     Effect.gen(function* () {
       const env = yield* cloudflareEnv;
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT ${DEVICE_COLUMNS} FROM "devices" WHERE "id" = ?`)
+        env.DB.prepare(`SELECT ${DEVICE_COLUMNS} FROM "devices" d WHERE d."id" = ?`)
           .bind(params.id)
           .first<DeviceRow>(),
       );
@@ -202,7 +245,7 @@ export const DeviceRepoLive = Layer.succeed(DeviceRepo, {
       const env = yield* cloudflareEnv;
       const row = yield* Effect.promise(async () =>
         env.DB.prepare(
-          `SELECT ${DEVICE_COLUMNS} FROM "devices" WHERE "organization_id" = ? AND COALESCE("apple_team_id", '') = COALESCE(?, '') AND "identifier" = ?`,
+          `SELECT ${DEVICE_COLUMNS} FROM "devices" d WHERE d."organization_id" = ? AND COALESCE(d."apple_team_id", '') = COALESCE(?, '') AND d."identifier" = ?`,
         )
           .bind(params.organizationId, params.appleTeamId, params.identifier)
           .first<DeviceRow>(),

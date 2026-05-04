@@ -17,9 +17,9 @@ import { generateInstallToken } from "../domain/install-token";
 import { BadRequest, NotFound } from "../errors";
 import { toApiBuild, toApiBuildCompatibilityMatrix } from "../http/to-api";
 import { toApiBadRequestReadEffect } from "../http/to-api-effect";
+import { parseCursorPagination } from "../lib/cursor";
 import { toDbNull } from "../lib/nullable";
-import { parsePagination } from "../lib/pagination";
-import { BuildRepo, CompatibilityRepo } from "../repositories";
+import { BuildRepo, CompatibilityRepo, ProjectRepo } from "../repositories";
 
 const UPLOAD_EXPIRY_SECONDS = 7200;
 const KV_RESERVATION_TTL = 10_800;
@@ -226,7 +226,7 @@ const handleComplete = ({
         destinationKey: finalKey,
       });
 
-      const repo = yield* BuildRepo;
+      const [repo, projectRepo] = yield* Effect.all([BuildRepo, ProjectRepo]);
       const build = yield* repo
         .insert({
           id: path.id,
@@ -250,7 +250,15 @@ const handleComplete = ({
             sha256: reservation.sha256,
           },
         })
-        .pipe(Effect.tapError(() => cleanupBuildObject(finalKey)));
+        .pipe(
+          Effect.tapError(() => cleanupBuildObject(finalKey)),
+          Effect.tap((inserted) =>
+            projectRepo.bumpLastActivity({
+              projectId: reservation.projectId,
+              at: inserted.createdAt,
+            }),
+          ),
+        );
 
       yield* Effect.all(
         [
@@ -378,18 +386,18 @@ export const BuildsGroupLive = HttpApiBuilder.group(ManagementApi, "builds", (ha
           yield* assertProjectOwnership(urlParams.projectId);
 
           const repo = yield* BuildRepo;
-          const { page, limit, offset } = parsePagination(urlParams);
+          const { cursor, limit } = parseCursorPagination(urlParams);
 
-          const { items, total } = yield* repo.list({
+          const { items, nextCursor } = yield* repo.list({
             projectId: urlParams.projectId,
             ...(urlParams.platform ? { platform: urlParams.platform } : {}),
             ...(urlParams.profile ? { profile: urlParams.profile } : {}),
             ...(urlParams.runtimeVersion ? { runtimeVersion: urlParams.runtimeVersion } : {}),
+            cursor,
             limit,
-            offset,
           });
 
-          return { items: items.map(toApiBuild), total, page, limit };
+          return { items: items.map(toApiBuild), nextCursor };
         }),
       ),
     )

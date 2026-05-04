@@ -18,13 +18,13 @@ vi.mock(buildCardModule, () => ({
 
 vi.mock(compatibilityMatrixModule, () => ({
   CompatibilityMatrix: ({
-    rows,
+    builds,
     missingRuntimeVersions,
   }: {
-    rows: unknown[];
+    builds: unknown[];
     missingRuntimeVersions: unknown[];
   }) => (
-    <div>{`Matrix rows: ${rows.length}; Missing runtimes: ${missingRuntimeVersions.length}`}</div>
+    <div>{`Matrix builds: ${builds.length}; Missing runtimes: ${missingRuntimeVersions.length}`}</div>
   ),
 }));
 
@@ -49,7 +49,7 @@ vi.mock(createChannelDialogModule, () => ({
   CreateChannelDialog: () => <button type="button">Create channel</button>,
 }));
 
-const buildRows = [
+const builds = [
   {
     id: "build-1",
     projectId: "proj-1",
@@ -66,28 +66,6 @@ const buildRows = [
     metadataJson: "{}",
     createdAt: "2026-01-01T00:00:00Z",
     artifact: null,
-    channels: [
-      {
-        channelId: "channel-production",
-        channelName: "production",
-        updateCount: 2,
-        latestUpdateId: "update-ios",
-        latestUpdateMessage: "iOS release",
-        latestUpdateCreatedAt: "2026-01-02T00:00:00Z",
-        isPaused: false,
-        rolloutActive: false,
-      },
-      {
-        channelId: "channel-staging",
-        channelName: "staging",
-        updateCount: 0,
-        latestUpdateId: null,
-        latestUpdateMessage: null,
-        latestUpdateCreatedAt: null,
-        isPaused: false,
-        rolloutActive: false,
-      },
-    ],
   },
   {
     id: "build-2",
@@ -105,33 +83,58 @@ const buildRows = [
     metadataJson: "{}",
     createdAt: "2026-01-03T00:00:00Z",
     artifact: null,
-    channels: [
-      {
-        channelId: "channel-production",
-        channelName: "production",
-        updateCount: 0,
-        latestUpdateId: null,
-        latestUpdateMessage: null,
-        latestUpdateCreatedAt: null,
-        isPaused: false,
-        rolloutActive: false,
-      },
-      {
-        channelId: "channel-staging",
-        channelName: "staging",
-        updateCount: 1,
-        latestUpdateId: "update-android",
-        latestUpdateMessage: "Android release",
-        latestUpdateCreatedAt: "2026-01-04T00:00:00Z",
-        isPaused: false,
-        rolloutActive: false,
-      },
-    ],
   },
 ];
 
 const compatibilityData = {
-  rows: buildRows,
+  channels: [
+    {
+      channelId: "channel-production",
+      channelName: "production",
+      isPaused: false,
+      rolloutActive: false,
+    },
+    {
+      channelId: "channel-staging",
+      channelName: "staging",
+      isPaused: false,
+      rolloutActive: false,
+    },
+  ],
+  channelStatusByKey: {
+    "ios:1.0.0": [
+      {
+        channelId: "channel-production",
+        updateCount: 2,
+        latestUpdateId: "update-ios",
+        latestUpdateMessage: "iOS release",
+        latestUpdateCreatedAt: "2026-01-02T00:00:00Z",
+      },
+      {
+        channelId: "channel-staging",
+        updateCount: 0,
+        latestUpdateId: null,
+        latestUpdateMessage: null,
+        latestUpdateCreatedAt: null,
+      },
+    ],
+    "android:2.0.0": [
+      {
+        channelId: "channel-production",
+        updateCount: 0,
+        latestUpdateId: null,
+        latestUpdateMessage: null,
+        latestUpdateCreatedAt: null,
+      },
+      {
+        channelId: "channel-staging",
+        updateCount: 1,
+        latestUpdateId: "update-android",
+        latestUpdateMessage: "Android release",
+        latestUpdateCreatedAt: "2026-01-04T00:00:00Z",
+      },
+    ],
+  },
   missingRuntimeVersions: [
     {
       channelId: "channel-staging",
@@ -147,63 +150,87 @@ const compatibilityData = {
   ],
 };
 
-const channelsData = {
-  items: [
-    {
-      id: "channel-production",
-      projectId: "proj-1",
-      name: "production",
-      branchId: "branch-main",
-      branchMappingJson: null,
-      cacheVersion: 0,
-      isPaused: false,
-      createdAt: "2026-01-01T00:00:00Z",
-    },
-    {
-      id: "channel-staging",
-      projectId: "proj-1",
-      name: "staging",
-      branchId: "branch-staging",
-      branchMappingJson: null,
-      cacheVersion: 0,
-      isPaused: false,
-      createdAt: "2026-01-02T00:00:00Z",
-    },
-  ],
-  total: 2,
-  page: 1,
-  limit: 1000,
-};
+const seedBuildsInfinite = (
+  orgId: string,
+  projectId: string,
+  items: typeof builds,
+): [readonly unknown[], unknown] => [
+  ["org", orgId, "projects", projectId, "builds", {}],
+  { pages: [{ items, nextCursor: null }], pageParams: [undefined] },
+];
 
-const branchesData = {
-  items: [
-    {
-      id: "branch-main",
-      projectId: "proj-1",
-      name: "main",
-      createdAt: "2026-01-01T00:00:00Z",
-    },
-    {
-      id: "branch-staging",
-      projectId: "proj-1",
-      name: "staging",
-      createdAt: "2026-01-02T00:00:00Z",
-    },
-  ],
-  total: 2,
-  page: 1,
-  limit: 1000,
+const seedChannelsInfinite = (
+  orgId: string,
+  projectId: string,
+  items: readonly unknown[],
+): [readonly unknown[], unknown] => [
+  ["org", orgId, "projects", projectId, "channels", { limit: 100 }],
+  { pages: [{ items, nextCursor: null }], pageParams: [undefined] },
+];
+
+const seedBranchesInfinite = (
+  orgId: string,
+  projectId: string,
+  items: readonly unknown[],
+): [readonly unknown[], unknown] => [
+  ["org", orgId, "projects", projectId, "branches", { limit: 100 }],
+  { pages: [{ items, nextCursor: null }], pageParams: [undefined] },
+];
+
+const channelsItems = [
+  {
+    id: "channel-production",
+    projectId: "proj-1",
+    name: "production",
+    branchId: "branch-main",
+    branchMappingJson: null,
+    cacheVersion: 0,
+    isPaused: false,
+    createdAt: "2026-01-01T00:00:00Z",
+  },
+  {
+    id: "channel-staging",
+    projectId: "proj-1",
+    name: "staging",
+    branchId: "branch-staging",
+    branchMappingJson: null,
+    cacheVersion: 0,
+    isPaused: false,
+    createdAt: "2026-01-02T00:00:00Z",
+  },
+];
+
+const branchesItems = [
+  {
+    id: "branch-main",
+    projectId: "proj-1",
+    name: "main",
+    createdAt: "2026-01-01T00:00:00Z",
+  },
+  {
+    id: "branch-staging",
+    projectId: "proj-1",
+    name: "staging",
+    createdAt: "2026-01-02T00:00:00Z",
+  },
+];
+
+const emptyMatrix = {
+  channels: [],
+  channelStatusByKey: {},
+  missingRuntimeVersions: [],
 };
 
 describe("builds and channels tabs", () => {
-  it("buildsTab renders matrix summary and build cards from compatibility data", () => {
+  it("buildsTab renders matrix summary and build cards from cursor builds + matrix", () => {
     renderWithQuery(<BuildsTab orgId="org-1" projectId="proj-1" projectSlug="my-app" />, {
       seedCache: [
         [["org", "org-1", "projects", "proj-1", "build-compatibility-matrix"], compatibilityData],
+        seedBuildsInfinite("org-1", "proj-1", builds),
       ],
     });
 
-    expect(screen.getByText("Matrix rows: 2; Missing runtimes: 1")).toBeInTheDocument();
+    expect(screen.getByText("Matrix builds: 2; Missing runtimes: 1")).toBeInTheDocument();
     expect(screen.getByText("Build card: iOS build")).toBeInTheDocument();
     expect(screen.getByText("Build card: Android build")).toBeInTheDocument();
   });
@@ -211,10 +238,8 @@ describe("builds and channels tabs", () => {
   it("buildsTab shows empty state when there are no builds", () => {
     renderWithQuery(<BuildsTab orgId="org-1" projectId="proj-1" projectSlug="my-app" />, {
       seedCache: [
-        [
-          ["org", "org-1", "projects", "proj-1", "build-compatibility-matrix"],
-          { rows: [], missingRuntimeVersions: [] },
-        ],
+        [["org", "org-1", "projects", "proj-1", "build-compatibility-matrix"], emptyMatrix],
+        seedBuildsInfinite("org-1", "proj-1", []),
       ],
     });
 
@@ -227,31 +252,24 @@ describe("builds and channels tabs", () => {
   it("channelsTab maps compatibility data into per-channel card props", () => {
     renderWithQuery(<ChannelsTab orgId="org-1" projectId="proj-1" projectSlug="my-app" />, {
       seedCache: [
-        [["org", "org-1", "projects", "proj-1", "channels"], channelsData],
-        [["org", "org-1", "projects", "proj-1", "branches"], branchesData],
+        seedChannelsInfinite("org-1", "proj-1", channelsItems),
+        seedBranchesInfinite("org-1", "proj-1", branchesItems),
         [["org", "org-1", "projects", "proj-1", "build-compatibility-matrix"], compatibilityData],
+        seedBuildsInfinite("org-1", "proj-1", builds),
       ],
     });
 
-    expect(screen.getByText("Channel card: production / builds 2 / missing 0")).toBeInTheDocument();
-    expect(screen.getByText("Channel card: staging / builds 2 / missing 1")).toBeInTheDocument();
+    expect(screen.getByText("Channel card: production / builds 1 / missing 0")).toBeInTheDocument();
+    expect(screen.getByText("Channel card: staging / builds 1 / missing 1")).toBeInTheDocument();
   });
 
   it("channelsTab shows empty state when there are no channels", () => {
     renderWithQuery(<ChannelsTab orgId="org-1" projectId="proj-1" projectSlug="my-app" />, {
       seedCache: [
-        [
-          ["org", "org-1", "projects", "proj-1", "channels"],
-          { items: [], total: 0, page: 1, limit: 1000 },
-        ],
-        [
-          ["org", "org-1", "projects", "proj-1", "branches"],
-          { items: [], total: 0, page: 1, limit: 1000 },
-        ],
-        [
-          ["org", "org-1", "projects", "proj-1", "build-compatibility-matrix"],
-          { rows: [], missingRuntimeVersions: [] },
-        ],
+        seedChannelsInfinite("org-1", "proj-1", []),
+        seedBranchesInfinite("org-1", "proj-1", []),
+        [["org", "org-1", "projects", "proj-1", "build-compatibility-matrix"], emptyMatrix],
+        seedBuildsInfinite("org-1", "proj-1", []),
       ],
     });
 

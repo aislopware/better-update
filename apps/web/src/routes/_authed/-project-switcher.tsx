@@ -39,12 +39,16 @@ interface ProjectSwitcherProps {
 
 export const ProjectSwitcher = ({ orgId, currentProjectSlug }: ProjectSwitcherProps) => {
   const router = useRouter();
-  const { data } = useSuspenseQuery(projectsQueryOptions(orgId));
+  // Switcher dropdown is bounded to the most-recent 100 projects (sorted by
+  // Last activity). If the org has more, the user can navigate to /projects
+  // Which has full-text search.
+  const { data } = useSuspenseQuery(projectsQueryOptions(orgId, { limit: 100 }));
   const [createOpen, setCreateOpen] = useState(false);
   const [navigatingSlug, setNavigatingSlug] = useState<string | undefined>(undefined);
 
   const currentProject = data.items.find((project) => project.slug === currentProjectSlug);
   const displayName = currentProject?.name ?? "Unknown project";
+  const hasMore = data.total > data.items.length;
 
   const handleSelect = async (projectSlug: string) => {
     if (projectSlug === currentProjectSlug || navigatingSlug) {
@@ -91,6 +95,11 @@ export const ProjectSwitcher = ({ orgId, currentProjectSlug }: ProjectSwitcherPr
               })
             )}
           </DropdownMenuGroup>
+          {hasMore ? (
+            <DropdownMenuLabel className="text-muted-foreground text-xs font-normal">
+              Showing {data.items.length} of {data.total}. Open the projects page to search.
+            </DropdownMenuLabel>
+          ) : null}
           <DropdownMenuSeparator />
           <DropdownMenuItem
             onClick={() => {

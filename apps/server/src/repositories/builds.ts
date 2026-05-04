@@ -2,6 +2,7 @@ import { Context, Effect, Layer } from "effect";
 
 import { cloudflareEnv } from "../cloudflare/context";
 import { NotFound } from "../errors";
+import { encodeCursor } from "../lib/cursor";
 import { toDbNull } from "../lib/nullable";
 import {
   BUILD_WITH_ARTIFACT_COLUMNS,
@@ -9,6 +10,7 @@ import {
   toBuildWithArtifact,
 } from "./build-row";
 
+import type { Cursor } from "../lib/cursor";
 import type { ArtifactFormat, BuildWithArtifactModel, Distribution, Platform } from "../models";
 import type { BuildWithArtifactRow } from "./build-row";
 
@@ -72,11 +74,11 @@ export interface BuildRepository {
     readonly platform?: Platform;
     readonly profile?: string;
     readonly runtimeVersion?: string;
+    readonly cursor: Cursor | null;
     readonly limit: number;
-    readonly offset: number;
   }) => Effect.Effect<{
     readonly items: readonly BuildWithArtifactModel[];
-    readonly total: number;
+    readonly nextCursor: string | null;
   }>;
 
   readonly deleteById: (params: {
@@ -262,6 +264,7 @@ export const BuildRepoLive = Layer.succeed(BuildRepo, {
     Effect.gen(function* () {
       const env = yield* cloudflareEnv;
 
+      // SECURITY: All condition strings are hardcoded literals. Never interpolate user input into conditions.
       const conditions: string[] = ['b."project_id" = ?'];
       const bindValues: (string | number)[] = [params.projectId];
 
@@ -278,27 +281,28 @@ export const BuildRepoLive = Layer.succeed(BuildRepo, {
         bindValues.push(params.runtimeVersion);
       }
 
+      if (params.cursor) {
+        conditions.push('(b."created_at" < ? OR (b."created_at" = ? AND b."id" < ?))');
+        bindValues.push(params.cursor.createdAt, params.cursor.createdAt, params.cursor.id);
+      }
+
       const whereClause = conditions.join(" AND ");
 
-      const [countResult, rows] = yield* Effect.all(
-        [
-          Effect.promise(async () =>
-            env.DB.prepare(`SELECT COUNT(*) as count FROM "builds" b WHERE ${whereClause}`)
-              .bind(...bindValues)
-              .first<{ count: number }>(),
-          ),
-          Effect.promise(async () =>
-            env.DB.prepare(
-              `${SELECT_WITH_ARTIFACT} WHERE ${whereClause} ORDER BY b."created_at" DESC LIMIT ? OFFSET ?`,
-            )
-              .bind(...bindValues, params.limit, params.offset)
-              .all<BuildRow>(),
-          ),
-        ],
-        { concurrency: "unbounded" },
+      const rows = yield* Effect.promise(async () =>
+        env.DB.prepare(
+          `${SELECT_WITH_ARTIFACT} WHERE ${whereClause} ORDER BY b."created_at" DESC, b."id" DESC LIMIT ?`,
+        )
+          .bind(...bindValues, params.limit + 1)
+          .all<BuildRow>(),
       );
 
-      return { items: rows.results.map(toBuildWithArtifact), total: countResult?.count ?? 0 };
+      const hasMore = rows.results.length > params.limit;
+      const trimmed = hasMore ? rows.results.slice(0, params.limit) : rows.results;
+      const last = trimmed.at(-1);
+      const nextCursor =
+        hasMore && last ? encodeCursor({ createdAt: last.created_at, id: last.id }) : null;
+
+      return { items: trimmed.map(toBuildWithArtifact), nextCursor };
     }),
 
   deleteById: (params) =>

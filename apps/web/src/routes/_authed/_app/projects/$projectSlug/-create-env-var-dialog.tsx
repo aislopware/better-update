@@ -119,7 +119,7 @@ const CreateFormContent = ({
                     aria-invalid={errorMessage ? true : undefined}
                     className="font-mono"
                   />
-                  <FieldError>{errorMessage}</FieldError>
+                  <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
                 </Field>
               );
             }}
@@ -151,7 +151,7 @@ const CreateFormContent = ({
                     rows={3}
                     className="font-mono"
                   />
-                  <FieldError>{errorMessage}</FieldError>
+                  <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
                 </Field>
               );
             }}

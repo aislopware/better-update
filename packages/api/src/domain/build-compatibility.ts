@@ -1,25 +1,26 @@
 import { Schema } from "effect";
 
-import { BuildWithArtifact } from "./build";
 import { DateTimeString, Id, Platform } from "./common";
 
+// Per-runtime channel status — varies per (platform, runtimeVersion).
 export class BuildCompatibilityChannel extends Schema.Class<BuildCompatibilityChannel>(
   "BuildCompatibilityChannel",
 )({
   channelId: Id,
-  channelName: Schema.String,
   updateCount: Schema.Number,
   latestUpdateId: Schema.NullOr(Id),
   latestUpdateMessage: Schema.NullOr(Schema.String),
   latestUpdateCreatedAt: Schema.NullOr(DateTimeString),
-  isPaused: Schema.Boolean,
-  rolloutActive: Schema.Boolean,
 }) {}
 
-export class BuildCompatibilityRow extends BuildWithArtifact.extend<BuildCompatibilityRow>(
-  "BuildCompatibilityRow",
+// Channel-level metadata that does not depend on a specific build's runtime.
+export class CompatibilityChannelInfo extends Schema.Class<CompatibilityChannelInfo>(
+  "CompatibilityChannelInfo",
 )({
-  channels: Schema.Array(BuildCompatibilityChannel),
+  channelId: Id,
+  channelName: Schema.String,
+  isPaused: Schema.Boolean,
+  rolloutActive: Schema.Boolean,
 }) {}
 
 export class MissingRuntimeVersionBuild extends Schema.Class<MissingRuntimeVersionBuild>(
@@ -37,6 +38,10 @@ export class MissingRuntimeVersionBuild extends Schema.Class<MissingRuntimeVersi
 }) {}
 
 export const BuildCompatibilityMatrixResult = Schema.Struct({
-  rows: Schema.Array(BuildCompatibilityRow),
+  channels: Schema.Array(CompatibilityChannelInfo),
+  channelStatusByKey: Schema.Record({
+    key: Schema.String,
+    value: Schema.Array(BuildCompatibilityChannel),
+  }),
   missingRuntimeVersions: Schema.Array(MissingRuntimeVersionBuild),
 });

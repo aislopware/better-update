@@ -294,7 +294,7 @@ export const InviteDeviceDialog = ({ orgId }: { orgId: string }) => {
                         <FieldDescription>
                           Shown on the landing page. Device owner can override.
                         </FieldDescription>
-                        <FieldError>{errorMessage}</FieldError>
+                        <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
                       </Field>
                     );
                   }}
