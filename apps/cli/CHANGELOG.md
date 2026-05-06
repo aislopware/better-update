@@ -3,6 +3,27 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.7.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.6.4...@better-update/cli@0.7.0) (2026-05-06)
+
+### ⚠ BREAKING CHANGES
+
+* **web:** server env vars ACCOUNTS_URL and CONSOLE_URL are
+replaced by WEB_URL. CLI config key accountsUrl and env
+BETTER_UPDATE_ACCOUNTS_URL are replaced by webUrl and
+BETTER_UPDATE_WEB_URL.
+
+### Features
+
+* cursor pagination, FTS search, and compatibility-matrix refactor ([b03ac24](https://github.com/better-update/better-update/commit/b03ac24288274621a035b069c413194f0a179441)) - by @trancong12102
+
+### Bug Fixes
+
+* **cli:** use path.join for credentials temp paths ([b195705](https://github.com/better-update/better-update/commit/b1957050f666a5229f6e01d9c7e36da71d3c405f)) - by @trancong12102
+
+### Code Refactoring
+
+* **web:** merge accounts + dashboard into apps/web TanStack Start SSR ([98c4e10](https://github.com/better-update/better-update/commit/98c4e10b7040f60f0a909145fc320f2bf1355907)) - by @trancong12102
+
 ## [0.6.4](https://github.com/better-update/better-update/compare/@better-update/cli@0.6.3...@better-update/cli@0.6.4) (2026-04-22)
 
 ### Bug Fixes

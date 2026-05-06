@@ -3,6 +3,30 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.4.0](https://github.com/better-update/better-update/compare/@better-update/server@0.3.3...@better-update/server@0.4.0) (2026-05-06)
+
+### ⚠ BREAKING CHANGES
+
+* merge api + web onto single domain (better-update.dev)
+* **web:** server env vars ACCOUNTS_URL and CONSOLE_URL are
+replaced by WEB_URL. CLI config key accountsUrl and env
+BETTER_UPDATE_ACCOUNTS_URL are replaced by webUrl and
+BETTER_UPDATE_WEB_URL.
+
+### Features
+
+* cursor pagination, FTS search, and compatibility-matrix refactor ([b03ac24](https://github.com/better-update/better-update/commit/b03ac24288274621a035b069c413194f0a179441)) - by @trancong12102
+* **ui:** migrate to @coss/ui ([7b00e3a](https://github.com/better-update/better-update/commit/7b00e3aedb10317e1df5b3bfb259930c3f2f3e92)) - by @trancong12102
+
+### Bug Fixes
+
+* **server:** harden credential plist parsing ([562e9ac](https://github.com/better-update/better-update/commit/562e9acd81936c87f515c7c5b7c89155d350f35b)) - by @trancong12102
+
+### Code Refactoring
+
+* merge api + web onto single domain (better-update.dev) ([63acb2e](https://github.com/better-update/better-update/commit/63acb2ec54d3cfaafbfc68baebf9c0a770ced7c0)) - by @trancong12102
+* **web:** merge accounts + dashboard into apps/web TanStack Start SSR ([98c4e10](https://github.com/better-update/better-update/commit/98c4e10b7040f60f0a909145fc320f2bf1355907)) - by @trancong12102
+
 ## [0.3.3](https://github.com/better-update/better-update/compare/@better-update/server@0.3.2...@better-update/server@0.3.3) (2026-04-22)
 
 ### Bug Fixes
