@@ -3,6 +3,34 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 0.6.0 (2026-05-06)
+
+### ⚠ BREAKING CHANGES
+
+* merge api + web onto single domain (better-update.dev)
+* **web:** server env vars ACCOUNTS_URL and CONSOLE_URL are
+replaced by WEB_URL. CLI config key accountsUrl and env
+BETTER_UPDATE_ACCOUNTS_URL are replaced by webUrl and
+BETTER_UPDATE_WEB_URL.
+
+### Features
+
+* cursor pagination, FTS search, and compatibility-matrix refactor ([b03ac24](https://github.com/better-update/better-update/commit/b03ac24288274621a035b069c413194f0a179441)) - by @trancong12102
+* **ui:** migrate to @coss/ui ([7b00e3a](https://github.com/better-update/better-update/commit/7b00e3aedb10317e1df5b3bfb259930c3f2f3e92)) - by @trancong12102
+
+### Bug Fixes
+
+* **web:** detect mobile user agents first ([e53ef3e](https://github.com/better-update/better-update/commit/e53ef3e2c2607b1c098e34741a163b879b0bfe61)) - by @trancong12102
+* **web:** lock avatar fallback text color against dropdown hover ([ba1310e](https://github.com/better-update/better-update/commit/ba1310e9d4d418f91da034864fd0fc64ad587904)) - by @trancong12102
+* **web:** persist resolved theme state ([3b3122d](https://github.com/better-update/better-update/commit/3b3122dfcf36014fa0b6f97f9750e2a68b493949)) - by @trancong12102
+* **web:** stabilize auth org flows ([d753911](https://github.com/better-update/better-update/commit/d753911b7ea3f1c74a4775b99636e8472a358246)) - by @trancong12102
+* **web:** support http api proxy targets ([28cc22c](https://github.com/better-update/better-update/commit/28cc22c5a714e39b904ddb3a37c09e53af8df4f2)) - by @trancong12102
+
+### Code Refactoring
+
+* merge api + web onto single domain (better-update.dev) ([63acb2e](https://github.com/better-update/better-update/commit/63acb2ec54d3cfaafbfc68baebf9c0a770ced7c0)) - by @trancong12102
+* **web:** merge accounts + dashboard into apps/web TanStack Start SSR ([98c4e10](https://github.com/better-update/better-update/commit/98c4e10b7040f60f0a909145fc320f2bf1355907)) - by @trancong12102
+
 ## [0.5.1](https://github.com/better-update/better-update/compare/@better-update/dashboard@0.5.0...@better-update/dashboard@0.5.1) (2026-04-22)
 
 ### Bug Fixes
