@@ -17,7 +17,7 @@ export class EnvVar extends Schema.Class<EnvVar>("EnvVar")({
 }) {}
 
 // Key validation: uppercase letters, digits, underscores. Must start with letter.
-const EnvVarKey = Schema.String.pipe(Schema.pattern(/^[A-Z][A-Z0-9_]*$/), Schema.maxLength(256));
+const EnvVarKey = Schema.String.pipe(Schema.pattern(/^[A-Z][A-Z0-9_]*$/u), Schema.maxLength(256));
 
 const EnvVarValue = Schema.String.pipe(Schema.maxLength(32_768));
 

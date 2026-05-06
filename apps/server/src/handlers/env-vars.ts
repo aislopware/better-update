@@ -19,7 +19,7 @@ import type { EnvVarRow } from "../repositories/env-vars";
 
 const RESERVED_KEYS = new Set(["PATH", "HOME", "USER", "SHELL"]);
 
-const KEY_PATTERN = /^[A-Z][A-Z0-9_]*$/;
+const KEY_PATTERN = /^[A-Z][A-Z0-9_]*$/u;
 
 const MAX_VARS_PER_PROJECT_ENV = 100;
 

@@ -23,8 +23,8 @@ const PERIOD_TO_DAYS: Record<AnalyticsPeriod, string> = {
 const periodToDays = (period: AnalyticsPeriod | undefined): string =>
   PERIOD_TO_DAYS[period ?? "7d"];
 
-const UUID_RE = /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i;
-const CHANNEL_NAME_RE = /^[A-Za-z0-9._-]{1,64}$/;
+const UUID_RE = /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/iu;
+const CHANNEL_NAME_RE = /^[A-Za-z0-9._-]{1,64}$/u;
 
 const sanitizeUuid = (value: string): string => (UUID_RE.test(value) ? value : "");
 

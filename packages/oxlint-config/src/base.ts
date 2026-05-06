@@ -212,8 +212,12 @@ export default defineConfig({
         "vitest/no-conditional-expect": "off",
         "vitest/no-conditional-in-test": "off",
         "vitest/no-hooks": "off",
+        "vitest/no-standalone-expect": "off",
+        "vitest/prefer-mock-return-shorthand": "off",
         "vitest/require-top-level-describe": "off",
         "vitest/expect-expect": "off",
+
+        "require-unicode-regexp": "off",
 
         "jest/prefer-expect-assertions": "off",
       },

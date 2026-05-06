@@ -1,8 +1,8 @@
 import type { DeviceClass } from "../models";
 
-const LEGACY_UDID = /^[A-Fa-f0-9]{40}$/;
-const MODERN_UDID = /^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{16}$/;
-const MAC_UUID = /^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$/;
+const LEGACY_UDID = /^[A-Fa-f0-9]{40}$/u;
+const MODERN_UDID = /^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{16}$/u;
+const MAC_UUID = /^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$/u;
 
 export const normalizeIdentifier = (raw: string): string => raw.trim().toLowerCase();
 

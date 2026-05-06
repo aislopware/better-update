@@ -14,7 +14,7 @@ class ConfigStoreParseError extends Data.TaggedError("ConfigStoreParseError")<{
   readonly cause: unknown;
 }> {}
 
-const normalizeUrl = (value: string): string => value.replace(/\/$/, "");
+const normalizeUrl = (value: string): string => value.replace(/\/$/u, "");
 
 export class ConfigStore extends Context.Tag("cli/ConfigStore")<
   ConfigStore,

@@ -6,7 +6,7 @@ export const DeviceClass = Schema.Literal("IPHONE", "IPAD", "MAC", "UNKNOWN");
 export type DeviceClassValue = typeof DeviceClass.Type;
 
 const IDENTIFIER_PATTERN =
-  /^(?:[A-Fa-f0-9]{40}|[A-Fa-f0-9]{8}-[A-Fa-f0-9]{16}|[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12})$/;
+  /^(?:[A-Fa-f0-9]{40}|[A-Fa-f0-9]{8}-[A-Fa-f0-9]{16}|[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12})$/u;
 
 export const DeviceIdentifier = Schema.String.pipe(
   Schema.pattern(IDENTIFIER_PATTERN, {

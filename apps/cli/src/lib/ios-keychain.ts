@@ -45,7 +45,7 @@ const listCurrentKeychains = Effect.gen(function* () {
   );
   return output
     .split("\n")
-    .map((line) => line.trim().replace(/^"/, "").replace(/"$/, ""))
+    .map((line) => line.trim().replace(/^"/u, "").replace(/"$/u, ""))
     .filter((line) => line.length > 0);
 });
 
@@ -55,7 +55,7 @@ const listCurrentKeychains = Effect.gen(function* () {
 const parseSigningIdentity = (output: string): string | undefined => {
   const lines = output.split("\n");
   for (const line of lines) {
-    const match = /"([^"]+)"/.exec(line);
+    const match = /"([^"]+)"/u.exec(line);
     if (match?.[1]) {
       return match[1];
     }

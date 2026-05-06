@@ -123,7 +123,7 @@ export const runIosBuild = (
 
     // 6. Detect workspace + scheme.
     const workspaceFilename = yield* findXcworkspace(iosDir);
-    const scheme = iosProfile.scheme ?? workspaceFilename.replace(/\.xcworkspace$/, "");
+    const scheme = iosProfile.scheme ?? workspaceFilename.replace(/\.xcworkspace$/u, "");
     const configuration = iosProfile.buildConfiguration ?? "Release";
 
     // 7. xcodebuild archive.

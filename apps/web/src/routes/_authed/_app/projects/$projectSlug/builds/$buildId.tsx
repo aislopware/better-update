@@ -234,13 +234,5 @@ const BuildDetailPage = () => {
 };
 
 export const Route = createFileRoute("/_authed/_app/projects/$projectSlug/builds/$buildId")({
-  loader: async ({ context, params }) => {
-    const orgId = context.activeOrg.id;
-    const projectId = context.project.id;
-    await Promise.all([
-      context.queryClient.ensureQueryData(buildQueryOptions(orgId, params.buildId)),
-      context.queryClient.ensureQueryData(buildCompatibilityMatrixQueryOptions(orgId, projectId)),
-    ]);
-  },
   component: BuildDetailPage,
 });

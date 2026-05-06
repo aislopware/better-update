@@ -13,7 +13,7 @@ export const Distribution = Schema.Literal(
 );
 
 export const ArtifactFormat = Schema.Literal("ipa", "apk", "aab", "tar.gz");
-const Sha256Hex = Schema.String.pipe(Schema.pattern(/^[a-fA-F0-9]{64}$/), Schema.maxLength(64));
+const Sha256Hex = Schema.String.pipe(Schema.pattern(/^[a-fA-F0-9]{64}$/u), Schema.maxLength(64));
 
 const CreateBuildCommonFields = {
   projectId: Id,

@@ -11,6 +11,7 @@ import {
 import type { QueryClient } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
+import { ErrorBoundary } from "../lib/error-boundary";
 import { subscribeToSignoutBroadcast } from "../lib/logout";
 import { THEME_INIT_SCRIPT, getThemeSnapshotFromCookie, isResolvedTheme } from "../lib/theme";
 import { ThemeProvider } from "../lib/theme-context";
@@ -115,7 +116,9 @@ const RootComponent = () => {
   return (
     <ThemeProvider initialTheme={theme.theme} initialResolvedTheme={theme.resolvedTheme}>
       <ThemedToaster>
-        <Outlet />
+        <ErrorBoundary>
+          <Outlet />
+        </ErrorBoundary>
       </ThemedToaster>
     </ThemeProvider>
   );

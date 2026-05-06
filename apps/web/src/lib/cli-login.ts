@@ -4,7 +4,7 @@ export const isAllowedCliCallbackUrl = (value: string): boolean => CALLBACK_URL_
 
 export const buildCliCallbackRedirect = (callbackUrl: string, token: string): string => {
   const url = new URL(callbackUrl);
-  const hash = new URLSearchParams(url.hash.replace(/^#/, ""));
+  const hash = new URLSearchParams(url.hash.replace(/^#/u, ""));
   hash.set("token", token);
   url.hash = hash.toString();
   return url.toString();

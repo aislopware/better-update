@@ -13,7 +13,7 @@ export const envVarKeySchema = z
   .check(
     z.minLength(1, "Key is required"),
     z.maxLength(256, "Key must be at most 256 characters"),
-    z.regex(/^[A-Z][A-Z0-9_]*$/, "Must be uppercase letters, digits, and underscores"),
+    z.regex(/^[A-Z][A-Z0-9_]*$/u, "Must be uppercase letters, digits, and underscores"),
   );
 
 export const passwordSchema = z
@@ -28,11 +28,11 @@ export const slugSchema = z
   .check(
     z.minLength(2, "Slug must be at least 2 characters"),
     z.maxLength(48, "Slug must be at most 48 characters"),
-    z.regex(/^[a-z0-9-]+$/, "Only lowercase letters, numbers, and hyphens"),
+    z.regex(/^[a-z0-9-]+$/u, "Only lowercase letters, numbers, and hyphens"),
   );
 
 export const generateSlug = (name: string) =>
   name
     .toLowerCase()
-    .replaceAll(/[^a-z0-9]+/g, "-")
-    .replaceAll(/^-|-$/g, "");
+    .replaceAll(/[^a-z0-9]+/gu, "-")
+    .replaceAll(/^-|-$/gu, "");

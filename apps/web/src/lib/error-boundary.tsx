@@ -30,8 +30,14 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     this.state = { error: null };
   }
 
-  public static getDerivedStateFromError(error: Error): ErrorBoundaryState {
-    return { error };
+  public static getDerivedStateFromError(error: unknown): ErrorBoundaryState {
+    if (error instanceof Error) {
+      return { error };
+    }
+    if (typeof error === "string" && error.length > 0) {
+      return { error: new Error(error) };
+    }
+    return { error: new Error("An unexpected error occurred") };
   }
 
   public reset = (): void => {
@@ -41,7 +47,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   public override render(): ReactNode {
     const { error } = this.state;
-    if (error) {
+    if (error !== null) {
       if (this.props.fallback) {
         return this.props.fallback(error, this.reset);
       }

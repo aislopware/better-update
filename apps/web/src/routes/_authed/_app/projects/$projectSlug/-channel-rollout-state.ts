@@ -23,7 +23,7 @@ export const parseRolloutState = (
   if (!first) {
     return null;
   }
-  const match = /hash_lt\(mappingId,\s*([\d.]+)\)/.exec(first.branchMappingLogic);
+  const match = /hash_lt\(mappingId,\s*([\d.]+)\)/u.exec(first.branchMappingLogic);
   return match?.[1]
     ? {
         targetBranchId: first.branchId,
