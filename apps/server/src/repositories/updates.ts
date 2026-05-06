@@ -2,11 +2,13 @@ import { Context, Effect, Layer } from "effect";
 
 import { cloudflareEnv } from "../cloudflare/context";
 import { NotFound } from "../errors";
-import { encodeCursor } from "../lib/cursor";
 import { toDbNull } from "../lib/nullable";
 
-import type { Cursor } from "../lib/cursor";
 import type { Platform, UpdateAssetRefModel, UpdateModel } from "../models";
+
+export type UpdateSortKey = "createdAt" | "runtimeVersion" | "platform" | "rolloutPercentage";
+
+export type UpdateSortOrder = "asc" | "desc";
 
 // -- Port ------------------------------------------------------------------
 
@@ -51,12 +53,11 @@ export interface UpdateRepository {
     readonly projectId: string;
     readonly branchId?: string;
     readonly platform?: Platform;
-    readonly cursor: Cursor | null;
+    readonly sort: UpdateSortKey;
+    readonly order: UpdateSortOrder;
     readonly limit: number;
-  }) => Effect.Effect<{
-    readonly items: readonly UpdateModel[];
-    readonly nextCursor: string | null;
-  }>;
+    readonly offset: number;
+  }) => Effect.Effect<{ readonly items: readonly UpdateModel[]; readonly total: number }>;
 
   readonly findById: (params: { readonly id: string }) => Effect.Effect<UpdateModel, NotFound>;
 
@@ -279,28 +280,35 @@ export const UpdateRepoLive = Layer.succeed(UpdateRepo, {
         bindValues.push(params.platform);
       }
 
-      if (params.cursor) {
-        conditions.push('(u."created_at" < ? OR (u."created_at" = ? AND u."id" < ?))');
-        bindValues.push(params.cursor.createdAt, params.cursor.createdAt, params.cursor.id);
-      }
-
       const whereClause = conditions.join(" AND ");
+
+      const sortColumns: Record<UpdateSortKey, string> = {
+        createdAt: 'u."created_at"',
+        runtimeVersion: 'u."runtime_version"',
+        platform: 'u."platform"',
+        rolloutPercentage: 'u."rollout_percentage"',
+      };
+      const direction = params.order === "asc" ? "ASC" : "DESC";
+      const orderBy = `${sortColumns[params.sort]} ${direction}, u."id" ${direction}`;
+
+      const countResult = yield* Effect.promise(async () =>
+        env.DB.prepare(
+          `SELECT COUNT(*) as count FROM "updates" u JOIN "branches" b ON u."branch_id" = b."id" WHERE ${whereClause}`,
+        )
+          .bind(...bindValues)
+          .first<{ count: number }>(),
+      );
+      const total = countResult?.count ?? 0;
 
       const rows = yield* Effect.promise(async () =>
         env.DB.prepare(
-          `SELECT u."id", u."branch_id", u."runtime_version", u."platform", u."message", u."metadata_json", u."extra_json", u."group_id", u."rollout_percentage", u."is_rollback", u."signature", u."certificate_chain", u."manifest_body", u."directive_body", u."created_at" FROM "updates" u JOIN "branches" b ON u."branch_id" = b."id" WHERE ${whereClause} ORDER BY u."created_at" DESC, u."id" DESC LIMIT ?`,
+          `SELECT u."id", u."branch_id", u."runtime_version", u."platform", u."message", u."metadata_json", u."extra_json", u."group_id", u."rollout_percentage", u."is_rollback", u."signature", u."certificate_chain", u."manifest_body", u."directive_body", u."created_at" FROM "updates" u JOIN "branches" b ON u."branch_id" = b."id" WHERE ${whereClause} ORDER BY ${orderBy} LIMIT ? OFFSET ?`,
         )
-          .bind(...bindValues, params.limit + 1)
+          .bind(...bindValues, params.limit, params.offset)
           .all<UpdateRow>(),
       );
 
-      const hasMore = rows.results.length > params.limit;
-      const trimmed = hasMore ? rows.results.slice(0, params.limit) : rows.results;
-      const last = trimmed.at(-1);
-      const nextCursor =
-        hasMore && last ? encodeCursor({ createdAt: last.created_at, id: last.id }) : null;
-
-      return { items: trimmed.map(toUpdate), nextCursor };
+      return { items: rows.results.map(toUpdate), total };
     }),
 
   findById: (params) =>

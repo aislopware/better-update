@@ -1,4 +1,4 @@
-import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
+import { queryOptions } from "@tanstack/react-query";
 
 import { runApi } from "../index";
 
@@ -13,21 +13,39 @@ export const buildQueryKey = (orgId: string, buildId: string) =>
 export const buildCompatibilityMatrixQueryKey = (orgId: string, projectId: string) =>
   ["org", orgId, "projects", projectId, "build-compatibility-matrix"] as const;
 
+export type BuildSortColumn =
+  | "createdAt"
+  | "platform"
+  | "distribution"
+  | "runtimeVersion"
+  | "appVersion";
+
+/** Sort param: column name optionally prefixed with `-` for descending. */
+export type BuildSort = BuildSortColumn | `-${BuildSortColumn}`;
+
+export type BuildDistribution =
+  | "app-store"
+  | "ad-hoc"
+  | "development"
+  | "enterprise"
+  | "simulator"
+  | "play-store"
+  | "direct";
+
 export interface BuildsFilters {
   readonly platform?: PlatformValue;
   readonly profile?: string;
   readonly runtimeVersion?: string;
+  readonly distribution?: BuildDistribution;
+  readonly page?: number;
   readonly limit?: number;
+  readonly sort?: BuildSort;
 }
 
-export const buildsInfiniteQueryOptions = (
-  orgId: string,
-  projectId: string,
-  filters?: BuildsFilters,
-) =>
-  infiniteQueryOptions({
+export const buildsQueryOptions = (orgId: string, projectId: string, filters?: BuildsFilters) =>
+  queryOptions({
     queryKey: [...buildsQueryKey(orgId, projectId), filters ?? {}],
-    queryFn: async ({ signal, pageParam }) =>
+    queryFn: async ({ signal }) =>
       runApi(
         (api) =>
           api.builds.list({
@@ -36,16 +54,14 @@ export const buildsInfiniteQueryOptions = (
               ...(filters?.platform ? { platform: filters.platform } : {}),
               ...(filters?.profile ? { profile: filters.profile } : {}),
               ...(filters?.runtimeVersion ? { runtimeVersion: filters.runtimeVersion } : {}),
-              ...(filters?.limit ? { limit: filters.limit } : {}),
-              cursor: pageParam,
+              ...(filters?.distribution ? { distribution: filters.distribution } : {}),
+              ...(filters?.page === undefined ? {} : { page: filters.page }),
+              ...(filters?.limit === undefined ? {} : { limit: filters.limit }),
+              ...(filters?.sort ? { sort: filters.sort } : {}),
             },
           }),
         signal,
       ),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) =>
-      // eslint-disable-next-line eslint-js/no-restricted-syntax -- react-query getNextPageParam contract: undefined terminates; API schema returns null
-      lastPage.nextCursor ?? undefined,
     staleTime: 30_000,
   });
 

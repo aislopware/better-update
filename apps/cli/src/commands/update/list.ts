@@ -4,7 +4,7 @@ import { Console, Effect } from "effect";
 import { readProjectId } from "../../lib/app-json";
 import { runEffect } from "../../lib/citty-effect";
 import { parseLimit } from "../../lib/cli-schemas";
-import { drainCursor } from "../../lib/drain-cursor";
+import { drainPages } from "../../lib/drain-cursor";
 import { printTable } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 import { resolveNamedResourceId, updateErrorExtras } from "./helpers";
@@ -21,9 +21,9 @@ export const listCommand = defineCommand({
         const limit = yield* parseLimit(args.limit, 20);
         const projectId = yield* readProjectId;
         const api = yield* apiClient;
-        const branches = yield* drainCursor((cursor) =>
+        const branches = yield* drainPages((page) =>
           api.branches.list({
-            urlParams: { projectId, limit: 100, ...(cursor ? { cursor } : {}) },
+            urlParams: { projectId, limit: 100, page },
           }),
         );
 

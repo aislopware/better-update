@@ -85,6 +85,7 @@ export interface BranchModel {
   readonly projectId: string;
   readonly name: string;
   readonly createdAt: string;
+  readonly updateCount: number;
 }
 
 export interface ChannelModel {

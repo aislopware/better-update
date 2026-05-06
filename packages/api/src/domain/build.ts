@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 
-import { DateTimeString, Id, Platform, UploadHeaders } from "./common";
+import { DateTimeString, Id, PaginationParams, Platform, UploadHeaders } from "./common";
 
 export const Distribution = Schema.Literal(
   "app-store",
@@ -95,6 +95,33 @@ export const CreateBuildBody = Schema.Union(
     artifactFormat: Schema.Literal("apk"),
   }),
 );
+
+export const BuildSortColumn = Schema.Literal(
+  "createdAt",
+  "platform",
+  "distribution",
+  "runtimeVersion",
+  "appVersion",
+);
+
+/**
+ * Sort param: column name optionally prefixed with `-` for descending.
+ * Example: `runtimeVersion` (asc), `-createdAt` (desc).
+ */
+export const BuildSort = Schema.Union(
+  BuildSortColumn,
+  Schema.TemplateLiteral("-", BuildSortColumn),
+);
+
+export const ListBuildsParams = Schema.Struct({
+  projectId: Id,
+  platform: Schema.optional(Platform),
+  profile: Schema.optional(Schema.String),
+  runtimeVersion: Schema.optional(Schema.String),
+  distribution: Schema.optional(Distribution),
+  ...PaginationParams.fields,
+  sort: Schema.optional(BuildSort),
+});
 
 export const CompleteBuildBody = Schema.Struct({
   sha256: Sha256Hex,

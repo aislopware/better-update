@@ -115,6 +115,7 @@ const branch = {
   projectId,
   name: "main",
   createdAt: "2026-01-01T00:00:00Z",
+  updateCount: 0,
 } satisfies BranchItem;
 
 const build = {
@@ -202,7 +203,7 @@ describe("mutation dialogs", () => {
         seedCache: [
           [
             ["org", orgId, "projects", projectId, "branches", { limit: 100 }],
-            { pages: [{ items: [branch], nextCursor: null }], pageParams: [undefined] },
+            { items: [branch], total: 1, page: 1, limit: 100 },
           ],
         ],
       },

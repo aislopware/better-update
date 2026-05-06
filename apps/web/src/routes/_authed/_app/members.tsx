@@ -1,29 +1,52 @@
-import { CardFrame, CardFrameHeader, CardFrameTitle } from "@better-update/ui/components/ui/card";
-import { Tabs, TabsList, TabsPanel, TabsTab } from "@better-update/ui/components/ui/tabs";
-import { toastManager } from "@better-update/ui/components/ui/toast";
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@better-update/ui/components/ui/empty";
+import {
+  Select,
+  SelectGroup,
+  SelectItem,
+  SelectPopup,
+  SelectTrigger,
+  SelectValue,
+} from "@better-update/ui/components/ui/select";
+import { keepPreviousData, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { UsersIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { PageHeader } from "../../../components/page-header";
-import { authClient, rejectOnAuthClientError } from "../../../lib/auth-client";
-import { useApiMutation } from "../../../lib/use-api-mutation";
+import { pluralize } from "../../../lib/pluralize";
 import { invitationsQueryOptions, membersQueryOptions } from "../../../queries/org";
 import { InviteDialog, RemoveDialog } from "./-invite-dialog";
-import { InvitationsTableView, MembersTableView } from "./-members-table";
+import { useMembersHandlers } from "./-members-mutations";
+import { MembersTableView } from "./-members-table";
 
-type OrgRole = "member" | "admin" | "owner";
+type StatusFilter = "all" | "active" | "pending";
 
-const isOrgRole = (value: string): value is OrgRole =>
-  value === "member" || value === "admin" || value === "owner";
+const STATUS_LABELS: Record<StatusFilter, string> = {
+  all: "All",
+  active: "Active",
+  pending: "Pending",
+};
+
+const STATUS_VALUES: readonly StatusFilter[] = ["all", "active", "pending"];
 
 const Members = () => {
-  const queryClient = useQueryClient();
   const { activeOrg, user } = Route.useRouteContext();
   const orgId = activeOrg.id;
 
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+
   const { data: members } = useSuspenseQuery(membersQueryOptions(orgId));
-  const { data: invitations } = useSuspenseQuery(invitationsQueryOptions(orgId));
+  const { data: invitations = [] } = useQuery({
+    ...invitationsQueryOptions(orgId),
+    enabled: statusFilter !== "active",
+    placeholderData: keepPreviousData,
+  });
 
   const currentMember = members.find((member) => member.userId === user.id);
   const currentRole = currentMember?.role ?? "member";
@@ -34,142 +57,105 @@ const Members = () => {
     [invitations],
   );
 
-  const [removeMemberId, setRemoveMemberId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<string>("members");
+  const {
+    removeMemberId,
+    setRemoveMemberId,
+    handleRoleChange,
+    handleRemove,
+    handleCancelInvitation,
+    memberPendingId,
+    invitationPendingId,
+    isRemoving,
+  } = useMembersHandlers(orgId);
 
-  const roleChangeMutation = useApiMutation({
-    mutationFn: async (input: { memberId: string; role: OrgRole }) =>
-      rejectOnAuthClientError(
-        authClient.organization.updateMemberRole({
-          memberId: input.memberId,
-          role: input.role,
-          organizationId: orgId,
-        }),
-        "Failed to update role",
-      ),
-    onSuccess: async () => {
-      toastManager.add({ title: "Role updated", type: "success" });
-      await queryClient.invalidateQueries({ queryKey: ["org", orgId, "members"] });
-    },
-  });
+  const filteredMembers = useMemo(
+    () => (statusFilter === "pending" ? [] : members),
+    [statusFilter, members],
+  );
+  const filteredInvitations = useMemo(
+    () => (statusFilter === "active" ? [] : pendingInvitations),
+    [statusFilter, pendingInvitations],
+  );
+  const visibleCount = filteredMembers.length + filteredInvitations.length;
+  const headerActions = isOwnerOrAdmin ? <InviteDialog orgId={orgId} /> : undefined;
+  const countLabel = `${visibleCount} ${pluralize(visibleCount, "member")}`;
 
-  const removeMemberMutation = useApiMutation({
-    mutationFn: async (memberId: string) =>
-      rejectOnAuthClientError(
-        authClient.organization.removeMember({
-          memberIdOrEmail: memberId,
-          organizationId: orgId,
-        }),
-        "Failed to remove member",
-      ),
-    onSuccess: async () => {
-      setRemoveMemberId(null);
-      toastManager.add({ title: "Member removed", type: "success" });
-      await queryClient.invalidateQueries({ queryKey: ["org", orgId, "members"] });
-    },
-  });
+  const isOrgEmpty =
+    statusFilter === "all" && members.length === 0 && pendingInvitations.length === 0;
 
-  const cancelInvitationMutation = useApiMutation({
-    mutationFn: async (invitationId: string) =>
-      rejectOnAuthClientError(
-        authClient.organization.cancelInvitation({ invitationId }),
-        "Failed to cancel invitation",
-      ),
-    onSuccess: async () => {
-      toastManager.add({ title: "Invitation canceled", type: "success" });
-      await queryClient.invalidateQueries({ queryKey: ["org", orgId, "invitations"] });
-    },
-  });
-
-  const handleRoleChange = (memberId: string, role: string) => {
-    if (!isOrgRole(role)) {
-      return;
-    }
-    roleChangeMutation.mutate({ memberId, role });
-  };
-
-  const handleRemove = () => {
-    if (!removeMemberId) {
-      return;
-    }
-    removeMemberMutation.mutate(removeMemberId);
-  };
-
-  const handleCancelInvitation = (invitationId: string) => {
-    cancelInvitationMutation.mutate(invitationId);
-  };
-
-  const memberPendingId =
-    roleChangeMutation.isPending || removeMemberMutation.isPending
-      ? (roleChangeMutation.variables?.memberId ?? removeMemberMutation.variables)
-      : undefined;
+  if (isOrgEmpty) {
+    return (
+      <div className="flex w-full flex-col gap-6">
+        <PageHeader
+          title="Members"
+          description="Invite teammates and manage their roles within this organization."
+          actions={headerActions}
+        />
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <UsersIcon strokeWidth={1.5} />
+            </EmptyMedia>
+            <EmptyTitle>No members yet</EmptyTitle>
+            <EmptyDescription>Invite your first teammate to get started.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      </div>
+    );
+  }
 
   return (
     <div className="flex w-full flex-col gap-6">
       <PageHeader
         title="Members"
         description="Invite teammates and manage their roles within this organization."
-        actions={isOwnerOrAdmin ? <InviteDialog orgId={orgId} /> : undefined}
+        actions={headerActions}
       />
 
-      <CardFrame>
-        <CardFrameHeader>
-          <Tabs
-            value={activeTab}
-            onValueChange={(value) => {
-              setActiveTab(String(value));
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Select
+            items={STATUS_LABELS}
+            value={statusFilter}
+            onValueChange={(next) => {
+              if (next !== null) {
+                setStatusFilter(next);
+              }
             }}
-            className="w-full"
           >
-            <TabsList variant="underline" className="-mb-2">
-              <TabsTab value="members">
-                Members
-                <span className="text-muted-foreground/72 ml-1.5 tabular-nums">
-                  {members.length}
-                </span>
-              </TabsTab>
-              <TabsTab value="invitations">
-                Pending invitations
-                <span className="text-muted-foreground/72 ml-1.5 tabular-nums">
-                  {pendingInvitations.length}
-                </span>
-              </TabsTab>
-            </TabsList>
-          </Tabs>
-          <CardFrameTitle className="sr-only">
-            {activeTab === "members" ? "Team members" : "Pending invitations"}
-          </CardFrameTitle>
-        </CardFrameHeader>
-        <Tabs value={activeTab}>
-          <TabsPanel value="members">
-            <MembersTableView
-              members={members}
-              currentUserId={user.id}
-              currentRole={currentRole}
-              pendingMemberId={memberPendingId}
-              onRoleChange={handleRoleChange}
-              onRemove={setRemoveMemberId}
-            />
-          </TabsPanel>
-          <TabsPanel value="invitations">
-            {pendingInvitations.length === 0 ? (
-              <p className="text-muted-foreground p-6 text-center text-sm">
-                No pending invitations.
-              </p>
-            ) : (
-              <InvitationsTableView
-                invitations={pendingInvitations}
-                pendingInvitationId={
-                  cancelInvitationMutation.isPending
-                    ? cancelInvitationMutation.variables
-                    : undefined
-                }
-                onCancel={handleCancelInvitation}
-              />
-            )}
-          </TabsPanel>
-        </Tabs>
-      </CardFrame>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectPopup>
+              <SelectGroup>
+                {STATUS_VALUES.map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {STATUS_LABELS[value]}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectPopup>
+          </Select>
+          <span className="text-muted-foreground text-xs tabular-nums">{countLabel}</span>
+        </div>
+        {visibleCount === 0 ? (
+          <p className="text-muted-foreground rounded-xl border border-dashed py-10 text-center text-sm">
+            No members match the selected filter.
+          </p>
+        ) : (
+          <MembersTableView
+            members={filteredMembers}
+            invitations={filteredInvitations}
+            currentUserId={user.id}
+            currentRole={currentRole}
+            pendingMemberId={memberPendingId}
+            pendingInvitationId={invitationPendingId}
+            onRoleChange={handleRoleChange}
+            onRemove={setRemoveMemberId}
+            onCancelInvitation={handleCancelInvitation}
+          />
+        )}
+      </div>
 
       <RemoveDialog
         open={removeMemberId !== null}
@@ -179,7 +165,7 @@ const Members = () => {
           }
         }}
         onConfirm={handleRemove}
-        isRemoving={removeMemberMutation.isPending}
+        isRemoving={isRemoving}
       />
     </div>
   );

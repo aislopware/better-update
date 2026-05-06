@@ -7,9 +7,28 @@ import { assertProjectOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
 import { toApiBranch } from "../http/to-api";
 import { toApiCrudEffect } from "../http/to-api-effect";
-import { parseCursorPagination } from "../lib/cursor";
+import { parsePagination } from "../lib/pagination";
 import { BranchRepo } from "../repositories/branches";
 import { ProjectRepo } from "../repositories/projects";
+
+import type { BranchSortKey, BranchSortOrder } from "../repositories/branches";
+
+const parseBranchSort = (
+  value: string | undefined = "-createdAt",
+): { readonly sort: BranchSortKey; readonly order: BranchSortOrder } => {
+  const order: BranchSortOrder = value.startsWith("-") ? "desc" : "asc";
+  const column = value.startsWith("-") ? value.slice(1) : value;
+  switch (column) {
+    case "name":
+    case "createdAt":
+    case "updateCount": {
+      return { sort: column, order };
+    }
+    default: {
+      return { sort: "createdAt", order: "desc" };
+    }
+  }
+};
 
 export const BranchesGroupLive = HttpApiBuilder.group(ManagementApi, "branches", (handlers) =>
   handlers
@@ -28,6 +47,7 @@ export const BranchesGroupLive = HttpApiBuilder.group(ManagementApi, "branches",
             projectId: payload.projectId,
             name: payload.name,
             createdAt: now,
+            updateCount: 0,
           };
 
           yield* repo.insert(branch);
@@ -51,15 +71,18 @@ export const BranchesGroupLive = HttpApiBuilder.group(ManagementApi, "branches",
           yield* assertPermission("branch", "read");
           yield* assertProjectOwnership(urlParams.projectId);
           const repo = yield* BranchRepo;
-          const { cursor, limit } = parseCursorPagination(urlParams);
+          const { page, limit, offset } = parsePagination(urlParams);
+          const { sort, order } = parseBranchSort(urlParams.sort);
 
-          const { items, nextCursor } = yield* repo.findByProject({
+          const { items, total } = yield* repo.findByProject({
             projectId: urlParams.projectId,
-            cursor,
+            sort,
+            order,
             limit,
+            offset,
           });
 
-          return { items: items.map(toApiBranch), nextCursor };
+          return { items: items.map(toApiBranch), total, page, limit };
         }),
       ),
     )

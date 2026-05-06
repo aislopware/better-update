@@ -2,14 +2,16 @@ import { Context, Effect, Layer } from "effect";
 
 import { cloudflareEnv } from "../cloudflare/context";
 import { Conflict, NotFound } from "../errors";
-import { encodeCursor } from "../lib/cursor";
 import { CHANNEL_BRANCH_REFERENCE_PREDICATE } from "./channel-cache-version";
 import { d1RunWithUniqueCheck } from "./d1-helpers";
 
-import type { Cursor } from "../lib/cursor";
 import type { BranchModel } from "../models";
 
 // -- Port ------------------------------------------------------------------
+
+export type BranchSortKey = "name" | "createdAt" | "updateCount";
+
+export type BranchSortOrder = "asc" | "desc";
 
 export interface BranchRepository {
   readonly insert: (params: {
@@ -21,12 +23,11 @@ export interface BranchRepository {
 
   readonly findByProject: (params: {
     readonly projectId: string;
-    readonly cursor: Cursor | null;
+    readonly sort: BranchSortKey;
+    readonly order: BranchSortOrder;
     readonly limit: number;
-  }) => Effect.Effect<{
-    readonly items: readonly BranchModel[];
-    readonly nextCursor: string | null;
-  }>;
+    readonly offset: number;
+  }) => Effect.Effect<{ readonly items: readonly BranchModel[]; readonly total: number }>;
 
   readonly findById: (params: { readonly id: string }) => Effect.Effect<BranchModel, NotFound>;
 
@@ -52,7 +53,10 @@ interface BranchRow {
   project_id: string;
   name: string;
   created_at: string;
+  update_count: number;
 }
+
+const BRANCH_COLUMNS = `b."id", b."project_id", b."name", b."created_at", (SELECT COUNT(*) FROM "updates" WHERE "updates"."branch_id" = b."id") AS "update_count"`;
 
 const toBranch = (row: BranchRow) =>
   ({
@@ -60,7 +64,19 @@ const toBranch = (row: BranchRow) =>
     projectId: row.project_id,
     name: row.name,
     createdAt: row.created_at,
+    updateCount: row.update_count,
   }) satisfies BranchModel;
+
+const sortColumns: Record<BranchSortKey, string> = {
+  name: 'b."name" COLLATE NOCASE',
+  createdAt: 'b."created_at"',
+  updateCount: '"update_count"',
+};
+
+const sortClause = (sort: BranchSortKey, order: BranchSortOrder): string => {
+  const direction = order === "asc" ? "ASC" : "DESC";
+  return `${sortColumns[sort]} ${direction}, b."id" ${direction}`;
+};
 
 export const BranchRepoLive = Layer.succeed(BranchRepo, {
   insert: (params) =>
@@ -82,28 +98,23 @@ export const BranchRepoLive = Layer.succeed(BranchRepo, {
     Effect.gen(function* () {
       const env = yield* cloudflareEnv;
 
-      const filters: string[] = [`"project_id" = ?`];
-      const bindings: (string | number)[] = [params.projectId];
-      if (params.cursor) {
-        filters.push(`("created_at" < ? OR ("created_at" = ? AND "id" < ?))`);
-        bindings.push(params.cursor.createdAt, params.cursor.createdAt, params.cursor.id);
-      }
+      const countResult = yield* Effect.promise(async () =>
+        env.DB.prepare(`SELECT COUNT(*) as count FROM "branches" b WHERE b."project_id" = ?`)
+          .bind(params.projectId)
+          .first<{ count: number }>(),
+      );
+
+      const total = countResult?.count ?? 0;
 
       const rows = yield* Effect.promise(async () =>
         env.DB.prepare(
-          `SELECT "id", "project_id", "name", "created_at" FROM "branches" WHERE ${filters.join(" AND ")} ORDER BY "created_at" DESC, "id" DESC LIMIT ?`,
+          `SELECT ${BRANCH_COLUMNS} FROM "branches" b WHERE b."project_id" = ? ORDER BY ${sortClause(params.sort, params.order)} LIMIT ? OFFSET ?`,
         )
-          .bind(...bindings, params.limit + 1)
+          .bind(params.projectId, params.limit, params.offset)
           .all<BranchRow>(),
       );
 
-      const hasMore = rows.results.length > params.limit;
-      const trimmed = hasMore ? rows.results.slice(0, params.limit) : rows.results;
-      const last = trimmed.at(-1);
-      const nextCursor =
-        hasMore && last ? encodeCursor({ createdAt: last.created_at, id: last.id }) : null;
-
-      return { items: trimmed.map(toBranch), nextCursor };
+      return { items: rows.results.map(toBranch), total };
     }),
 
   findById: (params) =>
@@ -111,9 +122,7 @@ export const BranchRepoLive = Layer.succeed(BranchRepo, {
       const env = yield* cloudflareEnv;
 
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT "id", "project_id", "name", "created_at" FROM "branches" WHERE "id" = ?`,
-        )
+        env.DB.prepare(`SELECT ${BRANCH_COLUMNS} FROM "branches" b WHERE b."id" = ?`)
           .bind(params.id)
           .first<BranchRow>(),
       );
@@ -131,7 +140,7 @@ export const BranchRepoLive = Layer.succeed(BranchRepo, {
 
       const row = yield* Effect.promise(async () =>
         env.DB.prepare(
-          `SELECT "id", "project_id", "name", "created_at" FROM "branches" WHERE "project_id" = ? AND "name" = ?`,
+          `SELECT ${BRANCH_COLUMNS} FROM "branches" b WHERE b."project_id" = ? AND b."name" = ?`,
         )
           .bind(params.projectId, params.name)
           .first<BranchRow>(),

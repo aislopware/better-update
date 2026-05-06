@@ -3,7 +3,7 @@ import { Console, Effect } from "effect";
 
 import { readProjectId } from "../lib/app-json";
 import { runEffect } from "../lib/citty-effect";
-import { drainCursor } from "../lib/drain-cursor";
+import { drainPages } from "../lib/drain-cursor";
 import { printKeyValue, printTable } from "../lib/output";
 import { apiClient } from "../services/api-client";
 
@@ -14,9 +14,9 @@ const listCommand = defineCommand({
       Effect.gen(function* () {
         const projectId = yield* readProjectId;
         const api = yield* apiClient;
-        const items = yield* drainCursor((cursor) =>
+        const items = yield* drainPages((page) =>
           api.branches.list({
-            urlParams: { projectId, limit: 100, ...(cursor ? { cursor } : {}) },
+            urlParams: { projectId, limit: 100, page },
           }),
         );
 

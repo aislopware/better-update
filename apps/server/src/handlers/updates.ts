@@ -13,14 +13,34 @@ import { validateUpdatePublishInput } from "../domain/update-publish-validation"
 import { Conflict, NotFound } from "../errors";
 import { toApiUpdate } from "../http/to-api";
 import { toApiBadRequestReadEffect, toApiWriteEffect } from "../http/to-api-effect";
-import { parseCursorPagination } from "../lib/cursor";
 import { toDbNull } from "../lib/nullable";
+import { parsePagination } from "../lib/pagination";
 import { AssetRepo, BranchRepo, ChannelRepo, ProjectRepo, UpdateRepo } from "../repositories";
 import {
   prepareRepublishUpdates,
   resolveRepublishDestination,
   resolveRepublishSource,
 } from "./update-republish";
+
+import type { UpdateSortKey, UpdateSortOrder } from "../repositories/updates";
+
+const parseUpdateSort = (
+  value: string | undefined = "-createdAt",
+): { readonly sort: UpdateSortKey; readonly order: UpdateSortOrder } => {
+  const order: UpdateSortOrder = value.startsWith("-") ? "desc" : "asc";
+  const column = value.startsWith("-") ? value.slice(1) : value;
+  switch (column) {
+    case "createdAt":
+    case "runtimeVersion":
+    case "platform":
+    case "rolloutPercentage": {
+      return { sort: column, order };
+    }
+    default: {
+      return { sort: "createdAt", order: "desc" };
+    }
+  }
+};
 
 const assertAssetsExist = (assets: readonly { readonly hash: string }[]) =>
   Effect.gen(function* () {
@@ -167,17 +187,20 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
           yield* assertProjectOwnership(urlParams.projectId);
 
           const repo = yield* UpdateRepo;
-          const { cursor, limit } = parseCursorPagination(urlParams);
+          const { page, limit, offset } = parsePagination(urlParams);
+          const { sort, order } = parseUpdateSort(urlParams.sort);
 
-          const { items, nextCursor } = yield* repo.findByProject({
+          const { items, total } = yield* repo.findByProject({
             projectId: urlParams.projectId,
             ...(urlParams.branchId ? { branchId: urlParams.branchId } : {}),
             ...(urlParams.platform ? { platform: urlParams.platform } : {}),
-            cursor,
+            sort,
+            order,
             limit,
+            offset,
           });
 
-          return { items: items.map(toApiUpdate), nextCursor };
+          return { items: items.map(toApiUpdate), total, page, limit };
         }),
       ),
     )

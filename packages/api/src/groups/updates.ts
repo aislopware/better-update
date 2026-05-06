@@ -3,17 +3,12 @@ import { Schema } from "effect";
 
 import { Forbidden } from "../auth/errors";
 import { NotFound } from "../auth/ownership";
-import {
-  CursorPaginationParams,
-  cursorPageResult,
-  Id,
-  Platform,
-  UpdateRolloutBody,
-} from "../domain/common";
+import { UpdateRolloutBody } from "../domain/common";
 import { BadRequest, Conflict } from "../domain/errors";
 import {
   CreateUpdateBody,
   DeleteUpdateResult,
+  ListUpdatesParams,
   RepublishBody,
   RepublishResult,
   Update,
@@ -37,15 +32,15 @@ export class UpdatesGroup extends HttpApiGroup.make("updates")
   )
   .add(
     HttpApiEndpoint.get("list", "/api/updates")
-      .setUrlParams(
+      .setUrlParams(ListUpdatesParams)
+      .addSuccess(
         Schema.Struct({
-          projectId: Id,
-          branchId: Schema.optional(Id),
-          platform: Schema.optional(Platform),
-          ...CursorPaginationParams.fields,
+          items: Schema.Array(Update),
+          total: Schema.Number,
+          page: Schema.Number,
+          limit: Schema.Number,
         }),
       )
-      .addSuccess(cursorPageResult(Update))
       .annotateContext(
         OpenApi.annotations({
           title: "List updates",

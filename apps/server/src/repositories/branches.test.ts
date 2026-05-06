@@ -60,8 +60,9 @@ describe("branchRepo -- D1 adapter", () => {
   });
 
   describe("findByProject", () => {
-    it("returns items and null nextCursor when results fit page", async () => {
+    it("returns items and total count", async () => {
       const db = mockD1.forQuery({
+        first: async () => ({ count: 2 }),
         all: async () => ({
           results: [
             {
@@ -69,12 +70,14 @@ describe("branchRepo -- D1 adapter", () => {
               project_id: "proj-1",
               name: "production",
               created_at: "2026-01-02T00:00:00Z",
+              update_count: 5,
             },
             {
               id: "b2",
               project_id: "proj-1",
               name: "staging",
               created_at: "2026-01-01T00:00:00Z",
+              update_count: 0,
             },
           ],
         }),
@@ -84,7 +87,13 @@ describe("branchRepo -- D1 adapter", () => {
       const exit = await runWithRepo(
         Effect.gen(function* () {
           const repo = yield* BranchRepo;
-          return yield* repo.findByProject({ projectId: "proj-1", cursor: null, limit: 20 });
+          return yield* repo.findByProject({
+            projectId: "proj-1",
+            sort: "createdAt",
+            order: "desc",
+            limit: 20,
+            offset: 0,
+          });
         }),
         env,
       );
@@ -92,51 +101,15 @@ describe("branchRepo -- D1 adapter", () => {
       expect(Exit.isSuccess(exit)).toBe(true);
       if (Exit.isSuccess(exit)) {
         const result = exit.value;
-        expect(result.nextCursor).toBeNull();
+        expect(result.total).toBe(2);
         expect(result.items).toHaveLength(2);
         expect(result.items[0]).toStrictEqual(expect.objectContaining({ name: "production" }));
       }
     });
 
-    it("returns nextCursor when results overflow page", async () => {
-      const db = mockD1.forQuery({
-        all: async () => ({
-          results: [
-            {
-              id: "b1",
-              project_id: "proj-1",
-              name: "production",
-              created_at: "2026-01-02T00:00:00Z",
-            },
-            {
-              id: "b2",
-              project_id: "proj-1",
-              name: "staging",
-              created_at: "2026-01-01T00:00:00Z",
-            },
-          ],
-        }),
-      });
-      const env = makeEnv(db);
-
-      const exit = await runWithRepo(
-        Effect.gen(function* () {
-          const repo = yield* BranchRepo;
-          return yield* repo.findByProject({ projectId: "proj-1", cursor: null, limit: 1 });
-        }),
-        env,
-      );
-
-      expect(Exit.isSuccess(exit)).toBe(true);
-      if (Exit.isSuccess(exit)) {
-        const result = exit.value;
-        expect(result.items).toHaveLength(1);
-        expect(result.nextCursor).not.toBeNull();
-      }
-    });
-
     it("returns empty items when no branches exist", async () => {
       const db = mockD1.forQuery({
+        first: async () => ({ count: 0 }),
         all: async () => ({ results: [] }),
       });
       const env = makeEnv(db);
@@ -144,14 +117,20 @@ describe("branchRepo -- D1 adapter", () => {
       const exit = await runWithRepo(
         Effect.gen(function* () {
           const repo = yield* BranchRepo;
-          return yield* repo.findByProject({ projectId: "proj-1", cursor: null, limit: 20 });
+          return yield* repo.findByProject({
+            projectId: "proj-1",
+            sort: "createdAt",
+            order: "desc",
+            limit: 20,
+            offset: 0,
+          });
         }),
         env,
       );
 
       expect(Exit.isSuccess(exit)).toBe(true);
       if (Exit.isSuccess(exit)) {
-        expect(exit.value.nextCursor).toBeNull();
+        expect(exit.value.total).toBe(0);
         expect(exit.value.items).toHaveLength(0);
       }
     });
@@ -165,6 +144,7 @@ describe("branchRepo -- D1 adapter", () => {
           project_id: "proj-1",
           name: "production",
           created_at: "2026-01-01T00:00:00Z",
+          update_count: 3,
         }),
       });
       const env = makeEnv(db);

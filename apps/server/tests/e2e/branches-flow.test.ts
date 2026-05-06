@@ -83,8 +83,10 @@ describe("Branches API flow", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body).toHaveProperty("items");
-    expect(body).toHaveProperty("nextCursor");
-    expect(body.nextCursor).toBeNull();
+    expect(body).toHaveProperty("total");
+    expect(body).toHaveProperty("page");
+    expect(body).toHaveProperty("limit");
+    expect(body.total).toBe(1);
     expect(body.items).toHaveLength(1);
     expect(body.items[0].name).toBe("main");
   });
@@ -123,27 +125,36 @@ describe("Branches API flow", () => {
     expect((await response.json()).name).toBe("staging");
   });
 
-  // ── Section 3.5: Cursor pagination ─────────────────────────────
+  // ── Section 3.5: Page pagination + sort ─────────────────────────
 
-  it("paginates branches via cursor (limit=1)", async () => {
-    const firstRes = await get(`/api/branches?projectId=${projectId}&limit=1`, {
+  it("paginates branches via page (limit=1)", async () => {
+    const firstRes = await get(`/api/branches?projectId=${projectId}&limit=1&page=1`, {
       cookie: cookies,
     });
     expect(firstRes.status).toBe(200);
     const firstBody = await firstRes.json();
     expect(firstBody.items).toHaveLength(1);
-    expect(firstBody.nextCursor).not.toBeNull();
+    expect(firstBody.total).toBe(2);
+    expect(firstBody.page).toBe(1);
 
-    const secondRes = await get(
-      `/api/branches?projectId=${projectId}&limit=1&cursor=${encodeURIComponent(firstBody.nextCursor)}`,
-      { cookie: cookies },
-    );
+    const secondRes = await get(`/api/branches?projectId=${projectId}&limit=1&page=2`, {
+      cookie: cookies,
+    });
     expect(secondRes.status).toBe(200);
     const secondBody = await secondRes.json();
     expect(secondBody.items).toHaveLength(1);
-    // Different branches across pages
+    expect(secondBody.page).toBe(2);
     expect(secondBody.items[0].id).not.toBe(firstBody.items[0].id);
-    expect(secondBody.nextCursor).toBeNull();
+  });
+
+  it("sorts branches by name ascending", async () => {
+    const response = await get(`/api/branches?projectId=${projectId}&sort=name`, {
+      cookie: cookies,
+    });
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    const names = body.items.map((b: { name: string }) => b.name);
+    expect(names).toStrictEqual([...names].sort((a, b) => a.localeCompare(b)));
   });
 
   // ── Section 4: Error cases ─────────────────────────────────────

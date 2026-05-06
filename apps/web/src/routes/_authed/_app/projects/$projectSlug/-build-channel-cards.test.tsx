@@ -89,8 +89,20 @@ const pausedChannel = {
 };
 
 const branches = [
-  { id: "branch-main", projectId: "proj-1", name: "main", createdAt: "2026-01-01T00:00:00Z" },
-  { id: "branch-next", projectId: "proj-1", name: "next", createdAt: "2026-01-02T00:00:00Z" },
+  {
+    id: "branch-main",
+    projectId: "proj-1",
+    name: "main",
+    createdAt: "2026-01-01T00:00:00Z",
+    updateCount: 0,
+  },
+  {
+    id: "branch-next",
+    projectId: "proj-1",
+    name: "next",
+    createdAt: "2026-01-02T00:00:00Z",
+    updateCount: 0,
+  },
 ];
 
 const missingRuntimeVersion = {

@@ -119,5 +119,6 @@ export const makeBranch = (overrides?: Partial<BranchItem>): BranchItem => ({
   projectId: "proj-1",
   name: "main",
   createdAt: "2026-01-01T00:00:00Z",
+  updateCount: 0,
   ...overrides,
 });

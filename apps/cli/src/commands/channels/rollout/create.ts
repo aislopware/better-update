@@ -4,7 +4,7 @@ import { Console, Effect } from "effect";
 import { readProjectId } from "../../../lib/app-json";
 import { runEffect } from "../../../lib/citty-effect";
 import { parseRolloutPercentage } from "../../../lib/cli-schemas";
-import { drainCursor } from "../../../lib/drain-cursor";
+import { drainPages } from "../../../lib/drain-cursor";
 import { apiClient } from "../../../services/api-client";
 import { channelErrorExtras, resolveNamedResourceId } from "../helpers";
 
@@ -26,9 +26,9 @@ export const createCommand = defineCommand({
         const projectId = yield* readProjectId;
         const api = yield* apiClient;
 
-        const branches = yield* drainCursor((cursor) =>
+        const branches = yield* drainPages((page) =>
           api.branches.list({
-            urlParams: { projectId, limit: 100, ...(cursor ? { cursor } : {}) },
+            urlParams: { projectId, limit: 100, page },
           }),
         );
         const newBranchId = yield* resolveNamedResourceId({

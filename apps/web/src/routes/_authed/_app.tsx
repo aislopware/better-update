@@ -223,7 +223,7 @@ const AppSidebarRail = () => {
   const { state } = useSidebar();
   const Icon = state === "expanded" ? ChevronLeftIcon : ChevronRightIcon;
   return (
-    <SidebarRail className="group/rail z-40">
+    <SidebarRail className="group/rail z-40 hover:after:bg-transparent">
       <span className="bg-background pointer-events-none absolute top-1/2 left-1/2 z-50 flex size-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border opacity-0 shadow-sm transition-opacity duration-150 ease-out group-hover/rail:opacity-100">
         <Icon strokeWidth={2} className="size-3.5" />
       </span>
@@ -232,7 +232,7 @@ const AppSidebarRail = () => {
 };
 
 const AppSidebar = ({ projectSlug }: { projectSlug: string | undefined }) => (
-  <Sidebar collapsible="icon">
+  <Sidebar collapsible="icon" variant="inset">
     <SidebarHeader>
       <SidebarMenu>
         <SidebarMenuItem>
@@ -263,8 +263,8 @@ const AppLayout = () => {
       <DocumentTitle />
       <SidebarProvider>
         <AppSidebar projectSlug={projectSlug} />
-        <SidebarInset className="relative">
-          <header className="bg-background/80 sticky top-0 z-30 flex h-(--header-height) shrink-0 items-center gap-2 border-b px-4 backdrop-blur lg:px-6">
+        <SidebarInset className="relative md:border">
+          <header className="bg-background/80 sticky top-0 z-30 flex h-(--header-height) shrink-0 items-center gap-2 border-b px-4 backdrop-blur md:rounded-t-xl lg:px-6">
             <AppBreadcrumb
               orgId={activeOrg.id}
               orgName={activeOrg.name}

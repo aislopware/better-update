@@ -1,35 +1,34 @@
 import { Effect } from "effect";
 
-interface CursorPage<Item> {
+interface NumberedPage<Item> {
   readonly items: readonly Item[];
-  readonly nextCursor: string | null;
+  readonly total: number;
+  readonly page: number;
+  readonly limit: number;
 }
 
-const PAGE_SIZE = 100;
 const MAX_PAGES = 100;
 
 /**
- * Drain a cursor-paginated list endpoint into a single array. CLI commands
- * that resolve names → IDs (e.g. branch lookup) need the full set, not a
- * page slice.
+ * Drain a page-numbered list endpoint into a single array. Used by CLI
+ * commands that need the full set, not a page slice.
  */
-export const drainCursor = <Item, Err, Req>(
-  fetchPage: (cursor: string | undefined) => Effect.Effect<CursorPage<Item>, Err, Req>,
+export const drainPages = <Item, Err, Req>(
+  fetchPage: (page: number) => Effect.Effect<NumberedPage<Item>, Err, Req>,
 ): Effect.Effect<readonly Item[], Err, Req> => {
   const loop = (
     accumulator: readonly Item[],
-    cursor: string | undefined,
-    pages: number,
+    page: number,
   ): Effect.Effect<readonly Item[], Err, Req> =>
-    fetchPage(cursor).pipe(
-      Effect.flatMap((page) => {
-        const next = [...accumulator, ...page.items];
-        const { nextCursor } = page;
-        const reachedLimit = pages + 1 >= MAX_PAGES || next.length >= PAGE_SIZE * MAX_PAGES;
-        return nextCursor === null || reachedLimit
+    fetchPage(page).pipe(
+      Effect.flatMap((response) => {
+        const next = [...accumulator, ...response.items];
+        const fetched = page * response.limit;
+        const reachedLimit = page >= MAX_PAGES || next.length >= response.total;
+        return reachedLimit || fetched >= response.total
           ? Effect.succeed(next)
-          : loop(next, nextCursor, pages + 1);
+          : loop(next, page + 1);
       }),
     );
-  return loop([], undefined, 0);
+  return loop([], 1);
 };

@@ -80,8 +80,9 @@ describe("updateRepo -- D1 adapter", () => {
   });
 
   describe("findByProject", () => {
-    it("returns items and nextCursor when more rows than limit exist", async () => {
+    it("returns items and total", async () => {
       const db = mockD1.forQuery({
+        first: async () => ({ count: 3 }),
         all: async () => ({
           results: [
             makeUpdateRow({ id: "upd-1", message: "first", created_at: "2026-01-03T00:00:00Z" }),
@@ -91,7 +92,6 @@ describe("updateRepo -- D1 adapter", () => {
               is_rollback: 1,
               created_at: "2026-01-02T00:00:00Z",
             }),
-            makeUpdateRow({ id: "upd-3", message: "third", created_at: "2026-01-01T00:00:00Z" }),
           ],
         }),
       });
@@ -100,7 +100,13 @@ describe("updateRepo -- D1 adapter", () => {
       const exit = await runWithRepo(
         Effect.gen(function* () {
           const repo = yield* UpdateRepo;
-          return yield* repo.findByProject({ projectId: "proj-1", cursor: null, limit: 2 });
+          return yield* repo.findByProject({
+            projectId: "proj-1",
+            sort: "createdAt",
+            order: "desc",
+            limit: 2,
+            offset: 0,
+          });
         }),
         env,
       );
@@ -108,23 +114,32 @@ describe("updateRepo -- D1 adapter", () => {
       expect(Exit.isSuccess(exit)).toBe(true);
       if (Exit.isSuccess(exit)) {
         const result = exit.value;
+        expect(result.total).toBe(3);
         expect(result.items).toHaveLength(2);
         expect(result.items[0]).toStrictEqual(
           expect.objectContaining({ message: "first", isRollback: false }),
         );
         expect(result.items[1]).toStrictEqual(expect.objectContaining({ isRollback: true }));
-        expect(result.nextCursor).not.toBeNull();
       }
     });
 
     it("returns empty items when no updates exist", async () => {
-      const db = mockD1.forQuery({ all: async () => ({ results: [] }) });
+      const db = mockD1.forQuery({
+        first: async () => ({ count: 0 }),
+        all: async () => ({ results: [] }),
+      });
       const env = makeEnv(db);
 
       const exit = await runWithRepo(
         Effect.gen(function* () {
           const repo = yield* UpdateRepo;
-          return yield* repo.findByProject({ projectId: "proj-1", cursor: null, limit: 20 });
+          return yield* repo.findByProject({
+            projectId: "proj-1",
+            sort: "createdAt",
+            order: "desc",
+            limit: 20,
+            offset: 0,
+          });
         }),
         env,
       );
@@ -132,12 +147,13 @@ describe("updateRepo -- D1 adapter", () => {
       expect(Exit.isSuccess(exit)).toBe(true);
       if (Exit.isSuccess(exit)) {
         expect(exit.value.items).toHaveLength(0);
-        expect(exit.value.nextCursor).toBeNull();
+        expect(exit.value.total).toBe(0);
       }
     });
 
-    it("returns null cursor when fewer rows than limit", async () => {
+    it("filters by branchId and platform", async () => {
       const db = mockD1.forQuery({
+        first: async () => ({ count: 1 }),
         all: async () => ({
           results: [makeUpdateRow({ id: "upd-1", branch_id: "branch-2" })],
         }),
@@ -151,8 +167,10 @@ describe("updateRepo -- D1 adapter", () => {
             projectId: "proj-1",
             branchId: "branch-2",
             platform: "ios",
-            cursor: null,
+            sort: "createdAt",
+            order: "desc",
             limit: 20,
+            offset: 0,
           });
         }),
         env,
@@ -163,7 +181,7 @@ describe("updateRepo -- D1 adapter", () => {
         const result = exit.value;
         expect(result.items).toHaveLength(1);
         expect(result.items[0]!.branchId).toBe("branch-2");
-        expect(result.nextCursor).toBeNull();
+        expect(result.total).toBe(1);
       }
     });
   });

@@ -4,7 +4,7 @@ import {
   appleTeamsQueryOptions,
   ascApiKeysQueryOptions,
   createIosBundleConfiguration,
-  devicesInfiniteQueryOptions,
+  devicesQueryOptions,
   generateAppleProvisioningProfile,
   iosBundleConfigurationsQueryOptions,
 } from "@better-update/api-client/react";
@@ -29,7 +29,7 @@ import {
   SelectValue,
 } from "@better-update/ui/components/ui/select";
 import { toastManager } from "@better-update/ui/components/ui/toast";
-import { useQueryClient, useSuspenseInfiniteQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { WandIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -84,10 +84,21 @@ const StepCertificate = ({
       </p>
     );
   }
+  const certLabel = (cert: (typeof certs.items)[number]): string => {
+    const team = teamById.get(cert.appleTeamId);
+    if (team === undefined) {
+      return cert.serialNumber;
+    }
+    return `${cert.serialNumber.slice(0, 12)}... · ${formatAppleTeamLabel(team)}`;
+  };
+  const certLabels: Record<string, string> = Object.fromEntries(
+    certs.items.map((cert) => [cert.id, certLabel(cert)]),
+  );
   return (
     <Field>
       <FieldLabel htmlFor="wiz-cert">Distribution Certificate</FieldLabel>
       <Select
+        items={certLabels}
         value={state.certId}
         onValueChange={(value) => {
           onChange({
@@ -103,18 +114,11 @@ const StepCertificate = ({
           <SelectValue placeholder="Select a certificate" />
         </SelectTrigger>
         <SelectPopup>
-          {certs.items.map((cert) => {
-            const team = teamById.get(cert.appleTeamId);
-            const label =
-              team === undefined
-                ? cert.serialNumber
-                : `${cert.serialNumber.slice(0, 12)}... · ${formatAppleTeamLabel(team)}`;
-            return (
-              <SelectItem key={cert.id} value={cert.id}>
-                {label}
-              </SelectItem>
-            );
-          })}
+          {certs.items.map((cert) => (
+            <SelectItem key={cert.id} value={cert.id}>
+              {certLabel(cert)}
+            </SelectItem>
+          ))}
         </SelectPopup>
       </Select>
     </Field>
@@ -133,13 +137,13 @@ const StepDevices = ({
   const { data: certs } = useSuspenseQuery(appleDistributionCertificatesQueryOptions(orgId));
   const cert = certs.items.find((item) => item.id === state.certId);
   const teamId = cert?.appleTeamId;
-  const { data: devices } = useSuspenseInfiniteQuery(
-    devicesInfiniteQueryOptions(orgId, {
+  const { data: devices } = useSuspenseQuery(
+    devicesQueryOptions(orgId, {
       limit: 100,
       ...(teamId === undefined ? {} : { appleTeamId: teamId }),
     }),
   );
-  const deviceItems = devices.pages.flatMap((page) => page.items);
+  const deviceItems = devices.items;
   if (deviceItems.length === 0) {
     return (
       <p className="text-muted-foreground text-sm">
@@ -220,11 +224,15 @@ const StepProfile = ({
       </p>
     );
   }
+  const ascKeyLabels: Record<string, string> = Object.fromEntries(
+    availableKeys.map((key) => [key.id, `${key.name} (${key.keyId})`]),
+  );
   return (
     <div className="flex flex-col gap-3">
       <Field>
         <FieldLabel htmlFor="wiz-asc">ASC API Key</FieldLabel>
         <Select
+          items={ascKeyLabels}
           value={state.ascKeyId}
           onValueChange={(value) => {
             onChange({ ...state, ascKeyId: typeof value === "string" ? value : "" });

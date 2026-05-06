@@ -8,9 +8,10 @@ import {
   CreateBranchRolloutBody,
   CreateChannelBody,
   DeleteChannelResult,
+  ListChannelsParams,
   UpdateChannelBody,
 } from "../domain/channel";
-import { CursorPaginationParams, cursorPageResult, Id, UpdateRolloutBody } from "../domain/common";
+import { UpdateRolloutBody } from "../domain/common";
 import { Conflict } from "../domain/errors";
 
 const idParam = HttpApiSchema.param("id", Schema.String);
@@ -40,13 +41,15 @@ export class ChannelsGroup extends HttpApiGroup.make("channels")
   )
   .add(
     HttpApiEndpoint.get("list", "/api/channels")
-      .setUrlParams(
+      .setUrlParams(ListChannelsParams)
+      .addSuccess(
         Schema.Struct({
-          projectId: Id,
-          ...CursorPaginationParams.fields,
+          items: Schema.Array(Channel),
+          total: Schema.Number,
+          page: Schema.Number,
+          limit: Schema.Number,
         }),
       )
-      .addSuccess(cursorPageResult(Channel))
       .annotateContext(
         OpenApi.annotations({
           title: "List channels",

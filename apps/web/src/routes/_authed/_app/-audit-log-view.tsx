@@ -4,12 +4,22 @@ import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import { DateRangePicker } from "@better-update/ui/components/ui/date-range-picker";
 import {
+  Dialog,
+  DialogDescription,
+  DialogHeader,
+  DialogPanel,
+  DialogPopup,
+  DialogTitle,
+  DialogTrigger,
+} from "@better-update/ui/components/ui/dialog";
+import {
   Empty,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
+import { Frame } from "@better-update/ui/components/ui/frame";
 import {
   Select,
   SelectPopup,
@@ -18,15 +28,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@better-update/ui/components/ui/table";
 import { useSuspenseInfiniteQuery } from "@tanstack/react-query";
-import { ScrollTextIcon } from "lucide-react";
+import { BracesIcon, ScrollTextIcon } from "lucide-react";
 import { useState } from "react";
 
 import type { DateRange } from "react-day-picker";
 
-import { List, ListFooter, ListItem, ListSectionHeader } from "../../../components/list-item";
 import { formatRelativeTime } from "../../../lib/format-relative-time";
-import { truncateId } from "../../../lib/truncate-id";
 
 const RESOURCE_TYPES = [
   { value: "all", label: "All resources" },
@@ -90,68 +107,85 @@ const AuditLogRow = ({
     readonly metadata: string | null;
   };
 }) => {
-  const [expanded, setExpanded] = useState(false);
   const parsed = parseMetadata(entry.metadata);
 
   return (
-    <div>
-      <ListItem
-        aside={
-          <>
-            <span className="text-foreground text-sm leading-5 font-medium">
-              {formatShortDate(entry.createdAt)}
-            </span>
-            <span className="text-muted-foreground/72 text-xs">
-              {formatTime(entry.createdAt)} · {formatRelativeTime(entry.createdAt)}
-            </span>
-          </>
-        }
-        title={
-          <span className="inline-flex items-center gap-2">
-            <Badge variant="secondary" className="font-mono text-[10px] tracking-wider uppercase">
-              {entry.action}
-            </Badge>
-            <span className="text-muted-foreground/80 text-sm font-normal">
-              {entry.resourceType}
-            </span>
-            {entry.resourceId ? (
-              <code className="text-muted-foreground/72 font-mono text-xs">
-                {truncateId(entry.resourceId)}
-              </code>
-            ) : null}
+    <TableRow>
+      <TableCell className="align-top whitespace-nowrap">
+        <div className="flex flex-col">
+          <span className="text-foreground text-sm leading-5 font-medium">
+            {formatShortDate(entry.createdAt)}
           </span>
-        }
-        subtitle={
-          <span className="inline-flex items-center gap-2">
-            <span>{entry.actorEmail}</span>
-            <Badge variant="outline" className="text-[10px]">
-              {entry.source === "api-key" ? "API key" : "Session"}
-            </Badge>
+          <span className="text-muted-foreground/72 text-xs">
+            {formatTime(entry.createdAt)} · {formatRelativeTime(entry.createdAt)}
           </span>
-        }
-        trailing={
-          parsed ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground h-7 px-2 text-xs"
-              onClick={() => {
-                setExpanded((prev) => !prev);
-              }}
-            >
-              {expanded ? "Hide metadata" : "View metadata"}
-            </Button>
-          ) : null
-        }
-      />
-      {expanded ? (
-        <pre className="bg-muted/40 mx-5 my-2 max-w-2xl overflow-auto rounded-md border p-3 text-xs whitespace-pre-wrap">
-          {JSON.stringify(parsed, null, 2)}
-        </pre>
-      ) : null}
-    </div>
+        </div>
+      </TableCell>
+      <TableCell className="align-top">
+        <Badge variant="secondary" className="font-mono text-[10px] tracking-wider uppercase">
+          {entry.action}
+        </Badge>
+      </TableCell>
+      <TableCell className="align-top">
+        <div className="flex flex-col gap-0.5">
+          <span className="text-foreground text-sm">{entry.resourceType}</span>
+          {entry.resourceId ? (
+            <code className="text-muted-foreground/72 font-mono text-xs break-all">
+              {entry.resourceId}
+            </code>
+          ) : null}
+        </div>
+      </TableCell>
+      <TableCell className="align-top">
+        <div className="flex flex-col items-start gap-1">
+          <span className="text-foreground text-sm">{entry.actorEmail}</span>
+          <Badge variant="outline" className="text-[10px]">
+            {entry.source === "api-key" ? "API key" : "Session"}
+          </Badge>
+        </div>
+      </TableCell>
+      <TableCell className="text-right align-middle in-data-[variant=card]:last:pe-4">
+        {parsed ? <MetadataDialog action={entry.action} parsed={parsed} /> : null}
+      </TableCell>
+    </TableRow>
   );
 };
+
+const metadataTrigger = (
+  <Button
+    variant="outline"
+    size="icon-xs"
+    aria-label="View metadata"
+    className="text-muted-foreground"
+  >
+    <BracesIcon strokeWidth={2} />
+  </Button>
+);
+
+const MetadataDialog = ({
+  action,
+  parsed,
+}: {
+  readonly action: string;
+  readonly parsed: unknown;
+}) => (
+  <Dialog>
+    <DialogTrigger render={metadataTrigger} />
+    <DialogPopup className="max-w-2xl">
+      <DialogHeader>
+        <DialogTitle>
+          <span className="font-mono text-xs tracking-wider uppercase">{action}</span> metadata
+        </DialogTitle>
+        <DialogDescription>Raw event payload recorded for this audit entry.</DialogDescription>
+      </DialogHeader>
+      <DialogPanel>
+        <pre className="bg-muted/40 max-h-[60vh] overflow-auto rounded-md border p-3 font-mono text-xs whitespace-pre-wrap">
+          {JSON.stringify(parsed, null, 2)}
+        </pre>
+      </DialogPanel>
+    </DialogPopup>
+  </Dialog>
+);
 
 export const AuditLogView = ({ orgId, projectId, scopeLabel }: AuditLogViewProps) => {
   const [resourceType, setResourceType] = useState("all");
@@ -202,26 +236,42 @@ export const AuditLogView = ({ orgId, projectId, scopeLabel }: AuditLogViewProps
       {items.length === 0 ? (
         <EmptyState scopeLabel={scopeLabel} />
       ) : (
-        <List>
-          <ListSectionHeader>Activity</ListSectionHeader>
-          {items.map((entry) => (
-            <AuditLogRow key={entry.id} entry={entry} />
-          ))}
-          {hasNextPage ? (
-            <ListFooter>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={isFetchingNextPage}
-                onClick={async () => {
-                  await fetchNextPage();
-                }}
-              >
-                {isFetchingNextPage ? "Loading…" : "Load more"}
-              </Button>
-            </ListFooter>
-          ) : null}
-        </List>
+        <Frame>
+          <Table variant="card">
+            <TableHeader>
+              <TableRow>
+                <TableHead>When</TableHead>
+                <TableHead>Action</TableHead>
+                <TableHead>Resource</TableHead>
+                <TableHead>Actor</TableHead>
+                <TableHead className="w-16 pe-4" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {items.map((entry) => (
+                <AuditLogRow key={entry.id} entry={entry} />
+              ))}
+            </TableBody>
+            {hasNextPage ? (
+              <TableFooter>
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={isFetchingNextPage}
+                      onClick={async () => {
+                        await fetchNextPage();
+                      }}
+                    >
+                      {isFetchingNextPage ? "Loading…" : "Load more"}
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              </TableFooter>
+            ) : null}
+          </Table>
+        </Frame>
       )}
     </div>
   );

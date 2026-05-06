@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 
-import { DateTimeString, Id, Platform } from "./common";
+import { DateTimeString, Id, PaginationParams, Platform } from "./common";
 
 export class Update extends Schema.Class<Update>("Update")({
   id: Id,
@@ -19,6 +19,30 @@ export class Update extends Schema.Class<Update>("Update")({
   directiveBody: Schema.NullOr(Schema.String),
   createdAt: DateTimeString,
 }) {}
+
+export const UpdateSortColumn = Schema.Literal(
+  "createdAt",
+  "runtimeVersion",
+  "platform",
+  "rolloutPercentage",
+);
+
+/**
+ * Sort param: column name optionally prefixed with `-` for descending.
+ * Example: `runtimeVersion` (asc), `-createdAt` (desc).
+ */
+export const UpdateSort = Schema.Union(
+  UpdateSortColumn,
+  Schema.TemplateLiteral("-", UpdateSortColumn),
+);
+
+export const ListUpdatesParams = Schema.Struct({
+  projectId: Id,
+  branchId: Schema.optional(Id),
+  platform: Schema.optional(Platform),
+  ...PaginationParams.fields,
+  sort: Schema.optional(UpdateSort),
+});
 
 export const AssetRef = Schema.Struct({
   hash: Schema.String,

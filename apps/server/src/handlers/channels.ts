@@ -13,10 +13,28 @@ import {
 import { Conflict, NotFound } from "../errors";
 import { toApiChannel } from "../http/to-api";
 import { toApiCrudEffect } from "../http/to-api-effect";
-import { parseCursorPagination } from "../lib/cursor";
+import { parsePagination } from "../lib/pagination";
 import { BranchRepo } from "../repositories/branches";
 import { ChannelRepo } from "../repositories/channels";
 import { ProjectRepo } from "../repositories/projects";
+
+import type { ChannelSortKey, ChannelSortOrder } from "../repositories/channels";
+
+const parseChannelSort = (
+  value: string | undefined = "-createdAt",
+): { readonly sort: ChannelSortKey; readonly order: ChannelSortOrder } => {
+  const order: ChannelSortOrder = value.startsWith("-") ? "desc" : "asc";
+  const column = value.startsWith("-") ? value.slice(1) : value;
+  switch (column) {
+    case "name":
+    case "createdAt": {
+      return { sort: column, order };
+    }
+    default: {
+      return { sort: "createdAt", order: "desc" };
+    }
+  }
+};
 
 export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels", (handlers) =>
   handlers
@@ -62,15 +80,18 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
           yield* assertPermission("channel", "read");
           yield* assertProjectOwnership(urlParams.projectId);
           const repo = yield* ChannelRepo;
-          const { cursor, limit } = parseCursorPagination(urlParams);
+          const { page, limit, offset } = parsePagination(urlParams);
+          const { sort, order } = parseChannelSort(urlParams.sort);
 
-          const { items, nextCursor } = yield* repo.findByProject({
+          const { items, total } = yield* repo.findByProject({
             projectId: urlParams.projectId,
-            cursor,
+            sort,
+            order,
             limit,
+            offset,
           });
 
-          return { items: items.map(toApiChannel), nextCursor };
+          return { items: items.map(toApiChannel), total, page, limit };
         }),
       ),
     )

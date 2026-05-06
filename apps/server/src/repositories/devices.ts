@@ -2,12 +2,14 @@ import { Context, Effect, Layer } from "effect";
 
 import { cloudflareEnv } from "../cloudflare/context";
 import { NotFound } from "../errors";
-import { encodeCursor } from "../lib/cursor";
 import { d1RunWithUniqueCheck } from "./d1-helpers";
 
 import type { Conflict } from "../errors";
-import type { Cursor } from "../lib/cursor";
 import type { DeviceClass, DeviceModel } from "../models";
+
+export type DeviceSortKey = "name" | "createdAt" | "deviceClass";
+
+export type DeviceSortOrder = "asc" | "desc";
 
 // ── Port ──────────────────────────────────────────────────────────
 
@@ -28,15 +30,14 @@ export interface DeviceRepository {
 
   readonly findByOrg: (params: {
     readonly organizationId: string;
-    readonly cursor: Cursor | null;
+    readonly sort: DeviceSortKey;
+    readonly order: DeviceSortOrder;
     readonly limit: number;
+    readonly offset: number;
     readonly deviceClass?: DeviceClass | undefined;
     readonly appleTeamId?: string | undefined;
     readonly query?: string | undefined;
-  }) => Effect.Effect<{
-    readonly items: readonly DeviceModel[];
-    readonly nextCursor: string | null;
-  }>;
+  }) => Effect.Effect<{ readonly items: readonly DeviceModel[]; readonly total: number }>;
 
   readonly findAllByOrg: (params: {
     readonly organizationId: string;
@@ -182,29 +183,35 @@ export const DeviceRepoLive = Layer.succeed(DeviceRepo, {
         bindings.push(...search.binds);
       }
 
-      if (params.cursor) {
-        filters.push(`(d."created_at" < ? OR (d."created_at" = ? AND d."id" < ?))`);
-        bindings.push(params.cursor.createdAt, params.cursor.createdAt, params.cursor.id);
-      }
-
       const joinClause = search ? ` ${search.join}` : "";
       const whereClause = filters.join(" AND ");
 
+      const sortColumns: Record<DeviceSortKey, string> = {
+        name: 'd."name" COLLATE NOCASE',
+        createdAt: 'd."created_at"',
+        deviceClass: 'd."device_class"',
+      };
+      const direction = params.order === "asc" ? "ASC" : "DESC";
+      const orderBy = `${sortColumns[params.sort]} ${direction}, d."id" ${direction}`;
+
+      const countResult = yield* Effect.promise(async () =>
+        env.DB.prepare(
+          `SELECT COUNT(*) as count FROM "devices" d${joinClause} WHERE ${whereClause}`,
+        )
+          .bind(...bindings)
+          .first<{ count: number }>(),
+      );
+      const total = countResult?.count ?? 0;
+
       const rows = yield* Effect.promise(async () =>
         env.DB.prepare(
-          `SELECT ${DEVICE_COLUMNS} FROM "devices" d${joinClause} WHERE ${whereClause} ORDER BY d."created_at" DESC, d."id" DESC LIMIT ?`,
+          `SELECT ${DEVICE_COLUMNS} FROM "devices" d${joinClause} WHERE ${whereClause} ORDER BY ${orderBy} LIMIT ? OFFSET ?`,
         )
-          .bind(...bindings, params.limit + 1)
+          .bind(...bindings, params.limit, params.offset)
           .all<DeviceRow>(),
       );
 
-      const hasMore = rows.results.length > params.limit;
-      const trimmed = hasMore ? rows.results.slice(0, params.limit) : rows.results;
-      const last = trimmed.at(-1);
-      const nextCursor =
-        hasMore && last ? encodeCursor({ createdAt: last.created_at, id: last.id }) : null;
-
-      return { items: trimmed.map(toDevice), nextCursor };
+      return { items: rows.results.map(toDevice), total };
     }),
 
   findAllByOrg: (params) =>

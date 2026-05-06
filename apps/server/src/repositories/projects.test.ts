@@ -95,6 +95,7 @@ describe("projectRepo — D1 adapter", () => {
           return yield* repo.findByOrg({
             organizationId: "org-1",
             sort: "lastActivityAt",
+            order: "desc",
             limit: 20,
             offset: 0,
           });
@@ -124,6 +125,7 @@ describe("projectRepo — D1 adapter", () => {
           return yield* repo.findByOrg({
             organizationId: "org-1",
             sort: "lastActivityAt",
+            order: "desc",
             limit: 20,
             offset: 0,
           });

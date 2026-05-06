@@ -3,8 +3,13 @@ import { Schema } from "effect";
 
 import { Forbidden } from "../auth/errors";
 import { NotFound } from "../auth/ownership";
-import { Branch, CreateBranchBody, DeleteBranchResult, UpdateBranchBody } from "../domain/branch";
-import { CursorPaginationParams, cursorPageResult, Id } from "../domain/common";
+import {
+  Branch,
+  CreateBranchBody,
+  DeleteBranchResult,
+  ListBranchesParams,
+  UpdateBranchBody,
+} from "../domain/branch";
 import { Conflict } from "../domain/errors";
 
 const idParam = HttpApiSchema.param("id", Schema.String);
@@ -23,13 +28,15 @@ export class BranchesGroup extends HttpApiGroup.make("branches")
   )
   .add(
     HttpApiEndpoint.get("list", "/api/branches")
-      .setUrlParams(
+      .setUrlParams(ListBranchesParams)
+      .addSuccess(
         Schema.Struct({
-          projectId: Id,
-          ...CursorPaginationParams.fields,
+          items: Schema.Array(Branch),
+          total: Schema.Number,
+          page: Schema.Number,
+          limit: Schema.Number,
         }),
       )
-      .addSuccess(cursorPageResult(Branch))
       .annotateContext(
         OpenApi.annotations({
           title: "List branches",

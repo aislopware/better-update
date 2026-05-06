@@ -9,7 +9,15 @@ import type { ProjectModel } from "../models";
 
 // ── Port ──────────────────────────────────────────────────────────
 
-export type ProjectSortKey = "lastActivityAt" | "name";
+export type ProjectSortKey =
+  | "lastActivityAt"
+  | "name"
+  | "createdAt"
+  | "branchCount"
+  | "channelCount"
+  | "updateCount";
+
+export type ProjectSortOrder = "asc" | "desc";
 
 export interface ProjectRepository {
   readonly insert: (params: {
@@ -24,6 +32,7 @@ export interface ProjectRepository {
     readonly organizationId: string;
     readonly query?: string | undefined;
     readonly sort: ProjectSortKey;
+    readonly order: ProjectSortOrder;
     readonly limit: number;
     readonly offset: number;
   }) => Effect.Effect<{ readonly items: readonly ProjectModel[]; readonly total: number }>;
@@ -121,10 +130,19 @@ const buildSearchClause = (query: string | undefined): SearchClause | null => {
   };
 };
 
-const sortClause = (sort: ProjectSortKey): string =>
-  sort === "name"
-    ? 'p."name" COLLATE NOCASE ASC, p."id" ASC'
-    : 'p."last_activity_at" DESC, p."id" DESC';
+const sortColumns: Record<ProjectSortKey, string> = {
+  name: 'p."name" COLLATE NOCASE',
+  lastActivityAt: 'p."last_activity_at"',
+  createdAt: 'p."created_at"',
+  branchCount: '"branch_count"',
+  channelCount: '"channel_count"',
+  updateCount: '"update_count"',
+};
+
+const sortClause = (sort: ProjectSortKey, order: ProjectSortOrder): string => {
+  const direction = order === "asc" ? "ASC" : "DESC";
+  return `${sortColumns[sort]} ${direction}, p."id" ${direction}`;
+};
 
 export const ProjectRepoLive = Layer.succeed(ProjectRepo, {
   insert: (params) =>
@@ -174,7 +192,7 @@ export const ProjectRepoLive = Layer.succeed(ProjectRepo, {
 
       const rows = yield* Effect.promise(async () =>
         env.DB.prepare(
-          `SELECT ${PROJECT_COLUMNS} FROM "projects" p${joinClause} WHERE ${whereClause} ORDER BY ${sortClause(params.sort)} LIMIT ? OFFSET ?`,
+          `SELECT ${PROJECT_COLUMNS} FROM "projects" p${joinClause} WHERE ${whereClause} ORDER BY ${sortClause(params.sort, params.order)} LIMIT ? OFFSET ?`,
         )
           .bind(...filterBinds, params.limit, params.offset)
           .all<ProjectRow>(),

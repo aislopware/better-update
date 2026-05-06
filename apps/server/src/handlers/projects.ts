@@ -11,6 +11,28 @@ import { toApiCrudEffect } from "../http/to-api-effect";
 import { parsePagination } from "../lib/pagination";
 import { ProjectRepo } from "../repositories/projects";
 
+import type { ProjectSortKey, ProjectSortOrder } from "../repositories/projects";
+
+const parseProjectSort = (
+  value: string | undefined = "-lastActivityAt",
+): { readonly sort: ProjectSortKey; readonly order: ProjectSortOrder } => {
+  const order: ProjectSortOrder = value.startsWith("-") ? "desc" : "asc";
+  const column = value.startsWith("-") ? value.slice(1) : value;
+  switch (column) {
+    case "name":
+    case "lastActivityAt":
+    case "createdAt":
+    case "branchCount":
+    case "channelCount":
+    case "updateCount": {
+      return { sort: column, order };
+    }
+    default: {
+      return { sort: "lastActivityAt", order: "desc" };
+    }
+  }
+};
+
 export const ProjectsGroupLive = HttpApiBuilder.group(ManagementApi, "projects", (handlers) =>
   handlers
     .handle("create", ({ payload }) =>
@@ -56,10 +78,12 @@ export const ProjectsGroupLive = HttpApiBuilder.group(ManagementApi, "projects",
           const repo = yield* ProjectRepo;
           const { page, limit, offset } = parsePagination(urlParams);
 
+          const { sort, order } = parseProjectSort(urlParams.sort);
           const { items, total } = yield* repo.findByOrg({
             organizationId: ctx.organizationId,
             ...(urlParams.query ? { query: urlParams.query } : {}),
-            sort: urlParams.sort ?? "lastActivityAt",
+            sort,
+            order,
             limit,
             offset,
           });

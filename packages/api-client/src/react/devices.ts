@@ -1,4 +1,4 @@
-import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
+import { queryOptions } from "@tanstack/react-query";
 
 import type {
   CreateRegistrationRequestBody,
@@ -12,34 +12,38 @@ import type { DeviceClassValue } from "./types";
 
 export const devicesQueryKey = (orgId: string) => ["org", orgId, "devices"] as const;
 
+export type DeviceSortColumn = "name" | "createdAt" | "deviceClass";
+
+/** Sort param: column name optionally prefixed with `-` for descending. */
+export type DeviceSort = DeviceSortColumn | `-${DeviceSortColumn}`;
+
 export interface DevicesFilters {
   readonly deviceClass?: DeviceClassValue;
   readonly appleTeamId?: string;
+  readonly page?: number;
   readonly limit?: number;
   readonly query?: string;
+  readonly sort?: DeviceSort;
 }
 
-export const devicesInfiniteQueryOptions = (orgId: string, filters?: DevicesFilters) =>
-  infiniteQueryOptions({
+export const devicesQueryOptions = (orgId: string, filters?: DevicesFilters) =>
+  queryOptions({
     queryKey: [...devicesQueryKey(orgId), filters ?? {}],
-    queryFn: async ({ signal, pageParam }) =>
+    queryFn: async ({ signal }) =>
       runApi(
         (api) =>
           api.devices.list({
             urlParams: {
               ...(filters?.deviceClass ? { deviceClass: filters.deviceClass } : {}),
               ...(filters?.appleTeamId ? { appleTeamId: filters.appleTeamId } : {}),
-              ...(filters?.limit ? { limit: filters.limit } : {}),
+              ...(filters?.page === undefined ? {} : { page: filters.page }),
+              ...(filters?.limit === undefined ? {} : { limit: filters.limit }),
               ...(filters?.query ? { query: filters.query } : {}),
-              cursor: pageParam,
+              ...(filters?.sort ? { sort: filters.sort } : {}),
             },
           }),
         signal,
       ),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) =>
-      // eslint-disable-next-line eslint-js/no-restricted-syntax -- react-query getNextPageParam contract: undefined terminates; API schema returns null
-      lastPage.nextCursor ?? undefined,
     staleTime: 30_000,
   });
 

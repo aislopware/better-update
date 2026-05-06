@@ -1,8 +1,8 @@
 import {
-  branchesInfiniteQueryOptions,
+  branchesQueryOptions,
   buildCompatibilityMatrixQueryOptions,
-  buildsInfiniteQueryOptions,
-  channelsInfiniteQueryOptions,
+  buildsQueryOptions,
+  channelsQueryOptions,
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import {
@@ -12,7 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@better-update/ui/components/ui/card";
-import { useSuspenseInfiniteQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 
 import { ChannelCard } from "../-channel-card";
@@ -144,21 +144,21 @@ const ChannelDetailPage = () => {
   const { activeOrg, project } = Route.useRouteContext();
   const orgId = activeOrg.id;
   const projectId = project.id;
-  const { data: channelsData } = useSuspenseInfiniteQuery(
-    channelsInfiniteQueryOptions(orgId, projectId, { limit: 100 }),
+  const { data: channelsData } = useSuspenseQuery(
+    channelsQueryOptions(orgId, projectId, { limit: 100 }),
   );
-  const { data: branchesData } = useSuspenseInfiniteQuery(
-    branchesInfiniteQueryOptions(orgId, projectId, { limit: 100 }),
+  const { data: branchesData } = useSuspenseQuery(
+    branchesQueryOptions(orgId, projectId, { limit: 100 }),
   );
   const { data: compatibilityData } = useSuspenseQuery(
     buildCompatibilityMatrixQueryOptions(orgId, projectId),
   );
-  const { data: buildsData } = useSuspenseInfiniteQuery(
-    buildsInfiniteQueryOptions(orgId, projectId),
+  const { data: buildsData } = useSuspenseQuery(
+    buildsQueryOptions(orgId, projectId, { limit: 100 }),
   );
-  const builds = buildsData.pages.flatMap((page) => page.items);
-  const channels = channelsData.pages.flatMap((page) => page.items);
-  const branches = branchesData.pages.flatMap((page) => page.items);
+  const builds = buildsData.items;
+  const channels = channelsData.items;
+  const branches = branchesData.items;
 
   const channel = channels.find((item) => item.id === channelId);
 

@@ -2,7 +2,6 @@ import { Effect, Exit } from "effect";
 
 import { mockD1 } from "../../tests/helpers/mock-d1";
 import { runWithLayerAndEnvExit } from "../../tests/helpers/runtime";
-import { decodeCursor, encodeCursor } from "../lib/cursor";
 import { BuildRepo, BuildRepoLive } from "./builds";
 
 import type { BuildWithArtifactRow } from "./build-row";
@@ -34,19 +33,27 @@ const makeRow = (id: string, createdAt: string): BuildWithArtifactRow => ({
   a_sha256: "deadbeef",
 });
 
-describe("buildRepo — list cursor pagination", () => {
-  it("returns nextCursor when more rows than limit exist", async () => {
+describe("buildRepo — list page pagination", () => {
+  it("returns items + total when results exist", async () => {
     const rows = [
       makeRow("z", "2026-01-03T00:00:00.000Z"),
       makeRow("y", "2026-01-02T00:00:00.000Z"),
-      makeRow("x", "2026-01-01T00:00:00.000Z"),
     ];
-    const db = mockD1.forQuery({ all: async () => ({ results: rows }) });
+    const db = mockD1.forQuery({
+      first: async () => ({ count: 3 }),
+      all: async () => ({ results: rows }),
+    });
 
     const exit = await runWithRepo(
       Effect.gen(function* () {
         const repo = yield* BuildRepo;
-        return yield* repo.list({ projectId: "proj-1", cursor: null, limit: 2 });
+        return yield* repo.list({
+          projectId: "proj-1",
+          sort: "createdAt",
+          order: "desc",
+          limit: 2,
+          offset: 0,
+        });
       }),
       makeEnv(db),
     );
@@ -55,39 +62,26 @@ describe("buildRepo — list cursor pagination", () => {
     if (Exit.isSuccess(exit)) {
       expect(exit.value.items).toHaveLength(2);
       expect(exit.value.items[0]?.id).toBe("z");
-      expect(exit.value.items[1]?.id).toBe("y");
-      expect(exit.value.nextCursor).toBe(
-        encodeCursor({ createdAt: "2026-01-02T00:00:00.000Z", id: "y" }),
-      );
+      expect(exit.value.total).toBe(3);
     }
   });
 
-  it("returns null nextCursor when fewer rows than limit exist", async () => {
-    const rows = [makeRow("a", "2026-01-01T00:00:00.000Z")];
-    const db = mockD1.forQuery({ all: async () => ({ results: rows }) });
+  it("returns empty items when result is empty", async () => {
+    const db = mockD1.forQuery({
+      first: async () => ({ count: 0 }),
+      all: async () => ({ results: [] }),
+    });
 
     const exit = await runWithRepo(
       Effect.gen(function* () {
         const repo = yield* BuildRepo;
-        return yield* repo.list({ projectId: "proj-1", cursor: null, limit: 50 });
-      }),
-      makeEnv(db),
-    );
-
-    expect(Exit.isSuccess(exit)).toBe(true);
-    if (Exit.isSuccess(exit)) {
-      expect(exit.value.items).toHaveLength(1);
-      expect(exit.value.nextCursor).toBeNull();
-    }
-  });
-
-  it("returns null nextCursor when result is empty", async () => {
-    const db = mockD1.forQuery({ all: async () => ({ results: [] }) });
-
-    const exit = await runWithRepo(
-      Effect.gen(function* () {
-        const repo = yield* BuildRepo;
-        return yield* repo.list({ projectId: "proj-1", cursor: null, limit: 10 });
+        return yield* repo.list({
+          projectId: "proj-1",
+          sort: "createdAt",
+          order: "desc",
+          limit: 10,
+          offset: 0,
+        });
       }),
       makeEnv(db),
     );
@@ -95,37 +89,15 @@ describe("buildRepo — list cursor pagination", () => {
     expect(Exit.isSuccess(exit)).toBe(true);
     if (Exit.isSuccess(exit)) {
       expect(exit.value.items).toHaveLength(0);
-      expect(exit.value.nextCursor).toBeNull();
+      expect(exit.value.total).toBe(0);
     }
   });
 
-  it("encodes cursor as base64 JSON of last item created_at + id", async () => {
-    const rows = [
-      makeRow("third", "2026-01-03T00:00:00.000Z"),
-      makeRow("second", "2026-01-02T00:00:00.000Z"),
-      makeRow("first", "2026-01-01T00:00:00.000Z"),
-    ];
-    const db = mockD1.forQuery({ all: async () => ({ results: rows }) });
-
-    const exit = await runWithRepo(
-      Effect.gen(function* () {
-        const repo = yield* BuildRepo;
-        return yield* repo.list({ projectId: "proj-1", cursor: null, limit: 2 });
-      }),
-      makeEnv(db),
-    );
-
-    expect(Exit.isSuccess(exit)).toBe(true);
-    if (Exit.isSuccess(exit) && exit.value.nextCursor) {
-      expect(decodeCursor(exit.value.nextCursor)).toStrictEqual({
-        createdAt: "2026-01-02T00:00:00.000Z",
-        id: "second",
-      });
-    }
-  });
-
-  it("accepts cursor input and filter values", async () => {
-    const db = mockD1.forQuery({ all: async () => ({ results: [] }) });
+  it("accepts filter values", async () => {
+    const db = mockD1.forQuery({
+      first: async () => ({ count: 0 }),
+      all: async () => ({ results: [] }),
+    });
 
     const exit = await runWithRepo(
       Effect.gen(function* () {
@@ -135,8 +107,11 @@ describe("buildRepo — list cursor pagination", () => {
           platform: "android",
           profile: "preview",
           runtimeVersion: "2.0.0",
-          cursor: { createdAt: "2026-01-15T00:00:00.000Z", id: "mid" },
+          distribution: "play-store",
+          sort: "createdAt",
+          order: "desc",
           limit: 25,
+          offset: 0,
         });
       }),
       makeEnv(db),

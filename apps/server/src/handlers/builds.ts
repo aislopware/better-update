@@ -17,9 +17,30 @@ import { generateInstallToken } from "../domain/install-token";
 import { BadRequest, NotFound } from "../errors";
 import { toApiBuild, toApiBuildCompatibilityMatrix } from "../http/to-api";
 import { toApiBadRequestReadEffect } from "../http/to-api-effect";
-import { parseCursorPagination } from "../lib/cursor";
 import { toDbNull } from "../lib/nullable";
+import { parsePagination } from "../lib/pagination";
 import { BuildRepo, CompatibilityRepo, ProjectRepo } from "../repositories";
+
+import type { BuildSortKey, BuildSortOrder } from "../repositories/builds";
+
+const parseBuildSort = (
+  value: string | undefined = "-createdAt",
+): { readonly sort: BuildSortKey; readonly order: BuildSortOrder } => {
+  const order: BuildSortOrder = value.startsWith("-") ? "desc" : "asc";
+  const column = value.startsWith("-") ? value.slice(1) : value;
+  switch (column) {
+    case "createdAt":
+    case "platform":
+    case "distribution":
+    case "runtimeVersion":
+    case "appVersion": {
+      return { sort: column, order };
+    }
+    default: {
+      return { sort: "createdAt", order: "desc" };
+    }
+  }
+};
 
 const UPLOAD_EXPIRY_SECONDS = 7200;
 const KV_RESERVATION_TTL = 10_800;
@@ -386,18 +407,22 @@ export const BuildsGroupLive = HttpApiBuilder.group(ManagementApi, "builds", (ha
           yield* assertProjectOwnership(urlParams.projectId);
 
           const repo = yield* BuildRepo;
-          const { cursor, limit } = parseCursorPagination(urlParams);
+          const { page, limit, offset } = parsePagination(urlParams);
+          const { sort, order } = parseBuildSort(urlParams.sort);
 
-          const { items, nextCursor } = yield* repo.list({
+          const { items, total } = yield* repo.list({
             projectId: urlParams.projectId,
             ...(urlParams.platform ? { platform: urlParams.platform } : {}),
             ...(urlParams.profile ? { profile: urlParams.profile } : {}),
             ...(urlParams.runtimeVersion ? { runtimeVersion: urlParams.runtimeVersion } : {}),
-            cursor,
+            ...(urlParams.distribution ? { distribution: urlParams.distribution } : {}),
+            sort,
+            order,
             limit,
+            offset,
           });
 
-          return { items: items.map(toApiBuild), nextCursor };
+          return { items: items.map(toApiBuild), total, page, limit };
         }),
       ),
     )

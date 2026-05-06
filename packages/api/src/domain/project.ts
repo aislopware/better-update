@@ -14,7 +14,23 @@ export class Project extends Schema.Class<Project>("Project")({
   updateCount: Schema.Number,
 }) {}
 
-export const ProjectSort = Schema.Literal("lastActivityAt", "name");
+export const ProjectSortColumn = Schema.Literal(
+  "lastActivityAt",
+  "name",
+  "createdAt",
+  "branchCount",
+  "channelCount",
+  "updateCount",
+);
+
+/**
+ * Sort param: column name optionally prefixed with `-` for descending.
+ * Example: `name` (asc), `-lastActivityAt` (desc).
+ */
+export const ProjectSort = Schema.Union(
+  ProjectSortColumn,
+  Schema.TemplateLiteral("-", ProjectSortColumn),
+);
 
 export const ListProjectsParams = Schema.Struct({
   ...PaginationParams.fields,

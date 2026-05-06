@@ -1,4 +1,4 @@
-import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
+import { queryOptions } from "@tanstack/react-query";
 
 import type {
   CreateBranchBody,
@@ -45,13 +45,22 @@ export const channelAnalyticsQueryKey = (orgId: string, projectId: string, chann
 export const platformAnalyticsQueryKey = (orgId: string, projectId: string) =>
   ["org", orgId, "project", projectId, "analytics", "platforms"] as const;
 
-export type ProjectSortKey = "lastActivityAt" | "name";
+export type ProjectSortColumn =
+  | "lastActivityAt"
+  | "name"
+  | "createdAt"
+  | "branchCount"
+  | "channelCount"
+  | "updateCount";
+
+/** Sort param: column name optionally prefixed with `-` for descending. */
+export type ProjectSort = ProjectSortColumn | `-${ProjectSortColumn}`;
 
 export interface ProjectsFilters {
   readonly page?: number;
   readonly limit?: number;
   readonly query?: string;
-  readonly sort?: ProjectSortKey;
+  readonly sort?: ProjectSort;
 }
 
 export const projectsQueryOptions = (orgId: string, filters?: ProjectsFilters) =>
@@ -89,80 +98,83 @@ export const projectBySlugQueryOptions = (orgId: string, slug: string) =>
     staleTime: 30_000,
   });
 
+export type BranchSortColumn = "name" | "createdAt" | "updateCount";
+
+/** Sort param: column name optionally prefixed with `-` for descending. */
+export type BranchSort = BranchSortColumn | `-${BranchSortColumn}`;
+
 export interface BranchesFilters {
+  readonly page?: number;
   readonly limit?: number;
+  readonly sort?: BranchSort;
 }
 
-export const branchesInfiniteQueryOptions = (
-  orgId: string,
-  projectId: string,
-  filters?: BranchesFilters,
-) =>
-  infiniteQueryOptions({
+export const branchesQueryOptions = (orgId: string, projectId: string, filters?: BranchesFilters) =>
+  queryOptions({
     queryKey: [...branchesQueryKey(orgId, projectId), filters ?? {}],
-    queryFn: async ({ signal, pageParam }) =>
+    queryFn: async ({ signal }) =>
       runApi(
         (api) =>
           api.branches.list({
             urlParams: {
               projectId,
-              ...(filters?.limit ? { limit: filters.limit } : {}),
-              cursor: pageParam,
+              ...(filters?.page === undefined ? {} : { page: filters.page }),
+              ...(filters?.limit === undefined ? {} : { limit: filters.limit }),
+              ...(filters?.sort ? { sort: filters.sort } : {}),
             },
           }),
         signal,
       ),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) =>
-      // eslint-disable-next-line eslint-js/no-restricted-syntax -- react-query getNextPageParam contract: undefined terminates; API schema returns null
-      lastPage.nextCursor ?? undefined,
     staleTime: 30_000,
   });
 
+export type ChannelSortColumn = "name" | "createdAt";
+
+/** Sort param: column name optionally prefixed with `-` for descending. */
+export type ChannelSort = ChannelSortColumn | `-${ChannelSortColumn}`;
+
 export interface ChannelsFilters {
+  readonly page?: number;
   readonly limit?: number;
+  readonly sort?: ChannelSort;
 }
 
-export const channelsInfiniteQueryOptions = (
-  orgId: string,
-  projectId: string,
-  filters?: ChannelsFilters,
-) =>
-  infiniteQueryOptions({
+export const channelsQueryOptions = (orgId: string, projectId: string, filters?: ChannelsFilters) =>
+  queryOptions({
     queryKey: [...channelsQueryKey(orgId, projectId), filters ?? {}],
-    queryFn: async ({ signal, pageParam }) =>
+    queryFn: async ({ signal }) =>
       runApi(
         (api) =>
           api.channels.list({
             urlParams: {
               projectId,
-              ...(filters?.limit ? { limit: filters.limit } : {}),
-              cursor: pageParam,
+              ...(filters?.page === undefined ? {} : { page: filters.page }),
+              ...(filters?.limit === undefined ? {} : { limit: filters.limit }),
+              ...(filters?.sort ? { sort: filters.sort } : {}),
             },
           }),
         signal,
       ),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) =>
-      // eslint-disable-next-line eslint-js/no-restricted-syntax -- react-query getNextPageParam contract: undefined terminates; API schema returns null
-      lastPage.nextCursor ?? undefined,
     staleTime: 30_000,
   });
+
+export type UpdateSortColumn = "createdAt" | "runtimeVersion" | "platform" | "rolloutPercentage";
+
+/** Sort param: column name optionally prefixed with `-` for descending. */
+export type UpdateSort = UpdateSortColumn | `-${UpdateSortColumn}`;
 
 export interface UpdatesFilters {
   readonly branchId?: string;
   readonly platform?: PlatformValue;
+  readonly page?: number;
   readonly limit?: number;
+  readonly sort?: UpdateSort;
 }
 
-export const updatesInfiniteQueryOptions = (
-  orgId: string,
-  projectId: string,
-  filters?: UpdatesFilters,
-) =>
-  infiniteQueryOptions({
+export const updatesQueryOptions = (orgId: string, projectId: string, filters?: UpdatesFilters) =>
+  queryOptions({
     queryKey: [...updatesQueryKey(orgId, projectId), filters ?? {}],
-    queryFn: async ({ signal, pageParam }) =>
+    queryFn: async ({ signal }) =>
       runApi(
         (api) =>
           api.updates.list({
@@ -170,16 +182,13 @@ export const updatesInfiniteQueryOptions = (
               projectId,
               ...(filters?.branchId ? { branchId: filters.branchId } : {}),
               ...(filters?.platform ? { platform: filters.platform } : {}),
-              ...(filters?.limit ? { limit: filters.limit } : {}),
-              cursor: pageParam,
+              ...(filters?.page === undefined ? {} : { page: filters.page }),
+              ...(filters?.limit === undefined ? {} : { limit: filters.limit }),
+              ...(filters?.sort ? { sort: filters.sort } : {}),
             },
           }),
         signal,
       ),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) =>
-      // eslint-disable-next-line eslint-js/no-restricted-syntax -- react-query getNextPageParam contract: undefined terminates; API schema returns null
-      lastPage.nextCursor ?? undefined,
     staleTime: 30_000,
   });
 

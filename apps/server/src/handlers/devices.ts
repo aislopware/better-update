@@ -10,10 +10,29 @@ import { cloudflareEnv } from "../cloudflare/context";
 import { normalizeIdentifier } from "../domain/device";
 import { toApiDevice, toApiDeviceRegistrationRequest } from "../http/to-api";
 import { toApiCrudEffect } from "../http/to-api-effect";
-import { parseCursorPagination } from "../lib/cursor";
 import { toDbNull } from "../lib/nullable";
+import { parsePagination } from "../lib/pagination";
 import { DeviceRegistrationRequestRepo } from "../repositories/device-registration-requests";
 import { DeviceRepo } from "../repositories/devices";
+
+import type { DeviceSortKey, DeviceSortOrder } from "../repositories/devices";
+
+const parseDeviceSort = (
+  value: string | undefined = "-createdAt",
+): { readonly sort: DeviceSortKey; readonly order: DeviceSortOrder } => {
+  const order: DeviceSortOrder = value.startsWith("-") ? "desc" : "asc";
+  const column = value.startsWith("-") ? value.slice(1) : value;
+  switch (column) {
+    case "name":
+    case "createdAt":
+    case "deviceClass": {
+      return { sort: column, order };
+    }
+    default: {
+      return { sort: "createdAt", order: "desc" };
+    }
+  }
+};
 
 export const DevicesGroupLive = HttpApiBuilder.group(ManagementApi, "devices", (handlers) =>
   handlers
@@ -60,18 +79,21 @@ export const DevicesGroupLive = HttpApiBuilder.group(ManagementApi, "devices", (
           yield* assertPermission("device", "read");
           const ctx = yield* CurrentActor;
           const repo = yield* DeviceRepo;
-          const { cursor, limit } = parseCursorPagination(urlParams);
+          const { page, limit, offset } = parsePagination(urlParams);
+          const { sort, order } = parseDeviceSort(urlParams.sort);
 
-          const { items, nextCursor } = yield* repo.findByOrg({
+          const { items, total } = yield* repo.findByOrg({
             organizationId: ctx.organizationId,
-            cursor,
+            sort,
+            order,
             limit,
+            offset,
             deviceClass: urlParams.deviceClass,
             appleTeamId: urlParams.appleTeamId,
             query: urlParams.query,
           });
 
-          return { items: items.map(toApiDevice), nextCursor };
+          return { items: items.map(toApiDevice), total, page, limit };
         }),
       ),
     )

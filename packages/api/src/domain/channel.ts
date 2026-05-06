@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 
-import { DateTimeString, Id } from "./common";
+import { DateTimeString, Id, PaginationParams } from "./common";
 
 export class Channel extends Schema.Class<Channel>("Channel")({
   id: Id,
@@ -12,6 +12,23 @@ export class Channel extends Schema.Class<Channel>("Channel")({
   isPaused: Schema.Boolean,
   createdAt: DateTimeString,
 }) {}
+
+export const ChannelSortColumn = Schema.Literal("name", "createdAt");
+
+/**
+ * Sort param: column name optionally prefixed with `-` for descending.
+ * Example: `name` (asc), `-createdAt` (desc).
+ */
+export const ChannelSort = Schema.Union(
+  ChannelSortColumn,
+  Schema.TemplateLiteral("-", ChannelSortColumn),
+);
+
+export const ListChannelsParams = Schema.Struct({
+  projectId: Id,
+  ...PaginationParams.fields,
+  sort: Schema.optional(ChannelSort),
+});
 
 export const CreateChannelBody = Schema.Struct({
   projectId: Id,

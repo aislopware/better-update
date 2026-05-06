@@ -1,4 +1,4 @@
-import { branchesInfiniteQueryOptions, createChannel } from "@better-update/api-client/react";
+import { branchesQueryOptions, createChannel } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
@@ -22,7 +22,7 @@ import {
 } from "@better-update/ui/components/ui/select";
 import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
-import { useQueryClient, useSuspenseInfiniteQuery } from "@tanstack/react-query";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { PlusIcon } from "lucide-react";
 import { useState } from "react";
 
@@ -110,10 +110,10 @@ const BranchOptions = ({ branches }: { branches: readonly BranchItem[] }) => (
 export const CreateChannelDialog = ({ orgId, projectId }: { orgId: string; projectId: string }) => {
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
-  const { data: branchesData } = useSuspenseInfiniteQuery(
-    branchesInfiniteQueryOptions(orgId, projectId, { limit: 100 }),
+  const { data: branchesData } = useSuspenseQuery(
+    branchesQueryOptions(orgId, projectId, { limit: 100 }),
   );
-  const branches = branchesData.pages.flatMap((page) => page.items);
+  const branches = branchesData.items;
 
   const createChannelMutation = useApiMutation({
     mutationFn: async (input: { name: string; branchId: string }) =>

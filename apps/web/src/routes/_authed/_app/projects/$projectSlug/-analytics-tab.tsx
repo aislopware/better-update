@@ -1,10 +1,10 @@
 import {
   adoptionQueryOptions,
   channelAnalyticsQueryOptions,
-  channelsInfiniteQueryOptions,
+  channelsQueryOptions,
   platformAnalyticsQueryOptions,
   updateAnalyticsQueryOptions,
-  updatesInfiniteQueryOptions,
+  updatesQueryOptions,
 } from "@better-update/api-client/react";
 import {
   Card,
@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
-import { useSuspenseInfiniteQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { Suspense, useState } from "react";
 import {
   Area,
@@ -193,10 +193,10 @@ const ChannelHealthChart = ({
   projectId: string;
   period: AnalyticsPeriod;
 }) => {
-  const { data: channelsData } = useSuspenseInfiniteQuery(
-    channelsInfiniteQueryOptions(orgId, projectId, { limit: 100 }),
+  const { data: channelsData } = useSuspenseQuery(
+    channelsQueryOptions(orgId, projectId, { limit: 100 }),
   );
-  const channels = channelsData.pages.flatMap((page) => page.items);
+  const channels = channelsData.items;
   // eslint-disable-next-line eslint-js/no-restricted-syntax -- useState initial before items.length guard; Select does not render when items empty
   const [selected, setSelected] = useState(channels[0]?.name ?? "");
 
@@ -307,10 +307,10 @@ const UpdateTrafficChart = ({
   projectId: string;
   period: AnalyticsPeriod;
 }) => {
-  const { data: updatesData } = useSuspenseInfiniteQuery(
-    updatesInfiniteQueryOptions(orgId, projectId, { limit: 100 }),
+  const { data: updatesData } = useSuspenseQuery(
+    updatesQueryOptions(orgId, projectId, { limit: 100 }),
   );
-  const items = updatesData.pages.flatMap((page) => page.items);
+  const { items } = updatesData;
   // eslint-disable-next-line eslint-js/no-restricted-syntax -- useState initial before items.length guard; Select does not render when items empty
   const [selectedUpdateId, setSelectedUpdateId] = useState(items[0]?.id ?? "");
 

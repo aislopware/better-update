@@ -2,7 +2,6 @@ import { Context, Effect, Layer } from "effect";
 
 import { cloudflareEnv } from "../cloudflare/context";
 import { NotFound } from "../errors";
-import { encodeCursor } from "../lib/cursor";
 import { toDbNull } from "../lib/nullable";
 import {
   BUILD_WITH_ARTIFACT_COLUMNS,
@@ -10,9 +9,17 @@ import {
   toBuildWithArtifact,
 } from "./build-row";
 
-import type { Cursor } from "../lib/cursor";
 import type { ArtifactFormat, BuildWithArtifactModel, Distribution, Platform } from "../models";
 import type { BuildWithArtifactRow } from "./build-row";
+
+export type BuildSortKey =
+  | "createdAt"
+  | "platform"
+  | "distribution"
+  | "runtimeVersion"
+  | "appVersion";
+
+export type BuildSortOrder = "asc" | "desc";
 
 // -- Port ------------------------------------------------------------------
 
@@ -74,11 +81,14 @@ export interface BuildRepository {
     readonly platform?: Platform;
     readonly profile?: string;
     readonly runtimeVersion?: string;
-    readonly cursor: Cursor | null;
+    readonly distribution?: Distribution;
+    readonly sort: BuildSortKey;
+    readonly order: BuildSortOrder;
     readonly limit: number;
+    readonly offset: number;
   }) => Effect.Effect<{
     readonly items: readonly BuildWithArtifactModel[];
-    readonly nextCursor: string | null;
+    readonly total: number;
   }>;
 
   readonly deleteById: (params: {
@@ -280,29 +290,39 @@ export const BuildRepoLive = Layer.succeed(BuildRepo, {
         conditions.push('b."runtime_version" = ?');
         bindValues.push(params.runtimeVersion);
       }
-
-      if (params.cursor) {
-        conditions.push('(b."created_at" < ? OR (b."created_at" = ? AND b."id" < ?))');
-        bindValues.push(params.cursor.createdAt, params.cursor.createdAt, params.cursor.id);
+      if (params.distribution) {
+        conditions.push('b."distribution" = ?');
+        bindValues.push(params.distribution);
       }
 
       const whereClause = conditions.join(" AND ");
 
+      const sortColumns: Record<BuildSortKey, string> = {
+        createdAt: 'b."created_at"',
+        platform: 'b."platform"',
+        distribution: 'b."distribution"',
+        runtimeVersion: 'b."runtime_version"',
+        appVersion: 'b."app_version"',
+      };
+      const direction = params.order === "asc" ? "ASC" : "DESC";
+      const orderBy = `${sortColumns[params.sort]} ${direction}, b."id" ${direction}`;
+
+      const countResult = yield* Effect.promise(async () =>
+        env.DB.prepare(`SELECT COUNT(*) as count FROM "builds" b WHERE ${whereClause}`)
+          .bind(...bindValues)
+          .first<{ count: number }>(),
+      );
+      const total = countResult?.count ?? 0;
+
       const rows = yield* Effect.promise(async () =>
         env.DB.prepare(
-          `${SELECT_WITH_ARTIFACT} WHERE ${whereClause} ORDER BY b."created_at" DESC, b."id" DESC LIMIT ?`,
+          `${SELECT_WITH_ARTIFACT} WHERE ${whereClause} ORDER BY ${orderBy} LIMIT ? OFFSET ?`,
         )
-          .bind(...bindValues, params.limit + 1)
+          .bind(...bindValues, params.limit, params.offset)
           .all<BuildRow>(),
       );
 
-      const hasMore = rows.results.length > params.limit;
-      const trimmed = hasMore ? rows.results.slice(0, params.limit) : rows.results;
-      const last = trimmed.at(-1);
-      const nextCursor =
-        hasMore && last ? encodeCursor({ createdAt: last.created_at, id: last.id }) : null;
-
-      return { items: trimmed.map(toBuildWithArtifact), nextCursor };
+      return { items: rows.results.map(toBuildWithArtifact), total };
     }),
 
   deleteById: (params) =>

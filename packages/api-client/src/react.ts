@@ -6,12 +6,12 @@ export {
   buildCompatibilityMatrixQueryOptions,
   buildQueryKey,
   buildQueryOptions,
-  buildsInfiniteQueryOptions,
   buildsQueryKey,
+  buildsQueryOptions,
   deleteBuild,
   fetchInstallLink,
 } from "./react/builds";
-export type { BuildsFilters } from "./react/builds";
+export type { BuildDistribution, BuildSort, BuildSortColumn, BuildsFilters } from "./react/builds";
 export {
   androidApplicationIdentifiersQueryKey,
   androidApplicationIdentifiersQueryOptions,
@@ -59,14 +59,14 @@ export {
 export {
   createRegistrationRequest,
   deleteDevice,
-  devicesInfiniteQueryOptions,
   devicesQueryKey,
+  devicesQueryOptions,
   registerDevice,
   registrationRequestsQueryKey,
   registrationRequestsQueryOptions,
   updateDevice,
 } from "./react/devices";
-export type { DevicesFilters } from "./react/devices";
+export type { DeviceSort, DeviceSortColumn, DevicesFilters } from "./react/devices";
 export {
   bulkImportEnvVars,
   createEnvVar,
@@ -78,12 +78,12 @@ export {
 export {
   adoptionQueryKey,
   adoptionQueryOptions,
-  branchesInfiniteQueryOptions,
   branchesQueryKey,
+  branchesQueryOptions,
   channelAnalyticsQueryKey,
   channelAnalyticsQueryOptions,
-  channelsInfiniteQueryOptions,
   channelsQueryKey,
+  channelsQueryOptions,
   completeBranchRollout,
   completeUpdateRollout,
   createBranch,
@@ -115,14 +115,21 @@ export {
   updateChannel,
   updateAnalyticsQueryKey,
   updateAnalyticsQueryOptions,
-  updatesInfiniteQueryOptions,
   updatesQueryKey,
+  updatesQueryOptions,
 } from "./react/projects";
 export type {
+  BranchSort,
+  BranchSortColumn,
   BranchesFilters,
+  ChannelSort,
+  ChannelSortColumn,
   ChannelsFilters,
-  ProjectSortKey,
+  ProjectSort,
+  ProjectSortColumn,
   ProjectsFilters,
+  UpdateSort,
+  UpdateSortColumn,
   UpdatesFilters,
 } from "./react/projects";
 export type {

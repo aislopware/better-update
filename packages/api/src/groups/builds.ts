@@ -9,10 +9,11 @@ import {
   CreateBuildBody,
   DeleteBuildResult,
   InstallLinkResult,
+  ListBuildsParams,
   ReserveBuildResult,
 } from "../domain/build";
 import { BuildCompatibilityMatrixResult } from "../domain/build-compatibility";
-import { CursorPaginationParams, cursorPageResult, Id, Platform } from "../domain/common";
+import { Id } from "../domain/common";
 import { BadRequest, Conflict } from "../domain/errors";
 
 const idParam = HttpApiSchema.param("id", Schema.String);
@@ -43,16 +44,15 @@ export class BuildsGroup extends HttpApiGroup.make("builds")
   )
   .add(
     HttpApiEndpoint.get("list", "/api/builds")
-      .setUrlParams(
+      .setUrlParams(ListBuildsParams)
+      .addSuccess(
         Schema.Struct({
-          projectId: Id,
-          platform: Schema.optional(Platform),
-          profile: Schema.optional(Schema.String),
-          runtimeVersion: Schema.optional(Schema.String),
-          ...CursorPaginationParams.fields,
+          items: Schema.Array(BuildWithArtifact),
+          total: Schema.Number,
+          page: Schema.Number,
+          limit: Schema.Number,
         }),
       )
-      .addSuccess(cursorPageResult(BuildWithArtifact))
       .annotateContext(
         OpenApi.annotations({
           title: "List builds",

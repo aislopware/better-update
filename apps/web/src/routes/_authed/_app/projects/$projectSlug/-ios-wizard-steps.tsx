@@ -4,7 +4,7 @@ import {
   applePushKeysQueryOptions,
   appleTeamsQueryOptions,
   ascApiKeysQueryOptions,
-  devicesInfiniteQueryOptions,
+  devicesQueryOptions,
 } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
@@ -16,13 +16,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
-import { useSuspenseInfiniteQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { WandIcon } from "lucide-react";
 
 import { formatAppleTeamLabel } from "../../-credentials-utils";
 import { BUNDLE_PATTERN } from "./-ios-wizard-state";
 
 import type { DistributionType, WizardState } from "./-ios-wizard-state";
+
+const DISTRIBUTION_LABELS: Record<DistributionType, string> = {
+  APP_STORE: "App Store",
+  DEVELOPMENT: "Development",
+  ENTERPRISE: "Enterprise",
+};
 
 export const StepBundle = ({
   state,
@@ -51,6 +57,7 @@ export const StepBundle = ({
     <Field>
       <FieldLabel htmlFor="wiz-dist">Distribution Type</FieldLabel>
       <Select
+        items={DISTRIBUTION_LABELS}
         value={state.distributionType}
         onValueChange={(value) => {
           const next: DistributionType =
@@ -90,10 +97,14 @@ export const StepTeam = ({
       </p>
     );
   }
+  const teamLabels: Record<string, string> = Object.fromEntries(
+    data.items.map((team) => [team.id, formatAppleTeamLabel(team)]),
+  );
   return (
     <Field>
       <FieldLabel htmlFor="wiz-team">Apple Team</FieldLabel>
       <Select
+        items={teamLabels}
         value={state.appleTeamId}
         onValueChange={(value) => {
           onChange({
@@ -140,10 +151,14 @@ export const StepCert = ({
       </p>
     );
   }
+  const certLabels: Record<string, string> = Object.fromEntries(
+    candidates.map((cert) => [cert.id, `${cert.serialNumber.slice(0, 16)}...`]),
+  );
   return (
     <Field>
       <FieldLabel htmlFor="wiz-cert">Distribution Certificate</FieldLabel>
       <Select
+        items={certLabels}
         value={state.certId}
         onValueChange={(value) => {
           onChange({ ...state, certId: typeof value === "string" ? value : "", profileId: "" });
@@ -175,6 +190,9 @@ export const StepPush = ({
 }) => {
   const { data } = useSuspenseQuery(applePushKeysQueryOptions(orgId));
   const candidates = data.items.filter((key) => key.appleTeamId === state.appleTeamId);
+  const pushKeyLabels: Record<string, string> = Object.fromEntries(
+    candidates.map((key) => [key.id, key.keyId]),
+  );
   return (
     <div className="flex flex-col gap-3">
       <p className="text-muted-foreground text-xs">
@@ -186,6 +204,7 @@ export const StepPush = ({
         <Field>
           <FieldLabel htmlFor="wiz-push">Push Key</FieldLabel>
           <Select
+            items={pushKeyLabels}
             value={state.pushKeyId}
             onValueChange={(value) => {
               onChange({ ...state, pushKeyId: typeof value === "string" ? value : "" });
@@ -226,10 +245,14 @@ export const StepAsc = ({
       </p>
     );
   }
+  const ascKeyLabels: Record<string, string> = Object.fromEntries(
+    candidates.map((key) => [key.id, `${key.name} (${key.keyId})`]),
+  );
   return (
     <Field>
       <FieldLabel htmlFor="wiz-asc">ASC API Key</FieldLabel>
       <Select
+        items={ascKeyLabels}
         value={state.ascKeyId}
         onValueChange={(value) => {
           onChange({ ...state, ascKeyId: typeof value === "string" ? value : "" });
@@ -261,10 +284,10 @@ const DevicesPicker = ({
   selected: readonly string[];
   onChange: (next: readonly string[]) => void;
 }) => {
-  const { data } = useSuspenseInfiniteQuery(
-    devicesInfiniteQueryOptions(orgId, { limit: 100, appleTeamId: teamId }),
+  const { data } = useSuspenseQuery(
+    devicesQueryOptions(orgId, { limit: 100, appleTeamId: teamId }),
   );
-  const items = data.pages.flatMap((page) => page.items);
+  const { items } = data;
   const set = new Set(selected);
   return (
     <div className="flex max-h-48 flex-col gap-1 overflow-y-auto rounded-md border p-2">
@@ -334,12 +357,16 @@ export const StepProfile = ({
       appleTeamId: state.appleTeamId,
     }),
   );
+  const profileLabels: Record<string, string> = Object.fromEntries(
+    data.items.map((profile) => [profile.id, profileLabel(profile)]),
+  );
   return (
     <div className="flex flex-col gap-3">
       {data.items.length > 0 ? (
         <Field>
           <FieldLabel htmlFor="wiz-profile">Existing profile</FieldLabel>
           <Select
+            items={profileLabels}
             value={state.profileId}
             onValueChange={(value) => {
               onChange({ ...state, profileId: typeof value === "string" ? value : "" });
