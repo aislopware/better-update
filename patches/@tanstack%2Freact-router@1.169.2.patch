@@ -1,0 +1,26 @@
+diff --git a/dist/cjs/Match.cjs b/dist/cjs/Match.cjs
+index aa3de117e890e6300e97ca5f761375037ee08b20..9cf36005bc032504177292cf782ca68663e95173 100644
+--- a/dist/cjs/Match.cjs
++++ b/dist/cjs/Match.cjs
+@@ -130,7 +130,7 @@ function OnRendered({ resetKey }) {
+ var MatchInner = react.memo(function MatchInnerImpl({ matchId }) {
+ 	const router = require_useRouter.useRouter();
+ 	const getMatchPromise = (match, key) => {
+-		return router.getMatch(match.id)?._nonReactive[key] ?? match._nonReactive[key];
++		return router.getMatch(match.id)?._nonReactive[key] ?? match._nonReactive[key] ?? new Promise(() => {});
+ 	};
+ 	if (_tanstack_router_core_isServer.isServer ?? router.isServer) {
+ 		const match = router.stores.matchStores.get(matchId)?.get();
+diff --git a/dist/esm/Match.js b/dist/esm/Match.js
+index e99d3e98b83d285cd91c682ec9f2a7ae66bec648..d27884d10fa1529560a7d88d47c3390f346c2b45 100644
+--- a/dist/esm/Match.js
++++ b/dist/esm/Match.js
+@@ -128,7 +128,7 @@ function OnRendered({ resetKey }) {
+ var MatchInner = React$1.memo(function MatchInnerImpl({ matchId }) {
+ 	const router = useRouter();
+ 	const getMatchPromise = (match, key) => {
+-		return router.getMatch(match.id)?._nonReactive[key] ?? match._nonReactive[key];
++		return router.getMatch(match.id)?._nonReactive[key] ?? match._nonReactive[key] ?? new Promise(() => {});
+ 	};
+ 	if (isServer ?? router.isServer) {
+ 		const match = router.stores.matchStores.get(matchId)?.get();

@@ -2,36 +2,58 @@ import { queryOptions } from "@tanstack/react-query";
 import { Duration } from "effect";
 
 import { authClient } from "../lib/auth-client";
+import { ensureError } from "../lib/ensure-error";
 
 const FIVE_MINUTES_MS = Duration.toMillis(Duration.minutes(5));
 const ONE_MINUTE_MS = Duration.toMillis(Duration.minutes(1));
+// Session + orgs are read by `_authed.tsx` / `auth.tsx` `beforeLoad`. Setting staleTime to Infinity
+// Keeps them out of stale-while-revalidate, which avoids a TanStack Router race where loadPromise
+// Is cleared mid-render and Suspense throws undefined. Invalidate manually on login/logout/org-switch.
 
+/* eslint-disable functional/no-try-statements, functional/no-promise-reject, functional/no-throw-statements -- queryFn must throw a real Error so TanStack Router/Query CatchBoundary's `if (error)` truthy check works; non-Error rejects (e.g. better-auth throwing undefined) crash render with `Uncaught undefined` */
 const loadSession = async () => {
-  const { data } = await authClient.getSession();
-  return data;
+  try {
+    const { data } = await authClient.getSession();
+    return data;
+  } catch (error) {
+    throw ensureError(error, "Failed to load session");
+  }
 };
 
 const loadAccounts = async () => {
-  const { data } = await authClient.listAccounts();
-  return data === null ? [] : data;
+  try {
+    const { data } = await authClient.listAccounts();
+    return data === null ? [] : data;
+  } catch (error) {
+    throw ensureError(error, "Failed to load accounts");
+  }
 };
 
 const loadSessions = async () => {
-  const { data } = await authClient.listSessions();
-  return data === null ? [] : data;
+  try {
+    const { data } = await authClient.listSessions();
+    return data === null ? [] : data;
+  } catch (error) {
+    throw ensureError(error, "Failed to load sessions");
+  }
 };
 
 const loadOrgs = async () => {
-  const { data } = await authClient.organization.list({
-    fetchOptions: { disableSignal: true },
-  });
-  return data ?? [];
+  try {
+    const { data } = await authClient.organization.list({
+      fetchOptions: { disableSignal: true },
+    });
+    return data ?? [];
+  } catch (error) {
+    throw ensureError(error, "Failed to load organizations");
+  }
 };
+/* eslint-enable functional/no-try-statements, functional/no-promise-reject, functional/no-throw-statements */
 
 export const sessionQueryOptions = queryOptions({
   queryKey: ["auth", "session"],
   queryFn: loadSession,
-  staleTime: FIVE_MINUTES_MS,
+  staleTime: Number.POSITIVE_INFINITY,
   refetchOnMount: false,
   refetchOnWindowFocus: false,
 });
@@ -39,7 +61,9 @@ export const sessionQueryOptions = queryOptions({
 export const orgsQueryOptions = queryOptions({
   queryKey: ["auth", "orgs"],
   queryFn: loadOrgs,
-  staleTime: FIVE_MINUTES_MS,
+  staleTime: Number.POSITIVE_INFINITY,
+  refetchOnMount: false,
+  refetchOnWindowFocus: false,
 });
 
 export const accountsQueryOptions = queryOptions({

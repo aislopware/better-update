@@ -52,7 +52,7 @@ import { AppBreadcrumb } from "./-app-breadcrumb";
 import { CreateOrgDialog } from "./-create-org-dialog";
 import { OrgNavSections, ProjectNavSections } from "./-sidebar-nav";
 
-const PROJECT_SLUG_REGEX = /^\/projects\/([^/]+)(?:\/|$)/;
+const PROJECT_SLUG_REGEX = /^\/projects\/([^/]+)(?:\/|$)/u;
 const extractProjectSlug = (pathname: string) => {
   const match = PROJECT_SLUG_REGEX.exec(pathname);
   if (!match) {
@@ -294,15 +294,20 @@ export const Route = createFileRoute("/_authed/_app")({
     const activeOrgId = context.session.session.activeOrganizationId;
     const activeOrg = context.orgs.find((org) => org.id === activeOrgId) ?? firstOrg;
     if (activeOrg.id !== activeOrgId) {
-      const { error } = await authClient.organization.setActive({
-        organizationId: activeOrg.id,
-        fetchOptions: { disableSignal: true },
-      });
-      if (!error) {
-        context.queryClient.setQueryData(sessionQueryOptions.queryKey, {
-          ...context.session,
-          session: { ...context.session.session, activeOrganizationId: activeOrg.id },
+      // eslint-disable-next-line functional/no-try-statements -- defensive try/catch swallows setActive transient failure (e.g. `throw undefined` from underlying fetch) so beforeLoad does not crash route render; UI proceeds with the previously active org and a subsequent navigation/login retries
+      try {
+        const { error } = await authClient.organization.setActive({
+          organizationId: activeOrg.id,
+          fetchOptions: { disableSignal: true },
         });
+        if (!error) {
+          context.queryClient.setQueryData(sessionQueryOptions.queryKey, {
+            ...context.session,
+            session: { ...context.session.session, activeOrganizationId: activeOrg.id },
+          });
+        }
+      } catch {
+        // Non-fatal
       }
     }
     return { activeOrg };

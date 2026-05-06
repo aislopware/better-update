@@ -208,19 +208,5 @@ const ChannelDetailPage = () => {
 };
 
 export const Route = createFileRoute("/_authed/_app/projects/$projectSlug/channels/$channelId")({
-  loader: async ({ context }) => {
-    const orgId = context.activeOrg.id;
-    const projectId = context.project.id;
-    await Promise.all([
-      context.queryClient.ensureInfiniteQueryData(
-        channelsInfiniteQueryOptions(orgId, projectId, { limit: 100 }),
-      ),
-      context.queryClient.ensureInfiniteQueryData(
-        branchesInfiniteQueryOptions(orgId, projectId, { limit: 100 }),
-      ),
-      context.queryClient.ensureQueryData(buildCompatibilityMatrixQueryOptions(orgId, projectId)),
-      context.queryClient.ensureInfiniteQueryData(buildsInfiniteQueryOptions(orgId, projectId)),
-    ]);
-  },
   component: ChannelDetailPage,
 });

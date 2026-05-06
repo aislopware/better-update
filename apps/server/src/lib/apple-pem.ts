@@ -13,7 +13,7 @@ export const pemToPkcs8Der = (pem: string): Uint8Array | null => {
   }
   const body = normalized
     .slice(start + PEM_HEADER.length, end)
-    .replaceAll(/\s+/g, "")
+    .replaceAll(/\s+/gu, "")
     .trim();
   if (body.length === 0) {
     return null;

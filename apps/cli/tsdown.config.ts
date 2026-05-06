@@ -11,5 +11,5 @@ export default defineConfig({
   sourcemap: true,
   minify: false,
   dts: false,
-  noExternal: [/^@better-update\//],
+  noExternal: [/^@better-update\//u],
 });

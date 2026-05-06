@@ -123,8 +123,5 @@ const SessionsPage = () => {
 };
 
 export const Route = createFileRoute("/_authed/_app/account/sessions")({
-  loader: async ({ context }) => {
-    await context.queryClient.ensureQueryData(sessionsQueryOptions);
-  },
   component: SessionsPage,
 });

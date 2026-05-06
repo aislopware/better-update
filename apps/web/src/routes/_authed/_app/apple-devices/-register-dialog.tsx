@@ -39,7 +39,7 @@ import { deviceNameSchema as nameSchema, getFieldError } from "../../../../lib/f
 import { safeSubmit, useApiMutation } from "../../../../lib/use-api-mutation";
 
 const IDENTIFIER_PATTERN =
-  /^(?:[A-Fa-f0-9]{40}|[A-Fa-f0-9]{8}-[A-Fa-f0-9]{16}|[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12})$/;
+  /^(?:[A-Fa-f0-9]{40}|[A-Fa-f0-9]{8}-[A-Fa-f0-9]{16}|[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12})$/u;
 
 const identifierSchema = z
   .string()
@@ -48,7 +48,7 @@ const identifierSchema = z
     z.regex(IDENTIFIER_PATTERN, "Not a valid Apple UDID (40 hex, 8-16 hex, or UUID format)"),
   );
 
-const MAC_UUID = /^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$/;
+const MAC_UUID = /^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$/u;
 
 const inferClass = (value: string): DeviceClassValue | null => {
   const trimmed = value.trim();

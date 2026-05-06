@@ -16,7 +16,7 @@ import { DeviceRegistrationRequestRepo, DeviceRepo } from "../repositories";
 import type { ServerInfrastructure } from "../infrastructure-layer";
 import type { DeviceClass, DeviceRegistrationRequestModel } from "../models";
 
-const REGISTER_PATH = /^\/register-device\/([a-f0-9-]{36})(\/profile\.mobileconfig|\/callback)?$/i;
+const REGISTER_PATH = /^\/register-device\/([a-f0-9-]{36})(\/profile\.mobileconfig|\/callback)?$/iu;
 
 const runInfra = async <Success, Failure>(
   effect: Effect.Effect<Success, Failure, ServerInfrastructure>,

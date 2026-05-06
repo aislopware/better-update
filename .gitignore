@@ -33,3 +33,5 @@ test-results/
 ._*
 
 .pi-lens
+# CocoIndex Code (ccc)
+/.cocoindex_code/

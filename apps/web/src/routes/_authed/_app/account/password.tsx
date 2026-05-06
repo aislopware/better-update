@@ -175,8 +175,5 @@ const PasswordPage = () => {
 };
 
 export const Route = createFileRoute("/_authed/_app/account/password")({
-  loader: async ({ context }) => {
-    await context.queryClient.ensureQueryData(accountsQueryOptions);
-  },
   component: PasswordPage,
 });

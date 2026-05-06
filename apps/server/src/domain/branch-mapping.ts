@@ -74,7 +74,7 @@ export const extractNewBranchId = (branchMappingJson: string): string | null => 
 // -- Evaluator (manifest resolution) ---------------------------------------
 
 const parseThreshold = (logic: string): number | null => {
-  const match = /^hash_lt\(mappingId,\s*([\d.]+)\)$/.exec(logic);
+  const match = /^hash_lt\(mappingId,\s*([\d.]+)\)$/u.exec(logic);
   return match?.[1] ? Number.parseFloat(match[1]) : null;
 };
 

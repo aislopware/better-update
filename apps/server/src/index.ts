@@ -82,7 +82,7 @@ const routeRequest = async (
   }
 
   // Expo Updates protocol — unauthenticated manifest serving
-  const manifestMatch = /^\/manifest\/([^/]+)\/?$/.exec(url.pathname);
+  const manifestMatch = /^\/manifest\/([^/]+)\/?$/u.exec(url.pathname);
   if (manifestMatch?.[1]) {
     return serveManifest(request, env, ctx, manifestMatch[1]);
   }

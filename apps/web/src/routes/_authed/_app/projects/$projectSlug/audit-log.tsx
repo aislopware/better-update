@@ -1,4 +1,3 @@
-import { auditLogsInfiniteQueryOptions } from "@better-update/api-client/react";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { AuditLogView } from "../../-audit-log-view";
@@ -10,12 +9,5 @@ const ProjectAuditLogPage = () => {
 };
 
 export const Route = createFileRoute("/_authed/_app/projects/$projectSlug/audit-log")({
-  loader: async ({ context }) => {
-    const orgId = context.activeOrg.id;
-    const projectId = context.project.id;
-    await context.queryClient.ensureInfiniteQueryData(
-      auditLogsInfiniteQueryOptions(orgId, { projectId }),
-    );
-  },
   component: ProjectAuditLogPage,
 });

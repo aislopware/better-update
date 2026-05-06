@@ -70,11 +70,5 @@ const BranchesPage = () => {
 };
 
 export const Route = createFileRoute("/_authed/_app/projects/$projectSlug/branches/")({
-  loader: async ({ context }) => {
-    const projectId = context.project.id;
-    await context.queryClient.ensureInfiniteQueryData(
-      branchesInfiniteQueryOptions(context.activeOrg.id, projectId),
-    );
-  },
   component: BranchesPage,
 });

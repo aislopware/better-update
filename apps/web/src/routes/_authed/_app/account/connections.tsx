@@ -124,8 +124,5 @@ const ConnectionsPage = () => {
 };
 
 export const Route = createFileRoute("/_authed/_app/account/connections")({
-  loader: async ({ context }) => {
-    await context.queryClient.ensureQueryData(accountsQueryOptions);
-  },
   component: ConnectionsPage,
 });
