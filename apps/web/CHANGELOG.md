@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.6.1](https://github.com/better-update/better-update/compare/@better-update/web@0.6.0...@better-update/web@0.6.1) (2026-05-06)
+
+### Bug Fixes
+
+* **web:** harden route error handling and drop route loaders ([72808c1](https://github.com/better-update/better-update/commit/72808c17fbae3753e6f8252c626933af07d79f2f)) - by @trancong12102
+
 ## 0.6.0 (2026-05-06)
 
 ### ⚠ BREAKING CHANGES
