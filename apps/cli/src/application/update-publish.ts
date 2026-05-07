@@ -296,14 +296,16 @@ export const runUpdatePublish = (
 
       const baseConfig = yield* readExpoConfig(projectRoot);
       const projectId = yield* extractProjectId(baseConfig);
-      const slug = yield* extractSlug(baseConfig);
 
       const environmentVars = yield* pullEnvVars(api, {
         projectId,
         environment: options.environment,
       });
 
+      // Read slug from the env-resolved config so dynamic configs that derive
+      // slug from env vars publish under the same identity as `expo export`.
       const expoConfig = yield* readExpoConfig(projectRoot, environmentVars);
+      const slug = yield* extractSlug(expoConfig);
       const platforms = resolveUpdatePlatforms(expoConfig, options.platform);
       if (platforms.length === 0) {
         return yield* new UpdatePublishError({

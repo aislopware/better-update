@@ -223,7 +223,6 @@ export const runUpdateRollback = (
 
     const baseConfig = yield* readExpoConfig(projectRoot);
     const projectId = yield* extractProjectId(baseConfig);
-    const projectSlug = yield* extractSlug(baseConfig);
 
     const environmentVars = yield* pullEnvVars(api, {
       projectId,
@@ -231,9 +230,11 @@ export const runUpdateRollback = (
     });
 
     // Re-resolve with the env-var overlay so runtimeVersion / ios / android
-    // Sections derived from process.env match what the corresponding publish
-    // Would have computed (otherwise rollback can target the wrong runtime).
+    // sections (and slug) derived from process.env match what the corresponding
+    // publish would have computed — otherwise rollback can target the wrong
+    // runtime or publish under a stale slug.
     const config = yield* readExpoConfig(projectRoot, environmentVars);
+    const projectSlug = yield* extractSlug(config);
     const platforms = resolveUpdatePlatforms(config, options.platform);
     if (platforms.length === 0) {
       return yield* new UpdateRollbackError({
