@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.8.1](https://github.com/better-update/better-update/compare/@better-update/cli@0.8.0...@better-update/cli@0.8.1) (2026-05-07)
+
+### Bug Fixes
+
+* **cli:** await local callback server listen before reading port ([927ae08](https://github.com/better-update/better-update/commit/927ae084850b2ee5d7fde7551e4cd487e67527c5)) - by @trancong12102
+
 ## [0.8.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.7.1...@better-update/cli@0.8.0) (2026-05-07)
 
 ### Features
