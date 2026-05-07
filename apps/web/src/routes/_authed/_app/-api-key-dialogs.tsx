@@ -20,7 +20,7 @@ import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { KeyIcon, CopyIcon, CheckIcon } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { authClient } from "../../../lib/auth-client";
 import { getFieldError, requiredStringSchema } from "../../../lib/form-utils";
@@ -34,7 +34,7 @@ const CreateFormContent = ({
   onSuccess,
 }: {
   orgId: string;
-  onSuccess: (key: string) => void;
+  onSuccess: (key: string) => Promise<void>;
 }) => {
   const form = useForm({
     defaultValues: { name: "" },
@@ -50,7 +50,7 @@ const CreateFormContent = ({
       }
 
       if (data.key) {
-        onSuccess(data.key);
+        await onSuccess(data.key);
       }
     },
   });
@@ -147,46 +147,46 @@ const KeyRevealContent = ({ apiKey, onClose }: { apiKey: string; onClose: () => 
 
 // ── Create Key Dialog (form + reveal) ────────────────────────────
 
-export const CreateApiKeyDialog = ({ orgId }: { orgId: string }) => {
+export const CreateApiKeyDialog = ({
+  orgId,
+  open,
+  onOpenChange,
+}: {
+  orgId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) => {
   const queryClient = useQueryClient();
-  const [open, setOpen] = useState(false);
   const [createdKey, setCreatedKey] = useState<string | null>(null);
+  // Lets a late mutation success skip setCreatedKey if the user already closed.
+  const openRef = useRef(open);
+  openRef.current = open;
 
-  const handleSuccess = (key: string) => {
-    setCreatedKey(key);
+  const handleSuccess = async (key: string) => {
     toastManager.add({ title: "API key created", type: "success" });
+    if (openRef.current) {
+      setCreatedKey(key);
+    }
+    await queryClient.invalidateQueries({
+      queryKey: apiKeysQueryOptions(orgId).queryKey,
+    });
   };
 
-  const handleClose = async () => {
-    const keyToRefresh = createdKey;
-    setOpen(false);
+  const handleClose = () => {
     setCreatedKey(null);
-    if (keyToRefresh !== null) {
-      await queryClient.invalidateQueries({
-        queryKey: apiKeysQueryOptions(orgId).queryKey,
-      });
-    }
+    onOpenChange(false);
   };
 
   return (
     <Dialog
       open={open}
-      onOpenChange={async (isOpen) => {
-        if (isOpen) {
-          setOpen(true);
-          return;
+      onOpenChange={(isOpen) => {
+        if (!isOpen) {
+          setCreatedKey(null);
         }
-        await handleClose();
+        onOpenChange(isOpen);
       }}
     >
-      <Button
-        onClick={() => {
-          setOpen(true);
-        }}
-      >
-        <KeyIcon strokeWidth={2} data-icon="inline-start" />
-        Create API key
-      </Button>
       <DialogPopup>
         <DialogHeader>
           <DialogTitle>{createdKey ? "API key created" : "Create an API key"}</DialogTitle>
