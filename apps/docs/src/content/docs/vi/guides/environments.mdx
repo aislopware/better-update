@@ -1,0 +1,129 @@
+---
+title: Environment variable
+description: Env var server-side inject lúc publish. Tách scope theo environment, không secret nào trong git.
+---
+
+import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+
+Command `env` quản lý **env var server-side** cho project. Inject vào `expo export` lúc publish, nên giá trị như API key sống trên server, không phải trong repo.
+
+Đây **không phải** quản lý file `.env` local. Giá trị lưu trên Better Update; `update publish` fetch về.
+
+## Tại sao env var server-side?
+
+- Secret nằm ngoài git.
+- Môi trường khác nhau (`production`, `staging`, `development`) nhận giá trị khác mà không cần config branch-specific.
+- Dev mới không cần ai đó pass file `.env` ngoài luồng.
+
+## Set 1 var
+
+```bash
+better-update env set API_URL=https://api.example.com
+better-update env set STRIPE_KEY=sk_live_xxx --visibility secret
+better-update env set FEATURE_FLAG=true --environment staging
+```
+
+Positional là `KEY=VALUE`. `set` idempotent — tạo nếu chưa có, update nếu có rồi.
+
+| Flag                   | Default      | Ghi chú                                                         |
+| ---------------------- | ------------ | --------------------------------------------------------------- |
+| `--environment <name>` | `production` | Scope environment var sống trong.                               |
+| `--visibility <v>`     | `plaintext`  | `plaintext`, `sensitive`, hoặc `secret`. Ảnh hưởng ai đọc được. |
+
+Giá trị `secret` write-only sau khi tạo — cả dashboard lẫn CLI đều không hiện lại.
+
+## List
+
+```bash
+better-update env list
+better-update env list --environment staging
+```
+
+## Get 1 cái
+
+```bash
+better-update env get <env-var-id>
+```
+
+Positional là **ID**, không phải tên key (dùng `env list` để tìm).
+
+## Delete
+
+```bash
+better-update env delete API_URL
+better-update env delete API_URL --environment staging
+```
+
+Positional ở đây _là_ tên key (không phải ID).
+
+## Bulk import từ file `.env`
+
+```bash
+better-update env import .env.production
+better-update env import .env.staging --environment staging
+```
+
+Mỗi dòng `KEY=VALUE`. Mọi var import lưu visibility `plaintext` — bump cái sensitive sau bằng `env set ... --visibility secret`.
+
+## Export ra file
+
+Round-trip ra (không có `export` đầu dòng):
+
+```bash
+better-update env export > .env.production.cached
+```
+
+Mỗi dòng `KEY='value'`. Var `secret` bị skip (server không trả lại được).
+
+## Pull vào shell
+
+Format source được (`export KEY='value'` mỗi dòng):
+
+```bash
+eval "$(better-update env pull --environment staging)"
+```
+
+Giờ `$STRIPE_KEY`, `$API_URL`, vv set trong shell hiện tại.
+
+## Cái gì được inject lúc publish
+
+Khi chạy `update publish --environment <name>`, server tra var trong env đó và inject vào export. Trong app Expo:
+
+```ts
+import Constants from "expo-constants";
+
+const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+// hoặc, cho giá trị non-public, chỉ dùng trong code path server-only.
+```
+
+Var không có prefix `EXPO_PUBLIC_` vẫn được inject lúc build nhưng chỉ available chỗ Expo bình thường expose.
+
+<Aside type="caution">
+  Bất cứ thứ gì vào JS bundle về kỹ thuật đều extract được khỏi app đã ship. Đừng dùng env var
+  Better Update để "giấu" credential phải bí mật — dùng backend. Visibility `secret` để control *ai
+  trong team đọc được*, không phải để hardening giá trị khỏi extraction trên device.
+</Aside>
+
+## Mức visibility
+
+| Visibility  | Web console đọc được? | CLI đọc được? | Use case                                      |
+| ----------- | --------------------- | ------------- | --------------------------------------------- |
+| `plaintext` | Có                    | Có            | Config không nhạy (URL, flag).                |
+| `sensitive` | Chỉ owner + admin     | Có            | API key, token.                               |
+| `secret`    | Không (write-only)    | Không         | Top-tier secret. Không export hoặc pull được. |
+
+## Ví dụ thực tế: config theo env
+
+```bash
+# Production
+better-update env set EXPO_PUBLIC_API_URL=https://api.example.com
+better-update env set STRIPE_KEY=sk_live_xxx --visibility secret
+
+# Staging
+better-update env set EXPO_PUBLIC_API_URL=https://staging.api.example.com --environment staging
+better-update env set STRIPE_KEY=sk_test_xxx --environment staging --visibility sensitive
+
+# Publish — pick đúng bộ
+better-update update publish --branch production --environment production
+better-update update publish --branch staging --environment staging
+```

@@ -1,0 +1,59 @@
+---
+title: Better Update
+description: CLI để ship OTA update cho app Expo và React Native.
+template: splash
+hero:
+  tagline: OTA update cho Expo và React Native — không cần qua app store review.
+  image:
+    light: ../../../assets/logo-light.svg
+    dark: ../../../assets/logo-dark.svg
+  actions:
+    - text: Bắt đầu
+      link: /vi/start/quickstart/
+      icon: right-arrow
+    - text: GitHub
+      link: https://github.com/better-update/better-update
+      icon: external
+      variant: minimal
+---
+
+import { CardGrid, LinkCard } from "@astrojs/starlight/components";
+
+## Cài đặt
+
+```bash
+bun add -g @better-update/cli
+```
+
+## Ship một update
+
+```bash
+better-update login
+better-update init
+better-update update publish --branch main --message "Fix login screen"
+```
+
+Device trên channel khớp pull bundle mới ở lần launch tiếp theo.
+
+## Rollout từ từ, hoặc revert một câu lệnh
+
+```bash
+better-update update rollout set <updateId> 10
+better-update update rollout complete <updateId>
+
+better-update update rollback --branch main
+```
+
+<CardGrid>
+  <LinkCard
+    title="Quickstart"
+    href="/vi/start/quickstart/"
+    description="Cài, login, ship update đầu tiên — năm phút."
+  />
+  <LinkCard
+    title="Publish"
+    href="/vi/guides/publishing/"
+    description="Branch, channel, rollout, rollback."
+  />
+  <LinkCard title="CLI reference" href="/vi/reference/cli/" description="Mọi command, mọi flag." />
+</CardGrid>

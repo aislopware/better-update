@@ -1,0 +1,115 @@
+---
+title: Quickstart
+description: Install the CLI, log in, and publish your first OTA update in 5 minutes.
+sidebar:
+  order: 1
+---
+
+import { Steps, Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+
+This walks you from zero to "my update is live" in about 5 minutes.
+
+You will need:
+
+- An Expo project that already uses [`expo-updates`](https://docs.expo.dev/versions/latest/sdk/updates/).
+- [Bun](https://bun.sh) ≥ 1.3 (for running the CLI).
+- A free [better-update.dev](https://better-update.dev) account.
+
+## 1. Install the CLI
+
+<Tabs syncKey="install">
+  <TabItem label="One-off (bunx)">
+    ```bash
+    bunx @better-update/cli --help
+    ```
+
+    Replace `--help` with any command — `bunx` downloads on demand.
+
+  </TabItem>
+  <TabItem label="Global">
+    ```bash
+    bun add -g @better-update/cli
+    better-update --help
+    ```
+  </TabItem>
+</Tabs>
+
+## 2. Log in
+
+```bash
+better-update login
+```
+
+This opens your browser at `better-update.dev/auth/cli-login`. After you sign in, the CLI receives a token and saves it to `~/.better-update/auth.json` (mode `0600`).
+
+<Aside type="tip">
+  Headless or remote machine? Use `better-update login --api-key` to paste a token generated in the
+  web console instead of opening the browser.
+</Aside>
+
+## 3. Link your Expo project
+
+From your Expo project root:
+
+```bash
+better-update init
+```
+
+This reads `app.json`, finds (or creates) a project that matches `expo.slug`, and writes the project ID back into `expo.extra.betterUpdate.projectId`. Subsequent commands read it from there.
+
+## 4. Publish your first update
+
+```bash
+better-update update publish --branch main --message "Hello from Better Update"
+```
+
+The CLI runs `expo export` for you, uploads the bundle plus assets to the server, and registers a new update group on the `main` branch.
+
+```
+✓ Exported (4.2s)
+✓ Uploaded 1 bundle, 23 assets (3.1s)
+✓ Update e7f3… published to branch main
+```
+
+<Aside type="caution">
+  If `main` does not exist yet, create it first: `better-update branches create --name main`.
+</Aside>
+
+## 5. Wire up `expo-updates`
+
+In `app.json`, point `expo.updates.url` at the manifest endpoint for your project. The project ID is the one `init` wrote.
+
+```json
+{
+  "expo": {
+    "updates": {
+      "url": "https://graph.better-update.dev/manifest/<projectId>",
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
+    "runtimeVersion": { "policy": "appVersion" }
+  }
+}
+```
+
+Rebuild the app once (dev client or production build). Subsequent updates flow OTA — no rebuild needed.
+
+## 6. See it live
+
+Create a channel that points at the `main` branch so the device knows what to download:
+
+```bash
+better-update channels create --name production --branch main
+```
+
+The `expo-updates` library reads its channel from build-time configuration. Set `channel` in your build profile (or pass `--release-channel` to your build command), then rebuild once. After that, every `update publish --branch main` reaches devices on the `production` channel automatically.
+
+Open the app, pull to refresh (or relaunch), and the new manifest is served.
+
+## What's next
+
+- **[Channels and branches](/guides/channels-and-branches/)** — how the routing model works.
+- **[Publishing](/guides/publishing/)** — every flag of `update publish`, when to use `update promote`.
+- **[Rollouts and rollbacks](/guides/rollouts-and-rollbacks/)** — staged rollouts, instant revert.
+- **[CLI reference](/reference/cli/)** — every command, every flag.

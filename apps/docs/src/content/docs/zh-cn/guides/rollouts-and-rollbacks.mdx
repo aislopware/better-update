@@ -1,0 +1,133 @@
+---
+title: 灰度与回滚
+description: 分阶段把更新发到一定百分比的设备,再逐步推到 100% — 或在出问题时立即 revert。
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+Better Update 提供**两套**独立的 rollout 系统外加一个回滚命令:
+
+| 工具               | 粒度                      | 何时使用                                  |
+| ------------------ | ------------------------- | ----------------------------------------- |
+| `update rollout`   | 单一更新组、设备百分比    | 任何有风险的更新。默认开启的安全网。      |
+| `channels rollout` | 一个 channel,在分支间分流 | 把 channel 从一个分支渐进式迁到另一分支。 |
+| `update rollback`  | 整条分支,回到先前某点     | 生产环境此刻有东西坏了。                  |
+
+下面分别介绍。
+
+## Update rollout(单更新百分比)
+
+发布时,可以把新更新固定到一定比例的设备。服务器把新 manifest 发给那部分(对设备而言是确定性的),把旧 manifest 发给其余。
+
+### 部分 rollout 起步
+
+```bash
+better-update update publish \
+  --branch production \
+  --rollout-percentage 10 \
+  --message "高风险缓存迁移"
+```
+
+匹配 channel 上 10% 的设备开始接收新更新。其余 90% 保持上一个。
+
+### 加大
+
+```bash
+better-update update rollout set <updateId> 25
+better-update update rollout set <updateId> 50
+better-update update rollout complete <updateId>     # → 100%
+```
+
+`complete` 是 `set 100` 的语法糖。ramp 完成时使用。
+
+### 降到 0
+
+```bash
+better-update update rollout revert <updateId>     # → 0%
+```
+
+尚未拉到更新的设备永远不会拉。已经拉到的设备保持现状直到下次 manifest check,届时会被发上一个版本。
+
+<Aside type="tip">
+  rollout 百分比是**单更新级别**,不是 channel 级别。同一个 channel 上的 两个更新可以各有自己的
+  rollout 状态。带非零 rollout 的最近更新对被选中 的设备生效;旧更新继续服务给其余设备。
+</Aside>
+
+## Channel rollout(分支级流量分割)
+
+这是迁移工具。当你想随时间把整条 channel 从一个分支迁到另一个分支(而不是硬切换)时使用。
+
+```bash
+# 起始: `production` 上 10% 设备从 `release-2026-05` 取 manifest。
+better-update channels rollout create <channelId> \
+  --branch release-2026-05 \
+  --percentage 10
+
+better-update channels rollout update <channelId> --percentage 50
+
+better-update channels rollout complete <channelId>     # channel 完全切到新分支
+better-update channels rollout revert <channelId>       # channel 回到旧分支
+```
+
+请见 [Channel 和分支](/zh-cn/guides/channels-and-branches/) 全景。
+
+## Rollback(整条分支 revert)
+
+当需要*现在*就把生产从坏更新弄回去时,用 `rollback`。它创建一个特殊的更新组,告诉 `expo-updates` 回退到嵌入的 bundle(原生构建里自带的) — 不上传新 bundle。
+
+```bash
+better-update update rollback \
+  --branch production \
+  --message "Revert e7f3 — 登录崩溃"
+```
+
+设备上发生的事: 下次 manifest check 返回「rollback to embedded」指令。runtime 清掉缓存的 OTA bundle,回退到二进制中自带的版本。
+
+### 回到特定时刻
+
+如果只想 revert 在某个时间*之后*发布的更新,传 `--commit-time`:
+
+```bash
+better-update update rollback \
+  --branch production \
+  --commit-time 2026-05-06T14:00:00Z \
+  --message "revert 14:00 之后的所有内容"
+```
+
+发布时间戳早于 `--commit-time` 的更新仍然会被服务。
+
+### 按平台范围回滚
+
+```bash
+better-update update rollback --branch production --platform ios --message "iOS 专属 revert"
+```
+
+默认 `--platform all`。
+
+## 决策表
+
+| 现象                              | 用什么                                                          |
+| --------------------------------- | --------------------------------------------------------------- |
+| 高风险发布,想在小切片上验证       | **`update publish --rollout-percentage 5`**,然后 ramp。         |
+| 部分 rollout 时检测到坏更新       | **`update rollout revert`** — 阻止扩散。                        |
+| 100% 时坏更新,装机量适中          | 把 **channel** 重新指回上一个分支。                             |
+| 100% 时坏更新,硬崩溃,想要干净状态 | **`update rollback --branch <name>`** — 设备回退到嵌入版本。    |
+| 一周内把 channel 迁到新分支       | **`channels rollout create … --percentage 10`**,ramp,complete。 |
+| 原生回归(只有新构建能修复)        | **`update rollback`** + 在应用商店发布带修复的新构建。          |
+
+## 回滚之后
+
+1. 在从同一分支重新发布前调查根因。
+2. 发布修复时用 `--rollout-percentage 10` 先在切片上验证。
+3. 审计日志记录每次发布、rollout 变更、回滚。通过
+   `better-update audit-logs list --resource-type update --limit 50` 阅读。
+
+## 误报后的重新 promote
+
+channel 级回滚(「重新指向 channel」模式)不删除更新。如果发现回滚没必要,指回去就行:
+
+```bash
+better-update channels update <channel-id> --branch <原以为糟糕的分支>
+```
+
+什么都没销毁;只是改了指针。

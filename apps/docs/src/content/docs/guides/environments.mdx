@@ -1,0 +1,130 @@
+---
+title: Environment variables
+description: Server-side env vars injected at publish time. Per-environment scoping, no secrets in git.
+---
+
+import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+
+The `env` command manages **server-side** environment variables for your project. They are injected into `expo export` at publish time, so values like API keys live on the server, not in your repo.
+
+This is **not** local `.env` file management. The values are stored on Better Update; `update publish` fetches them.
+
+## Why server-side env vars?
+
+- Secrets stay out of git.
+- Different environments (`production`, `staging`, `development`) get different values without branch-specific configs.
+- New developers don't need to be handed a `.env` file out-of-band.
+
+## Set a variable
+
+```bash
+better-update env set API_URL=https://api.example.com
+better-update env set STRIPE_KEY=sk_live_xxx --visibility secret
+better-update env set FEATURE_FLAG=true --environment staging
+```
+
+The positional argument is `KEY=VALUE`. `set` is idempotent — it creates the var if missing, updates it if it exists.
+
+| Flag                   | Default      | Notes                                                            |
+| ---------------------- | ------------ | ---------------------------------------------------------------- |
+| `--environment <name>` | `production` | Which environment scope this var lives in.                       |
+| `--visibility <v>`     | `plaintext`  | One of `plaintext`, `sensitive`, `secret`. Affects who can read. |
+
+`secret` values are write-only after creation — neither dashboard nor CLI will display them again.
+
+## List
+
+```bash
+better-update env list
+better-update env list --environment staging
+```
+
+## Get one
+
+```bash
+better-update env get <env-var-id>
+```
+
+The positional is the **ID**, not the key name (use `env list` to find it).
+
+## Delete
+
+```bash
+better-update env delete API_URL
+better-update env delete API_URL --environment staging
+```
+
+The positional here _is_ the key name (not the ID).
+
+## Bulk import from a `.env` file
+
+```bash
+better-update env import .env.production
+better-update env import .env.staging --environment staging
+```
+
+Each line is a `KEY=VALUE`. All imported vars are stored as `plaintext` visibility — bump anything sensitive afterward with `env set ... --visibility secret`.
+
+## Export to a file
+
+Round-trip out (no leading `export`):
+
+```bash
+better-update env export > .env.production.cached
+```
+
+Each line is `KEY='value'`. `secret`-visibility vars are skipped (the server cannot return them).
+
+## Pull into your shell
+
+Source-able shell format (`export KEY='value'` per line):
+
+```bash
+eval "$(better-update env pull --environment staging)"
+```
+
+Now `$STRIPE_KEY`, `$API_URL`, etc., are set in your current shell.
+
+## What gets injected at publish time
+
+When you run `update publish --environment <name>`, the server looks up vars in that environment and injects them into the export. Inside your Expo app:
+
+```ts
+import Constants from "expo-constants";
+
+const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+// or, for non-public values, use them only inside server-only code paths.
+```
+
+Vars without the `EXPO_PUBLIC_` prefix are still injected during build but only available where Expo would normally expose them.
+
+<Aside type="caution">
+  Anything that reaches a JS bundle is technically extractable from the shipped app. Do not use
+  Better Update env vars to "hide" credentials that must remain confidential — use a backend
+  instead. Use `secret` visibility to control *who on your team* can read the value, not to harden
+  the value against device extraction.
+</Aside>
+
+## Visibility levels
+
+| Visibility  | Read by web console? | Read by CLI? | Use case                                        |
+| ----------- | -------------------- | ------------ | ----------------------------------------------- |
+| `plaintext` | Yes                  | Yes          | Non-sensitive config (URLs, flags).             |
+| `sensitive` | Owners + admins only | Yes          | API keys, tokens.                               |
+| `secret`    | No (write-only)      | No           | Top-tier secrets. Cannot be exported or pulled. |
+
+## Worked example: per-environment config
+
+```bash
+# Production
+better-update env set EXPO_PUBLIC_API_URL=https://api.example.com
+better-update env set STRIPE_KEY=sk_live_xxx --visibility secret
+
+# Staging
+better-update env set EXPO_PUBLIC_API_URL=https://staging.api.example.com --environment staging
+better-update env set STRIPE_KEY=sk_test_xxx --environment staging --visibility sensitive
+
+# Publish — picks up the right set
+better-update update publish --branch production --environment production
+better-update update publish --branch staging --environment staging
+```

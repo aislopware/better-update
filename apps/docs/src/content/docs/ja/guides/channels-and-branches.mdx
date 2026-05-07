@@ -1,0 +1,170 @@
+---
+title: チャンネルとブランチ
+description: チャンネルがブランチを指す仕組み、どちらをいつ使うか、両方を管理するコマンド。
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+
+Better Update は「これがどのバージョンか」と「誰が受け取るか」を分離します:
+
+- **ブランチ** はアップデートの流れ。ブランチに _公開_ する。ブランチはサーバー側で、git のブランチと一致する必要はない。
+- **チャンネル** はビルド済みアプリが読み取るもの。チャンネルは一度に _1 つ_ のブランチを指す。ポインタを変えるとそのチャンネル上のすべてのデバイスが切り替わる。
+
+この間接化のおかげで、リリース候補を出して検証し、1 コマンドで本番全体を移行できる — リビルドなし。
+
+## 新しいブランチ vs 新しいチャンネル
+
+| やりたいこと                                     | こうする                                                    |
+| ------------------------------------------------ | ----------------------------------------------------------- |
+| リリース候補をカットして QA 後に本番へプロモート | 新規 **ブランチ** (例: `release-v1.4`); 後でプロモート。    |
+| 1 つのテスター向けに機能フラグを配信             | 新規 **チャンネル** (例: `internal`) をベータビルドに配線。 |
+| ロールバック: 既知の良いアップデートを本番に戻す | **チャンネル** を以前のブランチに再ポイント。               |
+| 長期環境 (staging, preview, prod)                | 環境ごとに 1 **チャンネル**、それぞれ独自のブランチ。       |
+
+## ブランチ
+
+ブランチはフラット — 親なし、マージなし。それぞれがアップデートグループのシーケンス。
+
+```bash
+better-update branches list
+better-update branches create --name release-v1.4
+better-update branches rename <id> --name release-v1-4
+better-update branches delete <id>
+```
+
+ブランチへの公開は `update publish --branch <name>` ([公開](/ja/guides/publishing/))。
+
+## チャンネル
+
+各チャンネルが持つもの:
+
+- 名前 (例: `production`)。
+- 現在指している `branchId`。
+- `paused` フラグ (一時停止チャンネルは新しいマニフェスト配信を停止)。
+- 進行中のブランチロールアウト (任意、下記参照)。
+
+```bash
+better-update channels list
+better-update channels create --name production --branch main
+better-update channels update <id> --branch release-v1.4   # 再ポイント
+better-update channels pause <id>
+better-update channels resume <id>
+better-update channels delete <id>
+```
+
+<Aside type="caution">
+  **`channels point` コマンドは存在しません。** 別ブランチに再リンクするには
+  `channels update <id> --branch <name>` を使用。
+</Aside>
+
+## デバイスがチャンネルを選ぶ仕組み
+
+デバイスが読み取るチャンネルは、ランタイムではなく _ビルド時_ に設定されます。ビルド設定 (`eas.json` またはカスタムビルドプロファイル) でチャンネル名を設定。ビルド後、アプリはそのチャンネルのマニフェストのみを取得 — 新しいネイティブビルドなしにチャンネルは変更不可。
+
+そのため、環境ごと (`production`, `staging`, `internal`) にチャンネルを 1 度作成し、`channels update` でブランチ間を移動。配信するアップデートを変えるためにリコンパイルすることはありません。
+
+## 実例: カット、検証、プロモート
+
+<Steps>
+
+1. エンジニアリングが 1 週間 `main` ブランチに作業をマージ。`production` チャンネルは `main` を指している。
+
+   <div class="bu-flow">
+     <div class="bu-flow-row">
+       <span class="bu-chip">production</span>
+       <span class="bu-arrow">→</span>
+       <span class="bu-chip bu-chip--muted">main</span>
+     </div>
+   </div>
+
+2. 新しいブランチを作成し、同じコードをそこへ再公開してリリース候補をカット:
+
+   ```bash
+   better-update branches create --name release-2026-05
+   better-update update publish --branch release-2026-05 --message "5月リリースの RC"
+   ```
+
+3. `staging` を新ブランチへ配線して QA にテストさせる:
+
+   ```bash
+   better-update channels update <staging-channel-id> --branch release-2026-05
+   ```
+
+   <div class="bu-flow">
+     <div class="bu-flow-row">
+       <span class="bu-chip">staging</span>
+       <span class="bu-arrow">→</span>
+       <span class="bu-chip bu-chip--muted">release-2026-05</span>
+     </div>
+     <div class="bu-flow-row">
+       <span class="bu-chip">production</span>
+       <span class="bu-arrow">→</span>
+       <span class="bu-chip bu-chip--muted">main</span>
+     </div>
+   </div>
+
+4. QA 通過後、本番を再ポイント:
+
+   ```bash
+   better-update channels update <production-channel-id> --branch release-2026-05
+   ```
+
+   <div class="bu-flow">
+     <div class="bu-flow-row">
+       <span class="bu-chip">staging</span>
+       <span class="bu-arrow">→</span>
+       <span class="bu-chip bu-chip--muted">release-2026-05</span>
+     </div>
+     <div class="bu-flow-row">
+       <span class="bu-chip">production</span>
+       <span class="bu-arrow">→</span>
+       <span class="bu-chip bu-chip--muted">release-2026-05</span>
+     </div>
+   </div>
+
+5. 問題が起きたら、本番を `main` に戻す:
+
+   ```bash
+   better-update channels update <production-channel-id> --branch main
+   ```
+
+</Steps>
+
+## チャンネルロールアウト: 段階的なブランチ移行
+
+チャンネルレベルのロールアウトは、チャンネルの現在のブランチから _新しい_ ブランチへトラフィックを **パーセント** で送り、ランプアップします。ハードカットオーバーなしでチャンネル全体を新ブランチへ移行する方法。
+
+```bash
+# 開始: `production` のデバイスの 10% が `release-2026-05` から受信開始。
+better-update channels rollout create <channel-id> \
+  --branch release-2026-05 \
+  --percentage 10
+
+# ランプ。
+better-update channels rollout update <channel-id> --percentage 50
+
+# 完了 — チャンネルは完全に再ポイント。
+better-update channels rollout complete <channel-id>
+
+# または revert。
+better-update channels rollout revert <channel-id>
+```
+
+`complete` は新ブランチを正規ポインタに、`revert` はすべて古いブランチに戻します。
+
+<Aside type="tip">
+  チャンネルロールアウトは **ブランチレベルのトラフィック分割**。アップデートロールアウト
+  ([次のガイド](/ja/guides/rollouts-and-rollbacks/)) は **アップデートごとのパーセント**。
+  両方使えます — 例: チャンネル上で新ブランチを 100% にランプしつつ、その
+  ブランチ内の各アップデートにそれぞれ独自のロールアウトパーセントを持たせる。
+</Aside>
+
+## 確認
+
+`channels list` は ID、名前、ブランチ名、一時停止状態、ロールアウトステータス、作成時刻を出力。リンク済みプロジェクトの互換性カバレッジは:
+
+```bash
+better-update builds compatibility-matrix
+```
+
+各チャンネルが現在カバーするランタイムバージョンと、欠けているビルドを表示。

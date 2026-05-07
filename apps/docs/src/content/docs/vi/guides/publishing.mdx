@@ -1,0 +1,154 @@
+---
+title: Publish update
+description: Cách publish OTA update JS/asset bằng CLI better-update — branch, signed payload, promote.
+---
+
+import { Steps, Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+
+Một "publish" tạo một **update group** mới — JS bundle cùng asset của nó — và đăng ký dưới một **branch** cho một runtime version cụ thể. Device trên channel trỏ về branch đó (với runtime version khớp) sẽ pull về lúc check manifest tiếp theo.
+
+## Mental model
+
+<div class="bu-flow">
+  <div class="bu-flow-row">
+    <span class="bu-chip">publish</span>
+    <span class="bu-arrow">→</span>
+    <span class="bu-chip">branch</span>
+    <span class="bu-arrow">←</span>
+    <span class="bu-chip">channel</span>
+    <span class="bu-arrow">→</span>
+    <span class="bu-chip">device</span>
+  </div>
+</div>
+
+Bạn publish vào _branch_. _Channel_ trỏ về branch. Device đọc channel set lúc build, fetch từ manifest URL trong `app.json`.
+
+## Yêu cầu
+
+- CLI đã login: `better-update login`.
+- Project đã link: `better-update init` (ghi `projectId` vào `app.json`).
+- Một branch để publish: `better-update branches create --name main`.
+
+## Publish cơ bản
+
+<Steps>
+
+1. Publish vào branch:
+
+   ```bash
+   better-update update publish --branch main --message "Fix login crash trên iOS 17"
+   ```
+
+   CLI tự chạy `expo export`, hash mọi output, upload lên server (server stream sang R2 qua presigned URL), đăng ký update group.
+
+2. Bạn sẽ thấy:
+
+   ```
+   ✓ Exported (4.2s)
+   ✓ Uploaded 1 bundle, 23 assets (3.1s)
+   ✓ Update group e7f3… published to branch main
+   ```
+
+</Steps>
+
+Bạn không cần tự chạy `expo export` — `update publish` làm rồi.
+
+## Mọi flag của `update publish`
+
+| Flag                              | Default      | Ghi chú                                                  |
+| --------------------------------- | ------------ | -------------------------------------------------------- |
+| `--branch <name>`                 | —            | Branch target. Phải đã tồn tại.                          |
+| `--platform <ios\|android\|all>`  | `all`        | Giới hạn publish cho 1 platform.                         |
+| `--message <text>`                | —            | Mô tả tự do. Hiện trên console + audit log.              |
+| `--environment <name>`            | `production` | Scope env var để inject lúc export.                      |
+| `--auto`                          | tắt          | Bỏ mọi prompt (dùng trong CI).                           |
+| `--clear`                         | tắt          | Drop asset hiện có trước khi upload (re-upload toàn bộ). |
+| `--rollout-percentage <1-100>`    | —            | Rollout ban đầu mức update. Bỏ qua = 100%.               |
+| `--manifest-body-file <path>`     | —            | Pre-built signed manifest body (cả 2 platform).          |
+| `--signature-file <path>`         | —            | Signature cho manifest body.                             |
+| `--certificate-chain-file <path>` | —            | Cert chain.                                              |
+| `--manifest-body-file-ios`        | —            | Override iOS-only. Cùng bộ ba cho `-android`.            |
+
+Variant `*-file-{ios,android}` để khi muốn signed payload khác nhau theo platform.
+
+## Runtime version
+
+CLI đọc `runtimeVersion` từ `app.json` (hoặc tính theo policy đã cấu hình) và lưu vào update. Manifest chỉ serve cho device có binary đã cài advertise runtime version khớp.
+
+<Tabs>
+  <TabItem label="Policy appVersion">
+    Update tương thích với build có chung `app.json` `version`. Bump `version` mỗi khi thay đổi
+    native code.
+  </TabItem>
+  <TabItem label="Policy fingerprint">
+    `expo-updates` (và Better Update) tính hash native source (`ios/`, `android/`, native deps).
+    Cùng hash → cùng runtime. Khuyên dùng cho project có custom native code.
+  </TabItem>
+  <TabItem label="Policy sdkVersion">
+    Compatibility theo Expo SDK major version. Chỉ an toàn cho app kiểu Expo-Go không có custom
+    native module.
+  </TabItem>
+</Tabs>
+
+<Aside type="caution">
+  Nếu publish runtime version mà không build nào installed match, không device nào nhận. Dùng
+  `better-update fingerprint generate` và `better-update builds compatibility-matrix` để verify.
+</Aside>
+
+## Publish 1 platform
+
+```bash
+better-update update publish \
+  --branch main \
+  --platform ios \
+  --message "Hotfix iOS-only Safari WebView"
+```
+
+Hữu ích cho hotfix không áp dụng cho platform kia.
+
+## Promote update sang channel khác
+
+Publish 1 lần vào staging, promote sang production sau QA — không re-export, không upload lại:
+
+```bash
+# Cut release candidate sang staging
+better-update update publish --branch staging --message "v1.4 candidate"
+
+# Lấy ID
+better-update update list --branch staging --limit 1
+
+# Promote update group sang channel production
+better-update update promote <updateId> --channel production
+```
+
+Promote tạo update record mới trên channel target tham chiếu cùng bundle và asset — không thêm byte nào cho device tải.
+
+`promote` nhận cùng flag `--manifest-body-file` / `--signature-file` / `--certificate-chain-file` nếu muốn signed payload riêng.
+
+## Inspect update đã publish
+
+```bash
+better-update update list --branch main --limit 20
+```
+
+Hoặc trong web console: **Project → Updates**. Bạn sẽ thấy size, R2 key, signing status, và (khi dashboard wired) install count + crash rate.
+
+## Audit log
+
+Mọi publish, promote, rollback, và đổi rollout đều record với actor, timestamp, diff:
+
+```bash
+better-update audit-logs list --limit 50
+```
+
+Filter theo resource:
+
+```bash
+better-update audit-logs list --resource-type update --from 2026-05-01 --to 2026-05-07
+```
+
+## Tiếp theo
+
+- **[Channel và branch](/vi/guides/channels-and-branches/)** — wire branch lên channel ra sao.
+- **[Rollout và rollback](/vi/guides/rollouts-and-rollbacks/)** — staged delivery và instant revert.
+- **[Environment](/vi/guides/environments/)** — env var server-side inject lúc publish.

@@ -1,0 +1,380 @@
+---
+title: CLI reference
+description: Mọi command, mọi flag, lấy từ source CLI better-update.
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+Đây là reference đầy đủ cho CLI `better-update`, generate từ source ở [`apps/cli/src/commands`](https://github.com/better-update/better-update/tree/main/apps/cli/src/commands).
+
+```bash
+# Cài 1 trong các cách
+bunx @better-update/cli <command>
+bun add -g @better-update/cli && better-update <command>
+```
+
+## Top-level
+
+```
+better-update
+├── login            Đăng nhập better-update
+├── logout           Xóa token đã lưu
+├── init             Link Expo project local với 1 better-update project
+├── status           Hiện status project (credential, build)
+├── projects         Quản lý project
+├── branches         Quản lý branch
+├── update           Quản lý update (publish, list, promote, rollback, rollout)
+├── channels         Quản lý channel (và channel rollout)
+├── build            Build app local và (tùy chọn) upload
+├── builds           Quản lý build đã upload
+├── credentials      Quản lý credential ký
+├── env              Quản lý env var server-side
+├── fingerprint      Tính hoặc so sánh runtime fingerprint
+├── analytics        Xem analytics update / channel / platform
+└── audit-logs       Xem audit log
+```
+
+## Cấu hình & auth
+
+CLI đọc server URL từ (ưu tiên giảm dần):
+
+1. Env var `BETTER_UPDATE_URL` (API base URL).
+2. Env var `BETTER_UPDATE_WEB_URL` (web URL — cho callback `login`).
+3. `~/.better-update/config.json` field `baseUrl` và `webUrl`.
+4. Default: `https://graph.better-update.dev` và `https://better-update.dev`.
+
+Token auth từ:
+
+1. Env var `BETTER_UPDATE_TOKEN`.
+2. `~/.better-update/auth.json` (tạo bởi `login`).
+
+Project ID per Expo project đọc từ `expo.extra.betterUpdate.projectId` trong `app.json` (ghi bởi `init`).
+
+---
+
+## `login`
+
+```bash
+better-update login [--api-key]
+```
+
+Đăng nhập. Default mở browser ở `<webUrl>/auth/cli-login` và chờ callback. Với `--api-key`, prompt paste API token.
+
+| Flag        | Type    | Default | Ghi chú                                  |
+| ----------- | ------- | ------- | ---------------------------------------- |
+| `--api-key` | boolean | tắt     | Paste API key thủ công (setup headless). |
+
+Ghi `~/.better-update/auth.json` (mode `0600`).
+
+## `logout`
+
+```bash
+better-update logout
+```
+
+Xóa `~/.better-update/auth.json`. Không flag.
+
+## `init`
+
+```bash
+better-update init
+```
+
+Đọc `app.json`, tìm project hiện có theo `expo.slug`. Có → ghi project ID đó vào `expo.extra.betterUpdate.projectId`. Không có → tạo project mới (dùng `expo.name` hoặc `expo.slug` cho display) và ghi ID mới. Không flag.
+
+## `status`
+
+```bash
+better-update status
+```
+
+In info project đã link, số credential per platform, số build gần đây. Không flag.
+
+---
+
+## `projects`
+
+```bash
+better-update projects list [--query <q>] [--sort <key>] [--limit <n>] [--page <n>]
+better-update projects create --name <name> --slug <slug>
+better-update projects get <id>
+better-update projects rename <id> --name <new-name>
+better-update projects delete <id>
+```
+
+| Flag `projects list` | Default          | Ghi chú                               |
+| -------------------- | ---------------- | ------------------------------------- |
+| `--query`            | —                | Substring search trên name hoặc slug. |
+| `--sort`             | `lastActivityAt` | `lastActivityAt` hoặc `name`.         |
+| `--limit`            | `50`             | Page size, max 100.                   |
+| `--page`             | `1`              | Page number 1-based.                  |
+
+`projects rename` cần `--name` (display name mới).
+
+---
+
+## `branches`
+
+```bash
+better-update branches list
+better-update branches create --name <name>
+better-update branches rename <id> --name <new-name>
+better-update branches delete <id>
+```
+
+`list` operate trên project đã link. Không flag.
+
+---
+
+## `update`
+
+### `update publish`
+
+```bash
+better-update update publish [flags]
+```
+
+| Flag                              | Default      | Ghi chú                                           |
+| --------------------------------- | ------------ | ------------------------------------------------- |
+| `--branch <name>`                 | —            | Branch target.                                    |
+| `--platform <ios\|android\|all>`  | `all`        | Giới hạn 1 platform.                              |
+| `--message <text>`                | —            | Mô tả tự do.                                      |
+| `--environment <name>`            | `production` | Env var environment để inject lúc export.         |
+| `--auto`                          | tắt          | Bỏ prompt (CI mode).                              |
+| `--clear`                         | tắt          | Drop asset hiện có trước khi upload.              |
+| `--rollout-percentage <1-100>`    | —            | Phần trăm rollout ban đầu. Bỏ qua = 100%.         |
+| `--manifest-body-file <path>`     | —            | Pre-built signed manifest body.                   |
+| `--signature-file <path>`         | —            | Signature cho manifest body.                      |
+| `--certificate-chain-file <path>` | —            | Cert chain.                                       |
+| `--manifest-body-file-ios`        | —            | Override iOS-only (signature/chain cũng vậy).     |
+| `--manifest-body-file-android`    | —            | Override Android-only (signature/chain cũng vậy). |
+
+Tự gọi `expo export` — bạn KHÔNG cần export trước.
+
+### `update list`
+
+```bash
+better-update update list [--branch <name>] [--limit <n>]
+```
+
+| Flag       | Default | Ghi chú                 |
+| ---------- | ------- | ----------------------- |
+| `--branch` | —       | Filter theo tên branch. |
+| `--limit`  | `20`    | Số kết quả tối đa.      |
+
+### `update delete`
+
+```bash
+better-update update delete <groupId>
+```
+
+### `update promote`
+
+```bash
+better-update update promote <updateId> --channel <name>
+  [--manifest-body-file <path>]
+  [--signature-file <path>]
+  [--certificate-chain-file <path>]
+```
+
+Promote update group hiện có sang channel.
+
+### `update rollback`
+
+```bash
+better-update update rollback --branch <name>
+  [--platform <ios|android|all>]
+  [--message <text>]
+  [--commit-time <ISO timestamp>]
+  [--directive-body-file <path>]
+  [--signature-file <path>]
+  [--certificate-chain-file <path>]
+```
+
+Tạo rollback update group trên `--branch`. Device fallback về embedded bundle. `--commit-time` tùy chọn rollback chỉ update publish sau timestamp đó.
+
+### `update rollout`
+
+```bash
+better-update update rollout set <updateId> <percentage>
+better-update update rollout complete <updateId>      # → 100%
+better-update update rollout revert <updateId>        # → 0%
+```
+
+`<percentage>` 1–100, positional.
+
+---
+
+## `channels`
+
+```bash
+better-update channels list
+better-update channels create --name <name> --branch <branch-name>
+better-update channels update <id> --branch <new-branch-name>     # relink
+better-update channels pause <id>
+better-update channels resume <id>
+better-update channels delete <id>
+```
+
+<Aside type="caution">
+  Không có command `channels point`. Dùng `channels update <id> --branch <name>` để repoint.
+</Aside>
+
+### `channels rollout`
+
+Traffic split mức branch (migrate channel từ branch này sang branch khác từ từ).
+
+```bash
+better-update channels rollout create <channelId> --branch <new-branch> --percentage <1-100>
+better-update channels rollout update <channelId> --percentage <1-100>
+better-update channels rollout complete <channelId>
+better-update channels rollout revert <channelId>
+```
+
+---
+
+## `build` (số ít)
+
+```bash
+better-update build --platform <ios|android> [flags]
+```
+
+Chạy native build local. Download credential từ server, chạy `expo prebuild`, sau đó `xcodebuild`/`gradlew`.
+
+| Flag           | Default      | Ghi chú                                  |
+| -------------- | ------------ | ---------------------------------------- |
+| `--platform`   | —            | Bắt buộc. `ios` hoặc `android`.          |
+| `--profile`    | `production` | Tên build profile.                       |
+| `--message`    | —            | Mô tả tự do trên build record.           |
+| `--upload`     | `true`       | Negatable: `--no-upload` để skip upload. |
+| `--raw-output` | tắt          | Raw output Gradle/Xcode thay vì spinner. |
+
+## `builds` (số nhiều)
+
+```bash
+better-update builds list [--platform <ios|android>] [--limit <n>]
+better-update builds get <id>
+better-update builds delete <id>
+better-update builds install-link <id>
+better-update builds compatibility-matrix
+better-update builds upload <artifact-path> --platform <ios|android> [--profile <p>] [--message <m>]
+```
+
+| Flag `builds list` | Default | Ghi chú               |
+| ------------------ | ------- | --------------------- |
+| `--platform`       | —       | Filter theo platform. |
+| `--limit`          | `10`    | Số kết quả tối đa.    |
+
+`builds install-link` trả `artifactUrl`, tùy chọn `installUrl` (iOS), và `expires` timestamp.
+
+`builds compatibility-matrix` hiện coverage runtime version per channel và flag build thiếu.
+
+`builds upload` upload artifact đã build sẵn (`.ipa`/`.apk`/`.aab`) không chạy build.
+
+---
+
+## `credentials`
+
+```bash
+better-update credentials list [--platform <ios|android>]
+
+better-update credentials upload \
+  --platform <ios|android> \
+  --type <type> \
+  --name <display-name> \
+  --file <path-to-credential> \
+  [--password <pw>] \
+  [--key-alias <alias>] \
+  [--key-password <pw>] \
+  [--key-id <id>] \
+  [--issuer-id <id>] \
+  [--apple-team-identifier <id>]
+
+better-update credentials delete <id> --platform <ios|android> --type <type>
+```
+
+Giá trị `--type` hợp lệ:
+
+- iOS: `distribution-certificate`, `provisioning-profile`, `push-key`, `asc-api-key`
+- Android: `keystore`, `google-service-account-key`
+
+---
+
+## `env`
+
+```bash
+better-update env list [--environment <name>]
+better-update env get <id>
+better-update env set <KEY=VALUE> [--environment <name>] [--visibility <v>]
+better-update env delete <key> [--environment <name>]
+better-update env import <file> [--environment <name>]
+better-update env export [--environment <name>]
+better-update env pull [--environment <name>]
+```
+
+| Flag            | Default      | Ghi chú                                  |
+| --------------- | ------------ | ---------------------------------------- |
+| `--environment` | `production` | Scope environment.                       |
+| `--visibility`  | `plaintext`  | `plaintext`, `sensitive`, hoặc `secret`. |
+
+- `set` upsert. Positional là `KEY=VALUE`.
+- `get` nhận env var **ID**.
+- `delete` nhận **tên key**.
+- `export` in `KEY='value'` mỗi dòng. `pull` in `export KEY='value'` (source được).
+- Var visibility `secret` không trả qua `export` hoặc `pull`.
+
+---
+
+## `fingerprint`
+
+```bash
+better-update fingerprint generate
+better-update fingerprint compare <hash>
+```
+
+`generate` tính fingerprint của project root hiện tại và in hash + số file source.
+
+`compare` tính fingerprint local và so với hash đưa vào. Exit `0` khi match, `1` khi mismatch (in 2 hash).
+
+---
+
+## `analytics`
+
+```bash
+better-update analytics adoption [--period <1d|7d|30d|90d>]
+better-update analytics updates --update-id <id> [--period <1d|7d|30d|90d>]
+better-update analytics channels --channel <name> [--period <1d|7d|30d|90d>]
+better-update analytics platforms [--period <1d|7d|30d|90d>]
+```
+
+`--period` default về window do server quyết định khi bỏ qua.
+
+---
+
+## `audit-logs`
+
+```bash
+better-update audit-logs list [flags]
+```
+
+| Flag              | Default | Ghi chú                    |
+| ----------------- | ------- | -------------------------- |
+| `--resource-type` | —       | Filter theo resource type. |
+| `--from`          | —       | ISO timestamp lower bound. |
+| `--to`            | —       | ISO timestamp upper bound. |
+| `--limit`         | `100`   | Số kết quả tối đa.         |
+
+---
+
+## Exit code
+
+| Code | Ý nghĩa                                                |
+| ---- | ------------------------------------------------------ |
+| `0`  | Thành công.                                            |
+| `1`  | Failure chung.                                         |
+| `2`  | Validation error (flag sai, thiếu arg bắt buộc).       |
+| `3`  | Cần auth hoặc auth hết hạn.                            |
+| `4`  | Lỗi network hoặc server.                               |
+| `5`  | Resource không tìm thấy (project, update, channel, …). |
+
+Dùng trong CI để branch theo loại failure.

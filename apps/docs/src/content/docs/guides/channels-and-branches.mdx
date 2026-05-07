@@ -1,0 +1,169 @@
+---
+title: Channels and branches
+description: How channels point at branches, when to use which, and the commands to manage both.
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+
+Better Update splits "what version is this" from "who gets it":
+
+- A **branch** is a stream of updates. You publish _to_ a branch. Branches are server-side; they don't have to match git branches.
+- A **channel** is what your built app reads. A channel points at _one_ branch at a time. Change the pointer and every device on that channel switches.
+
+The indirection is what lets you ship a release candidate, vet it, and then move all of production onto it with one command — no rebuild.
+
+## When to create a new branch vs new channel
+
+| You want to…                                            | Do this                                                    |
+| ------------------------------------------------------- | ---------------------------------------------------------- |
+| Cut a release candidate, then promote to prod after QA  | New **branch** (e.g. `release-v1.4`); promote later.       |
+| Ship a feature flag for one tester group                | New **channel** (e.g. `internal`) wired into a beta build. |
+| Roll back: get a known-good update back onto production | Repoint the **channel** at the previous branch.            |
+| Long-lived environment (staging, preview, prod)         | One **channel** per environment, each with its own branch. |
+
+## Branches
+
+Branches are flat — no parents, no merging. Each one is a sequence of update groups.
+
+```bash
+better-update branches list
+better-update branches create --name release-v1.4
+better-update branches rename <id> --name release-v1-4
+better-update branches delete <id>
+```
+
+You publish to a branch with `update publish --branch <name>` ([Publishing](/guides/publishing/)).
+
+## Channels
+
+Each channel has:
+
+- A name (e.g. `production`).
+- A `branchId` it currently points at.
+- A `paused` flag (paused channels stop serving new manifests).
+- An optional in-progress branch rollout (see below).
+
+```bash
+better-update channels list
+better-update channels create --name production --branch main
+better-update channels update <id> --branch release-v1.4   # repoint
+better-update channels pause <id>
+better-update channels resume <id>
+better-update channels delete <id>
+```
+
+<Aside type="caution">
+  **There is no `channels point` command.** Use `channels update <id> --branch <name>` to relink a channel to a different branch.
+</Aside>
+
+## How devices pick a channel
+
+The channel a device reads from is set at _build time_, not at runtime. In your build configuration (`eas.json` or your custom build profile), set the channel name. After the build, the app fetches manifests for that channel only — the channel cannot be changed without a new native build.
+
+This is why you create channels once per environment (`production`, `staging`, `internal`) and then move them between branches with `channels update`. You never recompile to change which update is served.
+
+## Worked example: cut, vet, promote
+
+<Steps>
+
+1. Engineering merges work into the `main` branch all week. The `production` channel is pointed at `main`.
+
+   <div class="bu-flow">
+     <div class="bu-flow-row">
+       <span class="bu-chip">production</span>
+       <span class="bu-arrow">→</span>
+       <span class="bu-chip bu-chip--muted">main</span>
+     </div>
+   </div>
+
+2. Cut a release candidate by creating a new branch and re-publishing the same code there:
+
+   ```bash
+   better-update branches create --name release-2026-05
+   better-update update publish --branch release-2026-05 --message "RC for May release"
+   ```
+
+3. Wire `staging` to the new branch and have QA test:
+
+   ```bash
+   better-update channels update <staging-channel-id> --branch release-2026-05
+   ```
+
+   <div class="bu-flow">
+     <div class="bu-flow-row">
+       <span class="bu-chip">staging</span>
+       <span class="bu-arrow">→</span>
+       <span class="bu-chip bu-chip--muted">release-2026-05</span>
+     </div>
+     <div class="bu-flow-row">
+       <span class="bu-chip">production</span>
+       <span class="bu-arrow">→</span>
+       <span class="bu-chip bu-chip--muted">main</span>
+     </div>
+   </div>
+
+4. After QA passes, repoint production:
+
+   ```bash
+   better-update channels update <production-channel-id> --branch release-2026-05
+   ```
+
+   <div class="bu-flow">
+     <div class="bu-flow-row">
+       <span class="bu-chip">staging</span>
+       <span class="bu-arrow">→</span>
+       <span class="bu-chip bu-chip--muted">release-2026-05</span>
+     </div>
+     <div class="bu-flow-row">
+       <span class="bu-chip">production</span>
+       <span class="bu-arrow">→</span>
+       <span class="bu-chip bu-chip--muted">release-2026-05</span>
+     </div>
+   </div>
+
+5. If something goes wrong, point production back at `main`:
+
+   ```bash
+   better-update channels update <production-channel-id> --branch main
+   ```
+
+</Steps>
+
+## Channel rollout: gradual branch migration
+
+The channel-level rollout sends a **percentage** of traffic from the channel's current branch to a _new_ branch, then ramps up. It's how you migrate an entire channel onto a new branch without a hard cutover.
+
+```bash
+# Start: 10% of devices on `production` start receiving from `release-2026-05`.
+better-update channels rollout create <channel-id> \
+  --branch release-2026-05 \
+  --percentage 10
+
+# Ramp.
+better-update channels rollout update <channel-id> --percentage 50
+
+# Done — channel is fully repointed.
+better-update channels rollout complete <channel-id>
+
+# Or revert.
+better-update channels rollout revert <channel-id>
+```
+
+`complete` makes the new branch the canonical pointer; `revert` sends everything back to the old one.
+
+<Aside type="tip">
+  Channel rollouts are **branch-level traffic splits**. Update rollouts (in the [next
+  guide](/guides/rollouts-and-rollbacks/)) are **per-update percentages**. You can use both — for
+  example, ramp a new branch on the channel to 100%, while individual updates inside that branch
+  each have their own rollout percentage.
+</Aside>
+
+## Inspect
+
+`channels list` prints ID, name, branch name, paused state, rollout status, and creation time. For the linked project's compatibility coverage:
+
+```bash
+better-update builds compatibility-matrix
+```
+
+This shows which runtime versions each channel currently covers and flags missing builds.

@@ -1,0 +1,129 @@
+---
+title: 环境变量
+description: 发布时注入的服务端环境变量。按环境分隔作用域,不必把密钥提交到 git。
+---
+
+import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+
+`env` 命令管理项目的**服务端**环境变量。它们会在发布时注入 `expo export`,所以像 API key 这类值存放在服务器上,不在你的 repo 里。
+
+这**不是**本地 `.env` 文件管理。值保存在 Better Update 上,`update publish` 取回。
+
+## 为什么用服务端环境变量?
+
+- 密钥不进 git。
+- 不同环境(`production`、`staging`、`development`)拿不同值,不需要按分支分别配置。
+- 新开发者无须有人额外发 `.env` 文件给他。
+
+## 设置一个变量
+
+```bash
+better-update env set API_URL=https://api.example.com
+better-update env set STRIPE_KEY=sk_live_xxx --visibility secret
+better-update env set FEATURE_FLAG=true --environment staging
+```
+
+位置参数是 `KEY=VALUE`。`set` 是幂等的 — 不存在就创建,存在就更新。
+
+| 标志                   | 默认         | 备注                                                 |
+| ---------------------- | ------------ | ---------------------------------------------------- |
+| `--environment <name>` | `production` | 该变量所在的环境作用域。                             |
+| `--visibility <v>`     | `plaintext`  | `plaintext`、`sensitive` 或 `secret`。影响谁能读到。 |
+
+`secret` 值在创建后只写不读 — 仪表盘和 CLI 都不再展示。
+
+## 列表
+
+```bash
+better-update env list
+better-update env list --environment staging
+```
+
+## 取一个
+
+```bash
+better-update env get <env-var-id>
+```
+
+位置参数是**ID**,不是 key 名称(用 `env list` 找)。
+
+## 删除
+
+```bash
+better-update env delete API_URL
+better-update env delete API_URL --environment staging
+```
+
+这里的位置参数*就是* key 名称(不是 ID)。
+
+## 从 `.env` 文件批量导入
+
+```bash
+better-update env import .env.production
+better-update env import .env.staging --environment staging
+```
+
+每行一个 `KEY=VALUE`。导入的所有变量都以 `plaintext` 可见性保存 — 之后可用 `env set ... --visibility secret` 调整敏感项。
+
+## 导出到文件
+
+往返导出(行首没有 `export`):
+
+```bash
+better-update env export > .env.production.cached
+```
+
+每行 `KEY='value'`。`secret` 可见性的变量被跳过(服务器无法返回)。
+
+## 拉到 shell
+
+可 source 的 shell 格式(每行 `export KEY='value'`):
+
+```bash
+eval "$(better-update env pull --environment staging)"
+```
+
+现在 `$STRIPE_KEY`、`$API_URL` 等已设置在当前 shell。
+
+## 发布时注入了什么
+
+运行 `update publish --environment <name>` 时,服务器在该环境里查变量并注入到导出。Expo app 内:
+
+```ts
+import Constants from "expo-constants";
+
+const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+// 对非公开值,只在服务器代码路径中使用。
+```
+
+没有 `EXPO_PUBLIC_` 前缀的变量也会在构建时注入,但只在 Expo 通常暴露的地方可用。
+
+<Aside type="caution">
+  任何进入 JS bundle 的内容,理论上都可以从已发布的 app 中提取。不要用 Better Update
+  环境变量来「隐藏」必须保密的凭据 — 改用后端。`secret`
+  可见性是用来控制*团队中谁可以读取*该值,而不是把值硬化到设备提取无法触及。
+</Aside>
+
+## 可见性级别
+
+| 可见性      | Web 控制台可读?   | CLI 可读? | 用途                       |
+| ----------- | ----------------- | --------- | -------------------------- |
+| `plaintext` | 是                | 是        | 非敏感配置(URL、flag)。    |
+| `sensitive` | 仅 owner + 管理员 | 是        | API key、token。           |
+| `secret`    | 否(只写)          | 否        | 顶级密钥。无法导出或拉取。 |
+
+## 实例: 按环境配置
+
+```bash
+# Production
+better-update env set EXPO_PUBLIC_API_URL=https://api.example.com
+better-update env set STRIPE_KEY=sk_live_xxx --visibility secret
+
+# Staging
+better-update env set EXPO_PUBLIC_API_URL=https://staging.api.example.com --environment staging
+better-update env set STRIPE_KEY=sk_test_xxx --environment staging --visibility sensitive
+
+# 发布 — 选取对应集合
+better-update update publish --branch production --environment production
+better-update update publish --branch staging --environment staging
+```

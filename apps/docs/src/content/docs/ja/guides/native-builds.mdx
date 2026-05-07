@@ -1,0 +1,177 @@
+---
+title: ネイティブビルド
+description: "`better-update build` でローカルに IPA / APK をビルド、資格情報を管理、1 つのプロジェクトからインストールリンクを配布。"
+---
+
+import { Steps, Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+
+OTA アップデートは、デバイス上のネイティブバイナリが一致するときのみ動作します。ネイティブコードを変更したとき (新しい依存関係、config-plugin の更新、ランタイムバージョンのバンプ) は新しいビルドが必要。Better Update には CLI コマンドもあります。
+
+関連する 2 グループ:
+
+- **`build`** (単数) — ローカルマシンでネイティブビルドを実行し、(オプションで) アーティファクトをアップロード。
+- **`builds`** (複数) — サーバーにアップロード済みのビルドレコードを管理。
+
+加えて、ビルドが必要とするキーストア / 証明書のための **`credentials`**、互換性検証のための **`fingerprint`**。
+
+## `build` — ローカルネイティブビルド
+
+```bash
+# iOS
+better-update build --platform ios
+
+# Android
+better-update build --platform android --profile production
+```
+
+何をするか:
+
+1. そのプラットフォームの資格情報をサーバーからダウンロード (各開発マシンに保管しなくて済む)。
+2. `expo prebuild --platform <ios|android>` を実行。
+3. iOS: `pod install`、`xcodebuild archive`、`xcodebuild exportArchive`。
+4. Android: `./gradlew :app:<assembleRelease|bundleRelease|...>`。
+5. オプションで結果の `.ipa` / `.apk` / `.aab` をサーバーへアップロード。
+
+### フラグ
+
+| フラグ                      | デフォルト   | 備考                                                                                  |
+| --------------------------- | ------------ | ------------------------------------------------------------------------------------- |
+| `--platform <ios\|android>` | —            | 必須。                                                                                |
+| `--profile <name>`          | `production` | ビルドプロファイル (`eas.json` のプロファイル名と一致)。                              |
+| `--message <text>`          | —            | 自由記述の説明、ビルドレコードに保存。                                                |
+| `--upload`                  | `true`       | ビルド後にアップロード。`--no-upload` でドライラン。                                  |
+| `--raw-output`              | オフ         | フォーマット済みスピナーではなく、Gradle/Xcode の生出力をストリーム。デバッグに有用。 |
+
+### 別の場所でビルドしたアーティファクトをアップロード
+
+別のパイプラインで作成した IPA があれば、`build` をスキップして `builds upload` を使用:
+
+```bash
+better-update builds upload ./MyApp.ipa --platform ios --profile production --message "Bitrise #1234 でビルド"
+```
+
+## `builds` — サーバーサイドビルドレコードの管理
+
+```bash
+better-update builds list
+better-update builds list --platform ios --limit 20
+
+better-update builds get <build-id>
+better-update builds delete <build-id>
+```
+
+### インストールリンク
+
+ダウンロード URL と iOS 用インストールリンク (itms-services マニフェスト使用) を取得:
+
+```bash
+better-update builds install-link <build-id>
+```
+
+出力:
+
+```
+artifactUrl: https://updates.example.com/builds/<id>/artifact.ipa?signed=...
+installUrl:  itms-services://?action=download-manifest&url=...      (iOS のみ)
+expires:     2026-05-08T12:00:00Z
+```
+
+QA やステークホルダーへ送ってアドホックインストール。署名付き URL は期限切れあり。
+
+### 互換性マトリクス
+
+「今日チャンネル X に公開したら、デバイスは受信するか?」への答え:
+
+```bash
+better-update builds compatibility-matrix
+```
+
+チャンネルごとに、アップロード済みビルドがカバーするランタイムバージョンを表示し、カバレッジが欠けているチャンネルをフラグ。公開前に確信がないときに実行。
+
+## `credentials` — 署名材料をサーバーサイドに保管
+
+資格情報を各開発者のラップトップに置かないように、サーバーに (暗号化して) 保管。`build` が必要時にダウンロード。
+
+```bash
+better-update credentials list
+better-update credentials list --platform ios
+```
+
+### アップロード
+
+```bash
+better-update credentials upload \
+  --platform ios \
+  --type distribution-certificate \
+  --name "App Store distribution 2026" \
+  --file ./AppStore.p12 \
+  --password "p12-password" \
+  --apple-team-identifier ABC123XYZ
+```
+
+サポートされる `--type` 値:
+
+| プラットフォーム | タイプ                       | 必要な追加フラグ                              |
+| ---------------- | ---------------------------- | --------------------------------------------- |
+| iOS              | `distribution-certificate`   | `--password`、`--apple-team-identifier`       |
+| iOS              | `provisioning-profile`       | (追加なし)                                    |
+| iOS              | `push-key`                   | `--key-id`、`--apple-team-identifier`         |
+| iOS              | `asc-api-key`                | `--key-id`、`--issuer-id`                     |
+| Android          | `keystore`                   | `--password`、`--key-alias`、`--key-password` |
+| Android          | `google-service-account-key` | (追加なし)                                    |
+
+### 削除
+
+```bash
+better-update credentials delete <id> --platform ios --type distribution-certificate
+```
+
+## `fingerprint` — ランタイム互換性チェック
+
+Better Update は Expo のフィンガープリントを使ってビルドとアップデートが互換かを判断。同じネイティブソースでの 2 回のビルドは同じフィンガープリントハッシュを生成。
+
+### ローカルで計算
+
+```bash
+better-update fingerprint generate
+```
+
+ハッシュとソースファイル数を出力。
+
+### 期待ハッシュと比較
+
+```bash
+better-update fingerprint compare <hash>
+```
+
+ローカルフィンガープリントを計算して、渡されたハッシュと比較。一致で 0、不一致で 1 (両ハッシュを並列で出力) を終了コード。誰かがランタイムバージョンをバンプせずにネイティブコードを変更したときに CI で大声で失敗させるのに有用。
+
+## まとめ
+
+ネイティブコードを変更したときの典型的なフロー:
+
+<Steps>
+
+1. 資格情報が期限切れなら更新:
+
+   ```bash
+   better-update credentials upload --platform ios --type distribution-certificate ...
+   ```
+
+2. ローカルビルドを実行してアップロード:
+
+   ```bash
+   better-update build --platform ios --profile production --message "ネイティブモジュール X を追加"
+   ```
+
+3. 新しいビルドが対象チャンネルをカバーすることを確認:
+
+   ```bash
+   better-update builds compatibility-matrix
+   ```
+
+4. TestFlight / Play Console へ提出 (この部分は自分で — Better Update はストア配信は行いません)。
+
+5. 新しいバイナリがデバイス上にあると、そのランタイムバージョンに対して `update publish` で OTA アップデートを公開 ([公開](/ja/guides/publishing/))。
+
+</Steps>

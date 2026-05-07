@@ -1,0 +1,152 @@
+---
+title: 发布更新
+description: 如何用 better-update CLI 发布 OTA JS / 资源更新 — 分支、签名 payload、promote。
+---
+
+import { Steps, Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+
+一次「发布」会创建一个新的**更新组** — JS bundle 加上它的资源 — 并在某个**分支**下针对特定 runtime 版本注册。指向该分支的 channel 上、且 runtime 版本匹配的设备会在下次 manifest check 时拉取。
+
+## Mental model
+
+<div class="bu-flow">
+  <div class="bu-flow-row">
+    <span class="bu-chip">publish</span>
+    <span class="bu-arrow">→</span>
+    <span class="bu-chip">branch</span>
+    <span class="bu-arrow">←</span>
+    <span class="bu-chip">channel</span>
+    <span class="bu-arrow">→</span>
+    <span class="bu-chip">device</span>
+  </div>
+</div>
+
+你发布到*分支*。_channel_ 指向一个分支。设备读取构建时设置的 channel,通过 `app.json` 中的 manifest URL 拉取。
+
+## 前置条件
+
+- CLI 已登录: `better-update login`。
+- 项目已关联: `better-update init`(把 `projectId` 写入 `app.json`)。
+- 一个目标分支: `better-update branches create --name main`。
+
+## 基础发布
+
+<Steps>
+
+1. 发布到分支:
+
+   ```bash
+   better-update update publish --branch main --message "修复 iOS 17 登录崩溃"
+   ```
+
+   CLI 在内部运行 `expo export`,对每个输出 hash,上传到服务器(服务器通过预签名 URL 流入 R2),并注册更新组。
+
+2. 你会看到:
+
+   ```
+   ✓ Exported (4.2s)
+   ✓ Uploaded 1 bundle, 23 assets (3.1s)
+   ✓ Update group e7f3… published to branch main
+   ```
+
+</Steps>
+
+你不需要自己运行 `expo export` — `update publish` 已经做了。
+
+## `update publish` 全部标志
+
+| 标志                              | 默认         | 备注                                      |
+| --------------------------------- | ------------ | ----------------------------------------- |
+| `--branch <name>`                 | —            | 目标分支。必须已存在。                    |
+| `--platform <ios\|android\|all>`  | `all`        | 限制为单一平台。                          |
+| `--message <text>`                | —            | 自由文本描述。在控制台 + 审计日志中显示。 |
+| `--environment <name>`            | `production` | 导出时注入的环境变量作用域。              |
+| `--auto`                          | 关闭         | 跳过所有交互提示(用于 CI)。               |
+| `--clear`                         | 关闭         | 上传前删除现有资源(完整重传)。            |
+| `--rollout-percentage <1-100>`    | —            | 初始 update-级 rollout。省略表示 100%。   |
+| `--manifest-body-file <path>`     | —            | 预构建签名 manifest 主体(双平台)。        |
+| `--signature-file <path>`         | —            | manifest 主体的签名。                     |
+| `--certificate-chain-file <path>` | —            | 签名所用证书链。                          |
+| `--manifest-body-file-ios`        | —            | 仅 iOS 覆盖。`-android` 也有同三组。      |
+
+`*-file-{ios,android}` 变体用于希望每个平台有不同签名 payload 的情形。
+
+## Runtime 版本
+
+CLI 从 `app.json` 读取 `runtimeVersion`(或按你配置的 policy 计算),并保存到更新里。manifest 仅服务给已安装二进制公布的 runtime 版本与之匹配的设备。
+
+<Tabs>
+  <TabItem label="appVersion policy">
+    更新与共享 `app.json` `version` 的构建兼容。修改原生代码时手动 bump `version`。
+  </TabItem>
+  <TabItem label="fingerprint policy">
+    `expo-updates`(以及 Better Update)对原生源码 (`ios/`、`android/`、 原生依赖) 计算 hash。同 hash
+    → 同 runtime。带自定义原生代码的项目推荐。
+  </TabItem>
+  <TabItem label="sdkVersion policy">
+    兼容性绑定到 Expo SDK 主版本。仅对没有自定义原生模块的 Expo Go 风格 应用安全。
+  </TabItem>
+</Tabs>
+
+<Aside type="caution">
+  如果发布的 runtime 版本没有任何已安装构建匹配,任何设备都不会收到更新。 使用 `better-update
+  fingerprint generate` 和 `better-update builds compatibility-matrix` 验证。
+</Aside>
+
+## 仅发布单个平台
+
+```bash
+better-update update publish \
+  --branch main \
+  --platform ios \
+  --message "iOS 专属 Safari WebView 修复"
+```
+
+适合不影响另一平台的 hotfix。
+
+## 在 channel 间 promote 更新
+
+发布一次到 staging,QA 后 promote 到生产 — 无需重新导出、再次上传:
+
+```bash
+# 切一个发布候选到 staging
+better-update update publish --branch staging --message "v1.4 candidate"
+
+# 取得 ID
+better-update update list --branch staging --limit 1
+
+# 把那个更新组 promote 到 production channel
+better-update update promote <updateId> --channel production
+```
+
+Promote 在目标 channel 上创建一个引用同一 bundle 和资源的新更新记录 — 设备无需多下载任何字节。
+
+`promote` 接受相同的 `--manifest-body-file` / `--signature-file` / `--certificate-chain-file` 标志,适用于希望分别签名的情形。
+
+## 检视已发布更新
+
+```bash
+better-update update list --branch main --limit 20
+```
+
+或在 Web 控制台: **Project → Updates**。可以看到大小、R2 keys、签名状态,以及(当 dashboard 接入时)安装数和崩溃率。
+
+## 审计日志
+
+每次发布、promote、回滚和 rollout 变更都用 actor、时间戳、diff 记录:
+
+```bash
+better-update audit-logs list --limit 50
+```
+
+按资源过滤:
+
+```bash
+better-update audit-logs list --resource-type update --from 2026-05-01 --to 2026-05-07
+```
+
+## 下一步
+
+- **[Channel 和分支](/zh-cn/guides/channels-and-branches/)** — 把分支接入 channel。
+- **[灰度与回滚](/zh-cn/guides/rollouts-and-rollbacks/)** — 阶段交付,即时回退。
+- **[环境](/zh-cn/guides/environments/)** — 发布时注入的服务端环境变量。

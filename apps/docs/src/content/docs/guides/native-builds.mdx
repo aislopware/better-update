@@ -1,0 +1,177 @@
+---
+title: Native builds
+description: Build IPAs and APKs locally with `better-update build`, manage credentials, and distribute install links from one project.
+---
+
+import { Steps, Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+
+OTA updates work only when the native binary on the device matches. When you change native code (a new dep, a config-plugin update, a runtime version bump), you need a new build. Better Update has CLI commands for that too.
+
+There are two related groups:
+
+- **`build`** (singular) — runs a native build on your local machine and (optionally) uploads the artifact.
+- **`builds`** (plural) — manages already-uploaded build records on the server.
+
+Plus **`credentials`** for the keystores / certificates the build needs, and **`fingerprint`** for verifying compatibility.
+
+## `build` — local native build
+
+```bash
+# iOS
+better-update build --platform ios
+
+# Android
+better-update build --platform android --profile production
+```
+
+What it does:
+
+1. Downloads the credentials for that platform from the server (so they don't live on every dev machine).
+2. Runs `expo prebuild --platform <ios|android>`.
+3. iOS: `pod install`, `xcodebuild archive`, `xcodebuild exportArchive`.
+4. Android: `./gradlew :app:<assembleRelease|bundleRelease|...>`.
+5. Optionally uploads the resulting `.ipa` / `.apk` / `.aab` to the server.
+
+### Flags
+
+| Flag                        | Default      | Notes                                                                                  |
+| --------------------------- | ------------ | -------------------------------------------------------------------------------------- |
+| `--platform <ios\|android>` | —            | Required.                                                                              |
+| `--profile <name>`          | `production` | Build profile (matches your `eas.json` profile names).                                 |
+| `--message <text>`          | —            | Free-form description, stored on the build record.                                     |
+| `--upload`                  | `true`       | Upload after build. Use `--no-upload` for dry runs.                                    |
+| `--raw-output`              | off          | Stream raw Gradle/Xcode output instead of the formatted spinner. Useful for debugging. |
+
+### Upload an artifact built elsewhere
+
+If you already have an IPA from another pipeline, skip `build` and use `builds upload`:
+
+```bash
+better-update builds upload ./MyApp.ipa --platform ios --profile production --message "Built on Bitrise #1234"
+```
+
+## `builds` — manage server-side build records
+
+```bash
+better-update builds list
+better-update builds list --platform ios --limit 20
+
+better-update builds get <build-id>
+better-update builds delete <build-id>
+```
+
+### Install links
+
+Get a download URL plus an iOS-friendly install link (uses an itms-services manifest):
+
+```bash
+better-update builds install-link <build-id>
+```
+
+Output:
+
+```
+artifactUrl: https://updates.example.com/builds/<id>/artifact.ipa?signed=...
+installUrl:  itms-services://?action=download-manifest&url=...      (iOS only)
+expires:     2026-05-08T12:00:00Z
+```
+
+Send to QA or stakeholders for ad-hoc installs. The signed URL expires.
+
+### Compatibility matrix
+
+This is the answer to "if I publish to channel X today, will any devices receive it?":
+
+```bash
+better-update builds compatibility-matrix
+```
+
+It prints, per channel, which runtime versions are covered by uploaded builds — and flags channels with missing coverage. Run before a publish if you're unsure.
+
+## `credentials` — store signing material server-side
+
+So credentials don't live on every developer's laptop, they live on the server (encrypted). `build` downloads them on demand.
+
+```bash
+better-update credentials list
+better-update credentials list --platform ios
+```
+
+### Upload
+
+```bash
+better-update credentials upload \
+  --platform ios \
+  --type distribution-certificate \
+  --name "App Store distribution 2026" \
+  --file ./AppStore.p12 \
+  --password "p12-password" \
+  --apple-team-identifier ABC123XYZ
+```
+
+Supported `--type` values:
+
+| Platform | Type                         | Required extra flags                          |
+| -------- | ---------------------------- | --------------------------------------------- |
+| iOS      | `distribution-certificate`   | `--password`, `--apple-team-identifier`       |
+| iOS      | `provisioning-profile`       | (no extras)                                   |
+| iOS      | `push-key`                   | `--key-id`, `--apple-team-identifier`         |
+| iOS      | `asc-api-key`                | `--key-id`, `--issuer-id`                     |
+| Android  | `keystore`                   | `--password`, `--key-alias`, `--key-password` |
+| Android  | `google-service-account-key` | (no extras)                                   |
+
+### Delete
+
+```bash
+better-update credentials delete <id> --platform ios --type distribution-certificate
+```
+
+## `fingerprint` — runtime compatibility check
+
+Better Update uses Expo's fingerprint to decide whether a build and an update are compatible. Two runs of the build with the same native sources produce the same fingerprint hash.
+
+### Compute locally
+
+```bash
+better-update fingerprint generate
+```
+
+Prints the hash and the source-file count.
+
+### Compare against an expected hash
+
+```bash
+better-update fingerprint compare <hash>
+```
+
+Computes the local fingerprint and compares against the hash you pass. Exits 0 on match, 1 on mismatch (and prints both hashes side by side). Useful in CI to fail loudly when someone changes native code without bumping a runtime version.
+
+## Putting it together
+
+The typical flow when you change native code:
+
+<Steps>
+
+1. Update the credential if it's expiring:
+
+   ```bash
+   better-update credentials upload --platform ios --type distribution-certificate ...
+   ```
+
+2. Run a local build and upload:
+
+   ```bash
+   better-update build --platform ios --profile production --message "Add native module X"
+   ```
+
+3. Verify the new build covers the channels you care about:
+
+   ```bash
+   better-update builds compatibility-matrix
+   ```
+
+4. Submit to TestFlight / Play Console (you handle this part — Better Update doesn't ship to stores).
+
+5. Once the new binary is on devices, publish OTA updates against its runtime version with `update publish` ([Publishing](/guides/publishing/)).
+
+</Steps>
