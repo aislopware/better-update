@@ -5,7 +5,7 @@ sidebar:
   order: 2
 ---
 
-import { Tabs, TabItem, Aside, FileTree } from "@astrojs/starlight/components";
+import { Tabs, TabItem, Aside } from "@astrojs/starlight/components";
 
 `better-update` CLI は npm の `@better-update/cli` として配布されています。Bun ファースト ESM ですが Node ≥ 20 でも動きます。チームに合うインストール方式を選んでください。
 
@@ -154,10 +154,9 @@ better-update init
 
 ## CLI が読み書きするファイル
 
-<FileTree>
-  - ~/.better-update/ - config.json baseUrl + webUrl の上書き - auth.json 保存トークン (mode 0600) -
-  ./app.json expo.extra.betterUpdate.projectId
-</FileTree>
+- `~/.better-update/config.json` — `baseUrl` + `webUrl` の上書き
+- `~/.better-update/auth.json` — 保存されたログイントークン (mode `0600`)
+- `./app.json` — `expo.extra.betterUpdate.projectId`
 
 ## 次のステップ
 
