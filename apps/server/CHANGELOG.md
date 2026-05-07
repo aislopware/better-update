@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.6.0](https://github.com/better-update/better-update/compare/@better-update/server@0.5.0...@better-update/server@0.6.0) (2026-05-07)
+
+### Features
+
+* send transactional invite emails via Cloudflare Email Service ([3b4e80c](https://github.com/better-update/better-update/commit/3b4e80c4e05d97a4f670db0ac29c95bc36ef6e85)) - by @trancong12102
+
 ## [0.5.0](https://github.com/better-update/better-update/compare/@better-update/server@0.4.1...@better-update/server@0.5.0) (2026-05-07)
 
 ### Features
