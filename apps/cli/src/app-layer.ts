@@ -9,6 +9,7 @@ import { CliRuntimeLive } from "./services/cli-runtime";
 import { ConfigStoreLive } from "./services/config-store";
 import { PresignedUploadClientLive } from "./services/presigned-upload";
 import { UpdateAssetUploaderLive } from "./services/update-asset-uploader";
+import { VersionCheckLive } from "./services/version-check";
 
 const CliPlatformLayer = Layer.mergeAll(CliRuntimeLive, NodeContext.layer, FetchHttpClient.layer);
 const CliStoreLayer = Layer.mergeAll(AuthStoreLive, ConfigStoreLive, AppleSessionStoreLive).pipe(
@@ -20,10 +21,12 @@ const PresignedUploadLayer = PresignedUploadClientLive.pipe(Layer.provide(CliPla
 const UpdateAssetUploaderLayer = UpdateAssetUploaderLive.pipe(
   Layer.provide(Layer.mergeAll(ApiClientLayer, PresignedUploadLayer)),
 );
+const VersionCheckLayer = VersionCheckLive.pipe(Layer.provide(CliPlatformLayer));
 
 export const CliLive = Layer.mergeAll(
   CliAdapterDependencies,
   ApiClientLayer,
   PresignedUploadLayer,
   UpdateAssetUploaderLayer,
+  VersionCheckLayer,
 );
