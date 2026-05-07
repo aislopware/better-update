@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.8.2](https://github.com/better-update/better-update/compare/@better-update/cli@0.8.1...@better-update/cli@0.8.2) (2026-05-07)
+
+### Bug Fixes
+
+* **cli:** point default base URL to better-update.dev ([13f0d4c](https://github.com/better-update/better-update/commit/13f0d4c06d7ec973f19c91fcc89bfb058a8aca69)) - by @trancong12102
+
 ## [0.8.1](https://github.com/better-update/better-update/compare/@better-update/cli@0.8.0...@better-update/cli@0.8.1) (2026-05-07)
 
 ### Bug Fixes
