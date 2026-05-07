@@ -2,9 +2,17 @@ import { apiKey } from "@better-auth/api-key";
 import { fromHex, toHex } from "@better-update/encoding";
 import { betterAuth } from "better-auth";
 import { organization } from "better-auth/plugins";
+import { Effect } from "effect";
 
 import { API_KEY_PREFIX } from "./auth/constants";
 import { findFirstMembershipOrgId } from "./auth/memberships";
+import { provideCloudflareEnv } from "./cloudflare/context";
+import { EmailServiceLive } from "./cloudflare/email-service";
+import { EmailService } from "./domain/email-service";
+import { renderInviteEmail } from "./lib/email-templates";
+import { structuredLog } from "./middleware/logging";
+
+const INVITE_SENDER_FROM = "noreply@better-update.dev";
 
 // --- Workers-compatible password hashing (PBKDF2 via Web Crypto) ---
 // Better Auth's default scrypt (N:16384, r:16) needs ~64 MB and crashes workerd.
@@ -71,7 +79,7 @@ export const isGithubEnabled = (env: AuthEnv): boolean => {
   return id.length > 0 && secret.length > 0;
 };
 
-export const createAuth = (env: AuthEnv) => {
+export const createAuth = (env: AuthEnv, ctx?: ExecutionContext) => {
   const githubClientId = trimOptionalBinding(env.GITHUB_CLIENT_ID);
   const githubClientSecret = trimOptionalBinding(env.GITHUB_CLIENT_SECRET);
   const githubEnabled = githubClientId.length > 0 && githubClientSecret.length > 0;
@@ -162,6 +170,42 @@ export const createAuth = (env: AuthEnv) => {
         organizationLimit: 5,
         membershipLimit: 100,
         creatorRole: "owner",
+        sendInvitationEmail: async (data) => {
+          const acceptUrl = `${env.BETTER_AUTH_URL}/accept-invitation?id=${data.id}`;
+          const inviterTrimmed = data.inviter.user.name.trim();
+          const inviterName = inviterTrimmed.length > 0 ? inviterTrimmed : data.inviter.user.email;
+          const rendered = renderInviteEmail({
+            inviterName,
+            organizationName: data.organization.name,
+            recipientEmail: data.email,
+            role: data.role,
+            acceptUrl,
+          });
+
+          const program = Effect.gen(function* () {
+            const emailService = yield* EmailService;
+            yield* emailService.send({
+              from: INVITE_SENDER_FROM,
+              to: data.email,
+              subject: rendered.subject,
+              html: rendered.html,
+              text: rendered.text,
+            });
+          }).pipe(
+            Effect.provide(EmailServiceLive),
+            Effect.catchAll((error) =>
+              Effect.sync(() => {
+                structuredLog("error", "sendInvitationEmail failed", {
+                  invitationId: data.id,
+                  recipient: data.email,
+                  cause: error.cause instanceof Error ? error.cause.message : String(error.cause),
+                });
+              }),
+            ),
+          );
+
+          await Effect.runPromise(provideCloudflareEnv(program, env));
+        },
         schema: {
           session: {
             fields: {
@@ -250,6 +294,15 @@ export const createAuth = (env: AuthEnv) => {
 
     advanced: {
       useSecureCookies: true,
+      ...(ctx
+        ? {
+            backgroundTasks: {
+              handler: (promise: Promise<unknown>) => {
+                ctx.waitUntil(promise);
+              },
+            },
+          }
+        : {}),
     },
   });
 };

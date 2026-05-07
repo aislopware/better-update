@@ -6,6 +6,7 @@ import { AssetStorageLive } from "./cloudflare/asset-storage";
 import { BuildRuntimeLive } from "./cloudflare/build-runtime";
 import { CredentialArtifactsLive } from "./cloudflare/credential-artifacts";
 import { CryptoServiceLive } from "./cloudflare/crypto-service";
+import { EmailServiceLive } from "./cloudflare/email-service";
 import { ManifestCacheStorageLive } from "./cloudflare/manifest-cache-storage";
 import { UpdateCoordinatorLive } from "./cloudflare/update-coordinator";
 import { VaultLive } from "./cloudflare/vault";
@@ -43,6 +44,7 @@ import type { ManifestCacheStorage } from "./cloudflare/manifest-cache-storage";
 import type { UpdateCoordinator } from "./cloudflare/update-coordinator";
 import type { Vault } from "./cloudflare/vault";
 import type { CryptoService } from "./domain/crypto-service";
+import type { EmailService } from "./domain/email-service";
 import type {
   AnalyticsRepo,
   AndroidApplicationIdentifierRepo,
@@ -92,6 +94,7 @@ export type ServerInfrastructure =
   | CryptoService
   | DeviceRegistrationRequestRepo
   | DeviceRepo
+  | EmailService
   | EnvVarRepo
   | GoogleServiceAccountKeyRepo
   | IosBundleConfigurationRepo
@@ -133,6 +136,7 @@ export const AdapterLayer = Layer.mergeAll(
   BuildRuntimeLive,
   CredentialArtifactsLive,
   CryptoServiceLive,
+  EmailServiceLive,
   ManifestCacheStorageLive,
   UpdateCoordinatorLive,
   VaultLive.pipe(Layer.provide(CryptoServiceLive)),
