@@ -51,6 +51,12 @@
       "dataset": "update_events",
     },
   ],
+  "send_email": [
+    {
+      "name": "EMAIL",
+      "allowed_sender_addresses": ["noreply@better-update.dev"],
+    },
+  ],
   "durable_objects": {
     "bindings": [
       {

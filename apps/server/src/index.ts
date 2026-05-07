@@ -24,10 +24,10 @@ const internalError = () =>
   );
 
 /** Handle Better Auth routes with workarounds for dev-mode status codes and empty bodies */
-const handleAuth = async (request: Request, env: Env): Promise<Response> => {
+const handleAuth = async (request: Request, env: Env, ctx: ExecutionContext): Promise<Response> => {
   // eslint-disable-next-line functional/no-try-statements -- Better Auth may throw unhandled exceptions
   try {
-    const response = await createAuth(env).handler(request);
+    const response = await createAuth(env, ctx).handler(request);
 
     // Workaround: @cloudflare/vite-plugin crashes on HTTP 401 from auxiliary
     // Workers (all other 4xx/5xx codes work). Remap 401 → 403 in dev + test,
@@ -72,7 +72,7 @@ const routeRequest = async (
 
   // Better Auth handles its own auth routes
   if (url.pathname.startsWith("/api/auth")) {
-    return handleAuth(request, env);
+    return handleAuth(request, env, ctx);
   }
 
   // Public server capabilities — unauthenticated; called before login to
