@@ -5,7 +5,7 @@ sidebar:
   order: 2
 ---
 
-import { Tabs, TabItem, Aside, FileTree } from "@astrojs/starlight/components";
+import { Tabs, TabItem, Aside } from "@astrojs/starlight/components";
 
 CLI `better-update` ship dưới tên `@better-update/cli` trên npm. Bun-first ESM nhưng chạy trên Node ≥ 20 cũng OK. Chọn kiểu cài phù hợp team.
 
@@ -153,10 +153,9 @@ CLI đọc `app.json`, tìm project hiện có theo `expo.slug`, ghi project ID 
 
 ## File CLI đọc và ghi
 
-<FileTree>
-  - ~/.better-update/ - config.json baseUrl + webUrl override - auth.json token đã lưu (mode 0600) -
-  ./app.json expo.extra.betterUpdate.projectId
-</FileTree>
+- `~/.better-update/config.json` — `baseUrl` + `webUrl` override
+- `~/.better-update/auth.json` — token login đã lưu (mode `0600`)
+- `./app.json` — `expo.extra.betterUpdate.projectId`
 
 ## Tiếp theo
 

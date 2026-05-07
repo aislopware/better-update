@@ -5,7 +5,7 @@ sidebar:
   order: 2
 ---
 
-import { Tabs, TabItem, Aside, FileTree } from "@astrojs/starlight/components";
+import { Tabs, TabItem, Aside } from "@astrojs/starlight/components";
 
 The `better-update` CLI ships as `@better-update/cli` on npm. It is Bun-first ESM but runs on Node ≥ 20 too. Pick the install style that fits your team.
 
@@ -154,10 +154,9 @@ This reads `app.json`, looks up an existing project by `expo.slug`, and writes t
 
 ## Files the CLI reads and writes
 
-<FileTree>
-  - ~/.better-update/ - config.json baseUrl + webUrl overrides - auth.json saved token (mode 0600) -
-  ./app.json expo.extra.betterUpdate.projectId
-</FileTree>
+- `~/.better-update/config.json` — `baseUrl` + `webUrl` overrides
+- `~/.better-update/auth.json` — saved login token (mode `0600`)
+- `./app.json` — `expo.extra.betterUpdate.projectId`
 
 ## Where to next
 

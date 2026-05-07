@@ -41,7 +41,7 @@ export default defineConfig({
           translations: {
             vi: "Bắt đầu",
             ja: "はじめに",
-            "zh-CN": "入门指南",
+            "zh-cn": "入门指南",
           },
           items: [{ slug: "start/quickstart" }, { slug: "start/installation" }],
         },
@@ -50,7 +50,7 @@ export default defineConfig({
           translations: {
             vi: "Hướng dẫn",
             ja: "ガイド",
-            "zh-CN": "使用指南",
+            "zh-cn": "使用指南",
           },
           items: [
             { slug: "guides/publishing" },
@@ -65,7 +65,7 @@ export default defineConfig({
           translations: {
             vi: "Tham chiếu",
             ja: "リファレンス",
-            "zh-CN": "参考资料",
+            "zh-cn": "参考资料",
           },
           items: [{ slug: "reference/cli" }],
         },

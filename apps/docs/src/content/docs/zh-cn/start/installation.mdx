@@ -5,7 +5,7 @@ sidebar:
   order: 2
 ---
 
-import { Tabs, TabItem, Aside, FileTree } from "@astrojs/starlight/components";
+import { Tabs, TabItem, Aside } from "@astrojs/starlight/components";
 
 `better-update` CLI 在 npm 上以 `@better-update/cli` 发布。Bun-first ESM,但也支持 Node ≥ 20。挑选适合你团队的安装方式。
 
@@ -153,10 +153,9 @@ better-update init
 
 ## CLI 读写的文件
 
-<FileTree>
-  - ~/.better-update/ - config.json baseUrl + webUrl 覆盖 - auth.json 已保存的 token (mode 0600) -
-  ./app.json expo.extra.betterUpdate.projectId
-</FileTree>
+- `~/.better-update/config.json` — `baseUrl` + `webUrl` 覆盖
+- `~/.better-update/auth.json` — 已保存的登录 token (mode `0600`)
+- `./app.json` — `expo.extra.betterUpdate.projectId`
 
 ## 下一步
 
