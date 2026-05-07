@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.6.1](https://github.com/better-update/better-update/compare/@better-update/server@0.6.0...@better-update/server@0.6.1) (2026-05-07)
+
+### Bug Fixes
+
+* **server:** correct gc-utils cutoff bounds assertion ([ffaf417](https://github.com/better-update/better-update/commit/ffaf41736727ace0337c927f707c734dae7e8ca6)) - by @trancong12102
+
 ## [0.6.0](https://github.com/better-update/better-update/compare/@better-update/server@0.5.0...@better-update/server@0.6.0) (2026-05-07)
 
 ### Features

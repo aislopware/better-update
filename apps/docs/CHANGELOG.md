@@ -1,0 +1,18 @@
+# Change Log
+
+All notable changes to this project will be documented in this file.
+See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
+## 0.2.0 (2026-05-07)
+
+### Features
+
+* **docs:** add Starlight site focused on the CLI ([c6f0f73](https://github.com/better-update/better-update/commit/c6f0f73ca5e6dd270719c524fce85955942586be)) - by @miiny1206
+
+### Bug Fixes
+
+* **docs:** address Copilot review on PR [#4](https://github.com/better-update/better-update/issues/4) ([07334da](https://github.com/better-update/better-update/commit/07334daaa8add6c21eb8f13723db45ea8557a225)) - by @miiny1206
+* **docs:** make favicon a brand-mark diamond that adapts to theme ([dc76bed](https://github.com/better-update/better-update/commit/dc76bedc9ec2316f62061345bd1f29c9b136e2ba)) - by @miiny1206
+* **docs:** restore brand-mark circle behind the favicon diamond ([8060397](https://github.com/better-update/better-update/commit/8060397e258b2ddcc56733b61a37151508323e50)) - by @miiny1206
+* **docs:** split favicon into static light/dark SVGs ([1dd5364](https://github.com/better-update/better-update/commit/1dd53642e2000f575ad58bf69cffb48c1c3b1e17)) - by @miiny1206
+* **docs:** use a single fixed-palette favicon ([1691c10](https://github.com/better-update/better-update/commit/1691c10bd109d618492b7b4d1313b420938a6de9)) - by @miiny1206

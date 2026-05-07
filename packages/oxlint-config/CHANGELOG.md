@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.2.2](https://github.com/better-update/better-update/compare/@better-update/oxlint-config@0.2.1...@better-update/oxlint-config@0.2.2) (2026-05-07)
+
+### Bug Fixes
+
+* **cli:** address review findings + repair e2e fixture install ([8b1cee0](https://github.com/better-update/better-update/commit/8b1cee06c268f987c6e21d7de153ab9d48f90914)) - by @trancong12102
+
 ## [0.2.1](https://github.com/better-update/better-update/compare/@better-update/oxlint-config@0.2.0...@better-update/oxlint-config@0.2.1) (2026-05-06)
 
 ### Bug Fixes

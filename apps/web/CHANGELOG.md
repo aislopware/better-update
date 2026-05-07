@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.8.1](https://github.com/better-update/better-update/compare/@better-update/web@0.8.0...@better-update/web@0.8.1) (2026-05-07)
+
+### Bug Fixes
+
+* **web:** defer API key list refetch until reveal dialog closes ([90dfb6a](https://github.com/better-update/better-update/commit/90dfb6ac827246b1aeb54ae6fc0658d5f1955b65)) - by @miiny1206
+* **web:** lift create api key dialog and harden invalidation ([c0e5410](https://github.com/better-update/better-update/commit/c0e5410f3f1c827cf34b066cea5996ad155f6762)) - by @miiny1206
+
 ## [0.8.0](https://github.com/better-update/better-update/compare/@better-update/web@0.7.0...@better-update/web@0.8.0) (2026-05-07)
 
 ### Features

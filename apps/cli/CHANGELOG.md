@@ -3,6 +3,19 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.9.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.8.2...@better-update/cli@0.9.0) (2026-05-07)
+
+### Features
+
+* **cli:** support app.config.{ts,js,json} via @expo/config ([e0e7b35](https://github.com/better-update/better-update/commit/e0e7b35b16e5c42240da565efcd7ac8d7ecd1540)) - by @trancong12102
+* **cli:** warn user when a newer version is available ([8981596](https://github.com/better-update/better-update/commit/8981596c150f107c33509df1f7d0ee9e815f159c)) - by @trancong12102
+
+### Bug Fixes
+
+* **cli:** address Codex review feedback on expo config flow ([c999654](https://github.com/better-update/better-update/commit/c99965470feec2eb2ebf70b98efa7652e25fb8e5)) - by @trancong12102
+* **cli:** address PR review findings on version notifier ([bdd2658](https://github.com/better-update/better-update/commit/bdd26586257ec8f72c1245279fa93526daa51ee9)) - by @trancong12102
+* **cli:** address review findings + repair e2e fixture install ([8b1cee0](https://github.com/better-update/better-update/commit/8b1cee06c268f987c6e21d7de153ab9d48f90914)) - by @trancong12102
+
 ## [0.8.2](https://github.com/better-update/better-update/compare/@better-update/cli@0.8.1...@better-update/cli@0.8.2) (2026-05-07)
 
 ### Bug Fixes
