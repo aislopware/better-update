@@ -14,18 +14,7 @@ export default defineConfig({
         dark: "./src/assets/logo-dark.svg",
         replacesTitle: false,
       },
-      favicon: "/favicon-light.svg",
-      head: [
-        {
-          tag: "link",
-          attrs: {
-            rel: "icon",
-            type: "image/svg+xml",
-            href: "/favicon-dark.svg",
-            media: "(prefers-color-scheme: dark)",
-          },
-        },
-      ],
+      favicon: "/favicon.svg",
       customCss: ["./src/styles/custom.css"],
       social: [
         {
