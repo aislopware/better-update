@@ -123,8 +123,8 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
       const projectRoot = yield* runtime.cwd;
 
       // Read config first without env vars to learn the build profile + projectId.
-      // App-config.{js,ts} that reads process.env for these fields will see the
-      // Caller's environment only — env vars from the server are not available yet.
+      // app.config.{js,ts} that reads process.env for these fields will see the
+      // caller's environment only — env vars from the server are not available yet.
       const baseConfig = yield* readExpoConfig(projectRoot);
       const projectId = yield* extractProjectId(baseConfig);
       const profile = yield* readBuildProfile(baseConfig, options.profileName);

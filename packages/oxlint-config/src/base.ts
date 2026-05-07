@@ -72,6 +72,7 @@ export default defineConfig({
     "functional/no-throw-statements": "warn",
     "functional/no-try-statements": "warn",
 
+    "capitalized-comments": "off",
     "constructor-super": "off",
     "func-names": ["warn", "as-needed", { generators: "never" }],
     "getter-return": "off",
@@ -147,6 +148,7 @@ export default defineConfig({
     "vitest/prefer-called-once": "off",
     "vitest/prefer-to-be-truthy": "off",
     "vitest/prefer-to-be-falsy": "off",
+    "vitest/prefer-lowercase-title": "off",
     "vitest/require-hook": "off",
 
     "jest/prefer-importing-jest-globals": "off",
@@ -154,6 +156,7 @@ export default defineConfig({
     "jest/max-expects": "off",
     "jest/valid-title": "off",
     "jest/prefer-ending-with-an-expect": "off",
+    "jest/prefer-lowercase-title": "off",
     "jest/no-conditional-in-test": "off",
     "jest/no-hooks": "off",
     "jest/no-conditional-expect": "off",

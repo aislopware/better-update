@@ -25,17 +25,17 @@ export const initCommand = defineCommand({
         const { items } = yield* api.projects.list({ urlParams: { page: 1, limit: 100 } });
 
         const existing = items.find((project) => project.slug === slug);
-        const linkedProjectId = existing
-          ? yield* Effect.gen(function* () {
-              yield* Console.log(`Found existing project: ${existing.name} (${existing.id})`);
-              return existing.id;
-            })
-          : yield* Effect.gen(function* () {
-              yield* Console.log("No existing project found. Creating new project...");
-              const created = yield* api.projects.create({ payload: { name, slug } });
-              yield* Console.log(`Created project: ${created.name} (${created.id})`);
-              return created.id;
-            });
+        const resolveLinkedProjectId = Effect.gen(function* () {
+          if (existing) {
+            yield* Console.log(`Found existing project: ${existing.name} (${existing.id})`);
+            return existing.id;
+          }
+          yield* Console.log("No existing project found. Creating new project...");
+          const created = yield* api.projects.create({ payload: { name, slug } });
+          yield* Console.log(`Created project: ${created.name} (${created.id})`);
+          return created.id;
+        });
+        const linkedProjectId = yield* resolveLinkedProjectId;
 
         const writeResult = yield* writeProjectId(projectRoot, linkedProjectId);
         const target = writeResult.configPath

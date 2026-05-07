@@ -38,4 +38,12 @@ describe(resolveUpdatePlatforms, () => {
       ),
     ).toStrictEqual(["android"]);
   });
+
+  it('excludes platforms set to null when "all" is requested', () => {
+    const configWithNullAndroid = {
+      ios: { bundleIdentifier: "com.example.app" },
+      android: null,
+    } as unknown as ExpoConfig;
+    expect(resolveUpdatePlatforms(configWithNullAndroid, "all")).toStrictEqual(["ios"]);
+  });
 });

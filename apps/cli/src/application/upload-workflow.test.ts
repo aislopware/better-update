@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
@@ -58,7 +58,9 @@ const setupProject = (options: {
   readonly createArtifact?: boolean;
   readonly artifactBytes?: Buffer;
 }): ProjectFixture => {
-  const dir = mkdtempSync(join(tmpdir(), "upload-workflow-test-"));
+  // realpathSync mirrors expo-config.test.ts — @expo/config rejects symlinked
+  // project roots on macOS (`/var/folders` is itself a symlink to `/private/var`).
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), "upload-workflow-test-")));
   const appJson = options.appJson ?? baseAppJson;
   writeFileSync(join(dir, "app.json"), JSON.stringify(appJson, null, 2));
   // @expo/config requires a package.json in the project root.
@@ -148,9 +150,10 @@ const makeCliRuntimeLayer = (cwd: string) =>
     setExitCode: () => Effect.void,
   });
 
-// Run the workflow after process.chdir(projectDir) so relative "./app.json"
-// Resolves inside the fixture. Restore cwd and clean the temp dir in a
-// Finalizer so test failures do not leak state across runs.
+// Run the workflow after process.chdir(projectDir) so @expo/config can locate
+// the fixture's package.json + app.json via the project root. Restore cwd and
+// clean the temp dir in a finalizer so test failures do not leak state across
+// runs.
 const runWorkflow = (
   project: ProjectFixture,
   api: ApiClient,

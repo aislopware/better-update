@@ -24,7 +24,7 @@ const writePackageJson = (dir: string): void => {
 
 // @expo/config requires the project root to be a real path (not a symlink).
 // On macOS `os.tmpdir()` resolves to /var/folders/... which is itself a symlink
-// To /private/var/folders/... — pass through realpathSync to avoid mismatches.
+// to /private/var/folders/... — pass through realpathSync to avoid mismatches.
 const makeProjectDir = (prefix: string): string =>
   realpathSync(mkdtempSync(join(tmpdir(), prefix)));
 
@@ -100,6 +100,28 @@ describe(readExpoConfig, () => {
       );
       expect(config.slug).toBe("from-env");
     }),
+  );
+
+  it.effect(
+    "re-evaluates static-form dynamic configs on each call (no require.cache stickiness)",
+    () =>
+      Effect.gen(function* () {
+        // Static-form (`module.exports = {...}`) reads `process.env` at module
+        // load time. Without cache eviction the second readExpoConfig would
+        // return the first-load object verbatim, ignoring the new overlay.
+        const project = setupDynamicProject(
+          `module.exports = {
+          name: "StaticForm",
+          slug: process.env.SLUG_FROM_ENV || "missing",
+        };`,
+        );
+        const first = yield* readExpoConfig(project.dir, { SLUG_FROM_ENV: "first" });
+        const second = yield* readExpoConfig(project.dir, { SLUG_FROM_ENV: "second" }).pipe(
+          Effect.ensuring(Effect.sync(() => project.dispose())),
+        );
+        expect(first.slug).toBe("first");
+        expect(second.slug).toBe("second");
+      }),
   );
 
   it.effect("fails with ProjectNotLinkedError when projectRoot has no package.json", () =>

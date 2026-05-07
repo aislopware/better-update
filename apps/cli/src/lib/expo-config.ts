@@ -56,6 +56,20 @@ const loadExpoConfigModule = (): ExpoConfigModule =>
   // eslint-disable-next-line typescript/no-unsafe-type-assertion -- CJS require returns `any`; narrow at the @expo/config boundary
   require("@expo/config") as ExpoConfigModule;
 
+// `@expo/config` resolves dynamic configs via Node's `require`, which caches the
+// Evaluated module by absolute path. For static-form `module.exports = {...}`
+// Files, top-level `process.env` reads are captured at first load and frozen,
+// So a subsequent `readExpoConfig` call with a different env overlay would
+// Silently return the stale cached object. Evicting the cached entry forces
+// Re-evaluation on every call so env overlays always take effect.
+const clearDynamicConfigCache = (projectRoot: string): void => {
+  const { dynamicConfigPath } = loadExpoConfigModule().getConfigFilePaths(projectRoot);
+  if (dynamicConfigPath) {
+    // eslint-disable-next-line typescript/no-dynamic-delete -- evict @expo/config-cached module so each readExpoConfig sees fresh process.env
+    delete require.cache[dynamicConfigPath];
+  }
+};
+
 const applyEnvOverlay = (envVars: Record<string, string>): Record<string, string | undefined> => {
   const previous: Record<string, string | undefined> = {};
   for (const [key, value] of Object.entries(envVars)) {
@@ -89,7 +103,10 @@ export const readExpoConfig = (
   envVars: Record<string, string> = {},
 ): Effect.Effect<ExpoConfig, ProjectNotLinkedError> =>
   Effect.acquireUseRelease(
-    Effect.sync(() => applyEnvOverlay(envVars)),
+    Effect.sync(() => {
+      clearDynamicConfigCache(projectRoot);
+      return applyEnvOverlay(envVars);
+    }),
     () =>
       Effect.try({
         try: () =>

@@ -8,6 +8,7 @@ import { Effect } from "effect";
 import type { CommandExecutor } from "@effect/platform";
 
 import { readRuntimeVersionMeta } from "../lib/build-profile";
+import { pullEnvVars } from "../lib/env-exporter";
 import { UpdateRollbackError } from "../lib/exit-codes";
 import { extractProjectId, extractSlug, readExpoConfig } from "../lib/expo-config";
 import { formatCause } from "../lib/format-error";
@@ -20,6 +21,7 @@ import type { Platform } from "../lib/build-profile";
 import type {
   AuthRequiredError,
   BuildProfileError,
+  EnvExportError,
   ProjectNotLinkedError,
   RuntimeVersionError,
 } from "../lib/exit-codes";
@@ -47,6 +49,7 @@ export interface RollbackResultItem {
 export interface RunUpdateRollbackOptions {
   readonly branch: string;
   readonly platform: UpdatePlatformOption;
+  readonly environment: string;
   readonly message: string | undefined;
   readonly commitTime: string | undefined;
   readonly directiveBodyFile: string | undefined;
@@ -208,6 +211,7 @@ export const runUpdateRollback = (
   | AuthRequiredError
   | ProjectNotLinkedError
   | BuildProfileError
+  | EnvExportError
   | RuntimeVersionError
   | UpdateRollbackError,
   ApiClientService | CliRuntime | CommandExecutor.CommandExecutor | FileSystem.FileSystem
@@ -215,9 +219,21 @@ export const runUpdateRollback = (
   Effect.gen(function* () {
     const runtime = yield* CliRuntime;
     const projectRoot = yield* runtime.cwd;
-    const config = yield* readExpoConfig(projectRoot);
-    yield* extractProjectId(config);
-    const projectSlug = yield* extractSlug(config);
+    const api = yield* apiClient;
+
+    const baseConfig = yield* readExpoConfig(projectRoot);
+    const projectId = yield* extractProjectId(baseConfig);
+    const projectSlug = yield* extractSlug(baseConfig);
+
+    const environmentVars = yield* pullEnvVars(api, {
+      projectId,
+      environment: options.environment,
+    });
+
+    // Re-resolve with the env-var overlay so runtimeVersion / ios / android
+    // Sections derived from process.env match what the corresponding publish
+    // Would have computed (otherwise rollback can target the wrong runtime).
+    const config = yield* readExpoConfig(projectRoot, environmentVars);
     const platforms = resolveUpdatePlatforms(config, options.platform);
     if (platforms.length === 0) {
       return yield* new UpdateRollbackError({
