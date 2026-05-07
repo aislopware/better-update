@@ -7,9 +7,9 @@ import { Effect } from "effect";
 
 import type { CommandExecutor } from "@effect/platform";
 
-import { readAppJson, readProjectId, readSlug } from "../lib/app-json";
 import { readRuntimeVersionMeta } from "../lib/build-profile";
 import { UpdateRollbackError } from "../lib/exit-codes";
+import { extractProjectId, extractSlug, readExpoConfig } from "../lib/expo-config";
 import { formatCause } from "../lib/format-error";
 import { resolveRuntimeVersion } from "../lib/runtime-version";
 import { resolveUpdatePlatforms } from "../lib/update-platforms";
@@ -215,18 +215,18 @@ export const runUpdateRollback = (
   Effect.gen(function* () {
     const runtime = yield* CliRuntime;
     const projectRoot = yield* runtime.cwd;
-    yield* readProjectId;
-    const projectSlug = yield* readSlug;
-    const appJson = yield* readAppJson;
-    const platforms = resolveUpdatePlatforms(appJson, options.platform);
+    const config = yield* readExpoConfig(projectRoot);
+    yield* extractProjectId(config);
+    const projectSlug = yield* extractSlug(config);
+    const platforms = resolveUpdatePlatforms(config, options.platform);
     if (platforms.length === 0) {
       return yield* new UpdateRollbackError({
         message:
-          'No publishable platforms found in app.json. Add an "expo.ios" or "expo.android" section, or pass --platform explicitly.',
+          'No publishable platforms found in your Expo config. Add an "ios" or "android" section, or pass --platform explicitly.',
       });
     }
 
-    const { appVersion, rawRuntimeVersion } = yield* readRuntimeVersionMeta(appJson);
+    const { appVersion, rawRuntimeVersion } = readRuntimeVersionMeta(config);
     const runtimeVersion = yield* resolveRuntimeVersion({
       raw: rawRuntimeVersion,
       appVersion,

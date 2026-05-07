@@ -2,11 +2,10 @@ import { FileSystem } from "@effect/platform";
 import { Console, Effect } from "effect";
 
 import { reserveAndUpload } from "../commands/build/reserve-and-upload";
-import { readAppJson, readProjectId } from "../lib/app-json";
-import { readAppMeta, readBuildProfile } from "../lib/build-profile";
+import { readBuildProfile } from "../lib/build-profile";
 import { pullEnvVars } from "../lib/env-exporter";
 import { ArtifactNotFoundError, BuildProfileError } from "../lib/exit-codes";
-import { readAppMetaFromConfig, readExpoConfig } from "../lib/expo-config";
+import { extractProjectId, readAppMeta, readExpoConfig } from "../lib/expo-config";
 import { readGitContext } from "../lib/git-context";
 import { readGradleConfig, warnOnGradleMismatch } from "../lib/gradle-config";
 import { printKeyValue } from "../lib/output";
@@ -42,7 +41,7 @@ const resolveIosTarget = (
     }
     if (!appMeta.bundleId) {
       return yield* new BuildProfileError({
-        message: "Missing expo.ios.bundleIdentifier in app.json.",
+        message: "Missing ios.bundleIdentifier in your Expo config.",
       });
     }
     return {
@@ -68,7 +67,7 @@ const resolveAndroidTarget = (
     }
     if (!appMeta.androidPackage) {
       return yield* new BuildProfileError({
-        message: "Missing expo.android.package in app.json.",
+        message: "Missing android.package in your Expo config.",
       });
     }
     const gradleConfig = yield* readGradleConfig(`${projectRoot}/android`);
@@ -97,9 +96,9 @@ export const runUploadWorkflow = (options: RunUploadWorkflowOptions) =>
       });
     }
 
-    const appJson = yield* readAppJson;
-    const projectId = yield* readProjectId;
-    const profile = yield* readBuildProfile(appJson, options.profileName);
+    const baseConfig = yield* readExpoConfig(projectRoot);
+    const projectId = yield* extractProjectId(baseConfig);
+    const profile = yield* readBuildProfile(baseConfig, options.profileName);
 
     const envVars = yield* pullEnvVars(api, {
       projectId,
@@ -107,12 +106,7 @@ export const runUploadWorkflow = (options: RunUploadWorkflowOptions) =>
     });
 
     const expoConfig = yield* readExpoConfig(projectRoot, envVars);
-    const appMeta = expoConfig
-      ? yield* readAppMetaFromConfig(expoConfig, options.platform).pipe(
-          Effect.tap(() => Console.log("Resolved app config via @expo/config")),
-          Effect.catchAll(() => readAppMeta(appJson, options.platform)),
-        )
-      : yield* readAppMeta(appJson, options.platform);
+    const appMeta = yield* readAppMeta(expoConfig, options.platform);
 
     const runtimeVersion = yield* resolveRuntimeVersion({
       raw: appMeta.rawRuntimeVersion,

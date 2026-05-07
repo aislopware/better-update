@@ -1,9 +1,9 @@
 import { defineCommand } from "citty";
 import { Console, Effect } from "effect";
 
-import { readProjectId } from "../lib/app-json";
 import { runEffect } from "../lib/citty-effect";
 import { drainPages } from "../lib/drain-cursor";
+import { readProjectId } from "../lib/expo-config";
 import { printKeyValue, printTable } from "../lib/output";
 import { apiClient } from "../services/api-client";
 

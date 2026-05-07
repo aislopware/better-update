@@ -52,7 +52,7 @@ export const resolveRuntimeVersion = ({
     if (policy === "nativeVersion") {
       return yield* new RuntimeVersionError({
         message:
-          'runtimeVersion policy "nativeVersion" is not supported. Set a static runtimeVersion string in app.json.',
+          'runtimeVersion policy "nativeVersion" is not supported. Set a static runtimeVersion string in your Expo config.',
       });
     }
 

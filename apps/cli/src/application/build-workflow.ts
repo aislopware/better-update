@@ -3,11 +3,10 @@ import { Console, Effect } from "effect";
 import { runAndroidBuild } from "../commands/build/android";
 import { runIosBuild } from "../commands/build/ios";
 import { reserveAndUpload } from "../commands/build/reserve-and-upload";
-import { readAppJson, readProjectId } from "../lib/app-json";
-import { readAppMeta, readBuildProfile } from "../lib/build-profile";
+import { readBuildProfile } from "../lib/build-profile";
 import { pullEnvVars } from "../lib/env-exporter";
 import { BuildProfileError } from "../lib/exit-codes";
-import { readAppMetaFromConfig, readExpoConfig } from "../lib/expo-config";
+import { extractProjectId, readAppMeta, readExpoConfig } from "../lib/expo-config";
 import { readGitContext } from "../lib/git-context";
 import { readGradleConfig, warnOnGradleMismatch } from "../lib/gradle-config";
 import { printKeyValue } from "../lib/output";
@@ -54,7 +53,7 @@ const runIosPlatformBuild = (input: PlatformBuildInput) =>
     const iosBundleId = appMeta.bundleId;
     if (!iosBundleId) {
       return yield* new BuildProfileError({
-        message: "Missing expo.ios.bundleIdentifier in app.json.",
+        message: "Missing ios.bundleIdentifier in your Expo config.",
       });
     }
     const build = yield* runIosBuild({
@@ -87,10 +86,10 @@ const runAndroidPlatformBuild = (input: PlatformBuildInput) =>
     const androidBundleId = appMeta.androidPackage;
     if (!androidBundleId) {
       return yield* new BuildProfileError({
-        message: "Missing expo.android.package in app.json.",
+        message: "Missing android.package in your Expo config.",
       });
     }
-    // Cross-validate Gradle config against app.json (Groovy only). When
+    // Cross-validate Gradle config against the Expo config (Groovy only). When
     // Gradle resolves a different applicationId, the built APK/AAB is signed
     // Under that id — so the Credential resolver must key off the Gradle value.
     const androidDir = `${projectRoot}/android`;
@@ -123,27 +122,24 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
       const runtime = yield* CliRuntime;
       const projectRoot = yield* runtime.cwd;
 
-      const appJson = yield* readAppJson;
-      const projectId = yield* readProjectId;
+      // Read config first without env vars to learn the build profile + projectId.
+      // App-config.{js,ts} that reads process.env for these fields will see the
+      // Caller's environment only — env vars from the server are not available yet.
+      const baseConfig = yield* readExpoConfig(projectRoot);
+      const projectId = yield* extractProjectId(baseConfig);
+      const profile = yield* readBuildProfile(baseConfig, options.profileName);
 
-      const profile = yield* readBuildProfile(appJson, options.profileName);
-
-      // Load env vars BEFORE resolving dynamic config — app.config.js may read process.env
+      // Load env vars now that we know the profile's environment.
       const envVars = yield* pullEnvVars(api, {
         projectId,
         environment: profile.environment,
       });
 
-      // Try @expo/config for dynamic configs (app.config.js/ts), fall back to static app.json.
-      // EnvVars are applied as a scoped process.env overlay inside readExpoConfig and restored
-      // After the call so secrets do not leak to child processes spawned later.
+      // Re-resolve config with env-var overlay so dynamic configs see them.
+      // EnvVars are applied as a scoped process.env overlay inside readExpoConfig
+      // And restored after the call so secrets do not leak to child processes.
       const expoConfig = yield* readExpoConfig(projectRoot, envVars);
-      const appMeta = expoConfig
-        ? yield* readAppMetaFromConfig(expoConfig, options.platform).pipe(
-            Effect.tap(() => Console.log("Resolved app config via @expo/config")),
-            Effect.catchAll(() => readAppMeta(appJson, options.platform)),
-          )
-        : yield* readAppMeta(appJson, options.platform);
+      const appMeta = yield* readAppMeta(expoConfig, options.platform);
 
       const runtimeVersion = yield* resolveRuntimeVersion({
         raw: appMeta.rawRuntimeVersion,

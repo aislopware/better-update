@@ -61,6 +61,11 @@ const setupProject = (options: {
   const dir = mkdtempSync(join(tmpdir(), "upload-workflow-test-"));
   const appJson = options.appJson ?? baseAppJson;
   writeFileSync(join(dir, "app.json"), JSON.stringify(appJson, null, 2));
+  // @expo/config requires a package.json in the project root.
+  writeFileSync(
+    join(dir, "package.json"),
+    JSON.stringify({ name: "upload-workflow-test", version: "1.0.0" }, null, 2),
+  );
   const artifactPath = join(dir, "artifact.ipa");
   if (options.createArtifact !== false) {
     writeFileSync(artifactPath, options.artifactBytes ?? Buffer.from("fake-artifact"));
