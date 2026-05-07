@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.8.0](https://github.com/better-update/better-update/compare/@better-update/web@0.7.0...@better-update/web@0.8.0) (2026-05-07)
+
+### Features
+
+* send transactional invite emails via Cloudflare Email Service ([3b4e80c](https://github.com/better-update/better-update/commit/3b4e80c4e05d97a4f670db0ac29c95bc36ef6e85)) - by @trancong12102
+
+### Bug Fixes
+
+* **web:** align members table layout with frame footer count ([939081c](https://github.com/better-update/better-update/commit/939081c77cc5abe1b65aa4211b13f2191ea14fdd)) - by @trancong12102
+
 ## [0.7.0](https://github.com/better-update/better-update/compare/@better-update/web@0.6.1...@better-update/web@0.7.0) (2026-05-07)
 
 ### Features
