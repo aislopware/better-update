@@ -1,0 +1,177 @@
+---
+title: Build native
+description: Build IPA và APK ngay máy với `better-update build`, quản lý credential, distribute install link cùng project.
+---
+
+import { Steps, Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+
+OTA update chỉ chạy khi binary native trên device khớp. Khi bạn đổi native code (dep mới, config-plugin update, runtime version bump), cần build mới. Better Update có CLI cho việc đó.
+
+Có 2 group liên quan:
+
+- **`build`** (số ít) — chạy native build trên máy local và (tùy chọn) upload artifact.
+- **`builds`** (số nhiều) — quản lý build record đã upload trên server.
+
+Cộng **`credentials`** cho keystore / certificate mà build cần, và **`fingerprint`** để verify compatibility.
+
+## `build` — native build local
+
+```bash
+# iOS
+better-update build --platform ios
+
+# Android
+better-update build --platform android --profile production
+```
+
+Nó làm gì:
+
+1. Download credential platform đó từ server (để không phải lưu ở mọi máy dev).
+2. Chạy `expo prebuild --platform <ios|android>`.
+3. iOS: `pod install`, `xcodebuild archive`, `xcodebuild exportArchive`.
+4. Android: `./gradlew :app:<assembleRelease|bundleRelease|...>`.
+5. Tùy chọn upload `.ipa` / `.apk` / `.aab` lên server.
+
+### Flag
+
+| Flag                        | Default      | Ghi chú                                                     |
+| --------------------------- | ------------ | ----------------------------------------------------------- |
+| `--platform <ios\|android>` | —            | Bắt buộc.                                                   |
+| `--profile <name>`          | `production` | Build profile (khớp tên profile trong `eas.json`).          |
+| `--message <text>`          | —            | Mô tả tự do, lưu vào build record.                          |
+| `--upload`                  | `true`       | Upload sau build. Dùng `--no-upload` cho dry run.           |
+| `--raw-output`              | tắt          | Stream raw output Gradle/Xcode thay vì spinner. Tiện debug. |
+
+### Upload artifact build chỗ khác
+
+Đã có IPA từ pipeline khác → bỏ qua `build`, dùng `builds upload`:
+
+```bash
+better-update builds upload ./MyApp.ipa --platform ios --profile production --message "Build trên Bitrise #1234"
+```
+
+## `builds` — quản lý build record server-side
+
+```bash
+better-update builds list
+better-update builds list --platform ios --limit 20
+
+better-update builds get <build-id>
+better-update builds delete <build-id>
+```
+
+### Install link
+
+Lấy URL download cộng install link cho iOS (dùng manifest itms-services):
+
+```bash
+better-update builds install-link <build-id>
+```
+
+Output:
+
+```
+artifactUrl: https://updates.example.com/builds/<id>/artifact.ipa?signed=...
+installUrl:  itms-services://?action=download-manifest&url=...      (chỉ iOS)
+expires:     2026-05-08T12:00:00Z
+```
+
+Gửi cho QA hoặc stakeholder cho install ad-hoc. URL signed có hết hạn.
+
+### Compatibility matrix
+
+Đây là câu trả lời cho "nếu publish vào channel X hôm nay, có device nào nhận không?":
+
+```bash
+better-update builds compatibility-matrix
+```
+
+In, theo channel, runtime version nào được build đã upload cover — và flag channel thiếu coverage. Chạy trước publish nếu không chắc.
+
+## `credentials` — lưu material ký server-side
+
+Để credential không phải nằm ở mọi laptop dev, lưu trên server (đã encrypt). `build` download khi cần.
+
+```bash
+better-update credentials list
+better-update credentials list --platform ios
+```
+
+### Upload
+
+```bash
+better-update credentials upload \
+  --platform ios \
+  --type distribution-certificate \
+  --name "App Store distribution 2026" \
+  --file ./AppStore.p12 \
+  --password "p12-password" \
+  --apple-team-identifier ABC123XYZ
+```
+
+Giá trị `--type` được hỗ trợ:
+
+| Platform | Type                         | Flag thêm bắt buộc                            |
+| -------- | ---------------------------- | --------------------------------------------- |
+| iOS      | `distribution-certificate`   | `--password`, `--apple-team-identifier`       |
+| iOS      | `provisioning-profile`       | (không thêm)                                  |
+| iOS      | `push-key`                   | `--key-id`, `--apple-team-identifier`         |
+| iOS      | `asc-api-key`                | `--key-id`, `--issuer-id`                     |
+| Android  | `keystore`                   | `--password`, `--key-alias`, `--key-password` |
+| Android  | `google-service-account-key` | (không thêm)                                  |
+
+### Delete
+
+```bash
+better-update credentials delete <id> --platform ios --type distribution-certificate
+```
+
+## `fingerprint` — check compatibility runtime
+
+Better Update dùng fingerprint của Expo để quyết định build và update có tương thích không. 2 lần chạy build với cùng native source ra cùng hash fingerprint.
+
+### Compute local
+
+```bash
+better-update fingerprint generate
+```
+
+In hash và số file source.
+
+### So với hash mong đợi
+
+```bash
+better-update fingerprint compare <hash>
+```
+
+Tính fingerprint local và so với hash bạn pass. Exit 0 khi match, 1 khi mismatch (in 2 hash side by side). Tiện trong CI để fail rõ ràng khi ai đó đổi native code mà không bump runtime version.
+
+## Ráp lại
+
+Flow điển hình khi đổi native code:
+
+<Steps>
+
+1. Update credential nếu sắp hết hạn:
+
+   ```bash
+   better-update credentials upload --platform ios --type distribution-certificate ...
+   ```
+
+2. Chạy build local và upload:
+
+   ```bash
+   better-update build --platform ios --profile production --message "Add native module X"
+   ```
+
+3. Verify build mới cover channel bạn quan tâm:
+
+   ```bash
+   better-update builds compatibility-matrix
+   ```
+
+4. Submit lên TestFlight / Play Console (bạn lo phần này — Better Update không ship lên store).
+
+5. Khi binary mới đã trên device, publish OTA update theo runtime version đó với `update publish` ([Publishing](/vi/guides/publishing/)).
+
+</Steps>

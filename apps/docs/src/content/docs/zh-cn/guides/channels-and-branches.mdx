@@ -1,0 +1,168 @@
+---
+title: Channel 和分支
+description: channel 如何指向分支、何时使用哪个,以及管理两者的命令。
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+
+Better Update 把「这是哪个版本」与「谁来收」分离:
+
+- **分支**是一条更新流。你*向*分支发布。分支是服务端概念,不必和 git 分支一一对应。
+- **channel**是已构建 app 读取的对象。channel 同一时刻指向 _一个_ 分支。改指针 → 该 channel 上的所有设备都会切换。
+
+正是这个间接层让你可以发布候选版本、验证后再用一条命令把整个生产环境切换 — 无需重构建。
+
+## 何时新建分支 vs 新建 channel
+
+| 想做的事                           | 做法                                         |
+| ---------------------------------- | -------------------------------------------- |
+| 切发布候选,QA 后 promote 到生产    | 新**分支**(如 `release-v1.4`),稍后 promote。 |
+| 给一组测试用户发布功能 flag        | 新**channel**(如 `internal`)接入 beta 构建。 |
+| 回滚: 让一个已知良好的更新回到生产 | 把**channel**重新指向上一个分支。            |
+| 长期环境(staging、preview、prod)   | 每个环境一个**channel**,各自有自己的分支。   |
+
+## 分支
+
+分支是扁平的 — 没有父级,没有合并。每条分支是一系列更新组。
+
+```bash
+better-update branches list
+better-update branches create --name release-v1.4
+better-update branches rename <id> --name release-v1-4
+better-update branches delete <id>
+```
+
+通过 `update publish --branch <name>` 发布到分支([发布](/zh-cn/guides/publishing/))。
+
+## Channel
+
+每个 channel 有:
+
+- 名字(如 `production`)。
+- 当前指向的 `branchId`。
+- `paused` 标志(被暂停的 channel 停止下发新 manifest)。
+- 可选的进行中分支 rollout(见下文)。
+
+```bash
+better-update channels list
+better-update channels create --name production --branch main
+better-update channels update <id> --branch release-v1.4   # 重新指向
+better-update channels pause <id>
+better-update channels resume <id>
+better-update channels delete <id>
+```
+
+<Aside type="caution">
+  **没有 `channels point` 命令。** 用 `channels update <id> --branch <name>` 把 channel 重新链接到另一分支。
+</Aside>
+
+## 设备如何选 channel
+
+设备读取的 channel 在*构建时*设置,而不是 runtime。在构建配置(`eas.json` 或自定义构建 profile)里设置 channel 名称。构建后,app 仅获取该 channel 的 manifest — 没有新的原生构建就改不了 channel。
+
+所以你为每个环境(`production`、`staging`、`internal`)创建一次 channel,然后用 `channels update` 在不同分支间切换。从不需要重新编译来改变所服务的更新。
+
+## 实例: cut, vet, promote
+
+<Steps>
+
+1. 工程师整周向 `main` 分支合入工作。`production` channel 指向 `main`。
+
+   <div class="bu-flow">
+     <div class="bu-flow-row">
+       <span class="bu-chip">production</span>
+       <span class="bu-arrow">→</span>
+       <span class="bu-chip bu-chip--muted">main</span>
+     </div>
+   </div>
+
+2. 通过新建分支并把同样的代码再发布过去来切发布候选:
+
+   ```bash
+   better-update branches create --name release-2026-05
+   better-update update publish --branch release-2026-05 --message "5 月发布的 RC"
+   ```
+
+3. 把 `staging` 接到新分支上让 QA 测试:
+
+   ```bash
+   better-update channels update <staging-channel-id> --branch release-2026-05
+   ```
+
+   <div class="bu-flow">
+     <div class="bu-flow-row">
+       <span class="bu-chip">staging</span>
+       <span class="bu-arrow">→</span>
+       <span class="bu-chip bu-chip--muted">release-2026-05</span>
+     </div>
+     <div class="bu-flow-row">
+       <span class="bu-chip">production</span>
+       <span class="bu-arrow">→</span>
+       <span class="bu-chip bu-chip--muted">main</span>
+     </div>
+   </div>
+
+4. QA 通过后,重新指向生产:
+
+   ```bash
+   better-update channels update <production-channel-id> --branch release-2026-05
+   ```
+
+   <div class="bu-flow">
+     <div class="bu-flow-row">
+       <span class="bu-chip">staging</span>
+       <span class="bu-arrow">→</span>
+       <span class="bu-chip bu-chip--muted">release-2026-05</span>
+     </div>
+     <div class="bu-flow-row">
+       <span class="bu-chip">production</span>
+       <span class="bu-arrow">→</span>
+       <span class="bu-chip bu-chip--muted">release-2026-05</span>
+     </div>
+   </div>
+
+5. 出问题就把生产指回 `main`:
+
+   ```bash
+   better-update channels update <production-channel-id> --branch main
+   ```
+
+</Steps>
+
+## Channel rollout: 渐进式分支迁移
+
+channel 级 rollout 把**百分比**流量从 channel 当前分支送到*新*分支,然后逐步加大。这就是不靠硬切换把整条 channel 迁到新分支的方法。
+
+```bash
+# 起始: `production` 上 10% 设备开始从 `release-2026-05` 接收。
+better-update channels rollout create <channel-id> \
+  --branch release-2026-05 \
+  --percentage 10
+
+# 加大。
+better-update channels rollout update <channel-id> --percentage 50
+
+# 完成 — channel 完全切到新分支。
+better-update channels rollout complete <channel-id>
+
+# 或 revert。
+better-update channels rollout revert <channel-id>
+```
+
+`complete` 把新分支变为正式指针;`revert` 把所有都送回旧分支。
+
+<Aside type="tip">
+  channel rollout 是**分支级流量分割**。Update rollout
+  ([下一篇指南](/zh-cn/guides/rollouts-and-rollbacks/))是**单更新百分比**。 两者可以同时用 — 比如
+  channel 上把新分支 ramp 到 100% 的同时,该分支 里的每个更新各自有自己的 rollout 百分比。
+</Aside>
+
+## 检视
+
+`channels list` 输出 ID、名称、分支名、暂停状态、rollout 状态、创建时间。已关联项目的兼容性覆盖:
+
+```bash
+better-update builds compatibility-matrix
+```
+
+显示每个 channel 当前覆盖的 runtime 版本,并标记缺失的构建。

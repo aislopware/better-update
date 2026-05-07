@@ -33,6 +33,10 @@
       "project": ["src/**/*.ts", "tests/**/*.ts"],
       "ignoreDependencies": ["wrangler"]
     },
+    "apps/docs": {
+      "entry": ["src/styles/custom.css"],
+      "project": ["src/**/*.{ts,mjs,mdx,css}"]
+    },
     "packages/api": {
       "project": ["src/**/*.ts"]
     },

@@ -1,0 +1,156 @@
+---
+title: アップデートの公開
+description: better-update CLI で OTA JS / アセットアップデートを公開する方法 — ブランチ、署名済みペイロード、プロモート。
+---
+
+import { Steps, Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+
+「公開」とは、新しい **アップデートグループ** — JS バンドルとそのアセット — を作成し、特定のランタイムバージョン用に **ブランチ** に登録することです。そのブランチを指すチャンネル上のデバイスは、ランタイムバージョンが一致すれば次回マニフェストチェック時に取得します。
+
+## メンタルモデル
+
+<div class="bu-flow">
+  <div class="bu-flow-row">
+    <span class="bu-chip">publish</span>
+    <span class="bu-arrow">→</span>
+    <span class="bu-chip">branch</span>
+    <span class="bu-arrow">←</span>
+    <span class="bu-chip">channel</span>
+    <span class="bu-arrow">→</span>
+    <span class="bu-chip">device</span>
+  </div>
+</div>
+
+_ブランチ_ に公開する。_チャンネル_ がブランチを指す。デバイスはビルド時に設定されたチャンネルを読み、`app.json` のマニフェスト URL から取得する。
+
+## 前提条件
+
+- CLI ログイン済み: `better-update login`。
+- プロジェクトリンク済み: `better-update init` (`projectId` を `app.json` に書き込み)。
+- 公開先のブランチ: `better-update branches create --name main`。
+
+## 基本の公開
+
+<Steps>
+
+1. ブランチに公開:
+
+   ```bash
+   better-update update publish --branch main --message "iOS 17 のログインクラッシュを修正"
+   ```
+
+   CLI が内部で `expo export` を実行、すべての出力をハッシュ化し、サーバーへアップロード (サーバーは署名付き URL 経由で R2 へストリーム)、アップデートグループを登録。
+
+2. 表示例:
+
+   ```
+   ✓ Exported (4.2s)
+   ✓ Uploaded 1 bundle, 23 assets (3.1s)
+   ✓ Update group e7f3… published to branch main
+   ```
+
+</Steps>
+
+`expo export` を自分で実行する必要はありません — `update publish` が行います。
+
+## `update publish` の全フラグ
+
+| フラグ                            | デフォルト   | 備考                                                          |
+| --------------------------------- | ------------ | ------------------------------------------------------------- |
+| `--branch <name>`                 | —            | ターゲットブランチ。事前に存在必須。                          |
+| `--platform <ios\|android\|all>`  | `all`        | 1 プラットフォームに制限。                                    |
+| `--message <text>`                | —            | 自由記述の説明。コンソールと監査ログに表示。                  |
+| `--environment <name>`            | `production` | エクスポート時に注入する環境変数のスコープ。                  |
+| `--auto`                          | オフ         | すべての対話プロンプトをスキップ (CI で使用)。                |
+| `--clear`                         | オフ         | アップロード前に既存アセットを削除 (フル再アップロード)。     |
+| `--rollout-percentage <1-100>`    | —            | アップデートレベルの初期ロールアウト。省略で 100%。           |
+| `--manifest-body-file <path>`     | —            | 事前構築済みの署名付きマニフェスト本文 (両プラットフォーム)。 |
+| `--signature-file <path>`         | —            | マニフェスト本文の署名。                                      |
+| `--certificate-chain-file <path>` | —            | 署名した証明書チェーン。                                      |
+| `--manifest-body-file-ios`        | —            | iOS のみの上書き。`-android` も同じ 3 つ。                    |
+
+`*-file-{ios,android}` バリアントは、プラットフォームごとに異なる署名済みペイロードが必要な場合に使用。
+
+## ランタイムバージョン
+
+CLI は `app.json` から `runtimeVersion` を読み取り (または設定したポリシーに従って計算し)、アップデートに保存します。マニフェストは、インストール済みバイナリが宣言するランタイムバージョンに一致するデバイスにのみ配信されます。
+
+<Tabs>
+  <TabItem label="appVersion ポリシー">
+    アップデートは `app.json` の `version` が一致するビルドと互換。
+    ネイティブコードを変更したら手動で `version` をバンプ。
+  </TabItem>
+  <TabItem label="fingerprint ポリシー">
+    `expo-updates` (および Better Update) がネイティブソース (`ios/`、 `android/`、ネイティブ依存)
+    のハッシュを計算。同じハッシュ → 同じランタイム。
+    カスタムネイティブコードを持つプロジェクト推奨。
+  </TabItem>
+  <TabItem label="sdkVersion ポリシー">
+    Expo SDK のメジャーバージョンに紐づく互換性。カスタムネイティブモジュール を持たない Expo Go
+    スタイルのアプリのみ安全。
+  </TabItem>
+</Tabs>
+
+<Aside type="caution">
+  公開したランタイムバージョンに一致するインストール済みビルドがない場合、
+  どのデバイスもアップデートを受信しません。`better-update fingerprint generate` と `better-update
+  builds compatibility-matrix` で確認。
+</Aside>
+
+## 1 プラットフォームのみ公開
+
+```bash
+better-update update publish \
+  --branch main \
+  --platform ios \
+  --message "iOS のみの Safari WebView 修正"
+```
+
+他プラットフォームに当てはまらないホットフィックスに有用。
+
+## チャンネル間でアップデートをプロモート
+
+ステージングに 1 度公開、QA 後本番にプロモート — 再エクスポート、再アップロード不要:
+
+```bash
+# ステージングへリリース候補をカット
+better-update update publish --branch staging --message "v1.4 candidate"
+
+# ID を取得
+better-update update list --branch staging --limit 1
+
+# そのアップデートグループを production チャンネルへプロモート
+better-update update promote <updateId> --channel production
+```
+
+プロモートは、同じバンドルとアセットを参照する新しいアップデートレコードをターゲットチャンネルに作成 — デバイスがダウンロードする追加バイトはなし。
+
+`promote` は、独立して署名されたペイロードが必要な場合に同じ `--manifest-body-file` / `--signature-file` / `--certificate-chain-file` フラグを受け付けます。
+
+## 公開済みアップデートを確認
+
+```bash
+better-update update list --branch main --limit 20
+```
+
+または Web コンソールで: **Project → Updates**。サイズ、R2 キー、署名ステータス、(ダッシュボードが配線済みなら) インストール数とクラッシュ率が見えます。
+
+## 監査ログ
+
+公開、プロモート、ロールバック、ロールアウト変更はすべて、アクター、タイムスタンプ、差分とともに記録:
+
+```bash
+better-update audit-logs list --limit 50
+```
+
+リソースでフィルター:
+
+```bash
+better-update audit-logs list --resource-type update --from 2026-05-01 --to 2026-05-07
+```
+
+## 次のステップ
+
+- **[チャンネルとブランチ](/ja/guides/channels-and-branches/)** — ブランチをチャンネルに配線する方法。
+- **[ロールアウトとロールバック](/ja/guides/rollouts-and-rollbacks/)** — 段階的配信と即時 revert。
+- **[環境](/ja/guides/environments/)** — 公開時に注入されるサーバーサイド環境変数。

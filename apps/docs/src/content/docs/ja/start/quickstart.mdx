@@ -1,0 +1,115 @@
+---
+title: クイックスタート
+description: CLI をインストールしてログインし、最初の OTA アップデートを 5 分で公開。
+sidebar:
+  order: 1
+---
+
+import { Steps, Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+
+このガイドではゼロから「アップデートが配信された」状態まで約 5 分で進めます。
+
+必要なもの:
+
+- [`expo-updates`](https://docs.expo.dev/versions/latest/sdk/updates/) を既に使用している Expo プロジェクト。
+- [Bun](https://bun.sh) ≥ 1.3 (CLI を実行するため)。
+- [better-update.dev](https://better-update.dev) の無料アカウント。
+
+## 1. CLI をインストール
+
+<Tabs syncKey="install">
+  <TabItem label="単発 (bunx)">
+    ```bash
+    bunx @better-update/cli --help
+    ```
+
+    `--help` を任意のコマンドに置き換え — `bunx` は必要時にダウンロード。
+
+  </TabItem>
+  <TabItem label="グローバル">
+    ```bash
+    bun add -g @better-update/cli
+    better-update --help
+    ```
+  </TabItem>
+</Tabs>
+
+## 2. ログイン
+
+```bash
+better-update login
+```
+
+ブラウザで `better-update.dev/auth/cli-login` が開きます。サインイン後、CLI がトークンを受け取り `~/.better-update/auth.json` に保存 (mode `0600`)。
+
+<Aside type="tip">
+  ヘッドレスまたはリモートマシン? `better-update login --api-key` を使うと、 ブラウザを開かずに Web
+  コンソールで生成したトークンを貼り付けられます。
+</Aside>
+
+## 3. Expo プロジェクトをリンク
+
+Expo プロジェクトのルートで:
+
+```bash
+better-update init
+```
+
+`app.json` を読んで、`expo.slug` にマッチする (または新規作成する) プロジェクトを見つけ、プロジェクト ID を `expo.extra.betterUpdate.projectId` に書き戻します。後続のコマンドはここから読みます。
+
+## 4. 最初のアップデートを公開
+
+```bash
+better-update update publish --branch main --message "Hello from Better Update"
+```
+
+CLI が内部で `expo export` を実行し、バンドルとアセットをサーバーにアップロードして、`main` ブランチに新しいアップデートグループを登録します。
+
+```
+✓ Exported (4.2s)
+✓ Uploaded 1 bundle, 23 assets (3.1s)
+✓ Update e7f3… published to branch main
+```
+
+<Aside type="caution">
+  `main` がまだ存在しない場合は先に作成: `better-update branches create --name main`。
+</Aside>
+
+## 5. `expo-updates` を設定
+
+`app.json` で、`expo.updates.url` をプロジェクトのマニフェストエンドポイントに向けます。プロジェクト ID は `init` が書き込んだものです。
+
+```json
+{
+  "expo": {
+    "updates": {
+      "url": "https://graph.better-update.dev/manifest/<projectId>",
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
+    "runtimeVersion": { "policy": "appVersion" }
+  }
+}
+```
+
+アプリを 1 度リビルド (dev client または production build)。以降のアップデートは OTA で流れ、リビルド不要。
+
+## 6. 動作確認
+
+`main` ブランチを指すチャンネルを作成し、デバイスが何をダウンロードすべきか分かるようにします:
+
+```bash
+better-update channels create --name production --branch main
+```
+
+`expo-updates` ライブラリは、ビルド時の設定からチャンネル名を読み取ります。ビルドプロファイルで `channel` を設定 (またはビルドコマンドに `--release-channel` を渡す) し、1 度リビルド。その後、`update publish --branch main` ごとに `production` チャンネルのデバイスへ自動配信されます。
+
+アプリを開いて、プルしてリフレッシュ (またはリラウンチ) すると、新しいマニフェストが配信されます。
+
+## 次のステップ
+
+- **[チャンネルとブランチ](/ja/guides/channels-and-branches/)** — ルーティングモデルの仕組み。
+- **[公開](/ja/guides/publishing/)** — `update publish` のすべてのフラグ、`update promote` の使いどころ。
+- **[ロールアウトとロールバック](/ja/guides/rollouts-and-rollbacks/)** — 段階的ロールアウト、即時 revert。
+- **[CLI リファレンス](/ja/reference/cli/)** — すべてのコマンド、すべてのフラグ。

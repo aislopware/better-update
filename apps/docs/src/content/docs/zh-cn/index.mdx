@@ -1,0 +1,59 @@
+---
+title: Better Update
+description: 为 Expo 和 React Native 应用推送 OTA 更新的 CLI。
+template: splash
+hero:
+  tagline: Expo 和 React Native 的 OTA 更新 — 无需 App Store 审核。
+  image:
+    light: ../../../assets/logo-light.svg
+    dark: ../../../assets/logo-dark.svg
+  actions:
+    - text: 开始使用
+      link: /zh-cn/start/quickstart/
+      icon: right-arrow
+    - text: GitHub
+      link: https://github.com/better-update/better-update
+      icon: external
+      variant: minimal
+---
+
+import { CardGrid, LinkCard } from "@astrojs/starlight/components";
+
+## 安装
+
+```bash
+bun add -g @better-update/cli
+```
+
+## 推送一次更新
+
+```bash
+better-update login
+better-update init
+better-update update publish --branch main --message "Fix login screen"
+```
+
+匹配 channel 的设备在下次启动时拉取新 bundle。
+
+## 渐进式灰度,或一条命令回滚
+
+```bash
+better-update update rollout set <updateId> 10
+better-update update rollout complete <updateId>
+
+better-update update rollback --branch main
+```
+
+<CardGrid>
+  <LinkCard
+    title="快速开始"
+    href="/zh-cn/start/quickstart/"
+    description="安装、登录、推送第一个更新 — 五分钟。"
+  />
+  <LinkCard
+    title="发布"
+    href="/zh-cn/guides/publishing/"
+    description="分支、channel、灰度、回滚。"
+  />
+  <LinkCard title="CLI 参考" href="/zh-cn/reference/cli/" description="每条命令,每个标志。" />
+</CardGrid>

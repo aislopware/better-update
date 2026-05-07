@@ -1,0 +1,380 @@
+---
+title: CLI 参考
+description: 来自 better-update CLI 的每条命令、每个标志。
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+这是 `better-update` CLI 的完整参考,从 [`apps/cli/src/commands`](https://github.com/better-update/better-update/tree/main/apps/cli/src/commands) 中的源码生成。
+
+```bash
+# 选一种方式安装
+bunx @better-update/cli <command>
+bun add -g @better-update/cli && better-update <command>
+```
+
+## 顶层
+
+```
+better-update
+├── login            登录到 better-update
+├── logout           删除已保存的 auth token
+├── init             把本地 Expo 项目关联到 better-update 项目
+├── status           查看项目状态(凭据、构建)
+├── projects         项目管理
+├── branches         分支管理
+├── update           更新管理(publish、list、promote、rollback、rollout)
+├── channels         channel 管理(以及 channel rollout)
+├── build            在本地构建 app,可选上传
+├── builds           管理已上传的构建
+├── credentials      签名凭据管理
+├── env              服务端环境变量管理
+├── fingerprint      计算或比较 runtime fingerprint
+├── analytics        查看更新 / channel / 平台分析
+└── audit-logs       查看审计日志
+```
+
+## 配置 & 认证
+
+CLI 按以下顺序读取服务器 URL:
+
+1. `BETTER_UPDATE_URL` 环境变量(API base URL)。
+2. `BETTER_UPDATE_WEB_URL` 环境变量(web URL — 用于 `login` 回调)。
+3. `~/.better-update/config.json` 的 `baseUrl` 和 `webUrl` 字段。
+4. 默认值: `https://graph.better-update.dev` 和 `https://better-update.dev`。
+
+Auth token 来源:
+
+1. `BETTER_UPDATE_TOKEN` 环境变量。
+2. `~/.better-update/auth.json`(由 `login` 创建)。
+
+每个 Expo 项目的 project ID 从 `app.json` 的 `expo.extra.betterUpdate.projectId` 读取(由 `init` 写入)。
+
+---
+
+## `login`
+
+```bash
+better-update login [--api-key]
+```
+
+登录。默认在浏览器打开 `<webUrl>/auth/cli-login` 等待回调。`--api-key` 提示粘贴现有 API token。
+
+| 标志        | 类型    | 默认 | 备注                         |
+| ----------- | ------- | ---- | ---------------------------- |
+| `--api-key` | boolean | 关闭 | 手动粘贴 API key(无头环境)。 |
+
+写入 `~/.better-update/auth.json`(mode `0600`)。
+
+## `logout`
+
+```bash
+better-update logout
+```
+
+删除 `~/.better-update/auth.json`。无标志。
+
+## `init`
+
+```bash
+better-update init
+```
+
+读取 `app.json`,按 `expo.slug` 找现有项目。找到则把它的 ID 写入 `expo.extra.betterUpdate.projectId`。否则创建新项目(用 `expo.name` 或 `expo.slug` 作为显示名)并写入新 ID。无标志。
+
+## `status`
+
+```bash
+better-update status
+```
+
+输出关联项目信息、各平台凭据数量、近期构建数量。无标志。
+
+---
+
+## `projects`
+
+```bash
+better-update projects list [--query <q>] [--sort <key>] [--limit <n>] [--page <n>]
+better-update projects create --name <name> --slug <slug>
+better-update projects get <id>
+better-update projects rename <id> --name <new-name>
+better-update projects delete <id>
+```
+
+| `projects list` 标志 | 默认             | 备注                         |
+| -------------------- | ---------------- | ---------------------------- |
+| `--query`            | —                | 在名字或 slug 上做子串搜索。 |
+| `--sort`             | `lastActivityAt` | `lastActivityAt` 或 `name`。 |
+| `--limit`            | `50`             | 每页大小,最大 100。          |
+| `--page`             | `1`              | 1-based 页码。               |
+
+`projects rename` 需要 `--name`(新显示名)。
+
+---
+
+## `branches`
+
+```bash
+better-update branches list
+better-update branches create --name <name>
+better-update branches rename <id> --name <new-name>
+better-update branches delete <id>
+```
+
+`list` 在已关联项目上工作。无标志。
+
+---
+
+## `update`
+
+### `update publish`
+
+```bash
+better-update update publish [flags]
+```
+
+| 标志                              | 默认         | 备注                                    |
+| --------------------------------- | ------------ | --------------------------------------- |
+| `--branch <name>`                 | —            | 目标分支。                              |
+| `--platform <ios\|android\|all>`  | `all`        | 限制为单一平台。                        |
+| `--message <text>`                | —            | 自由文本描述。                          |
+| `--environment <name>`            | `production` | 导出时注入的环境变量环境。              |
+| `--auto`                          | 关闭         | 跳过提示(CI 模式)。                     |
+| `--clear`                         | 关闭         | 上传前删除现有资源。                    |
+| `--rollout-percentage <1-100>`    | —            | 初始 rollout 百分比。省略表示 100%。    |
+| `--manifest-body-file <path>`     | —            | 预构建签名 manifest 主体。              |
+| `--signature-file <path>`         | —            | manifest 主体签名。                     |
+| `--certificate-chain-file <path>` | —            | 证书链。                                |
+| `--manifest-body-file-ios`        | —            | 仅 iOS 覆盖(signature/chain 同样)。     |
+| `--manifest-body-file-android`    | —            | 仅 Android 覆盖(signature/chain 同样)。 |
+
+内部调用 `expo export` — 你**不需要**先运行 export。
+
+### `update list`
+
+```bash
+better-update update list [--branch <name>] [--limit <n>]
+```
+
+| 标志       | 默认 | 备注           |
+| ---------- | ---- | -------------- |
+| `--branch` | —    | 按分支名过滤。 |
+| `--limit`  | `20` | 最大结果数。   |
+
+### `update delete`
+
+```bash
+better-update update delete <groupId>
+```
+
+### `update promote`
+
+```bash
+better-update update promote <updateId> --channel <name>
+  [--manifest-body-file <path>]
+  [--signature-file <path>]
+  [--certificate-chain-file <path>]
+```
+
+把现有更新组 promote 到 channel。
+
+### `update rollback`
+
+```bash
+better-update update rollback --branch <name>
+  [--platform <ios|android|all>]
+  [--message <text>]
+  [--commit-time <ISO timestamp>]
+  [--directive-body-file <path>]
+  [--signature-file <path>]
+  [--certificate-chain-file <path>]
+```
+
+在 `--branch` 上创建回滚更新组。设备回退到嵌入 bundle。可选的 `--commit-time` 仅回滚该时间戳之后发布的更新。
+
+### `update rollout`
+
+```bash
+better-update update rollout set <updateId> <percentage>
+better-update update rollout complete <updateId>      # → 100%
+better-update update rollout revert <updateId>        # → 0%
+```
+
+`<percentage>` 1–100,位置参数。
+
+---
+
+## `channels`
+
+```bash
+better-update channels list
+better-update channels create --name <name> --branch <branch-name>
+better-update channels update <id> --branch <new-branch-name>     # 重新链接
+better-update channels pause <id>
+better-update channels resume <id>
+better-update channels delete <id>
+```
+
+<Aside type="caution">
+  没有 `channels point` 命令。用 `channels update <id> --branch <name>` 重新指向。
+</Aside>
+
+### `channels rollout`
+
+分支级流量分割(把 channel 从一个分支渐进式迁到另一个分支)。
+
+```bash
+better-update channels rollout create <channelId> --branch <new-branch> --percentage <1-100>
+better-update channels rollout update <channelId> --percentage <1-100>
+better-update channels rollout complete <channelId>
+better-update channels rollout revert <channelId>
+```
+
+---
+
+## `build`(单数)
+
+```bash
+better-update build --platform <ios|android> [flags]
+```
+
+运行本地原生构建。从服务端下载凭据,运行 `expo prebuild`,然后 `xcodebuild`/`gradlew`。
+
+| 标志           | 默认         | 备注                               |
+| -------------- | ------------ | ---------------------------------- |
+| `--platform`   | —            | 必需。`ios` 或 `android`。         |
+| `--profile`    | `production` | 构建 profile 名。                  |
+| `--message`    | —            | 构建记录上的自由描述。             |
+| `--upload`     | `true`       | 可否定: `--no-upload` 跳过上传。   |
+| `--raw-output` | 关闭         | 不格式化的 Gradle/Xcode 原始输出。 |
+
+## `builds`(复数)
+
+```bash
+better-update builds list [--platform <ios|android>] [--limit <n>]
+better-update builds get <id>
+better-update builds delete <id>
+better-update builds install-link <id>
+better-update builds compatibility-matrix
+better-update builds upload <artifact-path> --platform <ios|android> [--profile <p>] [--message <m>]
+```
+
+| `builds list` 标志 | 默认 | 备注         |
+| ------------------ | ---- | ------------ |
+| `--platform`       | —    | 按平台过滤。 |
+| `--limit`          | `10` | 最大结果数。 |
+
+`builds install-link` 返回 `artifactUrl`、可选 `installUrl`(iOS)、`expires` 时间戳。
+
+`builds compatibility-matrix` 显示每个 channel 的 runtime 版本覆盖,标记缺失的构建。
+
+`builds upload` 上传已构建的产物(`.ipa`/`.apk`/`.aab`),不运行构建。
+
+---
+
+## `credentials`
+
+```bash
+better-update credentials list [--platform <ios|android>]
+
+better-update credentials upload \
+  --platform <ios|android> \
+  --type <type> \
+  --name <display-name> \
+  --file <path-to-credential> \
+  [--password <pw>] \
+  [--key-alias <alias>] \
+  [--key-password <pw>] \
+  [--key-id <id>] \
+  [--issuer-id <id>] \
+  [--apple-team-identifier <id>]
+
+better-update credentials delete <id> --platform <ios|android> --type <type>
+```
+
+合法的 `--type` 值:
+
+- iOS: `distribution-certificate`、`provisioning-profile`、`push-key`、`asc-api-key`
+- Android: `keystore`、`google-service-account-key`
+
+---
+
+## `env`
+
+```bash
+better-update env list [--environment <name>]
+better-update env get <id>
+better-update env set <KEY=VALUE> [--environment <name>] [--visibility <v>]
+better-update env delete <key> [--environment <name>]
+better-update env import <file> [--environment <name>]
+better-update env export [--environment <name>]
+better-update env pull [--environment <name>]
+```
+
+| 标志            | 默认         | 备注                                   |
+| --------------- | ------------ | -------------------------------------- |
+| `--environment` | `production` | 哪个环境作用域。                       |
+| `--visibility`  | `plaintext`  | `plaintext`、`sensitive` 或 `secret`。 |
+
+- `set` 是 upsert。位置参数是 `KEY=VALUE`。
+- `get` 接收 env var **ID**。
+- `delete` 接收 **key 名称**。
+- `export` 每行 `KEY='value'`。`pull` 每行 `export KEY='value'`(可 source)。
+- `secret` 可见性的值不会通过 `export` 或 `pull` 返回。
+
+---
+
+## `fingerprint`
+
+```bash
+better-update fingerprint generate
+better-update fingerprint compare <hash>
+```
+
+`generate` 计算当前项目根的 fingerprint,输出 hash + 源文件计数。
+
+`compare` 计算本地 fingerprint 并与提供的 hash 比较。匹配退出 `0`,不匹配退出 `1`(并输出两个 hash)。
+
+---
+
+## `analytics`
+
+```bash
+better-update analytics adoption [--period <1d|7d|30d|90d>]
+better-update analytics updates --update-id <id> [--period <1d|7d|30d|90d>]
+better-update analytics channels --channel <name> [--period <1d|7d|30d|90d>]
+better-update analytics platforms [--period <1d|7d|30d|90d>]
+```
+
+`--period` 省略时默认到服务器定义的窗口。
+
+---
+
+## `audit-logs`
+
+```bash
+better-update audit-logs list [flags]
+```
+
+| 标志              | 默认  | 备注             |
+| ----------------- | ----- | ---------------- |
+| `--resource-type` | —     | 按资源类型过滤。 |
+| `--from`          | —     | ISO 时间戳下界。 |
+| `--to`            | —     | ISO 时间戳上界。 |
+| `--limit`         | `100` | 最大结果数。     |
+
+---
+
+## 退出码
+
+| 码  | 含义                                 |
+| --- | ------------------------------------ |
+| `0` | 成功。                               |
+| `1` | 一般失败。                           |
+| `2` | 校验错误(标志错误、缺少必需参数)。   |
+| `3` | 需要认证或认证已过期。               |
+| `4` | 网络或服务器错误。                   |
+| `5` | 资源未找到(项目、更新、channel、…)。 |
+
+在 CI 中按失败类型分支处理。

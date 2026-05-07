@@ -1,0 +1,133 @@
+---
+title: Rollouts and rollbacks
+description: Stage updates to a percentage of devices, then ramp to 100% — or revert instantly when something breaks.
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+Better Update has **two** independent rollout systems plus a rollback command:
+
+| Tool               | Granularity                               | When to use                                               |
+| ------------------ | ----------------------------------------- | --------------------------------------------------------- |
+| `update rollout`   | One update group, percentage of devices   | Every risky update. Default-on safety net.                |
+| `channels rollout` | A channel, traffic split between branches | Migrating a channel from one branch to another gradually. |
+| `update rollback`  | A whole branch, back to a prior point     | Something is broken in production right now.              |
+
+The rest of this page covers each in turn.
+
+## Update rollout (per-update percentage)
+
+When you publish, you can pin the new update to a fraction of devices. The server hands out the new manifest to that fraction (deterministic per device) and the previous manifest to everyone else.
+
+### Start with a partial rollout
+
+```bash
+better-update update publish \
+  --branch production \
+  --rollout-percentage 10 \
+  --message "Risky cache migration"
+```
+
+10% of devices on the matching channel start receiving the new update. The other 90% keep the previous one.
+
+### Ramp it up
+
+```bash
+better-update update rollout set <updateId> 25
+better-update update rollout set <updateId> 50
+better-update update rollout complete <updateId>     # → 100%
+```
+
+`complete` is sugar for setting it to 100. Use it when you're done ramping.
+
+### Drop it to zero
+
+```bash
+better-update update rollout revert <updateId>     # → 0%
+```
+
+Devices that haven't yet pulled the update never will. Devices that already pulled it stay on it until the next manifest check, when they'll be served the previous one.
+
+<Aside type="tip">
+  Rollout percentages are **per-update**, not per-channel. Two updates on the same channel can each
+  have their own rollout state. The most recent update with non-zero rollout wins for selected
+  devices; older updates stay served to the rest.
+</Aside>
+
+## Channel rollout (branch-level traffic split)
+
+This is the migration tool. Use it when you want to move an entire channel from one branch to another over time, instead of a hard cutover.
+
+```bash
+# Start: 10% of devices on `production` get manifests from `release-2026-05`.
+better-update channels rollout create <channelId> \
+  --branch release-2026-05 \
+  --percentage 10
+
+better-update channels rollout update <channelId> --percentage 50
+
+better-update channels rollout complete <channelId>     # channel now fully on the new branch
+better-update channels rollout revert <channelId>       # channel back on the old branch
+```
+
+See [Channels and branches](/guides/channels-and-branches/) for the bigger picture.
+
+## Rollback (whole-branch revert)
+
+When you need to get production off a bad update _now_, use `rollback`. It creates a special update group that tells `expo-updates` to revert to the embedded bundle (the one shipped in the native build) — no new bundle is uploaded.
+
+```bash
+better-update update rollback \
+  --branch production \
+  --message "Revert e7f3 — login crash"
+```
+
+What happens on devices: the next manifest check returns a "rollback to embedded" directive. The runtime clears its cached OTA bundle and falls back to whatever shipped inside the binary.
+
+### Roll back to a specific point
+
+If you only want to revert updates published _after_ a certain time, pass `--commit-time`:
+
+```bash
+better-update update rollback \
+  --branch production \
+  --commit-time 2026-05-06T14:00:00Z \
+  --message "Revert anything after 2pm"
+```
+
+Updates with a publish timestamp before `--commit-time` remain served.
+
+### Platform-scoped rollback
+
+```bash
+better-update update rollback --branch production --platform ios --message "iOS-only revert"
+```
+
+Defaults to `--platform all`.
+
+## Decision table
+
+| Symptom                                           | Use                                                                    |
+| ------------------------------------------------- | ---------------------------------------------------------------------- |
+| Risky publish, want to validate on small slice    | **`update publish --rollout-percentage 5`**, then ramp.                |
+| Bad update detected during a partial rollout      | **`update rollout revert`** — stops the spread.                        |
+| Bad update at 100%, install count modest          | Repoint the **channel** at the previous branch.                        |
+| Bad update at 100%, hard crash, want clean state  | **`update rollback --branch <name>`** — devices fall back to embedded. |
+| Migrating a channel onto a new branch over a week | **`channels rollout create … --percentage 10`**, ramp, complete.       |
+| Native regression (only fixable with a new build) | **`update rollback`** + ship a new app store build with the fix.       |
+
+## After a rollback
+
+1. Investigate root cause before re-publishing from the same branch.
+2. When you publish the fix, use `--rollout-percentage 10` to validate on a slice first.
+3. The audit log records every publish, rollout change, and rollback. Read it via `better-update audit-logs list --resource-type update --limit 50`.
+
+## Re-promoting after a false alarm
+
+Channel-level rollback (the "repoint the channel" pattern) doesn't delete updates. If you discover the rollback was unnecessary, just point back:
+
+```bash
+better-update channels update <channel-id> --branch <originally-suspect-branch>
+```
+
+Nothing was destroyed; only a pointer changed.

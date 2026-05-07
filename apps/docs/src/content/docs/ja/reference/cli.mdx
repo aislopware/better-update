@@ -1,0 +1,380 @@
+---
+title: CLI リファレンス
+description: better-update CLI からのすべてのコマンド、すべてのフラグ。
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+これは [`apps/cli/src/commands`](https://github.com/better-update/better-update/tree/main/apps/cli/src/commands) のソースから生成された `better-update` CLI の完全リファレンス。
+
+```bash
+# どれかをインストール
+bunx @better-update/cli <command>
+bun add -g @better-update/cli && better-update <command>
+```
+
+## トップレベル
+
+```
+better-update
+├── login            better-update にログイン
+├── logout           保存トークンを削除
+├── init             ローカル Expo プロジェクトを better-update プロジェクトにリンク
+├── status           プロジェクトステータスを表示 (資格情報、ビルド)
+├── projects         プロジェクト管理
+├── branches         ブランチ管理
+├── update           アップデート管理 (publish, list, promote, rollback, rollout)
+├── channels         チャンネル管理 (およびチャンネルロールアウト)
+├── build            アプリをローカルでビルド、オプションでアップロード
+├── builds           アップロード済みビルドの管理
+├── credentials      署名資格情報の管理
+├── env              サーバーサイド環境変数の管理
+├── fingerprint      ランタイムフィンガープリントの計算 / 比較
+├── analytics        アップデート / チャンネル / プラットフォームの分析を表示
+└── audit-logs       監査ログを表示
+```
+
+## 設定 & 認証
+
+CLI はサーバー URL を以下から読み取り (優先順位順):
+
+1. `BETTER_UPDATE_URL` 環境変数 (API ベース URL)。
+2. `BETTER_UPDATE_WEB_URL` 環境変数 (Web URL — `login` コールバック用)。
+3. `~/.better-update/config.json` の `baseUrl` と `webUrl` フィールド。
+4. デフォルト: `https://graph.better-update.dev` と `https://better-update.dev`。
+
+認証トークンは以下から:
+
+1. `BETTER_UPDATE_TOKEN` 環境変数。
+2. `~/.better-update/auth.json` (`login` で作成)。
+
+Expo プロジェクトごとのプロジェクト ID は `app.json` の `expo.extra.betterUpdate.projectId` から読み取り (`init` で書き込み)。
+
+---
+
+## `login`
+
+```bash
+better-update login [--api-key]
+```
+
+ログイン。デフォルトでブラウザで `<webUrl>/auth/cli-login` を開きコールバック待機。`--api-key` で既存 API トークンの貼り付けプロンプト。
+
+| フラグ      | 型      | デフォルト | 備考                                              |
+| ----------- | ------- | ---------- | ------------------------------------------------- |
+| `--api-key` | boolean | オフ       | API キーを手動貼り付け (ヘッドレスセットアップ)。 |
+
+`~/.better-update/auth.json` (mode `0600`) に書き込み。
+
+## `logout`
+
+```bash
+better-update logout
+```
+
+`~/.better-update/auth.json` を削除。フラグなし。
+
+## `init`
+
+```bash
+better-update init
+```
+
+`app.json` を読み、`expo.slug` で既存プロジェクトを検索。あればその ID を `expo.extra.betterUpdate.projectId` に書き込み。なければ新規プロジェクトを作成 (表示用に `expo.name` か `expo.slug`) し新 ID を書き込み。フラグなし。
+
+## `status`
+
+```bash
+better-update status
+```
+
+リンク済みプロジェクト情報、プラットフォームごとの資格情報数、最近のビルド数を出力。フラグなし。
+
+---
+
+## `projects`
+
+```bash
+better-update projects list [--query <q>] [--sort <key>] [--limit <n>] [--page <n>]
+better-update projects create --name <name> --slug <slug>
+better-update projects get <id>
+better-update projects rename <id> --name <new-name>
+better-update projects delete <id>
+```
+
+| `projects list` フラグ | デフォルト       | 備考                               |
+| ---------------------- | ---------------- | ---------------------------------- |
+| `--query`              | —                | 名前またはスラグの部分文字列検索。 |
+| `--sort`               | `lastActivityAt` | `lastActivityAt` または `name`。   |
+| `--limit`              | `50`             | ページサイズ、最大 100。           |
+| `--page`               | `1`              | 1 始まりのページ番号。             |
+
+`projects rename` は `--name` (新表示名) が必須。
+
+---
+
+## `branches`
+
+```bash
+better-update branches list
+better-update branches create --name <name>
+better-update branches rename <id> --name <new-name>
+better-update branches delete <id>
+```
+
+`list` はリンク済みプロジェクトで動作。フラグなし。
+
+---
+
+## `update`
+
+### `update publish`
+
+```bash
+better-update update publish [flags]
+```
+
+| フラグ                            | デフォルト   | 備考                                            |
+| --------------------------------- | ------------ | ----------------------------------------------- |
+| `--branch <name>`                 | —            | ターゲットブランチ。                            |
+| `--platform <ios\|android\|all>`  | `all`        | 1 プラットフォームに制限。                      |
+| `--message <text>`                | —            | 自由記述の説明。                                |
+| `--environment <name>`            | `production` | エクスポート時に注入する環境変数の環境。        |
+| `--auto`                          | オフ         | プロンプトをスキップ (CI モード)。              |
+| `--clear`                         | オフ         | アップロード前に既存アセットを削除。            |
+| `--rollout-percentage <1-100>`    | —            | 初期ロールアウトパーセント。省略で 100%。       |
+| `--manifest-body-file <path>`     | —            | 事前構築済み署名付きマニフェスト本文。          |
+| `--signature-file <path>`         | —            | マニフェスト本文の署名。                        |
+| `--certificate-chain-file <path>` | —            | 証明書チェーン。                                |
+| `--manifest-body-file-ios`        | —            | iOS のみの上書き (signature/chain も同様)。     |
+| `--manifest-body-file-android`    | —            | Android のみの上書き (signature/chain も同様)。 |
+
+内部で `expo export` を呼び出し — 自分でエクスポートする必要は **ありません**。
+
+### `update list`
+
+```bash
+better-update update list [--branch <name>] [--limit <n>]
+```
+
+| フラグ     | デフォルト | 備考                     |
+| ---------- | ---------- | ------------------------ |
+| `--branch` | —          | ブランチ名でフィルター。 |
+| `--limit`  | `20`       | 最大結果数。             |
+
+### `update delete`
+
+```bash
+better-update update delete <groupId>
+```
+
+### `update promote`
+
+```bash
+better-update update promote <updateId> --channel <name>
+  [--manifest-body-file <path>]
+  [--signature-file <path>]
+  [--certificate-chain-file <path>]
+```
+
+既存アップデートグループをチャンネルへプロモート。
+
+### `update rollback`
+
+```bash
+better-update update rollback --branch <name>
+  [--platform <ios|android|all>]
+  [--message <text>]
+  [--commit-time <ISO timestamp>]
+  [--directive-body-file <path>]
+  [--signature-file <path>]
+  [--certificate-chain-file <path>]
+```
+
+`--branch` 上にロールバックアップデートグループを作成。デバイスは組み込みバンドルへフォールバック。任意の `--commit-time` で、そのタイムスタンプ後に公開されたアップデートのみロールバック。
+
+### `update rollout`
+
+```bash
+better-update update rollout set <updateId> <percentage>
+better-update update rollout complete <updateId>      # → 100%
+better-update update rollout revert <updateId>        # → 0%
+```
+
+`<percentage>` は 1–100、位置引数。
+
+---
+
+## `channels`
+
+```bash
+better-update channels list
+better-update channels create --name <name> --branch <branch-name>
+better-update channels update <id> --branch <new-branch-name>     # 再リンク
+better-update channels pause <id>
+better-update channels resume <id>
+better-update channels delete <id>
+```
+
+<Aside type="caution">
+  `channels point` コマンドはありません。再ポイントには `channels update <id> --branch <name>` を使用。
+</Aside>
+
+### `channels rollout`
+
+ブランチレベルのトラフィック分割 (チャンネルを 1 ブランチから別ブランチへ段階的に移行)。
+
+```bash
+better-update channels rollout create <channelId> --branch <new-branch> --percentage <1-100>
+better-update channels rollout update <channelId> --percentage <1-100>
+better-update channels rollout complete <channelId>
+better-update channels rollout revert <channelId>
+```
+
+---
+
+## `build` (単数)
+
+```bash
+better-update build --platform <ios|android> [flags]
+```
+
+ローカルネイティブビルドを実行。サーバーから資格情報をダウンロード、`expo prebuild`、その後 `xcodebuild`/`gradlew`。
+
+| フラグ         | デフォルト   | 備考                                                     |
+| -------------- | ------------ | -------------------------------------------------------- |
+| `--platform`   | —            | 必須。`ios` または `android`。                           |
+| `--profile`    | `production` | ビルドプロファイル名。                                   |
+| `--message`    | —            | ビルドレコード上の自由記述説明。                         |
+| `--upload`     | `true`       | 否定可能: `--no-upload` でアップロードスキップ。         |
+| `--raw-output` | オフ         | フォーマット済みスピナーではなく Gradle/Xcode の生出力。 |
+
+## `builds` (複数)
+
+```bash
+better-update builds list [--platform <ios|android>] [--limit <n>]
+better-update builds get <id>
+better-update builds delete <id>
+better-update builds install-link <id>
+better-update builds compatibility-matrix
+better-update builds upload <artifact-path> --platform <ios|android> [--profile <p>] [--message <m>]
+```
+
+| `builds list` フラグ | デフォルト | 備考                           |
+| -------------------- | ---------- | ------------------------------ |
+| `--platform`         | —          | プラットフォームでフィルター。 |
+| `--limit`            | `10`       | 最大結果数。                   |
+
+`builds install-link` は `artifactUrl`、任意の `installUrl` (iOS)、`expires` タイムスタンプを返す。
+
+`builds compatibility-matrix` はチャンネルごとのランタイムバージョンカバレッジを表示し、欠けているビルドをフラグ。
+
+`builds upload` はビルド実行なしでビルド済みアーティファクト (`.ipa`/`.apk`/`.aab`) をアップロード。
+
+---
+
+## `credentials`
+
+```bash
+better-update credentials list [--platform <ios|android>]
+
+better-update credentials upload \
+  --platform <ios|android> \
+  --type <type> \
+  --name <display-name> \
+  --file <path-to-credential> \
+  [--password <pw>] \
+  [--key-alias <alias>] \
+  [--key-password <pw>] \
+  [--key-id <id>] \
+  [--issuer-id <id>] \
+  [--apple-team-identifier <id>]
+
+better-update credentials delete <id> --platform <ios|android> --type <type>
+```
+
+有効な `--type` 値:
+
+- iOS: `distribution-certificate`、`provisioning-profile`、`push-key`、`asc-api-key`
+- Android: `keystore`、`google-service-account-key`
+
+---
+
+## `env`
+
+```bash
+better-update env list [--environment <name>]
+better-update env get <id>
+better-update env set <KEY=VALUE> [--environment <name>] [--visibility <v>]
+better-update env delete <key> [--environment <name>]
+better-update env import <file> [--environment <name>]
+better-update env export [--environment <name>]
+better-update env pull [--environment <name>]
+```
+
+| フラグ          | デフォルト   | 備考                                        |
+| --------------- | ------------ | ------------------------------------------- |
+| `--environment` | `production` | どの環境スコープ。                          |
+| `--visibility`  | `plaintext`  | `plaintext`、`sensitive`、または `secret`。 |
+
+- `set` はアップサート。位置引数は `KEY=VALUE`。
+- `get` は env var **ID** を取る。
+- `delete` は **キー名** を取る。
+- `export` は 1 行あたり `KEY='value'` を出力。`pull` は `export KEY='value'` (シェルでソース可能)。
+- `secret` 可視性の値は `export` や `pull` で返されない。
+
+---
+
+## `fingerprint`
+
+```bash
+better-update fingerprint generate
+better-update fingerprint compare <hash>
+```
+
+`generate` は現在のプロジェクトルートのフィンガープリントを計算し、ハッシュ + ソースファイル数を出力。
+
+`compare` はローカルフィンガープリントを計算し、提供されたハッシュと比較。一致で終了 `0`、不一致で `1` (両ハッシュを出力)。
+
+---
+
+## `analytics`
+
+```bash
+better-update analytics adoption [--period <1d|7d|30d|90d>]
+better-update analytics updates --update-id <id> [--period <1d|7d|30d|90d>]
+better-update analytics channels --channel <name> [--period <1d|7d|30d|90d>]
+better-update analytics platforms [--period <1d|7d|30d|90d>]
+```
+
+`--period` は省略時にサーバー定義のウィンドウへデフォルト。
+
+---
+
+## `audit-logs`
+
+```bash
+better-update audit-logs list [flags]
+```
+
+| フラグ            | デフォルト | 備考                         |
+| ----------------- | ---------- | ---------------------------- |
+| `--resource-type` | —          | リソースタイプでフィルター。 |
+| `--from`          | —          | ISO タイムスタンプの下限。   |
+| `--to`            | —          | ISO タイムスタンプの上限。   |
+| `--limit`         | `100`      | 最大結果数。                 |
+
+---
+
+## 終了コード
+
+| コード | 意味                                                                 |
+| ------ | -------------------------------------------------------------------- |
+| `0`    | 成功。                                                               |
+| `1`    | 一般的失敗。                                                         |
+| `2`    | バリデーションエラー (フラグ誤り、必須引数欠落)。                    |
+| `3`    | 認証必要または期限切れ。                                             |
+| `4`    | ネットワークまたはサーバーエラー。                                   |
+| `5`    | リソースが見つからない (プロジェクト、アップデート、チャンネル、…)。 |
+
+CI で失敗種別による分岐に使用。

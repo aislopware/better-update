@@ -1,0 +1,380 @@
+---
+title: CLI reference
+description: Every command, every flag, sourced from the better-update CLI.
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+This is the complete reference for the `better-update` CLI, generated from the source in [`apps/cli/src/commands`](https://github.com/better-update/better-update/tree/main/apps/cli/src/commands).
+
+```bash
+# Install one of these
+bunx @better-update/cli <command>
+bun add -g @better-update/cli && better-update <command>
+```
+
+## Top-level
+
+```
+better-update
+├── login            Log in to better-update
+├── logout           Remove the stored auth token
+├── init             Link the local Expo project to a better-update project
+├── status           Show project status (credentials, builds)
+├── projects         Manage projects
+├── branches         Manage branches
+├── update           Manage updates (publish, list, promote, rollback, rollout)
+├── channels         Manage channels (and channel rollouts)
+├── build            Build the app locally and optionally upload
+├── builds           Manage uploaded builds
+├── credentials      Manage signing credentials
+├── env              Manage server-side environment variables
+├── fingerprint      Compute or compare runtime fingerprints
+├── analytics        View update / channel / platform analytics
+└── audit-logs       View the audit log
+```
+
+## Configuration & auth
+
+The CLI reads its server URL from (priority order):
+
+1. `BETTER_UPDATE_URL` env var (API base URL).
+2. `BETTER_UPDATE_WEB_URL` env var (web URL — for `login` callback).
+3. `~/.better-update/config.json` fields `baseUrl` and `webUrl`.
+4. Defaults: `https://graph.better-update.dev` and `https://better-update.dev`.
+
+Auth token comes from:
+
+1. `BETTER_UPDATE_TOKEN` env var.
+2. `~/.better-update/auth.json` (created by `login`).
+
+Project ID per Expo project is read from `expo.extra.betterUpdate.projectId` in `app.json` (written by `init`).
+
+---
+
+## `login`
+
+```bash
+better-update login [--api-key]
+```
+
+Logs in. Default opens the browser at `<webUrl>/auth/cli-login` and waits for callback. With `--api-key`, prompts for a paste of an existing API token.
+
+| Flag        | Type    | Default | Notes                                       |
+| ----------- | ------- | ------- | ------------------------------------------- |
+| `--api-key` | boolean | off     | Paste an API key manually (headless setup). |
+
+Writes `~/.better-update/auth.json` (mode `0600`).
+
+## `logout`
+
+```bash
+better-update logout
+```
+
+Deletes `~/.better-update/auth.json`. No flags.
+
+## `init`
+
+```bash
+better-update init
+```
+
+Reads `app.json`, looks up an existing project by `expo.slug`. If found, writes that project's ID into `expo.extra.betterUpdate.projectId`. Otherwise creates a new project (using `expo.name` or `expo.slug` for display) and writes the new ID. No flags.
+
+## `status`
+
+```bash
+better-update status
+```
+
+Prints the linked project info, credential counts per platform, and recent build counts. No flags.
+
+---
+
+## `projects`
+
+```bash
+better-update projects list [--query <q>] [--sort <key>] [--limit <n>] [--page <n>]
+better-update projects create --name <name> --slug <slug>
+better-update projects get <id>
+better-update projects rename <id> --name <new-name>
+better-update projects delete <id>
+```
+
+| `projects list` flag | Default          | Notes                             |
+| -------------------- | ---------------- | --------------------------------- |
+| `--query`            | —                | Substring search on name or slug. |
+| `--sort`             | `lastActivityAt` | `lastActivityAt` or `name`.       |
+| `--limit`            | `50`             | Page size, max 100.               |
+| `--page`             | `1`              | 1-based page number.              |
+
+`projects rename` requires `--name` (new display name).
+
+---
+
+## `branches`
+
+```bash
+better-update branches list
+better-update branches create --name <name>
+better-update branches rename <id> --name <new-name>
+better-update branches delete <id>
+```
+
+`list` operates on the linked project. No flags.
+
+---
+
+## `update`
+
+### `update publish`
+
+```bash
+better-update update publish [flags]
+```
+
+| Flag                              | Default      | Notes                                        |
+| --------------------------------- | ------------ | -------------------------------------------- |
+| `--branch <name>`                 | —            | Target branch.                               |
+| `--platform <ios\|android\|all>`  | `all`        | Restrict to one platform.                    |
+| `--message <text>`                | —            | Free-form description.                       |
+| `--environment <name>`            | `production` | Env-var environment to inject during export. |
+| `--auto`                          | off          | Skip prompts (CI mode).                      |
+| `--clear`                         | off          | Drop existing assets before upload.          |
+| `--rollout-percentage <1-100>`    | —            | Initial rollout percentage. Omit for 100%.   |
+| `--manifest-body-file <path>`     | —            | Pre-built signed manifest body.              |
+| `--signature-file <path>`         | —            | Signature for manifest body.                 |
+| `--certificate-chain-file <path>` | —            | Cert chain.                                  |
+| `--manifest-body-file-ios`        | —            | iOS-only override (signature/chain too).     |
+| `--manifest-body-file-android`    | —            | Android-only override (signature/chain too). |
+
+Calls `expo export` internally — you do NOT need to export first.
+
+### `update list`
+
+```bash
+better-update update list [--branch <name>] [--limit <n>]
+```
+
+| Flag       | Default | Notes                  |
+| ---------- | ------- | ---------------------- |
+| `--branch` | —       | Filter by branch name. |
+| `--limit`  | `20`    | Max results.           |
+
+### `update delete`
+
+```bash
+better-update update delete <groupId>
+```
+
+### `update promote`
+
+```bash
+better-update update promote <updateId> --channel <name>
+  [--manifest-body-file <path>]
+  [--signature-file <path>]
+  [--certificate-chain-file <path>]
+```
+
+Promotes an existing update group to a channel.
+
+### `update rollback`
+
+```bash
+better-update update rollback --branch <name>
+  [--platform <ios|android|all>]
+  [--message <text>]
+  [--commit-time <ISO timestamp>]
+  [--directive-body-file <path>]
+  [--signature-file <path>]
+  [--certificate-chain-file <path>]
+```
+
+Creates a rollback update group on `--branch`. Devices fall back to the embedded bundle. Optional `--commit-time` rolls back only updates published after that timestamp.
+
+### `update rollout`
+
+```bash
+better-update update rollout set <updateId> <percentage>
+better-update update rollout complete <updateId>      # → 100%
+better-update update rollout revert <updateId>        # → 0%
+```
+
+`<percentage>` is 1–100, positional.
+
+---
+
+## `channels`
+
+```bash
+better-update channels list
+better-update channels create --name <name> --branch <branch-name>
+better-update channels update <id> --branch <new-branch-name>     # relink
+better-update channels pause <id>
+better-update channels resume <id>
+better-update channels delete <id>
+```
+
+<Aside type="caution">
+  No `channels point` command. Use `channels update <id> --branch <name>` to repoint.
+</Aside>
+
+### `channels rollout`
+
+Branch-level traffic split (gradual migration of a channel from one branch to another).
+
+```bash
+better-update channels rollout create <channelId> --branch <new-branch> --percentage <1-100>
+better-update channels rollout update <channelId> --percentage <1-100>
+better-update channels rollout complete <channelId>
+better-update channels rollout revert <channelId>
+```
+
+---
+
+## `build` (singular)
+
+```bash
+better-update build --platform <ios|android> [flags]
+```
+
+Runs a local native build. Downloads credentials from the server, runs `expo prebuild`, then `xcodebuild`/`gradlew`.
+
+| Flag           | Default      | Notes                                                     |
+| -------------- | ------------ | --------------------------------------------------------- |
+| `--platform`   | —            | Required. `ios` or `android`.                             |
+| `--profile`    | `production` | Build profile name.                                       |
+| `--message`    | —            | Free-form description on the build record.                |
+| `--upload`     | `true`       | Negatable: `--no-upload` to skip uploading.               |
+| `--raw-output` | off          | Raw Gradle/Xcode output instead of the formatted spinner. |
+
+## `builds` (plural)
+
+```bash
+better-update builds list [--platform <ios|android>] [--limit <n>]
+better-update builds get <id>
+better-update builds delete <id>
+better-update builds install-link <id>
+better-update builds compatibility-matrix
+better-update builds upload <artifact-path> --platform <ios|android> [--profile <p>] [--message <m>]
+```
+
+| `builds list` flag | Default | Notes               |
+| ------------------ | ------- | ------------------- |
+| `--platform`       | —       | Filter by platform. |
+| `--limit`          | `10`    | Max results.        |
+
+`builds install-link` returns `artifactUrl`, optional `installUrl` (iOS), and an `expires` timestamp.
+
+`builds compatibility-matrix` shows runtime-version coverage per channel and flags missing builds.
+
+`builds upload` uploads a pre-built artifact (`.ipa`/`.apk`/`.aab`) without running the build.
+
+---
+
+## `credentials`
+
+```bash
+better-update credentials list [--platform <ios|android>]
+
+better-update credentials upload \
+  --platform <ios|android> \
+  --type <type> \
+  --name <display-name> \
+  --file <path-to-credential> \
+  [--password <pw>] \
+  [--key-alias <alias>] \
+  [--key-password <pw>] \
+  [--key-id <id>] \
+  [--issuer-id <id>] \
+  [--apple-team-identifier <id>]
+
+better-update credentials delete <id> --platform <ios|android> --type <type>
+```
+
+Valid `--type` values:
+
+- iOS: `distribution-certificate`, `provisioning-profile`, `push-key`, `asc-api-key`
+- Android: `keystore`, `google-service-account-key`
+
+---
+
+## `env`
+
+```bash
+better-update env list [--environment <name>]
+better-update env get <id>
+better-update env set <KEY=VALUE> [--environment <name>] [--visibility <v>]
+better-update env delete <key> [--environment <name>]
+better-update env import <file> [--environment <name>]
+better-update env export [--environment <name>]
+better-update env pull [--environment <name>]
+```
+
+| Flag            | Default      | Notes                                  |
+| --------------- | ------------ | -------------------------------------- |
+| `--environment` | `production` | Which environment scope.               |
+| `--visibility`  | `plaintext`  | `plaintext`, `sensitive`, or `secret`. |
+
+- `set` upserts. Positional is `KEY=VALUE`.
+- `get` takes an env var **ID**.
+- `delete` takes a **key name**.
+- `export` prints `KEY='value'` per line. `pull` prints `export KEY='value'` (shell-sourceable).
+- `secret` visibility values are not returned by `export` or `pull`.
+
+---
+
+## `fingerprint`
+
+```bash
+better-update fingerprint generate
+better-update fingerprint compare <hash>
+```
+
+`generate` computes a fingerprint of the current project root and prints the hash + source-file count.
+
+`compare` computes the local fingerprint and compares against the provided hash. Exit `0` on match, `1` on mismatch (prints both hashes).
+
+---
+
+## `analytics`
+
+```bash
+better-update analytics adoption [--period <1d|7d|30d|90d>]
+better-update analytics updates --update-id <id> [--period <1d|7d|30d|90d>]
+better-update analytics channels --channel <name> [--period <1d|7d|30d|90d>]
+better-update analytics platforms [--period <1d|7d|30d|90d>]
+```
+
+`--period` defaults to a server-defined window when omitted.
+
+---
+
+## `audit-logs`
+
+```bash
+better-update audit-logs list [flags]
+```
+
+| Flag              | Default | Notes                      |
+| ----------------- | ------- | -------------------------- |
+| `--resource-type` | —       | Filter by resource type.   |
+| `--from`          | —       | ISO timestamp lower bound. |
+| `--to`            | —       | ISO timestamp upper bound. |
+| `--limit`         | `100`   | Max results.               |
+
+---
+
+## Exit codes
+
+| Code | Meaning                                            |
+| ---- | -------------------------------------------------- |
+| `0`  | Success.                                           |
+| `1`  | General failure.                                   |
+| `2`  | Validation error (bad flag, missing required arg). |
+| `3`  | Auth required or expired.                          |
+| `4`  | Network or server error.                           |
+| `5`  | Resource not found (project, update, channel, …).  |
+
+Use these in CI to branch on failure type.

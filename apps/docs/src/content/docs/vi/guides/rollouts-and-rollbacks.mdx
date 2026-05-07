@@ -1,0 +1,133 @@
+---
+title: Rollout và rollback
+description: Stage update cho phần trăm device, ramp lên 100% — hoặc revert ngay khi có vấn đề.
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+Better Update có **2** hệ rollout độc lập cộng với command rollback:
+
+| Tool               | Mức độ chi tiết                            | Khi nào dùng                                          |
+| ------------------ | ------------------------------------------ | ----------------------------------------------------- |
+| `update rollout`   | Một update group, phần trăm device         | Mọi update nguy hiểm. Net an toàn default-on.         |
+| `channels rollout` | Một channel, traffic split giữa các branch | Migrate channel từ branch này sang branch khác từ từ. |
+| `update rollback`  | Cả branch, về điểm trước                   | Có gì hỏng trong production ngay lúc này.             |
+
+Phần còn lại trang này cover từng cái.
+
+## Update rollout (phần trăm per-update)
+
+Khi publish, bạn có thể pin update mới chỉ cho 1 phần device. Server giao manifest mới cho phần đó (deterministic per-device) và manifest cũ cho phần còn lại.
+
+### Bắt đầu với rollout 1 phần
+
+```bash
+better-update update publish \
+  --branch production \
+  --rollout-percentage 10 \
+  --message "Migration cache nguy hiểm"
+```
+
+10% device trên channel khớp bắt đầu nhận update mới. 90% còn lại giữ update trước.
+
+### Ramp lên
+
+```bash
+better-update update rollout set <updateId> 25
+better-update update rollout set <updateId> 50
+better-update update rollout complete <updateId>     # → 100%
+```
+
+`complete` là sugar cho set lên 100. Dùng khi ramp xong.
+
+### Drop về 0
+
+```bash
+better-update update rollout revert <updateId>     # → 0%
+```
+
+Device chưa pull update sẽ không bao giờ pull. Device đã pull giữ tới lần check manifest tiếp, lúc đó được serve update trước.
+
+<Aside type="tip">
+  Phần trăm rollout là **per-update**, không per-channel. 2 update trên cùng channel có thể có state
+  rollout riêng. Update gần nhất với rollout khác 0 thắng cho device được chọn; update cũ hơn vẫn
+  serve cho phần còn lại.
+</Aside>
+
+## Channel rollout (traffic split mức branch)
+
+Đây là tool migrate. Dùng khi muốn chuyển cả channel từ branch này sang branch khác qua thời gian, thay vì cutover gắt.
+
+```bash
+# Bắt đầu: 10% device trên `production` nhận manifest từ `release-2026-05`.
+better-update channels rollout create <channelId> \
+  --branch release-2026-05 \
+  --percentage 10
+
+better-update channels rollout update <channelId> --percentage 50
+
+better-update channels rollout complete <channelId>     # channel chuyển hẳn sang branch mới
+better-update channels rollout revert <channelId>       # channel về branch cũ
+```
+
+Xem [Channel và branch](/vi/guides/channels-and-branches/) cho bức tranh lớn.
+
+## Rollback (revert cả branch)
+
+Khi cần đưa production khỏi update tệ _ngay_, dùng `rollback`. Tạo update group đặc biệt báo `expo-updates` revert về embedded bundle (cái ship trong native build) — không upload bundle mới.
+
+```bash
+better-update update rollback \
+  --branch production \
+  --message "Revert e7f3 — login crash"
+```
+
+Trên device: lần check manifest tiếp trả "rollback to embedded" directive. Runtime clear cached OTA bundle và fallback về cái ship trong binary.
+
+### Rollback về 1 thời điểm cụ thể
+
+Nếu chỉ muốn revert update publish _sau_ 1 thời điểm, pass `--commit-time`:
+
+```bash
+better-update update rollback \
+  --branch production \
+  --commit-time 2026-05-06T14:00:00Z \
+  --message "Revert mọi thứ sau 14h"
+```
+
+Update với timestamp publish trước `--commit-time` vẫn được serve.
+
+### Rollback theo platform
+
+```bash
+better-update update rollback --branch production --platform ios --message "Revert iOS-only"
+```
+
+Default `--platform all`.
+
+## Decision table
+
+| Triệu chứng                                     | Dùng                                                              |
+| ----------------------------------------------- | ----------------------------------------------------------------- |
+| Publish nguy hiểm, muốn validate trên slice nhỏ | **`update publish --rollout-percentage 5`**, rồi ramp.            |
+| Update tệ phát hiện trong rollout 1 phần        | **`update rollout revert`** — chặn lan.                           |
+| Update tệ ở 100%, install count vừa phải        | Repoint **channel** về branch trước.                              |
+| Update tệ ở 100%, hard crash, muốn state sạch   | **`update rollback --branch <name>`** — device fallback embedded. |
+| Migrate channel sang branch mới qua tuần        | **`channels rollout create … --percentage 10`**, ramp, complete.  |
+| Regression native (chỉ fix được bằng build mới) | **`update rollback`** + ship build app store mới với fix.         |
+
+## Sau rollback
+
+1. Investigate root cause trước khi re-publish từ branch đó.
+2. Khi publish bản fix, dùng `--rollout-percentage 10` để validate trên slice trước.
+3. Audit log record mọi publish, đổi rollout, rollback. Đọc qua `better-update audit-logs list --resource-type update --limit 50`.
+
+## Re-promote sau false alarm
+
+Rollback mức channel (pattern "repoint channel") không xóa update. Nếu phát hiện rollback không cần, trỏ ngược lại:
+
+```bash
+better-update channels update <channel-id> --branch <branch-tưởng-tệ>
+```
+
+Không gì bị xóa; chỉ pointer đổi.
