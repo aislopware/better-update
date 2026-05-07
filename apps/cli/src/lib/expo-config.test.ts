@@ -10,10 +10,13 @@ import {
   extractProjectId,
   extractSlug,
   getConfigFilePaths,
+  readAppMeta,
   readExpoConfig,
   writeProjectId,
 } from "./expo-config";
 import { failureError } from "./test-utils";
+
+import type { ExpoConfig } from "./expo-config";
 
 const writePackageJson = (dir: string): void => {
   writeFileSync(
@@ -206,6 +209,34 @@ describe(writeProjectId, () => {
         expect(err!.message).toContain("manually");
         expect(err!.message).toContain("proj_dyn");
       }
+    }),
+  );
+});
+
+describe(readAppMeta, () => {
+  it.effect("returns rawRuntimeVersion=undefined when runtimeVersion is null", () =>
+    Effect.gen(function* () {
+      // typeof null === "object" — without an explicit guard, downstream
+      // resolveRuntimeVersion would destructure null and crash.
+      const config = {
+        ios: { bundleIdentifier: "com.example" },
+        runtimeVersion: null,
+      } as unknown as ExpoConfig;
+      const meta = yield* readAppMeta(config, "ios");
+      expect(meta.rawRuntimeVersion).toBeUndefined();
+    }),
+  );
+
+  it.effect("returns the policy object when runtimeVersion has a policy", () =>
+    Effect.gen(function* () {
+      const meta = yield* readAppMeta(
+        {
+          android: { package: "com.example" },
+          runtimeVersion: { policy: "appVersion" },
+        },
+        "android",
+      );
+      expect(meta.rawRuntimeVersion).toStrictEqual({ policy: "appVersion" });
     }),
   );
 });

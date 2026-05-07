@@ -122,23 +122,28 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
       const runtime = yield* CliRuntime;
       const projectRoot = yield* runtime.cwd;
 
-      // Read config first without env vars to learn the build profile + projectId.
-      // app.config.{js,ts} that reads process.env for these fields will see the
-      // caller's environment only — env vars from the server are not available yet.
+      // Read config first without env vars to learn the profile's environment
+      // (so we know which env scope to pull) + projectId. app.config.{js,ts}
+      // that read process.env for these fields will see the caller's
+      // environment only — server env vars are not available yet.
       const baseConfig = yield* readExpoConfig(projectRoot);
       const projectId = yield* extractProjectId(baseConfig);
-      const profile = yield* readBuildProfile(baseConfig, options.profileName);
+      const baseProfile = yield* readBuildProfile(baseConfig, options.profileName);
 
       // Load env vars now that we know the profile's environment.
       const envVars = yield* pullEnvVars(api, {
         projectId,
-        environment: profile.environment,
+        environment: baseProfile.environment,
       });
 
       // Re-resolve config with env-var overlay so dynamic configs see them.
-      // EnvVars are applied as a scoped process.env overlay inside readExpoConfig
-      // And restored after the call so secrets do not leak to child processes.
+      // envVars are applied as a scoped process.env overlay inside readExpoConfig
+      // and restored after the call so secrets do not leak to child processes.
+      // Re-read the profile from the env-resolved config so platform-specific
+      // fields (format/distribution/buildConfiguration) that derive from env
+      // vars resolve correctly downstream.
       const expoConfig = yield* readExpoConfig(projectRoot, envVars);
+      const profile = yield* readBuildProfile(expoConfig, options.profileName);
       const appMeta = yield* readAppMeta(expoConfig, options.platform);
 
       const runtimeVersion = yield* resolveRuntimeVersion({

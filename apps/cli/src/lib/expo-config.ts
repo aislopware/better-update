@@ -229,11 +229,16 @@ const extractBuildNumber = (config: ExpoConfig, platform: Platform): string | un
 };
 
 const extractRawRuntimeVersion = (config: ExpoConfig): RawRuntimeVersion | undefined => {
-  if (typeof config.runtimeVersion === "string") {
-    return config.runtimeVersion;
+  const raw = config.runtimeVersion;
+  if (typeof raw === "string") {
+    return raw;
   }
-  if (typeof config.runtimeVersion === "object") {
-    return config.runtimeVersion;
+  // typeof null === "object" — guard before reading `policy` so configs that
+  // explicitly clear runtimeVersion (e.g. `runtimeVersion: null` from a dynamic
+  // config) fall through to undefined instead of crashing resolveRuntimeVersion.
+  // eslint-disable-next-line typescript/no-unnecessary-condition -- runtime guard against `runtimeVersion: null` even though the static type excludes null
+  if (typeof raw === "object" && raw !== null && typeof raw.policy === "string") {
+    return { policy: raw.policy };
   }
   return undefined;
 };
