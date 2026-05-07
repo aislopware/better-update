@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.5.0](https://github.com/better-update/better-update/compare/@better-update/server@0.4.1...@better-update/server@0.5.0) (2026-05-07)
+
+### Features
+
+* page-numbered pagination with sort across list endpoints ([ff90874](https://github.com/better-update/better-update/commit/ff90874474fb138e9aed36294de2029abce94d7a)) - by @trancong12102
+
 ## [0.4.1](https://github.com/better-update/better-update/compare/@better-update/server@0.4.0...@better-update/server@0.4.1) (2026-05-06)
 
 ### Bug Fixes
