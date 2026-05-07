@@ -6,7 +6,7 @@ import { Context, Data, Effect, Layer } from "effect";
 
 import { CliRuntime } from "./cli-runtime";
 
-const DEFAULT_BASE_URL = "https://graph.better-update.dev";
+const DEFAULT_BASE_URL = "https://better-update.dev";
 const DEFAULT_WEB_URL = "https://better-update.dev";
 
 class ConfigStoreParseError extends Data.TaggedError("ConfigStoreParseError")<{
