@@ -1,12 +1,12 @@
 import { resolveUpdatePlatforms } from "./update-platforms";
 
+import type { ExpoConfig } from "./expo-config";
+
 describe(resolveUpdatePlatforms, () => {
-  const fullConfig = {
-    expo: {
-      ios: { bundleIdentifier: "com.example.app" },
-      android: { package: "com.example.app" },
-    },
-  } satisfies Record<string, unknown>;
+  const fullConfig: ExpoConfig = {
+    ios: { bundleIdentifier: "com.example.app" },
+    android: { package: "com.example.app" },
+  };
 
   it('returns both platforms when "all" is requested', () => {
     expect(resolveUpdatePlatforms(fullConfig, "all")).toStrictEqual(["ios", "android"]);
@@ -21,25 +21,29 @@ describe(resolveUpdatePlatforms, () => {
     expect(
       resolveUpdatePlatforms(
         {
-          expo: {
-            ios: { bundleIdentifier: "com.example.app" },
-          },
+          ios: { bundleIdentifier: "com.example.app" },
         },
         "all",
       ),
     ).toStrictEqual(["ios"]);
   });
 
-  it("returns the explicitly requested platform even when app.json omits that section", () => {
+  it("returns the explicitly requested platform even when the config omits that section", () => {
     expect(
       resolveUpdatePlatforms(
         {
-          expo: {
-            ios: { bundleIdentifier: "com.example.app" },
-          },
+          ios: { bundleIdentifier: "com.example.app" },
         },
         "android",
       ),
     ).toStrictEqual(["android"]);
+  });
+
+  it('excludes platforms set to null when "all" is requested', () => {
+    const configWithNullAndroid = {
+      ios: { bundleIdentifier: "com.example.app" },
+      android: null,
+    } as unknown as ExpoConfig;
+    expect(resolveUpdatePlatforms(configWithNullAndroid, "all")).toStrictEqual(["ios"]);
   });
 });

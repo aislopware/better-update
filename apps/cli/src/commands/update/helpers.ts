@@ -10,6 +10,7 @@ export const updateErrorExtras = {
   UpdateCommandError: 2,
   BuildProfileError: 2,
   RuntimeVersionError: 2,
+  EnvExportError: 7,
   UpdateRollbackError: 2,
   UpdatePromoteError: 2,
 } as const;

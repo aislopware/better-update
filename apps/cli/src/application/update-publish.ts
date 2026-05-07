@@ -7,10 +7,10 @@ import { uniqBy } from "es-toolkit";
 
 import type { CommandExecutor, FileSystem } from "@effect/platform";
 
-import { readAppJson, readProjectId, readSlug } from "../lib/app-json";
 import { readRuntimeVersionMeta } from "../lib/build-profile";
 import { pullEnvVars } from "../lib/env-exporter";
 import { UpdatePublishError } from "../lib/exit-codes";
+import { extractProjectId, extractSlug, readExpoConfig } from "../lib/expo-config";
 import { readExpoExportAssets, readExpoPublicConfig, runExpoExport } from "../lib/expo-export";
 import { formatCause } from "../lib/format-error";
 import { readGitContext } from "../lib/git-context";
@@ -32,6 +32,7 @@ import type {
   EnvExportError,
   RuntimeVersionError,
 } from "../lib/exit-codes";
+import type { ExpoConfig } from "../lib/expo-config";
 import type { SignedPayload } from "../lib/signed-payloads";
 import type { ApiClientService } from "../services/api-client";
 
@@ -132,7 +133,7 @@ const publishPlatform = (params: {
   readonly environmentVars: Record<string, string>;
   readonly expoClientConfig: Record<string, unknown>;
   readonly clear: boolean;
-  readonly appJson: Record<string, unknown>;
+  readonly expoConfig: ExpoConfig;
   readonly platform: Platform;
   readonly signedPayload: SignedPayload | null;
   readonly rolloutPercentage: number | undefined;
@@ -153,7 +154,7 @@ const publishPlatform = (params: {
     const api = yield* apiClient;
     const assetUploader = yield* UpdateAssetUploader;
 
-    const runtimeVersionMeta = yield* readRuntimeVersionMeta(params.appJson);
+    const runtimeVersionMeta = readRuntimeVersionMeta(params.expoConfig);
     const runtimeVersion = yield* resolveRuntimeVersion({
       raw: runtimeVersionMeta.rawRuntimeVersion,
       appVersion: runtimeVersionMeta.appVersion,
@@ -293,21 +294,25 @@ export const runUpdatePublish = (
       const projectRoot = yield* runtime.cwd;
       const api = yield* apiClient;
 
-      const projectId = yield* readProjectId;
-      const slug = yield* readSlug;
-      const appJson = yield* readAppJson;
-      const platforms = resolveUpdatePlatforms(appJson, options.platform);
-      if (platforms.length === 0) {
-        return yield* new UpdatePublishError({
-          message:
-            'No publishable platforms found in app.json. Add an "expo.ios" or "expo.android" section, or pass --platform explicitly.',
-        });
-      }
+      const baseConfig = yield* readExpoConfig(projectRoot);
+      const projectId = yield* extractProjectId(baseConfig);
 
       const environmentVars = yield* pullEnvVars(api, {
         projectId,
         environment: options.environment,
       });
+
+      // Read slug from the env-resolved config so dynamic configs that derive
+      // slug from env vars publish under the same identity as `expo export`.
+      const expoConfig = yield* readExpoConfig(projectRoot, environmentVars);
+      const slug = yield* extractSlug(expoConfig);
+      const platforms = resolveUpdatePlatforms(expoConfig, options.platform);
+      if (platforms.length === 0) {
+        return yield* new UpdatePublishError({
+          message:
+            'No publishable platforms found in your Expo config. Add an "ios" or "android" section, or pass --platform explicitly.',
+        });
+      }
       const expoClientConfig = yield* readExpoPublicConfig({
         projectRoot,
         envVars: environmentVars,
@@ -384,7 +389,7 @@ export const runUpdatePublish = (
             environmentVars,
             expoClientConfig,
             clear: options.clear,
-            appJson,
+            expoConfig,
             platform,
             // eslint-disable-next-line eslint-js/no-restricted-syntax -- signedPayload absence means unsigned; null is correct downstream
             signedPayload: signedPayloads[platform] ?? null,

@@ -1,5 +1,5 @@
 import { execSync, spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import os from "node:os";
 import path from "node:path";
@@ -34,6 +34,12 @@ export interface SetupCliE2EOptions {
   readonly projectDir?: string;
   /** Custom app.json template. ScopeKey and project name are derived from expo.owner/slug/name. */
   readonly appJsonTemplate?: Record<string, unknown>;
+  /**
+   * Write the Expo config as a CommonJS dynamic `app.config.js` instead of a static `app.json`.
+   * The template is exported as the function return value (with `expo` unwrapped to match @expo/config conventions).
+   * Use this to verify the CLI works against dynamic Expo configs.
+   */
+  readonly useDynamicConfig?: boolean;
 }
 
 const defaultAppJsonTemplate = {
@@ -228,7 +234,45 @@ export const setupCliE2E = (persistDir: string, options?: SetupCliE2EOptions): C
     throw new Error("requestWithRetry exhausted unexpectedly");
   };
 
-  const writeAppJson = () => {
+  const writeExpoConfig = () => {
+    // @expo/config requires a package.json to resolve the project root.
+    // Don't clobber an existing package.json (e.g. the build-e2e fixture has its own).
+    const pkgJsonPath = path.join(state.projectDir, "package.json");
+    if (!existsSync(pkgJsonPath)) {
+      writeFileSync(pkgJsonPath, `${JSON.stringify({ name: slug, version: "1.0.0" }, null, 2)}\n`);
+    }
+    if (options?.useDynamicConfig) {
+      // Drop any pre-existing app.json so the dynamic config is unambiguously
+      // The source of truth for @expo/config (avoids static-base shadowing).
+      const appJsonPath = path.join(state.projectDir, "app.json");
+      if (existsSync(appJsonPath)) {
+        unlinkSync(appJsonPath);
+      }
+      const expo = (template as { expo?: Record<string, unknown> }).expo ?? {};
+      // Function-form export so process.env reads (e.g. BETTER_UPDATE_E2E_PROJECT_ID
+      // For projectId injection) are evaluated on each readExpoConfig call rather
+      // Than frozen at module-load time.
+      writeFileSync(
+        path.join(state.projectDir, "app.config.js"),
+        [
+          `module.exports = () => {`,
+          `  const config = ${JSON.stringify(expo, null, 2)};`,
+          `  if (process.env.BETTER_UPDATE_E2E_PROJECT_ID) {`,
+          `    config.extra = {`,
+          `      ...(config.extra ?? {}),`,
+          `      betterUpdate: {`,
+          `        ...(config.extra && config.extra.betterUpdate ? config.extra.betterUpdate : {}),`,
+          `        projectId: process.env.BETTER_UPDATE_E2E_PROJECT_ID,`,
+          `      },`,
+          `    };`,
+          `  }`,
+          `  return config;`,
+          `};`,
+          ``,
+        ].join("\n"),
+      );
+      return;
+    }
     writeFileSync(
       path.join(state.projectDir, "app.json"),
       `${JSON.stringify(template, null, 2)}\n`,
@@ -243,6 +287,7 @@ export const setupCliE2E = (persistDir: string, options?: SetupCliE2EOptions): C
         HOME: state.homeDir,
         BETTER_UPDATE_URL: state.baseUrl,
         BETTER_UPDATE_TOKEN: state.apiKey,
+        BETTER_UPDATE_DISABLE_UPDATE_NOTIFIER: "1",
         FORCE_COLOR: "0",
         NO_COLOR: "1",
       },
@@ -303,10 +348,19 @@ export const setupCliE2E = (persistDir: string, options?: SetupCliE2EOptions): C
       if (existsSync(appJsonPath)) {
         state.originalAppJson = readFileSync(appJsonPath, "utf8");
       }
+      // Fixture dirs live outside the workspace glob so a root `bun install`
+      // does not touch them. Install per-fixture deps on demand so `expo
+      // export` can resolve react-native + the bundler config.
+      if (!existsSync(path.join(state.projectDir, "node_modules"))) {
+        execSync("bun install --frozen-lockfile", {
+          cwd: state.projectDir,
+          stdio: "pipe",
+        });
+      }
     } else {
       state.projectDir = mkdtempSync(path.join(os.tmpdir(), "better-update-cli-project-"));
     }
-    writeAppJson();
+    writeExpoConfig();
 
     const signUpResponse = await post("/api/auth/sign-up/email", {
       name: "CLI E2E User",

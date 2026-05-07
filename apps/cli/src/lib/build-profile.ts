@@ -3,6 +3,8 @@ import { Effect } from "effect";
 
 import { BuildProfileError } from "./exit-codes";
 
+import type { ExpoConfig } from "./expo-config";
+
 export type Platform = "ios" | "android";
 
 export type IosDistribution = "app-store" | "ad-hoc" | "development" | "enterprise";
@@ -46,14 +48,6 @@ export interface RuntimeVersionMeta {
 
 export const asString = (value: unknown): string | undefined =>
   typeof value === "string" ? value : undefined;
-
-const getBetterUpdateExtra = (
-  appJson: Record<string, unknown>,
-): Record<string, unknown> | undefined => {
-  const expo = asRecord(appJson["expo"]);
-  const extra = asRecord(expo?.["extra"]);
-  return asRecord(extra?.["betterUpdate"]);
-};
 
 const VALID_IOS_DISTRIBUTIONS: readonly IosDistribution[] = [
   "app-store",
@@ -121,21 +115,20 @@ const readAndroidProfile = (raw: unknown): AndroidProfile | undefined => {
 };
 
 export const readBuildProfile = (
-  appJson: Record<string, unknown>,
+  config: ExpoConfig,
   profileName: string,
 ): Effect.Effect<BuildProfile, BuildProfileError> =>
   Effect.gen(function* () {
-    const betterUpdate = getBetterUpdateExtra(appJson);
-    const profiles = asRecord(betterUpdate?.["profiles"]);
+    const profiles = asRecord(config.extra?.betterUpdate?.profiles);
     if (!profiles) {
       return yield* new BuildProfileError({
-        message: "No build profiles defined. Add expo.extra.betterUpdate.profiles to app.json.",
+        message: "No build profiles defined. Add extra.betterUpdate.profiles to your Expo config.",
       });
     }
     const profileRaw = asRecord(profiles[profileName]);
     if (!profileRaw) {
       return yield* new BuildProfileError({
-        message: `Build profile "${profileName}" not found in app.json.`,
+        message: `Build profile "${profileName}" not found in your Expo config.`,
       });
     }
     const environment = asString(profileRaw["environment"]) ?? "production";
@@ -149,77 +142,10 @@ export const readBuildProfile = (
     };
   });
 
-export const readRuntimeVersionMeta = (
-  appJson: Record<string, unknown>,
-): Effect.Effect<RuntimeVersionMeta, BuildProfileError> =>
-  Effect.gen(function* () {
-    const expo = asRecord(appJson["expo"]);
-    if (!expo) {
-      return yield* new BuildProfileError({
-        message: "Missing expo section in app.json.",
-      });
-    }
-
-    return {
-      appVersion: asString(expo["version"]),
-      rawRuntimeVersion: readRawRuntimeVersion(expo["runtimeVersion"]),
-    };
-  });
-
-export const readAppMeta = (
-  appJson: Record<string, unknown>,
-  platform: Platform,
-): Effect.Effect<AppMeta, BuildProfileError> =>
-  Effect.gen(function* () {
-    const expo = asRecord(appJson["expo"]);
-    if (!expo) {
-      return yield* new BuildProfileError({
-        message: "Missing expo section in app.json.",
-      });
-    }
-
-    if (platform === "ios") {
-      const ios = asRecord(expo["ios"]);
-      if (!ios) {
-        return yield* new BuildProfileError({
-          message:
-            "Missing expo.ios section in app.json. Required for iOS builds (bundleIdentifier).",
-        });
-      }
-    } else {
-      const android = asRecord(expo["android"]);
-      if (!android) {
-        return yield* new BuildProfileError({
-          message:
-            "Missing expo.android section in app.json. Required for Android builds (package).",
-        });
-      }
-    }
-
-    const iosSection = asRecord(expo["ios"]);
-    const androidSection = asRecord(expo["android"]);
-    const buildNumber =
-      platform === "ios"
-        ? asString(iosSection?.["buildNumber"])
-        : asStringOrNumber(androidSection?.["versionCode"]);
-    return {
-      bundleId: asString(iosSection?.["bundleIdentifier"]),
-      androidPackage: asString(androidSection?.["package"]),
-      appVersion: asString(expo["version"]),
-      buildNumber,
-      rawRuntimeVersion: readRawRuntimeVersion(expo["runtimeVersion"]),
-    };
-  });
-
-const asStringOrNumber = (value: unknown): string | undefined => {
-  if (typeof value === "string") {
-    return value;
-  }
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return String(value);
-  }
-  return undefined;
-};
+export const readRuntimeVersionMeta = (config: ExpoConfig): RuntimeVersionMeta => ({
+  appVersion: config.version,
+  rawRuntimeVersion: readRawRuntimeVersion(config.runtimeVersion),
+});
 
 const readRawRuntimeVersion = (value: unknown): RawRuntimeVersion | undefined => {
   if (typeof value === "string") {

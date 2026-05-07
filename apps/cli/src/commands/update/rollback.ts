@@ -17,6 +17,7 @@ export const rollbackCommand = defineCommand({
       description: "Platform(s) to roll back",
     },
     message: { type: "string" },
+    environment: { type: "string", default: "production", description: "Env vars scope" },
     "commit-time": { type: "string" },
     "directive-body-file": { type: "string" },
     "signature-file": { type: "string" },
@@ -28,6 +29,7 @@ export const rollbackCommand = defineCommand({
         const result = yield* runUpdateRollback({
           branch: args.branch,
           platform: args.platform,
+          environment: args.environment,
           message: args.message,
           commitTime: args["commit-time"],
           directiveBodyFile: args["directive-body-file"],

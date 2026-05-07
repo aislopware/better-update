@@ -47,7 +47,7 @@ const publishState = {
 const iosRowPattern = /^ios\s+([0-9a-f-]+)\s+1\.0\.0\s+(\d+)\s+(\d+)\s*$/m;
 const androidRowPattern = /^android\s+([0-9a-f-]+)\s+1\.0\.0\s+(\d+)\s+(\d+)\s*$/m;
 
-describe("cLI publish journey", () => {
+describe("CLI publish journey", () => {
   it("links the fixture app to the seeded project", () => {
     const result = cli.runCli("init");
     expect(result.exitCode).toBe(0);

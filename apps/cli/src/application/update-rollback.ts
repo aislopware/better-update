@@ -7,9 +7,10 @@ import { Effect } from "effect";
 
 import type { CommandExecutor } from "@effect/platform";
 
-import { readAppJson, readProjectId, readSlug } from "../lib/app-json";
 import { readRuntimeVersionMeta } from "../lib/build-profile";
+import { pullEnvVars } from "../lib/env-exporter";
 import { UpdateRollbackError } from "../lib/exit-codes";
+import { extractProjectId, extractSlug, readExpoConfig } from "../lib/expo-config";
 import { formatCause } from "../lib/format-error";
 import { resolveRuntimeVersion } from "../lib/runtime-version";
 import { resolveUpdatePlatforms } from "../lib/update-platforms";
@@ -20,6 +21,7 @@ import type { Platform } from "../lib/build-profile";
 import type {
   AuthRequiredError,
   BuildProfileError,
+  EnvExportError,
   ProjectNotLinkedError,
   RuntimeVersionError,
 } from "../lib/exit-codes";
@@ -47,6 +49,7 @@ export interface RollbackResultItem {
 export interface RunUpdateRollbackOptions {
   readonly branch: string;
   readonly platform: UpdatePlatformOption;
+  readonly environment: string;
   readonly message: string | undefined;
   readonly commitTime: string | undefined;
   readonly directiveBodyFile: string | undefined;
@@ -208,6 +211,7 @@ export const runUpdateRollback = (
   | AuthRequiredError
   | ProjectNotLinkedError
   | BuildProfileError
+  | EnvExportError
   | RuntimeVersionError
   | UpdateRollbackError,
   ApiClientService | CliRuntime | CommandExecutor.CommandExecutor | FileSystem.FileSystem
@@ -215,18 +219,31 @@ export const runUpdateRollback = (
   Effect.gen(function* () {
     const runtime = yield* CliRuntime;
     const projectRoot = yield* runtime.cwd;
-    yield* readProjectId;
-    const projectSlug = yield* readSlug;
-    const appJson = yield* readAppJson;
-    const platforms = resolveUpdatePlatforms(appJson, options.platform);
+    const api = yield* apiClient;
+
+    const baseConfig = yield* readExpoConfig(projectRoot);
+    const projectId = yield* extractProjectId(baseConfig);
+
+    const environmentVars = yield* pullEnvVars(api, {
+      projectId,
+      environment: options.environment,
+    });
+
+    // Re-resolve with the env-var overlay so runtimeVersion / ios / android
+    // sections (and slug) derived from process.env match what the corresponding
+    // publish would have computed — otherwise rollback can target the wrong
+    // runtime or publish under a stale slug.
+    const config = yield* readExpoConfig(projectRoot, environmentVars);
+    const projectSlug = yield* extractSlug(config);
+    const platforms = resolveUpdatePlatforms(config, options.platform);
     if (platforms.length === 0) {
       return yield* new UpdateRollbackError({
         message:
-          'No publishable platforms found in app.json. Add an "expo.ios" or "expo.android" section, or pass --platform explicitly.',
+          'No publishable platforms found in your Expo config. Add an "ios" or "android" section, or pass --platform explicitly.',
       });
     }
 
-    const { appVersion, rawRuntimeVersion } = yield* readRuntimeVersionMeta(appJson);
+    const { appVersion, rawRuntimeVersion } = readRuntimeVersionMeta(config);
     const runtimeVersion = yield* resolveRuntimeVersion({
       raw: rawRuntimeVersion,
       appVersion,
