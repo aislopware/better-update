@@ -109,7 +109,6 @@ const Members = () => {
       <PageHeader
         title="Members"
         description="Invite teammates and manage their roles within this organization."
-        actions={headerActions}
       />
 
       <div className="flex flex-col gap-3">
@@ -136,7 +135,7 @@ const Members = () => {
               </SelectGroup>
             </SelectPopup>
           </Select>
-          <span className="text-muted-foreground text-xs tabular-nums">{countLabel}</span>
+          {headerActions}
         </div>
         {visibleCount === 0 ? (
           <p className="text-muted-foreground rounded-xl border border-dashed py-10 text-center text-sm">
@@ -150,6 +149,7 @@ const Members = () => {
             currentRole={currentRole}
             pendingMemberId={memberPendingId}
             pendingInvitationId={invitationPendingId}
+            countLabel={countLabel}
             onRoleChange={handleRoleChange}
             onRemove={setRemoveMemberId}
             onCancelInvitation={handleCancelInvitation}
