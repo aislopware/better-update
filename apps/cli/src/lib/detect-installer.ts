@@ -3,13 +3,14 @@ import { fileURLToPath } from "node:url";
 export type Installer = "bun" | "pnpm" | "yarn" | "npm";
 
 export const detectInstaller = (modulePath: string): Installer => {
-  if (modulePath.includes("/.bun/")) {
+  const normalized = modulePath.replaceAll("\\", "/").toLowerCase();
+  if (normalized.includes("/.bun/")) {
     return "bun";
   }
-  if (modulePath.includes("/pnpm/")) {
+  if (normalized.includes("/pnpm/")) {
     return "pnpm";
   }
-  if (modulePath.includes("/.yarn/") || modulePath.includes("/yarn/global/")) {
+  if (normalized.includes("/.yarn/") || normalized.includes("/yarn/")) {
     return "yarn";
   }
   return "npm";

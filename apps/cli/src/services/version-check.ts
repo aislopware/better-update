@@ -61,7 +61,13 @@ export const VersionCheckLive = Layer.effect(
     return {
       cachedLatest: readCache.pipe(Effect.map((entry) => entry?.latest)),
       cacheStale: readCache.pipe(
-        Effect.map((entry) => !entry || Date.now() - entry.checkedAt > CACHE_TTL_MS),
+        Effect.map((entry) => {
+          if (!entry) {
+            return true;
+          }
+          const elapsed = Date.now() - entry.checkedAt;
+          return elapsed < 0 || elapsed > CACHE_TTL_MS;
+        }),
       ),
       refreshCache: Effect.gen(function* () {
         const request = HttpClientRequest.get(NPM_REGISTRY_URL).pipe(

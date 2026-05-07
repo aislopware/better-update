@@ -20,9 +20,10 @@ const isOptedOut = Effect.gen(function* () {
   return value === "1" || value === "true";
 });
 
-export const printOutdatedWarning = (
+export const bootstrapVersionCheck = (
   currentVersion: string,
   installerHint: string,
+  spawnRefresh: () => void,
 ): Effect.Effect<void, never, VersionCheck | CliRuntime> =>
   Effect.gen(function* () {
     if (yield* isOptedOut) {
@@ -33,6 +34,9 @@ export const printOutdatedWarning = (
     if (cached && isNewerVersion(cached, currentVersion)) {
       const installer = detectInstallerFromImportMetaUrl(installerHint);
       yield* Console.error(formatNotice(currentVersion, cached, installCommand(installer)));
+    }
+    if (yield* versionCheck.cacheStale) {
+      spawnRefresh();
     }
   });
 

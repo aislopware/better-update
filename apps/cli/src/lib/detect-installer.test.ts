@@ -56,6 +56,38 @@ describe(detectInstaller, () => {
   it("unknown path defaults to npm", () => {
     expect(detectInstaller("/some/random/path/index.mjs")).toBe("npm");
   });
+
+  it("bun global install on Windows", () => {
+    expect(
+      detectInstaller(
+        String.raw`C:\Users\me\.bun\install\global\node_modules\@better-update\cli\dist\index.mjs`,
+      ),
+    ).toBe("bun");
+  });
+
+  it("pnpm global on Windows", () => {
+    expect(
+      detectInstaller(
+        String.raw`C:\Users\me\AppData\Local\pnpm\global\5\node_modules\@better-update\cli\dist\index.mjs`,
+      ),
+    ).toBe("pnpm");
+  });
+
+  it("yarn classic global on Windows", () => {
+    expect(
+      detectInstaller(
+        String.raw`C:\Users\me\AppData\Local\Yarn\Data\global\node_modules\@better-update\cli\dist\index.mjs`,
+      ),
+    ).toBe("yarn");
+  });
+
+  it("npm global on Windows", () => {
+    expect(
+      detectInstaller(
+        String.raw`C:\Users\me\AppData\Roaming\npm\node_modules\@better-update\cli\dist\index.mjs`,
+      ),
+    ).toBe("npm");
+  });
 });
 
 describe(installCommand, () => {

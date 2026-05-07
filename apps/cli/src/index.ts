@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import { spawn } from "node:child_process";
+
 import { defineCommand, runMain } from "citty";
 import { Effect } from "effect";
 
@@ -20,7 +22,22 @@ import { logoutCommand } from "./commands/logout";
 import { projectsCommand } from "./commands/projects";
 import { statusCommand } from "./commands/status";
 import { updateCommand } from "./commands/update";
-import { printOutdatedWarning, refreshVersionCacheIfStale } from "./lib/version-notifier";
+import { bootstrapVersionCheck, refreshVersionCacheIfStale } from "./lib/version-notifier";
+
+const REFRESH_VERSION_CACHE_FLAG = "__refresh-version-cache";
+
+if (process.argv[2] === REFRESH_VERSION_CACHE_FLAG) {
+  await Effect.runPromise(refreshVersionCacheIfStale.pipe(Effect.provide(CliLive)));
+  process.exit(0);
+}
+
+const spawnDetachedRefresh = (): void => {
+  const child = spawn(process.execPath, [import.meta.filename, REFRESH_VERSION_CACHE_FLAG], {
+    detached: true,
+    stdio: "ignore",
+  });
+  child.unref();
+};
 
 const main = defineCommand({
   meta: {
@@ -30,9 +47,10 @@ const main = defineCommand({
   },
   setup: async () => {
     await Effect.runPromise(
-      printOutdatedWarning(pkg.version, import.meta.url).pipe(Effect.provide(CliLive)),
+      bootstrapVersionCheck(pkg.version, import.meta.url, spawnDetachedRefresh).pipe(
+        Effect.provide(CliLive),
+      ),
     );
-    Effect.runFork(refreshVersionCacheIfStale.pipe(Effect.provide(CliLive)));
   },
   subCommands: {
     login: loginCommand,
