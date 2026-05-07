@@ -33,8 +33,8 @@ describe("gc-utils", () => {
       const cutoffMs = new Date(cutoff).getTime();
       const expectedMs = days * 86_400_000;
 
-      expect(before - cutoffMs).toBeGreaterThanOrEqual(expectedMs);
-      expect(after - cutoffMs).toBeLessThanOrEqual(expectedMs + 100);
+      expect(cutoffMs).toBeGreaterThanOrEqual(before - expectedMs);
+      expect(cutoffMs).toBeLessThanOrEqual(after - expectedMs);
     });
 
     it("zero retention days returns approximately now", () => {
