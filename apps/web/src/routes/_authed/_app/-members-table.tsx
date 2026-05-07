@@ -4,6 +4,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -232,6 +233,7 @@ export const MembersTableView = ({
   currentRole,
   pendingMemberId,
   pendingInvitationId,
+  countLabel,
   onRoleChange,
   onRemove,
   onCancelInvitation,
@@ -242,6 +244,7 @@ export const MembersTableView = ({
   currentRole: string;
   pendingMemberId?: string | undefined;
   pendingInvitationId?: string | undefined;
+  countLabel?: string;
   onRoleChange: (memberId: string, role: string) => void;
   onRemove: (memberId: string) => void;
   onCancelInvitation: (invitationId: string) => void;
@@ -309,6 +312,18 @@ export const MembersTableView = ({
             </TableRow>
           ))}
         </TableBody>
+        {countLabel ? (
+          <TableFooter>
+            <TableRow>
+              <TableCell
+                colSpan={table.getAllLeafColumns().length}
+                className="text-muted-foreground text-xs tabular-nums"
+              >
+                {countLabel}
+              </TableCell>
+            </TableRow>
+          </TableFooter>
+        ) : null}
       </Table>
     </Frame>
   );
