@@ -1,7 +1,9 @@
+import { Button } from "@better-update/ui/components/ui/button";
 import { CardFrame, CardFrameHeader, CardFrameTitle } from "@better-update/ui/components/ui/card";
 import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { KeyIcon } from "lucide-react";
 import { useState } from "react";
 
 import { PageHeader } from "../../../components/page-header";
@@ -20,6 +22,7 @@ const ApiKeys = () => {
   const { data: apiKeys } = useSuspenseQuery(apiKeysQueryOptions(orgId));
 
   const [revokeKeyId, setRevokeKeyId] = useState<string | null>(null);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   const revokeKeyMutation = useApiMutation({
     mutationFn: async (keyId: string) =>
@@ -40,18 +43,27 @@ const ApiKeys = () => {
     revokeKeyMutation.mutate(revokeKeyId);
   };
 
+  const createTrigger = (
+    <Button
+      onClick={() => {
+        setCreateDialogOpen(true);
+      }}
+    >
+      <KeyIcon strokeWidth={2} data-icon="inline-start" />
+      Create API key
+    </Button>
+  );
+
   return (
     <div className="flex w-full flex-col gap-6">
       <PageHeader
         title="API keys"
         description="Authenticate requests to the management API and CLI."
-        actions={apiKeys.length > 0 ? <CreateApiKeyDialog orgId={orgId} /> : undefined}
+        actions={apiKeys.length > 0 ? createTrigger : undefined}
       />
 
       {apiKeys.length === 0 ? (
-        <ApiKeysEmptyState>
-          <CreateApiKeyDialog orgId={orgId} />
-        </ApiKeysEmptyState>
+        <ApiKeysEmptyState>{createTrigger}</ApiKeysEmptyState>
       ) : (
         <CardFrame>
           <CardFrameHeader>
@@ -62,6 +74,12 @@ const ApiKeys = () => {
           <ApiKeysTable apiKeys={apiKeys} onRevoke={setRevokeKeyId} />
         </CardFrame>
       )}
+
+      <CreateApiKeyDialog
+        orgId={orgId}
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+      />
 
       <RevokeDialog
         open={revokeKeyId !== null}
