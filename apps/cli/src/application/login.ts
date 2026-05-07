@@ -43,7 +43,7 @@ const browserLogin = Effect.scoped(
     const webUrl = yield* configStore.getWebUrl;
 
     const loginServer = yield* Effect.acquireRelease(
-      Effect.sync(createBrowserLoginServer),
+      Effect.promise(async () => createBrowserLoginServer()),
       (server) => Effect.sync(server.stop),
     );
 

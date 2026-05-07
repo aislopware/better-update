@@ -1,3 +1,4 @@
+import { once } from "node:events";
 import { createServer } from "node:http";
 import type { IncomingMessage, Server, ServerResponse } from "node:http";
 
@@ -204,9 +205,9 @@ const handleIncoming = async (
   }
 };
 
-export const createBrowserLoginServer = (
+export const createBrowserLoginServer = async (
   options: CreateBrowserLoginServerOptions = {},
-): BrowserLoginServer => {
+): Promise<BrowserLoginServer> => {
   const session = createBrowserLoginSession(options);
   const server: Server = createServer((req, res) => {
     // eslint-disable-next-line promise/prefer-await-to-then -- node createServer callback is sync; rejections already swallowed inside handleIncoming, so .catch here is a safety net, not a control-flow then()
@@ -214,6 +215,7 @@ export const createBrowserLoginServer = (
   });
 
   server.listen(0, "127.0.0.1");
+  await once(server, "listening");
   const address = server.address();
   const port = address !== null && typeof address === "object" ? address.port : 0;
 
