@@ -152,28 +152,31 @@ export const CreateApiKeyDialog = ({ orgId }: { orgId: string }) => {
   const [open, setOpen] = useState(false);
   const [createdKey, setCreatedKey] = useState<string | null>(null);
 
-  const handleSuccess = async (key: string) => {
+  const handleSuccess = (key: string) => {
     setCreatedKey(key);
     toastManager.add({ title: "API key created", type: "success" });
-    await queryClient.invalidateQueries({
-      queryKey: apiKeysQueryOptions(orgId).queryKey,
-    });
   };
 
-  const handleClose = () => {
+  const handleClose = async () => {
+    const keyToRefresh = createdKey;
     setOpen(false);
     setCreatedKey(null);
+    if (keyToRefresh !== null) {
+      await queryClient.invalidateQueries({
+        queryKey: apiKeysQueryOptions(orgId).queryKey,
+      });
+    }
   };
 
   return (
     <Dialog
       open={open}
-      onOpenChange={(isOpen) => {
+      onOpenChange={async (isOpen) => {
         if (isOpen) {
           setOpen(true);
-        } else {
-          handleClose();
+          return;
         }
+        await handleClose();
       }}
     >
       <Button
