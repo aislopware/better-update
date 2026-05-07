@@ -1,0 +1,134 @@
+---
+title: ロールアウトとロールバック
+description: アップデートをデバイスのパーセントに段階的に配信し、100% にランプ — または問題が起きたら即座に revert。
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+Better Update には **2 つ** の独立したロールアウトシステムとロールバックコマンドがあります:
+
+| ツール             | 粒度                                         | 使うとき                                                 |
+| ------------------ | -------------------------------------------- | -------------------------------------------------------- |
+| `update rollout`   | 1 アップデートグループ、デバイスのパーセント | リスクのあるアップデートすべて。デフォルトオンの安全網。 |
+| `channels rollout` | チャンネル、ブランチ間のトラフィック分割     | チャンネルを 1 ブランチから別ブランチへ徐々に移行する。  |
+| `update rollback`  | ブランチ全体、以前のポイントへ               | 本番で何か壊れている、今すぐ。                           |
+
+このページの残りでそれぞれ説明します。
+
+## アップデートロールアウト (アップデートごとのパーセント)
+
+公開時、新しいアップデートをデバイスの一部に固定できます。サーバーはその一部 (デバイスごとに決定的) に新しいマニフェストを、それ以外には以前のマニフェストを配信します。
+
+### 部分ロールアウトで開始
+
+```bash
+better-update update publish \
+  --branch production \
+  --rollout-percentage 10 \
+  --message "リスクのあるキャッシュマイグレーション"
+```
+
+マッチするチャンネル上のデバイスの 10% が新アップデートを受け取り始める。残り 90% は以前のままに。
+
+### ランプアップ
+
+```bash
+better-update update rollout set <updateId> 25
+better-update update rollout set <updateId> 50
+better-update update rollout complete <updateId>     # → 100%
+```
+
+`complete` は 100 に設定するシュガー。ランプ完了時に使用。
+
+### 0 にドロップ
+
+```bash
+better-update update rollout revert <updateId>     # → 0%
+```
+
+まだアップデートを取得していないデバイスは取得しません。すでに取得したデバイスは次回マニフェストチェックまで現状を保ち、その時に以前のものが配信されます。
+
+<Aside type="tip">
+  ロールアウトパーセントは **アップデートごと**、チャンネルごとではありません。 同じチャンネル上の 2
+  つのアップデートはそれぞれ独自のロールアウト状態を 持てます。0
+  でないロールアウトを持つ最新のアップデートが選ばれたデバイス
+  に勝ち、古いアップデートは残りに配信され続けます。
+</Aside>
+
+## チャンネルロールアウト (ブランチレベルのトラフィック分割)
+
+これは移行ツール。ハードカットオーバーではなく、チャンネル全体を 1 つのブランチから別のブランチへ時間をかけて移したいときに使用。
+
+```bash
+# 開始: `production` のデバイスの 10% が `release-2026-05` からマニフェストを取得。
+better-update channels rollout create <channelId> \
+  --branch release-2026-05 \
+  --percentage 10
+
+better-update channels rollout update <channelId> --percentage 50
+
+better-update channels rollout complete <channelId>     # チャンネルが新ブランチに完全移行
+better-update channels rollout revert <channelId>       # チャンネルが古いブランチに戻る
+```
+
+詳しくは [チャンネルとブランチ](/ja/guides/channels-and-branches/) を参照。
+
+## ロールバック (ブランチ全体の revert)
+
+不良アップデートから本番をすぐに戻す必要があるときは `rollback` を使用。`expo-updates` に組み込みバンドル (ネイティブビルドに同梱されたもの) へ revert を指示する特別なアップデートグループを作成 — 新バンドルはアップロードしません。
+
+```bash
+better-update update rollback \
+  --branch production \
+  --message "e7f3 を revert — ログインクラッシュ"
+```
+
+デバイスでの動作: 次回マニフェストチェックで「組み込みへロールバック」ディレクティブが返る。ランタイムはキャッシュされた OTA バンドルをクリアし、バイナリ内に出荷されたものへフォールバック。
+
+### 特定の時点までロールバック
+
+特定の時刻 _以降_ に公開されたアップデートのみ revert したい場合、`--commit-time` を渡します:
+
+```bash
+better-update update rollback \
+  --branch production \
+  --commit-time 2026-05-06T14:00:00Z \
+  --message "14:00 以降をすべて revert"
+```
+
+`--commit-time` 以前の公開タイムスタンプを持つアップデートは配信され続けます。
+
+### プラットフォームスコープのロールバック
+
+```bash
+better-update update rollback --branch production --platform ios --message "iOS のみの revert"
+```
+
+デフォルトは `--platform all`。
+
+## 判断テーブル
+
+| 症状                                                            | 使う                                                                         |
+| --------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| リスクのある公開、小さなスライスで検証したい                    | **`update publish --rollout-percentage 5`**、その後ランプ。                  |
+| 部分ロールアウト中に不良アップデートを検知                      | **`update rollout revert`** — 拡散を止める。                                 |
+| 100% で不良アップデート、インストール数は控えめ                 | **チャンネル** を以前のブランチに再ポイント。                                |
+| 100% で不良アップデート、ハードクラッシュ、クリーン状態が欲しい | **`update rollback --branch <name>`** — デバイスは組み込みへフォールバック。 |
+| 1 週間かけてチャンネルを新ブランチへ移行                        | **`channels rollout create … --percentage 10`**、ランプ、完了。              |
+| ネイティブのリグレッション (新ビルドでのみ修正可能)             | **`update rollback`** + 修正を含む新しい App Store ビルドを出荷。            |
+
+## ロールバック後
+
+1. 同じブランチから再公開する前に根本原因を調査。
+2. 修正を公開するときは `--rollout-percentage 10` を使い、まずスライスで検証。
+3. 監査ログがすべての公開、ロールアウト変更、ロールバックを記録。`better-update audit-logs list --resource-type update --limit 50` で読む。
+
+## 誤検知後の再プロモート
+
+チャンネルレベルのロールバック (「チャンネル再ポイント」パターン) はアップデートを削除しません。ロールバックが不要だと判明したら、戻すだけ:
+
+```bash
+better-update channels update <channel-id> --branch <元々疑わしかったブランチ>
+```
+
+何も破壊されておらず、ポインタが変わっただけです。

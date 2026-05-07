@@ -1,0 +1,16 @@
+{
+  "name": "@better-update/docs",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Better Update documentation site",
+  "type": "module",
+  "scripts": {
+    "build": "astro build",
+    "dev": "astro dev",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "^0.38.5",
+    "astro": "^6.2.2"
+  }
+}

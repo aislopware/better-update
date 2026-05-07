@@ -1,0 +1,166 @@
+---
+title: Install the CLI
+description: How to install and configure the better-update CLI.
+sidebar:
+  order: 2
+---
+
+import { Tabs, TabItem, Aside, FileTree } from "@astrojs/starlight/components";
+
+The `better-update` CLI ships as `@better-update/cli` on npm. It is Bun-first ESM but runs on Node ≥ 20 too. Pick the install style that fits your team.
+
+## Pick an install style
+
+<Tabs syncKey="install">
+  <TabItem label="Per-invocation (bunx)">
+    Fastest path. No global install — `bunx` downloads on demand and caches.
+
+    ```bash
+    bunx @better-update/cli --help
+    bunx @better-update/cli login
+    bunx @better-update/cli update publish --branch main --message "release"
+    ```
+
+    Best for: trying things out, CI environments where install time is cheap.
+
+  </TabItem>
+  <TabItem label="Global">
+    ```bash
+    bun add -g @better-update/cli
+    better-update --help
+    ```
+
+    Best for: daily local development.
+
+  </TabItem>
+  <TabItem label="Per-project dev dep">
+    ```bash
+    bun add -d @better-update/cli
+    bunx better-update --help
+    ```
+
+    Or add to `package.json` scripts:
+
+    ```json
+    {
+      "scripts": {
+        "release:staging": "better-update update publish --branch staging --message $MSG"
+      }
+    }
+    ```
+
+    Best for: pinning a known-good version per project.
+
+  </TabItem>
+  <TabItem label="npx (Node only)">
+    ```bash
+    npx @better-update/cli --help
+    ```
+
+    Works, but Bun is faster. Use only if Bun is unavailable.
+
+  </TabItem>
+</Tabs>
+
+## Verify
+
+```bash
+better-update --help
+```
+
+You should see the top-level command list (`login`, `init`, `update`, `channels`, …).
+
+## Point at a server
+
+By default the CLI talks to `https://graph.better-update.dev`. To point at a different server, set one of:
+
+| Source                          | Field        | Wins                                                            |
+| ------------------------------- | ------------ | --------------------------------------------------------------- |
+| Env var `BETTER_UPDATE_URL`     | API base URL | Highest priority. Per-shell override.                           |
+| Env var `BETTER_UPDATE_WEB_URL` | Web URL      | For `login` browser callback URL.                               |
+| `~/.better-update/config.json`  | `baseUrl`    | Persistent per-user.                                            |
+| `~/.better-update/config.json`  | `webUrl`     | Persistent per-user.                                            |
+| Built-in defaults               | —            | `https://graph.better-update.dev` + `https://better-update.dev` |
+
+### Persistent config
+
+Create `~/.better-update/config.json` once:
+
+```json
+{
+  "baseUrl": "https://updates.example.com",
+  "webUrl": "https://console.example.com"
+}
+```
+
+### One-off override
+
+```bash
+BETTER_UPDATE_URL=https://updates.example.com better-update status
+```
+
+Use this in CI when the server URL comes from a secret.
+
+## Log in
+
+```bash
+better-update login
+```
+
+Opens `<webUrl>/auth/cli-login` in your default browser. The CLI starts a local listener on a random port and waits for the callback.
+
+For headless machines:
+
+```bash
+better-update login --api-key
+```
+
+Then paste a token generated in **Settings → API tokens** in the web console.
+
+The token is stored at `~/.better-update/auth.json` with permissions `0600`. The directory is created with `0700`. To use a token from an env var instead, set `BETTER_UPDATE_TOKEN` — it takes priority over the file.
+
+```bash
+BETTER_UPDATE_TOKEN=bu_… better-update update list
+```
+
+## Link an Expo project
+
+From your project root:
+
+```bash
+better-update init
+```
+
+This reads `app.json`, looks up an existing project by `expo.slug`, and writes the project ID into `expo.extra.betterUpdate.projectId`. Other commands read from there:
+
+```jsonc
+{
+  "expo": {
+    "name": "My App",
+    "slug": "my-app",
+    "extra": {
+      "betterUpdate": {
+        "projectId": "01J…ULID…",
+      },
+    },
+  },
+}
+```
+
+<Aside type="tip">
+  Multi-app monorepo? Run `init` from each app directory. Each `app.json` carries its own
+  `projectId`.
+</Aside>
+
+## Files the CLI reads and writes
+
+<FileTree>
+  - ~/.better-update/ - config.json baseUrl + webUrl overrides - auth.json saved token (mode 0600) -
+  ./app.json expo.extra.betterUpdate.projectId
+</FileTree>
+
+## Where to next
+
+- **[Quickstart](/start/quickstart/)** — publish your first update.
+- **[Publishing](/guides/publishing/)** — branches, channels, rollouts.
+- **[CLI reference](/reference/cli/)** — every command, every flag.

@@ -1,0 +1,177 @@
+---
+title: 原生构建
+description: 用 `better-update build` 在本地构建 IPA 和 APK,管理凭据,从同一项目分发安装链接。
+---
+
+import { Steps, Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+
+OTA 更新只有当设备上的原生二进制匹配时才工作。修改原生代码(新增依赖、config-plugin 更新、runtime 版本 bump)时,需要新构建。Better Update 也提供了对应 CLI 命令。
+
+有两个相关组:
+
+- **`build`**(单数) — 在本地机器运行原生构建,(可选)上传产物。
+- **`builds`**(复数) — 管理服务端已上传的构建记录。
+
+加上构建所需的 keystore / 证书的 **`credentials`**,以及验证兼容性的 **`fingerprint`**。
+
+## `build` — 本地原生构建
+
+```bash
+# iOS
+better-update build --platform ios
+
+# Android
+better-update build --platform android --profile production
+```
+
+它做了什么:
+
+1. 从服务端下载该平台的凭据(免得在每台开发机存放)。
+2. 运行 `expo prebuild --platform <ios|android>`。
+3. iOS: `pod install`、`xcodebuild archive`、`xcodebuild exportArchive`。
+4. Android: `./gradlew :app:<assembleRelease|bundleRelease|...>`。
+5. 可选地把生成的 `.ipa` / `.apk` / `.aab` 上传到服务端。
+
+### 标志
+
+| 标志                        | 默认         | 备注                                                                |
+| --------------------------- | ------------ | ------------------------------------------------------------------- |
+| `--platform <ios\|android>` | —            | 必需。                                                              |
+| `--profile <name>`          | `production` | 构建 profile (与 `eas.json` profile 名一致)。                       |
+| `--message <text>`          | —            | 自由文本描述,保存在构建记录上。                                     |
+| `--upload`                  | `true`       | 构建后上传。`--no-upload` 用于 dry run。                            |
+| `--raw-output`              | 关闭         | 不显示格式化 spinner,改为流式输出 Gradle/Xcode 原始日志。便于调试。 |
+
+### 上传别处构建的产物
+
+如果已有来自其他流水线的 IPA,跳过 `build`,用 `builds upload`:
+
+```bash
+better-update builds upload ./MyApp.ipa --platform ios --profile production --message "Bitrise #1234 构建"
+```
+
+## `builds` — 管理服务端构建记录
+
+```bash
+better-update builds list
+better-update builds list --platform ios --limit 20
+
+better-update builds get <build-id>
+better-update builds delete <build-id>
+```
+
+### 安装链接
+
+获取下载 URL 加 iOS 友好的安装链接(使用 itms-services manifest):
+
+```bash
+better-update builds install-link <build-id>
+```
+
+输出:
+
+```
+artifactUrl: https://updates.example.com/builds/<id>/artifact.ipa?signed=...
+installUrl:  itms-services://?action=download-manifest&url=...      (仅 iOS)
+expires:     2026-05-08T12:00:00Z
+```
+
+发给 QA 或干系人做 ad-hoc 安装。签名 URL 会过期。
+
+### 兼容性矩阵
+
+回答「我今天发布到 channel X,会有设备收到吗?」:
+
+```bash
+better-update builds compatibility-matrix
+```
+
+按 channel 输出已上传构建覆盖了哪些 runtime 版本,并标记缺少覆盖的 channel。发布前不确定时运行。
+
+## `credentials` — 把签名材料保存在服务端
+
+为了不让凭据躺在每台开发机的硬盘上,凭据保存在服务端(加密)。`build` 按需下载。
+
+```bash
+better-update credentials list
+better-update credentials list --platform ios
+```
+
+### 上传
+
+```bash
+better-update credentials upload \
+  --platform ios \
+  --type distribution-certificate \
+  --name "App Store distribution 2026" \
+  --file ./AppStore.p12 \
+  --password "p12-password" \
+  --apple-team-identifier ABC123XYZ
+```
+
+支持的 `--type` 值:
+
+| 平台    | 类型                         | 必需的额外标志                                |
+| ------- | ---------------------------- | --------------------------------------------- |
+| iOS     | `distribution-certificate`   | `--password`、`--apple-team-identifier`       |
+| iOS     | `provisioning-profile`       | (无额外)                                      |
+| iOS     | `push-key`                   | `--key-id`、`--apple-team-identifier`         |
+| iOS     | `asc-api-key`                | `--key-id`、`--issuer-id`                     |
+| Android | `keystore`                   | `--password`、`--key-alias`、`--key-password` |
+| Android | `google-service-account-key` | (无额外)                                      |
+
+### 删除
+
+```bash
+better-update credentials delete <id> --platform ios --type distribution-certificate
+```
+
+## `fingerprint` — runtime 兼容性检查
+
+Better Update 用 Expo 的 fingerprint 来判断构建和更新是否兼容。同样原生源码两次运行的 build 产生同样的 fingerprint hash。
+
+### 在本地计算
+
+```bash
+better-update fingerprint generate
+```
+
+输出 hash 和源文件计数。
+
+### 与期望 hash 比较
+
+```bash
+better-update fingerprint compare <hash>
+```
+
+计算本地 fingerprint 并与传入的 hash 比较。匹配退出 0,不匹配退出 1(并并列输出两个 hash)。在 CI 中用来在有人改了原生代码却没 bump runtime 版本时大声失败。
+
+## 串起来
+
+修改原生代码时的典型流程:
+
+<Steps>
+
+1. 凭据快过期就更新:
+
+   ```bash
+   better-update credentials upload --platform ios --type distribution-certificate ...
+   ```
+
+2. 在本地构建并上传:
+
+   ```bash
+   better-update build --platform ios --profile production --message "添加原生模块 X"
+   ```
+
+3. 验证新构建覆盖了你关心的 channel:
+
+   ```bash
+   better-update builds compatibility-matrix
+   ```
+
+4. 提交到 TestFlight / Play Console (这部分你来做 — Better Update 不发到商店)。
+
+5. 新二进制到达设备后,用 `update publish` 针对其 runtime 版本发布 OTA 更新([发布](/zh-cn/guides/publishing/))。
+
+</Steps>

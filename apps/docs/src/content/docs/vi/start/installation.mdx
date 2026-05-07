@@ -1,0 +1,165 @@
+---
+title: Cài CLI
+description: Cách cài và cấu hình CLI better-update.
+sidebar:
+  order: 2
+---
+
+import { Tabs, TabItem, Aside, FileTree } from "@astrojs/starlight/components";
+
+CLI `better-update` ship dưới tên `@better-update/cli` trên npm. Bun-first ESM nhưng chạy trên Node ≥ 20 cũng OK. Chọn kiểu cài phù hợp team.
+
+## Chọn kiểu cài
+
+<Tabs syncKey="install">
+  <TabItem label="Mỗi lần (bunx)">
+    Đường nhanh nhất. Không global — `bunx` tự download khi cần và cache.
+
+    ```bash
+    bunx @better-update/cli --help
+    bunx @better-update/cli login
+    bunx @better-update/cli update publish --branch main --message "release"
+    ```
+
+    Phù hợp: thử nhanh, môi trường CI mà thời gian install không quan trọng.
+
+  </TabItem>
+  <TabItem label="Global">
+    ```bash
+    bun add -g @better-update/cli
+    better-update --help
+    ```
+
+    Phù hợp: dev hàng ngày tại máy local.
+
+  </TabItem>
+  <TabItem label="Per-project dev dep">
+    ```bash
+    bun add -d @better-update/cli
+    bunx better-update --help
+    ```
+
+    Hoặc thêm vào `package.json` scripts:
+
+    ```json
+    {
+      "scripts": {
+        "release:staging": "better-update update publish --branch staging --message $MSG"
+      }
+    }
+    ```
+
+    Phù hợp: pin version chuẩn cho mỗi project.
+
+  </TabItem>
+  <TabItem label="npx (Node only)">
+    ```bash
+    npx @better-update/cli --help
+    ```
+
+    Chạy được, nhưng Bun nhanh hơn. Chỉ dùng khi không có Bun.
+
+  </TabItem>
+</Tabs>
+
+## Verify
+
+```bash
+better-update --help
+```
+
+In ra danh sách top-level command (`login`, `init`, `update`, `channels`, …).
+
+## Trỏ về server
+
+Mặc định CLI nói chuyện với `https://graph.better-update.dev`. Để trỏ về server khác, set một trong:
+
+| Nguồn                           | Field        | Ưu tiên                                                         |
+| ------------------------------- | ------------ | --------------------------------------------------------------- |
+| Env var `BETTER_UPDATE_URL`     | API base URL | Cao nhất. Override theo shell.                                  |
+| Env var `BETTER_UPDATE_WEB_URL` | Web URL      | Cho callback browser của `login`.                               |
+| `~/.better-update/config.json`  | `baseUrl`    | Lưu lâu dài per-user.                                           |
+| `~/.better-update/config.json`  | `webUrl`     | Lưu lâu dài per-user.                                           |
+| Default                         | —            | `https://graph.better-update.dev` + `https://better-update.dev` |
+
+### Config lâu dài
+
+Tạo `~/.better-update/config.json` một lần:
+
+```json
+{
+  "baseUrl": "https://updates.example.com",
+  "webUrl": "https://console.example.com"
+}
+```
+
+### Override một lần
+
+```bash
+BETTER_UPDATE_URL=https://updates.example.com better-update status
+```
+
+Dùng trong CI khi server URL lấy từ secret.
+
+## Đăng nhập
+
+```bash
+better-update login
+```
+
+Mở `<webUrl>/auth/cli-login` ở browser mặc định. CLI start listener local trên port ngẫu nhiên và chờ callback.
+
+Cho máy headless:
+
+```bash
+better-update login --api-key
+```
+
+Rồi paste token tạo ở **Settings → API tokens** trong web console.
+
+Token lưu ở `~/.better-update/auth.json` với permission `0600`. Directory tạo với `0700`. Để dùng token từ env var, set `BETTER_UPDATE_TOKEN` — ưu tiên hơn file.
+
+```bash
+BETTER_UPDATE_TOKEN=bu_… better-update update list
+```
+
+## Link Expo project
+
+Trong thư mục project:
+
+```bash
+better-update init
+```
+
+CLI đọc `app.json`, tìm project hiện có theo `expo.slug`, ghi project ID vào `expo.extra.betterUpdate.projectId`. Command khác đọc từ đó:
+
+```jsonc
+{
+  "expo": {
+    "name": "App của tôi",
+    "slug": "my-app",
+    "extra": {
+      "betterUpdate": {
+        "projectId": "01J…ULID…",
+      },
+    },
+  },
+}
+```
+
+<Aside type="tip">
+  Monorepo nhiều app? Chạy `init` trong từng app directory. Mỗi `app.json` giữ `projectId` riêng.
+</Aside>
+
+## File CLI đọc và ghi
+
+<FileTree>
+  - ~/.better-update/ - config.json baseUrl + webUrl override - auth.json token đã lưu (mode 0600) -
+  ./app.json expo.extra.betterUpdate.projectId
+</FileTree>
+
+## Tiếp theo
+
+- **[Quickstart](/vi/start/quickstart/)** — publish update đầu tiên.
+- **[Publish](/vi/guides/publishing/)** — branch, channel, rollout.
+- **[CLI reference](/vi/reference/cli/)** — mọi command, mọi flag.

@@ -1,0 +1,165 @@
+---
+title: 安装 CLI
+description: 如何安装和配置 better-update CLI。
+sidebar:
+  order: 2
+---
+
+import { Tabs, TabItem, Aside, FileTree } from "@astrojs/starlight/components";
+
+`better-update` CLI 在 npm 上以 `@better-update/cli` 发布。Bun-first ESM,但也支持 Node ≥ 20。挑选适合你团队的安装方式。
+
+## 选择安装方式
+
+<Tabs syncKey="install">
+  <TabItem label="按调用 (bunx)">
+    最快路径。无需全局安装 — `bunx` 按需下载并缓存。
+
+    ```bash
+    bunx @better-update/cli --help
+    bunx @better-update/cli login
+    bunx @better-update/cli update publish --branch main --message "release"
+    ```
+
+    适合:试用、安装时间不敏感的 CI 环境。
+
+  </TabItem>
+  <TabItem label="全局">
+    ```bash
+    bun add -g @better-update/cli
+    better-update --help
+    ```
+
+    适合:本地日常开发。
+
+  </TabItem>
+  <TabItem label="项目 dev 依赖">
+    ```bash
+    bun add -d @better-update/cli
+    bunx better-update --help
+    ```
+
+    或加到 `package.json` scripts:
+
+    ```json
+    {
+      "scripts": {
+        "release:staging": "better-update update publish --branch staging --message $MSG"
+      }
+    }
+    ```
+
+    适合:每个项目固定一个已知良好的版本。
+
+  </TabItem>
+  <TabItem label="npx (仅 Node)">
+    ```bash
+    npx @better-update/cli --help
+    ```
+
+    可用,但 Bun 更快。仅在没有 Bun 时使用。
+
+  </TabItem>
+</Tabs>
+
+## 验证
+
+```bash
+better-update --help
+```
+
+应该看到顶层命令列表 (`login`、`init`、`update`、`channels`、…)。
+
+## 指定服务器
+
+CLI 默认与 `https://graph.better-update.dev` 通信。要指向其他服务器,设置以下之一:
+
+| 来源                             | 字段         | 优先级                                                          |
+| -------------------------------- | ------------ | --------------------------------------------------------------- |
+| 环境变量 `BETTER_UPDATE_URL`     | API base URL | 最高。按 shell 覆盖。                                           |
+| 环境变量 `BETTER_UPDATE_WEB_URL` | Web URL      | `login` 浏览器回调 URL。                                        |
+| `~/.better-update/config.json`   | `baseUrl`    | 按用户持久化。                                                  |
+| `~/.better-update/config.json`   | `webUrl`     | 按用户持久化。                                                  |
+| 内置默认                         | —            | `https://graph.better-update.dev` + `https://better-update.dev` |
+
+### 持久化配置
+
+创建一次 `~/.better-update/config.json`:
+
+```json
+{
+  "baseUrl": "https://updates.example.com",
+  "webUrl": "https://console.example.com"
+}
+```
+
+### 一次性覆盖
+
+```bash
+BETTER_UPDATE_URL=https://updates.example.com better-update status
+```
+
+CI 中当服务器 URL 来自 secret 时使用。
+
+## 登录
+
+```bash
+better-update login
+```
+
+在默认浏览器中打开 `<webUrl>/auth/cli-login`。CLI 在随机端口启动本地监听器,等待回调。
+
+无头机器:
+
+```bash
+better-update login --api-key
+```
+
+然后粘贴在 Web 控制台 **Settings → API tokens** 中生成的 token。
+
+token 保存在 `~/.better-update/auth.json`,权限 `0600`。目录权限 `0700`。要使用环境变量中的 token,设置 `BETTER_UPDATE_TOKEN` — 优先级高于文件。
+
+```bash
+BETTER_UPDATE_TOKEN=bu_… better-update update list
+```
+
+## 关联 Expo 项目
+
+在项目根目录:
+
+```bash
+better-update init
+```
+
+读取 `app.json`,按 `expo.slug` 查找现有项目,把项目 ID 写入 `expo.extra.betterUpdate.projectId`。其他命令从此读取:
+
+```jsonc
+{
+  "expo": {
+    "name": "My App",
+    "slug": "my-app",
+    "extra": {
+      "betterUpdate": {
+        "projectId": "01J…ULID…",
+      },
+    },
+  },
+}
+```
+
+<Aside type="tip">
+  多 app 单 repo? 在每个 app 目录运行 `init`。 每个 `app.json` 持有自己的 `projectId`。
+</Aside>
+
+## CLI 读写的文件
+
+<FileTree>
+  - ~/.better-update/ - config.json baseUrl + webUrl 覆盖 - auth.json 已保存的 token (mode 0600) -
+  ./app.json expo.extra.betterUpdate.projectId
+</FileTree>
+
+## 下一步
+
+- **[快速开始](/zh-cn/start/quickstart/)** — 发布第一个更新。
+- **[发布](/zh-cn/guides/publishing/)** — 分支、channel、灰度。
+- **[CLI 参考](/zh-cn/reference/cli/)** — 每条命令,每个标志。

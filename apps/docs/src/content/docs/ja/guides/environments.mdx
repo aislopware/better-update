@@ -1,0 +1,130 @@
+---
+title: 環境変数
+description: 公開時に注入されるサーバーサイド環境変数。環境ごとのスコープ、git に秘密情報なし。
+---
+
+import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+
+`env` コマンドはプロジェクトの **サーバーサイド** 環境変数を管理します。公開時に `expo export` に注入されるため、API キーのような値はリポジトリではなくサーバー上に保管されます。
+
+これはローカル `.env` ファイル管理 **ではない**。値は Better Update 上に保管され、`update publish` が取得します。
+
+## なぜサーバーサイド環境変数?
+
+- 秘密情報を git の外に保つ。
+- 異なる環境 (`production`、`staging`、`development`) がブランチ固有の設定なしで異なる値を取得。
+- 新しい開発者にオフバンドで `.env` ファイルを渡す必要がない。
+
+## 変数を設定
+
+```bash
+better-update env set API_URL=https://api.example.com
+better-update env set STRIPE_KEY=sk_live_xxx --visibility secret
+better-update env set FEATURE_FLAG=true --environment staging
+```
+
+位置引数は `KEY=VALUE`。`set` は冪等 — なければ作成、あれば更新。
+
+| フラグ                 | デフォルト   | 備考                                                                |
+| ---------------------- | ------------ | ------------------------------------------------------------------- |
+| `--environment <name>` | `production` | この変数が存在する環境スコープ。                                    |
+| `--visibility <v>`     | `plaintext`  | `plaintext`、`sensitive`、`secret` のいずれか。誰が読めるかに影響。 |
+
+`secret` 値は作成後は書き込み専用 — ダッシュボードも CLI も再表示しません。
+
+## リスト
+
+```bash
+better-update env list
+better-update env list --environment staging
+```
+
+## 1 つ取得
+
+```bash
+better-update env get <env-var-id>
+```
+
+位置引数は **ID**、キー名ではない (`env list` で見つける)。
+
+## 削除
+
+```bash
+better-update env delete API_URL
+better-update env delete API_URL --environment staging
+```
+
+ここでの位置引数 _は_ キー名 (ID ではない)。
+
+## `.env` ファイルから一括インポート
+
+```bash
+better-update env import .env.production
+better-update env import .env.staging --environment staging
+```
+
+各行は `KEY=VALUE`。インポートされたすべての変数は `plaintext` 可視性で保存 — その後機密性のあるものは `env set ... --visibility secret` でバンプ。
+
+## ファイルへエクスポート
+
+ラウンドトリップ出力 (先頭に `export` なし):
+
+```bash
+better-update env export > .env.production.cached
+```
+
+各行は `KEY='value'`。`secret` 可視性の変数はスキップ (サーバーが返せない)。
+
+## シェルへプル
+
+ソース可能なシェル形式 (1 行あたり `export KEY='value'`):
+
+```bash
+eval "$(better-update env pull --environment staging)"
+```
+
+これで `$STRIPE_KEY`、`$API_URL` などが現在のシェルに設定されます。
+
+## 公開時に何が注入されるか
+
+`update publish --environment <name>` 実行時、サーバーはその環境内の変数を検索しエクスポートに注入。Expo アプリ内で:
+
+```ts
+import Constants from "expo-constants";
+
+const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+// または、非公開値はサーバー専用コードパス内でのみ使用。
+```
+
+`EXPO_PUBLIC_` プレフィックスのない変数もビルド時に注入されますが、Expo が通常公開する場所でのみ利用可能。
+
+<Aside type="caution">
+  JS バンドルに到達するものは技術的に出荷済みアプリから抽出可能。機密性を
+  保たねばならない資格情報を「隠す」ために Better Update 環境変数を使わない でください —
+  バックエンドを使用してください。`secret` 可視性は *チームの誰が*
+  値を読めるかを制御するもので、デバイス抽出に対する硬化のためではありません。
+</Aside>
+
+## 可視性レベル
+
+| 可視性      | Web コンソールで読める? | CLI で読める? | ユースケース                                  |
+| ----------- | ----------------------- | ------------- | --------------------------------------------- |
+| `plaintext` | はい                    | はい          | 機密でない設定 (URL、フラグ)。                |
+| `sensitive` | オーナー + 管理者のみ   | はい          | API キー、トークン。                          |
+| `secret`    | いいえ (書き込み専用)   | いいえ        | トップティアの秘密。エクスポート / プル不可。 |
+
+## 実例: 環境ごとの設定
+
+```bash
+# Production
+better-update env set EXPO_PUBLIC_API_URL=https://api.example.com
+better-update env set STRIPE_KEY=sk_live_xxx --visibility secret
+
+# Staging
+better-update env set EXPO_PUBLIC_API_URL=https://staging.api.example.com --environment staging
+better-update env set STRIPE_KEY=sk_test_xxx --environment staging --visibility sensitive
+
+# 公開 — 適切なセットを取得
+better-update update publish --branch production --environment production
+better-update update publish --branch staging --environment staging
+```

@@ -1,0 +1,169 @@
+---
+title: Channel và branch
+description: Cách channel trỏ về branch, khi nào dùng cái nào, và command để quản lý cả 2.
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+
+Better Update tách "đây là version nào" khỏi "ai nhận":
+
+- **Branch** là 1 dòng update. Bạn publish _vào_ branch. Branch là server-side; không nhất thiết phải khớp git branch.
+- **Channel** là cái app build đọc. Channel trỏ về _một_ branch tại một thời điểm. Đổi pointer → mọi device trên channel chuyển theo.
+
+Indirection này cho phép ship release candidate, vet xong, rồi chuyển toàn bộ production sang đó với 1 lệnh — không rebuild.
+
+## Khi nào tạo branch mới vs channel mới
+
+| Bạn muốn…                                         | Làm                                                   |
+| ------------------------------------------------- | ----------------------------------------------------- |
+| Cut release candidate, sau QA promote sang prod   | **Branch** mới (vd `release-v1.4`); promote sau.      |
+| Ship feature flag cho 1 nhóm tester               | **Channel** mới (vd `internal`) gắn vào beta build.   |
+| Rollback: đưa update tốt biết trước về production | Repoint **channel** về branch cũ.                     |
+| Môi trường lâu dài (staging, preview, prod)       | Một **channel** cho mỗi env, mỗi cái có branch riêng. |
+
+## Branch
+
+Branch flat — không parent, không merge. Mỗi cái là chuỗi update group.
+
+```bash
+better-update branches list
+better-update branches create --name release-v1.4
+better-update branches rename <id> --name release-v1-4
+better-update branches delete <id>
+```
+
+Bạn publish vào branch bằng `update publish --branch <name>` ([Publishing](/vi/guides/publishing/)).
+
+## Channel
+
+Mỗi channel có:
+
+- Tên (vd `production`).
+- `branchId` đang trỏ về.
+- Cờ `paused` (channel paused dừng serve manifest mới).
+- Tùy chọn rollout branch đang chạy (xem dưới).
+
+```bash
+better-update channels list
+better-update channels create --name production --branch main
+better-update channels update <id> --branch release-v1.4   # repoint
+better-update channels pause <id>
+better-update channels resume <id>
+better-update channels delete <id>
+```
+
+<Aside type="caution">
+  **Không có command `channels point`.** Dùng `channels update <id> --branch <name>` để relink channel về branch khác.
+</Aside>
+
+## Device pick channel ra sao
+
+Channel mà device đọc set lúc _build time_, không phải runtime. Trong build configuration (`eas.json` hoặc build profile riêng), set tên channel. Sau khi build, app fetch manifest cho channel đó duy nhất — channel không đổi được nếu không có native build mới.
+
+Đó là lý do bạn tạo channel một lần per env (`production`, `staging`, `internal`) rồi chuyển giữa các branch bằng `channels update`. Không bao giờ recompile để đổi update phục vụ.
+
+## Ví dụ thực tế: cut, vet, promote
+
+<Steps>
+
+1. Engineering merge công việc vào branch `main` cả tuần. Channel `production` đang trỏ về `main`.
+
+   <div class="bu-flow">
+     <div class="bu-flow-row">
+       <span class="bu-chip">production</span>
+       <span class="bu-arrow">→</span>
+       <span class="bu-chip bu-chip--muted">main</span>
+     </div>
+   </div>
+
+2. Cut release candidate bằng cách tạo branch mới và publish lại code đó vào đây:
+
+   ```bash
+   better-update branches create --name release-2026-05
+   better-update update publish --branch release-2026-05 --message "RC cho release tháng 5"
+   ```
+
+3. Wire `staging` về branch mới và để QA test:
+
+   ```bash
+   better-update channels update <staging-channel-id> --branch release-2026-05
+   ```
+
+   <div class="bu-flow">
+     <div class="bu-flow-row">
+       <span class="bu-chip">staging</span>
+       <span class="bu-arrow">→</span>
+       <span class="bu-chip bu-chip--muted">release-2026-05</span>
+     </div>
+     <div class="bu-flow-row">
+       <span class="bu-chip">production</span>
+       <span class="bu-arrow">→</span>
+       <span class="bu-chip bu-chip--muted">main</span>
+     </div>
+   </div>
+
+4. Sau khi QA pass, repoint production:
+
+   ```bash
+   better-update channels update <production-channel-id> --branch release-2026-05
+   ```
+
+   <div class="bu-flow">
+     <div class="bu-flow-row">
+       <span class="bu-chip">staging</span>
+       <span class="bu-arrow">→</span>
+       <span class="bu-chip bu-chip--muted">release-2026-05</span>
+     </div>
+     <div class="bu-flow-row">
+       <span class="bu-chip">production</span>
+       <span class="bu-arrow">→</span>
+       <span class="bu-chip bu-chip--muted">release-2026-05</span>
+     </div>
+   </div>
+
+5. Có vấn đề → trỏ production về `main`:
+
+   ```bash
+   better-update channels update <production-channel-id> --branch main
+   ```
+
+</Steps>
+
+## Channel rollout: migrate branch dần
+
+Rollout cấp channel gửi **phần trăm** traffic từ branch hiện tại sang branch _mới_, rồi ramp lên. Cách migrate cả channel sang branch mới mà không cutover gắt.
+
+```bash
+# Bắt đầu: 10% device trên `production` nhận từ `release-2026-05`.
+better-update channels rollout create <channel-id> \
+  --branch release-2026-05 \
+  --percentage 10
+
+# Ramp.
+better-update channels rollout update <channel-id> --percentage 50
+
+# Xong — channel repoint hoàn toàn.
+better-update channels rollout complete <channel-id>
+
+# Hoặc revert.
+better-update channels rollout revert <channel-id>
+```
+
+`complete` đặt branch mới làm pointer canonical; `revert` đưa hết về branch cũ.
+
+<Aside type="tip">
+  Channel rollout là **traffic split mức branch**. Update rollout (ở [guide tiếp
+  theo](/vi/guides/rollouts-and-rollbacks/)) là **phần trăm per-update**. Dùng được cả 2 — ví dụ
+  ramp branch mới trên channel lên 100%, đồng thời từng update bên trong branch đó có rollout
+  percentage riêng.
+</Aside>
+
+## Inspect
+
+`channels list` in ID, name, branch name, paused state, rollout status, thời gian tạo. Cho coverage compatibility của project đã link:
+
+```bash
+better-update builds compatibility-matrix
+```
+
+Hiện runtime version mỗi channel đang cover và flag build thiếu.

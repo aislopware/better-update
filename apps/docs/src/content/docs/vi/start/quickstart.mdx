@@ -1,0 +1,115 @@
+---
+title: Quickstart
+description: Cài CLI, login, publish OTA update đầu tiên trong 5 phút.
+sidebar:
+  order: 1
+---
+
+import { Steps, Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+
+Hướng dẫn này đưa bạn từ con số 0 tới "update đã live" trong khoảng 5 phút.
+
+Bạn cần:
+
+- App Expo đã dùng [`expo-updates`](https://docs.expo.dev/versions/latest/sdk/updates/).
+- [Bun](https://bun.sh) ≥ 1.3 (để chạy CLI).
+- Tài khoản miễn phí ở [better-update.dev](https://better-update.dev).
+
+## 1. Cài CLI
+
+<Tabs syncKey="install">
+  <TabItem label="Một lần (bunx)">
+    ```bash
+    bunx @better-update/cli --help
+    ```
+
+    Thay `--help` bằng command bất kỳ — `bunx` tự download khi cần.
+
+  </TabItem>
+  <TabItem label="Global">
+    ```bash
+    bun add -g @better-update/cli
+    better-update --help
+    ```
+  </TabItem>
+</Tabs>
+
+## 2. Đăng nhập
+
+```bash
+better-update login
+```
+
+Mở browser ở `better-update.dev/auth/cli-login`. Sau khi đăng nhập, CLI nhận token và lưu vào `~/.better-update/auth.json` (mode `0600`).
+
+<Aside type="tip">
+  Đang chạy trên server không có browser? Dùng `better-update login --api-key` để paste token tạo
+  trong web console thay vì mở browser.
+</Aside>
+
+## 3. Link Expo project
+
+Trong thư mục Expo project:
+
+```bash
+better-update init
+```
+
+CLI đọc `app.json`, tìm (hoặc tạo) project khớp với `expo.slug`, ghi project ID vào `expo.extra.betterUpdate.projectId`. Các command sau đọc từ đó.
+
+## 4. Publish update đầu tiên
+
+```bash
+better-update update publish --branch main --message "Hello from Better Update"
+```
+
+CLI tự chạy `expo export`, upload bundle + asset lên server, đăng ký update group mới trên branch `main`.
+
+```
+✓ Exported (4.2s)
+✓ Uploaded 1 bundle, 23 assets (3.1s)
+✓ Update e7f3… published to branch main
+```
+
+<Aside type="caution">
+  Nếu branch `main` chưa có, tạo trước: `better-update branches create --name main`.
+</Aside>
+
+## 5. Cấu hình `expo-updates`
+
+Trong `app.json`, trỏ `expo.updates.url` về manifest endpoint cho project. Project ID là cái mà `init` đã ghi.
+
+```json
+{
+  "expo": {
+    "updates": {
+      "url": "https://graph.better-update.dev/manifest/<projectId>",
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
+    "runtimeVersion": { "policy": "appVersion" }
+  }
+}
+```
+
+Rebuild app một lần (dev client hoặc production build). Update sau đó chảy OTA — không cần build lại.
+
+## 6. Xem nó chạy
+
+Tạo channel trỏ về branch `main` để device biết tải gì:
+
+```bash
+better-update channels create --name production --branch main
+```
+
+`expo-updates` đọc tên channel từ build-time configuration. Set `channel` trong build profile (hoặc pass `--release-channel` cho lệnh build), rồi rebuild một lần. Sau đó, mỗi `update publish --branch main` đến tay device trên channel `production` tự động.
+
+Mở app, kéo refresh (hoặc launch lại), manifest mới sẽ được serve.
+
+## Tiếp theo
+
+- **[Channel và branch](/vi/guides/channels-and-branches/)** — model routing hoạt động ra sao.
+- **[Publish](/vi/guides/publishing/)** — mọi flag của `update publish`, khi nào dùng `update promote`.
+- **[Rollout và rollback](/vi/guides/rollouts-and-rollbacks/)** — staged rollout, instant revert.
+- **[CLI reference](/vi/reference/cli/)** — mọi command, mọi flag.

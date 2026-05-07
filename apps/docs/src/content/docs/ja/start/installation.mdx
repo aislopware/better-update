@@ -1,0 +1,166 @@
+---
+title: CLI のインストール
+description: better-update CLI のインストールと設定。
+sidebar:
+  order: 2
+---
+
+import { Tabs, TabItem, Aside, FileTree } from "@astrojs/starlight/components";
+
+`better-update` CLI は npm の `@better-update/cli` として配布されています。Bun ファースト ESM ですが Node ≥ 20 でも動きます。チームに合うインストール方式を選んでください。
+
+## インストール方式を選ぶ
+
+<Tabs syncKey="install">
+  <TabItem label="呼び出しごと (bunx)">
+    最も速いパス。グローバルインストールなし — `bunx` が必要時にダウンロードしてキャッシュ。
+
+    ```bash
+    bunx @better-update/cli --help
+    bunx @better-update/cli login
+    bunx @better-update/cli update publish --branch main --message "release"
+    ```
+
+    向いているケース: 試用、インストール時間を気にしない CI 環境。
+
+  </TabItem>
+  <TabItem label="グローバル">
+    ```bash
+    bun add -g @better-update/cli
+    better-update --help
+    ```
+
+    向いているケース: ローカルでの日常的な開発。
+
+  </TabItem>
+  <TabItem label="プロジェクトの dev 依存">
+    ```bash
+    bun add -d @better-update/cli
+    bunx better-update --help
+    ```
+
+    または `package.json` のスクリプトに追加:
+
+    ```json
+    {
+      "scripts": {
+        "release:staging": "better-update update publish --branch staging --message $MSG"
+      }
+    }
+    ```
+
+    向いているケース: プロジェクトごとに既知の安定バージョンを固定。
+
+  </TabItem>
+  <TabItem label="npx (Node のみ)">
+    ```bash
+    npx @better-update/cli --help
+    ```
+
+    動きますが Bun のほうが高速。Bun が使えない場合のみ。
+
+  </TabItem>
+</Tabs>
+
+## 動作確認
+
+```bash
+better-update --help
+```
+
+トップレベルのコマンド一覧 (`login`、`init`、`update`、`channels`、…) が表示されます。
+
+## サーバーを指定
+
+デフォルトでは CLI は `https://graph.better-update.dev` と通信します。別サーバーに向けるには、以下のいずれかを設定:
+
+| ソース                           | フィールド     | 優先順位                                                        |
+| -------------------------------- | -------------- | --------------------------------------------------------------- |
+| 環境変数 `BETTER_UPDATE_URL`     | API ベース URL | 最高。シェル単位の上書き。                                      |
+| 環境変数 `BETTER_UPDATE_WEB_URL` | Web URL        | `login` のブラウザコールバック URL。                            |
+| `~/.better-update/config.json`   | `baseUrl`      | ユーザーごとに永続化。                                          |
+| `~/.better-update/config.json`   | `webUrl`       | ユーザーごとに永続化。                                          |
+| 組み込みデフォルト               | —              | `https://graph.better-update.dev` + `https://better-update.dev` |
+
+### 永続的な設定
+
+`~/.better-update/config.json` を 1 度作成:
+
+```json
+{
+  "baseUrl": "https://updates.example.com",
+  "webUrl": "https://console.example.com"
+}
+```
+
+### 一回限りの上書き
+
+```bash
+BETTER_UPDATE_URL=https://updates.example.com better-update status
+```
+
+CI でサーバー URL がシークレット由来の場合に使います。
+
+## ログイン
+
+```bash
+better-update login
+```
+
+デフォルトブラウザで `<webUrl>/auth/cli-login` を開き、CLI はランダムポートでローカルリスナーを起動してコールバックを待ちます。
+
+ヘッドレスマシンの場合:
+
+```bash
+better-update login --api-key
+```
+
+Web コンソールの **Settings → API tokens** で生成したトークンを貼り付け。
+
+トークンは `~/.better-update/auth.json` (mode `0600`) に保存され、ディレクトリは `0700`。環境変数のトークンを使うには `BETTER_UPDATE_TOKEN` を設定 — ファイルより優先されます。
+
+```bash
+BETTER_UPDATE_TOKEN=bu_… better-update update list
+```
+
+## Expo プロジェクトをリンク
+
+プロジェクトのルートで:
+
+```bash
+better-update init
+```
+
+`app.json` を読み、`expo.slug` で既存プロジェクトを検索し、プロジェクト ID を `expo.extra.betterUpdate.projectId` に書き込みます。他のコマンドはここから読み取り:
+
+```jsonc
+{
+  "expo": {
+    "name": "My App",
+    "slug": "my-app",
+    "extra": {
+      "betterUpdate": {
+        "projectId": "01J…ULID…",
+      },
+    },
+  },
+}
+```
+
+<Aside type="tip">
+  複数アプリのモノレポ? 各アプリディレクトリで `init` を実行。 各 `app.json` がそれぞれの
+  `projectId` を持ちます。
+</Aside>
+
+## CLI が読み書きするファイル
+
+<FileTree>
+  - ~/.better-update/ - config.json baseUrl + webUrl の上書き - auth.json 保存トークン (mode 0600) -
+  ./app.json expo.extra.betterUpdate.projectId
+</FileTree>
+
+## 次のステップ
+
+- **[クイックスタート](/ja/start/quickstart/)** — 最初のアップデートを公開。
+- **[公開](/ja/guides/publishing/)** — ブランチ、チャンネル、ロールアウト。
+- **[CLI リファレンス](/ja/reference/cli/)** — すべてのコマンド、すべてのフラグ。

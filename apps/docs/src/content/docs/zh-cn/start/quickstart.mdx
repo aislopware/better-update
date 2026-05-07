@@ -1,0 +1,115 @@
+---
+title: 快速开始
+description: 5 分钟内安装 CLI、登录并发布第一个 OTA 更新。
+sidebar:
+  order: 1
+---
+
+import { Steps, Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+
+本指南带你从零到「我的更新已上线」大约 5 分钟完成。
+
+需要准备:
+
+- 已经使用 [`expo-updates`](https://docs.expo.dev/versions/latest/sdk/updates/) 的 Expo 项目。
+- [Bun](https://bun.sh) ≥ 1.3 (运行 CLI)。
+- 免费的 [better-update.dev](https://better-update.dev) 账户。
+
+## 1. 安装 CLI
+
+<Tabs syncKey="install">
+  <TabItem label="一次性 (bunx)">
+    ```bash
+    bunx @better-update/cli --help
+    ```
+
+    将 `--help` 替换为任意命令 — `bunx` 按需下载。
+
+  </TabItem>
+  <TabItem label="全局">
+    ```bash
+    bun add -g @better-update/cli
+    better-update --help
+    ```
+  </TabItem>
+</Tabs>
+
+## 2. 登录
+
+```bash
+better-update login
+```
+
+打开浏览器到 `better-update.dev/auth/cli-login`。登录后,CLI 收到 token 并保存到 `~/.better-update/auth.json` (mode `0600`)。
+
+<Aside type="tip">
+  无头或远程机器? 使用 `better-update login --api-key` 粘贴在 Web 控制台中生成的
+  token,而不是打开浏览器。
+</Aside>
+
+## 3. 关联 Expo 项目
+
+在 Expo 项目根目录:
+
+```bash
+better-update init
+```
+
+读取 `app.json`,查找(或创建)与 `expo.slug` 匹配的项目,并将项目 ID 写回 `expo.extra.betterUpdate.projectId`。后续命令从这里读取。
+
+## 4. 发布第一个更新
+
+```bash
+better-update update publish --branch main --message "Hello from Better Update"
+```
+
+CLI 内部运行 `expo export`,将 bundle 和资源上传到服务器,在 `main` 分支注册一个新的更新组。
+
+```
+✓ Exported (4.2s)
+✓ Uploaded 1 bundle, 23 assets (3.1s)
+✓ Update e7f3… published to branch main
+```
+
+<Aside type="caution">
+  如果 `main` 还不存在,先创建: `better-update branches create --name main`。
+</Aside>
+
+## 5. 配置 `expo-updates`
+
+在 `app.json` 中,将 `expo.updates.url` 指向项目的 manifest 端点。项目 ID 是 `init` 写入的那个。
+
+```json
+{
+  "expo": {
+    "updates": {
+      "url": "https://graph.better-update.dev/manifest/<projectId>",
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
+    "runtimeVersion": { "policy": "appVersion" }
+  }
+}
+```
+
+重新构建一次 app(dev client 或 production build)。后续更新通过 OTA 流式传输 — 无需再构建。
+
+## 6. 实时查看
+
+创建一个指向 `main` 分支的 channel,让设备知道下载什么:
+
+```bash
+better-update channels create --name production --branch main
+```
+
+`expo-updates` 库从构建时配置中读取 channel。在构建配置里设置 `channel`(或为构建命令传 `--release-channel`),然后构建一次。之后,每次 `update publish --branch main` 都会自动到达 `production` channel 上的设备。
+
+打开 app,下拉刷新(或重新启动),即可获取新的 manifest。
+
+## 下一步
+
+- **[Channel 和分支](/zh-cn/guides/channels-and-branches/)** — 路由模型如何工作。
+- **[发布](/zh-cn/guides/publishing/)** — `update publish` 的所有标志,何时使用 `update promote`。
+- **[灰度与回滚](/zh-cn/guides/rollouts-and-rollbacks/)** — 分阶段灰度,即时回退。
+- **[CLI 参考](/zh-cn/reference/cli/)** — 每条命令,每个标志。

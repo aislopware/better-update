@@ -1,0 +1,155 @@
+---
+title: Publishing updates
+description: How to publish OTA JS/asset updates with the better-update CLI — branches, signed payloads, promotion.
+---
+
+import { Steps, Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+
+A "publish" creates a new **update group** — a JS bundle plus its assets — and registers it under a **branch** for a specific runtime version. Devices on a channel that points at that branch (with a matching runtime version) pick it up on their next manifest check.
+
+## Mental model
+
+<div class="bu-flow">
+  <div class="bu-flow-row">
+    <span class="bu-chip">publish</span>
+    <span class="bu-arrow">→</span>
+    <span class="bu-chip">branch</span>
+    <span class="bu-arrow">←</span>
+    <span class="bu-chip">channel</span>
+    <span class="bu-arrow">→</span>
+    <span class="bu-chip">device</span>
+  </div>
+</div>
+
+You publish to a _branch_. A _channel_ points at a branch. Devices read the channel set into their build, and fetch from the manifest URL configured in `app.json`.
+
+## Prerequisites
+
+- CLI logged in: `better-update login`.
+- Project linked: `better-update init` (writes `projectId` into `app.json`).
+- A branch to publish to: `better-update branches create --name main`.
+
+## Basic publish
+
+<Steps>
+
+1. Publish to a branch:
+
+   ```bash
+   better-update update publish --branch main --message "Fix login crash on iOS 17"
+   ```
+
+   The CLI runs `expo export` internally, hashes every output, uploads to the server (which streams to R2 via presigned URLs), and registers the update group.
+
+2. You'll see:
+
+   ```
+   ✓ Exported (4.2s)
+   ✓ Uploaded 1 bundle, 23 assets (3.1s)
+   ✓ Update group e7f3… published to branch main
+   ```
+
+</Steps>
+
+You don't need to run `expo export` yourself — `update publish` does it.
+
+## All `update publish` flags
+
+| Flag                              | Default      | Notes                                                    |
+| --------------------------------- | ------------ | -------------------------------------------------------- |
+| `--branch <name>`                 | —            | Target branch. Must already exist.                       |
+| `--platform <ios\|android\|all>`  | `all`        | Restrict the publish to one platform.                    |
+| `--message <text>`                | —            | Free-form description. Shows in the console + audit log. |
+| `--environment <name>`            | `production` | Which env-var environment to inject during export.       |
+| `--auto`                          | off          | Skip all interactive prompts (use in CI).                |
+| `--clear`                         | off          | Drop existing assets before upload (full re-upload).     |
+| `--rollout-percentage <1-100>`    | —            | Initial update-level rollout. Omit for 100%.             |
+| `--manifest-body-file <path>`     | —            | Pre-built signed manifest body (both platforms).         |
+| `--signature-file <path>`         | —            | Pre-built signature for the manifest body.               |
+| `--certificate-chain-file <path>` | —            | Cert chain that signed it.                               |
+| `--manifest-body-file-ios`        | —            | iOS-only override. Same trio for `-android` too.         |
+
+The `*-file-{ios,android}` variants exist when you want a different signed payload per platform.
+
+## Runtime version
+
+The CLI reads `runtimeVersion` from your `app.json` (or computes it via the policy you configured) and stores it on the update. Manifests are only served to devices whose installed binary advertises a matching runtime version.
+
+<Tabs>
+  <TabItem label="appVersion policy">
+    Update is compatible with builds that share `app.json` `version`. Bump `version` whenever you
+    change native code.
+  </TabItem>
+  <TabItem label="fingerprint policy">
+    `expo-updates` (and Better Update) compute a hash of native sources (`ios/`, `android/`, native
+    deps). Same hash → same runtime. Recommended for projects with custom native code.
+  </TabItem>
+  <TabItem label="sdkVersion policy">
+    Compatibility tied to the Expo SDK major version. Only safe for Expo-Go-style apps without
+    custom native modules.
+  </TabItem>
+</Tabs>
+
+<Aside type="caution">
+  If no installed build matches the published runtime version, no device will receive the update.
+  Use `better-update fingerprint generate` and `better-update builds compatibility-matrix` to
+  verify.
+</Aside>
+
+## Publishing only one platform
+
+```bash
+better-update update publish \
+  --branch main \
+  --platform ios \
+  --message "iOS-only Safari WebView fix"
+```
+
+Useful for hotfixes that don't apply to the other platform.
+
+## Promote an update across channels
+
+Publish once to staging, promote to production after QA — no re-export, no second upload:
+
+```bash
+# Cut a release candidate to staging
+better-update update publish --branch staging --message "v1.4 candidate"
+
+# Get its ID
+better-update update list --branch staging --limit 1
+
+# Promote that update group to the production channel
+better-update update promote <updateId> --channel production
+```
+
+Promote creates a new update record on the target channel that references the same bundle and assets — no extra bytes for devices to download.
+
+`promote` accepts the same `--manifest-body-file` / `--signature-file` / `--certificate-chain-file` flags if you want a separately signed payload.
+
+## Inspect a published update
+
+```bash
+better-update update list --branch main --limit 20
+```
+
+Or in the web console: **Project → Updates**. You'll see size, R2 keys, signing status, and (when the dashboard is wired up) install counts and crash rates.
+
+## Audit log
+
+Every publish, promote, rollback, and rollout change is recorded with actor, timestamp, and diff:
+
+```bash
+better-update audit-logs list --limit 50
+```
+
+Filter by resource:
+
+```bash
+better-update audit-logs list --resource-type update --from 2026-05-01 --to 2026-05-07
+```
+
+## What's next
+
+- **[Channels and branches](/guides/channels-and-branches/)** — how to wire branches to channels.
+- **[Rollouts and rollbacks](/guides/rollouts-and-rollbacks/)** — staged delivery and instant revert.
+- **[Environments](/guides/environments/)** — server-side env vars injected at publish time.

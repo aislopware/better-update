@@ -1,0 +1,63 @@
+---
+title: Better Update
+description: Expo および React Native アプリへ OTA アップデートを配信する CLI。
+template: splash
+hero:
+  tagline: Expo と React Native の OTA アップデート — App Store 審査なしで。
+  image:
+    light: ../../../assets/logo-light.svg
+    dark: ../../../assets/logo-dark.svg
+  actions:
+    - text: はじめる
+      link: /ja/start/quickstart/
+      icon: right-arrow
+    - text: GitHub
+      link: https://github.com/better-update/better-update
+      icon: external
+      variant: minimal
+---
+
+import { CardGrid, LinkCard } from "@astrojs/starlight/components";
+
+## インストール
+
+```bash
+bun add -g @better-update/cli
+```
+
+## アップデートを配信
+
+```bash
+better-update login
+better-update init
+better-update update publish --branch main --message "Fix login screen"
+```
+
+マッチするチャンネルのデバイスは、次回起動時に新しいバンドルを取得します。
+
+## 段階的にロールアウト、または 1 コマンドで revert
+
+```bash
+better-update update rollout set <updateId> 10
+better-update update rollout complete <updateId>
+
+better-update update rollback --branch main
+```
+
+<CardGrid>
+  <LinkCard
+    title="クイックスタート"
+    href="/ja/start/quickstart/"
+    description="インストール、ログイン、最初のアップデート配信 — 5 分。"
+  />
+  <LinkCard
+    title="公開"
+    href="/ja/guides/publishing/"
+    description="ブランチ、チャンネル、ロールアウト、ロールバック。"
+  />
+  <LinkCard
+    title="CLI リファレンス"
+    href="/ja/reference/cli/"
+    description="すべてのコマンド、すべてのフラグ。"
+  />
+</CardGrid>
