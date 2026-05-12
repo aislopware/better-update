@@ -12,6 +12,12 @@ export const importCommand = defineCommand({
   args: {
     file: { type: "positional", required: true, description: "Path to .env file" },
     environment: { type: "string", default: "production", description: "Target environment" },
+    visibility: {
+      type: "enum",
+      options: ["plaintext", "sensitive", "secret"],
+      default: "plaintext",
+      description: "Visibility applied to all imported values",
+    },
   },
   run: async ({ args }) =>
     runEffect(
@@ -23,7 +29,12 @@ export const importCommand = defineCommand({
         const api = yield* apiClient;
 
         const result = yield* api["env-vars"].bulkImport({
-          payload: { projectId, environment: args.environment, content, visibility: "plaintext" },
+          payload: {
+            projectId,
+            environment: args.environment,
+            content,
+            visibility: args.visibility,
+          },
         });
 
         yield* Console.log(

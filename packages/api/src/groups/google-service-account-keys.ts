@@ -6,6 +6,7 @@ import { NotFound } from "../auth/ownership";
 import { BadRequest, Conflict } from "../domain/errors";
 import {
   DeleteGoogleServiceAccountKeyResult,
+  DownloadGoogleServiceAccountKeyResult,
   GoogleServiceAccountKey,
   UploadGoogleServiceAccountKeyBody,
 } from "../domain/google-service-account-key";
@@ -41,6 +42,16 @@ export class GoogleServiceAccountKeysGroup extends HttpApiGroup.make("googleServ
         OpenApi.annotations({
           title: "Delete service account key",
           description: "Remove a stored Google service account key",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.get("download")`/api/google/service-account-keys/${idParam}/download`
+      .addSuccess(DownloadGoogleServiceAccountKeyResult)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Download service account key",
+          description: "Fetch the decrypted JSON for local use (audit-logged)",
         }),
       ),
   )

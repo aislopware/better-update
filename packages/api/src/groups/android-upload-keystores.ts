@@ -6,6 +6,7 @@ import { NotFound } from "../auth/ownership";
 import {
   AndroidUploadKeystore,
   DeleteAndroidUploadKeystoreResult,
+  DownloadAndroidUploadKeystoreResult,
   UploadAndroidUploadKeystoreBody,
 } from "../domain/android-upload-keystore";
 import { BadRequest, Conflict } from "../domain/errors";
@@ -41,6 +42,16 @@ export class AndroidUploadKeystoresGroup extends HttpApiGroup.make("androidUploa
         OpenApi.annotations({
           title: "Delete Android keystore",
           description: "Remove a stored Android keystore",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.get("download")`/api/android/upload-keystores/${idParam}/download`
+      .addSuccess(DownloadAndroidUploadKeystoreResult)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Download Android keystore",
+          description: "Fetch the decrypted keystore + passwords for local use (audit-logged)",
         }),
       ),
   )

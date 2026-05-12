@@ -25,6 +25,8 @@ export interface EasAndroidProfile {
   readonly distribution?: "play-store" | "direct";
 }
 
+export type EasCredentialsSource = "remote" | "local";
+
 export interface EasBuildProfile {
   readonly extends?: string;
   readonly developmentClient?: boolean;
@@ -34,6 +36,7 @@ export interface EasBuildProfile {
   readonly env?: Record<string, string>;
   readonly ios?: EasIosProfile;
   readonly android?: EasAndroidProfile;
+  readonly credentialsSource?: EasCredentialsSource;
 }
 
 export interface EasConfig {
@@ -101,6 +104,11 @@ const asEasDistribution = (raw: unknown): EasDistribution | undefined => {
   return value === "internal" || value === "store" ? value : undefined;
 };
 
+const asCredentialsSource = (raw: unknown): EasCredentialsSource | undefined => {
+  const value = asStringValue(raw);
+  return value === "remote" || value === "local" ? value : undefined;
+};
+
 const parseIosProfile = (raw: unknown): EasIosProfile | undefined => {
   const record = asRecord(raw);
   if (!record) {
@@ -152,6 +160,7 @@ const parseBuildProfile = (raw: unknown): EasBuildProfile | undefined => {
   const env = asEnv(record["env"]);
   const ios = parseIosProfile(record["ios"]);
   const android = parseAndroidProfile(record["android"]);
+  const credentialsSource = asCredentialsSource(record["credentialsSource"]);
   return {
     ...(extendsName === undefined ? {} : { extends: extendsName }),
     ...(developmentClient === undefined ? {} : { developmentClient }),
@@ -161,6 +170,7 @@ const parseBuildProfile = (raw: unknown): EasBuildProfile | undefined => {
     ...(env === undefined ? {} : { env }),
     ...(ios === undefined ? {} : { ios }),
     ...(android === undefined ? {} : { android }),
+    ...(credentialsSource === undefined ? {} : { credentialsSource }),
   };
 };
 
@@ -279,6 +289,7 @@ const mergeProfile = (base: EasBuildProfile, overlay: EasBuildProfile): EasBuild
   const distribution = overlay.distribution ?? base.distribution;
   const channel = overlay.channel ?? base.channel;
   const environment = overlay.environment ?? base.environment;
+  const credentialsSource = overlay.credentialsSource ?? base.credentialsSource;
   return {
     ...(overlay.extends === undefined ? {} : { extends: overlay.extends }),
     ...(developmentClient === undefined ? {} : { developmentClient }),
@@ -288,6 +299,7 @@ const mergeProfile = (base: EasBuildProfile, overlay: EasBuildProfile): EasBuild
     ...(env === undefined ? {} : { env }),
     ...(ios === undefined ? {} : { ios }),
     ...(android === undefined ? {} : { android }),
+    ...(credentialsSource === undefined ? {} : { credentialsSource }),
   };
 };
 

@@ -4,6 +4,7 @@ import { configureCommand } from "./configure";
 import { deleteCommand } from "./delete";
 import { generateCommand } from "./generate";
 import { listCommand } from "./list";
+import { syncCommand } from "./sync";
 import { uploadCommand } from "./upload";
 import { uploadAscKeyCommand } from "./upload-asc-key";
 
@@ -16,5 +17,6 @@ export const credentialsCommand = defineCommand({
     generate: generateCommand,
     delete: deleteCommand,
     configure: configureCommand,
+    sync: syncCommand,
   },
 });

@@ -45,7 +45,8 @@
     "effect": "^3.21.2",
     "es-toolkit": "^1.46.1",
     "gradle-to-js": "^2.0.1",
-    "node-forge": "^1.4.0"
+    "node-forge": "^1.4.0",
+    "qrcode-terminal": "^0.12.0"
   },
   "devDependencies": {
     "@better-update/api": "workspace:*",

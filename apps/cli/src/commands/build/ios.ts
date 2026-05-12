@@ -13,13 +13,14 @@ import { BuildFailedError } from "../../lib/exit-codes";
 import { renderExportOptionsPlist } from "../../lib/ios-export-options";
 import { acquireKeychain } from "../../lib/ios-keychain";
 import { installProvisioningProfile } from "../../lib/ios-provisioning";
+import { loadLocalIosCredentials } from "../../lib/local-credentials";
 import { validateIosBuild } from "../../lib/post-build-validation";
 import { sha256File } from "../../lib/sha256";
 import { createXcodebuildFormatter } from "../../lib/xcpretty-formatter";
 import { CliRuntime } from "../../services/cli-runtime";
 import { runStep, runStepFormatted } from "./run-step";
 
-import type { IosProfile } from "../../lib/build-profile";
+import type { CredentialsSource, IosProfile } from "../../lib/build-profile";
 import type {
   ArtifactNotFoundError,
   KeychainError,
@@ -36,6 +37,7 @@ export interface RunIosBuildInput {
   readonly bundleId: string;
   readonly envVars: Record<string, string>;
   readonly projectId: string;
+  readonly credentialsSource: CredentialsSource;
   readonly rawOutput?: boolean | undefined;
 }
 
@@ -83,13 +85,16 @@ export const runIosBuild = (
     const { distribution } = iosProfile;
     const commandEnv = yield* runtime.commandEnvironment(envVars);
 
-    // 1. Download credentials (p12 + mobileprovision) into tempDir.
-    const credentials = yield* downloadIosCredentials(api, {
-      projectId,
-      bundleIdentifier: bundleId,
-      distribution,
-      tempDir,
-    });
+    // 1. Load credentials — remote (server-resolved into tempDir) or local (credentials.json paths).
+    const credentials =
+      input.credentialsSource === "local"
+        ? yield* loadLocalIosCredentials({ projectRoot })
+        : yield* downloadIosCredentials(api, {
+            projectId,
+            bundleIdentifier: bundleId,
+            distribution,
+            tempDir,
+          });
 
     // 2. Expo prebuild (ios).
     yield* runStep(

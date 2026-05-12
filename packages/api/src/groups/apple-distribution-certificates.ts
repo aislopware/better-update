@@ -6,6 +6,7 @@ import { NotFound } from "../auth/ownership";
 import {
   AppleDistributionCertificate,
   DeleteAppleDistributionCertificateResult,
+  DownloadAppleDistributionCertificateResult,
   UploadAppleDistributionCertificateBody,
 } from "../domain/apple-distribution-certificate";
 import { BadRequest, Conflict } from "../domain/errors";
@@ -44,6 +45,16 @@ export class AppleDistributionCertificatesGroup extends HttpApiGroup.make(
         OpenApi.annotations({
           title: "Delete distribution certificate",
           description: "Remove a distribution certificate from storage",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.get("download")`/api/apple/distribution-certificates/${idParam}/download`
+      .addSuccess(DownloadAppleDistributionCertificateResult)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Download distribution certificate",
+          description: "Fetch the decrypted .p12 + password for local use (audit-logged)",
         }),
       ),
   )

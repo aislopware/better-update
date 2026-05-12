@@ -1,11 +1,14 @@
 import { defineCommand } from "citty";
 import { Effect } from "effect";
+import qrcode from "qrcode-terminal";
 
 import { runEffect } from "../../lib/citty-effect";
 import { InvalidArgumentError } from "../../lib/exit-codes";
 import { printHuman, printJson, printKeyValue } from "../../lib/output";
 import { OutputMode } from "../../lib/output-mode";
 import { apiClient } from "../../services/api-client";
+
+import type { ApiClient } from "../../services/api-client";
 
 const DEVICE_CLASS_VALUES = ["IPHONE", "IPAD", "MAC", "UNKNOWN"] as const;
 type DeviceClassArg = (typeof DEVICE_CLASS_VALUES)[number];
@@ -24,6 +27,49 @@ const ttlHours = (value: string | undefined): number | undefined => {
   const num = Number.parseInt(match[1], 10);
   return match[2] === "d" ? num * 24 : num;
 };
+
+const renderQrcode = (url: string): Effect.Effect<string> =>
+  Effect.async<string>((resume) => {
+    qrcode.generate(url, { small: true }, (qr) => {
+      resume(Effect.succeed(qr));
+    });
+  });
+
+interface InviteArgs {
+  readonly name?: string;
+  readonly deviceClass?: DeviceClassArg;
+  readonly appleTeamId?: string;
+  readonly ttl?: number;
+  readonly renderQr: boolean;
+}
+
+const handleInvite = (api: ApiClient, args: InviteArgs) =>
+  Effect.gen(function* () {
+    const mode = yield* OutputMode;
+    const result = yield* api.devices.createRegistrationRequest({
+      payload: {
+        ...(args.name === undefined ? {} : { deviceNameHint: args.name }),
+        ...(args.deviceClass === undefined ? {} : { deviceClassHint: args.deviceClass }),
+        ...(args.appleTeamId === undefined ? {} : { appleTeamId: args.appleTeamId }),
+        ...(args.ttl === undefined ? {} : { ttlHours: args.ttl }),
+      },
+    });
+    if (mode.json) {
+      yield* printJson(result);
+      return;
+    }
+    yield* printHuman("Share this URL with the device owner (open it in Safari on iOS):");
+    yield* printKeyValue([
+      ["URL", result.url],
+      ["Expires at", result.expiresAt],
+      ["Request ID", result.id],
+    ]);
+    if (args.renderQr) {
+      const rendered = yield* renderQrcode(result.url);
+      yield* printHuman("");
+      yield* printHuman(rendered);
+    }
+  });
 
 export const addDeviceCommand = defineCommand({
   meta: {
@@ -50,6 +96,12 @@ export const addDeviceCommand = defineCommand({
       default: "24h",
       description: "Invitation TTL (e.g. 24h, 7d, max 168h)",
     },
+    qr: {
+      type: "boolean",
+      default: true,
+      description: "Render a scannable QR code alongside the invitation URL",
+      negativeDescription: "Skip QR rendering (use --no-qr)",
+    },
   },
   run: async ({ args }) =>
     runEffect(
@@ -58,28 +110,17 @@ export const addDeviceCommand = defineCommand({
         const mode = yield* OutputMode;
 
         if (args.invite) {
-          const hint = isDeviceClass(args["device-class"]) ? args["device-class"] : undefined;
+          const deviceClass = isDeviceClass(args["device-class"])
+            ? args["device-class"]
+            : undefined;
           const ttl = ttlHours(args["expires-in"]);
-          const result = yield* api.devices.createRegistrationRequest({
-            payload: {
-              ...(args.name === undefined ? {} : { deviceNameHint: args.name }),
-              ...(hint === undefined ? {} : { deviceClassHint: hint }),
-              ...(args["apple-team-id"] === undefined
-                ? {}
-                : { appleTeamId: args["apple-team-id"] }),
-              ...(ttl === undefined ? {} : { ttlHours: ttl }),
-            },
+          yield* handleInvite(api, {
+            ...(args.name === undefined ? {} : { name: args.name }),
+            ...(deviceClass === undefined ? {} : { deviceClass }),
+            ...(args["apple-team-id"] === undefined ? {} : { appleTeamId: args["apple-team-id"] }),
+            ...(ttl === undefined ? {} : { ttl }),
+            renderQr: args.qr,
           });
-          if (mode.json) {
-            yield* printJson(result);
-            return;
-          }
-          yield* printHuman("Share this URL with the device owner (open it in Safari on iOS):");
-          yield* printKeyValue([
-            ["URL", result.url],
-            ["Expires at", result.expiresAt],
-            ["Request ID", result.id],
-          ]);
           return;
         }
 

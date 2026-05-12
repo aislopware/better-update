@@ -30,6 +30,8 @@ export interface AndroidProfile {
   readonly gradleCommand?: string;
 }
 
+export type CredentialsSource = "remote" | "local";
+
 export interface BuildProfile {
   readonly name: string;
   readonly environment: string;
@@ -37,6 +39,7 @@ export interface BuildProfile {
   readonly env?: Record<string, string>;
   readonly ios?: IosProfile;
   readonly android?: AndroidProfile;
+  readonly credentialsSource?: CredentialsSource;
 }
 
 export type RawRuntimeVersion = string | { readonly policy: string };
@@ -155,6 +158,7 @@ export const fromEasProfile = (eas: EasBuildProfile, profileName: string): Build
     ...(eas.env === undefined ? {} : { env: eas.env }),
     ...(ios === undefined ? {} : { ios }),
     ...(android === undefined ? {} : { android }),
+    ...(eas.credentialsSource === undefined ? {} : { credentialsSource: eas.credentialsSource }),
   };
 };
 

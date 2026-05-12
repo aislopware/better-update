@@ -1,7 +1,10 @@
 {
   "extends": "@better-update/typescript-config/base.json",
   "compilerOptions": {
-    "types": ["node", "vitest/globals"]
+    "types": ["node", "vitest/globals"],
+    "paths": {
+      "qrcode-terminal": ["./src/types/qrcode-terminal"]
+    }
   },
   "include": ["src", "tests", "*.ts"]
 }

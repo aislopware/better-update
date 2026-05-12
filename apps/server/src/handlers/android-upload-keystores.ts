@@ -1,4 +1,4 @@
-import { fromBase64 } from "@better-update/encoding";
+import { fromBase64, toBase64 } from "@better-update/encoding";
 import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
@@ -8,11 +8,16 @@ import { CurrentActor } from "../auth/current-actor";
 import { assertOrgOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
 import { cloudflareEnv } from "../cloudflare/context";
+import { CredentialArtifacts } from "../cloudflare/credential-artifacts";
 import { Vault } from "../cloudflare/vault";
 import { validateAndroidKeystore } from "../domain/android-keystore-parser";
 import { BadRequest } from "../errors";
 import { toApiAndroidUploadKeystore } from "../http/to-api";
-import { toApiCrudEffect, toApiWriteEffect } from "../http/to-api-effect";
+import {
+  toApiBadRequestReadEffect,
+  toApiCrudEffect,
+  toApiWriteEffect,
+} from "../http/to-api-effect";
 import { r2Operation, withR2Compensation } from "../lib/r2-helpers";
 import { AndroidUploadKeystoreRepo } from "../repositories/android-upload-keystores";
 
@@ -159,6 +164,59 @@ export const AndroidUploadKeystoresGroupLive = HttpApiBuilder.group(
               metadata: { keyAlias: existing.keyAlias },
             });
             return { deleted: 1 };
+          }),
+        ),
+      )
+      .handle("download", ({ path }) =>
+        toApiBadRequestReadEffect(
+          Effect.gen(function* () {
+            yield* assertPermission("androidCredential", "download");
+            const ctx = yield* CurrentActor;
+            const repo = yield* AndroidUploadKeystoreRepo;
+            const artifacts = yield* CredentialArtifacts;
+            const vault = yield* Vault;
+
+            const existing = yield* repo.findById({ id: path.id });
+            yield* assertOrgOwnership(existing.organizationId);
+
+            const encryptedBlob = yield* artifacts.get(existing.r2Key, "Keystore");
+            const keystoreBytes = yield* vault
+              .envelopeDecrypt({
+                organizationId: ctx.organizationId,
+                keyVersion: existing.dekKeyVersion,
+                encryptedDek: existing.encryptedDek,
+                encryptedBlob,
+              })
+              .pipe(Effect.mapError(() => new BadRequest({ message: "Decryption failed" })));
+            const keystorePassword = yield* vault
+              .decryptSecret({
+                organizationId: ctx.organizationId,
+                keyVersion: existing.keystorePasswordKeyVersion,
+                encrypted: existing.encryptedKeystorePassword,
+              })
+              .pipe(Effect.mapError(() => new BadRequest({ message: "Decryption failed" })));
+            const keyPassword = yield* vault
+              .decryptSecret({
+                organizationId: ctx.organizationId,
+                keyVersion: existing.keyPasswordKeyVersion,
+                encrypted: existing.encryptedKeyPassword,
+              })
+              .pipe(Effect.mapError(() => new BadRequest({ message: "Decryption failed" })));
+
+            yield* logAudit({
+              action: "android.upload-keystore.download",
+              resourceType: "androidCredential",
+              resourceId: path.id,
+              metadata: { keyAlias: existing.keyAlias },
+            });
+
+            return {
+              id: existing.id,
+              keystoreBase64: toBase64(keystoreBytes),
+              keyAlias: existing.keyAlias,
+              keystorePassword,
+              keyPassword,
+            };
           }),
         ),
       ),

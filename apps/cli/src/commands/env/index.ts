@@ -1,6 +1,7 @@
 import { defineCommand } from "citty";
 
 import { deleteCommand } from "./delete";
+import { execCommand } from "./exec";
 import { exportCommand } from "./export";
 import { getCommand } from "./get";
 import { importCommand } from "./import";
@@ -18,5 +19,6 @@ export const envCommand = defineCommand({
     import: importCommand,
     export: exportCommand,
     pull: pullCommand,
+    exec: execCommand,
   },
 });

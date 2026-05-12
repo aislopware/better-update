@@ -30,6 +30,7 @@ import { updateCommand } from "./commands/update";
 import { webhooksCommand } from "./commands/webhooks";
 import { whoamiCommand } from "./commands/whoami";
 import { setActiveCliLayer } from "./lib/citty-effect";
+import { setExecTrailingArgv, splitTrailingArgv } from "./lib/exec-trailing-argv";
 import { parseGlobalFlags, stripGlobalFlags } from "./lib/global-flags";
 import { bootstrapVersionCheck, refreshVersionCacheIfStale } from "./lib/version-notifier";
 
@@ -38,8 +39,11 @@ const REFRESH_VERSION_CACHE_FLAG = "__refresh-version-cache";
 // Parse + strip global flags before citty sees them. argv[0]=node, argv[1]=script, args start at [2].
 const rawArgs = process.argv.slice(2);
 const globalFlags = parseGlobalFlags(rawArgs);
-const remainingArgs = stripGlobalFlags(rawArgs);
-process.argv = [...process.argv.slice(0, 2), ...remainingArgs];
+const withoutGlobals = stripGlobalFlags(rawArgs);
+// Split at `--` so subcommands like `env exec` can read raw trailing argv.
+const { mainArgs, trailing } = splitTrailingArgv(withoutGlobals);
+setExecTrailingArgv(trailing);
+process.argv = [...process.argv.slice(0, 2), ...mainArgs];
 
 const cliLayer = makeCliLive({
   json: globalFlags.json,

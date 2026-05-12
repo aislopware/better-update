@@ -27,3 +27,10 @@ export const UploadApplePushKeyBody = Schema.Struct({
 });
 
 export const DeleteApplePushKeyResult = Schema.Struct({ deleted: Schema.Number });
+
+export const DownloadApplePushKeyResult = Schema.Struct({
+  id: Id,
+  p8Pem: Schema.String,
+  keyId: Schema.String,
+  appleTeamIdentifier: AppleTeamIdentifier,
+});

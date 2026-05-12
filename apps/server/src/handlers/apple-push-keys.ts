@@ -7,11 +7,16 @@ import { CurrentActor } from "../auth/current-actor";
 import { assertOrgOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
 import { cloudflareEnv } from "../cloudflare/context";
+import { CredentialArtifacts } from "../cloudflare/credential-artifacts";
 import { Vault } from "../cloudflare/vault";
 import { validatePushKey } from "../domain/apple-push-key-validator";
 import { BadRequest } from "../errors";
 import { toApiApplePushKey } from "../http/to-api";
-import { toApiCrudEffect, toApiWriteEffect } from "../http/to-api-effect";
+import {
+  toApiBadRequestReadEffect,
+  toApiCrudEffect,
+  toApiWriteEffect,
+} from "../http/to-api-effect";
 import { toDbNull } from "../lib/nullable";
 import { r2Operation, withR2Compensation } from "../lib/r2-helpers";
 import { ApplePushKeyRepo } from "../repositories/apple-push-keys";
@@ -128,6 +133,47 @@ export const ApplePushKeysGroupLive = HttpApiBuilder.group(
               metadata: { keyId: existing.keyId },
             });
             return { deleted: 1 };
+          }),
+        ),
+      )
+      .handle("download", ({ path }) =>
+        toApiBadRequestReadEffect(
+          Effect.gen(function* () {
+            yield* assertPermission("appleCredential", "download");
+            const ctx = yield* CurrentActor;
+            const repo = yield* ApplePushKeyRepo;
+            const teams = yield* AppleTeamRepo;
+            const artifacts = yield* CredentialArtifacts;
+            const vault = yield* Vault;
+
+            const existing = yield* repo.findById({ id: path.id });
+            yield* assertOrgOwnership(existing.organizationId);
+            const team = yield* teams.findById({ id: existing.appleTeamId });
+
+            const encryptedBlob = yield* artifacts.get(existing.r2Key, "Push key");
+            const p8Bytes = yield* vault
+              .envelopeDecrypt({
+                organizationId: ctx.organizationId,
+                keyVersion: existing.dekKeyVersion,
+                encryptedDek: existing.encryptedDek,
+                encryptedBlob,
+              })
+              .pipe(Effect.mapError(() => new BadRequest({ message: "Decryption failed" })));
+            const p8Pem = new TextDecoder().decode(p8Bytes);
+
+            yield* logAudit({
+              action: "apple.push-key.download",
+              resourceType: "appleCredential",
+              resourceId: path.id,
+              metadata: { keyId: existing.keyId },
+            });
+
+            return {
+              id: existing.id,
+              p8Pem,
+              keyId: existing.keyId,
+              appleTeamIdentifier: team.appleTeamId,
+            };
           }),
         ),
       ),

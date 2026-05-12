@@ -36,6 +36,15 @@ export const UploadAppleProvisioningProfileBody = Schema.Struct({
 
 export const DeleteAppleProvisioningProfileResult = Schema.Struct({ deleted: Schema.Number });
 
+export const DownloadAppleProvisioningProfileResult = Schema.Struct({
+  id: Id,
+  profileBase64: Schema.String,
+  bundleIdentifier: Schema.String,
+  distributionType: DistributionType,
+  profileName: Schema.NullOr(Schema.String),
+  developerPortalIdentifier: Schema.NullOr(Schema.String),
+});
+
 export const ListAppleProvisioningProfilesParams = Schema.Struct({
   bundleIdentifier: Schema.optional(BundleIdentifier),
   distributionType: Schema.optional(DistributionType),
