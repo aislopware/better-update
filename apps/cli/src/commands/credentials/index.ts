@@ -8,11 +8,13 @@ import { removeCommand } from "./remove";
 import { syncCommand } from "./sync";
 import { uploadCommand } from "./upload";
 import { uploadAscKeyCommand } from "./upload-asc-key";
+import { viewCommand } from "./view";
 
 export const credentialsCommand = defineCommand({
   meta: { name: "credentials", description: "Manage credentials" },
   subCommands: {
     list: listCommand,
+    view: viewCommand,
     upload: uploadCommand,
     "upload-asc-key": uploadAscKeyCommand,
     generate: generateCommand,

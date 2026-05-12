@@ -3,8 +3,10 @@ import { Console, Effect } from "effect";
 
 import { runEffect } from "../lib/citty-effect";
 import { drainPages } from "../lib/drain-cursor";
+import { InvalidArgumentError } from "../lib/exit-codes";
 import { readProjectId } from "../lib/expo-config";
-import { printKeyValue, printList } from "../lib/output";
+import { printJson, printKeyValue, printList } from "../lib/output";
+import { OutputMode } from "../lib/output-mode";
 import { apiClient } from "../services/api-client";
 
 const listCommand = defineCommand({
@@ -51,6 +53,56 @@ const createCommand = defineCommand({
     ),
 });
 
+const viewCommand = defineCommand({
+  meta: { name: "view", description: "Show a branch by ID or name" },
+  args: {
+    target: {
+      type: "positional",
+      required: true,
+      description: "Branch ID or branch name (name requires linked project)",
+    },
+  },
+  run: async ({ args }) =>
+    runEffect(
+      Effect.gen(function* () {
+        const api = yield* apiClient;
+        const branch = yield* api.branches.get({ path: { id: args.target } }).pipe(
+          Effect.catchTag("NotFound", () =>
+            Effect.gen(function* () {
+              const projectId = yield* readProjectId;
+              const matches = yield* drainPages((page) =>
+                api.branches.list({
+                  urlParams: { projectId, limit: 100, page },
+                }),
+              );
+              const byName = matches.find((entry) => entry.name === args.target);
+              if (!byName) {
+                return yield* new InvalidArgumentError({
+                  message: `Branch "${args.target}" not found by ID or name.`,
+                });
+              }
+              return byName;
+            }),
+          ),
+        );
+
+        const mode = yield* OutputMode;
+        if (mode.json) {
+          yield* printJson(branch);
+          return undefined;
+        }
+        yield* printKeyValue([
+          ["ID", branch.id],
+          ["Name", branch.name],
+          ["Project ID", branch.projectId],
+          ["Updates", String(branch.updateCount)],
+          ["Created", branch.createdAt],
+        ]);
+        return undefined;
+      }),
+    ),
+});
+
 const renameCommand = defineCommand({
   meta: { name: "rename", description: "Rename a branch" },
   args: {
@@ -89,6 +141,7 @@ export const branchesCommand = defineCommand({
   meta: { name: "branches", description: "Manage branches" },
   subCommands: {
     list: listCommand,
+    view: viewCommand,
     create: createCommand,
     rename: renameCommand,
     delete: deleteCommand,

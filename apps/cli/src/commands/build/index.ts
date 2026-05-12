@@ -2,6 +2,7 @@ import { defineCommand } from "citty";
 
 import { runBuildWorkflow } from "../../application/build-workflow";
 import { runEffect } from "../../lib/citty-effect";
+import { configureBuildCommand } from "./configure";
 
 const BUILD_EXIT_EXTRAS = {
   BuildProfileError: 2,
@@ -21,6 +22,9 @@ const BUILD_EXIT_EXTRAS = {
 
 export const buildCommand = defineCommand({
   meta: { name: "build", description: "Build the app locally and optionally upload" },
+  subCommands: {
+    configure: configureBuildCommand,
+  },
   args: {
     platform: {
       type: "enum",

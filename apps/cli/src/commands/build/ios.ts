@@ -9,7 +9,7 @@ import type { Scope } from "effect";
 
 import { findIosArtifact } from "../../lib/artifact-finder";
 import { downloadIosCredentials } from "../../lib/credentials-downloader";
-import { BuildFailedError } from "../../lib/exit-codes";
+import { ArtifactNotFoundError, BuildFailedError } from "../../lib/exit-codes";
 import { renderExportOptionsPlist } from "../../lib/ios-export-options";
 import { acquireKeychain } from "../../lib/ios-keychain";
 import { installProvisioningProfile } from "../../lib/ios-provisioning";
@@ -22,7 +22,6 @@ import { runStep, runStepFormatted } from "./run-step";
 
 import type { CredentialsSource, IosProfile } from "../../lib/build-profile";
 import type {
-  ArtifactNotFoundError,
   KeychainError,
   MissingCredentialsError,
   ProvisioningError,
@@ -64,19 +63,141 @@ const findXcworkspace = (
     return workspace;
   });
 
-export const runIosBuild = (
-  input: RunIosBuildInput,
-): Effect.Effect<
-  RunIosBuildResult,
+type IosBuildRequiredServices =
+  | CliRuntime
+  | CommandExecutor.CommandExecutor
+  | FileSystem.FileSystem
+  | Scope.Scope;
+
+type IosBuildErrors =
   | BuildFailedError
   | MissingCredentialsError
   | KeychainError
   | ProvisioningError
   | ArtifactNotFoundError
-  | PlatformError,
-  CliRuntime | CommandExecutor.CommandExecutor | FileSystem.FileSystem | Scope.Scope
-> =>
-  // eslint-disable-next-line eslint/max-statements -- ios build orchestration is inherently sequential (prebuild → pod → credentials → archive → exportArchive → find artifact → sha256); splitting further fragments the pipeline without clarifying it
+  | PlatformError;
+
+const prebuildAndPods = (params: {
+  readonly projectRoot: string;
+  readonly iosDir: string;
+  readonly commandEnv: Record<string, string>;
+}) =>
+  Effect.gen(function* () {
+    yield* runStep(
+      Command.make("bunx", "expo", "prebuild", "--platform", "ios", "--clean").pipe(
+        Command.workingDirectory(params.projectRoot),
+        Command.env(params.commandEnv),
+      ),
+      "expo prebuild ios",
+    );
+    yield* runStep(
+      Command.make("pod", "install").pipe(
+        Command.workingDirectory(params.iosDir),
+        Command.env(params.commandEnv),
+      ),
+      "pod install",
+    );
+  });
+
+const findAppDirectory = (
+  root: string,
+): Effect.Effect<string, ArtifactNotFoundError | PlatformError, FileSystem.FileSystem> =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const stack = [root];
+    let depth = 0;
+    while (stack.length > 0 && depth < 6) {
+      const layer = stack.splice(0);
+      depth += 1;
+      for (const dir of layer) {
+        const entries = yield* fs.readDirectory(dir).pipe(Effect.orElseSucceed(() => []));
+        for (const entry of entries) {
+          const full = path.join(dir, entry);
+          if (entry.endsWith(".app")) {
+            return full;
+          }
+          const stat = yield* fs.stat(full).pipe(Effect.option);
+          if (stat._tag === "Some" && stat.value.type === "Directory") {
+            stack.push(full);
+          }
+        }
+      }
+    }
+    return yield* new ArtifactNotFoundError({
+      message: `No .app bundle found under "${root}".`,
+    });
+  });
+
+const runIosSimulatorBuild = (
+  input: RunIosBuildInput,
+): Effect.Effect<RunIosBuildResult, IosBuildErrors, IosBuildRequiredServices> =>
+  Effect.gen(function* () {
+    const { projectRoot, iosProfile, envVars, tempDir } = input;
+    const runtime = yield* CliRuntime;
+    const iosDir = path.join(projectRoot, "ios");
+    const commandEnv = yield* runtime.commandEnvironment(envVars);
+
+    yield* prebuildAndPods({ projectRoot, iosDir, commandEnv });
+
+    const workspaceFilename = yield* findXcworkspace(iosDir);
+    const scheme = iosProfile.scheme ?? workspaceFilename.replace(/\.xcworkspace$/u, "");
+    const configuration = iosProfile.buildConfiguration ?? "Release";
+    const derivedDataPath = path.join(tempDir, "derived-data");
+
+    const buildCmd = Command.make(
+      "xcodebuild",
+      "-workspace",
+      workspaceFilename,
+      "-scheme",
+      scheme,
+      "-configuration",
+      configuration,
+      "-sdk",
+      "iphonesimulator",
+      "-destination",
+      "generic/platform=iOS Simulator",
+      "-derivedDataPath",
+      derivedDataPath,
+      "build",
+      "CODE_SIGNING_ALLOWED=NO",
+      "CODE_SIGNING_REQUIRED=NO",
+      "CODE_SIGN_IDENTITY=",
+    ).pipe(Command.workingDirectory(iosDir), Command.env(commandEnv));
+
+    const formatter = input.rawOutput ? undefined : createXcodebuildFormatter(projectRoot);
+    yield* formatter
+      ? runStepFormatted(buildCmd, "xcodebuild build (simulator)", formatter)
+      : runStep(buildCmd, "xcodebuild build (simulator)");
+
+    const productsRoot = path.join(
+      derivedDataPath,
+      "Build",
+      "Products",
+      `${configuration}-iphonesimulator`,
+    );
+    const appDir = yield* findAppDirectory(productsRoot);
+    const archiveName = `${path.basename(appDir, ".app")}-simulator.tar.gz`;
+    const archivePath = path.join(tempDir, archiveName);
+    yield* runStep(
+      Command.make(
+        "tar",
+        "-czf",
+        archivePath,
+        "-C",
+        path.dirname(appDir),
+        path.basename(appDir),
+      ).pipe(Command.env(commandEnv)),
+      "tar simulator .app",
+    );
+
+    const { sha256, byteSize } = yield* sha256File(archivePath);
+    return { artifactPath: archivePath, byteSize, sha256 };
+  });
+
+const runIosDeviceBuild = (
+  input: RunIosBuildInput,
+): Effect.Effect<RunIosBuildResult, IosBuildErrors, IosBuildRequiredServices> =>
+  // eslint-disable-next-line eslint/max-statements -- ios device build orchestration is inherently sequential (prebuild → pod → credentials → archive → exportArchive → find artifact → sha256); splitting further fragments the pipeline without clarifying it
   Effect.gen(function* () {
     const { api, tempDir, projectRoot, iosProfile, bundleId, envVars, projectId } = input;
     const runtime = yield* CliRuntime;
@@ -85,7 +206,6 @@ export const runIosBuild = (
     const { distribution } = iosProfile;
     const commandEnv = yield* runtime.commandEnvironment(envVars);
 
-    // 1. Load credentials — remote (server-resolved into tempDir) or local (credentials.json paths).
     const credentials =
       input.credentialsSource === "local"
         ? yield* loadLocalIosCredentials({ projectRoot })
@@ -96,42 +216,22 @@ export const runIosBuild = (
             tempDir,
           });
 
-    // 2. Expo prebuild (ios).
-    yield* runStep(
-      Command.make("bunx", "expo", "prebuild", "--platform", "ios", "--clean").pipe(
-        Command.workingDirectory(projectRoot),
-        Command.env(commandEnv),
-      ),
-      "expo prebuild ios",
-    );
+    yield* prebuildAndPods({ projectRoot, iosDir, commandEnv });
 
-    // 3. pod install.
-    yield* runStep(
-      Command.make("pod", "install").pipe(
-        Command.workingDirectory(iosDir),
-        Command.env(commandEnv),
-      ),
-      "pod install",
-    );
-
-    // 4. Scoped ephemeral keychain (auto-cleaned on scope close).
     const keychain = yield* acquireKeychain({
       tempDir,
       p12Path: credentials.p12Path,
       p12Password: credentials.p12Password,
     });
 
-    // 5. Scoped provisioning profile install.
     const provisioning = yield* installProvisioningProfile({
       profilePath: credentials.profilePath,
     });
 
-    // 6. Detect workspace + scheme.
     const workspaceFilename = yield* findXcworkspace(iosDir);
     const scheme = iosProfile.scheme ?? workspaceFilename.replace(/\.xcworkspace$/u, "");
     const configuration = iosProfile.buildConfiguration ?? "Release";
 
-    // 7. xcodebuild archive.
     const archivePath = path.join(tempDir, "build.xcarchive");
     const archiveCmd = Command.make(
       "xcodebuild",
@@ -168,7 +268,6 @@ export const runIosBuild = (
       }),
     );
 
-    // 9. xcodebuild exportArchive.
     const exportPath = path.join(tempDir, "export");
     const exportCmd = Command.make(
       "xcodebuild",
@@ -186,7 +285,6 @@ export const runIosBuild = (
       ? runStepFormatted(exportCmd, "xcodebuild exportArchive", formatter)
       : runStep(exportCmd, "xcodebuild exportArchive");
 
-    // 10. Post-build validation (non-blocking).
     yield* validateIosBuild({
       archivePath,
       expectedBundleId: bundleId,
@@ -194,11 +292,13 @@ export const runIosBuild = (
       expectedProfileUuid: provisioning.uuid,
     });
 
-    // 11. Locate artifact.
     const artifactPath = yield* findIosArtifact({ exportPath });
-
-    // 12. SHA-256 + byte size.
     const { sha256, byteSize } = yield* sha256File(artifactPath);
 
     return { artifactPath, byteSize, sha256 };
   });
+
+export const runIosBuild = (
+  input: RunIosBuildInput,
+): Effect.Effect<RunIosBuildResult, IosBuildErrors, IosBuildRequiredServices> =>
+  input.iosProfile.simulator === true ? runIosSimulatorBuild(input) : runIosDeviceBuild(input);

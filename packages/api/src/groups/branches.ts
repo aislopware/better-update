@@ -45,6 +45,14 @@ export class BranchesGroup extends HttpApiGroup.make("branches")
       ),
   )
   .add(
+    HttpApiEndpoint.get("get")`/api/branches/${idParam}`.addSuccess(Branch).annotateContext(
+      OpenApi.annotations({
+        title: "Get branch",
+        description: "Fetch a single branch by ID",
+      }),
+    ),
+  )
+  .add(
     HttpApiEndpoint.patch("rename")`/api/branches/${idParam}`
       .setPayload(UpdateBranchBody)
       .addSuccess(Branch)
