@@ -1,10 +1,13 @@
 import { defineCommand } from "citty";
 
 import { deleteCommand } from "./delete";
+import { editCommand } from "./edit";
+import { insightsCommand } from "./insights";
 import { listCommand } from "./list";
 import { promoteCommand } from "./promote";
 import { publishCommand } from "./publish";
 import { republishCommand } from "./republish";
+import { revertRolloutCommand } from "./revert-rollout";
 import { rollbackCommand } from "./rollback";
 import { rolloutCommand } from "./rollout";
 import { viewCommand } from "./view";
@@ -16,9 +19,12 @@ export const updateCommand = defineCommand({
     list: listCommand,
     view: viewCommand,
     delete: deleteCommand,
+    edit: editCommand,
     promote: promoteCommand,
     republish: republishCommand,
     rollback: rollbackCommand,
     rollout: rolloutCommand,
+    "revert-rollout": revertRolloutCommand,
+    insights: insightsCommand,
   },
 });

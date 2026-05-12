@@ -140,13 +140,29 @@ const ensureAndroidCredentialsAvailable = (api: ApiClient, input: AndroidSetupIn
     })
     .pipe(Effect.asVoid);
 
-export const ensureAndroidCredentials = (api: ApiClient, input: AndroidSetupInput) =>
+export interface EnsureCredentialsOptions {
+  readonly freezeCredentials: boolean;
+}
+
+export const ensureAndroidCredentials = (
+  api: ApiClient,
+  input: AndroidSetupInput,
+  options: EnsureCredentialsOptions,
+) =>
   ensureAndroidCredentialsAvailable(api, input).pipe(
-    Effect.catchIf(isMissingResolveError, () =>
-      setupAndroidInteractive(api, input).pipe(
+    Effect.catchIf(isMissingResolveError, () => {
+      if (options.freezeCredentials) {
+        return Effect.fail(
+          new MissingCredentialsError({
+            message: `No Android build credentials for ${input.applicationIdentifier}.`,
+            hint: "Run `better-update credentials generate` first, or remove --freeze-credentials.",
+          }),
+        );
+      }
+      return setupAndroidInteractive(api, input).pipe(
         Effect.flatMap(() => ensureAndroidCredentialsAvailable(api, input)),
-      ),
-    ),
+      );
+    }),
   );
 
 // ── iOS ────────────────────────────────────────────────────────────
@@ -431,16 +447,36 @@ const regenerateStaleProfile = (api: ApiClient, input: IosSetupInput) =>
     return undefined;
   });
 
-export const ensureIosCredentials = (api: ApiClient, input: IosSetupInput) =>
+export const ensureIosCredentials = (
+  api: ApiClient,
+  input: IosSetupInput,
+  options: EnsureCredentialsOptions,
+) =>
   resolveIosBuildCredentials(api, input).pipe(
-    Effect.catchIf(isMissingResolveError, () =>
-      setupIosInteractive(api, input).pipe(
+    Effect.catchIf(isMissingResolveError, () => {
+      if (options.freezeCredentials) {
+        return Effect.fail(
+          new MissingCredentialsError({
+            message: `No iOS build credentials for ${input.bundleIdentifier} (${input.distribution}).`,
+            hint: "Run `better-update credentials generate` first, or remove --freeze-credentials.",
+          }),
+        );
+      }
+      return setupIosInteractive(api, input).pipe(
         Effect.flatMap(() => resolveIosBuildCredentials(api, input)),
-      ),
-    ),
+      );
+    }),
     Effect.flatMap((resolved) => {
       if (resolved.platform !== "ios" || !resolved.profileStale) {
         return Effect.succeed(undefined);
+      }
+      if (options.freezeCredentials) {
+        return Effect.fail(
+          new MissingCredentialsError({
+            message: `Stale provisioning profile for ${input.bundleIdentifier}; cannot regenerate with --freeze-credentials.`,
+            hint: "Run a build without --freeze-credentials once to refresh the profile.",
+          }),
+        );
       }
       return regenerateStaleProfile(api, input);
     }),

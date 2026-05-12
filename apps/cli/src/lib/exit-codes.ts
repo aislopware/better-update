@@ -92,3 +92,7 @@ export class InteractiveProhibitedError extends Data.TaggedError("InteractivePro
 export class CredentialsJsonError extends Data.TaggedError("CredentialsJsonError")<{
   readonly message: string;
 }> {}
+
+export class DirtyRepoError extends Data.TaggedError("DirtyRepoError")<{
+  readonly message: string;
+}> {}

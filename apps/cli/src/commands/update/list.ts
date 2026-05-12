@@ -1,11 +1,11 @@
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
 import { parseLimit } from "../../lib/cli-schemas";
 import { drainPages } from "../../lib/drain-cursor";
 import { readProjectId } from "../../lib/expo-config";
-import { printTable } from "../../lib/output";
+import { printList } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 import { resolveNamedResourceId, updateErrorExtras } from "./helpers";
 
@@ -43,14 +43,9 @@ export const listCommand = defineCommand({
           },
         });
 
-        if (items.length === 0) {
-          yield* Console.log("No updates found.");
-          return;
-        }
-
         const branchNames = new Map(branches.map((item) => [item.id, item.name]));
 
-        yield* printTable(
+        yield* printList(
           ["Update ID", "Group", "Branch", "Platform", "Runtime", "Rollout", "Rollback", "Created"],
           items.map((item) => [
             item.id,
@@ -62,6 +57,7 @@ export const listCommand = defineCommand({
             item.isRollback ? "yes" : "no",
             item.createdAt,
           ]),
+          "No updates found.",
         );
       }),
       updateErrorExtras,

@@ -4,7 +4,7 @@ import { Console, Effect } from "effect";
 import { runEffect } from "../lib/citty-effect";
 import { drainPages } from "../lib/drain-cursor";
 import { readProjectId } from "../lib/expo-config";
-import { printKeyValue, printTable } from "../lib/output";
+import { printKeyValue, printList } from "../lib/output";
 import { apiClient } from "../services/api-client";
 
 const listCommand = defineCommand({
@@ -20,14 +20,10 @@ const listCommand = defineCommand({
           }),
         );
 
-        if (items.length === 0) {
-          yield* Console.log("No branches found.");
-          return;
-        }
-
-        yield* printTable(
+        yield* printList(
           ["ID", "Name", "Created"],
           items.map((branch) => [branch.id, branch.name, branch.createdAt]),
+          "No branches found.",
         );
       }),
     ),

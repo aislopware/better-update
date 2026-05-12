@@ -2,6 +2,7 @@ import { defineCommand } from "citty";
 
 import { createCommand } from "./create";
 import { deleteCommand } from "./delete";
+import { insightsCommand } from "./insights";
 import { listCommand } from "./list";
 import { pauseCommand } from "./pause";
 import { resumeCommand } from "./resume";
@@ -18,5 +19,6 @@ export const channelsCommand = defineCommand({
     resume: resumeCommand,
     delete: deleteCommand,
     rollout: rolloutCommand,
+    insights: insightsCommand,
   },
 });

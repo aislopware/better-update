@@ -58,11 +58,15 @@ export const configureCommand = defineCommand({
           const bundle =
             args.bundle ?? iosMeta.bundleId ?? (yield* promptText("iOS bundle identifier"));
           yield* Console.log(`Configuring iOS credentials for ${bundle} (${args.distribution})...`);
-          yield* ensureIosCredentials(api, {
-            projectId,
-            bundleIdentifier: bundle,
-            distribution: args.distribution as IosDistribution,
-          });
+          yield* ensureIosCredentials(
+            api,
+            {
+              projectId,
+              bundleIdentifier: bundle,
+              distribution: args.distribution as IosDistribution,
+            },
+            { freezeCredentials: false },
+          );
           yield* printHuman("iOS credentials configured.");
           return;
         }
@@ -72,10 +76,11 @@ export const configureCommand = defineCommand({
           androidMeta.androidPackage ??
           (yield* promptText("Android application identifier"));
         yield* Console.log(`Configuring Android credentials for ${applicationIdentifier}...`);
-        yield* ensureAndroidCredentials(api, {
-          projectId,
-          applicationIdentifier,
-        });
+        yield* ensureAndroidCredentials(
+          api,
+          { projectId, applicationIdentifier },
+          { freezeCredentials: false },
+        );
         yield* printHuman("Android credentials configured.");
       }),
     ),

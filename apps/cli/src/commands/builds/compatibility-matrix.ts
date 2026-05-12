@@ -1,9 +1,10 @@
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
 import { readProjectId } from "../../lib/expo-config";
-import { printTable } from "../../lib/output";
+import { printHuman, printJson, printTable } from "../../lib/output";
+import { OutputMode } from "../../lib/output-mode";
 import { apiClient } from "../../services/api-client";
 
 export const compatibilityMatrixCommand = defineCommand({
@@ -20,8 +21,14 @@ export const compatibilityMatrixCommand = defineCommand({
 
         const matrixKeys = Object.keys(result.channelStatusByKey);
 
+        const mode = yield* OutputMode;
+        if (mode.json) {
+          yield* printJson(result);
+          return;
+        }
+
         if (matrixKeys.length === 0 && result.missingRuntimeVersions.length === 0) {
-          yield* Console.log("No compatibility data found.");
+          yield* printHuman("No compatibility data found.");
           return;
         }
 
@@ -30,7 +37,7 @@ export const compatibilityMatrixCommand = defineCommand({
         );
 
         if (matrixKeys.length > 0) {
-          yield* Console.log("Channel Status by (Platform / Runtime Version):");
+          yield* printHuman("Channel Status by (Platform / Runtime Version):");
           yield* printTable(
             ["Platform / Runtime", "Channel", "Updates"],
             matrixKeys.flatMap((key) =>
@@ -46,7 +53,7 @@ export const compatibilityMatrixCommand = defineCommand({
         }
 
         if (result.missingRuntimeVersions.length > 0) {
-          yield* Console.log("\nMissing Runtime Versions:");
+          yield* printHuman("\nMissing Runtime Versions:");
           yield* printTable(
             ["Channel", "Platform", "Runtime Version", "Updates"],
             result.missingRuntimeVersions.map((missing) => [

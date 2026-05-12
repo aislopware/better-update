@@ -16,12 +16,17 @@ const BUILD_EXIT_EXTRAS = {
   PresignedUrlExpiredError: 7,
   CompleteError: 7,
   EnvExportError: 7,
+  DirtyRepoError: 3,
 } as const;
 
 export const buildCommand = defineCommand({
   meta: { name: "build", description: "Build the app locally and optionally upload" },
   args: {
-    platform: { type: "enum", options: ["ios", "android"], required: true },
+    platform: {
+      type: "enum",
+      options: ["ios", "android"],
+      description: "Target platform (auto-detected from app.json when omitted)",
+    },
     profile: { type: "string", default: "production", description: "Build profile name" },
     message: { type: "string", description: "Optional build message" },
     upload: {
@@ -31,6 +36,18 @@ export const buildCommand = defineCommand({
       negativeDescription: "Skip upload (use --no-upload)",
     },
     "raw-output": { type: "boolean", description: "Stream raw Gradle/Xcode output" },
+    "clear-cache": {
+      type: "boolean",
+      description: "Clear project-scoped build caches before building",
+    },
+    "freeze-credentials": {
+      type: "boolean",
+      description: "Fail fast if credentials missing instead of prompting (for CI)",
+    },
+    "allow-dirty": {
+      type: "boolean",
+      description: "Proceed even with uncommitted git changes",
+    },
   },
   run: async ({ args }) =>
     runEffect(
@@ -40,6 +57,9 @@ export const buildCommand = defineCommand({
         message: args.message,
         noUpload: !args.upload,
         rawOutput: args["raw-output"] ?? false,
+        clearCache: args["clear-cache"] ?? false,
+        freezeCredentials: args["freeze-credentials"] ?? false,
+        allowDirty: args["allow-dirty"] ?? false,
       }),
       BUILD_EXIT_EXTRAS,
     ),
