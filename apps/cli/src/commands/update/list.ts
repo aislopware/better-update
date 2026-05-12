@@ -13,17 +13,24 @@ export const listCommand = defineCommand({
   meta: { name: "list", description: "List recent updates" },
   args: {
     branch: { type: "string", description: "Filter by branch name" },
+    platform: {
+      type: "enum",
+      options: ["ios", "android"],
+      description: "Filter by platform",
+    },
     limit: { type: "string", default: "20", description: "Max rows (default 20)" },
+    offset: { type: "string", description: "Pagination offset (page number, 1-based)" },
   },
   run: async ({ args }) =>
     runEffect(
       Effect.gen(function* () {
         const limit = yield* parseLimit(args.limit, 20);
+        const page = args.offset === undefined ? undefined : yield* parseLimit(args.offset, 1);
         const projectId = yield* readProjectId;
         const api = yield* apiClient;
-        const branches = yield* drainPages((page) =>
+        const branches = yield* drainPages((cursor) =>
           api.branches.list({
-            urlParams: { projectId, limit: 100, page },
+            urlParams: { projectId, limit: 100, page: cursor },
           }),
         );
 
@@ -39,6 +46,8 @@ export const listCommand = defineCommand({
           urlParams: {
             projectId,
             ...(branchId === undefined ? {} : { branchId }),
+            ...(args.platform === undefined ? {} : { platform: args.platform }),
+            ...(page === undefined ? {} : { page }),
             limit,
           },
         });

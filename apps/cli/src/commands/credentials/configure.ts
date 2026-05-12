@@ -12,6 +12,8 @@ import {
   showIosBinding,
 } from "../../application/credentials-rebind";
 import { runEffect } from "../../lib/citty-effect";
+import { IOS_DISTRIBUTION_TO_TYPE } from "../../lib/credentials-downloader";
+import { MissingCredentialsError } from "../../lib/exit-codes";
 import { extractProjectId, readAppMeta, readExpoConfig } from "../../lib/expo-config";
 import { printHuman } from "../../lib/output";
 import { promptSelect, promptText } from "../../lib/prompts";
@@ -27,6 +29,41 @@ interface ConfigureAndroidArgs {
   readonly applicationIdentifier: string;
   readonly rebind: boolean;
 }
+
+const bindBundleResource = (
+  api: ApiClient,
+  input: {
+    readonly projectId: string;
+    readonly bundleIdentifier: string;
+    readonly distribution: IosDistribution;
+  },
+  payload: { readonly applePushKeyId?: string; readonly ascApiKeyId?: string },
+) =>
+  Effect.gen(function* () {
+    const distributionType = IOS_DISTRIBUTION_TO_TYPE[input.distribution];
+    const list = yield* api.iosBundleConfigurations.list({
+      path: { projectId: input.projectId },
+    });
+    const match = list.items.find(
+      (item) =>
+        item.bundleIdentifier === input.bundleIdentifier &&
+        item.distributionType === distributionType,
+    );
+    if (match === undefined) {
+      return yield* new MissingCredentialsError({
+        message: `No iOS bundle configuration for ${input.bundleIdentifier} (${input.distribution}).`,
+        hint: "Run credentials configure --platform ios (without --bind-*) once to create it.",
+      });
+    }
+    yield* api.iosBundleConfigurations.update({
+      path: { id: match.id },
+      payload,
+    });
+    yield* Console.log(
+      `Updated iOS bundle ${input.bundleIdentifier} (${input.distribution}) binding.`,
+    );
+    return undefined;
+  });
 
 const configureAndroid = (args: ConfigureAndroidArgs) =>
   Effect.gen(function* () {
@@ -56,6 +93,8 @@ interface ConfigureIosArgs {
   readonly bundleIdentifier: string;
   readonly distribution: IosDistribution;
   readonly rebind: boolean;
+  readonly bindPushKey: string | undefined;
+  readonly bindAscKey: string | undefined;
 }
 
 const configureIos = (args: ConfigureIosArgs) =>
@@ -65,6 +104,16 @@ const configureIos = (args: ConfigureIosArgs) =>
       bundleIdentifier: args.bundleIdentifier,
       distribution: args.distribution,
     };
+    if (args.bindPushKey !== undefined || args.bindAscKey !== undefined) {
+      yield* bindBundleResource(args.api, input, {
+        ...(args.bindPushKey === undefined ? {} : { applePushKeyId: args.bindPushKey }),
+        ...(args.bindAscKey === undefined ? {} : { ascApiKeyId: args.bindAscKey }),
+      });
+      yield* Console.log("");
+      yield* Console.log("Updated binding:");
+      yield* showIosBinding(args.api, input);
+      return;
+    }
     if (args.rebind) {
       yield* rebindIosBundle(args.api, input);
       yield* Console.log("");
@@ -81,6 +130,9 @@ const configureIos = (args: ConfigureIosArgs) =>
     yield* showIosBinding(args.api, input);
     yield* printHuman("");
     yield* printHuman("Run with --rebind to switch certificate, profile, or ASC key.");
+    yield* printHuman(
+      "Run with --bind-push-key <id> / --bind-asc-key <id> to update a single binding.",
+    );
   });
 
 export const configureCommand = defineCommand({
@@ -109,6 +161,14 @@ export const configureCommand = defineCommand({
       type: "boolean",
       description: "Re-bind credentials on an already-configured app/bundle (swap keystore/cert)",
     },
+    "bind-push-key": {
+      type: "string",
+      description: "iOS only: bind an existing push key by ID to the bundle config",
+    },
+    "bind-asc-key": {
+      type: "string",
+      description: "iOS only: bind an existing ASC API key by ID to the bundle config",
+    },
   },
   run: async ({ args }) =>
     runEffect(
@@ -136,6 +196,8 @@ export const configureCommand = defineCommand({
             bundleIdentifier,
             distribution: args.distribution as IosDistribution,
             rebind: args.rebind ?? false,
+            bindPushKey: args["bind-push-key"],
+            bindAscKey: args["bind-asc-key"],
           });
           return;
         }

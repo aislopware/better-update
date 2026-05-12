@@ -39,6 +39,10 @@ export const buildCommand = defineCommand({
       description: "Upload the built artifact to better-update",
       negativeDescription: "Skip upload (use --no-upload)",
     },
+    output: {
+      type: "string",
+      description: "Copy the built artifact to this path after completing the build",
+    },
     "raw-output": { type: "boolean", description: "Stream raw Gradle/Xcode output" },
     "clear-cache": {
       type: "boolean",
@@ -60,6 +64,7 @@ export const buildCommand = defineCommand({
         profileName: args.profile,
         message: args.message,
         noUpload: !args.upload,
+        ...(args.output === undefined ? {} : { output: args.output }),
         rawOutput: args["raw-output"] ?? false,
         clearCache: args["clear-cache"] ?? false,
         freezeCredentials: args["freeze-credentials"] ?? false,

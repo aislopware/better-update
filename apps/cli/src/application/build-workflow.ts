@@ -1,3 +1,6 @@
+import path from "node:path";
+
+import { FileSystem } from "@effect/platform";
 import { Console, Effect } from "effect";
 
 import { runAndroidBuild } from "../commands/build/android";
@@ -8,9 +11,10 @@ import { clearBuildCaches } from "../lib/clear-cache";
 import { pullEnvVars } from "../lib/env-exporter";
 import { BuildProfileError } from "../lib/exit-codes";
 import { extractProjectId, readAppMeta, readExpoConfig } from "../lib/expo-config";
+import { formatCause } from "../lib/format-error";
 import { readGitContext } from "../lib/git-context";
 import { readGradleConfig, warnOnGradleMismatch } from "../lib/gradle-config";
-import { printKeyValue } from "../lib/output";
+import { printHuman, printKeyValue } from "../lib/output";
 import { detectPlatform } from "../lib/platform-detect";
 import { ensureRepoClean } from "../lib/repo-clean";
 import { resolveRuntimeVersion } from "../lib/runtime-version";
@@ -27,6 +31,7 @@ export interface RunBuildWorkflowOptions {
   readonly profileName: string;
   readonly message: string | undefined;
   readonly noUpload: boolean;
+  readonly output?: string;
   readonly rawOutput?: boolean;
   readonly clearCache?: boolean;
   readonly freezeCredentials?: boolean;
@@ -210,9 +215,37 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
 
       yield* Console.log(`Artifact produced: ${build.artifactPath}`);
 
+      let exportedArtifactPath: string | undefined = undefined;
+      if (options.output !== undefined) {
+        const fs = yield* FileSystem.FileSystem;
+        const outputPath = path.resolve(projectRoot, options.output);
+        const outputDir = path.dirname(outputPath);
+        yield* fs.makeDirectory(outputDir, { recursive: true }).pipe(
+          Effect.mapError(
+            (cause) =>
+              new BuildProfileError({
+                message: `Failed to create output directory: ${formatCause(cause)}`,
+              }),
+          ),
+        );
+        yield* fs.copyFile(build.artifactPath, outputPath).pipe(
+          Effect.mapError(
+            (cause) =>
+              new BuildProfileError({
+                message: `Failed to copy artifact to ${outputPath}: ${formatCause(cause)}`,
+              }),
+          ),
+        );
+        exportedArtifactPath = outputPath;
+        yield* printHuman(`Copied artifact to ${outputPath}`);
+      }
+
       if (options.noUpload) {
         yield* printKeyValue([
           ["Artifact", build.artifactPath],
+          ...(exportedArtifactPath === undefined
+            ? []
+            : [["Exported to", exportedArtifactPath] as const]),
           ["SHA-256", build.sha256],
           ["Bytes", String(build.byteSize)],
           ["Upload", "skipped (--no-upload)"],

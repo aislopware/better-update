@@ -23,6 +23,7 @@ import { resolveUpdatePlatforms } from "../lib/update-platforms";
 import { apiClient } from "../services/api-client";
 import { CliRuntime } from "../services/cli-runtime";
 import { UpdateAssetUploader } from "../services/update-asset-uploader";
+import { emitMetadataFile, resolveChannelToBranch } from "./update-publish-helpers";
 
 import type { Platform } from "../lib/build-profile";
 import type {
@@ -42,6 +43,7 @@ import type { ApiClientService } from "../services/api-client";
 
 export interface RunUpdatePublishOptions {
   readonly branch: string | undefined;
+  readonly channel: string | undefined;
   readonly platform: Platform | "all";
   readonly message: string | undefined;
   readonly auto: boolean;
@@ -49,6 +51,9 @@ export interface RunUpdatePublishOptions {
   readonly clear: boolean;
   readonly allowDirty: boolean;
   readonly rolloutPercentage: number | undefined;
+  readonly inputDir: string | undefined;
+  readonly skipBundler: boolean;
+  readonly emitMetadata: boolean;
   readonly manifestBodyFile: string | undefined;
   readonly signatureFile: string | undefined;
   readonly certificateChainFile: string | undefined;
@@ -142,6 +147,7 @@ const publishPlatform = (params: {
   readonly platform: Platform;
   readonly signedPayload: SignedPayload | null;
   readonly rolloutPercentage: number | undefined;
+  readonly skipBundler: boolean;
 }): Effect.Effect<
   PublishedPlatformResult,
   | AuthRequiredError
@@ -166,13 +172,15 @@ const publishPlatform = (params: {
       projectRoot: params.projectRoot,
     });
 
-    yield* runExpoExport({
-      projectRoot: params.projectRoot,
-      exportDir: params.exportDir,
-      platform: params.platform,
-      envVars: params.environmentVars,
-      clear: params.clear,
-    });
+    if (!params.skipBundler) {
+      yield* runExpoExport({
+        projectRoot: params.projectRoot,
+        exportDir: params.exportDir,
+        platform: params.platform,
+        envVars: params.environmentVars,
+        clear: params.clear,
+      });
+    }
 
     const preparedAssets = yield* preparePlatformAssets({
       exportDir: params.exportDir,
@@ -358,11 +366,25 @@ export const runUpdatePublish = (
         }
       }
 
+      if (!resolvedBranch && options.channel !== undefined) {
+        resolvedBranch = yield* resolveChannelToBranch(api, projectId, options.channel);
+      }
+
       if (!resolvedBranch) {
         return yield* new UpdatePublishError({
-          message: "Missing --branch. Provide it explicitly or use --auto to infer from git.",
+          message:
+            "Missing --branch or --channel. Provide one explicitly or use --auto to infer from git.",
         });
       }
+
+      if (options.skipBundler && options.inputDir === undefined) {
+        return yield* new UpdatePublishError({
+          message: "--skip-bundler requires --input-dir <path> pointing to a pre-bundled export.",
+        });
+      }
+
+      const sharedExportDir =
+        options.inputDir === undefined ? undefined : path.resolve(projectRoot, options.inputDir);
 
       const branch = resolvedBranch;
       const groupId = randomUUID();
@@ -393,7 +415,7 @@ export const runUpdatePublish = (
         (platform) =>
           publishPlatform({
             projectRoot,
-            exportDir: path.join(tempDir, `export-${platform}`),
+            exportDir: sharedExportDir ?? path.join(tempDir, `export-${platform}`),
             projectId,
             slug,
             branch,
@@ -408,9 +430,22 @@ export const runUpdatePublish = (
             // eslint-disable-next-line eslint-js/no-restricted-syntax -- signedPayload absence means unsigned; null is correct downstream
             signedPayload: signedPayloads[platform] ?? null,
             rolloutPercentage: options.rolloutPercentage,
+            skipBundler: options.skipBundler,
           }),
         { concurrency: 1 },
       );
+
+      if (options.emitMetadata) {
+        const dir = sharedExportDir ?? tempDir;
+        yield* emitMetadataFile({
+          dir,
+          groupId,
+          branch,
+          channel: options.channel,
+          message,
+          results,
+        });
+      }
 
       return {
         groupId,

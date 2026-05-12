@@ -19,6 +19,10 @@ export const publishCommand = defineCommand({
   meta: { name: "publish", description: "Publish a new OTA update group" },
   args: {
     branch: { type: "string", description: "Target branch name" },
+    channel: {
+      type: "string",
+      description: "Channel name to route the update through (resolves to branch)",
+    },
     platform: {
       type: "enum",
       options: ["ios", "android", "all"],
@@ -30,6 +34,18 @@ export const publishCommand = defineCommand({
     auto: { type: "boolean", description: "Skip prompts (for CI)" },
     clear: { type: "boolean", description: "Drop existing assets before upload" },
     "rollout-percentage": { type: "string", description: "Initial rollout percentage (1-100)" },
+    "input-dir": {
+      type: "string",
+      description: "Path to a pre-bundled Expo export directory (skips re-running expo export)",
+    },
+    "skip-bundler": {
+      type: "boolean",
+      description: "Skip running expo export — requires --input-dir to point at the bundle",
+    },
+    "emit-metadata": {
+      type: "boolean",
+      description: "Write eas-update-metadata.json into the export directory after publish",
+    },
     "manifest-body-file": { type: "string" },
     "signature-file": { type: "string" },
     "certificate-chain-file": { type: "string" },
@@ -53,6 +69,7 @@ export const publishCommand = defineCommand({
 
         const result = yield* runUpdatePublish({
           branch: args.branch,
+          channel: args.channel,
           platform: args.platform,
           message: args.message,
           auto: args.auto ?? false,
@@ -60,6 +77,9 @@ export const publishCommand = defineCommand({
           clear: args.clear ?? false,
           allowDirty: args["allow-dirty"] ?? false,
           rolloutPercentage,
+          inputDir: args["input-dir"],
+          skipBundler: args["skip-bundler"] ?? false,
+          emitMetadata: args["emit-metadata"] ?? false,
           manifestBodyFile: args["manifest-body-file"],
           signatureFile: args["signature-file"],
           certificateChainFile: args["certificate-chain-file"],
