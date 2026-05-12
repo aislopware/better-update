@@ -64,8 +64,9 @@ const runIosPlatformBuild = (input: PlatformBuildInput) =>
         message: "Missing ios.bundleIdentifier in your Expo config.",
       });
     }
+    const isSimulator = iosProfile.simulator === true;
     const credentialsSource = profile.credentialsSource ?? "remote";
-    if (credentialsSource === "remote") {
+    if (!isSimulator && credentialsSource === "remote") {
       yield* ensureIosCredentials(
         api,
         {
@@ -87,11 +88,9 @@ const runIosPlatformBuild = (input: PlatformBuildInput) =>
       credentialsSource,
       rawOutput: options.rawOutput,
     });
-    const target: BuildTarget = {
-      platform: "ios",
-      distribution: iosProfile.distribution,
-      artifactFormat: "ipa",
-    };
+    const target: BuildTarget = isSimulator
+      ? { platform: "ios", distribution: "simulator", artifactFormat: "tar.gz" }
+      : { platform: "ios", distribution: iosProfile.distribution, artifactFormat: "ipa" };
     return { build, target, bundleId: iosBundleId };
   });
 

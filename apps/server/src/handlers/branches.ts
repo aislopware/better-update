@@ -86,6 +86,17 @@ export const BranchesGroupLive = HttpApiBuilder.group(ManagementApi, "branches",
         }),
       ),
     )
+    .handle("get", ({ path }) =>
+      toApiCrudEffect(
+        Effect.gen(function* () {
+          yield* assertPermission("branch", "read");
+          const repo = yield* BranchRepo;
+          const branch = yield* repo.findById({ id: path.id });
+          yield* assertProjectOwnership(branch.projectId);
+          return toApiBranch(branch);
+        }),
+      ),
+    )
     .handle("rename", ({ path, payload }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
