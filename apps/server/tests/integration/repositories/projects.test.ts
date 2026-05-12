@@ -168,6 +168,7 @@ describe("ProjectRepo — D1 integration", () => {
           return yield* repo.findByOrg({
             organizationId: "org-2",
             sort: "lastActivityAt",
+            order: "desc",
             limit: 20,
             offset: 0,
           });
@@ -186,6 +187,7 @@ describe("ProjectRepo — D1 integration", () => {
           return yield* repo.findByOrg({
             organizationId: "org-1",
             sort: "lastActivityAt",
+            order: "desc",
             limit: 2,
             offset: 0,
           });
@@ -202,6 +204,7 @@ describe("ProjectRepo — D1 integration", () => {
           return yield* repo.findByOrg({
             organizationId: "org-1",
             sort: "lastActivityAt",
+            order: "desc",
             limit: 2,
             offset: 2,
           });
@@ -226,6 +229,7 @@ describe("ProjectRepo — D1 integration", () => {
           return yield* repo.findByOrg({
             organizationId: "org-empty",
             sort: "lastActivityAt",
+            order: "desc",
             limit: 20,
             offset: 0,
           });
@@ -271,6 +275,7 @@ describe("ProjectRepo — D1 integration", () => {
           return yield* repo.findByOrg({
             organizationId: "org-sort",
             sort: "name",
+            order: "asc",
             limit: 20,
             offset: 0,
           });
@@ -320,6 +325,7 @@ describe("ProjectRepo — D1 integration", () => {
             organizationId: "org-fts",
             query: "ban",
             sort: "lastActivityAt",
+            order: "desc",
             limit: 20,
             offset: 0,
           });
@@ -338,6 +344,7 @@ describe("ProjectRepo — D1 integration", () => {
             organizationId: "org-fts",
             query: "dashboard",
             sort: "lastActivityAt",
+            order: "desc",
             limit: 20,
             offset: 0,
           });
@@ -356,6 +363,7 @@ describe("ProjectRepo — D1 integration", () => {
             organizationId: "org-fts",
             query: "ap",
             sort: "name",
+            order: "asc",
             limit: 20,
             offset: 0,
           });
@@ -376,6 +384,7 @@ describe("ProjectRepo — D1 integration", () => {
             organizationId: "org-1",
             query: "Mobile",
             sort: "lastActivityAt",
+            order: "desc",
             limit: 20,
             offset: 0,
           });
@@ -393,6 +402,7 @@ describe("ProjectRepo — D1 integration", () => {
             organizationId: "org-fts",
             query: "doesnotexist",
             sort: "lastActivityAt",
+            order: "desc",
             limit: 20,
             offset: 0,
           });

@@ -19,7 +19,8 @@ export type Resource =
   | "iosBundleConfiguration"
   | "envVar"
   | "auditLog"
-  | "device";
+  | "device"
+  | "webhook";
 
 export type Action = "read" | "create" | "update" | "delete" | "cancel" | "download";
 

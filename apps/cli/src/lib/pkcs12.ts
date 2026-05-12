@@ -1,4 +1,4 @@
-/* eslint-disable typescript/no-unsafe-assignment, typescript/no-unsafe-member-access, typescript/no-unsafe-call -- @expo/pkcs12 exports declare node-forge cert shapes as `any`; this file is the narrowing boundary that produces the typed P12Info for the rest of the CLI */
+/* eslint-disable typescript/no-unsafe-assignment, typescript/no-unsafe-member-access, typescript/no-unsafe-type-assertion -- @expo/pkcs12 exports declare node-forge cert shapes as `any`; this file is the narrowing boundary that produces the typed P12Info for the rest of the CLI */
 
 import { getFormattedSerialNumber, getX509Certificate, parsePKCS12 } from "@expo/pkcs12";
 import { Effect } from "effect";
@@ -46,10 +46,18 @@ export const inspectP12 = (params: {
         cert.validity.notBefore instanceof Date ? cert.validity.notBefore : undefined;
       const expiresAt = cert.validity.notAfter instanceof Date ? cert.validity.notAfter : undefined;
 
-      const subjectParts = cert.subject.attributes.map(
-        (attr: { shortName?: string; name: string; value: unknown }) =>
-          `${attr.shortName ?? attr.name}=${String(attr.value)}`,
-      );
+      const attrs = cert.subject.attributes as readonly {
+        shortName?: string | undefined;
+        name?: string | undefined;
+        value: unknown;
+      }[];
+      const subjectParts: string[] = attrs.map((attr) => {
+        const label = attr.shortName ?? attr.name;
+        if (label === undefined) {
+          return `(unknown)=${String(attr.value)}`;
+        }
+        return `${label}=${String(attr.value)}`;
+      });
       const subject = subjectParts.join(", ");
 
       const issuerCNValue = cert.issuer.getField("CN")?.value;

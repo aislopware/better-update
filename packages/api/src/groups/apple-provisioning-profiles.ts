@@ -6,7 +6,6 @@ import { NotFound } from "../auth/ownership";
 import {
   AppleProvisioningProfile,
   DeleteAppleProvisioningProfileResult,
-  GenerateAppleProvisioningProfileBody,
   ListAppleProvisioningProfilesParams,
   UploadAppleProvisioningProfileBody,
 } from "../domain/apple-provisioning-profile";
@@ -33,18 +32,8 @@ export class AppleProvisioningProfilesGroup extends HttpApiGroup.make("appleProv
       .annotateContext(
         OpenApi.annotations({
           title: "Upload provisioning profile",
-          description: "Upload an existing .mobileprovision; auto-parses the embedded plist",
-        }),
-      ),
-  )
-  .add(
-    HttpApiEndpoint.post("generate", "/api/apple/provisioning-profiles/generate")
-      .setPayload(GenerateAppleProvisioningProfileBody)
-      .addSuccess(AppleProvisioningProfile, { status: 201 })
-      .annotateContext(
-        OpenApi.annotations({
-          title: "Generate provisioning profile",
-          description: "Generate + download a new provisioning profile via App Store Connect API",
+          description:
+            "Upload an existing or freshly generated .mobileprovision; auto-parses the embedded plist",
         }),
       ),
   )

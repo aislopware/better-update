@@ -204,6 +204,19 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
         }),
       ),
     )
+    .handle("get", ({ path }) =>
+      toApiBadRequestReadEffect(
+        Effect.gen(function* () {
+          yield* assertPermission("update", "read");
+          const updateRepo = yield* UpdateRepo;
+          const update = yield* updateRepo.findById({ id: path.id });
+          const branchRepo = yield* BranchRepo;
+          const branch = yield* branchRepo.findById({ id: update.branchId });
+          yield* assertProjectOwnership(branch.projectId);
+          return toApiUpdate(update);
+        }),
+      ),
+    )
     .handle("deleteGroup", ({ path }) =>
       toApiBadRequestReadEffect(
         Effect.gen(function* () {

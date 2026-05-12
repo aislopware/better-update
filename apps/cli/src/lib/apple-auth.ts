@@ -8,6 +8,9 @@ import { CliRuntime } from "../services/cli-runtime";
 import { AppleAuthError } from "./exit-codes";
 import { promptSelect } from "./prompts";
 
+import type { InteractiveProhibitedError } from "./exit-codes";
+import type { InteractiveMode } from "./interactive-mode";
+
 type SessionProvider = Session.SessionProvider;
 
 interface ProviderResolution {
@@ -76,7 +79,11 @@ export const resolveProvider = (
   availableProviders: readonly SessionProvider[],
   currentProviderId: number | undefined,
   cachedProviderId: number | undefined,
-): Effect.Effect<ProviderResolution, AppleAuthError, CliRuntime> =>
+): Effect.Effect<
+  ProviderResolution,
+  AppleAuthError | InteractiveProhibitedError,
+  CliRuntime | InteractiveMode
+> =>
   Effect.gen(function* () {
     let switched = false;
 
@@ -118,14 +125,12 @@ export const resolveProvider = (
       return { providerId: currentProviderId, switched };
     }
 
-    const picked = yield* Effect.promise(async () =>
-      promptSelect<number>(
-        "Select App Store Connect provider:",
-        availableProviders.map((provider) => ({
-          value: provider.providerId,
-          label: `${provider.name} [${provider.subType}] (${provider.providerId})`,
-        })),
-      ),
+    const picked = yield* promptSelect<number>(
+      "Select App Store Connect provider:",
+      availableProviders.map((provider) => ({
+        value: provider.providerId,
+        label: `${provider.name} [${provider.subType}] (${provider.providerId})`,
+      })),
     );
 
     const id = yield* applyChoice(picked);

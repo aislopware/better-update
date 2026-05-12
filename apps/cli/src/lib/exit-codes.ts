@@ -84,3 +84,7 @@ export class AppleAuthError extends Data.TaggedError("AppleAuthError")<{
 export class InvalidArgumentError extends Data.TaggedError("InvalidArgumentError")<{
   readonly message: string;
 }> {}
+
+export class InteractiveProhibitedError extends Data.TaggedError("InteractiveProhibitedError")<{
+  readonly message: string;
+}> {}

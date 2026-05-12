@@ -44,6 +44,8 @@ export const ResolveBuildCredentialsIosResult = Schema.Struct({
   distributionCertificate: IosBuildDistributionCertificate,
   provisioningProfile: IosBuildProvisioningProfile,
   pushKey: Schema.NullOr(IosBuildPushKey),
+  profileStale: Schema.Boolean,
+  currentDeviceRosterHash: Schema.NullOr(Schema.String),
 });
 
 export const AndroidBuildKeystore = Schema.Struct({

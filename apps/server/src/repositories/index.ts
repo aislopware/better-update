@@ -1,4 +1,5 @@
 export { AnalyticsRepo, AnalyticsRepoLive } from "./analytics";
+export { AuthMetaRepo, AuthMetaRepoLive } from "./auth-meta";
 export {
   AndroidApplicationIdentifierRepo,
   AndroidApplicationIdentifierRepoLive,
@@ -45,3 +46,4 @@ export {
 export { ManifestRepo, ManifestRepoLive } from "./manifest";
 export { ProjectRepo, ProjectRepoLive } from "./projects";
 export { UpdateRepo, UpdateRepoLive } from "./updates";
+export { WebhookRepo, WebhookRepoLive } from "./webhooks";

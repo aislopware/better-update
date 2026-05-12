@@ -85,7 +85,8 @@ describe("Devices API flow", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.items).toHaveLength(1);
-    expect(body.nextCursor).toBeNull();
+    expect(body.total).toBe(1);
+    expect(body.page).toBe(1);
     expect(body.items[0].identifier).toBe(UDID_A);
   });
 
@@ -141,7 +142,7 @@ describe("Devices API flow", () => {
     const macBody = await onlyMac.json();
     expect(macBody.items).toHaveLength(1);
     expect(macBody.items[0].deviceClass).toBe("MAC");
-    expect(macBody.nextCursor).toBeNull();
+    expect(macBody.total).toBe(1);
 
     const onlyIpad = await get("/api/devices?deviceClass=IPAD", { cookie: cookies });
     expect(onlyIpad.status).toBe(200);
@@ -150,18 +151,17 @@ describe("Devices API flow", () => {
     expect(ipadBody.items[0].deviceClass).toBe("IPAD");
   });
 
-  it("paginates devices via cursor with stable order", async () => {
-    const firstRes = await get("/api/devices?limit=2", { cookie: cookies });
+  it("paginates devices via page+limit with stable order", async () => {
+    const firstRes = await get("/api/devices?limit=2&page=1", { cookie: cookies });
     expect(firstRes.status).toBe(200);
     const firstBody = await firstRes.json();
     expect(firstBody.items.length).toBeLessThanOrEqual(2);
-    if (firstBody.nextCursor !== null) {
-      const secondRes = await get(
-        `/api/devices?limit=2&cursor=${encodeURIComponent(firstBody.nextCursor)}`,
-        { cookie: cookies },
-      );
+    expect(firstBody.page).toBe(1);
+    if (firstBody.total > firstBody.items.length) {
+      const secondRes = await get("/api/devices?limit=2&page=2", { cookie: cookies });
       expect(secondRes.status).toBe(200);
       const secondBody = await secondRes.json();
+      expect(secondBody.page).toBe(2);
       const firstIds = new Set(firstBody.items.map((d: { id: string }) => d.id));
       secondBody.items.forEach((d: { id: string }) => {
         expect(firstIds.has(d.id)).toBe(false);
@@ -359,7 +359,7 @@ describe("Devices API flow", () => {
       expect(res.status).toBe(200);
       const body = await res.json();
       expect(body.items).toHaveLength(0);
-      expect(body.nextCursor).toBeNull();
+      expect(body.total).toBe(0);
     });
   });
 });

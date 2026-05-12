@@ -47,7 +47,8 @@ export const BuildCredentialsGroupLive = HttpApiBuilder.group(
                 distributionCertificateId: resolvedIds.distributionCertificateId,
                 provisioningProfileId: resolvedIds.provisioningProfileId,
                 pushKeyId: resolvedIds.pushKeyId,
-                profileRegenerated: resolvedIds.profileRegenerated,
+                profileStale: resolvedIds.profileStale,
+                currentDeviceRosterHash: resolvedIds.currentDeviceRosterHash,
               },
             });
             return yield* withNoStore(response).pipe(Effect.orDie);

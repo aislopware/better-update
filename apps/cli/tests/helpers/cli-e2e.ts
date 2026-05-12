@@ -234,6 +234,37 @@ export const setupCliE2E = (persistDir: string, options?: SetupCliE2EOptions): C
     throw new Error("requestWithRetry exhausted unexpectedly");
   };
 
+  // Migrate legacy `expo.extra.betterUpdate.profiles` (the pre-eas.json shape)
+  // to a sibling eas.json file. Strip the legacy field from the app config so
+  // the new reader is the only source of truth.
+  const splitTemplateAndEasJson = (
+    rawTemplate: Record<string, unknown>,
+  ): {
+    readonly cleanedTemplate: Record<string, unknown>;
+    readonly easProfiles: Record<string, unknown> | null;
+  } => {
+    const cloned = structuredClone(rawTemplate);
+    const expo = cloned["expo"] as Record<string, unknown> | undefined;
+    const extra = expo?.["extra"] as Record<string, unknown> | undefined;
+    const betterUpdate = extra?.["betterUpdate"] as Record<string, unknown> | undefined;
+    const profiles = betterUpdate?.["profiles"] as Record<string, unknown> | undefined;
+    if (!profiles) {
+      return { cleanedTemplate: cloned, easProfiles: null };
+    }
+    delete betterUpdate?.["profiles"];
+    return { cleanedTemplate: cloned, easProfiles: profiles };
+  };
+
+  const writeEasJsonIfNeeded = (easProfiles: Record<string, unknown> | null) => {
+    if (!easProfiles) {
+      return;
+    }
+    writeFileSync(
+      path.join(state.projectDir, "eas.json"),
+      `${JSON.stringify({ build: easProfiles }, null, 2)}\n`,
+    );
+  };
+
   const writeExpoConfig = () => {
     // @expo/config requires a package.json to resolve the project root.
     // Don't clobber an existing package.json (e.g. the build-e2e fixture has its own).
@@ -241,6 +272,8 @@ export const setupCliE2E = (persistDir: string, options?: SetupCliE2EOptions): C
     if (!existsSync(pkgJsonPath)) {
       writeFileSync(pkgJsonPath, `${JSON.stringify({ name: slug, version: "1.0.0" }, null, 2)}\n`);
     }
+    const { cleanedTemplate, easProfiles } = splitTemplateAndEasJson(template);
+    writeEasJsonIfNeeded(easProfiles);
     if (options?.useDynamicConfig) {
       // Drop any pre-existing app.json so the dynamic config is unambiguously
       // The source of truth for @expo/config (avoids static-base shadowing).
@@ -248,7 +281,7 @@ export const setupCliE2E = (persistDir: string, options?: SetupCliE2EOptions): C
       if (existsSync(appJsonPath)) {
         unlinkSync(appJsonPath);
       }
-      const expo = (template as { expo?: Record<string, unknown> }).expo ?? {};
+      const expo = (cleanedTemplate as { expo?: Record<string, unknown> }).expo ?? {};
       // Function-form export so process.env reads (e.g. BETTER_UPDATE_E2E_PROJECT_ID
       // For projectId injection) are evaluated on each readExpoConfig call rather
       // Than frozen at module-load time.
@@ -275,7 +308,7 @@ export const setupCliE2E = (persistDir: string, options?: SetupCliE2EOptions): C
     }
     writeFileSync(
       path.join(state.projectDir, "app.json"),
-      `${JSON.stringify(template, null, 2)}\n`,
+      `${JSON.stringify(cleanedTemplate, null, 2)}\n`,
     );
   };
 

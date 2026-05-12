@@ -14,7 +14,7 @@ import { AppleProvisioningProfileRepo } from "../repositories/apple-provisioning
 import { ApplePushKeyRepo } from "../repositories/apple-push-keys";
 import { AppleTeamRepo } from "../repositories/apple-teams";
 import { IosBundleConfigurationRepo } from "../repositories/ios-bundle-configurations";
-import { collectDeviceAscIds, generateProvisioningProfile } from "./generate-provisioning-profile";
+import { collectDeviceAscIds } from "./collect-device-asc-ids";
 
 import type { AppleProvisioningProfileModel, DistributionType } from "../models";
 
@@ -39,7 +39,8 @@ export interface IosResolvedIds {
   readonly distributionCertificateId: string;
   readonly provisioningProfileId: string;
   readonly pushKeyId: string | null;
-  readonly profileRegenerated: boolean;
+  readonly profileStale: boolean;
+  readonly currentDeviceRosterHash: string | null;
 }
 
 export interface AndroidResolvedIds {
@@ -65,22 +66,19 @@ const loadIosBundleConfiguration = (input: IosResolveInput) =>
     return config;
   });
 
-const maybeRegenerate = (
+const checkProfileStale = (
   params: IosResolveInput & {
     readonly profile: AppleProvisioningProfileModel;
-    readonly ascApiKeyId: string;
-    readonly appleDistributionCertificateId: string;
     readonly appleTeamId: string;
   },
 ) =>
   Effect.gen(function* () {
     if (params.distributionType === "APP_STORE" || params.distributionType === "ENTERPRISE") {
-      return { profile: params.profile, regenerated: false };
+      return { stale: false, currentHash: null } as const;
     }
     if (!params.profile.isManaged) {
-      return { profile: params.profile, regenerated: false };
+      return { stale: false, currentHash: null } as const;
     }
-
     const currentAscIds = yield* collectDeviceAscIds({
       organizationId: params.organizationId,
       appleTeamId: params.appleTeamId,
@@ -88,18 +86,10 @@ const maybeRegenerate = (
     const currentHash = yield* computeDeviceRosterHash(currentAscIds).pipe(
       Effect.mapError(hashFailure),
     );
-    if (currentHash === params.profile.deviceRosterHash) {
-      return { profile: params.profile, regenerated: false };
-    }
-
-    const regenerated = yield* generateProvisioningProfile({
-      organizationId: params.organizationId,
-      ascApiKeyId: params.ascApiKeyId,
-      appleDistributionCertificateId: params.appleDistributionCertificateId,
-      bundleIdentifier: params.bundleIdentifier,
-      distributionType: params.distributionType,
-    });
-    return { profile: regenerated, regenerated: true };
+    return {
+      stale: currentHash !== params.profile.deviceRosterHash,
+      currentHash,
+    } as const;
   });
 
 const loadDistributionCertificate = (id: string, organizationId: string) =>
@@ -153,9 +143,9 @@ export const resolveIosBuildCredentials = (input: IosResolveInput) =>
       config.appleProvisioningProfileId,
       "appleProvisioningProfileId",
     );
-    const ascApiKeyId = yield* requireValue(config.ascApiKeyId, "ascApiKeyId");
+    yield* requireValue(config.ascApiKeyId, "ascApiKeyId");
 
-    const [cert, initialProfile, pushKey, team] = yield* Effect.all(
+    const [cert, profile, pushKey, team] = yield* Effect.all(
       [
         loadDistributionCertificate(certId, input.organizationId),
         loadProfile(profileId, input.organizationId),
@@ -165,7 +155,7 @@ export const resolveIosBuildCredentials = (input: IosResolveInput) =>
       { concurrency: "unbounded" },
     );
 
-    if (cert.appleTeamId !== team.id || initialProfile.appleTeamId !== team.id) {
+    if (cert.appleTeamId !== team.id || profile.appleTeamId !== team.id) {
       return yield* Effect.fail(
         new BadRequest({
           message:
@@ -174,11 +164,9 @@ export const resolveIosBuildCredentials = (input: IosResolveInput) =>
       );
     }
 
-    const { profile, regenerated: profileRegenerated } = yield* maybeRegenerate({
+    const { stale: profileStale, currentHash: currentDeviceRosterHash } = yield* checkProfileStale({
       ...input,
-      profile: initialProfile,
-      ascApiKeyId,
-      appleDistributionCertificateId: certId,
+      profile,
       appleTeamId: team.id,
     });
 
@@ -248,12 +236,15 @@ export const resolveIosBuildCredentials = (input: IosResolveInput) =>
                 keyId: pushKey.keyId,
                 teamId: team.appleTeamId,
               },
+        profileStale,
+        currentDeviceRosterHash,
       },
       resolvedIds: {
         distributionCertificateId: cert.id,
         provisioningProfileId: profile.id,
         pushKeyId: pushKey === null ? null : pushKey.id,
-        profileRegenerated,
+        profileStale,
+        currentDeviceRosterHash,
       } satisfies IosResolvedIds,
     } as const;
   });

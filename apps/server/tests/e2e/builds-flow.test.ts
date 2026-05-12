@@ -213,7 +213,8 @@ describe("Builds API flow", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.items).toBeDefined();
-    expect(body.nextCursor).toBeNull();
+    expect(body.page).toBe(1);
+    expect(body.total).toBeGreaterThan(0);
     expect(body.items).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -226,7 +227,7 @@ describe("Builds API flow", () => {
     );
   });
 
-  it("paginates builds via cursor with stable order", async () => {
+  it("paginates builds via page+limit with stable order", async () => {
     const extraBuildIds: string[] = [];
     for (let i = 0; i < 3; i++) {
       const reserve = await post(
@@ -239,7 +240,7 @@ describe("Builds API flow", () => {
           appVersion: `1.0.${i + 1}`,
           buildNumber: `${100 + i}`,
           bundleId: "com.test.app",
-          message: `Cursor pagination build ${i}`,
+          message: `Page pagination build ${i}`,
           sha256: artifactSha256,
           byteSize: artifactBytes.byteLength,
         },
@@ -263,37 +264,28 @@ describe("Builds API flow", () => {
       expect(complete.status).toBe(200);
     }
 
-    const firstResponse = await get(`/api/builds?projectId=${projectId}&limit=2`, {
+    const firstResponse = await get(`/api/builds?projectId=${projectId}&limit=2&page=1`, {
       cookie: cookies,
     });
     expect(firstResponse.status).toBe(200);
     const firstBody = await firstResponse.json();
     expect(firstBody.items).toHaveLength(2);
-    expect(firstBody.nextCursor).toBeTruthy();
+    expect(firstBody.page).toBe(1);
+    expect(firstBody.total).toBeGreaterThan(2);
 
-    const secondResponse = await get(
-      `/api/builds?projectId=${projectId}&limit=2&cursor=${encodeURIComponent(firstBody.nextCursor)}`,
-      { cookie: cookies },
-    );
+    const secondResponse = await get(`/api/builds?projectId=${projectId}&limit=2&page=2`, {
+      cookie: cookies,
+    });
     expect(secondResponse.status).toBe(200);
     const secondBody = await secondResponse.json();
     expect(secondBody.items.length).toBeGreaterThan(0);
+    expect(secondBody.page).toBe(2);
 
     const firstIds = new Set(firstBody.items.map((build: { id: string }) => build.id));
     const secondIds = secondBody.items.map((build: { id: string }) => build.id);
     secondIds.forEach((id: string) => {
       expect(firstIds.has(id)).toBe(false);
     });
-  });
-
-  it("rejects malformed cursor", async () => {
-    const response = await get(
-      `/api/builds?projectId=${projectId}&limit=2&cursor=not-a-base64-cursor`,
-      { cookie: cookies },
-    );
-    expect(response.status).toBe(200);
-    const body = await response.json();
-    expect(body.items).toBeDefined();
   });
 
   it("gets the completed build by id", async () => {

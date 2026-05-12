@@ -6,8 +6,6 @@ import type {
   AppleDevice,
   AppleDeviceClass,
   AppleDeviceStatus,
-  AppleProfile,
-  AppleProfileType,
 } from "./apple-app-store-connect";
 
 interface DeviceAttributes {
@@ -67,13 +65,6 @@ const APPLE_DEVICE_CLASSES: readonly AppleDeviceClass[] = [
 
 const APPLE_DEVICE_STATUSES: readonly AppleDeviceStatus[] = ["ENABLED", "DISABLED", "PROCESSING"];
 
-const PROFILE_TYPES: readonly AppleProfileType[] = [
-  "IOS_APP_ADHOC",
-  "IOS_APP_DEVELOPMENT",
-  "IOS_APP_STORE",
-  "IOS_APP_INHOUSE",
-];
-
 const asDeviceClass = (value: unknown): AppleDeviceClass | null => {
   const match = APPLE_DEVICE_CLASSES.find((entry) => entry === value);
   return match === undefined ? null : match;
@@ -81,11 +72,6 @@ const asDeviceClass = (value: unknown): AppleDeviceClass | null => {
 
 const asDeviceStatus = (value: unknown): AppleDeviceStatus | null => {
   const match = APPLE_DEVICE_STATUSES.find((entry) => entry === value);
-  return match === undefined ? null : match;
-};
-
-const asProfileType = (value: unknown): AppleProfileType | null => {
-  const match = PROFILE_TYPES.find((entry) => entry === value);
   return match === undefined ? null : match;
 };
 
@@ -185,28 +171,6 @@ export const toCertificate = (value: unknown): AppleCertificate | null => {
   const displayName =
     typeof attributes["displayName"] === "string" ? attributes["displayName"] : null;
   return { id, serialNumber, certificateType, displayName, expirationDate };
-};
-
-export const toProfile = (value: unknown): AppleProfile | null => {
-  if (!isRecord(value)) {
-    return null;
-  }
-  const { id, attributes } = value;
-  if (typeof id !== "string" || !isRecord(attributes)) {
-    return null;
-  }
-  const { name, uuid, expirationDate, profileContent } = attributes;
-  const profileType = asProfileType(attributes["profileType"]);
-  if (
-    typeof name !== "string" ||
-    typeof uuid !== "string" ||
-    typeof expirationDate !== "string" ||
-    typeof profileContent !== "string" ||
-    profileType === null
-  ) {
-    return null;
-  }
-  return { id, name, uuid, expirationDate, profileContent, profileType };
 };
 
 export const extractList = <T>(body: unknown, map: (value: unknown) => T | null): readonly T[] => {

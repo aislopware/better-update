@@ -5,6 +5,7 @@ import { Forbidden } from "../auth/errors";
 import { NotFound } from "../auth/ownership";
 import {
   AscApiKey,
+  AscApiKeyCredentials,
   DeleteAscApiKeyResult,
   SyncDevicesResult,
   UploadAscApiKeyBody,
@@ -53,6 +54,17 @@ export class AscApiKeysGroup extends HttpApiGroup.make("ascApiKeys")
           title: "Sync devices via ASC API key",
           description:
             "Pull registered devices from Apple Developer Portal for this key's team; push local devices that aren't yet registered",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.get("getCredentials")`/api/apple/asc-api-keys/${idParam}/credentials`
+      .addSuccess(AscApiKeyCredentials)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Get ASC API key credentials",
+          description:
+            "Return the decrypted .p8 PEM, keyId, issuerId, and Apple team for direct App Store Connect API calls from the CLI",
         }),
       ),
   )

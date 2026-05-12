@@ -22,6 +22,7 @@ import {
   AscApiKeyRepoLive,
   AssetRepoLive,
   AuditLogRepoLive,
+  AuthMetaRepoLive,
   BranchRepoLive,
   BuildRepoLive,
   ChannelRepoLive,
@@ -33,6 +34,7 @@ import {
   IosBundleConfigurationRepoLive,
   ProjectRepoLive,
   UpdateRepoLive,
+  WebhookRepoLive,
 } from "./repositories";
 
 import type { AnalyticsEngine } from "./cloudflare/analytics-engine";
@@ -57,6 +59,7 @@ import type {
   AscApiKeyRepo,
   AssetRepo,
   AuditLogRepo,
+  AuthMetaRepo,
   BranchRepo,
   BuildRepo,
   ChannelRepo,
@@ -68,6 +71,7 @@ import type {
   IosBundleConfigurationRepo,
   ProjectRepo,
   UpdateRepo,
+  WebhookRepo,
 } from "./repositories";
 
 export type ServerInfrastructure =
@@ -85,6 +89,7 @@ export type ServerInfrastructure =
   | AssetRepo
   | AssetStorage
   | AuditLogRepo
+  | AuthMetaRepo
   | BranchRepo
   | BuildRepo
   | BuildRuntime
@@ -102,7 +107,8 @@ export type ServerInfrastructure =
   | ProjectRepo
   | UpdateCoordinator
   | UpdateRepo
-  | Vault;
+  | Vault
+  | WebhookRepo;
 
 export const RepositoryLayer = Layer.mergeAll(
   AnalyticsRepoLive,
@@ -116,6 +122,7 @@ export const RepositoryLayer = Layer.mergeAll(
   AscApiKeyRepoLive,
   AssetRepoLive,
   AuditLogRepoLive,
+  AuthMetaRepoLive,
   BranchRepoLive,
   BuildRepoLive,
   ChannelRepoLive,
@@ -127,6 +134,7 @@ export const RepositoryLayer = Layer.mergeAll(
   IosBundleConfigurationRepoLive,
   ProjectRepoLive,
   UpdateRepoLive,
+  WebhookRepoLive,
 );
 
 export const AdapterLayer = Layer.mergeAll(

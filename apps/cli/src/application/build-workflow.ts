@@ -14,6 +14,7 @@ import { resolveRuntimeVersion } from "../lib/runtime-version";
 import { acquireBuildTempDir } from "../lib/temp-dir";
 import { apiClient } from "../services/api-client";
 import { CliRuntime } from "../services/cli-runtime";
+import { ensureAndroidCredentials, ensureIosCredentials } from "./credentials-interactive";
 
 import type { BuildTarget } from "../commands/build/reserve-and-upload";
 import type { Platform } from "../lib/build-profile";
@@ -56,6 +57,11 @@ const runIosPlatformBuild = (input: PlatformBuildInput) =>
         message: "Missing ios.bundleIdentifier in your Expo config.",
       });
     }
+    yield* ensureIosCredentials(api, {
+      projectId,
+      bundleIdentifier: iosBundleId,
+      distribution: iosProfile.distribution,
+    });
     const build = yield* runIosBuild({
       api,
       tempDir,
@@ -96,6 +102,7 @@ const runAndroidPlatformBuild = (input: PlatformBuildInput) =>
     const gradleConfig = yield* readGradleConfig(androidDir);
     yield* warnOnGradleMismatch(gradleConfig, androidBundleId);
     const applicationIdentifier = gradleConfig?.applicationId ?? androidBundleId;
+    yield* ensureAndroidCredentials(api, { projectId, applicationIdentifier });
     const build = yield* runAndroidBuild({
       api,
       tempDir,
@@ -122,28 +129,24 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
       const runtime = yield* CliRuntime;
       const projectRoot = yield* runtime.cwd;
 
-      // Read config first without env vars to learn the profile's environment
-      // (so we know which env scope to pull) + projectId. app.config.{js,ts}
-      // that read process.env for these fields will see the caller's
-      // environment only — server env vars are not available yet.
+      // Read the project's Expo config to extract projectId.
       const baseConfig = yield* readExpoConfig(projectRoot);
       const projectId = yield* extractProjectId(baseConfig);
-      const baseProfile = yield* readBuildProfile(baseConfig, options.profileName);
 
-      // Load env vars now that we know the profile's environment.
+      // Resolve the build profile from eas.json — static, env-independent.
+      const profile = yield* readBuildProfile(projectRoot, options.profileName);
+
+      // Pull env vars for the profile's environment scope.
       const envVars = yield* pullEnvVars(api, {
         projectId,
-        environment: baseProfile.environment,
+        environment: profile.environment,
       });
 
-      // Re-resolve config with env-var overlay so dynamic configs see them.
-      // envVars are applied as a scoped process.env overlay inside readExpoConfig
-      // and restored after the call so secrets do not leak to child processes.
-      // Re-read the profile from the env-resolved config so platform-specific
-      // fields (format/distribution/buildConfiguration) that derive from env
-      // vars resolve correctly downstream.
+      // Re-resolve the Expo config with the env overlay so dynamic configs
+      // (app.config.js/ts) can read these env vars when computing AppMeta
+      // (bundleId, version, runtimeVersion). envVars are scoped to the call
+      // so they don't leak to child processes.
       const expoConfig = yield* readExpoConfig(projectRoot, envVars);
-      const profile = yield* readBuildProfile(expoConfig, options.profileName);
       const appMeta = yield* readAppMeta(expoConfig, options.platform);
 
       const runtimeVersion = yield* resolveRuntimeVersion({

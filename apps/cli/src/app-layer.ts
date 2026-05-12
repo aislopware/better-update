@@ -2,6 +2,8 @@ import { FetchHttpClient } from "@effect/platform";
 import { NodeContext } from "@effect/platform-node";
 import { Layer } from "effect";
 
+import { makeInteractiveModeLayer } from "./lib/interactive-mode";
+import { makeOutputModeLayer } from "./lib/output-mode";
 import { ApiClientLive } from "./services/api-client";
 import { AppleSessionStoreLive } from "./services/apple-session-store";
 import { AuthStoreLive } from "./services/auth-store";
@@ -23,10 +25,16 @@ const UpdateAssetUploaderLayer = UpdateAssetUploaderLive.pipe(
 );
 const VersionCheckLayer = VersionCheckLive.pipe(Layer.provide(CliPlatformLayer));
 
-export const CliLive = Layer.mergeAll(
-  CliAdapterDependencies,
-  ApiClientLayer,
-  PresignedUploadLayer,
-  UpdateAssetUploaderLayer,
-  VersionCheckLayer,
-);
+export const makeCliLive = (options: { readonly json: boolean; readonly interactive: boolean }) =>
+  Layer.mergeAll(
+    CliAdapterDependencies,
+    ApiClientLayer,
+    PresignedUploadLayer,
+    UpdateAssetUploaderLayer,
+    VersionCheckLayer,
+    makeOutputModeLayer(options.json),
+    makeInteractiveModeLayer(options.interactive),
+  );
+
+/** Default CLI layer: human-readable, interactive. Override via flags at the entrypoint. */
+export const CliLive = makeCliLive({ json: false, interactive: true });

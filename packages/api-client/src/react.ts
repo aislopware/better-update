@@ -41,7 +41,6 @@ export {
   deleteAscApiKey,
   deleteGoogleServiceAccountKey,
   deleteIosBundleConfiguration,
-  generateAppleProvisioningProfile,
   googleServiceAccountKeysQueryKey,
   googleServiceAccountKeysQueryOptions,
   iosBundleConfigurationsQueryKey,

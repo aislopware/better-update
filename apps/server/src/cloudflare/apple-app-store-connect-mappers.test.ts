@@ -8,7 +8,6 @@ import {
   toBundleId,
   toCertificate,
   toDeviceResource,
-  toProfile,
 } from "./apple-app-store-connect-mappers";
 
 describe(extractErrors, () => {
@@ -137,40 +136,6 @@ describe(toCertificate, () => {
   it("returns null for invalid", () => {
     expect(toCertificate(null)).toBeNull();
     expect(toCertificate({ id: "x", attributes: {} })).toBeNull();
-  });
-});
-
-describe(toProfile, () => {
-  it("parses valid", () => {
-    const value = {
-      id: "p1",
-      attributes: {
-        name: "N",
-        uuid: "U",
-        expirationDate: "2027-01-01",
-        profileContent: "base64",
-        profileType: "IOS_APP_STORE",
-      },
-    };
-    expect(toProfile(value)?.profileType).toBe("IOS_APP_STORE");
-  });
-
-  it("rejects unknown profileType", () => {
-    const value = {
-      id: "p1",
-      attributes: {
-        name: "N",
-        uuid: "U",
-        expirationDate: "2027-01-01",
-        profileContent: "b",
-        profileType: "UNKNOWN",
-      },
-    };
-    expect(toProfile(value)).toBeNull();
-  });
-
-  it("null for non-object", () => {
-    expect(toProfile(null)).toBeNull();
   });
 });
 

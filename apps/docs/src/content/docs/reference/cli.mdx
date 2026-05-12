@@ -291,12 +291,34 @@ better-update credentials upload \
   [--apple-team-identifier <id>]
 
 better-update credentials delete <id> --platform <ios|android> --type <type>
+
+better-update credentials generate keystore \
+  [--alias <name>] [--store-password <pw>] [--key-password <pw>] \
+  [--common-name <CN>] [--organization <O>] [--validity-days <n>]
+
+better-update credentials generate distribution-certificate \
+  --asc-key-id <asc-api-key-id> \
+  [--type <distribution|development>]
+
+better-update credentials generate provisioning-profile \
+  --bundle <id> --distribution <APP_STORE|AD_HOC|DEVELOPMENT|ENTERPRISE> \
+  --cert-id <distribution-certificate-id> \
+  --asc-key-id <asc-api-key-id> \
+  [--device-ids id1,id2,...]
 ```
 
 Valid `--type` values:
 
 - iOS: `distribution-certificate`, `provisioning-profile`, `push-key`, `asc-api-key`
 - Android: `keystore`, `google-service-account-key`
+
+`generate keystore` runs `keytool` locally and uploads the result. Missing args fall back to interactive prompts.
+
+`generate distribution-certificate` generates a CSR + private key locally, requests a fresh `.p12` from the App Store Connect API, and stores the result server-side. If Apple's 3-cert limit is hit, the CLI prompts you to revoke existing certificates before retrying.
+
+`generate provisioning-profile` calls the App Store Connect API from the CLI; the referenced distribution certificate must already exist both on better-update and the Apple Developer portal. `--device-ids` is required for `AD_HOC`/`DEVELOPMENT`.
+
+`build` will prompt to bind credentials interactively on first run if nothing is configured for the project + bundle/package. For `AD_HOC`/`DEVELOPMENT` bundles, the CLI auto-regenerates the provisioning profile if the registered device roster changed since the last build.
 
 ---
 

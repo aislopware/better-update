@@ -49,6 +49,14 @@ export class UpdatesGroup extends HttpApiGroup.make("updates")
       ),
   )
   .add(
+    HttpApiEndpoint.get("get")`/api/updates/${idParam}`.addSuccess(Update).annotateContext(
+      OpenApi.annotations({
+        title: "Get update",
+        description: "Fetch a single update by ID",
+      }),
+    ),
+  )
+  .add(
     HttpApiEndpoint.del("deleteGroup")`/api/updates/${groupIdParam}`
       .addSuccess(DeleteUpdateResult)
       .annotateContext(

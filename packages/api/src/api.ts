@@ -20,8 +20,10 @@ import { DevicesGroup } from "./groups/devices";
 import { EnvVarsGroup } from "./groups/env-vars";
 import { GoogleServiceAccountKeysGroup } from "./groups/google-service-account-keys";
 import { IosBundleConfigurationsGroup } from "./groups/ios-bundle-configurations";
+import { MeGroup } from "./groups/me";
 import { ProjectsGroup } from "./groups/projects";
 import { UpdatesGroup } from "./groups/updates";
+import { WebhooksGroup } from "./groups/webhooks";
 
 export class ManagementApi extends HttpApi.make("management-api")
   .add(ProjectsGroup)
@@ -45,6 +47,8 @@ export class ManagementApi extends HttpApi.make("management-api")
   .add(AndroidUploadKeystoresGroup)
   .add(AndroidBuildCredentialsGroup)
   .add(BuildCredentialsGroup)
+  .add(MeGroup)
+  .add(WebhooksGroup)
   .middleware(Authentication)
   .annotateContext(
     OpenApi.annotations({

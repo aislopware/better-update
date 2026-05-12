@@ -5,6 +5,7 @@ import { deleteCommand } from "./delete";
 import { getCommand } from "./get";
 import { installLinkCommand } from "./install-link";
 import { listCommand } from "./list";
+import { resignCommand } from "./resign";
 import { uploadCommand } from "./upload";
 
 export const buildsCommand = defineCommand({
@@ -16,5 +17,6 @@ export const buildsCommand = defineCommand({
     "install-link": installLinkCommand,
     "compatibility-matrix": compatibilityMatrixCommand,
     upload: uploadCommand,
+    resign: resignCommand,
   },
 });

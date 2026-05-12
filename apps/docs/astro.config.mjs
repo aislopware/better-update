@@ -23,13 +23,6 @@ export default defineConfig({
           href: "https://github.com/better-update/better-update",
         },
       ],
-      defaultLocale: "root",
-      locales: {
-        root: { label: "English", lang: "en" },
-        vi: { label: "Tiếng Việt", lang: "vi" },
-        ja: { label: "日本語", lang: "ja" },
-        "zh-cn": { label: "简体中文", lang: "zh-CN" },
-      },
       editLink: {
         baseUrl: "https://github.com/better-update/better-update/edit/main/apps/docs/",
       },
@@ -38,20 +31,10 @@ export default defineConfig({
       sidebar: [
         {
           label: "Getting Started",
-          translations: {
-            vi: "Bắt đầu",
-            ja: "はじめに",
-            "zh-cn": "入门指南",
-          },
           items: [{ slug: "start/quickstart" }, { slug: "start/installation" }],
         },
         {
           label: "Guides",
-          translations: {
-            vi: "Hướng dẫn",
-            ja: "ガイド",
-            "zh-cn": "使用指南",
-          },
           items: [
             { slug: "guides/publishing" },
             { slug: "guides/channels-and-branches" },
@@ -62,11 +45,6 @@ export default defineConfig({
         },
         {
           label: "Reference",
-          translations: {
-            vi: "Tham chiếu",
-            ja: "リファレンス",
-            "zh-cn": "参考资料",
-          },
           items: [{ slug: "reference/cli" }],
         },
       ],
