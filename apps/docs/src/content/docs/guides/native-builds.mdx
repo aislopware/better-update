@@ -120,6 +120,45 @@ Supported `--type` values:
 | Android  | `keystore`                   | `--password`, `--key-alias`, `--key-password` |
 | Android  | `google-service-account-key` | (no extras)                                   |
 
+### Generate
+
+Some credentials can be created in-place instead of uploaded. All Apple ASC calls run from your machine (the server hands out the decrypted `.p8` only for the duration of the request) so you avoid Apple rate-limiting Cloudflare's shared egress IP.
+
+```bash
+# Android: generate a fresh upload keystore with keytool and store it server-side.
+better-update credentials generate keystore \
+  --alias upload-key \
+  --store-password "..." \
+  --key-password "..." \
+  --common-name "MyApp" \
+  --organization "Acme Inc"
+
+# iOS: generate a fresh distribution certificate. The CLI builds the CSR locally,
+# calls Apple via the App Store Connect API, packages the .p12 with a random
+# password, and uploads it. If Apple's 3-cert limit is hit, the CLI offers an
+# interactive multi-select revoke + retry.
+better-update credentials generate distribution-certificate --asc-key-id <asc-api-key-id>
+
+# iOS: generate a provisioning profile via the App Store Connect API.
+# Needs a distribution certificate + ASC API key already uploaded for the same Apple Team.
+better-update credentials generate provisioning-profile \
+  --bundle com.example.app \
+  --distribution APP_STORE \
+  --cert-id <distribution-certificate-id> \
+  --asc-key-id <asc-api-key-id>
+```
+
+Omitted args fall back to interactive prompts where it makes sense (keystore passwords, CN/O). For AD_HOC or DEVELOPMENT profiles, pass `--device-ids id1,id2`.
+
+### First-build setup is interactive
+
+When `better-update build` runs against a project that has no build credentials bound yet, the CLI prompts to:
+
+- **Android**: register the package, then either generate a new keystore (via `keytool`) or pick an existing one — and bind it as the default group.
+- **iOS**: pick a distribution certificate (or generate a fresh one via the App Store Connect API) + ASC API key, then either reuse an existing provisioning profile or generate a fresh one, then save the bundle configuration.
+
+Re-runs reuse what's already bound; the prompt only fires when something is missing. For AD_HOC and DEVELOPMENT bundles, if the registered device roster changes between builds, the CLI auto-regenerates the provisioning profile (via the App Store Connect API) before continuing.
+
 ### Delete
 
 ```bash

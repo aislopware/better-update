@@ -9,6 +9,7 @@ import type { Session } from "@expo/apple-utils";
 import type * as AppleUtils from "@expo/apple-utils";
 
 import { resolveProvider } from "../../../src/lib/apple-auth";
+import { InteractiveModeLive } from "../../../src/lib/interactive-mode";
 import { CliRuntimeLive } from "../../../src/services/cli-runtime";
 
 // Force the prompt branch: ignore any APPLE_PROVIDER_ID from the host shell.
@@ -52,6 +53,6 @@ const program = Effect.gen(function* () {
 });
 
 program.pipe(
-  Effect.provide(Layer.mergeAll(NodeContext.layer, CliRuntimeLive)),
+  Effect.provide(Layer.mergeAll(NodeContext.layer, CliRuntimeLive, InteractiveModeLive)),
   NodeRuntime.runMain,
 );

@@ -26,7 +26,7 @@ export interface IosCredentials {
   readonly teamId: string;
 }
 
-const IOS_DISTRIBUTION_TO_TYPE = {
+export const IOS_DISTRIBUTION_TO_TYPE = {
   "app-store": "APP_STORE",
   "ad-hoc": "AD_HOC",
   development: "DEVELOPMENT",

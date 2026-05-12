@@ -8,6 +8,7 @@ import type * as AppleUtils from "@expo/apple-utils";
 import { CliRuntime } from "../services/cli-runtime";
 import { parseProviderId, resolveProvider } from "./apple-auth";
 import { AppleAuthError } from "./exit-codes";
+import { InteractiveModeLive } from "./interactive-mode";
 
 // ── helpers ──────────────────────────────────────────────────────
 
@@ -44,7 +45,7 @@ const makeCliRuntimeLayer = (env: Readonly<Record<string, string | undefined>> =
   });
 
 const provideTestServices = (env: Readonly<Record<string, string | undefined>> = {}) =>
-  makeCliRuntimeLayer(env);
+  Layer.mergeAll(makeCliRuntimeLayer(env), InteractiveModeLive);
 
 // ── parseProviderId ──────────────────────────────────────────────
 

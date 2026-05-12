@@ -4,7 +4,6 @@ import type {
   CreateAndroidApplicationIdentifierBody,
   CreateAndroidBuildCredentialsBody,
   CreateIosBundleConfigurationBody,
-  GenerateAppleProvisioningProfileBody,
   UpdateAndroidBuildCredentialsBody,
   UpdateIosBundleConfigurationBody,
   UploadAndroidUploadKeystoreBody,
@@ -114,10 +113,6 @@ export const appleProvisioningProfilesQueryOptions = (
 export const uploadAppleProvisioningProfile = async (
   body: typeof UploadAppleProvisioningProfileBody.Type,
 ) => runApi((api) => api.appleProvisioningProfiles.upload({ payload: body }));
-
-export const generateAppleProvisioningProfile = async (
-  body: typeof GenerateAppleProvisioningProfileBody.Type,
-) => runApi((api) => api.appleProvisioningProfiles.generate({ payload: body }));
 
 export const deleteAppleProvisioningProfile = async (id: string) =>
   runApi((api) => api.appleProvisioningProfiles.delete({ path: { id } }));

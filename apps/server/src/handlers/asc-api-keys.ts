@@ -12,15 +12,49 @@ import { Vault } from "../cloudflare/vault";
 import { validateAscApiKey } from "../domain/asc-api-key-validator";
 import { BadRequest, NotFound } from "../errors";
 import { toApiAscApiKey } from "../http/to-api";
-import { toApiCrudEffect, toApiWriteEffect } from "../http/to-api-effect";
+import {
+  toApiBadRequestReadEffect,
+  toApiCrudEffect,
+  toApiWriteEffect,
+} from "../http/to-api-effect";
 import { toDbNull } from "../lib/nullable";
 import { r2Operation, withR2Compensation } from "../lib/r2-helpers";
 import { AppleTeamRepo } from "../repositories/apple-teams";
 import { AscApiKeyRepo } from "../repositories/asc-api-keys";
 
 import type { InvalidAscApiKey } from "../domain/asc-api-key-validator";
+import type { AscApiKeyModel } from "../models";
 
 const mapInvalid = (error: InvalidAscApiKey) => new BadRequest({ message: error.message });
+
+const decryptFailure = () => new BadRequest({ message: "Decryption failed" });
+
+const decryptAscArtifacts = (key: AscApiKeyModel) =>
+  Effect.gen(function* () {
+    const env = yield* cloudflareEnv;
+    const vault = yield* Vault;
+    const issuerId = yield* vault
+      .decryptSecret({
+        organizationId: key.organizationId,
+        keyVersion: key.issuerIdKeyVersion,
+        encrypted: key.issuerIdEncrypted,
+      })
+      .pipe(Effect.mapError(decryptFailure));
+    const blob = yield* Effect.promise(async () => env.CREDENTIAL_ARTIFACTS.get(key.r2Key));
+    if (blob === null) {
+      return yield* Effect.fail(new NotFound({ message: "ASC API key artifact missing from R2" }));
+    }
+    const encryptedBytes = new Uint8Array(yield* Effect.promise(async () => blob.arrayBuffer()));
+    const pemBytes = yield* vault
+      .envelopeDecrypt({
+        organizationId: key.organizationId,
+        keyVersion: key.dekKeyVersion,
+        encryptedDek: key.encryptedDek,
+        encryptedBlob: encryptedBytes,
+      })
+      .pipe(Effect.mapError(decryptFailure));
+    return { issuerId, p8Pem: new TextDecoder().decode(pemBytes) };
+  });
 
 export const AscApiKeysGroupLive = HttpApiBuilder.group(ManagementApi, "ascApiKeys", (handlers) =>
   handlers
@@ -153,8 +187,6 @@ export const AscApiKeysGroupLive = HttpApiBuilder.group(ManagementApi, "ascApiKe
         Effect.gen(function* () {
           yield* assertPermission("device", "create");
           const ctx = yield* CurrentActor;
-          const env = yield* cloudflareEnv;
-          const vault = yield* Vault;
           const teams = yield* AppleTeamRepo;
           const repo = yield* AscApiKeyRepo;
 
@@ -172,32 +204,7 @@ export const AscApiKeysGroupLive = HttpApiBuilder.group(ManagementApi, "ascApiKe
             .findById({ id: key.appleTeamId })
             .pipe(Effect.mapError(() => new NotFound({ message: "Apple team not found" })));
 
-          const issuerId = yield* vault
-            .decryptSecret({
-              organizationId: ctx.organizationId,
-              keyVersion: key.issuerIdKeyVersion,
-              encrypted: key.issuerIdEncrypted,
-            })
-            .pipe(Effect.mapError(() => new BadRequest({ message: "Decryption failed" })));
-
-          const blob = yield* Effect.promise(async () => env.CREDENTIAL_ARTIFACTS.get(key.r2Key));
-          if (blob === null) {
-            return yield* Effect.fail(
-              new NotFound({ message: "ASC API key artifact missing from R2" }),
-            );
-          }
-          const encryptedBytes = new Uint8Array(
-            yield* Effect.promise(async () => blob.arrayBuffer()),
-          );
-          const pemBytes = yield* vault
-            .envelopeDecrypt({
-              organizationId: ctx.organizationId,
-              keyVersion: key.dekKeyVersion,
-              encryptedDek: key.encryptedDek,
-              encryptedBlob: encryptedBytes,
-            })
-            .pipe(Effect.mapError(() => new BadRequest({ message: "Decryption failed" })));
-          const p8Pem = new TextDecoder().decode(pemBytes);
+          const { issuerId, p8Pem } = yield* decryptAscArtifacts(key);
 
           const result = yield* syncDevices({
             organizationId: ctx.organizationId,
@@ -225,6 +232,43 @@ export const AscApiKeysGroupLive = HttpApiBuilder.group(ManagementApi, "ascApiKe
           });
 
           return result;
+        }),
+      ),
+    )
+    .handle("getCredentials", ({ path }) =>
+      toApiBadRequestReadEffect(
+        Effect.gen(function* () {
+          yield* assertPermission("appleCredential", "download");
+          const teams = yield* AppleTeamRepo;
+          const repo = yield* AscApiKeyRepo;
+
+          const key = yield* repo.findById({ id: path.id });
+          yield* assertOrgOwnership(key.organizationId);
+
+          const teamIdentifier =
+            key.appleTeamId === null
+              ? null
+              : (yield* teams
+                  .findById({ id: key.appleTeamId })
+                  .pipe(Effect.mapError(() => new NotFound({ message: "Apple team not found" }))))
+                  .appleTeamId;
+
+          const { issuerId, p8Pem } = yield* decryptAscArtifacts(key);
+
+          yield* logAudit({
+            action: "apple.asc-api-key.download-credentials",
+            resourceType: "appleCredential",
+            resourceId: key.id,
+            metadata: { keyId: key.keyId, hasAppleTeam: key.appleTeamId !== null },
+          });
+
+          return {
+            ascApiKeyId: key.id,
+            keyId: key.keyId,
+            issuerId,
+            p8Pem,
+            appleTeamIdentifier: teamIdentifier,
+          };
         }),
       ),
     ),

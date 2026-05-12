@@ -30,14 +30,8 @@ export class AppleProvisioningProfile extends Schema.Class<AppleProvisioningProf
 export const UploadAppleProvisioningProfileBody = Schema.Struct({
   profileBase64: Schema.String.pipe(Schema.minLength(1)),
   appleDistributionCertificateId: Schema.optional(Id),
-});
-
-export const GenerateAppleProvisioningProfileBody = Schema.Struct({
-  ascApiKeyId: Id,
-  appleDistributionCertificateId: Id,
-  bundleIdentifier: BundleIdentifier,
-  distributionType: DistributionType,
-  deviceIds: Schema.optional(Schema.Array(Id)),
+  deviceRosterHash: Schema.optional(Schema.String),
+  isManaged: Schema.optional(Schema.Boolean),
 });
 
 export const DeleteAppleProvisioningProfileResult = Schema.Struct({ deleted: Schema.Number });

@@ -13,9 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@better-update/ui/comp
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 
-import { AdHocIosWizard } from "./-adhoc-ios-wizard";
 import { AndroidBuildWizard } from "./-android-build-wizard";
-import { IosGeneralBuildWizard } from "./-ios-general-build-wizard";
 
 const IosSummary = ({ orgId, projectId }: { orgId: string; projectId: string }) => {
   const { data } = useSuspenseQuery(iosBundleConfigurationsQueryOptions(orgId, projectId));
@@ -92,10 +90,22 @@ const ProjectCredentials = () => {
         </TabsList>
         <TabsContent value="ios" className="pt-4">
           <div className="flex flex-col gap-4">
-            <div className="flex justify-end gap-2">
-              <AdHocIosWizard orgId={activeOrg.id} projectId={project.id} />
-              <IosGeneralBuildWizard orgId={activeOrg.id} projectId={project.id} />
-            </div>
+            <Card className="border-dashed">
+              <CardHeader>
+                <CardTitle>iOS bundle configurations</CardTitle>
+                <CardDescription>
+                  Bind certificates and provisioning profiles via the CLI:{" "}
+                  <code className="font-mono text-xs">
+                    better-update credentials generate distribution-certificate
+                  </code>{" "}
+                  and{" "}
+                  <code className="font-mono text-xs">
+                    better-update credentials generate provisioning-profile
+                  </code>
+                  . The CLI handles the full ASC flow and binds the bundle config in one go.
+                </CardDescription>
+              </CardHeader>
+            </Card>
             <IosSummary orgId={activeOrg.id} projectId={project.id} />
           </div>
         </TabsContent>

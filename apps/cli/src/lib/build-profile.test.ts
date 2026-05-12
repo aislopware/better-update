@@ -1,155 +1,123 @@
 import { it } from "@effect/vitest";
 import { Effect, Exit } from "effect";
 
-import { readBuildProfile, readRuntimeVersionMeta } from "./build-profile";
+import { fromEasProfile, readRuntimeVersionMeta } from "./build-profile";
 import { BuildProfileError } from "./exit-codes";
 import { readAppMeta } from "./expo-config";
 import { failureError } from "./test-utils";
 
 import type { ExpoConfig } from "./expo-config";
 
-// ── fixtures ──────────────────────────────────────────────────────
+// ── fromEasProfile (pure EAS→BuildProfile mapping) ────────────────
 
-const fullConfig: ExpoConfig = {
-  name: "my-app",
-  version: "1.2.0",
-  runtimeVersion: { policy: "fingerprint" },
-  ios: { bundleIdentifier: "com.example.app" },
-  android: { package: "com.example.app" },
-  extra: {
-    betterUpdate: {
-      projectId: "proj_123",
-      profiles: {
-        development: {
-          environment: "development",
-          ios: { buildConfiguration: "Debug", distribution: "development" },
-          android: { buildType: "debug", format: "apk" },
-        },
-        preview: {
-          environment: "preview",
-          ios: { buildConfiguration: "Release", distribution: "ad-hoc" },
-          android: { buildType: "release", format: "apk" },
-        },
-        production: {
-          environment: "production",
-          ios: { buildConfiguration: "Release", distribution: "app-store" },
-          android: { buildType: "release", format: "aab", flavor: "prod" },
+describe(fromEasProfile, () => {
+  it("derives ios=ad-hoc + android=apk/direct from distribution=internal", () => {
+    const profile = fromEasProfile({ distribution: "internal" }, "preview");
+    expect(profile.name).toBe("preview");
+    expect(profile.environment).toBe("production");
+    expect(profile.ios?.distribution).toBe("ad-hoc");
+    expect(profile.android?.format).toBe("apk");
+    expect(profile.android?.distribution).toBe("direct");
+  });
+
+  it("derives ios=app-store + android=aab/play-store from distribution=store", () => {
+    const profile = fromEasProfile({ distribution: "store" }, "production");
+    expect(profile.ios?.distribution).toBe("app-store");
+    expect(profile.android?.format).toBe("aab");
+    expect(profile.android?.distribution).toBe("play-store");
+  });
+
+  it("derives ios=development from developmentClient=true", () => {
+    const profile = fromEasProfile({ developmentClient: true }, "development");
+    expect(profile.ios?.distribution).toBe("development");
+    expect(profile.android?.format).toBe("apk");
+  });
+
+  it("ios.distribution override takes precedence over distribution+developmentClient", () => {
+    const profile = fromEasProfile(
+      {
+        distribution: "store",
+        developmentClient: true,
+        ios: { distribution: "enterprise" },
+      },
+      "enterprise",
+    );
+    expect(profile.ios?.distribution).toBe("enterprise");
+  });
+
+  it("android.format override takes precedence over distribution-derived default", () => {
+    const profile = fromEasProfile(
+      {
+        distribution: "store",
+        android: { format: "apk", distribution: "direct" },
+      },
+      "preview-store",
+    );
+    expect(profile.android?.format).toBe("apk");
+    expect(profile.android?.distribution).toBe("direct");
+  });
+
+  it("returns no ios section when no ios intent (no distribution / no ios / no developmentClient)", () => {
+    const profile = fromEasProfile({ android: { format: "apk" } }, "android-only");
+    expect(profile.ios).toBeUndefined();
+    expect(profile.android?.format).toBe("apk");
+  });
+
+  it("returns no android section when only ios is intended", () => {
+    const profile = fromEasProfile({ ios: { distribution: "app-store" } }, "ios-only");
+    expect(profile.ios?.distribution).toBe("app-store");
+    expect(profile.android).toBeUndefined();
+  });
+
+  it("propagates channel + env from the EAS profile", () => {
+    const profile = fromEasProfile(
+      {
+        distribution: "internal",
+        channel: "preview",
+        env: { API_URL: "https://staging.example" },
+      },
+      "preview",
+    );
+    expect(profile.channel).toBe("preview");
+    expect(profile.env).toStrictEqual({ API_URL: "https://staging.example" });
+  });
+
+  it("uses the EAS profile's environment when set, else defaults to production", () => {
+    const explicit = fromEasProfile({ environment: "development" }, "dev");
+    expect(explicit.environment).toBe("development");
+    const defaulted = fromEasProfile({ distribution: "internal" }, "noenv");
+    expect(defaulted.environment).toBe("production");
+  });
+
+  it("propagates ios.simulator + ios.scheme + ios.buildConfiguration", () => {
+    const profile = fromEasProfile(
+      {
+        developmentClient: true,
+        ios: { simulator: true, scheme: "Dev", buildConfiguration: "Debug" },
+      },
+      "sim",
+    );
+    expect(profile.ios?.simulator).toBe(true);
+    expect(profile.ios?.scheme).toBe("Dev");
+    expect(profile.ios?.buildConfiguration).toBe("Debug");
+  });
+
+  it("propagates android.buildType + flavor + gradleCommand", () => {
+    const profile = fromEasProfile(
+      {
+        distribution: "store",
+        android: {
+          buildType: "release",
+          flavor: "prod",
+          gradleCommand: ":app:bundleProdRelease",
         },
       },
-    },
-  },
-};
-
-// ── readBuildProfile ──────────────────────────────────────────────
-
-describe(readBuildProfile, () => {
-  it.effect("returns production profile with ios + android", () =>
-    Effect.gen(function* () {
-      const profile = yield* readBuildProfile(fullConfig, "production");
-      expect(profile.name).toBe("production");
-      expect(profile.environment).toBe("production");
-      expect(profile.ios).toStrictEqual({
-        buildConfiguration: "Release",
-        distribution: "app-store",
-      });
-      expect(profile.android).toStrictEqual({
-        buildType: "release",
-        format: "aab",
-        flavor: "prod",
-        distribution: "play-store",
-      });
-    }),
-  );
-
-  it.effect("returns preview profile (different distribution + no flavor)", () =>
-    Effect.gen(function* () {
-      const profile = yield* readBuildProfile(fullConfig, "preview");
-      expect(profile.ios?.distribution).toBe("ad-hoc");
-      expect(profile.android?.format).toBe("apk");
-      expect(profile.android?.flavor).toBeUndefined();
-      // Apk defaults to "direct" distribution when not explicitly set
-      expect(profile.android?.distribution).toBe("direct");
-    }),
-  );
-
-  it.effect("android distribution defaults: aab → play-store, apk → direct", () =>
-    Effect.gen(function* () {
-      const config: ExpoConfig = {
-        extra: {
-          betterUpdate: {
-            profiles: {
-              aab: { android: { format: "aab", buildType: "release" } },
-              apk: { android: { format: "apk", buildType: "release" } },
-              explicit: {
-                android: {
-                  format: "apk",
-                  buildType: "release",
-                  distribution: "play-store",
-                },
-              },
-            },
-          },
-        },
-      };
-      const aab = yield* readBuildProfile(config, "aab");
-      const apk = yield* readBuildProfile(config, "apk");
-      const explicit = yield* readBuildProfile(config, "explicit");
-      expect(aab.android?.distribution).toBe("play-store");
-      expect(apk.android?.distribution).toBe("direct");
-      expect(explicit.android?.distribution).toBe("play-store");
-    }),
-  );
-
-  it.effect("rejects ios distribution 'simulator' (returns no ios section)", () =>
-    Effect.gen(function* () {
-      const config: ExpoConfig = {
-        extra: {
-          betterUpdate: {
-            profiles: {
-              dev: { ios: { distribution: "simulator" } },
-            },
-          },
-        },
-      };
-      const profile = yield* readBuildProfile(config, "dev");
-      expect(profile.ios).toBeUndefined();
-    }),
-  );
-
-  it.effect("fails with BuildProfileError when profile name missing", () =>
-    Effect.gen(function* () {
-      const exit = yield* readBuildProfile(fullConfig, "missing").pipe(Effect.exit);
-      expect(Exit.isFailure(exit)).toBe(true);
-      if (Exit.isFailure(exit)) {
-        const error = failureError(exit);
-        expect(error).toBeInstanceOf(BuildProfileError);
-      }
-    }),
-  );
-
-  it.effect("fails with BuildProfileError when no profiles are defined", () =>
-    Effect.gen(function* () {
-      const empty: ExpoConfig = { extra: { betterUpdate: {} } };
-      const exit = yield* readBuildProfile(empty, "production").pipe(Effect.exit);
-      expect(Exit.isFailure(exit)).toBe(true);
-    }),
-  );
-
-  it.effect("defaults environment to production when unspecified", () =>
-    Effect.gen(function* () {
-      const config: ExpoConfig = {
-        extra: {
-          betterUpdate: {
-            profiles: {
-              default: { ios: { distribution: "app-store" } },
-            },
-          },
-        },
-      };
-      const profile = yield* readBuildProfile(config, "default");
-      expect(profile.environment).toBe("production");
-    }),
-  );
+      "prod-android",
+    );
+    expect(profile.android?.buildType).toBe("release");
+    expect(profile.android?.flavor).toBe("prod");
+    expect(profile.android?.gradleCommand).toBe(":app:bundleProdRelease");
+  });
 });
 
 // ── readRuntimeVersionMeta ────────────────────────────────────────
@@ -176,9 +144,17 @@ describe(readRuntimeVersionMeta, () => {
   });
 });
 
-// ── readAppMeta ───────────────────────────────────────────────────
+// ── readAppMeta (kept here because it shares fixtures with build profile tests) ──
 
 describe(readAppMeta, () => {
+  const fullConfig: ExpoConfig = {
+    name: "my-app",
+    version: "1.2.0",
+    runtimeVersion: { policy: "fingerprint" },
+    ios: { bundleIdentifier: "com.example.app" },
+    android: { package: "com.example.app" },
+  };
+
   it.effect("reads bundleId, appVersion and rawRuntimeVersion for ios", () =>
     Effect.gen(function* () {
       const meta = yield* readAppMeta(fullConfig, "ios");

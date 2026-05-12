@@ -65,9 +65,7 @@ const manualLogin = Effect.gen(function* () {
   yield* Console.log("Get your API key from the dashboard > API Keys page");
   yield* Console.log("");
 
-  const token = yield* Effect.promise(async () =>
-    promptPassword("Paste your API key (from dashboard > API Keys):"),
-  );
+  const token = yield* promptPassword("Paste your API key (from dashboard > API Keys):");
   const authStore = yield* AuthStore;
   yield* authStore.saveToken(token);
   yield* Console.log("");

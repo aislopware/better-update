@@ -15,18 +15,7 @@
     },
     "extra": {
       "betterUpdate": {
-        "profiles": {
-          "production": {
-            "environment": "production",
-            "ios": {
-              "distribution": "ad-hoc"
-            },
-            "android": {
-              "distribution": "direct",
-              "format": "apk"
-            }
-          }
-        }
+        "projectId": "508cb577-fe37-4d55-ab3f-9ef3e763f021"
       }
     }
   }

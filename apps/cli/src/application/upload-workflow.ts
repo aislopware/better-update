@@ -98,7 +98,7 @@ export const runUploadWorkflow = (options: RunUploadWorkflowOptions) =>
 
     const baseConfig = yield* readExpoConfig(projectRoot);
     const projectId = yield* extractProjectId(baseConfig);
-    const profile = yield* readBuildProfile(baseConfig, options.profileName);
+    const profile = yield* readBuildProfile(projectRoot, options.profileName);
 
     const envVars = yield* pullEnvVars(api, {
       projectId,

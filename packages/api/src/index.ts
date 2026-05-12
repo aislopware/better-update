@@ -89,6 +89,7 @@ export {
 } from "./domain/apple-push-key";
 export {
   AscApiKey,
+  AscApiKeyCredentials,
   AscApiKeyId,
   DeleteAscApiKeyResult,
   IssuerId,
@@ -101,7 +102,6 @@ export {
   BundleIdentifier,
   DeleteAppleProvisioningProfileResult,
   DistributionType,
-  GenerateAppleProvisioningProfileBody,
   ListAppleProvisioningProfilesParams,
   UploadAppleProvisioningProfileBody,
 } from "./domain/apple-provisioning-profile";
@@ -196,5 +196,17 @@ export { AndroidUploadKeystoresGroup } from "./groups/android-upload-keystores";
 export { AndroidBuildCredentialsGroup } from "./groups/android-build-credentials";
 export { BuildCredentialsGroup } from "./groups/build-credentials";
 export { ManifestGroup } from "./groups/manifest";
+export { MeGroup } from "./groups/me";
 export { ProjectsGroup } from "./groups/projects";
 export { UpdatesGroup } from "./groups/updates";
+export { WebhooksGroup } from "./groups/webhooks";
+
+export { Me, MeOrganization, MeUser } from "./domain/me";
+export {
+  CreateWebhookBody,
+  DeleteWebhookResult,
+  UpdateWebhookBody,
+  Webhook,
+  WebhookEventName,
+  WebhookWithSecret,
+} from "./domain/webhook";

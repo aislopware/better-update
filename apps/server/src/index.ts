@@ -23,6 +23,22 @@ const internalError = () =>
     { status: 500 },
   );
 
+const handleHealth = async (env: Env): Promise<Response> => {
+  const timestamp = new Date().toISOString();
+  // Single SELECT 1 confirms D1 is reachable + responsive. Tolerate failure:
+  // a degraded status is more useful than a 500 (clients can decide).
+  // eslint-disable-next-line functional/no-try-statements -- catch all to map any binding/DB error into a degraded response without leaking internals
+  try {
+    await env.DB.prepare("SELECT 1").first();
+    return Response.json({ status: "ok", timestamp });
+  } catch (error) {
+    structuredLog("warn", "Health probe failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return Response.json({ status: "degraded", timestamp }, { status: 503 });
+  }
+};
+
 /** Handle Better Auth routes with workarounds for dev-mode status codes and empty bodies */
 const handleAuth = async (request: Request, env: Env, ctx: ExecutionContext): Promise<Response> => {
   // eslint-disable-next-line functional/no-try-statements -- Better Auth may throw unhandled exceptions
@@ -79,6 +95,13 @@ const routeRequest = async (
   // Decide which auth providers to render.
   if (url.pathname === "/api/config" && request.method === "GET") {
     return Response.json({ githubEnabled: isGithubEnabled(env) });
+  }
+
+  // Public health probe — CLI/clients call this before long-running ops to
+  // detect outages and warn the user fast. Light-weight; pings D1 to confirm
+  // the database is reachable. Never throws — returns degraded status instead.
+  if (url.pathname === "/api/health" && request.method === "GET") {
+    return handleHealth(env);
   }
 
   // Expo Updates protocol — unauthenticated manifest serving

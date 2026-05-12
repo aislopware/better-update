@@ -841,7 +841,9 @@ describe("Updates & Assets API flow", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body).toHaveProperty("items");
-    expect(body).toHaveProperty("nextCursor");
+    expect(body).toHaveProperty("total");
+    expect(body).toHaveProperty("page");
+    expect(body).toHaveProperty("limit");
   });
 
   it("registers asset metadata via API key", async () => {

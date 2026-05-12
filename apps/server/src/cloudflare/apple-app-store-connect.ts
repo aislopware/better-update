@@ -11,7 +11,6 @@ import {
   mapDevice,
   toBundleId,
   toCertificate,
-  toProfile,
 } from "./apple-app-store-connect-mappers";
 
 const asArrayBuffer = (bytes: Uint8Array): ArrayBuffer => {
@@ -42,12 +41,6 @@ export interface AppleCredentials {
   readonly p8Pem: string;
 }
 
-export type AppleProfileType =
-  | "IOS_APP_ADHOC"
-  | "IOS_APP_DEVELOPMENT"
-  | "IOS_APP_STORE"
-  | "IOS_APP_INHOUSE";
-
 export type AppleCertificateType =
   | "DEVELOPMENT"
   | "DISTRIBUTION"
@@ -66,15 +59,6 @@ export interface AppleCertificate {
   readonly certificateType: string;
   readonly displayName: string | null;
   readonly expirationDate: string;
-}
-
-export interface AppleProfile {
-  readonly id: string;
-  readonly name: string;
-  readonly profileType: AppleProfileType;
-  readonly uuid: string;
-  readonly expirationDate: string;
-  readonly profileContent: string;
 }
 
 // ── Errors ─────────────────────────────────────────────────────────
@@ -215,17 +199,6 @@ export interface AppleAppStoreConnectService {
     readonly AppleCertificate[],
     AppleApiError | AppleAuthError | AppleNetworkError
   >;
-  readonly generateProvisioningProfile: (
-    credentials: AppleCredentials,
-    params: {
-      readonly profileName: string;
-      readonly profileType: AppleProfileType;
-      readonly bundleIdAscId: string;
-      readonly certificateAscIds: readonly string[];
-      readonly deviceAscIds: readonly string[];
-    },
-    opts?: { readonly jwt?: string },
-  ) => Effect.Effect<AppleProfile, AppleApiError | AppleAuthError | AppleNetworkError>;
 }
 
 export class AppleAppStoreConnect extends Context.Tag("server/AppleAppStoreConnect")<
@@ -327,47 +300,6 @@ const listCertificatesImpl = (
     return extractList(body, toCertificate);
   });
 
-const generateProvisioningProfileImpl = (
-  credentials: AppleCredentials,
-  params: {
-    profileName: string;
-    profileType: AppleProfileType;
-    bundleIdAscId: string;
-    certificateAscIds: readonly string[];
-    deviceAscIds: readonly string[];
-  },
-  opts?: { jwt?: string },
-) =>
-  Effect.gen(function* () {
-    const jwt = yield* useJwt(credentials, opts);
-    const relationships = {
-      bundleId: { data: { type: "bundleIds", id: params.bundleIdAscId } },
-      certificates: {
-        data: params.certificateAscIds.map((id) => ({ type: "certificates", id })),
-      },
-      ...(params.deviceAscIds.length > 0
-        ? { devices: { data: params.deviceAscIds.map((id) => ({ type: "devices", id })) } }
-        : {}),
-    };
-    const body = yield* fetchJson(jwt, "/v1/profiles", {
-      method: "POST",
-      body: JSON.stringify({
-        data: {
-          type: "profiles",
-          attributes: { name: params.profileName, profileType: params.profileType },
-          relationships,
-        },
-      }),
-    });
-    const resource = extractSingle(body, toProfile);
-    if (resource === null) {
-      return yield* Effect.fail(
-        new AppleApiError({ status: 500, message: "Malformed profile response" }),
-      );
-    }
-    return resource;
-  });
-
 export const AppleAppStoreConnectLive = Layer.succeed(AppleAppStoreConnect, {
   signJwt,
   listDevices: listDevicesImpl,
@@ -375,5 +307,4 @@ export const AppleAppStoreConnectLive = Layer.succeed(AppleAppStoreConnect, {
   listBundleIds: listBundleIdsImpl,
   createBundleId: createBundleIdImpl,
   listCertificates: listCertificatesImpl,
-  generateProvisioningProfile: generateProvisioningProfileImpl,
 });

@@ -44,7 +44,8 @@
     "citty": "^0.2.2",
     "effect": "^3.21.2",
     "es-toolkit": "^1.46.1",
-    "gradle-to-js": "^2.0.1"
+    "gradle-to-js": "^2.0.1",
+    "node-forge": "^1.4.0"
   },
   "devDependencies": {
     "@better-update/api": "workspace:*",
@@ -54,6 +55,7 @@
     "@better-update/safe-json": "workspace:*",
     "@better-update/type-guards": "workspace:*",
     "@better-update/typescript-config": "workspace:*",
+    "@types/node-forge": "^1.3.14",
     "node-pty": "^1.1.0",
     "tsdown": "^0.22.0"
   },

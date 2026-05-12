@@ -39,6 +39,16 @@ export const UploadAscApiKeyBody = Schema.Struct({
 
 export const DeleteAscApiKeyResult = Schema.Struct({ deleted: Schema.Number });
 
+export class AscApiKeyCredentials extends Schema.Class<AscApiKeyCredentials>(
+  "AscApiKeyCredentials",
+)({
+  ascApiKeyId: Id,
+  keyId: AscApiKeyId,
+  issuerId: IssuerId,
+  p8Pem: Schema.String,
+  appleTeamIdentifier: Schema.NullOr(AppleTeamIdentifier),
+}) {}
+
 export const SyncedDeviceSummary = Schema.Struct({
   id: Id,
   identifier: Schema.String,

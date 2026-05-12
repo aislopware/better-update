@@ -8,6 +8,7 @@ import { it } from "@effect/vitest";
 import { Effect, Exit, Layer } from "effect";
 
 import { ArtifactNotFoundError, BuildProfileError } from "../lib/exit-codes";
+import { OutputModeLive } from "../lib/output-mode";
 import { failureError } from "../lib/test-utils";
 import { ApiClientService } from "../services/api-client";
 import { CliRuntime } from "../services/cli-runtime";
@@ -35,14 +36,17 @@ const baseAppJson = {
     extra: {
       betterUpdate: {
         projectId: "proj_1",
-        profiles: {
-          production: {
-            environment: "production",
-            ios: { distribution: "ad-hoc" },
-            android: { distribution: "direct", format: "apk" },
-          },
-        },
       },
+    },
+  },
+};
+
+const baseEasJson = {
+  build: {
+    production: {
+      environment: "production",
+      ios: { distribution: "ad-hoc" },
+      android: { distribution: "direct", format: "apk" },
     },
   },
 };
@@ -55,6 +59,7 @@ interface ProjectFixture {
 
 const setupProject = (options: {
   readonly appJson?: Record<string, unknown>;
+  readonly easJson?: Record<string, unknown>;
   readonly createArtifact?: boolean;
   readonly artifactBytes?: Buffer;
 }): ProjectFixture => {
@@ -63,6 +68,8 @@ const setupProject = (options: {
   const dir = realpathSync(mkdtempSync(join(tmpdir(), "upload-workflow-test-")));
   const appJson = options.appJson ?? baseAppJson;
   writeFileSync(join(dir, "app.json"), JSON.stringify(appJson, null, 2));
+  const easJson = options.easJson ?? baseEasJson;
+  writeFileSync(join(dir, "eas.json"), JSON.stringify(easJson, null, 2));
   // @expo/config requires a package.json in the project root.
   writeFileSync(
     join(dir, "package.json"),
@@ -169,6 +176,7 @@ const runWorkflow = (
         makePresignedUploadLayer(put),
         makeCliRuntimeLayer(project.dir),
         NodeContext.layer,
+        OutputModeLive,
       ),
     ),
     Effect.ensuring(
@@ -203,19 +211,11 @@ describe(runUploadWorkflow, () => {
   it.effect("fails with BuildProfileError when the profile has no ios section", () =>
     Effect.gen(function* () {
       const project = setupProject({
-        appJson: {
-          expo: {
-            ...baseAppJson.expo,
-            extra: {
-              betterUpdate: {
-                projectId: "proj_1",
-                profiles: {
-                  production: {
-                    environment: "production",
-                    android: { distribution: "direct", format: "apk" },
-                  },
-                },
-              },
+        easJson: {
+          build: {
+            production: {
+              environment: "production",
+              android: { distribution: "direct", format: "apk" },
             },
           },
         },

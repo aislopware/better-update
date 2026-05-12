@@ -27,7 +27,8 @@ export type AuditLogResourceType =
   | "androidCredential"
   | "iosBundleConfiguration"
   | "envVar"
-  | "device";
+  | "device"
+  | "webhook";
 
 export type DeviceClass = "IPHONE" | "IPAD" | "MAC" | "UNKNOWN";
 
@@ -53,7 +54,8 @@ export type Resource =
   | "iosBundleConfiguration"
   | "envVar"
   | "auditLog"
-  | "device";
+  | "device"
+  | "webhook";
 
 export type Action = "read" | "create" | "update" | "delete" | "cancel" | "download";
 

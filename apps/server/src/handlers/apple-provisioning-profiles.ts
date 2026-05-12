@@ -3,7 +3,6 @@ import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
 import { ManagementApi } from "../api";
-import { generateProvisioningProfile } from "../application/generate-provisioning-profile";
 import { logAudit } from "../audit/logger";
 import { CurrentActor } from "../auth/current-actor";
 import { assertOrgOwnership } from "../auth/ownership";
@@ -87,8 +86,8 @@ export const AppleProvisioningProfilesGroupLive = HttpApiBuilder.group(
                 profileName: parsed.profileName,
                 validUntil: parsed.validUntil,
                 r2Key,
-                isManaged: false,
-                deviceRosterHash: null,
+                isManaged: payload.isManaged ?? false,
+                deviceRosterHash: toDbNull(payload.deviceRosterHash),
               }),
             );
 
@@ -104,36 +103,11 @@ export const AppleProvisioningProfilesGroupLive = HttpApiBuilder.group(
                 bundleIdentifier: parsed.bundleIdentifier,
                 distributionType: parsed.distributionType,
                 appleTeamId: parsed.appleTeamId,
+                isManaged: payload.isManaged ?? false,
               },
             });
 
             return toApiAppleProvisioningProfile(profile);
-          }),
-        ),
-      )
-      .handle("generate", ({ payload }) =>
-        toApiWriteEffect(
-          Effect.gen(function* () {
-            yield* assertPermission("appleCredential", "create");
-            const ctx = yield* CurrentActor;
-            const saved = yield* generateProvisioningProfile({
-              organizationId: ctx.organizationId,
-              ascApiKeyId: payload.ascApiKeyId,
-              appleDistributionCertificateId: payload.appleDistributionCertificateId,
-              bundleIdentifier: payload.bundleIdentifier,
-              distributionType: payload.distributionType,
-              ...(payload.deviceIds === undefined ? {} : { deviceIds: payload.deviceIds }),
-            });
-            yield* logAudit({
-              action: "apple.provisioning-profile.generate",
-              resourceType: "appleCredential",
-              resourceId: saved.id,
-              metadata: {
-                bundleIdentifier: saved.bundleIdentifier,
-                distributionType: saved.distributionType,
-              },
-            });
-            return toApiAppleProvisioningProfile(saved);
           }),
         ),
       )

@@ -23,8 +23,10 @@ import {
   EnvVarsGroupLive,
   GoogleServiceAccountKeysGroupLive,
   IosBundleConfigurationsGroupLive,
+  MeGroupLive,
   ProjectsGroupLive,
   UpdatesGroupLive,
+  WebhooksGroupLive,
 } from "./handlers";
 import { AdapterLayer, RepositoryLayer } from "./infrastructure-layer";
 import { errorFormatMiddleware } from "./middleware/error-format";
@@ -50,8 +52,10 @@ const ManagementGroupsLayer = Layer.mergeAll(
   EnvVarsGroupLive,
   GoogleServiceAccountKeysGroupLive,
   IosBundleConfigurationsGroupLive,
+  MeGroupLive,
   ProjectsGroupLive,
   UpdatesGroupLive,
+  WebhooksGroupLive,
 ).pipe(Layer.provide(RepositoryLayer), Layer.provide(AdapterLayer));
 
 export const ApiLive = HttpApiBuilder.api(ManagementApi).pipe(

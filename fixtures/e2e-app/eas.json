@@ -1,0 +1,14 @@
+{
+  "build": {
+    "production": {
+      "environment": "production",
+      "ios": {
+        "distribution": "ad-hoc"
+      },
+      "android": {
+        "distribution": "direct",
+        "format": "apk"
+      }
+    }
+  }
+}
