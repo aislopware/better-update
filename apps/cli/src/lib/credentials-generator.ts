@@ -199,6 +199,75 @@ export const revokeAppleCertificate = (
     ).pipe(Effect.mapError(wrapAscError("apple-revoke-certificate")));
   });
 
+export interface RevokeLocalDistributionCertificateInput {
+  readonly ascApiKeyId: string;
+  readonly distributionCertificateId: string;
+  readonly keepLocal?: boolean;
+}
+
+export interface RevokeLocalDistributionCertificateResult {
+  readonly localId: string;
+  readonly serialNumber: string;
+  readonly revokedOnApple: boolean;
+  readonly deletedLocally: boolean;
+}
+
+export const revokeLocalDistributionCertificate = (
+  api: ApiClient,
+  input: RevokeLocalDistributionCertificateInput,
+) =>
+  Effect.gen(function* () {
+    const listing = yield* api.appleDistributionCertificates.list();
+    const local = listing.items.find((entry) => entry.id === input.distributionCertificateId);
+    if (local === undefined) {
+      return yield* Effect.fail(
+        new GenerateFailedError({
+          step: "load-distribution-certificate",
+          message: `Distribution certificate ${input.distributionCertificateId} not found on this account`,
+        }),
+      );
+    }
+
+    const creds = yield* fetchAscCredentials(api, input.ascApiKeyId);
+    const ascCreds = { keyId: creds.keyId, issuerId: creds.issuerId, p8Pem: creds.p8Pem };
+    const targetSerial = local.serialNumber.toUpperCase();
+
+    const matching = yield* Effect.all(
+      [
+        listCertificates(ascCreds, { certificateType: "IOS_DISTRIBUTION" }),
+        listCertificates(ascCreds, { certificateType: "IOS_DEVELOPMENT" }),
+      ],
+      { concurrency: 2 },
+    ).pipe(Effect.mapError(wrapAscError("apple-list-certificates")));
+
+    const ascMatch = [...matching[0], ...matching[1]].find(
+      (entry) => entry.serialNumber.toUpperCase() === targetSerial,
+    );
+
+    let revokedOnApple = false;
+    if (ascMatch !== undefined) {
+      yield* deleteCertificate(ascCreds, ascMatch.id).pipe(
+        Effect.mapError(wrapAscError("apple-revoke-certificate")),
+      );
+      revokedOnApple = true;
+    }
+
+    let deletedLocally = false;
+    if (input.keepLocal !== true) {
+      yield* api.appleDistributionCertificates.delete({
+        path: { id: input.distributionCertificateId },
+      });
+      deletedLocally = true;
+    }
+
+    return {
+      localId: input.distributionCertificateId,
+      serialNumber: local.serialNumber,
+      revokedOnApple,
+      deletedLocally,
+    } satisfies RevokeLocalDistributionCertificateResult;
+  });
+
 export const listAppleCertificates = (
   api: ApiClient,
   input: {
