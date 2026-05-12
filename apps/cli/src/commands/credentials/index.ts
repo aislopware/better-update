@@ -9,6 +9,7 @@ import { generateCommand } from "./generate";
 import { listCommand } from "./list";
 import { regenerateProfileCommand } from "./regenerate-profile";
 import { removeCommand } from "./remove";
+import { revokeCommand } from "./revoke";
 import { syncCommand } from "./sync";
 import { uploadCommand } from "./upload";
 import { uploadAscKeyCommand } from "./upload-asc-key";
@@ -35,6 +36,7 @@ export const credentialsCommand = defineCommand({
     "regenerate-profile": regenerateProfileCommand,
     delete: deleteCommand,
     remove: removeCommand,
+    revoke: revokeCommand,
     configure: configureCommand,
     sync: syncCommand,
   },

@@ -28,7 +28,45 @@ interface ConfigureAndroidArgs {
   readonly projectId: string;
   readonly applicationIdentifier: string;
   readonly rebind: boolean;
+  readonly bindFcmGsa: string | undefined;
 }
+
+const bindAndroidFcmGsa = (
+  api: ApiClient,
+  input: {
+    readonly projectId: string;
+    readonly applicationIdentifier: string;
+    readonly gsaKeyId: string;
+  },
+) =>
+  Effect.gen(function* () {
+    const apps = yield* api.androidApplicationIdentifiers.list({
+      path: { projectId: input.projectId },
+    });
+    const app = apps.items.find((entry) => entry.packageName === input.applicationIdentifier);
+    if (app === undefined) {
+      return yield* new MissingCredentialsError({
+        message: `No Android build credentials for ${input.applicationIdentifier}.`,
+        hint: "Run `better-update credentials configure --platform android` (without --bind-fcm-gsa) first to create one.",
+      });
+    }
+    const groups = yield* api.androidBuildCredentials.list({
+      path: { applicationIdentifierId: app.id },
+    });
+    const group = groups.items.find((entry) => entry.isDefault) ?? groups.items.at(0);
+    if (group === undefined) {
+      return yield* new MissingCredentialsError({
+        message: `No default Android build credentials group for ${input.applicationIdentifier}.`,
+        hint: "Run `better-update credentials configure --platform android` (without --bind-fcm-gsa) first.",
+      });
+    }
+    yield* api.androidBuildCredentials.update({
+      path: { id: group.id },
+      payload: { googleServiceAccountKeyForFcmV1Id: input.gsaKeyId },
+    });
+    yield* Console.log(`Bound FCM V1 GSA key ${input.gsaKeyId} to ${input.applicationIdentifier}.`);
+    return undefined;
+  });
 
 const bindBundleResource = (
   api: ApiClient,
@@ -71,6 +109,13 @@ const configureAndroid = (args: ConfigureAndroidArgs) =>
       projectId: args.projectId,
       applicationIdentifier: args.applicationIdentifier,
     };
+    if (args.bindFcmGsa !== undefined) {
+      yield* bindAndroidFcmGsa(args.api, { ...input, gsaKeyId: args.bindFcmGsa });
+      yield* Console.log("");
+      yield* Console.log("Updated binding:");
+      yield* showAndroidBinding(args.api, input);
+      return;
+    }
     if (args.rebind) {
       yield* rebindAndroidKeystore(args.api, input);
       yield* Console.log("");
@@ -85,6 +130,9 @@ const configureAndroid = (args: ConfigureAndroidArgs) =>
     yield* showAndroidBinding(args.api, input);
     yield* printHuman("");
     yield* printHuman("Run with --rebind to switch keystore on the default group.");
+    yield* printHuman(
+      "Run with --bind-fcm-gsa <gsaKeyId> to bind a GSA key for FCM V1 push notifications.",
+    );
   });
 
 interface ConfigureIosArgs {
@@ -169,6 +217,11 @@ export const configureCommand = defineCommand({
       type: "string",
       description: "iOS only: bind an existing ASC API key by ID to the bundle config",
     },
+    "bind-fcm-gsa": {
+      type: "string",
+      description:
+        "Android only: bind an existing GSA key by ID to FCM V1 push notifications on the default credentials group",
+    },
   },
   run: async ({ args }) =>
     runEffect(
@@ -211,6 +264,7 @@ export const configureCommand = defineCommand({
           projectId,
           applicationIdentifier,
           rebind: args.rebind ?? false,
+          bindFcmGsa: args["bind-fcm-gsa"],
         });
       }),
     ),

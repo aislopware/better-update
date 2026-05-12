@@ -1,7 +1,14 @@
+import path from "node:path";
+import process from "node:process";
+
+import { fromBase64 } from "@better-update/encoding";
+import { FileSystem } from "@effect/platform";
 import { Console, Effect } from "effect";
 
 import { generateAndUploadKeystore } from "../lib/credentials-generator";
 import { uploadCredential } from "../lib/credentials-manager";
+import { MissingCredentialsError } from "../lib/exit-codes";
+import { extractProjectId, readAppMeta, readExpoConfig } from "../lib/expo-config";
 import { printHuman, printKeyValue } from "../lib/output";
 import { promptPassword, promptSelect, promptText } from "../lib/prompts";
 import { ensureAndroidCredentials } from "./credentials-interactive";
@@ -78,19 +85,32 @@ const changeDefaultKeystore = (ctx: WizardContext) =>
     yield* showAndroidBinding(ctx.api, { projectId: ctx.projectId, applicationIdentifier });
   });
 
-const downloadAndroidKeystoreHint = (ctx: WizardContext) =>
+const downloadAndroidKeystoreInteractive = (ctx: WizardContext) =>
   Effect.gen(function* () {
     const list = yield* ctx.api.androidUploadKeystores.list();
     if (list.items.length === 0) {
       return yield* Console.log("No keystores to download.");
     }
-    yield* printHuman(
-      "Run: `better-update credentials download --type keystore --id <id>` for the file-aware flow.",
+    const id = yield* promptSelect<string>(
+      "Select a keystore to download",
+      list.items.map((item) => ({
+        value: item.id,
+        label: `${item.keyAlias} (${item.id.slice(0, 8)}…)`,
+      })),
     );
-    yield* printHuman("Available keystores:");
-    for (const item of list.items) {
-      yield* Console.log(`  ${item.id}  alias=${item.keyAlias}`);
-    }
+    const data = yield* ctx.api.androidUploadKeystores.download({ path: { id } });
+    const defaultPath = path.join(process.cwd(), `${data.id}.keystore`);
+    const rawTarget = yield* promptText("Output path", { defaultValue: defaultPath });
+    const target = rawTarget.trim().length === 0 ? defaultPath : rawTarget;
+    const fs = yield* FileSystem.FileSystem;
+    yield* fs.writeFile(target, fromBase64(data.keystoreBase64));
+    yield* Console.log("Keystore downloaded.");
+    yield* printKeyValue([
+      ["Path", target],
+      ["Key alias", data.keyAlias],
+      ["Keystore password", data.keystorePassword],
+      ["Key password", data.keyPassword],
+    ]);
     return undefined;
   });
 
@@ -105,6 +125,101 @@ const uploadAndroidGsa = (ctx: WizardContext) =>
     });
     yield* Console.log("Google service account key uploaded.");
     yield* printKeyValue([["ID", created.id]]);
+  });
+
+const resolveAndroidPackageForBinding = (ctx: WizardContext) =>
+  Effect.gen(function* () {
+    if (ctx.androidPackage !== undefined) {
+      return ctx.androidPackage;
+    }
+    const expo = yield* readExpoConfig(process.cwd()).pipe(
+      Effect.catchAll(() => Effect.succeed(undefined)),
+    );
+    if (expo === undefined) {
+      return yield* promptText("Android application identifier (package name)");
+    }
+    const meta = yield* readAppMeta(expo, "android").pipe(
+      Effect.catchAll(() => Effect.succeed({ androidPackage: undefined })),
+    );
+    return (
+      meta.androidPackage ?? (yield* promptText("Android application identifier (package name)"))
+    );
+  });
+
+const findDefaultAndroidGroup = (ctx: WizardContext) =>
+  Effect.gen(function* () {
+    const projectId =
+      ctx.projectId.length > 0
+        ? ctx.projectId
+        : yield* extractProjectId(yield* readExpoConfig(process.cwd()));
+    const applicationIdentifier = yield* resolveAndroidPackageForBinding(ctx);
+    const apps = yield* ctx.api.androidApplicationIdentifiers.list({
+      path: { projectId },
+    });
+    const app = apps.items.find((entry) => entry.packageName === applicationIdentifier);
+    if (app === undefined) {
+      return yield* new MissingCredentialsError({
+        message: `No Android build credentials registered for ${applicationIdentifier}.`,
+        hint: "Run 'Keystore > Set up keystore for this app' first.",
+      });
+    }
+    const groups = yield* ctx.api.androidBuildCredentials.list({
+      path: { applicationIdentifierId: app.id },
+    });
+    const group = groups.items.find((entry) => entry.isDefault) ?? groups.items.at(0);
+    if (group === undefined) {
+      return yield* new MissingCredentialsError({
+        message: `No default Android build credentials group for ${applicationIdentifier}.`,
+        hint: "Run 'Keystore > Set up keystore for this app' first.",
+      });
+    }
+    return { applicationIdentifier, group } as const;
+  });
+
+const bindFcmV1Gsa = (ctx: WizardContext) =>
+  Effect.gen(function* () {
+    const keys = yield* ctx.api.googleServiceAccountKeys.list();
+    if (keys.items.length === 0) {
+      return yield* new MissingCredentialsError({
+        message: "No Google service account keys uploaded yet.",
+        hint: "Run 'Upload a Google service account JSON key' first.",
+      });
+    }
+    const { applicationIdentifier, group } = yield* findDefaultAndroidGroup(ctx);
+    const gsaKeyId = yield* promptSelect<string>(
+      "Select a GSA key to bind for FCM V1 push notifications",
+      keys.items.map((key) => ({
+        value: key.id,
+        label: `${key.clientEmail} (${key.id.slice(0, 8)}…)`,
+      })),
+    );
+    yield* ctx.api.androidBuildCredentials.update({
+      path: { id: group.id },
+      payload: { googleServiceAccountKeyForFcmV1Id: gsaKeyId },
+    });
+    yield* Console.log(
+      `Bound GSA key ${gsaKeyId.slice(0, 8)}… to ${applicationIdentifier} for FCM V1 push.`,
+    );
+    yield* printKeyValue([
+      ["Application", applicationIdentifier],
+      ["Group", group.name],
+      ["FCM V1 GSA key", gsaKeyId],
+    ]);
+    return undefined;
+  });
+
+const unbindFcmV1Gsa = (ctx: WizardContext) =>
+  Effect.gen(function* () {
+    const { applicationIdentifier, group } = yield* findDefaultAndroidGroup(ctx);
+    if (group.googleServiceAccountKeyForFcmV1Id === null) {
+      return yield* Console.log(`No FCM V1 GSA key bound to ${applicationIdentifier}.`);
+    }
+    yield* ctx.api.androidBuildCredentials.update({
+      path: { id: group.id },
+      payload: { googleServiceAccountKeyForFcmV1Id: null },
+    });
+    yield* Console.log(`Unbound FCM V1 GSA key from ${applicationIdentifier}.`);
+    return undefined;
   });
 
 const androidKeystoreMenu = (ctx: WizardContext): MenuEffect =>
@@ -133,7 +248,7 @@ const androidKeystoreMenu = (ctx: WizardContext): MenuEffect =>
     } else if (choice === "rebind") {
       yield* safely("rebind keystore", changeDefaultKeystore(ctx));
     } else if (choice === "download") {
-      yield* safely("download keystore", downloadAndroidKeystoreHint(ctx));
+      yield* safely("download keystore", downloadAndroidKeystoreInteractive(ctx));
     } else if (choice === "delete") {
       yield* safely("delete keystore", pickAndDelete(ctx, "keystore", "keystore"));
     }
@@ -146,6 +261,8 @@ const androidGsaMenu = (ctx: WizardContext): MenuEffect =>
     const choice = yield* safePrompt(
       promptSelect<string>("What do you want to do?", [
         { value: "upload", label: "Upload a Google service account JSON key" },
+        { value: "bind-fcm", label: "Set up GSA key for FCM V1 push notifications" },
+        { value: "unbind-fcm", label: "Unbind GSA key from FCM V1 push notifications" },
         { value: "delete", label: "Delete a Google service account key" },
         { value: BACK, label: "Go back" },
       ]),
@@ -155,6 +272,10 @@ const androidGsaMenu = (ctx: WizardContext): MenuEffect =>
     }
     if (choice === "upload") {
       yield* safely("upload GSA", uploadAndroidGsa(ctx));
+    } else if (choice === "bind-fcm") {
+      yield* safely("bind FCM V1 GSA", bindFcmV1Gsa(ctx));
+    } else if (choice === "unbind-fcm") {
+      yield* safely("unbind FCM V1 GSA", unbindFcmV1Gsa(ctx));
     } else if (choice === "delete") {
       yield* safely(
         "delete GSA",
