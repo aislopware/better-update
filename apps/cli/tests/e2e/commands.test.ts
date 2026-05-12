@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -488,6 +488,23 @@ describe("cLI command journey", () => {
     expect(listAfterUpload.stdout).toContain(uploadedCredentialId!);
     expect(listAfterUpload.stdout).toContain("distribution-certificate");
     expect(listAfterUpload.stdout).toContain("ios");
+
+    const downloadDir = path.join(cli.getProjectDir(), "downloaded-cert.p12");
+    const downloadResult = cli.runCli(
+      "credentials",
+      "download",
+      uploadedCredentialId!,
+      "--type",
+      "distribution-certificate",
+      "--output",
+      downloadDir,
+    );
+    expect(downloadResult.exitCode).toBe(0);
+    expect(downloadResult.stderr).toBe("");
+    expect(downloadResult.stdout).toContain(downloadDir);
+    expect(downloadResult.stdout).toContain(p12Password);
+    expect(existsSync(downloadDir)).toBe(true);
+    expect(statSync(downloadDir).size).toBeGreaterThan(0);
 
     const deleteResult = cli.runCli(
       "credentials",

@@ -5,6 +5,12 @@ import {
   ensureAndroidCredentials,
   ensureIosCredentials,
 } from "../../application/credentials-interactive";
+import {
+  rebindAndroidKeystore,
+  rebindIosBundle,
+  showAndroidBinding,
+  showIosBinding,
+} from "../../application/credentials-rebind";
 import { runEffect } from "../../lib/citty-effect";
 import { extractProjectId, readAppMeta, readExpoConfig } from "../../lib/expo-config";
 import { printHuman } from "../../lib/output";
@@ -13,6 +19,69 @@ import { apiClient } from "../../services/api-client";
 import { CliRuntime } from "../../services/cli-runtime";
 
 import type { IosDistribution } from "../../lib/build-profile";
+import type { ApiClient } from "../../services/api-client";
+
+interface ConfigureAndroidArgs {
+  readonly api: ApiClient;
+  readonly projectId: string;
+  readonly applicationIdentifier: string;
+  readonly rebind: boolean;
+}
+
+const configureAndroid = (args: ConfigureAndroidArgs) =>
+  Effect.gen(function* () {
+    const input = {
+      projectId: args.projectId,
+      applicationIdentifier: args.applicationIdentifier,
+    };
+    if (args.rebind) {
+      yield* rebindAndroidKeystore(args.api, input);
+      yield* Console.log("");
+      yield* Console.log("Updated binding:");
+      yield* showAndroidBinding(args.api, input);
+      return;
+    }
+    yield* Console.log(`Configuring Android credentials for ${args.applicationIdentifier}...`);
+    yield* ensureAndroidCredentials(args.api, input, { freezeCredentials: false });
+    yield* Console.log("");
+    yield* Console.log("Current Android binding:");
+    yield* showAndroidBinding(args.api, input);
+    yield* printHuman("");
+    yield* printHuman("Run with --rebind to switch keystore on the default group.");
+  });
+
+interface ConfigureIosArgs {
+  readonly api: ApiClient;
+  readonly projectId: string;
+  readonly bundleIdentifier: string;
+  readonly distribution: IosDistribution;
+  readonly rebind: boolean;
+}
+
+const configureIos = (args: ConfigureIosArgs) =>
+  Effect.gen(function* () {
+    const input = {
+      projectId: args.projectId,
+      bundleIdentifier: args.bundleIdentifier,
+      distribution: args.distribution,
+    };
+    if (args.rebind) {
+      yield* rebindIosBundle(args.api, input);
+      yield* Console.log("");
+      yield* Console.log("Updated binding:");
+      yield* showIosBinding(args.api, input);
+      return;
+    }
+    yield* Console.log(
+      `Configuring iOS credentials for ${args.bundleIdentifier} (${args.distribution})...`,
+    );
+    yield* ensureIosCredentials(args.api, input, { freezeCredentials: false });
+    yield* Console.log("");
+    yield* Console.log("Current iOS binding:");
+    yield* showIosBinding(args.api, input);
+    yield* printHuman("");
+    yield* printHuman("Run with --rebind to switch certificate, profile, or ASC key.");
+  });
 
 export const configureCommand = defineCommand({
   meta: {
@@ -36,6 +105,10 @@ export const configureCommand = defineCommand({
       default: "ad-hoc",
       description: "iOS distribution type",
     },
+    rebind: {
+      type: "boolean",
+      description: "Re-bind credentials on an already-configured app/bundle (swap keystore/cert)",
+    },
   },
   run: async ({ args }) =>
     runEffect(
@@ -55,19 +128,15 @@ export const configureCommand = defineCommand({
 
         if (platform === "ios") {
           const iosMeta = yield* readAppMeta(expo, "ios");
-          const bundle =
+          const bundleIdentifier =
             args.bundle ?? iosMeta.bundleId ?? (yield* promptText("iOS bundle identifier"));
-          yield* Console.log(`Configuring iOS credentials for ${bundle} (${args.distribution})...`);
-          yield* ensureIosCredentials(
+          yield* configureIos({
             api,
-            {
-              projectId,
-              bundleIdentifier: bundle,
-              distribution: args.distribution as IosDistribution,
-            },
-            { freezeCredentials: false },
-          );
-          yield* printHuman("iOS credentials configured.");
+            projectId,
+            bundleIdentifier,
+            distribution: args.distribution as IosDistribution,
+            rebind: args.rebind ?? false,
+          });
           return;
         }
         const androidMeta = yield* readAppMeta(expo, "android");
@@ -75,13 +144,12 @@ export const configureCommand = defineCommand({
           args["android-package"] ??
           androidMeta.androidPackage ??
           (yield* promptText("Android application identifier"));
-        yield* Console.log(`Configuring Android credentials for ${applicationIdentifier}...`);
-        yield* ensureAndroidCredentials(
+        yield* configureAndroid({
           api,
-          { projectId, applicationIdentifier },
-          { freezeCredentials: false },
-        );
-        yield* printHuman("Android credentials configured.");
+          projectId,
+          applicationIdentifier,
+          rebind: args.rebind ?? false,
+        });
       }),
     ),
 });

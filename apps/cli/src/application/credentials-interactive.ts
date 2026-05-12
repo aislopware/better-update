@@ -33,7 +33,7 @@ const isMissingResolveError = (cause: unknown) =>
 
 // ── Android ────────────────────────────────────────────────────────
 
-interface AndroidSetupInput {
+export interface AndroidSetupInput {
   readonly projectId: string;
   readonly applicationIdentifier: string;
 }
@@ -89,7 +89,7 @@ const resolveAndroidAppId = (api: ApiClient, input: AndroidSetupInput) =>
     return created.id;
   });
 
-const resolveAndroidKeystoreId = (api: ApiClient, choice: "generate" | "existing") =>
+export const resolveAndroidKeystoreId = (api: ApiClient, choice: "generate" | "existing") =>
   choice === "generate" ? generateKeystoreInteractive(api) : pickExistingKeystore(api);
 
 const setupAndroidInteractive = (api: ApiClient, input: AndroidSetupInput) =>
@@ -167,7 +167,7 @@ export const ensureAndroidCredentials = (
 
 // ── iOS ────────────────────────────────────────────────────────────
 
-interface IosSetupInput {
+export interface IosSetupInput {
   readonly projectId: string;
   readonly bundleIdentifier: string;
   readonly distribution: IosDistribution;
@@ -176,7 +176,7 @@ interface IosSetupInput {
 type DistributionTypeValue =
   (typeof IOS_DISTRIBUTION_TO_TYPE)[keyof typeof IOS_DISTRIBUTION_TO_TYPE];
 
-interface IosSetupContext {
+export interface IosSetupContext {
   readonly certId: string;
   readonly cert: { readonly appleTeamId: string };
   readonly ascKeyId: string;
@@ -281,7 +281,7 @@ const chooseIosCertificateId = (api: ApiClient) =>
     return choice;
   });
 
-const pickIosCertificate = (api: ApiClient) =>
+export const pickIosCertificate = (api: ApiClient) =>
   Effect.gen(function* () {
     const chosenId = yield* chooseIosCertificateId(api);
     const refreshed = yield* api.appleDistributionCertificates.list();
@@ -297,7 +297,7 @@ const pickIosCertificate = (api: ApiClient) =>
     return { certId: chosenId, cert };
   });
 
-const pickIosAscKey = (api: ApiClient, appleTeamId: string) =>
+export const pickIosAscKey = (api: ApiClient, appleTeamId: string) =>
   Effect.gen(function* () {
     const ascKeys = yield* api.ascApiKeys.list();
     const teamAscKeys = ascKeys.items.filter(
@@ -333,7 +333,7 @@ const generateProvisioningProfileForBundle = (
     return generated.id;
   });
 
-const resolveIosProfileId = (api: ApiClient, input: IosSetupInput, ctx: IosSetupContext) =>
+export const resolveIosProfileId = (api: ApiClient, input: IosSetupInput, ctx: IosSetupContext) =>
   Effect.gen(function* () {
     const profiles = yield* api.appleProvisioningProfiles.list({ urlParams: {} });
     const matching = profiles.items.filter(

@@ -2,6 +2,7 @@ import { defineCommand } from "citty";
 
 import { configureCommand } from "./configure";
 import { deleteCommand } from "./delete";
+import { downloadCommand } from "./download";
 import { generateCommand } from "./generate";
 import { listCommand } from "./list";
 import { removeCommand } from "./remove";
@@ -15,6 +16,7 @@ export const credentialsCommand = defineCommand({
   subCommands: {
     list: listCommand,
     view: viewCommand,
+    download: downloadCommand,
     upload: uploadCommand,
     "upload-asc-key": uploadAscKeyCommand,
     generate: generateCommand,
