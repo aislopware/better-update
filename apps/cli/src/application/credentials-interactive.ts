@@ -9,6 +9,7 @@ import {
   revokeAppleCertificate,
 } from "../lib/credentials-generator";
 import { MissingCredentialsError } from "../lib/exit-codes";
+import { InteractiveMode } from "../lib/interactive-mode";
 import {
   promptConfirm,
   promptMultiSelect,
@@ -150,19 +151,23 @@ export const ensureAndroidCredentials = (
   options: EnsureCredentialsOptions,
 ) =>
   ensureAndroidCredentialsAvailable(api, input).pipe(
-    Effect.catchIf(isMissingResolveError, () => {
-      if (options.freezeCredentials) {
-        return Effect.fail(
-          new MissingCredentialsError({
-            message: `No Android build credentials for ${input.applicationIdentifier}.`,
-            hint: "Run `better-update credentials generate` first, or remove --freeze-credentials.",
-          }),
-        );
-      }
-      return setupAndroidInteractive(api, input).pipe(
-        Effect.flatMap(() => ensureAndroidCredentialsAvailable(api, input)),
-      );
-    }),
+    Effect.catchIf(isMissingResolveError, () =>
+      Effect.gen(function* () {
+        const mode = yield* InteractiveMode;
+        if (options.freezeCredentials || !mode.allow) {
+          return yield* Effect.fail(
+            new MissingCredentialsError({
+              message: `No Android build credentials for ${input.applicationIdentifier}.`,
+              hint: options.freezeCredentials
+                ? "Run `better-update credentials generate` first, or remove --freeze-credentials."
+                : "Run `better-update credentials generate` first, or rerun with --interactive to configure now.",
+            }),
+          );
+        }
+        yield* setupAndroidInteractive(api, input);
+        return yield* ensureAndroidCredentialsAvailable(api, input);
+      }),
+    ),
   );
 
 // ── iOS ────────────────────────────────────────────────────────────
@@ -421,30 +426,28 @@ const findBoundIosConfig = (api: ApiClient, input: IosSetupInput) =>
     return match;
   });
 
-const regenerateStaleProfile = (api: ApiClient, input: IosSetupInput) =>
+export const regenerateProvisioningProfile = (api: ApiClient, input: IosSetupInput) =>
   Effect.gen(function* () {
-    yield* Console.log("");
-    yield* Console.log(
-      `Provisioning profile for ${input.bundleIdentifier} (${input.distribution}) is stale (device roster changed). Regenerating via App Store Connect API...`,
-    );
     const config = yield* findBoundIosConfig(api, input);
     if (config.ascApiKeyId === null || config.appleDistributionCertificateId === null) {
-      return yield* Effect.fail(
-        new MissingCredentialsError({
-          message:
-            "Stale profile cannot be regenerated: bundle configuration is missing ASC key or distribution certificate",
-          hint: "Re-bind credentials via `better-update credentials generate` or the dashboard",
-        }),
-      );
+      return yield* new MissingCredentialsError({
+        message:
+          "Profile cannot be regenerated: bundle configuration is missing ASC key or distribution certificate",
+        hint: "Re-bind credentials via `better-update credentials generate` or the dashboard",
+      });
     }
-    yield* generateAndUploadProvisioningProfile(api, {
+    yield* Console.log("Regenerating provisioning profile via App Store Connect API...");
+    const created = yield* generateAndUploadProvisioningProfile(api, {
       ascApiKeyId: config.ascApiKeyId,
       distributionCertificateId: config.appleDistributionCertificateId,
       bundleIdentifier: input.bundleIdentifier,
       distributionType: IOS_DISTRIBUTION_TO_TYPE[input.distribution],
     });
-    yield* Console.log("Stale profile regenerated.");
-    return undefined;
+    yield* api.iosBundleConfigurations.update({
+      path: { id: config.id },
+      payload: { appleProvisioningProfileId: created.id },
+    });
+    return created;
   });
 
 export const ensureIosCredentials = (
@@ -453,31 +456,44 @@ export const ensureIosCredentials = (
   options: EnsureCredentialsOptions,
 ) =>
   resolveIosBuildCredentials(api, input).pipe(
-    Effect.catchIf(isMissingResolveError, () => {
-      if (options.freezeCredentials) {
-        return Effect.fail(
-          new MissingCredentialsError({
-            message: `No iOS build credentials for ${input.bundleIdentifier} (${input.distribution}).`,
-            hint: "Run `better-update credentials generate` first, or remove --freeze-credentials.",
-          }),
+    Effect.catchIf(isMissingResolveError, () =>
+      Effect.gen(function* () {
+        const mode = yield* InteractiveMode;
+        if (options.freezeCredentials || !mode.allow) {
+          return yield* Effect.fail(
+            new MissingCredentialsError({
+              message: `No iOS build credentials for ${input.bundleIdentifier} (${input.distribution}).`,
+              hint: options.freezeCredentials
+                ? "Run `better-update credentials generate` first, or remove --freeze-credentials."
+                : "Run `better-update credentials generate` first, or rerun with --interactive to configure now.",
+            }),
+          );
+        }
+        yield* setupIosInteractive(api, input);
+        return yield* resolveIosBuildCredentials(api, input);
+      }),
+    ),
+    Effect.flatMap((resolved) =>
+      Effect.gen(function* () {
+        if (resolved.platform !== "ios" || !resolved.profileStale) {
+          return undefined;
+        }
+        const mode = yield* InteractiveMode;
+        if (options.freezeCredentials || !mode.allow) {
+          return yield* Effect.fail(
+            new MissingCredentialsError({
+              message: `Stale provisioning profile for ${input.bundleIdentifier}; cannot regenerate without an interactive session.`,
+              hint: options.freezeCredentials
+                ? "Run a build without --freeze-credentials once to refresh the profile, or run `better-update credentials regenerate-profile`."
+                : "Run `better-update credentials regenerate-profile --bundle <id> --distribution <type>` from an interactive terminal.",
+            }),
+          );
+        }
+        yield* Console.log(
+          `Stale provisioning profile for ${input.bundleIdentifier} (device roster changed). Regenerating...`,
         );
-      }
-      return setupIosInteractive(api, input).pipe(
-        Effect.flatMap(() => resolveIosBuildCredentials(api, input)),
-      );
-    }),
-    Effect.flatMap((resolved) => {
-      if (resolved.platform !== "ios" || !resolved.profileStale) {
-        return Effect.succeed(undefined);
-      }
-      if (options.freezeCredentials) {
-        return Effect.fail(
-          new MissingCredentialsError({
-            message: `Stale provisioning profile for ${input.bundleIdentifier}; cannot regenerate with --freeze-credentials.`,
-            hint: "Run a build without --freeze-credentials once to refresh the profile.",
-          }),
-        );
-      }
-      return regenerateStaleProfile(api, input);
-    }),
+        yield* regenerateProvisioningProfile(api, input);
+        return undefined;
+      }),
+    ),
   );
