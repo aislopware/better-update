@@ -1,4 +1,4 @@
-import { fromBase64 } from "@better-update/encoding";
+import { fromBase64, toBase64 } from "@better-update/encoding";
 import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
@@ -8,10 +8,15 @@ import { CurrentActor } from "../auth/current-actor";
 import { assertOrgOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
 import { cloudflareEnv } from "../cloudflare/context";
+import { CredentialArtifacts } from "../cloudflare/credential-artifacts";
 import { parseProvisioningProfile } from "../domain/apple-provisioning-profile-parser";
 import { BadRequest } from "../errors";
 import { toApiAppleProvisioningProfile } from "../http/to-api";
-import { toApiCrudEffect, toApiWriteEffect } from "../http/to-api-effect";
+import {
+  toApiBadRequestReadEffect,
+  toApiCrudEffect,
+  toApiWriteEffect,
+} from "../http/to-api-effect";
 import { toDbNull } from "../lib/nullable";
 import { r2Operation, withR2Compensation } from "../lib/r2-helpers";
 import { AppleProvisioningProfileRepo } from "../repositories/apple-provisioning-profiles";
@@ -133,6 +138,39 @@ export const AppleProvisioningProfilesGroupLive = HttpApiBuilder.group(
               },
             });
             return { deleted: 1 };
+          }),
+        ),
+      )
+      .handle("download", ({ path }) =>
+        toApiBadRequestReadEffect(
+          Effect.gen(function* () {
+            yield* assertPermission("appleCredential", "download");
+            const repo = yield* AppleProvisioningProfileRepo;
+            const artifacts = yield* CredentialArtifacts;
+
+            const existing = yield* repo.findById({ id: path.id });
+            yield* assertOrgOwnership(existing.organizationId);
+
+            const profileBytes = yield* artifacts.get(existing.r2Key, "Provisioning profile");
+
+            yield* logAudit({
+              action: "apple.provisioning-profile.download",
+              resourceType: "appleCredential",
+              resourceId: path.id,
+              metadata: {
+                bundleIdentifier: existing.bundleIdentifier,
+                distributionType: existing.distributionType,
+              },
+            });
+
+            return {
+              id: existing.id,
+              profileBase64: toBase64(profileBytes),
+              bundleIdentifier: existing.bundleIdentifier,
+              distributionType: existing.distributionType,
+              profileName: existing.profileName,
+              developerPortalIdentifier: existing.developerPortalIdentifier,
+            };
           }),
         ),
       ),

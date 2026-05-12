@@ -26,3 +26,11 @@ export const UploadAndroidUploadKeystoreBody = Schema.Struct({
 });
 
 export const DeleteAndroidUploadKeystoreResult = Schema.Struct({ deleted: Schema.Number });
+
+export const DownloadAndroidUploadKeystoreResult = Schema.Struct({
+  id: Id,
+  keystoreBase64: Schema.String,
+  keyAlias: Schema.String,
+  keystorePassword: Schema.String,
+  keyPassword: Schema.String,
+});

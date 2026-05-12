@@ -88,3 +88,7 @@ export class InvalidArgumentError extends Data.TaggedError("InvalidArgumentError
 export class InteractiveProhibitedError extends Data.TaggedError("InteractiveProhibitedError")<{
   readonly message: string;
 }> {}
+
+export class CredentialsJsonError extends Data.TaggedError("CredentialsJsonError")<{
+  readonly message: string;
+}> {}

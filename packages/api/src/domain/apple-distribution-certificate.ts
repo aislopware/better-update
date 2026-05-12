@@ -32,3 +32,13 @@ export const UploadAppleDistributionCertificateBody = Schema.Struct({
 export const DeleteAppleDistributionCertificateResult = Schema.Struct({
   deleted: Schema.Number,
 });
+
+export const DownloadAppleDistributionCertificateResult = Schema.Struct({
+  id: Id,
+  p12Base64: Schema.String,
+  p12Password: Schema.String,
+  serialNumber: Schema.String,
+  appleTeamIdentifier: AppleTeamIdentifier,
+  validFrom: DateTimeString,
+  validUntil: DateTimeString,
+});

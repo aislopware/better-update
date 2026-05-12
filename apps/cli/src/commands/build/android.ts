@@ -9,12 +9,13 @@ import type { PlatformError } from "@effect/platform/Error";
 import { renderSigningGradle } from "../../lib/android-signing-gradle";
 import { findAndroidArtifact } from "../../lib/artifact-finder";
 import { downloadAndroidCredentials } from "../../lib/credentials-downloader";
+import { loadLocalAndroidCredentials } from "../../lib/local-credentials";
 import { sha256File } from "../../lib/sha256";
 import { capitalize } from "../../lib/string-utils";
 import { CliRuntime } from "../../services/cli-runtime";
 import { runStep } from "./run-step";
 
-import type { AndroidProfile } from "../../lib/build-profile";
+import type { AndroidProfile, CredentialsSource } from "../../lib/build-profile";
 import type {
   ArtifactNotFoundError,
   BuildFailedError,
@@ -30,6 +31,7 @@ export interface RunAndroidBuildInput {
   readonly applicationIdentifier: string;
   readonly envVars: Record<string, string>;
   readonly projectId: string;
+  readonly credentialsSource: CredentialsSource;
 }
 
 export interface RunAndroidBuildResult {
@@ -80,11 +82,14 @@ export const runAndroidBuild = (
     const androidDir = path.join(projectRoot, "android");
     const commandEnv = yield* runtime.commandEnvironment(envVars);
 
-    const credentials = yield* downloadAndroidCredentials(api, {
-      projectId,
-      applicationIdentifier,
-      tempDir,
-    });
+    const credentials =
+      input.credentialsSource === "local"
+        ? yield* loadLocalAndroidCredentials({ projectRoot })
+        : yield* downloadAndroidCredentials(api, {
+            projectId,
+            applicationIdentifier,
+            tempDir,
+          });
 
     yield* runStep(
       Command.make("bunx", "expo", "prebuild", "--platform", "android", "--clean").pipe(

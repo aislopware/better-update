@@ -1,4 +1,4 @@
-import { fromBase64 } from "@better-update/encoding";
+import { fromBase64, toBase64 } from "@better-update/encoding";
 import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
@@ -8,6 +8,7 @@ import { CurrentActor } from "../auth/current-actor";
 import { assertOrgOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
 import { cloudflareEnv } from "../cloudflare/context";
+import { CredentialArtifacts } from "../cloudflare/credential-artifacts";
 import { Vault } from "../cloudflare/vault";
 import {
   validateDistributionCertificateMetadata,
@@ -15,7 +16,11 @@ import {
 } from "../domain/apple-certificate-parser";
 import { BadRequest } from "../errors";
 import { toApiAppleDistributionCertificate } from "../http/to-api";
-import { toApiCrudEffect, toApiWriteEffect } from "../http/to-api-effect";
+import {
+  toApiBadRequestReadEffect,
+  toApiCrudEffect,
+  toApiWriteEffect,
+} from "../http/to-api-effect";
 import { r2Operation, withR2Compensation } from "../lib/r2-helpers";
 import { AppleDistributionCertificateRepo } from "../repositories/apple-distribution-certificates";
 import { AppleTeamRepo } from "../repositories/apple-teams";
@@ -158,6 +163,56 @@ export const AppleDistributionCertificatesGroupLive = HttpApiBuilder.group(
               metadata: { serialNumber: existing.serialNumber },
             });
             return { deleted: 1 };
+          }),
+        ),
+      )
+      .handle("download", ({ path }) =>
+        toApiBadRequestReadEffect(
+          Effect.gen(function* () {
+            yield* assertPermission("appleCredential", "download");
+            const ctx = yield* CurrentActor;
+            const repo = yield* AppleDistributionCertificateRepo;
+            const teams = yield* AppleTeamRepo;
+            const artifacts = yield* CredentialArtifacts;
+            const vault = yield* Vault;
+
+            const existing = yield* repo.findById({ id: path.id });
+            yield* assertOrgOwnership(existing.organizationId);
+            const team = yield* teams.findById({ id: existing.appleTeamId });
+
+            const encryptedBlob = yield* artifacts.get(existing.r2Key, "Distribution certificate");
+            const p12Bytes = yield* vault
+              .envelopeDecrypt({
+                organizationId: ctx.organizationId,
+                keyVersion: existing.dekKeyVersion,
+                encryptedDek: existing.encryptedDek,
+                encryptedBlob,
+              })
+              .pipe(Effect.mapError(() => new BadRequest({ message: "Decryption failed" })));
+            const p12Password = yield* vault
+              .decryptSecret({
+                organizationId: ctx.organizationId,
+                keyVersion: existing.passwordKeyVersion,
+                encrypted: existing.encryptedPassword,
+              })
+              .pipe(Effect.mapError(() => new BadRequest({ message: "Decryption failed" })));
+
+            yield* logAudit({
+              action: "apple.distribution-certificate.download",
+              resourceType: "appleCredential",
+              resourceId: path.id,
+              metadata: { serialNumber: existing.serialNumber },
+            });
+
+            return {
+              id: existing.id,
+              p12Base64: toBase64(p12Bytes),
+              p12Password,
+              serialNumber: existing.serialNumber,
+              appleTeamIdentifier: team.appleTeamId,
+              validFrom: existing.validFrom,
+              validUntil: existing.validUntil,
+            };
           }),
         ),
       ),

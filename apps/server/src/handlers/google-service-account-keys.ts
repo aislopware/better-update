@@ -7,11 +7,16 @@ import { CurrentActor } from "../auth/current-actor";
 import { assertOrgOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
 import { cloudflareEnv } from "../cloudflare/context";
+import { CredentialArtifacts } from "../cloudflare/credential-artifacts";
 import { Vault } from "../cloudflare/vault";
 import { parseGoogleServiceAccountKey } from "../domain/google-service-account-key-parser";
 import { BadRequest } from "../errors";
 import { toApiGoogleServiceAccountKey } from "../http/to-api";
-import { toApiCrudEffect, toApiWriteEffect } from "../http/to-api-effect";
+import {
+  toApiBadRequestReadEffect,
+  toApiCrudEffect,
+  toApiWriteEffect,
+} from "../http/to-api-effect";
 import { r2Operation, withR2Compensation } from "../lib/r2-helpers";
 import { GoogleServiceAccountKeyRepo } from "../repositories/google-service-account-keys";
 
@@ -123,6 +128,47 @@ export const GoogleServiceAccountKeysGroupLive = HttpApiBuilder.group(
               metadata: { privateKeyId: existing.privateKeyId },
             });
             return { deleted: 1 };
+          }),
+        ),
+      )
+      .handle("download", ({ path }) =>
+        toApiBadRequestReadEffect(
+          Effect.gen(function* () {
+            yield* assertPermission("androidCredential", "download");
+            const ctx = yield* CurrentActor;
+            const repo = yield* GoogleServiceAccountKeyRepo;
+            const artifacts = yield* CredentialArtifacts;
+            const vault = yield* Vault;
+
+            const existing = yield* repo.findById({ id: path.id });
+            yield* assertOrgOwnership(existing.organizationId);
+
+            const encryptedBlob = yield* artifacts.get(
+              existing.r2Key,
+              "Google service account key",
+            );
+            const jsonBytes = yield* vault
+              .envelopeDecrypt({
+                organizationId: ctx.organizationId,
+                keyVersion: existing.dekKeyVersion,
+                encryptedDek: existing.encryptedDek,
+                encryptedBlob,
+              })
+              .pipe(Effect.mapError(() => new BadRequest({ message: "Decryption failed" })));
+            const json = new TextDecoder().decode(jsonBytes);
+
+            yield* logAudit({
+              action: "google.service-account-key.download",
+              resourceType: "androidCredential",
+              resourceId: path.id,
+              metadata: { privateKeyId: existing.privateKeyId },
+            });
+
+            return {
+              id: existing.id,
+              json,
+              clientEmail: existing.clientEmail,
+            };
           }),
         ),
       ),

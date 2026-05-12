@@ -57,11 +57,14 @@ const runIosPlatformBuild = (input: PlatformBuildInput) =>
         message: "Missing ios.bundleIdentifier in your Expo config.",
       });
     }
-    yield* ensureIosCredentials(api, {
-      projectId,
-      bundleIdentifier: iosBundleId,
-      distribution: iosProfile.distribution,
-    });
+    const credentialsSource = profile.credentialsSource ?? "remote";
+    if (credentialsSource === "remote") {
+      yield* ensureIosCredentials(api, {
+        projectId,
+        bundleIdentifier: iosBundleId,
+        distribution: iosProfile.distribution,
+      });
+    }
     const build = yield* runIosBuild({
       api,
       tempDir,
@@ -70,6 +73,7 @@ const runIosPlatformBuild = (input: PlatformBuildInput) =>
       bundleId: iosBundleId,
       envVars,
       projectId,
+      credentialsSource,
       rawOutput: options.rawOutput,
     });
     const target: BuildTarget = {
@@ -102,7 +106,10 @@ const runAndroidPlatformBuild = (input: PlatformBuildInput) =>
     const gradleConfig = yield* readGradleConfig(androidDir);
     yield* warnOnGradleMismatch(gradleConfig, androidBundleId);
     const applicationIdentifier = gradleConfig?.applicationId ?? androidBundleId;
-    yield* ensureAndroidCredentials(api, { projectId, applicationIdentifier });
+    const credentialsSource = profile.credentialsSource ?? "remote";
+    if (credentialsSource === "remote") {
+      yield* ensureAndroidCredentials(api, { projectId, applicationIdentifier });
+    }
     const build = yield* runAndroidBuild({
       api,
       tempDir,
@@ -111,6 +118,7 @@ const runAndroidPlatformBuild = (input: PlatformBuildInput) =>
       applicationIdentifier,
       envVars,
       projectId,
+      credentialsSource,
     });
     const target: BuildTarget =
       androidProfile.format === "aab"

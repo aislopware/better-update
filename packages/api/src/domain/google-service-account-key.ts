@@ -19,3 +19,9 @@ export const UploadGoogleServiceAccountKeyBody = Schema.Struct({
 });
 
 export const DeleteGoogleServiceAccountKeyResult = Schema.Struct({ deleted: Schema.Number });
+
+export const DownloadGoogleServiceAccountKeyResult = Schema.Struct({
+  id: Id,
+  json: Schema.String,
+  clientEmail: Schema.String,
+});

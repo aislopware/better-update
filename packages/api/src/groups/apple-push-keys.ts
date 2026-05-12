@@ -6,6 +6,7 @@ import { NotFound } from "../auth/ownership";
 import {
   ApplePushKey,
   DeleteApplePushKeyResult,
+  DownloadApplePushKeyResult,
   UploadApplePushKeyBody,
 } from "../domain/apple-push-key";
 import { BadRequest, Conflict } from "../domain/errors";
@@ -41,6 +42,16 @@ export class ApplePushKeysGroup extends HttpApiGroup.make("applePushKeys")
         OpenApi.annotations({
           title: "Delete push key",
           description: "Remove a stored APNs push key",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.get("download")`/api/apple/push-keys/${idParam}/download`
+      .addSuccess(DownloadApplePushKeyResult)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Download push key",
+          description: "Fetch the decrypted .p8 push key for local use (audit-logged)",
         }),
       ),
   )

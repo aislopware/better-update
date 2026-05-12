@@ -6,6 +6,7 @@ import { NotFound } from "../auth/ownership";
 import {
   AppleProvisioningProfile,
   DeleteAppleProvisioningProfileResult,
+  DownloadAppleProvisioningProfileResult,
   ListAppleProvisioningProfilesParams,
   UploadAppleProvisioningProfileBody,
 } from "../domain/apple-provisioning-profile";
@@ -44,6 +45,16 @@ export class AppleProvisioningProfilesGroup extends HttpApiGroup.make("appleProv
         OpenApi.annotations({
           title: "Delete provisioning profile",
           description: "Remove a stored provisioning profile",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.get("download")`/api/apple/provisioning-profiles/${idParam}/download`
+      .addSuccess(DownloadAppleProvisioningProfileResult)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Download provisioning profile",
+          description: "Fetch the decoded .mobileprovision for local use (audit-logged)",
         }),
       ),
   )
