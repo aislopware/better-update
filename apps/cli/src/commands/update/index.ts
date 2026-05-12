@@ -8,6 +8,7 @@ import { listCommand } from "./list";
 import { promoteCommand } from "./promote";
 import { publishCommand } from "./publish";
 import { republishCommand } from "./republish";
+import { revertCommand } from "./revert";
 import { revertRolloutCommand } from "./revert-rollout";
 import { rollbackCommand, rollBackToEmbeddedCommand } from "./rollback";
 import { rolloutCommand } from "./rollout";
@@ -26,6 +27,7 @@ export const updateCommand = defineCommand({
     republish: republishCommand,
     rollback: rollbackCommand,
     "roll-back-to-embedded": rollBackToEmbeddedCommand,
+    revert: revertCommand,
     rollout: rolloutCommand,
     "revert-rollout": revertRolloutCommand,
     insights: insightsCommand,

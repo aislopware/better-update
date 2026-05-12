@@ -9,6 +9,7 @@ import {
   ensureIosCredentials,
   pickIosAscKey,
   pickIosCertificate,
+  regenerateProvisioningProfile,
   resolveIosProfileId,
 } from "./credentials-interactive";
 import {
@@ -180,6 +181,72 @@ const bindIosPushKey = (ctx: WizardContext) =>
     return undefined;
   });
 
+const setupProjectPushNotifications = (ctx: WizardContext) =>
+  Effect.gen(function* () {
+    const keys = yield* ctx.api.applePushKeys.list();
+    const choice =
+      keys.items.length === 0
+        ? "add"
+        : yield* promptSelect<"add" | "existing">("How would you like to set up the push key?", [
+            { value: "existing", label: `Use an existing push key (${String(keys.items.length)})` },
+            { value: "add", label: "Add a new push key" },
+          ]);
+    const config = yield* promptForBundleConfig(ctx);
+    const pushKeyId =
+      choice === "add"
+        ? yield* createNewPushKeyForBundle(ctx, config.appleTeamId)
+        : yield* promptSelect<string>(
+            "Select a push key to bind",
+            keys.items.map((key) => ({
+              value: key.id,
+              label: `${key.keyId} (team ${key.appleTeamId})`,
+            })),
+          );
+    yield* ctx.api.iosBundleConfigurations.update({
+      path: { id: config.id },
+      payload: { applePushKeyId: pushKeyId },
+    });
+    yield* Console.log(
+      `Push notifications set up: key ${pushKeyId} bound to ${config.bundleIdentifier} (${config.distributionType}).`,
+    );
+    return undefined;
+  });
+
+const createNewPushKeyForBundle = (ctx: WizardContext, fallbackTeamId: string) =>
+  Effect.gen(function* () {
+    yield* printHuman("Apple does not expose APNs key creation via API.");
+    yield* printHuman(`Create one here, download .p8, then return: ${APPLE_PUSH_KEY_PORTAL_URL}`);
+    const rawKeyId = (yield* promptText("APNs key ID (10 uppercase alphanumeric)"))
+      .trim()
+      .toUpperCase();
+    if (!APPLE_TEN_CHARS.test(rawKeyId)) {
+      return yield* new CredentialValidationError({
+        message: `Push key ID "${rawKeyId}" must be 10 uppercase alphanumeric characters.`,
+      });
+    }
+    const rawTeamId = (yield* promptText("Apple Team identifier", {
+      defaultValue: fallbackTeamId,
+    }))
+      .trim()
+      .toUpperCase();
+    if (!APPLE_TEN_CHARS.test(rawTeamId)) {
+      return yield* new CredentialValidationError({
+        message: "Apple Team ID must be 10 uppercase alphanumeric characters.",
+      });
+    }
+    const p8Path = yield* promptText("Path to the AuthKey_XXXXXXXXXX.p8 file");
+    const created = yield* uploadCredential(ctx.api, {
+      platform: "ios",
+      type: "push-key",
+      name: rawKeyId,
+      filePath: p8Path,
+      keyId: rawKeyId,
+      appleTeamIdentifier: rawTeamId,
+    });
+    yield* Console.log(`APNs push key ${rawKeyId} uploaded.`);
+    return created.id;
+  });
+
 const uploadIosAscKey = (ctx: WizardContext) =>
   Effect.gen(function* () {
     const keyId = (yield* promptText("ASC key ID (10 uppercase alphanumeric)"))
@@ -228,7 +295,69 @@ const bindIosAscKey = (ctx: WizardContext) =>
     return undefined;
   });
 
+const setupProjectAscApiKey = (ctx: WizardContext) =>
+  Effect.gen(function* () {
+    const keys = yield* ctx.api.ascApiKeys.list();
+    const choice =
+      keys.items.length === 0
+        ? "upload"
+        : yield* promptSelect<"upload" | "existing">("How would you like to set up the ASC key?", [
+            {
+              value: "existing",
+              label: `Use an existing ASC API key (${String(keys.items.length)})`,
+            },
+            { value: "upload", label: "Upload a new ASC API key" },
+          ]);
+    const config = yield* promptForBundleConfig(ctx);
+    const ascKeyId =
+      choice === "upload"
+        ? yield* uploadNewAscKey(ctx)
+        : yield* promptSelect<string>(
+            "Select an ASC API key to bind",
+            keys.items.map((key) => ({ value: key.id, label: `${key.name} (${key.keyId})` })),
+          );
+    yield* ctx.api.iosBundleConfigurations.update({
+      path: { id: config.id },
+      payload: { ascApiKeyId: ascKeyId },
+    });
+    yield* Console.log(
+      `ASC API key set up: ${ascKeyId} bound to ${config.bundleIdentifier} (${config.distributionType}).`,
+    );
+    return undefined;
+  });
+
+const uploadNewAscKey = (ctx: WizardContext) =>
+  Effect.gen(function* () {
+    const keyId = (yield* promptText("ASC key ID (10 uppercase alphanumeric)"))
+      .trim()
+      .toUpperCase();
+    const issuerId = yield* promptText("ASC issuer ID (UUID)");
+    const p8Path = yield* promptText("Path to the ASC AuthKey_XXXXXXXXXX.p8 file");
+    const rawName = yield* promptText("Display name", { defaultValue: keyId });
+    const name = rawName.length === 0 ? keyId : rawName;
+    const created = yield* uploadCredential(ctx.api, {
+      platform: "ios",
+      type: "asc-api-key",
+      name,
+      filePath: p8Path,
+      keyId,
+      issuerId,
+    });
+    yield* Console.log(`ASC API key ${keyId} uploaded.`);
+    return created.id;
+  });
+
 // ── Menus ────────────────────────────────────────────────────────
+
+const refreshIosProvisioningProfile = (ctx: WizardContext) =>
+  Effect.gen(function* () {
+    const config = yield* promptForBundleConfig(ctx);
+    yield* regenerateProvisioningProfile(ctx.api, {
+      projectId: ctx.projectId,
+      bundleIdentifier: config.bundleIdentifier,
+      distribution: matchDistribution(config.distributionType),
+    });
+  });
 
 const iosBuildCredentialsMenu = (ctx: WizardContext): MenuEffect =>
   Effect.gen(function* () {
@@ -238,6 +367,7 @@ const iosBuildCredentialsMenu = (ctx: WizardContext): MenuEffect =>
         { value: "setup", label: "Set up project credentials (cert + profile + bind)" },
         { value: "use-existing-cert", label: "Use an existing distribution certificate" },
         { value: "generate-cert", label: "Add a new distribution certificate" },
+        { value: "refresh-profile", label: "Refresh provisioning profile (re-issue from Apple)" },
         { value: "delete-cert", label: "Delete a distribution certificate" },
         { value: "delete-profile", label: "Delete a provisioning profile" },
         { value: BACK, label: "Go back" },
@@ -252,6 +382,8 @@ const iosBuildCredentialsMenu = (ctx: WizardContext): MenuEffect =>
       yield* safely("use existing cert", useExistingIosDistributionCert(ctx));
     } else if (choice === "generate-cert") {
       yield* safely("generate cert", generateNewIosDistributionCert(ctx));
+    } else if (choice === "refresh-profile") {
+      yield* safely("refresh provisioning profile", refreshIosProvisioningProfile(ctx));
     } else if (choice === "delete-cert") {
       yield* safely(
         "delete cert",
@@ -271,8 +403,9 @@ const iosPushKeysMenu = (ctx: WizardContext): MenuEffect =>
     yield* announce("iOS > Push Notifications");
     const choice = yield* safePrompt(
       promptSelect<string>("What do you want to do?", [
+        { value: "setup", label: "Set up your project to use Push Notifications" },
         { value: "add", label: "Add a new push key" },
-        { value: "bind", label: "Bind an existing push key to a bundle" },
+        { value: "bind", label: "Use an existing push key" },
         { value: "remove", label: "Remove a push key" },
         { value: BACK, label: "Go back" },
       ]),
@@ -280,7 +413,9 @@ const iosPushKeysMenu = (ctx: WizardContext): MenuEffect =>
     if (choice === BACK) {
       return;
     }
-    if (choice === "add") {
+    if (choice === "setup") {
+      yield* safely("set up push notifications", setupProjectPushNotifications(ctx));
+    } else if (choice === "add") {
       yield* safely("add push key", addIosPushKey(ctx));
     } else if (choice === "bind") {
       yield* safely("bind push key", bindIosPushKey(ctx));
@@ -295,8 +430,9 @@ const iosAscKeysMenu = (ctx: WizardContext): MenuEffect =>
     yield* announce("iOS > App Store Connect API Key");
     const choice = yield* safePrompt(
       promptSelect<string>("What do you want to do?", [
-        { value: "upload", label: "Upload a new ASC API key" },
-        { value: "bind", label: "Bind an existing ASC API key to a bundle" },
+        { value: "setup", label: "Set up your project to use an ASC API Key" },
+        { value: "upload", label: "Add a new ASC API key" },
+        { value: "bind", label: "Use an existing ASC API key" },
         { value: "delete", label: "Delete an ASC API key" },
         { value: BACK, label: "Go back" },
       ]),
@@ -304,7 +440,9 @@ const iosAscKeysMenu = (ctx: WizardContext): MenuEffect =>
     if (choice === BACK) {
       return;
     }
-    if (choice === "upload") {
+    if (choice === "setup") {
+      yield* safely("set up ASC key", setupProjectAscApiKey(ctx));
+    } else if (choice === "upload") {
       yield* safely("upload ASC key", uploadIosAscKey(ctx));
     } else if (choice === "bind") {
       yield* safely("bind ASC key", bindIosAscKey(ctx));
