@@ -46,6 +46,14 @@ export const publishCommand = defineCommand({
       type: "boolean",
       description: "Write eas-update-metadata.json into the export directory after publish",
     },
+    "no-bytecode": {
+      type: "boolean",
+      description: "Disable Hermes bytecode compilation (emit raw JS)",
+    },
+    "source-maps": {
+      type: "boolean",
+      description: "Emit JavaScript source maps alongside bundles",
+    },
     "manifest-body-file": { type: "string" },
     "signature-file": { type: "string" },
     "certificate-chain-file": { type: "string" },
@@ -80,6 +88,8 @@ export const publishCommand = defineCommand({
           inputDir: args["input-dir"],
           skipBundler: args["skip-bundler"] ?? false,
           emitMetadata: args["emit-metadata"] ?? false,
+          noBytecode: args["no-bytecode"] ?? false,
+          sourceMaps: args["source-maps"] ?? false,
           manifestBodyFile: args["manifest-body-file"],
           signatureFile: args["signature-file"],
           certificateChainFile: args["certificate-chain-file"],

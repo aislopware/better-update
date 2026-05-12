@@ -28,6 +28,8 @@ interface RunExpoExportOptions extends ReadExpoPublicConfigOptions {
   readonly exportDir: string;
   readonly platform: Platform;
   readonly clear: boolean;
+  readonly noBytecode?: boolean;
+  readonly sourceMaps?: boolean;
 }
 
 interface ReadExpoExportAssetsOptions {
@@ -176,6 +178,8 @@ export const runExpoExport = ({
   platform,
   envVars,
   clear,
+  noBytecode,
+  sourceMaps,
 }: RunExpoExportOptions): Effect.Effect<
   void,
   BuildFailedError,
@@ -195,6 +199,12 @@ export const runExpoExport = ({
     ];
     if (clear) {
       args.push("--clear");
+    }
+    if (noBytecode === true) {
+      args.push("--no-bytecode");
+    }
+    if (sourceMaps === true) {
+      args.push("--source-maps");
     }
 
     return yield* runCommand(
