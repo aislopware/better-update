@@ -85,3 +85,27 @@ export const printHuman = (message: string): Effect.Effect<void, never, OutputMo
     }
     yield* Console.log(message);
   });
+
+/**
+ * Emit a list result. In JSON mode always emits `{items: [...]}`; in human mode
+ * prints the table or, if empty, the `emptyMessage`. Use this for `list`-style
+ * commands so empty results stay parseable as `{items: []}` instead of falling
+ * back to a plain-text "Nothing found" message.
+ */
+export const printList = (
+  headers: readonly string[],
+  rows: readonly (readonly string[])[],
+  emptyMessage: string,
+): Effect.Effect<void, never, OutputMode> =>
+  Effect.gen(function* () {
+    const mode = yield* OutputMode;
+    if (mode.json) {
+      yield* printTable(headers, rows);
+      return;
+    }
+    if (rows.length === 0) {
+      yield* Console.log(emptyMessage);
+      return;
+    }
+    yield* printTable(headers, rows);
+  });

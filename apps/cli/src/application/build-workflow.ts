@@ -4,12 +4,15 @@ import { runAndroidBuild } from "../commands/build/android";
 import { runIosBuild } from "../commands/build/ios";
 import { reserveAndUpload } from "../commands/build/reserve-and-upload";
 import { readBuildProfile } from "../lib/build-profile";
+import { clearBuildCaches } from "../lib/clear-cache";
 import { pullEnvVars } from "../lib/env-exporter";
 import { BuildProfileError } from "../lib/exit-codes";
 import { extractProjectId, readAppMeta, readExpoConfig } from "../lib/expo-config";
 import { readGitContext } from "../lib/git-context";
 import { readGradleConfig, warnOnGradleMismatch } from "../lib/gradle-config";
 import { printKeyValue } from "../lib/output";
+import { detectPlatform } from "../lib/platform-detect";
+import { ensureRepoClean } from "../lib/repo-clean";
 import { resolveRuntimeVersion } from "../lib/runtime-version";
 import { acquireBuildTempDir } from "../lib/temp-dir";
 import { apiClient } from "../services/api-client";
@@ -20,11 +23,14 @@ import type { BuildTarget } from "../commands/build/reserve-and-upload";
 import type { Platform } from "../lib/build-profile";
 
 export interface RunBuildWorkflowOptions {
-  readonly platform: Platform;
+  readonly platform: Platform | undefined;
   readonly profileName: string;
   readonly message: string | undefined;
   readonly noUpload: boolean;
   readonly rawOutput?: boolean;
+  readonly clearCache?: boolean;
+  readonly freezeCredentials?: boolean;
+  readonly allowDirty?: boolean;
 }
 
 type AppMeta = Effect.Effect.Success<ReturnType<typeof readAppMeta>>;
@@ -34,6 +40,7 @@ type ApiClient = Effect.Effect.Success<typeof apiClient>;
 interface PlatformBuildInput {
   readonly api: ApiClient;
   readonly options: RunBuildWorkflowOptions;
+  readonly platform: Platform;
   readonly profile: BuildProfile;
   readonly appMeta: AppMeta;
   readonly envVars: Record<string, string>;
@@ -59,11 +66,15 @@ const runIosPlatformBuild = (input: PlatformBuildInput) =>
     }
     const credentialsSource = profile.credentialsSource ?? "remote";
     if (credentialsSource === "remote") {
-      yield* ensureIosCredentials(api, {
-        projectId,
-        bundleIdentifier: iosBundleId,
-        distribution: iosProfile.distribution,
-      });
+      yield* ensureIosCredentials(
+        api,
+        {
+          projectId,
+          bundleIdentifier: iosBundleId,
+          distribution: iosProfile.distribution,
+        },
+        { freezeCredentials: options.freezeCredentials ?? false },
+      );
     }
     const build = yield* runIosBuild({
       api,
@@ -86,7 +97,7 @@ const runIosPlatformBuild = (input: PlatformBuildInput) =>
 
 const runAndroidPlatformBuild = (input: PlatformBuildInput) =>
   Effect.gen(function* () {
-    const { api, appMeta, envVars, profile, projectId, projectRoot, tempDir } = input;
+    const { api, appMeta, envVars, options, profile, projectId, projectRoot, tempDir } = input;
     if (!profile.android) {
       return yield* new BuildProfileError({
         message: `Profile "${profile.name}" has no android section.`,
@@ -108,7 +119,11 @@ const runAndroidPlatformBuild = (input: PlatformBuildInput) =>
     const applicationIdentifier = gradleConfig?.applicationId ?? androidBundleId;
     const credentialsSource = profile.credentialsSource ?? "remote";
     if (credentialsSource === "remote") {
-      yield* ensureAndroidCredentials(api, { projectId, applicationIdentifier });
+      yield* ensureAndroidCredentials(
+        api,
+        { projectId, applicationIdentifier },
+        { freezeCredentials: options.freezeCredentials ?? false },
+      );
     }
     const build = yield* runAndroidBuild({
       api,
@@ -128,18 +143,26 @@ const runAndroidPlatformBuild = (input: PlatformBuildInput) =>
   });
 
 const runPlatformBuild = (input: PlatformBuildInput) =>
-  input.options.platform === "ios" ? runIosPlatformBuild(input) : runAndroidPlatformBuild(input);
+  input.platform === "ios" ? runIosPlatformBuild(input) : runAndroidPlatformBuild(input);
 
 export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
   Effect.scoped(
+    // eslint-disable-next-line eslint/max-statements -- build orchestration is inherently sequential (read config → detect platform → resolve profile → pull env → build → upload); splitting further fragments the pipeline
     Effect.gen(function* () {
       const api = yield* apiClient;
       const runtime = yield* CliRuntime;
       const projectRoot = yield* runtime.cwd;
 
+      yield* ensureRepoClean({
+        projectRoot,
+        allowDirty: options.allowDirty ?? false,
+        label: "build",
+      });
+
       // Read the project's Expo config to extract projectId.
       const baseConfig = yield* readExpoConfig(projectRoot);
       const projectId = yield* extractProjectId(baseConfig);
+      const platform = yield* detectPlatform(options.platform, baseConfig);
 
       // Resolve the build profile from eas.json — static, env-independent.
       const profile = yield* readBuildProfile(projectRoot, options.profileName);
@@ -155,7 +178,7 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
       // (bundleId, version, runtimeVersion). envVars are scoped to the call
       // so they don't leak to child processes.
       const expoConfig = yield* readExpoConfig(projectRoot, envVars);
-      const appMeta = yield* readAppMeta(expoConfig, options.platform);
+      const appMeta = yield* readAppMeta(expoConfig, platform);
 
       const runtimeVersion = yield* resolveRuntimeVersion({
         raw: appMeta.rawRuntimeVersion,
@@ -163,15 +186,20 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
         projectRoot,
       });
 
+      if (options.clearCache) {
+        yield* clearBuildCaches(projectRoot);
+      }
+
       const tempDir = yield* acquireBuildTempDir;
 
       yield* Console.log(
-        `Building ${options.platform} artifact for profile "${profile.name}" (runtimeVersion=${runtimeVersion})`,
+        `Building ${platform} artifact for profile "${profile.name}" (runtimeVersion=${runtimeVersion})`,
       );
 
       const outcome = yield* runPlatformBuild({
         api,
         options,
+        platform,
         profile,
         appMeta,
         envVars,
@@ -223,7 +251,7 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
       yield* printKeyValue([
         ["Build ID", result.id],
         ["Status", result.status],
-        ["Platform", options.platform],
+        ["Platform", platform],
         ["Profile", profile.name],
         ["Runtime version", runtimeVersion],
         ["Artifact", build.artifactPath],

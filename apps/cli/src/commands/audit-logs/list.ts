@@ -1,9 +1,9 @@
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
 import { parseLimit } from "../../lib/cli-schemas";
-import { printTable } from "../../lib/output";
+import { printList } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 
 export const listCommand = defineCommand({
@@ -35,12 +35,7 @@ export const listCommand = defineCommand({
           urlParams: { ...filters, limit },
         });
 
-        if (items.length === 0) {
-          yield* Console.log("No audit log entries found.");
-          return;
-        }
-
-        yield* printTable(
+        yield* printList(
           ["ID", "Action", "Resource Type", "Resource ID", "Actor", "Source", "Created"],
           items.map((log) => [
             log.id,
@@ -51,6 +46,7 @@ export const listCommand = defineCommand({
             log.source,
             log.createdAt,
           ]),
+          "No audit log entries found.",
         );
       }),
     ),

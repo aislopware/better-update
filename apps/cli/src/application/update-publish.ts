@@ -14,6 +14,7 @@ import { extractProjectId, extractSlug, readExpoConfig } from "../lib/expo-confi
 import { readExpoExportAssets, readExpoPublicConfig, runExpoExport } from "../lib/expo-export";
 import { formatCause } from "../lib/format-error";
 import { readGitContext } from "../lib/git-context";
+import { ensureRepoClean } from "../lib/repo-clean";
 import { resolveRuntimeVersion } from "../lib/runtime-version";
 import { sha256File, sha256Namespaced } from "../lib/sha256";
 import { loadSignedPublishPayloads } from "../lib/signed-payloads";
@@ -28,11 +29,14 @@ import type {
   AuthRequiredError,
   BuildProfileError,
   BuildFailedError,
+  DirtyRepoError,
+  InteractiveProhibitedError,
   ProjectNotLinkedError,
   EnvExportError,
   RuntimeVersionError,
 } from "../lib/exit-codes";
 import type { ExpoConfig } from "../lib/expo-config";
+import type { InteractiveMode } from "../lib/interactive-mode";
 import type { SignedPayload } from "../lib/signed-payloads";
 import type { ApiClientService } from "../services/api-client";
 
@@ -43,6 +47,7 @@ export interface RunUpdatePublishOptions {
   readonly auto: boolean;
   readonly environment: string;
   readonly clear: boolean;
+  readonly allowDirty: boolean;
   readonly rolloutPercentage: number | undefined;
   readonly manifestBodyFile: string | undefined;
   readonly signatureFile: string | undefined;
@@ -280,12 +285,15 @@ export const runUpdatePublish = (
   | BuildProfileError
   | RuntimeVersionError
   | EnvExportError
-  | BuildFailedError,
+  | BuildFailedError
+  | DirtyRepoError
+  | InteractiveProhibitedError,
   | ApiClientService
   | CliRuntime
   | UpdateAssetUploader
   | CommandExecutor.CommandExecutor
   | FileSystem.FileSystem
+  | InteractiveMode
 > =>
   Effect.scoped(
     // eslint-disable-next-line eslint/max-statements -- update publish orchestration is inherently sequential (read config → resolve runtime version → expo export → register assets → publish per platform); splitting further fragments the pipeline without improving readability
@@ -293,6 +301,12 @@ export const runUpdatePublish = (
       const runtime = yield* CliRuntime;
       const projectRoot = yield* runtime.cwd;
       const api = yield* apiClient;
+
+      yield* ensureRepoClean({
+        projectRoot,
+        allowDirty: options.allowDirty,
+        label: "update publish",
+      });
 
       const baseConfig = yield* readExpoConfig(projectRoot);
       const projectId = yield* extractProjectId(baseConfig);

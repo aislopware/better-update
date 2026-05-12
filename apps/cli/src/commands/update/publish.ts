@@ -12,6 +12,7 @@ const PUBLISH_EXIT_EXTRAS = {
   EnvExportError: 7,
   BuildFailedError: 6,
   UpdatePublishError: 7,
+  DirtyRepoError: 3,
 } as const;
 
 export const publishCommand = defineCommand({
@@ -38,6 +39,10 @@ export const publishCommand = defineCommand({
     "manifest-body-file-android": { type: "string" },
     "signature-file-android": { type: "string" },
     "certificate-chain-file-android": { type: "string" },
+    "allow-dirty": {
+      type: "boolean",
+      description: "Proceed even with uncommitted git changes",
+    },
   },
   run: async ({ args }) =>
     runEffect(
@@ -53,6 +58,7 @@ export const publishCommand = defineCommand({
           auto: args.auto ?? false,
           environment: args.environment,
           clear: args.clear ?? false,
+          allowDirty: args["allow-dirty"] ?? false,
           rolloutPercentage,
           manifestBodyFile: args["manifest-body-file"],
           signatureFile: args["signature-file"],

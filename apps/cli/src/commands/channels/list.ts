@@ -1,10 +1,10 @@
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
 import { drainPages } from "../../lib/drain-cursor";
 import { readProjectId } from "../../lib/expo-config";
-import { printTable } from "../../lib/output";
+import { printList } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 import { channelErrorExtras } from "./helpers";
 
@@ -29,14 +29,9 @@ export const listCommand = defineCommand({
           ),
         ]);
 
-        if (items.length === 0) {
-          yield* Console.log("No channels found.");
-          return;
-        }
-
         const branchNames = new Map(branches.map((branch) => [branch.id, branch.name]));
 
-        yield* printTable(
+        yield* printList(
           ["ID", "Name", "Branch", "Paused", "Rollout", "Created"],
           items.map((channel) => [
             channel.id,
@@ -46,6 +41,7 @@ export const listCommand = defineCommand({
             channel.branchMappingJson === null ? "-" : "active",
             channel.createdAt,
           ]),
+          "No channels found.",
         );
       }),
       channelErrorExtras,

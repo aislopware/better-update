@@ -1,9 +1,9 @@
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
 import { filterCredentials, listAllCredentials } from "../../lib/credentials-manager";
-import { printTable } from "../../lib/output";
+import { printList } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 
 export const listCommand = defineCommand({
@@ -19,12 +19,7 @@ export const listCommand = defineCommand({
 
         const filtered = filterCredentials(rows, args.platform ? { platform: args.platform } : {});
 
-        if (filtered.length === 0) {
-          yield* Console.log("No credentials found.");
-          return;
-        }
-
-        yield* printTable(
+        yield* printList(
           ["ID", "Name", "Platform", "Type", "Distribution"],
           filtered.map((row) => [
             row.id,
@@ -33,6 +28,7 @@ export const listCommand = defineCommand({
             row.type,
             row.distribution ?? "-",
           ]),
+          "No credentials found.",
         );
       }),
     ),

@@ -2,7 +2,7 @@ import { defineCommand } from "citty";
 import { Console, Effect } from "effect";
 
 import { runEffect } from "../lib/citty-effect";
-import { printKeyValue, printTable } from "../lib/output";
+import { printHuman, printKeyValue, printList } from "../lib/output";
 import { apiClient } from "../services/api-client";
 
 const listCommand = defineCommand({
@@ -31,16 +31,12 @@ const listCommand = defineCommand({
           },
         });
 
-        if (items.length === 0) {
-          yield* Console.log("No projects found.");
-          return;
-        }
-
-        yield* printTable(
+        yield* printList(
           ["ID", "Name", "Slug", "Last activity"],
           items.map((project) => [project.id, project.name, project.slug, project.lastActivityAt]),
+          "No projects found.",
         );
-        yield* Console.log(`Page ${page} · ${items.length} of ${total} project(s)`);
+        yield* printHuman(`Page ${page} · ${items.length} of ${total} project(s)`);
       }),
     ),
 });

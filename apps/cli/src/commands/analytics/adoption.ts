@@ -1,9 +1,9 @@
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
 import { readProjectId } from "../../lib/expo-config";
-import { printTable } from "../../lib/output";
+import { printList } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 
 export const adoptionCommand = defineCommand({
@@ -23,12 +23,7 @@ export const adoptionCommand = defineCommand({
           urlParams: { projectId, ...periodFilter },
         });
 
-        if (result.updates.length === 0) {
-          yield* Console.log("No adoption data found.");
-          return;
-        }
-
-        yield* printTable(
+        yield* printList(
           ["Update ID", "Devices", "First Seen", "Last Seen"],
           result.updates.map((update) => [
             update.updateId,
@@ -36,6 +31,7 @@ export const adoptionCommand = defineCommand({
             update.firstSeen,
             update.lastSeen,
           ]),
+          "No adoption data found.",
         );
       }),
     ),

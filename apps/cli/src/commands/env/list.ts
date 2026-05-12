@@ -1,9 +1,9 @@
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
 import { readProjectId } from "../../lib/expo-config";
-import { printTable } from "../../lib/output";
+import { printList } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 import { envErrorExtras } from "./helpers";
 
@@ -24,12 +24,7 @@ export const listCommand = defineCommand({
           urlParams: { projectId, ...envFilter },
         });
 
-        if (result.items.length === 0) {
-          yield* Console.log("No environment variables found.");
-          return;
-        }
-
-        yield* printTable(
+        yield* printList(
           ["Key", "Environment", "Visibility", "Value"],
           result.items.map((item) => [
             item.key,
@@ -38,6 +33,7 @@ export const listCommand = defineCommand({
             // eslint-disable-next-line eslint-js/no-restricted-syntax -- EnvVar.value nullable at storage; display empty when absent
             item.visibility === "plaintext" ? (item.value ?? "") : "••••••",
           ]),
+          "No environment variables found.",
         );
       }),
       envErrorExtras,
