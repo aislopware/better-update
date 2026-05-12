@@ -218,6 +218,42 @@ export const writeProjectId = (
     } satisfies WriteProjectIdResult;
   });
 
+export interface WriteExpoConfigPatchResult {
+  readonly type: "success" | "warn";
+  readonly configPath: string | null;
+  readonly message?: string;
+}
+
+export const writeExpoConfigPatch = (
+  projectRoot: string,
+  patch: Record<string, unknown>,
+): Effect.Effect<WriteExpoConfigPatchResult, ProjectNotLinkedError> =>
+  Effect.gen(function* () {
+    const result = yield* Effect.tryPromise({
+      try: async () =>
+        loadExpoConfigModule().modifyConfigAsync(projectRoot, patch, {
+          skipSDKVersionRequirement: true,
+        }),
+      catch: (cause) =>
+        new ProjectNotLinkedError({
+          message: `Failed to write Expo config: ${formatCause(cause)}`,
+        }),
+    });
+
+    if (result.type === "fail") {
+      return yield* new ProjectNotLinkedError({
+        message: result.message ?? "Failed to write Expo config.",
+      });
+    }
+
+    const paths = yield* getConfigFilePaths(projectRoot);
+    return {
+      type: result.type,
+      configPath: result.config === null ? null : paths.staticConfigPath,
+      ...(result.message === undefined ? {} : { message: result.message }),
+    } satisfies WriteExpoConfigPatchResult;
+  });
+
 const extractBuildNumber = (config: ExpoConfig, platform: Platform): string | undefined => {
   if (platform === "ios") {
     return config.ios?.buildNumber;

@@ -1,5 +1,6 @@
 import { defineCommand } from "citty";
 
+import { configureCommand } from "./configure";
 import { deleteCommand } from "./delete";
 import { editCommand } from "./edit";
 import { insightsCommand } from "./insights";
@@ -16,6 +17,7 @@ export const updateCommand = defineCommand({
   meta: { name: "update", description: "Manage OTA updates" },
   subCommands: {
     publish: publishCommand,
+    configure: configureCommand,
     list: listCommand,
     view: viewCommand,
     delete: deleteCommand,

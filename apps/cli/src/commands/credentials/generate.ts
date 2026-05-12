@@ -10,8 +10,9 @@ import {
   listAppleCertificates,
   revokeAppleCertificate,
 } from "../../lib/credentials-generator";
+import { uploadCredential } from "../../lib/credentials-manager";
 import { CredentialValidationError } from "../../lib/exit-codes";
-import { printKeyValue } from "../../lib/output";
+import { printHuman, printKeyValue } from "../../lib/output";
 import { promptMultiSelect, promptPassword, promptText } from "../../lib/prompts";
 import { apiClient } from "../../services/api-client";
 
@@ -277,11 +278,132 @@ const parseDeviceIds = (raw: string | undefined): readonly string[] | undefined 
   return ids.length === 0 ? undefined : ids;
 };
 
+const APPLE_PUSH_KEY_PORTAL_URL = "https://developer.apple.com/account/resources/authkeys/list";
+const KEY_ID_PATTERN = /^[A-Z0-9]{10}$/u;
+const APPLE_TEAM_ID_PATTERN = /^[A-Z0-9]{10}$/u;
+
+const resolveAppleTeamFromAscKey = (api: ApiClient, ascApiKeyId: string | undefined) =>
+  Effect.gen(function* () {
+    if (ascApiKeyId === undefined) {
+      return undefined;
+    }
+    const ascKeys = yield* api.ascApiKeys.list();
+    const match = ascKeys.items.find((entry) => entry.id === ascApiKeyId);
+    const teamId = match?.appleTeamId;
+    return typeof teamId === "string" ? teamId : undefined;
+  });
+
+interface PushKeyArgs {
+  readonly "key-id"?: string | undefined;
+  readonly "apple-team-id"?: string | undefined;
+  readonly p8?: string | undefined;
+  readonly "asc-key-id"?: string | undefined;
+  readonly name?: string | undefined;
+  readonly "skip-portal-hint"?: boolean | undefined;
+}
+
+const validateKeyId = (value: string) =>
+  KEY_ID_PATTERN.test(value)
+    ? Effect.succeed(value)
+    : Effect.fail(
+        new CredentialValidationError({
+          message: `Push key ID "${value}" must be 10 uppercase alphanumeric characters.`,
+        }),
+      );
+
+const validateAppleTeamId = (value: string) =>
+  APPLE_TEAM_ID_PATTERN.test(value)
+    ? Effect.succeed(value)
+    : Effect.fail(
+        new CredentialValidationError({
+          message: `Apple Team ID "${value}" must be 10 uppercase alphanumeric characters.`,
+        }),
+      );
+
+const pushKeyCommand = defineCommand({
+  meta: {
+    name: "push-key",
+    description:
+      "Register an APNs auth key (.p8) — guides you through creating one in the Apple Developer portal, then uploads it",
+  },
+  args: {
+    "key-id": { type: "string", description: "APNs key ID (10 uppercase alphanumeric)" },
+    "apple-team-id": { type: "string", description: "Apple Team identifier" },
+    p8: { type: "string", description: "Path to the AuthKey_XXXXXXXXXX.p8 file" },
+    "asc-key-id": {
+      type: "string",
+      description: "ASC API key ID to derive --apple-team-id automatically",
+    },
+    name: { type: "string", description: "Display name (defaults to the key ID)" },
+    "skip-portal-hint": {
+      type: "boolean",
+      description: "Skip the Apple Developer portal URL hint (already created the key)",
+    },
+  },
+  run: async ({ args }: { readonly args: PushKeyArgs }) =>
+    runEffect(
+      Effect.gen(function* () {
+        const api = yield* apiClient;
+
+        if (args["skip-portal-hint"] !== true) {
+          yield* printHuman("Apple does not expose APNs key creation via the public ASC API.");
+          yield* printHuman("Create the key here, download the .p8, then come back:");
+          yield* printHuman(`  ${APPLE_PUSH_KEY_PORTAL_URL}`);
+          yield* printHuman("");
+        }
+
+        const resolved = yield* resolvePushKeyInput(api, args);
+        yield* Console.log("Uploading APNs auth key...");
+        const credential = yield* uploadCredential(api, {
+          platform: "ios",
+          type: "push-key",
+          name: resolved.name,
+          filePath: resolved.p8Path,
+          keyId: resolved.keyId,
+          appleTeamIdentifier: resolved.appleTeamIdentifier,
+        });
+        yield* Console.log("APNs push key registered.");
+        yield* printKeyValue([
+          ["ID", credential.id],
+          ["Key ID", resolved.keyId],
+          ["Apple team", resolved.appleTeamIdentifier],
+        ]);
+        return undefined;
+      }),
+      GENERATE_EXIT_EXTRAS,
+    ),
+});
+
+const resolvePushKeyInput = (api: ApiClient, args: PushKeyArgs) =>
+  Effect.gen(function* () {
+    const derivedTeamId = yield* resolveAppleTeamFromAscKey(api, args["asc-key-id"]);
+
+    const rawKeyId =
+      args["key-id"] ?? (yield* promptText("APNs key ID (10 uppercase alphanumeric)"));
+    const keyId = yield* validateKeyId(rawKeyId.trim().toUpperCase());
+
+    const rawTeamId =
+      args["apple-team-id"] ??
+      derivedTeamId ??
+      (yield* promptText("Apple Team identifier (10 uppercase alphanumeric)"));
+    const appleTeamIdentifier = yield* validateAppleTeamId(rawTeamId.trim().toUpperCase());
+
+    const p8Path =
+      args.p8 ?? (yield* promptText("Path to the AuthKey_XXXXXXXXXX.p8 file you downloaded"));
+    if (p8Path.trim().length === 0) {
+      return yield* new CredentialValidationError({ message: "Missing --p8 path" });
+    }
+
+    const name = args.name ?? keyId;
+    return { keyId, appleTeamIdentifier, p8Path, name };
+  });
+
 export const generateCommand = defineCommand({
   meta: { name: "generate", description: "Generate signing credentials" },
   subCommands: {
     keystore: keystoreCommand,
     "distribution-certificate": distributionCertificateCommand,
     "provisioning-profile": provisioningProfileCommand,
+    "push-key": pushKeyCommand,
   },
 });
