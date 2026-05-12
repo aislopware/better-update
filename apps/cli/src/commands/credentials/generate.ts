@@ -398,6 +398,87 @@ const resolvePushKeyInput = (api: ApiClient, args: PushKeyArgs) =>
     return { keyId, appleTeamIdentifier, p8Path, name };
   });
 
+const GSA_FIREBASE_URL =
+  "https://console.firebase.google.com/project/_/settings/serviceaccounts/adminsdk";
+const GSA_GCP_URL = "https://console.cloud.google.com/iam-admin/serviceaccounts";
+
+interface GsaKeyArgs {
+  readonly file?: string | undefined;
+  readonly name?: string | undefined;
+  readonly purpose?: "fcm" | "play" | undefined;
+  readonly "skip-portal-hint"?: boolean | undefined;
+}
+
+const gsaKeyCommand = defineCommand({
+  meta: {
+    name: "gsa-key",
+    description:
+      "Register a Google Service Account JSON key — guides you through creating one in the Firebase/GCP console, then uploads it",
+  },
+  args: {
+    file: { type: "string", description: "Path to the Google service account JSON file" },
+    name: { type: "string", description: "Display name (defaults to the file name)" },
+    purpose: {
+      type: "enum",
+      options: ["fcm", "play"],
+      description:
+        "Where this key will be used: fcm (Firebase Cloud Messaging V1) or play (Play Store submissions)",
+    },
+    "skip-portal-hint": {
+      type: "boolean",
+      description: "Skip the Firebase/GCP portal URL hint (already downloaded the key)",
+    },
+  },
+  run: async ({ args }: { readonly args: GsaKeyArgs }) =>
+    runEffect(
+      Effect.gen(function* () {
+        const api = yield* apiClient;
+
+        if (args["skip-portal-hint"] !== true) {
+          yield* printHuman(
+            "Google does not expose service-account key creation via a public API.",
+          );
+          yield* printHuman(
+            "Create one in the appropriate console, download the JSON, then come back:",
+          );
+          if (args.purpose === "play") {
+            yield* printHuman(`  Play submissions (GCP IAM): ${GSA_GCP_URL}`);
+          } else if (args.purpose === "fcm") {
+            yield* printHuman(`  FCM V1 push (Firebase console): ${GSA_FIREBASE_URL}`);
+          } else {
+            yield* printHuman(`  FCM V1 push (Firebase): ${GSA_FIREBASE_URL}`);
+            yield* printHuman(`  Play submissions (GCP IAM): ${GSA_GCP_URL}`);
+          }
+          yield* printHuman("");
+        }
+
+        const filePath =
+          args.file !== undefined && args.file.trim().length > 0
+            ? args.file
+            : yield* promptText("Path to the Google service account JSON file");
+        if (filePath.trim().length === 0) {
+          return yield* new CredentialValidationError({ message: "Missing --file path" });
+        }
+        const name = args.name ?? filePath;
+
+        yield* Console.log("Uploading Google service account key...");
+        const credential = yield* uploadCredential(api, {
+          platform: "android",
+          type: "google-service-account-key",
+          name,
+          filePath,
+        });
+        yield* Console.log("Google service account key registered.");
+        yield* printKeyValue([
+          ["ID", credential.id],
+          ["Name", credential.name],
+        ]);
+        return undefined;
+      }),
+      GENERATE_EXIT_EXTRAS,
+    ),
+});
+
 export const generateCommand = defineCommand({
   meta: { name: "generate", description: "Generate signing credentials" },
   subCommands: {
@@ -405,5 +486,6 @@ export const generateCommand = defineCommand({
     "distribution-certificate": distributionCertificateCommand,
     "provisioning-profile": provisioningProfileCommand,
     "push-key": pushKeyCommand,
+    "gsa-key": gsaKeyCommand,
   },
 });

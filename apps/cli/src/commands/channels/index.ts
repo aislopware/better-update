@@ -8,11 +8,13 @@ import { pauseCommand } from "./pause";
 import { resumeCommand } from "./resume";
 import { rolloutCommand } from "./rollout";
 import { updateCommand } from "./update";
+import { viewCommand } from "./view";
 
 export const channelsCommand = defineCommand({
   meta: { name: "channels", description: "Manage channels" },
   subCommands: {
     list: listCommand,
+    view: viewCommand,
     create: createCommand,
     update: updateCommand,
     pause: pauseCommand,

@@ -54,6 +54,8 @@ export interface RunUpdatePublishOptions {
   readonly inputDir: string | undefined;
   readonly skipBundler: boolean;
   readonly emitMetadata: boolean;
+  readonly noBytecode: boolean;
+  readonly sourceMaps: boolean;
   readonly manifestBodyFile: string | undefined;
   readonly signatureFile: string | undefined;
   readonly certificateChainFile: string | undefined;
@@ -148,6 +150,8 @@ const publishPlatform = (params: {
   readonly signedPayload: SignedPayload | null;
   readonly rolloutPercentage: number | undefined;
   readonly skipBundler: boolean;
+  readonly noBytecode: boolean;
+  readonly sourceMaps: boolean;
 }): Effect.Effect<
   PublishedPlatformResult,
   | AuthRequiredError
@@ -179,6 +183,8 @@ const publishPlatform = (params: {
         platform: params.platform,
         envVars: params.environmentVars,
         clear: params.clear,
+        noBytecode: params.noBytecode,
+        sourceMaps: params.sourceMaps,
       });
     }
 
@@ -431,6 +437,8 @@ export const runUpdatePublish = (
             signedPayload: signedPayloads[platform] ?? null,
             rolloutPercentage: options.rolloutPercentage,
             skipBundler: options.skipBundler,
+            noBytecode: options.noBytecode,
+            sourceMaps: options.sourceMaps,
           }),
         { concurrency: 1 },
       );
