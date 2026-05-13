@@ -3,6 +3,21 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.10.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.9.0...@better-update/cli@0.10.0) (2026-05-13)
+
+### Features
+
+* **cli:** add credentials download + configure --rebind for EAS parity ([c3f95e5](https://github.com/better-update/better-update/commit/c3f95e50a65242548d54881f962c5ed330543eb2)) - by @trancong12102
+* **cli:** add credentials manager wizard + EAS-parity flags ([2ca4146](https://github.com/better-update/better-update/commit/2ca4146454d56342ef30c28d70257606f216aac5)) - by @trancong12102
+* **cli:** add provisioning refresh, update revert, EAS-parity manager setups ([a9b79ae](https://github.com/better-update/better-update/commit/a9b79ae1c3fe9539edab2154503524f965a86824)) - by @trancong12102
+* **cli:** add update configure, credentials remove wizard, push-key guided generate ([ec78a34](https://github.com/better-update/better-update/commit/ec78a34e5f9bbcf01422606496f9e9818236069c)) - by @trancong12102
+* **cli:** close EAS-parity gaps in credentials revoke, keystore download, FCM V1 binding ([10bcb2d](https://github.com/better-update/better-update/commit/10bcb2da7d92f87ce26e1b27590dc0a6445ca417)) - by @trancong12102
+* **cli:** fill EAS-parity gaps in env, update, channels, builds + UX polish ([af9f89c](https://github.com/better-update/better-update/commit/af9f89cca0c35da5191919438dd6247e2514c075)) - by @trancong12102
+* **cli:** fill remaining EAS-parity gaps in build, credentials, update ([ea80a9d](https://github.com/better-update/better-update/commit/ea80a9d72fb0d2ccd6b045d6ae819a77deb40cd8)) - by @trancong12102
+* **cli:** fill remaining EAS-parity gaps in channels, update, credentials ([e9110d4](https://github.com/better-update/better-update/commit/e9110d44cdf15a38b03cbc9271b5444f966b5cf5)) - by @trancong12102
+* fill EAS CLI parity gaps (P0/P1) for builds, env, credentials, devices ([6b6b12d](https://github.com/better-update/better-update/commit/6b6b12d4ed7d1aa02f13a0de91379e3e249d2fd2)) - by @trancong12102
+* move build credential generation client-side and expand CLI surface ([d1ee3b2](https://github.com/better-update/better-update/commit/d1ee3b227708cf92585070749800ce905d21e7a0)) - by @trancong12102
+
 ## [0.9.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.8.2...@better-update/cli@0.9.0) (2026-05-07)
 
 ### Features
