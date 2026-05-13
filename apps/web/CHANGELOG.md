@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.9.0](https://github.com/better-update/better-update/compare/@better-update/web@0.8.1...@better-update/web@0.9.0) (2026-05-13)
+
+### Features
+
+* move build credential generation client-side and expand CLI surface ([d1ee3b2](https://github.com/better-update/better-update/commit/d1ee3b227708cf92585070749800ce905d21e7a0)) - by @trancong12102
+
 ## [0.8.1](https://github.com/better-update/better-update/compare/@better-update/web@0.8.0...@better-update/web@0.8.1) (2026-05-07)
 
 ### Bug Fixes
