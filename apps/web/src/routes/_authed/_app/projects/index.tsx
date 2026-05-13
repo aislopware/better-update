@@ -38,6 +38,7 @@ import type { ProjectItem, ProjectSort, ProjectSortColumn } from "@better-update
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
 
 import { PageHeader } from "../../../../components/page-header";
+import { TableSkeleton } from "../../../../components/skeletons";
 import { EntityAvatar } from "../../../../lib/entity-avatar";
 import { formatRelativeTime } from "../../../../lib/format-relative-time";
 import { pluralize } from "../../../../lib/pluralize";
@@ -327,9 +328,7 @@ const Projects = () => {
           description="Manage your over-the-air update projects."
           actions={createCta}
         />
-        <div className="flex justify-center py-12">
-          <Loader2Icon className="text-muted-foreground size-6 animate-spin" />
-        </div>
+        <TableSkeleton columns={6} rows={6} />
       </div>
     );
   }

@@ -43,7 +43,15 @@ import { useState } from "react";
 
 import type { DateRange } from "react-day-picker";
 
+import { FilterBarSkeleton, TableSkeleton } from "../../../components/skeletons";
 import { formatRelativeTime } from "../../../lib/format-relative-time";
+
+export const AuditLogSkeleton = () => (
+  <div className="flex w-full flex-col gap-4">
+    <FilterBarSkeleton selectCount={2} />
+    <TableSkeleton columns={5} rows={6} hasFooter={false} />
+  </div>
+);
 
 const RESOURCE_TYPES = [
   { value: "all", label: "All resources" },

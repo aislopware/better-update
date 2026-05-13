@@ -14,6 +14,7 @@ import {
 } from "@better-update/ui/components/ui/card";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
+import { Suspense } from "react";
 
 import type { BuildWithArtifact } from "@better-update/api";
 
@@ -22,6 +23,7 @@ import { FORMAT_LABELS, formatBytes } from "../-build-helpers";
 import { synthesizeBuildChannels } from "../-compatibility-join";
 import { InstallLinkDialog } from "../-install-link-dialog";
 import { ProjectSubpageHeader } from "../-project-subpage-header";
+import { DetailCardSkeleton, SummaryCardsSkeleton } from "../../../../../../components/skeletons";
 
 import type { BuildWithSyntheticChannels } from "../-compatibility-join";
 
@@ -193,7 +195,7 @@ const BuildNotFoundState = ({ projectSlug }: { projectSlug: string }) => (
   </Card>
 );
 
-const BuildDetailPage = () => {
+const BuildDetailContent = () => {
   const { buildId } = Route.useParams();
   const { activeOrg, project } = Route.useRouteContext();
   const orgId = activeOrg.id;
@@ -206,11 +208,10 @@ const BuildDetailPage = () => {
   const buildWithChannels = synthesizeBuildChannels(build, compatibilityData);
 
   return (
-    <div className="flex w-full flex-col gap-4">
+    <>
       <ProjectSubpageHeader
         title={(build.message ?? build.profile) || `Build ${build.id.slice(0, 8)}`}
       />
-
       {build.projectId === projectId ? (
         <>
           <BuildCard
@@ -229,9 +230,29 @@ const BuildDetailPage = () => {
       ) : (
         <BuildNotFoundState projectSlug={project.slug} />
       )}
-    </div>
+    </>
   );
 };
+
+const BuildDetailSkeleton = () => (
+  <>
+    <ProjectSubpageHeader title="Build" />
+    <SummaryCardsSkeleton count={3} />
+    <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+      <DetailCardSkeleton rows={3} columns={2} />
+      <DetailCardSkeleton rows={2} columns={1} />
+    </div>
+    <DetailCardSkeleton rows={4} columns={2} />
+  </>
+);
+
+const BuildDetailPage = () => (
+  <div className="flex w-full flex-col gap-4">
+    <Suspense fallback={<BuildDetailSkeleton />}>
+      <BuildDetailContent />
+    </Suspense>
+  </div>
+);
 
 export const Route = createFileRoute("/_authed/_app/projects/$projectSlug/builds/$buildId")({
   component: BuildDetailPage,

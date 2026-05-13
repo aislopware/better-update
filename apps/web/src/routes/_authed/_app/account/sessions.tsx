@@ -4,15 +4,16 @@ import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Loader2Icon, MonitorIcon } from "lucide-react";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 
 import { SettingCard } from "../../../../components/setting-card";
+import { ListItemsSkeleton, SettingCardSkeleton } from "../../../../components/skeletons";
 import { authClient } from "../../../../lib/auth-client";
 import { formatRelativeTime } from "../../../../lib/format-relative-time";
 import { parseUserAgent } from "../../../../lib/user-agent";
 import { sessionQueryOptions, sessionsQueryOptions } from "../../../../queries/auth";
 
-const SessionsPage = () => {
+const SessionsList = () => {
   const queryClient = useQueryClient();
   const { data: sessions } = useSuspenseQuery(sessionsQueryOptions);
   const { data: currentSession } = useSuspenseQuery(sessionQueryOptions);
@@ -121,6 +122,18 @@ const SessionsPage = () => {
     </SettingCard>
   );
 };
+
+const SessionsPage = () => (
+  <Suspense
+    fallback={
+      <SettingCardSkeleton hasFooter={false}>
+        <ListItemsSkeleton rows={3} />
+      </SettingCardSkeleton>
+    }
+  >
+    <SessionsList />
+  </Suspense>
+);
 
 export const Route = createFileRoute("/_authed/_app/account/sessions")({
   component: SessionsPage,

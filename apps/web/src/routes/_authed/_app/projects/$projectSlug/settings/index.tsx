@@ -12,12 +12,14 @@ import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { Suspense } from "react";
 
 import type { ProjectDetail } from "@better-update/api-client/react";
 
 import { ConfirmDeleteDialog } from "../-confirm-delete-dialog";
 import { invalidateProjects } from "../-update-helpers";
 import { SettingCard } from "../../../../../../components/setting-card";
+import { SettingCardSkeleton } from "../../../../../../components/skeletons";
 import { getFieldError, nameSchema } from "../../../../../../lib/form-utils";
 import { safeSubmit, useApiMutation } from "../../../../../../lib/use-api-mutation";
 
@@ -125,17 +127,32 @@ const DeleteSection = ({ project }: { project: ProjectDetail }) => {
   );
 };
 
-const SettingsPage = () => {
+const SettingsContent = () => {
   const { activeOrg, project } = Route.useRouteContext();
   const { data: projectData } = useSuspenseQuery(projectQueryOptions(activeOrg.id, project.id));
 
   return (
-    <div className="flex flex-col gap-6">
+    <>
       <RenameSection project={projectData} />
       <DeleteSection project={projectData} />
-    </div>
+    </>
   );
 };
+
+const SettingsPage = () => (
+  <div className="flex flex-col gap-6">
+    <Suspense
+      fallback={
+        <>
+          <SettingCardSkeleton fields={1} />
+          <SettingCardSkeleton fields={0} hasFooter={false} />
+        </>
+      }
+    >
+      <SettingsContent />
+    </Suspense>
+  </div>
+);
 
 export const Route = createFileRoute("/_authed/_app/projects/$projectSlug/settings/")({
   component: SettingsPage,

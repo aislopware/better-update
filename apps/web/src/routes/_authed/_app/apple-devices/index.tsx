@@ -19,7 +19,7 @@ import { keepPreviousData, useQuery, useSuspenseQuery } from "@tanstack/react-qu
 import { createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { Loader2Icon, SearchIcon, SmartphoneIcon } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { Suspense, useMemo, useRef, useState } from "react";
 
 import type {
   DeviceClassValue,
@@ -30,6 +30,7 @@ import type { SortingState } from "@tanstack/react-table";
 
 import { formatAppleTeamLabel } from "../-credentials-utils";
 import { PageHeader } from "../../../../components/page-header";
+import { FilterBarSkeleton, TableSkeleton } from "../../../../components/skeletons";
 import { pluralize } from "../../../../lib/pluralize";
 import { buildDeviceColumns } from "./-devices-columns";
 import { DevicesTableView } from "./-devices-view";
@@ -213,7 +214,14 @@ const useDevicesQuery = (orgId: string, filters: DevicesFiltersState) => {
   });
 };
 
-const Devices = () => {
+const DevicesSkeleton = () => (
+  <div className="flex flex-col gap-3">
+    <FilterBarSkeleton hasSearch selectCount={2} />
+    <TableSkeleton columns={5} rows={5} />
+  </div>
+);
+
+const DevicesContent = () => {
   const { activeOrg } = Route.useRouteContext();
   const orgId = activeOrg.id;
 
@@ -278,13 +286,6 @@ const Devices = () => {
   });
 
   const inviteCta = useMemo(() => <InviteDeviceDialog orgId={orgId} />, [orgId]);
-  const registerCta = useMemo(() => <RegisterDeviceDialog orgId={orgId} />, [orgId]);
-  const headerActions = (
-    <>
-      {inviteCta}
-      {registerCta}
-    </>
-  );
 
   const filtersActive =
     filters.classFilter !== "ALL" ||
@@ -292,31 +293,15 @@ const Devices = () => {
     filters.debouncedQuery.length > 0;
 
   if (isLoading || data === undefined) {
-    return (
-      <div className="flex w-full flex-col gap-6">
-        <PageHeader
-          title="Apple devices"
-          description="Register UDIDs or invite team members to enroll their devices for ad-hoc builds."
-          actions={headerActions}
-        />
-        <div className="flex justify-center py-12">
-          <Loader2Icon className="text-muted-foreground size-6 animate-spin" />
-        </div>
-      </div>
-    );
+    return <TableSkeleton columns={5} rows={5} />;
   }
 
   if (data.total === 0 && !filtersActive && search.length === 0) {
     return (
-      <div className="flex w-full flex-col gap-6">
-        <PageHeader
-          title="Apple devices"
-          description="Register UDIDs or invite team members to enroll their devices for ad-hoc builds."
-          actions={headerActions}
-        />
+      <>
         <PendingInvitesList orgId={orgId} />
         <EmptyState orgId={orgId} inviteCta={inviteCta} />
-      </div>
+      </>
     );
   }
 
@@ -330,46 +315,62 @@ const Devices = () => {
   }`;
 
   return (
+    <div className="flex flex-col gap-3">
+      <DevicesFilterBar
+        search={search}
+        isPlaceholderData={isPlaceholderData}
+        classFilter={filters.classFilter}
+        teamFilter={filters.teamFilter}
+        teams={teamOptions}
+        onSearchChange={handleSearchChange}
+        onClassFilter={(classFilter) => {
+          setFilters((prev) => ({ ...prev, classFilter, page: 1 }));
+        }}
+        onTeamFilter={(teamFilter) => {
+          setFilters((prev) => ({ ...prev, teamFilter, page: 1 }));
+        }}
+      />
+      <PendingInvitesList orgId={orgId} />
+      {data.total === 0 ? (
+        <p className="text-muted-foreground rounded-xl border border-dashed py-10 text-center text-sm">
+          No devices match your filters.
+        </p>
+      ) : (
+        <DevicesTableView
+          table={table}
+          columnsCount={columns.length}
+          isPlaceholderData={isPlaceholderData}
+          countLabel={countLabel}
+          safePage={safePage}
+          totalPages={totalPages}
+          onPageChange={(page) => {
+            setFilters((prev) => ({ ...prev, page }));
+          }}
+        />
+      )}
+    </div>
+  );
+};
+
+const Devices = () => {
+  const { activeOrg } = Route.useRouteContext();
+  const orgId = activeOrg.id;
+  const headerActions = (
+    <>
+      <InviteDeviceDialog orgId={orgId} />
+      <RegisterDeviceDialog orgId={orgId} />
+    </>
+  );
+  return (
     <div className="flex w-full flex-col gap-6">
       <PageHeader
         title="Apple devices"
         description="Register UDIDs or invite team members to enroll their devices for ad-hoc builds."
         actions={headerActions}
       />
-      <div className="flex flex-col gap-3">
-        <DevicesFilterBar
-          search={search}
-          isPlaceholderData={isPlaceholderData}
-          classFilter={filters.classFilter}
-          teamFilter={filters.teamFilter}
-          teams={teamOptions}
-          onSearchChange={handleSearchChange}
-          onClassFilter={(classFilter) => {
-            setFilters((prev) => ({ ...prev, classFilter, page: 1 }));
-          }}
-          onTeamFilter={(teamFilter) => {
-            setFilters((prev) => ({ ...prev, teamFilter, page: 1 }));
-          }}
-        />
-        <PendingInvitesList orgId={orgId} />
-        {data.total === 0 ? (
-          <p className="text-muted-foreground rounded-xl border border-dashed py-10 text-center text-sm">
-            No devices match your filters.
-          </p>
-        ) : (
-          <DevicesTableView
-            table={table}
-            columnsCount={columns.length}
-            isPlaceholderData={isPlaceholderData}
-            countLabel={countLabel}
-            safePage={safePage}
-            totalPages={totalPages}
-            onPageChange={(page) => {
-              setFilters((prev) => ({ ...prev, page }));
-            }}
-          />
-        )}
-      </div>
+      <Suspense fallback={<DevicesSkeleton />}>
+        <DevicesContent />
+      </Suspense>
     </div>
   );
 };

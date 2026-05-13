@@ -14,6 +14,7 @@ import {
 } from "@better-update/ui/components/ui/card";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
+import { Suspense } from "react";
 
 import { ChannelCard } from "../-channel-card";
 import {
@@ -21,6 +22,7 @@ import {
   getMissingRuntimeVersionsForChannel,
 } from "../-channel-compatibility-helpers";
 import { ProjectSubpageHeader } from "../-project-subpage-header";
+import { DetailCardSkeleton, SummaryCardsSkeleton } from "../../../../../../components/skeletons";
 
 const ChannelNotFoundState = ({ projectSlug }: { projectSlug: string }) => (
   <Card className="border-dashed">
@@ -139,7 +141,7 @@ const CompatibleBuildLinksCard = ({
   </Card>
 );
 
-const ChannelDetailPage = () => {
+const ChannelDetailContent = () => {
   const { channelId } = Route.useParams();
   const { activeOrg, project } = Route.useRouteContext();
   const orgId = activeOrg.id;
@@ -164,10 +166,10 @@ const ChannelDetailPage = () => {
 
   if (!channel) {
     return (
-      <div className="flex w-full flex-col gap-4">
+      <>
         <ProjectSubpageHeader title="Channel details" />
         <ChannelNotFoundState projectSlug={project.slug} />
-      </div>
+      </>
     );
   }
 
@@ -180,7 +182,7 @@ const ChannelDetailPage = () => {
   const rolloutActive = compatibleBuilds.some(({ status }) => status.rolloutActive);
 
   return (
-    <div className="flex w-full flex-col gap-4">
+    <>
       <ProjectSubpageHeader title={channel.name} />
 
       <ChannelSummaryCards
@@ -203,9 +205,26 @@ const ChannelDetailPage = () => {
       />
 
       <CompatibleBuildLinksCard projectSlug={project.slug} compatibleBuilds={compatibleBuilds} />
-    </div>
+    </>
   );
 };
+
+const ChannelDetailSkeleton = () => (
+  <>
+    <ProjectSubpageHeader title="Channel" />
+    <SummaryCardsSkeleton count={3} />
+    <DetailCardSkeleton rows={3} columns={2} />
+    <DetailCardSkeleton rows={3} columns={1} />
+  </>
+);
+
+const ChannelDetailPage = () => (
+  <div className="flex w-full flex-col gap-4">
+    <Suspense fallback={<ChannelDetailSkeleton />}>
+      <ChannelDetailContent />
+    </Suspense>
+  </div>
+);
 
 export const Route = createFileRoute("/_authed/_app/projects/$projectSlug/channels/$channelId")({
   component: ChannelDetailPage,

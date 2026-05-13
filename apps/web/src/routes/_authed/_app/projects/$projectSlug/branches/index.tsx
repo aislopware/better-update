@@ -27,7 +27,6 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   GitBranchIcon,
-  Loader2Icon,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -38,6 +37,7 @@ import { CreateBranchDialog } from "../-create-branch-dialog";
 import { DeleteBranchDialog } from "../-delete-branch-dialog";
 import { ProjectSubpageHeader } from "../-project-subpage-header";
 import { RenameBranchDialog } from "../-rename-branch-dialog";
+import { TableSkeleton } from "../../../../../../components/skeletons";
 import { formatRelativeTime } from "../../../../../../lib/format-relative-time";
 import { pluralize } from "../../../../../../lib/pluralize";
 
@@ -276,9 +276,7 @@ const BranchesPage = () => {
           <ProjectSubpageHeader title="Branches" />
           {createCta}
         </div>
-        <div className="flex justify-center py-12">
-          <Loader2Icon className="text-muted-foreground size-6 animate-spin" />
-        </div>
+        <TableSkeleton columns={4} rows={5} />
       </div>
     );
   }

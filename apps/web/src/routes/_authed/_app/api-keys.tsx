@@ -1,12 +1,14 @@
 import { Button } from "@better-update/ui/components/ui/button";
 import { CardFrame, CardFrameHeader, CardFrameTitle } from "@better-update/ui/components/ui/card";
+import { Skeleton } from "@better-update/ui/components/ui/skeleton";
 import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { KeyIcon } from "lucide-react";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 
 import { PageHeader } from "../../../components/page-header";
+import { ListItemsSkeleton } from "../../../components/skeletons";
 import { authClient, rejectOnAuthClientError } from "../../../lib/auth-client";
 import { pluralize } from "../../../lib/pluralize";
 import { useApiMutation } from "../../../lib/use-api-mutation";
@@ -14,15 +16,43 @@ import { apiKeysQueryOptions } from "../../../queries/api-keys";
 import { CreateApiKeyDialog, RevokeDialog } from "./-api-key-dialogs";
 import { ApiKeysEmptyState, ApiKeysTable } from "./-api-keys-table";
 
-const ApiKeys = () => {
-  const queryClient = useQueryClient();
-  const { activeOrg } = Route.useRouteContext();
-  const orgId = activeOrg.id;
+const ApiKeysSkeleton = () => (
+  <CardFrame>
+    <CardFrameHeader>
+      <Skeleton className="h-4 w-16 rounded" />
+    </CardFrameHeader>
+    <div className="px-6 py-2">
+      <ListItemsSkeleton rows={3} hasTrailingButton={false} />
+    </div>
+  </CardFrame>
+);
 
+interface CreateApiKeyButtonProps {
+  readonly orgId: string;
+}
+
+const CreateApiKeyButton = ({ orgId }: CreateApiKeyButtonProps) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button
+        onClick={() => {
+          setOpen(true);
+        }}
+      >
+        <KeyIcon strokeWidth={2} data-icon="inline-start" />
+        Create API key
+      </Button>
+      <CreateApiKeyDialog orgId={orgId} open={open} onOpenChange={setOpen} />
+    </>
+  );
+};
+
+const ApiKeysContent = ({ orgId }: { orgId: string }) => {
+  const queryClient = useQueryClient();
   const { data: apiKeys } = useSuspenseQuery(apiKeysQueryOptions(orgId));
 
   const [revokeKeyId, setRevokeKeyId] = useState<string | null>(null);
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   const revokeKeyMutation = useApiMutation({
     mutationFn: async (keyId: string) =>
@@ -43,27 +73,10 @@ const ApiKeys = () => {
     revokeKeyMutation.mutate(revokeKeyId);
   };
 
-  const createTrigger = (
-    <Button
-      onClick={() => {
-        setCreateDialogOpen(true);
-      }}
-    >
-      <KeyIcon strokeWidth={2} data-icon="inline-start" />
-      Create API key
-    </Button>
-  );
-
   return (
-    <div className="flex w-full flex-col gap-6">
-      <PageHeader
-        title="API keys"
-        description="Authenticate requests to the management API and CLI."
-        actions={apiKeys.length > 0 ? createTrigger : undefined}
-      />
-
+    <>
       {apiKeys.length === 0 ? (
-        <ApiKeysEmptyState>{createTrigger}</ApiKeysEmptyState>
+        <ApiKeysEmptyState />
       ) : (
         <CardFrame>
           <CardFrameHeader>
@@ -75,12 +88,6 @@ const ApiKeys = () => {
         </CardFrame>
       )}
 
-      <CreateApiKeyDialog
-        orgId={orgId}
-        open={createDialogOpen}
-        onOpenChange={setCreateDialogOpen}
-      />
-
       <RevokeDialog
         open={revokeKeyId !== null}
         onOpenChange={(isOpen) => {
@@ -91,10 +98,27 @@ const ApiKeys = () => {
         onConfirm={handleRevoke}
         isRevoking={revokeKeyMutation.isPending}
       />
+    </>
+  );
+};
+
+const ApiKeysPage = () => {
+  const { activeOrg } = Route.useRouteContext();
+  const orgId = activeOrg.id;
+  return (
+    <div className="flex w-full flex-col gap-6">
+      <PageHeader
+        title="API keys"
+        description="Authenticate requests to the management API and CLI."
+        actions={<CreateApiKeyButton orgId={orgId} />}
+      />
+      <Suspense fallback={<ApiKeysSkeleton />}>
+        <ApiKeysContent orgId={orgId} />
+      </Suspense>
     </div>
   );
 };
 
 export const Route = createFileRoute("/_authed/_app/api-keys")({
-  component: ApiKeys,
+  component: ApiKeysPage,
 });

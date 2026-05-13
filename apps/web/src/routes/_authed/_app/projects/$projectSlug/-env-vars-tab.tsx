@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
+import { Skeleton } from "@better-update/ui/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -26,10 +27,11 @@ import {
 import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { SettingsIcon } from "lucide-react";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 
 import type { EnvVar } from "@better-update/api";
 
+import { TableSkeleton } from "../../../../../components/skeletons";
 import { pluralize } from "../../../../../lib/pluralize";
 import { CreateEnvVarDialog } from "./-create-env-var-dialog";
 import { EnvVarRow } from "./-env-var-row";
@@ -87,43 +89,29 @@ const ExportButton = ({ items }: { items: readonly (typeof EnvVar.Type)[] }) => 
   );
 };
 
-export const EnvVarsTab = ({ orgId, projectId }: { orgId: string; projectId: string }) => {
-  const [environment, setEnvironment] = useState("development");
+const EnvVarsContent = ({
+  orgId,
+  projectId,
+  environment,
+  toolbarStart,
+}: {
+  orgId: string;
+  projectId: string;
+  environment: string;
+  toolbarStart: React.ReactNode;
+}) => {
   const { data } = useSuspenseQuery(envVarsQueryOptions(orgId, projectId, environment));
 
   return (
-    <div className="flex flex-col gap-4">
+    <>
       <div className="flex items-center justify-between gap-4">
-        <Select
-          items={ENVIRONMENT_LABELS}
-          value={environment}
-          onValueChange={(value) => {
-            if (value) {
-              setEnvironment(value);
-            }
-          }}
-        >
-          <SelectTrigger className="w-48">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectPopup>
-            <SelectGroup>
-              {ENVIRONMENTS.map((env) => (
-                <SelectItem key={env.value} value={env.value}>
-                  {env.label}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectPopup>
-        </Select>
-
+        {toolbarStart}
         <div className="flex gap-2">
           <ExportButton items={data.items} />
           <ImportEnvVarsDialog orgId={orgId} projectId={projectId} environment={environment} />
           <CreateEnvVarDialog orgId={orgId} projectId={projectId} environment={environment} />
         </div>
       </div>
-
       {data.items.length === 0 ? (
         <EnvVarsEmptyState />
       ) : (
@@ -145,6 +133,61 @@ export const EnvVarsTab = ({ orgId, projectId }: { orgId: string; projectId: str
           </Table>
         </CardFrame>
       )}
+    </>
+  );
+};
+
+const EnvVarsContentSkeleton = ({ toolbarStart }: { toolbarStart: React.ReactNode }) => (
+  <>
+    <div className="flex items-center justify-between gap-4">
+      {toolbarStart}
+      <div className="flex gap-2">
+        <Skeleton className="h-9 w-24 rounded-md" />
+        <Skeleton className="h-9 w-24 rounded-md" />
+        <Skeleton className="h-9 w-32 rounded-md" />
+      </div>
+    </div>
+    <TableSkeleton variant="card" columns={4} rows={4} hasFooter={false} />
+  </>
+);
+
+export const EnvVarsTab = ({ orgId, projectId }: { orgId: string; projectId: string }) => {
+  const [environment, setEnvironment] = useState("development");
+  const toolbarStart = (
+    <Select
+      items={ENVIRONMENT_LABELS}
+      value={environment}
+      onValueChange={(value) => {
+        if (value) {
+          setEnvironment(value);
+        }
+      }}
+    >
+      <SelectTrigger className="w-48">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectPopup>
+        <SelectGroup>
+          {ENVIRONMENTS.map((env) => (
+            <SelectItem key={env.value} value={env.value}>
+              {env.label}
+            </SelectItem>
+          ))}
+        </SelectGroup>
+      </SelectPopup>
+    </Select>
+  );
+
+  return (
+    <div className="flex flex-col gap-4">
+      <Suspense fallback={<EnvVarsContentSkeleton toolbarStart={toolbarStart} />}>
+        <EnvVarsContent
+          orgId={orgId}
+          projectId={projectId}
+          environment={environment}
+          toolbarStart={toolbarStart}
+        />
+      </Suspense>
     </div>
   );
 };

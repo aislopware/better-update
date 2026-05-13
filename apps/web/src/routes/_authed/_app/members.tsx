@@ -13,12 +13,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
+import { Skeleton } from "@better-update/ui/components/ui/skeleton";
 import { keepPreviousData, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { UsersIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 
 import { PageHeader } from "../../../components/page-header";
+import { FilterBarSkeleton, TableSkeleton } from "../../../components/skeletons";
 import { pluralize } from "../../../lib/pluralize";
 import { invitationsQueryOptions, membersQueryOptions } from "../../../queries/org";
 import { InviteDialog, RemoveDialog } from "./-invite-dialog";
@@ -35,7 +37,17 @@ const STATUS_LABELS: Record<StatusFilter, string> = {
 
 const STATUS_VALUES: readonly StatusFilter[] = ["all", "active", "pending"];
 
-const Members = () => {
+const MembersSkeleton = () => (
+  <div className="flex flex-col gap-3">
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <FilterBarSkeleton selectCount={1} />
+      <Skeleton className="h-9 w-32 rounded-md" />
+    </div>
+    <TableSkeleton columns={4} rows={5} hasFooter={false} />
+  </div>
+);
+
+const MembersContent = () => {
   const { activeOrg, user } = Route.useRouteContext();
   const orgId = activeOrg.id;
 
@@ -85,32 +97,21 @@ const Members = () => {
 
   if (isOrgEmpty) {
     return (
-      <div className="flex w-full flex-col gap-6">
-        <PageHeader
-          title="Members"
-          description="Invite teammates and manage their roles within this organization."
-          actions={headerActions}
-        />
-        <Empty>
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <UsersIcon strokeWidth={1.5} />
-            </EmptyMedia>
-            <EmptyTitle>No members yet</EmptyTitle>
-            <EmptyDescription>Invite your first teammate to get started.</EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      </div>
+      <Empty>
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <UsersIcon strokeWidth={1.5} />
+          </EmptyMedia>
+          <EmptyTitle>No members yet</EmptyTitle>
+          <EmptyDescription>Invite your first teammate to get started.</EmptyDescription>
+        </EmptyHeader>
+        {headerActions}
+      </Empty>
     );
   }
 
   return (
-    <div className="flex w-full flex-col gap-6">
-      <PageHeader
-        title="Members"
-        description="Invite teammates and manage their roles within this organization."
-      />
-
+    <>
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Select
@@ -167,10 +168,22 @@ const Members = () => {
         onConfirm={handleRemove}
         isRemoving={isRemoving}
       />
-    </div>
+    </>
   );
 };
 
+const MembersPage = () => (
+  <div className="flex w-full flex-col gap-6">
+    <PageHeader
+      title="Members"
+      description="Invite teammates and manage their roles within this organization."
+    />
+    <Suspense fallback={<MembersSkeleton />}>
+      <MembersContent />
+    </Suspense>
+  </div>
+);
+
 export const Route = createFileRoute("/_authed/_app/members")({
-  component: Members,
+  component: MembersPage,
 });

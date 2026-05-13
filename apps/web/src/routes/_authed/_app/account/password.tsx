@@ -5,13 +5,15 @@ import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { Suspense } from "react";
 
 import { SettingCard } from "../../../../components/setting-card";
+import { SettingCardSkeleton } from "../../../../components/skeletons";
 import { authClient } from "../../../../lib/auth-client";
 import { getFieldError, passwordSchema, requiredStringSchema } from "../../../../lib/form-utils";
 import { accountsQueryOptions } from "../../../../queries/auth";
 
-const PasswordPage = () => {
+const PasswordForm = () => {
   const queryClient = useQueryClient();
   const { data: accounts } = useSuspenseQuery(accountsQueryOptions);
   const hasCredential = accounts.some((account) => account.providerId === "credential");
@@ -173,6 +175,12 @@ const PasswordPage = () => {
     </form>
   );
 };
+
+const PasswordPage = () => (
+  <Suspense fallback={<SettingCardSkeleton fields={3} />}>
+    <PasswordForm />
+  </Suspense>
+);
 
 export const Route = createFileRoute("/_authed/_app/account/password")({
   component: PasswordPage,

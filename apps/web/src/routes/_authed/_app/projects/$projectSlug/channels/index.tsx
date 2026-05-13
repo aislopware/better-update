@@ -39,12 +39,11 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   GitBranchIcon,
-  Loader2Icon,
   PauseIcon,
   PlayIcon,
   SatelliteIcon,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 
 import type { Channel } from "@better-update/api";
 import type { BranchItem, ChannelSort, ChannelSortColumn } from "@better-update/api-client/react";
@@ -55,6 +54,7 @@ import { CreateChannelDialog } from "../-create-channel-dialog";
 import { DeleteChannelDialog } from "../-delete-channel-dialog";
 import { ProjectSubpageHeader } from "../-project-subpage-header";
 import { invalidateChannels as invalidateChannelsHelper } from "../-update-helpers";
+import { TableSkeleton } from "../../../../../../components/skeletons";
 import { formatRelativeTime } from "../../../../../../lib/format-relative-time";
 import { pluralize } from "../../../../../../lib/pluralize";
 import { useApiMutation } from "../../../../../../lib/use-api-mutation";
@@ -297,7 +297,16 @@ const PaginationControls = ({
   </div>
 );
 
-const ChannelsPage = () => {
+const ChannelsSkeleton = () => (
+  <>
+    <div className="flex items-center justify-between">
+      <ProjectSubpageHeader title="Channels" />
+    </div>
+    <TableSkeleton columns={5} rows={5} />
+  </>
+);
+
+const ChannelsContent = () => {
   const { activeOrg, project } = Route.useRouteContext();
   const orgId = activeOrg.id;
   const projectId = project.id;
@@ -359,9 +368,7 @@ const ChannelsPage = () => {
           <ProjectSubpageHeader title="Channels" />
           {createCta}
         </div>
-        <div className="flex justify-center py-12">
-          <Loader2Icon className="text-muted-foreground size-6 animate-spin" />
-        </div>
+        <TableSkeleton columns={5} rows={5} />
       </div>
     );
   }
@@ -473,6 +480,12 @@ const ChannelsPage = () => {
     </div>
   );
 };
+
+const ChannelsPage = () => (
+  <Suspense fallback={<ChannelsSkeleton />}>
+    <ChannelsContent />
+  </Suspense>
+);
 
 export const Route = createFileRoute("/_authed/_app/projects/$projectSlug/channels/")({
   component: ChannelsPage,

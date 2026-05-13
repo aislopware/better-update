@@ -14,8 +14,10 @@ import { CardFrame } from "@better-update/ui/components/ui/card";
 import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { Suspense } from "react";
 
 import { PageHeader, SectionHeader } from "../../../components/page-header";
+import { SectionSkeleton, TableSkeleton } from "../../../components/skeletons";
 import { useApiMutation } from "../../../lib/use-api-mutation";
 import {
   AppleTeamsEmptyState,
@@ -199,6 +201,12 @@ const GoogleServiceAccountSection = ({ orgId }: { orgId: string }) => {
   );
 };
 
+const CredentialSectionSkeleton = ({ hasAction = true }: { hasAction?: boolean }) => (
+  <SectionSkeleton hasAction={hasAction}>
+    <TableSkeleton variant="card" columns={4} rows={2} hasFooter={false} />
+  </SectionSkeleton>
+);
+
 const Credentials = () => {
   const { activeOrg } = Route.useRouteContext();
   const orgId = activeOrg.id;
@@ -208,11 +216,21 @@ const Credentials = () => {
         title="Credentials"
         description="Apple and Google credentials shared across all projects in this organization."
       />
-      <DistributionCertificatesSection orgId={orgId} />
-      <PushKeysSection orgId={orgId} />
-      <AscApiKeysSection orgId={orgId} />
-      <AppleTeamsSection orgId={orgId} />
-      <GoogleServiceAccountSection orgId={orgId} />
+      <Suspense fallback={<CredentialSectionSkeleton />}>
+        <DistributionCertificatesSection orgId={orgId} />
+      </Suspense>
+      <Suspense fallback={<CredentialSectionSkeleton />}>
+        <PushKeysSection orgId={orgId} />
+      </Suspense>
+      <Suspense fallback={<CredentialSectionSkeleton />}>
+        <AscApiKeysSection orgId={orgId} />
+      </Suspense>
+      <Suspense fallback={<CredentialSectionSkeleton hasAction={false} />}>
+        <AppleTeamsSection orgId={orgId} />
+      </Suspense>
+      <Suspense fallback={<CredentialSectionSkeleton />}>
+        <GoogleServiceAccountSection orgId={orgId} />
+      </Suspense>
     </div>
   );
 };

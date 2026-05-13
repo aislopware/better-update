@@ -20,7 +20,6 @@ import {
   SidebarRail,
   useSidebar,
 } from "@better-update/ui/components/ui/sidebar";
-import { Skeleton } from "@better-update/ui/components/ui/skeleton";
 import { TooltipProvider } from "@better-update/ui/components/ui/tooltip";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -210,15 +209,6 @@ const UserMenu = () => {
   );
 };
 
-const PageSkeleton = () => (
-  <div className="flex w-full flex-col gap-4">
-    <Skeleton className="h-9 w-full rounded-md" />
-    <Skeleton className="h-48 w-full rounded-xl" />
-  </div>
-);
-
-const pageSkeleton = <PageSkeleton />;
-
 const AppSidebarRail = () => {
   const { state } = useSidebar();
   const Icon = state === "expanded" ? ChevronLeftIcon : ChevronRightIcon;
@@ -273,7 +263,7 @@ const AppLayout = () => {
           </header>
           <main className="flex-1 px-4 py-6 lg:px-6 lg:py-8">
             <ErrorBoundary key={pathname}>
-              <Suspense fallback={pageSkeleton}>
+              <Suspense fallback={null}>
                 <Outlet />
               </Suspense>
             </ErrorBoundary>

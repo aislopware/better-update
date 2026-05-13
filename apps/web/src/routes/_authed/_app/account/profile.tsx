@@ -5,13 +5,15 @@ import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { Suspense } from "react";
 
 import { SettingCard } from "../../../../components/setting-card";
+import { SettingCardSkeleton } from "../../../../components/skeletons";
 import { authClient } from "../../../../lib/auth-client";
 import { getFieldError, nameSchema } from "../../../../lib/form-utils";
 import { sessionQueryOptions } from "../../../../queries/auth";
 
-const ProfilePage = () => {
+const ProfileForm = () => {
   const queryClient = useQueryClient();
   const { data: session } = useSuspenseQuery(sessionQueryOptions);
 
@@ -95,6 +97,12 @@ const ProfilePage = () => {
     </form>
   );
 };
+
+const ProfilePage = () => (
+  <Suspense fallback={<SettingCardSkeleton fields={2} />}>
+    <ProfileForm />
+  </Suspense>
+);
 
 export const Route = createFileRoute("/_authed/_app/account/profile")({
   component: ProfilePage,

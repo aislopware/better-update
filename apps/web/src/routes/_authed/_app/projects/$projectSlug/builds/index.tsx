@@ -12,8 +12,8 @@ import {
 import { keepPreviousData, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
-import { Loader2Icon, PackageIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { PackageIcon } from "lucide-react";
+import { Suspense, useMemo, useState } from "react";
 
 import type {
   BuildDistribution,
@@ -24,6 +24,7 @@ import type { SortingState } from "@tanstack/react-table";
 
 import { CompatibilityMatrix } from "../-compatibility-matrix";
 import { ProjectSubpageHeader } from "../-project-subpage-header";
+import { TableSkeleton } from "../../../../../../components/skeletons";
 import { pluralize } from "../../../../../../lib/pluralize";
 import { buildBuildsColumns } from "./-builds-columns";
 import { BuildsFilterBar, BuildsTableView } from "./-builds-view";
@@ -88,7 +89,16 @@ const isBuildDistribution = (value: string | undefined): value is BuildDistribut
   value === "play-store" ||
   value === "direct";
 
-const BuildsPage = () => {
+const BuildsSkeleton = () => (
+  <>
+    <div className="flex items-center justify-between gap-2">
+      <ProjectSubpageHeader title="Builds" />
+    </div>
+    <TableSkeleton columns={6} rows={6} />
+  </>
+);
+
+const BuildsContent = () => {
   const { activeOrg, project } = Route.useRouteContext();
   const orgId = activeOrg.id;
   const { id: projectId, slug: projectSlug } = project;
@@ -161,9 +171,7 @@ const BuildsPage = () => {
           <ProjectSubpageHeader title="Builds" />
           <div className="flex flex-wrap items-center gap-2">{filterControls}</div>
         </div>
-        <div className="flex justify-center py-12">
-          <Loader2Icon className="text-muted-foreground size-6 animate-spin" />
-        </div>
+        <TableSkeleton columns={6} rows={6} />
       </div>
     );
   }
@@ -228,6 +236,12 @@ const BuildsPage = () => {
     </div>
   );
 };
+
+const BuildsPage = () => (
+  <Suspense fallback={<BuildsSkeleton />}>
+    <BuildsContent />
+  </Suspense>
+);
 
 export const Route = createFileRoute("/_authed/_app/projects/$projectSlug/builds/")({
   component: BuildsPage,

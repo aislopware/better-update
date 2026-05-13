@@ -13,13 +13,14 @@ import {
 import { keepPreviousData, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
-import { CloudUploadIcon, Loader2Icon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { CloudUploadIcon } from "lucide-react";
+import { Suspense, useMemo, useState } from "react";
 
 import type { UpdateSort, UpdateSortColumn } from "@better-update/api-client/react";
 import type { SortingState } from "@tanstack/react-table";
 
 import { ProjectSubpageHeader } from "../-project-subpage-header";
+import { TableSkeleton } from "../../../../../../components/skeletons";
 import { pluralize } from "../../../../../../lib/pluralize";
 import { buildUpdateColumns } from "./-updates-columns";
 import { UpdatesFilterBar, UpdatesTableView } from "./-updates-view";
@@ -107,7 +108,16 @@ const useUpdatesData = (orgId: string, projectId: string, slug: string, state: F
   };
 };
 
-const UpdatesPage = () => {
+const UpdatesSkeleton = () => (
+  <>
+    <div className="flex items-center justify-between gap-2">
+      <ProjectSubpageHeader title="Updates" />
+    </div>
+    <TableSkeleton columns={6} rows={6} />
+  </>
+);
+
+const UpdatesContent = () => {
   const { activeOrg, project } = Route.useRouteContext();
   const orgId = activeOrg.id;
   const { id: projectId, slug } = project;
@@ -170,9 +180,7 @@ const UpdatesPage = () => {
           <ProjectSubpageHeader title="Updates" />
           <div className="flex flex-wrap items-center gap-2">{filterControls}</div>
         </div>
-        <div className="flex justify-center py-12">
-          <Loader2Icon className="text-muted-foreground size-6 animate-spin" />
-        </div>
+        <TableSkeleton columns={6} rows={6} />
       </div>
     );
   }
@@ -226,6 +234,12 @@ const UpdatesPage = () => {
     </div>
   );
 };
+
+const UpdatesPage = () => (
+  <Suspense fallback={<UpdatesSkeleton />}>
+    <UpdatesContent />
+  </Suspense>
+);
 
 export const Route = createFileRoute("/_authed/_app/projects/$projectSlug/updates/")({
   component: UpdatesPage,

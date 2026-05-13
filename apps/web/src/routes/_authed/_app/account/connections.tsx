@@ -3,11 +3,12 @@ import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { GitBranchIcon, KeyRoundIcon, Loader2Icon } from "lucide-react";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 
 import type { LucideIcon } from "lucide-react";
 
 import { SettingCard } from "../../../../components/setting-card";
+import { ListItemsSkeleton, SettingCardSkeleton } from "../../../../components/skeletons";
 import { authClient } from "../../../../lib/auth-client";
 import { accountsQueryOptions } from "../../../../queries/auth";
 
@@ -33,7 +34,7 @@ const PROVIDERS: readonly ProviderMeta[] = [
   },
 ];
 
-const ConnectionsPage = () => {
+const ConnectionsList = () => {
   const queryClient = useQueryClient();
   const { data: accounts } = useSuspenseQuery(accountsQueryOptions);
   const [unlinkingProvider, setUnlinkingProvider] = useState<string | undefined>(undefined);
@@ -122,6 +123,18 @@ const ConnectionsPage = () => {
     </SettingCard>
   );
 };
+
+const ConnectionsPage = () => (
+  <Suspense
+    fallback={
+      <SettingCardSkeleton hasFooter={false}>
+        <ListItemsSkeleton rows={2} />
+      </SettingCardSkeleton>
+    }
+  >
+    <ConnectionsList />
+  </Suspense>
+);
 
 export const Route = createFileRoute("/_authed/_app/account/connections")({
   component: ConnectionsPage,

@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { Suspense } from "react";
 
 import { PageHeader } from "../../../components/page-header";
-import { AuditLogView } from "./-audit-log-view";
+import { AuditLogSkeleton, AuditLogView } from "./-audit-log-view";
 
 const AuditLogPage = () => {
   const { activeOrg } = Route.useRouteContext();
@@ -12,7 +13,9 @@ const AuditLogPage = () => {
         title="Audit log"
         description="Review every action performed in this organization."
       />
-      <AuditLogView orgId={activeOrg.id} scopeLabel="your organization" />
+      <Suspense fallback={<AuditLogSkeleton />}>
+        <AuditLogView orgId={activeOrg.id} scopeLabel="your organization" />
+      </Suspense>
     </div>
   );
 };

@@ -9,11 +9,29 @@ import {
   CardHeader,
   CardTitle,
 } from "@better-update/ui/components/ui/card";
+import { Skeleton } from "@better-update/ui/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@better-update/ui/components/ui/tabs";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { Suspense } from "react";
 
 import { AndroidBuildWizard } from "./-android-build-wizard";
+
+const CredentialListSkeleton = () => (
+  <div className="flex flex-col gap-3">
+    {[0, 1].map((index) => (
+      <Card key={index}>
+        <CardHeader>
+          <Skeleton className="h-4 w-48 rounded" />
+          <Skeleton className="h-3 w-32 rounded" />
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-3 w-72 rounded" />
+        </CardContent>
+      </Card>
+    ))}
+  </div>
+);
 
 const IosSummary = ({ orgId, projectId }: { orgId: string; projectId: string }) => {
   const { data } = useSuspenseQuery(iosBundleConfigurationsQueryOptions(orgId, projectId));
@@ -106,7 +124,9 @@ const ProjectCredentials = () => {
                 </CardDescription>
               </CardHeader>
             </Card>
-            <IosSummary orgId={activeOrg.id} projectId={project.id} />
+            <Suspense fallback={<CredentialListSkeleton />}>
+              <IosSummary orgId={activeOrg.id} projectId={project.id} />
+            </Suspense>
           </div>
         </TabsContent>
         <TabsContent value="android" className="pt-4">
@@ -114,7 +134,9 @@ const ProjectCredentials = () => {
             <div className="flex justify-end">
               <AndroidBuildWizard orgId={activeOrg.id} projectId={project.id} />
             </div>
-            <AndroidSummary orgId={activeOrg.id} projectId={project.id} />
+            <Suspense fallback={<CredentialListSkeleton />}>
+              <AndroidSummary orgId={activeOrg.id} projectId={project.id} />
+            </Suspense>
           </div>
         </TabsContent>
       </Tabs>

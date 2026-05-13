@@ -1,16 +1,10 @@
-import { Loader2Icon } from "lucide-react";
-
-import { BrandIcon } from "./brand-mark";
-
 export const GlobalLoading = () => (
-  <div
+  <output
     data-global-loading
     style={{ opacity: 0 }}
-    className="bg-background text-foreground fixed inset-0 z-50 flex items-center justify-center"
+    aria-label="Loading"
+    className="pointer-events-none fixed inset-x-0 top-0 z-50 block h-[2px] overflow-hidden"
   >
-    <div className="flex flex-col items-center gap-4">
-      <BrandIcon size={44} className="text-foreground" />
-      <Loader2Icon className="text-muted-foreground size-5 animate-spin" />
-    </div>
-  </div>
+    <div className="bg-foreground animate-progress-indeterminate absolute inset-y-0 -left-1/3 w-1/3" />
+  </output>
 );

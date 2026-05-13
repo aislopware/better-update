@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
+import { Skeleton } from "@better-update/ui/components/ui/skeleton";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Suspense, useState } from "react";
 import {
@@ -57,11 +58,7 @@ const COLORS = [
   "var(--color-chart-5)",
 ] as const;
 
-const chartSkeleton = (
-  <div className="flex h-[300px] items-center justify-center">
-    <p className="text-muted-foreground text-sm">Loading...</p>
-  </div>
-);
+const chartSkeleton = <Skeleton className="h-[300px] w-full rounded-md" />;
 
 const ChartEmptyState = ({ message }: { message: string }) => (
   <p className="text-muted-foreground flex h-[300px] items-center justify-center text-sm">
