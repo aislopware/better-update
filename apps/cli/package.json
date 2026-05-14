@@ -26,9 +26,12 @@
     "build:watch": "tsdown --watch",
     "lint": "oxlint --fix",
     "lint:check": "oxlint",
+    "pretest:e2e": "tsdown",
+    "pretest:slow": "tsdown",
     "test": "vitest run --project unit",
     "test:e2e": "vitest run --project e2e --maxWorkers 1 --fileParallelism false",
     "test:interactive": "vitest run --project interactive --maxWorkers 1 --fileParallelism false",
+    "test:slow": "vitest run --project slow --maxWorkers 1 --fileParallelism false",
     "test:watch": "vitest --project unit"
   },
   "dependencies": {

@@ -34,9 +34,11 @@ const otaAppJsonTemplate = {
   },
 };
 
-const cli = setupCliE2E(".wrangler/state/e2e-cli-ota-lifecycle", {
+const cli = setupCliE2E("e2e-cli-ota", {
   projectDir: FIXTURE_DIR,
   appJsonTemplate: otaAppJsonTemplate,
+  userEmail: "cli-e2e-ota@example.com",
+  orgSlug: "cli-e2e-ota-org",
 });
 
 // ── Helpers ──────────────────────────────────────────────────────
@@ -145,7 +147,15 @@ describe("oTA lifecycle: CLI publish → manifest → rollout → rollback", () 
   // ── Section 2: Publish v1 → manifest serves update ─────────────
 
   it("publishes v1 iOS update via CLI", () => {
-    const result = cli.runCli("update", "publish", "--branch", "main", "--platform", "ios");
+    const result = cli.runCli(
+      "update",
+      "publish",
+      "--branch",
+      "main",
+      "--platform",
+      "ios",
+      "--allow-dirty",
+    );
     expect(result.exitCode).toBe(0);
 
     const iosRow = iosRowPattern.exec(result.stdout);
@@ -178,6 +188,7 @@ describe("oTA lifecycle: CLI publish → manifest → rollout → rollback", () 
       "ios",
       "--message",
       "v2 update",
+      "--allow-dirty",
     );
     expect(result.exitCode).toBe(0);
 

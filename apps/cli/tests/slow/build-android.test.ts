@@ -46,9 +46,11 @@ const KEYSTORE_PASSWORD = "e2epass123";
 const KEY_ALIAS = "e2e-key";
 const KEY_PASSWORD = "e2epass123";
 
-const cli = setupCliE2E(".wrangler/state/e2e-cli-build", {
+const cli = setupCliE2E("slow-cli-build", {
   projectDir: FIXTURE_DIR,
   appJsonTemplate: buildAppJsonTemplate,
+  userEmail: "slow-cli-build@example.com",
+  orgSlug: "slow-cli-build-org",
 });
 
 const buildState = {
@@ -146,7 +148,14 @@ describe.skipIf(!hasAndroidSdk)("CLI build journey — Android", () => {
   });
 
   test("builds an Android APK and uploads it", () => {
-    const result = cli.runCli("build", "--platform", "android", "--message", "E2E Android build");
+    const result = cli.runCli(
+      "build",
+      "--platform",
+      "android",
+      "--message",
+      "E2E Android build",
+      "--allow-dirty",
+    );
     expect(result.exitCode).toBe(0);
 
     // Build workflow prints artifact path before upload.
@@ -264,7 +273,7 @@ describe.skipIf(!hasAndroidSdk)("CLI build journey — Android", () => {
   });
 
   test("builds with --no-upload and skips the upload step", () => {
-    const result = cli.runCli("build", "--platform", "android", "--no-upload");
+    const result = cli.runCli("build", "--platform", "android", "--no-upload", "--allow-dirty");
     expect(result.exitCode).toBe(0);
 
     expect(result.stdout).toContain("Artifact produced:");

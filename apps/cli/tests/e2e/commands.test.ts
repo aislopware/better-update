@@ -56,7 +56,10 @@ const generateSelfSignedP12 = (password: string, subject: string): Buffer => {
   }
 };
 
-const cli = setupCliE2E(".wrangler/state/e2e-cli");
+const cli = setupCliE2E("e2e-cli-commands", {
+  userEmail: "cli-e2e-commands@example.com",
+  orgSlug: "cli-e2e-commands-org",
+});
 
 const escapeRegExp = (value: string) => value.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 const sqlString = (value: string) => `'${value.replaceAll("'", "''")}'`;
@@ -344,7 +347,7 @@ describe("cLI command journey", () => {
     const result = cli.runCli("builds", "list");
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toBe("");
-    expect(result.stdout).toContain("cli-build-1");
+    expect(result.stdout).toContain(cli.getSeededBuildId());
     expect(result.stdout).toContain("ad-hoc");
     expect(result.stdout).toContain("production");
   });

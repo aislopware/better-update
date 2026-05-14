@@ -33,9 +33,11 @@ const publishAppJsonTemplate = {
   },
 };
 
-const cli = setupCliE2E(".wrangler/state/e2e-cli-publish", {
+const cli = setupCliE2E("e2e-cli-publish", {
   projectDir: FIXTURE_DIR,
   appJsonTemplate: publishAppJsonTemplate,
+  userEmail: "cli-e2e-publish@example.com",
+  orgSlug: "cli-e2e-publish-org",
 });
 
 const publishState = {
@@ -64,7 +66,15 @@ describe("CLI publish journey", () => {
   });
 
   it("publishes an iOS update with fresh assets", () => {
-    const result = cli.runCli("update", "publish", "--branch", "main", "--platform", "ios");
+    const result = cli.runCli(
+      "update",
+      "publish",
+      "--branch",
+      "main",
+      "--platform",
+      "ios",
+      "--allow-dirty",
+    );
     expect(result.exitCode).toBe(0);
 
     const groupMatch = /Published update group ([0-9a-f-]+) to branch "main"\./.exec(result.stdout);
@@ -82,7 +92,15 @@ describe("CLI publish journey", () => {
   });
 
   it("re-publishes iOS and produces a distinct update group", () => {
-    const result = cli.runCli("update", "publish", "--branch", "main", "--platform", "ios");
+    const result = cli.runCli(
+      "update",
+      "publish",
+      "--branch",
+      "main",
+      "--platform",
+      "ios",
+      "--allow-dirty",
+    );
     expect(result.exitCode).toBe(0);
 
     const groupMatch = /Published update group ([0-9a-f-]+) to branch "main"\./.exec(result.stdout);
@@ -97,7 +115,15 @@ describe("CLI publish journey", () => {
   });
 
   it("publishes all platforms in a single group", () => {
-    const result = cli.runCli("update", "publish", "--branch", "main", "--platform", "all");
+    const result = cli.runCli(
+      "update",
+      "publish",
+      "--branch",
+      "main",
+      "--platform",
+      "all",
+      "--allow-dirty",
+    );
     expect(result.exitCode).toBe(0);
 
     const groupMatch = /Published update group ([0-9a-f-]+) to branch "main"\./.exec(result.stdout);
@@ -124,6 +150,7 @@ describe("CLI publish journey", () => {
       "ios",
       "--message",
       customMessage,
+      "--allow-dirty",
     );
     expect(result.exitCode).toBe(0);
 

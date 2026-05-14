@@ -1,33 +1,27 @@
 import { execSync, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
-import { createServer } from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 
-import { applyProcessEnv, createServerE2EEnvironment } from "../../../server/tests/helpers/e2e-env";
-
-import type { unstable_startWorker } from "../../../server/node_modules/wrangler";
-
 const CLI_DIR = path.resolve(import.meta.dirname, "../..");
 const SERVER_DIR = path.resolve(import.meta.dirname, "../../../server");
+const SHARED_ENV_FILE = path.resolve(SERVER_DIR, ".wrangler/.e2e-cli-shared-env.json");
 
-const pickFreePort = async () =>
-  new Promise<number>((resolvePort, rejectPort) => {
-    const srv = createServer();
-    srv.unref();
-    srv.on("error", rejectPort);
-    srv.listen(0, "127.0.0.1", () => {
-      const address = srv.address();
-      if (address === null || typeof address === "string") {
-        srv.close();
-        rejectPort(new Error("Failed to acquire free port"));
-        return;
-      }
-      const { port } = address;
-      srv.close(() => resolvePort(port));
-    });
-  });
+interface SharedCliE2EEnv {
+  readonly baseUrl: string;
+  readonly persistDir: string;
+}
+
+let cachedSharedEnv: SharedCliE2EEnv | undefined;
+
+const readSharedEnv = (): SharedCliE2EEnv => {
+  if (cachedSharedEnv) {
+    return cachedSharedEnv;
+  }
+  cachedSharedEnv = JSON.parse(readFileSync(SHARED_ENV_FILE, "utf8")) as SharedCliE2EEnv;
+  return cachedSharedEnv;
+};
 
 export interface SetupCliE2EOptions {
   /** Use an existing directory as the CLI project root instead of creating a temp dir. */
@@ -40,6 +34,16 @@ export interface SetupCliE2EOptions {
    * Use this to verify the CLI works against dynamic Expo configs.
    */
   readonly useDynamicConfig?: boolean;
+  /**
+   * Unique sign-up email for this test file. Required because the e2e suite shares
+   * a single worker + D1 across all files, and `users.email` is globally unique.
+   */
+  readonly userEmail: string;
+  /**
+   * Unique organization slug for this test file. Required for the same reason as
+   * `userEmail` — `organizations.slug` is globally unique.
+   */
+  readonly orgSlug: string;
 }
 
 const defaultAppJsonTemplate = {
@@ -115,6 +119,7 @@ export interface CliE2EContext {
   readonly getBaseUrl: () => string;
   readonly getProjectDir: () => string;
   readonly getProjectId: () => string;
+  readonly getSeededBuildId: () => string;
   readonly readAppJson: () => Record<string, unknown>;
   readonly runCli: (...args: readonly string[]) => CliCommandResult;
   readonly seedSql: (sql: string) => void;
@@ -142,17 +147,22 @@ export interface CliE2EContext {
   ) => Promise<Response>;
 }
 
-export const setupCliE2E = (persistDir: string, options?: SetupCliE2EOptions): CliE2EContext => {
-  const template = options?.appJsonTemplate ?? defaultAppJsonTemplate;
+/**
+ * Configures one CLI e2e test file against the shared worker started by
+ * `tests/e2e/global-setup.ts`. The unique `userEmail` and `orgSlug` are
+ * required: the suite shares a single D1 instance, so each file must own
+ * disjoint identifiers to avoid UNIQUE constraint collisions.
+ */
+export const setupCliE2E = (testId: string, options: SetupCliE2EOptions): CliE2EContext => {
+  const template = options.appJsonTemplate ?? defaultAppJsonTemplate;
   const expoConfig = (template as { expo?: Record<string, unknown> }).expo ?? {};
   const slugRaw = expoConfig["slug"];
   const slug = typeof slugRaw === "string" ? slugRaw : "cli-e2e-app";
   const nameRaw = expoConfig["name"];
   const projectName = `${typeof nameRaw === "string" ? nameRaw : "E2E"} Project`;
-  const useExternalProjectDir = options?.projectDir !== undefined;
+  const useExternalProjectDir = options.projectDir !== undefined;
 
   const state = {
-    worker: null as Awaited<ReturnType<typeof unstable_startWorker>> | null,
     baseUrl: "",
     cookies: "",
     organizationId: "",
@@ -160,14 +170,12 @@ export const setupCliE2E = (persistDir: string, options?: SetupCliE2EOptions): C
     apiKey: "",
     projectDir: "",
     homeDir: "",
-    restoreProcessEnv: undefined as (() => void) | undefined,
     originalAppJson: undefined as string | undefined,
   };
 
-  const persistPath = path.resolve(SERVER_DIR, persistDir);
-  const persistArg = path.relative(SERVER_DIR, persistPath) || ".";
-  const seedFileId = persistDir.replaceAll(/[^a-zA-Z0-9]+/gu, "-");
+  const seedFileId = testId.replaceAll(/[^a-zA-Z0-9]+/gu, "-");
   const seedFile = path.resolve(SERVER_DIR, `.wrangler/seed-${seedFileId}.sql`);
+  const seededBuildId = `${seedFileId}-build-1`;
 
   const post = async (requestPath: string, body: unknown, headers?: Record<string, string>) =>
     requestWithRetry(async () =>
@@ -202,10 +210,11 @@ export const setupCliE2E = (persistDir: string, options?: SetupCliE2EOptions): C
     );
 
   const seedSql = (sql: string) => {
+    const { persistDir } = readSharedEnv();
     writeFileSync(seedFile, sql);
     try {
       execSync(
-        `bunx wrangler d1 execute DB --local --persist-to ${persistArg} --file ${seedFile}`,
+        `bunx wrangler d1 execute DB --local --persist-to ${persistDir} --file ${seedFile}`,
         {
           cwd: SERVER_DIR,
           stdio: "pipe",
@@ -274,7 +283,7 @@ export const setupCliE2E = (persistDir: string, options?: SetupCliE2EOptions): C
     }
     const { cleanedTemplate, easProfiles } = splitTemplateAndEasJson(template);
     writeEasJsonIfNeeded(easProfiles);
-    if (options?.useDynamicConfig) {
+    if (options.useDynamicConfig) {
       // Drop any pre-existing app.json so the dynamic config is unambiguously
       // The source of truth for @expo/config (avoids static-base shadowing).
       const appJsonPath = path.join(state.projectDir, "app.json");
@@ -313,7 +322,9 @@ export const setupCliE2E = (persistDir: string, options?: SetupCliE2EOptions): C
   };
 
   const runCli = (...args: readonly string[]): CliCommandResult => {
-    const result = spawnSync("bun", [path.resolve(CLI_DIR, "src/index.ts"), ...args], {
+    // Use the pre-built dist binary to skip per-invocation TypeScript compile.
+    // Built once by `pretest:e2e` (`tsdown`). ~5x faster than running src/index.ts directly.
+    const result = spawnSync("bun", [path.resolve(CLI_DIR, "dist/index.mjs"), ...args], {
       cwd: state.projectDir,
       env: {
         ...process.env,
@@ -321,6 +332,11 @@ export const setupCliE2E = (persistDir: string, options?: SetupCliE2EOptions): C
         BETTER_UPDATE_URL: state.baseUrl,
         BETTER_UPDATE_TOKEN: state.apiKey,
         BETTER_UPDATE_DISABLE_UPDATE_NOTIFIER: "1",
+        // CI=1 + no TTY makes the CLI's prompt layer throw `InteractiveProhibitedError`
+        // instead of blocking on stdin. Without this, `ensureRepoClean` in `update
+        // publish` / `build` would hang forever on the dirty fixture working tree
+        // because clack `confirm()` waits for a key that never arrives via spawnSync.
+        CI: "1",
         FORCE_COLOR: "0",
         NO_COLOR: "1",
       },
@@ -335,44 +351,7 @@ export const setupCliE2E = (persistDir: string, options?: SetupCliE2EOptions): C
   };
 
   beforeAll(async () => {
-    rmSync(persistPath, { recursive: true, force: true });
-    const port = await pickFreePort();
-    const publicApiUrl = `http://127.0.0.1:${String(port)}`;
-    const e2eEnv = createServerE2EEnvironment({
-      projectRoot: SERVER_DIR,
-      publicApiUrl,
-    });
-    state.restoreProcessEnv = applyProcessEnv(e2eEnv.processOverrides);
-
-    execSync(`bunx wrangler d1 migrations apply DB --local --persist-to ${persistArg}`, {
-      cwd: SERVER_DIR,
-      env: e2eEnv.wranglerEnv,
-      stdio: "pipe",
-    });
-
-    const originalCwd = process.cwd();
-    process.chdir(SERVER_DIR);
-    try {
-      const { unstable_startWorker } = await import("../../../server/node_modules/wrangler");
-      state.worker = await unstable_startWorker({
-        config: path.resolve(SERVER_DIR, "wrangler.jsonc"),
-        envFiles: [],
-        bindings: e2eEnv.workerBindings,
-        build: { nodejsCompatMode: "v2" },
-        dev: {
-          server: { port },
-          inspector: false,
-          logLevel: "error",
-          persist: persistPath,
-        },
-      });
-    } finally {
-      process.chdir(originalCwd);
-    }
-
-    const url = await state.worker.url;
-    state.baseUrl = url.href.replace(/\/$/, "");
-
+    state.baseUrl = readSharedEnv().baseUrl;
     state.homeDir = mkdtempSync(path.join(os.tmpdir(), "better-update-cli-home-"));
 
     if (useExternalProjectDir) {
@@ -397,7 +376,7 @@ export const setupCliE2E = (persistDir: string, options?: SetupCliE2EOptions): C
 
     const signUpResponse = await post("/api/auth/sign-up/email", {
       name: "CLI E2E User",
-      email: "cli-e2e@example.com",
+      email: options.userEmail,
       password: "SecureP@ss123",
     });
     expect(signUpResponse.status).toBe(200);
@@ -405,7 +384,7 @@ export const setupCliE2E = (persistDir: string, options?: SetupCliE2EOptions): C
 
     const createOrgResponse = await post(
       "/api/auth/organization/create",
-      { name: "CLI Org", slug: "cli-org" },
+      { name: `${options.orgSlug} Org`, slug: options.orgSlug },
       { cookie: state.cookies },
     );
     expect(createOrgResponse.status).toBe(200);
@@ -432,7 +411,7 @@ export const setupCliE2E = (persistDir: string, options?: SetupCliE2EOptions): C
 
     const createKeyResponse = await post(
       "/api/auth/api-key/create",
-      { name: "cli-e2e-key", organizationId: state.organizationId },
+      { name: `${testId}-key`, organizationId: state.organizationId },
       { cookie: state.cookies },
     );
     expect(createKeyResponse.status).toBe(200);
@@ -466,7 +445,7 @@ INSERT INTO "builds" (
   "message", "metadata_json", "created_at"
 )
 VALUES (
-  'cli-build-1',
+  ${sqlString(seededBuildId)},
   ${sqlString(state.projectId)},
   'ios',
   'production',
@@ -486,8 +465,8 @@ INSERT INTO "build_artifacts" (
   "build_id", "r2_key", "format", "content_type", "byte_size", "sha256", "created_at"
 )
 VALUES (
-  'cli-build-1',
-  'builds/${state.organizationId}/${state.projectId}/cli-build-1.ipa',
+  ${sqlString(seededBuildId)},
+  'builds/${state.organizationId}/${state.projectId}/${seededBuildId}.ipa',
   'ipa',
   'application/octet-stream',
   1024,
@@ -497,10 +476,7 @@ VALUES (
 `);
   });
 
-  afterAll(async () => {
-    await state.worker?.dispose();
-    state.restoreProcessEnv?.();
-    rmSync(persistPath, { recursive: true, force: true });
+  afterAll(() => {
     if (useExternalProjectDir) {
       if (state.originalAppJson !== undefined) {
         writeFileSync(path.join(state.projectDir, "app.json"), state.originalAppJson);
@@ -515,6 +491,7 @@ VALUES (
     getBaseUrl: () => state.baseUrl,
     getProjectDir: () => state.projectDir,
     getProjectId: () => state.projectId,
+    getSeededBuildId: () => seededBuildId,
     readAppJson: () =>
       JSON.parse(readFileSync(path.join(state.projectDir, "app.json"), "utf8")) as Record<
         string,

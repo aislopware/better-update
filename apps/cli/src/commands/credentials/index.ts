@@ -23,6 +23,11 @@ const managerCommand = defineCommand({
   run: async () => runEffect(runCredentialsManager),
 });
 
+// citty 0.2.2 invokes the parent `run` even when a subcommand was specified, so
+// keeping `run: runCredentialsManager` here triggers the interactive wizard
+// after every `cli credentials <sub>` call and blocks on stdin forever. Route the
+// no-arg invocation through `default: "manager"` instead — that runs the manager
+// subcommand only when no other subcommand was given.
 export const credentialsCommand = defineCommand({
   meta: { name: "credentials", description: "Manage credentials" },
   subCommands: {
@@ -40,5 +45,5 @@ export const credentialsCommand = defineCommand({
     configure: configureCommand,
     sync: syncCommand,
   },
-  run: async () => runEffect(runCredentialsManager),
+  default: "manager",
 });

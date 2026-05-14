@@ -21,8 +21,10 @@
     "preview": "vite preview",
     "test": "vitest run --project unit --project component",
     "test:all": "bun run test && bun run test:e2e",
-    "test:e2e": "vitest run --project e2e --fileParallelism false --retry 2",
-    "test:e2e:ci": "vitest run --project e2e --fileParallelism false --retry 1 --bail 1",
+    "test:e2e": "vitest run --project e2e-api --project e2e-browser --retry 2",
+    "test:e2e:api": "vitest run --project e2e-api --retry 2",
+    "test:e2e:browser": "vitest run --project e2e-browser --retry 2",
+    "test:e2e:ci": "vitest run --project e2e-api --project e2e-browser --retry 1 --bail 1",
     "typegen:cf": "wrangler types"
   },
   "dependencies": {
