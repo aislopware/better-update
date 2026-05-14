@@ -11,7 +11,9 @@ import { setupCliE2E } from "../helpers/cli-e2e";
 
 const PROJECT_ID_ENV_KEY = "BETTER_UPDATE_E2E_PROJECT_ID";
 
-const cli = setupCliE2E(".wrangler/state/e2e-cli-dynamic", {
+const cli = setupCliE2E("e2e-cli-dynamic", {
+  userEmail: "cli-e2e-dynamic@example.com",
+  orgSlug: "cli-e2e-dynamic-org",
   appJsonTemplate: {
     expo: {
       name: "CLI E2E Dynamic App",

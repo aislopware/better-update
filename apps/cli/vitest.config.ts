@@ -16,11 +16,20 @@ export default defineConfig({
           name: "e2e",
           globals: true,
           include: ["tests/e2e/**/*.test.ts"],
+          globalSetup: ["./tests/e2e/global-setup.ts"],
           hookTimeout: 120_000,
           testTimeout: 120_000,
-          // E2E tests share a common fixture dir (fixtures/e2e-app) and a
-          // Wrangler seed SQL path — serialize via fileParallelism=false and
-          // The --maxWorkers 1 flag set on test:e2e in package.json.
+        },
+      },
+      // ── Slow tests (real Android build via gradlew) ──────
+      {
+        test: {
+          name: "slow",
+          globals: true,
+          include: ["tests/slow/**/*.test.ts"],
+          globalSetup: ["./tests/e2e/global-setup.ts"],
+          hookTimeout: 120_000,
+          testTimeout: 900_000,
           fileParallelism: false,
         },
       },

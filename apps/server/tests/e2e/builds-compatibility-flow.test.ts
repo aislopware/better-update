@@ -3,17 +3,19 @@ import { rmSync, writeFileSync } from "node:fs";
 
 import { setupE2EWorker } from "../helpers/e2e-worker";
 
-const persistDir = ".wrangler/state/e2e-builds-compatibility";
 const seedFile = ".wrangler/seed-builds-compatibility.sql";
-const { get, parseCookies, post } = setupE2EWorker(persistDir);
+const { get, getPersistDir, parseCookies, post } = setupE2EWorker();
 
 const sqlString = (value: string) => `'${value.replaceAll("'", "''")}'`;
 
 const runSeedSql = (sql: string) => {
   writeFileSync(seedFile, sql);
-  execSync(`bunx wrangler d1 execute DB --local --persist-to ${persistDir} --file ${seedFile}`, {
-    stdio: "pipe",
-  });
+  execSync(
+    `bunx wrangler d1 execute DB --local --persist-to ${getPersistDir()} --file ${seedFile}`,
+    {
+      stdio: "pipe",
+    },
+  );
   rmSync(seedFile, { force: true });
 };
 

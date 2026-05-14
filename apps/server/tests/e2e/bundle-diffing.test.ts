@@ -3,8 +3,8 @@ import { rmSync, writeFileSync } from "node:fs";
 
 import { setupE2EWorker } from "../helpers/e2e-worker";
 
-const persistDir = ".wrangler/state/e2e-bundle-diffing";
-const { getBaseUrl } = setupE2EWorker(persistDir);
+const { getBaseUrl, getPersistDir } = setupE2EWorker();
+const getPersistArg = () => getPersistDir();
 
 // -- Seed data ----------------------------------------------------------------
 
@@ -75,9 +75,12 @@ VALUES ('update-bd-v11-2', 'bundle', 'launch-hash-v11-new', 1);
 
 beforeAll(() => {
   writeFileSync(seedFile, seedSQL);
-  execSync(`bunx wrangler d1 execute DB --local --persist-to ${persistDir} --file ${seedFile}`, {
-    stdio: "pipe",
-  });
+  execSync(
+    `bunx wrangler d1 execute DB --local --persist-to ${getPersistArg()} --file ${seedFile}`,
+    {
+      stdio: "pipe",
+    },
+  );
 });
 
 afterAll(() => {

@@ -3,8 +3,8 @@ import { rmSync, writeFileSync } from "node:fs";
 
 import { setupE2EWorker } from "../helpers/e2e-worker";
 
-const persistDir = ".wrangler/state/e2e-manifest";
-const { getBaseUrl } = setupE2EWorker(persistDir);
+const { getBaseUrl, getPersistDir } = setupE2EWorker();
+const getPersistArg = () => getPersistDir();
 
 // ── Seed data via raw SQL (independent of management API) ───────
 
@@ -12,7 +12,7 @@ const seedFile = ".wrangler/seed-manifest.sql";
 
 const seedSQL = `
 INSERT INTO "organization" ("id", "name", "slug", "created_at")
-VALUES ('org-1', 'Test Org', 'test-org', '2024-01-01');
+VALUES ('org-1', 'Manifest Test Org', 'manifest-test-org', '2024-01-01');
 
 INSERT INTO "projects" ("id", "organization_id", "name", "slug", "created_at")
 VALUES ('proj-1', 'org-1', 'Test Project', 'my-app', '2024-01-01T00:00:00.000Z');
@@ -104,9 +104,12 @@ VALUES ('update-cache-v1', 'branch-1', '8.0.0', 'ios', 'cache test v1', '{}', 'g
 
 beforeAll(() => {
   writeFileSync(seedFile, seedSQL);
-  execSync(`bunx wrangler d1 execute DB --local --persist-to ${persistDir} --file ${seedFile}`, {
-    stdio: "pipe",
-  });
+  execSync(
+    `bunx wrangler d1 execute DB --local --persist-to ${getPersistArg()} --file ${seedFile}`,
+    {
+      stdio: "pipe",
+    },
+  );
 });
 
 afterAll(() => {
@@ -562,9 +565,12 @@ describe("Manifest caching", () => {
 VALUES ('update-cache-v2', 'branch-1', '8.0.0', 'ios', 'cache test v2', '{}', 'group-cache-2', 0, '{"id":"update-cache-v2","createdAt":"2024-07-01T00:00:00.000Z","runtimeVersion":"8.0.0","launchAsset":null,"assets":[],"metadata":{},"extra":{}}', '2024-07-01T00:00:00.000Z');
 UPDATE "channels" SET "cache_version" = "cache_version" + 1 WHERE "id" = 'chan-prod';`,
     );
-    execSync(`bunx wrangler d1 execute DB --local --persist-to ${persistDir} --file ${bumpFile}`, {
-      stdio: "pipe",
-    });
+    execSync(
+      `bunx wrangler d1 execute DB --local --persist-to ${getPersistArg()} --file ${bumpFile}`,
+      {
+        stdio: "pipe",
+      },
+    );
     rmSync(bumpFile, { force: true });
 
     // Second request should get the new update (cache key changed due to bumped version)
