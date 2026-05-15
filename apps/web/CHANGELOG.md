@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.10.0](https://github.com/better-update/better-update/compare/@better-update/web@0.9.0...@better-update/web@0.10.0) (2026-05-15)
+
+### Features
+
+* **web:** per-route skeletons + top progress bar + onboarding Frame layout ([33616c7](https://github.com/better-update/better-update/commit/33616c7804c7ef55b55406729004dc28209a344f)) - by @trancong12102
+
 ## [0.9.0](https://github.com/better-update/better-update/compare/@better-update/web@0.8.1...@better-update/web@0.9.0) (2026-05-13)
 
 ### Features
