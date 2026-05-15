@@ -14,7 +14,7 @@ interface ExportResult {
   readonly items: readonly {
     readonly key: string;
     readonly value: string;
-    readonly visibility: "plaintext" | "sensitive" | "secret";
+    readonly visibility: "plaintext" | "sensitive";
   }[];
 }
 
@@ -39,7 +39,7 @@ describe(pullEnvVars, () => {
           environment: "production",
           items: [
             { key: "API_URL", value: "https://api.example.com", visibility: "plaintext" as const },
-            { key: "SECRET", value: "xyz", visibility: "secret" as const },
+            { key: "SECRET", value: "xyz", visibility: "sensitive" as const },
           ],
         }),
       );
@@ -87,9 +87,9 @@ describe(pullEnvVars, () => {
         receivedArgs = args;
         return Effect.succeed({ environment: args.urlParams.environment, items: [] });
       });
-      yield* pullEnvVars(api, { projectId: "p_1", environment: "staging" });
+      yield* pullEnvVars(api, { projectId: "p_1", environment: "preview" });
       expect(receivedArgs).toStrictEqual({
-        urlParams: { projectId: "p_1", environment: "staging" },
+        urlParams: { projectId: "p_1", environment: "preview" },
       });
     }),
   );

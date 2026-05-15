@@ -33,6 +33,7 @@
     "@better-update/api": "workspace:*",
     "@better-update/api-client": "workspace:*",
     "@better-update/auth-client": "workspace:*",
+    "@better-update/dotenv": "workspace:*",
     "@better-update/encoding": "workspace:*",
     "@better-update/expo-protocol": "workspace:*",
     "@better-update/react-hooks": "workspace:*",

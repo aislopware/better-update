@@ -28,6 +28,7 @@
   "dependencies": {
     "@better-auth/api-key": "^1.6.10",
     "@better-update/api": "workspace:*",
+    "@better-update/dotenv": "workspace:*",
     "@better-update/encoding": "workspace:*",
     "@better-update/safe-json": "workspace:*",
     "@better-update/type-guards": "workspace:*",

@@ -9,9 +9,9 @@ import { InteractiveMode } from "../../lib/interactive-mode";
 import { printHuman } from "../../lib/output";
 import { promptMultiSelect } from "../../lib/prompts";
 import { apiClient } from "../../services/api-client";
-import { envErrorExtras } from "./helpers";
+import { envErrorExtras, formatEnvironments, parseEnvironmentsArg } from "./helpers";
 
-type Visibility = "plaintext" | "sensitive" | "secret";
+type Visibility = "plaintext" | "sensitive";
 
 interface ParsedVar {
   readonly key: string;
@@ -69,7 +69,12 @@ export const pushCommand = defineCommand({
       default: ".env.local",
       description: "Path to dotenv file (default: .env.local)",
     },
-    environment: { type: "string", default: "production", description: "Target environment" },
+    environment: {
+      type: "string",
+      default: "production",
+      description:
+        "Target environments (comma-separated, e.g. development,production). Default: production",
+    },
     force: {
       type: "boolean",
       description: "Overwrite existing vars without prompting",
@@ -87,11 +92,12 @@ export const pushCommand = defineCommand({
           return;
         }
 
+        const environments = yield* parseEnvironmentsArg(args.environment);
         const projectId = yield* readProjectId;
         const api = yield* apiClient;
 
         const existingResp = yield* api["env-vars"].list({
-          urlParams: { projectId, environment: args.environment },
+          urlParams: { projectId, scope: "project" },
         });
         const existingByKey = new Map(existingResp.items.map((item) => [item.key, item]));
 
@@ -129,8 +135,9 @@ export const pushCommand = defineCommand({
           (entry) =>
             api["env-vars"].create({
               payload: {
+                scope: "project",
                 projectId,
-                environment: args.environment,
+                environments,
                 key: entry.key,
                 value: entry.value,
                 visibility: entry.visibility,
@@ -148,14 +155,18 @@ export const pushCommand = defineCommand({
             }
             return api["env-vars"].update({
               path: { id: existing.id },
-              payload: { value: entry.value, visibility: entry.visibility },
+              payload: {
+                value: entry.value,
+                visibility: entry.visibility,
+                environments,
+              },
             });
           },
           { concurrency: 4 },
         );
 
         yield* printHuman(
-          `Pushed to ${args.environment}: ${String(newEntries.length)} created, ${String(
+          `Pushed to ${formatEnvironments(environments)}: ${String(newEntries.length)} created, ${String(
             entriesToOverwrite.length,
           )} updated${skipped > 0 ? `, ${String(skipped)} skipped` : ""}.`,
         );

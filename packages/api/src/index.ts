@@ -58,8 +58,11 @@ export {
   CreateEnvVarBody,
   DeleteEnvVarResult,
   EnvVar,
+  EnvVarEnvironment,
   EnvVarExportItem,
   EnvVarExportResult,
+  EnvVarListScope,
+  EnvVarScope,
   EnvVarVisibility,
   UpdateEnvVarBody,
 } from "./domain/env-var";

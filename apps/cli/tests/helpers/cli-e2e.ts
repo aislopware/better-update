@@ -428,11 +428,12 @@ export const setupCliE2E = (testId: string, options: SetupCliE2EOptions): CliE2E
     const createEnvVarResponse = await post(
       "/api/env-vars",
       {
+        scope: "project",
         projectId: state.projectId,
-        environment: "production",
+        environments: ["production"],
         key: "APP_SECRET",
         value: "super-secret",
-        visibility: "secret",
+        visibility: "sensitive",
       },
       { cookie: state.cookies },
     );

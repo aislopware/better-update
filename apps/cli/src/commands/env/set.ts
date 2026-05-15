@@ -5,20 +5,25 @@ import { runEffect } from "../../lib/citty-effect";
 import { parseKeyValue } from "../../lib/cli-schemas";
 import { readProjectId } from "../../lib/expo-config";
 import { apiClient } from "../../services/api-client";
-import { envErrorExtras } from "./helpers";
+import { envErrorExtras, formatEnvironments, parseEnvironmentsArg } from "./helpers";
 
 export const setCommand = defineCommand({
-  meta: { name: "set", description: "Create or update an environment variable" },
+  meta: { name: "set", description: "Create or update a project-scoped environment variable" },
   args: {
     keyValue: {
       type: "positional",
       required: true,
       description: "KEY=VALUE pair (e.g. API_KEY=abc123)",
     },
-    environment: { type: "string", default: "production", description: "Target environment" },
+    environment: {
+      type: "string",
+      default: "production",
+      description:
+        "Target environments (comma-separated, e.g. development,production). Default: production",
+    },
     visibility: {
       type: "enum",
-      options: ["plaintext", "sensitive", "secret"],
+      options: ["plaintext", "sensitive"],
       default: "plaintext",
       description: "Value visibility",
     },
@@ -27,28 +32,29 @@ export const setCommand = defineCommand({
     runEffect(
       Effect.gen(function* () {
         const { key, value } = yield* parseKeyValue(args.keyValue);
-        const { environment } = args;
+        const environments = yield* parseEnvironmentsArg(args.environment);
         const { visibility } = args;
         const projectId = yield* readProjectId;
         const api = yield* apiClient;
 
         const existing = yield* api["env-vars"].list({
-          urlParams: { projectId, environment },
+          urlParams: { projectId, scope: "project" },
         });
 
         const match = existing.items.find((item) => item.key === key);
+        const label = formatEnvironments(environments);
 
         if (match) {
           yield* api["env-vars"].update({
             path: { id: match.id },
-            payload: { value, visibility },
+            payload: { value, visibility, environments },
           });
-          yield* Console.log(`Updated ${key} in ${environment}`);
+          yield* Console.log(`Updated ${key} (environments: ${label})`);
         } else {
           yield* api["env-vars"].create({
-            payload: { projectId, environment, key, value, visibility },
+            payload: { scope: "project", projectId, environments, key, value, visibility },
           });
-          yield* Console.log(`Created ${key} in ${environment}`);
+          yield* Console.log(`Created ${key} (environments: ${label})`);
         }
       }),
       envErrorExtras,

@@ -24,6 +24,7 @@ import { Route as AuthedAppApiKeysRouteImport } from './routes/_authed/_app/api-
 import { Route as AuthedAppAccountRouteImport } from './routes/_authed/_app/account'
 import { Route as AuthedAppSettingsIndexRouteImport } from './routes/_authed/_app/settings/index'
 import { Route as AuthedAppProjectsIndexRouteImport } from './routes/_authed/_app/projects/index'
+import { Route as AuthedAppEnvironmentVariablesIndexRouteImport } from './routes/_authed/_app/environment-variables/index'
 import { Route as AuthedAppAppleDevicesIndexRouteImport } from './routes/_authed/_app/apple-devices/index'
 import { Route as AuthedAppAccountIndexRouteImport } from './routes/_authed/_app/account/index'
 import { Route as AuthedAppProjectsProjectSlugRouteImport } from './routes/_authed/_app/projects/$projectSlug'
@@ -117,6 +118,12 @@ const AuthedAppProjectsIndexRoute = AuthedAppProjectsIndexRouteImport.update({
   path: '/projects/',
   getParentRoute: () => AuthedAppRoute,
 } as any)
+const AuthedAppEnvironmentVariablesIndexRoute =
+  AuthedAppEnvironmentVariablesIndexRouteImport.update({
+    id: '/environment-variables/',
+    path: '/environment-variables/',
+    getParentRoute: () => AuthedAppRoute,
+  } as any)
 const AuthedAppAppleDevicesIndexRoute =
   AuthedAppAppleDevicesIndexRouteImport.update({
     id: '/apple-devices/',
@@ -250,6 +257,7 @@ export interface FileRoutesByFullPath {
   '/projects/$projectSlug': typeof AuthedAppProjectsProjectSlugRouteWithChildren
   '/account/': typeof AuthedAppAccountIndexRoute
   '/apple-devices/': typeof AuthedAppAppleDevicesIndexRoute
+  '/environment-variables/': typeof AuthedAppEnvironmentVariablesIndexRoute
   '/projects/': typeof AuthedAppProjectsIndexRoute
   '/settings/': typeof AuthedAppSettingsIndexRoute
   '/projects/$projectSlug/audit-log': typeof AuthedAppProjectsProjectSlugAuditLogRoute
@@ -282,6 +290,7 @@ export interface FileRoutesByTo {
   '/account/sessions': typeof AuthedAppAccountSessionsRoute
   '/account': typeof AuthedAppAccountIndexRoute
   '/apple-devices': typeof AuthedAppAppleDevicesIndexRoute
+  '/environment-variables': typeof AuthedAppEnvironmentVariablesIndexRoute
   '/projects': typeof AuthedAppProjectsIndexRoute
   '/settings': typeof AuthedAppSettingsIndexRoute
   '/projects/$projectSlug/audit-log': typeof AuthedAppProjectsProjectSlugAuditLogRoute
@@ -319,6 +328,7 @@ export interface FileRoutesById {
   '/_authed/_app/projects/$projectSlug': typeof AuthedAppProjectsProjectSlugRouteWithChildren
   '/_authed/_app/account/': typeof AuthedAppAccountIndexRoute
   '/_authed/_app/apple-devices/': typeof AuthedAppAppleDevicesIndexRoute
+  '/_authed/_app/environment-variables/': typeof AuthedAppEnvironmentVariablesIndexRoute
   '/_authed/_app/projects/': typeof AuthedAppProjectsIndexRoute
   '/_authed/_app/settings/': typeof AuthedAppSettingsIndexRoute
   '/_authed/_app/projects/$projectSlug/audit-log': typeof AuthedAppProjectsProjectSlugAuditLogRoute
@@ -355,6 +365,7 @@ export interface FileRouteTypes {
     | '/projects/$projectSlug'
     | '/account/'
     | '/apple-devices/'
+    | '/environment-variables/'
     | '/projects/'
     | '/settings/'
     | '/projects/$projectSlug/audit-log'
@@ -387,6 +398,7 @@ export interface FileRouteTypes {
     | '/account/sessions'
     | '/account'
     | '/apple-devices'
+    | '/environment-variables'
     | '/projects'
     | '/settings'
     | '/projects/$projectSlug/audit-log'
@@ -423,6 +435,7 @@ export interface FileRouteTypes {
     | '/_authed/_app/projects/$projectSlug'
     | '/_authed/_app/account/'
     | '/_authed/_app/apple-devices/'
+    | '/_authed/_app/environment-variables/'
     | '/_authed/_app/projects/'
     | '/_authed/_app/settings/'
     | '/_authed/_app/projects/$projectSlug/audit-log'
@@ -549,6 +562,13 @@ declare module '@tanstack/react-router' {
       path: '/projects'
       fullPath: '/projects/'
       preLoaderRoute: typeof AuthedAppProjectsIndexRouteImport
+      parentRoute: typeof AuthedAppRoute
+    }
+    '/_authed/_app/environment-variables/': {
+      id: '/_authed/_app/environment-variables/'
+      path: '/environment-variables'
+      fullPath: '/environment-variables/'
+      preLoaderRoute: typeof AuthedAppEnvironmentVariablesIndexRouteImport
       parentRoute: typeof AuthedAppRoute
     }
     '/_authed/_app/apple-devices/': {
@@ -762,6 +782,7 @@ interface AuthedAppRouteChildren {
   AuthedAppIndexRoute: typeof AuthedAppIndexRoute
   AuthedAppProjectsProjectSlugRoute: typeof AuthedAppProjectsProjectSlugRouteWithChildren
   AuthedAppAppleDevicesIndexRoute: typeof AuthedAppAppleDevicesIndexRoute
+  AuthedAppEnvironmentVariablesIndexRoute: typeof AuthedAppEnvironmentVariablesIndexRoute
   AuthedAppProjectsIndexRoute: typeof AuthedAppProjectsIndexRoute
   AuthedAppSettingsIndexRoute: typeof AuthedAppSettingsIndexRoute
 }
@@ -776,6 +797,8 @@ const AuthedAppRouteChildren: AuthedAppRouteChildren = {
   AuthedAppProjectsProjectSlugRoute:
     AuthedAppProjectsProjectSlugRouteWithChildren,
   AuthedAppAppleDevicesIndexRoute: AuthedAppAppleDevicesIndexRoute,
+  AuthedAppEnvironmentVariablesIndexRoute:
+    AuthedAppEnvironmentVariablesIndexRoute,
   AuthedAppProjectsIndexRoute: AuthedAppProjectsIndexRoute,
   AuthedAppSettingsIndexRoute: AuthedAppSettingsIndexRoute,
 }

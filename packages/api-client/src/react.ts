@@ -72,8 +72,11 @@ export {
   deleteEnvVar,
   envVarsQueryKey,
   envVarsQueryOptions,
+  globalEnvVarsQueryKey,
+  globalEnvVarsQueryOptions,
   updateEnvVar,
 } from "./react/env-vars";
+export type { EnvVarsFilters } from "./react/env-vars";
 export {
   adoptionQueryKey,
   adoptionQueryOptions,

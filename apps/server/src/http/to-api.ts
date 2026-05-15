@@ -108,10 +108,12 @@ export const toApiEnvVar = (envVar: EnvVarModel) =>
     id: envVar.id,
     organizationId: envVar.organizationId,
     projectId: envVar.projectId,
-    environment: envVar.environment,
+    scope: envVar.scope,
     key: envVar.key,
     visibility: envVar.visibility,
     value: envVar.value,
+    environments: envVar.environments,
+    ...(envVar.overridesGlobal ? { overridesGlobal: true } : {}),
     createdAt: envVar.createdAt,
     updatedAt: envVar.updatedAt,
   });

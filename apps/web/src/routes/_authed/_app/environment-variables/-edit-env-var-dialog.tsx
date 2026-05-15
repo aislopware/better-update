@@ -1,4 +1,8 @@
-import { envVarsQueryKey, updateEnvVar } from "@better-update/api-client/react";
+import {
+  envVarsQueryKey,
+  globalEnvVarsQueryKey,
+  updateEnvVar,
+} from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
@@ -10,7 +14,7 @@ import {
   DialogPanel,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
-import { Field, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
 import {
   Select,
@@ -25,24 +29,35 @@ import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 
-import type { EnvVar } from "@better-update/api";
+import type { EnvVar, EnvVarEnvironment } from "@better-update/api";
 
-import { safeSubmit, useApiMutation } from "../../../../../lib/use-api-mutation";
+import { getFieldError } from "../../../../lib/form-utils";
+import { safeSubmit, useApiMutation } from "../../../../lib/use-api-mutation";
+import { EnvironmentsPicker } from "./-environments-picker";
 
 const VISIBILITY_LABELS: Record<string, string> = {
   plaintext: "Plaintext",
   sensitive: "Sensitive",
-  secret: "Secret",
+};
+
+const arraysEqual = (
+  left: readonly (typeof EnvVarEnvironment.Type)[],
+  right: readonly (typeof EnvVarEnvironment.Type)[],
+) => {
+  if (left.length !== right.length) {
+    return false;
+  }
+  const sortedLeft = [...left].toSorted();
+  const sortedRight = [...right].toSorted();
+  return sortedLeft.every((env, index) => env === sortedRight[index]);
 };
 
 const EditFormContent = ({
   orgId,
-  projectId,
   envVar,
   onSuccess,
 }: {
   orgId: string;
-  projectId: string;
   envVar: typeof EnvVar.Type;
   onSuccess: () => void;
 }) => {
@@ -51,13 +66,17 @@ const EditFormContent = ({
   const updateEnvVarMutation = useApiMutation({
     mutationFn: async (payload: {
       value?: string;
-      visibility?: "plaintext" | "sensitive" | "secret";
+      visibility?: "plaintext" | "sensitive";
+      environments?: readonly (typeof EnvVarEnvironment.Type)[];
     }) => updateEnvVar(envVar.id, payload),
     onSuccess: async () => {
       toastManager.add({ title: `Variable "${envVar.key}" updated`, type: "success" });
-      await queryClient.invalidateQueries({
-        queryKey: envVarsQueryKey(orgId, projectId),
-      });
+      if (envVar.projectId) {
+        await queryClient.invalidateQueries({
+          queryKey: envVarsQueryKey(orgId, envVar.projectId),
+        });
+      }
+      await queryClient.invalidateQueries({ queryKey: globalEnvVarsQueryKey(orgId) });
       onSuccess();
     },
   });
@@ -67,9 +86,14 @@ const EditFormContent = ({
       // eslint-disable-next-line eslint-js/no-restricted-syntax -- controlled input requires string; encrypted fields render blank by design
       value: isEncrypted ? "" : (envVar.value ?? ""),
       visibility: envVar.visibility,
+      environments: envVar.environments,
     },
     onSubmit: async ({ value }) => {
-      const payload: { value?: string; visibility?: "plaintext" | "sensitive" | "secret" } = {};
+      const payload: {
+        value?: string;
+        visibility?: "plaintext" | "sensitive";
+        environments?: readonly (typeof EnvVarEnvironment.Type)[];
+      } = {};
       if (isEncrypted) {
         if (value.value.length > 0) {
           payload.value = value.value;
@@ -80,6 +104,9 @@ const EditFormContent = ({
       }
       if (value.visibility !== envVar.visibility) {
         payload.visibility = value.visibility;
+      }
+      if (!arraysEqual(value.environments, envVar.environments)) {
+        payload.environments = value.environments;
       }
 
       if (Object.keys(payload).length === 0) {
@@ -140,7 +167,7 @@ const EditFormContent = ({
                   items={VISIBILITY_LABELS}
                   value={field.state.value}
                   onValueChange={(val) => {
-                    if (val === "plaintext" || val === "sensitive" || val === "secret") {
+                    if (val === "plaintext" || val === "sensitive") {
                       field.handleChange(val);
                     }
                   }}
@@ -152,12 +179,35 @@ const EditFormContent = ({
                     <SelectGroup>
                       <SelectItem value="plaintext">Plaintext</SelectItem>
                       <SelectItem value="sensitive">Sensitive</SelectItem>
-                      <SelectItem value="secret">Secret</SelectItem>
                     </SelectGroup>
                   </SelectPopup>
                 </Select>
               </Field>
             )}
+          </form.Field>
+
+          <form.Field
+            name="environments"
+            validators={{
+              onChange: ({ value }) =>
+                value.length === 0 ? "Select at least one environment" : undefined,
+            }}
+          >
+            {(field) => {
+              const errorMessage = getFieldError(field);
+              return (
+                <Field data-invalid={errorMessage ? true : undefined}>
+                  <FieldLabel>Environments</FieldLabel>
+                  <EnvironmentsPicker
+                    value={field.state.value}
+                    onChange={(value) => {
+                      field.handleChange(value);
+                    }}
+                  />
+                  <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
+                </Field>
+              );
+            }}
           </form.Field>
         </FieldGroup>
       </DialogPanel>
@@ -178,13 +228,11 @@ const EditFormContent = ({
 
 export const EditEnvVarDialog = ({
   orgId,
-  projectId,
   envVar,
   open,
   onOpenChange,
 }: {
   orgId: string;
-  projectId: string;
   envVar: typeof EnvVar.Type;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -193,12 +241,15 @@ export const EditEnvVarDialog = ({
     <DialogPopup>
       <DialogHeader>
         <DialogTitle>Edit variable</DialogTitle>
-        <DialogDescription>Update the value or visibility of {envVar.key}.</DialogDescription>
+        <DialogDescription>
+          {envVar.scope === "global"
+            ? `Update the organization-wide variable ${envVar.key}.`
+            : `Update the value, visibility, or environments of ${envVar.key}.`}
+        </DialogDescription>
       </DialogHeader>
       {open && (
         <EditFormContent
           orgId={orgId}
-          projectId={projectId}
           envVar={envVar}
           onSuccess={() => {
             onOpenChange(false);

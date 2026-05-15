@@ -7,10 +7,9 @@ import { apiClient } from "../../services/api-client";
 import { EnvResourceNotFoundError, envErrorExtras } from "./helpers";
 
 export const deleteCommand = defineCommand({
-  meta: { name: "delete", description: "Delete an environment variable by key" },
+  meta: { name: "delete", description: "Delete a project env var by key" },
   args: {
     key: { type: "positional", required: true, description: "Env var key" },
-    environment: { type: "string", default: "production", description: "Target environment" },
   },
   run: async ({ args }) =>
     runEffect(
@@ -19,19 +18,19 @@ export const deleteCommand = defineCommand({
         const api = yield* apiClient;
 
         const existing = yield* api["env-vars"].list({
-          urlParams: { projectId, environment: args.environment },
+          urlParams: { projectId, scope: "project" },
         });
 
         const match = existing.items.find((item) => item.key === args.key);
 
         if (!match) {
           return yield* new EnvResourceNotFoundError({
-            message: `Environment variable ${args.key} not found in ${args.environment}`,
+            message: `Project env var "${args.key}" not found.`,
           });
         }
 
         yield* api["env-vars"].delete({ path: { id: match.id } });
-        yield* Console.log(`Deleted ${args.key} from ${args.environment}`);
+        yield* Console.log(`Deleted ${args.key}`);
         return undefined;
       }),
       envErrorExtras,

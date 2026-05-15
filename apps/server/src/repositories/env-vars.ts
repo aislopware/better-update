@@ -1,3 +1,4 @@
+import { safeJsonParse } from "@better-update/safe-json";
 import { Context, Effect, Layer } from "effect";
 
 import { cloudflareEnv } from "../cloudflare/context";
@@ -5,21 +6,44 @@ import { NotFound } from "../errors";
 import { d1WithUniqueCheck } from "./d1-helpers";
 
 import type { Conflict } from "../errors";
+import type { EnvVarEnvironment, EnvVarScope, EnvVarVisibility } from "../models";
 
-// -- Row type ----------------------------------------------------------------
+// -- Row types ---------------------------------------------------------------
 
-export interface EnvVarRow {
+interface EnvVarBaseRow {
   readonly id: string;
   readonly organization_id: string;
-  readonly project_id: string;
-  readonly environment: string;
+  readonly project_id: string | null;
+  readonly scope: EnvVarScope;
   readonly key: string;
-  readonly visibility: "plaintext" | "sensitive" | "secret";
+  readonly visibility: EnvVarVisibility;
   readonly value: string | null;
   readonly encrypted_value: string | null;
   readonly key_version: number | null;
   readonly created_at: string;
   readonly updated_at: string;
+}
+
+export interface EnvVarRow extends EnvVarBaseRow {
+  readonly environments: readonly EnvVarEnvironment[];
+}
+
+interface EnvVarJoinedRow extends EnvVarBaseRow {
+  readonly environments_json: string | null;
+}
+
+// -- Filter shapes -----------------------------------------------------------
+
+export type EnvVarListScope = "all" | "project" | "global";
+
+export interface EnvVarListFilters {
+  readonly organizationId: string;
+  readonly projectId?: string;
+  readonly scope: EnvVarListScope;
+  readonly environments?: readonly EnvVarEnvironment[];
+  readonly search?: string;
+  readonly limit: number;
+  readonly offset: number;
 }
 
 // -- Port --------------------------------------------------------------------
@@ -28,55 +52,52 @@ export interface EnvVarRepository {
   readonly insert: (params: {
     readonly id: string;
     readonly organizationId: string;
-    readonly projectId: string;
-    readonly environment: string;
+    readonly projectId: string | null;
+    readonly scope: EnvVarScope;
     readonly key: string;
-    readonly visibility: "plaintext" | "sensitive" | "secret";
+    readonly visibility: EnvVarVisibility;
     readonly value: string | null;
     readonly encryptedValue: string | null;
     readonly keyVersion: number | null;
+    readonly environments: readonly EnvVarEnvironment[];
   }) => Effect.Effect<EnvVarRow, Conflict>;
 
   readonly findById: (params: { readonly id: string }) => Effect.Effect<EnvVarRow, NotFound>;
 
-  readonly list: (params: {
-    readonly organizationId: string;
-    readonly projectId: string;
-    readonly environment?: string;
-    readonly limit: number;
-    readonly offset: number;
-  }) => Effect.Effect<{ readonly items: readonly EnvVarRow[] }>;
+  readonly list: (
+    filters: EnvVarListFilters,
+  ) => Effect.Effect<{ readonly items: readonly EnvVarRow[] }>;
 
   readonly update: (params: {
     readonly id: string;
     readonly value?: string | null;
     readonly encryptedValue?: string | null;
     readonly keyVersion?: number | null;
-    readonly visibility?: "plaintext" | "sensitive" | "secret";
+    readonly visibility?: EnvVarVisibility;
   }) => Effect.Effect<EnvVarRow, NotFound>;
+
+  readonly replaceEnvironments: (params: {
+    readonly id: string;
+    readonly environments: readonly EnvVarEnvironment[];
+  }) => Effect.Effect<void, NotFound>;
 
   readonly deleteById: (params: { readonly id: string }) => Effect.Effect<void, NotFound>;
 
-  readonly countByProjectEnv: (params: {
-    readonly projectId: string;
-    readonly environment: string;
-  }) => Effect.Effect<number>;
+  readonly countByProject: (params: { readonly projectId: string }) => Effect.Effect<number>;
 
-  readonly findAllByProjectEnvs: (params: {
-    readonly projectId: string;
-    readonly environments: readonly string[];
-  }) => Effect.Effect<readonly EnvVarRow[]>;
+  readonly countByOrgGlobal: (params: { readonly organizationId: string }) => Effect.Effect<number>;
 
   readonly upsert: (params: {
     readonly id: string;
     readonly organizationId: string;
-    readonly projectId: string;
-    readonly environment: string;
+    readonly projectId: string | null;
+    readonly scope: EnvVarScope;
     readonly key: string;
-    readonly visibility: "plaintext" | "sensitive" | "secret";
+    readonly visibility: EnvVarVisibility;
     readonly value: string | null;
     readonly encryptedValue: string | null;
     readonly keyVersion: number | null;
+    readonly environments: readonly EnvVarEnvironment[];
   }) => Effect.Effect<"created" | "updated">;
 }
 
@@ -84,7 +105,50 @@ export class EnvVarRepo extends Context.Tag("api/EnvVarRepo")<EnvVarRepo, EnvVar
 
 // -- D1 Adapter --------------------------------------------------------------
 
-const SELECT_COLUMNS = `"id", "organization_id", "project_id", "environment", "key", "visibility", "value", "encrypted_value", "key_version", "created_at", "updated_at"`;
+const BASE_COLUMNS = `v."id", v."organization_id", v."project_id", v."scope", v."key", v."visibility", v."value", v."encrypted_value", v."key_version", v."created_at", v."updated_at"`;
+
+const SELECT_WITH_ENVIRONMENTS = `${BASE_COLUMNS}, (
+  SELECT COALESCE(json_group_array(e."environment"), '[]')
+  FROM "env_var_environments" e
+  WHERE e."env_var_id" = v."id"
+) AS "environments_json"`;
+
+const isEnvironment = (value: unknown): value is EnvVarEnvironment =>
+  value === "development" || value === "preview" || value === "production";
+
+const parseEnvironments = (raw: string | null): readonly EnvVarEnvironment[] => {
+  if (!raw) {
+    return [];
+  }
+  const parsed = safeJsonParse(raw);
+  if (!Array.isArray(parsed)) {
+    return [];
+  }
+  return (parsed as readonly unknown[])
+    .filter(isEnvironment)
+    .toSorted((left, right) => left.localeCompare(right));
+};
+
+const toEnvVarRow = (row: EnvVarJoinedRow): EnvVarRow => ({
+  id: row.id,
+  organization_id: row.organization_id,
+  project_id: row.project_id,
+  scope: row.scope,
+  key: row.key,
+  visibility: row.visibility,
+  value: row.value,
+  encrypted_value: row.encrypted_value,
+  key_version: row.key_version,
+  created_at: row.created_at,
+  updated_at: row.updated_at,
+  environments: parseEnvironments(row.environments_json),
+});
+
+const escapeLike = (input: string) =>
+  input
+    .replaceAll("\\", String.raw`\\`)
+    .replaceAll("%", String.raw`\%`)
+    .replaceAll("_", String.raw`\_`);
 
 export const EnvVarRepoLive = Layer.succeed(EnvVarRepo, {
   insert: (params) =>
@@ -92,33 +156,41 @@ export const EnvVarRepoLive = Layer.succeed(EnvVarRepo, {
       const env = yield* cloudflareEnv;
       const now = new Date().toISOString();
 
-      yield* d1WithUniqueCheck(
-        async () =>
+      const statements: D1PreparedStatement[] = [
+        env.DB.prepare(
+          `INSERT INTO "env_vars" ("id", "organization_id", "project_id", "scope", "key", "visibility", "value", "encrypted_value", "key_version", "created_at", "updated_at") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ).bind(
+          params.id,
+          params.organizationId,
+          params.projectId,
+          params.scope,
+          params.key,
+          params.visibility,
+          params.value,
+          params.encryptedValue,
+          params.keyVersion,
+          now,
+          now,
+        ),
+        ...params.environments.map((environment) =>
           env.DB.prepare(
-            `INSERT INTO "env_vars" ("id", "organization_id", "project_id", "environment", "key", "visibility", "value", "encrypted_value", "key_version", "created_at", "updated_at") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          )
-            .bind(
-              params.id,
-              params.organizationId,
-              params.projectId,
-              params.environment,
-              params.key,
-              params.visibility,
-              params.value,
-              params.encryptedValue,
-              params.keyVersion,
-              now,
-              now,
-            )
-            .run(),
-        `Variable "${params.key}" already exists in this environment`,
+            `INSERT INTO "env_var_environments" ("env_var_id", "environment") VALUES (?, ?)`,
+          ).bind(params.id, environment),
+        ),
+      ];
+
+      yield* d1WithUniqueCheck(
+        async () => env.DB.batch(statements),
+        params.scope === "project"
+          ? `Variable "${params.key}" already exists in this project`
+          : `Variable "${params.key}" already exists in this organization`,
       );
 
       return {
         id: params.id,
         organization_id: params.organizationId,
         project_id: params.projectId,
-        environment: params.environment,
+        scope: params.scope,
         key: params.key,
         visibility: params.visibility,
         value: params.value,
@@ -126,6 +198,7 @@ export const EnvVarRepoLive = Layer.succeed(EnvVarRepo, {
         key_version: params.keyVersion,
         created_at: now,
         updated_at: now,
+        environments: [...params.environments].toSorted((left, right) => left.localeCompare(right)),
       };
     }),
 
@@ -134,41 +207,70 @@ export const EnvVarRepoLive = Layer.succeed(EnvVarRepo, {
       const env = yield* cloudflareEnv;
 
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT ${SELECT_COLUMNS} FROM "env_vars" WHERE "id" = ?`)
+        env.DB.prepare(`SELECT ${SELECT_WITH_ENVIRONMENTS} FROM "env_vars" v WHERE v."id" = ?`)
           .bind(params.id)
-          .first<EnvVarRow>(),
+          .first<EnvVarJoinedRow>(),
       );
 
       if (row === null) {
         return yield* Effect.fail(new NotFound({ message: "Environment variable not found" }));
       }
 
-      return row;
+      return toEnvVarRow(row);
     }),
 
-  list: (params) =>
+  list: (filters) =>
     Effect.gen(function* () {
       const env = yield* cloudflareEnv;
 
-      const conditions: string[] = ['"organization_id" = ?', '"project_id" = ?'];
-      const bindValues: (string | number)[] = [params.organizationId, params.projectId];
+      const conditions: string[] = [];
+      const bindValues: (string | number)[] = [];
 
-      if (params.environment) {
-        conditions.push('"environment" = ?');
-        bindValues.push(params.environment);
+      if (filters.scope === "project") {
+        if (!filters.projectId) {
+          return { items: [] };
+        }
+        conditions.push('v."project_id" = ?');
+        bindValues.push(filters.projectId);
+      } else if (filters.scope === "global") {
+        conditions.push('v."project_id" IS NULL', 'v."organization_id" = ?');
+        bindValues.push(filters.organizationId);
+      } else {
+        if (filters.projectId) {
+          conditions.push(
+            '(v."project_id" = ? OR (v."project_id" IS NULL AND v."organization_id" = ?))',
+          );
+          bindValues.push(filters.projectId, filters.organizationId);
+        } else {
+          conditions.push('v."organization_id" = ?');
+          bindValues.push(filters.organizationId);
+        }
+      }
+
+      if (filters.environments && filters.environments.length > 0) {
+        const placeholders = filters.environments.map(() => "?").join(", ");
+        conditions.push(
+          `EXISTS (SELECT 1 FROM "env_var_environments" ef WHERE ef."env_var_id" = v."id" AND ef."environment" IN (${placeholders}))`,
+        );
+        bindValues.push(...filters.environments);
+      }
+
+      if (filters.search && filters.search.trim().length > 0) {
+        conditions.push(`v."key" LIKE ? ESCAPE '\\'`);
+        bindValues.push(`%${escapeLike(filters.search.trim().toUpperCase())}%`);
       }
 
       const whereClause = conditions.join(" AND ");
 
       const rows = yield* Effect.promise(async () =>
         env.DB.prepare(
-          `SELECT ${SELECT_COLUMNS} FROM "env_vars" WHERE ${whereClause} ORDER BY "key" ASC LIMIT ? OFFSET ?`,
+          `SELECT ${SELECT_WITH_ENVIRONMENTS} FROM "env_vars" v WHERE ${whereClause} ORDER BY v."key" ASC, v."scope" DESC LIMIT ? OFFSET ?`,
         )
-          .bind(...bindValues, params.limit, params.offset)
-          .all<EnvVarRow>(),
+          .bind(...bindValues, filters.limit, filters.offset)
+          .all<EnvVarJoinedRow>(),
       );
 
-      return { items: rows.results };
+      return { items: rows.results.map(toEnvVarRow) };
     }),
 
   update: (params) =>
@@ -205,16 +307,43 @@ export const EnvVarRepoLive = Layer.succeed(EnvVarRepo, {
       );
 
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT ${SELECT_COLUMNS} FROM "env_vars" WHERE "id" = ?`)
+        env.DB.prepare(`SELECT ${SELECT_WITH_ENVIRONMENTS} FROM "env_vars" v WHERE v."id" = ?`)
           .bind(params.id)
-          .first<EnvVarRow>(),
+          .first<EnvVarJoinedRow>(),
       );
 
       if (row === null) {
         return yield* Effect.fail(new NotFound({ message: "Environment variable not found" }));
       }
 
-      return row;
+      return toEnvVarRow(row);
+    }),
+
+  replaceEnvironments: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+
+      const exists = yield* Effect.promise(async () =>
+        env.DB.prepare(`SELECT "id" FROM "env_vars" WHERE "id" = ?`)
+          .bind(params.id)
+          .first<{ id: string }>(),
+      );
+
+      if (exists === null) {
+        return yield* Effect.fail(new NotFound({ message: "Environment variable not found" }));
+      }
+
+      const statements: D1PreparedStatement[] = [
+        env.DB.prepare(`DELETE FROM "env_var_environments" WHERE "env_var_id" = ?`).bind(params.id),
+        ...params.environments.map((environment) =>
+          env.DB.prepare(
+            `INSERT INTO "env_var_environments" ("env_var_id", "environment") VALUES (?, ?)`,
+          ).bind(params.id, environment),
+        ),
+      ];
+
+      yield* Effect.promise(async () => env.DB.batch(statements));
+      return undefined;
     }),
 
   deleteById: (params) =>
@@ -230,35 +359,32 @@ export const EnvVarRepoLive = Layer.succeed(EnvVarRepo, {
       }
     }),
 
-  countByProjectEnv: (params) =>
+  countByProject: (params) =>
     Effect.gen(function* () {
       const env = yield* cloudflareEnv;
 
       const result = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT COUNT(*) as count FROM "env_vars" WHERE "project_id" = ? AND "environment" = ?`,
-        )
-          .bind(params.projectId, params.environment)
+        env.DB.prepare(`SELECT COUNT(*) as count FROM "env_vars" WHERE "project_id" = ?`)
+          .bind(params.projectId)
           .first<{ count: number }>(),
       );
 
       return result?.count ?? 0;
     }),
 
-  findAllByProjectEnvs: (params) =>
+  countByOrgGlobal: (params) =>
     Effect.gen(function* () {
       const env = yield* cloudflareEnv;
-      const placeholders = params.environments.map(() => "?").join(", ");
 
-      const rows = yield* Effect.promise(async () =>
+      const result = yield* Effect.promise(async () =>
         env.DB.prepare(
-          `SELECT ${SELECT_COLUMNS} FROM "env_vars" WHERE "project_id" = ? AND "environment" IN (${placeholders}) ORDER BY "key" ASC`,
+          `SELECT COUNT(*) as count FROM "env_vars" WHERE "organization_id" = ? AND "project_id" IS NULL`,
         )
-          .bind(params.projectId, ...params.environments)
-          .all<EnvVarRow>(),
+          .bind(params.organizationId)
+          .first<{ count: number }>(),
       );
 
-      return rows.results;
+      return result?.count ?? 0;
     }),
 
   upsert: (params) =>
@@ -266,21 +392,34 @@ export const EnvVarRepoLive = Layer.succeed(EnvVarRepo, {
       const env = yield* cloudflareEnv;
       const now = new Date().toISOString();
 
-      const row = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `INSERT INTO "env_vars" ("id", "organization_id", "project_id", "environment", "key", "visibility", "value", "encrypted_value", "key_version", "created_at", "updated_at")
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-           ON CONFLICT ("project_id", "environment", "key")
-           DO UPDATE SET "visibility" = excluded."visibility", "value" = excluded."value",
-             "encrypted_value" = excluded."encrypted_value", "key_version" = excluded."key_version",
-             "updated_at" = excluded."updated_at"
-           RETURNING "created_at"`,
-        )
-          .bind(
+      const existing = yield* Effect.promise(async () =>
+        (params.scope === "project"
+          ? env.DB.prepare(`SELECT "id" FROM "env_vars" WHERE "project_id" = ? AND "key" = ?`).bind(
+              params.projectId,
+              params.key,
+            )
+          : env.DB.prepare(
+              `SELECT "id" FROM "env_vars" WHERE "organization_id" = ? AND "project_id" IS NULL AND "key" = ?`,
+            ).bind(params.organizationId, params.key)
+        ).first<{ id: string }>(),
+      );
+
+      const envInserts = (id: string) =>
+        params.environments.map((environment) =>
+          env.DB.prepare(
+            `INSERT INTO "env_var_environments" ("env_var_id", "environment") VALUES (?, ?)`,
+          ).bind(id, environment),
+        );
+
+      if (existing === null) {
+        const statements: D1PreparedStatement[] = [
+          env.DB.prepare(
+            `INSERT INTO "env_vars" ("id", "organization_id", "project_id", "scope", "key", "visibility", "value", "encrypted_value", "key_version", "created_at", "updated_at") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          ).bind(
             params.id,
             params.organizationId,
             params.projectId,
-            params.environment,
+            params.scope,
             params.key,
             params.visibility,
             params.value,
@@ -288,10 +427,30 @@ export const EnvVarRepoLive = Layer.succeed(EnvVarRepo, {
             params.keyVersion,
             now,
             now,
-          )
-          .first<{ created_at: string }>(),
-      );
+          ),
+          ...envInserts(params.id),
+        ];
+        yield* Effect.promise(async () => env.DB.batch(statements));
+        return "created" as const;
+      }
 
-      return row?.created_at === now ? ("created" as const) : ("updated" as const);
+      const statements: D1PreparedStatement[] = [
+        env.DB.prepare(
+          `UPDATE "env_vars" SET "visibility" = ?, "value" = ?, "encrypted_value" = ?, "key_version" = ?, "updated_at" = ? WHERE "id" = ?`,
+        ).bind(
+          params.visibility,
+          params.value,
+          params.encryptedValue,
+          params.keyVersion,
+          now,
+          existing.id,
+        ),
+        env.DB.prepare(`DELETE FROM "env_var_environments" WHERE "env_var_id" = ?`).bind(
+          existing.id,
+        ),
+        ...envInserts(existing.id),
+      ];
+      yield* Effect.promise(async () => env.DB.batch(statements));
+      return "updated" as const;
     }),
 });

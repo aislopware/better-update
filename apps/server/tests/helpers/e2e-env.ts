@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import { parseDotenvContent } from "../../src/lib/dotenv";
+import { parseDotenvContent } from "@better-update/dotenv";
 
 const FALLBACKS = {
   assetCdnUrl: "https://assets.better-update.dev",

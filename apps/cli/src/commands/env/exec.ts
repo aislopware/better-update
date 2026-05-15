@@ -8,14 +8,15 @@ import { InvalidArgumentError } from "../../lib/exit-codes";
 import { readProjectId } from "../../lib/expo-config";
 import { apiClient } from "../../services/api-client";
 import { CliRuntime } from "../../services/cli-runtime";
-import { envErrorExtras } from "./helpers";
+import { envErrorExtras, parseSingleEnvironmentArg } from "./helpers";
 
 import type { ApiClient } from "../../services/api-client";
+import type { EnvironmentName } from "./helpers";
 
 const pullForExec = (
   api: ApiClient,
   projectId: string,
-  environment: string,
+  environment: EnvironmentName,
 ): Effect.Effect<Record<string, string>> =>
   api["env-vars"].export({ urlParams: { projectId, environment } }).pipe(
     Effect.map((result) => Object.fromEntries(result.items.map((item) => [item.key, item.value]))),
@@ -57,11 +58,12 @@ export const execCommand = defineCommand({
     runEffect(
       Effect.gen(function* () {
         const [bin, rest] = yield* splitTrailing(getExecTrailingArgv());
+        const environment = yield* parseSingleEnvironmentArg(args.environment);
         const projectId = yield* readProjectId;
         const api = yield* apiClient;
         const runtime = yield* CliRuntime;
         const baseEnv = yield* runtime.commandEnvironment();
-        const pulled = yield* pullForExec(api, projectId, args.environment);
+        const pulled = yield* pullForExec(api, projectId, environment);
 
         const cmd = Command.make(bin, ...rest).pipe(
           Command.env({ ...baseEnv, ...pulled }),

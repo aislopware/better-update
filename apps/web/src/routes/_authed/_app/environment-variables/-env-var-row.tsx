@@ -1,4 +1,8 @@
-import { deleteEnvVar, envVarsQueryKey } from "@better-update/api-client/react";
+import {
+  deleteEnvVar,
+  envVarsQueryKey,
+  globalEnvVarsQueryKey,
+} from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
@@ -25,13 +29,23 @@ import { useState } from "react";
 
 import type { EnvVar } from "@better-update/api";
 
-import { useApiMutation } from "../../../../../lib/use-api-mutation";
+import { useApiMutation } from "../../../../lib/use-api-mutation";
 import { EditEnvVarDialog } from "./-edit-env-var-dialog";
 
-const VISIBILITY_VARIANTS: Record<string, "secondary" | "warning" | "error"> = {
+const VISIBILITY_VARIANTS: Record<string, "secondary" | "warning"> = {
   plaintext: "secondary",
   sensitive: "warning",
-  secret: "error",
+};
+
+const SCOPE_VARIANTS: Record<string, "secondary" | "info"> = {
+  project: "secondary",
+  global: "info",
+};
+
+const ENV_LABELS: Record<string, string> = {
+  development: "Dev",
+  preview: "Preview",
+  production: "Prod",
 };
 
 const VisibilityBadge = ({ visibility }: { visibility: string }) => (
@@ -39,9 +53,6 @@ const VisibilityBadge = ({ visibility }: { visibility: string }) => (
 );
 
 const ValueDisplay = ({ envVar }: { envVar: typeof EnvVar.Type }) => {
-  if (envVar.visibility === "secret") {
-    return <span className="text-muted-foreground italic">hidden</span>;
-  }
   if (envVar.visibility === "sensitive") {
     return <span className="text-muted-foreground font-mono">••••••</span>;
   }
@@ -52,10 +63,12 @@ export const EnvVarRow = ({
   envVar,
   orgId,
   projectId,
+  manageMode,
 }: {
   envVar: typeof EnvVar.Type;
   orgId: string;
-  projectId: string;
+  projectId: string | undefined;
+  manageMode: "all" | "scope-only";
 }) => {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -64,9 +77,12 @@ export const EnvVarRow = ({
     mutationFn: async () => deleteEnvVar(envVar.id),
     onSuccess: async () => {
       toastManager.add({ title: `Variable "${envVar.key}" deleted`, type: "success" });
-      await queryClient.invalidateQueries({
-        queryKey: envVarsQueryKey(orgId, projectId),
-      });
+      if (projectId) {
+        await queryClient.invalidateQueries({
+          queryKey: envVarsQueryKey(orgId, projectId),
+        });
+      }
+      await queryClient.invalidateQueries({ queryKey: globalEnvVarsQueryKey(orgId) });
       setDeleteOpen(false);
     },
   });
@@ -74,6 +90,8 @@ export const EnvVarRow = ({
   const handleDelete = () => {
     deleteEnvVarMutation.mutate();
   };
+
+  const isReadOnly = manageMode === "scope-only" && envVar.scope === "global";
 
   return (
     <>
@@ -85,43 +103,63 @@ export const EnvVarRow = ({
         <TableCell>
           <VisibilityBadge visibility={envVar.visibility} />
         </TableCell>
+        <TableCell>
+          <div className="flex flex-wrap gap-1">
+            {envVar.environments.map((env) => (
+              <Badge key={env} variant="secondary">
+                {ENV_LABELS[env] ?? env}
+              </Badge>
+            ))}
+          </div>
+        </TableCell>
+        <TableCell>
+          <div className="flex flex-wrap items-center gap-1">
+            <Badge variant={SCOPE_VARIANTS[envVar.scope] ?? "secondary"}>{envVar.scope}</Badge>
+            {envVar.overridesGlobal ? <Badge variant="warning">overrides global</Badge> : null}
+          </div>
+        </TableCell>
         <TableCell className="text-right">
-          <DropdownMenu>
-            <DropdownMenuTrigger render={<Button variant="ghost" size="icon" />}>
-              <EllipsisVerticalIcon strokeWidth={2} />
-            </DropdownMenuTrigger>
-            <DropdownMenuPopup align="end">
-              <DropdownMenuGroup>
-                <DropdownMenuItem
-                  onClick={() => {
-                    setEditOpen(true);
-                  }}
-                >
-                  Edit
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-              <DropdownMenuSeparator />
-              <DropdownMenuGroup>
-                <DropdownMenuItem
-                  variant="destructive"
-                  onClick={() => {
-                    setDeleteOpen(true);
-                  }}
-                >
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-            </DropdownMenuPopup>
-          </DropdownMenu>
+          {isReadOnly ? (
+            <span className="text-muted-foreground text-xs">manage in org settings</span>
+          ) : (
+            <DropdownMenu>
+              <DropdownMenuTrigger render={<Button variant="ghost" size="icon" />}>
+                <EllipsisVerticalIcon strokeWidth={2} />
+              </DropdownMenuTrigger>
+              <DropdownMenuPopup align="end">
+                <DropdownMenuGroup>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setEditOpen(true);
+                    }}
+                  >
+                    Edit
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onClick={() => {
+                      setDeleteOpen(true);
+                    }}
+                  >
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+              </DropdownMenuPopup>
+            </DropdownMenu>
+          )}
         </TableCell>
       </TableRow>
-      <EditEnvVarDialog
-        orgId={orgId}
-        projectId={projectId}
-        envVar={envVar}
-        open={editOpen}
-        onOpenChange={setEditOpen}
-      />
+      {!isReadOnly && (
+        <EditEnvVarDialog
+          orgId={orgId}
+          envVar={envVar}
+          open={editOpen}
+          onOpenChange={setEditOpen}
+        />
+      )}
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogPopup>
           <DialogHeader>

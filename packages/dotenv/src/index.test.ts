@@ -1,4 +1,6 @@
-import { parseDotenvContent, parseDotenvEntries } from "./dotenv";
+/// <reference types="vitest/globals" />
+
+import { parseDotenvContent, parseDotenvEntries } from "./index";
 
 describe(parseDotenvEntries, () => {
   it("parses basic key-value entries and skips comments", () => {

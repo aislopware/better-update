@@ -15,7 +15,11 @@ export type DistributionType = "APP_STORE" | "AD_HOC" | "ENTERPRISE" | "DEVELOPM
 
 export type AppleTeamType = "IN_HOUSE" | "COMPANY_ORGANIZATION" | "INDIVIDUAL";
 
-export type EnvVarVisibility = "plaintext" | "sensitive" | "secret";
+export type EnvVarVisibility = "plaintext" | "sensitive";
+
+export type EnvVarScope = "project" | "global";
+
+export type EnvVarEnvironment = "development" | "preview" | "production";
 
 export type AuditLogResourceType =
   | "project"
@@ -306,11 +310,13 @@ export interface AndroidBuildCredentialsModel {
 export interface EnvVarModel {
   readonly id: string;
   readonly organizationId: string;
-  readonly projectId: string;
-  readonly environment: string;
+  readonly projectId: string | null;
+  readonly scope: EnvVarScope;
   readonly key: string;
   readonly visibility: EnvVarVisibility;
   readonly value: string | null;
+  readonly environments: readonly EnvVarEnvironment[];
+  readonly overridesGlobal?: boolean;
   readonly createdAt: string;
   readonly updatedAt: string;
 }

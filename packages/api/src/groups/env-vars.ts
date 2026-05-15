@@ -10,7 +10,9 @@ import {
   CreateEnvVarBody,
   DeleteEnvVarResult,
   EnvVar,
+  EnvVarEnvironment,
   EnvVarExportResult,
+  EnvVarListScope,
   UpdateEnvVarBody,
 } from "../domain/env-var";
 import { BadRequest, Conflict } from "../domain/errors";
@@ -27,7 +29,8 @@ export class EnvVarsGroup extends HttpApiGroup.make("env-vars")
       .annotateContext(
         OpenApi.annotations({
           title: "Create environment variable",
-          description: "Create a new environment variable for a project",
+          description:
+            "Create a new environment variable. Scope can be 'project' (requires projectId) or 'global' (organization-wide).",
         }),
       ),
   )
@@ -35,8 +38,10 @@ export class EnvVarsGroup extends HttpApiGroup.make("env-vars")
     HttpApiEndpoint.get("list", "/api/env-vars")
       .setUrlParams(
         Schema.Struct({
-          projectId: Id,
-          environment: Schema.optional(Schema.String),
+          scope: Schema.optional(EnvVarListScope),
+          projectId: Schema.optional(Id),
+          environments: Schema.optional(Schema.String),
+          search: Schema.optional(Schema.String),
           ...PaginationParams.fields,
         }),
       )
@@ -45,10 +50,12 @@ export class EnvVarsGroup extends HttpApiGroup.make("env-vars")
           items: Schema.Array(EnvVar),
         }),
       )
+      .addError(BadRequest)
       .annotateContext(
         OpenApi.annotations({
           title: "List environment variables",
-          description: "List environment variables with optional filters",
+          description:
+            "List environment variables. scope=all merges project + global vars with project overrides. environments is a comma-separated list. search matches key substring.",
         }),
       ),
   )
@@ -68,7 +75,7 @@ export class EnvVarsGroup extends HttpApiGroup.make("env-vars")
       .annotateContext(
         OpenApi.annotations({
           title: "Update environment variable",
-          description: "Update an environment variable's value or visibility",
+          description: "Update value, visibility, or assigned environments",
         }),
       ),
   )
@@ -91,7 +98,7 @@ export class EnvVarsGroup extends HttpApiGroup.make("env-vars")
         OpenApi.annotations({
           title: "Bulk import environment variables",
           description:
-            "Import environment variables from a dotenv-formatted string. Supports KEY=VALUE format with # comments. Quoted values (single/double) are unquoted. Multiline values are not supported.",
+            "Import variables from a dotenv-formatted string. Applies to all selected environments. Supports KEY=VALUE format with # comments. Quoted values (single/double) are unquoted. Multiline values are not supported.",
         }),
       ),
   )
@@ -100,7 +107,7 @@ export class EnvVarsGroup extends HttpApiGroup.make("env-vars")
       .setUrlParams(
         Schema.Struct({
           projectId: Id,
-          environment: Schema.String,
+          environment: EnvVarEnvironment,
         }),
       )
       .addSuccess(EnvVarExportResult)
@@ -108,7 +115,8 @@ export class EnvVarsGroup extends HttpApiGroup.make("env-vars")
       .annotateContext(
         OpenApi.annotations({
           title: "Export environment variables",
-          description: "Export environment variables for a project environment",
+          description:
+            "Export environment variables for a project environment. Global org-scoped vars are merged in; project values override globals on key collision.",
         }),
       ),
   )

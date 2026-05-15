@@ -1,10 +1,9 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
+import { parseDotenvContent } from "@better-update/dotenv";
 import { cloudflareTest, readD1Migrations } from "@cloudflare/vitest-pool-workers";
 import { defineConfig } from "vitest/config";
-
-import { parseDotenvContent } from "./src/lib/dotenv";
 
 const parseEnvFile = (filePath: string): Record<string, string> =>
   existsSync(filePath)

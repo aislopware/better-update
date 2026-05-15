@@ -33,6 +33,7 @@ interface OrgNavItem {
     | "/credentials"
     | "/apple-devices"
     | "/api-keys"
+    | "/environment-variables"
     | "/settings"
     | "/account/profile";
   label: string;
@@ -87,6 +88,11 @@ const ORG_NAV: OrgNavSection[] = [
     label: "Settings",
     items: [
       { to: "/api-keys", label: "API Keys", icon: KeyIcon },
+      {
+        to: "/environment-variables",
+        label: "Environment variables",
+        icon: CodeIcon,
+      },
       { to: "/settings", label: "Organization settings", icon: SettingsIcon },
     ],
   },

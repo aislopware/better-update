@@ -4,7 +4,7 @@ import { Effect } from "effect";
 import { runEffect } from "../../lib/citty-effect";
 import { printKeyValue } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
-import { envErrorExtras } from "./helpers";
+import { envErrorExtras, formatEnvironments } from "./helpers";
 
 export const getCommand = defineCommand({
   meta: { name: "get", description: "Show an environment variable" },
@@ -19,7 +19,8 @@ export const getCommand = defineCommand({
         yield* printKeyValue([
           ["ID", envVar.id],
           ["Key", envVar.key],
-          ["Environment", envVar.environment],
+          ["Scope", envVar.scope],
+          ["Environments", formatEnvironments(envVar.environments)],
           ["Visibility", envVar.visibility],
           // eslint-disable-next-line eslint-js/no-restricted-syntax -- EnvVar.value nullable at storage; display empty when absent
           ["Value", envVar.visibility === "plaintext" ? (envVar.value ?? "") : "******"],

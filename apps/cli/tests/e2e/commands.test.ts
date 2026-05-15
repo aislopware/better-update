@@ -269,13 +269,13 @@ describe("cLI command journey", () => {
     expect(result.stdout).toContain("No credentials found.");
   });
 
-  it("lists environment variables with masked secret values", () => {
-    const result = cli.runCli("env", "list", "--environment", "production");
+  it("lists environment variables with masked sensitive values", () => {
+    const result = cli.runCli("env", "list", "--environments", "production");
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toBe("");
     expect(result.stdout).toContain("APP_SECRET");
     expect(result.stdout).toContain("production");
-    expect(result.stdout).toContain("secret");
+    expect(result.stdout).toContain("sensitive");
     expect(result.stdout).toContain("••••••");
   });
 
@@ -308,7 +308,7 @@ describe("cLI command journey", () => {
     );
     expect(createResult.exitCode).toBe(0);
     expect(createResult.stderr).toBe("");
-    expect(createResult.stdout).toContain("Created APP_PUBLIC_URL in production");
+    expect(createResult.stdout).toContain("Created APP_PUBLIC_URL");
 
     const updateResult = cli.runCli(
       "env",
@@ -319,26 +319,20 @@ describe("cLI command journey", () => {
     );
     expect(updateResult.exitCode).toBe(0);
     expect(updateResult.stderr).toBe("");
-    expect(updateResult.stdout).toContain("Updated APP_PUBLIC_URL in production");
+    expect(updateResult.stdout).toContain("Updated APP_PUBLIC_URL");
 
-    const listResult = cli.runCli("env", "list", "--environment", "production");
+    const listResult = cli.runCli("env", "list", "--environments", "production");
     expect(listResult.exitCode).toBe(0);
     expect(listResult.stderr).toBe("");
     expect(listResult.stdout).toContain("APP_PUBLIC_URL");
     expect(listResult.stdout).toContain("https://app-v2.example.com");
 
-    const deleteResult = cli.runCli(
-      "env",
-      "delete",
-      "APP_PUBLIC_URL",
-      "--environment",
-      "production",
-    );
+    const deleteResult = cli.runCli("env", "delete", "APP_PUBLIC_URL");
     expect(deleteResult.exitCode).toBe(0);
     expect(deleteResult.stderr).toBe("");
-    expect(deleteResult.stdout).toContain("Deleted APP_PUBLIC_URL from production");
+    expect(deleteResult.stdout).toContain("Deleted APP_PUBLIC_URL");
 
-    const finalList = cli.runCli("env", "list", "--environment", "production");
+    const finalList = cli.runCli("env", "list", "--environments", "production");
     expect(finalList.exitCode).toBe(0);
     expect(finalList.stdout).not.toContain("APP_PUBLIC_URL");
   });

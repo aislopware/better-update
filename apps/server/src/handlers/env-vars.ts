@@ -6,219 +6,29 @@ import { logAudit } from "../audit/logger";
 import { CurrentActor } from "../auth/current-actor";
 import { assertOrgOwnership, assertProjectOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
-import { Vault } from "../cloudflare/vault";
-import { BadRequest, Forbidden } from "../errors";
+import { BadRequest } from "../errors";
 import { toApiEnvVar } from "../http/to-api";
 import { toApiBadRequestReadEffect, toApiWriteEffect } from "../http/to-api-effect";
-import { parseDotenvEntries } from "../lib/dotenv";
+import { toDbNull } from "../lib/nullable";
 import { parsePagination } from "../lib/pagination";
-import { requireValue } from "../lib/require-value";
 import { EnvVarRepo } from "../repositories/env-vars";
+import {
+  MAX_VARS_PER_ORG_GLOBAL,
+  MAX_VARS_PER_PROJECT,
+  applyOverrideResolution,
+  assertScopeOwnership,
+  handleBulkImport,
+  handleExport,
+  parseEnvironmentsCsv,
+  prepareStorageFields,
+  resolveListScope,
+  resolveUpdateFields,
+  toEnvVarModel,
+  validateEnvironments,
+  validateKey,
+} from "./env-vars-helpers";
 
-import type { EnvVarRow } from "../repositories/env-vars";
-
-const RESERVED_KEYS = new Set(["PATH", "HOME", "USER", "SHELL"]);
-
-const KEY_PATTERN = /^[A-Z][A-Z0-9_]*$/u;
-
-const MAX_VARS_PER_PROJECT_ENV = 100;
-
-const VALID_ENVIRONMENTS = new Set(["development", "preview", "production", "*"]);
-
-const SENSITIVE_MASK = "••••••";
-interface EnvVarStorageFields {
-  readonly value: string | null;
-  readonly encryptedValue: string | null;
-  readonly keyVersion: number | null;
-}
-
-interface EnvVarUpdateFields {
-  readonly value?: string | null;
-  readonly encryptedValue?: string | null;
-  readonly keyVersion?: number | null;
-}
-
-const maskValue = (row: EnvVarRow): string | null => {
-  switch (row.visibility) {
-    case "plaintext": {
-      return row.value;
-    }
-    case "sensitive": {
-      return SENSITIVE_MASK;
-    }
-    case "secret": {
-      return null;
-    }
-    default: {
-      return null;
-    }
-  }
-};
-
-const toEnvVarModel = (row: EnvVarRow) => ({
-  id: row.id,
-  organizationId: row.organization_id,
-  projectId: row.project_id,
-  environment: row.environment,
-  key: row.key,
-  visibility: row.visibility,
-  value: maskValue(row),
-  createdAt: row.created_at,
-  updatedAt: row.updated_at,
-});
-
-const validateKey = (key: string) =>
-  Effect.gen(function* () {
-    if (!KEY_PATTERN.test(key)) {
-      yield* new BadRequest({
-        message: `Invalid key "${key}": must match ^[A-Z][A-Z0-9_]*$`,
-      });
-    }
-    if (key.length > 256) {
-      yield* new BadRequest({
-        message: `Key "${key}" exceeds 256 character limit`,
-      });
-    }
-    if (RESERVED_KEYS.has(key)) {
-      yield* new BadRequest({
-        message: `Key "${key}" is reserved and cannot be used`,
-      });
-    }
-  });
-
-const encryptValue = (orgId: string, value: string) =>
-  Effect.gen(function* () {
-    const vault = yield* Vault;
-    const result = yield* vault
-      .encryptSecret({ organizationId: orgId, value })
-      .pipe(Effect.mapError(() => new BadRequest({ message: "Encryption failed" })));
-    return { encryptedValue: result.encrypted, keyVersion: result.keyVersion };
-  });
-
-const decryptValue = (orgId: string, keyVersion: number, encrypted: string) =>
-  Effect.gen(function* () {
-    const vault = yield* Vault;
-    return yield* vault
-      .decryptSecret({ organizationId: orgId, keyVersion, encrypted })
-      .pipe(Effect.mapError(() => new BadRequest({ message: "Decryption failed" })));
-  });
-
-const parseEnvContent = parseDotenvEntries;
-
-const prepareStorageFields = (
-  visibility: "plaintext" | "sensitive" | "secret",
-  rawValue: string,
-  orgId: string,
-): Effect.Effect<EnvVarStorageFields, BadRequest, Vault> =>
-  visibility === "plaintext"
-    ? Effect.succeed({
-        value: rawValue,
-        encryptedValue: null,
-        keyVersion: null,
-      })
-    : Effect.gen(function* () {
-        const encrypted = yield* encryptValue(orgId, rawValue);
-        return {
-          value: null,
-          encryptedValue: encrypted.encryptedValue,
-          keyVersion: encrypted.keyVersion,
-        };
-      });
-
-const resolveUpdateFields = (
-  existing: EnvVarRow,
-  newVisibility: "plaintext" | "sensitive" | "secret",
-  newValue: string | undefined,
-  orgId: string,
-): Effect.Effect<EnvVarUpdateFields, BadRequest, Vault> =>
-  Effect.gen(function* () {
-    if (newVisibility === "plaintext") {
-      if (newValue !== undefined) {
-        return {
-          value: newValue,
-          encryptedValue: null,
-          keyVersion: null,
-        } satisfies EnvVarUpdateFields;
-      }
-      if (existing.visibility !== "plaintext" && existing.encrypted_value && existing.key_version) {
-        const decrypted = yield* decryptValue(
-          orgId,
-          existing.key_version,
-          existing.encrypted_value,
-        );
-        return {
-          value: decrypted,
-          encryptedValue: null,
-          keyVersion: null,
-        } satisfies EnvVarUpdateFields;
-      }
-      return {} satisfies EnvVarUpdateFields;
-    }
-
-    const rawValue = newValue ?? (existing.visibility === "plaintext" ? existing.value : null);
-
-    if (rawValue !== null) {
-      const encrypted = yield* encryptValue(orgId, rawValue);
-      return {
-        value: null,
-        encryptedValue: encrypted.encryptedValue,
-        keyVersion: encrypted.keyVersion,
-      } satisfies EnvVarUpdateFields;
-    }
-
-    return {} satisfies EnvVarUpdateFields;
-  });
-
-const handleExport = (urlParams: { projectId: string; environment: string }) =>
-  Effect.gen(function* () {
-    const ctx = yield* CurrentActor;
-    if (ctx.source !== "api-key") {
-      return yield* new Forbidden({
-        message: "This endpoint requires API key authentication",
-      });
-    }
-
-    yield* assertPermission("envVar", "read");
-    yield* assertProjectOwnership(urlParams.projectId);
-
-    const repo = yield* EnvVarRepo;
-    const environments = urlParams.environment === "*" ? ["*"] : ["*", urlParams.environment];
-
-    const rows = yield* repo.findAllByProjectEnvs({
-      projectId: urlParams.projectId,
-      environments,
-    });
-
-    // Merge: environment-specific overrides shared
-    const merged = new Map<string, EnvVarRow>();
-    rows.forEach((row) => {
-      const prev = merged.get(row.key);
-      if (!prev || (prev.environment === "*" && row.environment !== "*")) {
-        merged.set(row.key, row);
-      }
-    });
-
-    const items = yield* Effect.forEach(
-      [...merged.values()],
-      (row) =>
-        Effect.gen(function* () {
-          if (row.visibility === "plaintext" || !row.encrypted_value || !row.key_version) {
-            const value = yield* requireValue(row.value, `env-var:${row.key}`);
-            return { key: row.key, value, visibility: row.visibility };
-          }
-          const decrypted = yield* decryptValue(
-            ctx.organizationId,
-            row.key_version,
-            row.encrypted_value,
-          );
-          return { key: row.key, value: decrypted, visibility: row.visibility };
-        }),
-      { concurrency: 5 },
-    );
-
-    const sorted = [...items].toSorted((left, right) => left.key.localeCompare(right.key));
-    return { items: sorted, environment: urlParams.environment };
-  });
+import type { EnvVarListFilters, EnvVarRow } from "../repositories/env-vars";
 
 export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", (handlers) =>
   handlers
@@ -227,26 +37,29 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
         Effect.gen(function* () {
           yield* assertPermission("envVar", "create");
           const ctx = yield* CurrentActor;
-          yield* assertProjectOwnership(payload.projectId);
 
-          if (!VALID_ENVIRONMENTS.has(payload.environment)) {
-            return yield* new BadRequest({
-              message: `Invalid environment "${payload.environment}". Must be one of: development, preview, production, *`,
-            });
-          }
+          const { scope, projectId } = payload;
+          yield* assertScopeOwnership(scope, projectId);
 
+          const environments = yield* validateEnvironments(payload.environments);
           yield* validateKey(payload.key);
 
           const repo = yield* EnvVarRepo;
 
-          const count = yield* repo.countByProjectEnv({
-            projectId: payload.projectId,
-            environment: payload.environment,
-          });
-          if (count >= MAX_VARS_PER_PROJECT_ENV) {
-            return yield* new BadRequest({
-              message: `Maximum of ${MAX_VARS_PER_PROJECT_ENV} variables per project+environment reached`,
-            });
+          if (scope === "project" && projectId) {
+            const count = yield* repo.countByProject({ projectId });
+            if (count >= MAX_VARS_PER_PROJECT) {
+              return yield* new BadRequest({
+                message: `Maximum of ${MAX_VARS_PER_PROJECT} variables per project reached`,
+              });
+            }
+          } else {
+            const count = yield* repo.countByOrgGlobal({ organizationId: ctx.organizationId });
+            if (count >= MAX_VARS_PER_ORG_GLOBAL) {
+              return yield* new BadRequest({
+                message: `Maximum of ${MAX_VARS_PER_ORG_GLOBAL} global variables per organization reached`,
+              });
+            }
           }
 
           const fields = yield* prepareStorageFields(
@@ -258,10 +71,11 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
           const row = yield* repo.insert({
             id: crypto.randomUUID(),
             organizationId: ctx.organizationId,
-            projectId: payload.projectId,
-            environment: payload.environment,
+            projectId: scope === "project" ? toDbNull(projectId) : null,
+            scope,
             key: payload.key,
             visibility: payload.visibility,
+            environments,
             ...fields,
           });
 
@@ -271,10 +85,11 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
             action: "envVar.create",
             resourceType: "envVar",
             resourceId: envVar.id,
-            projectId: payload.projectId,
+            ...(scope === "project" && projectId ? { projectId } : {}),
             metadata: {
               key: payload.key,
-              environment: payload.environment,
+              scope,
+              environments,
               visibility: payload.visibility,
             },
           });
@@ -288,21 +103,47 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
         Effect.gen(function* () {
           yield* assertPermission("envVar", "read");
           const ctx = yield* CurrentActor;
-          yield* assertProjectOwnership(urlParams.projectId);
+
+          const scope = resolveListScope(urlParams);
+          const { projectId } = urlParams;
+
+          if (scope === "project" || (scope === "all" && projectId)) {
+            if (!projectId) {
+              return yield* new BadRequest({
+                message: "projectId is required when scope is 'project' or 'all'",
+              });
+            }
+            yield* assertProjectOwnership(projectId);
+          } else {
+            yield* assertOrgOwnership(ctx.organizationId);
+          }
+
+          const environments = yield* parseEnvironmentsCsv(urlParams.environments);
 
           const repo = yield* EnvVarRepo;
           const { limit, offset } = parsePagination(urlParams, 50);
 
-          const { items } = yield* repo.list({
+          const filters: EnvVarListFilters = {
             organizationId: ctx.organizationId,
-            projectId: urlParams.projectId,
-            ...(urlParams.environment ? { environment: urlParams.environment } : {}),
+            ...(projectId ? { projectId } : {}),
+            scope,
+            ...(environments ? { environments } : {}),
+            ...(urlParams.search ? { search: urlParams.search } : {}),
             limit,
             offset,
-          });
+          };
+
+          const { items } = yield* repo.list(filters);
+
+          const resolved =
+            scope === "all"
+              ? applyOverrideResolution(items)
+              : items.map((row) => ({ row, overridesGlobal: false }));
 
           return {
-            items: items.map((item) => toApiEnvVar(toEnvVarModel(item))),
+            items: resolved.map((entry) =>
+              toApiEnvVar(toEnvVarModel(entry.row, entry.overridesGlobal)),
+            ),
           };
         }),
       ),
@@ -330,12 +171,16 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
           const existing = yield* repo.findById({ id: path.id });
           yield* assertOrgOwnership(existing.organization_id);
 
+          const newEnvironments = payload.environments
+            ? yield* validateEnvironments(payload.environments)
+            : undefined;
+
           const newVisibility = payload.visibility ?? existing.visibility;
           const hasNewValue = payload.value !== undefined;
-          const needsUpdate =
+          const needsValueUpdate =
             hasNewValue || (payload.visibility && payload.visibility !== existing.visibility);
 
-          const updateFields = needsUpdate
+          const updateFields = needsValueUpdate
             ? yield* resolveUpdateFields(
                 existing,
                 newVisibility,
@@ -350,15 +195,26 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
             ...(payload.visibility ? { visibility: payload.visibility } : {}),
           });
 
+          if (newEnvironments) {
+            yield* repo.replaceEnvironments({ id: path.id, environments: newEnvironments });
+          }
+
+          const finalRow: EnvVarRow = newEnvironments
+            ? { ...row, environments: newEnvironments }
+            : row;
+
           yield* logAudit({
             action: "envVar.update",
             resourceType: "envVar",
             resourceId: path.id,
-            projectId: existing.project_id,
-            metadata: payload.visibility ? { visibility: payload.visibility } : {},
+            ...(existing.project_id ? { projectId: existing.project_id } : {}),
+            metadata: {
+              ...(payload.visibility ? { visibility: payload.visibility } : {}),
+              ...(newEnvironments ? { environments: newEnvironments } : {}),
+            },
           });
 
-          return toApiEnvVar(toEnvVarModel(row));
+          return toApiEnvVar(toEnvVarModel(finalRow));
         }),
       ),
     )
@@ -377,7 +233,7 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
             action: "envVar.delete",
             resourceType: "envVar",
             resourceId: path.id,
-            projectId: row.project_id,
+            ...(row.project_id ? { projectId: row.project_id } : {}),
           });
 
           return { id: path.id };
@@ -387,76 +243,18 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
     .handle("bulkImport", ({ payload }) =>
       toApiBadRequestReadEffect(
         Effect.gen(function* () {
-          yield* assertPermission("envVar", "create");
-          const ctx = yield* CurrentActor;
-          yield* assertProjectOwnership(payload.projectId);
-
-          if (!VALID_ENVIRONMENTS.has(payload.environment)) {
-            return yield* new BadRequest({
-              message: `Invalid environment "${payload.environment}". Must be one of: development, preview, production, *`,
-            });
-          }
-
-          const entries = parseEnvContent(payload.content);
-          if (entries.length === 0) {
-            return yield* new BadRequest({
-              message: "No valid entries found in the provided content",
-            });
-          }
-
-          yield* Effect.forEach(entries, (entry) => validateKey(entry.key), { discard: true });
-
-          const repo = yield* EnvVarRepo;
-
-          // Last entry wins on duplicate key.
-          const deduped = new Map(entries.map((entry) => [entry.key, entry.value] as const));
-          const skipped = entries.length - deduped.size;
-
-          const existingRows = yield* repo.findAllByProjectEnvs({
-            projectId: payload.projectId,
-            environments: [payload.environment],
-          });
-          const existingKeys = new Set(existingRows.map((row) => row.key));
-          const newKeyCount = [...deduped.keys()].filter((key) => !existingKeys.has(key)).length;
-
-          if (existingKeys.size + newKeyCount > MAX_VARS_PER_PROJECT_ENV) {
-            return yield* new BadRequest({
-              message: `Import would exceed the ${MAX_VARS_PER_PROJECT_ENV} variable limit`,
-            });
-          }
-
-          const results = yield* Effect.forEach(
-            [...deduped.entries()],
-            ([key, rawValue]) =>
-              Effect.gen(function* () {
-                const fields = yield* prepareStorageFields(
-                  payload.visibility,
-                  rawValue,
-                  ctx.organizationId,
-                );
-                return yield* repo.upsert({
-                  id: crypto.randomUUID(),
-                  organizationId: ctx.organizationId,
-                  projectId: payload.projectId,
-                  environment: payload.environment,
-                  key,
-                  visibility: payload.visibility,
-                  ...fields,
-                });
-              }),
-            { concurrency: 5 },
-          );
-
-          const created = results.filter((result) => result === "created").length;
-          const updated = results.filter((result) => result === "updated").length;
+          const { created, updated, skipped, environments } = yield* handleBulkImport(payload);
 
           yield* logAudit({
             action: "envVar.bulkImport",
             resourceType: "envVar",
-            projectId: payload.projectId,
+            ...(payload.scope === "project" && payload.projectId
+              ? { projectId: payload.projectId }
+              : {}),
             metadata: {
-              projectId: payload.projectId,
-              environment: payload.environment,
+              scope: payload.scope,
+              ...(payload.projectId ? { projectId: payload.projectId } : {}),
+              environments,
               created,
               updated,
             },
