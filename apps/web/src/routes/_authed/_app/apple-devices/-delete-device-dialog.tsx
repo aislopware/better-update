@@ -23,13 +23,27 @@ export const DeleteDeviceDialog = ({
   orgId,
   device,
   children,
+  open: controlledOpen,
+  onOpenChange,
 }: {
   orgId: string;
   device: DeviceItem;
-  children: ReactElement;
+  children?: ReactElement;
+  open?: boolean;
+  onOpenChange?: (next: boolean) => void;
 }) => {
-  const [open, setOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = isControlled ? controlledOpen : internalOpen;
   const queryClient = useQueryClient();
+
+  const setOpen = (next: boolean) => {
+    if (isControlled) {
+      onOpenChange?.(next);
+    } else {
+      setInternalOpen(next);
+    }
+  };
 
   const deleteMutation = useApiMutation({
     mutationFn: async () => deleteDevice(device.id),
@@ -42,7 +56,7 @@ export const DeleteDeviceDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={children} />
+      {children ? <DialogTrigger render={children} /> : null}
       <DialogPopup>
         <DialogHeader>
           <DialogTitle>Remove device?</DialogTitle>
@@ -52,7 +66,7 @@ export const DeleteDeviceDialog = ({
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+          <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
           <Button
             variant="destructive"
             loading={deleteMutation.isPending}

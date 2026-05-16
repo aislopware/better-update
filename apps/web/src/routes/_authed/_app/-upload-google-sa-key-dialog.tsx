@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogPanel,
   DialogTitle,
+  DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
@@ -26,9 +27,8 @@ import { getFieldError } from "../../../lib/form-utils";
 import { safeSubmit, useApiMutation } from "../../../lib/use-api-mutation";
 import { safeReadFileAsText } from "./-credentials-utils";
 
-export const UploadGoogleServiceAccountKeyDialog = ({ orgId }: { orgId: string }) => {
+const UploadForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: () => void }) => {
   const queryClient = useQueryClient();
-  const [open, setOpen] = useState(false);
 
   const mutation = useApiMutation({
     mutationFn: uploadGoogleServiceAccountKey,
@@ -37,7 +37,7 @@ export const UploadGoogleServiceAccountKeyDialog = ({ orgId }: { orgId: string }
       await queryClient.invalidateQueries({
         queryKey: googleServiceAccountKeysQueryOptions(orgId).queryKey,
       });
-      setOpen(false);
+      onSuccess();
     },
   });
 
@@ -49,15 +49,89 @@ export const UploadGoogleServiceAccountKeyDialog = ({ orgId }: { orgId: string }
   });
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <Button
-        onClick={() => {
-          setOpen(true);
-        }}
-      >
+    <form
+      className="contents"
+      onSubmit={async (event) => {
+        event.preventDefault();
+        await form.handleSubmit();
+      }}
+    >
+      <DialogPanel>
+        <FieldGroup>
+          <form.Field
+            name="json"
+            validators={{
+              onChange: ({ value }) =>
+                value.includes('"private_key"') ? undefined : "Valid JSON key required",
+            }}
+          >
+            {(field) => (
+              <Field invalid={Boolean(getFieldError(field))}>
+                <FieldLabel htmlFor="google-sa-file">Key file</FieldLabel>
+                <Input
+                  id="google-sa-file"
+                  type="file"
+                  accept="application/json,.json"
+                  onChange={async (event) => {
+                    const file = event.target.files?.[0];
+                    if (file === undefined) {
+                      return;
+                    }
+                    const value = await safeReadFileAsText(file);
+                    if (value === null) {
+                      toastManager.add({ title: "Failed to read file", type: "error" });
+                      return;
+                    }
+                    field.handleChange(value);
+                  }}
+                />
+                <Textarea
+                  readOnly
+                  value={field.state.value}
+                  rows={5}
+                  className="mt-2 font-mono text-xs"
+                  placeholder="JSON content will appear here after file selection"
+                />
+                <FieldError match={Boolean(getFieldError(field))}>
+                  {getFieldError(field)}
+                </FieldError>
+              </Field>
+            )}
+          </form.Field>
+        </FieldGroup>
+      </DialogPanel>
+      <DialogFooter>
+        <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
+        <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
+          {([canSubmit, isSubmitting]) => (
+            <Button type="submit" disabled={!canSubmit} loading={Boolean(isSubmitting)}>
+              Upload
+            </Button>
+          )}
+        </form.Subscribe>
+      </DialogFooter>
+    </form>
+  );
+};
+
+export const UploadGoogleServiceAccountKeyDialog = ({ orgId }: { orgId: string }) => {
+  const [open, setOpen] = useState(false);
+  const [resetKey, setResetKey] = useState(0);
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={setOpen}
+      onOpenChangeComplete={(next) => {
+        if (!next) {
+          setResetKey((prev) => prev + 1);
+        }
+      }}
+    >
+      <DialogTrigger render={<Button />}>
         <PlusIcon strokeWidth={2} data-icon="inline-start" />
         Upload
-      </Button>
+      </DialogTrigger>
       <DialogPopup>
         <DialogHeader>
           <DialogTitle>Upload Google Service Account Key</DialogTitle>
@@ -65,68 +139,13 @@ export const UploadGoogleServiceAccountKeyDialog = ({ orgId }: { orgId: string }
             Upload a .json Google service account key for FCM v1 push or Play Store submissions.
           </DialogDescription>
         </DialogHeader>
-        <form
-          className="contents"
-          onSubmit={async (event) => {
-            event.preventDefault();
-            await form.handleSubmit();
+        <UploadForm
+          key={resetKey}
+          orgId={orgId}
+          onSuccess={() => {
+            setOpen(false);
           }}
-        >
-          <DialogPanel>
-            <FieldGroup>
-              <form.Field
-                name="json"
-                validators={{
-                  onChange: ({ value }) =>
-                    value.includes('"private_key"') ? undefined : "Valid JSON key required",
-                }}
-              >
-                {(field) => (
-                  <Field data-invalid={getFieldError(field) ? true : undefined}>
-                    <FieldLabel htmlFor="google-sa-file">Key file</FieldLabel>
-                    <Input
-                      id="google-sa-file"
-                      type="file"
-                      accept="application/json,.json"
-                      onChange={async (event) => {
-                        const file = event.target.files?.[0];
-                        if (file === undefined) {
-                          return;
-                        }
-                        const value = await safeReadFileAsText(file);
-                        if (value === null) {
-                          toastManager.add({ title: "Failed to read file", type: "error" });
-                          return;
-                        }
-                        field.handleChange(value);
-                      }}
-                    />
-                    <Textarea
-                      readOnly
-                      value={field.state.value}
-                      rows={5}
-                      className="mt-2 font-mono text-xs"
-                      placeholder="JSON content will appear here after file selection"
-                    />
-                    <FieldError match={Boolean(getFieldError(field))}>
-                      {getFieldError(field)}
-                    </FieldError>
-                  </Field>
-                )}
-              </form.Field>
-            </FieldGroup>
-          </DialogPanel>
-          <DialogFooter>
-            <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
-            <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
-              {([canSubmit, isSubmitting]) => (
-                <Button type="submit" disabled={!canSubmit} loading={Boolean(isSubmitting)}>
-                  Upload
-                </Button>
-              )}
-            </form.Subscribe>
-          </DialogFooter>
-        </form>
+        />
       </DialogPopup>
     </Dialog>
   );

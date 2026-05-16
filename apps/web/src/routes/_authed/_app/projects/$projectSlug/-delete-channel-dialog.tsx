@@ -30,7 +30,7 @@ export const DeleteChannelDialog = ({
         await invalidateChannels(queryClient, orgId, projectId);
       }}
     >
-      <Button variant="ghost" size="icon" className="size-8">
+      <Button variant="ghost" size="icon" className="size-8" aria-label="Delete channel">
         <Trash2Icon strokeWidth={2} className="text-destructive size-4" />
       </Button>
     </ConfirmDeleteDialog>

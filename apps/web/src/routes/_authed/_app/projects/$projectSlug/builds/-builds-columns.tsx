@@ -1,5 +1,6 @@
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
+import { Tooltip, TooltipPopup, TooltipTrigger } from "@better-update/ui/components/ui/tooltip";
 import { DownloadIcon } from "lucide-react";
 
 import type { BuildWithArtifact } from "@better-update/api";
@@ -11,11 +12,6 @@ import { InstallLinkDialog } from "../-install-link-dialog";
 import { formatRelativeTime } from "../../../../../../lib/format-relative-time";
 
 export type BuildItem = typeof BuildWithArtifact.Type;
-
-export interface ColumnMeta {
-  readonly align?: "right";
-  readonly muted?: boolean;
-}
 
 const buildLabel = (build: BuildItem) =>
   (build.message ?? build.profile) || `Build ${build.id.slice(0, 8)}`;
@@ -33,16 +29,29 @@ const BuildActions = ({
     {build.artifact ? (
       <>
         <InstallLinkDialog build={build} />
-        <a
-          href={`/api/builds/${build.id}/artifact`}
-          onClick={(event) => {
-            event.stopPropagation();
-          }}
-        >
-          <Button variant="ghost" size="icon" title="Download artifact">
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Download artifact"
+                render={
+                  // eslint-disable-next-line jsx-a11y/anchor-has-content -- Base UI merges Button children (DownloadIcon) into the rendered anchor via mergeProps
+                  <a
+                    href={`/api/builds/${build.id}/artifact`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                    }}
+                  />
+                }
+              />
+            }
+          >
             <DownloadIcon strokeWidth={2} />
-          </Button>
-        </a>
+          </TooltipTrigger>
+          <TooltipPopup>Download artifact</TooltipPopup>
+        </Tooltip>
       </>
     ) : null}
     <DeleteBuildDialog build={build} orgId={orgId} projectId={projectId} />
@@ -130,6 +139,6 @@ export const buildBuildsColumns = (
     header: "",
     cell: ({ row }) => <BuildActions build={row.original} orgId={orgId} projectId={projectId} />,
     enableSorting: false,
-    meta: { align: "right" },
+    meta: { align: "right", stopRowClick: true },
   },
 ];

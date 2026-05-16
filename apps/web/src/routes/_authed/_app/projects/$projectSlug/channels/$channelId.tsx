@@ -33,6 +33,7 @@ import {
 } from "../-channel-compatibility-helpers";
 import { ProjectSubpageHeader } from "../-project-subpage-header";
 import { DetailCardSkeleton, SummaryCardsSkeleton } from "../../../../../../components/skeletons";
+import { DROPDOWN_FETCH_LIMIT } from "../../../../../../queries/constants";
 
 const ChannelNotFoundState = ({ projectSlug }: { projectSlug: string }) => (
   <Empty>
@@ -159,16 +160,16 @@ const ChannelDetailContent = () => {
   const orgId = activeOrg.id;
   const projectId = project.id;
   const { data: channelsData } = useSuspenseQuery(
-    channelsQueryOptions(orgId, projectId, { limit: 100 }),
+    channelsQueryOptions(orgId, projectId, { limit: DROPDOWN_FETCH_LIMIT }),
   );
   const { data: branchesData } = useSuspenseQuery(
-    branchesQueryOptions(orgId, projectId, { limit: 100 }),
+    branchesQueryOptions(orgId, projectId, { limit: DROPDOWN_FETCH_LIMIT }),
   );
   const { data: compatibilityData } = useSuspenseQuery(
     buildCompatibilityMatrixQueryOptions(orgId, projectId),
   );
   const { data: buildsData } = useSuspenseQuery(
-    buildsQueryOptions(orgId, projectId, { limit: 100 }),
+    buildsQueryOptions(orgId, projectId, { limit: DROPDOWN_FETCH_LIMIT }),
   );
   const builds = buildsData.items;
   const channels = channelsData.items;

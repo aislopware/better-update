@@ -13,41 +13,23 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
-import { Frame } from "@better-update/ui/components/ui/frame";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableFooter,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@better-update/ui/components/ui/table";
 import { toastManager } from "@better-update/ui/components/ui/toast";
-import { cn } from "@better-update/ui/lib/utils";
 import {
   keepPreviousData,
   useQuery,
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
-import {
-  ArrowDownIcon,
-  ArrowUpIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  GitBranchIcon,
-  PauseIcon,
-  PlayIcon,
-  SatelliteIcon,
-} from "lucide-react";
-import { Suspense, useMemo, useState } from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
+import { zodValidator } from "@tanstack/zod-adapter";
+import { GitBranchIcon, PauseIcon, PlayIcon, SatelliteIcon } from "lucide-react";
+import { Suspense, useMemo } from "react";
+import { z } from "zod";
 
 import type { Channel } from "@better-update/api";
-import type { BranchItem, ChannelSort, ChannelSortColumn } from "@better-update/api-client/react";
-import type { ColumnDef, SortingState } from "@tanstack/react-table";
+import type { BranchItem, ChannelSortColumn } from "@better-update/api-client/react";
+import type { ColumnDef } from "@tanstack/react-table";
 
 import { parseRolloutState } from "../-channel-rollout-state";
 import { CreateChannelDialog } from "../-create-channel-dialog";
@@ -55,54 +37,29 @@ import { DeleteChannelDialog } from "../-delete-channel-dialog";
 import { ProjectSubpageHeader } from "../-project-subpage-header";
 import { invalidateChannels as invalidateChannelsHelper } from "../-update-helpers";
 import { TableSkeleton } from "../../../../../../components/skeletons";
+import {
+  DataTableView,
+  PAGE_SIZE,
+  computePagination,
+  pageParam,
+  sortParam,
+  useDataTableSearch,
+} from "../../../../../../lib/data-table";
 import { formatRelativeTime } from "../../../../../../lib/format-relative-time";
 import { pluralize } from "../../../../../../lib/pluralize";
 import { useApiMutation } from "../../../../../../lib/use-api-mutation";
+import { DROPDOWN_FETCH_LIMIT } from "../../../../../../queries/constants";
 
 type ChannelItem = typeof Channel.Type;
 
-const PAGE_SIZE = 50;
-
-const DEFAULT_SORTING: SortingState = [{ id: "createdAt", desc: true }];
-
 const SORT_COLUMNS = ["name", "createdAt"] as const satisfies readonly ChannelSortColumn[];
 
-const toSortColumn = (id: string): ChannelSortColumn | undefined =>
-  SORT_COLUMNS.find((column) => column === id);
+const DEFAULT_SORT = "-createdAt" as const;
 
-const toApiSort = (sorting: SortingState): ChannelSort | undefined => {
-  const [first] = sorting;
-  if (!first) {
-    return undefined;
-  }
-  const column = toSortColumn(first.id);
-  if (!column) {
-    return undefined;
-  }
-  return first.desc ? `-${column}` : column;
-};
-
-const ARIA_SORT_MAP = { asc: "ascending", desc: "descending" } as const;
-const toAriaSort = (direction: false | "asc" | "desc"): "ascending" | "descending" | "none" =>
-  direction === false ? "none" : ARIA_SORT_MAP[direction];
-
-const SortIcon = ({ direction }: { direction: false | "asc" | "desc" }) => {
-  if (direction === "asc") {
-    return <ArrowUpIcon strokeWidth={2} className="size-3.5" />;
-  }
-  if (direction === "desc") {
-    return <ArrowDownIcon strokeWidth={2} className="size-3.5" />;
-  }
-  return null;
-};
-
-const computePagination = (total: number, itemCount: number, page: number) => {
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const safePage = Math.min(page, totalPages);
-  const fromIndex = itemCount === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
-  const toIndex = (safePage - 1) * PAGE_SIZE + itemCount;
-  return { totalPages, safePage, fromIndex, toIndex };
-};
+const channelsSearchSchema = z.object({
+  page: pageParam(),
+  sort: sortParam(DEFAULT_SORT),
+});
 
 const ChannelsEmptyState = () => (
   <Empty>
@@ -115,23 +72,6 @@ const ChannelsEmptyState = () => (
     </EmptyHeader>
   </Empty>
 );
-
-interface ColumnMeta {
-  readonly align?: "right";
-  readonly muted?: boolean;
-  readonly stopRowClick?: boolean;
-}
-
-const cellAlignClass = (meta: ColumnMeta | undefined): string => {
-  const classes: string[] = [];
-  if (meta?.align === "right") {
-    classes.push("text-right tabular-nums");
-  }
-  if (meta?.muted) {
-    classes.push("text-muted-foreground");
-  }
-  return classes.join(" ");
-};
 
 const PauseToggleButton = ({
   channel,
@@ -158,9 +98,8 @@ const PauseToggleButton = ({
     <Button
       variant="ghost"
       size="icon"
-      disabled={togglePauseMutation.isPending}
-      onClick={(event) => {
-        event.stopPropagation();
+      loading={togglePauseMutation.isPending}
+      onClick={() => {
         togglePauseMutation.mutate();
       }}
       aria-label={channel.isPaused ? "Resume channel" : "Pause channel"}
@@ -253,50 +192,6 @@ const buildColumns = (
   },
 ];
 
-interface PaginationControlsProps {
-  readonly countLabel: string;
-  readonly safePage: number;
-  readonly totalPages: number;
-  readonly isPlaceholderData: boolean;
-  readonly onChange: (next: number) => void;
-}
-
-const PaginationControls = ({
-  countLabel,
-  safePage,
-  totalPages,
-  isPlaceholderData,
-  onChange,
-}: PaginationControlsProps) => (
-  <div className="flex items-center justify-between gap-2">
-    <span className="text-muted-foreground text-xs tabular-nums">{countLabel}</span>
-    <div className="flex items-center gap-1">
-      <Button
-        variant="outline"
-        size="icon-xs"
-        disabled={safePage === 1 || isPlaceholderData}
-        onClick={() => {
-          onChange(safePage - 1);
-        }}
-        aria-label="Previous page"
-      >
-        <ChevronLeftIcon strokeWidth={2} />
-      </Button>
-      <Button
-        variant="outline"
-        size="icon-xs"
-        disabled={safePage >= totalPages || isPlaceholderData}
-        onClick={() => {
-          onChange(safePage + 1);
-        }}
-        aria-label="Next page"
-      >
-        <ChevronRightIcon strokeWidth={2} />
-      </Button>
-    </div>
-  </div>
-);
-
 const ChannelsSkeleton = () => (
   <>
     <div className="flex items-center justify-between">
@@ -311,31 +206,27 @@ const ChannelsContent = () => {
   const orgId = activeOrg.id;
   const projectId = project.id;
   const projectSlug = project.slug;
-  const navigate = useNavigate();
+  const routeNavigate = Route.useNavigate();
 
-  const [sorting, setSorting] = useState<SortingState>(DEFAULT_SORTING);
-  const [page, setPage] = useState(1);
+  const { page, sort } = Route.useSearch();
+  const { sorting, apiSort, onSortingChange, onPageChange } = useDataTableSearch({
+    sortColumns: SORT_COLUMNS,
+    defaultSort: DEFAULT_SORT,
+    sort,
+    navigate: routeNavigate,
+  });
 
-  const handleSortingChange = (updater: SortingState | ((prev: SortingState) => SortingState)) => {
-    setSorting((prev) => {
-      const next = typeof updater === "function" ? updater(prev) : updater;
-      return next.length === 0 ? DEFAULT_SORTING : next.slice(0, 1);
-    });
-    setPage(1);
-  };
-
-  const apiSort = toApiSort(sorting);
   const { data, isPlaceholderData, isLoading } = useQuery({
     ...channelsQueryOptions(orgId, projectId, {
       page,
       limit: PAGE_SIZE,
-      ...(apiSort ? { sort: apiSort } : {}),
+      sort: apiSort,
     }),
     placeholderData: keepPreviousData,
   });
 
   const { data: branchesData } = useSuspenseQuery(
-    branchesQueryOptions(orgId, projectId, { limit: 100 }),
+    branchesQueryOptions(orgId, projectId, { limit: DROPDOWN_FETCH_LIMIT }),
   );
   const branches = branchesData.items;
 
@@ -349,17 +240,14 @@ const ChannelsContent = () => {
     data: tableData,
     columns: [...columns],
     state: { sorting },
-    onSortingChange: handleSortingChange,
+    onSortingChange,
     manualSorting: true,
     enableMultiSort: false,
     enableSortingRemoval: false,
     getCoreRowModel: getCoreRowModel(),
   });
 
-  const createCta = useMemo(
-    () => <CreateChannelDialog orgId={orgId} projectId={projectId} />,
-    [orgId, projectId],
-  );
+  const createCta = <CreateChannelDialog orgId={orgId} projectId={projectId} />;
 
   if (isLoading || data === undefined) {
     return (
@@ -399,84 +287,21 @@ const ChannelsContent = () => {
         <ProjectSubpageHeader title="Channels" />
         {createCta}
       </div>
-      <Frame
-        className={
-          isPlaceholderData ? "opacity-60 transition-opacity" : "opacity-100 transition-opacity"
-        }
-      >
-        <Table variant="card">
-          <TableHeader>
-            {table.getHeaderGroups().map((group) => (
-              <TableRow key={group.id}>
-                {group.headers.map((header) => {
-                  const meta = header.column.columnDef.meta as ColumnMeta | undefined;
-                  const sortDir = header.column.getIsSorted();
-                  const canSort = header.column.getCanSort();
-                  return (
-                    <TableHead
-                      key={header.id}
-                      className={cn(
-                        meta?.align === "right" ? "text-right" : "",
-                        canSort
-                          ? "hover:text-foreground cursor-pointer transition-colors select-none"
-                          : "",
-                      )}
-                      aria-sort={toAriaSort(sortDir)}
-                      onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
-                    >
-                      <span
-                        className={cn(
-                          "inline-flex items-center gap-1.5",
-                          meta?.align === "right" ? "justify-end" : "",
-                        )}
-                      >
-                        {flexRender(header.column.columnDef.header, header.getContext())}
-                        {canSort ? <SortIcon direction={sortDir} /> : null}
-                      </span>
-                    </TableHead>
-                  );
-                })}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows.map((row) => (
-              <TableRow
-                key={row.id}
-                className="cursor-pointer"
-                onClick={async () => {
-                  await navigate({
-                    to: "/projects/$projectSlug/channels/$channelId",
-                    params: { projectSlug, channelId: row.original.id },
-                  });
-                }}
-              >
-                {row.getVisibleCells().map((cell) => {
-                  const meta = cell.column.columnDef.meta as ColumnMeta | undefined;
-                  return (
-                    <TableCell key={cell.id} className={cellAlignClass(meta)}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  );
-                })}
-              </TableRow>
-            ))}
-          </TableBody>
-          <TableFooter>
-            <TableRow>
-              <TableCell colSpan={columns.length}>
-                <PaginationControls
-                  countLabel={countLabel}
-                  safePage={safePage}
-                  totalPages={totalPages}
-                  isPlaceholderData={isPlaceholderData}
-                  onChange={setPage}
-                />
-              </TableCell>
-            </TableRow>
-          </TableFooter>
-        </Table>
-      </Frame>
+      <DataTableView
+        table={table}
+        columnsCount={columns.length}
+        isPlaceholderData={isPlaceholderData}
+        countLabel={countLabel}
+        safePage={safePage}
+        totalPages={totalPages}
+        onPageChange={onPageChange}
+        onRowClick={async (channel) => {
+          await routeNavigate({
+            to: "/projects/$projectSlug/channels/$channelId",
+            params: { projectSlug, channelId: channel.id },
+          });
+        }}
+      />
     </div>
   );
 };
@@ -488,5 +313,6 @@ const ChannelsPage = () => (
 );
 
 export const Route = createFileRoute("/_authed/_app/projects/$projectSlug/channels/")({
+  validateSearch: zodValidator(channelsSearchSchema),
   component: ChannelsPage,
 });

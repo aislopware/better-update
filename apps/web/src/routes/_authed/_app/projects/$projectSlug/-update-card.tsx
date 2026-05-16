@@ -1,6 +1,5 @@
 import {
   completeUpdateRollout,
-  deleteUpdateGroup,
   editUpdateRollout,
   revertUpdateRollout,
 } from "@better-update/api-client/react";
@@ -9,15 +8,16 @@ import { Button } from "@better-update/ui/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@better-update/ui/components/ui/card";
 import { Input } from "@better-update/ui/components/ui/input";
 import { toastManager } from "@better-update/ui/components/ui/toast";
+import { Tooltip, TooltipPopup, TooltipTrigger } from "@better-update/ui/components/ui/tooltip";
 import { useQueryClient } from "@tanstack/react-query";
-import { CircleCheckIcon, Trash2Icon, RocketIcon, Undo2Icon } from "lucide-react";
+import { CircleCheckIcon, Undo2Icon } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import type { Channel, Update } from "@better-update/api";
 
+import { formatDateTime } from "../../../../../lib/format-date";
 import { useApiMutation } from "../../../../../lib/use-api-mutation";
-import { PromoteUpdateDialog } from "./-promote-update-dialog";
-import { RollbackToEmbeddedDialog } from "./-rollback-to-embedded-dialog";
+import { UpdateActionButtons } from "./-update-action-buttons";
 import { invalidateUpdates, readUpdateEnvironment } from "./-update-helpers";
 
 interface UpdateCardProps {
@@ -38,27 +38,18 @@ export const UpdateCard = ({
   projectId,
 }: UpdateCardProps) => {
   const queryClient = useQueryClient();
-  const [rolloutInput, setRolloutInput] = useState(String(update.rolloutPercentage));
-  const [promoteOpen, setPromoteOpen] = useState(false);
-  const [rollbackOpen, setRollbackOpen] = useState(false);
+  const [rolloutDraft, setRolloutDraft] = useState<string | undefined>(undefined);
+
+  const currentRollout = String(update.rolloutPercentage);
+  const rolloutInput = rolloutDraft ?? currentRollout;
 
   const environment = useMemo(() => readUpdateEnvironment(update.extraJson), [update.extraJson]);
-  const eligibleChannels = channels.filter((channel) => channel.branchId !== update.branchId);
-  const canCreateFollowupUpdate = !update.isRollback && !update.signature;
-  const canRollbackToEmbedded = canCreateFollowupUpdate && branchName !== undefined;
-  const canPromote = canCreateFollowupUpdate && eligibleChannels.length > 0;
 
   const invalidate = async () => invalidateUpdates(queryClient, orgId, projectId);
-  const deleteUpdateGroupMutation = useApiMutation({
-    mutationFn: async () => deleteUpdateGroup(update.groupId),
-    onSuccess: async () => {
-      toastManager.add({ title: "Update group deleted", type: "success" });
-      await invalidate();
-    },
-  });
   const editUpdateRolloutMutation = useApiMutation({
     mutationFn: async (percentage: number) => editUpdateRollout(update.id, { percentage }),
     onSuccess: async (_, percentage) => {
+      setRolloutDraft(undefined);
       toastManager.add({ title: `Rollout updated to ${percentage}%`, type: "success" });
       await invalidate();
     },
@@ -66,6 +57,7 @@ export const UpdateCard = ({
   const completeUpdateRolloutMutation = useApiMutation({
     mutationFn: async () => completeUpdateRollout(update.id),
     onSuccess: async () => {
+      setRolloutDraft(undefined);
       toastManager.add({
         title: "Rollout completed — update available to all devices",
         type: "success",
@@ -76,19 +68,15 @@ export const UpdateCard = ({
   const revertUpdateRolloutMutation = useApiMutation({
     mutationFn: async () => revertUpdateRollout(update.id),
     onSuccess: async () => {
+      setRolloutDraft(undefined);
       toastManager.add({ title: "Rollout reverted", type: "success" });
       await invalidate();
     },
   });
-  const isDeleting = deleteUpdateGroupMutation.isPending;
   const isUpdatingRollout =
     editUpdateRolloutMutation.isPending ||
     completeUpdateRolloutMutation.isPending ||
     revertUpdateRolloutMutation.isPending;
-
-  const handleDelete = () => {
-    deleteUpdateGroupMutation.mutate();
-  };
 
   const handleEditRollout = () => {
     const percentage = Number.parseInt(rolloutInput, 10);
@@ -117,50 +105,20 @@ export const UpdateCard = ({
             {typeof environment === "string" && <Badge variant="secondary">{environment}</Badge>}
             {update.isRollback && <Badge variant="destructive">Rollback</Badge>}
           </div>
-          <div className="flex items-center gap-1">
-            {canRollbackToEmbedded && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-8"
-                title="Rollback to embedded"
-                onClick={() => {
-                  setRollbackOpen(true);
-                }}
-              >
-                <Undo2Icon strokeWidth={2} className="size-4" />
-              </Button>
-            )}
-            {canPromote && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-8"
-                title="Promote to another channel"
-                onClick={() => {
-                  setPromoteOpen(true);
-                }}
-              >
-                <RocketIcon strokeWidth={2} className="size-4" />
-              </Button>
-            )}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-8"
-              title="Delete update group"
-              disabled={isDeleting}
-              onClick={handleDelete}
-            >
-              <Trash2Icon strokeWidth={2} className="size-4" />
-            </Button>
-          </div>
+          <UpdateActionButtons
+            update={update}
+            channels={channels}
+            branchName={branchName}
+            slug={slug}
+            orgId={orgId}
+            projectId={projectId}
+          />
         </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <div className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
           <span>v{update.runtimeVersion}</span>
-          <span>{new Date(update.createdAt).toLocaleString()}</span>
+          <span>{formatDateTime(update.createdAt)}</span>
           <span className="font-mono text-xs">{update.groupId.slice(0, 8)}</span>
         </div>
 
@@ -173,7 +131,7 @@ export const UpdateCard = ({
             max={100}
             value={rolloutInput}
             onChange={(event) => {
-              setRolloutInput(event.target.value);
+              setRolloutDraft(event.target.value);
             }}
             className="w-20"
             disabled={isUpdatingRollout}
@@ -181,54 +139,48 @@ export const UpdateCard = ({
           <span className="text-muted-foreground text-sm">%</span>
           <Button
             variant="outline"
-            disabled={isUpdatingRollout || rolloutInput === String(update.rolloutPercentage)}
+            loading={editUpdateRolloutMutation.isPending}
+            disabled={isUpdatingRollout || rolloutInput === currentRollout}
             onClick={handleEditRollout}
           >
             Apply
           </Button>
-          <Button
-            size="icon"
-            variant="outline"
-            className="size-8"
-            title="Complete rollout (100%)"
-            disabled={isUpdatingRollout || update.rolloutPercentage === 100}
-            onClick={handleComplete}
-          >
-            <CircleCheckIcon strokeWidth={2} className="size-4" />
-          </Button>
-          <Button
-            size="icon"
-            variant="outline"
-            className="size-8"
-            title="Revert rollout (0%)"
-            disabled={isUpdatingRollout || update.rolloutPercentage === 0}
-            onClick={handleRevert}
-          >
-            <Undo2Icon strokeWidth={2} className="size-4" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  size="icon"
+                  variant="outline"
+                  aria-label="Complete rollout (100%)"
+                  loading={completeUpdateRolloutMutation.isPending}
+                  disabled={isUpdatingRollout || update.rolloutPercentage === 100}
+                  onClick={handleComplete}
+                />
+              }
+            >
+              <CircleCheckIcon strokeWidth={2} />
+            </TooltipTrigger>
+            <TooltipPopup>Complete rollout (100%)</TooltipPopup>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  size="icon"
+                  variant="outline"
+                  aria-label="Revert rollout (0%)"
+                  loading={revertUpdateRolloutMutation.isPending}
+                  disabled={isUpdatingRollout || update.rolloutPercentage === 0}
+                  onClick={handleRevert}
+                />
+              }
+            >
+              <Undo2Icon strokeWidth={2} />
+            </TooltipTrigger>
+            <TooltipPopup>Revert rollout (0%)</TooltipPopup>
+          </Tooltip>
         </div>
       </CardContent>
-      {canRollbackToEmbedded && (
-        <RollbackToEmbeddedDialog
-          update={update}
-          branchName={branchName}
-          slug={slug}
-          orgId={orgId}
-          projectId={projectId}
-          open={rollbackOpen}
-          onOpenChange={setRollbackOpen}
-        />
-      )}
-      {canPromote && (
-        <PromoteUpdateDialog
-          update={update}
-          channels={eligibleChannels}
-          orgId={orgId}
-          projectId={projectId}
-          open={promoteOpen}
-          onOpenChange={setPromoteOpen}
-        />
-      )}
     </Card>
   );
 };

@@ -2,25 +2,35 @@ import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@better-update/ui/components/ui/card";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@better-update/ui/components/ui/tooltip";
-import { DownloadIcon } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { CheckIcon, DownloadIcon, XIcon } from "lucide-react";
 
+import { formatDateTime } from "../../../../../lib/format-date";
+import { pluralize } from "../../../../../lib/pluralize";
 import { formatBytes } from "./-build-helpers";
 import { DeleteBuildDialog } from "./-delete-build-dialog";
 import { InstallLinkDialog } from "./-install-link-dialog";
 
 import type { BuildWithSyntheticChannels, SyntheticBuildChannel } from "./-compatibility-join";
 
-const statusText = (count: number) =>
-  count > 0 ? `✓ ${count} updates` : "✗ no updates for this runtimeVersion";
-
 const renderStatusBadge = (channel: SyntheticBuildChannel) => {
   if (channel.isPaused) {
     return <Badge variant="outline">Paused</Badge>;
   }
   if (channel.updateCount > 0) {
-    return <Badge variant="default">{statusText(channel.updateCount)}</Badge>;
+    return (
+      <Badge variant="default">
+        <CheckIcon strokeWidth={2} data-icon="inline-start" />
+        {channel.updateCount} {pluralize(channel.updateCount, "update")}
+      </Badge>
+    );
   }
-  return <span className="text-muted-foreground">{statusText(channel.updateCount)}</span>;
+  return (
+    <span className="text-muted-foreground inline-flex items-center gap-1 text-xs">
+      <XIcon strokeWidth={2} className="size-3" aria-hidden="true" />
+      no updates for this runtimeVersion
+    </span>
+  );
 };
 
 const CompatibleChannels = ({ build }: { build: BuildWithSyntheticChannels }) => {
@@ -76,12 +86,13 @@ export const BuildCard = ({
             {(build.message ?? build.profile) || `Build ${build.id.slice(0, 8)}`}
           </CardTitle>
           {showDetailsLink ? (
-            <a
-              href={`/projects/${projectSlug}/builds/${build.id}`}
+            <Link
+              to="/projects/$projectSlug/builds/$buildId"
+              params={{ projectSlug, buildId: build.id }}
               className="text-muted-foreground hover:text-foreground text-sm transition-colors"
             >
               View details
-            </a>
+            </Link>
           ) : null}
           <Badge variant="outline">{build.platform}</Badge>
           <Badge variant="secondary">{build.distribution}</Badge>
@@ -122,7 +133,7 @@ export const BuildCard = ({
         {build.buildNumber && <span>#{build.buildNumber}</span>}
         {build.gitRef && <span className="font-mono text-xs">{build.gitRef}</span>}
         {build.artifact && <span>{formatBytes(build.artifact.byteSize)}</span>}
-        <span>{new Date(build.createdAt).toLocaleString()}</span>
+        <span>{formatDateTime(build.createdAt)}</span>
       </div>
       <div className="mt-4 flex flex-col gap-2">
         <div className="text-sm font-medium">Compatible channels</div>

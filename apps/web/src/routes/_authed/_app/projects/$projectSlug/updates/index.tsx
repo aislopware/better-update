@@ -13,21 +13,30 @@ import {
 import { keepPreviousData, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
+import { zodValidator } from "@tanstack/zod-adapter";
 import { CloudUploadIcon, SearchXIcon } from "lucide-react";
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useMemo } from "react";
+import { z } from "zod";
 
-import type { UpdateSort, UpdateSortColumn } from "@better-update/api-client/react";
-import type { SortingState } from "@tanstack/react-table";
+import type { UpdateSortColumn } from "@better-update/api-client/react";
 
 import { ProjectSubpageHeader } from "../-project-subpage-header";
 import { TableSkeleton } from "../../../../../../components/skeletons";
+import {
+  DataTableView,
+  PAGE_SIZE,
+  computePagination,
+  fireAndForget,
+  optionalEnumParam,
+  optionalStringParam,
+  pageParam,
+  sortParam,
+  useDataTableSearch,
+} from "../../../../../../lib/data-table";
 import { pluralize } from "../../../../../../lib/pluralize";
+import { DROPDOWN_FETCH_LIMIT } from "../../../../../../queries/constants";
 import { buildUpdateColumns } from "./-updates-columns";
-import { UpdatesFilterBar, UpdatesTableView } from "./-updates-view";
-
-const PAGE_SIZE = 50;
-
-const DEFAULT_SORTING: SortingState = [{ id: "createdAt", desc: true }];
+import { UpdatesFilterBar } from "./-updates-view";
 
 const SORT_COLUMNS = [
   "createdAt",
@@ -36,25 +45,16 @@ const SORT_COLUMNS = [
   "rolloutPercentage",
 ] as const satisfies readonly UpdateSortColumn[];
 
-const toApiSort = (sorting: SortingState): UpdateSort | undefined => {
-  const [first] = sorting;
-  if (!first) {
-    return undefined;
-  }
-  const column = SORT_COLUMNS.find((col) => col === first.id);
-  if (!column) {
-    return undefined;
-  }
-  return first.desc ? `-${column}` : column;
-};
+const DEFAULT_SORT = "-createdAt" as const;
 
-const computePagination = (total: number, itemCount: number, page: number) => {
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const safePage = Math.min(page, totalPages);
-  const fromIndex = itemCount === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
-  const toIndex = (safePage - 1) * PAGE_SIZE + itemCount;
-  return { totalPages, safePage, fromIndex, toIndex };
-};
+const PLATFORMS = ["ios", "android"] as const;
+
+const updatesSearchSchema = z.object({
+  page: pageParam(),
+  sort: sortParam(DEFAULT_SORT),
+  platform: optionalEnumParam(PLATFORMS),
+  branchId: optionalStringParam(),
+});
 
 const UpdatesEmptyState = () => (
   <Empty>
@@ -68,46 +68,6 @@ const UpdatesEmptyState = () => (
   </Empty>
 );
 
-interface FiltersState {
-  readonly branchFilter: string | undefined;
-  readonly platformFilter: "ios" | "android" | undefined;
-  readonly sorting: SortingState;
-  readonly page: number;
-}
-
-const useUpdatesData = (orgId: string, projectId: string, slug: string, state: FiltersState) => {
-  const apiSort = toApiSort(state.sorting);
-  const updatesQuery = useQuery({
-    ...updatesQueryOptions(orgId, projectId, {
-      page: state.page,
-      limit: PAGE_SIZE,
-      ...(state.branchFilter ? { branchId: state.branchFilter } : {}),
-      ...(state.platformFilter ? { platform: state.platformFilter } : {}),
-      ...(apiSort ? { sort: apiSort } : {}),
-    }),
-    placeholderData: keepPreviousData,
-  });
-  const { data: branchesData } = useSuspenseQuery(
-    branchesQueryOptions(orgId, projectId, { limit: 100 }),
-  );
-  const { data: channelsData } = useSuspenseQuery(
-    channelsQueryOptions(orgId, projectId, { limit: 100 }),
-  );
-  const branchNames = useMemo(
-    () => new Map(branchesData.items.map((branch) => [branch.id, branch.name])),
-    [branchesData.items],
-  );
-  const columns = useMemo(
-    () => buildUpdateColumns(branchNames, channelsData.items, slug, orgId, projectId),
-    [branchNames, channelsData.items, slug, orgId, projectId],
-  );
-  return {
-    updatesQuery,
-    branches: branchesData.items,
-    columns,
-  };
-};
-
 const UpdatesSkeleton = () => (
   <>
     <div className="flex items-center justify-between gap-2">
@@ -117,37 +77,104 @@ const UpdatesSkeleton = () => (
   </>
 );
 
+interface UseUpdatesDataArgs {
+  readonly orgId: string;
+  readonly projectId: string;
+  readonly slug: string;
+  readonly page: number;
+  readonly apiSort: (typeof SORT_COLUMNS)[number] | `-${(typeof SORT_COLUMNS)[number]}`;
+  readonly branchId: string | undefined;
+  readonly platform: "ios" | "android" | undefined;
+}
+
+const useUpdatesData = ({
+  orgId,
+  projectId,
+  slug,
+  page,
+  apiSort,
+  branchId,
+  platform,
+}: UseUpdatesDataArgs) => {
+  const updatesQuery = useQuery({
+    ...updatesQueryOptions(orgId, projectId, {
+      page,
+      limit: PAGE_SIZE,
+      ...(branchId ? { branchId } : {}),
+      ...(platform ? { platform } : {}),
+      sort: apiSort,
+    }),
+    placeholderData: keepPreviousData,
+  });
+
+  const { data: branchesData } = useSuspenseQuery(
+    branchesQueryOptions(orgId, projectId, { limit: DROPDOWN_FETCH_LIMIT }),
+  );
+  const { data: channelsData } = useSuspenseQuery(
+    channelsQueryOptions(orgId, projectId, { limit: DROPDOWN_FETCH_LIMIT }),
+  );
+  const branches = branchesData.items;
+  const branchNames = useMemo(
+    () => new Map(branches.map((branch) => [branch.id, branch.name])),
+    [branches],
+  );
+  const columns = useMemo(
+    () => buildUpdateColumns(branchNames, channelsData.items, slug, orgId, projectId),
+    [branchNames, channelsData.items, slug, orgId, projectId],
+  );
+
+  return { updatesQuery, branches, columns };
+};
+
 const UpdatesContent = () => {
   const { activeOrg, project } = Route.useRouteContext();
   const orgId = activeOrg.id;
   const { id: projectId, slug } = project;
+  const routeNavigate = Route.useNavigate();
 
-  const [filters, setFilters] = useState<FiltersState>({
-    branchFilter: undefined,
-    platformFilter: undefined,
-    sorting: DEFAULT_SORTING,
-    page: 1,
+  const { page, sort, platform, branchId } = Route.useSearch();
+  const { sorting, apiSort, onSortingChange, onPageChange } = useDataTableSearch({
+    sortColumns: SORT_COLUMNS,
+    defaultSort: DEFAULT_SORT,
+    sort,
+    navigate: routeNavigate,
   });
 
-  const handleSortingChange = (updater: SortingState | ((prev: SortingState) => SortingState)) => {
-    setFilters((prev) => {
-      const next = typeof updater === "function" ? updater(prev.sorting) : updater;
-      return {
-        ...prev,
-        sorting: next.length === 0 ? DEFAULT_SORTING : next.slice(0, 1),
-        page: 1,
-      };
-    });
+  const handleBranchFilter = (next: string | undefined) => {
+    fireAndForget(
+      routeNavigate({
+        to: ".",
+        search: (prev) => ({ ...prev, branchId: next, page: 1 }),
+      }),
+    );
   };
 
-  const { updatesQuery, branches, columns } = useUpdatesData(orgId, projectId, slug, filters);
+  const handlePlatformFilter = (next: "ios" | "android" | undefined) => {
+    fireAndForget(
+      routeNavigate({
+        to: ".",
+        search: (prev) => ({ ...prev, platform: next, page: 1 }),
+      }),
+    );
+  };
+
+  const { updatesQuery, branches, columns } = useUpdatesData({
+    orgId,
+    projectId,
+    slug,
+    page,
+    apiSort,
+    branchId,
+    platform,
+  });
+
   const { data, isPlaceholderData, isLoading } = updatesQuery;
   const tableData = useMemo(() => [...(data?.items ?? [])], [data?.items]);
   const table = useReactTable({
     data: tableData,
     columns: [...columns],
-    state: { sorting: filters.sorting },
-    onSortingChange: handleSortingChange,
+    state: { sorting },
+    onSortingChange,
     manualSorting: true,
     enableMultiSort: false,
     enableSortingRemoval: false,
@@ -162,14 +189,10 @@ const UpdatesContent = () => {
     <UpdatesFilterBar
       branches={branches}
       branchFilterLabels={branchFilterLabels}
-      branchFilter={filters.branchFilter}
-      platformFilter={filters.platformFilter}
-      onBranchFilter={(branchFilter) => {
-        setFilters((prev) => ({ ...prev, branchFilter, page: 1 }));
-      }}
-      onPlatformFilter={(platformFilter) => {
-        setFilters((prev) => ({ ...prev, platformFilter, page: 1 }));
-      }}
+      branchFilter={branchId}
+      platformFilter={platform}
+      onBranchFilter={handleBranchFilter}
+      onPlatformFilter={handlePlatformFilter}
     />
   );
 
@@ -185,7 +208,7 @@ const UpdatesContent = () => {
     );
   }
 
-  const filtersActive = Boolean(filters.branchFilter) || Boolean(filters.platformFilter);
+  const filtersActive = Boolean(branchId) || Boolean(platform);
 
   if (data.total === 0 && !filtersActive) {
     return (
@@ -202,7 +225,7 @@ const UpdatesContent = () => {
   const { totalPages, safePage, fromIndex, toIndex } = computePagination(
     data.total,
     data.items.length,
-    filters.page,
+    page,
   );
   const countLabel = `${fromIndex}–${toIndex} of ${data.total} ${pluralize(data.total, "update")}${
     filtersActive ? " (filtered)" : ""
@@ -225,16 +248,14 @@ const UpdatesContent = () => {
           </EmptyHeader>
         </Empty>
       ) : (
-        <UpdatesTableView
+        <DataTableView
           table={table}
           columnsCount={columns.length}
           isPlaceholderData={isPlaceholderData}
           countLabel={countLabel}
           safePage={safePage}
           totalPages={totalPages}
-          onPageChange={(page) => {
-            setFilters((prev) => ({ ...prev, page }));
-          }}
+          onPageChange={onPageChange}
         />
       )}
     </div>
@@ -248,5 +269,6 @@ const UpdatesPage = () => (
 );
 
 export const Route = createFileRoute("/_authed/_app/projects/$projectSlug/updates/")({
+  validateSearch: zodValidator(updatesSearchSchema),
   component: UpdatesPage,
 });

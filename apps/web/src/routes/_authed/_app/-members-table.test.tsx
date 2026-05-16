@@ -1,8 +1,13 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
+import type { SortingState } from "@tanstack/react-table";
+
 import { makeInvitation, makeMember } from "../../../../tests/helpers/fixtures";
 import { MembersTableView } from "./-members-table";
+
+const noopSorting: SortingState = [];
+const noopOnSortingChange = () => {};
 
 const ownerMember = makeMember({
   id: "member-owner",
@@ -37,6 +42,8 @@ describe(MembersTableView, () => {
       <MembersTableView
         members={allMembers}
         invitations={[]}
+        sorting={noopSorting}
+        onSortingChange={noopOnSortingChange}
         onRoleChange={onRoleChange}
         onRemove={onRemove}
         onCancelInvitation={onCancelInvitation}
@@ -65,6 +72,8 @@ describe(MembersTableView, () => {
       <MembersTableView
         members={allMembers}
         invitations={[]}
+        sorting={noopSorting}
+        onSortingChange={noopOnSortingChange}
         onRoleChange={onRoleChange}
         onRemove={onRemove}
         onCancelInvitation={onCancelInvitation}
@@ -82,6 +91,8 @@ describe(MembersTableView, () => {
       <MembersTableView
         members={[ownerMember]}
         invitations={[]}
+        sorting={noopSorting}
+        onSortingChange={noopOnSortingChange}
         onRoleChange={onRoleChange}
         onRemove={onRemove}
         onCancelInvitation={onCancelInvitation}
@@ -98,6 +109,8 @@ describe(MembersTableView, () => {
       <MembersTableView
         members={allMembers}
         invitations={[]}
+        sorting={noopSorting}
+        onSortingChange={noopOnSortingChange}
         onRoleChange={onRoleChange}
         onRemove={onRemove}
         onCancelInvitation={onCancelInvitation}
@@ -114,6 +127,8 @@ describe(MembersTableView, () => {
       <MembersTableView
         members={allMembers}
         invitations={[]}
+        sorting={noopSorting}
+        onSortingChange={noopOnSortingChange}
         onRoleChange={onRoleChange}
         onRemove={onRemove}
         onCancelInvitation={onCancelInvitation}
@@ -136,6 +151,8 @@ describe(MembersTableView, () => {
       <MembersTableView
         members={[]}
         invitations={[invitation]}
+        sorting={noopSorting}
+        onSortingChange={noopOnSortingChange}
         onRoleChange={onRoleChange}
         onRemove={onRemove}
         onCancelInvitation={onCancelInvitation}
@@ -158,6 +175,8 @@ describe(MembersTableView, () => {
       <MembersTableView
         members={[]}
         invitations={[invitation]}
+        sorting={noopSorting}
+        onSortingChange={noopOnSortingChange}
         onRoleChange={onRoleChange}
         onRemove={onRemove}
         onCancelInvitation={onCancelInvitation}

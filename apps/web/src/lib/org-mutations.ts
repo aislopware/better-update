@@ -1,36 +1,53 @@
-import { toastManager } from "@better-update/ui/components/ui/toast";
 import { Effect } from "effect";
 
-import { authClient } from "./auth-client";
+import { authClient, rejectOnAuthClientError } from "./auth-client";
 import { useApiMutation } from "./use-api-mutation";
 
 /**
  * Creates an organization and activates it in the session.
- * Shows a toast on failure and returns null; returns the created org on success.
+ * Rejects on failure so `useApiMutation.onError` fires; returns the created org.
  */
 export const createAndActivateOrg = async (params: {
   name: string;
   slug: string;
-}): Promise<{ id: string } | null> => {
-  const { data, error } = await authClient.organization.create({
-    ...params,
-    fetchOptions: { disableSignal: true },
+}): Promise<{ id: string }> =>
+  Effect.runPromise(
+    Effect.gen(function* () {
+      const created = yield* Effect.tryPromise(async () =>
+        rejectOnAuthClientError(
+          authClient.organization.create({
+            ...params,
+            fetchOptions: { disableSignal: true },
+          }),
+          "Failed to create organization",
+        ),
+      );
+
+      if (!created.data) {
+        return yield* Effect.fail(new Error("Failed to create organization"));
+      }
+
+      yield* Effect.tryPromise(async () =>
+        rejectOnAuthClientError(
+          authClient.organization.setActive({
+            organizationId: created.data.id,
+            fetchOptions: { disableSignal: true },
+          }),
+          "Failed to activate organization",
+        ),
+      );
+
+      return created.data;
+    }),
+  );
+
+export const useCreateAndActivateOrgMutation = (options: {
+  onSuccess: (data: { id: string }) => Promise<void> | void;
+}) =>
+  useApiMutation({
+    mutationFn: createAndActivateOrg,
+    onSuccess: options.onSuccess,
   });
-
-  if (error) {
-    toastManager.add({ title: error.message ?? "Failed to create organization", type: "error" });
-    return null;
-  }
-
-  if (data.id) {
-    await authClient.organization.setActive({
-      organizationId: data.id,
-      fetchOptions: { disableSignal: true },
-    });
-  }
-
-  return data;
-};
 
 /**
  * Deletes an organization. Rejects on failure so `useMutation.onError` fires.

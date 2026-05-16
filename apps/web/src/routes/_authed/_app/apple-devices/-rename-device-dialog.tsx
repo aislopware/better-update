@@ -24,16 +24,15 @@ import type { ReactElement } from "react";
 import { deviceNameSchema as nameSchema, getFieldError } from "../../../../lib/form-utils";
 import { safeSubmit, useApiMutation } from "../../../../lib/use-api-mutation";
 
-export const RenameDeviceDialog = ({
+const RenameForm = ({
   orgId,
   device,
-  children,
+  onSuccess,
 }: {
   orgId: string;
   device: DeviceItem;
-  children: ReactElement;
+  onSuccess: () => void;
 }) => {
-  const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
 
   const renameMutation = useApiMutation({
@@ -41,7 +40,7 @@ export const RenameDeviceDialog = ({
     onSuccess: async () => {
       toastManager.add({ title: "Device renamed", type: "success" });
       await queryClient.invalidateQueries({ queryKey: devicesQueryKey(orgId) });
-      setOpen(false);
+      onSuccess();
     },
   });
 
@@ -52,72 +51,109 @@ export const RenameDeviceDialog = ({
   });
 
   return (
+    <form
+      className="contents"
+      onSubmit={async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        await form.handleSubmit();
+      }}
+    >
+      <DialogPanel>
+        <FieldGroup>
+          <form.Field
+            name="name"
+            validators={{
+              onBlur: ({ value }) => {
+                const result = nameSchema.safeParse(value.trim());
+                return result.success ? undefined : result.error.issues[0]?.message;
+              },
+            }}
+          >
+            {(field) => {
+              const errorMessage = getFieldError(field);
+              return (
+                <Field invalid={Boolean(errorMessage)}>
+                  <FieldLabel htmlFor="device-rename">Name</FieldLabel>
+                  <Input
+                    id="device-rename"
+                    value={field.state.value}
+                    onChange={(event) => {
+                      field.handleChange(event.target.value);
+                    }}
+                    onBlur={field.handleBlur}
+                  />
+                  <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
+                </Field>
+              );
+            }}
+          </form.Field>
+        </FieldGroup>
+      </DialogPanel>
+      <DialogFooter>
+        <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
+        <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting] as const}>
+          {([canSubmit, isSubmitting]) => (
+            <Button type="submit" disabled={!canSubmit} loading={isSubmitting}>
+              Save
+            </Button>
+          )}
+        </form.Subscribe>
+      </DialogFooter>
+    </form>
+  );
+};
+
+export const RenameDeviceDialog = ({
+  orgId,
+  device,
+  children,
+  open: controlledOpen,
+  onOpenChange,
+}: {
+  orgId: string;
+  device: DeviceItem;
+  children?: ReactElement;
+  open?: boolean;
+  onOpenChange?: (next: boolean) => void;
+}) => {
+  const isControlled = controlledOpen !== undefined;
+  const [internalOpen, setInternalOpen] = useState(false);
+  const [resetKey, setResetKey] = useState(0);
+  const open = isControlled ? controlledOpen : internalOpen;
+
+  const setOpen = (next: boolean) => {
+    if (isControlled) {
+      onOpenChange?.(next);
+    } else {
+      setInternalOpen(next);
+    }
+  };
+
+  return (
     <Dialog
       open={open}
-      onOpenChange={(next) => {
-        setOpen(next);
+      onOpenChange={setOpen}
+      onOpenChangeComplete={(next) => {
         if (!next) {
-          form.reset();
+          setResetKey((prev) => prev + 1);
         }
       }}
     >
-      <DialogTrigger render={children} />
+      {children ? <DialogTrigger render={children} /> : null}
       <DialogPopup>
         <DialogHeader>
           <DialogTitle>Rename device</DialogTitle>
           <DialogDescription>Give this device a clearer label.</DialogDescription>
         </DialogHeader>
-        <form
-          className="contents"
-          onSubmit={async (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            await form.handleSubmit();
+        <RenameForm
+          key={resetKey}
+          orgId={orgId}
+          device={device}
+          onSuccess={() => {
+            setOpen(false);
           }}
-        >
-          <DialogPanel>
-            <FieldGroup>
-              <form.Field
-                name="name"
-                validators={{
-                  onBlur: ({ value }) => {
-                    const result = nameSchema.safeParse(value.trim());
-                    return result.success ? undefined : result.error.issues[0]?.message;
-                  },
-                }}
-              >
-                {(field) => {
-                  const errorMessage = getFieldError(field);
-                  return (
-                    <Field data-invalid={errorMessage ? true : undefined}>
-                      <FieldLabel htmlFor="device-rename">Name</FieldLabel>
-                      <Input
-                        id="device-rename"
-                        value={field.state.value}
-                        onChange={(event) => {
-                          field.handleChange(event.target.value);
-                        }}
-                        onBlur={field.handleBlur}
-                        aria-invalid={errorMessage ? true : undefined}
-                      />
-                      <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
-                    </Field>
-                  );
-                }}
-              </form.Field>
-            </FieldGroup>
-          </DialogPanel>
-          <DialogFooter>
-            <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
-            <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting] as const}>
-              {([canSubmit, isSubmitting]) => (
-                <Button type="submit" disabled={!canSubmit} loading={isSubmitting}>
-                  Save
-                </Button>
-              )}
-            </form.Subscribe>
-          </DialogFooter>
-        </form>
+        />
       </DialogPopup>
     </Dialog>
   );

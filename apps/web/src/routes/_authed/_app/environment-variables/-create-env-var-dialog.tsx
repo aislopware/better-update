@@ -150,7 +150,7 @@ const RowInputs = ({
   const error = keyError ?? (duplicate ? "Duplicate key" : undefined);
   return (
     <div className="flex items-start gap-2">
-      <Field className="flex-1" data-invalid={error ? true : undefined}>
+      <Field className="flex-1" invalid={Boolean(error)}>
         <Input
           placeholder="KEY"
           value={row.key}
@@ -158,7 +158,6 @@ const RowInputs = ({
             onChange({ key: event.target.value.toUpperCase() });
           }}
           className="font-mono"
-          aria-invalid={error ? true : undefined}
         />
         <FieldError match={Boolean(error)}>{error}</FieldError>
       </Field>
@@ -380,7 +379,7 @@ const CreateForm = ({
       </DialogPanel>
 
       <DialogFooter>
-        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+        <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
         <Button type="submit" disabled={!canSubmit} loading={mutation.isPending}>
           <PlusIcon strokeWidth={2} data-icon="inline-start" />
           {submitLabel}
@@ -392,9 +391,18 @@ const CreateForm = ({
 
 export const CreateEnvVarDialog = ({ orgId, mode }: { orgId: string; mode: CreateMode }) => {
   const [open, setOpen] = useState(false);
+  const [resetKey, setResetKey] = useState(0);
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={setOpen}
+      onOpenChangeComplete={(next) => {
+        if (!next) {
+          setResetKey((prev) => prev + 1);
+        }
+      }}
+    >
       <Button
         onClick={() => {
           setOpen(true);
@@ -412,15 +420,14 @@ export const CreateEnvVarDialog = ({ orgId, mode }: { orgId: string; mode: Creat
               : "Add one or more organization-wide variables. Upload a .env file to fill rows."}
           </DialogDescription>
         </DialogHeader>
-        {open && (
-          <CreateForm
-            orgId={orgId}
-            mode={mode}
-            onSuccess={() => {
-              setOpen(false);
-            }}
-          />
-        )}
+        <CreateForm
+          key={resetKey}
+          orgId={orgId}
+          mode={mode}
+          onSuccess={() => {
+            setOpen(false);
+          }}
+        />
       </DialogPopup>
     </Dialog>
   );

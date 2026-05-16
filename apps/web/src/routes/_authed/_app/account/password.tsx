@@ -4,19 +4,35 @@ import { Input } from "@better-update/ui/components/ui/input";
 import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
-import { Suspense } from "react";
+import { Link, createFileRoute } from "@tanstack/react-router";
 
 import { SettingCard } from "../../../../components/setting-card";
 import { SettingCardSkeleton } from "../../../../components/skeletons";
-import { authClient } from "../../../../lib/auth-client";
+import { authClient, rejectOnAuthClientError } from "../../../../lib/auth-client";
 import { getFieldError, passwordSchema, requiredStringSchema } from "../../../../lib/form-utils";
+import { useApiMutation } from "../../../../lib/use-api-mutation";
 import { accountsQueryOptions } from "../../../../queries/auth";
 
 const PasswordForm = () => {
   const queryClient = useQueryClient();
   const { data: accounts } = useSuspenseQuery(accountsQueryOptions);
   const hasCredential = accounts.some((account) => account.providerId === "credential");
+
+  const changePasswordMutation = useApiMutation({
+    mutationFn: async (input: { currentPassword: string; newPassword: string }) =>
+      rejectOnAuthClientError(
+        authClient.changePassword({
+          currentPassword: input.currentPassword,
+          newPassword: input.newPassword,
+          revokeOtherSessions: true,
+        }),
+        "Failed to change password",
+      ),
+    onSuccess: async () => {
+      toastManager.add({ title: "Password changed", type: "success" });
+      await queryClient.resetQueries({ queryKey: ["auth", "sessions"] });
+    },
+  });
 
   const form = useForm({
     defaultValues: {
@@ -25,18 +41,15 @@ const PasswordForm = () => {
       confirmPassword: "",
     },
     onSubmit: async ({ value }) => {
-      const { error } = await authClient.changePassword({
-        currentPassword: value.currentPassword,
-        newPassword: value.newPassword,
-        revokeOtherSessions: true,
-      });
-      if (error) {
-        toastManager.add({ title: error.message ?? "Failed to change password", type: "error" });
-        return;
+      const [result] = await Promise.allSettled([
+        changePasswordMutation.mutateAsync({
+          currentPassword: value.currentPassword,
+          newPassword: value.newPassword,
+        }),
+      ]);
+      if (result.status === "fulfilled") {
+        form.reset();
       }
-      toastManager.add({ title: "Password changed", type: "success" });
-      form.reset();
-      await queryClient.resetQueries({ queryKey: ["auth", "sessions"] });
     },
   });
 
@@ -45,12 +58,12 @@ const PasswordForm = () => {
       <SettingCard title="Password" description="Set a password to enable email sign-in.">
         <p className="text-muted-foreground text-sm">
           You signed up with a social provider. Add an email & password from{" "}
-          <a
+          <Link
             className="text-foreground underline-offset-2 hover:underline"
-            href="/account/connections"
+            to="/account/connections"
           >
             Connections
-          </a>{" "}
+          </Link>{" "}
           first.
         </p>
       </SettingCard>
@@ -91,7 +104,7 @@ const PasswordForm = () => {
             {(field) => {
               const errorMessage = getFieldError(field);
               return (
-                <Field data-invalid={errorMessage ? true : undefined}>
+                <Field invalid={Boolean(errorMessage)}>
                   <FieldLabel htmlFor="current-password">Current password</FieldLabel>
                   <Input
                     id="current-password"
@@ -102,7 +115,6 @@ const PasswordForm = () => {
                       field.handleChange(event.target.value);
                     }}
                     onBlur={field.handleBlur}
-                    aria-invalid={errorMessage ? true : undefined}
                   />
                   <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
                 </Field>
@@ -121,7 +133,7 @@ const PasswordForm = () => {
             {(field) => {
               const errorMessage = getFieldError(field);
               return (
-                <Field data-invalid={errorMessage ? true : undefined}>
+                <Field invalid={Boolean(errorMessage)}>
                   <FieldLabel htmlFor="new-password">New password</FieldLabel>
                   <Input
                     id="new-password"
@@ -132,7 +144,6 @@ const PasswordForm = () => {
                       field.handleChange(event.target.value);
                     }}
                     onBlur={field.handleBlur}
-                    aria-invalid={errorMessage ? true : undefined}
                   />
                   <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
                 </Field>
@@ -152,7 +163,7 @@ const PasswordForm = () => {
             {(field) => {
               const errorMessage = getFieldError(field);
               return (
-                <Field data-invalid={errorMessage ? true : undefined}>
+                <Field invalid={Boolean(errorMessage)}>
                   <FieldLabel htmlFor="confirm-password">Confirm new password</FieldLabel>
                   <Input
                     id="confirm-password"
@@ -163,7 +174,6 @@ const PasswordForm = () => {
                       field.handleChange(event.target.value);
                     }}
                     onBlur={field.handleBlur}
-                    aria-invalid={errorMessage ? true : undefined}
                   />
                   <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
                 </Field>
@@ -176,12 +186,14 @@ const PasswordForm = () => {
   );
 };
 
-const PasswordPage = () => (
-  <Suspense fallback={<SettingCardSkeleton fields={3} />}>
-    <PasswordForm />
-  </Suspense>
-);
+const PasswordPagePending = () => <SettingCardSkeleton fields={3} />;
 
 export const Route = createFileRoute("/_authed/_app/account/password")({
-  component: PasswordPage,
+  beforeLoad: async ({ context }) => {
+    await context.queryClient.ensureQueryData(accountsQueryOptions);
+  },
+  pendingComponent: PasswordPagePending,
+  pendingMs: 0,
+  pendingMinMs: 0,
+  component: PasswordForm,
 });

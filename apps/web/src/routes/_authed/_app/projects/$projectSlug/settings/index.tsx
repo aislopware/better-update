@@ -71,7 +71,7 @@ const RenameSection = ({ project }: { project: ProjectDetail }) => {
           {(field) => {
             const errorMessage = getFieldError(field);
             return (
-              <Field data-invalid={errorMessage ? true : undefined}>
+              <Field invalid={Boolean(errorMessage)}>
                 <FieldLabel htmlFor="project-name">Project name</FieldLabel>
                 <Input
                   id="project-name"
@@ -80,7 +80,6 @@ const RenameSection = ({ project }: { project: ProjectDetail }) => {
                     field.handleChange(event.target.value);
                   }}
                   onBlur={field.handleBlur}
-                  aria-invalid={errorMessage ? true : undefined}
                 />
                 <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
               </Field>

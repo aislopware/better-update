@@ -21,7 +21,9 @@ import {
 } from "@better-update/ui/components/ui/select";
 import { toastManager } from "@better-update/ui/components/ui/toast";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@better-update/ui/components/ui/tooltip";
+import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import {
   CircleCheckIcon,
   GitBranchIcon,
@@ -36,7 +38,7 @@ import { useState } from "react";
 import type { Channel, MissingRuntimeVersionBuild } from "@better-update/api";
 import type { BranchItem } from "@better-update/api-client/react";
 
-import { useApiMutation } from "../../../../../lib/use-api-mutation";
+import { safeSubmit, useApiMutation } from "../../../../../lib/use-api-mutation";
 import { CompatibleBuildsSection, MissingMatchingBuilds } from "./-channel-compatibility";
 import { parseRolloutState } from "./-channel-rollout-state";
 import { DeleteChannelDialog } from "./-delete-channel-dialog";
@@ -58,11 +60,14 @@ const ActiveRolloutControls = ({
 }: BranchRolloutControlsProps & {
   readonly rolloutState: { targetBranchId: string; percentage: number };
 }) => {
-  const [rolloutInput, setRolloutInput] = useState<string | null>(null);
+  const [rolloutDraft, setRolloutDraft] = useState<string | undefined>(undefined);
+  const currentPercentage = String(rolloutState.percentage);
+  const rolloutInput = rolloutDraft ?? currentPercentage;
   const rolloutTargetBranch = branches.find((branch) => branch.id === rolloutState.targetBranchId);
   const updateBranchRolloutMutation = useApiMutation({
     mutationFn: async (percentage: number) => updateBranchRollout(channel.id, { percentage }),
     onSuccess: async (_, percentage) => {
+      setRolloutDraft(undefined);
       toastManager.add({ title: `Rollout updated to ${percentage}%`, type: "success" });
       await invalidateChannels();
     },
@@ -70,6 +75,7 @@ const ActiveRolloutControls = ({
   const completeBranchRolloutMutation = useApiMutation({
     mutationFn: async () => completeBranchRollout(channel.id),
     onSuccess: async () => {
+      setRolloutDraft(undefined);
       toastManager.add({
         title: "Rollout completed — channel now serves the new branch",
         type: "success",
@@ -80,6 +86,7 @@ const ActiveRolloutControls = ({
   const revertBranchRolloutMutation = useApiMutation({
     mutationFn: async () => revertBranchRollout(channel.id),
     onSuccess: async () => {
+      setRolloutDraft(undefined);
       toastManager.add({
         title: "Rollout reverted — channel restored to original branch",
         type: "success",
@@ -93,7 +100,7 @@ const ActiveRolloutControls = ({
     revertBranchRolloutMutation.isPending;
 
   const handleUpdateRollout = () => {
-    const percentage = Number.parseInt(rolloutInput ?? String(rolloutState.percentage), 10);
+    const percentage = Number.parseInt(rolloutInput, 10);
     if (Number.isNaN(percentage) || percentage < 1 || percentage > 100) {
       toastManager.add({ title: "Rollout percentage must be between 1 and 100", type: "error" });
       return;
@@ -121,9 +128,9 @@ const ActiveRolloutControls = ({
           type="number"
           min={1}
           max={100}
-          value={rolloutInput ?? String(rolloutState.percentage)}
+          value={rolloutInput}
           onChange={(event) => {
-            setRolloutInput(event.target.value);
+            setRolloutDraft(event.target.value);
           }}
           className="w-20"
           disabled={isUpdatingRollout}
@@ -131,11 +138,8 @@ const ActiveRolloutControls = ({
         <span className="text-muted-foreground text-sm">%</span>
         <Button
           variant="outline"
-          disabled={
-            isUpdatingRollout ||
-            rolloutInput === null ||
-            rolloutInput === String(rolloutState.percentage)
-          }
+          loading={updateBranchRolloutMutation.isPending}
+          disabled={isUpdatingRollout || rolloutInput === currentPercentage}
           onClick={handleUpdateRollout}
         >
           Apply
@@ -147,7 +151,7 @@ const ActiveRolloutControls = ({
                 size="icon"
                 variant="outline"
                 aria-label="Complete rollout"
-                disabled={isUpdatingRollout}
+                loading={isUpdatingRollout}
                 onClick={handleCompleteRollout}
               />
             }
@@ -163,7 +167,7 @@ const ActiveRolloutControls = ({
                 size="icon"
                 variant="outline"
                 aria-label="Revert rollout"
-                disabled={isUpdatingRollout}
+                loading={isUpdatingRollout}
                 onClick={handleRevertRollout}
               />
             }
@@ -177,14 +181,12 @@ const ActiveRolloutControls = ({
   );
 };
 
-const StartRolloutControls = ({
+const StartRolloutForm = ({
   channel,
   branches,
+  onDone,
   invalidateChannels,
-}: BranchRolloutControlsProps) => {
-  const [rolloutBranchId, setRolloutBranchId] = useState("");
-  const [rolloutInput, setRolloutInput] = useState("");
-  const [isStartingRollout, setIsStartingRollout] = useState(false);
+}: BranchRolloutControlsProps & { readonly onDone: () => void }) => {
   const createBranchRolloutMutation = useApiMutation({
     mutationFn: async (input: { newBranchId: string; percentage: number }) =>
       createBranchRollout(channel.id, input),
@@ -194,25 +196,110 @@ const StartRolloutControls = ({
         type: "success",
       });
       await invalidateChannels();
-      setIsStartingRollout(false);
-      setRolloutBranchId("");
-      setRolloutInput("");
+      onDone();
     },
   });
-  const isSubmitting = createBranchRolloutMutation.isPending;
 
-  const handleStartRollout = () => {
-    const percentage = Number.parseInt(rolloutInput, 10);
-    if (!rolloutBranchId) {
-      toastManager.add({ title: "Select a target branch", type: "error" });
-      return;
-    }
-    if (Number.isNaN(percentage) || percentage < 1 || percentage > 100) {
-      toastManager.add({ title: "Rollout percentage must be between 1 and 100", type: "error" });
-      return;
-    }
-    createBranchRolloutMutation.mutate({ newBranchId: rolloutBranchId, percentage });
-  };
+  const form = useForm({
+    defaultValues: { branchId: "", percentage: "" },
+    onSubmit: async ({ value }) => {
+      const percentage = Number.parseInt(value.percentage, 10);
+      if (!value.branchId) {
+        toastManager.add({ title: "Select a target branch", type: "error" });
+        return;
+      }
+      if (Number.isNaN(percentage) || percentage < 1 || percentage > 100) {
+        toastManager.add({ title: "Rollout percentage must be between 1 and 100", type: "error" });
+        return;
+      }
+      await safeSubmit(
+        createBranchRolloutMutation.mutateAsync({ newBranchId: value.branchId, percentage }),
+      );
+    },
+  });
+
+  const targetBranches = branches.filter((branch) => branch.id !== channel.branchId);
+  const targetBranchLabels: Record<string, string> = Object.fromEntries(
+    targetBranches.map((branch) => [branch.id, branch.name]),
+  );
+
+  return (
+    <form
+      className="flex items-center gap-2"
+      onSubmit={async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        await form.handleSubmit();
+      }}
+    >
+      <form.Field name="branchId">
+        {(field) => (
+          <Select
+            items={targetBranchLabels}
+            value={field.state.value}
+            onValueChange={(value) => {
+              if (value === null) {
+                return;
+              }
+              field.handleChange(value);
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Target branch" />
+            </SelectTrigger>
+            <SelectPopup>
+              <SelectGroup>
+                {targetBranches.map((branch) => (
+                  <SelectItem key={branch.id} value={branch.id}>
+                    {branch.name}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectPopup>
+          </Select>
+        )}
+      </form.Field>
+      <form.Field name="percentage">
+        {(field) => (
+          <Input
+            type="number"
+            min={1}
+            max={100}
+            placeholder="%"
+            value={field.state.value}
+            onChange={(event) => {
+              field.handleChange(event.target.value);
+            }}
+            className="w-20"
+            disabled={createBranchRolloutMutation.isPending}
+          />
+        )}
+      </form.Field>
+      <form.Subscribe
+        selector={(state) =>
+          [state.values.branchId, state.values.percentage, state.isSubmitting] as const
+        }
+      >
+        {([branchId, percentage, isSubmitting]) => (
+          <Button type="submit" disabled={!branchId || !percentage} loading={isSubmitting}>
+            Start
+          </Button>
+        )}
+      </form.Subscribe>
+      <Button
+        type="button"
+        variant="ghost"
+        disabled={createBranchRolloutMutation.isPending}
+        onClick={onDone}
+      >
+        Cancel
+      </Button>
+    </form>
+  );
+};
+
+const StartRolloutControls = (props: BranchRolloutControlsProps) => {
+  const [isStartingRollout, setIsStartingRollout] = useState(false);
 
   if (!isStartingRollout) {
     return (
@@ -229,68 +316,15 @@ const StartRolloutControls = ({
     );
   }
 
-  const targetBranches = branches.filter((branch) => branch.id !== channel.branchId);
-  const targetBranchLabels: Record<string, string> = Object.fromEntries(
-    targetBranches.map((branch) => [branch.id, branch.name]),
-  );
-
   return (
-    <div className="flex items-center gap-2">
-      <Select
-        items={targetBranchLabels}
-        value={rolloutBranchId}
-        onValueChange={(value) => {
-          if (value === null) {
-            return;
-          }
-          setRolloutBranchId(value);
-        }}
-      >
-        <SelectTrigger>
-          <SelectValue placeholder="Target branch" />
-        </SelectTrigger>
-        <SelectPopup>
-          <SelectGroup>
-            {targetBranches.map((branch) => (
-              <SelectItem key={branch.id} value={branch.id}>
-                {branch.name}
-              </SelectItem>
-            ))}
-          </SelectGroup>
-        </SelectPopup>
-      </Select>
-      <Input
-        type="number"
-        min={1}
-        max={100}
-        placeholder="%"
-        value={rolloutInput}
-        onChange={(event) => {
-          setRolloutInput(event.target.value);
-        }}
-        className="w-20"
-        disabled={isSubmitting}
-      />
-      <Button
-        variant="default"
-        disabled={!rolloutBranchId || !rolloutInput}
-        loading={isSubmitting}
-        onClick={handleStartRollout}
-      >
-        Start
-      </Button>
-      <Button
-        variant="ghost"
-        disabled={isSubmitting}
-        onClick={() => {
-          setIsStartingRollout(false);
-          setRolloutBranchId("");
-          setRolloutInput("");
-        }}
-      >
-        Cancel
-      </Button>
-    </div>
+    <StartRolloutForm
+      channel={props.channel}
+      branches={props.branches}
+      invalidateChannels={props.invalidateChannels}
+      onDone={() => {
+        setIsStartingRollout(false);
+      }}
+    />
   );
 };
 
@@ -366,19 +400,33 @@ export const ChannelCard = ({
             <SatelliteIcon strokeWidth={2} className="text-muted-foreground size-5" />
             <CardTitle className="text-base">{channel.name}</CardTitle>
             {showDetailsLink ? (
-              <a
-                href={`/projects/${projectSlug}/channels/${channel.id}`}
+              <Link
+                to="/projects/$projectSlug/channels/$channelId"
+                params={{ projectSlug, channelId: channel.id }}
                 className="text-muted-foreground hover:text-foreground text-sm transition-colors"
               >
                 View details
-              </a>
+              </Link>
             ) : null}
           </div>
           <div className="flex items-center gap-1">
             {channel.isPaused && <Badge variant="warning">Paused</Badge>}
-            <Button variant="ghost" size="icon" disabled={isToggling} onClick={handleTogglePause}>
-              {channel.isPaused ? <PlayIcon strokeWidth={2} /> : <PauseIcon strokeWidth={2} />}
-            </Button>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={channel.isPaused ? "Resume channel" : "Pause channel"}
+                    loading={isToggling}
+                    onClick={handleTogglePause}
+                  />
+                }
+              >
+                {channel.isPaused ? <PlayIcon strokeWidth={2} /> : <PauseIcon strokeWidth={2} />}
+              </TooltipTrigger>
+              <TooltipPopup>{channel.isPaused ? "Resume channel" : "Pause channel"}</TooltipPopup>
+            </Tooltip>
             <DeleteChannelDialog channel={channel} orgId={orgId} projectId={projectId} />
           </div>
         </div>

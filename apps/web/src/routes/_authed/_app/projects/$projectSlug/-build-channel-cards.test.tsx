@@ -125,7 +125,7 @@ describe("build and channel cards", () => {
 
     expect(screen.getByText("Compatible channels")).toBeInTheDocument();
     expect(screen.getByText("production")).toBeInTheDocument();
-    expect(screen.getByText("✓ 2 updates")).toBeInTheDocument();
+    expect(screen.getByText("2 updates")).toBeInTheDocument();
     expect(screen.getByText("Rollout active")).toBeInTheDocument();
     expect(screen.getByText("latest Canary release")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "View details" })).toHaveAttribute(

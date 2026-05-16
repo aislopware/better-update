@@ -61,7 +61,7 @@ const ActiveMemberActions = ({
   onRemove: (memberId: string) => void;
 }) => (
   <Menu>
-    <ActionsTrigger isPending={isPending} />
+    <ActionsTrigger isPending={isPending} label="Member actions" />
     <MenuPopup align="end">
       <MenuGroup>
         {memberRole === "admin" ? null : (

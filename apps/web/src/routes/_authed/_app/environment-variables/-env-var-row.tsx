@@ -7,6 +7,7 @@ import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
+  DialogClose,
   DialogPopup,
   DialogDescription,
   DialogFooter,
@@ -31,6 +32,7 @@ import type { EnvVar } from "@better-update/api";
 
 import { useApiMutation } from "../../../../lib/use-api-mutation";
 import { EditEnvVarDialog } from "./-edit-env-var-dialog";
+import { ENV_LABELS } from "./-env-vars-labels";
 
 const VISIBILITY_VARIANTS: Record<string, "secondary" | "warning"> = {
   plaintext: "secondary",
@@ -40,12 +42,6 @@ const VISIBILITY_VARIANTS: Record<string, "secondary" | "warning"> = {
 const SCOPE_VARIANTS: Record<string, "secondary" | "info"> = {
   project: "secondary",
   global: "info",
-};
-
-const ENV_LABELS: Record<string, string> = {
-  development: "Dev",
-  preview: "Preview",
-  production: "Prod",
 };
 
 const VisibilityBadge = ({ visibility }: { visibility: string }) => (
@@ -107,7 +103,7 @@ export const EnvVarRow = ({
           <div className="flex flex-wrap gap-1">
             {envVar.environments.map((env) => (
               <Badge key={env} variant="secondary">
-                {ENV_LABELS[env] ?? env}
+                {ENV_LABELS[env]}
               </Badge>
             ))}
           </div>
@@ -123,7 +119,9 @@ export const EnvVarRow = ({
             <span className="text-muted-foreground text-xs">manage in org settings</span>
           ) : (
             <Menu>
-              <MenuTrigger render={<Button variant="ghost" size="icon" />}>
+              <MenuTrigger
+                render={<Button variant="ghost" size="icon" aria-label="Variable actions" />}
+              >
                 <EllipsisVerticalIcon strokeWidth={2} />
               </MenuTrigger>
               <MenuPopup align="end">
@@ -169,14 +167,7 @@ export const EnvVarRow = ({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setDeleteOpen(false);
-              }}
-            >
-              Cancel
-            </Button>
+            <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
             <Button
               variant="destructive"
               loading={deleteEnvVarMutation.isPending}

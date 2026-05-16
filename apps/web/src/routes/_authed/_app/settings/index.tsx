@@ -20,9 +20,10 @@ import { useRef, useState } from "react";
 
 import { PageHeader } from "../../../../components/page-header";
 import { SettingCard } from "../../../../components/setting-card";
-import { authClient } from "../../../../lib/auth-client";
+import { authClient, rejectOnAuthClientError } from "../../../../lib/auth-client";
 import { generateSlug, getFieldError, nameSchema, slugSchema } from "../../../../lib/form-utils";
 import { useDeleteOrgMutation } from "../../../../lib/org-mutations";
+import { safeSubmit, useApiMutation } from "../../../../lib/use-api-mutation";
 
 const deleteOrgTrigger = <Button variant="destructive">Delete organization</Button>;
 
@@ -31,26 +32,25 @@ const OrgGeneralForm = () => {
   const { activeOrg } = Route.useRouteContext();
   const slugEdited = useRef(false);
 
+  const updateOrgMutation = useApiMutation({
+    mutationFn: async (input: { name: string; slug: string }) =>
+      rejectOnAuthClientError(
+        authClient.organization.update({ data: input }),
+        "Failed to update organization",
+      ),
+    onSuccess: async () => {
+      toastManager.add({ title: "Organization updated", type: "success" });
+      await queryClient.resetQueries({ queryKey: ["auth"] });
+    },
+  });
+
   const form = useForm({
     defaultValues: {
       name: activeOrg.name,
       slug: activeOrg.slug,
     },
     onSubmit: async ({ value }) => {
-      const { error } = await authClient.organization.update({
-        data: { name: value.name, slug: value.slug },
-      });
-
-      if (error) {
-        toastManager.add({
-          title: error.message ?? "Failed to update organization",
-          type: "error",
-        });
-        return;
-      }
-
-      toastManager.add({ title: "Organization updated", type: "success" });
-      await queryClient.resetQueries({ queryKey: ["auth"] });
+      await safeSubmit(updateOrgMutation.mutateAsync(value));
     },
   });
 
@@ -88,7 +88,7 @@ const OrgGeneralForm = () => {
             {(field) => {
               const errorMessage = getFieldError(field);
               return (
-                <Field data-invalid={errorMessage ? true : undefined}>
+                <Field invalid={Boolean(errorMessage)}>
                   <FieldLabel htmlFor="org-name">Organization name</FieldLabel>
                   <Input
                     id="org-name"
@@ -103,7 +103,6 @@ const OrgGeneralForm = () => {
                       }
                     }}
                     onBlur={field.handleBlur}
-                    aria-invalid={errorMessage ? true : undefined}
                   />
                   <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
                 </Field>
@@ -123,7 +122,7 @@ const OrgGeneralForm = () => {
             {(field) => {
               const errorMessage = getFieldError(field);
               return (
-                <Field data-invalid={errorMessage ? true : undefined}>
+                <Field invalid={Boolean(errorMessage)}>
                   <FieldLabel htmlFor="org-slug">URL slug</FieldLabel>
                   <Input
                     id="org-slug"
@@ -133,7 +132,6 @@ const OrgGeneralForm = () => {
                       slugEdited.current = event.target.value !== "";
                     }}
                     onBlur={field.handleBlur}
-                    aria-invalid={errorMessage ? true : undefined}
                   />
                   <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
                 </Field>
@@ -146,11 +144,54 @@ const OrgGeneralForm = () => {
   );
 };
 
+const DeleteOrgConfirmForm = ({
+  slug,
+  isPending,
+  onConfirm,
+}: {
+  slug: string;
+  isPending: boolean;
+  onConfirm: () => void;
+}) => {
+  const [confirmText, setConfirmText] = useState("");
+  return (
+    <>
+      <DialogPanel>
+        <Field>
+          <FieldLabel htmlFor="confirm-delete">
+            Type <span className="font-mono font-bold">{slug}</span> to confirm
+          </FieldLabel>
+          <Input
+            id="confirm-delete"
+            value={confirmText}
+            onChange={(event) => {
+              setConfirmText(event.target.value);
+            }}
+            placeholder={slug}
+          />
+        </Field>
+      </DialogPanel>
+      <DialogFooter>
+        <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
+        <Button
+          variant="destructive"
+          disabled={confirmText !== slug}
+          loading={isPending}
+          onClick={onConfirm}
+        >
+          Delete permanently
+        </Button>
+      </DialogFooter>
+    </>
+  );
+};
+
 const DeleteOrgSection = () => {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { activeOrg } = Route.useRouteContext();
-  const [confirmText, setConfirmText] = useState("");
+  const [open, setOpen] = useState(false);
+  const [resetKey, setResetKey] = useState(0);
 
   const deleteOrgMutation = useDeleteOrgMutation({
     orgId: activeOrg.id,
@@ -161,17 +202,21 @@ const DeleteOrgSection = () => {
     },
   });
 
-  const handleDelete = () => {
-    deleteOrgMutation.mutate();
-  };
-
   return (
     <SettingCard
       className="border-destructive"
       title="Danger zone"
       description="Permanently delete this organization and all of its data."
       footer={
-        <Dialog>
+        <Dialog
+          open={open}
+          onOpenChange={setOpen}
+          onOpenChangeComplete={(next) => {
+            if (!next) {
+              setResetKey((prev) => prev + 1);
+            }
+          }}
+        >
           <DialogTrigger render={deleteOrgTrigger} />
           <DialogPopup>
             <DialogHeader>
@@ -181,32 +226,14 @@ const DeleteOrgSection = () => {
                 permanently removed.
               </DialogDescription>
             </DialogHeader>
-            <DialogPanel>
-              <Field>
-                <FieldLabel htmlFor="confirm-delete">
-                  Type <span className="font-mono font-bold">{activeOrg.slug}</span> to confirm
-                </FieldLabel>
-                <Input
-                  id="confirm-delete"
-                  value={confirmText}
-                  onChange={(event) => {
-                    setConfirmText(event.target.value);
-                  }}
-                  placeholder={activeOrg.slug}
-                />
-              </Field>
-            </DialogPanel>
-            <DialogFooter>
-              <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
-              <Button
-                variant="destructive"
-                disabled={confirmText !== activeOrg.slug}
-                loading={deleteOrgMutation.isPending}
-                onClick={handleDelete}
-              >
-                Delete permanently
-              </Button>
-            </DialogFooter>
+            <DeleteOrgConfirmForm
+              key={resetKey}
+              slug={activeOrg.slug}
+              isPending={deleteOrgMutation.isPending}
+              onConfirm={() => {
+                deleteOrgMutation.mutate();
+              }}
+            />
           </DialogPopup>
         </Dialog>
       }

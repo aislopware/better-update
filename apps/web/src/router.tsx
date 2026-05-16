@@ -60,7 +60,7 @@ const RouterErrorFallback = ({
   info?: RouterErrorInfo;
 }) => (
   <div className="mx-auto flex max-w-3xl flex-col items-start gap-4 p-8">
-    <div className="space-y-1">
+    <div className="flex flex-col gap-1">
       <h2 className="text-xl font-semibold">Something went wrong</h2>
       <p className="text-muted-foreground text-sm">A route failed to load.</p>
     </div>

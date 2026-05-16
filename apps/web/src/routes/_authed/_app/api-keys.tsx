@@ -5,7 +5,7 @@ import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { KeyIcon } from "lucide-react";
-import { Suspense, useState } from "react";
+import { useState } from "react";
 
 import { PageHeader } from "../../../components/page-header";
 import { ListItemsSkeleton } from "../../../components/skeletons";
@@ -112,13 +112,27 @@ const ApiKeysPage = () => {
         description="Authenticate requests to the management API and CLI."
         actions={<CreateApiKeyButton orgId={orgId} />}
       />
-      <Suspense fallback={<ApiKeysSkeleton />}>
-        <ApiKeysContent orgId={orgId} />
-      </Suspense>
+      <ApiKeysContent orgId={orgId} />
     </div>
   );
 };
 
+const ApiKeysPagePending = () => (
+  <div className="flex w-full flex-col gap-6">
+    <PageHeader
+      title="API keys"
+      description="Authenticate requests to the management API and CLI."
+    />
+    <ApiKeysSkeleton />
+  </div>
+);
+
 export const Route = createFileRoute("/_authed/_app/api-keys")({
+  beforeLoad: async ({ context }) => {
+    await context.queryClient.ensureQueryData(apiKeysQueryOptions(context.activeOrg.id));
+  },
+  pendingComponent: ApiKeysPagePending,
+  pendingMs: 0,
+  pendingMinMs: 0,
   component: ApiKeysPage,
 });

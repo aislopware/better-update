@@ -48,6 +48,7 @@ import type {
 } from "@better-update/api-client/react";
 
 import { getFieldError } from "../../../../lib/form-utils";
+import { formatDateTime } from "../../../../lib/format-date";
 import { safeSubmit, useApiMutation } from "../../../../lib/use-api-mutation";
 import { useCopyToClipboard } from "../../../../lib/use-copy-to-clipboard";
 
@@ -184,8 +185,7 @@ const ShareInvite = ({
               </InputGroupAddon>
             </InputGroup>
             <FieldDescription>
-              Expires {new Date(invite.expiresAt).toLocaleString()}. Open on iOS Safari to install
-              the profile.
+              Expires {formatDateTime(invite.expiresAt)}. Open on iOS Safari to install the profile.
             </FieldDescription>
           </Field>
         </div>
@@ -197,9 +197,13 @@ const ShareInvite = ({
   );
 };
 
-export const InviteDeviceDialog = ({ orgId }: { orgId: string }) => {
-  const [open, setOpen] = useState(false);
-  const [invite, setInvite] = useState<DeviceRegistrationRequestItem | null>(null);
+const CreateInviteForm = ({
+  orgId,
+  onInviteCreated,
+}: {
+  orgId: string;
+  onInviteCreated: (invite: DeviceRegistrationRequestItem) => void;
+}) => {
   const queryClient = useQueryClient();
 
   const createMutation = useApiMutation({
@@ -210,7 +214,7 @@ export const InviteDeviceDialog = ({ orgId }: { orgId: string }) => {
         ...(value.deviceClassHint === "NONE" ? {} : { deviceClassHint: value.deviceClassHint }),
       }),
     onSuccess: async (result) => {
-      setInvite(result);
+      onInviteCreated(result);
       await queryClient.invalidateQueries({
         queryKey: registrationRequestsQueryKey(orgId),
       });
@@ -222,21 +226,107 @@ export const InviteDeviceDialog = ({ orgId }: { orgId: string }) => {
     onSubmit: async ({ value }) => safeSubmit(createMutation.mutateAsync(value)),
   });
 
-  const handleClose = () => {
-    setOpen(false);
-    setInvite(null);
-    form.reset();
-  };
+  return (
+    <form
+      className="contents"
+      onSubmit={async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        await form.handleSubmit();
+      }}
+    >
+      <DialogPanel>
+        <FieldGroup>
+          <form.Field
+            name="deviceNameHint"
+            validators={{
+              onBlur: ({ value }) => {
+                const result = hintNameSchema.safeParse(value.trim());
+                return result.success ? undefined : result.error.issues[0]?.message;
+              },
+            }}
+          >
+            {(field) => {
+              const errorMessage = getFieldError(field);
+              return (
+                <Field invalid={Boolean(errorMessage)}>
+                  <FieldLabel htmlFor="invite-name">Device name hint (optional)</FieldLabel>
+                  <Input
+                    id="invite-name"
+                    placeholder="Alex's iPhone"
+                    value={field.state.value}
+                    onChange={(event) => {
+                      field.handleChange(event.target.value);
+                    }}
+                    onBlur={field.handleBlur}
+                  />
+                  <FieldDescription>
+                    Shown on the landing page. Device owner can override.
+                  </FieldDescription>
+                  <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
+                </Field>
+              );
+            }}
+          </form.Field>
+
+          <form.Field name="deviceClassHint">
+            {(field) => (
+              <Field>
+                <FieldLabel>Device class (optional)</FieldLabel>
+                <DeviceClassHintSelect
+                  value={field.state.value}
+                  onChange={(next) => {
+                    field.handleChange(next);
+                  }}
+                />
+              </Field>
+            )}
+          </form.Field>
+
+          <form.Field name="ttlHours">
+            {(field) => (
+              <Field>
+                <FieldLabel>Expires after</FieldLabel>
+                <TtlSelect
+                  value={field.state.value}
+                  onChange={(next) => {
+                    field.handleChange(next);
+                  }}
+                />
+              </Field>
+            )}
+          </form.Field>
+        </FieldGroup>
+      </DialogPanel>
+
+      <DialogFooter>
+        <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
+        <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting] as const}>
+          {([canSubmit, isSubmitting]) => (
+            <Button type="submit" disabled={!canSubmit} loading={isSubmitting}>
+              Generate link
+            </Button>
+          )}
+        </form.Subscribe>
+      </DialogFooter>
+    </form>
+  );
+};
+
+export const InviteDeviceDialog = ({ orgId }: { orgId: string }) => {
+  const [open, setOpen] = useState(false);
+  const [invite, setInvite] = useState<DeviceRegistrationRequestItem | null>(null);
+  const [resetKey, setResetKey] = useState(0);
 
   return (
     <Dialog
       open={open}
-      onOpenChange={(next) => {
+      onOpenChange={setOpen}
+      onOpenChangeComplete={(next) => {
         if (!next) {
-          handleClose();
-          return;
+          setInvite(null);
+          setResetKey((prev) => prev + 1);
         }
-        setOpen(true);
       }}
     >
       <Button
@@ -259,91 +349,14 @@ export const InviteDeviceDialog = ({ orgId }: { orgId: string }) => {
         </DialogHeader>
 
         {invite ? (
-          <ShareInvite invite={invite} onClose={handleClose} />
-        ) : (
-          <form
-            className="contents"
-            onSubmit={async (event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              await form.handleSubmit();
+          <ShareInvite
+            invite={invite}
+            onClose={() => {
+              setOpen(false);
             }}
-          >
-            <DialogPanel>
-              <FieldGroup>
-                <form.Field
-                  name="deviceNameHint"
-                  validators={{
-                    onBlur: ({ value }) => {
-                      const result = hintNameSchema.safeParse(value.trim());
-                      return result.success ? undefined : result.error.issues[0]?.message;
-                    },
-                  }}
-                >
-                  {(field) => {
-                    const errorMessage = getFieldError(field);
-                    return (
-                      <Field data-invalid={errorMessage ? true : undefined}>
-                        <FieldLabel htmlFor="invite-name">Device name hint (optional)</FieldLabel>
-                        <Input
-                          id="invite-name"
-                          placeholder="Alex's iPhone"
-                          value={field.state.value}
-                          onChange={(event) => {
-                            field.handleChange(event.target.value);
-                          }}
-                          onBlur={field.handleBlur}
-                        />
-                        <FieldDescription>
-                          Shown on the landing page. Device owner can override.
-                        </FieldDescription>
-                        <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
-                      </Field>
-                    );
-                  }}
-                </form.Field>
-
-                <form.Field name="deviceClassHint">
-                  {(field) => (
-                    <Field>
-                      <FieldLabel>Device class (optional)</FieldLabel>
-                      <DeviceClassHintSelect
-                        value={field.state.value}
-                        onChange={(next) => {
-                          field.handleChange(next);
-                        }}
-                      />
-                    </Field>
-                  )}
-                </form.Field>
-
-                <form.Field name="ttlHours">
-                  {(field) => (
-                    <Field>
-                      <FieldLabel>Expires after</FieldLabel>
-                      <TtlSelect
-                        value={field.state.value}
-                        onChange={(next) => {
-                          field.handleChange(next);
-                        }}
-                      />
-                    </Field>
-                  )}
-                </form.Field>
-              </FieldGroup>
-            </DialogPanel>
-
-            <DialogFooter>
-              <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
-              <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting] as const}>
-                {([canSubmit, isSubmitting]) => (
-                  <Button type="submit" disabled={!canSubmit} loading={isSubmitting}>
-                    Generate link
-                  </Button>
-                )}
-              </form.Subscribe>
-            </DialogFooter>
-          </form>
+          />
+        ) : (
+          <CreateInviteForm key={resetKey} orgId={orgId} onInviteCreated={setInvite} />
         )}
       </DialogPopup>
     </Dialog>

@@ -25,38 +25,84 @@ import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { KeyIcon, CopyIcon, CheckIcon } from "lucide-react";
-import { useRef, useState } from "react";
+import { useState } from "react";
 
-import { authClient } from "../../../lib/auth-client";
+import { authClient, rejectOnAuthClientError } from "../../../lib/auth-client";
 import { getFieldError, requiredStringSchema } from "../../../lib/form-utils";
+import { useApiMutation, safeSubmit } from "../../../lib/use-api-mutation";
 import { useCopyToClipboard } from "../../../lib/use-copy-to-clipboard";
 import { apiKeysQueryOptions } from "../../../queries/api-keys";
+
+// ── Key Reveal ───────────────────────────────────────────────────
+
+const KeyRevealContent = ({ apiKey, onClose }: { apiKey: string; onClose: () => void }) => {
+  const { copied, copy } = useCopyToClipboard();
+
+  const handleCopy = async () => {
+    await copy(apiKey);
+  };
+
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>API key created</DialogTitle>
+        <DialogDescription>Your new API key has been created successfully.</DialogDescription>
+      </DialogHeader>
+      <DialogPanel>
+        <div className="flex flex-col gap-2">
+          <p className="text-muted-foreground text-sm">
+            Copy your API key now. You will not be able to see it again.
+          </p>
+          <InputGroup>
+            <InputGroupInput readOnly value={apiKey} className="font-mono text-sm" />
+            <InputGroupAddon align="inline-end">
+              <Button variant="ghost" size="icon-xs" aria-label="Copy API key" onClick={handleCopy}>
+                {copied ? <CheckIcon strokeWidth={2} /> : <CopyIcon strokeWidth={2} />}
+              </Button>
+            </InputGroupAddon>
+          </InputGroup>
+        </div>
+      </DialogPanel>
+      <DialogFooter>
+        <Button onClick={onClose}>Done</Button>
+      </DialogFooter>
+    </>
+  );
+};
 
 // ── Create Form ──────────────────────────────────────────────────
 
 const CreateFormContent = ({
   orgId,
-  onSuccess,
+  onCreated,
 }: {
   orgId: string;
-  onSuccess: (key: string) => Promise<void>;
+  onCreated: (key: string) => void;
 }) => {
+  const queryClient = useQueryClient();
+
+  const createMutation = useApiMutation({
+    mutationFn: async (name: string) =>
+      rejectOnAuthClientError(
+        authClient.apiKey.create({ name, organizationId: orgId }),
+        "Failed to create API key",
+      ),
+    onSuccess: async (result) => {
+      toastManager.add({ title: "API key created", type: "success" });
+      await queryClient.invalidateQueries({
+        queryKey: apiKeysQueryOptions(orgId).queryKey,
+      });
+      const key = result.data?.key;
+      if (key) {
+        onCreated(key);
+      }
+    },
+  });
+
   const form = useForm({
     defaultValues: { name: "" },
     onSubmit: async ({ value }) => {
-      const { data, error } = await authClient.apiKey.create({
-        name: value.name,
-        organizationId: orgId,
-      });
-
-      if (error) {
-        toastManager.add({ title: error.message ?? "Failed to create API key", type: "error" });
-        return;
-      }
-
-      if (data.key) {
-        await onSuccess(data.key);
-      }
+      await safeSubmit(createMutation.mutateAsync(value.name));
     },
   });
 
@@ -82,7 +128,7 @@ const CreateFormContent = ({
           {(field) => {
             const errorMessage = getFieldError(field);
             return (
-              <Field data-invalid={errorMessage ? true : undefined}>
+              <Field invalid={Boolean(errorMessage)}>
                 <FieldLabel htmlFor="api-key-name">Name</FieldLabel>
                 <Input
                   id="api-key-name"
@@ -92,7 +138,6 @@ const CreateFormContent = ({
                     field.handleChange(event.target.value);
                   }}
                   onBlur={field.handleBlur}
-                  aria-invalid={errorMessage ? true : undefined}
                 />
                 <FieldDescription>A memorable name to identify this key.</FieldDescription>
                 <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
@@ -103,7 +148,7 @@ const CreateFormContent = ({
       </DialogPanel>
 
       <DialogFooter>
-        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+        <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
           {([canSubmit, isSubmitting]) => (
             <Button type="submit" disabled={!canSubmit} loading={Boolean(isSubmitting)}>
@@ -117,35 +162,21 @@ const CreateFormContent = ({
   );
 };
 
-// ── Key Reveal ───────────────────────────────────────────────────
+// ── Inner content holding form ↔ reveal swap ──────────────────────
 
-const KeyRevealContent = ({ apiKey, onClose }: { apiKey: string; onClose: () => void }) => {
-  const { copied, copy } = useCopyToClipboard();
+const CreateApiKeyContent = ({ orgId, onClose }: { orgId: string; onClose: () => void }) => {
+  const [createdKey, setCreatedKey] = useState<string | null>(null);
 
-  const handleCopy = async () => {
-    await copy(apiKey);
-  };
-
+  if (createdKey) {
+    return <KeyRevealContent apiKey={createdKey} onClose={onClose} />;
+  }
   return (
     <>
-      <DialogPanel>
-        <div className="flex flex-col gap-2">
-          <p className="text-muted-foreground text-sm">
-            Copy your API key now. You will not be able to see it again.
-          </p>
-          <InputGroup>
-            <InputGroupInput readOnly value={apiKey} className="font-mono text-sm" />
-            <InputGroupAddon align="inline-end">
-              <Button variant="ghost" size="icon-xs" aria-label="Copy API key" onClick={handleCopy}>
-                {copied ? <CheckIcon strokeWidth={2} /> : <CopyIcon strokeWidth={2} />}
-              </Button>
-            </InputGroupAddon>
-          </InputGroup>
-        </div>
-      </DialogPanel>
-      <DialogFooter>
-        <Button onClick={onClose}>Done</Button>
-      </DialogFooter>
+      <DialogHeader>
+        <DialogTitle>Create an API key</DialogTitle>
+        <DialogDescription>API keys authenticate requests to the management API.</DialogDescription>
+      </DialogHeader>
+      <CreateFormContent orgId={orgId} onCreated={setCreatedKey} />
     </>
   );
 };
@@ -161,51 +192,26 @@ export const CreateApiKeyDialog = ({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) => {
-  const queryClient = useQueryClient();
-  const [createdKey, setCreatedKey] = useState<string | null>(null);
-  // Lets a late mutation success skip setCreatedKey if the user already closed.
-  const openRef = useRef(open);
-  openRef.current = open;
-
-  const handleSuccess = async (key: string) => {
-    toastManager.add({ title: "API key created", type: "success" });
-    if (openRef.current) {
-      setCreatedKey(key);
-    }
-    await queryClient.invalidateQueries({
-      queryKey: apiKeysQueryOptions(orgId).queryKey,
-    });
-  };
-
-  const handleClose = () => {
-    setCreatedKey(null);
-    onOpenChange(false);
-  };
+  const [resetKey, setResetKey] = useState(0);
 
   return (
     <Dialog
       open={open}
-      onOpenChange={(isOpen) => {
-        if (!isOpen) {
-          setCreatedKey(null);
+      onOpenChange={onOpenChange}
+      onOpenChangeComplete={(next) => {
+        if (!next) {
+          setResetKey((prev) => prev + 1);
         }
-        onOpenChange(isOpen);
       }}
     >
       <DialogPopup>
-        <DialogHeader>
-          <DialogTitle>{createdKey ? "API key created" : "Create an API key"}</DialogTitle>
-          <DialogDescription>
-            {createdKey
-              ? "Your new API key has been created successfully."
-              : "API keys authenticate requests to the management API."}
-          </DialogDescription>
-        </DialogHeader>
-        {createdKey ? (
-          <KeyRevealContent apiKey={createdKey} onClose={handleClose} />
-        ) : (
-          <CreateFormContent orgId={orgId} onSuccess={handleSuccess} />
-        )}
+        <CreateApiKeyContent
+          key={resetKey}
+          orgId={orgId}
+          onClose={() => {
+            onOpenChange(false);
+          }}
+        />
       </DialogPopup>
     </Dialog>
   );
@@ -234,7 +240,7 @@ export const RevokeDialog = ({
         </DialogDescription>
       </DialogHeader>
       <DialogFooter>
-        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+        <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
         <Button variant="destructive" loading={isRevoking} onClick={onConfirm}>
           Revoke key
         </Button>

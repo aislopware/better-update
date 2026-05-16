@@ -10,7 +10,11 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
-import { Input } from "@better-update/ui/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@better-update/ui/components/ui/input-group";
 import { Label } from "@better-update/ui/components/ui/label";
 import { Popover, PopoverPopup, PopoverTrigger } from "@better-update/ui/components/ui/popover";
 import {
@@ -31,23 +35,33 @@ import {
 } from "@better-update/ui/components/ui/table";
 import { toastManager } from "@better-update/ui/components/ui/toast";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { FilterIcon, SettingsIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { FilterIcon, SearchIcon, SettingsIcon } from "lucide-react";
+import { useMemo } from "react";
+import { z } from "zod";
 
 import type { EnvVarEnvironment, EnvVar } from "@better-update/api";
 import type { EnvVarsFilters } from "@better-update/api-client/react";
+import type { ChangeEvent } from "react";
 
 import { TableSkeleton } from "../../../../components/skeletons";
+import {
+  enumParam,
+  queryParam,
+  stringArrayParam,
+  useDebouncedSearch,
+} from "../../../../lib/data-table";
 import { pluralize } from "../../../../lib/pluralize";
 import { CreateEnvVarDialog } from "./-create-env-var-dialog";
 import { EnvVarRow } from "./-env-var-row";
+import { ENV_LABELS } from "./-env-vars-labels";
 import { ALL_ENVIRONMENTS } from "./-environments-picker";
 
 type Mode =
   | { readonly kind: "project"; readonly orgId: string; readonly projectId: string }
   | { readonly kind: "global"; readonly orgId: string };
 
-type ScopeFilter = "all" | "project" | "global";
+const SCOPE_VALUES = ["all", "project", "global"] as const;
+type ScopeFilter = (typeof SCOPE_VALUES)[number];
 
 const SCOPE_LABELS: Record<ScopeFilter, string> = {
   all: "All scopes",
@@ -55,17 +69,23 @@ const SCOPE_LABELS: Record<ScopeFilter, string> = {
   global: "Global only",
 };
 
-const ENV_LABELS: Record<typeof EnvVarEnvironment.Type, string> = {
-  development: "Development",
-  preview: "Preview",
-  production: "Production",
-};
+const ENV_VALUES = ["development", "preview", "production"] as const;
+
+export const envVarsSearchSchema = z.object({
+  query: queryParam(),
+  scope: enumParam(SCOPE_VALUES, "all"),
+  environments: stringArrayParam(ENV_VALUES, [...ALL_ENVIRONMENTS]),
+});
+
+export type EnvVarsSearch = z.infer<typeof envVarsSearchSchema>;
+
+const SEARCH_DEBOUNCE_MS = 300;
 
 const isScopeFilter = (value: string): value is ScopeFilter =>
-  value === "all" || value === "project" || value === "global";
+  (SCOPE_VALUES as readonly string[]).includes(value);
 
 const isEnvironment = (value: string): value is typeof EnvVarEnvironment.Type =>
-  value === "development" || value === "preview" || value === "production";
+  (ENV_VALUES as readonly string[]).includes(value);
 
 const EmptyState = () => (
   <Empty>
@@ -149,41 +169,47 @@ const EnvFilterPopover = ({
 
 const Toolbar = ({
   mode,
-  search,
-  setSearch,
+  searchDraft,
+  onSearchDraftChange,
   scope,
-  setScope,
+  onScopeChange,
   environments,
-  setEnvironments,
+  onEnvironmentsChange,
   items,
 }: {
   mode: Mode;
-  search: string;
-  setSearch: (value: string) => void;
+  searchDraft: string;
+  onSearchDraftChange: (value: string) => void;
   scope: ScopeFilter;
-  setScope: (value: ScopeFilter) => void;
+  onScopeChange: (value: ScopeFilter) => void;
   environments: readonly (typeof EnvVarEnvironment.Type)[];
-  setEnvironments: (value: readonly (typeof EnvVarEnvironment.Type)[]) => void;
+  onEnvironmentsChange: (value: readonly (typeof EnvVarEnvironment.Type)[]) => void;
   items: readonly (typeof EnvVar.Type)[];
 }) => (
   <div className="flex flex-wrap items-center justify-between gap-2">
     <div className="flex flex-wrap items-center gap-2">
-      <Input
-        placeholder="Search by key"
-        value={search}
-        onChange={(event) => {
-          setSearch(event.target.value);
-        }}
-        className="w-56"
-      />
-      <EnvFilterPopover value={environments} onChange={setEnvironments} />
+      <InputGroup className="w-56">
+        <InputGroupAddon>
+          <SearchIcon aria-hidden="true" />
+        </InputGroupAddon>
+        <InputGroupInput
+          aria-label="Search environment variables"
+          placeholder="Search by key"
+          type="search"
+          value={searchDraft}
+          onChange={(event: ChangeEvent<HTMLInputElement>) => {
+            onSearchDraftChange(event.target.value);
+          }}
+        />
+      </InputGroup>
+      <EnvFilterPopover value={environments} onChange={onEnvironmentsChange} />
       {mode.kind === "project" ? (
         <Select
           items={SCOPE_LABELS}
           value={scope}
           onValueChange={(val) => {
             if (val && isScopeFilter(val)) {
-              setScope(val);
+              onScopeChange(val);
             }
           }}
         >
@@ -255,11 +281,24 @@ const EnvVarsTable = ({
     </CardFrame>
   );
 
-export const EnvVarsView = ({ mode }: { mode: Mode }) => {
-  const [search, setSearch] = useState("");
-  const [scope, setScope] = useState<ScopeFilter>(mode.kind === "project" ? "all" : "global");
-  const [environments, setEnvironments] =
-    useState<readonly (typeof EnvVarEnvironment.Type)[]>(ALL_ENVIRONMENTS);
+export const EnvVarsView = ({
+  mode,
+  search,
+  onChangeSearch,
+}: {
+  mode: Mode;
+  search: EnvVarsSearch;
+  onChangeSearch: (next: EnvVarsSearch) => void;
+}) => {
+  const { query, scope, environments } = search;
+
+  const { draft: searchDraft, setDraft: onSearchDraftChange } = useDebouncedSearch({
+    initial: query,
+    delayMs: SEARCH_DEBOUNCE_MS,
+    onCommit: (value) => {
+      onChangeSearch({ ...search, query: value });
+    },
+  });
 
   const filters = useMemo<EnvVarsFilters>(() => {
     const filteredEnvs =
@@ -269,38 +308,34 @@ export const EnvVarsView = ({ mode }: { mode: Mode }) => {
     return {
       ...(mode.kind === "project" ? { scope } : {}),
       ...(filteredEnvs ? { environments: filteredEnvs } : {}),
-      ...(search.trim() ? { search: search.trim() } : {}),
+      ...(query.trim() ? { search: query.trim() } : {}),
     };
-  }, [environments, mode.kind, scope, search]);
+  }, [environments, mode.kind, scope, query]);
 
-  const projectQuery = useQuery({
-    ...envVarsQueryOptions(
-      mode.orgId,
-      mode.kind === "project" ? mode.projectId : "__never__",
-      filters,
-    ),
-    enabled: mode.kind === "project",
+  const queryOptions =
+    mode.kind === "project"
+      ? envVarsQueryOptions(mode.orgId, mode.projectId, filters)
+      : globalEnvVarsQueryOptions(mode.orgId, filters);
+
+  const { data, isLoading } = useQuery({
+    ...queryOptions,
     placeholderData: keepPreviousData,
   });
-  const globalQuery = useQuery({
-    ...globalEnvVarsQueryOptions(mode.orgId, filters),
-    enabled: mode.kind === "global",
-    placeholderData: keepPreviousData,
-  });
-
-  const data = mode.kind === "project" ? projectQuery.data : globalQuery.data;
-  const isLoading = mode.kind === "project" ? projectQuery.isLoading : globalQuery.isLoading;
 
   return (
     <div className="flex flex-col gap-4">
       <Toolbar
         mode={mode}
-        search={search}
-        setSearch={setSearch}
+        searchDraft={searchDraft}
+        onSearchDraftChange={onSearchDraftChange}
         scope={scope}
-        setScope={setScope}
+        onScopeChange={(next) => {
+          onChangeSearch({ ...search, scope: next });
+        }}
         environments={environments}
-        setEnvironments={setEnvironments}
+        onEnvironmentsChange={(next) => {
+          onChangeSearch({ ...search, environments: [...next] });
+        }}
         items={data?.items ?? []}
       />
       {isLoading || !data ? (

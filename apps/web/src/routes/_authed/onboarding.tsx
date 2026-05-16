@@ -15,22 +15,25 @@ import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { useRef } from "react";
 
 import { generateSlug, getFieldError, nameSchema, slugSchema } from "../../lib/form-utils";
-import { createAndActivateOrg } from "../../lib/org-mutations";
+import { useCreateAndActivateOrgMutation } from "../../lib/org-mutations";
+import { safeSubmit } from "../../lib/use-api-mutation";
 
 const Onboarding = () => {
   const router = useRouter();
   const queryClient = useQueryClient();
   const slugEdited = useRef(false);
 
+  const createOrg = useCreateAndActivateOrgMutation({
+    onSuccess: async () => {
+      await queryClient.resetQueries({ queryKey: ["auth"] });
+      await router.navigate({ to: "/" });
+    },
+  });
+
   const form = useForm({
     defaultValues: { name: "", slug: "" },
     onSubmit: async ({ value }) => {
-      const result = await createAndActivateOrg(value);
-      if (!result) {
-        return;
-      }
-      await queryClient.resetQueries({ queryKey: ["auth"] });
-      await router.navigate({ to: "/" });
+      await safeSubmit(createOrg.mutateAsync(value));
     },
   });
 
@@ -66,7 +69,7 @@ const Onboarding = () => {
                   {(field) => {
                     const errorMessage = getFieldError(field);
                     return (
-                      <Field data-invalid={errorMessage ? true : undefined}>
+                      <Field invalid={Boolean(errorMessage)}>
                         <FieldLabel htmlFor="name">Organization name</FieldLabel>
                         <Input
                           id="name"
@@ -82,7 +85,6 @@ const Onboarding = () => {
                             }
                           }}
                           onBlur={field.handleBlur}
-                          aria-invalid={errorMessage ? true : undefined}
                         />
                         <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
                       </Field>
@@ -102,7 +104,7 @@ const Onboarding = () => {
                   {(field) => {
                     const errorMessage = getFieldError(field);
                     return (
-                      <Field data-invalid={errorMessage ? true : undefined}>
+                      <Field invalid={Boolean(errorMessage)}>
                         <FieldLabel htmlFor="slug">URL slug</FieldLabel>
                         <Input
                           id="slug"
@@ -113,7 +115,6 @@ const Onboarding = () => {
                             slugEdited.current = event.target.value !== "";
                           }}
                           onBlur={field.handleBlur}
-                          aria-invalid={errorMessage ? true : undefined}
                         />
                         <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
                       </Field>

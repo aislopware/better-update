@@ -9,6 +9,7 @@ import {
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
 import { toastManager } from "@better-update/ui/components/ui/toast";
+import { Tooltip, TooltipPopup, TooltipTrigger } from "@better-update/ui/components/ui/tooltip";
 import { useQueryClient } from "@tanstack/react-query";
 import { PencilIcon } from "lucide-react";
 import { useState } from "react";
@@ -17,12 +18,6 @@ import type { BranchItem } from "@better-update/api-client/react";
 
 import { safeSubmit, useApiMutation } from "../../../../../lib/use-api-mutation";
 import { BranchNameForm } from "./-branch-name-form";
-
-const renameTrigger = (
-  <Button variant="ghost" size="icon">
-    <PencilIcon strokeWidth={2} />
-  </Button>
-);
 
 export const RenameBranchDialog = ({
   branch,
@@ -34,6 +29,7 @@ export const RenameBranchDialog = ({
   projectId: string;
 }) => {
   const [open, setOpen] = useState(false);
+  const [resetKey, setResetKey] = useState(0);
   const queryClient = useQueryClient();
   const renameBranchMutation = useApiMutation({
     mutationFn: async (name: string) => renameBranch(branch.id, { name }),
@@ -47,14 +43,34 @@ export const RenameBranchDialog = ({
   });
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={renameTrigger} />
+    <Dialog
+      open={open}
+      onOpenChange={setOpen}
+      onOpenChangeComplete={(next) => {
+        if (!next) {
+          setResetKey((prev) => prev + 1);
+        }
+      }}
+    >
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <DialogTrigger
+              render={<Button variant="ghost" size="icon" aria-label="Rename branch" />}
+            />
+          }
+        >
+          <PencilIcon strokeWidth={2} />
+        </TooltipTrigger>
+        <TooltipPopup>Rename branch</TooltipPopup>
+      </Tooltip>
       <DialogPopup>
         <DialogHeader>
           <DialogTitle>Rename branch</DialogTitle>
           <DialogDescription>Change the name of this branch.</DialogDescription>
         </DialogHeader>
         <BranchNameForm
+          key={resetKey}
           defaultName={branch.name}
           submitLabel="Rename"
           onSubmit={async (name) => safeSubmit(renameBranchMutation.mutateAsync(name))}
