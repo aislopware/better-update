@@ -27,6 +27,7 @@ import {
   Outlet,
   createFileRoute,
   redirect,
+  useChildMatches,
   useRouter,
   useRouterState,
 } from "@tanstack/react-router";
@@ -41,28 +42,27 @@ import {
 import { Suspense, useState } from "react";
 
 import { renderSwitcherIndicator } from "../../components/switcher-indicator";
-import { authClient } from "../../lib/auth-client";
+import { authClient, rejectOnAuthClientError } from "../../lib/auth-client";
 import { DocumentTitle } from "../../lib/document-title";
 import { EntityAvatar } from "../../lib/entity-avatar";
 import { ErrorBoundary } from "../../lib/error-boundary";
 import { logout } from "../../lib/logout";
+import { useApiMutation } from "../../lib/use-api-mutation";
 import { sessionQueryOptions } from "../../queries/auth";
 import { AppBreadcrumb } from "./-app-breadcrumb";
 import { CreateOrgDialog } from "./-create-org-dialog";
 import { OrgNavSections, ProjectNavSections } from "./-sidebar-nav";
 
-const PROJECT_SLUG_REGEX = /^\/projects\/([^/]+)(?:\/|$)/u;
-const extractProjectSlug = (pathname: string) => {
-  const match = PROJECT_SLUG_REGEX.exec(pathname);
-  if (!match) {
-    return undefined;
-  }
-  const [, projectSlug] = match;
-  if (!projectSlug) {
-    return undefined;
-  }
-  return projectSlug;
-};
+const useActiveProjectSlug = (): string | undefined =>
+  useChildMatches({
+    select: (matches) => {
+      const match = matches.find(
+        (entry): entry is typeof entry & { params: { projectSlug: string } } =>
+          "projectSlug" in entry.params,
+      );
+      return match?.params.projectSlug;
+    },
+  });
 
 const renderOrgTrigger = (name: string, slug: string | undefined) => (
   <SidebarMenuButton size="lg" className="data-open:bg-sidebar-accent w-full">
@@ -93,27 +93,37 @@ const OrgSwitcher = () => {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [createOrgOpen, setCreateOrgOpen] = useState(false);
-  const [switchingOrgId, setSwitchingOrgId] = useState<string | undefined>(undefined);
   const { activeOrg, orgs } = Route.useRouteContext();
   const activeOrgId = activeOrg.id;
   const displayName = activeOrg.name;
 
-  const handleOrgSwitch = async (orgId: string) => {
-    if (orgId === activeOrgId || switchingOrgId) {
+  const switchOrg = useApiMutation({
+    mutationFn: async (orgId: string) =>
+      rejectOnAuthClientError(
+        authClient.organization.setActive({
+          organizationId: orgId,
+          fetchOptions: { disableSignal: true },
+        }),
+        "Failed to switch organization",
+      ),
+    onSuccess: async (_data, orgId) => {
+      if (activeOrgId) {
+        queryClient.removeQueries({ queryKey: ["org", activeOrgId] });
+      }
+      await queryClient.resetQueries({ queryKey: ["auth", "session"] });
+      await router.invalidate();
+      // Side-effect: reset cached active org so it does not re-target the previous one.
+      queryClient.removeQueries({ queryKey: ["org", orgId] });
+    },
+  });
+
+  const switchingOrgId = switchOrg.isPending ? switchOrg.variables : undefined;
+
+  const handleOrgSwitch = (orgId: string): void => {
+    if (orgId === activeOrgId || switchOrg.isPending) {
       return;
     }
-    setSwitchingOrgId(orgId);
-    const prevOrgId = activeOrgId;
-    await authClient.organization.setActive({
-      organizationId: orgId,
-      fetchOptions: { disableSignal: true },
-    });
-    if (prevOrgId) {
-      queryClient.removeQueries({ queryKey: ["org", prevOrgId] });
-    }
-    await queryClient.resetQueries({ queryKey: ["auth", "session"] });
-    await router.invalidate();
-    setSwitchingOrgId(undefined);
+    switchOrg.mutate(orgId);
   };
 
   return (
@@ -130,9 +140,11 @@ const OrgSwitcher = () => {
               return (
                 <MenuItem
                   key={org.id}
-                  onClick={async () => handleOrgSwitch(org.id)}
+                  onClick={() => {
+                    handleOrgSwitch(org.id);
+                  }}
                   data-pending={isSwitching || undefined}
-                  disabled={Boolean(switchingOrgId) && !isSwitching}
+                  disabled={switchOrg.isPending && !isSwitching}
                 >
                   <EntityAvatar name={org.name} seed={org.slug} size="sm" shape="square" />
                   <span className="flex-1 truncate">{org.name}</span>
@@ -146,7 +158,7 @@ const OrgSwitcher = () => {
             onClick={() => {
               setCreateOrgOpen(true);
             }}
-            disabled={Boolean(switchingOrgId)}
+            disabled={switchOrg.isPending}
           >
             <PlusIcon strokeWidth={2} className="size-4" />
             <span>Create organization</span>
@@ -163,15 +175,10 @@ const UserMenu = () => {
   const queryClient = useQueryClient();
   const { session } = Route.useRouteContext();
   const { user } = session;
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  const handleLogout = async () => {
-    if (isLoggingOut) {
-      return;
-    }
-    setIsLoggingOut(true);
-    await logout(queryClient);
-  };
+  const logoutMutation = useApiMutation({
+    mutationFn: async () => logout(queryClient),
+  });
 
   return (
     <Menu>
@@ -184,7 +191,7 @@ const UserMenu = () => {
             onClick={async () => {
               await router.navigate({ to: "/account/profile" });
             }}
-            disabled={isLoggingOut}
+            disabled={logoutMutation.isPending}
           >
             <UserIcon strokeWidth={2} className="size-4" />
             <span>Account</span>
@@ -192,16 +199,18 @@ const UserMenu = () => {
           <MenuSeparator />
           <MenuItem
             variant="destructive"
-            onClick={handleLogout}
-            disabled={isLoggingOut}
+            onClick={() => {
+              logoutMutation.mutate();
+            }}
+            disabled={logoutMutation.isPending}
             closeOnClick={false}
           >
-            {isLoggingOut ? (
+            {logoutMutation.isPending ? (
               <Spinner className="size-4" />
             ) : (
               <LogOutIcon strokeWidth={2} className="size-4" />
             )}
-            <span>{isLoggingOut ? "Logging out…" : "Log out"}</span>
+            <span>{logoutMutation.isPending ? "Logging out…" : "Log out"}</span>
           </MenuItem>
         </MenuGroup>
       </MenuPopup>
@@ -246,7 +255,7 @@ const AppSidebar = ({ projectSlug }: { projectSlug: string | undefined }) => (
 
 const AppLayout = () => {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const projectSlug = extractProjectSlug(pathname);
+  const projectSlug = useActiveProjectSlug();
   const { activeOrg } = Route.useRouteContext();
   return (
     <TooltipProvider>

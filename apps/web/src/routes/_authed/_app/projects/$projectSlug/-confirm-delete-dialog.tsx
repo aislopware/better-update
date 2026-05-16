@@ -32,8 +32,12 @@ interface ConfirmDeleteDialogProps {
   readonly successMessage: string;
   /** Post-delete cleanup (query invalidation, navigation, etc.). */
   readonly onSuccess?: () => Promise<void>;
-  /** Trigger element (e.g. icon button or text button). */
-  readonly children: ReactElement;
+  /** Trigger element wrapped as `DialogTrigger`. Omit when controlling via `open`. */
+  readonly children?: ReactElement;
+  /** Controlled open state (use with `onOpenChange`). */
+  readonly open?: boolean;
+  /** Controlled open-change handler (use with `open`). */
+  readonly onOpenChange?: (next: boolean) => void;
 }
 
 export const ConfirmDeleteDialog = ({
@@ -44,20 +48,36 @@ export const ConfirmDeleteDialog = ({
   successMessage,
   onSuccess,
   children,
+  open: controlledOpen,
+  onOpenChange,
 }: ConfirmDeleteDialogProps) => {
-  const [open, setOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const [internalOpen, setInternalOpen] = useState(false);
   const [confirmText, setConfirmText] = useState("");
+  const open = isControlled ? controlledOpen : internalOpen;
+
   const deleteMutation = useApiMutation({
     mutationFn: onConfirm,
     onSuccess: async () => {
       toastManager.add({ title: successMessage, type: "success" });
       await onSuccess?.();
-      setOpen(false);
+      if (isControlled) {
+        onOpenChange?.(false);
+      } else {
+        setInternalOpen(false);
+      }
     },
   });
 
   const handleOpenChange = (nextOpen: boolean) => {
-    setOpen(nextOpen);
+    if (isControlled) {
+      onOpenChange?.(nextOpen);
+    } else {
+      setInternalOpen(nextOpen);
+    }
+  };
+
+  const handleOpenChangeComplete = (nextOpen: boolean) => {
     if (!nextOpen) {
       setConfirmText("");
     }
@@ -68,8 +88,12 @@ export const ConfirmDeleteDialog = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger render={children} />
+    <Dialog
+      open={open}
+      onOpenChange={handleOpenChange}
+      onOpenChangeComplete={handleOpenChangeComplete}
+    >
+      {children ? <DialogTrigger render={children} /> : null}
       <DialogPopup>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
@@ -91,7 +115,7 @@ export const ConfirmDeleteDialog = ({
           </Field>
         </DialogPanel>
         <DialogFooter>
-          <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+          <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
           <Button
             variant="destructive"
             disabled={confirmText !== name}

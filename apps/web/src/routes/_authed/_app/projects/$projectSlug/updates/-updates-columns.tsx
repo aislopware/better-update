@@ -1,124 +1,14 @@
-import { deleteUpdateGroup } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
-import { Button } from "@better-update/ui/components/ui/button";
-import { toastManager } from "@better-update/ui/components/ui/toast";
-import { useQueryClient } from "@tanstack/react-query";
-import { RocketIcon, Trash2Icon, Undo2Icon } from "lucide-react";
-import { useState } from "react";
 
 import type { Channel, Update } from "@better-update/api";
 import type { ColumnDef } from "@tanstack/react-table";
 
-import { PromoteUpdateDialog } from "../-promote-update-dialog";
-import { RollbackToEmbeddedDialog } from "../-rollback-to-embedded-dialog";
-import { invalidateUpdates, readUpdateEnvironment } from "../-update-helpers";
+import { UpdateActionButtons } from "../-update-action-buttons";
+import { readUpdateEnvironment } from "../-update-helpers";
 import { formatRelativeTime } from "../../../../../../lib/format-relative-time";
-import { useApiMutation } from "../../../../../../lib/use-api-mutation";
 
 export type UpdateItem = typeof Update.Type;
 export type ChannelItem = typeof Channel.Type;
-
-export interface ColumnMeta {
-  readonly align?: "right";
-  readonly muted?: boolean;
-}
-
-const UpdateActions = ({
-  update,
-  channels,
-  branchName,
-  slug,
-  orgId,
-  projectId,
-}: {
-  update: UpdateItem;
-  channels: readonly ChannelItem[];
-  branchName: string | undefined;
-  slug: string;
-  orgId: string;
-  projectId: string;
-}) => {
-  const queryClient = useQueryClient();
-  const [promoteOpen, setPromoteOpen] = useState(false);
-  const [rollbackOpen, setRollbackOpen] = useState(false);
-
-  const eligibleChannels = channels.filter((channel) => channel.branchId !== update.branchId);
-  const canCreateFollowupUpdate = !update.isRollback && !update.signature;
-  const canRollbackToEmbedded = canCreateFollowupUpdate && branchName !== undefined;
-  const canPromote = canCreateFollowupUpdate && eligibleChannels.length > 0;
-
-  const deleteUpdateGroupMutation = useApiMutation({
-    mutationFn: async () => deleteUpdateGroup(update.groupId),
-    onSuccess: async () => {
-      toastManager.add({ title: "Update group deleted", type: "success" });
-      await invalidateUpdates(queryClient, orgId, projectId);
-    },
-  });
-
-  return (
-    <div className="flex items-center justify-end gap-1">
-      {canRollbackToEmbedded ? (
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-8"
-          title="Rollback to embedded"
-          onClick={() => {
-            setRollbackOpen(true);
-          }}
-        >
-          <Undo2Icon strokeWidth={2} className="size-4" />
-        </Button>
-      ) : null}
-      {canPromote ? (
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-8"
-          title="Promote to another channel"
-          onClick={() => {
-            setPromoteOpen(true);
-          }}
-        >
-          <RocketIcon strokeWidth={2} className="size-4" />
-        </Button>
-      ) : null}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="size-8"
-        title="Delete update group"
-        disabled={deleteUpdateGroupMutation.isPending}
-        onClick={() => {
-          deleteUpdateGroupMutation.mutate();
-        }}
-      >
-        <Trash2Icon strokeWidth={2} className="size-4" />
-      </Button>
-      {canRollbackToEmbedded ? (
-        <RollbackToEmbeddedDialog
-          update={update}
-          branchName={branchName}
-          slug={slug}
-          orgId={orgId}
-          projectId={projectId}
-          open={rollbackOpen}
-          onOpenChange={setRollbackOpen}
-        />
-      ) : null}
-      {canPromote ? (
-        <PromoteUpdateDialog
-          update={update}
-          channels={eligibleChannels}
-          orgId={orgId}
-          projectId={projectId}
-          open={promoteOpen}
-          onOpenChange={setPromoteOpen}
-        />
-      ) : null}
-    </div>
-  );
-};
 
 export const buildUpdateColumns = (
   branchNames: ReadonlyMap<string, string>,
@@ -189,14 +79,16 @@ export const buildUpdateColumns = (
     id: "actions",
     header: "",
     cell: ({ row }) => (
-      <UpdateActions
-        update={row.original}
-        channels={channels}
-        branchName={branchNames.get(row.original.branchId)}
-        slug={slug}
-        orgId={orgId}
-        projectId={projectId}
-      />
+      <div className="flex justify-end">
+        <UpdateActionButtons
+          update={row.original}
+          channels={channels}
+          branchName={branchNames.get(row.original.branchId)}
+          slug={slug}
+          orgId={orgId}
+          projectId={projectId}
+        />
+      </div>
     ),
     enableSorting: false,
     meta: { align: "right" },

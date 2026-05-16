@@ -4,12 +4,12 @@ import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { MonitorIcon } from "lucide-react";
-import { Suspense, useState } from "react";
 
 import { SettingCard } from "../../../../components/setting-card";
 import { ListItemsSkeleton, SettingCardSkeleton } from "../../../../components/skeletons";
-import { authClient } from "../../../../lib/auth-client";
+import { authClient, rejectOnAuthClientError } from "../../../../lib/auth-client";
 import { formatRelativeTime } from "../../../../lib/format-relative-time";
+import { useApiMutation } from "../../../../lib/use-api-mutation";
 import { parseUserAgent } from "../../../../lib/user-agent";
 import { sessionQueryOptions, sessionsQueryOptions } from "../../../../queries/auth";
 
@@ -18,50 +18,27 @@ const SessionsList = () => {
   const { data: sessions } = useSuspenseQuery(sessionsQueryOptions);
   const { data: currentSession } = useSuspenseQuery(sessionQueryOptions);
   const currentToken = currentSession?.session.token;
-  const [revokingTokens, setRevokingTokens] = useState<ReadonlySet<string>>(() => new Set());
-  const [isRevokingAll, setIsRevokingAll] = useState(false);
 
-  const setTokenRevoking = (token: string, active: boolean) => {
-    setRevokingTokens((prev) => {
-      const next = new Set(prev);
-      if (active) {
-        next.add(token);
-      } else {
-        next.delete(token);
-      }
-      return next;
-    });
-  };
+  const revokeMutation = useApiMutation({
+    mutationFn: async (token: string) =>
+      rejectOnAuthClientError(authClient.revokeSession({ token }), "Failed to revoke session"),
+    onSuccess: async () => {
+      toastManager.add({ title: "Session revoked", type: "success" });
+      await queryClient.resetQueries({ queryKey: ["auth", "sessions"] });
+    },
+  });
 
-  const handleRevoke = async (token: string) => {
-    if (revokingTokens.has(token)) {
-      return;
-    }
-    setTokenRevoking(token, true);
-    const { error } = await authClient.revokeSession({ token });
-    setTokenRevoking(token, false);
-    if (error) {
-      toastManager.add({ title: error.message ?? "Failed to revoke session", type: "error" });
-      return;
-    }
-    toastManager.add({ title: "Session revoked", type: "success" });
-    await queryClient.resetQueries({ queryKey: ["auth", "sessions"] });
-  };
+  const revokeAllMutation = useApiMutation({
+    mutationFn: async () =>
+      rejectOnAuthClientError(authClient.revokeOtherSessions(), "Failed to revoke sessions"),
+    onSuccess: async () => {
+      toastManager.add({ title: "All other sessions revoked", type: "success" });
+      await queryClient.resetQueries({ queryKey: ["auth", "sessions"] });
+    },
+  });
 
-  const handleRevokeAll = async () => {
-    if (isRevokingAll) {
-      return;
-    }
-    setIsRevokingAll(true);
-    const { error } = await authClient.revokeOtherSessions();
-    setIsRevokingAll(false);
-    if (error) {
-      toastManager.add({ title: error.message ?? "Failed to revoke sessions", type: "error" });
-      return;
-    }
-    toastManager.add({ title: "All other sessions revoked", type: "success" });
-    await queryClient.resetQueries({ queryKey: ["auth", "sessions"] });
-  };
+  const revokingToken = revokeMutation.isPending ? revokeMutation.variables : undefined;
+  const isRevokingAll = revokeAllMutation.isPending;
 
   return (
     <SettingCard
@@ -69,7 +46,13 @@ const SessionsList = () => {
       description="Devices currently signed in to your account."
       action={
         sessions.length > 1 ? (
-          <Button variant="outline" onClick={handleRevokeAll} loading={isRevokingAll}>
+          <Button
+            variant="outline"
+            onClick={() => {
+              revokeAllMutation.mutate();
+            }}
+            loading={isRevokingAll}
+          >
             Revoke all others
           </Button>
         ) : null
@@ -78,7 +61,7 @@ const SessionsList = () => {
       <ul className="-my-3 flex flex-col divide-y">
         {sessions.map((session) => {
           const isCurrent = session.token === currentToken;
-          const isRevoking = revokingTokens.has(session.token);
+          const isRevoking = revokingToken === session.token;
           return (
             <li key={session.id} className="flex items-center gap-3 py-3">
               <span className="bg-muted/72 flex size-9 shrink-0 items-center justify-center rounded-md border">
@@ -99,9 +82,11 @@ const SessionsList = () => {
               {isCurrent ? null : (
                 <Button
                   variant="outline"
-                  onClick={async () => handleRevoke(session.token)}
+                  onClick={() => {
+                    revokeMutation.mutate(session.token);
+                  }}
                   loading={isRevoking}
-                  disabled={isRevokingAll}
+                  disabled={isRevokingAll || (revokeMutation.isPending && !isRevoking)}
                 >
                   Revoke
                 </Button>
@@ -114,18 +99,18 @@ const SessionsList = () => {
   );
 };
 
-const SessionsPage = () => (
-  <Suspense
-    fallback={
-      <SettingCardSkeleton hasFooter={false}>
-        <ListItemsSkeleton rows={3} />
-      </SettingCardSkeleton>
-    }
-  >
-    <SessionsList />
-  </Suspense>
+const SessionsPagePending = () => (
+  <SettingCardSkeleton hasFooter={false}>
+    <ListItemsSkeleton rows={3} />
+  </SettingCardSkeleton>
 );
 
 export const Route = createFileRoute("/_authed/_app/account/sessions")({
-  component: SessionsPage,
+  beforeLoad: async ({ context }) => {
+    await context.queryClient.ensureQueryData(sessionsQueryOptions);
+  },
+  pendingComponent: SessionsPagePending,
+  pendingMs: 0,
+  pendingMinMs: 0,
+  component: SessionsList,
 });

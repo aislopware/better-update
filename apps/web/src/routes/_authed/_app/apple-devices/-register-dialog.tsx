@@ -112,8 +112,7 @@ interface FormValues {
 
 const DEFAULTS: FormValues = { identifier: "", name: "", deviceClass: "IPHONE", model: "" };
 
-export const RegisterDeviceDialog = ({ orgId }: { orgId: string }) => {
-  const [open, setOpen] = useState(false);
+const RegisterDeviceForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: () => void }) => {
   const queryClient = useQueryClient();
 
   const registerMutation = useApiMutation({
@@ -127,8 +126,7 @@ export const RegisterDeviceDialog = ({ orgId }: { orgId: string }) => {
     onSuccess: async () => {
       toastManager.add({ title: "Device registered", type: "success" });
       await queryClient.invalidateQueries({ queryKey: devicesQueryKey(orgId) });
-      form.reset();
-      setOpen(false);
+      onSuccess();
     },
   });
 
@@ -138,12 +136,144 @@ export const RegisterDeviceDialog = ({ orgId }: { orgId: string }) => {
   });
 
   return (
+    <form
+      className="contents"
+      onSubmit={async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        await form.handleSubmit();
+      }}
+    >
+      <DialogPanel>
+        <FieldGroup>
+          <form.Field
+            name="identifier"
+            validators={{
+              onBlur: ({ value }) => {
+                const result = identifierSchema.safeParse(value.trim());
+                return result.success ? undefined : result.error.issues[0]?.message;
+              },
+            }}
+          >
+            {(field) => {
+              const errorMessage = getFieldError(field);
+              return (
+                <Field invalid={Boolean(errorMessage)}>
+                  <FieldLabel htmlFor="device-identifier">UDID</FieldLabel>
+                  <Input
+                    id="device-identifier"
+                    placeholder="00008030-001C45663C90802E"
+                    value={field.state.value}
+                    onChange={(event) => {
+                      const next = event.target.value;
+                      field.handleChange(next);
+                      const inferred = inferClass(next);
+                      if (inferred !== null) {
+                        form.setFieldValue("deviceClass", inferred, {
+                          dontUpdateMeta: true,
+                          dontValidate: true,
+                        });
+                      }
+                    }}
+                    onBlur={field.handleBlur}
+                    className="font-mono"
+                  />
+                  <FieldDescription>
+                    40 hex chars (legacy) · 8-16 hex (modern iOS) · UUID (Mac).
+                  </FieldDescription>
+                  <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
+                </Field>
+              );
+            }}
+          </form.Field>
+
+          <form.Field
+            name="name"
+            validators={{
+              onBlur: ({ value }) => {
+                const result = nameSchema.safeParse(value.trim());
+                return result.success ? undefined : result.error.issues[0]?.message;
+              },
+            }}
+          >
+            {(field) => {
+              const errorMessage = getFieldError(field);
+              return (
+                <Field invalid={Boolean(errorMessage)}>
+                  <FieldLabel htmlFor="device-name">Name</FieldLabel>
+                  <Input
+                    id="device-name"
+                    placeholder="Alex's iPhone 15 Pro"
+                    value={field.state.value}
+                    onChange={(event) => {
+                      field.handleChange(event.target.value);
+                    }}
+                    onBlur={field.handleBlur}
+                  />
+                  <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
+                </Field>
+              );
+            }}
+          </form.Field>
+
+          <form.Field name="deviceClass">
+            {(field) => (
+              <Field>
+                <FieldLabel>Class</FieldLabel>
+                <DeviceClassField
+                  value={field.state.value}
+                  onChange={(next) => {
+                    field.handleChange(next);
+                  }}
+                />
+              </Field>
+            )}
+          </form.Field>
+
+          <form.Field name="model">
+            {(field) => (
+              <Field>
+                <FieldLabel htmlFor="device-model">Model (optional)</FieldLabel>
+                <Input
+                  id="device-model"
+                  placeholder="iPhone 15 Pro"
+                  value={field.state.value}
+                  onChange={(event) => {
+                    field.handleChange(event.target.value);
+                  }}
+                />
+              </Field>
+            )}
+          </form.Field>
+        </FieldGroup>
+      </DialogPanel>
+
+      <DialogFooter>
+        <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
+        <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting] as const}>
+          {([canSubmit, isSubmitting]) => (
+            <Button type="submit" disabled={!canSubmit} loading={isSubmitting}>
+              <PlusIcon strokeWidth={2} data-icon="inline-start" />
+              Register device
+            </Button>
+          )}
+        </form.Subscribe>
+      </DialogFooter>
+    </form>
+  );
+};
+
+export const RegisterDeviceDialog = ({ orgId }: { orgId: string }) => {
+  const [open, setOpen] = useState(false);
+  const [resetKey, setResetKey] = useState(0);
+
+  return (
     <Dialog
       open={open}
-      onOpenChange={(next) => {
-        setOpen(next);
+      onOpenChange={setOpen}
+      onOpenChangeComplete={(next) => {
         if (!next) {
-          form.reset();
+          setResetKey((prev) => prev + 1);
         }
       }}
     >
@@ -163,132 +293,13 @@ export const RegisterDeviceDialog = ({ orgId }: { orgId: string }) => {
             Window &gt; Devices and Simulators.
           </DialogDescription>
         </DialogHeader>
-        <form
-          className="contents"
-          onSubmit={async (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            await form.handleSubmit();
+        <RegisterDeviceForm
+          key={resetKey}
+          orgId={orgId}
+          onSuccess={() => {
+            setOpen(false);
           }}
-        >
-          <DialogPanel>
-            <FieldGroup>
-              <form.Field
-                name="identifier"
-                validators={{
-                  onBlur: ({ value }) => {
-                    const result = identifierSchema.safeParse(value.trim());
-                    return result.success ? undefined : result.error.issues[0]?.message;
-                  },
-                }}
-              >
-                {(field) => {
-                  const errorMessage = getFieldError(field);
-                  return (
-                    <Field data-invalid={errorMessage ? true : undefined}>
-                      <FieldLabel htmlFor="device-identifier">UDID</FieldLabel>
-                      <Input
-                        id="device-identifier"
-                        placeholder="00008030-001C45663C90802E"
-                        value={field.state.value}
-                        onChange={(event) => {
-                          const next = event.target.value;
-                          field.handleChange(next);
-                          const inferred = inferClass(next);
-                          if (inferred !== null) {
-                            form.setFieldValue("deviceClass", inferred, {
-                              dontUpdateMeta: true,
-                              dontValidate: true,
-                            });
-                          }
-                        }}
-                        onBlur={field.handleBlur}
-                        aria-invalid={errorMessage ? true : undefined}
-                        className="font-mono"
-                      />
-                      <FieldDescription>
-                        40 hex chars (legacy) · 8-16 hex (modern iOS) · UUID (Mac).
-                      </FieldDescription>
-                      <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
-                    </Field>
-                  );
-                }}
-              </form.Field>
-
-              <form.Field
-                name="name"
-                validators={{
-                  onBlur: ({ value }) => {
-                    const result = nameSchema.safeParse(value.trim());
-                    return result.success ? undefined : result.error.issues[0]?.message;
-                  },
-                }}
-              >
-                {(field) => {
-                  const errorMessage = getFieldError(field);
-                  return (
-                    <Field data-invalid={errorMessage ? true : undefined}>
-                      <FieldLabel htmlFor="device-name">Name</FieldLabel>
-                      <Input
-                        id="device-name"
-                        placeholder="Alex's iPhone 15 Pro"
-                        value={field.state.value}
-                        onChange={(event) => {
-                          field.handleChange(event.target.value);
-                        }}
-                        onBlur={field.handleBlur}
-                        aria-invalid={errorMessage ? true : undefined}
-                      />
-                      <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
-                    </Field>
-                  );
-                }}
-              </form.Field>
-
-              <form.Field name="deviceClass">
-                {(field) => (
-                  <Field>
-                    <FieldLabel>Class</FieldLabel>
-                    <DeviceClassField
-                      value={field.state.value}
-                      onChange={(next) => {
-                        field.handleChange(next);
-                      }}
-                    />
-                  </Field>
-                )}
-              </form.Field>
-
-              <form.Field name="model">
-                {(field) => (
-                  <Field>
-                    <FieldLabel htmlFor="device-model">Model (optional)</FieldLabel>
-                    <Input
-                      id="device-model"
-                      placeholder="iPhone 15 Pro"
-                      value={field.state.value}
-                      onChange={(event) => {
-                        field.handleChange(event.target.value);
-                      }}
-                    />
-                  </Field>
-                )}
-              </form.Field>
-            </FieldGroup>
-          </DialogPanel>
-
-          <DialogFooter>
-            <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
-            <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting] as const}>
-              {([canSubmit, isSubmitting]) => (
-                <Button type="submit" disabled={!canSubmit} loading={isSubmitting}>
-                  <PlusIcon strokeWidth={2} data-icon="inline-start" />
-                  Register device
-                </Button>
-              )}
-            </form.Subscribe>
-          </DialogFooter>
-        </form>
+        />
       </DialogPopup>
     </Dialog>
   );

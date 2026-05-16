@@ -6,6 +6,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
 import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useQueryClient } from "@tanstack/react-query";
@@ -17,6 +18,7 @@ import { BranchNameForm } from "./-branch-name-form";
 
 export const CreateBranchDialog = ({ orgId, projectId }: { orgId: string; projectId: string }) => {
   const [open, setOpen] = useState(false);
+  const [resetKey, setResetKey] = useState(0);
   const queryClient = useQueryClient();
   const createBranchMutation = useApiMutation({
     mutationFn: async (name: string) => createBranch({ projectId, name }),
@@ -30,21 +32,26 @@ export const CreateBranchDialog = ({ orgId, projectId }: { orgId: string; projec
   });
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <Button
-        onClick={() => {
-          setOpen(true);
-        }}
-      >
+    <Dialog
+      open={open}
+      onOpenChange={setOpen}
+      onOpenChangeComplete={(next) => {
+        if (!next) {
+          setResetKey((prev) => prev + 1);
+        }
+      }}
+    >
+      <DialogTrigger render={<Button />}>
         <PlusIcon strokeWidth={2} data-icon="inline-start" />
         Create branch
-      </Button>
+      </DialogTrigger>
       <DialogPopup>
         <DialogHeader>
           <DialogTitle>Create a branch</DialogTitle>
           <DialogDescription>Create a new branch within this project.</DialogDescription>
         </DialogHeader>
         <BranchNameForm
+          key={resetKey}
           defaultName=""
           submitLabel="Create branch"
           submitIcon={PlusIcon}

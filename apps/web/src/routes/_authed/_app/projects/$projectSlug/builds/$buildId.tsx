@@ -33,6 +33,7 @@ import { synthesizeBuildChannels } from "../-compatibility-join";
 import { InstallLinkDialog } from "../-install-link-dialog";
 import { ProjectSubpageHeader } from "../-project-subpage-header";
 import { DetailCardSkeleton, SummaryCardsSkeleton } from "../../../../../../components/skeletons";
+import { formatDateTime } from "../../../../../../lib/format-date";
 
 import type { BuildWithSyntheticChannels } from "../-compatibility-join";
 
@@ -50,35 +51,35 @@ const BuildMetadataCard = ({ build }: { build: typeof BuildWithArtifact.Type }) 
       </CardDescription>
     </CardHeader>
     <CardContent className="grid gap-4 sm:grid-cols-2">
-      <div className="space-y-1">
+      <div className="flex flex-col gap-1">
         <div className="text-muted-foreground text-sm">Runtime version</div>
         <div className="font-medium">{build.runtimeVersion ?? "Missing"}</div>
       </div>
-      <div className="space-y-1">
+      <div className="flex flex-col gap-1">
         <div className="text-muted-foreground text-sm">Bundle ID</div>
         <div className="font-medium">{build.bundleId ?? "Missing"}</div>
       </div>
-      <div className="space-y-1">
+      <div className="flex flex-col gap-1">
         <div className="text-muted-foreground text-sm">App version</div>
         <div className="font-medium">{build.appVersion ?? "Missing"}</div>
       </div>
-      <div className="space-y-1">
+      <div className="flex flex-col gap-1">
         <div className="text-muted-foreground text-sm">Build number</div>
         <div className="font-medium">{build.buildNumber ?? "Missing"}</div>
       </div>
-      <div className="space-y-1">
+      <div className="flex flex-col gap-1">
         <div className="text-muted-foreground text-sm">Git ref</div>
         <div className="font-medium">{build.gitRef ?? "Not provided"}</div>
       </div>
-      <div className="space-y-1">
+      <div className="flex flex-col gap-1">
         <div className="text-muted-foreground text-sm">Git commit</div>
         <div className="font-medium">{build.gitCommit ?? "Not provided"}</div>
       </div>
-      <div className="space-y-1 sm:col-span-2">
+      <div className="flex flex-col gap-1 sm:col-span-2">
         <div className="text-muted-foreground text-sm">Created</div>
-        <div className="font-medium">{new Date(build.createdAt).toLocaleString()}</div>
+        <div className="font-medium">{formatDateTime(build.createdAt)}</div>
       </div>
-      <div className="space-y-1 sm:col-span-2">
+      <div className="flex flex-col gap-1 sm:col-span-2">
         <div className="text-muted-foreground text-sm">Metadata JSON</div>
         <pre className="bg-muted overflow-x-auto rounded-xl p-3 text-xs">
           {formatMetadataJson(build.metadataJson)}
@@ -103,11 +104,11 @@ const ArtifactCard = ({ build }: { build: typeof BuildWithArtifact.Type }) => (
             <Badge variant="outline">{build.artifact.contentType}</Badge>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1">
+            <div className="flex flex-col gap-1">
               <div className="text-muted-foreground text-sm">SHA-256</div>
               <code className="block text-xs break-all">{build.artifact.sha256}</code>
             </div>
-            <div className="space-y-1">
+            <div className="flex flex-col gap-1">
               <div className="text-muted-foreground text-sm">Storage key</div>
               <code className="block text-xs break-all">{build.artifact.r2Key}</code>
             </div>

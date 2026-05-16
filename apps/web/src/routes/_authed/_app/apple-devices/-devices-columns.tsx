@@ -1,4 +1,3 @@
-import { getApiError } from "@better-update/api-client";
 import { devicesQueryKey, updateDevice } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
@@ -10,21 +9,18 @@ import {
   MenuTrigger,
 } from "@better-update/ui/components/ui/menu";
 import { toastManager } from "@better-update/ui/components/ui/toast";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { CheckIcon, CopyIcon, EllipsisVerticalIcon } from "lucide-react";
+import { useState } from "react";
 
 import type { DeviceClassValue, DeviceItem } from "@better-update/api-client/react";
 import type { ColumnDef } from "@tanstack/react-table";
 
 import { formatRelativeTime } from "../../../../lib/format-relative-time";
+import { useApiMutation } from "../../../../lib/use-api-mutation";
 import { useCopyToClipboard } from "../../../../lib/use-copy-to-clipboard";
 import { DeleteDeviceDialog } from "./-delete-device-dialog";
 import { RenameDeviceDialog } from "./-rename-device-dialog";
-
-export interface ColumnMeta {
-  readonly align?: "right";
-  readonly muted?: boolean;
-}
 
 const CLASS_LABEL: Record<DeviceClassValue, string> = {
   IPHONE: "iPhone",
@@ -69,8 +65,10 @@ const actionsTrigger = (
 );
 
 const RowActions = ({ orgId, device }: { orgId: string; device: DeviceItem }) => {
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const queryClient = useQueryClient();
-  const toggleEnabled = useMutation({
+  const toggleEnabled = useApiMutation({
     mutationFn: async () => updateDevice(device.id, { enabled: !device.enabled }),
     onSuccess: async () => {
       toastManager.add({
@@ -79,45 +77,52 @@ const RowActions = ({ orgId, device }: { orgId: string; device: DeviceItem }) =>
       });
       await queryClient.invalidateQueries({ queryKey: devicesQueryKey(orgId) });
     },
-    onError: (error) => {
-      toastManager.add({ title: getApiError(error), type: "error" });
-    },
   });
 
   return (
-    <Menu>
-      <MenuTrigger render={actionsTrigger} />
-      <MenuPopup align="end" className="w-40">
-        <RenameDeviceDialog orgId={orgId} device={device}>
+    <>
+      <Menu>
+        <MenuTrigger render={actionsTrigger} />
+        <MenuPopup align="end" className="w-40">
           <MenuItem
-            onSelect={(event) => {
-              event.preventDefault();
+            onClick={() => {
+              setRenameOpen(true);
             }}
           >
             Rename
           </MenuItem>
-        </RenameDeviceDialog>
-        <MenuItem
-          onSelect={() => {
-            toggleEnabled.mutate();
-          }}
-          disabled={toggleEnabled.isPending}
-        >
-          {device.enabled ? "Disable" : "Enable"}
-        </MenuItem>
-        <MenuSeparator />
-        <DeleteDeviceDialog orgId={orgId} device={device}>
+          <MenuItem
+            onClick={() => {
+              toggleEnabled.mutate();
+            }}
+            disabled={toggleEnabled.isPending}
+          >
+            {device.enabled ? "Disable" : "Enable"}
+          </MenuItem>
+          <MenuSeparator />
           <MenuItem
             variant="destructive"
-            onSelect={(event) => {
-              event.preventDefault();
+            onClick={() => {
+              setDeleteOpen(true);
             }}
           >
             Delete
           </MenuItem>
-        </DeleteDeviceDialog>
-      </MenuPopup>
-    </Menu>
+        </MenuPopup>
+      </Menu>
+      <RenameDeviceDialog
+        orgId={orgId}
+        device={device}
+        open={renameOpen}
+        onOpenChange={setRenameOpen}
+      />
+      <DeleteDeviceDialog
+        orgId={orgId}
+        device={device}
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+      />
+    </>
   );
 };
 

@@ -32,6 +32,7 @@ import {
   Trash2Icon,
   UsersRoundIcon,
 } from "lucide-react";
+import { useState } from "react";
 
 import type {
   AppleDistributionCertificateItem,
@@ -41,10 +42,9 @@ import type {
   GoogleServiceAccountKeyItem,
 } from "@better-update/api-client/react";
 
+import { formatDate } from "../../../lib/format-date";
 import { formatAppleTeamLabel } from "./-credentials-utils";
 import { ConfirmDeleteDialog } from "./projects/$projectSlug/-confirm-delete-dialog";
-
-const formatDate = (value: string) => new Date(value).toLocaleDateString();
 
 const deleteIconButton = (
   <Button variant="ghost" size="icon" aria-label="Delete">
@@ -204,42 +204,49 @@ const AscApiKeyActions = ({
   syncPending: boolean;
   onDelete: () => Promise<unknown>;
   onInvalidate: () => Promise<void>;
-}) => (
-  <Menu>
-    <MenuTrigger render={<Button variant="ghost" size="icon" aria-label="ASC key actions" />}>
-      <EllipsisVerticalIcon strokeWidth={2} />
-    </MenuTrigger>
-    <MenuPopup align="end">
-      <MenuGroup>
-        <MenuItem disabled={syncPending} onClick={onSync}>
-          <RefreshCwIcon strokeWidth={2} />
-          <span>Sync devices</span>
-        </MenuItem>
-      </MenuGroup>
-      <MenuSeparator />
-      <MenuGroup>
-        <ConfirmDeleteDialog
-          name={keyId}
-          title="Delete ASC API key?"
-          description="This permanently removes the .p8 key."
-          onConfirm={onDelete}
-          successMessage="ASC API key deleted"
-          onSuccess={onInvalidate}
-        >
-          <MenuItem
-            variant="destructive"
-            onSelect={(event) => {
-              event.preventDefault();
-            }}
-          >
-            <Trash2Icon strokeWidth={2} />
-            <span>Delete</span>
-          </MenuItem>
-        </ConfirmDeleteDialog>
-      </MenuGroup>
-    </MenuPopup>
-  </Menu>
-);
+}) => {
+  const [deleteOpen, setDeleteOpen] = useState(false);
+
+  return (
+    <>
+      <Menu>
+        <MenuTrigger render={<Button variant="ghost" size="icon" aria-label="ASC key actions" />}>
+          <EllipsisVerticalIcon strokeWidth={2} />
+        </MenuTrigger>
+        <MenuPopup align="end">
+          <MenuGroup>
+            <MenuItem disabled={syncPending} closeOnClick={false} onClick={onSync}>
+              <RefreshCwIcon strokeWidth={2} />
+              <span>{syncPending ? "Syncing…" : "Sync devices"}</span>
+            </MenuItem>
+          </MenuGroup>
+          <MenuSeparator />
+          <MenuGroup>
+            <MenuItem
+              variant="destructive"
+              onClick={() => {
+                setDeleteOpen(true);
+              }}
+            >
+              <Trash2Icon strokeWidth={2} />
+              <span>Delete</span>
+            </MenuItem>
+          </MenuGroup>
+        </MenuPopup>
+      </Menu>
+      <ConfirmDeleteDialog
+        name={keyId}
+        title="Delete ASC API key?"
+        description="This permanently removes the .p8 key."
+        onConfirm={onDelete}
+        successMessage="ASC API key deleted"
+        onSuccess={onInvalidate}
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+      />
+    </>
+  );
+};
 
 export const AscApiKeysTable = ({
   items,

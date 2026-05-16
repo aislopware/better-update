@@ -3,13 +3,13 @@ import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { GitBranchIcon, KeyRoundIcon } from "lucide-react";
-import { Suspense, useState } from "react";
 
 import type { LucideIcon } from "lucide-react";
 
 import { SettingCard } from "../../../../components/setting-card";
 import { ListItemsSkeleton, SettingCardSkeleton } from "../../../../components/skeletons";
-import { authClient } from "../../../../lib/auth-client";
+import { authClient, rejectOnAuthClientError } from "../../../../lib/auth-client";
+import { useApiMutation } from "../../../../lib/use-api-mutation";
 import { accountsQueryOptions } from "../../../../queries/auth";
 
 interface ProviderMeta {
@@ -37,37 +37,28 @@ const PROVIDERS: readonly ProviderMeta[] = [
 const ConnectionsList = () => {
   const queryClient = useQueryClient();
   const { data: accounts } = useSuspenseQuery(accountsQueryOptions);
-  const [unlinkingProvider, setUnlinkingProvider] = useState<string | undefined>(undefined);
-  const [isLinking, setIsLinking] = useState(false);
 
-  const handleUnlink = async (providerId: string) => {
-    if (unlinkingProvider) {
-      return;
-    }
-    setUnlinkingProvider(providerId);
-    const { error } = await authClient.unlinkAccount({ providerId });
-    setUnlinkingProvider(undefined);
-    if (error) {
-      toastManager.add({ title: error.message ?? "Failed to unlink account", type: "error" });
-      return;
-    }
-    toastManager.add({ title: "Account unlinked", type: "success" });
-    await queryClient.resetQueries({ queryKey: ["auth", "accounts"] });
-  };
+  const unlinkMutation = useApiMutation({
+    mutationFn: async (providerId: string) =>
+      rejectOnAuthClientError(authClient.unlinkAccount({ providerId }), "Failed to unlink account"),
+    onSuccess: async () => {
+      toastManager.add({ title: "Account unlinked", type: "success" });
+      await queryClient.resetQueries({ queryKey: ["auth", "accounts"] });
+    },
+  });
 
-  const handleLinkGithub = async () => {
-    if (isLinking) {
-      return;
-    }
-    setIsLinking(true);
-    const { error } = await authClient.linkSocial({
-      provider: "github",
-      callbackURL: "/account/connections",
-    });
-    if (error) {
-      setIsLinking(false);
-    }
-  };
+  const linkGithubMutation = useApiMutation({
+    mutationFn: async () =>
+      rejectOnAuthClientError(
+        authClient.linkSocial({
+          provider: "github",
+          callbackURL: "/account/connections",
+        }),
+        "Failed to link GitHub",
+      ),
+  });
+
+  const unlinkingProvider = unlinkMutation.isPending ? unlinkMutation.variables : undefined;
 
   return (
     <SettingCard
@@ -90,16 +81,24 @@ const ConnectionsList = () => {
                 <span className="text-muted-foreground text-xs">{provider.description}</span>
               </div>
               {provider.id === "github" && !isLinked ? (
-                <Button variant="outline" onClick={handleLinkGithub} loading={isLinking}>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    linkGithubMutation.mutate();
+                  }}
+                  loading={linkGithubMutation.isPending}
+                >
                   Connect
                 </Button>
               ) : null}
               {canUnlink ? (
                 <Button
                   variant="outline"
-                  onClick={async () => handleUnlink(provider.id)}
+                  onClick={() => {
+                    unlinkMutation.mutate(provider.id);
+                  }}
                   loading={isUnlinking}
-                  disabled={Boolean(unlinkingProvider) && !isUnlinking}
+                  disabled={unlinkMutation.isPending && !isUnlinking}
                 >
                   Disconnect
                 </Button>
@@ -115,18 +114,18 @@ const ConnectionsList = () => {
   );
 };
 
-const ConnectionsPage = () => (
-  <Suspense
-    fallback={
-      <SettingCardSkeleton hasFooter={false}>
-        <ListItemsSkeleton rows={2} />
-      </SettingCardSkeleton>
-    }
-  >
-    <ConnectionsList />
-  </Suspense>
+const ConnectionsPagePending = () => (
+  <SettingCardSkeleton hasFooter={false}>
+    <ListItemsSkeleton rows={2} />
+  </SettingCardSkeleton>
 );
 
 export const Route = createFileRoute("/_authed/_app/account/connections")({
-  component: ConnectionsPage,
+  beforeLoad: async ({ context }) => {
+    await context.queryClient.ensureQueryData(accountsQueryOptions);
+  },
+  pendingComponent: ConnectionsPagePending,
+  pendingMs: 0,
+  pendingMinMs: 0,
+  component: ConnectionsList,
 });

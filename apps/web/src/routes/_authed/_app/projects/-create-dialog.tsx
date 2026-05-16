@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogPanel,
   DialogTitle,
+  DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
@@ -133,7 +134,7 @@ export const CreateProjectFormContent = ({
       </DialogPanel>
 
       <DialogFooter>
-        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+        <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
           {([canSubmit, isSubmitting]) => (
             <Button type="submit" disabled={!canSubmit} loading={Boolean(isSubmitting)}>
@@ -149,16 +150,19 @@ export const CreateProjectFormContent = ({
 
 export const CreateProjectDialog = ({ orgId }: { orgId: string }) => {
   const [open, setOpen] = useState(false);
+  const [resetKey, setResetKey] = useState(0);
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <Button
-        onClick={() => {
-          setOpen(true);
-        }}
-      >
-        Create project
-      </Button>
+    <Dialog
+      open={open}
+      onOpenChange={setOpen}
+      onOpenChangeComplete={(next) => {
+        if (!next) {
+          setResetKey((prev) => prev + 1);
+        }
+      }}
+    >
+      <DialogTrigger render={<Button />}>Create project</DialogTrigger>
       <DialogPopup>
         <DialogHeader>
           <DialogTitle>Create a project</DialogTitle>
@@ -167,6 +171,7 @@ export const CreateProjectDialog = ({ orgId }: { orgId: string }) => {
           </DialogDescription>
         </DialogHeader>
         <CreateProjectFormContent
+          key={resetKey}
           orgId={orgId}
           onSuccess={() => {
             setOpen(false);

@@ -111,8 +111,8 @@ export const AndroidBuildWizard = ({ orgId, projectId }: { orgId: string; projec
   return (
     <Dialog
       open={open}
-      onOpenChange={(value) => {
-        setOpen(value);
+      onOpenChange={setOpen}
+      onOpenChangeComplete={(value) => {
         if (!value) {
           reset();
         }
@@ -177,7 +177,7 @@ export const AndroidBuildWizard = ({ orgId, projectId }: { orgId: string; projec
           {step === 5 ? <StepReview state={state} /> : null}
         </DialogPanel>
         <DialogFooter>
-          <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+          <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
           {step > 1 ? (
             <Button
               variant="outline"

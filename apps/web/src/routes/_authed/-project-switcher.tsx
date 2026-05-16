@@ -23,6 +23,8 @@ import { useState } from "react";
 
 import { renderSwitcherIndicator } from "../../components/switcher-indicator";
 import { EntityAvatar } from "../../lib/entity-avatar";
+import { useApiMutation } from "../../lib/use-api-mutation";
+import { DROPDOWN_FETCH_LIMIT } from "../../queries/constants";
 import { CreateProjectFormContent } from "./_app/projects/-create-dialog";
 
 const switcherTrigger = (displayName: string) => (
@@ -39,24 +41,28 @@ interface ProjectSwitcherProps {
 
 export const ProjectSwitcher = ({ orgId, currentProjectSlug }: ProjectSwitcherProps) => {
   const router = useRouter();
-  // Switcher dropdown is bounded to the most-recent 100 projects (sorted by
-  // Last activity). If the org has more, the user can navigate to /projects
-  // Which has full-text search.
-  const { data } = useSuspenseQuery(projectsQueryOptions(orgId, { limit: 100 }));
+  // Switcher dropdown is bounded to the most-recent N projects (sorted by
+  // last activity). If the org has more, the user can navigate to /projects
+  // which has full-text search.
+  const { data } = useSuspenseQuery(projectsQueryOptions(orgId, { limit: DROPDOWN_FETCH_LIMIT }));
   const [createOpen, setCreateOpen] = useState(false);
-  const [navigatingSlug, setNavigatingSlug] = useState<string | undefined>(undefined);
+  const [createResetKey, setCreateResetKey] = useState(0);
+
+  const navigateMutation = useApiMutation({
+    mutationFn: async (projectSlug: string) =>
+      router.navigate({ to: "/projects/$projectSlug", params: { projectSlug } }),
+  });
+  const navigatingSlug = navigateMutation.isPending ? navigateMutation.variables : undefined;
 
   const currentProject = data.items.find((project) => project.slug === currentProjectSlug);
   const displayName = currentProject?.name ?? "Unknown project";
   const hasMore = data.total > data.items.length;
 
-  const handleSelect = async (projectSlug: string) => {
-    if (projectSlug === currentProjectSlug || navigatingSlug) {
+  const handleSelect = (projectSlug: string): void => {
+    if (projectSlug === currentProjectSlug || navigateMutation.isPending) {
       return;
     }
-    setNavigatingSlug(projectSlug);
-    await router.navigate({ to: "/projects/$projectSlug", params: { projectSlug } });
-    setNavigatingSlug(undefined);
+    navigateMutation.mutate(projectSlug);
   };
 
   return (
@@ -78,9 +84,11 @@ export const ProjectSwitcher = ({ orgId, currentProjectSlug }: ProjectSwitcherPr
                 return (
                   <MenuItem
                     key={project.id}
-                    onClick={async () => handleSelect(project.slug)}
+                    onClick={() => {
+                      handleSelect(project.slug);
+                    }}
                     data-pending={isNavigating || undefined}
-                    disabled={Boolean(navigatingSlug) && !isNavigating}
+                    disabled={navigateMutation.isPending && !isNavigating}
                   >
                     <EntityAvatar
                       name={project.name}
@@ -105,14 +113,22 @@ export const ProjectSwitcher = ({ orgId, currentProjectSlug }: ProjectSwitcherPr
             onClick={() => {
               setCreateOpen(true);
             }}
-            disabled={Boolean(navigatingSlug)}
+            disabled={navigateMutation.isPending}
           >
             <PlusIcon strokeWidth={2} className="size-4" />
             <span>Create project</span>
           </MenuItem>
         </MenuPopup>
       </Menu>
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+      <Dialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onOpenChangeComplete={(next) => {
+          if (!next) {
+            setCreateResetKey((prev) => prev + 1);
+          }
+        }}
+      >
         <DialogPopup>
           <DialogHeader>
             <DialogTitle>Create a project</DialogTitle>
@@ -121,6 +137,7 @@ export const ProjectSwitcher = ({ orgId, currentProjectSlug }: ProjectSwitcherPr
             </DialogDescription>
           </DialogHeader>
           <CreateProjectFormContent
+            key={createResetKey}
             orgId={orgId}
             onSuccess={() => {
               setCreateOpen(false);

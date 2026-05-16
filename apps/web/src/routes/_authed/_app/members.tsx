@@ -16,18 +16,22 @@ import {
 import { Skeleton } from "@better-update/ui/components/ui/skeleton";
 import { keepPreviousData, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { zodValidator } from "@tanstack/zod-adapter";
 import { SearchXIcon, UsersIcon } from "lucide-react";
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useMemo } from "react";
+import { z } from "zod";
 
 import { PageHeader } from "../../../components/page-header";
 import { FilterBarSkeleton, TableSkeleton } from "../../../components/skeletons";
+import { enumParam, fireAndForget, sortParam, useDataTableSearch } from "../../../lib/data-table";
 import { pluralize } from "../../../lib/pluralize";
 import { invitationsQueryOptions, membersQueryOptions } from "../../../queries/org";
 import { InviteDialog, RemoveDialog } from "./-invite-dialog";
 import { useMembersHandlers } from "./-members-mutations";
 import { MembersTableView } from "./-members-table";
 
-type StatusFilter = "all" | "active" | "pending";
+const STATUS_VALUES = ["all", "active", "pending"] as const;
+type StatusFilter = (typeof STATUS_VALUES)[number];
 
 const STATUS_LABELS: Record<StatusFilter, string> = {
   all: "All",
@@ -35,7 +39,13 @@ const STATUS_LABELS: Record<StatusFilter, string> = {
   pending: "Pending",
 };
 
-const STATUS_VALUES: readonly StatusFilter[] = ["all", "active", "pending"];
+const SORT_COLUMNS = ["name", "role", "status", "joinedAt"] as const;
+const DEFAULT_SORT = "status" as const;
+
+const membersSearchSchema = z.object({
+  status: enumParam(STATUS_VALUES, "all"),
+  sort: sortParam(DEFAULT_SORT),
+});
 
 const MembersSkeleton = () => (
   <div className="flex flex-col gap-3">
@@ -50,8 +60,19 @@ const MembersSkeleton = () => (
 const MembersContent = () => {
   const { activeOrg, user } = Route.useRouteContext();
   const orgId = activeOrg.id;
+  const { status: statusFilter, sort } = Route.useSearch();
+  const navigate = Route.useNavigate();
 
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const { sorting, onSortingChange } = useDataTableSearch({
+    sortColumns: SORT_COLUMNS,
+    defaultSort: DEFAULT_SORT,
+    sort,
+    navigate,
+  });
+
+  const setStatusFilter = (next: StatusFilter): void => {
+    fireAndForget(navigate({ to: ".", search: (prev) => ({ ...prev, status: next }) }));
+  };
 
   const { data: members } = useSuspenseQuery(membersQueryOptions(orgId));
   const { data: invitations = [] } = useQuery({
@@ -157,6 +178,8 @@ const MembersContent = () => {
             pendingMemberId={memberPendingId}
             pendingInvitationId={invitationPendingId}
             countLabel={countLabel}
+            sorting={sorting}
+            onSortingChange={onSortingChange}
             onRoleChange={handleRoleChange}
             onRemove={setRemoveMemberId}
             onCancelInvitation={handleCancelInvitation}
@@ -191,5 +214,6 @@ const MembersPage = () => (
 );
 
 export const Route = createFileRoute("/_authed/_app/members")({
+  validateSearch: zodValidator(membersSearchSchema),
   component: MembersPage,
 });

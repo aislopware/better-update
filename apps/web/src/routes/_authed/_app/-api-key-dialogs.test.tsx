@@ -263,7 +263,16 @@ vi.mock(authClientModule, () => ({
       create: authClientMocks.create,
     },
   },
-  rejectOnAuthClientError: vi.fn<() => Promise<unknown>>(),
+  rejectOnAuthClientError: async <T extends { error: unknown }>(
+    promise: Promise<T>,
+    fallbackMessage: string,
+  ): Promise<T> => {
+    const result = await promise;
+    if (result.error) {
+      throw new Error((result.error as { message?: string }).message ?? fallbackMessage);
+    }
+    return result;
+  },
 }));
 
 const CreateDialogHarness = ({ initialOpen = true }: { initialOpen?: boolean }) => {

@@ -1,12 +1,12 @@
 import { Button } from "@better-update/ui/components/ui/button";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { useState } from "react";
 import { z } from "zod";
 
 import { BrandWordmark } from "../../components/brand-mark";
 import { HeroMotion } from "../../components/hero-motion";
-import { authClient } from "../../lib/auth-client";
+import { authClient, rejectOnAuthClientError } from "../../lib/auth-client";
+import { useApiMutation } from "../../lib/use-api-mutation";
 
 const isSafeRedirect = (value: string): boolean =>
   value.startsWith("/") && !value.startsWith("//") && !value.startsWith("/\\");
@@ -148,13 +148,13 @@ interface GithubButtonProps {
 const GithubButton = ({ onClick, isPending }: GithubButtonProps) => (
   <Button
     size="lg"
-    className="group relative h-12 w-full gap-2.5 text-sm font-medium"
+    className="relative h-12 w-full gap-2.5 text-sm font-medium"
     onClick={onClick}
     loading={isPending}
   >
     <GithubIcon className="size-5" />
     Continue with GitHub
-    <ArrowIcon className="size-4 opacity-70 transition-[transform,opacity] duration-200 ease-out pointer-fine:group-hover:translate-x-0.5 pointer-fine:group-hover:opacity-100" />
+    <ArrowIcon className="size-4 opacity-70 transition-[transform,opacity] duration-200 ease-out pointer-fine:in-[[data-slot=button]:hover]:translate-x-0.5 pointer-fine:in-[[data-slot=button]:hover]:opacity-100" />
   </Button>
 );
 
@@ -200,25 +200,29 @@ const LegalFootnote = () => (
 
 const LoginPage = () => {
   const search = Route.useSearch();
-  const [isPending, setIsPending] = useState(false);
+  const redirectTo = readRedirectTo(search);
 
-  const signInWithGithub = async () => {
-    setIsPending(true);
-    const redirectTo = readRedirectTo(search);
-    const { error } = await authClient.signIn.social({
-      provider: "github",
-      callbackURL: `${globalThis.location.origin}${redirectTo}`,
-    });
-    if (error) {
-      setIsPending(false);
-    }
-  };
+  const signInMutation = useApiMutation({
+    mutationFn: async () =>
+      rejectOnAuthClientError(
+        authClient.signIn.social({
+          provider: "github",
+          callbackURL: `${globalThis.location.origin}${redirectTo}`,
+        }),
+        "Failed to start sign-in",
+      ),
+  });
 
   return (
     <div className="bg-background relative min-h-dvh overflow-hidden">
       <div className="relative grid min-h-dvh lg:grid-cols-[1.15fr_1fr]">
         <LeftHero />
-        <AuthPanel onGithub={signInWithGithub} isPending={isPending} />
+        <AuthPanel
+          onGithub={() => {
+            signInMutation.mutate();
+          }}
+          isPending={signInMutation.isPending}
+        />
       </div>
     </div>
   );

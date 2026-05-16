@@ -2,7 +2,7 @@ import { useMountEffect } from "@better-update/react-hooks";
 import { Button } from "@better-update/ui/components/ui/button";
 import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { useQueryClient } from "@tanstack/react-query";
-import { Link, createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import { Link, createFileRoute, redirect } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { CheckCircle2Icon, MailWarningIcon } from "lucide-react";
 import { z } from "zod";
@@ -18,7 +18,7 @@ const acceptSearchSchema = z.object({
 
 const AcceptInvitationPage = () => {
   const { id } = Route.useSearch();
-  const navigate = useNavigate();
+  const navigate = Route.useNavigate();
   const queryClient = useQueryClient();
 
   const accept = useApiMutation({

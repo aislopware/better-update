@@ -23,31 +23,37 @@ import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { keepPreviousData, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
+import { zodValidator } from "@tanstack/zod-adapter";
 import { SearchIcon, SearchXIcon, SmartphoneIcon } from "lucide-react";
-import { Suspense, useMemo, useRef, useState } from "react";
+import { Suspense, useMemo } from "react";
+import { z } from "zod";
 
-import type {
-  DeviceClassValue,
-  DeviceSort,
-  DeviceSortColumn,
-} from "@better-update/api-client/react";
-import type { SortingState } from "@tanstack/react-table";
-import type React from "react";
+import type { DeviceClassValue, DeviceSortColumn } from "@better-update/api-client/react";
+import type { ChangeEvent, ReactNode } from "react";
 
 import { formatAppleTeamLabel } from "../-credentials-utils";
 import { PageHeader } from "../../../../components/page-header";
 import { FilterBarSkeleton, TableSkeleton } from "../../../../components/skeletons";
+import {
+  DataTableView,
+  PAGE_SIZE,
+  computePagination,
+  fireAndForget,
+  optionalEnumParam,
+  optionalStringParam,
+  pageParam,
+  queryParam,
+  sortParam,
+  useDataTableSearch,
+  useDebouncedSearch,
+} from "../../../../lib/data-table";
 import { pluralize } from "../../../../lib/pluralize";
 import { buildDeviceColumns } from "./-devices-columns";
-import { DevicesTableView } from "./-devices-view";
 import { InviteDeviceDialog } from "./-invite-dialog";
 import { PendingInvitesList } from "./-pending-invites-list";
 import { RegisterDeviceDialog } from "./-register-dialog";
 
-const PAGE_SIZE = 50;
 const SEARCH_DEBOUNCE_MS = 300;
-
-const DEFAULT_SORTING: SortingState = [{ id: "createdAt", desc: true }];
 
 const SORT_COLUMNS = [
   "name",
@@ -55,25 +61,17 @@ const SORT_COLUMNS = [
   "deviceClass",
 ] as const satisfies readonly DeviceSortColumn[];
 
-const toApiSort = (sorting: SortingState): DeviceSort | undefined => {
-  const [first] = sorting;
-  if (!first) {
-    return undefined;
-  }
-  const column = SORT_COLUMNS.find((col) => col === first.id);
-  if (!column) {
-    return undefined;
-  }
-  return first.desc ? `-${column}` : column;
-};
+const DEFAULT_SORT = "-createdAt" as const;
 
-const computePagination = (total: number, itemCount: number, page: number) => {
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const safePage = Math.min(page, totalPages);
-  const fromIndex = itemCount === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
-  const toIndex = (safePage - 1) * PAGE_SIZE + itemCount;
-  return { totalPages, safePage, fromIndex, toIndex };
-};
+const DEVICE_CLASSES = ["IPHONE", "IPAD", "MAC", "UNKNOWN"] as const;
+
+const devicesSearchSchema = z.object({
+  page: pageParam(),
+  sort: sortParam(DEFAULT_SORT),
+  query: queryParam(),
+  deviceClass: optionalEnumParam(DEVICE_CLASSES),
+  appleTeamId: optionalStringParam(),
+});
 
 const CLASS_FILTER_LABELS: Record<"ALL" | DeviceClassValue, string> = {
   ALL: "All classes",
@@ -91,7 +89,7 @@ const CLASS_FILTER_VALUES: readonly ("ALL" | DeviceClassValue)[] = [
   "UNKNOWN",
 ];
 
-const EmptyState = ({ orgId, inviteCta }: { orgId: string; inviteCta: React.ReactNode }) => (
+const EmptyState = ({ orgId, inviteCta }: { orgId: string; inviteCta: ReactNode }) => (
   <Empty>
     <EmptyHeader>
       <EmptyMedia variant="icon">
@@ -109,14 +107,6 @@ const EmptyState = ({ orgId, inviteCta }: { orgId: string; inviteCta: React.Reac
     </div>
   </Empty>
 );
-
-interface DevicesFiltersState {
-  readonly classFilter: "ALL" | DeviceClassValue;
-  readonly teamFilter: string;
-  readonly debouncedQuery: string;
-  readonly sorting: SortingState;
-  readonly page: number;
-}
 
 const DevicesFilterBar = ({
   search,
@@ -147,7 +137,7 @@ const DevicesFilterBar = ({
         placeholder="Search by name or UDID…"
         type="search"
         value={search}
-        onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+        onChange={(event: ChangeEvent<HTMLInputElement>) => {
           onSearchChange(event.target.value);
         }}
       />
@@ -210,21 +200,6 @@ const DevicesFilterBar = ({
   </div>
 );
 
-const useDevicesQuery = (orgId: string, filters: DevicesFiltersState) => {
-  const apiSort = toApiSort(filters.sorting);
-  return useQuery({
-    ...devicesQueryOptions(orgId, {
-      page: filters.page,
-      limit: PAGE_SIZE,
-      ...(filters.classFilter === "ALL" ? {} : { deviceClass: filters.classFilter }),
-      ...(filters.teamFilter === "ALL" ? {} : { appleTeamId: filters.teamFilter }),
-      ...(filters.debouncedQuery ? { query: filters.debouncedQuery } : {}),
-      ...(apiSort ? { sort: apiSort } : {}),
-    }),
-    placeholderData: keepPreviousData,
-  });
-};
-
 const DevicesSkeleton = () => (
   <div className="flex flex-col gap-3">
     <FilterBarSkeleton hasSearch selectCount={2} />
@@ -235,36 +210,53 @@ const DevicesSkeleton = () => (
 const DevicesContent = () => {
   const { activeOrg } = Route.useRouteContext();
   const orgId = activeOrg.id;
-
-  const [search, setSearch] = useState("");
-  const [filters, setFilters] = useState<DevicesFiltersState>({
-    classFilter: "ALL",
-    teamFilter: "ALL",
-    debouncedQuery: "",
-    sorting: DEFAULT_SORTING,
-    page: 1,
+  const routeNavigate = Route.useNavigate();
+  const { page, sort, query: urlQuery, deviceClass, appleTeamId } = Route.useSearch();
+  const { sorting, apiSort, onSortingChange, onPageChange } = useDataTableSearch({
+    sortColumns: SORT_COLUMNS,
+    defaultSort: DEFAULT_SORT,
+    sort,
+    navigate: routeNavigate,
   });
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleSearchChange = (value: string) => {
-    setSearch(value);
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
-    debounceRef.current = setTimeout(() => {
-      setFilters((prev) => ({ ...prev, debouncedQuery: value.trim(), page: 1 }));
-    }, SEARCH_DEBOUNCE_MS);
+  const { draft: searchDraft, setDraft: handleSearchChange } = useDebouncedSearch({
+    initial: urlQuery,
+    delayMs: SEARCH_DEBOUNCE_MS,
+    onCommit: (value) => {
+      fireAndForget(
+        routeNavigate({
+          to: ".",
+          search: (prev) => ({ ...prev, query: value, page: 1 }),
+          replace: true,
+        }),
+      );
+    },
+  });
+
+  const handleClassFilter = (value: "ALL" | DeviceClassValue) => {
+    fireAndForget(
+      routeNavigate({
+        to: ".",
+        search: (prev) => ({
+          ...prev,
+          deviceClass: value === "ALL" ? undefined : value,
+          page: 1,
+        }),
+      }),
+    );
   };
 
-  const handleSortingChange = (updater: SortingState | ((prev: SortingState) => SortingState)) => {
-    setFilters((prev) => {
-      const next = typeof updater === "function" ? updater(prev.sorting) : updater;
-      return {
-        ...prev,
-        sorting: next.length === 0 ? DEFAULT_SORTING : next.slice(0, 1),
-        page: 1,
-      };
-    });
+  const handleTeamFilter = (value: string) => {
+    fireAndForget(
+      routeNavigate({
+        to: ".",
+        search: (prev) => ({
+          ...prev,
+          appleTeamId: value === "ALL" ? undefined : value,
+          page: 1,
+        }),
+      }),
+    );
   };
 
   const { data: teams } = useSuspenseQuery(appleTeamsQueryOptions(orgId));
@@ -280,7 +272,17 @@ const DevicesContent = () => {
     [teams.items],
   );
 
-  const { data, isPlaceholderData, isLoading } = useDevicesQuery(orgId, filters);
+  const { data, isPlaceholderData, isLoading } = useQuery({
+    ...devicesQueryOptions(orgId, {
+      page,
+      limit: PAGE_SIZE,
+      ...(deviceClass ? { deviceClass } : {}),
+      ...(appleTeamId ? { appleTeamId } : {}),
+      ...(urlQuery ? { query: urlQuery } : {}),
+      sort: apiSort,
+    }),
+    placeholderData: keepPreviousData,
+  });
 
   const columns = useMemo(() => buildDeviceColumns(orgId, teamLabels), [orgId, teamLabels]);
   const tableData = useMemo(() => [...(data?.items ?? [])], [data?.items]);
@@ -288,30 +290,25 @@ const DevicesContent = () => {
   const table = useReactTable({
     data: tableData,
     columns: [...columns],
-    state: { sorting: filters.sorting },
-    onSortingChange: handleSortingChange,
+    state: { sorting },
+    onSortingChange,
     manualSorting: true,
     enableMultiSort: false,
     enableSortingRemoval: false,
     getCoreRowModel: getCoreRowModel(),
   });
 
-  const inviteCta = useMemo(() => <InviteDeviceDialog orgId={orgId} />, [orgId]);
-
-  const filtersActive =
-    filters.classFilter !== "ALL" ||
-    filters.teamFilter !== "ALL" ||
-    filters.debouncedQuery.length > 0;
+  const filtersActive = Boolean(deviceClass) || Boolean(appleTeamId) || urlQuery.length > 0;
 
   if (isLoading || data === undefined) {
     return <TableSkeleton columns={5} rows={5} />;
   }
 
-  if (data.total === 0 && !filtersActive && search.length === 0) {
+  if (data.total === 0 && !filtersActive && searchDraft.length === 0) {
     return (
       <>
         <PendingInvitesList orgId={orgId} />
-        <EmptyState orgId={orgId} inviteCta={inviteCta} />
+        <EmptyState orgId={orgId} inviteCta={<InviteDeviceDialog orgId={orgId} />} />
       </>
     );
   }
@@ -319,7 +316,7 @@ const DevicesContent = () => {
   const { totalPages, safePage, fromIndex, toIndex } = computePagination(
     data.total,
     data.items.length,
-    filters.page,
+    page,
   );
   const countLabel = `${fromIndex}–${toIndex} of ${data.total} ${pluralize(data.total, "device")}${
     filtersActive ? " (filtered)" : ""
@@ -328,18 +325,14 @@ const DevicesContent = () => {
   return (
     <div className="flex flex-col gap-3">
       <DevicesFilterBar
-        search={search}
+        search={searchDraft}
         isPlaceholderData={isPlaceholderData}
-        classFilter={filters.classFilter}
-        teamFilter={filters.teamFilter}
+        classFilter={deviceClass ?? "ALL"}
+        teamFilter={appleTeamId ?? "ALL"}
         teams={teamOptions}
         onSearchChange={handleSearchChange}
-        onClassFilter={(classFilter) => {
-          setFilters((prev) => ({ ...prev, classFilter, page: 1 }));
-        }}
-        onTeamFilter={(teamFilter) => {
-          setFilters((prev) => ({ ...prev, teamFilter, page: 1 }));
-        }}
+        onClassFilter={handleClassFilter}
+        onTeamFilter={handleTeamFilter}
       />
       <PendingInvitesList orgId={orgId} />
       {data.total === 0 ? (
@@ -353,16 +346,14 @@ const DevicesContent = () => {
           </EmptyHeader>
         </Empty>
       ) : (
-        <DevicesTableView
+        <DataTableView
           table={table}
           columnsCount={columns.length}
           isPlaceholderData={isPlaceholderData}
           countLabel={countLabel}
           safePage={safePage}
           totalPages={totalPages}
-          onPageChange={(page) => {
-            setFilters((prev) => ({ ...prev, page }));
-          }}
+          onPageChange={onPageChange}
         />
       )}
     </div>
@@ -393,5 +384,6 @@ const Devices = () => {
 };
 
 export const Route = createFileRoute("/_authed/_app/apple-devices/")({
+  validateSearch: zodValidator(devicesSearchSchema),
   component: Devices,
 });

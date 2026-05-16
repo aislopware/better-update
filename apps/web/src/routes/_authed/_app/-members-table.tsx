@@ -1,26 +1,11 @@
 import { Badge } from "@better-update/ui/components/ui/badge";
-import { Frame } from "@better-update/ui/components/ui/frame";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableFooter,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@better-update/ui/components/ui/table";
 import { cn } from "@better-update/ui/lib/utils";
-import {
-  flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
-import { ArrowDownIcon, ArrowUpIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { getCoreRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
+import { useMemo } from "react";
 
-import type { ColumnDef, Header, SortingState } from "@tanstack/react-table";
+import type { ColumnDef, SortingState } from "@tanstack/react-table";
 
+import { DataTableView } from "../../../lib/data-table";
 import { EntityAvatar } from "../../../lib/entity-avatar";
 import { formatRelativeFuture, formatRelativeTime } from "../../../lib/format-relative-time";
 import { MemberRowActions } from "./-member-row-actions";
@@ -29,36 +14,6 @@ import { buildRows } from "./-members-row";
 import type { InvitationInput, MemberInput, MemberStatus, Row } from "./-members-row";
 
 export type { InvitationInput, MemberInput, MemberStatus };
-
-interface ColumnMeta {
-  readonly align?: "right";
-  readonly muted?: boolean;
-}
-
-const ARIA_SORT_MAP = { asc: "ascending", desc: "descending" } as const;
-const toAriaSort = (direction: false | "asc" | "desc"): "ascending" | "descending" | "none" =>
-  direction === false ? "none" : ARIA_SORT_MAP[direction];
-
-const SortIcon = ({ direction }: { direction: false | "asc" | "desc" }) => {
-  if (direction === "asc") {
-    return <ArrowUpIcon strokeWidth={2} className="size-3.5" />;
-  }
-  if (direction === "desc") {
-    return <ArrowDownIcon strokeWidth={2} className="size-3.5" />;
-  }
-  return null;
-};
-
-const cellAlignClass = (meta: ColumnMeta | undefined): string => {
-  const classes: string[] = [];
-  if (meta?.align === "right") {
-    classes.push("text-right tabular-nums");
-  }
-  if (meta?.muted) {
-    classes.push("text-muted-foreground");
-  }
-  return classes.join(" ");
-};
 
 const ROLE_RANK: Record<string, number> = { owner: 0, admin: 1, member: 2 };
 const STATUS_RANK: Record<MemberStatus, number> = { active: 0, pending: 1 };
@@ -198,34 +153,6 @@ const buildColumns = (params: BuildColumnsParams): ColumnDef<Row>[] => [
   },
 ];
 
-const DEFAULT_SORTING: SortingState = [{ id: "status", desc: false }];
-
-const SortableHead = ({ header }: { header: Header<Row, unknown> }) => {
-  const meta = header.column.columnDef.meta as ColumnMeta | undefined;
-  const sortDir = header.column.getIsSorted();
-  const canSort = header.column.getCanSort();
-  return (
-    <TableHead
-      className={cn(
-        meta?.align === "right" ? "text-right" : "",
-        canSort ? "hover:text-foreground cursor-pointer transition-colors select-none" : "",
-      )}
-      aria-sort={toAriaSort(sortDir)}
-      onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
-    >
-      <span
-        className={cn(
-          "inline-flex items-center gap-1.5",
-          meta?.align === "right" ? "justify-end" : "",
-        )}
-      >
-        {flexRender(header.column.columnDef.header, header.getContext())}
-        {canSort ? <SortIcon direction={sortDir} /> : null}
-      </span>
-    </TableHead>
-  );
-};
-
 export const MembersTableView = ({
   members,
   invitations,
@@ -234,6 +161,8 @@ export const MembersTableView = ({
   pendingMemberId,
   pendingInvitationId,
   countLabel,
+  sorting,
+  onSortingChange,
   onRoleChange,
   onRemove,
   onCancelInvitation,
@@ -245,23 +174,24 @@ export const MembersTableView = ({
   pendingMemberId?: string | undefined;
   pendingInvitationId?: string | undefined;
   countLabel?: string;
+  sorting: SortingState;
+  onSortingChange: (updater: SortingState | ((prev: SortingState) => SortingState)) => void;
   onRoleChange: (memberId: string, role: string) => void;
   onRemove: (memberId: string) => void;
   onCancelInvitation: (invitationId: string) => void;
 }) => {
-  const [sorting, setSorting] = useState<SortingState>(DEFAULT_SORTING);
-
   const tableData = useMemo(() => buildRows(members, invitations), [members, invitations]);
-  const columnsParams = useMemo<BuildColumnsParams>(
-    () => ({
-      currentUserId,
-      currentRole,
-      pendingMemberId,
-      pendingInvitationId,
-      onRoleChange,
-      onRemove,
-      onCancelInvitation,
-    }),
+  const columns = useMemo(
+    () =>
+      buildColumns({
+        currentUserId,
+        currentRole,
+        pendingMemberId,
+        pendingInvitationId,
+        onRoleChange,
+        onRemove,
+        onCancelInvitation,
+      }),
     [
       currentUserId,
       currentRole,
@@ -272,59 +202,17 @@ export const MembersTableView = ({
       onCancelInvitation,
     ],
   );
-  const columns = useMemo(() => buildColumns(columnsParams), [columnsParams]);
-  const tableState = useMemo(() => ({ sorting }), [sorting]);
 
   const table = useReactTable({
     data: tableData,
     columns,
-    state: tableState,
-    onSortingChange: setSorting,
+    state: { sorting },
+    onSortingChange,
     enableMultiSort: false,
     enableSortingRemoval: false,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
   });
 
-  return (
-    <Frame>
-      <Table variant="card">
-        <TableHeader>
-          {table.getHeaderGroups().map((group) => (
-            <TableRow key={group.id}>
-              {group.headers.map((header) => (
-                <SortableHead key={header.id} header={header} />
-              ))}
-            </TableRow>
-          ))}
-        </TableHeader>
-        <TableBody>
-          {table.getRowModel().rows.map((row) => (
-            <TableRow key={row.id}>
-              {row.getVisibleCells().map((cell) => {
-                const meta = cell.column.columnDef.meta as ColumnMeta | undefined;
-                return (
-                  <TableCell key={cell.id} className={cellAlignClass(meta)}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                );
-              })}
-            </TableRow>
-          ))}
-        </TableBody>
-        {countLabel ? (
-          <TableFooter>
-            <TableRow>
-              <TableCell
-                colSpan={table.getAllLeafColumns().length}
-                className="text-muted-foreground text-xs tabular-nums"
-              >
-                {countLabel}
-              </TableCell>
-            </TableRow>
-          </TableFooter>
-        ) : null}
-      </Table>
-    </Frame>
-  );
+  return <DataTableView table={table} columnsCount={columns.length} countLabel={countLabel} />;
 };

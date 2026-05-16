@@ -23,7 +23,7 @@ import {
 } from "@better-update/ui/components/ui/select";
 import { Skeleton } from "@better-update/ui/components/ui/skeleton";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { Suspense, useState } from "react";
+import { Suspense } from "react";
 import {
   Area,
   AreaChart,
@@ -37,10 +37,14 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { z } from "zod";
 
+import { enumParam, optionalStringParam } from "../../../../../lib/data-table";
+import { formatChartTimestamp } from "../../../../../lib/format-date";
 import { truncateId } from "../../../../../lib/truncate-id";
+import { DROPDOWN_FETCH_LIMIT } from "../../../../../queries/constants";
 
-const PERIODS = ["1d", "7d", "30d", "90d"] as const;
+export const PERIODS = ["1d", "7d", "30d", "90d"] as const;
 
 const PERIOD_LABELS: Record<string, string> = {
   "1d": "Last 24 hours",
@@ -48,7 +52,15 @@ const PERIOD_LABELS: Record<string, string> = {
   "30d": "Last 30 days",
   "90d": "Last 90 days",
 };
-type AnalyticsPeriod = (typeof PERIODS)[number];
+export type AnalyticsPeriod = (typeof PERIODS)[number];
+
+export const analyticsSearchSchema = z.object({
+  period: enumParam(PERIODS, "7d"),
+  channel: optionalStringParam(),
+  update: optionalStringParam(),
+});
+
+export type AnalyticsSearch = z.infer<typeof analyticsSearchSchema>;
 
 const COLORS = [
   "var(--color-chart-1)",
@@ -185,28 +197,30 @@ const ChannelHealthChart = ({
   orgId,
   projectId,
   period,
+  channel,
+  onChannelChange,
 }: {
   orgId: string;
   projectId: string;
   period: AnalyticsPeriod;
+  channel: string | undefined;
+  onChannelChange: (next: string) => void;
 }) => {
   const { data: channelsData } = useSuspenseQuery(
-    channelsQueryOptions(orgId, projectId, { limit: 100 }),
+    channelsQueryOptions(orgId, projectId, { limit: DROPDOWN_FETCH_LIMIT }),
   );
   const channels = channelsData.items;
-  // eslint-disable-next-line eslint-js/no-restricted-syntax -- useState initial before items.length guard; Select does not render when items empty
-  const [selected, setSelected] = useState(channels[0]?.name ?? "");
 
   if (channels.length === 0) {
     return <ChartEmptyState message="No channels available yet" />;
   }
 
-  const effectiveSelected = channels.some((ch) => ch.name === selected)
-    ? selected
-    : // eslint-disable-next-line eslint-js/no-restricted-syntax -- items.length > 0 guaranteed by guard above
-      (channels[0]?.name ?? "");
+  // eslint-disable-next-line eslint-js/no-restricted-syntax -- items.length > 0 guaranteed by guard above
+  const fallback = channels[0]?.name ?? "";
+  const effectiveSelected =
+    channel && channels.some((ch) => ch.name === channel) ? channel : fallback;
 
-  const channelLabels = Object.fromEntries(channels.map((channel) => [channel.name, channel.name]));
+  const channelLabels = Object.fromEntries(channels.map((item) => [item.name, item.name]));
 
   return (
     <div className="flex flex-col gap-3">
@@ -215,7 +229,7 @@ const ChannelHealthChart = ({
         value={effectiveSelected}
         onValueChange={(value) => {
           if (value) {
-            setSelected(value);
+            onChannelChange(value);
           }
         }}
       >
@@ -224,9 +238,9 @@ const ChannelHealthChart = ({
         </SelectTrigger>
         <SelectPopup>
           <SelectGroup>
-            {channels.map((channel) => (
-              <SelectItem key={channel.id} value={channel.name}>
-                {channel.name}
+            {channels.map((item) => (
+              <SelectItem key={item.id} value={item.name}>
+                {item.name}
               </SelectItem>
             ))}
           </SelectGroup>
@@ -242,15 +256,6 @@ const ChannelHealthChart = ({
       </Suspense>
     </div>
   );
-};
-
-const formatTimestamp = (timestamp: string) => {
-  const date = new Date(timestamp);
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  return `${month}/${day} ${hours}:${minutes}`;
 };
 
 const UpdateTrafficInner = ({
@@ -269,7 +274,7 @@ const UpdateTrafficInner = ({
   );
 
   const chartData = data.timeSeries.map((entry) => ({
-    timestamp: formatTimestamp(entry.timestamp),
+    timestamp: formatChartTimestamp(entry.timestamp),
     requests: entry.requests,
   }));
 
@@ -299,29 +304,30 @@ const UpdateTrafficChart = ({
   orgId,
   projectId,
   period,
+  update,
+  onUpdateChange,
 }: {
   orgId: string;
   projectId: string;
   period: AnalyticsPeriod;
+  update: string | undefined;
+  onUpdateChange: (next: string) => void;
 }) => {
   const { data: updatesData } = useSuspenseQuery(
-    updatesQueryOptions(orgId, projectId, { limit: 100 }),
+    updatesQueryOptions(orgId, projectId, { limit: DROPDOWN_FETCH_LIMIT }),
   );
   const { items } = updatesData;
-  // eslint-disable-next-line eslint-js/no-restricted-syntax -- useState initial before items.length guard; Select does not render when items empty
-  const [selectedUpdateId, setSelectedUpdateId] = useState(items[0]?.id ?? "");
 
   if (items.length === 0) {
     return <ChartEmptyState message="No updates available yet" />;
   }
 
-  const effectiveUpdateId = items.some((upd) => upd.id === selectedUpdateId)
-    ? selectedUpdateId
-    : // eslint-disable-next-line eslint-js/no-restricted-syntax -- items.length > 0 guaranteed by guard above
-      (items[0]?.id ?? "");
+  // eslint-disable-next-line eslint-js/no-restricted-syntax -- items.length > 0 guaranteed by guard above
+  const fallback = items[0]?.id ?? "";
+  const effectiveUpdateId = update && items.some((upd) => upd.id === update) ? update : fallback;
 
   const updateLabels = Object.fromEntries(
-    items.map((update) => [update.id, truncateId(update.id)]),
+    items.map((updateItem) => [updateItem.id, truncateId(updateItem.id)]),
   );
 
   return (
@@ -331,7 +337,7 @@ const UpdateTrafficChart = ({
         value={effectiveUpdateId}
         onValueChange={(value) => {
           if (value) {
-            setSelectedUpdateId(value);
+            onUpdateChange(value);
           }
         }}
       >
@@ -340,9 +346,9 @@ const UpdateTrafficChart = ({
         </SelectTrigger>
         <SelectPopup>
           <SelectGroup>
-            {items.map((update) => (
-              <SelectItem key={update.id} value={update.id}>
-                {truncateId(update.id)}
+            {items.map((updateItem) => (
+              <SelectItem key={updateItem.id} value={updateItem.id}>
+                {truncateId(updateItem.id)}
               </SelectItem>
             ))}
           </SelectGroup>
@@ -360,8 +366,15 @@ const UpdateTrafficChart = ({
   );
 };
 
-export const AnalyticsTab = ({ orgId, projectId }: { orgId: string; projectId: string }) => {
-  const [period, setPeriod] = useState<AnalyticsPeriod>("7d");
+export interface AnalyticsTabProps {
+  readonly orgId: string;
+  readonly projectId: string;
+  readonly search: AnalyticsSearch;
+  readonly onSearchChange: (next: Partial<AnalyticsSearch>) => void;
+}
+
+export const AnalyticsTab = ({ orgId, projectId, search, onSearchChange }: AnalyticsTabProps) => {
+  const { period, channel, update } = search;
 
   return (
     <div className="flex flex-col gap-4">
@@ -372,7 +385,7 @@ export const AnalyticsTab = ({ orgId, projectId }: { orgId: string; projectId: s
           onValueChange={(value) => {
             const match = PERIODS.find((candidate) => candidate === value);
             if (match) {
-              setPeriod(match);
+              onSearchChange({ period: match });
             }
           }}
         >
@@ -422,7 +435,15 @@ export const AnalyticsTab = ({ orgId, projectId }: { orgId: string; projectId: s
           </CardHeader>
           <CardContent>
             <Suspense fallback={chartSkeleton}>
-              <ChannelHealthChart orgId={orgId} projectId={projectId} period={period} />
+              <ChannelHealthChart
+                orgId={orgId}
+                projectId={projectId}
+                period={period}
+                channel={channel}
+                onChannelChange={(next) => {
+                  onSearchChange({ channel: next });
+                }}
+              />
             </Suspense>
           </CardContent>
         </Card>
@@ -434,7 +455,15 @@ export const AnalyticsTab = ({ orgId, projectId }: { orgId: string; projectId: s
           </CardHeader>
           <CardContent>
             <Suspense fallback={chartSkeleton}>
-              <UpdateTrafficChart orgId={orgId} projectId={projectId} period={period} />
+              <UpdateTrafficChart
+                orgId={orgId}
+                projectId={projectId}
+                period={period}
+                update={update}
+                onUpdateChange={(next) => {
+                  onSearchChange({ update: next });
+                }}
+              />
             </Suspense>
           </CardContent>
         </Card>

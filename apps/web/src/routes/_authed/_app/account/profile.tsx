@@ -5,17 +5,26 @@ import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Suspense } from "react";
 
 import { SettingCard } from "../../../../components/setting-card";
 import { SettingCardSkeleton } from "../../../../components/skeletons";
-import { authClient } from "../../../../lib/auth-client";
+import { authClient, rejectOnAuthClientError } from "../../../../lib/auth-client";
 import { getFieldError, nameSchema } from "../../../../lib/form-utils";
+import { safeSubmit, useApiMutation } from "../../../../lib/use-api-mutation";
 import { sessionQueryOptions } from "../../../../queries/auth";
 
 const ProfileForm = () => {
   const queryClient = useQueryClient();
   const { data: session } = useSuspenseQuery(sessionQueryOptions);
+
+  const updateProfileMutation = useApiMutation({
+    mutationFn: async (input: { name: string }) =>
+      rejectOnAuthClientError(authClient.updateUser(input), "Failed to update profile"),
+    onSuccess: async () => {
+      toastManager.add({ title: "Profile updated", type: "success" });
+      await queryClient.resetQueries({ queryKey: ["auth", "session"] });
+    },
+  });
 
   const form = useForm({
     defaultValues: {
@@ -23,13 +32,7 @@ const ProfileForm = () => {
       name: session?.user.name ?? "",
     },
     onSubmit: async ({ value }) => {
-      const { error } = await authClient.updateUser({ name: value.name });
-      if (error) {
-        toastManager.add({ title: error.message ?? "Failed to update profile", type: "error" });
-        return;
-      }
-      toastManager.add({ title: "Profile updated", type: "success" });
-      await queryClient.resetQueries({ queryKey: ["auth", "session"] });
+      await safeSubmit(updateProfileMutation.mutateAsync(value));
     },
   });
 
@@ -66,7 +69,7 @@ const ProfileForm = () => {
           {(field) => {
             const errorMessage = getFieldError(field);
             return (
-              <Field data-invalid={errorMessage ? true : undefined}>
+              <Field invalid={Boolean(errorMessage)}>
                 <FieldLabel htmlFor="profile-name">Name</FieldLabel>
                 <Input
                   id="profile-name"
@@ -75,7 +78,6 @@ const ProfileForm = () => {
                     field.handleChange(event.target.value);
                   }}
                   onBlur={field.handleBlur}
-                  aria-invalid={errorMessage ? true : undefined}
                 />
                 <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
               </Field>
@@ -98,12 +100,14 @@ const ProfileForm = () => {
   );
 };
 
-const ProfilePage = () => (
-  <Suspense fallback={<SettingCardSkeleton fields={2} />}>
-    <ProfileForm />
-  </Suspense>
-);
+const ProfilePagePending = () => <SettingCardSkeleton fields={2} />;
 
 export const Route = createFileRoute("/_authed/_app/account/profile")({
-  component: ProfilePage,
+  beforeLoad: async ({ context }) => {
+    await context.queryClient.ensureQueryData(sessionQueryOptions);
+  },
+  pendingComponent: ProfilePagePending,
+  pendingMs: 0,
+  pendingMinMs: 0,
+  component: ProfileForm,
 });

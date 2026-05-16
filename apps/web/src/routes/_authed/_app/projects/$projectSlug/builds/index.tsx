@@ -10,28 +10,31 @@ import {
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
 import { keepPreviousData, useQuery, useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
+import { zodValidator } from "@tanstack/zod-adapter";
 import { PackageIcon, SearchXIcon } from "lucide-react";
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useMemo } from "react";
+import { z } from "zod";
 
-import type {
-  BuildDistribution,
-  BuildSort,
-  BuildSortColumn,
-} from "@better-update/api-client/react";
-import type { SortingState } from "@tanstack/react-table";
+import type { BuildDistribution, BuildSortColumn } from "@better-update/api-client/react";
 
 import { CompatibilityMatrix } from "../-compatibility-matrix";
 import { ProjectSubpageHeader } from "../-project-subpage-header";
 import { TableSkeleton } from "../../../../../../components/skeletons";
+import {
+  DataTableView,
+  PAGE_SIZE,
+  computePagination,
+  fireAndForget,
+  optionalEnumParam,
+  pageParam,
+  sortParam,
+  useDataTableSearch,
+} from "../../../../../../lib/data-table";
 import { pluralize } from "../../../../../../lib/pluralize";
 import { buildBuildsColumns } from "./-builds-columns";
-import { BuildsFilterBar, BuildsTableView } from "./-builds-view";
-
-const PAGE_SIZE = 50;
-
-const DEFAULT_SORTING: SortingState = [{ id: "createdAt", desc: true }];
+import { BuildsFilterBar } from "./-builds-view";
 
 const SORT_COLUMNS = [
   "createdAt",
@@ -41,25 +44,25 @@ const SORT_COLUMNS = [
   "appVersion",
 ] as const satisfies readonly BuildSortColumn[];
 
-const toApiSort = (sorting: SortingState): BuildSort | undefined => {
-  const [first] = sorting;
-  if (!first) {
-    return undefined;
-  }
-  const column = SORT_COLUMNS.find((col) => col === first.id);
-  if (!column) {
-    return undefined;
-  }
-  return first.desc ? `-${column}` : column;
-};
+const DEFAULT_SORT = "-createdAt" as const;
 
-const computePagination = (total: number, itemCount: number, page: number) => {
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const safePage = Math.min(page, totalPages);
-  const fromIndex = itemCount === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
-  const toIndex = (safePage - 1) * PAGE_SIZE + itemCount;
-  return { totalPages, safePage, fromIndex, toIndex };
-};
+const PLATFORMS = ["ios", "android"] as const;
+const DISTRIBUTIONS = [
+  "app-store",
+  "ad-hoc",
+  "development",
+  "enterprise",
+  "simulator",
+  "play-store",
+  "direct",
+] as const satisfies readonly BuildDistribution[];
+
+const buildsSearchSchema = z.object({
+  page: pageParam(),
+  sort: sortParam(DEFAULT_SORT),
+  platform: optionalEnumParam(PLATFORMS),
+  distribution: optionalEnumParam(DISTRIBUTIONS),
+});
 
 const BuildsEmptyState = () => (
   <Empty>
@@ -73,22 +76,6 @@ const BuildsEmptyState = () => (
   </Empty>
 );
 
-interface BuildsFiltersState {
-  readonly platformFilter: "ios" | "android" | undefined;
-  readonly distributionFilter: BuildDistribution | undefined;
-  readonly sorting: SortingState;
-  readonly page: number;
-}
-
-const isBuildDistribution = (value: string | undefined): value is BuildDistribution =>
-  value === "app-store" ||
-  value === "ad-hoc" ||
-  value === "development" ||
-  value === "enterprise" ||
-  value === "simulator" ||
-  value === "play-store" ||
-  value === "direct";
-
 const BuildsSkeleton = () => (
   <>
     <div className="flex items-center justify-between gap-2">
@@ -98,38 +85,49 @@ const BuildsSkeleton = () => (
   </>
 );
 
+const isBuildDistribution = (value: string | undefined): value is BuildDistribution =>
+  value !== undefined && (DISTRIBUTIONS as readonly string[]).includes(value);
+
 const BuildsContent = () => {
   const { activeOrg, project } = Route.useRouteContext();
   const orgId = activeOrg.id;
   const { id: projectId, slug: projectSlug } = project;
-  const navigate = useNavigate();
+  const routeNavigate = Route.useNavigate();
 
-  const [filters, setFilters] = useState<BuildsFiltersState>({
-    platformFilter: undefined,
-    distributionFilter: undefined,
-    sorting: DEFAULT_SORTING,
-    page: 1,
+  const { page, sort, platform, distribution } = Route.useSearch();
+  const { sorting, apiSort, onSortingChange, onPageChange } = useDataTableSearch({
+    sortColumns: SORT_COLUMNS,
+    defaultSort: DEFAULT_SORT,
+    sort,
+    navigate: routeNavigate,
   });
 
-  const handleSortingChange = (updater: SortingState | ((prev: SortingState) => SortingState)) => {
-    setFilters((prev) => {
-      const next = typeof updater === "function" ? updater(prev.sorting) : updater;
-      return {
-        ...prev,
-        sorting: next.length === 0 ? DEFAULT_SORTING : next.slice(0, 1),
-        page: 1,
-      };
-    });
+  const handlePlatformChange = (next: "ios" | "android" | undefined) => {
+    fireAndForget(
+      routeNavigate({
+        to: ".",
+        search: (prev) => ({ ...prev, platform: next, page: 1 }),
+      }),
+    );
   };
 
-  const apiSort = toApiSort(filters.sorting);
+  const handleDistributionChange = (value: string | undefined) => {
+    const next = isBuildDistribution(value) ? value : undefined;
+    fireAndForget(
+      routeNavigate({
+        to: ".",
+        search: (prev) => ({ ...prev, distribution: next, page: 1 }),
+      }),
+    );
+  };
+
   const { data, isPlaceholderData, isLoading } = useQuery({
     ...buildsQueryOptions(orgId, projectId, {
-      page: filters.page,
+      page,
       limit: PAGE_SIZE,
-      ...(filters.platformFilter ? { platform: filters.platformFilter } : {}),
-      ...(filters.distributionFilter ? { distribution: filters.distributionFilter } : {}),
-      ...(apiSort ? { sort: apiSort } : {}),
+      ...(platform ? { platform } : {}),
+      ...(distribution ? { distribution } : {}),
+      sort: apiSort,
     }),
     placeholderData: keepPreviousData,
   });
@@ -142,8 +140,8 @@ const BuildsContent = () => {
   const table = useReactTable({
     data: tableData,
     columns: [...columns],
-    state: { sorting: filters.sorting },
-    onSortingChange: handleSortingChange,
+    state: { sorting },
+    onSortingChange,
     manualSorting: true,
     enableMultiSort: false,
     enableSortingRemoval: false,
@@ -152,15 +150,10 @@ const BuildsContent = () => {
 
   const filterControls = (
     <BuildsFilterBar
-      platformFilter={filters.platformFilter}
-      distributionFilter={filters.distributionFilter}
-      onPlatformFilter={(platformFilter) => {
-        setFilters((prev) => ({ ...prev, platformFilter, page: 1 }));
-      }}
-      onDistributionFilter={(value) => {
-        const distributionFilter = isBuildDistribution(value) ? value : undefined;
-        setFilters((prev) => ({ ...prev, distributionFilter, page: 1 }));
-      }}
+      platformFilter={platform}
+      distributionFilter={distribution}
+      onPlatformFilter={handlePlatformChange}
+      onDistributionFilter={handleDistributionChange}
     />
   );
 
@@ -176,7 +169,7 @@ const BuildsContent = () => {
     );
   }
 
-  const filtersActive = Boolean(filters.platformFilter) || Boolean(filters.distributionFilter);
+  const filtersActive = Boolean(platform) || Boolean(distribution);
 
   if (data.total === 0 && !filtersActive) {
     return (
@@ -193,7 +186,7 @@ const BuildsContent = () => {
   const { totalPages, safePage, fromIndex, toIndex } = computePagination(
     data.total,
     data.items.length,
-    filters.page,
+    page,
   );
   const countLabel = `${fromIndex}–${toIndex} of ${data.total} ${pluralize(data.total, "build")}${
     filtersActive ? " (filtered)" : ""
@@ -221,18 +214,16 @@ const BuildsContent = () => {
           </EmptyHeader>
         </Empty>
       ) : (
-        <BuildsTableView
+        <DataTableView
           table={table}
           columnsCount={columns.length}
           isPlaceholderData={isPlaceholderData}
           countLabel={countLabel}
           safePage={safePage}
           totalPages={totalPages}
-          onPageChange={(page) => {
-            setFilters((prev) => ({ ...prev, page }));
-          }}
+          onPageChange={onPageChange}
           onRowClick={async (build) => {
-            await navigate({
+            await routeNavigate({
               to: "/projects/$projectSlug/builds/$buildId",
               params: { projectSlug, buildId: build.id },
             });
@@ -250,5 +241,6 @@ const BuildsPage = () => (
 );
 
 export const Route = createFileRoute("/_authed/_app/projects/$projectSlug/builds/")({
+  validateSearch: zodValidator(buildsSearchSchema),
   component: BuildsPage,
 });

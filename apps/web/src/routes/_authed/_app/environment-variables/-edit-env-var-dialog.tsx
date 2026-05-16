@@ -28,6 +28,7 @@ import { Textarea } from "@better-update/ui/components/ui/textarea";
 import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 
 import type { EnvVar, EnvVarEnvironment } from "@better-update/api";
 
@@ -196,7 +197,7 @@ const EditFormContent = ({
             {(field) => {
               const errorMessage = getFieldError(field);
               return (
-                <Field data-invalid={errorMessage ? true : undefined}>
+                <Field invalid={Boolean(errorMessage)}>
                   <FieldLabel>Environments</FieldLabel>
                   <EnvironmentsPicker
                     value={field.state.value}
@@ -213,7 +214,7 @@ const EditFormContent = ({
       </DialogPanel>
 
       <DialogFooter>
-        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+        <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
           {([canSubmit, isSubmitting]) => (
             <Button type="submit" disabled={!canSubmit} loading={Boolean(isSubmitting)}>
@@ -236,26 +237,37 @@ export const EditEnvVarDialog = ({
   envVar: typeof EnvVar.Type;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}) => (
-  <Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogPopup>
-      <DialogHeader>
-        <DialogTitle>Edit variable</DialogTitle>
-        <DialogDescription>
-          {envVar.scope === "global"
-            ? `Update the organization-wide variable ${envVar.key}.`
-            : `Update the value, visibility, or environments of ${envVar.key}.`}
-        </DialogDescription>
-      </DialogHeader>
-      {open && (
+}) => {
+  const [resetKey, setResetKey] = useState(0);
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      onOpenChangeComplete={(next) => {
+        if (!next) {
+          setResetKey((prev) => prev + 1);
+        }
+      }}
+    >
+      <DialogPopup>
+        <DialogHeader>
+          <DialogTitle>Edit variable</DialogTitle>
+          <DialogDescription>
+            {envVar.scope === "global"
+              ? `Update the organization-wide variable ${envVar.key}.`
+              : `Update the value, visibility, or environments of ${envVar.key}.`}
+          </DialogDescription>
+        </DialogHeader>
         <EditFormContent
+          key={resetKey}
           orgId={orgId}
           envVar={envVar}
           onSuccess={() => {
             onOpenChange(false);
           }}
         />
-      )}
-    </DialogPopup>
-  </Dialog>
-);
+      </DialogPopup>
+    </Dialog>
+  );
+};

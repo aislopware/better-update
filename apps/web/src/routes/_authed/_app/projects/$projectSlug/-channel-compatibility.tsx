@@ -2,6 +2,8 @@ import { Badge } from "@better-update/ui/components/ui/badge";
 
 import type { MissingRuntimeVersionBuild } from "@better-update/api";
 
+import { formatDateTime } from "../../../../../lib/format-date";
+
 import type { CompatibleBuildEntry } from "./-channel-compatibility-helpers";
 import type { SyntheticBuildChannel } from "./-compatibility-join";
 
@@ -53,7 +55,7 @@ export const CompatibleBuildsSection = ({
           <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-xs">
             {build.appVersion && <span>App {build.appVersion}</span>}
             {build.buildNumber && <span>#{build.buildNumber}</span>}
-            <span>{new Date(build.createdAt).toLocaleString()}</span>
+            <span>{formatDateTime(build.createdAt)}</span>
             {status.latestUpdateMessage && <span>latest {status.latestUpdateMessage}</span>}
           </div>
         </div>

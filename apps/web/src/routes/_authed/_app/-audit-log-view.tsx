@@ -39,11 +39,13 @@ import {
 } from "@better-update/ui/components/ui/table";
 import { useSuspenseInfiniteQuery } from "@tanstack/react-query";
 import { BracesIcon, ScrollTextIcon } from "lucide-react";
-import { useState } from "react";
+import { z } from "zod";
 
 import type { DateRange } from "react-day-picker";
 
 import { FilterBarSkeleton, TableSkeleton } from "../../../components/skeletons";
+import { enumParam, optionalStringParam } from "../../../lib/data-table";
+import { formatTimeShort, formatWeekdayShort } from "../../../lib/format-date";
 import { formatRelativeTime } from "../../../lib/format-relative-time";
 
 export const AuditLogSkeleton = () => (
@@ -53,18 +55,47 @@ export const AuditLogSkeleton = () => (
   </div>
 );
 
-const RESOURCE_TYPES = [
-  { value: "all", label: "All resources" },
-  { value: "project", label: "Project" },
-  { value: "branch", label: "Branch" },
-  { value: "channel", label: "Channel" },
-  { value: "update", label: "Update" },
-  { value: "build", label: "Build" },
-  { value: "credential", label: "Credential" },
-  { value: "envVar", label: "Env Var" },
+const RESOURCE_TYPE_VALUES = [
+  "all",
+  "project",
+  "branch",
+  "channel",
+  "update",
+  "build",
+  "credential",
+  "envVar",
 ] as const;
 
-const RESOURCE_TYPE_LABELS = Object.fromEntries(RESOURCE_TYPES.map((rt) => [rt.value, rt.label]));
+type ResourceTypeValue = (typeof RESOURCE_TYPE_VALUES)[number];
+
+const RESOURCE_TYPE_LABELS: Record<ResourceTypeValue, string> = {
+  all: "All resources",
+  project: "Project",
+  branch: "Branch",
+  channel: "Channel",
+  update: "Update",
+  build: "Build",
+  credential: "Credential",
+  envVar: "Env Var",
+};
+
+export const auditLogSearchSchema = z.object({
+  resourceType: enumParam(RESOURCE_TYPE_VALUES, "all"),
+  from: optionalStringParam(),
+  to: optionalStringParam(),
+});
+
+export type AuditLogSearch = z.infer<typeof auditLogSearchSchema>;
+
+const isResourceType = (value: unknown): value is ResourceTypeValue =>
+  (RESOURCE_TYPE_VALUES as readonly unknown[]).includes(value);
+
+const parseDateRange = (search: AuditLogSearch): DateRange | undefined => {
+  if (!search.from || !search.to) {
+    return undefined;
+  }
+  return { from: new Date(search.from), to: new Date(search.to) };
+};
 
 const parseMetadata = (metadata: string | null): unknown => {
   if (!metadata) {
@@ -89,17 +120,9 @@ export interface AuditLogViewProps {
   readonly orgId: string;
   readonly projectId?: string;
   readonly scopeLabel: string;
+  readonly search: AuditLogSearch;
+  readonly onChangeSearch: (next: AuditLogSearch) => void;
 }
-
-const formatShortDate = (value: string) =>
-  new Date(value).toLocaleDateString(undefined, {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
-
-const formatTime = (value: string) =>
-  new Date(value).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 
 const AuditLogRow = ({
   entry,
@@ -122,10 +145,10 @@ const AuditLogRow = ({
       <TableCell className="align-top whitespace-nowrap">
         <div className="flex flex-col">
           <span className="text-foreground text-sm leading-5 font-medium">
-            {formatShortDate(entry.createdAt)}
+            {formatWeekdayShort(entry.createdAt)}
           </span>
           <span className="text-muted-foreground/72 text-xs">
-            {formatTime(entry.createdAt)} · {formatRelativeTime(entry.createdAt)}
+            {formatTimeShort(entry.createdAt)} · {formatRelativeTime(entry.createdAt)}
           </span>
         </div>
       </TableCell>
@@ -195,16 +218,20 @@ const MetadataDialog = ({
   </Dialog>
 );
 
-export const AuditLogView = ({ orgId, projectId, scopeLabel }: AuditLogViewProps) => {
-  const [resourceType, setResourceType] = useState("all");
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+export const AuditLogView = ({
+  orgId,
+  projectId,
+  scopeLabel,
+  search,
+  onChangeSearch,
+}: AuditLogViewProps) => {
+  const { resourceType, from, to } = search;
+  const dateRange = parseDateRange(search);
 
   const filters = {
     ...(projectId ? { projectId } : {}),
     ...(resourceType === "all" ? {} : { resourceType }),
-    ...(dateRange?.from && dateRange.to
-      ? { from: dateRange.from.toISOString(), to: dateRange.to.toISOString() }
-      : {}),
+    ...(from && to ? { from, to } : {}),
   };
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useSuspenseInfiniteQuery(
@@ -213,6 +240,18 @@ export const AuditLogView = ({ orgId, projectId, scopeLabel }: AuditLogViewProps
 
   const items = data.pages.flatMap((page) => page.items);
 
+  const handleResourceTypeChange = (value: ResourceTypeValue): void => {
+    onChangeSearch({ ...search, resourceType: value });
+  };
+
+  const handleDateRangeChange = (range: DateRange | undefined): void => {
+    onChangeSearch({
+      ...search,
+      ...(range?.from ? { from: range.from.toISOString() } : { from: undefined }),
+      ...(range?.to ? { to: range.to.toISOString() } : { to: undefined }),
+    });
+  };
+
   return (
     <div className="flex w-full flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -220,8 +259,8 @@ export const AuditLogView = ({ orgId, projectId, scopeLabel }: AuditLogViewProps
           items={RESOURCE_TYPE_LABELS}
           value={resourceType}
           onValueChange={(value) => {
-            if (value) {
-              setResourceType(value);
+            if (isResourceType(value)) {
+              handleResourceTypeChange(value);
             }
           }}
         >
@@ -230,15 +269,19 @@ export const AuditLogView = ({ orgId, projectId, scopeLabel }: AuditLogViewProps
           </SelectTrigger>
           <SelectPopup>
             <SelectGroup>
-              {RESOURCE_TYPES.map((rt) => (
-                <SelectItem key={rt.value} value={rt.value}>
-                  {rt.label}
+              {RESOURCE_TYPE_VALUES.map((value) => (
+                <SelectItem key={value} value={value}>
+                  {RESOURCE_TYPE_LABELS[value]}
                 </SelectItem>
               ))}
             </SelectGroup>
           </SelectPopup>
         </Select>
-        <DateRangePicker value={dateRange} onChange={setDateRange} triggerClassName="max-w-sm" />
+        <DateRangePicker
+          value={dateRange}
+          onChange={handleDateRangeChange}
+          triggerClassName="max-w-sm"
+        />
       </div>
 
       {items.length === 0 ? (
@@ -266,12 +309,12 @@ export const AuditLogView = ({ orgId, projectId, scopeLabel }: AuditLogViewProps
                   <TableCell colSpan={5} className="text-center">
                     <Button
                       variant="outline"
-                      disabled={isFetchingNextPage}
+                      loading={isFetchingNextPage}
                       onClick={async () => {
                         await fetchNextPage();
                       }}
                     >
-                      {isFetchingNextPage ? "Loading…" : "Load more"}
+                      Load more
                     </Button>
                   </TableCell>
                 </TableRow>

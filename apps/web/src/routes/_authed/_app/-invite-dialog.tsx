@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogPanel,
   DialogTitle,
+  DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
@@ -19,13 +20,33 @@ import { UserPlusIcon } from "lucide-react";
 import { useState } from "react";
 import { z } from "zod/v4";
 
-import { authClient } from "../../../lib/auth-client";
+import { authClient, rejectOnAuthClientError } from "../../../lib/auth-client";
 import { getFieldError } from "../../../lib/form-utils";
+import { safeSubmit, useApiMutation } from "../../../lib/use-api-mutation";
 
 const emailSchema = z.string().check(z.email("Please enter a valid email"));
 
 const InviteFormContent = ({ orgId, onSuccess }: { orgId: string; onSuccess: () => void }) => {
   const queryClient = useQueryClient();
+
+  const inviteMutation = useApiMutation({
+    mutationFn: async (input: { email: string; role: "member" | "admin" }) =>
+      rejectOnAuthClientError(
+        authClient.organization.inviteMember({
+          email: input.email,
+          role: input.role,
+          organizationId: orgId,
+        }),
+        "Failed to send invitation",
+      ),
+    onSuccess: async () => {
+      toastManager.add({ title: "Invitation sent", type: "success" });
+      await queryClient.invalidateQueries({
+        queryKey: ["org", orgId, "invitations"],
+      });
+      onSuccess();
+    },
+  });
 
   const form = useForm({
     defaultValues: { email: "", role: "member" },
@@ -34,23 +55,7 @@ const InviteFormContent = ({ orgId, onSuccess }: { orgId: string; onSuccess: () 
       if (role !== "member" && role !== "admin") {
         return;
       }
-
-      const { error } = await authClient.organization.inviteMember({
-        email: value.email,
-        role,
-        organizationId: orgId,
-      });
-
-      if (error) {
-        toastManager.add({ title: error.message ?? "Failed to send invitation", type: "error" });
-        return;
-      }
-
-      toastManager.add({ title: "Invitation sent", type: "success" });
-      await queryClient.invalidateQueries({
-        queryKey: ["org", orgId, "invitations"],
-      });
-      onSuccess();
+      await safeSubmit(inviteMutation.mutateAsync({ email: value.email, role }));
     },
   });
 
@@ -77,7 +82,7 @@ const InviteFormContent = ({ orgId, onSuccess }: { orgId: string; onSuccess: () 
             {(field) => {
               const errorMessage = getFieldError(field);
               return (
-                <Field data-invalid={errorMessage ? true : undefined}>
+                <Field invalid={Boolean(errorMessage)}>
                   <FieldLabel htmlFor="invite-email">Email address</FieldLabel>
                   <Input
                     id="invite-email"
@@ -88,7 +93,6 @@ const InviteFormContent = ({ orgId, onSuccess }: { orgId: string; onSuccess: () 
                       field.handleChange(event.target.value);
                     }}
                     onBlur={field.handleBlur}
-                    aria-invalid={errorMessage ? true : undefined}
                   />
                   <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
                 </Field>
@@ -124,7 +128,7 @@ const InviteFormContent = ({ orgId, onSuccess }: { orgId: string; onSuccess: () 
       </DialogPanel>
 
       <DialogFooter>
-        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+        <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
           {([canSubmit, isSubmitting]) => (
             <Button type="submit" disabled={!canSubmit} loading={Boolean(isSubmitting)}>
@@ -140,23 +144,29 @@ const InviteFormContent = ({ orgId, onSuccess }: { orgId: string; onSuccess: () 
 
 export const InviteDialog = ({ orgId }: { orgId: string }) => {
   const [open, setOpen] = useState(false);
+  const [resetKey, setResetKey] = useState(0);
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <Button
-        onClick={() => {
-          setOpen(true);
-        }}
-      >
+    <Dialog
+      open={open}
+      onOpenChange={setOpen}
+      onOpenChangeComplete={(next) => {
+        if (!next) {
+          setResetKey((prev) => prev + 1);
+        }
+      }}
+    >
+      <DialogTrigger render={<Button />}>
         <UserPlusIcon strokeWidth={2} data-icon="inline-start" />
         Invite member
-      </Button>
+      </DialogTrigger>
       <DialogPopup>
         <DialogHeader>
           <DialogTitle>Invite a member</DialogTitle>
           <DialogDescription>Send an invitation to join your organization.</DialogDescription>
         </DialogHeader>
         <InviteFormContent
+          key={resetKey}
           orgId={orgId}
           onSuccess={() => {
             setOpen(false);
@@ -188,9 +198,9 @@ export const RemoveDialog = ({
         </DialogDescription>
       </DialogHeader>
       <DialogFooter>
-        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
-        <Button variant="destructive" disabled={isRemoving} onClick={onConfirm}>
-          {isRemoving ? "Removing..." : "Remove"}
+        <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
+        <Button variant="destructive" loading={isRemoving} onClick={onConfirm}>
+          Remove
         </Button>
       </DialogFooter>
     </DialogPopup>

@@ -60,7 +60,7 @@ describe(RemoveDialog, () => {
     expect(onConfirm).toHaveBeenCalledTimes(1);
   });
 
-  it("button shows Removing... and is disabled when isRemoving=true", () => {
+  it("remove button is disabled when isRemoving=true", () => {
     const props = makeProps({ isRemoving: true });
     render(
       <RemoveDialog
@@ -71,7 +71,7 @@ describe(RemoveDialog, () => {
       />,
     );
 
-    const button = screen.getByRole("button", { name: "Removing..." });
+    const button = screen.getByRole("button", { name: /Remove/ });
     expect(button).toBeDisabled();
   });
 

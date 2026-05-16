@@ -30,6 +30,7 @@ import type { BranchItem } from "@better-update/api-client/react";
 
 import { getFieldError, requiredStringSchema } from "../../../../../lib/form-utils";
 import { safeSubmit, useApiMutation } from "../../../../../lib/use-api-mutation";
+import { DROPDOWN_FETCH_LIMIT } from "../../../../../queries/constants";
 import { invalidateChannels } from "./-update-helpers";
 
 interface CreateChannelFormValues {
@@ -46,6 +47,18 @@ const useCreateChannelForm = (onSubmit: (value: CreateChannelFormValues) => Prom
   });
 
 type CreateChannelFormApi = ReturnType<typeof useCreateChannelForm>;
+
+const BranchOptions = ({ branches }: { branches: readonly BranchItem[] }) => (
+  <SelectPopup>
+    <SelectGroup>
+      {branches.map((branch) => (
+        <SelectItem key={branch.id} value={branch.id}>
+          {branch.name}
+        </SelectItem>
+      ))}
+    </SelectGroup>
+  </SelectPopup>
+);
 
 const BranchField = ({
   form,
@@ -70,7 +83,7 @@ const BranchField = ({
       {(field) => {
         const errorMessage = getFieldError(field);
         return (
-          <Field data-invalid={errorMessage ? true : undefined}>
+          <Field invalid={Boolean(errorMessage)}>
             <FieldLabel>Branch</FieldLabel>
             <Select
               items={branchLabels}
@@ -95,25 +108,18 @@ const BranchField = ({
   );
 };
 
-const BranchOptions = ({ branches }: { branches: readonly BranchItem[] }) => (
-  <SelectPopup>
-    <SelectGroup>
-      {branches.map((branch) => (
-        <SelectItem key={branch.id} value={branch.id}>
-          {branch.name}
-        </SelectItem>
-      ))}
-    </SelectGroup>
-  </SelectPopup>
-);
-
-export const CreateChannelDialog = ({ orgId, projectId }: { orgId: string; projectId: string }) => {
-  const [open, setOpen] = useState(false);
+const CreateChannelForm = ({
+  orgId,
+  projectId,
+  branches,
+  onSuccess,
+}: {
+  orgId: string;
+  projectId: string;
+  branches: readonly BranchItem[];
+  onSuccess: () => void;
+}) => {
   const queryClient = useQueryClient();
-  const { data: branchesData } = useSuspenseQuery(
-    branchesQueryOptions(orgId, projectId, { limit: 100 }),
-  );
-  const branches = branchesData.items;
 
   const createChannelMutation = useApiMutation({
     mutationFn: async (input: { name: string; branchId: string }) =>
@@ -121,8 +127,7 @@ export const CreateChannelDialog = ({ orgId, projectId }: { orgId: string; proje
     onSuccess: async () => {
       toastManager.add({ title: "Channel created", type: "success" });
       await invalidateChannels(queryClient, orgId, projectId);
-      form.reset();
-      setOpen(false);
+      onSuccess();
     },
   });
 
@@ -136,12 +141,79 @@ export const CreateChannelDialog = ({ orgId, projectId }: { orgId: string; proje
   });
 
   return (
+    <form
+      className="contents"
+      onSubmit={async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        await form.handleSubmit();
+      }}
+    >
+      <DialogPanel>
+        <FieldGroup>
+          <form.Field
+            name="name"
+            validators={{
+              onBlur: ({ value }) => {
+                const result = requiredStringSchema.safeParse(value.trim());
+                return result.success ? undefined : "Name is required";
+              },
+            }}
+          >
+            {(field) => {
+              const errorMessage = getFieldError(field);
+              return (
+                <Field invalid={Boolean(errorMessage)}>
+                  <FieldLabel htmlFor="channel-name">Name</FieldLabel>
+                  <Input
+                    id="channel-name"
+                    value={field.state.value}
+                    onBlur={field.handleBlur}
+                    onChange={(event) => {
+                      field.handleChange(event.target.value);
+                    }}
+                    placeholder="e.g. production, staging"
+                  />
+                  <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
+                </Field>
+              );
+            }}
+          </form.Field>
+
+          <BranchField form={form} branches={branches} />
+        </FieldGroup>
+      </DialogPanel>
+
+      <DialogFooter>
+        <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
+        <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting] as const}>
+          {([canSubmit, isSubmitting]) => (
+            <Button type="submit" disabled={!canSubmit} loading={isSubmitting}>
+              <PlusIcon strokeWidth={2} data-icon="inline-start" />
+              Create channel
+            </Button>
+          )}
+        </form.Subscribe>
+      </DialogFooter>
+    </form>
+  );
+};
+
+export const CreateChannelDialog = ({ orgId, projectId }: { orgId: string; projectId: string }) => {
+  const [open, setOpen] = useState(false);
+  const [resetKey, setResetKey] = useState(0);
+  const { data: branchesData } = useSuspenseQuery(
+    branchesQueryOptions(orgId, projectId, { limit: DROPDOWN_FETCH_LIMIT }),
+  );
+  const branches = branchesData.items;
+
+  return (
     <Dialog
       open={open}
-      onOpenChange={(next) => {
-        setOpen(next);
+      onOpenChange={setOpen}
+      onOpenChangeComplete={(next) => {
         if (!next) {
-          form.reset();
+          setResetKey((prev) => prev + 1);
         }
       }}
     >
@@ -160,62 +232,15 @@ export const CreateChannelDialog = ({ orgId, projectId }: { orgId: string; proje
             Create a new channel linked to a branch for distributing updates.
           </DialogDescription>
         </DialogHeader>
-        <form
-          className="contents"
-          onSubmit={async (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            await form.handleSubmit();
+        <CreateChannelForm
+          key={resetKey}
+          orgId={orgId}
+          projectId={projectId}
+          branches={branches}
+          onSuccess={() => {
+            setOpen(false);
           }}
-        >
-          <DialogPanel>
-            <FieldGroup>
-              <form.Field
-                name="name"
-                validators={{
-                  onBlur: ({ value }) => {
-                    const result = requiredStringSchema.safeParse(value.trim());
-                    return result.success ? undefined : "Name is required";
-                  },
-                }}
-              >
-                {(field) => {
-                  const errorMessage = getFieldError(field);
-                  return (
-                    <Field data-invalid={errorMessage ? true : undefined}>
-                      <FieldLabel htmlFor="channel-name">Name</FieldLabel>
-                      <Input
-                        id="channel-name"
-                        value={field.state.value}
-                        onBlur={field.handleBlur}
-                        onChange={(event) => {
-                          field.handleChange(event.target.value);
-                        }}
-                        aria-invalid={errorMessage ? true : undefined}
-                        placeholder="e.g. production, staging"
-                      />
-                      <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
-                    </Field>
-                  );
-                }}
-              </form.Field>
-
-              <BranchField form={form} branches={branches} />
-            </FieldGroup>
-          </DialogPanel>
-
-          <DialogFooter>
-            <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
-            <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting] as const}>
-              {([canSubmit, isSubmitting]) => (
-                <Button type="submit" disabled={!canSubmit} loading={isSubmitting}>
-                  <PlusIcon strokeWidth={2} data-icon="inline-start" />
-                  Create channel
-                </Button>
-              )}
-            </form.Subscribe>
-          </DialogFooter>
-        </form>
+        />
       </DialogPopup>
     </Dialog>
   );

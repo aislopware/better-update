@@ -50,7 +50,7 @@ export const BranchNameForm = ({
           {(field) => {
             const errorMessage = getFieldError(field);
             return (
-              <Field data-invalid={errorMessage ? true : undefined}>
+              <Field invalid={Boolean(errorMessage)}>
                 <FieldLabel htmlFor="branch-name">Branch name</FieldLabel>
                 <Input
                   id="branch-name"
@@ -60,7 +60,6 @@ export const BranchNameForm = ({
                     field.handleChange(event.target.value);
                   }}
                   onBlur={field.handleBlur}
-                  aria-invalid={errorMessage ? true : undefined}
                 />
                 <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
               </Field>
@@ -70,7 +69,7 @@ export const BranchNameForm = ({
       </DialogPanel>
 
       <DialogFooter>
-        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+        <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
           {([canSubmit, isSubmitting]) => (
             <Button type="submit" disabled={!canSubmit} loading={Boolean(isSubmitting)}>

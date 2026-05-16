@@ -1,6 +1,5 @@
 import { projectsQueryOptions } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
-import { Button } from "@better-update/ui/components/ui/button";
 import {
   Empty,
   EmptyDescription,
@@ -8,52 +7,45 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
-import { Frame } from "@better-update/ui/components/ui/frame";
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
 } from "@better-update/ui/components/ui/input-group";
 import { Spinner } from "@better-update/ui/components/ui/spinner";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableFooter,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@better-update/ui/components/ui/table";
 import { cn } from "@better-update/ui/lib/utils";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
-import { flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
-import {
-  ArrowDownIcon,
-  ArrowUpIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  FolderIcon,
-  SearchIcon,
-  SearchXIcon,
-} from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { Link, createFileRoute } from "@tanstack/react-router";
+import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
+import { zodValidator } from "@tanstack/zod-adapter";
+import { FolderIcon, SearchIcon, SearchXIcon } from "lucide-react";
+import { useMemo } from "react";
+import { z } from "zod";
 
-import type { ProjectItem, ProjectSort, ProjectSortColumn } from "@better-update/api-client/react";
-import type { ColumnDef, SortingState } from "@tanstack/react-table";
-import type React from "react";
+import type { ProjectItem, ProjectSortColumn } from "@better-update/api-client/react";
+import type { ColumnDef } from "@tanstack/react-table";
+import type { ChangeEvent } from "react";
 
 import { PageHeader } from "../../../../components/page-header";
 import { TableSkeleton } from "../../../../components/skeletons";
+import {
+  DataTableView,
+  PAGE_SIZE,
+  computePagination,
+  fireAndForget,
+  pageParam,
+  queryParam,
+  sortParam,
+  useDataTableSearch,
+  useDebouncedSearch,
+} from "../../../../lib/data-table";
 import { EntityAvatar } from "../../../../lib/entity-avatar";
+import { formatShortDate } from "../../../../lib/format-date";
 import { formatRelativeTime } from "../../../../lib/format-relative-time";
 import { pluralize } from "../../../../lib/pluralize";
 import { CreateProjectDialog } from "./-create-dialog";
 
-const PAGE_SIZE = 50;
 const SEARCH_DEBOUNCE_MS = 300;
-
-const DEFAULT_SORTING: SortingState = [{ id: "lastActivityAt", desc: true }];
 
 const SORT_COLUMNS = [
   "name",
@@ -64,24 +56,13 @@ const SORT_COLUMNS = [
   "updateCount",
 ] as const satisfies readonly ProjectSortColumn[];
 
-const toSortColumn = (id: string): ProjectSortColumn | undefined =>
-  SORT_COLUMNS.find((column) => column === id);
+const DEFAULT_SORT = "-lastActivityAt" as const;
 
-const toApiSort = (sorting: SortingState): ProjectSort | undefined => {
-  const [first] = sorting;
-  if (!first) {
-    return undefined;
-  }
-  const column = toSortColumn(first.id);
-  if (!column) {
-    return undefined;
-  }
-  return first.desc ? `-${column}` : column;
-};
-
-const ARIA_SORT_MAP = { asc: "ascending", desc: "descending" } as const;
-const toAriaSort = (direction: false | "asc" | "desc"): "ascending" | "descending" | "none" =>
-  direction === false ? "none" : ARIA_SORT_MAP[direction];
+const projectsSearchSchema = z.object({
+  page: pageParam(),
+  sort: sortParam(DEFAULT_SORT),
+  query: queryParam(),
+});
 
 const EmptyState = () => (
   <Empty>
@@ -94,13 +75,6 @@ const EmptyState = () => (
     </EmptyHeader>
   </Empty>
 );
-
-const formatShortDate = (value: string) =>
-  new Date(value).toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
 
 const getActivityDotColor = (lastActivityAt: string): string => {
   const days = (Date.now() - new Date(lastActivityAt).getTime()) / 86_400_000;
@@ -189,124 +163,38 @@ const columns: readonly ColumnDef<ProjectItem>[] = [
   },
 ];
 
-interface ColumnMeta {
-  readonly align?: "right";
-  readonly muted?: boolean;
-}
-
-const cellAlignClass = (meta: ColumnMeta | undefined): string => {
-  const classes: string[] = [];
-  if (meta?.align === "right") {
-    classes.push("text-right tabular-nums");
-  }
-  if (meta?.muted) {
-    classes.push("text-muted-foreground");
-  }
-  return classes.join(" ");
-};
-
-interface PaginationControlsProps {
-  readonly countLabel: string;
-  readonly safePage: number;
-  readonly totalPages: number;
-  readonly isPlaceholderData: boolean;
-  readonly onChange: (next: number) => void;
-}
-
-const PaginationControls = ({
-  countLabel,
-  safePage,
-  totalPages,
-  isPlaceholderData,
-  onChange,
-}: PaginationControlsProps) => (
-  <div className="flex items-center justify-between gap-2">
-    <span className="text-muted-foreground text-xs tabular-nums">{countLabel}</span>
-    <div className="flex items-center gap-1">
-      <Button
-        variant="outline"
-        size="icon-xs"
-        disabled={safePage === 1 || isPlaceholderData}
-        onClick={() => {
-          onChange(safePage - 1);
-        }}
-        aria-label="Previous page"
-      >
-        <ChevronLeftIcon strokeWidth={2} />
-      </Button>
-      <Button
-        variant="outline"
-        size="icon-xs"
-        disabled={safePage >= totalPages || isPlaceholderData}
-        onClick={() => {
-          onChange(safePage + 1);
-        }}
-        aria-label="Next page"
-      >
-        <ChevronRightIcon strokeWidth={2} />
-      </Button>
-    </div>
-  </div>
-);
-
-const SortIcon = ({ direction }: { direction: false | "asc" | "desc" }) => {
-  if (direction === "asc") {
-    return <ArrowUpIcon strokeWidth={2} className="size-3.5" />;
-  }
-  if (direction === "desc") {
-    return <ArrowDownIcon strokeWidth={2} className="size-3.5" />;
-  }
-  return null;
-};
-
-const computePagination = (total: number, itemCount: number, page: number) => {
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const safePage = Math.min(page, totalPages);
-  const fromIndex = itemCount === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
-  const toIndex = (safePage - 1) * PAGE_SIZE + itemCount;
-  return { totalPages, safePage, fromIndex, toIndex };
-};
-
 const Projects = () => {
   const { activeOrg } = Route.useRouteContext();
-  const navigate = useNavigate();
+  const routeNavigate = Route.useNavigate();
+  const { page, sort, query: urlQuery } = Route.useSearch();
 
-  const [search, setSearch] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
-  const [sorting, setSorting] = useState<SortingState>(DEFAULT_SORTING);
-  const [page, setPage] = useState(1);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { sorting, apiSort, onSortingChange, onPageChange } = useDataTableSearch({
+    sortColumns: SORT_COLUMNS,
+    defaultSort: DEFAULT_SORT,
+    sort,
+    navigate: routeNavigate,
+  });
 
-  const handleSearchChange = (value: string) => {
-    setSearch(value);
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
-    debounceRef.current = setTimeout(() => {
-      setDebouncedQuery(value.trim());
-      setPage(1);
-    }, SEARCH_DEBOUNCE_MS);
-  };
+  const { draft: searchDraft, setDraft: handleSearchChange } = useDebouncedSearch({
+    initial: urlQuery,
+    delayMs: SEARCH_DEBOUNCE_MS,
+    onCommit: (value) => {
+      fireAndForget(
+        routeNavigate({
+          to: ".",
+          search: (prev) => ({ ...prev, query: value, page: 1 }),
+          replace: true,
+        }),
+      );
+    },
+  });
 
-  const handleSortingChange = (updater: SortingState | ((prev: SortingState) => SortingState)) => {
-    setSorting((prev) => {
-      const next = typeof updater === "function" ? updater(prev) : updater;
-      return next.length === 0 ? DEFAULT_SORTING : next.slice(0, 1);
-    });
-    setPage(1);
-  };
-
-  const handlePageChange = (next: number) => {
-    setPage(next);
-  };
-
-  const apiSort = toApiSort(sorting);
   const { data, isPlaceholderData, isLoading } = useQuery({
     ...projectsQueryOptions(activeOrg.id, {
       page,
       limit: PAGE_SIZE,
-      ...(debouncedQuery ? { query: debouncedQuery } : {}),
-      ...(apiSort ? { sort: apiSort } : {}),
+      ...(urlQuery ? { query: urlQuery } : {}),
+      sort: apiSort,
     }),
     placeholderData: keepPreviousData,
   });
@@ -317,14 +205,14 @@ const Projects = () => {
     data: tableData,
     columns: [...columns],
     state: { sorting },
-    onSortingChange: handleSortingChange,
+    onSortingChange,
     manualSorting: true,
     enableMultiSort: false,
     enableSortingRemoval: false,
     getCoreRowModel: getCoreRowModel(),
   });
 
-  const createCta = useMemo(() => <CreateProjectDialog orgId={activeOrg.id} />, [activeOrg.id]);
+  const createCta = <CreateProjectDialog orgId={activeOrg.id} />;
 
   if (isLoading || data === undefined) {
     return (
@@ -345,8 +233,8 @@ const Projects = () => {
     page,
   );
 
-  const showsFilteredEmpty = data.total === 0 && debouncedQuery.length > 0;
-  const showsGlobalEmpty = data.total === 0 && debouncedQuery.length === 0 && search.length === 0;
+  const showsFilteredEmpty = data.total === 0 && urlQuery.length > 0;
+  const showsGlobalEmpty = data.total === 0 && urlQuery.length === 0 && searchDraft.length === 0;
 
   if (showsGlobalEmpty) {
     return (
@@ -362,7 +250,7 @@ const Projects = () => {
   }
 
   const countLabel = `${fromIndex}–${toIndex} of ${data.total} ${pluralize(data.total, "project")}${
-    debouncedQuery ? " (filtered)" : ""
+    urlQuery ? " (filtered)" : ""
   }`;
 
   return (
@@ -381,8 +269,8 @@ const Projects = () => {
             aria-label="Search projects"
             placeholder="Search projects…"
             type="search"
-            value={search}
-            onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+            value={searchDraft}
+            onChange={(event: ChangeEvent<HTMLInputElement>) => {
               handleSearchChange(event.target.value);
             }}
           />
@@ -403,84 +291,21 @@ const Projects = () => {
             </EmptyHeader>
           </Empty>
         ) : (
-          <Frame
-            className={
-              isPlaceholderData ? "opacity-60 transition-opacity" : "opacity-100 transition-opacity"
-            }
-          >
-            <Table variant="card">
-              <TableHeader>
-                {table.getHeaderGroups().map((group) => (
-                  <TableRow key={group.id}>
-                    {group.headers.map((header) => {
-                      const meta = header.column.columnDef.meta as ColumnMeta | undefined;
-                      const sortDir = header.column.getIsSorted();
-                      const canSort = header.column.getCanSort();
-                      return (
-                        <TableHead
-                          key={header.id}
-                          className={cn(
-                            meta?.align === "right" ? "text-right" : "",
-                            canSort
-                              ? "hover:text-foreground cursor-pointer transition-colors select-none"
-                              : "",
-                          )}
-                          aria-sort={toAriaSort(sortDir)}
-                          onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
-                        >
-                          <span
-                            className={cn(
-                              "inline-flex items-center gap-1.5",
-                              meta?.align === "right" ? "justify-end" : "",
-                            )}
-                          >
-                            {flexRender(header.column.columnDef.header, header.getContext())}
-                            {canSort ? <SortIcon direction={sortDir} /> : null}
-                          </span>
-                        </TableHead>
-                      );
-                    })}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {table.getRowModel().rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    className="cursor-pointer"
-                    onClick={async () => {
-                      await navigate({
-                        to: "/projects/$projectSlug",
-                        params: { projectSlug: row.original.slug },
-                      });
-                    }}
-                  >
-                    {row.getVisibleCells().map((cell) => {
-                      const meta = cell.column.columnDef.meta as ColumnMeta | undefined;
-                      return (
-                        <TableCell key={cell.id} className={cellAlignClass(meta)}>
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </TableCell>
-                      );
-                    })}
-                  </TableRow>
-                ))}
-              </TableBody>
-              <TableFooter>
-                <TableRow>
-                  <TableCell colSpan={columns.length}>
-                    <PaginationControls
-                      countLabel={countLabel}
-                      safePage={safePage}
-                      totalPages={totalPages}
-                      isPlaceholderData={isPlaceholderData}
-                      onChange={handlePageChange}
-                    />
-                  </TableCell>
-                </TableRow>
-              </TableFooter>
-            </Table>
-          </Frame>
+          <DataTableView
+            table={table}
+            columnsCount={columns.length}
+            isPlaceholderData={isPlaceholderData}
+            countLabel={countLabel}
+            safePage={safePage}
+            totalPages={totalPages}
+            onPageChange={onPageChange}
+            onRowClick={async (project) => {
+              await routeNavigate({
+                to: "/projects/$projectSlug",
+                params: { projectSlug: project.slug },
+              });
+            }}
+          />
         )}
       </div>
     </div>
@@ -488,5 +313,6 @@ const Projects = () => {
 };
 
 export const Route = createFileRoute("/_authed/_app/projects/")({
+  validateSearch: zodValidator(projectsSearchSchema),
   component: Projects,
 });
