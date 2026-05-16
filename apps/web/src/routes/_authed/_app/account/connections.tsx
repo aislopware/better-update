@@ -92,7 +92,6 @@ const ConnectionsList = () => {
               {provider.id === "github" && !isLinked ? (
                 <Button
                   variant="outline"
-                  size="sm"
                   onClick={handleLinkGithub}
                   disabled={isLinking}
                   aria-busy={isLinking}
@@ -104,7 +103,6 @@ const ConnectionsList = () => {
               {canUnlink ? (
                 <Button
                   variant="outline"
-                  size="sm"
                   onClick={async () => handleUnlink(provider.id)}
                   disabled={Boolean(unlinkingProvider)}
                   aria-busy={isUnlinking}

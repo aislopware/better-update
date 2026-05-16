@@ -28,7 +28,6 @@
     "typegen:cf": "wrangler types"
   },
   "dependencies": {
-    "@base-ui/react": "^1.4.1",
     "@better-auth/api-key": "^1.6.10",
     "@better-update/api": "workspace:*",
     "@better-update/api-client": "workspace:*",

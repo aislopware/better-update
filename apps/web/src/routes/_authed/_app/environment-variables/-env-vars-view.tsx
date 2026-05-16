@@ -2,6 +2,7 @@ import { envVarsQueryOptions, globalEnvVarsQueryOptions } from "@better-update/a
 import { Button } from "@better-update/ui/components/ui/button";
 import { CardFrame } from "@better-update/ui/components/ui/card";
 import { Checkbox } from "@better-update/ui/components/ui/checkbox";
+import { CheckboxGroup } from "@better-update/ui/components/ui/checkbox-group";
 import {
   Empty,
   EmptyDescription,
@@ -126,25 +127,20 @@ const EnvFilterPopover = ({
         }
       />
       <PopoverPopup>
-        <div className="flex flex-col gap-2 p-2 text-sm">
-          {ALL_ENVIRONMENTS.map((env) => {
-            const checked = value.includes(env);
-            return (
-              <label key={env} className="flex cursor-pointer items-center gap-2 select-none">
-                <Checkbox
-                  checked={checked}
-                  onCheckedChange={(next) => {
-                    const nextValue = next
-                      ? [...value, env].filter(isEnvironment)
-                      : value.filter((envValue) => envValue !== env);
-                    onChange(nextValue);
-                  }}
-                />
-                {ENV_LABELS[env]}
-              </label>
-            );
-          })}
-        </div>
+        <CheckboxGroup
+          className="gap-2 p-2 text-sm"
+          value={[...value]}
+          onValueChange={(next) => {
+            onChange(next.filter(isEnvironment));
+          }}
+        >
+          {ALL_ENVIRONMENTS.map((env) => (
+            <label key={env} className="flex cursor-pointer items-center gap-2 select-none">
+              <Checkbox name={env} />
+              {ENV_LABELS[env]}
+            </label>
+          ))}
+        </CheckboxGroup>
       </PopoverPopup>
     </Popover>
   );

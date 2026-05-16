@@ -71,7 +71,7 @@ const PasswordForm = () => {
         footer={
           <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
             {([canSubmit, isSubmitting]) => (
-              <Button type="submit" disabled={!canSubmit || isSubmitting} size="sm">
+              <Button type="submit" disabled={!canSubmit || isSubmitting}>
                 {isSubmitting ? "Updating…" : "Change password"}
               </Button>
             )}

@@ -110,7 +110,6 @@ const ArtifactCard = ({ build }: { build: typeof BuildWithArtifact.Type }) => (
             <InstallLinkDialog
               build={build}
               buttonVariant="outline"
-              buttonSize="sm"
               buttonLabel="Install / copy link"
             />
           </div>

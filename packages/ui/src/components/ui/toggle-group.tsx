@@ -14,14 +14,14 @@ import {
 export const ToggleGroupContext: React.Context<
   VariantProps<typeof toggleVariants>
 > = React.createContext<VariantProps<typeof toggleVariants>>({
-  size: "default",
+  size: "lg",
   variant: "default",
 });
 
 export function ToggleGroup({
   className,
   variant = "default",
-  size = "default",
+  size = "lg",
   orientation = "horizontal",
   children,
   ...props

@@ -52,7 +52,7 @@ const RenameSection = ({ project }: { project: ProjectDetail }) => {
         footer={
           <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
             {([canSubmit, isSubmitting]) => (
-              <Button type="submit" disabled={!canSubmit || isSubmitting} size="sm">
+              <Button type="submit" disabled={!canSubmit || isSubmitting}>
                 {isSubmitting ? "Saving…" : "Save changes"}
               </Button>
             )}
@@ -118,9 +118,7 @@ const DeleteSection = ({ project }: { project: ProjectDetail }) => {
             await router.navigate({ to: "/projects" });
           }}
         >
-          <Button variant="destructive" size="sm">
-            Delete project
-          </Button>
+          <Button variant="destructive">Delete project</Button>
         </ConfirmDeleteDialog>
       }
     />

@@ -34,7 +34,7 @@ const CopyButton = ({ text }: { text: string }) => {
   const Icon = copied ? CheckIcon : CopyIcon;
 
   return (
-    <Button variant="outline" size="sm" onClick={handleCopy}>
+    <Button variant="outline" onClick={handleCopy}>
       <Icon strokeWidth={2} data-icon="inline-start" />
       {copied ? "Copied" : "Copy link"}
     </Button>
@@ -66,13 +66,14 @@ export const InstallLinkDialog = ({
   build,
   buttonLabel,
   buttonVariant = "ghost",
-  buttonSize = "icon",
+  buttonSize,
 }: {
   build: typeof BuildWithArtifact.Type;
   buttonLabel?: string;
   buttonVariant?: ComponentProps<typeof Button>["variant"];
   buttonSize?: ComponentProps<typeof Button>["size"];
 }) => {
+  const effectiveButtonSize = buttonSize ?? (buttonLabel ? undefined : "icon");
   const [open, setOpen] = useState(false);
   const fetchInstallLinkMutation = useApiMutation({
     mutationFn: async () => fetchInstallLink(build.id),
@@ -95,7 +96,7 @@ export const InstallLinkDialog = ({
     <>
       <Button
         variant={buttonVariant}
-        size={buttonSize}
+        size={effectiveButtonSize}
         title={buttonLabel ?? "Install link"}
         onClick={handleOpen}
       >
@@ -135,7 +136,6 @@ export const InstallLinkDialog = ({
                 </p>
                 <Button
                   variant="outline"
-                  size="sm"
                   onClick={() => {
                     fetchInstallLinkMutation.mutate();
                   }}

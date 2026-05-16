@@ -15,7 +15,7 @@ export const NumberFieldContext: React.Context<{
 export function NumberField({
   id,
   className,
-  size = "default",
+  size = "lg",
   ...props
 }: NumberFieldPrimitive.Root.Props & {
   size?: "sm" | "default" | "lg";

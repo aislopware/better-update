@@ -129,7 +129,6 @@ const ActiveRolloutControls = ({
         />
         <span className="text-muted-foreground text-sm">%</span>
         <Button
-          size="sm"
           variant="outline"
           disabled={
             isUpdatingRollout ||
@@ -204,7 +203,6 @@ const StartRolloutControls = ({
     return (
       <Button
         variant="outline"
-        size="sm"
         className="w-fit"
         onClick={() => {
           setIsStartingRollout(true);
@@ -233,7 +231,7 @@ const StartRolloutControls = ({
           setRolloutBranchId(value);
         }}
       >
-        <SelectTrigger size="sm">
+        <SelectTrigger>
           <SelectValue placeholder="Target branch" />
         </SelectTrigger>
         <SelectPopup>
@@ -259,7 +257,6 @@ const StartRolloutControls = ({
         disabled={isSubmitting}
       />
       <Button
-        size="sm"
         variant="default"
         disabled={isSubmitting || !rolloutBranchId || !rolloutInput}
         onClick={handleStartRollout}
@@ -267,7 +264,6 @@ const StartRolloutControls = ({
         Start
       </Button>
       <Button
-        size="sm"
         variant="ghost"
         disabled={isSubmitting}
         onClick={() => {
@@ -384,7 +380,7 @@ export const ChannelCard = ({
               }
             }}
           >
-            <SelectTrigger size="sm">
+            <SelectTrigger>
               <SelectValue>{linkedBranch?.name ?? channel.branchId}</SelectValue>
             </SelectTrigger>
             <SelectPopup>

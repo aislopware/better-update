@@ -13,7 +13,7 @@ export type TextareaProps = React.ComponentPropsWithoutRef<"textarea"> &
 
 export function Textarea({
   className,
-  size = "default",
+  size = "lg",
   unstyled = false,
   ref,
   ...props

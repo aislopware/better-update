@@ -97,7 +97,7 @@ const FileUploadButton = ({ onFile }: { onFile: (file: File) => Promise<void> })
           }
         }}
       />
-      <Button type="button" variant="outline" size="sm" onClick={() => ref.current?.click()}>
+      <Button type="button" variant="outline" onClick={() => ref.current?.click()}>
         <FileInputIcon strokeWidth={2} data-icon="inline-start" />
         Upload .env
       </Button>
@@ -121,7 +121,7 @@ const VisibilitySelect = ({
       }
     }}
   >
-    <SelectTrigger size="sm" className="w-32 shrink-0">
+    <SelectTrigger className="w-32 shrink-0">
       <SelectValue />
     </SelectTrigger>
     <SelectPopup>
@@ -179,7 +179,7 @@ const RowInputs = ({
       <Button
         type="button"
         variant="ghost"
-        size="icon"
+        size="icon-lg"
         onClick={onRemove}
         disabled={isOnly && row.key.length === 0 && row.value.length === 0}
         aria-label="Remove row"
@@ -221,7 +221,7 @@ const RowsList = ({
       ))}
     </div>
     <div>
-      <Button type="button" variant="outline" size="sm" onClick={onAdd}>
+      <Button type="button" variant="outline" onClick={onAdd}>
         <PlusIcon strokeWidth={2} data-icon="inline-start" />
         Add row
       </Button>

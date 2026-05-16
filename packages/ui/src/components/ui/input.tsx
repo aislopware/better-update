@@ -15,7 +15,7 @@ export type InputProps = Omit<
 
 export function Input({
   className,
-  size = "default",
+  size = "lg",
   unstyled = false,
   nativeInput = false,
   style,

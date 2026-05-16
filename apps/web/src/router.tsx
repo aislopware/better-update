@@ -1,6 +1,7 @@
 import "./app.css";
 
 import { configureApiBaseUrl } from "@better-update/api-client";
+import { Button } from "@better-update/ui/components/ui/button";
 import { QueryClient, defaultShouldDehydrateQuery } from "@tanstack/react-query";
 import { createRouter } from "@tanstack/react-router";
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
@@ -74,13 +75,9 @@ const RouterErrorFallback = ({
         </pre>
       </details>
     ) : null}
-    <button
-      type="button"
-      onClick={reset}
-      className="border-border hover:bg-muted rounded-md border px-3 py-1.5 text-sm"
-    >
+    <Button type="button" variant="outline" onClick={reset}>
       Try again
-    </button>
+    </Button>
   </div>
 );
 

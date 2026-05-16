@@ -152,10 +152,10 @@ export function DateRangePicker({
             </div>
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" size="sm" onClick={handleReset}>
+            <Button variant="outline" onClick={handleReset}>
               Reset
             </Button>
-            <Button size="sm" onClick={handleApply}>
+            <Button onClick={handleApply}>
               Apply
             </Button>
           </div>

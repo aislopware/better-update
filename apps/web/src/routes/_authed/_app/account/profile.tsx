@@ -47,7 +47,7 @@ const ProfileForm = () => {
         footer={
           <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
             {([canSubmit, isSubmitting]) => (
-              <Button type="submit" disabled={!canSubmit || isSubmitting} size="sm">
+              <Button type="submit" disabled={!canSubmit || isSubmitting}>
                 {isSubmitting ? "Saving…" : "Save changes"}
               </Button>
             )}

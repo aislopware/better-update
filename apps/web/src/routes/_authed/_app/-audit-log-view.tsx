@@ -266,7 +266,6 @@ export const AuditLogView = ({ orgId, projectId, scopeLabel }: AuditLogViewProps
                   <TableCell colSpan={5} className="text-center">
                     <Button
                       variant="outline"
-                      size="sm"
                       disabled={isFetchingNextPage}
                       onClick={async () => {
                         await fetchNextPage();

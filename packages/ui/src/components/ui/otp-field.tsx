@@ -7,7 +7,7 @@ import { Separator } from "#/components/ui/separator";
 
 export function OTPField({
   className,
-  size = "default",
+  size = "lg",
   ...props
 }: React.ComponentProps<typeof OTPFieldPrimitive.Root> & {
   size?: "default" | "lg";

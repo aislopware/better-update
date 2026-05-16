@@ -180,7 +180,6 @@ export const UpdateCard = ({
           />
           <span className="text-muted-foreground text-sm">%</span>
           <Button
-            size="sm"
             variant="outline"
             disabled={isUpdatingRollout || rolloutInput === String(update.rolloutPercentage)}
             onClick={handleEditRollout}

@@ -71,7 +71,6 @@ const SessionsList = () => {
         sessions.length > 1 ? (
           <Button
             variant="outline"
-            size="sm"
             onClick={handleRevokeAll}
             disabled={isRevokingAll}
             aria-busy={isRevokingAll}
@@ -106,7 +105,6 @@ const SessionsList = () => {
               {isCurrent ? null : (
                 <Button
                   variant="outline"
-                  size="sm"
                   onClick={async () => handleRevoke(session.token)}
                   disabled={isRevoking || isRevokingAll}
                   aria-busy={isRevoking}

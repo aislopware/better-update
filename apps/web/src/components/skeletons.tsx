@@ -1,4 +1,4 @@
-import { CardFrame } from "@better-update/ui/components/ui/card";
+import { Card, CardFrame } from "@better-update/ui/components/ui/card";
 import { Frame } from "@better-update/ui/components/ui/frame";
 import { Skeleton } from "@better-update/ui/components/ui/skeleton";
 import {
@@ -115,12 +115,7 @@ export const SettingCardSkeleton = ({
   className,
   children,
 }: SettingCardSkeletonProps) => (
-  <section
-    className={cn(
-      "bg-card text-card-foreground relative flex flex-col gap-4 rounded-2xl border p-6 shadow-xs/5 not-dark:bg-clip-padding",
-      className,
-    )}
-  >
+  <Card className={cn("gap-4 p-6", className)} render={<section />}>
     <header className="flex items-start justify-between gap-3">
       <div className="flex flex-col gap-2">
         <Skeleton className="h-4 w-32 rounded" />
@@ -142,7 +137,7 @@ export const SettingCardSkeleton = ({
         <Skeleton className="h-8 w-28 rounded-md" />
       </footer>
     ) : null}
-  </section>
+  </Card>
 );
 
 interface ListItemsSkeletonProps {
@@ -200,12 +195,7 @@ export const DetailCardSkeleton = ({
   columns = 2,
   className,
 }: DetailCardSkeletonProps) => (
-  <div
-    className={cn(
-      "bg-card text-card-foreground flex flex-col gap-4 rounded-xl border p-6 shadow-xs/5 not-dark:bg-clip-padding",
-      className,
-    )}
-  >
+  <Card className={cn("gap-4 p-6", className)}>
     <div className="flex flex-col gap-2">
       <Skeleton className="h-4 w-40 rounded" />
       <Skeleton className="h-3 w-64 rounded" />
@@ -218,7 +208,7 @@ export const DetailCardSkeleton = ({
         </div>
       ))}
     </div>
-  </div>
+  </Card>
 );
 
 interface SummaryCardsSkeletonProps {
@@ -229,13 +219,10 @@ interface SummaryCardsSkeletonProps {
 export const SummaryCardsSkeleton = ({ count = 3, className }: SummaryCardsSkeletonProps) => (
   <div className={cn("grid gap-4 sm:grid-cols-3", className)}>
     {repeat(count).map((index) => (
-      <div
-        key={index}
-        className="bg-card text-card-foreground flex flex-col gap-3 rounded-xl border p-6 shadow-xs/5 not-dark:bg-clip-padding"
-      >
+      <Card key={index} className="gap-3 p-6">
         <Skeleton className="h-4 w-28 rounded" />
         <Skeleton className="h-5 w-40 rounded" />
-      </div>
+      </Card>
     ))}
   </div>
 );

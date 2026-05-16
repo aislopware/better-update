@@ -111,7 +111,6 @@
       "name": "@better-update/web",
       "version": "0.10.0",
       "dependencies": {
-        "@base-ui/react": "^1.4.1",
         "@better-auth/api-key": "^1.6.10",
         "@better-update/api": "workspace:*",
         "@better-update/api-client": "workspace:*",

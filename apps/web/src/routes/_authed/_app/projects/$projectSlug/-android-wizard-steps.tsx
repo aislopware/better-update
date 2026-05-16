@@ -164,7 +164,6 @@ export const StepKeystore = ({
     <div className="flex flex-col gap-3">
       <div className="flex gap-2">
         <Button
-          size="sm"
           variant={state.keystoreMode === "upload" ? "default" : "outline"}
           onClick={() => {
             onChange({ ...state, keystoreMode: "upload", keystoreId: "" });
@@ -173,7 +172,6 @@ export const StepKeystore = ({
           Upload new
         </Button>
         <Button
-          size="sm"
           variant={state.keystoreMode === "existing" ? "default" : "outline"}
           disabled={data.items.length === 0}
           onClick={() => {
@@ -250,7 +248,6 @@ export const StepGoogleSa = ({
       <p className="text-sm font-medium">{label}</p>
       <div className="flex gap-2">
         <Button
-          size="sm"
           variant={mode === "skip" ? "default" : "outline"}
           onClick={() => {
             onModeChange("skip");
@@ -259,7 +256,6 @@ export const StepGoogleSa = ({
           Skip
         </Button>
         <Button
-          size="sm"
           variant={mode === "existing" ? "default" : "outline"}
           disabled={data.items.length === 0}
           onClick={() => {
@@ -269,7 +265,6 @@ export const StepGoogleSa = ({
           Pick existing
         </Button>
         <Button
-          size="sm"
           variant={mode === "upload" ? "default" : "outline"}
           onClick={() => {
             onModeChange("upload");

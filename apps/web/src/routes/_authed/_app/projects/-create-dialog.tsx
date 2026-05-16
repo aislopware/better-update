@@ -18,7 +18,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { PlusIcon } from "lucide-react";
 import { useRef, useState } from "react";
 
-import { SlugInput } from "../../../../components/slug-input";
 import { generateSlug, getFieldError, nameSchema, slugSchema } from "../../../../lib/form-utils";
 import { safeSubmit, useApiMutation } from "../../../../lib/use-api-mutation";
 
@@ -111,8 +110,7 @@ export const CreateProjectFormContent = ({
               return (
                 <Field invalid={invalid}>
                   <FieldLabel htmlFor="project-slug">Slug</FieldLabel>
-                  <SlugInput
-                    addonStart="expo.slug ="
+                  <Input
                     id="project-slug"
                     placeholder="my-app"
                     value={field.state.value}
