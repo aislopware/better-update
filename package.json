@@ -37,14 +37,14 @@
     "@tanstack/react-router": "^1.169.2"
   },
   "devDependencies": {
-    "@commitlint/cli": "^21.0.0",
-    "@commitlint/config-conventional": "^21.0.0",
+    "@commitlint/cli": "^21.0.1",
+    "@commitlint/config-conventional": "^21.0.1",
     "@effect/vitest": "^0.29.0",
     "@lerna-lite/cli": "^5.2.1",
     "@lerna-lite/publish": "^5.2.1",
     "@tanstack/eslint-plugin-router": "^1.161.6",
-    "@types/node": "^25.7.0",
-    "@typescript/native-preview": "^7.0.0-dev.20260511.1",
+    "@types/node": "^25.6.2",
+    "@typescript/native-preview": "^7.0.0-dev.20260513.1",
     "conventional-changelog-conventionalcommits": "^9.3.1",
     "eslint-plugin-functional": "^9.0.4",
     "knip": "^6.12.2",
