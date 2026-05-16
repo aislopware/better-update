@@ -8,13 +8,13 @@ import {
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
 import {
-  DropdownMenu,
-  DropdownMenuPopup,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  Menu,
+  MenuPopup,
+  MenuGroup,
+  MenuItem,
+  MenuGroupLabel,
+  MenuSeparator,
+  MenuTrigger,
 } from "@better-update/ui/components/ui/menu";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
@@ -61,22 +61,22 @@ export const ProjectSwitcher = ({ orgId, currentProjectSlug }: ProjectSwitcherPr
 
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger render={switcherTrigger(displayName)} />
-        <DropdownMenuPopup align="start" side="bottom" sideOffset={4} className="w-64">
-          <DropdownMenuGroup>
-            <DropdownMenuLabel>Projects</DropdownMenuLabel>
-            <DropdownMenuSeparator />
+      <Menu>
+        <MenuTrigger render={switcherTrigger(displayName)} />
+        <MenuPopup align="start" side="bottom" sideOffset={4} className="w-64">
+          <MenuGroup>
+            <MenuGroupLabel>Projects</MenuGroupLabel>
+            <MenuSeparator />
             {data.items.length === 0 ? (
-              <DropdownMenuLabel className="text-muted-foreground text-xs font-normal">
+              <MenuGroupLabel className="text-muted-foreground text-xs font-normal">
                 No projects yet
-              </DropdownMenuLabel>
+              </MenuGroupLabel>
             ) : (
               data.items.map((project) => {
                 const isNavigating = navigatingSlug === project.slug;
                 const isActive = project.slug === currentProjectSlug;
                 return (
-                  <DropdownMenuItem
+                  <MenuItem
                     key={project.id}
                     onClick={async () => handleSelect(project.slug)}
                     data-pending={isNavigating || undefined}
@@ -90,18 +90,18 @@ export const ProjectSwitcher = ({ orgId, currentProjectSlug }: ProjectSwitcherPr
                     />
                     <span className="flex-1 truncate">{project.name}</span>
                     {renderSwitcherIndicator(isNavigating, isActive)}
-                  </DropdownMenuItem>
+                  </MenuItem>
                 );
               })
             )}
-          </DropdownMenuGroup>
+          </MenuGroup>
           {hasMore ? (
-            <DropdownMenuLabel className="text-muted-foreground text-xs font-normal">
+            <MenuGroupLabel className="text-muted-foreground text-xs font-normal">
               Showing {data.items.length} of {data.total}. Open the projects page to search.
-            </DropdownMenuLabel>
+            </MenuGroupLabel>
           ) : null}
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
+          <MenuSeparator />
+          <MenuItem
             onClick={() => {
               setCreateOpen(true);
             }}
@@ -109,9 +109,9 @@ export const ProjectSwitcher = ({ orgId, currentProjectSlug }: ProjectSwitcherPr
           >
             <PlusIcon strokeWidth={2} className="size-4" />
             <span>Create project</span>
-          </DropdownMenuItem>
-        </DropdownMenuPopup>
-      </DropdownMenu>
+          </MenuItem>
+        </MenuPopup>
+      </Menu>
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogPopup>
           <DialogHeader>

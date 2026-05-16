@@ -2,7 +2,7 @@ import { Button } from "@better-update/ui/components/ui/button";
 import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { GitBranchIcon, KeyRoundIcon, Loader2Icon } from "lucide-react";
+import { GitBranchIcon, KeyRoundIcon } from "lucide-react";
 import { Suspense, useState } from "react";
 
 import type { LucideIcon } from "lucide-react";
@@ -90,25 +90,18 @@ const ConnectionsList = () => {
                 <span className="text-muted-foreground text-xs">{provider.description}</span>
               </div>
               {provider.id === "github" && !isLinked ? (
-                <Button
-                  variant="outline"
-                  onClick={handleLinkGithub}
-                  disabled={isLinking}
-                  aria-busy={isLinking}
-                >
-                  {isLinking ? <Loader2Icon className="size-3.5 animate-spin" /> : null}
-                  {isLinking ? "Redirecting…" : "Connect"}
+                <Button variant="outline" onClick={handleLinkGithub} loading={isLinking}>
+                  Connect
                 </Button>
               ) : null}
               {canUnlink ? (
                 <Button
                   variant="outline"
                   onClick={async () => handleUnlink(provider.id)}
-                  disabled={Boolean(unlinkingProvider)}
-                  aria-busy={isUnlinking}
+                  loading={isUnlinking}
+                  disabled={Boolean(unlinkingProvider) && !isUnlinking}
                 >
-                  {isUnlinking ? <Loader2Icon className="size-3.5 animate-spin" /> : null}
-                  {isUnlinking ? "Unlinking…" : "Disconnect"}
+                  Disconnect
                 </Button>
               ) : null}
               {isLinked && !canUnlink ? (

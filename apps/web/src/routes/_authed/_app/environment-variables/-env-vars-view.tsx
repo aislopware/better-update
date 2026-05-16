@@ -11,6 +11,7 @@ import {
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
 import { Input } from "@better-update/ui/components/ui/input";
+import { Label } from "@better-update/ui/components/ui/label";
 import { Popover, PopoverPopup, PopoverTrigger } from "@better-update/ui/components/ui/popover";
 import {
   Select,
@@ -135,10 +136,10 @@ const EnvFilterPopover = ({
           }}
         >
           {ALL_ENVIRONMENTS.map((env) => (
-            <label key={env} className="flex cursor-pointer items-center gap-2 select-none">
+            <Label key={env} className="cursor-pointer gap-2 select-none">
               <Checkbox name={env} />
               {ENV_LABELS[env]}
-            </label>
+            </Label>
           ))}
         </CheckboxGroup>
       </PopoverPopup>

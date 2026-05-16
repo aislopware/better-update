@@ -47,7 +47,6 @@ export const CreateBranchDialog = ({ orgId, projectId }: { orgId: string; projec
         <BranchNameForm
           defaultName=""
           submitLabel="Create branch"
-          submittingLabel="Creating..."
           submitIcon={PlusIcon}
           onSubmit={async (name) => safeSubmit(createBranchMutation.mutateAsync(name))}
         />

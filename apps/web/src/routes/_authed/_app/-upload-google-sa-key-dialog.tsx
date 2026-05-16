@@ -120,8 +120,8 @@ export const UploadGoogleServiceAccountKeyDialog = ({ orgId }: { orgId: string }
             <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
             <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
               {([canSubmit, isSubmitting]) => (
-                <Button type="submit" disabled={!canSubmit || isSubmitting}>
-                  {isSubmitting ? "Uploading..." : "Upload"}
+                <Button type="submit" disabled={!canSubmit} loading={Boolean(isSubmitting)}>
+                  Upload
                 </Button>
               )}
             </form.Subscribe>

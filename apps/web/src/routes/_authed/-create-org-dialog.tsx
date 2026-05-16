@@ -151,8 +151,8 @@ export const CreateOrgDialog = ({
             <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
             <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
               {([canSubmit, isSubmitting]) => (
-                <Button type="submit" disabled={!canSubmit || isSubmitting}>
-                  {isSubmitting ? "Creating…" : "Create organization"}
+                <Button type="submit" disabled={!canSubmit} loading={Boolean(isSubmitting)}>
+                  Create organization
                 </Button>
               )}
             </form.Subscribe>

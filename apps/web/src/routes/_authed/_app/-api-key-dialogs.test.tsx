@@ -58,7 +58,7 @@ describe(RevokeDialog, () => {
     expect(onConfirm).toHaveBeenCalledTimes(1);
   });
 
-  it("button shows Revoking... and is disabled when isRevoking=true", () => {
+  it("button is aria-disabled and shows loading state when isRevoking=true", () => {
     const props = makeProps({ isRevoking: true });
     render(
       <RevokeDialog
@@ -69,8 +69,9 @@ describe(RevokeDialog, () => {
       />,
     );
 
-    const button = screen.getByRole("button", { name: "Revoking..." });
-    expect(button).toBeDisabled();
+    const button = screen.getByRole("button", { name: /Revoke key/ });
+    expect(button).toHaveAttribute("aria-disabled", "true");
+    expect(button).toHaveAttribute("data-loading");
   });
 
   it("cancel button is visible", () => {
@@ -310,7 +311,7 @@ describe(CreateApiKeyDialog, () => {
     await user.click(screen.getByRole("button", { name: "Create key" }));
 
     await waitFor(() => {
-      expect(screen.getByText("bu_test_abc")).toBeInTheDocument();
+      expect(screen.getByDisplayValue("bu_test_abc")).toBeInTheDocument();
     });
     expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
     expect(invalidateSpy).toHaveBeenCalledWith(
@@ -327,13 +328,13 @@ describe(CreateApiKeyDialog, () => {
     await user.click(screen.getByRole("button", { name: "Create key" }));
 
     await waitFor(() => {
-      expect(screen.getByText("bu_test_xyz")).toBeInTheDocument();
+      expect(screen.getByDisplayValue("bu_test_xyz")).toBeInTheDocument();
     });
 
     await user.click(screen.getByRole("button", { name: "Done" }));
 
     await waitFor(() => {
-      expect(screen.queryByText("bu_test_xyz")).not.toBeInTheDocument();
+      expect(screen.queryByDisplayValue("bu_test_xyz")).not.toBeInTheDocument();
     });
   });
 

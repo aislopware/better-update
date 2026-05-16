@@ -12,8 +12,17 @@ import {
   CardHeader,
   CardTitle,
 } from "@better-update/ui/components/ui/card";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@better-update/ui/components/ui/empty";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
+import { PackageXIcon } from "lucide-react";
 import { Suspense } from "react";
 
 import type { BuildWithArtifact } from "@better-update/api";
@@ -104,9 +113,15 @@ const ArtifactCard = ({ build }: { build: typeof BuildWithArtifact.Type }) => (
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <a href={`/api/builds/${build.id}/artifact`}>
-              <Button variant="outline">Download artifact</Button>
-            </a>
+            <Button
+              variant="outline"
+              render={
+                // eslint-disable-next-line jsx-a11y/anchor-has-content -- Base UI merges Button children into the rendered anchor via mergeProps
+                <a href={`/api/builds/${build.id}/artifact`} />
+              }
+            >
+              Download artifact
+            </Button>
             <InstallLinkDialog
               build={build}
               buttonVariant="outline"
@@ -175,23 +190,25 @@ const RelatedChannelsCard = ({
 );
 
 const BuildNotFoundState = ({ projectSlug }: { projectSlug: string }) => (
-  <Card className="border-dashed">
-    <CardContent className="flex flex-col gap-3 py-10">
-      <div className="text-lg font-medium">Build not found in this project</div>
-      <p className="text-muted-foreground text-sm">
+  <Empty>
+    <EmptyHeader>
+      <EmptyMedia variant="icon">
+        <PackageXIcon strokeWidth={1.5} />
+      </EmptyMedia>
+      <EmptyTitle>Build not found in this project</EmptyTitle>
+      <EmptyDescription>
         The requested build exists outside this project or was removed.
-      </p>
-      <div>
-        <Link
-          to="/projects/$projectSlug"
-          params={{ projectSlug }}
-          className="text-muted-foreground hover:text-foreground text-sm transition-colors"
-        >
-          Back to project
-        </Link>
-      </div>
-    </CardContent>
-  </Card>
+      </EmptyDescription>
+    </EmptyHeader>
+    <EmptyContent>
+      <Button
+        variant="outline"
+        render={<Link to="/projects/$projectSlug" params={{ projectSlug }} />}
+      >
+        Back to project
+      </Button>
+    </EmptyContent>
+  </Empty>
 );
 
 const BuildDetailContent = () => {

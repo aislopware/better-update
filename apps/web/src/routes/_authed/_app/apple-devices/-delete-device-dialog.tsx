@@ -55,12 +55,12 @@ export const DeleteDeviceDialog = ({
           <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
           <Button
             variant="destructive"
-            disabled={deleteMutation.isPending}
+            loading={deleteMutation.isPending}
             onClick={() => {
               deleteMutation.mutate();
             }}
           >
-            {deleteMutation.isPending ? "Removing..." : "Remove device"}
+            Remove device
           </Button>
         </DialogFooter>
       </DialogPopup>

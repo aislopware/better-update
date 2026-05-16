@@ -1,7 +1,6 @@
 import { Button } from "@better-update/ui/components/ui/button";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { Loader2Icon } from "lucide-react";
 import { useState } from "react";
 import { z } from "zod";
 
@@ -151,21 +150,11 @@ const GithubButton = ({ onClick, isPending }: GithubButtonProps) => (
     size="lg"
     className="group relative h-12 w-full gap-2.5 text-sm font-medium"
     onClick={onClick}
-    disabled={isPending}
-    aria-busy={isPending}
+    loading={isPending}
   >
-    {isPending ? (
-      <>
-        <Loader2Icon className="size-5 animate-spin" />
-        Connecting to GitHub…
-      </>
-    ) : (
-      <>
-        <GithubIcon className="size-5" />
-        Continue with GitHub
-        <ArrowIcon className="size-4 opacity-70 transition-[transform,opacity] duration-200 ease-out pointer-fine:group-hover:translate-x-0.5 pointer-fine:group-hover:opacity-100" />
-      </>
-    )}
+    <GithubIcon className="size-5" />
+    Continue with GitHub
+    <ArrowIcon className="size-4 opacity-70 transition-[transform,opacity] duration-200 ease-out pointer-fine:group-hover:translate-x-0.5 pointer-fine:group-hover:opacity-100" />
   </Button>
 );
 

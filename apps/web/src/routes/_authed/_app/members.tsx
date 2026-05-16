@@ -16,7 +16,7 @@ import {
 import { Skeleton } from "@better-update/ui/components/ui/skeleton";
 import { keepPreviousData, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { UsersIcon } from "lucide-react";
+import { SearchXIcon, UsersIcon } from "lucide-react";
 import { Suspense, useMemo, useState } from "react";
 
 import { PageHeader } from "../../../components/page-header";
@@ -139,9 +139,15 @@ const MembersContent = () => {
           {headerActions}
         </div>
         {visibleCount === 0 ? (
-          <p className="text-muted-foreground rounded-xl border border-dashed py-10 text-center text-sm">
-            No members match the selected filter.
-          </p>
+          <Empty>
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <SearchXIcon strokeWidth={1.5} />
+              </EmptyMedia>
+              <EmptyTitle>No matches</EmptyTitle>
+              <EmptyDescription>No members match the selected filter.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         ) : (
           <MembersTableView
             members={filteredMembers}

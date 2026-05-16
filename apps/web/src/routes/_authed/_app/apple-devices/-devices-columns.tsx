@@ -3,11 +3,11 @@ import { devicesQueryKey, updateDevice } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuItem,
-  DropdownMenuPopup,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  Menu,
+  MenuItem,
+  MenuPopup,
+  MenuSeparator,
+  MenuTrigger,
 } from "@better-update/ui/components/ui/menu";
 import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -85,39 +85,39 @@ const RowActions = ({ orgId, device }: { orgId: string; device: DeviceItem }) =>
   });
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger render={actionsTrigger} />
-      <DropdownMenuPopup align="end" className="w-40">
+    <Menu>
+      <MenuTrigger render={actionsTrigger} />
+      <MenuPopup align="end" className="w-40">
         <RenameDeviceDialog orgId={orgId} device={device}>
-          <DropdownMenuItem
+          <MenuItem
             onSelect={(event) => {
               event.preventDefault();
             }}
           >
             Rename
-          </DropdownMenuItem>
+          </MenuItem>
         </RenameDeviceDialog>
-        <DropdownMenuItem
+        <MenuItem
           onSelect={() => {
             toggleEnabled.mutate();
           }}
           disabled={toggleEnabled.isPending}
         >
           {device.enabled ? "Disable" : "Enable"}
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
+        </MenuItem>
+        <MenuSeparator />
         <DeleteDeviceDialog orgId={orgId} device={device}>
-          <DropdownMenuItem
+          <MenuItem
             variant="destructive"
             onSelect={(event) => {
               event.preventDefault();
             }}
           >
             Delete
-          </DropdownMenuItem>
+          </MenuItem>
         </DeleteDeviceDialog>
-      </DropdownMenuPopup>
-    </DropdownMenu>
+      </MenuPopup>
+    </Menu>
   );
 };
 

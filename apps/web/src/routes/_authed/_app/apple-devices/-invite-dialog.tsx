@@ -22,6 +22,11 @@ import {
 } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
 import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@better-update/ui/components/ui/input-group";
+import {
   Select,
   SelectPopup,
   SelectGroup,
@@ -163,23 +168,21 @@ const ShareInvite = ({
           </div>
           <Field>
             <FieldLabel>Invite link</FieldLabel>
-            <div className="flex items-center gap-2">
-              <Input readOnly value={invite.url} className="font-mono text-xs" />
-              <Button
-                variant="outline"
-                size="icon"
-                aria-label="Copy link"
-                onClick={async () => {
-                  await handleCopy();
-                }}
-              >
-                {copied ? (
-                  <CheckIcon strokeWidth={2} className="size-4" />
-                ) : (
-                  <CopyIcon strokeWidth={2} className="size-4" />
-                )}
-              </Button>
-            </div>
+            <InputGroup>
+              <InputGroupInput readOnly value={invite.url} className="font-mono text-xs" />
+              <InputGroupAddon align="inline-end">
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label="Copy link"
+                  onClick={async () => {
+                    await handleCopy();
+                  }}
+                >
+                  {copied ? <CheckIcon strokeWidth={2} /> : <CopyIcon strokeWidth={2} />}
+                </Button>
+              </InputGroupAddon>
+            </InputGroup>
             <FieldDescription>
               Expires {new Date(invite.expiresAt).toLocaleString()}. Open on iOS Safari to install
               the profile.
@@ -334,8 +337,8 @@ export const InviteDeviceDialog = ({ orgId }: { orgId: string }) => {
               <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
               <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting] as const}>
                 {([canSubmit, isSubmitting]) => (
-                  <Button type="submit" disabled={!canSubmit || isSubmitting}>
-                    {isSubmitting ? "Generating..." : "Generate link"}
+                  <Button type="submit" disabled={!canSubmit} loading={isSubmitting}>
+                    Generate link
                   </Button>
                 )}
               </form.Subscribe>

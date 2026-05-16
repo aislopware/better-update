@@ -16,6 +16,11 @@ import {
   FieldLabel,
 } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@better-update/ui/components/ui/input-group";
 import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
@@ -101,9 +106,9 @@ const CreateFormContent = ({
         <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
           {([canSubmit, isSubmitting]) => (
-            <Button type="submit" disabled={!canSubmit || isSubmitting}>
+            <Button type="submit" disabled={!canSubmit} loading={Boolean(isSubmitting)}>
               <KeyIcon strokeWidth={2} data-icon="inline-start" />
-              {isSubmitting ? "Creating..." : "Create key"}
+              Create key
             </Button>
           )}
         </form.Subscribe>
@@ -128,14 +133,14 @@ const KeyRevealContent = ({ apiKey, onClose }: { apiKey: string; onClose: () => 
           <p className="text-muted-foreground text-sm">
             Copy your API key now. You will not be able to see it again.
           </p>
-          <div className="flex items-center gap-2">
-            <code className="bg-muted flex-1 rounded-md px-3 py-2 font-mono text-sm break-all">
-              {apiKey}
-            </code>
-            <Button variant="outline" size="icon" onClick={handleCopy}>
-              {copied ? <CheckIcon strokeWidth={2} /> : <CopyIcon strokeWidth={2} />}
-            </Button>
-          </div>
+          <InputGroup>
+            <InputGroupInput readOnly value={apiKey} className="font-mono text-sm" />
+            <InputGroupAddon align="inline-end">
+              <Button variant="ghost" size="icon-xs" aria-label="Copy API key" onClick={handleCopy}>
+                {copied ? <CheckIcon strokeWidth={2} /> : <CopyIcon strokeWidth={2} />}
+              </Button>
+            </InputGroupAddon>
+          </InputGroup>
         </div>
       </DialogPanel>
       <DialogFooter>
@@ -230,8 +235,8 @@ export const RevokeDialog = ({
       </DialogHeader>
       <DialogFooter>
         <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
-        <Button variant="destructive" disabled={isRevoking} onClick={onConfirm}>
-          {isRevoking ? "Revoking..." : "Revoke key"}
+        <Button variant="destructive" loading={isRevoking} onClick={onConfirm}>
+          Revoke key
         </Button>
       </DialogFooter>
     </DialogPopup>

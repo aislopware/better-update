@@ -129,10 +129,11 @@ export const PromoteUpdateDialog = ({
         <DialogFooter>
           <Button
             onClick={handlePromote}
-            disabled={!targetChannelName || promoteUpdateMutation.isPending}
+            disabled={!targetChannelName}
+            loading={promoteUpdateMutation.isPending}
           >
             <RocketIcon strokeWidth={2} data-icon="inline-start" />
-            {promoteUpdateMutation.isPending ? "Promoting..." : "Promote"}
+            Promote
           </Button>
         </DialogFooter>
       </DialogPopup>

@@ -199,12 +199,12 @@ export const AndroidBuildWizard = ({ orgId, projectId }: { orgId: string; projec
             </Button>
           ) : (
             <Button
-              disabled={saveMutation.isPending}
+              loading={saveMutation.isPending}
               onClick={async () => {
                 await safeSubmit(saveMutation.mutateAsync(undefined));
               }}
             >
-              {saveMutation.isPending ? "Saving..." : "Save"}
+              Save
             </Button>
           )}
         </DialogFooter>

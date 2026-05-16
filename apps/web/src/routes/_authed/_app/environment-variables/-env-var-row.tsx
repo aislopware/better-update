@@ -14,12 +14,12 @@ import {
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
 import {
-  DropdownMenu,
-  DropdownMenuPopup,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  Menu,
+  MenuPopup,
+  MenuGroup,
+  MenuItem,
+  MenuSeparator,
+  MenuTrigger,
 } from "@better-update/ui/components/ui/menu";
 import { TableCell, TableRow } from "@better-update/ui/components/ui/table";
 import { toastManager } from "@better-update/ui/components/ui/toast";
@@ -122,33 +122,33 @@ export const EnvVarRow = ({
           {isReadOnly ? (
             <span className="text-muted-foreground text-xs">manage in org settings</span>
           ) : (
-            <DropdownMenu>
-              <DropdownMenuTrigger render={<Button variant="ghost" size="icon" />}>
+            <Menu>
+              <MenuTrigger render={<Button variant="ghost" size="icon" />}>
                 <EllipsisVerticalIcon strokeWidth={2} />
-              </DropdownMenuTrigger>
-              <DropdownMenuPopup align="end">
-                <DropdownMenuGroup>
-                  <DropdownMenuItem
+              </MenuTrigger>
+              <MenuPopup align="end">
+                <MenuGroup>
+                  <MenuItem
                     onClick={() => {
                       setEditOpen(true);
                     }}
                   >
                     Edit
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-                <DropdownMenuSeparator />
-                <DropdownMenuGroup>
-                  <DropdownMenuItem
+                  </MenuItem>
+                </MenuGroup>
+                <MenuSeparator />
+                <MenuGroup>
+                  <MenuItem
                     variant="destructive"
                     onClick={() => {
                       setDeleteOpen(true);
                     }}
                   >
                     Delete
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-              </DropdownMenuPopup>
-            </DropdownMenu>
+                  </MenuItem>
+                </MenuGroup>
+              </MenuPopup>
+            </Menu>
           )}
         </TableCell>
       </TableRow>
@@ -179,10 +179,10 @@ export const EnvVarRow = ({
             </Button>
             <Button
               variant="destructive"
-              disabled={deleteEnvVarMutation.isPending}
+              loading={deleteEnvVarMutation.isPending}
               onClick={handleDelete}
             >
-              {deleteEnvVarMutation.isPending ? "Deleting..." : "Delete"}
+              Delete
             </Button>
           </DialogFooter>
         </DialogPopup>

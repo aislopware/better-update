@@ -99,7 +99,7 @@ const MemberAvatarCell = ({ row }: { row: Row }) => {
 };
 
 const StatusCell = ({ status }: { status: MemberStatus }) => {
-  const dotClass = status === "active" ? "bg-emerald-500" : "bg-amber-500";
+  const dotClass = status === "active" ? "bg-success" : "bg-warning";
   const label = status === "active" ? "Active" : "Pending";
   return (
     <Badge variant="outline" className="gap-1.5">

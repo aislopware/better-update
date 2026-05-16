@@ -12,7 +12,6 @@ interface BranchNameFormProps {
   defaultName: string;
   onSubmit: (name: string) => Promise<void>;
   submitLabel: string;
-  submittingLabel: string;
   submitIcon?: LucideIcon;
 }
 
@@ -20,7 +19,6 @@ export const BranchNameForm = ({
   defaultName,
   onSubmit,
   submitLabel,
-  submittingLabel,
   submitIcon: SubmitIcon,
 }: BranchNameFormProps) => {
   const form = useForm({
@@ -75,9 +73,9 @@ export const BranchNameForm = ({
         <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
           {([canSubmit, isSubmitting]) => (
-            <Button type="submit" disabled={!canSubmit || isSubmitting}>
+            <Button type="submit" disabled={!canSubmit} loading={Boolean(isSubmitting)}>
               {SubmitIcon ? <SubmitIcon strokeWidth={2} data-icon="inline-start" /> : null}
-              {isSubmitting ? submittingLabel : submitLabel}
+              {submitLabel}
             </Button>
           )}
         </form.Subscribe>

@@ -1,11 +1,11 @@
 import {
-  DropdownMenu,
-  DropdownMenuPopup,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  Menu,
+  MenuPopup,
+  MenuGroup,
+  MenuItem,
+  MenuGroupLabel,
+  MenuSeparator,
+  MenuTrigger,
 } from "@better-update/ui/components/ui/menu";
 import {
   Sidebar,
@@ -20,6 +20,7 @@ import {
   SidebarRail,
   useSidebar,
 } from "@better-update/ui/components/ui/sidebar";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { TooltipProvider } from "@better-update/ui/components/ui/tooltip";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -34,7 +35,6 @@ import {
   ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  Loader2Icon,
   LogOutIcon,
   UserIcon,
 } from "lucide-react";
@@ -118,17 +118,17 @@ const OrgSwitcher = () => {
 
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger render={renderOrgTrigger(displayName, activeOrg.slug)} />
-        <DropdownMenuPopup align="start" side="bottom" sideOffset={4} className="w-64">
-          <DropdownMenuGroup>
-            <DropdownMenuLabel>Organizations</DropdownMenuLabel>
-            <DropdownMenuSeparator />
+      <Menu>
+        <MenuTrigger render={renderOrgTrigger(displayName, activeOrg.slug)} />
+        <MenuPopup align="start" side="bottom" sideOffset={4} className="w-64">
+          <MenuGroup>
+            <MenuGroupLabel>Organizations</MenuGroupLabel>
+            <MenuSeparator />
             {orgs.map((org) => {
               const isSwitching = switchingOrgId === org.id;
               const isActive = org.id === activeOrgId;
               return (
-                <DropdownMenuItem
+                <MenuItem
                   key={org.id}
                   onClick={async () => handleOrgSwitch(org.id)}
                   data-pending={isSwitching || undefined}
@@ -137,12 +137,12 @@ const OrgSwitcher = () => {
                   <EntityAvatar name={org.name} seed={org.slug} size="sm" shape="square" />
                   <span className="flex-1 truncate">{org.name}</span>
                   {renderSwitcherIndicator(isSwitching, isActive)}
-                </DropdownMenuItem>
+                </MenuItem>
               );
             })}
-          </DropdownMenuGroup>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
+          </MenuGroup>
+          <MenuSeparator />
+          <MenuItem
             onClick={() => {
               setCreateOrgOpen(true);
             }}
@@ -150,9 +150,9 @@ const OrgSwitcher = () => {
           >
             <PlusIcon strokeWidth={2} className="size-4" />
             <span>Create organization</span>
-          </DropdownMenuItem>
-        </DropdownMenuPopup>
-      </DropdownMenu>
+          </MenuItem>
+        </MenuPopup>
+      </Menu>
       <CreateOrgDialog open={createOrgOpen} onOpenChange={setCreateOrgOpen} />
     </>
   );
@@ -174,13 +174,13 @@ const UserMenu = () => {
   };
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger render={renderUserTrigger(user.name, user.image, user.email)} />
-      <DropdownMenuPopup align="start" side="top" sideOffset={4} className="w-56">
-        <DropdownMenuGroup>
-          <DropdownMenuLabel>{user.name}</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
+    <Menu>
+      <MenuTrigger render={renderUserTrigger(user.name, user.image, user.email)} />
+      <MenuPopup align="start" side="top" sideOffset={4} className="w-56">
+        <MenuGroup>
+          <MenuGroupLabel>{user.name}</MenuGroupLabel>
+          <MenuSeparator />
+          <MenuItem
             onClick={async () => {
               await router.navigate({ to: "/account/profile" });
             }}
@@ -188,24 +188,24 @@ const UserMenu = () => {
           >
             <UserIcon strokeWidth={2} className="size-4" />
             <span>Account</span>
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
+          </MenuItem>
+          <MenuSeparator />
+          <MenuItem
             variant="destructive"
             onClick={handleLogout}
             disabled={isLoggingOut}
             closeOnClick={false}
           >
             {isLoggingOut ? (
-              <Loader2Icon className="size-4 animate-spin" />
+              <Spinner className="size-4" />
             ) : (
               <LogOutIcon strokeWidth={2} className="size-4" />
             )}
             <span>{isLoggingOut ? "Logging out…" : "Log out"}</span>
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
-      </DropdownMenuPopup>
-    </DropdownMenu>
+          </MenuItem>
+        </MenuGroup>
+      </MenuPopup>
+    </Menu>
   );
 };
 

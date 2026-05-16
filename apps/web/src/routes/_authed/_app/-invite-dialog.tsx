@@ -127,9 +127,9 @@ const InviteFormContent = ({ orgId, onSuccess }: { orgId: string; onSuccess: () 
         <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
           {([canSubmit, isSubmitting]) => (
-            <Button type="submit" disabled={!canSubmit || isSubmitting}>
+            <Button type="submit" disabled={!canSubmit} loading={Boolean(isSubmitting)}>
               <UserPlusIcon strokeWidth={2} data-icon="inline-start" />
-              {isSubmitting ? "Sending..." : "Send invitation"}
+              Send invitation
             </Button>
           )}
         </form.Subscribe>

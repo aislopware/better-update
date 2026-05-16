@@ -6,7 +6,11 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
-import { Input } from "@better-update/ui/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@better-update/ui/components/ui/input-group";
 import {
   Select,
   SelectGroup,
@@ -15,10 +19,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { keepPreviousData, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
-import { Loader2Icon, SearchIcon, SmartphoneIcon } from "lucide-react";
+import { SearchIcon, SearchXIcon, SmartphoneIcon } from "lucide-react";
 import { Suspense, useMemo, useRef, useState } from "react";
 
 import type {
@@ -27,6 +32,7 @@ import type {
   DeviceSortColumn,
 } from "@better-update/api-client/react";
 import type { SortingState } from "@tanstack/react-table";
+import type React from "react";
 
 import { formatAppleTeamLabel } from "../-credentials-utils";
 import { PageHeader } from "../../../../components/page-header";
@@ -132,20 +138,25 @@ const DevicesFilterBar = ({
   onTeamFilter: (value: string) => void;
 }) => (
   <div className="flex flex-wrap items-center gap-2">
-    <div className="relative min-w-[14rem] flex-1">
-      <SearchIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 z-10 size-4 -translate-y-1/2" />
-      <Input
+    <InputGroup className="min-w-[14rem] flex-1">
+      <InputGroupAddon>
+        <SearchIcon aria-hidden="true" />
+      </InputGroupAddon>
+      <InputGroupInput
+        aria-label="Search devices"
         placeholder="Search by name or UDID…"
+        type="search"
         value={search}
-        onChange={(event) => {
+        onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
           onSearchChange(event.target.value);
         }}
-        className="pr-8 pl-8"
       />
       {isPlaceholderData ? (
-        <Loader2Icon className="text-muted-foreground pointer-events-none absolute top-1/2 right-2.5 z-10 size-4 -translate-y-1/2 animate-spin" />
+        <InputGroupAddon align="inline-end">
+          <Spinner />
+        </InputGroupAddon>
       ) : null}
-    </div>
+    </InputGroup>
     <Select
       items={CLASS_FILTER_LABELS}
       value={classFilter}
@@ -332,9 +343,15 @@ const DevicesContent = () => {
       />
       <PendingInvitesList orgId={orgId} />
       {data.total === 0 ? (
-        <p className="text-muted-foreground rounded-xl border border-dashed py-10 text-center text-sm">
-          No devices match your filters.
-        </p>
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <SearchXIcon strokeWidth={1.5} />
+            </EmptyMedia>
+            <EmptyTitle>No devices match your filters</EmptyTitle>
+            <EmptyDescription>Adjust your filters or clear the search.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       ) : (
         <DevicesTableView
           table={table}

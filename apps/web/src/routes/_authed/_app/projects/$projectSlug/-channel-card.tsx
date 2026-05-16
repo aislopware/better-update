@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@better-update/ui/components/ui/select";
 import { toastManager } from "@better-update/ui/components/ui/toast";
+import { Tooltip, TooltipPopup, TooltipTrigger } from "@better-update/ui/components/ui/tooltip";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   CircleCheckIcon,
@@ -139,24 +140,38 @@ const ActiveRolloutControls = ({
         >
           Apply
         </Button>
-        <Button
-          size="icon"
-          variant="outline"
-          title="Complete rollout — switch channel to new branch"
-          disabled={isUpdatingRollout}
-          onClick={handleCompleteRollout}
-        >
-          <CircleCheckIcon strokeWidth={2} />
-        </Button>
-        <Button
-          size="icon"
-          variant="outline"
-          title="Revert rollout — keep original branch"
-          disabled={isUpdatingRollout}
-          onClick={handleRevertRollout}
-        >
-          <Undo2Icon strokeWidth={2} />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                size="icon"
+                variant="outline"
+                aria-label="Complete rollout"
+                disabled={isUpdatingRollout}
+                onClick={handleCompleteRollout}
+              />
+            }
+          >
+            <CircleCheckIcon strokeWidth={2} />
+          </TooltipTrigger>
+          <TooltipPopup>Complete rollout — switch channel to new branch</TooltipPopup>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                size="icon"
+                variant="outline"
+                aria-label="Revert rollout"
+                disabled={isUpdatingRollout}
+                onClick={handleRevertRollout}
+              />
+            }
+          >
+            <Undo2Icon strokeWidth={2} />
+          </TooltipTrigger>
+          <TooltipPopup>Revert rollout — keep original branch</TooltipPopup>
+        </Tooltip>
       </div>
     </div>
   );
@@ -258,7 +273,8 @@ const StartRolloutControls = ({
       />
       <Button
         variant="default"
-        disabled={isSubmitting || !rolloutBranchId || !rolloutInput}
+        disabled={!rolloutBranchId || !rolloutInput}
+        loading={isSubmitting}
         onClick={handleStartRollout}
       >
         Start

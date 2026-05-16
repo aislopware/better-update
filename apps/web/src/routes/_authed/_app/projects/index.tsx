@@ -9,7 +9,12 @@ import {
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
 import { Frame } from "@better-update/ui/components/ui/frame";
-import { Input } from "@better-update/ui/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@better-update/ui/components/ui/input-group";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
 import {
   Table,
   TableBody,
@@ -29,13 +34,14 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   FolderIcon,
-  Loader2Icon,
   SearchIcon,
+  SearchXIcon,
 } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 
 import type { ProjectItem, ProjectSort, ProjectSortColumn } from "@better-update/api-client/react";
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
+import type React from "react";
 
 import { PageHeader } from "../../../../components/page-header";
 import { TableSkeleton } from "../../../../components/skeletons";
@@ -99,10 +105,10 @@ const formatShortDate = (value: string) =>
 const getActivityDotColor = (lastActivityAt: string): string => {
   const days = (Date.now() - new Date(lastActivityAt).getTime()) / 86_400_000;
   if (days < 7) {
-    return "bg-emerald-500";
+    return "bg-success";
   }
   if (days < 30) {
-    return "bg-amber-500";
+    return "bg-warning";
   }
   return "bg-muted-foreground/64";
 };
@@ -367,24 +373,35 @@ const Projects = () => {
         actions={createCta}
       />
       <div className="flex flex-col gap-3">
-        <div className="relative">
-          <SearchIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 z-10 size-4 -translate-y-1/2" />
-          <Input
+        <InputGroup>
+          <InputGroupAddon>
+            <SearchIcon aria-hidden="true" />
+          </InputGroupAddon>
+          <InputGroupInput
+            aria-label="Search projects"
             placeholder="Search projects…"
+            type="search"
             value={search}
-            onChange={(event) => {
+            onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
               handleSearchChange(event.target.value);
             }}
-            className="pr-8 pl-8"
           />
           {isPlaceholderData ? (
-            <Loader2Icon className="text-muted-foreground pointer-events-none absolute top-1/2 right-2.5 z-10 size-4 -translate-y-1/2 animate-spin" />
+            <InputGroupAddon align="inline-end">
+              <Spinner />
+            </InputGroupAddon>
           ) : null}
-        </div>
+        </InputGroup>
         {showsFilteredEmpty ? (
-          <p className="text-muted-foreground rounded-xl border border-dashed py-10 text-center text-sm">
-            No projects match your search.
-          </p>
+          <Empty>
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <SearchXIcon strokeWidth={1.5} />
+              </EmptyMedia>
+              <EmptyTitle>No projects match your search</EmptyTitle>
+              <EmptyDescription>Try a different keyword or clear the search.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         ) : (
           <Frame
             className={

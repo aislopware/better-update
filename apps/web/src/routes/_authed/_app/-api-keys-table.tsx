@@ -8,11 +8,11 @@ import {
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
 import {
-  DropdownMenu,
-  DropdownMenuPopup,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
+  Menu,
+  MenuPopup,
+  MenuGroup,
+  MenuItem,
+  MenuTrigger,
 } from "@better-update/ui/components/ui/menu";
 import { KeyIcon, Trash2Icon, EllipsisVerticalIcon } from "lucide-react";
 
@@ -33,19 +33,19 @@ const maskKey = (start: string | null, prefix: string | null): string => {
 };
 
 const KeyActions = ({ onRevoke }: { onRevoke: () => void }) => (
-  <DropdownMenu>
-    <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label="Key actions" />}>
+  <Menu>
+    <MenuTrigger render={<Button variant="ghost" size="icon" aria-label="Key actions" />}>
       <EllipsisVerticalIcon strokeWidth={2} />
-    </DropdownMenuTrigger>
-    <DropdownMenuPopup align="end">
-      <DropdownMenuGroup>
-        <DropdownMenuItem variant="destructive" onClick={onRevoke}>
+    </MenuTrigger>
+    <MenuPopup align="end">
+      <MenuGroup>
+        <MenuItem variant="destructive" onClick={onRevoke}>
           <Trash2Icon strokeWidth={2} />
           <span>Revoke key</span>
-        </DropdownMenuItem>
-      </DropdownMenuGroup>
-    </DropdownMenuPopup>
-  </DropdownMenu>
+        </MenuItem>
+      </MenuGroup>
+    </MenuPopup>
+  </Menu>
 );
 
 export const ApiKeysTable = ({

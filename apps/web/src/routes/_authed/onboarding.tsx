@@ -123,8 +123,13 @@ const Onboarding = () => {
               </FieldGroup>
               <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
                 {([canSubmit, isSubmitting]) => (
-                  <Button type="submit" className="w-full" disabled={!canSubmit || isSubmitting}>
-                    {isSubmitting ? "Creating..." : "Create organization"}
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={!canSubmit}
+                    loading={Boolean(isSubmitting)}
+                  >
+                    Create organization
                   </Button>
                 )}
               </form.Subscribe>

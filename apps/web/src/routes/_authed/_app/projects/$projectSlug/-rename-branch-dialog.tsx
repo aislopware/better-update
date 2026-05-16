@@ -57,7 +57,6 @@ export const RenameBranchDialog = ({
         <BranchNameForm
           defaultName={branch.name}
           submitLabel="Rename"
-          submittingLabel="Renaming..."
           onSubmit={async (name) => safeSubmit(renameBranchMutation.mutateAsync(name))}
         />
       </DialogPopup>

@@ -7,12 +7,12 @@ import {
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
 import {
-  DropdownMenu,
-  DropdownMenuPopup,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  Menu,
+  MenuPopup,
+  MenuGroup,
+  MenuItem,
+  MenuSeparator,
+  MenuTrigger,
 } from "@better-update/ui/components/ui/menu";
 import {
   Table,
@@ -205,21 +205,19 @@ const AscApiKeyActions = ({
   onDelete: () => Promise<unknown>;
   onInvalidate: () => Promise<void>;
 }) => (
-  <DropdownMenu>
-    <DropdownMenuTrigger
-      render={<Button variant="ghost" size="icon" aria-label="ASC key actions" />}
-    >
+  <Menu>
+    <MenuTrigger render={<Button variant="ghost" size="icon" aria-label="ASC key actions" />}>
       <EllipsisVerticalIcon strokeWidth={2} />
-    </DropdownMenuTrigger>
-    <DropdownMenuPopup align="end">
-      <DropdownMenuGroup>
-        <DropdownMenuItem disabled={syncPending} onClick={onSync}>
+    </MenuTrigger>
+    <MenuPopup align="end">
+      <MenuGroup>
+        <MenuItem disabled={syncPending} onClick={onSync}>
           <RefreshCwIcon strokeWidth={2} />
           <span>Sync devices</span>
-        </DropdownMenuItem>
-      </DropdownMenuGroup>
-      <DropdownMenuSeparator />
-      <DropdownMenuGroup>
+        </MenuItem>
+      </MenuGroup>
+      <MenuSeparator />
+      <MenuGroup>
         <ConfirmDeleteDialog
           name={keyId}
           title="Delete ASC API key?"
@@ -228,7 +226,7 @@ const AscApiKeyActions = ({
           successMessage="ASC API key deleted"
           onSuccess={onInvalidate}
         >
-          <DropdownMenuItem
+          <MenuItem
             variant="destructive"
             onSelect={(event) => {
               event.preventDefault();
@@ -236,11 +234,11 @@ const AscApiKeyActions = ({
           >
             <Trash2Icon strokeWidth={2} />
             <span>Delete</span>
-          </DropdownMenuItem>
+          </MenuItem>
         </ConfirmDeleteDialog>
-      </DropdownMenuGroup>
-    </DropdownMenuPopup>
-  </DropdownMenu>
+      </MenuGroup>
+    </MenuPopup>
+  </Menu>
 );
 
 export const AscApiKeysTable = ({

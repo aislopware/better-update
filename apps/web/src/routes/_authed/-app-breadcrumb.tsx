@@ -1,5 +1,12 @@
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@better-update/ui/components/ui/breadcrumb";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { ChevronRightIcon } from "lucide-react";
 import { Suspense } from "react";
 
 import { ProjectSwitcher } from "./-project-switcher";
@@ -20,21 +27,12 @@ const ROUTE_LABELS: Record<string, string> = {
   "environment-variables": "Environment variables",
 };
 
-const Separator = () => (
-  <ChevronRightIcon strokeWidth={2} className="text-muted-foreground size-3.5" />
-);
-
-const TextCrumb = ({ label }: { label: string }) => <span className="font-medium">{label}</span>;
-
 const switcherFallback = <span className="text-muted-foreground">Loading...</span>;
 
 const OrgCrumb = ({ orgName }: { orgName: string }) => (
-  <Link
-    to="/projects"
-    className="text-muted-foreground hover:text-foreground truncate font-medium transition-colors"
-  >
-    {orgName}
-  </Link>
+  <BreadcrumbItem>
+    <BreadcrumbLink render={<Link to="/projects" />}>{orgName}</BreadcrumbLink>
+  </BreadcrumbItem>
 );
 
 interface AppBreadcrumbProps {
@@ -50,35 +48,47 @@ export const AppBreadcrumb = ({ orgId, orgName, projectSlug }: AppBreadcrumbProp
 
   if (projectSlug && first === "projects") {
     return (
-      <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-sm">
-        <OrgCrumb orgName={orgName} />
-        <Separator />
-        <Suspense fallback={switcherFallback}>
-          <ProjectSwitcher orgId={orgId} currentProjectSlug={projectSlug} />
-        </Suspense>
-        {third ? (
-          <>
-            <Separator />
-            <TextCrumb label={ROUTE_LABELS[third] ?? third} />
-          </>
-        ) : null}
-      </nav>
+      <Breadcrumb>
+        <BreadcrumbList>
+          <OrgCrumb orgName={orgName} />
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <Suspense fallback={switcherFallback}>
+              <ProjectSwitcher orgId={orgId} currentProjectSlug={projectSlug} />
+            </Suspense>
+          </BreadcrumbItem>
+          {third ? (
+            <>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>{ROUTE_LABELS[third] ?? third}</BreadcrumbPage>
+              </BreadcrumbItem>
+            </>
+          ) : null}
+        </BreadcrumbList>
+      </Breadcrumb>
     );
   }
 
   if (!first) {
     return (
-      <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-sm">
-        <OrgCrumb orgName={orgName} />
-      </nav>
+      <Breadcrumb>
+        <BreadcrumbList>
+          <OrgCrumb orgName={orgName} />
+        </BreadcrumbList>
+      </Breadcrumb>
     );
   }
 
   return (
-    <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-sm">
-      <OrgCrumb orgName={orgName} />
-      <Separator />
-      <TextCrumb label={ROUTE_LABELS[first] ?? first} />
-    </nav>
+    <Breadcrumb>
+      <BreadcrumbList>
+        <OrgCrumb orgName={orgName} />
+        <BreadcrumbSeparator />
+        <BreadcrumbItem>
+          <BreadcrumbPage>{ROUTE_LABELS[first] ?? first}</BreadcrumbPage>
+        </BreadcrumbItem>
+      </BreadcrumbList>
+    </Breadcrumb>
   );
 };

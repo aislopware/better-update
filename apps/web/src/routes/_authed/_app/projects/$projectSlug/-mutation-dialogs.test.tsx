@@ -12,44 +12,33 @@ import { DeleteChannelDialog } from "./-delete-channel-dialog";
 import { PromoteUpdateDialog } from "./-promote-update-dialog";
 import { RollbackToEmbeddedDialog } from "./-rollback-to-embedded-dialog";
 
-const { apiReactModule, selectModule, sonnerModule, apiReactMocks, toastMocks } = vi.hoisted(
-  () => ({
-    apiReactModule: "@better-update/api-client/react",
-    selectModule: "@better-update/ui/components/ui/select",
-    sonnerModule: "sonner",
-    apiReactMocks: {
-      createUpdate:
-        vi.fn<
-          (body: {
-            branch: string;
-            project: string;
-            runtimeVersion: string;
-            platform: "ios" | "android";
-            message: string;
-            groupId: string;
-            metadata: Record<string, unknown>;
-            assets: never[];
-            isRollback: true;
-            directiveBody: string;
-          }) => Promise<void>
-        >(),
-      createChannel:
-        vi.fn<(body: { projectId: string; name: string; branchId: string }) => Promise<void>>(),
-      deleteBranch: vi.fn<(id: string) => Promise<void>>(),
-      deleteBuild: vi.fn<(id: string) => Promise<void>>(),
-      deleteChannel: vi.fn<(id: string) => Promise<void>>(),
-      republishUpdate:
-        vi.fn<(body: { sourceUpdateId: string; destinationChannel: string }) => Promise<void>>(),
-    },
-    toastMocks: {
-      success: vi.fn<(message: string) => void>(),
-      error: vi.fn<(message: string) => void>(),
-    },
-  }),
-);
-
-vi.mock(sonnerModule, () => ({
-  toast: toastMocks,
+const { apiReactModule, selectModule, apiReactMocks } = vi.hoisted(() => ({
+  apiReactModule: "@better-update/api-client/react",
+  selectModule: "@better-update/ui/components/ui/select",
+  apiReactMocks: {
+    createUpdate:
+      vi.fn<
+        (body: {
+          branch: string;
+          project: string;
+          runtimeVersion: string;
+          platform: "ios" | "android";
+          message: string;
+          groupId: string;
+          metadata: Record<string, unknown>;
+          assets: never[];
+          isRollback: true;
+          directiveBody: string;
+        }) => Promise<void>
+      >(),
+    createChannel:
+      vi.fn<(body: { projectId: string; name: string; branchId: string }) => Promise<void>>(),
+    deleteBranch: vi.fn<(id: string) => Promise<void>>(),
+    deleteBuild: vi.fn<(id: string) => Promise<void>>(),
+    deleteChannel: vi.fn<(id: string) => Promise<void>>(),
+    republishUpdate:
+      vi.fn<(body: { sourceUpdateId: string; destinationChannel: string }) => Promise<void>>(),
+  },
 }));
 
 vi.mock(selectModule, async () => {

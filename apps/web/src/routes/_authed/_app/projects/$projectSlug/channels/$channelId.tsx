@@ -5,6 +5,7 @@ import {
   channelsQueryOptions,
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
+import { Button } from "@better-update/ui/components/ui/button";
 import {
   Card,
   CardContent,
@@ -12,8 +13,17 @@ import {
   CardHeader,
   CardTitle,
 } from "@better-update/ui/components/ui/card";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@better-update/ui/components/ui/empty";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
+import { RadioTowerIcon } from "lucide-react";
 import { Suspense } from "react";
 
 import { ChannelCard } from "../-channel-card";
@@ -25,23 +35,25 @@ import { ProjectSubpageHeader } from "../-project-subpage-header";
 import { DetailCardSkeleton, SummaryCardsSkeleton } from "../../../../../../components/skeletons";
 
 const ChannelNotFoundState = ({ projectSlug }: { projectSlug: string }) => (
-  <Card className="border-dashed">
-    <CardContent className="flex flex-col gap-3 py-10">
-      <div className="text-lg font-medium">Channel not found in this project</div>
-      <p className="text-muted-foreground text-sm">
+  <Empty>
+    <EmptyHeader>
+      <EmptyMedia variant="icon">
+        <RadioTowerIcon strokeWidth={1.5} />
+      </EmptyMedia>
+      <EmptyTitle>Channel not found in this project</EmptyTitle>
+      <EmptyDescription>
         The requested channel does not belong to this project or was removed.
-      </p>
-      <div>
-        <Link
-          to="/projects/$projectSlug"
-          params={{ projectSlug }}
-          className="text-muted-foreground hover:text-foreground text-sm transition-colors"
-        >
-          Back to project
-        </Link>
-      </div>
-    </CardContent>
-  </Card>
+      </EmptyDescription>
+    </EmptyHeader>
+    <EmptyContent>
+      <Button
+        variant="outline"
+        render={<Link to="/projects/$projectSlug" params={{ projectSlug }} />}
+      >
+        Back to project
+      </Button>
+    </EmptyContent>
+  </Empty>
 );
 
 const ChannelSummaryCards = ({

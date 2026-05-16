@@ -2,6 +2,7 @@ import {
   androidApplicationIdentifiersQueryOptions,
   iosBundleConfigurationsQueryOptions,
 } from "@better-update/api-client/react";
+import { Alert, AlertDescription, AlertTitle } from "@better-update/ui/components/ui/alert";
 import {
   Card,
   CardContent,
@@ -9,10 +10,18 @@ import {
   CardHeader,
   CardTitle,
 } from "@better-update/ui/components/ui/card";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@better-update/ui/components/ui/empty";
 import { Skeleton } from "@better-update/ui/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@better-update/ui/components/ui/tabs";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { InfoIcon, KeyRoundIcon, SmartphoneIcon } from "lucide-react";
 import { Suspense } from "react";
 
 import { AndroidBuildWizard } from "./-android-build-wizard";
@@ -37,15 +46,18 @@ const IosSummary = ({ orgId, projectId }: { orgId: string; projectId: string }) 
   const { data } = useSuspenseQuery(iosBundleConfigurationsQueryOptions(orgId, projectId));
   if (data.items.length === 0) {
     return (
-      <Card className="border-dashed">
-        <CardHeader>
-          <CardTitle>No iOS bundle configurations</CardTitle>
-          <CardDescription>
+      <Empty>
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <SmartphoneIcon strokeWidth={1.5} />
+          </EmptyMedia>
+          <EmptyTitle>No iOS bundle configurations</EmptyTitle>
+          <EmptyDescription>
             Configure per-distribution credentials for this project. App Store, Ad-Hoc, Development,
             or Enterprise each bind a cert, profile, push key, and ASC API key.
-          </CardDescription>
-        </CardHeader>
-      </Card>
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     );
   }
   return (
@@ -72,15 +84,18 @@ const AndroidSummary = ({ orgId, projectId }: { orgId: string; projectId: string
   const { data } = useSuspenseQuery(androidApplicationIdentifiersQueryOptions(orgId, projectId));
   if (data.items.length === 0) {
     return (
-      <Card className="border-dashed">
-        <CardHeader>
-          <CardTitle>No Android app identifiers</CardTitle>
-          <CardDescription>
+      <Empty>
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <KeyRoundIcon strokeWidth={1.5} />
+          </EmptyMedia>
+          <EmptyTitle>No Android app identifiers</EmptyTitle>
+          <EmptyDescription>
             Create an application identifier to manage upload keystores and Google Service Account
             keys for this project.
-          </CardDescription>
-        </CardHeader>
-      </Card>
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     );
   }
   return (
@@ -108,22 +123,21 @@ const ProjectCredentials = () => {
         </TabsList>
         <TabsContent value="ios" className="pt-4">
           <div className="flex flex-col gap-4">
-            <Card className="border-dashed">
-              <CardHeader>
-                <CardTitle>iOS bundle configurations</CardTitle>
-                <CardDescription>
-                  Bind certificates and provisioning profiles via the CLI:{" "}
-                  <code className="font-mono text-xs">
-                    better-update credentials generate distribution-certificate
-                  </code>{" "}
-                  and{" "}
-                  <code className="font-mono text-xs">
-                    better-update credentials generate provisioning-profile
-                  </code>
-                  . The CLI handles the full ASC flow and binds the bundle config in one go.
-                </CardDescription>
-              </CardHeader>
-            </Card>
+            <Alert variant="info">
+              <InfoIcon strokeWidth={2} />
+              <AlertTitle>iOS bundle configurations</AlertTitle>
+              <AlertDescription>
+                Bind certificates and provisioning profiles via the CLI:{" "}
+                <code className="font-mono text-xs">
+                  better-update credentials generate distribution-certificate
+                </code>{" "}
+                and{" "}
+                <code className="font-mono text-xs">
+                  better-update credentials generate provisioning-profile
+                </code>
+                . The CLI handles the full ASC flow and binds the bundle config in one go.
+              </AlertDescription>
+            </Alert>
             <Suspense fallback={<CredentialListSkeleton />}>
               <IosSummary orgId={activeOrg.id} projectId={project.id} />
             </Suspense>

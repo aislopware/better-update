@@ -3,7 +3,7 @@ import { Button } from "@better-update/ui/components/ui/button";
 import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Loader2Icon, MonitorIcon } from "lucide-react";
+import { MonitorIcon } from "lucide-react";
 import { Suspense, useState } from "react";
 
 import { SettingCard } from "../../../../components/setting-card";
@@ -69,14 +69,8 @@ const SessionsList = () => {
       description="Devices currently signed in to your account."
       action={
         sessions.length > 1 ? (
-          <Button
-            variant="outline"
-            onClick={handleRevokeAll}
-            disabled={isRevokingAll}
-            aria-busy={isRevokingAll}
-          >
-            {isRevokingAll ? <Loader2Icon className="size-3.5 animate-spin" /> : null}
-            {isRevokingAll ? "Revoking…" : "Revoke all others"}
+          <Button variant="outline" onClick={handleRevokeAll} loading={isRevokingAll}>
+            Revoke all others
           </Button>
         ) : null
       }
@@ -106,11 +100,10 @@ const SessionsList = () => {
                 <Button
                   variant="outline"
                   onClick={async () => handleRevoke(session.token)}
-                  disabled={isRevoking || isRevokingAll}
-                  aria-busy={isRevoking}
+                  loading={isRevoking}
+                  disabled={isRevokingAll}
                 >
-                  {isRevoking ? <Loader2Icon className="size-3.5 animate-spin" /> : null}
-                  {isRevoking ? "Revoking…" : "Revoke"}
+                  Revoke
                 </Button>
               )}
             </li>

@@ -281,9 +281,9 @@ export const RegisterDeviceDialog = ({ orgId }: { orgId: string }) => {
             <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
             <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting] as const}>
               {([canSubmit, isSubmitting]) => (
-                <Button type="submit" disabled={!canSubmit || isSubmitting}>
+                <Button type="submit" disabled={!canSubmit} loading={isSubmitting}>
                   <PlusIcon strokeWidth={2} data-icon="inline-start" />
-                  {isSubmitting ? "Registering..." : "Register device"}
+                  Register device
                 </Button>
               )}
             </form.Subscribe>

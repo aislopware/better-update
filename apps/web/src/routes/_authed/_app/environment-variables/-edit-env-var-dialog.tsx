@@ -216,8 +216,8 @@ const EditFormContent = ({
         <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
           {([canSubmit, isSubmitting]) => (
-            <Button type="submit" disabled={!canSubmit || isSubmitting}>
-              {isSubmitting ? "Saving..." : "Save changes"}
+            <Button type="submit" disabled={!canSubmit} loading={Boolean(isSubmitting)}>
+              Save changes
             </Button>
           )}
         </form.Subscribe>

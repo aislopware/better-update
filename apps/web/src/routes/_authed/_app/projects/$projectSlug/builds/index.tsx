@@ -12,7 +12,7 @@ import {
 import { keepPreviousData, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
-import { PackageIcon } from "lucide-react";
+import { PackageIcon, SearchXIcon } from "lucide-react";
 import { Suspense, useMemo, useState } from "react";
 
 import type {
@@ -211,9 +211,15 @@ const BuildsContent = () => {
         missingRuntimeVersions={matrix.missingRuntimeVersions}
       />
       {data.total === 0 ? (
-        <p className="text-muted-foreground rounded-xl border border-dashed py-10 text-center text-sm">
-          No builds match your filters.
-        </p>
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <SearchXIcon strokeWidth={1.5} />
+            </EmptyMedia>
+            <EmptyTitle>No matches</EmptyTitle>
+            <EmptyDescription>No builds match your filters.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       ) : (
         <BuildsTableView
           table={table}

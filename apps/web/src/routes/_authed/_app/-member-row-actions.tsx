@@ -1,13 +1,13 @@
 import { Button } from "@better-update/ui/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuPopup,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  Menu,
+  MenuPopup,
+  MenuGroup,
+  MenuItem,
+  MenuSeparator,
+  MenuTrigger,
 } from "@better-update/ui/components/ui/menu";
-import { EllipsisVerticalIcon, Loader2Icon, ShieldIcon, UserMinusIcon } from "lucide-react";
+import { EllipsisVerticalIcon, ShieldIcon, UserMinusIcon } from "lucide-react";
 
 import type { Row } from "./-members-row";
 
@@ -15,23 +15,11 @@ const canManageRole = (currentRole: string, targetRole: string): boolean =>
   currentRole === "owner" && targetRole !== "owner";
 
 const ActionsTrigger = ({ isPending, label }: { isPending: boolean; label?: string }) => (
-  <DropdownMenuTrigger
-    render={
-      <Button
-        variant="ghost"
-        size="icon"
-        disabled={isPending}
-        aria-busy={isPending}
-        aria-label={label}
-      />
-    }
+  <MenuTrigger
+    render={<Button variant="ghost" size="icon" loading={isPending} aria-label={label} />}
   >
-    {isPending ? (
-      <Loader2Icon className="animate-spin" />
-    ) : (
-      <EllipsisVerticalIcon strokeWidth={2} />
-    )}
-  </DropdownMenuTrigger>
+    <EllipsisVerticalIcon strokeWidth={2} />
+  </MenuTrigger>
 );
 
 const InvitationActions = ({
@@ -43,10 +31,10 @@ const InvitationActions = ({
   isPending: boolean;
   onCancelInvitation: (invitationId: string) => void;
 }) => (
-  <DropdownMenu>
+  <Menu>
     <ActionsTrigger isPending={isPending} label="Invitation actions" />
-    <DropdownMenuPopup align="end">
-      <DropdownMenuItem
+    <MenuPopup align="end">
+      <MenuItem
         variant="destructive"
         onClick={() => {
           onCancelInvitation(invitationId);
@@ -54,9 +42,9 @@ const InvitationActions = ({
       >
         <UserMinusIcon strokeWidth={2} />
         <span>Cancel invitation</span>
-      </DropdownMenuItem>
-    </DropdownMenuPopup>
-  </DropdownMenu>
+      </MenuItem>
+    </MenuPopup>
+  </Menu>
 );
 
 const ActiveMemberActions = ({
@@ -72,34 +60,34 @@ const ActiveMemberActions = ({
   onRoleChange: (memberId: string, role: string) => void;
   onRemove: (memberId: string) => void;
 }) => (
-  <DropdownMenu>
+  <Menu>
     <ActionsTrigger isPending={isPending} />
-    <DropdownMenuPopup align="end">
-      <DropdownMenuGroup>
+    <MenuPopup align="end">
+      <MenuGroup>
         {memberRole === "admin" ? null : (
-          <DropdownMenuItem
+          <MenuItem
             onClick={() => {
               onRoleChange(memberId, "admin");
             }}
           >
             <ShieldIcon strokeWidth={2} />
             <span>Set as Admin</span>
-          </DropdownMenuItem>
+          </MenuItem>
         )}
         {memberRole === "member" ? null : (
-          <DropdownMenuItem
+          <MenuItem
             onClick={() => {
               onRoleChange(memberId, "member");
             }}
           >
             <ShieldIcon strokeWidth={2} />
             <span>Set as Member</span>
-          </DropdownMenuItem>
+          </MenuItem>
         )}
-      </DropdownMenuGroup>
-      <DropdownMenuSeparator />
-      <DropdownMenuGroup>
-        <DropdownMenuItem
+      </MenuGroup>
+      <MenuSeparator />
+      <MenuGroup>
+        <MenuItem
           variant="destructive"
           onClick={() => {
             onRemove(memberId);
@@ -107,10 +95,10 @@ const ActiveMemberActions = ({
         >
           <UserMinusIcon strokeWidth={2} />
           <span>Remove member</span>
-        </DropdownMenuItem>
-      </DropdownMenuGroup>
-    </DropdownMenuPopup>
-  </DropdownMenu>
+        </MenuItem>
+      </MenuGroup>
+    </MenuPopup>
+  </Menu>
 );
 
 export const MemberRowActions = ({

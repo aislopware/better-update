@@ -94,10 +94,11 @@ export const ConfirmDeleteDialog = ({
           <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
           <Button
             variant="destructive"
-            disabled={confirmText !== name || deleteMutation.isPending}
+            disabled={confirmText !== name}
+            loading={deleteMutation.isPending}
             onClick={handleDelete}
           >
-            {deleteMutation.isPending ? "Deleting..." : "Delete permanently"}
+            Delete permanently
           </Button>
         </DialogFooter>
       </DialogPopup>

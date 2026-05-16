@@ -21,7 +21,7 @@ import {
   DialogPanel,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
-import { Field, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
 import {
   Select,
@@ -150,7 +150,7 @@ const RowInputs = ({
   const error = keyError ?? (duplicate ? "Duplicate key" : undefined);
   return (
     <div className="flex items-start gap-2">
-      <div className="flex-1">
+      <Field className="flex-1" data-invalid={error ? true : undefined}>
         <Input
           placeholder="KEY"
           value={row.key}
@@ -160,8 +160,8 @@ const RowInputs = ({
           className="font-mono"
           aria-invalid={error ? true : undefined}
         />
-        {error ? <p className="text-destructive mt-1 text-xs">{error}</p> : null}
-      </div>
+        <FieldError match={Boolean(error)}>{error}</FieldError>
+      </Field>
       <Input
         placeholder="value"
         value={row.value}
@@ -325,15 +325,12 @@ const CreateForm = ({
     },
   });
 
-  const canSubmit =
-    !mutation.isPending && environments.length > 0 && entries.length > 0 && !hasKeyError;
+  const canSubmit = environments.length > 0 && entries.length > 0 && !hasKeyError;
 
-  const submitLabel = mutation.isPending
-    ? "Adding..."
-    : `Add ${entries.length > 0 ? entries.length : ""} ${pluralize(
-        entries.length > 0 ? entries.length : 1,
-        "variable",
-      )}`.trim();
+  const submitLabel = `Add ${entries.length > 0 ? entries.length : ""} ${pluralize(
+    entries.length > 0 ? entries.length : 1,
+    "variable",
+  )}`.trim();
 
   return (
     <form
@@ -384,7 +381,7 @@ const CreateForm = ({
 
       <DialogFooter>
         <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
-        <Button type="submit" disabled={!canSubmit}>
+        <Button type="submit" disabled={!canSubmit} loading={mutation.isPending}>
           <PlusIcon strokeWidth={2} data-icon="inline-start" />
           {submitLabel}
         </Button>

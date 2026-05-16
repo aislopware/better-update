@@ -1,6 +1,7 @@
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@better-update/ui/components/ui/card";
+import { Tooltip, TooltipPopup, TooltipTrigger } from "@better-update/ui/components/ui/tooltip";
 import { DownloadIcon } from "lucide-react";
 
 import { formatBytes } from "./-build-helpers";
@@ -90,11 +91,24 @@ export const BuildCard = ({
           {build.artifact && (
             <>
               <InstallLinkDialog build={build} />
-              <a href={`/api/builds/${build.id}/artifact`}>
-                <Button variant="ghost" size="icon" title="Download artifact">
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Download artifact"
+                      render={
+                        // eslint-disable-next-line jsx-a11y/anchor-has-content -- Base UI merges Button children (DownloadIcon) into the rendered anchor via mergeProps
+                        <a href={`/api/builds/${build.id}/artifact`} />
+                      }
+                    />
+                  }
+                >
                   <DownloadIcon strokeWidth={2} />
-                </Button>
-              </a>
+                </TooltipTrigger>
+                <TooltipPopup>Download artifact</TooltipPopup>
+              </Tooltip>
             </>
           )}
           <DeleteBuildDialog build={build} orgId={orgId} projectId={projectId} />

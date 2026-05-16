@@ -1,51 +1,50 @@
 import {
-  DropdownMenu,
-  DropdownMenuPopup,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  Menu,
+  MenuPopup,
+  MenuGroup,
+  MenuItem,
+  MenuGroupLabel,
+  MenuSeparator,
+  MenuTrigger,
 } from "@better-update/ui/components/ui/menu";
 import { render, screen } from "@testing-library/react";
 
 /**
- * These tests verify dropdown menu compositions used in the sidebar.
- * DropdownMenuLabel wraps Base UI's Menu.GroupLabel which MUST be inside
- * DropdownMenuGroup (Menu.Group). Without the group wrapper, Base UI throws:
- * "MenuGroupRootContext is missing. Menu group parts must be used within <Menu.Group>."
+ * Verifies sidebar menu compositions: MenuGroupLabel wraps Base UI's
+ * Menu.GroupLabel which MUST be inside MenuGroup. Without the group wrapper,
+ * Base UI throws "MenuGroupRootContext is missing".
  *
  * Mirrors: OrgSwitcher and UserMenu in _app.tsx
  */
 
 const OrgSwitcherDropdown = ({ orgs }: { orgs: { id: string; name: string }[] }) => (
-  <DropdownMenu open>
-    <DropdownMenuTrigger>Switch org</DropdownMenuTrigger>
-    <DropdownMenuPopup>
-      <DropdownMenuGroup>
-        <DropdownMenuLabel>Organizations</DropdownMenuLabel>
-        <DropdownMenuSeparator />
+  <Menu open>
+    <MenuTrigger>Switch org</MenuTrigger>
+    <MenuPopup>
+      <MenuGroup>
+        <MenuGroupLabel>Organizations</MenuGroupLabel>
+        <MenuSeparator />
         {orgs.map((org) => (
-          <DropdownMenuItem key={org.id}>{org.name}</DropdownMenuItem>
+          <MenuItem key={org.id}>{org.name}</MenuItem>
         ))}
-      </DropdownMenuGroup>
-      <DropdownMenuSeparator />
-      <DropdownMenuItem>Create organization</DropdownMenuItem>
-    </DropdownMenuPopup>
-  </DropdownMenu>
+      </MenuGroup>
+      <MenuSeparator />
+      <MenuItem>Create organization</MenuItem>
+    </MenuPopup>
+  </Menu>
 );
 
 const UserMenuDropdown = ({ name }: { name: string }) => (
-  <DropdownMenu open>
-    <DropdownMenuTrigger>{name}</DropdownMenuTrigger>
-    <DropdownMenuPopup>
-      <DropdownMenuGroup>
-        <DropdownMenuLabel>{name}</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem>Log out</DropdownMenuItem>
-      </DropdownMenuGroup>
-    </DropdownMenuPopup>
-  </DropdownMenu>
+  <Menu open>
+    <MenuTrigger>{name}</MenuTrigger>
+    <MenuPopup>
+      <MenuGroup>
+        <MenuGroupLabel>{name}</MenuGroupLabel>
+        <MenuSeparator />
+        <MenuItem>Log out</MenuItem>
+      </MenuGroup>
+    </MenuPopup>
+  </Menu>
 );
 
 const orgs = [

@@ -1,9 +1,10 @@
 import { useMountEffect } from "@better-update/react-hooks";
 import { Button } from "@better-update/ui/components/ui/button";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { CheckCircle2Icon, Loader2Icon, MailWarningIcon } from "lucide-react";
+import { CheckCircle2Icon, MailWarningIcon } from "lucide-react";
 import { z } from "zod";
 
 import { GlobalLoading } from "../components/global-loading";
@@ -70,10 +71,7 @@ const Body = ({ isError, isSuccess, isPending, error }: BodyProps) => {
 
 const PendingState = ({ isPending }: { readonly isPending: boolean }) => (
   <>
-    <Loader2Icon
-      className="text-muted-foreground size-8 animate-spin"
-      data-state={isPending ? "pending" : "idle"}
-    />
+    <Spinner className="text-muted-foreground size-8" data-state={isPending ? "pending" : "idle"} />
     <div className="flex flex-col gap-2">
       <h1 className="font-heading text-foreground text-xl font-semibold">Accepting invitation</h1>
       <p className="text-muted-foreground text-sm">Hang on while we add you to the organization.</p>

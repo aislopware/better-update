@@ -1,5 +1,6 @@
 import { Checkbox } from "@better-update/ui/components/ui/checkbox";
 import { CheckboxGroup } from "@better-update/ui/components/ui/checkbox-group";
+import { Label } from "@better-update/ui/components/ui/label";
 
 import type { EnvVarEnvironment } from "@better-update/api";
 
@@ -32,13 +33,10 @@ export const EnvironmentsPicker = ({
     disabled={disabled}
   >
     {ENVIRONMENT_OPTIONS.map((option) => (
-      <label
-        key={option.value}
-        className="flex cursor-pointer items-center gap-2 text-sm select-none"
-      >
+      <Label key={option.value} className="cursor-pointer gap-2 text-sm select-none">
         <Checkbox name={option.value} />
         {option.label}
-      </label>
+      </Label>
     ))}
   </CheckboxGroup>
 );

@@ -1,4 +1,5 @@
-import { CheckIcon, Loader2Icon } from "lucide-react";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
+import { CheckIcon } from "lucide-react";
 
 import type { ReactElement } from "react";
 
@@ -7,7 +8,7 @@ export const renderSwitcherIndicator = (
   isActive: boolean,
 ): ReactElement | null => {
   if (isPending) {
-    return <Loader2Icon className="text-muted-foreground size-4 animate-spin" />;
+    return <Spinner className="text-muted-foreground size-4" />;
   }
   if (isActive) {
     return <CheckIcon strokeWidth={2} className="text-primary size-4" />;

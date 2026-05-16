@@ -13,7 +13,7 @@ import {
 import { keepPreviousData, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
-import { CloudUploadIcon } from "lucide-react";
+import { CloudUploadIcon, SearchXIcon } from "lucide-react";
 import { Suspense, useMemo, useState } from "react";
 
 import type { UpdateSort, UpdateSortColumn } from "@better-update/api-client/react";
@@ -215,9 +215,15 @@ const UpdatesContent = () => {
         <div className="flex flex-wrap items-center gap-2">{filterControls}</div>
       </div>
       {data.total === 0 ? (
-        <p className="text-muted-foreground rounded-xl border border-dashed py-10 text-center text-sm">
-          No updates match your filters.
-        </p>
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <SearchXIcon strokeWidth={1.5} />
+            </EmptyMedia>
+            <EmptyTitle>No matches</EmptyTitle>
+            <EmptyDescription>No updates match your filters.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       ) : (
         <UpdatesTableView
           table={table}

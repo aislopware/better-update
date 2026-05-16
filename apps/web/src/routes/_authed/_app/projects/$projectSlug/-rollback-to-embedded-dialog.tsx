@@ -91,10 +91,10 @@ export const RollbackToEmbeddedDialog = ({
             onClick={() => {
               rollbackMutation.mutate();
             }}
-            disabled={rollbackMutation.isPending}
+            loading={rollbackMutation.isPending}
           >
             <Undo2Icon strokeWidth={2} className="size-4" />
-            {rollbackMutation.isPending ? "Creating..." : "Create rollback"}
+            Create rollback
           </Button>
         </DialogFooter>
       </DialogPopup>

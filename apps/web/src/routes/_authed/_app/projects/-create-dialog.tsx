@@ -136,9 +136,9 @@ export const CreateProjectFormContent = ({
         <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
           {([canSubmit, isSubmitting]) => (
-            <Button type="submit" disabled={!canSubmit || isSubmitting}>
+            <Button type="submit" disabled={!canSubmit} loading={Boolean(isSubmitting)}>
               <PlusIcon strokeWidth={2} data-icon="inline-start" />
-              {isSubmitting ? "Creating..." : "Create project"}
+              Create project
             </Button>
           )}
         </form.Subscribe>

@@ -111,8 +111,8 @@ export const RenameDeviceDialog = ({
             <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
             <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting] as const}>
               {([canSubmit, isSubmitting]) => (
-                <Button type="submit" disabled={!canSubmit || isSubmitting}>
-                  {isSubmitting ? "Saving..." : "Save"}
+                <Button type="submit" disabled={!canSubmit} loading={isSubmitting}>
+                  Save
                 </Button>
               )}
             </form.Subscribe>

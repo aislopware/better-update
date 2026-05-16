@@ -1,3 +1,4 @@
+import { Alert, AlertDescription, AlertTitle } from "@better-update/ui/components/ui/alert";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Card,
@@ -9,6 +10,7 @@ import {
 } from "@better-update/ui/components/ui/card";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
+import { CircleAlertIcon } from "lucide-react";
 import { z } from "zod";
 
 import { authClient } from "../../lib/auth-client";
@@ -35,10 +37,12 @@ const CliLoginPage = () => {
           <CardTitle>Connect CLI</CardTitle>
           <CardDescription>The browser login could not finish.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3 text-sm">
-          <p role="alert" className="text-destructive">
-            {error}
-          </p>
+        <CardContent>
+          <Alert variant="error">
+            <CircleAlertIcon />
+            <AlertTitle>Login failed</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
         </CardContent>
         <CardFooter>
           <Button

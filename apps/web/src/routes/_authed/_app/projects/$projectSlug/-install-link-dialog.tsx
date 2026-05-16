@@ -1,5 +1,11 @@
 import { getApiError } from "@better-update/api-client";
 import { fetchInstallLink } from "@better-update/api-client/react";
+import {
+  Alert,
+  AlertAction,
+  AlertDescription,
+  AlertTitle,
+} from "@better-update/ui/components/ui/alert";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
@@ -10,8 +16,14 @@ import {
   DialogPanel,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@better-update/ui/components/ui/input-group";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { toastManager } from "@better-update/ui/components/ui/toast";
-import { SmartphoneIcon, CopyIcon, CheckIcon } from "lucide-react";
+import { CircleAlertIcon, SmartphoneIcon, CopyIcon, CheckIcon } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useSyncExternalStore, useState } from "react";
 
@@ -21,7 +33,7 @@ import type { ComponentProps } from "react";
 import { useApiMutation } from "../../../../../lib/use-api-mutation";
 import { useCopyToClipboard } from "../../../../../lib/use-copy-to-clipboard";
 
-const CopyButton = ({ text }: { text: string }) => {
+const CopyIconButton = ({ text }: { text: string }) => {
   const { copied, copy } = useCopyToClipboard();
 
   const handleCopy = async () => {
@@ -34,9 +46,8 @@ const CopyButton = ({ text }: { text: string }) => {
   const Icon = copied ? CheckIcon : CopyIcon;
 
   return (
-    <Button variant="outline" onClick={handleCopy}>
-      <Icon strokeWidth={2} data-icon="inline-start" />
-      {copied ? "Copied" : "Copy link"}
+    <Button variant="ghost" size="icon-xs" aria-label="Copy link" onClick={handleCopy}>
+      <Icon strokeWidth={2} />
     </Button>
   );
 };
@@ -124,25 +135,29 @@ export const InstallLinkDialog = ({
 
           <DialogPanel>
             {fetchInstallLinkMutation.isPending && (
-              <div className="flex items-center justify-center py-6">
-                <div className="text-muted-foreground text-sm">Generating install link...</div>
+              <div className="flex items-center justify-center gap-2 py-6">
+                <Spinner />
+                <span className="text-muted-foreground text-sm">Generating install link...</span>
               </div>
             )}
 
             {fetchInstallLinkMutation.isError && (
-              <div className="flex flex-col items-center gap-4 py-4">
-                <p className="text-destructive text-sm">
-                  {getApiError(fetchInstallLinkMutation.error)}
-                </p>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    fetchInstallLinkMutation.mutate();
-                  }}
-                >
-                  Retry
-                </Button>
-              </div>
+              <Alert variant="error">
+                <CircleAlertIcon />
+                <AlertTitle>Could not generate install link</AlertTitle>
+                <AlertDescription>{getApiError(fetchInstallLinkMutation.error)}</AlertDescription>
+                <AlertAction>
+                  <Button
+                    size="xs"
+                    variant="outline"
+                    onClick={() => {
+                      fetchInstallLinkMutation.mutate();
+                    }}
+                  >
+                    Retry
+                  </Button>
+                </AlertAction>
+              </Alert>
             )}
 
             {fetchInstallLinkMutation.status === "success" && (
@@ -161,18 +176,24 @@ export const InstallLinkDialog = ({
                 </div>
 
                 <div className="flex w-full flex-col gap-2">
-                  <div className="bg-muted flex items-center gap-2 rounded-md px-3 py-2">
-                    <code className="flex-1 truncate text-xs">{primaryUrl}</code>
-                    <CopyButton text={primaryUrl} />
-                  </div>
+                  <InputGroup>
+                    <InputGroupInput readOnly value={primaryUrl} className="font-mono text-xs" />
+                    <InputGroupAddon align="inline-end">
+                      <CopyIconButton text={primaryUrl} />
+                    </InputGroupAddon>
+                  </InputGroup>
 
                   {isIosInstall && (
-                    <div className="bg-muted flex items-center gap-2 rounded-md px-3 py-2">
-                      <code className="flex-1 truncate text-xs">
-                        {fetchInstallLinkMutation.data.artifactUrl}
-                      </code>
-                      <CopyButton text={fetchInstallLinkMutation.data.artifactUrl} />
-                    </div>
+                    <InputGroup>
+                      <InputGroupInput
+                        readOnly
+                        value={fetchInstallLinkMutation.data.artifactUrl}
+                        className="font-mono text-xs"
+                      />
+                      <InputGroupAddon align="inline-end">
+                        <CopyIconButton text={fetchInstallLinkMutation.data.artifactUrl} />
+                      </InputGroupAddon>
+                    </InputGroup>
                   )}
                 </div>
               </div>

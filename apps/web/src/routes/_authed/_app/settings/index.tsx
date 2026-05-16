@@ -68,8 +68,8 @@ const OrgGeneralForm = () => {
         footer={
           <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
             {([canSubmit, isSubmitting]) => (
-              <Button type="submit" disabled={!canSubmit || isSubmitting}>
-                {isSubmitting ? "Saving…" : "Save changes"}
+              <Button type="submit" disabled={!canSubmit} loading={Boolean(isSubmitting)}>
+                Save changes
               </Button>
             )}
           </form.Subscribe>
@@ -200,10 +200,11 @@ const DeleteOrgSection = () => {
               <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
               <Button
                 variant="destructive"
-                disabled={confirmText !== activeOrg.slug || deleteOrgMutation.isPending}
+                disabled={confirmText !== activeOrg.slug}
+                loading={deleteOrgMutation.isPending}
                 onClick={handleDelete}
               >
-                {deleteOrgMutation.isPending ? "Deleting…" : "Delete permanently"}
+                Delete permanently
               </Button>
             </DialogFooter>
           </DialogPopup>

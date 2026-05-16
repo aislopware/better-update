@@ -208,9 +208,9 @@ export const CreateChannelDialog = ({ orgId, projectId }: { orgId: string; proje
             <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
             <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting] as const}>
               {([canSubmit, isSubmitting]) => (
-                <Button type="submit" disabled={!canSubmit || isSubmitting}>
+                <Button type="submit" disabled={!canSubmit} loading={isSubmitting}>
                   <PlusIcon strokeWidth={2} data-icon="inline-start" />
-                  {isSubmitting ? "Creating..." : "Create channel"}
+                  Create channel
                 </Button>
               )}
             </form.Subscribe>
