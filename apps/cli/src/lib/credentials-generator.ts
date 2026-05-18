@@ -412,9 +412,11 @@ export const generateAndUploadProvisioningProfile = (
     const profileBytes = fromBase64(profile.profileContent);
     const rosterHash = useDevices ? computeDeviceRosterHashHex(deviceAscIds) : undefined;
 
+    const profileBase64 = toBase64(profileBytes);
+
     const created = yield* api.appleProvisioningProfiles.upload({
       payload: {
-        profileBase64: toBase64(profileBytes),
+        profileBase64,
         appleDistributionCertificateId: input.distributionCertificateId,
         isManaged: true,
         ...(rosterHash === undefined ? {} : { deviceRosterHash: rosterHash }),
@@ -428,5 +430,7 @@ export const generateAndUploadProvisioningProfile = (
       profileName: created.profileName,
       validUntil: created.validUntil,
       developerPortalIdentifier: created.developerPortalIdentifier,
+      /** Raw .mobileprovision bytes (base64) — callers can install directly without re-downloading. */
+      profileBase64,
     };
   });

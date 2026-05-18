@@ -6,7 +6,11 @@ import { Effect } from "effect";
 import { readCredentialsJson, resolveCredentialPath } from "./credentials-json";
 import { MissingCredentialsError } from "./exit-codes";
 
-import type { AndroidCredentials, IosCredentials } from "./credentials-downloader";
+import type {
+  AndroidCredentials,
+  IosCredentialProfile,
+  IosCredentials,
+} from "./credentials-downloader";
 
 const requirePath = (
   fs: FileSystem.FileSystem,
@@ -29,6 +33,12 @@ const requirePath = (
 
 export interface LoadLocalIosCredentialsOptions {
   readonly projectRoot: string;
+  /**
+   * Bundle ID of the main app target, read from the Expo config. Used to label
+   * the legacy `provisioningProfilePath` field (which only carries a path, not
+   * a bundle identifier).
+   */
+  readonly mainBundleIdentifier: string;
 }
 
 export const loadLocalIosCredentials = (
@@ -55,18 +65,40 @@ export const loadLocalIosCredentials = (
       options.projectRoot,
       data.ios.distributionCertificate.path,
     );
-    const profilePath = resolveCredentialPath(
+    yield* requirePath(fs, p12Path, "distribution certificate (.p12)");
+
+    const mainProfilePath = resolveCredentialPath(
       options.projectRoot,
       data.ios.provisioningProfilePath,
     );
-    yield* requirePath(fs, p12Path, "distribution certificate (.p12)");
-    yield* requirePath(fs, profilePath, "provisioning profile (.mobileprovision)");
+    yield* requirePath(fs, mainProfilePath, "provisioning profile (.mobileprovision)");
+
+    const profiles: IosCredentialProfile[] = [
+      {
+        bundleIdentifier: options.mainBundleIdentifier,
+        profilePath: mainProfilePath,
+        profileFilename: path.basename(mainProfilePath),
+      },
+    ];
+
+    for (const extra of data.ios.additionalProvisioningProfiles ?? []) {
+      const extraPath = resolveCredentialPath(options.projectRoot, extra.path);
+      yield* requirePath(
+        fs,
+        extraPath,
+        `provisioning profile for ${extra.bundleIdentifier} (.mobileprovision)`,
+      );
+      profiles.push({
+        bundleIdentifier: extra.bundleIdentifier,
+        profilePath: extraPath,
+        profileFilename: path.basename(extraPath),
+      });
+    }
+
     return {
       p12Path,
       p12Password: data.ios.distributionCertificate.password,
-      profilePath,
-      profileFilename: path.basename(profilePath),
-      teamId: "",
+      profiles,
     };
   });
 

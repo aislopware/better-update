@@ -7,8 +7,7 @@ describe(renderExportOptionsPlist, () => {
     const plist = renderExportOptionsPlist({
       method: "app-store",
       teamId: "ABCD1234EF",
-      bundleId: "com.example.app",
-      provisioningProfileName: "My AppStore Profile",
+      provisioningProfiles: [{ bundleId: "com.example.app", profileName: "My AppStore Profile" }],
     });
     expect(plist).toMatchInlineSnapshot(`
       "<?xml version="1.0" encoding="UTF-8"?>
@@ -36,12 +35,30 @@ describe(renderExportOptionsPlist, () => {
     `);
   });
 
+  it("emits one provisioningProfiles entry per signed target", () => {
+    const plist = renderExportOptionsPlist({
+      method: "app-store",
+      teamId: "ABCD1234EF",
+      provisioningProfiles: [
+        { bundleId: "com.example.app", profileName: "App AppStore" },
+        { bundleId: "com.example.app.notification", profileName: "Notif AppStore" },
+        { bundleId: "com.example.app.content", profileName: "Content AppStore" },
+      ],
+    });
+    expect(plist).toContain("<key>com.example.app</key>\n\t\t<string>App AppStore</string>");
+    expect(plist).toContain(
+      "<key>com.example.app.notification</key>\n\t\t<string>Notif AppStore</string>",
+    );
+    expect(plist).toContain(
+      "<key>com.example.app.content</key>\n\t\t<string>Content AppStore</string>",
+    );
+  });
+
   it("ad-hoc method omits uploadSymbols", () => {
     const plist = renderExportOptionsPlist({
       method: "ad-hoc",
       teamId: "ABCD1234EF",
-      bundleId: "com.example.app",
-      provisioningProfileName: "My AdHoc Profile",
+      provisioningProfiles: [{ bundleId: "com.example.app", profileName: "My AdHoc Profile" }],
     });
     expect(plist).toContain("<string>ad-hoc</string>");
     expect(plist).not.toContain("uploadSymbols");
@@ -51,8 +68,7 @@ describe(renderExportOptionsPlist, () => {
     const plist = renderExportOptionsPlist({
       method: "enterprise",
       teamId: "XYZ9876543",
-      bundleId: "com.enterprise.app",
-      provisioningProfileName: "Enterprise Profile",
+      provisioningProfiles: [{ bundleId: "com.enterprise.app", profileName: "Enterprise Profile" }],
     });
     expect(plist).toContain("<string>enterprise</string>");
     expect(plist).not.toContain("uploadSymbols");
@@ -62,8 +78,7 @@ describe(renderExportOptionsPlist, () => {
     const plist = renderExportOptionsPlist({
       method: "development",
       teamId: "DEV1234567",
-      bundleId: "com.dev.app",
-      provisioningProfileName: "Dev Profile",
+      provisioningProfiles: [{ bundleId: "com.dev.app", profileName: "Dev Profile" }],
     });
     expect(plist).toContain("<string>development</string>");
     expect(plist).not.toContain("uploadSymbols");
@@ -73,8 +88,7 @@ describe(renderExportOptionsPlist, () => {
     const plist = renderExportOptionsPlist({
       method: "ad-hoc",
       teamId: "ABCD1234EF",
-      bundleId: "com.example.app",
-      provisioningProfileName: "My Profile",
+      provisioningProfiles: [{ bundleId: "com.example.app", profileName: "My Profile" }],
       compileBitcode: true,
     });
     expect(plist).toContain("<key>compileBitcode</key>\n\t<true/>");
@@ -84,14 +98,10 @@ describe(renderExportOptionsPlist, () => {
     const plist = renderExportOptionsPlist({
       method: "ad-hoc",
       teamId: "T1",
-      bundleId: "com.a&b.app",
-      provisioningProfileName: '<test & "name">',
+      provisioningProfiles: [{ bundleId: "com.a&b.app", profileName: '<test & "name">' }],
     });
-    // BundleId escaped
     expect(plist).toContain("com.a&amp;b.app");
-    // Profile name escaped
     expect(plist).toContain("&lt;test &amp; &quot;name&quot;&gt;");
-    // No raw special chars present inside the escaped segments
     expect(plist).not.toContain("com.a&b.app");
     expect(plist).not.toContain('<test & "name">');
   });

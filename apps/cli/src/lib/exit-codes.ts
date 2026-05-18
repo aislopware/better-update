@@ -57,6 +57,10 @@ export class ProvisioningError extends Data.TaggedError("ProvisioningError")<{
   readonly message: string;
 }> {}
 
+export class XcodeProjectError extends Data.TaggedError("XcodeProjectError")<{
+  readonly message: string;
+}> {}
+
 export class EnvExportError extends Data.TaggedError("EnvExportError")<{
   readonly message: string;
 }> {}

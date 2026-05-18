@@ -7,11 +7,19 @@ import type { CommandExecutor } from "@effect/platform";
 
 import { parsePlist, parsePlistXml } from "./plist";
 
+export interface ExpectedSignedTarget {
+  /** Runtime bundle identifier from the bundle's Info.plist. */
+  readonly bundleId: string;
+  /** UUID of the provisioning profile that should sign this target. */
+  readonly profileUuid: string;
+}
+
 export interface IosValidationParams {
   readonly archivePath: string;
-  readonly expectedBundleId: string;
+  /** Main app + all extension targets, each with its own bundle ID + profile UUID. */
+  readonly expectedTargets: readonly ExpectedSignedTarget[];
+  /** Shared team ID across all targets. */
   readonly expectedTeamId: string;
-  readonly expectedProfileUuid: string;
 }
 
 export interface ValidationResult {
@@ -20,13 +28,57 @@ export interface ValidationResult {
 }
 
 /**
- * Validate an iOS build after xcodebuild completes. Checks:
- * 1. Bundle ID matches expected value
- * 2. Provisioning profile UUID matches
- * 3. Team ID matches
+ * Validate an iOS build after xcodebuild completes. For each expected target
+ * (main app + extensions), checks:
+ * 1. Bundle ID matches expected value (Info.plist)
+ * 2. Provisioning profile UUID matches (embedded.mobileprovision)
+ * 3. Team ID matches (shared across targets)
+ * 4. Profile is not expired
  *
- * All checks are non-blocking — returns warnings, never fails the build.
+ * Also warns about unexpected extensions found in the archive that were not in
+ * the expected list. All checks are non-blocking — returns warnings, never
+ * fails the build.
  */
+interface BundleValidationResult {
+  readonly bundleId: string | undefined;
+  readonly warnings: readonly string[];
+}
+
+const validateOneBundle = (
+  bundleDir: string,
+  expectedByBundleId: ReadonlyMap<string, ExpectedSignedTarget>,
+  expectedTeamId: string,
+): Effect.Effect<
+  BundleValidationResult,
+  never,
+  CommandExecutor.CommandExecutor | FileSystem.FileSystem
+> =>
+  Effect.gen(function* () {
+    const bundleId = yield* readBundleId(bundleDir).pipe(
+      Effect.catchAll(() => Effect.succeed(undefined)),
+    );
+    if (!bundleId) {
+      return {
+        bundleId: undefined,
+        warnings: [`Missing CFBundleIdentifier in Info.plist at ${bundleDir}`],
+      };
+    }
+    const expected = expectedByBundleId.get(bundleId);
+    if (!expected) {
+      return {
+        bundleId,
+        warnings: [`Unexpected signed bundle "${bundleId}" found in archive at ${bundleDir}`],
+      };
+    }
+    const profileWarnings = yield* validateEmbeddedProfile(
+      bundleDir,
+      expected.profileUuid,
+      expectedTeamId,
+      bundleId,
+    ).pipe(Effect.catchAll(() => Effect.succeed([] as readonly string[])));
+    return { bundleId, warnings: profileWarnings };
+  });
+
 export const validateIosBuild = (
   params: IosValidationParams,
 ): Effect.Effect<
@@ -44,20 +96,30 @@ export const validateIosBuild = (
       return { passed: false, warnings };
     }
 
-    const bundleWarning = yield* checkBundleId(appDir, params.expectedBundleId).pipe(
-      Effect.catchAll(() => Effect.succeed(undefined)),
+    const bundleDirs = yield* listSignedBundleDirs(appDir).pipe(
+      Effect.catchAll(() => Effect.succeed([appDir])),
+    );
+    const expectedByBundleId = new Map(
+      params.expectedTargets.map((target) => [target.bundleId, target]),
     );
 
-    const profileWarnings = yield* checkEmbeddedProfile(
-      appDir,
-      params.expectedProfileUuid,
-      params.expectedTeamId,
-    ).pipe(Effect.catchAll(() => Effect.succeed([] as readonly string[])));
+    // eslint-disable-next-line unicorn/no-array-method-this-argument -- false positive: Effect.forEach(array, callback) is not Array.prototype.forEach
+    const perBundle = yield* Effect.forEach(bundleDirs, (bundleDir) =>
+      validateOneBundle(bundleDir, expectedByBundleId, params.expectedTeamId),
+    );
 
-    const warnings: readonly string[] = [
-      ...(bundleWarning ? [bundleWarning] : []),
-      ...profileWarnings,
-    ];
+    const warnings: string[] = perBundle.flatMap((entry) => [...entry.warnings]);
+    const validatedBundleIds = new Set(
+      perBundle.map((entry) => entry.bundleId).filter((id): id is string => id !== undefined),
+    );
+
+    for (const expected of params.expectedTargets) {
+      if (!validatedBundleIds.has(expected.bundleId)) {
+        warnings.push(
+          `Expected signed target "${expected.bundleId}" was not found in the archive.`,
+        );
+      }
+    }
 
     if (warnings.length > 0) {
       yield* Console.warn("Post-build validation warnings:");
@@ -85,27 +147,47 @@ const findAppDirectory = (
     return path.join(productsDir, appEntry);
   });
 
-const checkBundleId = (
+/**
+ * Return the main `.app` plus every `.appex` extension under `<app>/PlugIns/`.
+ * Each returned path is a signed bundle that should carry its own embedded
+ * provisioning profile + Info.plist with CFBundleIdentifier.
+ */
+const listSignedBundleDirs = (
   appDir: string,
-  expectedBundleId: string,
+): Effect.Effect<readonly string[], unknown, FileSystem.FileSystem> =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const plugInsDir = path.join(appDir, "PlugIns");
+    const plugInsExists = yield* fs
+      .exists(plugInsDir)
+      .pipe(Effect.catchAll(() => Effect.succeed(false)));
+    if (!plugInsExists) {
+      return [appDir];
+    }
+    const entries = yield* fs.readDirectory(plugInsDir);
+    const appexDirs = entries
+      .filter((entry) => entry.endsWith(".appex"))
+      .map((entry) => path.join(plugInsDir, entry));
+    return [appDir, ...appexDirs];
+  });
+
+const readBundleId = (
+  bundleDir: string,
 ): Effect.Effect<string | undefined, unknown, FileSystem.FileSystem> =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
-    const plistPath = path.join(appDir, "Info.plist");
+    const plistPath = path.join(bundleDir, "Info.plist");
     const data = yield* fs.readFile(plistPath);
     const parsed = parsePlist(Buffer.from(data));
-    const actualBundleId = parsed["CFBundleIdentifier"];
-
-    if (typeof actualBundleId === "string" && actualBundleId !== expectedBundleId) {
-      return `Bundle ID mismatch: expected "${expectedBundleId}", got "${actualBundleId}"`;
-    }
-    return undefined;
+    const bundleId = parsed["CFBundleIdentifier"];
+    return typeof bundleId === "string" ? bundleId : undefined;
   });
 
-const checkEmbeddedProfile = (
-  appDir: string,
+const validateEmbeddedProfile = (
+  bundleDir: string,
   expectedUuid: string,
   expectedTeamId: string,
+  bundleId: string,
 ): Effect.Effect<
   readonly string[],
   unknown,
@@ -113,9 +195,8 @@ const checkEmbeddedProfile = (
 > =>
   Effect.gen(function* () {
     const warnings: string[] = [];
-    const profilePath = path.join(appDir, "embedded.mobileprovision");
+    const profilePath = path.join(bundleDir, "embedded.mobileprovision");
 
-    // Use security cms to decrypt the profile (it's CMS-signed)
     const plistXml = yield* Command.string(
       Command.make("security", "cms", "-D", "-i", profilePath),
     );
@@ -124,7 +205,9 @@ const checkEmbeddedProfile = (
 
     const actualUuid = parsed["UUID"];
     if (typeof actualUuid === "string" && actualUuid !== expectedUuid) {
-      warnings.push(`Profile UUID mismatch: expected "${expectedUuid}", got "${actualUuid}"`);
+      warnings.push(
+        `[${bundleId}] Profile UUID mismatch: expected "${expectedUuid}", got "${actualUuid}"`,
+      );
     }
 
     const teamIdentifiers = parsed["TeamIdentifier"];
@@ -132,14 +215,17 @@ const checkEmbeddedProfile = (
       // eslint-disable-next-line typescript/no-unsafe-assignment -- @expo/plist types array entries as any; narrowed via typeof check below
       const [actualTeamId] = teamIdentifiers;
       if (typeof actualTeamId === "string" && actualTeamId !== expectedTeamId) {
-        warnings.push(`Team ID mismatch: expected "${expectedTeamId}", got "${actualTeamId}"`);
+        warnings.push(
+          `[${bundleId}] Team ID mismatch: expected "${expectedTeamId}", got "${actualTeamId}"`,
+        );
       }
     }
 
-    // Check expiration
     const expirationDate = parsed["ExpirationDate"];
     if (expirationDate instanceof Date && expirationDate.getTime() < Date.now()) {
-      warnings.push(`Embedded provisioning profile expired on ${expirationDate.toISOString()}`);
+      warnings.push(
+        `[${bundleId}] Embedded provisioning profile expired on ${expirationDate.toISOString()}`,
+      );
     }
 
     return warnings;

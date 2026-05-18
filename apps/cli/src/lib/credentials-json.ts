@@ -23,8 +23,20 @@ export interface IosAscApiKeyEntry {
   readonly issuerId: string;
 }
 
+export interface IosAdditionalProvisioningProfileEntry {
+  /** Bundle identifier the profile is issued for (e.g. `com.example.app.notification`). */
+  readonly bundleIdentifier: string;
+  readonly path: string;
+}
+
 export interface IosCredentialsEntry {
+  /** Profile for the main app target. Bundle ID is inferred from the Expo config at load time. */
   readonly provisioningProfilePath: string;
+  /**
+   * Extra profiles for non-main signed targets (app extensions: notification
+   * service, share, action, etc.). Each entry must declare its own bundle ID.
+   */
+  readonly additionalProvisioningProfiles?: readonly IosAdditionalProvisioningProfileEntry[];
   readonly distributionCertificate: IosDistributionCertificateEntry;
   readonly pushKey?: IosPushKeyEntry;
   readonly ascApiKey?: IosAscApiKeyEntry;
@@ -108,6 +120,42 @@ const parseIosAscApiKey = (raw: unknown): Effect.Effect<IosAscApiKeyEntry, Crede
     } satisfies IosAscApiKeyEntry;
   });
 
+const parseIosAdditionalProvisioningProfile = (
+  raw: unknown,
+  index: number,
+): Effect.Effect<IosAdditionalProvisioningProfileEntry, CredentialsJsonError> =>
+  Effect.gen(function* () {
+    const record = asRecord(raw);
+    if (!record) {
+      return yield* new CredentialsJsonError({
+        message: `credentials.json: ios.additionalProvisioningProfiles[${index}] must be an object.`,
+      });
+    }
+    return {
+      bundleIdentifier: yield* asString(
+        record["bundleIdentifier"],
+        `ios.additionalProvisioningProfiles[${index}].bundleIdentifier`,
+      ),
+      path: yield* asString(record["path"], `ios.additionalProvisioningProfiles[${index}].path`),
+    } satisfies IosAdditionalProvisioningProfileEntry;
+  });
+
+const parseIosAdditionalProvisioningProfiles = (
+  raw: unknown,
+): Effect.Effect<readonly IosAdditionalProvisioningProfileEntry[], CredentialsJsonError> =>
+  Effect.gen(function* () {
+    if (!Array.isArray(raw)) {
+      return yield* new CredentialsJsonError({
+        message: "credentials.json: ios.additionalProvisioningProfiles must be an array.",
+      });
+    }
+    const entries: IosAdditionalProvisioningProfileEntry[] = [];
+    for (const [index, item] of raw.entries()) {
+      entries.push(yield* parseIosAdditionalProvisioningProfile(item, index));
+    }
+    return entries;
+  });
+
 const parseIos = (raw: unknown): Effect.Effect<IosCredentialsEntry, CredentialsJsonError> =>
   Effect.gen(function* () {
     const record = asRecord(raw);
@@ -123,6 +171,10 @@ const parseIos = (raw: unknown): Effect.Effect<IosCredentialsEntry, CredentialsJ
     const distributionCertificate = yield* parseIosDistributionCertificate(
       record["distributionCertificate"],
     );
+    const additionalProvisioningProfiles =
+      record["additionalProvisioningProfiles"] === undefined
+        ? undefined
+        : yield* parseIosAdditionalProvisioningProfiles(record["additionalProvisioningProfiles"]);
     const pushKey =
       record["pushKey"] === undefined ? undefined : yield* parseIosPushKey(record["pushKey"]);
     const ascApiKey =
@@ -130,6 +182,7 @@ const parseIos = (raw: unknown): Effect.Effect<IosCredentialsEntry, CredentialsJ
     return {
       provisioningProfilePath,
       distributionCertificate,
+      ...(additionalProvisioningProfiles === undefined ? {} : { additionalProvisioningProfiles }),
       ...(pushKey === undefined ? {} : { pushKey }),
       ...(ascApiKey === undefined ? {} : { ascApiKey }),
     } satisfies IosCredentialsEntry;
