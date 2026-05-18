@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.15.1](https://github.com/better-update/better-update/compare/@better-update/cli@0.15.0...@better-update/cli@0.15.1) (2026-05-18)
+
+### Bug Fixes
+
+* **server,cli:** fall back to org+team ASC key when bundle config has none bound ([41671aa](https://github.com/better-update/better-update/commit/41671aaed30332a133138b47dac5e4d9311030ac)) - by @trancong12102
+
 ## [0.15.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.14.3...@better-update/cli@0.15.0) (2026-05-18)
 
 ### Features
