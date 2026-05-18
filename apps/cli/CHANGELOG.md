@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.13.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.12.1...@better-update/cli@0.13.0) (2026-05-18)
+
+### Features
+
+* **cli:** pick/revoke existing iOS distribution cert in Apple ID flow ([c72855f](https://github.com/better-update/better-update/commit/c72855f53570b867b28dc7b66f60b99da6d3453f)) - by @trancong12102
+
 ## [0.12.1](https://github.com/better-update/better-update/compare/@better-update/cli@0.12.0...@better-update/cli@0.12.1) (2026-05-18)
 
 ### Bug Fixes
