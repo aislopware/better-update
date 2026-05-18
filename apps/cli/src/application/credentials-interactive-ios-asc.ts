@@ -8,6 +8,7 @@ import {
   revokeAppleCertificate,
 } from "../lib/credentials-generator";
 import { MissingCredentialsError } from "../lib/exit-codes";
+import { upsertIosBundleConfiguration } from "../lib/ios-bundle-config-upsert";
 import { promptConfirm, promptMultiSelect, promptSelect } from "../lib/prompts";
 
 import type { IosDistribution } from "../lib/build-profile";
@@ -215,17 +216,14 @@ export const setupIosViaAscKey = (api: ApiClient, input: IosSetupInput) =>
     const ctx: IosSetupContext = { certId, cert, ascKeyId, distributionType };
     const profileId = yield* resolveIosProfileId(api, input, ctx);
 
-    yield* api.iosBundleConfigurations.create({
-      path: { projectId: input.projectId },
-      payload: {
-        bundleIdentifier: input.bundleIdentifier,
-        distributionType,
-        appleTeamId: cert.appleTeamId,
-        appleDistributionCertificateId: certId,
-        appleProvisioningProfileId: profileId,
-        ascApiKeyId: ascKeyId,
-      },
+    yield* upsertIosBundleConfiguration(api, {
+      projectId: input.projectId,
+      bundleIdentifier: input.bundleIdentifier,
+      distributionType,
+      appleTeamId: cert.appleTeamId,
+      appleDistributionCertificateId: certId,
+      appleProvisioningProfileId: profileId,
+      ascApiKeyId: ascKeyId,
     });
-    yield* Console.log("iOS bundle configuration saved.");
     return undefined;
   });
