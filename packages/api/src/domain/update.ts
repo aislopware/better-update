@@ -17,6 +17,7 @@ export class Update extends Schema.Class<Update>("Update")({
   certificateChain: Schema.NullOr(Schema.String),
   manifestBody: Schema.NullOr(Schema.String),
   directiveBody: Schema.NullOr(Schema.String),
+  fingerprintHash: Schema.NullOr(Schema.String),
   createdAt: DateTimeString,
 }) {}
 
@@ -40,6 +41,7 @@ export const ListUpdatesParams = Schema.Struct({
   projectId: Id,
   branchId: Schema.optional(Id),
   platform: Schema.optional(Platform),
+  runtimeVersion: Schema.optional(Schema.String),
   ...PaginationParams.fields,
   sort: Schema.optional(UpdateSort),
 });
@@ -49,6 +51,13 @@ export const AssetRef = Schema.Struct({
   key: Schema.String,
   isLaunch: Schema.Boolean,
   contentChecksum: Schema.optional(Schema.String),
+});
+
+export const UpdateAssetEntry = Schema.Struct({
+  hash: Schema.String,
+  key: Schema.String,
+  isLaunch: Schema.Boolean,
+  contentChecksum: Schema.NullOr(Schema.String),
 });
 
 export const CreateUpdateBody = Schema.Struct({
@@ -67,6 +76,7 @@ export const CreateUpdateBody = Schema.Struct({
   signature: Schema.optional(Schema.String),
   certificateChain: Schema.optional(Schema.String),
   rolloutPercentage: Schema.optional(Schema.Number.pipe(Schema.int(), Schema.between(1, 100))),
+  fingerprintHash: Schema.optional(Schema.String.pipe(Schema.minLength(1))),
 });
 
 export const RepublishBody = Schema.Struct({

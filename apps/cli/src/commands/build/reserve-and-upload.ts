@@ -43,6 +43,7 @@ export interface ReserveAndUploadInput {
     readonly dirty: boolean;
   };
   readonly message?: string;
+  readonly fingerprintHash?: string;
   readonly artifactPath: string;
   readonly sha256: string;
   readonly byteSize: number;
@@ -61,6 +62,7 @@ const buildReserveCommon = (input: ReserveAndUploadInput) =>
     ...(input.gitContext.ref === undefined ? {} : { gitRef: input.gitContext.ref }),
     ...(input.gitContext.commit === undefined ? {} : { gitCommit: input.gitContext.commit }),
     ...(input.message === undefined ? {} : { message: input.message }),
+    ...(input.fingerprintHash === undefined ? {} : { fingerprintHash: input.fingerprintHash }),
   }) as const;
 
 const callReserve = (api: ApiClient, input: ReserveAndUploadInput) => {

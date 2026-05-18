@@ -12,6 +12,7 @@ import { pullEnvVars } from "../lib/env-exporter";
 import { UpdatePublishError } from "../lib/exit-codes";
 import { extractProjectId, extractSlug, readExpoConfig } from "../lib/expo-config";
 import { readExpoExportAssets, readExpoPublicConfig, runExpoExport } from "../lib/expo-export";
+import { runFingerprintFull } from "../lib/fingerprint";
 import { formatCause } from "../lib/format-error";
 import { readGitContext } from "../lib/git-context";
 import { InteractiveMode } from "../lib/interactive-mode";
@@ -153,6 +154,7 @@ const publishPlatform = (params: {
   readonly platform: Platform;
   readonly signedPayload: SignedPayload | null;
   readonly rolloutPercentage: number | undefined;
+  readonly fingerprintHash: string | undefined;
   readonly skipBundler: boolean;
   readonly noBytecode: boolean;
   readonly sourceMaps: boolean;
@@ -273,6 +275,9 @@ const publishPlatform = (params: {
           ...(params.rolloutPercentage === undefined
             ? {}
             : { rolloutPercentage: params.rolloutPercentage }),
+          ...(params.fingerprintHash === undefined
+            ? {}
+            : { fingerprintHash: params.fingerprintHash }),
         },
       })
       .pipe(
@@ -382,6 +387,10 @@ export const runUpdatePublish = (
 
       const groupId = randomUUID();
       const message = resolvedMessage ?? "Publish via better-update CLI";
+      const fingerprintHash = yield* runFingerprintFull(projectRoot).pipe(
+        Effect.map((result) => result.hash),
+        Effect.catchAll(() => Effect.succeed(undefined)),
+      );
 
       const interactive = yield* InteractiveMode;
       if (interactive.allow && !options.auto) {
@@ -436,6 +445,7 @@ export const runUpdatePublish = (
             // eslint-disable-next-line eslint-js/no-restricted-syntax -- signedPayload absence means unsigned; null is correct downstream
             signedPayload: signedPayloads[platform] ?? null,
             rolloutPercentage: options.rolloutPercentage,
+            fingerprintHash,
             skipBundler: options.skipBundler,
             noBytecode: options.noBytecode,
             sourceMaps: options.sourceMaps,

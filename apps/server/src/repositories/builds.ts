@@ -38,6 +38,7 @@ export interface BuildRepository {
     readonly gitCommit: string | null;
     readonly message: string | null;
     readonly metadataJson: string;
+    readonly fingerprintHash: string | null;
     readonly artifact: {
       readonly r2Key: string;
       readonly format: ArtifactFormat;
@@ -46,6 +47,11 @@ export interface BuildRepository {
       readonly sha256: string;
     };
   }) => Effect.Effect<BuildWithArtifactModel>;
+
+  readonly listByProjectAndFingerprint: (params: {
+    readonly projectId: string;
+    readonly fingerprintHash: string;
+  }) => Effect.Effect<readonly BuildWithArtifactModel[]>;
 
   readonly findById: (params: {
     readonly id: string;
@@ -82,6 +88,7 @@ export interface BuildRepository {
     readonly profile?: string;
     readonly runtimeVersion?: string;
     readonly distribution?: Distribution;
+    readonly distributions?: readonly Distribution[];
     readonly sort: BuildSortKey;
     readonly order: BuildSortOrder;
     readonly limit: number;
@@ -112,6 +119,51 @@ interface BuildInstallRow {
 
 const SELECT_WITH_ARTIFACT = `SELECT ${BUILD_WITH_ARTIFACT_COLUMNS} ${BUILD_WITH_ARTIFACT_JOIN}`;
 
+const SORT_COLUMN_SQL: Record<BuildSortKey, string> = {
+  createdAt: 'b."created_at"',
+  platform: 'b."platform"',
+  distribution: 'b."distribution"',
+  runtimeVersion: 'b."runtime_version"',
+  appVersion: 'b."app_version"',
+};
+
+// SECURITY: All condition strings are hardcoded literals. Never interpolate user input into conditions.
+const buildListWhere = (params: {
+  readonly projectId: string;
+  readonly platform?: Platform;
+  readonly profile?: string;
+  readonly runtimeVersion?: string;
+  readonly distribution?: Distribution;
+  readonly distributions?: readonly Distribution[];
+}): { readonly clause: string; readonly bindValues: (string | number)[] } => {
+  const conditions: string[] = ['b."project_id" = ?'];
+  const bindValues: (string | number)[] = [params.projectId];
+
+  if (params.platform) {
+    conditions.push('b."platform" = ?');
+    bindValues.push(params.platform);
+  }
+  if (params.profile) {
+    conditions.push('b."profile" = ?');
+    bindValues.push(params.profile);
+  }
+  if (params.runtimeVersion) {
+    conditions.push('b."runtime_version" = ?');
+    bindValues.push(params.runtimeVersion);
+  }
+  if (params.distribution) {
+    conditions.push('b."distribution" = ?');
+    bindValues.push(params.distribution);
+  }
+  if (params.distributions && params.distributions.length > 0) {
+    const placeholders = params.distributions.map(() => "?").join(", ");
+    conditions.push(`b."distribution" IN (${placeholders})`);
+    bindValues.push(...params.distributions);
+  }
+
+  return { clause: conditions.join(" AND "), bindValues };
+};
+
 export const BuildRepoLive = Layer.succeed(BuildRepo, {
   insert: (params) =>
     Effect.gen(function* () {
@@ -121,7 +173,7 @@ export const BuildRepoLive = Layer.succeed(BuildRepo, {
       yield* Effect.promise(async () =>
         env.DB.batch([
           env.DB.prepare(
-            `INSERT INTO "builds" ("id", "project_id", "platform", "profile", "distribution", "runtime_version", "app_version", "build_number", "bundle_id", "git_ref", "git_commit", "message", "metadata_json", "created_at") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO "builds" ("id", "project_id", "platform", "profile", "distribution", "runtime_version", "app_version", "build_number", "bundle_id", "git_ref", "git_commit", "message", "metadata_json", "fingerprint_hash", "created_at") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           ).bind(
             params.id,
             params.projectId,
@@ -136,6 +188,7 @@ export const BuildRepoLive = Layer.succeed(BuildRepo, {
             params.gitCommit,
             params.message,
             params.metadataJson,
+            params.fingerprintHash,
             now,
           ),
           env.DB.prepare(
@@ -166,6 +219,7 @@ export const BuildRepoLive = Layer.succeed(BuildRepo, {
         gitCommit: params.gitCommit,
         message: params.message,
         metadataJson: params.metadataJson,
+        fingerprintHash: params.fingerprintHash,
         createdAt: now,
         artifact: {
           r2Key: params.artifact.r2Key,
@@ -273,39 +327,9 @@ export const BuildRepoLive = Layer.succeed(BuildRepo, {
   list: (params) =>
     Effect.gen(function* () {
       const env = yield* cloudflareEnv;
-
-      // SECURITY: All condition strings are hardcoded literals. Never interpolate user input into conditions.
-      const conditions: string[] = ['b."project_id" = ?'];
-      const bindValues: (string | number)[] = [params.projectId];
-
-      if (params.platform) {
-        conditions.push('b."platform" = ?');
-        bindValues.push(params.platform);
-      }
-      if (params.profile) {
-        conditions.push('b."profile" = ?');
-        bindValues.push(params.profile);
-      }
-      if (params.runtimeVersion) {
-        conditions.push('b."runtime_version" = ?');
-        bindValues.push(params.runtimeVersion);
-      }
-      if (params.distribution) {
-        conditions.push('b."distribution" = ?');
-        bindValues.push(params.distribution);
-      }
-
-      const whereClause = conditions.join(" AND ");
-
-      const sortColumns: Record<BuildSortKey, string> = {
-        createdAt: 'b."created_at"',
-        platform: 'b."platform"',
-        distribution: 'b."distribution"',
-        runtimeVersion: 'b."runtime_version"',
-        appVersion: 'b."app_version"',
-      };
+      const { clause: whereClause, bindValues } = buildListWhere(params);
       const direction = params.order === "asc" ? "ASC" : "DESC";
-      const orderBy = `${sortColumns[params.sort]} ${direction}, b."id" ${direction}`;
+      const orderBy = `${SORT_COLUMN_SQL[params.sort]} ${direction}, b."id" ${direction}`;
 
       const countResult = yield* Effect.promise(async () =>
         env.DB.prepare(`SELECT COUNT(*) as count FROM "builds" b WHERE ${whereClause}`)
@@ -323,6 +347,19 @@ export const BuildRepoLive = Layer.succeed(BuildRepo, {
       );
 
       return { items: rows.results.map(toBuildWithArtifact), total };
+    }),
+
+  listByProjectAndFingerprint: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+      const rows = yield* Effect.promise(async () =>
+        env.DB.prepare(
+          `${SELECT_WITH_ARTIFACT} WHERE b."project_id" = ? AND b."fingerprint_hash" = ? ORDER BY b."created_at" DESC, b."id" DESC`,
+        )
+          .bind(params.projectId, params.fingerprintHash)
+          .all<BuildRow>(),
+      );
+      return rows.results.map(toBuildWithArtifact);
     }),
 
   deleteById: (params) =>

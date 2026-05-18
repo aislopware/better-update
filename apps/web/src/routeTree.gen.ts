@@ -38,10 +38,14 @@ import { Route as AuthedAppProjectsProjectSlugCredentialsRouteImport } from './r
 import { Route as AuthedAppProjectsProjectSlugAuditLogRouteImport } from './routes/_authed/_app/projects/$projectSlug/audit-log'
 import { Route as AuthedAppProjectsProjectSlugUpdatesIndexRouteImport } from './routes/_authed/_app/projects/$projectSlug/updates/index'
 import { Route as AuthedAppProjectsProjectSlugSettingsIndexRouteImport } from './routes/_authed/_app/projects/$projectSlug/settings/index'
+import { Route as AuthedAppProjectsProjectSlugRuntimesIndexRouteImport } from './routes/_authed/_app/projects/$projectSlug/runtimes/index'
 import { Route as AuthedAppProjectsProjectSlugEnvironmentVariablesIndexRouteImport } from './routes/_authed/_app/projects/$projectSlug/environment-variables/index'
 import { Route as AuthedAppProjectsProjectSlugChannelsIndexRouteImport } from './routes/_authed/_app/projects/$projectSlug/channels/index'
 import { Route as AuthedAppProjectsProjectSlugBuildsIndexRouteImport } from './routes/_authed/_app/projects/$projectSlug/builds/index'
 import { Route as AuthedAppProjectsProjectSlugBranchesIndexRouteImport } from './routes/_authed/_app/projects/$projectSlug/branches/index'
+import { Route as AuthedAppProjectsProjectSlugUpdatesUpdateIdRouteImport } from './routes/_authed/_app/projects/$projectSlug/updates/$updateId'
+import { Route as AuthedAppProjectsProjectSlugRuntimesVersionRouteImport } from './routes/_authed/_app/projects/$projectSlug/runtimes/$version'
+import { Route as AuthedAppProjectsProjectSlugFingerprintsHashRouteImport } from './routes/_authed/_app/projects/$projectSlug/fingerprints/$hash'
 import { Route as AuthedAppProjectsProjectSlugChannelsChannelIdRouteImport } from './routes/_authed/_app/projects/$projectSlug/channels/$channelId'
 import { Route as AuthedAppProjectsProjectSlugBuildsBuildIdRouteImport } from './routes/_authed/_app/projects/$projectSlug/builds/$buildId'
 
@@ -200,6 +204,12 @@ const AuthedAppProjectsProjectSlugSettingsIndexRoute =
     path: '/settings/',
     getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
   } as any)
+const AuthedAppProjectsProjectSlugRuntimesIndexRoute =
+  AuthedAppProjectsProjectSlugRuntimesIndexRouteImport.update({
+    id: '/runtimes/',
+    path: '/runtimes/',
+    getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
+  } as any)
 const AuthedAppProjectsProjectSlugEnvironmentVariablesIndexRoute =
   AuthedAppProjectsProjectSlugEnvironmentVariablesIndexRouteImport.update({
     id: '/environment-variables/',
@@ -222,6 +232,24 @@ const AuthedAppProjectsProjectSlugBranchesIndexRoute =
   AuthedAppProjectsProjectSlugBranchesIndexRouteImport.update({
     id: '/branches/',
     path: '/branches/',
+    getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
+  } as any)
+const AuthedAppProjectsProjectSlugUpdatesUpdateIdRoute =
+  AuthedAppProjectsProjectSlugUpdatesUpdateIdRouteImport.update({
+    id: '/updates/$updateId',
+    path: '/updates/$updateId',
+    getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
+  } as any)
+const AuthedAppProjectsProjectSlugRuntimesVersionRoute =
+  AuthedAppProjectsProjectSlugRuntimesVersionRouteImport.update({
+    id: '/runtimes/$version',
+    path: '/runtimes/$version',
+    getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
+  } as any)
+const AuthedAppProjectsProjectSlugFingerprintsHashRoute =
+  AuthedAppProjectsProjectSlugFingerprintsHashRouteImport.update({
+    id: '/fingerprints/$hash',
+    path: '/fingerprints/$hash',
     getParentRoute: () => AuthedAppProjectsProjectSlugRoute,
   } as any)
 const AuthedAppProjectsProjectSlugChannelsChannelIdRoute =
@@ -265,10 +293,14 @@ export interface FileRoutesByFullPath {
   '/projects/$projectSlug/': typeof AuthedAppProjectsProjectSlugIndexRoute
   '/projects/$projectSlug/builds/$buildId': typeof AuthedAppProjectsProjectSlugBuildsBuildIdRoute
   '/projects/$projectSlug/channels/$channelId': typeof AuthedAppProjectsProjectSlugChannelsChannelIdRoute
+  '/projects/$projectSlug/fingerprints/$hash': typeof AuthedAppProjectsProjectSlugFingerprintsHashRoute
+  '/projects/$projectSlug/runtimes/$version': typeof AuthedAppProjectsProjectSlugRuntimesVersionRoute
+  '/projects/$projectSlug/updates/$updateId': typeof AuthedAppProjectsProjectSlugUpdatesUpdateIdRoute
   '/projects/$projectSlug/branches/': typeof AuthedAppProjectsProjectSlugBranchesIndexRoute
   '/projects/$projectSlug/builds/': typeof AuthedAppProjectsProjectSlugBuildsIndexRoute
   '/projects/$projectSlug/channels/': typeof AuthedAppProjectsProjectSlugChannelsIndexRoute
   '/projects/$projectSlug/environment-variables/': typeof AuthedAppProjectsProjectSlugEnvironmentVariablesIndexRoute
+  '/projects/$projectSlug/runtimes/': typeof AuthedAppProjectsProjectSlugRuntimesIndexRoute
   '/projects/$projectSlug/settings/': typeof AuthedAppProjectsProjectSlugSettingsIndexRoute
   '/projects/$projectSlug/updates/': typeof AuthedAppProjectsProjectSlugUpdatesIndexRoute
 }
@@ -298,10 +330,14 @@ export interface FileRoutesByTo {
   '/projects/$projectSlug': typeof AuthedAppProjectsProjectSlugIndexRoute
   '/projects/$projectSlug/builds/$buildId': typeof AuthedAppProjectsProjectSlugBuildsBuildIdRoute
   '/projects/$projectSlug/channels/$channelId': typeof AuthedAppProjectsProjectSlugChannelsChannelIdRoute
+  '/projects/$projectSlug/fingerprints/$hash': typeof AuthedAppProjectsProjectSlugFingerprintsHashRoute
+  '/projects/$projectSlug/runtimes/$version': typeof AuthedAppProjectsProjectSlugRuntimesVersionRoute
+  '/projects/$projectSlug/updates/$updateId': typeof AuthedAppProjectsProjectSlugUpdatesUpdateIdRoute
   '/projects/$projectSlug/branches': typeof AuthedAppProjectsProjectSlugBranchesIndexRoute
   '/projects/$projectSlug/builds': typeof AuthedAppProjectsProjectSlugBuildsIndexRoute
   '/projects/$projectSlug/channels': typeof AuthedAppProjectsProjectSlugChannelsIndexRoute
   '/projects/$projectSlug/environment-variables': typeof AuthedAppProjectsProjectSlugEnvironmentVariablesIndexRoute
+  '/projects/$projectSlug/runtimes': typeof AuthedAppProjectsProjectSlugRuntimesIndexRoute
   '/projects/$projectSlug/settings': typeof AuthedAppProjectsProjectSlugSettingsIndexRoute
   '/projects/$projectSlug/updates': typeof AuthedAppProjectsProjectSlugUpdatesIndexRoute
 }
@@ -336,10 +372,14 @@ export interface FileRoutesById {
   '/_authed/_app/projects/$projectSlug/': typeof AuthedAppProjectsProjectSlugIndexRoute
   '/_authed/_app/projects/$projectSlug/builds/$buildId': typeof AuthedAppProjectsProjectSlugBuildsBuildIdRoute
   '/_authed/_app/projects/$projectSlug/channels/$channelId': typeof AuthedAppProjectsProjectSlugChannelsChannelIdRoute
+  '/_authed/_app/projects/$projectSlug/fingerprints/$hash': typeof AuthedAppProjectsProjectSlugFingerprintsHashRoute
+  '/_authed/_app/projects/$projectSlug/runtimes/$version': typeof AuthedAppProjectsProjectSlugRuntimesVersionRoute
+  '/_authed/_app/projects/$projectSlug/updates/$updateId': typeof AuthedAppProjectsProjectSlugUpdatesUpdateIdRoute
   '/_authed/_app/projects/$projectSlug/branches/': typeof AuthedAppProjectsProjectSlugBranchesIndexRoute
   '/_authed/_app/projects/$projectSlug/builds/': typeof AuthedAppProjectsProjectSlugBuildsIndexRoute
   '/_authed/_app/projects/$projectSlug/channels/': typeof AuthedAppProjectsProjectSlugChannelsIndexRoute
   '/_authed/_app/projects/$projectSlug/environment-variables/': typeof AuthedAppProjectsProjectSlugEnvironmentVariablesIndexRoute
+  '/_authed/_app/projects/$projectSlug/runtimes/': typeof AuthedAppProjectsProjectSlugRuntimesIndexRoute
   '/_authed/_app/projects/$projectSlug/settings/': typeof AuthedAppProjectsProjectSlugSettingsIndexRoute
   '/_authed/_app/projects/$projectSlug/updates/': typeof AuthedAppProjectsProjectSlugUpdatesIndexRoute
 }
@@ -373,10 +413,14 @@ export interface FileRouteTypes {
     | '/projects/$projectSlug/'
     | '/projects/$projectSlug/builds/$buildId'
     | '/projects/$projectSlug/channels/$channelId'
+    | '/projects/$projectSlug/fingerprints/$hash'
+    | '/projects/$projectSlug/runtimes/$version'
+    | '/projects/$projectSlug/updates/$updateId'
     | '/projects/$projectSlug/branches/'
     | '/projects/$projectSlug/builds/'
     | '/projects/$projectSlug/channels/'
     | '/projects/$projectSlug/environment-variables/'
+    | '/projects/$projectSlug/runtimes/'
     | '/projects/$projectSlug/settings/'
     | '/projects/$projectSlug/updates/'
   fileRoutesByTo: FileRoutesByTo
@@ -406,10 +450,14 @@ export interface FileRouteTypes {
     | '/projects/$projectSlug'
     | '/projects/$projectSlug/builds/$buildId'
     | '/projects/$projectSlug/channels/$channelId'
+    | '/projects/$projectSlug/fingerprints/$hash'
+    | '/projects/$projectSlug/runtimes/$version'
+    | '/projects/$projectSlug/updates/$updateId'
     | '/projects/$projectSlug/branches'
     | '/projects/$projectSlug/builds'
     | '/projects/$projectSlug/channels'
     | '/projects/$projectSlug/environment-variables'
+    | '/projects/$projectSlug/runtimes'
     | '/projects/$projectSlug/settings'
     | '/projects/$projectSlug/updates'
   id:
@@ -443,10 +491,14 @@ export interface FileRouteTypes {
     | '/_authed/_app/projects/$projectSlug/'
     | '/_authed/_app/projects/$projectSlug/builds/$buildId'
     | '/_authed/_app/projects/$projectSlug/channels/$channelId'
+    | '/_authed/_app/projects/$projectSlug/fingerprints/$hash'
+    | '/_authed/_app/projects/$projectSlug/runtimes/$version'
+    | '/_authed/_app/projects/$projectSlug/updates/$updateId'
     | '/_authed/_app/projects/$projectSlug/branches/'
     | '/_authed/_app/projects/$projectSlug/builds/'
     | '/_authed/_app/projects/$projectSlug/channels/'
     | '/_authed/_app/projects/$projectSlug/environment-variables/'
+    | '/_authed/_app/projects/$projectSlug/runtimes/'
     | '/_authed/_app/projects/$projectSlug/settings/'
     | '/_authed/_app/projects/$projectSlug/updates/'
   fileRoutesById: FileRoutesById
@@ -662,6 +714,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedAppProjectsProjectSlugSettingsIndexRouteImport
       parentRoute: typeof AuthedAppProjectsProjectSlugRoute
     }
+    '/_authed/_app/projects/$projectSlug/runtimes/': {
+      id: '/_authed/_app/projects/$projectSlug/runtimes/'
+      path: '/runtimes'
+      fullPath: '/projects/$projectSlug/runtimes/'
+      preLoaderRoute: typeof AuthedAppProjectsProjectSlugRuntimesIndexRouteImport
+      parentRoute: typeof AuthedAppProjectsProjectSlugRoute
+    }
     '/_authed/_app/projects/$projectSlug/environment-variables/': {
       id: '/_authed/_app/projects/$projectSlug/environment-variables/'
       path: '/environment-variables'
@@ -688,6 +747,27 @@ declare module '@tanstack/react-router' {
       path: '/branches'
       fullPath: '/projects/$projectSlug/branches/'
       preLoaderRoute: typeof AuthedAppProjectsProjectSlugBranchesIndexRouteImport
+      parentRoute: typeof AuthedAppProjectsProjectSlugRoute
+    }
+    '/_authed/_app/projects/$projectSlug/updates/$updateId': {
+      id: '/_authed/_app/projects/$projectSlug/updates/$updateId'
+      path: '/updates/$updateId'
+      fullPath: '/projects/$projectSlug/updates/$updateId'
+      preLoaderRoute: typeof AuthedAppProjectsProjectSlugUpdatesUpdateIdRouteImport
+      parentRoute: typeof AuthedAppProjectsProjectSlugRoute
+    }
+    '/_authed/_app/projects/$projectSlug/runtimes/$version': {
+      id: '/_authed/_app/projects/$projectSlug/runtimes/$version'
+      path: '/runtimes/$version'
+      fullPath: '/projects/$projectSlug/runtimes/$version'
+      preLoaderRoute: typeof AuthedAppProjectsProjectSlugRuntimesVersionRouteImport
+      parentRoute: typeof AuthedAppProjectsProjectSlugRoute
+    }
+    '/_authed/_app/projects/$projectSlug/fingerprints/$hash': {
+      id: '/_authed/_app/projects/$projectSlug/fingerprints/$hash'
+      path: '/fingerprints/$hash'
+      fullPath: '/projects/$projectSlug/fingerprints/$hash'
+      preLoaderRoute: typeof AuthedAppProjectsProjectSlugFingerprintsHashRouteImport
       parentRoute: typeof AuthedAppProjectsProjectSlugRoute
     }
     '/_authed/_app/projects/$projectSlug/channels/$channelId': {
@@ -734,10 +814,14 @@ interface AuthedAppProjectsProjectSlugRouteChildren {
   AuthedAppProjectsProjectSlugIndexRoute: typeof AuthedAppProjectsProjectSlugIndexRoute
   AuthedAppProjectsProjectSlugBuildsBuildIdRoute: typeof AuthedAppProjectsProjectSlugBuildsBuildIdRoute
   AuthedAppProjectsProjectSlugChannelsChannelIdRoute: typeof AuthedAppProjectsProjectSlugChannelsChannelIdRoute
+  AuthedAppProjectsProjectSlugFingerprintsHashRoute: typeof AuthedAppProjectsProjectSlugFingerprintsHashRoute
+  AuthedAppProjectsProjectSlugRuntimesVersionRoute: typeof AuthedAppProjectsProjectSlugRuntimesVersionRoute
+  AuthedAppProjectsProjectSlugUpdatesUpdateIdRoute: typeof AuthedAppProjectsProjectSlugUpdatesUpdateIdRoute
   AuthedAppProjectsProjectSlugBranchesIndexRoute: typeof AuthedAppProjectsProjectSlugBranchesIndexRoute
   AuthedAppProjectsProjectSlugBuildsIndexRoute: typeof AuthedAppProjectsProjectSlugBuildsIndexRoute
   AuthedAppProjectsProjectSlugChannelsIndexRoute: typeof AuthedAppProjectsProjectSlugChannelsIndexRoute
   AuthedAppProjectsProjectSlugEnvironmentVariablesIndexRoute: typeof AuthedAppProjectsProjectSlugEnvironmentVariablesIndexRoute
+  AuthedAppProjectsProjectSlugRuntimesIndexRoute: typeof AuthedAppProjectsProjectSlugRuntimesIndexRoute
   AuthedAppProjectsProjectSlugSettingsIndexRoute: typeof AuthedAppProjectsProjectSlugSettingsIndexRoute
   AuthedAppProjectsProjectSlugUpdatesIndexRoute: typeof AuthedAppProjectsProjectSlugUpdatesIndexRoute
 }
@@ -754,6 +838,12 @@ const AuthedAppProjectsProjectSlugRouteChildren: AuthedAppProjectsProjectSlugRou
       AuthedAppProjectsProjectSlugBuildsBuildIdRoute,
     AuthedAppProjectsProjectSlugChannelsChannelIdRoute:
       AuthedAppProjectsProjectSlugChannelsChannelIdRoute,
+    AuthedAppProjectsProjectSlugFingerprintsHashRoute:
+      AuthedAppProjectsProjectSlugFingerprintsHashRoute,
+    AuthedAppProjectsProjectSlugRuntimesVersionRoute:
+      AuthedAppProjectsProjectSlugRuntimesVersionRoute,
+    AuthedAppProjectsProjectSlugUpdatesUpdateIdRoute:
+      AuthedAppProjectsProjectSlugUpdatesUpdateIdRoute,
     AuthedAppProjectsProjectSlugBranchesIndexRoute:
       AuthedAppProjectsProjectSlugBranchesIndexRoute,
     AuthedAppProjectsProjectSlugBuildsIndexRoute:
@@ -762,6 +852,8 @@ const AuthedAppProjectsProjectSlugRouteChildren: AuthedAppProjectsProjectSlugRou
       AuthedAppProjectsProjectSlugChannelsIndexRoute,
     AuthedAppProjectsProjectSlugEnvironmentVariablesIndexRoute:
       AuthedAppProjectsProjectSlugEnvironmentVariablesIndexRoute,
+    AuthedAppProjectsProjectSlugRuntimesIndexRoute:
+      AuthedAppProjectsProjectSlugRuntimesIndexRoute,
     AuthedAppProjectsProjectSlugSettingsIndexRoute:
       AuthedAppProjectsProjectSlugSettingsIndexRoute,
     AuthedAppProjectsProjectSlugUpdatesIndexRoute:

@@ -127,6 +127,7 @@ export interface UpdateModel {
   readonly certificateChain: string | null;
   readonly manifestBody: string | null;
   readonly directiveBody: string | null;
+  readonly fingerprintHash: string | null;
   readonly createdAt: string;
 }
 
@@ -343,6 +344,7 @@ export interface BuildModel {
   readonly gitCommit: string | null;
   readonly message: string | null;
   readonly metadataJson: string;
+  readonly fingerprintHash: string | null;
   readonly createdAt: string;
 }
 

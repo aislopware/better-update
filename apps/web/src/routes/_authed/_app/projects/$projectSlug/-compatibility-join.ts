@@ -25,6 +25,7 @@ export interface BuildWithSyntheticChannels {
   readonly gitCommit: string | null;
   readonly message: string | null;
   readonly metadataJson: string;
+  readonly fingerprintHash: string | null;
   readonly createdAt: string;
   readonly artifact: (typeof BuildWithArtifact.Type)["artifact"];
   readonly channels: readonly SyntheticBuildChannel[];
@@ -68,6 +69,7 @@ export const synthesizeBuildChannels = (
     gitCommit: build.gitCommit,
     message: build.message,
     metadataJson: build.metadataJson,
+    fingerprintHash: build.fingerprintHash,
     createdAt: build.createdAt,
     artifact: build.artifact,
     channels,

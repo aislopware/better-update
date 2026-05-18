@@ -12,6 +12,7 @@ import {
   RepublishBody,
   RepublishResult,
   Update,
+  UpdateAssetEntry,
 } from "../domain/update";
 
 const idParam = HttpApiSchema.param("id", Schema.String);
@@ -55,6 +56,26 @@ export class UpdatesGroup extends HttpApiGroup.make("updates")
         description: "Fetch a single update by ID",
       }),
     ),
+  )
+  .add(
+    HttpApiEndpoint.get("getGroup")`/api/update-groups/${groupIdParam}`
+      .addSuccess(Schema.Struct({ items: Schema.Array(Update) }))
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Get update group",
+          description: "Fetch all updates in a group (paired iOS + Android variants)",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.get("listAssets")`/api/updates/${idParam}/assets`
+      .addSuccess(Schema.Array(UpdateAssetEntry))
+      .annotateContext(
+        OpenApi.annotations({
+          title: "List update assets",
+          description: "Fetch the asset references (key + hash + launch flag) for an update",
+        }),
+      ),
   )
   .add(
     HttpApiEndpoint.del("deleteGroup")`/api/updates/${groupIdParam}`

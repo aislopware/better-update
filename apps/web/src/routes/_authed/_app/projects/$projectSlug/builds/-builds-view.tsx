@@ -7,6 +7,8 @@ import {
   SelectValue,
 } from "@better-update/ui/components/ui/select";
 
+import type { BuildAudience } from "@better-update/api-client/react";
+
 import { DISTRIBUTION_LABELS } from "../-build-helpers";
 
 const PLATFORM_FILTER_LABELS: Record<string, string> = {
@@ -20,18 +22,53 @@ const DISTRIBUTION_FILTER_LABELS: Record<string, string> = {
   ...DISTRIBUTION_LABELS,
 };
 
+const AUDIENCE_FILTER_LABELS: Record<string, string> = {
+  all: "All audiences",
+  internal: "Internal distribution",
+  store: "Store distribution",
+};
+
+const isAudience = (value: string): value is BuildAudience =>
+  value === "internal" || value === "store";
+
 export const BuildsFilterBar = ({
   platformFilter,
   distributionFilter,
+  audienceFilter,
   onPlatformFilter,
   onDistributionFilter,
+  onAudienceFilter,
 }: {
   platformFilter: "ios" | "android" | undefined;
   distributionFilter: string | undefined;
+  audienceFilter: BuildAudience | undefined;
   onPlatformFilter: (value: "ios" | "android" | undefined) => void;
   onDistributionFilter: (value: string | undefined) => void;
+  onAudienceFilter: (value: BuildAudience | undefined) => void;
 }) => (
   <>
+    <Select
+      items={AUDIENCE_FILTER_LABELS}
+      value={audienceFilter ?? "all"}
+      onValueChange={(value) => {
+        if (typeof value === "string" && isAudience(value)) {
+          onAudienceFilter(value);
+        } else {
+          onAudienceFilter(undefined);
+        }
+      }}
+    >
+      <SelectTrigger className="w-44">
+        <SelectValue placeholder="All audiences" />
+      </SelectTrigger>
+      <SelectPopup>
+        <SelectGroup>
+          <SelectItem value="all">All audiences</SelectItem>
+          <SelectItem value="internal">Internal distribution</SelectItem>
+          <SelectItem value="store">Store distribution</SelectItem>
+        </SelectGroup>
+      </SelectPopup>
+    </Select>
     <Select
       items={PLATFORM_FILTER_LABELS}
       value={platformFilter ?? "all"}

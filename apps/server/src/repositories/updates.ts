@@ -27,6 +27,7 @@ export interface UpdateRepository {
     readonly certificateChain: string | null;
     readonly manifestBody: string | null;
     readonly directiveBody: string | null;
+    readonly fingerprintHash: string | null;
     readonly assets: readonly UpdateAssetRefModel[];
   }) => Effect.Effect<UpdateModel>;
 
@@ -45,14 +46,21 @@ export interface UpdateRepository {
       readonly certificateChain: string | null;
       readonly manifestBody: string | null;
       readonly directiveBody: string | null;
+      readonly fingerprintHash: string | null;
       readonly assets: readonly UpdateAssetRefModel[];
     }[];
+  }) => Effect.Effect<readonly UpdateModel[]>;
+
+  readonly listByProjectAndFingerprint: (params: {
+    readonly projectId: string;
+    readonly fingerprintHash: string;
   }) => Effect.Effect<readonly UpdateModel[]>;
 
   readonly findByProject: (params: {
     readonly projectId: string;
     readonly branchId?: string;
     readonly platform?: Platform;
+    readonly runtimeVersion?: string;
     readonly sort: UpdateSortKey;
     readonly order: UpdateSortOrder;
     readonly limit: number;
@@ -114,8 +122,12 @@ interface UpdateRow {
   certificate_chain: string | null;
   manifest_body: string | null;
   directive_body: string | null;
+  fingerprint_hash: string | null;
   created_at: string;
 }
+
+const UPDATE_COLUMNS = `"id", "branch_id", "runtime_version", "platform", "message", "metadata_json", "extra_json", "group_id", "rollout_percentage", "is_rollback", "signature", "certificate_chain", "manifest_body", "directive_body", "fingerprint_hash", "created_at"`;
+const UPDATE_COLUMNS_U = `u."id", u."branch_id", u."runtime_version", u."platform", u."message", u."metadata_json", u."extra_json", u."group_id", u."rollout_percentage", u."is_rollback", u."signature", u."certificate_chain", u."manifest_body", u."directive_body", u."fingerprint_hash", u."created_at"`;
 
 interface UpdateAssetRow {
   asset_key: string;
@@ -140,6 +152,7 @@ const toUpdate = (row: UpdateRow) =>
     certificateChain: row.certificate_chain,
     manifestBody: row.manifest_body,
     directiveBody: row.directive_body,
+    fingerprintHash: row.fingerprint_hash,
     createdAt: row.created_at,
   }) satisfies UpdateModel;
 
@@ -152,7 +165,7 @@ export const UpdateRepoLive = Layer.succeed(UpdateRepo, {
 
       const stmts = [
         env.DB.prepare(
-          `INSERT INTO "updates" ("id", "branch_id", "runtime_version", "platform", "message", "metadata_json", "extra_json", "group_id", "rollout_percentage", "is_rollback", "signature", "certificate_chain", "manifest_body", "directive_body", "created_at") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO "updates" (${UPDATE_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         ).bind(
           id,
           params.branchId,
@@ -168,6 +181,7 @@ export const UpdateRepoLive = Layer.succeed(UpdateRepo, {
           params.certificateChain,
           params.manifestBody,
           params.directiveBody,
+          params.fingerprintHash,
           now,
         ),
         ...params.assets.map((asset) =>
@@ -194,6 +208,7 @@ export const UpdateRepoLive = Layer.succeed(UpdateRepo, {
         certificateChain: params.certificateChain,
         manifestBody: params.manifestBody,
         directiveBody: params.directiveBody,
+        fingerprintHash: params.fingerprintHash,
         createdAt: now,
       } satisfies UpdateModel;
     }),
@@ -213,7 +228,7 @@ export const UpdateRepoLive = Layer.succeed(UpdateRepo, {
 
       const statements = updatesWithIds.flatMap((update) => [
         env.DB.prepare(
-          `INSERT INTO "updates" ("id", "branch_id", "runtime_version", "platform", "message", "metadata_json", "extra_json", "group_id", "rollout_percentage", "is_rollback", "signature", "certificate_chain", "manifest_body", "directive_body", "created_at") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO "updates" (${UPDATE_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         ).bind(
           update.id,
           params.branchId,
@@ -229,6 +244,7 @@ export const UpdateRepoLive = Layer.succeed(UpdateRepo, {
           update.certificateChain,
           update.manifestBody,
           update.directiveBody,
+          update.fingerprintHash,
           now,
         ),
         ...update.assets.map((asset) =>
@@ -257,6 +273,7 @@ export const UpdateRepoLive = Layer.succeed(UpdateRepo, {
             certificateChain: update.certificateChain,
             manifestBody: update.manifestBody,
             directiveBody: update.directiveBody,
+            fingerprintHash: update.fingerprintHash,
             createdAt: now,
           }) satisfies UpdateModel,
       );
@@ -278,6 +295,11 @@ export const UpdateRepoLive = Layer.succeed(UpdateRepo, {
       if (params.platform) {
         conditions.push('u."platform" = ?');
         bindValues.push(params.platform);
+      }
+
+      if (params.runtimeVersion) {
+        conditions.push('u."runtime_version" = ?');
+        bindValues.push(params.runtimeVersion);
       }
 
       const whereClause = conditions.join(" AND ");
@@ -302,7 +324,7 @@ export const UpdateRepoLive = Layer.succeed(UpdateRepo, {
 
       const rows = yield* Effect.promise(async () =>
         env.DB.prepare(
-          `SELECT u."id", u."branch_id", u."runtime_version", u."platform", u."message", u."metadata_json", u."extra_json", u."group_id", u."rollout_percentage", u."is_rollback", u."signature", u."certificate_chain", u."manifest_body", u."directive_body", u."created_at" FROM "updates" u JOIN "branches" b ON u."branch_id" = b."id" WHERE ${whereClause} ORDER BY ${orderBy} LIMIT ? OFFSET ?`,
+          `SELECT ${UPDATE_COLUMNS_U} FROM "updates" u JOIN "branches" b ON u."branch_id" = b."id" WHERE ${whereClause} ORDER BY ${orderBy} LIMIT ? OFFSET ?`,
         )
           .bind(...bindValues, params.limit, params.offset)
           .all<UpdateRow>(),
@@ -316,9 +338,7 @@ export const UpdateRepoLive = Layer.succeed(UpdateRepo, {
       const env = yield* cloudflareEnv;
 
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT "id", "branch_id", "runtime_version", "platform", "message", "metadata_json", "extra_json", "group_id", "rollout_percentage", "is_rollback", "signature", "certificate_chain", "manifest_body", "directive_body", "created_at" FROM "updates" WHERE "id" = ?`,
-        )
+        env.DB.prepare(`SELECT ${UPDATE_COLUMNS} FROM "updates" WHERE "id" = ?`)
           .bind(params.id)
           .first<UpdateRow>(),
       );
@@ -335,10 +355,23 @@ export const UpdateRepoLive = Layer.succeed(UpdateRepo, {
       const env = yield* cloudflareEnv;
 
       const rows = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT "id", "branch_id", "runtime_version", "platform", "message", "metadata_json", "extra_json", "group_id", "rollout_percentage", "is_rollback", "signature", "certificate_chain", "manifest_body", "directive_body", "created_at" FROM "updates" WHERE "group_id" = ?`,
-        )
+        env.DB.prepare(`SELECT ${UPDATE_COLUMNS} FROM "updates" WHERE "group_id" = ?`)
           .bind(params.groupId)
+          .all<UpdateRow>(),
+      );
+
+      return rows.results.map(toUpdate);
+    }),
+
+  listByProjectAndFingerprint: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+
+      const rows = yield* Effect.promise(async () =>
+        env.DB.prepare(
+          `SELECT ${UPDATE_COLUMNS_U} FROM "updates" u JOIN "branches" b ON u."branch_id" = b."id" WHERE b."project_id" = ? AND u."fingerprint_hash" = ? ORDER BY u."created_at" DESC, u."id" DESC`,
+        )
+          .bind(params.projectId, params.fingerprintHash)
           .all<UpdateRow>(),
       );
 

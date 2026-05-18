@@ -10,7 +10,8 @@ import { Input } from "@better-update/ui/components/ui/input";
 import { toastManager } from "@better-update/ui/components/ui/toast";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@better-update/ui/components/ui/tooltip";
 import { useQueryClient } from "@tanstack/react-query";
-import { CircleCheckIcon, Undo2Icon } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { CircleCheckIcon, FingerprintIcon, Undo2Icon } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import type { Channel, Update } from "@better-update/api";
@@ -120,6 +121,16 @@ export const UpdateCard = ({
           <span>v{update.runtimeVersion}</span>
           <span>{formatDateTime(update.createdAt)}</span>
           <span className="font-mono text-xs">{update.groupId.slice(0, 8)}</span>
+          {update.fingerprintHash !== null && (
+            <Link
+              to="/projects/$projectSlug/fingerprints/$hash"
+              params={{ projectSlug: slug, hash: update.fingerprintHash }}
+              className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 font-mono text-xs transition-colors"
+            >
+              <FingerprintIcon strokeWidth={2} className="size-3" />
+              {update.fingerprintHash.slice(0, 12)}
+            </Link>
+          )}
         </div>
 
         {/* Rollout controls */}
@@ -148,36 +159,48 @@ export const UpdateCard = ({
           <Tooltip>
             <TooltipTrigger
               render={
-                <Button
-                  size="icon"
-                  variant="outline"
-                  aria-label="Complete rollout (100%)"
-                  loading={completeUpdateRolloutMutation.isPending}
-                  disabled={isUpdatingRollout || update.rolloutPercentage === 100}
-                  onClick={handleComplete}
-                />
+                <span className="inline-flex">
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    aria-label="Complete rollout (100%)"
+                    loading={completeUpdateRolloutMutation.isPending}
+                    disabled={isUpdatingRollout || update.rolloutPercentage === 100}
+                    onClick={handleComplete}
+                  >
+                    <CircleCheckIcon strokeWidth={2} />
+                  </Button>
+                </span>
               }
-            >
-              <CircleCheckIcon strokeWidth={2} />
-            </TooltipTrigger>
-            <TooltipPopup>Complete rollout (100%)</TooltipPopup>
+            />
+            <TooltipPopup>
+              {update.rolloutPercentage === 100
+                ? "Already at 100% — rollout complete"
+                : "Complete rollout (100%)"}
+            </TooltipPopup>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger
               render={
-                <Button
-                  size="icon"
-                  variant="outline"
-                  aria-label="Revert rollout (0%)"
-                  loading={revertUpdateRolloutMutation.isPending}
-                  disabled={isUpdatingRollout || update.rolloutPercentage === 0}
-                  onClick={handleRevert}
-                />
+                <span className="inline-flex">
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    aria-label="Revert rollout (0%)"
+                    loading={revertUpdateRolloutMutation.isPending}
+                    disabled={isUpdatingRollout || update.rolloutPercentage === 0}
+                    onClick={handleRevert}
+                  >
+                    <Undo2Icon strokeWidth={2} />
+                  </Button>
+                </span>
               }
-            >
-              <Undo2Icon strokeWidth={2} />
-            </TooltipTrigger>
-            <TooltipPopup>Revert rollout (0%)</TooltipPopup>
+            />
+            <TooltipPopup>
+              {update.rolloutPercentage === 0
+                ? "Already at 0% — nothing to revert"
+                : "Revert rollout (0%)"}
+            </TooltipPopup>
           </Tooltip>
         </div>
       </CardContent>

@@ -50,6 +50,7 @@ export {
   RepublishBody,
   RepublishResult,
   Update,
+  UpdateAssetEntry,
 } from "./domain/update";
 export { Asset, AssetUploadBody, AssetUploadResult } from "./domain/asset";
 export {
@@ -152,13 +153,16 @@ export {
   ArtifactFormat,
   Build,
   BuildArtifact,
+  BuildAudience,
   BuildWithArtifact,
   CompleteBuildBody,
   CreateBuildBody,
   DeleteBuildResult,
   Distribution,
+  INTERNAL_DISTRIBUTIONS,
   InstallLinkResult,
   ReserveBuildResult,
+  STORE_DISTRIBUTIONS,
 } from "./domain/build";
 export {
   BuildCompatibilityChannel,
@@ -186,6 +190,7 @@ export { BranchesGroup } from "./groups/branches";
 export { BuildsGroup } from "./groups/builds";
 export { EnvVarsGroup } from "./groups/env-vars";
 export { ChannelsGroup } from "./groups/channels";
+export { FingerprintDetail, FingerprintsGroup } from "./groups/fingerprints";
 export { DevicesGroup } from "./groups/devices";
 export { AppleTeamsGroup } from "./groups/apple-teams";
 export { AppleDistributionCertificatesGroup } from "./groups/apple-distribution-certificates";

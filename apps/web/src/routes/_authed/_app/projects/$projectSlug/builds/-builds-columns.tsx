@@ -1,7 +1,7 @@
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@better-update/ui/components/ui/tooltip";
-import { DownloadIcon } from "lucide-react";
+import { DownloadIcon, MonitorIcon, SmartphoneIcon } from "lucide-react";
 
 import type { BuildWithArtifact } from "@better-update/api";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -12,6 +12,37 @@ import { InstallLinkDialog } from "../-install-link-dialog";
 import { formatRelativeTime } from "../../../../../../lib/format-relative-time";
 
 export type BuildItem = typeof BuildWithArtifact.Type;
+
+const BuildTargetCell = ({ build }: { build: BuildItem }) => {
+  if (build.platform === "ios" && build.distribution === "simulator") {
+    return (
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Badge variant="outline" className="gap-1">
+              <MonitorIcon strokeWidth={2} className="size-3" />
+              Simulator
+            </Badge>
+          }
+        />
+        <TooltipPopup>Runs on the iOS Simulator only</TooltipPopup>
+      </Tooltip>
+    );
+  }
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Badge variant="outline" className="gap-1">
+            <SmartphoneIcon strokeWidth={2} className="size-3" />
+            Device
+          </Badge>
+        }
+      />
+      <TooltipPopup>Installable on physical devices</TooltipPopup>
+    </Tooltip>
+  );
+};
 
 const buildLabel = (build: BuildItem) =>
   (build.message ?? build.profile) || `Build ${build.id.slice(0, 8)}`;
@@ -124,6 +155,12 @@ export const buildBuildsColumns = (
       ) : (
         <Badge variant="outline">No artifact</Badge>
       ),
+    enableSorting: false,
+  },
+  {
+    id: "target",
+    header: "Target",
+    cell: ({ row }) => <BuildTargetCell build={row.original} />,
     enableSorting: false,
   },
   {

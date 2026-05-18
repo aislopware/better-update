@@ -1,0 +1,269 @@
+import {
+  updateAssetsQueryOptions,
+  updateGroupQueryOptions,
+  updateQueryOptions,
+} from "@better-update/api-client/react";
+import { Badge } from "@better-update/ui/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@better-update/ui/components/ui/card";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@better-update/ui/components/ui/empty";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@better-update/ui/components/ui/tabs";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { Link, createFileRoute } from "@tanstack/react-router";
+import { FingerprintIcon, PackageIcon } from "lucide-react";
+import { Suspense } from "react";
+
+import type { Update } from "@better-update/api";
+
+import { ProjectSubpageHeader } from "../-project-subpage-header";
+import { readUpdateEnvironment } from "../-update-helpers";
+import { DetailCardSkeleton, SummaryCardsSkeleton } from "../../../../../../components/skeletons";
+import { formatDateTime } from "../../../../../../lib/format-date";
+
+type UpdateItem = typeof Update.Type;
+
+const OverviewCard = ({ primary, projectSlug }: { primary: UpdateItem; projectSlug: string }) => {
+  const environment = readUpdateEnvironment(primary.extraJson);
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Group metadata</CardTitle>
+        <CardDescription>
+          Shared values across all per-platform variants in this update group.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-4 sm:grid-cols-2">
+        <div className="flex flex-col gap-1">
+          <div className="text-muted-foreground text-sm">Message</div>
+          <div className="font-medium">{primary.message || "—"}</div>
+        </div>
+        <div className="flex flex-col gap-1">
+          <div className="text-muted-foreground text-sm">Runtime version</div>
+          <div className="font-medium">v{primary.runtimeVersion}</div>
+        </div>
+        <div className="flex flex-col gap-1">
+          <div className="text-muted-foreground text-sm">Environment</div>
+          <div className="font-medium">{environment ?? "—"}</div>
+        </div>
+        <div className="flex flex-col gap-1">
+          <div className="text-muted-foreground text-sm">Created</div>
+          <div className="font-medium">{formatDateTime(primary.createdAt)}</div>
+        </div>
+        <div className="flex flex-col gap-1">
+          <div className="text-muted-foreground text-sm">Group ID</div>
+          <code className="font-mono text-xs">{primary.groupId}</code>
+        </div>
+        <div className="flex flex-col gap-1">
+          <div className="text-muted-foreground text-sm">Fingerprint</div>
+          {primary.fingerprintHash === null ? (
+            <span className="text-muted-foreground text-sm italic">Not recorded</span>
+          ) : (
+            <Link
+              to="/projects/$projectSlug/fingerprints/$hash"
+              params={{ projectSlug, hash: primary.fingerprintHash }}
+              className="hover:text-foreground text-muted-foreground inline-flex items-center gap-1 font-mono text-xs transition-colors"
+            >
+              <FingerprintIcon strokeWidth={2} className="size-3" />
+              {primary.fingerprintHash.slice(0, 16)}
+            </Link>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+const PlatformVariantAssets = ({
+  orgId,
+  projectId,
+  updateId,
+}: {
+  orgId: string;
+  projectId: string;
+  updateId: string;
+}) => {
+  const { data: assets } = useSuspenseQuery(updateAssetsQueryOptions(orgId, projectId, updateId));
+  if (assets.length === 0) {
+    return <p className="text-muted-foreground text-sm">No asset references recorded.</p>;
+  }
+  return (
+    <div className="flex flex-col gap-2">
+      {assets.map((asset) => (
+        <div
+          key={`${asset.hash}:${asset.key}`}
+          className="flex items-center justify-between gap-2 rounded-xl border p-2"
+        >
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <code className="truncate font-mono text-xs">{asset.key}</code>
+            <code className="text-muted-foreground truncate font-mono text-xs">
+              {asset.hash.slice(0, 16)}
+            </code>
+          </div>
+          {asset.isLaunch ? <Badge variant="secondary">Launch</Badge> : null}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const PlatformVariantCard = ({
+  update,
+  orgId,
+  projectId,
+}: {
+  update: UpdateItem;
+  orgId: string;
+  projectId: string;
+}) => (
+  <Card>
+    <CardHeader>
+      <CardTitle className="flex items-center gap-2 text-base">
+        <Badge variant="outline">{update.platform}</Badge>
+        <code className="font-mono text-xs">{update.id.slice(0, 8)}</code>
+        {update.isRollback ? <Badge variant="destructive">Rollback</Badge> : null}
+      </CardTitle>
+      <CardDescription>Rollout: {update.rolloutPercentage}%</CardDescription>
+    </CardHeader>
+    <CardContent className="flex flex-col gap-3">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="flex flex-col gap-1">
+          <div className="text-muted-foreground text-xs">Signature</div>
+          <div className="text-xs">{update.signature === null ? "Unsigned" : "Signed"}</div>
+        </div>
+        <div className="flex flex-col gap-1">
+          <div className="text-muted-foreground text-xs">Manifest body</div>
+          <div className="text-xs">{update.manifestBody === null ? "Not stored" : "Stored"}</div>
+        </div>
+      </div>
+      <div className="flex flex-col gap-2">
+        <div className="text-muted-foreground text-sm">Assets</div>
+        <Suspense fallback={<p className="text-muted-foreground text-xs">Loading assets...</p>}>
+          <PlatformVariantAssets orgId={orgId} projectId={projectId} updateId={update.id} />
+        </Suspense>
+      </div>
+    </CardContent>
+  </Card>
+);
+
+const PlatformTabContent = ({
+  variants,
+  platform,
+  orgId,
+  projectId,
+}: {
+  variants: readonly UpdateItem[];
+  platform: "ios" | "android";
+  orgId: string;
+  projectId: string;
+}) => {
+  const platformVariants = variants.filter((update) => update.platform === platform);
+  if (platformVariants.length === 0) {
+    return (
+      <Empty>
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <PackageIcon strokeWidth={1.5} />
+          </EmptyMedia>
+          <EmptyTitle>No {platform === "ios" ? "iOS" : "Android"} variant in this group</EmptyTitle>
+          <EmptyDescription>
+            This update group only published a {platform === "ios" ? "Android" : "iOS"} variant.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-3">
+      {platformVariants.map((update) => (
+        <PlatformVariantCard key={update.id} update={update} orgId={orgId} projectId={projectId} />
+      ))}
+    </div>
+  );
+};
+
+const UpdateDetailContent = () => {
+  const { updateId } = Route.useParams();
+  const { activeOrg, project } = Route.useRouteContext();
+  const orgId = activeOrg.id;
+  const projectId = project.id;
+  const { data: update } = useSuspenseQuery(updateQueryOptions(orgId, projectId, updateId));
+  const { data: group } = useSuspenseQuery(
+    updateGroupQueryOptions(orgId, projectId, update.groupId),
+  );
+
+  const primary = group.items.find((entry) => entry.id === updateId) ?? group.items[0] ?? update;
+  const title = primary.message || `Update ${update.groupId.slice(0, 8)}`;
+
+  return (
+    <>
+      <ProjectSubpageHeader title={title} />
+      <OverviewCard primary={primary} projectSlug={project.slug} />
+      <Tabs defaultValue="overview">
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="ios">iOS</TabsTrigger>
+          <TabsTrigger value="android">Android</TabsTrigger>
+        </TabsList>
+        <TabsContent value="overview" className="pt-4">
+          <div className="flex flex-col gap-3">
+            {group.items.map((variant) => (
+              <PlatformVariantCard
+                key={variant.id}
+                update={variant}
+                orgId={orgId}
+                projectId={projectId}
+              />
+            ))}
+          </div>
+        </TabsContent>
+        <TabsContent value="ios" className="pt-4">
+          <PlatformTabContent
+            variants={group.items}
+            platform="ios"
+            orgId={orgId}
+            projectId={projectId}
+          />
+        </TabsContent>
+        <TabsContent value="android" className="pt-4">
+          <PlatformTabContent
+            variants={group.items}
+            platform="android"
+            orgId={orgId}
+            projectId={projectId}
+          />
+        </TabsContent>
+      </Tabs>
+    </>
+  );
+};
+
+const UpdateDetailSkeleton = () => (
+  <>
+    <ProjectSubpageHeader title="Update" />
+    <SummaryCardsSkeleton count={2} />
+    <DetailCardSkeleton rows={3} columns={2} />
+  </>
+);
+
+const UpdateDetailPage = () => (
+  <div className="flex w-full flex-col gap-4">
+    <Suspense fallback={<UpdateDetailSkeleton />}>
+      <UpdateDetailContent />
+    </Suspense>
+  </div>
+);
+
+export const Route = createFileRoute("/_authed/_app/projects/$projectSlug/updates/$updateId")({
+  component: UpdateDetailPage,
+});

@@ -32,6 +32,7 @@ export interface SerializedUpdate {
   readonly certificateChain: string | null;
   readonly manifestBody: string | null;
   readonly directiveBody: string | null;
+  readonly fingerprintHash: string | null;
   readonly createdAt: string;
 }
 
@@ -53,6 +54,7 @@ interface PublishInputBase {
   readonly certificateChain: string | null;
   readonly manifestBody: string | null;
   readonly directiveBody: string | null;
+  readonly fingerprintHash: string | null;
   readonly assets: readonly SerializedAssetRef[];
 }
 
@@ -72,6 +74,7 @@ export interface RepublishSourceUpdate {
   readonly certificateChain: string | null;
   readonly manifestBody: string | null;
   readonly directiveBody: string | null;
+  readonly fingerprintHash: string | null;
   readonly assets: readonly SerializedAssetRef[];
 }
 

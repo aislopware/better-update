@@ -14,6 +14,7 @@ export interface BuildWithArtifactRow {
   git_commit: string | null;
   message: string | null;
   metadata_json: string;
+  fingerprint_hash: string | null;
   created_at: string;
   a_r2_key: string | null;
   a_format: ArtifactFormat | null;
@@ -22,7 +23,7 @@ export interface BuildWithArtifactRow {
   a_sha256: string | null;
 }
 
-export const BUILD_WITH_ARTIFACT_COLUMNS = `b."id", b."project_id", b."platform", b."profile", b."distribution", b."runtime_version", b."app_version", b."build_number", b."bundle_id", b."git_ref", b."git_commit", b."message", b."metadata_json", b."created_at", a."r2_key" AS "a_r2_key", a."format" AS "a_format", a."content_type" AS "a_content_type", a."byte_size" AS "a_byte_size", a."sha256" AS "a_sha256"`;
+export const BUILD_WITH_ARTIFACT_COLUMNS = `b."id", b."project_id", b."platform", b."profile", b."distribution", b."runtime_version", b."app_version", b."build_number", b."bundle_id", b."git_ref", b."git_commit", b."message", b."metadata_json", b."fingerprint_hash", b."created_at", a."r2_key" AS "a_r2_key", a."format" AS "a_format", a."content_type" AS "a_content_type", a."byte_size" AS "a_byte_size", a."sha256" AS "a_sha256"`;
 
 export const BUILD_WITH_ARTIFACT_JOIN = `FROM "builds" b LEFT JOIN "build_artifacts" a ON a."build_id" = b."id"`;
 
@@ -40,6 +41,7 @@ export const toBuildWithArtifact = (row: BuildWithArtifactRow): BuildWithArtifac
   gitCommit: row.git_commit,
   message: row.message,
   metadataJson: row.metadata_json,
+  fingerprintHash: row.fingerprint_hash,
   createdAt: row.created_at,
   artifact:
     row.a_r2_key && row.a_format && row.a_sha256 && row.a_byte_size !== null

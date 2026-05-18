@@ -20,6 +20,7 @@ import { z } from "zod";
 
 import type { UpdateSortColumn } from "@better-update/api-client/react";
 
+import { CompareUpdatesDialog } from "../-compare-updates-dialog";
 import { ProjectSubpageHeader } from "../-project-subpage-header";
 import { TableSkeleton } from "../../../../../../components/skeletons";
 import {
@@ -201,7 +202,10 @@ const UpdatesContent = () => {
       <div className="flex w-full flex-col gap-4">
         <div className="flex items-center justify-between gap-2">
           <ProjectSubpageHeader title="Updates" />
-          <div className="flex flex-wrap items-center gap-2">{filterControls}</div>
+          <div className="flex flex-wrap items-center gap-2">
+            {filterControls}
+            <CompareUpdatesDialog orgId={orgId} projectId={projectId} />
+          </div>
         </div>
         <TableSkeleton columns={6} rows={6} />
       </div>
@@ -215,7 +219,10 @@ const UpdatesContent = () => {
       <div className="flex w-full flex-col gap-4">
         <div className="flex items-center justify-between gap-2">
           <ProjectSubpageHeader title="Updates" />
-          <div className="flex flex-wrap items-center gap-2">{filterControls}</div>
+          <div className="flex flex-wrap items-center gap-2">
+            {filterControls}
+            <CompareUpdatesDialog orgId={orgId} projectId={projectId} />
+          </div>
         </div>
         <UpdatesEmptyState />
       </div>
@@ -256,6 +263,12 @@ const UpdatesContent = () => {
           safePage={safePage}
           totalPages={totalPages}
           onPageChange={onPageChange}
+          onRowClick={async (update) => {
+            await routeNavigate({
+              to: "/projects/$projectSlug/updates/$updateId",
+              params: { projectSlug: slug, updateId: update.id },
+            });
+          }}
         />
       )}
     </div>

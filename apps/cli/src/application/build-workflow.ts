@@ -13,6 +13,7 @@ import { readEasJson } from "../lib/eas-config";
 import { pullEnvVars } from "../lib/env-exporter";
 import { BuildProfileError } from "../lib/exit-codes";
 import { extractProjectId, readAppMeta, readExpoConfig } from "../lib/expo-config";
+import { runFingerprintFull } from "../lib/fingerprint";
 import { formatCause } from "../lib/format-error";
 import { readGitContext } from "../lib/git-context";
 import { readGradleConfig, warnOnGradleMismatch } from "../lib/gradle-config";
@@ -324,6 +325,11 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
         dirty: rawGitContext.dirty,
       };
 
+      const fingerprintHash = yield* runFingerprintFull(userCwd).pipe(
+        Effect.map((entry) => entry.hash),
+        Effect.catchAll(() => Effect.succeed(undefined)),
+      );
+
       const result = yield* reserveAndUpload(api, {
         target,
         projectId,
@@ -334,6 +340,7 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
         bundleId,
         gitContext,
         ...(options.message === undefined ? {} : { message: options.message }),
+        ...(fingerprintHash === undefined ? {} : { fingerprintHash }),
         artifactPath: build.artifactPath,
         sha256: build.sha256,
         byteSize: build.byteSize,
