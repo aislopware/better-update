@@ -185,6 +185,44 @@ MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQC
     expect(res.status).toBe(404);
   });
 
+  it("resolves iOS bundle configuration without ascApiKeyId", async () => {
+    // Apple ID login flow leaves `ascApiKeyId` null: resolver must still succeed.
+    const noAscBundle = "com.example.buildcreds.noasc";
+    const profile = buildMobileprovision(TEAM, noAscBundle);
+    const profRes = await post(
+      "/api/apple/provisioning-profiles",
+      { profileBase64: profile.base64, appleDistributionCertificateId: certId },
+      { cookie: cookies },
+    );
+    expect(profRes.status).toBe(201);
+    const noAscProfileId = (await profRes.json()).id;
+
+    const bundleCfg = await post(
+      `/api/projects/${projectId}/ios-bundle-configurations`,
+      {
+        bundleIdentifier: noAscBundle,
+        distributionType: "APP_STORE",
+        appleTeamId,
+        appleDistributionCertificateId: certId,
+        appleProvisioningProfileId: noAscProfileId,
+        // ascApiKeyId omitted — Apple ID interactive flow.
+      },
+      { cookie: cookies },
+    );
+    expect(bundleCfg.status).toBe(201);
+
+    const res = await post(
+      `/api/projects/${projectId}/build-credentials/resolve`,
+      { platform: "ios", bundleIdentifier: noAscBundle, distributionType: "APP_STORE" },
+      { cookie: cookies },
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.platform).toBe("ios");
+    expect(body.provisioningProfile.bundleIdentifier).toBe(noAscBundle);
+    expect(body.distributionCertificate.p12Password).toBe("super-secret");
+  });
+
   it("seeds Android application identifier + keystore + build credentials", async () => {
     const appRes = await post(
       `/api/projects/${projectId}/android-application-identifiers`,

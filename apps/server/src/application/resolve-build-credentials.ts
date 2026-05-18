@@ -143,7 +143,6 @@ export const resolveIosBuildCredentials = (input: IosResolveInput) =>
       config.appleProvisioningProfileId,
       "appleProvisioningProfileId",
     );
-    yield* requireValue(config.ascApiKeyId, "ascApiKeyId");
 
     const [cert, profile, pushKey, team] = yield* Effect.all(
       [

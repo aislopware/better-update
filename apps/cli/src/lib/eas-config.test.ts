@@ -219,4 +219,73 @@ describe(resolveEasBuildProfile, () => {
       expect(Exit.isFailure(exit)).toBe(true);
     }),
   );
+
+  it.effect("parses top-level autoIncrement (boolean + string variants)", () =>
+    Effect.gen(function* () {
+      const trueConfig = yield* parseEasConfig(
+        JSON.stringify({ build: { prod: { autoIncrement: true } } }),
+      );
+      expect(trueConfig.build?.["prod"]?.autoIncrement).toBe(true);
+
+      const stringConfig = yield* parseEasConfig(
+        JSON.stringify({ build: { prod: { autoIncrement: "version" } } }),
+      );
+      expect(stringConfig.build?.["prod"]?.autoIncrement).toBe("version");
+
+      const invalidConfig = yield* parseEasConfig(
+        JSON.stringify({ build: { prod: { autoIncrement: "garbage" } } }),
+      );
+      expect(invalidConfig.build?.["prod"]?.autoIncrement).toBeUndefined();
+    }),
+  );
+
+  it.effect("parses platform-scoped autoIncrement override", () =>
+    Effect.gen(function* () {
+      const config = yield* parseEasConfig(
+        JSON.stringify({
+          build: {
+            prod: {
+              ios: { autoIncrement: "buildNumber" },
+              android: { autoIncrement: "versionCode" },
+            },
+          },
+        }),
+      );
+      expect(config.build?.["prod"]?.ios?.autoIncrement).toBe("buildNumber");
+      expect(config.build?.["prod"]?.android?.autoIncrement).toBe("versionCode");
+    }),
+  );
+
+  it.effect("rejects invalid platform-scoped autoIncrement values silently", () =>
+    Effect.gen(function* () {
+      const config = yield* parseEasConfig(
+        JSON.stringify({
+          build: {
+            prod: {
+              ios: { autoIncrement: "versionCode" },
+              android: { autoIncrement: "buildNumber" },
+            },
+          },
+        }),
+      );
+      // versionCode is not valid on ios; buildNumber is not valid on android
+      expect(config.build?.["prod"]?.ios?.autoIncrement).toBeUndefined();
+      expect(config.build?.["prod"]?.android?.autoIncrement).toBeUndefined();
+    }),
+  );
+
+  it.effect("merges autoIncrement across extends chain (overlay wins)", () =>
+    Effect.gen(function* () {
+      const config = yield* parseEasConfig(
+        JSON.stringify({
+          build: {
+            base: { autoIncrement: true },
+            production: { extends: "base", autoIncrement: "version" },
+          },
+        }),
+      );
+      const profile = yield* resolveEasBuildProfile(config, "production");
+      expect(profile.autoIncrement).toBe("version");
+    }),
+  );
 });

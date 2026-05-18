@@ -118,6 +118,57 @@ describe(fromEasProfile, () => {
     expect(profile.android?.flavor).toBe("prod");
     expect(profile.android?.gradleCommand).toBe(":app:bundleProdRelease");
   });
+
+  it("resolves autoIncrement=true to buildNumber (ios) and versionCode (android)", () => {
+    const profile = fromEasProfile({ distribution: "store", autoIncrement: true }, "p");
+    expect(profile.ios?.autoIncrement).toBe("buildNumber");
+    expect(profile.android?.autoIncrement).toBe("versionCode");
+  });
+
+  it("resolves autoIncrement=version to version on both platforms", () => {
+    const profile = fromEasProfile({ distribution: "store", autoIncrement: "version" }, "p");
+    expect(profile.ios?.autoIncrement).toBe("version");
+    expect(profile.android?.autoIncrement).toBe("version");
+  });
+
+  it("top-level autoIncrement=buildNumber only applies to ios; android stays undefined", () => {
+    const profile = fromEasProfile({ distribution: "store", autoIncrement: "buildNumber" }, "p");
+    expect(profile.ios?.autoIncrement).toBe("buildNumber");
+    expect(profile.android?.autoIncrement).toBeUndefined();
+  });
+
+  it("top-level autoIncrement=versionCode only applies to android; ios stays undefined", () => {
+    const profile = fromEasProfile({ distribution: "store", autoIncrement: "versionCode" }, "p");
+    expect(profile.ios?.autoIncrement).toBeUndefined();
+    expect(profile.android?.autoIncrement).toBe("versionCode");
+  });
+
+  it("platform-scoped autoIncrement overrides top-level", () => {
+    const profile = fromEasProfile(
+      {
+        distribution: "store",
+        autoIncrement: true,
+        ios: { autoIncrement: "version" },
+        android: { autoIncrement: false },
+      },
+      "p",
+    );
+    expect(profile.ios?.autoIncrement).toBe("version");
+    expect(profile.android?.autoIncrement).toBeUndefined();
+  });
+
+  it("platform-scoped autoIncrement=false disables top-level even when truthy", () => {
+    const profile = fromEasProfile(
+      {
+        distribution: "store",
+        autoIncrement: true,
+        ios: { autoIncrement: false },
+      },
+      "p",
+    );
+    expect(profile.ios?.autoIncrement).toBeUndefined();
+    expect(profile.android?.autoIncrement).toBe("versionCode");
+  });
 });
 
 // ── readRuntimeVersionMeta ────────────────────────────────────────

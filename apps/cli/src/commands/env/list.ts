@@ -7,6 +7,21 @@ import { printList } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 import { envErrorExtras, formatEnvironments } from "./helpers";
 
+const renderValue = (
+  item: { readonly visibility: "plaintext" | "sensitive"; readonly value: string | null },
+  includeSensitive: boolean,
+): string => {
+  if (item.visibility === "plaintext") {
+    // eslint-disable-next-line eslint-js/no-restricted-syntax -- EnvVar.value nullable at storage; display empty when absent
+    return item.value ?? "";
+  }
+  if (includeSensitive) {
+    // eslint-disable-next-line eslint-js/no-restricted-syntax -- EnvVar.value nullable at storage; display empty when absent
+    return item.value ?? "";
+  }
+  return "••••••";
+};
+
 export const listCommand = defineCommand({
   meta: { name: "list", description: "List environment variables" },
   args: {
@@ -21,6 +36,10 @@ export const listCommand = defineCommand({
       description: "Filter by scope (default: all — merged with global override resolution)",
     },
     search: { type: "string", description: "Filter by key substring (case-insensitive)" },
+    "include-sensitive": {
+      type: "boolean",
+      description: "Reveal masked sensitive values (default: masked)",
+    },
   },
   run: async ({ args }) =>
     runEffect(
@@ -36,6 +55,7 @@ export const listCommand = defineCommand({
         };
 
         const result = yield* api["env-vars"].list({ urlParams });
+        const includeSensitive = args["include-sensitive"] ?? false;
 
         yield* printList(
           ["Key", "Environments", "Scope", "Visibility", "Value"],
@@ -44,8 +64,7 @@ export const listCommand = defineCommand({
             formatEnvironments(item.environments),
             item.overridesGlobal ? `${item.scope} (overrides global)` : item.scope,
             item.visibility,
-            // eslint-disable-next-line eslint-js/no-restricted-syntax -- EnvVar.value nullable at storage; display empty when absent
-            item.visibility === "plaintext" ? (item.value ?? "") : "••••••",
+            renderValue(item, includeSensitive),
           ]),
           "No environment variables found.",
         );

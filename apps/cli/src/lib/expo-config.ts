@@ -141,7 +141,7 @@ export const extractProjectId = (
     if (typeof projectId !== "string") {
       return yield* new ProjectNotLinkedError({
         message:
-          "Project not linked. Run `better-update link` to connect this project, or set extra.betterUpdate.projectId in your Expo config.",
+          "Project not linked. Run `better-update init` to connect this project, or set extra.betterUpdate.projectId in your Expo config.",
       });
     }
     return projectId;

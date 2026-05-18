@@ -50,20 +50,45 @@ const checkExistingLink = (
     return overwrite ? ("mismatch-overwrite" as const) : ("mismatch-abort" as const);
   });
 
+const writeAndAnnounce = (projectRoot: string, projectId: string) =>
+  Effect.gen(function* () {
+    const writeResult = yield* writeProjectId(projectRoot, projectId);
+    const target = writeResult.configPath
+      ? path.relative(projectRoot, writeResult.configPath)
+      : "your Expo config";
+    yield* Console.log(`Project linked successfully. ID saved to ${target}.`);
+    if (writeResult.type === "warn" && writeResult.message) {
+      yield* Console.log(`Note: ${writeResult.message}`);
+    }
+  });
+
 export const initCommand = defineCommand({
   meta: { name: "init", description: "Link the local Expo project to a better-update project" },
-  run: async () =>
+  args: {
+    id: {
+      type: "string",
+      description: "Link by explicit project ID (skips slug lookup / project creation)",
+    },
+  },
+  run: async ({ args }) =>
     runEffect(
       Effect.gen(function* () {
         const runtime = yield* CliRuntime;
         const projectRoot = yield* runtime.cwd;
         const config = yield* readExpoConfig(projectRoot);
         const name = config.name ?? config.slug ?? "untitled";
-        const slug = yield* extractSlug(config);
-
-        yield* Console.log(`Linking project: ${name} (${slug})`);
-
         const api = yield* apiClient;
+
+        // --id branch: skip slug lookup, link by explicit ID.
+        if (args.id !== undefined && args.id.length > 0) {
+          const project = yield* api.projects.get({ path: { id: args.id } });
+          yield* Console.log(`Linking project: ${project.name} (${project.id})`);
+          yield* writeAndAnnounce(projectRoot, project.id);
+          return;
+        }
+
+        const slug = yield* extractSlug(config);
+        yield* Console.log(`Linking project: ${name} (${slug})`);
 
         const linkState = yield* checkExistingLink(api, config, slug);
         if (linkState === "matched" || linkState === "mismatch-abort") {
@@ -83,14 +108,7 @@ export const initCommand = defineCommand({
           return created.id;
         });
 
-        const writeResult = yield* writeProjectId(projectRoot, linkedProjectId);
-        const target = writeResult.configPath
-          ? path.relative(projectRoot, writeResult.configPath)
-          : "your Expo config";
-        yield* Console.log(`Project linked successfully. ID saved to ${target}.`);
-        if (writeResult.type === "warn" && writeResult.message) {
-          yield* Console.log(`Note: ${writeResult.message}`);
-        }
+        yield* writeAndAnnounce(projectRoot, linkedProjectId);
       }),
     ),
 });

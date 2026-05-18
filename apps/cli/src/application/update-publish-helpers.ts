@@ -1,12 +1,16 @@
 import path from "node:path";
 
 import { FileSystem } from "@effect/platform";
-import { Effect } from "effect";
+import { Console, Effect } from "effect";
 
+import { drainPages } from "../lib/drain-cursor";
 import { UpdatePublishError } from "../lib/exit-codes";
 import { formatCause } from "../lib/format-error";
+import { InteractiveMode } from "../lib/interactive-mode";
+import { promptConfirm, promptSelect, promptText } from "../lib/prompts";
 
 import type { Platform } from "../lib/build-profile";
+import type { GitContext } from "../lib/git-context";
 import type { apiClient } from "../services/api-client";
 
 export interface PublishedPlatformMetadata {
@@ -50,6 +54,154 @@ export const resolveChannelToBranch = (
       });
     }
     return branch.name;
+  });
+
+const CREATE_NEW_BRANCH_SENTINEL = "__better_update_create_new_branch__";
+
+const promptBranchName = Effect.gen(function* () {
+  const name = yield* promptText("Branch name to create", {
+    placeholder: "e.g. main, staging, release",
+  });
+  const trimmed = name.trim();
+  if (trimmed.length === 0) {
+    return yield* new UpdatePublishError({ message: "Branch name cannot be empty." });
+  }
+  return trimmed;
+});
+
+/**
+ * Interactive branch picker: lists existing branches with a "+ Create new..."
+ * Sentinel option. When the user picks the sentinel (or there are no
+ * Existing branches), prompts for a new branch name.
+ */
+export const promptForBranch = (
+  client: Effect.Effect.Success<typeof apiClient>,
+  projectId: string,
+) =>
+  Effect.gen(function* () {
+    const branches = yield* drainPages((page) =>
+      client.branches.list({ urlParams: { projectId, limit: 100, page } }),
+    ).pipe(
+      Effect.mapError(
+        (cause) =>
+          new UpdatePublishError({
+            message: `Failed to list branches: ${formatCause(cause)}`,
+          }),
+      ),
+    );
+
+    if (branches.length === 0) {
+      return yield* promptBranchName;
+    }
+
+    const choice = yield* promptSelect<string>("Which branch to publish to?", [
+      ...branches.map((branch) => ({ value: branch.name, label: branch.name })),
+      { value: CREATE_NEW_BRANCH_SENTINEL, label: "+ Create new branch..." },
+    ]);
+
+    if (choice === CREATE_NEW_BRANCH_SENTINEL) {
+      return yield* promptBranchName;
+    }
+    return choice;
+  });
+
+/**
+ * Interactive message prompt with the git commit subject as default.
+ * Returns `undefined` if the user entered an empty value, so the caller
+ * Can fall back to its own default.
+ */
+export const promptForMessage = (commitMessage: string | undefined) =>
+  Effect.gen(function* () {
+    const fallback = commitMessage ?? "Publish via better-update CLI";
+    const entered = yield* promptText("Update message", {
+      placeholder: fallback,
+      defaultValue: fallback,
+    });
+    const trimmed = entered.trim();
+    return trimmed.length === 0 ? undefined : trimmed;
+  });
+
+export interface ResolveBranchAndMessageInput {
+  readonly client: Effect.Effect.Success<typeof apiClient>;
+  readonly projectId: string;
+  readonly branchArg: string | undefined;
+  readonly messageArg: string | undefined;
+  readonly channelArg: string | undefined;
+  readonly auto: boolean;
+  readonly gitCtx: GitContext;
+  readonly envBranch: string | undefined;
+}
+
+export interface ResolvedBranchAndMessage {
+  readonly branch: string;
+  readonly message: string | undefined;
+}
+
+/**
+ * Apply the full branch/message resolution chain in priority order:
+ * Explicit args → git context (when --auto) → channel lookup → env fallback →
+ * Interactive picker. Returns the final values or fails with a helpful error
+ * When everything is exhausted in non-interactive mode.
+ */
+export const resolveBranchAndMessage = (input: ResolveBranchAndMessageInput) =>
+  Effect.gen(function* () {
+    let branch = input.branchArg;
+    let message = input.messageArg;
+
+    if (input.auto) {
+      if (branch === undefined && input.gitCtx.ref !== undefined) {
+        branch = input.gitCtx.ref;
+      }
+      if (message === undefined && input.gitCtx.commitMessage !== undefined) {
+        message = input.gitCtx.commitMessage;
+      }
+    }
+
+    if (branch === undefined && input.channelArg !== undefined) {
+      branch = yield* resolveChannelToBranch(input.client, input.projectId, input.channelArg);
+    }
+
+    if (branch === undefined && input.envBranch !== undefined && input.envBranch.length > 0) {
+      branch = input.envBranch;
+    }
+
+    const interactive = yield* InteractiveMode;
+
+    if (branch === undefined) {
+      if (!interactive.allow) {
+        return yield* new UpdatePublishError({
+          message:
+            "Missing --branch or --channel. Provide one explicitly, set BETTER_UPDATE_BRANCH, use --auto to infer from git, or run interactively.",
+        });
+      }
+      branch = yield* promptForBranch(input.client, input.projectId);
+    }
+
+    if (message === undefined && interactive.allow && !input.auto) {
+      message = yield* promptForMessage(input.gitCtx.commitMessage);
+    }
+
+    return { branch, message } as const satisfies ResolvedBranchAndMessage;
+  });
+
+/**
+ * Show a pre-publish preview and ask for confirmation. Returns `false`
+ * If the user declines so the caller can abort gracefully.
+ */
+export const confirmPublishPreview = (preview: {
+  readonly branch: string;
+  readonly platforms: readonly Platform[];
+  readonly message: string;
+  readonly environment: string;
+}) =>
+  Effect.gen(function* () {
+    yield* Console.log("");
+    yield* Console.log(`Branch:      ${preview.branch}`);
+    yield* Console.log(`Platforms:   ${[...preview.platforms].join(", ")}`);
+    yield* Console.log(`Environment: ${preview.environment}`);
+    yield* Console.log(`Message:     ${preview.message}`);
+    yield* Console.log("");
+    return yield* promptConfirm("Proceed with publish?", { initialValue: true });
   });
 
 export const emitMetadataFile = (input: {

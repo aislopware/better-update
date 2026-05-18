@@ -16,6 +16,7 @@ import type { CliCredentialRow } from "../lib/credentials-manager";
 import type { InteractiveMode } from "../lib/interactive-mode";
 import type { OutputMode } from "../lib/output-mode";
 import type { ApiClient } from "../services/api-client";
+import type { AppleAuth } from "../services/apple-auth";
 
 export const APPLE_PUSH_KEY_PORTAL_URL =
   "https://developer.apple.com/account/resources/authkeys/list";
@@ -43,7 +44,7 @@ export const EXIT = "__exit__" as const;
 export type MenuEffect = Effect.Effect<
   void,
   never,
-  InteractiveMode | OutputMode | FileSystem.FileSystem | CommandExecutor.CommandExecutor
+  AppleAuth | CommandExecutor.CommandExecutor | FileSystem.FileSystem | InteractiveMode | OutputMode
 >;
 
 export const announce = (heading: string) =>

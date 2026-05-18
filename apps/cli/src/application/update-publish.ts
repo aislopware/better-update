@@ -14,6 +14,7 @@ import { extractProjectId, extractSlug, readExpoConfig } from "../lib/expo-confi
 import { readExpoExportAssets, readExpoPublicConfig, runExpoExport } from "../lib/expo-export";
 import { formatCause } from "../lib/format-error";
 import { readGitContext } from "../lib/git-context";
+import { InteractiveMode } from "../lib/interactive-mode";
 import { ensureRepoClean } from "../lib/repo-clean";
 import { resolveRuntimeVersion } from "../lib/runtime-version";
 import { sha256File, sha256Namespaced } from "../lib/sha256";
@@ -23,7 +24,11 @@ import { resolveUpdatePlatforms } from "../lib/update-platforms";
 import { apiClient } from "../services/api-client";
 import { CliRuntime } from "../services/cli-runtime";
 import { UpdateAssetUploader } from "../services/update-asset-uploader";
-import { emitMetadataFile, resolveChannelToBranch } from "./update-publish-helpers";
+import {
+  confirmPublishPreview,
+  emitMetadataFile,
+  resolveBranchAndMessage,
+} from "./update-publish-helpers";
 
 import type { Platform } from "../lib/build-profile";
 import type {
@@ -37,7 +42,6 @@ import type {
   RuntimeVersionError,
 } from "../lib/exit-codes";
 import type { ExpoConfig } from "../lib/expo-config";
-import type { InteractiveMode } from "../lib/interactive-mode";
 import type { SignedPayload } from "../lib/signed-payloads";
 import type { ApiClientService } from "../services/api-client";
 
@@ -353,35 +357,19 @@ export const runUpdatePublish = (
             }),
         ),
       );
-      let resolvedBranch = options.branch;
-      let resolvedMessage = options.message;
-
-      if (options.auto) {
-        const gitContext = yield* readGitContext(projectRoot);
-        if (!resolvedBranch) {
-          if (!gitContext.ref) {
-            return yield* new UpdatePublishError({
-              message:
-                "Cannot infer branch from git. Ensure you are in a git repo with a checked-out branch, or provide --branch explicitly.",
-            });
-          }
-          resolvedBranch = gitContext.ref;
-        }
-        if (!resolvedMessage && gitContext.commitMessage) {
-          resolvedMessage = gitContext.commitMessage;
-        }
-      }
-
-      if (!resolvedBranch && options.channel !== undefined) {
-        resolvedBranch = yield* resolveChannelToBranch(api, projectId, options.channel);
-      }
-
-      if (!resolvedBranch) {
-        return yield* new UpdatePublishError({
-          message:
-            "Missing --branch or --channel. Provide one explicitly or use --auto to infer from git.",
-        });
-      }
+      // readGitContext is best-effort (swallows errors); cheap to call once.
+      const gitCtx = yield* readGitContext(projectRoot);
+      const envBranch = (yield* runtime.getEnv("BETTER_UPDATE_BRANCH"))?.trim();
+      const { branch, message: resolvedMessage } = yield* resolveBranchAndMessage({
+        client: api,
+        projectId,
+        branchArg: options.branch,
+        messageArg: options.message,
+        channelArg: options.channel,
+        auto: options.auto,
+        gitCtx,
+        envBranch,
+      });
 
       if (options.skipBundler && options.inputDir === undefined) {
         return yield* new UpdatePublishError({
@@ -392,9 +380,21 @@ export const runUpdatePublish = (
       const sharedExportDir =
         options.inputDir === undefined ? undefined : path.resolve(projectRoot, options.inputDir);
 
-      const branch = resolvedBranch;
       const groupId = randomUUID();
       const message = resolvedMessage ?? "Publish via better-update CLI";
+
+      const interactive = yield* InteractiveMode;
+      if (interactive.allow && !options.auto) {
+        const confirmed = yield* confirmPublishPreview({
+          branch,
+          platforms,
+          message,
+          environment: options.environment,
+        });
+        if (!confirmed) {
+          return yield* new UpdatePublishError({ message: "Publish cancelled." });
+        }
+      }
       const signedPayloads = yield* loadSignedPublishPayloads({
         platforms,
         globalFiles: {

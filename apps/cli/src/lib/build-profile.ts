@@ -13,11 +13,15 @@ export type Platform = "ios" | "android";
 
 export type IosDistribution = "app-store" | "ad-hoc" | "development" | "enterprise";
 
+export type IosAutoIncrement = "buildNumber" | "version";
+export type AndroidAutoIncrement = "versionCode" | "version";
+
 export interface IosProfile {
   readonly buildConfiguration?: string;
   readonly distribution: IosDistribution;
   readonly scheme?: string;
   readonly simulator?: boolean;
+  readonly autoIncrement?: IosAutoIncrement;
 }
 
 export type AndroidDistribution = "play-store" | "direct";
@@ -28,6 +32,7 @@ export interface AndroidProfile {
   readonly flavor?: string;
   readonly distribution: AndroidDistribution;
   readonly gradleCommand?: string;
+  readonly autoIncrement?: AndroidAutoIncrement;
 }
 
 export type CredentialsSource = "remote" | "local";
@@ -112,6 +117,48 @@ const hasIosIntent = (eas: EasBuildProfile): boolean =>
 const hasAndroidIntent = (eas: EasBuildProfile): boolean =>
   eas.android !== undefined || eas.distribution !== undefined || eas.developmentClient === true;
 
+const resolveIosAutoIncrement = (eas: EasBuildProfile): IosAutoIncrement | undefined => {
+  const override = eas.ios?.autoIncrement;
+  if (override === false) {
+    return undefined;
+  }
+  if (override === true) {
+    return "buildNumber";
+  }
+  if (override === "buildNumber" || override === "version") {
+    return override;
+  }
+  const top = eas.autoIncrement;
+  if (top === true || top === "buildNumber") {
+    return "buildNumber";
+  }
+  if (top === "version") {
+    return "version";
+  }
+  return undefined;
+};
+
+const resolveAndroidAutoIncrement = (eas: EasBuildProfile): AndroidAutoIncrement | undefined => {
+  const override = eas.android?.autoIncrement;
+  if (override === false) {
+    return undefined;
+  }
+  if (override === true) {
+    return "versionCode";
+  }
+  if (override === "versionCode" || override === "version") {
+    return override;
+  }
+  const top = eas.autoIncrement;
+  if (top === true || top === "versionCode") {
+    return "versionCode";
+  }
+  if (top === "version") {
+    return "version";
+  }
+  return undefined;
+};
+
 const toIosProfile = (eas: EasBuildProfile): IosProfile | undefined => {
   if (!hasIosIntent(eas)) {
     return undefined;
@@ -121,11 +168,13 @@ const toIosProfile = (eas: EasBuildProfile): IosProfile | undefined => {
     return undefined;
   }
   const ios: EasIosProfile = eas.ios ?? {};
+  const autoIncrement = resolveIosAutoIncrement(eas);
   return {
     distribution,
     ...(ios.buildConfiguration === undefined ? {} : { buildConfiguration: ios.buildConfiguration }),
     ...(ios.scheme === undefined ? {} : { scheme: ios.scheme }),
     ...(ios.simulator === undefined ? {} : { simulator: ios.simulator }),
+    ...(autoIncrement === undefined ? {} : { autoIncrement }),
   };
 };
 
@@ -139,12 +188,14 @@ const toAndroidProfile = (eas: EasBuildProfile): AndroidProfile | undefined => {
   }
   const android: EasAndroidProfile = eas.android ?? {};
   const distribution = deriveAndroidDistribution(eas, format);
+  const autoIncrement = resolveAndroidAutoIncrement(eas);
   return {
     format,
     distribution,
     ...(android.buildType === undefined ? {} : { buildType: android.buildType }),
     ...(android.flavor === undefined ? {} : { flavor: android.flavor }),
     ...(android.gradleCommand === undefined ? {} : { gradleCommand: android.gradleCommand }),
+    ...(autoIncrement === undefined ? {} : { autoIncrement }),
   };
 };
 

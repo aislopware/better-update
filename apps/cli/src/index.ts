@@ -8,6 +8,7 @@ import { Effect } from "effect";
 import pkg from "../package.json" with { type: "json" };
 import { makeCliLive } from "./app-layer";
 import { analyticsCommand } from "./commands/analytics";
+import { appleCommand } from "./commands/apple";
 import { auditLogsCommand } from "./commands/audit-logs";
 import { autocompleteCommand } from "./commands/autocomplete";
 import { branchesCommand } from "./commands/branches";
@@ -100,6 +101,7 @@ const main = defineCommand({
     webhooks: webhooksCommand,
     autocomplete: autocompleteCommand,
     "migrate-config": migrateConfigCommand,
+    apple: appleCommand,
   },
 });
 
