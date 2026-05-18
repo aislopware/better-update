@@ -111,7 +111,7 @@ const generateNewIosDistributionCert = (ctx: WizardContext) =>
     yield* printKeyValue([
       ["ID", created.id],
       ["Serial", created.serialNumber],
-      ["Apple team", created.appleTeamId],
+      ["Apple team", created.appleTeamIdentifier],
     ]);
     return undefined;
   });

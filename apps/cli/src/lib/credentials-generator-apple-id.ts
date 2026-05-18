@@ -103,7 +103,8 @@ export const generateAndUploadDistributionCertificateViaAppleId = (
     return {
       id: created.id,
       serialNumber: metadata.serialNumber,
-      appleTeamId: metadata.appleTeamId,
+      appleTeamId: created.appleTeamId,
+      appleTeamIdentifier: metadata.appleTeamId,
       developerPortalIdentifier: result.certificate.id,
     };
   });

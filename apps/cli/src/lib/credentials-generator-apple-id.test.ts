@@ -13,6 +13,8 @@ import {
 } from "./credentials-generator-apple-id";
 
 import type { ApiClient } from "../services/api-client";
+// eslint-disable-next-line import-plugin/no-namespace -- same reason: typed vi.mock factory needs the full module namespace type
+import type * as AppleCertToP12Module from "./apple-cert-to-p12";
 
 // ── module-level mocks ──────────────────────────────────────────
 
@@ -24,7 +26,17 @@ const mocks = vi.hoisted(() => ({
   profileCreateAsync: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
   deviceGetAllIosAsync: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
   createCertAndP12Async: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
+  extractMetadataFromP12: vi.fn<(params: { p12Base64: string; password: string }) => unknown>(),
 }));
+
+vi.mock(import("./apple-cert-to-p12"), async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    extractMetadataFromP12: (params: { p12Base64: string; password: string }) =>
+      Effect.sync(() => mocks.extractMetadataFromP12(params)),
+  } as unknown as typeof AppleCertToP12Module;
+});
 
 vi.mock(import("@expo/apple-utils"), () => {
   const mocked = {
@@ -66,7 +78,7 @@ const buildApi = () =>
   ({
     appleDistributionCertificates: {
       list: () => Effect.succeed({ items: [certListItem] }),
-      upload: () => Effect.succeed({ id: "cert-local-1" }),
+      upload: () => Effect.succeed({ id: "cert-local-1", appleTeamId: "team-uuid-1" }),
     },
     appleProvisioningProfiles: {
       upload: () =>
@@ -215,6 +227,37 @@ describe(generateAndUploadDistributionCertificateViaAppleId, () => {
         const failure = exit.cause.toJSON() as { failure?: { _tag?: string } };
         expect(failure.failure?._tag).toBe("AppleIdGenerateFailedError");
       }
+    }),
+  );
+
+  // Regression: previously returned metadata.appleTeamId (the Apple Developer string from
+  // p12 OU, e.g. "ABCDE12345") instead of the apple_teams row UUID from the API response.
+  // Caller then sent the Apple string to POST /ios-bundle-configurations, hitting a
+  // FOREIGN KEY violation against apple_teams(id) and a 500 → opaque "Decode error".
+  it.effect("returns the apple_teams UUID alongside the Apple Developer identifier", () =>
+    Effect.gen(function* () {
+      mocks.createCertAndP12Async.mockResolvedValue({
+        certificateP12: "fake-p12-base64",
+        password: "fake-password",
+        certificate: { id: "cert-developer-portal-1" },
+      });
+      mocks.extractMetadataFromP12.mockReturnValue({
+        serialNumber: "ABC123",
+        validFrom: "2026-01-01T00:00:00Z",
+        validUntil: "2027-01-01T00:00:00Z",
+        appleTeamId: "TEAM123456",
+        appleTeamName: "Acme Inc.",
+        developerIdIdentifier: null,
+        commonName: "iPhone Distribution: Acme",
+      });
+
+      const api = buildApi();
+      const result = yield* generateAndUploadDistributionCertificateViaAppleId(api, { context });
+
+      expect(result.id).toBe("cert-local-1");
+      expect(result.appleTeamId).toBe("team-uuid-1");
+      expect(result.appleTeamIdentifier).toBe("TEAM123456");
+      expect(result.developerPortalIdentifier).toBe("cert-developer-portal-1");
     }),
   );
 });

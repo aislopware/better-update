@@ -170,7 +170,7 @@ const distributionCertificateCommand = defineCommand({
         yield* printKeyValue([
           ["ID", created.id],
           ["Serial", created.serialNumber],
-          ["Apple team", created.appleTeamId],
+          ["Apple team", created.appleTeamIdentifier],
           ["Apple cert", created.developerPortalIdentifier],
         ]);
       }),

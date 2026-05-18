@@ -86,11 +86,16 @@ const GENERATE_NEW = "__generate__";
 const chooseDistributionCertViaAppleId = (
   api: ApiClient,
   ctx: RequestContext,
-  appleTeamId: string,
+  appleTeamIdentifier: string,
 ) =>
   Effect.gen(function* () {
-    const all = yield* api.appleDistributionCertificates.list();
-    const items = all.items.filter((cert) => cert.appleTeamId === appleTeamId);
+    const [teams, all] = yield* Effect.all(
+      [api.appleTeams.list(), api.appleDistributionCertificates.list()],
+      { concurrency: 2 },
+    );
+    const team = teams.items.find((entry) => entry.appleTeamId === appleTeamIdentifier);
+    const items =
+      team === undefined ? [] : all.items.filter((cert) => cert.appleTeamId === team.id);
     if (items.length === 0) {
       const created = yield* generateDistributionCertViaAppleIdInteractive(api, ctx);
       return { id: created.id, appleTeamId: created.appleTeamId };
@@ -101,7 +106,7 @@ const chooseDistributionCertViaAppleId = (
         { value: GENERATE_NEW, label: "Generate a new distribution certificate" },
         ...items.map((cert) => ({
           value: cert.id,
-          label: `${cert.serialNumber.slice(0, 12)}… (team ${cert.appleTeamId})`,
+          label: `${cert.serialNumber.slice(0, 12)}… (team ${appleTeamIdentifier})`,
         })),
       ],
     );
