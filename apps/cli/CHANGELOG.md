@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.16.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.15.4...@better-update/cli@0.16.0) (2026-05-18)
+
+### Features
+
+* **cli:** style warnings yellow + forward sub-CLI output via PTY ([b58481b](https://github.com/better-update/better-update/commit/b58481b9697740b38444102c3ae7e1b85a44b539)) - by @trancong12102
+
 ## [0.15.4](https://github.com/better-update/better-update/compare/@better-update/cli@0.15.3...@better-update/cli@0.15.4) (2026-05-18)
 
 ### Bug Fixes
