@@ -19,6 +19,7 @@ import { readGradleConfig, warnOnGradleMismatch } from "../lib/gradle-config";
 import { InteractiveMode } from "../lib/interactive-mode";
 import { printHuman, printKeyValue } from "../lib/output";
 import { detectPlatform } from "../lib/platform-detect";
+import { prepareStagingProject } from "../lib/project-staging";
 import { promptSelect } from "../lib/prompts";
 import { ensureRepoClean } from "../lib/repo-clean";
 import { resolveRuntimeVersion } from "../lib/runtime-version";
@@ -180,26 +181,29 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
     Effect.gen(function* () {
       const api = yield* apiClient;
       const runtime = yield* CliRuntime;
-      const projectRoot = yield* runtime.cwd;
+      // The user's working directory. Reads/writes that must persist for the
+      // user (autoIncrement bumps, git context, --output resolution, cache
+      // clearing) target this path. Native build steps run in a copy.
+      const userCwd = yield* runtime.cwd;
 
       yield* ensureRepoClean({
-        projectRoot,
+        projectRoot: userCwd,
         allowDirty: options.allowDirty ?? false,
         label: "build",
       });
 
       // Read the project's Expo config to extract projectId.
-      const baseConfig = yield* readExpoConfig(projectRoot);
+      const baseConfig = yield* readExpoConfig(userCwd);
       const projectId = yield* extractProjectId(baseConfig);
       const platform = yield* detectPlatform(options.platform, baseConfig);
 
       // Resolve profile name — when the requested profile is missing in
       // eas.json AND we're interactive, offer a picker over the available
       // profiles. In CI we let readBuildProfile error with its hint.
-      const profileName = yield* resolveProfileName(projectRoot, options.profileName);
+      const profileName = yield* resolveProfileName(userCwd, options.profileName);
 
       // Resolve the build profile from eas.json — static, env-independent.
-      const profile = yield* readBuildProfile(projectRoot, profileName);
+      const profile = yield* readBuildProfile(userCwd, profileName);
 
       // Pull env vars for the profile's environment scope.
       const envVars = yield* pullEnvVars(api, {
@@ -211,13 +215,13 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
       // (app.config.js/ts) can read these env vars when computing AppMeta
       // (bundleId, version, runtimeVersion). envVars are scoped to the call
       // so they don't leak to child processes.
-      const expoConfig = yield* readExpoConfig(projectRoot, envVars);
+      const expoConfig = yield* readExpoConfig(userCwd, envVars);
 
-      // Apply autoIncrement BEFORE readAppMeta so the bumped values flow into
-      // the build artifact and the upload metadata. No-op when the profile
-      // doesn't request it; dynamic configs are detected + logged inside.
+      // Apply autoIncrement BEFORE staging so the bumped app.json persists in
+      // the user's working tree (next build picks up the new value) and the
+      // staged copy inherits it via the copy step.
       yield* applyAutoIncrement({
-        projectRoot,
+        projectRoot: userCwd,
         platform,
         config: expoConfig,
         ...(platform === "ios" && profile.ios?.autoIncrement !== undefined
@@ -228,20 +232,29 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
           : {}),
       });
 
-      const bumpedConfig = yield* readExpoConfig(projectRoot, envVars);
+      const bumpedConfig = yield* readExpoConfig(userCwd, envVars);
       const appMeta = yield* readAppMeta(bumpedConfig, platform);
 
       const runtimeVersion = yield* resolveRuntimeVersion({
         raw: appMeta.rawRuntimeVersion,
         appVersion: appMeta.appVersion,
-        projectRoot,
+        projectRoot: userCwd,
       });
 
       if (options.clearCache) {
-        yield* clearBuildCaches(projectRoot);
+        yield* clearBuildCaches(userCwd);
       }
 
       const tempDir = yield* acquireBuildTempDir;
+
+      // Mirror cwd (or its workspace root for monorepos) into a staging dir
+      // and reinstall deps there. From here on, every native build command
+      // runs against `staging.projectRoot`; the user's tree is untouched.
+      const staging = yield* prepareStagingProject({
+        userCwd,
+        tempDir,
+        envVars,
+      });
 
       yield* Console.log(
         `Building ${platform} artifact for profile "${profile.name}" (runtimeVersion=${runtimeVersion})`,
@@ -255,7 +268,7 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
         appMeta,
         envVars,
         projectId,
-        projectRoot,
+        projectRoot: staging.projectRoot,
         tempDir,
       });
       const { build, target, bundleId } = outcome;
@@ -265,7 +278,7 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
       let exportedArtifactPath: string | undefined = undefined;
       if (options.output !== undefined) {
         const fs = yield* FileSystem.FileSystem;
-        const outputPath = path.resolve(projectRoot, options.output);
+        const outputPath = path.resolve(userCwd, options.output);
         const outputDir = path.dirname(outputPath);
         yield* fs.makeDirectory(outputDir, { recursive: true }).pipe(
           Effect.mapError(
@@ -300,7 +313,7 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
         return;
       }
 
-      const rawGitContext = yield* readGitContext(projectRoot);
+      const rawGitContext = yield* readGitContext(userCwd);
       const gitContext: {
         readonly ref?: string;
         readonly commit?: string;

@@ -100,3 +100,7 @@ export class CredentialsJsonError extends Data.TaggedError("CredentialsJsonError
 export class DirtyRepoError extends Data.TaggedError("DirtyRepoError")<{
   readonly message: string;
 }> {}
+
+export class StagingError extends Data.TaggedError("StagingError")<{
+  readonly message: string;
+}> {}

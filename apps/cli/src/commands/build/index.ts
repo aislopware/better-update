@@ -18,6 +18,7 @@ const BUILD_EXIT_EXTRAS = {
   CompleteError: 7,
   EnvExportError: 7,
   DirtyRepoError: 3,
+  StagingError: 6,
 } as const;
 
 export const buildCommand = defineCommand({
