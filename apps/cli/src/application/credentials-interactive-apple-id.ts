@@ -1,11 +1,16 @@
 import { Console, Effect } from "effect";
 
+import type { RequestContext } from "@expo/apple-utils";
+
 import { IOS_DISTRIBUTION_TO_TYPE } from "../lib/credentials-downloader";
 import {
+  AppleIdGenerateFailedError,
   generateAndUploadDistributionCertificateViaAppleId,
   generateAndUploadProvisioningProfileViaAppleId,
+  listDistributionCertsViaAppleId,
+  revokeDistributionCertViaAppleId,
 } from "../lib/credentials-generator-apple-id";
-import { promptSelect } from "../lib/prompts";
+import { promptMultiSelect, promptSelect } from "../lib/prompts";
 import { AppleAuth } from "../services/apple-auth";
 
 import type { IosDistribution } from "../lib/build-profile";
@@ -36,6 +41,84 @@ export const chooseIosSetupPath = (api: ApiClient) =>
     );
   });
 
+const interactiveAppleIdCertLimitRecover = (ctx: RequestContext) =>
+  Effect.gen(function* () {
+    yield* Console.log("");
+    yield* Console.log(
+      "Apple reports the certificate limit was hit (max 3 distribution certs per team).",
+    );
+    const certs = yield* listDistributionCertsViaAppleId(ctx, "IOS_DISTRIBUTION");
+    if (certs.length === 0) {
+      return yield* new AppleIdGenerateFailedError({
+        step: "limit-recover",
+        message:
+          "Apple says the certificate limit is hit but no existing certificates were returned.",
+      });
+    }
+    const toRevoke = yield* promptMultiSelect<string>(
+      "Select one or more certificates to revoke before retrying",
+      certs.map((entry) => ({
+        value: entry.developerPortalIdentifier,
+        label: `${entry.serialNumber.slice(0, 12)}… (${entry.displayName}, exp ${entry.expirationDate.slice(0, 10)})`,
+      })),
+      { required: true },
+    );
+    yield* Effect.forEach(toRevoke, (id) => revokeDistributionCertViaAppleId(ctx, id), {
+      concurrency: "inherit",
+    });
+    yield* Console.log(`Revoked ${toRevoke.length} certificate(s); retrying generation...`);
+    return undefined;
+  });
+
+const generateDistributionCertViaAppleIdInteractive = (api: ApiClient, ctx: RequestContext) =>
+  Effect.gen(function* () {
+    yield* Console.log("Generating distribution certificate via Apple ID...");
+    const generate = generateAndUploadDistributionCertificateViaAppleId(api, { context: ctx });
+    return yield* generate.pipe(
+      Effect.catchTag("CertificateLimitError", () =>
+        interactiveAppleIdCertLimitRecover(ctx).pipe(Effect.flatMap(() => generate)),
+      ),
+    );
+  });
+
+const GENERATE_NEW = "__generate__";
+
+const chooseDistributionCertViaAppleId = (
+  api: ApiClient,
+  ctx: RequestContext,
+  appleTeamId: string,
+) =>
+  Effect.gen(function* () {
+    const all = yield* api.appleDistributionCertificates.list();
+    const items = all.items.filter((cert) => cert.appleTeamId === appleTeamId);
+    if (items.length === 0) {
+      const created = yield* generateDistributionCertViaAppleIdInteractive(api, ctx);
+      return { id: created.id, appleTeamId: created.appleTeamId };
+    }
+    const choice = yield* promptSelect<string>(
+      "Select a distribution certificate (or 'generate' for a fresh one)",
+      [
+        { value: GENERATE_NEW, label: "Generate a new distribution certificate" },
+        ...items.map((cert) => ({
+          value: cert.id,
+          label: `${cert.serialNumber.slice(0, 12)}… (team ${cert.appleTeamId})`,
+        })),
+      ],
+    );
+    if (choice === GENERATE_NEW) {
+      const created = yield* generateDistributionCertViaAppleIdInteractive(api, ctx);
+      return { id: created.id, appleTeamId: created.appleTeamId };
+    }
+    const cert = items.find((entry) => entry.id === choice);
+    if (cert === undefined) {
+      return yield* new AppleIdGenerateFailedError({
+        step: "pick-certificate",
+        message: `Selected certificate ${choice} not found after listing`,
+      });
+    }
+    return { id: cert.id, appleTeamId: cert.appleTeamId };
+  });
+
 export const setupIosViaAppleId = (api: ApiClient, input: AppleIdIosSetupInput) =>
   Effect.gen(function* () {
     const auth = yield* AppleAuth;
@@ -44,8 +127,7 @@ export const setupIosViaAppleId = (api: ApiClient, input: AppleIdIosSetupInput) 
     yield* Console.log(
       `Logged in as ${session.username}. Team: ${session.teamName ?? session.teamId} (${session.teamId}).`,
     );
-    yield* Console.log("Generating distribution certificate via Apple ID...");
-    const cert = yield* generateAndUploadDistributionCertificateViaAppleId(api, { context: ctx });
+    const cert = yield* chooseDistributionCertViaAppleId(api, ctx, session.teamId);
     const distributionType = IOS_DISTRIBUTION_TO_TYPE[input.distribution];
     yield* Console.log("Generating provisioning profile via Apple ID...");
     const profile = yield* generateAndUploadProvisioningProfileViaAppleId(api, {

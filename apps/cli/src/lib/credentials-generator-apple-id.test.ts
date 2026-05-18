@@ -5,7 +5,12 @@ import type { RequestContext } from "@expo/apple-utils";
 // eslint-disable-next-line import-plugin/no-namespace -- vi.mock factory accepts a partial of the entire module shape; namespace import is the only way to satisfy ModuleMockFactoryWithHelper at compile time
 import type * as AppleUtilsModule from "@expo/apple-utils";
 
-import { generateAndUploadProvisioningProfileViaAppleId } from "./credentials-generator-apple-id";
+import {
+  generateAndUploadDistributionCertificateViaAppleId,
+  generateAndUploadProvisioningProfileViaAppleId,
+  listDistributionCertsViaAppleId,
+  revokeDistributionCertViaAppleId,
+} from "./credentials-generator-apple-id";
 
 import type { ApiClient } from "../services/api-client";
 
@@ -13,6 +18,7 @@ import type { ApiClient } from "../services/api-client";
 
 const mocks = vi.hoisted(() => ({
   certificateGetAsync: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
+  certificateDeleteAsync: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
   bundleIdFindAsync: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
   bundleIdCreateAsync: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
   profileCreateAsync: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
@@ -22,7 +28,10 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock(import("@expo/apple-utils"), () => {
   const mocked = {
-    Certificate: { getAsync: mocks.certificateGetAsync },
+    Certificate: {
+      getAsync: mocks.certificateGetAsync,
+      deleteAsync: mocks.certificateDeleteAsync,
+    },
     BundleId: { findAsync: mocks.bundleIdFindAsync, createAsync: mocks.bundleIdCreateAsync },
     Profile: { createAsync: mocks.profileCreateAsync },
     Device: { getAllIOSProfileDevicesAsync: mocks.deviceGetAllIosAsync },
@@ -166,6 +175,93 @@ describe(generateAndUploadProvisioningProfileViaAppleId, () => {
       );
 
       expect(exit._tag).toBe("Failure");
+    }),
+  );
+});
+
+describe(generateAndUploadDistributionCertificateViaAppleId, () => {
+  it.effect("maps Apple cert-limit message to CertificateLimitError", () =>
+    Effect.gen(function* () {
+      mocks.createCertAndP12Async.mockRejectedValue(
+        new Error(
+          "There is a problem with the request entity - You already have a current iOS Distribution certificate or a pending certificate request.",
+        ),
+      );
+
+      const api = buildApi();
+      const exit = yield* Effect.exit(
+        generateAndUploadDistributionCertificateViaAppleId(api, { context }),
+      );
+
+      expect(exit._tag).toBe("Failure");
+      if (exit._tag === "Failure") {
+        const failure = exit.cause.toJSON() as { failure?: { _tag?: string } };
+        expect(failure.failure?._tag).toBe("CertificateLimitError");
+      }
+    }),
+  );
+
+  it.effect("maps unrelated apple-utils failures to AppleIdGenerateFailedError", () =>
+    Effect.gen(function* () {
+      mocks.createCertAndP12Async.mockRejectedValue(new Error("network down"));
+
+      const api = buildApi();
+      const exit = yield* Effect.exit(
+        generateAndUploadDistributionCertificateViaAppleId(api, { context }),
+      );
+
+      expect(exit._tag).toBe("Failure");
+      if (exit._tag === "Failure") {
+        const failure = exit.cause.toJSON() as { failure?: { _tag?: string } };
+        expect(failure.failure?._tag).toBe("AppleIdGenerateFailedError");
+      }
+    }),
+  );
+});
+
+describe(listDistributionCertsViaAppleId, () => {
+  it.effect("maps Apple Certificate.getAsync items to summaries", () =>
+    Effect.gen(function* () {
+      mocks.certificateGetAsync.mockResolvedValue([
+        {
+          id: "cert-asc-1",
+          attributes: {
+            serialNumber: "ABC123",
+            displayName: "iOS Distribution: Acme",
+            expirationDate: "2030-01-01T00:00:00.000+0000",
+          },
+        },
+      ]);
+
+      const result = yield* listDistributionCertsViaAppleId(context, "IOS_DISTRIBUTION");
+
+      expect(result).toStrictEqual([
+        {
+          developerPortalIdentifier: "cert-asc-1",
+          serialNumber: "ABC123",
+          displayName: "iOS Distribution: Acme",
+          expirationDate: "2030-01-01T00:00:00.000+0000",
+        },
+      ]);
+      const [, args] = mocks.certificateGetAsync.mock.calls[0] as [
+        unknown,
+        { query: { filter: { certificateType: string } } },
+      ];
+      expect(args.query.filter.certificateType).toBe("IOS_DISTRIBUTION");
+    }),
+  );
+});
+
+describe(revokeDistributionCertViaAppleId, () => {
+  it.effect("invokes Certificate.deleteAsync with the developer-portal id", () =>
+    Effect.gen(function* () {
+      mocks.certificateDeleteAsync.mockResolvedValue(undefined);
+
+      yield* revokeDistributionCertViaAppleId(context, "cert-asc-1");
+
+      expect(mocks.certificateDeleteAsync).toHaveBeenCalledTimes(1);
+      const [, args] = mocks.certificateDeleteAsync.mock.calls[0] as [unknown, { id: string }];
+      expect(args.id).toBe("cert-asc-1");
     }),
   );
 });

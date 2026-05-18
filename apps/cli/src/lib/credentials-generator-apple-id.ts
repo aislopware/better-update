@@ -6,7 +6,7 @@ import AppleUtils from "@expo/apple-utils";
 import { Data, Effect } from "effect";
 
 import { extractMetadataFromP12 } from "./apple-cert-to-p12";
-import { computeDeviceRosterHashHex } from "./credentials-generator";
+import { CertificateLimitError, computeDeviceRosterHashHex } from "./credentials-generator";
 
 import type { ApiClient } from "../services/api-client";
 
@@ -31,14 +31,29 @@ export class AppleIdGenerateFailedError extends Data.TaggedError("AppleIdGenerat
   readonly message: string;
 }> {}
 
+// Mirrors apple-asc-client.isCertificateLimitError — Apple's portal returns the same wording
+// regardless of whether the request originated from an ASC API call or the Apple ID session.
+const CERT_LIMIT_PATTERN = /already have a current.*certificate|pending certificate request/iu;
+
+const messageOf = (cause: unknown): string =>
+  cause instanceof Error ? cause.message : String(cause);
+
 const wrap = <T>(step: string, run: () => Promise<T>) =>
   Effect.tryPromise({
     try: run,
-    catch: (cause) =>
-      new AppleIdGenerateFailedError({
-        step,
-        message: cause instanceof Error ? cause.message : String(cause),
-      }),
+    catch: (cause) => new AppleIdGenerateFailedError({ step, message: messageOf(cause) }),
+  });
+
+const wrapCertificateCreate = <T>(run: () => Promise<T>) =>
+  Effect.tryPromise({
+    try: run,
+    catch: (cause) => {
+      const message = messageOf(cause);
+      if (CERT_LIMIT_PATTERN.test(message)) {
+        return new CertificateLimitError({ message });
+      }
+      return new AppleIdGenerateFailedError({ step: "apple-create-certificate", message });
+    },
   });
 
 export interface GenerateCertificateViaAppleIdInput {
@@ -57,7 +72,7 @@ export const generateAndUploadDistributionCertificateViaAppleId = (
         ? AppleUtils.CertificateType.IOS_DEVELOPMENT
         : AppleUtils.CertificateType.IOS_DISTRIBUTION;
 
-    const result = yield* wrap("apple-create-certificate", async () =>
+    const result = yield* wrapCertificateCreate(async () =>
       AppleUtils.createCertificateAndP12Async(ctx, { certificateType }),
     );
 
@@ -92,6 +107,44 @@ export const generateAndUploadDistributionCertificateViaAppleId = (
       developerPortalIdentifier: result.certificate.id,
     };
   });
+
+export interface AppleIdDistributionCertificateSummary {
+  readonly developerPortalIdentifier: string;
+  readonly serialNumber: string;
+  readonly displayName: string;
+  readonly expirationDate: string;
+}
+
+export const listDistributionCertsViaAppleId = (
+  ctx: AppleUtils.RequestContext,
+  certificateType: "IOS_DISTRIBUTION" | "IOS_DEVELOPMENT" = "IOS_DISTRIBUTION",
+) =>
+  Effect.gen(function* () {
+    const filter =
+      certificateType === "IOS_DEVELOPMENT"
+        ? AppleUtils.CertificateType.IOS_DEVELOPMENT
+        : AppleUtils.CertificateType.IOS_DISTRIBUTION;
+    const certs = yield* wrap("apple-list-certificates", async () =>
+      AppleUtils.Certificate.getAsync(ctx, { query: { filter: { certificateType: filter } } }),
+    );
+    return certs.map(
+      (entry) =>
+        ({
+          developerPortalIdentifier: entry.id,
+          serialNumber: entry.attributes.serialNumber,
+          displayName: entry.attributes.displayName,
+          expirationDate: entry.attributes.expirationDate,
+        }) satisfies AppleIdDistributionCertificateSummary,
+    );
+  });
+
+export const revokeDistributionCertViaAppleId = (
+  ctx: AppleUtils.RequestContext,
+  developerPortalIdentifier: string,
+) =>
+  wrap("apple-revoke-certificate", async () =>
+    AppleUtils.Certificate.deleteAsync(ctx, { id: developerPortalIdentifier }),
+  );
 
 const findOrCreateBundleId = (ctx: AppleUtils.RequestContext, bundleIdentifier: string) =>
   Effect.gen(function* () {
