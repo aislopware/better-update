@@ -4,7 +4,6 @@ import { Effect } from "effect";
 import { CurrentActor } from "../auth/current-actor";
 import { assertOrgOwnership, assertProjectOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
-import { Vault } from "../cloudflare/vault";
 import { BadRequest, Forbidden } from "../errors";
 import { toDbNull } from "../lib/nullable";
 import { requireValue } from "../lib/require-value";
@@ -20,36 +19,8 @@ export const KEY_PATTERN = /^[A-Z][A-Z0-9_]*$/u;
 export const MAX_VARS_PER_PROJECT = 100;
 export const MAX_VARS_PER_ORG_GLOBAL = 100;
 
-export const SENSITIVE_MASK = "••••••";
-
-export interface EnvVarStorageFields {
-  readonly value: string | null;
-  readonly encryptedValue: string | null;
-  readonly keyVersion: number | null;
-}
-
-export interface EnvVarUpdateFields {
-  readonly value?: string | null;
-  readonly encryptedValue?: string | null;
-  readonly keyVersion?: number | null;
-}
-
 export const isValidEnvironment = (value: string): value is EnvVarEnvironment =>
   value === "development" || value === "preview" || value === "production";
-
-const maskValue = (row: EnvVarRow): string | null => {
-  switch (row.visibility) {
-    case "plaintext": {
-      return row.value;
-    }
-    case "sensitive": {
-      return SENSITIVE_MASK;
-    }
-    default: {
-      return null;
-    }
-  }
-};
 
 export const toEnvVarModel = (row: EnvVarRow, overridesGlobal?: boolean) => ({
   id: row.id,
@@ -58,7 +29,7 @@ export const toEnvVarModel = (row: EnvVarRow, overridesGlobal?: boolean) => ({
   scope: row.scope,
   key: row.key,
   visibility: row.visibility,
-  value: maskValue(row),
+  value: row.value,
   environments: row.environments,
   ...(overridesGlobal ? { overridesGlobal: true } : {}),
   createdAt: row.created_at,
@@ -126,87 +97,6 @@ export const parseEnvironmentsCsv = (
     return yield* validateEnvironments(tokens);
   });
 
-const encryptValue = (orgId: string, value: string) =>
-  Effect.gen(function* () {
-    const vault = yield* Vault;
-    const result = yield* vault
-      .encryptSecret({ organizationId: orgId, value })
-      .pipe(Effect.mapError(() => new BadRequest({ message: "Encryption failed" })));
-    return { encryptedValue: result.encrypted, keyVersion: result.keyVersion };
-  });
-
-export const decryptValue = (orgId: string, keyVersion: number, encrypted: string) =>
-  Effect.gen(function* () {
-    const vault = yield* Vault;
-    return yield* vault
-      .decryptSecret({ organizationId: orgId, keyVersion, encrypted })
-      .pipe(Effect.mapError(() => new BadRequest({ message: "Decryption failed" })));
-  });
-
-export const prepareStorageFields = (
-  visibility: EnvVarVisibility,
-  rawValue: string,
-  orgId: string,
-): Effect.Effect<EnvVarStorageFields, BadRequest, Vault> =>
-  visibility === "plaintext"
-    ? Effect.succeed({
-        value: rawValue,
-        encryptedValue: null,
-        keyVersion: null,
-      })
-    : Effect.gen(function* () {
-        const encrypted = yield* encryptValue(orgId, rawValue);
-        return {
-          value: null,
-          encryptedValue: encrypted.encryptedValue,
-          keyVersion: encrypted.keyVersion,
-        };
-      });
-
-export const resolveUpdateFields = (
-  existing: EnvVarRow,
-  newVisibility: EnvVarVisibility,
-  newValue: string | undefined,
-  orgId: string,
-): Effect.Effect<EnvVarUpdateFields, BadRequest, Vault> =>
-  Effect.gen(function* () {
-    if (newVisibility === "plaintext") {
-      if (newValue !== undefined) {
-        return {
-          value: newValue,
-          encryptedValue: null,
-          keyVersion: null,
-        } satisfies EnvVarUpdateFields;
-      }
-      if (existing.visibility !== "plaintext" && existing.encrypted_value && existing.key_version) {
-        const decrypted = yield* decryptValue(
-          orgId,
-          existing.key_version,
-          existing.encrypted_value,
-        );
-        return {
-          value: decrypted,
-          encryptedValue: null,
-          keyVersion: null,
-        } satisfies EnvVarUpdateFields;
-      }
-      return {} satisfies EnvVarUpdateFields;
-    }
-
-    const rawValue = newValue ?? (existing.visibility === "plaintext" ? existing.value : null);
-
-    if (rawValue !== null) {
-      const encrypted = yield* encryptValue(orgId, rawValue);
-      return {
-        value: null,
-        encryptedValue: encrypted.encryptedValue,
-        keyVersion: encrypted.keyVersion,
-      } satisfies EnvVarUpdateFields;
-    }
-
-    return {} satisfies EnvVarUpdateFields;
-  });
-
 export interface OverrideResolved {
   readonly row: EnvVarRow;
   readonly overridesGlobal: boolean;
@@ -262,16 +152,8 @@ export const handleExport = (urlParams: {
       resolved,
       (row) =>
         Effect.gen(function* () {
-          if (row.visibility === "plaintext" || !row.encrypted_value || !row.key_version) {
-            const value = yield* requireValue(row.value, `env-var:${row.key}`);
-            return { key: row.key, value, visibility: row.visibility };
-          }
-          const decrypted = yield* decryptValue(
-            ctx.organizationId,
-            row.key_version,
-            row.encrypted_value,
-          );
-          return { key: row.key, value: decrypted, visibility: row.visibility };
+          const value = yield* requireValue(row.value, `env-var:${row.key}`);
+          return { key: row.key, value, visibility: row.visibility };
         }),
       { concurrency: 5 },
     );
@@ -419,7 +301,6 @@ const upsertOne = (
   orgId: string,
 ) =>
   Effect.gen(function* () {
-    const fields = yield* prepareStorageFields(entry.visibility, entry.value, orgId);
     const repo = yield* EnvVarRepo;
     return yield* repo.upsert({
       id: crypto.randomUUID(),
@@ -428,7 +309,7 @@ const upsertOne = (
       scope: payload.scope,
       key,
       visibility: entry.visibility,
+      value: entry.value,
       environments,
-      ...fields,
     });
   });

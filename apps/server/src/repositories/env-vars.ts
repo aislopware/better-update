@@ -18,8 +18,6 @@ interface EnvVarBaseRow {
   readonly key: string;
   readonly visibility: EnvVarVisibility;
   readonly value: string | null;
-  readonly encrypted_value: string | null;
-  readonly key_version: number | null;
   readonly created_at: string;
   readonly updated_at: string;
 }
@@ -56,9 +54,7 @@ export interface EnvVarRepository {
     readonly scope: EnvVarScope;
     readonly key: string;
     readonly visibility: EnvVarVisibility;
-    readonly value: string | null;
-    readonly encryptedValue: string | null;
-    readonly keyVersion: number | null;
+    readonly value: string;
     readonly environments: readonly EnvVarEnvironment[];
   }) => Effect.Effect<EnvVarRow, Conflict>;
 
@@ -70,9 +66,7 @@ export interface EnvVarRepository {
 
   readonly update: (params: {
     readonly id: string;
-    readonly value?: string | null;
-    readonly encryptedValue?: string | null;
-    readonly keyVersion?: number | null;
+    readonly value?: string;
     readonly visibility?: EnvVarVisibility;
   }) => Effect.Effect<EnvVarRow, NotFound>;
 
@@ -94,9 +88,7 @@ export interface EnvVarRepository {
     readonly scope: EnvVarScope;
     readonly key: string;
     readonly visibility: EnvVarVisibility;
-    readonly value: string | null;
-    readonly encryptedValue: string | null;
-    readonly keyVersion: number | null;
+    readonly value: string;
     readonly environments: readonly EnvVarEnvironment[];
   }) => Effect.Effect<"created" | "updated">;
 }
@@ -105,7 +97,7 @@ export class EnvVarRepo extends Context.Tag("api/EnvVarRepo")<EnvVarRepo, EnvVar
 
 // -- D1 Adapter --------------------------------------------------------------
 
-const BASE_COLUMNS = `v."id", v."organization_id", v."project_id", v."scope", v."key", v."visibility", v."value", v."encrypted_value", v."key_version", v."created_at", v."updated_at"`;
+const BASE_COLUMNS = `v."id", v."organization_id", v."project_id", v."scope", v."key", v."visibility", v."value", v."created_at", v."updated_at"`;
 
 const SELECT_WITH_ENVIRONMENTS = `${BASE_COLUMNS}, (
   SELECT COALESCE(json_group_array(e."environment"), '[]')
@@ -137,8 +129,6 @@ const toEnvVarRow = (row: EnvVarJoinedRow): EnvVarRow => ({
   key: row.key,
   visibility: row.visibility,
   value: row.value,
-  encrypted_value: row.encrypted_value,
-  key_version: row.key_version,
   created_at: row.created_at,
   updated_at: row.updated_at,
   environments: parseEnvironments(row.environments_json),
@@ -158,7 +148,7 @@ export const EnvVarRepoLive = Layer.succeed(EnvVarRepo, {
 
       const statements: D1PreparedStatement[] = [
         env.DB.prepare(
-          `INSERT INTO "env_vars" ("id", "organization_id", "project_id", "scope", "key", "visibility", "value", "encrypted_value", "key_version", "created_at", "updated_at") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO "env_vars" ("id", "organization_id", "project_id", "scope", "key", "visibility", "value", "created_at", "updated_at") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         ).bind(
           params.id,
           params.organizationId,
@@ -167,8 +157,6 @@ export const EnvVarRepoLive = Layer.succeed(EnvVarRepo, {
           params.key,
           params.visibility,
           params.value,
-          params.encryptedValue,
-          params.keyVersion,
           now,
           now,
         ),
@@ -194,8 +182,6 @@ export const EnvVarRepoLive = Layer.succeed(EnvVarRepo, {
         key: params.key,
         visibility: params.visibility,
         value: params.value,
-        encrypted_value: params.encryptedValue,
-        key_version: params.keyVersion,
         created_at: now,
         updated_at: now,
         environments: [...params.environments].toSorted((left, right) => left.localeCompare(right)),
@@ -288,14 +274,6 @@ export const EnvVarRepoLive = Layer.succeed(EnvVarRepo, {
       if (params.value !== undefined) {
         setClauses.push('"value" = ?');
         bindValues.push(params.value);
-      }
-      if (params.encryptedValue !== undefined) {
-        setClauses.push('"encrypted_value" = ?');
-        bindValues.push(params.encryptedValue);
-      }
-      if (params.keyVersion !== undefined) {
-        setClauses.push('"key_version" = ?');
-        bindValues.push(params.keyVersion);
       }
 
       bindValues.push(params.id);
@@ -414,7 +392,7 @@ export const EnvVarRepoLive = Layer.succeed(EnvVarRepo, {
       if (existing === null) {
         const statements: D1PreparedStatement[] = [
           env.DB.prepare(
-            `INSERT INTO "env_vars" ("id", "organization_id", "project_id", "scope", "key", "visibility", "value", "encrypted_value", "key_version", "created_at", "updated_at") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO "env_vars" ("id", "organization_id", "project_id", "scope", "key", "visibility", "value", "created_at", "updated_at") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           ).bind(
             params.id,
             params.organizationId,
@@ -423,8 +401,6 @@ export const EnvVarRepoLive = Layer.succeed(EnvVarRepo, {
             params.key,
             params.visibility,
             params.value,
-            params.encryptedValue,
-            params.keyVersion,
             now,
             now,
           ),
@@ -436,15 +412,8 @@ export const EnvVarRepoLive = Layer.succeed(EnvVarRepo, {
 
       const statements: D1PreparedStatement[] = [
         env.DB.prepare(
-          `UPDATE "env_vars" SET "visibility" = ?, "value" = ?, "encrypted_value" = ?, "key_version" = ?, "updated_at" = ? WHERE "id" = ?`,
-        ).bind(
-          params.visibility,
-          params.value,
-          params.encryptedValue,
-          params.keyVersion,
-          now,
-          existing.id,
-        ),
+          `UPDATE "env_vars" SET "visibility" = ?, "value" = ?, "updated_at" = ? WHERE "id" = ?`,
+        ).bind(params.visibility, params.value, now, existing.id),
         env.DB.prepare(`DELETE FROM "env_var_environments" WHERE "env_var_id" = ?`).bind(
           existing.id,
         ),

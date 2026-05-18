@@ -122,7 +122,7 @@ describe("Environment variables API flow", () => {
     expect(response.status).toBe(201);
     const body = await response.json();
     state.sensitiveVarId = body.id;
-    expect(body.value).toBe("••••••");
+    expect(body.value).toBe("sentry-token-1");
     expect(body.visibility).toBe("sensitive");
     expect(body.environments).toEqual(["preview", "production"]);
   });
@@ -199,7 +199,7 @@ describe("Environment variables API flow", () => {
 
     const sentry = byKey.get("SENTRY_AUTH_TOKEN") as { scope: string; value: string };
     expect(sentry.scope).toBe("project");
-    expect(sentry.value).toBe("••••••");
+    expect(sentry.value).toBe("sentry-token-1");
   });
 
   it("filters by environments", async () => {
@@ -232,7 +232,7 @@ describe("Environment variables API flow", () => {
     expect(body.items[0].scope).toBe("global");
   });
 
-  it("updates a sensitive env var to plaintext using the stored secret", async () => {
+  it("updates a sensitive env var visibility without losing the value", async () => {
     const response = await patch(
       `/api/env-vars/${state.sensitiveVarId}`,
       { visibility: "plaintext" },

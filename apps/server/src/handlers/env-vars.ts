@@ -20,9 +20,7 @@ import {
   handleBulkImport,
   handleExport,
   parseEnvironmentsCsv,
-  prepareStorageFields,
   resolveListScope,
-  resolveUpdateFields,
   toEnvVarModel,
   validateEnvironments,
   validateKey,
@@ -62,12 +60,6 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
             }
           }
 
-          const fields = yield* prepareStorageFields(
-            payload.visibility,
-            payload.value,
-            ctx.organizationId,
-          );
-
           const row = yield* repo.insert({
             id: crypto.randomUUID(),
             organizationId: ctx.organizationId,
@@ -75,8 +67,8 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
             scope,
             key: payload.key,
             visibility: payload.visibility,
+            value: payload.value,
             environments,
-            ...fields,
           });
 
           const envVar = toEnvVarModel(row);
@@ -165,7 +157,6 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
       toApiBadRequestReadEffect(
         Effect.gen(function* () {
           yield* assertPermission("envVar", "update");
-          const ctx = yield* CurrentActor;
 
           const repo = yield* EnvVarRepo;
           const existing = yield* repo.findById({ id: path.id });
@@ -175,23 +166,9 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
             ? yield* validateEnvironments(payload.environments)
             : undefined;
 
-          const newVisibility = payload.visibility ?? existing.visibility;
-          const hasNewValue = payload.value !== undefined;
-          const needsValueUpdate =
-            hasNewValue || (payload.visibility && payload.visibility !== existing.visibility);
-
-          const updateFields = needsValueUpdate
-            ? yield* resolveUpdateFields(
-                existing,
-                newVisibility,
-                hasNewValue ? payload.value : undefined,
-                ctx.organizationId,
-              )
-            : {};
-
           const row = yield* repo.update({
             id: path.id,
-            ...updateFields,
+            ...(payload.value === undefined ? {} : { value: payload.value }),
             ...(payload.visibility ? { visibility: payload.visibility } : {}),
           });
 

@@ -63,7 +63,6 @@ const EditFormContent = ({
   onSuccess: () => void;
 }) => {
   const queryClient = useQueryClient();
-  const isEncrypted = envVar.visibility !== "plaintext";
   const updateEnvVarMutation = useApiMutation({
     mutationFn: async (payload: {
       value?: string;
@@ -82,10 +81,12 @@ const EditFormContent = ({
     },
   });
 
+  // eslint-disable-next-line eslint-js/no-restricted-syntax -- controlled input requires string; value is nullable for legacy rows without a stored plaintext
+  const initialValue = envVar.value ?? "";
+
   const form = useForm({
     defaultValues: {
-      // eslint-disable-next-line eslint-js/no-restricted-syntax -- controlled input requires string; encrypted fields render blank by design
-      value: isEncrypted ? "" : (envVar.value ?? ""),
+      value: initialValue,
       visibility: envVar.visibility,
       environments: envVar.environments,
     },
@@ -95,12 +96,7 @@ const EditFormContent = ({
         visibility?: "plaintext" | "sensitive";
         environments?: readonly (typeof EnvVarEnvironment.Type)[];
       } = {};
-      if (isEncrypted) {
-        if (value.value.length > 0) {
-          payload.value = value.value;
-        }
-        // eslint-disable-next-line eslint-js/no-restricted-syntax -- compare against normalized default used in form
-      } else if (value.value !== (envVar.value ?? "")) {
+      if (value.value !== initialValue) {
         payload.value = value.value;
       }
       if (value.visibility !== envVar.visibility) {
@@ -142,7 +138,6 @@ const EditFormContent = ({
                 <FieldLabel htmlFor="env-var-value">Value</FieldLabel>
                 <Textarea
                   id="env-var-value"
-                  placeholder={isEncrypted ? "Enter new value to replace existing" : ""}
                   value={field.state.value}
                   onChange={(event) => {
                     field.handleChange(event.target.value);
@@ -150,12 +145,6 @@ const EditFormContent = ({
                   rows={3}
                   className="font-mono"
                 />
-                {isEncrypted ? (
-                  <p className="text-muted-foreground text-xs">
-                    Current value is encrypted. Enter a new value to replace it, or leave empty to
-                    keep unchanged.
-                  </p>
-                ) : null}
               </Field>
             )}
           </form.Field>

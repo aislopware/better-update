@@ -150,7 +150,7 @@ describe("dashboard environment variables flow", () => {
       }),
     );
     expect(byKey.get("SENTRY_AUTH_TOKEN")).toStrictEqual(
-      expect.objectContaining({ value: "••••••", visibility: "sensitive" }),
+      expect.objectContaining({ value: "sentry-token", visibility: "sensitive" }),
     );
 
     const exportResponse = await get(
