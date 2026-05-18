@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.14.1](https://github.com/better-update/better-update/compare/@better-update/cli@0.14.0...@better-update/cli@0.14.1) (2026-05-18)
+
+### Bug Fixes
+
+* **cli:** handle null cert subject fields when parsing Apple p12 ([5d3fd72](https://github.com/better-update/better-update/commit/5d3fd729e9c45843a78d40d13987558ca843a335)) - by @trancong12102
+
 ## [0.14.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.13.1...@better-update/cli@0.14.0) (2026-05-18)
 
 ### Features
