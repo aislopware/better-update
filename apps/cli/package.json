@@ -49,6 +49,7 @@
     "effect": "^3.21.2",
     "es-toolkit": "^1.46.1",
     "gradle-to-js": "^2.0.1",
+    "ignore": "^7.0.5",
     "node-forge": "^1.4.0",
     "node-pty": "^1.1.0",
     "qrcode-terminal": "^0.12.0",
