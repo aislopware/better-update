@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.12.1](https://github.com/better-update/better-update/compare/@better-update/cli@0.12.0...@better-update/cli@0.12.1) (2026-05-18)
+
+### Bug Fixes
+
+* **cli:** default-import @expo/apple-utils to avoid ESM/CJS interop crash ([84024ae](https://github.com/better-update/better-update/commit/84024ae76452d2446ef312ad4773592dd48d7954)) - by @trancong12102
+
 ## [0.12.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.11.0...@better-update/cli@0.12.0) (2026-05-18)
 
 ### Features
