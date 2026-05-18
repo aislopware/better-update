@@ -3,7 +3,7 @@ import { renderExportOptionsPlist } from "./ios-export-options";
 // ── snapshot-style tests for each method ──────────────────────────
 
 describe(renderExportOptionsPlist, () => {
-  it("app-store method includes uploadSymbols=true", () => {
+  it("app-store method translates to app-store-connect and includes uploadSymbols=true", () => {
     const plist = renderExportOptionsPlist({
       method: "app-store",
       teamId: "ABCD1234EF",
@@ -15,7 +15,7 @@ describe(renderExportOptionsPlist, () => {
       <plist version="1.0">
       <dict>
       	<key>method</key>
-      	<string>app-store</string>
+      	<string>app-store-connect</string>
       	<key>teamID</key>
       	<string>ABCD1234EF</string>
       	<key>signingStyle</key>
@@ -54,17 +54,18 @@ describe(renderExportOptionsPlist, () => {
     );
   });
 
-  it("ad-hoc method omits uploadSymbols", () => {
+  it("ad-hoc method translates to release-testing and omits uploadSymbols", () => {
     const plist = renderExportOptionsPlist({
       method: "ad-hoc",
       teamId: "ABCD1234EF",
       provisioningProfiles: [{ bundleId: "com.example.app", profileName: "My AdHoc Profile" }],
     });
-    expect(plist).toContain("<string>ad-hoc</string>");
+    expect(plist).toContain("<string>release-testing</string>");
+    expect(plist).not.toContain("<string>ad-hoc</string>");
     expect(plist).not.toContain("uploadSymbols");
   });
 
-  it("enterprise method omits uploadSymbols", () => {
+  it("enterprise method stays enterprise and omits uploadSymbols", () => {
     const plist = renderExportOptionsPlist({
       method: "enterprise",
       teamId: "XYZ9876543",
@@ -74,13 +75,14 @@ describe(renderExportOptionsPlist, () => {
     expect(plist).not.toContain("uploadSymbols");
   });
 
-  it("development method omits uploadSymbols", () => {
+  it("development method translates to debugging and omits uploadSymbols", () => {
     const plist = renderExportOptionsPlist({
       method: "development",
       teamId: "DEV1234567",
       provisioningProfiles: [{ bundleId: "com.dev.app", profileName: "Dev Profile" }],
     });
-    expect(plist).toContain("<string>development</string>");
+    expect(plist).toContain("<string>debugging</string>");
+    expect(plist).not.toContain("<string>development</string>");
     expect(plist).not.toContain("uploadSymbols");
   });
 
