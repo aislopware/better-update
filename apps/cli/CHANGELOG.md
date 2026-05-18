@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.15.3](https://github.com/better-update/better-update/compare/@better-update/cli@0.15.2...@better-update/cli@0.15.3) (2026-05-18)
+
+### Bug Fixes
+
+* **cli:** ensure credentials per signed iOS target before downloading ([f04b08b](https://github.com/better-update/better-update/commit/f04b08bea9ea5e7dc669cd3a45be187f433efbb7)) - by @trancong12102
+
 ## [0.15.2](https://github.com/better-update/better-update/compare/@better-update/cli@0.15.1...@better-update/cli@0.15.2) (2026-05-18)
 
 ### Bug Fixes
