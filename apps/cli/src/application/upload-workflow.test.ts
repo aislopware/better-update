@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 
+import { CommandExecutor } from "@effect/platform";
 import { NodeContext } from "@effect/platform-node";
 import { it } from "@effect/vitest";
 import { Effect, Exit, Layer } from "effect";
@@ -145,6 +146,19 @@ const makePresignedUploadLayer = (
   put: PresignedUploadClient["Type"]["putToPresignedUrl"] = () => Effect.void,
 ) => Layer.succeed(PresignedUploadClient, { putToPresignedUrl: put });
 
+// Stub CommandExecutor returning empty stdout for every command.
+// Replaces NodeContext.layer's executor so the workflow's `bunx @expo/fingerprint`
+// invocation does not actually shell out (the tempdir fixture is not a real
+// Expo project, so the install + fetch would hang past the test timeout).
+// `readGitContext` already wraps every git command in `catchAll`, so empty
+// stdout produces all-undefined fields. `runFingerprintFull` JSON-parses
+// the empty string and fails, which the workflow likewise swallows into
+// `undefined`.
+const stubCommandExecutorLayer = Layer.succeed(CommandExecutor.CommandExecutor, {
+  [CommandExecutor.TypeId]: CommandExecutor.TypeId,
+  string: () => Effect.succeed(""),
+} as unknown as CommandExecutor.CommandExecutor);
+
 const makeCliRuntimeLayer = (cwd: string) =>
   Layer.succeed(CliRuntime, {
     argv: [],
@@ -177,6 +191,7 @@ const runWorkflow = (
         makeCliRuntimeLayer(project.dir),
         NodeContext.layer,
         OutputModeLive,
+        stubCommandExecutorLayer,
       ),
     ),
     Effect.ensuring(
