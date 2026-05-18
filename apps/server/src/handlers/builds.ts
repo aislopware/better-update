@@ -99,7 +99,7 @@ const ReservationSchema = Schema.Struct({
   sha256: Schema.String,
   byteSize: Schema.Number,
   checksumSha256Base64: Schema.String,
-  stagingKey: Schema.String,
+  r2Key: Schema.String,
   organizationId: Schema.String,
 });
 
@@ -124,6 +124,14 @@ const cleanupBuildObject = (key: string) =>
     yield* runtime.deleteObjects({ keys: [key] });
   }).pipe(Effect.catchAll(() => Effect.void));
 
+const buildArtifactKey = (params: {
+  organizationId: string;
+  projectId: string;
+  buildId: string;
+  artifactFormat: string;
+}) =>
+  `builds/${params.organizationId}/${params.projectId}/${params.buildId}.${artifactExt(params.artifactFormat)}`;
+
 const handleReserve = ({ payload }: { readonly payload: typeof CreateBuildBody.Type }) =>
   toApiBadRequestReadEffect(
     Effect.gen(function* () {
@@ -133,11 +141,16 @@ const handleReserve = ({ payload }: { readonly payload: typeof CreateBuildBody.T
       const runtime = yield* BuildRuntime;
       const ctx = yield* CurrentActor;
       const buildId = crypto.randomUUID();
-      const stagingKey = `staging/${ctx.organizationId}/${buildId}.${artifactExt(payload.artifactFormat)}`;
+      const r2Key = buildArtifactKey({
+        organizationId: ctx.organizationId,
+        projectId: payload.projectId,
+        buildId,
+        artifactFormat: payload.artifactFormat,
+      });
       const contentType = formatForContentType(payload.artifactFormat);
       const checksumSha256Base64 = yield* sha256HexToBase64(payload.sha256);
       const uploadUrl = yield* runtime.createUploadUrl({
-        key: stagingKey,
+        key: r2Key,
         expiresIn: UPLOAD_EXPIRY_SECONDS,
         contentType,
         checksumSha256Base64,
@@ -168,7 +181,7 @@ const handleReserve = ({ payload }: { readonly payload: typeof CreateBuildBody.T
         sha256: payload.sha256.toLowerCase(),
         byteSize: payload.byteSize,
         checksumSha256Base64,
-        stagingKey,
+        r2Key,
         organizationId: ctx.organizationId,
       };
 
@@ -231,41 +244,11 @@ const handleComplete = ({
         );
       }
 
-      const stagingObject = yield* runtime.headObject({ key: reservation.stagingKey });
-      if (!stagingObject) {
-        return yield* Effect.fail(new NotFound({ message: "Artifact not uploaded to staging" }));
-      }
-
-      if (stagingObject.size !== reservation.byteSize) {
-        return yield* Effect.fail(
-          new BadRequest({
-            message: `Artifact size mismatch: expected ${reservation.byteSize}, got ${stagingObject.size}`,
-          }),
-        );
-      }
-
-      if (stagingObject.checksumSha256Base64 === null) {
-        return yield* Effect.fail(
-          new BadRequest({
-            message: "Uploaded artifact is missing an R2 SHA-256 checksum",
-          }),
-        );
-      }
-
-      if (stagingObject.checksumSha256Base64 !== reservation.checksumSha256Base64) {
-        return yield* Effect.fail(
-          new BadRequest({
-            message: `Artifact SHA-256 mismatch for build ${path.id}`,
-          }),
-        );
-      }
-
-      const finalKey = `builds/${reservation.organizationId}/${reservation.projectId}/${path.id}.${artifactExt(reservation.artifactFormat)}`;
-      yield* runtime.copyObject({
-        sourceKey: reservation.stagingKey,
-        destinationKey: finalKey,
-      });
-
+      // Skip server-side R2 head/sha verification: R2 enforces the
+      // x-amz-checksum-sha256 header bound into the presigned PUT URL at
+      // upload time, so a successful upload already proves the bytes match
+      // the reservation's claimed sha. CLI uploads directly to the final
+      // key — no staging copy needed.
       const [repo, projectRepo] = yield* Effect.all([BuildRepo, ProjectRepo]);
       const build = yield* repo
         .insert({
@@ -284,15 +267,15 @@ const handleComplete = ({
           metadataJson: JSON.stringify(reservation.metadata),
           fingerprintHash: reservation.fingerprintHash,
           artifact: {
-            r2Key: finalKey,
+            r2Key: reservation.r2Key,
             format: reservation.artifactFormat,
             contentType: formatForContentType(reservation.artifactFormat),
-            byteSize: stagingObject.size,
+            byteSize: reservation.byteSize,
             sha256: reservation.sha256,
           },
         })
         .pipe(
-          Effect.tapError(() => cleanupBuildObject(finalKey)),
+          Effect.tapError(() => cleanupBuildObject(reservation.r2Key)),
           Effect.tap((inserted) =>
             projectRepo.bumpLastActivity({
               projectId: reservation.projectId,
@@ -301,13 +284,7 @@ const handleComplete = ({
           ),
         );
 
-      yield* Effect.all(
-        [
-          runtime.deleteObjects({ keys: [reservation.stagingKey] }),
-          runtime.deleteReservation({ id: path.id }),
-        ],
-        { concurrency: "unbounded" },
-      ).pipe(Effect.catchAll(() => Effect.void));
+      yield* runtime.deleteReservation({ id: path.id }).pipe(Effect.catchAll(() => Effect.void));
 
       yield* logAudit({
         action: "build.complete",

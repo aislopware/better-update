@@ -53,14 +53,3 @@ export const generateDownloadUrl = async (
   },
 ) =>
   makeS3Client(env, params.bucketName).getPresignedUrl("GET", params.key, params.expiresIn ?? 900);
-
-export const copyObject = async (
-  env: Env,
-  params: {
-    readonly bucketName: string;
-    readonly sourceKey: string;
-    readonly destinationKey: string;
-  },
-) => {
-  await makeS3Client(env, params.bucketName).copyObject(params.sourceKey, params.destinationKey);
-};
