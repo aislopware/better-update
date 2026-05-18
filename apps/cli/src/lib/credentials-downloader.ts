@@ -387,6 +387,7 @@ export interface DownloadAndroidCredentialsOptions {
   readonly projectId: string;
   readonly applicationIdentifier: string;
   readonly tempDir: string;
+  readonly buildProfile?: string | undefined;
 }
 
 export interface AndroidCredentials {
@@ -413,6 +414,7 @@ export const downloadAndroidCredentials = (
         payload: {
           platform: "android" as const,
           applicationIdentifier: options.applicationIdentifier,
+          ...(options.buildProfile === undefined ? {} : { buildProfile: options.buildProfile }),
         },
       })
       .pipe(Effect.mapError((cause) => resolveErrorToMissingCredentials(cause, "android")));

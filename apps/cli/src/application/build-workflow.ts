@@ -145,6 +145,7 @@ const runAndroidPlatformBuild = (input: PlatformBuildInput) =>
       envVars,
       projectId,
       credentialsSource,
+      profileName: profile.name,
     });
     const target: BuildTarget =
       androidProfile.format === "aab"

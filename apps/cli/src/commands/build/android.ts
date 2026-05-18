@@ -32,6 +32,7 @@ export interface RunAndroidBuildInput {
   readonly envVars: Record<string, string>;
   readonly projectId: string;
   readonly credentialsSource: CredentialsSource;
+  readonly profileName: string;
 }
 
 export interface RunAndroidBuildResult {
@@ -89,6 +90,7 @@ export const runAndroidBuild = (
             projectId,
             applicationIdentifier,
             tempDir,
+            buildProfile: input.profileName,
           });
 
     yield* runStep(

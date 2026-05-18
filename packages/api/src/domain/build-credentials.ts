@@ -12,6 +12,7 @@ export const ResolveBuildCredentialsIosBody = Schema.Struct({
 export const ResolveBuildCredentialsAndroidBody = Schema.Struct({
   platform: Schema.Literal("android"),
   applicationIdentifier: AndroidPackageName,
+  buildProfile: Schema.optional(Schema.String.pipe(Schema.minLength(1), Schema.maxLength(120))),
 });
 
 export const ResolveBuildCredentialsBody = Schema.Union(

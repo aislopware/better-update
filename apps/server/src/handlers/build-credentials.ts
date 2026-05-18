@@ -59,6 +59,7 @@ export const BuildCredentialsGroupLive = HttpApiBuilder.group(
             organizationId: ctx.organizationId,
             projectId: path.projectId,
             applicationIdentifier: payload.applicationIdentifier,
+            buildProfile: payload.buildProfile,
           });
           yield* logAudit({
             action: "build-credentials.resolve",
@@ -68,6 +69,7 @@ export const BuildCredentialsGroupLive = HttpApiBuilder.group(
             metadata: {
               platform: "android",
               applicationIdentifier: payload.applicationIdentifier,
+              ...(payload.buildProfile === undefined ? {} : { buildProfile: payload.buildProfile }),
               keystoreId: resolvedIds.keystoreId,
               buildCredentialsGroupId: resolvedIds.buildCredentialsGroupId,
             },

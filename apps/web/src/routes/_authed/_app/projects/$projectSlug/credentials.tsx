@@ -25,6 +25,7 @@ import { InfoIcon, KeyRoundIcon, SmartphoneIcon } from "lucide-react";
 import { Suspense } from "react";
 
 import { AndroidBuildWizard } from "./-android-build-wizard";
+import { AndroidCredentialGroups } from "./-android-credential-groups";
 
 const CredentialListSkeleton = () => (
   <div className="flex flex-col gap-3">
@@ -158,8 +159,18 @@ const AndroidSummary = ({ orgId, projectId }: { orgId: string; projectId: string
         <Card key={identifier.id}>
           <CardHeader>
             <CardTitle className="font-mono text-sm">{identifier.packageName}</CardTitle>
-            <CardDescription>Android application identifier</CardDescription>
+            <CardDescription>
+              Credential groups bound to this Android application identifier. The CLI selects a
+              group by build profile name; falls back to the default if none matches.
+            </CardDescription>
           </CardHeader>
+          <CardContent>
+            <Suspense
+              fallback={<p className="text-muted-foreground text-xs">Loading credential groups…</p>}
+            >
+              <AndroidCredentialGroups orgId={orgId} applicationIdentifierId={identifier.id} />
+            </Suspense>
+          </CardContent>
         </Card>
       ))}
     </div>

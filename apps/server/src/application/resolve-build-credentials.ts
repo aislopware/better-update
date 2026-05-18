@@ -34,6 +34,7 @@ interface AndroidResolveInput {
   readonly organizationId: string;
   readonly projectId: string;
   readonly applicationIdentifier: string;
+  readonly buildProfile?: string | undefined;
 }
 
 export interface IosResolvedIds {
@@ -311,19 +312,41 @@ export const resolveAndroidBuildCredentials = (input: AndroidResolveInput) =>
     const app = yield* loadAndroidApplicationIdentifier(input);
 
     const buildCreds = yield* AndroidBuildCredentialsRepo;
-    const groups = yield* buildCreds.listByAppIdentifier({
-      androidApplicationIdentifierId: app.id,
+    const profileMatch =
+      input.buildProfile === undefined
+        ? null
+        : yield* buildCreds.findByAppIdentifierAndName({
+            androidApplicationIdentifierId: app.id,
+            name: input.buildProfile,
+          });
+
+    const group = yield* Effect.gen(function* () {
+      if (profileMatch !== null && profileMatch.androidUploadKeystoreId !== null) {
+        return profileMatch;
+      }
+      const groups = yield* buildCreds.listByAppIdentifier({
+        androidApplicationIdentifierId: app.id,
+      });
+      const fallback = groups.find((entry) => entry.androidUploadKeystoreId !== null);
+      return fallback ?? profileMatch;
     });
-    const group = groups.find((entry) => entry.androidUploadKeystoreId !== null);
+
     const keystoreId = group?.androidUploadKeystoreId;
-    if (group === undefined || keystoreId === null || keystoreId === undefined) {
+    if (group === null || keystoreId === null || keystoreId === undefined) {
       return yield* Effect.fail(
         new BadRequest({
           message: `No Android build credentials group with a keystore is bound to ${input.applicationIdentifier}`,
         }),
       );
     }
-    if (!group.isDefault) {
+    if (input.buildProfile !== undefined && group.name !== input.buildProfile) {
+      yield* Effect.log("Build profile credential group missing, using fallback", {
+        groupId: group.id,
+        applicationIdentifier: input.applicationIdentifier,
+        requestedProfile: input.buildProfile,
+        fallbackName: group.name,
+      });
+    } else if (!group.isDefault && input.buildProfile === undefined) {
       yield* Effect.log("Falling back to non-default Android build credentials group", {
         groupId: group.id,
         applicationIdentifier: input.applicationIdentifier,

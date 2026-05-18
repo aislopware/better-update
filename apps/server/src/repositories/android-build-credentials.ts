@@ -28,6 +28,11 @@ export interface AndroidBuildCredentialsRepository {
     readonly id: string;
   }) => Effect.Effect<AndroidBuildCredentialsModel, NotFound>;
 
+  readonly findByAppIdentifierAndName: (params: {
+    readonly androidApplicationIdentifierId: string;
+    readonly name: string;
+  }) => Effect.Effect<AndroidBuildCredentialsModel | null>;
+
   readonly update: (params: {
     readonly id: string;
     readonly name?: string | undefined;
@@ -132,6 +137,19 @@ export const AndroidBuildCredentialsRepoLive = Layer.succeed(AndroidBuildCredent
         return yield* Effect.fail(new NotFound({ message: "Android build credentials not found" }));
       }
       return toModel(row);
+    }),
+
+  findByAppIdentifierAndName: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+      const row = yield* Effect.promise(async () =>
+        env.DB.prepare(
+          `SELECT ${COLUMNS} FROM "android_build_credentials" WHERE "android_application_identifier_id" = ? AND "name" = ?`,
+        )
+          .bind(params.androidApplicationIdentifierId, params.name)
+          .first<Row>(),
+      );
+      return row === null ? null : toModel(row);
     }),
 
   update: (params) =>
