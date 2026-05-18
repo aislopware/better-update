@@ -1,9 +1,14 @@
-import { ArtifactFormat, Distribution } from "@better-update/api";
+import {
+  ArtifactFormat,
+  Distribution,
+  INTERNAL_DISTRIBUTIONS,
+  STORE_DISTRIBUTIONS,
+} from "@better-update/api";
 import { fromHex, toBase64 } from "@better-update/encoding";
 import { HttpApiBuilder } from "@effect/platform";
 import { Effect, Schema } from "effect";
 
-import type { CompleteBuildBody, CreateBuildBody } from "@better-update/api";
+import type { CompleteBuildBody, CreateBuildBody, BuildAudience } from "@better-update/api";
 
 import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
@@ -57,6 +62,18 @@ const formatForContentType = (format: string) =>
 
 const artifactExt = (format: string) => (format === "tar.gz" ? "tar.gz" : format);
 
+const resolveAudience = (
+  audience: typeof BuildAudience.Type | undefined,
+): readonly (typeof Distribution.Type)[] | undefined => {
+  if (audience === "internal") {
+    return INTERNAL_DISTRIBUTIONS;
+  }
+  if (audience === "store") {
+    return STORE_DISTRIBUTIONS;
+  }
+  return undefined;
+};
+
 const sha256HexToBase64 = (sha256: string) =>
   Effect.try({
     try: () => toBase64(fromHex(sha256)),
@@ -78,6 +95,7 @@ const ReservationSchema = Schema.Struct({
   gitCommit: Schema.NullOr(Schema.String),
   message: Schema.NullOr(Schema.String),
   metadata: Schema.Record({ key: Schema.String, value: Schema.Unknown }),
+  fingerprintHash: Schema.optionalWith(Schema.NullOr(Schema.String), { default: () => null }),
   sha256: Schema.String,
   byteSize: Schema.Number,
   checksumSha256Base64: Schema.String,
@@ -146,6 +164,7 @@ const handleReserve = ({ payload }: { readonly payload: typeof CreateBuildBody.T
         gitCommit: toDbNull(payload.gitCommit),
         message: toDbNull(payload.message),
         metadata: payload.metadata ?? {},
+        fingerprintHash: toDbNull(payload.fingerprintHash),
         sha256: payload.sha256.toLowerCase(),
         byteSize: payload.byteSize,
         checksumSha256Base64,
@@ -263,6 +282,7 @@ const handleComplete = ({
           gitCommit: reservation.gitCommit,
           message: reservation.message,
           metadataJson: JSON.stringify(reservation.metadata),
+          fingerprintHash: reservation.fingerprintHash,
           artifact: {
             r2Key: finalKey,
             format: reservation.artifactFormat,
@@ -410,12 +430,15 @@ export const BuildsGroupLive = HttpApiBuilder.group(ManagementApi, "builds", (ha
           const { page, limit, offset } = parsePagination(urlParams);
           const { sort, order } = parseBuildSort(urlParams.sort);
 
+          const audienceDistributions = resolveAudience(urlParams.audience);
+
           const { items, total } = yield* repo.list({
             projectId: urlParams.projectId,
             ...(urlParams.platform ? { platform: urlParams.platform } : {}),
             ...(urlParams.profile ? { profile: urlParams.profile } : {}),
             ...(urlParams.runtimeVersion ? { runtimeVersion: urlParams.runtimeVersion } : {}),
             ...(urlParams.distribution ? { distribution: urlParams.distribution } : {}),
+            ...(audienceDistributions ? { distributions: audienceDistributions } : {}),
             sort,
             order,
             limit,

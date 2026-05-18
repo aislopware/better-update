@@ -18,6 +18,7 @@ export { ChannelsGroupLive } from "./channels";
 export { matchDeviceRegistrationRoute } from "./device-registration-routes";
 export { DevicesGroupLive } from "./devices";
 export { EnvVarsGroupLive } from "./env-vars";
+export { FingerprintsGroupLive } from "./fingerprints";
 export { GoogleServiceAccountKeysGroupLive } from "./google-service-account-keys";
 export { IosBundleConfigurationsGroupLive } from "./ios-bundle-configurations";
 export { serveManifest } from "./manifest";

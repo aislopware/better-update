@@ -26,7 +26,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import {
   CircleCheckIcon,
-  GitBranchIcon,
   PauseIcon,
   PlayIcon,
   RocketIcon,
@@ -39,9 +38,11 @@ import type { Channel, MissingRuntimeVersionBuild } from "@better-update/api";
 import type { BranchItem } from "@better-update/api-client/react";
 
 import { safeSubmit, useApiMutation } from "../../../../../lib/use-api-mutation";
+import { ChannelBranchSelector } from "./-channel-branch-selector";
 import { CompatibleBuildsSection, MissingMatchingBuilds } from "./-channel-compatibility";
 import { parseRolloutState } from "./-channel-rollout-state";
 import { DeleteChannelDialog } from "./-delete-channel-dialog";
+import { RolloutSplitDiagram } from "./-rollout-split-diagram";
 import { invalidateChannels as invalidateChannelsHelper } from "./-update-helpers";
 
 import type { BuildWithSyntheticChannels, SyntheticBuildChannel } from "./-compatibility-join";
@@ -116,12 +117,20 @@ const ActiveRolloutControls = ({
     revertBranchRolloutMutation.mutate();
   };
 
+  const currentBranch = branches.find((branch) => branch.id === channel.branchId);
+  const oldBranchName = currentBranch?.name ?? channel.branchId.slice(0, 8);
+  const newBranchName = rolloutTargetBranch?.name ?? rolloutState.targetBranchId.slice(0, 8);
+
   return (
-    <div className="flex flex-col gap-2">
-      <Badge variant="secondary">
-        Rolling out to {rolloutTargetBranch?.name ?? rolloutState.targetBranchId} at{" "}
-        {rolloutState.percentage}%
-      </Badge>
+    <div className="flex flex-col gap-3">
+      <div className="text-sm font-medium">
+        Rolling out to {newBranchName} at {rolloutState.percentage}%
+      </div>
+      <RolloutSplitDiagram
+        oldBranchName={oldBranchName}
+        newBranchName={newBranchName}
+        newBranchPercentage={rolloutState.percentage}
+      />
       <div className="flex items-center gap-2">
         <span className="text-sm font-medium">Rollout:</span>
         <Input
@@ -300,19 +309,33 @@ const StartRolloutForm = ({
 
 const StartRolloutControls = (props: BranchRolloutControlsProps) => {
   const [isStartingRollout, setIsStartingRollout] = useState(false);
+  const targetBranchCount = props.branches.filter(
+    (branch) => branch.id !== props.channel.branchId,
+  ).length;
+  const noTargetsReason =
+    targetBranchCount === 0 ? "Create another branch first to enable rollouts" : undefined;
 
   if (!isStartingRollout) {
     return (
-      <Button
-        variant="outline"
-        className="w-fit"
-        onClick={() => {
-          setIsStartingRollout(true);
-        }}
-      >
-        <RocketIcon strokeWidth={2} data-icon="inline-start" />
-        Start Rollout
-      </Button>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <span className="inline-flex w-fit">
+              <Button
+                variant="outline"
+                disabled={noTargetsReason !== undefined}
+                onClick={() => {
+                  setIsStartingRollout(true);
+                }}
+              >
+                <RocketIcon strokeWidth={2} data-icon="inline-start" />
+                Start Rollout
+              </Button>
+            </span>
+          }
+        />
+        <TooltipPopup>{noTargetsReason ?? "Start a branch rollout"}</TooltipPopup>
+      </Tooltip>
     );
   }
 
@@ -432,32 +455,14 @@ export const ChannelCard = ({
         </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
-        <div className="flex items-center gap-2">
-          <GitBranchIcon strokeWidth={2} className="text-muted-foreground size-4" />
-          <Select
-            items={branchLabels}
-            value={channel.branchId}
-            disabled={rolloutState !== null}
-            onValueChange={(value) => {
-              if (value) {
-                handleRelink(value);
-              }
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue>{linkedBranch?.name ?? channel.branchId}</SelectValue>
-            </SelectTrigger>
-            <SelectPopup>
-              <SelectGroup>
-                {branches.map((branch) => (
-                  <SelectItem key={branch.id} value={branch.id}>
-                    {branch.name}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectPopup>
-          </Select>
-        </div>
+        <ChannelBranchSelector
+          branches={branches}
+          branchLabels={branchLabels}
+          currentBranchId={channel.branchId}
+          currentBranchName={linkedBranch?.name ?? channel.branchId}
+          isRollingOut={rolloutState !== null}
+          onRelink={handleRelink}
+        />
 
         {rolloutState ? (
           <ActiveRolloutControls

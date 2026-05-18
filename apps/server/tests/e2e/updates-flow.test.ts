@@ -516,6 +516,21 @@ describe("Updates & Assets API flow", () => {
     expect(body.items.every((item: { platform: string }) => item.platform === "ios")).toBe(true);
   });
 
+  it("returns asset list for an update", async () => {
+    const response = await get(`/api/updates/${updateId}/assets`, {
+      cookie: cookies,
+    });
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(Array.isArray(body)).toBe(true);
+    expect(body).toHaveLength(2);
+    const hashes = body.map((asset: { hash: string }) => asset.hash).sort();
+    expect(hashes).toStrictEqual([firstAssetHash, secondAssetHash].sort());
+    const launchAssets = body.filter((asset: { isLaunch: boolean }) => asset.isLaunch);
+    expect(launchAssets).toHaveLength(1);
+    expect(launchAssets[0].hash).toBe(firstAssetHash);
+  });
+
   it("creates a rollback-to-embedded directive update", async () => {
     const directiveBody = JSON.stringify({
       type: "rollBackToEmbedded",

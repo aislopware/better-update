@@ -17,7 +17,11 @@ import { PackageIcon, SearchXIcon } from "lucide-react";
 import { Suspense, useMemo } from "react";
 import { z } from "zod";
 
-import type { BuildDistribution, BuildSortColumn } from "@better-update/api-client/react";
+import type {
+  BuildAudience,
+  BuildDistribution,
+  BuildSortColumn,
+} from "@better-update/api-client/react";
 
 import { CompatibilityMatrix } from "../-compatibility-matrix";
 import { ProjectSubpageHeader } from "../-project-subpage-header";
@@ -56,12 +60,14 @@ const DISTRIBUTIONS = [
   "play-store",
   "direct",
 ] as const satisfies readonly BuildDistribution[];
+const AUDIENCES = ["internal", "store"] as const satisfies readonly BuildAudience[];
 
 const buildsSearchSchema = z.object({
   page: pageParam(),
   sort: sortParam(DEFAULT_SORT),
   platform: optionalEnumParam(PLATFORMS),
   distribution: optionalEnumParam(DISTRIBUTIONS),
+  audience: optionalEnumParam(AUDIENCES),
 });
 
 const BuildsEmptyState = () => (
@@ -81,7 +87,7 @@ const BuildsSkeleton = () => (
     <div className="flex items-center justify-between gap-2">
       <ProjectSubpageHeader title="Builds" />
     </div>
-    <TableSkeleton columns={6} rows={6} />
+    <TableSkeleton columns={7} rows={6} />
   </>
 );
 
@@ -94,7 +100,7 @@ const BuildsContent = () => {
   const { id: projectId, slug: projectSlug } = project;
   const routeNavigate = Route.useNavigate();
 
-  const { page, sort, platform, distribution } = Route.useSearch();
+  const { page, sort, platform, distribution, audience } = Route.useSearch();
   const { sorting, apiSort, onSortingChange, onPageChange } = useDataTableSearch({
     sortColumns: SORT_COLUMNS,
     defaultSort: DEFAULT_SORT,
@@ -121,12 +127,22 @@ const BuildsContent = () => {
     );
   };
 
+  const handleAudienceChange = (next: BuildAudience | undefined) => {
+    fireAndForget(
+      routeNavigate({
+        to: ".",
+        search: (prev) => ({ ...prev, audience: next, page: 1 }),
+      }),
+    );
+  };
+
   const { data, isPlaceholderData, isLoading } = useQuery({
     ...buildsQueryOptions(orgId, projectId, {
       page,
       limit: PAGE_SIZE,
       ...(platform ? { platform } : {}),
       ...(distribution ? { distribution } : {}),
+      ...(audience ? { audience } : {}),
       sort: apiSort,
     }),
     placeholderData: keepPreviousData,
@@ -152,8 +168,10 @@ const BuildsContent = () => {
     <BuildsFilterBar
       platformFilter={platform}
       distributionFilter={distribution}
+      audienceFilter={audience}
       onPlatformFilter={handlePlatformChange}
       onDistributionFilter={handleDistributionChange}
+      onAudienceFilter={handleAudienceChange}
     />
   );
 
@@ -164,12 +182,12 @@ const BuildsContent = () => {
           <ProjectSubpageHeader title="Builds" />
           <div className="flex flex-wrap items-center gap-2">{filterControls}</div>
         </div>
-        <TableSkeleton columns={6} rows={6} />
+        <TableSkeleton columns={7} rows={6} />
       </div>
     );
   }
 
-  const filtersActive = Boolean(platform) || Boolean(distribution);
+  const filtersActive = Boolean(platform) || Boolean(distribution) || Boolean(audience);
 
   if (data.total === 0 && !filtersActive) {
     return (

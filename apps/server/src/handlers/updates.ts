@@ -136,6 +136,7 @@ const handleCreateUpdate = ({ payload }: { readonly payload: typeof CreateUpdate
           certificateChain: toDbNull(payload.certificateChain),
           manifestBody: toDbNull(payload.manifestBody),
           directiveBody: toDbNull(payload.directiveBody),
+          fingerprintHash: toDbNull(payload.fingerprintHash),
           assets: payload.assets,
         },
       });
@@ -194,6 +195,7 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
             projectId: urlParams.projectId,
             ...(urlParams.branchId ? { branchId: urlParams.branchId } : {}),
             ...(urlParams.platform ? { platform: urlParams.platform } : {}),
+            ...(urlParams.runtimeVersion ? { runtimeVersion: urlParams.runtimeVersion } : {}),
             sort,
             order,
             limit,
@@ -214,6 +216,45 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
           const branch = yield* branchRepo.findById({ id: update.branchId });
           yield* assertProjectOwnership(branch.projectId);
           return toApiUpdate(update);
+        }),
+      ),
+    )
+    .handle("getGroup", ({ path }) =>
+      toApiBadRequestReadEffect(
+        Effect.gen(function* () {
+          yield* assertPermission("update", "read");
+          const updateRepo = yield* UpdateRepo;
+          const updates = yield* updateRepo.findByGroupId({ groupId: path.groupId });
+          if (updates.length === 0) {
+            return yield* Effect.fail(new NotFound({ message: "Update group not found" }));
+          }
+          const branchRepo = yield* BranchRepo;
+          const [firstUpdate] = updates;
+          if (!firstUpdate) {
+            return yield* Effect.fail(new NotFound({ message: "Update group not found" }));
+          }
+          const branch = yield* branchRepo.findById({ id: firstUpdate.branchId });
+          yield* assertProjectOwnership(branch.projectId);
+          return { items: updates.map(toApiUpdate) };
+        }),
+      ),
+    )
+    .handle("listAssets", ({ path }) =>
+      toApiBadRequestReadEffect(
+        Effect.gen(function* () {
+          yield* assertPermission("update", "read");
+          const updateRepo = yield* UpdateRepo;
+          const update = yield* updateRepo.findById({ id: path.id });
+          const branchRepo = yield* BranchRepo;
+          const branch = yield* branchRepo.findById({ id: update.branchId });
+          yield* assertProjectOwnership(branch.projectId);
+          const assets = yield* updateRepo.findAssetsByUpdateId({ updateId: path.id });
+          return assets.map((asset) => ({
+            hash: asset.hash,
+            key: asset.key,
+            isLaunch: asset.isLaunch,
+            contentChecksum: toDbNull(asset.contentChecksum),
+          }));
         }),
       ),
     )

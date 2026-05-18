@@ -18,6 +18,7 @@ import { BuildsGroup } from "./groups/builds";
 import { ChannelsGroup } from "./groups/channels";
 import { DevicesGroup } from "./groups/devices";
 import { EnvVarsGroup } from "./groups/env-vars";
+import { FingerprintsGroup } from "./groups/fingerprints";
 import { GoogleServiceAccountKeysGroup } from "./groups/google-service-account-keys";
 import { IosBundleConfigurationsGroup } from "./groups/ios-bundle-configurations";
 import { MeGroup } from "./groups/me";
@@ -34,6 +35,7 @@ export class ManagementApi extends HttpApi.make("management-api")
   .add(AnalyticsGroup)
   .add(BuildsGroup)
   .add(EnvVarsGroup)
+  .add(FingerprintsGroup)
   .add(AuditLogsGroup)
   .add(DevicesGroup)
   .add(AppleTeamsGroup)

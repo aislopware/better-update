@@ -10,6 +10,7 @@ import { DeleteBranchDialog } from "./-delete-branch-dialog";
 import { DeleteBuildDialog } from "./-delete-build-dialog";
 import { DeleteChannelDialog } from "./-delete-channel-dialog";
 import { PromoteUpdateDialog } from "./-promote-update-dialog";
+import { RepublishUpdateDialog } from "./-republish-update-dialog";
 import { RollbackToEmbeddedDialog } from "./-rollback-to-embedded-dialog";
 
 const { apiReactModule, selectModule, apiReactMocks } = vi.hoisted(() => ({
@@ -37,7 +38,15 @@ const { apiReactModule, selectModule, apiReactMocks } = vi.hoisted(() => ({
     deleteBuild: vi.fn<(id: string) => Promise<void>>(),
     deleteChannel: vi.fn<(id: string) => Promise<void>>(),
     republishUpdate:
-      vi.fn<(body: { sourceUpdateId: string; destinationChannel: string }) => Promise<void>>(),
+      vi.fn<
+        (body: {
+          sourceUpdateId?: string;
+          sourceGroupId?: string;
+          destinationChannel?: string;
+          destinationBranchId?: string;
+          message?: string;
+        }) => Promise<void>
+      >(),
   },
 }));
 
@@ -121,6 +130,7 @@ const build = {
   gitCommit: null,
   message: "Release build",
   metadataJson: "{}",
+  fingerprintHash: null,
   createdAt: "2026-01-01T00:00:00Z",
   artifact: null,
 } satisfies typeof BuildWithArtifact.Type;
@@ -151,6 +161,7 @@ const update = {
   certificateChain: null,
   manifestBody: null,
   directiveBody: null,
+  fingerprintHash: null,
   createdAt: "2026-01-02T00:00:00Z",
 } satisfies typeof Update.Type;
 
@@ -310,6 +321,64 @@ describe("mutation dialogs", () => {
     ]);
 
     expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("republishUpdateDialog republishes to the same branch and invalidates updates", async () => {
+    const user = userEvent.setup();
+    const onOpenChange = vi.fn<(open: boolean) => void>();
+    const { queryClient } = renderWithQuery(
+      <RepublishUpdateDialog
+        update={update}
+        branchName="main"
+        orgId={orgId}
+        projectId={projectId}
+        open
+        onOpenChange={onOpenChange}
+      />,
+    );
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+
+    await user.type(screen.getByLabelText("Message (optional)"), "Restart rollout");
+    await user.click(screen.getByRole("button", { name: "Republish" }));
+
+    await waitFor(() => {
+      expect(apiReactMocks.republishUpdate).toHaveBeenCalledWith({
+        sourceGroupId: update.groupId,
+        destinationBranchId: update.branchId,
+        message: "Restart rollout",
+      });
+    });
+
+    await expectInvalidation(invalidateSpy, [
+      ["org", orgId, "projects", projectId, "updates"],
+      ["org", orgId, "projects", projectId, "build-compatibility-matrix"],
+    ]);
+
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("republishUpdateDialog omits message when blank", async () => {
+    const user = userEvent.setup();
+    const onOpenChange = vi.fn<(open: boolean) => void>();
+    renderWithQuery(
+      <RepublishUpdateDialog
+        update={update}
+        branchName="main"
+        orgId={orgId}
+        projectId={projectId}
+        open
+        onOpenChange={onOpenChange}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Republish" }));
+
+    await waitFor(() => {
+      expect(apiReactMocks.republishUpdate).toHaveBeenCalledWith({
+        sourceGroupId: update.groupId,
+        destinationBranchId: update.branchId,
+      });
+    });
   });
 
   it("rollbackToEmbeddedDialog invalidates updates and compatibility matrix after create", async () => {

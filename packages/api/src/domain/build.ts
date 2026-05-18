@@ -12,6 +12,21 @@ export const Distribution = Schema.Literal(
   "direct",
 );
 
+export const BuildAudience = Schema.Literal("internal", "store");
+
+export const INTERNAL_DISTRIBUTIONS = [
+  "ad-hoc",
+  "development",
+  "enterprise",
+  "simulator",
+  "direct",
+] as const satisfies readonly (typeof Distribution.Type)[];
+
+export const STORE_DISTRIBUTIONS = [
+  "app-store",
+  "play-store",
+] as const satisfies readonly (typeof Distribution.Type)[];
+
 export const ArtifactFormat = Schema.Literal("ipa", "apk", "aab", "tar.gz");
 const Sha256Hex = Schema.String.pipe(Schema.pattern(/^[a-fA-F0-9]{64}$/u), Schema.maxLength(64));
 
@@ -26,6 +41,7 @@ const CreateBuildCommonFields = {
   gitCommit: Schema.optional(Schema.String),
   message: Schema.optional(Schema.String),
   metadata: Schema.optional(Schema.Record({ key: Schema.String, value: Schema.Unknown })),
+  fingerprintHash: Schema.optional(Schema.String.pipe(Schema.minLength(1))),
   sha256: Sha256Hex,
   byteSize: Schema.Number.pipe(Schema.nonNegative()),
 } as const;
@@ -44,6 +60,7 @@ export class Build extends Schema.Class<Build>("Build")({
   gitCommit: Schema.NullOr(Schema.String),
   message: Schema.NullOr(Schema.String),
   metadataJson: Schema.String,
+  fingerprintHash: Schema.NullOr(Schema.String),
   createdAt: DateTimeString,
 }) {}
 
@@ -119,6 +136,7 @@ export const ListBuildsParams = Schema.Struct({
   profile: Schema.optional(Schema.String),
   runtimeVersion: Schema.optional(Schema.String),
   distribution: Schema.optional(Distribution),
+  audience: Schema.optional(BuildAudience),
   ...PaginationParams.fields,
   sort: Schema.optional(BuildSort),
 });

@@ -33,6 +33,18 @@ export const channelsQueryKey = (orgId: string, projectId: string) =>
 export const updatesQueryKey = (orgId: string, projectId: string) =>
   ["org", orgId, "projects", projectId, "updates"] as const;
 
+export const updateAssetsQueryKey = (orgId: string, projectId: string, updateId: string) =>
+  ["org", orgId, "projects", projectId, "updates", updateId, "assets"] as const;
+
+export const updateQueryKey = (orgId: string, projectId: string, updateId: string) =>
+  ["org", orgId, "projects", projectId, "update", updateId] as const;
+
+export const updateGroupQueryKey = (orgId: string, projectId: string, groupId: string) =>
+  ["org", orgId, "projects", projectId, "update-group", groupId] as const;
+
+export const fingerprintDetailQueryKey = (orgId: string, projectId: string, hash: string) =>
+  ["org", orgId, "projects", projectId, "fingerprints", hash] as const;
+
 export const adoptionQueryKey = (orgId: string, projectId: string) =>
   ["org", orgId, "project", projectId, "analytics", "adoption"] as const;
 
@@ -166,6 +178,7 @@ export type UpdateSort = UpdateSortColumn | `-${UpdateSortColumn}`;
 export interface UpdatesFilters {
   readonly branchId?: string;
   readonly platform?: PlatformValue;
+  readonly runtimeVersion?: string;
   readonly page?: number;
   readonly limit?: number;
   readonly sort?: UpdateSort;
@@ -182,6 +195,7 @@ export const updatesQueryOptions = (orgId: string, projectId: string, filters?: 
               projectId,
               ...(filters?.branchId ? { branchId: filters.branchId } : {}),
               ...(filters?.platform ? { platform: filters.platform } : {}),
+              ...(filters?.runtimeVersion ? { runtimeVersion: filters.runtimeVersion } : {}),
               ...(filters?.page === undefined ? {} : { page: filters.page }),
               ...(filters?.limit === undefined ? {} : { limit: filters.limit }),
               ...(filters?.sort ? { sort: filters.sort } : {}),
@@ -190,6 +204,38 @@ export const updatesQueryOptions = (orgId: string, projectId: string, filters?: 
         signal,
       ),
     staleTime: 30_000,
+  });
+
+export const updateAssetsQueryOptions = (orgId: string, projectId: string, updateId: string) =>
+  queryOptions({
+    queryKey: updateAssetsQueryKey(orgId, projectId, updateId),
+    queryFn: async ({ signal }) =>
+      runApi((api) => api.updates.listAssets({ path: { id: updateId } }), signal),
+    staleTime: 60_000,
+  });
+
+export const updateQueryOptions = (orgId: string, projectId: string, updateId: string) =>
+  queryOptions({
+    queryKey: updateQueryKey(orgId, projectId, updateId),
+    queryFn: async ({ signal }) =>
+      runApi((api) => api.updates.get({ path: { id: updateId } }), signal),
+    staleTime: 30_000,
+  });
+
+export const updateGroupQueryOptions = (orgId: string, projectId: string, groupId: string) =>
+  queryOptions({
+    queryKey: updateGroupQueryKey(orgId, projectId, groupId),
+    queryFn: async ({ signal }) =>
+      runApi((api) => api.updates.getGroup({ path: { groupId } }), signal),
+    staleTime: 30_000,
+  });
+
+export const fingerprintDetailQueryOptions = (orgId: string, projectId: string, hash: string) =>
+  queryOptions({
+    queryKey: fingerprintDetailQueryKey(orgId, projectId, hash),
+    queryFn: async ({ signal }) =>
+      runApi((api) => api.fingerprints.get({ path: { projectId, hash } }), signal),
+    staleTime: 60_000,
   });
 
 export const adoptionQueryOptions = (orgId: string, projectId: string, period?: AnalyticsPeriod) =>

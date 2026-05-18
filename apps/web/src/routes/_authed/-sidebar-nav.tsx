@@ -11,6 +11,7 @@ import {
   ScrollTextIcon,
   CloudUploadIcon,
   CodeIcon,
+  LayersIcon,
   LayoutDashboardIcon,
   FolderIcon,
   GitBranchIcon,
@@ -53,6 +54,7 @@ interface ProjectNavItem {
     | "/projects/$projectSlug/channels"
     | "/projects/$projectSlug/branches"
     | "/projects/$projectSlug/updates"
+    | "/projects/$projectSlug/runtimes"
     | "/projects/$projectSlug/settings"
     | "/projects/$projectSlug/environment-variables";
   label: string;
@@ -122,6 +124,7 @@ const PROJECT_NAV: ProjectNavSection[] = [
       { to: "/projects/$projectSlug/channels", label: "Channels", icon: SatelliteIcon },
       { to: "/projects/$projectSlug/branches", label: "Branches", icon: GitBranchIcon },
       { to: "/projects/$projectSlug/updates", label: "Updates", icon: CloudUploadIcon },
+      { to: "/projects/$projectSlug/runtimes", label: "Runtimes", icon: LayersIcon },
     ],
   },
   {

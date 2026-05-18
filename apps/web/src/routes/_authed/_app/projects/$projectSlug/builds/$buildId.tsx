@@ -42,7 +42,13 @@ const formatMetadataJson = (metadataJson: string) => {
   return parsed === null ? metadataJson : JSON.stringify(parsed, null, 2);
 };
 
-const BuildMetadataCard = ({ build }: { build: typeof BuildWithArtifact.Type }) => (
+const BuildMetadataCard = ({
+  build,
+  projectSlug,
+}: {
+  build: typeof BuildWithArtifact.Type;
+  projectSlug: string;
+}) => (
   <Card>
     <CardHeader>
       <CardTitle>Build metadata</CardTitle>
@@ -78,6 +84,20 @@ const BuildMetadataCard = ({ build }: { build: typeof BuildWithArtifact.Type }) 
       <div className="flex flex-col gap-1 sm:col-span-2">
         <div className="text-muted-foreground text-sm">Created</div>
         <div className="font-medium">{formatDateTime(build.createdAt)}</div>
+      </div>
+      <div className="flex flex-col gap-1 sm:col-span-2">
+        <div className="text-muted-foreground text-sm">Fingerprint</div>
+        {build.fingerprintHash === null ? (
+          <div className="text-muted-foreground text-sm italic">Not recorded</div>
+        ) : (
+          <Link
+            to="/projects/$projectSlug/fingerprints/$hash"
+            params={{ projectSlug, hash: build.fingerprintHash }}
+            className="hover:text-foreground text-muted-foreground font-mono text-sm transition-colors"
+          >
+            {build.fingerprintHash}
+          </Link>
+        )}
       </div>
       <div className="flex flex-col gap-1 sm:col-span-2">
         <div className="text-muted-foreground text-sm">Metadata JSON</div>
@@ -242,7 +262,7 @@ const BuildDetailContent = () => {
             <ArtifactCard build={build} />
             <RelatedChannelsCard projectSlug={project.slug} build={buildWithChannels} />
           </div>
-          <BuildMetadataCard build={build} />
+          <BuildMetadataCard build={build} projectSlug={project.slug} />
         </>
       ) : (
         <BuildNotFoundState projectSlug={project.slug} />

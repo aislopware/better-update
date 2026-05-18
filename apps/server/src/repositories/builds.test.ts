@@ -25,6 +25,7 @@ const makeRow = (id: string, createdAt: string): BuildWithArtifactRow => ({
   git_commit: null,
   message: "Test build",
   metadata_json: "{}",
+  fingerprint_hash: null,
   created_at: createdAt,
   a_r2_key: "builds/abc.ipa",
   a_format: "ipa",

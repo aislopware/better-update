@@ -11,7 +11,13 @@ export {
   deleteBuild,
   fetchInstallLink,
 } from "./react/builds";
-export type { BuildDistribution, BuildSort, BuildSortColumn, BuildsFilters } from "./react/builds";
+export type {
+  BuildAudience,
+  BuildDistribution,
+  BuildSort,
+  BuildSortColumn,
+  BuildsFilters,
+} from "./react/builds";
 export {
   androidApplicationIdentifiersQueryKey,
   androidApplicationIdentifiersQueryOptions,
@@ -98,6 +104,8 @@ export {
   deleteProject,
   deleteUpdateGroup,
   editUpdateRollout,
+  fingerprintDetailQueryKey,
+  fingerprintDetailQueryOptions,
   pauseChannel,
   platformAnalyticsQueryKey,
   platformAnalyticsQueryOptions,
@@ -117,6 +125,12 @@ export {
   updateChannel,
   updateAnalyticsQueryKey,
   updateAnalyticsQueryOptions,
+  updateAssetsQueryKey,
+  updateAssetsQueryOptions,
+  updateGroupQueryKey,
+  updateGroupQueryOptions,
+  updateQueryKey,
+  updateQueryOptions,
   updatesQueryKey,
   updatesQueryOptions,
 } from "./react/projects";

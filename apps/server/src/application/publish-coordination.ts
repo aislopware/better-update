@@ -171,6 +171,7 @@ const toSerializedUpdate = (update: UpdateModel): SerializedUpdate => ({
   certificateChain: update.certificateChain,
   manifestBody: update.manifestBody,
   directiveBody: update.directiveBody,
+  fingerprintHash: update.fingerprintHash,
   createdAt: update.createdAt,
 });
 
@@ -260,6 +261,7 @@ export const publishUpdate = (params: PublishOperation) =>
       certificateChain: params.certificateChain,
       manifestBody: params.manifestBody,
       directiveBody: params.directiveBody,
+      fingerprintHash: params.fingerprintHash,
       assets: params.assets,
     });
 
@@ -314,6 +316,7 @@ export const republishUpdate = (
         certificateChain: toDbNull(update.certificateChain),
         manifestBody: toDbNull(update.manifestBody),
         directiveBody: toDbNull(update.directiveBody),
+        fingerprintHash: toDbNull(update.fingerprintHash),
         assets: update.assets,
       })),
     });

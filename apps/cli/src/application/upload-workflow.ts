@@ -6,6 +6,7 @@ import { readBuildProfile } from "../lib/build-profile";
 import { pullEnvVars } from "../lib/env-exporter";
 import { ArtifactNotFoundError, BuildProfileError } from "../lib/exit-codes";
 import { extractProjectId, readAppMeta, readExpoConfig } from "../lib/expo-config";
+import { runFingerprintFull } from "../lib/fingerprint";
 import { readGitContext } from "../lib/git-context";
 import { readGradleConfig, warnOnGradleMismatch } from "../lib/gradle-config";
 import { printKeyValue } from "../lib/output";
@@ -133,6 +134,11 @@ export const runUploadWorkflow = (options: RunUploadWorkflowOptions) =>
       dirty: rawGitContext.dirty,
     };
 
+    const fingerprintHash = yield* runFingerprintFull(projectRoot).pipe(
+      Effect.map((entry) => entry.hash),
+      Effect.catchAll(() => Effect.succeed(undefined)),
+    );
+
     const result = yield* reserveAndUpload(api, {
       target,
       projectId,
@@ -143,6 +149,7 @@ export const runUploadWorkflow = (options: RunUploadWorkflowOptions) =>
       bundleId,
       gitContext,
       ...(options.message === undefined ? {} : { message: options.message }),
+      ...(fingerprintHash === undefined ? {} : { fingerprintHash }),
       artifactPath: options.artifactPath,
       sha256,
       byteSize,

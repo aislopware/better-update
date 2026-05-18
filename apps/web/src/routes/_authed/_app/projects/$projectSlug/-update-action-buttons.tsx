@@ -3,13 +3,16 @@ import { Button } from "@better-update/ui/components/ui/button";
 import { toastManager } from "@better-update/ui/components/ui/toast";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@better-update/ui/components/ui/tooltip";
 import { useQueryClient } from "@tanstack/react-query";
-import { RocketIcon, Trash2Icon, Undo2Icon } from "lucide-react";
+import { RefreshCwIcon, RocketIcon, Trash2Icon, Undo2Icon } from "lucide-react";
 import { useState } from "react";
 
 import type { Channel, Update } from "@better-update/api";
+import type { ReactNode } from "react";
 
 import { useApiMutation } from "../../../../../lib/use-api-mutation";
+import { PreviewUpdateDialog } from "./-preview-update-dialog";
 import { PromoteUpdateDialog } from "./-promote-update-dialog";
+import { RepublishUpdateDialog } from "./-republish-update-dialog";
 import { RollbackToEmbeddedDialog } from "./-rollback-to-embedded-dialog";
 import { invalidateUpdates } from "./-update-helpers";
 
@@ -22,6 +25,57 @@ interface UpdateActionButtonsProps {
   readonly projectId: string;
 }
 
+const computeFollowupBlockReason = (update: typeof Update.Type): string | undefined => {
+  if (update.isRollback) {
+    return "Cannot create a follow-up update from a rollback";
+  }
+  if (update.signature !== null) {
+    return "Cannot create a follow-up update from a signed update";
+  }
+  return undefined;
+};
+
+interface ActionTooltipButtonProps {
+  readonly ariaLabel: string;
+  readonly enabledTooltip: string;
+  readonly disabledReason: string | undefined;
+  readonly icon: ReactNode;
+  readonly loading?: boolean;
+  readonly onClick: () => void;
+}
+
+const ActionTooltipButton = ({
+  ariaLabel,
+  enabledTooltip,
+  disabledReason,
+  icon,
+  loading,
+  onClick,
+}: ActionTooltipButtonProps) => {
+  const isDisabled = disabledReason !== undefined;
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <span className="inline-flex">
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={ariaLabel}
+              disabled={isDisabled}
+              loading={loading ?? false}
+              onClick={onClick}
+            >
+              {icon}
+            </Button>
+          </span>
+        }
+      />
+      <TooltipPopup>{isDisabled ? disabledReason : enabledTooltip}</TooltipPopup>
+    </Tooltip>
+  );
+};
+
 export const UpdateActionButtons = ({
   update,
   channels,
@@ -33,11 +87,18 @@ export const UpdateActionButtons = ({
   const queryClient = useQueryClient();
   const [promoteOpen, setPromoteOpen] = useState(false);
   const [rollbackOpen, setRollbackOpen] = useState(false);
+  const [republishOpen, setRepublishOpen] = useState(false);
 
   const eligibleChannels = channels.filter((channel) => channel.branchId !== update.branchId);
-  const canCreateFollowupUpdate = !update.isRollback && !update.signature;
-  const canRollbackToEmbedded = canCreateFollowupUpdate && branchName !== undefined;
-  const canPromote = canCreateFollowupUpdate && eligibleChannels.length > 0;
+  const followupBlockReason = computeFollowupBlockReason(update);
+  const branchMissingReason = branchName === undefined ? "Branch info unavailable" : undefined;
+  const rollbackDisabledReason = followupBlockReason ?? branchMissingReason;
+  const republishDisabledReason = followupBlockReason ?? branchMissingReason;
+  const promoteDisabledReason =
+    followupBlockReason ??
+    (eligibleChannels.length === 0
+      ? "No other channels available to promote this update to"
+      : undefined);
 
   const deleteUpdateGroupMutation = useApiMutation({
     mutationFn: async () => deleteUpdateGroup(update.groupId),
@@ -49,63 +110,52 @@ export const UpdateActionButtons = ({
 
   return (
     <div className="flex items-center gap-1">
-      {canRollbackToEmbedded && (
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Rollback to embedded"
-                onClick={() => {
-                  setRollbackOpen(true);
-                }}
-              />
-            }
-          >
-            <Undo2Icon strokeWidth={2} />
-          </TooltipTrigger>
-          <TooltipPopup>Rollback to embedded</TooltipPopup>
-        </Tooltip>
-      )}
-      {canPromote && (
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Promote to another channel"
-                onClick={() => {
-                  setPromoteOpen(true);
-                }}
-              />
-            }
-          >
-            <RocketIcon strokeWidth={2} />
-          </TooltipTrigger>
-          <TooltipPopup>Promote to another channel</TooltipPopup>
-        </Tooltip>
-      )}
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Delete update group"
-              loading={deleteUpdateGroupMutation.isPending}
-              onClick={() => {
-                deleteUpdateGroupMutation.mutate();
-              }}
-            />
-          }
-        >
-          <Trash2Icon strokeWidth={2} />
-        </TooltipTrigger>
-        <TooltipPopup>Delete update group</TooltipPopup>
-      </Tooltip>
-      {canRollbackToEmbedded && (
+      <PreviewUpdateDialog
+        update={update}
+        branchName={branchName}
+        channels={channels}
+        projectSlug={slug}
+        orgId={orgId}
+        projectId={projectId}
+      />
+      <ActionTooltipButton
+        ariaLabel="Rollback to embedded"
+        enabledTooltip="Rollback to embedded"
+        disabledReason={rollbackDisabledReason}
+        icon={<Undo2Icon strokeWidth={2} />}
+        onClick={() => {
+          setRollbackOpen(true);
+        }}
+      />
+      <ActionTooltipButton
+        ariaLabel="Republish update"
+        enabledTooltip="Republish on same branch"
+        disabledReason={republishDisabledReason}
+        icon={<RefreshCwIcon strokeWidth={2} />}
+        onClick={() => {
+          setRepublishOpen(true);
+        }}
+      />
+      <ActionTooltipButton
+        ariaLabel="Promote to another channel"
+        enabledTooltip="Promote to another channel"
+        disabledReason={promoteDisabledReason}
+        icon={<RocketIcon strokeWidth={2} />}
+        onClick={() => {
+          setPromoteOpen(true);
+        }}
+      />
+      <ActionTooltipButton
+        ariaLabel="Delete update group"
+        enabledTooltip="Delete update group"
+        disabledReason={undefined}
+        icon={<Trash2Icon strokeWidth={2} />}
+        loading={deleteUpdateGroupMutation.isPending}
+        onClick={() => {
+          deleteUpdateGroupMutation.mutate();
+        }}
+      />
+      {rollbackDisabledReason === undefined && branchName !== undefined && (
         <RollbackToEmbeddedDialog
           update={update}
           branchName={branchName}
@@ -116,7 +166,7 @@ export const UpdateActionButtons = ({
           onOpenChange={setRollbackOpen}
         />
       )}
-      {canPromote && (
+      {promoteDisabledReason === undefined && (
         <PromoteUpdateDialog
           update={update}
           channels={eligibleChannels}
@@ -124,6 +174,16 @@ export const UpdateActionButtons = ({
           projectId={projectId}
           open={promoteOpen}
           onOpenChange={setPromoteOpen}
+        />
+      )}
+      {republishDisabledReason === undefined && branchName !== undefined && (
+        <RepublishUpdateDialog
+          update={update}
+          branchName={branchName}
+          orgId={orgId}
+          projectId={projectId}
+          open={republishOpen}
+          onOpenChange={setRepublishOpen}
         />
       )}
     </div>

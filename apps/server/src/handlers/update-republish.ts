@@ -26,6 +26,7 @@ interface RepublishSourceUpdateWithAssets {
     readonly certificateChain: string | null;
     readonly manifestBody: string | null;
     readonly directiveBody: string | null;
+    readonly fingerprintHash: string | null;
     readonly isRollback: boolean;
   };
   readonly assets: readonly {
@@ -140,6 +141,7 @@ export const prepareRepublishUpdates = (params: {
               certificateChain: override.certificateChain,
               manifestBody: override.manifestBody,
               directiveBody: null,
+              fingerprintHash: update.fingerprintHash,
               assets,
             } as const;
           }
@@ -154,6 +156,7 @@ export const prepareRepublishUpdates = (params: {
             certificateChain: null,
             manifestBody: null,
             directiveBody: null,
+            fingerprintHash: update.fingerprintHash,
             assets,
           } as const;
         }),

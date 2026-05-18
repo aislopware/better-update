@@ -100,6 +100,7 @@ export const toApiUpdate = (update: UpdateModel) =>
     certificateChain: update.certificateChain,
     manifestBody: update.manifestBody,
     directiveBody: update.directiveBody,
+    fingerprintHash: update.fingerprintHash,
     createdAt: update.createdAt,
   });
 
@@ -133,6 +134,7 @@ export const toApiBuild = (build: BuildWithArtifactModel) =>
     gitCommit: build.gitCommit,
     message: build.message,
     metadataJson: build.metadataJson,
+    fingerprintHash: build.fingerprintHash,
     createdAt: build.createdAt,
     artifact: build.artifact,
   });

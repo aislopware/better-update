@@ -42,41 +42,95 @@ const CredentialListSkeleton = () => (
   </div>
 );
 
+const IOS_DISTRIBUTION_TYPES = [
+  { value: "APP_STORE", label: "App Store" },
+  { value: "AD_HOC", label: "Ad-Hoc" },
+  { value: "DEVELOPMENT", label: "Development" },
+  { value: "ENTERPRISE", label: "Enterprise" },
+] as const;
+
+interface IosBundleConfigItem {
+  readonly id: string;
+  readonly bundleIdentifier: string;
+  readonly distributionType: string;
+  readonly appleDistributionCertificateId: string | null;
+  readonly appleProvisioningProfileId: string | null;
+  readonly applePushKeyId: string | null;
+  readonly ascApiKeyId: string | null;
+}
+
+const IosBundleConfigCard = ({ config }: { config: IosBundleConfigItem }) => (
+  <Card key={config.id}>
+    <CardHeader>
+      <CardTitle className="font-mono text-sm">{config.bundleIdentifier}</CardTitle>
+      <CardDescription>{config.distributionType}</CardDescription>
+    </CardHeader>
+    <CardContent className="text-muted-foreground text-xs">
+      Cert: {config.appleDistributionCertificateId === null ? "—" : "bound"} · Profile:{" "}
+      {config.appleProvisioningProfileId === null ? "—" : "bound"} · Push:{" "}
+      {config.applePushKeyId === null ? "—" : "bound"} · ASC:{" "}
+      {config.ascApiKeyId === null ? "—" : "bound"}
+    </CardContent>
+  </Card>
+);
+
+const IosDistributionTabEmpty = ({ label }: { label: string }) => (
+  <Empty>
+    <EmptyHeader>
+      <EmptyMedia variant="icon">
+        <SmartphoneIcon strokeWidth={1.5} />
+      </EmptyMedia>
+      <EmptyTitle>No {label} bundle configurations</EmptyTitle>
+      <EmptyDescription>
+        Run the CLI to generate {label.toLowerCase()} credentials. The wizard binds a cert, profile,
+        push key, and ASC API key in one go.
+      </EmptyDescription>
+    </EmptyHeader>
+  </Empty>
+);
+
 const IosSummary = ({ orgId, projectId }: { orgId: string; projectId: string }) => {
   const { data } = useSuspenseQuery(iosBundleConfigurationsQueryOptions(orgId, projectId));
-  if (data.items.length === 0) {
-    return (
-      <Empty>
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <SmartphoneIcon strokeWidth={1.5} />
-          </EmptyMedia>
-          <EmptyTitle>No iOS bundle configurations</EmptyTitle>
-          <EmptyDescription>
-            Configure per-distribution credentials for this project. App Store, Ad-Hoc, Development,
-            or Enterprise each bind a cert, profile, push key, and ASC API key.
-          </EmptyDescription>
-        </EmptyHeader>
-      </Empty>
-    );
-  }
+  const items = data.items as readonly IosBundleConfigItem[];
+  const counts = Object.fromEntries(
+    IOS_DISTRIBUTION_TYPES.map((entry) => [
+      entry.value,
+      items.filter((config) => config.distributionType === entry.value).length,
+    ]),
+  );
+
   return (
-    <div className="flex flex-col gap-3">
-      {data.items.map((config) => (
-        <Card key={config.id}>
-          <CardHeader>
-            <CardTitle className="font-mono text-sm">{config.bundleIdentifier}</CardTitle>
-            <CardDescription>{config.distributionType}</CardDescription>
-          </CardHeader>
-          <CardContent className="text-muted-foreground text-xs">
-            Cert: {config.appleDistributionCertificateId === null ? "—" : "bound"} · Profile:{" "}
-            {config.appleProvisioningProfileId === null ? "—" : "bound"} · Push:{" "}
-            {config.applePushKeyId === null ? "—" : "bound"} · ASC:{" "}
-            {config.ascApiKeyId === null ? "—" : "bound"}
-          </CardContent>
-        </Card>
-      ))}
-    </div>
+    <Tabs defaultValue="APP_STORE">
+      <TabsList>
+        {IOS_DISTRIBUTION_TYPES.map((entry) => {
+          const count = counts[entry.value] ?? 0;
+          return (
+            <TabsTrigger key={entry.value} value={entry.value}>
+              {entry.label}
+              {count > 0 ? (
+                <span className="text-muted-foreground ml-1.5 text-xs">({count})</span>
+              ) : null}
+            </TabsTrigger>
+          );
+        })}
+      </TabsList>
+      {IOS_DISTRIBUTION_TYPES.map((entry) => {
+        const configs = items.filter((config) => config.distributionType === entry.value);
+        return (
+          <TabsContent key={entry.value} value={entry.value} className="pt-4">
+            {configs.length === 0 ? (
+              <IosDistributionTabEmpty label={entry.label} />
+            ) : (
+              <div className="flex flex-col gap-3">
+                {configs.map((config) => (
+                  <IosBundleConfigCard key={config.id} config={config} />
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        );
+      })}
+    </Tabs>
   );
 };
 

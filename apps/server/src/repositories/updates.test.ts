@@ -56,6 +56,7 @@ describe("updateRepo -- D1 adapter", () => {
             certificateChain: null,
             manifestBody: null,
             directiveBody: null,
+            fingerprintHash: null,
             assets: [{ key: "bundle.js", hash: "abc123", isLaunch: true }],
           });
         }),

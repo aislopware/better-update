@@ -32,11 +32,14 @@ export type BuildDistribution =
   | "play-store"
   | "direct";
 
+export type BuildAudience = "internal" | "store";
+
 export interface BuildsFilters {
   readonly platform?: PlatformValue;
   readonly profile?: string;
   readonly runtimeVersion?: string;
   readonly distribution?: BuildDistribution;
+  readonly audience?: BuildAudience;
   readonly page?: number;
   readonly limit?: number;
   readonly sort?: BuildSort;
@@ -55,6 +58,7 @@ export const buildsQueryOptions = (orgId: string, projectId: string, filters?: B
               ...(filters?.profile ? { profile: filters.profile } : {}),
               ...(filters?.runtimeVersion ? { runtimeVersion: filters.runtimeVersion } : {}),
               ...(filters?.distribution ? { distribution: filters.distribution } : {}),
+              ...(filters?.audience ? { audience: filters.audience } : {}),
               ...(filters?.page === undefined ? {} : { page: filters.page }),
               ...(filters?.limit === undefined ? {} : { limit: filters.limit }),
               ...(filters?.sort ? { sort: filters.sort } : {}),
