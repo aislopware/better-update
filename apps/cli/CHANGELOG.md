@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.15.4](https://github.com/better-update/better-update/compare/@better-update/cli@0.15.3...@better-update/cli@0.15.4) (2026-05-18)
+
+### Bug Fixes
+
+* **cli:** use Xcode 15.3+ ExportOptions.plist method names ([8444d28](https://github.com/better-update/better-update/commit/8444d28d8f67fa763daf6360a06579366decf66e)) - by @trancong12102
+
 ## [0.15.3](https://github.com/better-update/better-update/compare/@better-update/cli@0.15.2...@better-update/cli@0.15.3) (2026-05-18)
 
 ### Bug Fixes
