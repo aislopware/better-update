@@ -25,11 +25,8 @@ const APPLE_TEAM_ID_RE = /^[A-Z0-9]{10}$/u;
 
 const stringField = (cert: forge.pki.Certificate, name: string): string | null => {
   // eslint-disable-next-line typescript/no-unsafe-type-assertion -- forge.pki.CertificateField has `value: any` from @types/node-forge; narrow to unknown before the typeof guard
-  const field = cert.subject.getField(name) as { value?: unknown } | undefined;
-  if (field === undefined || typeof field.value !== "string") {
-    return null;
-  }
-  return field.value;
+  const value = (cert.subject.getField(name) as { value?: unknown } | null | undefined)?.value;
+  return typeof value === "string" ? value : null;
 };
 
 const matchTeamFromCommonName = (cn: string): string | null => {
