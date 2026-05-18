@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.6.0](https://github.com/better-update/better-update/compare/@better-update/api@0.5.0...@better-update/api@0.6.0) (2026-05-18)
+
+### Features
+
+* **cli:** unblock multi-target iOS builds with per-target signing + auto-provision ([b8af83b](https://github.com/better-update/better-update/commit/b8af83be500cfaca7a2532a5160afe74e6fa914a)) - by @trancong12102
+
 ## [0.5.0](https://github.com/better-update/better-update/compare/@better-update/api@0.4.0...@better-update/api@0.5.0) (2026-05-18)
 
 ### Features
