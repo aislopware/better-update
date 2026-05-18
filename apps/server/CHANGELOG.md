@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.9.0](https://github.com/better-update/better-update/compare/@better-update/server@0.8.0...@better-update/server@0.9.0) (2026-05-18)
+
+### ⚠ BREAKING CHANGES
+
+* **env-vars:** drop encryption, render sensitive values with reveal + copy
+
+### Features
+
+* **cli:** add Apple ID iOS credentials flow + env lookup-by-key + interactive publish picker ([4dd34d3](https://github.com/better-update/better-update/commit/4dd34d3895ea8613eb4f2a9cd03f07001bea0b67)) - by @trancong12102
+* **env-vars:** drop encryption, render sensitive values with reveal + copy ([4176a46](https://github.com/better-update/better-update/commit/4176a46cb642a0ef611e12f0a28bd548de0fc8ef)) - by @trancong12102
+
 ## [0.8.0](https://github.com/better-update/better-update/compare/@better-update/server@0.7.1...@better-update/server@0.8.0) (2026-05-18)
 
 ### Features

@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.12.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.11.0...@better-update/cli@0.12.0) (2026-05-18)
+
+### Features
+
+* **cli:** add Apple ID iOS credentials flow + env lookup-by-key + interactive publish picker ([4dd34d3](https://github.com/better-update/better-update/commit/4dd34d3895ea8613eb4f2a9cd03f07001bea0b67)) - by @trancong12102
+
 ## [0.11.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.10.1...@better-update/cli@0.11.0) (2026-05-18)
 
 ### Features
