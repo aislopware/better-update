@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.13.1](https://github.com/better-update/better-update/compare/@better-update/cli@0.13.0...@better-update/cli@0.13.1) (2026-05-18)
+
+### Bug Fixes
+
+* **cli:** stop persisting Apple team so a wrong pick is recoverable ([40105a4](https://github.com/better-update/better-update/commit/40105a4f24754e1185798145cc830ec2897b31b1)) - by @trancong12102
+
 ## [0.13.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.12.1...@better-update/cli@0.13.0) (2026-05-18)
 
 ### Features
