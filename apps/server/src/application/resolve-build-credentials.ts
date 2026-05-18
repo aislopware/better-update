@@ -237,6 +237,12 @@ export const resolveIosBuildCredentials = (input: IosResolveInput) =>
               },
         profileStale,
         currentDeviceRosterHash,
+        context: {
+          ascApiKeyId: config.ascApiKeyId,
+          distributionCertificateId: cert.id,
+          appleTeamId: team.id,
+          appleTeamIdentifier: team.appleTeamId,
+        },
       },
       resolvedIds: {
         distributionCertificateId: cert.id,

@@ -9,23 +9,35 @@ import type { Scope } from "effect";
 
 import { findIosArtifact } from "../../lib/artifact-finder";
 import { downloadIosCredentials } from "../../lib/credentials-downloader";
-import { ArtifactNotFoundError, BuildFailedError } from "../../lib/exit-codes";
+import {
+  ArtifactNotFoundError,
+  BuildFailedError,
+  MissingCredentialsError,
+  ProvisioningError,
+} from "../../lib/exit-codes";
+import { applyTargetSigning } from "../../lib/ios-codesign-pbxproj";
 import { renderExportOptionsPlist } from "../../lib/ios-export-options";
 import { acquireKeychain } from "../../lib/ios-keychain";
 import { installProvisioningProfile } from "../../lib/ios-provisioning";
 import { loadLocalIosCredentials } from "../../lib/local-credentials";
 import { validateIosBuild } from "../../lib/post-build-validation";
 import { sha256File } from "../../lib/sha256";
+import { discoverSignedTargets } from "../../lib/xcode-targets";
 import { createXcodebuildFormatter } from "../../lib/xcpretty-formatter";
 import { CliRuntime } from "../../services/cli-runtime";
 import { runStep, runStepFormatted } from "./run-step";
 
 import type { CredentialsSource, IosProfile } from "../../lib/build-profile";
+import type { IosCredentialProfile, IosCredentials } from "../../lib/credentials-downloader";
 import type {
   KeychainError,
-  MissingCredentialsError,
-  ProvisioningError,
+  MissingCredentialsError as MissingCredentialsErrorType,
+  ProvisioningError as ProvisioningErrorType,
+  XcodeProjectError,
 } from "../../lib/exit-codes";
+import type { TargetSigningEntry } from "../../lib/ios-codesign-pbxproj";
+import type { InstalledProvisioning } from "../../lib/ios-provisioning";
+import type { DiscoveredTarget } from "../../lib/xcode-targets";
 import type { ApiClient } from "../../services/api-client";
 
 export interface RunIosBuildInput {
@@ -71,10 +83,11 @@ type IosBuildRequiredServices =
 
 type IosBuildErrors =
   | BuildFailedError
-  | MissingCredentialsError
+  | MissingCredentialsErrorType
   | KeychainError
-  | ProvisioningError
+  | ProvisioningErrorType
   | ArtifactNotFoundError
+  | XcodeProjectError
   | PlatformError;
 
 const prebuildAndPods = (params: {
@@ -194,29 +207,136 @@ const runIosSimulatorBuild = (
     return { artifactPath: archivePath, byteSize, sha256 };
   });
 
+// ── multi-target credentials + signing helpers ────────────────────
+
+interface InstalledTarget {
+  readonly target: DiscoveredTarget;
+  readonly profile: IosCredentialProfile;
+  readonly installed: InstalledProvisioning;
+}
+
+const fetchAllCredentials = (params: {
+  readonly api: ApiClient;
+  readonly input: RunIosBuildInput;
+  readonly mainBundleIdentifier: string;
+  readonly allBundleIdentifiers: readonly string[];
+}): Effect.Effect<
+  IosCredentials,
+  MissingCredentialsErrorType | PlatformError,
+  FileSystem.FileSystem
+> =>
+  params.input.credentialsSource === "local"
+    ? loadLocalIosCredentials({
+        projectRoot: params.input.projectRoot,
+        mainBundleIdentifier: params.mainBundleIdentifier,
+      })
+    : downloadIosCredentials(params.api, {
+        projectId: params.input.projectId,
+        mainBundleIdentifier: params.mainBundleIdentifier,
+        bundleIdentifiers: params.allBundleIdentifiers,
+        distribution: params.input.iosProfile.distribution,
+        tempDir: params.input.tempDir,
+      });
+
+const installPerTarget = (
+  signedTargets: readonly DiscoveredTarget[],
+  credentials: IosCredentials,
+  credentialsSource: CredentialsSource,
+): Effect.Effect<
+  readonly InstalledTarget[],
+  ProvisioningErrorType | MissingCredentialsErrorType,
+  CommandExecutor.CommandExecutor | FileSystem.FileSystem | Scope.Scope
+> =>
+  Effect.gen(function* () {
+    const profileByBundle = new Map(
+      credentials.profiles.map((profile) => [profile.bundleIdentifier, profile]),
+    );
+    const missing = signedTargets.filter((target) => !profileByBundle.has(target.bundleId));
+    if (missing.length > 0) {
+      const list = missing
+        .map((target) => `"${target.targetName}" (${target.bundleId})`)
+        .join(", ");
+      const hint =
+        credentialsSource === "local"
+          ? "Add the missing entries to credentials.json under ios.additionalProvisioningProfiles."
+          : "Register the bundle identifier(s) in the dashboard and bind a provisioning profile.";
+      return yield* new MissingCredentialsError({
+        message: `Missing provisioning profile for signed target(s): ${list}.`,
+        hint,
+      });
+    }
+
+    // eslint-disable-next-line unicorn/no-array-method-this-argument -- false positive: Effect.forEach(array, callback) is not Array.prototype.forEach
+    return yield* Effect.forEach(signedTargets, (target) =>
+      installProfileForTarget(target, profileByBundle),
+    );
+  });
+
+const installProfileForTarget = (
+  target: DiscoveredTarget,
+  profileByBundle: ReadonlyMap<string, IosCredentialProfile>,
+): Effect.Effect<
+  InstalledTarget,
+  ProvisioningErrorType,
+  CommandExecutor.CommandExecutor | FileSystem.FileSystem | Scope.Scope
+> => {
+  const profile = profileByBundle.get(target.bundleId);
+  if (!profile) {
+    // Unreachable — guarded by the caller's pre-check; keep narrowing here for the type checker.
+    return Effect.fail(
+      new ProvisioningError({
+        message: `Internal: no profile for ${target.bundleId} after pre-check.`,
+      }),
+    );
+  }
+  return installProvisioningProfile({ profilePath: profile.profilePath }).pipe(
+    Effect.map((installed) => ({ target, profile, installed })),
+  );
+};
+
+const pickMainTarget = (signedTargets: readonly DiscoveredTarget[]): DiscoveredTarget | undefined =>
+  signedTargets.find((target) => target.productType === "com.apple.product-type.application") ??
+  signedTargets[0];
+
 const runIosDeviceBuild = (
   input: RunIosBuildInput,
 ): Effect.Effect<RunIosBuildResult, IosBuildErrors, IosBuildRequiredServices> =>
-  // eslint-disable-next-line eslint/max-statements -- ios device build orchestration is inherently sequential (prebuild → pod → credentials → archive → exportArchive → find artifact → sha256); splitting further fragments the pipeline without clarifying it
+  // eslint-disable-next-line eslint/max-statements -- ios device build orchestration is inherently sequential (prebuild → pods → discover targets → credentials → keychain → install profiles → mutate pbxproj → archive → exportArchive → validate → artifact)
   Effect.gen(function* () {
-    const { api, tempDir, projectRoot, iosProfile, bundleId, envVars, projectId } = input;
+    const { api, tempDir, projectRoot, iosProfile, envVars } = input;
     const runtime = yield* CliRuntime;
+    const fs = yield* FileSystem.FileSystem;
 
     const iosDir = path.join(projectRoot, "ios");
     const { distribution } = iosProfile;
     const commandEnv = yield* runtime.commandEnvironment(envVars);
 
-    const credentials =
-      input.credentialsSource === "local"
-        ? yield* loadLocalIosCredentials({ projectRoot })
-        : yield* downloadIosCredentials(api, {
-            projectId,
-            bundleIdentifier: bundleId,
-            distribution,
-            tempDir,
-          });
-
     yield* prebuildAndPods({ projectRoot, iosDir, commandEnv });
+
+    const workspaceFilename = yield* findXcworkspace(iosDir);
+    const scheme = iosProfile.scheme ?? workspaceFilename.replace(/\.xcworkspace$/u, "");
+    const configuration = iosProfile.buildConfiguration ?? "Release";
+
+    const signedTargets = yield* discoverSignedTargets({
+      iosDir,
+      configurationName: configuration,
+    });
+
+    const mainTarget = pickMainTarget(signedTargets);
+    if (!mainTarget) {
+      return yield* new BuildFailedError({
+        step: "discover signed targets",
+        exitCode: 1,
+        message: `No signed iOS targets found in the Xcode project for configuration "${configuration}".`,
+      });
+    }
+
+    const credentials = yield* fetchAllCredentials({
+      api,
+      input,
+      mainBundleIdentifier: mainTarget.bundleId,
+      allBundleIdentifiers: signedTargets.map((target) => target.bundleId),
+    });
 
     const keychain = yield* acquireKeychain({
       tempDir,
@@ -224,13 +344,25 @@ const runIosDeviceBuild = (
       p12Password: credentials.p12Password,
     });
 
-    const provisioning = yield* installProvisioningProfile({
-      profilePath: credentials.profilePath,
-    });
+    const installedTargets = yield* installPerTarget(
+      signedTargets,
+      credentials,
+      input.credentialsSource,
+    );
 
-    const workspaceFilename = yield* findXcworkspace(iosDir);
-    const scheme = iosProfile.scheme ?? workspaceFilename.replace(/\.xcworkspace$/u, "");
-    const configuration = iosProfile.buildConfiguration ?? "Release";
+    const signingEntries: readonly TargetSigningEntry[] = installedTargets.map(
+      ({ target, installed }) => ({
+        targetName: target.targetName,
+        buildConfigurationUuids: target.buildConfigurationUuids,
+        settings: {
+          teamId: installed.teamId,
+          signingIdentity: keychain.signingIdentity,
+          profileSpecifier: installed.name,
+        },
+      }),
+    );
+
+    yield* applyTargetSigning({ iosDir, entries: signingEntries });
 
     const archivePath = path.join(tempDir, "build.xcarchive");
     const archiveCmd = Command.make(
@@ -245,10 +377,6 @@ const runIosDeviceBuild = (
       archivePath,
       "-allowProvisioningUpdates",
       "archive",
-      "CODE_SIGN_STYLE=Manual",
-      `DEVELOPMENT_TEAM=${provisioning.teamId}`,
-      `CODE_SIGN_IDENTITY=${keychain.signingIdentity}`,
-      `PROVISIONING_PROFILE_SPECIFIER=${provisioning.name}`,
     ).pipe(Command.workingDirectory(iosDir), Command.env(commandEnv));
 
     const formatter = input.rawOutput ? undefined : createXcodebuildFormatter(projectRoot);
@@ -256,15 +384,28 @@ const runIosDeviceBuild = (
       ? runStepFormatted(archiveCmd, "xcodebuild archive", formatter)
       : runStep(archiveCmd, "xcodebuild archive");
 
-    const fs = yield* FileSystem.FileSystem;
     const exportOptionsPath = path.join(tempDir, "ExportOptions.plist");
+    const mainInstall = installedTargets.find(
+      (entry) => entry.target.targetName === mainTarget.targetName,
+    );
+    if (!mainInstall) {
+      return yield* new BuildFailedError({
+        step: "resolve main target signing",
+        exitCode: 1,
+        message: `Internal: main target "${mainTarget.targetName}" was not in the installed list.`,
+      });
+    }
+    const { teamId } = mainInstall.installed;
+
     yield* fs.writeFileString(
       exportOptionsPath,
       renderExportOptionsPlist({
         method: distribution,
-        teamId: provisioning.teamId,
-        bundleId,
-        provisioningProfileName: provisioning.name,
+        teamId,
+        provisioningProfiles: installedTargets.map(({ target, installed }) => ({
+          bundleId: target.bundleId,
+          profileName: installed.name,
+        })),
       }),
     );
 
@@ -287,9 +428,11 @@ const runIosDeviceBuild = (
 
     yield* validateIosBuild({
       archivePath,
-      expectedBundleId: bundleId,
-      expectedTeamId: provisioning.teamId,
-      expectedProfileUuid: provisioning.uuid,
+      expectedTeamId: teamId,
+      expectedTargets: installedTargets.map(({ target, installed }) => ({
+        bundleId: target.bundleId,
+        profileUuid: installed.uuid,
+      })),
     });
 
     const artifactPath = yield* findIosArtifact({ exportPath });

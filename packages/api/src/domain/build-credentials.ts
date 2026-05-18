@@ -39,6 +39,20 @@ export const IosBuildPushKey = Schema.Struct({
   teamId: Schema.String,
 });
 
+/**
+ * Auto-provision context surfaced to the CLI. When `ascApiKeyId` is present,
+ * the CLI may use it to generate missing provisioning profiles for extension
+ * targets (auto-provision flow). `distributionCertificateId` + `appleTeamId`
+ * are backend row ids; `appleTeamIdentifier` is the 10-char Apple portal team
+ * id (e.g. "ABCDE12345").
+ */
+export const IosBuildContext = Schema.Struct({
+  ascApiKeyId: Schema.NullOr(Schema.String),
+  distributionCertificateId: Schema.String,
+  appleTeamId: Schema.String,
+  appleTeamIdentifier: Schema.String,
+});
+
 export const ResolveBuildCredentialsIosResult = Schema.Struct({
   platform: Schema.Literal("ios"),
   distributionCertificate: IosBuildDistributionCertificate,
@@ -46,6 +60,7 @@ export const ResolveBuildCredentialsIosResult = Schema.Struct({
   pushKey: Schema.NullOr(IosBuildPushKey),
   profileStale: Schema.Boolean,
   currentDeviceRosterHash: Schema.NullOr(Schema.String),
+  context: IosBuildContext,
 });
 
 export const AndroidBuildKeystore = Schema.Struct({

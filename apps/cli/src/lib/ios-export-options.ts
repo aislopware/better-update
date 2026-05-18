@@ -1,10 +1,14 @@
 export type ExportMethod = "app-store" | "ad-hoc" | "enterprise" | "development";
 
+export interface ProvisioningProfileMapping {
+  readonly bundleId: string;
+  readonly profileName: string;
+}
+
 export interface RenderExportOptionsPlistInput {
   readonly method: ExportMethod;
   readonly teamId: string;
-  readonly bundleId: string;
-  readonly provisioningProfileName: string;
+  readonly provisioningProfiles: readonly ProvisioningProfileMapping[];
   readonly compileBitcode?: boolean;
 }
 
@@ -23,14 +27,14 @@ const boolTag = (value: boolean): string => (value ? "<true/>" : "<false/>");
  *
  * - `signingStyle` is always `manual` (ephemeral keychain + downloaded profile)
  * - `uploadSymbols` is emitted only for `app-store` exports
- * - `provisioningProfiles` dict maps bundleId → profile name
+ * - `provisioningProfiles` dict maps each bundleId → profile name (one entry
+ *   per signed target: main app + any extensions like notification service)
  * - `compileBitcode` defaults to `false`
  */
 export const renderExportOptionsPlist = ({
   method,
   teamId,
-  bundleId,
-  provisioningProfileName,
+  provisioningProfiles,
   compileBitcode = false,
 }: RenderExportOptionsPlistInput): string => {
   const lines: string[] = [
@@ -48,10 +52,15 @@ export const renderExportOptionsPlist = ({
     `\t${boolTag(compileBitcode)}`,
     "\t<key>provisioningProfiles</key>",
     "\t<dict>",
-    `\t\t<key>${escapeXml(bundleId)}</key>`,
-    `\t\t<string>${escapeXml(provisioningProfileName)}</string>`,
-    "\t</dict>",
   ];
+
+  for (const { bundleId, profileName } of provisioningProfiles) {
+    lines.push(
+      `\t\t<key>${escapeXml(bundleId)}</key>`,
+      `\t\t<string>${escapeXml(profileName)}</string>`,
+    );
+  }
+  lines.push("\t</dict>");
 
   if (method === "app-store") {
     lines.push("\t<key>uploadSymbols</key>", "\t<true/>");
