@@ -1,5 +1,6 @@
-// eslint-disable-next-line import-plugin/no-namespace -- @expo/apple-utils ships entity managers + auth as one module shape; no equivalent named import covers Auth.* + Session.* + CookieFileCache.* together
-import * as AppleUtils from "@expo/apple-utils";
+// @expo/apple-utils is ncc-bundled CJS; `import * as` only surfaces `default`/`module.exports`
+// via Node ESM's cjs-module-lexer, so Auth/Session/CookieFileCache are read off the default import.
+import AppleUtils from "@expo/apple-utils";
 import { Context, Effect, Layer } from "effect";
 
 import type { Auth, RequestContext, Session } from "@expo/apple-utils";

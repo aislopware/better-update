@@ -1,6 +1,8 @@
 import { fromBase64, toBase64 } from "@better-update/encoding";
-// eslint-disable-next-line import-plugin/no-namespace -- @expo/apple-utils exposes entity managers + helpers as a single flat module; no narrower named import covers Certificate + BundleId + Profile + Device + createCertificateAndP12Async together
-import * as AppleUtils from "@expo/apple-utils";
+// @expo/apple-utils is ncc-bundled CJS; `import * as` only surfaces `default`/`module.exports`
+// via Node ESM's cjs-module-lexer, so the entity managers + enums (Certificate, BundleId,
+// Profile, Device, ProfileType, CertificateType, ...) are read off the default import.
+import AppleUtils from "@expo/apple-utils";
 import { Data, Effect } from "effect";
 
 import { extractMetadataFromP12 } from "./apple-cert-to-p12";

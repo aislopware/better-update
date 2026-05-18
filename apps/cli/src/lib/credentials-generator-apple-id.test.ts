@@ -39,7 +39,10 @@ vi.mock(import("@expo/apple-utils"), () => {
     },
     BundleIdPlatform: { IOS: "IOS" },
   };
-  return mocked as unknown as typeof AppleUtilsModule;
+  // Source code uses `import AppleUtils from "@expo/apple-utils"` (default import) because
+  // the package is ncc-bundled CJS; Node ESM exposes module.exports as `default`. Mirror that
+  // here so the default export resolves to the same flat namespace.
+  return { ...mocked, default: mocked } as unknown as typeof AppleUtilsModule;
 });
 
 // ── helpers ─────────────────────────────────────────────────────
