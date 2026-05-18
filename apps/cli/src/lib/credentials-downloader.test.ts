@@ -186,7 +186,7 @@ describe(downloadIosCredentials, () => {
     ).pipe(Effect.provide(NodeFileSystem.layer)),
   );
 
-  it.effect("fails when extensions missing AND no ASC key bound to main", () =>
+  it.effect("fails when extensions missing AND server returns no ASC key for the team", () =>
     runWithTempDir((tempDir) =>
       Effect.gen(function* () {
         const api = buildApi({
@@ -201,7 +201,7 @@ describe(downloadIosCredentials, () => {
         );
         const err = failureError(exit);
         expect(err).toBeInstanceOf(MissingCredentialsError);
-        expect(err?.message).toContain("no ASC API key");
+        expect(err?.message).toContain("no ASC API key is available");
       }),
     ).pipe(Effect.provide(NodeFileSystem.layer)),
   );

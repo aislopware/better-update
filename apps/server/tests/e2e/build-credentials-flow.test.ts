@@ -185,8 +185,11 @@ MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQC
     expect(res.status).toBe(404);
   });
 
-  it("resolves iOS bundle configuration without ascApiKeyId", async () => {
-    // Apple ID login flow leaves `ascApiKeyId` null: resolver must still succeed.
+  it("falls back to org+team ASC key when bundle config has none bound", async () => {
+    // Bundle config omits ascApiKeyId (e.g. Apple ID interactive flow created
+    // the binding). Server must fall back to the org+team-scoped ASC key so
+    // extension auto-provisioning still works without forcing the dashboard
+    // binding step. Mirrors EAS's account-level ASC key resolution.
     const noAscBundle = "com.example.buildcreds.noasc";
     const profile = buildMobileprovision(TEAM, noAscBundle);
     const profRes = await post(
@@ -205,7 +208,7 @@ MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQC
         appleTeamId,
         appleDistributionCertificateId: certId,
         appleProvisioningProfileId: noAscProfileId,
-        // ascApiKeyId omitted — Apple ID interactive flow.
+        // ascApiKeyId omitted — server resolves it from the team-level pool.
       },
       { cookie: cookies },
     );
@@ -221,6 +224,66 @@ MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQC
     expect(body.platform).toBe("ios");
     expect(body.provisioningProfile.bundleIdentifier).toBe(noAscBundle);
     expect(body.distributionCertificate.p12Password).toBe("super-secret");
+    // Fallback: the seeded ASC key for TEAM is picked up.
+    expect(body.context.ascApiKeyId).toBe(ascKeyId);
+  });
+
+  it("returns null ascApiKeyId when no org+team ASC key exists", async () => {
+    // Different Apple team with cert + profile but no ASC key uploaded → the
+    // fallback finds nothing and the resolver returns null. CLI then surfaces
+    // the "no ASC API key available" error if extensions need provisioning.
+    const otherTeam = "ZZZZZ99999";
+    const otherBundle = "com.example.buildcreds.otherteam";
+
+    const otherCertRes = await post(
+      "/api/apple/distribution-certificates",
+      {
+        p12Base64: dummyP12,
+        p12Password: "super-secret",
+        serialNumber: "SN-BC-2",
+        appleTeamIdentifier: otherTeam,
+        appleTeamName: "Other Team",
+        validFrom: "2026-01-01T00:00:00Z",
+        validUntil: "2028-01-01T00:00:00Z",
+      },
+      { cookie: cookies },
+    );
+    expect(otherCertRes.status).toBe(201);
+    const otherCert = await otherCertRes.json();
+    const otherCertId: string = otherCert.id;
+    const otherAppleTeamId: string = otherCert.appleTeamId;
+
+    const profile = buildMobileprovision(otherTeam, otherBundle);
+    const profRes = await post(
+      "/api/apple/provisioning-profiles",
+      { profileBase64: profile.base64, appleDistributionCertificateId: otherCertId },
+      { cookie: cookies },
+    );
+    expect(profRes.status).toBe(201);
+    const otherProfileId = (await profRes.json()).id;
+
+    const bundleCfg = await post(
+      `/api/projects/${projectId}/ios-bundle-configurations`,
+      {
+        bundleIdentifier: otherBundle,
+        distributionType: "APP_STORE",
+        appleTeamId: otherAppleTeamId,
+        appleDistributionCertificateId: otherCertId,
+        appleProvisioningProfileId: otherProfileId,
+      },
+      { cookie: cookies },
+    );
+    expect(bundleCfg.status).toBe(201);
+
+    const res = await post(
+      `/api/projects/${projectId}/build-credentials/resolve`,
+      { platform: "ios", bundleIdentifier: otherBundle, distributionType: "APP_STORE" },
+      { cookie: cookies },
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.platform).toBe("ios");
+    expect(body.context.ascApiKeyId).toBeNull();
   });
 
   it("seeds Android application identifier + keystore + build credentials", async () => {

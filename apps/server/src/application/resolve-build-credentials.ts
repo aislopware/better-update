@@ -13,6 +13,7 @@ import { AppleDistributionCertificateRepo } from "../repositories/apple-distribu
 import { AppleProvisioningProfileRepo } from "../repositories/apple-provisioning-profiles";
 import { ApplePushKeyRepo } from "../repositories/apple-push-keys";
 import { AppleTeamRepo } from "../repositories/apple-teams";
+import { AscApiKeyRepo } from "../repositories/asc-api-keys";
 import { IosBundleConfigurationRepo } from "../repositories/ios-bundle-configurations";
 import { collectDeviceAscIds } from "./collect-device-asc-ids";
 
@@ -131,6 +132,34 @@ const loadTeam = (id: string) =>
     return yield* teams.findById({ id });
   });
 
+/**
+ * Mirrors EAS CLI's account-level ASC key resolution: a single key per team
+ * provisions every bundle under that team. Explicit per-bundle bindings always
+ * win; when absent, fall back to the most-recently uploaded key scoped to the
+ * same (org, team) so extension bundles can be auto-provisioned without forcing
+ * the dashboard binding step.
+ */
+const resolveAscApiKeyId = (params: {
+  readonly explicitId: string | null;
+  readonly organizationId: string;
+  readonly appleTeamId: string;
+}) =>
+  Effect.gen(function* () {
+    if (params.explicitId !== null) {
+      return params.explicitId;
+    }
+    const repo = yield* AscApiKeyRepo;
+    const candidates = yield* repo.listByOrgAndTeam({
+      organizationId: params.organizationId,
+      appleTeamId: params.appleTeamId,
+    });
+    const [first] = candidates;
+    if (first === undefined) {
+      return null;
+    }
+    return first.id;
+  });
+
 export const resolveIosBuildCredentials = (input: IosResolveInput) =>
   Effect.gen(function* () {
     const config = yield* loadIosBundleConfiguration(input);
@@ -166,6 +195,12 @@ export const resolveIosBuildCredentials = (input: IosResolveInput) =>
     const { stale: profileStale, currentHash: currentDeviceRosterHash } = yield* checkProfileStale({
       ...input,
       profile,
+      appleTeamId: team.id,
+    });
+
+    const resolvedAscApiKeyId = yield* resolveAscApiKeyId({
+      explicitId: config.ascApiKeyId,
+      organizationId: input.organizationId,
       appleTeamId: team.id,
     });
 
@@ -238,7 +273,7 @@ export const resolveIosBuildCredentials = (input: IosResolveInput) =>
         profileStale,
         currentDeviceRosterHash,
         context: {
-          ascApiKeyId: config.ascApiKeyId,
+          ascApiKeyId: resolvedAscApiKeyId,
           distributionCertificateId: cert.id,
           appleTeamId: team.id,
           appleTeamIdentifier: team.appleTeamId,

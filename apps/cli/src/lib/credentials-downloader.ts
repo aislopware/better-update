@@ -200,7 +200,7 @@ const resolveOneBundleSettled = (
     );
 
 const autoProvisionHint =
-  "Bind an ASC API key to the main app bundle in the dashboard so missing extension bundles can be auto-provisioned, or register them manually.";
+  "Upload an ASC API key for this Apple team in the dashboard (Credentials → ASC API Keys) so missing extension bundles can be auto-provisioned, or register them manually.";
 
 export const downloadIosCredentials = (
   api: ApiClient,
@@ -320,7 +320,7 @@ const maybeAutoProvision = (
     if (ascApiKeyId === null) {
       const list = params.missing.map((id) => `"${id}"`).join(", ");
       return yield* new MissingCredentialsError({
-        message: `No iOS bundle configuration for extension bundle(s) ${list}, and the main bundle has no ASC API key bound for auto-provisioning.`,
+        message: `No iOS bundle configuration for extension bundle(s) ${list}, and no ASC API key is available for this Apple team to auto-provision them.`,
         hint: autoProvisionHint,
       });
     }

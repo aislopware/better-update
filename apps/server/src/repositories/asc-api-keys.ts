@@ -29,6 +29,11 @@ export interface AscApiKeyRepository {
     readonly organizationId: string;
   }) => Effect.Effect<readonly AscApiKeyModel[]>;
 
+  readonly listByOrgAndTeam: (params: {
+    readonly organizationId: string;
+    readonly appleTeamId: string;
+  }) => Effect.Effect<readonly AscApiKeyModel[]>;
+
   readonly findById: (params: { readonly id: string }) => Effect.Effect<AscApiKeyModel, NotFound>;
 
   readonly delete: (params: {
@@ -112,6 +117,19 @@ export const AscApiKeyRepoLive = Layer.succeed(AscApiKeyRepo, {
           `SELECT ${COLUMNS} FROM "asc_api_keys" WHERE "organization_id" = ? ORDER BY "created_at" DESC`,
         )
           .bind(params.organizationId)
+          .all<Row>(),
+      );
+      return rows.results.map(toModel);
+    }),
+
+  listByOrgAndTeam: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+      const rows = yield* Effect.promise(async () =>
+        env.DB.prepare(
+          `SELECT ${COLUMNS} FROM "asc_api_keys" WHERE "organization_id" = ? AND "apple_team_id" = ? ORDER BY "created_at" DESC`,
+        )
+          .bind(params.organizationId, params.appleTeamId)
           .all<Row>(),
       );
       return rows.results.map(toModel);
