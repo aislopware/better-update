@@ -1,4 +1,13 @@
-import { cancel, confirm, isCancel, multiselect, password, select, text } from "@clack/prompts";
+import {
+  autocomplete,
+  cancel,
+  confirm,
+  isCancel,
+  multiselect,
+  password,
+  select,
+  text,
+} from "@clack/prompts";
 import { Effect } from "effect";
 
 import { InteractiveProhibitedError } from "./exit-codes";
@@ -44,6 +53,24 @@ export const promptSelect = <T>(
   Effect.gen(function* () {
     yield* ensureInteractive(message);
     const value = yield* Effect.promise(async () => select<T>({ message, options: [...options] }));
+    return handleCancel(value);
+  });
+
+export const promptAutocomplete = <T>(
+  message: string,
+  options: readonly SelectOption<T>[],
+  config?: { readonly placeholder?: string; readonly maxItems?: number },
+): Effect.Effect<T, InteractiveProhibitedError, InteractiveMode> =>
+  Effect.gen(function* () {
+    yield* ensureInteractive(message);
+    const value = yield* Effect.promise(async () =>
+      autocomplete<T>({
+        message,
+        options: [...options],
+        ...(config?.placeholder === undefined ? {} : { placeholder: config.placeholder }),
+        ...(config?.maxItems === undefined ? {} : { maxItems: config.maxItems }),
+      }),
+    );
     return handleCancel(value);
   });
 

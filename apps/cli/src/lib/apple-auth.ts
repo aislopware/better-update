@@ -5,7 +5,7 @@ import type { Session } from "@expo/apple-utils";
 import { CliRuntime } from "../services/cli-runtime";
 import { AppleAuthError, InteractiveProhibitedError } from "./exit-codes";
 import { InteractiveMode } from "./interactive-mode";
-import { promptSelect } from "./prompts";
+import { promptAutocomplete } from "./prompts";
 
 type SessionProvider = Session.SessionProvider;
 
@@ -130,12 +130,13 @@ export const resolveProvider = (
       });
     }
 
-    const picked = yield* promptSelect<number>(
+    const picked = yield* promptAutocomplete<number>(
       "Select App Store Connect provider:",
       availableProviders.map((provider) => ({
         value: provider.providerId,
         label: `${provider.name} [${provider.subType}] (${provider.providerId})`,
       })),
+      { placeholder: "Type to filter…", maxItems: 10 },
     );
 
     const id = yield* applyChoice(picked);
