@@ -1,10 +1,20 @@
-import plist from "@expo/plist";
+import plistMod from "@expo/plist";
 
 import type { PlistObject } from "@expo/plist";
 // eslint-disable-next-line import-plugin/no-namespace -- bplist-parser typings have no named export; used only as `typeof BplistParser` for the CJS require result
 import type * as BplistParser from "bplist-parser";
 
 export type { PlistObject, PlistValue } from "@expo/plist";
+
+// `@expo/plist`'s CJS build sets `exports.default = { parse, build }`. Node's
+// ESM-CJS interop does NOT auto-unwrap that `.default` (Bun does), so a plain
+// `plistMod.parse` is undefined under Node. Reach into `.default` when needed
+// so the CLI works under both runtimes.
+const plist =
+  typeof (plistMod as { parse?: unknown }).parse === "function"
+    ? plistMod
+    : // eslint-disable-next-line typescript/no-unsafe-type-assertion -- runtime shim for Node ESM-CJS default-export interop
+      (plistMod as unknown as { default: typeof plistMod }).default;
 
 /**
  * Parse an XML plist string into a typed object.
