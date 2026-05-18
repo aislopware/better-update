@@ -1,6 +1,6 @@
 import path from "node:path";
 
-import { Command, FileSystem } from "@effect/platform";
+import { FileSystem } from "@effect/platform";
 import { Effect } from "effect";
 
 import type { CommandExecutor } from "@effect/platform";
@@ -92,10 +92,12 @@ export const runAndroidBuild = (
           });
 
     yield* runStep(
-      Command.make("bunx", "expo", "prebuild", "--platform", "android", "--clean").pipe(
-        Command.workingDirectory(projectRoot),
-        Command.env(commandEnv),
-      ),
+      {
+        command: "bunx",
+        args: ["expo", "prebuild", "--platform", "android", "--clean"],
+        cwd: projectRoot,
+        env: commandEnv,
+      },
       "expo prebuild android",
     );
 
@@ -113,10 +115,12 @@ export const runAndroidBuild = (
 
     const taskName = gradleTaskName(format, flavor, buildType);
     yield* runStep(
-      Command.make("./gradlew", "--init-script", signingGradlePath, `:app:${taskName}`).pipe(
-        Command.workingDirectory(androidDir),
-        Command.env(commandEnv),
-      ),
+      {
+        command: "./gradlew",
+        args: ["--init-script", signingGradlePath, `:app:${taskName}`],
+        cwd: androidDir,
+        env: commandEnv,
+      },
       "gradlew",
     );
 

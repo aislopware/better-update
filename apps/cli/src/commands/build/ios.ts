@@ -1,6 +1,6 @@
 import path from "node:path";
 
-import { Command, FileSystem } from "@effect/platform";
+import { FileSystem } from "@effect/platform";
 import { Effect } from "effect";
 
 import { ensureIosCredentials } from "../../application/credentials-interactive";
@@ -29,6 +29,7 @@ import type { IosCredentialProfile, IosCredentials } from "../../lib/credentials
 import type { TargetSigningEntry } from "../../lib/ios-codesign-pbxproj";
 import type { DiscoveredTarget } from "../../lib/xcode-targets";
 import type { ApiClient } from "../../services/api-client";
+import type { RunStepCommand } from "./run-step";
 
 export interface RunIosBuildInput {
   readonly api: ApiClient;
@@ -65,17 +66,21 @@ const prebuildAndPods = (params: {
 }) =>
   Effect.gen(function* () {
     yield* runStep(
-      Command.make("bunx", "expo", "prebuild", "--platform", "ios", "--clean").pipe(
-        Command.workingDirectory(params.projectRoot),
-        Command.env(params.commandEnv),
-      ),
+      {
+        command: "bunx",
+        args: ["expo", "prebuild", "--platform", "ios", "--clean"],
+        cwd: params.projectRoot,
+        env: params.commandEnv,
+      },
       "expo prebuild ios",
     );
     yield* runStep(
-      Command.make("pod", "install").pipe(
-        Command.workingDirectory(params.iosDir),
-        Command.env(params.commandEnv),
-      ),
+      {
+        command: "pod",
+        args: ["install"],
+        cwd: params.iosDir,
+        env: params.commandEnv,
+      },
       "pod install",
     );
   });
@@ -121,25 +126,29 @@ const runIosSimulatorBuild = (input: RunIosBuildInput) =>
     const configuration = iosProfile.buildConfiguration ?? "Release";
     const derivedDataPath = path.join(tempDir, "derived-data");
 
-    const buildCmd = Command.make(
-      "xcodebuild",
-      "-workspace",
-      workspaceFilename,
-      "-scheme",
-      scheme,
-      "-configuration",
-      configuration,
-      "-sdk",
-      "iphonesimulator",
-      "-destination",
-      "generic/platform=iOS Simulator",
-      "-derivedDataPath",
-      derivedDataPath,
-      "build",
-      "CODE_SIGNING_ALLOWED=NO",
-      "CODE_SIGNING_REQUIRED=NO",
-      "CODE_SIGN_IDENTITY=",
-    ).pipe(Command.workingDirectory(iosDir), Command.env(commandEnv));
+    const buildCmd: RunStepCommand = {
+      command: "xcodebuild",
+      args: [
+        "-workspace",
+        workspaceFilename,
+        "-scheme",
+        scheme,
+        "-configuration",
+        configuration,
+        "-sdk",
+        "iphonesimulator",
+        "-destination",
+        "generic/platform=iOS Simulator",
+        "-derivedDataPath",
+        derivedDataPath,
+        "build",
+        "CODE_SIGNING_ALLOWED=NO",
+        "CODE_SIGNING_REQUIRED=NO",
+        "CODE_SIGN_IDENTITY=",
+      ],
+      cwd: iosDir,
+      env: commandEnv,
+    };
 
     const formatter = input.rawOutput ? undefined : createXcodebuildFormatter(projectRoot);
     yield* formatter
@@ -156,14 +165,12 @@ const runIosSimulatorBuild = (input: RunIosBuildInput) =>
     const archiveName = `${path.basename(appDir, ".app")}-simulator.tar.gz`;
     const archivePath = path.join(tempDir, archiveName);
     yield* runStep(
-      Command.make(
-        "tar",
-        "-czf",
-        archivePath,
-        "-C",
-        path.dirname(appDir),
-        path.basename(appDir),
-      ).pipe(Command.env(commandEnv)),
+      {
+        command: "tar",
+        args: ["-czf", archivePath, "-C", path.dirname(appDir), path.basename(appDir)],
+        cwd: projectRoot,
+        env: commandEnv,
+      },
       "tar simulator .app",
     );
 
@@ -343,19 +350,23 @@ const runIosDeviceBuild = (input: RunIosBuildInput) =>
     yield* applyTargetSigning({ iosDir, entries: signingEntries });
 
     const archivePath = path.join(tempDir, "build.xcarchive");
-    const archiveCmd = Command.make(
-      "xcodebuild",
-      "-workspace",
-      workspaceFilename,
-      "-scheme",
-      scheme,
-      "-configuration",
-      configuration,
-      "-archivePath",
-      archivePath,
-      "-allowProvisioningUpdates",
-      "archive",
-    ).pipe(Command.workingDirectory(iosDir), Command.env(commandEnv));
+    const archiveCmd: RunStepCommand = {
+      command: "xcodebuild",
+      args: [
+        "-workspace",
+        workspaceFilename,
+        "-scheme",
+        scheme,
+        "-configuration",
+        configuration,
+        "-archivePath",
+        archivePath,
+        "-allowProvisioningUpdates",
+        "archive",
+      ],
+      cwd: iosDir,
+      env: commandEnv,
+    };
 
     const formatter = input.rawOutput ? undefined : createXcodebuildFormatter(projectRoot);
     yield* formatter
@@ -388,17 +399,21 @@ const runIosDeviceBuild = (input: RunIosBuildInput) =>
     );
 
     const exportPath = path.join(tempDir, "export");
-    const exportCmd = Command.make(
-      "xcodebuild",
-      "-exportArchive",
-      "-archivePath",
-      archivePath,
-      "-exportPath",
-      exportPath,
-      "-exportOptionsPlist",
-      exportOptionsPath,
-      "-allowProvisioningUpdates",
-    ).pipe(Command.workingDirectory(iosDir), Command.env(commandEnv));
+    const exportCmd: RunStepCommand = {
+      command: "xcodebuild",
+      args: [
+        "-exportArchive",
+        "-archivePath",
+        archivePath,
+        "-exportPath",
+        exportPath,
+        "-exportOptionsPlist",
+        exportOptionsPath,
+        "-allowProvisioningUpdates",
+      ],
+      cwd: iosDir,
+      env: commandEnv,
+    };
 
     yield* formatter
       ? runStepFormatted(exportCmd, "xcodebuild exportArchive", formatter)

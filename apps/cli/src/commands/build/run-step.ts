@@ -1,131 +1,88 @@
 import process from "node:process";
 
-import { Command } from "@effect/platform";
-import { Effect, Fiber, Stream } from "effect";
-
-import type { CommandExecutor } from "@effect/platform";
-import type { Scope } from "effect";
+import { Effect } from "effect";
 
 import { BuildFailedError } from "../../lib/exit-codes";
+import { runInPty } from "../../lib/pty-runner";
+import { isWarningLine, styleWarningLine } from "../../lib/warning-style";
 
 import type { XcodebuildFormatter } from "../../lib/xcpretty-formatter";
 
-export const runStep = (
-  cmd: Command.Command,
-  step: string,
-): Effect.Effect<void, BuildFailedError, CommandExecutor.CommandExecutor> =>
-  Command.exitCode(cmd.pipe(Command.stdout("inherit"), Command.stderr("inherit"))).pipe(
-    Effect.mapError(
-      (cause) =>
-        new BuildFailedError({
-          step,
-          exitCode: 1,
-          message: `${step} failed to spawn: ${String(cause)}`,
-        }),
-    ),
+export interface RunStepCommand {
+  readonly command: string;
+  readonly args: readonly string[];
+  readonly cwd: string;
+  readonly env: Readonly<Record<string, string>>;
+}
+
+const buildFailed = (step: string, exitCode: number, message: string) =>
+  new BuildFailedError({ step, exitCode, message });
+
+const annotateWarning = (line: string): string | undefined =>
+  isWarningLine(line) ? styleWarningLine(line) : undefined;
+
+/**
+ * Run a build step in a PTY so the subprocess sees a real TTY (spinners,
+ * progress bars, ANSI colors are preserved). Completed lines are inspected
+ * and any detected warning is re-echoed with our yellow ⚠ annotation.
+ */
+export const runStep = (cmd: RunStepCommand, step: string): Effect.Effect<void, BuildFailedError> =>
+  runInPty({
+    command: cmd.command,
+    args: cmd.args,
+    cwd: cmd.cwd,
+    env: cmd.env,
+    onLine: annotateWarning,
+  }).pipe(
     Effect.flatMap((code) =>
       code === 0
         ? Effect.void
-        : Effect.fail(
-            new BuildFailedError({
-              step,
-              exitCode: code,
-              message: `${step} exited with code ${code}`,
-            }),
-          ),
+        : Effect.fail(buildFailed(step, code, `${step} exited with code ${code}`)),
     ),
   );
 
 /**
- * Run a build step with stdout piped through a formatter (e.g., xcpretty).
- * stderr passes through to the terminal directly.
+ * Run a build step in a PTY, but feed each completed line through the supplied
+ * xcpretty-style formatter before writing. Warning detection still applies to
+ * the formatter's output so xcodebuild deprecation notices stand out.
+ *
+ * The PTY guarantees xcodebuild sees a real TTY (so it keeps colored output);
+ * the formatter strips noise. On failure the formatter's build summary is
+ * flushed to stderr to help diagnose.
  */
 export const runStepFormatted = (
-  cmd: Command.Command,
+  cmd: RunStepCommand,
   step: string,
   formatter: XcodebuildFormatter,
-): Effect.Effect<void, BuildFailedError, CommandExecutor.CommandExecutor | Scope.Scope> =>
+): Effect.Effect<void, BuildFailedError> =>
   Effect.gen(function* () {
-    const proc = yield* Command.start(
-      cmd.pipe(Command.stdout("pipe"), Command.stderr("pipe")),
-    ).pipe(
-      Effect.mapError(
-        (cause) =>
-          new BuildFailedError({
-            step,
-            exitCode: 1,
-            message: `${step} failed to spawn: ${String(cause)}`,
-          }),
-      ),
-    );
-
-    const stdoutFiber = yield* proc.stdout.pipe(
-      Stream.decodeText(),
-      Stream.splitLines,
-      Stream.runForEach((line) => {
+    // Hold raw lines back from the live tee — instead, pump them through the
+    // formatter and write only what xcpretty decides to keep.
+    const code = yield* runInPty({
+      command: cmd.command,
+      args: cmd.args,
+      cwd: cmd.cwd,
+      env: cmd.env,
+      silent: true,
+      onLine: (line) => {
         const formatted = formatter.pipe(line);
-        return formatted.length > 0
-          ? Effect.sync(() => {
-              for (const output of formatted) {
-                process.stdout.write(`${output}\n`);
-              }
-            })
-          : Effect.void;
-      }),
-      Effect.mapError(
-        (cause) =>
-          new BuildFailedError({
-            step,
-            exitCode: 1,
-            message: `${step} stdout stream error: ${String(cause)}`,
-          }),
-      ),
-      Effect.fork,
-    );
-
-    const stderrFiber = yield* proc.stderr.pipe(
-      Stream.decodeText(),
-      Stream.splitLines,
-      Stream.runForEach((line) => Effect.sync(() => process.stderr.write(`${line}\n`))),
-      Effect.mapError(
-        (cause) =>
-          new BuildFailedError({
-            step,
-            exitCode: 1,
-            message: `${step} stderr stream error: ${String(cause)}`,
-          }),
-      ),
-      Effect.fork,
-    );
-
-    // Join fibers concurrently — stream errors are non-fatal, exit code takes precedence.
-    yield* Effect.all([Fiber.join(stdoutFiber), Fiber.join(stderrFiber)], {
-      concurrency: 2,
-    }).pipe(Effect.catchAll(() => Effect.void));
-
-    const code = yield* proc.exitCode.pipe(
-      Effect.mapError(
-        (cause) =>
-          new BuildFailedError({
-            step,
-            exitCode: 1,
-            message: `${step} exit code error: ${String(cause)}`,
-          }),
-      ),
-    );
+        for (const output of formatted) {
+          if (isWarningLine(output)) {
+            process.stdout.write(`${styleWarningLine(output)}\n`);
+          } else {
+            process.stdout.write(`${output}\n`);
+          }
+        }
+        return undefined;
+      },
+    });
 
     if (code !== 0) {
-      // Print build summary on failure for xcpretty diagnostics
       const summary = formatter.getBuildSummary();
-      if (summary) {
+      if (summary.length > 0) {
         process.stderr.write(`${summary}\n`);
       }
-
-      return yield* new BuildFailedError({
-        step,
-        exitCode: code,
-        message: `${step} exited with code ${code}`,
-      });
+      return yield* Effect.fail(buildFailed(step, code, `${step} exited with code ${code}`));
     }
     return undefined;
   });
