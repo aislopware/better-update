@@ -128,6 +128,7 @@ export interface UpdateModel {
   readonly manifestBody: string | null;
   readonly directiveBody: string | null;
   readonly fingerprintHash: string | null;
+  readonly totalAssetSize: number;
   readonly createdAt: string;
 }
 

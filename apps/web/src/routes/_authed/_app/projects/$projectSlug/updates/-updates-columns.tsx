@@ -5,6 +5,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 
 import { UpdateActionButtons } from "../-update-action-buttons";
 import { readUpdateEnvironment } from "../-update-helpers";
+import { formatBytes } from "../../../../../../lib/format-bytes";
 import { formatRelativeTime } from "../../../../../../lib/format-relative-time";
 
 export type UpdateItem = typeof Update.Type;
@@ -66,6 +67,14 @@ export const buildUpdateColumns = (
     cell: ({ row }) => `${row.original.rolloutPercentage}%`,
     enableSorting: true,
     meta: { align: "right" },
+  },
+  {
+    id: "size",
+    header: "Size",
+    cell: ({ row }) =>
+      row.original.totalAssetSize > 0 ? formatBytes(row.original.totalAssetSize) : "—",
+    enableSorting: false,
+    meta: { align: "right", muted: true },
   },
   {
     id: "createdAt",

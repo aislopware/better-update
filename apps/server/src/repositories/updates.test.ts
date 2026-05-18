@@ -19,6 +19,8 @@ const makeUpdateRow = (overrides?: Partial<Record<string, unknown>>) => ({
   certificate_chain: null,
   manifest_body: null,
   directive_body: null,
+  fingerprint_hash: null,
+  total_asset_size: 0,
   created_at: "2026-01-01T00:00:00Z",
   ...overrides,
 });
@@ -36,7 +38,15 @@ const runWithRepoEither = async <Ret, Err>(effect: Effect.Effect<Ret, Err, Updat
 describe("updateRepo -- D1 adapter", () => {
   describe("insert", () => {
     it("succeeds and returns Update", async () => {
-      const db = mockBatchD1(async () => [{ results: [], success: true }]);
+      const insertedRow = makeUpdateRow({ id: "upd-inserted", total_asset_size: 1024 });
+      const db = {
+        prepare: () => ({
+          bind: () => ({
+            all: async () => ({ results: [insertedRow] }),
+          }),
+        }),
+        batch: async () => [{ results: [], success: true }],
+      };
       const env = makeEnv(db);
 
       const exit = await runWithRepo(
@@ -74,6 +84,7 @@ describe("updateRepo -- D1 adapter", () => {
             rolloutPercentage: 100,
             isRollback: false,
             groupId: "group-1",
+            totalAssetSize: 1024,
           }),
         );
       }

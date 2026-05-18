@@ -101,6 +101,7 @@ export const toApiUpdate = (update: UpdateModel) =>
     manifestBody: update.manifestBody,
     directiveBody: update.directiveBody,
     fingerprintHash: update.fingerprintHash,
+    totalAssetSize: update.totalAssetSize,
     createdAt: update.createdAt,
   });
 

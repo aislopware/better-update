@@ -1,4 +1,5 @@
 import {
+  updateAnalyticsQueryOptions,
   updateAssetsQueryOptions,
   updateGroupQueryOptions,
   updateQueryOptions,
@@ -29,12 +30,22 @@ import type { Update } from "@better-update/api";
 import { ProjectSubpageHeader } from "../-project-subpage-header";
 import { readUpdateEnvironment } from "../-update-helpers";
 import { DetailCardSkeleton, SummaryCardsSkeleton } from "../../../../../../components/skeletons";
+import { formatBytes } from "../../../../../../lib/format-bytes";
 import { formatDateTime } from "../../../../../../lib/format-date";
 
 type UpdateItem = typeof Update.Type;
 
-const OverviewCard = ({ primary, projectSlug }: { primary: UpdateItem; projectSlug: string }) => {
+const OverviewCard = ({
+  primary,
+  variants,
+  projectSlug,
+}: {
+  primary: UpdateItem;
+  variants: readonly UpdateItem[];
+  projectSlug: string;
+}) => {
   const environment = readUpdateEnvironment(primary.extraJson);
+  const groupTotalSize = variants.reduce((acc, variant) => acc + variant.totalAssetSize, 0);
   return (
     <Card>
       <CardHeader>
@@ -55,6 +66,12 @@ const OverviewCard = ({ primary, projectSlug }: { primary: UpdateItem; projectSl
         <div className="flex flex-col gap-1">
           <div className="text-muted-foreground text-sm">Environment</div>
           <div className="font-medium">{environment ?? "—"}</div>
+        </div>
+        <div className="flex flex-col gap-1">
+          <div className="text-muted-foreground text-sm">Total size</div>
+          <div className="font-medium">
+            {groupTotalSize > 0 ? formatBytes(groupTotalSize) : "—"}
+          </div>
         </div>
         <div className="flex flex-col gap-1">
           <div className="text-muted-foreground text-sm">Created</div>
@@ -117,6 +134,19 @@ const PlatformVariantAssets = ({
   );
 };
 
+const PlatformVariantDownloads = ({
+  orgId,
+  projectId,
+  updateId,
+}: {
+  orgId: string;
+  projectId: string;
+  updateId: string;
+}) => {
+  const { data } = useSuspenseQuery(updateAnalyticsQueryOptions(orgId, projectId, updateId, "30d"));
+  return <div className="text-xs">{data.totalRequests.toLocaleString()}</div>;
+};
+
 const PlatformVariantCard = ({
   update,
   orgId,
@@ -136,7 +166,7 @@ const PlatformVariantCard = ({
       <CardDescription>Rollout: {update.rolloutPercentage}%</CardDescription>
     </CardHeader>
     <CardContent className="flex flex-col gap-3">
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-4">
         <div className="flex flex-col gap-1">
           <div className="text-muted-foreground text-xs">Signature</div>
           <div className="text-xs">{update.signature === null ? "Unsigned" : "Signed"}</div>
@@ -144,6 +174,18 @@ const PlatformVariantCard = ({
         <div className="flex flex-col gap-1">
           <div className="text-muted-foreground text-xs">Manifest body</div>
           <div className="text-xs">{update.manifestBody === null ? "Not stored" : "Stored"}</div>
+        </div>
+        <div className="flex flex-col gap-1">
+          <div className="text-muted-foreground text-xs">Size</div>
+          <div className="text-xs">
+            {update.totalAssetSize > 0 ? formatBytes(update.totalAssetSize) : "—"}
+          </div>
+        </div>
+        <div className="flex flex-col gap-1">
+          <div className="text-muted-foreground text-xs">Downloads (30d)</div>
+          <Suspense fallback={<div className="text-muted-foreground text-xs">…</div>}>
+            <PlatformVariantDownloads orgId={orgId} projectId={projectId} updateId={update.id} />
+          </Suspense>
         </div>
       </div>
       <div className="flex flex-col gap-2">
@@ -208,7 +250,7 @@ const UpdateDetailContent = () => {
   return (
     <>
       <ProjectSubpageHeader title={title} />
-      <OverviewCard primary={primary} projectSlug={project.slug} />
+      <OverviewCard primary={primary} variants={group.items} projectSlug={project.slug} />
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>

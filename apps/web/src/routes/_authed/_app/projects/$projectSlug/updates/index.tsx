@@ -74,7 +74,7 @@ const UpdatesSkeleton = () => (
     <div className="flex items-center justify-between gap-2">
       <ProjectSubpageHeader title="Updates" />
     </div>
-    <TableSkeleton columns={6} rows={6} />
+    <TableSkeleton columns={7} rows={6} />
   </>
 );
 
@@ -207,7 +207,7 @@ const UpdatesContent = () => {
             <CompareUpdatesDialog orgId={orgId} projectId={projectId} />
           </div>
         </div>
-        <TableSkeleton columns={6} rows={6} />
+        <TableSkeleton columns={7} rows={6} />
       </div>
     );
   }

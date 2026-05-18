@@ -86,6 +86,7 @@ const update = {
   manifestBody: null,
   directiveBody: null,
   fingerprintHash: null,
+  totalAssetSize: 0,
   createdAt: "2026-01-02T00:00:00Z",
 } satisfies typeof Update.Type;
 

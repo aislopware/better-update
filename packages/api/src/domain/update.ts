@@ -18,6 +18,7 @@ export class Update extends Schema.Class<Update>("Update")({
   manifestBody: Schema.NullOr(Schema.String),
   directiveBody: Schema.NullOr(Schema.String),
   fingerprintHash: Schema.NullOr(Schema.String),
+  totalAssetSize: Schema.Number,
   createdAt: DateTimeString,
 }) {}
 

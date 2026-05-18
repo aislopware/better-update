@@ -123,11 +123,15 @@ interface UpdateRow {
   manifest_body: string | null;
   directive_body: string | null;
   fingerprint_hash: string | null;
+  total_asset_size: number;
   created_at: string;
 }
 
-const UPDATE_COLUMNS = `"id", "branch_id", "runtime_version", "platform", "message", "metadata_json", "extra_json", "group_id", "rollout_percentage", "is_rollback", "signature", "certificate_chain", "manifest_body", "directive_body", "fingerprint_hash", "created_at"`;
-const UPDATE_COLUMNS_U = `u."id", u."branch_id", u."runtime_version", u."platform", u."message", u."metadata_json", u."extra_json", u."group_id", u."rollout_percentage", u."is_rollback", u."signature", u."certificate_chain", u."manifest_body", u."directive_body", u."fingerprint_hash", u."created_at"`;
+const TOTAL_ASSET_SIZE_SUBQUERY = `(SELECT COALESCE(SUM(a."byte_size"), 0) FROM "update_assets" ua JOIN "assets" a ON ua."asset_hash" = a."hash" WHERE ua."update_id" = "updates"."id") AS "total_asset_size"`;
+const TOTAL_ASSET_SIZE_SUBQUERY_U = `(SELECT COALESCE(SUM(a."byte_size"), 0) FROM "update_assets" ua JOIN "assets" a ON ua."asset_hash" = a."hash" WHERE ua."update_id" = u."id") AS "total_asset_size"`;
+const UPDATE_INSERT_COLUMNS = `"id", "branch_id", "runtime_version", "platform", "message", "metadata_json", "extra_json", "group_id", "rollout_percentage", "is_rollback", "signature", "certificate_chain", "manifest_body", "directive_body", "fingerprint_hash", "created_at"`;
+const UPDATE_COLUMNS = `"updates"."id", "updates"."branch_id", "updates"."runtime_version", "updates"."platform", "updates"."message", "updates"."metadata_json", "updates"."extra_json", "updates"."group_id", "updates"."rollout_percentage", "updates"."is_rollback", "updates"."signature", "updates"."certificate_chain", "updates"."manifest_body", "updates"."directive_body", "updates"."fingerprint_hash", "updates"."created_at", ${TOTAL_ASSET_SIZE_SUBQUERY}`;
+const UPDATE_COLUMNS_U = `u."id", u."branch_id", u."runtime_version", u."platform", u."message", u."metadata_json", u."extra_json", u."group_id", u."rollout_percentage", u."is_rollback", u."signature", u."certificate_chain", u."manifest_body", u."directive_body", u."fingerprint_hash", u."created_at", ${TOTAL_ASSET_SIZE_SUBQUERY_U}`;
 
 interface UpdateAssetRow {
   asset_key: string;
@@ -153,8 +157,24 @@ const toUpdate = (row: UpdateRow) =>
     manifestBody: row.manifest_body,
     directiveBody: row.directive_body,
     fingerprintHash: row.fingerprint_hash,
+    totalAssetSize: row.total_asset_size,
     createdAt: row.created_at,
   }) satisfies UpdateModel;
+
+const fetchUpdatesByIds = (ids: readonly string[]) =>
+  Effect.gen(function* () {
+    if (ids.length === 0) {
+      return [];
+    }
+    const env = yield* cloudflareEnv;
+    const placeholders = ids.map(() => "?").join(", ");
+    const rows = yield* Effect.promise(async () =>
+      env.DB.prepare(`SELECT ${UPDATE_COLUMNS} FROM "updates" WHERE "id" IN (${placeholders})`)
+        .bind(...ids)
+        .all<UpdateRow>(),
+    );
+    return rows.results.map(toUpdate);
+  });
 
 export const UpdateRepoLive = Layer.succeed(UpdateRepo, {
   insert: (params) =>
@@ -165,7 +185,7 @@ export const UpdateRepoLive = Layer.succeed(UpdateRepo, {
 
       const stmts = [
         env.DB.prepare(
-          `INSERT INTO "updates" (${UPDATE_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO "updates" (${UPDATE_INSERT_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         ).bind(
           id,
           params.branchId,
@@ -193,24 +213,11 @@ export const UpdateRepoLive = Layer.succeed(UpdateRepo, {
 
       yield* Effect.promise(async () => env.DB.batch(stmts));
 
-      return {
-        id,
-        branchId: params.branchId,
-        runtimeVersion: params.runtimeVersion,
-        platform: params.platform,
-        message: params.message,
-        metadataJson: params.metadataJson,
-        extraJson: params.extraJson,
-        groupId: params.groupId,
-        rolloutPercentage: params.rolloutPercentage,
-        isRollback: params.isRollback,
-        signature: params.signature,
-        certificateChain: params.certificateChain,
-        manifestBody: params.manifestBody,
-        directiveBody: params.directiveBody,
-        fingerprintHash: params.fingerprintHash,
-        createdAt: now,
-      } satisfies UpdateModel;
+      const [inserted] = yield* fetchUpdatesByIds([id]);
+      if (!inserted) {
+        return yield* Effect.die(new Error("Inserted update vanished mid-write"));
+      }
+      return inserted;
     }),
 
   insertBatch: (params) =>
@@ -228,7 +235,7 @@ export const UpdateRepoLive = Layer.succeed(UpdateRepo, {
 
       const statements = updatesWithIds.flatMap((update) => [
         env.DB.prepare(
-          `INSERT INTO "updates" (${UPDATE_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO "updates" (${UPDATE_INSERT_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         ).bind(
           update.id,
           params.branchId,
@@ -256,27 +263,12 @@ export const UpdateRepoLive = Layer.succeed(UpdateRepo, {
 
       yield* Effect.promise(async () => env.DB.batch(statements));
 
-      return updatesWithIds.map(
-        (update) =>
-          ({
-            id: update.id,
-            branchId: params.branchId,
-            runtimeVersion: update.runtimeVersion,
-            platform: update.platform,
-            message: update.message,
-            metadataJson: update.metadataJson,
-            extraJson: update.extraJson,
-            groupId: params.groupId,
-            rolloutPercentage: update.rolloutPercentage,
-            isRollback: update.isRollback,
-            signature: update.signature,
-            certificateChain: update.certificateChain,
-            manifestBody: update.manifestBody,
-            directiveBody: update.directiveBody,
-            fingerprintHash: update.fingerprintHash,
-            createdAt: now,
-          }) satisfies UpdateModel,
-      );
+      const inserted = yield* fetchUpdatesByIds(updatesWithIds.map((row) => row.id));
+      const byId = new Map(inserted.map((row) => [row.id, row]));
+      return updatesWithIds.flatMap((row) => {
+        const found = byId.get(row.id);
+        return found ? [found] : [];
+      });
     }),
 
   findByProject: (params) =>
