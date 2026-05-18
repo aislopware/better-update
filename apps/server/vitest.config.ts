@@ -72,6 +72,10 @@ export default defineConfig(async () => {
           plugins: [
             cloudflareTest({
               wrangler: { configPath: "./wrangler.jsonc" },
+              // Match the vite plugin in vite.config.ts — vitest-pool-workers
+              // also chokes on remote bindings when Durable Object bindings
+              // are present (CF API 10375 on edge-preview).
+              remoteBindings: false,
               miniflare: {
                 bindings: {
                   TEST_MIGRATIONS: migrations,
