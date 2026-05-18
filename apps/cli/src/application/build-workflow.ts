@@ -96,6 +96,7 @@ const runIosPlatformBuild = (input: PlatformBuildInput) =>
       projectId,
       credentialsSource,
       rawOutput: options.rawOutput,
+      freezeCredentials: options.freezeCredentials ?? false,
     });
     const target: BuildTarget = isSimulator
       ? { platform: "ios", distribution: "simulator", artifactFormat: "tar.gz" }

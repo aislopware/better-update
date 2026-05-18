@@ -3,10 +3,7 @@ import path from "node:path";
 import { Command, FileSystem } from "@effect/platform";
 import { Effect } from "effect";
 
-import type { CommandExecutor } from "@effect/platform";
-import type { PlatformError } from "@effect/platform/Error";
-import type { Scope } from "effect";
-
+import { ensureIosCredentials } from "../../application/credentials-interactive";
 import { findIosArtifact } from "../../lib/artifact-finder";
 import { downloadIosCredentials } from "../../lib/credentials-downloader";
 import {
@@ -29,14 +26,7 @@ import { runStep, runStepFormatted } from "./run-step";
 
 import type { CredentialsSource, IosProfile } from "../../lib/build-profile";
 import type { IosCredentialProfile, IosCredentials } from "../../lib/credentials-downloader";
-import type {
-  KeychainError,
-  MissingCredentialsError as MissingCredentialsErrorType,
-  ProvisioningError as ProvisioningErrorType,
-  XcodeProjectError,
-} from "../../lib/exit-codes";
 import type { TargetSigningEntry } from "../../lib/ios-codesign-pbxproj";
-import type { InstalledProvisioning } from "../../lib/ios-provisioning";
 import type { DiscoveredTarget } from "../../lib/xcode-targets";
 import type { ApiClient } from "../../services/api-client";
 
@@ -50,17 +40,10 @@ export interface RunIosBuildInput {
   readonly projectId: string;
   readonly credentialsSource: CredentialsSource;
   readonly rawOutput?: boolean | undefined;
+  readonly freezeCredentials?: boolean | undefined;
 }
 
-export interface RunIosBuildResult {
-  readonly artifactPath: string;
-  readonly byteSize: number;
-  readonly sha256: string;
-}
-
-const findXcworkspace = (
-  iosDir: string,
-): Effect.Effect<string, BuildFailedError | PlatformError, FileSystem.FileSystem> =>
+const findXcworkspace = (iosDir: string) =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
     const entries = yield* fs.readDirectory(iosDir);
@@ -74,21 +57,6 @@ const findXcworkspace = (
     }
     return workspace;
   });
-
-type IosBuildRequiredServices =
-  | CliRuntime
-  | CommandExecutor.CommandExecutor
-  | FileSystem.FileSystem
-  | Scope.Scope;
-
-type IosBuildErrors =
-  | BuildFailedError
-  | MissingCredentialsErrorType
-  | KeychainError
-  | ProvisioningErrorType
-  | ArtifactNotFoundError
-  | XcodeProjectError
-  | PlatformError;
 
 const prebuildAndPods = (params: {
   readonly projectRoot: string;
@@ -112,9 +80,7 @@ const prebuildAndPods = (params: {
     );
   });
 
-const findAppDirectory = (
-  root: string,
-): Effect.Effect<string, ArtifactNotFoundError | PlatformError, FileSystem.FileSystem> =>
+const findAppDirectory = (root: string) =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
     const stack = [root];
@@ -141,9 +107,7 @@ const findAppDirectory = (
     });
   });
 
-const runIosSimulatorBuild = (
-  input: RunIosBuildInput,
-): Effect.Effect<RunIosBuildResult, IosBuildErrors, IosBuildRequiredServices> =>
+const runIosSimulatorBuild = (input: RunIosBuildInput) =>
   Effect.gen(function* () {
     const { projectRoot, iosProfile, envVars, tempDir } = input;
     const runtime = yield* CliRuntime;
@@ -209,22 +173,36 @@ const runIosSimulatorBuild = (
 
 // ── multi-target credentials + signing helpers ────────────────────
 
-interface InstalledTarget {
-  readonly target: DiscoveredTarget;
-  readonly profile: IosCredentialProfile;
-  readonly installed: InstalledProvisioning;
-}
+// Sequential so interactive Apple ID / ASC prompts don't race when multiple
+// bundles (main + extensions) need setup in the same session.
+const ensurePerTargetCredentials = (params: {
+  readonly api: ApiClient;
+  readonly projectId: string;
+  readonly distribution: IosProfile["distribution"];
+  readonly signedTargets: readonly DiscoveredTarget[];
+  readonly freezeCredentials: boolean;
+}) =>
+  Effect.forEach(
+    params.signedTargets,
+    (target) =>
+      ensureIosCredentials(
+        params.api,
+        {
+          projectId: params.projectId,
+          bundleIdentifier: target.bundleId,
+          distribution: params.distribution,
+        },
+        { freezeCredentials: params.freezeCredentials },
+      ),
+    { concurrency: 1 },
+  );
 
 const fetchAllCredentials = (params: {
   readonly api: ApiClient;
   readonly input: RunIosBuildInput;
   readonly mainBundleIdentifier: string;
   readonly allBundleIdentifiers: readonly string[];
-}): Effect.Effect<
-  IosCredentials,
-  MissingCredentialsErrorType | PlatformError,
-  FileSystem.FileSystem
-> =>
+}) =>
   params.input.credentialsSource === "local"
     ? loadLocalIosCredentials({
         projectRoot: params.input.projectRoot,
@@ -242,11 +220,7 @@ const installPerTarget = (
   signedTargets: readonly DiscoveredTarget[],
   credentials: IosCredentials,
   credentialsSource: CredentialsSource,
-): Effect.Effect<
-  readonly InstalledTarget[],
-  ProvisioningErrorType | MissingCredentialsErrorType,
-  CommandExecutor.CommandExecutor | FileSystem.FileSystem | Scope.Scope
-> =>
+) =>
   Effect.gen(function* () {
     const profileByBundle = new Map(
       credentials.profiles.map((profile) => [profile.bundleIdentifier, profile]),
@@ -275,11 +249,7 @@ const installPerTarget = (
 const installProfileForTarget = (
   target: DiscoveredTarget,
   profileByBundle: ReadonlyMap<string, IosCredentialProfile>,
-): Effect.Effect<
-  InstalledTarget,
-  ProvisioningErrorType,
-  CommandExecutor.CommandExecutor | FileSystem.FileSystem | Scope.Scope
-> => {
+) => {
   const profile = profileByBundle.get(target.bundleId);
   if (!profile) {
     // Unreachable — guarded by the caller's pre-check; keep narrowing here for the type checker.
@@ -298,9 +268,7 @@ const pickMainTarget = (signedTargets: readonly DiscoveredTarget[]): DiscoveredT
   signedTargets.find((target) => target.productType === "com.apple.product-type.application") ??
   signedTargets[0];
 
-const runIosDeviceBuild = (
-  input: RunIosBuildInput,
-): Effect.Effect<RunIosBuildResult, IosBuildErrors, IosBuildRequiredServices> =>
+const runIosDeviceBuild = (input: RunIosBuildInput) =>
   // eslint-disable-next-line eslint/max-statements -- ios device build orchestration is inherently sequential (prebuild → pods → discover targets → credentials → keychain → install profiles → mutate pbxproj → archive → exportArchive → validate → artifact)
   Effect.gen(function* () {
     const { api, tempDir, projectRoot, iosProfile, envVars } = input;
@@ -328,6 +296,16 @@ const runIosDeviceBuild = (
         step: "discover signed targets",
         exitCode: 1,
         message: `No signed iOS targets found in the Xcode project for configuration "${configuration}".`,
+      });
+    }
+
+    if (input.credentialsSource === "remote") {
+      yield* ensurePerTargetCredentials({
+        api,
+        projectId: input.projectId,
+        distribution: iosProfile.distribution,
+        signedTargets,
+        freezeCredentials: input.freezeCredentials ?? false,
       });
     }
 
@@ -441,7 +419,5 @@ const runIosDeviceBuild = (
     return { artifactPath, byteSize, sha256 };
   });
 
-export const runIosBuild = (
-  input: RunIosBuildInput,
-): Effect.Effect<RunIosBuildResult, IosBuildErrors, IosBuildRequiredServices> =>
+export const runIosBuild = (input: RunIosBuildInput) =>
   input.iosProfile.simulator === true ? runIosSimulatorBuild(input) : runIosDeviceBuild(input);
