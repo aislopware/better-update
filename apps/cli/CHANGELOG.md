@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.14.2](https://github.com/better-update/better-update/compare/@better-update/cli@0.14.1...@better-update/cli@0.14.2) (2026-05-18)
+
+### Bug Fixes
+
+* **cli:** use apple_teams UUID when binding iOS bundle config ([fe552d3](https://github.com/better-update/better-update/commit/fe552d30f25b3a531a15b60c2e0d1b7aa1f92e4a)) - by @trancong12102
+
 ## [0.14.1](https://github.com/better-update/better-update/compare/@better-update/cli@0.14.0...@better-update/cli@0.14.1) (2026-05-18)
 
 ### Bug Fixes
