@@ -85,7 +85,6 @@ const FileUploadButton = ({ onFile }: { onFile: (file: File) => Promise<void> })
       <input
         ref={ref}
         type="file"
-        accept=".env,.txt,text/plain"
         className="hidden"
         onChange={async (event) => {
           const file = event.target.files?.[0];
