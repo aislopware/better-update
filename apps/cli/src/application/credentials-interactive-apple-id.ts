@@ -10,6 +10,7 @@ import {
   listDistributionCertsViaAppleId,
   revokeDistributionCertViaAppleId,
 } from "../lib/credentials-generator-apple-id";
+import { upsertIosBundleConfiguration } from "../lib/ios-bundle-config-upsert";
 import { promptMultiSelect, promptSelect } from "../lib/prompts";
 import { AppleAuth } from "../services/apple-auth";
 
@@ -141,18 +142,16 @@ export const setupIosViaAppleId = (api: ApiClient, input: AppleIdIosSetupInput) 
       bundleIdentifier: input.bundleIdentifier,
       distributionType,
     });
-    yield* api.iosBundleConfigurations.create({
-      path: { projectId: input.projectId },
-      payload: {
-        bundleIdentifier: input.bundleIdentifier,
-        distributionType,
-        appleTeamId: cert.appleTeamId,
-        appleDistributionCertificateId: cert.id,
-        appleProvisioningProfileId: profile.id,
-        // ascApiKeyId omitted — Apple ID setups don't bind an ASC key.
-      },
+    // ascApiKeyId omitted — Apple ID setups don't bind an ASC key. Existing
+    // bindings (if any) are preserved by the upsert.
+    yield* upsertIosBundleConfiguration(api, {
+      projectId: input.projectId,
+      bundleIdentifier: input.bundleIdentifier,
+      distributionType,
+      appleTeamId: cert.appleTeamId,
+      appleDistributionCertificateId: cert.id,
+      appleProvisioningProfileId: profile.id,
     });
-    yield* Console.log("iOS bundle configuration saved.");
     return undefined;
   });
 
