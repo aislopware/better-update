@@ -9,6 +9,8 @@ import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { CheckCircle2Icon, Trash2Icon } from "lucide-react";
 
+import { AddAndroidCredentialGroupDialog } from "./-add-android-credential-group-dialog";
+
 const SetDefaultButton = ({
   id,
   orgId,
@@ -112,9 +114,15 @@ export const AndroidCredentialGroups = ({
   );
   if (data.items.length === 0) {
     return (
-      <p className="text-muted-foreground text-xs">
-        No credential groups bound. Use the build wizard to add one.
-      </p>
+      <div className="flex flex-col items-start gap-3">
+        <p className="text-muted-foreground text-xs">
+          No credential groups bound. Add a group to bind a keystore + service accounts.
+        </p>
+        <AddAndroidCredentialGroupDialog
+          orgId={orgId}
+          applicationIdentifierId={applicationIdentifierId}
+        />
+      </div>
     );
   }
   return (
@@ -153,6 +161,12 @@ export const AndroidCredentialGroups = ({
           </div>
         </div>
       ))}
+      <div className="pt-1">
+        <AddAndroidCredentialGroupDialog
+          orgId={orgId}
+          applicationIdentifierId={applicationIdentifierId}
+        />
+      </div>
     </div>
   );
 };
