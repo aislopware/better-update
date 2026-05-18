@@ -12,6 +12,16 @@ export interface RenderExportOptionsPlistInput {
   readonly compileBitcode?: boolean;
 }
 
+// Xcode 15.3+ renamed the ExportOptions.plist `method` strings; the legacy
+// names still work but emit a deprecation warning under xcodebuild. Keep the
+// user-facing names (eas.json, CLI flags) and translate at the plist boundary.
+const XCODE_METHOD: Record<ExportMethod, string> = {
+  "app-store": "app-store-connect",
+  "ad-hoc": "release-testing",
+  development: "debugging",
+  enterprise: "enterprise",
+};
+
 const escapeXml = (value: string): string =>
   value
     .replaceAll("&", "&amp;")
@@ -43,7 +53,7 @@ export const renderExportOptionsPlist = ({
     '<plist version="1.0">',
     "<dict>",
     "\t<key>method</key>",
-    `\t<string>${escapeXml(method)}</string>`,
+    `\t<string>${escapeXml(XCODE_METHOD[method])}</string>`,
     "\t<key>teamID</key>",
     `\t<string>${escapeXml(teamId)}</string>`,
     "\t<key>signingStyle</key>",
