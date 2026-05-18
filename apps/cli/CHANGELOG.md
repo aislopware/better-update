@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.15.2](https://github.com/better-update/better-update/compare/@better-update/cli@0.15.1...@better-update/cli@0.15.2) (2026-05-18)
+
+### Bug Fixes
+
+* **cli:** upsert iOS bundle config so cert-deletion doesn't strand setup ([6b17b6c](https://github.com/better-update/better-update/commit/6b17b6c9b2ab797f3c5e8e7f193baa60228d4a96)) - by @trancong12102
+
 ## [0.15.1](https://github.com/better-update/better-update/compare/@better-update/cli@0.15.0...@better-update/cli@0.15.1) (2026-05-18)
 
 ### Bug Fixes
