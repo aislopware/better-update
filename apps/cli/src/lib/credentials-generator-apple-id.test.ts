@@ -1,0 +1,168 @@
+import { it } from "@effect/vitest";
+import { Effect } from "effect";
+
+import type { RequestContext } from "@expo/apple-utils";
+// eslint-disable-next-line import-plugin/no-namespace -- vi.mock factory accepts a partial of the entire module shape; namespace import is the only way to satisfy ModuleMockFactoryWithHelper at compile time
+import type * as AppleUtilsModule from "@expo/apple-utils";
+
+import { generateAndUploadProvisioningProfileViaAppleId } from "./credentials-generator-apple-id";
+
+import type { ApiClient } from "../services/api-client";
+
+// ── module-level mocks ──────────────────────────────────────────
+
+const mocks = vi.hoisted(() => ({
+  certificateGetAsync: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
+  bundleIdFindAsync: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
+  bundleIdCreateAsync: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
+  profileCreateAsync: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
+  deviceGetAllIosAsync: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
+  createCertAndP12Async: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
+}));
+
+vi.mock(import("@expo/apple-utils"), () => {
+  const mocked = {
+    Certificate: { getAsync: mocks.certificateGetAsync },
+    BundleId: { findAsync: mocks.bundleIdFindAsync, createAsync: mocks.bundleIdCreateAsync },
+    Profile: { createAsync: mocks.profileCreateAsync },
+    Device: { getAllIOSProfileDevicesAsync: mocks.deviceGetAllIosAsync },
+    createCertificateAndP12Async: mocks.createCertAndP12Async,
+    CertificateType: {
+      IOS_DISTRIBUTION: "IOS_DISTRIBUTION",
+      IOS_DEVELOPMENT: "IOS_DEVELOPMENT",
+    },
+    ProfileType: {
+      IOS_APP_STORE: "IOS_APP_STORE",
+      IOS_APP_ADHOC: "IOS_APP_ADHOC",
+      IOS_APP_DEVELOPMENT: "IOS_APP_DEVELOPMENT",
+      IOS_APP_INHOUSE: "IOS_APP_INHOUSE",
+    },
+    BundleIdPlatform: { IOS: "IOS" },
+  };
+  return mocked as unknown as typeof AppleUtilsModule;
+});
+
+// ── helpers ─────────────────────────────────────────────────────
+
+const certListItem = {
+  id: "cert-local-1",
+  serialNumber: "abc12345",
+  appleTeamId: "TEAM1234",
+};
+
+const buildApi = () =>
+  ({
+    appleDistributionCertificates: {
+      list: () => Effect.succeed({ items: [certListItem] }),
+      upload: () => Effect.succeed({ id: "cert-local-1" }),
+    },
+    appleProvisioningProfiles: {
+      upload: () =>
+        Effect.succeed({
+          id: "profile-local-1",
+          bundleIdentifier: "com.example.app",
+          distributionType: "APP_STORE",
+          profileName: "test",
+          validUntil: "2030-01-01T00:00:00Z",
+          developerPortalIdentifier: "dev-portal-1",
+        }),
+    },
+  }) as unknown as ApiClient;
+
+const context: RequestContext = { teamId: "TEAM1234", providerId: 100 };
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+// ── tests ──────────────────────────────────────────────────────
+
+describe(generateAndUploadProvisioningProfileViaAppleId, () => {
+  it.effect("APP_STORE: skips device collection and uses existing bundle id", () =>
+    Effect.gen(function* () {
+      mocks.certificateGetAsync.mockResolvedValue([
+        {
+          id: "cert-asc-1",
+          attributes: { serialNumber: "abc12345" },
+        },
+      ]);
+      mocks.bundleIdFindAsync.mockResolvedValue({ id: "bundle-asc-1" });
+      mocks.profileCreateAsync.mockResolvedValue({
+        attributes: { profileContent: btoa("fake-profile") },
+      });
+
+      const api = buildApi();
+      const result = yield* generateAndUploadProvisioningProfileViaAppleId(api, {
+        context,
+        distributionCertificateId: "cert-local-1",
+        bundleIdentifier: "com.example.app",
+        distributionType: "APP_STORE",
+      });
+
+      expect(result.id).toBe("profile-local-1");
+      expect(mocks.bundleIdFindAsync).toHaveBeenCalledTimes(1);
+      expect(mocks.bundleIdCreateAsync).not.toHaveBeenCalled();
+      expect(mocks.deviceGetAllIosAsync).not.toHaveBeenCalled();
+      const [, profileArgs] = mocks.profileCreateAsync.mock.calls[0] as [
+        unknown,
+        { bundleId: string; certificates: string[]; devices: string[]; profileType: string },
+      ];
+      expect(profileArgs.bundleId).toBe("bundle-asc-1");
+      expect(profileArgs.certificates).toStrictEqual(["cert-asc-1"]);
+      expect(profileArgs.devices).toStrictEqual([]);
+      expect(profileArgs.profileType).toBe("IOS_APP_STORE");
+    }),
+  );
+
+  it.effect("AD_HOC: enrolls devices and includes them in profile request", () =>
+    Effect.gen(function* () {
+      mocks.certificateGetAsync.mockResolvedValue([
+        { id: "cert-asc-1", attributes: { serialNumber: "abc12345" } },
+      ]);
+      mocks.bundleIdFindAsync.mockResolvedValue(null);
+      mocks.bundleIdCreateAsync.mockResolvedValue({ id: "bundle-asc-new" });
+      mocks.deviceGetAllIosAsync.mockResolvedValue([{ id: "dev1" }, { id: "dev2" }]);
+      mocks.profileCreateAsync.mockResolvedValue({
+        attributes: { profileContent: btoa("fake-adhoc") },
+      });
+
+      const api = buildApi();
+      yield* generateAndUploadProvisioningProfileViaAppleId(api, {
+        context,
+        distributionCertificateId: "cert-local-1",
+        bundleIdentifier: "com.example.app",
+        distributionType: "AD_HOC",
+      });
+
+      expect(mocks.bundleIdCreateAsync).toHaveBeenCalledTimes(1);
+      expect(mocks.deviceGetAllIosAsync).toHaveBeenCalledTimes(1);
+      const [, profileArgs] = mocks.profileCreateAsync.mock.calls[0] as [
+        unknown,
+        { profileType: string; devices: string[] },
+      ];
+      expect(profileArgs.profileType).toBe("IOS_APP_ADHOC");
+      expect(profileArgs.devices).toStrictEqual(["dev1", "dev2"]);
+    }),
+  );
+
+  it.effect("fails when Apple has no matching certificate for the local serial number", () =>
+    Effect.gen(function* () {
+      mocks.certificateGetAsync.mockResolvedValue([
+        { id: "cert-asc-other", attributes: { serialNumber: "zz9999" } },
+      ]);
+      mocks.bundleIdFindAsync.mockResolvedValue({ id: "bundle-asc-1" });
+
+      const api = buildApi();
+      const exit = yield* Effect.exit(
+        generateAndUploadProvisioningProfileViaAppleId(api, {
+          context,
+          distributionCertificateId: "cert-local-1",
+          bundleIdentifier: "com.example.app",
+          distributionType: "APP_STORE",
+        }),
+      );
+
+      expect(exit._tag).toBe("Failure");
+    }),
+  );
+});

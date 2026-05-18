@@ -28,6 +28,13 @@ export class AppleSessionStore extends Context.Tag("cli/AppleSessionStore")<
     readonly loadSession: Effect.Effect<SerializedAppleSession | null>;
     readonly saveSession: (session: SerializedAppleSession) => Effect.Effect<void, AppleAuthError>;
     readonly clearSession: Effect.Effect<void>;
+    /**
+     * Last-used Apple ID for prompt pre-fill, persisted independently of the
+     * cookie session. Survives `clearSession` (i.e. `apple logout`) so the next
+     * login prompts with a default that matches the user's previous entry.
+     */
+    readonly loadLastUsername: Effect.Effect<string | null>;
+    readonly saveLastUsername: (username: string) => Effect.Effect<void, AppleAuthError>;
   }
 >() {}
 
@@ -39,6 +46,7 @@ export const AppleSessionStoreLive = Layer.effect(
     const homeDirectory = yield* runtime.homeDirectory;
     const sessionDir = path.join(homeDirectory, ".better-update");
     const sessionFile = path.join(sessionDir, "apple-session.json");
+    const usernameFile = path.join(sessionDir, "apple-username.json");
 
     return {
       loadSession: Effect.gen(function* () {
@@ -95,6 +103,35 @@ export const AppleSessionStoreLive = Layer.effect(
         ),
 
       clearSession: fs.remove(sessionFile).pipe(Effect.catchAll(() => Effect.void)),
+
+      loadLastUsername: Effect.gen(function* () {
+        const content = yield* fs
+          .readFileString(usernameFile)
+          .pipe(Effect.catchAll(() => Effect.succeed(null)));
+        if (!content) {
+          return null;
+        }
+        const parsed = safeJsonParse(content);
+        if (!isRecord(parsed) || typeof parsed["username"] !== "string") {
+          return null;
+        }
+        return parsed["username"];
+      }),
+
+      saveLastUsername: (username: string) =>
+        Effect.gen(function* () {
+          yield* fs.makeDirectory(sessionDir, { recursive: true });
+          yield* fs.chmod(sessionDir, 0o700);
+          yield* fs.writeFileString(usernameFile, `${JSON.stringify({ username }, null, 2)}\n`);
+          yield* fs.chmod(usernameFile, 0o600);
+        }).pipe(
+          Effect.mapError(
+            (cause) =>
+              new AppleAuthError({
+                message: `Failed to save Apple username: ${formatCause(cause)}`,
+              }),
+          ),
+        ),
     };
   }),
 );

@@ -9,12 +9,17 @@ export type EasDistribution = "internal" | "store";
 
 export type EasIosDistributionOverride = "app-store" | "ad-hoc" | "development" | "enterprise";
 
+export type EasIosAutoIncrement = boolean | "buildNumber" | "version";
+export type EasAndroidAutoIncrement = boolean | "versionCode" | "version";
+export type EasAutoIncrement = boolean | "buildNumber" | "versionCode" | "version";
+
 export interface EasIosProfile {
   readonly distribution?: EasIosDistributionOverride;
   readonly buildConfiguration?: string;
   readonly scheme?: string;
   readonly simulator?: boolean;
   readonly enterpriseProvisioning?: "adhoc" | "universal";
+  readonly autoIncrement?: EasIosAutoIncrement;
 }
 
 export interface EasAndroidProfile {
@@ -23,6 +28,7 @@ export interface EasAndroidProfile {
   readonly gradleCommand?: string;
   readonly format?: "apk" | "aab";
   readonly distribution?: "play-store" | "direct";
+  readonly autoIncrement?: EasAndroidAutoIncrement;
 }
 
 export type EasCredentialsSource = "remote" | "local";
@@ -37,6 +43,7 @@ export interface EasBuildProfile {
   readonly ios?: EasIosProfile;
   readonly android?: EasAndroidProfile;
   readonly credentialsSource?: EasCredentialsSource;
+  readonly autoIncrement?: EasAutoIncrement;
 }
 
 export interface EasConfig {
@@ -99,6 +106,32 @@ const asAndroidDistribution = (raw: unknown): "play-store" | "direct" | undefine
   return value === "play-store" || value === "direct" ? value : undefined;
 };
 
+const asIosAutoIncrement = (raw: unknown): EasIosAutoIncrement | undefined => {
+  if (typeof raw === "boolean") {
+    return raw;
+  }
+  const value = asStringValue(raw);
+  return value === "buildNumber" || value === "version" ? value : undefined;
+};
+
+const asAndroidAutoIncrement = (raw: unknown): EasAndroidAutoIncrement | undefined => {
+  if (typeof raw === "boolean") {
+    return raw;
+  }
+  const value = asStringValue(raw);
+  return value === "versionCode" || value === "version" ? value : undefined;
+};
+
+const asAutoIncrement = (raw: unknown): EasAutoIncrement | undefined => {
+  if (typeof raw === "boolean") {
+    return raw;
+  }
+  const value = asStringValue(raw);
+  return value === "buildNumber" || value === "versionCode" || value === "version"
+    ? value
+    : undefined;
+};
+
 const asEasDistribution = (raw: unknown): EasDistribution | undefined => {
   const value = asStringValue(raw);
   return value === "internal" || value === "store" ? value : undefined;
@@ -119,12 +152,14 @@ const parseIosProfile = (raw: unknown): EasIosProfile | undefined => {
   const scheme = asStringValue(record["scheme"]);
   const simulator = asBooleanValue(record["simulator"]);
   const enterpriseProvisioning = asEnterpriseProvisioning(record["enterpriseProvisioning"]);
+  const autoIncrement = asIosAutoIncrement(record["autoIncrement"]);
   return {
     ...(distribution === undefined ? {} : { distribution }),
     ...(buildConfiguration === undefined ? {} : { buildConfiguration }),
     ...(scheme === undefined ? {} : { scheme }),
     ...(simulator === undefined ? {} : { simulator }),
     ...(enterpriseProvisioning === undefined ? {} : { enterpriseProvisioning }),
+    ...(autoIncrement === undefined ? {} : { autoIncrement }),
   };
 };
 
@@ -138,12 +173,14 @@ const parseAndroidProfile = (raw: unknown): EasAndroidProfile | undefined => {
   const gradleCommand = asStringValue(record["gradleCommand"]);
   const format = asAndroidFormat(record["format"]);
   const distribution = asAndroidDistribution(record["distribution"]);
+  const autoIncrement = asAndroidAutoIncrement(record["autoIncrement"]);
   return {
     ...(buildType === undefined ? {} : { buildType }),
     ...(flavor === undefined ? {} : { flavor }),
     ...(gradleCommand === undefined ? {} : { gradleCommand }),
     ...(format === undefined ? {} : { format }),
     ...(distribution === undefined ? {} : { distribution }),
+    ...(autoIncrement === undefined ? {} : { autoIncrement }),
   };
 };
 
@@ -161,6 +198,7 @@ const parseBuildProfile = (raw: unknown): EasBuildProfile | undefined => {
   const ios = parseIosProfile(record["ios"]);
   const android = parseAndroidProfile(record["android"]);
   const credentialsSource = asCredentialsSource(record["credentialsSource"]);
+  const autoIncrement = asAutoIncrement(record["autoIncrement"]);
   return {
     ...(extendsName === undefined ? {} : { extends: extendsName }),
     ...(developmentClient === undefined ? {} : { developmentClient }),
@@ -171,6 +209,7 @@ const parseBuildProfile = (raw: unknown): EasBuildProfile | undefined => {
     ...(ios === undefined ? {} : { ios }),
     ...(android === undefined ? {} : { android }),
     ...(credentialsSource === undefined ? {} : { credentialsSource }),
+    ...(autoIncrement === undefined ? {} : { autoIncrement }),
   };
 };
 
@@ -290,6 +329,7 @@ const mergeProfile = (base: EasBuildProfile, overlay: EasBuildProfile): EasBuild
   const channel = overlay.channel ?? base.channel;
   const environment = overlay.environment ?? base.environment;
   const credentialsSource = overlay.credentialsSource ?? base.credentialsSource;
+  const autoIncrement = overlay.autoIncrement ?? base.autoIncrement;
   return {
     ...(overlay.extends === undefined ? {} : { extends: overlay.extends }),
     ...(developmentClient === undefined ? {} : { developmentClient }),
@@ -300,6 +340,7 @@ const mergeProfile = (base: EasBuildProfile, overlay: EasBuildProfile): EasBuild
     ...(ios === undefined ? {} : { ios }),
     ...(android === undefined ? {} : { android }),
     ...(credentialsSource === undefined ? {} : { credentialsSource }),
+    ...(autoIncrement === undefined ? {} : { autoIncrement }),
   };
 };
 

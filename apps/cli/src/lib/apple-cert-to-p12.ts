@@ -60,6 +60,67 @@ const parseCert = (certDerBytes: string): forge.pki.Certificate => {
 
 const generatePassword = (): string => forge.util.encode64(forge.random.getBytesSync(16));
 
+const extractCertMetadata = (
+  cert: forge.pki.Certificate,
+): Effect.Effect<CertMetadata, CertParseError> =>
+  Effect.gen(function* () {
+    const appleTeamId = extractTeamId(cert);
+    if (appleTeamId === null) {
+      return yield* Effect.fail(
+        new CertParseError({
+          message: "Could not extract Apple team identifier from certificate subject",
+        }),
+      );
+    }
+    return {
+      serialNumber: cert.serialNumber.toUpperCase(),
+      validFrom: cert.validity.notBefore.toISOString(),
+      validUntil: cert.validity.notAfter.toISOString(),
+      appleTeamId,
+      appleTeamName: stringField(cert, "O"),
+      developerIdIdentifier: stringField(cert, "UID"),
+      commonName: stringField(cert, "CN"),
+    };
+  });
+
+/**
+ * Parse a PKCS#12 base64 bundle and extract certificate metadata. Used by the
+ * Apple-ID flow which receives a P12 directly from `createCertificateAndP12Async`
+ * and needs metadata before uploading to the better-update server.
+ */
+export const extractMetadataFromP12 = (params: {
+  readonly p12Base64: string;
+  readonly password: string;
+}): Effect.Effect<CertMetadata, CertParseError> =>
+  Effect.gen(function* () {
+    const certBagOid = forge.pki.oids["certBag"];
+    if (certBagOid === undefined) {
+      return yield* Effect.fail(
+        new CertParseError({ message: "PKCS#12 OID lookup for certBag failed" }),
+      );
+    }
+    const bags = yield* Effect.try({
+      try: () => {
+        const p12Der = forge.util.decode64(params.p12Base64);
+        const p12Asn1 = forge.asn1.fromDer(p12Der);
+        const p12 = forge.pkcs12.pkcs12FromAsn1(p12Asn1, false, params.password);
+        const certBags = p12.getBags({ bagType: certBagOid });
+        return certBags[certBagOid] ?? [];
+      },
+      catch: (error) =>
+        new CertParseError({
+          message: `Failed to parse PKCS#12 bundle: ${error instanceof Error ? error.message : String(error)}`,
+        }),
+    });
+    const [first] = bags;
+    if (first?.cert === undefined) {
+      return yield* Effect.fail(
+        new CertParseError({ message: "PKCS#12 bundle does not contain a certificate" }),
+      );
+    }
+    return yield* extractCertMetadata(first.cert);
+  });
+
 export const buildDistributionCertP12 = (params: {
   readonly certificateContentBase64: string;
   readonly privateKey: forge.pki.rsa.PrivateKey;
@@ -82,25 +143,10 @@ export const buildDistributionCertP12 = (params: {
           message: `Failed to assemble .p12: ${error instanceof Error ? error.message : String(error)}`,
         }),
     });
-    const appleTeamId = extractTeamId(result.cert);
-    if (appleTeamId === null) {
-      return yield* Effect.fail(
-        new CertParseError({
-          message: "Could not extract Apple team identifier from certificate subject",
-        }),
-      );
-    }
+    const metadata = yield* extractCertMetadata(result.cert);
     return {
       p12Base64: result.p12Base64,
       password: result.password,
-      metadata: {
-        serialNumber: result.cert.serialNumber.toUpperCase(),
-        validFrom: result.cert.validity.notBefore.toISOString(),
-        validUntil: result.cert.validity.notAfter.toISOString(),
-        appleTeamId,
-        appleTeamName: stringField(result.cert, "O"),
-        developerIdIdentifier: stringField(result.cert, "UID"),
-        commonName: stringField(result.cert, "CN"),
-      },
+      metadata,
     };
   });

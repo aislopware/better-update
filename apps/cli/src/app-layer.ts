@@ -5,6 +5,7 @@ import { Layer } from "effect";
 import { makeInteractiveModeLayer } from "./lib/interactive-mode";
 import { makeOutputModeLayer } from "./lib/output-mode";
 import { ApiClientLive } from "./services/api-client";
+import { AppleAuthLive } from "./services/apple-auth";
 import { AppleSessionStoreLive } from "./services/apple-session-store";
 import { AuthStoreLive } from "./services/auth-store";
 import { CliRuntimeLive } from "./services/cli-runtime";
@@ -19,6 +20,7 @@ const CliStoreLayer = Layer.mergeAll(AuthStoreLive, ConfigStoreLive, AppleSessio
 );
 const CliAdapterDependencies = Layer.mergeAll(CliPlatformLayer, CliStoreLayer);
 const ApiClientLayer = ApiClientLive.pipe(Layer.provide(CliAdapterDependencies));
+const AppleAuthLayer = AppleAuthLive.pipe(Layer.provide(CliAdapterDependencies));
 const PresignedUploadLayer = PresignedUploadClientLive.pipe(Layer.provide(CliPlatformLayer));
 const UpdateAssetUploaderLayer = UpdateAssetUploaderLive.pipe(
   Layer.provide(Layer.mergeAll(ApiClientLayer, PresignedUploadLayer)),
@@ -29,6 +31,7 @@ export const makeCliLive = (options: { readonly json: boolean; readonly interact
   Layer.mergeAll(
     CliAdapterDependencies,
     ApiClientLayer,
+    AppleAuthLayer,
     PresignedUploadLayer,
     UpdateAssetUploaderLayer,
     VersionCheckLayer,

@@ -6,16 +6,20 @@ import { Console, Effect } from "effect";
 import { runAndroidBuild } from "../commands/build/android";
 import { runIosBuild } from "../commands/build/ios";
 import { reserveAndUpload } from "../commands/build/reserve-and-upload";
+import { applyAutoIncrement } from "../lib/auto-increment";
 import { readBuildProfile } from "../lib/build-profile";
 import { clearBuildCaches } from "../lib/clear-cache";
+import { readEasJson } from "../lib/eas-config";
 import { pullEnvVars } from "../lib/env-exporter";
 import { BuildProfileError } from "../lib/exit-codes";
 import { extractProjectId, readAppMeta, readExpoConfig } from "../lib/expo-config";
 import { formatCause } from "../lib/format-error";
 import { readGitContext } from "../lib/git-context";
 import { readGradleConfig, warnOnGradleMismatch } from "../lib/gradle-config";
+import { InteractiveMode } from "../lib/interactive-mode";
 import { printHuman, printKeyValue } from "../lib/output";
 import { detectPlatform } from "../lib/platform-detect";
+import { promptSelect } from "../lib/prompts";
 import { ensureRepoClean } from "../lib/repo-clean";
 import { resolveRuntimeVersion } from "../lib/runtime-version";
 import { acquireBuildTempDir } from "../lib/temp-dir";
@@ -149,6 +153,26 @@ const runAndroidPlatformBuild = (input: PlatformBuildInput) =>
 const runPlatformBuild = (input: PlatformBuildInput) =>
   input.platform === "ios" ? runIosPlatformBuild(input) : runAndroidPlatformBuild(input);
 
+const resolveProfileName = (projectRoot: string, requested: string) =>
+  Effect.gen(function* () {
+    const easConfig = yield* readEasJson(projectRoot);
+    const available = Object.keys(easConfig.build ?? {});
+    if (available.includes(requested)) {
+      return requested;
+    }
+    const mode = yield* InteractiveMode;
+    if (!mode.allow || available.length === 0) {
+      // Let readBuildProfile fail with its existing "not found" message,
+      // or with the empty-build-section message when applicable.
+      return requested;
+    }
+    yield* Console.log(`Build profile "${requested}" not found in eas.json.`);
+    return yield* promptSelect<string>(
+      "Pick a build profile:",
+      available.map((name) => ({ value: name, label: name })),
+    );
+  });
+
 export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
   Effect.scoped(
     // eslint-disable-next-line eslint/max-statements -- build orchestration is inherently sequential (read config → detect platform → resolve profile → pull env → build → upload); splitting further fragments the pipeline
@@ -168,8 +192,13 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
       const projectId = yield* extractProjectId(baseConfig);
       const platform = yield* detectPlatform(options.platform, baseConfig);
 
+      // Resolve profile name — when the requested profile is missing in
+      // eas.json AND we're interactive, offer a picker over the available
+      // profiles. In CI we let readBuildProfile error with its hint.
+      const profileName = yield* resolveProfileName(projectRoot, options.profileName);
+
       // Resolve the build profile from eas.json — static, env-independent.
-      const profile = yield* readBuildProfile(projectRoot, options.profileName);
+      const profile = yield* readBuildProfile(projectRoot, profileName);
 
       // Pull env vars for the profile's environment scope.
       const envVars = yield* pullEnvVars(api, {
@@ -182,7 +211,24 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
       // (bundleId, version, runtimeVersion). envVars are scoped to the call
       // so they don't leak to child processes.
       const expoConfig = yield* readExpoConfig(projectRoot, envVars);
-      const appMeta = yield* readAppMeta(expoConfig, platform);
+
+      // Apply autoIncrement BEFORE readAppMeta so the bumped values flow into
+      // the build artifact and the upload metadata. No-op when the profile
+      // doesn't request it; dynamic configs are detected + logged inside.
+      yield* applyAutoIncrement({
+        projectRoot,
+        platform,
+        config: expoConfig,
+        ...(platform === "ios" && profile.ios?.autoIncrement !== undefined
+          ? { iosMode: profile.ios.autoIncrement }
+          : {}),
+        ...(platform === "android" && profile.android?.autoIncrement !== undefined
+          ? { androidMode: profile.android.autoIncrement }
+          : {}),
+      });
+
+      const bumpedConfig = yield* readExpoConfig(projectRoot, envVars);
+      const appMeta = yield* readAppMeta(bumpedConfig, platform);
 
       const runtimeVersion = yield* resolveRuntimeVersion({
         raw: appMeta.rawRuntimeVersion,
