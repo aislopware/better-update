@@ -1,11 +1,12 @@
 import path from "node:path";
 
 import { Command, FileSystem } from "@effect/platform";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import type { CommandExecutor } from "@effect/platform";
 
 import { parsePlist, parsePlistXml } from "./plist";
+import { printWarn } from "./warning-style";
 
 export interface ExpectedSignedTarget {
   /** Runtime bundle identifier from the bundle's Info.plist. */
@@ -20,11 +21,6 @@ export interface IosValidationParams {
   readonly expectedTargets: readonly ExpectedSignedTarget[];
   /** Shared team ID across all targets. */
   readonly expectedTeamId: string;
-}
-
-export interface ValidationResult {
-  readonly passed: boolean;
-  readonly warnings: readonly string[];
 }
 
 /**
@@ -79,13 +75,7 @@ const validateOneBundle = (
     return { bundleId, warnings: profileWarnings };
   });
 
-export const validateIosBuild = (
-  params: IosValidationParams,
-): Effect.Effect<
-  ValidationResult,
-  never,
-  CommandExecutor.CommandExecutor | FileSystem.FileSystem
-> =>
+export const validateIosBuild = (params: IosValidationParams) =>
   Effect.gen(function* () {
     const appDir = yield* findAppDirectory(params.archivePath).pipe(
       Effect.catchAll(() => Effect.succeed(undefined)),
@@ -122,9 +112,9 @@ export const validateIosBuild = (
     }
 
     if (warnings.length > 0) {
-      yield* Console.warn("Post-build validation warnings:");
+      yield* printWarn("Post-build validation warnings:");
       for (const warning of warnings) {
-        yield* Console.warn(`  - ${warning}`);
+        yield* printWarn(`  - ${warning}`);
       }
     }
 

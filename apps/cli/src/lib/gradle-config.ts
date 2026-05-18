@@ -2,7 +2,9 @@ import path from "node:path";
 
 import { asRecord } from "@better-update/type-guards";
 import { FileSystem } from "@effect/platform";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
+
+import { printWarn } from "./warning-style";
 
 export interface GradleConfig {
   readonly applicationId?: string;
@@ -68,14 +70,14 @@ export const readGradleConfig = (
 export const warnOnGradleMismatch = (
   gradleConfig: GradleConfig | undefined,
   expectedPackage: string,
-): Effect.Effect<void> => {
+) => {
   if (!gradleConfig?.applicationId) {
     return Effect.void;
   }
   if (gradleConfig.applicationId === expectedPackage) {
     return Effect.void;
   }
-  return Console.warn(
+  return printWarn(
     `Gradle applicationId "${gradleConfig.applicationId}" differs from app.json package "${expectedPackage}". ` +
       `The Gradle value will be used in the built APK/AAB.`,
   );
