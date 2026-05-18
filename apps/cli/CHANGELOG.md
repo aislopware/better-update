@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.14.3](https://github.com/better-update/better-update/compare/@better-update/cli@0.14.2...@better-update/cli@0.14.3) (2026-05-18)
+
+### Bug Fixes
+
+* **cli:** unwrap @expo/plist default export for Node ESM ([a4f54b6](https://github.com/better-update/better-update/commit/a4f54b6b6cb425578202c1cc2f2d32dfe329e2d1)) - by @trancong12102
+
 ## [0.14.2](https://github.com/better-update/better-update/compare/@better-update/cli@0.14.1...@better-update/cli@0.14.2) (2026-05-18)
 
 ### Bug Fixes
