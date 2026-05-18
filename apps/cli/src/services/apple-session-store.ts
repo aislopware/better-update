@@ -15,11 +15,14 @@ import { CliRuntime } from "./cli-runtime";
 // Derived structurally so we don't depend on the un-exported `CookiesJSON` alias.
 export type AppleSessionCookies = Parameters<typeof Auth.loginWithCookiesAsync>[0]["cookies"];
 
+// Team and provider are intentionally NOT persisted: the user must be free to
+// re-pick a team each run (e.g. after picking the wrong one). The cookies still
+// carry an apple-utils-internal "current team" hint, but the team is re-resolved
+// (via env override, single-team auto-pick, or interactive prompt) on every
+// `ensureLoggedIn` call so a stale pick can't lock the user out.
 export interface SerializedAppleSession {
   readonly cookies: AppleSessionCookies;
-  readonly teamId: string;
   readonly username: string;
-  readonly providerId?: number;
 }
 
 export class AppleSessionStore extends Context.Tag("cli/AppleSessionStore")<
@@ -63,16 +66,9 @@ export const AppleSessionStoreLive = Layer.effect(
           return null;
         }
 
-        if (
-          typeof parsed["teamId"] !== "string" ||
-          typeof parsed["username"] !== "string" ||
-          !parsed["cookies"]
-        ) {
+        if (typeof parsed["username"] !== "string" || !parsed["cookies"]) {
           return null;
         }
-
-        const providerIdRaw = parsed["providerId"];
-        const hasProviderId = typeof providerIdRaw === "number" && Number.isInteger(providerIdRaw);
 
         // eslint-disable-next-line typescript/no-unsafe-type-assertion, typescript/no-unsafe-assignment -- AppleSessionCookies is an opaque cookies payload from @expo/apple-utils; round-tripped verbatim from disk
         const cookies = parsed["cookies"] as AppleSessionCookies;
@@ -80,9 +76,7 @@ export const AppleSessionStoreLive = Layer.effect(
         const session: SerializedAppleSession = {
           // eslint-disable-next-line typescript/no-unsafe-assignment -- see disable on the `cookies` declaration above; same opaque value
           cookies,
-          teamId: parsed["teamId"],
           username: parsed["username"],
-          ...(hasProviderId ? { providerId: providerIdRaw } : {}),
         };
         return session;
       }),

@@ -1,17 +1,24 @@
 import { Effect } from "effect";
 
 import type { Session } from "@expo/apple-utils";
-// eslint-disable-next-line import-plugin/no-namespace -- the `appleUtils` injected dependency is typed as `typeof AppleUtils` (the whole module shape); no equivalent named type exists
-import type * as AppleUtils from "@expo/apple-utils";
 
 import { CliRuntime } from "../services/cli-runtime";
-import { AppleAuthError } from "./exit-codes";
+import { AppleAuthError, InteractiveProhibitedError } from "./exit-codes";
+import { InteractiveMode } from "./interactive-mode";
 import { promptSelect } from "./prompts";
 
-import type { InteractiveProhibitedError } from "./exit-codes";
-import type { InteractiveMode } from "./interactive-mode";
-
 type SessionProvider = Session.SessionProvider;
+
+/**
+ * Minimal apple-utils surface needed by {@link resolveProvider}. Defined as a
+ * structural subset so the helper stays decoupled from the full `typeof AppleUtils`
+ * shape (which would force callers to import the whole module).
+ */
+export interface ProviderSwitcher {
+  readonly Session: {
+    readonly setSessionProviderIdAsync: (id: number) => Promise<unknown>;
+  };
+}
 
 interface ProviderResolution {
   readonly providerId: number | undefined;
@@ -48,7 +55,7 @@ const readEnvProviderId: Effect.Effect<number | undefined, AppleAuthError, CliRu
 );
 
 const switchSessionProvider = (
-  appleUtils: typeof AppleUtils,
+  appleUtils: ProviderSwitcher,
   providerId: number,
 ): Effect.Effect<void, AppleAuthError> =>
   Effect.tryPromise({
@@ -59,26 +66,26 @@ const switchSessionProvider = (
       }),
   }).pipe(Effect.asVoid);
 
-const isProviderAvailable = (providers: readonly SessionProvider[], providerId: number): boolean =>
-  providers.some((provider) => provider.providerId === providerId);
-
 /**
- * Resolve App Store Connect provider for an interactive session.
+ * Resolve App Store Connect provider for the current session.
  *
- * Selection order: APPLE_PROVIDER_ID env → valid cached pick → single available
- * → preserve apple-utils' auto-resolved provider → prompt.
+ * Selection order: APPLE_PROVIDER_ID env → single available provider →
+ * interactive prompt (always, when multi-team + interactive) → fall back to
+ * apple-utils' currentProviderId (non-interactive only).
  *
- * `switched` flags that the apple-utils cookie jar was mutated; previously-captured
- * cookies are stale and callers should re-extract.
+ * Multi-team users are always re-prompted in interactive mode so a wrong pick
+ * from a previous run can be corrected — we do NOT cache the team choice.
  *
- * Headless-safe: prompt only fires when no env, no valid cache, multiple providers,
- * AND apple-utils returned no auto-resolved provider.
+ * `switched` flags that the apple-utils cookie jar was mutated.
+ *
+ * Non-interactive (CI): env or single-team paths still work; multi-team falls
+ * back to whatever apple-utils auto-resolved from cookies. Fails with
+ * InteractiveProhibitedError when multi-team and no signal at all.
  */
 export const resolveProvider = (
-  appleUtils: typeof AppleUtils,
+  appleUtils: ProviderSwitcher,
   availableProviders: readonly SessionProvider[],
   currentProviderId: number | undefined,
-  cachedProviderId: number | undefined,
 ): Effect.Effect<
   ProviderResolution,
   AppleAuthError | InteractiveProhibitedError,
@@ -102,14 +109,6 @@ export const resolveProvider = (
       return { providerId: id, switched };
     }
 
-    if (
-      cachedProviderId !== undefined &&
-      isProviderAvailable(availableProviders, cachedProviderId)
-    ) {
-      const id = yield* applyChoice(cachedProviderId);
-      return { providerId: id, switched };
-    }
-
     if (availableProviders.length === 0) {
       return { providerId: currentProviderId, switched };
     }
@@ -119,10 +118,16 @@ export const resolveProvider = (
       return { providerId: id, switched };
     }
 
-    // Multi-provider, no explicit signal: respect apple-utils auto-resolution
-    // (CI-safe). Only fall through to prompt when apple-utils returned nothing.
-    if (currentProviderId !== undefined) {
-      return { providerId: currentProviderId, switched };
+    // Multi-provider: always prompt in interactive so a wrong pick is recoverable.
+    const mode = yield* InteractiveMode;
+    if (!mode.allow) {
+      if (currentProviderId !== undefined) {
+        return { providerId: currentProviderId, switched };
+      }
+      return yield* new InteractiveProhibitedError({
+        message:
+          "Multiple App Store Connect providers are available but no APPLE_PROVIDER_ID is set; re-run interactively or set the env var.",
+      });
     }
 
     const picked = yield* promptSelect<number>(

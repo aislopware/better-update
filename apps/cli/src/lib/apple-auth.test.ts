@@ -7,8 +7,8 @@ import type * as AppleUtils from "@expo/apple-utils";
 
 import { CliRuntime } from "../services/cli-runtime";
 import { parseProviderId, resolveProvider } from "./apple-auth";
-import { AppleAuthError } from "./exit-codes";
-import { InteractiveModeLive } from "./interactive-mode";
+import { AppleAuthError, InteractiveProhibitedError } from "./exit-codes";
+import { InteractiveModeLive, makeInteractiveModeLayer } from "./interactive-mode";
 
 // ── helpers ──────────────────────────────────────────────────────
 
@@ -104,7 +104,7 @@ describe(resolveProvider, () => {
         return null;
       });
 
-      const result = yield* resolveProvider(appleUtils, [provider(1), provider(2)], 1, undefined);
+      const result = yield* resolveProvider(appleUtils, [provider(1), provider(2)], 1);
 
       expect(result).toStrictEqual({ providerId: 2, switched: true });
       expect(calls).toStrictEqual([2]);
@@ -119,7 +119,7 @@ describe(resolveProvider, () => {
         return null;
       });
 
-      const result = yield* resolveProvider(appleUtils, [provider(1), provider(2)], 1, undefined);
+      const result = yield* resolveProvider(appleUtils, [provider(1), provider(2)], 1);
 
       expect(result).toStrictEqual({ providerId: 1, switched: false });
       expect(calls).toStrictEqual([]);
@@ -129,52 +129,16 @@ describe(resolveProvider, () => {
   it.effect("invalid env value fails with AppleAuthError", () =>
     Effect.gen(function* () {
       const appleUtils = makeAppleUtilsStub();
-      const exit = yield* Effect.exit(resolveProvider(appleUtils, [provider(1)], 1, undefined));
+      const exit = yield* Effect.exit(resolveProvider(appleUtils, [provider(1)], 1));
       expect(Exit.isFailure(exit)).toBe(true);
     }).pipe(Effect.provide(provideTestServices({ APPLE_PROVIDER_ID: "not-a-number" }))),
-  );
-
-  it.effect("uses cached provider when still available", () =>
-    Effect.gen(function* () {
-      const calls: number[] = [];
-      const appleUtils = makeAppleUtilsStub(async (id) => {
-        calls.push(id);
-        return null;
-      });
-
-      const result = yield* resolveProvider(
-        appleUtils,
-        [provider(1), provider(2), provider(3)],
-        1,
-        3,
-      );
-
-      expect(result).toStrictEqual({ providerId: 3, switched: true });
-      expect(calls).toStrictEqual([3]);
-    }).pipe(Effect.provide(provideTestServices())),
-  );
-
-  it.effect("ignores stale cached provider and falls through to single available", () =>
-    Effect.gen(function* () {
-      const calls: number[] = [];
-      const appleUtils = makeAppleUtilsStub(async (id) => {
-        calls.push(id);
-        return null;
-      });
-
-      // Cached provider 99 no longer in availableProviders → fall through.
-      const result = yield* resolveProvider(appleUtils, [provider(7)], 7, 99);
-
-      expect(result).toStrictEqual({ providerId: 7, switched: false });
-      expect(calls).toStrictEqual([]);
-    }).pipe(Effect.provide(provideTestServices())),
   );
 
   it.effect("returns currentProviderId when availableProviders is empty", () =>
     Effect.gen(function* () {
       const appleUtils = makeAppleUtilsStub();
 
-      const result = yield* resolveProvider(appleUtils, [], 5, undefined);
+      const result = yield* resolveProvider(appleUtils, [], 5);
 
       expect(result).toStrictEqual({ providerId: 5, switched: false });
     }).pipe(Effect.provide(provideTestServices())),
@@ -184,7 +148,7 @@ describe(resolveProvider, () => {
     Effect.gen(function* () {
       const appleUtils = makeAppleUtilsStub();
 
-      const result = yield* resolveProvider(appleUtils, [], undefined, undefined);
+      const result = yield* resolveProvider(appleUtils, [], undefined);
 
       expect(result).toStrictEqual({ providerId: undefined, switched: false });
     }).pipe(Effect.provide(provideTestServices())),
@@ -198,7 +162,7 @@ describe(resolveProvider, () => {
         return null;
       });
 
-      const result = yield* resolveProvider(appleUtils, [provider(42)], undefined, undefined);
+      const result = yield* resolveProvider(appleUtils, [provider(42)], undefined);
 
       expect(result).toStrictEqual({ providerId: 42, switched: true });
       expect(calls).toStrictEqual([42]);
@@ -206,7 +170,7 @@ describe(resolveProvider, () => {
   );
 
   it.effect(
-    "multi-provider with no env, no cache, autoresolved current → preserves without prompt",
+    "multi-provider non-interactive with auto-resolved current → preserves without prompt",
     () =>
       Effect.gen(function* () {
         const calls: number[] = [];
@@ -215,37 +179,38 @@ describe(resolveProvider, () => {
           return null;
         });
 
-        // CurrentProviderId is set (apple-utils auto-resolved). No prompt — CI-safe.
+        // Non-interactive: trust apple-utils' auto-resolved current as CI-safe fallback.
         const result = yield* resolveProvider(
           appleUtils,
           [provider(1), provider(2), provider(3)],
           2,
-          undefined,
         );
 
         expect(result).toStrictEqual({ providerId: 2, switched: false });
         expect(calls).toStrictEqual([]);
-      }).pipe(Effect.provide(provideTestServices())),
+      }).pipe(
+        Effect.provide(Layer.mergeAll(makeCliRuntimeLayer(), makeInteractiveModeLayer(false))),
+      ),
   );
 
-  it.effect("env value takes precedence over cached pick", () =>
-    Effect.gen(function* () {
-      const calls: number[] = [];
-      const appleUtils = makeAppleUtilsStub(async (id) => {
-        calls.push(id);
-        return null;
-      });
+  it.effect(
+    "multi-provider non-interactive with no env and no current → InteractiveProhibitedError",
+    () =>
+      Effect.gen(function* () {
+        const appleUtils = makeAppleUtilsStub();
 
-      const result = yield* resolveProvider(
-        appleUtils,
-        [provider(1), provider(2), provider(3)],
-        1,
-        3,
-      );
+        const exit = yield* Effect.exit(
+          resolveProvider(appleUtils, [provider(1), provider(2)], undefined),
+        );
 
-      expect(result).toStrictEqual({ providerId: 2, switched: true });
-      expect(calls).toStrictEqual([2]);
-    }).pipe(Effect.provide(provideTestServices({ APPLE_PROVIDER_ID: "2" }))),
+        expect(Exit.isFailure(exit)).toBe(true);
+        if (Exit.isFailure(exit)) {
+          const err = exit.cause._tag === "Fail" ? exit.cause.error : null;
+          expect(err).toBeInstanceOf(InteractiveProhibitedError);
+        }
+      }).pipe(
+        Effect.provide(Layer.mergeAll(makeCliRuntimeLayer(), makeInteractiveModeLayer(false))),
+      ),
   );
 
   it.effect("propagates AppleAuthError when setSessionProviderIdAsync rejects", () =>
@@ -254,9 +219,7 @@ describe(resolveProvider, () => {
         throw new Error("provider not accessible");
       });
 
-      const exit = yield* Effect.exit(
-        resolveProvider(appleUtils, [provider(1), provider(2)], 1, undefined),
-      );
+      const exit = yield* Effect.exit(resolveProvider(appleUtils, [provider(1), provider(2)], 1));
 
       expect(Exit.isFailure(exit)).toBe(true);
       if (Exit.isFailure(exit)) {

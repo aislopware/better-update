@@ -46,7 +46,7 @@ const providers: readonly Session.SessionProvider[] = [
 ];
 
 const program = Effect.gen(function* () {
-  const result = yield* resolveProvider(fakeAppleUtils, providers, undefined, undefined);
+  const result = yield* resolveProvider(fakeAppleUtils, providers, undefined);
   // Distinctive marker so the PTY test can extract the JSON past any rendered prompt text.
   // eslint-disable-next-line eslint/no-console -- interactive PTY harness prints a parseable marker to stdout; Effect.Console adds formatting that breaks the parser
   console.log(`RESULT=${JSON.stringify(result)}`);

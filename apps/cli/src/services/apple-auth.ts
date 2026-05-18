@@ -5,6 +5,7 @@ import { Context, Effect, Layer } from "effect";
 
 import type { Auth, RequestContext, Session } from "@expo/apple-utils";
 
+import { resolveProvider } from "../lib/apple-auth";
 import { AppleAuthError, InteractiveProhibitedError } from "../lib/exit-codes";
 import { formatCause } from "../lib/format-error";
 import { InteractiveMode } from "../lib/interactive-mode";
@@ -12,6 +13,7 @@ import { promptPassword, promptText } from "../lib/prompts";
 import { AppleSessionStore } from "./apple-session-store";
 
 import type { AppleSessionCookies } from "./apple-session-store";
+import type { CliRuntime } from "./cli-runtime";
 
 /**
  * Surface of `@expo/apple-utils` consumed by {@link AppleAuthLive}. Captured as
@@ -26,6 +28,7 @@ export interface AppleUtilsContract {
   };
   readonly Session: {
     readonly getAnySessionInfo: typeof AppleUtils.Session.getAnySessionInfo;
+    readonly setSessionProviderIdAsync: typeof AppleUtils.Session.setSessionProviderIdAsync;
   };
   readonly CookieFileCache: {
     readonly getCookiesJSON: typeof AppleUtils.CookieFileCache.getCookiesJSON;
@@ -62,7 +65,7 @@ export class AppleAuth extends Context.Tag("cli/AppleAuth")<
     ) => Effect.Effect<
       AppleAuthSession,
       AppleAuthError | InteractiveProhibitedError,
-      InteractiveMode
+      InteractiveMode | CliRuntime
     >;
     readonly logout: Effect.Effect<void>;
     readonly whoami: Effect.Effect<AppleAuthSession | null>;
@@ -84,27 +87,61 @@ const sessionFromInfo = (username: string, info: Session.SessionInfo): AppleAuth
   providerId: info.provider.providerId,
 });
 
+const sessionFromProvider = (
+  username: string,
+  provider: Session.SessionProvider,
+): AppleAuthSession => ({
+  username,
+  teamId: provider.publicProviderId,
+  teamName: provider.name,
+  providerId: provider.providerId,
+});
+
 type RestoreInput = Parameters<AppleUtilsContract["Auth"]["loginWithCookiesAsync"]>[0];
 
-const restoreFromCookies = (
-  appleUtils: AppleUtilsContract,
-  cookies: RestoreInput["cookies"],
-  providerId: number | undefined,
-  teamId: string | undefined,
-) =>
+const restoreFromCookies = (appleUtils: AppleUtilsContract, cookies: RestoreInput["cookies"]) =>
   Effect.tryPromise({
-    try: async () => {
-      const input: RestoreInput & { providerId?: number; teamId?: string } = {
-        cookies,
-        ...(providerId === undefined ? {} : { providerId }),
-        ...(teamId === undefined ? {} : { teamId }),
-      };
-      return appleUtils.Auth.loginWithCookiesAsync(input);
-    },
+    try: async () =>
+      // eslint-disable-next-line typescript/no-unsafe-assignment -- AppleSessionCookies resolves to `any` via tough-cookie's `CookieJar.Serialized`; round-tripped opaquely
+      appleUtils.Auth.loginWithCookiesAsync({ cookies }),
     catch: (cause) =>
       new AppleAuthError({
         message: `Failed to restore Apple session: ${formatCause(cause)}`,
       }),
+  });
+
+/**
+ * After a cookie restore or fresh credentials login, re-resolve the team via
+ * {@link resolveProvider}. The cookies are accepted as-is (auth state) but the
+ * team is treated as a per-run choice — we never trust a previously-cached team,
+ * so a wrong pick can always be corrected on the next run.
+ */
+const resolveSessionTeam = (
+  appleUtils: AppleUtilsContract,
+  state: Session.AuthState,
+): Effect.Effect<
+  AppleAuthSession,
+  AppleAuthError | InteractiveProhibitedError,
+  InteractiveMode | CliRuntime
+> =>
+  Effect.gen(function* () {
+    const { availableProviders } = state.session;
+    const currentProviderId = state.context.providerId ?? state.session.provider.providerId;
+    const resolution = yield* resolveProvider(appleUtils, availableProviders, currentProviderId);
+
+    if (!resolution.switched || resolution.providerId === undefined) {
+      return sessionFromAuthState(state);
+    }
+
+    const picked = availableProviders.find(
+      (provider) => provider.providerId === resolution.providerId,
+    );
+    if (picked === undefined) {
+      return yield* new AppleAuthError({
+        message: `Selected provider ${String(resolution.providerId)} not in available providers list.`,
+      });
+    }
+    return sessionFromProvider(state.username, picked);
   });
 
 const loginWithCredentials = (appleUtils: AppleUtilsContract, credentials: Auth.UserCredentials) =>
@@ -139,7 +176,7 @@ const interactiveLogin = (
 ): Effect.Effect<
   AppleAuthSession,
   AppleAuthError | InteractiveProhibitedError,
-  InteractiveMode | AppleSessionStore
+  InteractiveMode | CliRuntime | AppleSessionStore
 > =>
   Effect.gen(function* () {
     const store = yield* AppleSessionStore;
@@ -161,13 +198,11 @@ const interactiveLogin = (
         message: "Apple login returned no session (unexpected).",
       });
     }
-    const session = sessionFromAuthState(state);
+    const session = yield* resolveSessionTeam(appleUtils, state);
     yield* store.saveSession({
       // eslint-disable-next-line typescript/no-unsafe-assignment -- AppleSessionCookies resolves to `any` via tough-cookie's `CookieJar.Serialized`; round-tripped opaquely between apple-utils and the on-disk session store
       cookies: readJarCookies(appleUtils),
       username: session.username,
-      teamId: session.teamId,
-      ...(session.providerId === undefined ? {} : { providerId: session.providerId }),
     });
     yield* store.saveLastUsername(session.username);
     return session;
@@ -176,22 +211,23 @@ const interactiveLogin = (
 const tryRestore = (
   appleUtils: AppleUtilsContract,
   store: Context.Tag.Service<AppleSessionStore>,
-): Effect.Effect<AppleAuthSession | null, AppleAuthError> =>
+): Effect.Effect<
+  AppleAuthSession | null,
+  AppleAuthError | InteractiveProhibitedError,
+  InteractiveMode | CliRuntime
+> =>
   Effect.gen(function* () {
     const stored = yield* store.loadSession;
     if (stored === null) {
       return null;
     }
-    const restored = yield* restoreFromCookies(
-      appleUtils,
-      stored.cookies,
-      stored.providerId,
-      stored.teamId,
+    const restored = yield* restoreFromCookies(appleUtils, stored.cookies).pipe(
+      Effect.catchAll(() => Effect.succeed(null)),
     );
     if (restored === null) {
       return null;
     }
-    return sessionFromAuthState(restored);
+    return yield* resolveSessionTeam(appleUtils, restored);
   });
 
 export const makeAppleAuthLive = (appleUtils: AppleUtilsContract = defaultAppleUtils) =>
@@ -202,9 +238,7 @@ export const makeAppleAuthLive = (appleUtils: AppleUtilsContract = defaultAppleU
       return {
         ensureLoggedIn: (options: EnsureLoggedInOptions = {}) =>
           Effect.gen(function* () {
-            const restored = yield* tryRestore(appleUtils, store).pipe(
-              Effect.catchAll(() => Effect.succeed(null)),
-            );
+            const restored = yield* tryRestore(appleUtils, store);
             if (restored !== null) {
               return restored;
             }
@@ -226,26 +260,18 @@ export const makeAppleAuthLive = (appleUtils: AppleUtilsContract = defaultAppleU
           if (stored === null) {
             return null;
           }
-          const restored = yield* restoreFromCookies(
-            appleUtils,
-            stored.cookies,
-            stored.providerId,
-            stored.teamId,
-          ).pipe(Effect.catchAll(() => Effect.succeed(null)));
+          const restored = yield* restoreFromCookies(appleUtils, stored.cookies).pipe(
+            Effect.catchAll(() => Effect.succeed(null)),
+          );
           if (restored !== null) {
             return sessionFromAuthState(restored);
           }
-          // Cookies expired but we know who they were — surface that for `whoami`
-          // Without forcing a re-login here.
+          // Cookies expired — fall back to apple-utils' in-memory session info
+          // (set during the current process if any). Return null when we can't
+          // surface a team — we no longer cache teamId/providerId, so we'd
+          // otherwise have nothing useful to show.
           const info = appleUtils.Session.getAnySessionInfo();
-          return info === null
-            ? {
-                username: stored.username,
-                teamId: stored.teamId,
-                teamName: null,
-                providerId: stored.providerId,
-              }
-            : sessionFromInfo(stored.username, info);
+          return info === null ? null : sessionFromInfo(stored.username, info);
         }),
         buildRequestContext: (session: AppleAuthSession): RequestContext => ({
           teamId: session.teamId,
