@@ -31,8 +31,10 @@ import {
   DeviceRepoLive,
   EnvVarRepoLive,
   GoogleServiceAccountKeyRepoLive,
+  IosAppMetadataRepoLive,
   IosBundleConfigurationRepoLive,
   ProjectRepoLive,
+  SubmissionsRepoLive,
   UpdateRepoLive,
   WebhookRepoLive,
 } from "./repositories";
@@ -68,8 +70,10 @@ import type {
   DeviceRepo,
   EnvVarRepo,
   GoogleServiceAccountKeyRepo,
+  IosAppMetadataRepo,
   IosBundleConfigurationRepo,
   ProjectRepo,
+  SubmissionsRepo,
   UpdateRepo,
   WebhookRepo,
 } from "./repositories";
@@ -102,9 +106,11 @@ export type ServerInfrastructure =
   | EmailService
   | EnvVarRepo
   | GoogleServiceAccountKeyRepo
+  | IosAppMetadataRepo
   | IosBundleConfigurationRepo
   | ManifestCacheStorage
   | ProjectRepo
+  | SubmissionsRepo
   | UpdateCoordinator
   | UpdateRepo
   | Vault
@@ -131,8 +137,10 @@ export const RepositoryLayer = Layer.mergeAll(
   DeviceRepoLive,
   EnvVarRepoLive,
   GoogleServiceAccountKeyRepoLive,
+  IosAppMetadataRepoLive,
   IosBundleConfigurationRepoLive,
   ProjectRepoLive,
+  SubmissionsRepoLive,
   UpdateRepoLive,
   WebhookRepoLive,
 );

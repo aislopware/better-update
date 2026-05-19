@@ -79,16 +79,12 @@ const ExistingPicker = ({
 const buildCreateBody = (params: {
   name: string;
   keystoreId: string;
-  playSaId: string;
   fcmSaId: string;
   isDefault: boolean;
 }) => ({
   name: params.name,
   isDefault: params.isDefault,
   ...(params.keystoreId === NONE_VALUE ? {} : { androidUploadKeystoreId: params.keystoreId }),
-  ...(params.playSaId === NONE_VALUE
-    ? {}
-    : { googleServiceAccountKeyForSubmissionsId: params.playSaId }),
   ...(params.fcmSaId === NONE_VALUE ? {} : { googleServiceAccountKeyForFcmV1Id: params.fcmSaId }),
 });
 
@@ -107,7 +103,6 @@ const AddGroupForm = ({
 
   const [name, setName] = useState("");
   const [keystoreId, setKeystoreId] = useState<string>(NONE_VALUE);
-  const [playSaId, setPlaySaId] = useState<string>(NONE_VALUE);
   const [fcmSaId, setFcmSaId] = useState<string>(NONE_VALUE);
   const [isDefault, setIsDefault] = useState(false);
 
@@ -126,7 +121,7 @@ const AddGroupForm = ({
     mutationFn: async () =>
       createAndroidBuildCredentials(
         applicationIdentifierId,
-        buildCreateBody({ name: trimmedName, keystoreId, playSaId, fcmSaId, isDefault }),
+        buildCreateBody({ name: trimmedName, keystoreId, fcmSaId, isDefault }),
       ),
     onSuccess: async () => {
       await queryClient.invalidateQueries({
@@ -172,13 +167,6 @@ const AddGroupForm = ({
             value={keystoreId}
             items={keystoreItems}
             onChange={setKeystoreId}
-          />
-          <ExistingPicker
-            id="add-android-group-play-sa"
-            label="Play submissions SA (optional)"
-            value={playSaId}
-            items={saItems}
-            onChange={setPlaySaId}
           />
           <ExistingPicker
             id="add-android-group-fcm-sa"

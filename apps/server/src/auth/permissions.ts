@@ -27,6 +27,8 @@ export const permissions: PermissionMap = {
     appleCredential: ["read", "create", "update", "delete", "download"],
     androidCredential: ["read", "create", "update", "delete", "download"],
     iosBundleConfiguration: ["read", "create", "update", "delete"],
+    iosAppMetadata: ["read", "create", "update", "delete"],
+    submission: ["read", "create", "update", "delete", "cancel"],
   },
   admin: {
     organization: ["read"],
@@ -47,6 +49,8 @@ export const permissions: PermissionMap = {
     appleCredential: ["read", "create", "update", "delete", "download"],
     androidCredential: ["read", "create", "update", "delete", "download"],
     iosBundleConfiguration: ["read", "create", "update", "delete"],
+    iosAppMetadata: ["read", "create", "update", "delete"],
+    submission: ["read", "create", "update", "delete", "cancel"],
   },
   developer: {
     project: ["read", "create"],
@@ -63,6 +67,8 @@ export const permissions: PermissionMap = {
     appleCredential: ["read", "create", "update", "download"],
     androidCredential: ["read", "create", "update", "download"],
     iosBundleConfiguration: ["read", "create", "update"],
+    iosAppMetadata: ["read", "create", "update"],
+    submission: ["read", "create", "update", "cancel"],
   },
   viewer: {
     organization: ["read"],
@@ -80,6 +86,8 @@ export const permissions: PermissionMap = {
     appleCredential: ["read"],
     androidCredential: ["read"],
     iosBundleConfiguration: ["read"],
+    iosAppMetadata: ["read"],
+    submission: ["read"],
   },
 };
 

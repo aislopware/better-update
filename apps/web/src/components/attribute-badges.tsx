@@ -1,7 +1,5 @@
 import { Badge } from "@better-update/ui/components/ui/badge";
 import {
-  AppleIcon,
-  BotIcon,
   BuildingIcon,
   CodeIcon,
   DownloadIcon,
@@ -18,8 +16,10 @@ import {
 
 import type { BuildDistribution, PlatformValue } from "@better-update/api-client/react";
 import type { BadgeProps } from "@better-update/ui/components/ui/badge";
-import type { LucideIcon } from "lucide-react";
-import type { ReactElement } from "react";
+import type { ComponentType, ReactElement, SVGProps } from "react";
+
+import { AndroidIcon } from "./android-icon";
+import { AppleIcon } from "./apple-icon";
 
 type BadgeVariant = NonNullable<BadgeProps["variant"]>;
 type BadgeSize = NonNullable<BadgeProps["size"]>;
@@ -31,13 +31,13 @@ interface AttributeBadgeProps {
 
 interface Definition {
   label: string;
-  icon: LucideIcon;
+  icon: ComponentType<SVGProps<SVGSVGElement>>;
   variant: BadgeVariant;
 }
 
 const PLATFORM_DEFS = {
-  ios: { label: "iOS", icon: AppleIcon, variant: "info" },
-  android: { label: "Android", icon: BotIcon, variant: "success" },
+  ios: { label: "iOS", icon: AppleIcon, variant: "outline" },
+  android: { label: "Android", icon: AndroidIcon, variant: "outline" },
 } as const satisfies Record<PlatformValue, Definition>;
 
 const DISTRIBUTION_DEFS = {

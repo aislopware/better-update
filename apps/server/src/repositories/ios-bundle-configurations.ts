@@ -19,6 +19,8 @@ export interface IosBundleConfigurationRepository {
     readonly appleProvisioningProfileId: string | null;
     readonly applePushKeyId: string | null;
     readonly ascApiKeyId: string | null;
+    readonly targetName: string | null;
+    readonly parentBundleIdentifier: string | null;
     readonly createdAt: string;
     readonly updatedAt: string;
   }) => Effect.Effect<void, Conflict>;
@@ -43,6 +45,8 @@ export interface IosBundleConfigurationRepository {
     readonly appleProvisioningProfileId?: string | null | undefined;
     readonly applePushKeyId?: string | null | undefined;
     readonly ascApiKeyId?: string | null | undefined;
+    readonly targetName?: string | null | undefined;
+    readonly parentBundleIdentifier?: string | null | undefined;
     readonly updatedAt: string;
   }) => Effect.Effect<void>;
 
@@ -65,11 +69,13 @@ interface Row {
   apple_provisioning_profile_id: string | null;
   apple_push_key_id: string | null;
   asc_api_key_id: string | null;
+  target_name: string | null;
+  parent_bundle_identifier: string | null;
   created_at: string;
   updated_at: string;
 }
 
-const COLUMNS = `"id", "organization_id", "project_id", "bundle_identifier", "distribution_type", "apple_team_id", "apple_distribution_certificate_id", "apple_provisioning_profile_id", "apple_push_key_id", "asc_api_key_id", "created_at", "updated_at"`;
+const COLUMNS = `"id", "organization_id", "project_id", "bundle_identifier", "distribution_type", "apple_team_id", "apple_distribution_certificate_id", "apple_provisioning_profile_id", "apple_push_key_id", "asc_api_key_id", "target_name", "parent_bundle_identifier", "created_at", "updated_at"`;
 
 const toModel = (row: Row): IosBundleConfigurationModel => ({
   id: row.id,
@@ -82,6 +88,8 @@ const toModel = (row: Row): IosBundleConfigurationModel => ({
   appleProvisioningProfileId: row.apple_provisioning_profile_id,
   applePushKeyId: row.apple_push_key_id,
   ascApiKeyId: row.asc_api_key_id,
+  targetName: row.target_name,
+  parentBundleIdentifier: row.parent_bundle_identifier,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
@@ -93,7 +101,7 @@ export const IosBundleConfigurationRepoLive = Layer.succeed(IosBundleConfigurati
       yield* d1RunWithUniqueCheck(
         async () =>
           env.DB.prepare(
-            `INSERT INTO "ios_bundle_configurations" (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO "ios_bundle_configurations" (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           )
             .bind(
               params.id,
@@ -106,6 +114,8 @@ export const IosBundleConfigurationRepoLive = Layer.succeed(IosBundleConfigurati
               params.appleProvisioningProfileId,
               params.applePushKeyId,
               params.ascApiKeyId,
+              params.targetName,
+              params.parentBundleIdentifier,
               params.createdAt,
               params.updatedAt,
             )
@@ -181,6 +191,14 @@ export const IosBundleConfigurationRepoLive = Layer.succeed(IosBundleConfigurati
       if (params.ascApiKeyId !== undefined) {
         sets.push(`"asc_api_key_id" = ?`);
         bindings.push(params.ascApiKeyId);
+      }
+      if (params.targetName !== undefined) {
+        sets.push(`"target_name" = ?`);
+        bindings.push(params.targetName);
+      }
+      if (params.parentBundleIdentifier !== undefined) {
+        sets.push(`"parent_bundle_identifier" = ?`);
+        bindings.push(params.parentBundleIdentifier);
       }
       bindings.push(params.id);
       yield* Effect.promise(async () =>

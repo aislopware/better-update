@@ -2,8 +2,11 @@ import { asRecord } from "@better-update/type-guards";
 import { FileSystem, Path } from "@effect/platform";
 import { Effect } from "effect";
 
+import { parseSubmitProfile } from "./eas-submit-config";
 import { BuildProfileError } from "./exit-codes";
 import { formatCause } from "./format-error";
+
+import type { EasSubmitProfile } from "./eas-submit-config";
 
 export type EasDistribution = "internal" | "store";
 
@@ -47,9 +50,18 @@ export interface EasBuildProfile {
   readonly withoutCredentials?: boolean;
 }
 
+export type {
+  EasAndroidSubmitProfile,
+  EasAndroidSubmitReleaseStatus,
+  EasIosSubmitProfile,
+  EasSubmitProfile,
+} from "./eas-submit-config";
+export { resolveEasSubmitProfile } from "./eas-submit-config";
+
 export interface EasConfig {
   readonly cli?: { readonly version?: string };
   readonly build?: Record<string, EasBuildProfile>;
+  readonly submit?: Record<string, EasSubmitProfile>;
 }
 
 const MAX_EXTENDS_DEPTH = 10;
@@ -242,9 +254,20 @@ export const parseEasConfig = (text: string): Effect.Effect<EasConfig, BuildProf
         profiles[name] = profile;
       }
     }
+    const submitRecord = asRecord(root["submit"]);
+    const submit: Record<string, EasSubmitProfile> = {};
+    if (submitRecord) {
+      for (const [name, value] of Object.entries(submitRecord)) {
+        const profile = parseSubmitProfile(value);
+        if (profile !== undefined) {
+          submit[name] = profile;
+        }
+      }
+    }
     return {
       ...(asRecord(root["cli"]) ? { cli: parseCli(root["cli"]) } : {}),
       build: profiles,
+      ...(Object.keys(submit).length === 0 ? {} : { submit }),
     };
   });
 

@@ -23,9 +23,11 @@ import {
   EnvVarsGroupLive,
   FingerprintsGroupLive,
   GoogleServiceAccountKeysGroupLive,
+  IosAppMetadataGroupLive,
   IosBundleConfigurationsGroupLive,
   MeGroupLive,
   ProjectsGroupLive,
+  SubmissionsGroupLive,
   UpdatesGroupLive,
   WebhooksGroupLive,
 } from "./handlers";
@@ -53,9 +55,11 @@ const ManagementGroupsLayer = Layer.mergeAll(
   EnvVarsGroupLive,
   FingerprintsGroupLive,
   GoogleServiceAccountKeysGroupLive,
+  IosAppMetadataGroupLive,
   IosBundleConfigurationsGroupLive,
   MeGroupLive,
   ProjectsGroupLive,
+  SubmissionsGroupLive,
   UpdatesGroupLive,
   WebhooksGroupLive,
 ).pipe(Layer.provide(RepositoryLayer), Layer.provide(AdapterLayer));

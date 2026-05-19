@@ -24,6 +24,9 @@ const ROUTE_LABELS: Record<string, string> = {
   channels: "Channels",
   branches: "Branches",
   updates: "Updates",
+  runtimes: "Runtimes",
+  submissions: "Submissions",
+  "apple-devices": "Apple Devices",
   "environment-variables": "Environment variables",
 };
 

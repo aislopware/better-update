@@ -23,6 +23,7 @@ const PROJECT_SECTION_LABELS: Record<string, string> = {
   settings: "Project settings",
   "environment-variables": "Environment variables",
   credentials: "Credentials",
+  submissions: "Submissions",
 };
 
 const PROJECT_SLUG_ROUTE_ID = "/_authed/_app/projects/$projectSlug";

@@ -20,9 +20,11 @@ import { DevicesGroup } from "./groups/devices";
 import { EnvVarsGroup } from "./groups/env-vars";
 import { FingerprintsGroup } from "./groups/fingerprints";
 import { GoogleServiceAccountKeysGroup } from "./groups/google-service-account-keys";
+import { IosAppMetadataGroup } from "./groups/ios-app-metadata";
 import { IosBundleConfigurationsGroup } from "./groups/ios-bundle-configurations";
 import { MeGroup } from "./groups/me";
 import { ProjectsGroup } from "./groups/projects";
+import { SubmissionsGroup } from "./groups/submissions";
 import { UpdatesGroup } from "./groups/updates";
 import { WebhooksGroup } from "./groups/webhooks";
 
@@ -45,6 +47,8 @@ export class ManagementApi extends HttpApi.make("management-api")
   .add(AppleProvisioningProfilesGroup)
   .add(GoogleServiceAccountKeysGroup)
   .add(IosBundleConfigurationsGroup)
+  .add(IosAppMetadataGroup)
+  .add(SubmissionsGroup)
   .add(AndroidApplicationIdentifiersGroup)
   .add(AndroidUploadKeystoresGroup)
   .add(AndroidBuildCredentialsGroup)

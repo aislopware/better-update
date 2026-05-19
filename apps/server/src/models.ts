@@ -32,7 +32,9 @@ export type AuditLogResourceType =
   | "iosBundleConfiguration"
   | "envVar"
   | "device"
-  | "webhook";
+  | "webhook"
+  | "iosAppMetadata"
+  | "submission";
 
 export type DeviceClass = "IPHONE" | "IPAD" | "MAC" | "UNKNOWN";
 
@@ -59,7 +61,9 @@ export type Resource =
   | "envVar"
   | "auditLog"
   | "device"
-  | "webhook";
+  | "webhook"
+  | "iosAppMetadata"
+  | "submission";
 
 export type Action = "read" | "create" | "update" | "delete" | "cancel" | "download";
 
@@ -213,10 +217,9 @@ export interface AscApiKeyModel {
   readonly organizationId: string;
   readonly appleTeamId: string | null;
   readonly keyId: string;
+  readonly issuerId: string;
   readonly name: string;
   readonly roles: string;
-  readonly issuerIdEncrypted: string;
-  readonly issuerIdKeyVersion: number;
   readonly r2Key: string;
   readonly encryptedDek: string;
   readonly dekKeyVersion: number;
@@ -265,6 +268,8 @@ export interface IosBundleConfigurationModel {
   readonly appleProvisioningProfileId: string | null;
   readonly applePushKeyId: string | null;
   readonly ascApiKeyId: string | null;
+  readonly targetName: string | null;
+  readonly parentBundleIdentifier: string | null;
   readonly createdAt: string;
   readonly updatedAt: string;
 }

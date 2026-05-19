@@ -21,6 +21,7 @@ import {
   SettingsIcon,
   ShieldCheckIcon,
   SmartphoneIcon,
+  UploadCloudIcon,
   UsersIcon,
 } from "lucide-react";
 
@@ -55,6 +56,8 @@ interface ProjectNavItem {
     | "/projects/$projectSlug/branches"
     | "/projects/$projectSlug/updates"
     | "/projects/$projectSlug/runtimes"
+    | "/projects/$projectSlug/credentials"
+    | "/projects/$projectSlug/submissions"
     | "/projects/$projectSlug/settings"
     | "/projects/$projectSlug/environment-variables";
   label: string;
@@ -121,6 +124,11 @@ const PROJECT_NAV: ProjectNavSection[] = [
     label: "Deploy",
     items: [
       { to: "/projects/$projectSlug/builds", label: "Builds", icon: PackageIcon },
+      {
+        to: "/projects/$projectSlug/submissions",
+        label: "Submissions",
+        icon: UploadCloudIcon,
+      },
       { to: "/projects/$projectSlug/channels", label: "Channels", icon: SatelliteIcon },
       { to: "/projects/$projectSlug/branches", label: "Branches", icon: GitBranchIcon },
       { to: "/projects/$projectSlug/updates", label: "Updates", icon: CloudUploadIcon },
@@ -131,6 +139,11 @@ const PROJECT_NAV: ProjectNavSection[] = [
     label: "Project settings",
     items: [
       { to: "/projects/$projectSlug/settings", label: "General", icon: SettingsIcon },
+      {
+        to: "/projects/$projectSlug/credentials",
+        label: "Credentials",
+        icon: ShieldCheckIcon,
+      },
       {
         to: "/projects/$projectSlug/environment-variables",
         label: "Environment variables",

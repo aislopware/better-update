@@ -9,6 +9,7 @@ import { assertPermission } from "../auth/permissions";
 import { toApiAndroidApplicationIdentifier } from "../http/to-api";
 import { toApiCrudEffect, toApiWriteEffect } from "../http/to-api-effect";
 import { AndroidApplicationIdentifierRepo } from "../repositories/android-application-identifiers";
+import { AndroidBuildCredentialsRepo } from "../repositories/android-build-credentials";
 
 export const AndroidApplicationIdentifiersGroupLive = HttpApiBuilder.group(
   ManagementApi,
@@ -33,6 +34,7 @@ export const AndroidApplicationIdentifiersGroupLive = HttpApiBuilder.group(
             yield* assertProjectOwnership(path.projectId);
             const ctx = yield* CurrentActor;
             const repo = yield* AndroidApplicationIdentifierRepo;
+            const groupsRepo = yield* AndroidBuildCredentialsRepo;
 
             const id = crypto.randomUUID();
             const now = new Date().toISOString();
@@ -45,6 +47,21 @@ export const AndroidApplicationIdentifiersGroupLive = HttpApiBuilder.group(
               updatedAt: now,
             };
             yield* repo.insert(model);
+
+            const defaultGroupId = crypto.randomUUID();
+            yield* groupsRepo.insert({
+              id: defaultGroupId,
+              organizationId: ctx.organizationId,
+              androidApplicationIdentifierId: id,
+              androidUploadKeystoreId: null,
+              googleServiceAccountKeyForSubmissionsId: null,
+              googleServiceAccountKeyForFcmV1Id: null,
+              name: "Default",
+              isDefault: true,
+              createdAt: now,
+              updatedAt: now,
+            });
+
             yield* logAudit({
               action: "android.application-identifier.create",
               resourceType: "androidCredential",

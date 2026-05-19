@@ -1,3 +1,4 @@
+import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Empty,
@@ -42,6 +43,7 @@ import type {
   GoogleServiceAccountKeyItem,
 } from "@better-update/api-client/react";
 
+import { STATUS_BADGE_VARIANT, deriveExpiryStatus } from "../../../lib/credential-status";
 import { formatDate } from "../../../lib/format-date";
 import { formatAppleTeamLabel } from "./-credentials-utils";
 import { ConfirmDeleteDialog } from "./projects/$projectSlug/-confirm-delete-dialog";
@@ -106,22 +108,30 @@ export const DistributionCertificatesTable = ({
       </TableRow>
     </TableHeader>
     <TableBody>
-      {items.map((cert) => (
-        <TableRow key={cert.id}>
-          <TableCell className="font-mono text-xs">{cert.serialNumber}</TableCell>
-          <TableCell>{formatDate(cert.validUntil)}</TableCell>
-          <TableCell className="text-right">
-            <DeleteAction
-              name={cert.serialNumber.slice(0, 8)}
-              title="Delete distribution certificate?"
-              description="This permanently removes the cert and its encrypted archive."
-              onConfirm={async () => onDelete(cert.id)}
-              successMessage="Certificate deleted"
-              onSuccess={onInvalidate}
-            />
-          </TableCell>
-        </TableRow>
-      ))}
+      {items.map((cert) => {
+        const status = deriveExpiryStatus(cert.validUntil);
+        return (
+          <TableRow key={cert.id}>
+            <TableCell className="font-mono text-xs">{cert.serialNumber}</TableCell>
+            <TableCell>
+              <div className="flex items-center gap-2">
+                <span>{formatDate(cert.validUntil)}</span>
+                <Badge variant={STATUS_BADGE_VARIANT[status.tone]}>{status.label}</Badge>
+              </div>
+            </TableCell>
+            <TableCell className="text-right">
+              <DeleteAction
+                name={cert.serialNumber.slice(0, 8)}
+                title="Delete distribution certificate?"
+                description="This permanently removes the cert and its encrypted archive."
+                onConfirm={async () => onDelete(cert.id)}
+                successMessage="Certificate deleted"
+                onSuccess={onInvalidate}
+              />
+            </TableCell>
+          </TableRow>
+        );
+      })}
     </TableBody>
   </Table>
 );
@@ -266,6 +276,7 @@ export const AscApiKeysTable = ({
       <TableRow>
         <TableHead>Name</TableHead>
         <TableHead>Key ID</TableHead>
+        <TableHead>Issuer ID</TableHead>
         <TableHead className="w-12" aria-label="Actions" />
       </TableRow>
     </TableHeader>
@@ -274,6 +285,7 @@ export const AscApiKeysTable = ({
         <TableRow key={key.id}>
           <TableCell className="font-medium">{key.name}</TableCell>
           <TableCell className="font-mono">{key.keyId}</TableCell>
+          <TableCell className="font-mono text-xs break-all">{key.issuerId}</TableCell>
           <TableCell className="text-right">
             <AscApiKeyActions
               keyId={key.keyId}
@@ -342,7 +354,7 @@ export const GoogleServiceAccountKeysEmptyState = () => (
       </EmptyMedia>
       <EmptyTitle>No Google service account keys</EmptyTitle>
       <EmptyDescription>
-        Upload a service account .json key for FCM v1 push and Play Store submissions.
+        Upload a service account .json key for FCM v1 push notifications.
       </EmptyDescription>
     </EmptyHeader>
   </Empty>

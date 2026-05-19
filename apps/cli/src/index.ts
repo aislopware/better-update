@@ -27,6 +27,7 @@ import { migrateConfigCommand } from "./commands/migrate-config";
 import { openCommand } from "./commands/open";
 import { projectsCommand } from "./commands/projects";
 import { statusCommand } from "./commands/status";
+import { submitCommand } from "./commands/submit";
 import { updateCommand } from "./commands/update";
 import { webhooksCommand } from "./commands/webhooks";
 import { whoamiCommand } from "./commands/whoami";
@@ -102,6 +103,7 @@ const main = defineCommand({
     autocomplete: autocompleteCommand,
     "migrate-config": migrateConfigCommand,
     apple: appleCommand,
+    submit: submitCommand,
   },
 });
 

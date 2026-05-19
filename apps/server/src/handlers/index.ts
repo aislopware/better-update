@@ -21,6 +21,8 @@ export { EnvVarsGroupLive } from "./env-vars";
 export { FingerprintsGroupLive } from "./fingerprints";
 export { GoogleServiceAccountKeysGroupLive } from "./google-service-account-keys";
 export { IosBundleConfigurationsGroupLive } from "./ios-bundle-configurations";
+export { IosAppMetadataGroupLive } from "./ios-app-metadata";
+export { SubmissionsGroupLive } from "./submissions";
 export { serveManifest } from "./manifest";
 export { MeGroupLive } from "./me";
 export { ProjectsGroupLive } from "./projects";

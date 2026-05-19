@@ -183,7 +183,7 @@ const GoogleServiceAccountSection = ({ orgId }: { orgId: string }) => {
     <section className="flex flex-col gap-3">
       <SectionHeader
         title="Google Service Account Keys"
-        description=".json keys for FCM v1 and Play Store submissions."
+        description=".json keys for FCM v1 push notifications."
         actions={<UploadGoogleServiceAccountKeyDialog orgId={orgId} />}
       />
       {data.items.length === 0 ? (
