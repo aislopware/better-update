@@ -1,5 +1,7 @@
+import { execFile } from "node:child_process";
 import { promises as fsp } from "node:fs";
 import path from "node:path";
+import { promisify } from "node:util";
 
 import { FileSystem } from "@effect/platform";
 import { Console, Effect } from "effect";
@@ -13,6 +15,8 @@ import { StagingError } from "./exit-codes";
 import { formatCause } from "./format-error";
 
 import type { BuildFailedError } from "./exit-codes";
+
+const execFileAsync = promisify(execFile);
 
 export type PackageManager = "bun" | "pnpm" | "yarn" | "npm";
 
@@ -166,6 +170,23 @@ const copyProjectTree = (params: {
       }),
   });
 
+/**
+ * EAS stages projects via `git clone`, so `.git` is always present and prepare
+ * scripts that shell out to git (lefthook install, husky install,
+ * simple-git-hooks, etc.) succeed naturally. Our copy strips `.git` for size,
+ * so we recreate a bare repo at the staging root before install runs. The
+ * hooks installed here never fire because no one commits in the staging dir —
+ * they exist only so `git rev-parse` succeeds during postinstall.
+ */
+const initGitRepo = (stagingRoot: string): Effect.Effect<void, StagingError> =>
+  Effect.tryPromise({
+    try: async () => execFileAsync("git", ["init", "-q", stagingRoot]),
+    catch: (cause) =>
+      new StagingError({
+        message: `Failed to init git repo in staging dir: ${formatCause(cause)}`,
+      }),
+  }).pipe(Effect.asVoid);
+
 const runInstall = (params: {
   readonly stagingRoot: string;
   readonly packageManager: PackageManager;
@@ -213,6 +234,7 @@ export const prepareStagingProject = (
 
     const ig = yield* buildIgnoreInstance(workspaceRoot);
     yield* copyProjectTree({ source: workspaceRoot, dest: stagingRoot, ig });
+    yield* initGitRepo(stagingRoot);
 
     const commandEnv = yield* runtime.commandEnvironment(input.envVars);
     yield* runInstall({ stagingRoot, packageManager, env: commandEnv });
