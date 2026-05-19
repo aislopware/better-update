@@ -29,6 +29,7 @@ import type { Update } from "@better-update/api";
 
 import { ProjectSubpageHeader } from "../-project-subpage-header";
 import { readUpdateEnvironment } from "../-update-helpers";
+import { EnvironmentBadge, PlatformBadge } from "../../../../../../components/attribute-badges";
 import { DetailCardSkeleton, SummaryCardsSkeleton } from "../../../../../../components/skeletons";
 import { formatBytes } from "../../../../../../lib/format-bytes";
 import { formatDateTime } from "../../../../../../lib/format-date";
@@ -65,7 +66,11 @@ const OverviewCard = ({
         </div>
         <div className="flex flex-col gap-1">
           <div className="text-muted-foreground text-sm">Environment</div>
-          <div className="font-medium">{environment ?? "—"}</div>
+          {environment === undefined ? (
+            <div className="font-medium">—</div>
+          ) : (
+            <EnvironmentBadge environment={environment} className="self-start" />
+          )}
         </div>
         <div className="flex flex-col gap-1">
           <div className="text-muted-foreground text-sm">Total size</div>
@@ -159,7 +164,7 @@ const PlatformVariantCard = ({
   <Card>
     <CardHeader>
       <CardTitle className="flex items-center gap-2 text-base">
-        <Badge variant="outline">{update.platform}</Badge>
+        <PlatformBadge platform={update.platform} />
         <code className="font-mono text-xs">{update.id.slice(0, 8)}</code>
         {update.isRollback ? <Badge variant="destructive">Rollback</Badge> : null}
       </CardTitle>

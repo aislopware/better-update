@@ -25,6 +25,7 @@ import type {
   MissingRuntimeVersionBuild,
 } from "@better-update/api";
 
+import { ChannelBadge, PlatformBadge } from "../../../../../components/attribute-badges";
 import { synthesizeBuildChannels } from "./-compatibility-join";
 
 import type { BuildWithSyntheticChannels, SyntheticBuildChannel } from "./-compatibility-join";
@@ -64,7 +65,7 @@ const MatrixBuildRow = ({ build }: { build: BuildWithSyntheticChannels }) => (
       <div className="flex flex-col gap-1">
         <span className="font-medium">{buildLabel(build)}</span>
         <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-xs">
-          <Badge variant="outline">{build.platform}</Badge>
+          <PlatformBadge platform={build.platform} size="sm" />
           {build.appVersion && <span>App {build.appVersion}</span>}
           {build.buildNumber && <span>#{build.buildNumber}</span>}
         </div>
@@ -128,8 +129,8 @@ export const CompatibilityMatrix = ({
                 key={`${entry.channelId}:${entry.platform}:${entry.runtimeVersion}`}
                 className="flex flex-wrap items-center gap-2 text-sm"
               >
-                <Badge variant="outline">{entry.channelName}</Badge>
-                <Badge variant="secondary">{entry.platform}</Badge>
+                <ChannelBadge name={entry.channelName} />
+                <PlatformBadge platform={entry.platform} />
                 <span className="font-medium">v{entry.runtimeVersion}</span>
                 <span className="text-muted-foreground">
                   {entry.updateCount} updates, latest {entry.latestUpdateMessage}
@@ -155,7 +156,9 @@ export const CompatibilityMatrix = ({
                 <TableHead>Build</TableHead>
                 <TableHead>Runtime Version</TableHead>
                 {channels.map((channel) => (
-                  <TableHead key={channel.channelId}>{channel.channelName}</TableHead>
+                  <TableHead key={channel.channelId}>
+                    <ChannelBadge name={channel.channelName} />
+                  </TableHead>
                 ))}
               </TableRow>
             </TableHeader>

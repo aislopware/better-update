@@ -30,9 +30,13 @@ import { Suspense, useState } from "react";
 
 import type { Channel, Update } from "@better-update/api";
 
+import {
+  ChannelBadge,
+  DistributionBadge,
+  PlatformBadge,
+} from "../../../../../components/attribute-badges";
 import { useCopyToClipboard } from "../../../../../lib/use-copy-to-clipboard";
 import { DROPDOWN_FETCH_LIMIT } from "../../../../../queries/constants";
-import { DISTRIBUTION_LABELS } from "./-build-helpers";
 
 type UpdateItem = typeof Update.Type;
 type ChannelItem = typeof Channel.Type;
@@ -107,8 +111,8 @@ const CompatibleBuildsList = ({
               {(build.message ?? build.profile) || `Build ${build.id.slice(0, 8)}`}
             </span>
             <div className="flex flex-wrap items-center gap-1.5">
-              <Badge variant="outline">{build.platform}</Badge>
-              <Badge variant="secondary">{DISTRIBUTION_LABELS[build.distribution]}</Badge>
+              <PlatformBadge platform={build.platform} />
+              <DistributionBadge distribution={build.distribution} />
               {build.appVersion === null ? null : (
                 <span className="text-muted-foreground text-xs">app v{build.appVersion}</span>
               )}
@@ -156,9 +160,9 @@ const PreviewBody = ({
 }) => (
   <DialogPanel className="flex flex-col gap-4">
     <div className="flex flex-wrap items-center gap-1.5 text-sm">
-      <Badge variant="outline">{update.platform}</Badge>
+      <PlatformBadge platform={update.platform} />
       <Badge variant="outline">v{update.runtimeVersion}</Badge>
-      {channelName === undefined ? null : <Badge variant="secondary">{channelName}</Badge>}
+      {channelName === undefined ? null : <ChannelBadge name={channelName} />}
       {branchName === undefined ? null : (
         <span className="text-muted-foreground">on {branchName}</span>
       )}

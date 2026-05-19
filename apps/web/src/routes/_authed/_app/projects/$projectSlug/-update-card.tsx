@@ -16,6 +16,7 @@ import { useMemo, useState } from "react";
 
 import type { Channel, Update } from "@better-update/api";
 
+import { EnvironmentBadge, PlatformBadge } from "../../../../../components/attribute-badges";
 import { formatDateTime } from "../../../../../lib/format-date";
 import { useApiMutation } from "../../../../../lib/use-api-mutation";
 import { UpdateActionButtons } from "./-update-action-buttons";
@@ -102,8 +103,8 @@ export const UpdateCard = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <CardTitle className="text-base">{update.message}</CardTitle>
-            <Badge variant="outline">{update.platform}</Badge>
-            {typeof environment === "string" && <Badge variant="secondary">{environment}</Badge>}
+            <PlatformBadge platform={update.platform} />
+            {typeof environment === "string" && <EnvironmentBadge environment={environment} />}
             {update.isRollback && <Badge variant="destructive">Rollback</Badge>}
           </div>
           <UpdateActionButtons

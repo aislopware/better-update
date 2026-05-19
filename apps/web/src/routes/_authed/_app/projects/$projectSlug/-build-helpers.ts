@@ -1,17 +1,10 @@
-import type { ArtifactFormat, Distribution } from "@better-update/api";
+import type { ArtifactFormat } from "@better-update/api";
+
+import { DISTRIBUTION_BADGE_LABELS } from "../../../../../components/attribute-badges";
 
 export type ArtifactFormatValue = typeof ArtifactFormat.Type;
-export type DistributionValue = typeof Distribution.Type;
 
-export const DISTRIBUTION_LABELS: Record<DistributionValue, string> = {
-  "app-store": "App Store",
-  "ad-hoc": "Ad Hoc",
-  development: "Development",
-  enterprise: "Enterprise",
-  simulator: "Simulator",
-  "play-store": "Play Store",
-  direct: "Direct",
-};
+export const DISTRIBUTION_LABELS = DISTRIBUTION_BADGE_LABELS;
 
 export const FORMAT_LABELS: Record<ArtifactFormatValue, string> = {
   ipa: "IPA",

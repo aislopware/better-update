@@ -22,6 +22,7 @@ import { Suspense } from "react";
 import type { BuildWithArtifact, Update } from "@better-update/api";
 
 import { ProjectSubpageHeader } from "../-project-subpage-header";
+import { DistributionBadge, PlatformBadge } from "../../../../../../components/attribute-badges";
 import { DetailCardSkeleton } from "../../../../../../components/skeletons";
 import { formatDateTime } from "../../../../../../lib/format-date";
 
@@ -101,8 +102,8 @@ const FingerprintBuildsCard = ({
               className="hover:bg-muted/40 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3 transition-colors"
             >
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline">{build.platform}</Badge>
-                <Badge variant="outline">{build.distribution}</Badge>
+                <PlatformBadge platform={build.platform} />
+                <DistributionBadge distribution={build.distribution} />
                 <span className="font-medium">v{build.runtimeVersion ?? "—"}</span>
                 <span className="text-muted-foreground text-sm">{build.profile}</span>
               </div>
@@ -134,7 +135,7 @@ const FingerprintUpdatesCard = ({ updates }: { updates: readonly UpdateItem[] })
               className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3"
             >
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline">{update.platform}</Badge>
+                <PlatformBadge platform={update.platform} />
                 <span className="font-medium">v{update.runtimeVersion}</span>
                 {update.isRollback && <Badge variant="destructive">Rollback</Badge>}
                 <span className="text-muted-foreground line-clamp-1 text-sm">{update.message}</span>

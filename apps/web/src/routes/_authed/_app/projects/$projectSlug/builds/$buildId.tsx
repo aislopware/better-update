@@ -32,6 +32,7 @@ import { FORMAT_LABELS, formatBytes } from "../-build-helpers";
 import { synthesizeBuildChannels } from "../-compatibility-join";
 import { InstallLinkDialog } from "../-install-link-dialog";
 import { ProjectSubpageHeader } from "../-project-subpage-header";
+import { ChannelBadge } from "../../../../../../components/attribute-badges";
 import { DetailCardSkeleton, SummaryCardsSkeleton } from "../../../../../../components/skeletons";
 import { formatDateTime } from "../../../../../../lib/format-date";
 
@@ -182,7 +183,7 @@ const RelatedChannelsCard = ({
               className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-3"
             >
               <div className="flex flex-wrap items-center gap-2">
-                <span className="font-medium">{channel.channelName}</span>
+                <ChannelBadge name={channel.channelName} />
                 {channel.isPaused && <Badge variant="outline">Paused</Badge>}
                 {channel.rolloutActive && <Badge variant="secondary">Rollout active</Badge>}
                 <span className="text-muted-foreground text-sm">

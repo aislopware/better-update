@@ -5,6 +5,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 
 import { UpdateActionButtons } from "../-update-action-buttons";
 import { readUpdateEnvironment } from "../-update-helpers";
+import { EnvironmentBadge, PlatformBadge } from "../../../../../../components/attribute-badges";
 import { formatBytes } from "../../../../../../lib/format-bytes";
 import { formatRelativeTime } from "../../../../../../lib/format-relative-time";
 
@@ -29,7 +30,7 @@ export const buildUpdateColumns = (
             <span className="truncate">{row.original.message || "—"}</span>
             {row.original.isRollback ? <Badge variant="destructive">Rollback</Badge> : null}
             {typeof environment === "string" ? (
-              <Badge variant="secondary">{environment}</Badge>
+              <EnvironmentBadge environment={environment} />
             ) : null}
           </div>
           <code className="text-muted-foreground truncate font-mono text-xs">
@@ -50,7 +51,7 @@ export const buildUpdateColumns = (
     id: "platform",
     accessorKey: "platform",
     header: "Platform",
-    cell: ({ row }) => <Badge variant="outline">{row.original.platform}</Badge>,
+    cell: ({ row }) => <PlatformBadge platform={row.original.platform} />,
     enableSorting: true,
   },
   {

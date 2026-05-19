@@ -22,7 +22,10 @@ import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { LayersIcon, PackageIcon, CloudUploadIcon } from "lucide-react";
 import { Suspense, useMemo } from "react";
 
+import type { PlatformValue } from "@better-update/api-client/react";
+
 import { ProjectSubpageHeader } from "../-project-subpage-header";
+import { PlatformBadge } from "../../../../../../components/attribute-badges";
 import { DetailCardSkeleton, SummaryCardsSkeleton } from "../../../../../../components/skeletons";
 import { DataTableView } from "../../../../../../lib/data-table";
 import { pluralize } from "../../../../../../lib/pluralize";
@@ -104,7 +107,7 @@ const UpdateRow = ({
   update: {
     readonly id: string;
     readonly groupId: string;
-    readonly platform: string;
+    readonly platform: PlatformValue;
     readonly message: string;
     readonly branchId: string;
     readonly createdAt: string;
@@ -118,7 +121,7 @@ const UpdateRow = ({
       <span className="font-medium">
         {update.message || `Update ${update.groupId.slice(0, 8)}`}
       </span>
-      <Badge variant="outline">{update.platform}</Badge>
+      <PlatformBadge platform={update.platform} />
       <span className="text-muted-foreground text-sm">{branchName}</span>
       {update.rolloutPercentage < 100 ? (
         <Badge variant="secondary">Rollout {update.rolloutPercentage}%</Badge>

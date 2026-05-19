@@ -1,5 +1,4 @@
 import { republishUpdate } from "@better-update/api-client/react";
-import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
@@ -20,6 +19,7 @@ import { useState } from "react";
 
 import type { Update } from "@better-update/api";
 
+import { PlatformBadge } from "../../../../../components/attribute-badges";
 import { safeSubmit, useApiMutation } from "../../../../../lib/use-api-mutation";
 import { invalidateUpdates } from "./-update-helpers";
 
@@ -83,7 +83,7 @@ const RepublishForm = ({
             <FieldLabel>Source update</FieldLabel>
             <div className="flex flex-wrap items-center gap-2 text-sm">
               <span>{update.message || `Update ${update.groupId.slice(0, 8)}`}</span>
-              <Badge variant="outline">{update.platform}</Badge>
+              <PlatformBadge platform={update.platform} />
               <span className="text-muted-foreground">v{update.runtimeVersion}</span>
               <span className="text-muted-foreground">on {branchName}</span>
             </div>

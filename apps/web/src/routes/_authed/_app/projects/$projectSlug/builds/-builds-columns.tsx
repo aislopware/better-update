@@ -1,4 +1,3 @@
-import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@better-update/ui/components/ui/tooltip";
 import { DownloadIcon } from "lucide-react";
@@ -6,9 +5,9 @@ import { DownloadIcon } from "lucide-react";
 import type { BuildWithArtifact } from "@better-update/api";
 import type { ColumnDef } from "@tanstack/react-table";
 
-import { DISTRIBUTION_LABELS } from "../-build-helpers";
 import { DeleteBuildDialog } from "../-delete-build-dialog";
 import { InstallLinkDialog } from "../-install-link-dialog";
+import { DistributionBadge, PlatformBadge } from "../../../../../../components/attribute-badges";
 import { formatRelativeTime } from "../../../../../../lib/format-relative-time";
 
 export type BuildItem = typeof BuildWithArtifact.Type;
@@ -79,16 +78,14 @@ export const buildBuildsColumns = (
     id: "platform",
     accessorKey: "platform",
     header: "Platform",
-    cell: ({ row }) => <Badge variant="outline">{row.original.platform}</Badge>,
+    cell: ({ row }) => <PlatformBadge platform={row.original.platform} />,
     enableSorting: true,
   },
   {
     id: "distribution",
     accessorKey: "distribution",
     header: "Distribution",
-    cell: ({ row }) => (
-      <Badge variant="secondary">{DISTRIBUTION_LABELS[row.original.distribution]}</Badge>
-    ),
+    cell: ({ row }) => <DistributionBadge distribution={row.original.distribution} />,
     enableSorting: true,
   },
   {
