@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.18.3](https://github.com/better-update/better-update/compare/@better-update/cli@0.18.2...@better-update/cli@0.18.3) (2026-05-19)
+
+### Bug Fixes
+
+* **cli:** retry transient HTTP errors on all API calls ([76883f6](https://github.com/better-update/better-update/commit/76883f6a2f18f9447cbc06f7cd751e9563d409fa)) - by @trancong12102
+
 ## [0.18.2](https://github.com/better-update/better-update/compare/@better-update/cli@0.18.1...@better-update/cli@0.18.2) (2026-05-19)
 
 ### Bug Fixes
