@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.18.2](https://github.com/better-update/better-update/compare/@better-update/cli@0.18.1...@better-update/cli@0.18.2) (2026-05-19)
+
+### Bug Fixes
+
+* **cli:** git init staging dir so prepare scripts find a repo ([bacb09c](https://github.com/better-update/better-update/commit/bacb09c7cf78d88296de59edbc4c1606827eb783)) - by @trancong12102
+
 ## [0.18.1](https://github.com/better-update/better-update/compare/@better-update/cli@0.18.0...@better-update/cli@0.18.1) (2026-05-19)
 
 ### Bug Fixes
