@@ -2,6 +2,7 @@ import { Badge } from "@better-update/ui/components/ui/badge";
 
 import type { MissingRuntimeVersionBuild } from "@better-update/api";
 
+import { PlatformBadge } from "../../../../../components/attribute-badges";
 import { formatDateTime } from "../../../../../lib/format-date";
 
 import type { CompatibleBuildEntry } from "./-channel-compatibility-helpers";
@@ -44,7 +45,7 @@ export const CompatibleBuildsSection = ({
             <span className="font-medium">
               {(build.message ?? build.profile) || build.id.slice(0, 8)}
             </span>
-            <Badge variant="outline">{build.platform}</Badge>
+            <PlatformBadge platform={build.platform} />
             {build.runtimeVersion ? (
               <span className="text-muted-foreground">v{build.runtimeVersion}</span>
             ) : (

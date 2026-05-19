@@ -32,6 +32,7 @@ import {
   getMissingRuntimeVersionsForChannel,
 } from "../-channel-compatibility-helpers";
 import { ProjectSubpageHeader } from "../-project-subpage-header";
+import { PlatformBadge } from "../../../../../../components/attribute-badges";
 import { DetailCardSkeleton, SummaryCardsSkeleton } from "../../../../../../components/skeletons";
 import { DROPDOWN_FETCH_LIMIT } from "../../../../../../queries/constants";
 
@@ -128,7 +129,7 @@ const CompatibleBuildLinksCard = ({
                 <span className="font-medium">
                   {(build.message ?? build.profile) || `Build ${build.id.slice(0, 8)}`}
                 </span>
-                <Badge variant="outline">{build.platform}</Badge>
+                <PlatformBadge platform={build.platform} />
                 {build.runtimeVersion ? (
                   <span className="text-muted-foreground text-sm">v{build.runtimeVersion}</span>
                 ) : (

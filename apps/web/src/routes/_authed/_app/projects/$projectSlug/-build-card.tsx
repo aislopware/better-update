@@ -5,6 +5,11 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "@better-update/ui/compone
 import { Link } from "@tanstack/react-router";
 import { CheckIcon, DownloadIcon, XIcon } from "lucide-react";
 
+import {
+  ChannelBadge,
+  DistributionBadge,
+  PlatformBadge,
+} from "../../../../../components/attribute-badges";
 import { formatDateTime } from "../../../../../lib/format-date";
 import { pluralize } from "../../../../../lib/pluralize";
 import { formatBytes } from "./-build-helpers";
@@ -55,7 +60,7 @@ const CompatibleChannels = ({ build }: { build: BuildWithSyntheticChannels }) =>
       key={`${build.id}:${channel.channelId}`}
       className="flex flex-wrap items-center gap-2 text-sm"
     >
-      <Badge variant="outline">{channel.channelName}</Badge>
+      <ChannelBadge name={channel.channelName} />
       {renderStatusBadge(channel)}
       {channel.rolloutActive && <Badge variant="outline">Rollout active</Badge>}
       {channel.latestUpdateMessage && (
@@ -94,8 +99,8 @@ export const BuildCard = ({
               View details
             </Link>
           ) : null}
-          <Badge variant="outline">{build.platform}</Badge>
-          <Badge variant="secondary">{build.distribution}</Badge>
+          <PlatformBadge platform={build.platform} />
+          <DistributionBadge distribution={build.distribution} />
           {build.artifact && <Badge variant="outline">{build.artifact.format.toUpperCase()}</Badge>}
         </div>
         <div className="flex items-center gap-1">

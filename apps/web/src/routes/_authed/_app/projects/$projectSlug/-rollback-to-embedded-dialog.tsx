@@ -1,6 +1,5 @@
 import { createUpdate } from "@better-update/api-client/react";
 import { buildRollbackDirectiveBody } from "@better-update/expo-protocol";
-import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
@@ -17,6 +16,7 @@ import { Undo2Icon } from "lucide-react";
 
 import type { Update } from "@better-update/api";
 
+import { PlatformBadge } from "../../../../../components/attribute-badges";
 import { useApiMutation } from "../../../../../lib/use-api-mutation";
 import { invalidateUpdates } from "./-update-helpers";
 
@@ -77,7 +77,7 @@ export const RollbackToEmbeddedDialog = ({
               <span className="text-sm font-medium">Target</span>
               <div className="flex items-center gap-2 text-sm">
                 <span>{branchName}</span>
-                <Badge variant="outline">{update.platform}</Badge>
+                <PlatformBadge platform={update.platform} />
                 <span className="text-muted-foreground">v{update.runtimeVersion}</span>
               </div>
             </div>

@@ -1,5 +1,4 @@
 import { republishUpdate } from "@better-update/api-client/react";
-import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
@@ -26,6 +25,7 @@ import { useState } from "react";
 
 import type { Channel, Update } from "@better-update/api";
 
+import { PlatformBadge } from "../../../../../components/attribute-badges";
 import { safeSubmit, useApiMutation } from "../../../../../lib/use-api-mutation";
 import { invalidateUpdates } from "./-update-helpers";
 
@@ -124,7 +124,7 @@ const PromoteForm = ({
             <span className="text-sm font-medium">Source update</span>
             <div className="flex items-center gap-2 text-sm">
               <span>{update.message}</span>
-              <Badge variant="outline">{update.platform}</Badge>
+              <PlatformBadge platform={update.platform} />
               <span className="text-muted-foreground">v{update.runtimeVersion}</span>
             </div>
           </div>
