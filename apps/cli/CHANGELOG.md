@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.18.4](https://github.com/better-update/better-update/compare/@better-update/cli@0.18.3...@better-update/cli@0.18.4) (2026-05-19)
+
+### Bug Fixes
+
+* **cli:** auto-generate Android keystore in build flow ([56cfe55](https://github.com/better-update/better-update/commit/56cfe55623cbd1ccdff616b08c97cb905d7d98cb)) - by @trancong12102
+
 ## [0.18.3](https://github.com/better-update/better-update/compare/@better-update/cli@0.18.2...@better-update/cli@0.18.3) (2026-05-19)
 
 ### Bug Fixes
