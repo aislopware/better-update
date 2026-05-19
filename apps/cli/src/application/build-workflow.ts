@@ -9,6 +9,7 @@ import { reserveAndUpload } from "../commands/build/reserve-and-upload";
 import { applyAutoIncrement } from "../lib/auto-increment";
 import { readBuildProfile } from "../lib/build-profile";
 import { clearBuildCaches } from "../lib/clear-cache";
+import { warnIfDevClientMissing } from "../lib/dev-client-check";
 import { readEasJson } from "../lib/eas-config";
 import { pullEnvVars } from "../lib/env-exporter";
 import { BuildProfileError } from "../lib/exit-codes";
@@ -129,7 +130,11 @@ const runAndroidPlatformBuild = (input: PlatformBuildInput) =>
     yield* warnOnGradleMismatch(gradleConfig, androidBundleId);
     const applicationIdentifier = gradleConfig?.applicationId ?? androidBundleId;
     const credentialsSource = profile.credentialsSource ?? "remote";
-    if (credentialsSource === "remote") {
+    // EAS parity: developmentClient=true or withoutCredentials=true skips the
+    // server keystore lookup so dev builds work without registering a keystore.
+    const skipCredentials =
+      profile.developmentClient === true || profile.withoutCredentials === true;
+    if (credentialsSource === "remote" && !skipCredentials) {
       yield* ensureAndroidCredentials(
         api,
         { projectId, applicationIdentifier },
@@ -146,6 +151,7 @@ const runAndroidPlatformBuild = (input: PlatformBuildInput) =>
       projectId,
       credentialsSource,
       profileName: profile.name,
+      skipCredentials,
     });
     const target: BuildTarget =
       androidProfile.format === "aab"
@@ -206,6 +212,10 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
 
       // Resolve the build profile from eas.json — static, env-independent.
       const profile = yield* readBuildProfile(userCwd, profileName);
+
+      if (profile.developmentClient === true) {
+        yield* warnIfDevClientMissing(userCwd);
+      }
 
       // Pull env vars for the profile's environment scope, then overlay the
       // eas.json profile.env block on top. EAS precedence: keys defined in

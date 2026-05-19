@@ -44,6 +44,7 @@ export interface EasBuildProfile {
   readonly android?: EasAndroidProfile;
   readonly credentialsSource?: EasCredentialsSource;
   readonly autoIncrement?: EasAutoIncrement;
+  readonly withoutCredentials?: boolean;
 }
 
 export interface EasConfig {
@@ -199,6 +200,7 @@ const parseBuildProfile = (raw: unknown): EasBuildProfile | undefined => {
   const android = parseAndroidProfile(record["android"]);
   const credentialsSource = asCredentialsSource(record["credentialsSource"]);
   const autoIncrement = asAutoIncrement(record["autoIncrement"]);
+  const withoutCredentials = asBooleanValue(record["withoutCredentials"]);
   return {
     ...(extendsName === undefined ? {} : { extends: extendsName }),
     ...(developmentClient === undefined ? {} : { developmentClient }),
@@ -210,6 +212,7 @@ const parseBuildProfile = (raw: unknown): EasBuildProfile | undefined => {
     ...(android === undefined ? {} : { android }),
     ...(credentialsSource === undefined ? {} : { credentialsSource }),
     ...(autoIncrement === undefined ? {} : { autoIncrement }),
+    ...(withoutCredentials === undefined ? {} : { withoutCredentials }),
   };
 };
 
@@ -330,6 +333,7 @@ const mergeProfile = (base: EasBuildProfile, overlay: EasBuildProfile): EasBuild
   const environment = overlay.environment ?? base.environment;
   const credentialsSource = overlay.credentialsSource ?? base.credentialsSource;
   const autoIncrement = overlay.autoIncrement ?? base.autoIncrement;
+  const withoutCredentials = overlay.withoutCredentials ?? base.withoutCredentials;
   return {
     ...(overlay.extends === undefined ? {} : { extends: overlay.extends }),
     ...(developmentClient === undefined ? {} : { developmentClient }),
@@ -341,6 +345,7 @@ const mergeProfile = (base: EasBuildProfile, overlay: EasBuildProfile): EasBuild
     ...(android === undefined ? {} : { android }),
     ...(credentialsSource === undefined ? {} : { credentialsSource }),
     ...(autoIncrement === undefined ? {} : { autoIncrement }),
+    ...(withoutCredentials === undefined ? {} : { withoutCredentials }),
   };
 };
 
