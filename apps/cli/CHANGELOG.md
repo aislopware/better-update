@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.18.1](https://github.com/better-update/better-update/compare/@better-update/cli@0.18.0...@better-update/cli@0.18.1) (2026-05-19)
+
+### Bug Fixes
+
+* **cli:** chmod +x node-pty spawn-helper to survive bun global install ([97e72d5](https://github.com/better-update/better-update/commit/97e72d510dae4c734e9f8e39212b46660ea64eeb)) - by @trancong12102
+
 ## [0.18.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.17.0...@better-update/cli@0.18.0) (2026-05-19)
 
 ### Features
