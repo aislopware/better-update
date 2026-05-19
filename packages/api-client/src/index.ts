@@ -43,6 +43,11 @@ export const runApi = async <Success, Failure>(
  * Extracts a typed API error from an Effect FiberFailure.
  * Returns the error's `_tag` and `message` if the failure is a tagged error
  * (e.g., Conflict, NotFound, BadRequest), or null for non-Effect errors.
+ *
+ * `UnknownException` is intentionally skipped: it's the wrapper Effect uses
+ * when a `tryPromise` lacks a `catch` mapper, and its `message` is the
+ * generic "An unknown error occurred in Effect.tryPromise". The real error
+ * lives in `cause` and is handled by `getApiError`.
  */
 export const getTypedApiError = (
   error: unknown,
@@ -55,8 +60,25 @@ export const getTypedApiError = (
     return null;
   }
   const { value } = option;
-  if (typeof value === "object" && value !== null && "_tag" in value && "message" in value) {
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "_tag" in value &&
+    "message" in value &&
+    value._tag !== "UnknownException"
+  ) {
     return { _tag: String(value._tag), message: String(value.message) };
+  }
+  return null;
+};
+
+const extractMessage = (value: unknown): string | null => {
+  if (value instanceof Error) {
+    return value.message;
+  }
+  if (typeof value === "object" && value !== null && "message" in value) {
+    const { message } = value as { message: unknown };
+    return typeof message === "string" ? message : null;
   }
   return null;
 };
@@ -66,11 +88,28 @@ export const getApiError = (error: unknown): string => {
   if (typed) {
     return typed.message;
   }
-  if (error instanceof Error) {
-    return error.message;
+  // FiberFailure with an UnknownException wrapper (e.g. unmapped tryPromise
+  // rejection) — dig into the cause for the real error message.
+  if (Runtime.isFiberFailure(error)) {
+    const option = Cause.failureOption(error[Runtime.FiberFailureCauseId]);
+    if (Option.isSome(option)) {
+      const { value } = option;
+      const fromCause =
+        typeof value === "object" && value !== null && "cause" in value
+          ? extractMessage((value as { cause: unknown }).cause)
+          : null;
+      if (fromCause !== null) {
+        return fromCause;
+      }
+      const direct = extractMessage(value);
+      if (direct !== null) {
+        return direct;
+      }
+    }
   }
-  if (typeof error === "object" && error !== null && "message" in error) {
-    return String((error as { message: unknown }).message);
+  const fromError = extractMessage(error);
+  if (fromError !== null) {
+    return fromError;
   }
   return "An unexpected error occurred";
 };
