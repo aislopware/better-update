@@ -138,8 +138,7 @@ const ArtifactCard = ({ build }: { build: typeof BuildWithArtifact.Type }) => (
             <Button
               variant="outline"
               render={
-                // eslint-disable-next-line jsx-a11y/anchor-has-content -- Base UI merges Button children into the rendered anchor via mergeProps
-                <a href={`/api/builds/${build.id}/artifact`} />
+                <a aria-label="Download artifact" href={`/api/builds/${build.id}/artifact`} />
               }
             >
               Download artifact

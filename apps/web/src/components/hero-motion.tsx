@@ -291,6 +291,7 @@ export const HeroMotion = () => {
         <div className="pointer-events-auto relative aspect-square w-full max-w-[620px] translate-x-[18%] lg:max-w-[700px] lg:translate-x-[28%] xl:max-w-[780px] xl:translate-x-[30%] 2xl:max-w-[860px] 2xl:translate-x-[32%]">
           <canvas
             ref={canvasRef}
+            aria-label="Decorative hero animation"
             onPointerDown={(event) => {
               onDown(event.clientX);
             }}

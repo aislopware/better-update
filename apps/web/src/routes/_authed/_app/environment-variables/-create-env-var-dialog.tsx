@@ -85,6 +85,7 @@ const FileUploadButton = ({ onFile }: { onFile: (file: File) => Promise<void> })
       <input
         ref={ref}
         type="file"
+        aria-label="Upload .env file"
         className="hidden"
         onChange={async (event) => {
           const file = event.target.files?.[0];

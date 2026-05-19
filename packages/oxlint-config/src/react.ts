@@ -50,4 +50,15 @@ export default defineConfig({
     "react/forbid-component-props": "off",
     "react/only-export-components": "off",
   },
+  overrides: [
+    {
+      files: ["**/*.test.*", "**/*.spec.*", "**/__tests__/**", "**/tests/**"],
+      rules: {
+        // oxlint 1.65's jsx-a11y/control-has-associated-label does not detect
+        // cross-element <label htmlFor>/<input id> association, only inline-child labels.
+        // Test scaffolding forms intentionally use the htmlFor pattern.
+        "jsx-a11y/control-has-associated-label": "off",
+      },
+    },
+  ],
 });
