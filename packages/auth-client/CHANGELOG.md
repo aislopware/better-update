@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.2.5](https://github.com/better-update/better-update/compare/@better-update/auth-client@0.2.4...@better-update/auth-client@0.2.5) (2026-05-19)
+
+**Note:** Version bump only for package @better-update/auth-client
+
 ## [0.2.4](https://github.com/better-update/better-update/compare/@better-update/auth-client@0.2.3...@better-update/auth-client@0.2.4) (2026-05-18)
 
 **Note:** Version bump only for package @better-update/auth-client

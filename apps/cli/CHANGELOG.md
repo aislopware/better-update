@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.19.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.18.4...@better-update/cli@0.19.0) (2026-05-19)
+
+### Features
+
+* **builds:** mark dirty git working tree on build records ([e5d99cf](https://github.com/better-update/better-update/commit/e5d99cf2c5522ea1de04222849bc7e5c5d444ca5)) - by @trancong12102
+
 ## [0.18.4](https://github.com/better-update/better-update/compare/@better-update/cli@0.18.3...@better-update/cli@0.18.4) (2026-05-19)
 
 ### Bug Fixes
