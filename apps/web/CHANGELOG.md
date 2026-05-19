@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.15.0](https://github.com/better-update/better-update/compare/@better-update/web@0.14.0...@better-update/web@0.15.0) (2026-05-19)
+
+### Features
+
+* **web:** color-coded badges with icons for platform, distribution, channel, environment ([b60d49d](https://github.com/better-update/better-update/commit/b60d49d955b660199212da13beb67f57eb4af81d)) - by @trancong12102
+
 ## [0.14.0](https://github.com/better-update/better-update/compare/@better-update/web@0.13.0...@better-update/web@0.14.0) (2026-05-19)
 
 ### Features
