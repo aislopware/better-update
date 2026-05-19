@@ -113,7 +113,7 @@
     },
     "apps/web": {
       "name": "@better-update/web",
-      "version": "0.16.0",
+      "version": "0.17.0",
       "dependencies": {
         "@better-auth/api-key": "^1.6.11",
         "@better-update/api": "workspace:*",
@@ -184,7 +184,7 @@
     },
     "packages/api-client": {
       "name": "@better-update/api-client",
-      "version": "0.6.1",
+      "version": "0.6.2",
       "dependencies": {
         "@better-update/api": "workspace:*",
         "@effect/platform": "^0.96.1",
