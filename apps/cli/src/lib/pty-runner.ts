@@ -1,3 +1,6 @@
+import { accessSync, chmodSync, constants as fsConstants } from "node:fs";
+import { createRequire } from "node:module";
+import path from "node:path";
 import process from "node:process";
 
 import { Effect } from "effect";
@@ -51,7 +54,41 @@ const mergeEnv = (overrides: Readonly<Record<string, string>>): Record<string, s
   return merged;
 };
 
+// Bun's global install (and some pnpm setups) strip the executable bit from
+// prebuilt binaries shipped via `prebuild-install`. node-pty's `spawn-helper`
+// is the canonical victim: without +x, `posix_spawnp` inside the native module
+// fails with an opaque "posix_spawnp failed." We chmod it once per process so
+// the CLI works regardless of how it was installed.
+let spawnHelperChecked = false;
+const ensureSpawnHelperExecutable = (): void => {
+  if (spawnHelperChecked) {
+    return;
+  }
+  spawnHelperChecked = true;
+  if (process.platform === "win32") {
+    return;
+  }
+  try {
+    const nodeRequire = createRequire(import.meta.url);
+    const helperPath = path.join(
+      path.dirname(nodeRequire.resolve("node-pty/package.json")),
+      "prebuilds",
+      `${process.platform}-${process.arch}`,
+      "spawn-helper",
+    );
+    try {
+      accessSync(helperPath, fsConstants.X_OK);
+    } catch {
+      chmodSync(helperPath, 0o755);
+    }
+  } catch {
+    // Helper missing (linux build-from-source) or unwritable — let spawn fail
+    // with its own error rather than masking it here.
+  }
+};
+
 const trySpawn = (input: PtyRunInput): IPty | Error => {
+  ensureSpawnHelperExecutable();
   const { cols, rows } = ptyDimensions();
   try {
     return spawn(input.command, [...input.args], {
