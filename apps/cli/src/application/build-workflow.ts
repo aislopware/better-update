@@ -207,11 +207,14 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
       // Resolve the build profile from eas.json — static, env-independent.
       const profile = yield* readBuildProfile(userCwd, profileName);
 
-      // Pull env vars for the profile's environment scope.
-      const envVars = yield* pullEnvVars(api, {
+      // Pull env vars for the profile's environment scope, then overlay the
+      // eas.json profile.env block on top. EAS precedence: keys defined in
+      // eas.json win over remote values when both define the same key.
+      const remoteEnvVars = yield* pullEnvVars(api, {
         projectId,
         environment: profile.environment,
       });
+      const envVars = { ...remoteEnvVars, ...profile.env };
 
       // Re-resolve the Expo config with the env overlay so dynamic configs
       // (app.config.js/ts) can read these env vars when computing AppMeta

@@ -101,10 +101,14 @@ export const runUploadWorkflow = (options: RunUploadWorkflowOptions) =>
     const projectId = yield* extractProjectId(baseConfig);
     const profile = yield* readBuildProfile(projectRoot, options.profileName);
 
-    const envVars = yield* pullEnvVars(api, {
+    // Pull env vars for the profile's environment scope, then overlay the
+    // eas.json profile.env block on top. EAS precedence: keys defined in
+    // eas.json win over remote values when both define the same key.
+    const remoteEnvVars = yield* pullEnvVars(api, {
       projectId,
       environment: profile.environment,
     });
+    const envVars = { ...remoteEnvVars, ...profile.env };
 
     const expoConfig = yield* readExpoConfig(projectRoot, envVars);
     const appMeta = yield* readAppMeta(expoConfig, options.platform);
