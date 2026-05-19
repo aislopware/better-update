@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.9.0](https://github.com/better-update/better-update/compare/@better-update/api@0.8.0...@better-update/api@0.9.0) (2026-05-19)
+
+### Features
+
+* store submissions, iOS app metadata, credentials EAS-parity rework ([4198f66](https://github.com/better-update/better-update/commit/4198f66c7171ba065c2712e0d0007a6166d4983e)) - by @trancong12102
+
 ## [0.8.0](https://github.com/better-update/better-update/compare/@better-update/api@0.7.0...@better-update/api@0.8.0) (2026-05-19)
 
 ### Features

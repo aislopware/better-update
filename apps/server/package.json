@@ -1,6 +1,6 @@
 {
   "name": "@better-update/server",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "private": true,
   "description": "Better Update API server on Cloudflare Workers",
   "homepage": "https://github.com/better-update/better-update",

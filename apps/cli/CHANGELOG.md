@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.20.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.19.1...@better-update/cli@0.20.0) (2026-05-19)
+
+### Features
+
+* **cli:** support EAS development builds (developmentClient + withoutCredentials) ([9217b73](https://github.com/better-update/better-update/commit/9217b73ea20c1fe4071ca25572c58f7c2ca51c74)) - by @trancong12102
+* store submissions, iOS app metadata, credentials EAS-parity rework ([4198f66](https://github.com/better-update/better-update/commit/4198f66c7171ba065c2712e0d0007a6166d4983e)) - by @trancong12102
+
 ## [0.19.1](https://github.com/better-update/better-update/compare/@better-update/cli@0.19.0...@better-update/cli@0.19.1) (2026-05-19)
 
 ### Bug Fixes
