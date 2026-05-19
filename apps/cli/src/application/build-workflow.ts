@@ -10,7 +10,7 @@ import { applyAutoIncrement } from "../lib/auto-increment";
 import { readBuildProfile } from "../lib/build-profile";
 import { clearBuildCaches } from "../lib/clear-cache";
 import { warnIfDevClientMissing } from "../lib/dev-client-check";
-import { readEasJson } from "../lib/eas-config";
+import { readEasJson, resolveEasSubmitProfile } from "../lib/eas-config";
 import { pullEnvVars } from "../lib/env-exporter";
 import { BuildProfileError } from "../lib/exit-codes";
 import { extractProjectId, readAppMeta, readExpoConfig } from "../lib/expo-config";
@@ -29,9 +29,105 @@ import { acquireBuildTempDir } from "../lib/temp-dir";
 import { apiClient } from "../services/api-client";
 import { CliRuntime } from "../services/cli-runtime";
 import { ensureAndroidCredentials, ensureIosCredentials } from "./credentials-interactive";
+import {
+  createSubmissionViaApi,
+  pollSubmissionUntilTerminal,
+  runIosAltoolUpload,
+} from "./submit-flow";
 
 import type { BuildTarget } from "../commands/build/reserve-and-upload";
 import type { Platform } from "../lib/build-profile";
+import type { EasAndroidSubmitProfile, EasIosSubmitProfile } from "../lib/eas-config";
+
+interface AutoSubmitInput {
+  readonly api: ApiClient;
+  readonly buildId: string;
+  readonly projectId: string;
+  readonly platform: Platform;
+  readonly profileName: string;
+  readonly whatToTest?: string;
+}
+
+const buildAutoSubmitIosConfig = (
+  iosProfile: EasIosSubmitProfile | undefined,
+  whatToTest: string | undefined,
+) => {
+  if (iosProfile?.bundleIdentifier === undefined) {
+    return undefined;
+  }
+  return {
+    bundleIdentifier: iosProfile.bundleIdentifier,
+    ...(iosProfile.appleId === undefined ? {} : { appleId: iosProfile.appleId }),
+    ...(iosProfile.ascAppId === undefined ? {} : { ascAppId: iosProfile.ascAppId }),
+    ...(iosProfile.appleTeamId === undefined ? {} : { appleTeamId: iosProfile.appleTeamId }),
+    ...(iosProfile.sku === undefined ? {} : { sku: iosProfile.sku }),
+    ...(iosProfile.language === undefined ? {} : { language: iosProfile.language }),
+    ...(iosProfile.companyName === undefined ? {} : { companyName: iosProfile.companyName }),
+    ...(iosProfile.appName === undefined ? {} : { appName: iosProfile.appName }),
+    ...(iosProfile.groups === undefined ? {} : { groups: iosProfile.groups }),
+    ...(whatToTest === undefined ? {} : { whatToTest }),
+  };
+};
+
+const buildAutoSubmitAndroidConfig = (androidProfile: EasAndroidSubmitProfile | undefined) => {
+  if (androidProfile?.applicationId === undefined) {
+    return undefined;
+  }
+  return {
+    applicationId: androidProfile.applicationId,
+    ...(androidProfile.track === undefined ? {} : { track: androidProfile.track }),
+    ...(androidProfile.releaseStatus === undefined
+      ? {}
+      : { releaseStatus: androidProfile.releaseStatus }),
+    ...(androidProfile.changesNotSentForReview === undefined
+      ? {}
+      : { changesNotSentForReview: androidProfile.changesNotSentForReview }),
+    ...(androidProfile.rollout === undefined ? {} : { rollout: androidProfile.rollout }),
+  };
+};
+
+const runAutoSubmit = (input: AutoSubmitInput) =>
+  Effect.gen(function* () {
+    yield* printHuman(`\nAuto-submitting build ${input.buildId} (profile ${input.profileName})...`);
+    const easConfig = yield* readEasJson(process.cwd());
+    const easProfile = yield* resolveEasSubmitProfile(easConfig.submit, input.profileName);
+
+    const installLink = yield* input.api.builds.getInstallLink({ path: { id: input.buildId } });
+    const archiveUrl = installLink.artifactUrl;
+
+    const iosConfig =
+      input.platform === "ios"
+        ? buildAutoSubmitIosConfig(easProfile.ios, input.whatToTest)
+        : undefined;
+    const androidConfig =
+      input.platform === "android" ? buildAutoSubmitAndroidConfig(easProfile.android) : undefined;
+
+    const submission = yield* createSubmissionViaApi(input.api, {
+      projectId: input.projectId,
+      platform: input.platform,
+      profileName: input.profileName,
+      archiveSource: "build",
+      buildId: input.buildId,
+      archiveUrl,
+      ...(iosConfig === undefined ? {} : { iosConfig }),
+      ...(androidConfig === undefined ? {} : { androidConfig }),
+    });
+
+    yield* printHuman(`Submission created: ${submission.id} (${submission.status})`);
+
+    if (input.platform === "ios" && easProfile.ios?.ascApiKeyId !== undefined) {
+      yield* printHuman("Running xcrun altool upload...");
+      yield* runIosAltoolUpload({
+        api: input.api,
+        submissionId: submission.id,
+        ipaPath: archiveUrl,
+        ascApiKeyId: easProfile.ios.ascApiKeyId,
+      });
+    }
+
+    const terminal = yield* pollSubmissionUntilTerminal(input.api, submission.id);
+    yield* printHuman(`Submission final status: ${terminal.status}`);
+  });
 
 export interface RunBuildWorkflowOptions {
   readonly platform: Platform | undefined;
@@ -43,6 +139,9 @@ export interface RunBuildWorkflowOptions {
   readonly clearCache?: boolean;
   readonly freezeCredentials?: boolean;
   readonly allowDirty?: boolean;
+  readonly autoSubmit?: boolean;
+  readonly autoSubmitProfile?: string;
+  readonly whatToTest?: string;
 }
 
 type AppMeta = Effect.Effect.Success<ReturnType<typeof readAppMeta>>;
@@ -185,7 +284,7 @@ const resolveProfileName = (projectRoot: string, requested: string) =>
 
 export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
   Effect.scoped(
-    // eslint-disable-next-line eslint/max-statements -- build orchestration is inherently sequential (read config → detect platform → resolve profile → pull env → build → upload); splitting further fragments the pipeline
+    // eslint-disable-next-line eslint/max-statements, eslint/complexity -- build orchestration is inherently sequential (read config → detect platform → resolve profile → pull env → build → upload → optional submit); splitting further fragments the pipeline
     Effect.gen(function* () {
       const api = yield* apiClient;
       const runtime = yield* CliRuntime;
@@ -371,5 +470,16 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
         ["SHA-256", build.sha256],
         ["Bytes", String(build.byteSize)],
       ]);
+
+      if (options.autoSubmit === true) {
+        yield* runAutoSubmit({
+          api,
+          buildId: result.id,
+          projectId,
+          platform,
+          profileName: options.autoSubmitProfile ?? profile.name,
+          ...(options.whatToTest === undefined ? {} : { whatToTest: options.whatToTest }),
+        });
+      }
     }),
   );

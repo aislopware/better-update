@@ -57,6 +57,19 @@ export const buildCommand = defineCommand({
       type: "boolean",
       description: "Proceed even with uncommitted git changes",
     },
+    "auto-submit": {
+      type: "boolean",
+      alias: "s",
+      description: "After upload, submit the build using eas.json submit profile of the same name",
+    },
+    "auto-submit-with-profile": {
+      type: "string",
+      description: "After upload, submit the build using a specific submit profile",
+    },
+    "what-to-test": {
+      type: "string",
+      description: "iOS-only TestFlight changelog when auto-submitting",
+    },
   },
   run: async ({ args }) =>
     runEffect(
@@ -70,6 +83,11 @@ export const buildCommand = defineCommand({
         clearCache: args["clear-cache"] ?? false,
         freezeCredentials: args["freeze-credentials"] ?? false,
         allowDirty: args["allow-dirty"] ?? false,
+        ...(args["auto-submit"] === undefined ? {} : { autoSubmit: args["auto-submit"] }),
+        ...(args["auto-submit-with-profile"] === undefined
+          ? {}
+          : { autoSubmit: true, autoSubmitProfile: args["auto-submit-with-profile"] }),
+        ...(args["what-to-test"] === undefined ? {} : { whatToTest: args["what-to-test"] }),
       }),
       BUILD_EXIT_EXTRAS,
     ),

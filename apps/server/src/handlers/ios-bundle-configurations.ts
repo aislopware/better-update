@@ -48,6 +48,8 @@ export const IosBundleConfigurationsGroupLive = HttpApiBuilder.group(
               appleProvisioningProfileId: toDbNull(payload.appleProvisioningProfileId),
               applePushKeyId: toDbNull(payload.applePushKeyId),
               ascApiKeyId: toDbNull(payload.ascApiKeyId),
+              targetName: toDbNull(payload.targetName),
+              parentBundleIdentifier: toDbNull(payload.parentBundleIdentifier),
               createdAt: now,
               updatedAt: now,
             };
@@ -61,6 +63,10 @@ export const IosBundleConfigurationsGroupLive = HttpApiBuilder.group(
               metadata: {
                 bundleIdentifier: payload.bundleIdentifier,
                 distributionType: payload.distributionType,
+                ...(payload.targetName === undefined ? {} : { targetName: payload.targetName }),
+                ...(payload.parentBundleIdentifier === undefined
+                  ? {}
+                  : { parentBundleIdentifier: payload.parentBundleIdentifier }),
               },
             });
             return toApiIosBundleConfiguration(model);
@@ -82,6 +88,8 @@ export const IosBundleConfigurationsGroupLive = HttpApiBuilder.group(
               appleProvisioningProfileId: payload.appleProvisioningProfileId,
               applePushKeyId: payload.applePushKeyId,
               ascApiKeyId: payload.ascApiKeyId,
+              targetName: payload.targetName,
+              parentBundleIdentifier: payload.parentBundleIdentifier,
               updatedAt: now,
             });
             yield* logAudit({

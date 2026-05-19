@@ -121,6 +121,33 @@ export {
   UpdateIosBundleConfigurationBody,
 } from "./domain/ios-bundle-configuration";
 export {
+  AppName,
+  AppStoreLanguage,
+  AppStoreSku,
+  AscAppId,
+  CompanyName,
+  CreateIosAppMetadataBody,
+  DeleteIosAppMetadataResult,
+  IosAppMetadata,
+  UpdateIosAppMetadataBody,
+} from "./domain/ios-app-metadata";
+export {
+  AndroidReleaseStatus,
+  AndroidSubmissionConfig,
+  AndroidTrack,
+  CancelSubmissionResult,
+  CreateAndroidSubmissionBody,
+  CreateIosSubmissionBody,
+  CreateSubmissionBody,
+  DeleteSubmissionResult,
+  IosSubmissionConfig,
+  Rollout,
+  Submission,
+  SubmissionArchiveSource,
+  SubmissionStatus,
+  UpdateSubmissionStatusBody,
+} from "./domain/submission";
+export {
   AndroidApplicationIdentifier,
   AndroidPackageName,
   CreateAndroidApplicationIdentifierBody,
@@ -199,6 +226,8 @@ export { AscApiKeysGroup } from "./groups/asc-api-keys";
 export { AppleProvisioningProfilesGroup } from "./groups/apple-provisioning-profiles";
 export { GoogleServiceAccountKeysGroup } from "./groups/google-service-account-keys";
 export { IosBundleConfigurationsGroup } from "./groups/ios-bundle-configurations";
+export { IosAppMetadataGroup } from "./groups/ios-app-metadata";
+export { SubmissionsGroup } from "./groups/submissions";
 export { AndroidApplicationIdentifiersGroup } from "./groups/android-application-identifiers";
 export { AndroidUploadKeystoresGroup } from "./groups/android-upload-keystores";
 export { AndroidBuildCredentialsGroup } from "./groups/android-build-credentials";

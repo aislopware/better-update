@@ -136,7 +136,7 @@ export const UploadGoogleServiceAccountKeyDialog = ({ orgId }: { orgId: string }
         <DialogHeader>
           <DialogTitle>Upload Google Service Account Key</DialogTitle>
           <DialogDescription>
-            Upload a .json Google service account key for FCM v1 push or Play Store submissions.
+            Upload a .json Google service account key for FCM v1 push notifications.
           </DialogDescription>
         </DialogHeader>
         <UploadForm

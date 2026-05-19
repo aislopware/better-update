@@ -1,5 +1,9 @@
+import { writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import process from "node:process";
 
+import { fromBase64 } from "@better-update/encoding";
 import { defineCommand } from "citty";
 import { Effect } from "effect";
 
@@ -7,8 +11,39 @@ import { runEffect } from "../../lib/citty-effect";
 import { printHuman } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 
-const resignWorkflowText = (buildId: string, installLink: string) =>
-  `Resigning iOS build ${buildId}
+import type { ApiClient } from "../../services/api-client";
+
+interface ResolvedInputs {
+  readonly profilePath: string;
+  readonly signingIdentity: string;
+  readonly appName: string;
+}
+
+const resignWorkflowText = (params: {
+  buildId: string;
+  installLink: string;
+  resolved: ResolvedInputs | undefined;
+}) => {
+  const inputs = params.resolved;
+  const profilePathHint =
+    inputs === undefined ? "/path/to/new.mobileprovision" : inputs.profilePath;
+  const identityHint =
+    inputs === undefined
+      ? `"iPhone Distribution: Your Team (ABCDE12345)"`
+      : `"${inputs.signingIdentity}"`;
+  const appName = inputs === undefined ? "YourApp.app" : `${inputs.appName}.app`;
+
+  const resolvedHeader =
+    inputs === undefined
+      ? ""
+      : `Resolved inputs
+  Profile: ${inputs.profilePath}
+  Identity: ${inputs.signingIdentity}
+  Target app bundle: ${inputs.appName}.app
+
+`;
+
+  return `Resigning iOS build ${params.buildId}
 =================================================
 
 iOS code-signing requires native macOS tooling (codesign, security, xcodebuild)
@@ -16,22 +51,22 @@ and the matching distribution certificate in your Keychain. better-update does
 not bundle that toolchain — instead it gives you the inputs and a re-upload
 path.
 
-Step 1 — Download the existing IPA
-  ${installLink}
+${resolvedHeader}Step 1 — Download the existing IPA
+  ${params.installLink}
 
 Step 2 — Resign the IPA locally with your new provisioning profile.
   Pick one of:
   a) fastlane sigh resign:
        fastlane sigh resign /tmp/build.ipa \\
-         --signing_identity "iPhone Distribution: Your Team (ABCDE12345)" \\
-         --provisioning_profile /path/to/new.mobileprovision
+         --signing_identity ${identityHint} \\
+         --provisioning_profile ${profilePathHint}
 
   b) Apple's codesign + xcodebuild:
        unzip /tmp/build.ipa -d /tmp/payload
-       cp /path/to/new.mobileprovision /tmp/payload/Payload/YourApp.app/embedded.mobileprovision
-       codesign -f -s "iPhone Distribution: Your Team (ABCDE12345)" \\
-         --entitlements <(security cms -D -i /path/to/new.mobileprovision) \\
-         /tmp/payload/Payload/YourApp.app
+       cp ${profilePathHint} /tmp/payload/Payload/${appName}/embedded.mobileprovision
+       codesign -f -s ${identityHint} \\
+         --entitlements <(security cms -D -i ${profilePathHint}) \\
+         /tmp/payload/Payload/${appName}
        (cd /tmp/payload && zip -qr /tmp/resigned.ipa Payload)
 
 Step 3 — Upload the re-signed IPA as a fresh build:
@@ -41,6 +76,25 @@ Step 3 — Upload the re-signed IPA as a fresh build:
 The new build will get a fresh build ID. The original build remains for
 rollback. Disable or delete it when the re-signed build is verified.
 `;
+};
+
+const downloadProfileToTmp = (api: ApiClient, profileId: string) =>
+  Effect.gen(function* () {
+    const data = yield* api.appleProvisioningProfiles.download({ path: { id: profileId } });
+    const target = path.join(tmpdir(), `better-update-resign-${data.id}.mobileprovision`);
+    yield* Effect.promise(async () => writeFile(target, fromBase64(data.profileBase64)));
+    return {
+      profilePath: target,
+      profileName: data.profileName,
+      bundleIdentifier: data.bundleIdentifier,
+    };
+  });
+
+const resolveSigningIdentity = (api: ApiClient, certId: string) =>
+  Effect.gen(function* () {
+    const cert = yield* api.appleDistributionCertificates.download({ path: { id: certId } });
+    return `iPhone Distribution: ${cert.appleTeamIdentifier}`;
+  });
 
 export const resignCommand = defineCommand({
   meta: {
@@ -50,6 +104,15 @@ export const resignCommand = defineCommand({
   },
   args: {
     build: { type: "string", required: true, description: "Source build ID" },
+    "profile-id": {
+      type: "string",
+      description:
+        "Provisioning profile ID to bind to the resigned build (downloads it to a tmp path)",
+    },
+    "cert-id": {
+      type: "string",
+      description: "Distribution certificate ID to derive the codesign --signing-identity from",
+    },
   },
   run: async ({ args }) =>
     runEffect(
@@ -64,7 +127,36 @@ export const resignCommand = defineCommand({
           return undefined;
         }
         const link = yield* api.builds.getInstallLink({ path: { id: args.build } });
-        yield* printHuman(resignWorkflowText(args.build, link.artifactUrl));
+
+        const profilePromise =
+          args["profile-id"] === undefined
+            ? Effect.succeed(undefined)
+            : downloadProfileToTmp(api, args["profile-id"]);
+        const identityPromise =
+          args["cert-id"] === undefined
+            ? Effect.succeed(undefined)
+            : resolveSigningIdentity(api, args["cert-id"]);
+
+        const [profile, identity] = yield* Effect.all([profilePromise, identityPromise], {
+          concurrency: 2,
+        });
+
+        const resolved: ResolvedInputs | undefined =
+          profile === undefined && identity === undefined
+            ? undefined
+            : {
+                profilePath: profile?.profilePath ?? "/path/to/new.mobileprovision",
+                signingIdentity: identity ?? "iPhone Distribution: Your Team (ABCDE12345)",
+                appName: profile?.bundleIdentifier.split(".").pop() ?? "YourApp",
+              };
+
+        yield* printHuman(
+          resignWorkflowText({
+            buildId: args.build,
+            installLink: link.artifactUrl,
+            resolved,
+          }),
+        );
         return undefined;
       }),
     ),

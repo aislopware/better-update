@@ -12,10 +12,13 @@ import type {
   DeviceClass,
   DeviceRegistrationRequest,
   GoogleServiceAccountKey,
+  IosAppMetadata,
   IosBundleConfiguration,
   PeriodLiteral,
   Platform,
   Project,
+  Submission,
+  SubmissionStatus,
   SyncDevicesResult,
 } from "@better-update/api";
 
@@ -38,3 +41,6 @@ export type IosBundleConfigurationItem = typeof IosBundleConfiguration.Type;
 export type AndroidApplicationIdentifierItem = typeof AndroidApplicationIdentifier.Type;
 export type AndroidUploadKeystoreItem = typeof AndroidUploadKeystore.Type;
 export type AndroidBuildCredentialsItem = typeof AndroidBuildCredentials.Type;
+export type IosAppMetadataItem = typeof IosAppMetadata.Type;
+export type SubmissionItem = typeof Submission.Type;
+export type SubmissionStatusValue = typeof SubmissionStatus.Type;

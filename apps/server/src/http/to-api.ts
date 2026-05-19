@@ -1,6 +1,7 @@
 import {
   AndroidApplicationIdentifier,
   AndroidBuildCredentials,
+  AndroidSubmissionConfig,
   AndroidUploadKeystore,
   AppleDistributionCertificate,
   AppleProvisioningProfile,
@@ -17,9 +18,12 @@ import {
   DeviceRegistrationRequest,
   EnvVar,
   GoogleServiceAccountKey,
+  IosAppMetadata,
   IosBundleConfiguration,
+  IosSubmissionConfig,
   MissingRuntimeVersionBuild,
   Project,
+  Submission,
   Update,
 } from "@better-update/api";
 import { safeJsonParse } from "@better-update/safe-json";
@@ -49,6 +53,12 @@ import type {
   UpdateModel,
 } from "../models";
 import type { AppleTeamWithCounts } from "../repositories/apple-teams";
+import type {
+  AndroidSubmissionConfigModel,
+  IosAppMetadataModel,
+  IosSubmissionConfigModel,
+  SubmissionModel,
+} from "../submission-models";
 
 export const toApiProject = (project: ProjectModel) =>
   new Project({
@@ -283,6 +293,7 @@ export const toApiAscApiKey = (model: AscApiKeyModel): AscApiKey =>
     organizationId: model.organizationId,
     appleTeamId: model.appleTeamId,
     keyId: model.keyId,
+    issuerId: model.issuerId,
     name: model.name,
     roles: parseRoles(model.roles),
     createdAt: model.createdAt,
@@ -333,6 +344,8 @@ export const toApiIosBundleConfiguration = (
     appleProvisioningProfileId: model.appleProvisioningProfileId,
     applePushKeyId: model.applePushKeyId,
     ascApiKeyId: model.ascApiKeyId,
+    targetName: model.targetName,
+    parentBundleIdentifier: model.parentBundleIdentifier,
     createdAt: model.createdAt,
     updatedAt: model.updatedAt,
   });
@@ -378,3 +391,105 @@ export const toApiAndroidBuildCredentials = (
     createdAt: model.createdAt,
     updatedAt: model.updatedAt,
   });
+
+export const toApiIosAppMetadata = (model: IosAppMetadataModel): IosAppMetadata =>
+  new IosAppMetadata({
+    id: model.id,
+    organizationId: model.organizationId,
+    projectId: model.projectId,
+    bundleIdentifier: model.bundleIdentifier,
+    ascAppId: model.ascAppId,
+    sku: model.sku,
+    language: model.language,
+    companyName: model.companyName,
+    appName: model.appName,
+    createdAt: model.createdAt,
+    updatedAt: model.updatedAt,
+  });
+
+type SubmissionConfigPayload = IosSubmissionConfigModel | AndroidSubmissionConfigModel;
+
+const hasIosKeys = (config: SubmissionConfigPayload): config is IosSubmissionConfigModel =>
+  "bundleIdentifier" in config;
+
+const toApiIosSubmissionConfig = (config: SubmissionConfigPayload): IosSubmissionConfig | null => {
+  if (!hasIosKeys(config)) {
+    return null;
+  }
+  return new IosSubmissionConfig({
+    appleId: config.appleId,
+    ascAppId: config.ascAppId,
+    appleTeamId: config.appleTeamId,
+    sku: config.sku,
+    language: config.language,
+    companyName: config.companyName,
+    appName: config.appName,
+    bundleIdentifier: config.bundleIdentifier,
+    ascApiKeyId: config.ascApiKeyId,
+    groups: config.groups,
+    whatToTest: config.whatToTest,
+  });
+};
+
+const toApiAndroidSubmissionConfig = (
+  config: SubmissionConfigPayload,
+): AndroidSubmissionConfig | null => {
+  if (hasIosKeys(config)) {
+    return null;
+  }
+  return new AndroidSubmissionConfig({
+    applicationId: config.applicationId,
+    track: config.track,
+    releaseStatus: config.releaseStatus,
+    changesNotSentForReview: config.changesNotSentForReview,
+    rollout: config.rollout,
+    googleServiceAccountKeyId: config.googleServiceAccountKeyId,
+  });
+};
+
+const parseLogFiles = (logFilesJson: string): readonly string[] => {
+  const parsed = safeJsonParse(logFilesJson);
+  if (!Array.isArray(parsed)) {
+    return [];
+  }
+  return parsed.filter((item): item is string => typeof item === "string");
+};
+
+const parseSubmissionConfig = (json: string): SubmissionConfigPayload | null => {
+  const parsed = safeJsonParse(json);
+  if (parsed === null || typeof parsed !== "object") {
+    return null;
+  }
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- both sides of this JSON contract are owned by this server: write path serializes the union in handlers/submissions.ts, read path returns identical shape
+  return parsed as SubmissionConfigPayload;
+};
+
+export const toApiSubmission = (model: SubmissionModel): Submission => {
+  const config = parseSubmissionConfig(model.submissionConfigJson);
+  const iosConfig =
+    model.platform === "ios" && config !== null ? toApiIosSubmissionConfig(config) : null;
+  const androidConfig =
+    model.platform === "android" && config !== null ? toApiAndroidSubmissionConfig(config) : null;
+  return new Submission({
+    id: model.id,
+    organizationId: model.organizationId,
+    projectId: model.projectId,
+    platform: model.platform,
+    profileName: model.profileName,
+    status: model.status,
+    archiveSource: model.archiveSource,
+    buildId: model.buildId,
+    archiveUrl: model.archiveUrl,
+    iosConfig,
+    androidConfig,
+    errorCode: model.errorCode,
+    errorMessage: model.errorMessage,
+    logFiles: parseLogFiles(model.logFilesJson),
+    initiatingUserId: model.initiatingUserId,
+    queuedAt: model.queuedAt,
+    startedAt: model.startedAt,
+    completedAt: model.completedAt,
+    createdAt: model.createdAt,
+    updatedAt: model.updatedAt,
+  });
+};

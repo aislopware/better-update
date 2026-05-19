@@ -69,7 +69,7 @@ describe("Credentials Android flow", () => {
     projectId = (await projRes.json()).id;
   });
 
-  it("creates an Android application identifier", async () => {
+  it("creates an Android application identifier with an auto-default credential group", async () => {
     const res = await post(
       `/api/projects/${projectId}/android-application-identifiers`,
       { packageName: "com.acme.app" },
@@ -79,6 +79,15 @@ describe("Credentials Android flow", () => {
     const body = await res.json();
     expect(body.packageName).toBe("com.acme.app");
     appIdentifierId = body.id;
+
+    const listRes = await get(
+      `/api/android-application-identifiers/${appIdentifierId}/build-credentials`,
+      { cookie: cookies },
+    );
+    const items = (await listRes.json()).items as BuildCredsItem[];
+    expect(items).toHaveLength(1);
+    expect(items[0]?.isDefault).toBe(true);
+    expect(items[0]?.name).toBe("Default");
   });
 
   it("rejects invalid package names", async () => {
@@ -148,23 +157,28 @@ describe("Credentials Android flow", () => {
     saFcmId = (await fcmRes.json()).id;
   });
 
-  it("creates a default Build Credentials group", async () => {
-    const res = await post(
+  it("binds keystore + service accounts to the auto-default group", async () => {
+    const listRes = await get(
       `/api/android-application-identifiers/${appIdentifierId}/build-credentials`,
+      { cookie: cookies },
+    );
+    const items = (await listRes.json()).items as BuildCredsItem[];
+    defaultCredsId = items[0]?.id ?? "";
+    expect(defaultCredsId).not.toBe("");
+
+    const res = await put(
+      `/api/android-build-credentials/${defaultCredsId}`,
       {
-        name: "Default",
         androidUploadKeystoreId: keystoreId,
         googleServiceAccountKeyForSubmissionsId: saSubmissionsId,
         googleServiceAccountKeyForFcmV1Id: saFcmId,
-        isDefault: true,
       },
       { cookie: cookies },
     );
-    expect(res.status).toBe(201);
+    expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.isDefault).toBe(true);
     expect(body.name).toBe("Default");
-    defaultCredsId = body.id;
   });
 
   it("creates a second non-default group", async () => {

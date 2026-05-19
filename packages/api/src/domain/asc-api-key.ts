@@ -20,6 +20,7 @@ export class AscApiKey extends Schema.Class<AscApiKey>("AscApiKey")({
   organizationId: Id,
   appleTeamId: Schema.NullOr(Id),
   keyId: Schema.String,
+  issuerId: IssuerId,
   name: Schema.String,
   roles: Schema.Array(Schema.String),
   createdAt: DateTimeString,

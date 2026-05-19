@@ -3,8 +3,10 @@ import { queryOptions } from "@tanstack/react-query";
 import type {
   CreateAndroidApplicationIdentifierBody,
   CreateAndroidBuildCredentialsBody,
+  CreateIosAppMetadataBody,
   CreateIosBundleConfigurationBody,
   UpdateAndroidBuildCredentialsBody,
+  UpdateIosAppMetadataBody,
   UpdateIosBundleConfigurationBody,
   UploadAndroidUploadKeystoreBody,
   UploadAppleDistributionCertificateBody,
@@ -157,6 +159,30 @@ export const updateIosBundleConfiguration = async (
 
 export const deleteIosBundleConfiguration = async (id: string) =>
   runApi((api) => api.iosBundleConfigurations.delete({ path: { id } }));
+
+export const iosAppMetadataQueryKey = (orgId: string, projectId: string) =>
+  ["org", orgId, "projects", projectId, "ios-app-metadata"] as const;
+
+export const iosAppMetadataQueryOptions = (orgId: string, projectId: string) =>
+  queryOptions({
+    queryKey: iosAppMetadataQueryKey(orgId, projectId),
+    queryFn: async ({ signal }) =>
+      runApi((api) => api.iosAppMetadata.list({ path: { projectId } }), signal),
+    staleTime: 30_000,
+  });
+
+export const createIosAppMetadata = async (
+  projectId: string,
+  body: typeof CreateIosAppMetadataBody.Type,
+) => runApi((api) => api.iosAppMetadata.create({ path: { projectId }, payload: body }));
+
+export const updateIosAppMetadata = async (
+  id: string,
+  body: typeof UpdateIosAppMetadataBody.Type,
+) => runApi((api) => api.iosAppMetadata.update({ path: { id }, payload: body }));
+
+export const deleteIosAppMetadata = async (id: string) =>
+  runApi((api) => api.iosAppMetadata.delete({ path: { id } }));
 
 export const androidApplicationIdentifiersQueryKey = (orgId: string, projectId: string) =>
   ["org", orgId, "projects", projectId, "android-application-identifiers"] as const;

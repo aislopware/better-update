@@ -43,6 +43,8 @@ export {
   IosBundleConfigurationRepo,
   IosBundleConfigurationRepoLive,
 } from "./ios-bundle-configurations";
+export { IosAppMetadataRepo, IosAppMetadataRepoLive } from "./ios-app-metadata";
+export { SubmissionsRepo, SubmissionsRepoLive } from "./submissions";
 export { ManifestRepo, ManifestRepoLive } from "./manifest";
 export { ProjectRepo, ProjectRepoLive } from "./projects";
 export { UpdateRepo, UpdateRepoLive } from "./updates";

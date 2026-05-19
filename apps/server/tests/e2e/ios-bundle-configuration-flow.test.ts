@@ -197,6 +197,47 @@ describe("iOS Bundle Configuration flow", () => {
     expect(body.appleDistributionCertificateId).toBe(certId);
   });
 
+  it("creates an extension bundle configuration with targetName + parentBundleIdentifier", async () => {
+    const extensionBundle = `${BUNDLE}.NotificationServiceExtension`;
+    const createRes = await post(
+      `/api/projects/${projectId}/ios-bundle-configurations`,
+      {
+        bundleIdentifier: extensionBundle,
+        distributionType: "APP_STORE",
+        appleTeamId,
+        targetName: "NotificationServiceExtension",
+        parentBundleIdentifier: BUNDLE,
+      },
+      { cookie: cookies },
+    );
+    expect(createRes.status).toBe(201);
+    const created = await createRes.json();
+    expect(created.targetName).toBe("NotificationServiceExtension");
+    expect(created.parentBundleIdentifier).toBe(BUNDLE);
+
+    const listRes = await get(`/api/projects/${projectId}/ios-bundle-configurations`, {
+      cookie: cookies,
+    });
+    const items = (await listRes.json()).items as Array<{
+      bundleIdentifier: string;
+      targetName: string | null;
+      parentBundleIdentifier: string | null;
+    }>;
+    const extensionRow = items.find((item) => item.bundleIdentifier === extensionBundle);
+    expect(extensionRow?.targetName).toBe("NotificationServiceExtension");
+    expect(extensionRow?.parentBundleIdentifier).toBe(BUNDLE);
+
+    const updateRes = await put(
+      `/api/ios-bundle-configurations/${String(created.id)}`,
+      { targetName: null, parentBundleIdentifier: null },
+      { cookie: cookies },
+    );
+    expect(updateRes.status).toBe(200);
+    const updated = await updateRes.json();
+    expect(updated.targetName).toBeNull();
+    expect(updated.parentBundleIdentifier).toBeNull();
+  });
+
   it("deletes the bundle configuration", async () => {
     const res = await del(`/api/ios-bundle-configurations/${bundleConfigId}`, {
       cookie: cookies,
