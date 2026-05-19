@@ -33,6 +33,50 @@ describe(fromEasProfile, () => {
     expect(profile.android?.format).toBe("apk");
   });
 
+  it("developmentClient=true defaults ios.buildConfiguration to Debug and android.buildType to debug", () => {
+    const profile = fromEasProfile({ developmentClient: true }, "development");
+    expect(profile.ios?.buildConfiguration).toBe("Debug");
+    expect(profile.android?.buildType).toBe("debug");
+    expect(profile.developmentClient).toBe(true);
+  });
+
+  it("explicit ios.buildConfiguration overrides the developmentClient Debug default", () => {
+    const profile = fromEasProfile(
+      {
+        developmentClient: true,
+        ios: { buildConfiguration: "Release" },
+      },
+      "dev-release",
+    );
+    expect(profile.ios?.buildConfiguration).toBe("Release");
+  });
+
+  it("explicit android.buildType overrides the developmentClient debug default", () => {
+    const profile = fromEasProfile(
+      {
+        developmentClient: true,
+        android: { buildType: "release" },
+      },
+      "dev-release",
+    );
+    expect(profile.android?.buildType).toBe("release");
+  });
+
+  it("non-dev profile leaves buildConfiguration/buildType undefined for runtime defaults", () => {
+    const profile = fromEasProfile({ distribution: "store" }, "production");
+    expect(profile.ios?.buildConfiguration).toBeUndefined();
+    expect(profile.android?.buildType).toBeUndefined();
+    expect(profile.developmentClient).toBeUndefined();
+  });
+
+  it("threads withoutCredentials onto the resolved BuildProfile", () => {
+    const profile = fromEasProfile(
+      { developmentClient: true, withoutCredentials: true },
+      "dev-no-creds",
+    );
+    expect(profile.withoutCredentials).toBe(true);
+  });
+
   it("ios.distribution override takes precedence over distribution+developmentClient", () => {
     const profile = fromEasProfile(
       {

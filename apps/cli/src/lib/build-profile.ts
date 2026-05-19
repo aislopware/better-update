@@ -45,6 +45,10 @@ export interface BuildProfile {
   readonly ios?: IosProfile;
   readonly android?: AndroidProfile;
   readonly credentialsSource?: CredentialsSource;
+  /** Mirror of EAS `developmentClient` — drives Debug/debug variant + dev-client validation. */
+  readonly developmentClient?: boolean;
+  /** Mirror of EAS `withoutCredentials` — skip credential fetch + signing injection. */
+  readonly withoutCredentials?: boolean;
 }
 
 export type RawRuntimeVersion = string | { readonly policy: string };
@@ -169,9 +173,14 @@ const toIosProfile = (eas: EasBuildProfile): IosProfile | undefined => {
   }
   const ios: EasIosProfile = eas.ios ?? {};
   const autoIncrement = resolveIosAutoIncrement(eas);
+  // EAS parity: `developmentClient: true` forces Xcode `Debug` configuration
+  // (matches eas-build-job/src/ios.ts resolveBuildConfiguration). An explicit
+  // ios.buildConfiguration override always wins.
+  const buildConfiguration =
+    ios.buildConfiguration ?? (eas.developmentClient === true ? "Debug" : undefined);
   return {
     distribution,
-    ...(ios.buildConfiguration === undefined ? {} : { buildConfiguration: ios.buildConfiguration }),
+    ...(buildConfiguration === undefined ? {} : { buildConfiguration }),
     ...(ios.scheme === undefined ? {} : { scheme: ios.scheme }),
     ...(ios.simulator === undefined ? {} : { simulator: ios.simulator }),
     ...(autoIncrement === undefined ? {} : { autoIncrement }),
@@ -189,10 +198,15 @@ const toAndroidProfile = (eas: EasBuildProfile): AndroidProfile | undefined => {
   const android: EasAndroidProfile = eas.android ?? {};
   const distribution = deriveAndroidDistribution(eas, format);
   const autoIncrement = resolveAndroidAutoIncrement(eas);
+  // EAS parity: `developmentClient: true` forces Gradle debug variant (matches
+  // eas-build-job/src/android.ts resolveGradleCommand). An explicit
+  // android.buildType override always wins.
+  const buildType =
+    android.buildType ?? (eas.developmentClient === true ? ("debug" as const) : undefined);
   return {
     format,
     distribution,
-    ...(android.buildType === undefined ? {} : { buildType: android.buildType }),
+    ...(buildType === undefined ? {} : { buildType }),
     ...(android.flavor === undefined ? {} : { flavor: android.flavor }),
     ...(android.gradleCommand === undefined ? {} : { gradleCommand: android.gradleCommand }),
     ...(autoIncrement === undefined ? {} : { autoIncrement }),
@@ -210,6 +224,8 @@ export const fromEasProfile = (eas: EasBuildProfile, profileName: string): Build
     ...(ios === undefined ? {} : { ios }),
     ...(android === undefined ? {} : { android }),
     ...(eas.credentialsSource === undefined ? {} : { credentialsSource: eas.credentialsSource }),
+    ...(eas.developmentClient === undefined ? {} : { developmentClient: eas.developmentClient }),
+    ...(eas.withoutCredentials === undefined ? {} : { withoutCredentials: eas.withoutCredentials }),
   };
 };
 

@@ -33,6 +33,13 @@ export interface RunAndroidBuildInput {
   readonly projectId: string;
   readonly credentialsSource: CredentialsSource;
   readonly profileName: string;
+  /**
+   * When true, skip remote keystore fetch and Gradle signing init-script. The
+   * Android project's native debug signingConfig (RN template debug.keystore)
+   * signs the artifact. Set by callers for `developmentClient: true` or
+   * `withoutCredentials: true` profiles (mirrors EAS withoutCredentials).
+   */
+  readonly skipCredentials: boolean;
 }
 
 export interface RunAndroidBuildResult {
@@ -83,16 +90,6 @@ export const runAndroidBuild = (
     const androidDir = path.join(projectRoot, "android");
     const commandEnv = yield* runtime.commandEnvironment(envVars);
 
-    const credentials =
-      input.credentialsSource === "local"
-        ? yield* loadLocalAndroidCredentials({ projectRoot })
-        : yield* downloadAndroidCredentials(api, {
-            projectId,
-            applicationIdentifier,
-            tempDir,
-            buildProfile: input.profileName,
-          });
-
     yield* runStep(
       {
         command: "bunx",
@@ -103,23 +100,42 @@ export const runAndroidBuild = (
       "expo prebuild android",
     );
 
-    const fs = yield* FileSystem.FileSystem;
-    const signingGradlePath = path.join(tempDir, "signing.gradle");
-    yield* fs.writeFileString(
-      signingGradlePath,
-      renderSigningGradle({
-        keystorePath: credentials.keystorePath,
-        storePassword: credentials.storePassword,
-        keyAlias: credentials.keyAlias,
-        keyPassword: credentials.keyPassword,
-      }),
-    );
+    // For dev / withoutCredentials builds, the Android project's own debug
+    // signingConfig (RN template debug.keystore) signs the APK. The init-script
+    // only overrides the `release` variant, so skipping it is the same as
+    // injecting it when running assembleDebug — but skipping also lets the
+    // build proceed without a server-side keystore registered for the project.
+    const gradleArgs = yield* input.skipCredentials
+      ? Effect.succeed<readonly string[]>([])
+      : Effect.gen(function* () {
+          const credentials =
+            input.credentialsSource === "local"
+              ? yield* loadLocalAndroidCredentials({ projectRoot })
+              : yield* downloadAndroidCredentials(api, {
+                  projectId,
+                  applicationIdentifier,
+                  tempDir,
+                  buildProfile: input.profileName,
+                });
+          const fs = yield* FileSystem.FileSystem;
+          const signingGradlePath = path.join(tempDir, "signing.gradle");
+          yield* fs.writeFileString(
+            signingGradlePath,
+            renderSigningGradle({
+              keystorePath: credentials.keystorePath,
+              storePassword: credentials.storePassword,
+              keyAlias: credentials.keyAlias,
+              keyPassword: credentials.keyPassword,
+            }),
+          );
+          return ["--init-script", signingGradlePath] as const;
+        });
 
     const taskName = gradleTaskName(format, flavor, buildType);
     yield* runStep(
       {
         command: "./gradlew",
-        args: ["--init-script", signingGradlePath, `:app:${taskName}`],
+        args: [...gradleArgs, `:app:${taskName}`],
         cwd: androidDir,
         env: commandEnv,
       },
