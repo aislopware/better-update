@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.18.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.17.0...@better-update/cli@0.18.0) (2026-05-19)
+
+### Features
+
+* android multi credential sets resolvable by build profile ([7e71890](https://github.com/better-update/better-update/commit/7e718901a77df5bb180417a459870acb5751a212)) - by @trancong12102
+* dashboard parity wave (fingerprints, env vars, build audience, update detail) ([d9930d7](https://github.com/better-update/better-update/commit/d9930d7575f435c120e153237dcee7f35b191d57)) - by @trancong12102
+
 ## [0.17.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.16.0...@better-update/cli@0.17.0) (2026-05-18)
 
 ### Features
