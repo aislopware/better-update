@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.17.0](https://github.com/better-update/better-update/compare/@better-update/web@0.16.0...@better-update/web@0.17.0) (2026-05-19)
+
+### Features
+
+* **server:** seed production/staging/preview branches and channels on project create ([cb5bc4b](https://github.com/better-update/better-update/commit/cb5bc4b512dd0c7212a2c1df6893dc8c67e8c1f8)) - by @
+
 ## [0.16.0](https://github.com/better-update/better-update/compare/@better-update/web@0.15.0...@better-update/web@0.16.0) (2026-05-19)
 
 ### Features

@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.6.2](https://github.com/better-update/better-update/compare/@better-update/api-client@0.6.1...@better-update/api-client@0.6.2) (2026-05-19)
+
+### Bug Fixes
+
+* **api-client:** surface real error message from unmapped Effect.tryPromise wrappers ([39421f9](https://github.com/better-update/better-update/commit/39421f93a9bc07b1df0da86f8e8cb3eae5a56408)) - by @trancong12102
+
 ## [0.6.1](https://github.com/better-update/better-update/compare/@better-update/api-client@0.6.0...@better-update/api-client@0.6.1) (2026-05-19)
 
 **Note:** Version bump only for package @better-update/api-client
