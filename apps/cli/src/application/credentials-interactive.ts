@@ -1,3 +1,5 @@
+import { randomBytes } from "node:crypto";
+
 import { Console, Effect } from "effect";
 
 import { IOS_DISTRIBUTION_TO_TYPE } from "../lib/credentials-downloader";
@@ -46,6 +48,21 @@ export interface AndroidSetupInput {
   readonly projectId: string;
   readonly applicationIdentifier: string;
 }
+
+const randomKeystoreSecret = () => randomBytes(24).toString("base64url");
+
+const generateKeystoreAuto = (api: ApiClient, applicationIdentifier: string) =>
+  Effect.gen(function* () {
+    yield* Console.log("Generating a new Android Keystore...");
+    const created = yield* generateAndUploadKeystore(api, {
+      keyAlias: "upload",
+      storePassword: randomKeystoreSecret(),
+      keyPassword: randomKeystoreSecret(),
+      commonName: applicationIdentifier,
+      organization: "better-update",
+    });
+    return created.id;
+  });
 
 const generateKeystoreInteractive = (api: ApiClient) =>
   Effect.gen(function* () {
@@ -128,7 +145,9 @@ const setupAndroidInteractive = (api: ApiClient, input: AndroidSetupInput) =>
       );
     }
 
-    const keystoreId = yield* resolveAndroidKeystoreId(api, choice);
+    const keystoreId = yield* choice === "generate"
+      ? generateKeystoreAuto(api, input.applicationIdentifier)
+      : pickExistingKeystore(api);
 
     yield* api.androidBuildCredentials.create({
       path: { applicationIdentifierId: appId },
