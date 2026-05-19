@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.19.1](https://github.com/better-update/better-update/compare/@better-update/cli@0.19.0...@better-update/cli@0.19.1) (2026-05-19)
+
+### Bug Fixes
+
+* **cli:** merge eas.json profile.env into build/upload envVars ([c0993a4](https://github.com/better-update/better-update/commit/c0993a4c4d63c79965443131b04d63e98020df10)) - by @trancong12102
+
 ## [0.19.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.18.4...@better-update/cli@0.19.0) (2026-05-19)
 
 ### Features
