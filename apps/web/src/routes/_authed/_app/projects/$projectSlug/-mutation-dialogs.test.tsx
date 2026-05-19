@@ -128,6 +128,7 @@ const build = {
   bundleId: "com.example.app",
   gitRef: null,
   gitCommit: null,
+  gitDirty: false,
   message: "Release build",
   metadataJson: "{}",
   fingerprintHash: null,

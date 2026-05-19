@@ -343,6 +343,7 @@ export interface BuildModel {
   readonly bundleId: string | null;
   readonly gitRef: string | null;
   readonly gitCommit: string | null;
+  readonly gitDirty: boolean;
   readonly message: string | null;
   readonly metadataJson: string;
   readonly fingerprintHash: string | null;

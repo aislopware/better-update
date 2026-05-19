@@ -169,6 +169,7 @@ describe(reserveAndUpload, () => {
       expect(reservePayload?.["runtimeVersion"]).toBe("1.2.3");
       expect(reservePayload?.["gitRef"]).toBe("main");
       expect(reservePayload?.["gitCommit"]).toBe("abc123");
+      expect(reservePayload?.["gitDirty"]).toBe(false);
       expect(reservePayload?.["bundleId"]).toBe("com.example.app");
       expect(reservePayload?.["sha256"]).toBe("deadbeef");
       expect(reservePayload?.["byteSize"]).toBe(11);

@@ -36,6 +36,7 @@ export interface BuildRepository {
     readonly bundleId: string | null;
     readonly gitRef: string | null;
     readonly gitCommit: string | null;
+    readonly gitDirty: boolean;
     readonly message: string | null;
     readonly metadataJson: string;
     readonly fingerprintHash: string | null;
@@ -173,7 +174,7 @@ export const BuildRepoLive = Layer.succeed(BuildRepo, {
       yield* Effect.promise(async () =>
         env.DB.batch([
           env.DB.prepare(
-            `INSERT INTO "builds" ("id", "project_id", "platform", "profile", "distribution", "runtime_version", "app_version", "build_number", "bundle_id", "git_ref", "git_commit", "message", "metadata_json", "fingerprint_hash", "created_at") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO "builds" ("id", "project_id", "platform", "profile", "distribution", "runtime_version", "app_version", "build_number", "bundle_id", "git_ref", "git_commit", "git_dirty", "message", "metadata_json", "fingerprint_hash", "created_at") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           ).bind(
             params.id,
             params.projectId,
@@ -186,6 +187,7 @@ export const BuildRepoLive = Layer.succeed(BuildRepo, {
             params.bundleId,
             params.gitRef,
             params.gitCommit,
+            params.gitDirty ? 1 : 0,
             params.message,
             params.metadataJson,
             params.fingerprintHash,
@@ -217,6 +219,7 @@ export const BuildRepoLive = Layer.succeed(BuildRepo, {
         bundleId: params.bundleId,
         gitRef: params.gitRef,
         gitCommit: params.gitCommit,
+        gitDirty: params.gitDirty,
         message: params.message,
         metadataJson: params.metadataJson,
         fingerprintHash: params.fingerprintHash,

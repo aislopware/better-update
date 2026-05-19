@@ -61,6 +61,7 @@ const buildReserveCommon = (input: ReserveAndUploadInput) =>
     ...(input.buildNumber === undefined ? {} : { buildNumber: input.buildNumber }),
     ...(input.gitContext.ref === undefined ? {} : { gitRef: input.gitContext.ref }),
     ...(input.gitContext.commit === undefined ? {} : { gitCommit: input.gitContext.commit }),
+    gitDirty: input.gitContext.dirty,
     ...(input.message === undefined ? {} : { message: input.message }),
     ...(input.fingerprintHash === undefined ? {} : { fingerprintHash: input.fingerprintHash }),
   }) as const;

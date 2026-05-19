@@ -80,7 +80,11 @@ const BuildMetadataCard = ({
       </div>
       <div className="flex flex-col gap-1">
         <div className="text-muted-foreground text-sm">Git commit</div>
-        <div className="font-medium">{build.gitCommit ?? "Not provided"}</div>
+        <div className="font-medium">
+          {build.gitCommit === null
+            ? "Not provided"
+            : `${build.gitCommit}${build.gitDirty ? "*" : ""}`}
+        </div>
       </div>
       <div className="flex flex-col gap-1 sm:col-span-2">
         <div className="text-muted-foreground text-sm">Created</div>

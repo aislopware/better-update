@@ -133,6 +133,7 @@ export const toApiBuild = (build: BuildWithArtifactModel) =>
     bundleId: build.bundleId,
     gitRef: build.gitRef,
     gitCommit: build.gitCommit,
+    gitDirty: build.gitDirty,
     message: build.message,
     metadataJson: build.metadataJson,
     fingerprintHash: build.fingerprintHash,

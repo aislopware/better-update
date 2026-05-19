@@ -23,6 +23,7 @@ const makeRow = (id: string, createdAt: string): BuildWithArtifactRow => ({
   bundle_id: "com.example.app",
   git_ref: null,
   git_commit: null,
+  git_dirty: 0,
   message: "Test build",
   metadata_json: "{}",
   fingerprint_hash: null,

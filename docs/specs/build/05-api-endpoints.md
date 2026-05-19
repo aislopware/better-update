@@ -102,6 +102,7 @@ Content-Type: application/json
   "message": "v1.2.0 release build",
   "gitRef": "main",
   "gitCommit": "abc123",
+  "gitDirty": false,
   "metadata": { "xcode": "16.4", "sdk": "ios17" },
   "sha256": "4f8c5e6d...",
   "byteSize": 52428800
