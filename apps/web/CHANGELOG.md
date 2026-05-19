@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.14.0](https://github.com/better-update/better-update/compare/@better-update/web@0.13.0...@better-update/web@0.14.0) (2026-05-19)
+
+### Features
+
+* **web:** show build number, drop format and target columns in builds table ([ab813c8](https://github.com/better-update/better-update/commit/ab813c81ef0d194dff37dc637c07ff0b1597464e)) - by @trancong12102
+
 ## [0.13.0](https://github.com/better-update/better-update/compare/@better-update/web@0.12.1...@better-update/web@0.13.0) (2026-05-19)
 
 ### Features
