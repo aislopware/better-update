@@ -1,48 +1,17 @@
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@better-update/ui/components/ui/tooltip";
-import { DownloadIcon, MonitorIcon, SmartphoneIcon } from "lucide-react";
+import { DownloadIcon } from "lucide-react";
 
 import type { BuildWithArtifact } from "@better-update/api";
 import type { ColumnDef } from "@tanstack/react-table";
 
-import { DISTRIBUTION_LABELS, FORMAT_LABELS } from "../-build-helpers";
+import { DISTRIBUTION_LABELS } from "../-build-helpers";
 import { DeleteBuildDialog } from "../-delete-build-dialog";
 import { InstallLinkDialog } from "../-install-link-dialog";
 import { formatRelativeTime } from "../../../../../../lib/format-relative-time";
 
 export type BuildItem = typeof BuildWithArtifact.Type;
-
-const BuildTargetCell = ({ build }: { build: BuildItem }) => {
-  if (build.platform === "ios" && build.distribution === "simulator") {
-    return (
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Badge variant="outline" className="gap-1">
-              <MonitorIcon strokeWidth={2} className="size-3" />
-              Simulator
-            </Badge>
-          }
-        />
-        <TooltipPopup>Runs on the iOS Simulator only</TooltipPopup>
-      </Tooltip>
-    );
-  }
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <Badge variant="outline" className="gap-1">
-            <SmartphoneIcon strokeWidth={2} className="size-3" />
-            Device
-          </Badge>
-        }
-      />
-      <TooltipPopup>Installable on physical devices</TooltipPopup>
-    </Tooltip>
-  );
-};
 
 const buildLabel = (build: BuildItem) =>
   (build.message ?? build.profile) || `Build ${build.id.slice(0, 8)}`;
@@ -147,20 +116,15 @@ export const buildBuildsColumns = (
     enableSorting: true,
   },
   {
-    id: "format",
-    header: "Format",
+    id: "buildNumber",
+    accessorKey: "buildNumber",
+    header: "Build number",
     cell: ({ row }) =>
-      row.original.artifact ? (
-        <Badge variant="outline">{FORMAT_LABELS[row.original.artifact.format]}</Badge>
+      row.original.buildNumber === null ? (
+        <span className="text-muted-foreground text-xs">—</span>
       ) : (
-        <Badge variant="outline">No artifact</Badge>
+        <code className="font-mono text-xs">{row.original.buildNumber}</code>
       ),
-    enableSorting: false,
-  },
-  {
-    id: "target",
-    header: "Target",
-    cell: ({ row }) => <BuildTargetCell build={row.original} />,
     enableSorting: false,
   },
   {
