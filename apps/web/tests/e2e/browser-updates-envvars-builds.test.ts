@@ -14,6 +14,7 @@ import {
 import { setupE2EDashboard } from "../helpers/e2e-dashboard";
 import {
   patchUpdateRollout,
+  rebindSeededChannel,
   seedAssetAndFinalize,
   seedBranch,
   seedBuild,
@@ -32,9 +33,11 @@ const owner = {
 };
 const projectName = `Updates Project ${suffix}`;
 const slug = `updates-${suffix}`;
+// Projects come with seeded production/staging/preview branches+channels;
+// pick non-seeded names so this test owns its branches+channels end-to-end.
 const mainBranchName = "main";
-const stagingBranchName = "staging";
-const stagingChannelName = "staging";
+const stagingBranchName = "qa";
+const stagingChannelName = "qa";
 
 let context: BrowserContext;
 let page: Page;
@@ -68,7 +71,9 @@ beforeAll(async () => {
     projectId,
     name: stagingBranchName,
   });
-  await seedChannel({
+  // Rebind the seeded "production" channel to point at the test's main branch
+  // and create a separate channel for staging-equivalent traffic.
+  await rebindSeededChannel({
     dashboard,
     cookies,
     projectId,

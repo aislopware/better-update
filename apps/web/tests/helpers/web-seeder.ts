@@ -110,6 +110,36 @@ export const seedChannel = async (params: {
   return ((await response.json()) as { id: string }).id;
 };
 
+// Projects ship with seeded production/staging/preview channels. Use this to
+// look up one by name and re-target it at a different branch for tests that
+// want to reuse the seeded channel rather than create a parallel one.
+export const rebindSeededChannel = async (params: {
+  readonly dashboard: Dashboard;
+  readonly cookies: string;
+  readonly projectId: string;
+  readonly name: string;
+  readonly branchId: string;
+}): Promise<string> => {
+  const listResponse = await params.dashboard.get(`/api/channels?projectId=${params.projectId}`, {
+    cookie: params.cookies,
+  });
+  expect(listResponse.status).toBe(200);
+  const listBody = (await listResponse.json()) as {
+    readonly items: readonly { readonly id: string; readonly name: string }[];
+  };
+  const existing = listBody.items.find((item) => item.name === params.name);
+  if (!existing) {
+    throw new Error(`rebindSeededChannel: channel "${params.name}" not found`);
+  }
+  const patchResponse = await params.dashboard.patch(
+    `/api/channels/${existing.id}`,
+    { branchId: params.branchId },
+    { cookie: params.cookies },
+  );
+  expect(patchResponse.status).toBe(200);
+  return existing.id;
+};
+
 export const seedAssetAndFinalize = async (params: {
   readonly dashboard: Dashboard;
   readonly cookies: string;

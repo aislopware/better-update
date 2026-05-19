@@ -164,24 +164,23 @@ describe("Golden path cross-flow", () => {
     projectId = (await response.json()).id as string;
   });
 
-  it("creates production branch", async () => {
-    const response = await post(
-      "/api/branches",
-      { projectId, name: "production" },
-      { cookie: cookies },
-    );
-    expect(response.status).toBe(201);
-    productionBranchId = (await response.json()).id as string;
-  });
+  // The project is seeded with production/staging/preview branches+channels at
+  // create time, so the golden path picks up the seeded production+staging and
+  // only needs to add the rollback branch+channel.
 
-  it("creates staging branch", async () => {
-    const response = await post(
-      "/api/branches",
-      { projectId, name: "staging" },
-      { cookie: cookies },
+  it("resolves seeded production + staging branches", async () => {
+    const response = await get(`/api/branches?projectId=${projectId}`, { cookie: cookies });
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    const byName = new Map<string, string>(
+      body.items.map((b: { id: string; name: string }) => [b.name, b.id]),
     );
-    expect(response.status).toBe(201);
-    stagingBranchId = (await response.json()).id as string;
+    const production = byName.get("production");
+    const staging = byName.get("staging");
+    expect(production).toBeDefined();
+    expect(staging).toBeDefined();
+    productionBranchId = production!;
+    stagingBranchId = staging!;
   });
 
   it("creates rollback branch", async () => {
@@ -192,24 +191,6 @@ describe("Golden path cross-flow", () => {
     );
     expect(response.status).toBe(201);
     rollbackBranchId = (await response.json()).id as string;
-  });
-
-  it("creates production channel linked to production branch", async () => {
-    const response = await post(
-      "/api/channels",
-      { projectId, name: "production", branchId: productionBranchId },
-      { cookie: cookies },
-    );
-    expect(response.status).toBe(201);
-  });
-
-  it("creates staging channel linked to staging branch", async () => {
-    const response = await post(
-      "/api/channels",
-      { projectId, name: "staging", branchId: stagingBranchId },
-      { cookie: cookies },
-    );
-    expect(response.status).toBe(201);
   });
 
   it("creates rollback channel linked to rollback branch", async () => {

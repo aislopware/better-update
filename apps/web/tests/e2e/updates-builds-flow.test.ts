@@ -70,14 +70,25 @@ describe("dashboard updates and builds flow", () => {
     const createNextBranchBody = await createNextBranchResponse.json();
     state.nextBranchId = createNextBranchBody.id;
 
-    const createChannelResponse = await post(
-      "/api/channels",
-      { projectId: state.projectId, name: "production", branchId: state.mainBranchId },
+    // The seeded "production" channel ships with the project; relink it to
+    // the main branch so the rollout test below operates on it.
+    const listChannelsResponse = await get(`/api/channels?projectId=${state.projectId}`, {
+      cookie: state.cookies,
+    });
+    expect(listChannelsResponse.status).toBe(200);
+    const listChannelsBody = await listChannelsResponse.json();
+    const productionChannel = listChannelsBody.items.find(
+      (item: { name: string }) => item.name === "production",
+    );
+    expect(productionChannel).toBeDefined();
+    state.channelId = productionChannel.id;
+
+    const rebindChannelResponse = await patch(
+      `/api/channels/${state.channelId}`,
+      { branchId: state.mainBranchId },
       { cookie: state.cookies },
     );
-    expect(createChannelResponse.status).toBe(201);
-    const createChannelBody = await createChannelResponse.json();
-    state.channelId = createChannelBody.id;
+    expect(rebindChannelResponse.status).toBe(200);
 
     const createRolloutResponse = await post(
       `/api/channels/${state.channelId}/rollout`,

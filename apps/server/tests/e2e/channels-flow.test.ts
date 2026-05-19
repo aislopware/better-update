@@ -72,11 +72,13 @@ describe("Channels API flow", () => {
   });
 
   // ── Section 3: Channel CRUD (session auth) ─────────────────────
+  // Projects start with 3 seeded channels (production/staging/preview) wired
+  // to same-named branches, so all assertions account for that baseline.
 
   it("creates a channel", async () => {
     const response = await post(
       "/api/channels",
-      { projectId, name: "production", branchId },
+      { projectId, name: "stable", branchId },
       { cookie: cookies },
     );
     expect(response.status).toBe(201);
@@ -89,7 +91,7 @@ describe("Channels API flow", () => {
     expect(body).toHaveProperty("cacheVersion");
     expect(body).toHaveProperty("isPaused");
     expect(body).toHaveProperty("createdAt");
-    expect(body.name).toBe("production");
+    expect(body.name).toBe("stable");
     expect(body.projectId).toBe(projectId);
     expect(body.branchId).toBe(branchId);
     expect(body.isPaused).toBe(false);
@@ -106,38 +108,42 @@ describe("Channels API flow", () => {
     expect(body).toHaveProperty("total");
     expect(body).toHaveProperty("page");
     expect(body).toHaveProperty("limit");
-    expect(body.total).toBe(1);
-    expect(body.items).toHaveLength(1);
-    expect(body.items[0].name).toBe("production");
+    // 3 seeded + stable
+    expect(body.total).toBe(4);
+    expect(body.items).toHaveLength(4);
+    expect(body.items.map((c: { name: string }) => c.name)).toContain("stable");
   });
 
   it("paginates channels via page (creates 2nd channel + walks pages, then deletes it)", async () => {
     // Channels enforce unique (project, name); reuse the existing branch.
     const ch2Res = await post(
       "/api/channels",
-      { projectId, name: "staging-cursor", branchId },
+      { projectId, name: "stable-cursor", branchId },
       { cookie: cookies },
     );
     expect(ch2Res.status).toBe(201);
     const ch2Id = (await ch2Res.json()).id;
 
-    const firstRes = await get(`/api/channels?projectId=${projectId}&limit=1&page=1`, {
+    const firstRes = await get(`/api/channels?projectId=${projectId}&limit=2&page=1`, {
       cookie: cookies,
     });
     expect(firstRes.status).toBe(200);
     const firstBody = await firstRes.json();
-    expect(firstBody.items).toHaveLength(1);
-    expect(firstBody.total).toBe(2);
+    expect(firstBody.items).toHaveLength(2);
+    // 3 seeded + stable + stable-cursor
+    expect(firstBody.total).toBe(5);
     expect(firstBody.page).toBe(1);
 
-    const secondRes = await get(`/api/channels?projectId=${projectId}&limit=1&page=2`, {
+    const secondRes = await get(`/api/channels?projectId=${projectId}&limit=2&page=2`, {
       cookie: cookies,
     });
     expect(secondRes.status).toBe(200);
     const secondBody = await secondRes.json();
-    expect(secondBody.items).toHaveLength(1);
+    expect(secondBody.items).toHaveLength(2);
     expect(secondBody.page).toBe(2);
-    expect(secondBody.items[0].id).not.toBe(firstBody.items[0].id);
+    expect(secondBody.items.map((c: { id: string }) => c.id)).not.toEqual(
+      firstBody.items.map((c: { id: string }) => c.id),
+    );
 
     // Restore prior state for downstream tests that count channels.
     const cleanup = await del(`/api/channels/${ch2Id}`, { cookie: cookies });
@@ -147,7 +153,7 @@ describe("Channels API flow", () => {
   it("creates a second branch for relink test", async () => {
     const response = await post(
       "/api/branches",
-      { projectId, name: "staging" },
+      { projectId, name: "release" },
       { cookie: cookies },
     );
     expect(response.status).toBe(201);
@@ -166,7 +172,7 @@ describe("Channels API flow", () => {
     const body = await response.json();
     expect(body.id).toBe(channelId);
     expect(body.branchId).toBe(secondBranchId);
-    expect(body.name).toBe("production");
+    expect(body.name).toBe("stable");
   });
 
   it("pauses channel", async () => {
@@ -190,7 +196,7 @@ describe("Channels API flow", () => {
   it("rejects duplicate channel name (409)", async () => {
     const response = await post(
       "/api/channels",
-      { projectId, name: "production", branchId },
+      { projectId, name: "stable", branchId },
       { cookie: cookies },
     );
     expect(response.status).toBe(409);
@@ -243,7 +249,8 @@ describe("Channels API flow", () => {
     });
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.items).toHaveLength(1);
+    // 3 seeded + stable
+    expect(body.items).toHaveLength(4);
   });
 
   it("creates a channel via API key", async () => {
@@ -328,7 +335,8 @@ describe("Channels API flow", () => {
     });
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.items).toHaveLength(2);
+    // 3 seeded + stable + api-key-channel
+    expect(body.items).toHaveLength(5);
     expect(body.items.some((c: { name: string }) => c.name === "b-channel")).toBe(false);
   });
 

@@ -9,9 +9,13 @@ import { assertPermission } from "../auth/permissions";
 import { toApiProject } from "../http/to-api";
 import { toApiCrudEffect } from "../http/to-api-effect";
 import { parsePagination } from "../lib/pagination";
+import { BranchRepo } from "../repositories/branches";
+import { ChannelRepo } from "../repositories/channels";
 import { ProjectRepo } from "../repositories/projects";
 
 import type { ProjectSortKey, ProjectSortOrder } from "../repositories/projects";
+
+const DEFAULT_ENVIRONMENT_NAMES = ["production", "staging", "preview"] as const;
 
 const parseProjectSort = (
   value: string | undefined = "-lastActivityAt",
@@ -41,32 +45,73 @@ export const ProjectsGroupLive = HttpApiBuilder.group(ManagementApi, "projects",
           yield* assertPermission("project", "create");
           const ctx = yield* CurrentActor;
           const repo = yield* ProjectRepo;
+          const branchRepo = yield* BranchRepo;
+          const channelRepo = yield* ChannelRepo;
           const id = crypto.randomUUID();
           const now = new Date().toISOString();
 
-          const project = {
+          yield* repo.insert({
+            id,
+            organizationId: ctx.organizationId,
+            name: payload.name,
+            slug: payload.slug,
+            createdAt: now,
+          });
+
+          yield* logAudit({
+            action: "project.create",
+            resourceType: "project",
+            resourceId: id,
+            projectId: id,
+            metadata: { name: payload.name, slug: payload.slug },
+          });
+
+          yield* Effect.forEach(
+            DEFAULT_ENVIRONMENT_NAMES,
+            (envName) =>
+              Effect.gen(function* () {
+                const branchId = crypto.randomUUID();
+                yield* branchRepo.insert({
+                  id: branchId,
+                  projectId: id,
+                  name: envName,
+                  createdAt: now,
+                });
+                yield* logAudit({
+                  action: "branch.create",
+                  resourceType: "branch",
+                  resourceId: branchId,
+                  projectId: id,
+                  metadata: { name: envName, projectId: id },
+                });
+
+                const channel = yield* channelRepo.insert({
+                  projectId: id,
+                  name: envName,
+                  branchId,
+                });
+                yield* logAudit({
+                  action: "channel.create",
+                  resourceType: "channel",
+                  resourceId: channel.id,
+                  projectId: id,
+                  metadata: { name: envName, projectId: id },
+                });
+              }),
+            { concurrency: 1 },
+          );
+
+          return toApiProject({
             id,
             organizationId: ctx.organizationId,
             name: payload.name,
             slug: payload.slug,
             createdAt: now,
             lastActivityAt: now,
-            branchCount: 0,
-            channelCount: 0,
+            branchCount: DEFAULT_ENVIRONMENT_NAMES.length,
+            channelCount: DEFAULT_ENVIRONMENT_NAMES.length,
             updateCount: 0,
-          };
-
-          yield* repo.insert(project);
-
-          yield* logAudit({
-            action: "project.create",
-            resourceType: "project",
-            resourceId: project.id,
-            projectId: project.id,
-            metadata: { name: payload.name, slug: payload.slug },
           });
-
-          return toApiProject(project);
         }),
       ),
     )

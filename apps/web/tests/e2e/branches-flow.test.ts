@@ -58,6 +58,8 @@ describe("dashboard branches journey", () => {
   });
 
   // ── Section 3: Branch CRUD + errors ────────────────────────────
+  // Projects start with 3 seeded branches (production/staging/preview), so
+  // assertions account for that baseline.
 
   it("creates a branch", async () => {
     const response = await post(
@@ -82,20 +84,20 @@ describe("dashboard branches journey", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body).toHaveProperty("items");
-    expect(body.total).toBe(1);
-    expect(body.items).toHaveLength(1);
-    expect(body.items[0].name).toBe("main");
+    // 3 seeded + main
+    expect(body.total).toBe(4);
+    expect(body.items.map((branch: { name: string }) => branch.name)).toContain("main");
   });
 
   it("renames the branch", async () => {
     const response = await patch(
       `/api/branches/${state.branchId}`,
-      { name: "production" },
+      { name: "release" },
       { cookie: state.cookies },
     );
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.name).toBe("production");
+    expect(body.name).toBe("release");
   });
 
   it("lists branches - rename persisted", async () => {
@@ -104,25 +106,26 @@ describe("dashboard branches journey", () => {
     });
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.items).toHaveLength(1);
-    expect(body.items[0].name).toBe("production");
+    const names = body.items.map((branch: { name: string }) => branch.name);
+    expect(names).toContain("release");
+    expect(names).not.toContain("main");
   });
 
   it("creates a second branch", async () => {
     const response = await post(
       "/api/branches",
-      { projectId: state.projectId, name: "staging" },
+      { projectId: state.projectId, name: "hotfix" },
       { cookie: state.cookies },
     );
     expect(response.status).toBe(201);
     const body = await response.json();
-    expect(body.name).toBe("staging");
+    expect(body.name).toBe("hotfix");
   });
 
   it("rejects duplicate branch name (409)", async () => {
     const response = await post(
       "/api/branches",
-      { projectId: state.projectId, name: "staging" },
+      { projectId: state.projectId, name: "hotfix" },
       { cookie: state.cookies },
     );
     expect(response.status).toBe(409);

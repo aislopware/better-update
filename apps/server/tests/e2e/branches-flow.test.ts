@@ -62,6 +62,8 @@ describe("Branches API flow", () => {
   });
 
   // ── Section 3: Branch CRUD (session auth) ──────────────────────
+  // Projects start with 3 seeded branches (production/staging/preview),
+  // so all assertions account for that baseline.
 
   it("creates a branch", async () => {
     const response = await post("/api/branches", { projectId, name: "main" }, { cookie: cookies });
@@ -86,21 +88,20 @@ describe("Branches API flow", () => {
     expect(body).toHaveProperty("total");
     expect(body).toHaveProperty("page");
     expect(body).toHaveProperty("limit");
-    expect(body.total).toBe(1);
-    expect(body.items).toHaveLength(1);
-    expect(body.items[0].name).toBe("main");
+    expect(body.total).toBe(4);
+    expect(body.items.map((b: { name: string }) => b.name)).toContain("main");
   });
 
   it("renames the branch", async () => {
     const response = await patch(
       `/api/branches/${branchId}`,
-      { name: "production" },
+      { name: "release" },
       { cookie: cookies },
     );
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.id).toBe(branchId);
-    expect(body.name).toBe("production");
+    expect(body.name).toBe("release");
     expect(body.projectId).toBe(projectId);
     expect(body).toHaveProperty("createdAt");
   });
@@ -111,40 +112,44 @@ describe("Branches API flow", () => {
     });
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.items).toHaveLength(1);
-    expect(body.items[0].name).toBe("production");
+    const names = body.items.map((b: { name: string }) => b.name);
+    expect(names).toContain("release");
+    expect(names).not.toContain("main");
   });
 
   it("creates a second branch", async () => {
     const response = await post(
       "/api/branches",
-      { projectId, name: "staging" },
+      { projectId, name: "hotfix" },
       { cookie: cookies },
     );
     expect(response.status).toBe(201);
-    expect((await response.json()).name).toBe("staging");
+    expect((await response.json()).name).toBe("hotfix");
   });
 
   // ── Section 3.5: Page pagination + sort ─────────────────────────
 
-  it("paginates branches via page (limit=1)", async () => {
-    const firstRes = await get(`/api/branches?projectId=${projectId}&limit=1&page=1`, {
+  it("paginates branches via page (limit=2)", async () => {
+    const firstRes = await get(`/api/branches?projectId=${projectId}&limit=2&page=1`, {
       cookie: cookies,
     });
     expect(firstRes.status).toBe(200);
     const firstBody = await firstRes.json();
-    expect(firstBody.items).toHaveLength(1);
-    expect(firstBody.total).toBe(2);
+    expect(firstBody.items).toHaveLength(2);
+    // 3 seeded + release + hotfix
+    expect(firstBody.total).toBe(5);
     expect(firstBody.page).toBe(1);
 
-    const secondRes = await get(`/api/branches?projectId=${projectId}&limit=1&page=2`, {
+    const secondRes = await get(`/api/branches?projectId=${projectId}&limit=2&page=2`, {
       cookie: cookies,
     });
     expect(secondRes.status).toBe(200);
     const secondBody = await secondRes.json();
-    expect(secondBody.items).toHaveLength(1);
+    expect(secondBody.items).toHaveLength(2);
     expect(secondBody.page).toBe(2);
-    expect(secondBody.items[0].id).not.toBe(firstBody.items[0].id);
+    expect(secondBody.items.map((b: { id: string }) => b.id)).not.toEqual(
+      firstBody.items.map((b: { id: string }) => b.id),
+    );
   });
 
   it("sorts branches by name ascending", async () => {
@@ -162,7 +167,7 @@ describe("Branches API flow", () => {
   it("rejects duplicate branch name (409)", async () => {
     const response = await post(
       "/api/branches",
-      { projectId, name: "staging" },
+      { projectId, name: "hotfix" },
       { cookie: cookies },
     );
     expect(response.status).toBe(409);
@@ -180,7 +185,7 @@ describe("Branches API flow", () => {
   it("rejects rename to duplicate name (409)", async () => {
     const response = await patch(
       `/api/branches/${branchId}`,
-      { name: "staging" },
+      { name: "hotfix" },
       { cookie: cookies },
     );
     expect(response.status).toBe(409);
@@ -206,7 +211,8 @@ describe("Branches API flow", () => {
     });
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.items).toHaveLength(2);
+    // 3 seeded + release + hotfix
+    expect(body.items).toHaveLength(5);
   });
 
   it("creates a branch via API key", async () => {
@@ -282,7 +288,8 @@ describe("Branches API flow", () => {
     });
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.items).toHaveLength(3);
+    // 3 seeded + release + hotfix + api-key-branch
+    expect(body.items).toHaveLength(6);
     expect(body.items.some((b: { name: string }) => b.name === "b-branch")).toBe(false);
   });
 
@@ -306,25 +313,22 @@ describe("Branches API flow", () => {
   });
 
   it("rejects deleting a branch that is a rollout target (409)", async () => {
-    // Get the staging branch ID
+    // Use the seeded "staging" branch as the rollout target
     const listRes = await get(`/api/branches?projectId=${projectId}`, { cookie: cookies });
     const listBody = await listRes.json();
-    const stagingBranch = listBody.items.find((b: { name: string }) => b.name === "staging");
-    expect(stagingBranch).toBeDefined();
+    const targetBranch = listBody.items.find((b: { name: string }) => b.name === "staging");
+    expect(targetBranch).toBeDefined();
 
-    // Start a rollout from channelOnBranch to staging
     const rolloutRes = await post(
       `/api/channels/${channelOnBranch}/rollout`,
-      { newBranchId: stagingBranch.id, percentage: 10 },
+      { newBranchId: targetBranch.id, percentage: 10 },
       { cookie: cookies },
     );
     expect(rolloutRes.status).toBe(200);
 
-    // Try to delete staging — should be blocked because it's a rollout target
-    const deleteRes = await del(`/api/branches/${stagingBranch.id}`, { cookie: cookies });
+    const deleteRes = await del(`/api/branches/${targetBranch.id}`, { cookie: cookies });
     expect(deleteRes.status).toBe(409);
 
-    // Clean up: revert the rollout
     const revertRes = await post(
       `/api/channels/${channelOnBranch}/rollout/revert`,
       {},
@@ -353,7 +357,8 @@ describe("Branches API flow", () => {
     });
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.items).toHaveLength(2);
+    // 3 seeded + hotfix + api-key-branch (release branch was just deleted)
+    expect(body.items).toHaveLength(5);
     expect(body.items.some((b: { id: string }) => b.id === branchId)).toBe(false);
   });
 

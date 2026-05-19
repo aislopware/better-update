@@ -150,39 +150,34 @@ describe("Updates & Assets API flow", () => {
     mainBranchId = body.id;
   });
 
-  it("creates staging branch", async () => {
-    const response = await post(
-      "/api/branches",
-      { projectId, name: "staging" },
-      { cookie: cookies },
-    );
-    expect(response.status).toBe(201);
-    const body = await response.json();
-    expect(body.id).toBeDefined();
-    stagingBranchId = body.id;
+  // The project is seeded with production/staging/preview branches+channels.
+  // Reuse the seeded "staging" branch + "production" channel; rebind the
+  // production channel to the new "main" branch for downstream tests.
+
+  it("resolves seeded staging branch + production channel", async () => {
+    const branchesRes = await get(`/api/branches?projectId=${projectId}`, { cookie: cookies });
+    expect(branchesRes.status).toBe(200);
+    const branchesBody = await branchesRes.json();
+    const staging = branchesBody.items.find((b: { name: string }) => b.name === "staging");
+    expect(staging).toBeDefined();
+    stagingBranchId = staging.id;
+
+    const channelsRes = await get(`/api/channels?projectId=${projectId}`, { cookie: cookies });
+    expect(channelsRes.status).toBe(200);
+    const channelsBody = await channelsRes.json();
+    const production = channelsBody.items.find((c: { name: string }) => c.name === "production");
+    expect(production).toBeDefined();
+    productionChannelId = production.id;
   });
 
-  it("creates production channel linked to main", async () => {
-    const response = await post(
-      "/api/channels",
-      { projectId, name: "production", branchId: mainBranchId },
+  it("rebinds production channel to main branch", async () => {
+    const response = await patch(
+      `/api/channels/${productionChannelId}`,
+      { branchId: mainBranchId },
       { cookie: cookies },
     );
-    expect(response.status).toBe(201);
-    const body = await response.json();
-    expect(body.id).toBeDefined();
-    productionChannelId = body.id;
-  });
-
-  it("creates staging channel linked to staging", async () => {
-    const response = await post(
-      "/api/channels",
-      { projectId, name: "staging", branchId: stagingBranchId },
-      { cookie: cookies },
-    );
-    expect(response.status).toBe(201);
-    const body = await response.json();
-    expect(body.id).toBeDefined();
+    expect(response.status).toBe(200);
+    expect((await response.json()).branchId).toBe(mainBranchId);
   });
 
   it("creates rollback branch", async () => {

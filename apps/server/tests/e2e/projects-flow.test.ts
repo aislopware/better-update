@@ -47,7 +47,7 @@ describe("Projects API flow", () => {
 
   // ── Section 2: Project CRUD ────────────────────────────────────
 
-  it("creates a project", async () => {
+  it("creates a project with default branches + channels seeded", async () => {
     const response = await post(
       "/api/projects",
       { name: "My Project", slug: "my-project" },
@@ -62,7 +62,49 @@ describe("Projects API flow", () => {
     expect(body).toHaveProperty("createdAt");
     expect(body.name).toBe("My Project");
     expect(body.slug).toBe("my-project");
+    expect(body.branchCount).toBe(3);
+    expect(body.channelCount).toBe(3);
+    expect(body.updateCount).toBe(0);
     projectId = body.id;
+  });
+
+  it("seeds production/staging/preview branches on create", async () => {
+    const response = await get(`/api/branches?projectId=${projectId}&sort=name`, {
+      cookie: cookies,
+    });
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.total).toBe(3);
+    expect(body.items.map((b: { name: string }) => b.name)).toEqual([
+      "preview",
+      "production",
+      "staging",
+    ]);
+  });
+
+  it("seeds production/staging/preview channels pointing at matching branches", async () => {
+    const channelsRes = await get(`/api/channels?projectId=${projectId}&sort=name`, {
+      cookie: cookies,
+    });
+    expect(channelsRes.status).toBe(200);
+    const channelsBody = await channelsRes.json();
+    expect(channelsBody.total).toBe(3);
+    expect(channelsBody.items.map((c: { name: string }) => c.name)).toEqual([
+      "preview",
+      "production",
+      "staging",
+    ]);
+
+    const branchesRes = await get(`/api/branches?projectId=${projectId}&sort=name`, {
+      cookie: cookies,
+    });
+    const branchesBody = await branchesRes.json();
+    const branchByName = new Map<string, string>(
+      branchesBody.items.map((b: { id: string; name: string }) => [b.name, b.id]),
+    );
+    for (const channel of channelsBody.items as readonly { name: string; branchId: string }[]) {
+      expect(channel.branchId).toBe(branchByName.get(channel.name));
+    }
   });
 
   it("gets the project by id", async () => {
