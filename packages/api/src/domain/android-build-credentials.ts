@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 
-import { DateTimeString, Id } from "./common";
+import { DateTimeString, DeletedResult, Id, Name120 } from "./common";
 
 export class AndroidBuildCredentials extends Schema.Class<AndroidBuildCredentials>(
   "AndroidBuildCredentials",
@@ -18,7 +18,7 @@ export class AndroidBuildCredentials extends Schema.Class<AndroidBuildCredential
 }) {}
 
 export const CreateAndroidBuildCredentialsBody = Schema.Struct({
-  name: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(120)),
+  name: Name120,
   androidUploadKeystoreId: Schema.optional(Id),
   googleServiceAccountKeyForSubmissionsId: Schema.optional(Id),
   googleServiceAccountKeyForFcmV1Id: Schema.optional(Id),
@@ -26,11 +26,11 @@ export const CreateAndroidBuildCredentialsBody = Schema.Struct({
 });
 
 export const UpdateAndroidBuildCredentialsBody = Schema.Struct({
-  name: Schema.optional(Schema.String.pipe(Schema.minLength(1), Schema.maxLength(120))),
+  name: Schema.optional(Name120),
   androidUploadKeystoreId: Schema.optional(Schema.NullOr(Id)),
   googleServiceAccountKeyForSubmissionsId: Schema.optional(Schema.NullOr(Id)),
   googleServiceAccountKeyForFcmV1Id: Schema.optional(Schema.NullOr(Id)),
   isDefault: Schema.optional(Schema.Boolean),
 });
 
-export const DeleteAndroidBuildCredentialsResult = Schema.Struct({ deleted: Schema.Number });
+export const DeleteAndroidBuildCredentialsResult = DeletedResult;

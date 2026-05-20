@@ -1,3 +1,4 @@
+import { safeJsonParse } from "@better-update/safe-json";
 import { Context, Effect, Layer } from "effect";
 
 import { cloudflareEnv } from "../cloudflare/context";
@@ -33,7 +34,7 @@ interface WebhookRow {
 const COLUMNS = `"id", "organization_id", "project_id", "name", "url", "secret", "events", "enabled", "created_at", "updated_at"`;
 
 const rowToModel = (row: WebhookRow): WebhookModel => {
-  const parsed: unknown = JSON.parse(row.events);
+  const parsed = safeJsonParse(row.events);
   const events = Array.isArray(parsed)
     ? parsed.filter((entry): entry is string => typeof entry === "string")
     : [];

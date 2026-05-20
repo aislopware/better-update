@@ -3,6 +3,8 @@ import { queryOptions } from "@tanstack/react-query";
 
 import type {
   CreateRegistrationRequestBody,
+  DeviceSort as DeviceSortSchema,
+  DeviceSortColumn as DeviceSortColumnSchema,
   RegisterDeviceBody,
   UpdateDeviceBody,
 } from "@better-update/api";
@@ -13,10 +15,8 @@ import type { DeviceClassValue } from "./types";
 
 export const devicesQueryKey = (orgId: string) => ["org", orgId, "devices"] as const;
 
-export type DeviceSortColumn = "name" | "createdAt" | "deviceClass";
-
-/** Sort param: column name optionally prefixed with `-` for descending. */
-export type DeviceSort = DeviceSortColumn | `-${DeviceSortColumn}`;
+export type DeviceSortColumn = typeof DeviceSortColumnSchema.Type;
+export type DeviceSort = typeof DeviceSortSchema.Type;
 
 export interface DevicesFilters {
   readonly deviceClass?: DeviceClassValue;

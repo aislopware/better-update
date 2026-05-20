@@ -24,6 +24,7 @@ import { authClient, rejectOnAuthClientError } from "../../../../lib/auth-client
 import { generateSlug, getFieldError, nameSchema, slugSchema } from "../../../../lib/form-utils";
 import { useDeleteOrgMutation } from "../../../../lib/org-mutations";
 import { safeSubmit, useApiMutation } from "../../../../lib/use-api-mutation";
+import { authKeyPrefix } from "../../../../queries/auth";
 
 const deleteOrgTrigger = <Button variant="destructive">Delete organization</Button>;
 
@@ -40,7 +41,7 @@ const OrgGeneralForm = () => {
       ),
     onSuccess: async () => {
       toastManager.add({ title: "Organization updated", type: "success" });
-      await queryClient.resetQueries({ queryKey: ["auth"] });
+      await queryClient.resetQueries({ queryKey: authKeyPrefix });
     },
   });
 
@@ -197,7 +198,7 @@ const DeleteOrgSection = () => {
     orgId: activeOrg.id,
     onSuccess: async () => {
       toastManager.add({ title: "Organization deleted", type: "success" });
-      await queryClient.resetQueries({ queryKey: ["auth"] });
+      await queryClient.resetQueries({ queryKey: authKeyPrefix });
       await router.invalidate();
     },
   });

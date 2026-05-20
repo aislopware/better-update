@@ -4,21 +4,9 @@ import {
   updateAndroidBuildCredentials,
   uploadGoogleServiceAccountKey,
 } from "@better-update/api-client/react";
-import { Button } from "@better-update/ui/components/ui/button";
-import {
-  Dialog,
-  DialogClose,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogPanel,
-  DialogPopup,
-  DialogTitle,
-} from "@better-update/ui/components/ui/dialog";
 import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@better-update/ui/components/ui/radio-group";
-import { Tabs, TabsList, TabsTab } from "@better-update/ui/components/ui/tabs";
 import { Textarea } from "@better-update/ui/components/ui/textarea";
 import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
@@ -28,7 +16,10 @@ import type { GoogleServiceAccountKeyItem } from "@better-update/api-client/reac
 
 import { safeReadFileAsText } from "../../-credentials-utils";
 import { formatDate } from "../../../../../lib/format-date";
-import { safeSubmit, useApiMutation } from "../../../../../lib/use-api-mutation";
+import { useApiMutation } from "../../../../../lib/use-api-mutation";
+import { ChangeCredentialDialog } from "./-change-credential-dialog";
+
+import type { ChangeCredentialTab } from "./-change-credential-dialog";
 
 const TITLE = "Change FCM v1 Service Account";
 const DESCRIPTION =
@@ -158,8 +149,6 @@ interface AndroidChangeGsaDialogProps {
   readonly currentSa: GoogleServiceAccountKeyItem | null;
 }
 
-type TabValue = "saved" | "upload";
-
 export const AndroidChangeGsaDialog = ({
   open,
   onOpenChange,
@@ -171,8 +160,6 @@ export const AndroidChangeGsaDialog = ({
   const queryClient = useQueryClient();
   const initialSelectedId = currentSa === null ? "" : currentSa.id;
   const currentSaId: string | null = currentSa === null ? null : currentSa.id;
-  const [tab, setTab] = useState<TabValue>("saved");
-  const [selectedId, setSelectedId] = useState<string>(initialSelectedId);
   const [uploadState, setUploadState] = useState<UploadFormState>(UPLOAD_INITIAL);
 
   const invalidate = async () => {
@@ -186,7 +173,7 @@ export const AndroidChangeGsaDialog = ({
     ]);
   };
 
-  const resolveSaId = async (): Promise<string> => {
+  const resolveSaId = async (tab: ChangeCredentialTab, selectedId: string): Promise<string> => {
     if (tab !== "upload") {
       return selectedId;
     }
@@ -195,8 +182,8 @@ export const AndroidChangeGsaDialog = ({
   };
 
   const saveMutation = useApiMutation({
-    mutationFn: async () => {
-      const saId = await resolveSaId();
+    mutationFn: async ({ tab, selectedId }: { tab: ChangeCredentialTab; selectedId: string }) => {
+      const saId = await resolveSaId(tab, selectedId);
       await Promise.all(
         groupIds.map(async (groupId) =>
           updateAndroidBuildCredentials(groupId, { googleServiceAccountKeyForFcmV1Id: saId }),
@@ -210,66 +197,32 @@ export const AndroidChangeGsaDialog = ({
     },
   });
 
-  const canSubmit = tab === "upload" ? isJsonValid(uploadState.json) : selectedId.length > 0;
-
   return (
-    <Dialog
+    <ChangeCredentialDialog
       open={open}
       onOpenChange={onOpenChange}
-      onOpenChangeComplete={(next) => {
-        if (!next) {
-          setTab("saved");
-          setSelectedId(initialSelectedId);
-          setUploadState(UPLOAD_INITIAL);
-        }
+      title={TITLE}
+      description={DESCRIPTION}
+      initialSelectedId={initialSelectedId}
+      isUploadValid={isJsonValid(uploadState.json)}
+      submitting={saveMutation.isPending}
+      onSubmit={async (context) => saveMutation.mutateAsync(context)}
+      onResetUpload={() => {
+        setUploadState(UPLOAD_INITIAL);
       }}
-    >
-      <DialogPopup className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{TITLE}</DialogTitle>
-          <DialogDescription>{DESCRIPTION}</DialogDescription>
-        </DialogHeader>
-        <DialogPanel>
-          <Tabs
-            value={tab}
-            onValueChange={(value) => {
-              setTab(value === "upload" ? "upload" : "saved");
-            }}
-            className="mb-4"
-          >
-            <TabsList>
-              <TabsTab value="saved">Choose saved</TabsTab>
-              <TabsTab value="upload">Upload new</TabsTab>
-            </TabsList>
-          </Tabs>
-          {tab === "saved" ? (
-            <Suspense
-              fallback={<p className="text-muted-foreground text-sm">Loading service accounts…</p>}
-            >
-              <ChooseSavedTab
-                orgId={orgId}
-                currentId={currentSaId}
-                selectedId={selectedId}
-                onSelect={setSelectedId}
-              />
-            </Suspense>
-          ) : (
-            <UploadTab state={uploadState} onChange={setUploadState} />
-          )}
-        </DialogPanel>
-        <DialogFooter>
-          <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
-          <Button
-            disabled={!canSubmit}
-            loading={saveMutation.isPending}
-            onClick={async () => {
-              await safeSubmit(saveMutation.mutateAsync(undefined));
-            }}
-          >
-            Save
-          </Button>
-        </DialogFooter>
-      </DialogPopup>
-    </Dialog>
+      renderSaved={({ selectedId, setSelectedId }) => (
+        <Suspense
+          fallback={<p className="text-muted-foreground text-sm">Loading service accounts…</p>}
+        >
+          <ChooseSavedTab
+            orgId={orgId}
+            currentId={currentSaId}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+          />
+        </Suspense>
+      )}
+      renderUpload={() => <UploadTab state={uploadState} onChange={setUploadState} />}
+    />
   );
 };

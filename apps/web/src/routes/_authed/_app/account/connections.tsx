@@ -43,7 +43,7 @@ const ConnectionsList = () => {
       rejectOnAuthClientError(authClient.unlinkAccount({ providerId }), "Failed to unlink account"),
     onSuccess: async () => {
       toastManager.add({ title: "Account unlinked", type: "success" });
-      await queryClient.resetQueries({ queryKey: ["auth", "accounts"] });
+      await queryClient.resetQueries({ queryKey: accountsQueryOptions.queryKey });
     },
   });
 

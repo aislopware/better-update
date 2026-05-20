@@ -1,7 +1,7 @@
 import { Schema } from "effect";
 
 import { BundleIdentifier } from "./apple-provisioning-profile";
-import { DateTimeString, Id, Platform } from "./common";
+import { DateTimeString, DeletedResult, Id, Platform } from "./common";
 
 export const SubmissionStatus = Schema.Literal(
   "AWAITING_BUILD",
@@ -110,4 +110,4 @@ export const UpdateSubmissionStatusBody = Schema.Struct({
 
 export const CancelSubmissionResult = Schema.Struct({ canceled: Schema.Boolean });
 
-export const DeleteSubmissionResult = Schema.Struct({ deleted: Schema.Number });
+export const DeleteSubmissionResult = DeletedResult;

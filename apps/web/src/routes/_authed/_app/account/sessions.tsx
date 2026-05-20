@@ -24,7 +24,7 @@ const SessionsList = () => {
       rejectOnAuthClientError(authClient.revokeSession({ token }), "Failed to revoke session"),
     onSuccess: async () => {
       toastManager.add({ title: "Session revoked", type: "success" });
-      await queryClient.resetQueries({ queryKey: ["auth", "sessions"] });
+      await queryClient.resetQueries({ queryKey: sessionsQueryOptions.queryKey });
     },
   });
 
@@ -33,7 +33,7 @@ const SessionsList = () => {
       rejectOnAuthClientError(authClient.revokeOtherSessions(), "Failed to revoke sessions"),
     onSuccess: async () => {
       toastManager.add({ title: "All other sessions revoked", type: "success" });
-      await queryClient.resetQueries({ queryKey: ["auth", "sessions"] });
+      await queryClient.resetQueries({ queryKey: sessionsQueryOptions.queryKey });
     },
   });
 

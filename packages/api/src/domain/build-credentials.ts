@@ -2,6 +2,7 @@ import { Schema } from "effect";
 
 import { AndroidPackageName } from "./android-application-identifier";
 import { BundleIdentifier, DistributionType } from "./apple-provisioning-profile";
+import { Name120 } from "./common";
 
 export const ResolveBuildCredentialsIosBody = Schema.Struct({
   platform: Schema.Literal("ios"),
@@ -12,7 +13,7 @@ export const ResolveBuildCredentialsIosBody = Schema.Struct({
 export const ResolveBuildCredentialsAndroidBody = Schema.Struct({
   platform: Schema.Literal("android"),
   applicationIdentifier: AndroidPackageName,
-  buildProfile: Schema.optional(Schema.String.pipe(Schema.minLength(1), Schema.maxLength(120))),
+  buildProfile: Schema.optional(Name120),
 });
 
 export const ResolveBuildCredentialsBody = Schema.Union(

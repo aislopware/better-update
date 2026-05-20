@@ -1,3 +1,4 @@
+import { safeJsonParse } from "@better-update/safe-json";
 import { isRecord } from "@better-update/type-guards";
 import { Effect, Match } from "effect";
 
@@ -81,7 +82,7 @@ const certChainParts = (ph: ProtocolHeaders, update: UpdateRow): readonly Part[]
     : [];
 
 const parseJson = (raw: string): Record<string, unknown> => {
-  const parsed: unknown = JSON.parse(raw);
+  const parsed = safeJsonParse(raw);
   return isRecord(parsed) ? parsed : {};
 };
 

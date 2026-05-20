@@ -1,5 +1,4 @@
-import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "@effect/platform";
-import { Schema } from "effect";
+import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "@effect/platform";
 
 import { Forbidden } from "../auth/errors";
 import { NotFound } from "../auth/ownership";
@@ -11,10 +10,8 @@ import {
   ListChannelsParams,
   UpdateChannelBody,
 } from "../domain/channel";
-import { UpdateRolloutBody } from "../domain/common";
+import { idParam, pageResult, UpdateRolloutBody } from "../domain/common";
 import { Conflict } from "../domain/errors";
-
-const idParam = HttpApiSchema.param("id", Schema.String);
 
 export class ChannelsGroup extends HttpApiGroup.make("channels")
   .add(
@@ -42,14 +39,7 @@ export class ChannelsGroup extends HttpApiGroup.make("channels")
   .add(
     HttpApiEndpoint.get("list", "/api/channels")
       .setUrlParams(ListChannelsParams)
-      .addSuccess(
-        Schema.Struct({
-          items: Schema.Array(Channel),
-          total: Schema.Number,
-          page: Schema.Number,
-          limit: Schema.Number,
-        }),
-      )
+      .addSuccess(pageResult(Channel))
       .annotateContext(
         OpenApi.annotations({
           title: "List channels",

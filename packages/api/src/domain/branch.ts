@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 
-import { DateTimeString, Id, PaginationParams } from "./common";
+import { DateTimeString, DeletedResult, Id, PaginationParams, sortParam } from "./common";
 
 export class Branch extends Schema.Class<Branch>("Branch")({
   id: Id,
@@ -12,14 +12,7 @@ export class Branch extends Schema.Class<Branch>("Branch")({
 
 export const BranchSortColumn = Schema.Literal("name", "createdAt", "updateCount");
 
-/**
- * Sort param: column name optionally prefixed with `-` for descending.
- * Example: `name` (asc), `-createdAt` (desc).
- */
-export const BranchSort = Schema.Union(
-  BranchSortColumn,
-  Schema.TemplateLiteral("-", BranchSortColumn),
-);
+export const BranchSort = sortParam(BranchSortColumn);
 
 export const ListBranchesParams = Schema.Struct({
   projectId: Id,
@@ -36,4 +29,4 @@ export const UpdateBranchBody = Schema.Struct({
   name: Schema.String.pipe(Schema.minLength(1)),
 });
 
-export const DeleteBranchResult = Schema.Struct({ deleted: Schema.Number });
+export const DeleteBranchResult = DeletedResult;

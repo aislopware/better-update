@@ -1,8 +1,9 @@
-import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "@effect/platform";
+import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "@effect/platform";
 import { Schema } from "effect";
 
 import { Forbidden } from "../auth/errors";
 import { NotFound } from "../auth/ownership";
+import { idParam, pageResult } from "../domain/common";
 import {
   CreateRegistrationRequestBody,
   DeleteDeviceResult,
@@ -14,8 +15,6 @@ import {
   UpdateDeviceBody,
 } from "../domain/device";
 import { Conflict } from "../domain/errors";
-
-const idParam = HttpApiSchema.param("id", Schema.String);
 
 export class DevicesGroup extends HttpApiGroup.make("devices")
   .add(
@@ -32,14 +31,7 @@ export class DevicesGroup extends HttpApiGroup.make("devices")
   .add(
     HttpApiEndpoint.get("list", "/api/devices")
       .setUrlParams(ListDevicesParams)
-      .addSuccess(
-        Schema.Struct({
-          items: Schema.Array(Device),
-          total: Schema.Number,
-          page: Schema.Number,
-          limit: Schema.Number,
-        }),
-      )
+      .addSuccess(pageResult(Device))
       .annotateContext(
         OpenApi.annotations({
           title: "List devices",

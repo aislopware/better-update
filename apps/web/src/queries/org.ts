@@ -36,6 +36,8 @@ const loadInvitations = async (orgId: string): Promise<InvitationItem[]> => {
 };
 /* eslint-enable functional/no-try-statements, functional/no-promise-reject, functional/no-throw-statements */
 
+export const orgKeyPrefix = (orgId: string) => ["org", orgId] as const;
+
 export const membersQueryOptions = (orgId: string) =>
   queryOptions({
     queryKey: ["org", orgId, "members"],

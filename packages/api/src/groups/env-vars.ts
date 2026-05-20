@@ -1,9 +1,9 @@
-import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "@effect/platform";
+import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "@effect/platform";
 import { Schema } from "effect";
 
 import { Forbidden } from "../auth/errors";
 import { NotFound } from "../auth/ownership";
-import { Id, PaginationParams } from "../domain/common";
+import { Id, idParam, PaginationParams } from "../domain/common";
 import {
   BulkImportEnvVarsBody,
   BulkImportResult,
@@ -16,8 +16,6 @@ import {
   UpdateEnvVarBody,
 } from "../domain/env-var";
 import { BadRequest, Conflict } from "../domain/errors";
-
-const idParam = HttpApiSchema.param("id", Schema.String);
 
 export class EnvVarsGroup extends HttpApiGroup.make("env-vars")
   .add(

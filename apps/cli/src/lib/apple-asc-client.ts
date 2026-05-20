@@ -1,3 +1,17 @@
+/**
+ * App Store Connect REST client authenticated with an ASC **API key** — a JWT
+ * signed from a `.p8` private key (see `apple-asc-jwt.ts`). Credentials are
+ * resolved non-interactively from the server (`fetchAscCredentials`), so this
+ * powers headless flows: build-credential resolution, provisioning-profile
+ * generation, and device sync.
+ *
+ * Intentionally NOT built on `@expo/apple-utils`: that library authenticates
+ * via an interactive Apple-ID **cookie session** (username/password + 2FA, see
+ * `services/apple-auth.ts`) and exposes a cookie-based `RequestContext`. That is
+ * a different auth model that would force an interactive login here. The two
+ * coexist by design — apple-utils backs `apple login`; this client backs
+ * non-interactive ASC API-key access.
+ */
 import { compact, isRecord } from "@better-update/type-guards";
 import { Data, Effect } from "effect";
 

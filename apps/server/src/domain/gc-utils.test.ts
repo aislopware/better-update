@@ -10,8 +10,10 @@ describe("gc-utils", () => {
       expect(parseRetentionDays(undefined)).toBe(30);
     });
 
-    it("returns NaN for non-numeric string", () => {
-      expect(parseRetentionDays("abc")).toBeNaN();
+    it("falls back to 30 for non-numeric or non-positive values (avoids Invalid Date in computeCutoff)", () => {
+      expect(parseRetentionDays("abc")).toBe(30);
+      expect(parseRetentionDays("0")).toBe(30);
+      expect(parseRetentionDays("-5")).toBe(30);
     });
   });
 

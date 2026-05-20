@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 
-import { DateTimeString, Id, PaginationParams } from "./common";
+import { DateTimeString, DeletedResult, Id, Name120, PaginationParams, sortParam } from "./common";
 
 export const DeviceClass = Schema.Literal("IPHONE", "IPAD", "MAC", "UNKNOWN");
 export type DeviceClassValue = typeof DeviceClass.Type;
@@ -31,30 +31,23 @@ export class Device extends Schema.Class<Device>("Device")({
 
 export const RegisterDeviceBody = Schema.Struct({
   identifier: DeviceIdentifier,
-  name: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(120)),
+  name: Name120,
   deviceClass: DeviceClass,
   model: Schema.optional(Schema.String.pipe(Schema.maxLength(120))),
   appleTeamId: Schema.optional(Id),
 });
 
 export const UpdateDeviceBody = Schema.Struct({
-  name: Schema.optional(Schema.String.pipe(Schema.minLength(1), Schema.maxLength(120))),
+  name: Schema.optional(Name120),
   enabled: Schema.optional(Schema.Boolean),
   appleTeamId: Schema.optional(Schema.NullOr(Id)),
 });
 
-export const DeleteDeviceResult = Schema.Struct({ deleted: Schema.Number });
+export const DeleteDeviceResult = DeletedResult;
 
 export const DeviceSortColumn = Schema.Literal("name", "createdAt", "deviceClass");
 
-/**
- * Sort param: column name optionally prefixed with `-` for descending.
- * Example: `name` (asc), `-createdAt` (desc).
- */
-export const DeviceSort = Schema.Union(
-  DeviceSortColumn,
-  Schema.TemplateLiteral("-", DeviceSortColumn),
-);
+export const DeviceSort = sortParam(DeviceSortColumn);
 
 export const ListDevicesParams = Schema.Struct({
   ...PaginationParams.fields,

@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 
-import { DateTimeString, Id } from "./common";
+import { DateTimeString, DeletedResult, Id } from "./common";
 
 export const DistributionType = Schema.Literal("APP_STORE", "AD_HOC", "ENTERPRISE", "DEVELOPMENT");
 export type DistributionTypeValue = typeof DistributionType.Type;
@@ -34,7 +34,7 @@ export const UploadAppleProvisioningProfileBody = Schema.Struct({
   isManaged: Schema.optional(Schema.Boolean),
 });
 
-export const DeleteAppleProvisioningProfileResult = Schema.Struct({ deleted: Schema.Number });
+export const DeleteAppleProvisioningProfileResult = DeletedResult;
 
 export const DownloadAppleProvisioningProfileResult = Schema.Struct({
   id: Id,

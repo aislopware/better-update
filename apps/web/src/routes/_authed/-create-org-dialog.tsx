@@ -20,6 +20,7 @@ import { SlugInput } from "../../components/slug-input";
 import { generateSlug, getFieldError, nameSchema, slugSchema } from "../../lib/form-utils";
 import { useCreateAndActivateOrgMutation } from "../../lib/org-mutations";
 import { safeSubmit } from "../../lib/use-api-mutation";
+import { authKeyPrefix } from "../../queries/auth";
 
 const CreateOrgForm = ({ onSuccess }: { onSuccess: () => void }) => {
   const router = useRouter();
@@ -28,7 +29,7 @@ const CreateOrgForm = ({ onSuccess }: { onSuccess: () => void }) => {
 
   const createOrg = useCreateAndActivateOrgMutation({
     onSuccess: async () => {
-      await queryClient.resetQueries({ queryKey: ["auth"] });
+      await queryClient.resetQueries({ queryKey: authKeyPrefix });
       onSuccess();
       await router.navigate({ to: "/" });
     },
