@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 
 import { authClient, rejectOnAuthClientError } from "../../../lib/auth-client";
 import { useApiMutation } from "../../../lib/use-api-mutation";
+import { invitationsQueryOptions, membersQueryOptions } from "../../../queries/org";
 
 export type OrgRole = "member" | "admin" | "owner";
 
@@ -25,7 +26,7 @@ const useMembersMutations = (orgId: string, onMemberRemoved: () => void) => {
       ),
     onSuccess: async () => {
       toastManager.add({ title: "Role updated", type: "success" });
-      await queryClient.invalidateQueries({ queryKey: ["org", orgId, "members"] });
+      await queryClient.invalidateQueries({ queryKey: membersQueryOptions(orgId).queryKey });
     },
   });
 
@@ -41,7 +42,7 @@ const useMembersMutations = (orgId: string, onMemberRemoved: () => void) => {
     onSuccess: async () => {
       onMemberRemoved();
       toastManager.add({ title: "Member removed", type: "success" });
-      await queryClient.invalidateQueries({ queryKey: ["org", orgId, "members"] });
+      await queryClient.invalidateQueries({ queryKey: membersQueryOptions(orgId).queryKey });
     },
   });
 
@@ -53,7 +54,7 @@ const useMembersMutations = (orgId: string, onMemberRemoved: () => void) => {
       ),
     onSuccess: async () => {
       toastManager.add({ title: "Invitation canceled", type: "success" });
-      await queryClient.invalidateQueries({ queryKey: ["org", orgId, "invitations"] });
+      await queryClient.invalidateQueries({ queryKey: invitationsQueryOptions(orgId).queryKey });
     },
   });
 

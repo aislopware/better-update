@@ -9,6 +9,11 @@ export const asRecord = (value: unknown): Record<string, unknown> | undefined =>
 // eslint-disable-next-line eslint-js/no-restricted-syntax -- boundary helper; raw `?? undefined` is banned elsewhere
 export const toOptional = <T>(value: T | null | undefined): T | undefined => value ?? undefined;
 
+// Normalize `T | null | undefined` to `T | null` — boundary helper for
+// converting optional values into nullable DB columns at the type-system level.
+// eslint-disable-next-line eslint-js/no-restricted-syntax -- boundary helper; raw `?? null` is banned elsewhere
+export const toDbNull = <T>(value: T | null | undefined): T | null => value ?? null;
+
 type Compacted<T> = {
   [K in keyof T as undefined extends T[K] ? never : K]: T[K];
 } & {

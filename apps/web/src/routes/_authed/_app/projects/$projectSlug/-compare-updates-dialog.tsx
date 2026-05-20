@@ -35,6 +35,7 @@ import { Suspense, useState } from "react";
 
 import type { Update } from "@better-update/api";
 
+import { formatDateTime } from "../../../../../lib/format-date";
 import { DROPDOWN_FETCH_LIMIT } from "../../../../../queries/constants";
 
 type UpdateItem = typeof Update.Type;
@@ -115,8 +116,8 @@ const MetadataComparison = ({
     },
     {
       label: "Created at",
-      valueA: new Date(left.createdAt).toLocaleString(),
-      valueB: new Date(right.createdAt).toLocaleString(),
+      valueA: formatDateTime(left.createdAt),
+      valueB: formatDateTime(right.createdAt),
     },
   ];
 

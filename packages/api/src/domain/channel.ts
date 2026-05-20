@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 
-import { DateTimeString, Id, PaginationParams } from "./common";
+import { DateTimeString, DeletedResult, Id, PaginationParams, sortParam } from "./common";
 
 export class Channel extends Schema.Class<Channel>("Channel")({
   id: Id,
@@ -15,14 +15,7 @@ export class Channel extends Schema.Class<Channel>("Channel")({
 
 export const ChannelSortColumn = Schema.Literal("name", "createdAt");
 
-/**
- * Sort param: column name optionally prefixed with `-` for descending.
- * Example: `name` (asc), `-createdAt` (desc).
- */
-export const ChannelSort = Schema.Union(
-  ChannelSortColumn,
-  Schema.TemplateLiteral("-", ChannelSortColumn),
-);
+export const ChannelSort = sortParam(ChannelSortColumn);
 
 export const ListChannelsParams = Schema.Struct({
   projectId: Id,
@@ -45,4 +38,4 @@ export const CreateBranchRolloutBody = Schema.Struct({
   percentage: Schema.Number.pipe(Schema.int(), Schema.between(1, 100)),
 });
 
-export const DeleteChannelResult = Schema.Struct({ deleted: Schema.Number });
+export const DeleteChannelResult = DeletedResult;

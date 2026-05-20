@@ -94,24 +94,27 @@ const checkProfileStale = (
     } as const;
   });
 
+const assertOwned = <Entity extends { readonly organizationId: string }>(
+  entity: Entity,
+  organizationId: string,
+  message: string,
+): Effect.Effect<Entity, NotFound> =>
+  entity.organizationId === organizationId
+    ? Effect.succeed(entity)
+    : Effect.fail(new NotFound({ message }));
+
 const loadDistributionCertificate = (id: string, organizationId: string) =>
   Effect.gen(function* () {
     const certs = yield* AppleDistributionCertificateRepo;
     const cert = yield* certs.findById({ id });
-    if (cert.organizationId !== organizationId) {
-      return yield* Effect.fail(new NotFound({ message: "Distribution certificate not found" }));
-    }
-    return cert;
+    return yield* assertOwned(cert, organizationId, "Distribution certificate not found");
   });
 
 const loadProfile = (id: string, organizationId: string) =>
   Effect.gen(function* () {
     const profiles = yield* AppleProvisioningProfileRepo;
     const profile = yield* profiles.findById({ id });
-    if (profile.organizationId !== organizationId) {
-      return yield* Effect.fail(new NotFound({ message: "Provisioning profile not found" }));
-    }
-    return profile;
+    return yield* assertOwned(profile, organizationId, "Provisioning profile not found");
   });
 
 const loadPushKey = (id: string | null, organizationId: string) =>
@@ -121,10 +124,7 @@ const loadPushKey = (id: string | null, organizationId: string) =>
     }
     const keys = yield* ApplePushKeyRepo;
     const key = yield* keys.findById({ id });
-    if (key.organizationId !== organizationId) {
-      return yield* Effect.fail(new NotFound({ message: "Push key not found" }));
-    }
-    return key;
+    return yield* assertOwned(key, organizationId, "Push key not found");
   });
 
 const loadTeam = (id: string) =>

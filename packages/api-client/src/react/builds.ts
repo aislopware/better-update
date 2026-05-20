@@ -1,6 +1,13 @@
 import { compact } from "@better-update/type-guards";
 import { queryOptions } from "@tanstack/react-query";
 
+import type {
+  BuildAudience as BuildAudienceSchema,
+  BuildSort as BuildSortSchema,
+  BuildSortColumn as BuildSortColumnSchema,
+  Distribution as DistributionSchema,
+} from "@better-update/api";
+
 import { runApi } from "../index";
 
 import type { PlatformValue } from "./types";
@@ -14,26 +21,12 @@ export const buildQueryKey = (orgId: string, buildId: string) =>
 export const buildCompatibilityMatrixQueryKey = (orgId: string, projectId: string) =>
   ["org", orgId, "projects", projectId, "build-compatibility-matrix"] as const;
 
-export type BuildSortColumn =
-  | "createdAt"
-  | "platform"
-  | "distribution"
-  | "runtimeVersion"
-  | "appVersion";
+export type BuildSortColumn = typeof BuildSortColumnSchema.Type;
+export type BuildSort = typeof BuildSortSchema.Type;
 
-/** Sort param: column name optionally prefixed with `-` for descending. */
-export type BuildSort = BuildSortColumn | `-${BuildSortColumn}`;
+export type BuildDistribution = typeof DistributionSchema.Type;
 
-export type BuildDistribution =
-  | "app-store"
-  | "ad-hoc"
-  | "development"
-  | "enterprise"
-  | "simulator"
-  | "play-store"
-  | "direct";
-
-export type BuildAudience = "internal" | "store";
+export type BuildAudience = typeof BuildAudienceSchema.Type;
 
 export interface BuildsFilters {
   readonly platform?: PlatformValue;

@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 
-import { DateTimeString, Id } from "./common";
+import { DateTimeString, DeletedResult, Id } from "./common";
 
 export class AndroidUploadKeystore extends Schema.Class<AndroidUploadKeystore>(
   "AndroidUploadKeystore",
@@ -25,7 +25,7 @@ export const UploadAndroidUploadKeystoreBody = Schema.Struct({
   sha256Fingerprint: Schema.optional(Schema.String.pipe(Schema.maxLength(200))),
 });
 
-export const DeleteAndroidUploadKeystoreResult = Schema.Struct({ deleted: Schema.Number });
+export const DeleteAndroidUploadKeystoreResult = DeletedResult;
 
 export const DownloadAndroidUploadKeystoreResult = Schema.Struct({
   id: Id,

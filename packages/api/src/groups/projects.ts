@@ -3,6 +3,7 @@ import { Schema } from "effect";
 
 import { Forbidden } from "../auth/errors";
 import { NotFound } from "../auth/ownership";
+import { idParam, pageResult } from "../domain/common";
 import { Conflict } from "../domain/errors";
 import {
   CreateProjectBody,
@@ -12,7 +13,6 @@ import {
   UpdateProjectBody,
 } from "../domain/project";
 
-const idParam = HttpApiSchema.param("id", Schema.String);
 const slugParam = HttpApiSchema.param("slug", Schema.String);
 
 export class ProjectsGroup extends HttpApiGroup.make("projects")
@@ -30,14 +30,7 @@ export class ProjectsGroup extends HttpApiGroup.make("projects")
   .add(
     HttpApiEndpoint.get("list", "/api/projects")
       .setUrlParams(ListProjectsParams)
-      .addSuccess(
-        Schema.Struct({
-          items: Schema.Array(Project),
-          total: Schema.Number,
-          page: Schema.Number,
-          limit: Schema.Number,
-        }),
-      )
+      .addSuccess(pageResult(Project))
       .annotateContext(
         OpenApi.annotations({
           title: "List projects",

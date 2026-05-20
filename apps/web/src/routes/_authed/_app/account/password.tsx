@@ -11,7 +11,7 @@ import { SettingCardSkeleton } from "../../../../components/skeletons";
 import { authClient, rejectOnAuthClientError } from "../../../../lib/auth-client";
 import { getFieldError, passwordSchema, requiredStringSchema } from "../../../../lib/form-utils";
 import { useApiMutation } from "../../../../lib/use-api-mutation";
-import { accountsQueryOptions } from "../../../../queries/auth";
+import { accountsQueryOptions, sessionsQueryOptions } from "../../../../queries/auth";
 
 const PasswordForm = () => {
   const queryClient = useQueryClient();
@@ -30,7 +30,7 @@ const PasswordForm = () => {
       ),
     onSuccess: async () => {
       toastManager.add({ title: "Password changed", type: "success" });
-      await queryClient.resetQueries({ queryKey: ["auth", "sessions"] });
+      await queryClient.resetQueries({ queryKey: sessionsQueryOptions.queryKey });
     },
   });
 

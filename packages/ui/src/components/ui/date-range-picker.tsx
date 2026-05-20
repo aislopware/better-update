@@ -49,13 +49,13 @@ const renderLabel = (
 
 const applyTimeToDate = (date: Date, time: string, isEnd: boolean) => {
   const [hStr, mStr] = time.split(":")
+  const hours = Number(hStr)
+  const minutes = Number(mStr)
+  if (!Number.isInteger(hours) || !Number.isInteger(minutes)) {
+    return date
+  }
   const next = new Date(date)
-  next.setHours(
-    Number(hStr) || 0,
-    Number(mStr) || 0,
-    isEnd ? 59 : 0,
-    isEnd ? 999 : 0,
-  )
+  next.setHours(hours, minutes, isEnd ? 59 : 0, isEnd ? 999 : 0)
   return next
 }
 

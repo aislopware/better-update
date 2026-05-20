@@ -9,9 +9,9 @@ import {
   DeleteAndroidBuildCredentialsResult,
   UpdateAndroidBuildCredentialsBody,
 } from "../domain/android-build-credentials";
+import { idParam } from "../domain/common";
 import { BadRequest, Conflict } from "../domain/errors";
 
-const idParam = HttpApiSchema.param("id", Schema.String);
 const applicationIdentifierIdParam = HttpApiSchema.param("applicationIdentifierId", Schema.String);
 
 export class AndroidBuildCredentialsGroup extends HttpApiGroup.make("androidBuildCredentials")

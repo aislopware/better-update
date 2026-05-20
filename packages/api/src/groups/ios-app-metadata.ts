@@ -3,6 +3,7 @@ import { Schema } from "effect";
 
 import { Forbidden } from "../auth/errors";
 import { NotFound } from "../auth/ownership";
+import { idParam } from "../domain/common";
 import { BadRequest, Conflict } from "../domain/errors";
 import {
   CreateIosAppMetadataBody,
@@ -11,7 +12,6 @@ import {
   UpdateIosAppMetadataBody,
 } from "../domain/ios-app-metadata";
 
-const idParam = HttpApiSchema.param("id", Schema.String);
 const projectIdParam = HttpApiSchema.param("projectId", Schema.String);
 
 export class IosAppMetadataGroup extends HttpApiGroup.make("iosAppMetadata")

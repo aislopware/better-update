@@ -1,7 +1,7 @@
 import { Schema } from "effect";
 
-import { AppleTeamIdentifier } from "./apple-team";
-import { DateTimeString, Id } from "./common";
+import { AppleTeamIdentifier, appleTeamMetadataFields } from "./apple-team";
+import { DateTimeString, DeletedResult, Id } from "./common";
 
 export class AppleDistributionCertificate extends Schema.Class<AppleDistributionCertificate>(
   "AppleDistributionCertificate",
@@ -22,16 +22,13 @@ export const UploadAppleDistributionCertificateBody = Schema.Struct({
   p12Password: Schema.String.pipe(Schema.minLength(1)),
   serialNumber: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(200)),
   appleTeamIdentifier: AppleTeamIdentifier,
-  appleTeamName: Schema.optional(Schema.String.pipe(Schema.maxLength(200))),
-  appleTeamType: Schema.optional(Schema.Literal("IN_HOUSE", "COMPANY_ORGANIZATION", "INDIVIDUAL")),
+  ...appleTeamMetadataFields,
   developerIdIdentifier: Schema.optional(Schema.String.pipe(Schema.maxLength(200))),
   validFrom: DateTimeString,
   validUntil: DateTimeString,
 });
 
-export const DeleteAppleDistributionCertificateResult = Schema.Struct({
-  deleted: Schema.Number,
-});
+export const DeleteAppleDistributionCertificateResult = DeletedResult;
 
 export const DownloadAppleDistributionCertificateResult = Schema.Struct({
   id: Id,

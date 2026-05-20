@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 
-import { DateTimeString, Id } from "./common";
+import { DateTimeString, DeletedResult, Id, Name120 } from "./common";
 
 export const WebhookEventName = Schema.Literal("update.published", "build.completed");
 export type WebhookEventNameValue = typeof WebhookEventName.Type;
@@ -18,7 +18,7 @@ export class Webhook extends Schema.Class<Webhook>("Webhook")({
 }) {}
 
 export const CreateWebhookBody = Schema.Struct({
-  name: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(120)),
+  name: Name120,
   url: Schema.String.pipe(
     Schema.pattern(/^https?:\/\/.+/u, { message: () => "URL must start with http:// or https://" }),
     Schema.maxLength(2000),
@@ -28,7 +28,7 @@ export const CreateWebhookBody = Schema.Struct({
 });
 
 export const UpdateWebhookBody = Schema.Struct({
-  name: Schema.optional(Schema.String.pipe(Schema.minLength(1), Schema.maxLength(120))),
+  name: Schema.optional(Name120),
   url: Schema.optional(
     Schema.String.pipe(
       Schema.pattern(/^https?:\/\/.+/u, {
@@ -46,4 +46,4 @@ export class WebhookWithSecret extends Schema.Class<WebhookWithSecret>("WebhookW
   secret: Schema.String,
 }) {}
 
-export const DeleteWebhookResult = Schema.Struct({ deleted: Schema.Number });
+export const DeleteWebhookResult = DeletedResult;

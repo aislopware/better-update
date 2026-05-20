@@ -1,8 +1,9 @@
-import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "@effect/platform";
+import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "@effect/platform";
 import { Schema } from "effect";
 
 import { Forbidden } from "../auth/errors";
 import { NotFound } from "../auth/ownership";
+import { idParam } from "../domain/common";
 import { BadRequest, Conflict } from "../domain/errors";
 import {
   DeleteGoogleServiceAccountKeyResult,
@@ -10,8 +11,6 @@ import {
   GoogleServiceAccountKey,
   UploadGoogleServiceAccountKeyBody,
 } from "../domain/google-service-account-key";
-
-const idParam = HttpApiSchema.param("id", Schema.String);
 
 export class GoogleServiceAccountKeysGroup extends HttpApiGroup.make("googleServiceAccountKeys")
   .add(

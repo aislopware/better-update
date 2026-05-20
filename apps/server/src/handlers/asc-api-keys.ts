@@ -8,7 +8,7 @@ import { logAudit } from "../audit/logger";
 import { CurrentActor } from "../auth/current-actor";
 import { assertOrgOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
-import { cloudflareEnv } from "../cloudflare/context";
+import { CredentialArtifacts } from "../cloudflare/credential-artifacts";
 import { Vault } from "../cloudflare/vault";
 import { validateAscApiKey } from "../domain/asc-api-key-validator";
 import { BadRequest, NotFound } from "../errors";
@@ -19,7 +19,7 @@ import {
   toApiWriteEffect,
 } from "../http/to-api-effect";
 import { toDbNull } from "../lib/nullable";
-import { r2Operation, withR2Compensation } from "../lib/r2-helpers";
+import { withR2Compensation } from "../lib/r2-helpers";
 import { AppleTeamRepo } from "../repositories/apple-teams";
 import { AscApiKeyRepo } from "../repositories/asc-api-keys";
 
@@ -32,13 +32,9 @@ const decryptFailure = () => new BadRequest({ message: "Decryption failed" });
 
 const decryptAscPem = (key: AscApiKeyModel) =>
   Effect.gen(function* () {
-    const env = yield* cloudflareEnv;
+    const artifacts = yield* CredentialArtifacts;
     const vault = yield* Vault;
-    const blob = yield* Effect.promise(async () => env.CREDENTIAL_ARTIFACTS.get(key.r2Key));
-    if (blob === null) {
-      return yield* Effect.fail(new NotFound({ message: "ASC API key artifact missing from R2" }));
-    }
-    const encryptedBytes = new Uint8Array(yield* Effect.promise(async () => blob.arrayBuffer()));
+    const encryptedBytes = yield* artifacts.get(key.r2Key, "ASC API key");
     const pemBytes = yield* vault
       .envelopeDecrypt({
         organizationId: key.organizationId,
@@ -68,7 +64,7 @@ export const AscApiKeysGroupLive = HttpApiBuilder.group(ManagementApi, "ascApiKe
         Effect.gen(function* () {
           yield* assertPermission("appleCredential", "create");
           const ctx = yield* CurrentActor;
-          const env = yield* cloudflareEnv;
+          const artifacts = yield* CredentialArtifacts;
           const vault = yield* Vault;
           const teams = yield* AppleTeamRepo;
           const repo = yield* AscApiKeyRepo;
@@ -100,15 +96,12 @@ export const AscApiKeysGroupLive = HttpApiBuilder.group(ManagementApi, "ascApiKe
 
           const id = crypto.randomUUID();
           const r2Key = `asc-api-keys/${ctx.organizationId}/${id}.p8.enc`;
-          yield* r2Operation(async () =>
-            env.CREDENTIAL_ARTIFACTS.put(r2Key, encrypted.encryptedBlob),
-          );
+          yield* artifacts.put(r2Key, encrypted.encryptedBlob);
 
           const rolesJson = JSON.stringify(payload.roles ?? []);
           const now = new Date().toISOString();
           yield* withR2Compensation(
-            env.CREDENTIAL_ARTIFACTS,
-            r2Key,
+            artifacts.delete(r2Key),
             repo.insert({
               id,
               organizationId: ctx.organizationId,
@@ -153,13 +146,13 @@ export const AscApiKeysGroupLive = HttpApiBuilder.group(ManagementApi, "ascApiKe
       toApiCrudEffect(
         Effect.gen(function* () {
           yield* assertPermission("appleCredential", "delete");
-          const env = yield* cloudflareEnv;
+          const artifacts = yield* CredentialArtifacts;
           const repo = yield* AscApiKeyRepo;
           const existing = yield* repo.findById({ id: path.id });
           yield* assertOrgOwnership(existing.organizationId);
           const { r2Key } = yield* repo.delete({ id: path.id });
           if (r2Key !== null) {
-            yield* Effect.promise(async () => env.CREDENTIAL_ARTIFACTS.delete(r2Key));
+            yield* artifacts.delete(r2Key);
           }
           yield* logAudit({
             action: "apple.asc-api-key.delete",

@@ -1,4 +1,4 @@
-import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "@effect/platform";
+import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "@effect/platform";
 import { Schema } from "effect";
 
 import { Forbidden } from "../auth/errors";
@@ -9,9 +9,8 @@ import {
   DownloadApplePushKeyResult,
   UploadApplePushKeyBody,
 } from "../domain/apple-push-key";
+import { idParam } from "../domain/common";
 import { BadRequest, Conflict } from "../domain/errors";
-
-const idParam = HttpApiSchema.param("id", Schema.String);
 
 export class ApplePushKeysGroup extends HttpApiGroup.make("applePushKeys")
   .add(

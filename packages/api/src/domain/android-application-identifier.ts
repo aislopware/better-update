@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 
-import { DateTimeString, Id } from "./common";
+import { DateTimeString, DeletedResult, Id } from "./common";
 
 export const AndroidPackageName = Schema.String.pipe(
   Schema.pattern(/^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*)+$/u, {
@@ -23,6 +23,4 @@ export const CreateAndroidApplicationIdentifierBody = Schema.Struct({
   packageName: AndroidPackageName,
 });
 
-export const DeleteAndroidApplicationIdentifierResult = Schema.Struct({
-  deleted: Schema.Number,
-});
+export const DeleteAndroidApplicationIdentifierResult = DeletedResult;

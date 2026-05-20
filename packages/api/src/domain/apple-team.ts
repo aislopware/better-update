@@ -5,11 +5,21 @@ import { DateTimeString, Id } from "./common";
 export const AppleTeamType = Schema.Literal("IN_HOUSE", "COMPANY_ORGANIZATION", "INDIVIDUAL");
 export type AppleTeamTypeValue = typeof AppleTeamType.Type;
 
-export const AppleTeamIdentifier = Schema.String.pipe(
-  Schema.pattern(/^[A-Z0-9]{10}$/u, {
-    message: () => "Apple Team identifier must be 10 uppercase alphanumeric characters",
-  }),
-);
+/** Apple portal IDs (team, push key, ASC API key) are 10 uppercase alphanumeric chars. */
+export const tenCharPortalId = (label: string) =>
+  Schema.String.pipe(
+    Schema.pattern(/^[A-Z0-9]{10}$/u, {
+      message: () => `${label} must be 10 uppercase alphanumeric characters`,
+    }),
+  );
+
+export const AppleTeamIdentifier = tenCharPortalId("Apple Team identifier");
+
+/** Optional Apple-team metadata carried on credential upload bodies. */
+export const appleTeamMetadataFields = {
+  appleTeamName: Schema.optional(Schema.String.pipe(Schema.maxLength(200))),
+  appleTeamType: Schema.optional(AppleTeamType),
+} as const;
 
 export class AppleTeam extends Schema.Class<AppleTeam>("AppleTeam")({
   id: Id,

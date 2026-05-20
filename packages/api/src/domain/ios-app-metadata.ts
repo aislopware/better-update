@@ -1,7 +1,7 @@
 import { Schema } from "effect";
 
 import { BundleIdentifier } from "./apple-provisioning-profile";
-import { DateTimeString, Id } from "./common";
+import { DateTimeString, DeletedResult, Id } from "./common";
 
 export const AscAppId = Schema.String.pipe(
   Schema.pattern(/^[0-9]{1,30}$/u, {
@@ -48,4 +48,4 @@ export const UpdateIosAppMetadataBody = Schema.Struct({
   appName: Schema.optional(Schema.NullOr(AppName)),
 });
 
-export const DeleteIosAppMetadataResult = Schema.Struct({ deleted: Schema.Number });
+export const DeleteIosAppMetadataResult = DeletedResult;

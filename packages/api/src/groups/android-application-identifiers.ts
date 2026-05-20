@@ -8,9 +8,9 @@ import {
   CreateAndroidApplicationIdentifierBody,
   DeleteAndroidApplicationIdentifierResult,
 } from "../domain/android-application-identifier";
+import { idParam } from "../domain/common";
 import { BadRequest, Conflict } from "../domain/errors";
 
-const idParam = HttpApiSchema.param("id", Schema.String);
 const projectIdParam = HttpApiSchema.param("projectId", Schema.String);
 
 export class AndroidApplicationIdentifiersGroup extends HttpApiGroup.make(

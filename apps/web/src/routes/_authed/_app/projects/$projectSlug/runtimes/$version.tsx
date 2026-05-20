@@ -28,6 +28,7 @@ import { ProjectSubpageHeader } from "../-project-subpage-header";
 import { PlatformBadge } from "../../../../../../components/attribute-badges";
 import { DetailCardSkeleton, SummaryCardsSkeleton } from "../../../../../../components/skeletons";
 import { DataTableView } from "../../../../../../lib/data-table";
+import { formatDateTime } from "../../../../../../lib/format-date";
 import { pluralize } from "../../../../../../lib/pluralize";
 import { DROPDOWN_FETCH_LIMIT } from "../../../../../../queries/constants";
 import { buildBuildsColumns } from "../builds/-builds-columns";
@@ -92,7 +93,7 @@ const RuntimeSummaryCards = ({
         {latestActivity === null ? (
           <span className="text-muted-foreground">—</span>
         ) : (
-          new Date(latestActivity).toLocaleString()
+          formatDateTime(latestActivity)
         )}
       </CardContent>
     </Card>

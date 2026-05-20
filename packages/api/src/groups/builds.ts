@@ -1,4 +1,4 @@
-import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "@effect/platform";
+import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "@effect/platform";
 import { Schema } from "effect";
 
 import { Forbidden } from "../auth/errors";
@@ -13,10 +13,8 @@ import {
   ReserveBuildResult,
 } from "../domain/build";
 import { BuildCompatibilityMatrixResult } from "../domain/build-compatibility";
-import { Id } from "../domain/common";
+import { Id, idParam, pageResult } from "../domain/common";
 import { BadRequest, Conflict } from "../domain/errors";
-
-const idParam = HttpApiSchema.param("id", Schema.String);
 
 export class BuildsGroup extends HttpApiGroup.make("builds")
   .add(
@@ -45,14 +43,7 @@ export class BuildsGroup extends HttpApiGroup.make("builds")
   .add(
     HttpApiEndpoint.get("list", "/api/builds")
       .setUrlParams(ListBuildsParams)
-      .addSuccess(
-        Schema.Struct({
-          items: Schema.Array(BuildWithArtifact),
-          total: Schema.Number,
-          page: Schema.Number,
-          limit: Schema.Number,
-        }),
-      )
+      .addSuccess(pageResult(BuildWithArtifact))
       .annotateContext(
         OpenApi.annotations({
           title: "List builds",

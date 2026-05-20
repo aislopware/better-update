@@ -22,7 +22,7 @@ const ProfileForm = () => {
       rejectOnAuthClientError(authClient.updateUser(input), "Failed to update profile"),
     onSuccess: async () => {
       toastManager.add({ title: "Profile updated", type: "success" });
-      await queryClient.resetQueries({ queryKey: ["auth", "session"] });
+      await queryClient.resetQueries({ queryKey: sessionQueryOptions.queryKey });
     },
   });
 

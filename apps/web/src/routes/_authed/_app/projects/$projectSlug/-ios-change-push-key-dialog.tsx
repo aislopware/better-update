@@ -5,21 +5,9 @@ import {
   updateIosBundleConfiguration,
   uploadApplePushKey,
 } from "@better-update/api-client/react";
-import { Button } from "@better-update/ui/components/ui/button";
-import {
-  Dialog,
-  DialogClose,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogPanel,
-  DialogPopup,
-  DialogTitle,
-} from "@better-update/ui/components/ui/dialog";
 import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@better-update/ui/components/ui/radio-group";
-import { Tabs, TabsList, TabsTab } from "@better-update/ui/components/ui/tabs";
 import { Textarea } from "@better-update/ui/components/ui/textarea";
 import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
@@ -29,7 +17,10 @@ import type { ApplePushKeyItem } from "@better-update/api-client/react";
 
 import { formatAppleTeamLabel, safeReadFileAsText } from "../../-credentials-utils";
 import { formatDate } from "../../../../../lib/format-date";
-import { safeSubmit, useApiMutation } from "../../../../../lib/use-api-mutation";
+import { useApiMutation } from "../../../../../lib/use-api-mutation";
+import { ChangeCredentialDialog } from "./-change-credential-dialog";
+
+import type { ChangeCredentialTab } from "./-change-credential-dialog";
 
 interface ChooseSavedTabProps {
   readonly orgId: string;
@@ -193,8 +184,6 @@ interface IosChangePushKeyDialogProps {
   readonly currentKey: ApplePushKeyItem | null;
 }
 
-type TabValue = "saved" | "upload";
-
 export const IosChangePushKeyDialog = ({
   open,
   onOpenChange,
@@ -207,8 +196,6 @@ export const IosChangePushKeyDialog = ({
   const queryClient = useQueryClient();
   const initialSelectedId = currentKey === null ? "" : currentKey.id;
   const currentKeyId: string | null = currentKey === null ? null : currentKey.id;
-  const [tab, setTab] = useState<TabValue>("saved");
-  const [selectedId, setSelectedId] = useState<string>(initialSelectedId);
   const [uploadState, setUploadState] = useState<UploadFormState>(UPLOAD_INITIAL);
 
   const invalidate = async () => {
@@ -221,7 +208,7 @@ export const IosChangePushKeyDialog = ({
     ]);
   };
 
-  const resolveKeyId = async (): Promise<string> => {
+  const resolveKeyId = async (tab: ChangeCredentialTab, selectedId: string): Promise<string> => {
     if (tab !== "upload") {
       return selectedId;
     }
@@ -234,8 +221,8 @@ export const IosChangePushKeyDialog = ({
   };
 
   const saveMutation = useApiMutation({
-    mutationFn: async () => {
-      const keyId = await resolveKeyId();
+    mutationFn: async ({ tab, selectedId }: { tab: ChangeCredentialTab; selectedId: string }) => {
+      const keyId = await resolveKeyId(tab, selectedId);
       await Promise.all(
         configIds.map(async (id) => updateIosBundleConfiguration(id, { applePushKeyId: keyId })),
       );
@@ -247,70 +234,31 @@ export const IosChangePushKeyDialog = ({
     },
   });
 
-  const canSubmit = tab === "upload" ? isUploadValid(uploadState) : selectedId.length > 0;
-
   return (
-    <Dialog
+    <ChangeCredentialDialog
       open={open}
       onOpenChange={onOpenChange}
-      onOpenChangeComplete={(next) => {
-        if (!next) {
-          setTab("saved");
-          setSelectedId(initialSelectedId);
-          setUploadState(UPLOAD_INITIAL);
-        }
+      title="Change push key"
+      description="Upload a new .p8 APNs key or pick a saved key on this Apple Team. The new binding applies to every distribution type for this bundle identifier."
+      initialSelectedId={initialSelectedId}
+      isUploadValid={isUploadValid(uploadState)}
+      submitting={saveMutation.isPending}
+      onSubmit={async (context) => saveMutation.mutateAsync(context)}
+      onResetUpload={() => {
+        setUploadState(UPLOAD_INITIAL);
       }}
-    >
-      <DialogPopup className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Change push key</DialogTitle>
-          <DialogDescription>
-            Upload a new .p8 APNs key or pick a saved key on this Apple Team. The new binding
-            applies to every distribution type for this bundle identifier.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogPanel>
-          <Tabs
-            value={tab}
-            onValueChange={(value) => {
-              setTab(value === "upload" ? "upload" : "saved");
-            }}
-            className="mb-4"
-          >
-            <TabsList>
-              <TabsTab value="saved">Choose saved</TabsTab>
-              <TabsTab value="upload">Upload new</TabsTab>
-            </TabsList>
-          </Tabs>
-          {tab === "saved" ? (
-            <Suspense
-              fallback={<p className="text-muted-foreground text-sm">Loading saved keys…</p>}
-            >
-              <ChooseSavedTab
-                orgId={orgId}
-                appleTeamId={appleTeamId}
-                currentId={currentKeyId}
-                selectedId={selectedId}
-                onSelect={setSelectedId}
-              />
-            </Suspense>
-          ) : (
-            <UploadTab state={uploadState} onChange={setUploadState} />
-          )}
-        </DialogPanel>
-        <DialogFooter>
-          <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
-          <Button
-            disabled={!canSubmit}
-            loading={saveMutation.isPending}
-            onClick={async () => {
-              await safeSubmit(saveMutation.mutateAsync(undefined));
-            }}
-          >
-            Save
-          </Button>
-        </DialogFooter>
-      </DialogPopup>
-    </Dialog>
+      renderSaved={({ selectedId, setSelectedId }) => (
+        <Suspense fallback={<p className="text-muted-foreground text-sm">Loading saved keys…</p>}>
+          <ChooseSavedTab
+            orgId={orgId}
+            appleTeamId={appleTeamId}
+            currentId={currentKeyId}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+          />
+        </Suspense>
+      )}
+      renderUpload={() => <UploadTab state={uploadState} onChange={setUploadState} />}
+    />
   );
 };

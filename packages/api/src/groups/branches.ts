@@ -1,5 +1,4 @@
-import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "@effect/platform";
-import { Schema } from "effect";
+import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "@effect/platform";
 
 import { Forbidden } from "../auth/errors";
 import { NotFound } from "../auth/ownership";
@@ -10,9 +9,8 @@ import {
   ListBranchesParams,
   UpdateBranchBody,
 } from "../domain/branch";
+import { idParam, pageResult } from "../domain/common";
 import { Conflict } from "../domain/errors";
-
-const idParam = HttpApiSchema.param("id", Schema.String);
 
 export class BranchesGroup extends HttpApiGroup.make("branches")
   .add(
@@ -29,14 +27,7 @@ export class BranchesGroup extends HttpApiGroup.make("branches")
   .add(
     HttpApiEndpoint.get("list", "/api/branches")
       .setUrlParams(ListBranchesParams)
-      .addSuccess(
-        Schema.Struct({
-          items: Schema.Array(Branch),
-          total: Schema.Number,
-          page: Schema.Number,
-          limit: Schema.Number,
-        }),
-      )
+      .addSuccess(pageResult(Branch))
       .annotateContext(
         OpenApi.annotations({
           title: "List branches",
