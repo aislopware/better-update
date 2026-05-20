@@ -1,3 +1,4 @@
+import { compact } from "@better-update/type-guards";
 import { defineCommand } from "citty";
 import { Console, Effect } from "effect";
 
@@ -83,7 +84,7 @@ const revertToPublished = (
       payload: {
         sourceGroupId: previousGroup,
         destinationBranchId: branchId,
-        ...(message === undefined ? {} : { message }),
+        ...compact({ message }),
       },
     });
     yield* printHuman(`Republished ${String(result.updates.length)} update(s).`);

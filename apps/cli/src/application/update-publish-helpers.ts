@@ -1,5 +1,6 @@
 import path from "node:path";
 
+import { compact } from "@better-update/type-guards";
 import { FileSystem } from "@effect/platform";
 import { Console, Effect } from "effect";
 
@@ -225,13 +226,13 @@ export const emitMetadataFile = (input: {
     const metadata = {
       groupId: input.groupId,
       branch: input.branch,
-      ...(input.channel === undefined ? {} : { channel: input.channel }),
       message: input.message,
       updates: input.results.map((entry) => ({
         platform: entry.platform,
         updateId: entry.updateId,
         runtimeVersion: entry.runtimeVersion,
       })),
+      ...compact({ channel: input.channel }),
     };
     const filePath = path.join(input.dir, "eas-update-metadata.json");
     yield* fs.writeFileString(filePath, `${JSON.stringify(metadata, null, 2)}\n`).pipe(

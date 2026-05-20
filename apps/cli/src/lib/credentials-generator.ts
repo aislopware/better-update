@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 
 import { fromBase64, toBase64 } from "@better-update/encoding";
+import { compact, toOptional } from "@better-update/type-guards";
 import { FileSystem } from "@effect/platform";
 import { Data, Effect } from "effect";
 
@@ -93,7 +94,7 @@ export const generateAndUploadKeystore = (api: ApiClient, input: GenerateAndUplo
         keyPassword: input.keyPassword,
         commonName: input.commonName,
         organization: input.organization,
-        ...(input.validityDays === undefined ? {} : { validityDays: input.validityDays }),
+        ...compact({ validityDays: input.validityDays }),
       });
 
       const bytes = yield* fs.readFile(keystorePath);
@@ -168,14 +169,12 @@ export const generateAndUploadDistributionCertificate = (
         p12Password: bundle.password,
         serialNumber: bundle.metadata.serialNumber,
         appleTeamIdentifier: bundle.metadata.appleTeamId,
-        ...(bundle.metadata.appleTeamName === null
-          ? {}
-          : { appleTeamName: bundle.metadata.appleTeamName }),
-        ...(bundle.metadata.developerIdIdentifier === null
-          ? {}
-          : { developerIdIdentifier: bundle.metadata.developerIdIdentifier }),
         validFrom: bundle.metadata.validFrom,
         validUntil: bundle.metadata.validUntil,
+        ...compact({
+          appleTeamName: toOptional(bundle.metadata.appleTeamName),
+          developerIdIdentifier: toOptional(bundle.metadata.developerIdIdentifier),
+        }),
       },
     });
 
@@ -280,7 +279,7 @@ export const listAppleCertificates = (
     const creds = yield* fetchAscCredentials(api, input.ascApiKeyId);
     return yield* listCertificates(
       { keyId: creds.keyId, issuerId: creds.issuerId, p8Pem: creds.p8Pem },
-      input.certificateType === undefined ? {} : { certificateType: input.certificateType },
+      compact({ certificateType: input.certificateType }),
     ).pipe(Effect.mapError(wrapAscError("apple-list-certificates")));
   });
 
@@ -419,7 +418,7 @@ export const generateAndUploadProvisioningProfile = (
         profileBase64,
         appleDistributionCertificateId: input.distributionCertificateId,
         isManaged: true,
-        ...(rosterHash === undefined ? {} : { deviceRosterHash: rosterHash }),
+        ...compact({ deviceRosterHash: rosterHash }),
       },
     });
 

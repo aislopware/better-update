@@ -1,3 +1,4 @@
+import { compact } from "@better-update/type-guards";
 import { FileSystem } from "@effect/platform";
 import { Console, Effect } from "effect";
 
@@ -128,36 +129,35 @@ export const runUploadWorkflow = (options: RunUploadWorkflowOptions) =>
     const { sha256, byteSize } = yield* sha256File(options.artifactPath);
 
     const rawGitContext = yield* readGitContext(projectRoot);
-    const gitContext: {
-      readonly ref?: string;
-      readonly commit?: string;
-      readonly dirty: boolean;
-    } = {
-      ...(rawGitContext.ref === undefined ? {} : { ref: rawGitContext.ref }),
-      ...(rawGitContext.commit === undefined ? {} : { commit: rawGitContext.commit }),
+    const gitContext = compact({
+      ref: rawGitContext.ref,
+      commit: rawGitContext.commit,
       dirty: rawGitContext.dirty,
-    };
+    });
 
     const fingerprintHash = yield* runFingerprintFull(projectRoot).pipe(
       Effect.map((entry) => entry.hash),
       Effect.catchAll(() => Effect.succeed(undefined)),
     );
 
-    const result = yield* reserveAndUpload(api, {
-      target,
-      projectId,
-      profileName: profile.name,
-      runtimeVersion,
-      ...(appMeta.appVersion === undefined ? {} : { appVersion: appMeta.appVersion }),
-      ...(appMeta.buildNumber === undefined ? {} : { buildNumber: appMeta.buildNumber }),
-      bundleId,
-      gitContext,
-      ...(options.message === undefined ? {} : { message: options.message }),
-      ...(fingerprintHash === undefined ? {} : { fingerprintHash }),
-      artifactPath: options.artifactPath,
-      sha256,
-      byteSize,
-    });
+    const result = yield* reserveAndUpload(
+      api,
+      compact({
+        target,
+        projectId,
+        profileName: profile.name,
+        runtimeVersion,
+        appVersion: appMeta.appVersion,
+        buildNumber: appMeta.buildNumber,
+        bundleId,
+        gitContext,
+        message: options.message,
+        fingerprintHash,
+        artifactPath: options.artifactPath,
+        sha256,
+        byteSize,
+      }),
+    );
 
     yield* Console.log("");
     yield* printKeyValue([

@@ -1,3 +1,4 @@
+import { compact } from "@better-update/type-guards";
 import { defineCommand } from "citty";
 import { Effect } from "effect";
 
@@ -38,7 +39,7 @@ const resolveByKey = (
       projectId,
       scope: "all" as const,
       search: key,
-      ...(env === undefined ? {} : { environments: env }),
+      ...compact({ environments: env }),
     };
     const { items } = yield* api["env-vars"].list({ urlParams });
     const matches = items.filter((item) => item.key === key);

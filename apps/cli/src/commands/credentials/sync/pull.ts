@@ -1,6 +1,7 @@
 import path from "node:path";
 
 import { fromBase64 } from "@better-update/encoding";
+import { compact } from "@better-update/type-guards";
 import { FileSystem } from "@effect/platform";
 import { defineCommand } from "citty";
 import { Console, Effect } from "effect";
@@ -337,10 +338,10 @@ export const pullCommand = defineCommand({
           return;
         }
 
-        const next: CredentialsJson = {
-          ...(iosResult.entry === undefined ? {} : { ios: iosResult.entry }),
-          ...(androidResult.entry === undefined ? {} : { android: androidResult.entry }),
-        };
+        const next: CredentialsJson = compact({
+          ios: iosResult.entry,
+          android: androidResult.entry,
+        });
         const outPath = yield* writeCredentialsJson(projectRoot, next);
 
         if (!args["skip-gitignore"]) {

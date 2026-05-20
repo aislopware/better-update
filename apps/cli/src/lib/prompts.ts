@@ -1,3 +1,4 @@
+import { compact } from "@better-update/type-guards";
 import {
   autocomplete,
   cancel,
@@ -64,12 +65,14 @@ export const promptAutocomplete = <T>(
   Effect.gen(function* () {
     yield* ensureInteractive(message);
     const value = yield* Effect.promise(async () =>
-      autocomplete<T>({
-        message,
-        options: [...options],
-        ...(config?.placeholder === undefined ? {} : { placeholder: config.placeholder }),
-        ...(config?.maxItems === undefined ? {} : { maxItems: config.maxItems }),
-      }),
+      autocomplete<T>(
+        compact({
+          message,
+          options: [...options],
+          placeholder: config?.placeholder,
+          maxItems: config?.maxItems,
+        }),
+      ),
     );
     return handleCancel(value);
   });
@@ -100,11 +103,13 @@ export const promptText = (
   Effect.gen(function* () {
     yield* ensureInteractive(message);
     const value = yield* Effect.promise(async () =>
-      text({
-        message,
-        ...(options?.placeholder === undefined ? {} : { placeholder: options.placeholder }),
-        ...(options?.defaultValue === undefined ? {} : { defaultValue: options.defaultValue }),
-      }),
+      text(
+        compact({
+          message,
+          placeholder: options?.placeholder,
+          defaultValue: options?.defaultValue,
+        }),
+      ),
     );
     return handleCancel(value);
   });
@@ -116,10 +121,7 @@ export const promptConfirm = (
   Effect.gen(function* () {
     yield* ensureInteractive(message);
     const value = yield* Effect.promise(async () =>
-      confirm({
-        message,
-        ...(options?.initialValue === undefined ? {} : { initialValue: options.initialValue }),
-      }),
+      confirm(compact({ message, initialValue: options?.initialValue })),
     );
     return handleCancel(value);
   });

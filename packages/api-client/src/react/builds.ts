@@ -1,3 +1,4 @@
+import { compact } from "@better-update/type-guards";
 import { queryOptions } from "@tanstack/react-query";
 
 import { runApi } from "../index";
@@ -52,17 +53,17 @@ export const buildsQueryOptions = (orgId: string, projectId: string, filters?: B
       runApi(
         (api) =>
           api.builds.list({
-            urlParams: {
+            urlParams: compact({
               projectId,
-              ...(filters?.platform ? { platform: filters.platform } : {}),
-              ...(filters?.profile ? { profile: filters.profile } : {}),
-              ...(filters?.runtimeVersion ? { runtimeVersion: filters.runtimeVersion } : {}),
-              ...(filters?.distribution ? { distribution: filters.distribution } : {}),
-              ...(filters?.audience ? { audience: filters.audience } : {}),
-              ...(filters?.page === undefined ? {} : { page: filters.page }),
-              ...(filters?.limit === undefined ? {} : { limit: filters.limit }),
-              ...(filters?.sort ? { sort: filters.sort } : {}),
-            },
+              platform: filters?.platform,
+              profile: filters?.profile,
+              runtimeVersion: filters?.runtimeVersion,
+              distribution: filters?.distribution,
+              audience: filters?.audience,
+              page: filters?.page,
+              limit: filters?.limit,
+              sort: filters?.sort,
+            }),
           }),
         signal,
       ),

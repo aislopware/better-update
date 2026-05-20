@@ -81,11 +81,11 @@ const SubmissionRow = ({
           </Badge>
           <span className="font-mono text-xs uppercase">{submission.platform}</span>
           <span className="text-muted-foreground">{submission.profileName}</span>
-          {submission.buildId === null ? null : (
+          {submission.buildId ? (
             <span className="text-muted-foreground/70 font-mono text-xs">
               build {submission.buildId.slice(0, 8)}
             </span>
-          )}
+          ) : null}
         </span>
         <span className="flex items-center gap-3">
           <span className="text-muted-foreground text-xs">

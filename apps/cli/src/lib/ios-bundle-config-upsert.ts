@@ -1,3 +1,4 @@
+import { compact } from "@better-update/type-guards";
 import { Console, Effect } from "effect";
 
 import { MissingCredentialsError } from "./exit-codes";
@@ -43,7 +44,7 @@ export const upsertIosBundleConfiguration = (api: ApiClient, input: UpsertIosBun
           appleTeamId: input.appleTeamId,
           appleDistributionCertificateId: input.appleDistributionCertificateId,
           appleProvisioningProfileId: input.appleProvisioningProfileId,
-          ...(input.ascApiKeyId === undefined ? {} : { ascApiKeyId: input.ascApiKeyId }),
+          ...compact({ ascApiKeyId: input.ascApiKeyId }),
         },
       });
       yield* Console.log("iOS bundle configuration saved.");
@@ -62,7 +63,7 @@ export const upsertIosBundleConfiguration = (api: ApiClient, input: UpsertIosBun
       payload: {
         appleDistributionCertificateId: input.appleDistributionCertificateId,
         appleProvisioningProfileId: input.appleProvisioningProfileId,
-        ...(input.ascApiKeyId === undefined ? {} : { ascApiKeyId: input.ascApiKeyId }),
+        ...compact({ ascApiKeyId: input.ascApiKeyId }),
       },
     });
     yield* Console.log("iOS bundle configuration rebound.");

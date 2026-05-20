@@ -1,5 +1,6 @@
 import process from "node:process";
 
+import { compact } from "@better-update/type-guards";
 import { Effect } from "effect";
 
 import { CliRuntime } from "../services/cli-runtime";
@@ -214,7 +215,7 @@ export const writeProjectId = (
     return {
       type: result.type,
       configPath: paths.staticConfigPath,
-      ...(result.message === undefined ? {} : { message: result.message }),
+      ...compact({ message: result.message }),
     } satisfies WriteProjectIdResult;
   });
 
@@ -250,7 +251,7 @@ export const writeExpoConfigPatch = (
     return {
       type: result.type,
       configPath: result.config === null ? null : paths.staticConfigPath,
-      ...(result.message === undefined ? {} : { message: result.message }),
+      ...compact({ message: result.message }),
     } satisfies WriteExpoConfigPatchResult;
   });
 

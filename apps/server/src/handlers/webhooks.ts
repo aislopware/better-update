@@ -1,3 +1,4 @@
+import { compact } from "@better-update/type-guards";
 import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
@@ -100,11 +101,13 @@ export const WebhooksGroupLive = HttpApiBuilder.group(ManagementApi, "webhooks",
           const repo = yield* WebhookRepo;
           const model = yield* repo.update({
             id: path.id,
-            ...(payload.name === undefined ? {} : { name: payload.name }),
-            ...(payload.url === undefined ? {} : { url: payload.url }),
-            ...(payload.events === undefined ? {} : { events: payload.events }),
-            ...(payload.enabled === undefined ? {} : { enabled: payload.enabled }),
             updatedAt: new Date().toISOString(),
+            ...compact({
+              name: payload.name,
+              url: payload.url,
+              events: payload.events,
+              enabled: payload.enabled,
+            }),
           });
           yield* logAudit({
             action: "webhook.update",

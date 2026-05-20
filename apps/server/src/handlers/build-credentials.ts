@@ -1,3 +1,4 @@
+import { compact } from "@better-update/type-guards";
 import { HttpApiBuilder, HttpServerResponse } from "@effect/platform";
 import { Effect } from "effect";
 
@@ -69,9 +70,9 @@ export const BuildCredentialsGroupLive = HttpApiBuilder.group(
             metadata: {
               platform: "android",
               applicationIdentifier: payload.applicationIdentifier,
-              ...(payload.buildProfile === undefined ? {} : { buildProfile: payload.buildProfile }),
               keystoreId: resolvedIds.keystoreId,
               buildCredentialsGroupId: resolvedIds.buildCredentialsGroupId,
+              ...compact({ buildProfile: payload.buildProfile }),
             },
           });
           return yield* withNoStore(response).pipe(Effect.orDie);

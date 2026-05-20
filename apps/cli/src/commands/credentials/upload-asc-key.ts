@@ -1,3 +1,4 @@
+import { compact } from "@better-update/type-guards";
 import { defineCommand } from "citty";
 import { Console, Effect } from "effect";
 
@@ -38,9 +39,7 @@ export const uploadAscKeyCommand = defineCommand({
           filePath: args.p8,
           keyId,
           issuerId,
-          ...(args["apple-team-identifier"] === undefined
-            ? {}
-            : { appleTeamIdentifier: args["apple-team-identifier"] }),
+          ...compact({ appleTeamIdentifier: args["apple-team-identifier"] }),
         });
         yield* Console.log("ASC API key uploaded.");
         yield* printKeyValue([

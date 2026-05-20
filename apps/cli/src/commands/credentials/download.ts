@@ -1,6 +1,7 @@
 import path from "node:path";
 
 import { fromBase64 } from "@better-update/encoding";
+import { compact, toOptional } from "@better-update/type-guards";
 import { FileSystem } from "@effect/platform";
 import { defineCommand } from "citty";
 import { Effect } from "effect";
@@ -100,10 +101,10 @@ const downloadProvisioningProfile = (
       metadata: {
         bundleIdentifier: data.bundleIdentifier,
         distributionType: data.distributionType,
-        ...(data.profileName === null ? {} : { profileName: data.profileName }),
-        ...(data.developerPortalIdentifier === null
-          ? {}
-          : { developerPortalIdentifier: data.developerPortalIdentifier }),
+        ...compact({
+          profileName: toOptional(data.profileName),
+          developerPortalIdentifier: toOptional(data.developerPortalIdentifier),
+        }),
       },
     } satisfies DownloadResult;
   });
@@ -145,9 +146,7 @@ const downloadAscApiKey = (api: ApiClient, id: string, cwd: string, output: stri
       metadata: {
         keyId: data.keyId,
         issuerId: data.issuerId,
-        ...(data.appleTeamIdentifier === null
-          ? {}
-          : { appleTeamIdentifier: data.appleTeamIdentifier }),
+        ...compact({ appleTeamIdentifier: toOptional(data.appleTeamIdentifier) }),
       },
     } satisfies DownloadResult;
   });

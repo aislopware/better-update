@@ -5,6 +5,7 @@ import {
   updateIosBundleConfiguration,
   uploadAppleProvisioningProfile,
 } from "@better-update/api-client/react";
+import { compact } from "@better-update/type-guards";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
@@ -249,9 +250,9 @@ export const IosChangeProfileDialog = ({
     }
     const payload = {
       profileBase64: uploadState.profileBase64,
-      ...(uploadState.appleDistributionCertificateId === ""
-        ? {}
-        : { appleDistributionCertificateId: uploadState.appleDistributionCertificateId }),
+      ...compact({
+        appleDistributionCertificateId: uploadState.appleDistributionCertificateId || undefined,
+      }),
     };
     const uploaded = await uploadAppleProvisioningProfile(payload);
     return uploaded.id;

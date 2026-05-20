@@ -66,10 +66,10 @@ const OverviewCard = ({
         </div>
         <div className="flex flex-col gap-1">
           <div className="text-muted-foreground text-sm">Environment</div>
-          {environment === undefined ? (
-            <div className="font-medium">—</div>
-          ) : (
+          {environment ? (
             <EnvironmentBadge environment={environment} className="self-start" />
+          ) : (
+            <div className="font-medium">—</div>
           )}
         </div>
         <div className="flex flex-col gap-1">

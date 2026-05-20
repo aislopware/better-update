@@ -1,3 +1,4 @@
+import { compact } from "@better-update/type-guards";
 import { defineCommand } from "citty";
 import { Console, Effect } from "effect";
 
@@ -24,9 +25,7 @@ export const appleLoginCommand = defineCommand({
     runEffect(
       Effect.gen(function* () {
         const auth = yield* AppleAuth;
-        const session = yield* auth.ensureLoggedIn(
-          args.username === undefined ? {} : { username: args.username },
-        );
+        const session = yield* auth.ensureLoggedIn(compact({ username: args.username }));
         yield* Console.log(
           `Logged in as ${session.username}. Team: ${session.teamName ?? session.teamId} (${session.teamId}).`,
         );

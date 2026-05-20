@@ -65,13 +65,13 @@ const SubmissionDetail = ({
         <DetailRow label="Queued at" value={submission.queuedAt} />
         <DetailRow label="Started at" value={submission.startedAt} />
         <DetailRow label="Completed at" value={submission.completedAt} />
-        {submission.errorCode === null ? null : (
+        {submission.errorCode ? (
           <>
             <DetailRow label="Error code" value={submission.errorCode} />
             <DetailRow label="Error message" value={submission.errorMessage} />
           </>
-        )}
-        {submission.iosConfig === null ? null : (
+        ) : null}
+        {submission.iosConfig ? (
           <>
             <h2 className="text-muted-foreground mt-3 text-xs uppercase">iOS config</h2>
             <DetailRow label="Bundle identifier" value={submission.iosConfig.bundleIdentifier} />
@@ -80,8 +80,8 @@ const SubmissionDetail = ({
             <DetailRow label="Language" value={submission.iosConfig.language} />
             <DetailRow label="What to test" value={submission.iosConfig.whatToTest} />
           </>
-        )}
-        {submission.androidConfig === null ? null : (
+        ) : null}
+        {submission.androidConfig ? (
           <>
             <h2 className="text-muted-foreground mt-3 text-xs uppercase">Android config</h2>
             <DetailRow label="Application ID" value={submission.androidConfig.applicationId} />
@@ -100,7 +100,7 @@ const SubmissionDetail = ({
               value={String(submission.androidConfig.changesNotSentForReview)}
             />
           </>
-        )}
+        ) : null}
       </div>
     </CardFrame>
   </div>

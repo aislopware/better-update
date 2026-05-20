@@ -1,3 +1,4 @@
+import { compact } from "@better-update/type-guards";
 // @expo/apple-utils is ncc-bundled CJS; `import * as` only surfaces `default`/`module.exports`
 // via Node ESM's cjs-module-lexer, so Auth/Session/CookieFileCache are read off the default import.
 import AppleUtils from "@expo/apple-utils";
@@ -275,7 +276,7 @@ export const makeAppleAuthLive = (appleUtils: AppleUtilsContract = defaultAppleU
         }),
         buildRequestContext: (session: AppleAuthSession): RequestContext => ({
           teamId: session.teamId,
-          ...(session.providerId === undefined ? {} : { providerId: session.providerId }),
+          ...compact({ providerId: session.providerId }),
         }),
       };
     }),

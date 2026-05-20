@@ -1,4 +1,5 @@
 import { fromBase64, toBase64 } from "@better-update/encoding";
+import { compact } from "@better-update/type-guards";
 import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
@@ -62,15 +63,11 @@ export const AndroidUploadKeystoresGroupLive = HttpApiBuilder.group(
               keyAlias: payload.keyAlias,
               keystorePassword: payload.keystorePassword,
               keyPassword: payload.keyPassword,
-              ...(payload.md5Fingerprint === undefined
-                ? {}
-                : { md5Fingerprint: payload.md5Fingerprint }),
-              ...(payload.sha1Fingerprint === undefined
-                ? {}
-                : { sha1Fingerprint: payload.sha1Fingerprint }),
-              ...(payload.sha256Fingerprint === undefined
-                ? {}
-                : { sha256Fingerprint: payload.sha256Fingerprint }),
+              ...compact({
+                md5Fingerprint: payload.md5Fingerprint,
+                sha1Fingerprint: payload.sha1Fingerprint,
+                sha256Fingerprint: payload.sha256Fingerprint,
+              }),
             }).pipe(Effect.mapError(mapInvalid));
 
             const encrypted = yield* vault

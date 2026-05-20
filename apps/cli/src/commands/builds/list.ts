@@ -1,3 +1,4 @@
+import { compact } from "@better-update/type-guards";
 import { defineCommand } from "citty";
 import { Effect } from "effect";
 
@@ -59,13 +60,13 @@ export const listCommand = defineCommand({
           urlParams: {
             projectId,
             limit,
-            ...(args.platform === undefined ? {} : { platform: args.platform }),
-            ...(args.profile === undefined ? {} : { profile: args.profile }),
-            ...(args["runtime-version"] === undefined
-              ? {}
-              : { runtimeVersion: args["runtime-version"] }),
-            ...(args.distribution === undefined ? {} : { distribution: args.distribution }),
-            ...(args.sort === undefined ? {} : { sort: args.sort }),
+            ...compact({
+              platform: args.platform,
+              profile: args.profile,
+              runtimeVersion: args["runtime-version"],
+              distribution: args.distribution,
+              sort: args.sort,
+            }),
           },
         });
 

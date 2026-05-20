@@ -1,7 +1,9 @@
+import { compact } from "@better-update/type-guards";
 import { defineCommand } from "citty";
 import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
+import { parseLimit } from "../../lib/cli-schemas";
 import { printJson, printTable } from "../../lib/output";
 import { OutputMode } from "../../lib/output-mode";
 import { apiClient } from "../../services/api-client";
@@ -37,13 +39,17 @@ export const listDevicesCommand = defineCommand({
     runEffect(
       Effect.gen(function* () {
         const api = yield* apiClient;
+        const page = yield* parseLimit(args.page, 1);
+        const limit = yield* parseLimit(args.limit, 20);
         const result = yield* api.devices.list({
           urlParams: {
-            ...(args["device-class"] === undefined ? {} : { deviceClass: args["device-class"] }),
-            ...(args["apple-team-id"] === undefined ? {} : { appleTeamId: args["apple-team-id"] }),
-            ...(args.query === undefined ? {} : { query: args.query }),
-            page: Number(args.page),
-            limit: Number(args.limit),
+            page,
+            limit,
+            ...compact({
+              deviceClass: args["device-class"],
+              appleTeamId: args["apple-team-id"],
+              query: args.query,
+            }),
           },
         });
         const enabledFilter = parseEnabled(args.enabled);

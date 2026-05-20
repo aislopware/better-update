@@ -331,14 +331,14 @@ export const resolveAndroidBuildCredentials = (input: AndroidResolveInput) =>
       return fallback ?? profileMatch;
     });
 
-    const keystoreId = group?.androidUploadKeystoreId;
-    if (group === null || keystoreId === null || keystoreId === undefined) {
+    if (!group?.androidUploadKeystoreId) {
       return yield* Effect.fail(
         new BadRequest({
           message: `No Android build credentials group with a keystore is bound to ${input.applicationIdentifier}`,
         }),
       );
     }
+    const keystoreId = group.androidUploadKeystoreId;
     if (input.buildProfile !== undefined && group.name !== input.buildProfile) {
       yield* Effect.log("Build profile credential group missing, using fallback", {
         groupId: group.id,

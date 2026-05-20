@@ -1,6 +1,6 @@
 import path from "node:path";
 
-import { asRecord } from "@better-update/type-guards";
+import { asRecord, compact } from "@better-update/type-guards";
 import { FileSystem } from "@effect/platform";
 import { Effect } from "effect";
 
@@ -182,9 +182,7 @@ const parseIos = (raw: unknown): Effect.Effect<IosCredentialsEntry, CredentialsJ
     return {
       provisioningProfilePath,
       distributionCertificate,
-      ...(additionalProvisioningProfiles === undefined ? {} : { additionalProvisioningProfiles }),
-      ...(pushKey === undefined ? {} : { pushKey }),
-      ...(ascApiKey === undefined ? {} : { ascApiKey }),
+      ...compact({ additionalProvisioningProfiles, pushKey, ascApiKey }),
     } satisfies IosCredentialsEntry;
   });
 
@@ -239,7 +237,7 @@ const parseAndroid = (raw: unknown): Effect.Effect<AndroidCredentialsEntry, Cred
         : yield* parseGoogleServiceAccountKey(record["googleServiceAccountKey"]);
     return {
       keystore,
-      ...(googleServiceAccountKey === undefined ? {} : { googleServiceAccountKey }),
+      ...compact({ googleServiceAccountKey }),
     } satisfies AndroidCredentialsEntry;
   });
 
@@ -265,10 +263,7 @@ export const parseCredentialsJson = (
         message: 'credentials.json must contain at least one of "ios" or "android".',
       });
     }
-    return {
-      ...(ios === undefined ? {} : { ios }),
-      ...(android === undefined ? {} : { android }),
-    } satisfies CredentialsJson;
+    return compact({ ios, android }) satisfies CredentialsJson;
   });
 
 export const credentialsJsonPath = (projectRoot: string): string =>

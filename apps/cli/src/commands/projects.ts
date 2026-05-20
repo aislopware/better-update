@@ -2,6 +2,7 @@ import { defineCommand } from "citty";
 import { Console, Effect } from "effect";
 
 import { runEffect } from "../lib/citty-effect";
+import { parseLimit } from "../lib/cli-schemas";
 import { printHuman, printKeyValue, printList } from "../lib/output";
 import { apiClient } from "../services/api-client";
 
@@ -22,10 +23,12 @@ const listCommand = defineCommand({
       Effect.gen(function* () {
         const api = yield* apiClient;
         const sort = args.sort === "name" ? "name" : "lastActivityAt";
-        const { items, total, page } = yield* api.projects.list({
+        const page = yield* parseLimit(args.page, 1);
+        const limit = yield* parseLimit(args.limit, 50);
+        const result = yield* api.projects.list({
           urlParams: {
-            page: Number(args.page),
-            limit: Number(args.limit),
+            page,
+            limit,
             sort,
             ...(args.query ? { query: args.query } : {}),
           },
@@ -33,10 +36,17 @@ const listCommand = defineCommand({
 
         yield* printList(
           ["ID", "Name", "Slug", "Last activity"],
-          items.map((project) => [project.id, project.name, project.slug, project.lastActivityAt]),
+          result.items.map((project) => [
+            project.id,
+            project.name,
+            project.slug,
+            project.lastActivityAt,
+          ]),
           "No projects found.",
         );
-        yield* printHuman(`Page ${page} · ${items.length} of ${total} project(s)`);
+        yield* printHuman(
+          `Page ${result.page} · ${result.items.length} of ${result.total} project(s)`,
+        );
       }),
     ),
 });

@@ -1,5 +1,6 @@
 import path from "node:path";
 
+import { compact } from "@better-update/type-guards";
 import { FileSystem } from "@effect/platform";
 import { Console, Effect } from "effect";
 
@@ -55,35 +56,31 @@ const buildAutoSubmitIosConfig = (
   if (iosProfile?.bundleIdentifier === undefined) {
     return undefined;
   }
-  return {
+  return compact({
     bundleIdentifier: iosProfile.bundleIdentifier,
-    ...(iosProfile.appleId === undefined ? {} : { appleId: iosProfile.appleId }),
-    ...(iosProfile.ascAppId === undefined ? {} : { ascAppId: iosProfile.ascAppId }),
-    ...(iosProfile.appleTeamId === undefined ? {} : { appleTeamId: iosProfile.appleTeamId }),
-    ...(iosProfile.sku === undefined ? {} : { sku: iosProfile.sku }),
-    ...(iosProfile.language === undefined ? {} : { language: iosProfile.language }),
-    ...(iosProfile.companyName === undefined ? {} : { companyName: iosProfile.companyName }),
-    ...(iosProfile.appName === undefined ? {} : { appName: iosProfile.appName }),
-    ...(iosProfile.groups === undefined ? {} : { groups: iosProfile.groups }),
-    ...(whatToTest === undefined ? {} : { whatToTest }),
-  };
+    appleId: iosProfile.appleId,
+    ascAppId: iosProfile.ascAppId,
+    appleTeamId: iosProfile.appleTeamId,
+    sku: iosProfile.sku,
+    language: iosProfile.language,
+    companyName: iosProfile.companyName,
+    appName: iosProfile.appName,
+    groups: iosProfile.groups,
+    whatToTest,
+  });
 };
 
 const buildAutoSubmitAndroidConfig = (androidProfile: EasAndroidSubmitProfile | undefined) => {
   if (androidProfile?.applicationId === undefined) {
     return undefined;
   }
-  return {
+  return compact({
     applicationId: androidProfile.applicationId,
-    ...(androidProfile.track === undefined ? {} : { track: androidProfile.track }),
-    ...(androidProfile.releaseStatus === undefined
-      ? {}
-      : { releaseStatus: androidProfile.releaseStatus }),
-    ...(androidProfile.changesNotSentForReview === undefined
-      ? {}
-      : { changesNotSentForReview: androidProfile.changesNotSentForReview }),
-    ...(androidProfile.rollout === undefined ? {} : { rollout: androidProfile.rollout }),
-  };
+    track: androidProfile.track,
+    releaseStatus: androidProfile.releaseStatus,
+    changesNotSentForReview: androidProfile.changesNotSentForReview,
+    rollout: androidProfile.rollout,
+  });
 };
 
 const runAutoSubmit = (input: AutoSubmitInput) =>
@@ -109,8 +106,7 @@ const runAutoSubmit = (input: AutoSubmitInput) =>
       archiveSource: "build",
       buildId: input.buildId,
       archiveUrl,
-      ...(iosConfig === undefined ? {} : { iosConfig }),
-      ...(androidConfig === undefined ? {} : { androidConfig }),
+      ...compact({ iosConfig, androidConfig }),
     });
 
     yield* printHuman(`Submission created: ${submission.id} (${submission.status})`);
@@ -284,7 +280,7 @@ const resolveProfileName = (projectRoot: string, requested: string) =>
 
 export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
   Effect.scoped(
-    // eslint-disable-next-line eslint/max-statements, eslint/complexity -- build orchestration is inherently sequential (read config → detect platform → resolve profile → pull env → build → upload → optional submit); splitting further fragments the pipeline
+    // eslint-disable-next-line eslint/max-statements -- build orchestration is inherently sequential (read config → detect platform → resolve profile → pull env → build → upload → optional submit); splitting further fragments the pipeline
     Effect.gen(function* () {
       const api = yield* apiClient;
       const runtime = yield* CliRuntime;
@@ -417,9 +413,7 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
       if (options.noUpload) {
         yield* printKeyValue([
           ["Artifact", build.artifactPath],
-          ...(exportedArtifactPath === undefined
-            ? []
-            : [["Exported to", exportedArtifactPath] as const]),
+          ...(exportedArtifactPath ? [["Exported to", exportedArtifactPath] as const] : []),
           ["SHA-256", build.sha256],
           ["Bytes", String(build.byteSize)],
           ["Upload", "skipped (--no-upload)"],
@@ -428,15 +422,11 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
       }
 
       const rawGitContext = yield* readGitContext(userCwd);
-      const gitContext: {
-        readonly ref?: string;
-        readonly commit?: string;
-        readonly dirty: boolean;
-      } = {
-        ...(rawGitContext.ref === undefined ? {} : { ref: rawGitContext.ref }),
-        ...(rawGitContext.commit === undefined ? {} : { commit: rawGitContext.commit }),
+      const gitContext = compact({
+        ref: rawGitContext.ref,
+        commit: rawGitContext.commit,
         dirty: rawGitContext.dirty,
-      };
+      });
 
       const fingerprintHash = yield* runFingerprintFull(userCwd).pipe(
         Effect.map((entry) => entry.hash),
@@ -448,15 +438,17 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
         projectId,
         profileName: profile.name,
         runtimeVersion,
-        ...(appMeta.appVersion === undefined ? {} : { appVersion: appMeta.appVersion }),
-        ...(appMeta.buildNumber === undefined ? {} : { buildNumber: appMeta.buildNumber }),
         bundleId,
         gitContext,
-        ...(options.message === undefined ? {} : { message: options.message }),
-        ...(fingerprintHash === undefined ? {} : { fingerprintHash }),
         artifactPath: build.artifactPath,
         sha256: build.sha256,
         byteSize: build.byteSize,
+        ...compact({
+          appVersion: appMeta.appVersion,
+          buildNumber: appMeta.buildNumber,
+          message: options.message,
+          fingerprintHash,
+        }),
       });
 
       yield* Console.log("");
@@ -478,7 +470,7 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
           projectId,
           platform,
           profileName: options.autoSubmitProfile ?? profile.name,
-          ...(options.whatToTest === undefined ? {} : { whatToTest: options.whatToTest }),
+          ...compact({ whatToTest: options.whatToTest }),
         });
       }
     }),

@@ -1,4 +1,4 @@
-import { asRecord } from "@better-update/type-guards";
+import { asRecord, compact } from "@better-update/type-guards";
 import { Effect } from "effect";
 
 import { BuildProfileError } from "./exit-codes";
@@ -81,21 +81,21 @@ const parseIosSubmitProfile = (raw: unknown): EasIosSubmitProfile | undefined =>
   const bundleIdentifier = asStringValue(record["bundleIdentifier"]);
   const metadataPath = asStringValue(record["metadataPath"]);
   const groups = asStringArray(record["groups"]);
-  return {
-    ...(appleId === undefined ? {} : { appleId }),
-    ...(ascAppId === undefined ? {} : { ascAppId }),
-    ...(appleTeamId === undefined ? {} : { appleTeamId }),
-    ...(ascApiKeyPath === undefined ? {} : { ascApiKeyPath }),
-    ...(ascApiKeyId === undefined ? {} : { ascApiKeyId }),
-    ...(ascApiKeyIssuerId === undefined ? {} : { ascApiKeyIssuerId }),
-    ...(sku === undefined ? {} : { sku }),
-    ...(language === undefined ? {} : { language }),
-    ...(companyName === undefined ? {} : { companyName }),
-    ...(appName === undefined ? {} : { appName }),
-    ...(bundleIdentifier === undefined ? {} : { bundleIdentifier }),
-    ...(metadataPath === undefined ? {} : { metadataPath }),
-    ...(groups === undefined ? {} : { groups }),
-  };
+  return compact({
+    appleId,
+    ascAppId,
+    appleTeamId,
+    ascApiKeyPath,
+    ascApiKeyId,
+    ascApiKeyIssuerId,
+    sku,
+    language,
+    companyName,
+    appName,
+    bundleIdentifier,
+    metadataPath,
+    groups,
+  });
 };
 
 const parseAndroidSubmitProfile = (raw: unknown): EasAndroidSubmitProfile | undefined => {
@@ -110,15 +110,15 @@ const parseAndroidSubmitProfile = (raw: unknown): EasAndroidSubmitProfile | unde
   const changesNotSentForReview = asBooleanValue(record["changesNotSentForReview"]);
   const rollout = asNumberValue(record["rollout"]);
   const applicationId = asStringValue(record["applicationId"]);
-  return {
-    ...(serviceAccountKeyPath === undefined ? {} : { serviceAccountKeyPath }),
-    ...(serviceAccountKeyId === undefined ? {} : { serviceAccountKeyId }),
-    ...(track === undefined ? {} : { track }),
-    ...(releaseStatus === undefined ? {} : { releaseStatus }),
-    ...(changesNotSentForReview === undefined ? {} : { changesNotSentForReview }),
-    ...(rollout === undefined ? {} : { rollout }),
-    ...(applicationId === undefined ? {} : { applicationId }),
-  };
+  return compact({
+    serviceAccountKeyPath,
+    serviceAccountKeyId,
+    track,
+    releaseStatus,
+    changesNotSentForReview,
+    rollout,
+    applicationId,
+  });
 };
 
 export const parseSubmitProfile = (raw: unknown): EasSubmitProfile | undefined => {
@@ -129,11 +129,7 @@ export const parseSubmitProfile = (raw: unknown): EasSubmitProfile | undefined =
   const extendsName = asStringValue(record["extends"]);
   const ios = parseIosSubmitProfile(record["ios"]);
   const android = parseAndroidSubmitProfile(record["android"]);
-  return {
-    ...(extendsName === undefined ? {} : { extends: extendsName }),
-    ...(ios === undefined ? {} : { ios }),
-    ...(android === undefined ? {} : { android }),
-  };
+  return compact({ extends: extendsName, ios, android });
 };
 
 const mergeIosSubmit = (
@@ -168,11 +164,7 @@ const mergeSubmitProfile = (
 ): EasSubmitProfile => {
   const ios = mergeIosSubmit(base.ios, overlay.ios);
   const android = mergeAndroidSubmit(base.android, overlay.android);
-  return {
-    ...(overlay.extends === undefined ? {} : { extends: overlay.extends }),
-    ...(ios === undefined ? {} : { ios }),
-    ...(android === undefined ? {} : { android }),
-  };
+  return compact({ extends: overlay.extends, ios, android });
 };
 
 const collectSubmitExtendsChain = (

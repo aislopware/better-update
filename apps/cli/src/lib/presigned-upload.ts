@@ -1,3 +1,4 @@
+import { compact } from "@better-update/type-guards";
 import { Effect } from "effect";
 
 import { PresignedUploadClient } from "../services/presigned-upload";
@@ -30,6 +31,6 @@ export const putToPresignedUrl = ({
       filePath,
       byteSize,
       expiresAt,
-      ...(headers === undefined ? {} : { headers }),
+      ...compact({ headers }),
     });
   });
