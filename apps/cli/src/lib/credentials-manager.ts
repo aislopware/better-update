@@ -1,4 +1,5 @@
 import { toBase64 } from "@better-update/encoding";
+import { compact } from "@better-update/type-guards";
 import { FileSystem } from "@effect/platform";
 import { Effect, Match } from "effect";
 
@@ -219,9 +220,7 @@ const uploadIosAscApiKey = (api: ApiClient, input: UploadCredentialInput, bytes:
         keyId: input.keyId,
         issuerId: input.issuerId,
         p8Pem: toUtf8(bytes),
-        ...(input.appleTeamIdentifier === undefined
-          ? {}
-          : { appleTeamIdentifier: input.appleTeamIdentifier }),
+        ...compact({ appleTeamIdentifier: input.appleTeamIdentifier }),
       },
     });
     return {

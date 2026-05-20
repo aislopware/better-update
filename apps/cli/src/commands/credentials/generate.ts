@@ -1,3 +1,4 @@
+import { compact } from "@better-update/type-guards";
 import { defineCommand } from "citty";
 import { Console, Effect } from "effect";
 
@@ -81,7 +82,7 @@ const resolveKeystoreInput = (args: KeystoreCliArgs) =>
       keyPassword: yield* ensureNonEmpty(keyPassword, "key-password"),
       commonName: yield* ensureNonEmpty(commonName, "common-name"),
       organization: yield* ensureNonEmpty(organization, "organization"),
-      ...(validityDays === undefined ? {} : { validityDays }),
+      ...compact({ validityDays }),
     };
   });
 
@@ -113,7 +114,7 @@ const keystoreCommand = defineCommand({
           keyPassword: resolved.keyPassword,
           commonName: resolved.commonName,
           organization: resolved.organization,
-          ...(resolved.validityDays === undefined ? {} : { validityDays: resolved.validityDays }),
+          ...compact({ validityDays: resolved.validityDays }),
         });
         yield* Console.log("");
         yield* Console.log("Keystore generated and uploaded.");
@@ -251,7 +252,7 @@ const provisioningProfileCommand = defineCommand({
           distributionCertificateId: args["cert-id"],
           bundleIdentifier: args.bundle,
           distributionType: args.distribution,
-          ...(deviceIds === undefined ? {} : { deviceIds }),
+          ...compact({ deviceIds }),
         });
         yield* Console.log("Provisioning profile generated and stored.");
         yield* printKeyValue([

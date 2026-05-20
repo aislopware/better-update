@@ -1,3 +1,4 @@
+import { compact } from "@better-update/type-guards";
 import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
@@ -168,8 +169,7 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
 
           const row = yield* repo.update({
             id: path.id,
-            ...(payload.value === undefined ? {} : { value: payload.value }),
-            ...(payload.visibility ? { visibility: payload.visibility } : {}),
+            ...compact({ value: payload.value, visibility: payload.visibility }),
           });
 
           if (newEnvironments) {

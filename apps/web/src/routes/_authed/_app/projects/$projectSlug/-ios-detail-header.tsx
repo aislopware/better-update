@@ -111,14 +111,12 @@ export const IosDetailHeader = ({
             ) : (
               <span className="flex flex-wrap items-center gap-1.5">
                 <span>Bundle Identifier</span>
-                {targetName === undefined || targetName === null ? null : (
-                  <Badge variant="secondary">Target: {targetName}</Badge>
-                )}
-                {parentBundle === undefined || parentBundle === null ? null : (
+                {targetName ? <Badge variant="secondary">Target: {targetName}</Badge> : null}
+                {parentBundle ? (
                   <Badge variant="outline">
                     Extension of <span className="ml-1 font-mono">{parentBundle}</span>
                   </Badge>
-                )}
+                ) : null}
                 {configs.map((config) => (
                   <Badge key={config.id} variant="outline">
                     {DISTRIBUTION_LABELS[config.distributionType]}

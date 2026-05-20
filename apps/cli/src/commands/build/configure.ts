@@ -1,5 +1,6 @@
 import path from "node:path";
 
+import { compact } from "@better-update/type-guards";
 import { FileSystem } from "@effect/platform";
 import { defineCommand } from "citty";
 import { Console, Effect } from "effect";
@@ -141,11 +142,11 @@ export const configureBuildCommand = defineCommand({
           missing.map((name) => [name, DEFAULT_EAS_JSON.build[name]]),
         );
         const merged = {
-          ...(config.cli === undefined ? {} : { cli: config.cli }),
           build: {
             ...config.build,
             ...additions,
           },
+          ...compact({ cli: config.cli }),
         };
         yield* writeEasJson(easJsonPath, merged);
         yield* Console.log(`Added profile(s) to eas.json: ${missing.join(", ")}.`);

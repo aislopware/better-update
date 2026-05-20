@@ -1,4 +1,4 @@
-import { asRecord } from "@better-update/type-guards";
+import { asRecord, compact } from "@better-update/type-guards";
 import { Effect } from "effect";
 
 import type { FileSystem, Path } from "@effect/platform";
@@ -178,13 +178,13 @@ const toIosProfile = (eas: EasBuildProfile): IosProfile | undefined => {
   // ios.buildConfiguration override always wins.
   const buildConfiguration =
     ios.buildConfiguration ?? (eas.developmentClient === true ? "Debug" : undefined);
-  return {
+  return compact({
     distribution,
-    ...(buildConfiguration === undefined ? {} : { buildConfiguration }),
-    ...(ios.scheme === undefined ? {} : { scheme: ios.scheme }),
-    ...(ios.simulator === undefined ? {} : { simulator: ios.simulator }),
-    ...(autoIncrement === undefined ? {} : { autoIncrement }),
-  };
+    buildConfiguration,
+    scheme: ios.scheme,
+    simulator: ios.simulator,
+    autoIncrement,
+  });
 };
 
 const toAndroidProfile = (eas: EasBuildProfile): AndroidProfile | undefined => {
@@ -203,30 +203,30 @@ const toAndroidProfile = (eas: EasBuildProfile): AndroidProfile | undefined => {
   // android.buildType override always wins.
   const buildType =
     android.buildType ?? (eas.developmentClient === true ? ("debug" as const) : undefined);
-  return {
+  return compact({
     format,
     distribution,
-    ...(buildType === undefined ? {} : { buildType }),
-    ...(android.flavor === undefined ? {} : { flavor: android.flavor }),
-    ...(android.gradleCommand === undefined ? {} : { gradleCommand: android.gradleCommand }),
-    ...(autoIncrement === undefined ? {} : { autoIncrement }),
-  };
+    buildType,
+    flavor: android.flavor,
+    gradleCommand: android.gradleCommand,
+    autoIncrement,
+  });
 };
 
 export const fromEasProfile = (eas: EasBuildProfile, profileName: string): BuildProfile => {
   const ios = toIosProfile(eas);
   const android = toAndroidProfile(eas);
-  return {
+  return compact({
     name: profileName,
     environment: eas.environment ?? "production",
-    ...(eas.channel === undefined ? {} : { channel: eas.channel }),
-    ...(eas.env === undefined ? {} : { env: eas.env }),
-    ...(ios === undefined ? {} : { ios }),
-    ...(android === undefined ? {} : { android }),
-    ...(eas.credentialsSource === undefined ? {} : { credentialsSource: eas.credentialsSource }),
-    ...(eas.developmentClient === undefined ? {} : { developmentClient: eas.developmentClient }),
-    ...(eas.withoutCredentials === undefined ? {} : { withoutCredentials: eas.withoutCredentials }),
-  };
+    channel: eas.channel,
+    env: eas.env,
+    ios,
+    android,
+    credentialsSource: eas.credentialsSource,
+    developmentClient: eas.developmentClient,
+    withoutCredentials: eas.withoutCredentials,
+  });
 };
 
 export const readBuildProfile = (

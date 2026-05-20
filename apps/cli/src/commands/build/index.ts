@@ -1,3 +1,4 @@
+import { compact } from "@better-update/type-guards";
 import { defineCommand } from "citty";
 
 import { runBuildWorkflow } from "../../application/build-workflow";
@@ -78,16 +79,16 @@ export const buildCommand = defineCommand({
         profileName: args.profile,
         message: args.message,
         noUpload: !args.upload,
-        ...(args.output === undefined ? {} : { output: args.output }),
         rawOutput: args["raw-output"] ?? false,
         clearCache: args["clear-cache"] ?? false,
         freezeCredentials: args["freeze-credentials"] ?? false,
         allowDirty: args["allow-dirty"] ?? false,
-        ...(args["auto-submit"] === undefined ? {} : { autoSubmit: args["auto-submit"] }),
-        ...(args["auto-submit-with-profile"] === undefined
-          ? {}
-          : { autoSubmit: true, autoSubmitProfile: args["auto-submit-with-profile"] }),
-        ...(args["what-to-test"] === undefined ? {} : { whatToTest: args["what-to-test"] }),
+        ...compact({
+          output: args.output,
+          autoSubmit: args["auto-submit-with-profile"] === undefined ? args["auto-submit"] : true,
+          autoSubmitProfile: args["auto-submit-with-profile"],
+          whatToTest: args["what-to-test"],
+        }),
       }),
       BUILD_EXIT_EXTRAS,
     ),

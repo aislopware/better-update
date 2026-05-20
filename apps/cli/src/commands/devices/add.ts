@@ -1,3 +1,4 @@
+import { compact } from "@better-update/type-guards";
 import { defineCommand } from "citty";
 import { Effect } from "effect";
 import qrcode from "qrcode-terminal";
@@ -47,12 +48,12 @@ const handleInvite = (api: ApiClient, args: InviteArgs) =>
   Effect.gen(function* () {
     const mode = yield* OutputMode;
     const result = yield* api.devices.createRegistrationRequest({
-      payload: {
-        ...(args.name === undefined ? {} : { deviceNameHint: args.name }),
-        ...(args.deviceClass === undefined ? {} : { deviceClassHint: args.deviceClass }),
-        ...(args.appleTeamId === undefined ? {} : { appleTeamId: args.appleTeamId }),
-        ...(args.ttl === undefined ? {} : { ttlHours: args.ttl }),
-      },
+      payload: compact({
+        deviceNameHint: args.name,
+        deviceClassHint: args.deviceClass,
+        appleTeamId: args.appleTeamId,
+        ttlHours: args.ttl,
+      }),
     });
     if (mode.json) {
       yield* printJson(result);
@@ -115,11 +116,13 @@ export const addDeviceCommand = defineCommand({
             : undefined;
           const ttl = ttlHours(args["expires-in"]);
           yield* handleInvite(api, {
-            ...(args.name === undefined ? {} : { name: args.name }),
-            ...(deviceClass === undefined ? {} : { deviceClass }),
-            ...(args["apple-team-id"] === undefined ? {} : { appleTeamId: args["apple-team-id"] }),
-            ...(ttl === undefined ? {} : { ttl }),
             renderQr: args.qr,
+            ...compact({
+              name: args.name,
+              deviceClass,
+              appleTeamId: args["apple-team-id"],
+              ttl,
+            }),
           });
           return;
         }
@@ -138,7 +141,7 @@ export const addDeviceCommand = defineCommand({
             identifier: args.udid,
             name,
             deviceClass,
-            ...(args["apple-team-id"] === undefined ? {} : { appleTeamId: args["apple-team-id"] }),
+            ...compact({ appleTeamId: args["apple-team-id"] }),
           },
         });
         if (mode.json) {

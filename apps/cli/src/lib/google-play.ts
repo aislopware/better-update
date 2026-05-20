@@ -1,4 +1,5 @@
 import { fromBase64, toBase64Url } from "@better-update/encoding";
+import { compact, toOptional } from "@better-update/type-guards";
 import { Effect, Schema } from "effect";
 
 import type { EasAndroidSubmitReleaseStatus } from "./eas-submit-config";
@@ -354,10 +355,12 @@ export const updateTrack = (params: {
   const release: TrackReleasePayload = {
     status: params.releaseStatus,
     versionCodes: [String(params.versionCode)],
-    ...(params.rollout === null ? {} : { userFraction: params.rollout }),
-    ...(params.releaseNotes === undefined
-      ? {}
-      : { releaseNotes: [{ language: "en-US", text: params.releaseNotes }] }),
+    ...compact({
+      userFraction: toOptional(params.rollout),
+      releaseNotes: params.releaseNotes
+        ? [{ language: "en-US", text: params.releaseNotes }]
+        : undefined,
+    }),
   };
   return callJsonRaw({
     url: `${ANDROID_PUBLISHER_BASE}/androidpublisher/v3/applications/${encodeURIComponent(params.packageName)}/edits/${encodeURIComponent(params.editId)}/tracks/${encodeURIComponent(params.track)}`,

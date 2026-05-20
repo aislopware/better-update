@@ -1,3 +1,4 @@
+import { compact } from "@better-update/type-guards";
 import { queryOptions } from "@tanstack/react-query";
 
 import type {
@@ -16,23 +17,16 @@ export interface SubmissionsFilters {
   readonly buildId?: string;
 }
 
-interface UrlParams {
-  readonly status?: typeof SubmissionStatus.Type;
-  readonly platform?: typeof Platform.Type;
-  readonly profile?: string;
-  readonly buildId?: string;
-}
-
-const buildUrlParams = (filters: SubmissionsFilters | undefined): UrlParams => {
+const buildUrlParams = (filters: SubmissionsFilters | undefined) => {
   if (filters === undefined) {
     return {};
   }
-  return {
-    ...(filters.status === undefined ? {} : { status: filters.status }),
-    ...(filters.platform === undefined ? {} : { platform: filters.platform }),
-    ...(filters.profile === undefined ? {} : { profile: filters.profile }),
-    ...(filters.buildId === undefined ? {} : { buildId: filters.buildId }),
-  };
+  return compact({
+    status: filters.status,
+    platform: filters.platform,
+    profile: filters.profile,
+    buildId: filters.buildId,
+  });
 };
 
 export const submissionsQueryKey = (

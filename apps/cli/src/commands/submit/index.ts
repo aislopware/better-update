@@ -1,3 +1,4 @@
+import { compact } from "@better-update/type-guards";
 import { defineCommand } from "citty";
 import { Effect } from "effect";
 
@@ -74,35 +75,31 @@ const buildIosCreatePayload = (
   if (iosProfile?.bundleIdentifier === undefined) {
     return undefined;
   }
-  return {
+  return compact({
     bundleIdentifier: iosProfile.bundleIdentifier,
-    ...(iosProfile.appleId === undefined ? {} : { appleId: iosProfile.appleId }),
-    ...(iosProfile.ascAppId === undefined ? {} : { ascAppId: iosProfile.ascAppId }),
-    ...(iosProfile.appleTeamId === undefined ? {} : { appleTeamId: iosProfile.appleTeamId }),
-    ...(iosProfile.sku === undefined ? {} : { sku: iosProfile.sku }),
-    ...(iosProfile.language === undefined ? {} : { language: iosProfile.language }),
-    ...(iosProfile.companyName === undefined ? {} : { companyName: iosProfile.companyName }),
-    ...(iosProfile.appName === undefined ? {} : { appName: iosProfile.appName }),
-    ...(iosProfile.groups === undefined ? {} : { groups: iosProfile.groups }),
-    ...(whatToTest === undefined ? {} : { whatToTest }),
-  };
+    appleId: iosProfile.appleId,
+    ascAppId: iosProfile.ascAppId,
+    appleTeamId: iosProfile.appleTeamId,
+    sku: iosProfile.sku,
+    language: iosProfile.language,
+    companyName: iosProfile.companyName,
+    appName: iosProfile.appName,
+    groups: iosProfile.groups,
+    whatToTest,
+  });
 };
 
 const buildAndroidCreatePayload = (androidProfile: EasAndroidSubmitProfile | undefined) => {
   if (androidProfile?.applicationId === undefined) {
     return undefined;
   }
-  return {
+  return compact({
     applicationId: androidProfile.applicationId,
-    ...(androidProfile.track === undefined ? {} : { track: androidProfile.track }),
-    ...(androidProfile.releaseStatus === undefined
-      ? {}
-      : { releaseStatus: androidProfile.releaseStatus }),
-    ...(androidProfile.changesNotSentForReview === undefined
-      ? {}
-      : { changesNotSentForReview: androidProfile.changesNotSentForReview }),
-    ...(androidProfile.rollout === undefined ? {} : { rollout: androidProfile.rollout }),
-  };
+    track: androidProfile.track,
+    releaseStatus: androidProfile.releaseStatus,
+    changesNotSentForReview: androidProfile.changesNotSentForReview,
+    rollout: androidProfile.rollout,
+  });
 };
 
 interface RunArgs {
@@ -131,8 +128,7 @@ const runFlow = (api: ApiClient, projectId: string, args: RunArgs) =>
       archiveSource: args.archive.archiveSource,
       buildId: args.archive.buildId,
       archiveUrl: args.archive.archiveUrl,
-      ...(iosConfig === undefined ? {} : { iosConfig }),
-      ...(androidConfig === undefined ? {} : { androidConfig }),
+      ...compact({ iosConfig, androidConfig }),
     });
 
     yield* printHuman(`Submission created: ${submission.id} (${submission.status})`);
@@ -244,11 +240,11 @@ export const submitCommand = defineCommand({
           profile: args.profile,
           easProfile,
           archive,
-          ...(args["what-to-test"] === undefined ? {} : { whatToTest: args["what-to-test"] }),
-          ...(args["service-account-key-id"] === undefined
-            ? {}
-            : { serviceAccountKeyId: args["service-account-key-id"] }),
           wait: args.wait,
+          ...compact({
+            whatToTest: args["what-to-test"],
+            serviceAccountKeyId: args["service-account-key-id"],
+          }),
         });
       }),
     ),

@@ -1,6 +1,6 @@
 import path from "node:path";
 
-import { asRecord } from "@better-update/type-guards";
+import { asRecord, compact } from "@better-update/type-guards";
 import { FileSystem } from "@effect/platform";
 import { Effect } from "effect";
 
@@ -39,10 +39,7 @@ const readDeps = (filePath: string) =>
     }
     const dependencies = asRecord(root["dependencies"]);
     const devDependencies = asRecord(root["devDependencies"]);
-    return {
-      ...(dependencies === undefined ? {} : { dependencies }),
-      ...(devDependencies === undefined ? {} : { devDependencies }),
-    } satisfies PackageJsonDeps;
+    return compact({ dependencies, devDependencies }) satisfies PackageJsonDeps;
   });
 
 const hasExpoDevClient = (deps: PackageJsonDeps | undefined): boolean => {

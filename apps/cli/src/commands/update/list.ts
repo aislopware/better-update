@@ -1,3 +1,4 @@
+import { compact } from "@better-update/type-guards";
 import { defineCommand } from "citty";
 import { Effect } from "effect";
 
@@ -45,10 +46,8 @@ export const listCommand = defineCommand({
         const { items } = yield* api.updates.list({
           urlParams: {
             projectId,
-            ...(branchId === undefined ? {} : { branchId }),
-            ...(args.platform === undefined ? {} : { platform: args.platform }),
-            ...(page === undefined ? {} : { page }),
             limit,
+            ...compact({ branchId, platform: args.platform, page }),
           },
         });
 

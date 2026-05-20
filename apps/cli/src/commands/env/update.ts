@@ -1,3 +1,4 @@
+import { compact } from "@better-update/type-guards";
 import { defineCommand } from "citty";
 import { Effect } from "effect";
 
@@ -54,11 +55,11 @@ export const updateCommand = defineCommand({
 
         const envList = environments ? yield* parseEnvironmentsArg(environments) : undefined;
 
-        const payload = {
-          ...(value === undefined ? {} : { value }),
-          ...(visibility === undefined ? {} : { visibility }),
-          ...(envList ? { environments: envList } : {}),
-        };
+        const payload = compact({
+          value,
+          visibility,
+          environments: envList,
+        });
         yield* api["env-vars"].update({ path: { id: match.id }, payload });
 
         const changed: string[] = [];

@@ -5,6 +5,7 @@ import {
   updateIosBundleConfiguration,
   uploadAscApiKey,
 } from "@better-update/api-client/react";
+import { compact } from "@better-update/type-guards";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
@@ -257,9 +258,7 @@ export const IosChangeAscKeyDialog = ({
       keyId: uploadState.keyId,
       issuerId: uploadState.issuerId,
       p8Pem: uploadState.p8Pem,
-      ...(uploadState.appleTeamIdentifier === ""
-        ? {}
-        : { appleTeamIdentifier: uploadState.appleTeamIdentifier }),
+      ...compact({ appleTeamIdentifier: uploadState.appleTeamIdentifier || undefined }),
     };
     const uploaded = await uploadAscApiKey(payload);
     return uploaded.id;

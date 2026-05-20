@@ -1,4 +1,4 @@
-import { asRecord } from "@better-update/type-guards";
+import { asRecord, compact } from "@better-update/type-guards";
 import { FileSystem, Path } from "@effect/platform";
 import { Effect } from "effect";
 
@@ -166,14 +166,14 @@ const parseIosProfile = (raw: unknown): EasIosProfile | undefined => {
   const simulator = asBooleanValue(record["simulator"]);
   const enterpriseProvisioning = asEnterpriseProvisioning(record["enterpriseProvisioning"]);
   const autoIncrement = asIosAutoIncrement(record["autoIncrement"]);
-  return {
-    ...(distribution === undefined ? {} : { distribution }),
-    ...(buildConfiguration === undefined ? {} : { buildConfiguration }),
-    ...(scheme === undefined ? {} : { scheme }),
-    ...(simulator === undefined ? {} : { simulator }),
-    ...(enterpriseProvisioning === undefined ? {} : { enterpriseProvisioning }),
-    ...(autoIncrement === undefined ? {} : { autoIncrement }),
-  };
+  return compact({
+    distribution,
+    buildConfiguration,
+    scheme,
+    simulator,
+    enterpriseProvisioning,
+    autoIncrement,
+  });
 };
 
 const parseAndroidProfile = (raw: unknown): EasAndroidProfile | undefined => {
@@ -187,14 +187,14 @@ const parseAndroidProfile = (raw: unknown): EasAndroidProfile | undefined => {
   const format = asAndroidFormat(record["format"]);
   const distribution = asAndroidDistribution(record["distribution"]);
   const autoIncrement = asAndroidAutoIncrement(record["autoIncrement"]);
-  return {
-    ...(buildType === undefined ? {} : { buildType }),
-    ...(flavor === undefined ? {} : { flavor }),
-    ...(gradleCommand === undefined ? {} : { gradleCommand }),
-    ...(format === undefined ? {} : { format }),
-    ...(distribution === undefined ? {} : { distribution }),
-    ...(autoIncrement === undefined ? {} : { autoIncrement }),
-  };
+  return compact({
+    buildType,
+    flavor,
+    gradleCommand,
+    format,
+    distribution,
+    autoIncrement,
+  });
 };
 
 const parseBuildProfile = (raw: unknown): EasBuildProfile | undefined => {
@@ -213,19 +213,19 @@ const parseBuildProfile = (raw: unknown): EasBuildProfile | undefined => {
   const credentialsSource = asCredentialsSource(record["credentialsSource"]);
   const autoIncrement = asAutoIncrement(record["autoIncrement"]);
   const withoutCredentials = asBooleanValue(record["withoutCredentials"]);
-  return {
-    ...(extendsName === undefined ? {} : { extends: extendsName }),
-    ...(developmentClient === undefined ? {} : { developmentClient }),
-    ...(distribution === undefined ? {} : { distribution }),
-    ...(channel === undefined ? {} : { channel }),
-    ...(environment === undefined ? {} : { environment }),
-    ...(env === undefined ? {} : { env }),
-    ...(ios === undefined ? {} : { ios }),
-    ...(android === undefined ? {} : { android }),
-    ...(credentialsSource === undefined ? {} : { credentialsSource }),
-    ...(autoIncrement === undefined ? {} : { autoIncrement }),
-    ...(withoutCredentials === undefined ? {} : { withoutCredentials }),
-  };
+  return compact({
+    extends: extendsName,
+    developmentClient,
+    distribution,
+    channel,
+    environment,
+    env,
+    ios,
+    android,
+    credentialsSource,
+    autoIncrement,
+    withoutCredentials,
+  });
 };
 
 export const parseEasConfig = (text: string): Effect.Effect<EasConfig, BuildProfileError> =>
@@ -277,7 +277,7 @@ const parseCli = (raw: unknown): { readonly version?: string } => {
     return {};
   }
   const version = asStringValue(record["version"]);
-  return version === undefined ? {} : { version };
+  return compact({ version });
 };
 
 const easJsonPath = (projectRoot: string): Effect.Effect<string, never, Path.Path> =>
@@ -357,19 +357,19 @@ const mergeProfile = (base: EasBuildProfile, overlay: EasBuildProfile): EasBuild
   const credentialsSource = overlay.credentialsSource ?? base.credentialsSource;
   const autoIncrement = overlay.autoIncrement ?? base.autoIncrement;
   const withoutCredentials = overlay.withoutCredentials ?? base.withoutCredentials;
-  return {
-    ...(overlay.extends === undefined ? {} : { extends: overlay.extends }),
-    ...(developmentClient === undefined ? {} : { developmentClient }),
-    ...(distribution === undefined ? {} : { distribution }),
-    ...(channel === undefined ? {} : { channel }),
-    ...(environment === undefined ? {} : { environment }),
-    ...(env === undefined ? {} : { env }),
-    ...(ios === undefined ? {} : { ios }),
-    ...(android === undefined ? {} : { android }),
-    ...(credentialsSource === undefined ? {} : { credentialsSource }),
-    ...(autoIncrement === undefined ? {} : { autoIncrement }),
-    ...(withoutCredentials === undefined ? {} : { withoutCredentials }),
-  };
+  return compact({
+    extends: overlay.extends,
+    developmentClient,
+    distribution,
+    channel,
+    environment,
+    env,
+    ios,
+    android,
+    credentialsSource,
+    autoIncrement,
+    withoutCredentials,
+  });
 };
 
 const collectExtendsChain = (

@@ -1,3 +1,4 @@
+import { compact } from "@better-update/type-guards";
 import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
@@ -90,13 +91,12 @@ export const AndroidBuildCredentialsGroupLive = HttpApiBuilder.group(
             }
             yield* repo.update({
               id: path.id,
-              ...(payload.name === undefined ? {} : { name: payload.name }),
               androidUploadKeystoreId: payload.androidUploadKeystoreId,
               googleServiceAccountKeyForSubmissionsId:
                 payload.googleServiceAccountKeyForSubmissionsId,
               googleServiceAccountKeyForFcmV1Id: payload.googleServiceAccountKeyForFcmV1Id,
-              ...(payload.isDefault === undefined ? {} : { isDefault: payload.isDefault }),
               updatedAt: now,
+              ...compact({ name: payload.name, isDefault: payload.isDefault }),
             });
             yield* logAudit({
               action: "android.build-credentials.update",

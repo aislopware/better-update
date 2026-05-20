@@ -1,3 +1,4 @@
+import { compact } from "@better-update/type-guards";
 import { queryOptions } from "@tanstack/react-query";
 
 import type {
@@ -33,14 +34,14 @@ export const devicesQueryOptions = (orgId: string, filters?: DevicesFilters) =>
       runApi(
         (api) =>
           api.devices.list({
-            urlParams: {
-              ...(filters?.deviceClass ? { deviceClass: filters.deviceClass } : {}),
-              ...(filters?.appleTeamId ? { appleTeamId: filters.appleTeamId } : {}),
-              ...(filters?.page === undefined ? {} : { page: filters.page }),
-              ...(filters?.limit === undefined ? {} : { limit: filters.limit }),
-              ...(filters?.query ? { query: filters.query } : {}),
-              ...(filters?.sort ? { sort: filters.sort } : {}),
-            },
+            urlParams: compact({
+              deviceClass: filters?.deviceClass,
+              appleTeamId: filters?.appleTeamId,
+              page: filters?.page,
+              limit: filters?.limit,
+              query: filters?.query,
+              sort: filters?.sort,
+            }),
           }),
         signal,
       ),

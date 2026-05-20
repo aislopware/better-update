@@ -1,3 +1,4 @@
+import { compact } from "@better-update/type-guards";
 import { queryOptions } from "@tanstack/react-query";
 
 import type {
@@ -82,12 +83,12 @@ export const projectsQueryOptions = (orgId: string, filters?: ProjectsFilters) =
       runApi(
         (api) =>
           api.projects.list({
-            urlParams: {
-              ...(filters?.page === undefined ? {} : { page: filters.page }),
-              ...(filters?.limit === undefined ? {} : { limit: filters.limit }),
-              ...(filters?.query ? { query: filters.query } : {}),
-              ...(filters?.sort ? { sort: filters.sort } : {}),
-            },
+            urlParams: compact({
+              page: filters?.page,
+              limit: filters?.limit,
+              query: filters?.query,
+              sort: filters?.sort,
+            }),
           }),
         signal,
       ),
@@ -128,12 +129,12 @@ export const branchesQueryOptions = (orgId: string, projectId: string, filters?:
       runApi(
         (api) =>
           api.branches.list({
-            urlParams: {
+            urlParams: compact({
               projectId,
-              ...(filters?.page === undefined ? {} : { page: filters.page }),
-              ...(filters?.limit === undefined ? {} : { limit: filters.limit }),
-              ...(filters?.sort ? { sort: filters.sort } : {}),
-            },
+              page: filters?.page,
+              limit: filters?.limit,
+              sort: filters?.sort,
+            }),
           }),
         signal,
       ),
@@ -158,12 +159,12 @@ export const channelsQueryOptions = (orgId: string, projectId: string, filters?:
       runApi(
         (api) =>
           api.channels.list({
-            urlParams: {
+            urlParams: compact({
               projectId,
-              ...(filters?.page === undefined ? {} : { page: filters.page }),
-              ...(filters?.limit === undefined ? {} : { limit: filters.limit }),
-              ...(filters?.sort ? { sort: filters.sort } : {}),
-            },
+              page: filters?.page,
+              limit: filters?.limit,
+              sort: filters?.sort,
+            }),
           }),
         signal,
       ),
@@ -191,15 +192,15 @@ export const updatesQueryOptions = (orgId: string, projectId: string, filters?: 
       runApi(
         (api) =>
           api.updates.list({
-            urlParams: {
+            urlParams: compact({
               projectId,
-              ...(filters?.branchId ? { branchId: filters.branchId } : {}),
-              ...(filters?.platform ? { platform: filters.platform } : {}),
-              ...(filters?.runtimeVersion ? { runtimeVersion: filters.runtimeVersion } : {}),
-              ...(filters?.page === undefined ? {} : { page: filters.page }),
-              ...(filters?.limit === undefined ? {} : { limit: filters.limit }),
-              ...(filters?.sort ? { sort: filters.sort } : {}),
-            },
+              branchId: filters?.branchId,
+              platform: filters?.platform,
+              runtimeVersion: filters?.runtimeVersion,
+              page: filters?.page,
+              limit: filters?.limit,
+              sort: filters?.sort,
+            }),
           }),
         signal,
       ),

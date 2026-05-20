@@ -1,5 +1,6 @@
 import path from "node:path";
 
+import { compact } from "@better-update/type-guards";
 import { FileSystem } from "@effect/platform";
 import { Effect } from "effect";
 
@@ -145,9 +146,9 @@ export const runAndroidBuild = (
     const artifactPath = yield* findAndroidArtifact({
       projectRoot,
       format,
-      ...(flavor === undefined ? {} : { flavor }),
       buildType,
       minMtimeMs: buildStartMs,
+      ...compact({ flavor }),
     });
 
     const { sha256, byteSize } = yield* sha256File(artifactPath);

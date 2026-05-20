@@ -1,3 +1,4 @@
+import { compact } from "@better-update/type-guards";
 import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
@@ -77,10 +78,10 @@ export const AscApiKeysGroupLive = HttpApiBuilder.group(ManagementApi, "ascApiKe
             issuerId: payload.issuerId,
             name: payload.name,
             pem: payload.p8Pem,
-            ...(payload.appleTeamIdentifier === undefined
-              ? {}
-              : { appleTeamId: payload.appleTeamIdentifier }),
-            ...(payload.roles === undefined ? {} : { roles: payload.roles }),
+            ...compact({
+              appleTeamId: payload.appleTeamIdentifier,
+              roles: payload.roles,
+            }),
           }).pipe(Effect.mapError(mapInvalid));
 
           const teamId = payload.appleTeamIdentifier

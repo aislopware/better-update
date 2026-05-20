@@ -1,6 +1,7 @@
 import path from "node:path";
 
 import { fromBase64 } from "@better-update/encoding";
+import { compact } from "@better-update/type-guards";
 import { FileSystem } from "@effect/platform";
 import { Console, Effect } from "effect";
 
@@ -414,7 +415,7 @@ export const downloadAndroidCredentials = (
         payload: {
           platform: "android" as const,
           applicationIdentifier: options.applicationIdentifier,
-          ...(options.buildProfile === undefined ? {} : { buildProfile: options.buildProfile }),
+          ...compact({ buildProfile: options.buildProfile }),
         },
       })
       .pipe(Effect.mapError((cause) => resolveErrorToMissingCredentials(cause, "android")));

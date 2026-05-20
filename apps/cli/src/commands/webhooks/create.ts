@@ -1,3 +1,4 @@
+import { compact } from "@better-update/type-guards";
 import { defineCommand } from "citty";
 import { Effect } from "effect";
 
@@ -64,7 +65,7 @@ export const createWebhookCommand = defineCommand({
             name: args.name,
             url: args.url,
             events: parsed,
-            ...(args["project-id"] === undefined ? {} : { projectId: args["project-id"] }),
+            ...compact({ projectId: args["project-id"] }),
           },
         });
         const mode = yield* OutputMode;

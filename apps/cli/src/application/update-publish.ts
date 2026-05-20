@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 
 import { fromHex, toBase64Url } from "@better-update/encoding";
+import { compact } from "@better-update/type-guards";
 import { Effect } from "effect";
 import { uniqBy } from "es-toolkit";
 
@@ -272,12 +273,10 @@ const publishPlatform = (params: {
                 certificateChain: params.signedPayload.certificateChain,
               }
             : {}),
-          ...(params.rolloutPercentage === undefined
-            ? {}
-            : { rolloutPercentage: params.rolloutPercentage }),
-          ...(params.fingerprintHash === undefined
-            ? {}
-            : { fingerprintHash: params.fingerprintHash }),
+          ...compact({
+            rolloutPercentage: params.rolloutPercentage,
+            fingerprintHash: params.fingerprintHash,
+          }),
         },
       })
       .pipe(

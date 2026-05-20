@@ -1,3 +1,4 @@
+import { compact } from "@better-update/type-guards";
 import { defineCommand } from "citty";
 import { Effect } from "effect";
 
@@ -62,12 +63,12 @@ export const updateWebhookCommand = defineCommand({
         const api = yield* apiClient;
         const webhook = yield* api.webhooks.update({
           path: { id: args.id },
-          payload: {
-            ...(args.name === undefined ? {} : { name: args.name }),
-            ...(args.url === undefined ? {} : { url: args.url }),
-            ...(events === undefined ? {} : { events }),
-            ...(enabled === undefined ? {} : { enabled }),
-          },
+          payload: compact({
+            name: args.name,
+            url: args.url,
+            events,
+            enabled,
+          }),
         });
         yield* printKeyValue([
           ["ID", webhook.id],

@@ -1,4 +1,5 @@
 import { fromBase64, toBase64 } from "@better-update/encoding";
+import { compact } from "@better-update/type-guards";
 import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
@@ -66,14 +67,12 @@ export const AppleDistributionCertificatesGroupLive = HttpApiBuilder.group(
             const parsed = yield* validateDistributionCertificateMetadata({
               serialNumber: payload.serialNumber,
               appleTeamId: payload.appleTeamIdentifier,
-              ...(payload.appleTeamName === undefined
-                ? {}
-                : { appleTeamName: payload.appleTeamName }),
-              ...(payload.developerIdIdentifier === undefined
-                ? {}
-                : { developerIdIdentifier: payload.developerIdIdentifier }),
               validFrom: payload.validFrom,
               validUntil: payload.validUntil,
+              ...compact({
+                appleTeamName: payload.appleTeamName,
+                developerIdIdentifier: payload.developerIdIdentifier,
+              }),
             }).pipe(Effect.mapError(mapInvalid));
 
             const team = yield* teams.upsertByAppleTeamId({

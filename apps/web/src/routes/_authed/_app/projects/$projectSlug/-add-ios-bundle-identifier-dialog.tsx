@@ -7,6 +7,7 @@ import {
   createIosBundleConfiguration,
   iosBundleConfigurationsQueryOptions,
 } from "@better-update/api-client/react";
+import { compact } from "@better-update/type-guards";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
@@ -139,7 +140,7 @@ const FormBody = ({
   const { data: certs } = useSuspenseQuery(appleDistributionCertificatesQueryOptions(orgId));
   const { data: profiles } = useSuspenseQuery(
     appleProvisioningProfilesQueryOptions(orgId, {
-      ...(state.bundleIdentifier === "" ? {} : { bundleIdentifier: state.bundleIdentifier }),
+      ...compact({ bundleIdentifier: state.bundleIdentifier || undefined }),
       distributionType: state.distributionType,
     }),
   );
@@ -356,20 +357,16 @@ export const AddIosBundleIdentifierDialog = ({
         bundleIdentifier: state.bundleIdentifier,
         distributionType: state.distributionType,
         appleTeamId: state.appleTeamId,
-        ...(optionalIdFromSelect(state.appleDistributionCertificateId) === undefined
-          ? {}
-          : { appleDistributionCertificateId: state.appleDistributionCertificateId }),
-        ...(optionalIdFromSelect(state.appleProvisioningProfileId) === undefined
-          ? {}
-          : { appleProvisioningProfileId: state.appleProvisioningProfileId }),
-        ...(optionalIdFromSelect(state.applePushKeyId) === undefined
-          ? {}
-          : { applePushKeyId: state.applePushKeyId }),
-        ...(optionalIdFromSelect(state.ascApiKeyId) === undefined
-          ? {}
-          : { ascApiKeyId: state.ascApiKeyId }),
-        ...(trimmedTargetName === "" ? {} : { targetName: trimmedTargetName }),
-        ...(trimmedParent === "" ? {} : { parentBundleIdentifier: trimmedParent }),
+        ...compact({
+          appleDistributionCertificateId: optionalIdFromSelect(
+            state.appleDistributionCertificateId,
+          ),
+          appleProvisioningProfileId: optionalIdFromSelect(state.appleProvisioningProfileId),
+          applePushKeyId: optionalIdFromSelect(state.applePushKeyId),
+          ascApiKeyId: optionalIdFromSelect(state.ascApiKeyId),
+          targetName: trimmedTargetName || undefined,
+          parentBundleIdentifier: trimmedParent || undefined,
+        }),
       });
     },
     onSuccess: async () => {

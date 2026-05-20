@@ -1,4 +1,5 @@
 import { fromBase64, toBase64 } from "@better-update/encoding";
+import { compact, toOptional } from "@better-update/type-guards";
 // @expo/apple-utils is ncc-bundled CJS; `import * as` only surfaces `default`/`module.exports`
 // via Node ESM's cjs-module-lexer, so the entity managers + enums (Certificate, BundleId,
 // Profile, Device, ProfileType, CertificateType, ...) are read off the default import.
@@ -91,12 +92,12 @@ export const generateAndUploadDistributionCertificateViaAppleId = (
         p12Password: result.password,
         serialNumber: metadata.serialNumber,
         appleTeamIdentifier: metadata.appleTeamId,
-        ...(metadata.appleTeamName === null ? {} : { appleTeamName: metadata.appleTeamName }),
-        ...(metadata.developerIdIdentifier === null
-          ? {}
-          : { developerIdIdentifier: metadata.developerIdIdentifier }),
         validFrom: metadata.validFrom,
         validUntil: metadata.validUntil,
+        ...compact({
+          appleTeamName: toOptional(metadata.appleTeamName),
+          developerIdIdentifier: toOptional(metadata.developerIdIdentifier),
+        }),
       },
     });
 
@@ -284,7 +285,7 @@ export const generateAndUploadProvisioningProfileViaAppleId = (
         profileBase64: toBase64(profileBytes),
         appleDistributionCertificateId: input.distributionCertificateId,
         isManaged: true,
-        ...(rosterHash === undefined ? {} : { deviceRosterHash: rosterHash }),
+        ...compact({ deviceRosterHash: rosterHash }),
       },
     });
 

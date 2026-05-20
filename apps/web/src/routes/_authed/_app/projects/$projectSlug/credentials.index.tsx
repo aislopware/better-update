@@ -212,14 +212,12 @@ const IosIdentifierRow = ({
         >
           <span className="flex flex-wrap items-center gap-2">
             <span>{group.bundleIdentifier}</span>
-            {targetName === undefined || targetName === null ? null : (
-              <Badge variant="secondary">{targetName}</Badge>
-            )}
-            {parent === undefined || parent === null ? null : (
+            {targetName ? <Badge variant="secondary">{targetName}</Badge> : null}
+            {parent ? (
               <Badge variant="outline">
                 ext of <span className="ml-1">{parent}</span>
               </Badge>
-            )}
+            ) : null}
           </span>
           <ChevronRightIcon strokeWidth={2} className="text-muted-foreground size-4" />
         </Link>

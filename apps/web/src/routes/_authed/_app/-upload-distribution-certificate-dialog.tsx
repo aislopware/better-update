@@ -26,20 +26,7 @@ import { useState } from "react";
 
 import { getFieldError } from "../../../lib/form-utils";
 import { safeSubmit, useApiMutation } from "../../../lib/use-api-mutation";
-import { safeReadFileAsBase64 } from "./-credentials-utils";
-
-const isoToDate = (iso: string): Date | undefined => (iso ? new Date(iso) : undefined);
-
-const dateToIsoBoundary = (date: Date | undefined, boundary: "start" | "end"): string => {
-  if (!date) {
-    return "";
-  }
-  const utc =
-    boundary === "start"
-      ? Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0)
-      : Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 0);
-  return new Date(utc).toISOString();
-};
+import { dateToIsoBoundary, isoToDate, safeReadFileAsBase64 } from "./-credentials-utils";
 
 const UploadForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: () => void }) => {
   const queryClient = useQueryClient();

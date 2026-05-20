@@ -113,9 +113,9 @@ const CompatibleBuildsList = ({
             <div className="flex flex-wrap items-center gap-1.5">
               <PlatformBadge platform={build.platform} />
               <DistributionBadge distribution={build.distribution} />
-              {build.appVersion === null ? null : (
+              {build.appVersion ? (
                 <span className="text-muted-foreground text-xs">app v{build.appVersion}</span>
-              )}
+              ) : null}
             </div>
           </div>
           <Button
@@ -162,10 +162,8 @@ const PreviewBody = ({
     <div className="flex flex-wrap items-center gap-1.5 text-sm">
       <PlatformBadge platform={update.platform} />
       <Badge variant="outline">v{update.runtimeVersion}</Badge>
-      {channelName === undefined ? null : <ChannelBadge name={channelName} />}
-      {branchName === undefined ? null : (
-        <span className="text-muted-foreground">on {branchName}</span>
-      )}
+      {channelName ? <ChannelBadge name={channelName} /> : null}
+      {branchName ? <span className="text-muted-foreground">on {branchName}</span> : null}
     </div>
 
     <div className="flex flex-col gap-2">

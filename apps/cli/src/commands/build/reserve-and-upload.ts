@@ -1,3 +1,4 @@
+import { compact } from "@better-update/type-guards";
 import { Effect } from "effect";
 
 import { CompleteError, ReserveError } from "../../lib/exit-codes";
@@ -57,13 +58,15 @@ const buildReserveCommon = (input: ReserveAndUploadInput) =>
     bundleId: input.bundleId,
     sha256: input.sha256,
     byteSize: input.byteSize,
-    ...(input.appVersion === undefined ? {} : { appVersion: input.appVersion }),
-    ...(input.buildNumber === undefined ? {} : { buildNumber: input.buildNumber }),
-    ...(input.gitContext.ref === undefined ? {} : { gitRef: input.gitContext.ref }),
-    ...(input.gitContext.commit === undefined ? {} : { gitCommit: input.gitContext.commit }),
     gitDirty: input.gitContext.dirty,
-    ...(input.message === undefined ? {} : { message: input.message }),
-    ...(input.fingerprintHash === undefined ? {} : { fingerprintHash: input.fingerprintHash }),
+    ...compact({
+      appVersion: input.appVersion,
+      buildNumber: input.buildNumber,
+      gitRef: input.gitContext.ref,
+      gitCommit: input.gitContext.commit,
+      message: input.message,
+      fingerprintHash: input.fingerprintHash,
+    }),
   }) as const;
 
 const callReserve = (api: ApiClient, input: ReserveAndUploadInput) => {

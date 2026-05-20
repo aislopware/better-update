@@ -27,22 +27,14 @@ import { Suspense, useState } from "react";
 
 import type { AppleDistributionCertificateItem } from "@better-update/api-client/react";
 
-import { formatAppleTeamLabel, safeReadFileAsBase64 } from "../../-credentials-utils";
+import {
+  dateToIsoBoundary,
+  formatAppleTeamLabel,
+  isoToDate,
+  safeReadFileAsBase64,
+} from "../../-credentials-utils";
 import { formatDate } from "../../../../../lib/format-date";
 import { safeSubmit, useApiMutation } from "../../../../../lib/use-api-mutation";
-
-const isoToDate = (iso: string): Date | undefined => (iso ? new Date(iso) : undefined);
-
-const dateToIsoBoundary = (date: Date | undefined, boundary: "start" | "end"): string => {
-  if (!date) {
-    return "";
-  }
-  const utc =
-    boundary === "start"
-      ? Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0)
-      : Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 0);
-  return new Date(utc).toISOString();
-};
 
 interface ChooseSavedTabProps {
   readonly orgId: string;

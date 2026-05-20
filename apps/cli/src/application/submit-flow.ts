@@ -5,6 +5,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 
 import { fromBase64 } from "@better-update/encoding";
+import { compact } from "@better-update/type-guards";
 import { Duration, Effect, Schema } from "effect";
 
 import type { CreateSubmissionBody, Submission, SubmissionStatus } from "@better-update/api";
@@ -90,10 +91,12 @@ export const createSubmissionViaApi = (
         platform: resolved.platform,
         profileName: resolved.profileName,
         archiveSource: resolved.archiveSource,
-        ...(resolved.buildId === undefined ? {} : { buildId: resolved.buildId }),
-        ...(resolved.archiveUrl === undefined ? {} : { archiveUrl: resolved.archiveUrl }),
-        ...(resolved.iosConfig === undefined ? {} : { iosConfig: resolved.iosConfig }),
-        ...(resolved.androidConfig === undefined ? {} : { androidConfig: resolved.androidConfig }),
+        ...compact({
+          buildId: resolved.buildId,
+          archiveUrl: resolved.archiveUrl,
+          iosConfig: resolved.iosConfig,
+          androidConfig: resolved.androidConfig,
+        }),
       },
     })
     .pipe(
@@ -221,9 +224,9 @@ export const runIosAltoolUpload = (inputs: IosAltoolInputs) =>
         path: { id: inputs.submissionId },
         payload: {
           status: terminalStatus,
-          ...(errorMessage === null
-            ? {}
-            : { errorCode: "SUBMISSION_SERVICE_IOS_ALTOOL_FAILED", errorMessage }),
+          ...(errorMessage
+            ? { errorCode: "SUBMISSION_SERVICE_IOS_ALTOOL_FAILED", errorMessage }
+            : {}),
         },
       })
       .pipe(

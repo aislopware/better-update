@@ -1,3 +1,4 @@
+import { compact } from "@better-update/type-guards";
 import { defineCommand } from "citty";
 import { Effect } from "effect";
 
@@ -23,8 +24,8 @@ const promptGroupId = (api: ApiClient, projectId: string, branchName: string | u
     const { items } = yield* api.updates.list({
       urlParams: {
         projectId,
-        ...(branchId === undefined ? {} : { branchId }),
         limit: 50,
+        ...compact({ branchId }),
       },
     });
     const groups = new Map<string, { readonly groupId: string; readonly message: string | null }>();

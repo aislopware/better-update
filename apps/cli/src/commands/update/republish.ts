@@ -1,3 +1,4 @@
+import { compact } from "@better-update/type-guards";
 import { defineCommand } from "citty";
 import { Effect } from "effect";
 
@@ -221,8 +222,7 @@ export const republishCommand = defineCommand({
           payload: {
             ...source,
             ...destination,
-            ...(args["project-id"] === undefined ? {} : { projectId: args["project-id"] }),
-            ...(args.message === undefined ? {} : { message: args.message }),
+            ...compact({ projectId: args["project-id"], message: args.message }),
           },
         });
 

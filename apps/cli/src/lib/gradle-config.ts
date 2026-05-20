@@ -1,6 +1,6 @@
 import path from "node:path";
 
-import { asRecord } from "@better-update/type-guards";
+import { asRecord, compact } from "@better-update/type-guards";
 import { FileSystem } from "@effect/platform";
 import { Effect } from "effect";
 
@@ -116,11 +116,7 @@ const extractGradleConfig = (parsed: Record<string, unknown>): GradleConfig => {
       ? unquote(defaultConfig["versionName"])
       : undefined;
 
-  return {
-    ...(applicationId === undefined ? {} : { applicationId }),
-    ...(versionCode === undefined ? {} : { versionCode }),
-    ...(versionName === undefined ? {} : { versionName }),
-  };
+  return compact({ applicationId, versionCode, versionName });
 };
 
 const unquote = (input: string): string =>

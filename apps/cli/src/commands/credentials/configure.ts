@@ -1,3 +1,4 @@
+import { compact } from "@better-update/type-guards";
 import { defineCommand } from "citty";
 import { Console, Effect } from "effect";
 
@@ -153,10 +154,11 @@ const configureIos = (args: ConfigureIosArgs) =>
       distribution: args.distribution,
     };
     if (args.bindPushKey !== undefined || args.bindAscKey !== undefined) {
-      yield* bindBundleResource(args.api, input, {
-        ...(args.bindPushKey === undefined ? {} : { applePushKeyId: args.bindPushKey }),
-        ...(args.bindAscKey === undefined ? {} : { ascApiKeyId: args.bindAscKey }),
-      });
+      yield* bindBundleResource(
+        args.api,
+        input,
+        compact({ applePushKeyId: args.bindPushKey, ascApiKeyId: args.bindAscKey }),
+      );
       yield* Console.log("");
       yield* Console.log("Updated binding:");
       yield* showIosBinding(args.api, input);

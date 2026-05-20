@@ -1,4 +1,4 @@
-import { isRecord } from "@better-update/type-guards";
+import { compact, isRecord } from "@better-update/type-guards";
 import { Data, Effect } from "effect";
 
 import { signAscJwt } from "./apple-asc-jwt";
@@ -92,22 +92,28 @@ const fetchRaw = (jwt: string, path: string, init?: { method?: string; body?: st
   Effect.gen(function* () {
     const response = yield* Effect.tryPromise({
       try: async () =>
-        fetch(`${API_BASE}${path}`, {
-          method: init?.method ?? "GET",
-          ...(init?.body === undefined ? {} : { body: init.body }),
-          headers: {
-            authorization: `Bearer ${jwt}`,
-            "content-type": "application/json",
-            accept: "application/json",
-          },
-        }),
+        fetch(
+          `${API_BASE}${path}`,
+          compact({
+            method: init?.method ?? "GET",
+            body: init?.body,
+            headers: {
+              authorization: `Bearer ${jwt}`,
+              "content-type": "application/json",
+              accept: "application/json",
+            },
+          }),
+        ),
       catch: (cause) => new AscNetworkError({ cause }),
     });
     const text = yield* Effect.tryPromise({
       try: async () => response.text(),
       catch: (cause) => new AscNetworkError({ cause }),
     });
-    const body: unknown = text.length === 0 ? {} : JSON.parse(text);
+    const body = yield* Effect.try({
+      try: (): unknown => (text.length === 0 ? {} : JSON.parse(text)),
+      catch: (cause) => new AscNetworkError({ cause }),
+    });
     if (!response.ok) {
       return yield* Effect.fail(parseApiError(response, body, text));
     }

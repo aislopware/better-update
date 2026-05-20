@@ -1,3 +1,4 @@
+import { compact } from "@better-update/type-guards";
 import { defineCommand } from "citty";
 import { Console, Effect } from "effect";
 
@@ -36,30 +37,19 @@ export const uploadCommand = defineCommand({
       Effect.gen(function* () {
         const api = yield* apiClient;
 
-        const input: {
-          readonly platform: "ios" | "android";
-          readonly type: CliCredentialType;
-          readonly name: string;
-          readonly filePath: string;
-          readonly password?: string;
-          readonly keyAlias?: string;
-          readonly keyPassword?: string;
-          readonly keyId?: string;
-          readonly issuerId?: string;
-          readonly appleTeamIdentifier?: string;
-        } = {
+        const input = {
           platform: args.platform,
           type: args.type as CliCredentialType,
           name: args.name,
           filePath: args.file,
-          ...(args.password === undefined ? {} : { password: args.password }),
-          ...(args["key-alias"] === undefined ? {} : { keyAlias: args["key-alias"] }),
-          ...(args["key-password"] === undefined ? {} : { keyPassword: args["key-password"] }),
-          ...(args["key-id"] === undefined ? {} : { keyId: args["key-id"] }),
-          ...(args["issuer-id"] === undefined ? {} : { issuerId: args["issuer-id"] }),
-          ...(args["apple-team-identifier"] === undefined
-            ? {}
-            : { appleTeamIdentifier: args["apple-team-identifier"] }),
+          ...compact({
+            password: args.password,
+            keyAlias: args["key-alias"],
+            keyPassword: args["key-password"],
+            keyId: args["key-id"],
+            issuerId: args["issuer-id"],
+            appleTeamIdentifier: args["apple-team-identifier"],
+          }),
         };
 
         const credential = yield* uploadCredential(api, input);

@@ -1,3 +1,4 @@
+import { compact } from "@better-update/type-guards";
 import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
@@ -63,10 +64,10 @@ export const IosBundleConfigurationsGroupLive = HttpApiBuilder.group(
               metadata: {
                 bundleIdentifier: payload.bundleIdentifier,
                 distributionType: payload.distributionType,
-                ...(payload.targetName === undefined ? {} : { targetName: payload.targetName }),
-                ...(payload.parentBundleIdentifier === undefined
-                  ? {}
-                  : { parentBundleIdentifier: payload.parentBundleIdentifier }),
+                ...compact({
+                  targetName: payload.targetName,
+                  parentBundleIdentifier: payload.parentBundleIdentifier,
+                }),
               },
             });
             return toApiIosBundleConfiguration(model);
