@@ -2,15 +2,23 @@ import { compact } from "@better-update/type-guards";
 import { queryOptions } from "@tanstack/react-query";
 
 import type {
+  BranchSort as BranchSortSchema,
+  BranchSortColumn as BranchSortColumnSchema,
+  ChannelSort as ChannelSortSchema,
+  ChannelSortColumn as ChannelSortColumnSchema,
   CreateBranchBody,
   CreateBranchRolloutBody,
   CreateChannelBody,
   CreateProjectBody,
   CreateUpdateBody,
+  ProjectSort as ProjectSortSchema,
+  ProjectSortColumn as ProjectSortColumnSchema,
   RepublishBody,
   UpdateBranchBody,
   UpdateChannelBody,
   UpdateProjectBody,
+  UpdateSort as UpdateSortSchema,
+  UpdateSortColumn as UpdateSortColumnSchema,
 } from "@better-update/api";
 
 import { runApi } from "../index";
@@ -58,16 +66,8 @@ export const channelAnalyticsQueryKey = (orgId: string, projectId: string, chann
 export const platformAnalyticsQueryKey = (orgId: string, projectId: string) =>
   ["org", orgId, "project", projectId, "analytics", "platforms"] as const;
 
-export type ProjectSortColumn =
-  | "lastActivityAt"
-  | "name"
-  | "createdAt"
-  | "branchCount"
-  | "channelCount"
-  | "updateCount";
-
-/** Sort param: column name optionally prefixed with `-` for descending. */
-export type ProjectSort = ProjectSortColumn | `-${ProjectSortColumn}`;
+export type ProjectSortColumn = typeof ProjectSortColumnSchema.Type;
+export type ProjectSort = typeof ProjectSortSchema.Type;
 
 export interface ProjectsFilters {
   readonly page?: number;
@@ -111,10 +111,8 @@ export const projectBySlugQueryOptions = (orgId: string, slug: string) =>
     staleTime: 30_000,
   });
 
-export type BranchSortColumn = "name" | "createdAt" | "updateCount";
-
-/** Sort param: column name optionally prefixed with `-` for descending. */
-export type BranchSort = BranchSortColumn | `-${BranchSortColumn}`;
+export type BranchSortColumn = typeof BranchSortColumnSchema.Type;
+export type BranchSort = typeof BranchSortSchema.Type;
 
 export interface BranchesFilters {
   readonly page?: number;
@@ -141,10 +139,8 @@ export const branchesQueryOptions = (orgId: string, projectId: string, filters?:
     staleTime: 30_000,
   });
 
-export type ChannelSortColumn = "name" | "createdAt";
-
-/** Sort param: column name optionally prefixed with `-` for descending. */
-export type ChannelSort = ChannelSortColumn | `-${ChannelSortColumn}`;
+export type ChannelSortColumn = typeof ChannelSortColumnSchema.Type;
+export type ChannelSort = typeof ChannelSortSchema.Type;
 
 export interface ChannelsFilters {
   readonly page?: number;
@@ -171,10 +167,8 @@ export const channelsQueryOptions = (orgId: string, projectId: string, filters?:
     staleTime: 30_000,
   });
 
-export type UpdateSortColumn = "createdAt" | "runtimeVersion" | "platform" | "rolloutPercentage";
-
-/** Sort param: column name optionally prefixed with `-` for descending. */
-export type UpdateSort = UpdateSortColumn | `-${UpdateSortColumn}`;
+export type UpdateSortColumn = typeof UpdateSortColumnSchema.Type;
+export type UpdateSort = typeof UpdateSortSchema.Type;
 
 export interface UpdatesFilters {
   readonly branchId?: string;

@@ -1,4 +1,4 @@
-import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "@effect/platform";
+import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "@effect/platform";
 import { Schema } from "effect";
 
 import { Forbidden } from "../auth/errors";
@@ -10,9 +10,8 @@ import {
   SyncDevicesResult,
   UploadAscApiKeyBody,
 } from "../domain/asc-api-key";
+import { idParam } from "../domain/common";
 import { BadRequest, Conflict } from "../domain/errors";
-
-const idParam = HttpApiSchema.param("id", Schema.String);
 
 export class AscApiKeysGroup extends HttpApiGroup.make("ascApiKeys")
   .add(

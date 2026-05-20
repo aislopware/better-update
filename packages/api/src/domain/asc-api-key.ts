@@ -1,13 +1,9 @@
 import { Schema } from "effect";
 
-import { AppleTeamIdentifier } from "./apple-team";
-import { DateTimeString, Id } from "./common";
+import { AppleTeamIdentifier, appleTeamMetadataFields, tenCharPortalId } from "./apple-team";
+import { DateTimeString, DeletedResult, Id, Name120 } from "./common";
 
-export const AscApiKeyId = Schema.String.pipe(
-  Schema.pattern(/^[A-Z0-9]{10}$/u, {
-    message: () => "ASC API Key ID must be 10 uppercase alphanumeric characters",
-  }),
-);
+export const AscApiKeyId = tenCharPortalId("ASC API Key ID");
 
 export const IssuerId = Schema.String.pipe(
   Schema.pattern(/^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$/u, {
@@ -28,17 +24,16 @@ export class AscApiKey extends Schema.Class<AscApiKey>("AscApiKey")({
 }) {}
 
 export const UploadAscApiKeyBody = Schema.Struct({
-  name: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(120)),
+  name: Name120,
   keyId: AscApiKeyId,
   issuerId: IssuerId,
   p8Pem: Schema.String.pipe(Schema.minLength(1)),
   appleTeamIdentifier: Schema.optional(AppleTeamIdentifier),
-  appleTeamName: Schema.optional(Schema.String.pipe(Schema.maxLength(200))),
-  appleTeamType: Schema.optional(Schema.Literal("IN_HOUSE", "COMPANY_ORGANIZATION", "INDIVIDUAL")),
+  ...appleTeamMetadataFields,
   roles: Schema.optional(Schema.Array(Schema.String)),
 });
 
-export const DeleteAscApiKeyResult = Schema.Struct({ deleted: Schema.Number });
+export const DeleteAscApiKeyResult = DeletedResult;
 
 export const DownloadAscApiKeyResult = Schema.Struct({
   id: Id,

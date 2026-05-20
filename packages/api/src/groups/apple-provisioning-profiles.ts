@@ -1,4 +1,4 @@
-import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "@effect/platform";
+import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "@effect/platform";
 import { Schema } from "effect";
 
 import { Forbidden } from "../auth/errors";
@@ -10,9 +10,8 @@ import {
   ListAppleProvisioningProfilesParams,
   UploadAppleProvisioningProfileBody,
 } from "../domain/apple-provisioning-profile";
+import { idParam } from "../domain/common";
 import { BadRequest, Conflict } from "../domain/errors";
-
-const idParam = HttpApiSchema.param("id", Schema.String);
 
 export class AppleProvisioningProfilesGroup extends HttpApiGroup.make("appleProvisioningProfiles")
   .add(

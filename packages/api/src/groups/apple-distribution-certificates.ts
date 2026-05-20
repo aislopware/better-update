@@ -1,4 +1,4 @@
-import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "@effect/platform";
+import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "@effect/platform";
 import { Schema } from "effect";
 
 import { Forbidden } from "../auth/errors";
@@ -9,9 +9,8 @@ import {
   DownloadAppleDistributionCertificateResult,
   UploadAppleDistributionCertificateBody,
 } from "../domain/apple-distribution-certificate";
+import { idParam } from "../domain/common";
 import { BadRequest, Conflict } from "../domain/errors";
-
-const idParam = HttpApiSchema.param("id", Schema.String);
 
 export class AppleDistributionCertificatesGroup extends HttpApiGroup.make(
   "appleDistributionCertificates",

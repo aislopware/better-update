@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 
-import { DateTimeString, Id, PaginationParams, Platform } from "./common";
+import { DateTimeString, DeletedResult, Id, PaginationParams, Platform, sortParam } from "./common";
 
 export class Update extends Schema.Class<Update>("Update")({
   id: Id,
@@ -29,14 +29,7 @@ export const UpdateSortColumn = Schema.Literal(
   "rolloutPercentage",
 );
 
-/**
- * Sort param: column name optionally prefixed with `-` for descending.
- * Example: `runtimeVersion` (asc), `-createdAt` (desc).
- */
-export const UpdateSort = Schema.Union(
-  UpdateSortColumn,
-  Schema.TemplateLiteral("-", UpdateSortColumn),
-);
+export const UpdateSort = sortParam(UpdateSortColumn);
 
 export const ListUpdatesParams = Schema.Struct({
   projectId: Id,
@@ -102,6 +95,4 @@ export const RepublishResult = Schema.Struct({
   updates: Schema.Array(Update),
 });
 
-export const DeleteUpdateResult = Schema.Struct({
-  deleted: Schema.Number,
-});
+export const DeleteUpdateResult = DeletedResult;

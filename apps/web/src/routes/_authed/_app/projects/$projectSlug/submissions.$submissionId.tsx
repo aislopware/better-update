@@ -13,6 +13,8 @@ import { Suspense } from "react";
 
 import type { SubmissionItem, SubmissionStatusValue } from "@better-update/api-client/react";
 
+import { formatDateTime } from "../../../../../lib/format-date";
+
 const STATUS_VARIANT: Record<SubmissionStatusValue, "secondary" | "destructive" | "outline"> = {
   AWAITING_BUILD: "outline",
   IN_QUEUE: "outline",
@@ -55,7 +57,7 @@ const SubmissionDetail = ({
         </CardFrameTitle>
         <CardFrameDescription>
           Profile <span className="font-mono">{submission.profileName}</span> · created{" "}
-          {new Date(submission.createdAt).toLocaleString()}
+          {formatDateTime(submission.createdAt)}
         </CardFrameDescription>
       </CardFrameHeader>
       <div className="flex flex-col gap-1.5 px-6 pb-5">

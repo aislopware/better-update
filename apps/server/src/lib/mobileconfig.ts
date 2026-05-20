@@ -1,11 +1,5 @@
 import { getPlistString, parsePlistXml } from "./plist";
-
-const escape = (value: string): string =>
-  value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
+import { escapeXml } from "./xml";
 
 /**
  * Build an unsigned Apple Configuration Profile (.mobileconfig) XML payload
@@ -29,7 +23,7 @@ export const buildDeviceRegistrationProfile = (params: {
   <key>PayloadContent</key>
   <dict>
     <key>URL</key>
-    <string>${escape(params.callbackUrl)}</string>
+    <string>${escapeXml(params.callbackUrl)}</string>
     <key>DeviceAttributes</key>
     <array>
       <string>UDID</string>
@@ -39,20 +33,20 @@ export const buildDeviceRegistrationProfile = (params: {
       <string>DEVICE_NAME</string>
     </array>
     <key>Challenge</key>
-    <string>${escape(challenge)}</string>
+    <string>${escapeXml(challenge)}</string>
   </dict>
   <key>PayloadDescription</key>
-  <string>${escape(description)}</string>
+  <string>${escapeXml(description)}</string>
   <key>PayloadDisplayName</key>
-  <string>${escape(displayName)}</string>
+  <string>${escapeXml(displayName)}</string>
   <key>PayloadIdentifier</key>
-  <string>${escape(payloadIdentifier)}</string>
+  <string>${escapeXml(payloadIdentifier)}</string>
   <key>PayloadOrganization</key>
-  <string>${escape(params.organization)}</string>
+  <string>${escapeXml(params.organization)}</string>
   <key>PayloadType</key>
   <string>Profile Service</string>
   <key>PayloadUUID</key>
-  <string>${escape(params.profileUuid)}</string>
+  <string>${escapeXml(params.profileUuid)}</string>
   <key>PayloadVersion</key>
   <integer>1</integer>
 </dict>
@@ -97,10 +91,10 @@ export const renderRegistrationLandingHtml = (params: {
 </style>
 </head>
 <body>
-<h1>Register ${escape(hint)}</h1>
+<h1>Register ${escapeXml(hint)}</h1>
 <p>Tap the button below on an iOS device to install a profile that registers this device for ad-hoc builds.</p>
-<a class="btn" href="${escape(params.profileUrl)}">Install profile</a>
-<p class="muted">Link expires ${escape(new Date(params.expiresAt).toLocaleString())}. Safari will show "Not Verified" — that is expected for internal enrollment.</p>
+<a class="btn" href="${escapeXml(params.profileUrl)}">Install profile</a>
+<p class="muted">Link expires ${escapeXml(new Date(params.expiresAt).toLocaleString())}. Safari will show "Not Verified" — that is expected for internal enrollment.</p>
 </body>
 </html>`;
 };
@@ -113,7 +107,7 @@ export const renderRegistrationDoneHtml = (deviceName: string): string =>
 </head>
 <body>
 <h1>Device registered</h1>
-<p>${escape(deviceName)} has been added. You can close this window.</p>
+<p>${escapeXml(deviceName)} has been added. You can close this window.</p>
 </body>
 </html>`;
 
@@ -125,6 +119,6 @@ export const renderRegistrationErrorHtml = (message: string): string =>
 </head>
 <body>
 <h1>Registration failed</h1>
-<p>${escape(message)}</p>
+<p>${escapeXml(message)}</p>
 </body>
 </html>`;

@@ -1,6 +1,14 @@
 import { asRecord, compact } from "@better-update/type-guards";
 import { Effect } from "effect";
 
+import {
+  asBooleanValue,
+  asNumberValue,
+  asStringValue,
+  resolveExtendsChain,
+  shallowMerge,
+  stripExtends,
+} from "./eas-profile-extends";
 import { BuildProfileError } from "./exit-codes";
 
 export type EasAndroidSubmitReleaseStatus = "completed" | "draft" | "halted" | "inProgress";
@@ -38,15 +46,6 @@ export interface EasSubmitProfile {
 }
 
 const MAX_SUBMIT_EXTENDS_DEPTH = 10;
-
-const asStringValue = (value: unknown): string | undefined =>
-  typeof value === "string" ? value : undefined;
-
-const asBooleanValue = (value: unknown): boolean | undefined =>
-  typeof value === "boolean" ? value : undefined;
-
-const asNumberValue = (raw: unknown): number | undefined =>
-  typeof raw === "number" && Number.isFinite(raw) ? raw : undefined;
 
 const asStringArray = (raw: unknown): readonly string[] | undefined => {
   if (!Array.isArray(raw)) {
@@ -132,84 +131,13 @@ export const parseSubmitProfile = (raw: unknown): EasSubmitProfile | undefined =
   return compact({ extends: extendsName, ios, android });
 };
 
-const mergeIosSubmit = (
-  base: EasIosSubmitProfile | undefined,
-  overlay: EasIosSubmitProfile | undefined,
-): EasIosSubmitProfile | undefined => {
-  if (!base) {
-    return overlay;
-  }
-  if (!overlay) {
-    return base;
-  }
-  return { ...base, ...overlay };
-};
-
-const mergeAndroidSubmit = (
-  base: EasAndroidSubmitProfile | undefined,
-  overlay: EasAndroidSubmitProfile | undefined,
-): EasAndroidSubmitProfile | undefined => {
-  if (!base) {
-    return overlay;
-  }
-  if (!overlay) {
-    return base;
-  }
-  return { ...base, ...overlay };
-};
-
 const mergeSubmitProfile = (
   base: EasSubmitProfile,
   overlay: EasSubmitProfile,
 ): EasSubmitProfile => {
-  const ios = mergeIosSubmit(base.ios, overlay.ios);
-  const android = mergeAndroidSubmit(base.android, overlay.android);
+  const ios = shallowMerge(base.ios, overlay.ios);
+  const android = shallowMerge(base.android, overlay.android);
   return compact({ extends: overlay.extends, ios, android });
-};
-
-const collectSubmitExtendsChain = (
-  profiles: Record<string, EasSubmitProfile>,
-  profileName: string,
-): Effect.Effect<readonly EasSubmitProfile[], BuildProfileError> =>
-  Effect.gen(function* () {
-    const chain: EasSubmitProfile[] = [];
-    const visited = new Set<string>();
-    let current: string | undefined = profileName;
-    let depth = 0;
-    while (current !== undefined) {
-      if (visited.has(current)) {
-        return yield* new BuildProfileError({
-          message: `Cycle detected in eas.json submit.${profileName} extends chain at "${current}".`,
-        });
-      }
-      visited.add(current);
-      const profile: EasSubmitProfile | undefined = profiles[current];
-      if (!profile) {
-        return yield* new BuildProfileError({
-          message:
-            current === profileName
-              ? `Submit profile "${profileName}" not found in eas.json.`
-              : `Submit profile "${profileName}" extends missing profile "${current}".`,
-        });
-      }
-      chain.unshift(profile);
-      current = profile.extends;
-      depth += 1;
-      if (depth > MAX_SUBMIT_EXTENDS_DEPTH) {
-        return yield* new BuildProfileError({
-          message: `Too many "extends" levels (max ${String(MAX_SUBMIT_EXTENDS_DEPTH)}) in eas.json submit.${profileName}.`,
-        });
-      }
-    }
-    return chain;
-  });
-
-const stripSubmitExtends = (profile: EasSubmitProfile): EasSubmitProfile => {
-  if (profile.extends === undefined) {
-    return profile;
-  }
-  const { extends: _omit, ...rest } = profile;
-  return rest;
 };
 
 export const resolveEasSubmitProfile = (
@@ -222,10 +150,16 @@ export const resolveEasSubmitProfile = (
         message: 'eas.json has no "submit" section. Add at least one submit profile.',
       });
     }
-    const chain = yield* collectSubmitExtendsChain(profiles, profileName);
+    const chain = yield* resolveExtendsChain({
+      profiles,
+      profileName,
+      label: "submit",
+      maxDepth: MAX_SUBMIT_EXTENDS_DEPTH,
+      makeError: (message) => new BuildProfileError({ message }),
+    });
     const merged = chain.reduce<EasSubmitProfile>(
       (acc, next, index) => (index === 0 ? next : mergeSubmitProfile(acc, next)),
       {},
     );
-    return stripSubmitExtends(merged);
+    return stripExtends(merged);
   });

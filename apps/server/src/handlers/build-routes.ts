@@ -5,6 +5,7 @@ import { BuildRuntime } from "../cloudflare/build-runtime";
 import { provideCloudflareEnv } from "../cloudflare/context";
 import { verifyInstallToken } from "../domain/install-token";
 import { ServerInfrastructureLayer } from "../infrastructure-layer";
+import { escapeXml } from "../lib/xml";
 import { BuildRepo } from "../repositories";
 
 import type { ServerInfrastructure } from "../infrastructure-layer";
@@ -62,13 +63,6 @@ const createBuildDownloadUrl = (key: string) =>
 const resolveBuildDownloadUrl = async (_request: Request, env: Env, key: string) =>
   runBuildRouteEffect(createBuildDownloadUrl(key), env);
 
-const escapeXml = (str: string) =>
-  str
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
-
 const verifySignedToken = async (
   buildId: string,
   token: string | null,
@@ -80,6 +74,9 @@ const verifySignedToken = async (
     return false;
   }
   const expiresNum = Number.parseInt(expires, 10);
+  if (!Number.isFinite(expiresNum)) {
+    return false;
+  }
   return runBuildRouteEffect(
     verifyInstallToken(buildId, token, expiresNum, secret).pipe(Effect.orElseSucceed(() => false)),
     env,
@@ -170,12 +167,14 @@ export const handleBuildInstallPlist = async (
   }
 
   const expiresNum = Number.parseInt(expires, 10);
-  const valid = await runBuildRouteEffect(
-    verifyInstallToken(buildId, token, expiresNum, env.INSTALL_TOKEN_SECRET).pipe(
-      Effect.orElseSucceed(() => false),
-    ),
-    env,
-  );
+  const valid =
+    Number.isFinite(expiresNum) &&
+    (await runBuildRouteEffect(
+      verifyInstallToken(buildId, token, expiresNum, env.INSTALL_TOKEN_SECRET).pipe(
+        Effect.orElseSucceed(() => false),
+      ),
+      env,
+    ));
   if (!valid) {
     return Response.json(
       { code: "UNAUTHORIZED", message: "Invalid or expired token" },

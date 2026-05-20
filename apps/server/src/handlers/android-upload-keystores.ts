@@ -8,7 +8,6 @@ import { logAudit } from "../audit/logger";
 import { CurrentActor } from "../auth/current-actor";
 import { assertOrgOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
-import { cloudflareEnv } from "../cloudflare/context";
 import { CredentialArtifacts } from "../cloudflare/credential-artifacts";
 import { Vault } from "../cloudflare/vault";
 import { validateAndroidKeystore } from "../domain/android-keystore-parser";
@@ -19,7 +18,7 @@ import {
   toApiCrudEffect,
   toApiWriteEffect,
 } from "../http/to-api-effect";
-import { r2Operation, withR2Compensation } from "../lib/r2-helpers";
+import { withR2Compensation } from "../lib/r2-helpers";
 import { AndroidUploadKeystoreRepo } from "../repositories/android-upload-keystores";
 
 import type { InvalidAndroidKeystore } from "../domain/android-keystore-parser";
@@ -53,7 +52,7 @@ export const AndroidUploadKeystoresGroupLive = HttpApiBuilder.group(
           Effect.gen(function* () {
             yield* assertPermission("androidCredential", "create");
             const ctx = yield* CurrentActor;
-            const env = yield* cloudflareEnv;
+            const artifacts = yield* CredentialArtifacts;
             const vault = yield* Vault;
             const repo = yield* AndroidUploadKeystoreRepo;
 
@@ -88,14 +87,11 @@ export const AndroidUploadKeystoresGroupLive = HttpApiBuilder.group(
 
             const id = crypto.randomUUID();
             const r2Key = `android-upload-keystores/${ctx.organizationId}/${id}.keystore.enc`;
-            yield* r2Operation(async () =>
-              env.CREDENTIAL_ARTIFACTS.put(r2Key, encrypted.encryptedBlob),
-            );
+            yield* artifacts.put(r2Key, encrypted.encryptedBlob);
 
             const now = new Date().toISOString();
             yield* withR2Compensation(
-              env.CREDENTIAL_ARTIFACTS,
-              r2Key,
+              artifacts.delete(r2Key),
               repo.insert({
                 id,
                 organizationId: ctx.organizationId,
@@ -146,13 +142,13 @@ export const AndroidUploadKeystoresGroupLive = HttpApiBuilder.group(
         toApiCrudEffect(
           Effect.gen(function* () {
             yield* assertPermission("androidCredential", "delete");
-            const env = yield* cloudflareEnv;
+            const artifacts = yield* CredentialArtifacts;
             const repo = yield* AndroidUploadKeystoreRepo;
             const existing = yield* repo.findById({ id: path.id });
             yield* assertOrgOwnership(existing.organizationId);
             const { r2Key } = yield* repo.delete({ id: path.id });
             if (r2Key !== null) {
-              yield* Effect.promise(async () => env.CREDENTIAL_ARTIFACTS.delete(r2Key));
+              yield* artifacts.delete(r2Key);
             }
             yield* logAudit({
               action: "android.upload-keystore.delete",

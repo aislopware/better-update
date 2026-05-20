@@ -17,6 +17,7 @@ import { useRef } from "react";
 import { generateSlug, getFieldError, nameSchema, slugSchema } from "../../lib/form-utils";
 import { useCreateAndActivateOrgMutation } from "../../lib/org-mutations";
 import { safeSubmit } from "../../lib/use-api-mutation";
+import { authKeyPrefix } from "../../queries/auth";
 
 const Onboarding = () => {
   const router = useRouter();
@@ -25,7 +26,7 @@ const Onboarding = () => {
 
   const createOrg = useCreateAndActivateOrgMutation({
     onSuccess: async () => {
-      await queryClient.resetQueries({ queryKey: ["auth"] });
+      await queryClient.resetQueries({ queryKey: authKeyPrefix });
       await router.navigate({ to: "/" });
     },
   });

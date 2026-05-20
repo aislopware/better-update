@@ -2,6 +2,13 @@ import { asRecord, compact } from "@better-update/type-guards";
 import { FileSystem, Path } from "@effect/platform";
 import { Effect } from "effect";
 
+import {
+  asBooleanValue,
+  asStringValue,
+  resolveExtendsChain,
+  shallowMerge,
+  stripExtends,
+} from "./eas-profile-extends";
 import { parseSubmitProfile } from "./eas-submit-config";
 import { BuildProfileError } from "./exit-codes";
 import { formatCause } from "./format-error";
@@ -65,12 +72,6 @@ export interface EasConfig {
 }
 
 const MAX_EXTENDS_DEPTH = 10;
-
-const asStringValue = (value: unknown): string | undefined =>
-  typeof value === "string" ? value : undefined;
-
-const asBooleanValue = (value: unknown): boolean | undefined =>
-  typeof value === "boolean" ? value : undefined;
 
 const asEnv = (value: unknown): Record<string, string> | undefined => {
   const record = asRecord(value);
@@ -307,49 +308,10 @@ export const readEasJson = (
     return yield* parseEasConfig(text);
   });
 
-const mergeIos = (
-  base: EasIosProfile | undefined,
-  overlay: EasIosProfile | undefined,
-): EasIosProfile | undefined => {
-  if (!base) {
-    return overlay;
-  }
-  if (!overlay) {
-    return base;
-  }
-  return { ...base, ...overlay };
-};
-
-const mergeAndroid = (
-  base: EasAndroidProfile | undefined,
-  overlay: EasAndroidProfile | undefined,
-): EasAndroidProfile | undefined => {
-  if (!base) {
-    return overlay;
-  }
-  if (!overlay) {
-    return base;
-  }
-  return { ...base, ...overlay };
-};
-
-const mergeEnv = (
-  base: Record<string, string> | undefined,
-  overlay: Record<string, string> | undefined,
-): Record<string, string> | undefined => {
-  if (!base) {
-    return overlay;
-  }
-  if (!overlay) {
-    return base;
-  }
-  return { ...base, ...overlay };
-};
-
 const mergeProfile = (base: EasBuildProfile, overlay: EasBuildProfile): EasBuildProfile => {
-  const ios = mergeIos(base.ios, overlay.ios);
-  const android = mergeAndroid(base.android, overlay.android);
-  const env = mergeEnv(base.env, overlay.env);
+  const ios = shallowMerge(base.ios, overlay.ios);
+  const android = shallowMerge(base.android, overlay.android);
+  const env = shallowMerge(base.env, overlay.env);
   const developmentClient = overlay.developmentClient ?? base.developmentClient;
   const distribution = overlay.distribution ?? base.distribution;
   const channel = overlay.channel ?? base.channel;
@@ -372,51 +334,6 @@ const mergeProfile = (base: EasBuildProfile, overlay: EasBuildProfile): EasBuild
   });
 };
 
-const collectExtendsChain = (
-  profiles: Record<string, EasBuildProfile>,
-  profileName: string,
-): Effect.Effect<readonly EasBuildProfile[], BuildProfileError> =>
-  Effect.gen(function* () {
-    const chain: EasBuildProfile[] = [];
-    const visited = new Set<string>();
-    let current: string | undefined = profileName;
-    let depth = 0;
-    while (current !== undefined) {
-      if (visited.has(current)) {
-        return yield* new BuildProfileError({
-          message: `Cycle detected in eas.json build.${profileName} extends chain at "${current}".`,
-        });
-      }
-      visited.add(current);
-      const profile: EasBuildProfile | undefined = profiles[current];
-      if (!profile) {
-        return yield* new BuildProfileError({
-          message:
-            current === profileName
-              ? `Build profile "${profileName}" not found in eas.json.`
-              : `Build profile "${profileName}" extends missing profile "${current}".`,
-        });
-      }
-      chain.unshift(profile);
-      current = profile.extends;
-      depth += 1;
-      if (depth > MAX_EXTENDS_DEPTH) {
-        return yield* new BuildProfileError({
-          message: `Too many "extends" levels (max ${String(MAX_EXTENDS_DEPTH)}) in eas.json build.${profileName}.`,
-        });
-      }
-    }
-    return chain;
-  });
-
-const stripExtends = (profile: EasBuildProfile): EasBuildProfile => {
-  if (profile.extends === undefined) {
-    return profile;
-  }
-  const { extends: _omit, ...rest } = profile;
-  return rest;
-};
-
 export const resolveEasBuildProfile = (
   config: EasConfig,
   profileName: string,
@@ -428,7 +345,13 @@ export const resolveEasBuildProfile = (
         message: 'eas.json has no "build" section. Add at least one profile.',
       });
     }
-    const chain = yield* collectExtendsChain(profiles, profileName);
+    const chain = yield* resolveExtendsChain({
+      profiles,
+      profileName,
+      label: "build",
+      maxDepth: MAX_EXTENDS_DEPTH,
+      makeError: (message) => new BuildProfileError({ message }),
+    });
     const merged = chain.reduce<EasBuildProfile>(
       (acc, next, index) => (index === 0 ? next : mergeProfile(acc, next)),
       {},

@@ -49,6 +49,7 @@ import { ErrorBoundary } from "../../lib/error-boundary";
 import { logout } from "../../lib/logout";
 import { useApiMutation } from "../../lib/use-api-mutation";
 import { sessionQueryOptions } from "../../queries/auth";
+import { orgKeyPrefix } from "../../queries/org";
 import { AppBreadcrumb } from "./-app-breadcrumb";
 import { CreateOrgDialog } from "./-create-org-dialog";
 import { OrgNavSections, ProjectNavSections } from "./-sidebar-nav";
@@ -108,12 +109,12 @@ const OrgSwitcher = () => {
       ),
     onSuccess: async (_data, orgId) => {
       if (activeOrgId) {
-        queryClient.removeQueries({ queryKey: ["org", activeOrgId] });
+        queryClient.removeQueries({ queryKey: orgKeyPrefix(activeOrgId) });
       }
-      await queryClient.resetQueries({ queryKey: ["auth", "session"] });
+      await queryClient.resetQueries({ queryKey: sessionQueryOptions.queryKey });
       await router.invalidate();
       // Side-effect: reset cached active org so it does not re-target the previous one.
-      queryClient.removeQueries({ queryKey: ["org", orgId] });
+      queryClient.removeQueries({ queryKey: orgKeyPrefix(orgId) });
     },
   });
 

@@ -1,13 +1,9 @@
 import { Schema } from "effect";
 
-import { AppleTeamIdentifier } from "./apple-team";
-import { DateTimeString, Id } from "./common";
+import { AppleTeamIdentifier, appleTeamMetadataFields, tenCharPortalId } from "./apple-team";
+import { DateTimeString, DeletedResult, Id } from "./common";
 
-export const ApplePushKeyId = Schema.String.pipe(
-  Schema.pattern(/^[A-Z0-9]{10}$/u, {
-    message: () => "Push Key ID must be 10 uppercase alphanumeric characters",
-  }),
-);
+export const ApplePushKeyId = tenCharPortalId("Push Key ID");
 
 export class ApplePushKey extends Schema.Class<ApplePushKey>("ApplePushKey")({
   id: Id,
@@ -22,11 +18,10 @@ export const UploadApplePushKeyBody = Schema.Struct({
   keyId: ApplePushKeyId,
   p8Pem: Schema.String.pipe(Schema.minLength(1)),
   appleTeamIdentifier: AppleTeamIdentifier,
-  appleTeamName: Schema.optional(Schema.String.pipe(Schema.maxLength(200))),
-  appleTeamType: Schema.optional(Schema.Literal("IN_HOUSE", "COMPANY_ORGANIZATION", "INDIVIDUAL")),
+  ...appleTeamMetadataFields,
 });
 
-export const DeleteApplePushKeyResult = Schema.Struct({ deleted: Schema.Number });
+export const DeleteApplePushKeyResult = DeletedResult;
 
 export const DownloadApplePushKeyResult = Schema.Struct({
   id: Id,

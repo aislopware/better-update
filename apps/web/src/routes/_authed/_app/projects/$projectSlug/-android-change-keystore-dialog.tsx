@@ -4,21 +4,9 @@ import {
   updateAndroidBuildCredentials,
   uploadAndroidUploadKeystore,
 } from "@better-update/api-client/react";
-import { Button } from "@better-update/ui/components/ui/button";
-import {
-  Dialog,
-  DialogClose,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogPanel,
-  DialogPopup,
-  DialogTitle,
-} from "@better-update/ui/components/ui/dialog";
 import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@better-update/ui/components/ui/radio-group";
-import { Tabs, TabsList, TabsTab } from "@better-update/ui/components/ui/tabs";
 import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { Suspense, useState } from "react";
@@ -27,7 +15,10 @@ import type { AndroidUploadKeystoreItem } from "@better-update/api-client/react"
 
 import { safeReadFileAsBase64 } from "../../-credentials-utils";
 import { formatDate } from "../../../../../lib/format-date";
-import { safeSubmit, useApiMutation } from "../../../../../lib/use-api-mutation";
+import { useApiMutation } from "../../../../../lib/use-api-mutation";
+import { ChangeCredentialDialog } from "./-change-credential-dialog";
+
+import type { ChangeCredentialTab } from "./-change-credential-dialog";
 
 interface ChooseSavedTabProps {
   readonly orgId: string;
@@ -182,8 +173,6 @@ interface AndroidChangeKeystoreDialogProps {
   readonly currentKeystore: AndroidUploadKeystoreItem | null;
 }
 
-type TabValue = "saved" | "upload";
-
 export const AndroidChangeKeystoreDialog = ({
   open,
   onOpenChange,
@@ -195,8 +184,6 @@ export const AndroidChangeKeystoreDialog = ({
   const queryClient = useQueryClient();
   const initialSelectedId = currentKeystore === null ? "" : currentKeystore.id;
   const currentKeystoreId: string | null = currentKeystore === null ? null : currentKeystore.id;
-  const [tab, setTab] = useState<TabValue>("saved");
-  const [selectedId, setSelectedId] = useState<string>(initialSelectedId);
   const [uploadState, setUploadState] = useState<UploadFormState>(UPLOAD_INITIAL);
 
   const invalidate = async () => {
@@ -210,7 +197,10 @@ export const AndroidChangeKeystoreDialog = ({
     ]);
   };
 
-  const resolveKeystoreId = async (): Promise<string> => {
+  const resolveKeystoreId = async (
+    tab: ChangeCredentialTab,
+    selectedId: string,
+  ): Promise<string> => {
     if (tab !== "upload") {
       return selectedId;
     }
@@ -224,8 +214,8 @@ export const AndroidChangeKeystoreDialog = ({
   };
 
   const saveMutation = useApiMutation({
-    mutationFn: async () => {
-      const keystoreId = await resolveKeystoreId();
+    mutationFn: async ({ tab, selectedId }: { tab: ChangeCredentialTab; selectedId: string }) => {
+      const keystoreId = await resolveKeystoreId(tab, selectedId);
       await updateAndroidBuildCredentials(buildCredentialsId, {
         androidUploadKeystoreId: keystoreId,
       });
@@ -237,68 +227,32 @@ export const AndroidChangeKeystoreDialog = ({
     },
   });
 
-  const canSubmit = tab === "upload" ? isUploadValid(uploadState) : selectedId.length > 0;
-
   return (
-    <Dialog
+    <ChangeCredentialDialog
       open={open}
       onOpenChange={onOpenChange}
-      onOpenChangeComplete={(next) => {
-        if (!next) {
-          setTab("saved");
-          setSelectedId(initialSelectedId);
-          setUploadState(UPLOAD_INITIAL);
-        }
+      title="Change upload keystore"
+      description="Upload a new keystore or pick a saved one in this organization."
+      initialSelectedId={initialSelectedId}
+      isUploadValid={isUploadValid(uploadState)}
+      submitting={saveMutation.isPending}
+      onSubmit={async (context) => saveMutation.mutateAsync(context)}
+      onResetUpload={() => {
+        setUploadState(UPLOAD_INITIAL);
       }}
-    >
-      <DialogPopup className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Change upload keystore</DialogTitle>
-          <DialogDescription>
-            Upload a new keystore or pick a saved one in this organization.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogPanel>
-          <Tabs
-            value={tab}
-            onValueChange={(value) => {
-              setTab(value === "upload" ? "upload" : "saved");
-            }}
-            className="mb-4"
-          >
-            <TabsList>
-              <TabsTab value="saved">Choose saved</TabsTab>
-              <TabsTab value="upload">Upload new</TabsTab>
-            </TabsList>
-          </Tabs>
-          {tab === "saved" ? (
-            <Suspense
-              fallback={<p className="text-muted-foreground text-sm">Loading saved keystores…</p>}
-            >
-              <ChooseSavedTab
-                orgId={orgId}
-                currentId={currentKeystoreId}
-                selectedId={selectedId}
-                onSelect={setSelectedId}
-              />
-            </Suspense>
-          ) : (
-            <UploadTab state={uploadState} onChange={setUploadState} />
-          )}
-        </DialogPanel>
-        <DialogFooter>
-          <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
-          <Button
-            disabled={!canSubmit}
-            loading={saveMutation.isPending}
-            onClick={async () => {
-              await safeSubmit(saveMutation.mutateAsync(undefined));
-            }}
-          >
-            Save
-          </Button>
-        </DialogFooter>
-      </DialogPopup>
-    </Dialog>
+      renderSaved={({ selectedId, setSelectedId }) => (
+        <Suspense
+          fallback={<p className="text-muted-foreground text-sm">Loading saved keystores…</p>}
+        >
+          <ChooseSavedTab
+            orgId={orgId}
+            currentId={currentKeystoreId}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+          />
+        </Suspense>
+      )}
+      renderUpload={() => <UploadTab state={uploadState} onChange={setUploadState} />}
+    />
   );
 };

@@ -24,6 +24,7 @@ import { Suspense } from "react";
 
 import type { SubmissionItem, SubmissionStatusValue } from "@better-update/api-client/react";
 
+import { formatDateTime } from "../../../../../lib/format-date";
 import { ProjectSubpageHeader } from "./-project-subpage-header";
 
 const STATUS_VARIANT: Record<SubmissionStatusValue, "secondary" | "destructive" | "outline"> = {
@@ -89,7 +90,7 @@ const SubmissionRow = ({
         </span>
         <span className="flex items-center gap-3">
           <span className="text-muted-foreground text-xs">
-            {new Date(submission.createdAt).toLocaleString()}
+            {formatDateTime(submission.createdAt)}
           </span>
           <ChevronRightIcon strokeWidth={2} className="text-muted-foreground size-4" />
         </span>

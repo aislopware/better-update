@@ -3,7 +3,7 @@ import { Schema } from "effect";
 
 import { Forbidden } from "../auth/errors";
 import { NotFound } from "../auth/ownership";
-import { Platform } from "../domain/common";
+import { idParam, Platform } from "../domain/common";
 import { BadRequest, Conflict } from "../domain/errors";
 import {
   CancelSubmissionResult,
@@ -14,7 +14,6 @@ import {
   UpdateSubmissionStatusBody,
 } from "../domain/submission";
 
-const idParam = HttpApiSchema.param("id", Schema.String);
 const projectIdParam = HttpApiSchema.param("projectId", Schema.String);
 
 const ListParams = Schema.Struct({

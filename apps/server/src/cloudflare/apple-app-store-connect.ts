@@ -164,7 +164,12 @@ const fetchJson = (
       catch: (cause) => new AppleNetworkError({ cause }),
     });
 
-    const body: unknown = text ? JSON.parse(text) : {};
+    const body: unknown = text
+      ? yield* Effect.try({
+          try: () => JSON.parse(text) as unknown,
+          catch: (cause) => new AppleNetworkError({ cause }),
+        })
+      : {};
     if (!response.ok) {
       return yield* Effect.fail(parseErrorMessage(response, body));
     }

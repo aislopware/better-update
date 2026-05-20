@@ -1,3 +1,4 @@
+import { compact } from "@better-update/type-guards";
 import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
@@ -125,16 +126,11 @@ export const DevicesGroupLive = HttpApiBuilder.group(ManagementApi, "devices", (
             updatedAt: now,
           });
 
-          const metadata: Record<string, unknown> = {};
-          if (payload.name !== undefined) {
-            metadata["name"] = payload.name;
-          }
-          if (payload.enabled !== undefined) {
-            metadata["enabled"] = payload.enabled;
-          }
-          if (payload.appleTeamId !== undefined) {
-            metadata["appleTeamId"] = payload.appleTeamId;
-          }
+          const metadata = compact({
+            name: payload.name,
+            enabled: payload.enabled,
+            appleTeamId: payload.appleTeamId,
+          });
 
           yield* logAudit({
             action: "device.update",

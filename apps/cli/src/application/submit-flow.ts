@@ -5,7 +5,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 
 import { fromBase64 } from "@better-update/encoding";
-import { compact } from "@better-update/type-guards";
+import { compact, toDbNull } from "@better-update/type-guards";
 import { Duration, Effect, Schema } from "effect";
 
 import type { CreateSubmissionBody, Submission, SubmissionStatus } from "@better-update/api";
@@ -18,7 +18,6 @@ import {
   updateTrack,
   uploadBundle,
 } from "../lib/google-play";
-import { toDbNull } from "../lib/nullable";
 import { printHuman } from "../lib/output";
 
 import type { EasAndroidSubmitProfile } from "../lib/eas-submit-config";

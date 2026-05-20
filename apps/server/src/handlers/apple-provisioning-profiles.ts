@@ -7,7 +7,6 @@ import { logAudit } from "../audit/logger";
 import { CurrentActor } from "../auth/current-actor";
 import { assertOrgOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
-import { cloudflareEnv } from "../cloudflare/context";
 import { CredentialArtifacts } from "../cloudflare/credential-artifacts";
 import { parseProvisioningProfile } from "../domain/apple-provisioning-profile-parser";
 import { BadRequest } from "../errors";
@@ -18,7 +17,7 @@ import {
   toApiWriteEffect,
 } from "../http/to-api-effect";
 import { toDbNull } from "../lib/nullable";
-import { r2Operation, withR2Compensation } from "../lib/r2-helpers";
+import { withR2Compensation } from "../lib/r2-helpers";
 import { AppleProvisioningProfileRepo } from "../repositories/apple-provisioning-profiles";
 import { AppleTeamRepo } from "../repositories/apple-teams";
 
@@ -59,7 +58,7 @@ export const AppleProvisioningProfilesGroupLive = HttpApiBuilder.group(
           Effect.gen(function* () {
             yield* assertPermission("appleCredential", "create");
             const ctx = yield* CurrentActor;
-            const env = yield* cloudflareEnv;
+            const artifacts = yield* CredentialArtifacts;
             const teams = yield* AppleTeamRepo;
             const repo = yield* AppleProvisioningProfileRepo;
 
@@ -75,11 +74,10 @@ export const AppleProvisioningProfilesGroupLive = HttpApiBuilder.group(
 
             const id = crypto.randomUUID();
             const r2Key = `apple-provisioning-profiles/${ctx.organizationId}/${id}.mobileprovision`;
-            yield* r2Operation(async () => env.CREDENTIAL_ARTIFACTS.put(r2Key, bytes));
+            yield* artifacts.put(r2Key, bytes);
 
             const { model: profile, previousR2Key } = yield* withR2Compensation(
-              env.CREDENTIAL_ARTIFACTS,
-              r2Key,
+              artifacts.delete(r2Key),
               repo.upsert({
                 id,
                 organizationId: ctx.organizationId,
@@ -97,7 +95,7 @@ export const AppleProvisioningProfilesGroupLive = HttpApiBuilder.group(
             );
 
             if (previousR2Key !== null) {
-              yield* r2Operation(async () => env.CREDENTIAL_ARTIFACTS.delete(previousR2Key));
+              yield* artifacts.delete(previousR2Key);
             }
 
             yield* logAudit({
@@ -120,13 +118,13 @@ export const AppleProvisioningProfilesGroupLive = HttpApiBuilder.group(
         toApiCrudEffect(
           Effect.gen(function* () {
             yield* assertPermission("appleCredential", "delete");
-            const env = yield* cloudflareEnv;
+            const artifacts = yield* CredentialArtifacts;
             const repo = yield* AppleProvisioningProfileRepo;
             const existing = yield* repo.findById({ id: path.id });
             yield* assertOrgOwnership(existing.organizationId);
             const { r2Key } = yield* repo.delete({ id: path.id });
             if (r2Key !== null) {
-              yield* Effect.promise(async () => env.CREDENTIAL_ARTIFACTS.delete(r2Key));
+              yield* artifacts.delete(r2Key);
             }
             yield* logAudit({
               action: "apple.provisioning-profile.delete",

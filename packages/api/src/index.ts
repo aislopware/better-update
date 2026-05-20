@@ -33,11 +33,21 @@ export {
   ListProjectsParams,
   Project,
   ProjectSort,
+  ProjectSortColumn,
   UpdateProjectBody,
 } from "./domain/project";
-export { Branch, CreateBranchBody, DeleteBranchResult, UpdateBranchBody } from "./domain/branch";
+export {
+  Branch,
+  BranchSort,
+  BranchSortColumn,
+  CreateBranchBody,
+  DeleteBranchResult,
+  UpdateBranchBody,
+} from "./domain/branch";
 export {
   Channel,
+  ChannelSort,
+  ChannelSortColumn,
   CreateBranchRolloutBody,
   CreateChannelBody,
   DeleteChannelResult,
@@ -51,6 +61,8 @@ export {
   RepublishResult,
   Update,
   UpdateAssetEntry,
+  UpdateSort,
+  UpdateSortColumn,
 } from "./domain/update";
 export { Asset, AssetUploadBody, AssetUploadResult } from "./domain/asset";
 export {
@@ -74,6 +86,8 @@ export {
   DeviceClass,
   DeviceIdentifier,
   DeviceRegistrationRequest,
+  DeviceSort,
+  DeviceSortColumn,
   ListDevicesParams,
   ListRegistrationRequestsParams,
   RegisterDeviceBody,
@@ -181,6 +195,8 @@ export {
   Build,
   BuildArtifact,
   BuildAudience,
+  BuildSort,
+  BuildSortColumn,
   BuildWithArtifact,
   CompleteBuildBody,
   CreateBuildBody,

@@ -1,6 +1,14 @@
 import { Schema } from "effect";
 
-import { DateTimeString, Id, PaginationParams, Platform, UploadHeaders } from "./common";
+import {
+  DateTimeString,
+  DeletedResult,
+  Id,
+  PaginationParams,
+  Platform,
+  sortParam,
+  UploadHeaders,
+} from "./common";
 
 export const Distribution = Schema.Literal(
   "app-store",
@@ -123,14 +131,7 @@ export const BuildSortColumn = Schema.Literal(
   "appVersion",
 );
 
-/**
- * Sort param: column name optionally prefixed with `-` for descending.
- * Example: `runtimeVersion` (asc), `-createdAt` (desc).
- */
-export const BuildSort = Schema.Union(
-  BuildSortColumn,
-  Schema.TemplateLiteral("-", BuildSortColumn),
-);
+export const BuildSort = sortParam(BuildSortColumn);
 
 export const ListBuildsParams = Schema.Struct({
   projectId: Id,
@@ -156,9 +157,7 @@ export const ReserveBuildResult = Schema.Struct({
   uploadHeaders: UploadHeaders,
 });
 
-export const DeleteBuildResult = Schema.Struct({
-  deleted: Schema.Number,
-});
+export const DeleteBuildResult = DeletedResult;
 
 export const InstallLinkResult = Schema.Struct({
   token: Schema.String,

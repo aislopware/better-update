@@ -1,7 +1,7 @@
 import { Schema } from "effect";
 
 import { BundleIdentifier, DistributionType } from "./apple-provisioning-profile";
-import { DateTimeString, Id } from "./common";
+import { DateTimeString, DeletedResult, Id } from "./common";
 
 const TargetName = Schema.String.pipe(Schema.minLength(1), Schema.maxLength(200));
 
@@ -45,4 +45,4 @@ export const UpdateIosBundleConfigurationBody = Schema.Struct({
   parentBundleIdentifier: Schema.optional(Schema.NullOr(BundleIdentifier)),
 });
 
-export const DeleteIosBundleConfigurationResult = Schema.Struct({ deleted: Schema.Number });
+export const DeleteIosBundleConfigurationResult = DeletedResult;

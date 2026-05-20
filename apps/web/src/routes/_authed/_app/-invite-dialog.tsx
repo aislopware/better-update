@@ -23,6 +23,7 @@ import { z } from "zod/v4";
 import { authClient, rejectOnAuthClientError } from "../../../lib/auth-client";
 import { getFieldError } from "../../../lib/form-utils";
 import { safeSubmit, useApiMutation } from "../../../lib/use-api-mutation";
+import { invitationsQueryOptions } from "../../../queries/org";
 
 const emailSchema = z.string().check(z.email("Please enter a valid email"));
 
@@ -42,7 +43,7 @@ const InviteFormContent = ({ orgId, onSuccess }: { orgId: string; onSuccess: () 
     onSuccess: async () => {
       toastManager.add({ title: "Invitation sent", type: "success" });
       await queryClient.invalidateQueries({
-        queryKey: ["org", orgId, "invitations"],
+        queryKey: invitationsQueryOptions(orgId).queryKey,
       });
       onSuccess();
     },

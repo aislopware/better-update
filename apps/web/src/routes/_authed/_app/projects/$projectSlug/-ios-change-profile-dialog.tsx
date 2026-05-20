@@ -6,17 +6,6 @@ import {
   uploadAppleProvisioningProfile,
 } from "@better-update/api-client/react";
 import { compact } from "@better-update/type-guards";
-import { Button } from "@better-update/ui/components/ui/button";
-import {
-  Dialog,
-  DialogClose,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogPanel,
-  DialogPopup,
-  DialogTitle,
-} from "@better-update/ui/components/ui/dialog";
 import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@better-update/ui/components/ui/radio-group";
@@ -27,7 +16,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
-import { Tabs, TabsList, TabsTab } from "@better-update/ui/components/ui/tabs";
 import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { Suspense, useState } from "react";
@@ -39,7 +27,10 @@ import type {
 
 import { safeReadFileAsBase64 } from "../../-credentials-utils";
 import { formatDate } from "../../../../../lib/format-date";
-import { safeSubmit, useApiMutation } from "../../../../../lib/use-api-mutation";
+import { useApiMutation } from "../../../../../lib/use-api-mutation";
+import { ChangeCredentialDialog } from "./-change-credential-dialog";
+
+import type { ChangeCredentialTab } from "./-change-credential-dialog";
 
 interface ChooseSavedTabProps {
   readonly orgId: string;
@@ -213,8 +204,6 @@ interface IosChangeProfileDialogProps {
   readonly currentProfile: AppleProvisioningProfileItem | null;
 }
 
-type TabValue = "saved" | "upload";
-
 export const IosChangeProfileDialog = ({
   open,
   onOpenChange,
@@ -229,8 +218,6 @@ export const IosChangeProfileDialog = ({
   const queryClient = useQueryClient();
   const initialSelectedId = currentProfile === null ? "" : currentProfile.id;
   const currentProfileId: string | null = currentProfile === null ? null : currentProfile.id;
-  const [tab, setTab] = useState<TabValue>("saved");
-  const [selectedId, setSelectedId] = useState<string>(initialSelectedId);
   const [uploadState, setUploadState] = useState<UploadFormState>(UPLOAD_INITIAL);
 
   const invalidate = async () => {
@@ -244,7 +231,10 @@ export const IosChangeProfileDialog = ({
     ]);
   };
 
-  const resolveProfileId = async (): Promise<string> => {
+  const resolveProfileId = async (
+    tab: ChangeCredentialTab,
+    selectedId: string,
+  ): Promise<string> => {
     if (tab !== "upload") {
       return selectedId;
     }
@@ -259,8 +249,8 @@ export const IosChangeProfileDialog = ({
   };
 
   const saveMutation = useApiMutation({
-    mutationFn: async () => {
-      const profileId = await resolveProfileId();
+    mutationFn: async ({ tab, selectedId }: { tab: ChangeCredentialTab; selectedId: string }) => {
+      const profileId = await resolveProfileId(tab, selectedId);
       await updateIosBundleConfiguration(bundleConfigId, {
         appleProvisioningProfileId: profileId,
       });
@@ -272,81 +262,44 @@ export const IosChangeProfileDialog = ({
     },
   });
 
-  const canSubmit = tab === "upload" ? isUploadValid(uploadState) : selectedId.length > 0;
-
   return (
-    <Dialog
+    <ChangeCredentialDialog
       open={open}
       onOpenChange={onOpenChange}
-      onOpenChangeComplete={(next) => {
-        if (!next) {
-          setTab("saved");
-          setSelectedId(initialSelectedId);
-          setUploadState(UPLOAD_INITIAL);
-        }
+      title="Change provisioning profile"
+      description="Upload a new .mobileprovision file or pick a saved profile matching this bundle identifier and distribution type."
+      initialSelectedId={initialSelectedId}
+      isUploadValid={isUploadValid(uploadState)}
+      submitting={saveMutation.isPending}
+      onSubmit={async (context) => saveMutation.mutateAsync(context)}
+      onResetUpload={() => {
+        setUploadState(UPLOAD_INITIAL);
       }}
-    >
-      <DialogPopup className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Change provisioning profile</DialogTitle>
-          <DialogDescription>
-            Upload a new .mobileprovision file or pick a saved profile matching this bundle
-            identifier and distribution type.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogPanel>
-          <Tabs
-            value={tab}
-            onValueChange={(value) => {
-              setTab(value === "upload" ? "upload" : "saved");
-            }}
-            className="mb-4"
-          >
-            <TabsList>
-              <TabsTab value="saved">Choose saved</TabsTab>
-              <TabsTab value="upload">Upload new</TabsTab>
-            </TabsList>
-          </Tabs>
-          {tab === "saved" ? (
-            <Suspense
-              fallback={<p className="text-muted-foreground text-sm">Loading saved profiles…</p>}
-            >
-              <ChooseSavedTab
-                orgId={orgId}
-                bundleIdentifier={bundleIdentifier}
-                distributionType={distributionType}
-                appleTeamId={appleTeamId}
-                currentId={currentProfileId}
-                selectedId={selectedId}
-                onSelect={setSelectedId}
-              />
-            </Suspense>
-          ) : (
-            <Suspense
-              fallback={<p className="text-muted-foreground text-sm">Loading certificates…</p>}
-            >
-              <UploadTab
-                orgId={orgId}
-                appleTeamId={appleTeamId}
-                state={uploadState}
-                onChange={setUploadState}
-              />
-            </Suspense>
-          )}
-        </DialogPanel>
-        <DialogFooter>
-          <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
-          <Button
-            disabled={!canSubmit}
-            loading={saveMutation.isPending}
-            onClick={async () => {
-              await safeSubmit(saveMutation.mutateAsync(undefined));
-            }}
-          >
-            Save
-          </Button>
-        </DialogFooter>
-      </DialogPopup>
-    </Dialog>
+      renderSaved={({ selectedId, setSelectedId }) => (
+        <Suspense
+          fallback={<p className="text-muted-foreground text-sm">Loading saved profiles…</p>}
+        >
+          <ChooseSavedTab
+            orgId={orgId}
+            bundleIdentifier={bundleIdentifier}
+            distributionType={distributionType}
+            appleTeamId={appleTeamId}
+            currentId={currentProfileId}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+          />
+        </Suspense>
+      )}
+      renderUpload={() => (
+        <Suspense fallback={<p className="text-muted-foreground text-sm">Loading certificates…</p>}>
+          <UploadTab
+            orgId={orgId}
+            appleTeamId={appleTeamId}
+            state={uploadState}
+            onChange={setUploadState}
+          />
+        </Suspense>
+      )}
+    />
   );
 };

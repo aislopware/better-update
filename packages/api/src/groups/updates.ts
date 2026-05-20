@@ -3,7 +3,7 @@ import { Schema } from "effect";
 
 import { Forbidden } from "../auth/errors";
 import { NotFound } from "../auth/ownership";
-import { UpdateRolloutBody } from "../domain/common";
+import { idParam, pageResult, UpdateRolloutBody } from "../domain/common";
 import { BadRequest, Conflict } from "../domain/errors";
 import {
   CreateUpdateBody,
@@ -15,7 +15,6 @@ import {
   UpdateAssetEntry,
 } from "../domain/update";
 
-const idParam = HttpApiSchema.param("id", Schema.String);
 const groupIdParam = HttpApiSchema.param("groupId", Schema.String);
 
 export class UpdatesGroup extends HttpApiGroup.make("updates")
@@ -34,14 +33,7 @@ export class UpdatesGroup extends HttpApiGroup.make("updates")
   .add(
     HttpApiEndpoint.get("list", "/api/updates")
       .setUrlParams(ListUpdatesParams)
-      .addSuccess(
-        Schema.Struct({
-          items: Schema.Array(Update),
-          total: Schema.Number,
-          page: Schema.Number,
-          limit: Schema.Number,
-        }),
-      )
+      .addSuccess(pageResult(Update))
       .annotateContext(
         OpenApi.annotations({
           title: "List updates",

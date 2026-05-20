@@ -50,6 +50,8 @@ const loadOrgs = async () => {
 };
 /* eslint-enable functional/no-try-statements, functional/no-promise-reject, functional/no-throw-statements */
 
+export const authKeyPrefix = ["auth"] as const;
+
 export const sessionQueryOptions = queryOptions({
   queryKey: ["auth", "session"],
   queryFn: loadSession,
