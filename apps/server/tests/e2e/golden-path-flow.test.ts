@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
 
-import { setupE2EWorker } from "../helpers/e2e-worker-pool";
+import { seedAssetObject, setupE2EWorker } from "../helpers/e2e-worker-pool";
 
-const { del, get, parseCookies, post, postNoBody, putAbsolute } = setupE2EWorker(
+const { del, get, parseCookies, post, postNoBody } = setupE2EWorker(
   ".wrangler/state/e2e-golden-path",
 );
 
@@ -49,41 +49,28 @@ const parseMultipart = (contentType: string, rawBody: string): readonly Multipar
     });
 };
 
-interface UploadSlot {
-  readonly uploadUrl: string;
-  readonly uploadHeaders: Record<string, string>;
-}
-
-const uploadAndFinalizeAsset = async (params: {
+const seedAndFinalizeAsset = async (params: {
   readonly projectId: string;
   readonly cookies: string;
   readonly content: string;
 }): Promise<{ hash: string }> => {
   const hash = createHash("sha256").update(params.content).digest("base64url");
+  const contentType = "application/javascript";
 
   const registerResponse = await post(
     "/api/assets/upload",
     {
       projectId: params.projectId,
-      assets: [{ hash, contentType: "application/javascript", fileExt: "js" }],
+      assets: [{ hash, contentType, fileExt: "js" }],
     },
     { cookie: params.cookies },
   );
   expect(registerResponse.status).toBe(201);
-  const registerBody = await registerResponse.json();
-  const slot = registerBody.uploaded.find((asset: { hash: string }) => asset.hash === hash) as
-    | UploadSlot
-    | undefined;
-  if (!slot) {
-    throw new Error(`Upload slot for hash ${hash} not returned`);
-  }
 
-  const bytes = new TextEncoder().encode(params.content);
-  const uploadResponse = await putAbsolute(slot.uploadUrl, bytes, {
-    "content-length": bytes.byteLength.toString(),
-    ...slot.uploadHeaders,
-  });
-  expect(uploadResponse.status).toBe(200);
+  // Seed bytes straight into local R2 instead of a presigned PUT; finalize then
+  // reads the checksum/size back from the binding. The real presigned-PUT path
+  // is covered on e2e-pool-r2 in direct-upload-flow.test.ts.
+  await seedAssetObject({ hash, content: params.content, contentType });
 
   const finalizeResponse = await postNoBody(`/api/assets/${hash}/finalize`, {
     cookie: params.cookies,
@@ -205,7 +192,7 @@ describe("Golden path cross-flow", () => {
   // ── Section 3: Staging publish (v1) ────────────────────────────
 
   it("uploads v1 asset end-to-end", async () => {
-    const { hash } = await uploadAndFinalizeAsset({
+    const { hash } = await seedAndFinalizeAsset({
       projectId,
       cookies,
       content: "console.log('golden v1 bundle');",
@@ -314,7 +301,7 @@ describe("Golden path cross-flow", () => {
   // ── Section 5: Rollout lifecycle on production ────────────────
 
   it("uploads v2 asset end-to-end", async () => {
-    const { hash } = await uploadAndFinalizeAsset({
+    const { hash } = await seedAndFinalizeAsset({
       projectId,
       cookies,
       content: "console.log('golden v2 bundle');",
@@ -374,7 +361,7 @@ describe("Golden path cross-flow", () => {
   });
 
   it("uploads v3 asset end-to-end", async () => {
-    const { hash } = await uploadAndFinalizeAsset({
+    const { hash } = await seedAndFinalizeAsset({
       projectId,
       cookies,
       content: "console.log('golden v3 bundle');",

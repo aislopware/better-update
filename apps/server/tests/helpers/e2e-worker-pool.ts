@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { createExecutionContext, env, waitOnExecutionContext } from "cloudflare:test";
 
 import worker from "../../src";
@@ -14,8 +16,9 @@ import worker from "../../src";
  * only the import. `persistDir` is accepted and ignored for that source
  * compatibility. `putAbsolute` targets an external presigned R2 URL, so it uses
  * the runtime's outbound `fetch` (workerd allows subrequests) rather than routing
- * through the worker — used by the R2-upload files on the `e2e-pool-r2` project
- * (R2 binding `remote: true` → real `*-e2e` bucket); unused by pure-API files.
+ * through the worker — used only by `direct-upload-flow.test.ts` on the
+ * `e2e-pool-r2` project (R2 binding `remote: true` → real `*-e2e` bucket). Local
+ * flows on `e2e-pool` use `seedAssetObject` instead.
  *
  * `BASE` matches the project's `BETTER_AUTH_URL` so better-auth emits host-only
  * cookies the tests can thread back via the `cookie` header, and so the default
@@ -75,4 +78,29 @@ export function setupE2EWorker(_persistDir?: string) {
     putAbsolute: (url: string, body: BodyInit, headers?: Record<string, string>) =>
       fetch(url, { method: "PUT", ...(headers ? { headers } : {}), body }),
   };
+}
+
+/**
+ * Local-R2 substitute for the presigned PUT path. Writes asset bytes straight
+ * into the `ASSETS_BUCKET` miniflare binding with the same `sha256` checksum +
+ * `contentType` that a real direct upload would land — exactly what
+ * `handleFinalize` reads back via `headObject` (`checksums.sha256`, `size`,
+ * `httpMetadata.contentType`). This lets the publish/manifest flows run fully
+ * local on `e2e-pool`; the genuine presigned-PUT + R2 checksum-enforcement path
+ * stays on `e2e-pool-r2` (real R2) in `direct-upload-flow.test.ts`.
+ *
+ * `hash` is the asset's base64url SHA-256 (its id); the R2 key mirrors
+ * `assetR2Key` in `src/handlers/assets.ts` (`assets/<hash>`).
+ */
+export async function seedAssetObject(params: {
+  readonly hash: string;
+  readonly content: string | Uint8Array;
+  readonly contentType: string;
+}): Promise<void> {
+  const bytes =
+    typeof params.content === "string" ? new TextEncoder().encode(params.content) : params.content;
+  await env.ASSETS_BUCKET.put(`assets/${params.hash}`, bytes, {
+    sha256: createHash("sha256").update(bytes).digest("hex"),
+    httpMetadata: { contentType: params.contentType },
+  });
 }
