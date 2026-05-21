@@ -162,22 +162,23 @@ const SecureDivider = () => (
   <div className="flex items-center gap-3">
     <span className="border-border/60 flex-1 border-t" />
     <span className="text-muted-foreground text-[0.7rem] tracking-wider uppercase">
-      Secure by default
+      Fast and secure by default
     </span>
     <span className="border-border/60 flex-1 border-t" />
   </div>
 );
 
 const TRUST_POINTS = [
-  "Signed tokens, short-lived sessions.",
-  "SOC 2 controls, audit log on every change.",
+  "Highly available on Cloudflare's global edge.",
+  "Backed by one of the world's largest CDN networks.",
+  "Private by design — your source and the keys to your secrets never leave your device.",
 ] as const;
 
 const TrustPoints = () => (
   <ul className="text-muted-foreground flex flex-col gap-2 text-xs leading-relaxed">
     {TRUST_POINTS.map((text) => (
-      <li key={text} className="flex items-center gap-2">
-        <CheckIcon className="text-primary size-3.5" />
+      <li key={text} className="flex items-start gap-2">
+        <CheckIcon className="text-primary mt-0.5 size-3.5 shrink-0" />
         {text}
       </li>
     ))}

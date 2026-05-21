@@ -9,6 +9,8 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TermsRouteImport } from './routes/terms'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AcceptInvitationRouteImport } from './routes/accept-invitation'
 import { Route as AuthedRouteImport } from './routes/_authed'
@@ -55,6 +57,16 @@ import { Route as AuthedAppProjectsProjectSlugBuildsBuildIdRouteImport } from '.
 import { Route as AuthedAppProjectsProjectSlugCredentialsIosBundleIdentifierRouteImport } from './routes/_authed/_app/projects/$projectSlug/credentials.ios.$bundleIdentifier'
 import { Route as AuthedAppProjectsProjectSlugCredentialsAndroidPackageNameRouteImport } from './routes/_authed/_app/projects/$projectSlug/credentials.android.$packageName'
 
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -310,6 +322,8 @@ export interface FileRoutesByFullPath {
   '/': typeof AuthedAppIndexRoute
   '/accept-invitation': typeof AcceptInvitationRoute
   '/auth': typeof AuthRouteWithChildren
+  '/privacy': typeof PrivacyRoute
+  '/terms': typeof TermsRoute
   '/onboarding': typeof AuthedOnboardingRoute
   '/auth/cli-login': typeof AuthCliLoginRoute
   '/auth/login': typeof AuthLoginRoute
@@ -355,6 +369,8 @@ export interface FileRoutesByTo {
   '/': typeof AuthedAppIndexRoute
   '/accept-invitation': typeof AcceptInvitationRoute
   '/auth': typeof AuthRouteWithChildren
+  '/privacy': typeof PrivacyRoute
+  '/terms': typeof TermsRoute
   '/onboarding': typeof AuthedOnboardingRoute
   '/auth/cli-login': typeof AuthCliLoginRoute
   '/auth/login': typeof AuthLoginRoute
@@ -398,6 +414,8 @@ export interface FileRoutesById {
   '/_authed': typeof AuthedRouteWithChildren
   '/accept-invitation': typeof AcceptInvitationRoute
   '/auth': typeof AuthRouteWithChildren
+  '/privacy': typeof PrivacyRoute
+  '/terms': typeof TermsRoute
   '/_authed/_app': typeof AuthedAppRouteWithChildren
   '/_authed/onboarding': typeof AuthedOnboardingRoute
   '/auth/cli-login': typeof AuthCliLoginRoute
@@ -447,6 +465,8 @@ export interface FileRouteTypes {
     | '/'
     | '/accept-invitation'
     | '/auth'
+    | '/privacy'
+    | '/terms'
     | '/onboarding'
     | '/auth/cli-login'
     | '/auth/login'
@@ -492,6 +512,8 @@ export interface FileRouteTypes {
     | '/'
     | '/accept-invitation'
     | '/auth'
+    | '/privacy'
+    | '/terms'
     | '/onboarding'
     | '/auth/cli-login'
     | '/auth/login'
@@ -534,6 +556,8 @@ export interface FileRouteTypes {
     | '/_authed'
     | '/accept-invitation'
     | '/auth'
+    | '/privacy'
+    | '/terms'
     | '/_authed/_app'
     | '/_authed/onboarding'
     | '/auth/cli-login'
@@ -582,10 +606,26 @@ export interface RootRouteChildren {
   AuthedRoute: typeof AuthedRouteWithChildren
   AcceptInvitationRoute: typeof AcceptInvitationRoute
   AuthRoute: typeof AuthRouteWithChildren
+  PrivacyRoute: typeof PrivacyRoute
+  TermsRoute: typeof TermsRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -1074,6 +1114,8 @@ const rootRouteChildren: RootRouteChildren = {
   AuthedRoute: AuthedRouteWithChildren,
   AcceptInvitationRoute: AcceptInvitationRoute,
   AuthRoute: AuthRouteWithChildren,
+  PrivacyRoute: PrivacyRoute,
+  TermsRoute: TermsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
