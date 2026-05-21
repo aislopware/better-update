@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.20.2](https://github.com/better-update/better-update/compare/@better-update/web@0.20.1...@better-update/web@0.20.2) (2026-05-21)
+
+### Bug Fixes
+
+* **web:** recover from transient router undefined throws on redirect ([bc3329a](https://github.com/better-update/better-update/commit/bc3329a96b9071094a08a0018d5106cd6574b20c)) - by @trancong12102
+
 ## [0.20.1](https://github.com/better-update/better-update/compare/@better-update/web@0.20.0...@better-update/web@0.20.1) (2026-05-21)
 
 ### Performance Improvements
