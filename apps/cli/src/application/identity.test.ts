@@ -107,17 +107,22 @@ describe("creating a local identity", () => {
     }),
   );
 
-  it.effect("generates and persists a sealed identity when none exists", () =>
-    Effect.gen(function* () {
-      const store = identityStoreStub(null);
-      const identity = yield* createLocalIdentity("correct horse battery staple").pipe(
-        Effect.provide(store.layer),
-      );
-      expect(identity.publicKey.startsWith("age1")).toBe(true);
-      const saved = store.saved();
-      expect(saved).toHaveLength(1);
-      expect(saved[0]?.version).toBe(1);
-      expect(saved[0]?.publicKey).toBe(identity.publicKey);
-    }),
+  // `sealIdentity` runs argon2id (64 MiB, t=3) — a deliberately memory-hard KDF
+  // that can exceed vitest's 5s default on contended CI runners, so widen it.
+  it.effect(
+    "generates and persists a sealed identity when none exists",
+    () =>
+      Effect.gen(function* () {
+        const store = identityStoreStub(null);
+        const identity = yield* createLocalIdentity("correct horse battery staple").pipe(
+          Effect.provide(store.layer),
+        );
+        expect(identity.publicKey.startsWith("age1")).toBe(true);
+        const saved = store.saved();
+        expect(saved).toHaveLength(1);
+        expect(saved[0]?.version).toBe(1);
+        expect(saved[0]?.publicKey).toBe(identity.publicKey);
+      }),
+    20_000,
   );
 });

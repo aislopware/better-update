@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 
 import { setupE2EWorker } from "../helpers/e2e-worker-pool";
 
-const { del, get, parseCookies, post, putAbsolute } = setupE2EWorker(".wrangler/state/e2e-builds");
+const { del, get, parseCookies, post } = setupE2EWorker(".wrangler/state/e2e-builds");
 
 // -- Tests -----------------------------------------------------------------
 
@@ -11,16 +11,10 @@ describe("Builds API flow", () => {
   let organizationId: string;
   let projectId: string;
   let buildId: string;
-  let uploadUrl: string;
-  let uploadHeaders: Record<string, string>;
-  let uploadExpiresAt: string;
   let mismatchBuildId: string;
-  let mismatchUploadUrl: string;
-  let mismatchUploadHeaders: Record<string, string>;
 
   const artifactBytes = Buffer.from("e2e build artifact");
   const artifactSha256 = createHash("sha256").update(artifactBytes).digest("hex");
-  const mismatchedArtifactBytes = Buffer.from("e2e mismatched build artifact");
 
   // -- Auth bootstrap -------------------------------------------------------
 
@@ -91,9 +85,6 @@ describe("Builds API flow", () => {
     expect(response.status).toBe(201);
     const body = await response.json();
     buildId = body.id;
-    uploadUrl = body.uploadUrl;
-    uploadHeaders = body.uploadHeaders as Record<string, string>;
-    uploadExpiresAt = body.uploadExpiresAt;
     expect(buildId).toBeDefined();
     expect(body.uploadMode).toBe("single");
     expect(body.uploadUrl).toBeDefined();
@@ -122,15 +113,10 @@ describe("Builds API flow", () => {
     expect(response.status).toBe(400);
   });
 
-  it("uploads the artifact to the reserved URL", async () => {
-    const response = await putAbsolute(uploadUrl, artifactBytes, {
-      "content-length": String(artifactBytes.byteLength),
-      ...uploadHeaders,
-    });
-    expect(response.status).toBe(200);
-  });
-
-  it("completes the build after upload", async () => {
+  // The presigned PUT upload itself runs on e2e-pool-r2 (direct-upload-flow.test.ts).
+  // `complete` trusts R2's upload-time checksum enforcement and does not re-head the
+  // object, so the reservation in KV is all this local flow needs.
+  it("completes the reserved build", async () => {
     const response = await post(
       `/api/builds/${buildId}/complete`,
       {
@@ -157,7 +143,7 @@ describe("Builds API flow", () => {
     );
   });
 
-  it("reserves another build for integrity validation", async () => {
+  it("reserves another build for the completion-mismatch check", async () => {
     const response = await post(
       "/api/builds",
       {
@@ -175,18 +161,7 @@ describe("Builds API flow", () => {
       { cookie: cookies },
     );
     expect(response.status).toBe(201);
-    const body = await response.json();
-    mismatchBuildId = body.id as string;
-    mismatchUploadUrl = body.uploadUrl as string;
-    mismatchUploadHeaders = body.uploadHeaders as Record<string, string>;
-  });
-
-  it("rejects artifact upload when bytes do not match the signed SHA-256 checksum", async () => {
-    const response = await putAbsolute(mismatchUploadUrl, mismatchedArtifactBytes, {
-      "content-length": String(mismatchedArtifactBytes.byteLength),
-      ...mismatchUploadHeaders,
-    });
-    expect(response.status).toBe(400);
+    mismatchBuildId = (await response.json()).id as string;
   });
 
   it("rejects build completion when the completion payload does not match the reserved artifact", async () => {
@@ -249,12 +224,6 @@ describe("Builds API flow", () => {
       expect(reserve.status).toBe(201);
       const reserveBody = await reserve.json();
       extraBuildIds.push(reserveBody.id);
-
-      const upload = await putAbsolute(reserveBody.uploadUrl, artifactBytes, {
-        "content-length": String(artifactBytes.byteLength),
-        ...(reserveBody.uploadHeaders as Record<string, string>),
-      });
-      expect(upload.status).toBe(200);
 
       const complete = await post(
         `/api/builds/${reserveBody.id}/complete`,
@@ -323,7 +292,7 @@ describe("Builds API flow", () => {
     expect(response.status).toBe(401);
   });
 
-  it("serves signed artifact download and install metadata for completed builds", async () => {
+  it("serves the signed install link, artifact redirect, and install plist", async () => {
     const linkResponse = await get(`/api/builds/${buildId}/install-link`, {
       cookie: cookies,
     });
@@ -331,17 +300,14 @@ describe("Builds API flow", () => {
     const links = await linkResponse.json();
     expect(links.artifactUrl).toContain(`/api/builds/${buildId}/artifact?token=`);
     expect(links.installUrl).toContain("itms-services://?action=download-manifest");
-    expect(uploadExpiresAt).toBeTruthy();
 
-    // The signed artifact route (/api/builds/:id/artifact?token=…) 302-redirects
-    // to a presigned R2 GET. worker.fetch doesn't auto-follow, so run the worker
-    // hop through the pool, then fetch the R2 location directly (workerd outbound).
+    // The signed artifact route 302-redirects to a presigned R2 GET. The redirect
+    // is built from the D1 r2Key + URL signing (no object read), so it holds
+    // locally; fetching the bytes off real R2 is covered on e2e-pool-r2.
     const artifact = new URL(links.artifactUrl, "http://localhost");
     const redirect = await get(`${artifact.pathname}${artifact.search}`);
     expect(redirect.status).toBe(302);
-    const artifactResponse = await fetch(redirect.headers.get("location") ?? "");
-    expect(artifactResponse.status).toBe(200);
-    expect([...new Uint8Array(await artifactResponse.arrayBuffer())]).toEqual([...artifactBytes]);
+    expect(redirect.headers.get("location")).toBeTruthy();
 
     const plistResponse = await get(
       `/api/builds/${buildId}/install?token=${String(links.token)}&expires=${String(links.expires)}`,

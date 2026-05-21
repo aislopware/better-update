@@ -30,18 +30,16 @@ const hydrateCloudflareProcessEnv = () => {
 };
 
 /**
- * E2E files that PUT bytes to a presigned R2 URL (`*.r2.cloudflarestorage.com`)
- * and depend on R2's server-side checksum enforcement. They run on the dedicated
- * `e2e-pool-r2` project, whose R2 binding is `remote: true` → the real `*-e2e`
- * bucket. Everything else runs on `e2e-pool` with local D1/R2 (no remote, no
- * Cloudflare auth). Excluded from `e2e-pool` so they aren't run against local R2.
+ * The single E2E file that PUTs bytes to a presigned R2 URL
+ * (`*.r2.cloudflarestorage.com`) and depends on R2's server-side checksum
+ * enforcement — the one contract miniflare cannot simulate. It runs on the
+ * dedicated `e2e-pool-r2` project, whose R2 binding is `remote: true` → the real
+ * `*-e2e` bucket. Every other e2e flow seeds local R2 directly via
+ * `seedAssetObject` (assets) or relies on `complete` not re-heading R2 (builds),
+ * so it runs on `e2e-pool` with local D1/R2 (no remote, no Cloudflare auth).
+ * Excluded from `e2e-pool` so it isn't run against local R2.
  */
-const R2_E2E = [
-  "tests/e2e/asset-serving.test.ts",
-  "tests/e2e/builds-flow.test.ts",
-  "tests/e2e/golden-path-flow.test.ts",
-  "tests/e2e/updates-flow.test.ts",
-];
+const R2_E2E = ["tests/e2e/direct-upload-flow.test.ts"];
 
 export default defineConfig(async () => {
   hydrateCloudflareProcessEnv();
@@ -156,10 +154,10 @@ export default defineConfig(async () => {
           },
         },
         // ── R2-upload E2E (pool runtime + REAL R2 via remote binding) ──
-        // Presigned PUT hits the real `*-e2e` bucket so R2's checksum enforcement
-        // is exercised; D1/KV/DO stay local. Fast startup (no unstable_startWorker),
-        // needs E2E_* Cloudflare creds in .env.local. Run via `bun run test:e2e-r2`
-        // (one process per file — a shared remote-proxy session drops under load).
+        // The lone direct-upload file: presigned PUT hits the real `*-e2e` bucket
+        // so R2's checksum enforcement is exercised; D1/KV/DO stay local. Fast
+        // startup (no unstable_startWorker), needs E2E_* Cloudflare creds in
+        // .env.local. Run via `bun run test:e2e-r2`.
         {
           plugins: [cloudflareTest(realR2TestOptions)],
           test: {
