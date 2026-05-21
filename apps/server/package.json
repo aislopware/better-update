@@ -12,6 +12,7 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
+    "d1:migrate": "wrangler d1 migrations apply DB --local",
     "deploy": "vite build && wrangler deploy",
     "dev": "PORTLESS=1 portless server.better-update vite dev",
     "dev:local": "vite dev",

@@ -21,6 +21,9 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**"]
     },
+    "d1:migrate": {
+      "cache": false
+    },
     "dev": {
       "cache": false,
       "persistent": true

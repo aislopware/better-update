@@ -9,6 +9,7 @@
   "scripts": {
     "build": "turbo run build",
     "check": "turbo run lint:check format:check",
+    "d1:migrate": "turbo run d1:migrate",
     "dev": "turbo run dev",
     "dev:proxy": "portless proxy start",
     "dev:proxy:stop": "portless proxy stop",
