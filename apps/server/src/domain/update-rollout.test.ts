@@ -167,3 +167,41 @@ describe(resolveUpdateRollout, () => {
       }).pipe(withCrypto),
   );
 });
+
+describe("rollout bucketing distribution", () => {
+  // SHA-256 over `${updateId}:${clientId}` is deterministic, so these counts are
+  // fixed, not flaky. Property under test: a rollout percentage splits a large
+  // client population into roughly that share — uniform hashing, with no systemic
+  // bias toward the in- or out-of-rollout bucket. A broken byte extraction or
+  // comparison would skew the share far past the ±0.05 band.
+  const POPULATION = 2000;
+  const clientIds = Array.from({ length: POPULATION }, (_, index) => `eas-client-${index}`);
+
+  const inRolloutShare = (percentage: number) =>
+    Effect.gen(function* () {
+      const decisions = yield* Effect.all(
+        clientIds.map((clientId) =>
+          resolveUpdateRollout([candidate("update-dist", percentage)], clientId),
+        ),
+      );
+      const inRollout = decisions.filter((decision) => decision?.resolved === true).length;
+      return inRollout / POPULATION;
+    }).pipe(withCrypto);
+
+  it.effect("splits the population proportionally across rollout percentages", () =>
+    Effect.gen(function* () {
+      for (const percentage of [10, 25, 50, 75, 90]) {
+        const share = yield* inRolloutShare(percentage);
+        expect(share).toBeCloseTo(percentage / 100, 1);
+      }
+    }),
+  );
+
+  it.effect("assigns each client a stable bucket on repeated evaluation", () =>
+    Effect.gen(function* () {
+      const first = yield* resolveUpdateRollout([candidate("update-1", 50)], "client-a");
+      const second = yield* resolveUpdateRollout([candidate("update-1", 50)], "client-a");
+      expect(second).toStrictEqual(first);
+    }).pipe(withCrypto),
+  );
+});

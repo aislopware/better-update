@@ -421,6 +421,18 @@ describe("Channels API flow", () => {
     expect(mapping.data[0].branchMappingLogic).toBe("hash_lt(mappingId, 0.50)");
   });
 
+  it("decreases rollout percentage", async () => {
+    const response = await patch(
+      `/api/channels/${channelId}/rollout`,
+      { percentage: 25 },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    const mapping = JSON.parse(body.branchMappingJson);
+    expect(mapping.data[0].branchMappingLogic).toBe("hash_lt(mappingId, 0.25)");
+  });
+
   it("rejects update when no active rollout (404)", async () => {
     // Revert first
     const revertRes = await post(

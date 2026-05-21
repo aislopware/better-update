@@ -68,6 +68,59 @@ const getChannelCacheVersion = async (branchId: string) => {
   return row?.cacheVersion ?? null;
 };
 
+const countUpdatesOnBranch = async (branchId: string) => {
+  const row = await env.DB.prepare(
+    `SELECT COUNT(*) AS "count" FROM "updates" WHERE "branch_id" = ?`,
+  )
+    .bind(branchId)
+    .first<{ count: number }>();
+
+  return row?.count ?? 0;
+};
+
+const setupPublishBranch = async (slugPrefix: string) => {
+  const organizationId = uniqueId("org");
+  const projectId = uniqueId("project");
+  await insertOrganization(organizationId, uniqueId(slugPrefix));
+  await insertProject(projectId, organizationId, `@integration/${projectId}`);
+  const branch = await ensureBranchChannel(projectId, uniqueId("main"));
+  const launchHash = uniqueId("launch-hash");
+  await insertAsset(launchHash);
+  return { branch, launchHash };
+};
+
+const createUpdateOnBranch = (params: {
+  readonly branchId: string;
+  readonly launchHash: string;
+  readonly rolloutPercentage: number;
+  readonly groupId: string;
+}) =>
+  runUpdateCoordinator(
+    Effect.gen(function* () {
+      const coordinator = yield* UpdateCoordinator;
+      return yield* coordinator.createUpdate({
+        coordinatorName: params.branchId,
+        payload: {
+          branchId: params.branchId,
+          runtimeVersion: "1.0.0",
+          platform: "ios",
+          message: "concurrent publish",
+          metadataJson: "{}",
+          extraJson: null,
+          groupId: params.groupId,
+          rolloutPercentage: params.rolloutPercentage,
+          isRollback: false,
+          signature: null,
+          certificateChain: null,
+          manifestBody: null,
+          directiveBody: null,
+          fingerprintHash: null,
+          assets: [{ key: "bundle", hash: params.launchHash, isLaunch: true }],
+        },
+      });
+    }),
+  );
+
 describe("Cloudflare bindings integration", () => {
   describe("AssetStorage -- local R2", () => {
     it("stores, reads, and deletes asset objects via local R2 simulation", async () => {
@@ -367,6 +420,77 @@ describe("Cloudflare bindings integration", () => {
           isLaunch: 1,
         }),
       ]);
+    });
+
+    it("serializes concurrent publishes so only one wins while a rollout is active", async () => {
+      const { branch, launchHash } = await setupPublishBranch("concurrent-rollout-org");
+
+      // Four publishes at 50% race on the same branch coordinator. The semaphore
+      // serializes them; the first inserts a 50% rollout, after which every other
+      // attempt hits the active-rollout guard and is rejected.
+      const results = await Promise.all([
+        createUpdateOnBranch({
+          branchId: branch.branchId,
+          launchHash,
+          rolloutPercentage: 50,
+          groupId: uniqueId("group-a"),
+        }),
+        createUpdateOnBranch({
+          branchId: branch.branchId,
+          launchHash,
+          rolloutPercentage: 50,
+          groupId: uniqueId("group-b"),
+        }),
+        createUpdateOnBranch({
+          branchId: branch.branchId,
+          launchHash,
+          rolloutPercentage: 50,
+          groupId: uniqueId("group-c"),
+        }),
+        createUpdateOnBranch({
+          branchId: branch.branchId,
+          launchHash,
+          rolloutPercentage: 50,
+          groupId: uniqueId("group-d"),
+        }),
+      ]);
+
+      expect(results.filter((result) => result.ok)).toHaveLength(1);
+      expect(results.filter((result) => !result.ok)).toHaveLength(3);
+      expect(await countUpdatesOnBranch(branch.branchId)).toBe(1);
+    });
+
+    it("serializes concurrent 100% publishes without dropping updates or cache-version bumps", async () => {
+      const { branch, launchHash } = await setupPublishBranch("concurrent-stable-org");
+
+      // Three fully-rolled-out publishes race on the same branch. None trip the
+      // rollout guard, so all must succeed. Because the permit is released after
+      // each (no stuck lock) and cache_version is a serialized read-modify-write,
+      // all three updates land and cache_version is bumped exactly three times.
+      const results = await Promise.all([
+        createUpdateOnBranch({
+          branchId: branch.branchId,
+          launchHash,
+          rolloutPercentage: 100,
+          groupId: uniqueId("group-a"),
+        }),
+        createUpdateOnBranch({
+          branchId: branch.branchId,
+          launchHash,
+          rolloutPercentage: 100,
+          groupId: uniqueId("group-b"),
+        }),
+        createUpdateOnBranch({
+          branchId: branch.branchId,
+          launchHash,
+          rolloutPercentage: 100,
+          groupId: uniqueId("group-c"),
+        }),
+      ]);
+
+      expect(results.every((result) => result.ok)).toBe(true);
+      expect(await countUpdatesOnBranch(branch.branchId)).toBe(3);
+      expect(await getChannelCacheVersion(branch.branchId)).toBe(3);
     });
   });
 });

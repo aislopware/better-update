@@ -577,6 +577,17 @@ describe("Updates & Assets API flow", () => {
     expect(body.rolloutPercentage).toBe(50);
   });
 
+  it("decreases rollout to 25%", async () => {
+    const response = await patch(
+      `/api/updates/${updateId}/rollout`,
+      { percentage: 25 },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.rolloutPercentage).toBe(25);
+  });
+
   it("completes rollout", async () => {
     const response = await post(
       `/api/updates/${updateId}/rollout/complete`,

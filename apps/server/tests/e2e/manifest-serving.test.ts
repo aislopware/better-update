@@ -95,6 +95,52 @@ VALUES ('update-ur-reverted', 'branch-update-rollout', '7.0.0', 'ios', 'reverted
 -- Cache invalidation test data (runtime 8.0.0)
 INSERT INTO "updates" ("id", "branch_id", "runtime_version", "platform", "message", "metadata_json", "group_id", "is_rollback", "manifest_body", "created_at")
 VALUES ('update-cache-v1', 'branch-1', '8.0.0', 'ios', 'cache test v1', '{}', 'group-cache-1', 0, '{"id":"update-cache-v1","createdAt":"2024-06-01T00:00:00.000Z","runtimeVersion":"8.0.0","launchAsset":null,"assets":[],"metadata":{},"extra":{}}', '2024-06-01T00:00:00.000Z');
+
+-- Gradual rollback test data (runtime 9.0.0): stable update at 100%, then a
+-- rollback directive published at 50%. The rollback is the latest candidate, so
+-- the per-update rollout bucketing (salt = "update-grollback-rb") decides who
+-- rolls back: in-rollout clients get the directive, the rest stay on the manifest.
+INSERT INTO "branches" ("id", "project_id", "name", "created_at")
+VALUES ('branch-grollback', 'proj-1', 'grollback', '2024-08-01T00:00:00.000Z');
+
+INSERT INTO "channels" ("id", "project_id", "name", "branch_id", "is_paused", "created_at")
+VALUES ('chan-grollback', 'proj-1', 'grollback', 'branch-grollback', 0, '2024-08-01T00:00:00.000Z');
+
+INSERT INTO "updates" ("id", "branch_id", "runtime_version", "platform", "message", "metadata_json", "group_id", "rollout_percentage", "is_rollback", "manifest_body", "created_at")
+VALUES ('update-grollback-prev', 'branch-grollback', '9.0.0', 'ios', 'stable before rollback', '{}', 'group-gr-1', 100, 0, '{"id":"update-grollback-prev","createdAt":"2024-08-01T00:00:00.000Z","runtimeVersion":"9.0.0","launchAsset":null,"assets":[],"metadata":{},"extra":{}}', '2024-08-01T00:00:00.000Z');
+
+INSERT INTO "updates" ("id", "branch_id", "runtime_version", "platform", "message", "metadata_json", "group_id", "rollout_percentage", "is_rollback", "created_at")
+VALUES ('update-grollback-rb', 'branch-grollback', '9.0.0', 'ios', 'gradual rollback', '{}', 'group-gr-2', 50, 1, '2024-08-02T00:00:00.000Z');
+
+-- Fallback-to-fully-rolled-out test data (3+ update chain). resolveUpdates uses
+-- LIMIT 2, so when the two newest candidates are not servable the handler must
+-- run resolveFullyRolledOutUpdate to reach an older 100% update.
+INSERT INTO "branches" ("id", "project_id", "name", "created_at")
+VALUES ('branch-fbchain', 'proj-1', 'fbchain', '2024-09-01T00:00:00.000Z');
+
+INSERT INTO "channels" ("id", "project_id", "name", "branch_id", "is_paused", "created_at")
+VALUES ('chan-fbchain', 'proj-1', 'fbchain', 'branch-fbchain', 0, '2024-09-01T00:00:00.000Z');
+
+-- Runtime 10.0.0: the two newest are both reverted (0%), the oldest is 100%.
+INSERT INTO "updates" ("id", "branch_id", "runtime_version", "platform", "message", "metadata_json", "group_id", "rollout_percentage", "is_rollback", "manifest_body", "created_at")
+VALUES ('update-fb-c-old', 'branch-fbchain', '10.0.0', 'ios', 'oldest stable', '{}', 'group-fbc-1', 100, 0, '{"id":"update-fb-c-old","createdAt":"2024-09-01T00:00:00.000Z","runtimeVersion":"10.0.0","launchAsset":null,"assets":[],"metadata":{},"extra":{}}', '2024-09-01T00:00:00.000Z');
+
+INSERT INTO "updates" ("id", "branch_id", "runtime_version", "platform", "message", "metadata_json", "group_id", "rollout_percentage", "is_rollback", "manifest_body", "created_at")
+VALUES ('update-fb-c-mid', 'branch-fbchain', '10.0.0', 'ios', 'reverted middle', '{}', 'group-fbc-2', 0, 0, '{"id":"update-fb-c-mid","createdAt":"2024-09-02T00:00:00.000Z","runtimeVersion":"10.0.0","launchAsset":null,"assets":[],"metadata":{},"extra":{}}', '2024-09-02T00:00:00.000Z');
+
+INSERT INTO "updates" ("id", "branch_id", "runtime_version", "platform", "message", "metadata_json", "group_id", "rollout_percentage", "is_rollback", "manifest_body", "created_at")
+VALUES ('update-fb-c-latest', 'branch-fbchain', '10.0.0', 'ios', 'reverted latest', '{}', 'group-fbc-3', 0, 0, '{"id":"update-fb-c-latest","createdAt":"2024-09-03T00:00:00.000Z","runtimeVersion":"10.0.0","launchAsset":null,"assets":[],"metadata":{},"extra":{}}', '2024-09-03T00:00:00.000Z');
+
+-- Runtime 11.0.0: newest is a 50% rollout, middle reverted (0%), oldest 100%.
+-- Salt = "update-fb-d-latest": "client-a" ~0.79 (out) skips to oldest, "client-b" ~0.14 (in) keeps latest.
+INSERT INTO "updates" ("id", "branch_id", "runtime_version", "platform", "message", "metadata_json", "group_id", "rollout_percentage", "is_rollback", "manifest_body", "created_at")
+VALUES ('update-fb-d-old', 'branch-fbchain', '11.0.0', 'ios', 'oldest stable', '{}', 'group-fbd-1', 100, 0, '{"id":"update-fb-d-old","createdAt":"2024-09-04T00:00:00.000Z","runtimeVersion":"11.0.0","launchAsset":null,"assets":[],"metadata":{},"extra":{}}', '2024-09-04T00:00:00.000Z');
+
+INSERT INTO "updates" ("id", "branch_id", "runtime_version", "platform", "message", "metadata_json", "group_id", "rollout_percentage", "is_rollback", "manifest_body", "created_at")
+VALUES ('update-fb-d-mid', 'branch-fbchain', '11.0.0', 'ios', 'reverted middle', '{}', 'group-fbd-2', 0, 0, '{"id":"update-fb-d-mid","createdAt":"2024-09-05T00:00:00.000Z","runtimeVersion":"11.0.0","launchAsset":null,"assets":[],"metadata":{},"extra":{}}', '2024-09-05T00:00:00.000Z');
+
+INSERT INTO "updates" ("id", "branch_id", "runtime_version", "platform", "message", "metadata_json", "group_id", "rollout_percentage", "is_rollback", "manifest_body", "created_at")
+VALUES ('update-fb-d-latest', 'branch-fbchain', '11.0.0', 'ios', 'canary', '{}', 'group-fbd-3', 50, 0, '{"id":"update-fb-d-latest","createdAt":"2024-09-06T00:00:00.000Z","runtimeVersion":"11.0.0","launchAsset":null,"assets":[],"metadata":{},"extra":{}}', '2024-09-06T00:00:00.000Z');
 `;
 
 beforeAll(async () => {
@@ -151,6 +197,19 @@ const expectManifestId = async (response: Response, expectedId: string) => {
   expect(manifestPart).toBeDefined();
   const manifest = JSON.parse(manifestPart!.body);
   expect(manifest.id).toBe(expectedId);
+};
+
+const expectRollbackDirective = async (response: Response, expectedCommitTime: string) => {
+  const contentType = response.headers.get("content-type")!;
+  const body = await response.text();
+  const parts = parseMultipart(contentType, body);
+  const directivePart = parts.find((part) =>
+    part.headers["content-disposition"]?.includes('name="directive"'),
+  );
+  expect(directivePart).toBeDefined();
+  const directive = JSON.parse(directivePart!.body);
+  expect(directive.type).toBe("rollBackToEmbedded");
+  expect(directive.parameters.commitTime).toBe(expectedCommitTime);
 };
 
 // ── Manifest serving protocol tests ─────────────────────────────
@@ -604,5 +663,78 @@ describe("Per-update rollout manifest resolution", () => {
     );
     expect(response.status).toBe(200);
     await expectManifestId(response, "update-ur-reverted-prev");
+  });
+});
+
+// ── Gradual rollback (rollback directive under partial rollout) ──
+
+const grollbackHeaders = (overrides?: Record<string, string>) =>
+  protocolHeaders({
+    "expo-runtime-version": "9.0.0",
+    "expo-channel-name": "grollback",
+    ...overrides,
+  });
+
+describe("Gradual rollback manifest resolution", () => {
+  // Latest update is a rollback directive at 50%. With salt "update-grollback-rb":
+  // - "client-c" hashes to ~0.165 (below 0.50 → inside the rollback rollout)
+  // - "client-a" hashes to ~0.667 (above 0.50 → outside, stays on the stable build)
+
+  it("serves the rollback directive to a device inside the rollback rollout", async () => {
+    const response = await manifestGet("proj-1", grollbackHeaders({ "eas-client-id": "client-c" }));
+    expect(response.status).toBe(200);
+    await expectRollbackDirective(response, "2024-08-02T00:00:00.000Z");
+  });
+
+  it("serves the previous stable manifest to a device outside the rollback rollout", async () => {
+    const response = await manifestGet("proj-1", grollbackHeaders({ "eas-client-id": "client-a" }));
+    expect(response.status).toBe(200);
+    await expectManifestId(response, "update-grollback-prev");
+  });
+
+  it("falls back to the previous stable manifest when no EAS-Client-ID is sent", async () => {
+    const response = await manifestGet("proj-1", grollbackHeaders());
+    expect(response.status).toBe(200);
+    await expectManifestId(response, "update-grollback-prev");
+  });
+});
+
+// ── Fallback to a fully-rolled-out update past the LIMIT-2 window ──
+
+const fallbackChainHeaders = (overrides?: Record<string, string>) =>
+  protocolHeaders({
+    "expo-channel-name": "fbchain",
+    ...overrides,
+  });
+
+describe("Fallback to fully-rolled-out update (3+ update chain)", () => {
+  it("serves the oldest 100% update when the two newest candidates are both reverted", async () => {
+    // Runtime 10.0.0: latest 0%, middle 0% (both returned by LIMIT 2), oldest 100%.
+    const response = await manifestGet(
+      "proj-1",
+      fallbackChainHeaders({ "expo-runtime-version": "10.0.0", "eas-client-id": "any-client" }),
+    );
+    expect(response.status).toBe(200);
+    await expectManifestId(response, "update-fb-c-old");
+  });
+
+  it("skips a partial-rollout latest (client outside) and a reverted middle to the oldest 100%", async () => {
+    // Runtime 11.0.0: latest 50% with "client-a" outside (~0.79), middle 0%, oldest 100%.
+    const response = await manifestGet(
+      "proj-1",
+      fallbackChainHeaders({ "expo-runtime-version": "11.0.0", "eas-client-id": "client-a" }),
+    );
+    expect(response.status).toBe(200);
+    await expectManifestId(response, "update-fb-d-old");
+  });
+
+  it("still serves the partial-rollout latest to a client inside the rollout", async () => {
+    // Runtime 11.0.0: latest 50% with "client-b" inside (~0.14) → no fallback needed.
+    const response = await manifestGet(
+      "proj-1",
+      fallbackChainHeaders({ "expo-runtime-version": "11.0.0", "eas-client-id": "client-b" }),
+    );
+    expect(response.status).toBe(200);
+    await expectManifestId(response, "update-fb-d-latest");
   });
 });
