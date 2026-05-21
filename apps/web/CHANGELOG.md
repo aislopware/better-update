@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.20.1](https://github.com/better-update/better-update/compare/@better-update/web@0.20.0...@better-update/web@0.20.1) (2026-05-21)
+
+### Performance Improvements
+
+* **web:** cut hero globe CPU ~2x ([#8](https://github.com/better-update/better-update/issues/8)) ([df77a32](https://github.com/better-update/better-update/commit/df77a3206e9f5309db1423e6cd5767e821fe0e01)) - by @trancong12102
+
 ## [0.20.0](https://github.com/better-update/better-update/compare/@better-update/web@0.19.0...@better-update/web@0.20.0) (2026-05-21)
 
 ### Features
