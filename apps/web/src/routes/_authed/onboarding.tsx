@@ -17,7 +17,7 @@ import { useRef } from "react";
 import { generateSlug, getFieldError, nameSchema, slugSchema } from "../../lib/form-utils";
 import { useCreateAndActivateOrgMutation } from "../../lib/org-mutations";
 import { safeSubmit } from "../../lib/use-api-mutation";
-import { authKeyPrefix } from "../../queries/auth";
+import { orgsQueryOptions, sessionQueryOptions } from "../../queries/auth";
 
 const Onboarding = () => {
   const router = useRouter();
@@ -26,7 +26,13 @@ const Onboarding = () => {
 
   const createOrg = useCreateAndActivateOrgMutation({
     onSuccess: async () => {
-      await queryClient.resetQueries({ queryKey: authKeyPrefix });
+      // Prime the auth guards (session + orgs) with fresh data BEFORE navigating
+      // so the redirect chain reads warm cache instead of fetching — and
+      // suspending — mid-transition (which surfaces a router `undefined` throw).
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: sessionQueryOptions.queryKey, type: "all" }),
+        queryClient.refetchQueries({ queryKey: orgsQueryOptions.queryKey, type: "all" }),
+      ]);
       await router.navigate({ to: "/" });
     },
   });
