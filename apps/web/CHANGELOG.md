@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.20.0](https://github.com/better-update/better-update/compare/@better-update/web@0.19.0...@better-update/web@0.20.0) (2026-05-21)
+
+### Features
+
+* **web:** add Terms of Service and Privacy Policy pages ([9bc8e0a](https://github.com/better-update/better-update/commit/9bc8e0a79ebfe6c033ab87090317b079d8bf302a)) - by @trancong12102
+
 ## [0.19.0](https://github.com/better-update/better-update/compare/@better-update/web@0.18.0...@better-update/web@0.19.0) (2026-05-21)
 
 ### Features
