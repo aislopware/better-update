@@ -1,11 +1,8 @@
 import {
   androidApplicationIdentifiersQueryOptions,
-  deleteAndroidApplicationIdentifier,
-  deleteIosBundleConfiguration,
   iosBundleConfigurationsQueryOptions,
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
-import { Button } from "@better-update/ui/components/ui/button";
 import { CardFrame } from "@better-update/ui/components/ui/card";
 import {
   Empty,
@@ -23,10 +20,10 @@ import {
   TableHeader,
   TableRow,
 } from "@better-update/ui/components/ui/table";
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { ChevronRightIcon, Trash2Icon } from "lucide-react";
-import { Suspense, useState } from "react";
+import { ChevronRightIcon } from "lucide-react";
+import { Suspense } from "react";
 
 import type {
   AndroidApplicationIdentifierItem,
@@ -36,9 +33,6 @@ import type {
 import { AndroidIcon } from "../../../../../components/android-icon";
 import { AppleIcon } from "../../../../../components/apple-icon";
 import { SectionHeader } from "../../../../../components/page-header";
-import { AddAndroidApplicationIdentifierDialog } from "./-add-android-application-identifier-dialog";
-import { AddIosBundleIdentifierDialog } from "./-add-ios-bundle-identifier-dialog";
-import { ConfirmDeleteDialog } from "./-confirm-delete-dialog";
 
 interface IosBundleGroup {
   readonly bundleIdentifier: string;
@@ -81,11 +75,10 @@ const AndroidEmpty = () => (
       <EmptyMedia variant="icon">
         <AndroidIcon strokeWidth={1.5} />
       </EmptyMedia>
-      <EmptyTitle>Create your first Application Identifier</EmptyTitle>
+      <EmptyTitle>No application identifiers</EmptyTitle>
       <EmptyDescription>
-        There are no credentials configured for your Android application. Create your first
-        application identifier to manage upload keystores and Google service account keys for this
-        project.
+        Use the CLI to register an Android application identifier and bind upload keystores and
+        Google service account keys for this project.
       </EmptyDescription>
     </EmptyHeader>
   </Empty>
@@ -97,11 +90,10 @@ const IosEmpty = () => (
       <EmptyMedia variant="icon">
         <AppleIcon strokeWidth={1.5} />
       </EmptyMedia>
-      <EmptyTitle>Create your first Bundle Identifier</EmptyTitle>
+      <EmptyTitle>No bundle identifiers</EmptyTitle>
       <EmptyDescription>
-        There are no credentials configured for your iOS application. Create your first bundle
-        identifier to manage distribution certificates, provisioning profiles, push keys, and App
-        Store Connect API keys for this project.
+        Use the CLI to register an iOS bundle identifier and bind distribution certificates,
+        provisioning profiles, push keys, and App Store Connect API keys for this project.
       </EmptyDescription>
     </EmptyHeader>
   </Empty>
@@ -110,58 +102,12 @@ const IosEmpty = () => (
 const ROW_CLASS =
   "hover:bg-muted/50 flex items-center justify-between gap-2 px-3 py-3 font-mono text-sm transition-colors";
 
-const IdentifierActionsCell = ({
-  identifier,
-  onDelete,
-  deleteTitle,
-  deleteDescription,
-  successMessage,
-  onInvalidate,
-}: {
-  readonly identifier: string;
-  readonly onDelete: () => Promise<unknown>;
-  readonly deleteTitle: string;
-  readonly deleteDescription: string;
-  readonly successMessage: string;
-  readonly onInvalidate: () => Promise<void>;
-}) => {
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  return (
-    <TableCell className="w-12 text-right">
-      <Button
-        variant="ghost"
-        size="icon"
-        aria-label={`Delete ${identifier}`}
-        onClick={() => {
-          setDeleteOpen(true);
-        }}
-      >
-        <Trash2Icon strokeWidth={2} />
-      </Button>
-      <ConfirmDeleteDialog
-        name={identifier}
-        title={deleteTitle}
-        description={deleteDescription}
-        onConfirm={onDelete}
-        successMessage={successMessage}
-        onSuccess={onInvalidate}
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
-      />
-    </TableCell>
-  );
-};
-
 const AndroidIdentifierRow = ({
   projectSlug,
   item,
-  onDelete,
-  onInvalidate,
 }: {
   readonly projectSlug: string;
   readonly item: AndroidApplicationIdentifierItem;
-  readonly onDelete: () => Promise<unknown>;
-  readonly onInvalidate: () => Promise<void>;
 }) => (
   <TableRow>
     <TableCell className="p-0">
@@ -174,27 +120,15 @@ const AndroidIdentifierRow = ({
         <ChevronRightIcon strokeWidth={2} className="text-muted-foreground size-4" />
       </Link>
     </TableCell>
-    <IdentifierActionsCell
-      identifier={item.packageName}
-      onDelete={onDelete}
-      deleteTitle="Delete application identifier?"
-      deleteDescription="This removes the identifier and all its credential group bindings. Org-level keystores and service account keys are not deleted."
-      successMessage="Application identifier deleted"
-      onInvalidate={onInvalidate}
-    />
   </TableRow>
 );
 
 const IosIdentifierRow = ({
   projectSlug,
   group,
-  onDelete,
-  onInvalidate,
 }: {
   readonly projectSlug: string;
   readonly group: IosBundleGroup;
-  readonly onDelete: () => Promise<unknown>;
-  readonly onInvalidate: () => Promise<void>;
 }) => {
   const parent = group.configs.find(
     (config) => config.parentBundleIdentifier !== null && config.parentBundleIdentifier !== "",
@@ -222,14 +156,6 @@ const IosIdentifierRow = ({
           <ChevronRightIcon strokeWidth={2} className="text-muted-foreground size-4" />
         </Link>
       </TableCell>
-      <IdentifierActionsCell
-        identifier={group.bundleIdentifier}
-        onDelete={onDelete}
-        deleteTitle="Delete bundle configuration?"
-        deleteDescription={`Removes ${String(group.configs.length)} distribution-type configuration(s) for this bundle identifier. Org-level certificates and push keys are not deleted.`}
-        successMessage="Bundle configuration deleted"
-        onInvalidate={onInvalidate}
-      />
     </TableRow>
   );
 };
@@ -243,13 +169,7 @@ const AndroidSection = ({
   projectId: string;
   projectSlug: string;
 }) => {
-  const queryClient = useQueryClient();
   const { data } = useSuspenseQuery(androidApplicationIdentifiersQueryOptions(orgId, projectId));
-  const invalidate = async () => {
-    await queryClient.invalidateQueries({
-      queryKey: androidApplicationIdentifiersQueryOptions(orgId, projectId).queryKey,
-    });
-  };
   const { items } = data;
 
   return (
@@ -261,13 +181,6 @@ const AndroidSection = ({
             Android
           </span>
         }
-        actions={
-          <AddAndroidApplicationIdentifierDialog
-            orgId={orgId}
-            projectId={projectId}
-            onCreated={invalidate}
-          />
-        }
       />
       {items.length === 0 ? (
         <AndroidEmpty />
@@ -277,18 +190,11 @@ const AndroidSection = ({
             <TableHeader>
               <TableRow>
                 <TableHead>Application identifier</TableHead>
-                <TableHead className="w-12" aria-label="Actions" />
               </TableRow>
             </TableHeader>
             <TableBody>
               {items.map((item) => (
-                <AndroidIdentifierRow
-                  key={item.id}
-                  projectSlug={projectSlug}
-                  item={item}
-                  onDelete={async () => deleteAndroidApplicationIdentifier(item.id)}
-                  onInvalidate={invalidate}
-                />
+                <AndroidIdentifierRow key={item.id} projectSlug={projectSlug} item={item} />
               ))}
             </TableBody>
           </Table>
@@ -307,13 +213,7 @@ const IosSection = ({
   projectId: string;
   projectSlug: string;
 }) => {
-  const queryClient = useQueryClient();
   const { data } = useSuspenseQuery(iosBundleConfigurationsQueryOptions(orgId, projectId));
-  const invalidate = async () => {
-    await queryClient.invalidateQueries({
-      queryKey: iosBundleConfigurationsQueryOptions(orgId, projectId).queryKey,
-    });
-  };
   const { items } = data;
   const groups = groupBundleConfigs(items);
 
@@ -326,13 +226,6 @@ const IosSection = ({
             iOS
           </span>
         }
-        actions={
-          <AddIosBundleIdentifierDialog
-            orgId={orgId}
-            projectId={projectId}
-            onCreated={invalidate}
-          />
-        }
       />
       {groups.length === 0 ? (
         <IosEmpty />
@@ -342,7 +235,6 @@ const IosSection = ({
             <TableHeader>
               <TableRow>
                 <TableHead>Bundle identifier</TableHead>
-                <TableHead className="w-12" aria-label="Actions" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -351,12 +243,6 @@ const IosSection = ({
                   key={group.bundleIdentifier}
                   projectSlug={projectSlug}
                   group={group}
-                  onDelete={async () => {
-                    await Promise.all(
-                      group.configs.map(async (config) => deleteIosBundleConfiguration(config.id)),
-                    );
-                  }}
-                  onInvalidate={invalidate}
                 />
               ))}
             </TableBody>

@@ -56,12 +56,7 @@ const AndroidCredentialsDetail = () => {
   return (
     <div className="flex w-full flex-col gap-8">
       <Suspense fallback={<HeaderSkeleton />}>
-        <AndroidDetailHeader
-          orgId={orgId}
-          projectId={projectId}
-          projectSlug={projectSlug}
-          packageName={packageName}
-        />
+        <AndroidDetailHeader projectSlug={projectSlug} packageName={packageName} />
       </Suspense>
       <Suspense fallback={<SectionSkeleton />}>
         <ExistenceGate
