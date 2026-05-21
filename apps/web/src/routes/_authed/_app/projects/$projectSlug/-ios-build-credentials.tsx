@@ -2,12 +2,9 @@ import {
   appleDistributionCertificatesQueryOptions,
   appleProvisioningProfilesQueryOptions,
   appleTeamsQueryOptions,
-  deleteIosBundleConfiguration,
   iosBundleConfigurationsQueryOptions,
-  updateIosBundleConfiguration,
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
-import { Button } from "@better-update/ui/components/ui/button";
 import {
   Card,
   CardFrame,
@@ -15,14 +12,6 @@ import {
   CardFrameTitle,
   CardPanel,
 } from "@better-update/ui/components/ui/card";
-import {
-  Menu,
-  MenuGroup,
-  MenuItem,
-  MenuPopup,
-  MenuSeparator,
-  MenuTrigger,
-} from "@better-update/ui/components/ui/menu";
 import {
   Table,
   TableBody,
@@ -32,10 +21,8 @@ import {
   TableRow,
 } from "@better-update/ui/components/ui/table";
 import { Tabs, TabsList, TabsPanel, TabsTab } from "@better-update/ui/components/ui/tabs";
-import { toastManager } from "@better-update/ui/components/ui/toast";
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { EllipsisVerticalIcon, Trash2Icon } from "lucide-react";
-import { Fragment, useState } from "react";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { Fragment } from "react";
 
 import type {
   AppleDistributionCertificateItem,
@@ -47,109 +34,22 @@ import type {
 import { formatAppleTeamLabel } from "../../-credentials-utils";
 import { STATUS_BADGE_VARIANT, deriveExpiryStatus } from "../../../../../lib/credential-status";
 import { formatDate } from "../../../../../lib/format-date";
-import { useApiMutation } from "../../../../../lib/use-api-mutation";
-import { ConfirmDeleteDialog } from "./-confirm-delete-dialog";
-import { IosChangeCertDialog } from "./-ios-change-cert-dialog";
-import { IosChangeProfileDialog } from "./-ios-change-profile-dialog";
 import { DISTRIBUTION_LABELS, sortConfigsByDistribution } from "./-ios-detail-shared";
 
-const RowKebab = ({
-  ariaLabel,
-  onChange,
-  onRemove,
-}: {
-  ariaLabel: string;
-  onChange: () => void;
-  onRemove: () => void;
-}) => (
-  <Menu>
-    <MenuTrigger render={<Button variant="ghost" size="icon" aria-label={ariaLabel} />}>
-      <EllipsisVerticalIcon strokeWidth={2} />
-    </MenuTrigger>
-    <MenuPopup align="end">
-      <MenuGroup>
-        <MenuItem onClick={onChange}>Change</MenuItem>
-      </MenuGroup>
-      <MenuSeparator />
-      <MenuGroup>
-        <MenuItem variant="destructive" onClick={onRemove}>
-          <Trash2Icon strokeWidth={2} />
-          <span>Remove binding</span>
-        </MenuItem>
-      </MenuGroup>
-    </MenuPopup>
-  </Menu>
-);
-
-const EmptyBindingCard = ({
-  message,
-  actionLabel,
-  onChange,
-}: {
-  message: string;
-  actionLabel: string;
-  onChange: () => void;
-}) => (
+const EmptyBindingCard = ({ message }: { message: string }) => (
   <Card>
-    <CardPanel className="flex items-center justify-between gap-3 py-4">
+    <CardPanel className="py-4">
       <span className="text-muted-foreground text-sm">{message}</span>
-      <Button size="sm" variant="outline" onClick={onChange}>
-        {actionLabel}
-      </Button>
     </CardPanel>
   </Card>
-);
-
-const CertTableCard = ({
-  cert,
-  team,
-  onChange,
-  onRemove,
-}: {
-  cert: AppleDistributionCertificateItem | null;
-  team: AppleTeamItem | null;
-  onChange: () => void;
-  onRemove: () => void;
-}) => (
-  <CardFrame>
-    <CardFrameHeader className="py-4">
-      <CardFrameTitle className="text-base">Distribution certificate</CardFrameTitle>
-    </CardFrameHeader>
-    {cert === null ? (
-      <EmptyBindingCard
-        message="No distribution certificate bound."
-        actionLabel="Set distribution certificate"
-        onChange={onChange}
-      />
-    ) : (
-      <Table variant="card">
-        <TableHeader>
-          <TableRow>
-            <TableHead>Serial</TableHead>
-            <TableHead>Apple Team</TableHead>
-            <TableHead>Expires</TableHead>
-            <TableHead>Updated</TableHead>
-            <TableHead className="w-12" aria-label="Actions" />
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          <CertRow cert={cert} team={team} onChange={onChange} onRemove={onRemove} />
-        </TableBody>
-      </Table>
-    )}
-  </CardFrame>
 );
 
 const CertRow = ({
   cert,
   team,
-  onChange,
-  onRemove,
 }: {
   cert: AppleDistributionCertificateItem;
   team: AppleTeamItem | null;
-  onChange: () => void;
-  onRemove: () => void;
 }) => {
   const certStatus = deriveExpiryStatus(cert.validUntil);
   return (
@@ -163,51 +63,35 @@ const CertRow = ({
         </div>
       </TableCell>
       <TableCell className="text-muted-foreground">{formatDate(cert.updatedAt)}</TableCell>
-      <TableCell className="text-right">
-        <RowKebab
-          ariaLabel="Distribution certificate actions"
-          onChange={onChange}
-          onRemove={onRemove}
-        />
-      </TableCell>
     </TableRow>
   );
 };
 
-const ProfileTableCard = ({
-  profile,
+const CertTableCard = ({
+  cert,
   team,
-  onChange,
-  onRemove,
 }: {
-  profile: AppleProvisioningProfileItem | null;
+  cert: AppleDistributionCertificateItem | null;
   team: AppleTeamItem | null;
-  onChange: () => void;
-  onRemove: () => void;
 }) => (
   <CardFrame>
     <CardFrameHeader className="py-4">
-      <CardFrameTitle className="text-base">Provisioning profile</CardFrameTitle>
+      <CardFrameTitle className="text-base">Distribution certificate</CardFrameTitle>
     </CardFrameHeader>
-    {profile === null ? (
-      <EmptyBindingCard
-        message="No provisioning profile bound."
-        actionLabel="Set provisioning profile"
-        onChange={onChange}
-      />
+    {cert === null ? (
+      <EmptyBindingCard message="No distribution certificate bound — bind one with the CLI." />
     ) : (
       <Table variant="card">
         <TableHeader>
           <TableRow>
-            <TableHead>Name</TableHead>
+            <TableHead>Serial</TableHead>
             <TableHead>Apple Team</TableHead>
             <TableHead>Expires</TableHead>
             <TableHead>Updated</TableHead>
-            <TableHead className="w-12" aria-label="Actions" />
           </TableRow>
         </TableHeader>
         <TableBody>
-          <ProfileRow profile={profile} team={team} onChange={onChange} onRemove={onRemove} />
+          <CertRow cert={cert} team={team} />
         </TableBody>
       </Table>
     )}
@@ -217,13 +101,9 @@ const ProfileTableCard = ({
 const ProfileRow = ({
   profile,
   team,
-  onChange,
-  onRemove,
 }: {
   profile: AppleProvisioningProfileItem;
   team: AppleTeamItem | null;
-  onChange: () => void;
-  onRemove: () => void;
 }) => {
   const profileStatus = deriveExpiryStatus(profile.validUntil);
   return (
@@ -239,16 +119,40 @@ const ProfileRow = ({
         </div>
       </TableCell>
       <TableCell className="text-muted-foreground">{formatDate(profile.updatedAt)}</TableCell>
-      <TableCell className="text-right">
-        <RowKebab
-          ariaLabel="Provisioning profile actions"
-          onChange={onChange}
-          onRemove={onRemove}
-        />
-      </TableCell>
     </TableRow>
   );
 };
+
+const ProfileTableCard = ({
+  profile,
+  team,
+}: {
+  profile: AppleProvisioningProfileItem | null;
+  team: AppleTeamItem | null;
+}) => (
+  <CardFrame>
+    <CardFrameHeader className="py-4">
+      <CardFrameTitle className="text-base">Provisioning profile</CardFrameTitle>
+    </CardFrameHeader>
+    {profile === null ? (
+      <EmptyBindingCard message="No provisioning profile bound — bind one with the CLI." />
+    ) : (
+      <Table variant="card">
+        <TableHeader>
+          <TableRow>
+            <TableHead>Name</TableHead>
+            <TableHead>Apple Team</TableHead>
+            <TableHead>Expires</TableHead>
+            <TableHead>Updated</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <ProfileRow profile={profile} team={team} />
+        </TableBody>
+      </Table>
+    )}
+  </CardFrame>
+);
 
 const findCert = (
   certs: readonly AppleDistributionCertificateItem[],
@@ -278,133 +182,27 @@ const findTeam = (teams: readonly AppleTeamItem[], id: string): AppleTeamItem | 
 };
 
 const ConfigTabPanel = ({
-  orgId,
-  projectId,
   config,
   certs,
   profiles,
   teams,
 }: {
-  orgId: string;
-  projectId: string;
   config: IosBundleConfigurationItem;
   certs: readonly AppleDistributionCertificateItem[];
   profiles: readonly AppleProvisioningProfileItem[];
   teams: readonly AppleTeamItem[];
 }) => {
-  const queryClient = useQueryClient();
-  const [certDialogOpen, setCertDialogOpen] = useState(false);
-  const [profileDialogOpen, setProfileDialogOpen] = useState(false);
-  const [deleteConfigOpen, setDeleteConfigOpen] = useState(false);
-
   const cert = findCert(certs, config.appleDistributionCertificateId);
   const profile = findProfile(profiles, config.appleProvisioningProfileId);
   const team = findTeam(teams, config.appleTeamId);
 
-  const invalidate = async () => {
-    await queryClient.invalidateQueries({
-      queryKey: iosBundleConfigurationsQueryOptions(orgId, projectId).queryKey,
-    });
-  };
-
-  const removeCertMutation = useApiMutation({
-    mutationFn: async () =>
-      updateIosBundleConfiguration(config.id, { appleDistributionCertificateId: null }),
-    onSuccess: async () => {
-      toastManager.add({ title: "Distribution certificate unbound", type: "success" });
-      await invalidate();
-    },
-  });
-
-  const removeProfileMutation = useApiMutation({
-    mutationFn: async () =>
-      updateIosBundleConfiguration(config.id, { appleProvisioningProfileId: null }),
-    onSuccess: async () => {
-      toastManager.add({ title: "Provisioning profile unbound", type: "success" });
-      await invalidate();
-    },
-  });
-
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-muted-foreground text-sm">
-          Team: <span className="text-foreground">{team ? formatAppleTeamLabel(team) : "—"}</span>
-        </p>
-        <Menu>
-          <MenuTrigger
-            render={<Button variant="ghost" size="icon" aria-label="Distribution-type actions" />}
-          >
-            <EllipsisVerticalIcon strokeWidth={2} />
-          </MenuTrigger>
-          <MenuPopup align="end">
-            <MenuGroup>
-              <MenuItem
-                variant="destructive"
-                onClick={() => {
-                  setDeleteConfigOpen(true);
-                }}
-              >
-                <Trash2Icon strokeWidth={2} />
-                <span>Delete {DISTRIBUTION_LABELS[config.distributionType]} configuration</span>
-              </MenuItem>
-            </MenuGroup>
-          </MenuPopup>
-        </Menu>
-      </div>
-
-      <CertTableCard
-        cert={cert}
-        team={team}
-        onChange={() => {
-          setCertDialogOpen(true);
-        }}
-        onRemove={() => {
-          removeCertMutation.mutate();
-        }}
-      />
-
-      <ProfileTableCard
-        profile={profile}
-        team={team}
-        onChange={() => {
-          setProfileDialogOpen(true);
-        }}
-        onRemove={() => {
-          removeProfileMutation.mutate();
-        }}
-      />
-
-      <IosChangeCertDialog
-        open={certDialogOpen}
-        onOpenChange={setCertDialogOpen}
-        orgId={orgId}
-        projectId={projectId}
-        bundleConfigId={config.id}
-        appleTeamId={config.appleTeamId}
-        currentCert={cert}
-      />
-      <IosChangeProfileDialog
-        open={profileDialogOpen}
-        onOpenChange={setProfileDialogOpen}
-        orgId={orgId}
-        projectId={projectId}
-        bundleConfigId={config.id}
-        bundleIdentifier={config.bundleIdentifier}
-        distributionType={config.distributionType}
-        appleTeamId={config.appleTeamId}
-        currentProfile={profile}
-      />
-      <ConfirmDeleteDialog
-        name={DISTRIBUTION_LABELS[config.distributionType]}
-        title={`Delete ${DISTRIBUTION_LABELS[config.distributionType]} configuration?`}
-        description="Removes this distribution-type configuration. Other distribution types for this bundle remain intact."
-        onConfirm={async () => deleteIosBundleConfiguration(config.id)}
-        successMessage="Distribution-type configuration deleted"
-        onSuccess={invalidate}
-        open={deleteConfigOpen}
-        onOpenChange={setDeleteConfigOpen}
-      />
+      <p className="text-muted-foreground text-sm">
+        Team: <span className="text-foreground">{team ? formatAppleTeamLabel(team) : "—"}</span>
+      </p>
+      <CertTableCard cert={cert} team={team} />
+      <ProfileTableCard profile={profile} team={team} />
     </div>
   );
 };
@@ -456,8 +254,6 @@ export const IosBuildCredentialsSection = ({
           <Fragment key={config.id}>
             <TabsPanel value={config.distributionType} className="pt-4">
               <ConfigTabPanel
-                orgId={orgId}
-                projectId={projectId}
                 config={config}
                 certs={certsResult.items}
                 profiles={profilesResult.items}
