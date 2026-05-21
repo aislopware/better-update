@@ -2,9 +2,9 @@ import { createHash } from "node:crypto";
 
 import { Effect } from "effect";
 
-import { setupE2EWorker } from "../helpers/e2e-worker-pool";
+import { seedAssetObject, setupE2EWorker } from "../helpers/e2e-worker-pool";
 
-const { del, get, parseCookies, patch, post, postNoBody, putAbsolute } = setupE2EWorker(
+const { del, get, parseCookies, patch, post, postNoBody } = setupE2EWorker(
   ".wrangler/state/e2e-updates",
 );
 
@@ -69,9 +69,6 @@ describe("Updates & Assets API flow", () => {
   let rollbackUpdateId: string;
   let signedUpdateId: string;
   let apiKeyValue: string;
-  let firstAssetUpload: { uploadUrl: string; uploadHeaders: Record<string, string> };
-  let secondAssetUpload: { uploadUrl: string; uploadHeaders: Record<string, string> };
-  let apiKeyAssetUpload: { uploadUrl: string; uploadHeaders: Record<string, string> };
 
   const firstAssetContent = "console.log('hello')";
   const secondAssetContent = "console.log('world')";
@@ -234,10 +231,6 @@ describe("Updates & Assets API flow", () => {
       ]),
     );
     expect(body.deduplicated).toHaveLength(0);
-    firstAssetUpload =
-      body.uploaded.find((asset: { hash: string }) => asset.hash === firstAssetHash) ?? {};
-    secondAssetUpload =
-      body.uploaded.find((asset: { hash: string }) => asset.hash === secondAssetHash) ?? {};
   });
 
   it("rejects update creation while an asset is only registered but not uploaded", async () => {
@@ -276,32 +269,24 @@ describe("Updates & Assets API flow", () => {
     );
   });
 
-  it("uploads first asset binary", async () => {
-    const bytes = new TextEncoder().encode(firstAssetContent);
-    const response = await putAbsolute(firstAssetUpload.uploadUrl, bytes, {
-      "content-length": bytes.byteLength.toString(),
-      ...firstAssetUpload.uploadHeaders,
+  it("seeds and finalizes first asset binary", async () => {
+    await seedAssetObject({
+      hash: firstAssetHash,
+      content: firstAssetContent,
+      contentType: "application/javascript",
     });
-    expect(response.status).toBe(200);
-  });
-
-  it("finalizes first asset binary", async () => {
     const response = await postNoBody(`/api/assets/${firstAssetHash}/finalize`, {
       cookie: cookies,
     });
     expect(response.status).toBe(200);
   });
 
-  it("uploads second asset binary", async () => {
-    const bytes = new TextEncoder().encode(secondAssetContent);
-    const response = await putAbsolute(secondAssetUpload.uploadUrl, bytes, {
-      "content-length": bytes.byteLength.toString(),
-      ...secondAssetUpload.uploadHeaders,
+  it("seeds and finalizes second asset binary", async () => {
+    await seedAssetObject({
+      hash: secondAssetHash,
+      content: secondAssetContent,
+      contentType: "application/javascript",
     });
-    expect(response.status).toBe(200);
-  });
-
-  it("finalizes second asset binary", async () => {
     const response = await postNoBody(`/api/assets/${secondAssetHash}/finalize`, {
       cookie: cookies,
     });
@@ -875,22 +860,14 @@ describe("Updates & Assets API flow", () => {
         uploadHeaders: expect.any(Object),
       }),
     ]);
-    apiKeyAssetUpload = body.uploaded[0] as {
-      uploadUrl: string;
-      uploadHeaders: Record<string, string>;
-    };
   });
 
-  it("uploads asset binary via API key", async () => {
-    const bytes = new TextEncoder().encode(apiKeyAssetContent);
-    const response = await putAbsolute(apiKeyAssetUpload.uploadUrl, bytes, {
-      "content-length": bytes.byteLength.toString(),
-      ...apiKeyAssetUpload.uploadHeaders,
+  it("seeds and finalizes API key asset upload", async () => {
+    await seedAssetObject({
+      hash: apiKeyAssetHash,
+      content: apiKeyAssetContent,
+      contentType: "text/plain",
     });
-    expect(response.status).toBe(200);
-  });
-
-  it("finalizes API key asset upload", async () => {
     const response = await postNoBody(`/api/assets/${apiKeyAssetHash}/finalize`, {
       authorization: `Bearer ${apiKeyValue}`,
     });

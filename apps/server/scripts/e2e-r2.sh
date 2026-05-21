@@ -2,7 +2,7 @@
 # Launch the `e2e-pool-r2` vitest project with real Cloudflare creds for the
 # wrangler remote R2 proxy.
 #
-# The R2-upload e2e files run on @cloudflare/vitest-pool-workers with the R2
+# The direct-upload e2e file runs on @cloudflare/vitest-pool-workers with its R2
 # binding `remote: true`, so wrangler opens a remote proxy session to the real
 # `*-e2e` bucket. That proxy is a child process; it reads CLOUDFLARE_ACCOUNT_ID +
 # CLOUDFLARE_API_TOKEN from the environment it inherits at spawn time, so a
@@ -28,17 +28,6 @@ if [ -z "${CLOUDFLARE_API_TOKEN:-}" ] || [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]; th
   exit 1
 fi
 
-# A targeted run (filter passed) goes straight through.
-if [ "$#" -gt 0 ]; then
-  exec vitest run --project e2e-pool-r2 "$@"
-fi
-
-# One fresh process per file. A single long-lived remote-proxy session drops its
-# connection ("Network connection lost") once several files hammer it in series,
-# so give each file its own session. Each file is otherwise self-contained.
-status=0
-for file in asset-serving builds-flow golden-path-flow updates-flow; do
-  echo "── e2e-pool-r2: ${file} ──"
-  vitest run --project e2e-pool-r2 "${file}" || status=1
-done
-exit "${status}"
+# A single direct-upload file → one remote-proxy session, so no per-file process
+# splitting is needed. Extra args pass through as a test-name/file filter.
+exec vitest run --project e2e-pool-r2 "$@"
