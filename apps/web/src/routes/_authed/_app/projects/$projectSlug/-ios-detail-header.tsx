@@ -1,7 +1,4 @@
-import {
-  deleteIosBundleConfiguration,
-  iosBundleConfigurationsQueryOptions,
-} from "@better-update/api-client/react";
+import { iosBundleConfigurationsQueryOptions } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import {
   Breadcrumb,
@@ -14,7 +11,6 @@ import {
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   CardFrame,
-  CardFrameAction,
   CardFrameDescription,
   CardFrameHeader,
   CardFrameTitle,
@@ -26,13 +22,10 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { Link, useNavigate } from "@tanstack/react-router";
-import { Trash2Icon } from "lucide-react";
-import { useState } from "react";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 
 import { AppleIcon } from "../../../../../components/apple-icon";
-import { ConfirmDeleteDialog } from "./-confirm-delete-dialog";
 import { DISTRIBUTION_LABELS } from "./-ios-detail-shared";
 
 export const IosDetailHeader = ({
@@ -46,8 +39,6 @@ export const IosDetailHeader = ({
   projectSlug: string;
   bundleIdentifier: string;
 }) => {
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const { data: configsResult } = useSuspenseQuery(
     iosBundleConfigurationsQueryOptions(orgId, projectId),
   );
@@ -60,21 +51,6 @@ export const IosDetailHeader = ({
   const targetName = configs.find(
     (config) => config.targetName !== null && config.targetName !== "",
   )?.targetName;
-
-  const [deleteOpen, setDeleteOpen] = useState(false);
-
-  const handleDelete = async () => {
-    await Promise.all(configs.map(async (config) => deleteIosBundleConfiguration(config.id)));
-  };
-  const handleSuccess = async () => {
-    await queryClient.invalidateQueries({
-      queryKey: iosBundleConfigurationsQueryOptions(orgId, projectId).queryKey,
-    });
-    await navigate({
-      to: "/projects/$projectSlug/credentials",
-      params: { projectSlug },
-    });
-  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -125,31 +101,8 @@ export const IosDetailHeader = ({
               </span>
             )}
           </CardFrameDescription>
-          {configs.length === 0 ? null : (
-            <CardFrameAction>
-              <Button
-                variant="destructive-outline"
-                onClick={() => {
-                  setDeleteOpen(true);
-                }}
-              >
-                <Trash2Icon strokeWidth={2} data-icon="inline-start" />
-                Delete bundle configuration
-              </Button>
-            </CardFrameAction>
-          )}
         </CardFrameHeader>
       </CardFrame>
-      <ConfirmDeleteDialog
-        name={bundleIdentifier}
-        title="Delete bundle configuration?"
-        description={`Removes ${String(configs.length)} distribution-type configuration(s) for this bundle identifier. Org-level certificates, profiles, push keys, and ASC keys are not deleted.`}
-        onConfirm={handleDelete}
-        successMessage="Bundle configuration deleted"
-        onSuccess={handleSuccess}
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
-      />
     </div>
   );
 };
