@@ -74,7 +74,6 @@ const RootShell = ({ children }: Readonly<{ children: ReactNode }>) => {
         <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
         <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)" />
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-        <title>Better Update</title>
         <meta
           name="description"
           content="Deploy, monitor, and roll back over-the-air updates for your React Native apps with Better Update."
@@ -130,6 +129,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     return { theme };
   },
   head: () => ({
+    meta: [{ title: "Better Update" }],
     scripts: [{ id: "theme-init", children: THEME_INIT_SCRIPT }],
   }),
   shellComponent: RootShell,
