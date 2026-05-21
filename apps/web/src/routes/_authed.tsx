@@ -38,8 +38,10 @@ export const Route = createFileRoute("/_authed")({
     /* eslint-enable functional/no-try-statements, functional/no-let, functional/no-throw-statements, functional/no-promise-reject, typescript/only-throw-error, init-declarations */
     return { session, user: session.user, orgs };
   },
+  // No `pendingMs: 0` here: this layout's beforeLoad is an auth/org redirect
+  // guard. Showing the skeleton instantly would let it render while a nested
+  // beforeLoad redirect is in flight, triggering a TanStack Router mid-transition
+  // throw (the default pending delay lets fast redirects resolve first).
   pendingComponent: AppShellSkeleton,
-  pendingMs: 0,
-  pendingMinMs: 0,
   component: () => <Outlet />,
 });

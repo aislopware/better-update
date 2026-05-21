@@ -24,7 +24,7 @@ import { authClient, rejectOnAuthClientError } from "../../../../lib/auth-client
 import { generateSlug, getFieldError, nameSchema, slugSchema } from "../../../../lib/form-utils";
 import { useDeleteOrgMutation } from "../../../../lib/org-mutations";
 import { safeSubmit, useApiMutation } from "../../../../lib/use-api-mutation";
-import { authKeyPrefix } from "../../../../queries/auth";
+import { authKeyPrefix, orgsQueryOptions, sessionQueryOptions } from "../../../../queries/auth";
 
 const deleteOrgTrigger = <Button variant="destructive">Delete organization</Button>;
 
@@ -198,7 +198,13 @@ const DeleteOrgSection = () => {
     orgId: activeOrg.id,
     onSuccess: async () => {
       toastManager.add({ title: "Organization deleted", type: "success" });
-      await queryClient.resetQueries({ queryKey: authKeyPrefix });
+      // Refresh session + orgs before invalidating routes so the guard redirect
+      // (e.g. to /onboarding when the last org is gone) reads warm cache instead
+      // of suspending mid-transition (router `undefined` throw).
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: sessionQueryOptions.queryKey, type: "all" }),
+        queryClient.refetchQueries({ queryKey: orgsQueryOptions.queryKey, type: "all" }),
+      ]);
       await router.invalidate();
     },
   });

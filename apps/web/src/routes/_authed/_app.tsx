@@ -111,7 +111,7 @@ const OrgSwitcher = () => {
       if (activeOrgId) {
         queryClient.removeQueries({ queryKey: orgKeyPrefix(activeOrgId) });
       }
-      await queryClient.resetQueries({ queryKey: sessionQueryOptions.queryKey });
+      await queryClient.refetchQueries({ queryKey: sessionQueryOptions.queryKey, type: "all" });
       await router.invalidate();
       // Side-effect: reset cached active org so it does not re-target the previous one.
       queryClient.removeQueries({ queryKey: orgKeyPrefix(orgId) });

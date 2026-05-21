@@ -20,7 +20,7 @@ import { SlugInput } from "../../components/slug-input";
 import { generateSlug, getFieldError, nameSchema, slugSchema } from "../../lib/form-utils";
 import { useCreateAndActivateOrgMutation } from "../../lib/org-mutations";
 import { safeSubmit } from "../../lib/use-api-mutation";
-import { authKeyPrefix } from "../../queries/auth";
+import { orgsQueryOptions, sessionQueryOptions } from "../../queries/auth";
 
 const CreateOrgForm = ({ onSuccess }: { onSuccess: () => void }) => {
   const router = useRouter();
@@ -29,7 +29,12 @@ const CreateOrgForm = ({ onSuccess }: { onSuccess: () => void }) => {
 
   const createOrg = useCreateAndActivateOrgMutation({
     onSuccess: async () => {
-      await queryClient.resetQueries({ queryKey: authKeyPrefix });
+      // Prime session + orgs before navigating so the redirect chain reads warm
+      // cache instead of suspending mid-transition (router `undefined` throw).
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: sessionQueryOptions.queryKey, type: "all" }),
+        queryClient.refetchQueries({ queryKey: orgsQueryOptions.queryKey, type: "all" }),
+      ]);
       onSuccess();
       await router.navigate({ to: "/" });
     },
