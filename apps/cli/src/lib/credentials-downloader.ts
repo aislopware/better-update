@@ -8,10 +8,15 @@ import { Console, Effect } from "effect";
 import type { PlatformError } from "@effect/platform/Error";
 
 import { autoProvisionExtensionProfile } from "./auto-provision-extension-profiles";
+import { decryptResolveSecret, openVaultSessionForBuild } from "./build-credential-decrypt";
 import { MissingCredentialsError } from "./exit-codes";
 
+import type { VaultSession } from "../application/credential-cipher";
 import type { ApiClient } from "../services/api-client";
+import type { CliRuntime } from "../services/cli-runtime";
+import type { IdentityStore } from "../services/identity-store";
 import type { IosDistribution } from "./build-profile";
+import type { InteractiveMode } from "./interactive-mode";
 
 export interface DownloadIosCredentialsOptions {
   readonly projectId: string;
@@ -145,6 +150,7 @@ const resolveOneBundleSettled = (
     readonly projectId: string;
     readonly bundleIdentifier: string;
     readonly distribution: IosDistribution;
+    readonly session: VaultSession;
   },
 ): Effect.Effect<ResolveSettled, PlatformError> =>
   api.buildCredentials
@@ -168,18 +174,39 @@ const resolveOneBundleSettled = (
             }),
           });
         }
-        return Effect.succeed({
-          status: "ok",
-          bundleIdentifier: options.bundleIdentifier,
-          value: {
-            bundleIdentifier: options.bundleIdentifier,
-            p12Base64: resolved.distributionCertificate.p12Base64,
-            p12Password: resolved.distributionCertificate.p12Password,
-            mobileprovisionBase64: resolved.provisioningProfile.mobileprovisionBase64,
-            profileUuid: resolved.provisioningProfile.uuid,
-            context: resolved.context,
-          },
-        });
+        // Decrypt the .p12 envelope locally — bound (AAD) to the dist-cert row id
+        // surfaced in `context`. The server never holds the plaintext.
+        return decryptResolveSecret({
+          session: options.session,
+          credentialType: "distribution-certificate",
+          credentialId: resolved.context.distributionCertificateId,
+          envelope: resolved.distributionCertificate,
+          fields: ["p12Base64", "p12Password"],
+          hint: bindHint,
+        }).pipe(
+          Effect.map(
+            (secret): ResolveSettled => ({
+              status: "ok",
+              bundleIdentifier: options.bundleIdentifier,
+              value: {
+                bundleIdentifier: options.bundleIdentifier,
+                p12Base64: secret.p12Base64,
+                p12Password: secret.p12Password,
+                mobileprovisionBase64: resolved.provisioningProfile.mobileprovisionBase64,
+                profileUuid: resolved.provisioningProfile.uuid,
+                context: resolved.context,
+              },
+            }),
+          ),
+          Effect.catchAll(
+            (error): Effect.Effect<ResolveSettled> =>
+              Effect.succeed({
+                status: "failed",
+                bundleIdentifier: options.bundleIdentifier,
+                error,
+              }),
+          ),
+        );
       }),
       Effect.catchAll((cause): Effect.Effect<ResolveSettled> => {
         // Inspect raw API-error tag before conversion — only NotFound (bundle
@@ -206,7 +233,11 @@ const autoProvisionHint =
 export const downloadIosCredentials = (
   api: ApiClient,
   options: DownloadIosCredentialsOptions,
-): Effect.Effect<IosCredentials, MissingCredentialsError | PlatformError, FileSystem.FileSystem> =>
+): Effect.Effect<
+  IosCredentials,
+  MissingCredentialsError | PlatformError,
+  FileSystem.FileSystem | CliRuntime | IdentityStore | InteractiveMode
+> =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
 
@@ -223,6 +254,7 @@ export const downloadIosCredentials = (
       });
     }
 
+    const session = yield* openVaultSessionForBuild(api, bindHint);
     const settled = yield* Effect.forEach(
       options.bundleIdentifiers,
       (bundleIdentifier) =>
@@ -230,6 +262,7 @@ export const downloadIosCredentials = (
           projectId: options.projectId,
           bundleIdentifier,
           distribution: options.distribution,
+          session,
         }),
       { concurrency: 4 },
     );
@@ -312,7 +345,11 @@ const maybeAutoProvision = (
     readonly projectId: string;
     readonly distributionType: "APP_STORE" | "AD_HOC" | "DEVELOPMENT" | "ENTERPRISE";
   },
-): Effect.Effect<readonly AutoProvisionedEntry[], MissingCredentialsError | PlatformError> =>
+): Effect.Effect<
+  readonly AutoProvisionedEntry[],
+  MissingCredentialsError | PlatformError,
+  CliRuntime | IdentityStore | InteractiveMode
+> =>
   Effect.gen(function* () {
     if (params.missing.length === 0) {
       return [] as readonly AutoProvisionedEntry[];
@@ -404,7 +441,7 @@ export const downloadAndroidCredentials = (
 ): Effect.Effect<
   AndroidCredentials,
   MissingCredentialsError | PlatformError,
-  FileSystem.FileSystem
+  FileSystem.FileSystem | CliRuntime | IdentityStore | InteractiveMode
 > =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
@@ -429,13 +466,23 @@ export const downloadAndroidCredentials = (
       );
     }
 
+    const session = yield* openVaultSessionForBuild(api, androidBindHint);
+    const secret = yield* decryptResolveSecret({
+      session,
+      credentialType: "keystore",
+      credentialId: resolved.keystore.id,
+      envelope: resolved.keystore,
+      fields: ["keystoreBase64", "keystorePassword", "keyPassword"],
+      hint: androidBindHint,
+    });
+
     const keystorePath = path.join(options.tempDir, "upload.keystore");
-    yield* fs.writeFile(keystorePath, fromBase64(resolved.keystore.keystoreBase64));
+    yield* fs.writeFile(keystorePath, fromBase64(secret.keystoreBase64));
 
     return {
       keystorePath,
-      storePassword: resolved.keystore.storePassword,
+      storePassword: secret.keystorePassword,
       keyAlias: resolved.keystore.keyAlias,
-      keyPassword: resolved.keystore.keyPassword,
+      keyPassword: secret.keyPassword,
     };
   });

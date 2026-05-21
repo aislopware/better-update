@@ -9,18 +9,20 @@ Environment variables configure the JS bundle and native build at compile time. 
 | Tier          | Dashboard         | CLI pull | Build logs   | Storage        |
 | ------------- | ----------------- | -------- | ------------ | -------------- |
 | **Plaintext** | Visible           | Visible  | Visible      | D1 (raw value) |
-| **Sensitive** | Masked (`••••••`) | Visible  | Masked       | D1 (encrypted) |
-| **Secret**    | Key name only     | Visible  | Never logged | D1 (encrypted) |
+| **Sensitive** | Masked (`••••••`) | Visible  | Masked       | D1 (raw value) |
+| **Secret**    | Key name only     | Visible  | Never logged | D1 (raw value) |
 
 All tiers are available to the build process — visibility only controls who can read the value in the dashboard and logs.
 
-### Encryption
+### Storage
 
-- **Plaintext**: stored as-is in D1 `env_vars.value`
-- **Sensitive**: encrypted with org KEK (same `VAULT_SECRET`-derived KEK as credentials), stored in D1 `env_vars.encrypted_value`
-- **Secret**: same encryption as sensitive, stored in D1 `env_vars.encrypted_value`. The only difference is dashboard visibility (key name only, value never shown).
+Env var values are **not encrypted at rest** — server-side encryption was removed in migration 0038. All tiers store the value as plaintext in D1 `env_vars.value`; the tier only controls **dashboard masking + build-log redaction**, not storage:
 
-All env var values are stored in D1 — R2 is reserved for large binary blobs (credentials, artifacts). Env var values are small strings (max 32 KB) and fit comfortably in D1 rows.
+- **Plaintext**: shown everywhere.
+- **Sensitive**: stored plaintext; masked in the dashboard (reveal toggle) and redacted in build logs.
+- **Secret**: stored plaintext; dashboard shows the key name only, never the value.
+
+All env var values live in D1 — R2 is reserved for large binary blobs (encrypted credentials, artifacts). Env var values are small strings (max 32 KB). Note: env vars are **server-visible** config; for material that must never reach the server in plaintext, use the credential vault (client-side E2E — see [02-credential-vault.md](./02-credential-vault.md)) instead.
 
 ## Environments
 

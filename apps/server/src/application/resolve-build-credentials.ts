@@ -2,7 +2,6 @@ import { toBase64 } from "@better-update/encoding";
 import { Effect } from "effect";
 
 import { CredentialArtifacts } from "../cloudflare/credential-artifacts";
-import { Vault } from "../cloudflare/vault";
 import { computeDeviceRosterHash } from "../domain/device-roster-hash";
 import { BadRequest, NotFound } from "../errors";
 import { requireValue } from "../lib/require-value";
@@ -18,8 +17,6 @@ import { IosBundleConfigurationRepo } from "../repositories/ios-bundle-configura
 import { collectDeviceAscIds } from "./collect-device-asc-ids";
 
 import type { AppleProvisioningProfileModel, DistributionType } from "../models";
-
-const decryptFailure = () => new BadRequest({ message: "Decryption failed" });
 
 const hashFailure = () => new BadRequest({ message: "Failed to hash device roster" });
 
@@ -206,44 +203,14 @@ export const resolveIosBuildCredentials = (input: IosResolveInput) =>
     });
 
     const artifacts = yield* CredentialArtifacts;
-    const vault = yield* Vault;
 
-    const [certBlob, profileBytes, pushKeyBlob] = yield* Effect.all(
+    // The push key is bound and fetched at submit time, not build time, so the
+    // build-resolve response carries only its id (`pushKeyId` below) — never the
+    // R2 blob, which the CLI build path never decrypts.
+    const [certBlob, profileBytes] = yield* Effect.all(
       [
         artifacts.get(cert.r2Key, "Distribution certificate"),
         artifacts.get(profile.r2Key, "Provisioning profile"),
-        pushKey === null ? Effect.succeed(null) : artifacts.get(pushKey.r2Key, "Push key"),
-      ],
-      { concurrency: "unbounded" },
-    );
-
-    const [p12Bytes, p12Password, pushKeyP8Bytes] = yield* Effect.all(
-      [
-        vault
-          .envelopeDecrypt({
-            organizationId: input.organizationId,
-            keyVersion: cert.dekKeyVersion,
-            encryptedDek: cert.encryptedDek,
-            encryptedBlob: certBlob,
-          })
-          .pipe(Effect.mapError(decryptFailure)),
-        vault
-          .decryptSecret({
-            organizationId: input.organizationId,
-            keyVersion: cert.passwordKeyVersion,
-            encrypted: cert.encryptedPassword,
-          })
-          .pipe(Effect.mapError(decryptFailure)),
-        pushKey === null || pushKeyBlob === null
-          ? Effect.succeed(null)
-          : vault
-              .envelopeDecrypt({
-                organizationId: input.organizationId,
-                keyVersion: pushKey.dekKeyVersion,
-                encryptedDek: pushKey.encryptedDek,
-                encryptedBlob: pushKeyBlob,
-              })
-              .pipe(Effect.mapError(decryptFailure)),
       ],
       { concurrency: "unbounded" },
     );
@@ -252,8 +219,9 @@ export const resolveIosBuildCredentials = (input: IosResolveInput) =>
       response: {
         platform: "ios",
         distributionCertificate: {
-          p12Base64: toBase64(p12Bytes),
-          p12Password,
+          ciphertext: toBase64(certBlob),
+          wrappedDek: cert.wrappedDek,
+          vaultVersion: cert.vaultVersion,
         },
         provisioningProfile: {
           mobileprovisionBase64: toBase64(profileBytes),
@@ -263,14 +231,6 @@ export const resolveIosBuildCredentials = (input: IosResolveInput) =>
           bundleIdentifier: profile.bundleIdentifier,
           distributionType: profile.distributionType,
         },
-        pushKey:
-          pushKey === null || pushKeyP8Bytes === null
-            ? null
-            : {
-                p8Base64: toBase64(pushKeyP8Bytes),
-                keyId: pushKey.keyId,
-                teamId: team.appleTeamId,
-              },
         profileStale,
         currentDeviceRosterHash,
         context: {
@@ -360,45 +320,17 @@ export const resolveAndroidBuildCredentials = (input: AndroidResolveInput) =>
     }
 
     const artifacts = yield* CredentialArtifacts;
-    const vault = yield* Vault;
-    const encryptedBytes = yield* artifacts.get(keystore.r2Key, "Android keystore");
-
-    const [keystoreBytes, storePassword, keyPassword] = yield* Effect.all(
-      [
-        vault
-          .envelopeDecrypt({
-            organizationId: input.organizationId,
-            keyVersion: keystore.dekKeyVersion,
-            encryptedDek: keystore.encryptedDek,
-            encryptedBlob: encryptedBytes,
-          })
-          .pipe(Effect.mapError(decryptFailure)),
-        vault
-          .decryptSecret({
-            organizationId: input.organizationId,
-            keyVersion: keystore.keystorePasswordKeyVersion,
-            encrypted: keystore.encryptedKeystorePassword,
-          })
-          .pipe(Effect.mapError(decryptFailure)),
-        vault
-          .decryptSecret({
-            organizationId: input.organizationId,
-            keyVersion: keystore.keyPasswordKeyVersion,
-            encrypted: keystore.encryptedKeyPassword,
-          })
-          .pipe(Effect.mapError(decryptFailure)),
-      ],
-      { concurrency: "unbounded" },
-    );
+    const keystoreBytes = yield* artifacts.get(keystore.r2Key, "Android keystore");
 
     return {
       response: {
         platform: "android",
         keystore: {
-          keystoreBase64: toBase64(keystoreBytes),
-          storePassword,
+          id: keystore.id,
+          ciphertext: toBase64(keystoreBytes),
+          wrappedDek: keystore.wrappedDek,
+          vaultVersion: keystore.vaultVersion,
           keyAlias: keystore.keyAlias,
-          keyPassword,
         },
       },
       resolvedIds: {

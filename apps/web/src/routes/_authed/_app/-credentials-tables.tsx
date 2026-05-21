@@ -1,5 +1,4 @@
 import { Badge } from "@better-update/ui/components/ui/badge";
-import { Button } from "@better-update/ui/components/ui/button";
 import {
   Empty,
   EmptyDescription,
@@ -7,14 +6,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
-import {
-  Menu,
-  MenuPopup,
-  MenuGroup,
-  MenuItem,
-  MenuSeparator,
-  MenuTrigger,
-} from "@better-update/ui/components/ui/menu";
 import {
   Table,
   TableBody,
@@ -26,14 +17,10 @@ import {
 import {
   BellRingIcon,
   CloudIcon,
-  EllipsisVerticalIcon,
   KeyRoundIcon,
-  RefreshCwIcon,
   ShieldCheckIcon,
-  Trash2Icon,
   UsersRoundIcon,
 } from "lucide-react";
-import { useState } from "react";
 
 import type {
   AppleDistributionCertificateItem,
@@ -46,35 +33,6 @@ import type {
 import { STATUS_BADGE_VARIANT, deriveExpiryStatus } from "../../../lib/credential-status";
 import { formatDate } from "../../../lib/format-date";
 import { formatAppleTeamLabel } from "./-credentials-utils";
-import { ConfirmDeleteDialog } from "./projects/$projectSlug/-confirm-delete-dialog";
-
-const deleteIconButton = (
-  <Button variant="ghost" size="icon" aria-label="Delete">
-    <Trash2Icon strokeWidth={2} />
-  </Button>
-);
-
-interface DeleteActionProps {
-  readonly name: string;
-  readonly title: string;
-  readonly description: string;
-  readonly onConfirm: () => Promise<unknown>;
-  readonly onSuccess: () => Promise<void>;
-  readonly successMessage: string;
-}
-
-const DeleteAction = (props: DeleteActionProps) => (
-  <ConfirmDeleteDialog
-    name={props.name}
-    title={props.title}
-    description={props.description}
-    onConfirm={props.onConfirm}
-    successMessage={props.successMessage}
-    onSuccess={props.onSuccess}
-  >
-    {deleteIconButton}
-  </ConfirmDeleteDialog>
-);
 
 export const DistributionCertificatesEmptyState = () => (
   <Empty>
@@ -84,7 +42,8 @@ export const DistributionCertificatesEmptyState = () => (
       </EmptyMedia>
       <EmptyTitle>No distribution certificates</EmptyTitle>
       <EmptyDescription>
-        Upload a .p12 certificate to sign iOS builds for the App Store or ad-hoc distribution.
+        Use the CLI to upload a .p12 certificate to sign iOS builds for the App Store or ad-hoc
+        distribution.
       </EmptyDescription>
     </EmptyHeader>
   </Empty>
@@ -92,19 +51,14 @@ export const DistributionCertificatesEmptyState = () => (
 
 export const DistributionCertificatesTable = ({
   items,
-  onDelete,
-  onInvalidate,
 }: {
   items: readonly AppleDistributionCertificateItem[];
-  onDelete: (id: string) => Promise<unknown>;
-  onInvalidate: () => Promise<void>;
 }) => (
   <Table variant="card">
     <TableHeader>
       <TableRow>
         <TableHead>Serial</TableHead>
         <TableHead>Valid until</TableHead>
-        <TableHead className="w-12" aria-label="Actions" />
       </TableRow>
     </TableHeader>
     <TableBody>
@@ -118,16 +72,6 @@ export const DistributionCertificatesTable = ({
                 <span>{formatDate(cert.validUntil)}</span>
                 <Badge variant={STATUS_BADGE_VARIANT[status.tone]}>{status.label}</Badge>
               </div>
-            </TableCell>
-            <TableCell className="text-right">
-              <DeleteAction
-                name={cert.serialNumber.slice(0, 8)}
-                title="Delete distribution certificate?"
-                description="This permanently removes the cert and its encrypted archive."
-                onConfirm={async () => onDelete(cert.id)}
-                successMessage="Certificate deleted"
-                onSuccess={onInvalidate}
-              />
             </TableCell>
           </TableRow>
         );
@@ -144,27 +88,19 @@ export const PushKeysEmptyState = () => (
       </EmptyMedia>
       <EmptyTitle>No push keys</EmptyTitle>
       <EmptyDescription>
-        Upload an APNs .p8 key to send push notifications from the Apple Push Notification service.
+        Use the CLI to upload an APNs .p8 key to send push notifications from the Apple Push
+        Notification service.
       </EmptyDescription>
     </EmptyHeader>
   </Empty>
 );
 
-export const PushKeysTable = ({
-  items,
-  onDelete,
-  onInvalidate,
-}: {
-  items: readonly ApplePushKeyItem[];
-  onDelete: (id: string) => Promise<unknown>;
-  onInvalidate: () => Promise<void>;
-}) => (
+export const PushKeysTable = ({ items }: { items: readonly ApplePushKeyItem[] }) => (
   <Table variant="card">
     <TableHeader>
       <TableRow>
         <TableHead>Key ID</TableHead>
         <TableHead>Added</TableHead>
-        <TableHead className="w-12" aria-label="Actions" />
       </TableRow>
     </TableHeader>
     <TableBody>
@@ -172,16 +108,6 @@ export const PushKeysTable = ({
         <TableRow key={key.id}>
           <TableCell className="font-mono">{key.keyId}</TableCell>
           <TableCell>{formatDate(key.createdAt)}</TableCell>
-          <TableCell className="text-right">
-            <DeleteAction
-              name={key.keyId}
-              title="Delete push key?"
-              description="This permanently removes the .p8 key."
-              onConfirm={async () => onDelete(key.id)}
-              successMessage="Push key deleted"
-              onSuccess={onInvalidate}
-            />
-          </TableCell>
         </TableRow>
       ))}
     </TableBody>
@@ -196,88 +122,19 @@ export const AscApiKeysEmptyState = () => (
       </EmptyMedia>
       <EmptyTitle>No App Store Connect API keys</EmptyTitle>
       <EmptyDescription>
-        Upload an ASC .p8 key to automate App Store Connect operations like device sync.
+        Use the CLI to upload an ASC .p8 key to automate App Store Connect operations.
       </EmptyDescription>
     </EmptyHeader>
   </Empty>
 );
 
-const AscApiKeyActions = ({
-  keyId,
-  onSync,
-  syncPending,
-  onDelete,
-  onInvalidate,
-}: {
-  keyId: string;
-  onSync: () => void;
-  syncPending: boolean;
-  onDelete: () => Promise<unknown>;
-  onInvalidate: () => Promise<void>;
-}) => {
-  const [deleteOpen, setDeleteOpen] = useState(false);
-
-  return (
-    <>
-      <Menu>
-        <MenuTrigger render={<Button variant="ghost" size="icon" aria-label="ASC key actions" />}>
-          <EllipsisVerticalIcon strokeWidth={2} />
-        </MenuTrigger>
-        <MenuPopup align="end">
-          <MenuGroup>
-            <MenuItem disabled={syncPending} closeOnClick={false} onClick={onSync}>
-              <RefreshCwIcon strokeWidth={2} />
-              <span>{syncPending ? "Syncing…" : "Sync devices"}</span>
-            </MenuItem>
-          </MenuGroup>
-          <MenuSeparator />
-          <MenuGroup>
-            <MenuItem
-              variant="destructive"
-              onClick={() => {
-                setDeleteOpen(true);
-              }}
-            >
-              <Trash2Icon strokeWidth={2} />
-              <span>Delete</span>
-            </MenuItem>
-          </MenuGroup>
-        </MenuPopup>
-      </Menu>
-      <ConfirmDeleteDialog
-        name={keyId}
-        title="Delete ASC API key?"
-        description="This permanently removes the .p8 key."
-        onConfirm={onDelete}
-        successMessage="ASC API key deleted"
-        onSuccess={onInvalidate}
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
-      />
-    </>
-  );
-};
-
-export const AscApiKeysTable = ({
-  items,
-  onDelete,
-  onInvalidate,
-  onSync,
-  syncPending,
-}: {
-  items: readonly AscApiKeyItem[];
-  onDelete: (id: string) => Promise<unknown>;
-  onInvalidate: () => Promise<void>;
-  onSync: (id: string) => void;
-  syncPending: boolean;
-}) => (
+export const AscApiKeysTable = ({ items }: { items: readonly AscApiKeyItem[] }) => (
   <Table variant="card">
     <TableHeader>
       <TableRow>
         <TableHead>Name</TableHead>
         <TableHead>Key ID</TableHead>
         <TableHead>Issuer ID</TableHead>
-        <TableHead className="w-12" aria-label="Actions" />
       </TableRow>
     </TableHeader>
     <TableBody>
@@ -286,17 +143,6 @@ export const AscApiKeysTable = ({
           <TableCell className="font-medium">{key.name}</TableCell>
           <TableCell className="font-mono">{key.keyId}</TableCell>
           <TableCell className="font-mono text-xs break-all">{key.issuerId}</TableCell>
-          <TableCell className="text-right">
-            <AscApiKeyActions
-              keyId={key.keyId}
-              onSync={() => {
-                onSync(key.id);
-              }}
-              syncPending={syncPending}
-              onDelete={async () => onDelete(key.id)}
-              onInvalidate={onInvalidate}
-            />
-          </TableCell>
         </TableRow>
       ))}
     </TableBody>
@@ -354,7 +200,7 @@ export const GoogleServiceAccountKeysEmptyState = () => (
       </EmptyMedia>
       <EmptyTitle>No Google service account keys</EmptyTitle>
       <EmptyDescription>
-        Upload a service account .json key for FCM v1 push notifications.
+        Use the CLI to upload a service account .json key for FCM v1 push notifications.
       </EmptyDescription>
     </EmptyHeader>
   </Empty>
@@ -362,19 +208,14 @@ export const GoogleServiceAccountKeysEmptyState = () => (
 
 export const GoogleServiceAccountKeysTable = ({
   items,
-  onDelete,
-  onInvalidate,
 }: {
   items: readonly GoogleServiceAccountKeyItem[];
-  onDelete: (id: string) => Promise<unknown>;
-  onInvalidate: () => Promise<void>;
 }) => (
   <Table variant="card">
     <TableHeader>
       <TableRow>
         <TableHead>Client email</TableHead>
         <TableHead>Project</TableHead>
-        <TableHead className="w-12" aria-label="Actions" />
       </TableRow>
     </TableHeader>
     <TableBody>
@@ -382,16 +223,6 @@ export const GoogleServiceAccountKeysTable = ({
         <TableRow key={key.id}>
           <TableCell className="text-xs">{key.clientEmail}</TableCell>
           <TableCell className="font-mono text-xs">{key.googleProjectId}</TableCell>
-          <TableCell className="text-right">
-            <DeleteAction
-              name={key.privateKeyId.slice(0, 8)}
-              title="Delete service account key?"
-              description="This permanently removes the key."
-              onConfirm={async () => onDelete(key.id)}
-              successMessage="Service account key deleted"
-              onSuccess={onInvalidate}
-            />
-          </TableCell>
         </TableRow>
       ))}
     </TableBody>

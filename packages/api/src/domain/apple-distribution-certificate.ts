@@ -2,6 +2,7 @@ import { Schema } from "effect";
 
 import { AppleTeamIdentifier, appleTeamMetadataFields } from "./apple-team";
 import { DateTimeString, DeletedResult, Id } from "./common";
+import { encryptedEnvelopeFields } from "./encrypted-credential";
 
 export class AppleDistributionCertificate extends Schema.Class<AppleDistributionCertificate>(
   "AppleDistributionCertificate",
@@ -17,9 +18,14 @@ export class AppleDistributionCertificate extends Schema.Class<AppleDistribution
   updatedAt: DateTimeString,
 }) {}
 
+/**
+ * Client-encrypted upload: the `.p12` bytes + password are sealed into
+ * `ciphertext` (the CLI parses the cert locally to fill the metadata below);
+ * the server stores the envelope and metadata and never sees the plaintext.
+ */
 export const UploadAppleDistributionCertificateBody = Schema.Struct({
-  p12Base64: Schema.String.pipe(Schema.minLength(1)),
-  p12Password: Schema.String.pipe(Schema.minLength(1)),
+  id: Id,
+  ...encryptedEnvelopeFields,
   serialNumber: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(200)),
   appleTeamIdentifier: AppleTeamIdentifier,
   ...appleTeamMetadataFields,
@@ -30,10 +36,10 @@ export const UploadAppleDistributionCertificateBody = Schema.Struct({
 
 export const DeleteAppleDistributionCertificateResult = DeletedResult;
 
+/** The encrypted envelope (relayed from R2) plus server-visible metadata; the CLI decrypts `ciphertext` to recover `{ p12Base64, p12Password }`. */
 export const DownloadAppleDistributionCertificateResult = Schema.Struct({
   id: Id,
-  p12Base64: Schema.String,
-  p12Password: Schema.String,
+  ...encryptedEnvelopeFields,
   serialNumber: Schema.String,
   appleTeamIdentifier: AppleTeamIdentifier,
   validFrom: DateTimeString,

@@ -1,4 +1,6 @@
-import { setupE2EWorker } from "../helpers/e2e-worker";
+import { env } from "cloudflare:test";
+
+import { setupE2EWorker } from "../helpers/e2e-worker-pool";
 
 const { get, parseCookies, post } = setupE2EWorker(".wrangler/state/e2e-members");
 
@@ -77,7 +79,20 @@ describe("Organization members cross-flow", () => {
       password: "SecureP@ss123",
     });
     expect(res.status).toBe(200);
-    cookiesB = parseCookies(res);
+
+    // Production users sign in through GitHub OAuth with a pre-verified email;
+    // the email/password test path leaves email_verified=0, which better-auth's
+    // org plugin blocks from accepting invitations. Verify in D1, then re-sign-in
+    // so the refreshed session (compact cookie cache) carries the verified state.
+    await env.DB.prepare(`UPDATE "user" SET "email_verified" = 1 WHERE "email" = ?`)
+      .bind("bob@example.com")
+      .run();
+    const signin = await post("/api/auth/sign-in/email", {
+      email: "bob@example.com",
+      password: "SecureP@ss123",
+    });
+    expect(signin.status).toBe(200);
+    cookiesB = parseCookies(signin);
   });
 
   it("user B accepts the invitation", async () => {

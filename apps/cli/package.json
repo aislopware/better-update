@@ -57,6 +57,7 @@
   },
   "devDependencies": {
     "@better-update/api": "workspace:*",
+    "@better-update/credentials-crypto": "workspace:*",
     "@better-update/encoding": "workspace:*",
     "@better-update/expo-protocol": "workspace:*",
     "@better-update/oxlint-config": "workspace:*",

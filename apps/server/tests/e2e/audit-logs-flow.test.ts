@@ -1,4 +1,4 @@
-import { setupE2EWorker } from "../helpers/e2e-worker";
+import { setupE2EWorker } from "../helpers/e2e-worker-pool";
 
 const { get, parseCookies, post } = setupE2EWorker(".wrangler/state/e2e-audit-logs");
 

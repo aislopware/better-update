@@ -17,6 +17,7 @@ import { Route as AuthCliLoginRouteImport } from './routes/auth/cli-login'
 import { Route as AuthedOnboardingRouteImport } from './routes/_authed/onboarding'
 import { Route as AuthedAppRouteImport } from './routes/_authed/_app'
 import { Route as AuthedAppIndexRouteImport } from './routes/_authed/_app/index'
+import { Route as AuthedAppVaultAccessRouteImport } from './routes/_authed/_app/vault-access'
 import { Route as AuthedAppMembersRouteImport } from './routes/_authed/_app/members'
 import { Route as AuthedAppCredentialsRouteImport } from './routes/_authed/_app/credentials'
 import { Route as AuthedAppAuditLogRouteImport } from './routes/_authed/_app/audit-log'
@@ -90,6 +91,11 @@ const AuthedAppRoute = AuthedAppRouteImport.update({
 const AuthedAppIndexRoute = AuthedAppIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AuthedAppRoute,
+} as any)
+const AuthedAppVaultAccessRoute = AuthedAppVaultAccessRouteImport.update({
+  id: '/vault-access',
+  path: '/vault-access',
   getParentRoute: () => AuthedAppRoute,
 } as any)
 const AuthedAppMembersRoute = AuthedAppMembersRouteImport.update({
@@ -312,6 +318,7 @@ export interface FileRoutesByFullPath {
   '/audit-log': typeof AuthedAppAuditLogRoute
   '/credentials': typeof AuthedAppCredentialsRoute
   '/members': typeof AuthedAppMembersRoute
+  '/vault-access': typeof AuthedAppVaultAccessRoute
   '/account/appearance': typeof AuthedAppAccountAppearanceRoute
   '/account/connections': typeof AuthedAppAccountConnectionsRoute
   '/account/password': typeof AuthedAppAccountPasswordRoute
@@ -355,6 +362,7 @@ export interface FileRoutesByTo {
   '/audit-log': typeof AuthedAppAuditLogRoute
   '/credentials': typeof AuthedAppCredentialsRoute
   '/members': typeof AuthedAppMembersRoute
+  '/vault-access': typeof AuthedAppVaultAccessRoute
   '/account/appearance': typeof AuthedAppAccountAppearanceRoute
   '/account/connections': typeof AuthedAppAccountConnectionsRoute
   '/account/password': typeof AuthedAppAccountPasswordRoute
@@ -399,6 +407,7 @@ export interface FileRoutesById {
   '/_authed/_app/audit-log': typeof AuthedAppAuditLogRoute
   '/_authed/_app/credentials': typeof AuthedAppCredentialsRoute
   '/_authed/_app/members': typeof AuthedAppMembersRoute
+  '/_authed/_app/vault-access': typeof AuthedAppVaultAccessRoute
   '/_authed/_app/': typeof AuthedAppIndexRoute
   '/_authed/_app/account/appearance': typeof AuthedAppAccountAppearanceRoute
   '/_authed/_app/account/connections': typeof AuthedAppAccountConnectionsRoute
@@ -446,6 +455,7 @@ export interface FileRouteTypes {
     | '/audit-log'
     | '/credentials'
     | '/members'
+    | '/vault-access'
     | '/account/appearance'
     | '/account/connections'
     | '/account/password'
@@ -489,6 +499,7 @@ export interface FileRouteTypes {
     | '/audit-log'
     | '/credentials'
     | '/members'
+    | '/vault-access'
     | '/account/appearance'
     | '/account/connections'
     | '/account/password'
@@ -532,6 +543,7 @@ export interface FileRouteTypes {
     | '/_authed/_app/audit-log'
     | '/_authed/_app/credentials'
     | '/_authed/_app/members'
+    | '/_authed/_app/vault-access'
     | '/_authed/_app/'
     | '/_authed/_app/account/appearance'
     | '/_authed/_app/account/connections'
@@ -628,6 +640,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AuthedAppIndexRouteImport
+      parentRoute: typeof AuthedAppRoute
+    }
+    '/_authed/_app/vault-access': {
+      id: '/_authed/_app/vault-access'
+      path: '/vault-access'
+      fullPath: '/vault-access'
+      preLoaderRoute: typeof AuthedAppVaultAccessRouteImport
       parentRoute: typeof AuthedAppRoute
     }
     '/_authed/_app/members': {
@@ -996,6 +1015,7 @@ interface AuthedAppRouteChildren {
   AuthedAppAuditLogRoute: typeof AuthedAppAuditLogRoute
   AuthedAppCredentialsRoute: typeof AuthedAppCredentialsRoute
   AuthedAppMembersRoute: typeof AuthedAppMembersRoute
+  AuthedAppVaultAccessRoute: typeof AuthedAppVaultAccessRoute
   AuthedAppIndexRoute: typeof AuthedAppIndexRoute
   AuthedAppProjectsProjectSlugRoute: typeof AuthedAppProjectsProjectSlugRouteWithChildren
   AuthedAppAppleDevicesIndexRoute: typeof AuthedAppAppleDevicesIndexRoute
@@ -1010,6 +1030,7 @@ const AuthedAppRouteChildren: AuthedAppRouteChildren = {
   AuthedAppAuditLogRoute: AuthedAppAuditLogRoute,
   AuthedAppCredentialsRoute: AuthedAppCredentialsRoute,
   AuthedAppMembersRoute: AuthedAppMembersRoute,
+  AuthedAppVaultAccessRoute: AuthedAppVaultAccessRoute,
   AuthedAppIndexRoute: AuthedAppIndexRoute,
   AuthedAppProjectsProjectSlugRoute:
     AuthedAppProjectsProjectSlugRouteWithChildren,

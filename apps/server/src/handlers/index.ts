@@ -25,6 +25,8 @@ export { IosAppMetadataGroupLive } from "./ios-app-metadata";
 export { SubmissionsGroupLive } from "./submissions";
 export { serveManifest } from "./manifest";
 export { MeGroupLive } from "./me";
+export { OrgVaultGroupLive } from "./org-vault";
 export { ProjectsGroupLive } from "./projects";
 export { UpdatesGroupLive } from "./updates";
+export { UserEncryptionKeysGroupLive } from "./user-encryption-keys";
 export { WebhooksGroupLive } from "./webhooks";

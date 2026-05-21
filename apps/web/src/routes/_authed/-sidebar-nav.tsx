@@ -11,6 +11,7 @@ import {
   ScrollTextIcon,
   CloudUploadIcon,
   CodeIcon,
+  FingerprintIcon,
   LayersIcon,
   LayoutDashboardIcon,
   FolderIcon,
@@ -34,6 +35,7 @@ interface OrgNavItem {
     | "/audit-log"
     | "/credentials"
     | "/apple-devices"
+    | "/vault-access"
     | "/api-keys"
     | "/environment-variables"
     | "/settings"
@@ -87,6 +89,7 @@ const ORG_NAV: OrgNavSection[] = [
     items: [
       { to: "/credentials", label: "Credentials", icon: ShieldCheckIcon },
       { to: "/apple-devices", label: "Apple Devices", icon: SmartphoneIcon },
+      { to: "/vault-access", label: "Vault access", icon: FingerprintIcon },
     ],
   },
   {

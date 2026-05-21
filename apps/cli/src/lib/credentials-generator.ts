@@ -6,6 +6,12 @@ import { compact, toOptional } from "@better-update/type-guards";
 import { FileSystem } from "@effect/platform";
 import { Data, Effect } from "effect";
 
+import {
+  openVaultSession,
+  sealForUpload,
+  toUploadEnvelope,
+} from "../application/credential-cipher";
+import { resolveVaultPassphrase } from "../application/vault-access";
 import { generateAndroidKeystore } from "./android-keystore";
 import {
   createBundleId,
@@ -19,6 +25,7 @@ import {
 } from "./apple-asc-client";
 import { buildDistributionCertP12 } from "./apple-cert-to-p12";
 import { generateCertificateSigningRequest } from "./apple-csr";
+import { fetchAscCredentials } from "./asc-credentials";
 import { acquireBuildTempDir } from "./temp-dir";
 
 import type { ApiClient } from "../services/api-client";
@@ -78,6 +85,8 @@ export interface GenerateAndUploadKeystoreInput {
   readonly commonName: string;
   readonly organization: string;
   readonly validityDays?: number;
+  /** Passphrase to unlock the device identity; undefined when using the CI env key. */
+  readonly passphrase?: string;
 }
 
 export const generateAndUploadKeystore = (api: ApiClient, input: GenerateAndUploadKeystoreInput) =>
@@ -98,28 +107,33 @@ export const generateAndUploadKeystore = (api: ApiClient, input: GenerateAndUplo
       });
 
       const bytes = yield* fs.readFile(keystorePath);
-      const created = yield* api.androidUploadKeystores.upload({
-        payload: {
+      const passphrase = input.passphrase ?? (yield* resolveVaultPassphrase);
+      const session = yield* openVaultSession(api, passphrase);
+      const metadata = { keyAlias: input.keyAlias };
+      const envelope = yield* sealForUpload({
+        session,
+        credentialType: "keystore",
+        metadata,
+        secret: {
           keystoreBase64: toBase64(bytes),
-          keyAlias: input.keyAlias,
           keystorePassword: input.storePassword,
           keyPassword: input.keyPassword,
         },
       });
+      const created = yield* api.androidUploadKeystores.upload({
+        payload: { ...toUploadEnvelope(envelope), ...metadata },
+      });
       return { id: created.id, keyAlias: created.keyAlias };
     }),
   );
-
-// ── ASC credentials fetcher ────────────────────────────────────────
-
-export const fetchAscCredentials = (api: ApiClient, ascApiKeyId: string) =>
-  api.ascApiKeys.getCredentials({ path: { id: ascApiKeyId } });
 
 // ── iOS distribution certificate ───────────────────────────────────
 
 export interface GenerateAndUploadDistributionCertificateInput {
   readonly ascApiKeyId: string;
   readonly certificateType?: "IOS_DISTRIBUTION" | "IOS_DEVELOPMENT";
+  /** Passphrase to unlock the device identity; undefined when using the CI env key. */
+  readonly passphrase?: string;
 }
 
 export const generateAndUploadDistributionCertificate = (
@@ -163,14 +177,24 @@ export const generateAndUploadDistributionCertificate = (
       ),
     );
 
+    const passphrase = input.passphrase ?? (yield* resolveVaultPassphrase);
+    const session = yield* openVaultSession(api, passphrase);
+    const metadata = {
+      serialNumber: bundle.metadata.serialNumber,
+      appleTeamIdentifier: bundle.metadata.appleTeamId,
+      validFrom: bundle.metadata.validFrom,
+      validUntil: bundle.metadata.validUntil,
+    };
+    const envelope = yield* sealForUpload({
+      session,
+      credentialType: "distribution-certificate",
+      metadata,
+      secret: { p12Base64: bundle.p12Base64, p12Password: bundle.password },
+    });
     const created = yield* api.appleDistributionCertificates.upload({
       payload: {
-        p12Base64: bundle.p12Base64,
-        p12Password: bundle.password,
-        serialNumber: bundle.metadata.serialNumber,
-        appleTeamIdentifier: bundle.metadata.appleTeamId,
-        validFrom: bundle.metadata.validFrom,
-        validUntil: bundle.metadata.validUntil,
+        ...toUploadEnvelope(envelope),
+        ...metadata,
         ...compact({
           appleTeamName: toOptional(bundle.metadata.appleTeamName),
           developerIdIdentifier: toOptional(bundle.metadata.developerIdIdentifier),

@@ -1,16 +1,26 @@
+import {
+  generateIdentity,
+  generateVaultKey,
+  wrapVaultKey,
+} from "@better-update/credentials-crypto";
+import { toBase64 } from "@better-update/encoding";
 import { it } from "@effect/vitest";
-import { Effect } from "effect";
+import { Effect, Layer } from "effect";
 
+import type { Identity } from "@better-update/credentials-crypto";
 import type { RequestContext } from "@expo/apple-utils";
 // eslint-disable-next-line import-plugin/no-namespace -- vi.mock factory accepts a partial of the entire module shape; namespace import is the only way to satisfy ModuleMockFactoryWithHelper at compile time
 import type * as AppleUtilsModule from "@expo/apple-utils";
 
+import { CliRuntime } from "../services/cli-runtime";
+import { IdentityStore } from "../services/identity-store";
 import {
   generateAndUploadDistributionCertificateViaAppleId,
   generateAndUploadProvisioningProfileViaAppleId,
   listDistributionCertsViaAppleId,
   revokeDistributionCertViaAppleId,
 } from "./credentials-generator-apple-id";
+import { makeInteractiveModeLayer } from "./interactive-mode";
 
 import type { ApiClient } from "../services/api-client";
 // eslint-disable-next-line import-plugin/no-namespace -- same reason: typed vi.mock factory needs the full module namespace type
@@ -74,8 +84,41 @@ const certListItem = {
   appleTeamId: "TEAM1234",
 };
 
-const buildApi = () =>
+interface TestVault {
+  readonly identity: Identity;
+  readonly wrappedVaultKey: string;
+}
+
+/** Real identity + wrapped vault key so `sealForUpload`'s live unlock path works. */
+const makeTestVault = Effect.gen(function* () {
+  const identity = yield* Effect.promise(async () => generateIdentity());
+  const vaultKey = generateVaultKey();
+  const wrappedVaultKey = toBase64(
+    yield* Effect.promise(async () => wrapVaultKey({ vaultKey, recipient: identity.publicKey })),
+  );
+  return { identity, wrappedVaultKey } satisfies TestVault;
+});
+
+const buildApi = (vault: TestVault) =>
   ({
+    me: { get: () => Effect.succeed({ activeOrganization: { id: "org-1" } }) },
+    userEncryptionKeys: {
+      list: () =>
+        Effect.succeed({
+          items: [
+            {
+              id: "key-1",
+              publicKey: vault.identity.publicKey,
+              fingerprint: vault.identity.fingerprint,
+              kind: "device",
+              label: "ci",
+            },
+          ],
+        }),
+    },
+    orgVault: {
+      getWrap: () => Effect.succeed({ vaultVersion: 1, wrappedKey: vault.wrappedVaultKey }),
+    },
     appleDistributionCertificates: {
       list: () => Effect.succeed({ items: [certListItem] }),
       upload: () => Effect.succeed({ id: "cert-local-1", appleTeamId: "team-uuid-1" }),
@@ -92,6 +135,28 @@ const buildApi = () =>
         }),
     },
   }) as unknown as ApiClient;
+
+/** CliRuntime surfacing the env identity so the vault unlocks without a passphrase. */
+const vaultLayer = (privateKey: string) =>
+  Layer.mergeAll(
+    makeInteractiveModeLayer(false),
+    Layer.succeed(CliRuntime, {
+      argv: [],
+      platform: "linux" as NodeJS.Platform,
+      cwd: Effect.succeed("/"),
+      getEnv: (name: string) =>
+        Effect.succeed(name === "BETTER_UPDATE_IDENTITY" ? privateKey : undefined),
+      homeDirectory: Effect.succeed("/"),
+      userName: Effect.succeed("test"),
+      commandEnvironment: () => Effect.succeed({}),
+      setExitCode: () => Effect.void,
+    }),
+    Layer.succeed(IdentityStore, {
+      load: Effect.sync(() => null),
+      save: () => Effect.void,
+      clear: Effect.void,
+    }),
+  );
 
 const context: RequestContext = { teamId: "TEAM1234", providerId: 100 };
 
@@ -115,7 +180,7 @@ describe(generateAndUploadProvisioningProfileViaAppleId, () => {
         attributes: { profileContent: btoa("fake-profile") },
       });
 
-      const api = buildApi();
+      const api = buildApi(yield* makeTestVault);
       const result = yield* generateAndUploadProvisioningProfileViaAppleId(api, {
         context,
         distributionCertificateId: "cert-local-1",
@@ -150,7 +215,7 @@ describe(generateAndUploadProvisioningProfileViaAppleId, () => {
         attributes: { profileContent: btoa("fake-adhoc") },
       });
 
-      const api = buildApi();
+      const api = buildApi(yield* makeTestVault);
       yield* generateAndUploadProvisioningProfileViaAppleId(api, {
         context,
         distributionCertificateId: "cert-local-1",
@@ -176,7 +241,7 @@ describe(generateAndUploadProvisioningProfileViaAppleId, () => {
       ]);
       mocks.bundleIdFindAsync.mockResolvedValue({ id: "bundle-asc-1" });
 
-      const api = buildApi();
+      const api = buildApi(yield* makeTestVault);
       const exit = yield* Effect.exit(
         generateAndUploadProvisioningProfileViaAppleId(api, {
           context,
@@ -200,10 +265,11 @@ describe(generateAndUploadDistributionCertificateViaAppleId, () => {
         ),
       );
 
-      const api = buildApi();
+      const vault = yield* makeTestVault;
+      const api = buildApi(vault);
       const exit = yield* Effect.exit(
         generateAndUploadDistributionCertificateViaAppleId(api, { context }),
-      );
+      ).pipe(Effect.provide(vaultLayer(vault.identity.privateKey)));
 
       expect(exit._tag).toBe("Failure");
       if (exit._tag === "Failure") {
@@ -217,10 +283,11 @@ describe(generateAndUploadDistributionCertificateViaAppleId, () => {
     Effect.gen(function* () {
       mocks.createCertAndP12Async.mockRejectedValue(new Error("network down"));
 
-      const api = buildApi();
+      const vault = yield* makeTestVault;
+      const api = buildApi(vault);
       const exit = yield* Effect.exit(
         generateAndUploadDistributionCertificateViaAppleId(api, { context }),
-      );
+      ).pipe(Effect.provide(vaultLayer(vault.identity.privateKey)));
 
       expect(exit._tag).toBe("Failure");
       if (exit._tag === "Failure") {
@@ -251,8 +318,11 @@ describe(generateAndUploadDistributionCertificateViaAppleId, () => {
         commonName: "iPhone Distribution: Acme",
       });
 
-      const api = buildApi();
-      const result = yield* generateAndUploadDistributionCertificateViaAppleId(api, { context });
+      const vault = yield* makeTestVault;
+      const api = buildApi(vault);
+      const result = yield* generateAndUploadDistributionCertificateViaAppleId(api, {
+        context,
+      }).pipe(Effect.provide(vaultLayer(vault.identity.privateKey)));
 
       expect(result.id).toBe("cert-local-1");
       expect(result.appleTeamId).toBe("team-uuid-1");

@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 
+import { compact } from "@better-update/type-guards";
 import { Console, Effect } from "effect";
 
 import { IOS_DISTRIBUTION_TO_TYPE } from "../lib/credentials-downloader";
@@ -16,6 +17,7 @@ import {
   setupIosViaAppleId,
 } from "./credentials-interactive-apple-id";
 import { setupIosViaAscKey } from "./credentials-interactive-ios-asc";
+import { resolveVaultPassphrase } from "./vault-access";
 
 import type { ApiClient } from "../services/api-client";
 import type { IosSetupInput } from "./credentials-interactive-ios-asc";
@@ -54,12 +56,14 @@ const randomKeystoreSecret = () => randomBytes(24).toString("base64url");
 const generateKeystoreAuto = (api: ApiClient, applicationIdentifier: string) =>
   Effect.gen(function* () {
     yield* Console.log("Generating a new Android Keystore...");
+    const passphrase = yield* resolveVaultPassphrase;
     const created = yield* generateAndUploadKeystore(api, {
       keyAlias: "upload",
       storePassword: randomKeystoreSecret(),
       keyPassword: randomKeystoreSecret(),
       commonName: applicationIdentifier,
       organization: "better-update",
+      ...compact({ passphrase }),
     });
     return created.id;
   });
@@ -71,6 +75,7 @@ const generateKeystoreInteractive = (api: ApiClient) =>
     const keyPassword = yield* promptPassword("Key password");
     const commonName = yield* promptText("Common name (CN)", { placeholder: "Your App" });
     const organization = yield* promptText("Organization (O)", { placeholder: "Your Company" });
+    const passphrase = yield* resolveVaultPassphrase;
     yield* Console.log("Generating keystore with keytool...");
     const created = yield* generateAndUploadKeystore(api, {
       keyAlias: alias,
@@ -78,6 +83,7 @@ const generateKeystoreInteractive = (api: ApiClient) =>
       keyPassword,
       commonName,
       organization,
+      ...compact({ passphrase }),
     });
     return created.id;
   });

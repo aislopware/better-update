@@ -1,6 +1,7 @@
 import { Schema } from "effect";
 
 import { DateTimeString, DeletedResult, Id } from "./common";
+import { encryptedEnvelopeFields } from "./encrypted-credential";
 
 export class AndroidUploadKeystore extends Schema.Class<AndroidUploadKeystore>(
   "AndroidUploadKeystore",
@@ -15,11 +16,15 @@ export class AndroidUploadKeystore extends Schema.Class<AndroidUploadKeystore>(
   updatedAt: DateTimeString,
 }) {}
 
+/**
+ * Client-encrypted upload: the keystore bytes + store/key passwords are sealed
+ * into `ciphertext`. The CLI reads the keystore locally to fill the alias and
+ * fingerprints below — the server stores only metadata + the envelope.
+ */
 export const UploadAndroidUploadKeystoreBody = Schema.Struct({
-  keystoreBase64: Schema.String.pipe(Schema.minLength(1)),
+  id: Id,
+  ...encryptedEnvelopeFields,
   keyAlias: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(200)),
-  keystorePassword: Schema.String.pipe(Schema.minLength(1)),
-  keyPassword: Schema.String.pipe(Schema.minLength(1)),
   md5Fingerprint: Schema.optional(Schema.String.pipe(Schema.maxLength(200))),
   sha1Fingerprint: Schema.optional(Schema.String.pipe(Schema.maxLength(200))),
   sha256Fingerprint: Schema.optional(Schema.String.pipe(Schema.maxLength(200))),
@@ -27,10 +32,9 @@ export const UploadAndroidUploadKeystoreBody = Schema.Struct({
 
 export const DeleteAndroidUploadKeystoreResult = DeletedResult;
 
+/** Encrypted envelope plus metadata; the CLI decrypts `ciphertext` to recover `{ keystoreBase64, keystorePassword, keyPassword }`. */
 export const DownloadAndroidUploadKeystoreResult = Schema.Struct({
   id: Id,
-  keystoreBase64: Schema.String,
+  ...encryptedEnvelopeFields,
   keyAlias: Schema.String,
-  keystorePassword: Schema.String,
-  keyPassword: Schema.String,
 });

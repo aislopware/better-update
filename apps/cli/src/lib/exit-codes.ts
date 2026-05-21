@@ -81,6 +81,10 @@ export class CredentialValidationError extends Data.TaggedError("CredentialValid
   readonly message: string;
 }> {}
 
+export class IdentityError extends Data.TaggedError("IdentityError")<{
+  readonly message: string;
+}> {}
+
 export class AppleAuthError extends Data.TaggedError("AppleAuthError")<{
   readonly message: string;
 }> {}

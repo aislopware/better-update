@@ -1,14 +1,9 @@
-import { execSync } from "node:child_process";
-import { rmSync, writeFileSync } from "node:fs";
+import { setupE2EWorker } from "../helpers/e2e-worker-pool";
+import { seedD1 } from "../helpers/seed-d1";
 
-import { setupE2EWorker } from "../helpers/e2e-worker";
-
-const { getBaseUrl, getPersistDir } = setupE2EWorker();
-const getPersistArg = () => getPersistDir();
+const { get } = setupE2EWorker();
 
 // -- Seed data ----------------------------------------------------------------
-
-const seedFile = ".wrangler/seed-bundle-diffing.sql";
 
 const seedSQL = `
 INSERT INTO "organization" ("id", "name", "slug", "created_at")
@@ -73,24 +68,14 @@ INSERT INTO "update_assets" ("update_id", "asset_key", "asset_hash", "is_launch"
 VALUES ('update-bd-v11-2', 'bundle', 'launch-hash-v11-new', 1);
 `;
 
-beforeAll(() => {
-  writeFileSync(seedFile, seedSQL);
-  execSync(
-    `bunx wrangler d1 execute DB --local --persist-to ${getPersistArg()} --file ${seedFile}`,
-    {
-      stdio: "pipe",
-    },
-  );
-});
-
-afterAll(() => {
-  rmSync(seedFile, { force: true });
+beforeAll(async () => {
+  await seedD1(seedSQL);
 });
 
 // -- Helpers ------------------------------------------------------------------
 
 const manifestGet = (projectId: string, headers: Record<string, string>) =>
-  fetch(`${getBaseUrl()}/manifest/${projectId}`, { headers });
+  get(`/manifest/${projectId}`, headers);
 
 const protocolHeaders = (overrides?: Record<string, string>) => ({
   "expo-protocol-version": "1",

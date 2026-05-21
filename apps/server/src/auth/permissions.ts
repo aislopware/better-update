@@ -29,6 +29,7 @@ export const permissions: PermissionMap = {
     iosBundleConfiguration: ["read", "create", "update", "delete"],
     iosAppMetadata: ["read", "create", "update", "delete"],
     submission: ["read", "create", "update", "delete", "cancel"],
+    vaultAccess: ["read", "create", "delete"],
   },
   admin: {
     organization: ["read"],
@@ -51,6 +52,7 @@ export const permissions: PermissionMap = {
     iosBundleConfiguration: ["read", "create", "update", "delete"],
     iosAppMetadata: ["read", "create", "update", "delete"],
     submission: ["read", "create", "update", "delete", "cancel"],
+    vaultAccess: ["read", "create", "delete"],
   },
   developer: {
     project: ["read", "create"],
@@ -69,6 +71,7 @@ export const permissions: PermissionMap = {
     iosBundleConfiguration: ["read", "create", "update"],
     iosAppMetadata: ["read", "create", "update"],
     submission: ["read", "create", "update", "cancel"],
+    vaultAccess: ["read"],
   },
   viewer: {
     organization: ["read"],
@@ -88,6 +91,7 @@ export const permissions: PermissionMap = {
     iosBundleConfiguration: ["read"],
     iosAppMetadata: ["read"],
     submission: ["read"],
+    vaultAccess: ["read"],
   },
 };
 

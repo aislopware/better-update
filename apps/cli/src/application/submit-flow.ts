@@ -4,13 +4,12 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 
-import { fromBase64 } from "@better-update/encoding";
 import { compact, toDbNull } from "@better-update/type-guards";
 import { Duration, Effect, Schema } from "effect";
 
 import type { CreateSubmissionBody, Submission, SubmissionStatus } from "@better-update/api";
 
-import { fetchAscCredentials } from "../lib/credentials-generator";
+import { fetchAscCredentials } from "../lib/asc-credentials";
 import {
   acquireGooglePlayAccessToken,
   commitEdit,
@@ -19,6 +18,7 @@ import {
   uploadBundle,
 } from "../lib/google-play";
 import { printHuman } from "../lib/output";
+import { openFromDownload, openVaultSessionInteractive } from "./credential-cipher";
 
 import type { EasAndroidSubmitProfile } from "../lib/eas-submit-config";
 import type { ApiClient } from "../services/api-client";
@@ -167,12 +167,12 @@ const writeAscApiKeyP8 = (api: ApiClient, ascApiKeyId: string) =>
         () =>
           new CliSubmitError({
             code: "SUBMISSION_ASC_KEY_FETCH_FAILED",
-            message: `Failed to download ASC API key ${ascApiKeyId}`,
+            message: `Failed to fetch or decrypt ASC API key ${ascApiKeyId}`,
           }),
       ),
     );
     const target = path.join(tmpdir(), `better-update-submit-AuthKey_${creds.keyId}.p8`);
-    yield* Effect.promise(async () => writeFile(target, fromBase64(creds.p8Pem)));
+    yield* Effect.promise(async () => writeFile(target, creds.p8Pem, "utf8"));
     return { p8Path: target, keyId: creds.keyId, issuerId: creds.issuerId };
   });
 
@@ -296,16 +296,47 @@ const readArchiveBytes = (archive: { source: "build" | "path" | "url"; value: st
     : fetchArchiveOverHttp(archive.value);
 
 const fetchServiceAccountKeyById = (api: ApiClient, id: string) =>
-  api.googleServiceAccountKeys.download({ path: { id } }).pipe(
-    Effect.mapError(
-      () =>
-        new CliSubmitError({
-          code: "SUBMISSION_ANDROID_SA_KEY_FETCH_FAILED",
-          message: `Failed to download Google service account key ${id}`,
-        }),
-    ),
-    Effect.map((data) => data.json),
-  );
+  Effect.gen(function* () {
+    const data = yield* api.googleServiceAccountKeys.download({ path: { id } }).pipe(
+      Effect.mapError(
+        () =>
+          new CliSubmitError({
+            code: "SUBMISSION_ANDROID_SA_KEY_FETCH_FAILED",
+            message: `Failed to download Google service account key ${id}`,
+          }),
+      ),
+    );
+    const session = yield* openVaultSessionInteractive(api).pipe(
+      Effect.mapError(
+        (cause) =>
+          new CliSubmitError({
+            code: "SUBMISSION_VAULT_UNLOCK_FAILED",
+            message: `Could not unlock the credential vault: ${cause.message}`,
+          }),
+      ),
+    );
+    const secret = yield* openFromDownload({
+      session,
+      credentialType: "google-service-account-key",
+      downloaded: data,
+    }).pipe(
+      Effect.mapError(
+        (cause) =>
+          new CliSubmitError({
+            code: "SUBMISSION_ANDROID_SA_KEY_DECRYPT_FAILED",
+            message: `Failed to decrypt Google service account key ${id}: ${cause.message}`,
+          }),
+      ),
+    );
+    const { json } = secret;
+    if (typeof json !== "string") {
+      return yield* new CliSubmitError({
+        code: "SUBMISSION_ANDROID_SA_KEY_DECRYPT_FAILED",
+        message: `Decrypted Google service account key ${id} is missing its JSON.`,
+      });
+    }
+    return json;
+  });
 
 const resolveServiceAccountJson = (params: {
   readonly api: ApiClient;

@@ -2,7 +2,8 @@ import { Schema } from "effect";
 
 import { AndroidPackageName } from "./android-application-identifier";
 import { BundleIdentifier, DistributionType } from "./apple-provisioning-profile";
-import { Name120 } from "./common";
+import { Id, Name120 } from "./common";
+import { encryptedEnvelopeFields } from "./encrypted-credential";
 
 export const ResolveBuildCredentialsIosBody = Schema.Struct({
   platform: Schema.Literal("ios"),
@@ -21,9 +22,9 @@ export const ResolveBuildCredentialsBody = Schema.Union(
   ResolveBuildCredentialsAndroidBody,
 );
 
+/** Encrypted `.p12` envelope; the CLI decrypts to `{ p12Base64, p12Password }` during the build. */
 export const IosBuildDistributionCertificate = Schema.Struct({
-  p12Base64: Schema.String,
-  p12Password: Schema.String,
+  ...encryptedEnvelopeFields,
 });
 
 export const IosBuildProvisioningProfile = Schema.Struct({
@@ -33,12 +34,6 @@ export const IosBuildProvisioningProfile = Schema.Struct({
   teamId: Schema.String,
   bundleIdentifier: Schema.String,
   distributionType: DistributionType,
-});
-
-export const IosBuildPushKey = Schema.Struct({
-  p8Base64: Schema.String,
-  keyId: Schema.String,
-  teamId: Schema.String,
 });
 
 /**
@@ -59,17 +54,16 @@ export const ResolveBuildCredentialsIosResult = Schema.Struct({
   platform: Schema.Literal("ios"),
   distributionCertificate: IosBuildDistributionCertificate,
   provisioningProfile: IosBuildProvisioningProfile,
-  pushKey: Schema.NullOr(IosBuildPushKey),
   profileStale: Schema.Boolean,
   currentDeviceRosterHash: Schema.NullOr(Schema.String),
   context: IosBuildContext,
 });
 
+/** Encrypted keystore envelope + the keystore row id (the DEK-AAD `credentialId`) and public alias; the CLI decrypts to `{ keystoreBase64, keystorePassword, keyPassword }`. */
 export const AndroidBuildKeystore = Schema.Struct({
-  keystoreBase64: Schema.String,
-  storePassword: Schema.String,
+  ...encryptedEnvelopeFields,
+  id: Id,
   keyAlias: Schema.String,
-  keyPassword: Schema.String,
 });
 
 export const ResolveBuildCredentialsAndroidResult = Schema.Struct({

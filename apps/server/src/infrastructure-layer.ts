@@ -1,7 +1,6 @@
 import { Layer } from "effect";
 
 import { AnalyticsEngineLive } from "./cloudflare/analytics-engine";
-import { AppleAppStoreConnectLive } from "./cloudflare/apple-app-store-connect";
 import { AssetStorageLive } from "./cloudflare/asset-storage";
 import { BuildRuntimeLive } from "./cloudflare/build-runtime";
 import { CredentialArtifactsLive } from "./cloudflare/credential-artifacts";
@@ -9,7 +8,6 @@ import { CryptoServiceLive } from "./cloudflare/crypto-service";
 import { EmailServiceLive } from "./cloudflare/email-service";
 import { ManifestCacheStorageLive } from "./cloudflare/manifest-cache-storage";
 import { UpdateCoordinatorLive } from "./cloudflare/update-coordinator";
-import { VaultLive } from "./cloudflare/vault";
 import {
   AnalyticsRepoLive,
   AndroidApplicationIdentifierRepoLive,
@@ -33,20 +31,20 @@ import {
   GoogleServiceAccountKeyRepoLive,
   IosAppMetadataRepoLive,
   IosBundleConfigurationRepoLive,
+  OrgVaultRepoLive,
   ProjectRepoLive,
   SubmissionsRepoLive,
   UpdateRepoLive,
+  UserEncryptionKeyRepoLive,
   WebhookRepoLive,
 } from "./repositories";
 
 import type { AnalyticsEngine } from "./cloudflare/analytics-engine";
-import type { AppleAppStoreConnect } from "./cloudflare/apple-app-store-connect";
 import type { AssetStorage } from "./cloudflare/asset-storage";
 import type { BuildRuntime } from "./cloudflare/build-runtime";
 import type { CredentialArtifacts } from "./cloudflare/credential-artifacts";
 import type { ManifestCacheStorage } from "./cloudflare/manifest-cache-storage";
 import type { UpdateCoordinator } from "./cloudflare/update-coordinator";
-import type { Vault } from "./cloudflare/vault";
 import type { CryptoService } from "./domain/crypto-service";
 import type { EmailService } from "./domain/email-service";
 import type {
@@ -72,9 +70,11 @@ import type {
   GoogleServiceAccountKeyRepo,
   IosAppMetadataRepo,
   IosBundleConfigurationRepo,
+  OrgVaultRepo,
   ProjectRepo,
   SubmissionsRepo,
   UpdateRepo,
+  UserEncryptionKeyRepo,
   WebhookRepo,
 } from "./repositories";
 
@@ -84,7 +84,6 @@ export type ServerInfrastructure =
   | AndroidApplicationIdentifierRepo
   | AndroidBuildCredentialsRepo
   | AndroidUploadKeystoreRepo
-  | AppleAppStoreConnect
   | AppleDistributionCertificateRepo
   | AppleProvisioningProfileRepo
   | ApplePushKeyRepo
@@ -109,11 +108,12 @@ export type ServerInfrastructure =
   | IosAppMetadataRepo
   | IosBundleConfigurationRepo
   | ManifestCacheStorage
+  | OrgVaultRepo
   | ProjectRepo
   | SubmissionsRepo
   | UpdateCoordinator
   | UpdateRepo
-  | Vault
+  | UserEncryptionKeyRepo
   | WebhookRepo;
 
 export const RepositoryLayer = Layer.mergeAll(
@@ -139,15 +139,16 @@ export const RepositoryLayer = Layer.mergeAll(
   GoogleServiceAccountKeyRepoLive,
   IosAppMetadataRepoLive,
   IosBundleConfigurationRepoLive,
+  OrgVaultRepoLive,
   ProjectRepoLive,
   SubmissionsRepoLive,
   UpdateRepoLive,
+  UserEncryptionKeyRepoLive,
   WebhookRepoLive,
 );
 
 export const AdapterLayer = Layer.mergeAll(
   AnalyticsEngineLive,
-  AppleAppStoreConnectLive,
   AssetStorageLive,
   BuildRuntimeLive,
   CredentialArtifactsLive,
@@ -155,7 +156,6 @@ export const AdapterLayer = Layer.mergeAll(
   EmailServiceLive,
   ManifestCacheStorageLive,
   UpdateCoordinatorLive,
-  VaultLive.pipe(Layer.provide(CryptoServiceLive)),
 );
 
 export const ServerInfrastructureLayer = Layer.merge(

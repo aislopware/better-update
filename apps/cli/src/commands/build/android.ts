@@ -22,7 +22,9 @@ import type {
   BuildFailedError,
   MissingCredentialsError,
 } from "../../lib/exit-codes";
+import type { InteractiveMode } from "../../lib/interactive-mode";
 import type { ApiClient } from "../../services/api-client";
+import type { IdentityStore } from "../../services/identity-store";
 
 export interface RunAndroidBuildInput {
   readonly api: ApiClient;
@@ -74,7 +76,11 @@ export const runAndroidBuild = (
 ): Effect.Effect<
   RunAndroidBuildResult,
   BuildFailedError | MissingCredentialsError | ArtifactNotFoundError | PlatformError,
-  CliRuntime | CommandExecutor.CommandExecutor | FileSystem.FileSystem
+  | CliRuntime
+  | CommandExecutor.CommandExecutor
+  | FileSystem.FileSystem
+  | IdentityStore
+  | InteractiveMode
 > =>
   Effect.gen(function* () {
     const { api, tempDir, projectRoot, androidProfile, applicationIdentifier, envVars, projectId } =

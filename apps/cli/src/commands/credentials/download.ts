@@ -6,8 +6,10 @@ import { FileSystem } from "@effect/platform";
 import { defineCommand } from "citty";
 import { Effect } from "effect";
 
+import { openFromDownload, openVaultSessionInteractive } from "../../application/credential-cipher";
 import { runEffect } from "../../lib/citty-effect";
-import { CredentialValidationError } from "../../lib/exit-codes";
+import { requireSecretString } from "../../lib/credential-secret";
+import { CredentialValidationError, IdentityError } from "../../lib/exit-codes";
 import { printJson, printKeyValue } from "../../lib/output";
 import { OutputMode } from "../../lib/output-mode";
 import { apiClient } from "../../services/api-client";
@@ -47,16 +49,36 @@ const writeText = (filePath: string, contents: string) =>
 const resolveOutputPath = (cwd: string, output: string | undefined, defaultName: string) =>
   output === undefined || output.length === 0 ? path.join(cwd, defaultName) : output;
 
-const downloadDistributionCertificate = (
-  api: ApiClient,
-  id: string,
-  cwd: string,
-  output: string | undefined,
-) =>
+/** Shared inputs for every per-type download handler. */
+interface DownloadCtx {
+  readonly api: ApiClient;
+  readonly id: string;
+  readonly cwd: string;
+  readonly output: string | undefined;
+}
+
+/** Read a required string field out of a decrypted secret, failing if absent. */
+const secretString = (secret: Record<string, unknown>, key: string) =>
+  requireSecretString(
+    secret,
+    key,
+    (field) =>
+      new IdentityError({ message: `Decrypted credential is missing the "${field}" field.` }),
+  );
+
+const downloadDistributionCertificate = ({ api, id, cwd, output }: DownloadCtx) =>
   Effect.gen(function* () {
     const data = yield* api.appleDistributionCertificates.download({ path: { id } });
+    const session = yield* openVaultSessionInteractive(api);
+    const secret = yield* openFromDownload({
+      session,
+      credentialType: "distribution-certificate",
+      downloaded: data,
+    });
+    const p12Base64 = yield* secretString(secret, "p12Base64");
+    const p12Password = yield* secretString(secret, "p12Password");
     const filePath = resolveOutputPath(cwd, output, `${data.id}.p12`);
-    yield* writeBinary(filePath, fromBase64(data.p12Base64));
+    yield* writeBinary(filePath, fromBase64(p12Base64));
     return {
       path: filePath,
       pairs: [
@@ -66,24 +88,19 @@ const downloadDistributionCertificate = (
         ["Apple team", data.appleTeamIdentifier],
         ["Valid from", data.validFrom],
         ["Valid until", data.validUntil],
-        ["P12 password", data.p12Password],
+        ["P12 password", p12Password],
       ] as const,
       metadata: {
         serialNumber: data.serialNumber,
         appleTeamIdentifier: data.appleTeamIdentifier,
         validFrom: data.validFrom,
         validUntil: data.validUntil,
-        p12Password: data.p12Password,
+        p12Password,
       },
     } satisfies DownloadResult;
   });
 
-const downloadProvisioningProfile = (
-  api: ApiClient,
-  id: string,
-  cwd: string,
-  output: string | undefined,
-) =>
+const downloadProvisioningProfile = ({ api, id, cwd, output }: DownloadCtx) =>
   Effect.gen(function* () {
     const data = yield* api.appleProvisioningProfiles.download({ path: { id } });
     const filePath = resolveOutputPath(cwd, output, `${data.id}.mobileprovision`);
@@ -109,11 +126,18 @@ const downloadProvisioningProfile = (
     } satisfies DownloadResult;
   });
 
-const downloadPushKey = (api: ApiClient, id: string, cwd: string, output: string | undefined) =>
+const downloadPushKey = ({ api, id, cwd, output }: DownloadCtx) =>
   Effect.gen(function* () {
     const data = yield* api.applePushKeys.download({ path: { id } });
+    const session = yield* openVaultSessionInteractive(api);
+    const secret = yield* openFromDownload({
+      session,
+      credentialType: "push-key",
+      downloaded: data,
+    });
+    const p8Pem = yield* secretString(secret, "p8Pem");
     const filePath = resolveOutputPath(cwd, output, `AuthKey_${data.keyId}.p8`);
-    yield* writeText(filePath, data.p8Pem);
+    yield* writeText(filePath, p8Pem);
     return {
       path: filePath,
       pairs: [
@@ -129,11 +153,26 @@ const downloadPushKey = (api: ApiClient, id: string, cwd: string, output: string
     } satisfies DownloadResult;
   });
 
-const downloadAscApiKey = (api: ApiClient, id: string, cwd: string, output: string | undefined) =>
+const downloadAscApiKey = ({ api, id, cwd, output }: DownloadCtx) =>
   Effect.gen(function* () {
     const data = yield* api.ascApiKeys.getCredentials({ path: { id } });
+    const session = yield* openVaultSessionInteractive(api);
+    const secret = yield* openFromDownload({
+      session,
+      credentialType: "asc-api-key",
+      // `getCredentials` keys the row id as `ascApiKeyId`; the cipher binds on `id`.
+      downloaded: {
+        id: data.ascApiKeyId,
+        ciphertext: data.ciphertext,
+        wrappedDek: data.wrappedDek,
+        vaultVersion: data.vaultVersion,
+        keyId: data.keyId,
+        issuerId: data.issuerId,
+      },
+    });
+    const p8Pem = yield* secretString(secret, "p8Pem");
     const filePath = resolveOutputPath(cwd, output, `AuthKey_${data.keyId}-asc.p8`);
-    yield* writeText(filePath, data.p8Pem);
+    yield* writeText(filePath, p8Pem);
     return {
       path: filePath,
       pairs: [
@@ -151,38 +190,49 @@ const downloadAscApiKey = (api: ApiClient, id: string, cwd: string, output: stri
     } satisfies DownloadResult;
   });
 
-const downloadKeystore = (api: ApiClient, id: string, cwd: string, output: string | undefined) =>
+const downloadKeystore = ({ api, id, cwd, output }: DownloadCtx) =>
   Effect.gen(function* () {
     const data = yield* api.androidUploadKeystores.download({ path: { id } });
+    const session = yield* openVaultSessionInteractive(api);
+    const secret = yield* openFromDownload({
+      session,
+      credentialType: "keystore",
+      downloaded: data,
+    });
+    const keystoreBase64 = yield* secretString(secret, "keystoreBase64");
+    const keystorePassword = yield* secretString(secret, "keystorePassword");
+    const keyPassword = yield* secretString(secret, "keyPassword");
     const filePath = resolveOutputPath(cwd, output, `${data.id}.keystore`);
-    yield* writeBinary(filePath, fromBase64(data.keystoreBase64));
+    yield* writeBinary(filePath, fromBase64(keystoreBase64));
     return {
       path: filePath,
       pairs: [
         ["Path", filePath],
         ["Type", "Android upload keystore"],
         ["Key alias", data.keyAlias],
-        ["Keystore password", data.keystorePassword],
-        ["Key password", data.keyPassword],
+        ["Keystore password", keystorePassword],
+        ["Key password", keyPassword],
       ] as const,
       metadata: {
         keyAlias: data.keyAlias,
-        keystorePassword: data.keystorePassword,
-        keyPassword: data.keyPassword,
+        keystorePassword,
+        keyPassword,
       },
     } satisfies DownloadResult;
   });
 
-const downloadGoogleServiceAccountKey = (
-  api: ApiClient,
-  id: string,
-  cwd: string,
-  output: string | undefined,
-) =>
+const downloadGoogleServiceAccountKey = ({ api, id, cwd, output }: DownloadCtx) =>
   Effect.gen(function* () {
     const data = yield* api.googleServiceAccountKeys.download({ path: { id } });
+    const session = yield* openVaultSessionInteractive(api);
+    const secret = yield* openFromDownload({
+      session,
+      credentialType: "google-service-account-key",
+      downloaded: data,
+    });
+    const json = yield* secretString(secret, "json");
     const filePath = resolveOutputPath(cwd, output, `${data.id}-gsa.json`);
-    yield* writeText(filePath, data.json);
+    yield* writeText(filePath, json);
     return {
       path: filePath,
       pairs: [
@@ -196,31 +246,25 @@ const downloadGoogleServiceAccountKey = (
     } satisfies DownloadResult;
   });
 
-const dispatchDownload = (
-  api: ApiClient,
-  type: DownloadType,
-  id: string,
-  cwd: string,
-  output: string | undefined,
-) => {
+const dispatchDownload = (ctx: DownloadCtx, type: DownloadType) => {
   switch (type) {
     case "distribution-certificate": {
-      return downloadDistributionCertificate(api, id, cwd, output);
+      return downloadDistributionCertificate(ctx);
     }
     case "provisioning-profile": {
-      return downloadProvisioningProfile(api, id, cwd, output);
+      return downloadProvisioningProfile(ctx);
     }
     case "push-key": {
-      return downloadPushKey(api, id, cwd, output);
+      return downloadPushKey(ctx);
     }
     case "asc-api-key": {
-      return downloadAscApiKey(api, id, cwd, output);
+      return downloadAscApiKey(ctx);
     }
     case "keystore": {
-      return downloadKeystore(api, id, cwd, output);
+      return downloadKeystore(ctx);
     }
     case "google-service-account-key": {
-      return downloadGoogleServiceAccountKey(api, id, cwd, output);
+      return downloadGoogleServiceAccountKey(ctx);
     }
     default: {
       return Effect.fail(
@@ -257,7 +301,10 @@ export const downloadCommand = defineCommand({
         const api = yield* apiClient;
         const runtime = yield* CliRuntime;
         const cwd = yield* runtime.cwd;
-        const result = yield* dispatchDownload(api, args.type, args.id, cwd, args.output);
+        const result = yield* dispatchDownload(
+          { api, id: args.id, cwd, output: args.output },
+          args.type,
+        );
         const mode = yield* OutputMode;
         if (mode.json) {
           yield* printJson({ path: result.path, ...result.metadata });

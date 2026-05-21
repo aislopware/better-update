@@ -14,25 +14,39 @@
 
 ## Credential Management
 
-| Method | Path                            | Purpose                                        | Auth              |
-| ------ | ------------------------------- | ---------------------------------------------- | ----------------- |
-| POST   | `/api/credentials`              | Upload credential (multipart: file + metadata) | API key / session |
-| GET    | `/api/credentials`              | List credentials (metadata only, never blobs)  | API key / session |
-| GET    | `/api/credentials/:id`          | Get credential metadata                        | API key / session |
-| GET    | `/api/credentials/:id/download` | Download decrypted credential blob + secrets   | **API key only**  |
-| POST   | `/api/credentials/:id/activate` | Set credential as active for its scope         | API key / session |
-| DELETE | `/api/credentials/:id`          | Delete credential (R2 + D1)                    | API key / session |
+Credentials are **end-to-end encrypted**: the CLI encrypts client-side and the server stores only ciphertext + a wrapped DEK + `vault_version` + plaintext metadata, and **never decrypts**. The full design (key architecture, server-relay upload, ciphertext download/resolve, recipient/access model) is canonical in [02-credential-vault.md](./02-credential-vault.md); exact request/response shapes live in `@better-update/api`. The table below is summary-level.
+
+| Method | Path                            | Purpose                                                                        | Auth              |
+| ------ | ------------------------------- | ------------------------------------------------------------------------------ | ----------------- |
+| POST   | `/api/credentials`              | Upload credential (server-relay: ciphertext + wrappedDek + metadata)           | API key / session |
+| GET    | `/api/credentials`              | List credentials (plaintext metadata only, never ciphertext)                   | API key / session |
+| GET    | `/api/credentials/:id`          | Get credential metadata                                                        | API key / session |
+| GET    | `/api/credentials/:id/download` | Download credential **ciphertext** + wrappedDek (Worker-relayed; CLI decrypts) | API key / session |
+| DELETE | `/api/credentials/:id`          | Delete credential (R2 ciphertext + D1 row)                                     | API key / session |
+
+### Vault identities & access
+
+Client-side E2E adds endpoints for per-device identity keys and per-org vault-key wraps. Shapes are defined in `@better-update/api` (`userEncryptionKeys` + `orgVault` groups); see [02-credential-vault.md](./02-credential-vault.md) for semantics.
+
+| Method | Path                            | Purpose                                                                       | Auth              |
+| ------ | ------------------------------- | ----------------------------------------------------------------------------- | ----------------- |
+| POST   | `/api/encryption-keys`          | Register a recipient public key (device/recovery/machine)                     | API key / session |
+| GET    | `/api/encryption-keys`          | List recipient keys (public keys + fingerprints + last-used)                  | API key / session |
+| DELETE | `/api/encryption-keys/:id`      | Revoke a recipient key (flags vault rotation-pending)                         | API key / session |
+| GET    | `/api/orgs/:orgId/vault`        | Get current `vault_version` + this recipient's wrapped vault key              | API key / session |
+| POST   | `/api/orgs/:orgId/vault/wraps`  | Add a wrap row (grant / device-link) — authz below; version-guarded           | API key / session |
+| POST   | `/api/orgs/:orgId/vault/rotate` | Atomic rotation: new wrap rows + bulk DEK re-wrap + new `vault_version` (CAS) | API key / session |
 
 ## Environment Variable Management
 
-| Method | Path                   | Purpose                                                 | Auth              |
-| ------ | ---------------------- | ------------------------------------------------------- | ----------------- |
-| POST   | `/api/env-vars`        | Create env var                                          | API key / session |
-| GET    | `/api/env-vars`        | List env vars for project+environment                   | API key / session |
-| PATCH  | `/api/env-vars/:id`    | Update env var value/visibility                         | API key / session |
-| DELETE | `/api/env-vars/:id`    | Delete env var                                          | API key / session |
-| POST   | `/api/env-vars/import` | Bulk import from `.env` format                          | API key / session |
-| GET    | `/api/env-vars/export` | Bulk export all values decrypted as JSON (for CLI pull) | **API key only**  |
+| Method | Path                   | Purpose                                       | Auth              |
+| ------ | ---------------------- | --------------------------------------------- | ----------------- |
+| POST   | `/api/env-vars`        | Create env var                                | API key / session |
+| GET    | `/api/env-vars`        | List env vars for project+environment         | API key / session |
+| PATCH  | `/api/env-vars/:id`    | Update env var value/visibility               | API key / session |
+| DELETE | `/api/env-vars/:id`    | Delete env var                                | API key / session |
+| POST   | `/api/env-vars/import` | Bulk import from `.env` format                | API key / session |
+| GET    | `/api/env-vars/export` | Bulk export all values as JSON (for CLI pull) | **API key only**  |
 
 ## Authentication
 
@@ -43,12 +57,13 @@ Same as existing management API:
 | **Session cookie** | `cookie: __Secure-better-auth.session_token=...` | Dashboard |
 | **API key**        | `Authorization: Bearer bu_...`                   | CLI       |
 
-**CLI-only endpoints**: The following endpoints return decrypted secrets and are restricted to **API key auth only**. Session/cookie auth is rejected with `403` to prevent browser-side exfiltration of signing material. Responses include `Cache-Control: no-store`.
+**CLI-only endpoints**: The following endpoint returns plaintext secret values and is restricted to **API key auth only**. Session/cookie auth is rejected with `403` to prevent browser-side exfiltration. Responses include `Cache-Control: no-store`.
 
-| Endpoint                            | Reason                                         |
-| ----------------------------------- | ---------------------------------------------- |
-| `GET /api/credentials/:id/download` | Returns decrypted credential blobs + passwords |
-| `GET /api/env-vars/export`          | Returns decrypted secret env var values        |
+| Endpoint                   | Reason                                  |
+| -------------------------- | --------------------------------------- |
+| `GET /api/env-vars/export` | Returns plaintext secret env var values |
+
+The credential download/resolve endpoints return only **ciphertext** the server cannot read, so they are not browser-exfiltration risks; they accept API key or session auth and the CLI decrypts locally with its device identity key (see [02-credential-vault.md](./02-credential-vault.md)). Responses still set `Cache-Control: no-store`.
 
 ## RBAC Permissions
 
@@ -63,7 +78,8 @@ New permission scopes to add to the existing auth spec ([server spec 21](../serv
 | `credential:read`     | ✓     | ✓     | ✓         | ✗      |
 | `credential:download` | ✓     | ✓     | ✓         | ✗      |
 | `credential:delete`   | ✓     | ✓     | ✗         | ✗      |
-| `credential:activate` | ✓     | ✓     | ✗         | ✗      |
+| `vault:grant`         | ✓     | ✓     | ✗         | ✗      |
+| `vault:revoke`        | ✓     | ✓     | ✗         | ✗      |
 | `envVar:create`       | ✓     | ✓     | ✓         | ✗      |
 | `envVar:read`         | ✓     | ✓     | ✓         | ✓      |
 | `envVar:export`       | ✓     | ✓     | ✓         | ✗      |
@@ -72,7 +88,8 @@ New permission scopes to add to the existing auth spec ([server spec 21](../serv
 
 Key decisions:
 
-- **Credential download** requires `credential:download` (not just `credential:read`) — downloading decrypted secrets is a privileged operation separate from viewing metadata
+- **Credential download** requires `credential:download` (not just `credential:read`) — fetching the (encrypted) blob is a privileged operation separate from viewing metadata. The payload is ciphertext only; possession of a device identity key + a vault wrap is what actually enables decryption (see [02-credential-vault.md](./02-credential-vault.md)).
+- **Vault grant/revoke** (`vault:grant` / `vault:revoke`) are gated to **admin/owner**: granting another user or a CI machine key, and running revoke (which always rotates the vault). Self-linking your _own_ new device needs no admin and is enforced cryptographically (target key shares your user, requires an existing device that holds the vault key). All grants/revokes are audit-logged.
 - **Viewers** can see build list and env var keys but cannot download credentials or export env var values
 - **Developers** can create builds and read credentials (needed for CLI build flow) but cannot delete credentials
 
@@ -214,56 +231,13 @@ See [Artifact Management](./06-artifact-management.md) for QR code and install f
 
 ## Endpoint Details — Credentials
 
-### POST /api/credentials — Upload Credential
+All credential material is **end-to-end encrypted client-side**. The server stores only ciphertext + a wrapped DEK + `vault_version` + plaintext metadata and never decrypts. Per-type tables (`apple_distribution_certificates`, `apple_push_keys`, `asc_api_keys`, `apple_provisioning_profiles`, `google_service_account_keys`, `android_upload_keystores`, plus binding rows) replace the single `credentials` table. Exact request/response schemas are defined in `@better-update/api`; the flows below are summary-level — see [02-credential-vault.md](./02-credential-vault.md) for the canonical detail.
 
-```
-POST /api/credentials
-Authorization: Bearer bu_...
-Content-Type: multipart/form-data
+### POST /api/credentials — Upload Credential (server-relay)
 
-Form fields:
-  file: <binary>                              (.p12, .mobileprovision, .p8, .jks, .json)
-  platform: "ios" | "android"
-  type: "distribution-certificate" | "provisioning-profile" | "push-key" | "keystore" | "play-service-account"
-  name: "Production Distribution Cert"
-  password: "p12-export-password"             (optional, for .p12 and .jks)
-  keyAlias: "my-key-alias"                    (optional, for .jks)
-  keyPassword: "key-password"                 (optional, for .jks)
-  projectId: "uuid"                            (optional, scope to project)
-  distribution: "app-store"                    (optional — required for provisioning profiles; null for certs/keystores/push-keys)
-  metadata: '{"commonName":"...","teamId":"...","expiresAt":"..."}' (optional, CLI-supplied JSON)
-  expiresAt: "2027-04-11T00:00:00.000Z"       (optional, CLI-extracted expiry)
-```
+The CLI parses the credential, extracts metadata, generates a per-credential DEK, AEAD-encrypts the bytes (passwords folded into the blob, no separate password field), and wraps the DEK with the org vault key. It then POSTs **ciphertext + wrappedDek + vaultVersion + plaintext metadata** as JSON (no multipart file, no plaintext password). The Worker validates metadata shape + authz + size cap, **generates the R2 key** (`credentials/{org}/{id}.enc`), and writes R2 + D1 atomically (on D1 failure it deletes the R2 object). The body is opaque ciphertext — the Worker never sees plaintext. Uploading requires vault access (a wrap row); a stale `vaultVersion` is rejected and the CLI re-wraps under the current key and retries.
 
-Response `201 Created`:
-
-```json
-{
-  "id": "cred_01HXYZ...",
-  "platform": "ios",
-  "type": "distribution-certificate",
-  "distribution": null,
-  "name": "Production Distribution Cert",
-  "projectId": null,
-  "isActive": false,
-  "metadata": {
-    "commonName": "Apple Distribution: Your Team (XXXXXXXXXX)",
-    "serialNumber": "ABC123",
-    "teamId": "XXXXXXXXXX",
-    "expiresAt": "2027-04-11T00:00:00.000Z"
-  },
-  "expiresAt": "2027-04-11T00:00:00.000Z",
-  "createdAt": "2026-04-11T12:00:00.000Z"
-}
-```
-
-Server-side:
-
-1. Store CLI-supplied metadata in `metadata_json` (server does not parse the binary blob in v1)
-2. Generate random DEK, encrypt blob with DEK, encrypt DEK with org KEK
-3. Store encrypted blob in R2 at `credentials/{org_id}/{credential_id}`
-4. Store encrypted password alongside the blob (if provided)
-5. Store metadata + encrypted DEK reference in D1
+Response `201 Created`: the credential **metadata record** (id, type, scope, plaintext metadata, `vaultVersion`, `createdAt`) — never any key material. The CLI self-decrypts the just-uploaded blob to confirm wrap-consistency.
 
 ### GET /api/credentials — List Credentials
 
@@ -280,59 +254,15 @@ Query parameters:
 | `type`         | `string`             | No       | Filter by credential type (e.g., `distribution-certificate`, `keystore`)                                                                                        |
 | `distribution` | `string`             | No       | Filter by distribution method (e.g., `app-store`, `ad-hoc`, `play-store`)                                                                                       |
 
-Returns metadata only — **never** returns credential blobs or passwords.
+Returns plaintext **metadata only** — **never** ciphertext or wrapped DEKs.
 
-### POST /api/credentials/:id/activate — Set Active Credential
+### GET /api/credentials/:id/download — Download Credential (ciphertext)
 
-Sets a credential as the active one for its activation scope `(organization_id, project_id or org-wide, platform, type, distribution)`. Deactivates any previously active credential in the same scope within the same org.
+Returns the credential **ciphertext + wrappedDek + vaultVersion + metadata** (the blob is relayed through the Worker from R2). The server cannot read it; the CLI unwraps the DEK with the org vault key (AAD-checked), decrypts locally, and re-verifies the metadata matches. Response sets `Cache-Control: no-store`. The previous server-side decryption path (KEK/keyring lookup, server-decrypted JSON envelope with plaintext passwords) is **removed**.
 
-```
-POST /api/credentials/cred_01HXYZ.../activate
-Authorization: Bearer bu_...
-```
+### Vault identity & access endpoints
 
-Response `200 OK`: updated credential metadata with `isActive: true`.
-
-Response `404`: credential not found.
-
-Server-side:
-
-1. Verify caller has `credential:activate` permission
-2. Deactivate any existing active credential in the same scope (set `is_active = 0`)
-3. Set `is_active = 1` on the target credential
-4. Return updated credential metadata
-
-### GET /api/credentials/:id/download — Download Credential
-
-Returns the decrypted credential as a JSON envelope. The CLI uses this to pull credentials before building.
-
-Response `200 OK`:
-
-```json
-{
-  "blob": "<base64-encoded raw file>",
-  "password": "p12-export-password",
-  "keyAlias": "my-key-alias",
-  "keyPassword": "key-password",
-  "filename": "dist.p12",
-  "contentType": "application/x-pkcs12"
-}
-```
-
-Only `blob` is always present. `password`, `keyAlias`, `keyPassword` are included when applicable (`.p12`, `.jks`). Returning secrets in the JSON body (over HTTPS) is safer than stuffing them into HTTP headers which may be logged by proxies.
-
-Server-side:
-
-1. Reject if auth is session/cookie (API key only)
-2. Verify caller has `credential:download` permission
-3. Fetch encrypted DEK + `key_version` from D1
-4. Select master secret from keyring using `key_version`
-5. Derive KEK using selected master secret
-6. Decrypt DEK with KEK
-7. Fetch encrypted blob from `BUILD_BUCKET` (private R2)
-8. Decrypt blob with DEK
-9. Decrypt password/keyAlias/keyPassword from D1
-10. Return JSON envelope with `Cache-Control: no-store`
+Recipient-key registration (`/api/encryption-keys`), per-org wrapped-key fetch (`GET /api/orgs/:orgId/vault`), grant/device-link wrap rows (`POST /api/orgs/:orgId/vault/wraps`), and atomic rotation (`POST /api/orgs/:orgId/vault/rotate`) are all defined in `@better-update/api`. The server only relays opaque `age` wraps and enforces authz (own-device self-link OR admin/owner) + the `vault_version` compare-and-swap; it never holds an unwrapped vault key. See [02-credential-vault.md](./02-credential-vault.md).
 
 ---
 
@@ -364,7 +294,7 @@ Returns all variables. Sensitive values masked. Secret values show key name only
 GET /api/env-vars/export?projectId=uuid&environment=production
 ```
 
-Returns **all values decrypted** as a flat JSON object. The CLI uses this to export before building.
+Returns **all values** as a flat JSON object (env vars are stored plaintext — see migration 0038 / [03-environment-variables](./03-environment-variables.md)). The CLI uses this to export before building.
 
 ```json
 {
@@ -394,13 +324,14 @@ Parses `.env` format. Lines starting with `#` are ignored.
 
 ## Rate Limits
 
-| Endpoint                            | Limit | Window                 |
-| ----------------------------------- | ----- | ---------------------- |
-| `POST /api/builds` (upload)         | 30    | per hour per project   |
-| `GET /api/builds` (list)            | 120   | per minute per project |
-| `POST /api/credentials` (upload)    | 20    | per hour per org       |
-| `GET /api/credentials/:id/download` | 30    | per minute per org     |
-| `POST /api/env-vars`                | 100   | per hour per project   |
+| Endpoint                                         | Limit | Window                 |
+| ------------------------------------------------ | ----- | ---------------------- |
+| `POST /api/builds` (upload)                      | 30    | per hour per project   |
+| `GET /api/builds` (list)                         | 120   | per minute per project |
+| `POST /api/credentials` (upload)                 | 20    | per hour per org       |
+| `GET /api/credentials/:id/download` (ciphertext) | 30    | per minute per org     |
+| `POST /api/orgs/:orgId/vault/rotate`             | 10    | per hour per org       |
+| `POST /api/env-vars`                             | 100   | per hour per project   |
 
 ## Error Responses
 

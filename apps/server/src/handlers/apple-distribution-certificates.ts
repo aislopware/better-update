@@ -1,19 +1,14 @@
 import { fromBase64, toBase64 } from "@better-update/encoding";
-import { compact } from "@better-update/type-guards";
 import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
 import { ManagementApi } from "../api";
+import { assertVaultVersionCurrent } from "../application/assert-vault-version";
 import { logAudit } from "../audit/logger";
 import { CurrentActor } from "../auth/current-actor";
 import { assertOrgOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
 import { CredentialArtifacts } from "../cloudflare/credential-artifacts";
-import { Vault } from "../cloudflare/vault";
-import {
-  validateDistributionCertificateMetadata,
-  validatePkcs12Blob,
-} from "../domain/apple-certificate-parser";
 import { BadRequest } from "../errors";
 import { toApiAppleDistributionCertificate } from "../http/to-api";
 import {
@@ -21,13 +16,10 @@ import {
   toApiCrudEffect,
   toApiWriteEffect,
 } from "../http/to-api-effect";
+import { toDbNull } from "../lib/nullable";
 import { withR2Compensation } from "../lib/r2-helpers";
 import { AppleDistributionCertificateRepo } from "../repositories/apple-distribution-certificates";
 import { AppleTeamRepo } from "../repositories/apple-teams";
-
-import type { InvalidAppleCertificate } from "../domain/apple-certificate-parser";
-
-const mapInvalid = (error: InvalidAppleCertificate) => new BadRequest({ message: error.message });
 
 const decodeBase64 = (value: string) =>
   Effect.try({
@@ -57,57 +49,41 @@ export const AppleDistributionCertificatesGroupLive = HttpApiBuilder.group(
             yield* assertPermission("appleCredential", "create");
             const ctx = yield* CurrentActor;
             const artifacts = yield* CredentialArtifacts;
-            const vault = yield* Vault;
             const teams = yield* AppleTeamRepo;
             const repo = yield* AppleDistributionCertificateRepo;
 
-            const blob = yield* decodeBase64(payload.p12Base64);
-            yield* validatePkcs12Blob(blob).pipe(Effect.mapError(mapInvalid));
-            const parsed = yield* validateDistributionCertificateMetadata({
-              serialNumber: payload.serialNumber,
-              appleTeamId: payload.appleTeamIdentifier,
-              validFrom: payload.validFrom,
-              validUntil: payload.validUntil,
-              ...compact({
-                appleTeamName: payload.appleTeamName,
-                developerIdIdentifier: payload.developerIdIdentifier,
-              }),
-            }).pipe(Effect.mapError(mapInvalid));
+            yield* assertVaultVersionCurrent({
+              organizationId: ctx.organizationId,
+              vaultVersion: payload.vaultVersion,
+            });
+
+            const blob = yield* decodeBase64(payload.ciphertext);
 
             const team = yield* teams.upsertByAppleTeamId({
               organizationId: ctx.organizationId,
-              appleTeamId: parsed.appleTeamId,
+              appleTeamId: payload.appleTeamIdentifier,
               appleTeamType: payload.appleTeamType ?? "COMPANY_ORGANIZATION",
-              name: parsed.appleTeamName,
+              name: toDbNull(payload.appleTeamName),
             });
 
-            const encrypted = yield* vault
-              .envelopeEncrypt({ organizationId: ctx.organizationId, plaintext: blob })
-              .pipe(Effect.mapError(() => new BadRequest({ message: "Encryption failed" })));
-            const password = yield* vault
-              .encryptSecret({ organizationId: ctx.organizationId, value: payload.p12Password })
-              .pipe(Effect.mapError(() => new BadRequest({ message: "Encryption failed" })));
+            const r2Key = `apple-distribution-certificates/${ctx.organizationId}/${crypto.randomUUID()}.p12.enc`;
+            yield* artifacts.put(r2Key, blob);
 
-            const id = crypto.randomUUID();
-            const r2Key = `apple-distribution-certificates/${ctx.organizationId}/${id}.p12.enc`;
-            yield* artifacts.put(r2Key, encrypted.encryptedBlob);
-
+            const developerIdIdentifier = toDbNull(payload.developerIdIdentifier);
             const now = new Date().toISOString();
             yield* withR2Compensation(
               artifacts.delete(r2Key),
               repo.insert({
-                id,
+                id: payload.id,
                 organizationId: ctx.organizationId,
                 appleTeamId: team.id,
-                serialNumber: parsed.serialNumber,
-                developerIdIdentifier: parsed.developerIdIdentifier,
-                validFrom: parsed.validFrom,
-                validUntil: parsed.validUntil,
+                serialNumber: payload.serialNumber,
+                developerIdIdentifier,
+                validFrom: payload.validFrom,
+                validUntil: payload.validUntil,
                 r2Key,
-                encryptedDek: encrypted.encryptedDek,
-                encryptedPassword: password.encrypted,
-                passwordKeyVersion: password.keyVersion,
-                dekKeyVersion: encrypted.keyVersion,
+                wrappedDek: payload.wrappedDek,
+                vaultVersion: payload.vaultVersion,
                 createdAt: now,
                 updatedAt: now,
               }),
@@ -116,23 +92,24 @@ export const AppleDistributionCertificatesGroupLive = HttpApiBuilder.group(
             yield* logAudit({
               action: "apple.distribution-certificate.upload",
               resourceType: "appleCredential",
-              resourceId: id,
-              metadata: { serialNumber: parsed.serialNumber, appleTeamId: parsed.appleTeamId },
+              resourceId: payload.id,
+              metadata: {
+                serialNumber: payload.serialNumber,
+                appleTeamId: payload.appleTeamIdentifier,
+              },
             });
 
             return toApiAppleDistributionCertificate({
-              id,
+              id: payload.id,
               organizationId: ctx.organizationId,
               appleTeamId: team.id,
-              serialNumber: parsed.serialNumber,
-              developerIdIdentifier: parsed.developerIdIdentifier,
-              validFrom: parsed.validFrom,
-              validUntil: parsed.validUntil,
+              serialNumber: payload.serialNumber,
+              developerIdIdentifier,
+              validFrom: payload.validFrom,
+              validUntil: payload.validUntil,
               r2Key,
-              encryptedDek: encrypted.encryptedDek,
-              encryptedPassword: password.encrypted,
-              passwordKeyVersion: password.keyVersion,
-              dekKeyVersion: encrypted.keyVersion,
+              wrappedDek: payload.wrappedDek,
+              vaultVersion: payload.vaultVersion,
               createdAt: now,
               updatedAt: now,
             });
@@ -165,32 +142,15 @@ export const AppleDistributionCertificatesGroupLive = HttpApiBuilder.group(
         toApiBadRequestReadEffect(
           Effect.gen(function* () {
             yield* assertPermission("appleCredential", "download");
-            const ctx = yield* CurrentActor;
             const repo = yield* AppleDistributionCertificateRepo;
             const teams = yield* AppleTeamRepo;
             const artifacts = yield* CredentialArtifacts;
-            const vault = yield* Vault;
 
             const existing = yield* repo.findById({ id: path.id });
             yield* assertOrgOwnership(existing.organizationId);
             const team = yield* teams.findById({ id: existing.appleTeamId });
 
-            const encryptedBlob = yield* artifacts.get(existing.r2Key, "Distribution certificate");
-            const p12Bytes = yield* vault
-              .envelopeDecrypt({
-                organizationId: ctx.organizationId,
-                keyVersion: existing.dekKeyVersion,
-                encryptedDek: existing.encryptedDek,
-                encryptedBlob,
-              })
-              .pipe(Effect.mapError(() => new BadRequest({ message: "Decryption failed" })));
-            const p12Password = yield* vault
-              .decryptSecret({
-                organizationId: ctx.organizationId,
-                keyVersion: existing.passwordKeyVersion,
-                encrypted: existing.encryptedPassword,
-              })
-              .pipe(Effect.mapError(() => new BadRequest({ message: "Decryption failed" })));
+            const blob = yield* artifacts.get(existing.r2Key, "Distribution certificate");
 
             yield* logAudit({
               action: "apple.distribution-certificate.download",
@@ -201,8 +161,9 @@ export const AppleDistributionCertificatesGroupLive = HttpApiBuilder.group(
 
             return {
               id: existing.id,
-              p12Base64: toBase64(p12Bytes),
-              p12Password,
+              ciphertext: toBase64(blob),
+              wrappedDek: existing.wrappedDek,
+              vaultVersion: existing.vaultVersion,
               serialNumber: existing.serialNumber,
               appleTeamIdentifier: team.appleTeamId,
               validFrom: existing.validFrom,

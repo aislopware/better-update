@@ -11,6 +11,7 @@ import type {
   Device,
   DeviceClass,
   DeviceRegistrationRequest,
+  EncryptionKeyKind,
   GoogleServiceAccountKey,
   IosAppMetadata,
   IosBundleConfiguration,
@@ -19,7 +20,9 @@ import type {
   Project,
   Submission,
   SubmissionStatus,
-  SyncDevicesResult,
+  UserEncryptionKey,
+  VaultRecipientRef,
+  VaultRecipients,
 } from "@better-update/api";
 
 export type AnalyticsPeriod = typeof PeriodLiteral.Type;
@@ -30,7 +33,6 @@ export type BranchItem = typeof Branch.Type;
 export type DeviceItem = typeof Device.Type;
 export type DeviceClassValue = typeof DeviceClass.Type;
 export type DeviceRegistrationRequestItem = typeof DeviceRegistrationRequest.Type;
-export type SyncDevicesResultValue = typeof SyncDevicesResult.Type;
 export type AppleTeamItem = typeof AppleTeam.Type;
 export type AppleDistributionCertificateItem = typeof AppleDistributionCertificate.Type;
 export type ApplePushKeyItem = typeof ApplePushKey.Type;
@@ -44,3 +46,7 @@ export type AndroidBuildCredentialsItem = typeof AndroidBuildCredentials.Type;
 export type IosAppMetadataItem = typeof IosAppMetadata.Type;
 export type SubmissionItem = typeof Submission.Type;
 export type SubmissionStatusValue = typeof SubmissionStatus.Type;
+export type UserEncryptionKeyItem = typeof UserEncryptionKey.Type;
+export type EncryptionKeyKindValue = typeof EncryptionKeyKind.Type;
+export type VaultRecipientItem = typeof VaultRecipientRef.Type;
+export type VaultRecipientsResult = typeof VaultRecipients.Type;

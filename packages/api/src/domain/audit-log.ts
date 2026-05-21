@@ -16,6 +16,7 @@ export const AuditLogResourceType = Schema.Literal(
   "webhook",
   "iosAppMetadata",
   "submission",
+  "vaultAccess",
 );
 
 export const AuditLogSource = Schema.Literal("session", "api-key");

@@ -23,9 +23,11 @@ import { GoogleServiceAccountKeysGroup } from "./groups/google-service-account-k
 import { IosAppMetadataGroup } from "./groups/ios-app-metadata";
 import { IosBundleConfigurationsGroup } from "./groups/ios-bundle-configurations";
 import { MeGroup } from "./groups/me";
+import { OrgVaultGroup } from "./groups/org-vault";
 import { ProjectsGroup } from "./groups/projects";
 import { SubmissionsGroup } from "./groups/submissions";
 import { UpdatesGroup } from "./groups/updates";
+import { UserEncryptionKeysGroup } from "./groups/user-encryption-keys";
 import { WebhooksGroup } from "./groups/webhooks";
 
 export class ManagementApi extends HttpApi.make("management-api")
@@ -53,6 +55,8 @@ export class ManagementApi extends HttpApi.make("management-api")
   .add(AndroidUploadKeystoresGroup)
   .add(AndroidBuildCredentialsGroup)
   .add(BuildCredentialsGroup)
+  .add(UserEncryptionKeysGroup)
+  .add(OrgVaultGroup)
   .add(MeGroup)
   .add(WebhooksGroup)
   .middleware(Authentication)

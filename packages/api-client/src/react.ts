@@ -55,7 +55,6 @@ export {
   iosAppMetadataQueryOptions,
   iosBundleConfigurationsQueryKey,
   iosBundleConfigurationsQueryOptions,
-  syncDevicesViaAscApiKey,
   updateAndroidBuildCredentials,
   updateIosAppMetadata,
   updateIosBundleConfiguration,
@@ -66,6 +65,12 @@ export {
   uploadAscApiKey,
   uploadGoogleServiceAccountKey,
 } from "./react/credentials";
+export {
+  encryptionKeysQueryKey,
+  encryptionKeysQueryOptions,
+  vaultRecipientsQueryKey,
+  vaultRecipientsQueryOptions,
+} from "./react/vault";
 export {
   createRegistrationRequest,
   deleteDevice,
@@ -167,6 +172,7 @@ export type {
   DeviceClassValue,
   DeviceItem,
   DeviceRegistrationRequestItem,
+  EncryptionKeyKindValue,
   GoogleServiceAccountKeyItem,
   IosAppMetadataItem,
   IosBundleConfigurationItem,
@@ -175,7 +181,9 @@ export type {
   ProjectItem,
   SubmissionItem,
   SubmissionStatusValue,
-  SyncDevicesResultValue,
+  UserEncryptionKeyItem,
+  VaultRecipientItem,
+  VaultRecipientsResult,
 } from "./react/types";
 export {
   cancelSubmission,

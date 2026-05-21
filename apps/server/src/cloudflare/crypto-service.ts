@@ -73,60 +73,9 @@ const hmacVerifyBase64Url = (secret: string, payload: string, token: string) =>
     );
   });
 
-const deriveKek = (secret: Uint8Array, orgId: string, keyVersion: number) =>
-  tryWebCrypto("deriveKek", async () => {
-    const baseKey = await crypto.subtle.importKey("raw", asBuffer(secret), "HKDF", false, [
-      "deriveKey",
-    ]);
-    return crypto.subtle.deriveKey(
-      {
-        name: "HKDF",
-        hash: "SHA-256",
-        salt: asBuffer(new TextEncoder().encode(orgId)),
-        info: asBuffer(new TextEncoder().encode(`credential-vault:${keyVersion}`)),
-      },
-      baseKey,
-      { name: "AES-GCM", length: 256 },
-      false,
-      ["encrypt", "decrypt"],
-    );
-  });
-
-const importDekKey = (dek: Uint8Array, usages: readonly KeyUsage[]) =>
-  tryWebCrypto("importDekKey", async () =>
-    crypto.subtle.importKey("raw", asBuffer(dek), { name: "AES-GCM" }, true, [...usages]),
-  );
-
-const encryptAesGcm = (key: CryptoKey, plaintext: Uint8Array) =>
-  tryWebCrypto("encryptAesGcm", async () => {
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const encrypted = await crypto.subtle.encrypt(
-      { name: "AES-GCM", iv: asBuffer(iv) },
-      key,
-      asBuffer(plaintext),
-    );
-    return new Uint8Array([...iv, ...new Uint8Array(encrypted)]);
-  });
-
-const decryptAesGcm = (key: CryptoKey, data: Uint8Array) =>
-  tryWebCrypto("decryptAesGcm", async () => {
-    const iv = data.slice(0, 12);
-    const ciphertext = data.slice(12);
-    const decrypted = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv: asBuffer(iv) },
-      key,
-      asBuffer(ciphertext),
-    );
-    return new Uint8Array(decrypted);
-  });
-
 export const CryptoServiceLive = Layer.succeed(CryptoService, {
   sha256Hex,
   sha256Fraction,
   hmacSignBase64Url,
   hmacVerifyBase64Url,
-  deriveKek,
-  importDekKey,
-  encryptAesGcm,
-  decryptAesGcm,
 });

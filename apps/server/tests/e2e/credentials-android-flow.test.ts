@@ -1,22 +1,7 @@
-import { toBase64 } from "@better-update/encoding";
-
-import { setupE2EWorker } from "../helpers/e2e-worker";
+import { credentialEnvelope } from "../helpers/credential-envelope";
+import { setupE2EWorker } from "../helpers/e2e-worker-pool";
 
 const { get, parseCookies, post, put } = setupE2EWorker(".wrangler/state/e2e-credentials-android");
-
-// JKS magic bytes 0xFE 0xED 0xFE 0xED + padding >= 16 bytes
-const jksBytes = new Uint8Array([0xfe, 0xed, 0xfe, 0xed, ...Array(40).fill(0xaa)]);
-const KEYSTORE_BASE64 = toBase64(jksBytes);
-
-const SA_JSON = (projectId: string, keyId: string, email: string) =>
-  JSON.stringify({
-    type: "service_account",
-    project_id: projectId,
-    private_key_id: keyId,
-    private_key:
-      "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSi\n-----END PRIVATE KEY-----\n",
-    client_email: email,
-  });
 
 interface BuildCredsItem {
   readonly id: string;
@@ -103,10 +88,8 @@ describe("Credentials Android flow", () => {
     const res = await post(
       "/api/android/upload-keystores",
       {
-        keystoreBase64: KEYSTORE_BASE64,
+        ...credentialEnvelope(),
         keyAlias: "upload",
-        keystorePassword: "secret123",
-        keyPassword: "secret123",
         sha256Fingerprint: "00:11:22:33:44:55:66:77",
       },
       { cookie: cookies },
@@ -118,30 +101,14 @@ describe("Credentials Android flow", () => {
     keystoreId = body.id;
   });
 
-  it("rejects an unknown keystore format", async () => {
-    const bad = toBase64(new Uint8Array(32).fill(0x11));
-    const res = await post(
-      "/api/android/upload-keystores",
-      {
-        keystoreBase64: bad,
-        keyAlias: "bad",
-        keystorePassword: "x",
-        keyPassword: "y",
-      },
-      { cookie: cookies },
-    );
-    expect(res.status).toBe(400);
-  });
-
   it("uploads two Google service account keys", async () => {
     const subRes = await post(
       "/api/google/service-account-keys",
       {
-        json: SA_JSON(
-          "play-project",
-          "sub-key-id",
-          "submissions@play-project.iam.gserviceaccount.com",
-        ),
+        ...credentialEnvelope(),
+        clientEmail: "submissions@play-project.iam.gserviceaccount.com",
+        privateKeyId: "sub-key-id",
+        googleProjectId: "play-project",
       },
       { cookie: cookies },
     );
@@ -150,7 +117,12 @@ describe("Credentials Android flow", () => {
 
     const fcmRes = await post(
       "/api/google/service-account-keys",
-      { json: SA_JSON("fcm-project", "fcm-key-id", "fcm@fcm-project.iam.gserviceaccount.com") },
+      {
+        ...credentialEnvelope(),
+        clientEmail: "fcm@fcm-project.iam.gserviceaccount.com",
+        privateKeyId: "fcm-key-id",
+        googleProjectId: "fcm-project",
+      },
       { cookie: cookies },
     );
     expect(fcmRes.status).toBe(201);

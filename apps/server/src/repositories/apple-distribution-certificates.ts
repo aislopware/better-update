@@ -18,10 +18,8 @@ export interface AppleDistributionCertificateRepository {
     readonly validFrom: string;
     readonly validUntil: string;
     readonly r2Key: string;
-    readonly encryptedDek: string;
-    readonly encryptedPassword: string;
-    readonly passwordKeyVersion: number;
-    readonly dekKeyVersion: number;
+    readonly wrappedDek: string;
+    readonly vaultVersion: number;
     readonly createdAt: string;
     readonly updatedAt: string;
   }) => Effect.Effect<void, Conflict>;
@@ -52,15 +50,13 @@ interface Row {
   valid_from: string;
   valid_until: string;
   r2_key: string;
-  encrypted_dek: string;
-  encrypted_password: string;
-  password_key_version: number;
-  dek_key_version: number;
+  wrapped_dek: string;
+  vault_version: number;
   created_at: string;
   updated_at: string;
 }
 
-const COLUMNS = `"id", "organization_id", "apple_team_id", "serial_number", "developer_id_identifier", "valid_from", "valid_until", "r2_key", "encrypted_dek", "encrypted_password", "password_key_version", "dek_key_version", "created_at", "updated_at"`;
+const COLUMNS = `"id", "organization_id", "apple_team_id", "serial_number", "developer_id_identifier", "valid_from", "valid_until", "r2_key", "wrapped_dek", "vault_version", "created_at", "updated_at"`;
 
 const toModel = (row: Row): AppleDistributionCertificateModel => ({
   id: row.id,
@@ -71,10 +67,8 @@ const toModel = (row: Row): AppleDistributionCertificateModel => ({
   validFrom: row.valid_from,
   validUntil: row.valid_until,
   r2Key: row.r2_key,
-  encryptedDek: row.encrypted_dek,
-  encryptedPassword: row.encrypted_password,
-  passwordKeyVersion: row.password_key_version,
-  dekKeyVersion: row.dek_key_version,
+  wrappedDek: row.wrapped_dek,
+  vaultVersion: row.vault_version,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
@@ -88,7 +82,7 @@ export const AppleDistributionCertificateRepoLive = Layer.succeed(
         yield* d1RunWithUniqueCheck(
           async () =>
             env.DB.prepare(
-              `INSERT INTO "apple_distribution_certificates" (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              `INSERT INTO "apple_distribution_certificates" (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             )
               .bind(
                 params.id,
@@ -99,10 +93,8 @@ export const AppleDistributionCertificateRepoLive = Layer.succeed(
                 params.validFrom,
                 params.validUntil,
                 params.r2Key,
-                params.encryptedDek,
-                params.encryptedPassword,
-                params.passwordKeyVersion,
-                params.dekKeyVersion,
+                params.wrappedDek,
+                params.vaultVersion,
                 params.createdAt,
                 params.updatedAt,
               )

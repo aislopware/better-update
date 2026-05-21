@@ -19,23 +19,6 @@ export interface CryptoServiceImpl {
     payload: string,
     token: string,
   ) => Effect.Effect<boolean, CryptoError>;
-  readonly deriveKek: (
-    secret: Uint8Array,
-    orgId: string,
-    keyVersion: number,
-  ) => Effect.Effect<CryptoKey, CryptoError>;
-  readonly importDekKey: (
-    dek: Uint8Array,
-    usages: readonly KeyUsage[],
-  ) => Effect.Effect<CryptoKey, CryptoError>;
-  readonly encryptAesGcm: (
-    key: CryptoKey,
-    plaintext: Uint8Array,
-  ) => Effect.Effect<Uint8Array, CryptoError>;
-  readonly decryptAesGcm: (
-    key: CryptoKey,
-    data: Uint8Array,
-  ) => Effect.Effect<Uint8Array, CryptoError>;
 }
 
 export class CryptoService extends Context.Tag("server/CryptoService")<

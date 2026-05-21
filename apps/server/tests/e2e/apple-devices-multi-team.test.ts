@@ -1,10 +1,7 @@
-import { toBase64 } from "@better-update/encoding";
-
-import { setupE2EWorker } from "../helpers/e2e-worker";
+import { credentialEnvelope } from "../helpers/credential-envelope";
+import { setupE2EWorker } from "../helpers/e2e-worker-pool";
 
 const { get, parseCookies, post } = setupE2EWorker(".wrangler/state/e2e-apple-devices-multi");
-
-const P12_BASE64 = toBase64(new Uint8Array([0x30, 0x82, 0x01, 0x00, ...Array(40).fill(0xab)]));
 
 const TEAM_A = "TEAMAAAAAA";
 const TEAM_B = "TEAMBBBBBB";
@@ -51,8 +48,7 @@ describe("Apple Devices multi-team flow", () => {
     const certA = await post(
       "/api/apple/distribution-certificates",
       {
-        p12Base64: P12_BASE64,
-        p12Password: "pw",
+        ...credentialEnvelope(),
         serialNumber: "SN-TEAM-A",
         appleTeamIdentifier: TEAM_A,
         appleTeamName: "Team Alpha",
@@ -67,8 +63,7 @@ describe("Apple Devices multi-team flow", () => {
     const certB = await post(
       "/api/apple/distribution-certificates",
       {
-        p12Base64: P12_BASE64,
-        p12Password: "pw",
+        ...credentialEnvelope(),
         serialNumber: "SN-TEAM-B",
         appleTeamIdentifier: TEAM_B,
         appleTeamName: "Team Bravo",

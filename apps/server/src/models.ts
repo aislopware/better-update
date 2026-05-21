@@ -34,7 +34,8 @@ export type AuditLogResourceType =
   | "device"
   | "webhook"
   | "iosAppMetadata"
-  | "submission";
+  | "submission"
+  | "vaultAccess";
 
 export type DeviceClass = "IPHONE" | "IPAD" | "MAC" | "UNKNOWN";
 
@@ -42,6 +43,8 @@ export type AuditLogSource = "session" | "api-key";
 export type AnalyticsPeriod = "1d" | "7d" | "30d" | "90d";
 
 export type Role = "owner" | "admin" | "developer" | "viewer";
+
+export type EncryptionKeyKind = "device" | "recovery" | "machine";
 
 export type Resource =
   | "organization"
@@ -63,7 +66,8 @@ export type Resource =
   | "device"
   | "webhook"
   | "iosAppMetadata"
-  | "submission";
+  | "submission"
+  | "vaultAccess";
 
 export type Action = "read" | "create" | "update" | "delete" | "cancel" | "download";
 
@@ -192,10 +196,8 @@ export interface AppleDistributionCertificateModel {
   readonly validFrom: string;
   readonly validUntil: string;
   readonly r2Key: string;
-  readonly encryptedDek: string;
-  readonly encryptedPassword: string;
-  readonly passwordKeyVersion: number;
-  readonly dekKeyVersion: number;
+  readonly wrappedDek: string;
+  readonly vaultVersion: number;
   readonly createdAt: string;
   readonly updatedAt: string;
 }
@@ -206,10 +208,52 @@ export interface ApplePushKeyModel {
   readonly appleTeamId: string;
   readonly keyId: string;
   readonly r2Key: string;
-  readonly encryptedDek: string;
-  readonly dekKeyVersion: number;
+  readonly wrappedDek: string;
+  readonly vaultVersion: number;
   readonly createdAt: string;
   readonly updatedAt: string;
+}
+
+export interface UserEncryptionKeyModel {
+  readonly id: string;
+  readonly userId: string | null;
+  readonly organizationId: string | null;
+  readonly kind: EncryptionKeyKind;
+  readonly publicKey: string;
+  readonly label: string;
+  readonly fingerprint: string;
+  readonly createdAt: string;
+  readonly lastUsedAt: string | null;
+  readonly revokedAt: string | null;
+}
+
+export interface OrgVaultModel {
+  readonly organizationId: string;
+  readonly vaultVersion: number;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface OrgVaultKeyWrapModel {
+  readonly organizationId: string;
+  readonly vaultVersion: number;
+  readonly userEncryptionKeyId: string;
+  readonly wrappedKey: string;
+  readonly createdAt: string;
+}
+
+/** The five secret-credential kinds whose DEK is wrapped under the org vault key. */
+export type EncryptedCredentialType =
+  | "appleDistributionCertificate"
+  | "applePushKey"
+  | "ascApiKey"
+  | "googleServiceAccountKey"
+  | "androidUploadKeystore";
+
+/** A credential row's identity for rotation coverage (type + id, version-agnostic). */
+export interface CredentialRef {
+  readonly credentialType: EncryptedCredentialType;
+  readonly id: string;
 }
 
 export interface AscApiKeyModel {
@@ -221,8 +265,8 @@ export interface AscApiKeyModel {
   readonly name: string;
   readonly roles: string;
   readonly r2Key: string;
-  readonly encryptedDek: string;
-  readonly dekKeyVersion: number;
+  readonly wrappedDek: string;
+  readonly vaultVersion: number;
   readonly createdAt: string;
   readonly updatedAt: string;
 }
@@ -251,8 +295,8 @@ export interface GoogleServiceAccountKeyModel {
   readonly privateKeyId: string;
   readonly googleProjectId: string;
   readonly r2Key: string;
-  readonly encryptedDek: string;
-  readonly dekKeyVersion: number;
+  readonly wrappedDek: string;
+  readonly vaultVersion: number;
   readonly createdAt: string;
   readonly updatedAt: string;
 }
@@ -287,13 +331,9 @@ export interface AndroidUploadKeystoreModel {
   readonly id: string;
   readonly organizationId: string;
   readonly keyAlias: string;
-  readonly encryptedKeystorePassword: string;
-  readonly keystorePasswordKeyVersion: number;
-  readonly encryptedKeyPassword: string;
-  readonly keyPasswordKeyVersion: number;
   readonly r2Key: string;
-  readonly encryptedDek: string;
-  readonly dekKeyVersion: number;
+  readonly wrappedDek: string;
+  readonly vaultVersion: number;
   readonly md5Fingerprint: string | null;
   readonly sha1Fingerprint: string | null;
   readonly sha256Fingerprint: string | null;

@@ -1,14 +1,9 @@
-import { execSync } from "node:child_process";
-import { rmSync, writeFileSync } from "node:fs";
+import { setupE2EWorker } from "../helpers/e2e-worker-pool";
+import { seedD1 } from "../helpers/seed-d1";
 
-import { setupE2EWorker } from "../helpers/e2e-worker";
-
-const { getBaseUrl, getPersistDir } = setupE2EWorker();
-const getPersistArg = () => getPersistDir();
+const { get } = setupE2EWorker();
 
 // ── Seed data via raw SQL (independent of management API) ───────
-
-const seedFile = ".wrangler/seed-manifest.sql";
 
 const seedSQL = `
 INSERT INTO "organization" ("id", "name", "slug", "created_at")
@@ -102,24 +97,14 @@ INSERT INTO "updates" ("id", "branch_id", "runtime_version", "platform", "messag
 VALUES ('update-cache-v1', 'branch-1', '8.0.0', 'ios', 'cache test v1', '{}', 'group-cache-1', 0, '{"id":"update-cache-v1","createdAt":"2024-06-01T00:00:00.000Z","runtimeVersion":"8.0.0","launchAsset":null,"assets":[],"metadata":{},"extra":{}}', '2024-06-01T00:00:00.000Z');
 `;
 
-beforeAll(() => {
-  writeFileSync(seedFile, seedSQL);
-  execSync(
-    `bunx wrangler d1 execute DB --local --persist-to ${getPersistArg()} --file ${seedFile}`,
-    {
-      stdio: "pipe",
-    },
-  );
-});
-
-afterAll(() => {
-  rmSync(seedFile, { force: true });
+beforeAll(async () => {
+  await seedD1(seedSQL);
 });
 
 // ── Helpers ─────────────────────────────────────────────────────
 
 const manifestGet = (projectId: string, headers: Record<string, string>) =>
-  fetch(`${getBaseUrl()}/manifest/${projectId}`, { headers });
+  get(`/manifest/${projectId}`, headers);
 
 const protocolHeaders = (overrides?: Record<string, string>) => ({
   "expo-protocol-version": "1",
@@ -558,20 +543,11 @@ describe("Manifest caching", () => {
     await expectManifestId(first, "update-cache-v1");
 
     // Insert a newer update and bump cache_version (simulates a publish)
-    const bumpFile = ".wrangler/seed-cache-bump.sql";
-    writeFileSync(
-      bumpFile,
+    await seedD1(
       `INSERT INTO "updates" ("id", "branch_id", "runtime_version", "platform", "message", "metadata_json", "group_id", "is_rollback", "manifest_body", "created_at")
 VALUES ('update-cache-v2', 'branch-1', '8.0.0', 'ios', 'cache test v2', '{}', 'group-cache-2', 0, '{"id":"update-cache-v2","createdAt":"2024-07-01T00:00:00.000Z","runtimeVersion":"8.0.0","launchAsset":null,"assets":[],"metadata":{},"extra":{}}', '2024-07-01T00:00:00.000Z');
 UPDATE "channels" SET "cache_version" = "cache_version" + 1 WHERE "id" = 'chan-prod';`,
     );
-    execSync(
-      `bunx wrangler d1 execute DB --local --persist-to ${getPersistArg()} --file ${bumpFile}`,
-      {
-        stdio: "pipe",
-      },
-    );
-    rmSync(bumpFile, { force: true });
 
     // Second request should get the new update (cache key changed due to bumped version)
     const second = await manifestGet("proj-1", headers);

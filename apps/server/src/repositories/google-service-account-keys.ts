@@ -16,8 +16,8 @@ export interface GoogleServiceAccountKeyRepository {
     readonly privateKeyId: string;
     readonly googleProjectId: string;
     readonly r2Key: string;
-    readonly encryptedDek: string;
-    readonly dekKeyVersion: number;
+    readonly wrappedDek: string;
+    readonly vaultVersion: number;
     readonly createdAt: string;
     readonly updatedAt: string;
   }) => Effect.Effect<void, Conflict>;
@@ -47,13 +47,13 @@ interface Row {
   private_key_id: string;
   google_project_id: string;
   r2_key: string;
-  encrypted_dek: string;
-  dek_key_version: number;
+  wrapped_dek: string;
+  vault_version: number;
   created_at: string;
   updated_at: string;
 }
 
-const COLUMNS = `"id", "organization_id", "client_email", "private_key_id", "google_project_id", "r2_key", "encrypted_dek", "dek_key_version", "created_at", "updated_at"`;
+const COLUMNS = `"id", "organization_id", "client_email", "private_key_id", "google_project_id", "r2_key", "wrapped_dek", "vault_version", "created_at", "updated_at"`;
 
 const toModel = (row: Row): GoogleServiceAccountKeyModel => ({
   id: row.id,
@@ -62,8 +62,8 @@ const toModel = (row: Row): GoogleServiceAccountKeyModel => ({
   privateKeyId: row.private_key_id,
   googleProjectId: row.google_project_id,
   r2Key: row.r2_key,
-  encryptedDek: row.encrypted_dek,
-  dekKeyVersion: row.dek_key_version,
+  wrappedDek: row.wrapped_dek,
+  vaultVersion: row.vault_version,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
@@ -84,8 +84,8 @@ export const GoogleServiceAccountKeyRepoLive = Layer.succeed(GoogleServiceAccoun
               params.privateKeyId,
               params.googleProjectId,
               params.r2Key,
-              params.encryptedDek,
-              params.dekKeyVersion,
+              params.wrappedDek,
+              params.vaultVersion,
               params.createdAt,
               params.updatedAt,
             )

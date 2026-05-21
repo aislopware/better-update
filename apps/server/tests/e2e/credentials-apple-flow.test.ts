@@ -1,26 +1,7 @@
-import { toBase64 } from "@better-update/encoding";
-
-import { setupE2EWorker } from "../helpers/e2e-worker";
+import { credentialEnvelope } from "../helpers/credential-envelope";
+import { setupE2EWorker } from "../helpers/e2e-worker-pool";
 
 const { del, get, parseCookies, post } = setupE2EWorker(".wrangler/state/e2e-credentials-apple");
-
-// Valid-looking .p12: ASN.1 SEQUENCE tag (0x30) + >= 32 bytes.
-const dummyP12 = new Uint8Array([0x30, 0x82, 0x01, 0x00, ...Array(40).fill(0xab)]);
-const P12_BASE64 = toBase64(dummyP12);
-
-// Valid PKCS8 PEM. Body is arbitrary base64; parser only checks header/footer + non-empty base64.
-const P8_PEM = `-----BEGIN PRIVATE KEY-----
-MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQC
------END PRIVATE KEY-----`;
-
-const GOOGLE_SA_JSON = JSON.stringify({
-  type: "service_account",
-  project_id: "my-gcp-project",
-  private_key_id: "abc123def456",
-  private_key:
-    "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSi\n-----END PRIVATE KEY-----\n",
-  client_email: "svc@my-gcp-project.iam.gserviceaccount.com",
-});
 
 const TEAM_A = "ABCDE12345";
 
@@ -73,8 +54,7 @@ describe("Credentials Apple flow", () => {
     const res = await post(
       "/api/apple/distribution-certificates",
       {
-        p12Base64: P12_BASE64,
-        p12Password: "secret",
+        ...credentialEnvelope(),
         serialNumber: "AB12CD34EF56",
         appleTeamIdentifier: TEAM_A,
         appleTeamName: "Acme Inc.",
@@ -99,29 +79,11 @@ describe("Credentials Apple flow", () => {
     expect(team?.pushKeyCount).toBe(0);
   });
 
-  it("rejects a p12 blob with a bad ASN.1 prefix", async () => {
-    const bad = toBase64(new Uint8Array(40).fill(0x11));
-    const res = await post(
-      "/api/apple/distribution-certificates",
-      {
-        p12Base64: bad,
-        p12Password: "secret",
-        serialNumber: "BADSERIAL",
-        appleTeamIdentifier: TEAM_A,
-        validFrom: "2026-01-01T00:00:00Z",
-        validUntil: "2028-01-01T00:00:00Z",
-      },
-      { cookie: cookies },
-    );
-    expect(res.status).toBe(400);
-  });
-
   it("rejects an invalid apple team identifier", async () => {
     const res = await post(
       "/api/apple/distribution-certificates",
       {
-        p12Base64: P12_BASE64,
-        p12Password: "secret",
+        ...credentialEnvelope(),
         serialNumber: "SN1",
         appleTeamIdentifier: "not-valid",
         validFrom: "2026-01-01T00:00:00Z",
@@ -136,8 +98,8 @@ describe("Credentials Apple flow", () => {
     const res = await post(
       "/api/apple/push-keys",
       {
+        ...credentialEnvelope(),
         keyId: "PUSH1234AB",
-        p8Pem: P8_PEM,
         appleTeamIdentifier: TEAM_A,
       },
       { cookie: cookies },
@@ -159,10 +121,10 @@ describe("Credentials Apple flow", () => {
     const res = await post(
       "/api/apple/asc-api-keys",
       {
+        ...credentialEnvelope(),
         name: "CI Key",
         keyId: "ASCKEY1234",
         issuerId: "12345678-1234-1234-1234-123456789012",
-        p8Pem: P8_PEM,
         appleTeamIdentifier: TEAM_A,
         roles: ["ADMIN"],
       },
@@ -195,7 +157,12 @@ describe("Credentials Apple flow", () => {
   it("uploads a Google service account key and lists it", async () => {
     const res = await post(
       "/api/google/service-account-keys",
-      { json: GOOGLE_SA_JSON },
+      {
+        ...credentialEnvelope(),
+        clientEmail: "svc@my-gcp-project.iam.gserviceaccount.com",
+        privateKeyId: "abc123def456",
+        googleProjectId: "my-gcp-project",
+      },
       { cookie: cookies },
     );
     expect(res.status).toBe(201);
@@ -210,11 +177,15 @@ describe("Credentials Apple flow", () => {
     expect(listed.items).toHaveLength(1);
   });
 
-  it("rejects invalid google service account JSON", async () => {
-    const badJson = JSON.stringify({ type: "user", project_id: "x" });
+  it("rejects a google service account key missing required metadata", async () => {
     const res = await post(
       "/api/google/service-account-keys",
-      { json: badJson },
+      {
+        ...credentialEnvelope(),
+        clientEmail: "",
+        privateKeyId: "abc123def456",
+        googleProjectId: "my-gcp-project",
+      },
       { cookie: cookies },
     );
     expect(res.status).toBe(400);
@@ -239,10 +210,10 @@ describe("Credentials Apple flow", () => {
     const res = await post(
       "/api/apple/asc-api-keys",
       {
+        ...credentialEnvelope(),
         name: "Personal",
         keyId: "PERSONAL01",
         issuerId: "99999999-9999-9999-9999-999999999999",
-        p8Pem: P8_PEM,
       },
       { cookie: cookies },
     );

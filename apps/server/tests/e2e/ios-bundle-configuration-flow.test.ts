@@ -1,16 +1,11 @@
 import { toBase64 } from "@better-update/encoding";
 
-import { setupE2EWorker } from "../helpers/e2e-worker";
+import { credentialEnvelope } from "../helpers/credential-envelope";
+import { setupE2EWorker } from "../helpers/e2e-worker-pool";
 
 const { del, get, parseCookies, post, put } = setupE2EWorker(
   ".wrangler/state/e2e-ios-bundle-config",
 );
-
-const P12_BASE64 = toBase64(new Uint8Array([0x30, 0x82, 0x01, 0x00, ...Array(40).fill(0xab)]));
-
-const P8_PEM = `-----BEGIN PRIVATE KEY-----
-MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQC
------END PRIVATE KEY-----`;
 
 const TEAM = "ABCDE12345";
 const BUNDLE = "com.example.app";
@@ -76,8 +71,7 @@ describe("iOS Bundle Configuration flow", () => {
     const certRes = await post(
       "/api/apple/distribution-certificates",
       {
-        p12Base64: P12_BASE64,
-        p12Password: "pw",
+        ...credentialEnvelope(),
         serialNumber: "SN-BUNDLE-1",
         appleTeamIdentifier: TEAM,
         appleTeamName: "Bundle Team",
@@ -107,7 +101,7 @@ describe("iOS Bundle Configuration flow", () => {
 
     const pushRes = await post(
       "/api/apple/push-keys",
-      { keyId: "BUNDLEPUSH", p8Pem: P8_PEM, appleTeamIdentifier: TEAM },
+      { ...credentialEnvelope(), keyId: "BUNDLEPUSH", appleTeamIdentifier: TEAM },
       { cookie: cookies },
     );
     expect(pushRes.status).toBe(201);
@@ -116,10 +110,10 @@ describe("iOS Bundle Configuration flow", () => {
     const ascRes = await post(
       "/api/apple/asc-api-keys",
       {
+        ...credentialEnvelope(),
         name: "Bundle ASC",
         keyId: "BUNDLEASC1",
         issuerId: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
-        p8Pem: P8_PEM,
         appleTeamIdentifier: TEAM,
       },
       { cookie: cookies },
@@ -244,10 +238,12 @@ describe("iOS Bundle Configuration flow", () => {
     });
     expect(res.status).toBe(200);
 
+    // The extension configuration created earlier in this flow stays put — assert
+    // the deleted config specifically is gone, not that the collection is empty.
     const list = await get(`/api/projects/${projectId}/ios-bundle-configurations`, {
       cookie: cookies,
     });
     const items = (await list.json()).items as Array<{ id: string }>;
-    expect(items).toHaveLength(0);
+    expect(items.find((config) => config.id === bundleConfigId)).toBeUndefined();
   });
 });

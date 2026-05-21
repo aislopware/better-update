@@ -75,9 +75,6 @@ export const uploadAscApiKey = async (body: typeof UploadAscApiKeyBody.Type) =>
 export const deleteAscApiKey = async (id: string) =>
   runApi((api) => api.ascApiKeys.delete({ path: { id } }));
 
-export const syncDevicesViaAscApiKey = async (id: string) =>
-  runApi((api) => api.ascApiKeys.syncDevices({ path: { id } }));
-
 export const appleProvisioningProfilesQueryKey = (
   orgId: string,
   filters?: {

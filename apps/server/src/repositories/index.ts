@@ -46,6 +46,8 @@ export {
 export { IosAppMetadataRepo, IosAppMetadataRepoLive } from "./ios-app-metadata";
 export { SubmissionsRepo, SubmissionsRepoLive } from "./submissions";
 export { ManifestRepo, ManifestRepoLive } from "./manifest";
+export { OrgVaultRepo, OrgVaultRepoLive } from "./org-vault";
 export { ProjectRepo, ProjectRepoLive } from "./projects";
 export { UpdateRepo, UpdateRepoLive } from "./updates";
+export { UserEncryptionKeyRepo, UserEncryptionKeyRepoLive } from "./user-encryption-keys";
 export { WebhookRepo, WebhookRepoLive } from "./webhooks";

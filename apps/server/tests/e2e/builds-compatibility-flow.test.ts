@@ -1,23 +1,11 @@
-import { execSync } from "node:child_process";
-import { rmSync, writeFileSync } from "node:fs";
+import { setupE2EWorker } from "../helpers/e2e-worker-pool";
+import { seedD1 } from "../helpers/seed-d1";
 
-import { setupE2EWorker } from "../helpers/e2e-worker";
-
-const seedFile = ".wrangler/seed-builds-compatibility.sql";
-const { get, getPersistDir, parseCookies, post } = setupE2EWorker();
+const { get, parseCookies, post } = setupE2EWorker();
 
 const sqlString = (value: string) => `'${value.replaceAll("'", "''")}'`;
 
-const runSeedSql = (sql: string) => {
-  writeFileSync(seedFile, sql);
-  execSync(
-    `bunx wrangler d1 execute DB --local --persist-to ${getPersistDir()} --file ${seedFile}`,
-    {
-      stdio: "pipe",
-    },
-  );
-  rmSync(seedFile, { force: true });
-};
+const runSeedSql = (sql: string) => seedD1(sql);
 
 describe("Build compatibility matrix endpoint", () => {
   let cookies: string;
@@ -77,7 +65,12 @@ describe("Build compatibility matrix endpoint", () => {
       salt: "compatibility-salt",
     });
 
-    runSeedSql(`
+    await runSeedSql(`
+-- Project create auto-provisions production/staging/preview channels + branches;
+-- clear them so the fixed-id topology seeded below is the only one present.
+DELETE FROM "channels" WHERE "project_id" = ${sqlString(projectId)};
+DELETE FROM "branches" WHERE "project_id" = ${sqlString(projectId)};
+
 INSERT INTO "branches" ("id", "project_id", "name", "created_at")
 VALUES
   ('branch-main', ${sqlString(projectId)}, 'main', '2024-01-01T00:00:00Z'),

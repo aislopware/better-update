@@ -5,17 +5,27 @@ import { fromBase64 } from "@better-update/encoding";
 import { FileSystem } from "@effect/platform";
 import { Console, Effect } from "effect";
 
+import { requireSecretString } from "../lib/credential-secret";
 import { generateAndUploadKeystore } from "../lib/credentials-generator";
 import { uploadCredential } from "../lib/credentials-manager";
-import { MissingCredentialsError } from "../lib/exit-codes";
+import { IdentityError, MissingCredentialsError } from "../lib/exit-codes";
 import { extractProjectId, readAppMeta, readExpoConfig } from "../lib/expo-config";
 import { printHuman, printKeyValue } from "../lib/output";
 import { promptPassword, promptSelect, promptText } from "../lib/prompts";
+import { openFromDownload, openVaultSessionInteractive } from "./credential-cipher";
 import { ensureAndroidCredentials } from "./credentials-interactive";
 import { announce, BACK, pickAndDelete, safely, safePrompt } from "./credentials-manager-shared";
 import { rebindAndroidKeystore, showAndroidBinding } from "./credentials-rebind";
 
 import type { MenuEffect, WizardContext } from "./credentials-manager-shared";
+
+/** Read a required string field from a decrypted keystore secret. */
+const keystoreField = (secret: Record<string, unknown>, key: string) =>
+  requireSecretString(
+    secret,
+    key,
+    (field) => new IdentityError({ message: `Decrypted keystore is missing "${field}".` }),
+  );
 
 const setupAndroidProjectCredentials = (ctx: WizardContext) =>
   Effect.gen(function* () {
@@ -99,17 +109,26 @@ const downloadAndroidKeystoreInteractive = (ctx: WizardContext) =>
       })),
     );
     const data = yield* ctx.api.androidUploadKeystores.download({ path: { id } });
+    const session = yield* openVaultSessionInteractive(ctx.api);
+    const secret = yield* openFromDownload({
+      session,
+      credentialType: "keystore",
+      downloaded: data,
+    });
+    const keystoreBase64 = yield* keystoreField(secret, "keystoreBase64");
+    const keystorePassword = yield* keystoreField(secret, "keystorePassword");
+    const keyPassword = yield* keystoreField(secret, "keyPassword");
     const defaultPath = path.join(process.cwd(), `${data.id}.keystore`);
     const rawTarget = yield* promptText("Output path", { defaultValue: defaultPath });
     const target = rawTarget.trim().length === 0 ? defaultPath : rawTarget;
     const fs = yield* FileSystem.FileSystem;
-    yield* fs.writeFile(target, fromBase64(data.keystoreBase64));
+    yield* fs.writeFile(target, fromBase64(keystoreBase64));
     yield* Console.log("Keystore downloaded.");
     yield* printKeyValue([
       ["Path", target],
       ["Key alias", data.keyAlias],
-      ["Keystore password", data.keystorePassword],
-      ["Key password", data.keyPassword],
+      ["Keystore password", keystorePassword],
+      ["Key password", keyPassword],
     ]);
     return undefined;
   });

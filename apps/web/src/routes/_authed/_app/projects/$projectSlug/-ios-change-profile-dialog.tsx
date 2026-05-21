@@ -1,36 +1,21 @@
 import {
-  appleDistributionCertificatesQueryOptions,
   appleProvisioningProfilesQueryOptions,
   iosBundleConfigurationsQueryOptions,
   updateIosBundleConfiguration,
-  uploadAppleProvisioningProfile,
 } from "@better-update/api-client/react";
-import { compact } from "@better-update/type-guards";
-import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
-import { Input } from "@better-update/ui/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@better-update/ui/components/ui/radio-group";
-import {
-  Select,
-  SelectItem,
-  SelectPopup,
-  SelectTrigger,
-  SelectValue,
-} from "@better-update/ui/components/ui/select";
-import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { Suspense, useState } from "react";
+import { Suspense } from "react";
 
 import type {
   AppleProvisioningProfileItem,
   IosBundleConfigurationItem,
 } from "@better-update/api-client/react";
 
-import { safeReadFileAsBase64 } from "../../-credentials-utils";
+import { deriveExpiryStatus } from "../../../../../lib/credential-status";
 import { formatDate } from "../../../../../lib/format-date";
 import { useApiMutation } from "../../../../../lib/use-api-mutation";
 import { ChangeCredentialDialog } from "./-change-credential-dialog";
-
-import type { ChangeCredentialTab } from "./-change-credential-dialog";
 
 interface ChooseSavedTabProps {
   readonly orgId: string;
@@ -62,8 +47,7 @@ const ChooseSavedTab = ({
   if (profiles.items.length === 0) {
     return (
       <p className="text-muted-foreground py-6 text-center text-sm">
-        No saved provisioning profiles for this bundle identifier + distribution type. Switch to
-        “Upload new” to add one.
+        No saved provisioning profiles for this bundle identifier + distribution type.
       </p>
     );
   }
@@ -78,6 +62,7 @@ const ChooseSavedTab = ({
       <div className="flex flex-col gap-2">
         {profiles.items.map((profile) => {
           const isCurrent = profile.id === currentId;
+          const status = deriveExpiryStatus(profile.validUntil);
           return (
             <label
               key={profile.id}
@@ -98,7 +83,8 @@ const ChooseSavedTab = ({
                   {profile.developerPortalIdentifier ?? profile.id.slice(0, 8)}
                   {profile.validUntil === null
                     ? ""
-                    : ` · expires ${formatDate(profile.validUntil)}`}
+                    : ` · expires ${formatDate(profile.validUntil)} · `}
+                  {profile.validUntil === null ? "" : status.label}
                 </span>
               </div>
             </label>
@@ -106,89 +92,6 @@ const ChooseSavedTab = ({
         })}
       </div>
     </RadioGroup>
-  );
-};
-
-interface UploadFormState {
-  readonly profileBase64: string;
-  readonly appleDistributionCertificateId: string;
-}
-
-const UPLOAD_INITIAL: UploadFormState = {
-  profileBase64: "",
-  appleDistributionCertificateId: "",
-};
-
-const NONE_VALUE = "__none__";
-
-const isUploadValid = (state: UploadFormState) => state.profileBase64.length > 0;
-
-interface UploadTabProps {
-  readonly orgId: string;
-  readonly appleTeamId: string;
-  readonly state: UploadFormState;
-  readonly onChange: (next: UploadFormState) => void;
-}
-
-const UploadTab = ({ orgId, appleTeamId, state, onChange }: UploadTabProps) => {
-  const { data: certs } = useSuspenseQuery(appleDistributionCertificatesQueryOptions(orgId));
-  const teamCerts = certs.items.filter((cert) => cert.appleTeamId === appleTeamId);
-
-  return (
-    <div className="flex flex-col gap-3">
-      <Field>
-        <FieldLabel htmlFor="change-profile-file">.mobileprovision file</FieldLabel>
-        <Input
-          id="change-profile-file"
-          type="file"
-          accept=".mobileprovision"
-          onChange={async (event) => {
-            const file = event.target.files?.[0];
-            if (file === undefined) {
-              return;
-            }
-            const value = await safeReadFileAsBase64(file);
-            if (value === null) {
-              toastManager.add({ title: "Failed to read file", type: "error" });
-              return;
-            }
-            onChange({ ...state, profileBase64: value });
-          }}
-        />
-        <FieldError match={state.profileBase64.length === 0}>
-          .mobileprovision file required
-        </FieldError>
-      </Field>
-      <Field>
-        <FieldLabel htmlFor="change-profile-cert">Distribution certificate (optional)</FieldLabel>
-        <Select
-          value={
-            state.appleDistributionCertificateId === ""
-              ? NONE_VALUE
-              : state.appleDistributionCertificateId
-          }
-          onValueChange={(value) => {
-            const next = typeof value === "string" ? value : NONE_VALUE;
-            onChange({
-              ...state,
-              appleDistributionCertificateId: next === NONE_VALUE ? "" : next,
-            });
-          }}
-        >
-          <SelectTrigger id="change-profile-cert">
-            <SelectValue placeholder="Auto-detect from profile" />
-          </SelectTrigger>
-          <SelectPopup>
-            <SelectItem value={NONE_VALUE}>Auto-detect from profile</SelectItem>
-            {teamCerts.map((cert) => (
-              <SelectItem key={cert.id} value={cert.id}>
-                {cert.serialNumber.slice(0, 16)}…
-              </SelectItem>
-            ))}
-          </SelectPopup>
-        </Select>
-      </Field>
-    </div>
   );
 };
 
@@ -218,7 +121,6 @@ export const IosChangeProfileDialog = ({
   const queryClient = useQueryClient();
   const initialSelectedId = currentProfile === null ? "" : currentProfile.id;
   const currentProfileId: string | null = currentProfile === null ? null : currentProfile.id;
-  const [uploadState, setUploadState] = useState<UploadFormState>(UPLOAD_INITIAL);
 
   const invalidate = async () => {
     await Promise.all([
@@ -231,32 +133,13 @@ export const IosChangeProfileDialog = ({
     ]);
   };
 
-  const resolveProfileId = async (
-    tab: ChangeCredentialTab,
-    selectedId: string,
-  ): Promise<string> => {
-    if (tab !== "upload") {
-      return selectedId;
-    }
-    const payload = {
-      profileBase64: uploadState.profileBase64,
-      ...compact({
-        appleDistributionCertificateId: uploadState.appleDistributionCertificateId || undefined,
-      }),
-    };
-    const uploaded = await uploadAppleProvisioningProfile(payload);
-    return uploaded.id;
-  };
-
   const saveMutation = useApiMutation({
-    mutationFn: async ({ tab, selectedId }: { tab: ChangeCredentialTab; selectedId: string }) => {
-      const profileId = await resolveProfileId(tab, selectedId);
+    mutationFn: async ({ selectedId }: { selectedId: string }) => {
       await updateIosBundleConfiguration(bundleConfigId, {
-        appleProvisioningProfileId: profileId,
+        appleProvisioningProfileId: selectedId,
       });
     },
     onSuccess: async () => {
-      toastManager.add({ title: "Provisioning profile updated", type: "success" });
       await invalidate();
       onOpenChange(false);
     },
@@ -267,14 +150,10 @@ export const IosChangeProfileDialog = ({
       open={open}
       onOpenChange={onOpenChange}
       title="Change provisioning profile"
-      description="Upload a new .mobileprovision file or pick a saved profile matching this bundle identifier and distribution type."
+      description="Pick a saved profile matching this bundle identifier and distribution type."
       initialSelectedId={initialSelectedId}
-      isUploadValid={isUploadValid(uploadState)}
       submitting={saveMutation.isPending}
       onSubmit={async (context) => saveMutation.mutateAsync(context)}
-      onResetUpload={() => {
-        setUploadState(UPLOAD_INITIAL);
-      }}
       renderSaved={({ selectedId, setSelectedId }) => (
         <Suspense
           fallback={<p className="text-muted-foreground text-sm">Loading saved profiles…</p>}
@@ -287,16 +166,6 @@ export const IosChangeProfileDialog = ({
             currentId={currentProfileId}
             selectedId={selectedId}
             onSelect={setSelectedId}
-          />
-        </Suspense>
-      )}
-      renderUpload={() => (
-        <Suspense fallback={<p className="text-muted-foreground text-sm">Loading certificates…</p>}>
-          <UploadTab
-            orgId={orgId}
-            appleTeamId={appleTeamId}
-            state={uploadState}
-            onChange={setUploadState}
           />
         </Suspense>
       )}

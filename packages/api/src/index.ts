@@ -111,8 +111,6 @@ export {
   AscApiKeyId,
   DeleteAscApiKeyResult,
   IssuerId,
-  SyncDevicesResult,
-  SyncedDeviceSummary,
   UploadAscApiKeyBody,
 } from "./domain/asc-api-key";
 export {
@@ -182,7 +180,6 @@ export {
   AndroidBuildKeystore,
   IosBuildDistributionCertificate,
   IosBuildProvisioningProfile,
-  IosBuildPushKey,
   ResolveBuildCredentialsAndroidBody,
   ResolveBuildCredentialsAndroidResult,
   ResolveBuildCredentialsBody,
@@ -224,6 +221,32 @@ export {
   UpdateAnalyticsParams,
   UpdateAnalyticsResult,
 } from "./domain/analytics";
+export {
+  AgeRecipient,
+  EncryptionKeyKind,
+  KeyFingerprint,
+  RegisterEncryptionKeyBody,
+  UserEncryptionKey,
+} from "./domain/user-encryption-key";
+export {
+  AddVaultWrapBody,
+  BootstrapVaultBody,
+  OrgVault,
+  OrgVaultKeyWrap,
+  RecipientVaultKey,
+  VaultRecipientRef,
+  VaultRecipients,
+  VaultVersion,
+  VaultWrapInput,
+} from "./domain/org-vault";
+export {
+  Ciphertext,
+  CredentialDekUpdate,
+  CredentialType,
+  encryptedEnvelopeFields,
+  RotateVaultBody,
+  WrappedDek,
+} from "./domain/encrypted-credential";
 
 // Groups
 export { AuditLogsGroup } from "./groups/audit-logs";
@@ -248,6 +271,8 @@ export { AndroidApplicationIdentifiersGroup } from "./groups/android-application
 export { AndroidUploadKeystoresGroup } from "./groups/android-upload-keystores";
 export { AndroidBuildCredentialsGroup } from "./groups/android-build-credentials";
 export { BuildCredentialsGroup } from "./groups/build-credentials";
+export { UserEncryptionKeysGroup } from "./groups/user-encryption-keys";
+export { OrgVaultGroup } from "./groups/org-vault";
 export { ManifestGroup } from "./groups/manifest";
 export { MeGroup } from "./groups/me";
 export { ProjectsGroup } from "./groups/projects";

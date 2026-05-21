@@ -6,6 +6,12 @@ import { compact, toOptional } from "@better-update/type-guards";
 import AppleUtils from "@expo/apple-utils";
 import { Data, Effect } from "effect";
 
+import {
+  openVaultSession,
+  sealForUpload,
+  toUploadEnvelope,
+} from "../application/credential-cipher";
+import { resolveVaultPassphrase } from "../application/vault-access";
 import { extractMetadataFromP12 } from "./apple-cert-to-p12";
 import { CertificateLimitError, computeDeviceRosterHashHex } from "./credentials-generator";
 
@@ -86,14 +92,29 @@ export const generateAndUploadDistributionCertificateViaAppleId = (
       ),
     );
 
+    const passphrase = yield* resolveVaultPassphrase;
+    const session = yield* openVaultSession(api, passphrase);
+    const envelopeMetadata = {
+      serialNumber: metadata.serialNumber,
+      appleTeamIdentifier: metadata.appleTeamId,
+      validFrom: metadata.validFrom,
+      validUntil: metadata.validUntil,
+    };
+    const envelope = yield* sealForUpload({
+      session,
+      credentialType: "distribution-certificate",
+      metadata: envelopeMetadata,
+      secret: { p12Base64: result.certificateP12, p12Password: result.password },
+    }).pipe(
+      Effect.mapError(
+        (cause) => new AppleIdGenerateFailedError({ step: "encrypt-p12", message: cause.message }),
+      ),
+    );
+
     const created = yield* api.appleDistributionCertificates.upload({
       payload: {
-        p12Base64: result.certificateP12,
-        p12Password: result.password,
-        serialNumber: metadata.serialNumber,
-        appleTeamIdentifier: metadata.appleTeamId,
-        validFrom: metadata.validFrom,
-        validUntil: metadata.validUntil,
+        ...toUploadEnvelope(envelope),
+        ...envelopeMetadata,
         ...compact({
           appleTeamName: toOptional(metadata.appleTeamName),
           developerIdIdentifier: toOptional(metadata.developerIdIdentifier),

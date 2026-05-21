@@ -2,28 +2,20 @@ import {
   androidBuildCredentialsQueryOptions,
   googleServiceAccountKeysQueryOptions,
   updateAndroidBuildCredentials,
-  uploadGoogleServiceAccountKey,
 } from "@better-update/api-client/react";
-import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
-import { Input } from "@better-update/ui/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@better-update/ui/components/ui/radio-group";
-import { Textarea } from "@better-update/ui/components/ui/textarea";
-import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { Suspense, useState } from "react";
+import { Suspense } from "react";
 
 import type { GoogleServiceAccountKeyItem } from "@better-update/api-client/react";
 
-import { safeReadFileAsText } from "../../-credentials-utils";
 import { formatDate } from "../../../../../lib/format-date";
 import { useApiMutation } from "../../../../../lib/use-api-mutation";
 import { ChangeCredentialDialog } from "./-change-credential-dialog";
 
-import type { ChangeCredentialTab } from "./-change-credential-dialog";
-
 const TITLE = "Change FCM v1 Service Account";
 const DESCRIPTION =
-  "Upload a new Firebase Admin SDK JSON or pick a saved service account. Applied across all credential groups for this app identifier.";
+  "Pick a saved service account. Applied across all credential groups for this app identifier.";
 
 interface ChooseSavedTabProps {
   readonly orgId: string;
@@ -38,7 +30,7 @@ const ChooseSavedTab = ({ orgId, currentId, selectedId, onSelect }: ChooseSavedT
   if (keys.items.length === 0) {
     return (
       <p className="text-muted-foreground py-6 text-center text-sm">
-        No saved service accounts yet. Switch to “Upload new” to add one.
+        No saved service accounts yet.
       </p>
     );
   }
@@ -79,67 +71,6 @@ const ChooseSavedTab = ({ orgId, currentId, selectedId, onSelect }: ChooseSavedT
   );
 };
 
-interface UploadFormState {
-  readonly json: string;
-}
-
-const UPLOAD_INITIAL: UploadFormState = { json: "" };
-
-const isJsonValid = (raw: string): boolean => {
-  // eslint-disable-next-line functional/no-try-statements -- JSON.parse throws on invalid input, expressed here as a boolean
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    return (
-      typeof parsed === "object" &&
-      parsed !== null &&
-      "client_email" in parsed &&
-      "private_key" in parsed
-    );
-  } catch {
-    return false;
-  }
-};
-
-interface UploadTabProps {
-  readonly state: UploadFormState;
-  readonly onChange: (next: UploadFormState) => void;
-}
-
-const UploadTab = ({ state, onChange }: UploadTabProps) => (
-  <div className="flex flex-col gap-3">
-    <Field>
-      <FieldLabel htmlFor="change-gsa-file">Service account JSON</FieldLabel>
-      <Input
-        id="change-gsa-file"
-        type="file"
-        accept=".json,application/json"
-        onChange={async (event) => {
-          const file = event.target.files?.[0];
-          if (file === undefined) {
-            return;
-          }
-          const value = await safeReadFileAsText(file);
-          if (value === null) {
-            toastManager.add({ title: "Failed to read file", type: "error" });
-            return;
-          }
-          onChange({ ...state, json: value });
-        }}
-      />
-      <Textarea
-        readOnly
-        value={state.json}
-        rows={4}
-        className="mt-2 font-mono text-xs"
-        placeholder="JSON content will appear here after file selection"
-      />
-      <FieldError match={state.json.length > 0 && !isJsonValid(state.json)}>
-        JSON must include client_email and private_key
-      </FieldError>
-    </Field>
-  </div>
-);
-
 interface AndroidChangeGsaDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (next: boolean) => void;
@@ -160,7 +91,6 @@ export const AndroidChangeGsaDialog = ({
   const queryClient = useQueryClient();
   const initialSelectedId = currentSa === null ? "" : currentSa.id;
   const currentSaId: string | null = currentSa === null ? null : currentSa.id;
-  const [uploadState, setUploadState] = useState<UploadFormState>(UPLOAD_INITIAL);
 
   const invalidate = async () => {
     await Promise.all([
@@ -173,25 +103,15 @@ export const AndroidChangeGsaDialog = ({
     ]);
   };
 
-  const resolveSaId = async (tab: ChangeCredentialTab, selectedId: string): Promise<string> => {
-    if (tab !== "upload") {
-      return selectedId;
-    }
-    const uploaded = await uploadGoogleServiceAccountKey({ json: uploadState.json });
-    return uploaded.id;
-  };
-
   const saveMutation = useApiMutation({
-    mutationFn: async ({ tab, selectedId }: { tab: ChangeCredentialTab; selectedId: string }) => {
-      const saId = await resolveSaId(tab, selectedId);
+    mutationFn: async ({ selectedId }: { selectedId: string }) => {
       await Promise.all(
         groupIds.map(async (groupId) =>
-          updateAndroidBuildCredentials(groupId, { googleServiceAccountKeyForFcmV1Id: saId }),
+          updateAndroidBuildCredentials(groupId, { googleServiceAccountKeyForFcmV1Id: selectedId }),
         ),
       );
     },
     onSuccess: async () => {
-      toastManager.add({ title: "FCM service account updated", type: "success" });
       await invalidate();
       onOpenChange(false);
     },
@@ -204,12 +124,8 @@ export const AndroidChangeGsaDialog = ({
       title={TITLE}
       description={DESCRIPTION}
       initialSelectedId={initialSelectedId}
-      isUploadValid={isJsonValid(uploadState.json)}
       submitting={saveMutation.isPending}
       onSubmit={async (context) => saveMutation.mutateAsync(context)}
-      onResetUpload={() => {
-        setUploadState(UPLOAD_INITIAL);
-      }}
       renderSaved={({ selectedId, setSelectedId }) => (
         <Suspense
           fallback={<p className="text-muted-foreground text-sm">Loading service accounts…</p>}
@@ -222,7 +138,6 @@ export const AndroidChangeGsaDialog = ({
           />
         </Suspense>
       )}
-      renderUpload={() => <UploadTab state={uploadState} onChange={setUploadState} />}
     />
   );
 };

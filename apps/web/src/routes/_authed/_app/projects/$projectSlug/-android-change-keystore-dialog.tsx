@@ -2,23 +2,16 @@ import {
   androidBuildCredentialsQueryOptions,
   androidUploadKeystoresQueryOptions,
   updateAndroidBuildCredentials,
-  uploadAndroidUploadKeystore,
 } from "@better-update/api-client/react";
-import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
-import { Input } from "@better-update/ui/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@better-update/ui/components/ui/radio-group";
-import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { Suspense, useState } from "react";
+import { Suspense } from "react";
 
 import type { AndroidUploadKeystoreItem } from "@better-update/api-client/react";
 
-import { safeReadFileAsBase64 } from "../../-credentials-utils";
 import { formatDate } from "../../../../../lib/format-date";
 import { useApiMutation } from "../../../../../lib/use-api-mutation";
 import { ChangeCredentialDialog } from "./-change-credential-dialog";
-
-import type { ChangeCredentialTab } from "./-change-credential-dialog";
 
 interface ChooseSavedTabProps {
   readonly orgId: string;
@@ -32,9 +25,7 @@ const ChooseSavedTab = ({ orgId, currentId, selectedId, onSelect }: ChooseSavedT
 
   if (keystores.items.length === 0) {
     return (
-      <p className="text-muted-foreground py-6 text-center text-sm">
-        No saved keystores yet. Switch to “Upload new” to add one.
-      </p>
+      <p className="text-muted-foreground py-6 text-center text-sm">No saved keystores yet.</p>
     );
   }
 
@@ -78,92 +69,6 @@ const ChooseSavedTab = ({ orgId, currentId, selectedId, onSelect }: ChooseSavedT
   );
 };
 
-interface UploadFormState {
-  readonly keystoreBase64: string;
-  readonly keyAlias: string;
-  readonly keystorePassword: string;
-  readonly keyPassword: string;
-}
-
-const UPLOAD_INITIAL: UploadFormState = {
-  keystoreBase64: "",
-  keyAlias: "",
-  keystorePassword: "",
-  keyPassword: "",
-};
-
-const isUploadValid = (state: UploadFormState) =>
-  state.keystoreBase64.length > 0 &&
-  state.keyAlias.length > 0 &&
-  state.keystorePassword.length > 0 &&
-  state.keyPassword.length > 0;
-
-interface UploadTabProps {
-  readonly state: UploadFormState;
-  readonly onChange: (next: UploadFormState) => void;
-}
-
-const UploadTab = ({ state, onChange }: UploadTabProps) => (
-  <div className="flex flex-col gap-3">
-    <Field>
-      <FieldLabel htmlFor="change-keystore-file">Keystore (.jks / .keystore)</FieldLabel>
-      <Input
-        id="change-keystore-file"
-        type="file"
-        accept=".jks,.keystore,application/octet-stream"
-        onChange={async (event) => {
-          const file = event.target.files?.[0];
-          if (file === undefined) {
-            return;
-          }
-          const value = await safeReadFileAsBase64(file);
-          if (value === null) {
-            toastManager.add({ title: "Failed to read file", type: "error" });
-            return;
-          }
-          onChange({ ...state, keystoreBase64: value });
-        }}
-      />
-      <FieldError match={state.keystoreBase64.length === 0}>Select a keystore file</FieldError>
-    </Field>
-    <Field>
-      <FieldLabel htmlFor="change-keystore-alias">Key alias</FieldLabel>
-      <Input
-        id="change-keystore-alias"
-        placeholder="upload"
-        value={state.keyAlias}
-        onChange={(event) => {
-          onChange({ ...state, keyAlias: event.target.value });
-        }}
-      />
-    </Field>
-    <div className="grid grid-cols-2 gap-3">
-      <Field>
-        <FieldLabel htmlFor="change-keystore-pw">Keystore password</FieldLabel>
-        <Input
-          id="change-keystore-pw"
-          type="password"
-          value={state.keystorePassword}
-          onChange={(event) => {
-            onChange({ ...state, keystorePassword: event.target.value });
-          }}
-        />
-      </Field>
-      <Field>
-        <FieldLabel htmlFor="change-key-pw">Key password</FieldLabel>
-        <Input
-          id="change-key-pw"
-          type="password"
-          value={state.keyPassword}
-          onChange={(event) => {
-            onChange({ ...state, keyPassword: event.target.value });
-          }}
-        />
-      </Field>
-    </div>
-  </div>
-);
-
 interface AndroidChangeKeystoreDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (next: boolean) => void;
@@ -184,7 +89,6 @@ export const AndroidChangeKeystoreDialog = ({
   const queryClient = useQueryClient();
   const initialSelectedId = currentKeystore === null ? "" : currentKeystore.id;
   const currentKeystoreId: string | null = currentKeystore === null ? null : currentKeystore.id;
-  const [uploadState, setUploadState] = useState<UploadFormState>(UPLOAD_INITIAL);
 
   const invalidate = async () => {
     await Promise.all([
@@ -197,31 +101,13 @@ export const AndroidChangeKeystoreDialog = ({
     ]);
   };
 
-  const resolveKeystoreId = async (
-    tab: ChangeCredentialTab,
-    selectedId: string,
-  ): Promise<string> => {
-    if (tab !== "upload") {
-      return selectedId;
-    }
-    const uploaded = await uploadAndroidUploadKeystore({
-      keystoreBase64: uploadState.keystoreBase64,
-      keyAlias: uploadState.keyAlias,
-      keystorePassword: uploadState.keystorePassword,
-      keyPassword: uploadState.keyPassword,
-    });
-    return uploaded.id;
-  };
-
   const saveMutation = useApiMutation({
-    mutationFn: async ({ tab, selectedId }: { tab: ChangeCredentialTab; selectedId: string }) => {
-      const keystoreId = await resolveKeystoreId(tab, selectedId);
+    mutationFn: async ({ selectedId }: { selectedId: string }) => {
       await updateAndroidBuildCredentials(buildCredentialsId, {
-        androidUploadKeystoreId: keystoreId,
+        androidUploadKeystoreId: selectedId,
       });
     },
     onSuccess: async () => {
-      toastManager.add({ title: "Upload keystore updated", type: "success" });
       await invalidate();
       onOpenChange(false);
     },
@@ -232,14 +118,10 @@ export const AndroidChangeKeystoreDialog = ({
       open={open}
       onOpenChange={onOpenChange}
       title="Change upload keystore"
-      description="Upload a new keystore or pick a saved one in this organization."
+      description="Pick a saved keystore in this organization."
       initialSelectedId={initialSelectedId}
-      isUploadValid={isUploadValid(uploadState)}
       submitting={saveMutation.isPending}
       onSubmit={async (context) => saveMutation.mutateAsync(context)}
-      onResetUpload={() => {
-        setUploadState(UPLOAD_INITIAL);
-      }}
       renderSaved={({ selectedId, setSelectedId }) => (
         <Suspense
           fallback={<p className="text-muted-foreground text-sm">Loading saved keystores…</p>}
@@ -252,7 +134,6 @@ export const AndroidChangeKeystoreDialog = ({
           />
         </Suspense>
       )}
-      renderUpload={() => <UploadTab state={uploadState} onChange={setUploadState} />}
     />
   );
 };

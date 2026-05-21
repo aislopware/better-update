@@ -2,6 +2,7 @@ import { Schema } from "effect";
 
 import { AppleTeamIdentifier, appleTeamMetadataFields, tenCharPortalId } from "./apple-team";
 import { DateTimeString, DeletedResult, Id, Name120 } from "./common";
+import { encryptedEnvelopeFields } from "./encrypted-credential";
 
 export const AscApiKeyId = tenCharPortalId("ASC API Key ID");
 
@@ -23,11 +24,13 @@ export class AscApiKey extends Schema.Class<AscApiKey>("AscApiKey")({
   updatedAt: DateTimeString,
 }) {}
 
+/** Client-encrypted upload: the `.p8` PEM is sealed into `ciphertext`. */
 export const UploadAscApiKeyBody = Schema.Struct({
+  id: Id,
+  ...encryptedEnvelopeFields,
   name: Name120,
   keyId: AscApiKeyId,
   issuerId: IssuerId,
-  p8Pem: Schema.String.pipe(Schema.minLength(1)),
   appleTeamIdentifier: Schema.optional(AppleTeamIdentifier),
   ...appleTeamMetadataFields,
   roles: Schema.optional(Schema.Array(Schema.String)),
@@ -35,35 +38,28 @@ export const UploadAscApiKeyBody = Schema.Struct({
 
 export const DeleteAscApiKeyResult = DeletedResult;
 
+/** Encrypted envelope plus metadata; the CLI decrypts `ciphertext` to recover `{ p8Pem }`. */
 export const DownloadAscApiKeyResult = Schema.Struct({
   id: Id,
+  ...encryptedEnvelopeFields,
   name: Schema.String,
   keyId: AscApiKeyId,
   issuerId: IssuerId,
-  p8Pem: Schema.String,
   appleTeamIdentifier: Schema.NullOr(AppleTeamIdentifier),
 });
 
+/**
+ * Returned by `getCredentials` for direct App Store Connect API calls from the
+ * CLI: the encrypted `.p8` envelope plus the public key metadata. The CLI
+ * decrypts `ciphertext` locally to recover the `.p8` PEM — the server never
+ * holds it in plaintext.
+ */
 export class AscApiKeyCredentials extends Schema.Class<AscApiKeyCredentials>(
   "AscApiKeyCredentials",
 )({
   ascApiKeyId: Id,
+  ...encryptedEnvelopeFields,
   keyId: AscApiKeyId,
   issuerId: IssuerId,
-  p8Pem: Schema.String,
   appleTeamIdentifier: Schema.NullOr(AppleTeamIdentifier),
 }) {}
-
-export const SyncedDeviceSummary = Schema.Struct({
-  id: Id,
-  identifier: Schema.String,
-  name: Schema.String,
-  deviceClass: Schema.Literal("IPHONE", "IPAD", "MAC", "UNKNOWN"),
-});
-
-export const SyncDevicesResult = Schema.Struct({
-  pulled: Schema.Number,
-  pushed: Schema.Number,
-  skipped: Schema.Number,
-  devices: Schema.Array(SyncedDeviceSummary),
-});

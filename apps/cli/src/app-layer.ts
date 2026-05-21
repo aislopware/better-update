@@ -10,14 +10,18 @@ import { AppleSessionStoreLive } from "./services/apple-session-store";
 import { AuthStoreLive } from "./services/auth-store";
 import { CliRuntimeLive } from "./services/cli-runtime";
 import { ConfigStoreLive } from "./services/config-store";
+import { IdentityStoreLive } from "./services/identity-store";
 import { PresignedUploadClientLive } from "./services/presigned-upload";
 import { UpdateAssetUploaderLive } from "./services/update-asset-uploader";
 import { VersionCheckLive } from "./services/version-check";
 
 const CliPlatformLayer = Layer.mergeAll(CliRuntimeLive, NodeContext.layer, FetchHttpClient.layer);
-const CliStoreLayer = Layer.mergeAll(AuthStoreLive, ConfigStoreLive, AppleSessionStoreLive).pipe(
-  Layer.provide(CliPlatformLayer),
-);
+const CliStoreLayer = Layer.mergeAll(
+  AuthStoreLive,
+  ConfigStoreLive,
+  AppleSessionStoreLive,
+  IdentityStoreLive,
+).pipe(Layer.provide(CliPlatformLayer));
 const CliAdapterDependencies = Layer.mergeAll(CliPlatformLayer, CliStoreLayer);
 const ApiClientLayer = ApiClientLive.pipe(Layer.provide(CliAdapterDependencies));
 const AppleAuthLayer = AppleAuthLive.pipe(Layer.provide(CliAdapterDependencies));

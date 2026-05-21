@@ -3,7 +3,9 @@ import { Context, Effect, Layer } from "effect";
 import { cloudflareEnv } from "../cloudflare/context";
 import { NotFound } from "../errors";
 import { toDbNull } from "../lib/nullable";
+import { d1RunWithUniqueCheck } from "./d1-helpers";
 
+import type { Conflict } from "../errors";
 import type { AndroidUploadKeystoreModel } from "../models";
 
 export interface AndroidUploadKeystoreRepository {
@@ -11,19 +13,15 @@ export interface AndroidUploadKeystoreRepository {
     readonly id: string;
     readonly organizationId: string;
     readonly keyAlias: string;
-    readonly encryptedKeystorePassword: string;
-    readonly keystorePasswordKeyVersion: number;
-    readonly encryptedKeyPassword: string;
-    readonly keyPasswordKeyVersion: number;
     readonly r2Key: string;
-    readonly encryptedDek: string;
-    readonly dekKeyVersion: number;
+    readonly wrappedDek: string;
+    readonly vaultVersion: number;
     readonly md5Fingerprint: string | null;
     readonly sha1Fingerprint: string | null;
     readonly sha256Fingerprint: string | null;
     readonly createdAt: string;
     readonly updatedAt: string;
-  }) => Effect.Effect<void>;
+  }) => Effect.Effect<void, Conflict>;
 
   readonly listByOrg: (params: {
     readonly organizationId: string;
@@ -47,13 +45,9 @@ interface Row {
   id: string;
   organization_id: string;
   key_alias: string;
-  encrypted_keystore_password: string;
-  keystore_password_key_version: number;
-  encrypted_key_password: string;
-  key_password_key_version: number;
   r2_key: string;
-  encrypted_dek: string;
-  dek_key_version: number;
+  wrapped_dek: string;
+  vault_version: number;
   md5_fingerprint: string | null;
   sha1_fingerprint: string | null;
   sha256_fingerprint: string | null;
@@ -61,19 +55,15 @@ interface Row {
   updated_at: string;
 }
 
-const COLUMNS = `"id", "organization_id", "key_alias", "encrypted_keystore_password", "keystore_password_key_version", "encrypted_key_password", "key_password_key_version", "r2_key", "encrypted_dek", "dek_key_version", "md5_fingerprint", "sha1_fingerprint", "sha256_fingerprint", "created_at", "updated_at"`;
+const COLUMNS = `"id", "organization_id", "key_alias", "r2_key", "wrapped_dek", "vault_version", "md5_fingerprint", "sha1_fingerprint", "sha256_fingerprint", "created_at", "updated_at"`;
 
 const toModel = (row: Row): AndroidUploadKeystoreModel => ({
   id: row.id,
   organizationId: row.organization_id,
   keyAlias: row.key_alias,
-  encryptedKeystorePassword: row.encrypted_keystore_password,
-  keystorePasswordKeyVersion: row.keystore_password_key_version,
-  encryptedKeyPassword: row.encrypted_key_password,
-  keyPasswordKeyVersion: row.key_password_key_version,
   r2Key: row.r2_key,
-  encryptedDek: row.encrypted_dek,
-  dekKeyVersion: row.dek_key_version,
+  wrappedDek: row.wrapped_dek,
+  vaultVersion: row.vault_version,
   md5Fingerprint: row.md5_fingerprint,
   sha1Fingerprint: row.sha1_fingerprint,
   sha256Fingerprint: row.sha256_fingerprint,
@@ -85,28 +75,26 @@ export const AndroidUploadKeystoreRepoLive = Layer.succeed(AndroidUploadKeystore
   insert: (params) =>
     Effect.gen(function* () {
       const env = yield* cloudflareEnv;
-      yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `INSERT INTO "android_upload_keystores" (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        )
-          .bind(
-            params.id,
-            params.organizationId,
-            params.keyAlias,
-            params.encryptedKeystorePassword,
-            params.keystorePasswordKeyVersion,
-            params.encryptedKeyPassword,
-            params.keyPasswordKeyVersion,
-            params.r2Key,
-            params.encryptedDek,
-            params.dekKeyVersion,
-            params.md5Fingerprint,
-            params.sha1Fingerprint,
-            params.sha256Fingerprint,
-            params.createdAt,
-            params.updatedAt,
+      yield* d1RunWithUniqueCheck(
+        async () =>
+          env.DB.prepare(
+            `INSERT INTO "android_upload_keystores" (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           )
-          .run(),
+            .bind(
+              params.id,
+              params.organizationId,
+              params.keyAlias,
+              params.r2Key,
+              params.wrappedDek,
+              params.vaultVersion,
+              params.md5Fingerprint,
+              params.sha1Fingerprint,
+              params.sha256Fingerprint,
+              params.createdAt,
+              params.updatedAt,
+            )
+            .run(),
+        "This keystore has already been uploaded",
       );
     }),
 

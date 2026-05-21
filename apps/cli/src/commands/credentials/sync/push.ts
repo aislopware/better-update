@@ -14,14 +14,19 @@ import { CliRuntime } from "../../../services/cli-runtime";
 import { SYNC_EXIT_EXTRAS } from "./helpers";
 
 import type { CredentialsJson } from "../../../lib/credentials-json";
+import type { InteractiveMode } from "../../../lib/interactive-mode";
 import type { ApiClient } from "../../../services/api-client";
+import type { IdentityStore } from "../../../services/identity-store";
 import type { SyncRow } from "./helpers";
+
+/** Services the credential-sealing upload path pulls in beyond the filesystem. */
+type PushRequirements = FileSystem.FileSystem | CliRuntime | IdentityStore | InteractiveMode;
 
 const pushIos = (
   api: ApiClient,
   projectRoot: string,
   ios: NonNullable<CredentialsJson["ios"]>,
-): Effect.Effect<readonly SyncRow[], CredentialsJsonError, FileSystem.FileSystem> =>
+): Effect.Effect<readonly SyncRow[], CredentialsJsonError, PushRequirements> =>
   Effect.gen(function* () {
     const rows: SyncRow[] = [];
 
@@ -121,7 +126,7 @@ const pushAndroid = (
   api: ApiClient,
   projectRoot: string,
   android: NonNullable<CredentialsJson["android"]>,
-): Effect.Effect<readonly SyncRow[], CredentialsJsonError, FileSystem.FileSystem> =>
+): Effect.Effect<readonly SyncRow[], CredentialsJsonError, PushRequirements> =>
   Effect.gen(function* () {
     const rows: SyncRow[] = [];
 

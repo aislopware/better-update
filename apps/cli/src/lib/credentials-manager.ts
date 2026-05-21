@@ -3,6 +3,13 @@ import { compact } from "@better-update/type-guards";
 import { FileSystem } from "@effect/platform";
 import { Effect, Match } from "effect";
 
+import {
+  openVaultSession,
+  sealForUpload,
+  toUploadEnvelope,
+} from "../application/credential-cipher";
+import { resolveVaultPassphrase } from "../application/vault-access";
+import { parseGoogleServiceAccountKey, validateAndroidKeystore } from "./credential-metadata";
 import { CredentialValidationError } from "./exit-codes";
 import { inspectP12 } from "./pkcs12";
 
@@ -135,6 +142,8 @@ export interface UploadCredentialInput {
   readonly keyId?: string;
   readonly issuerId?: string;
   readonly appleTeamIdentifier?: string;
+  /** Passphrase to unlock the device identity; undefined when using the CI env key. */
+  readonly passphrase?: string;
 }
 
 const toUtf8 = (bytes: Uint8Array): string => new TextDecoder().decode(bytes);
@@ -165,15 +174,21 @@ const uploadIosDistributionCertificate = (
         message: "Certificate is missing notBefore/notAfter dates.",
       });
     }
+    const metadata = {
+      serialNumber: info.serialNumber,
+      appleTeamIdentifier: info.teamId,
+      validFrom: info.validFrom.toISOString(),
+      validUntil: info.expiresAt.toISOString(),
+    };
+    const session = yield* openVaultSession(api, input.passphrase);
+    const envelope = yield* sealForUpload({
+      session,
+      credentialType: "distribution-certificate",
+      metadata,
+      secret: { p12Base64: toBase64(bytes), p12Password: input.password },
+    });
     const created = yield* api.appleDistributionCertificates.upload({
-      payload: {
-        p12Base64: toBase64(bytes),
-        p12Password: input.password,
-        serialNumber: info.serialNumber,
-        appleTeamIdentifier: info.teamId,
-        validFrom: info.validFrom.toISOString(),
-        validUntil: info.expiresAt.toISOString(),
-      },
+      payload: { ...toUploadEnvelope(envelope), ...metadata },
     });
     return {
       id: created.id,
@@ -191,12 +206,16 @@ const uploadIosPushKey = (api: ApiClient, input: UploadCredentialInput, bytes: U
     if (!input.appleTeamIdentifier) {
       return yield* missing("apple-team-identifier");
     }
+    const metadata = { keyId: input.keyId, appleTeamIdentifier: input.appleTeamIdentifier };
+    const session = yield* openVaultSession(api, input.passphrase);
+    const envelope = yield* sealForUpload({
+      session,
+      credentialType: "push-key",
+      metadata,
+      secret: { p8Pem: toUtf8(bytes) },
+    });
     const created = yield* api.applePushKeys.upload({
-      payload: {
-        keyId: input.keyId,
-        p8Pem: toUtf8(bytes),
-        appleTeamIdentifier: input.appleTeamIdentifier,
-      },
+      payload: { ...toUploadEnvelope(envelope), ...metadata },
     });
     return {
       id: created.id,
@@ -214,14 +233,21 @@ const uploadIosAscApiKey = (api: ApiClient, input: UploadCredentialInput, bytes:
     if (!input.issuerId) {
       return yield* missing("issuer-id");
     }
+    const metadata = compact({
+      name: input.name,
+      keyId: input.keyId,
+      issuerId: input.issuerId,
+      appleTeamIdentifier: input.appleTeamIdentifier,
+    });
+    const session = yield* openVaultSession(api, input.passphrase);
+    const envelope = yield* sealForUpload({
+      session,
+      credentialType: "asc-api-key",
+      metadata,
+      secret: { p8Pem: toUtf8(bytes) },
+    });
     const created = yield* api.ascApiKeys.upload({
-      payload: {
-        name: input.name,
-        keyId: input.keyId,
-        issuerId: input.issuerId,
-        p8Pem: toUtf8(bytes),
-        ...compact({ appleTeamIdentifier: input.appleTeamIdentifier }),
-      },
+      payload: { ...toUploadEnvelope(envelope), ...metadata },
     });
     return {
       id: created.id,
@@ -259,13 +285,26 @@ const uploadAndroidKeystore = (api: ApiClient, input: UploadCredentialInput, byt
     if (!input.keyPassword) {
       return yield* missing("key-password");
     }
-    const created = yield* api.androidUploadKeystores.upload({
-      payload: {
+    const parsed = yield* validateAndroidKeystore({
+      bytes,
+      keyAlias: input.keyAlias,
+      keystorePassword: input.password,
+      keyPassword: input.keyPassword,
+    });
+    const metadata = { keyAlias: parsed.keyAlias };
+    const session = yield* openVaultSession(api, input.passphrase);
+    const envelope = yield* sealForUpload({
+      session,
+      credentialType: "keystore",
+      metadata,
+      secret: {
         keystoreBase64: toBase64(bytes),
-        keyAlias: input.keyAlias,
         keystorePassword: input.password,
         keyPassword: input.keyPassword,
       },
+    });
+    const created = yield* api.androidUploadKeystores.upload({
+      payload: { ...toUploadEnvelope(envelope), ...metadata },
     });
     return {
       id: created.id,
@@ -281,8 +320,22 @@ const uploadAndroidGoogleServiceAccountKey = (
   bytes: Uint8Array,
 ) =>
   Effect.gen(function* () {
+    const json = toUtf8(bytes);
+    const parsed = yield* parseGoogleServiceAccountKey(json);
+    const metadata = {
+      clientEmail: parsed.clientEmail,
+      privateKeyId: parsed.privateKeyId,
+      googleProjectId: parsed.googleProjectId,
+    };
+    const session = yield* openVaultSession(api, input.passphrase);
+    const envelope = yield* sealForUpload({
+      session,
+      credentialType: "google-service-account-key",
+      metadata,
+      secret: { json },
+    });
     const created = yield* api.googleServiceAccountKeys.upload({
-      payload: { json: toUtf8(bytes) },
+      payload: { ...toUploadEnvelope(envelope), ...metadata },
     });
     return {
       id: created.id,
@@ -315,7 +368,13 @@ export const uploadCredential = (api: ApiClient, input: UploadCredentialInput) =
         message: `Unsupported credential combination: platform=${input.platform} type=${input.type}`,
       });
     }
-    return yield* handler(api, input, bytes);
+    // Provisioning profiles are stored plaintext (not secret); everything else is
+    // sealed, so resolve the unlock passphrase once here unless a caller passed one.
+    const resolved: UploadCredentialInput =
+      input.type === "provisioning-profile" || input.passphrase !== undefined
+        ? input
+        : { ...input, ...compact({ passphrase: yield* resolveVaultPassphrase }) };
+    return yield* handler(api, resolved, bytes);
   });
 
 export const deleteCredential = (

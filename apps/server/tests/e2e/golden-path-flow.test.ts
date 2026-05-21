@@ -1,13 +1,13 @@
 import { createHash } from "node:crypto";
 
-import { setupE2EWorker } from "../helpers/e2e-worker";
+import { setupE2EWorker } from "../helpers/e2e-worker-pool";
 
-const { del, get, getBaseUrl, parseCookies, post, postNoBody, putAbsolute } = setupE2EWorker(
+const { del, get, parseCookies, post, postNoBody, putAbsolute } = setupE2EWorker(
   ".wrangler/state/e2e-golden-path",
 );
 
 const manifestGet = (projectId: string, headers: Record<string, string>) =>
-  fetch(`${getBaseUrl()}/manifest/${projectId}`, { headers });
+  get(`/manifest/${projectId}`, headers);
 
 const protocolHeaders = (
   channelName: string,

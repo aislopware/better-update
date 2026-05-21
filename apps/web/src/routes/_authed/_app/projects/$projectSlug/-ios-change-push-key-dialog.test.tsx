@@ -10,11 +10,6 @@ const { apiReactModule, toastModule, apiReactMocks, toastMocks } = vi.hoisted(()
   apiReactModule: "@better-update/api-client/react",
   toastModule: "@better-update/ui/components/ui/toast",
   apiReactMocks: {
-    uploadApplePushKey: vi.fn<
-      (body: { keyId: string; p8Pem: string; appleTeamIdentifier: string }) => Promise<{
-        id: string;
-      }>
-    >(),
     updateIosBundleConfiguration:
       vi.fn<(id: string, body: { applePushKeyId: string }) => Promise<void>>(),
   },
@@ -31,7 +26,6 @@ vi.mock(apiReactModule, async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>();
   return {
     ...actual,
-    uploadApplePushKey: apiReactMocks.uploadApplePushKey,
     updateIosBundleConfiguration: apiReactMocks.updateIosBundleConfiguration,
   };
 });
@@ -39,12 +33,11 @@ vi.mock(apiReactModule, async (importOriginal) => {
 const orgId = "org-1";
 const projectId = "proj-1";
 const appleTeamId = "apple-team-1";
-const teamIdentifier = "ABCDE12345";
 
 const team = {
   id: appleTeamId,
   organizationId: orgId,
-  appleTeamId: teamIdentifier,
+  appleTeamId: "ABCDE12345",
   appleTeamType: "COMPANY_ORGANIZATION",
   name: "Acme Inc.",
   distributionCertificateCount: 0,
@@ -87,7 +80,6 @@ const renderDialog = (overrides?: { onOpenChange?: (next: boolean) => void }) =>
 describe(IosChangePushKeyDialog, () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    apiReactMocks.uploadApplePushKey.mockResolvedValue({ id: "uploaded-key" });
     apiReactMocks.updateIosBundleConfiguration.mockResolvedValue(undefined);
   });
 
@@ -120,52 +112,6 @@ describe(IosChangePushKeyDialog, () => {
     });
     await waitFor(() => {
       expect(onOpenChange).toHaveBeenCalledWith(false);
-    });
-    expect(apiReactMocks.uploadApplePushKey).not.toHaveBeenCalled();
-    expect(toastMocks.add).toHaveBeenCalledWith({
-      title: "Push key updated",
-      type: "success",
-    });
-  });
-
-  it("uploads a new key when Upload-new tab submits a valid form", async () => {
-    const user = userEvent.setup();
-    renderDialog();
-
-    const dialog = await screen.findByRole("dialog");
-    await user.click(within(dialog).getByRole("tab", { name: "Upload new" }));
-
-    const saveButton = within(dialog).getByRole("button", { name: "Save" });
-    expect(saveButton).toBeDisabled();
-
-    await user.type(within(dialog).getByLabelText("Key ID"), "NEWKEY1234");
-    await user.type(within(dialog).getByLabelText("Apple Team ID"), teamIdentifier);
-
-    const file = new File(
-      ["-----BEGIN PRIVATE KEY-----\nABC\n-----END PRIVATE KEY-----"],
-      "AuthKey.p8",
-      { type: "text/plain" },
-    );
-    const fileInput = within(dialog).getByLabelText(".p8 file", {
-      selector: 'input[type="file"]',
-    });
-    await user.upload(fileInput, file);
-
-    await waitFor(() => {
-      expect(saveButton).toBeEnabled();
-    });
-
-    await user.click(saveButton);
-
-    await waitFor(() => {
-      expect(apiReactMocks.uploadApplePushKey).toHaveBeenCalledWith({
-        keyId: "NEWKEY1234",
-        p8Pem: expect.stringContaining("BEGIN PRIVATE KEY"),
-        appleTeamIdentifier: teamIdentifier,
-      });
-    });
-    expect(apiReactMocks.updateIosBundleConfiguration).toHaveBeenCalledWith("config-1", {
-      applePushKeyId: "uploaded-key",
     });
   });
 });

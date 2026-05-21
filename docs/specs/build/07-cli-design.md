@@ -2,7 +2,7 @@
 
 ## Overview
 
-The `better-update` CLI orchestrates local builds — pulling credentials and env vars from the server, running `expo prebuild` + native tooling, then uploading the artifact. The UX mirrors `eas build --local`: interactive credential provisioning on first run, then zero-config on subsequent runs.
+The `better-update` CLI orchestrates local builds — it downloads **encrypted** credentials and decrypts them locally with the device identity key, pulls env vars from the server, runs `expo prebuild` + native tooling, then uploads the artifact. Credentials are end-to-end encrypted: the CLI is the only place encryption and decryption happen, and the server is zero-knowledge (see [02-credential-vault.md](./02-credential-vault.md)). The UX mirrors `eas build --local`: interactive credential provisioning on first run, then zero-config on subsequent runs.
 
 ## Build Command
 
@@ -69,10 +69,17 @@ $ better-update build --platform ios --profile production
 
 ### First Build (No Credentials)
 
-When credentials don't exist for the project+platform+distribution:
+When credentials don't exist for the project+platform+distribution. On the very first credential operation the CLI also sets up the **encryption identity** (a per-device key sealed with a passphrase) — credentials are encrypted locally before upload, and the server never sees plaintext (see [02-credential-vault.md](./02-credential-vault.md)):
 
 ```
 $ better-update build --platform ios --profile production
+
+  ● Setting up your encryption identity (first credential operation)...
+    No identity found — running `credentials identity init`
+  ? Choose a passphrase to protect your device key:
+    > ••••••••
+    ✓ Identity created and registered (fingerprint SHA256:ab12...)
+    ✓ Vault access ready (bootstrapped org vault + offline recovery key shown once)
 
   ● Checking credentials...
     ✗ No iOS distribution certificate found
@@ -87,7 +94,7 @@ $ better-update build --platform ios --profile production
   ? Certificate password:
     > ••••••••
 
-  ✓ Certificate uploaded: "Apple Distribution: Your Team (XXXXXXXXXX)"
+  ✓ Certificate encrypted locally and uploaded: "Apple Distribution: Your Team (XXXXXXXXXX)"
     Expires: 2027-04-11
 
   ✗ No iOS provisioning profile found
@@ -102,6 +109,8 @@ $ better-update build --platform ios --profile production
   ● Building...
     ...
 ```
+
+> If you are not yet a granted vault recipient (an admin must grant you, or you self-link from another device), credential upload is blocked — you can still see metadata. See [02-credential-vault.md](./02-credential-vault.md).
 
 ### Android First Build
 
@@ -120,17 +129,36 @@ $ better-update build --platform ios --profile production
   ? Your name (CN): John Doe
   ? Organization (O): My Company
 
-  ✓ Keystore generated and uploaded
+  ✓ Keystore generated, encrypted locally, and uploaded
 ```
 
 ## Credential Commands
 
+All credential material is **end-to-end encrypted client-side**: `upload`/`generate-keystore` parse, extract metadata, encrypt, and wrap the DEK locally before sending ciphertext; `download` fetches ciphertext and decrypts locally with the device identity key. The server never sees plaintext. Uploading or downloading requires being a granted vault recipient. Command flags and exact behavior are canonical in [02-credential-vault.md](./02-credential-vault.md); the set below is illustrative.
+
 ```bash
-# List all credentials
+# Manage your encryption identity (per-device key, sealed with a passphrase)
+better-update credentials identity init                 # generate key, seal locally, register public key
+better-update credentials identity list                 # show this org's recipients + fingerprints
+better-update credentials identity rotate                # generate a fresh device key + re-link
+better-update credentials identity passphrase change     # re-seal identity.json locally (server untouched)
+
+# Manage vault access / recipients (grant/revoke gated to admin/owner)
+better-update credentials access list                    # recipients + pending-access members
+better-update credentials access grant <user>            # admin: re-wrap vault key to a new recipient
+better-update credentials access revoke <recipient>      # admin: revoke — ALWAYS rotates the vault key
+better-update credentials access rotate                  # admin: rotate vault key without removing anyone
+better-update credentials access recover                 # admin: restore access via offline recovery key
+better-update credentials access recovery rotate         # admin: replace the offline recovery key
+
+# Link a new device to the org vault from an existing device (self-service, no admin)
+better-update credentials device link
+
+# List all credentials (metadata only)
 better-update credentials list
 better-update credentials list --platform ios
 
-# Upload credential explicitly (non-interactive)
+# Upload a credential (encrypted locally, then uploaded as ciphertext)
 better-update credentials upload \
   --platform ios \
   --type distribution-certificate \
@@ -146,7 +174,7 @@ better-update credentials upload \
   --file ./certs/AppStore.mobileprovision \
   --name "AppStore Profile"
 
-# Upload Android keystore
+# Upload Android keystore (keystore + key passwords folded into the encrypted blob)
 better-update credentials upload \
   --platform android \
   --type keystore \
@@ -156,16 +184,16 @@ better-update credentials upload \
   --key-password "key-password" \
   --name "Release Keystore"
 
-# Activate a credential (sets it as active for its scope)
-better-update credentials activate cred_01HXYZ...
-
-# Delete credential
+# Delete credential (removes R2 ciphertext + D1 row)
 better-update credentials delete cred_01HXYZ...
 
-# Generate a new Android keystore and upload
+# Generate a new Android keystore, encrypt locally, and upload
 better-update credentials generate-keystore \
   --name "Release Keystore" \
   --key-alias "my-key"
+
+# Clear the cached (unlocked) vault key from the OS keychain
+better-update credentials lock
 ```
 
 ## Environment Variable Commands
@@ -230,9 +258,10 @@ KEYCHAIN_NAME="better-update-$(uuidgen)"
 # Register cleanup trap (runs on EXIT, SIGINT, SIGTERM)
 trap 'rm -rf "$BUILD_DIR"; security delete-keychain "$KEYCHAIN_NAME" 2>/dev/null' EXIT INT TERM
 
-# 1. Pull credentials from vault (API key auth only)
-#    → write .p12 to $BUILD_DIR/cert.p12
-#    → write .mobileprovision to $BUILD_DIR/profile.mobileprovision
+# 1. Resolve credentials: download ciphertext + decrypt locally
+#    → unlock identity (or cached vault key) → unwrap DEK → decrypt blob
+#    → write decrypted .p12 to $BUILD_DIR/cert.p12
+#    → write .mobileprovision to $BUILD_DIR/profile.mobileprovision (plaintext, not secret)
 
 # 2. Export env vars (API key auth only)
 #    → GET /api/env-vars/export?projectId=X&environment=production
@@ -278,7 +307,7 @@ BUILD_DIR=$(mktemp -d "$TMPDIR/better-update-XXXXXXXX")
 chmod 0700 "$BUILD_DIR"
 trap 'rm -rf "$BUILD_DIR"' EXIT INT TERM
 
-# 1. Pull keystore from vault → write to $BUILD_DIR/release.keystore
+# 1. Resolve keystore: download ciphertext + decrypt locally → write to $BUILD_DIR/release.keystore
 # 2. Export env vars
 # 3. Prebuild
 npx expo prebuild --platform android --clean
@@ -378,7 +407,7 @@ Build profiles define how `--profile <name>` maps to platform-specific build set
 
 The CLI uses the profile to:
 
-1. Select the correct credential type from the vault (e.g., `ad-hoc` profile → ad-hoc provisioning profile)
+1. Select the correct credential type by metadata, then download + decrypt it locally (e.g., `ad-hoc` profile → ad-hoc provisioning profile)
 2. Generate the correct `ExportOptions.plist` (iOS)
 3. Run the correct Gradle task (Android)
 4. Pull env vars from the correct environment
@@ -393,9 +422,13 @@ better-update login
 
 # Or use API key (for CI, non-interactive)
 export BETTER_UPDATE_TOKEN=bu_...
+
+# For non-interactive credential decryption in CI, also provide the encryption
+# identity private key (no passphrase prompt — the CI secret store is the boundary)
+export BETTER_UPDATE_IDENTITY=AGE-SECRET-KEY-1...
 ```
 
-Token stored at `~/.better-update/auth.json`.
+The bearer token is stored at `~/.better-update/auth.json` (mode 0600). It is separate from the encryption identity, which lives at `~/.better-update/identity.json` (sealed with a passphrase) or, in CI, in `BETTER_UPDATE_IDENTITY`. The token authenticates the API; the identity decrypts credentials — both are needed to recover a credential (see [02-credential-vault.md](./02-credential-vault.md)).
 
 ## Exit Codes
 

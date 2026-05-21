@@ -55,8 +55,10 @@ jobs:
       - name: Generate Cloudflare types
         run: bun run typegen:cf
 
-      - name: Server e2e
-        run: bun --filter @better-update/server test:e2e
+      - name: Server e2e (local pool)
+        # Remote-R2 e2e (test:e2e-r2) needs Cloudflare creds this job has none of;
+        # run the local pool suite here. Full `test:e2e` (pool + R2) runs locally.
+        run: bun --filter @better-update/server test:e2e-pool
 
   integrations:
     runs-on: ubuntu-latest

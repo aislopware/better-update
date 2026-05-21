@@ -15,8 +15,8 @@ export interface ApplePushKeyRepository {
     readonly appleTeamId: string;
     readonly keyId: string;
     readonly r2Key: string;
-    readonly encryptedDek: string;
-    readonly dekKeyVersion: number;
+    readonly wrappedDek: string;
+    readonly vaultVersion: number;
     readonly createdAt: string;
     readonly updatedAt: string;
   }) => Effect.Effect<void, Conflict>;
@@ -45,13 +45,13 @@ interface Row {
   apple_team_id: string;
   key_id: string;
   r2_key: string;
-  encrypted_dek: string;
-  dek_key_version: number;
+  wrapped_dek: string;
+  vault_version: number;
   created_at: string;
   updated_at: string;
 }
 
-const COLUMNS = `"id", "organization_id", "apple_team_id", "key_id", "r2_key", "encrypted_dek", "dek_key_version", "created_at", "updated_at"`;
+const COLUMNS = `"id", "organization_id", "apple_team_id", "key_id", "r2_key", "wrapped_dek", "vault_version", "created_at", "updated_at"`;
 
 const toModel = (row: Row): ApplePushKeyModel => ({
   id: row.id,
@@ -59,8 +59,8 @@ const toModel = (row: Row): ApplePushKeyModel => ({
   appleTeamId: row.apple_team_id,
   keyId: row.key_id,
   r2Key: row.r2_key,
-  encryptedDek: row.encrypted_dek,
-  dekKeyVersion: row.dek_key_version,
+  wrappedDek: row.wrapped_dek,
+  vaultVersion: row.vault_version,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
@@ -80,8 +80,8 @@ export const ApplePushKeyRepoLive = Layer.succeed(ApplePushKeyRepo, {
               params.appleTeamId,
               params.keyId,
               params.r2Key,
-              params.encryptedDek,
-              params.dekKeyVersion,
+              params.wrappedDek,
+              params.vaultVersion,
               params.createdAt,
               params.updatedAt,
             )

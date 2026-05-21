@@ -1,6 +1,6 @@
-import { setupE2EWorker } from "../helpers/e2e-worker";
+import { setupE2EWorker } from "../helpers/e2e-worker-pool";
 
-const { del, get, getBaseUrl, parseCookies, patch, post } = setupE2EWorker(
+const { del, get, parseCookies, patch, post, postRaw } = setupE2EWorker(
   ".wrangler/state/e2e-devices",
 );
 
@@ -253,14 +253,14 @@ describe("Devices API flow", () => {
 
     it("serves landing HTML without authentication", async () => {
       const landingPath = new URL(inviteUrl).pathname;
-      const res = await fetch(`${getBaseUrl()}${landingPath}`);
+      const res = await get(landingPath);
       expect(res.status).toBe(200);
       expect(res.headers.get("content-type")).toContain("text/html");
       expect(await res.text()).toContain("Install profile");
     });
 
     it("serves .mobileconfig without authentication", async () => {
-      const res = await fetch(`${getBaseUrl()}/register-device/${inviteId}/profile.mobileconfig`);
+      const res = await get(`/register-device/${inviteId}/profile.mobileconfig`);
       expect(res.status).toBe(200);
       expect(res.headers.get("content-type")).toBe("application/x-apple-aspen-config");
       const body = await res.text();
@@ -278,10 +278,8 @@ describe("Devices API flow", () => {
 <key>CHALLENGE</key><string>${inviteId}</string>
 </dict></plist>`;
 
-      const res = await fetch(`${getBaseUrl()}/register-device/${inviteId}/callback`, {
-        method: "POST",
-        headers: { "content-type": "application/x-apple-aspen-config" },
-        body: callbackBody,
+      const res = await postRaw(`/register-device/${inviteId}/callback`, callbackBody, {
+        "content-type": "application/x-apple-aspen-config",
       });
       expect(res.status).toBe(200);
       expect(await res.text()).toContain("Device registered");
@@ -309,17 +307,12 @@ describe("Devices API flow", () => {
 <key>UDID</key><string>${callbackUdid}</string>
 </dict></plist>`;
 
-      const res = await fetch(`${getBaseUrl()}/register-device/${inviteId}/callback`, {
-        method: "POST",
-        body: callbackBody,
-      });
+      const res = await postRaw(`/register-device/${inviteId}/callback`, callbackBody);
       expect(res.status).toBe(410);
     });
 
     it("returns 404 for unknown invite id", async () => {
-      const res = await fetch(
-        `${getBaseUrl()}/register-device/00000000-0000-0000-0000-000000000000`,
-      );
+      const res = await get("/register-device/00000000-0000-0000-0000-000000000000");
       expect(res.status).toBe(404);
     });
   });

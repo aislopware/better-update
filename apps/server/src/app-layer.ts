@@ -26,9 +26,11 @@ import {
   IosAppMetadataGroupLive,
   IosBundleConfigurationsGroupLive,
   MeGroupLive,
+  OrgVaultGroupLive,
   ProjectsGroupLive,
   SubmissionsGroupLive,
   UpdatesGroupLive,
+  UserEncryptionKeysGroupLive,
   WebhooksGroupLive,
 } from "./handlers";
 import { AdapterLayer, RepositoryLayer } from "./infrastructure-layer";
@@ -58,9 +60,11 @@ const ManagementGroupsLayer = Layer.mergeAll(
   IosAppMetadataGroupLive,
   IosBundleConfigurationsGroupLive,
   MeGroupLive,
+  OrgVaultGroupLive,
   ProjectsGroupLive,
   SubmissionsGroupLive,
   UpdatesGroupLive,
+  UserEncryptionKeysGroupLive,
   WebhooksGroupLive,
 ).pipe(Layer.provide(RepositoryLayer), Layer.provide(AdapterLayer));
 

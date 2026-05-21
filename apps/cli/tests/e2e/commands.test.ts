@@ -5,6 +5,8 @@ import os from "node:os";
 import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 
+import { generateIdentity } from "@better-update/credentials-crypto";
+
 import { setupCliE2E } from "../helpers/cli-e2e";
 
 const generateSelfSignedP12 = (password: string, subject: string): Buffer => {
@@ -297,7 +299,11 @@ describe("cLI command journey", () => {
     const pullResult = cli.runCli("env", "pull", "--environment", "preview");
     expect(pullResult.exitCode).toBe(0);
     expect(pullResult.stderr).toBe("");
-    expect(pullResult.stdout).toContain("export EXPO_PUBLIC_API_URL='https://preview.example.com'");
+    // `env pull` writes a dotenv file by default (stdout export lines need --stdout).
+    expect(pullResult.stdout).toContain("Wrote 2 env vars to");
+    const pulledDotenv = readFileSync(path.join(cli.getProjectDir(), ".env.local"), "utf8");
+    expect(pulledDotenv).toContain('EXPO_PUBLIC_API_URL="https://preview.example.com"');
+    expect(pulledDotenv).toContain('FEATURE_FLAG="true"');
 
     const createResult = cli.runCli(
       "env",
@@ -451,6 +457,29 @@ describe("cLI command journey", () => {
   });
 
   it("uploads and deletes a distribution certificate", async () => {
+    // Credentials are end-to-end encrypted client-side, so the org vault must be
+    // bootstrapped before any upload. Drive it non-interactively through
+    // BETTER_UPDATE_IDENTITY (the CI identity path: a raw age private key, no
+    // passphrase prompt) — the same mechanism CI uses. `identity init` registers
+    // this device's recipient and mints the offline recovery key.
+    const identity = await generateIdentity();
+    const credsEnv = { BETTER_UPDATE_IDENTITY: identity.privateKey };
+
+    // --label avoids the interactive label prompt under CI; the env identity is
+    // registered as a `machine` recipient (a token-auth CI run has no user session,
+    // so it cannot register a `device` key).
+    const initResult = cli.runCliWithEnv(
+      credsEnv,
+      "credentials",
+      "identity",
+      "init",
+      "--label",
+      "CI Machine",
+    );
+    expect(initResult.exitCode).toBe(0);
+    expect(initResult.stderr).toBe("");
+    expect(initResult.stdout).toContain("vault bootstrapped");
+
     const credentialFile = path.join(cli.getProjectDir(), "cli-uploaded-cert.p12");
     const p12Password = "uploaded-password";
     writeFileSync(
@@ -458,7 +487,8 @@ describe("cLI command journey", () => {
       generateSelfSignedP12(p12Password, "/OU=CLIE2ETEAM/CN=Apple Distribution: CLI E2E"),
     );
 
-    const uploadResult = cli.runCli(
+    const uploadResult = cli.runCliWithEnv(
+      credsEnv,
       "credentials",
       "upload",
       "--platform",
@@ -487,7 +517,8 @@ describe("cLI command journey", () => {
     expect(listAfterUpload.stdout).toContain("ios");
 
     const downloadDir = path.join(cli.getProjectDir(), "downloaded-cert.p12");
-    const downloadResult = cli.runCli(
+    const downloadResult = cli.runCliWithEnv(
+      credsEnv,
       "credentials",
       "download",
       uploadedCredentialId!,

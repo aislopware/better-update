@@ -1,0 +1,24 @@
+{
+  "name": "@better-update/credentials-crypto",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "oxlint --fix",
+    "lint:check": "oxlint",
+    "test": "vitest run --globals"
+  },
+  "dependencies": {
+    "@better-update/encoding": "workspace:*",
+    "@noble/ciphers": "^2.1.1",
+    "@noble/hashes": "^2.2.0",
+    "age-encryption": "^0.3.0"
+  },
+  "devDependencies": {
+    "@better-update/oxlint-config": "workspace:*",
+    "@better-update/typescript-config": "workspace:*"
+  }
+}

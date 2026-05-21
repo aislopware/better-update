@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import { setupE2EWorker } from "../helpers/e2e-worker";
+import { setupE2EWorker } from "../helpers/e2e-worker-pool";
 
 const { parseCookies, post, postNoBody, putAbsolute } = setupE2EWorker(
   ".wrangler/state/e2e-asset-serving",

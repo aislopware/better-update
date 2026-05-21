@@ -2,10 +2,13 @@ import { defineCommand } from "citty";
 
 import { runCredentialsManager } from "../../application/credentials-manager";
 import { runEffect } from "../../lib/citty-effect";
+import { accessCommand } from "./access";
 import { configureCommand } from "./configure";
 import { deleteCommand } from "./delete";
+import { deviceCommand } from "./device";
 import { downloadCommand } from "./download";
 import { generateCommand } from "./generate";
+import { identityCommand } from "./identity";
 import { listCommand } from "./list";
 import { regenerateProfileCommand } from "./regenerate-profile";
 import { removeCommand } from "./remove";
@@ -32,6 +35,9 @@ export const credentialsCommand = defineCommand({
   meta: { name: "credentials", description: "Manage credentials" },
   subCommands: {
     manager: managerCommand,
+    identity: identityCommand,
+    access: accessCommand,
+    device: deviceCommand,
     list: listCommand,
     view: viewCommand,
     download: downloadCommand,

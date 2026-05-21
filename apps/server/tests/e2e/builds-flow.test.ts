@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import { setupE2EWorker } from "../helpers/e2e-worker";
+import { setupE2EWorker } from "../helpers/e2e-worker-pool";
 
 const { del, get, parseCookies, post, putAbsolute } = setupE2EWorker(".wrangler/state/e2e-builds");
 
@@ -333,7 +333,13 @@ describe("Builds API flow", () => {
     expect(links.installUrl).toContain("itms-services://?action=download-manifest");
     expect(uploadExpiresAt).toBeTruthy();
 
-    const artifactResponse = await fetch(links.artifactUrl);
+    // The signed artifact route (/api/builds/:id/artifact?token=…) 302-redirects
+    // to a presigned R2 GET. worker.fetch doesn't auto-follow, so run the worker
+    // hop through the pool, then fetch the R2 location directly (workerd outbound).
+    const artifact = new URL(links.artifactUrl, "http://localhost");
+    const redirect = await get(`${artifact.pathname}${artifact.search}`);
+    expect(redirect.status).toBe(302);
+    const artifactResponse = await fetch(redirect.headers.get("location") ?? "");
     expect(artifactResponse.status).toBe(200);
     expect([...new Uint8Array(await artifactResponse.arrayBuffer())]).toEqual([...artifactBytes]);
 

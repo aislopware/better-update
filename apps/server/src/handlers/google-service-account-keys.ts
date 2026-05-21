@@ -1,14 +1,14 @@
+import { fromBase64, toBase64 } from "@better-update/encoding";
 import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
 import { ManagementApi } from "../api";
+import { assertVaultVersionCurrent } from "../application/assert-vault-version";
 import { logAudit } from "../audit/logger";
 import { CurrentActor } from "../auth/current-actor";
 import { assertOrgOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
 import { CredentialArtifacts } from "../cloudflare/credential-artifacts";
-import { Vault } from "../cloudflare/vault";
-import { parseGoogleServiceAccountKey } from "../domain/google-service-account-key-parser";
 import { BadRequest } from "../errors";
 import { toApiGoogleServiceAccountKey } from "../http/to-api";
 import {
@@ -19,10 +19,11 @@ import {
 import { withR2Compensation } from "../lib/r2-helpers";
 import { GoogleServiceAccountKeyRepo } from "../repositories/google-service-account-keys";
 
-import type { InvalidGoogleServiceAccountKey } from "../domain/google-service-account-key-parser";
-
-const mapInvalid = (error: InvalidGoogleServiceAccountKey) =>
-  new BadRequest({ message: error.message });
+const decodeBase64 = (value: string) =>
+  Effect.try({
+    try: () => fromBase64(value),
+    catch: () => new BadRequest({ message: "Service account key must be valid base64" }),
+  });
 
 export const GoogleServiceAccountKeysGroupLive = HttpApiBuilder.group(
   ManagementApi,
@@ -46,34 +47,30 @@ export const GoogleServiceAccountKeysGroupLive = HttpApiBuilder.group(
             yield* assertPermission("androidCredential", "create");
             const ctx = yield* CurrentActor;
             const artifacts = yield* CredentialArtifacts;
-            const vault = yield* Vault;
             const repo = yield* GoogleServiceAccountKeyRepo;
 
-            const parsed = yield* parseGoogleServiceAccountKey(payload.json).pipe(
-              Effect.mapError(mapInvalid),
-            );
+            yield* assertVaultVersionCurrent({
+              organizationId: ctx.organizationId,
+              vaultVersion: payload.vaultVersion,
+            });
 
-            const plaintext = new TextEncoder().encode(payload.json);
-            const encrypted = yield* vault
-              .envelopeEncrypt({ organizationId: ctx.organizationId, plaintext })
-              .pipe(Effect.mapError(() => new BadRequest({ message: "Encryption failed" })));
+            const blob = yield* decodeBase64(payload.ciphertext);
 
-            const id = crypto.randomUUID();
-            const r2Key = `google-service-account-keys/${ctx.organizationId}/${id}.json.enc`;
-            yield* artifacts.put(r2Key, encrypted.encryptedBlob);
+            const r2Key = `google-service-account-keys/${ctx.organizationId}/${crypto.randomUUID()}.json.enc`;
+            yield* artifacts.put(r2Key, blob);
 
             const now = new Date().toISOString();
             yield* withR2Compensation(
               artifacts.delete(r2Key),
               repo.insert({
-                id,
+                id: payload.id,
                 organizationId: ctx.organizationId,
-                clientEmail: parsed.clientEmail,
-                privateKeyId: parsed.privateKeyId,
-                googleProjectId: parsed.googleProjectId,
+                clientEmail: payload.clientEmail,
+                privateKeyId: payload.privateKeyId,
+                googleProjectId: payload.googleProjectId,
                 r2Key,
-                encryptedDek: encrypted.encryptedDek,
-                dekKeyVersion: encrypted.keyVersion,
+                wrappedDek: payload.wrappedDek,
+                vaultVersion: payload.vaultVersion,
                 createdAt: now,
                 updatedAt: now,
               }),
@@ -82,23 +79,23 @@ export const GoogleServiceAccountKeysGroupLive = HttpApiBuilder.group(
             yield* logAudit({
               action: "google.service-account-key.upload",
               resourceType: "androidCredential",
-              resourceId: id,
+              resourceId: payload.id,
               metadata: {
-                clientEmail: parsed.clientEmail,
-                privateKeyId: parsed.privateKeyId,
-                googleProjectId: parsed.googleProjectId,
+                clientEmail: payload.clientEmail,
+                privateKeyId: payload.privateKeyId,
+                googleProjectId: payload.googleProjectId,
               },
             });
 
             return toApiGoogleServiceAccountKey({
-              id,
+              id: payload.id,
               organizationId: ctx.organizationId,
-              clientEmail: parsed.clientEmail,
-              privateKeyId: parsed.privateKeyId,
-              googleProjectId: parsed.googleProjectId,
+              clientEmail: payload.clientEmail,
+              privateKeyId: payload.privateKeyId,
+              googleProjectId: payload.googleProjectId,
               r2Key,
-              encryptedDek: encrypted.encryptedDek,
-              dekKeyVersion: encrypted.keyVersion,
+              wrappedDek: payload.wrappedDek,
+              vaultVersion: payload.vaultVersion,
               createdAt: now,
               updatedAt: now,
             });
@@ -131,27 +128,13 @@ export const GoogleServiceAccountKeysGroupLive = HttpApiBuilder.group(
         toApiBadRequestReadEffect(
           Effect.gen(function* () {
             yield* assertPermission("androidCredential", "download");
-            const ctx = yield* CurrentActor;
             const repo = yield* GoogleServiceAccountKeyRepo;
             const artifacts = yield* CredentialArtifacts;
-            const vault = yield* Vault;
 
             const existing = yield* repo.findById({ id: path.id });
             yield* assertOrgOwnership(existing.organizationId);
 
-            const encryptedBlob = yield* artifacts.get(
-              existing.r2Key,
-              "Google service account key",
-            );
-            const jsonBytes = yield* vault
-              .envelopeDecrypt({
-                organizationId: ctx.organizationId,
-                keyVersion: existing.dekKeyVersion,
-                encryptedDek: existing.encryptedDek,
-                encryptedBlob,
-              })
-              .pipe(Effect.mapError(() => new BadRequest({ message: "Decryption failed" })));
-            const json = new TextDecoder().decode(jsonBytes);
+            const blob = yield* artifacts.get(existing.r2Key, "Google service account key");
 
             yield* logAudit({
               action: "google.service-account-key.download",
@@ -162,7 +145,9 @@ export const GoogleServiceAccountKeysGroupLive = HttpApiBuilder.group(
 
             return {
               id: existing.id,
-              json,
+              ciphertext: toBase64(blob),
+              wrappedDek: existing.wrappedDek,
+              vaultVersion: existing.vaultVersion,
               clientEmail: existing.clientEmail,
             };
           }),

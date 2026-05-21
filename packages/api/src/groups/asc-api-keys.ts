@@ -7,7 +7,6 @@ import {
   AscApiKey,
   AscApiKeyCredentials,
   DeleteAscApiKeyResult,
-  SyncDevicesResult,
   UploadAscApiKeyBody,
 } from "../domain/asc-api-key";
 import { idParam } from "../domain/common";
@@ -46,24 +45,13 @@ export class AscApiKeysGroup extends HttpApiGroup.make("ascApiKeys")
       ),
   )
   .add(
-    HttpApiEndpoint.post("syncDevices")`/api/apple/asc-api-keys/${idParam}/sync-devices`
-      .addSuccess(SyncDevicesResult)
-      .annotateContext(
-        OpenApi.annotations({
-          title: "Sync devices via ASC API key",
-          description:
-            "Pull registered devices from Apple Developer Portal for this key's team; push local devices that aren't yet registered",
-        }),
-      ),
-  )
-  .add(
     HttpApiEndpoint.get("getCredentials")`/api/apple/asc-api-keys/${idParam}/credentials`
       .addSuccess(AscApiKeyCredentials)
       .annotateContext(
         OpenApi.annotations({
           title: "Get ASC API key credentials",
           description:
-            "Return the decrypted .p8 PEM, keyId, issuerId, and Apple team for direct App Store Connect API calls from the CLI",
+            "Return the encrypted .p8 envelope, keyId, issuerId, and Apple team; the CLI decrypts locally for direct App Store Connect API calls",
         }),
       ),
   )

@@ -17,7 +17,6 @@ const FALLBACKS = {
   r2AccessKeyId: "e2e-r2-access-key",
   r2SecretAccessKey: "e2e-r2-secret-key",
   assetsBucketName: "better-update",
-  vaultKeyring: '{"1":"MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="}',
 } as const;
 
 const parseEnvFile = (filePath: string): Record<string, string> => {
@@ -42,30 +41,15 @@ const envValue = (options: {
   readonly primary: string;
   readonly fallback: string;
   readonly secondary?: string;
-  readonly accept?: (candidate: string) => boolean;
 }) => {
-  const accept = options.accept ?? (() => true);
   const candidates = [
     options.secondary ? process.env[options.secondary] : undefined,
     process.env[options.primary],
     options.secondary ? options.fileSource[options.secondary] : undefined,
     options.fileSource[options.primary],
   ];
-  const found = candidates.find((value) => value !== undefined && value !== "" && accept(value));
+  const found = candidates.find((value) => value !== undefined && value !== "");
   return found ?? options.fallback;
-};
-
-const isJsonObject = (value: string) => {
-  const trimmed = value.trim();
-  if (!trimmed.startsWith("{")) {
-    return false;
-  }
-  try {
-    const parsed: unknown = JSON.parse(trimmed);
-    return typeof parsed === "object" && parsed !== null;
-  } catch {
-    return false;
-  }
 };
 
 const toPlainTextBindings = (values: Record<string, string>) =>
@@ -181,13 +165,6 @@ export const createServerE2EEnvironment = (options?: {
       secondary: "R2_SECRET_ACCESS_KEY",
     }),
     TEST_MODE: "true",
-    VAULT_KEYRING: envValue({
-      fileSource,
-      primary: "E2E_VAULT_KEYRING",
-      secondary: "VAULT_KEYRING",
-      fallback: FALLBACKS.vaultKeyring,
-      accept: isJsonObject,
-    }),
   } satisfies Record<string, string>;
 
   return {

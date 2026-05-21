@@ -1,18 +1,9 @@
-import { fromBase64, toBase64 } from "@better-update/encoding";
+import { toBase64 } from "@better-update/encoding";
 
-import { setupE2EWorker } from "../helpers/e2e-worker";
+import { credentialEnvelope, type CredentialEnvelope } from "../helpers/credential-envelope";
+import { setupE2EWorker } from "../helpers/e2e-worker-pool";
 
 const { parseCookies, post } = setupE2EWorker(".wrangler/state/e2e-build-credentials");
-
-const dummyP12 = toBase64(new Uint8Array([0x30, 0x82, 0x01, 0x00, ...Array(40).fill(0xab)]));
-
-// Starts with PKCS12 magic bytes (0x30 0x82) so the keystore parser accepts it.
-const dummyKeystoreBytes = new Uint8Array([
-  0x30,
-  0x82,
-  ...new Uint8Array(254).map((_, i) => (i * 7 + 13) % 256),
-]);
-const dummyKeystoreBase64 = toBase64(dummyKeystoreBytes);
 
 const TEAM = "ABCDE12345";
 const IOS_BUNDLE = "com.example.buildcreds";
@@ -43,6 +34,9 @@ describe("Build credentials resolve flow", () => {
   let androidAppId: string;
   let keystoreId: string;
   let originalProfileBase64: string;
+  // Captured upload envelopes — resolve must plumb the same opaque blob back.
+  let certEnv: CredentialEnvelope;
+  let keystoreEnv: CredentialEnvelope;
 
   it("signs up + creates project", async () => {
     const signup = await post("/api/auth/sign-up/email", {
@@ -80,11 +74,11 @@ describe("Build credentials resolve flow", () => {
   });
 
   it("seeds iOS credentials + bundle configuration", async () => {
+    certEnv = credentialEnvelope();
     const certRes = await post(
       "/api/apple/distribution-certificates",
       {
-        p12Base64: dummyP12,
-        p12Password: "super-secret",
+        ...certEnv,
         serialNumber: "SN-BC-1",
         appleTeamIdentifier: TEAM,
         appleTeamName: "BC Team",
@@ -111,12 +105,10 @@ describe("Build credentials resolve flow", () => {
     const ascRes = await post(
       "/api/apple/asc-api-keys",
       {
+        ...credentialEnvelope(),
         name: "BC ASC",
         keyId: "BCASC12345",
         issuerId: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
-        p8Pem: `-----BEGIN PRIVATE KEY-----
-MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQC
------END PRIVATE KEY-----`,
         appleTeamIdentifier: TEAM,
       },
       { cookie: cookies },
@@ -149,21 +141,16 @@ MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQC
     const body = await res.json();
 
     expect(body.platform).toBe("ios");
-    expect(body.distributionCertificate.p12Password).toBe("super-secret");
-    expect(body.distributionCertificate.p12Base64).toBe(dummyP12);
+    // Server is zero-knowledge: resolve relays the opaque envelope, not plaintext.
+    expect(body.distributionCertificate.ciphertext).toBe(certEnv.ciphertext);
+    expect(body.distributionCertificate.wrappedDek).toBe(certEnv.wrappedDek);
+    expect(body.distributionCertificate.vaultVersion).toBe(certEnv.vaultVersion);
     expect(body.provisioningProfile.mobileprovisionBase64).toBe(originalProfileBase64);
     expect(body.provisioningProfile.teamId).toBe(TEAM);
     expect(body.provisioningProfile.bundleIdentifier).toBe(IOS_BUNDLE);
     expect(body.provisioningProfile.distributionType).toBe("APP_STORE");
     expect(body.provisioningProfile.uuid).toBe("99999999-8888-7777-6666-555555555555");
     expect(body.provisioningProfile.name).toBe("Build Creds Profile");
-    // No push key bound on this bundle config.
-    expect(body.pushKey).toBeNull();
-
-    // Verify bytes round-trip intact.
-    const p12 = fromBase64(body.distributionCertificate.p12Base64);
-    expect(p12.at(0)).toBe(0x30);
-    expect(p12.byteLength).toBeGreaterThanOrEqual(40);
   });
 
   it("sets Cache-Control: no-store on resolve responses", async () => {
@@ -223,7 +210,7 @@ MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQC
     const body = await res.json();
     expect(body.platform).toBe("ios");
     expect(body.provisioningProfile.bundleIdentifier).toBe(noAscBundle);
-    expect(body.distributionCertificate.p12Password).toBe("super-secret");
+    expect(body.distributionCertificate.ciphertext).toBe(certEnv.ciphertext);
     // Fallback: the seeded ASC key for TEAM is picked up.
     expect(body.context.ascApiKeyId).toBe(ascKeyId);
   });
@@ -238,8 +225,7 @@ MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQC
     const otherCertRes = await post(
       "/api/apple/distribution-certificates",
       {
-        p12Base64: dummyP12,
-        p12Password: "super-secret",
+        ...credentialEnvelope(),
         serialNumber: "SN-BC-2",
         appleTeamIdentifier: otherTeam,
         appleTeamName: "Other Team",
@@ -295,23 +281,25 @@ MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQC
     expect(appRes.status).toBe(201);
     androidAppId = (await appRes.json()).id;
 
+    keystoreEnv = credentialEnvelope();
     const ksRes = await post(
       "/api/android/upload-keystores",
       {
-        keystoreBase64: dummyKeystoreBase64,
+        ...keystoreEnv,
         keyAlias: "release-alias",
-        keystorePassword: "store-pw",
-        keyPassword: "key-pw",
       },
       { cookie: cookies },
     );
     expect(ksRes.status).toBe(201);
     keystoreId = (await ksRes.json()).id;
 
+    // Creating the application identifier auto-provisions an empty "Default"
+    // profile (EAS parity), so attach the keystore under a distinct profile;
+    // resolve (no buildProfile) picks whichever profile carries a keystore.
     const bcRes = await post(
       `/api/android-application-identifiers/${androidAppId}/build-credentials`,
       {
-        name: "Default",
+        name: "Release",
         isDefault: true,
         androidUploadKeystoreId: keystoreId,
       },
@@ -331,9 +319,11 @@ MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQC
 
     expect(body.platform).toBe("android");
     expect(body.keystore.keyAlias).toBe("release-alias");
-    expect(body.keystore.storePassword).toBe("store-pw");
-    expect(body.keystore.keyPassword).toBe("key-pw");
-    expect(body.keystore.keystoreBase64).toBe(dummyKeystoreBase64);
+    expect(body.keystore.id).toBe(keystoreId);
+    // Zero-knowledge: resolve relays the opaque keystore envelope.
+    expect(body.keystore.ciphertext).toBe(keystoreEnv.ciphertext);
+    expect(body.keystore.wrappedDek).toBe(keystoreEnv.wrappedDek);
+    expect(body.keystore.vaultVersion).toBe(keystoreEnv.vaultVersion);
   });
 
   it("returns 404 for an unknown Android package", async () => {

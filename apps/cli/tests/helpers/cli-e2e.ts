@@ -122,6 +122,16 @@ export interface CliE2EContext {
   readonly getSeededBuildId: () => string;
   readonly readAppJson: () => Record<string, unknown>;
   readonly runCli: (...args: readonly string[]) => CliCommandResult;
+  /**
+   * Like {@link runCli} but with extra environment variables layered on top of
+   * the base CLI env. Used to drive the non-interactive credential-vault flow
+   * via `BETTER_UPDATE_IDENTITY` (the CI identity path — a raw age private key,
+   * no passphrase prompt).
+   */
+  readonly runCliWithEnv: (
+    env: Record<string, string>,
+    ...args: readonly string[]
+  ) => CliCommandResult;
   readonly seedSql: (sql: string) => void;
   readonly post: (
     path: string,
@@ -321,7 +331,10 @@ export const setupCliE2E = (testId: string, options: SetupCliE2EOptions): CliE2E
     );
   };
 
-  const runCli = (...args: readonly string[]): CliCommandResult => {
+  const runCliWithEnv = (
+    extraEnv: Record<string, string>,
+    ...args: readonly string[]
+  ): CliCommandResult => {
     // Use the pre-built dist binary to skip per-invocation TypeScript compile.
     // Built once by `pretest:e2e` (`tsdown`). ~5x faster than running src/index.ts directly.
     const result = spawnSync("bun", [path.resolve(CLI_DIR, "dist/index.mjs"), ...args], {
@@ -339,6 +352,7 @@ export const setupCliE2E = (testId: string, options: SetupCliE2EOptions): CliE2E
         CI: "1",
         FORCE_COLOR: "0",
         NO_COLOR: "1",
+        ...extraEnv,
       },
       encoding: "utf8",
     });
@@ -349,6 +363,8 @@ export const setupCliE2E = (testId: string, options: SetupCliE2EOptions): CliE2E
       exitCode: result.status ?? 1,
     };
   };
+
+  const runCli = (...args: readonly string[]): CliCommandResult => runCliWithEnv({}, ...args);
 
   beforeAll(async () => {
     state.baseUrl = readSharedEnv().baseUrl;
@@ -499,6 +515,7 @@ VALUES (
         unknown
       >,
     runCli,
+    runCliWithEnv,
     seedSql,
     post,
     get,

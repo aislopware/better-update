@@ -2,16 +2,16 @@ import { createHash } from "node:crypto";
 
 import { Effect } from "effect";
 
-import { setupE2EWorker } from "../helpers/e2e-worker";
+import { setupE2EWorker } from "../helpers/e2e-worker-pool";
 
-const { del, get, getBaseUrl, parseCookies, patch, post, postNoBody, putAbsolute } = setupE2EWorker(
+const { del, get, parseCookies, patch, post, postNoBody, putAbsolute } = setupE2EWorker(
   ".wrangler/state/e2e-updates",
 );
 
 // ── Helpers ───────────────────────────────────────────────────────
 
 const manifestGet = (projectId: string, headers: Record<string, string>) =>
-  fetch(`${getBaseUrl()}/manifest/${projectId}`, { headers });
+  get(`/manifest/${projectId}`, headers);
 
 const protocolHeaders = (
   channelName: string,

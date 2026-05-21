@@ -22,6 +22,7 @@ const BASE_TAG_MAP: Record<string, ExitCode> = {
   BadRequest: 2,
   InvalidArgumentError: 2,
   InteractiveProhibitedError: 2,
+  IdentityError: 2,
 };
 
 const SYSTEM_TAG_MESSAGE: Record<string, (error: TaggedError) => string> = {

@@ -3,27 +3,16 @@ import {
   ascApiKeysQueryOptions,
   iosBundleConfigurationsQueryOptions,
   updateIosBundleConfiguration,
-  uploadAscApiKey,
 } from "@better-update/api-client/react";
-import { compact } from "@better-update/type-guards";
-import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
-import { Input } from "@better-update/ui/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@better-update/ui/components/ui/radio-group";
-import { Textarea } from "@better-update/ui/components/ui/textarea";
-import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { Suspense, useState } from "react";
+import { Suspense } from "react";
 
 import type { AscApiKeyItem } from "@better-update/api-client/react";
 
-import { formatAppleTeamLabel, safeReadFileAsText } from "../../-credentials-utils";
+import { formatAppleTeamLabel } from "../../-credentials-utils";
 import { useApiMutation } from "../../../../../lib/use-api-mutation";
 import { ChangeCredentialDialog } from "./-change-credential-dialog";
-
-import type { ChangeCredentialTab } from "./-change-credential-dialog";
-
-const UUID_PATTERN =
-  /^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$/u;
 
 interface ChooseSavedTabProps {
   readonly orgId: string;
@@ -48,7 +37,7 @@ const ChooseSavedTab = ({
   if (filtered.length === 0) {
     return (
       <p className="text-muted-foreground py-6 text-center text-sm">
-        No saved ASC API keys for this Apple Team. Switch to “Upload new” to add one.
+        No saved ASC API keys for this Apple Team.
       </p>
     );
   }
@@ -91,117 +80,6 @@ const ChooseSavedTab = ({
   );
 };
 
-interface UploadFormState {
-  readonly name: string;
-  readonly keyId: string;
-  readonly issuerId: string;
-  readonly p8Pem: string;
-  readonly appleTeamIdentifier: string;
-}
-
-const UPLOAD_INITIAL: UploadFormState = {
-  name: "",
-  keyId: "",
-  issuerId: "",
-  p8Pem: "",
-  appleTeamIdentifier: "",
-};
-
-const isUploadValid = (state: UploadFormState) =>
-  state.name.length > 0 &&
-  /^[A-Z0-9]{10}$/u.test(state.keyId) &&
-  UUID_PATTERN.test(state.issuerId) &&
-  state.p8Pem.includes("BEGIN PRIVATE KEY");
-
-interface UploadTabProps {
-  readonly state: UploadFormState;
-  readonly onChange: (next: UploadFormState) => void;
-}
-
-const UploadTab = ({ state, onChange }: UploadTabProps) => (
-  <div className="flex flex-col gap-3">
-    <Field>
-      <FieldLabel htmlFor="change-asc-name">Label</FieldLabel>
-      <Input
-        id="change-asc-name"
-        placeholder="Primary ASC key"
-        value={state.name}
-        onChange={(event) => {
-          onChange({ ...state, name: event.target.value });
-        }}
-      />
-    </Field>
-    <div className="grid grid-cols-2 gap-3">
-      <Field>
-        <FieldLabel htmlFor="change-asc-key-id">Key ID</FieldLabel>
-        <Input
-          id="change-asc-key-id"
-          placeholder="ABCDE12345"
-          value={state.keyId}
-          onChange={(event) => {
-            onChange({ ...state, keyId: event.target.value.toUpperCase() });
-          }}
-        />
-        <FieldError match={state.keyId.length > 0 && !/^[A-Z0-9]{10}$/u.test(state.keyId)}>
-          10 uppercase alphanumeric
-        </FieldError>
-      </Field>
-      <Field>
-        <FieldLabel htmlFor="change-asc-team">Apple Team ID (optional)</FieldLabel>
-        <Input
-          id="change-asc-team"
-          placeholder="ABCDE12345"
-          value={state.appleTeamIdentifier}
-          onChange={(event) => {
-            onChange({ ...state, appleTeamIdentifier: event.target.value.toUpperCase() });
-          }}
-        />
-      </Field>
-    </div>
-    <Field>
-      <FieldLabel htmlFor="change-asc-issuer">Issuer ID</FieldLabel>
-      <Input
-        id="change-asc-issuer"
-        placeholder="12345678-abcd-ef12-3456-7890abcdef12"
-        value={state.issuerId}
-        onChange={(event) => {
-          onChange({ ...state, issuerId: event.target.value });
-        }}
-      />
-      <FieldError match={state.issuerId.length > 0 && !UUID_PATTERN.test(state.issuerId)}>
-        Must be a UUID
-      </FieldError>
-    </Field>
-    <Field>
-      <FieldLabel htmlFor="change-asc-file">.p8 file</FieldLabel>
-      <Input
-        id="change-asc-file"
-        type="file"
-        accept=".p8,text/plain"
-        onChange={async (event) => {
-          const file = event.target.files?.[0];
-          if (file === undefined) {
-            return;
-          }
-          const value = await safeReadFileAsText(file);
-          if (value === null) {
-            toastManager.add({ title: "Failed to read file", type: "error" });
-            return;
-          }
-          onChange({ ...state, p8Pem: value });
-        }}
-      />
-      <Textarea
-        readOnly
-        value={state.p8Pem}
-        rows={3}
-        className="mt-2 font-mono text-xs"
-        placeholder="PEM content will appear here after file selection"
-      />
-    </Field>
-  </div>
-);
-
 interface IosChangeAscKeyDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (next: boolean) => void;
@@ -224,7 +102,6 @@ export const IosChangeAscKeyDialog = ({
   const queryClient = useQueryClient();
   const initialSelectedId = currentKey === null ? "" : currentKey.id;
   const currentKeyId: string | null = currentKey === null ? null : currentKey.id;
-  const [uploadState, setUploadState] = useState<UploadFormState>(UPLOAD_INITIAL);
 
   const invalidate = async () => {
     await Promise.all([
@@ -236,30 +113,13 @@ export const IosChangeAscKeyDialog = ({
     ]);
   };
 
-  const resolveKeyId = async (tab: ChangeCredentialTab, selectedId: string): Promise<string> => {
-    if (tab !== "upload") {
-      return selectedId;
-    }
-    const payload = {
-      name: uploadState.name,
-      keyId: uploadState.keyId,
-      issuerId: uploadState.issuerId,
-      p8Pem: uploadState.p8Pem,
-      ...compact({ appleTeamIdentifier: uploadState.appleTeamIdentifier || undefined }),
-    };
-    const uploaded = await uploadAscApiKey(payload);
-    return uploaded.id;
-  };
-
   const saveMutation = useApiMutation({
-    mutationFn: async ({ tab, selectedId }: { tab: ChangeCredentialTab; selectedId: string }) => {
-      const keyId = await resolveKeyId(tab, selectedId);
+    mutationFn: async ({ selectedId }: { selectedId: string }) => {
       await Promise.all(
-        configIds.map(async (id) => updateIosBundleConfiguration(id, { ascApiKeyId: keyId })),
+        configIds.map(async (id) => updateIosBundleConfiguration(id, { ascApiKeyId: selectedId })),
       );
     },
     onSuccess: async () => {
-      toastManager.add({ title: "ASC API key updated", type: "success" });
       await invalidate();
       onOpenChange(false);
     },
@@ -270,14 +130,10 @@ export const IosChangeAscKeyDialog = ({
       open={open}
       onOpenChange={onOpenChange}
       title="Change App Store Connect API key"
-      description="Upload a new .p8 ASC key or pick a saved key on this Apple Team. The new binding applies to every distribution type for this bundle identifier."
+      description="Pick a saved ASC API key for this Apple Team. The new binding applies to every distribution type for this bundle identifier."
       initialSelectedId={initialSelectedId}
-      isUploadValid={isUploadValid(uploadState)}
       submitting={saveMutation.isPending}
       onSubmit={async (context) => saveMutation.mutateAsync(context)}
-      onResetUpload={() => {
-        setUploadState(UPLOAD_INITIAL);
-      }}
       renderSaved={({ selectedId, setSelectedId }) => (
         <Suspense fallback={<p className="text-muted-foreground text-sm">Loading saved keys…</p>}>
           <ChooseSavedTab
@@ -289,7 +145,6 @@ export const IosChangeAscKeyDialog = ({
           />
         </Suspense>
       )}
-      renderUpload={() => <UploadTab state={uploadState} onChange={setUploadState} />}
     />
   );
 };
