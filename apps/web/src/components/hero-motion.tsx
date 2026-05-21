@@ -77,14 +77,16 @@ const buildArcs = (): Arc[] =>
   });
 
 const buildConfig = (dark: boolean): COBEOptions => ({
-  devicePixelRatio: 2,
+  // Cap at 2: the canvas already renders at the CSS size, so a higher ratio only
+  // multiplies fragment-shader work (pixels = width * dpr) with no visible gain.
+  devicePixelRatio: Math.min(globalThis.devicePixelRatio, 2),
   width: 1000,
   height: 1000,
   phi: 0,
   theta: 0.2,
   dark: dark ? 1 : 0,
   diffuse: dark ? 2.5 : 3,
-  mapSamples: 40_000,
+  mapSamples: 16_000,
   mapBrightness: dark ? 2 : 1.5,
   baseColor: dark ? [0.1, 0.1, 0.12] : [1, 1, 1],
   markerColor: dark ? [0.9, 0.9, 0.9] : [0.1, 0.1, 0.1],
@@ -93,6 +95,9 @@ const buildConfig = (dark: boolean): COBEOptions => ({
   arcWidth: 0.35,
   arcHeight: 0.3,
   markerElevation: 0.02,
+  // Disable MSAA: the sphere edge is already shader-antialiased, and skipping it
+  // cuts GPU load noticeably on integrated GPUs (cobe#44). alpha stays on for glow.
+  context: { antialias: false },
   markers: buildMarkers(),
   arcs: buildArcs(),
 });
@@ -101,8 +106,19 @@ const readDark = (): boolean => document.documentElement.classList.contains("dar
 
 const POINTER_DAMPING = 300;
 
+// Cap the globe's render rate. Each rendered frame forces a full layout + style
+// recalc (cobe positions the HTML markers/labels via CSS anchors), so on a 120Hz
+// display the uncapped rAF loop ran ~120 layouts/s. 30fps stays smooth enough for
+// a decorative globe while cutting that per-frame work ~4x.
+const TARGET_FRAME_MS = 1000 / 30;
+// Auto-rotation speed in radians/ms (≈0.18 rad/s — was 0.003 rad/frame tuned at
+// 60Hz). Time-based so the speed is identical regardless of the display refresh
+// rate, instead of spinning twice as fast on a 120Hz screen.
+const ROTATION_PER_MS = 0.18 / 1000;
+
 interface GlobeHandle {
   readonly globe: Globe;
+  readonly start: () => void;
   readonly stop: () => void;
 }
 
@@ -119,28 +135,66 @@ interface StartRuntime {
 const startGlobe = (runtime: StartRuntime): GlobeHandle => {
   const globe = createGlobe(runtime.canvas, {
     ...buildConfig(runtime.dark),
-    width: runtime.widthRef.current * 2,
-    height: runtime.widthRef.current * 2,
+    width: runtime.widthRef.current,
+    height: runtime.widthRef.current,
   });
 
   const rafRef = { current: 0 };
-  const step = () => {
+  const timerRef = { current: undefined as ReturnType<typeof globalThis.setTimeout> | undefined };
+  const runningRef = { current: false };
+  const lastPhiRef = { current: Number.NaN };
+  const lastTsRef = { current: 0 };
+
+  const tick = (now: number) => {
+    // Time-based so rotation speed is identical at any refresh rate; clamp the
+    // delta so a long pause (backgrounded tab) doesn't jump the globe forward.
+    const elapsed = lastTsRef.current === 0 ? TARGET_FRAME_MS : now - lastTsRef.current;
+    const dt = Math.min(elapsed, TARGET_FRAME_MS * 4);
+    lastTsRef.current = now;
+
     if (runtime.pointerRef.current === null && !runtime.reduce) {
-      runtime.phiRef.current += 0.003;
+      runtime.phiRef.current += ROTATION_PER_MS * dt;
     }
+    const phi = runtime.phiRef.current + runtime.getSpringR();
     globe.update({
-      phi: runtime.phiRef.current + runtime.getSpringR(),
-      width: runtime.widthRef.current * 2,
-      height: runtime.widthRef.current * 2,
+      phi,
+      width: runtime.widthRef.current,
+      height: runtime.widthRef.current,
     });
-    rafRef.current = globalThis.requestAnimationFrame(step);
+
+    // Keep going only while something is still in motion: auto-rotation, an
+    // active drag, or a spring that has not settled. A static globe (e.g.
+    // prefers-reduced-motion, idle) renders its final frame and then stops.
+    const moving =
+      !runtime.reduce || runtime.pointerRef.current !== null || phi !== lastPhiRef.current;
+    lastPhiRef.current = phi;
+
+    if (!moving) {
+      runningRef.current = false;
+      return;
+    }
+    // Wake on a timer, *then* paint on the next vsync — so a rAF callback is not
+    // pending on every 120Hz refresh. A standing rAF makes Chrome recalc style
+    // every frame while CSS transitions are on the page (crbug.com/1252311), so
+    // gating keeps style-recalc + the anchor-driven layout at ~30/s, not ~120/s.
+    timerRef.current = globalThis.setTimeout(() => {
+      rafRef.current = globalThis.requestAnimationFrame(tick);
+    }, TARGET_FRAME_MS);
   };
-  rafRef.current = globalThis.requestAnimationFrame(step);
 
   return {
     globe,
+    start: () => {
+      if (runningRef.current) {
+        return;
+      }
+      runningRef.current = true;
+      rafRef.current = globalThis.requestAnimationFrame(tick);
+    },
     stop: () => {
+      runningRef.current = false;
       globalThis.cancelAnimationFrame(rafRef.current);
+      globalThis.clearTimeout(timerRef.current);
     },
   };
 };
@@ -150,11 +204,14 @@ interface PointerState {
   readonly canvasRef: { current: HTMLCanvasElement | null };
   readonly springStart: (value: number) => void;
   readonly currentR: () => number;
+  readonly wake: () => void;
 }
 
 const makePointerHandlers = (state: PointerState) => {
   const onDown = (clientX: number) => {
     state.pointerRef.current = clientX;
+    // Restart the loop in case it had idled (reduced motion / settled spring).
+    state.wake();
     if (state.canvasRef.current) {
       state.canvasRef.current.style.cursor = "grabbing";
     }
@@ -211,6 +268,7 @@ export const HeroMotion = () => {
   const phiRef = useRef(0);
   const widthRef = useRef(0);
   const pointerRef = useRef<number | null>(null);
+  const wakeRef = useRef<() => void>(() => undefined);
 
   const [{ rotation }, springApi] = useSpring(() => ({
     rotation: 0,
@@ -232,18 +290,40 @@ export const HeroMotion = () => {
 
     const reduce = globalThis.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-    const darkRef = { current: readDark() };
-    const handleRef = {
-      current: startGlobe({
+    const makeHandle = (dark: boolean): GlobeHandle =>
+      startGlobe({
         canvas,
         phiRef,
         widthRef,
         pointerRef,
         getSpringR: () => rotation.get(),
         reduce,
-        dark: darkRef.current,
-      }),
+        dark,
+      });
+
+    const darkRef = { current: readDark() };
+    const visibleRef = { current: true };
+    const handleRef = { current: makeHandle(darkRef.current) };
+    handleRef.current.start();
+    wakeRef.current = () => {
+      handleRef.current.start();
     };
+
+    // Pause the render loop while the globe is scrolled out of view so it stops
+    // burning frames off-screen, and resume it when it scrolls back in.
+    const visibilityObserver = new IntersectionObserver((entries) => {
+      const [entry] = entries;
+      if (!entry) {
+        return;
+      }
+      visibleRef.current = entry.isIntersecting;
+      if (entry.isIntersecting) {
+        handleRef.current.start();
+      } else {
+        handleRef.current.stop();
+      }
+    });
+    visibilityObserver.observe(canvas);
 
     const themeObserver = new MutationObserver(() => {
       const nextDark = readDark();
@@ -253,15 +333,13 @@ export const HeroMotion = () => {
       darkRef.current = nextDark;
       handleRef.current.globe.destroy();
       handleRef.current.stop();
-      handleRef.current = startGlobe({
-        canvas,
-        phiRef,
-        widthRef,
-        pointerRef,
-        getSpringR: () => rotation.get(),
-        reduce,
-        dark: darkRef.current,
-      });
+      handleRef.current = makeHandle(darkRef.current);
+      wakeRef.current = () => {
+        handleRef.current.start();
+      };
+      if (visibleRef.current) {
+        handleRef.current.start();
+      }
     });
     themeObserver.observe(document.documentElement, {
       attributes: true,
@@ -271,8 +349,10 @@ export const HeroMotion = () => {
     return () => {
       handleRef.current.globe.destroy();
       handleRef.current.stop();
+      wakeRef.current = noop;
       globalThis.removeEventListener("resize", onResize);
       themeObserver.disconnect();
+      visibilityObserver.disconnect();
     };
   });
 
@@ -281,6 +361,9 @@ export const HeroMotion = () => {
     canvasRef,
     springStart: (value) => springApi.start({ rotation: value }),
     currentR: () => rotation.get(),
+    wake: () => {
+      wakeRef.current();
+    },
   });
 
   return (
