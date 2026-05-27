@@ -110,43 +110,14 @@ const toStandardHeaders = (headers: Readonly<Record<string, string | undefined>>
 const isRole = (value: string): value is Role =>
   ["owner", "admin", "developer", "viewer"].includes(value);
 
-// ── Bearer (API key) ──────────────────────────────────────────────
+// ── Shared session resolver ───────────────────────────────────────
 
-// Only keys matching the configured default prefix are accepted.
-// Custom prefixes are not supported — the create endpoint always uses API_KEY_PREFIX.
-const resolveFromApiKey = (token: Redacted.Redacted) => {
-  const key = Redacted.value(token);
-  if (!key.startsWith(API_KEY_PREFIX)) {
-    return Effect.fail(new Unauthorized({ message: "Not an API key" }));
-  }
-
-  return verifyApiKey(key).pipe(
-    Effect.flatMap((result) => {
-      if (!result.valid || !result.key) {
-        return Effect.fail(
-          new Unauthorized({
-            message: getApiErrorMessage(result.error) ?? "Invalid API key",
-          }),
-        );
-      }
-
-      const keyPermissions: EffectivePermissions = result.key.permissions ?? permissions.admin;
-
-      return Effect.succeed({
-        userId: null,
-        organizationId: result.key.referenceId,
-        role: null,
-        effectivePermissions: keyPermissions,
-        source: "api-key",
-        actorEmail: "api-key",
-      } as const satisfies AuthContextShape);
-    }),
-  );
-};
-
-// ── Cookie (session) ──────────────────────────────────────────────
-
-const resolveFromSession = (_cookie: Redacted.Redacted) =>
+// Resolve a Better Auth session from the request headers, regardless of which
+// transport carried it. The `bearer()` plugin rewrites `Authorization: Bearer
+// <session-token>` into the session cookie before `getSession` runs, so this
+// serves both the browser (cookie) and the CLI (bearer session token); only the
+// `transport` tag differs.
+const resolveSession = (transport: "bearer" | "cookie") =>
   Effect.gen(function* () {
     const request = yield* HttpServerRequest.HttpServerRequest;
     const headers = toStandardHeaders(request.headers);
@@ -179,13 +150,61 @@ const resolveFromSession = (_cookie: Redacted.Redacted) =>
       role: member.role,
       effectivePermissions: permissions[member.role],
       source: "session",
+      transport,
       actorEmail: session.user.email,
     } as const satisfies AuthContextShape;
   });
 
+// ── Bearer: API key (CI) or session token (CLI) ───────────────────
+
+// One Authorization-bearer handler for both machine credentials. Tokens with
+// the configured API-key prefix resolve to an org-scoped, user-less actor;
+// anything else is treated as a Better Auth session token (the CLI's login
+// token) and resolved as a real user session via the `bearer()` plugin. An
+// empty token fails so Effect's security middleware falls through to the cookie
+// scheme (the browser dashboard).
+const resolveFromBearer = (token: Redacted.Redacted) => {
+  const key = Redacted.value(token);
+  if (key.length === 0) {
+    return Effect.fail(new Unauthorized({ message: "Missing bearer token" }));
+  }
+
+  if (!key.startsWith(API_KEY_PREFIX)) {
+    return resolveSession("bearer");
+  }
+
+  return verifyApiKey(key).pipe(
+    Effect.flatMap((result) => {
+      if (!result.valid || !result.key) {
+        return Effect.fail(
+          new Unauthorized({
+            message: getApiErrorMessage(result.error) ?? "Invalid API key",
+          }),
+        );
+      }
+
+      const keyPermissions: EffectivePermissions = result.key.permissions ?? permissions.admin;
+
+      return Effect.succeed({
+        userId: null,
+        organizationId: result.key.referenceId,
+        role: null,
+        effectivePermissions: keyPermissions,
+        source: "api-key",
+        transport: "bearer",
+        actorEmail: "api-key",
+      } as const satisfies AuthContextShape);
+    }),
+  );
+};
+
+// ── Cookie (browser session) ──────────────────────────────────────
+
+const resolveFromSession = (_cookie: Redacted.Redacted) => resolveSession("cookie");
+
 // ── Layer ──────────────────────────────────────────────────────────
 
 export const AuthenticationLive = Layer.succeed(Authentication, {
-  bearer: resolveFromApiKey,
+  bearer: resolveFromBearer,
   cookie: resolveFromSession,
 });

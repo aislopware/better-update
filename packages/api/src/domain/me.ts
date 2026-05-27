@@ -16,7 +16,7 @@ export const MeOrganization = Schema.Struct({
 export const Me = Schema.Struct({
   user: Schema.NullOr(MeUser),
   activeOrganization: Schema.NullOr(MeOrganization),
-  /** Authentication source — "session" for browser cookie, "api-key" for CLI bearer tokens. */
+  /** Authentication source — "session" for browser + CLI sessions, "api-key" for API-key (CI) bearer tokens. */
   source: Schema.Literal("session", "api-key"),
   /** Email or descriptor identifying the actor — useful when `user` is null (api-key auth). */
   actorEmail: Schema.String,

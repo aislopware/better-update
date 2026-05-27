@@ -15,6 +15,7 @@ type Handler = (error: TaggedError) => Effect.Effect<void, never, CliRuntime>;
 
 const BASE_TAG_MAP: Record<string, ExitCode> = {
   AuthRequiredError: 3,
+  LoginError: 3,
   ProjectNotLinkedError: 4,
   NotFound: 1,
   Conflict: 1,

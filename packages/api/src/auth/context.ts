@@ -32,6 +32,13 @@ export interface AuthContextShape {
   readonly role: Role | null;
   readonly effectivePermissions: EffectivePermissions;
   readonly source: "session" | "api-key";
+  /**
+   * Transport that carried the credential: `"bearer"` for the CLI/CI
+   * (`Authorization` header — both session tokens and API keys) and `"cookie"`
+   * for the browser dashboard. Lets us tell a machine/CLI caller apart from a
+   * browser session even though both can be `source: "session"`.
+   */
+  readonly transport: "bearer" | "cookie";
   readonly actorEmail: string;
 }
 

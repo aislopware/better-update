@@ -13,6 +13,7 @@ export const CurrentActor = pipe(
       role: ctx.role,
       effectivePermissions: ctx.effectivePermissions,
       source: ctx.source,
+      transport: ctx.transport,
       actorEmail: ctx.actorEmail,
     }),
   ),

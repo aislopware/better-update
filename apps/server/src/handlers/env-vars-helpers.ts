@@ -126,9 +126,13 @@ export const handleExport = (urlParams: {
 }) =>
   Effect.gen(function* () {
     const ctx = yield* CurrentActor;
-    if (ctx.source !== "api-key") {
+    // Export returns plaintext secret-tier values, so it stays off the browser
+    // dashboard. Gate on transport (Authorization-bearer = CLI session or CI API
+    // key) rather than source, since the CLI is now a real session too.
+    if (ctx.transport !== "bearer") {
       return yield* new Forbidden({
-        message: "This endpoint requires API key authentication",
+        message:
+          "This endpoint requires CLI or API-key (bearer) authentication, not a browser session",
       });
     }
 

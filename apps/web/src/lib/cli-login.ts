@@ -12,6 +12,3 @@ export const buildCliCallbackRedirect = (callbackUrl: string, token: string): st
 
 export const buildCliLoginRedirectTarget = (callbackUrl: string): string =>
   `/auth/cli-login?callbackUrl=${encodeURIComponent(callbackUrl)}`;
-
-export const buildCliApiKeyName = (date = new Date()): string =>
-  `CLI Login ${date.toISOString().slice(0, 19)}`;

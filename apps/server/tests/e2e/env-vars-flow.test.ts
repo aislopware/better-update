@@ -277,7 +277,7 @@ APP_TOKEN=rotated-2
     expect(body).toEqual({ created: 2, updated: 0, skipped: 1 });
   });
 
-  it("rejects export with session auth", async () => {
+  it("rejects export from a browser cookie session", async () => {
     const response = await get(
       `/api/env-vars/export?projectId=${state.projectId}&environment=production`,
       { cookie: state.cookies },
@@ -309,6 +309,26 @@ APP_TOKEN=rotated-2
       value: "https://prod.example.com",
       visibility: "sensitive",
     });
+  });
+
+  it("exports merged env vars with a CLI session token (bearer transport)", async () => {
+    const generated = await get("/api/auth/one-time-token/generate", { cookie: state.cookies });
+    expect(generated.status).toBe(200);
+    const { token } = await generated.json();
+
+    const verified = await post("/api/auth/one-time-token/verify", { token });
+    expect(verified.status).toBe(200);
+    const sessionToken = verified.headers.get("set-auth-token");
+    expect(sessionToken).toBeTruthy();
+
+    const response = await get(
+      `/api/env-vars/export?projectId=${state.projectId}&environment=production`,
+      { authorization: `Bearer ${sessionToken}` },
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.environment).toBe("production");
+    expect(body.items.length).toBeGreaterThan(0);
   });
 
   it("deletes a project env var", async () => {

@@ -1,11 +1,11 @@
 import { apiKeyClient } from "@better-auth/api-key/client";
 import { createAuthClient } from "better-auth/client";
-import { organizationClient } from "better-auth/client/plugins";
+import { oneTimeTokenClient, organizationClient } from "better-auth/client/plugins";
 
 export const createBetterUpdateAuthClient = (baseURL: string) =>
   createAuthClient({
     baseURL,
-    plugins: [organizationClient(), apiKeyClient()],
+    plugins: [organizationClient(), apiKeyClient(), oneTimeTokenClient()],
   });
 
 export type BetterUpdateAuthClient = ReturnType<typeof createBetterUpdateAuthClient>;

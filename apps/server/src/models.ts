@@ -79,6 +79,7 @@ export interface CurrentActor {
   readonly role: Role | null;
   readonly effectivePermissions: EffectivePermissions;
   readonly source: AuditLogSource;
+  readonly transport: "bearer" | "cookie";
   readonly actorEmail: string;
 }
 

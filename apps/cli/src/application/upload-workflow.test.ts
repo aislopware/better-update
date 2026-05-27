@@ -140,7 +140,10 @@ const makeApi = (opts: ApiStubOptions = {}): ApiClient =>
   }) as unknown as ApiClient;
 
 const makeApiClientLayer = (api: ApiClient) =>
-  Layer.succeed(ApiClientService, { get: Effect.succeed(api) });
+  Layer.succeed(ApiClientService, {
+    get: Effect.succeed(api),
+    exchangeOneTimeToken: () => Effect.succeed("test-session-token"),
+  });
 
 const makePresignedUploadLayer = (
   put: PresignedUploadClient["Type"]["putToPresignedUrl"] = () => Effect.void,

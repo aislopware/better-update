@@ -5,6 +5,7 @@ import type { CommandExecutor } from "@effect/platform";
 
 import { createBrowserLoginServer } from "../lib/browser-login";
 import { promptPassword } from "../lib/prompts";
+import { ApiClientService } from "../services/api-client";
 import { AuthStore } from "../services/auth-store";
 import { CliRuntime } from "../services/cli-runtime";
 import { ConfigStore } from "../services/config-store";
@@ -53,8 +54,10 @@ const browserLogin = Effect.scoped(
     yield* Console.log("");
     yield* openBrowser(loginUrl);
 
-    const token = yield* loginServer.waitForToken;
-    yield* authStore.saveToken(token);
+    const oneTimeToken = yield* loginServer.waitForToken;
+    const apiClientService = yield* ApiClientService;
+    const sessionToken = yield* apiClientService.exchangeOneTimeToken(oneTimeToken);
+    yield* authStore.saveToken(sessionToken);
     yield* Console.log("");
     yield* Console.log("Logged in successfully. Token saved to ~/.better-update/auth.json");
   }),

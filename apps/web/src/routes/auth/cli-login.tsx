@@ -15,7 +15,6 @@ import { z } from "zod";
 
 import { authClient } from "../../lib/auth-client";
 import {
-  buildCliApiKeyName,
   buildCliCallbackRedirect,
   buildCliLoginRedirectTarget,
   isAllowedCliCallbackUrl,
@@ -91,17 +90,14 @@ export const Route = createFileRoute("/auth/cli-login")({
       }
     }
 
-    const { data, error } = await authClient.apiKey.create({
-      name: buildCliApiKeyName(),
-      organizationId: activeOrganizationId,
-    });
+    const { data, error } = await authClient.oneTimeToken.generate();
 
-    if (error || !data.key) {
-      return { error: error?.message ?? "Failed to create a CLI API key." };
+    if (error || !data.token) {
+      return { error: error?.message ?? "Failed to create a CLI login token." };
     }
 
     // eslint-disable-next-line functional/no-throw-statements, functional/no-promise-reject, typescript/only-throw-error -- TanStack Router redirect for CLI callback (absolute external URL)
-    throw redirect({ href: buildCliCallbackRedirect(search.callbackUrl, data.key) });
+    throw redirect({ href: buildCliCallbackRedirect(search.callbackUrl, data.token) });
   },
   component: CliLoginPage,
 });

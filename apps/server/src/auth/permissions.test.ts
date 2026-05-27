@@ -13,6 +13,7 @@ const provideAuth = (role: Role, overrides?: Partial<EffectivePermissions>) =>
     role,
     effectivePermissions: { ...permissions[role], ...overrides },
     source: "session",
+    transport: "cookie",
     actorEmail: "test@example.com",
   });
 

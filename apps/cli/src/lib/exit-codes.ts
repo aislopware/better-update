@@ -6,6 +6,10 @@ export class AuthRequiredError extends Data.TaggedError("AuthRequiredError")<{
   readonly message: string;
 }> {}
 
+export class LoginError extends Data.TaggedError("LoginError")<{
+  readonly message: string;
+}> {}
+
 export class ProjectNotLinkedError extends Data.TaggedError("ProjectNotLinkedError")<{
   readonly message: string;
 }> {}

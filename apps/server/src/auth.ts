@@ -1,7 +1,7 @@
 import { apiKey } from "@better-auth/api-key";
 import { fromHex, toHex } from "@better-update/encoding";
 import { betterAuth } from "better-auth";
-import { organization } from "better-auth/plugins";
+import { bearer, oneTimeToken, organization } from "better-auth/plugins";
 import { Effect } from "effect";
 
 import { API_KEY_PREFIX } from "./auth/constants";
@@ -274,6 +274,14 @@ export const createAuth = (env: AuthEnv, ctx?: ExecutionContext) => {
           },
         },
       ),
+      // CLI session auth: `bearer` lets a Better Auth session token ride on the
+      // `Authorization: Bearer` header (its before-hook rewrites it into the
+      // session cookie so `getSession` resolves it; its after-hook surfaces the
+      // token via `set-auth-token` on sign-in/verify). `oneTimeToken` is the
+      // browser→CLI handoff: the dashboard mints a short-lived token the CLI
+      // exchanges for a session. See docs/specs/build/02-credential-vault.md.
+      bearer(),
+      oneTimeToken({ expiresIn: 3 }),
     ],
 
     databaseHooks: {

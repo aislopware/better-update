@@ -1,7 +1,8 @@
 import { ManagementApi } from "@better-update/api";
-import { HttpApiClient, HttpClient, HttpClientRequest } from "@effect/platform";
-import { Context, Effect, Layer, Schedule } from "effect";
+import { Headers, HttpApiClient, HttpClient, HttpClientRequest } from "@effect/platform";
+import { Context, Effect, Layer, Option, Schedule } from "effect";
 
+import { LoginError } from "../lib/exit-codes";
 import { AuthStore } from "./auth-store";
 import { ConfigStore } from "./config-store";
 
@@ -14,6 +15,7 @@ export class ApiClientService extends Context.Tag("cli/ApiClient")<
   ApiClientService,
   {
     readonly get: Effect.Effect<ApiClient, AuthRequiredError>;
+    readonly exchangeOneTimeToken: (oneTimeToken: string) => Effect.Effect<string, LoginError>;
   }
 >() {}
 
@@ -49,6 +51,44 @@ export const ApiClientLive = Layer.effect(
           baseUrl,
         }).pipe(Effect.provideService(HttpClient.HttpClient, retryingClient));
       }),
+
+      // The browser hands the CLI a Better Auth one-time token; exchange it at
+      // the verify endpoint for a real session token, surfaced via the
+      // `set-auth-token` response header by the `bearer` plugin. That token is
+      // what every later request sends as `Authorization: Bearer`.
+      exchangeOneTimeToken: (oneTimeToken: string) =>
+        Effect.gen(function* () {
+          const baseUrl = yield* configStore.getBaseUrl;
+          const request = yield* HttpClientRequest.post(
+            `${baseUrl}/api/auth/one-time-token/verify`,
+          ).pipe(
+            HttpClientRequest.bodyJson({ token: oneTimeToken }),
+            Effect.mapError(
+              () => new LoginError({ message: "Could not encode the login request." }),
+            ),
+          );
+          const response = yield* retryingClient
+            .execute(request)
+            .pipe(
+              Effect.mapError(
+                (cause) =>
+                  new LoginError({ message: `Could not reach the login server: ${String(cause)}` }),
+              ),
+            );
+          if (response.status < 200 || response.status >= 300) {
+            return yield* new LoginError({
+              message: `Login token exchange failed (HTTP ${response.status}). Run \`better-update login\` again.`,
+            });
+          }
+          const sessionToken = Headers.get(response.headers, "set-auth-token");
+          if (Option.isNone(sessionToken)) {
+            return yield* new LoginError({
+              message:
+                "The login server did not return a session token (missing set-auth-token header).",
+            });
+          }
+          return sessionToken.value;
+        }),
     };
   }),
 );
