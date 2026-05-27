@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.22.1](https://github.com/better-update/better-update/compare/@better-update/cli@0.22.0...@better-update/cli@0.22.1) (2026-05-27)
+
+### Bug Fixes
+
+* **cli:** close login callback server cleanly and keep success tab open ([a875b6e](https://github.com/better-update/better-update/commit/a875b6e8605fb6c1c78fcd2de4824a286c36f8be)) - by @trancong12102
+
 ## [0.22.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.21.0...@better-update/cli@0.22.0) (2026-05-27)
 
 ### Features
