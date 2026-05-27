@@ -10,6 +10,11 @@ import {
   recipientKind,
   registerRecipient,
 } from "../../application/identity";
+import {
+  orgVaultExists,
+  VAULT_NOT_RECIPIENT_GUIDANCE,
+  VAULT_NOT_SET_UP_GUIDANCE,
+} from "../../application/vault-access";
 import { bootstrapVault } from "../../application/vault-bootstrap";
 import { runEffect } from "../../lib/citty-effect";
 import { IdentityError } from "../../lib/exit-codes";
@@ -76,9 +81,13 @@ const createCommand = defineCommand({
         yield* printHuman(
           "Sealed at ~/.better-update/identity.json — the private key never leaves this machine.",
         );
-        yield* printHuman(
-          "Before you can read or upload credentials, this device needs vault access — granted by an org admin, or self-linked from another device that already has it.",
+        const vaultGuidance = yield* orgVaultExists(api).pipe(
+          Effect.map((exists) =>
+            exists ? VAULT_NOT_RECIPIENT_GUIDANCE : VAULT_NOT_SET_UP_GUIDANCE,
+          ),
+          Effect.orElseSucceed(() => VAULT_NOT_RECIPIENT_GUIDANCE),
         );
+        yield* printHuman(vaultGuidance);
       }),
     ),
 });
