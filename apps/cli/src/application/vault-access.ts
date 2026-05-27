@@ -54,22 +54,31 @@ export const unlockActivePrivateKey = (
   });
 
 /**
- * Turn a missing-wrap `NotFound` into actionable guidance by asking the server
- * whether the org vault exists at all. A fresh org has no vault yet — the first
- * member must run `credentials identity init` (which also mints the offline
- * recovery key); an existing vault means this device simply isn't a recipient,
- * so it needs an admin grant or a self-link from a device that already has it.
+ * Actionable guidance for a device that can't reach the vault, branched on
+ * whether the org vault exists yet. A fresh org has no vault — the first member
+ * runs `credentials identity init` (which also mints the offline recovery key);
+ * an existing vault means this device simply isn't a recipient, so it needs an
+ * admin grant or a self-link from a device that already has it. Exported so the
+ * post-`identity create` hint stays in sync with this error path.
  */
+export const VAULT_NOT_RECIPIENT_GUIDANCE =
+  "This device isn't a vault recipient yet. Ask an org admin to run `better-update credentials access grant`, or self-link from a device that already has access with `better-update credentials device link`.";
+
+export const VAULT_NOT_SET_UP_GUIDANCE =
+  "This organization's credential vault isn't set up yet. Run `better-update credentials identity init` to bootstrap it — you'll get a one-time offline recovery key to store safely.";
+
+/** `true` if the org vault has been bootstrapped; `false` on `NotFound` (a fresh org). */
+export const orgVaultExists = (api: ApiClient) =>
+  api.orgVault.get().pipe(
+    Effect.as(true),
+    Effect.catchTag("NotFound", () => Effect.succeed(false)),
+  );
+
 const vaultAccessError = (api: ApiClient) =>
   Effect.gen(function* () {
-    const vaultExists = yield* api.orgVault.get().pipe(
-      Effect.as(true),
-      Effect.catchTag("NotFound", () => Effect.succeed(false)),
-    );
+    const exists = yield* orgVaultExists(api);
     return yield* new IdentityError({
-      message: vaultExists
-        ? "This device isn't a vault recipient yet. Ask an org admin to run `better-update credentials access grant`, or self-link from a device that already has access with `better-update credentials device link`."
-        : "This organization's credential vault isn't set up yet. Run `better-update credentials identity init` to bootstrap it — you'll get a one-time offline recovery key to store safely.",
+      message: exists ? VAULT_NOT_RECIPIENT_GUIDANCE : VAULT_NOT_SET_UP_GUIDANCE,
     });
   });
 
