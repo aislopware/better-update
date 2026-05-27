@@ -87,7 +87,9 @@ describe("Environment variables API flow", () => {
     expect(body.scope).toBe("global");
     expect(body.projectId).toBeNull();
     expect(body.value).toBe("https://global.example.com");
-    expect(body.environments).toEqual(["development", "preview", "production"]);
+    // Create fans out to one row per environment and returns a representative;
+    // the full set is verified by the global-list assertion below.
+    expect(body.environments).toHaveLength(1);
   });
 
   it("rejects global env var with projectId", async () => {
@@ -124,7 +126,7 @@ describe("Environment variables API flow", () => {
     state.sensitiveVarId = body.id;
     expect(body.value).toBe("sentry-token-1");
     expect(body.visibility).toBe("sensitive");
-    expect(body.environments).toEqual(["preview", "production"]);
+    expect(body.environments).toHaveLength(1);
   });
 
   it("creates a project plaintext env var that overrides global", async () => {
@@ -147,13 +149,13 @@ describe("Environment variables API flow", () => {
     expect(body.value).toBe("https://project.example.com");
   });
 
-  it("rejects duplicate project key", async () => {
+  it("rejects a duplicate project key in the same environment", async () => {
     const response = await post(
       "/api/env-vars",
       {
         scope: "project",
         projectId: state.projectId,
-        environments: ["development"],
+        environments: ["production"],
         key: "EXPO_PUBLIC_API_URL",
         value: "another",
         visibility: "plaintext",
@@ -220,15 +222,21 @@ describe("Environment variables API flow", () => {
     );
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.items.map((item: { key: string }) => item.key)).toEqual(["SENTRY_AUTH_TOKEN"]);
+    // SENTRY_AUTH_TOKEN now has one row per environment (preview + production).
+    expect([...new Set(body.items.map((item: { key: string }) => item.key))]).toEqual([
+      "SENTRY_AUTH_TOKEN",
+    ]);
   });
 
   it("lists global env vars from org scope", async () => {
     const response = await get(`/api/env-vars?scope=global`, { cookie: state.cookies });
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.items).toHaveLength(1);
-    expect(body.items[0].key).toBe("EXPO_PUBLIC_API_URL");
+    // EXPO_PUBLIC_API_URL was created for all three environments → three rows.
+    expect(body.items).toHaveLength(3);
+    expect(body.items.every((item: { key: string }) => item.key === "EXPO_PUBLIC_API_URL")).toBe(
+      true,
+    );
     expect(body.items[0].scope).toBe("global");
   });
 
@@ -244,15 +252,14 @@ describe("Environment variables API flow", () => {
     expect(body.value).toBe("sentry-token-1");
   });
 
-  it("reassigns environments via PATCH", async () => {
+  it("rejects changing a variable's environment via PATCH", async () => {
     const response = await patch(
       `/api/env-vars/${state.sensitiveVarId}`,
       { environments: ["development", "production"] },
       { cookie: state.cookies },
     );
-    expect(response.status).toBe(200);
-    const body = await response.json();
-    expect(body.environments).toEqual(["development", "production"]);
+    // Environment is part of the identity now; it can't be reassigned in place.
+    expect(response.status).toBe(400);
   });
 
   it("bulk imports project env vars with multi-env assignment", async () => {
@@ -274,7 +281,8 @@ APP_TOKEN=rotated-2
     );
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body).toEqual({ created: 2, updated: 0, skipped: 1 });
+    // 2 unique keys × 2 environments = 4 (key, environment) rows created.
+    expect(body).toEqual({ created: 4, updated: 0, skipped: 1 });
   });
 
   it("rejects export from a browser cookie session", async () => {

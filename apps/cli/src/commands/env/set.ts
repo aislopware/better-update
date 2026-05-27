@@ -37,25 +37,23 @@ export const setCommand = defineCommand({
         const projectId = yield* readProjectId;
         const api = yield* apiClient;
 
-        const existing = yield* api["env-vars"].list({
-          urlParams: { projectId, scope: "project" },
+        // Each (key, environment) is its own variable, so set is an upsert per
+        // environment: bulk-import creates the pair where it is new and updates
+        // the value where it already exists.
+        const result = yield* api["env-vars"].bulkImport({
+          payload: {
+            scope: "project",
+            projectId,
+            environments,
+            visibility,
+            entries: [{ key, value, visibility }],
+          },
         });
 
-        const match = existing.items.find((item) => item.key === key);
         const label = formatEnvironments(environments);
-
-        if (match) {
-          yield* api["env-vars"].update({
-            path: { id: match.id },
-            payload: { value, visibility, environments },
-          });
-          yield* Console.log(`Updated ${key} (environments: ${label})`);
-        } else {
-          yield* api["env-vars"].create({
-            payload: { scope: "project", projectId, environments, key, value, visibility },
-          });
-          yield* Console.log(`Created ${key} (environments: ${label})`);
-        }
+        yield* Console.log(
+          `Set ${key} (environments: ${label}; ${result.created} created, ${result.updated} updated)`,
+        );
       }),
       envErrorExtras,
     ),

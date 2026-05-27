@@ -30,7 +30,7 @@ export const toEnvVarModel = (row: EnvVarRow, overridesGlobal?: boolean) => ({
   key: row.key,
   visibility: row.visibility,
   value: row.value,
-  environments: row.environments,
+  environments: [row.environment],
   ...(overridesGlobal ? { overridesGlobal: true } : {}),
   createdAt: row.created_at,
   updatedAt: row.updated_at,
@@ -102,16 +102,23 @@ export interface OverrideResolved {
   readonly overridesGlobal: boolean;
 }
 
+// A project var overrides a global var only for the same key AND environment.
+const keyEnv = (row: EnvVarRow) => `${row.environment} ${row.key}`;
+
 export const applyOverrideResolution = (
   rows: readonly EnvVarRow[],
 ): readonly OverrideResolved[] => {
-  const projectKeys = new Set(rows.filter((row) => row.scope === "project").map((row) => row.key));
-  const globalKeys = new Set(rows.filter((row) => row.scope === "global").map((row) => row.key));
+  const projectKeyEnvs = new Set(
+    rows.filter((row) => row.scope === "project").map((row) => keyEnv(row)),
+  );
+  const globalKeyEnvs = new Set(
+    rows.filter((row) => row.scope === "global").map((row) => keyEnv(row)),
+  );
   return rows
-    .filter((row) => !(row.scope === "global" && projectKeys.has(row.key)))
+    .filter((row) => !(row.scope === "global" && projectKeyEnvs.has(keyEnv(row))))
     .map((row) => ({
       row,
-      overridesGlobal: row.scope === "project" && globalKeys.has(row.key),
+      overridesGlobal: row.scope === "project" && globalKeyEnvs.has(keyEnv(row)),
     }));
 };
 
@@ -279,16 +286,27 @@ export const handleBulkImport = (payload: BulkImportPayload) =>
         ? yield* repo.countByProject({ projectId: payload.projectId })
         : yield* repo.countByOrgGlobal({ organizationId: ctx.organizationId });
 
-    if (existingCount + deduped.size > limitMax) {
+    // Each imported key fans out to one row per selected environment.
+    if (existingCount + deduped.size * environments.length > limitMax) {
       return yield* new BadRequest({
         message: `Import would exceed the ${limitMax} variable limit`,
       });
     }
 
+    const pairs = [...deduped.entries()].flatMap(([key, payloadEntry]) =>
+      environments.map((environment) => ({ key, environment, ...payloadEntry })),
+    );
+
     const results = yield* Effect.forEach(
-      [...deduped.entries()],
-      ([key, payloadEntry]) =>
-        upsertOne(payload, environments, key, payloadEntry, ctx.organizationId),
+      pairs,
+      (pair) =>
+        upsertOne(
+          payload,
+          pair.environment,
+          pair.key,
+          { value: pair.value, visibility: pair.visibility },
+          ctx.organizationId,
+        ),
       { concurrency: 5 },
     );
 
@@ -299,7 +317,7 @@ export const handleBulkImport = (payload: BulkImportPayload) =>
 
 const upsertOne = (
   payload: BulkImportPayload,
-  environments: readonly EnvVarEnvironment[],
+  environment: EnvVarEnvironment,
   key: string,
   entry: { readonly value: string; readonly visibility: EnvVarVisibility },
   orgId: string,
@@ -307,13 +325,12 @@ const upsertOne = (
   Effect.gen(function* () {
     const repo = yield* EnvVarRepo;
     return yield* repo.upsert({
-      id: crypto.randomUUID(),
       organizationId: orgId,
       projectId: payload.scope === "project" ? toDbNull(payload.projectId) : null,
       scope: payload.scope,
       key,
+      environment,
       visibility: entry.visibility,
       value: entry.value,
-      environments,
     });
   });
