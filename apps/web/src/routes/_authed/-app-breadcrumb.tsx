@@ -16,6 +16,7 @@ const ROUTE_LABELS: Record<string, string> = {
   "audit-log": "Audit log",
   members: "Members",
   credentials: "Credentials",
+  "vault-access": "Vault access",
   "api-keys": "API Keys",
   settings: "Organization settings",
   account: "Account",
