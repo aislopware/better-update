@@ -441,19 +441,9 @@ export const setupCliE2E = (testId: string, options: SetupCliE2EOptions): CliE2E
     );
     expect(createBranchResponse.status).toBe(201);
 
-    const createEnvVarResponse = await post(
-      "/api/env-vars",
-      {
-        scope: "project",
-        projectId: state.projectId,
-        environments: ["production"],
-        key: "APP_SECRET",
-        value: "super-secret",
-        visibility: "sensitive",
-      },
-      { cookie: state.cookies },
-    );
-    expect(createEnvVarResponse.status).toBe(201);
+    // Env vars are end-to-end encrypted now, so they can't be seeded via a plain
+    // API POST (the value must be sealed client-side under the org vault key).
+    // The env-var e2e flow bootstraps a vault and exercises set/pull itself.
 
     seedSql(`
 INSERT INTO "builds" (

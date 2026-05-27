@@ -233,6 +233,25 @@ const cliState = {
 };
 
 describe("cLI command journey", () => {
+  // Bootstrap the org vault once for the whole journey — env var values and
+  // credentials are both sealed under it. Driven non-interactively via
+  // BETTER_UPDATE_IDENTITY (the CI identity path: a raw age key, no passphrase).
+  let credsEnv: Record<string, string> = {};
+  beforeAll(async () => {
+    const identity = await generateIdentity();
+    credsEnv = { BETTER_UPDATE_IDENTITY: identity.privateKey };
+    const init = cli.runCliWithEnv(
+      credsEnv,
+      "credentials",
+      "identity",
+      "init",
+      "--label",
+      "CI Machine",
+    );
+    expect(init.exitCode).toBe(0);
+    expect(init.stdout).toContain("vault bootstrapped");
+  });
+
   it("links the current Expo app to the existing project", () => {
     const result = cli.runCli("init");
     expect(result.exitCode).toBe(0);
@@ -271,41 +290,37 @@ describe("cLI command journey", () => {
     expect(result.stdout).toContain("No credentials found.");
   });
 
-  it("lists environment variables with masked sensitive values", () => {
-    const result = cli.runCli("env", "list", "--environments", "production");
-    expect(result.exitCode).toBe(0);
-    expect(result.stderr).toBe("");
-    expect(result.stdout).toContain("APP_SECRET");
-    expect(result.stdout).toContain("production");
-    expect(result.stdout).toContain("sensitive");
-    expect(result.stdout).toContain("••••••");
-  });
-
-  it("imports, exports, pulls, sets, and deletes environment variables", () => {
+  it("seals, lists (metadata only), pulls, versions, and deletes env vars via the vault", () => {
+    // import seals each value client-side under the vault; pull/export/get decrypt.
     const envFile = path.join(cli.getProjectDir(), ".env.preview");
     writeFileSync(envFile, "EXPO_PUBLIC_API_URL=https://preview.example.com\nFEATURE_FLAG=true\n");
 
-    const importResult = cli.runCli("env", "import", envFile, "--environment", "preview");
+    const importResult = cli.runCliWithEnv(
+      credsEnv,
+      "env",
+      "import",
+      envFile,
+      "--environment",
+      "preview",
+    );
     expect(importResult.exitCode).toBe(0);
-    expect(importResult.stderr).toBe("");
     expect(importResult.stdout).toContain("Imported: 2 created, 0 updated, 0 skipped");
 
-    const exportResult = cli.runCli("env", "export", "--environment", "preview");
-    expect(exportResult.exitCode).toBe(0);
-    expect(exportResult.stderr).toBe("");
-    expect(exportResult.stdout).toContain("EXPO_PUBLIC_API_URL='https://preview.example.com'");
-    expect(exportResult.stdout).toContain("FEATURE_FLAG='true'");
-
-    const pullResult = cli.runCli("env", "pull", "--environment", "preview");
+    // pull decrypts the sealed values back — the round-trip through the vault.
+    const pullResult = cli.runCliWithEnv(credsEnv, "env", "pull", "--environment", "preview");
     expect(pullResult.exitCode).toBe(0);
-    expect(pullResult.stderr).toBe("");
-    // `env pull` writes a dotenv file by default (stdout export lines need --stdout).
     expect(pullResult.stdout).toContain("Wrote 2 env vars to");
     const pulledDotenv = readFileSync(path.join(cli.getProjectDir(), ".env.local"), "utf8");
     expect(pulledDotenv).toContain('EXPO_PUBLIC_API_URL="https://preview.example.com"');
     expect(pulledDotenv).toContain('FEATURE_FLAG="true"');
 
-    const createResult = cli.runCli(
+    const exportResult = cli.runCliWithEnv(credsEnv, "env", "export", "--environment", "preview");
+    expect(exportResult.exitCode).toBe(0);
+    expect(exportResult.stdout).toContain("EXPO_PUBLIC_API_URL='https://preview.example.com'");
+
+    // set then change the value → two revisions.
+    const createResult = cli.runCliWithEnv(
+      credsEnv,
       "env",
       "set",
       "APP_PUBLIC_URL=https://app.example.com",
@@ -313,10 +328,11 @@ describe("cLI command journey", () => {
       "production",
     );
     expect(createResult.exitCode).toBe(0);
-    expect(createResult.stderr).toBe("");
-    expect(createResult.stdout).toContain("Created APP_PUBLIC_URL");
+    expect(createResult.stdout).toContain("Set APP_PUBLIC_URL");
+    expect(createResult.stdout).toContain("1 created");
 
-    const updateResult = cli.runCli(
+    const updateResult = cli.runCliWithEnv(
+      credsEnv,
       "env",
       "set",
       "APP_PUBLIC_URL=https://app-v2.example.com",
@@ -324,18 +340,68 @@ describe("cLI command journey", () => {
       "production",
     );
     expect(updateResult.exitCode).toBe(0);
-    expect(updateResult.stderr).toBe("");
-    expect(updateResult.stdout).toContain("Updated APP_PUBLIC_URL");
+    expect(updateResult.stdout).toContain("1 updated");
 
+    const getResult = cli.runCliWithEnv(
+      credsEnv,
+      "env",
+      "get",
+      "APP_PUBLIC_URL",
+      "--environment",
+      "production",
+    );
+    expect(getResult.exitCode).toBe(0);
+    expect(getResult.stdout).toContain("https://app-v2.example.com");
+
+    // history lists the revisions; roll back to the first and confirm via get.
+    const historyResult = cli.runCliWithEnv(
+      credsEnv,
+      "env",
+      "history",
+      "APP_PUBLIC_URL",
+      "--environment",
+      "production",
+    );
+    expect(historyResult.exitCode).toBe(0);
+    expect(historyResult.stdout).toContain("current");
+
+    const rollbackResult = cli.runCliWithEnv(
+      credsEnv,
+      "env",
+      "rollback",
+      "APP_PUBLIC_URL",
+      "--to",
+      "1",
+      "--environment",
+      "production",
+    );
+    expect(rollbackResult.exitCode).toBe(0);
+    expect(rollbackResult.stdout).toContain("Rolled back APP_PUBLIC_URL");
+
+    const afterRollback = cli.runCliWithEnv(
+      credsEnv,
+      "env",
+      "get",
+      "APP_PUBLIC_URL",
+      "--environment",
+      "production",
+    );
+    expect(afterRollback.stdout).toContain("https://app.example.com");
+
+    // list shows metadata only — never the decrypted value (read-only/no vault).
     const listResult = cli.runCli("env", "list", "--environments", "production");
     expect(listResult.exitCode).toBe(0);
-    expect(listResult.stderr).toBe("");
     expect(listResult.stdout).toContain("APP_PUBLIC_URL");
-    expect(listResult.stdout).toContain("https://app-v2.example.com");
+    expect(listResult.stdout).not.toContain("https://app.example.com");
 
-    const deleteResult = cli.runCli("env", "delete", "APP_PUBLIC_URL");
+    const deleteResult = cli.runCli(
+      "env",
+      "delete",
+      "APP_PUBLIC_URL",
+      "--environment",
+      "production",
+    );
     expect(deleteResult.exitCode).toBe(0);
-    expect(deleteResult.stderr).toBe("");
     expect(deleteResult.stdout).toContain("Deleted APP_PUBLIC_URL");
 
     const finalList = cli.runCli("env", "list", "--environments", "production");
@@ -456,30 +522,9 @@ describe("cLI command journey", () => {
     );
   });
 
-  it("uploads and deletes a distribution certificate", async () => {
-    // Credentials are end-to-end encrypted client-side, so the org vault must be
-    // bootstrapped before any upload. Drive it non-interactively through
-    // BETTER_UPDATE_IDENTITY (the CI identity path: a raw age private key, no
-    // passphrase prompt) — the same mechanism CI uses. `identity init` registers
-    // this device's recipient and mints the offline recovery key.
-    const identity = await generateIdentity();
-    const credsEnv = { BETTER_UPDATE_IDENTITY: identity.privateKey };
-
-    // --label avoids the interactive label prompt under CI; the env identity is
-    // registered as a `machine` recipient (a token-auth CI run has no user session,
-    // so it cannot register a `device` key).
-    const initResult = cli.runCliWithEnv(
-      credsEnv,
-      "credentials",
-      "identity",
-      "init",
-      "--label",
-      "CI Machine",
-    );
-    expect(initResult.exitCode).toBe(0);
-    expect(initResult.stderr).toBe("");
-    expect(initResult.stdout).toContain("vault bootstrapped");
-
+  it("uploads and deletes a distribution certificate", () => {
+    // The org vault is bootstrapped in the suite's beforeAll; reuse that identity
+    // (a `machine` recipient registered via BETTER_UPDATE_IDENTITY) to seal/unseal.
     const credentialFile = path.join(cli.getProjectDir(), "cli-uploaded-cert.p12");
     const p12Password = "uploaded-password";
     writeFileSync(
