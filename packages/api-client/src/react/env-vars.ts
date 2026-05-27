@@ -1,12 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 
-import type {
-  BulkImportEnvVarsBody,
-  CreateEnvVarBody,
-  EnvVarEnvironment,
-  EnvVarListScope,
-  UpdateEnvVarBody,
-} from "@better-update/api";
+import type { EnvVarEnvironment, EnvVarListScope } from "@better-update/api";
 
 import { runApi } from "../index";
 
@@ -62,14 +56,6 @@ export const globalEnvVarsQueryOptions = (orgId: string, filters?: EnvVarsFilter
     staleTime: 30_000,
   });
 
-export const createEnvVar = async (body: typeof CreateEnvVarBody.Type) =>
-  runApi((api) => api["env-vars"].create({ payload: body }));
-
-export const updateEnvVar = async (id: string, body: typeof UpdateEnvVarBody.Type) =>
-  runApi((api) => api["env-vars"].update({ path: { id }, payload: body }));
-
-export const deleteEnvVar = async (id: string) =>
-  runApi((api) => api["env-vars"].delete({ path: { id } }));
-
-export const bulkImportEnvVars = async (body: typeof BulkImportEnvVarsBody.Type) =>
-  runApi((api) => api["env-vars"].bulkImport({ payload: body }));
+// Env var values are end-to-end encrypted: the dashboard reads metadata only.
+// Create / update / delete / import all happen in the CLI (`better-update env …`),
+// which holds the org vault key — so there are deliberately no mutation bindings.

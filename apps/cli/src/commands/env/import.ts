@@ -3,9 +3,10 @@ import { defineCommand } from "citty";
 import { Console, Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
+import { uploadEnvVars } from "../../lib/env-exporter";
 import { readProjectId } from "../../lib/expo-config";
 import { apiClient } from "../../services/api-client";
-import { envErrorExtras, parseEnvironmentsArg } from "./helpers";
+import { envErrorExtras, parseDotenv, parseEnvironmentsArg } from "./helpers";
 
 export const importCommand = defineCommand({
   meta: { name: "import", description: "Bulk-import env vars from a dotenv file" },
@@ -29,19 +30,27 @@ export const importCommand = defineCommand({
       Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
         const content = yield* fs.readFileString(args.file);
+        const entries = parseDotenv(content).map((entry) => ({
+          key: entry.key,
+          value: entry.value,
+          visibility: args.visibility,
+        }));
+
+        if (entries.length === 0) {
+          yield* Console.log(`No valid KEY=VALUE entries found in ${args.file}.`);
+          return;
+        }
 
         const environments = yield* parseEnvironmentsArg(args.environment);
         const projectId = yield* readProjectId;
         const api = yield* apiClient;
 
-        const result = yield* api["env-vars"].bulkImport({
-          payload: {
-            scope: "project",
-            projectId,
-            environments,
-            content,
-            visibility: args.visibility,
-          },
+        // Values are parsed and sealed locally, then upserted as opaque envelopes.
+        const result = yield* uploadEnvVars(api, {
+          scope: "project",
+          projectId,
+          environments,
+          entries,
         });
 
         yield* Console.log(

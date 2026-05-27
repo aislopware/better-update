@@ -1,8 +1,15 @@
+import { credentialEnvelope } from "../helpers/credential-envelope";
 import { setupE2EWorker } from "../helpers/e2e-worker-pool";
 
 const { del, get, parseCookies, patch, post } = setupE2EWorker(".wrangler/state/e2e-env-vars");
 
-describe("Environment variables API flow", () => {
+// Values are end-to-end encrypted: the server stores opaque sealed envelopes and
+// never sees plaintext. These e2e tests use placeholder envelopes (random base64)
+// and assert on the public metadata the server echoes back — the real
+// seal/decrypt round-trip is covered by the CLI unit tests against
+// `@better-update/credentials-crypto`. No vault is bootstrapped, so
+// `assertVaultVersionCurrent` is a no-op and any vaultVersion is accepted.
+describe("Environment variables API flow (E2E encrypted)", () => {
   const state = {
     cookies: "",
     organizationId: "",
@@ -10,7 +17,7 @@ describe("Environment variables API flow", () => {
     apiKey: "",
     globalVarId: "",
     sensitiveVarId: "",
-    plaintextVarId: "",
+    overrideVarId: "",
   };
 
   it("registers a new user", async () => {
@@ -69,15 +76,15 @@ describe("Environment variables API flow", () => {
     state.apiKey = body.key;
   });
 
-  it("creates a global plaintext env var", async () => {
+  it("creates a global env var (no plaintext value in the response)", async () => {
     const response = await post(
       "/api/env-vars",
       {
         scope: "global",
-        environments: ["development", "preview", "production"],
+        environment: "production",
         key: "EXPO_PUBLIC_API_URL",
-        value: "https://global.example.com",
         visibility: "plaintext",
+        value: credentialEnvelope(),
       },
       { cookie: state.cookies },
     );
@@ -86,67 +93,67 @@ describe("Environment variables API flow", () => {
     state.globalVarId = body.id;
     expect(body.scope).toBe("global");
     expect(body.projectId).toBeNull();
-    expect(body.value).toBe("https://global.example.com");
-    // Create fans out to one row per environment and returns a representative;
-    // the full set is verified by the global-list assertion below.
-    expect(body.environments).toHaveLength(1);
+    expect(body.environment).toBe("production");
+    expect(body.value).toBeUndefined();
+    expect(body.currentRevisionId).toBeTruthy();
+    expect(body.revisionNumber).toBe(1);
+    expect(body.revisionCount).toBe(1);
   });
 
-  it("rejects global env var with projectId", async () => {
+  it("rejects a global env var with a projectId", async () => {
     const response = await post(
       "/api/env-vars",
       {
         scope: "global",
         projectId: state.projectId,
-        environments: ["production"],
+        environment: "production",
         key: "BAD_GLOBAL",
-        value: "x",
         visibility: "plaintext",
+        value: credentialEnvelope(),
       },
       { cookie: state.cookies },
     );
     expect(response.status).toBe(400);
   });
 
-  it("creates a project sensitive env var assigned to multiple environments", async () => {
+  it("creates a project sensitive env var", async () => {
     const response = await post(
       "/api/env-vars",
       {
         scope: "project",
         projectId: state.projectId,
-        environments: ["preview", "production"],
+        environment: "production",
         key: "SENTRY_AUTH_TOKEN",
-        value: "sentry-token-1",
         visibility: "sensitive",
+        value: credentialEnvelope(),
       },
       { cookie: state.cookies },
     );
     expect(response.status).toBe(201);
     const body = await response.json();
     state.sensitiveVarId = body.id;
-    expect(body.value).toBe("sentry-token-1");
     expect(body.visibility).toBe("sensitive");
-    expect(body.environments).toHaveLength(1);
+    expect(body.environment).toBe("production");
+    expect(body.value).toBeUndefined();
   });
 
-  it("creates a project plaintext env var that overrides global", async () => {
+  it("creates a project env var that overrides a global one", async () => {
     const response = await post(
       "/api/env-vars",
       {
         scope: "project",
         projectId: state.projectId,
-        environments: ["production"],
+        environment: "production",
         key: "EXPO_PUBLIC_API_URL",
-        value: "https://project.example.com",
         visibility: "plaintext",
+        value: credentialEnvelope(),
       },
       { cookie: state.cookies },
     );
     expect(response.status).toBe(201);
     const body = await response.json();
-    state.plaintextVarId = body.id;
+    state.overrideVarId = body.id;
     expect(body.scope).toBe("project");
-    expect(body.value).toBe("https://project.example.com");
   });
 
   it("rejects a duplicate project key in the same environment", async () => {
@@ -155,26 +162,26 @@ describe("Environment variables API flow", () => {
       {
         scope: "project",
         projectId: state.projectId,
-        environments: ["production"],
+        environment: "production",
         key: "EXPO_PUBLIC_API_URL",
-        value: "another",
         visibility: "plaintext",
+        value: credentialEnvelope(),
       },
       { cookie: state.cookies },
     );
     expect(response.status).toBe(409);
   });
 
-  it("rejects secret visibility (no longer supported)", async () => {
+  it("rejects an unknown visibility tier", async () => {
     const response = await post(
       "/api/env-vars",
       {
         scope: "project",
         projectId: state.projectId,
-        environments: ["production"],
+        environment: "production",
         key: "OLD_SECRET",
-        value: "x",
         visibility: "secret",
+        value: credentialEnvelope(),
       },
       { cookie: state.cookies },
     );
@@ -192,27 +199,26 @@ describe("Environment variables API flow", () => {
 
     const apiUrl = byKey.get("EXPO_PUBLIC_API_URL") as {
       scope: string;
-      value: string;
       overridesGlobal?: boolean;
+      value?: unknown;
     };
     expect(apiUrl.scope).toBe("project");
-    expect(apiUrl.value).toBe("https://project.example.com");
     expect(apiUrl.overridesGlobal).toBe(true);
+    expect(apiUrl.value).toBeUndefined();
 
-    const sentry = byKey.get("SENTRY_AUTH_TOKEN") as { scope: string; value: string };
+    const sentry = byKey.get("SENTRY_AUTH_TOKEN") as { scope: string };
     expect(sentry.scope).toBe("project");
-    expect(sentry.value).toBe("sentry-token-1");
   });
 
-  it("filters by environments", async () => {
+  it("filters by environment", async () => {
     const response = await get(
-      `/api/env-vars?projectId=${state.projectId}&scope=project&environments=preview`,
+      `/api/env-vars?projectId=${state.projectId}&scope=project&environments=production`,
       { cookie: state.cookies },
     );
     expect(response.status).toBe(200);
     const body = await response.json();
-    const keys = body.items.map((item: { key: string }) => item.key);
-    expect(keys).toEqual(["SENTRY_AUTH_TOKEN"]);
+    const keys = [...new Set(body.items.map((item: { key: string }) => item.key))].toSorted();
+    expect(keys).toEqual(["EXPO_PUBLIC_API_URL", "SENTRY_AUTH_TOKEN"]);
   });
 
   it("filters by search", async () => {
@@ -222,25 +228,66 @@ describe("Environment variables API flow", () => {
     );
     expect(response.status).toBe(200);
     const body = await response.json();
-    // SENTRY_AUTH_TOKEN now has one row per environment (preview + production).
-    expect([...new Set(body.items.map((item: { key: string }) => item.key))]).toEqual([
-      "SENTRY_AUTH_TOKEN",
-    ]);
+    expect(body.items.map((item: { key: string }) => item.key)).toEqual(["SENTRY_AUTH_TOKEN"]);
   });
 
   it("lists global env vars from org scope", async () => {
     const response = await get(`/api/env-vars?scope=global`, { cookie: state.cookies });
     expect(response.status).toBe(200);
     const body = await response.json();
-    // EXPO_PUBLIC_API_URL was created for all three environments → three rows.
-    expect(body.items).toHaveLength(3);
-    expect(body.items.every((item: { key: string }) => item.key === "EXPO_PUBLIC_API_URL")).toBe(
-      true,
-    );
+    expect(body.items).toHaveLength(1);
+    expect(body.items[0].key).toBe("EXPO_PUBLIC_API_URL");
     expect(body.items[0].scope).toBe("global");
   });
 
-  it("updates a sensitive env var visibility without losing the value", async () => {
+  it("updating the value appends a revision", async () => {
+    const response = await patch(
+      `/api/env-vars/${state.sensitiveVarId}`,
+      { value: credentialEnvelope() },
+      { cookie: state.cookies },
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.revisionNumber).toBe(2);
+    expect(body.revisionCount).toBe(2);
+    expect(body.value).toBeUndefined();
+  });
+
+  it("lists the value history newest-first", async () => {
+    const response = await get(`/api/env-vars/${state.sensitiveVarId}/revisions`, {
+      cookie: state.cookies,
+    });
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.items).toHaveLength(2);
+    expect(body.items.map((item: { revisionNumber: number }) => item.revisionNumber)).toEqual([
+      2, 1,
+    ]);
+    expect(body.items[0].isCurrent).toBe(true);
+    expect(body.items[1].isCurrent).toBe(false);
+    // Metadata only — never the ciphertext.
+    expect(body.items[0].ciphertext).toBeUndefined();
+  });
+
+  it("rolls back to an earlier revision", async () => {
+    const history = await get(`/api/env-vars/${state.sensitiveVarId}/revisions`, {
+      cookie: state.cookies,
+    });
+    const items = (await history.json()).items as { id: string; revisionNumber: number }[];
+    const first = items.find((item) => item.revisionNumber === 1);
+    expect(first).toBeDefined();
+
+    const response = await post(
+      `/api/env-vars/${state.sensitiveVarId}/rollback`,
+      { toRevisionId: first?.id },
+      { cookie: state.cookies },
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.currentRevisionId).toBe(first?.id);
+  });
+
+  it("updates visibility without adding a revision", async () => {
     const response = await patch(
       `/api/env-vars/${state.sensitiveVarId}`,
       { visibility: "plaintext" },
@@ -249,40 +296,53 @@ describe("Environment variables API flow", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.visibility).toBe("plaintext");
-    expect(body.value).toBe("sentry-token-1");
+    expect(body.revisionCount).toBe(2);
   });
 
-  it("rejects changing a variable's environment via PATCH", async () => {
-    const response = await patch(
-      `/api/env-vars/${state.sensitiveVarId}`,
-      { environments: ["development", "production"] },
-      { cookie: state.cookies },
-    );
-    // Environment is part of the identity now; it can't be reassigned in place.
-    expect(response.status).toBe(400);
-  });
-
-  it("bulk imports project env vars with multi-env assignment", async () => {
+  it("bulk imports pre-sealed entries with per-environment fan-out", async () => {
     const response = await post(
       "/api/env-vars/bulk-import",
       {
         scope: "project",
         projectId: state.projectId,
-        environments: ["development", "production"],
-        visibility: "sensitive",
-        content: `
-# duplicate APP_TOKEN, last value wins
-APP_TOKEN=rotated-1
-EXPO_PUBLIC_WEB_URL=https://prod.example.com
-APP_TOKEN=rotated-2
-`.trim(),
+        entries: [
+          {
+            key: "APP_TOKEN",
+            environment: "development",
+            visibility: "sensitive",
+            value: credentialEnvelope(),
+          },
+          // duplicate (key, environment) — last wins, counts as skipped
+          {
+            key: "APP_TOKEN",
+            environment: "development",
+            visibility: "sensitive",
+            value: credentialEnvelope(),
+          },
+          {
+            key: "APP_TOKEN",
+            environment: "production",
+            visibility: "sensitive",
+            value: credentialEnvelope(),
+          },
+          {
+            key: "EXPO_PUBLIC_WEB_URL",
+            environment: "development",
+            visibility: "plaintext",
+            value: credentialEnvelope(),
+          },
+          {
+            key: "EXPO_PUBLIC_WEB_URL",
+            environment: "production",
+            visibility: "plaintext",
+            value: credentialEnvelope(),
+          },
+        ],
       },
       { cookie: state.cookies },
     );
     expect(response.status).toBe(200);
-    const body = await response.json();
-    // 2 unique keys × 2 environments = 4 (key, environment) rows created.
-    expect(body).toEqual({ created: 4, updated: 0, skipped: 1 });
+    expect(await response.json()).toEqual({ created: 4, updated: 0, skipped: 1 });
   });
 
   it("rejects export from a browser cookie session", async () => {
@@ -293,7 +353,7 @@ APP_TOKEN=rotated-2
     expect(response.status).toBe(403);
   });
 
-  it("exports merged env vars (project overrides global) with API key auth", async () => {
+  it("exports sealed envelopes (project overrides global) with API key auth", async () => {
     const response = await get(
       `/api/env-vars/export?projectId=${state.projectId}&environment=production`,
       { authorization: `Bearer ${state.apiKey}` },
@@ -301,25 +361,30 @@ APP_TOKEN=rotated-2
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.environment).toBe("production");
-    const byKey = new Map(body.items.map((item: { key: string }) => [item.key, item]));
-    expect(byKey.get("APP_TOKEN")).toEqual({
-      key: "APP_TOKEN",
-      value: "rotated-2",
-      visibility: "sensitive",
-    });
-    expect(byKey.get("EXPO_PUBLIC_API_URL")).toEqual({
-      key: "EXPO_PUBLIC_API_URL",
-      value: "https://project.example.com",
-      visibility: "plaintext",
-    });
-    expect(byKey.get("EXPO_PUBLIC_WEB_URL")).toEqual({
-      key: "EXPO_PUBLIC_WEB_URL",
-      value: "https://prod.example.com",
-      visibility: "sensitive",
-    });
+    const byKey = new Map(body.items.map((item: { key: string }) => [item.key, item] as const));
+
+    const apiUrl = byKey.get("EXPO_PUBLIC_API_URL") as
+      | {
+          id: string;
+          ciphertext: string;
+          wrappedDek: string;
+          vaultVersion: number;
+          value?: unknown;
+        }
+      | undefined;
+    expect(apiUrl).toBeDefined();
+    expect(apiUrl?.ciphertext).toBeTruthy();
+    expect(apiUrl?.wrappedDek).toBeTruthy();
+    expect(apiUrl?.vaultVersion).toBe(1);
+    // No plaintext value — the CLI decrypts the envelope locally.
+    expect(apiUrl?.value).toBeUndefined();
+
+    // APP_TOKEN (production) + EXPO_PUBLIC_WEB_URL (production) from the import.
+    expect(byKey.has("APP_TOKEN")).toBe(true);
+    expect(byKey.has("EXPO_PUBLIC_WEB_URL")).toBe(true);
   });
 
-  it("exports merged env vars with a CLI session token (bearer transport)", async () => {
+  it("exports with a CLI session token (bearer transport)", async () => {
     const generated = await get("/api/auth/one-time-token/generate", { cookie: state.cookies });
     expect(generated.status).toBe(200);
     const { token } = await generated.json();
@@ -340,15 +405,15 @@ APP_TOKEN=rotated-2
   });
 
   it("deletes a project env var", async () => {
-    const response = await del(`/api/env-vars/${state.plaintextVarId}`, {
+    const response = await del(`/api/env-vars/${state.overrideVarId}`, {
       cookie: state.cookies,
     });
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ id: state.plaintextVarId });
+    expect(await response.json()).toEqual({ id: state.overrideVarId });
   });
 
   it("returns 404 for deleted env vars", async () => {
-    const response = await get(`/api/env-vars/${state.plaintextVarId}`, {
+    const response = await get(`/api/env-vars/${state.overrideVarId}`, {
       cookie: state.cookies,
     });
     expect(response.status).toBe(404);

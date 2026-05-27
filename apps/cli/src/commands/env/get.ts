@@ -1,90 +1,29 @@
-import { compact } from "@better-update/type-guards";
 import { defineCommand } from "citty";
 import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
+import { exportDecryptedEnvVars } from "../../lib/env-exporter";
 import { readProjectId } from "../../lib/expo-config";
 import { printKeyValue } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
-import {
-  envErrorExtras,
-  EnvResourceNotFoundError,
-  formatEnvironments,
-  parseSingleEnvironmentArg,
-} from "./helpers";
-
-import type { EnvironmentName } from "./helpers";
-
-interface EnvVarResponse {
-  readonly id: string;
-  readonly key: string;
-  readonly scope: string;
-  readonly visibility: "plaintext" | "sensitive";
-  readonly value: string | null;
-  readonly environments: readonly EnvironmentName[];
-  readonly createdAt: string;
-  readonly updatedAt: string;
-}
-
-const resolveByKey = (
-  api: Effect.Effect.Success<typeof apiClient>,
-  key: string,
-  environment: string | undefined,
-) =>
-  Effect.gen(function* () {
-    const env =
-      environment === undefined ? undefined : yield* parseSingleEnvironmentArg(environment);
-    const projectId = yield* readProjectId;
-    const urlParams = {
-      projectId,
-      scope: "all" as const,
-      search: key,
-      ...compact({ environments: env }),
-    };
-    const { items } = yield* api["env-vars"].list({ urlParams });
-    const matches = items.filter((item) => item.key === key);
-    if (matches.length === 0) {
-      return yield* new EnvResourceNotFoundError({
-        message: `No env var with key "${key}" found${env === undefined ? "" : ` for environment "${env}"`}.`,
-      });
-    }
-    if (matches.length > 1) {
-      const envs = [...new Set(matches.flatMap((entry) => entry.environments))].join(", ");
-      return yield* new EnvResourceNotFoundError({
-        message: `Multiple env vars match key "${key}". Disambiguate with --environment <${envs}>.`,
-      });
-    }
-    // eslint-disable-next-line typescript/no-non-null-assertion -- length === 1 guarded above
-    return matches[0]!;
-  });
-
-const renderValue = (envVar: EnvVarResponse, includeSensitive: boolean): string => {
-  if (envVar.visibility === "plaintext") {
-    // eslint-disable-next-line eslint-js/no-restricted-syntax -- EnvVar.value nullable at storage; display empty when absent
-    return envVar.value ?? "";
-  }
-  if (includeSensitive) {
-    // eslint-disable-next-line eslint-js/no-restricted-syntax -- EnvVar.value nullable at storage; display empty when absent
-    return envVar.value ?? "";
-  }
-  return "******";
-};
+import { EnvResourceNotFoundError, envErrorExtras, parseSingleEnvironmentArg } from "./helpers";
 
 export const getCommand = defineCommand({
-  meta: { name: "get", description: "Show an environment variable by KEY (or --by-id)" },
+  meta: {
+    name: "get",
+    description:
+      "Show an environment variable's effective value for an environment (decrypted locally)",
+  },
   args: {
     key: {
       type: "positional",
       required: true,
-      description: "Env var KEY (uppercase) — or ID when used with --by-id",
+      description: "Env var KEY (uppercase)",
     },
     environment: {
       type: "string",
-      description: "Filter by environment when looking up by KEY",
-    },
-    "by-id": {
-      type: "boolean",
-      description: "Treat the argument as an ID instead of KEY",
+      default: "production",
+      description: "Target environment (development, preview, production)",
     },
     "include-sensitive": {
       type: "boolean",
@@ -94,21 +33,30 @@ export const getCommand = defineCommand({
   run: async ({ args }) =>
     runEffect(
       Effect.gen(function* () {
+        const environment = yield* parseSingleEnvironmentArg(args.environment);
+        const projectId = yield* readProjectId;
         const api = yield* apiClient;
-        const envVar = args["by-id"]
-          ? yield* api["env-vars"].get({ path: { id: args.key } })
-          : yield* resolveByKey(api, args.key, args.environment);
+
+        // Resolves the effective (project-over-global) value, decrypted locally.
+        const items = yield* exportDecryptedEnvVars(api, projectId, environment);
+        const match = items.find((item) => item.key === args.key);
+        if (!match) {
+          return yield* new EnvResourceNotFoundError({
+            message: `No env var "${args.key}" found for environment "${environment}".`,
+          });
+        }
+
+        const includeSensitive = args["include-sensitive"] ?? false;
+        const value =
+          match.visibility === "sensitive" && !includeSensitive ? "******" : match.value;
 
         yield* printKeyValue([
-          ["ID", envVar.id],
-          ["Key", envVar.key],
-          ["Scope", envVar.scope],
-          ["Environments", formatEnvironments(envVar.environments)],
-          ["Visibility", envVar.visibility],
-          ["Value", renderValue(envVar, args["include-sensitive"] ?? false)],
-          ["Created", envVar.createdAt],
-          ["Updated", envVar.updatedAt],
+          ["Key", match.key],
+          ["Environment", environment],
+          ["Visibility", match.visibility],
+          ["Value", value],
         ]);
+        return undefined;
       }),
       envErrorExtras,
     ),

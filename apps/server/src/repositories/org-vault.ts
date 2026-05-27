@@ -5,6 +5,7 @@ import { Conflict } from "../errors";
 import { d1WithUniqueCheck } from "./d1-helpers";
 
 import type {
+  CredentialDekRefModel,
   CredentialRef,
   EncryptedCredentialType,
   OrgVaultKeyWrapModel,
@@ -58,6 +59,11 @@ export interface OrgVaultRepository {
   readonly listCredentialRefs: (params: {
     readonly organizationId: string;
   }) => Effect.Effect<readonly CredentialRef[]>;
+
+  /** Every wrapped DEK in the org — the source set the client re-wraps in a rotation. */
+  readonly listCredentialDeks: (params: {
+    readonly organizationId: string;
+  }) => Effect.Effect<readonly CredentialDekRefModel[]>;
 
   /**
    * Atomically rotate the vault key: re-wrap the new key to every surviving
@@ -116,6 +122,9 @@ const CREDENTIAL_TABLES: Record<EncryptedCredentialType, string> = {
   ascApiKey: "asc_api_keys",
   googleServiceAccountKey: "google_service_account_keys",
   androidUploadKeystore: "android_upload_keystores",
+  // Each env var value revision is its own vault-bound secret; rotation re-wraps
+  // every revision so rollback stays decryptable and a revoke is total.
+  envVarValue: "env_var_revisions",
 };
 
 const toVaultModel = (row: VaultRow): OrgVaultModel => ({
@@ -237,20 +246,60 @@ export const OrgVaultRepoLive = Layer.succeed(OrgVaultRepo, {
   listCredentialRefs: (params) =>
     Effect.gen(function* () {
       const env = yield* cloudflareEnv;
-      // One numbered bind (`?1`) reused across the union — every encrypted
-      // credential in the org, tagged with its API `CredentialType`.
-      const rows = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT 'appleDistributionCertificate' AS credential_type, "id" FROM "apple_distribution_certificates" WHERE "organization_id" = ?1
-           UNION ALL SELECT 'applePushKey', "id" FROM "apple_push_keys" WHERE "organization_id" = ?1
-           UNION ALL SELECT 'ascApiKey', "id" FROM "asc_api_keys" WHERE "organization_id" = ?1
-           UNION ALL SELECT 'googleServiceAccountKey', "id" FROM "google_service_account_keys" WHERE "organization_id" = ?1
-           UNION ALL SELECT 'androidUploadKeystore', "id" FROM "android_upload_keystores" WHERE "organization_id" = ?1`,
-        )
-          .bind(params.organizationId)
-          .all<{ credential_type: EncryptedCredentialType; id: string }>(),
+      // D1 caps a compound SELECT at 5 terms, so the five credential tables fill
+      // one UNION and env var value revisions are queried separately, then merged.
+      // One numbered bind (`?1`) is reused across the union.
+      const results = yield* Effect.promise(async () =>
+        env.DB.batch<{ credential_type: EncryptedCredentialType; id: string }>([
+          env.DB.prepare(
+            `SELECT 'appleDistributionCertificate' AS credential_type, "id" FROM "apple_distribution_certificates" WHERE "organization_id" = ?1
+             UNION ALL SELECT 'applePushKey', "id" FROM "apple_push_keys" WHERE "organization_id" = ?1
+             UNION ALL SELECT 'ascApiKey', "id" FROM "asc_api_keys" WHERE "organization_id" = ?1
+             UNION ALL SELECT 'googleServiceAccountKey', "id" FROM "google_service_account_keys" WHERE "organization_id" = ?1
+             UNION ALL SELECT 'androidUploadKeystore', "id" FROM "android_upload_keystores" WHERE "organization_id" = ?1`,
+          ).bind(params.organizationId),
+          env.DB.prepare(
+            `SELECT 'envVarValue' AS credential_type, "id" FROM "env_var_revisions" WHERE "organization_id" = ?`,
+          ).bind(params.organizationId),
+        ]),
       );
-      return rows.results.map((row) => ({ credentialType: row.credential_type, id: row.id }));
+      return results
+        .flatMap((result) => result.results)
+        .map((row) => ({ credentialType: row.credential_type, id: row.id }));
+    }),
+
+  listCredentialDeks: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+      // Same 5-term compound-SELECT cap as listCredentialRefs: credentials fill
+      // one UNION, env var revisions are a second query, merged.
+      const results = yield* Effect.promise(async () =>
+        env.DB.batch<{
+          credential_type: EncryptedCredentialType;
+          id: string;
+          wrapped_dek: string;
+          vault_version: number;
+        }>([
+          env.DB.prepare(
+            `SELECT 'appleDistributionCertificate' AS credential_type, "id", "wrapped_dek", "vault_version" FROM "apple_distribution_certificates" WHERE "organization_id" = ?1
+             UNION ALL SELECT 'applePushKey', "id", "wrapped_dek", "vault_version" FROM "apple_push_keys" WHERE "organization_id" = ?1
+             UNION ALL SELECT 'ascApiKey', "id", "wrapped_dek", "vault_version" FROM "asc_api_keys" WHERE "organization_id" = ?1
+             UNION ALL SELECT 'googleServiceAccountKey', "id", "wrapped_dek", "vault_version" FROM "google_service_account_keys" WHERE "organization_id" = ?1
+             UNION ALL SELECT 'androidUploadKeystore', "id", "wrapped_dek", "vault_version" FROM "android_upload_keystores" WHERE "organization_id" = ?1`,
+          ).bind(params.organizationId),
+          env.DB.prepare(
+            `SELECT 'envVarValue' AS credential_type, "id", "wrapped_dek", "vault_version" FROM "env_var_revisions" WHERE "organization_id" = ?`,
+          ).bind(params.organizationId),
+        ]),
+      );
+      return results
+        .flatMap((result) => result.results)
+        .map((row) => ({
+          credentialType: row.credential_type,
+          credentialId: row.id,
+          wrappedDek: row.wrapped_dek,
+          vaultVersion: row.vault_version,
+        }));
     }),
 
   rotate: (params) =>

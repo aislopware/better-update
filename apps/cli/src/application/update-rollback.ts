@@ -25,8 +25,10 @@ import type {
   ProjectNotLinkedError,
   RuntimeVersionError,
 } from "../lib/exit-codes";
+import type { InteractiveMode } from "../lib/interactive-mode";
 import type { UpdatePlatformOption } from "../lib/update-platforms";
 import type { ApiClientService } from "../services/api-client";
+import type { IdentityStore } from "../services/identity-store";
 
 interface CreateRollbackParams {
   readonly branch: string;
@@ -214,7 +216,12 @@ export const runUpdateRollback = (
   | EnvExportError
   | RuntimeVersionError
   | UpdateRollbackError,
-  ApiClientService | CliRuntime | CommandExecutor.CommandExecutor | FileSystem.FileSystem
+  | ApiClientService
+  | CliRuntime
+  | CommandExecutor.CommandExecutor
+  | FileSystem.FileSystem
+  | IdentityStore
+  | InteractiveMode
 > =>
   Effect.gen(function* () {
     const runtime = yield* CliRuntime;

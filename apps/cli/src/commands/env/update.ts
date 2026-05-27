@@ -2,65 +2,85 @@ import { compact } from "@better-update/type-guards";
 import { defineCommand } from "citty";
 import { Effect } from "effect";
 
+import { openVaultSessionInteractive, sealForUpload } from "../../application/credential-cipher";
 import { runEffect } from "../../lib/citty-effect";
 import { InvalidArgumentError } from "../../lib/exit-codes";
 import { readProjectId } from "../../lib/expo-config";
 import { printHuman } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
-import { EnvResourceNotFoundError, envErrorExtras, parseEnvironmentsArg } from "./helpers";
+import { EnvResourceNotFoundError, envErrorExtras, parseSingleEnvironmentArg } from "./helpers";
 
 export const updateCommand = defineCommand({
   meta: {
     name: "update",
-    description: "Update a project env var's value, visibility, or environments",
+    description: "Update a project env var's value or visibility for an environment",
   },
   args: {
     key: { type: "positional", required: true, description: "Env var key (e.g. API_KEY)" },
+    environment: {
+      type: "string",
+      default: "production",
+      description: "Target environment (development, preview, production)",
+    },
     value: { type: "string", description: "New value (leave unset to keep current)" },
     visibility: {
       type: "enum",
       options: ["plaintext", "sensitive"],
       description: "New visibility (leave unset to keep current)",
     },
-    environments: {
-      type: "string",
-      description:
-        "New environments assignment (comma-separated, e.g. development,production). Leave unset to keep current.",
-    },
   },
   run: async ({ args }) =>
     runEffect(
       Effect.gen(function* () {
-        const { key, value, visibility, environments } = args;
+        const { key, value, visibility } = args;
 
-        if (value === undefined && visibility === undefined && environments === undefined) {
+        if (value === undefined && visibility === undefined) {
           return yield* new InvalidArgumentError({
-            message:
-              "Pass --value, --visibility, --environments (or any combination). Nothing to update otherwise.",
+            message: "Pass --value and/or --visibility. Nothing to update otherwise.",
           });
         }
 
+        const environment = yield* parseSingleEnvironmentArg(args.environment);
         const projectId = yield* readProjectId;
         const api = yield* apiClient;
 
-        const existing = yield* api["env-vars"].list({
-          urlParams: { projectId, scope: "project" },
+        const { items } = yield* api["env-vars"].list({
+          urlParams: { projectId, scope: "project", environments: environment },
         });
-        const match = existing.items.find((item) => item.key === key);
+        const match = items.find((item) => item.key === key && item.environment === environment);
         if (!match) {
           return yield* new EnvResourceNotFoundError({
-            message: `Env var "${key}" not found in project.`,
+            message: `Env var "${key}" not found for environment "${environment}".`,
           });
         }
 
-        const envList = environments ? yield* parseEnvironmentsArg(environments) : undefined;
-
-        const payload = compact({
-          value,
-          visibility,
-          environments: envList,
-        });
-        yield* api["env-vars"].update({ path: { id: match.id }, payload });
+        if (value === undefined) {
+          yield* api["env-vars"].update({
+            path: { id: match.id },
+            payload: compact({ visibility }),
+          });
+        } else {
+          // A new value means a new sealed revision; the vault is unlocked to seal.
+          const session = yield* openVaultSessionInteractive(api);
+          const envelope = yield* sealForUpload({
+            session,
+            credentialType: "envVarValue",
+            metadata: { key, environment },
+            secret: { value },
+          });
+          yield* api["env-vars"].update({
+            path: { id: match.id },
+            payload: {
+              value: {
+                id: envelope.id,
+                ciphertext: envelope.ciphertext,
+                wrappedDek: envelope.wrappedDek,
+                vaultVersion: envelope.vaultVersion,
+              },
+              ...compact({ visibility }),
+            },
+          });
+        }
 
         const changed: string[] = [];
         if (value !== undefined) {
@@ -69,10 +89,7 @@ export const updateCommand = defineCommand({
         if (visibility !== undefined) {
           changed.push("visibility");
         }
-        if (envList) {
-          changed.push("environments");
-        }
-        yield* printHuman(`Updated ${changed.join(" + ")} for ${key}.`);
+        yield* printHuman(`Updated ${changed.join(" + ")} for ${key} (${environment}).`);
         return undefined;
       }),
       envErrorExtras,

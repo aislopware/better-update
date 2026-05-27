@@ -83,14 +83,10 @@ export {
 } from "./react/devices";
 export type { DeviceSort, DeviceSortColumn, DevicesFilters } from "./react/devices";
 export {
-  bulkImportEnvVars,
-  createEnvVar,
-  deleteEnvVar,
   envVarsQueryKey,
   envVarsQueryOptions,
   globalEnvVarsQueryKey,
   globalEnvVarsQueryOptions,
-  updateEnvVar,
 } from "./react/env-vars";
 export type { EnvVarsFilters } from "./react/env-vars";
 export {

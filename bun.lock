@@ -33,7 +33,7 @@
     },
     "apps/cli": {
       "name": "@better-update/cli",
-      "version": "0.21.0",
+      "version": "0.22.1",
       "bin": {
         "better-update": "./dist/index.mjs",
       },
@@ -77,7 +77,7 @@
     },
     "apps/docs": {
       "name": "@better-update/docs",
-      "version": "0.3.2",
+      "version": "0.3.3",
       "dependencies": {
         "@astrojs/starlight": "^0.39.2",
         "astro": "^6.3.6",
@@ -85,7 +85,7 @@
     },
     "apps/server": {
       "name": "@better-update/server",
-      "version": "0.15.0",
+      "version": "0.16.0",
       "dependencies": {
         "@better-auth/api-key": "^1.6.11",
         "@better-update/api": "workspace:*",
@@ -114,13 +114,12 @@
     },
     "apps/web": {
       "name": "@better-update/web",
-      "version": "0.20.0",
+      "version": "0.21.0",
       "dependencies": {
         "@better-auth/api-key": "^1.6.11",
         "@better-update/api": "workspace:*",
         "@better-update/api-client": "workspace:*",
         "@better-update/auth-client": "workspace:*",
-        "@better-update/dotenv": "workspace:*",
         "@better-update/expo-protocol": "workspace:*",
         "@better-update/react-hooks": "workspace:*",
         "@better-update/safe-json": "workspace:*",
@@ -172,7 +171,7 @@
     },
     "packages/api": {
       "name": "@better-update/api",
-      "version": "0.10.0",
+      "version": "0.11.0",
       "dependencies": {
         "@effect/platform": "^0.96.1",
         "effect": "^3.21.2",
@@ -184,7 +183,7 @@
     },
     "packages/api-client": {
       "name": "@better-update/api-client",
-      "version": "0.8.0",
+      "version": "0.8.1",
       "dependencies": {
         "@better-update/api": "workspace:*",
         "@better-update/type-guards": "workspace:*",
@@ -202,7 +201,7 @@
     },
     "packages/auth-client": {
       "name": "@better-update/auth-client",
-      "version": "0.2.6",
+      "version": "0.3.0",
       "dependencies": {
         "@better-auth/api-key": "^1.6.11",
         "better-auth": "^1.6.11",

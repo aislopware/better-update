@@ -2,6 +2,7 @@ import { defineCommand } from "citty";
 import { Console, Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
+import { exportDecryptedEnvVars } from "../../lib/env-exporter";
 import { readProjectId } from "../../lib/expo-config";
 import { apiClient } from "../../services/api-client";
 import { envErrorExtras, parseSingleEnvironmentArg } from "./helpers";
@@ -22,11 +23,9 @@ export const exportCommand = defineCommand({
         const projectId = yield* readProjectId;
         const api = yield* apiClient;
 
-        const result = yield* api["env-vars"].export({
-          urlParams: { projectId, environment },
-        });
+        const items = yield* exportDecryptedEnvVars(api, projectId, environment);
 
-        for (const item of result.items) {
+        for (const item of items) {
           const escaped = item.value.replaceAll("'", String.raw`'\''`);
           yield* Console.log(`${item.key}='${escaped}'`);
         }

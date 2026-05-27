@@ -3,6 +3,7 @@ import { defineCommand } from "citty";
 import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
+import { pullEnvVars } from "../../lib/env-exporter";
 import { getExecTrailingArgv } from "../../lib/exec-trailing-argv";
 import { InvalidArgumentError } from "../../lib/exit-codes";
 import { readProjectId } from "../../lib/expo-config";
@@ -13,13 +14,10 @@ import { envErrorExtras, parseSingleEnvironmentArg } from "./helpers";
 import type { ApiClient } from "../../services/api-client";
 import type { EnvironmentName } from "./helpers";
 
-const pullForExec = (
-  api: ApiClient,
-  projectId: string,
-  environment: EnvironmentName,
-): Effect.Effect<Record<string, string>> =>
-  api["env-vars"].export({ urlParams: { projectId, environment } }).pipe(
-    Effect.map((result) => Object.fromEntries(result.items.map((item) => [item.key, item.value]))),
+// Best-effort: decrypt + inject the project's env vars, falling back to none on
+// any failure (e.g. the vault is locked) so the wrapped command still runs.
+const pullForExec = (api: ApiClient, projectId: string, environment: EnvironmentName) =>
+  pullEnvVars(api, { projectId, environment }).pipe(
     Effect.catchAll(() => Effect.succeed<Record<string, string>>({})),
   );
 

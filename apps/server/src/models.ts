@@ -243,18 +243,31 @@ export interface OrgVaultKeyWrapModel {
   readonly createdAt: string;
 }
 
-/** The five secret-credential kinds whose DEK is wrapped under the org vault key. */
+/**
+ * The secret kinds whose DEK is wrapped under the org vault key — the rows a
+ * rotation must re-wrap. Besides the five signing credentials, each environment
+ * variable value revision is its own E2E-encrypted secret bound to the vault.
+ */
 export type EncryptedCredentialType =
   | "appleDistributionCertificate"
   | "applePushKey"
   | "ascApiKey"
   | "googleServiceAccountKey"
-  | "androidUploadKeystore";
+  | "androidUploadKeystore"
+  | "envVarValue";
 
 /** A credential row's identity for rotation coverage (type + id, version-agnostic). */
 export interface CredentialRef {
   readonly credentialType: EncryptedCredentialType;
   readonly id: string;
+}
+
+/** A credential row's currently-wrapped DEK — the source the client re-wraps in a rotation. */
+export interface CredentialDekRefModel {
+  readonly credentialType: EncryptedCredentialType;
+  readonly credentialId: string;
+  readonly wrappedDek: string;
+  readonly vaultVersion: number;
 }
 
 export interface AscApiKeyModel {
@@ -355,19 +368,8 @@ export interface AndroidBuildCredentialsModel {
   readonly updatedAt: string;
 }
 
-export interface EnvVarModel {
-  readonly id: string;
-  readonly organizationId: string;
-  readonly projectId: string | null;
-  readonly scope: EnvVarScope;
-  readonly key: string;
-  readonly visibility: EnvVarVisibility;
-  readonly value: string | null;
-  readonly environments: readonly EnvVarEnvironment[];
-  readonly overridesGlobal?: boolean;
-  readonly createdAt: string;
-  readonly updatedAt: string;
-}
+// Env var metadata + revision models live in ./env-var-models (kept out of this
+// file to stay under the max-lines budget), mirroring ./submission-models.
 
 export interface BuildArtifactModel {
   readonly r2Key: string;

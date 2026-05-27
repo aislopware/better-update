@@ -247,6 +247,21 @@ export const OrgVaultGroupLive = HttpApiBuilder.group(ManagementApi, "orgVault",
         }),
       ),
     )
+    .handle("listCredentialDeks", () =>
+      toApiCrudEffect(
+        Effect.gen(function* () {
+          yield* assertPermission("vaultAccess", "read");
+          const ctx = yield* CurrentActor;
+          const repo = yield* OrgVaultRepo;
+          const vault = yield* repo.getVault({ organizationId: ctx.organizationId });
+          if (vault === null) {
+            return yield* Effect.fail(new NotFound({ message: "Vault not initialized" }));
+          }
+          const deks = yield* repo.listCredentialDeks({ organizationId: ctx.organizationId });
+          return { vaultVersion: vault.vaultVersion, deks };
+        }),
+      ),
+    )
     .handle("rotate", ({ payload }) =>
       toApiWriteEffect(
         Effect.gen(function* () {

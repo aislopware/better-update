@@ -2,27 +2,64 @@
 
 ## Overview
 
-Environment variables configure the JS bundle and native build at compile time. better-update stores them per-project per-environment on the server. The CLI pulls and exports them before each local build.
+Environment variables configure the JS bundle and native build at compile time. better-update
+stores them **end-to-end encrypted**, the same way as the credential vault
+([02-credential-vault.md](./02-credential-vault.md)): all encryption and decryption happen in the
+CLI on the user's machine, the server is **zero-knowledge** (it stores only ciphertext + wrapped
+DEKs + non-secret metadata and can never decrypt a value), and the **web dashboard is read-only** —
+it shows metadata only and performs no mutations.
+
+Values are also **versioned**: every change appends a revision, the active value points at one
+revision, and you can roll back to an earlier one. Env var revisions are bound to the same **org
+vault key** as credentials, so a single `credentials access grant` unlocks both, and a vault rotation
+re-wraps env var values along with credentials.
+
+> **Why E2E.** A compromise of the better-update server (database, environment) yields only
+> ciphertext and public keys. Plaintext values never leave the developer's machine. This replaces
+> the previous design where env vars were stored plaintext in D1 and were server-visible.
 
 ## Visibility Tiers
 
-| Tier          | Dashboard         | CLI pull | Build logs   | Storage        |
-| ------------- | ----------------- | -------- | ------------ | -------------- |
-| **Plaintext** | Visible           | Visible  | Visible      | D1 (raw value) |
-| **Sensitive** | Masked (`••••••`) | Visible  | Masked       | D1 (raw value) |
-| **Secret**    | Key name only     | Visible  | Never logged | D1 (raw value) |
+Under E2E the value is **always encrypted at rest**; the tier no longer controls storage — it is a
+**redaction hint** for the CLI's build-log output and the dashboard:
 
-All tiers are available to the build process — visibility only controls who can read the value in the dashboard and logs.
+| Tier          | Dashboard     | CLI `env get` / logs | Storage        |
+| ------------- | ------------- | -------------------- | -------------- |
+| **Plaintext** | metadata only | Shown                | Encrypted (D1) |
+| **Sensitive** | metadata only | Masked (`••••••`)    | Encrypted (D1) |
+
+All values are end-to-end encrypted regardless of tier. The dashboard never shows any value (it has
+no vault key); the tier only changes how the CLI prints the value once it has decrypted it locally.
+
+> `EXPO_PUBLIC_*` keys are inlined into the JS bundle by Metro, so their values are not truly secret —
+> but they are still encrypted at rest for a uniform model. `env push` classifies `EXPO_PUBLIC_*` as
+> `plaintext` and everything else as `sensitive`.
 
 ### Storage
 
-Env var values are **not encrypted at rest** — server-side encryption was removed in migration 0038. All tiers store the value as plaintext in D1 `env_vars.value`; the tier only controls **dashboard masking + build-log redaction**, not storage:
+Two D1 tables, mirroring the credential vault's split of public metadata vs. encrypted payload:
 
-- **Plaintext**: shown everywhere.
-- **Sensitive**: stored plaintext; masked in the dashboard (reveal toggle) and redacted in build logs.
-- **Secret**: stored plaintext; dashboard shows the key name only, never the value.
+- **`env_vars`** — public metadata (key, environment, scope, visibility) + a `current_revision_id`
+  pointer. No value column.
+- **`env_var_revisions`** — one row per value revision: the AEAD ciphertext (the typed payload sealed
+  with a per-value DEK), the DEK wrapped under the org vault key, and the `vault_version` it was
+  sealed at.
 
-All env var values live in D1 — R2 is reserved for large binary blobs (encrypted credentials, artifacts). Env var values are small strings (max 32 KB). Note: env vars are **server-visible** config; for material that must never reach the server in plaintext, use the credential vault (client-side E2E — see [02-credential-vault.md](./02-credential-vault.md)) instead.
+Ciphertext is stored **inline in D1** (values are small — ≤ 32 KB plaintext), not R2. The encryption
+primitives are the shared `@better-update/credentials-crypto` package (XChaCha20-Poly1305 + age),
+identical to credentials; the sealed payload's AAD binds it to `(orgId, revisionId, type)` so the
+server cannot swap one revision's blob for another.
+
+## Versioning & rollback
+
+- Each value change (`env set`, `env push`, `env update --value`, `env import`) appends a new
+  revision and advances `current_revision_id`. History is capped (last N revisions per var; older
+  ones are pruned).
+- `env history KEY --environment <env>` lists the revision history (metadata only — number, vault
+  version, who, when). `env rollback KEY --to <revision#|id>` re-points the active value at an
+  earlier retained revision (no re-encryption needed; the revision's DEK is already current).
+- **Vault rotation re-wraps every retained revision's DEK**, so rollback stays decryptable after a
+  rotation and a revoked recipient can no longer decrypt any past value.
 
 ## Environments
 
@@ -34,74 +71,75 @@ Each project has named environments mapping to build profiles:
 | `preview`     | Internal testing, ad-hoc/TestFlight |
 | `production`  | App Store / Play Store release      |
 
-Custom environments supported. Variables can be shared across environments by setting `environment: "*"`.
+A variable's identity is `(scope, key, environment)` — the environment is immutable after creation
+(delete + recreate to move it). The same key holds an independent value per environment.
 
 ## Injection Points
 
-The CLI exports all variables as shell environment variables before running `expo prebuild` and the native build.
+The CLI **decrypts** the variables locally and exports them as shell environment variables before
+running `expo prebuild` and the native build. This requires vault access (a granted recipient).
 
 ### Metro Bundler (JS bundle)
 
-Variables with `EXPO_PUBLIC_` prefix are inlined into the JS bundle by Metro:
-
-```bash
-export EXPO_PUBLIC_API_URL=https://api.example.com
-```
-
-Accessible in app code via `process.env.EXPO_PUBLIC_API_URL`.
+`EXPO_PUBLIC_`-prefixed variables are inlined into the JS bundle by Metro, accessible via
+`process.env.EXPO_PUBLIC_*`.
 
 ### Native Build
 
-Non-prefixed variables are available to:
-
-- `app.config.js` / `app.config.ts` (dynamic Expo config reads `process.env`)
-- Gradle build scripts via `System.getenv()`
-
-```bash
-export APP_VARIANT=production
-export SENTRY_AUTH_TOKEN=xxx   # Used by build plugins, not in JS bundle
-```
+Non-prefixed variables are available to `app.config.js/ts` (via `process.env`) and Gradle
+(`System.getenv()`).
 
 ## CLI Flow
 
 ```
 $ better-update build --platform ios --profile production
 
+  Unlocking vault…                       (decrypts env vars locally)
   Pulling environment variables for "production"...
   ✓ 5 variables exported
-
-  EXPO_PUBLIC_API_URL=https://api.example.com
-  EXPO_PUBLIC_SENTRY_DSN=https://***@sentry.io/123    (sensitive)
-  SENTRY_AUTH_TOKEN=***                                (secret)
-  APP_VARIANT=production
-  ENABLE_ANALYTICS=true
 ```
 
 The CLI:
 
-1. `GET /api/env-vars/export?projectId=X&environment=production` — **API key auth only** (`Authorization: Bearer bu_...`). Session/cookie auth is rejected to prevent browser-side exfiltration of secrets. Response includes `Cache-Control: no-store`.
-2. The server merges `environment: "*"` (shared) variables automatically, with environment-specific values taking precedence
-3. CLI exports each as `export KEY=VALUE` in the build subprocess
-4. Sensitive/secret values shown masked in CLI output but exported with real values
+1. `GET /api/env-vars/export?projectId=X&environment=production` — **API-key/CLI bearer auth only**
+   (session/cookie auth is rejected). Returns the sealed envelopes (`ciphertext`, `wrappedDek`,
+   `vaultVersion`) per variable, with `environment: "*"`-style globals merged in (project values win
+   on key collision).
+2. The CLI unlocks the org vault key (passphrase, or `BETTER_UPDATE_IDENTITY` in CI) **once**, then
+   decrypts every envelope locally, re-checking the sealed `(key, environment)` against the row.
+3. Exports each as `export KEY=VALUE` into the build subprocess.
+
+Reads (`env pull`, `env export`, `env get`, `env exec`, build/update flows) decrypt locally; writes
+(`env set`, `env push`, `env import`, `env update`) seal locally before upload. All require vault
+access — a member with no vault grant can see metadata but cannot read or write values.
 
 ## Validation Rules
 
-| Rule                                             | Reason                          |
-| ------------------------------------------------ | ------------------------------- |
-| Key must match `^[A-Z][A-Z0-9_]*$`               | Shell-safe, conventional        |
-| Key cannot be `PATH`, `HOME`, `USER`, `SHELL`    | Overriding breaks the build env |
-| Max key length: 256 chars                        | Practical limit                 |
-| Max value length: 32 KB                          | D1 row size consideration       |
-| Max vars per project+environment: 100            | Prevent abuse                   |
-| Unique constraint on (project, environment, key) | No duplicates                   |
+| Rule                                          | Reason                          |
+| --------------------------------------------- | ------------------------------- |
+| Key must match `^[A-Z][A-Z0-9_]*$`            | Shell-safe, conventional        |
+| Key cannot be `PATH`, `HOME`, `USER`, `SHELL` | Overriding breaks the build env |
+| Max key length: 256 chars                     | Practical limit                 |
+| Max value length: 32 KB                       | D1 row size consideration       |
+| Max vars per project / org-global: 100        | Prevent abuse                   |
+| Unique on (scope, key, environment)           | No duplicates                   |
+| Environment is immutable after creation       | It is part of the identity      |
 
-## Dashboard UI
+## Dashboard UI (read-only)
 
-Environment variables page per project:
+The environment-variables page (per project + an org-global page) shows **metadata only**:
 
-- Tab selector for environments (development, preview, production, custom)
-- Table: key, value (masked for sensitive, hidden for secret), visibility badge, actions
-- Inline edit for value and visibility
-- Bulk import from `.env` file upload
-- Bulk export to `.env` file download (**plaintext-tier variables only** — sensitive and secret values are excluded since the dashboard does not have access to decrypted values; use CLI `better-update env export` for full export)
-- Add variable dialog with visibility selector
+- Table: key, environment, scope (with an "overrides global" marker), visibility badge, revision
+  count.
+- Search by key, filter by environment, filter by scope.
+- **No value is ever shown, and there is no add / edit / delete / import / export.** Where the old UI
+  had mutation dialogs, the page shows a hint that values are managed with the CLI
+  (`better-update env set` / `env pull`). This is enforced cryptographically: the browser has no vault
+  key, so it could not produce ciphertext even if it tried.
+
+## Migration (clean break)
+
+Production has no real users yet, so no backward compatibility is required. Migration `0049` drops the
+plaintext `env_vars` table and recreates it as metadata + `env_var_revisions` (encrypted). Existing
+plaintext values cannot be migrated to E2E (the server has no vault key), so env var data is **reset**;
+users re-set values via the CLI after deploy.

@@ -14,9 +14,10 @@ export const WrappedDek = Schema.String.pipe(Schema.minLength(1)).annotations({
 });
 
 /**
- * The secret-credential kinds whose DEK is wrapped under the org vault key — the
- * five tables a rotation must re-wrap. Provisioning profiles are plaintext and
- * are deliberately absent.
+ * The secret kinds whose DEK is wrapped under the org vault key — the rows a
+ * rotation must re-wrap. Five signing-credential tables plus `envVarValue` (one
+ * row per environment variable value revision). Provisioning profiles are
+ * plaintext and are deliberately absent.
  */
 export const CredentialType = Schema.Literal(
   "appleDistributionCertificate",
@@ -24,8 +25,9 @@ export const CredentialType = Schema.Literal(
   "ascApiKey",
   "googleServiceAccountKey",
   "androidUploadKeystore",
+  "envVarValue",
 ).annotations({
-  description: "Which encrypted-credential table a vault-key DEK re-wrap targets",
+  description: "Which encrypted-secret table a vault-key DEK re-wrap targets",
 });
 
 /**
@@ -49,6 +51,25 @@ export const CredentialDekUpdate = Schema.Struct({
   credentialType: CredentialType,
   credentialId: Id,
   wrappedDek: WrappedDek,
+});
+
+/**
+ * One credential's currently-stored wrapped DEK — what the client fetches before
+ * a rotation so it can unwrap each DEK with the old vault key and re-wrap it. The
+ * wrapped DEK is opaque (decryptable only with the vault key), so the server may
+ * serve it to any vault reader.
+ */
+export const CredentialDekRef = Schema.Struct({
+  credentialType: CredentialType,
+  credentialId: Id,
+  wrappedDek: WrappedDek,
+  vaultVersion: VaultVersion,
+});
+
+/** Every wrapped DEK in the org + the current vault version (the rotation source set). */
+export const VaultCredentialDeks = Schema.Struct({
+  vaultVersion: VaultVersion,
+  deks: Schema.Array(CredentialDekRef),
 });
 
 /**

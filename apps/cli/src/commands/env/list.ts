@@ -5,25 +5,14 @@ import { runEffect } from "../../lib/citty-effect";
 import { readProjectId } from "../../lib/expo-config";
 import { printList } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
-import { envErrorExtras, formatEnvironments } from "./helpers";
-
-const renderValue = (
-  item: { readonly visibility: "plaintext" | "sensitive"; readonly value: string | null },
-  includeSensitive: boolean,
-): string => {
-  if (item.visibility === "plaintext") {
-    // eslint-disable-next-line eslint-js/no-restricted-syntax -- EnvVar.value nullable at storage; display empty when absent
-    return item.value ?? "";
-  }
-  if (includeSensitive) {
-    // eslint-disable-next-line eslint-js/no-restricted-syntax -- EnvVar.value nullable at storage; display empty when absent
-    return item.value ?? "";
-  }
-  return "••••••";
-};
+import { envErrorExtras } from "./helpers";
 
 export const listCommand = defineCommand({
-  meta: { name: "list", description: "List environment variables" },
+  meta: {
+    name: "list",
+    description:
+      "List environment variable metadata. Values are end-to-end encrypted — read them with `env pull`, `env export`, or `env get`.",
+  },
   args: {
     environments: {
       type: "string",
@@ -36,10 +25,6 @@ export const listCommand = defineCommand({
       description: "Filter by scope (default: all — merged with global override resolution)",
     },
     search: { type: "string", description: "Filter by key substring (case-insensitive)" },
-    "include-sensitive": {
-      type: "boolean",
-      description: "Reveal masked sensitive values (default: masked)",
-    },
   },
   run: async ({ args }) =>
     runEffect(
@@ -55,16 +40,15 @@ export const listCommand = defineCommand({
         };
 
         const result = yield* api["env-vars"].list({ urlParams });
-        const includeSensitive = args["include-sensitive"] ?? false;
 
         yield* printList(
-          ["Key", "Environments", "Scope", "Visibility", "Value"],
+          ["Key", "Environment", "Scope", "Visibility", "Revisions"],
           result.items.map((item) => [
             item.key,
-            formatEnvironments(item.environments),
+            item.environment,
             item.overridesGlobal ? `${item.scope} (overrides global)` : item.scope,
             item.visibility,
-            renderValue(item, includeSensitive),
+            String(item.revisionCount),
           ]),
           "No environment variables found.",
         );

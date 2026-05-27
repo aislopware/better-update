@@ -28,6 +28,7 @@ import {
 } from "@better-update/api";
 import { safeJsonParse } from "@better-update/safe-json";
 
+import type { EnvVarModel } from "../env-var-models";
 import type {
   AndroidApplicationIdentifierModel,
   AndroidBuildCredentialsModel,
@@ -45,7 +46,6 @@ import type {
   ChannelModel,
   DeviceModel,
   DeviceRegistrationRequestModel,
-  EnvVarModel,
   GoogleServiceAccountKeyModel,
   IosBundleConfigurationModel,
   MissingRuntimeVersionBuildModel,
@@ -115,17 +115,22 @@ export const toApiUpdate = (update: UpdateModel) =>
     createdAt: update.createdAt,
   });
 
-export const toApiEnvVar = (envVar: EnvVarModel) =>
+export const toApiEnvVar = (
+  envVar: EnvVarModel,
+  overridesGlobal = envVar.overridesGlobal ?? false,
+) =>
   new EnvVar({
     id: envVar.id,
     organizationId: envVar.organizationId,
     projectId: envVar.projectId,
     scope: envVar.scope,
+    environment: envVar.environment,
     key: envVar.key,
     visibility: envVar.visibility,
-    value: envVar.value,
-    environments: envVar.environments,
-    ...(envVar.overridesGlobal ? { overridesGlobal: true } : {}),
+    currentRevisionId: envVar.currentRevisionId,
+    revisionNumber: envVar.revisionNumber,
+    revisionCount: envVar.revisionCount,
+    ...(overridesGlobal ? { overridesGlobal: true } : {}),
     createdAt: envVar.createdAt,
     updatedAt: envVar.updatedAt,
   });

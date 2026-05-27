@@ -5,6 +5,7 @@ import { defineCommand } from "citty";
 import { Console, Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
+import { exportDecryptedEnvVars } from "../../lib/env-exporter";
 import { InvalidArgumentError } from "../../lib/exit-codes";
 import { readProjectId } from "../../lib/expo-config";
 import { InteractiveMode } from "../../lib/interactive-mode";
@@ -97,12 +98,11 @@ export const pullCommand = defineCommand({
         const projectId = yield* readProjectId;
         const api = yield* apiClient;
 
-        const result = yield* api["env-vars"].export({
-          urlParams: { projectId, environment },
-        });
+        // Fetches sealed envelopes and decrypts them locally (unlocks the vault).
+        const items = yield* exportDecryptedEnvVars(api, projectId, environment);
 
         if (args.stdout) {
-          yield* printStdout(result.items);
+          yield* printStdout(items);
           return;
         }
 
@@ -111,7 +111,7 @@ export const pullCommand = defineCommand({
         const targetPath = path.resolve(cwd, args.path ?? DEFAULT_PATH);
         yield* writeDotenvFile({
           targetPath,
-          items: result.items,
+          items,
           force: args.force ?? false,
         });
       }),

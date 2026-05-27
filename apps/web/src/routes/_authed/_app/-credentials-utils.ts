@@ -1,12 +1,3 @@
-export const safeReadFileAsText = async (file: File): Promise<string | null> => {
-  // eslint-disable-next-line functional/no-try-statements -- browser file reads reject on permission/IO errors; upload forms represent that as null
-  try {
-    return await file.text();
-  } catch {
-    return null;
-  }
-};
-
 export const formatAppleTeamLabel = (team: {
   readonly name: string | null;
   readonly appleTeamId: string;

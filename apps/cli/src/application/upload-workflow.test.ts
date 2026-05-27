@@ -9,10 +9,12 @@ import { it } from "@effect/vitest";
 import { Effect, Exit, Layer } from "effect";
 
 import { ArtifactNotFoundError, BuildProfileError } from "../lib/exit-codes";
+import { makeInteractiveModeLayer } from "../lib/interactive-mode";
 import { OutputModeLive } from "../lib/output-mode";
 import { failureError } from "../lib/test-utils";
 import { ApiClientService } from "../services/api-client";
 import { CliRuntime } from "../services/cli-runtime";
+import { IdentityStore } from "../services/identity-store";
 import { PresignedUploadClient } from "../services/presigned-upload";
 import { runUploadWorkflow } from "./upload-workflow";
 
@@ -162,6 +164,17 @@ const stubCommandExecutorLayer = Layer.succeed(CommandExecutor.CommandExecutor, 
   string: () => Effect.succeed(""),
 } as unknown as CommandExecutor.CommandExecutor);
 
+// pullEnvVars only unlocks the vault when the project has env vars (the stub
+// returns none), so these satisfy the type without ever being invoked.
+const stubVaultLayer = Layer.mergeAll(
+  makeInteractiveModeLayer(false),
+  Layer.succeed(IdentityStore, {
+    load: Effect.sync(() => null),
+    save: () => Effect.void,
+    clear: Effect.void,
+  }),
+);
+
 const makeCliRuntimeLayer = (cwd: string) =>
   Layer.succeed(CliRuntime, {
     argv: [],
@@ -195,6 +208,7 @@ const runWorkflow = (
         NodeContext.layer,
         OutputModeLive,
         stubCommandExecutorLayer,
+        stubVaultLayer,
       ),
     ),
     Effect.ensuring(

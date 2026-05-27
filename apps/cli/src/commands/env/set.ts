@@ -3,6 +3,7 @@ import { Console, Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
 import { parseKeyValue } from "../../lib/cli-schemas";
+import { uploadEnvVars } from "../../lib/env-exporter";
 import { readProjectId } from "../../lib/expo-config";
 import { apiClient } from "../../services/api-client";
 import { envErrorExtras, formatEnvironments, parseEnvironmentsArg } from "./helpers";
@@ -25,7 +26,7 @@ export const setCommand = defineCommand({
       type: "enum",
       options: ["plaintext", "sensitive"],
       default: "plaintext",
-      description: "Value visibility",
+      description: "Value visibility (build-log redaction hint)",
     },
   },
   run: async ({ args }) =>
@@ -37,17 +38,13 @@ export const setCommand = defineCommand({
         const projectId = yield* readProjectId;
         const api = yield* apiClient;
 
-        // Each (key, environment) is its own variable, so set is an upsert per
-        // environment: bulk-import creates the pair where it is new and updates
-        // the value where it already exists.
-        const result = yield* api["env-vars"].bulkImport({
-          payload: {
-            scope: "project",
-            projectId,
-            environments,
-            visibility,
-            entries: [{ key, value, visibility }],
-          },
+        // The value is sealed client-side per (key, environment) and upserted;
+        // the server stores only ciphertext. Requires vault access.
+        const result = yield* uploadEnvVars(api, {
+          scope: "project",
+          projectId,
+          environments,
+          entries: [{ key, value, visibility }],
         });
 
         const label = formatEnvironments(environments);

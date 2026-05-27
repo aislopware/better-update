@@ -66,6 +66,7 @@ export {
 } from "./domain/update";
 export { Asset, AssetUploadBody, AssetUploadResult } from "./domain/asset";
 export {
+  BulkImportEntry,
   BulkImportEnvVarsBody,
   BulkImportResult,
   CreateEnvVarBody,
@@ -75,8 +76,12 @@ export {
   EnvVarExportItem,
   EnvVarExportResult,
   EnvVarListScope,
+  EnvVarRevision,
+  EnvVarRevisionsResult,
   EnvVarScope,
+  EnvVarValueEnvelope,
   EnvVarVisibility,
+  RollbackEnvVarBody,
   UpdateEnvVarBody,
 } from "./domain/env-var";
 export {
@@ -241,10 +246,12 @@ export {
 } from "./domain/org-vault";
 export {
   Ciphertext,
+  CredentialDekRef,
   CredentialDekUpdate,
   CredentialType,
   encryptedEnvelopeFields,
   RotateVaultBody,
+  VaultCredentialDeks,
   WrappedDek,
 } from "./domain/encrypted-credential";
 

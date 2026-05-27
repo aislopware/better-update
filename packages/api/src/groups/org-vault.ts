@@ -3,7 +3,7 @@ import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "@effect/p
 import { Forbidden } from "../auth/errors";
 import { NotFound } from "../auth/ownership";
 import { Id } from "../domain/common";
-import { RotateVaultBody } from "../domain/encrypted-credential";
+import { RotateVaultBody, VaultCredentialDeks } from "../domain/encrypted-credential";
 import { BadRequest, Conflict } from "../domain/errors";
 import {
   AddVaultWrapBody,
@@ -69,6 +69,17 @@ export class OrgVaultGroup extends HttpApiGroup.make("orgVault")
         OpenApi.annotations({
           title: "Get vault wrap",
           description: "Fetch the wrapped vault key for a recipient to unwrap locally",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.get("listCredentialDeks", "/api/vault/credential-deks")
+      .addSuccess(VaultCredentialDeks)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "List wrapped credential DEKs",
+          description:
+            "Every wrapped DEK in the org + the current vault version — the client fetches these to re-wrap under a new vault key during a rotation (the DEKs are opaque)",
         }),
       ),
   )

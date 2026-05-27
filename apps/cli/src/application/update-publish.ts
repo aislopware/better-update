@@ -46,6 +46,7 @@ import type {
 import type { ExpoConfig } from "../lib/expo-config";
 import type { SignedPayload } from "../lib/signed-payloads";
 import type { ApiClientService } from "../services/api-client";
+import type { IdentityStore } from "../services/identity-store";
 
 export interface RunUpdatePublishOptions {
   readonly branch: string | undefined;
@@ -316,6 +317,7 @@ export const runUpdatePublish = (
   | CommandExecutor.CommandExecutor
   | FileSystem.FileSystem
   | InteractiveMode
+  | IdentityStore
 > =>
   Effect.scoped(
     // eslint-disable-next-line eslint/max-statements -- update publish orchestration is inherently sequential (read config → resolve runtime version → expo export → register assets → publish per platform); splitting further fragments the pipeline without improving readability

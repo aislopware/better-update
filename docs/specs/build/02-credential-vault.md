@@ -108,6 +108,11 @@ passphrase ──argon2id──► KEK (local only)
    The DEK is wrapped by the org vault key. This indirection means adding or removing a recipient only
    re-wraps the small vault key, never the credential blobs.
 
+> **Shared with environment variables.** Env var **values** use this same org vault key + recipients:
+> each value revision is sealed with its own DEK wrapped under the vault key. One grant unlocks both
+> credentials and env vars, and a rotation re-wraps both. See
+> [03-environment-variables](./03-environment-variables.md).
+
 ### Library stack
 
 All cryptography runs in the Node CLI. The server only stores and relays opaque base64 — it links no

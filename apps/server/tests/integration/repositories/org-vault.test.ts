@@ -263,6 +263,13 @@ describe("OrgVaultRepo — D1 integration", () => {
         .bind(id)
         .first<{ wrapped_dek: string; vault_version: number }>();
 
+    const envVarRevisionRow = (id: string) =>
+      env.DB.prepare(
+        `SELECT "wrapped_dek", "vault_version" FROM "env_var_revisions" WHERE "id" = ?`,
+      )
+        .bind(id)
+        .first<{ wrapped_dek: string; vault_version: number }>();
+
     beforeAll(async () => {
       await insertOrg("ov-rot", "ov-rot");
       await insertOrgKey("ov-rot-r", "ov-rot", "recovery");
@@ -295,9 +302,29 @@ describe("OrgVaultRepo — D1 integration", () => {
           "2026-03-01T00:00:00Z",
         )
         .run();
+      // One env var value revision at v1 — its DEK is wrapped under the vault key
+      // exactly like a credential, so a rotation must re-wrap it too.
+      await env.DB.prepare(
+        `INSERT INTO "env_vars" ("id", "organization_id", "project_id", "scope", "environment", "key", "visibility", "current_revision_id", "created_at", "updated_at") VALUES (?, ?, NULL, 'global', 'production', 'API_URL', 'plaintext', ?, ?, ?)`,
+      )
+        .bind("ev-rot", "ov-rot", "evr-rot", "2026-03-01T00:00:00Z", "2026-03-01T00:00:00Z")
+        .run();
+      await env.DB.prepare(
+        `INSERT INTO "env_var_revisions" ("id", "env_var_id", "organization_id", "revision_number", "value_ciphertext", "wrapped_dek", "vault_version", "created_by_user_id", "created_at", "updated_at") VALUES (?, ?, ?, 1, ?, ?, 1, NULL, ?, ?)`,
+      )
+        .bind(
+          "evr-rot",
+          "ev-rot",
+          "ov-rot",
+          "evr-ct-v1",
+          "evr-dek-v1",
+          "2026-03-01T00:00:00Z",
+          "2026-03-01T00:00:00Z",
+        )
+        .run();
     });
 
-    it("listCredentialRefs returns the org's encrypted credentials", async () => {
+    it("listCredentialRefs returns the org's encrypted credentials + env var revisions", async () => {
       const refs = await run(
         Effect.gen(function* () {
           const repo = yield* OrgVaultRepo;
@@ -305,6 +332,28 @@ describe("OrgVaultRepo — D1 integration", () => {
         }),
       );
       expect(refs).toContainEqual({ credentialType: "androidUploadKeystore", id: "ks-rot" });
+      expect(refs).toContainEqual({ credentialType: "envVarValue", id: "evr-rot" });
+    });
+
+    it("listCredentialDeks returns wrapped DEKs for credentials + env var revisions", async () => {
+      const deks = await run(
+        Effect.gen(function* () {
+          const repo = yield* OrgVaultRepo;
+          return yield* repo.listCredentialDeks({ organizationId: "ov-rot" });
+        }),
+      );
+      expect(deks).toContainEqual({
+        credentialType: "androidUploadKeystore",
+        credentialId: "ks-rot",
+        wrappedDek: "ks-dek-v1",
+        vaultVersion: 1,
+      });
+      expect(deks).toContainEqual({
+        credentialType: "envVarValue",
+        credentialId: "evr-rot",
+        wrappedDek: "evr-dek-v1",
+        vaultVersion: 1,
+      });
     });
 
     it("re-keys recipients + credentials and bumps the version", async () => {
@@ -324,6 +373,11 @@ describe("OrgVaultRepo — D1 integration", () => {
                 credentialId: "ks-rot",
                 wrappedDek: "ks-dek-v2",
               },
+              {
+                credentialType: "envVarValue",
+                credentialId: "evr-rot",
+                wrappedDek: "evr-dek-v2",
+              },
             ],
             now: "2026-03-02T00:00:00Z",
           });
@@ -340,6 +394,11 @@ describe("OrgVaultRepo — D1 integration", () => {
       const ks = await credentialRow("ks-rot");
       expect(ks?.vault_version).toBe(2);
       expect(ks?.wrapped_dek).toBe("ks-dek-v2");
+
+      // The env var revision's DEK was re-wrapped under the new vault key too.
+      const evr = await envVarRevisionRow("evr-rot");
+      expect(evr?.vault_version).toBe(2);
+      expect(evr?.wrapped_dek).toBe("evr-dek-v2");
     });
 
     it("rejects a stale fromVersion with Conflict and changes nothing", async () => {

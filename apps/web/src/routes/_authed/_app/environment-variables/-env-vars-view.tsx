@@ -33,7 +33,6 @@ import {
   TableHeader,
   TableRow,
 } from "@better-update/ui/components/ui/table";
-import { toastManager } from "@better-update/ui/components/ui/toast";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { FilterIcon, SearchIcon, SettingsIcon } from "lucide-react";
 import { useMemo } from "react";
@@ -51,7 +50,6 @@ import {
   useDebouncedSearch,
 } from "../../../../lib/data-table";
 import { pluralize } from "../../../../lib/pluralize";
-import { CreateEnvVarDialog } from "./-create-env-var-dialog";
 import { EnvVarRow } from "./-env-var-row";
 import { ENV_LABELS } from "./-env-vars-labels";
 import { ALL_ENVIRONMENTS } from "./-environments-picker";
@@ -94,37 +92,12 @@ const EmptyState = () => (
         <SettingsIcon strokeWidth={1.5} />
       </EmptyMedia>
       <EmptyTitle>No environment variables</EmptyTitle>
-      <EmptyDescription>Add variables to configure your builds and deployments.</EmptyDescription>
+      <EmptyDescription>
+        Set variables from the CLI with <code>better-update env set</code>.
+      </EmptyDescription>
     </EmptyHeader>
   </Empty>
 );
-
-const ExportButton = ({ items }: { items: readonly (typeof EnvVar.Type)[] }) => {
-  const plaintextItems = items.filter((item) => item.visibility === "plaintext");
-  const handleExport = () => {
-    const content = plaintextItems
-      // eslint-disable-next-line eslint-js/no-restricted-syntax -- EnvVar.value schema is nullable at storage; plaintext export renders empty when missing
-      .map((item) => `${item.key}=${item.value ?? ""}`)
-      .join("\n");
-    const blob = new Blob([content], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = ".env";
-    anchor.click();
-    URL.revokeObjectURL(url);
-    toastManager.add({
-      title: `Exported ${plaintextItems.length} plaintext ${pluralize(plaintextItems.length, "variable")}`,
-      type: "success",
-    });
-  };
-
-  return (
-    <Button variant="outline" onClick={handleExport} disabled={plaintextItems.length === 0}>
-      Export .env
-    </Button>
-  );
-};
 
 const EnvFilterPopover = ({
   value,
@@ -175,7 +148,6 @@ const Toolbar = ({
   onScopeChange,
   environments,
   onEnvironmentsChange,
-  items,
 }: {
   mode: Mode;
   searchDraft: string;
@@ -184,73 +156,49 @@ const Toolbar = ({
   onScopeChange: (value: ScopeFilter) => void;
   environments: readonly (typeof EnvVarEnvironment.Type)[];
   onEnvironmentsChange: (value: readonly (typeof EnvVarEnvironment.Type)[]) => void;
-  items: readonly (typeof EnvVar.Type)[];
 }) => (
-  <div className="flex flex-wrap items-center justify-between gap-2">
-    <div className="flex flex-wrap items-center gap-2">
-      <InputGroup className="w-56">
-        <InputGroupAddon>
-          <SearchIcon aria-hidden="true" />
-        </InputGroupAddon>
-        <InputGroupInput
-          aria-label="Search environment variables"
-          placeholder="Search by key"
-          type="search"
-          value={searchDraft}
-          onChange={(event: ChangeEvent<HTMLInputElement>) => {
-            onSearchDraftChange(event.target.value);
-          }}
-        />
-      </InputGroup>
-      <EnvFilterPopover value={environments} onChange={onEnvironmentsChange} />
-      {mode.kind === "project" ? (
-        <Select
-          items={SCOPE_LABELS}
-          value={scope}
-          onValueChange={(val) => {
-            if (val && isScopeFilter(val)) {
-              onScopeChange(val);
-            }
-          }}
-        >
-          <SelectTrigger className="w-40">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectPopup>
-            <SelectGroup>
-              <SelectItem value="all">All scopes</SelectItem>
-              <SelectItem value="project">Project only</SelectItem>
-              <SelectItem value="global">Global only</SelectItem>
-            </SelectGroup>
-          </SelectPopup>
-        </Select>
-      ) : null}
-    </div>
-    <div className="flex gap-2">
-      {mode.kind === "project" ? <ExportButton items={items} /> : null}
-      <CreateEnvVarDialog
-        orgId={mode.orgId}
-        mode={
-          mode.kind === "project"
-            ? { scope: "project", projectId: mode.projectId }
-            : { scope: "global" }
-        }
+  <div className="flex flex-wrap items-center gap-2">
+    <InputGroup className="w-56">
+      <InputGroupAddon>
+        <SearchIcon aria-hidden="true" />
+      </InputGroupAddon>
+      <InputGroupInput
+        aria-label="Search environment variables"
+        placeholder="Search by key"
+        type="search"
+        value={searchDraft}
+        onChange={(event: ChangeEvent<HTMLInputElement>) => {
+          onSearchDraftChange(event.target.value);
+        }}
       />
-    </div>
+    </InputGroup>
+    <EnvFilterPopover value={environments} onChange={onEnvironmentsChange} />
+    {mode.kind === "project" ? (
+      <Select
+        items={SCOPE_LABELS}
+        value={scope}
+        onValueChange={(val) => {
+          if (val && isScopeFilter(val)) {
+            onScopeChange(val);
+          }
+        }}
+      >
+        <SelectTrigger className="w-40">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectPopup>
+          <SelectGroup>
+            <SelectItem value="all">All scopes</SelectItem>
+            <SelectItem value="project">Project only</SelectItem>
+            <SelectItem value="global">Global only</SelectItem>
+          </SelectGroup>
+        </SelectPopup>
+      </Select>
+    ) : null}
   </div>
 );
 
-const EnvVarsTable = ({
-  items,
-  orgId,
-  projectId,
-  manageMode,
-}: {
-  items: readonly (typeof EnvVar.Type)[];
-  orgId: string;
-  projectId: string | undefined;
-  manageMode: "all" | "scope-only";
-}) =>
+const EnvVarsTable = ({ items }: { items: readonly (typeof EnvVar.Type)[] }) =>
   items.length === 0 ? (
     <EmptyState />
   ) : (
@@ -259,22 +207,15 @@ const EnvVarsTable = ({
         <TableHeader>
           <TableRow>
             <TableHead>Key</TableHead>
-            <TableHead>Value</TableHead>
-            <TableHead>Visibility</TableHead>
-            <TableHead>Environments</TableHead>
+            <TableHead>Environment</TableHead>
             <TableHead>Scope</TableHead>
-            <TableHead className="w-12" aria-label="Actions" />
+            <TableHead>Visibility</TableHead>
+            <TableHead>Revisions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {items.map((envVar) => (
-            <EnvVarRow
-              key={envVar.id}
-              envVar={envVar}
-              orgId={orgId}
-              projectId={projectId}
-              manageMode={manageMode}
-            />
+            <EnvVarRow key={envVar.id} envVar={envVar} />
           ))}
         </TableBody>
       </Table>
@@ -336,20 +277,19 @@ export const EnvVarsView = ({
         onEnvironmentsChange={(next) => {
           onChangeSearch({ ...search, environments: [...next] });
         }}
-        items={data?.items ?? []}
       />
+      <p className="text-muted-foreground text-sm">
+        Values are end-to-end encrypted and managed from the CLI —{" "}
+        <code className="font-mono">better-update env set</code> /{" "}
+        <code className="font-mono">env pull</code>. The dashboard shows metadata only.
+      </p>
       {isLoading || !data ? (
         <div className="flex flex-col gap-2">
           <Skeleton className="h-9 w-full rounded-md" />
-          <TableSkeleton variant="card" columns={6} rows={4} hasFooter={false} />
+          <TableSkeleton variant="card" columns={5} rows={4} hasFooter={false} />
         </div>
       ) : (
-        <EnvVarsTable
-          items={data.items}
-          orgId={mode.orgId}
-          projectId={mode.kind === "project" ? mode.projectId : undefined}
-          manageMode={mode.kind === "project" ? "scope-only" : "all"}
-        />
+        <EnvVarsTable items={data.items} />
       )}
     </div>
   );
