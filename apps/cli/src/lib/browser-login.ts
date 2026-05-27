@@ -59,7 +59,6 @@ export const CALLBACK_PAGE = `<!doctype html>
             }
             window.history.replaceState({}, document.title, window.location.pathname);
             render("CLI login complete. You can close this tab.");
-            setTimeout(() => window.close(), 300);
           })
           .catch((error) => {
             render(error instanceof Error ? error.message : "Callback failed.");
@@ -224,6 +223,10 @@ export const createBrowserLoginServer = async (
     waitForToken: session.waitForToken,
     stop: () => {
       session.dispose();
+      // Destroy keep-alive sockets (the browser's callback fetch holds one
+      // open) before close(); otherwise the listening handle keeps the Node
+      // event loop alive and the CLI hangs after a successful login.
+      server.closeAllConnections();
       server.close();
     },
   };
