@@ -27,7 +27,7 @@ import {
   validateKey,
 } from "./env-vars-helpers";
 
-import type { EnvVarListFilters, EnvVarRow } from "../repositories/env-vars";
+import type { EnvVarListFilters } from "../repositories/env-vars";
 
 export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", (handlers) =>
   handlers
@@ -61,8 +61,7 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
             }
           }
 
-          const row = yield* repo.insert({
-            id: crypto.randomUUID(),
+          const rows = yield* repo.insert({
             organizationId: ctx.organizationId,
             projectId: scope === "project" ? toDbNull(projectId) : null,
             scope,
@@ -71,6 +70,14 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
             value: payload.value,
             environments,
           });
+
+          // Create fans out to one row per environment; the API entity still
+          // carries an `environments` array, so return the first row as the
+          // representative (each row owns its value from here on).
+          const [row] = rows;
+          if (row === undefined) {
+            return yield* new BadRequest({ message: "At least one environment is required" });
+          }
 
           const envVar = toEnvVarModel(row);
 
@@ -163,32 +170,29 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
           const existing = yield* repo.findById({ id: path.id });
           yield* assertOrgOwnership(existing.organization_id);
 
-          const newEnvironments = payload.environments
-            ? yield* validateEnvironments(payload.environments)
-            : undefined;
+          // Environment is part of the variable's identity now and can't be
+          // changed in place; callers delete + recreate to move it.
+          if (payload.environments) {
+            const requested = yield* validateEnvironments(payload.environments);
+            if (requested.length !== 1 || requested[0] !== existing.environment) {
+              return yield* new BadRequest({
+                message:
+                  "A variable's environment can't be changed — delete it and create one for the target environment",
+              });
+            }
+          }
 
-          const row = yield* repo.update({
+          const finalRow = yield* repo.update({
             id: path.id,
             ...compact({ value: payload.value, visibility: payload.visibility }),
           });
-
-          if (newEnvironments) {
-            yield* repo.replaceEnvironments({ id: path.id, environments: newEnvironments });
-          }
-
-          const finalRow: EnvVarRow = newEnvironments
-            ? { ...row, environments: newEnvironments }
-            : row;
 
           yield* logAudit({
             action: "envVar.update",
             resourceType: "envVar",
             resourceId: path.id,
             ...(existing.project_id ? { projectId: existing.project_id } : {}),
-            metadata: {
-              ...(payload.visibility ? { visibility: payload.visibility } : {}),
-              ...(newEnvironments ? { environments: newEnvironments } : {}),
-            },
+            metadata: compact({ visibility: payload.visibility }),
           });
 
           return toApiEnvVar(toEnvVarModel(finalRow));
