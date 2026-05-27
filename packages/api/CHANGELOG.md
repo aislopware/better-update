@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.11.0](https://github.com/better-update/better-update/compare/@better-update/api@0.10.0...@better-update/api@0.11.0) (2026-05-27)
+
+### Features
+
+* **auth:** authenticate the CLI with Better Auth sessions ([61444d2](https://github.com/better-update/better-update/commit/61444d28ad50acf60d37877f7ccb10b38c33df0f)) - by @trancong12102
+
 ## [0.10.0](https://github.com/better-update/better-update/compare/@better-update/api@0.9.0...@better-update/api@0.10.0) (2026-05-21)
 
 ### Features

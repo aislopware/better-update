@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.8.1](https://github.com/better-update/better-update/compare/@better-update/api-client@0.8.0...@better-update/api-client@0.8.1) (2026-05-27)
+
+**Note:** Version bump only for package @better-update/api-client
+
 ## [0.8.0](https://github.com/better-update/better-update/compare/@better-update/api-client@0.7.0...@better-update/api-client@0.8.0) (2026-05-21)
 
 ### Features
