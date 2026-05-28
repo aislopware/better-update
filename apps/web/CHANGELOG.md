@@ -3,6 +3,21 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.22.0](https://github.com/better-update/better-update/compare/@better-update/web@0.21.0...@better-update/web@0.22.0) (2026-05-28)
+
+### ⚠ BREAKING CHANGES
+
+* **env-vars:** migration 0049 recreates env_vars without a plaintext value
+column; existing env var data is dropped and must be re-set via the CLI.
+
+### Features
+
+* **env-vars:** end-to-end encrypt + version environment variables ([#9](https://github.com/better-update/better-update/issues/9)) ([7062a44](https://github.com/better-update/better-update/commit/7062a4448d8640bdcc41de7d2dcf86cb8259662a)) - by @trancong12102
+
+### Bug Fixes
+
+* **web:** label the vault-access breadcrumb "Vault access" ([f43e1fa](https://github.com/better-update/better-update/commit/f43e1fafe5c730e0e8b58ac08c3ddc9673c98941)) - by @trancong12102
+
 ## [0.21.0](https://github.com/better-update/better-update/compare/@better-update/web@0.20.2...@better-update/web@0.21.0) (2026-05-27)
 
 ### Features
