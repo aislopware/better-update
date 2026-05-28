@@ -188,6 +188,53 @@ describe("Environment variables API flow (E2E encrypted)", () => {
     expect(response.status).toBe(400);
   });
 
+  it("rejects an invalid key format", async () => {
+    const response = await post(
+      "/api/env-vars",
+      {
+        scope: "project",
+        projectId: state.projectId,
+        environment: "production",
+        key: "lower_case",
+        visibility: "plaintext",
+        value: credentialEnvelope(),
+      },
+      { cookie: state.cookies },
+    );
+    expect(response.status).toBe(400);
+  });
+
+  it("rejects a reserved key", async () => {
+    const response = await post(
+      "/api/env-vars",
+      {
+        scope: "project",
+        projectId: state.projectId,
+        environment: "production",
+        key: "PATH",
+        visibility: "plaintext",
+        value: credentialEnvelope(),
+      },
+      { cookie: state.cookies },
+    );
+    expect(response.status).toBe(400);
+  });
+
+  it("rejects a project-scoped create without a projectId", async () => {
+    const response = await post(
+      "/api/env-vars",
+      {
+        scope: "project",
+        environment: "production",
+        key: "NO_PROJECT_ID",
+        visibility: "plaintext",
+        value: credentialEnvelope(),
+      },
+      { cookie: state.cookies },
+    );
+    expect(response.status).toBe(400);
+  });
+
   it("lists project env vars merged with global override resolution", async () => {
     const response = await get(`/api/env-vars?projectId=${state.projectId}&scope=all`, {
       cookie: state.cookies,
@@ -240,6 +287,19 @@ describe("Environment variables API flow (E2E encrypted)", () => {
     expect(body.items[0].scope).toBe("global");
   });
 
+  it("gets a single env var's metadata by id (no value)", async () => {
+    const response = await get(`/api/env-vars/${state.sensitiveVarId}`, {
+      cookie: state.cookies,
+    });
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.id).toBe(state.sensitiveVarId);
+    expect(body.key).toBe("SENTRY_AUTH_TOKEN");
+    expect(body.scope).toBe("project");
+    expect(body.currentRevisionId).toBeTruthy();
+    expect(body.value).toBeUndefined();
+  });
+
   it("updating the value appends a revision", async () => {
     const response = await patch(
       `/api/env-vars/${state.sensitiveVarId}`,
@@ -287,6 +347,15 @@ describe("Environment variables API flow (E2E encrypted)", () => {
     expect(body.currentRevisionId).toBe(first?.id);
   });
 
+  it("rejects rolling back to a revision that is not this variable's", async () => {
+    const response = await post(
+      `/api/env-vars/${state.sensitiveVarId}/rollback`,
+      { toRevisionId: crypto.randomUUID() },
+      { cookie: state.cookies },
+    );
+    expect(response.status).toBe(404);
+  });
+
   it("updates visibility without adding a revision", async () => {
     const response = await patch(
       `/api/env-vars/${state.sensitiveVarId}`,
@@ -297,6 +366,37 @@ describe("Environment variables API flow (E2E encrypted)", () => {
     const body = await response.json();
     expect(body.visibility).toBe("plaintext");
     expect(body.revisionCount).toBe(2);
+  });
+
+  it("rejects an update with neither a value nor a visibility", async () => {
+    const response = await patch(
+      `/api/env-vars/${state.sensitiveVarId}`,
+      {},
+      { cookie: state.cookies },
+    );
+    expect(response.status).toBe(400);
+  });
+
+  it("updates the value and visibility together in one revision", async () => {
+    const response = await patch(
+      `/api/env-vars/${state.sensitiveVarId}`,
+      { value: credentialEnvelope(), visibility: "sensitive" },
+      { cookie: state.cookies },
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.revisionNumber).toBe(3);
+    expect(body.revisionCount).toBe(3);
+    expect(body.visibility).toBe("sensitive");
+  });
+
+  it("returns 404 when updating a non-existent env var", async () => {
+    const response = await patch(
+      `/api/env-vars/${crypto.randomUUID()}`,
+      { visibility: "plaintext" },
+      { cookie: state.cookies },
+    );
+    expect(response.status).toBe(404);
   });
 
   it("bulk imports pre-sealed entries with per-environment fan-out", async () => {
@@ -343,6 +443,61 @@ describe("Environment variables API flow (E2E encrypted)", () => {
     );
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ created: 4, updated: 0, skipped: 1 });
+  });
+
+  it("re-importing an existing (key, environment) counts as an update", async () => {
+    const response = await post(
+      "/api/env-vars/bulk-import",
+      {
+        scope: "project",
+        projectId: state.projectId,
+        entries: [
+          // APP_TOKEN/development already exists from the prior import → updated.
+          {
+            key: "APP_TOKEN",
+            environment: "development",
+            visibility: "sensitive",
+            value: credentialEnvelope(),
+          },
+          // Brand-new (key, environment) → created.
+          {
+            key: "BULK_NEW_KEY",
+            environment: "development",
+            visibility: "plaintext",
+            value: credentialEnvelope(),
+          },
+        ],
+      },
+      { cookie: state.cookies },
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ created: 1, updated: 1, skipped: 0 });
+  });
+
+  it("bulk imports global-scoped entries", async () => {
+    const response = await post(
+      "/api/env-vars/bulk-import",
+      {
+        scope: "global",
+        entries: [
+          {
+            key: "GLOBAL_BULK_A",
+            environment: "development",
+            visibility: "plaintext",
+            value: credentialEnvelope(),
+          },
+          {
+            key: "GLOBAL_BULK_B",
+            environment: "development",
+            visibility: "sensitive",
+            value: credentialEnvelope(),
+          },
+        ],
+      },
+      { cookie: state.cookies },
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ created: 2, updated: 0, skipped: 0 });
   });
 
   it("rejects export from a browser cookie session", async () => {
@@ -424,5 +579,68 @@ describe("Environment variables API flow (E2E encrypted)", () => {
       cookie: state.cookies,
     });
     expect(response.status).toBe(200);
+  });
+
+  it("enforces the per-project variable limit", async () => {
+    // A dedicated project so filling it to the cap doesn't pollute the shared fixtures.
+    const projectResponse = await post(
+      "/api/projects",
+      { name: "Env Limit Project", slug: "env-limit-app" },
+      { cookie: state.cookies },
+    );
+    expect(projectResponse.status).toBe(201);
+    const limitProjectId = (await projectResponse.json()).id as string;
+
+    // Fill the project to exactly the cap (100) in a single bulk import.
+    const fill = await post(
+      "/api/env-vars/bulk-import",
+      {
+        scope: "project",
+        projectId: limitProjectId,
+        entries: Array.from({ length: 100 }, (_, index) => ({
+          key: `LIMIT_KEY_${index}`,
+          environment: "development",
+          visibility: "plaintext",
+          value: credentialEnvelope(),
+        })),
+      },
+      { cookie: state.cookies },
+    );
+    expect(fill.status).toBe(200);
+    expect((await fill.json()).created).toBe(100);
+
+    // The 101st single create is rejected.
+    const overflowCreate = await post(
+      "/api/env-vars",
+      {
+        scope: "project",
+        projectId: limitProjectId,
+        environment: "development",
+        key: "ONE_TOO_MANY",
+        visibility: "plaintext",
+        value: credentialEnvelope(),
+      },
+      { cookie: state.cookies },
+    );
+    expect(overflowCreate.status).toBe(400);
+
+    // A bulk import that would push past the cap is rejected wholesale.
+    const overflowImport = await post(
+      "/api/env-vars/bulk-import",
+      {
+        scope: "project",
+        projectId: limitProjectId,
+        entries: [
+          {
+            key: "ALSO_TOO_MANY",
+            environment: "development",
+            visibility: "plaintext",
+            value: credentialEnvelope(),
+          },
+        ],
+      },
+      { cookie: state.cookies },
+    );
+    expect(overflowImport.status).toBe(400);
   });
 });
