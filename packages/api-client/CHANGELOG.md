@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.9.0](https://github.com/better-update/better-update/compare/@better-update/api-client@0.8.1...@better-update/api-client@0.9.0) (2026-05-28)
+
+### ⚠ BREAKING CHANGES
+
+* **env-vars:** migration 0049 recreates env_vars without a plaintext value
+column; existing env var data is dropped and must be re-set via the CLI.
+
+### Features
+
+* **env-vars:** end-to-end encrypt + version environment variables ([#9](https://github.com/better-update/better-update/issues/9)) ([7062a44](https://github.com/better-update/better-update/commit/7062a4448d8640bdcc41de7d2dcf86cb8259662a)) - by @trancong12102
+
 ## [0.8.1](https://github.com/better-update/better-update/compare/@better-update/api-client@0.8.0...@better-update/api-client@0.8.1) (2026-05-27)
 
 **Note:** Version bump only for package @better-update/api-client
