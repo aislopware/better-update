@@ -87,6 +87,42 @@ describe(assertPermission, () => {
     }),
   );
 
+  it.effect("allows a viewer to read env vars", () =>
+    assertPermission("envVar", "read").pipe(provideAuth("viewer")),
+  );
+
+  it.effect("denies a viewer from mutating env vars", () =>
+    Effect.gen(function* () {
+      for (const action of ["create", "update", "delete"] as const) {
+        const exit = yield* assertPermission("envVar", action).pipe(
+          provideAuth("viewer"),
+          Effect.exit,
+        );
+        expect(Exit.isFailure(exit)).toBe(true);
+      }
+    }),
+  );
+
+  it.effect("allows a developer to create and update but not delete env vars", () =>
+    Effect.gen(function* () {
+      yield* assertPermission("envVar", "create").pipe(provideAuth("developer"));
+      yield* assertPermission("envVar", "update").pipe(provideAuth("developer"));
+
+      const exit = yield* assertPermission("envVar", "delete").pipe(
+        provideAuth("developer"),
+        Effect.exit,
+      );
+      expect(Exit.isFailure(exit)).toBe(true);
+      if (Exit.isFailure(exit)) {
+        const error = exit.cause.pipe((cause) => (cause._tag === "Fail" ? cause.error : undefined));
+        expect(error).toMatchObject({
+          _tag: "Forbidden",
+          message: "Insufficient permission: envVar:delete",
+        });
+      }
+    }),
+  );
+
   it.each<[Role, string, Action]>([
     ["owner", "project", "delete"],
     ["admin", "member", "create"],
