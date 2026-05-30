@@ -1,36 +1,36 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 
-import { fromHex, toBase64Url } from "@better-update/encoding";
-import { compact } from "@better-update/type-guards";
+import { FileSystem } from "@effect/platform";
 import { Effect } from "effect";
-import { uniqBy } from "es-toolkit";
 
-import type { CommandExecutor, FileSystem } from "@effect/platform";
+import type { CommandExecutor } from "@effect/platform";
 
-import { readRuntimeVersionMeta } from "../lib/build-profile";
 import { pullEnvVars } from "../lib/env-exporter";
 import { UpdatePublishError } from "../lib/exit-codes";
-import { extractProjectId, extractSlug, readExpoConfig } from "../lib/expo-config";
-import { readExpoExportAssets, readExpoPublicConfig, runExpoExport } from "../lib/expo-export";
-import { runFingerprintFull } from "../lib/fingerprint";
+import {
+  extractCodeSigningConfig,
+  extractProjectId,
+  extractSlug,
+  readExpoConfig,
+} from "../lib/expo-config";
+import { readExpoPublicConfig } from "../lib/expo-export";
 import { formatCause } from "../lib/format-error";
 import { readGitContext } from "../lib/git-context";
 import { InteractiveMode } from "../lib/interactive-mode";
 import { ensureRepoClean } from "../lib/repo-clean";
-import { resolveRuntimeVersion } from "../lib/runtime-version";
-import { sha256File, sha256Namespaced } from "../lib/sha256";
 import { loadSignedPublishPayloads } from "../lib/signed-payloads";
 import { acquireBuildTempDir } from "../lib/temp-dir";
 import { resolveUpdatePlatforms } from "../lib/update-platforms";
 import { apiClient } from "../services/api-client";
 import { CliRuntime } from "../services/cli-runtime";
-import { UpdateAssetUploader } from "../services/update-asset-uploader";
+import { ConfigStore } from "../services/config-store";
 import {
   confirmPublishPreview,
   emitMetadataFile,
   resolveBranchAndMessage,
 } from "./update-publish-helpers";
+import { publishPlatform } from "./update-publish-platform";
 
 import type { Platform } from "../lib/build-profile";
 import type {
@@ -44,9 +44,14 @@ import type {
   RuntimeVersionError,
 } from "../lib/exit-codes";
 import type { ExpoConfig } from "../lib/expo-config";
-import type { SignedPayload } from "../lib/signed-payloads";
+import type { OutputMode } from "../lib/output-mode";
 import type { ApiClientService } from "../services/api-client";
+import type { BsdiffService } from "../services/bsdiff";
 import type { IdentityStore } from "../services/identity-store";
+import type { PatchUploader } from "../services/patch-uploader";
+import type { PresignedDownloadClient } from "../services/presigned-download";
+import type { UpdateAssetUploader } from "../services/update-asset-uploader";
+import type { CodeSigningInput, PublishedPlatformResult } from "./update-publish-platform";
 
 export interface RunUpdatePublishOptions {
   readonly branch: string | undefined;
@@ -72,14 +77,12 @@ export interface RunUpdatePublishOptions {
   readonly manifestBodyFileAndroid: string | undefined;
   readonly signatureFileAndroid: string | undefined;
   readonly certificateChainFileAndroid: string | undefined;
-}
-
-export interface PublishedPlatformResult {
-  readonly platform: Platform;
-  readonly updateId: string;
-  readonly runtimeVersion: string;
-  readonly uploadedAssets: number;
-  readonly deduplicatedAssets: number;
+  // Path to the RSA private key (PEM) used to render + code-sign the manifest.
+  // Mutually exclusive with the file escape-hatch options above; the render path
+  // is preferred (it emits the Worker bundle URL so signed updates get bsdiff).
+  readonly privateKeyPath: string | undefined;
+  readonly patchBaseWindow: number;
+  readonly noPatches: boolean;
 }
 
 export interface PublishUpdatesResult {
@@ -88,214 +91,71 @@ export interface PublishUpdatesResult {
   readonly results: readonly PublishedPlatformResult[];
 }
 
-interface PreparedAsset {
-  readonly path: string;
-  readonly key: string;
-  readonly hash: string;
-  readonly contentChecksum: string;
-  readonly byteSize: number;
-  readonly contentType: string;
-  readonly fileExt: string;
-  readonly isLaunch: boolean;
-}
+// Whether ANY of the file-input escape-hatch options is set. The render path
+// (--private-key-path) is mutually exclusive with all of them.
+const hasAnySignedFileOption = (options: RunUpdatePublishOptions): boolean =>
+  options.manifestBodyFile !== undefined ||
+  options.signatureFile !== undefined ||
+  options.certificateChainFile !== undefined ||
+  options.manifestBodyFileIos !== undefined ||
+  options.signatureFileIos !== undefined ||
+  options.certificateChainFileIos !== undefined ||
+  options.manifestBodyFileAndroid !== undefined ||
+  options.signatureFileAndroid !== undefined ||
+  options.certificateChainFileAndroid !== undefined;
 
-const buildUpdateExtra = (
-  expoClient: Record<string, unknown>,
-  projectId: string,
-  environment: string,
-) => ({
-  expoClient,
-  eas: { projectId },
-  environment,
-});
-
-const dedupeAssetsByHash = (assets: readonly PreparedAsset[]): readonly PreparedAsset[] =>
-  uniqBy(assets, (asset) => asset.hash);
-
-const preparePlatformAssets = ({
-  exportDir,
-  platform,
-}: {
-  readonly exportDir: string;
-  readonly platform: Platform;
-}): Effect.Effect<
-  readonly PreparedAsset[],
-  UpdatePublishError | BuildFailedError,
-  FileSystem.FileSystem
-> =>
-  Effect.gen(function* () {
-    const exportedAssets = yield* readExpoExportAssets({ exportDir, platform });
-    return yield* Effect.forEach(
-      exportedAssets,
-      (asset) =>
-        sha256File(asset.path).pipe(
-          Effect.map(({ sha256: contentSha256Hex, byteSize }) => ({
-            ...asset,
-            hash: sha256Namespaced(asset.contentType, contentSha256Hex),
-            contentChecksum: toBase64Url(fromHex(contentSha256Hex)),
-            byteSize,
-          })),
-        ),
-      { concurrency: 4 },
-    );
-  });
-
-const publishPlatform = (params: {
+// Resolve the render+sign code-signing input from --private-key-path + the
+// app.json codeSigningCertificate/codeSigningMetadata. Returns null when no
+// private key was passed (unsigned, or file escape-hatch path).
+const resolveCodeSigning = (params: {
+  readonly privateKeyPath: string | undefined;
+  readonly anyFileOption: boolean;
   readonly projectRoot: string;
-  readonly exportDir: string;
-  readonly projectId: string;
-  readonly slug: string;
-  readonly branch: string;
-  readonly groupId: string;
-  readonly message: string;
-  readonly environment: string;
-  readonly environmentVars: Record<string, string>;
-  readonly expoClientConfig: Record<string, unknown>;
-  readonly clear: boolean;
   readonly expoConfig: ExpoConfig;
-  readonly platform: Platform;
-  readonly signedPayload: SignedPayload | null;
-  readonly rolloutPercentage: number | undefined;
-  readonly fingerprintHash: string | undefined;
-  readonly skipBundler: boolean;
-  readonly noBytecode: boolean;
-  readonly sourceMaps: boolean;
-}): Effect.Effect<
-  PublishedPlatformResult,
-  | AuthRequiredError
-  | UpdatePublishError
-  | BuildProfileError
-  | BuildFailedError
-  | RuntimeVersionError,
-  | ApiClientService
-  | CliRuntime
-  | UpdateAssetUploader
-  | CommandExecutor.CommandExecutor
-  | FileSystem.FileSystem
-> =>
+  readonly serverBaseUrl: string;
+}): Effect.Effect<CodeSigningInput | null, UpdatePublishError, FileSystem.FileSystem> =>
   Effect.gen(function* () {
-    const api = yield* apiClient;
-    const assetUploader = yield* UpdateAssetUploader;
-
-    const runtimeVersionMeta = readRuntimeVersionMeta(params.expoConfig);
-    const runtimeVersion = yield* resolveRuntimeVersion({
-      raw: runtimeVersionMeta.rawRuntimeVersion,
-      appVersion: runtimeVersionMeta.appVersion,
-      projectRoot: params.projectRoot,
-    });
-
-    if (!params.skipBundler) {
-      yield* runExpoExport({
-        projectRoot: params.projectRoot,
-        exportDir: params.exportDir,
-        platform: params.platform,
-        envVars: params.environmentVars,
-        clear: params.clear,
-        noBytecode: params.noBytecode,
-        sourceMaps: params.sourceMaps,
+    if (params.privateKeyPath === undefined) {
+      return null;
+    }
+    if (params.anyFileOption) {
+      return yield* new UpdatePublishError({
+        message:
+          "--private-key-path cannot be combined with the --*-file signed-input options. Use one signing path or the other.",
       });
     }
 
-    const preparedAssets = yield* preparePlatformAssets({
-      exportDir: params.exportDir,
-      platform: params.platform,
-    });
-    const uniqueAssets = dedupeAssetsByHash(preparedAssets);
+    const codeSigning = yield* extractCodeSigningConfig(params.expoConfig);
+    if (codeSigning === undefined) {
+      return yield* new UpdatePublishError({
+        message:
+          "--private-key-path was provided but updates.codeSigningCertificate is not set in your Expo config. Add the certificate path to app.json.",
+      });
+    }
 
-    const assetRegistration = yield* api.assets
-      .upload({
-        payload: {
-          projectId: params.projectId,
-          assets: uniqueAssets.map((asset) => ({
-            hash: asset.hash,
-            contentType: asset.contentType,
-            fileExt: asset.fileExt,
-            contentChecksum: asset.contentChecksum,
-          })),
-        },
-      })
-      .pipe(
-        Effect.mapError(
-          (cause) =>
-            new UpdatePublishError({
-              message: `Failed to register ${params.platform} assets: ${formatCause(cause)}`,
-            }),
-        ),
-      );
-
-    const uploadDetailsByHash = new Map(
-      assetRegistration.uploaded.map((asset) => [asset.hash, asset] as const),
-    );
-    yield* Effect.forEach(
-      uniqueAssets.filter((asset) => uploadDetailsByHash.has(asset.hash)),
-      (asset) =>
-        Effect.gen(function* () {
-          const detail = uploadDetailsByHash.get(asset.hash);
-          if (!detail) {
-            return yield* Effect.fail(
-              new UpdatePublishError({
-                message: `Missing upload details for asset ${asset.hash}`,
-              }),
-            );
-          }
-          return yield* assetUploader.uploadAssetBinary({
-            path: asset.path,
-            hash: asset.hash,
-            byteSize: asset.byteSize,
-            uploadUrl: detail.uploadUrl,
-            uploadExpiresAt: detail.uploadExpiresAt,
-            uploadHeaders: detail.uploadHeaders,
-          });
-        }),
-      { concurrency: 4 },
-    );
-
-    const update = yield* api.updates
-      .create({
-        payload: {
-          branch: params.branch,
-          slug: params.slug,
-          runtimeVersion,
-          platform: params.platform,
-          message: params.message,
-          groupId: params.groupId,
-          metadata: {},
-          extra: buildUpdateExtra(params.expoClientConfig, params.projectId, params.environment),
-          assets: preparedAssets.map((asset) => ({
-            hash: asset.hash,
-            key: asset.key,
-            isLaunch: asset.isLaunch,
-            contentChecksum: asset.contentChecksum,
-          })),
-          ...(params.signedPayload
-            ? {
-                manifestBody: params.signedPayload.manifestBody,
-                signature: params.signedPayload.signature,
-                certificateChain: params.signedPayload.certificateChain,
-              }
-            : {}),
-          ...compact({
-            rolloutPercentage: params.rolloutPercentage,
-            fingerprintHash: params.fingerprintHash,
+    const fileSystem = yield* FileSystem.FileSystem;
+    const certificateAbsolutePath = path.resolve(params.projectRoot, codeSigning.certificatePath);
+    const [privateKeyPem, certificateChainPem] = yield* Effect.all(
+      [
+        fileSystem.readFileString(params.privateKeyPath),
+        fileSystem.readFileString(certificateAbsolutePath),
+      ],
+      { concurrency: "unbounded" },
+    ).pipe(
+      Effect.mapError(
+        (cause) =>
+          new UpdatePublishError({
+            message: `Failed to read code-signing key/certificate: ${formatCause(cause)}`,
           }),
-        },
-      })
-      .pipe(
-        Effect.mapError(
-          (cause) =>
-            new UpdatePublishError({
-              message: `Failed to publish ${params.platform} update: ${formatCause(cause)}`,
-            }),
-        ),
-      );
+      ),
+    );
 
     return {
-      platform: params.platform,
-      updateId: update.id,
-      runtimeVersion,
-      uploadedAssets: assetRegistration.uploaded.length,
-      deduplicatedAssets: assetRegistration.deduplicated.length,
-    } as const satisfies PublishedPlatformResult;
+      privateKeyPem,
+      certificateChainPem,
+      keyid: codeSigning.keyid,
+      serverBaseUrl: params.serverBaseUrl,
+    } satisfies CodeSigningInput;
   });
 
 export const runUpdatePublish = (
@@ -318,6 +178,11 @@ export const runUpdatePublish = (
   | FileSystem.FileSystem
   | InteractiveMode
   | IdentityStore
+  | BsdiffService
+  | PatchUploader
+  | PresignedDownloadClient
+  | ConfigStore
+  | OutputMode
 > =>
   Effect.scoped(
     // eslint-disable-next-line eslint/max-statements -- update publish orchestration is inherently sequential (read config → resolve runtime version → expo export → register assets → publish per platform); splitting further fragments the pipeline without improving readability
@@ -388,10 +253,6 @@ export const runUpdatePublish = (
 
       const groupId = randomUUID();
       const message = resolvedMessage ?? "Publish via better-update CLI";
-      const fingerprintHash = yield* runFingerprintFull(projectRoot).pipe(
-        Effect.map((result) => result.hash),
-        Effect.catchAll(() => Effect.succeed(undefined)),
-      );
 
       const interactive = yield* InteractiveMode;
       if (interactive.allow && !options.auto) {
@@ -426,6 +287,20 @@ export const runUpdatePublish = (
         },
         makeError: (errorMessage) => new UpdatePublishError({ message: errorMessage }),
       });
+
+      // Render+sign path: when --private-key-path is set, read the code-signing
+      // config from app.json, load the cert + private key PEM, and build the
+      // signing input. Mutually exclusive with the file escape-hatch options.
+      const configStore = yield* ConfigStore;
+      const codeSigningServerBaseUrl = yield* configStore.getBaseUrl;
+      const codeSigning = yield* resolveCodeSigning({
+        privateKeyPath: options.privateKeyPath,
+        anyFileOption: hasAnySignedFileOption(options),
+        projectRoot,
+        expoConfig,
+        serverBaseUrl: codeSigningServerBaseUrl,
+      });
+
       const results = yield* Effect.forEach(
         platforms,
         (platform) =>
@@ -445,11 +320,19 @@ export const runUpdatePublish = (
             platform,
             // eslint-disable-next-line eslint-js/no-restricted-syntax -- signedPayload absence means unsigned; null is correct downstream
             signedPayload: signedPayloads[platform] ?? null,
+            codeSigning,
             rolloutPercentage: options.rolloutPercentage,
-            fingerprintHash,
             skipBundler: options.skipBundler,
             noBytecode: options.noBytecode,
             sourceMaps: options.sourceMaps,
+            patchBaseWindow: options.patchBaseWindow,
+            noPatches: options.noPatches,
+            patchWorkDir: path.join(tempDir, `patches-${platform}`),
+            // Reuse the git context already read once above (line ~232). Both
+            // commit + dirty persist on the created update (mirrors EAS + the
+            // builds path); branch/message derivation already consumed gitCtx
+            // via resolveBranchAndMessage.
+            gitContext: gitCtx,
           }),
         { concurrency: 1 },
       );

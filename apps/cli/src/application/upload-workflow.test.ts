@@ -156,7 +156,7 @@ const makePresignedUploadLayer = (
 // invocation does not actually shell out (the tempdir fixture is not a real
 // Expo project, so the install + fetch would hang past the test timeout).
 // `readGitContext` already wraps every git command in `catchAll`, so empty
-// stdout produces all-undefined fields. `runFingerprintFull` JSON-parses
+// stdout produces all-undefined fields. `runFingerprintForPlatform` JSON-parses
 // the empty string and fails, which the workflow likewise swallows into
 // `undefined`.
 const stubCommandExecutorLayer = Layer.succeed(CommandExecutor.CommandExecutor, {

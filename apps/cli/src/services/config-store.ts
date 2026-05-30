@@ -8,6 +8,7 @@ import { CliRuntime } from "./cli-runtime";
 
 const DEFAULT_BASE_URL = "https://better-update.dev";
 const DEFAULT_WEB_URL = "https://better-update.dev";
+const DEFAULT_ASSET_CDN_URL = "https://assets.better-update.dev";
 
 class ConfigStoreParseError extends Data.TaggedError("ConfigStoreParseError")<{
   readonly message: string;
@@ -21,6 +22,15 @@ export class ConfigStore extends Context.Tag("cli/ConfigStore")<
   {
     readonly getBaseUrl: Effect.Effect<string>;
     readonly getWebUrl: Effect.Effect<string>;
+    /**
+     * CDN origin that serves non-launch assets (`{cdn}/assets/{hash}`). The
+     * deployed Worker serves regular assets ONLY from this origin (server
+     * `ASSET_CDN_URL`), never from the API origin — so the CLI must render a
+     * signed manifest's regular-asset URLs against THIS base, not `getBaseUrl`.
+     * The launch bundle still routes to the API origin (`getBaseUrl`) so the
+     * Worker can negotiate bsdiff. Resolves env → config file → default.
+     */
+    readonly getAssetCdnUrl: Effect.Effect<string>;
   }
 >() {}
 
@@ -80,6 +90,21 @@ export const ConfigStoreLive = Layer.effect(
         }
 
         return DEFAULT_WEB_URL;
+      }),
+
+      getAssetCdnUrl: Effect.gen(function* () {
+        const envUrl = yield* runtime.getEnv("BETTER_UPDATE_ASSET_CDN_URL");
+        if (envUrl) {
+          return normalizeUrl(envUrl);
+        }
+
+        const parsed = yield* readConfig;
+        const assetCdnUrl = parsed?.["assetCdnUrl"];
+        if (typeof assetCdnUrl === "string") {
+          return normalizeUrl(assetCdnUrl);
+        }
+
+        return DEFAULT_ASSET_CDN_URL;
       }),
     };
   }),

@@ -1,8 +1,9 @@
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { runUpdatePromote } from "../../application/update-promote";
 import { runEffect } from "../../lib/citty-effect";
+import { printHuman } from "../../lib/output";
 import { updateErrorExtras } from "./helpers";
 
 export const promoteCommand = defineCommand({
@@ -25,10 +26,11 @@ export const promoteCommand = defineCommand({
           certificateChainFile: args["certificate-chain-file"],
         });
 
-        yield* Console.log(
+        yield* printHuman(
           `Promoted update ${result.sourceUpdateId} to channel "${result.channel}" as update ${result.updateId}.`,
         );
+        return result;
       }),
-      updateErrorExtras,
+      { exits: updateErrorExtras, json: "value" },
     ),
 });

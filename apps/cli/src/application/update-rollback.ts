@@ -250,12 +250,6 @@ export const runUpdateRollback = (
       });
     }
 
-    const { appVersion, rawRuntimeVersion } = readRuntimeVersionMeta(config);
-    const runtimeVersion = yield* resolveRuntimeVersion({
-      raw: rawRuntimeVersion,
-      appVersion,
-      projectRoot,
-    });
     const signedPayload = yield* loadOptionalSignedRollbackPayload(options);
     const commitTime = signedPayload
       ? yield* Effect.gen(function* () {
@@ -276,16 +270,31 @@ export const runUpdateRollback = (
     const results = yield* Effect.forEach(
       platforms,
       (platform) =>
-        createRollbackForPlatform({
-          branch: options.branch,
-          projectSlug,
-          runtimeVersion,
-          platform,
-          message,
-          groupId,
-          directiveBody: signedPayload?.directiveBody ?? buildRollbackDirectiveBody(commitTime),
-          signature: signedPayload?.signature,
-          certificateChain: signedPayload?.certificateChain,
+        Effect.gen(function* () {
+          // Resolve the runtimeVersion PER platform: the `nativeVersion` policy
+          // yields `version(buildNumber)` where buildNumber is ios.buildNumber
+          // for iOS and android.versionCode for Android, so the value differs by
+          // platform and must be recomputed for each rollback target.
+          const meta = readRuntimeVersionMeta(config, platform);
+          const runtimeVersion = yield* resolveRuntimeVersion({
+            raw: meta.rawRuntimeVersion,
+            appVersion: meta.appVersion,
+            projectRoot,
+            platform,
+            buildNumber: meta.buildNumber,
+            sdkVersion: meta.sdkVersion,
+          });
+          return yield* createRollbackForPlatform({
+            branch: options.branch,
+            projectSlug,
+            runtimeVersion,
+            platform,
+            message,
+            groupId,
+            directiveBody: signedPayload?.directiveBody ?? buildRollbackDirectiveBody(commitTime),
+            signature: signedPayload?.signature,
+            certificateChain: signedPayload?.certificateChain,
+          });
         }),
       { concurrency: 1 },
     );

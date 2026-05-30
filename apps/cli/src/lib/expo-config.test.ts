@@ -7,7 +7,10 @@ import { Effect, Exit } from "effect";
 
 import { ProjectNotLinkedError } from "./exit-codes";
 import {
+  expoSdkVersionFromPackageVersion,
+  extractAppVersion,
   extractProjectId,
+  extractRawRuntimeVersion,
   extractSlug,
   getConfigFilePaths,
   readAppMeta,
@@ -239,6 +242,84 @@ describe(readAppMeta, () => {
       expect(meta.rawRuntimeVersion).toStrictEqual({ policy: "appVersion" });
     }),
   );
+
+  it.effect("prefers per-platform ios.version over top-level version (EAS parity)", () =>
+    Effect.gen(function* () {
+      const meta = yield* readAppMeta(
+        {
+          version: "1.0.0",
+          ios: { bundleIdentifier: "com.example", version: "9.9.9" },
+        },
+        "ios",
+      );
+      expect(meta.appVersion).toBe("9.9.9");
+    }),
+  );
+});
+
+describe(extractRawRuntimeVersion, () => {
+  it("prefers ios.runtimeVersion over the top-level runtimeVersion (EAS parity)", () => {
+    const config: ExpoConfig = {
+      runtimeVersion: "1.0.0",
+      ios: { bundleIdentifier: "com.example", runtimeVersion: { policy: "fingerprint" } },
+    };
+    expect(extractRawRuntimeVersion(config, "ios")).toStrictEqual({ policy: "fingerprint" });
+  });
+
+  it("prefers android.runtimeVersion over the top-level runtimeVersion", () => {
+    const config: ExpoConfig = {
+      runtimeVersion: { policy: "appVersion" },
+      android: { package: "com.example", runtimeVersion: "2.0.0" },
+    };
+    expect(extractRawRuntimeVersion(config, "android")).toBe("2.0.0");
+  });
+
+  it("falls back to the top-level runtimeVersion when the platform has none", () => {
+    const config: ExpoConfig = {
+      runtimeVersion: { policy: "sdkVersion" },
+      ios: { bundleIdentifier: "com.example" },
+    };
+    expect(extractRawRuntimeVersion(config, "ios")).toStrictEqual({ policy: "sdkVersion" });
+  });
+
+  it("does not leak the other platform's per-platform runtimeVersion", () => {
+    const config: ExpoConfig = {
+      runtimeVersion: "top",
+      ios: { bundleIdentifier: "com.example", runtimeVersion: "ios-only" },
+    };
+    // android has no per-platform override → top-level wins, not the ios value.
+    expect(extractRawRuntimeVersion(config, "android")).toBe("top");
+  });
+});
+
+describe(extractAppVersion, () => {
+  it("prefers the per-platform version", () => {
+    expect(extractAppVersion({ version: "1.0.0", android: { version: "3.0.0" } }, "android")).toBe(
+      "3.0.0",
+    );
+  });
+
+  it("falls back to the top-level version", () => {
+    expect(extractAppVersion({ version: "1.0.0" }, "ios")).toBe("1.0.0");
+  });
+
+  it("returns undefined when neither is set", () => {
+    expect(extractAppVersion({}, "ios")).toBeUndefined();
+  });
+});
+
+describe(expoSdkVersionFromPackageVersion, () => {
+  it("reduces a patch version to major.0.0 (matching getExpoSDKVersionFromPackage)", () => {
+    expect(expoSdkVersionFromPackageVersion("52.0.11")).toBe("52.0.0");
+  });
+
+  it("keeps an already-clean major version", () => {
+    expect(expoSdkVersionFromPackageVersion("51.0.0")).toBe("51.0.0");
+  });
+
+  it("returns undefined for an empty version string", () => {
+    expect(expoSdkVersionFromPackageVersion("")).toBeUndefined();
+  });
 });
 
 describe(getConfigFilePaths, () => {

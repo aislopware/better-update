@@ -1,9 +1,9 @@
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { runUpdateRollback } from "../../application/update-rollback";
 import { runEffect } from "../../lib/citty-effect";
-import { printTable } from "../../lib/output";
+import { printHuman, printHumanTable } from "../../lib/output";
 import { updateErrorExtras } from "./helpers";
 
 interface RollbackParsedArgs {
@@ -30,14 +30,15 @@ const buildRollbackRun = (args: RollbackParsedArgs) =>
       certificateChainFile: args["certificate-chain-file"],
     });
 
-    yield* Console.log(
+    yield* printHuman(
       `Created rollback group ${result.groupId} on branch "${result.branch}" at ${result.commitTime}.`,
     );
-    yield* Console.log("");
-    yield* printTable(
+    yield* printHuman("");
+    yield* printHumanTable(
       ["Platform", "Update ID", "Runtime Version"],
       result.results.map((entry) => [entry.platform, entry.updateId, entry.runtimeVersion]),
     );
+    return result;
   });
 
 export const rollBackToEmbeddedCommand = defineCommand({
@@ -61,7 +62,8 @@ export const rollBackToEmbeddedCommand = defineCommand({
     "signature-file": { type: "string" },
     "certificate-chain-file": { type: "string" },
   },
-  run: async ({ args }) => runEffect(buildRollbackRun(args), updateErrorExtras),
+  run: async ({ args }) =>
+    runEffect(buildRollbackRun(args), { exits: updateErrorExtras, json: "value" }),
 });
 
 export const rollbackCommand = defineCommand({
@@ -81,5 +83,6 @@ export const rollbackCommand = defineCommand({
     "signature-file": { type: "string" },
     "certificate-chain-file": { type: "string" },
   },
-  run: async ({ args }) => runEffect(buildRollbackRun(args), updateErrorExtras),
+  run: async ({ args }) =>
+    runEffect(buildRollbackRun(args), { exits: updateErrorExtras, json: "value" }),
 });

@@ -1,10 +1,30 @@
+import { DEFAULT_PATCH_BASE_WINDOW } from "@better-update/expo-protocol";
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
+import { formatSavingsPct } from '../../application/update-patch-phase';
+import type { PatchPhaseResult } from '../../application/update-patch-phase';
 import { runUpdatePublish } from "../../application/update-publish";
 import { runEffect } from "../../lib/citty-effect";
 import { parseRolloutPercentage } from "../../lib/cli-schemas";
-import { printTable } from "../../lib/output";
+import { printHuman, printHumanTable } from "../../lib/output";
+
+/**
+ * Render the human-table "Patches" cell. Shows uploaded/attempted + skipped, and
+ * appends the best savings% when at least one patch reported it (e.g. "94%
+ * smaller"). The richer savings fields ride the JSON result envelope (this cell
+ * is human-only via printHumanTable). `null` patches → "—".
+ */
+export const formatPatchesCell = (patches: PatchPhaseResult | null): string => {
+  if (patches === null) {
+    return "—";
+  }
+  const base = `${patches.uploaded}/${patches.attempted} (${patches.skipped} skipped)`;
+  if (patches.bestSavingsPct === undefined) {
+    return base;
+  }
+  return `${base}, ${formatSavingsPct(patches.bestSavingsPct)}% smaller`;
+};
 
 const PUBLISH_EXIT_EXTRAS = {
   BuildProfileError: 2,
@@ -13,6 +33,9 @@ const PUBLISH_EXIT_EXTRAS = {
   BuildFailedError: 6,
   UpdatePublishError: 7,
   DirtyRepoError: 3,
+  BsdiffError: 7,
+  PatchUploadError: 7,
+  BaseDownloadError: 7,
 } as const;
 
 export const publishCommand = defineCommand({
@@ -31,7 +54,11 @@ export const publishCommand = defineCommand({
     },
     message: { type: "string", description: "Optional update message" },
     environment: { type: "string", default: "production", description: "Env vars scope" },
-    auto: { type: "boolean", description: "Skip prompts (for CI)" },
+    auto: {
+      type: "boolean",
+      description:
+        "Skip prompts (for CI); infer the branch from the current git branch and the message from the latest commit subject",
+    },
     clear: { type: "boolean", description: "Drop existing assets before upload" },
     "rollout-percentage": { type: "string", description: "Initial rollout percentage (1-100)" },
     "input-dir": {
@@ -54,6 +81,11 @@ export const publishCommand = defineCommand({
       type: "boolean",
       description: "Emit JavaScript source maps alongside bundles",
     },
+    "private-key-path": {
+      type: "string",
+      description:
+        "Path to the RSA private key (PEM) to code-sign the rendered manifest; reads codeSigningCertificate/codeSigningMetadata from app.json",
+    },
     "manifest-body-file": { type: "string" },
     "signature-file": { type: "string" },
     "certificate-chain-file": { type: "string" },
@@ -67,6 +99,15 @@ export const publishCommand = defineCommand({
       type: "boolean",
       description: "Proceed even with uncommitted git changes",
     },
+    "patch-base-window": {
+      type: "string",
+      description:
+        "Max recent published updates to compute bsdiff patches against (default 10; 0 = embedded baseline only)",
+    },
+    "no-patches": {
+      type: "boolean",
+      description: "Skip the bsdiff patch generation phase entirely",
+    },
   },
   run: async ({ args }) =>
     runEffect(
@@ -74,6 +115,14 @@ export const publishCommand = defineCommand({
         const rolloutPercentage = args["rollout-percentage"]
           ? yield* parseRolloutPercentage(args["rollout-percentage"], "rollout-percentage")
           : undefined;
+
+        const parsedWindow = args["patch-base-window"]
+          ? Number.parseInt(args["patch-base-window"], 10)
+          : DEFAULT_PATCH_BASE_WINDOW;
+        const patchBaseWindow =
+          Number.isFinite(parsedWindow) && parsedWindow >= 0
+            ? parsedWindow
+            : DEFAULT_PATCH_BASE_WINDOW;
 
         const result = yield* runUpdatePublish({
           branch: args.branch,
@@ -99,23 +148,26 @@ export const publishCommand = defineCommand({
           manifestBodyFileAndroid: args["manifest-body-file-android"],
           signatureFileAndroid: args["signature-file-android"],
           certificateChainFileAndroid: args["certificate-chain-file-android"],
+          privateKeyPath: args["private-key-path"],
+          patchBaseWindow,
+          noPatches: args["no-patches"] ?? false,
         });
 
-        yield* Console.log(
-          `Published update group ${result.groupId} to branch "${result.branch}".`,
-        );
-        yield* Console.log("");
-        yield* printTable(
-          ["Platform", "Update ID", "Runtime Version", "Uploaded", "Reused"],
+        yield* printHuman(`Published update group ${result.groupId} to branch "${result.branch}".`);
+        yield* printHuman("");
+        yield* printHumanTable(
+          ["Platform", "Update ID", "Runtime Version", "Uploaded", "Reused", "Patches"],
           result.results.map((entry) => [
             entry.platform,
             entry.updateId,
             entry.runtimeVersion,
             String(entry.uploadedAssets),
             String(entry.deduplicatedAssets),
+            formatPatchesCell(entry.patches),
           ]),
         );
+        return result;
       }),
-      PUBLISH_EXIT_EXTRAS,
+      { exits: PUBLISH_EXIT_EXTRAS, json: "value" },
     ),
 });

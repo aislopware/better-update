@@ -2,7 +2,7 @@ import path from "node:path";
 
 import { compact } from "@better-update/type-guards";
 import { FileSystem } from "@effect/platform";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { runAndroidBuild } from "../commands/build/android";
 import { runIosBuild } from "../commands/build/ios";
@@ -15,7 +15,7 @@ import { readEasJson, resolveEasSubmitProfile } from "../lib/eas-config";
 import { pullEnvVars } from "../lib/env-exporter";
 import { BuildProfileError } from "../lib/exit-codes";
 import { extractProjectId, readAppMeta, readExpoConfig } from "../lib/expo-config";
-import { runFingerprintFull } from "../lib/fingerprint";
+import { runFingerprintForPlatform } from "../lib/fingerprint";
 import { formatCause } from "../lib/format-error";
 import { readGitContext } from "../lib/git-context";
 import { readGradleConfig, warnOnGradleMismatch } from "../lib/gradle-config";
@@ -271,7 +271,7 @@ const resolveProfileName = (projectRoot: string, requested: string) =>
       // or with the empty-build-section message when applicable.
       return requested;
     }
-    yield* Console.log(`Build profile "${requested}" not found in eas.json.`);
+    yield* printHuman(`Build profile "${requested}" not found in eas.json.`);
     return yield* promptSelect<string>(
       "Pick a build profile:",
       available.map((name) => ({ value: name, label: name })),
@@ -349,6 +349,9 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
         raw: appMeta.rawRuntimeVersion,
         appVersion: appMeta.appVersion,
         projectRoot: userCwd,
+        platform,
+        buildNumber: appMeta.buildNumber,
+        sdkVersion: bumpedConfig.sdkVersion,
       });
 
       if (options.clearCache) {
@@ -366,7 +369,7 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
         envVars,
       });
 
-      yield* Console.log(
+      yield* printHuman(
         `Building ${platform} artifact for profile "${profile.name}" (runtimeVersion=${runtimeVersion})`,
       );
 
@@ -383,7 +386,7 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
       });
       const { build, target, bundleId } = outcome;
 
-      yield* Console.log(`Artifact produced: ${build.artifactPath}`);
+      yield* printHuman(`Artifact produced: ${build.artifactPath}`);
 
       let exportedArtifactPath: string | undefined = undefined;
       if (options.output !== undefined) {
@@ -428,7 +431,10 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
         dirty: rawGitContext.dirty,
       });
 
-      const fingerprintHash = yield* runFingerprintFull(userCwd).pipe(
+      // Per-platform fingerprint (matching EAS) so the recorded build hash lines
+      // up with the per-platform `fingerprint`-policy RTV and with updates
+      // fingerprinted the same way.
+      const fingerprintHash = yield* runFingerprintForPlatform(userCwd, platform).pipe(
         Effect.map((entry) => entry.hash),
         Effect.catchAll(() => Effect.succeed(undefined)),
       );
@@ -451,7 +457,7 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
         }),
       });
 
-      yield* Console.log("");
+      yield* printHuman("");
       yield* printKeyValue([
         ["Build ID", result.id],
         ["Status", result.status],

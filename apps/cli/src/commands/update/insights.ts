@@ -4,8 +4,7 @@ import { Effect } from "effect";
 import { runEffect } from "../../lib/citty-effect";
 import { drainPages } from "../../lib/drain-cursor";
 import { readProjectId } from "../../lib/expo-config";
-import { printJson, printKeyValue, printTable } from "../../lib/output";
-import { OutputMode } from "../../lib/output-mode";
+import { printHumanKeyValue, printHumanTable } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 import { UpdateCommandError, updateErrorExtras } from "./helpers";
 
@@ -61,30 +60,7 @@ export const insightsCommand = defineCommand({
           0,
         );
 
-        const mode = yield* OutputMode;
-        if (mode.json) {
-          yield* printJson({
-            groupId: args.groupId,
-            updates: inGroup.length,
-            totalRequests,
-            totalDevices,
-            byResponseType: {
-              manifest: totalManifest,
-              directive: totalDirective,
-              no_update: totalNoUpdate,
-            },
-            items: stats.map(({ update, result }) => ({
-              updateId: update.id,
-              platform: update.platform,
-              totalRequests: result.totalRequests,
-              uniqueDevices: result.uniqueDevices,
-              byResponseType: result.byResponseType,
-            })),
-          });
-          return undefined;
-        }
-
-        yield* printKeyValue([
+        yield* printHumanKeyValue([
           ["Group ID", args.groupId],
           ["Updates", String(inGroup.length)],
           ["Total Requests", String(totalRequests)],
@@ -93,7 +69,7 @@ export const insightsCommand = defineCommand({
           ["Directive", String(totalDirective)],
           ["No Update", String(totalNoUpdate)],
         ]);
-        yield* printTable(
+        yield* printHumanTable(
           ["Update ID", "Platform", "Requests", "Devices", "Manifest", "Directive", "No Update"],
           stats.map(({ update, result }) => [
             update.id,
@@ -105,8 +81,25 @@ export const insightsCommand = defineCommand({
             String(result.byResponseType.no_update),
           ]),
         );
-        return undefined;
+        return {
+          groupId: args.groupId,
+          updates: inGroup.length,
+          totalRequests,
+          totalDevices,
+          byResponseType: {
+            manifest: totalManifest,
+            directive: totalDirective,
+            no_update: totalNoUpdate,
+          },
+          items: stats.map(({ update, result }) => ({
+            updateId: update.id,
+            platform: update.platform,
+            totalRequests: result.totalRequests,
+            uniqueDevices: result.uniqueDevices,
+            byResponseType: result.byResponseType,
+          })),
+        };
       }),
-      updateErrorExtras,
+      { exits: updateErrorExtras, json: "value" },
     ),
 });

@@ -1,9 +1,10 @@
-import { asRecord, compact } from "@better-update/type-guards";
+import { compact } from "@better-update/type-guards";
 import { Effect } from "effect";
 
 import type { FileSystem, Path } from "@effect/platform";
 
 import { readEasJson, resolveEasBuildProfile } from "./eas-config";
+import { extractAppVersion, extractBuildNumber, extractRawRuntimeVersion } from "./expo-config";
 
 import type { EasAndroidProfile, EasBuildProfile, EasIosProfile } from "./eas-config";
 import type { BuildProfileError } from "./exit-codes";
@@ -62,12 +63,14 @@ export interface AppMeta {
 }
 
 export interface RuntimeVersionMeta {
+  readonly platform: Platform;
   readonly appVersion: string | undefined;
+  /** Per-platform native version slot: ios.buildNumber / String(android.versionCode). */
+  readonly buildNumber: string | undefined;
+  /** `expo.sdkVersion` when present in the resolved config (often undefined). */
+  readonly sdkVersion: string | undefined;
   readonly rawRuntimeVersion: RawRuntimeVersion | undefined;
 }
-
-export const asString = (value: unknown): string | undefined =>
-  typeof value === "string" ? value : undefined;
 
 const deriveIosDistribution = (eas: EasBuildProfile): IosDistribution | undefined => {
   const override = eas.ios?.distribution;
@@ -239,19 +242,13 @@ export const readBuildProfile = (
     return fromEasProfile(easProfile, profileName);
   });
 
-export const readRuntimeVersionMeta = (config: ExpoConfig): RuntimeVersionMeta => ({
-  appVersion: config.version,
-  rawRuntimeVersion: readRawRuntimeVersion(config.runtimeVersion),
+export const readRuntimeVersionMeta = (
+  config: ExpoConfig,
+  platform: Platform,
+): RuntimeVersionMeta => ({
+  platform,
+  appVersion: extractAppVersion(config, platform),
+  buildNumber: extractBuildNumber(config, platform),
+  sdkVersion: config.sdkVersion,
+  rawRuntimeVersion: extractRawRuntimeVersion(config, platform),
 });
-
-const readRawRuntimeVersion = (value: unknown): RawRuntimeVersion | undefined => {
-  if (typeof value === "string") {
-    return value;
-  }
-  const record = asRecord(value);
-  const policy = asString(record?.["policy"]);
-  if (policy) {
-    return { policy };
-  }
-  return undefined;
-};

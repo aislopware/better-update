@@ -1,7 +1,8 @@
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
+import { printHuman } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 import { updateErrorExtras } from "./helpers";
 
@@ -15,10 +16,11 @@ export const deleteCommand = defineCommand({
       Effect.gen(function* () {
         const api = yield* apiClient;
         const result = yield* api.updates.deleteGroup({ path: { groupId: args.groupId } });
-        yield* Console.log(
+        yield* printHuman(
           `Deleted ${String(result.deleted)} update(s) from group ${args.groupId}.`,
         );
+        return { groupId: args.groupId, ...result };
       }),
-      updateErrorExtras,
+      { exits: updateErrorExtras, json: "value" },
     ),
 });
