@@ -22,6 +22,7 @@ const INTERNAL_TTL = 86_400;
 
 export const buildCacheKey = (params: {
   readonly cacheVersion: number;
+  readonly scopeKey: string;
   readonly projectId: string;
   readonly channelName: string;
   readonly platform: string;
@@ -30,7 +31,13 @@ export const buildCacheKey = (params: {
   readonly multipart: boolean;
   readonly expectSignature: boolean;
 }) =>
-  `https://cache.internal/_cache/v${params.cacheVersion}/manifest/${params.projectId}/${params.channelName}/${params.platform}/${params.runtimeVersion}/${params.resolvedBranchId}/${params.multipart ? "mp" : "json"}/${params.expectSignature ? "sig" : "nosig"}`;
+  // scopeKey sits right after the cache version and before projectId so the
+  // segment is stable and human-readable. encodeURIComponent because scopeKey is
+  // a URL origin containing ':' and '/' — it must collapse to a single path-safe
+  // segment, not spill into extra path parts. Including scopeKey in the key
+  // tenant-isolates the cached manifest + protocol metadata along the origin
+  // axis (custom domains / re-pointed update URLs), not just the project axis.
+  `https://cache.internal/_cache/v${params.cacheVersion}/scope/${encodeURIComponent(params.scopeKey)}/manifest/${params.projectId}/${params.channelName}/${params.platform}/${params.runtimeVersion}/${params.resolvedBranchId}/${params.multipart ? "mp" : "json"}/${params.expectSignature ? "sig" : "nosig"}`;
 
 const toCacheEntry = (response: Response, meta: CacheMeta) => {
   const headers = new Headers(response.headers);
