@@ -17,60 +17,26 @@ const launchAsset = {
   isLaunch: true,
 };
 
-const regularAsset = {
-  key: "icon",
-  hash: "def456",
-  contentChecksum: "def456-raw",
-  contentType: "image/png",
-  fileExt: "png",
-  isLaunch: false,
-};
-
-describe(buildManifest, () => {
-  it("separates launch asset from regular assets with correct URLs", () => {
+// buildManifest + buildExtensions are now defined and exhaustively tested in
+// @better-update/expo-protocol (render byte-identity, launch/regular split, CDN
+// fallback, extra passthrough). Here we keep only a thin smoke test that the
+// re-export from this server module is wired, so handlers/manifest.ts keeps a
+// working import — the full coverage lives with the shared package.
+describe("manifest-builder re-exports", () => {
+  it("re-exports buildManifest from the shared package", () => {
     const manifest = buildManifest({
       update: baseUpdate,
-      assets: [launchAsset, regularAsset],
+      assets: [launchAsset],
       assetBaseUrl: "https://cdn.example.com",
     }) as Record<string, unknown>;
-
     expect(manifest["id"]).toBe("update-1");
-    expect(manifest["createdAt"]).toBe("2025-01-01T00:00:00.000Z");
-    expect(manifest["runtimeVersion"]).toBe("1.0.0");
-
     const launch = manifest["launchAsset"] as Record<string, unknown>;
-    expect(launch["hash"]).toBe("abc123-raw");
-    expect(launch["key"]).toBe("bundle");
     expect(launch["url"]).toBe("https://cdn.example.com/assets/abc123");
-    expect(launch).not.toHaveProperty("fileExtension");
-
-    const assets = manifest["assets"] as Record<string, unknown>[];
-    expect(assets).toHaveLength(1);
-    expect(assets[0]!["hash"]).toBe("def456-raw");
-    expect(assets[0]!["fileExtension"]).toBe(".png");
-    expect(assets[0]!["url"]).toBe("https://cdn.example.com/assets/def456");
   });
 
-  it("emits extra from update without injecting scopeKey", () => {
-    const manifest = buildManifest({
-      update: baseUpdate,
-      assets: [launchAsset],
-      assetBaseUrl: "https://cdn.example.com",
-    }) as Record<string, unknown>;
-
-    const extra = manifest["extra"] as Record<string, unknown>;
-    expect(extra).not.toHaveProperty("scopeKey");
-    expect(extra["expoClient"]).toStrictEqual({ name: "test-app" });
-  });
-
-  it("emits empty extra when update.extra is undefined", () => {
-    const manifest = buildManifest({
-      update: { ...baseUpdate, extra: undefined },
-      assets: [launchAsset],
-      assetBaseUrl: "https://cdn.example.com",
-    }) as Record<string, unknown>;
-
-    expect(manifest["extra"]).toStrictEqual({});
+  it("re-exports buildExtensions from the shared package", () => {
+    const extensions = buildExtensions() as Record<string, unknown>;
+    expect(extensions["assetRequestHeaders"]).toStrictEqual({});
   });
 });
 
@@ -81,13 +47,5 @@ describe(buildDirective, () => {
     expect(directive["type"]).toBe("rollBackToEmbedded");
     const params = directive["parameters"] as Record<string, unknown>;
     expect(params["commitTime"]).toBe("2025-01-01T00:00:00.000Z");
-  });
-});
-
-describe(buildExtensions, () => {
-  it("returns only assetRequestHeaders when called with no args", () => {
-    const extensions = buildExtensions() as Record<string, unknown>;
-    expect(extensions["assetRequestHeaders"]).toStrictEqual({});
-    expect(extensions).not.toHaveProperty("patchedAssets");
   });
 });

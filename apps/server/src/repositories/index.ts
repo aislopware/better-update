@@ -27,6 +27,7 @@ export { AssetRepo, AssetRepoLive } from "./assets";
 export { AuditLogRepo, AuditLogRepoLive } from "./audit-logs";
 export { BranchRepo, BranchRepoLive } from "./branches";
 export { BuildRepo, BuildRepoLive } from "./builds";
+export { BundleRepo, BundleRepoLive } from "./bundle";
 export { ChannelRepo, ChannelRepoLive } from "./channels";
 export { CompatibilityRepo, CompatibilityRepoLive } from "./compatibility";
 export { DeviceRepo, DeviceRepoLive } from "./devices";

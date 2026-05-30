@@ -10,11 +10,15 @@ import { AssetStorage } from "../cloudflare/asset-storage";
 import { createDirectUploadHeaders } from "../cloudflare/signed-url";
 import { BadRequest, NotFound } from "../errors";
 import { toApiBadRequestReadEffect } from "../http/to-api-effect";
+import { toApiPatchUploadResult } from "../http/to-api-patch";
+import { isValidPatchKey, patchR2Key } from "../protocol/patch-negotiation";
 import { AssetRepo } from "../repositories/assets";
 
 const UPLOAD_EXPIRY_SECONDS = 7200;
 
 const ASSET_CACHE_CONTROL = "public, max-age=31536000, immutable";
+
+const PATCH_CONTENT_TYPE = "application/octet-stream";
 
 const fail = (message: string) => new BadRequest({ message });
 
@@ -205,6 +209,57 @@ const handleUpload = ({
     }),
   );
 
+const handlePatchUpload = ({
+  payload,
+}: {
+  readonly payload: {
+    readonly projectId: string;
+    readonly runtimeVersion: string;
+    readonly platform: "ios" | "android";
+    readonly fromUpdateId: string;
+    readonly toUpdateId: string;
+  };
+}) =>
+  toApiBadRequestReadEffect(
+    Effect.gen(function* () {
+      yield* assertPermission("update", "create");
+      yield* assertProjectOwnership(payload.projectId);
+
+      if (payload.fromUpdateId === payload.toUpdateId) {
+        return yield* Effect.fail(fail("A patch cannot have the same from and to update"));
+      }
+
+      // Build the R2 key server-side from the request tuple — never trust a
+      // client-sent key — then assert its shape before presigning.
+      const keyParams = {
+        projectId: payload.projectId,
+        runtimeVersion: payload.runtimeVersion,
+        platform: payload.platform,
+        fromUpdateId: payload.fromUpdateId,
+        toUpdateId: payload.toUpdateId,
+      };
+      const key = patchR2Key(keyParams);
+      if (!isValidPatchKey(key, keyParams)) {
+        return yield* Effect.fail(fail("Invalid patch key parameters"));
+      }
+
+      const storage = yield* AssetStorage;
+      const uploadUrl = yield* storage.createUploadUrl({
+        key,
+        contentType: PATCH_CONTENT_TYPE,
+        expiresIn: UPLOAD_EXPIRY_SECONDS,
+      });
+      const uploadExpiresAt = new Date(Date.now() + UPLOAD_EXPIRY_SECONDS * 1000).toISOString();
+
+      return toApiPatchUploadResult({
+        key,
+        uploadUrl,
+        uploadExpiresAt,
+        uploadHeaders: createDirectUploadHeaders({ contentType: PATCH_CONTENT_TYPE }),
+      });
+    }),
+  );
+
 const handleFinalize = ({ path }: { readonly path: { readonly hash: string } }) =>
   toApiBadRequestReadEffect(
     Effect.gen(function* () {
@@ -261,5 +316,8 @@ const handleFinalize = ({ path }: { readonly path: { readonly hash: string } }) 
   );
 
 export const AssetsGroupLive = HttpApiBuilder.group(ManagementApi, "assets", (handlers) =>
-  handlers.handle("upload", handleUpload).handle("finalize", handleFinalize),
+  handlers
+    .handle("upload", handleUpload)
+    .handle("patchUpload", handlePatchUpload)
+    .handle("finalize", handleFinalize),
 );

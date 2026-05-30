@@ -4,6 +4,7 @@ import { makeManagementWebHandler } from "./app-layer";
 import { createAuth, isGithubEnabled } from "./auth";
 import { makeCloudflareRequestContext } from "./cloudflare/context";
 import {
+  handleBundleRequest,
   handleScheduled,
   matchBuildRoute,
   matchDeviceRegistrationRoute,
@@ -94,7 +95,14 @@ const routeRequest = async (
   // Public server capabilities — unauthenticated; called before login to
   // Decide which auth providers to render.
   if (url.pathname === "/api/config" && request.method === "GET") {
-    return Response.json({ githubEnabled: isGithubEnabled(env) });
+    // `assetCdnUrl` lets the CLI render a signed manifest's non-launch asset
+    // URLs against the origin the Worker actually serves regular assets from
+    // (there is no `/assets/{hash}` route on the API origin), keeping signed
+    // updates' image/font/extra-chunk assets loadable on-device.
+    return Response.json({
+      githubEnabled: isGithubEnabled(env),
+      assetCdnUrl: env.ASSET_CDN_URL,
+    });
   }
 
   // Public health probe — CLI/clients call this before long-running ops to
@@ -102,6 +110,16 @@ const routeRequest = async (
   // the database is reachable. Never throws — returns degraded status instead.
   if (url.pathname === "/api/health" && request.method === "GET") {
     return handleHealth(env);
+  }
+
+  // Expo Updates protocol — Worker-served launch bundle for bsdiff A-IM
+  // content negotiation. Ordered before the manifest route (more specific
+  // sub-path). projectId / updateId / hash; the hash is informational (the
+  // launch asset is resolved by updateId), kept in the path so the URL is
+  // content-addressed + cacheable.
+  const bundleMatch = /^\/manifest\/([^/]+)\/bundle\/([^/]+)\/([^/]+)\/?$/u.exec(url.pathname);
+  if (bundleMatch?.[1] && bundleMatch[2] && request.method === "GET") {
+    return handleBundleRequest(request, env, ctx, bundleMatch[1], bundleMatch[2]);
   }
 
   // Expo Updates protocol — unauthenticated manifest serving

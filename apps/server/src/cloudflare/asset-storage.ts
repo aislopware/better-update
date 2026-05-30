@@ -3,7 +3,7 @@ import { Context, Effect, Layer } from "effect";
 import { toDbNull } from "../lib/nullable";
 import { r2Operation, toChecksumSha256Base64 } from "../lib/r2-helpers";
 import { cloudflareEnv } from "./context";
-import { r2Checksums } from "./r2-accessors";
+import { r2Checksums, r2ListCursor } from "./r2-accessors";
 import { generateUploadUrl } from "./signed-url";
 
 export interface StoredBlob {
@@ -23,11 +23,16 @@ export interface StoredBlobMetadata {
   readonly checksumSha256Base64: string | null;
 }
 
+export interface AssetObjectListing {
+  readonly key: string;
+  readonly uploaded: Date;
+}
+
 export interface AssetStorageService {
   readonly createUploadUrl: (params: {
     readonly key: string;
     readonly contentType: string;
-    readonly checksumSha256Base64: string;
+    readonly checksumSha256Base64?: string;
     readonly cacheControl?: string;
     readonly expiresIn: number;
   }) => Effect.Effect<string>;
@@ -41,6 +46,14 @@ export interface AssetStorageService {
     readonly contentType: string;
   }) => Effect.Effect<void>;
   readonly deleteObjects: (params: { readonly keys: readonly string[] }) => Effect.Effect<void>;
+  readonly listObjects: (params: {
+    readonly prefix: string;
+    readonly cursor?: string;
+  }) => Effect.Effect<{
+    readonly objects: readonly AssetObjectListing[];
+    readonly truncated: boolean;
+    readonly cursor: string | undefined;
+  }>;
 }
 
 export class AssetStorage extends Context.Tag("server/AssetStorage")<
@@ -74,8 +87,10 @@ export const AssetStorageLive = Layer.succeed(AssetStorage, {
           bucketName: env.ASSETS_BUCKET_NAME ?? "better-update-assets",
           key: params.key,
           contentType: params.contentType,
-          checksumSha256Base64: params.checksumSha256Base64,
           expiresIn: params.expiresIn,
+          ...(params.checksumSha256Base64
+            ? { checksumSha256Base64: params.checksumSha256Base64 }
+            : {}),
           ...(params.cacheControl ? { cacheControl: params.cacheControl } : {}),
         }),
       );
@@ -113,5 +128,26 @@ export const AssetStorageLive = Layer.succeed(AssetStorage, {
 
       const env = yield* cloudflareEnv;
       yield* r2Operation(async () => env.ASSETS_BUCKET.delete([...params.keys]));
+    }),
+
+  listObjects: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+      const listed = yield* r2Operation(async () =>
+        env.ASSETS_BUCKET.list(
+          params.cursor
+            ? { prefix: params.prefix, cursor: params.cursor }
+            : { prefix: params.prefix },
+        ),
+      );
+
+      return {
+        objects: listed.objects.map((object) => ({
+          key: object.key,
+          uploaded: object.uploaded,
+        })),
+        truncated: listed.truncated,
+        cursor: r2ListCursor(listed),
+      };
     }),
 });
