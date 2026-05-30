@@ -28,9 +28,13 @@ type Platform = "ios" | "android";
 export interface PatchRequest {
   /** Client advertised bsdiff support via `a-im: bsdiff`. */
   readonly supportsBsdiff: boolean;
-  /** Currently-launched update on device (candidate patch base). */
+  /** Currently-launched update on device — the ONLY valid GA patch base. */
   readonly currentUpdateId: string | undefined;
-  /** Update embedded in the binary at build time (candidate patch base). */
+  /**
+   * Update embedded in the binary at build time. Parsed for negotiation/`Vary`
+   * but NOT a patch base: SDK-56 clients only patch against their current update
+   * (see {@link selectPatchCandidates}).
+   */
   readonly embeddedUpdateId: string | undefined;
   /** Update being fetched (the patch target). */
   readonly requestedUpdateId: string | undefined;
@@ -77,20 +81,24 @@ export const parsePatchRequest = (headers: Headers): PatchRequest => ({
 });
 
 /**
- * Ordered patch-base candidates for a target update id: [currentUpdateId,
- * embeddedUpdateId], lowercased, with undefined entries and any candidate equal
- * to the target dropped (a self-patch is meaningless). The caller probes R2 with
- * each candidate in order; first hit wins.
+ * Patch-base candidates for a target update id: ONLY the device's
+ * `currentUpdateId`, lowercased, dropped when undefined or equal to the target
+ * (a self-patch is meaningless). The caller probes R2 for that base.
+ *
+ * SDK-56 clients validate that the response's `expo-base-update-id` equals their
+ * currently-launched update (FileDownloader.validatePatchResponseMetadata) and
+ * REJECT any other base — including the embedded build-time update. Offering an
+ * embedded base would only ever produce a guaranteed-rejected patch plus a wasted
+ * round trip, so it is intentionally excluded.
  */
 export const selectPatchCandidates = (
   request: PatchRequest,
   toUpdateId: string,
 ): readonly string[] => {
   const target = toUpdateId.toLowerCase();
-  const lowered = [request.currentUpdateId, request.embeddedUpdateId]
+  const lowered = [request.currentUpdateId]
     .flatMap((candidate) => (candidate ? [candidate.toLowerCase()] : []))
     .filter((candidate) => candidate !== target);
-  // Dedup while preserving [current, embedded] order.
   return [...new Set(lowered)];
 };
 

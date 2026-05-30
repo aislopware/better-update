@@ -78,3 +78,32 @@ describe("bundle toResponse — Item 3 HTTP 226 opt-in", () => {
     expect(toResponse(true)(notFoundResolution).status).toBe(404);
   });
 });
+
+// A-IM cache safety: the SAME bundle URL returns a patch OR a full body depending
+// on the request's `a-im` (and the base ids). Without Vary, an HTTP cache could
+// replay a cached patch body for a later no-`a-im` request → the device treats the
+// patch as a full bundle, fails its SHA-256 check, and bricks. Vary keys the cache
+// on the negotiation inputs; patches additionally opt out of caching entirely.
+describe("bundle toResponse — Vary + cache-control", () => {
+  const VARY = "a-im, expo-current-update-id, expo-embedded-update-id";
+
+  it("sets Vary on the negotiation inputs for full bundles", () => {
+    expect(toResponse(false)(fullResolution).headers.get("vary")).toBe(VARY);
+  });
+
+  it("sets Vary on patch responses too", () => {
+    expect(toResponse(false)(patchResolution).headers.get("vary")).toBe(VARY);
+    expect(toResponse(true)(patchResolution).headers.get("vary")).toBe(VARY);
+  });
+
+  it("keeps full bundles immutable-cacheable (content-addressed by hash)", () => {
+    expect(toResponse(false)(fullResolution).headers.get("cache-control")).toBe(
+      "public, max-age=31536000, immutable",
+    );
+  });
+
+  it("makes patch responses non-cacheable (no-store) under both 200 and 226", () => {
+    expect(toResponse(false)(patchResolution).headers.get("cache-control")).toBe("no-store");
+    expect(toResponse(true)(patchResolution).headers.get("cache-control")).toBe("no-store");
+  });
+});

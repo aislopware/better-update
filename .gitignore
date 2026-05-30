@@ -14,6 +14,7 @@ __screenshots__/
 .vitest-attachments/
 test-results/
 .e2e-shared-env.json
+.self-verify/
 
 # Playwright MCP scratch output
 .playwright-mcp/

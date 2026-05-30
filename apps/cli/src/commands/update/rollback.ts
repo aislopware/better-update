@@ -15,6 +15,7 @@ interface RollbackParsedArgs {
   readonly ["directive-body-file"]: string | undefined;
   readonly ["signature-file"]: string | undefined;
   readonly ["certificate-chain-file"]: string | undefined;
+  readonly ["private-key-path"]: string | undefined;
 }
 
 const buildRollbackRun = (args: RollbackParsedArgs) =>
@@ -28,6 +29,7 @@ const buildRollbackRun = (args: RollbackParsedArgs) =>
       directiveBodyFile: args["directive-body-file"],
       signatureFile: args["signature-file"],
       certificateChainFile: args["certificate-chain-file"],
+      privateKeyPath: args["private-key-path"],
     });
 
     yield* printHuman(
@@ -61,6 +63,11 @@ export const rollBackToEmbeddedCommand = defineCommand({
     "directive-body-file": { type: "string" },
     "signature-file": { type: "string" },
     "certificate-chain-file": { type: "string" },
+    "private-key-path": {
+      type: "string",
+      description:
+        "Path to the RSA private key (PEM) to code-sign the rollback directive; reads codeSigningCertificate/codeSigningMetadata from app.json (mutually exclusive with the --*-file options)",
+    },
   },
   run: async ({ args }) =>
     runEffect(buildRollbackRun(args), { exits: updateErrorExtras, json: "value" }),
@@ -82,6 +89,11 @@ export const rollbackCommand = defineCommand({
     "directive-body-file": { type: "string" },
     "signature-file": { type: "string" },
     "certificate-chain-file": { type: "string" },
+    "private-key-path": {
+      type: "string",
+      description:
+        "Path to the RSA private key (PEM) to code-sign the rollback directive; reads codeSigningCertificate/codeSigningMetadata from app.json (mutually exclusive with the --*-file options)",
+    },
   },
   run: async ({ args }) =>
     runEffect(buildRollbackRun(args), { exits: updateErrorExtras, json: "value" }),

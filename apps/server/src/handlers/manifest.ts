@@ -1,5 +1,3 @@
-import { safeJsonParse } from "@better-update/safe-json";
-import { isRecord } from "@better-update/type-guards";
 import { Effect, Match } from "effect";
 
 import type { BadRequest, NotFound } from "@better-update/api";
@@ -8,11 +6,12 @@ import { provideCloudflareRequestContext } from "../cloudflare/context";
 import { manifestRuntime } from "../cloudflare/manifest-runtime";
 import { matchesFilters, skipFailedUpdates } from "../domain/manifest-filters";
 import { deriveScopeKey } from "../domain/scope-key";
+import {
+  dropUnsignedWhenExpected,
+  isUnsignedButSignatureExpected,
+} from "../domain/signature-policy";
 import { resolveUpdateRollout } from "../domain/update-rollout";
-import { toOptional } from "../lib/nullable";
 import { parseProtocolHeaders } from "../protocol/headers";
-import { buildDirective, buildExtensions, buildManifest } from "../protocol/manifest-builder";
-import { encodeMultipart } from "../protocol/multipart";
 import { parseManifestFiltersJson } from "../protocol/sfv";
 import { ManifestRepo } from "../repositories/manifest";
 import { ProjectProtocolMetadataRepo } from "../repositories/project-protocol-metadata";
@@ -20,147 +19,27 @@ import { resolveBranchId } from "./branch-resolution";
 import { buildCacheKey, matchCachedResponse, storeCachedResponse } from "./manifest-cache";
 import { respond, responseTypeFor } from "./manifest-helpers";
 import { ManifestServicesLive } from "./manifest-layer";
+import {
+  buildDirectiveResponse,
+  buildManifestFromData,
+  certChainParts,
+  extensionsPart,
+  jsonError,
+  jsonManifestResponse,
+  multipartResponse,
+  noContent,
+  parseJson,
+  signatureFor,
+  signedPart,
+  supportsAny,
+  supportsMultipart,
+} from "./manifest-render";
 
 import type { CryptoService } from "../domain/crypto-service";
 import type { ProtocolHeaders } from "../protocol/headers";
-import type { Part } from "../protocol/multipart";
-import type { AssetRow, ChannelRow, UpdateRow } from "../repositories/manifest";
+import type { ChannelRow, UpdateRow } from "../repositories/manifest";
 import type { ManifestFilters, TrackManifestResponse } from "./manifest-helpers";
 import type { ManifestCacheStorage } from "./manifest-layer";
-
-// Do not set `content-encoding` on manifest responses — Cloudflare edge applies
-// zstd/gzip via the zone Compression Rule; manual encoding blocks it. The
-// content-types here (multipart/mixed, application/expo+json) are set per-response.
-const COMMON_HEADERS: Record<string, string> = {
-  "expo-protocol-version": "1",
-  "expo-sfv-version": "0",
-  "cache-control": "private, max-age=0",
-};
-
-const protocolResponse = (body: string | null, status: number, headers?: Record<string, string>) =>
-  new Response(body, { status, headers: { ...COMMON_HEADERS, ...headers } });
-
-const jsonError = (status: number, code: string, message: string) =>
-  protocolResponse(JSON.stringify({ code, message }), status, {
-    "content-type": "application/json",
-  });
-const noContent = () => protocolResponse(null, 204);
-const multipartResponse = (boundary: string, parts: readonly Part[]) =>
-  protocolResponse(encodeMultipart(boundary, parts), 200, {
-    "content-type": `multipart/mixed; boundary=${boundary}`,
-  });
-const jsonManifestResponse = (manifestJson: string, signature: string | undefined) =>
-  protocolResponse(manifestJson, 200, {
-    "content-type": "application/expo+json",
-    ...(signature ? { "expo-signature": signature } : {}),
-  });
-
-const supportsMultipart = (accept: string) =>
-  accept.includes("multipart/mixed") || accept.includes("*/*");
-const supportsAny = (accept: string) =>
-  supportsMultipart(accept) ||
-  accept.includes("application/expo+json") ||
-  accept.includes("application/json");
-
-const signedPart = (name: string, body: string, signature: string | undefined): Part => ({
-  name,
-  contentType: "application/json",
-  ...(signature ? { headers: { "expo-signature": signature } } : {}),
-  body,
-});
-
-const extensionsPart: Part = {
-  name: "extensions",
-  contentType: "application/json",
-  body: JSON.stringify(buildExtensions()),
-};
-
-const signatureFor = (ph: ProtocolHeaders, update: UpdateRow) =>
-  ph.expectSignature ? toOptional(update.signature) : undefined;
-const certChainParts = (ph: ProtocolHeaders, update: UpdateRow): readonly Part[] =>
-  ph.expectSignature && update.certificate_chain
-    ? [
-        {
-          name: "certificate_chain",
-          contentType: "application/x-pem-file",
-          body: update.certificate_chain,
-        },
-      ]
-    : [];
-
-const parseJson = (raw: string): Record<string, unknown> => {
-  const parsed = safeJsonParse(raw);
-  return isRecord(parsed) ? parsed : {};
-};
-
-const buildDirectiveResponse = (update: UpdateRow, ph: ProtocolHeaders, boundary: string) => {
-  const directiveJson = update.directive_body
-    ? parseJson(update.directive_body)
-    : buildDirective({
-        update: {
-          id: update.id,
-          createdAt: update.created_at,
-          runtimeVersion: update.runtime_version,
-          metadata: {},
-          extra: undefined,
-        },
-      });
-
-  return multipartResponse(boundary, [
-    signedPart("directive", JSON.stringify(directiveJson), signatureFor(ph, update)),
-    ...certChainParts(ph, update),
-    extensionsPart,
-  ]);
-};
-
-const buildManifestFromData = (params: {
-  readonly update: UpdateRow;
-  readonly assetRows: readonly AssetRow[];
-  readonly assetBaseUrl: string;
-  readonly serverBaseUrl: string;
-  readonly projectId: string;
-  readonly ph: ProtocolHeaders;
-  readonly boundary: string;
-  readonly useMultipart: boolean;
-}) => {
-  const { update, assetRows, assetBaseUrl, serverBaseUrl, projectId, ph, boundary, useMultipart } =
-    params;
-  const manifestStr = JSON.stringify(
-    buildManifest({
-      update: {
-        id: update.id,
-        createdAt: update.created_at,
-        runtimeVersion: update.runtime_version,
-        metadata: parseJson(update.metadata_json),
-        extra: update.extra_json ? parseJson(update.extra_json) : undefined,
-      },
-      assets: assetRows.map((row) => ({
-        key: row.asset_key,
-        hash: row.hash,
-        contentChecksum: row.content_checksum,
-        contentType: row.content_type,
-        fileExt: row.file_ext,
-        isLaunch: row.is_launch === 1,
-      })),
-      assetBaseUrl,
-      // Launch asset URL points at the Worker bundle route so the Worker can
-      // negotiate bsdiff patches (see protocol/manifest-builder.ts).
-      serverBaseUrl,
-      projectId,
-    }),
-  );
-
-  const sig = signatureFor(ph, update);
-  if (!useMultipart) {
-    return jsonManifestResponse(manifestStr, sig);
-  }
-
-  return multipartResponse(boundary, [
-    signedPart("manifest", manifestStr, sig),
-    ...certChainParts(ph, update),
-    extensionsPart,
-  ]);
-};
 
 const trackNoUpdate = (branchId: string, track: TrackManifestResponse) => {
   track(branchId, "", "no_update");
@@ -279,7 +158,14 @@ const handleCacheMiss = (params: {
     );
     // skipFailedUpdates removes ONLY the ids the device itself just reported as
     // failed; empty recentFailedUpdateIds is identity. The result may be [].
-    const servable = skipFailedUpdates(matching, ph.recentFailedUpdateIds);
+    // dropUnsignedWhenExpected then removes unsigned candidates when the client
+    // sent `expo-expect-signature` — serving them unsigned would HARD-FAIL its
+    // on-device signature verifier (see domain/signature-policy.ts). Absent the
+    // header it is identity.
+    const servable = dropUnsignedWhenExpected(
+      skipFailedUpdates(matching, ph.recentFailedUpdateIds),
+      ph.expectSignature,
+    );
 
     // NEVER-STRAND backstop: if every LIMIT-2 candidate (latest + previous) was
     // filtered out or reported-failed, return 204 (keep running what you have),
@@ -307,9 +193,14 @@ const handleCacheMiss = (params: {
     // filter-excluded update. Re-assert both invariants on the final pick: if it
     // is reported-failed or fails the filter, return 204 (never serve it). The
     // common direct-pick path (update is already in `servable`) passes trivially.
+    // The rollout fallback (resolveFullyRolledOutUpdate) re-queries D1 and bypasses
+    // the in-memory servable narrowing, so re-assert the same invariants on the
+    // final pick: reported-failed, filter-excluded, OR unsigned-while-signature-
+    // expected (a code-signing client hard-fails on an unsigned manifest) => 204.
     if (
       ph.recentFailedUpdateIds.includes(update.id) ||
-      !matchesFilters(parseJson(update.metadata_json), filters)
+      !matchesFilters(parseJson(update.metadata_json), filters) ||
+      isUnsignedButSignatureExpected(update, ph.expectSignature)
     ) {
       return trackNoUpdate(resolvedBranchId, track);
     }

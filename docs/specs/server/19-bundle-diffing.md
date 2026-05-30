@@ -97,8 +97,12 @@ valid patch base. The CLI publishes the embedded update through the normal
   exactly one baseline per (runtime, platform); publishing a new one clears the
   previous flag inside the same serialized publish.
 
-The client sends the embedded update's id as `expo-embedded-update-id`, which
-`selectPatchCandidates` uses to resolve a first-launch patch key.
+On first launch the embedded update **is** the launched/current update, so the
+device sends it as `expo-current-update-id` (SDK-56 only patches against the
+current update and rejects any patch whose `expo-base-update-id` is not that
+current id). `selectPatchCandidates` therefore uses the **current** id to resolve
+the first-launch patch key. `expo-embedded-update-id` is still parsed (for cache
+`Vary`) but is never offered as a patch base.
 
 ## Cloudflare Compression Rule (ops)
 

@@ -44,8 +44,9 @@ export type BundleResolution =
 const notFound: BundleResolution = { kind: "not-found" };
 
 /**
- * Probe each candidate base id in order ([current, embedded]) and return the
- * first precomputed patch present in R2, or null when none match.
+ * Probe the patch base candidate ([current] only — SDK-56 rejects any base that
+ * is not the device's currently-launched update) and return the precomputed
+ * patch present in R2, or null when none matches.
  */
 const resolvePatch = (params: {
   readonly request: PatchRequest;

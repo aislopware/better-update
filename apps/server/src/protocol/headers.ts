@@ -122,17 +122,6 @@ const parseExtraParams = (headers: Headers) =>
     return hasOversized ? undefined : raw;
   }).pipe(Effect.catchAll(() => Effect.succeed(undefined)));
 
-export const addServerDefinedHeaders = (
-  response: Response,
-  extraParams: string | undefined,
-): Response => {
-  if (!extraParams) {
-    return response;
-  }
-  response.headers.set("expo-server-defined-headers", `expo-extra-params=:${btoa(extraParams)}:`);
-  return response;
-};
-
 export const parseProtocolHeaders = (
   headers: Headers,
 ): Effect.Effect<ProtocolHeaders, BadRequest> =>

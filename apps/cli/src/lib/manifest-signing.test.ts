@@ -1,11 +1,12 @@
 import { createVerify, generateKeyPairSync, X509Certificate } from "node:crypto";
 
+import { buildRollbackDirectiveBody } from "@better-update/expo-protocol";
 import { Effect } from "effect";
 import forge from "node-forge";
 
 import type { ManifestAssetData, ManifestUpdateData } from "@better-update/expo-protocol";
 
-import { renderManifest, signBody } from "./manifest-signing";
+import { renderManifest, signBody, signDirectiveBody } from "./manifest-signing";
 
 // Generate a 2048-bit RSA keypair + a self-signed code-signing certificate so
 // the sign-then-verify round-trip uses real crypto end to end (the way the
@@ -193,5 +194,55 @@ describe(signBody, () => {
     expect(
       createVerify("RSA-SHA256").update(body, "utf8").verify(certPublicKey, sig, "base64"),
     ).toBe(true);
+  });
+});
+
+describe(signDirectiveBody, () => {
+  const COMMIT_TIME = "2026-04-15T00:00:00.000Z";
+
+  it("signs a rollback directive that verifies with the cert public key (device-style round-trip)", async () => {
+    const { privateKeyPem, certificatePem } = makeKeypairAndCert();
+    const directiveBody = buildRollbackDirectiveBody(COMMIT_TIME);
+
+    const { signature } = await Effect.runPromise(
+      signDirectiveBody({ bodyBytes: directiveBody, privateKeyPem, certificatePem, keyid: "main" }),
+    );
+
+    // Same `expo-signature` SFV shape the device parses for a directive part.
+    const sigMatch = /^sig="([^"]+)", keyid="main", alg="rsa-v1_5-sha256"$/.exec(signature);
+    expect(sigMatch).not.toBeNull();
+    const sig = sigMatch![1]!;
+
+    // The device runs the SAME RSA-SHA256 `validateSignature` over a directive
+    // part body as over a manifest part — verify exactly that way over the EXACT
+    // signed bytes (no re-stringify between build and sign).
+    const certPublicKey = new X509Certificate(certificatePem).publicKey;
+    const verified = createVerify("RSA-SHA256")
+      .update(directiveBody, "utf8")
+      .verify(certPublicKey, sig, "base64");
+    expect(verified).toBe(true);
+  });
+
+  it("fails with UpdateRollbackError when the private key does not match the certificate", async () => {
+    const signer = makeKeypairAndCert();
+    const other = makeKeypairAndCert();
+    const directiveBody = buildRollbackDirectiveBody(COMMIT_TIME);
+
+    const result = await Effect.runPromise(
+      Effect.either(
+        // Sign with one key but hand a DIFFERENT cert → self-verify must fail,
+        // and the failure must carry the rollback error tag (not the publish one).
+        signDirectiveBody({
+          bodyBytes: directiveBody,
+          privateKeyPem: signer.privateKeyPem,
+          certificatePem: other.certificatePem,
+          keyid: "main",
+        }),
+      ),
+    );
+    expect(result._tag).toBe("Left");
+    if (result._tag === "Left") {
+      expect(result.left._tag).toBe("UpdateRollbackError");
+    }
   });
 });

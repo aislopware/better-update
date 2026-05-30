@@ -116,6 +116,7 @@ const revertToEmbedded = (
       directiveBodyFile: undefined,
       signatureFile: undefined,
       certificateChainFile: undefined,
+      privateKeyPath: undefined,
     });
     yield* printHuman(
       `Created rollback group ${result.groupId} on branch "${result.branch}" at ${result.commitTime}.`,

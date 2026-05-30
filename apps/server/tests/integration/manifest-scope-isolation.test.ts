@@ -151,11 +151,12 @@ describe("manifest serving — scopeKey cache + metadata isolation", () => {
     expect(await sdhRow(projectB, scopeKeyA)).toBeNull();
   });
 
-  it("wire echo for expo-extra-params is unchanged (transport untouched)", async () => {
+  it("does not emit a spec-malformed expo-server-defined-headers reflection", async () => {
     const response = await fetchManifest(projectA, { "expo-extra-params": 'foo="a"' });
-    expect(response.headers.get("expo-server-defined-headers")).toBe(
-      `expo-extra-params=:${btoa('foo="a"')}:`,
-    );
+    // The server no longer reflects the client's own extra-params back as an
+    // `expo-server-defined-headers` byte-sequence (inert + outside Expo SFV-0).
+    // Absent the header, the device keeps its existing stored map (safe default).
+    expect(response.headers.get("expo-server-defined-headers")).toBeNull();
     // No P1 emission yet — manifest-filters header stays absent.
     expect(response.headers.get("expo-manifest-filters")).toBeNull();
   });

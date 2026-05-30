@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 
-import { addServerDefinedHeaders, parseProtocolHeaders } from "./headers";
+import { parseProtocolHeaders } from "./headers";
 
 const expectBadRequest = (error: { readonly _tag: string; readonly message: string }) => {
   expect(error).toMatchObject({ _tag: "BadRequest" });
@@ -210,30 +210,5 @@ describe(parseProtocolHeaders, () => {
   it("Expo-Fatal-Error absent -> undefined", async () => {
     const result = await Effect.runPromise(parseProtocolHeaders(validHeaders()));
     expect(result.fatalError).toBeUndefined();
-  });
-});
-
-describe(addServerDefinedHeaders, () => {
-  it("returns same response when extraParams is undefined", () => {
-    const response = new Response(null, { status: 204 });
-    expect(addServerDefinedHeaders(response, undefined)).toBe(response);
-  });
-
-  it("sets expo-server-defined-headers with base64 byte sequence", async () => {
-    const response = new Response("body", { status: 200 });
-    const raw = 'cohort="beta"';
-    const result = addServerDefinedHeaders(response, raw);
-    expect(result.headers.get("expo-server-defined-headers")).toBe(
-      `expo-extra-params=:${btoa(raw)}:`,
-    );
-    expect(result.status).toBe(200);
-    await expect(result.text()).resolves.toBe("body");
-  });
-
-  it("preserves existing response headers", () => {
-    const response = new Response(null, { status: 200, headers: { "x-custom": "keep" } });
-    const result = addServerDefinedHeaders(response, "k=?1");
-    expect(result.headers.get("x-custom")).toBe("keep");
-    expect(result.headers.has("expo-server-defined-headers")).toBe(true);
   });
 });

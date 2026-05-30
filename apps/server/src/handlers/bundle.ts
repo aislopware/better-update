@@ -21,9 +21,31 @@ import type { BundleResolution } from "../application/resolve-bundle";
 // content-type the zone Compression Rule targets (see P4 / the ops doc).
 const BUNDLE_CONTENT_TYPE = "application/octet-stream";
 
-// Patches are immutable per (from, to) and full bundles are content-addressed
-// by hash, so both are safe to cache forever.
+// Full bundles are content-addressed by hash — identical for every requester —
+// so they are safe to cache forever.
 const IMMUTABLE_CACHE_CONTROL = "public, max-age=31536000, immutable";
+
+// A-IM content negotiation means this ONE bundle URL returns DIFFERENT bodies
+// depending on whether the client advertised `a-im: bsdiff` and which base update
+// it holds. Without protection, a cache could replay a cached PATCH body for a
+// later FULL (no-`a-im`) request — the device would treat the bsdiff patch as a
+// full bundle, fail its SHA-256 integrity check, and brick the update.
+//
+// TWO layers defend against this, because no single one covers every cache:
+//   - `Vary` (here) is honored by standards-compliant intermediaries and the
+//     Android OkHttp client cache, keeping a patch entry from being reused for the
+//     fallback request.
+//   - `no-store` on patch responses (below) is what protects the CLOUDFLARE EDGE,
+//     which IGNORES `Vary` on non-`accept-encoding` headers.
+// Full bundles are content-addressed (byte-identical for every requester) and stay
+// immutable-cacheable.
+const BUNDLE_VARY = "a-im, expo-current-update-id, expo-embedded-update-id";
+
+// Patch bodies are negotiated per-request (the base depends on what the device
+// currently holds), so no shared cache may ever treat one as reusable. `no-store`
+// is the load-bearing edge protection (the Cloudflare edge ignores `Vary` on these
+// custom headers); `BUNDLE_VARY` additionally guards Vary-honoring caches.
+const PATCH_CACHE_CONTROL = "no-store";
 
 const notFoundResponse = (): Response =>
   Response.json({ code: "NOT_FOUND", message: "Bundle not found" }, { status: 404 });
@@ -44,6 +66,9 @@ const blobResponse = (
     "content-type": BUNDLE_CONTENT_TYPE,
     "cache-control": IMMUTABLE_CACHE_CONTROL,
     "content-length": blob.size.toString(),
+    vary: BUNDLE_VARY,
+    // A patch passes `cache-control: no-store` via extraHeaders, overriding the
+    // immutable default below; full bundles keep it.
     ...extraHeaders,
   });
   return new Response(blob.body, { status, headers });
@@ -61,7 +86,7 @@ export const toResponse = (emit226: boolean) =>
     Match.discriminator("kind")("patch", (resolution) =>
       blobResponse(
         resolution.blob,
-        patchResponseHeaders(resolution.baseUpdateId),
+        { ...patchResponseHeaders(resolution.baseUpdateId), "cache-control": PATCH_CACHE_CONTROL },
         emit226 ? HTTP_226_IM_USED : 200,
       ),
     ),

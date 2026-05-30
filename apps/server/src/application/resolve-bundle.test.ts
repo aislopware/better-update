@@ -132,8 +132,12 @@ describe(resolveBundle, () => {
     }),
   );
 
-  it.effect("falls back to the embedded base when no current-id patch exists", () =>
+  it.effect("never serves an embedded-base patch (SDK-56 only patches against current)", () =>
     Effect.gen(function* () {
+      // Even though an embedded-base patch EXISTS in R2, the server must not serve
+      // it: the device validates expo-base-update-id == its current update and
+      // rejects any other base. With no current-base patch present, fall back to
+      // the full bundle rather than the (guaranteed-rejected) embedded patch.
       const embeddedKey = `patches/proj/1.0.0/ios/${BASE_EMBEDDED}__${TARGET}.bsdiff`;
       const result = yield* resolveBundle({
         request: parsePatchRequest(
@@ -154,10 +158,7 @@ describe(resolveBundle, () => {
           bundleRepo({ patchKeys: new Set([embeddedKey]), fullBundle: blob("full") }),
         ),
       );
-      expect(result.kind).toBe("patch");
-      if (result.kind === "patch") {
-        expect(result.baseUpdateId).toBe(BASE_EMBEDDED);
-      }
+      expect(result.kind).toBe("full");
     }),
   );
 

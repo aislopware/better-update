@@ -142,31 +142,29 @@ describe(selectPatchCandidates, () => {
     ...overrides,
   });
 
-  it("orders [current, embedded]", () => {
+  it("uses only the current update as the base", () => {
     expect(
       selectPatchCandidates(req({ currentUpdateId: "cur", embeddedUpdateId: "emb" }), "target"),
-    ).toStrictEqual(["cur", "emb"]);
-  });
-
-  it("drops undefined candidates", () => {
-    expect(selectPatchCandidates(req({ embeddedUpdateId: "emb" }), "target")).toStrictEqual([
-      "emb",
-    ]);
-  });
-
-  it("drops a candidate equal to the target (self-patch)", () => {
-    expect(
-      selectPatchCandidates(req({ currentUpdateId: "same", embeddedUpdateId: "emb" }), "SAME"),
-    ).toStrictEqual(["emb"]);
-  });
-
-  it("lowercases candidates and dedups", () => {
-    expect(
-      selectPatchCandidates(req({ currentUpdateId: "CUR", embeddedUpdateId: "cur" }), "target"),
     ).toStrictEqual(["cur"]);
   });
 
-  it("returns empty when no usable candidates", () => {
+  it("never offers the embedded update as a patch base (SDK-56 rejects it)", () => {
+    expect(selectPatchCandidates(req({ embeddedUpdateId: "emb" }), "target")).toStrictEqual([]);
+  });
+
+  it("drops the current candidate when it equals the target (self-patch)", () => {
+    expect(
+      selectPatchCandidates(req({ currentUpdateId: "same", embeddedUpdateId: "emb" }), "SAME"),
+    ).toStrictEqual([]);
+  });
+
+  it("lowercases the current candidate", () => {
+    expect(
+      selectPatchCandidates(req({ currentUpdateId: "CUR", embeddedUpdateId: "ignored" }), "target"),
+    ).toStrictEqual(["cur"]);
+  });
+
+  it("returns empty when there is no current update", () => {
     expect(selectPatchCandidates(req({}), "target")).toStrictEqual([]);
   });
 });

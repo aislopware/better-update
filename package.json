@@ -31,7 +31,9 @@
     "test:all": "bun run test && bun run test:integrations && bun run test:e2e",
     "test:e2e": "turbo run test:e2e",
     "test:integrations": "turbo run test:integrations",
-    "typegen:cf": "turbo run typegen:cf"
+    "typegen:cf": "turbo run typegen:cf",
+    "verify": "node scripts/self-verify.mjs",
+    "verify:e2e": "node scripts/self-verify.mjs --only=e2e"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.100.11",

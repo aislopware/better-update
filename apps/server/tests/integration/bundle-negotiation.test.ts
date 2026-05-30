@@ -170,12 +170,16 @@ describe("bundle route — A-IM bsdiff content negotiation", () => {
     expect(await bytesOf(response)).toEqual(FULL_BUNDLE_BYTES);
   });
 
-  it("(d) serves a first-launch patch from the embedded-update-id base", async () => {
+  it("(d) serves a first-launch patch (embedded update is the current update on first launch)", async () => {
+    // On first launch the embedded build-time update IS the launched/current
+    // update, so a real device sends it as expo-current-update-id (NOT a
+    // standalone expo-embedded-update-id — SDK-56 only patches against current).
+    // That current base resolves the embedded->target patch key.
     const response = await fetchBundle(projectId, toUpdateId, launchHash, {
       "a-im": "bsdiff",
       "expo-platform": "ios",
       "expo-runtime-version": runtimeVersion,
-      "expo-embedded-update-id": embeddedUpdateId,
+      "expo-current-update-id": embeddedUpdateId,
     });
 
     expect(response.status).toBe(200);
@@ -402,8 +406,9 @@ describe("embedded baseline — partial unique index + bundle resolution", () =>
       .first<{ f: number }>();
     expect(firstRow?.f).toBe(0);
 
-    // The current embedded update id resolves a first-launch patch in the
-    // bundle route: seed a patch keyed by (embeddedId -> target).
+    // On first launch the embedded update is the launched/current update, so the
+    // device sends it as expo-current-update-id and the server patches against
+    // that current base. Seed a patch keyed by (embeddedId -> target).
     const patchKey = `patches/${projectId}/${runtimeVersion}/ios/${second.id.toLowerCase()}__${targetUpdateId}.bsdiff`;
     await seedPatch(patchKey, PATCH_BYTES);
 
@@ -411,7 +416,7 @@ describe("embedded baseline — partial unique index + bundle resolution", () =>
       "a-im": "bsdiff",
       "expo-platform": "ios",
       "expo-runtime-version": runtimeVersion,
-      "expo-embedded-update-id": second.id,
+      "expo-current-update-id": second.id,
     });
 
     expect(response.status).toBe(200);

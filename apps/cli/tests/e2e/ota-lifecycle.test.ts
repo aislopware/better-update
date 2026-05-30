@@ -43,7 +43,9 @@ const cli = setupCliE2E("e2e-cli-ota", {
 
 // ── Helpers ──────────────────────────────────────────────────────
 
-const iosRowPattern = /^ios\s+([0-9a-f-]+)\s+1\.0\.0\s+(\d+)\s+(\d+)\s*$/m;
+// `<platform> <id> <rtv> <uploaded> <reused> <patches>` — stop before the
+// trailing Patches column (lookahead, not an end anchor).
+const iosRowPattern = /^ios\s+([0-9a-f-]+)\s+1\.0\.0\s+(\d+)\s+(\d+)(?=\s|$)/m;
 
 interface MultipartPart {
   readonly headers: Record<string, string>;

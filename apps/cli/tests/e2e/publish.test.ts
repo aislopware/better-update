@@ -45,9 +45,11 @@ const publishState = {
   firstIosUpdateId: "",
 };
 
-// Table rows are padded with trailing whitespace — use \s*$ in all row regexes.
-const iosRowPattern = /^ios\s+([0-9a-f-]+)\s+1\.0\.0\s+(\d+)\s+(\d+)\s*$/m;
-const androidRowPattern = /^android\s+([0-9a-f-]+)\s+1\.0\.0\s+(\d+)\s+(\d+)\s*$/m;
+// Publish rows are `<platform> <id> <rtv> <uploaded> <reused> <patches>` — the
+// trailing Patches column follows Reused, so capture id/uploaded/reused and stop
+// before it (a lookahead, not an end anchor).
+const iosRowPattern = /^ios\s+([0-9a-f-]+)\s+1\.0\.0\s+(\d+)\s+(\d+)(?=\s|$)/m;
+const androidRowPattern = /^android\s+([0-9a-f-]+)\s+1\.0\.0\s+(\d+)\s+(\d+)(?=\s|$)/m;
 
 describe("CLI publish journey", () => {
   it("links the fixture app to the seeded project", () => {

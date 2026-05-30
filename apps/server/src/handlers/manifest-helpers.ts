@@ -1,7 +1,6 @@
 import { Effect } from "effect";
 
 import { cloudflareCtx } from "../cloudflare/context";
-import { addServerDefinedHeaders } from "../protocol/headers";
 import { serializeManifestFilters } from "../protocol/sfv";
 import { ProjectProtocolMetadataRepo } from "../repositories/project-protocol-metadata";
 
@@ -20,14 +19,20 @@ export type TrackManifestResponse = (
 export const responseTypeFor = (update: Pick<UpdateRow, "is_rollback">): ResponseType =>
   update.is_rollback === 1 ? "directive" : "manifest";
 
-// respond() sets the wire echo (expo-server-defined-headers) AND records the
-// device's echoed extra-params per (projectId, scopeKey). NOTE on naming: the
-// stored value is the CLIENT-echoed `expo-extra-params`, not server-AUTHORED
-// server-defined-headers — the server does not yet author any server-defined
-// headers; addServerDefinedHeaders just reflects ph.extraParams back. We persist
-// it under the `expo-extra-params` key so the row shape is honest about being a
-// client echo. The P1 selection-policy work must NOT treat this as server-owned
-// targeting state.
+// respond() records the device's echoed extra-params per (projectId, scopeKey).
+// NOTE on naming: the stored value is the CLIENT-echoed `expo-extra-params`, not
+// server-AUTHORED server-defined-headers — the server does not author any
+// server-defined headers. We persist it under the `expo-extra-params` key so the
+// row shape is honest about being a client echo. The P1 selection-policy work
+// must NOT treat this as server-owned targeting state.
+//
+// We deliberately DO NOT emit an `expo-server-defined-headers` RESPONSE header.
+// Reflecting the client's own extra-params back is inert — the device sources
+// extra-params from its OWN persisted store, never from server-defined-headers
+// (FileDownloader keeps the two as separate stores) — and a `:base64:`
+// byte-sequence value is OUTSIDE the Expo SFV-0 subset, so emitting it is a
+// spec-malformed (if client-tolerated) header. Absent the header, the device
+// keeps its existing stored map, which is the correct safe default.
 //
 // The persistence is BOOKKEEPING ONLY and must never affect manifest serving:
 //   1. Failure isolation — the repo write goes through Effect.promise (a
@@ -39,7 +44,6 @@ export const responseTypeFor = (update: Pick<UpdateRow, "is_rollback">): Respons
 //      awaited, so it adds no latency to manifest serving (including the cache-
 //      HIT path, which otherwise never touches D1). The worker stays alive until
 //      the write settles.
-// The wire echo (addServerDefinedHeaders) is stateless and always applied.
 const recordExtraParams = (params: {
   readonly projectId: string;
   readonly scopeKey: string;
@@ -65,8 +69,8 @@ const recordExtraParams = (params: {
     ctx.waitUntil(Effect.runPromise(write));
   });
 
-// EMIT expo-manifest-filters as a stateless response-time decoration, exactly
-// like addServerDefinedHeaders. The filters are the already-parsed per-(project,
+// EMIT expo-manifest-filters as a stateless response-time decoration. The
+// filters are the already-parsed per-(project,
 // scopeKey) scalar map from the P0c store (read ONCE in serveRequest, threaded
 // down, not re-read here). When undefined/empty we set NO header — the safe
 // default: the client treats absent filters as `nil` => every update passes
@@ -104,5 +108,5 @@ export const respond = (
         extraParams: ph.extraParams,
       });
     }
-    return emitManifestFilters(addServerDefinedHeaders(response, ph.extraParams), params.filters);
+    return emitManifestFilters(response, params.filters);
   });

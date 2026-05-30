@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import path from "node:path";
 
 import { buildRollbackDirectiveBody } from "@better-update/expo-protocol";
 import { isRecord } from "@better-update/type-guards";
@@ -10,8 +11,14 @@ import type { CommandExecutor } from "@effect/platform";
 import { readRuntimeVersionMeta } from "../lib/build-profile";
 import { pullEnvVars } from "../lib/env-exporter";
 import { UpdateRollbackError } from "../lib/exit-codes";
-import { extractProjectId, extractSlug, readExpoConfig } from "../lib/expo-config";
+import {
+  extractCodeSigningConfig,
+  extractProjectId,
+  extractSlug,
+  readExpoConfig,
+} from "../lib/expo-config";
 import { formatCause } from "../lib/format-error";
+import { signDirectiveBody } from "../lib/manifest-signing";
 import { resolveRuntimeVersion } from "../lib/runtime-version";
 import { resolveUpdatePlatforms } from "../lib/update-platforms";
 import { apiClient } from "../services/api-client";
@@ -25,6 +32,7 @@ import type {
   ProjectNotLinkedError,
   RuntimeVersionError,
 } from "../lib/exit-codes";
+import type { ExpoConfig } from "../lib/expo-config";
 import type { InteractiveMode } from "../lib/interactive-mode";
 import type { UpdatePlatformOption } from "../lib/update-platforms";
 import type { ApiClientService } from "../services/api-client";
@@ -57,6 +65,11 @@ export interface RunUpdateRollbackOptions {
   readonly directiveBodyFile: string | undefined;
   readonly signatureFile: string | undefined;
   readonly certificateChainFile: string | undefined;
+  // Auto-sign path: RSA private key (PEM) that signs the rendered rollback
+  // directive, reading the certificate from `updates.codeSigningCertificate` in
+  // app.json (parity with `update publish --private-key-path`). Mutually
+  // exclusive with the --*-file escape hatch above.
+  readonly privateKeyPath: string | undefined;
 }
 
 export interface UpdateRollbackResult {
@@ -168,6 +181,65 @@ const loadOptionalSignedRollbackPayload = (
     } satisfies SignedRollbackPayload;
   });
 
+// Auto-sign path (parity with `update publish --private-key-path`): read the
+// code-signing config from app.json, load the RSA private key + certificate
+// chain, then render + code-sign the rollback directive in-process. The directive
+// body is platform-independent (it only carries `commitTime`), so a single signed
+// triple is shared by every rolled-back platform — exactly like the file payload.
+//
+// Signs the bare directive body only; no `extra.signingInfo` project-binding is
+// injected, which is correct for the DEVELOPMENT / self-signed certs self-hosted
+// projects generate (no `expoProjectInformation` extension → the device skips the
+// project-info cross-check). Matches the manifest signer's scope.
+const buildAutoSignedRollback = (params: {
+  readonly privateKeyPath: string;
+  readonly expoConfig: ExpoConfig;
+  readonly projectRoot: string;
+  readonly commitTime: string;
+}): Effect.Effect<SignedRollbackPayload, UpdateRollbackError, FileSystem.FileSystem> =>
+  Effect.gen(function* () {
+    const codeSigning = yield* extractCodeSigningConfig(params.expoConfig).pipe(
+      Effect.mapError((cause) => new UpdateRollbackError({ message: cause.message })),
+    );
+    if (codeSigning === undefined) {
+      return yield* new UpdateRollbackError({
+        message:
+          "--private-key-path was provided but updates.codeSigningCertificate is not set in your Expo config. Add the certificate path to app.json.",
+      });
+    }
+
+    const fileSystem = yield* FileSystem.FileSystem;
+    const certificateAbsolutePath = path.resolve(params.projectRoot, codeSigning.certificatePath);
+    const [privateKeyPem, certificateChainPem] = yield* Effect.all(
+      [
+        fileSystem.readFileString(params.privateKeyPath),
+        fileSystem.readFileString(certificateAbsolutePath),
+      ],
+      { concurrency: "unbounded" },
+    ).pipe(
+      Effect.mapError(
+        (cause) =>
+          new UpdateRollbackError({
+            message: `Failed to read code-signing key/certificate: ${formatCause(cause)}`,
+          }),
+      ),
+    );
+
+    const directiveBody = buildRollbackDirectiveBody(params.commitTime);
+    const { signature } = yield* signDirectiveBody({
+      bodyBytes: directiveBody,
+      privateKeyPem,
+      certificatePem: certificateChainPem,
+      keyid: codeSigning.keyid,
+    });
+
+    return {
+      directiveBody,
+      signature,
+      certificateChain: certificateChainPem,
+    } satisfies SignedRollbackPayload;
+  });
+
 const createRollbackForPlatform = (
   params: CreateRollbackParams,
 ): Effect.Effect<RollbackResultItem, AuthRequiredError | UpdateRollbackError, ApiClientService> =>
@@ -250,11 +322,19 @@ export const runUpdateRollback = (
       });
     }
 
-    const signedPayload = yield* loadOptionalSignedRollbackPayload(options);
-    const commitTime = signedPayload
+    const fileSignedPayload = yield* loadOptionalSignedRollbackPayload(options);
+    // --private-key-path (auto-sign) and the --*-file escape hatch both produce a
+    // signed triple; accepting both at once is ambiguous, so reject it up front.
+    if (options.privateKeyPath !== undefined && fileSignedPayload !== null) {
+      return yield* new UpdateRollbackError({
+        message:
+          "--private-key-path cannot be combined with the --directive-body-file/--signature-file/--certificate-chain-file options. Use one signing path or the other.",
+      });
+    }
+    const commitTime = fileSignedPayload
       ? yield* Effect.gen(function* () {
           const directiveCommitTime = yield* extractDirectiveCommitTime(
-            signedPayload.directiveBody,
+            fileSignedPayload.directiveBody,
           );
           if (options.commitTime && options.commitTime !== directiveCommitTime) {
             return yield* new UpdateRollbackError({
@@ -264,6 +344,20 @@ export const runUpdateRollback = (
           return directiveCommitTime;
         })
       : yield* resolveCommitTime(options.commitTime);
+    // Effective signed payload: the file escape-hatch, else the in-process
+    // auto-sign (rendered + signed once over the platform-independent directive),
+    // else null (unsigned). The per-platform create below falls back to a fresh
+    // unsigned directive body when this is null.
+    const signedPayload =
+      fileSignedPayload ??
+      (options.privateKeyPath === undefined
+        ? null
+        : yield* buildAutoSignedRollback({
+            privateKeyPath: options.privateKeyPath,
+            expoConfig: config,
+            projectRoot,
+            commitTime,
+          }));
     const groupId = randomUUID();
     const message = options.message ?? "Rollback to embedded via better-update CLI";
 

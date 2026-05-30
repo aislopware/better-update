@@ -556,7 +556,9 @@ describe("cLI command journey", () => {
         expect.objectContaining({
           message: signedMessage,
           signature: signatureSfv,
-          certificateChain: certPem,
+          // The CLI trimEnd()s the cert file before upload; node-forge's PEM ends
+          // with a newline, so the stored value drops it.
+          certificateChain: certPem.trimEnd(),
           directiveBody,
         }),
       ]),
@@ -770,15 +772,14 @@ describe("cLI command journey", () => {
       assets: [],
     });
 
+    // The server verifies signed publishes at create time, so the replacement
+    // signed files must carry a REAL signature over the exact manifest body bytes.
+    const { signatureSfv: replacementSignature, certPem: replacementCertPem } =
+      signBodyForTest(replacementManifestBody);
+
     writeFileSync(manifestBodyPath, replacementManifestBody);
-    writeFileSync(
-      signaturePath,
-      'sig="replacement-signature", keyid="main", alg="rsa-v1_5_sha256"\n',
-    );
-    writeFileSync(
-      certificateChainPath,
-      "-----BEGIN CERTIFICATE-----\nREPLACEMENT\n-----END CERTIFICATE-----\n",
-    );
+    writeFileSync(signaturePath, `${replacementSignature}\n`);
+    writeFileSync(certificateChainPath, `${replacementCertPem}\n`);
 
     const promoteResult = cli.runCli(
       "update",
@@ -815,8 +816,8 @@ describe("cLI command journey", () => {
       expect.arrayContaining([
         expect.objectContaining({
           id: promotedUpdateId,
-          signature: 'sig="replacement-signature", keyid="main", alg="rsa-v1_5_sha256"',
-          certificateChain: "-----BEGIN CERTIFICATE-----\nREPLACEMENT\n-----END CERTIFICATE-----",
+          signature: replacementSignature,
+          certificateChain: replacementCertPem.trimEnd(),
           manifestBody: replacementManifestBody,
         }),
       ]),

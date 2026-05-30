@@ -105,9 +105,16 @@ export const publishCommand = defineCommand({
       description:
         "Max recent published updates to compute bsdiff patches against (default 10; 0 = embedded baseline only)",
     },
-    "no-patches": {
+    // Declared as the positive `patches` (default on) so citty's built-in
+    // `--no-<flag>` negation wires up `--no-patches`. A flag literally named
+    // `no-patches` can never be set: citty reads `--no-patches` as negating a
+    // `patches` arg, leaving a `no-patches` arg permanently undefined.
+    patches: {
       type: "boolean",
-      description: "Skip the bsdiff patch generation phase entirely",
+      default: true,
+      description:
+        "Generate bsdiff patches against recent published updates (default: on; pass --no-patches to skip the phase entirely)",
+      negativeDescription: "Skip the bsdiff patch generation phase entirely (use --no-patches)",
     },
   },
   run: async ({ args }) =>
@@ -151,7 +158,7 @@ export const publishCommand = defineCommand({
           certificateChainFileAndroid: args["certificate-chain-file-android"],
           privateKeyPath: args["private-key-path"],
           patchBaseWindow,
-          noPatches: args["no-patches"] ?? false,
+          noPatches: !args.patches,
         });
 
         yield* printHuman(`Published update group ${result.groupId} to branch "${result.branch}".`);
