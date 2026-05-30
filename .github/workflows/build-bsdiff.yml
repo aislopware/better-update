@@ -73,6 +73,20 @@ jobs:
         with:
           targets: ${{ matrix.settings.target }}
 
+      # musl targets cross-compile via `napi build -x` (cargo-zigbuild), which
+      # needs zig + cargo-zigbuild on PATH. --use-napi-cross only covers gnu.
+      - name: Install zig
+        if: contains(matrix.settings.target, 'musl')
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.14.1
+
+      - name: Install cargo-zigbuild
+        if: contains(matrix.settings.target, 'musl')
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-zigbuild
+
       - name: Cache cargo
         uses: actions/cache@v4
         with:
@@ -89,14 +103,14 @@ jobs:
       - name: Build
         run: ${{ matrix.settings.build }}
 
-      - name: Stage artifact into npm dir
-        run: bun run artifacts
-
+      # `napi build --platform` writes `bsdiff.<platform>.node` into the crate
+      # folder. Upload the raw binary; the publish job runs `napi artifacts` to
+      # collate downloaded binaries into npm/<platform>/ dirs.
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: bindings-${{ matrix.settings.target }}
-          path: packages/bsdiff/npm/**/*.node
+          path: packages/bsdiff/*.node
           if-no-files-found: error
 
   # Publish split optionalDependency packages + the main package.
