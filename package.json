@@ -1,6 +1,7 @@
 {
   "name": "better-update",
   "private": true,
+  "type": "module",
   "license": "PolyForm-Noncommercial-1.0.0",
   "workspaces": [
     "apps/*",
