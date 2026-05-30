@@ -1,4 +1,7 @@
-import { fromBase64Url, toBase64Url, toHex } from "@better-update/encoding";
+// eslint-disable-next-line import/no-nodejs-modules -- cloudflare adapter is the I/O boundary; node:crypto X509Certificate is available under nodejs_compat and parses the leaf cert PEM so Web Crypto can verify (no hand-rolled ASN.1)
+import { X509Certificate } from "node:crypto";
+
+import { fromBase64, fromBase64Url, toBase64Url, toHex } from "@better-update/encoding";
 import { Effect, Layer } from "effect";
 
 import { CryptoError, CryptoService } from "../domain/crypto-service";
@@ -73,9 +76,50 @@ const hmacVerifyBase64Url = (secret: string, payload: string, token: string) =>
     );
   });
 
+// Import the leaf certificate's RSA public key as SPKI and verify the
+// detached signature. node:crypto X509Certificate (available under
+// nodejs_compat) parses the PEM + exports the SPKI DER, and Web Crypto does the
+// RSASSA-PKCS1-v1_5 verify — no hand-rolled ASN.1.
+const importLeafCertSpki = (certificatePem: string) =>
+  tryWebCrypto("importLeafCertSpki", async () => {
+    const der = new X509Certificate(certificatePem).publicKey.export({
+      type: "spki",
+      format: "der",
+    });
+    return crypto.subtle.importKey(
+      "spki",
+      asBuffer(new Uint8Array(der)),
+      { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+      false,
+      ["verify"],
+    );
+  });
+
+const rsaPkcs1Sha256Verify = (params: {
+  readonly certificatePem: string;
+  readonly payload: string;
+  readonly signatureBase64: string;
+}) =>
+  Effect.gen(function* () {
+    const key = yield* importLeafCertSpki(params.certificatePem);
+    const signatureBytes = yield* Effect.try({
+      try: () => fromBase64(params.signatureBase64),
+      catch: (cause) => new CryptoError({ operation: "rsaVerifyDecodeSignature", cause }),
+    });
+    return yield* tryWebCrypto("rsaPkcs1Sha256Verify", async () =>
+      crypto.subtle.verify(
+        "RSASSA-PKCS1-v1_5",
+        key,
+        asBuffer(signatureBytes),
+        new TextEncoder().encode(params.payload),
+      ),
+    );
+  });
+
 export const CryptoServiceLive = Layer.succeed(CryptoService, {
   sha256Hex,
   sha256Fraction,
   hmacSignBase64Url,
   hmacVerifyBase64Url,
+  rsaPkcs1Sha256Verify,
 });

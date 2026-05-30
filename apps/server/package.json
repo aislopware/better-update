@@ -33,6 +33,8 @@
     "@better-update/api": "workspace:*",
     "@better-update/dotenv": "workspace:*",
     "@better-update/encoding": "workspace:*",
+    "@better-update/expo-codesign": "workspace:*",
+    "@better-update/expo-protocol": "workspace:*",
     "@better-update/safe-json": "workspace:*",
     "@better-update/type-guards": "workspace:*",
     "@effect/platform": "^0.96.1",

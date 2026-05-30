@@ -172,6 +172,8 @@ const toSerializedUpdate = (update: UpdateModel): SerializedUpdate => ({
   manifestBody: update.manifestBody,
   directiveBody: update.directiveBody,
   fingerprintHash: update.fingerprintHash,
+  gitCommit: update.gitCommit,
+  gitDirty: update.gitDirty,
   totalAssetSize: update.totalAssetSize,
   createdAt: update.createdAt,
 });
@@ -181,6 +183,59 @@ const getNextLaunchHash = (params: {
   readonly assets: readonly SerializedAssetRef[];
 }): string | null =>
   params.isRollback ? null : toDbNull(params.assets.find((asset) => asset.isLaunch)?.hash);
+
+const embeddedIdInUseMessage = (id: string) =>
+  `Update id "${id}" is already in use by another update; the embedded baseline id (the binary's app.manifest UUID) must be unique`;
+
+/**
+ * Reconcile a pinned embedded-baseline id BEFORE the insert so the PRIMARY KEY
+ * write never blows up into a 500. Runs inside the publish DO's single-writer
+ * lock, so the read-then-act below has no concurrent writer to race.
+ *
+ *  • no pinned id / no existing row → proceed (insert as-is).
+ *  • existing row, SAME (branch, runtimeVersion, platform) → idempotent
+ *    re-register: delete the prior row so the pinned-id insert lands cleanly
+ *    (re-uploading the same --embedded-id after a reset/retry/CI step is a
+ *    normal operator workflow, not a 500).
+ *  • existing row, DIFFERENT tuple (other branch/project, or other rtv/platform)
+ *    → Conflict: never overwrite another update's row across the trust boundary.
+ *
+ * Returns null to proceed, or a conflict message to abort with a clean 409.
+ */
+const reconcileEmbeddedBaselineId = (params: {
+  readonly id: string | undefined;
+  readonly branchId: string;
+  readonly runtimeVersion: string;
+  readonly platform: "ios" | "android";
+}) =>
+  Effect.gen(function* () {
+    if (params.id === undefined) {
+      return null;
+    }
+
+    const updateRepo = yield* UpdateRepo;
+    const existing = yield* updateRepo
+      .findById({ id: params.id })
+      .pipe(Effect.catchTag("NotFound", () => Effect.succeed(null)));
+
+    if (existing === null) {
+      return null;
+    }
+
+    const sameTuple =
+      existing.branchId === params.branchId &&
+      existing.runtimeVersion === params.runtimeVersion &&
+      existing.platform === params.platform;
+
+    if (!sameTuple) {
+      return embeddedIdInUseMessage(params.id);
+    }
+
+    // Same (branch, rtv, platform): idempotent replace under the single-writer
+    // lock so the pinned-id insert below does not trip the PK constraint.
+    yield* updateRepo.deleteById({ id: params.id });
+    return null;
+  });
 
 export const ensureBranchChannel = (params: {
   readonly projectId: string;
@@ -248,23 +303,69 @@ export const publishUpdate = (params: PublishOperation) =>
       platform: params.platform,
       runtimeVersion: params.runtimeVersion,
     });
-    const update = yield* updateRepo.insert({
-      branchId: params.branchId,
-      runtimeVersion: params.runtimeVersion,
-      platform: params.platform,
-      message: params.message,
-      metadataJson: params.metadataJson,
-      extraJson: params.extraJson,
-      groupId: params.groupId,
-      rolloutPercentage: params.rolloutPercentage,
-      isRollback: params.isRollback,
-      signature: params.signature,
-      certificateChain: params.certificateChain,
-      manifestBody: params.manifestBody,
-      directiveBody: params.directiveBody,
-      fingerprintHash: params.fingerprintHash,
-      assets: params.assets,
-    });
+
+    const isEmbedded = params.isEmbedded ?? false;
+    // Exactly one embedded baseline may exist per (branch, runtimeVersion,
+    // platform): clear any prior baseline before inserting this one so the
+    // partial unique index does not conflict and the client's
+    // `expo-embedded-update-id` resolves to the current binary's baseline.
+    if (isEmbedded) {
+      // Reconcile the pinned app.manifest UUID first: re-registering the SAME
+      // embedded id for the SAME tuple is idempotent (replace), but reusing it
+      // for a DIFFERENT tuple/project is a clean Conflict — not a PK-collision
+      // 500. This runs under the publish DO single-writer lock (no race).
+      const embeddedConflict = yield* reconcileEmbeddedBaselineId({
+        id: params.id,
+        branchId: params.branchId,
+        runtimeVersion: params.runtimeVersion,
+        platform: params.platform,
+      });
+      if (embeddedConflict !== null) {
+        return conflict<PublishedUpdateEffectResult>(embeddedConflict);
+      }
+
+      yield* updateRepo.clearEmbeddedBaseline({
+        branchId: params.branchId,
+        platform: params.platform,
+        runtimeVersion: params.runtimeVersion,
+      });
+    }
+
+    const insertResult = yield* updateRepo
+      .insert({
+        // Honour a client-chosen id (signed renders bind to it) or let the repo
+        // generate one (unsigned path).
+        ...(params.id === undefined ? {} : { id: params.id }),
+        branchId: params.branchId,
+        runtimeVersion: params.runtimeVersion,
+        platform: params.platform,
+        message: params.message,
+        metadataJson: params.metadataJson,
+        extraJson: params.extraJson,
+        groupId: params.groupId,
+        rolloutPercentage: params.rolloutPercentage,
+        isRollback: params.isRollback,
+        signature: params.signature,
+        certificateChain: params.certificateChain,
+        manifestBody: params.manifestBody,
+        directiveBody: params.directiveBody,
+        fingerprintHash: params.fingerprintHash,
+        gitCommit: params.gitCommit,
+        gitDirty: params.gitDirty,
+        isEmbedded,
+        assets: params.assets,
+      })
+      // Backstop for the non-embedded pinned-id path (signed renders supply a
+      // client id): a PK collision surfaces as a typed Conflict from insert(),
+      // converted here to a clean 409 instead of crashing the DO. The embedded
+      // path is already reconciled above, so this only fires for a non-embedded
+      // pinned-id collision.
+      .pipe(Effect.either);
+
+    if (insertResult._tag === "Left") {
+      return conflict<PublishedUpdateEffectResult>(insertResult.left.message);
+    }
+    const update = insertResult.right;
 
     yield* channelRepo.bumpCacheVersionByBranch({ branchId: params.branchId });
     yield* projectRepo.bumpLastActivityByBranch({

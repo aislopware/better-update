@@ -3,8 +3,32 @@ import { Context, Effect, Layer } from "effect";
 import { cloudflareEnv } from "../cloudflare/context";
 import { NotFound } from "../errors";
 import { toDbNull } from "../lib/nullable";
+import { d1WithUniqueCheck } from "./d1-helpers";
+import { queryPatchBases } from "./update-patch-base-sql";
+import {
+  queryAssetHashesForUpdates,
+  queryAssetR2Keys,
+  queryPatchBaseUpdateIds,
+  queryReapableUpdateBatch,
+  queryServableUpdateIdsForBranches,
+  querySurvivingUpdateIds,
+  queryUnreferencedAssetHashes,
+  runDeleteAssetRows,
+  runDeleteGroup,
+  runDeleteUpdateRows,
+} from "./update-reaper-sql";
+import {
+  UPDATE_COLUMNS,
+  UPDATE_COLUMNS_U,
+  buildUpdateInsertStatements,
+  toUpdate,
+} from "./update-row-mapping";
 
+import type { Conflict } from "../errors";
 import type { Platform, UpdateAssetRefModel, UpdateModel } from "../models";
+import type { PatchBaseQueryParams, PatchBaseRow } from "./update-patch-base-sql";
+import type { UpdateReaperQueries } from "./update-reaper-sql";
+import type { UpdateAssetRow, UpdateRow } from "./update-row-mapping";
 
 export type UpdateSortKey = "createdAt" | "runtimeVersion" | "platform" | "rolloutPercentage";
 
@@ -12,8 +36,10 @@ export type UpdateSortOrder = "asc" | "desc";
 
 // -- Port ------------------------------------------------------------------
 
-export interface UpdateRepository {
+export interface UpdateRepository extends UpdateReaperQueries {
   readonly insert: (params: {
+    // Optional client-chosen id (signed renders bind to it); else server UUID.
+    readonly id?: string;
     readonly branchId: string;
     readonly runtimeVersion: string;
     readonly platform: Platform;
@@ -28,8 +54,24 @@ export interface UpdateRepository {
     readonly manifestBody: string | null;
     readonly directiveBody: string | null;
     readonly fingerprintHash: string | null;
+    readonly gitCommit: string | null;
+    readonly gitDirty: boolean;
+    readonly isEmbedded?: boolean;
     readonly assets: readonly UpdateAssetRefModel[];
-  }) => Effect.Effect<UpdateModel>;
+    // Conflict (not a defect) when a pinned `id` collides with an existing
+    // PRIMARY KEY, so the caller surfaces a clean 409 (see d1WithUniqueCheck).
+  }) => Effect.Effect<UpdateModel, Conflict>;
+
+  readonly clearEmbeddedBaseline: (params: {
+    readonly branchId: string;
+    readonly platform: Platform;
+    readonly runtimeVersion: string;
+  }) => Effect.Effect<void>;
+
+  // Delete a single update row (+ its update_assets) by id. Used by the
+  // embedded-baseline idempotent re-register path (publish DO single-writer
+  // lock); no-op when the id is absent.
+  readonly deleteById: (params: { readonly id: string }) => Effect.Effect<void>;
 
   readonly insertBatch: (params: {
     readonly branchId: string;
@@ -87,6 +129,8 @@ export interface UpdateRepository {
     readonly runtimeVersion: string;
   }) => Effect.Effect<string | null>;
 
+  readonly listPatchBases: (params: PatchBaseQueryParams) => Effect.Effect<readonly PatchBaseRow[]>;
+
   readonly deleteGroup: (params: {
     readonly groupId: string;
   }) => Effect.Effect<{ readonly deleted: number }>;
@@ -107,60 +151,6 @@ export class UpdateRepo extends Context.Tag("api/UpdateRepo")<UpdateRepo, Update
 
 // -- D1 Adapter ------------------------------------------------------------
 
-interface UpdateRow {
-  id: string;
-  branch_id: string;
-  runtime_version: string;
-  platform: Platform;
-  message: string;
-  metadata_json: string;
-  extra_json: string | null;
-  group_id: string;
-  rollout_percentage: number;
-  is_rollback: number;
-  signature: string | null;
-  certificate_chain: string | null;
-  manifest_body: string | null;
-  directive_body: string | null;
-  fingerprint_hash: string | null;
-  total_asset_size: number;
-  created_at: string;
-}
-
-const TOTAL_ASSET_SIZE_SUBQUERY = `(SELECT COALESCE(SUM(a."byte_size"), 0) FROM "update_assets" ua JOIN "assets" a ON ua."asset_hash" = a."hash" WHERE ua."update_id" = "updates"."id") AS "total_asset_size"`;
-const TOTAL_ASSET_SIZE_SUBQUERY_U = `(SELECT COALESCE(SUM(a."byte_size"), 0) FROM "update_assets" ua JOIN "assets" a ON ua."asset_hash" = a."hash" WHERE ua."update_id" = u."id") AS "total_asset_size"`;
-const UPDATE_INSERT_COLUMNS = `"id", "branch_id", "runtime_version", "platform", "message", "metadata_json", "extra_json", "group_id", "rollout_percentage", "is_rollback", "signature", "certificate_chain", "manifest_body", "directive_body", "fingerprint_hash", "created_at"`;
-const UPDATE_COLUMNS = `"updates"."id", "updates"."branch_id", "updates"."runtime_version", "updates"."platform", "updates"."message", "updates"."metadata_json", "updates"."extra_json", "updates"."group_id", "updates"."rollout_percentage", "updates"."is_rollback", "updates"."signature", "updates"."certificate_chain", "updates"."manifest_body", "updates"."directive_body", "updates"."fingerprint_hash", "updates"."created_at", ${TOTAL_ASSET_SIZE_SUBQUERY}`;
-const UPDATE_COLUMNS_U = `u."id", u."branch_id", u."runtime_version", u."platform", u."message", u."metadata_json", u."extra_json", u."group_id", u."rollout_percentage", u."is_rollback", u."signature", u."certificate_chain", u."manifest_body", u."directive_body", u."fingerprint_hash", u."created_at", ${TOTAL_ASSET_SIZE_SUBQUERY_U}`;
-
-interface UpdateAssetRow {
-  asset_key: string;
-  asset_hash: string;
-  is_launch: number;
-  content_checksum: string | null;
-}
-
-const toUpdate = (row: UpdateRow) =>
-  ({
-    id: row.id,
-    branchId: row.branch_id,
-    runtimeVersion: row.runtime_version,
-    platform: row.platform,
-    message: row.message,
-    metadataJson: row.metadata_json,
-    extraJson: row.extra_json,
-    groupId: row.group_id,
-    rolloutPercentage: row.rollout_percentage,
-    isRollback: row.is_rollback === 1,
-    signature: row.signature,
-    certificateChain: row.certificate_chain,
-    manifestBody: row.manifest_body,
-    directiveBody: row.directive_body,
-    fingerprintHash: row.fingerprint_hash,
-    totalAssetSize: row.total_asset_size,
-    createdAt: row.created_at,
-  }) satisfies UpdateModel;
-
 const fetchUpdatesByIds = (ids: readonly string[]) =>
   Effect.gen(function* () {
     if (ids.length === 0) {
@@ -180,44 +170,65 @@ export const UpdateRepoLive = Layer.succeed(UpdateRepo, {
   insert: (params) =>
     Effect.gen(function* () {
       const env = yield* cloudflareEnv;
-      const id = crypto.randomUUID();
+      const id = params.id ?? crypto.randomUUID();
       const now = new Date().toISOString();
 
-      const stmts = [
-        env.DB.prepare(
-          `INSERT INTO "updates" (${UPDATE_INSERT_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        ).bind(
-          id,
-          params.branchId,
-          params.runtimeVersion,
-          params.platform,
-          params.message,
-          params.metadataJson,
-          params.extraJson,
-          params.groupId,
-          params.rolloutPercentage,
-          params.isRollback ? 1 : 0,
-          params.signature,
-          params.certificateChain,
-          params.manifestBody,
-          params.directiveBody,
-          params.fingerprintHash,
-          now,
-        ),
-        ...params.assets.map((asset) =>
-          env.DB.prepare(
-            `INSERT INTO "update_assets" ("update_id", "asset_key", "asset_hash", "is_launch") VALUES (?, ?, ?, ?)`,
-          ).bind(id, asset.key, asset.hash, asset.isLaunch ? 1 : 0),
-        ),
-      ];
+      const stmts = buildUpdateInsertStatements(env.DB, {
+        id,
+        branchId: params.branchId,
+        runtimeVersion: params.runtimeVersion,
+        platform: params.platform,
+        message: params.message,
+        metadataJson: params.metadataJson,
+        extraJson: params.extraJson,
+        groupId: params.groupId,
+        rolloutPercentage: params.rolloutPercentage,
+        isRollback: params.isRollback,
+        signature: params.signature,
+        certificateChain: params.certificateChain,
+        manifestBody: params.manifestBody,
+        directiveBody: params.directiveBody,
+        fingerprintHash: params.fingerprintHash,
+        gitCommit: params.gitCommit,
+        gitDirty: params.gitDirty,
+        isEmbedded: params.isEmbedded ?? false,
+        createdAt: now,
+        assets: params.assets,
+      });
 
-      yield* Effect.promise(async () => env.DB.batch(stmts));
+      // d1WithUniqueCheck (not Effect.promise): a pinned `id` colliding with an
+      // existing PRIMARY KEY is a normal, attacker-/operator-reachable input,
+      // not a defect. Map the D1 UNIQUE/PK rejection to a typed Conflict (clean
+      // 409, not 500). The batch is atomic, so a collision aborts the whole
+      // write — nothing is overwritten (cross-project takeover stays impossible).
+      yield* d1WithUniqueCheck(
+        async () => env.DB.batch(stmts),
+        `An update with id "${id}" already exists`,
+      );
 
       const [inserted] = yield* fetchUpdatesByIds([id]);
       if (!inserted) {
         return yield* Effect.die(new Error("Inserted update vanished mid-write"));
       }
       return inserted;
+    }),
+
+  deleteById: (params) =>
+    cloudflareEnv.pipe(
+      Effect.flatMap((env) => runDeleteUpdateRows(env.DB, [params.id])),
+      Effect.asVoid,
+    ),
+
+  clearEmbeddedBaseline: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+      yield* Effect.promise(async () =>
+        env.DB.prepare(
+          `UPDATE "updates" SET "is_embedded" = 0 WHERE "branch_id" = ? AND "platform" = ? AND "runtime_version" = ? AND "is_embedded" = 1`,
+        )
+          .bind(params.branchId, params.platform, params.runtimeVersion)
+          .run(),
+      );
     }),
 
   insertBatch: (params) =>
@@ -233,33 +244,32 @@ export const UpdateRepoLive = Layer.succeed(UpdateRepo, {
         ...update,
       }));
 
-      const statements = updatesWithIds.flatMap((update) => [
-        env.DB.prepare(
-          `INSERT INTO "updates" (${UPDATE_INSERT_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        ).bind(
-          update.id,
-          params.branchId,
-          update.runtimeVersion,
-          update.platform,
-          update.message,
-          update.metadataJson,
-          update.extraJson,
-          params.groupId,
-          update.rolloutPercentage,
-          update.isRollback ? 1 : 0,
-          update.signature,
-          update.certificateChain,
-          update.manifestBody,
-          update.directiveBody,
-          update.fingerprintHash,
-          now,
-        ),
-        ...update.assets.map((asset) =>
-          env.DB.prepare(
-            `INSERT INTO "update_assets" ("update_id", "asset_key", "asset_hash", "is_launch") VALUES (?, ?, ?, ?)`,
-          ).bind(update.id, asset.key, asset.hash, asset.isLaunch ? 1 : 0),
-        ),
-      ]);
+      const statements = updatesWithIds.flatMap((update) =>
+        buildUpdateInsertStatements(env.DB, {
+          id: update.id,
+          branchId: params.branchId,
+          runtimeVersion: update.runtimeVersion,
+          platform: update.platform,
+          message: update.message,
+          metadataJson: update.metadataJson,
+          extraJson: update.extraJson,
+          groupId: params.groupId,
+          rolloutPercentage: update.rolloutPercentage,
+          isRollback: update.isRollback,
+          signature: update.signature,
+          certificateChain: update.certificateChain,
+          manifestBody: update.manifestBody,
+          directiveBody: update.directiveBody,
+          fingerprintHash: update.fingerprintHash,
+          // No fresh git provenance on a republish (server-side promote).
+          gitCommit: null,
+          gitDirty: false,
+          // Republished updates are never the embedded baseline.
+          isEmbedded: false,
+          createdAt: now,
+          assets: update.assets,
+        }),
+      );
 
       yield* Effect.promise(async () => env.DB.batch(statements));
 
@@ -423,22 +433,44 @@ export const UpdateRepoLive = Layer.succeed(UpdateRepo, {
       return toDbNull(row?.asset_hash);
     }),
 
+  listPatchBases: (params) =>
+    cloudflareEnv.pipe(Effect.flatMap((env) => queryPatchBases(env.DB, params))),
+
   deleteGroup: (params) =>
-    Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+    cloudflareEnv.pipe(Effect.flatMap((env) => runDeleteGroup(env.DB, params.groupId))),
 
-      const results = yield* Effect.promise(async () =>
-        env.DB.batch([
-          env.DB.prepare(
-            `DELETE FROM "update_assets" WHERE "update_id" IN (SELECT "id" FROM "updates" WHERE "group_id" = ?)`,
-          ).bind(params.groupId),
-          env.DB.prepare(`DELETE FROM "updates" WHERE "group_id" = ?`).bind(params.groupId),
-        ]),
-      );
+  findReapableUpdateBatch: (params) =>
+    cloudflareEnv.pipe(Effect.flatMap((env) => queryReapableUpdateBatch(env.DB, params))),
 
-      const [, updatesResult] = results;
-      return { deleted: updatesResult ? updatesResult.meta.changes : 0 };
-    }),
+  findAssetHashesForUpdates: (params) =>
+    cloudflareEnv.pipe(
+      Effect.flatMap((env) => queryAssetHashesForUpdates(env.DB, params.updateIds)),
+    ),
+
+  findUnreferencedAssetHashes: (params) =>
+    cloudflareEnv.pipe(
+      Effect.flatMap((env) => queryUnreferencedAssetHashes(env.DB, params.hashes)),
+    ),
+
+  findAssetR2KeysByHashes: (params) =>
+    cloudflareEnv.pipe(Effect.flatMap((env) => queryAssetR2Keys(env.DB, params.hashes))),
+
+  deleteUpdateRows: (params) =>
+    cloudflareEnv.pipe(Effect.flatMap((env) => runDeleteUpdateRows(env.DB, params.updateIds))),
+
+  deleteAssetRows: (params) =>
+    cloudflareEnv.pipe(Effect.flatMap((env) => runDeleteAssetRows(env.DB, params.hashes))),
+
+  findSurvivingUpdateIdsByProject: (params) =>
+    cloudflareEnv.pipe(Effect.flatMap((env) => querySurvivingUpdateIds(env.DB, params.projectId))),
+
+  findServableUpdateIdsForBranches: (params) =>
+    cloudflareEnv.pipe(
+      Effect.flatMap((env) => queryServableUpdateIdsForBranches(env.DB, params.branchIds)),
+    ),
+
+  findPatchBaseUpdateIdsByProject: (params) =>
+    cloudflareEnv.pipe(Effect.flatMap((env) => queryPatchBaseUpdateIds(env.DB, params))),
 
   updateRollout: (params) =>
     Effect.gen(function* () {

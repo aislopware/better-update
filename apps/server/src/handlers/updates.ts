@@ -9,13 +9,23 @@ import { CurrentActor } from "../auth/current-actor";
 import { assertProjectOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
 import { UpdateCoordinator } from "../cloudflare/update-coordinator";
+import { validateEmbeddedBaselineId } from "../domain/embedded-baseline-validation";
+import { verifySignedUpdate } from "../domain/signed-update-verification";
 import { validateUpdatePublishInput } from "../domain/update-publish-validation";
-import { Conflict, NotFound } from "../errors";
+import { BadRequest, Conflict, NotFound } from "../errors";
 import { toApiUpdate } from "../http/to-api";
 import { toApiBadRequestReadEffect, toApiWriteEffect } from "../http/to-api-effect";
+import { toApiPatchBaseCandidate } from "../http/to-api-patch";
 import { toDbNull } from "../lib/nullable";
 import { parsePagination } from "../lib/pagination";
-import { AssetRepo, BranchRepo, ChannelRepo, ProjectRepo, UpdateRepo } from "../repositories";
+import {
+  AssetRepo,
+  BranchRepo,
+  BundleRepo,
+  ChannelRepo,
+  ProjectRepo,
+  UpdateRepo,
+} from "../repositories";
 import {
   prepareRepublishUpdates,
   resolveRepublishDestination,
@@ -41,6 +51,38 @@ const parseUpdateSort = (
     }
   }
 };
+
+const DEFAULT_PATCH_BASE_LIMIT = 10;
+const MAX_PATCH_BASE_LIMIT = 50;
+
+const clampPatchBaseLimit = (limit: number | undefined): number => {
+  if (limit === undefined || !Number.isFinite(limit) || limit < 1) {
+    return DEFAULT_PATCH_BASE_LIMIT;
+  }
+  return Math.min(Math.trunc(limit), MAX_PATCH_BASE_LIMIT);
+};
+
+const resolvePatchBaseBranchId = (params: {
+  readonly projectId: string;
+  readonly branchId: string | undefined;
+  readonly channel: string | undefined;
+}) =>
+  Effect.gen(function* () {
+    if (params.branchId !== undefined) {
+      return params.branchId;
+    }
+    if (params.channel === undefined) {
+      return yield* Effect.fail(
+        new BadRequest({ message: "Either branchId or channel is required" }),
+      );
+    }
+    const channelRepo = yield* ChannelRepo;
+    const channel = yield* channelRepo.findByProjectAndName({
+      projectId: params.projectId,
+      name: params.channel,
+    });
+    return channel.branchId;
+  });
 
 const assertAssetsExist = (assets: readonly { readonly hash: string }[]) =>
   Effect.gen(function* () {
@@ -71,11 +113,34 @@ const handleCreateUpdate = ({ payload }: { readonly payload: typeof CreateUpdate
     Effect.gen(function* () {
       yield* assertPermission("update", "create");
 
+      // Embedded-baseline id gate (trust boundary, id+isEmbedded correlated only
+      // here): when isEmbedded:true the id is REQUIRED + lowercase-UUID-validated
+      // so the baseline row id equals the binary's app.manifest UUID. Non-embedded
+      // creates are a no-op (the render-then-sign id keeps flowing). Ownership is
+      // still gated below via assertProjectOwnership before any write, so a
+      // client-pinned id can only land under a project the caller owns.
+      yield* validateEmbeddedBaselineId({
+        id: payload.id,
+        isEmbedded: payload.isEmbedded ?? false,
+      });
+
       yield* validateUpdatePublishInput({
         runtimeVersion: payload.runtimeVersion,
         assets: payload.assets,
         extra: payload.extra,
         isRollback: payload.isRollback ?? false,
+        manifestBody: toDbNull(payload.manifestBody),
+        directiveBody: toDbNull(payload.directiveBody),
+      });
+
+      // SECURITY GATE: when a signature is present, verify it against the
+      // certificate over the EXACT manifest/directive body bytes before any
+      // write. An unverifiable or wrong-alg (e.g. ECDSA) signed update is
+      // rejected with BadRequest (→ 400) and is NEVER stored or served. Runs for
+      // both the render+sign path and the file-input escape hatch (same fields).
+      yield* verifySignedUpdate({
+        signature: toDbNull(payload.signature),
+        certificateChain: toDbNull(payload.certificateChain),
         manifestBody: toDbNull(payload.manifestBody),
         directiveBody: toDbNull(payload.directiveBody),
       });
@@ -123,6 +188,9 @@ const handleCreateUpdate = ({ payload }: { readonly payload: typeof CreateUpdate
       const publishResult = yield* coordinator.createUpdate({
         coordinatorName: branchValue.branchId,
         payload: {
+          // Honour the client-chosen id (signed renders bind to it); absent on
+          // the unsigned path so the server generates one.
+          ...(payload.id === undefined ? {} : { id: payload.id }),
           branchId: branchValue.branchId,
           runtimeVersion: payload.runtimeVersion,
           platform: payload.platform,
@@ -137,7 +205,13 @@ const handleCreateUpdate = ({ payload }: { readonly payload: typeof CreateUpdate
           manifestBody: toDbNull(payload.manifestBody),
           directiveBody: toDbNull(payload.directiveBody),
           fingerprintHash: toDbNull(payload.fingerprintHash),
+          // Git provenance: persist the commit + dirty flag the CLI read at
+          // publish time (mirrors EAS + the builds path). Sent ALWAYS when git
+          // is readable; absent on a non-git project -> NULL commit, clean tree.
+          gitCommit: toDbNull(payload.gitCommit),
+          gitDirty: payload.gitDirty ?? false,
           assets: payload.assets,
+          isEmbedded: payload.isEmbedded ?? false,
         },
       });
       if (!publishResult.ok) {
@@ -203,6 +277,30 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
           });
 
           return { items: items.map(toApiUpdate), total, page, limit };
+        }),
+      ),
+    )
+    .handle("listPatchBases", ({ urlParams }) =>
+      toApiBadRequestReadEffect(
+        Effect.gen(function* () {
+          yield* assertPermission("update", "read");
+          yield* assertProjectOwnership(urlParams.projectId);
+
+          const branchId = yield* resolvePatchBaseBranchId({
+            projectId: urlParams.projectId,
+            branchId: urlParams.branchId,
+            channel: urlParams.channel,
+          });
+
+          const repo = yield* UpdateRepo;
+          const rows = yield* repo.listPatchBases({
+            projectId: urlParams.projectId,
+            branchId,
+            runtimeVersion: urlParams.runtimeVersion,
+            platform: urlParams.platform,
+            limit: clampPatchBaseLimit(urlParams.limit),
+          });
+          return rows.map(toApiPatchBaseCandidate);
         }),
       ),
     )
@@ -278,7 +376,25 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
           const branch = yield* branchRepo.findById({ id: firstUpdate.branchId });
           yield* assertProjectOwnership(branch.projectId);
 
-          const result = yield* updateRepo.deleteGroup({ groupId: path.groupId });
+          // Route manual delete through the same orphan-aware asset cleanup the
+          // OTA reaper uses, so the two paths never diverge (the plain deleteGroup
+          // left assets/{hash} on R2). Only assets with zero surviving referrers
+          // are removed; shared assets are kept. Record referenced hashes BEFORE
+          // deleting update_assets, then test for orphans AFTER (a remaining
+          // referrer is then a genuine survivor).
+          const updateIds = updates.map((update) => update.id);
+          const referencedHashes = yield* updateRepo.findAssetHashesForUpdates({ updateIds });
+          const { updatesDeleted } = yield* updateRepo.deleteUpdateRows({ updateIds });
+
+          const orphanHashes = yield* updateRepo.findUnreferencedAssetHashes({
+            hashes: referencedHashes,
+          });
+          const orphanKeys = yield* updateRepo.findAssetR2KeysByHashes({ hashes: orphanHashes });
+
+          const bundleRepo = yield* BundleRepo;
+          yield* bundleRepo.deleteObjects({ keys: orphanKeys });
+          yield* updateRepo.deleteAssetRows({ hashes: orphanHashes });
+          const result = { deleted: updatesDeleted };
 
           const channelRepo = yield* ChannelRepo;
           yield* channelRepo.bumpCacheVersionByBranch({ branchId: firstUpdate.branchId });
