@@ -62,8 +62,12 @@ interface FingerprintRef {
 }
 
 /**
- * Normalize a citty arg (which collects repeated flags into an array, but is
- * declared as `string`) into a string array of trimmed, non-empty values.
+ * Normalize a `--build-id` / `--update-id` arg into a string array. citty does
+ * NOT collect a repeated `type: "string"` flag into an array — it keeps only the
+ * LAST occurrence — so the supported multi-value form is a single comma-separated
+ * flag (e.g. `--build-id a,b`), matching the `--events` idiom on `webhooks
+ * create`. We still tolerate an array (should a future citty/arg type yield one)
+ * and split every entry on commas.
  */
 const toArray = (value: unknown): readonly unknown[] => {
   if (Array.isArray(value)) {
@@ -75,6 +79,7 @@ const toArray = (value: unknown): readonly unknown[] => {
 const toStringArray = (value: unknown): readonly string[] =>
   toArray(value)
     .filter((entry): entry is string => typeof entry === "string")
+    .flatMap((entry) => entry.split(","))
     .map((entry) => entry.trim())
     .filter((entry) => entry.length > 0);
 
@@ -201,11 +206,11 @@ export const compareCommand = defineCommand({
     },
     "build-id": {
       type: "string",
-      description: "Build id to resolve a fingerprint from (repeatable, max 2)",
+      description: "Build id to resolve a fingerprint from (comma-separated, max 2)",
     },
     "update-id": {
       type: "string",
-      description: "Update id to resolve a fingerprint from (repeatable, max 2)",
+      description: "Update id to resolve a fingerprint from (comma-separated, max 2)",
     },
     platform: {
       type: "string",
