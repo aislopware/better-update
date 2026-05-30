@@ -21,6 +21,22 @@ jobs:
         with:
           bun-version: 1.3.13
 
+      # `bun run test` + `bun run build` fan out via turbo and include
+      # @better-update/bsdiff#build (`napi build --platform --release` -> cargo).
+      # The native artifacts (index.js/index.d.ts/*.node) are git-ignored, so a
+      # fresh checkout must compile Rust here.
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            packages/bsdiff/target
+          key: ${{ runner.os }}-cargo-ci-check-${{ hashFiles('packages/bsdiff/Cargo.lock') }}
+
       - name: Install deps
         run: bun install --frozen-lockfile
 
@@ -72,6 +88,21 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.13
+
+      # `bun run test:integrations` fans out via turbo and includes
+      # @better-update/bsdiff#build (`napi build --platform --release` -> cargo).
+      # The native artifacts are git-ignored, so a fresh checkout must compile Rust.
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            packages/bsdiff/target
+          key: ${{ runner.os }}-cargo-ci-integrations-${{ hashFiles('packages/bsdiff/Cargo.lock') }}
 
       - name: Install deps
         run: bun install --frozen-lockfile

@@ -1,0 +1,91 @@
+# bsdiff conformance gate — the @better-update/bsdiff SHIP GATE.
+#
+# Proves that the BSDIFF40 patch @better-update/bsdiff produces (via the qbsdiff
+# crate) applies BYTE-IDENTICALLY through expo-updates SDK-56's *unmodified*
+# vendored bspatch.c, and that the patcher rejects bad magic / a wrong base.
+#
+# qbsdiff is format-compatible with classic bsdiff-4.x but is a DIFFERENT
+# implementation than the `bsdiff-node` it replaces, so byte-reconstruction is a
+# claim until proven against the real C patcher. This job is that proof.
+#
+# It is a DEDICATED job, NOT part of `bun run test` (the vitest unit run), because
+# it needs a C compiler + libbz2 to build expo's bspatch.c. The unit run never
+# compiles C — the conformance harness is excluded in packages/bsdiff/vitest.config.ts.
+#
+# Run locally with:
+#   cd packages/bsdiff && bun run build && bun run test:conformance
+# macOS needs `brew install bzip2` (keg-only); Linux needs `libbz2-dev`.
+
+name: Conformance bsdiff
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "packages/bsdiff/**"
+      - ".github/workflows/conformance-bsdiff.yml"
+  pull_request:
+    paths:
+      - "packages/bsdiff/**"
+      - ".github/workflows/conformance-bsdiff.yml"
+
+defaults:
+  run:
+    working-directory: packages/bsdiff
+
+jobs:
+  conformance:
+    name: gate - ${{ matrix.host }}
+    strategy:
+      fail-fast: false
+      matrix:
+        host: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.host }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.13
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      # bspatch.c links against libbz2. macOS ships none — install the keg.
+      # Linux needs the -dev package for bzlib.h + libbz2.
+      - name: Install bzip2 (linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libbz2-dev
+        working-directory: .
+
+      - name: Install bzip2 (macOS)
+        if: runner.os == 'macOS'
+        run: brew install bzip2
+        working-directory: .
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            packages/bsdiff/target
+          key: ${{ runner.os }}-cargo-conformance-${{ hashFiles('packages/bsdiff/Cargo.toml') }}
+
+      - name: Install deps
+        run: bun install --frozen-lockfile
+        working-directory: .
+
+      # Build the host native addon (.node) so the harness can load the producer.
+      - name: Build host addon
+        run: bun run build
+
+      # THE GATE. Asserts the pinned bspatch.c sha256, compiles it, produces a
+      # patch via @better-update/bsdiff, applies it, asserts SHA-256(out)==new,
+      # and runs both negative controls. Non-zero exit blocks the merge/ship.
+      - name: Run conformance gate
+        run: bun run test:conformance

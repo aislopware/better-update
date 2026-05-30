@@ -1,29 +1,117 @@
-# 19. Delta Patch Flags
+# 19. Bundle Diffing (bsdiff Content Negotiation)
 
 ## Status
 
-Delta patch delivery via `bsdiff` is intentionally unsupported in the self-hosted
-`better-update` server.
+Supported. The server serves precomputed `bsdiff` delta patches for the launch
+bundle when the client advertises support, falling back to the full bundle
+otherwise. This supersedes the previous "intentionally unsupported" status.
 
-## Client Behavior
+Verified against `expo/expo @ sdk-56` (`FileDownloader.kt` + `CHANGELOG.md`):
 
-Expo clients may still be configured with:
+- **56.0.0** — patch content-negotiation headers.
+- **56.0.6** — runtime-version header on asset requests.
+- **56.0.14** — bsdiff-based patch downloads enabled by default; Android zstd
+  decompression in `FileDownloader`.
 
-- `updates.enableBsdiffPatchSupport`
-- `EXUpdatesEnableBsdiffPatchSupport`
-- `expo.modules.updates.ENABLE_BSDIFF_PATCH_SUPPORT`
-- `expo-current-update-id`
+See also `docs.expo.dev/eas-update/bundle-diffing` and PR `expo/expo#34453`.
 
-The server ignores those patch-specific hints and always serves the standard manifest
-shape with full asset URLs.
+## Protocol
 
-## Server Behavior
+bsdiff uses RFC 3229 ("Delta encoding in HTTP", Instance Manipulation) semantics
+on the **launch-bundle download request**, not the manifest request. The manifest
+itself carries no patch fields; negotiation happens entirely on the subsequent
+bundle GET.
 
-- No patch metadata is included in manifest extensions.
-- No patch files are generated or served.
-- Standard manifest caching applies even when `expo-current-update-id` is present.
+To make this possible the manifest's `launchAsset.url` points at a **Worker-served
+bundle route** instead of the raw CDN URL, so the Worker can see the A-IM headers:
 
-## Rationale
+```
+GET /manifest/{projectId}/bundle/{updateId}/{hash}
+```
 
-This keeps the self-hosted implementation smaller and more predictable. Full-asset
-delivery remains the only supported OTA update path.
+(`hash` is informational — the launch asset is resolved by `updateId`; it keeps
+the URL content-addressed and cacheable. Non-launch assets keep their CDN URLs
+since they are never patched.)
+
+### Request headers (client → Worker, case-insensitive)
+
+| Header                     | Meaning                                                                 |
+| -------------------------- | ----------------------------------------------------------------------- |
+| `a-im: bsdiff`             | RFC 3229 Accept-Instance-Manipulation. Absent ⇒ no patch ⇒ full bundle. |
+| `expo-current-update-id`   | Currently-launched update on device (candidate patch base).             |
+| `expo-embedded-update-id`  | Update embedded in the binary at build time (candidate patch base).     |
+| `expo-requested-update-id` | The patch target (the update id from the manifest just served).         |
+| `expo-runtime-version`     | Runtime version (sent on asset requests since 56.0.6). Scopes lookup.   |
+| `expo-platform`            | `ios` \| `android`.                                                     |
+
+### Response headers (Worker → client, when serving a patch)
+
+| Header                | Meaning                                           |
+| --------------------- | ------------------------------------------------- |
+| `im: bsdiff`          | RFC 3229 IM header — body is a bsdiff patch.      |
+| `expo-base-update-id` | The base update the patch was computed against.   |
+| `content-type`        | `application/octet-stream` (patch + full bundle). |
+
+When serving the full bundle (fallback), `im` and `expo-base-update-id` are
+**omitted** and the body is the full bundle bytes. This is the backward-compatible
+behavior; signing is unaffected because the signed manifest still lists the full
+launch-asset hash and `bspatch` reconstructs identical bytes.
+
+## Patch selection
+
+The Worker probes candidate base ids in order — `[expo-current-update-id,
+expo-embedded-update-id]` — and serves the first precomputed patch present in R2,
+else the full bundle. Self-patches (base == target) and duplicates are dropped.
+Selection logic is pure (`protocol/patch-negotiation.ts`); R2 reads live in
+`repositories/bundle.ts`; orchestration in `application/resolve-bundle.ts`; HTTP
+wiring in `handlers/bundle.ts`.
+
+## Runtime-version scoping (56.0.6)
+
+Asset/bundle requests carry `expo-runtime-version`. The Worker validates it
+against the requested update's runtime version:
+
+- **absent** ⇒ valid (backward compat with pre-56.0.6 clients);
+- **present + mismatch** ⇒ `404` (prevents cross-runtime patch/bundle confusion).
+
+## R2 key scheme (all in `ASSETS_BUCKET`)
+
+| Object             | Key                                                                                   |
+| ------------------ | ------------------------------------------------------------------------------------- |
+| Precomputed patch  | `patches/{projectId}/{runtimeVersion}/{platform}/{fromUpdateId}__{toUpdateId}.bsdiff` |
+| Full launch bundle | `assets/{launchAssetHash}` (existing layout, reused)                                  |
+
+Patches are uploaded by the CLI at publish time. Update ids are lowercase uuids
+matching the ids the client sends.
+
+## Embedded-bundle baseline
+
+To let the **first** post-install update be a patch, the embedded bundle must be a
+valid patch base. The CLI publishes the embedded update through the normal
+`assets.upload` + `POST /api/updates` flow with `isEmbedded: true`. This:
+
+- registers a normal `updates` row (so it has a real update id);
+- stores the launch asset under `assets/{hash}` (no new bundle key);
+- sets `is_embedded = 1`. A partial unique index on
+  `(branch_id, runtime_version, platform) WHERE is_embedded = 1` guarantees
+  exactly one baseline per (runtime, platform); publishing a new one clears the
+  previous flag inside the same serialized publish.
+
+The client sends the embedded update's id as `expo-embedded-update-id`, which
+`selectPatchCandidates` uses to resolve a first-launch patch key.
+
+## Cloudflare Compression Rule (ops)
+
+zstd/gzip is **HTTP transport compression done at the Cloudflare edge** and decoded
+by the Android `FileDownloader` (zstd as of 56.0.14). The Worker implements **no**
+compression. It must:
+
+1. set a compressible, rule-targetable `content-type: application/octet-stream` on
+   bundle and patch responses; and
+2. **never** set `content-encoding` on those responses — doing so marks the body
+   as already-encoded and blocks the edge from compressing it.
+
+Enable a zone **Compression Rule** that matches response `content-type`
+`application/octet-stream` (bundle/patch) and emits zstd/gzip on supporting
+clients. Manifest responses (`multipart/mixed`, `application/expo+json`) likewise
+never set `content-encoding`.

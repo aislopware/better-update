@@ -163,6 +163,8 @@ const update = {
   manifestBody: null,
   directiveBody: null,
   fingerprintHash: null,
+  gitCommit: null,
+  gitDirty: false,
   totalAssetSize: 0,
   createdAt: "2026-01-02T00:00:00Z",
 } satisfies typeof Update.Type;

@@ -15,7 +15,7 @@ erDiagram
         TEXT id PK "UUIDv7"
         TEXT organization_id FK "owns this project"
         TEXT name
-        TEXT scope_key UK "e.g. @user/my-app"
+        TEXT scope_key "device-origin scopeKey, nullable, NON-unique (shared across projects on one origin)"
         TEXT created_at "ISO 8601"
     }
 
@@ -76,7 +76,7 @@ erDiagram
 
 | Index                         | Columns                                                            | Purpose                                     |
 | ----------------------------- | ------------------------------------------------------------------ | ------------------------------------------- |
-| `idx_projects_scope_key`      | `scope_key` UNIQUE                                                 | Lookup project by scope                     |
+| `idx_projects_scope_key`      | `scope_key` (non-unique, partial `WHERE scope_key IS NOT NULL`)    | Lookup project by device-origin scopeKey    |
 | `idx_branches_project_name`   | `(project_id, name)` UNIQUE                                        | Lookup branch by project + name             |
 | `idx_channels_project_name`   | `(project_id, name)` UNIQUE                                        | Lookup channel by project + name            |
 | `idx_updates_resolution`      | `(branch_id, platform, runtime_version, created_at DESC, id DESC)` | **Critical** — manifest resolution query    |
@@ -97,6 +97,8 @@ erDiagram
 **`group_id`:** Links iOS and Android updates published together. Used by the dashboard to display update groups.
 
 **`organization_id` on projects:** All projects belong to exactly one organization. Organization-scoped access control ensures management API requests can only access projects within the caller's organization (see [spec 21](./21-authentication.md)).
+
+**`scope_key` on projects:** The expo-updates v1 **device-origin scopeKey** — `normalizedURLOrigin(updateUrl)` — that each installed app uses to partition its local protocol-metadata store (`expo-server-defined-headers`, and `expo-manifest-filters` in the selection-policy work). The server reproduces the same string via `src/domain/scope-key.ts` so per-(project, scopeKey) state and the manifest cache key line up with what the device computes. This is **not** an EAS-style per-project `@owner/slug` identity: because it is an _origin_, it is **intentionally shared** across every project served from the same `PUBLIC_API_URL`, so the column is **non-unique**. The value is nullable; for NULL (legacy) rows the manifest handler falls back to `normalizedURLOrigin(PUBLIC_API_URL)` at request time, so an explicit value is only needed when a project's update origin differs from `PUBLIC_API_URL` (e.g. a custom domain). Tenant isolation comes from the compound `(project_id, scope_key)` key on `project_protocol_metadata` and from including `scope_key` in the manifest cache key — never from uniqueness on this column.
 
 **`cache_version` on channels:** A monotonic integer counter bumped atomically with any state change that affects manifest responses (publish, relink, rollout change, pause/resume, update deletion). Included in the Cache API cache key to ensure stale entries are never matched — cache purge becomes a cleanup optimization, not a correctness requirement. See [spec 10](./10-caching.md).
 
