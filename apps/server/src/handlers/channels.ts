@@ -181,6 +181,7 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
             oldBranchId: channel.branchId,
             percentage: payload.percentage,
             salt: crypto.randomUUID(),
+            runtimeVersion: payload.runtimeVersion,
           });
           yield* repo.setBranchMapping({ id: path.id, branchMappingJson });
           return toApiChannel({ ...channel, branchMappingJson });

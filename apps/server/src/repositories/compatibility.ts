@@ -79,9 +79,13 @@ const isNewerUpdate = (candidate: UpdateRow, current: UpdateRow) =>
 
 const resolveChannelBranchIds = (channel: ChannelRow) => {
   const mappingJson = channel.branch_mapping_json;
+  // Always union the channel's default branch_id (its EAS-convention served
+  // fallback) so a branch that is actually being served is never dropped from
+  // the matrix — mirrors the reaper's backstop in
+  // channels.listReachableBranchIdsByProject.
   return mappingJson === null
     ? Effect.succeed([channel.branch_id])
-    : Effect.succeed(extractReachableBranchIds(mappingJson));
+    : Effect.succeed([...new Set([channel.branch_id, ...extractReachableBranchIds(mappingJson)])]);
 };
 
 export const CompatibilityRepoLive = Layer.succeed(CompatibilityRepo, {

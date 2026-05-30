@@ -23,10 +23,14 @@ describe(parseProtocolHeaders, () => {
       runtimeVersion: "1.0.0",
       channelName: "production",
       expectSignature: undefined,
+      expectSignatureAlg: undefined,
+      expectSignatureKeyId: undefined,
       easClientId: undefined,
       accept: undefined,
       currentUpdateId: undefined,
       extraParams: undefined,
+      recentFailedUpdateIds: [],
+      fatalError: undefined,
     });
   });
 
@@ -83,6 +87,45 @@ describe(parseProtocolHeaders, () => {
     expect(result.accept).toBe("multipart/mixed");
   });
 
+  it("eas-client-id is clamped to 58 chars so the AE index stays within 96 bytes", async () => {
+    // The Analytics Engine index is `${projectId}:${easClientId}`; projectId is
+    // a 36-char UUID + ':' separator, so easClientId is bounded so the composite
+    // can never exceed AE's 96-byte cap (36 + 1 + 58 = 95).
+    const headers = validHeaders();
+    headers.set("eas-client-id", "c".repeat(200));
+    const result = await Effect.runPromise(parseProtocolHeaders(headers));
+    expect(result.easClientId).toHaveLength(58);
+  });
+
+  it("parses alg + keyid from the expo-expect-signature SFV dictionary", async () => {
+    const headers = validHeaders();
+    const raw = 'sig, keyid="main", alg="rsa-v1_5-sha256"';
+    headers.set("expo-expect-signature", raw);
+    const result = await Effect.runPromise(parseProtocolHeaders(headers));
+    // Raw value is preserved for serve-time presence gating.
+    expect(result.expectSignature).toBe(raw);
+    expect(result.expectSignatureAlg).toBe("rsa-v1_5-sha256");
+    expect(result.expectSignatureKeyId).toBe("main");
+  });
+
+  it("expo-expect-signature alg/keyid are undefined when the header is absent", async () => {
+    const result = await Effect.runPromise(parseProtocolHeaders(validHeaders()));
+    expect(result.expectSignatureAlg).toBeUndefined();
+    expect(result.expectSignatureKeyId).toBeUndefined();
+  });
+
+  it("malformed expo-expect-signature does not fail the request (alg/keyid undefined)", async () => {
+    const headers = validHeaders();
+    // A legal HTTP header value that is NOT a valid SFV dictionary.
+    const malformed = "@@@not-a-dict@@@";
+    headers.set("expo-expect-signature", malformed);
+    const result = await Effect.runPromise(parseProtocolHeaders(headers));
+    // Still surfaces the raw value (presence) but yields no parsed alg/keyid.
+    expect(result.expectSignature).toBe(malformed);
+    expect(result.expectSignatureAlg).toBeUndefined();
+    expect(result.expectSignatureKeyId).toBeUndefined();
+  });
+
   it("valid extra params returns raw string", async () => {
     const headers = validHeaders();
     const raw = 'user-cohort="beta", flag=?1';
@@ -129,6 +172,44 @@ describe(parseProtocolHeaders, () => {
     headers.set("expo-extra-params", `key="${longValue}"`);
     const result = await Effect.runPromise(parseProtocolHeaders(headers));
     expect(result.extraParams).toBeUndefined();
+  });
+
+  it("Expo-Recent-Failed-Update-IDs present -> parsed lowercased id array", async () => {
+    const headers = validHeaders();
+    headers.set("expo-recent-failed-update-ids", '"ABC-123", "def-456"');
+    const result = await Effect.runPromise(parseProtocolHeaders(headers));
+    expect(result.recentFailedUpdateIds).toStrictEqual(["abc-123", "def-456"]);
+  });
+
+  it("Expo-Recent-Failed-Update-IDs absent -> []", async () => {
+    const result = await Effect.runPromise(parseProtocolHeaders(validHeaders()));
+    expect(result.recentFailedUpdateIds).toStrictEqual([]);
+  });
+
+  it("malformed Expo-Recent-Failed-Update-IDs -> [] (request still succeeds)", async () => {
+    const headers = validHeaders();
+    headers.set("expo-recent-failed-update-ids", '"unterminated');
+    const result = await Effect.runPromise(parseProtocolHeaders(headers));
+    expect(result.recentFailedUpdateIds).toStrictEqual([]);
+  });
+
+  it("Expo-Fatal-Error present -> raw string", async () => {
+    const headers = validHeaders();
+    headers.set("expo-fatal-error", "TypeError: undefined is not a function");
+    const result = await Effect.runPromise(parseProtocolHeaders(headers));
+    expect(result.fatalError).toBe("TypeError: undefined is not a function");
+  });
+
+  it("Expo-Fatal-Error exceeding 1024 chars -> clamped to 1024", async () => {
+    const headers = validHeaders();
+    headers.set("expo-fatal-error", "x".repeat(2000));
+    const result = await Effect.runPromise(parseProtocolHeaders(headers));
+    expect(result.fatalError).toHaveLength(1024);
+  });
+
+  it("Expo-Fatal-Error absent -> undefined", async () => {
+    const result = await Effect.runPromise(parseProtocolHeaders(validHeaders()));
+    expect(result.fatalError).toBeUndefined();
   });
 });
 
