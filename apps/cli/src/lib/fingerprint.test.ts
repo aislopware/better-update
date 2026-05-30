@@ -175,12 +175,17 @@ describe(runFingerprintFull, () => {
 
 describe(fingerprintCliArgs, () => {
   it("omits --platform when no platform is given (combined hash)", () => {
-    expect(fingerprintCliArgs("/proj", {})).toStrictEqual(["@expo/fingerprint", "/proj"]);
+    expect(fingerprintCliArgs("/proj", {})).toStrictEqual([
+      "@expo/fingerprint",
+      "fingerprint:generate",
+      "/proj",
+    ]);
   });
 
   it("threads --platform for a generic (bare) project, no ignore paths", () => {
     expect(fingerprintCliArgs("/proj", { platform: "ios", workflow: "generic" })).toStrictEqual([
       "@expo/fingerprint",
+      "fingerprint:generate",
       "/proj",
       "--platform",
       "ios",
@@ -191,6 +196,7 @@ describe(fingerprintCliArgs, () => {
     expect(fingerprintCliArgs("/proj", { platform: "android", workflow: "managed" })).toStrictEqual(
       [
         "@expo/fingerprint",
+        "fingerprint:generate",
         "/proj",
         "--platform",
         "android",
@@ -205,6 +211,7 @@ describe(fingerprintCliArgs, () => {
   it("does not add ignore paths without a platform even if workflow is managed", () => {
     expect(fingerprintCliArgs("/proj", { workflow: "managed" })).toStrictEqual([
       "@expo/fingerprint",
+      "fingerprint:generate",
       "/proj",
     ]);
   });

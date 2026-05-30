@@ -179,17 +179,23 @@ const MANAGED_FINGERPRINT_IGNORE_PATHS: readonly string[] = ["android/**/*", "io
 
 /**
  * Build the `@expo/fingerprint` CLI args, threading EAS's per-platform +
- * managed-workflow options through the legacy CLI flags (`--platform`,
- * `--ignore-path`). A combined-platform hash (no `--platform`) or a managed hash
- * that includes the native dirs would not match the per-platform device RTV that
- * stock `expo-updates` computes, so we replicate EAS's `createFingerprintAsync`
- * invocation exactly.
+ * managed-workflow options through the `fingerprint:generate` subcommand's flags
+ * (`--platform`, `--ignore-path`). A combined-platform hash (no `--platform`) or a
+ * managed hash that includes the native dirs would not match the per-platform
+ * device RTV that stock `expo-updates` computes, so we replicate EAS's
+ * `createFingerprintAsync` invocation exactly.
+ *
+ * The `fingerprint:generate` command name is REQUIRED: @expo/fingerprint's CLI
+ * (>=0.13) only parses `--platform`/`--ignore-path` under the named subcommand.
+ * The bare `@expo/fingerprint <root>` form routes to the legacy CLI, which treats
+ * those flags as positional fingerprint-files-to-diff and errors. The subcommand
+ * yields a byte-identical hash to the bare form when no flags are passed.
  */
 export const fingerprintCliArgs = (
   projectRoot: string,
   options: RunFingerprintOptions,
 ): readonly string[] => {
-  const args = ["@expo/fingerprint", projectRoot];
+  const args = ["@expo/fingerprint", "fingerprint:generate", projectRoot];
   if (options.platform !== undefined) {
     args.push("--platform", options.platform);
     if (options.workflow === "managed") {
