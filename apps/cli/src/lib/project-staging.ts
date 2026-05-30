@@ -4,7 +4,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 
 import { FileSystem } from "@effect/platform";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 import ignore from "ignore";
 
 import type { Ignore } from "ignore";
@@ -13,8 +13,10 @@ import { runStep } from "../commands/build/run-step";
 import { CliRuntime } from "../services/cli-runtime";
 import { StagingError } from "./exit-codes";
 import { formatCause } from "./format-error";
+import { printHuman } from "./output";
 
 import type { BuildFailedError } from "./exit-codes";
+import type { OutputMode } from "./output-mode";
 
 const execFileAsync = promisify(execFile);
 
@@ -191,7 +193,7 @@ const runInstall = (params: {
   readonly stagingRoot: string;
   readonly packageManager: PackageManager;
   readonly env: Readonly<Record<string, string>>;
-}): Effect.Effect<void, BuildFailedError> =>
+}): Effect.Effect<void, BuildFailedError, OutputMode> =>
   runStep(
     {
       command: params.packageManager,
@@ -219,7 +221,7 @@ export const prepareStagingProject = (
 ): Effect.Effect<
   StagingProject,
   StagingError | BuildFailedError,
-  FileSystem.FileSystem | CliRuntime
+  FileSystem.FileSystem | CliRuntime | OutputMode
 > =>
   Effect.gen(function* () {
     const runtime = yield* CliRuntime;
@@ -228,7 +230,7 @@ export const prepareStagingProject = (
     const stagingRoot = path.join(input.tempDir, "project");
     const projectRoot = relAppPath === "" ? stagingRoot : path.join(stagingRoot, relAppPath);
 
-    yield* Console.log(
+    yield* printHuman(
       `Staging build into ${stagingRoot}${relAppPath === "" ? "" : ` (app: ${relAppPath})`}`,
     );
 

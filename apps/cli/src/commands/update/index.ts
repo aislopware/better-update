@@ -3,6 +3,7 @@ import { defineCommand } from "citty";
 import { configureCommand } from "./configure";
 import { deleteCommand } from "./delete";
 import { editCommand } from "./edit";
+import { embeddedUploadCommand } from "./embedded-upload";
 import { insightsCommand } from "./insights";
 import { listCommand } from "./list";
 import { promoteCommand } from "./promote";
@@ -23,6 +24,7 @@ export const updateCommand = defineCommand({
     view: viewCommand,
     delete: deleteCommand,
     edit: editCommand,
+    "embedded:upload": embeddedUploadCommand,
     promote: promoteCommand,
     republish: republishCommand,
     rollback: rollbackCommand,

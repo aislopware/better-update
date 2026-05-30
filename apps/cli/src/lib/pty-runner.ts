@@ -8,6 +8,8 @@ import { spawn } from "node-pty";
 
 import type { IPty } from "node-pty";
 
+import { OutputMode } from "./output-mode";
+
 export interface PtyRunInput {
   readonly command: string;
   readonly args: readonly string[];
@@ -106,14 +108,32 @@ const trySpawn = (input: PtyRunInput): IPty | Error => {
 /**
  * Run a command in a pseudo-terminal so the subprocess sees a real TTY
  * (preserves spinners, progress bars, and ANSI colors emitted by tools like
- * CocoaPods and `expo prebuild`). Subprocess output is tee'd: forwarded to
- * `process.stdout` as raw bytes (so colors/positioning are preserved), and
- * also buffered into lines for the optional `onLine` callback.
+ * CocoaPods and `expo prebuild`). Subprocess output is tee'd: forwarded to the
+ * native build-log stream as raw bytes (so colors/positioning are preserved),
+ * and also buffered into lines for the optional `onLine` callback.
+ *
+ * The build-log stream is `process.stdout` in human mode but `process.stderr`
+ * in `--json`/CI mode: a stdout-only JSON consumer must read exactly one
+ * envelope from stdout, so the (potentially thousands of lines of) native build
+ * log is redirected to stderr where it is acceptable chrome. This is why the
+ * effect requires `OutputMode`.
  *
  * Returns the subprocess exit code. Spawn failures and signal exits surface
  * as non-zero exit codes (128+signal for Unix-style signal exits).
  */
-export const runInPty = (input: PtyRunInput): Effect.Effect<number> =>
+export const runInPty = (input: PtyRunInput): Effect.Effect<number, never, OutputMode> =>
+  Effect.gen(function* () {
+    const mode = yield* OutputMode;
+    // JSON mode: the success/error envelope is the WHOLE stdout payload, so the
+    // raw native build log goes to stderr instead of polluting it.
+    const logStream = mode.json ? process.stderr : process.stdout;
+    return yield* runInPtyWithStream(input, logStream);
+  });
+
+const runInPtyWithStream = (
+  input: PtyRunInput,
+  logStream: NodeJS.WriteStream,
+): Effect.Effect<number> =>
   Effect.async<number>((resume) => {
     const spawned = trySpawn(input);
     if (spawned instanceof Error) {
@@ -131,13 +151,13 @@ export const runInPty = (input: PtyRunInput): Effect.Effect<number> =>
       }
       const annotation = input.onLine(line);
       if (annotation !== undefined) {
-        process.stdout.write(`${annotation}\n`);
+        logStream.write(`${annotation}\n`);
       }
     };
 
     proc.onData((chunk) => {
       if (input.silent !== true) {
-        process.stdout.write(chunk);
+        logStream.write(chunk);
       }
       if (input.onLine === undefined) {
         return;

@@ -1,8 +1,9 @@
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { runEffect } from "../../../lib/citty-effect";
 import { parseRolloutPercentage } from "../../../lib/cli-schemas";
+import { printHuman } from "../../../lib/output";
 import { apiClient } from "../../../services/api-client";
 import { updateErrorExtras } from "../helpers";
 
@@ -22,10 +23,11 @@ export const setCommand = defineCommand({
           payload: { percentage },
         });
 
-        yield* Console.log(
+        yield* printHuman(
           `Updated rollout for ${args.updateId} to ${String(result.rolloutPercentage)}%.`,
         );
+        return result;
       }),
-      updateErrorExtras,
+      { exits: updateErrorExtras, json: "value" },
     ),
 });

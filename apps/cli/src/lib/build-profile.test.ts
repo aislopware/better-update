@@ -223,17 +223,47 @@ describe(readRuntimeVersionMeta, () => {
       version: "1.0.0",
       runtimeVersion: { policy: "fingerprint" },
     };
-    const meta = readRuntimeVersionMeta(config);
+    const meta = readRuntimeVersionMeta(config, "ios");
     expect(meta).toStrictEqual({
+      platform: "ios",
       appVersion: "1.0.0",
+      buildNumber: undefined,
+      sdkVersion: undefined,
       rawRuntimeVersion: { policy: "fingerprint" },
     });
   });
 
+  it("reads the per-platform native version and sdkVersion", () => {
+    const config: ExpoConfig = {
+      version: "1.0.0",
+      sdkVersion: "52.0.0",
+      runtimeVersion: { policy: "nativeVersion" },
+      ios: { bundleIdentifier: "com.example.app", buildNumber: "7" },
+      android: { package: "com.example.app", versionCode: 9 },
+    };
+    expect(readRuntimeVersionMeta(config, "ios")).toStrictEqual({
+      platform: "ios",
+      appVersion: "1.0.0",
+      buildNumber: "7",
+      sdkVersion: "52.0.0",
+      rawRuntimeVersion: { policy: "nativeVersion" },
+    });
+    expect(readRuntimeVersionMeta(config, "android")).toStrictEqual({
+      platform: "android",
+      appVersion: "1.0.0",
+      buildNumber: "9",
+      sdkVersion: "52.0.0",
+      rawRuntimeVersion: { policy: "nativeVersion" },
+    });
+  });
+
   it("returns undefined fields when both version and runtimeVersion are missing", () => {
-    const meta = readRuntimeVersionMeta({});
+    const meta = readRuntimeVersionMeta({}, "ios");
     expect(meta).toStrictEqual({
+      platform: "ios",
       appVersion: undefined,
+      buildNumber: undefined,
+      sdkVersion: undefined,
       rawRuntimeVersion: undefined,
     });
   });

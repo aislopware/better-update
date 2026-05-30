@@ -1,16 +1,16 @@
 import { compact } from "@better-update/type-guards";
 import { FileSystem } from "@effect/platform";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { reserveAndUpload } from "../commands/build/reserve-and-upload";
 import { readBuildProfile } from "../lib/build-profile";
 import { pullEnvVars } from "../lib/env-exporter";
 import { ArtifactNotFoundError, BuildProfileError } from "../lib/exit-codes";
 import { extractProjectId, readAppMeta, readExpoConfig } from "../lib/expo-config";
-import { runFingerprintFull } from "../lib/fingerprint";
+import { runFingerprintForPlatform } from "../lib/fingerprint";
 import { readGitContext } from "../lib/git-context";
 import { readGradleConfig, warnOnGradleMismatch } from "../lib/gradle-config";
-import { printKeyValue } from "../lib/output";
+import { printHuman, printKeyValue } from "../lib/output";
 import { resolveRuntimeVersion } from "../lib/runtime-version";
 import { sha256File } from "../lib/sha256";
 import { apiClient } from "../services/api-client";
@@ -118,6 +118,9 @@ export const runUploadWorkflow = (options: RunUploadWorkflowOptions) =>
       raw: appMeta.rawRuntimeVersion,
       appVersion: appMeta.appVersion,
       projectRoot,
+      platform: options.platform,
+      buildNumber: appMeta.buildNumber,
+      sdkVersion: expoConfig.sdkVersion,
     });
 
     const { target, bundleId } =
@@ -125,7 +128,7 @@ export const runUploadWorkflow = (options: RunUploadWorkflowOptions) =>
         ? yield* resolveIosTarget(profile, appMeta)
         : yield* resolveAndroidTarget(profile, appMeta, projectRoot);
 
-    yield* Console.log(`Hashing ${options.artifactPath}...`);
+    yield* printHuman(`Hashing ${options.artifactPath}...`);
     const { sha256, byteSize } = yield* sha256File(options.artifactPath);
 
     const rawGitContext = yield* readGitContext(projectRoot);
@@ -135,7 +138,9 @@ export const runUploadWorkflow = (options: RunUploadWorkflowOptions) =>
       dirty: rawGitContext.dirty,
     });
 
-    const fingerprintHash = yield* runFingerprintFull(projectRoot).pipe(
+    // Per-platform fingerprint (matching EAS) so the recorded hash matches the
+    // per-platform `fingerprint`-policy RTV.
+    const fingerprintHash = yield* runFingerprintForPlatform(projectRoot, options.platform).pipe(
       Effect.map((entry) => entry.hash),
       Effect.catchAll(() => Effect.succeed(undefined)),
     );
@@ -159,7 +164,7 @@ export const runUploadWorkflow = (options: RunUploadWorkflowOptions) =>
       }),
     );
 
-    yield* Console.log("");
+    yield* printHuman("");
     yield* printKeyValue([
       ["Build ID", result.id],
       ["Status", result.status],

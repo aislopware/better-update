@@ -1,7 +1,8 @@
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { runEffect } from "../../../lib/citty-effect";
+import { printHuman } from "../../../lib/output";
 import { apiClient } from "../../../services/api-client";
 import { updateErrorExtras } from "../helpers";
 
@@ -15,10 +16,11 @@ export const completeCommand = defineCommand({
       Effect.gen(function* () {
         const api = yield* apiClient;
         const result = yield* api.updates.completeRollout({ path: { id: args.updateId } });
-        yield* Console.log(
+        yield* printHuman(
           `Completed rollout for ${args.updateId}. Current rollout is ${String(result.rolloutPercentage)}%.`,
         );
+        return result;
       }),
-      updateErrorExtras,
+      { exits: updateErrorExtras, json: "value" },
     ),
 });

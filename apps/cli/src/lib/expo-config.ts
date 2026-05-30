@@ -1,26 +1,57 @@
+import nodePath from "node:path";
 import process from "node:process";
 
-import { compact } from "@better-update/type-guards";
-import { Effect } from "effect";
+import { CODE_SIGNING_ALG } from "@better-update/expo-codesign";
+import { asRecord, compact } from "@better-update/type-guards";
+import { FileSystem } from "@effect/platform";
+import { Effect, Option } from "effect";
 
 import { CliRuntime } from "../services/cli-runtime";
-import { BuildProfileError, ProjectNotLinkedError } from "./exit-codes";
+import { BuildProfileError, ProjectNotLinkedError, UpdatePublishError } from "./exit-codes";
 import { formatCause } from "./format-error";
 
 import type { AppMeta, Platform, RawRuntimeVersion } from "./build-profile";
+
+export interface ExpoUpdatesConfig {
+  readonly url?: string;
+  readonly enabled?: boolean;
+  readonly checkAutomatically?: string;
+  readonly fallbackToCacheTimeout?: number;
+  readonly useEmbeddedUpdate?: boolean;
+  readonly requestHeaders?: Record<string, string>;
+  readonly enableBsdiffPatchSupport?: boolean;
+  // SDK-56 anti-bricking toggle. Default false (off = anti-bricking ACTIVE).
+  // When true, the native Updates plugin disables the on-device guards that
+  // prevent a bad update from bricking the app — NOT recommended for production.
+  readonly disableAntiBrickingMeasures?: boolean;
+  // Standard expo-updates code-signing fields (app.json `updates`): a relative
+  // path to the PEM code-signing certificate + its metadata (keyid/alg).
+  readonly codeSigningCertificate?: string;
+  readonly codeSigningMetadata?: {
+    readonly keyid?: string;
+    readonly alg?: string;
+  };
+  readonly [key: string]: unknown;
+}
 
 export interface ExpoConfig {
   readonly name?: string;
   readonly slug?: string;
   readonly version?: string;
+  readonly sdkVersion?: string;
   readonly runtimeVersion?: string | { readonly policy: string };
+  readonly updates?: ExpoUpdatesConfig;
   readonly ios?: {
     readonly bundleIdentifier?: string;
     readonly buildNumber?: string;
+    readonly version?: string;
+    readonly runtimeVersion?: string | { readonly policy: string };
   };
   readonly android?: {
     readonly package?: string;
     readonly versionCode?: number;
+    readonly version?: string;
+    readonly runtimeVersion?: string | { readonly policy: string };
   };
   readonly extra?: {
     readonly betterUpdate?: {
@@ -158,6 +189,43 @@ export const extractSlug = (config: ExpoConfig): Effect.Effect<string, ProjectNo
     return config.slug;
   });
 
+export interface CodeSigningConfig {
+  /** Relative path to the PEM code-signing certificate (from `app.json`). */
+  readonly certificatePath: string;
+  readonly keyid: string;
+  readonly alg: string;
+}
+
+/**
+ * Read the expo-updates code-signing config from the resolved Expo config.
+ *
+ * `updates.codeSigningCertificate` is a relative path to the PEM certificate;
+ * `updates.codeSigningMetadata.keyid` defaults to `main` (Expo CLI writes `main`;
+ * the device default is `root`) and `alg` defaults to {@link CODE_SIGNING_ALG}.
+ * Any non-`rsa-v1_5-sha256` alg is REJECTED here — ECDSA is gated off the wire.
+ *
+ * Returns `undefined` when no `codeSigningCertificate` is configured (the project
+ * is not set up for code signing).
+ */
+export const extractCodeSigningConfig = (
+  config: ExpoConfig,
+): Effect.Effect<CodeSigningConfig | undefined, UpdatePublishError> =>
+  Effect.gen(function* () {
+    const certificatePath = config.updates?.codeSigningCertificate;
+    if (typeof certificatePath !== "string" || certificatePath.length === 0) {
+      return undefined;
+    }
+    const metadata = config.updates?.codeSigningMetadata;
+    const keyid = typeof metadata?.keyid === "string" ? metadata.keyid : "main";
+    const alg = typeof metadata?.alg === "string" ? metadata.alg : CODE_SIGNING_ALG;
+    if (alg !== CODE_SIGNING_ALG) {
+      return yield* new UpdatePublishError({
+        message: `Unsupported code-signing alg "${alg}" in updates.codeSigningMetadata; only ${CODE_SIGNING_ALG} is supported.`,
+      });
+    }
+    return { certificatePath, keyid, alg };
+  });
+
 /** Convenience reader for command code: resolves projectRoot from CliRuntime. */
 export const readProjectId: Effect.Effect<string, ProjectNotLinkedError, CliRuntime> = Effect.gen(
   function* () {
@@ -255,7 +323,10 @@ export const writeExpoConfigPatch = (
     } satisfies WriteExpoConfigPatchResult;
   });
 
-const extractBuildNumber = (config: ExpoConfig, platform: Platform): string | undefined => {
+const asString = (value: unknown): string | undefined =>
+  typeof value === "string" ? value : undefined;
+
+export const extractBuildNumber = (config: ExpoConfig, platform: Platform): string | undefined => {
   if (platform === "ios") {
     return config.ios?.buildNumber;
   }
@@ -265,8 +336,95 @@ const extractBuildNumber = (config: ExpoConfig, platform: Platform): string | un
   return String(config.android.versionCode);
 };
 
-const extractRawRuntimeVersion = (config: ExpoConfig): RawRuntimeVersion | undefined => {
-  const raw = config.runtimeVersion;
+/**
+ * Resolve the effective app version for a platform, mirroring
+ * `@expo/config-plugins` `getVersion` (a per-platform `ios.version` /
+ * `android.version` falls back to the top-level `expo.version`). Returns
+ * `undefined` when none is set so the runtimeVersion resolver can apply EAS's
+ * `1.0.0` default.
+ */
+export const extractAppVersion = (config: ExpoConfig, platform: Platform): string | undefined =>
+  config[platform]?.version ?? config.version;
+
+/**
+ * Reduce an installed `expo` package version (e.g. `52.0.11`) to the SDK version
+ * EAS derives for the `sdkVersion` runtimeVersion policy. Mirrors
+ * `@expo/config`'s `getExpoSDKVersionFromPackage`, which takes the major segment
+ * and appends `.0.0` — so `52.0.11` becomes `52.0.0`, not the raw `52.0.11`.
+ * The device build resolved by Expo tooling reports `exposdk:52.0.0`, so the
+ * RTV the CLI publishes must match.
+ *
+ * Returns `undefined` for a missing/empty major segment so callers can surface a
+ * precise error instead of producing `exposdk:.0.0`.
+ */
+export const expoSdkVersionFromPackageVersion = (packageVersion: string): string | undefined => {
+  const major = packageVersion.split(".").shift();
+  if (major === undefined || major.length === 0) {
+    return undefined;
+  }
+  return `${major}.0.0`;
+};
+
+/**
+ * Resolve the path to the installed `expo` package's `package.json` using Node
+ * module resolution rooted at `projectRoot`, so a hoisted monorepo install
+ * (where `expo` lives at the workspace root, not `<projectRoot>/node_modules`)
+ * resolves correctly — mirroring EAS's `resolveFrom(projectRoot, 'expo/package.json')`.
+ *
+ * Falls back to the conventional `<projectRoot>/node_modules/expo/package.json`
+ * join when `require.resolve` throws (e.g. no resolver paths in the host), and
+ * returns `undefined` only if neither yields a path. The downstream FileSystem
+ * read is the I/O boundary, so a returned-but-nonexistent path still degrades to
+ * the "expo not installed" error rather than crashing.
+ */
+const resolveExpoPackageJsonPath = (projectRoot: string): string | undefined => {
+  try {
+    return require.resolve("expo/package.json", { paths: [projectRoot] });
+  } catch {
+    return nodePath.join(projectRoot, "node_modules", "expo", "package.json");
+  }
+};
+
+/**
+ * Resolve the installed Expo SDK version by locating the `expo` package's
+ * `package.json` via Node resolution (so hoisted/monorepo installs work) and
+ * reducing its `version` to `${major}.0.0`. Mirrors EAS, which derives
+ * `sdkVersion` from the installed `expo` package when the resolved Expo config
+ * omits it (the CLI loads the config with `skipSDKVersionRequirement: true`, so
+ * `config.sdkVersion` is often undefined).
+ *
+ * Returns `undefined` on a missing file, unreadable file, unparseable JSON, a
+ * non-string `version`, or an unusable major segment so callers can produce a
+ * precise error rather than crashing on I/O.
+ */
+export const resolveInstalledExpoSdkVersion = (
+  projectRoot: string,
+): Effect.Effect<string | undefined, never, FileSystem.FileSystem> =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const packageJsonPath = resolveExpoPackageJsonPath(projectRoot);
+    if (packageJsonPath === undefined) {
+      return undefined;
+    }
+    const raw = yield* fs.readFileString(packageJsonPath).pipe(Effect.option);
+    if (Option.isNone(raw)) {
+      return undefined;
+    }
+    const parsed = yield* Effect.try((): unknown => JSON.parse(raw.value)).pipe(Effect.option);
+    if (Option.isNone(parsed)) {
+      return undefined;
+    }
+    const record = asRecord(parsed.value);
+    const packageVersion = asString(record?.["version"]);
+    if (packageVersion === undefined) {
+      return undefined;
+    }
+    return expoSdkVersionFromPackageVersion(packageVersion);
+  });
+
+const normalizeRawRuntimeVersion = (
+  raw: string | { readonly policy: string } | undefined,
+): RawRuntimeVersion | undefined => {
   if (typeof raw === "string") {
     return raw;
   }
@@ -279,6 +437,19 @@ const extractRawRuntimeVersion = (config: ExpoConfig): RawRuntimeVersion | undef
   }
   return undefined;
 };
+
+/**
+ * Resolve the effective `runtimeVersion` for a platform, mirroring EAS/expo-updates
+ * (`resolveRuntimeVersionAsync.ts`, `@expo/config-plugins` Updates.ts): a
+ * per-platform `ios.runtimeVersion` / `android.runtimeVersion` takes precedence
+ * over the top-level `config.runtimeVersion`.
+ */
+export const extractRawRuntimeVersion = (
+  config: ExpoConfig,
+  platform: Platform,
+): RawRuntimeVersion | undefined =>
+  normalizeRawRuntimeVersion(config[platform]?.runtimeVersion) ??
+  normalizeRawRuntimeVersion(config.runtimeVersion);
 
 /**
  * Extract AppMeta from a resolved ExpoConfig (from `@expo/config`).
@@ -304,8 +475,8 @@ export const readAppMeta = (
     return {
       bundleId: config.ios?.bundleIdentifier,
       androidPackage: config.android?.package,
-      appVersion: config.version,
+      appVersion: extractAppVersion(config, platform),
       buildNumber: extractBuildNumber(config, platform),
-      rawRuntimeVersion: extractRawRuntimeVersion(config),
+      rawRuntimeVersion: extractRawRuntimeVersion(config, platform),
     };
   });

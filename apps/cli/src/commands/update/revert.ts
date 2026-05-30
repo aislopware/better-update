@@ -1,12 +1,12 @@
 import { compact } from "@better-update/type-guards";
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { runUpdateRollback } from "../../application/update-rollback";
 import { runEffect } from "../../lib/citty-effect";
 import { drainPages } from "../../lib/drain-cursor";
 import { readProjectId } from "../../lib/expo-config";
-import { printHuman, printTable } from "../../lib/output";
+import { printHuman, printHumanTable } from "../../lib/output";
 import { promptSelect, promptText } from "../../lib/prompts";
 import { apiClient } from "../../services/api-client";
 import { resolveNamedResourceId, UpdateCommandError, updateErrorExtras } from "./helpers";
@@ -79,7 +79,7 @@ const revertToPublished = (
         message: `Branch "${branchName}" does not have a previous update group to revert to. Use --type embedded to publish a rollback-to-embedded directive instead.`,
       });
     }
-    yield* Console.log(`Republishing previous group ${previousGroup} onto branch "${branchName}".`);
+    yield* printHuman(`Republishing previous group ${previousGroup} onto branch "${branchName}".`);
     const result = yield* api.updates.republish({
       payload: {
         sourceGroupId: previousGroup,
@@ -88,7 +88,7 @@ const revertToPublished = (
       },
     });
     yield* printHuman(`Republished ${String(result.updates.length)} update(s).`);
-    yield* printTable(
+    yield* printHumanTable(
       ["ID", "Platform", "Runtime version", "Group ID"],
       result.updates.map((update) => [
         update.id,
@@ -97,7 +97,7 @@ const revertToPublished = (
         update.groupId,
       ]),
     );
-    return undefined;
+    return { type: "published" as const, ...result };
   });
 
 const revertToEmbedded = (
@@ -117,14 +117,15 @@ const revertToEmbedded = (
       signatureFile: undefined,
       certificateChainFile: undefined,
     });
-    yield* Console.log(
+    yield* printHuman(
       `Created rollback group ${result.groupId} on branch "${result.branch}" at ${result.commitTime}.`,
     );
-    yield* Console.log("");
-    yield* printTable(
+    yield* printHuman("");
+    yield* printHumanTable(
       ["Platform", "Update ID", "Runtime Version"],
       result.results.map((entry) => [entry.platform, entry.updateId, entry.runtimeVersion]),
     );
+    return { type: "embedded" as const, ...result };
   });
 
 const isRevertChoice = (value: string): value is RevertChoice =>
@@ -186,12 +187,21 @@ export const revertCommand = defineCommand({
           }).pipe(Effect.orElseSucceed(() => "")));
         const messageOrUndefined = message.length === 0 ? undefined : message;
         if (rawChoice === "embedded") {
-          yield* revertToEmbedded(branchName, args.platform, args.environment, messageOrUndefined);
-          return undefined;
+          return yield* revertToEmbedded(
+            branchName,
+            args.platform,
+            args.environment,
+            messageOrUndefined,
+          );
         }
-        yield* revertToPublished(api, projectId, branchName, args.platform, messageOrUndefined);
-        return undefined;
+        return yield* revertToPublished(
+          api,
+          projectId,
+          branchName,
+          args.platform,
+          messageOrUndefined,
+        );
       }),
-      updateErrorExtras,
+      { exits: updateErrorExtras, json: "value" },
     ),
 });

@@ -1,13 +1,54 @@
 import { execFileSync } from "node:child_process";
-import { createHash, randomUUID } from "node:crypto";
+import {
+  createHash,
+  createSign,
+  createVerify,
+  generateKeyPairSync,
+  randomUUID,
+  X509Certificate,
+} from "node:crypto";
 import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 
 import { generateIdentity } from "@better-update/credentials-crypto";
+import { buildExpoSignatureHeader } from "@better-update/expo-codesign";
+import forge from "node-forge";
 
 import { setupCliE2E } from "../helpers/cli-e2e";
+
+// Produce a REAL verifiable RSA code-signing certificate + a signature over the
+// given body bytes. The server now verifies signed publishes at create time, so
+// the file escape-hatch must carry a real signature, not a placeholder.
+const signBodyForTest = (
+  bodyBytes: string,
+): { readonly signatureSfv: string; readonly certPem: string } => {
+  const { privateKey, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+  const privateKeyPem = privateKey.export({ type: "pkcs1", format: "pem" });
+  const publicKeyPem = publicKey.export({ type: "spki", format: "pem" });
+
+  const cert = forge.pki.createCertificate();
+  cert.publicKey = forge.pki.publicKeyFromPem(publicKeyPem);
+  cert.serialNumber = "01";
+  cert.validity.notBefore = new Date();
+  cert.validity.notAfter = new Date();
+  cert.validity.notAfter.setFullYear(cert.validity.notBefore.getFullYear() + 1);
+  const attrs = [{ name: "commonName", value: "CLI E2E Code Signing" }];
+  cert.setSubject(attrs);
+  cert.setIssuer(attrs);
+  cert.sign(forge.pki.privateKeyFromPem(privateKeyPem), forge.md.sha256.create());
+  const certPem = forge.pki.certificateToPem(cert);
+
+  const sig = createSign("RSA-SHA256").update(bodyBytes, "utf8").sign(privateKeyPem, "base64");
+  const verified = createVerify("RSA-SHA256")
+    .update(bodyBytes, "utf8")
+    .verify(new X509Certificate(certPem).publicKey, sig, "base64");
+  if (!verified) {
+    throw new Error("CLI e2e test signature did not self-verify");
+  }
+  return { signatureSfv: buildExpoSignatureHeader({ sig, keyid: "main" }), certPem };
+};
 
 const generateSelfSignedP12 = (password: string, subject: string): Buffer => {
   const tmp = mkdtempSync(path.join(os.tmpdir(), "cli-e2e-p12-"));
@@ -195,6 +236,11 @@ const createPromotableUpdate = async (options?: {
           assets: [],
         });
 
+  // The server verifies signed publishes at create time, so produce a real
+  // verifiable signature over the exact manifest body (overriding the caller's
+  // placeholder signature/cert, which are not used by the promote assertions).
+  const signed = manifestBody === undefined ? undefined : signBodyForTest(manifestBody);
+
   const createUpdateResponse = await cli.postAuthorized("/api/updates", {
     branch: "main",
     slug: "cli-e2e-app",
@@ -204,11 +250,11 @@ const createPromotableUpdate = async (options?: {
     groupId: randomUUID(),
     metadata: {},
     assets: [{ hash: assetHash, key: launchAssetKey, isLaunch: true }],
-    ...(manifestBody
+    ...(manifestBody && signed
       ? {
           manifestBody,
-          signature: options?.signed?.signature,
-          certificateChain: options?.signed?.certificateChain,
+          signature: signed.signatureSfv,
+          certificateChain: signed.certPem,
         }
       : {}),
   });
@@ -460,18 +506,17 @@ describe("cLI command journey", () => {
     const certificateChainPath = path.join(cli.getProjectDir(), "signed-directive.pem");
     const signedMessage = "Signed rollback via CLI";
 
-    writeFileSync(
-      directiveBodyPath,
-      JSON.stringify({
-        type: "rollBackToEmbedded",
-        parameters: { commitTime: signedCommitTime },
-      }),
-    );
-    writeFileSync(signaturePath, 'sig="signed-cli-test", keyid="main", alg="rsa-v1_5_sha256"\n');
-    writeFileSync(
-      certificateChainPath,
-      "-----BEGIN CERTIFICATE-----\nSIGNED CLI TEST\n-----END CERTIFICATE-----\n",
-    );
+    const directiveBody = JSON.stringify({
+      type: "rollBackToEmbedded",
+      parameters: { commitTime: signedCommitTime },
+    });
+    // Server now verifies signed publishes at create time, so sign the exact
+    // directive body bytes with a real RSA code-signing cert.
+    const { signatureSfv, certPem } = signBodyForTest(directiveBody);
+
+    writeFileSync(directiveBodyPath, directiveBody);
+    writeFileSync(signaturePath, `${signatureSfv}\n`);
+    writeFileSync(certificateChainPath, `${certPem}\n`);
 
     const rollbackResult = cli.runCli(
       "update",
@@ -510,13 +555,9 @@ describe("cLI command journey", () => {
       expect.arrayContaining([
         expect.objectContaining({
           message: signedMessage,
-          signature: 'sig="signed-cli-test", keyid="main", alg="rsa-v1_5_sha256"',
-          certificateChain:
-            "-----BEGIN CERTIFICATE-----\nSIGNED CLI TEST\n-----END CERTIFICATE-----",
-          directiveBody: JSON.stringify({
-            type: "rollBackToEmbedded",
-            parameters: { commitTime: signedCommitTime },
-          }),
+          signature: signatureSfv,
+          certificateChain: certPem,
+          directiveBody,
         }),
       ]),
     );

@@ -7,8 +7,7 @@ import { parseRolloutPercentage } from "../../lib/cli-schemas";
 import { drainPages } from "../../lib/drain-cursor";
 import { InvalidArgumentError } from "../../lib/exit-codes";
 import { readProjectId } from "../../lib/expo-config";
-import { printHuman, printJson, printTable } from "../../lib/output";
-import { OutputMode } from "../../lib/output-mode";
+import { printHuman, printHumanTable } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 
 import type { ApiClient } from "../../services/api-client";
@@ -242,13 +241,8 @@ export const republishCommand = defineCommand({
           );
         }
 
-        const mode = yield* OutputMode;
-        if (mode.json) {
-          yield* printJson(result);
-          return undefined;
-        }
         yield* printHuman(`Republished ${String(result.updates.length)} update(s).`);
-        yield* printTable(
+        yield* printHumanTable(
           ["ID", "Platform", "Runtime version", "Group ID"],
           result.updates.map((update) => [
             update.id,
@@ -257,8 +251,9 @@ export const republishCommand = defineCommand({
             update.groupId,
           ]),
         );
-        return undefined;
+        return result;
       }),
+      { json: "value" },
     ),
 });
 
