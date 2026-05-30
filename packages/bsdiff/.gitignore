@@ -1,0 +1,8 @@
+# Rust build artifacts
+target/
+
+# napi-rs generated native binary + bindings (rebuilt by `napi build` / CI).
+# index.js + index.d.ts are emitted by napi build and are not source.
+*.node
+/index.js
+/index.d.ts

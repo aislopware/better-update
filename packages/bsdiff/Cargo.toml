@@ -1,0 +1,26 @@
+[package]
+name = "better-update-bsdiff"
+version = "0.1.0"
+edition = "2021"
+license = "PolyForm-Noncommercial-1.0.0"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+# N-API 3 binding + derive macros. N-API is ABI-stable and loads under bun,
+# unlike the legacy NAN/V8 addon (bsdiff-node) it replaces.
+napi = { version = "3", default-features = false, features = ["napi4"] }
+napi-derive = "3"
+# qbsdiff produces classic bsdiff-4.x (BSDIFF40) patches: 8-byte magic, 32-byte
+# header, three bzip2 streams (control/diff/extra) — the format expo-updates 56's
+# vendored bspatch.c hard-checks and applies.
+qbsdiff = "1.4.4"
+
+[build-dependencies]
+napi-build = "2"
+
+[profile.release]
+lto = true
+strip = "symbols"

@@ -1,0 +1,17 @@
+{
+  "name": "@better-update/bsdiff-darwin-arm64",
+  "version": "0.1.0",
+  "files": [
+    "bsdiff.darwin-arm64.node"
+  ],
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "main": "bsdiff.darwin-arm64.node",
+  "engines": {
+    "node": ">=22"
+  }
+}

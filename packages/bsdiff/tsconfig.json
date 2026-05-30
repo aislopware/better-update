@@ -1,0 +1,3 @@
+{
+  "extends": "@better-update/typescript-config/base.json"
+}
