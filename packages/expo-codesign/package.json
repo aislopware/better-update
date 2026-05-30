@@ -1,0 +1,21 @@
+{
+  "name": "@better-update/expo-codesign",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "oxlint --fix",
+    "lint:check": "oxlint",
+    "test": "vitest run --globals"
+  },
+  "dependencies": {
+    "structured-headers": "^2.0.2"
+  },
+  "devDependencies": {
+    "@better-update/oxlint-config": "workspace:*",
+    "@better-update/typescript-config": "workspace:*"
+  }
+}
