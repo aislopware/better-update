@@ -1,10 +1,10 @@
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
 import { revokeLocalDistributionCertificate } from "../../lib/credentials-generator";
 import { CredentialValidationError } from "../../lib/exit-codes";
-import { printKeyValue } from "../../lib/output";
+import { printHuman, printHumanKeyValue } from "../../lib/output";
 import { promptSelect } from "../../lib/prompts";
 import { apiClient } from "../../services/api-client";
 
@@ -65,15 +65,16 @@ const distributionCertificateCommand = defineCommand({
           distributionCertificateId: args.id,
           keepLocal: args["keep-local"] ?? false,
         });
-        yield* Console.log("Distribution certificate revoke complete.");
-        yield* printKeyValue([
+        yield* printHuman("Distribution certificate revoke complete.");
+        yield* printHumanKeyValue([
           ["Local ID", result.localId],
           ["Serial", result.serialNumber],
           ["Revoked on Apple", result.revokedOnApple ? "yes" : "no (not present on portal)"],
           ["Deleted locally", result.deletedLocally ? "yes" : "no (--keep-local)"],
         ]);
+        return result;
       }),
-      REVOKE_EXIT_EXTRAS,
+      { exits: REVOKE_EXIT_EXTRAS, json: "value" },
     ),
 });
 

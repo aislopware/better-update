@@ -1,7 +1,8 @@
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
+import { printHuman } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 import { channelErrorExtras } from "./helpers";
 
@@ -15,8 +16,9 @@ export const resumeCommand = defineCommand({
       Effect.gen(function* () {
         const api = yield* apiClient;
         const channel = yield* api.channels.resume({ path: { id: args.id } });
-        yield* Console.log(`Channel "${channel.name}" resumed.`);
+        yield* printHuman(`Channel "${channel.name}" resumed.`);
+        return channel;
       }),
-      channelErrorExtras,
+      { exits: channelErrorExtras, json: "value" },
     ),
 });

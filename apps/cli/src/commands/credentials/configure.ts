@@ -1,6 +1,6 @@
 import { compact } from "@better-update/type-guards";
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import {
   ensureAndroidCredentials,
@@ -65,7 +65,7 @@ const bindAndroidFcmGsa = (
       path: { id: group.id },
       payload: { googleServiceAccountKeyForFcmV1Id: input.gsaKeyId },
     });
-    yield* Console.log(`Bound FCM V1 GSA key ${input.gsaKeyId} to ${input.applicationIdentifier}.`);
+    yield* printHuman(`Bound FCM V1 GSA key ${input.gsaKeyId} to ${input.applicationIdentifier}.`);
     return undefined;
   });
 
@@ -98,7 +98,7 @@ const bindBundleResource = (
       path: { id: match.id },
       payload,
     });
-    yield* Console.log(
+    yield* printHuman(
       `Updated iOS bundle ${input.bundleIdentifier} (${input.distribution}) binding.`,
     );
     return undefined;
@@ -112,22 +112,22 @@ const configureAndroid = (args: ConfigureAndroidArgs) =>
     };
     if (args.bindFcmGsa !== undefined) {
       yield* bindAndroidFcmGsa(args.api, { ...input, gsaKeyId: args.bindFcmGsa });
-      yield* Console.log("");
-      yield* Console.log("Updated binding:");
+      yield* printHuman("");
+      yield* printHuman("Updated binding:");
       yield* showAndroidBinding(args.api, input);
       return;
     }
     if (args.rebind) {
       yield* rebindAndroidKeystore(args.api, input);
-      yield* Console.log("");
-      yield* Console.log("Updated binding:");
+      yield* printHuman("");
+      yield* printHuman("Updated binding:");
       yield* showAndroidBinding(args.api, input);
       return;
     }
-    yield* Console.log(`Configuring Android credentials for ${args.applicationIdentifier}...`);
+    yield* printHuman(`Configuring Android credentials for ${args.applicationIdentifier}...`);
     yield* ensureAndroidCredentials(args.api, input, { freezeCredentials: false });
-    yield* Console.log("");
-    yield* Console.log("Current Android binding:");
+    yield* printHuman("");
+    yield* printHuman("Current Android binding:");
     yield* showAndroidBinding(args.api, input);
     yield* printHuman("");
     yield* printHuman("Run with --rebind to switch keystore on the default group.");
@@ -159,24 +159,24 @@ const configureIos = (args: ConfigureIosArgs) =>
         input,
         compact({ applePushKeyId: args.bindPushKey, ascApiKeyId: args.bindAscKey }),
       );
-      yield* Console.log("");
-      yield* Console.log("Updated binding:");
+      yield* printHuman("");
+      yield* printHuman("Updated binding:");
       yield* showIosBinding(args.api, input);
       return;
     }
     if (args.rebind) {
       yield* rebindIosBundle(args.api, input);
-      yield* Console.log("");
-      yield* Console.log("Updated binding:");
+      yield* printHuman("");
+      yield* printHuman("Updated binding:");
       yield* showIosBinding(args.api, input);
       return;
     }
-    yield* Console.log(
+    yield* printHuman(
       `Configuring iOS credentials for ${args.bundleIdentifier} (${args.distribution})...`,
     );
     yield* ensureIosCredentials(args.api, input, { freezeCredentials: false });
-    yield* Console.log("");
-    yield* Console.log("Current iOS binding:");
+    yield* printHuman("");
+    yield* printHuman("Current iOS binding:");
     yield* showIosBinding(args.api, input);
     yield* printHuman("");
     yield* printHuman("Run with --rebind to switch certificate, profile, or ASC key.");
@@ -254,7 +254,12 @@ export const configureCommand = defineCommand({
             bindPushKey: args["bind-push-key"],
             bindAscKey: args["bind-asc-key"],
           });
-          return;
+          return {
+            platform: "ios" as const,
+            projectId,
+            bundleIdentifier,
+            distribution: args.distribution,
+          };
         }
         const androidMeta = yield* readAppMeta(expo, "android");
         const applicationIdentifier =
@@ -268,6 +273,8 @@ export const configureCommand = defineCommand({
           rebind: args.rebind ?? false,
           bindFcmGsa: args["bind-fcm-gsa"],
         });
+        return { platform: "android" as const, projectId, applicationIdentifier };
       }),
+      { json: "value" },
     ),
 });

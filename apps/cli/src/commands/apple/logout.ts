@@ -1,7 +1,8 @@
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
+import { printHuman } from "../../lib/output";
 import { AppleAuth } from "../../services/apple-auth";
 
 export const appleLogoutCommand = defineCommand({
@@ -14,7 +15,9 @@ export const appleLogoutCommand = defineCommand({
       Effect.gen(function* () {
         const auth = yield* AppleAuth;
         yield* auth.logout;
-        yield* Console.log("Cleared Apple Developer session.");
+        yield* printHuman("Cleared Apple Developer session.");
+        return { loggedOut: true };
       }),
+      { json: "value" },
     ),
 });

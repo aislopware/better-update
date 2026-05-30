@@ -3,8 +3,7 @@ import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
 import { readProjectId } from "../../lib/expo-config";
-import { printHuman, printJson, printTable } from "../../lib/output";
-import { OutputMode } from "../../lib/output-mode";
+import { printHuman, printHumanTable } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 
 export const compatibilityMatrixCommand = defineCommand({
@@ -21,15 +20,9 @@ export const compatibilityMatrixCommand = defineCommand({
 
         const matrixKeys = Object.keys(result.channelStatusByKey);
 
-        const mode = yield* OutputMode;
-        if (mode.json) {
-          yield* printJson(result);
-          return;
-        }
-
         if (matrixKeys.length === 0 && result.missingRuntimeVersions.length === 0) {
           yield* printHuman("No compatibility data found.");
-          return;
+          return result;
         }
 
         const channelLookup: Record<string, string> = Object.fromEntries(
@@ -38,7 +31,7 @@ export const compatibilityMatrixCommand = defineCommand({
 
         if (matrixKeys.length > 0) {
           yield* printHuman("Channel Status by (Platform / Runtime Version):");
-          yield* printTable(
+          yield* printHumanTable(
             ["Platform / Runtime", "Channel", "Updates"],
             matrixKeys.flatMap((key) =>
               (result.channelStatusByKey[key] ?? [])
@@ -54,7 +47,7 @@ export const compatibilityMatrixCommand = defineCommand({
 
         if (result.missingRuntimeVersions.length > 0) {
           yield* printHuman("\nMissing Runtime Versions:");
-          yield* printTable(
+          yield* printHumanTable(
             ["Channel", "Platform", "Runtime Version", "Updates"],
             result.missingRuntimeVersions.map((missing) => [
               missing.channelName,
@@ -64,6 +57,8 @@ export const compatibilityMatrixCommand = defineCommand({
             ]),
           );
         }
+        return result;
       }),
+      { json: "value" },
     ),
 });

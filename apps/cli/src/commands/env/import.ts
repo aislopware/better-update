@@ -1,10 +1,11 @@
 import { FileSystem } from "@effect/platform";
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
 import { uploadEnvVars } from "../../lib/env-exporter";
 import { readProjectId } from "../../lib/expo-config";
+import { printHuman } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 import { envErrorExtras, parseDotenv, parseEnvironmentsArg } from "./helpers";
 
@@ -37,8 +38,8 @@ export const importCommand = defineCommand({
         }));
 
         if (entries.length === 0) {
-          yield* Console.log(`No valid KEY=VALUE entries found in ${args.file}.`);
-          return;
+          yield* printHuman(`No valid KEY=VALUE entries found in ${args.file}.`);
+          return { created: 0, updated: 0, skipped: 0 };
         }
 
         const environments = yield* parseEnvironmentsArg(args.environment);
@@ -53,10 +54,11 @@ export const importCommand = defineCommand({
           entries,
         });
 
-        yield* Console.log(
+        yield* printHuman(
           `Imported: ${String(result.created)} created, ${String(result.updated)} updated, ${String(result.skipped)} skipped`,
         );
+        return result;
       }),
-      envErrorExtras,
+      { exits: envErrorExtras, json: "value" },
     ),
 });

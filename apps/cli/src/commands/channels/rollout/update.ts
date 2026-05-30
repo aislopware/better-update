@@ -1,8 +1,9 @@
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { runEffect } from "../../../lib/citty-effect";
 import { parseRolloutPercentage } from "../../../lib/cli-schemas";
+import { printHuman } from "../../../lib/output";
 import { apiClient } from "../../../services/api-client";
 import { channelErrorExtras } from "../helpers";
 
@@ -22,10 +23,11 @@ export const updateCommand = defineCommand({
           payload: { percentage },
         });
 
-        yield* Console.log(
+        yield* printHuman(
           `Updated rollout on channel "${channel.name}" to ${String(percentage)}%.`,
         );
+        return channel;
       }),
-      channelErrorExtras,
+      { exits: channelErrorExtras, json: "value" },
     ),
 });

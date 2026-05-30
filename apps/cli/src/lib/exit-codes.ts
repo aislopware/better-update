@@ -112,3 +112,21 @@ export class DirtyRepoError extends Data.TaggedError("DirtyRepoError")<{
 export class StagingError extends Data.TaggedError("StagingError")<{
   readonly message: string;
 }> {}
+
+export class BsdiffError extends Data.TaggedError("BsdiffError")<{
+  readonly message: string;
+}> {}
+
+export class PatchUploadError extends Data.TaggedError("PatchUploadError")<{
+  readonly message: string;
+}> {}
+
+export class BaseDownloadError extends Data.TaggedError("BaseDownloadError")<{
+  readonly message: string;
+}> {}
+
+export class FingerprintMismatchError extends Data.TaggedError("FingerprintMismatchError")<{
+  readonly message: string;
+  readonly localHash: string;
+  readonly providedHash: string;
+}> {}

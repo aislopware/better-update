@@ -3,12 +3,13 @@ import path from "node:path";
 import { compact } from "@better-update/type-guards";
 import { FileSystem } from "@effect/platform";
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
 import { parseEasConfig } from "../../lib/eas-config";
 import { BuildProfileError } from "../../lib/exit-codes";
-import { printHuman, printKeyValue } from "../../lib/output";
+import { InteractiveMode } from "../../lib/interactive-mode";
+import { printHuman, printHumanKeyValue } from "../../lib/output";
 import { promptConfirm } from "../../lib/prompts";
 import { CliRuntime } from "../../services/cli-runtime";
 
@@ -63,15 +64,16 @@ export const configureBuildCommand = defineCommand({
       type: "boolean",
       description: "Overwrite an existing eas.json with the defaults",
     },
-    "non-interactive": {
-      type: "boolean",
-      description: "Add missing default profiles without prompting (no overwrite)",
-    },
   },
   run: async ({ args }) =>
     runEffect(
       // eslint-disable-next-line eslint/max-statements -- linear orchestration: detect → branch on (missing|invalid|valid)
       Effect.gen(function* () {
+        // Non-interactive (global --non-interactive / CI / --json) confirms with the
+        // default action: --force already encodes overwrite intent, and topping up
+        // missing profiles is additive. No local flag — the global gate is the
+        // single source of truth.
+        const { allow: interactive } = yield* InteractiveMode;
         const runtime = yield* CliRuntime;
         const projectRoot = yield* runtime.cwd;
         const easJsonPath = path.join(projectRoot, "eas.json");
@@ -81,28 +83,33 @@ export const configureBuildCommand = defineCommand({
 
         if (!exists) {
           yield* writeEasJson(easJsonPath, DEFAULT_EAS_JSON);
-          yield* Console.log(`Wrote eas.json with default profiles to ${easJsonPath}.`);
-          yield* printKeyValue([
+          yield* printHuman(`Wrote eas.json with default profiles to ${easJsonPath}.`);
+          yield* printHumanKeyValue([
             ["Profiles", DEFAULT_PROFILES.join(", ")],
             ["Path", easJsonPath],
           ]);
-          return undefined;
+          return {
+            action: "created" as const,
+            path: easJsonPath,
+            profiles: [...DEFAULT_PROFILES],
+          };
         }
 
         if (args.force === true) {
-          const proceed =
-            args["non-interactive"] === true
-              ? true
-              : yield* promptConfirm(
-                  `Overwrite existing eas.json at ${easJsonPath} with defaults?`,
-                );
+          const proceed = interactive
+            ? yield* promptConfirm(`Overwrite existing eas.json at ${easJsonPath} with defaults?`)
+            : true;
           if (!proceed) {
             yield* printHuman("Aborted. eas.json was not modified.");
-            return undefined;
+            return { action: "aborted" as const, path: easJsonPath };
           }
           yield* writeEasJson(easJsonPath, DEFAULT_EAS_JSON);
-          yield* Console.log(`Overwrote eas.json with default profiles.`);
-          return undefined;
+          yield* printHuman(`Overwrote eas.json with default profiles.`);
+          return {
+            action: "overwritten" as const,
+            path: easJsonPath,
+            profiles: [...DEFAULT_PROFILES],
+          };
         }
 
         const existingRaw = yield* fs
@@ -123,19 +130,18 @@ export const configureBuildCommand = defineCommand({
             `eas.json already defines all default profiles (${existingProfiles.join(", ")}). Nothing to add.`,
           );
           yield* printHuman("Pass --force to overwrite with the default template.");
-          return undefined;
+          return { action: "noop" as const, path: easJsonPath, existing: existingProfiles };
         }
 
-        const proceed =
-          args["non-interactive"] === true
-            ? true
-            : yield* promptConfirm(
-                `Add missing profile(s) [${missing.join(", ")}] to existing eas.json?`,
-                { initialValue: true },
-              );
+        const proceed = interactive
+          ? yield* promptConfirm(
+              `Add missing profile(s) [${missing.join(", ")}] to existing eas.json?`,
+              { initialValue: true },
+            )
+          : true;
         if (!proceed) {
           yield* printHuman("Aborted. eas.json was not modified.");
-          return undefined;
+          return { action: "aborted" as const, path: easJsonPath };
         }
 
         const additions = Object.fromEntries(
@@ -149,13 +155,19 @@ export const configureBuildCommand = defineCommand({
           ...compact({ cli: config.cli }),
         };
         yield* writeEasJson(easJsonPath, merged);
-        yield* Console.log(`Added profile(s) to eas.json: ${missing.join(", ")}.`);
-        yield* printKeyValue([
+        yield* printHuman(`Added profile(s) to eas.json: ${missing.join(", ")}.`);
+        yield* printHumanKeyValue([
           ["Existing", existingProfiles.join(", ") || "(none)"],
           ["Added", missing.join(", ")],
           ["Path", easJsonPath],
         ]);
-        return undefined;
+        return {
+          action: "topped-up" as const,
+          path: easJsonPath,
+          existing: existingProfiles,
+          added: [...missing],
+        };
       }),
+      { json: "value" },
     ),
 });

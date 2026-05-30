@@ -1,10 +1,10 @@
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { runEffect } from "../lib/citty-effect";
 import { listAllCredentials } from "../lib/credentials-manager";
 import { readProjectId } from "../lib/expo-config";
-import { printKeyValue } from "../lib/output";
+import { printHuman, printHumanKeyValue } from "../lib/output";
 import { apiClient } from "../services/api-client";
 
 export const statusCommand = defineCommand({
@@ -24,34 +24,41 @@ export const statusCommand = defineCommand({
           { concurrency: "unbounded" },
         );
 
-        yield* Console.log("Project");
-        yield* Console.log("-------");
-        yield* printKeyValue([
+        yield* printHuman("Project");
+        yield* printHuman("-------");
+        yield* printHumanKeyValue([
           ["Name", project.name],
           ["ID", project.id],
           ["Slug", project.slug],
           ["Created", project.createdAt],
         ]);
 
-        yield* Console.log("");
-        yield* Console.log("Credentials");
-        yield* Console.log("-----------");
+        yield* printHuman("");
+        yield* printHuman("Credentials");
+        yield* printHuman("-----------");
         const iosCreds = credentials.filter((cred) => cred.platform === "ios").length;
         const androidCreds = credentials.filter((cred) => cred.platform === "android").length;
-        yield* printKeyValue([
+        yield* printHumanKeyValue([
           ["iOS", String(iosCreds)],
           ["Android", String(androidCreds)],
           ["Total", String(credentials.length)],
         ]);
 
-        yield* Console.log("");
-        yield* Console.log("Builds");
-        yield* Console.log("------");
+        yield* printHuman("");
+        yield* printHuman("Builds");
+        yield* printHuman("------");
         const moreSuffix = builds.items.length < builds.total ? "+" : "";
-        yield* printKeyValue([
+        yield* printHumanKeyValue([
           ["Recent", `${String(builds.items.length)}${moreSuffix}`],
           ["Total", String(builds.total)],
         ]);
+
+        return {
+          project: { id: project.id, name: project.name, slug: project.slug },
+          credentials: { ios: iosCreds, android: androidCreds, total: credentials.length },
+          builds: { recent: builds.items.length, total: builds.total },
+        };
       }),
+      { json: "value" },
     ),
 });

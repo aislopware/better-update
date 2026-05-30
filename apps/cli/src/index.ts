@@ -7,31 +7,9 @@ import { Effect } from "effect";
 
 import pkg from "../package.json" with { type: "json" };
 import { makeCliLive } from "./app-layer";
-import { analyticsCommand } from "./commands/analytics";
-import { appleCommand } from "./commands/apple";
-import { auditLogsCommand } from "./commands/audit-logs";
-import { autocompleteCommand } from "./commands/autocomplete";
-import { branchesCommand } from "./commands/branches";
-import { buildCommand } from "./commands/build";
-import { buildsCommand } from "./commands/builds";
-import { channelsCommand } from "./commands/channels";
-import { credentialsCommand } from "./commands/credentials";
-import { devicesCommand } from "./commands/devices";
-import { doctorCommand } from "./commands/doctor";
-import { envCommand } from "./commands/env";
-import { fingerprintCommand } from "./commands/fingerprint";
-import { initCommand } from "./commands/init";
-import { loginCommand } from "./commands/login";
-import { logoutCommand } from "./commands/logout";
-import { migrateConfigCommand } from "./commands/migrate-config";
-import { openCommand } from "./commands/open";
-import { projectsCommand } from "./commands/projects";
-import { statusCommand } from "./commands/status";
-import { submitCommand } from "./commands/submit";
-import { updateCommand } from "./commands/update";
-import { webhooksCommand } from "./commands/webhooks";
-import { whoamiCommand } from "./commands/whoami";
+import { commandRegistry } from "./command-registry";
 import { setActiveCliLayer } from "./lib/citty-effect";
+import { buildKnownCommandTree, setKnownCommandTree } from "./lib/command-output";
 import { setExecTrailingArgv, splitTrailingArgv } from "./lib/exec-trailing-argv";
 import { parseGlobalFlags, stripGlobalFlags } from "./lib/global-flags";
 import { bootstrapVersionCheck, refreshVersionCacheIfStale } from "./lib/version-notifier";
@@ -52,6 +30,10 @@ const cliLayer = makeCliLive({
   interactive: !globalFlags.nonInteractive,
 });
 setActiveCliLayer(cliLayer);
+// Feed the registry tree to the envelope command-name resolver so trailing
+// positionals (ids) are never folded into the `command` field. Derived from the
+// SAME registry index.ts ships, so it stays in sync by construction.
+setKnownCommandTree(buildKnownCommandTree(commandRegistry));
 
 if (process.argv[2] === REFRESH_VERSION_CACHE_FLAG) {
   await Effect.runPromise(refreshVersionCacheIfStale.pipe(Effect.provide(cliLayer)));
@@ -74,37 +56,14 @@ const main = defineCommand({
   },
   setup: async () => {
     await Effect.runPromise(
-      bootstrapVersionCheck(pkg.version, import.meta.url, spawnDetachedRefresh).pipe(
-        Effect.provide(cliLayer),
-      ),
+      bootstrapVersionCheck(pkg.version, import.meta.url, spawnDetachedRefresh, {
+        // Suppress the upgrade notice under --json / --non-interactive / CI
+        // (globalFlags.nonInteractive captures all three) — EAS parity.
+        quiet: globalFlags.nonInteractive,
+      }).pipe(Effect.provide(cliLayer)),
     );
   },
-  subCommands: {
-    login: loginCommand,
-    logout: logoutCommand,
-    init: initCommand,
-    status: statusCommand,
-    projects: projectsCommand,
-    branches: branchesCommand,
-    channels: channelsCommand,
-    build: buildCommand,
-    builds: buildsCommand,
-    credentials: credentialsCommand,
-    env: envCommand,
-    fingerprint: fingerprintCommand,
-    update: updateCommand,
-    analytics: analyticsCommand,
-    "audit-logs": auditLogsCommand,
-    whoami: whoamiCommand,
-    open: openCommand,
-    doctor: doctorCommand,
-    devices: devicesCommand,
-    webhooks: webhooksCommand,
-    autocomplete: autocompleteCommand,
-    "migrate-config": migrateConfigCommand,
-    apple: appleCommand,
-    submit: submitCommand,
-  },
+  subCommands: commandRegistry,
 });
 
 await runMain(main);

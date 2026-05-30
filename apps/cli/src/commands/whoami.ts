@@ -2,8 +2,7 @@ import { defineCommand } from "citty";
 import { Effect } from "effect";
 
 import { runEffect } from "../lib/citty-effect";
-import { printJson, printKeyValue } from "../lib/output";
-import { OutputMode } from "../lib/output-mode";
+import { printHumanKeyValue } from "../lib/output";
 import { apiClient } from "../services/api-client";
 
 export const whoamiCommand = defineCommand({
@@ -13,11 +12,6 @@ export const whoamiCommand = defineCommand({
       Effect.gen(function* () {
         const api = yield* apiClient;
         const me = yield* api.me.get();
-        const mode = yield* OutputMode;
-        if (mode.json) {
-          yield* printJson(me);
-          return;
-        }
         const rows: (readonly [string, string])[] = [];
         if (me.user) {
           rows.push(["User ID", me.user.id]);
@@ -35,7 +29,9 @@ export const whoamiCommand = defineCommand({
         } else {
           rows.push(["Organization", "(none)"]);
         }
-        yield* printKeyValue(rows);
+        yield* printHumanKeyValue(rows);
+        return me;
       }),
+      { json: "value" },
     ),
 });

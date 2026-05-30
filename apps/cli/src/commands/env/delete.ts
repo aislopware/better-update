@@ -1,8 +1,9 @@
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
 import { readProjectId } from "../../lib/expo-config";
+import { printHuman } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 import { EnvResourceNotFoundError, envErrorExtras, parseSingleEnvironmentArg } from "./helpers";
 
@@ -55,11 +56,15 @@ export const deleteCommand = defineCommand({
           },
         );
 
-        yield* Console.log(
+        yield* printHuman(
           `Deleted ${args.key} (${String(matches.length)} environment${matches.length === 1 ? "" : "s"})`,
         );
-        return undefined;
+        return {
+          key: args.key,
+          deleted: matches.length,
+          environments: matches.map((match) => match.environment),
+        };
       }),
-      envErrorExtras,
+      { exits: envErrorExtras, json: "value" },
     ),
 });

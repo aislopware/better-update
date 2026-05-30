@@ -1,12 +1,11 @@
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { runEffect } from "../lib/citty-effect";
 import { drainPages } from "../lib/drain-cursor";
 import { InvalidArgumentError } from "../lib/exit-codes";
 import { readProjectId } from "../lib/expo-config";
-import { printJson, printKeyValue, printList } from "../lib/output";
-import { OutputMode } from "../lib/output-mode";
+import { printHuman, printHumanKeyValue, printKeyValue, printList } from "../lib/output";
 import { apiClient } from "../services/api-client";
 
 const listCommand = defineCommand({
@@ -86,20 +85,16 @@ const viewCommand = defineCommand({
           ),
         );
 
-        const mode = yield* OutputMode;
-        if (mode.json) {
-          yield* printJson(branch);
-          return undefined;
-        }
-        yield* printKeyValue([
+        yield* printHumanKeyValue([
           ["ID", branch.id],
           ["Name", branch.name],
           ["Project ID", branch.projectId],
           ["Updates", String(branch.updateCount)],
           ["Created", branch.createdAt],
         ]);
-        return undefined;
+        return branch;
       }),
+      { json: "value" },
     ),
 });
 
@@ -117,8 +112,10 @@ const renameCommand = defineCommand({
           path: { id: args.id },
           payload: { name: args.name },
         });
-        yield* Console.log(`Branch renamed to "${branch.name}".`);
+        yield* printHuman(`Branch renamed to "${branch.name}".`);
+        return branch;
       }),
+      { json: "value" },
     ),
 });
 
@@ -132,8 +129,10 @@ const deleteCommand = defineCommand({
       Effect.gen(function* () {
         const api = yield* apiClient;
         yield* api.branches.delete({ path: { id: args.id } });
-        yield* Console.log(`Branch ${args.id} deleted.`);
+        yield* printHuman(`Branch ${args.id} deleted.`);
+        return { id: args.id, deleted: true };
       }),
+      { json: "value" },
     ),
 });
 

@@ -1,8 +1,9 @@
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
 import { deleteCredential } from "../../lib/credentials-manager";
+import { printHuman } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 
 import type { CliCredentialType } from "../../lib/credentials-manager";
@@ -32,7 +33,9 @@ export const deleteCommand = defineCommand({
           platform: args.platform,
           type: args.type as CliCredentialType,
         });
-        yield* Console.log(`Credential ${args.id} deleted.`);
+        yield* printHuman(`Credential ${args.id} deleted.`);
+        return { id: args.id, platform: args.platform, type: args.type, deleted: true };
       }),
+      { json: "value" },
     ),
 });

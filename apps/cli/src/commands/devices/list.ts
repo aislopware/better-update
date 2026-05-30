@@ -4,8 +4,7 @@ import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
 import { parseLimit } from "../../lib/cli-schemas";
-import { printJson, printTable } from "../../lib/output";
-import { OutputMode } from "../../lib/output-mode";
+import { printHumanTable } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 
 const parseEnabled = (value: string | undefined): boolean | undefined => {
@@ -57,12 +56,7 @@ export const listDevicesCommand = defineCommand({
           enabledFilter === undefined
             ? result.items
             : result.items.filter((device) => device.enabled === enabledFilter);
-        const mode = yield* OutputMode;
-        if (mode.json) {
-          yield* printJson({ items, total: result.total, page: result.page, limit: result.limit });
-          return;
-        }
-        yield* printTable(
+        yield* printHumanTable(
           ["ID", "Name", "Class", "UDID", "Team", "Enabled"],
           items.map((device) => [
             device.id,
@@ -73,6 +67,8 @@ export const listDevicesCommand = defineCommand({
             device.enabled ? "yes" : "no",
           ]),
         );
+        return { items, total: result.total, page: result.page, limit: result.limit };
       }),
+      { json: "value" },
     ),
 });

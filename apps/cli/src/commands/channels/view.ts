@@ -4,8 +4,7 @@ import { Effect } from "effect";
 import { runEffect } from "../../lib/citty-effect";
 import { drainPages } from "../../lib/drain-cursor";
 import { readProjectId } from "../../lib/expo-config";
-import { printJson, printKeyValue } from "../../lib/output";
-import { OutputMode } from "../../lib/output-mode";
+import { printHumanKeyValue } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 import { ChannelCommandError, channelErrorExtras } from "./helpers";
 
@@ -52,23 +51,7 @@ export const viewCommand = defineCommand({
         const branchNames = new Map(branches.map((branch) => [branch.id, branch.name]));
         const branchName = branchNames.get(channel.branchId) ?? channel.branchId;
 
-        const mode = yield* OutputMode;
-        if (mode.json) {
-          yield* printJson({
-            id: channel.id,
-            projectId: channel.projectId,
-            name: channel.name,
-            branchId: channel.branchId,
-            branchName,
-            branchMappingJson: channel.branchMappingJson,
-            cacheVersion: channel.cacheVersion,
-            isPaused: channel.isPaused,
-            createdAt: channel.createdAt,
-          });
-          return undefined;
-        }
-
-        yield* printKeyValue([
+        yield* printHumanKeyValue([
           ["ID", channel.id],
           ["Name", channel.name],
           ["Project ID", channel.projectId],
@@ -78,8 +61,18 @@ export const viewCommand = defineCommand({
           ["Cache version", String(channel.cacheVersion)],
           ["Created", channel.createdAt],
         ]);
-        return undefined;
+        return {
+          id: channel.id,
+          projectId: channel.projectId,
+          name: channel.name,
+          branchId: channel.branchId,
+          branchName,
+          branchMappingJson: channel.branchMappingJson,
+          cacheVersion: channel.cacheVersion,
+          isPaused: channel.isPaused,
+          createdAt: channel.createdAt,
+        };
       }),
-      channelErrorExtras,
+      { exits: channelErrorExtras, json: "value" },
     ),
 });

@@ -1,10 +1,11 @@
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
 import { parseKeyValue } from "../../lib/cli-schemas";
 import { uploadEnvVars } from "../../lib/env-exporter";
 import { readProjectId } from "../../lib/expo-config";
+import { printHuman } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 import { envErrorExtras, formatEnvironments, parseEnvironmentsArg } from "./helpers";
 
@@ -48,10 +49,11 @@ export const setCommand = defineCommand({
         });
 
         const label = formatEnvironments(environments);
-        yield* Console.log(
+        yield* printHuman(
           `Set ${key} (environments: ${label}; ${result.created} created, ${result.updated} updated)`,
         );
+        return { key, environments, ...result };
       }),
-      envErrorExtras,
+      { exits: envErrorExtras, json: "value" },
     ),
 });

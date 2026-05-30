@@ -1,8 +1,9 @@
 import { compact } from "@better-update/type-guards";
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
+import { printHuman } from "../../lib/output";
 import { AppleAuth } from "../../services/apple-auth";
 
 const LOGIN_EXIT_EXTRAS = {
@@ -26,10 +27,11 @@ export const appleLoginCommand = defineCommand({
       Effect.gen(function* () {
         const auth = yield* AppleAuth;
         const session = yield* auth.ensureLoggedIn(compact({ username: args.username }));
-        yield* Console.log(
+        yield* printHuman(
           `Logged in as ${session.username}. Team: ${session.teamName ?? session.teamId} (${session.teamId}).`,
         );
+        return session;
       }),
-      LOGIN_EXIT_EXTRAS,
+      { exits: LOGIN_EXIT_EXTRAS, json: "value" },
     ),
 });

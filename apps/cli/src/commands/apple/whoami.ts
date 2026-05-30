@@ -1,7 +1,8 @@
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
+import { printHuman } from "../../lib/output";
 import { AppleAuth } from "../../services/apple-auth";
 
 export const appleWhoamiCommand = defineCommand({
@@ -15,14 +16,16 @@ export const appleWhoamiCommand = defineCommand({
         const auth = yield* AppleAuth;
         const session = yield* auth.whoami;
         if (session === null) {
-          yield* Console.log("Not logged in to Apple. Run `better-update apple login` to start.");
-          return;
+          yield* printHuman("Not logged in to Apple. Run `better-update apple login` to start.");
+          return { loggedIn: false, session: null };
         }
-        yield* Console.log(`Apple ID: ${session.username}`);
-        yield* Console.log(`Team:     ${session.teamName ?? "(unknown)"} (${session.teamId})`);
+        yield* printHuman(`Apple ID: ${session.username}`);
+        yield* printHuman(`Team:     ${session.teamName ?? "(unknown)"} (${session.teamId})`);
         if (session.providerId !== undefined) {
-          yield* Console.log(`Provider: ${String(session.providerId)}`);
+          yield* printHuman(`Provider: ${String(session.providerId)}`);
         }
+        return { loggedIn: true, session };
       }),
+      { json: "value" },
     ),
 });

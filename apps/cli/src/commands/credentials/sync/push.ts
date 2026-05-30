@@ -1,5 +1,5 @@
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import type { FileSystem } from "@effect/platform";
 
@@ -8,7 +8,7 @@ import { readCredentialsJson, resolveCredentialPath } from "../../../lib/credent
 import { uploadCredential } from "../../../lib/credentials-manager";
 import { CredentialsJsonError } from "../../../lib/exit-codes";
 import { formatCause } from "../../../lib/format-error";
-import { printTable } from "../../../lib/output";
+import { printHuman, printHumanTable } from "../../../lib/output";
 import { apiClient } from "../../../services/api-client";
 import { CliRuntime } from "../../../services/cli-runtime";
 import { SYNC_EXIT_EXTRAS } from "./helpers";
@@ -208,14 +208,15 @@ export const pushCommand = defineCommand({
         }
 
         if (rows.length === 0) {
-          yield* Console.log(`No ${args.platform} entries found in credentials.json.`);
-          return;
+          yield* printHuman(`No ${args.platform} entries found in credentials.json.`);
+          return { pushed: 0, items: [] as readonly SyncRow[] };
         }
-        yield* printTable(
+        yield* printHumanTable(
           ["Type", "Path", "Status", "ID"],
           rows.map((row) => [row.type, row.path, row.status, row.id]),
         );
+        return { pushed: rows.length, items: rows };
       }),
-      SYNC_EXIT_EXTRAS,
+      { exits: SYNC_EXIT_EXTRAS, json: "value" },
     ),
 });

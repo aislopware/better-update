@@ -7,8 +7,7 @@ import { Effect } from "effect";
 import { runEffect } from "../lib/citty-effect";
 import { readEasJson } from "../lib/eas-config";
 import { extractProjectId, readExpoConfig } from "../lib/expo-config";
-import { printJson, printTable } from "../lib/output";
-import { OutputMode } from "../lib/output-mode";
+import { printHumanTable } from "../lib/output";
 import { apiClient } from "../services/api-client";
 import { CliRuntime } from "../services/cli-runtime";
 import { ConfigStore } from "../services/config-store";
@@ -160,7 +159,7 @@ const renderHuman = (checks: readonly CheckResult[]) => {
     check.name,
     check.message,
   ]);
-  return printTable(["", "Check", "Detail"], rows);
+  return printHumanTable(["", "Check", "Detail"], rows);
 };
 
 const computeExitCode = (checks: readonly CheckResult[]): number =>
@@ -176,12 +175,13 @@ export const doctorCommand = defineCommand({
       Effect.gen(function* () {
         const runtime = yield* CliRuntime;
         const checks = yield* runChecks;
-        const mode = yield* OutputMode;
-        yield* mode.json ? printJson({ checks }) : renderHuman(checks);
+        yield* renderHuman(checks);
         const exitCode = computeExitCode(checks);
         if (exitCode !== 0) {
           yield* runtime.setExitCode(exitCode);
         }
+        return { checks };
       }),
+      { json: "value" },
     ),
 });

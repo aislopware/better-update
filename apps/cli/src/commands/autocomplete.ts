@@ -1,8 +1,9 @@
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { runEffect } from "../lib/citty-effect";
 import { InvalidArgumentError } from "../lib/exit-codes";
+import { printHuman } from "../lib/output";
 
 const TOP_LEVEL_COMMANDS = [
   "login",
@@ -65,6 +66,24 @@ const fishScript = (): string => {
   return `${lines.join("\n")}\n`;
 };
 
+/** Render the completion script for a supported shell, or undefined if unknown. */
+const renderScript = (shell: string): string | undefined => {
+  switch (shell) {
+    case "bash": {
+      return bashScript();
+    }
+    case "zsh": {
+      return zshScript();
+    }
+    case "fish": {
+      return fishScript();
+    }
+    default: {
+      return undefined;
+    }
+  }
+};
+
 export const autocompleteCommand = defineCommand({
   meta: {
     name: "autocomplete",
@@ -81,25 +100,15 @@ export const autocompleteCommand = defineCommand({
   run: async ({ args }) =>
     runEffect(
       Effect.gen(function* () {
-        switch (args.shell) {
-          case "bash": {
-            yield* Console.log(bashScript());
-            return undefined;
-          }
-          case "zsh": {
-            yield* Console.log(zshScript());
-            return undefined;
-          }
-          case "fish": {
-            yield* Console.log(fishScript());
-            return undefined;
-          }
-          default: {
-            return yield* new InvalidArgumentError({
-              message: `Unknown shell: ${args.shell}. Supported: bash, zsh, fish.`,
-            });
-          }
+        const script = renderScript(args.shell);
+        if (script === undefined) {
+          return yield* new InvalidArgumentError({
+            message: `Unknown shell: ${args.shell}. Supported: bash, zsh, fish.`,
+          });
         }
+        yield* printHuman(script);
+        return { shell: args.shell, script };
       }),
+      { json: "value" },
     ),
 });

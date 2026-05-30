@@ -1,10 +1,10 @@
 import { compact } from "@better-update/type-guards";
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
 import { uploadCredential } from "../../lib/credentials-manager";
-import { printKeyValue } from "../../lib/output";
+import { printHuman, printHumanKeyValue } from "../../lib/output";
 import { promptText } from "../../lib/prompts";
 import { apiClient } from "../../services/api-client";
 
@@ -41,12 +41,14 @@ export const uploadAscKeyCommand = defineCommand({
           issuerId,
           ...compact({ appleTeamIdentifier: args["apple-team-identifier"] }),
         });
-        yield* Console.log("ASC API key uploaded.");
-        yield* printKeyValue([
+        yield* printHuman("ASC API key uploaded.");
+        yield* printHumanKeyValue([
           ["ID", credential.id],
           ["Name", credential.name],
           ["Type", credential.type],
         ]);
+        return credential;
       }),
+      { json: "value" },
     ),
 });

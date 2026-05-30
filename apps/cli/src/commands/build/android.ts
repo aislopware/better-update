@@ -23,6 +23,7 @@ import type {
   MissingCredentialsError,
 } from "../../lib/exit-codes";
 import type { InteractiveMode } from "../../lib/interactive-mode";
+import type { OutputMode } from "../../lib/output-mode";
 import type { ApiClient } from "../../services/api-client";
 import type { IdentityStore } from "../../services/identity-store";
 
@@ -81,6 +82,7 @@ export const runAndroidBuild = (
   | FileSystem.FileSystem
   | IdentityStore
   | InteractiveMode
+  | OutputMode
 > =>
   Effect.gen(function* () {
     const { api, tempDir, projectRoot, androidProfile, applicationIdentifier, envVars, projectId } =

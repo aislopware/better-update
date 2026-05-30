@@ -1,6 +1,6 @@
 import { compact } from "@better-update/type-guards";
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
 import {
@@ -13,7 +13,7 @@ import {
 } from "../../lib/credentials-generator";
 import { uploadCredential } from "../../lib/credentials-manager";
 import { CredentialValidationError } from "../../lib/exit-codes";
-import { printHuman, printKeyValue } from "../../lib/output";
+import { printHuman, printHumanKeyValue } from "../../lib/output";
 import { promptMultiSelect, promptPassword, promptText } from "../../lib/prompts";
 import { apiClient } from "../../services/api-client";
 
@@ -107,7 +107,7 @@ const keystoreCommand = defineCommand({
       Effect.gen(function* () {
         const api = yield* apiClient;
         const resolved = yield* resolveKeystoreInput(args);
-        yield* Console.log("Generating keystore with keytool...");
+        yield* printHuman("Generating keystore with keytool...");
         const created = yield* generateAndUploadKeystore(api, {
           keyAlias: resolved.alias,
           storePassword: resolved.storePassword,
@@ -116,14 +116,15 @@ const keystoreCommand = defineCommand({
           organization: resolved.organization,
           ...compact({ validityDays: resolved.validityDays }),
         });
-        yield* Console.log("");
-        yield* Console.log("Keystore generated and uploaded.");
-        yield* printKeyValue([
+        yield* printHuman("");
+        yield* printHuman("Keystore generated and uploaded.");
+        yield* printHumanKeyValue([
           ["ID", created.id],
           ["Alias", created.keyAlias],
         ]);
+        return created;
       }),
-      GENERATE_EXIT_EXTRAS,
+      { exits: GENERATE_EXIT_EXTRAS, json: "value" },
     ),
 });
 
@@ -152,7 +153,7 @@ const distributionCertificateCommand = defineCommand({
         const api = yield* apiClient;
         const certificateType =
           args.type === "development" ? "IOS_DEVELOPMENT" : "IOS_DISTRIBUTION";
-        yield* Console.log("Generating CSR and requesting certificate from Apple...");
+        yield* printHuman("Generating CSR and requesting certificate from Apple...");
 
         const attempt = generateAndUploadDistributionCertificate(api, {
           ascApiKeyId: args["asc-key-id"],
@@ -167,15 +168,16 @@ const distributionCertificateCommand = defineCommand({
           ),
         );
 
-        yield* Console.log("Distribution certificate generated and stored.");
-        yield* printKeyValue([
+        yield* printHuman("Distribution certificate generated and stored.");
+        yield* printHumanKeyValue([
           ["ID", created.id],
           ["Serial", created.serialNumber],
           ["Apple team", created.appleTeamIdentifier],
           ["Apple cert", created.developerPortalIdentifier],
         ]);
+        return created;
       }),
-      GENERATE_EXIT_EXTRAS,
+      { exits: GENERATE_EXIT_EXTRAS, json: "value" },
     ),
 });
 
@@ -185,8 +187,8 @@ const handleCertLimitInteractive = (
   certificateType: "IOS_DISTRIBUTION" | "IOS_DEVELOPMENT",
 ) =>
   Effect.gen(function* () {
-    yield* Console.log("");
-    yield* Console.log("Apple reports the certificate limit was hit (max 3 distribution certs).");
+    yield* printHuman("");
+    yield* printHuman("Apple reports the certificate limit was hit (max 3 distribution certs).");
     const certs = yield* listAppleCertificates(api, { ascApiKeyId, certificateType });
     if (certs.length === 0) {
       return yield* Effect.fail(
@@ -209,7 +211,7 @@ const handleCertLimitInteractive = (
       (id) => revokeAppleCertificate(api, { ascApiKeyId, developerPortalIdentifier: id }),
       { concurrency: "inherit" },
     );
-    yield* Console.log(`Revoked ${toRevoke.length} certificate(s); retrying generation...`);
+    yield* printHuman(`Revoked ${toRevoke.length} certificate(s); retrying generation...`);
     return undefined;
   });
 
@@ -254,8 +256,8 @@ const provisioningProfileCommand = defineCommand({
           distributionType: args.distribution,
           ...compact({ deviceIds }),
         });
-        yield* Console.log("Provisioning profile generated and stored.");
-        yield* printKeyValue([
+        yield* printHuman("Provisioning profile generated and stored.");
+        yield* printHumanKeyValue([
           ["ID", created.id],
           ["Bundle", created.bundleIdentifier],
           ["Distribution", created.distributionType],
@@ -263,8 +265,9 @@ const provisioningProfileCommand = defineCommand({
           ["Valid until", created.validUntil ?? "-"],
           ["Apple profile", created.developerPortalIdentifier ?? "-"],
         ]);
+        return created;
       }),
-      GENERATE_EXIT_EXTRAS,
+      { exits: GENERATE_EXIT_EXTRAS, json: "value" },
     ),
 });
 
@@ -354,7 +357,7 @@ const pushKeyCommand = defineCommand({
         }
 
         const resolved = yield* resolvePushKeyInput(api, args);
-        yield* Console.log("Uploading APNs auth key...");
+        yield* printHuman("Uploading APNs auth key...");
         const credential = yield* uploadCredential(api, {
           platform: "ios",
           type: "push-key",
@@ -363,15 +366,15 @@ const pushKeyCommand = defineCommand({
           keyId: resolved.keyId,
           appleTeamIdentifier: resolved.appleTeamIdentifier,
         });
-        yield* Console.log("APNs push key registered.");
-        yield* printKeyValue([
+        yield* printHuman("APNs push key registered.");
+        yield* printHumanKeyValue([
           ["ID", credential.id],
           ["Key ID", resolved.keyId],
           ["Apple team", resolved.appleTeamIdentifier],
         ]);
-        return undefined;
+        return credential;
       }),
-      GENERATE_EXIT_EXTRAS,
+      { exits: GENERATE_EXIT_EXTRAS, json: "value" },
     ),
 });
 
@@ -462,21 +465,21 @@ const gsaKeyCommand = defineCommand({
         }
         const name = args.name ?? filePath;
 
-        yield* Console.log("Uploading Google service account key...");
+        yield* printHuman("Uploading Google service account key...");
         const credential = yield* uploadCredential(api, {
           platform: "android",
           type: "google-service-account-key",
           name,
           filePath,
         });
-        yield* Console.log("Google service account key registered.");
-        yield* printKeyValue([
+        yield* printHuman("Google service account key registered.");
+        yield* printHumanKeyValue([
           ["ID", credential.id],
           ["Name", credential.name],
         ]);
-        return undefined;
+        return credential;
       }),
-      GENERATE_EXIT_EXTRAS,
+      { exits: GENERATE_EXIT_EXTRAS, json: "value" },
     ),
 });
 

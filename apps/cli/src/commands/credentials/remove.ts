@@ -1,5 +1,5 @@
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
 import {
@@ -8,6 +8,7 @@ import {
   listAllCredentials,
 } from "../../lib/credentials-manager";
 import { InvalidArgumentError } from "../../lib/exit-codes";
+import { printHuman } from "../../lib/output";
 import { promptConfirm, promptSelect } from "../../lib/prompts";
 import { apiClient } from "../../services/api-client";
 
@@ -67,16 +68,16 @@ export const removeCommand = defineCommand({
         const platform = yield* resolvePlatform(args.platform);
         const platformRows = filterCredentials(rows, { platform });
         if (platformRows.length === 0) {
-          yield* Console.log(`No ${platform} credentials to remove.`);
-          return undefined;
+          yield* printHuman(`No ${platform} credentials to remove.`);
+          return { deleted: false, reason: "none-for-platform" as const };
         }
 
         const availableTypes = [...new Set(platformRows.map((row) => row.type))];
         const type = yield* resolveType(args.type, availableTypes);
         const filtered = filterCredentials(platformRows, { type });
         if (filtered.length === 0) {
-          yield* Console.log(`No ${platform} ${type} credentials to remove.`);
-          return undefined;
+          yield* printHuman(`No ${platform} ${type} credentials to remove.`);
+          return { deleted: false, reason: "none-for-type" as const };
         }
 
         const id = yield* promptSelect<string>(
@@ -90,15 +91,16 @@ export const removeCommand = defineCommand({
             { initialValue: false },
           );
           if (!confirmed) {
-            yield* Console.log("Aborted.");
-            return undefined;
+            yield* printHuman("Aborted.");
+            return { deleted: false, reason: "cancelled" as const };
           }
         }
 
         yield* deleteCredential(api, { id, platform, type });
-        yield* Console.log(`Credential ${id} deleted.`);
-        return undefined;
+        yield* printHuman(`Credential ${id} deleted.`);
+        return { deleted: true, id, platform, type };
       }),
+      { json: "value" },
     ),
 });
 

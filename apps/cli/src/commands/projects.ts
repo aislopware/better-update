@@ -1,9 +1,9 @@
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { runEffect } from "../lib/citty-effect";
 import { parseLimit } from "../lib/cli-schemas";
-import { printHuman, printKeyValue, printList } from "../lib/output";
+import { printHuman, printHumanKeyValue, printList } from "../lib/output";
 import { apiClient } from "../services/api-client";
 
 const listCommand = defineCommand({
@@ -64,13 +64,15 @@ const createCommand = defineCommand({
         const project = yield* api.projects.create({
           payload: { name: args.name, slug: args.slug },
         });
-        yield* printKeyValue([
+        yield* printHumanKeyValue([
           ["ID", project.id],
           ["Name", project.name],
           ["Slug", project.slug],
           ["Created", project.createdAt],
         ]);
+        return project;
       }),
+      { json: "value" },
     ),
 });
 
@@ -84,13 +86,15 @@ const getCommand = defineCommand({
       Effect.gen(function* () {
         const api = yield* apiClient;
         const project = yield* api.projects.get({ path: { id: args.id } });
-        yield* printKeyValue([
+        yield* printHumanKeyValue([
           ["ID", project.id],
           ["Name", project.name],
           ["Slug", project.slug],
           ["Created", project.createdAt],
         ]);
+        return project;
       }),
+      { json: "value" },
     ),
 });
 
@@ -108,8 +112,10 @@ const renameCommand = defineCommand({
           path: { id: args.id },
           payload: { name: args.name },
         });
-        yield* Console.log(`Project renamed to "${project.name}".`);
+        yield* printHuman(`Project renamed to "${project.name}".`);
+        return project;
       }),
+      { json: "value" },
     ),
 });
 
@@ -123,8 +129,10 @@ const deleteCommand = defineCommand({
       Effect.gen(function* () {
         const api = yield* apiClient;
         yield* api.projects.delete({ path: { id: args.id } });
-        yield* Console.log(`Project ${args.id} deleted.`);
+        yield* printHuman(`Project ${args.id} deleted.`);
+        return { id: args.id, deleted: true };
       }),
+      { json: "value" },
     ),
 });
 

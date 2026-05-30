@@ -3,8 +3,7 @@ import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
 import { CredentialValidationError } from "../../lib/exit-codes";
-import { printJson, printKeyValue } from "../../lib/output";
-import { OutputMode } from "../../lib/output-mode";
+import { printHumanKeyValue } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 
 import type { ApiClient } from "../../services/api-client";
@@ -205,13 +204,9 @@ export const viewCommand = defineCommand({
       Effect.gen(function* () {
         const api = yield* apiClient;
         const result = yield* lookupByType(api, args.id, args.type);
-        const mode = yield* OutputMode;
-        if (mode.json) {
-          yield* printJson(result.raw);
-          return undefined;
-        }
-        yield* printKeyValue(result.pairs.map((pair) => [pair[0], pair[1]] as const));
-        return undefined;
+        yield* printHumanKeyValue(result.pairs.map((pair) => [pair[0], pair[1]] as const));
+        return result.raw;
       }),
+      { json: "value" },
     ),
 });

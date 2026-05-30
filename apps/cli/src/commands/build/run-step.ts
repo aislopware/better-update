@@ -3,6 +3,7 @@ import process from "node:process";
 import { Effect } from "effect";
 
 import { BuildFailedError } from "../../lib/exit-codes";
+import { OutputMode } from "../../lib/output-mode";
 import { runInPty } from "../../lib/pty-runner";
 import { isWarningLine, styleWarningLine } from "../../lib/warning-style";
 
@@ -26,7 +27,10 @@ const annotateWarning = (line: string): string | undefined =>
  * progress bars, ANSI colors are preserved). Completed lines are inspected
  * and any detected warning is re-echoed with our yellow ⚠ annotation.
  */
-export const runStep = (cmd: RunStepCommand, step: string): Effect.Effect<void, BuildFailedError> =>
+export const runStep = (
+  cmd: RunStepCommand,
+  step: string,
+): Effect.Effect<void, BuildFailedError, OutputMode> =>
   runInPty({
     command: cmd.command,
     args: cmd.args,
@@ -54,8 +58,13 @@ export const runStepFormatted = (
   cmd: RunStepCommand,
   step: string,
   formatter: XcodebuildFormatter,
-): Effect.Effect<void, BuildFailedError> =>
+): Effect.Effect<void, BuildFailedError, OutputMode> =>
   Effect.gen(function* () {
+    // JSON mode: the success/error envelope owns stdout, so the formatted native
+    // build log is redirected to stderr (acceptable chrome for a stdout-only
+    // JSON consumer), mirroring the live-tee redirect in pty-runner.ts.
+    const mode = yield* OutputMode;
+    const logStream = mode.json ? process.stderr : process.stdout;
     // Hold raw lines back from the live tee — instead, pump them through the
     // formatter and write only what xcpretty decides to keep.
     const code = yield* runInPty({
@@ -68,9 +77,9 @@ export const runStepFormatted = (
         const formatted = formatter.pipe(line);
         for (const output of formatted) {
           if (isWarningLine(output)) {
-            process.stdout.write(`${styleWarningLine(output)}\n`);
+            logStream.write(`${styleWarningLine(output)}\n`);
           } else {
-            process.stdout.write(`${output}\n`);
+            logStream.write(`${output}\n`);
           }
         }
         return undefined;

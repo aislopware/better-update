@@ -4,8 +4,7 @@ import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
 import { InvalidArgumentError } from "../../lib/exit-codes";
-import { printJson, printKeyValue } from "../../lib/output";
-import { OutputMode } from "../../lib/output-mode";
+import { printHumanKeyValue } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 
 const ALLOWED_EVENTS = ["update.published", "build.completed"] as const;
@@ -68,19 +67,15 @@ export const createWebhookCommand = defineCommand({
             ...compact({ projectId: args["project-id"] }),
           },
         });
-        const mode = yield* OutputMode;
-        if (mode.json) {
-          yield* printJson(webhook);
-          return undefined;
-        }
-        yield* printKeyValue([
+        yield* printHumanKeyValue([
           ["ID", webhook.id],
           ["Name", webhook.name],
           ["URL", webhook.url],
           ["Events", webhook.events.join(",")],
           ["Secret (save now!)", webhook.secret],
         ]);
-        return undefined;
+        return webhook;
       }),
+      { json: "value" },
     ),
 });

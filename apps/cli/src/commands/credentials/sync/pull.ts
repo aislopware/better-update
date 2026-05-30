@@ -4,7 +4,7 @@ import { fromBase64 } from "@better-update/encoding";
 import { compact } from "@better-update/type-guards";
 import { FileSystem } from "@effect/platform";
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import {
   openFromDownload,
@@ -15,7 +15,7 @@ import { requireSecretString } from "../../../lib/credential-secret";
 import { writeCredentialsJson } from "../../../lib/credentials-json";
 import { CredentialsJsonError } from "../../../lib/exit-codes";
 import { formatCause } from "../../../lib/format-error";
-import { printHuman, printTable } from "../../../lib/output";
+import { printHuman, printHumanTable } from "../../../lib/output";
 import { apiClient } from "../../../services/api-client";
 import { CliRuntime } from "../../../services/cli-runtime";
 import {
@@ -386,8 +386,8 @@ export const pullCommand = defineCommand({
 
         const allRows = [...iosResult.rows, ...androidResult.rows];
         if (allRows.length === 0) {
-          yield* Console.log(`No ${args.platform} credentials available to pull.`);
-          return;
+          yield* printHuman(`No ${args.platform} credentials available to pull.`);
+          return { pulled: 0, items: [] as readonly PullRow[] };
         }
 
         const next: CredentialsJson = compact({
@@ -406,13 +406,14 @@ export const pullCommand = defineCommand({
           }
         }
 
-        yield* printTable(
+        yield* printHumanTable(
           ["Type", "Path", "ID"],
           allRows.map((row) => [row.type, row.path, row.id]),
         );
-        yield* Console.log("");
-        yield* Console.log(`credentials.json written to ${outPath}`);
+        yield* printHuman("");
+        yield* printHuman(`credentials.json written to ${outPath}`);
+        return { pulled: allRows.length, path: outPath, items: allRows };
       }),
-      SYNC_EXIT_EXTRAS,
+      { exits: SYNC_EXIT_EXTRAS, json: "value" },
     ),
 });

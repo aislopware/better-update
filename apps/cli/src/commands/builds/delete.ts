@@ -1,7 +1,8 @@
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
+import { printHuman } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 
 export const deleteCommand = defineCommand({
@@ -14,7 +15,9 @@ export const deleteCommand = defineCommand({
       Effect.gen(function* () {
         const api = yield* apiClient;
         yield* api.builds.delete({ path: { id: args.id } });
-        yield* Console.log(`Build ${args.id} deleted.`);
+        yield* printHuman(`Build ${args.id} deleted.`);
+        return { id: args.id, deleted: true };
       }),
+      { json: "value" },
     ),
 });

@@ -1,7 +1,8 @@
 import { generateIdentity, unwrapVaultKey, wrapVaultKey } from "@better-update/credentials-crypto";
 import { fromBase64, toBase64 } from "@better-update/encoding";
+import { compact } from "@better-update/type-guards";
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import type { UserEncryptionKey } from "@better-update/api";
 
@@ -14,7 +15,7 @@ import {
 import { currentRecipients, rotateVaultTo } from "../../application/vault-rotation";
 import { runEffect } from "../../lib/citty-effect";
 import { IdentityError } from "../../lib/exit-codes";
-import { printHuman, printKeyValue, printList } from "../../lib/output";
+import { printHuman, printHumanKeyValue, printHumanList } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 import { confirmFingerprint, resolveSelector, unlockVaultInteractively } from "./vault-session";
 
@@ -42,20 +43,33 @@ const listCommand = defineCommand({
         ]);
         const byId = new Map(items.map((key) => [key.id, key]));
         yield* printHuman(`Vault version ${vaultVersion}`);
-        yield* printList(
+        const rows = recipients.map((recipient) => {
+          const key = byId.get(recipient.userEncryptionKeyId);
+          return [
+            recipient.userEncryptionKeyId,
+            key?.kind ?? "?",
+            key?.label ?? "(unknown)",
+            key?.fingerprint ?? "-",
+          ];
+        });
+        yield* printHumanList(
           ["Key ID", "Kind", "Label", "Fingerprint"],
-          recipients.map((recipient) => {
-            const key = byId.get(recipient.userEncryptionKeyId);
-            return [
-              recipient.userEncryptionKeyId,
-              key?.kind ?? "?",
-              key?.label ?? "(unknown)",
-              key?.fingerprint ?? "-",
-            ];
-          }),
+          rows,
           "No recipients hold the vault key yet.",
         );
+        return {
+          vaultVersion,
+          recipients: recipients.map((recipient) => {
+            const key = byId.get(recipient.userEncryptionKeyId);
+            return Object.assign({ userEncryptionKeyId: recipient.userEncryptionKeyId }, compact({
+	kind: key?.kind,
+	label: key?.label,
+	fingerprint: key?.fingerprint
+}));
+          }),
+        };
       }),
+      { json: "value" },
     ),
 });
 
@@ -85,7 +99,9 @@ const grantCommand = defineCommand({
         const vault = yield* unlockVaultInteractively(api);
         yield* grantRecipient({ api, vault, target });
         yield* printHuman(`Granted vault access to ${target.label} (${target.fingerprint}).`);
+        return { granted: true, recipient: { id: target.id, fingerprint: target.fingerprint } };
       }),
+      { json: "value" },
     ),
 });
 
@@ -116,7 +132,9 @@ const rotateCommand = defineCommand({
         yield* printHuman(
           `Rotated the vault to version ${String(rotated.vaultVersion)} (${String(recipients.length)} recipients).`,
         );
+        return { vaultVersion: rotated.vaultVersion, recipients: recipients.length };
       }),
+      { json: "value" },
     ),
 });
 
@@ -166,8 +184,12 @@ const revokeCommand = defineCommand({
         yield* printHuman(
           `Revoked ${target.label} and rotated the vault to version ${String(rotated.vaultVersion)}.`,
         );
-        return undefined;
+        return {
+          revoked: { id: target.id, fingerprint: target.fingerprint },
+          vaultVersion: rotated.vaultVersion,
+        };
       }),
+      { json: "value" },
     ),
 });
 
@@ -231,8 +253,9 @@ const recoverCommand = defineCommand({
           },
         });
         yield* printHuman(`Recovered vault access for this device (${own.label}).`);
-        return undefined;
+        return { recovered: true, keyId: own.id, label: own.label };
       }),
+      { json: "value" },
     ),
 });
 
@@ -274,15 +297,22 @@ const recoveryRotateCommand = defineCommand({
           ],
         });
 
-        yield* printKeyValue([
+        yield* printHumanKeyValue([
           ["New recovery fingerprint", newRecovery.fingerprint],
           ["Vault version", String(rotated.vaultVersion)],
         ]);
         yield* printHuman(
           "Store this offline recovery private key safely — it is shown once and never again:",
         );
-        yield* Console.log(newRecovery.privateKey);
+        yield* printHuman(newRecovery.privateKey);
+        return {
+          fingerprint: newRecovery.fingerprint,
+          vaultVersion: rotated.vaultVersion,
+          // Shown once: JSON consumers must capture this now (mirrors human output).
+          privateKey: newRecovery.privateKey,
+        };
       }),
+      { json: "value" },
     ),
 });
 

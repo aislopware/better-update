@@ -5,8 +5,7 @@ import qrcode from "qrcode-terminal";
 
 import { runEffect } from "../../lib/citty-effect";
 import { InvalidArgumentError } from "../../lib/exit-codes";
-import { printHuman, printJson, printKeyValue } from "../../lib/output";
-import { OutputMode } from "../../lib/output-mode";
+import { printHuman, printHumanKeyValue } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 
 import type { ApiClient } from "../../services/api-client";
@@ -46,7 +45,6 @@ interface InviteArgs {
 
 const handleInvite = (api: ApiClient, args: InviteArgs) =>
   Effect.gen(function* () {
-    const mode = yield* OutputMode;
     const result = yield* api.devices.createRegistrationRequest({
       payload: compact({
         deviceNameHint: args.name,
@@ -55,12 +53,8 @@ const handleInvite = (api: ApiClient, args: InviteArgs) =>
         ttlHours: args.ttl,
       }),
     });
-    if (mode.json) {
-      yield* printJson(result);
-      return;
-    }
     yield* printHuman("Share this URL with the device owner (open it in Safari on iOS):");
-    yield* printKeyValue([
+    yield* printHumanKeyValue([
       ["URL", result.url],
       ["Expires at", result.expiresAt],
       ["Request ID", result.id],
@@ -70,6 +64,7 @@ const handleInvite = (api: ApiClient, args: InviteArgs) =>
       yield* printHuman("");
       yield* printHuman(rendered);
     }
+    return result;
   });
 
 export const addDeviceCommand = defineCommand({
@@ -108,14 +103,13 @@ export const addDeviceCommand = defineCommand({
     runEffect(
       Effect.gen(function* () {
         const api = yield* apiClient;
-        const mode = yield* OutputMode;
 
         if (args.invite) {
           const deviceClass = isDeviceClass(args["device-class"])
             ? args["device-class"]
             : undefined;
           const ttl = ttlHours(args["expires-in"]);
-          yield* handleInvite(api, {
+          return yield* handleInvite(api, {
             renderQr: args.qr,
             ...compact({
               name: args.name,
@@ -124,15 +118,13 @@ export const addDeviceCommand = defineCommand({
               ttl,
             }),
           });
-          return;
         }
 
         if (args.udid === undefined) {
-          yield* new InvalidArgumentError({
+          return yield* new InvalidArgumentError({
             message:
               "Pass --udid <udid> --name <name>, or use --invite to generate an enrollment URL.",
           });
-          return;
         }
         const name = args.name ?? args.udid;
         const deviceClass = isDeviceClass(args["device-class"]) ? args["device-class"] : "IPHONE";
@@ -144,17 +136,15 @@ export const addDeviceCommand = defineCommand({
             ...compact({ appleTeamId: args["apple-team-id"] }),
           },
         });
-        if (mode.json) {
-          yield* printJson(device);
-          return;
-        }
-        yield* printKeyValue([
+        yield* printHumanKeyValue([
           ["ID", device.id],
           ["Name", device.name],
           ["UDID", device.identifier],
           ["Class", device.deviceClass],
           ["Enabled", device.enabled ? "yes" : "no"],
         ]);
+        return device;
       }),
+      { json: "value" },
     ),
 });

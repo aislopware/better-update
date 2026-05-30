@@ -1,11 +1,11 @@
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { regenerateProvisioningProfile } from "../../application/credentials-interactive";
 import { runEffect } from "../../lib/citty-effect";
 import { CredentialValidationError, MissingCredentialsError } from "../../lib/exit-codes";
 import { extractProjectId, readAppMeta, readExpoConfig } from "../../lib/expo-config";
-import { printKeyValue } from "../../lib/output";
+import { printHuman, printHumanKeyValue } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 import { CliRuntime } from "../../services/cli-runtime";
 
@@ -46,13 +46,14 @@ const regenerateOne = (
       bundleIdentifier,
       distribution,
     });
-    yield* printKeyValue([
+    yield* printHumanKeyValue([
       ["Bundle", bundleIdentifier],
       ["Distribution", distribution],
       ["Profile ID", created.id],
       ["Profile name", created.profileName ?? "-"],
       ["Valid until", created.validUntil ?? "-"],
     ]);
+    return { bundleIdentifier, distribution, profile: created };
   });
 
 const regenerateAllForProject = (api: ApiClient, projectId: string) =>
@@ -64,15 +65,18 @@ const regenerateAllForProject = (api: ApiClient, projectId: string) =>
         hint: "Run `better-update credentials configure --platform ios` to create one first.",
       });
     }
-    yield* Console.log(
+    yield* printHuman(
       `Regenerating ${String(configs.items.length)} provisioning profile(s) for this project...`,
     );
+    type RegenerationResult = Effect.Effect.Success<ReturnType<typeof regenerateOne>>;
+    const regenerated: RegenerationResult[] = [];
     for (const config of configs.items) {
       const distribution = distributionTypeToDistribution(config.distributionType);
-      yield* Console.log("");
-      yield* regenerateOne(api, projectId, config.bundleIdentifier, distribution);
+      yield* printHuman("");
+      const one = yield* regenerateOne(api, projectId, config.bundleIdentifier, distribution);
+      regenerated.push(one);
     }
-    return undefined;
+    return { regenerated };
   });
 
 export const regenerateProfileCommand = defineCommand({
@@ -104,8 +108,7 @@ export const regenerateProfileCommand = defineCommand({
         const projectId = yield* extractProjectId(expo);
 
         if (args.all === true) {
-          yield* regenerateAllForProject(api, projectId);
-          return undefined;
+          return yield* regenerateAllForProject(api, projectId);
         }
 
         const iosMeta = yield* readAppMeta(expo, "ios");
@@ -116,9 +119,9 @@ export const regenerateProfileCommand = defineCommand({
           });
         }
 
-        yield* regenerateOne(api, projectId, bundleIdentifier, args.distribution);
-        return undefined;
+        const one = yield* regenerateOne(api, projectId, bundleIdentifier, args.distribution);
+        return { regenerated: [one] };
       }),
-      REGENERATE_EXIT_EXTRAS,
+      { exits: REGENERATE_EXIT_EXTRAS, json: "value" },
     ),
 });

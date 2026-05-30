@@ -1,7 +1,8 @@
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { runEffect } from "../lib/citty-effect";
+import { printHuman } from "../lib/output";
 import { AppleSessionStore } from "../services/apple-session-store";
 import { AuthStore } from "../services/auth-store";
 
@@ -18,12 +19,15 @@ export const logoutCommand = defineCommand({
       Effect.gen(function* () {
         const authStore = yield* AuthStore;
         yield* authStore.clearToken;
-        yield* Console.log("Logged out. Auth token removed.");
-        if (args.all) {
+        yield* printHuman("Logged out. Auth token removed.");
+        const clearedApple = args.all ?? false;
+        if (clearedApple) {
           const appleStore = yield* AppleSessionStore;
           yield* appleStore.clearSession;
-          yield* Console.log("Cleared Apple Developer session.");
+          yield* printHuman("Cleared Apple Developer session.");
         }
+        return { loggedOut: true, clearedAppleSession: clearedApple };
       }),
+      { json: "value" },
     ),
 });

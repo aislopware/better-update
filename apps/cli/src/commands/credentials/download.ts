@@ -10,8 +10,7 @@ import { openFromDownload, openVaultSessionInteractive } from "../../application
 import { runEffect } from "../../lib/citty-effect";
 import { requireSecretString } from "../../lib/credential-secret";
 import { CredentialValidationError, IdentityError } from "../../lib/exit-codes";
-import { printJson, printKeyValue } from "../../lib/output";
-import { OutputMode } from "../../lib/output-mode";
+import { printHumanKeyValue } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 import { CliRuntime } from "../../services/cli-runtime";
 
@@ -305,13 +304,9 @@ export const downloadCommand = defineCommand({
           { api, id: args.id, cwd, output: args.output },
           args.type,
         );
-        const mode = yield* OutputMode;
-        if (mode.json) {
-          yield* printJson({ path: result.path, ...result.metadata });
-          return undefined;
-        }
-        yield* printKeyValue(result.pairs.map((pair) => [pair[0], pair[1]] as const));
-        return undefined;
+        yield* printHumanKeyValue(result.pairs.map((pair) => [pair[0], pair[1]] as const));
+        return { path: result.path, ...result.metadata };
       }),
+      { json: "value" },
     ),
 });

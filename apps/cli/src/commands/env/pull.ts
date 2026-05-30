@@ -2,17 +2,20 @@ import path from "node:path";
 
 import { FileSystem } from "@effect/platform";
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
 import { exportDecryptedEnvVars } from "../../lib/env-exporter";
 import { InvalidArgumentError } from "../../lib/exit-codes";
 import { readProjectId } from "../../lib/expo-config";
 import { InteractiveMode } from "../../lib/interactive-mode";
+import { printHuman } from "../../lib/output";
 import { promptConfirm } from "../../lib/prompts";
 import { apiClient } from "../../services/api-client";
 import { CliRuntime } from "../../services/cli-runtime";
 import { envErrorExtras, parseSingleEnvironmentArg } from "./helpers";
+
+import type { OutputMode } from "../../lib/output-mode";
 
 const DEFAULT_PATH = ".env.local";
 
@@ -29,10 +32,12 @@ const escapeDotenvDoubleQuoted = (value: string): string =>
     .replaceAll("\n", String.raw`\n`)
     .replaceAll("\r", String.raw`\r`)}"`;
 
-const printStdout = (items: readonly { readonly key: string; readonly value: string }[]) =>
+const printStdout = (
+  items: readonly { readonly key: string; readonly value: string }[],
+): Effect.Effect<void, never, OutputMode> =>
   Effect.forEach(
     items,
-    (item) => Console.log(`export ${item.key}='${escapeShellSingleQuoted(item.value)}'`),
+    (item) => printHuman(`export ${item.key}='${escapeShellSingleQuoted(item.value)}'`),
     { discard: true },
   );
 
@@ -55,16 +60,16 @@ const writeDotenvFile = (params: {
         initialValue: false,
       });
       if (!ok) {
-        yield* Console.log("Aborted.");
-        return undefined;
+        yield* printHuman("Aborted.");
+        return false;
       }
     }
     const body = `${params.items
       .map((item) => `${item.key}=${escapeDotenvDoubleQuoted(item.value)}`)
       .join("\n")}\n`;
     yield* fs.writeFileString(params.targetPath, body);
-    yield* Console.log(`Wrote ${String(params.items.length)} env vars to ${params.targetPath}`);
-    return undefined;
+    yield* printHuman(`Wrote ${String(params.items.length)} env vars to ${params.targetPath}`);
+    return true;
   });
 
 export const pullCommand = defineCommand({
@@ -103,18 +108,19 @@ export const pullCommand = defineCommand({
 
         if (args.stdout) {
           yield* printStdout(items);
-          return;
+          return { environment, target: "stdout", count: items.length, written: true };
         }
 
         const runtime = yield* CliRuntime;
         const cwd = yield* runtime.cwd;
         const targetPath = path.resolve(cwd, args.path ?? DEFAULT_PATH);
-        yield* writeDotenvFile({
+        const written = yield* writeDotenvFile({
           targetPath,
           items,
           force: args.force ?? false,
         });
+        return { environment, target: targetPath, count: items.length, written };
       }),
-      envErrorExtras,
+      { exits: envErrorExtras, json: "value" },
     ),
 });

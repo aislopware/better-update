@@ -3,7 +3,7 @@ import path from "node:path";
 
 import { FileSystem } from "@effect/platform";
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
 import { InvalidArgumentError, UploadFailedError } from "../../lib/exit-codes";
@@ -22,7 +22,7 @@ import {
   readApkPackageName,
   readBundleIdFromApp,
 } from "../../lib/native-runner";
-import { printHuman, printKeyValue } from "../../lib/output";
+import { printHuman, printHumanKeyValue } from "../../lib/output";
 import { acquireBuildTempDir } from "../../lib/temp-dir";
 import { apiClient } from "../../services/api-client";
 
@@ -127,7 +127,7 @@ const runIosSimulator = (params: IosRunParams) =>
     const simulator = yield* pickSimulator(params.simulatorSelector);
     yield* printHuman(`Installing on simulator "${simulator.name}" (${simulator.udid})...`);
     yield* installAndLaunchIosSimulator({ udid: simulator.udid, appDir, bundleId });
-    yield* printKeyValue([
+    yield* printHumanKeyValue([
       ["Simulator", simulator.name],
       ["Bundle ID", bundleId],
       ["App", appDir],
@@ -160,7 +160,7 @@ const runIosDevice = (params: IosRunParams) =>
       ipaPath: params.artifactPath,
       bundleId,
     });
-    yield* printKeyValue([
+    yield* printHumanKeyValue([
       ["Device", deviceSelector],
       ["Bundle ID", bundleId],
       ["IPA", params.artifactPath],
@@ -225,7 +225,7 @@ const runAndroid = (params: AndroidRunParams) =>
       apkPath: params.artifactPath,
       packageName,
     });
-    yield* printKeyValue([
+    yield* printHumanKeyValue([
       ["Device", device.serial],
       ["Package", packageName],
       ["APK", params.artifactPath],
@@ -281,40 +281,43 @@ export const runCommand = defineCommand({
           });
           const { artifact } = build;
           if (!artifact) {
-            yield* Effect.fail(
+            return yield* Effect.fail(
               new UploadFailedError({ message: `Build ${build.id} has no artifact yet.` }),
             );
-            return;
           }
           const link = yield* api.builds.getInstallLink({ path: { id: build.id } });
           const tempDir = yield* acquireBuildTempDir;
           const artifactPath = path.join(tempDir, `artifact.${artifact.format}`);
-          yield* Console.log(
+          yield* printHuman(
             `Downloading ${artifact.format} artifact (${String(artifact.byteSize)} bytes)...`,
           );
           const bytes = yield* fetchArtifact(link.artifactUrl);
           const fs = yield* FileSystem.FileSystem;
           yield* fs.writeFile(artifactPath, bytes);
 
-          if (build.platform === "ios") {
-            yield* runIos({
-              tempDir,
-              artifactPath,
-              format: artifact.format,
-              simulatorSelector: args.simulator,
-              deviceSelector: args["device-id"],
-              useDevice: args.device ?? false,
-            });
-            return;
-          }
-          yield* runAndroid({
-            artifactPath,
+          yield* build.platform === "ios"
+            ? runIos({
+                tempDir,
+                artifactPath,
+                format: artifact.format,
+                simulatorSelector: args.simulator,
+                deviceSelector: args["device-id"],
+                useDevice: args.device ?? false,
+              })
+            : runAndroid({
+                artifactPath,
+                format: artifact.format,
+                emulatorSelector: args.emulator,
+                packageOverride: args.package,
+              });
+          return {
+            buildId: build.id,
+            platform: build.platform,
             format: artifact.format,
-            emulatorSelector: args.emulator,
-            packageOverride: args.package,
-          });
+            installed: true,
+          };
         }),
       ),
-      RUN_EXIT_EXTRAS,
+      { exits: RUN_EXIT_EXTRAS, json: "value" },
     ),
 });

@@ -1,7 +1,8 @@
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
+import { printHuman } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 import { channelErrorExtras } from "./helpers";
 
@@ -15,8 +16,9 @@ export const deleteCommand = defineCommand({
       Effect.gen(function* () {
         const api = yield* apiClient;
         yield* api.channels.delete({ path: { id: args.id } });
-        yield* Console.log(`Channel ${args.id} deleted.`);
+        yield* printHuman(`Channel ${args.id} deleted.`);
+        return { id: args.id, deleted: true };
       }),
-      channelErrorExtras,
+      { exits: channelErrorExtras, json: "value" },
     ),
 });

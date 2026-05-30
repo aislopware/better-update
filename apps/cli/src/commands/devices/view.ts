@@ -2,8 +2,7 @@ import { defineCommand } from "citty";
 import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
-import { printJson, printKeyValue } from "../../lib/output";
-import { OutputMode } from "../../lib/output-mode";
+import { printHumanKeyValue } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 
 export const viewDeviceCommand = defineCommand({
@@ -16,12 +15,7 @@ export const viewDeviceCommand = defineCommand({
       Effect.gen(function* () {
         const api = yield* apiClient;
         const device = yield* api.devices.get({ path: { id: args.id } });
-        const mode = yield* OutputMode;
-        if (mode.json) {
-          yield* printJson(device);
-          return;
-        }
-        yield* printKeyValue([
+        yield* printHumanKeyValue([
           ["ID", device.id],
           ["Name", device.name],
           ["Class", device.deviceClass],
@@ -32,6 +26,8 @@ export const viewDeviceCommand = defineCommand({
           ["Enabled", device.enabled ? "yes" : "no"],
           ["Created", device.createdAt],
         ]);
+        return device;
       }),
+      { json: "value" },
     ),
 });

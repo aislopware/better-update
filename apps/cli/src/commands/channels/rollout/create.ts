@@ -1,10 +1,12 @@
+import { compact } from "@better-update/type-guards";
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { runEffect } from "../../../lib/citty-effect";
 import { parseRolloutPercentage } from "../../../lib/cli-schemas";
 import { drainPages } from "../../../lib/drain-cursor";
 import { readProjectId } from "../../../lib/expo-config";
+import { printHuman } from "../../../lib/output";
 import { apiClient } from "../../../services/api-client";
 import { channelErrorExtras, resolveNamedResourceId } from "../helpers";
 
@@ -17,6 +19,10 @@ export const createCommand = defineCommand({
       type: "string",
       required: true,
       description: "Initial rollout percentage (1-100)",
+    },
+    "runtime-version": {
+      type: "string",
+      description: "Constrain the rollout to a single runtime version",
     },
   },
   run: async ({ args }) =>
@@ -37,15 +43,20 @@ export const createCommand = defineCommand({
           name: args.branch,
         });
 
+        const runtimeVersion = args["runtime-version"];
+
         const channel = yield* api.channels.createBranchRollout({
           path: { id: args.channelId },
-          payload: { newBranchId, percentage },
+          payload: compact({ newBranchId, percentage, runtimeVersion }),
         });
 
-        yield* Console.log(
-          `Started rollout on channel "${channel.name}" to branch "${args.branch}" at ${String(percentage)}%.`,
+        const rtvSuffix =
+          runtimeVersion === undefined ? "" : ` (runtime version "${runtimeVersion}" only)`;
+        yield* printHuman(
+          `Started rollout on channel "${channel.name}" to branch "${args.branch}" at ${String(percentage)}%${rtvSuffix}.`,
         );
+        return channel;
       }),
-      channelErrorExtras,
+      { exits: channelErrorExtras, json: "value" },
     ),
 });

@@ -24,16 +24,23 @@ export const bootstrapVersionCheck = (
   currentVersion: string,
   installerHint: string,
   spawnRefresh: () => void,
+  // EAS parity: suppress the upgrade notice under --json / --non-interactive / CI.
+  // It is stderr (so it never corrupts the stdout envelope), but it is noise on
+  // every CI invocation and a machine consumer has no use for it. The background
+  // cache refresh still runs so the notice stays warm for the next human run.
+  options?: { readonly quiet?: boolean },
 ): Effect.Effect<void, never, VersionCheck | CliRuntime> =>
   Effect.gen(function* () {
     if (yield* isOptedOut) {
       return;
     }
     const versionCheck = yield* VersionCheck;
-    const cached = yield* versionCheck.cachedLatest;
-    if (cached && isNewerVersion(cached, currentVersion)) {
-      const installer = detectInstallerFromImportMetaUrl(installerHint);
-      yield* Console.error(formatNotice(currentVersion, cached, installCommand(installer)));
+    if (options?.quiet !== true) {
+      const cached = yield* versionCheck.cachedLatest;
+      if (cached && isNewerVersion(cached, currentVersion)) {
+        const installer = detectInstallerFromImportMetaUrl(installerHint);
+        yield* Console.error(formatNotice(currentVersion, cached, installCommand(installer)));
+      }
     }
     if (yield* versionCheck.cacheStale) {
       spawnRefresh();

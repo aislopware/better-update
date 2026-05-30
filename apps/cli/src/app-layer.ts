@@ -8,9 +8,12 @@ import { ApiClientLive } from "./services/api-client";
 import { AppleAuthLive } from "./services/apple-auth";
 import { AppleSessionStoreLive } from "./services/apple-session-store";
 import { AuthStoreLive } from "./services/auth-store";
+import { BsdiffServiceLive } from "./services/bsdiff";
 import { CliRuntimeLive } from "./services/cli-runtime";
 import { ConfigStoreLive } from "./services/config-store";
 import { IdentityStoreLive } from "./services/identity-store";
+import { PatchUploaderLive } from "./services/patch-uploader";
+import { PresignedDownloadClientLive } from "./services/presigned-download";
 import { PresignedUploadClientLive } from "./services/presigned-upload";
 import { UpdateAssetUploaderLive } from "./services/update-asset-uploader";
 import { VersionCheckLive } from "./services/version-check";
@@ -29,6 +32,10 @@ const PresignedUploadLayer = PresignedUploadClientLive.pipe(Layer.provide(CliPla
 const UpdateAssetUploaderLayer = UpdateAssetUploaderLive.pipe(
   Layer.provide(Layer.mergeAll(ApiClientLayer, PresignedUploadLayer)),
 );
+const PresignedDownloadLayer = PresignedDownloadClientLive.pipe(Layer.provide(CliPlatformLayer));
+const PatchUploaderLayer = PatchUploaderLive.pipe(
+  Layer.provide(Layer.mergeAll(ApiClientLayer, PresignedUploadLayer)),
+);
 const VersionCheckLayer = VersionCheckLive.pipe(Layer.provide(CliPlatformLayer));
 
 export const makeCliLive = (options: { readonly json: boolean; readonly interactive: boolean }) =>
@@ -38,6 +45,9 @@ export const makeCliLive = (options: { readonly json: boolean; readonly interact
     AppleAuthLayer,
     PresignedUploadLayer,
     UpdateAssetUploaderLayer,
+    PresignedDownloadLayer,
+    PatchUploaderLayer,
+    BsdiffServiceLive,
     VersionCheckLayer,
     makeOutputModeLayer(options.json),
     makeInteractiveModeLayer(options.interactive),

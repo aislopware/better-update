@@ -1,7 +1,8 @@
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { runEffect } from "../../../lib/citty-effect";
+import { printHuman } from "../../../lib/output";
 import { apiClient } from "../../../services/api-client";
 import { channelErrorExtras } from "../helpers";
 
@@ -17,8 +18,9 @@ export const revertCommand = defineCommand({
         const channel = yield* api.channels.revertBranchRollout({
           path: { id: args.channelId },
         });
-        yield* Console.log(`Reverted rollout on channel "${channel.name}".`);
+        yield* printHuman(`Reverted rollout on channel "${channel.name}".`);
+        return channel;
       }),
-      channelErrorExtras,
+      { exits: channelErrorExtras, json: "value" },
     ),
 });

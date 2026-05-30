@@ -1,10 +1,10 @@
 import { compact } from "@better-update/type-guards";
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
 import { uploadCredential } from "../../lib/credentials-manager";
-import { printKeyValue } from "../../lib/output";
+import { printHuman, printHumanKeyValue } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 
 import type { CliCredentialType } from "../../lib/credentials-manager";
@@ -54,14 +54,16 @@ export const uploadCommand = defineCommand({
 
         const credential = yield* uploadCredential(api, input);
 
-        yield* Console.log("Credential uploaded successfully.");
-        yield* Console.log("");
-        yield* printKeyValue([
+        yield* printHuman("Credential uploaded successfully.");
+        yield* printHuman("");
+        yield* printHumanKeyValue([
           ["ID", credential.id],
           ["Name", credential.name],
           ["Platform", credential.platform],
           ["Type", credential.type],
         ]);
+        return credential;
       }),
+      { json: "value" },
     ),
 });

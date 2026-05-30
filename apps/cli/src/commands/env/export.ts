@@ -1,9 +1,10 @@
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
 import { exportDecryptedEnvVars } from "../../lib/env-exporter";
 import { readProjectId } from "../../lib/expo-config";
+import { printHuman } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 import { envErrorExtras, parseSingleEnvironmentArg } from "./helpers";
 
@@ -27,9 +28,10 @@ export const exportCommand = defineCommand({
 
         for (const item of items) {
           const escaped = item.value.replaceAll("'", String.raw`'\''`);
-          yield* Console.log(`${item.key}='${escaped}'`);
+          yield* printHuman(`${item.key}='${escaped}'`);
         }
+        return { environment, items };
       }),
-      envErrorExtras,
+      { exits: envErrorExtras, json: "value" },
     ),
 });

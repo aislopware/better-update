@@ -1,7 +1,8 @@
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
+import { printHuman } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 import { channelErrorExtras } from "./helpers";
 
@@ -15,8 +16,9 @@ export const pauseCommand = defineCommand({
       Effect.gen(function* () {
         const api = yield* apiClient;
         const channel = yield* api.channels.pause({ path: { id: args.id } });
-        yield* Console.log(`Channel "${channel.name}" paused.`);
+        yield* printHuman(`Channel "${channel.name}" paused.`);
+        return channel;
       }),
-      channelErrorExtras,
+      { exits: channelErrorExtras, json: "value" },
     ),
 });

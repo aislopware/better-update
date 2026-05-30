@@ -1,9 +1,10 @@
 import { defineCommand } from "citty";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
 import { InvalidArgumentError } from "../../lib/exit-codes";
 import { readProjectId } from "../../lib/expo-config";
+import { printHuman } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 import { envErrorExtras, findProjectEnvVar, parseSingleEnvironmentArg } from "./helpers";
 
@@ -43,15 +44,15 @@ export const rollbackCommand = defineCommand({
           });
         }
 
-        yield* api["env-vars"].rollback({
+        const result = yield* api["env-vars"].rollback({
           path: { id: match.id },
           payload: { toRevisionId: target.id },
         });
-        yield* Console.log(
+        yield* printHuman(
           `Rolled back ${args.key} (${environment}) to revision ${String(target.revisionNumber)}.`,
         );
-        return undefined;
+        return result;
       }),
-      envErrorExtras,
+      { exits: envErrorExtras, json: "value" },
     ),
 });
