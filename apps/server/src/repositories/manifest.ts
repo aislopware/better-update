@@ -10,6 +10,9 @@ export interface ChannelRow {
   branch_mapping_json: string | null;
   cache_version: number;
   is_paused: number;
+  // Joined from the owning project; NULL for legacy rows that predate the
+  // scope_key backfill. The handler falls back to the PUBLIC_API_URL origin.
+  scope_key: string | null;
 }
 
 export interface UpdateRow {
@@ -67,6 +70,17 @@ export interface ManifestRepository {
   readonly findUpdateAssets: (params: {
     readonly updateId: string;
   }) => Effect.Effect<readonly AssetRow[]>;
+
+  readonly findLaunchAssetForUpdate: (params: {
+    readonly updateId: string;
+  }) => Effect.Effect<LaunchAssetRow | null>;
+}
+
+export interface LaunchAssetRow {
+  hash: string;
+  r2_key: string;
+  content_type: string;
+  runtime_version: string;
 }
 
 export class ManifestRepo extends Context.Tag("api/ManifestRepo")<
@@ -85,7 +99,7 @@ export const ManifestRepoLive = Layer.succeed(ManifestRepo, {
 
       const row = yield* Effect.promise(async () =>
         env.DB.prepare(
-          `SELECT "branch_id", "branch_mapping_json", "cache_version", "is_paused" FROM "channels" WHERE "project_id" = ? AND "name" = ?`,
+          `SELECT c."branch_id", c."branch_mapping_json", c."cache_version", c."is_paused", p."scope_key" FROM "channels" c JOIN "projects" p ON c."project_id" = p."id" WHERE c."project_id" = ? AND c."name" = ?`,
         )
           .bind(params.projectId, params.channelName)
           .first<ChannelRow>(),
@@ -141,5 +155,20 @@ export const ManifestRepoLive = Layer.succeed(ManifestRepo, {
       );
 
       return rows.results;
+    }),
+
+  findLaunchAssetForUpdate: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+
+      const row = yield* Effect.promise(async () =>
+        env.DB.prepare(
+          `SELECT a."hash", a."r2_key", a."content_type", u."runtime_version" FROM "update_assets" ua JOIN "assets" a ON ua."asset_hash" = a."hash" JOIN "updates" u ON ua."update_id" = u."id" WHERE ua."update_id" = ? AND ua."is_launch" = 1 LIMIT 1`,
+        )
+          .bind(params.updateId)
+          .first<LaunchAssetRow>(),
+      );
+
+      return row;
     }),
 });

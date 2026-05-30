@@ -1,6 +1,7 @@
 import { Context, Effect, Layer } from "effect";
 
 import { cloudflareEnv } from "../cloudflare/context";
+import { extractReachableBranchIds } from "../domain/branch-mapping";
 import { NotFound } from "../errors";
 import { bumpChannelCacheVersionByBranchReference } from "./channel-cache-version";
 import { d1RunWithUniqueCheck } from "./d1-helpers";
@@ -61,6 +62,16 @@ export interface ChannelRepository {
   readonly bumpCacheVersionByBranch: (params: { readonly branchId: string }) => Effect.Effect<void>;
 
   readonly delete: (params: { readonly id: string }) => Effect.Effect<void, NotFound>;
+
+  /**
+   * Union of every branch a project's channels can currently serve: each
+   * channel's `branch_id` PLUS every reachable branch in its
+   * `branch_mapping_json` (gradual rollout targets). The OTA reaper uses this to
+   * protect channel-current / reachable-branch updates from reaping.
+   */
+  readonly listReachableBranchIdsByProject: (params: {
+    readonly projectId: string;
+  }) => Effect.Effect<readonly string[]>;
 }
 
 export class ChannelRepo extends Context.Tag("api/ChannelRepo")<ChannelRepo, ChannelRepository>() {}
@@ -256,6 +267,24 @@ export const ChannelRepoLive = Layer.succeed(ChannelRepo, {
     Effect.gen(function* () {
       const env = yield* cloudflareEnv;
       yield* bumpChannelCacheVersionByBranchReference(env.DB, params.branchId);
+    }),
+
+  listReachableBranchIdsByProject: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+      const rows = yield* Effect.promise(async () =>
+        env.DB.prepare(
+          `SELECT "branch_id", "branch_mapping_json" FROM "channels" WHERE "project_id" = ?`,
+        )
+          .bind(params.projectId)
+          .all<{ branch_id: string; branch_mapping_json: string | null }>(),
+      );
+
+      const currentBranchIds = rows.results.map((row) => row.branch_id);
+      const reachableBranchIds = rows.results.flatMap((row) =>
+        row.branch_mapping_json === null ? [] : extractReachableBranchIds(row.branch_mapping_json),
+      );
+      return [...new Set([...currentBranchIds, ...reachableBranchIds])];
     }),
 
   delete: (params) =>
