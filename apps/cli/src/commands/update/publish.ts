@@ -2,12 +2,13 @@ import { DEFAULT_PATCH_BASE_WINDOW } from "@better-update/expo-protocol";
 import { defineCommand } from "citty";
 import { Effect } from "effect";
 
-import { formatSavingsPct } from '../../application/update-patch-phase';
-import type { PatchPhaseResult } from '../../application/update-patch-phase';
+import { formatSavingsPct } from "../../application/update-patch-phase";
 import { runUpdatePublish } from "../../application/update-publish";
 import { runEffect } from "../../lib/citty-effect";
 import { parseRolloutPercentage } from "../../lib/cli-schemas";
 import { printHuman, printHumanTable } from "../../lib/output";
+
+import type { PatchPhaseResult } from "../../application/update-patch-phase";
 
 /**
  * Render the human-table "Patches" cell. Shows uploaded/attempted + skipped, and

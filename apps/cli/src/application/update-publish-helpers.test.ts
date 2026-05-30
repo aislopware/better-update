@@ -7,8 +7,8 @@ import { failureError } from "../lib/test-utils";
 import { resolveBranchAndMessage } from "./update-publish-helpers";
 
 import type { GitContext } from "../lib/git-context";
-import type { ResolveBranchAndMessageInput } from "./update-publish-helpers";
 import type { ApiClient } from "../services/api-client";
+import type { ResolveBranchAndMessageInput } from "./update-publish-helpers";
 
 // resolveBranchAndMessage is the heart of the --auto derivation: under --auto it
 // pulls the branch from the current git branch (gitCtx.ref) and the update
@@ -58,9 +58,7 @@ const baseInput = (
 });
 
 const resolve = (input: ResolveBranchAndMessageInput, allowInteractive = false) =>
-  resolveBranchAndMessage(input).pipe(
-    Effect.provide(makeInteractiveModeLayer(allowInteractive)),
-  );
+  resolveBranchAndMessage(input).pipe(Effect.provide(makeInteractiveModeLayer(allowInteractive)));
 
 describe(resolveBranchAndMessage, () => {
   it.effect("--auto derives branch from git ref and message from the latest commit subject", () =>

@@ -145,7 +145,10 @@ describe("publishUpdate -- embedded baseline", () => {
   it.effect("clears the prior baseline and inserts with is_embedded when isEmbedded=true", () =>
     Effect.gen(function* () {
       const spy = makeSpy();
-      const result = yield* run(spy, { isEmbedded: true, id: "11111111-1111-1111-1111-111111111111" });
+      const result = yield* run(spy, {
+        isEmbedded: true,
+        id: "11111111-1111-1111-1111-111111111111",
+      });
       expect(result.ok).toBe(true);
       expect(spy.clearCalls).toBe(1);
       expect(spy.insertCalls).toStrictEqual([

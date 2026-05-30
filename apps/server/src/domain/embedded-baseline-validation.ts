@@ -44,7 +44,8 @@ export const validateEmbeddedBaselineId = (
   if (input.id === undefined) {
     return Effect.fail(
       new BadRequest({
-        message: "Embedded baseline requires an explicit id (the app.manifest UUID from the native build)",
+        message:
+          "Embedded baseline requires an explicit id (the app.manifest UUID from the native build)",
       }),
     );
   }

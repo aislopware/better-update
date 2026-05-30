@@ -13,9 +13,7 @@ const expectBadRequest = async (effect: Effect.Effect<void, unknown>, message: s
 describe(validateEmbeddedBaselineId, () => {
   it("accepts an embedded baseline with a valid lowercase UUID id", async () => {
     await expect(
-      Effect.runPromise(
-        validateEmbeddedBaselineId({ id: LOWERCASE_UUID, isEmbedded: true }),
-      ),
+      Effect.runPromise(validateEmbeddedBaselineId({ id: LOWERCASE_UUID, isEmbedded: true })),
     ).resolves.toBeUndefined();
   });
 
@@ -45,17 +43,13 @@ describe(validateEmbeddedBaselineId, () => {
   // signing).
   it("passes through a non-embedded update with a UUID id (signed-render case)", async () => {
     await expect(
-      Effect.runPromise(
-        validateEmbeddedBaselineId({ id: LOWERCASE_UUID, isEmbedded: false }),
-      ),
+      Effect.runPromise(validateEmbeddedBaselineId({ id: LOWERCASE_UUID, isEmbedded: false })),
     ).resolves.toBeUndefined();
   });
 
   it("passes through a non-embedded update with no id (unsigned case)", async () => {
     await expect(
-      Effect.runPromise(
-        validateEmbeddedBaselineId({ id: undefined, isEmbedded: false }),
-      ),
+      Effect.runPromise(validateEmbeddedBaselineId({ id: undefined, isEmbedded: false })),
     ).resolves.toBeUndefined();
   });
 });

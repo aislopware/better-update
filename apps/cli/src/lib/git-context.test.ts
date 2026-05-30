@@ -25,7 +25,7 @@ const makeStubExecutor = (resolve: ArgResolver): CommandExecutor.CommandExecutor
     string: (command: StubCommand) => resolve(command.args[0] ?? ""),
   }) as unknown as CommandExecutor.CommandExecutor;
 
-const run =  async (resolve: ArgResolver) =>
+const run = async (resolve: ArgResolver) =>
   readGitContext("/repo").pipe(
     Effect.provideService(CommandExecutor.CommandExecutor, makeStubExecutor(resolve)),
     Effect.runPromise,
@@ -92,7 +92,9 @@ describe(readGitContext, () => {
     // `symbolic-ref --short HEAD` fails on a detached HEAD, but rev-parse + log
     // still succeed — ref is undefined, commit + message survive.
     const ctx = await run((firstArg) =>
-      firstArg === "symbolic-ref" ? Effect.fail(new Error("fatal: ref HEAD is not a symbolic ref")) : cleanRepo(firstArg),
+      firstArg === "symbolic-ref"
+        ? Effect.fail(new Error("fatal: ref HEAD is not a symbolic ref"))
+        : cleanRepo(firstArg),
     );
     expect(ctx.ref).toBeUndefined();
     expect(ctx.commit).toBe("a1b2c3d4e5f6");
