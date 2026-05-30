@@ -6,6 +6,7 @@ import { countBy, uniq } from "es-toolkit";
 import type { RepublishBody } from "@better-update/api";
 
 import { assertProjectOwnership } from "../auth/ownership";
+import { verifySignedUpdate } from "../domain/signed-update-verification";
 import { validateUpdatePublishInput } from "../domain/update-publish-validation";
 import { BadRequest, NotFound } from "../errors";
 import { requireValue } from "../lib/require-value";
@@ -127,6 +128,19 @@ export const prepareRepublishUpdates = (params: {
               assets,
               extra: parseExtraJson(update.extraJson),
               isRollback: false,
+              manifestBody: override.manifestBody,
+              directiveBody: null,
+            });
+
+            // SECURITY GATE: validateUpdatePublishInput only checks SHAPE (JSON +
+            // asset/runtime/extra match), NOT the signature. Verify the override's
+            // signature against its certificate over the EXACT manifest body bytes
+            // before persisting — mirroring handlers/updates.ts so a non-verifying
+            // or wrong-alg (e.g. ECDSA) republished signed update is rejected with
+            // BadRequest and never stored as permanently-unverifiable on-device.
+            yield* verifySignedUpdate({
+              signature: override.signature,
+              certificateChain: override.certificateChain,
               manifestBody: override.manifestBody,
               directiveBody: null,
             });

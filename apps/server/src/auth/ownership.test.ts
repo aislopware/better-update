@@ -53,6 +53,7 @@ const mockProjectRepo = (orgId: string | null) =>
     findById: () => Effect.fail(new NotFound({ message: "Not found" })),
     findBySlug: () => Effect.fail(new NotFound({ message: "Not found" })),
     findByIds: () => Effect.succeed(new Map()),
+    listAllIds: () => Effect.succeed([]),
     findOrgIdById: () =>
       orgId === null
         ? Effect.fail(new NotFound({ message: "Project not found" }))

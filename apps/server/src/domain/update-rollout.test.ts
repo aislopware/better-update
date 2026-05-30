@@ -188,13 +188,22 @@ describe("rollout bucketing distribution", () => {
       return inRollout / POPULATION;
     }).pipe(withCrypto);
 
-  it.effect("splits the population proportionally across rollout percentages", () =>
-    Effect.gen(function* () {
-      for (const percentage of [10, 25, 50, 75, 90]) {
-        const share = yield* inRolloutShare(percentage);
-        expect(share).toBeCloseTo(percentage / 100, 1);
-      }
-    }),
+  // This is the repo's heaviest unit test: 10,000 deterministic SHA-256 hashes
+  // (POPULATION 2000 × 5 percentages) routed through the Effect runtime + real
+  // CryptoServiceLive. In isolation it runs in ~0.3s, but `bun run test` fans all
+  // 18 packages' suites out in parallel via turbo, starving this CPU-bound test
+  // and pushing it past vitest's default 5s per-test timeout (a contention flake,
+  // not a logic failure). Raise the budget so CPU contention can't fail it.
+  it.effect(
+    "splits the population proportionally across rollout percentages",
+    () =>
+      Effect.gen(function* () {
+        for (const percentage of [10, 25, 50, 75, 90]) {
+          const share = yield* inRolloutShare(percentage);
+          expect(share).toBeCloseTo(percentage / 100, 1);
+        }
+      }),
+    30_000,
   );
 
   it.effect("assigns each client a stable bucket on repeated evaluation", () =>

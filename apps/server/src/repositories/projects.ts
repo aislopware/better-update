@@ -39,6 +39,12 @@ export interface ProjectRepository {
 
   readonly findById: (params: { readonly id: string }) => Effect.Effect<ProjectModel, NotFound>;
 
+  /**
+   * All project ids. Drives the OTA reaper's per-project patch sweep prefix
+   * (`patches/{projectId}/`). Small table; no pagination needed for a daily cron.
+   */
+  readonly listAllIds: () => Effect.Effect<readonly string[]>;
+
   readonly findBySlug: (params: {
     readonly organizationId: string;
     readonly slug: string;
@@ -216,6 +222,15 @@ export const ProjectRepoLive = Layer.succeed(ProjectRepo, {
       }
 
       return toProject(row);
+    }),
+
+  listAllIds: () =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+      const rows = yield* Effect.promise(async () =>
+        env.DB.prepare(`SELECT "id" FROM "projects"`).all<{ id: string }>(),
+      );
+      return rows.results.map((row) => row.id);
     }),
 
   findBySlug: (params) =>

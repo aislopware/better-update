@@ -20,6 +20,8 @@ const makeUpdateRow = (overrides?: Partial<Record<string, unknown>>) => ({
   manifest_body: null,
   directive_body: null,
   fingerprint_hash: null,
+  git_commit: null,
+  git_dirty: 0,
   total_asset_size: 0,
   created_at: "2026-01-01T00:00:00Z",
   ...overrides,
@@ -67,6 +69,8 @@ describe("updateRepo -- D1 adapter", () => {
             manifestBody: null,
             directiveBody: null,
             fingerprintHash: null,
+            gitCommit: null,
+            gitDirty: false,
             assets: [{ key: "bundle.js", hash: "abc123", isLaunch: true }],
           });
         }),

@@ -23,6 +23,7 @@ import {
   AuthMetaRepoLive,
   BranchRepoLive,
   BuildRepoLive,
+  BundleRepoLive,
   ChannelRepoLive,
   CompatibilityRepoLive,
   DeviceRegistrationRequestRepoLive,
@@ -62,6 +63,7 @@ import type {
   AuthMetaRepo,
   BranchRepo,
   BuildRepo,
+  BundleRepo,
   ChannelRepo,
   CompatibilityRepo,
   DeviceRegistrationRequestRepo,
@@ -96,6 +98,7 @@ export type ServerInfrastructure =
   | BranchRepo
   | BuildRepo
   | BuildRuntime
+  | BundleRepo
   | ChannelRepo
   | CompatibilityRepo
   | CredentialArtifacts
@@ -131,6 +134,7 @@ export const RepositoryLayer = Layer.mergeAll(
   AuthMetaRepoLive,
   BranchRepoLive,
   BuildRepoLive,
+  BundleRepoLive,
   ChannelRepoLive,
   CompatibilityRepoLive,
   DeviceRegistrationRequestRepoLive,

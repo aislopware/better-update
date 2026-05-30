@@ -85,6 +85,12 @@
     "BUILD_RETENTION_PRODUCTION": "90",
     "BUILD_RETENTION_PREVIEW": "30",
     "BUILD_RETENTION_DEVELOPMENT": "7",
+    "UPDATE_RETENTION_DAYS": "90",
+    "PATCH_RETENTION_DAYS": "30",
+    // Opt-in RFC-3229 `226 IM Used` for bsdiff patch responses. Default "false":
+    // 200 is the safe default (some non-delta-aware proxy caches mishandle 226;
+    // the device accepts both). Set "true" to emit a true 226 for patches.
+    "EMIT_HTTP_226": "false",
     "ENVIRONMENT": "production",
     "BETTER_AUTH_URL": "https://better-update.dev",
     "PUBLIC_API_URL": "https://better-update.dev",
