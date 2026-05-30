@@ -9,9 +9,10 @@ import { requireSecretString } from "../lib/credential-secret";
 import { generateAndUploadKeystore } from "../lib/credentials-generator";
 import { uploadCredential } from "../lib/credentials-manager";
 import { IdentityError, MissingCredentialsError } from "../lib/exit-codes";
-import { extractProjectId, readAppMeta, readExpoConfig } from "../lib/expo-config";
 import { printHuman, printKeyValue } from "../lib/output";
+import { readAppMetaOptional, readProjectId } from "../lib/project-link";
 import { promptPassword, promptSelect, promptText } from "../lib/prompts";
+import { CliRuntime } from "../services/cli-runtime";
 import { openFromDownload, openVaultSessionInteractive } from "./credential-cipher";
 import { ensureAndroidCredentials } from "./credentials-interactive";
 import { announce, BACK, pickAndDelete, safely, safePrompt } from "./credentials-manager-shared";
@@ -151,15 +152,9 @@ const resolveAndroidPackageForBinding = (ctx: WizardContext) =>
     if (ctx.androidPackage !== undefined) {
       return ctx.androidPackage;
     }
-    const expo = yield* readExpoConfig(process.cwd()).pipe(
-      Effect.catchAll(() => Effect.succeed(undefined)),
-    );
-    if (expo === undefined) {
-      return yield* promptText("Android application identifier (package name)");
-    }
-    const meta = yield* readAppMeta(expo, "android").pipe(
-      Effect.catchAll(() => Effect.succeed({ androidPackage: undefined })),
-    );
+    const runtime = yield* CliRuntime;
+    const cwd = yield* runtime.cwd;
+    const meta = yield* readAppMetaOptional(cwd, "android");
     return (
       meta.androidPackage ?? (yield* promptText("Android application identifier (package name)"))
     );
@@ -167,10 +162,7 @@ const resolveAndroidPackageForBinding = (ctx: WizardContext) =>
 
 const findDefaultAndroidGroup = (ctx: WizardContext) =>
   Effect.gen(function* () {
-    const projectId =
-      ctx.projectId.length > 0
-        ? ctx.projectId
-        : yield* extractProjectId(yield* readExpoConfig(process.cwd()));
+    const projectId = ctx.projectId.length > 0 ? ctx.projectId : yield* readProjectId;
     const applicationIdentifier = yield* resolveAndroidPackageForBinding(ctx);
     const apps = yield* ctx.api.androidApplicationIdentifiers.list({
       path: { projectId },

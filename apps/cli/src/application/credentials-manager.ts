@@ -1,6 +1,6 @@
 import { Console, Effect } from "effect";
 
-import { extractProjectId, readAppMeta, readExpoConfig } from "../lib/expo-config";
+import { readAppMetaOptional, readProjectId } from "../lib/project-link";
 import { promptSelect } from "../lib/prompts";
 import { apiClient } from "../services/api-client";
 import { CliRuntime } from "../services/cli-runtime";
@@ -36,19 +36,9 @@ export const runCredentialsManager = Effect.gen(function* () {
   const runtime = yield* CliRuntime;
   const cwd = yield* runtime.cwd;
 
-  const expoConfig = yield* readExpoConfig(cwd);
-  const projectId = yield* extractProjectId(expoConfig);
-  const emptyMeta = {
-    bundleId: undefined,
-    androidPackage: undefined,
-    appVersion: undefined,
-    buildNumber: undefined,
-    rawRuntimeVersion: undefined,
-  } as const;
-  const iosMeta = yield* readAppMeta(expoConfig, "ios").pipe(Effect.orElseSucceed(() => emptyMeta));
-  const androidMeta = yield* readAppMeta(expoConfig, "android").pipe(
-    Effect.orElseSucceed(() => emptyMeta),
-  );
+  const projectId = yield* readProjectId;
+  const iosMeta = yield* readAppMetaOptional(cwd, "ios");
+  const androidMeta = yield* readAppMetaOptional(cwd, "android");
 
   const ctx: WizardContext = {
     api,

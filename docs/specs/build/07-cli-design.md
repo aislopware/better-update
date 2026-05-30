@@ -227,12 +227,24 @@ eval $(better-update env pull --environment development)
 ## Project Commands
 
 ```bash
-# Initialize project (link to better-update)
+# Initialize project (link to better-update) — works for ANY project, not just Expo
 better-update init
-# Interactive:
-#   1. Reads app.json for project name + bundle ID
+# Expo project (app.json / app.config.* present):
+#   1. Reads app.json for project name + slug
 #   2. Creates project on server (or links to existing)
 #   3. Writes projectId to app.json expo.extra.betterUpdate.projectId
+# Non-Expo project (KMP / Flutter / native — no app.json):
+#   1. Derives name/slug from --name/--slug, else package.json `name`, else the directory name
+#   2. Creates project on server (or links to existing)
+#   3. Writes { "projectId": "…" } to better-update.json at the project root
+better-update init --name "My App" --slug my-app   # non-Expo, explicit
+better-update init --id <projectId>                 # link by explicit id (any project)
+
+# Project-id resolution (every credentials/* and env/* command, build-system-agnostic):
+#   1. BETTER_UPDATE_PROJECT_ID environment variable
+#   2. better-update.json  ({ "projectId": "…" })
+#   3. Expo config         (extra.betterUpdate.projectId, only when @expo/config is installed)
+# @expo/config is loaded lazily/optionally, so a project without Expo never crashes.
 
 # Show project status
 better-update status

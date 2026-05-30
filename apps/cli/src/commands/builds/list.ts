@@ -4,8 +4,8 @@ import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
 import { parseLimit } from "../../lib/cli-schemas";
-import { readProjectId } from "../../lib/expo-config";
 import { printTable } from "../../lib/output";
+import { readProjectId } from "../../lib/project-link";
 import { apiClient } from "../../services/api-client";
 
 const SORT_OPTIONS = [

@@ -3,8 +3,8 @@ import { Effect } from "effect";
 
 import { runEffect } from "../lib/citty-effect";
 import { listAllCredentials } from "../lib/credentials-manager";
-import { readProjectId } from "../lib/expo-config";
 import { printHuman, printHumanKeyValue } from "../lib/output";
+import { readProjectId } from "../lib/project-link";
 import { apiClient } from "../services/api-client";
 
 export const statusCommand = defineCommand({

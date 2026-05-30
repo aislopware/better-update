@@ -6,7 +6,7 @@ import { runEffect } from "../../lib/citty-effect";
 import { pullEnvVars } from "../../lib/env-exporter";
 import { getExecTrailingArgv } from "../../lib/exec-trailing-argv";
 import { InvalidArgumentError } from "../../lib/exit-codes";
-import { readProjectId } from "../../lib/expo-config";
+import { readProjectId } from "../../lib/project-link";
 import { apiClient } from "../../services/api-client";
 import { CliRuntime } from "../../services/cli-runtime";
 import { envErrorExtras, parseSingleEnvironmentArg } from "./helpers";

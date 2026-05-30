@@ -33,7 +33,10 @@ no vault key); the tier only changes how the CLI prints the value once it has de
 
 > `EXPO_PUBLIC_*` keys are inlined into the JS bundle by Metro, so their values are not truly secret —
 > but they are still encrypted at rest for a uniform model. `env push` classifies `EXPO_PUBLIC_*` as
-> `plaintext` and everything else as `sensitive`.
+> `plaintext` and everything else as `sensitive`. This prefix heuristic is an **Expo-specific
+> convenience**: a non-Expo project (KMP/Flutter/native) has no such prefix, so every value defaults to
+> `sensitive` — the safe default. The vault, scoping, and injection (export into the build subprocess)
+> are otherwise build-system-agnostic; Metro / `app.config.js` / Gradle are just example consumers.
 
 ### Storage
 

@@ -5,8 +5,8 @@ import { Effect } from "effect";
 import { openVaultSessionInteractive, sealForUpload } from "../../application/credential-cipher";
 import { runEffect } from "../../lib/citty-effect";
 import { InvalidArgumentError } from "../../lib/exit-codes";
-import { readProjectId } from "../../lib/expo-config";
 import { printHuman } from "../../lib/output";
+import { readProjectId } from "../../lib/project-link";
 import { apiClient } from "../../services/api-client";
 import { EnvResourceNotFoundError, envErrorExtras, parseSingleEnvironmentArg } from "./helpers";
 

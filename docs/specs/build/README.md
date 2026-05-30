@@ -1,6 +1,6 @@
 # Build Management Specification
 
-Implementation spec for better-update's build management — credential vault, environment variables, and build registry for Expo/React Native apps. Users build locally via CLI (like EAS), with credentials and env vars managed centrally on better-update server.
+Implementation spec for better-update's build management — credential vault, environment variables, and build registry. The **credential vault + env-var vault are build-system-agnostic**: any iOS/Android project (Expo, KMP, Flutter, native) can store signing artifacts + env vars and pull them from the CLI, with or without an `app.json`. The Expo build orchestration + OTA features layer on top. Users build locally via CLI (like EAS), with credentials and env vars managed centrally on better-update server.
 
 ---
 

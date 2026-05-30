@@ -35,6 +35,14 @@ export interface SetupCliE2EOptions {
    */
   readonly useDynamicConfig?: boolean;
   /**
+   * Skip writing any Expo config (no app.json / app.config.js / package.json).
+   * Use to exercise build-system-neutral (non-Expo) projects that link via the
+   * `BETTER_UPDATE_PROJECT_ID` env var or a `better-update.json` file instead of
+   * an Expo config. The server project's name/slug are still derived from
+   * `appJsonTemplate.expo` for setup, but nothing is written to the project dir.
+   */
+  readonly noExpoConfig?: boolean;
+  /**
    * Unique sign-up email for this test file. Required because the e2e suite shares
    * a single worker + D1 across all files, and `users.email` is globally unique.
    */
@@ -388,7 +396,9 @@ export const setupCliE2E = (testId: string, options: SetupCliE2EOptions): CliE2E
     } else {
       state.projectDir = mkdtempSync(path.join(os.tmpdir(), "better-update-cli-project-"));
     }
-    writeExpoConfig();
+    if (!options.noExpoConfig) {
+      writeExpoConfig();
+    }
 
     const signUpResponse = await post("/api/auth/sign-up/email", {
       name: "CLI E2E User",

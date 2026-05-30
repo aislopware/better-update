@@ -5,8 +5,8 @@ import { Effect } from "effect";
 import { runEffect } from "../../lib/citty-effect";
 import { parseLimit } from "../../lib/cli-schemas";
 import { drainPages } from "../../lib/drain-cursor";
-import { readProjectId } from "../../lib/expo-config";
 import { printList } from "../../lib/output";
+import { readProjectId } from "../../lib/project-link";
 import { apiClient } from "../../services/api-client";
 import { resolveNamedResourceId, updateErrorExtras } from "./helpers";
 

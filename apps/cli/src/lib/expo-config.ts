@@ -6,7 +6,7 @@ import { asRecord, compact } from "@better-update/type-guards";
 import { FileSystem } from "@effect/platform";
 import { Effect, Option } from "effect";
 
-import { CliRuntime } from "../services/cli-runtime";
+import { BETTER_UPDATE_PROJECT_ID_ENV } from "./better-update-config";
 import { BuildProfileError, ProjectNotLinkedError, UpdatePublishError } from "./exit-codes";
 import { formatCause } from "./format-error";
 
@@ -87,6 +87,31 @@ interface ExpoConfigModule {
 const loadExpoConfigModule = (): ExpoConfigModule =>
   // eslint-disable-next-line typescript/no-unsafe-type-assertion -- CJS require returns `any`; narrow at the @expo/config boundary
   require("@expo/config") as ExpoConfigModule;
+
+/**
+ * Whether `@expo/config` is installed/resolvable. A non-Expo project (KMP,
+ * Flutter, native) never installs Expo, so callers must gate any `@expo/config`
+ * access behind this to avoid throwing at module resolution. Used by the
+ * build-system-neutral resolver in `project-link.ts`.
+ */
+export const isExpoConfigInstalled = (): boolean => {
+  try {
+    loadExpoConfigModule();
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Build-system-neutral "project not linked" guidance, listing every supported
+ * project-id source (env override, better-update.json, Expo config) so the
+ * message is correct for Expo and non-Expo projects alike.
+ */
+export const PROJECT_NOT_LINKED_MESSAGE =
+  "Project not linked. Run `better-update init` to link this project, set the " +
+  `${BETTER_UPDATE_PROJECT_ID_ENV} environment variable, add a "projectId" to better-update.json, ` +
+  "or set extra.betterUpdate.projectId in your Expo config.";
 
 // `@expo/config` resolves dynamic configs via Node's `require`, which caches the
 // Evaluated module by absolute path. For static-form `module.exports = {...}`
@@ -171,10 +196,7 @@ export const extractProjectId = (
   Effect.gen(function* () {
     const projectId = config.extra?.betterUpdate?.projectId;
     if (typeof projectId !== "string") {
-      return yield* new ProjectNotLinkedError({
-        message:
-          "Project not linked. Run `better-update init` to connect this project, or set extra.betterUpdate.projectId in your Expo config.",
-      });
+      return yield* new ProjectNotLinkedError({ message: PROJECT_NOT_LINKED_MESSAGE });
     }
     return projectId;
   });
@@ -225,16 +247,6 @@ export const extractCodeSigningConfig = (
     }
     return { certificatePath, keyid, alg };
   });
-
-/** Convenience reader for command code: resolves projectRoot from CliRuntime. */
-export const readProjectId: Effect.Effect<string, ProjectNotLinkedError, CliRuntime> = Effect.gen(
-  function* () {
-    const runtime = yield* CliRuntime;
-    const projectRoot = yield* runtime.cwd;
-    const config = yield* readExpoConfig(projectRoot);
-    return yield* extractProjectId(config);
-  },
-);
 
 export interface WriteProjectIdResult {
   readonly type: "success" | "warn";

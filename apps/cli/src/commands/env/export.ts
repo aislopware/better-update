@@ -3,8 +3,8 @@ import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
 import { exportDecryptedEnvVars } from "../../lib/env-exporter";
-import { readProjectId } from "../../lib/expo-config";
 import { printHuman } from "../../lib/output";
+import { readProjectId } from "../../lib/project-link";
 import { apiClient } from "../../services/api-client";
 import { envErrorExtras, parseSingleEnvironmentArg } from "./helpers";
 

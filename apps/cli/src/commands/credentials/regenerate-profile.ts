@@ -4,8 +4,8 @@ import { Effect } from "effect";
 import { regenerateProvisioningProfile } from "../../application/credentials-interactive";
 import { runEffect } from "../../lib/citty-effect";
 import { CredentialValidationError, MissingCredentialsError } from "../../lib/exit-codes";
-import { extractProjectId, readAppMeta, readExpoConfig } from "../../lib/expo-config";
 import { printHuman, printHumanKeyValue } from "../../lib/output";
+import { readAppMetaOptional, readProjectId } from "../../lib/project-link";
 import { apiClient } from "../../services/api-client";
 import { CliRuntime } from "../../services/cli-runtime";
 
@@ -104,18 +104,18 @@ export const regenerateProfileCommand = defineCommand({
         const api = yield* apiClient;
         const runtime = yield* CliRuntime;
         const projectRoot = yield* runtime.cwd;
-        const expo = yield* readExpoConfig(projectRoot);
-        const projectId = yield* extractProjectId(expo);
+        const projectId = yield* readProjectId;
 
         if (args.all === true) {
           return yield* regenerateAllForProject(api, projectId);
         }
 
-        const iosMeta = yield* readAppMeta(expo, "ios");
+        const iosMeta = yield* readAppMetaOptional(projectRoot, "ios");
         const bundleIdentifier = args.bundle ?? iosMeta.bundleId;
         if (bundleIdentifier === undefined || bundleIdentifier.length === 0) {
           return yield* new CredentialValidationError({
-            message: "Missing --bundle and could not read ios.bundleIdentifier from app.json.",
+            message:
+              "Missing --bundle and no ios.bundleIdentifier available (pass --bundle for a non-Expo project).",
           });
         }
 

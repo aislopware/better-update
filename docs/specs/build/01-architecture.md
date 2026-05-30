@@ -2,7 +2,7 @@
 
 ## Overview
 
-better-update's build management provides **centralized credential and env var management + a build registry** for Expo/React Native apps. Builds execute locally on the developer's machine (or their own CI). The CLI pulls credentials and env vars from the server, runs the build, then uploads the artifact back.
+better-update's build management provides **centralized credential and env var management + a build registry**. The credential vault and env-var vault are **build-system-agnostic** — any iOS/Android project (Expo, KMP, Flutter, native) can use them by linking via `BETTER_UPDATE_PROJECT_ID` / `better-update.json` (no `app.json` required); a "vault-only" project simply never uses the Expo build orchestration or OTA surfaces. The local build execution flow below (`expo prebuild` etc.) is Expo/React-Native-specific. Builds execute locally on the developer's machine (or their own CI). The CLI pulls credentials and env vars from the server, runs the build, then uploads the artifact back.
 
 This mirrors EAS Build's local mode (`eas build --local`) but without any Expo server dependency.
 

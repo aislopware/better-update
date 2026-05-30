@@ -7,7 +7,6 @@ import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
 import { InvalidArgumentError, UploadFailedError } from "../../lib/exit-codes";
-import { readProjectId } from "../../lib/expo-config";
 import { formatCause } from "../../lib/format-error";
 import {
   extractTarGz,
@@ -23,6 +22,7 @@ import {
   readBundleIdFromApp,
 } from "../../lib/native-runner";
 import { printHuman, printHumanKeyValue } from "../../lib/output";
+import { readProjectId } from "../../lib/project-link";
 import { acquireBuildTempDir } from "../../lib/temp-dir";
 import { apiClient } from "../../services/api-client";
 

@@ -4,10 +4,11 @@ import process from "node:process";
 import { defineCommand } from "citty";
 import { Effect } from "effect";
 
+import { BETTER_UPDATE_PROJECT_ID_ENV, readLinkedProjectId } from "../lib/better-update-config";
 import { runEffect } from "../lib/citty-effect";
 import { readEasJson } from "../lib/eas-config";
-import { extractProjectId, readExpoConfig } from "../lib/expo-config";
 import { printHumanTable } from "../lib/output";
+import { readProjectId } from "../lib/project-link";
 import { apiClient } from "../services/api-client";
 import { CliRuntime } from "../services/cli-runtime";
 import { ConfigStore } from "../services/config-store";
@@ -93,26 +94,25 @@ const checkAuth = Effect.gen(function* () {
   return pass("auth", "Auth token", `Valid (${who})`);
 });
 
-const checkExpoConfig = Effect.gen(function* () {
+const checkProjectLink = Effect.gen(function* () {
   const runtime = yield* CliRuntime;
   const root = yield* runtime.cwd;
-  const expo = yield* readExpoConfig(root).pipe(Effect.either);
-  if (expo._tag === "Left") {
-    return warn(
-      "expo-config",
-      "Expo config",
-      "No app.json / app.config.{js,ts} in the current directory",
-    );
-  }
-  const projectId = yield* extractProjectId(expo.right).pipe(Effect.either);
-  if (projectId._tag === "Left") {
-    return warn(
+  const fromEnv = yield* runtime.getEnv(BETTER_UPDATE_PROJECT_ID_ENV);
+  if (fromEnv !== undefined && fromEnv.length > 0) {
+    return pass(
       "project-linked",
       "Project linked",
-      "extra.betterUpdate.projectId not set — run `better-update init`",
+      `projectId=${fromEnv} (via ${BETTER_UPDATE_PROJECT_ID_ENV})`,
     );
   }
-  return pass("project-linked", "Project linked", `projectId=${projectId.right}`);
+  const resolved = yield* readProjectId.pipe(Effect.either);
+  if (resolved._tag === "Left") {
+    return warn("project-linked", "Project linked", resolved.left.message);
+  }
+  // Distinguish the build-system-neutral link file from the Expo-config fallback.
+  const fromFile = yield* readLinkedProjectId(root);
+  const source = fromFile === undefined ? "Expo config" : "better-update.json";
+  return pass("project-linked", "Project linked", `projectId=${resolved.right} (via ${source})`);
 });
 
 const checkEasJson = Effect.gen(function* () {
@@ -138,7 +138,7 @@ const runChecks = Effect.gen(function* () {
     yield* checkCommand("keytool", "keytool (Android signing)", "keytool", ["-help"]),
     yield* checkServerHealth,
     yield* checkAuth,
-    yield* checkExpoConfig,
+    yield* checkProjectLink,
     yield* checkEasJson,
   ];
 });

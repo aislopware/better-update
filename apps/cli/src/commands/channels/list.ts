@@ -3,8 +3,8 @@ import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
 import { drainPages } from "../../lib/drain-cursor";
-import { readProjectId } from "../../lib/expo-config";
 import { printList } from "../../lib/output";
+import { readProjectId } from "../../lib/project-link";
 import { apiClient } from "../../services/api-client";
 import { channelErrorExtras } from "./helpers";
 

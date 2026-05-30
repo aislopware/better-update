@@ -4,8 +4,8 @@ import { Effect } from "effect";
 import { runEffect } from "../../lib/citty-effect";
 import { parseKeyValue } from "../../lib/cli-schemas";
 import { uploadEnvVars } from "../../lib/env-exporter";
-import { readProjectId } from "../../lib/expo-config";
 import { printHuman } from "../../lib/output";
+import { readProjectId } from "../../lib/project-link";
 import { apiClient } from "../../services/api-client";
 import { envErrorExtras, formatEnvironments, parseEnvironmentsArg } from "./helpers";
 

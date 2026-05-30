@@ -15,8 +15,8 @@ import {
 import { runEffect } from "../../lib/citty-effect";
 import { IOS_DISTRIBUTION_TO_TYPE } from "../../lib/credentials-downloader";
 import { MissingCredentialsError } from "../../lib/exit-codes";
-import { extractProjectId, readAppMeta, readExpoConfig } from "../../lib/expo-config";
 import { printHuman } from "../../lib/output";
+import { readAppMetaOptional, readProjectId } from "../../lib/project-link";
 import { promptSelect, promptText } from "../../lib/prompts";
 import { apiClient } from "../../services/api-client";
 import { CliRuntime } from "../../services/cli-runtime";
@@ -231,8 +231,7 @@ export const configureCommand = defineCommand({
         const api = yield* apiClient;
         const runtime = yield* CliRuntime;
         const root = yield* runtime.cwd;
-        const expo = yield* readExpoConfig(root);
-        const projectId = yield* extractProjectId(expo);
+        const projectId = yield* readProjectId;
 
         const platform =
           args.platform ??
@@ -242,7 +241,7 @@ export const configureCommand = defineCommand({
           ]));
 
         if (platform === "ios") {
-          const iosMeta = yield* readAppMeta(expo, "ios");
+          const iosMeta = yield* readAppMetaOptional(root, "ios");
           const bundleIdentifier =
             args.bundle ?? iosMeta.bundleId ?? (yield* promptText("iOS bundle identifier"));
           yield* configureIos({
@@ -261,7 +260,7 @@ export const configureCommand = defineCommand({
             distribution: args.distribution,
           };
         }
-        const androidMeta = yield* readAppMeta(expo, "android");
+        const androidMeta = yield* readAppMetaOptional(root, "android");
         const applicationIdentifier =
           args["android-package"] ??
           androidMeta.androidPackage ??

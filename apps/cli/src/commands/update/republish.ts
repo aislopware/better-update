@@ -6,8 +6,8 @@ import { runEffect } from "../../lib/citty-effect";
 import { parseRolloutPercentage } from "../../lib/cli-schemas";
 import { drainPages } from "../../lib/drain-cursor";
 import { InvalidArgumentError } from "../../lib/exit-codes";
-import { readProjectId } from "../../lib/expo-config";
 import { printHuman, printHumanTable } from "../../lib/output";
+import { readProjectId } from "../../lib/project-link";
 import { apiClient } from "../../services/api-client";
 
 import type { ApiClient } from "../../services/api-client";

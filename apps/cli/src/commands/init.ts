@@ -1,17 +1,22 @@
 import path from "node:path";
 
-import { compact } from "@better-update/type-guards";
+import { compact, isRecord } from "@better-update/type-guards";
+import { FileSystem } from "@effect/platform";
 import { defineCommand } from "citty";
-import { Effect } from "effect";
+import { Effect, Option } from "effect";
 
+import { writeBetterUpdateConfig } from "../lib/better-update-config";
 import { runEffect } from "../lib/citty-effect";
-import { extractSlug, readExpoConfig, writeProjectId } from "../lib/expo-config";
+import { ProjectNotLinkedError } from "../lib/exit-codes";
+import { extractSlug, writeProjectId } from "../lib/expo-config";
 import { InteractiveMode } from "../lib/interactive-mode";
 import { printHuman } from "../lib/output";
+import { readExpoConfigOptional } from "../lib/project-link";
 import { promptConfirm } from "../lib/prompts";
 import { apiClient } from "../services/api-client";
 import { CliRuntime } from "../services/cli-runtime";
 
+import type { ExpoConfig } from "../lib/expo-config";
 import type { ApiClient } from "../services/api-client";
 
 const checkExistingLink = (
@@ -52,25 +57,106 @@ const checkExistingLink = (
     return overwrite ? ("mismatch-overwrite" as const) : ("mismatch-abort" as const);
   });
 
-const writeAndAnnounce = (projectRoot: string, projectId: string) =>
+/** kebab-case a project name into a default slug (lowercase, non-alnum → `-`). */
+const slugify = (value: string): string =>
+  value
+    .toLowerCase()
+    .replaceAll(/[^a-z0-9]+/gu, "-")
+    .replaceAll(/^-+|-+$/gu, "");
+
+/** Best-effort `name` from the local package.json, or undefined when absent. */
+const readPackageJsonName = (
+  projectRoot: string,
+): Effect.Effect<string | undefined, never, FileSystem.FileSystem> =>
   Effect.gen(function* () {
-    const writeResult = yield* writeProjectId(projectRoot, projectId);
-    const target = writeResult.configPath
-      ? path.relative(projectRoot, writeResult.configPath)
-      : "your Expo config";
-    yield* printHuman(`Project linked successfully. ID saved to ${target}.`);
-    if (writeResult.type === "warn" && writeResult.message) {
-      yield* printHuman(`Note: ${writeResult.message}`);
+    const fs = yield* FileSystem.FileSystem;
+    const content = yield* fs
+      .readFileString(path.join(projectRoot, "package.json"))
+      .pipe(Effect.catchAll(() => Effect.succeed("")));
+    if (content.length === 0) {
+      return undefined;
     }
-    return { projectId, ...compact({ configPath: writeResult.configPath }) };
+    const parsed = yield* Effect.try((): unknown => JSON.parse(content)).pipe(
+      Effect.catchAll(() => Effect.succeed(undefined)),
+    );
+    const name = isRecord(parsed) ? parsed["name"] : undefined;
+    return typeof name === "string" && name.length > 0 ? name : undefined;
+  });
+
+/**
+ * Resolve the project `name` + `slug` used to create/find the server project.
+ * Expo projects derive both from the Expo config (slug is required, matching the
+ * prior behavior); build-system-neutral projects derive from
+ * `--name`/`--slug` > package.json `name` > directory name.
+ */
+const resolveNameAndSlug = (
+  args: { readonly name?: string | undefined; readonly slug?: string | undefined },
+  projectRoot: string,
+  expoConfig: Option.Option<ExpoConfig>,
+): Effect.Effect<
+  { readonly name: string; readonly slug: string },
+  ProjectNotLinkedError,
+  FileSystem.FileSystem
+> =>
+  Effect.gen(function* () {
+    if (Option.isSome(expoConfig)) {
+      const config = expoConfig.value;
+      const slug = yield* extractSlug(config);
+      return { name: config.name ?? config.slug ?? slug, slug };
+    }
+    const pkgName = yield* readPackageJsonName(projectRoot);
+    const name = args.name ?? pkgName ?? path.basename(projectRoot);
+    const slug = args.slug ?? slugify(name);
+    if (slug.length === 0) {
+      return yield* new ProjectNotLinkedError({
+        message: "Could not derive a project slug. Pass --slug to link this project.",
+      });
+    }
+    return { name, slug };
+  });
+
+/**
+ * Persist the resolved project id: into the Expo config (`extra.betterUpdate`)
+ * when an Expo project is present, otherwise into `better-update.json`.
+ */
+const persistLink = (projectRoot: string, projectId: string, hasExpoConfig: boolean) =>
+  Effect.gen(function* () {
+    if (hasExpoConfig) {
+      const writeResult = yield* writeProjectId(projectRoot, projectId);
+      const target = writeResult.configPath
+        ? path.relative(projectRoot, writeResult.configPath)
+        : "your Expo config";
+      yield* printHuman(`Project linked successfully. ID saved to ${target}.`);
+      if (writeResult.type === "warn" && writeResult.message) {
+        yield* printHuman(`Note: ${writeResult.message}`);
+      }
+      return { projectId, ...compact({ configPath: writeResult.configPath }) };
+    }
+    const filePath = yield* writeBetterUpdateConfig(projectRoot, { projectId });
+    yield* printHuman(
+      `Project linked successfully. ID saved to ${path.relative(projectRoot, filePath)}.`,
+    );
+    return { projectId, configPath: filePath };
   });
 
 export const initCommand = defineCommand({
-  meta: { name: "init", description: "Link the local Expo project to a better-update project" },
+  meta: {
+    name: "init",
+    description: "Link the local project to a better-update project (Expo or any build system)",
+  },
   args: {
     id: {
       type: "string",
       description: "Link by explicit project ID (skips slug lookup / project creation)",
+    },
+    name: {
+      type: "string",
+      description:
+        "Project name (non-Expo projects; defaults to package.json name or directory name)",
+    },
+    slug: {
+      type: "string",
+      description: "Project slug (non-Expo projects; defaults to a kebab-case of the name)",
     },
   },
   run: async ({ args }) =>
@@ -78,24 +164,27 @@ export const initCommand = defineCommand({
       Effect.gen(function* () {
         const runtime = yield* CliRuntime;
         const projectRoot = yield* runtime.cwd;
-        const config = yield* readExpoConfig(projectRoot);
-        const name = config.name ?? config.slug ?? "untitled";
         const api = yield* apiClient;
+        const expoConfig = yield* readExpoConfigOptional(projectRoot);
+        const hasExpoConfig = Option.isSome(expoConfig);
 
-        // --id branch: skip slug lookup, link by explicit ID.
+        // --id branch: skip slug lookup, link by explicit ID; name comes from the server.
         if (args.id !== undefined && args.id.length > 0) {
           const project = yield* api.projects.get({ path: { id: args.id } });
           yield* printHuman(`Linking project: ${project.name} (${project.id})`);
-          const linked = yield* writeAndAnnounce(projectRoot, project.id);
+          const linked = yield* persistLink(projectRoot, project.id, hasExpoConfig);
           return { linked: true, ...linked };
         }
 
-        const slug = yield* extractSlug(config);
+        const { name, slug } = yield* resolveNameAndSlug(args, projectRoot, expoConfig);
         yield* printHuman(`Linking project: ${name} (${slug})`);
 
-        const linkState = yield* checkExistingLink(api, config, slug);
-        if (linkState === "matched" || linkState === "mismatch-abort") {
-          return { linked: false as const };
+        // Only an Expo config can carry a prior extra.betterUpdate.projectId link.
+        if (Option.isSome(expoConfig)) {
+          const linkState = yield* checkExistingLink(api, expoConfig.value, slug);
+          if (linkState === "matched" || linkState === "mismatch-abort") {
+            return { linked: false as const };
+          }
         }
 
         const { items } = yield* api.projects.list({ urlParams: { page: 1, limit: 100 } });
@@ -111,7 +200,7 @@ export const initCommand = defineCommand({
           return created.id;
         });
 
-        const linked = yield* writeAndAnnounce(projectRoot, linkedProjectId);
+        const linked = yield* persistLink(projectRoot, linkedProjectId, hasExpoConfig);
         return { linked: true, ...linked };
       }),
       { json: "value" },
