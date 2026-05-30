@@ -36,6 +36,7 @@ export const UpdateChannelBody = Schema.Struct({
 export const CreateBranchRolloutBody = Schema.Struct({
   newBranchId: Id,
   percentage: Schema.Number.pipe(Schema.int(), Schema.between(1, 100)),
+  runtimeVersion: Schema.optional(Schema.String.pipe(Schema.minLength(1))),
 });
 
 export const DeleteChannelResult = DeletedResult;

@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 
-import { DateTimeString, Id, UploadHeaders } from "./common";
+import { DateTimeString, Id, Platform, UploadHeaders } from "./common";
 
 export class Asset extends Schema.Class<Asset>("Asset")({
   hash: Schema.String,
@@ -34,4 +34,24 @@ export const AssetUploadResult = Schema.Struct({
     }),
   ),
   deduplicated: Schema.Array(Schema.String),
+});
+
+/**
+ * Request a presigned PUT for a precomputed bsdiff patch. The server builds the
+ * R2 key from this tuple (never trusting a client-sent key) as
+ * `patches/{projectId}/{runtimeVersion}/{platform}/{from}__{to}.bsdiff`.
+ */
+export const PatchUploadBody = Schema.Struct({
+  projectId: Id,
+  runtimeVersion: Schema.String.pipe(Schema.minLength(1)),
+  platform: Platform,
+  fromUpdateId: Id,
+  toUpdateId: Id,
+});
+
+export const PatchUploadResult = Schema.Struct({
+  key: Schema.String,
+  uploadUrl: Schema.String,
+  uploadExpiresAt: DateTimeString,
+  uploadHeaders: UploadHeaders,
 });

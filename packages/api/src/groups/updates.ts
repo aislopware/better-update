@@ -8,7 +8,9 @@ import { BadRequest, Conflict } from "../domain/errors";
 import {
   CreateUpdateBody,
   DeleteUpdateResult,
+  ListPatchBasesParams,
   ListUpdatesParams,
+  PatchBaseCandidate,
   RepublishBody,
   RepublishResult,
   Update,
@@ -38,6 +40,18 @@ export class UpdatesGroup extends HttpApiGroup.make("updates")
         OpenApi.annotations({
           title: "List updates",
           description: "List updates for a project, optionally filtered by branch",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.get("listPatchBases", "/api/updates/patch-bases")
+      .setUrlParams(ListPatchBasesParams)
+      .addSuccess(Schema.Array(PatchBaseCandidate))
+      .annotateContext(
+        OpenApi.annotations({
+          title: "List patch-base candidates",
+          description:
+            "Recent published updates + embedded baseline (with launch-asset hashes) the CLI can diff a new bundle against to produce bsdiff patches",
         }),
       ),
   )
