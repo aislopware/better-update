@@ -25,6 +25,7 @@ export {
   Platform,
   UpdateRolloutBody,
   UploadHeaders,
+  UuidLower,
 } from "./domain/common";
 export { BadRequest, Conflict, NotAcceptable } from "./domain/errors";
 export {
@@ -57,6 +58,8 @@ export {
   AssetRef,
   CreateUpdateBody,
   DeleteUpdateResult,
+  ListPatchBasesParams,
+  PatchBaseCandidate,
   RepublishBody,
   RepublishResult,
   Update,
@@ -64,7 +67,13 @@ export {
   UpdateSort,
   UpdateSortColumn,
 } from "./domain/update";
-export { Asset, AssetUploadBody, AssetUploadResult } from "./domain/asset";
+export {
+  Asset,
+  AssetUploadBody,
+  AssetUploadResult,
+  PatchUploadBody,
+  PatchUploadResult,
+} from "./domain/asset";
 export {
   BulkImportEntry,
   BulkImportEnvVarsBody,

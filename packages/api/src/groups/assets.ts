@@ -3,7 +3,13 @@ import { Schema } from "effect";
 
 import { Forbidden } from "../auth/errors";
 import { NotFound } from "../auth/ownership";
-import { Asset, AssetUploadBody, AssetUploadResult } from "../domain/asset";
+import {
+  Asset,
+  AssetUploadBody,
+  AssetUploadResult,
+  PatchUploadBody,
+  PatchUploadResult,
+} from "../domain/asset";
 import { BadRequest } from "../domain/errors";
 
 const hashParam = HttpApiSchema.param("hash", Schema.String);
@@ -17,6 +23,18 @@ export class AssetsGroup extends HttpApiGroup.make("assets")
         OpenApi.annotations({
           title: "Upload assets",
           description: "Upload asset files to R2 storage (deduplicated by content hash)",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.post("patchUpload", "/api/assets/patch-upload")
+      .setPayload(PatchUploadBody)
+      .addSuccess(PatchUploadResult, { status: 201 })
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Presign patch upload",
+          description:
+            "Mint a presigned PUT for a precomputed bsdiff patch; the R2 key is built server-side from the request tuple",
         }),
       ),
   )
