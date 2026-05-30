@@ -31,7 +31,7 @@
     "apps/cli": {
       "entry": ["tests/interactive/harness/**/*.ts"],
       "project": ["src/**/*.ts", "tests/**/*.ts"],
-      "ignoreDependencies": ["wrangler"]
+      "ignoreDependencies": ["wrangler", "expo"]
     },
     "apps/docs": {
       "entry": ["src/styles/custom.css"],
@@ -49,6 +49,11 @@
     "packages/ui": {
       "entry": ["src/components/**/*.tsx", "src/hooks/*.ts", "src/lib/*.ts"],
       "project": ["src/**/*.{ts,tsx}"]
+    },
+    "packages/bsdiff": {
+      "ignore": ["oxlint.config.mjs"],
+      "ignoreDependencies": ["@better-update/bsdiff-.+"],
+      "ignoreUnresolved": ["\\./bsdiff\\."]
     }
   },
   "ignoreDependencies": ["@better-update/oxlint-config"],
