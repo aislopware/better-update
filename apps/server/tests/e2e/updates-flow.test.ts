@@ -2,6 +2,10 @@ import { createHash } from "node:crypto";
 
 import { Effect } from "effect";
 
+import {
+  signTestManifestBody,
+  TEST_CODE_SIGNING_CERTIFICATE_PEM,
+} from "../helpers/code-signing-fixture";
 import { seedAssetObject, setupE2EWorker } from "../helpers/e2e-worker-pool";
 
 const { del, get, parseCookies, patch, post, postNoBody } = setupE2EWorker(
@@ -689,8 +693,10 @@ describe("Updates & Assets API flow", () => {
         metadata: {},
         assets: [{ hash: firstAssetHash, key: "bundles/ios.js", isLaunch: true }],
         manifestBody,
-        signature: 'sig="test-signature", keyid="main", alg="rsa-v1_5-sha256"',
-        certificateChain: "-----BEGIN CERTIFICATE-----\nTEST\n-----END CERTIFICATE-----",
+        // Publish-time verification now rejects unverifiable signatures, so sign
+        // the exact manifest body with the test fixture key + cert.
+        signature: signTestManifestBody(manifestBody),
+        certificateChain: TEST_CODE_SIGNING_CERTIFICATE_PEM,
       },
       { cookie: cookies },
     );
@@ -715,14 +721,45 @@ describe("Updates & Assets API flow", () => {
     );
   });
 
-  it("republishes a signed source update when replacement signed manifests are supplied", async () => {
-    const replacementManifestBody = JSON.stringify({
-      id: "signed-production-manifest",
-      createdAt: "2026-04-15T10:00:00.000Z",
-      runtimeVersion: "1.0.0",
-      launchAsset: { key: "bundles/ios.js", hash: firstAssetHash },
-      assets: [],
-    });
+  // The replacement signed manifest body — reused across the verify-gate cases
+  // below so the negative tests sign/tamper the EXACT bytes the positive test
+  // republishes.
+  const replacementManifestBody = JSON.stringify({
+    id: "signed-production-manifest",
+    createdAt: "2026-04-15T10:00:00.000Z",
+    runtimeVersion: "1.0.0",
+    launchAsset: { key: "bundles/ios.js", hash: firstAssetHash },
+    assets: [],
+  });
+
+  it("rejects a republish whose replacement signature does not verify (400, no row written)", async () => {
+    // Sign DIFFERENT bytes than we send → the stored body would not verify.
+    const response = await post(
+      "/api/updates/republish",
+      {
+        sourceUpdateId: signedUpdateId,
+        destinationChannel: "production",
+        signedUpdates: [
+          {
+            sourceUpdateId: signedUpdateId,
+            manifestBody: replacementManifestBody,
+            signature: signTestManifestBody(`${replacementManifestBody} tampered`),
+            certificateChain: TEST_CODE_SIGNING_CERTIFICATE_PEM,
+          },
+        ],
+      },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual(
+      expect.objectContaining({ message: expect.stringContaining("does not verify") }),
+    );
+  });
+
+  it("rejects a wrong-alg republish (ECDSA gated off) (400)", async () => {
+    const validSig = signTestManifestBody(replacementManifestBody);
+    const sigBase64 = /sig="([^"]+)"/.exec(validSig)?.[1] ?? "";
+    const ecdsaHeader = `sig="${sigBase64}", keyid="main", alg="ecdsa-p256-sha256"`;
 
     const response = await post(
       "/api/updates/republish",
@@ -733,8 +770,35 @@ describe("Updates & Assets API flow", () => {
           {
             sourceUpdateId: signedUpdateId,
             manifestBody: replacementManifestBody,
-            signature: 'sig="replacement-signature", keyid="main", alg="rsa-v1_5_sha256"',
-            certificateChain: "-----BEGIN CERTIFICATE-----\nREPLACEMENT\n-----END CERTIFICATE-----",
+            signature: ecdsaHeader,
+            certificateChain: TEST_CODE_SIGNING_CERTIFICATE_PEM,
+          },
+        ],
+      },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual(
+      expect.objectContaining({ message: expect.stringContaining("rsa-v1_5-sha256") }),
+    );
+  });
+
+  it("republishes a signed source update when replacement signed manifests are supplied", async () => {
+    // Publish-time verification now rejects unverifiable signatures, so sign the
+    // exact replacement manifest body with the test fixture key + cert.
+    const replacementSignature = signTestManifestBody(replacementManifestBody);
+
+    const response = await post(
+      "/api/updates/republish",
+      {
+        sourceUpdateId: signedUpdateId,
+        destinationChannel: "production",
+        signedUpdates: [
+          {
+            sourceUpdateId: signedUpdateId,
+            manifestBody: replacementManifestBody,
+            signature: replacementSignature,
+            certificateChain: TEST_CODE_SIGNING_CERTIFICATE_PEM,
           },
         ],
       },
@@ -753,18 +817,14 @@ describe("Updates & Assets API flow", () => {
     };
     expect(body.updates).toHaveLength(1);
     expect(body.updates[0]?.branchId).toBe(mainBranchId);
-    expect(body.updates[0]?.signature).toBe(
-      'sig="replacement-signature", keyid="main", alg="rsa-v1_5_sha256"',
-    );
-    expect(body.updates[0]?.certificateChain).toBe(
-      "-----BEGIN CERTIFICATE-----\nREPLACEMENT\n-----END CERTIFICATE-----",
-    );
+    expect(body.updates[0]?.signature).toBe(replacementSignature);
+    expect(body.updates[0]?.certificateChain).toBe(TEST_CODE_SIGNING_CERTIFICATE_PEM);
     expect(body.updates[0]?.manifestBody).toBe(replacementManifestBody);
 
     const manifestResponse = await manifestGet(
       projectId,
       protocolHeaders("production", "1.0.0", "ios", {
-        "expo-expect-signature": 'sig, keyid="main", alg="rsa-v1_5_sha256"',
+        "expo-expect-signature": 'sig, keyid="main", alg="rsa-v1_5-sha256"',
       }),
     );
     expect(manifestResponse.status).toBe(200);
@@ -779,13 +839,9 @@ describe("Updates & Assets API flow", () => {
     const certificatePart = parts.find((part) =>
       part.headers["content-disposition"]?.includes('name="certificate_chain"'),
     );
-    expect(manifestPart?.headers["expo-signature"]).toBe(
-      'sig="replacement-signature", keyid="main", alg="rsa-v1_5_sha256"',
-    );
+    expect(manifestPart?.headers["expo-signature"]).toBe(replacementSignature);
     expect(manifestPart?.body).toBe(replacementManifestBody);
-    expect(certificatePart?.body).toBe(
-      "-----BEGIN CERTIFICATE-----\nREPLACEMENT\n-----END CERTIFICATE-----",
-    );
+    expect(certificatePart?.body).toBe(TEST_CODE_SIGNING_CERTIFICATE_PEM);
   });
 
   it("rejects republishing a rollback directive", async () => {

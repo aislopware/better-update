@@ -368,7 +368,11 @@ describe("Channels API flow", () => {
     const mapping = JSON.parse(body.branchMappingJson);
     expect(mapping.data).toHaveLength(2);
     expect(mapping.data[0].branchId).toBe(thirdBranchId);
-    expect(mapping.data[0].branchMappingLogic).toBe("hash_lt(mappingId, 0.10)");
+    expect(mapping.data[0].branchMappingLogic).toStrictEqual({
+      clientKey: "rolloutToken",
+      branchMappingOperator: "hash_lt",
+      operand: 0.1,
+    });
     expect(mapping.data[1].branchMappingLogic).toBe("true");
     expect(mapping.salt).toBeDefined();
   });
@@ -418,7 +422,11 @@ describe("Channels API flow", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     const mapping = JSON.parse(body.branchMappingJson);
-    expect(mapping.data[0].branchMappingLogic).toBe("hash_lt(mappingId, 0.50)");
+    expect(mapping.data[0].branchMappingLogic).toStrictEqual({
+      clientKey: "rolloutToken",
+      branchMappingOperator: "hash_lt",
+      operand: 0.5,
+    });
   });
 
   it("decreases rollout percentage", async () => {
@@ -430,7 +438,11 @@ describe("Channels API flow", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     const mapping = JSON.parse(body.branchMappingJson);
-    expect(mapping.data[0].branchMappingLogic).toBe("hash_lt(mappingId, 0.25)");
+    expect(mapping.data[0].branchMappingLogic).toStrictEqual({
+      clientKey: "rolloutToken",
+      branchMappingOperator: "hash_lt",
+      operand: 0.25,
+    });
   });
 
   it("rejects update when no active rollout (404)", async () => {

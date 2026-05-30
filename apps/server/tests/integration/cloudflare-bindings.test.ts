@@ -115,6 +115,8 @@ const createUpdateOnBranch = (params: {
           manifestBody: null,
           directiveBody: null,
           fingerprintHash: null,
+          gitCommit: null,
+          gitDirty: false,
           assets: [{ key: "bundle", hash: params.launchHash, isLaunch: true }],
         },
       });
@@ -341,6 +343,8 @@ describe("Cloudflare bindings integration", () => {
               manifestBody: null,
               directiveBody: null,
               fingerprintHash: null,
+              gitCommit: null,
+              gitDirty: false,
               assets: [{ key: "bundle", hash: launchHash, isLaunch: true }],
             },
           });

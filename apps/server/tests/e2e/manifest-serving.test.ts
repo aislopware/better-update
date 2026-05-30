@@ -244,12 +244,16 @@ describe("Manifest serving protocol", () => {
     expect(manifest.runtimeVersion).toBe("1.0.0");
     expect(manifest.createdAt).toBe("2024-01-15T10:00:00.000Z");
 
-    // Launch asset
+    // Launch asset — the launch URL points at the Worker bundle route (not the
+    // CDN) so the Worker negotiates bsdiff patches (Gap-D); regular assets stay
+    // on the CDN.
     expect(manifest.launchAsset).toBeDefined();
     expect(manifest.launchAsset.hash).toBe("abc123hash");
     expect(manifest.launchAsset.key).toBe("bundle");
     expect(manifest.launchAsset.contentType).toBe("application/javascript");
-    expect(manifest.launchAsset.url).toBe(`${process.env["ASSET_CDN_URL"]}/assets/abc123hash`);
+    expect(manifest.launchAsset.url).toBe(
+      `${process.env["PUBLIC_API_URL"]}/manifest/proj-1/bundle/update-ios/abc123hash`,
+    );
 
     // Regular assets (non-launch)
     expect(manifest.assets).toHaveLength(1);
