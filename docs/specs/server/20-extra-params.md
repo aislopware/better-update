@@ -32,7 +32,7 @@ Extra params are parsed in Step 1 of the manifest resolution algorithm (spec 04)
 flowchart LR
     Parse["1 · Parse headers<br/>(including expo-extra-params)"] --> CacheKey["2 · Build cache key<br/>(extra params excluded)"]
     CacheKey --> Resolve["3-8 · Normal resolution"]
-    Resolve --> Response["9 · Build response<br/>Echo extra params in<br/>expo-server-defined-headers"]
+    Resolve --> Persist["9 · Persist client-echoed<br/>extra-params (bookkeeping)"]
     Parse --> WAE["WAE data point<br/>(if tracking active)"]
 ```
 
@@ -40,13 +40,11 @@ flowchart LR
 
 Parse `expo-extra-params` as an SFV dictionary. Store the parsed map on the request context for downstream use. If absent or malformed, use an empty map.
 
-### Step 9 — Echo in response
+### Step 9 — Persist (bookkeeping only)
 
-Include the parsed extra params in the `expo-server-defined-headers` response header. This instructs the expo-updates client to persist and re-send these values on subsequent requests, ensuring extra params survive app restarts.
+`better-update` does **NOT** emit an `expo-server-defined-headers` response header. Echoing the client's own `expo-extra-params` back would be inert: the `expo-updates` client sources extra-params from its **own** persisted store (`FileDownloader` keeps `getServerDefinedHeaders` and `getExtraParams` as separate stores), never from a server echo — and a `:base64:` byte-sequence value falls outside the Expo SFV-0 subset, so emitting it would be a spec-malformed (if client-tolerated) header. Absent the header, the device keeps its existing stored map, which is the correct safe default.
 
-```
-expo-server-defined-headers: expo-extra-params=:base64-encoded-sfv-dict:
-```
+The server instead persists the client-echoed `expo-extra-params` value per `(projectId, scopeKey)` as **bookkeeping only** (off the critical path via `waitUntil`, failure-isolated). This never influences manifest serving.
 
 ## Cache Impact
 

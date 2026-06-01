@@ -119,3 +119,19 @@ Enable a zone **Compression Rule** that matches response `content-type`
 `application/octet-stream` (bundle/patch) and emits zstd/gzip on supporting
 clients. Manifest responses (`multipart/mixed`, `application/expo+json`) likewise
 never set `content-encoding`.
+
+> **Correctness requirement — must honor `Accept-Encoding`, never force `zstd`.**
+> The device verifies each asset/bundle by recomputing the SHA-256 of the bytes its
+> HTTP stack hands back, after transparent decompression. iOS `URLSession` decodes
+> only `gzip`/`deflate`/`br` and **never advertises or decodes `zstd`**; Android
+> decodes `zstd`/`br`/`gzip` but only because it adds `Accept-Encoding: zstd, br,
+gzip` itself. So the Compression Rule (and the public R2 asset host,
+> `ASSET_CDN_URL`, which serves non-launch assets **outside** the Worker route)
+> MUST strictly negotiate on the request `Accept-Encoding` and MUST NOT emit
+> `content-encoding: zstd` to a client that did not advertise it. A rule that
+> force-encodes `zstd` would hand an iOS device a body it cannot decode → the
+> recomputed hash never matches `launchAsset.hash`/`asset.hash` →
+> `assetsFailedToLoad` → **every iOS update is rejected**. This dependency lives in
+> dashboard/ops config, not the repo; pin it (infra-as-code) and verify with a
+> deploy check that an `Accept-Encoding: gzip, br` request never receives
+> `content-encoding: zstd`.

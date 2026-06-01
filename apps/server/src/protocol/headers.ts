@@ -20,6 +20,10 @@ export interface ProtocolHeaders {
   readonly platform: "ios" | "android";
   readonly runtimeVersion: string;
   readonly channelName: string;
+  // True when `expo-channel-name` was absent/blank and we defaulted to
+  // DEFAULT_CHANNEL_NAME. The imperative shell surfaces this (telemetry) so a
+  // header-less build does not route to `production` silently.
+  readonly channelDefaulted: boolean;
   // Presence of `expo-expect-signature` toggles serving the stored signature +
   // certificate_chain. Algorithm enforcement (rsa-v1_5-sha256 only; ECDSA
   // rejected) lives at PUBLISH time in domain/signed-update-verification.ts, NOT
@@ -81,6 +85,28 @@ const requireHeader = (headers: Headers, name: string, label: string) => {
     : Effect.fail(new BadRequest({ message: `Missing required header: ${label}` }));
 };
 
+// Channel a manifest request is routed to when it carries no `expo-channel-name`.
+// New projects auto-seed a `production` channel (+ branch), so this always
+// resolves for a normally-provisioned project.
+const DEFAULT_CHANNEL_NAME = "production";
+
+// `expo-channel-name` is an EAS CONVENTION, NOT a protocol-v1 required header. The
+// native expo-updates runtime never synthesizes it — it is sent only if the
+// developer placed it under `updates.requestHeaders` (EAS injects it at build
+// time; a plain Expo build does not). Hard-failing 400 on its absence (the old
+// behavior) made OTA dead-on-arrival for any binary that ships without the header.
+// Default an ABSENT/blank header to the auto-seeded `production` channel and flag
+// the fallback so the shell can surface it. A PRESENT-but-unknown channel still
+// flows through to resolveChannel and 404s — only ABSENCE defaults here.
+const parseChannelName = (
+  headers: Headers,
+): { readonly channelName: string; readonly channelDefaulted: boolean } => {
+  const raw = getHeaderOrUndefined(headers, "expo-channel-name")?.trim();
+  return raw
+    ? { channelName: raw, channelDefaulted: false }
+    : { channelName: DEFAULT_CHANNEL_NAME, channelDefaulted: true };
+};
+
 type Platform = ProtocolHeaders["platform"];
 
 const parsePlatform = (value: string): Effect.Effect<Platform, BadRequest> =>
@@ -139,7 +165,7 @@ export const parseProtocolHeaders = (
       "expo-runtime-version",
       "expo-runtime-version",
     );
-    const channelName = yield* requireHeader(headers, "expo-channel-name", "expo-channel-name");
+    const { channelName, channelDefaulted } = parseChannelName(headers);
     const extraParams = yield* parseExtraParams(headers);
 
     // Parse the requested alg/keyid from the `expo-expect-signature` SFV
@@ -155,6 +181,7 @@ export const parseProtocolHeaders = (
       platform,
       runtimeVersion,
       channelName,
+      channelDefaulted,
       expectSignature: rawExpectSignature,
       expectSignatureAlg: expectSignatureParsed.alg,
       expectSignatureKeyId: expectSignatureParsed.keyid,

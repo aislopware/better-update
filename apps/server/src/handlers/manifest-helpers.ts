@@ -8,7 +8,7 @@ import type { ProtocolHeaders } from "../protocol/headers";
 import type { UpdateRow } from "../repositories/manifest";
 import type { ResponseType } from "./manifest-cache";
 
-export type ManifestFilters = Record<string, string | number | boolean>;
+export type ManifestFilters = Record<string, string>;
 
 export type TrackManifestResponse = (
   branchId: string,

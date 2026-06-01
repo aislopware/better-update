@@ -85,15 +85,27 @@ interface SignedRollbackPayload {
   readonly certificateChain: string;
 }
 
+// Both native expo-updates clients parse the directive `commitTime` with a
+// STRICT fixed-format parser: Android `parseDateString` only accepts
+// `yyyy-MM-dd'T'HH:mm:ss.SSS'X'` / `...'Z'` (mandatory 3 ms digits + a literal
+// timezone) and THROWS otherwise, which propagates out of `UpdateDirective`
+// parsing and aborts the whole update load; iOS uses `yyyy-MM-dd'T'HH:mm:ss.SSSZZZZZ`.
+// `Date.parse` is far more permissive (accepts no-ms, date-only, RFC-2822,
+// numeric offsets), so a value that the CLI accepts can brick the rollback
+// on-device. Canonicalize the GENERATED directive's commitTime to the strict
+// `YYYY-MM-DDTHH:mm:ss.SSSZ` form before it is rendered + (optionally) signed.
 const resolveCommitTime = (input: string | undefined): Effect.Effect<string, UpdateRollbackError> =>
   Effect.gen(function* () {
-    const commitTime = input ?? new Date().toISOString();
-    if (Number.isNaN(Date.parse(commitTime))) {
+    const raw = input ?? new Date().toISOString();
+    const parsed = Date.parse(raw);
+    if (Number.isNaN(parsed)) {
       return yield* new UpdateRollbackError({
         message: "commitTime must be a valid ISO 8601 timestamp.",
       });
     }
-    return commitTime;
+    // Re-stamp through the canonical ISO form (always ms + trailing Z, UTC) so
+    // the served directive carries a commitTime both native clients can parse.
+    return new Date(parsed).toISOString();
   });
 
 const extractDirectiveCommitTime = (
@@ -131,6 +143,19 @@ const extractDirectiveCommitTime = (
     if (typeof commitTime !== "string" || Number.isNaN(Date.parse(commitTime))) {
       return yield* new UpdateRollbackError({
         message: "directiveBody.parameters.commitTime must be a valid ISO 8601 timestamp.",
+      });
+    }
+
+    // The signed directive bytes are served verbatim (re-stamping would break
+    // the supplied signature), so we cannot canonicalize them here — we can only
+    // REJECT a non-canonical value. Both native clients only parse the strict
+    // `YYYY-MM-DDTHH:mm:ss.SSSZ` form (3 ms digits + literal Z; numeric offsets
+    // are rejected even with full ms), so require the commitTime to round-trip
+    // through that exact form. The publisher must sign canonical-format bytes.
+    if (new Date(Date.parse(commitTime)).toISOString() !== commitTime) {
+      return yield* new UpdateRollbackError({
+        message:
+          "directiveBody.parameters.commitTime must be canonical ISO 8601 with milliseconds and a trailing Z (e.g. 2026-05-06T14:00:00.000Z). The expo-updates client cannot parse other forms (no milliseconds, numeric timezone offsets), so the signed rollback would be rejected on-device.",
       });
     }
 

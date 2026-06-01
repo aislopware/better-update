@@ -723,10 +723,15 @@ describe("Updates & Assets API flow", () => {
 
   // The replacement signed manifest body — reused across the verify-gate cases
   // below so the negative tests sign/tamper the EXACT bytes the positive test
-  // republishes.
+  // republishes. Its `createdAt` must be strictly newer than every update already
+  // live on the destination (production → main) tuple: the server stamps DB
+  // created_at = this served commitTime (publishCreatedAt invariant) and the
+  // clock-skew guard rejects a republish that is not the newest, so a real CLI
+  // re-stamps it to publish time. A far-future sentinel stands in for "now" here
+  // (the prior main/ios/1.0.0 updates are stamped at the test's wall clock).
   const replacementManifestBody = JSON.stringify({
     id: "signed-production-manifest",
-    createdAt: "2026-04-15T10:00:00.000Z",
+    createdAt: "2999-01-01T00:00:00.000Z",
     runtimeVersion: "1.0.0",
     launchAsset: { key: "bundles/ios.js", hash: firstAssetHash },
     assets: [],

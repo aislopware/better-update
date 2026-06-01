@@ -2,6 +2,7 @@ import { Effect } from "effect";
 
 import { toDbNull } from "../lib/nullable";
 import { BranchRepo, ChannelRepo, ProjectRepo, UpdateRepo } from "../repositories";
+import { clockSkewConflict } from "./clock-skew-guard";
 
 import type {
   CoordinatorResult,
@@ -331,6 +332,23 @@ export const publishUpdate = (params: PublishOperation) =>
       });
     }
 
+    // Refuse a precomputed publish (signed manifest / rollback directive) whose
+    // commitTime would lose to the row the server currently serves on the
+    // device's commitTime selection (see clockSkewConflict). Runs under the
+    // publish DO single-writer lock, so this read-then-insert has no concurrent
+    // writer.
+    const skew = yield* clockSkewConflict({
+      manifestBody: params.manifestBody,
+      directiveBody: params.directiveBody,
+      isEmbedded,
+      branchId: params.branchId,
+      platform: params.platform,
+      runtimeVersion: params.runtimeVersion,
+    });
+    if (skew !== null) {
+      return conflict<PublishedUpdateEffectResult>(skew);
+    }
+
     const insertResult = yield* updateRepo
       .insert({
         // Honour a client-chosen id (signed renders bind to it) or let the repo
@@ -368,9 +386,12 @@ export const publishUpdate = (params: PublishOperation) =>
     const update = insertResult.right;
 
     yield* channelRepo.bumpCacheVersionByBranch({ branchId: params.branchId });
+    // Last activity is WHEN the publish happened (server clock), not the row's
+    // created_at — which is now the served commitTime and may be back/forward-
+    // dated relative to real time under the publishCreatedAt invariant.
     yield* projectRepo.bumpLastActivityByBranch({
       branchId: params.branchId,
-      at: update.createdAt,
+      at: nowIso(),
     });
 
     return success({
@@ -403,6 +424,29 @@ export const republishUpdate = (
       return conflict<RepublishedUpdatesEffectResult>(params.conflictMessage);
     }
 
+    // Same clock-skew guard as publishUpdate, per destination tuple: a signed
+    // republish carries a replacement manifest whose createdAt the CLI re-stamps
+    // at republish time, so reject one not strictly newer than the row the
+    // destination currently serves. Unsigned republishes get a fresh server-clock
+    // created_at and are exempt (servedCommitTime null).
+    const skews = yield* Effect.forEach(
+      params.updates,
+      (update) =>
+        clockSkewConflict({
+          manifestBody: update.manifestBody,
+          directiveBody: update.directiveBody,
+          isEmbedded: false,
+          branchId: params.branchId,
+          platform: update.platform,
+          runtimeVersion: update.runtimeVersion,
+        }),
+      { concurrency: "unbounded" },
+    );
+    const skew = skews.find((message) => message !== null);
+    if (skew) {
+      return conflict<RepublishedUpdatesEffectResult>(skew);
+    }
+
     const updates = yield* updateRepo.insertBatch({
       branchId: params.branchId,
       groupId: crypto.randomUUID(),
@@ -424,14 +468,12 @@ export const republishUpdate = (
     });
 
     yield* channelRepo.bumpCacheVersionByBranch({ branchId: params.branchId });
-    const latestAt = updates.reduce<string | null>(
-      (acc, update) => (acc === null || update.createdAt > acc ? update.createdAt : acc),
-      null,
-    );
-    if (latestAt !== null) {
+    // Last activity is the republish moment (server clock), not a row created_at
+    // — those now carry served commitTimes that may be back/forward-dated.
+    if (updates.length > 0) {
       yield* projectRepo.bumpLastActivityByBranch({
         branchId: params.branchId,
-        at: latestAt,
+        at: nowIso(),
       });
     }
 

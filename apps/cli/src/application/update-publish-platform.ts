@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import { fromHex, toBase64Url } from "@better-update/encoding";
+import { deriveScopeKey } from "@better-update/expo-protocol";
 import { compact } from "@better-update/type-guards";
 import { Effect } from "effect";
 import { uniqBy } from "es-toolkit";
@@ -69,15 +70,37 @@ interface PreparedAsset {
   readonly isLaunch: boolean;
 }
 
+// `scopeKey` is appended LAST and omitted (via compact) when undefined so the
+// JSON field order stays deterministic and the no-updates-url case is byte-for-
+// byte identical to the previous {expoClient, eas, environment} shape. The device
+// reads extra.scopeKey only when a code-signing certificate carries the Expo-
+// project-information extension; emitting the device-derived origin keeps that
+// cross-check from throwing (iOS) / rejecting the update (Android).
 const buildUpdateExtra = (
   expoClient: Record<string, unknown>,
   projectId: string,
   environment: string,
-) => ({
-  expoClient,
-  eas: { projectId },
-  environment,
-});
+  scopeKey: string | undefined,
+) =>
+  compact({
+    expoClient,
+    eas: { projectId },
+    environment,
+    scopeKey,
+  });
+
+// Match the device's `config.scopeKey = EXUpdatesScopeKey ?? normalizedURLOrigin(
+// updates.url)`. Returns undefined (=> scopeKey omitted) when updates are not
+// configured, so we never emit a wrong origin the cert cross-check would reject.
+const resolveManifestScopeKey = (expoConfig: ExpoConfig): string | undefined => {
+  const updatesConfig = expoConfig.updates;
+  const explicit = updatesConfig?.["scopeKey"];
+  const explicitScopeKey = typeof explicit === "string" && explicit ? explicit : undefined;
+  if (explicitScopeKey !== undefined) {
+    return explicitScopeKey;
+  }
+  return updatesConfig?.url ? deriveScopeKey({ updateUrl: updatesConfig.url }) : undefined;
+};
 
 /**
  * Map the (best-effort) git context onto the create-body git fields. Always
@@ -272,6 +295,7 @@ export const publishPlatform = (
       params.expoClientConfig,
       params.projectId,
       params.environment,
+      resolveManifestScopeKey(params.expoConfig),
     );
 
     // Render-then-sign requires the manifest id (it keys launchAsset.url + the

@@ -62,11 +62,18 @@ const parseListSafe = (raw: string): ReturnType<typeof parseList> | undefined =>
   }
 };
 
-// The SFV-0 dictionary item domain is scalar only: string / integer / decimal /
-// boolean. Arrays, nested objects and null are NOT representable as dictionary
-// item values, so they are dropped when ingesting the stored JSON.
-const isScalar = (value: unknown): value is string | number | boolean =>
-  typeof value === "string" || typeof value === "number" || typeof value === "boolean";
+// Manifest-filter values are STRING-ONLY. The expo-updates protocol defines
+// manifest `metadata` as Record<string,string>, and BOTH native clients compare
+// the parsed filter value against the (string) metadata value with type-strict
+// equality — Android `SelectionPolicies` uses `Object.equals` over a
+// Long/Boolean/BigDecimal (from IntegerItem/BooleanItem/DecimalItem) vs a String;
+// iOS uses `NSObject.isEqual` over an NSNumber/Bool vs an NSString. A numeric or
+// boolean filter value can therefore NEVER equal a string metadata value: the
+// server would emit the filter, serve the update, and the device would then
+// SILENTLY discard the very update just delivered. So only string values are
+// admitted — a "numeric"/"boolean" condition must be expressed as the string
+// "42"/"true" on both the metadata and the filter side (matching real EAS).
+const isFilterStringValue = (value: unknown): value is string => typeof value === "string";
 
 // SFV-0 dictionary KEY grammar (RFC 8941 §3.2 key) as enforced by
 // structured-headers' serializeKey: lowercase letter or `*` start, then
@@ -84,48 +91,24 @@ const sfvKeyRe = /^[a-z*][*\-_.a-z0-9]*$/u;
 // makes serializeString THROW.
 const sfvAsciiRe = /^[\u0020-\u007E]*$/u;
 
-// SFV-0 INTEGERS are bounded to ±(10^15 − 1); serializeInteger throws outside it.
-// (Non-integer numbers route to the decimal serializer, which tolerates the JSON
-// number range we produce, so only integers need the explicit bound.)
-const SFV_INTEGER_MIN = -999_999_999_999_999;
-const SFV_INTEGER_MAX = 999_999_999_999_999;
-
-// True only for scalars that structured-headers can actually serialize as an
-// SFV-0 dictionary item value — so the stored filter, the emitted header, and the
-// server-side narrowing stay consistent (P1: emit can never throw; P3/P4: ingest
-// and emit are symmetric).
-const isSerializableScalarValue = (value: string | number | boolean): boolean => {
-  if (typeof value === "string") {
-    return sfvAsciiRe.test(value);
-  }
-  if (typeof value === "number") {
-    if (!Number.isFinite(value)) {
-      return false;
-    }
-    return Number.isInteger(value) ? value >= SFV_INTEGER_MIN && value <= SFV_INTEGER_MAX : true;
-  }
-  return true;
-};
-
 /**
- * Parse the P0c-stored `project_protocol_metadata.manifest_filters_json` value
- * into a scalar map suitable for SFV dictionary serialization.
+ * Parse the stored `project_protocol_metadata.manifest_filters_json` value into a
+ * STRING scalar map suitable for SFV dictionary serialization.
  *
- * Keeps only entries that are BOTH (a) an SFV-0 dictionary item value
- * (string/number/boolean leaf) AND (b) actually SFV-0-conformant so they can
- * round-trip through serializeDictionary without throwing: a lowercase
- * SFV-conformant key, an ASCII string value, and an in-range integer. This keeps
- * the stored data, the emitted `expo-manifest-filters` header, and the
- * server-side `matchesFilters` narrowing mutually consistent.
+ * Keeps only entries that are BOTH (a) a lowercase SFV-0-conformant key AND (b)
+ * an ASCII string value -- the only filter-value type the expo-updates client
+ * compares correctly against string metadata (see isFilterStringValue). Numeric
+ * and boolean values are dropped: on-device they can never equal a string
+ * metadata value, so emitting them would silently strand the served update.
  *
  * Returns `undefined` when the input is null/empty, not an object, or yields no
- * usable keys — `undefined` means the caller emits NO `expo-manifest-filters`
+ * usable keys -- `undefined` means the caller emits NO `expo-manifest-filters`
  * header, the safe default (client treats absent filters as `nil` => all updates
  * pass).
  */
 export const parseManifestFiltersJson = (
   json: string | null | undefined,
-): Record<string, string | number | boolean> | undefined => {
+): Record<string, string> | undefined => {
   if (!json) {
     return undefined;
   }
@@ -134,9 +117,9 @@ export const parseManifestFiltersJson = (
     return undefined;
   }
   const usable = Object.fromEntries(
-    Object.entries(parsed).filter((entry): entry is [string, string | number | boolean] => {
+    Object.entries(parsed).filter((entry): entry is [string, string] => {
       const [key, value] = entry;
-      return sfvKeyRe.test(key) && isScalar(value) && isSerializableScalarValue(value);
+      return sfvKeyRe.test(key) && isFilterStringValue(value) && sfvAsciiRe.test(value);
     }),
   );
   return Object.keys(usable).length === 0 ? undefined : usable;
@@ -157,17 +140,15 @@ const serializeDictionarySafe = (dict: DictionaryObject): string => {
 };
 
 /**
- * Serialize a scalar map into an Expo SFV-0 dictionary string, e.g.
- * `key1="value1", key2=42, key3=true`.
+ * Serialize a string map into an Expo SFV-0 dictionary string, e.g.
+ * `key1="value1", key2="prod"`.
  *
  * TOTAL: an empty record OR a map the structured-headers serializer rejects both
  * yield `""` and the caller skips the header (the safe default — client treats an
  * absent `expo-manifest-filters` as `nil` => all updates pass). It NEVER throws,
  * so it can never turn into an Effect defect that 500s the manifest path.
  */
-export const serializeManifestFilters = (
-  filters: Record<string, string | number | boolean>,
-): string => {
+export const serializeManifestFilters = (filters: Record<string, string>): string => {
   if (Object.keys(filters).length === 0) {
     return "";
   }

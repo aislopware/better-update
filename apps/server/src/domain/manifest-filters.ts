@@ -39,7 +39,7 @@
  */
 export const matchesFilters = (
   updateMetadata: Record<string, unknown> | undefined,
-  filters: Record<string, string | number | boolean> | undefined,
+  filters: Record<string, string> | undefined,
 ): boolean => {
   if (filters === undefined) {
     return true;

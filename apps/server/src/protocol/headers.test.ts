@@ -22,6 +22,7 @@ describe(parseProtocolHeaders, () => {
       platform: "ios",
       runtimeVersion: "1.0.0",
       channelName: "production",
+      channelDefaulted: false,
       expectSignature: undefined,
       expectSignatureAlg: undefined,
       expectSignatureKeyId: undefined,
@@ -62,11 +63,32 @@ describe(parseProtocolHeaders, () => {
     expectBadRequest(error);
   });
 
-  it("missing expo-channel-name fails with BadRequest", async () => {
+  it("absent expo-channel-name defaults to the production channel (not a 400)", async () => {
+    // expo-channel-name is an EAS convention, not a protocol-v1 required header,
+    // and the native client never synthesizes it. Absence must NOT 400 (that
+    // would make OTA dead-on-arrival for header-less builds) — it defaults to the
+    // auto-seeded production channel and flags the fallback.
     const headers = validHeaders();
     headers.delete("expo-channel-name");
-    const error = await Effect.runPromise(Effect.flip(parseProtocolHeaders(headers)));
-    expectBadRequest(error);
+    const result = await Effect.runPromise(parseProtocolHeaders(headers));
+    expect(result.channelName).toBe("production");
+    expect(result.channelDefaulted).toBe(true);
+  });
+
+  it("blank expo-channel-name also defaults to the production channel", async () => {
+    const headers = validHeaders();
+    headers.set("expo-channel-name", "   ");
+    const result = await Effect.runPromise(parseProtocolHeaders(headers));
+    expect(result.channelName).toBe("production");
+    expect(result.channelDefaulted).toBe(true);
+  });
+
+  it("present expo-channel-name is used verbatim and is not flagged as defaulted", async () => {
+    const headers = validHeaders();
+    headers.set("expo-channel-name", "staging");
+    const result = await Effect.runPromise(parseProtocolHeaders(headers));
+    expect(result.channelName).toBe("staging");
+    expect(result.channelDefaulted).toBe(false);
   });
 
   it("optional headers absent returns undefined", async () => {

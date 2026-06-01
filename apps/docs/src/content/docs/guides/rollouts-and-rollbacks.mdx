@@ -91,11 +91,17 @@ If you only want to revert updates published _after_ a certain time, pass `--com
 ```bash
 better-update update rollback \
   --branch production \
-  --commit-time 2026-05-06T14:00:00Z \
+  --commit-time 2026-05-06T14:00:00.000Z \
   --message "Revert anything after 2pm"
 ```
 
 Updates with a publish timestamp before `--commit-time` remain served.
+
+`--commit-time` must be a canonical ISO 8601 timestamp with milliseconds and a
+trailing `Z` (e.g. `2026-05-06T14:00:00.000Z`). The value is normalized to this
+exact form before it is sent, because the on-device `expo-updates` client only
+parses `YYYY-MM-DDTHH:mm:ss.SSSZ` — other forms (no milliseconds, numeric
+timezone offsets) would make the device reject the rollback.
 
 ### Platform-scoped rollback
 

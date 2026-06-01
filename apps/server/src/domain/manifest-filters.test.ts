@@ -37,30 +37,32 @@ describe(matchesFilters, () => {
     expect(matchesFilters({ channel: "staging" }, { Channel: "prod" })).toBe(true);
   });
 
-  it("number value equality", () => {
-    expect(matchesFilters({ cohort: 3 }, { cohort: 3 })).toBe(true);
-    expect(matchesFilters({ cohort: 4 }, { cohort: 3 })).toBe(false);
-  });
-
-  it("boolean value equality", () => {
-    expect(matchesFilters({ beta: true }, { beta: true })).toBe(true);
-    expect(matchesFilters({ beta: false }, { beta: true })).toBe(false);
+  it("string value equality (filter values are string-only)", () => {
+    // Filter values are string-only (see parseManifestFiltersJson): a numeric or
+    // boolean condition is expressed as the string "3" / "true" on BOTH the
+    // metadata and the filter side, matching how the device compares them.
+    expect(matchesFilters({ cohort: "3" }, { cohort: "3" })).toBe(true);
+    expect(matchesFilters({ cohort: "4" }, { cohort: "3" })).toBe(false);
+    expect(matchesFilters({ beta: "true" }, { beta: "true" })).toBe(true);
+    expect(matchesFilters({ beta: "false" }, { beta: "true" })).toBe(false);
   });
 
   it("multiple keys where exactly one differs -> false", () => {
-    expect(matchesFilters({ channel: "prod", cohort: 3 }, { channel: "prod", cohort: 4 })).toBe(
+    expect(matchesFilters({ channel: "prod", cohort: "3" }, { channel: "prod", cohort: "4" })).toBe(
       false,
     );
   });
 
   it("multiple keys all matching -> true", () => {
-    expect(matchesFilters({ channel: "prod", cohort: 3 }, { channel: "prod", cohort: 3 })).toBe(
+    expect(matchesFilters({ channel: "prod", cohort: "3" }, { channel: "prod", cohort: "3" })).toBe(
       true,
     );
   });
 
-  it("strict equality: metadata number vs filter string does not match", () => {
-    expect(matchesFilters({ cohort: 3 }, { cohort: "3" } as never)).toBe(false);
+  it("strict equality: metadata number vs string filter does not match", () => {
+    // metadata is free-form JSON (Record<string,unknown>); a numeric metadata
+    // value never equals the string filter value the client actually compares.
+    expect(matchesFilters({ cohort: 3 }, { cohort: "3" })).toBe(false);
   });
 });
 

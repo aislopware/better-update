@@ -139,10 +139,17 @@ const assetUrl = (baseUrl: string, hash: string) => `${baseUrl}/assets/${hash}`;
 // negotiation, and the CLI's signed-manifest render must emit the byte-identical
 // URL. Regular assets are not patched and keep their CDN URLs.
 
+// The manifest `hash` field MUST be the raw-SHA-256 base64url-no-pad
+// `contentChecksum` of the asset bytes — that is exactly what the device
+// recomputes and compares (iOS `base64UrlEncodedSHA256WithData`, Android
+// `verifySHA256AndWriteToFile`), rejecting the asset on any mismatch. It must
+// NEVER fall back to the namespaced dedup `hash` (sha256Namespaced of
+// contentType + checksum), which is a DIFFERENT pre-image and would always fail
+// the device's integrity check. `contentChecksum` is a NOT-NULL column populated
+// on every publish/upload path, so it is always a real raw checksum here; the
+// namespaced `hash` is used ONLY for R2 URL routing (assetUrl below).
 const toAssetEntry = (baseUrl: string, asset: ManifestAssetData) => ({
-  // ContentChecksum = raw SHA-256 of file bytes (client uses for integrity verification).
-  // Hash = namespaced dedup key (used for URL routing to the correct R2 object).
-  hash: asset.contentChecksum || asset.hash,
+  hash: asset.contentChecksum,
   key: asset.key,
   contentType: asset.contentType,
   fileExtension: `.${asset.fileExt}`,
@@ -150,7 +157,7 @@ const toAssetEntry = (baseUrl: string, asset: ManifestAssetData) => ({
 });
 
 const toLaunchEntry = (url: string, asset: ManifestAssetData) => ({
-  hash: asset.contentChecksum || asset.hash,
+  hash: asset.contentChecksum,
   key: asset.key,
   contentType: asset.contentType,
   url,
@@ -202,3 +209,9 @@ export const buildManifest = (params: {
 export const buildExtensions = (): object => ({
   assetRequestHeaders: {},
 });
+
+// scopeKey derivation is shared by the server (manifest cache + per-tenant state)
+// and the CLI (it injects extra.scopeKey into the rendered manifest). Re-exported
+// here so both ends derive the device-identical origin from one pure source.
+export { deriveScopeKey, normalizedURLOrigin } from "./scope-key";
+export type { DeriveScopeKeyInput } from "./scope-key";

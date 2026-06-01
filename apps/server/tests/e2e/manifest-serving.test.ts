@@ -27,11 +27,11 @@ VALUES ('update-ios', 'branch-1', '1.0.0', 'ios', 'first ios update', '{}', 'gro
 INSERT INTO "updates" ("id", "branch_id", "runtime_version", "platform", "message", "metadata_json", "group_id", "is_rollback", "directive_body", "created_at")
 VALUES ('update-rollback', 'branch-1', '1.0.0', 'android', 'rollback android', '{}', 'group-2', 1, NULL, '2024-01-16T10:00:00.000Z');
 
-INSERT INTO "assets" ("hash", "content_type", "file_ext", "byte_size", "r2_key", "created_at")
-VALUES ('abc123hash', 'application/javascript', 'js', 1024, 'assets/abc123hash', '2024-01-15T00:00:00.000Z');
+INSERT INTO "assets" ("hash", "content_type", "file_ext", "byte_size", "r2_key", "content_checksum", "created_at")
+VALUES ('abc123hash', 'application/javascript', 'js', 1024, 'assets/abc123hash', 'abc123hash', '2024-01-15T00:00:00.000Z');
 
-INSERT INTO "assets" ("hash", "content_type", "file_ext", "byte_size", "r2_key", "created_at")
-VALUES ('img456hash', 'image/png', 'png', 2048, 'assets/img456hash', '2024-01-15T00:00:00.000Z');
+INSERT INTO "assets" ("hash", "content_type", "file_ext", "byte_size", "r2_key", "content_checksum", "created_at")
+VALUES ('img456hash', 'image/png', 'png', 2048, 'assets/img456hash', 'img456hash', '2024-01-15T00:00:00.000Z');
 
 INSERT INTO "update_assets" ("update_id", "asset_key", "asset_hash", "is_launch")
 VALUES ('update-ios', 'bundle', 'abc123hash', 1);
@@ -45,8 +45,8 @@ VALUES ('update-precomputed', 'branch-1', '2.0.0', 'ios', 'precomputed', '{}', '
 INSERT INTO "updates" ("id", "branch_id", "runtime_version", "platform", "message", "metadata_json", "group_id", "is_rollback", "signature", "certificate_chain", "created_at")
 VALUES ('update-signed', 'branch-1', '3.0.0', 'ios', 'signed update', '{}', 'group-4', 0, 'sig=test-signature', '-----BEGIN CERTIFICATE-----\nTEST\n-----END CERTIFICATE-----', '2024-03-01T00:00:00.000Z');
 
-INSERT INTO "assets" ("hash", "content_type", "file_ext", "byte_size", "r2_key", "created_at")
-VALUES ('signed-hash', 'application/javascript', 'js', 512, 'assets/signed-hash', '2024-03-01T00:00:00.000Z');
+INSERT INTO "assets" ("hash", "content_type", "file_ext", "byte_size", "r2_key", "content_checksum", "created_at")
+VALUES ('signed-hash', 'application/javascript', 'js', 512, 'assets/signed-hash', 'signed-hash', '2024-03-01T00:00:00.000Z');
 
 INSERT INTO "update_assets" ("update_id", "asset_key", "asset_hash", "is_launch")
 VALUES ('update-signed', 'bundle', 'signed-hash', 1);
@@ -262,7 +262,9 @@ describe("Manifest serving protocol", () => {
     expect(manifest.assets[0].fileExtension).toBe(".png");
     expect(manifest.assets[0].url).toBe(`${process.env["ASSET_CDN_URL"]}/assets/img456hash`);
 
-    // Extra emitted as-is from update.extra (no scopeKey injection per Expo compat)
+    // Server serves extra verbatim and NEVER injects scopeKey itself — extra.scopeKey
+    // is added by the CLI at publish time. This test publishes via the API with a
+    // scopeKey-less extra, so none appears here.
     expect(manifest.extra).not.toHaveProperty("scopeKey");
 
     // expo-manifest-filters header is NOT emitted (no dead filter)
@@ -365,6 +367,8 @@ describe("Manifest serving protocol", () => {
     const manifest = await response.json();
     expect(manifest.id).toBe("update-ios");
     expect(manifest.runtimeVersion).toBe("1.0.0");
+    // Server serves extra verbatim and never injects scopeKey itself (the CLI does,
+    // at publish time); this update was created via the API with no scopeKey.
     expect(manifest.extra).not.toHaveProperty("scopeKey");
   });
 

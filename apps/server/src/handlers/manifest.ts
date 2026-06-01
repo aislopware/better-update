@@ -313,6 +313,15 @@ const serveRequest = (
       return jsonError(406, "NOT_ACCEPTABLE", "Supported: multipart/mixed, application/expo+json");
     }
 
+    // Surface the channel-name fallback (don't route to `production` silently): a
+    // build that ships without `expo-channel-name` in updates.requestHeaders lands
+    // here on every poll, so this warns operators to fix the build config.
+    if (ph.channelDefaulted) {
+      yield* Effect.logWarning(
+        `expo-channel-name absent for project ${projectId}; defaulting to the "${ph.channelName}" channel`,
+      );
+    }
+
     const repo = yield* ManifestRepo;
     const channel = yield* repo.resolveChannel({ projectId, channelName: ph.channelName });
     const track = runtime.createTracker({ projectId, ph, startTime });

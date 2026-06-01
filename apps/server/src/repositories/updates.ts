@@ -1,9 +1,11 @@
 import { Context, Effect, Layer } from "effect";
 
 import { cloudflareEnv } from "../cloudflare/context";
+import { publishCreatedAt } from "../domain/signed-update-recency";
 import { NotFound } from "../errors";
 import { toDbNull } from "../lib/nullable";
 import { d1WithUniqueCheck } from "./d1-helpers";
+import { queryLatestLaunchAssetHash, queryLatestServedRow } from "./update-latest-sql";
 import { queryPatchBases } from "./update-patch-base-sql";
 import {
   queryAssetHashesForUpdates,
@@ -26,6 +28,7 @@ import {
 
 import type { Conflict } from "../errors";
 import type { Platform, UpdateAssetRefModel, UpdateModel } from "../models";
+import type { LatestServedRow, LatestTupleParams } from "./update-latest-sql";
 import type { PatchBaseQueryParams, PatchBaseRow } from "./update-patch-base-sql";
 import type { UpdateReaperQueries } from "./update-reaper-sql";
 import type { UpdateAssetRow, UpdateRow } from "./update-row-mapping";
@@ -58,15 +61,10 @@ export interface UpdateRepository extends UpdateReaperQueries {
     readonly gitDirty: boolean;
     readonly isEmbedded?: boolean;
     readonly assets: readonly UpdateAssetRefModel[];
-    // Conflict (not a defect) when a pinned `id` collides with an existing
-    // PRIMARY KEY, so the caller surfaces a clean 409 (see d1WithUniqueCheck).
+    // Conflict (not a defect) when a pinned `id` collides with a PK (clean 409).
   }) => Effect.Effect<UpdateModel, Conflict>;
 
-  readonly clearEmbeddedBaseline: (params: {
-    readonly branchId: string;
-    readonly platform: Platform;
-    readonly runtimeVersion: string;
-  }) => Effect.Effect<void>;
+  readonly clearEmbeddedBaseline: (params: LatestTupleParams) => Effect.Effect<void>;
 
   // Delete a single update row (+ its update_assets) by id. Used by the
   // embedded-baseline idempotent re-register path (publish DO single-writer
@@ -123,11 +121,13 @@ export interface UpdateRepository extends UpdateReaperQueries {
     readonly updateId: string;
   }) => Effect.Effect<string | null>;
 
-  readonly findLatestLaunchAssetHash: (params: {
-    readonly branchId: string;
-    readonly platform: Platform;
-    readonly runtimeVersion: string;
-  }) => Effect.Effect<string | null>;
+  readonly findLatestLaunchAssetHash: (params: LatestTupleParams) => Effect.Effect<string | null>;
+
+  // The single newest row the server will serve for a tuple (incl. rollback
+  // directives) — read by the clock-skew guard (domain/signed-update-recency.ts).
+  readonly findLatestServedRow: (
+    params: LatestTupleParams,
+  ) => Effect.Effect<LatestServedRow | null>;
 
   readonly listPatchBases: (params: PatchBaseQueryParams) => Effect.Effect<readonly PatchBaseRow[]>;
 
@@ -140,11 +140,7 @@ export interface UpdateRepository extends UpdateReaperQueries {
     readonly percentage: number;
   }) => Effect.Effect<void>;
 
-  readonly hasActiveRollout: (params: {
-    readonly branchId: string;
-    readonly platform: Platform;
-    readonly runtimeVersion: string;
-  }) => Effect.Effect<boolean>;
+  readonly hasActiveRollout: (params: LatestTupleParams) => Effect.Effect<boolean>;
 }
 
 export class UpdateRepo extends Context.Tag("api/UpdateRepo")<UpdateRepo, UpdateRepository>() {}
@@ -171,7 +167,11 @@ export const UpdateRepoLive = Layer.succeed(UpdateRepo, {
     Effect.gen(function* () {
       const env = yield* cloudflareEnv;
       const id = params.id ?? crypto.randomUUID();
-      const now = new Date().toISOString();
+      const createdAt = publishCreatedAt({
+        manifestBody: params.manifestBody,
+        directiveBody: params.directiveBody,
+        fallback: new Date().toISOString(),
+      });
 
       const stmts = buildUpdateInsertStatements(env.DB, {
         id,
@@ -192,15 +192,14 @@ export const UpdateRepoLive = Layer.succeed(UpdateRepo, {
         gitCommit: params.gitCommit,
         gitDirty: params.gitDirty,
         isEmbedded: params.isEmbedded ?? false,
-        createdAt: now,
+        createdAt,
         assets: params.assets,
       });
 
       // d1WithUniqueCheck (not Effect.promise): a pinned `id` colliding with an
       // existing PRIMARY KEY is a normal, attacker-/operator-reachable input,
       // not a defect. Map the D1 UNIQUE/PK rejection to a typed Conflict (clean
-      // 409, not 500). The batch is atomic, so a collision aborts the whole
-      // write — nothing is overwritten (cross-project takeover stays impossible).
+      // 409, not 500). The batch is atomic — a collision overwrites nothing.
       yield* d1WithUniqueCheck(
         async () => env.DB.batch(stmts),
         `An update with id "${id}" already exists`,
@@ -238,13 +237,16 @@ export const UpdateRepoLive = Layer.succeed(UpdateRepo, {
       }
 
       const env = yield* cloudflareEnv;
-      const now = new Date().toISOString();
+      // Signed republished rows keep their served commitTime as created_at (CLI
+      // re-stamps at republish); unsigned rows fall back to a DISTINCT, increasing
+      // created_at (base + i) so same-tuple rows never tie the device's selection.
+      const baseMs = Date.now();
       const updatesWithIds = params.updates.map((update) => ({
         id: crypto.randomUUID(),
         ...update,
       }));
 
-      const statements = updatesWithIds.flatMap((update) =>
+      const statements = updatesWithIds.flatMap((update, index) =>
         buildUpdateInsertStatements(env.DB, {
           id: update.id,
           branchId: params.branchId,
@@ -266,7 +268,11 @@ export const UpdateRepoLive = Layer.succeed(UpdateRepo, {
           gitDirty: false,
           // Republished updates are never the embedded baseline.
           isEmbedded: false,
-          createdAt: now,
+          createdAt: publishCreatedAt({
+            manifestBody: update.manifestBody,
+            directiveBody: update.directiveBody,
+            fallback: new Date(baseMs + index).toISOString(),
+          }),
           assets: update.assets,
         }),
       );
@@ -421,17 +427,10 @@ export const UpdateRepoLive = Layer.succeed(UpdateRepo, {
     }),
 
   findLatestLaunchAssetHash: (params) =>
-    Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
-      const row = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT ua."asset_hash" AS "asset_hash" FROM "updates" u JOIN "update_assets" ua ON ua."update_id" = u."id" AND ua."is_launch" = 1 WHERE u."branch_id" = ? AND u."platform" = ? AND u."runtime_version" = ? AND u."is_rollback" = 0 ORDER BY u."created_at" DESC, u."id" DESC LIMIT 1`,
-        )
-          .bind(params.branchId, params.platform, params.runtimeVersion)
-          .first<{ asset_hash: string }>(),
-      );
-      return toDbNull(row?.asset_hash);
-    }),
+    cloudflareEnv.pipe(Effect.flatMap((env) => queryLatestLaunchAssetHash(env.DB, params))),
+
+  findLatestServedRow: (params) =>
+    cloudflareEnv.pipe(Effect.flatMap((env) => queryLatestServedRow(env.DB, params))),
 
   listPatchBases: (params) =>
     cloudflareEnv.pipe(Effect.flatMap((env) => queryPatchBases(env.DB, params))),

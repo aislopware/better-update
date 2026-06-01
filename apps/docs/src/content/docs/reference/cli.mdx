@@ -191,7 +191,7 @@ better-update update rollback --branch <name>
   [--certificate-chain-file <path>]
 ```
 
-Creates a rollback update group on `--branch`. Devices fall back to the embedded bundle. Optional `--commit-time` rolls back only updates published after that timestamp.
+Creates a rollback update group on `--branch`. Devices fall back to the embedded bundle. Optional `--commit-time` rolls back only updates published after that timestamp. It must be canonical ISO 8601 with milliseconds and a trailing `Z` (e.g. `2026-05-06T14:00:00.000Z`) — the value is normalized to UTC, and numeric timezone offsets are rejected because the `expo-updates` client cannot parse them.
 
 ### `update rollout`
 

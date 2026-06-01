@@ -6,17 +6,17 @@ This is the most latency-sensitive path. Every app launch triggers a manifest ch
 
 `GET /manifest/{projectId}` with the following headers:
 
-| Header                           | Example / Value                                                        | Required            |
-| -------------------------------- | ---------------------------------------------------------------------- | ------------------- |
-| `expo-protocol-version`          | `1`                                                                    | Yes                 |
-| `expo-platform`                  | `ios` or `android`                                                     | Yes                 |
-| `expo-runtime-version`           | `1.0.0`                                                                | Yes                 |
-| `expo-channel-name`              | `production`                                                           | Yes                 |
-| `accept`                         | `multipart/mixed, application/expo+json;q=0.9, application/json;q=0.8` | Yes                 |
-| `expo-expect-signature`          | `sig, keyid="main", alg="rsa-v1_5-sha256"`                             | Optional            |
-| `eas-client-id`                  | `<device-uuid>`                                                        | Optional (rollouts) |
-| `expo-extra-params`              | SFV dictionary                                                         | Optional            |
-| (persisted from prior responses) | `expo-server-defined-headers` values                                   | Conditional         |
+| Header                           | Example / Value                                                        | Required                            |
+| -------------------------------- | ---------------------------------------------------------------------- | ----------------------------------- |
+| `expo-protocol-version`          | `1`                                                                    | Yes                                 |
+| `expo-platform`                  | `ios` or `android`                                                     | Yes                                 |
+| `expo-runtime-version`           | `1.0.0`                                                                | Yes                                 |
+| `expo-channel-name`              | `production`                                                           | Optional (defaults to `production`) |
+| `accept`                         | `multipart/mixed, application/expo+json;q=0.9, application/json;q=0.8` | Yes                                 |
+| `expo-expect-signature`          | `sig, keyid="main", alg="rsa-v1_5-sha256"`                             | Optional                            |
+| `eas-client-id`                  | `<device-uuid>`                                                        | Optional (rollouts)                 |
+| `expo-extra-params`              | SFV dictionary                                                         | Optional                            |
+| (persisted from prior responses) | `expo-server-defined-headers` values                                   | Conditional                         |
 
 ## Resolution Algorithm
 
