@@ -62,6 +62,32 @@ const GithubIcon = ({ className }: { readonly className?: string }) => (
   </svg>
 );
 
+const GoogleIcon = ({ className }: { readonly className?: string }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    aria-hidden="true"
+    className={className}
+  >
+    <path
+      fill="#4285F4"
+      d="M23.52 12.273c0-.851-.076-1.67-.218-2.455H12v4.642h6.458a5.52 5.52 0 0 1-2.394 3.622v3.011h3.878c2.269-2.09 3.578-5.167 3.578-8.82Z"
+    />
+    <path
+      fill="#34A853"
+      d="M12 24c3.24 0 5.956-1.075 7.942-2.907l-3.878-3.011c-1.075.72-2.45 1.146-4.064 1.146-3.125 0-5.77-2.112-6.713-4.95H1.276v3.11A11.996 11.996 0 0 0 12 24Z"
+    />
+    <path
+      fill="#FBBC05"
+      d="M5.287 14.278A7.213 7.213 0 0 1 4.91 12c0-.79.136-1.558.377-2.278v-3.11H1.276A11.996 11.996 0 0 0 0 12c0 1.936.464 3.768 1.276 5.389l4.011-3.111Z"
+    />
+    <path
+      fill="#EA4335"
+      d="M12 4.773c1.762 0 3.344.606 4.59 1.795l3.44-3.44C17.952 1.187 15.235 0 12 0A11.996 11.996 0 0 0 1.276 6.611l4.011 3.111C6.23 6.884 8.875 4.773 12 4.773Z"
+    />
+  </svg>
+);
+
 const LeftHero = () => (
   <section className="border-border/60 relative flex min-h-[38dvh] flex-col overflow-hidden border-b lg:min-h-dvh lg:border-r lg:border-b-0">
     <div className="relative mx-auto flex h-full w-full max-w-[1180px] flex-1 flex-col">
@@ -112,15 +138,18 @@ const LiveIndicator = () => (
 
 interface AuthPanelProps {
   readonly onGithub: () => void | Promise<void>;
-  readonly isPending: boolean;
+  readonly onGoogle: () => void | Promise<void>;
+  readonly isGithubPending: boolean;
+  readonly isGooglePending: boolean;
 }
 
-const AuthPanel = ({ onGithub, isPending }: AuthPanelProps) => (
+const AuthPanel = ({ onGithub, onGoogle, isGithubPending, isGooglePending }: AuthPanelProps) => (
   <section className="bg-background/60 relative flex items-center justify-center px-6 py-12 backdrop-blur-sm sm:px-10 lg:px-12">
     <div className="flex w-full max-w-sm flex-col gap-8">
       <AuthHeader />
       <div className="flex flex-col gap-3">
-        <GithubButton onClick={onGithub} isPending={isPending} />
+        <GithubButton onClick={onGithub} isPending={isGithubPending} />
+        <GoogleButton onClick={onGoogle} isPending={isGooglePending} />
       </div>
       <SecureDivider />
       <TrustPoints />
@@ -154,6 +183,25 @@ const GithubButton = ({ onClick, isPending }: GithubButtonProps) => (
   >
     <GithubIcon className="size-5" />
     Continue with GitHub
+    <ArrowIcon className="size-4 opacity-70 transition-[transform,opacity] duration-200 ease-out pointer-fine:in-[[data-slot=button]:hover]:translate-x-0.5 pointer-fine:in-[[data-slot=button]:hover]:opacity-100" />
+  </Button>
+);
+
+interface GoogleButtonProps {
+  readonly onClick: () => void | Promise<void>;
+  readonly isPending: boolean;
+}
+
+const GoogleButton = ({ onClick, isPending }: GoogleButtonProps) => (
+  <Button
+    size="lg"
+    variant="outline"
+    className="relative h-12 w-full gap-2.5 text-sm font-medium"
+    onClick={onClick}
+    loading={isPending}
+  >
+    <GoogleIcon className="size-5" />
+    Continue with Google
     <ArrowIcon className="size-4 opacity-70 transition-[transform,opacity] duration-200 ease-out pointer-fine:in-[[data-slot=button]:hover]:translate-x-0.5 pointer-fine:in-[[data-slot=button]:hover]:opacity-100" />
   </Button>
 );
@@ -203,11 +251,22 @@ const LoginPage = () => {
   const search = Route.useSearch();
   const redirectTo = readRedirectTo(search);
 
-  const signInMutation = useApiMutation({
+  const githubSignInMutation = useApiMutation({
     mutationFn: async () =>
       rejectOnAuthClientError(
         authClient.signIn.social({
           provider: "github",
+          callbackURL: `${globalThis.location.origin}${redirectTo}`,
+        }),
+        "Failed to start sign-in",
+      ),
+  });
+
+  const googleSignInMutation = useApiMutation({
+    mutationFn: async () =>
+      rejectOnAuthClientError(
+        authClient.signIn.social({
+          provider: "google",
           callbackURL: `${globalThis.location.origin}${redirectTo}`,
         }),
         "Failed to start sign-in",
@@ -220,9 +279,13 @@ const LoginPage = () => {
         <LeftHero />
         <AuthPanel
           onGithub={() => {
-            signInMutation.mutate();
+            githubSignInMutation.mutate();
           }}
-          isPending={signInMutation.isPending}
+          onGoogle={() => {
+            googleSignInMutation.mutate();
+          }}
+          isGithubPending={githubSignInMutation.isPending}
+          isGooglePending={googleSignInMutation.isPending}
         />
       </div>
     </div>

@@ -12,6 +12,8 @@ const FALLBACKS = {
   webUrl: "http://localhost:6780",
   githubClientId: "e2e-github-id",
   githubClientSecret: "e2e-github-secret",
+  googleClientId: "e2e-google-id",
+  googleClientSecret: "e2e-google-secret",
   installTokenSecret: "e2e-install-token-secret-at-least-32-chars",
   publicApiUrl: "http://localhost:6781",
   r2AccessKeyId: "e2e-r2-access-key",
@@ -139,6 +141,16 @@ export const createServerE2EEnvironment = (options?: {
       fileSource,
       primary: "GITHUB_CLIENT_SECRET",
       fallback: FALLBACKS.githubClientSecret,
+    }),
+    GOOGLE_CLIENT_ID: envValue({
+      fileSource,
+      primary: "GOOGLE_CLIENT_ID",
+      fallback: FALLBACKS.googleClientId,
+    }),
+    GOOGLE_CLIENT_SECRET: envValue({
+      fileSource,
+      primary: "GOOGLE_CLIENT_SECRET",
+      fallback: FALLBACKS.googleClientSecret,
     }),
     INSTALL_TOKEN_SECRET: envValue({
       fileSource,

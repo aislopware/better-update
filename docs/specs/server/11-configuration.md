@@ -37,8 +37,10 @@
 | Secret                 | Purpose                                            |
 | ---------------------- | -------------------------------------------------- |
 | `BETTER_AUTH_SECRET`   | Better Auth signing secret (sessions, cookies)     |
-| `GITHUB_CLIENT_ID`     | GitHub OAuth app client ID                         |
-| `GITHUB_CLIENT_SECRET` | GitHub OAuth app client secret                     |
+| `GITHUB_CLIENT_ID`     | GitHub OAuth app client ID (optional)              |
+| `GITHUB_CLIENT_SECRET` | GitHub OAuth app client secret (optional)          |
+| `GOOGLE_CLIENT_ID`     | Google OAuth client ID (optional)                  |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret (optional)              |
 | `CLOUDFLARE_ZONE_ID`   | Zone ID for cache purge API calls (optional)       |
 | `CLOUDFLARE_API_TOKEN` | API token with "Cache Purge" permission (optional) |
 

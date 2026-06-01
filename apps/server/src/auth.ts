@@ -66,6 +66,8 @@ const verifyPassword = async ({
 type AuthEnv = Env & {
   readonly GITHUB_CLIENT_ID?: string;
   readonly GITHUB_CLIENT_SECRET?: string;
+  readonly GOOGLE_CLIENT_ID?: string;
+  readonly GOOGLE_CLIENT_SECRET?: string;
   readonly TEST_MODE?: string;
 };
 
@@ -79,10 +81,19 @@ export const isGithubEnabled = (env: AuthEnv): boolean => {
   return id.length > 0 && secret.length > 0;
 };
 
+export const isGoogleEnabled = (env: AuthEnv): boolean => {
+  const id = trimOptionalBinding(env.GOOGLE_CLIENT_ID);
+  const secret = trimOptionalBinding(env.GOOGLE_CLIENT_SECRET);
+  return id.length > 0 && secret.length > 0;
+};
+
 export const createAuth = (env: AuthEnv, ctx?: ExecutionContext) => {
   const githubClientId = trimOptionalBinding(env.GITHUB_CLIENT_ID);
   const githubClientSecret = trimOptionalBinding(env.GITHUB_CLIENT_SECRET);
   const githubEnabled = githubClientId.length > 0 && githubClientSecret.length > 0;
+  const googleClientId = trimOptionalBinding(env.GOOGLE_CLIENT_ID);
+  const googleClientSecret = trimOptionalBinding(env.GOOGLE_CLIENT_SECRET);
+  const googleEnabled = googleClientId.length > 0 && googleClientSecret.length > 0;
   const testMode = env.TEST_MODE === "true";
 
   return betterAuth({
@@ -95,14 +106,14 @@ export const createAuth = (env: AuthEnv, ctx?: ExecutionContext) => {
       enabled: testMode,
       password: { hash: hashPassword, verify: verifyPassword },
     },
-    socialProviders: githubEnabled
-      ? {
-          github: {
-            clientId: githubClientId,
-            clientSecret: githubClientSecret,
-          },
-        }
-      : {},
+    socialProviders: {
+      ...(githubEnabled
+        ? { github: { clientId: githubClientId, clientSecret: githubClientSecret } }
+        : {}),
+      ...(googleEnabled
+        ? { google: { clientId: googleClientId, clientSecret: googleClientSecret } }
+        : {}),
+    },
 
     user: {
       fields: {
@@ -133,7 +144,11 @@ export const createAuth = (env: AuthEnv, ctx?: ExecutionContext) => {
     account: {
       accountLinking: {
         enabled: true,
-        trustedProviders: githubEnabled ? ["credential", "github"] : ["credential"],
+        trustedProviders: [
+          "credential",
+          ...(githubEnabled ? (["github"] as const) : []),
+          ...(googleEnabled ? (["google"] as const) : []),
+        ],
       },
       fields: {
         userId: "user_id",

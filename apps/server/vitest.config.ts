@@ -65,6 +65,8 @@ export default defineConfig(async () => {
         WEB_URL: "http://localhost",
         GITHUB_CLIENT_ID: "test-github-id",
         GITHUB_CLIENT_SECRET: "test-github-secret",
+        GOOGLE_CLIENT_ID: "test-google-id",
+        GOOGLE_CLIENT_SECRET: "test-google-secret",
         INSTALL_TOKEN_SECRET: "integration-install-token-secret-at-least-32-chars",
         R2_ACCESS_KEY_ID: "integration-r2-access-key",
         R2_SECRET_ACCESS_KEY: "integration-r2-secret-key",

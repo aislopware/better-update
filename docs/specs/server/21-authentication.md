@@ -196,6 +196,8 @@ type Env = {
   BETTER_AUTH_URL: string;
   GITHUB_CLIENT_ID: string;
   GITHUB_CLIENT_SECRET: string;
+  GOOGLE_CLIENT_ID: string;
+  GOOGLE_CLIENT_SECRET: string;
 };
 
 export function createAuth(env: Env) {
@@ -208,10 +210,16 @@ export function createAuth(env: Env) {
     },
 
     emailAndPassword: { enabled: true },
+    // Each provider is feature-gated: included only when both its client ID
+    // and secret are present, so an unconfigured provider stays disabled.
     socialProviders: {
       github: {
         clientId: env.GITHUB_CLIENT_ID,
         clientSecret: env.GITHUB_CLIENT_SECRET,
+      },
+      google: {
+        clientId: env.GOOGLE_CLIENT_ID,
+        clientSecret: env.GOOGLE_CLIENT_SECRET,
       },
     },
 
@@ -415,6 +423,8 @@ BETTER_AUTH_URL = "https://api.updates.example.com"
 # BETTER_AUTH_SECRET
 # GITHUB_CLIENT_ID
 # GITHUB_CLIENT_SECRET
+# GOOGLE_CLIENT_ID
+# GOOGLE_CLIENT_SECRET
 ```
 
 ---

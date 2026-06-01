@@ -1,7 +1,7 @@
 import type { Context } from "effect";
 
 import { makeManagementWebHandler } from "./app-layer";
-import { createAuth, isGithubEnabled } from "./auth";
+import { createAuth, isGithubEnabled, isGoogleEnabled } from "./auth";
 import { makeCloudflareRequestContext } from "./cloudflare/context";
 import {
   handleBundleRequest,
@@ -101,6 +101,7 @@ const routeRequest = async (
     // updates' image/font/extra-chunk assets loadable on-device.
     return Response.json({
       githubEnabled: isGithubEnabled(env),
+      googleEnabled: isGoogleEnabled(env),
       assetCdnUrl: env.ASSET_CDN_URL,
     });
   }
