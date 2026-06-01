@@ -3,6 +3,21 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.24.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.23.0...@better-update/cli@0.24.0) (2026-06-01)
+
+### Features
+
+* **cli:** --json envelope + --non-interactive contract across every command ([0d2be64](https://github.com/better-update/better-update/commit/0d2be64fd3efaaed272ff51f86a8e9290d4d178d)) - by @trancong12102
+* **cli:** bsdiff publish pipeline + embedded-upload + runtime-version/fingerprint + code-signing render + configure ([e88d52a](https://github.com/better-update/better-update/commit/e88d52af82915cb57d18841f067069b4ea455e9f)) - by @trancong12102
+* **cli:** make credentials & env vault build-system-agnostic ([72df672](https://github.com/better-update/better-update/commit/72df672574f06a54927b4218556d75205f657b6c)) - by @trancong12102
+* **ota:** server-side signature policy, bundle-diffing hardening, self-verify harness ([6caca42](https://github.com/better-update/better-update/commit/6caca42031007cdffb7bd4e86896c1c4a82d16d1)) - by @trancong12102
+* **server:** add clock-skew guard, scope-key + signed-update recency invariant ([ae0eec5](https://github.com/better-update/better-update/commit/ae0eec571e0216b420aea77ac32acf389186df63)) - by @trancong12102
+
+### Bug Fixes
+
+* **cli:** fingerprint generate/compare compatibility (@expo/fingerprint >=0.13 + citty) ([552e6f1](https://github.com/better-update/better-update/commit/552e6f164d493bb39e529bda20d32f8c20b687fe)) - by @trancong12102
+* **lint:** use default node:path import for oxlint 1.67 import-style ([3983aba](https://github.com/better-update/better-update/commit/3983aba521b86b54813c7756b99ed4d8ef39627e)) - by @trancong12102
+
 ## [0.23.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.22.1...@better-update/cli@0.23.0) (2026-05-28)
 
 ### ⚠ BREAKING CHANGES
