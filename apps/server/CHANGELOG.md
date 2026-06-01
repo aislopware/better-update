@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.19.0](https://github.com/better-update/better-update/compare/@better-update/server@0.18.0...@better-update/server@0.19.0) (2026-06-01)
+
+### Features
+
+* **auth:** add Google OAuth sign-in alongside GitHub ([3606f0b](https://github.com/better-update/better-update/commit/3606f0be72e8b16031411dd71391af552ddecdc0)) - by @trancong12102
+
 ## [0.18.0](https://github.com/better-update/better-update/compare/@better-update/server@0.17.0...@better-update/server@0.18.0) (2026-06-01)
 
 ### Features
