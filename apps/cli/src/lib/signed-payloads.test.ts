@@ -1,7 +1,7 @@
 import { createVerify, generateKeyPairSync, X509Certificate } from "node:crypto";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import path from "node:path";
 
 import { NodeFileSystem } from "@effect/platform-node";
 import { it } from "@effect/vitest";
@@ -19,10 +19,10 @@ import {
 import { failureError } from "./test-utils";
 
 const withSignedFiles = () => {
-  const dir = mkdtempSync(join(tmpdir(), "signed-payloads-"));
-  const manifestPath = join(dir, "manifest.json");
-  const signaturePath = join(dir, "manifest.sig");
-  const certificatePath = join(dir, "manifest.pem");
+  const dir = mkdtempSync(path.join(tmpdir(), "signed-payloads-"));
+  const manifestPath = path.join(dir, "manifest.json");
+  const signaturePath = path.join(dir, "manifest.sig");
+  const certificatePath = path.join(dir, "manifest.pem");
 
   writeFileSync(manifestPath, '{"runtimeVersion":"1.0.0"}\n');
   writeFileSync(signaturePath, 'sig="test-signature"\n');

@@ -1,12 +1,12 @@
 import { execSync } from "node:child_process";
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import nodePath from "node:path";
 
 import { ENV_FILE } from "../e2e/global-setup";
 
 import type { SharedE2EEnv } from "../e2e/global-setup";
 
-const API_DIR = resolve(import.meta.dirname, "../../../server");
+const API_DIR = nodePath.resolve(import.meta.dirname, "../../../server");
 
 let cachedEnv: SharedE2EEnv | undefined;
 
@@ -54,7 +54,7 @@ export const setupE2EDashboard = () => {
 
   const seedSql = (sql: string) => {
     const { persistDir } = getSharedEnv();
-    const seedFile = resolve(API_DIR, ".wrangler/seed-dashboard-e2e.sql");
+    const seedFile = nodePath.resolve(API_DIR, ".wrangler/seed-dashboard-e2e.sql");
     writeFileSync(seedFile, sql);
     try {
       execSync(

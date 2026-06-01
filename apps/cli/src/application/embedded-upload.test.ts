@@ -1,6 +1,6 @@
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import path from "node:path";
 import process from "node:process";
 
 import { CommandExecutor } from "@effect/platform";
@@ -45,13 +45,16 @@ const setupProject = (options: {
 }): ProjectFixture => {
   // realpathSync mirrors upload-workflow.test.ts — @expo/config rejects symlinked
   // project roots on macOS.
-  const dir = realpathSync(mkdtempSync(join(tmpdir(), "embedded-upload-test-")));
-  writeFileSync(join(dir, "app.json"), JSON.stringify(options.appJson ?? baseAppJson, null, 2));
+  const dir = realpathSync(mkdtempSync(path.join(tmpdir(), "embedded-upload-test-")));
   writeFileSync(
-    join(dir, "package.json"),
+    path.join(dir, "app.json"),
+    JSON.stringify(options.appJson ?? baseAppJson, null, 2),
+  );
+  writeFileSync(
+    path.join(dir, "package.json"),
     JSON.stringify({ name: "embedded-upload-test", version: "1.0.0" }, null, 2),
   );
-  const bundlePath = join(dir, "embedded.bundle");
+  const bundlePath = path.join(dir, "embedded.bundle");
   if (options.createBundle !== false) {
     writeFileSync(bundlePath, options.bundleBytes ?? Buffer.from("embedded launch bundle"));
   }

@@ -1,6 +1,6 @@
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import path from "node:path";
 
 import { NodeFileSystem } from "@effect/platform-node";
 import { it } from "@effect/vitest";
@@ -11,11 +11,11 @@ import { applyTargetSigning } from "./ios-codesign-pbxproj";
 const setupProject = (
   pbxproj: string,
 ): { readonly iosDir: string; readonly pbxprojPath: string; readonly dispose: () => void } => {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), "codesign-pbxproj-")));
-  const iosDir = join(root, "ios");
-  const projectDir = join(iosDir, "MyApp.xcodeproj");
+  const root = realpathSync(mkdtempSync(path.join(tmpdir(), "codesign-pbxproj-")));
+  const iosDir = path.join(root, "ios");
+  const projectDir = path.join(iosDir, "MyApp.xcodeproj");
   mkdirSync(projectDir, { recursive: true });
-  const pbxprojPath = join(projectDir, "project.pbxproj");
+  const pbxprojPath = path.join(projectDir, "project.pbxproj");
   writeFileSync(pbxprojPath, pbxproj);
   return { iosDir, pbxprojPath, dispose: () => rmSync(root, { recursive: true, force: true }) };
 };

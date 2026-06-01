@@ -1,6 +1,6 @@
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import nodePath from "node:path";
 
 import { NodeFileSystem } from "@effect/platform-node";
 import { it } from "@effect/vitest";
@@ -14,12 +14,12 @@ import {
 } from "./better-update-config";
 
 const makeDir = (): { readonly dir: string; readonly dispose: () => void } => {
-  const dir = mkdtempSync(join(tmpdir(), "better-update-config-"));
+  const dir = mkdtempSync(nodePath.join(tmpdir(), "better-update-config-"));
   return { dir, dispose: () => rmSync(dir, { recursive: true, force: true }) };
 };
 
 const writeConfig = (dir: string, content: string): void => {
-  writeFileSync(join(dir, BETTER_UPDATE_CONFIG_FILENAME), content);
+  writeFileSync(nodePath.join(dir, BETTER_UPDATE_CONFIG_FILENAME), content);
 };
 
 describe(readBetterUpdateConfig, () => {

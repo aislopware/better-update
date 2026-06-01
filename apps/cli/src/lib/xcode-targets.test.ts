@@ -1,6 +1,6 @@
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import path from "node:path";
 
 import { NodeFileSystem } from "@effect/platform-node";
 import { it } from "@effect/vitest";
@@ -13,10 +13,10 @@ import { discoverSignedTargets } from "./xcode-targets";
 const setupProject = (
   pbxproj: string,
 ): { readonly iosDir: string; readonly dispose: () => void } => {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), "xcode-targets-")));
-  const iosDir = join(root, "ios");
-  mkdirSync(join(iosDir, "MyApp.xcodeproj"), { recursive: true });
-  writeFileSync(join(iosDir, "MyApp.xcodeproj", "project.pbxproj"), pbxproj);
+  const root = realpathSync(mkdtempSync(path.join(tmpdir(), "xcode-targets-")));
+  const iosDir = path.join(root, "ios");
+  mkdirSync(path.join(iosDir, "MyApp.xcodeproj"), { recursive: true });
+  writeFileSync(path.join(iosDir, "MyApp.xcodeproj", "project.pbxproj"), pbxproj);
   return { iosDir, dispose: () => rmSync(root, { recursive: true, force: true }) };
 };
 
@@ -190,8 +190,8 @@ describe(discoverSignedTargets, () => {
 
   it.effect("fails with XcodeProjectError when iosDir has no .xcodeproj", () =>
     Effect.gen(function* () {
-      const root = realpathSync(mkdtempSync(join(tmpdir(), "xcode-targets-empty-")));
-      const iosDir = join(root, "ios");
+      const root = realpathSync(mkdtempSync(path.join(tmpdir(), "xcode-targets-empty-")));
+      const iosDir = path.join(root, "ios");
       mkdirSync(iosDir, { recursive: true });
       try {
         const exit = yield* Effect.exit(

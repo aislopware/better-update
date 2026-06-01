@@ -1,6 +1,6 @@
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import path from "node:path";
 
 import { NodeFileSystem } from "@effect/platform-node";
 import { it } from "@effect/vitest";
@@ -15,10 +15,10 @@ import { failureError } from "./test-utils";
 // @expo/config requires the project root to be a real path (not a symlink); on
 // macOS os.tmpdir() is a symlink, so resolve it.
 const makeProjectDir = (prefix: string): string =>
-  realpathSync(mkdtempSync(join(tmpdir(), prefix)));
+  realpathSync(mkdtempSync(path.join(tmpdir(), prefix)));
 
 const writeFile = (dir: string, name: string, content: string): void => {
-  writeFileSync(join(dir, name), content);
+  writeFileSync(path.join(dir, name), content);
 };
 
 /** CliRuntime stub with a controllable env + cwd for resolver precedence tests. */

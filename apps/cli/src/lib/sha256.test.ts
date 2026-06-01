@@ -1,6 +1,6 @@
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import nodePath from "node:path";
 
 import { it } from "@effect/vitest";
 import { Effect, Exit } from "effect";
@@ -21,8 +21,8 @@ const withTempFile = <Result>(
   run: (path: string) => Effect.Effect<Result, BuildFailedError>,
 ) =>
   Effect.gen(function* () {
-    const dir = mkdtempSync(join(tmpdir(), "sha256-test-"));
-    const filePath = join(dir, "fixture.bin");
+    const dir = mkdtempSync(nodePath.join(tmpdir(), "sha256-test-"));
+    const filePath = nodePath.join(dir, "fixture.bin");
     writeFileSync(filePath, content);
     const result = yield* run(filePath).pipe(
       Effect.ensuring(Effect.sync(() => rmSync(dir, { recursive: true, force: true }))),
