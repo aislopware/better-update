@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.3.0](https://github.com/better-update/better-update/compare/@better-update/oxlint-config@0.2.5...@better-update/oxlint-config@0.3.0) (2026-06-01)
+
+### Features
+
+* **api:** OTA contracts — patch endpoints, embedded id, git + signing fields ([51a9968](https://github.com/better-update/better-update/commit/51a9968c694604825f4ed12ddc18371adaa31823)) - by @trancong12102
+
 ## [0.2.5](https://github.com/better-update/better-update/compare/@better-update/oxlint-config@0.2.4...@better-update/oxlint-config@0.2.5) (2026-05-21)
 
 **Note:** Version bump only for package @better-update/oxlint-config

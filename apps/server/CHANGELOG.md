@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.18.0](https://github.com/better-update/better-update/compare/@better-update/server@0.17.0...@better-update/server@0.18.0) (2026-06-01)
+
+### Features
+
+* **ota:** server-side signature policy, bundle-diffing hardening, self-verify harness ([6caca42](https://github.com/better-update/better-update/commit/6caca42031007cdffb7bd4e86896c1c4a82d16d1)) - by @trancong12102
+* **server:** add clock-skew guard, scope-key + signed-update recency invariant ([ae0eec5](https://github.com/better-update/better-update/commit/ae0eec571e0216b420aea77ac32acf389186df63)) - by @trancong12102
+* **server:** bsdiff A-IM patch content-negotiation + static R2 patch serving ([30c60ab](https://github.com/better-update/better-update/commit/30c60ab088df1b2c85ac503095d41ccd61f49ca5)) - by @trancong12102
+* **server:** manifest serving — filters, anti-brick skip, full branch-mapping evaluator ([9e44fa7](https://github.com/better-update/better-update/commit/9e44fa722c63bde47c9c25387ca195cab647cece)) - by @trancong12102
+* **server:** OTA retention reaper (updates + assets + patch blobs) ([72a0e25](https://github.com/better-update/better-update/commit/72a0e2531b29dd94978793efdd68eb62e2856d5e)) - by @trancong12102
+* **server:** per-scopeKey metadata storage + tenant-isolated manifest cache ([589103c](https://github.com/better-update/better-update/commit/589103cad29f2174878d7a6c7e533d240ae8e162)) - by @trancong12102
+* **server:** publish-time code-signing verify + embedded-id pinning + git provenance + opt-in 226 ([b135fa1](https://github.com/better-update/better-update/commit/b135fa12e7c78d3863f5b5564b950ad414d3a53e)) - by @trancong12102
+
+### Bug Fixes
+
+* **lint:** use default node:path import for oxlint 1.67 import-style ([3983aba](https://github.com/better-update/better-update/commit/3983aba521b86b54813c7756b99ed4d8ef39627e)) - by @trancong12102
+
 ## [0.17.0](https://github.com/better-update/better-update/compare/@better-update/server@0.16.0...@better-update/server@0.17.0) (2026-05-28)
 
 ### ⚠ BREAKING CHANGES

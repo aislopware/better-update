@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.22.1](https://github.com/better-update/better-update/compare/@better-update/web@0.22.0...@better-update/web@0.22.1) (2026-06-01)
+
+### Bug Fixes
+
+* **lint:** use default node:path import for oxlint 1.67 import-style ([3983aba](https://github.com/better-update/better-update/commit/3983aba521b86b54813c7756b99ed4d8ef39627e)) - by @trancong12102
+* **web:** use functional updater for session setQueryData ([09ab688](https://github.com/better-update/better-update/commit/09ab68854690adab4c8fce7d3ea42053618341bf)) - by @trancong12102
+
 ## [0.22.0](https://github.com/better-update/better-update/compare/@better-update/web@0.21.0...@better-update/web@0.22.0) (2026-05-28)
 
 ### ⚠ BREAKING CHANGES

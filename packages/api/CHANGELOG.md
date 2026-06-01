@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.13.0](https://github.com/better-update/better-update/compare/@better-update/api@0.12.0...@better-update/api@0.13.0) (2026-06-01)
+
+### Features
+
+* **api:** OTA contracts — patch endpoints, embedded id, git + signing fields ([51a9968](https://github.com/better-update/better-update/commit/51a9968c694604825f4ed12ddc18371adaa31823)) - by @trancong12102
+
 ## [0.12.0](https://github.com/better-update/better-update/compare/@better-update/api@0.11.0...@better-update/api@0.12.0) (2026-05-28)
 
 ### ⚠ BREAKING CHANGES
