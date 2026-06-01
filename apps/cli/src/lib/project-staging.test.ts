@@ -1,6 +1,6 @@
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import path from "node:path";
 
 import { NodeFileSystem } from "@effect/platform-node";
 import { it } from "@effect/vitest";
@@ -8,7 +8,7 @@ import { Effect } from "effect";
 
 import { buildIgnoreInstance, detectWorkspaceRoot } from "./project-staging";
 
-const makeDir = (prefix: string): string => realpathSync(mkdtempSync(join(tmpdir(), prefix)));
+const makeDir = (prefix: string): string => realpathSync(mkdtempSync(path.join(tmpdir(), prefix)));
 
 const dispose = (dir: string): void => {
   rmSync(dir, { recursive: true, force: true });
@@ -35,7 +35,7 @@ describe(detectWorkspaceRoot, () => {
   it.effect("detects bun.lock at cwd", () =>
     Effect.gen(function* () {
       const dir = makeDir("staging-bun-");
-      touch(join(dir, "bun.lock"));
+      touch(path.join(dir, "bun.lock"));
       try {
         const result = yield* detectWorkspaceRoot(dir);
         expect(result.workspaceRoot).toBe(dir);
@@ -49,7 +49,7 @@ describe(detectWorkspaceRoot, () => {
   it.effect("detects pnpm-lock.yaml at cwd", () =>
     Effect.gen(function* () {
       const dir = makeDir("staging-pnpm-");
-      touch(join(dir, "pnpm-lock.yaml"));
+      touch(path.join(dir, "pnpm-lock.yaml"));
       try {
         const result = yield* detectWorkspaceRoot(dir);
         expect(result.workspaceRoot).toBe(dir);
@@ -63,7 +63,7 @@ describe(detectWorkspaceRoot, () => {
   it.effect("detects yarn.lock at cwd", () =>
     Effect.gen(function* () {
       const dir = makeDir("staging-yarn-");
-      touch(join(dir, "yarn.lock"));
+      touch(path.join(dir, "yarn.lock"));
       try {
         const result = yield* detectWorkspaceRoot(dir);
         expect(result.workspaceRoot).toBe(dir);
@@ -77,7 +77,7 @@ describe(detectWorkspaceRoot, () => {
   it.effect("detects package-lock.json at cwd", () =>
     Effect.gen(function* () {
       const dir = makeDir("staging-npm-");
-      touch(join(dir, "package-lock.json"));
+      touch(path.join(dir, "package-lock.json"));
       try {
         const result = yield* detectWorkspaceRoot(dir);
         expect(result.workspaceRoot).toBe(dir);
@@ -91,8 +91,8 @@ describe(detectWorkspaceRoot, () => {
   it.effect("walks up to monorepo root when lockfile is in parent", () =>
     Effect.gen(function* () {
       const root = makeDir("staging-monorepo-");
-      touch(join(root, "bun.lock"));
-      const appDir = join(root, "apps", "mobile");
+      touch(path.join(root, "bun.lock"));
+      const appDir = path.join(root, "apps", "mobile");
       mkdirSync(appDir, { recursive: true });
       try {
         const result = yield* detectWorkspaceRoot(appDir);
@@ -107,11 +107,11 @@ describe(detectWorkspaceRoot, () => {
   it.effect("stops at first ancestor with a lockfile", () =>
     Effect.gen(function* () {
       const root = makeDir("staging-monorepo-nested-");
-      touch(join(root, "bun.lock"));
-      const subRoot = join(root, "packages", "internal");
+      touch(path.join(root, "bun.lock"));
+      const subRoot = path.join(root, "packages", "internal");
       mkdirSync(subRoot, { recursive: true });
-      touch(join(subRoot, "yarn.lock"));
-      const appDir = join(subRoot, "app");
+      touch(path.join(subRoot, "yarn.lock"));
+      const appDir = path.join(subRoot, "app");
       mkdirSync(appDir);
       try {
         const result = yield* detectWorkspaceRoot(appDir);
@@ -148,7 +148,7 @@ describe(buildIgnoreInstance, () => {
   it.effect("applies .gitignore on top of defaults", () =>
     Effect.gen(function* () {
       const dir = makeDir("ignore-gitignore-");
-      writeFileSync(join(dir, ".gitignore"), "secret.env\n*.log\nbuild-output/\n");
+      writeFileSync(path.join(dir, ".gitignore"), "secret.env\n*.log\nbuild-output/\n");
       try {
         const ig = yield* buildIgnoreInstance(dir);
         expect(ig.ignores("secret.env")).toBe(true);
@@ -165,8 +165,8 @@ describe(buildIgnoreInstance, () => {
   it.effect("uses .easignore in place of .gitignore when both exist", () =>
     Effect.gen(function* () {
       const dir = makeDir("ignore-easignore-");
-      writeFileSync(join(dir, ".gitignore"), "kept-by-easignore.txt\n");
-      writeFileSync(join(dir, ".easignore"), "only-eas.txt\n");
+      writeFileSync(path.join(dir, ".gitignore"), "kept-by-easignore.txt\n");
+      writeFileSync(path.join(dir, ".easignore"), "only-eas.txt\n");
       try {
         const ig = yield* buildIgnoreInstance(dir);
         expect(ig.ignores("only-eas.txt")).toBe(true);

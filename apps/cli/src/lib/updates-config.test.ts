@@ -1,6 +1,6 @@
 import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import path from "node:path";
 
 import { it } from "@effect/vitest";
 import { Effect, Exit } from "effect";
@@ -382,17 +382,17 @@ describe(extractExistingUpdatesConfig, () => {
 // @expo/config requires a real (non-symlink) project root. macOS tmpdir is a
 // symlink to /private/var/... so realpath before use.
 const makeProjectDir = (prefix: string): string =>
-  realpathSync(mkdtempSync(join(tmpdir(), prefix)));
+  realpathSync(mkdtempSync(path.join(tmpdir(), prefix)));
 
 const setupStaticProject = (
   config: Record<string, unknown>,
 ): { readonly dir: string; readonly dispose: () => void } => {
   const dir = makeProjectDir("updates-config-");
   writeFileSync(
-    join(dir, "package.json"),
+    path.join(dir, "package.json"),
     JSON.stringify({ name: "updates-config-test", version: "1.0.0" }, null, 2),
   );
-  writeFileSync(join(dir, "app.json"), JSON.stringify(config, null, 2));
+  writeFileSync(path.join(dir, "app.json"), JSON.stringify(config, null, 2));
   return { dir, dispose: () => rmSync(dir, { recursive: true, force: true }) };
 };
 
@@ -414,7 +414,7 @@ describe("configure write through writeExpoConfigPatch", () => {
       const result = yield* writeExpoConfigPatch(project.dir, patch);
       expect(result.type).toBe("success");
 
-      const raw = JSON.parse(readFileSync(join(project.dir, "app.json"), "utf8")) as {
+      const raw = JSON.parse(readFileSync(path.join(project.dir, "app.json"), "utf8")) as {
         expo: Record<string, unknown>;
       };
       project.dispose();

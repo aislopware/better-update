@@ -1,5 +1,5 @@
 import { readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import path from "node:path";
 
 /**
  * Static analysis guard: ensures app components use semantic CSS tokens
@@ -8,7 +8,7 @@ import { join } from "node:path";
  * Scans all .tsx files in apps/web/src (excluding test files).
  */
 
-const APP_SRC = join(import.meta.dirname, "..");
+const APP_SRC = path.join(import.meta.dirname, "..");
 const TEST_SUFFIX = /\.test\.tsx?$/;
 
 const HARDCODED_HEX = /#[0-9a-f]{3,8}\b/gi;
@@ -19,7 +19,7 @@ const HARDCODED_TAILWIND_COLORS =
 const walk = (dir: string): string[] => {
   const entries: string[] = [];
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const full = join(dir, entry.name);
+    const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
       entries.push(...walk(full));
     } else if (entry.name.endsWith(".tsx")) {

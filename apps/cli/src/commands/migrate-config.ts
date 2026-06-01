@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import nodePath from "node:path";
 
 import { defineCommand } from "citty";
 import { Effect } from "effect";
@@ -24,7 +24,7 @@ interface LegacyTemplate {
 }
 
 const readAppJson = (projectRoot: string): LegacyTemplate | null => {
-  const path = join(projectRoot, "app.json");
+  const path = nodePath.join(projectRoot, "app.json");
   if (!existsSync(path)) {
     return null;
   }
@@ -34,11 +34,14 @@ const readAppJson = (projectRoot: string): LegacyTemplate | null => {
 };
 
 const writeAppJson = (projectRoot: string, content: unknown): void => {
-  writeFileSync(join(projectRoot, "app.json"), `${JSON.stringify(content, null, 2)}\n`);
+  writeFileSync(nodePath.join(projectRoot, "app.json"), `${JSON.stringify(content, null, 2)}\n`);
 };
 
 const writeEasJson = (projectRoot: string, profiles: unknown): void => {
-  writeFileSync(join(projectRoot, "eas.json"), `${JSON.stringify({ build: profiles }, null, 2)}\n`);
+  writeFileSync(
+    nodePath.join(projectRoot, "eas.json"),
+    `${JSON.stringify({ build: profiles }, null, 2)}\n`,
+  );
 };
 
 export const migrateConfigCommand = defineCommand({
@@ -68,7 +71,7 @@ export const migrateConfigCommand = defineCommand({
           );
           return undefined;
         }
-        if (existsSync(join(root, "eas.json"))) {
+        if (existsSync(nodePath.join(root, "eas.json"))) {
           return yield* new InvalidArgumentError({
             message:
               "eas.json already exists. Manual review required — refusing to overwrite. Remove eas.json first if you want to regenerate.",

@@ -1,6 +1,6 @@
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import nodePath from "node:path";
 import process from "node:process";
 
 import { CommandExecutor } from "@effect/platform";
@@ -68,17 +68,17 @@ const setupProject = (options: {
 }): ProjectFixture => {
   // realpathSync mirrors expo-config.test.ts — @expo/config rejects symlinked
   // project roots on macOS (`/var/folders` is itself a symlink to `/private/var`).
-  const dir = realpathSync(mkdtempSync(join(tmpdir(), "upload-workflow-test-")));
+  const dir = realpathSync(mkdtempSync(nodePath.join(tmpdir(), "upload-workflow-test-")));
   const appJson = options.appJson ?? baseAppJson;
-  writeFileSync(join(dir, "app.json"), JSON.stringify(appJson, null, 2));
+  writeFileSync(nodePath.join(dir, "app.json"), JSON.stringify(appJson, null, 2));
   const easJson = options.easJson ?? baseEasJson;
-  writeFileSync(join(dir, "eas.json"), JSON.stringify(easJson, null, 2));
+  writeFileSync(nodePath.join(dir, "eas.json"), JSON.stringify(easJson, null, 2));
   // @expo/config requires a package.json in the project root.
   writeFileSync(
-    join(dir, "package.json"),
+    nodePath.join(dir, "package.json"),
     JSON.stringify({ name: "upload-workflow-test", version: "1.0.0" }, null, 2),
   );
-  const artifactPath = join(dir, "artifact.ipa");
+  const artifactPath = nodePath.join(dir, "artifact.ipa");
   if (options.createArtifact !== false) {
     writeFileSync(artifactPath, options.artifactBytes ?? Buffer.from("fake-artifact"));
   }

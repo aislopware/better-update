@@ -2,7 +2,7 @@ import { execSync, spawn } from "node:child_process";
 import { once } from "node:events";
 import { rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
-import { resolve } from "node:path";
+import path from "node:path";
 import { env } from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 
@@ -13,8 +13,8 @@ import type { BrowserServer } from "playwright";
 
 import { applyProcessEnv, createServerE2EEnvironment } from "../../../server/tests/helpers/e2e-env";
 
-const API_DIR = resolve(import.meta.dirname, "../../../server");
-const WEB_DIR = resolve(import.meta.dirname, "../..");
+const API_DIR = path.resolve(import.meta.dirname, "../../../server");
+const WEB_DIR = path.resolve(import.meta.dirname, "../..");
 const WEB_PORT = 6780;
 const PERSIST_DIR = ".wrangler/state/e2e-web-shared";
 
@@ -35,7 +35,7 @@ const pickFreePort = async () =>
     });
   });
 
-export const ENV_FILE = resolve(import.meta.dirname, ".e2e-shared-env.json");
+export const ENV_FILE = path.resolve(import.meta.dirname, ".e2e-shared-env.json");
 
 export interface SharedE2EEnv {
   readonly baseUrl: string;
@@ -76,7 +76,7 @@ const waitForChildExit = async (child: ReturnType<typeof spawn>): Promise<void> 
 };
 
 export default async function setup() {
-  const persistPath = resolve(API_DIR, PERSIST_DIR);
+  const persistPath = path.resolve(API_DIR, PERSIST_DIR);
   rmSync(persistPath, { recursive: true, force: true });
 
   const workerPort = await pickFreePort();
@@ -101,7 +101,7 @@ export default async function setup() {
   let worker: Awaited<ReturnType<typeof unstable_startWorker>>;
   try {
     worker = await unstable_startWorker({
-      config: resolve(API_DIR, "wrangler.jsonc"),
+      config: path.resolve(API_DIR, "wrangler.jsonc"),
       envFiles: [],
       bindings: e2eEnv.workerBindings,
       build: { nodejsCompatMode: "v2" },

@@ -1,6 +1,6 @@
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import path from "node:path";
 
 import { it } from "@effect/vitest";
 import { Effect, Exit } from "effect";
@@ -23,7 +23,7 @@ import type { ExpoConfig } from "./expo-config";
 
 const writePackageJson = (dir: string): void => {
   writeFileSync(
-    join(dir, "package.json"),
+    path.join(dir, "package.json"),
     JSON.stringify({ name: "expo-config-test", version: "1.0.0" }, null, 2),
   );
 };
@@ -32,14 +32,14 @@ const writePackageJson = (dir: string): void => {
 // On macOS `os.tmpdir()` resolves to /var/folders/... which is itself a symlink
 // to /private/var/folders/... — pass through realpathSync to avoid mismatches.
 const makeProjectDir = (prefix: string): string =>
-  realpathSync(mkdtempSync(join(tmpdir(), prefix)));
+  realpathSync(mkdtempSync(path.join(tmpdir(), prefix)));
 
 const setupStaticProject = (
   config: Record<string, unknown>,
 ): { readonly dir: string; readonly dispose: () => void } => {
   const dir = makeProjectDir("expo-config-static-");
   writePackageJson(dir);
-  writeFileSync(join(dir, "app.json"), JSON.stringify(config, null, 2));
+  writeFileSync(path.join(dir, "app.json"), JSON.stringify(config, null, 2));
   return { dir, dispose: () => rmSync(dir, { recursive: true, force: true }) };
 };
 
@@ -48,7 +48,7 @@ const setupDynamicProject = (
 ): { readonly dir: string; readonly dispose: () => void } => {
   const dir = makeProjectDir("expo-config-dynamic-");
   writePackageJson(dir);
-  writeFileSync(join(dir, "app.config.js"), jsBody);
+  writeFileSync(path.join(dir, "app.config.js"), jsBody);
   return { dir, dispose: () => rmSync(dir, { recursive: true, force: true }) };
 };
 

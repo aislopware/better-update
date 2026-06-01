@@ -1,6 +1,6 @@
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import nodePath from "node:path";
 
 import { FileSystem, HttpClient, HttpClientResponse } from "@effect/platform";
 import { NodeFileSystem } from "@effect/platform-node";
@@ -89,8 +89,8 @@ const makePresignedUploadLayer = (
 const okResponse = () => new Response(null, { status: 200 });
 
 const withTempFile = (bytes: Buffer): { path: string; dispose: () => void } => {
-  const dir = mkdtempSync(join(tmpdir(), "reserve-test-"));
-  const filePath = join(dir, "artifact.bin");
+  const dir = mkdtempSync(nodePath.join(tmpdir(), "reserve-test-"));
+  const filePath = nodePath.join(dir, "artifact.bin");
   writeFileSync(filePath, bytes);
   return {
     path: filePath,

@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import path from "node:path";
 
 import { parseDotenvContent } from "@better-update/dotenv";
 
@@ -32,8 +32,8 @@ const parseEnvFile = (filePath: string): Record<string, string> => {
 };
 
 const readFileEnvSource = (projectRoot: string) => ({
-  ...parseEnvFile(resolve(projectRoot, ".env")),
-  ...parseEnvFile(resolve(projectRoot, ".env.local")),
+  ...parseEnvFile(path.resolve(projectRoot, ".env")),
+  ...parseEnvFile(path.resolve(projectRoot, ".env.local")),
 });
 
 const envValue = (options: {
@@ -68,7 +68,7 @@ export const createServerE2EEnvironment = (options?: {
   readonly webUrl?: string;
   readonly publicApiUrl?: string;
 }): ServerE2EEnvironment => {
-  const projectRoot = options?.projectRoot ?? resolve(import.meta.dirname, "../..");
+  const projectRoot = options?.projectRoot ?? path.resolve(import.meta.dirname, "../..");
   const fileSource = readFileEnvSource(projectRoot);
 
   const accountId = envValue({

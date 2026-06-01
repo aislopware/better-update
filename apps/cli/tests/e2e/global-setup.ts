@@ -1,15 +1,15 @@
 import { execSync } from "node:child_process";
 import { rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
-import { resolve } from "node:path";
+import path from "node:path";
 
 import { applyProcessEnv, createServerE2EEnvironment } from "../../../server/tests/helpers/e2e-env";
 
 import type { unstable_startWorker } from "../../../server/node_modules/wrangler";
 
-const SERVER_DIR = resolve(import.meta.dirname, "../../../server");
+const SERVER_DIR = path.resolve(import.meta.dirname, "../../../server");
 const PERSIST_DIR = ".wrangler/state/e2e-cli-shared";
-const ENV_FILE = resolve(SERVER_DIR, ".wrangler/.e2e-cli-shared-env.json");
+const ENV_FILE = path.resolve(SERVER_DIR, ".wrangler/.e2e-cli-shared-env.json");
 
 export interface SharedCliE2EEnv {
   readonly baseUrl: string;
@@ -34,7 +34,7 @@ const pickFreePort = async () =>
   });
 
 export default async function setup() {
-  const persistPath = resolve(SERVER_DIR, PERSIST_DIR);
+  const persistPath = path.resolve(SERVER_DIR, PERSIST_DIR);
   rmSync(persistPath, { recursive: true, force: true });
 
   const port = await pickFreePort();
@@ -55,7 +55,7 @@ export default async function setup() {
     const { unstable_startWorker: startWorker } =
       await import("../../../server/node_modules/wrangler");
     worker = await startWorker({
-      config: resolve(SERVER_DIR, "wrangler.jsonc"),
+      config: path.resolve(SERVER_DIR, "wrangler.jsonc"),
       envFiles: [],
       bindings: e2eEnv.workerBindings,
       build: { nodejsCompatMode: "v2" },
