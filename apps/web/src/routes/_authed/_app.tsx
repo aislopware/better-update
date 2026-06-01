@@ -301,10 +301,11 @@ export const Route = createFileRoute("/_authed/_app")({
           fetchOptions: { disableSignal: true },
         });
         if (!error) {
-          context.queryClient.setQueryData(sessionQueryOptions.queryKey, {
-            ...context.session,
-            session: { ...context.session.session, activeOrganizationId: activeOrg.id },
-          });
+          context.queryClient.setQueryData(sessionQueryOptions.queryKey, (prev) =>
+            prev
+              ? { ...prev, session: { ...prev.session, activeOrganizationId: activeOrg.id } }
+              : prev,
+          );
         }
       } catch {
         // Non-fatal
