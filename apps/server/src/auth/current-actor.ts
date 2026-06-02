@@ -15,6 +15,7 @@ export const CurrentActor = pipe(
       source: ctx.source,
       transport: ctx.transport,
       actorEmail: ctx.actorEmail,
+      isSuperadmin: ctx.isSuperadmin,
     }),
   ),
 );

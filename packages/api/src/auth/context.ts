@@ -40,6 +40,12 @@ export interface AuthContextShape {
    */
   readonly transport: "bearer" | "cookie";
   readonly actorEmail: string;
+  /**
+   * Global (cross-org) superadmin flag, derived from the Better Auth `admin`
+   * plugin's user `role`. Distinct from `role` above, which is the per-org
+   * membership role. Gates the platform admin surface (`/api/admin/*`).
+   */
+  readonly isSuperadmin: boolean;
 }
 
 export class AuthContext extends Context.Tag("api/AuthContext")<AuthContext, AuthContextShape>() {}

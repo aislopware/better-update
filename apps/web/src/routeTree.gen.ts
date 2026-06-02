@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as PendingApprovalRouteImport } from './routes/pending-approval'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AcceptInvitationRouteImport } from './routes/accept-invitation'
 import { Route as AuthedRouteImport } from './routes/_authed'
@@ -24,6 +25,7 @@ import { Route as AuthedAppMembersRouteImport } from './routes/_authed/_app/memb
 import { Route as AuthedAppCredentialsRouteImport } from './routes/_authed/_app/credentials'
 import { Route as AuthedAppAuditLogRouteImport } from './routes/_authed/_app/audit-log'
 import { Route as AuthedAppApiKeysRouteImport } from './routes/_authed/_app/api-keys'
+import { Route as AuthedAppAdminRouteImport } from './routes/_authed/_app/admin'
 import { Route as AuthedAppAccountRouteImport } from './routes/_authed/_app/account'
 import { Route as AuthedAppSettingsIndexRouteImport } from './routes/_authed/_app/settings/index'
 import { Route as AuthedAppProjectsIndexRouteImport } from './routes/_authed/_app/projects/index'
@@ -65,6 +67,11 @@ const TermsRoute = TermsRouteImport.update({
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PendingApprovalRoute = PendingApprovalRouteImport.update({
+  id: '/pending-approval',
+  path: '/pending-approval',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -128,6 +135,11 @@ const AuthedAppAuditLogRoute = AuthedAppAuditLogRouteImport.update({
 const AuthedAppApiKeysRoute = AuthedAppApiKeysRouteImport.update({
   id: '/api-keys',
   path: '/api-keys',
+  getParentRoute: () => AuthedAppRoute,
+} as any)
+const AuthedAppAdminRoute = AuthedAppAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => AuthedAppRoute,
 } as any)
 const AuthedAppAccountRoute = AuthedAppAccountRouteImport.update({
@@ -322,12 +334,14 @@ export interface FileRoutesByFullPath {
   '/': typeof AuthedAppIndexRoute
   '/accept-invitation': typeof AcceptInvitationRoute
   '/auth': typeof AuthRouteWithChildren
+  '/pending-approval': typeof PendingApprovalRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/onboarding': typeof AuthedOnboardingRoute
   '/auth/cli-login': typeof AuthCliLoginRoute
   '/auth/login': typeof AuthLoginRoute
   '/account': typeof AuthedAppAccountRouteWithChildren
+  '/admin': typeof AuthedAppAdminRoute
   '/api-keys': typeof AuthedAppApiKeysRoute
   '/audit-log': typeof AuthedAppAuditLogRoute
   '/credentials': typeof AuthedAppCredentialsRoute
@@ -369,11 +383,13 @@ export interface FileRoutesByTo {
   '/': typeof AuthedAppIndexRoute
   '/accept-invitation': typeof AcceptInvitationRoute
   '/auth': typeof AuthRouteWithChildren
+  '/pending-approval': typeof PendingApprovalRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/onboarding': typeof AuthedOnboardingRoute
   '/auth/cli-login': typeof AuthCliLoginRoute
   '/auth/login': typeof AuthLoginRoute
+  '/admin': typeof AuthedAppAdminRoute
   '/api-keys': typeof AuthedAppApiKeysRoute
   '/audit-log': typeof AuthedAppAuditLogRoute
   '/credentials': typeof AuthedAppCredentialsRoute
@@ -414,6 +430,7 @@ export interface FileRoutesById {
   '/_authed': typeof AuthedRouteWithChildren
   '/accept-invitation': typeof AcceptInvitationRoute
   '/auth': typeof AuthRouteWithChildren
+  '/pending-approval': typeof PendingApprovalRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/_authed/_app': typeof AuthedAppRouteWithChildren
@@ -421,6 +438,7 @@ export interface FileRoutesById {
   '/auth/cli-login': typeof AuthCliLoginRoute
   '/auth/login': typeof AuthLoginRoute
   '/_authed/_app/account': typeof AuthedAppAccountRouteWithChildren
+  '/_authed/_app/admin': typeof AuthedAppAdminRoute
   '/_authed/_app/api-keys': typeof AuthedAppApiKeysRoute
   '/_authed/_app/audit-log': typeof AuthedAppAuditLogRoute
   '/_authed/_app/credentials': typeof AuthedAppCredentialsRoute
@@ -465,12 +483,14 @@ export interface FileRouteTypes {
     | '/'
     | '/accept-invitation'
     | '/auth'
+    | '/pending-approval'
     | '/privacy'
     | '/terms'
     | '/onboarding'
     | '/auth/cli-login'
     | '/auth/login'
     | '/account'
+    | '/admin'
     | '/api-keys'
     | '/audit-log'
     | '/credentials'
@@ -512,11 +532,13 @@ export interface FileRouteTypes {
     | '/'
     | '/accept-invitation'
     | '/auth'
+    | '/pending-approval'
     | '/privacy'
     | '/terms'
     | '/onboarding'
     | '/auth/cli-login'
     | '/auth/login'
+    | '/admin'
     | '/api-keys'
     | '/audit-log'
     | '/credentials'
@@ -556,6 +578,7 @@ export interface FileRouteTypes {
     | '/_authed'
     | '/accept-invitation'
     | '/auth'
+    | '/pending-approval'
     | '/privacy'
     | '/terms'
     | '/_authed/_app'
@@ -563,6 +586,7 @@ export interface FileRouteTypes {
     | '/auth/cli-login'
     | '/auth/login'
     | '/_authed/_app/account'
+    | '/_authed/_app/admin'
     | '/_authed/_app/api-keys'
     | '/_authed/_app/audit-log'
     | '/_authed/_app/credentials'
@@ -606,6 +630,7 @@ export interface RootRouteChildren {
   AuthedRoute: typeof AuthedRouteWithChildren
   AcceptInvitationRoute: typeof AcceptInvitationRoute
   AuthRoute: typeof AuthRouteWithChildren
+  PendingApprovalRoute: typeof PendingApprovalRoute
   PrivacyRoute: typeof PrivacyRoute
   TermsRoute: typeof TermsRoute
 }
@@ -624,6 +649,13 @@ declare module '@tanstack/react-router' {
       path: '/privacy'
       fullPath: '/privacy'
       preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pending-approval': {
+      id: '/pending-approval'
+      path: '/pending-approval'
+      fullPath: '/pending-approval'
+      preLoaderRoute: typeof PendingApprovalRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -715,6 +747,13 @@ declare module '@tanstack/react-router' {
       path: '/api-keys'
       fullPath: '/api-keys'
       preLoaderRoute: typeof AuthedAppApiKeysRouteImport
+      parentRoute: typeof AuthedAppRoute
+    }
+    '/_authed/_app/admin': {
+      id: '/_authed/_app/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthedAppAdminRouteImport
       parentRoute: typeof AuthedAppRoute
     }
     '/_authed/_app/account': {
@@ -1051,6 +1090,7 @@ const AuthedAppProjectsProjectSlugRouteWithChildren =
 
 interface AuthedAppRouteChildren {
   AuthedAppAccountRoute: typeof AuthedAppAccountRouteWithChildren
+  AuthedAppAdminRoute: typeof AuthedAppAdminRoute
   AuthedAppApiKeysRoute: typeof AuthedAppApiKeysRoute
   AuthedAppAuditLogRoute: typeof AuthedAppAuditLogRoute
   AuthedAppCredentialsRoute: typeof AuthedAppCredentialsRoute
@@ -1066,6 +1106,7 @@ interface AuthedAppRouteChildren {
 
 const AuthedAppRouteChildren: AuthedAppRouteChildren = {
   AuthedAppAccountRoute: AuthedAppAccountRouteWithChildren,
+  AuthedAppAdminRoute: AuthedAppAdminRoute,
   AuthedAppApiKeysRoute: AuthedAppApiKeysRoute,
   AuthedAppAuditLogRoute: AuthedAppAuditLogRoute,
   AuthedAppCredentialsRoute: AuthedAppCredentialsRoute,
@@ -1114,6 +1155,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthedRoute: AuthedRouteWithChildren,
   AcceptInvitationRoute: AcceptInvitationRoute,
   AuthRoute: AuthRouteWithChildren,
+  PendingApprovalRoute: PendingApprovalRoute,
   PrivacyRoute: PrivacyRoute,
   TermsRoute: TermsRoute,
 }

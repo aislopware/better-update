@@ -1,3 +1,5 @@
+export { adminUsersQueryKey, adminUsersQueryOptions, approveUser, revokeUser } from "./react/admin";
+export type { AdminUsersFilters } from "./react/admin";
 export { finalizeAsset, uploadAssets } from "./react/assets";
 export { auditLogsInfiniteQueryOptions, auditLogsQueryKey } from "./react/audit-logs";
 export type { AuditLogsFilters } from "./react/audit-logs";
@@ -155,6 +157,7 @@ export type {
   UpdatesFilters,
 } from "./react/projects";
 export type {
+  AdminUserItem,
   AnalyticsPeriod,
   AndroidApplicationIdentifierItem,
   AndroidBuildCredentialsItem,

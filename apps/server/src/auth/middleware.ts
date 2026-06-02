@@ -5,9 +5,10 @@ import { Effect, Layer, Redacted } from "effect";
 
 import { createAuth } from "../auth";
 import { cloudflareEnv } from "../cloudflare/context";
-import { Unauthorized } from "../errors";
+import { Forbidden, Unauthorized } from "../errors";
 import { API_KEY_PREFIX } from "./constants";
 import { permissions } from "./permissions";
+import { roleIsSuperadmin } from "./superadmin";
 
 import type { AuthContextShape, EffectivePermissions, Role } from "./context";
 
@@ -97,6 +98,33 @@ const getActiveMember = (headers: Headers) =>
     });
   });
 
+// ── Approval gate ─────────────────────────────────────────────────
+
+interface UserAuthState {
+  readonly approved: boolean;
+  readonly isSuperadmin: boolean;
+}
+
+// Read the gate state straight from D1 rather than the session object: the
+// compact cookie cache may omit custom user fields (`approved`) and the Better
+// Auth `admin` plugin role, so trusting it risks a stale/missing value. A
+// single PK lookup per request, alongside the existing `getActiveMember` read.
+const getUserAuthState = (userId: string) =>
+  Effect.gen(function* () {
+    const env = yield* cloudflareEnv;
+    const row = yield* Effect.tryPromise({
+      try: async () =>
+        env.DB.prepare(`SELECT "approved", "role" FROM "user" WHERE "id" = ?`)
+          .bind(userId)
+          .first<{ approved: number | null; role: string | null }>(),
+      catch: () => new Unauthorized({ message: "Failed to resolve account state" }),
+    });
+    return {
+      approved: row?.approved === 1,
+      isSuperadmin: roleIsSuperadmin(row?.role),
+    } satisfies UserAuthState;
+  });
+
 // ── Helpers ────────────────────────────────────────────────────────
 
 const toStandardHeaders = (headers: Readonly<Record<string, string | undefined>>): Headers =>
@@ -128,6 +156,17 @@ const resolveSession = (transport: "bearer" | "cookie") =>
       return yield* new Unauthorized({ message: "Invalid session" });
     }
 
+    // Dev-phase gate: a valid session is not enough — the user must be approved
+    // by a superadmin (superadmins are implicitly allowed). Checked before the
+    // active-org requirement so unapproved users are blocked uniformly, with or
+    // without an organization.
+    const authState = yield* getUserAuthState(session.user.id);
+    if (!authState.approved && !authState.isSuperadmin) {
+      return yield* new Forbidden({
+        message: "Account pending superadmin approval",
+      });
+    }
+
     const rawOrgId = session.session["activeOrganizationId"];
     const orgId = typeof rawOrgId === "string" ? rawOrgId : undefined;
     if (!orgId) {
@@ -152,6 +191,7 @@ const resolveSession = (transport: "bearer" | "cookie") =>
       source: "session",
       transport,
       actorEmail: session.user.email,
+      isSuperadmin: authState.isSuperadmin,
     } as const satisfies AuthContextShape;
   });
 
@@ -193,6 +233,7 @@ const resolveFromBearer = (token: Redacted.Redacted) => {
         source: "api-key",
         transport: "bearer",
         actorEmail: "api-key",
+        isSuperadmin: false,
       } as const satisfies AuthContextShape);
     }),
   );

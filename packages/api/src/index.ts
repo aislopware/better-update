@@ -17,6 +17,7 @@ export type {
 } from "./auth/context";
 
 // Domain schemas
+export { AdminUser, AdminUserStatus, ListAdminUsersParams } from "./domain/admin";
 export { AuditLog, AuditLogResourceType, AuditLogSource } from "./domain/audit-log";
 export {
   DateTimeString,
@@ -265,6 +266,7 @@ export {
 } from "./domain/encrypted-credential";
 
 // Groups
+export { AdminGroup } from "./groups/admin";
 export { AuditLogsGroup } from "./groups/audit-logs";
 export { AnalyticsGroup } from "./groups/analytics";
 export { AssetsGroup } from "./groups/assets";

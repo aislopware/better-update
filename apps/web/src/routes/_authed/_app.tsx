@@ -42,6 +42,7 @@ import {
 import { Suspense, useState } from "react";
 
 import { renderSwitcherIndicator } from "../../components/switcher-indicator";
+import { isSuperadminUser } from "../../lib/access";
 import { authClient, rejectOnAuthClientError } from "../../lib/auth-client";
 import { DocumentTitle } from "../../lib/document-title";
 import { EntityAvatar } from "../../lib/entity-avatar";
@@ -231,7 +232,13 @@ const AppSidebarRail = () => {
   );
 };
 
-const AppSidebar = ({ projectSlug }: { projectSlug: string | undefined }) => (
+const AppSidebar = ({
+  projectSlug,
+  isSuperadmin,
+}: {
+  projectSlug: string | undefined;
+  isSuperadmin: boolean;
+}) => (
   <Sidebar collapsible="icon" variant="inset">
     <SidebarHeader>
       <SidebarMenu>
@@ -241,7 +248,11 @@ const AppSidebar = ({ projectSlug }: { projectSlug: string | undefined }) => (
       </SidebarMenu>
     </SidebarHeader>
     <SidebarContent>
-      {projectSlug ? <ProjectNavSections projectSlug={projectSlug} /> : <OrgNavSections />}
+      {projectSlug ? (
+        <ProjectNavSections projectSlug={projectSlug} />
+      ) : (
+        <OrgNavSections isSuperadmin={isSuperadmin} />
+      )}
     </SidebarContent>
     <SidebarFooter>
       <SidebarMenu>
@@ -257,12 +268,12 @@ const AppSidebar = ({ projectSlug }: { projectSlug: string | undefined }) => (
 const AppLayout = () => {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const projectSlug = useActiveProjectSlug();
-  const { activeOrg } = Route.useRouteContext();
+  const { activeOrg, user } = Route.useRouteContext();
   return (
     <TooltipProvider>
       <DocumentTitle />
       <SidebarProvider>
-        <AppSidebar projectSlug={projectSlug} />
+        <AppSidebar projectSlug={projectSlug} isSuperadmin={isSuperadminUser(user)} />
         <SidebarInset className="relative md:border">
           <header className="bg-background/80 sticky top-0 z-30 flex h-(--header-height) shrink-0 items-center gap-2 border-b px-4 backdrop-blur md:rounded-t-xl lg:px-6">
             <AppBreadcrumb

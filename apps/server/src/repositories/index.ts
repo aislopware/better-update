@@ -1,3 +1,4 @@
+export { AdminUsersRepo, AdminUsersRepoLive } from "./admin-users";
 export { AnalyticsRepo, AnalyticsRepoLive } from "./analytics";
 export { AuthMetaRepo, AuthMetaRepoLive } from "./auth-meta";
 export {

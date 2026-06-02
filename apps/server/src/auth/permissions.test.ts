@@ -2,11 +2,11 @@ import { it } from "@effect/vitest";
 import { Effect, Exit } from "effect";
 
 import { AuthContext } from "./context";
-import { assertPermission, permissions } from "./permissions";
+import { assertPermission, assertSuperadmin, permissions } from "./permissions";
 
 import type { Action, EffectivePermissions, Role } from "./context";
 
-const provideAuth = (role: Role, overrides?: Partial<EffectivePermissions>) =>
+const provideAuth = (role: Role, overrides?: Partial<EffectivePermissions>, isSuperadmin = false) =>
   Effect.provideService(AuthContext, {
     userId: "test-user",
     organizationId: "test-org",
@@ -15,6 +15,7 @@ const provideAuth = (role: Role, overrides?: Partial<EffectivePermissions>) =>
     source: "session",
     transport: "cookie",
     actorEmail: "test@example.com",
+    isSuperadmin,
   });
 
 describe("permissions map", () => {
@@ -132,4 +133,24 @@ describe(assertPermission, () => {
     const actions = permissions[role][resource as keyof typeof permissions.owner];
     expect(actions).toContain(action);
   });
+});
+
+describe("assertSuperadmin guard", () => {
+  it.effect("succeeds for a superadmin", () =>
+    assertSuperadmin.pipe(provideAuth("owner", undefined, true)),
+  );
+
+  it.effect("fails with Forbidden for a non-superadmin", () =>
+    Effect.gen(function* () {
+      const exit = yield* assertSuperadmin.pipe(
+        provideAuth("owner", undefined, false),
+        Effect.exit,
+      );
+      expect(Exit.isFailure(exit)).toBe(true);
+      if (Exit.isFailure(exit)) {
+        const error = exit.cause.pipe((cause) => (cause._tag === "Fail" ? cause.error : undefined));
+        expect(error).toMatchObject({ _tag: "Forbidden", message: "Superadmin access required" });
+      }
+    }),
+  );
 });

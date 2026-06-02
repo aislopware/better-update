@@ -81,6 +81,7 @@ export interface CurrentActor {
   readonly source: AuditLogSource;
   readonly transport: "bearer" | "cookie";
   readonly actorEmail: string;
+  readonly isSuperadmin: boolean;
 }
 
 export interface ProjectModel {
