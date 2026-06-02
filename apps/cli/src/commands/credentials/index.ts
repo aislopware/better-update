@@ -13,6 +13,7 @@ import { listCommand } from "./list";
 import { regenerateProfileCommand } from "./regenerate-profile";
 import { removeCommand } from "./remove";
 import { revokeCommand } from "./revoke";
+import { lockCommand, statusCommand, unlockCommand } from "./session";
 import { syncCommand } from "./sync";
 import { uploadCommand } from "./upload";
 import { uploadAscKeyCommand } from "./upload-asc-key";
@@ -38,6 +39,9 @@ export const credentialsCommand = defineCommand({
     identity: identityCommand,
     access: accessCommand,
     device: deviceCommand,
+    unlock: unlockCommand,
+    lock: lockCommand,
+    status: statusCommand,
     list: listCommand,
     view: viewCommand,
     download: downloadCommand,

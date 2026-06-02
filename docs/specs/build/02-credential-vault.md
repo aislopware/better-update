@@ -447,17 +447,24 @@ metadata). This matches the established direction of keeping store API calls cli
 ## Passphrase / Unlock UX
 
 The identity private key is unlocked with the user's passphrase. To avoid re-typing it every command,
-the CLI caches the **unlocked vault key** (not the passphrase) in the OS keychain with a TTL.
+the CLI caches the **unlocked vault key** (not the passphrase, not the age private key) in the OS
+keychain with a TTL — the analog of macOS `security unlock-keychain`.
 
-| Mode                         | Behavior                                                                                                                                                                                                                                            |
-| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Keychain cache (default)** | First decrypt in a session prompts for the passphrase, unlocks the identity, fetches + unwraps the vault key, and caches it in the OS keychain (`@napi-rs/keyring`) with a TTL. Subsequent commands read the cached key until it expires.           |
-| **Prompt**                   | `--no-cache` (or no OS keychain available) prompts every time a decrypt is needed.                                                                                                                                                                  |
-| **CI / non-interactive**     | The encryption identity private key is provided via `BETTER_UPDATE_IDENTITY` (no passphrase — the CI secret store is the protection boundary) and the API token via `BETTER_UPDATE_TOKEN`; no prompt, no keychain. See the CI / automation section. |
+| Mode                         | Behavior                                                                                                                                                                                                                                                                                                                                                               |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Keychain cache (default)** | First decrypt in a session prompts for the passphrase, unlocks the identity, fetches + unwraps the vault key, and caches it in the OS keychain (`@napi-rs/keyring` — macOS Keychain / Windows Credential Manager / Linux libsecret) for **15 minutes**. Subsequent commands read the cached key and skip both the prompt and the Argon2id derivation until it expires. |
+| **Prompt**                   | `BETTER_UPDATE_NO_CACHE=1` (or no usable OS keychain — keyring access degrades to "no cache" rather than failing) prompts every time a decrypt is needed.                                                                                                                                                                                                              |
+| **CI / non-interactive**     | The encryption identity private key is provided via `BETTER_UPDATE_IDENTITY` (no passphrase — the CI secret store is the protection boundary) and the API token via `BETTER_UPDATE_TOKEN`; no prompt, no keychain. See the CI / automation section.                                                                                                                    |
 
-The cache stores `{ key, exp }`; once `Date.now() > exp` the entry is treated as missing and deleted.
-The bearer auth token (`~/.better-update/auth.json`, mode 0600) is unchanged and separate from the
-encryption identity.
+Explicit session control mirrors `security (un)lock-keychain`:
+
+- `better-update credentials unlock` — prompt once, unwrap, and cache the vault key for the TTL.
+- `better-update credentials lock` — drop the cached key from the OS keychain immediately.
+- `better-update credentials status` — report whether the vault is unlocked and how long is left.
+
+The cache stores `{ vaultKey, vaultVersion, keyId, exp }`; once the clock passes `exp` the entry is
+treated as missing and deleted. The bearer auth token (`~/.better-update/auth.json`, mode 0600) is
+unchanged and separate from the encryption identity.
 
 ## Web Dashboard (read-only)
 

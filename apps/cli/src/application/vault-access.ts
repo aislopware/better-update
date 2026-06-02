@@ -7,6 +7,7 @@ import type { UserEncryptionKey } from "@better-update/api";
 import { IdentityError } from "../lib/exit-codes";
 import { promptPassword } from "../lib/prompts";
 import { CliRuntime } from "../services/cli-runtime";
+import { VaultCache, VaultCacheLive } from "../services/vault-cache";
 import { activeRecipient, loadIdentityFileOrFail } from "./identity";
 
 import type { InteractiveProhibitedError } from "../lib/exit-codes";
@@ -152,6 +153,35 @@ export const resolveVaultPassphrase: Effect.Effect<
     ? yield* promptPassword("Passphrase to unlock this device's identity:")
     : undefined;
 });
+
+/**
+ * Unlock the org vault key for an interactive command, reusing a cached vault key
+ * from the OS keychain when one is present and unexpired — so the device
+ * passphrase is prompted at most once per cache TTL rather than on every command
+ * (`better-update credentials unlock` / `lock` drive that session explicitly).
+ * The CI `BETTER_UPDATE_IDENTITY` key carries no passphrase and is never cached:
+ * it skips straight to the raw unwrap. On a cache miss the full unlock runs —
+ * prompt, Argon2id, fetch + unwrap — and the result is cached for next time.
+ */
+export const unlockVaultKeyInteractive = (api: ApiClient) =>
+  Effect.gen(function* () {
+    const recipient = yield* activeRecipient;
+    if (recipient.source !== "file") {
+      return yield* unlockVaultKey(api, undefined);
+    }
+    const cache = yield* VaultCache;
+    const cached = yield* cache.get(recipient.publicKey);
+    if (cached !== undefined) {
+      return cached.vault;
+    }
+    const passphrase = yield* promptPassword("Passphrase to unlock this device's identity:");
+    const vault = yield* unlockVaultKey(api, passphrase);
+    yield* cache.set(recipient.publicKey, vault);
+    return vault;
+    // Discharge `VaultCache` here — it only needs `CliRuntime` (already in scope),
+    // so the cache stays an internal detail and never widens the requirements of
+    // the publish / download / credential flows that call this.
+  }).pipe(Effect.provide(VaultCacheLive));
 
 /** Look up a registered recipient by its key id or full `SHA256:` fingerprint. */
 export const findRecipient = (api: ApiClient, selector: string) =>

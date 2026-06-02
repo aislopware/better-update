@@ -16,6 +16,7 @@ import { PatchUploaderLive } from "./services/patch-uploader";
 import { PresignedDownloadClientLive } from "./services/presigned-download";
 import { PresignedUploadClientLive } from "./services/presigned-upload";
 import { UpdateAssetUploaderLive } from "./services/update-asset-uploader";
+import { VaultCacheLive } from "./services/vault-cache";
 import { VersionCheckLive } from "./services/version-check";
 
 const CliPlatformLayer = Layer.mergeAll(CliRuntimeLive, NodeContext.layer, FetchHttpClient.layer);
@@ -24,6 +25,7 @@ const CliStoreLayer = Layer.mergeAll(
   ConfigStoreLive,
   AppleSessionStoreLive,
   IdentityStoreLive,
+  VaultCacheLive,
 ).pipe(Layer.provide(CliPlatformLayer));
 const CliAdapterDependencies = Layer.mergeAll(CliPlatformLayer, CliStoreLayer);
 const ApiClientLayer = ApiClientLive.pipe(Layer.provide(CliAdapterDependencies));

@@ -12,7 +12,7 @@ import { Effect, Schema } from "effect";
 import type { CredentialPayload } from "@better-update/credentials-crypto";
 
 import { IdentityError } from "../lib/exit-codes";
-import { resolveVaultPassphrase, unlockVaultKey } from "./vault-access";
+import { unlockVaultKey, unlockVaultKeyInteractive } from "./vault-access";
 
 import type { ApiClient } from "../services/api-client";
 import type { UnlockedVault } from "./vault-access";
@@ -80,13 +80,15 @@ export const openVaultSession = (api: ApiClient, passphrase: string | undefined)
   });
 
 /**
- * {@link openVaultSession} that first resolves the device passphrase — prompting
- * when the active identity is the on-disk file, none for the CI env key.
+ * {@link openVaultSession} that unlocks the vault key interactively — reusing the
+ * OS-keychain-cached key when one is live (no prompt), prompting for the device
+ * passphrase only on a cache miss, and none at all for the CI env key.
  */
 export const openVaultSessionInteractive = (api: ApiClient) =>
   Effect.gen(function* () {
-    const passphrase = yield* resolveVaultPassphrase;
-    return yield* openVaultSession(api, passphrase);
+    const orgId = yield* getActiveOrgId(api);
+    const vault = yield* unlockVaultKeyInteractive(api);
+    return { orgId, vault } satisfies VaultSession;
   });
 
 /** Reshape a sealed envelope into the `{ id, …opaque fields }` an upload body carries. */
