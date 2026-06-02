@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.2.1](https://github.com/better-update/better-update/compare/@better-update/bsdiff@0.2.0...@better-update/bsdiff@0.2.1) (2026-06-02)
+
+### Bug Fixes
+
+* **bsdiff:** make @better-update/bsdiff publishable to unblock CLI install ([02db554](https://github.com/better-update/better-update/commit/02db55478e75b3dec3bb65187972b765cbdb6758)) - by @trancong12102
+
 ## 0.2.0 (2026-06-01)
 
 ### Features
