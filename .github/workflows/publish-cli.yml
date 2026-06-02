@@ -29,6 +29,13 @@ jobs:
       - name: Build
         run: bun run build
 
+      # `lerna publish from-package` ships the main @better-update/bsdiff here.
+      # Its per-platform binary stubs are published separately by the "Build
+      # bsdiff" workflow — fail loudly if they're not on npm yet, so the main
+      # package never lands before its binaries (would 404 patch generation).
+      - name: Check bsdiff release invariants (stubs published)
+        run: bun run check:bsdiff -- --check-npm
+
       - name: Publish cli
         run: bun run release:publish
         env:

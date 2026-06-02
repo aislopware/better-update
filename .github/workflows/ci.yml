@@ -43,6 +43,9 @@ jobs:
       - name: Generate Cloudflare types
         run: bun run typegen:cf
 
+      - name: Check bsdiff release invariants
+        run: bun run check:bsdiff
+
       - name: Lint + format check
         run: bun run check
 
