@@ -16,6 +16,9 @@
     },
     "./magic": "./src/magic.ts"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "artifacts": "napi artifacts",
     "build": "napi build --platform --release",
@@ -33,14 +36,14 @@
     "@napi-rs/cli": "^3.7.0"
   },
   "optionalDependencies": {
-    "@better-update/bsdiff-darwin-arm64": "0.2.0",
-    "@better-update/bsdiff-darwin-x64": "0.2.0",
-    "@better-update/bsdiff-linux-arm64-gnu": "0.2.0",
-    "@better-update/bsdiff-linux-arm64-musl": "0.2.0",
-    "@better-update/bsdiff-linux-x64-gnu": "0.2.0",
-    "@better-update/bsdiff-linux-x64-musl": "0.2.0",
-    "@better-update/bsdiff-win32-arm64-msvc": "0.2.0",
-    "@better-update/bsdiff-win32-x64-msvc": "0.2.0"
+    "@better-update/bsdiff-darwin-arm64": "0.2.1",
+    "@better-update/bsdiff-darwin-x64": "0.2.1",
+    "@better-update/bsdiff-linux-arm64-gnu": "0.2.1",
+    "@better-update/bsdiff-linux-arm64-musl": "0.2.1",
+    "@better-update/bsdiff-linux-x64-gnu": "0.2.1",
+    "@better-update/bsdiff-linux-x64-musl": "0.2.1",
+    "@better-update/bsdiff-win32-arm64-msvc": "0.2.1",
+    "@better-update/bsdiff-win32-x64-msvc": "0.2.1"
   },
   "napi": {
     "binaryName": "bsdiff",

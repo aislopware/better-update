@@ -33,7 +33,7 @@
     },
     "apps/cli": {
       "name": "@better-update/cli",
-      "version": "0.24.0",
+      "version": "0.24.1",
       "bin": {
         "better-update": "./dist/index.mjs",
       },
@@ -87,7 +87,7 @@
     },
     "apps/server": {
       "name": "@better-update/server",
-      "version": "0.18.0",
+      "version": "0.19.0",
       "dependencies": {
         "@better-auth/api-key": "^1.6.12",
         "@better-update/api": "workspace:*",
@@ -118,7 +118,7 @@
     },
     "apps/web": {
       "name": "@better-update/web",
-      "version": "0.22.1",
+      "version": "0.23.0",
       "dependencies": {
         "@better-auth/api-key": "^1.6.12",
         "@better-update/api": "workspace:*",
@@ -217,21 +217,21 @@
     },
     "packages/bsdiff": {
       "name": "@better-update/bsdiff",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "devDependencies": {
         "@better-update/oxlint-config": "workspace:*",
         "@better-update/typescript-config": "workspace:*",
         "@napi-rs/cli": "^3.7.0",
       },
       "optionalDependencies": {
-        "@better-update/bsdiff-darwin-arm64": "0.2.0",
-        "@better-update/bsdiff-darwin-x64": "0.2.0",
-        "@better-update/bsdiff-linux-arm64-gnu": "0.2.0",
-        "@better-update/bsdiff-linux-arm64-musl": "0.2.0",
-        "@better-update/bsdiff-linux-x64-gnu": "0.2.0",
-        "@better-update/bsdiff-linux-x64-musl": "0.2.0",
-        "@better-update/bsdiff-win32-arm64-msvc": "0.2.0",
-        "@better-update/bsdiff-win32-x64-msvc": "0.2.0",
+        "@better-update/bsdiff-darwin-arm64": "0.2.1",
+        "@better-update/bsdiff-darwin-x64": "0.2.1",
+        "@better-update/bsdiff-linux-arm64-gnu": "0.2.1",
+        "@better-update/bsdiff-linux-arm64-musl": "0.2.1",
+        "@better-update/bsdiff-linux-x64-gnu": "0.2.1",
+        "@better-update/bsdiff-linux-x64-musl": "0.2.1",
+        "@better-update/bsdiff-win32-arm64-msvc": "0.2.1",
+        "@better-update/bsdiff-win32-x64-msvc": "0.2.1",
       },
     },
     "packages/credentials-crypto": {

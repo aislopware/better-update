@@ -1,6 +1,9 @@
 {
   "name": "@better-update/bsdiff-linux-x64-musl",
-  "version": "0.2.0",
+  "version": "0.2.1",
+  "publishConfig": {
+    "access": "public"
+  },
   "files": [
     "bsdiff.linux-x64-musl.node"
   ],
