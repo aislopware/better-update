@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.24.0](https://github.com/better-update/better-update/compare/@better-update/web@0.23.0...@better-update/web@0.24.0) (2026-06-02)
+
+### Features
+
+* **auth:** superadmin-gated user approval for dev phase ([69f97e3](https://github.com/better-update/better-update/commit/69f97e3ab39436f97decd3fca454d63e9ec794bb)) - by @trancong12102
+
 ## [0.23.0](https://github.com/better-update/better-update/compare/@better-update/web@0.22.1...@better-update/web@0.23.0) (2026-06-01)
 
 ### Features

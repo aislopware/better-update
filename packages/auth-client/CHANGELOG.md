@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.4.0](https://github.com/better-update/better-update/compare/@better-update/auth-client@0.3.1...@better-update/auth-client@0.4.0) (2026-06-02)
+
+### Features
+
+* **auth:** superadmin-gated user approval for dev phase ([69f97e3](https://github.com/better-update/better-update/commit/69f97e3ab39436f97decd3fca454d63e9ec794bb)) - by @trancong12102
+
 ## [0.3.1](https://github.com/better-update/better-update/compare/@better-update/auth-client@0.3.0...@better-update/auth-client@0.3.1) (2026-06-01)
 
 **Note:** Version bump only for package @better-update/auth-client
