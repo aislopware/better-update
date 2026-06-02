@@ -1,6 +1,7 @@
 import { Outlet, createFileRoute, isRedirect, redirect } from "@tanstack/react-router";
 
 import { AppShellSkeleton } from "../components/app-shell-skeleton";
+import { isApprovedUser } from "../lib/access";
 import { ensureError } from "../lib/ensure-error";
 import { orgsQueryOptions, sessionQueryOptions } from "../queries/auth";
 
@@ -25,6 +26,11 @@ export const Route = createFileRoute("/_authed")({
         to: "/auth/login",
         search: { redirectTo: location.href },
       });
+    }
+    // Dev-phase gate: a signed-in but unapproved user can hold a session yet
+    // cannot use the app until a superadmin approves them.
+    if (!isApprovedUser(session.user)) {
+      throw redirect({ to: "/pending-approval" });
     }
     let orgs;
     try {

@@ -1,6 +1,7 @@
 import { HttpApi, OpenApi } from "@effect/platform";
 
 import { Authentication } from "./auth/middleware";
+import { AdminGroup } from "./groups/admin";
 import { AnalyticsGroup } from "./groups/analytics";
 import { AndroidApplicationIdentifiersGroup } from "./groups/android-application-identifiers";
 import { AndroidBuildCredentialsGroup } from "./groups/android-build-credentials";
@@ -59,6 +60,7 @@ export class ManagementApi extends HttpApi.make("management-api")
   .add(OrgVaultGroup)
   .add(MeGroup)
   .add(WebhooksGroup)
+  .add(AdminGroup)
   .middleware(Authentication)
   .annotateContext(
     OpenApi.annotations({

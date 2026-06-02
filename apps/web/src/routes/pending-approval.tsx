@@ -1,0 +1,80 @@
+import { Button } from "@better-update/ui/components/ui/button";
+import {
+  Frame,
+  FrameDescription,
+  FrameHeader,
+  FrameTitle,
+} from "@better-update/ui/components/ui/frame";
+import { useQueryClient } from "@tanstack/react-query";
+import { createFileRoute, isRedirect, redirect } from "@tanstack/react-router";
+import { ClockIcon } from "lucide-react";
+
+import { GlobalLoading } from "../components/global-loading";
+import { isApprovedUser } from "../lib/access";
+import { logout } from "../lib/logout";
+import { useApiMutation } from "../lib/use-api-mutation";
+import { sessionQueryOptions } from "../queries/auth";
+
+const PendingApproval = () => {
+  const queryClient = useQueryClient();
+  const { user } = Route.useRouteContext();
+
+  const logoutMutation = useApiMutation({
+    mutationFn: async () => logout(queryClient),
+  });
+
+  return (
+    <div className="flex min-h-screen items-center justify-center px-4">
+      <Frame className="w-full max-w-md text-center">
+        <FrameHeader className="items-center">
+          <div className="bg-muted text-muted-foreground flex size-12 items-center justify-center rounded-full">
+            <ClockIcon strokeWidth={1.5} />
+          </div>
+          <FrameTitle>Account pending approval</FrameTitle>
+          <FrameDescription>
+            Better Update is still in development and access is invite-only. Your account (
+            <span className="font-medium">{user.email}</span>) is waiting for a superadmin to
+            approve it. You&apos;ll be able to sign in once it&apos;s approved.
+          </FrameDescription>
+        </FrameHeader>
+        <Button
+          variant="outline"
+          className="self-center"
+          loading={logoutMutation.isPending}
+          onClick={() => {
+            logoutMutation.mutate();
+          }}
+        >
+          Sign out
+        </Button>
+      </Frame>
+    </div>
+  );
+};
+
+export const Route = createFileRoute("/pending-approval")({
+  ssr: false,
+  beforeLoad: async ({ context }) => {
+    /* eslint-disable functional/no-try-statements, functional/no-let, functional/no-promise-reject, functional/no-throw-statements, typescript/only-throw-error, init-declarations -- TanStack Router idiom: beforeLoad throws redirect Responses; coerce non-Error rejects so the CatchBoundary renders */
+    let session;
+    try {
+      session = await context.queryClient.ensureQueryData(sessionQueryOptions);
+    } catch (error) {
+      if (isRedirect(error)) {
+        throw error;
+      }
+      throw redirect({ to: "/auth/login", search: { redirectTo: "/pending-approval" } });
+    }
+    if (!session?.user) {
+      throw redirect({ to: "/auth/login", search: { redirectTo: "/pending-approval" } });
+    }
+    // Already approved → no reason to sit here.
+    if (isApprovedUser(session.user)) {
+      throw redirect({ to: "/" });
+    }
+    /* eslint-enable functional/no-try-statements, functional/no-let, functional/no-promise-reject, functional/no-throw-statements, typescript/only-throw-error, init-declarations */
+    return { user: session.user };
+  },
+  pendingComponent: GlobalLoading,
+  component: PendingApproval,
+});

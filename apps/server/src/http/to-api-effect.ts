@@ -19,6 +19,12 @@ const mapCrudError = Match.type<Conflict | Forbidden | NotFound>().pipe(
   Match.exhaustive,
 );
 
+const mapReadError = Match.type<Forbidden | NotFound>().pipe(
+  Match.tag("Forbidden", (error) => new ApiForbidden({ message: error.message })),
+  Match.tag("NotFound", (error) => new ApiNotFound({ message: error.message })),
+  Match.exhaustive,
+);
+
 const mapWriteError = Match.type<
   BadRequest | Conflict | Forbidden | MissingValueError | NotFound
 >().pipe(
@@ -53,6 +59,10 @@ export const toApiForbiddenEffect = <Success, Requirements>(
 export const toApiCrudEffect = <Success, Requirements>(
   effect: Effect.Effect<Success, Conflict | Forbidden | NotFound, Requirements>,
 ) => Effect.mapError(effect, mapCrudError);
+
+export const toApiReadEffect = <Success, Requirements>(
+  effect: Effect.Effect<Success, Forbidden | NotFound, Requirements>,
+) => Effect.mapError(effect, mapReadError);
 
 export const toApiWriteEffect = <Success, Requirements>(
   effect: Effect.Effect<

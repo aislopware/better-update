@@ -105,3 +105,12 @@ export const assertPermission = (resource: Resource, action: Action) =>
       });
     }
   });
+
+// Gate for the platform admin surface: requires the global (cross-org)
+// superadmin flag, not a per-org membership role.
+export const assertSuperadmin = Effect.gen(function* () {
+  const ctx = yield* CurrentActor;
+  if (!ctx.isSuperadmin) {
+    yield* new Forbidden({ message: "Superadmin access required" });
+  }
+});

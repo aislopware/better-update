@@ -4,6 +4,7 @@ import { Layer } from "effect";
 import { ManagementApi } from "./api";
 import { AuthenticationLive } from "./auth/middleware";
 import {
+  AdminGroupLive,
   AnalyticsGroupLive,
   AndroidApplicationIdentifiersGroupLive,
   AndroidBuildCredentialsGroupLive,
@@ -38,6 +39,7 @@ import { errorFormatMiddleware } from "./middleware/error-format";
 import { JsonLoggerLayer } from "./middleware/logging";
 
 const ManagementGroupsLayer = Layer.mergeAll(
+  AdminGroupLive,
   AnalyticsGroupLive,
   AndroidApplicationIdentifiersGroupLive,
   AndroidBuildCredentialsGroupLive,

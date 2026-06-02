@@ -346,6 +346,19 @@ All management API endpoints require an organization context. Requests without o
 
 ---
 
+## 4.4 Superadmin Approval Gate (dev phase)
+
+While the app is in development it must not be publicly usable. New users default to **not approved** and a **superadmin** must verify them before they can use any feature.
+
+- **`approved` (user column)** — Better Auth `additionalFields`, `defaultValue: false`, `input: false`. New sign-ups are unapproved; the column is never client-settable.
+- **Superadmin** — the Better Auth `admin` plugin adds a global `role` (`admin` | `user`). `role = "admin"` marks a superadmin (distinct from per-org membership roles). Bootstrapped on first sign-up for any email in `SUPERADMIN_EMAILS` (comma-separated `wrangler.jsonc` var; defaults to `cong.tran@jmango360.com`).
+- **Gate location** — `resolveSession` reads `approved`/`role` **straight from D1** (not the compact cookie cache, which may omit custom fields) right after `getSession`, before the active-org check. An unapproved, non-superadmin session → `403 Forbidden` ("Account pending superadmin approval"). Applies to both transports (browser cookie + CLI session bearer); API keys are minted by already-approved users.
+- **Org creation** — runs through Better Auth's own routes, not the HttpApi middleware, so it has its own gate: `organization.allowUserToCreateOrganization` checks approval in D1.
+- **Test mode** — email/password sign-ups (only enabled when `TEST_MODE=true`) are auto-approved so the e2e/integration suites run as approved users. Real (OAuth) sign-ups stay gated.
+- **`isSuperadmin`** is surfaced on `AuthContext`; `assertSuperadmin` gates the `/api/admin/*` group (`listUsers`, `approveUser`, `revokeUser`). The dashboard `/admin` page lets a superadmin approve/revoke users; unapproved users are held at `/pending-approval`.
+
+---
+
 ## 5. API Key Permissions for Management Endpoints
 
 Each management API endpoint maps to a required permission. The middleware checks the API key's stored permissions against the required permission before allowing the request.
@@ -488,9 +501,10 @@ Better Auth auto-creates these tables via migration:
 
 ### Modified Tables
 
-| Table      | Change                                                  | Migration                                               |
-| ---------- | ------------------------------------------------------- | ------------------------------------------------------- |
-| `projects` | Add `organization_id TEXT REFERENCES organizations(id)` | `ALTER TABLE projects ADD COLUMN organization_id TEXT;` |
+| Table      | Change                                                                                                       | Migration                                               |
+| ---------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------- |
+| `projects` | Add `organization_id TEXT REFERENCES organizations(id)`                                                      | `ALTER TABLE projects ADD COLUMN organization_id TEXT;` |
+| `user`     | Add `approved` (gate) + `role`/`banned`/`ban_reason`/`ban_expires` (admin plugin); `session.impersonated_by` | `0053_user_approval_and_admin.sql`                      |
 
 ### New Index
 

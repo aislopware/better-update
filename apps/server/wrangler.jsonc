@@ -92,6 +92,11 @@
     // the device accepts both). Set "true" to emit a true 226 for patches.
     "EMIT_HTTP_226": "false",
     "ENVIRONMENT": "production",
+    // Comma-separated allowlist of superadmin emails. A user signing in with a
+    // matching email is auto-promoted (global role "admin" + approved) on
+    // first login and can approve other users from the dashboard. The web app
+    // is in development and gated: everyone else starts unapproved.
+    "SUPERADMIN_EMAILS": "cong.tran@jmango360.com",
     "BETTER_AUTH_URL": "https://better-update.dev",
     "PUBLIC_API_URL": "https://better-update.dev",
     "ASSET_CDN_URL": "https://assets.better-update.dev",

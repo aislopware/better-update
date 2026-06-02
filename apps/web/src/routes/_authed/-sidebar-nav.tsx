@@ -21,6 +21,7 @@ import {
   SatelliteIcon,
   SettingsIcon,
   ShieldCheckIcon,
+  ShieldUserIcon,
   SmartphoneIcon,
   UploadCloudIcon,
   UsersIcon,
@@ -39,6 +40,7 @@ interface OrgNavItem {
     | "/api-keys"
     | "/environment-variables"
     | "/settings"
+    | "/admin"
     | "/account/profile";
   label: string;
   icon: LucideIcon;
@@ -106,6 +108,12 @@ const ORG_NAV: OrgNavSection[] = [
   },
 ];
 
+// Platform-superadmin section, appended only for superadmins (see `lib/access`).
+const ADMIN_NAV: OrgNavSection = {
+  label: "Superadmin",
+  items: [{ to: "/admin", label: "Users", icon: ShieldUserIcon }],
+};
+
 const PROJECT_NAV: ProjectNavSection[] = [
   {
     label: "Project",
@@ -156,9 +164,9 @@ const PROJECT_NAV: ProjectNavSection[] = [
   },
 ];
 
-export const OrgNavSections = () => (
+export const OrgNavSections = ({ isSuperadmin = false }: { isSuperadmin?: boolean }) => (
   <>
-    {ORG_NAV.map((section) => (
+    {(isSuperadmin ? [...ORG_NAV, ADMIN_NAV] : ORG_NAV).map((section) => (
       <SidebarGroup key={section.label}>
         <SidebarGroupLabel>{section.label}</SidebarGroupLabel>
         <SidebarGroupContent>

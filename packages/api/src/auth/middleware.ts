@@ -1,7 +1,8 @@
 import { HttpApiMiddleware, HttpApiSecurity } from "@effect/platform";
+import { Schema } from "effect";
 
 import { AuthContext } from "./context";
-import { Unauthorized } from "./errors";
+import { Forbidden, Unauthorized } from "./errors";
 
 const bearerSecurity = HttpApiSecurity.bearer;
 const cookieSecurity = HttpApiSecurity.apiKey({
@@ -10,7 +11,9 @@ const cookieSecurity = HttpApiSecurity.apiKey({
 });
 
 export class Authentication extends HttpApiMiddleware.Tag<Authentication>()("api/Authentication", {
-  failure: Unauthorized,
+  // `Unauthorized` (401): no/invalid credential. `Forbidden` (403): a valid
+  // session whose user is not yet approved by a superadmin (the dev-phase gate).
+  failure: Schema.Union(Unauthorized, Forbidden),
   provides: AuthContext,
   security: { bearer: bearerSecurity, cookie: cookieSecurity },
 }) {}

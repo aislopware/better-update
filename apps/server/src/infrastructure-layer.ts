@@ -9,6 +9,7 @@ import { EmailServiceLive } from "./cloudflare/email-service";
 import { ManifestCacheStorageLive } from "./cloudflare/manifest-cache-storage";
 import { UpdateCoordinatorLive } from "./cloudflare/update-coordinator";
 import {
+  AdminUsersRepoLive,
   AnalyticsRepoLive,
   AndroidApplicationIdentifierRepoLive,
   AndroidBuildCredentialsRepoLive,
@@ -49,6 +50,7 @@ import type { UpdateCoordinator } from "./cloudflare/update-coordinator";
 import type { CryptoService } from "./domain/crypto-service";
 import type { EmailService } from "./domain/email-service";
 import type {
+  AdminUsersRepo,
   AnalyticsRepo,
   AndroidApplicationIdentifierRepo,
   AndroidBuildCredentialsRepo,
@@ -81,6 +83,7 @@ import type {
 } from "./repositories";
 
 export type ServerInfrastructure =
+  | AdminUsersRepo
   | AnalyticsEngine
   | AnalyticsRepo
   | AndroidApplicationIdentifierRepo
@@ -120,6 +123,7 @@ export type ServerInfrastructure =
   | WebhookRepo;
 
 export const RepositoryLayer = Layer.mergeAll(
+  AdminUsersRepoLive,
   AnalyticsRepoLive,
   AndroidApplicationIdentifierRepoLive,
   AndroidBuildCredentialsRepoLive,

@@ -1,11 +1,12 @@
 import { apiKey } from "@better-auth/api-key";
-import { fromHex, toHex } from "@better-update/encoding";
 import { betterAuth } from "better-auth";
-import { bearer, oneTimeToken, organization } from "better-auth/plugins";
+import { admin, bearer, oneTimeToken, organization } from "better-auth/plugins";
 import { Effect } from "effect";
 
 import { API_KEY_PREFIX } from "./auth/constants";
 import { findFirstMembershipOrgId } from "./auth/memberships";
+import { hashPassword, verifyPassword } from "./auth/password";
+import { isSuperadminEmail, parseSuperadminEmails, roleIsSuperadmin } from "./auth/superadmin";
 import { provideCloudflareEnv } from "./cloudflare/context";
 import { EmailServiceLive } from "./cloudflare/email-service";
 import { EmailService } from "./domain/email-service";
@@ -14,61 +15,36 @@ import { structuredLog } from "./middleware/logging";
 
 const INVITE_SENDER_FROM = "noreply@better-update.dev";
 
-// --- Workers-compatible password hashing (PBKDF2 via Web Crypto) ---
-// Better Auth's default scrypt (N:16384, r:16) needs ~64 MB and crashes workerd.
-
-const PBKDF2_ITERATIONS = 600_000;
-const HEX_BYTES_PATTERN = /^(?:[0-9A-Fa-f]{2})+$/u;
-
-const deriveKey = async (password: string, salt: Uint8Array<ArrayBuffer>): Promise<ArrayBuffer> => {
-  const key = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(password),
-    "PBKDF2",
-    false,
-    ["deriveBits"],
-  );
-  return crypto.subtle.deriveBits(
-    { name: "PBKDF2", salt, iterations: PBKDF2_ITERATIONS, hash: "SHA-256" },
-    key,
-    256,
-  );
-};
-
-const hashPassword = async (password: string): Promise<string> => {
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const derived = new Uint8Array(await deriveKey(password, salt));
-  return `${toHex(salt)}:${toHex(derived)}`;
-};
-
-const verifyPassword = async ({
-  hash,
-  password,
-}: {
-  hash: string;
-  password: string;
-}): Promise<boolean> => {
-  const [saltHex, keyHex] = hash.split(":");
-  if (!saltHex || !keyHex || !HEX_BYTES_PATTERN.test(saltHex) || !HEX_BYTES_PATTERN.test(keyHex)) {
-    return false;
-  }
-  const derived = new Uint8Array(await deriveKey(password, fromHex(saltHex)));
-  const expected = fromHex(keyHex);
-  if (derived.length !== expected.length) {
-    return false;
-  }
-  // Constant-time comparison — reduce with XOR to avoid timing side-channels
-  // eslint-disable-next-line no-bitwise -- intentional constant-time XOR comparison
-  const result = derived.reduce((acc, byte, idx) => acc | (byte ^ (expected.at(idx) ?? 0)), 0);
-  return result === 0;
-};
+// Snake_case column mapping for the Better Auth `admin` plugin (role/banned use
+// matching column names; only these two need remapping, plus the session
+// impersonation back-reference). See migration 0053.
+const ADMIN_PLUGIN_SCHEMA = {
+  user: { fields: { banReason: "ban_reason", banExpires: "ban_expires" } },
+  session: { fields: { impersonatedBy: "impersonated_by" } },
+} as const;
 
 type AuthEnv = Env & {
   readonly GITHUB_CLIENT_ID?: string;
   readonly GITHUB_CLIENT_SECRET?: string;
   readonly GOOGLE_CLIENT_ID?: string;
   readonly GOOGLE_CLIENT_SECRET?: string;
+  readonly SUPERADMIN_EMAILS?: string;
   readonly TEST_MODE?: string;
+};
+
+// A user may create/use organizations only once approved (or if they are a
+// superadmin). Org creation runs through Better Auth's own routes, not our
+// HttpApi middleware, so it needs its own gate. Read straight from D1 rather
+// than trusting the session (the compact cookie cache may omit custom fields).
+const isUserApprovedOrAdmin = async (db: D1Database, userId: string): Promise<boolean> => {
+  const row = await db
+    .prepare(`SELECT "approved", "role" FROM "user" WHERE "id" = ?`)
+    .bind(userId)
+    .first<{ approved: number | null; role: string | null }>();
+  if (!row) {
+    return false;
+  }
+  return row.approved === 1 || roleIsSuperadmin(row.role);
 };
 
 const trimOptionalBinding = (value: string | undefined): string =>
@@ -95,6 +71,7 @@ export const createAuth = (env: AuthEnv, ctx?: ExecutionContext) => {
   const googleClientSecret = trimOptionalBinding(env.GOOGLE_CLIENT_SECRET);
   const googleEnabled = googleClientId.length > 0 && googleClientSecret.length > 0;
   const testMode = env.TEST_MODE === "true";
+  const superadminEmails = parseSuperadminEmails(env.SUPERADMIN_EMAILS);
 
   return betterAuth({
     secret: env.BETTER_AUTH_SECRET,
@@ -120,6 +97,16 @@ export const createAuth = (env: AuthEnv, ctx?: ExecutionContext) => {
         emailVerified: "email_verified",
         createdAt: "created_at",
         updatedAt: "updated_at",
+      },
+      // Superadmin-approval gate. `input: false` keeps clients from setting it
+      // on sign-up; new users default to unapproved and stay gated (see
+      // `auth/middleware.ts`) until a superadmin approves them.
+      additionalFields: {
+        approved: {
+          type: "boolean",
+          defaultValue: false,
+          input: false,
+        },
       },
     },
 
@@ -181,7 +168,7 @@ export const createAuth = (env: AuthEnv, ctx?: ExecutionContext) => {
 
     plugins: [
       organization({
-        allowUserToCreateOrganization: true,
+        allowUserToCreateOrganization: async (user) => isUserApprovedOrAdmin(env.DB, user.id),
         organizationLimit: 5,
         membershipLimit: 100,
         creatorRole: "owner",
@@ -297,9 +284,34 @@ export const createAuth = (env: AuthEnv, ctx?: ExecutionContext) => {
       // exchanges for a session. See docs/specs/build/02-credential-vault.md.
       bearer(),
       oneTimeToken({ expiresIn: 3 }),
+      // Global (cross-org) role + ban bookkeeping. `role: "admin"` marks a
+      // superadmin who can approve users from the dashboard `/admin` page.
+      // Columns: see migration 0053 (ban_reason/ban_expires/impersonated_by are
+      // snake_case-mapped here).
+      admin({ defaultRole: "user", adminRoles: ["admin"], schema: ADMIN_PLUGIN_SCHEMA }),
     ],
 
     databaseHooks: {
+      user: {
+        create: {
+          // Bootstrap: a user whose email is in SUPERADMIN_EMAILS is promoted to
+          // global admin and auto-approved on first sign-up. Everyone else keeps
+          // the `approved` default (false) and stays gated until approved.
+          // eslint-disable-next-line typescript/require-await -- better-auth's create.before type requires a Promise return; the bootstrap check is synchronous
+          before: async (user) => {
+            if (isSuperadminEmail(user.email, superadminEmails)) {
+              return { data: { ...user, role: "admin", approved: true } };
+            }
+            // Email/password sign-up only runs in TEST_MODE; auto-approve those
+            // users so the e2e/integration suites exercise the app as approved
+            // users. Real (OAuth) sign-ups stay gated until a superadmin approves.
+            if (testMode) {
+              return { data: { ...user, approved: true } };
+            }
+            return { data: user };
+          },
+        },
+      },
       session: {
         create: {
           before: async (session) => {

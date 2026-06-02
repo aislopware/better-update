@@ -1,4 +1,5 @@
 import type {
+  AdminUser,
   AndroidApplicationIdentifier,
   AndroidBuildCredentials,
   AndroidUploadKeystore,
@@ -25,6 +26,7 @@ import type {
   VaultRecipients,
 } from "@better-update/api";
 
+export type AdminUserItem = typeof AdminUser.Type;
 export type AnalyticsPeriod = typeof PeriodLiteral.Type;
 export type PlatformValue = typeof Platform.Type;
 export type ProjectItem = typeof Project.Type;
