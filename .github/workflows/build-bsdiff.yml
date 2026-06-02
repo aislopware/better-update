@@ -1,11 +1,13 @@
 # Cross-platform prebuilt binaries for @better-update/bsdiff (napi-rs).
 #
-# STATUS: scaffolded, NOT yet wired into the release flow. The host (darwin-arm64)
-# binary is built + proven locally; the other 7 targets in package.json's `napi.targets`
-# can only be produced in CI (cross-compile / native runners). When ready to ship the
-# CLI swap, flip `@better-update/bsdiff` to `private: false`, publish the per-platform
-# optionalDependency packages from the artifacts this workflow uploads (`napi prepublish`),
-# then publish the main package.
+# STATUS: package is public (`private` removed; main + the 8 npm/<platform> stubs are
+# version-locked at 0.2.0). The host (darwin-arm64) binary is built + proven locally; the
+# other 7 targets in package.json's `napi.targets` can only be produced in CI (cross-compile
+# / native runners). To ship: run this workflow via `workflow_dispatch` so the build matrix
+# produces all 8 .node artifacts and the publish job runs `napi prepublish` to publish the
+# per-platform optionalDependency packages; the main package then ships via Lerna (release.yml).
+# Until that dispatch runs, `@better-update/bsdiff@0.2.0` is still absent from npm, so the
+# CLI's bsdiff dependency keeps 404-ing — publish the platform packages BEFORE the next CLI release.
 #
 # This matrix follows the standard @napi-rs/cli layout: build each target, run
 # `napi artifacts` to move the .node into npm/<platform>/, upload, then a publish
@@ -114,8 +116,9 @@ jobs:
           if-no-files-found: error
 
   # Publish split optionalDependency packages + the main package.
-  # Gated on a manual dispatch / tag once the CLI swap lands. Left here as the
-  # documented shape; do not enable until @better-update/bsdiff is public.
+  # Gated on manual dispatch: a `push` only rebuilds + uploads artifacts, while a
+  # `workflow_dispatch` also publishes the per-platform packages. Dispatch this to
+  # publish @better-update/bsdiff@0.2.0's platform stubs before the next CLI release.
   publish:
     if: ${{ github.event_name == 'workflow_dispatch' }}
     needs: build
