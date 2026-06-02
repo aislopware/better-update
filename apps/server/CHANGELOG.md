@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.21.0](https://github.com/better-update/better-update/compare/@better-update/server@0.20.0...@better-update/server@0.21.0) (2026-06-02)
+
+### Features
+
+* **env-vars:** raise per-scope variable cap from 100 to 5000 ([5bccf68](https://github.com/better-update/better-update/commit/5bccf68b87525d3891240fb92b630566fb37934c)) - by @trancong12102
+
 ## [0.20.0](https://github.com/better-update/better-update/compare/@better-update/server@0.19.0...@better-update/server@0.20.0) (2026-06-02)
 
 ### Features
