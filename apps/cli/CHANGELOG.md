@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.25.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.24.2...@better-update/cli@0.25.0) (2026-06-02)
+
+### Features
+
+* **cli:** cache unlocked vault key in OS keychain ([3b7544c](https://github.com/better-update/better-update/commit/3b7544c19684a80ddaf5745abfdfff67ff9f0450)) - by @trancong12102
+
 ## [0.24.2](https://github.com/better-update/better-update/compare/@better-update/cli@0.24.1...@better-update/cli@0.24.2) (2026-06-02)
 
 **Note:** Version bump only for package @better-update/cli
