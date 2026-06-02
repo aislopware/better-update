@@ -11,8 +11,8 @@
     "lint:check": "oxlint"
   },
   "dependencies": {
-    "@better-auth/api-key": "^1.6.12",
-    "better-auth": "^1.6.12"
+    "@better-auth/api-key": "^1.6.13",
+    "better-auth": "^1.6.13"
   },
   "devDependencies": {
     "@better-update/oxlint-config": "workspace:*",
