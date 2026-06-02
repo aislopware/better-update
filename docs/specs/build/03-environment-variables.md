@@ -124,7 +124,7 @@ access — a member with no vault grant can see metadata but cannot read or writ
 | Key cannot be `PATH`, `HOME`, `USER`, `SHELL` | Overriding breaks the build env |
 | Max key length: 256 chars                     | Practical limit                 |
 | Max value length: 32 KB                       | D1 row size consideration       |
-| Max vars per project / org-global: 100        | Prevent abuse                   |
+| Max vars per project / org-global: 5000       | Prevent abuse                   |
 | Unique on (scope, key, environment)           | No duplicates                   |
 | Environment is immutable after creation       | It is part of the identity      |
 

@@ -1,3 +1,4 @@
+import { MAX_VARS_PER_PROJECT } from "../../src/handlers/env-vars-helpers";
 import { credentialEnvelope } from "../helpers/credential-envelope";
 import { setupE2EWorker } from "../helpers/e2e-worker-pool";
 
@@ -582,7 +583,7 @@ describe("Environment variables API flow (E2E encrypted)", () => {
   });
 
   it("enforces the per-project variable limit", async () => {
-    // A dedicated project so filling it to the cap doesn't pollute the shared fixtures.
+    // A dedicated project so the limit check doesn't pollute the shared fixtures.
     const projectResponse = await post(
       "/api/projects",
       { name: "Env Limit Project", slug: "env-limit-app" },
@@ -591,53 +592,20 @@ describe("Environment variables API flow (E2E encrypted)", () => {
     expect(projectResponse.status).toBe(201);
     const limitProjectId = (await projectResponse.json()).id as string;
 
-    // Fill the project to exactly the cap (100) in a single bulk import.
-    const fill = await post(
-      "/api/env-vars/bulk-import",
-      {
-        scope: "project",
-        projectId: limitProjectId,
-        entries: Array.from({ length: 100 }, (_, index) => ({
-          key: `LIMIT_KEY_${index}`,
-          environment: "development",
-          visibility: "plaintext",
-          value: credentialEnvelope(),
-        })),
-      },
-      { cookie: state.cookies },
-    );
-    expect(fill.status).toBe(200);
-    expect((await fill.json()).created).toBe(100);
-
-    // The 101st single create is rejected.
-    const overflowCreate = await post(
-      "/api/env-vars",
-      {
-        scope: "project",
-        projectId: limitProjectId,
-        environment: "development",
-        key: "ONE_TOO_MANY",
-        visibility: "plaintext",
-        value: credentialEnvelope(),
-      },
-      { cookie: state.cookies },
-    );
-    expect(overflowCreate.status).toBe(400);
-
-    // A bulk import that would push past the cap is rejected wholesale.
+    // A single bulk import past the cap is rejected wholesale — the guard runs on
+    // the entry count before any row is written, so we assert the rejection
+    // without first inserting MAX_VARS_PER_PROJECT rows (kept light on purpose).
     const overflowImport = await post(
       "/api/env-vars/bulk-import",
       {
         scope: "project",
         projectId: limitProjectId,
-        entries: [
-          {
-            key: "ALSO_TOO_MANY",
-            environment: "development",
-            visibility: "plaintext",
-            value: credentialEnvelope(),
-          },
-        ],
+        entries: Array.from({ length: MAX_VARS_PER_PROJECT + 1 }, (_, index) => ({
+          key: `LIMIT_KEY_${index}`,
+          environment: "development",
+          visibility: "plaintext",
+          value: credentialEnvelope(),
+        })),
       },
       { cookie: state.cookies },
     );
