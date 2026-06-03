@@ -110,7 +110,7 @@ Sidebar with grouped navigation and footer:
 
 Key composition rules:
 - Wrap app with `SidebarProvider` at the layout level.
-- Use `SidebarContent` (not "SidebarPanel") as the scrollable body between header/footer.
+- Use `SidebarContent` (not "SidebarPanel") as the scrollable body between header/footer. It uses `ScrollArea` with `fill` so flex children (e.g. `mt-auto` footers) can pin to the bottom.
 - Navigation items use `SidebarMenu` > `SidebarMenuItem` > `SidebarMenuButton`.
 - For link items, use `render` composition: `<SidebarMenuButton render={<a href="..." />}>`. Do not use `asChild` -- sidebar follows the same `render` pattern as all other coss primitives.
 - Use `SidebarTrigger` for the collapse/expand toggle.
@@ -127,6 +127,7 @@ See `p-toolbar-1`, `p-breadcrumb-1`, `p-tabs-1`, `p-menu-1` for related app-shel
 - Forgetting `SidebarProvider` wrapper, which manages collapse state and mobile responsiveness.
 - Skipping the `SidebarMenu` > `SidebarMenuItem` > `SidebarMenuButton` hierarchy for nav items.
 - Missing responsive collapse strategy for narrow/mobile layouts.
+- Replacing `SidebarContent`'s scroll area with a raw `ScrollArea` without `fill` when the body uses `mt-auto` to pin footers—use `fill` (see scroll-area primitive docs).
 
 ## Useful particle references
 
