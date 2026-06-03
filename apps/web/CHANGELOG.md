@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.27.0](https://github.com/better-update/better-update/compare/@better-update/web@0.26.0...@better-update/web@0.27.0) (2026-06-03)
+
+### Features
+
+* **web:** dock onboarding account menu into card footer ([9f097e7](https://github.com/better-update/better-update/commit/9f097e7dbb39f6c375ce5a09f3a5a853d9cac2ba)) - by @trancong12102
+
 ## [0.26.0](https://github.com/better-update/better-update/compare/@better-update/web@0.25.0...@better-update/web@0.26.0) (2026-06-03)
 
 ### Features
