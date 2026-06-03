@@ -1,12 +1,18 @@
 import { compact } from "@better-update/type-guards";
 import { Effect } from "effect";
 
-import type { FileSystem, Path } from "@effect/platform";
+import type { FileSystem } from "@effect/platform";
 
-import { readEasJson, resolveEasBuildProfile } from "./eas-config";
+import { readBuildConfig } from "./better-update-build-config";
+import { resolveEasBuildProfile } from "./eas-config";
 import { extractAppVersion, extractBuildNumber, extractRawRuntimeVersion } from "./expo-config";
 
-import type { EasAndroidProfile, EasBuildProfile, EasIosProfile } from "./eas-config";
+import type {
+  CustomCommandProfile,
+  EasAndroidProfile,
+  EasBuildProfile,
+  EasIosProfile,
+} from "./eas-config";
 import type { BuildProfileError } from "./exit-codes";
 import type { ExpoConfig } from "./expo-config";
 
@@ -17,15 +23,35 @@ export type IosDistribution = "app-store" | "ad-hoc" | "development" | "enterpri
 export type IosAutoIncrement = "buildNumber" | "version";
 export type AndroidAutoIncrement = "versionCode" | "version";
 
+/** Metadata overrides read from the profile when native config is unavailable. */
+export interface IosMetaOverride {
+  readonly bundleIdentifier?: string;
+  readonly version?: string;
+  readonly buildNumber?: string;
+}
+
 export interface IosProfile {
   readonly buildConfiguration?: string;
   readonly distribution: IosDistribution;
   readonly scheme?: string;
   readonly simulator?: boolean;
   readonly autoIncrement?: IosAutoIncrement;
+  /** Explicit `.xcworkspace` path (relative to project root). Else auto-discover. */
+  readonly workspace?: string;
+  /** Explicit `.xcodeproj` path when there is no workspace (pure-native apps). */
+  readonly project?: string;
+  /** Run `pod install` before xcodebuild. Defaults to true when a Podfile exists. */
+  readonly podInstall?: boolean;
+  readonly metaOverride?: IosMetaOverride;
 }
 
 export type AndroidDistribution = "play-store" | "direct";
+
+export interface AndroidMetaOverride {
+  readonly applicationId?: string;
+  readonly version?: string;
+  readonly versionCode?: string;
+}
 
 export interface AndroidProfile {
   readonly buildType?: "debug" | "release";
@@ -34,6 +60,11 @@ export interface AndroidProfile {
   readonly distribution: AndroidDistribution;
   readonly gradleCommand?: string;
   readonly autoIncrement?: AndroidAutoIncrement;
+  /** Gradle module that produces the artifact. Default "app". */
+  readonly module?: string;
+  /** Explicit Gradle task, overrides format/flavor/buildType derivation. */
+  readonly gradleTask?: string;
+  readonly metaOverride?: AndroidMetaOverride;
 }
 
 export type CredentialsSource = "remote" | "local";
@@ -50,6 +81,8 @@ export interface BuildProfile {
   readonly developmentClient?: boolean;
   /** Mirror of EAS `withoutCredentials` — skip credential fetch + signing injection. */
   readonly withoutCredentials?: boolean;
+  /** Custom-command escape hatch (per platform) — overrides native build invocation. */
+  readonly customCommand?: CustomCommandProfile;
 }
 
 export type RawRuntimeVersion = string | { readonly policy: string };
@@ -181,12 +214,21 @@ const toIosProfile = (eas: EasBuildProfile): IosProfile | undefined => {
   // ios.buildConfiguration override always wins.
   const buildConfiguration =
     ios.buildConfiguration ?? (eas.developmentClient === true ? "Debug" : undefined);
+  const metaOverride = compact({
+    bundleIdentifier: ios.bundleIdentifier,
+    version: ios.version,
+    buildNumber: ios.buildNumber,
+  });
   return compact({
     distribution,
     buildConfiguration,
     scheme: ios.scheme,
     simulator: ios.simulator,
     autoIncrement,
+    workspace: ios.workspace,
+    project: ios.project,
+    podInstall: ios.podInstall,
+    metaOverride: Object.keys(metaOverride).length === 0 ? undefined : metaOverride,
   });
 };
 
@@ -206,6 +248,11 @@ const toAndroidProfile = (eas: EasBuildProfile): AndroidProfile | undefined => {
   // android.buildType override always wins.
   const buildType =
     android.buildType ?? (eas.developmentClient === true ? ("debug" as const) : undefined);
+  const metaOverride = compact({
+    applicationId: android.applicationId,
+    version: android.version,
+    versionCode: android.versionCode,
+  });
   return compact({
     format,
     distribution,
@@ -213,10 +260,13 @@ const toAndroidProfile = (eas: EasBuildProfile): AndroidProfile | undefined => {
     flavor: android.flavor,
     gradleCommand: android.gradleCommand,
     autoIncrement,
+    module: android.module,
+    gradleTask: android.gradleTask,
+    metaOverride: Object.keys(metaOverride).length === 0 ? undefined : metaOverride,
   });
 };
 
-export const fromEasProfile = (eas: EasBuildProfile, profileName: string): BuildProfile => {
+export const fromGenericProfile = (eas: EasBuildProfile, profileName: string): BuildProfile => {
   const ios = toIosProfile(eas);
   const android = toAndroidProfile(eas);
   return compact({
@@ -229,17 +279,19 @@ export const fromEasProfile = (eas: EasBuildProfile, profileName: string): Build
     credentialsSource: eas.credentialsSource,
     developmentClient: eas.developmentClient,
     withoutCredentials: eas.withoutCredentials,
+    customCommand: eas.custom,
   });
 };
 
+/** Resolve a build profile from `better-update.json`'s `build` section. */
 export const readBuildProfile = (
   projectRoot: string,
   profileName: string,
-): Effect.Effect<BuildProfile, BuildProfileError, FileSystem.FileSystem | Path.Path> =>
+): Effect.Effect<BuildProfile, BuildProfileError, FileSystem.FileSystem> =>
   Effect.gen(function* () {
-    const config = yield* readEasJson(projectRoot);
-    const easProfile = yield* resolveEasBuildProfile(config, profileName);
-    return fromEasProfile(easProfile, profileName);
+    const buildConfig = yield* readBuildConfig(projectRoot);
+    const profile = yield* resolveEasBuildProfile(buildConfig, profileName, "better-update.json");
+    return fromGenericProfile(profile, profileName);
   });
 
 export const readRuntimeVersionMeta = (

@@ -261,14 +261,14 @@ export const setupCliE2E = (testId: string, options: SetupCliE2EOptions): CliE2E
     throw new Error("requestWithRetry exhausted unexpectedly");
   };
 
-  // Migrate legacy `expo.extra.betterUpdate.profiles` (the pre-eas.json shape)
-  // to a sibling eas.json file. Strip the legacy field from the app config so
-  // the new reader is the only source of truth.
-  const splitTemplateAndEasJson = (
+  // Move legacy `expo.extra.betterUpdate.profiles` (the pre-config shape) into a
+  // sibling better-update.json `build` section. Strip the legacy field from the
+  // app config so better-update.json is the only build-profile source.
+  const splitTemplateAndBuildProfiles = (
     rawTemplate: Record<string, unknown>,
   ): {
     readonly cleanedTemplate: Record<string, unknown>;
-    readonly easProfiles: Record<string, unknown> | null;
+    readonly buildProfiles: Record<string, unknown> | null;
   } => {
     const cloned = structuredClone(rawTemplate);
     const expo = cloned["expo"] as Record<string, unknown> | undefined;
@@ -276,19 +276,23 @@ export const setupCliE2E = (testId: string, options: SetupCliE2EOptions): CliE2E
     const betterUpdate = extra?.["betterUpdate"] as Record<string, unknown> | undefined;
     const profiles = betterUpdate?.["profiles"] as Record<string, unknown> | undefined;
     if (!profiles) {
-      return { cleanedTemplate: cloned, easProfiles: null };
+      return { cleanedTemplate: cloned, buildProfiles: null };
     }
     delete betterUpdate?.["profiles"];
-    return { cleanedTemplate: cloned, easProfiles: profiles };
+    return { cleanedTemplate: cloned, buildProfiles: profiles };
   };
 
-  const writeEasJsonIfNeeded = (easProfiles: Record<string, unknown> | null) => {
-    if (!easProfiles) {
+  const writeBuildProfilesIfNeeded = (buildProfiles: Record<string, unknown> | null) => {
+    if (!buildProfiles) {
       return;
     }
+    const configPath = path.join(state.projectDir, "better-update.json");
+    const existing = existsSync(configPath)
+      ? (JSON.parse(readFileSync(configPath, "utf8")) as Record<string, unknown>)
+      : {};
     writeFileSync(
-      path.join(state.projectDir, "eas.json"),
-      `${JSON.stringify({ build: easProfiles }, null, 2)}\n`,
+      configPath,
+      `${JSON.stringify({ ...existing, build: buildProfiles }, null, 2)}\n`,
     );
   };
 
@@ -299,8 +303,8 @@ export const setupCliE2E = (testId: string, options: SetupCliE2EOptions): CliE2E
     if (!existsSync(pkgJsonPath)) {
       writeFileSync(pkgJsonPath, `${JSON.stringify({ name: slug, version: "1.0.0" }, null, 2)}\n`);
     }
-    const { cleanedTemplate, easProfiles } = splitTemplateAndEasJson(template);
-    writeEasJsonIfNeeded(easProfiles);
+    const { cleanedTemplate, buildProfiles } = splitTemplateAndBuildProfiles(template);
+    writeBuildProfilesIfNeeded(buildProfiles);
     if (options.useDynamicConfig) {
       // Drop any pre-existing app.json so the dynamic config is unambiguously
       // The source of truth for @expo/config (avoids static-base shadowing).
