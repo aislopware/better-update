@@ -4,7 +4,7 @@ import { spawnPty } from "../helpers/pty-driver";
 
 const HARNESS = path.resolve(import.meta.dirname, "./harness/provider-prompt.ts");
 
-const RESULT_RE = /^RESULT=(\{.*\})$/m;
+const RESULT_RE = /^RESULT=(?<result>\{.*\})$/m;
 
 const runHarness = async (actions: (driver: ReturnType<typeof spawnPty>) => Promise<void>) => {
   const driver = spawnPty("bun", [HARNESS], {

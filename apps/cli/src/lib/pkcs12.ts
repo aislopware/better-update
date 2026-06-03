@@ -24,7 +24,7 @@ const extractTeamId = (params: {
   if (params.orgUnit && APPLE_TEAM_ID_RE.test(params.orgUnit)) {
     return params.orgUnit;
   }
-  const parenMatch = /\(([A-Z0-9]{10})\)\s*$/u.exec(params.signingIdentity);
+  const parenMatch = /\((?<team>[A-Z0-9]{10})\)\s*$/u.exec(params.signingIdentity);
   return parenMatch?.[1];
 };
 

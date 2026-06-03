@@ -64,7 +64,7 @@ interface MultipartPart {
 }
 
 const parseMultipart = (contentType: string, rawBody: string): readonly MultipartPart[] => {
-  const boundary = /boundary=([^\s;]+)/.exec(contentType)?.[1] ?? "";
+  const boundary = /boundary=(?<boundary>[^\s;]+)/.exec(contentType)?.[1] ?? "";
   return rawBody
     .split(`--${boundary}`)
     .slice(1, -1)
@@ -93,7 +93,7 @@ const verifyExpoSignature = (sfvHeader: string | undefined, body: string): boole
   if (sfvHeader === undefined) {
     return false;
   }
-  const match = /^sig="([^"]+)", keyid="main", alg="rsa-v1_5-sha256"$/.exec(sfvHeader);
+  const match = /^sig="(?<sig>[^"]+)", keyid="main", alg="rsa-v1_5-sha256"$/.exec(sfvHeader);
   if (match === null) {
     return false;
   }

@@ -48,7 +48,7 @@ interface MultipartPart {
 }
 
 const parseMultipart = (contentType: string, rawBody: string): readonly MultipartPart[] => {
-  const boundary = /boundary=([^\s;]+)/.exec(contentType)?.[1] ?? "";
+  const boundary = /boundary=(?<boundary>[^\s;]+)/.exec(contentType)?.[1] ?? "";
   return rawBody
     .split(`--${boundary}`)
     .slice(1, -1)
@@ -102,7 +102,7 @@ const fetchServedManifest = async (): Promise<ServedManifest> => {
   return { id: manifest.id, launchHash: manifest.launchAsset.url.split("/").at(-1) ?? "" };
 };
 
-const publishGroupPattern = /Published update group ([0-9a-f-]+) to branch "main"\./;
+const publishGroupPattern = /Published update group (?<groupId>[0-9a-f-]+) to branch "main"\./;
 
 const publishIos = (message?: string): string => {
   const result = cli.runCli(

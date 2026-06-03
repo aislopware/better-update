@@ -12,8 +12,8 @@ export const RESOLVED_THEME_COOKIE_NAME = "resolved-theme";
 const COOKIE_MAX_AGE_SECONDS = 31_536_000;
 const COOKIE_ATTRIBUTES = `path=/; max-age=${COOKIE_MAX_AGE_SECONDS}; SameSite=Lax`;
 
-const THEME_COOKIE_PATTERN = /(?:^|;\s*)theme=([\w]+)/u;
-const RESOLVED_THEME_COOKIE_PATTERN = /(?:^|;\s*)resolved-theme=([\w]+)/u;
+const THEME_COOKIE_PATTERN = /(?:^|;\s*)theme=(?<theme>[\w]+)/u;
+const RESOLVED_THEME_COOKIE_PATTERN = /(?:^|;\s*)resolved-theme=(?<theme>[\w]+)/u;
 
 export const VALID_THEMES = new Set<string>(["light", "dark", "system"]);
 export const VALID_RESOLVED_THEMES = new Set<string>(["light", "dark"]);

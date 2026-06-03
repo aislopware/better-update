@@ -491,9 +491,10 @@ describe("cLI command journey", () => {
     expect(listResult.stdout).toContain("ios");
     expect(listResult.stdout).toContain("1.0.0");
     expect(listResult.stdout).toContain("yes");
-    const rollbackMatch = /^([^\s]+)\s+([^\s]+)\s+main\s+ios\s+1\.0\.0\s+100%\s+yes\s+.+$/m.exec(
-      listResult.stdout,
-    );
+    const rollbackMatch =
+      /^(?<updateId>[^\s]+)\s+(?<groupId>[^\s]+)\s+main\s+ios\s+1\.0\.0\s+100%\s+yes\s+.+$/m.exec(
+        listResult.stdout,
+      );
     expect(rollbackMatch).toBeDefined();
     cliState.rollbackUpdateId = rollbackMatch?.[1] ?? "";
     cliState.rollbackGroupId = rollbackMatch?.[2] ?? "";
@@ -594,7 +595,7 @@ describe("cLI command journey", () => {
     expect(uploadResult.stderr).toBe("");
     expect(uploadResult.stdout).toContain("Credential uploaded successfully.");
     expect(uploadResult.stdout).toContain("CLI Uploaded Certificate");
-    const uploadedCredentialId = /^ID\s+([^\s]+)$/m.exec(uploadResult.stdout)?.[1];
+    const uploadedCredentialId = /^ID\s+(?<id>[^\s]+)$/m.exec(uploadResult.stdout)?.[1];
     expect(uploadedCredentialId).toBeDefined();
 
     const listAfterUpload = cli.runCli("credentials", "list", "--platform", "ios");
@@ -797,7 +798,7 @@ describe("cLI command journey", () => {
     expect(promoteResult.exitCode).toBe(0);
     expect(promoteResult.stderr).toBe("");
 
-    const promotedUpdateId = /as update ([^\s.]+)\./.exec(promoteResult.stdout)?.[1];
+    const promotedUpdateId = /as update (?<updateId>[^\s.]+)\./.exec(promoteResult.stdout)?.[1];
     expect(promotedUpdateId).toBeDefined();
 
     const updatesResponse = await cli.getAuthorized(`/api/updates?projectId=${cli.getProjectId()}`);

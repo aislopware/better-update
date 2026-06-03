@@ -55,7 +55,7 @@ const listCurrentKeychains = Effect.gen(function* () {
 const parseSigningIdentity = (output: string): string | undefined => {
   const lines = output.split("\n");
   for (const line of lines) {
-    const match = /"([^"]+)"/u.exec(line);
+    const match = /"(?<identity>[^"]+)"/u.exec(line);
     if (match?.[1]) {
       return match[1];
     }

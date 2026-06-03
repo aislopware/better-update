@@ -6,7 +6,7 @@ import type { HttpApp } from "@effect/platform";
 
 /** Convert PascalCase to UPPER_SNAKE_CASE: "OrgRequired" → "ORG_REQUIRED" */
 export const pascalToUpperSnake = (str: string): string =>
-  str.replaceAll(/([a-z0-9])([A-Z])/gu, "$1_$2").toUpperCase();
+  str.replaceAll(/(?<lower>[a-z0-9])(?<upper>[A-Z])/gu, "$1_$2").toUpperCase();
 
 const isTaggedObject = (value: unknown): value is Record<string, unknown> & { _tag: string } =>
   typeof value === "object" &&

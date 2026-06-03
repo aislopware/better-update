@@ -46,7 +46,7 @@ describe(deriveExpiryStatus, () => {
   });
 });
 
-it("STATUS_BADGE_VARIANT maps every tone to a Badge variant", () => {
+test("STATUS_BADGE_VARIANT maps every tone to a Badge variant", () => {
   expect(STATUS_BADGE_VARIANT).toStrictEqual({
     error: "error",
     muted: "outline",

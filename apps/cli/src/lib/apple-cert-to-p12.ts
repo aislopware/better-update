@@ -30,7 +30,7 @@ const stringField = (cert: forge.pki.Certificate, name: string): string | null =
 };
 
 const matchTeamFromCommonName = (cn: string): string | null => {
-  const match = /\(([A-Z0-9]{10})\)/u.exec(cn);
+  const match = /\((?<team>[A-Z0-9]{10})\)/u.exec(cn);
   if (match === null) {
     return null;
   }

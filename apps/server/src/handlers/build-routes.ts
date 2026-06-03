@@ -304,12 +304,12 @@ export const matchBuildRoute = async (
     return handleTestBuildDownload(request, env);
   }
 
-  const artifactMatch = /^\/api\/builds\/([^/]+)\/artifact$/u.exec(pathname);
+  const artifactMatch = /^\/api\/builds\/(?<buildId>[^/]+)\/artifact$/u.exec(pathname);
   if (artifactMatch?.[1] && request.method === "GET") {
     return handleBuildArtifactDownload(request, env, artifactMatch[1]);
   }
 
-  const installMatch = /^\/api\/builds\/([^/]+)\/install$/u.exec(pathname);
+  const installMatch = /^\/api\/builds\/(?<buildId>[^/]+)\/install$/u.exec(pathname);
   if (installMatch?.[1] && request.method === "GET") {
     return handleBuildInstallPlist(request, env, installMatch[1]);
   }
