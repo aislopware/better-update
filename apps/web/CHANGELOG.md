@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.24.2](https://github.com/better-update/better-update/compare/@better-update/web@0.24.1...@better-update/web@0.24.2) (2026-06-03)
+
+### Bug Fixes
+
+* **web:** use FramePanel layout for pending-approval card ([1efe962](https://github.com/better-update/better-update/commit/1efe962230ddb072f65c47588a5fefc522011b3e)) - by @trancong12102
+
 ## [0.24.1](https://github.com/better-update/better-update/compare/@better-update/web@0.24.0...@better-update/web@0.24.1) (2026-06-03)
 
 **Note:** Version bump only for package @better-update/web
