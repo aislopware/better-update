@@ -6,11 +6,18 @@ import { Effect, Layer, Redacted } from "effect";
 import { createAuth } from "../auth";
 import { cloudflareEnv } from "../cloudflare/context";
 import { Forbidden, Unauthorized } from "../errors";
+import { OrgRoleRepo, OrgRoleRepoLive } from "../repositories/org-role-repo";
 import { API_KEY_PREFIX } from "./constants";
 import { permissions } from "./permissions";
 import { roleIsSuperadmin } from "./superadmin";
 
-import type { AuthContextShape, EffectivePermissions, Role } from "./context";
+import type {
+  Action,
+  BuiltinRole,
+  EffectivePermissions as ModelsEffectivePermissions,
+  Resource,
+} from "../models";
+import type { AuthContextShape, EffectivePermissions } from "./context";
 
 // ── Plugin API facade (types not inferred from betterAuth config) ──
 
@@ -24,6 +31,7 @@ interface VerifyApiKeyResult {
 }
 
 interface ActiveMember {
+  id: string;
   role: string;
   userId: string;
   organizationId: string;
@@ -135,8 +143,71 @@ const toStandardHeaders = (headers: Readonly<Record<string, string | undefined>>
     return result;
   }, new Headers());
 
-const isRole = (value: string): value is Role =>
+// Built-in vs custom role switch (NOT an accept/reject gate). Built-in names
+// resolve from the static `permissions` map with zero queries; any other name is
+// a custom (dynamic-AC) role read from `organization_role`.
+const isBuiltinRole = (value: string): value is BuiltinRole =>
   ["owner", "admin", "developer", "viewer"].includes(value);
+
+// Union one role's resource->actions map into the accumulating set map. Keeps the
+// `Resource` key type end-to-end: `Object.entries` widens keys to `string`, so we
+// recover the original key type via a single contained assertion (a known TS
+// structural-typing limitation, not a runtime risk — the source is already typed
+// `Partial<Record<Resource, …>>`).
+const mergePermissionMap = (
+  into: Map<Resource, Set<Action>>,
+  source: Partial<Record<Resource, readonly Action[]>>,
+): void => {
+  // eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- Object.entries widens keys to string; source is already typed Partial<Record<Resource, Action[]>>
+  const entries = Object.entries(source) as [Resource, readonly Action[]][];
+  entries.forEach(([resource, actions]) => {
+    const existing = into.get(resource) ?? new Set<Action>();
+    actions.forEach((action) => existing.add(action));
+    into.set(resource, existing);
+  });
+};
+
+// Resolve a member's `effectivePermissions` ONCE per request, caching it into the
+// auth context. `member.role` may be a built-in name, a custom-role name, or a
+// comma-joined list (better-auth allows multi-role). Built-in names map straight
+// from `permissions` (no query); each non-built-in name costs one
+// `organization_role` read, merged onto any same-named built-in.
+//
+// Exported (with `OrgRoleRepo` as an unresolved requirement) so the resolution
+// algorithm can be unit-tested against a stubbed repo; the live repo is provided
+// at the single call site in `resolveSession` so the requirement never leaks into
+// `ApiLive`.
+export const resolveEffectivePermissions = (params: {
+  readonly organizationId: string;
+  readonly roleSpec: string;
+}) =>
+  Effect.gen(function* () {
+    const repo = yield* OrgRoleRepo;
+    const names = params.roleSpec
+      .split(",")
+      .map((name) => name.trim())
+      .filter((name) => name.length > 0);
+    const merged = yield* Effect.reduce(names, new Map<Resource, Set<Action>>(), (acc, name) =>
+      Effect.gen(function* () {
+        const builtin = isBuiltinRole(name) ? permissions[name] : undefined;
+        // Skip the custom read for pure built-in names (strict zero-query path).
+        const custom = builtin
+          ? null
+          : yield* repo.findByName({ organizationId: params.organizationId, role: name });
+        // An unknown role name (neither built-in nor a stored custom role)
+        // contributes nothing to the merged permission set.
+        const source = builtin ?? custom;
+        if (source) {
+          mergePermissionMap(acc, source);
+        }
+        return acc;
+      }),
+    );
+    return [...merged].reduce<ModelsEffectivePermissions>((out, [resource, set]) => {
+      out[resource] = [...set];
+      return out;
+    }, {});
+  });
 
 // ── Shared session resolver ───────────────────────────────────────
 
@@ -177,17 +248,26 @@ const resolveSession = (transport: "bearer" | "cookie") =>
 
     const member = yield* getActiveMember(headers);
 
-    if (!member || !isRole(member.role)) {
+    if (!member) {
       return yield* new Unauthorized({
         message: "Not a member of the active organization",
       });
     }
 
+    // Resolve effective permissions HERE, once per request, for built-in AND
+    // custom roles; cache the result into the context. A member with a valid
+    // custom role is accepted (the old `isRole` whitelist is gone).
+    const effectivePermissions = yield* resolveEffectivePermissions({
+      organizationId: orgId,
+      roleSpec: member.role,
+    }).pipe(Effect.provide(OrgRoleRepoLive));
+
     return {
       userId: session.user.id,
       organizationId: orgId,
+      memberId: member.id,
       role: member.role,
-      effectivePermissions: permissions[member.role],
+      effectivePermissions,
       source: "session",
       transport,
       actorEmail: session.user.email,
@@ -228,6 +308,7 @@ const resolveFromBearer = (token: Redacted.Redacted) => {
       return Effect.succeed({
         userId: null,
         organizationId: result.key.referenceId,
+        memberId: null,
         role: null,
         effectivePermissions: keyPermissions,
         source: "api-key",

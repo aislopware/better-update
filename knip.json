@@ -20,6 +20,7 @@
       "ignoreDependencies": ["cloudflare"]
     },
     "apps/web": {
+      "entry": ["src/router.tsx"],
       "project": ["src/**/*.{ts,tsx}", "tests/**/*.ts"],
       "ignoreDependencies": [
         "@fontsource-variable/geist",

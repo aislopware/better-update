@@ -409,14 +409,25 @@ describe("Credential vault lifecycle", () => {
         await post("/api/auth/organization/set-active", { organizationId }, { cookie: cookiesB }),
       ) || cookiesB;
 
-    // `developer` is a real permission role but not assignable through the org
-    // plugin's built-in roles, so set it directly. `getActiveMember` reads the
-    // member row fresh per request, so this takes effect without a re-sign-in.
-    await env.DB.prepare(
-      `UPDATE "member" SET "role" = 'developer' WHERE "user_id" = (SELECT "id" FROM "user" WHERE "email" = ?) AND "organization_id" = ?`,
-    )
-      .bind(bEmail, organizationId)
-      .run();
+    // `developer` is now a first-class assignable role (L1 static RBAC registered
+    // on the org plugin), so assign it through the better-auth API — no raw-D1
+    // `UPDATE member.role` hack. `getActiveMember` reads the member row fresh per
+    // request, so this takes effect without a re-sign-in.
+    const members = await (
+      await get(`/api/auth/organization/list-members?organizationId=${organizationId}`, {
+        cookie: cookiesA,
+      })
+    ).json();
+    const memberList = Array.isArray(members) ? members : (members.members ?? members);
+    const devMember = memberList.find((m: { user: { email: string } }) => m.user.email === bEmail);
+    expect(devMember).toBeDefined();
+
+    const assignRole = await post(
+      "/api/auth/organization/update-member-role",
+      { memberId: devMember.id, role: "developer", organizationId },
+      { cookie: cookiesA },
+    );
+    expect(assignRole.status).toBe(200);
 
     // Read access is allowed for a developer.
     expect((await get("/api/vault", { cookie: cookiesB })).status).toBe(200);

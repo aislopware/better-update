@@ -3,15 +3,16 @@ import { Effect } from "effect";
 import { Forbidden } from "../errors";
 import { CurrentActor } from "./current-actor";
 
-import type { Action, Resource, Role } from "../models";
+import type { Action, BuiltinRole, Resource } from "../models";
 
-type PermissionMap = Record<Role, Partial<Record<Resource, readonly Action[]>>>;
+type PermissionMap = Record<BuiltinRole, Partial<Record<Resource, readonly Action[]>>>;
 
 export const permissions: PermissionMap = {
   owner: {
     organization: ["read", "update", "delete"],
     member: ["read", "create", "update", "delete"],
     invitation: ["read", "create", "cancel"],
+    ac: ["create", "read", "update", "delete"],
     project: ["read", "create", "update", "delete"],
     channel: ["read", "create", "update", "delete"],
     branch: ["read", "create", "update", "delete"],
@@ -35,6 +36,7 @@ export const permissions: PermissionMap = {
     organization: ["read"],
     member: ["read", "create", "update", "delete"],
     invitation: ["read", "create", "cancel"],
+    ac: ["create", "read", "update", "delete"],
     project: ["read", "create", "update", "delete"],
     channel: ["read", "create", "update", "delete"],
     branch: ["read", "create", "update", "delete"],

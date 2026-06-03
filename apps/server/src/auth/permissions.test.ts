@@ -4,12 +4,18 @@ import { Effect, Exit } from "effect";
 import { AuthContext } from "./context";
 import { assertPermission, assertSuperadmin, permissions } from "./permissions";
 
-import type { Action, EffectivePermissions, Role } from "./context";
+import type { BuiltinRole } from "../models";
+import type { Action, EffectivePermissions } from "./context";
 
-const provideAuth = (role: Role, overrides?: Partial<EffectivePermissions>, isSuperadmin = false) =>
+const provideAuth = (
+  role: BuiltinRole,
+  overrides?: Partial<EffectivePermissions>,
+  isSuperadmin = false,
+) =>
   Effect.provideService(AuthContext, {
     userId: "test-user",
     organizationId: "test-org",
+    memberId: "test-member",
     role,
     effectivePermissions: { ...permissions[role], ...overrides },
     source: "session",
@@ -124,7 +130,7 @@ describe(assertPermission, () => {
     }),
   );
 
-  it.each<[Role, string, Action]>([
+  it.each<[BuiltinRole, string, Action]>([
     ["owner", "project", "delete"],
     ["admin", "member", "create"],
     ["developer", "channel", "update"],
@@ -133,6 +139,34 @@ describe(assertPermission, () => {
     const actions = permissions[role][resource as keyof typeof permissions.owner];
     expect(actions).toContain(action);
   });
+
+  // L1: the `ac` meta-resource (manage custom roles) is owner/admin only.
+  it.effect.each<BuiltinRole>(["owner", "admin"])(
+    "%s can create custom roles (ac:create)",
+    (role) => assertPermission("ac", "create").pipe(provideAuth(role)),
+  );
+
+  it.effect.each<BuiltinRole>(["developer", "viewer"])(
+    "%s cannot create custom roles (ac:create -> Forbidden)",
+    (role) =>
+      Effect.gen(function* () {
+        const exit = yield* assertPermission("ac", "create").pipe(provideAuth(role), Effect.exit);
+        expect(Exit.isFailure(exit)).toBe(true);
+        if (Exit.isFailure(exit) && exit.cause._tag === "Fail") {
+          expect(exit.cause.error).toMatchObject({
+            _tag: "Forbidden",
+            message: "Insufficient permission: ac:create",
+          });
+        }
+      }),
+  );
+
+  it.effect("viewer cannot read custom roles (ac:read -> Forbidden)", () =>
+    Effect.gen(function* () {
+      const exit = yield* assertPermission("ac", "read").pipe(provideAuth("viewer"), Effect.exit);
+      expect(Exit.isFailure(exit)).toBe(true);
+    }),
+  );
 });
 
 describe("assertSuperadmin guard", () => {

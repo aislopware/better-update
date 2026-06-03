@@ -5,6 +5,7 @@ import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
 import { assertProjectOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
+import { assertPermissionOn } from "../auth/scope";
 import {
   buildBranchMapping,
   extractNewBranchId,
@@ -16,6 +17,7 @@ import { toApiCrudEffect } from "../http/to-api-effect";
 import { parsePagination } from "../lib/pagination";
 import { BranchRepo } from "../repositories/branches";
 import { ChannelRepo } from "../repositories/channels";
+import { EnvironmentGrantRepo } from "../repositories/environment-grant-repo";
 import { ProjectRepo } from "../repositories/projects";
 
 import type { ChannelSortKey, ChannelSortOrder } from "../repositories/channels";
@@ -98,7 +100,10 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
     .handle("update", ({ path, payload }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
-          yield* assertPermission("channel", "update");
+          yield* assertPermissionOn("channel", "update", {
+            scopeKind: "channel",
+            scopeId: path.id,
+          });
           const repo = yield* ChannelRepo;
           const channel = yield* repo.findById({ id: path.id });
           yield* assertProjectOwnership(channel.projectId);
@@ -132,7 +137,10 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
     .handle("pause", ({ path }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
-          yield* assertPermission("channel", "update");
+          yield* assertPermissionOn("channel", "update", {
+            scopeKind: "channel",
+            scopeId: path.id,
+          });
           const repo = yield* ChannelRepo;
           const channel = yield* repo.findById({ id: path.id });
           yield* assertProjectOwnership(channel.projectId);
@@ -144,7 +152,10 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
     .handle("resume", ({ path }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
-          yield* assertPermission("channel", "update");
+          yield* assertPermissionOn("channel", "update", {
+            scopeKind: "channel",
+            scopeId: path.id,
+          });
           const repo = yield* ChannelRepo;
           const channel = yield* repo.findById({ id: path.id });
           yield* assertProjectOwnership(channel.projectId);
@@ -156,7 +167,10 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
     .handle("createBranchRollout", ({ path, payload }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
-          yield* assertPermission("rollout", "create");
+          yield* assertPermissionOn("rollout", "create", {
+            scopeKind: "channel",
+            scopeId: path.id,
+          });
           const repo = yield* ChannelRepo;
           const channel = yield* repo.findById({ id: path.id });
           yield* assertProjectOwnership(channel.projectId);
@@ -191,7 +205,10 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
     .handle("updateBranchRollout", ({ path, payload }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
-          yield* assertPermission("rollout", "update");
+          yield* assertPermissionOn("rollout", "update", {
+            scopeKind: "channel",
+            scopeId: path.id,
+          });
           const repo = yield* ChannelRepo;
           const channel = yield* repo.findById({ id: path.id });
           yield* assertProjectOwnership(channel.projectId);
@@ -212,7 +229,10 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
     .handle("completeBranchRollout", ({ path }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
-          yield* assertPermission("rollout", "update");
+          yield* assertPermissionOn("rollout", "update", {
+            scopeKind: "channel",
+            scopeId: path.id,
+          });
           const repo = yield* ChannelRepo;
           const channel = yield* repo.findById({ id: path.id });
           yield* assertProjectOwnership(channel.projectId);
@@ -233,7 +253,10 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
     .handle("revertBranchRollout", ({ path }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
-          yield* assertPermission("rollout", "update");
+          yield* assertPermissionOn("rollout", "update", {
+            scopeKind: "channel",
+            scopeId: path.id,
+          });
           const repo = yield* ChannelRepo;
           const channel = yield* repo.findById({ id: path.id });
           yield* assertProjectOwnership(channel.projectId);
@@ -250,11 +273,19 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
     .handle("delete", ({ path }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
-          yield* assertPermission("channel", "delete");
+          yield* assertPermissionOn("channel", "delete", {
+            scopeKind: "channel",
+            scopeId: path.id,
+          });
           const channelRepo = yield* ChannelRepo;
           const channel = yield* channelRepo.findById({ id: path.id });
           yield* assertProjectOwnership(channel.projectId);
           yield* channelRepo.delete({ id: path.id });
+
+          // Orphan sweep: revoke every per-channel grant scoped to the deleted
+          // channel so a future channel reusing the id can never inherit them.
+          const grantRepo = yield* EnvironmentGrantRepo;
+          yield* grantRepo.deleteByScope({ scopeKind: "channel", scopeId: path.id });
 
           yield* logAudit({
             action: "channel.delete",

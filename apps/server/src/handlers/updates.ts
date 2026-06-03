@@ -8,6 +8,7 @@ import { logAudit } from "../audit/logger";
 import { CurrentActor } from "../auth/current-actor";
 import { assertProjectOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
+import { assertPermissionOn } from "../auth/scope";
 import { UpdateCoordinator } from "../cloudflare/update-coordinator";
 import { validateEmbeddedBaselineId } from "../domain/embedded-baseline-validation";
 import { verifySignedUpdate } from "../domain/signed-update-verification";
@@ -111,7 +112,10 @@ const assertAssetsExist = (assets: readonly { readonly hash: string }[]) =>
 const handleCreateUpdate = ({ payload }: { readonly payload: typeof CreateUpdateBody.Type }) =>
   toApiWriteEffect(
     Effect.gen(function* () {
-      yield* assertPermission("update", "create");
+      // NOTE: the publish gate is per-channel (assertPermissionOn) and runs AFTER
+      // `ensureBranchChannel` resolves the destination channel scope below — not
+      // here. Everything before that gate is read-only validation plus the
+      // channel-ensure itself, so no update write happens before it.
 
       // Embedded-baseline id gate (trust boundary, id+isEmbedded correlated only
       // here): when isEmbedded:true the id is REQUIRED + lowercase-UUID-validated
@@ -164,6 +168,14 @@ const handleCreateUpdate = ({ payload }: { readonly payload: typeof CreateUpdate
         return yield* Effect.fail(new Conflict({ message: branchResult.message }));
       }
       const branchValue = branchResult.value;
+
+      // Per-channel publish gate: now that the destination channel is resolved,
+      // enforce update:create on THIS channel (allow/deny grants apply). Runs
+      // before any update write.
+      yield* assertPermissionOn("update", "create", {
+        scopeKind: "channel",
+        scopeId: branchValue.channelId,
+      });
 
       if (branchValue.branchCreated) {
         yield* logAudit({
@@ -235,14 +247,21 @@ const handleCreateUpdate = ({ payload }: { readonly payload: typeof CreateUpdate
 
 const updateRolloutPercentage = (id: string, percentage: number) =>
   Effect.gen(function* () {
-    yield* assertPermission("rollout", "update");
-
     const updateRepo = yield* UpdateRepo;
     const update = yield* updateRepo.findById({ id });
 
     const branchRepo = yield* BranchRepo;
     const branch = yield* branchRepo.findById({ id: update.branchId });
     yield* assertProjectOwnership(branch.projectId);
+
+    // Per-channel rollout gate: gate on the owning channel's scope (oldest first
+    // if several map the branch); fall back to the org-wide baseline when no
+    // channel maps the branch.
+    const channelRepoForGate = yield* ChannelRepo;
+    const owningChannel = yield* channelRepoForGate.findByBranchId({ branchId: update.branchId });
+    yield* owningChannel
+      ? assertPermissionOn("rollout", "update", { scopeKind: "channel", scopeId: owningChannel.id })
+      : assertPermission("rollout", "update");
 
     yield* updateRepo.updateRollout({ id, percentage });
 
@@ -413,13 +432,20 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
     .handle("republish", ({ payload }) =>
       toApiWriteEffect(
         Effect.gen(function* () {
-          yield* assertPermission("update", "create");
-
           const source = yield* resolveRepublishSource({ payload });
           const destination = yield* resolveRepublishDestination({
             payload,
             projectId: source.projectId,
           });
+
+          // Per-channel publish gate on the destination channel (allow/deny grants
+          // apply); a branch-only destination has no channel scope so the org-wide
+          // baseline applies. Runs before the republish write.
+          const { channelId } = destination;
+          yield* channelId === null
+            ? assertPermission("update", "create")
+            : assertPermissionOn("update", "create", { scopeKind: "channel", scopeId: channelId });
+
           const republishUpdates = yield* prepareRepublishUpdates({
             payload,
             sourceUpdates: source.sourceUpdates,

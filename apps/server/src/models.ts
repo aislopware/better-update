@@ -1,3 +1,5 @@
+import type { EffectivePermissions, Role } from "./authz-models";
+
 export type Platform = "ios" | "android";
 
 export type Distribution =
@@ -42,40 +44,18 @@ export type DeviceClass = "IPHONE" | "IPAD" | "MAC" | "UNKNOWN";
 export type AuditLogSource = "session" | "api-key";
 export type AnalyticsPeriod = "1d" | "7d" | "30d" | "90d";
 
-export type Role = "owner" | "admin" | "developer" | "viewer";
+// Permission scalars (Role/BuiltinRole/Resource/Action/EffectivePermissions) live
+// in ./authz-models; the import above binds Role/EffectivePermissions in-file (used by
+// CurrentActor below), and the re-export below keeps downstream `./models` consumers unchanged.
+export type { Action, BuiltinRole, EffectivePermissions, Resource, Role } from "./authz-models";
 
 export type EncryptionKeyKind = "device" | "recovery" | "machine";
-
-export type Resource =
-  | "organization"
-  | "member"
-  | "invitation"
-  | "project"
-  | "channel"
-  | "branch"
-  | "update"
-  | "rollout"
-  | "billing"
-  | "apiKey"
-  | "build"
-  | "appleCredential"
-  | "androidCredential"
-  | "iosBundleConfiguration"
-  | "envVar"
-  | "auditLog"
-  | "device"
-  | "webhook"
-  | "iosAppMetadata"
-  | "submission"
-  | "vaultAccess";
-
-export type Action = "read" | "create" | "update" | "delete" | "cancel" | "download";
-
-export type EffectivePermissions = Partial<Record<Resource, readonly Action[]>>;
 
 export interface CurrentActor {
   readonly userId: string | null;
   readonly organizationId: string;
+  // Active-org `member.id`, or `null` for API-key principals (no scoped grants).
+  readonly memberId: string | null;
   readonly role: Role | null;
   readonly effectivePermissions: EffectivePermissions;
   readonly source: AuditLogSource;

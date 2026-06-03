@@ -17,6 +17,7 @@ import { logoutCommand } from "./commands/logout";
 import { migrateConfigCommand } from "./commands/migrate-config";
 import { openCommand } from "./commands/open";
 import { projectsCommand } from "./commands/projects";
+import { rolesCommand } from "./commands/roles";
 import { statusCommand } from "./commands/status";
 import { submitCommand } from "./commands/submit";
 import { updateCommand } from "./commands/update";
@@ -49,6 +50,7 @@ export const commandRegistry = {
   projects: projectsCommand,
   branches: branchesCommand,
   channels: channelsCommand,
+  roles: rolesCommand,
   build: buildCommand,
   builds: buildsCommand,
   credentials: credentialsCommand,

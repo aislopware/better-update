@@ -1,11 +1,18 @@
 import { Context } from "effect";
 
-export type Role = "owner" | "admin" | "developer" | "viewer";
+// Built-in role names stay nominal for the static map; custom roles are arbitrary
+// lowercased strings. The widened alias keeps member.role assignable to any string
+// while preserving literal autocompletion for the built-in names. `Record<never,
+// never>` is the `ban-types`-clean equivalent of the `string & {}` idiom.
+export type BuiltinRole = "owner" | "admin" | "developer" | "viewer";
+export type Role = BuiltinRole | (string & Record<never, never>);
 
 export type Resource =
   | "organization"
   | "member"
   | "invitation"
+  // manage custom roles (better-auth dynamic AC meta-resource)
+  | "ac"
   | "project"
   | "channel"
   | "branch"
@@ -29,6 +36,13 @@ export type EffectivePermissions = Partial<Record<Resource, readonly Action[]>>;
 export interface AuthContextShape {
   readonly userId: string | null;
   readonly organizationId: string;
+  /**
+   * The active-org membership row id (`member.id`), or `null` for API-key
+   * principals. Resolved once in `auth/middleware.ts`; per-scope (ABAC) grant
+   * lookups in `auth/scope.ts` key off it. A `null` member id has no scoped
+   * grants and falls back to the role/metadata baseline only.
+   */
+  readonly memberId: string | null;
   readonly role: Role | null;
   readonly effectivePermissions: EffectivePermissions;
   readonly source: "session" | "api-key";

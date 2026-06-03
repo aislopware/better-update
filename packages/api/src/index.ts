@@ -11,6 +11,7 @@ export { NotFound } from "./auth/ownership";
 export type {
   Action,
   AuthContextShape,
+  BuiltinRole,
   EffectivePermissions,
   Resource,
   Role,
@@ -55,6 +56,29 @@ export {
   DeleteChannelResult,
   UpdateChannelBody,
 } from "./domain/channel";
+export {
+  ChannelGrant,
+  DeleteChannelGrantResult,
+  GrantEffectSchema,
+  ListChannelGrantsParams,
+  UpsertChannelGrantBody,
+} from "./domain/channel-grant";
+export {
+  DeleteEnvGrantBody,
+  DeleteEnvGrantResult,
+  EnvGrant,
+  EnvGrantRow,
+  ListEnvGrantsParams,
+  UpsertEnvGrantBody,
+} from "./domain/env-grant";
+export {
+  CreateOrgRoleBody,
+  DeleteOrgRoleResult,
+  ListOrgRolesParams,
+  OrgRole,
+  PermissionGrantSchema,
+  UpdateOrgRoleBody,
+} from "./domain/org-role";
 export {
   AssetRef,
   CreateUpdateBody,
@@ -273,7 +297,9 @@ export { AssetsGroup } from "./groups/assets";
 export { BranchesGroup } from "./groups/branches";
 export { BuildsGroup } from "./groups/builds";
 export { EnvVarsGroup } from "./groups/env-vars";
+export { ChannelGrantsGroup } from "./groups/channel-grants";
 export { ChannelsGroup } from "./groups/channels";
+export { EnvGrantsGroup } from "./groups/env-grants";
 export { FingerprintDetail, FingerprintsGroup } from "./groups/fingerprints";
 export { DevicesGroup } from "./groups/devices";
 export { AppleTeamsGroup } from "./groups/apple-teams";
@@ -293,6 +319,7 @@ export { UserEncryptionKeysGroup } from "./groups/user-encryption-keys";
 export { OrgVaultGroup } from "./groups/org-vault";
 export { ManifestGroup } from "./groups/manifest";
 export { MeGroup } from "./groups/me";
+export { OrgRolesGroup } from "./groups/org-roles";
 export { ProjectsGroup } from "./groups/projects";
 export { UpdatesGroup } from "./groups/updates";
 export { WebhooksGroup } from "./groups/webhooks";

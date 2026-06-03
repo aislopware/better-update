@@ -37,6 +37,16 @@ export interface ChannelRepository {
     readonly name: string;
   }) => Effect.Effect<ChannelModel, NotFound>;
 
+  /**
+   * The owning channel for a branch (the channel whose `branch_id` is this
+   * branch), oldest first if several map the same branch. `null` when none.
+   * Consumed by the rollout-percentage gate to resolve the channel scope from an
+   * update's branch.
+   */
+  readonly findByBranchId: (params: {
+    readonly branchId: string;
+  }) => Effect.Effect<ChannelModel | null>;
+
   readonly updateBranchId: (params: {
     readonly id: string;
     readonly branchId: string;
@@ -196,6 +206,21 @@ export const ChannelRepoLive = Layer.succeed(ChannelRepo, {
       }
 
       return toChannel(row);
+    }),
+
+  findByBranchId: (params) =>
+    Effect.gen(function* () {
+      const env = yield* cloudflareEnv;
+
+      const row = yield* Effect.promise(async () =>
+        env.DB.prepare(
+          `SELECT "id", "project_id", "name", "branch_id", "branch_mapping_json", "cache_version", "is_paused", "created_at" FROM "channels" WHERE "branch_id" = ? ORDER BY "created_at" ASC, "id" ASC LIMIT 1`,
+        )
+          .bind(params.branchId)
+          .first<ChannelRow>(),
+      );
+
+      return row === null ? null : toChannel(row);
     }),
 
   updateBranchId: (params) =>

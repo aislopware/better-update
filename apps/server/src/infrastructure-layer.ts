@@ -40,6 +40,8 @@ import {
   UserEncryptionKeyRepoLive,
   WebhookRepoLive,
 } from "./repositories";
+import { EnvironmentGrantRepoLive } from "./repositories/environment-grant-repo";
+import { MemberRepoLive, OrgRoleRepoLive } from "./repositories/org-role-repo";
 
 import type { AnalyticsEngine } from "./cloudflare/analytics-engine";
 import type { AssetStorage } from "./cloudflare/asset-storage";
@@ -81,6 +83,8 @@ import type {
   UserEncryptionKeyRepo,
   WebhookRepo,
 } from "./repositories";
+import type { EnvironmentGrantRepo } from "./repositories/environment-grant-repo";
+import type { MemberRepo, OrgRoleRepo } from "./repositories/org-role-repo";
 
 export type ServerInfrastructure =
   | AdminUsersRepo
@@ -110,10 +114,13 @@ export type ServerInfrastructure =
   | DeviceRepo
   | EmailService
   | EnvVarRepo
+  | EnvironmentGrantRepo
   | GoogleServiceAccountKeyRepo
   | IosAppMetadataRepo
   | IosBundleConfigurationRepo
   | ManifestCacheStorage
+  | MemberRepo
+  | OrgRoleRepo
   | OrgVaultRepo
   | ProjectRepo
   | SubmissionsRepo
@@ -144,9 +151,12 @@ export const RepositoryLayer = Layer.mergeAll(
   DeviceRegistrationRequestRepoLive,
   DeviceRepoLive,
   EnvVarRepoLive,
+  EnvironmentGrantRepoLive,
   GoogleServiceAccountKeyRepoLive,
   IosAppMetadataRepoLive,
   IosBundleConfigurationRepoLive,
+  MemberRepoLive,
+  OrgRoleRepoLive,
   OrgVaultRepoLive,
   ProjectRepoLive,
   SubmissionsRepoLive,

@@ -11,6 +11,7 @@ const provideAuth = (organizationId: string) =>
   Effect.provideService(AuthContext, {
     userId: "test-user",
     organizationId,
+    memberId: "test-member",
     role: "owner",
     effectivePermissions: permissions.owner,
     source: "session",

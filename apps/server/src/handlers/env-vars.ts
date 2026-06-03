@@ -15,13 +15,14 @@ import { toDbNull } from "../lib/nullable";
 import { parsePagination } from "../lib/pagination";
 import { EnvVarRepo } from "../repositories/env-vars";
 import {
-  MAX_VARS_PER_ORG_GLOBAL,
-  MAX_VARS_PER_PROJECT,
   applyOverrideResolution,
+  assertEnvVarCountWithinCap,
+  assertEnvVarScopedPermission,
   assertScopeOwnership,
   handleBulkImport,
   handleExport,
   parseEnvironmentsCsv,
+  resolveEnvReadPredicate,
   resolveListScope,
   validateKey,
 } from "./env-vars-helpers";
@@ -51,30 +52,20 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
 
           const { scope, projectId } = payload;
           yield* assertScopeOwnership(scope, projectId);
+          yield* assertEnvVarScopedPermission(
+            "create",
+            scope === "project" ? toDbNull(projectId) : null,
+            payload.environment,
+          );
           yield* validateKey(payload.key);
           yield* assertVaultVersionCurrent({
             organizationId: ctx.organizationId,
             vaultVersion: payload.value.vaultVersion,
           });
 
+          yield* assertEnvVarCountWithinCap(scope, projectId, ctx.organizationId);
+
           const repo = yield* EnvVarRepo;
-
-          if (scope === "project" && projectId) {
-            const count = yield* repo.countByProject({ projectId });
-            if (count >= MAX_VARS_PER_PROJECT) {
-              return yield* new BadRequest({
-                message: `Maximum of ${MAX_VARS_PER_PROJECT} variables per project reached`,
-              });
-            }
-          } else {
-            const count = yield* repo.countByOrgGlobal({ organizationId: ctx.organizationId });
-            if (count >= MAX_VARS_PER_ORG_GLOBAL) {
-              return yield* new BadRequest({
-                message: `Maximum of ${MAX_VARS_PER_ORG_GLOBAL} global variables per organization reached`,
-              });
-            }
-          }
-
           const model = yield* repo.insertWithRevision({
             organizationId: ctx.organizationId,
             projectId: scope === "project" ? toDbNull(projectId) : null,
@@ -138,14 +129,18 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
             offset,
           };
 
+          const isReadable = yield* resolveEnvReadPredicate();
+
           const { items } = yield* repo.list(filters);
+          const readable = items.filter((model) => isReadable(model.projectId, model.environment));
+
           if (scope === "all") {
-            const resolved = applyOverrideResolution(items);
+            const resolved = applyOverrideResolution(readable);
             return {
               items: resolved.map((entry) => toApiEnvVar(entry.model, entry.overridesGlobal)),
             };
           }
-          return { items: items.map((model) => toApiEnvVar(model)) };
+          return { items: readable.map((model) => toApiEnvVar(model)) };
         }),
       ),
     )
@@ -157,6 +152,8 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
           const repo = yield* EnvVarRepo;
           const model = yield* repo.findById({ id: path.id });
           yield* assertOrgOwnership(model.organizationId);
+
+          yield* assertEnvVarScopedPermission("read", model.projectId, model.environment);
 
           return toApiEnvVar(model);
         }),
@@ -171,6 +168,8 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
           const repo = yield* EnvVarRepo;
           const existing = yield* repo.findById({ id: path.id });
           yield* assertOrgOwnership(existing.organizationId);
+
+          yield* assertEnvVarScopedPermission("update", existing.projectId, existing.environment);
 
           if (payload.value) {
             yield* assertVaultVersionCurrent({
@@ -227,6 +226,8 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
           const model = yield* repo.findById({ id: path.id });
           yield* assertOrgOwnership(model.organizationId);
 
+          yield* assertEnvVarScopedPermission("delete", model.projectId, model.environment);
+
           yield* repo.deleteById({ id: path.id });
 
           yield* logAudit({
@@ -250,6 +251,8 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
           const model = yield* repo.findById({ id: path.id });
           yield* assertOrgOwnership(model.organizationId);
 
+          yield* assertEnvVarScopedPermission("read", model.projectId, model.environment);
+
           const revisions = yield* repo.listRevisions({ envVarId: path.id });
           return {
             items: revisions.map((revision) => ({
@@ -272,6 +275,8 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
           const repo = yield* EnvVarRepo;
           const existing = yield* repo.findById({ id: path.id });
           yield* assertOrgOwnership(existing.organizationId);
+
+          yield* assertEnvVarScopedPermission("update", existing.projectId, existing.environment);
 
           const model = yield* repo.rollback({ id: path.id, toRevisionId: payload.toRevisionId });
 

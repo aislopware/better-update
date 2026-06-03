@@ -10,6 +10,7 @@ export const CurrentActor = pipe(
     (ctx): CurrentActorModel => ({
       userId: ctx.userId,
       organizationId: ctx.organizationId,
+      memberId: ctx.memberId,
       role: ctx.role,
       effectivePermissions: ctx.effectivePermissions,
       source: ctx.source,

@@ -9,6 +9,7 @@ import { assertProjectOwnership } from "../auth/ownership";
 import { verifySignedUpdate } from "../domain/signed-update-verification";
 import { validateUpdatePublishInput } from "../domain/update-publish-validation";
 import { BadRequest, NotFound } from "../errors";
+import { toDbNull } from "../lib/nullable";
 import { requireValue } from "../lib/require-value";
 import { BranchRepo, ChannelRepo, UpdateRepo } from "../repositories";
 
@@ -254,8 +255,14 @@ export const resolveRepublishDestination = (params: {
         yield* fail("Source and destination must belong to the same project");
       }
 
+      // The owning channel for the destination branch (oldest first). Scoped
+      // republish gates on this channel; `null` when the branch has no channel
+      // (a branch-only destination), in which case the org-wide baseline applies.
+      const owningChannel = yield* channelRepo.findByBranchId({ branchId: destinationBranch.id });
+
       return {
         branchId: destinationBranch.id,
+        channelId: toDbNull(owningChannel?.id),
         auditMetadata: { destinationBranchId: destinationBranch.id },
       };
     }
@@ -268,6 +275,7 @@ export const resolveRepublishDestination = (params: {
 
     return {
       branchId: destinationChannel.branchId,
+      channelId: destinationChannel.id,
       auditMetadata: {
         destinationBranchId: destinationChannel.branchId,
         destinationChannel: destinationChannel.name,

@@ -4,6 +4,7 @@ import { deleteCommand } from "./delete";
 import { execCommand } from "./exec";
 import { exportCommand } from "./export";
 import { getCommand } from "./get";
+import { grantsCommand } from "./grants";
 import { historyCommand } from "./history";
 import { importCommand } from "./import";
 import { listCommand } from "./list";
@@ -28,5 +29,6 @@ export const envCommand = defineCommand({
     export: exportCommand,
     pull: pullCommand,
     exec: execCommand,
+    grants: grantsCommand,
   },
 });

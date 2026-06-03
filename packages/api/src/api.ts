@@ -16,14 +16,17 @@ import { AuditLogsGroup } from "./groups/audit-logs";
 import { BranchesGroup } from "./groups/branches";
 import { BuildCredentialsGroup } from "./groups/build-credentials";
 import { BuildsGroup } from "./groups/builds";
+import { ChannelGrantsGroup } from "./groups/channel-grants";
 import { ChannelsGroup } from "./groups/channels";
 import { DevicesGroup } from "./groups/devices";
+import { EnvGrantsGroup } from "./groups/env-grants";
 import { EnvVarsGroup } from "./groups/env-vars";
 import { FingerprintsGroup } from "./groups/fingerprints";
 import { GoogleServiceAccountKeysGroup } from "./groups/google-service-account-keys";
 import { IosAppMetadataGroup } from "./groups/ios-app-metadata";
 import { IosBundleConfigurationsGroup } from "./groups/ios-bundle-configurations";
 import { MeGroup } from "./groups/me";
+import { OrgRolesGroup } from "./groups/org-roles";
 import { OrgVaultGroup } from "./groups/org-vault";
 import { ProjectsGroup } from "./groups/projects";
 import { SubmissionsGroup } from "./groups/submissions";
@@ -61,6 +64,9 @@ export class ManagementApi extends HttpApi.make("management-api")
   .add(MeGroup)
   .add(WebhooksGroup)
   .add(AdminGroup)
+  .add(OrgRolesGroup)
+  .add(ChannelGrantsGroup)
+  .add(EnvGrantsGroup)
   .middleware(Authentication)
   .annotateContext(
     OpenApi.annotations({

@@ -3,6 +3,7 @@ import { betterAuth } from "better-auth";
 import { admin, bearer, oneTimeToken, organization } from "better-auth/plugins";
 import { Effect } from "effect";
 
+import { ac, acRoles } from "./auth/access-control";
 import { API_KEY_PREFIX } from "./auth/constants";
 import { findFirstMembershipOrgId } from "./auth/memberships";
 import { hashPassword, verifyPassword } from "./auth/password";
@@ -21,6 +22,34 @@ const INVITE_SENDER_FROM = "noreply@better-update.dev";
 const ADMIN_PLUGIN_SCHEMA = {
   user: { fields: { banReason: "ban_reason", banExpires: "ban_expires" } },
   session: { fields: { impersonatedBy: "impersonated_by" } },
+} as const;
+
+// Snake_case column mapping for the `organization` plugin's tables (all static —
+// no `env` capture — so it lives at module scope). `organizationRole` is the
+// dynamic-AC custom-role table (migration 0054); only its multi-word columns need
+// mapping (`role`/`permission` already match).
+const ORGANIZATION_PLUGIN_SCHEMA = {
+  session: { fields: { activeOrganizationId: "active_organization_id" } },
+  organization: { fields: { createdAt: "created_at" } },
+  member: {
+    fields: { userId: "user_id", organizationId: "organization_id", createdAt: "created_at" },
+  },
+  invitation: {
+    fields: {
+      organizationId: "organization_id",
+      inviterId: "inviter_id",
+      expiresAt: "expires_at",
+      createdAt: "created_at",
+    },
+  },
+  organizationRole: {
+    modelName: "organization_role",
+    fields: {
+      organizationId: "organization_id",
+      createdAt: "created_at",
+      updatedAt: "updated_at",
+    },
+  },
 } as const;
 
 type AuthEnv = Env & {
@@ -172,6 +201,11 @@ export const createAuth = (env: AuthEnv, ctx?: ExecutionContext) => {
         organizationLimit: 5,
         membershipLimit: 100,
         creatorRole: "owner",
+        // L1 static RBAC (ac + the 4 built-in roles from auth/permissions.ts) and
+        // L2 dynamic custom roles stored in `organization_role`.
+        ac,
+        roles: acRoles,
+        dynamicAccessControl: { enabled: true, maximumRolesPerOrganization: 50 },
         sendInvitationEmail: async (data) => {
           const acceptUrl = `${env.BETTER_AUTH_URL}/accept-invitation?id=${data.id}`;
           const inviterTrimmed = data.inviter.user.name.trim();
@@ -208,33 +242,7 @@ export const createAuth = (env: AuthEnv, ctx?: ExecutionContext) => {
 
           await Effect.runPromise(provideCloudflareEnv(program, env));
         },
-        schema: {
-          session: {
-            fields: {
-              activeOrganizationId: "active_organization_id",
-            },
-          },
-          organization: {
-            fields: {
-              createdAt: "created_at",
-            },
-          },
-          member: {
-            fields: {
-              userId: "user_id",
-              organizationId: "organization_id",
-              createdAt: "created_at",
-            },
-          },
-          invitation: {
-            fields: {
-              organizationId: "organization_id",
-              inviterId: "inviter_id",
-              expiresAt: "expires_at",
-              createdAt: "created_at",
-            },
-          },
-        },
+        schema: ORGANIZATION_PLUGIN_SCHEMA,
       }),
       apiKey(
         [

@@ -35,6 +35,7 @@
     "@better-update/expo-protocol": "workspace:*",
     "@better-update/react-hooks": "workspace:*",
     "@better-update/safe-json": "workspace:*",
+    "@better-update/type-guards": "workspace:*",
     "@better-update/ui": "workspace:*",
     "@cloudflare/vite-plugin": "^1.39.1",
     "@fontsource-variable/geist": "^5.2.9",
