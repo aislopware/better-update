@@ -37,22 +37,24 @@ export const parseRolloutPercentage = (
   raw: string,
   flag: string,
 ): Effect.Effect<number, InvalidArgumentError> =>
-  Effect.try({
-    try: () => Schema.decodeUnknownSync(RolloutPercentage)(Number(raw)),
-    catch: () =>
-      new InvalidArgumentError({
-        message: `--${flag} must be an integer between 1 and 100, got "${raw}".`,
-      }),
-  });
+  Schema.decodeUnknown(RolloutPercentage)(Number(raw)).pipe(
+    Effect.mapError(
+      () =>
+        new InvalidArgumentError({
+          message: `--${flag} must be an integer between 1 and 100, got "${raw}".`,
+        }),
+    ),
+  );
 
 export const parseKeyValue = (raw: string): Effect.Effect<KeyValuePair, InvalidArgumentError> =>
-  Effect.try({
-    try: () => Schema.decodeUnknownSync(KeyValueFromString)(raw),
-    catch: () =>
-      new InvalidArgumentError({
-        message: "Invalid format. Use KEY=VALUE (e.g. API_KEY=abc123)",
-      }),
-  });
+  Schema.decodeUnknown(KeyValueFromString)(raw).pipe(
+    Effect.mapError(
+      () =>
+        new InvalidArgumentError({
+          message: "Invalid format. Use KEY=VALUE (e.g. API_KEY=abc123)",
+        }),
+    ),
+  );
 
 export const parseLimit = (
   raw: string | undefined,

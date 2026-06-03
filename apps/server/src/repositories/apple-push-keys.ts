@@ -112,7 +112,7 @@ export const ApplePushKeyRepoLive = Layer.succeed(ApplePushKeyRepo, {
           .first<Row>(),
       );
       if (row === null) {
-        return yield* Effect.fail(new NotFound({ message: "Push key not found" }));
+        return yield* new NotFound({ message: "Push key not found" });
       }
       return toModel(row);
     }),

@@ -9,7 +9,7 @@ export const assertOrgOwnership = (resourceOrgId: string) =>
   Effect.gen(function* () {
     const ctx = yield* CurrentActor;
     if (resourceOrgId !== ctx.organizationId) {
-      yield* new NotFound({ message: "Resource not found" });
+      return yield* new NotFound({ message: "Resource not found" });
     }
   });
 

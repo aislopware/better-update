@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 import process from "node:process";
 
 import { defineCommand } from "citty";
-import { Effect } from "effect";
+import { Data, Effect } from "effect";
 
 import { listBuildProfileNames } from "../lib/better-update-build-config";
 import {
@@ -17,6 +17,11 @@ import { readProjectId } from "../lib/project-link";
 import { apiClient } from "../services/api-client";
 import { CliRuntime } from "../services/cli-runtime";
 import { ConfigStore } from "../services/config-store";
+
+class HealthCheckError extends Data.TaggedError("HealthCheckError")<{
+  message: string;
+  cause?: unknown;
+}> {}
 
 type CheckStatus = "pass" | "warn" | "fail";
 
@@ -73,7 +78,7 @@ const checkServerHealth = Effect.gen(function* () {
   const url = `${base}/api/health`;
   const response = yield* Effect.tryPromise({
     try: async () => fetch(url, { signal: AbortSignal.timeout(3000) }),
-    catch: (cause) => new Error(String(cause)),
+    catch: (cause) => new HealthCheckError({ message: String(cause), cause }),
   }).pipe(Effect.either);
   if (response._tag === "Left") {
     return fail("health", "Server reachable", `${url} unreachable: ${response.left.message}`);

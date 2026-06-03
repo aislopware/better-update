@@ -129,7 +129,7 @@ const fetchRaw = (jwt: string, path: string, init?: { method?: string; body?: st
       catch: (cause) => new AscNetworkError({ cause }),
     });
     if (!response.ok) {
-      return yield* Effect.fail(parseApiError(response, body, text));
+      return yield* parseApiError(response, body, text);
     }
     return body;
   });
@@ -291,7 +291,7 @@ export const createCertificate = (
       });
       const resource = extractSingle(body, toAscCertificate);
       if (resource === null) {
-        return yield* Effect.fail(malformed("certificate"));
+        return yield* malformed("certificate");
       }
       return resource;
     }),
@@ -299,9 +299,9 @@ export const createCertificate = (
 
 export const deleteCertificate = (credentials: AscCredentials, id: string) =>
   withJwt(credentials, (jwt) =>
-    Effect.gen(function* () {
-      yield* fetchRaw(jwt, `/v1/certificates/${encodeURIComponent(id)}`, { method: "DELETE" });
-    }),
+    Effect.asVoid(
+      fetchRaw(jwt, `/v1/certificates/${encodeURIComponent(id)}`, { method: "DELETE" }),
+    ),
   );
 
 export const listBundleIds = (credentials: AscCredentials) =>
@@ -329,7 +329,7 @@ export const createBundleId = (
       });
       const resource = extractSingle(body, toAscBundleId);
       if (resource === null) {
-        return yield* Effect.fail(malformed("bundleId"));
+        return yield* malformed("bundleId");
       }
       return resource;
     }),
@@ -376,7 +376,7 @@ export const createProvisioningProfile = (
       });
       const resource = extractSingle(body, toAscProfile);
       if (resource === null) {
-        return yield* Effect.fail(malformed("profile"));
+        return yield* malformed("profile");
       }
       return resource;
     }),

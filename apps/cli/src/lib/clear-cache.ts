@@ -28,15 +28,11 @@ export const clearBuildCaches = (
       (rel) =>
         Effect.gen(function* () {
           const target = path.join(projectRoot, rel);
-          const exists = yield* fs
-            .exists(target)
-            .pipe(Effect.catchAll(() => Effect.succeed(false)));
+          const exists = yield* fs.exists(target).pipe(Effect.orElseSucceed(() => false));
           if (!exists) {
             return;
           }
-          yield* fs
-            .remove(target, { recursive: true })
-            .pipe(Effect.catchAll(() => Effect.succeed(undefined)));
+          yield* fs.remove(target, { recursive: true }).pipe(Effect.orElseSucceed(() => undefined));
           removed.push(rel);
         }),
       { concurrency: 4 },

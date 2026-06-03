@@ -171,7 +171,7 @@ export const SubmissionsRepoLive = Layer.succeed(SubmissionsRepo, {
           .first<Row>(),
       );
       if (row === null) {
-        return yield* Effect.fail(new NotFound({ message: "Submission not found" }));
+        return yield* new NotFound({ message: "Submission not found" });
       }
       return toModel(row);
     }),

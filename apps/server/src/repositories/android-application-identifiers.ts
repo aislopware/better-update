@@ -105,11 +105,9 @@ export const AndroidApplicationIdentifierRepoLive = Layer.succeed(
             .first<Row>(),
         );
         if (row === null) {
-          return yield* Effect.fail(
-            new NotFound({
-              message: `No Android application identifier registered for ${params.packageName}`,
-            }),
-          );
+          return yield* new NotFound({
+            message: `No Android application identifier registered for ${params.packageName}`,
+          });
         }
         return toModel(row);
       }),
@@ -123,9 +121,7 @@ export const AndroidApplicationIdentifierRepoLive = Layer.succeed(
             .first<Row>(),
         );
         if (row === null) {
-          return yield* Effect.fail(
-            new NotFound({ message: "Android application identifier not found" }),
-          );
+          return yield* new NotFound({ message: "Android application identifier not found" });
         }
         return toModel(row);
       }),

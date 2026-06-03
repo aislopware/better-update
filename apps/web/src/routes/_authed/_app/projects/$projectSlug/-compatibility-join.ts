@@ -14,9 +14,9 @@ export interface SyntheticBuildChannel {
 export interface BuildWithSyntheticChannels {
   readonly id: string;
   readonly projectId: string;
-  readonly platform: (typeof BuildWithArtifact.Type)["platform"];
+  readonly platform: BuildWithArtifact["platform"];
   readonly profile: string;
-  readonly distribution: (typeof BuildWithArtifact.Type)["distribution"];
+  readonly distribution: BuildWithArtifact["distribution"];
   readonly runtimeVersion: string | null;
   readonly appVersion: string | null;
   readonly buildNumber: string | null;
@@ -28,7 +28,7 @@ export interface BuildWithSyntheticChannels {
   readonly metadataJson: string;
   readonly fingerprintHash: string | null;
   readonly createdAt: string;
-  readonly artifact: (typeof BuildWithArtifact.Type)["artifact"];
+  readonly artifact: BuildWithArtifact["artifact"];
   readonly channels: readonly SyntheticBuildChannel[];
 }
 
@@ -36,7 +36,7 @@ const buildKey = (platform: string, runtimeVersion: string | null): string | nul
   runtimeVersion === null ? null : `${platform}:${runtimeVersion}`;
 
 export const synthesizeBuildChannels = (
-  build: typeof BuildWithArtifact.Type,
+  build: BuildWithArtifact,
   matrix: typeof BuildCompatibilityMatrixResult.Type,
 ): BuildWithSyntheticChannels => {
   const key = buildKey(build.platform, build.runtimeVersion);

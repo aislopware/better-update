@@ -23,7 +23,7 @@ const readPorcelain = (
         .map((line) => line.trim())
         .filter((line) => line.length > 0),
     ),
-    Effect.catchAll(() => Effect.succeed<readonly string[]>([])),
+    Effect.orElseSucceed((): readonly string[] => []),
   );
 
 export interface EnsureRepoCleanOptions {
@@ -67,16 +67,15 @@ export const ensureRepoClean = ({
 
     const mode = yield* InteractiveMode;
     if (!mode.allow) {
-      yield* new DirtyRepoError({
+      return yield* new DirtyRepoError({
         message: `Refusing to ${label} with a dirty working tree. Commit your changes or pass --allow-dirty.`,
       });
-      return;
     }
     const ok = yield* promptConfirm(`Continue ${label} with uncommitted changes?`, {
       initialValue: false,
     });
     if (!ok) {
-      yield* new DirtyRepoError({
+      return yield* new DirtyRepoError({
         message: `${label} cancelled by user.`,
       });
     }

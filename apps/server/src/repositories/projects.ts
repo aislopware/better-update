@@ -218,7 +218,7 @@ export const ProjectRepoLive = Layer.succeed(ProjectRepo, {
       );
 
       if (row === null) {
-        return yield* Effect.fail(new NotFound({ message: "Project not found" }));
+        return yield* new NotFound({ message: "Project not found" });
       }
 
       return toProject(row);
@@ -246,7 +246,7 @@ export const ProjectRepoLive = Layer.succeed(ProjectRepo, {
       );
 
       if (row === null) {
-        return yield* Effect.fail(new NotFound({ message: "Project not found" }));
+        return yield* new NotFound({ message: "Project not found" });
       }
 
       return toProject(row);
@@ -282,7 +282,7 @@ export const ProjectRepoLive = Layer.succeed(ProjectRepo, {
       );
 
       if (row === null) {
-        return yield* Effect.fail(new NotFound({ message: "Project not found" }));
+        return yield* new NotFound({ message: "Project not found" });
       }
 
       return row.organization_id;

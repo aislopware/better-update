@@ -25,7 +25,7 @@ export const signAscJwt = (credentials: AscCredentials) =>
   Effect.gen(function* () {
     const der = pemToPkcs8Der(credentials.p8Pem);
     if (der === null) {
-      return yield* Effect.fail(new AppleAuthError({ cause: new Error("Invalid .p8 PEM") }));
+      return yield* new AppleAuthError({ cause: new Error("Invalid .p8 PEM") });
     }
 
     const header = { alg: "ES256", kid: credentials.keyId, typ: "JWT" };

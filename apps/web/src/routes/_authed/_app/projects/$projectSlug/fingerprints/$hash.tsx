@@ -31,8 +31,8 @@ interface RouteParams {
   hash: string;
 }
 
-type BuildItem = typeof BuildWithArtifact.Type;
-type UpdateItem = typeof Update.Type;
+type BuildItem = BuildWithArtifact;
+type UpdateItem = Update;
 
 const FingerprintEmpty = () => (
   <Empty>

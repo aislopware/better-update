@@ -78,6 +78,7 @@ const resolveAndroidCredentials = (
   Effect.Effect.Context<ReturnType<typeof downloadAndroidCredentials>>
 > => {
   if (input.skipCredentials) {
+    // @effect-diagnostics-next-line effect/effectSucceedWithVoid:off -- undefined is a load-bearing success value (AndroidSigningCredentials | undefined); Effect.void breaks the declared return type
     return Effect.succeed(undefined);
   }
   return input.credentialsSource === "local"

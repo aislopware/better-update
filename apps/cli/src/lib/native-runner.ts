@@ -53,9 +53,7 @@ export const which = (
 ): Effect.Effect<string, NativeRunError, CommandExecutor.CommandExecutor> =>
   Effect.gen(function* () {
     const output = yield* Command.string(Command.make("which", bin)).pipe(
-      Effect.catchAll(() =>
-        Effect.fail(new NativeRunError({ message: `${bin} not found in PATH` })),
-      ),
+      Effect.mapError(() => new NativeRunError({ message: `${bin} not found in PATH` })),
     );
     const trimmed = output.trim();
     if (trimmed === "") {
@@ -94,7 +92,7 @@ export const findAppBundle = (
     for (const candidate of candidates) {
       const entries = yield* fs
         .readDirectory(candidate)
-        .pipe(Effect.catchAll(() => Effect.succeed<readonly string[]>([])));
+        .pipe(Effect.orElseSucceed((): readonly string[] => []));
       const app = entries.find((entry) => entry.endsWith(".app"));
       if (app) {
         return path.join(candidate, app);
@@ -320,14 +318,12 @@ const tryReadApkPackageWith = (
   apkPath: string,
 ): Effect.Effect<string | undefined, never, CommandExecutor.CommandExecutor> =>
   Effect.gen(function* () {
-    const located = yield* which(bin).pipe(
-      Effect.catchAll(() => Effect.succeed<string | null>(null)),
-    );
+    const located = yield* which(bin).pipe(Effect.orElseSucceed((): string | null => null));
     if (!located) {
       return undefined;
     }
     const raw = yield* execCapture(`${bin} dump`, bin, "dump", "badging", apkPath).pipe(
-      Effect.catchAll(() => Effect.succeed<string | null>(null)),
+      Effect.orElseSucceed((): string | null => null),
     );
     if (!raw) {
       return undefined;

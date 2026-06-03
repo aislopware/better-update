@@ -18,7 +18,7 @@ import type { EnvironmentName } from "./helpers";
 // any failure (e.g. the vault is locked) so the wrapped command still runs.
 const pullForExec = (api: ApiClient, projectId: string, environment: EnvironmentName) =>
   pullEnvVars(api, { projectId, environment }).pipe(
-    Effect.catchAll(() => Effect.succeed<Record<string, string>>({})),
+    Effect.orElseSucceed((): Record<string, string> => ({})),
   );
 
 const splitTrailing = (

@@ -91,7 +91,7 @@ export const runStepFormatted = (
       if (summary.length > 0) {
         process.stderr.write(`${summary}\n`);
       }
-      return yield* Effect.fail(buildFailed(step, code, `${step} exited with code ${code}`));
+      return yield* buildFailed(step, code, `${step} exited with code ${code}`);
     }
     return undefined;
   });

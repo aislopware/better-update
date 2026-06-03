@@ -13,7 +13,7 @@ export const DeleteBuildDialog = ({
   orgId,
   projectId,
 }: {
-  build: typeof BuildWithArtifact.Type;
+  build: BuildWithArtifact;
   orgId: string;
   projectId: string;
 }) => {

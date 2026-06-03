@@ -1,8 +1,10 @@
 import { CommandExecutor } from "@effect/platform";
 import { it } from "@effect/vitest";
-import { Effect } from "effect";
+import { Data, Effect } from "effect";
 
 import { readGitContext } from "./git-context";
+
+class GitStubError extends Data.TaggedError("GitStubError")<{ message: string }> {}
 
 // readGitContext runs four independent git invocations through CommandExecutor:
 //   git rev-parse HEAD          → commit SHA
@@ -48,7 +50,7 @@ const cleanRepo: ArgResolver = (firstArg) => {
       return Effect.succeed("");
     }
     default: {
-      return Effect.fail(new Error(`unexpected git arg: ${firstArg}`));
+      return Effect.fail(new GitStubError({ message: `unexpected git arg: ${firstArg}` }));
     }
   }
 };
@@ -81,7 +83,7 @@ describe(readGitContext, () => {
   it("falls back to undefined fields when the directory is not a git repo", async () => {
     // Non-repo: every git invocation fails. readGitContext swallows each and
     // returns undefined fields + dirty=false so the publish still proceeds.
-    const ctx = await run(() => Effect.fail(new Error("not a git repository")));
+    const ctx = await run(() => Effect.fail(new GitStubError({ message: "not a git repository" })));
     expect(ctx.ref).toBeUndefined();
     expect(ctx.commit).toBeUndefined();
     expect(ctx.commitMessage).toBeUndefined();
@@ -93,7 +95,7 @@ describe(readGitContext, () => {
     // still succeed — ref is undefined, commit + message survive.
     const ctx = await run((firstArg) =>
       firstArg === "symbolic-ref"
-        ? Effect.fail(new Error("fatal: ref HEAD is not a symbolic ref"))
+        ? Effect.fail(new GitStubError({ message: "fatal: ref HEAD is not a symbolic ref" }))
         : cleanRepo(firstArg),
     );
     expect(ctx.ref).toBeUndefined();

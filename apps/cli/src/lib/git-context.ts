@@ -30,18 +30,18 @@ export const readGitContext = (
       [
         runString(Command.make("git", "rev-parse", "HEAD"), projectRoot).pipe(
           Effect.map((output) => output.trim()),
-          Effect.catchAll(() => Effect.succeed("")),
+          Effect.orElseSucceed(() => ""),
         ),
         runString(Command.make("git", "symbolic-ref", "--short", "HEAD"), projectRoot).pipe(
           Effect.map((output) => output.trim()),
-          Effect.catchAll(() => Effect.succeed("")),
+          Effect.orElseSucceed(() => ""),
         ),
         runString(Command.make("git", "log", "-1", "--format=%s"), projectRoot).pipe(
           Effect.map((output) => output.trim()),
-          Effect.catchAll(() => Effect.succeed("")),
+          Effect.orElseSucceed(() => ""),
         ),
         runString(Command.make("git", "status", "--porcelain"), projectRoot).pipe(
-          Effect.catchAll(() => Effect.succeed("")),
+          Effect.orElseSucceed(() => ""),
         ),
       ],
       { concurrency: "unbounded" },

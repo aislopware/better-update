@@ -123,7 +123,7 @@ const cleanupBuildObject = (key: string) =>
   Effect.gen(function* () {
     const runtime = yield* BuildRuntime;
     yield* runtime.deleteObjects({ keys: [key] });
-  }).pipe(Effect.catchAll(() => Effect.void));
+  });
 
 const buildArtifactKey = (params: {
   organizationId: string;
@@ -226,9 +226,7 @@ const handleComplete = ({
 
       const reservationJson = yield* runtime.getReservation({ id: path.id });
       if (!reservationJson) {
-        return yield* Effect.fail(
-          new NotFound({ message: "Build reservation not found or expired" }),
-        );
+        return yield* new NotFound({ message: "Build reservation not found or expired" });
       }
 
       const reservation = yield* parseReservation(reservationJson);
@@ -239,11 +237,9 @@ const handleComplete = ({
         payload.sha256.toLowerCase() !== reservation.sha256 ||
         payload.byteSize !== reservation.byteSize
       ) {
-        return yield* Effect.fail(
-          new BadRequest({
-            message: "Build completion payload does not match the reserved artifact metadata",
-          }),
-        );
+        return yield* new BadRequest({
+          message: "Build completion payload does not match the reserved artifact metadata",
+        });
       }
 
       // Skip server-side R2 head/sha verification: R2 enforces the
@@ -287,7 +283,7 @@ const handleComplete = ({
           ),
         );
 
-      yield* runtime.deleteReservation({ id: path.id }).pipe(Effect.catchAll(() => Effect.void));
+      yield* runtime.deleteReservation({ id: path.id });
 
       yield* logAudit({
         action: "build.complete",
@@ -343,7 +339,7 @@ const handleDelete = ({ path }: { readonly path: { readonly id: string } }) =>
 
       if (r2Key) {
         const runtime = yield* BuildRuntime;
-        yield* runtime.deleteObjects({ keys: [r2Key] }).pipe(Effect.catchAll(() => Effect.void));
+        yield* runtime.deleteObjects({ keys: [r2Key] });
       }
 
       yield* logAudit({
@@ -369,9 +365,7 @@ const handleGetInstallLink = ({ path }: { readonly path: { readonly id: string }
       const runtime = yield* BuildRuntime;
       const installTokenSecret = yield* runtime.getInstallTokenSecret;
       if (!installTokenSecret) {
-        return yield* Effect.fail(
-          new BadRequest({ message: "Install token secret not configured" }),
-        );
+        return yield* new BadRequest({ message: "Install token secret not configured" });
       }
 
       const { token, expires } = yield* generateInstallToken(path.id, installTokenSecret).pipe(

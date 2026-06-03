@@ -458,12 +458,10 @@ export const downloadAndroidCredentials = (
       .pipe(Effect.mapError((cause) => resolveErrorToMissingCredentials(cause, "android")));
 
     if (resolved.platform !== "android") {
-      return yield* Effect.fail(
-        new MissingCredentialsError({
-          message: "Server returned non-Android credentials for an Android build request",
-          hint: androidBindHint,
-        }),
-      );
+      return yield* new MissingCredentialsError({
+        message: "Server returned non-Android credentials for an Android build request",
+        hint: androidBindHint,
+      });
     }
 
     const session = yield* openVaultSessionForBuild(api, androidBindHint);

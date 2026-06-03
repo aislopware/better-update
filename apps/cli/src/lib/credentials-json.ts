@@ -275,7 +275,7 @@ export const readCredentialsJson = (
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
     const filePath = credentialsJsonPath(projectRoot);
-    const exists = yield* fs.exists(filePath).pipe(Effect.catchAll(() => Effect.succeed(false)));
+    const exists = yield* fs.exists(filePath).pipe(Effect.orElseSucceed(() => false));
     if (!exists) {
       return yield* new CredentialsJsonError({
         message: `credentials.json not found at ${filePath}.`,

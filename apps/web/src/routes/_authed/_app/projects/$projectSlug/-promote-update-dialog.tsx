@@ -30,8 +30,8 @@ import { safeSubmit, useApiMutation } from "../../../../../lib/use-api-mutation"
 import { invalidateUpdates } from "./-update-helpers";
 
 interface PromoteUpdateDialogProps {
-  readonly update: typeof Update.Type;
-  readonly channels: readonly (typeof Channel.Type)[];
+  readonly update: Update;
+  readonly channels: readonly Channel[];
   readonly orgId: string;
   readonly projectId: string;
   readonly open: boolean;
@@ -41,7 +41,7 @@ interface PromoteUpdateDialogProps {
 interface TargetChannelSelectProps {
   readonly value: string;
   readonly onChange: (value: string) => void;
-  readonly channels: readonly (typeof Channel.Type)[];
+  readonly channels: readonly Channel[];
 }
 
 const TargetChannelSelect = ({ value, onChange, channels }: TargetChannelSelectProps) => {
@@ -81,8 +81,8 @@ const PromoteForm = ({
   projectId,
   onSuccess,
 }: {
-  readonly update: typeof Update.Type;
-  readonly channels: readonly (typeof Channel.Type)[];
+  readonly update: Update;
+  readonly channels: readonly Channel[];
   readonly orgId: string;
   readonly projectId: string;
   readonly onSuccess: () => void;

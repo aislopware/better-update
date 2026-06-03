@@ -61,10 +61,9 @@ export const downloadCommand = defineCommand({
         const build = yield* api.builds.get({ path: { id: args.id } });
         const { artifact } = build;
         if (!artifact) {
-          yield* Effect.fail(
-            new UploadFailedError({ message: `Build ${args.id} has no artifact yet.` }),
-          );
-          return;
+          return yield* new UploadFailedError({
+            message: `Build ${args.id} has no artifact yet.`,
+          });
         }
 
         const link = yield* api.builds.getInstallLink({ path: { id: args.id } });

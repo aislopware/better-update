@@ -201,12 +201,10 @@ const findAscCertificateId = (
     const upper = serialNumber.toUpperCase();
     const match = certs.find((entry) => entry.attributes.serialNumber.toUpperCase() === upper);
     if (match === undefined) {
-      return yield* Effect.fail(
-        new AppleIdGenerateFailedError({
-          step: "match-apple-certificate",
-          message: `Distribution certificate ${serialNumber} not present on Apple Developer Portal; upload or re-generate it`,
-        }),
-      );
+      return yield* new AppleIdGenerateFailedError({
+        step: "match-apple-certificate",
+        message: `Distribution certificate ${serialNumber} not present on Apple Developer Portal; upload or re-generate it`,
+      });
     }
     return match.id;
   });
@@ -270,12 +268,10 @@ export const generateAndUploadProvisioningProfileViaAppleId = (
     const deviceIds = useDevices ? yield* collectIosDeviceIds(ctx, input.deviceIds) : [];
 
     if (useDevices && deviceIds.length === 0) {
-      return yield* Effect.fail(
-        new AppleIdGenerateFailedError({
-          step: "collect-devices",
-          message: "No registered devices to attach to the provisioning profile",
-        }),
-      );
+      return yield* new AppleIdGenerateFailedError({
+        step: "collect-devices",
+        message: "No registered devices to attach to the provisioning profile",
+      });
     }
 
     const profileName = `${input.bundleIdentifier} ${input.distributionType} ${Date.now()}`;
@@ -291,12 +287,10 @@ export const generateAndUploadProvisioningProfileViaAppleId = (
 
     const { profileContent } = profile.attributes;
     if (profileContent === null) {
-      return yield* Effect.fail(
-        new AppleIdGenerateFailedError({
-          step: "extract-profile-content",
-          message: "Apple returned a profile with no content (likely expired/invalid)",
-        }),
-      );
+      return yield* new AppleIdGenerateFailedError({
+        step: "extract-profile-content",
+        message: "Apple returned a profile with no content (likely expired/invalid)",
+      });
     }
     const profileBytes = fromBase64(profileContent);
     const rosterHash = useDevices ? computeDeviceRosterHashHex(deviceIds) : undefined;

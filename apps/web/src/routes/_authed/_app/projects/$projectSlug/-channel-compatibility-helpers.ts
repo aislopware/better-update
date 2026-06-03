@@ -14,7 +14,7 @@ export interface CompatibleBuildEntry {
 }
 
 export const getCompatibleBuildsForChannel = (
-  builds: readonly (typeof BuildWithArtifact.Type)[],
+  builds: readonly BuildWithArtifact[],
   matrix: typeof BuildCompatibilityMatrixResult.Type,
   channelId: string,
 ): CompatibleBuildEntry[] =>
@@ -25,6 +25,6 @@ export const getCompatibleBuildsForChannel = (
   });
 
 export const getMissingRuntimeVersionsForChannel = (
-  missingRuntimeVersions: readonly (typeof MissingRuntimeVersionBuild.Type)[],
+  missingRuntimeVersions: readonly MissingRuntimeVersionBuild[],
   channelId: string,
 ) => missingRuntimeVersions.filter((entry) => entry.channelId === channelId);

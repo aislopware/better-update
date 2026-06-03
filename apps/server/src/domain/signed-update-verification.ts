@@ -41,42 +41,37 @@ export const verifySignedUpdate = (params: {
     if (signature !== null) {
       const parsed = parseExpoSignatureHeader(signature);
       if (isExpoSignatureParseFailure(parsed)) {
-        yield* new BadRequest({
+        return yield* new BadRequest({
           message: "signature header is not a valid expo-signature SFV dictionary",
         });
-        return;
       }
 
       // Absent alg defaults to rsa-v1_5-sha256 (device default); any explicit
       // other value is rejected so ECDSA never reaches a verify path.
       const alg = parsed.alg ?? CODE_SIGNING_ALG;
       if (alg !== CODE_SIGNING_ALG) {
-        yield* new BadRequest({
+        return yield* new BadRequest({
           message: `unsupported code-signing alg: ${alg}; only ${CODE_SIGNING_ALG} is accepted`,
         });
-        return;
       }
 
       if (!params.certificateChain) {
-        yield* new BadRequest({
+        return yield* new BadRequest({
           message: "code-signed update is missing a certificate chain; cannot be verified",
         });
-        return;
       }
       const leaf = extractLeafCertificatePem(params.certificateChain);
       if (leaf === undefined) {
-        yield* new BadRequest({
+        return yield* new BadRequest({
           message: "certificate chain does not contain a PEM certificate block",
         });
-        return;
       }
 
       const body = params.manifestBody ?? params.directiveBody;
       if (body === null) {
-        yield* new BadRequest({
+        return yield* new BadRequest({
           message: "code-signed update has a signature but no manifest or directive body to verify",
         });
-        return;
       }
 
       const crypto = yield* CryptoService;
@@ -89,7 +84,7 @@ export const verifySignedUpdate = (params: {
         .pipe(Effect.catchTag("CryptoError", () => Effect.succeed(false)));
 
       if (!verified) {
-        yield* new BadRequest({
+        return yield* new BadRequest({
           message:
             "code-signing signature does not verify against the provided certificate; refusing to store an unverifiable signed update",
         });

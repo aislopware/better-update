@@ -93,7 +93,7 @@ const assertStoredMetadataMatches = (params: {
     });
 
     if (mismatch) {
-      yield* fail(`Asset ${mismatch.hash} is already registered with different metadata`);
+      return yield* fail(`Asset ${mismatch.hash} is already registered with different metadata`);
     }
   });
 
@@ -226,7 +226,7 @@ const handlePatchUpload = ({
       yield* assertProjectOwnership(payload.projectId);
 
       if (payload.fromUpdateId === payload.toUpdateId) {
-        return yield* Effect.fail(fail("A patch cannot have the same from and to update"));
+        return yield* fail("A patch cannot have the same from and to update");
       }
 
       // Build the R2 key server-side from the request tuple — never trust a
@@ -240,7 +240,7 @@ const handlePatchUpload = ({
       };
       const key = patchR2Key(keyParams);
       if (!isValidPatchKey(key, keyParams)) {
-        return yield* Effect.fail(fail("Invalid patch key parameters"));
+        return yield* fail("Invalid patch key parameters");
       }
 
       const storage = yield* AssetStorage;
@@ -270,7 +270,7 @@ const handleFinalize = ({ path }: { readonly path: { readonly hash: string } }) 
       const asset = yield* repo.findByHash({ hash: path.hash });
 
       if (!asset) {
-        return yield* Effect.fail(new NotFound({ message: "Asset not registered" }));
+        return yield* new NotFound({ message: "Asset not registered" });
       }
 
       if (asset.byteSize > 0) {
@@ -279,13 +279,13 @@ const handleFinalize = ({ path }: { readonly path: { readonly hash: string } }) 
 
       const stored = yield* storage.headObject({ key: asset.r2Key });
       if (!stored) {
-        return yield* Effect.fail(new NotFound({ message: "Asset not uploaded to R2" }));
+        return yield* new NotFound({ message: "Asset not uploaded to R2" });
       }
 
       if (stored.checksumSha256Base64 === null) {
-        return yield* Effect.fail(
-          new BadRequest({ message: `Asset ${asset.hash} is missing an R2 SHA-256 checksum` }),
-        );
+        return yield* new BadRequest({
+          message: `Asset ${asset.hash} is missing an R2 SHA-256 checksum`,
+        });
       }
 
       // Compare R2's stored checksum against contentChecksum (raw file hash).
@@ -293,17 +293,15 @@ const handleFinalize = ({ path }: { readonly path: { readonly hash: string } }) 
       const expectedChecksum = asset.contentChecksum || asset.hash;
       const storedChecksum = yield* sha256Base64ToBase64Url(stored.checksumSha256Base64);
       if (storedChecksum !== expectedChecksum) {
-        return yield* Effect.fail(
-          new BadRequest({ message: `Asset ${asset.hash} checksum does not match uploaded bytes` }),
-        );
+        return yield* new BadRequest({
+          message: `Asset ${asset.hash} checksum does not match uploaded bytes`,
+        });
       }
 
       if (stored.contentType !== null && stored.contentType !== asset.contentType) {
-        return yield* Effect.fail(
-          new BadRequest({
-            message: `Asset ${asset.hash} content type mismatch: expected ${asset.contentType}, got ${stored.contentType}`,
-          }),
-        );
+        return yield* new BadRequest({
+          message: `Asset ${asset.hash} content type mismatch: expected ${asset.contentType}, got ${stored.contentType}`,
+        });
       }
 
       yield* repo.updateByteSize({ hash: asset.hash, byteSize: stored.size });

@@ -18,7 +18,7 @@ const requirePath = (
   label: string,
 ): Effect.Effect<void, MissingCredentialsError> =>
   fs.exists(absolutePath).pipe(
-    Effect.catchAll(() => Effect.succeed(false)),
+    Effect.orElseSucceed(() => false),
     Effect.flatMap((exists) =>
       exists
         ? Effect.void

@@ -87,11 +87,9 @@ export const parseProvisioningProfile = (bytes: Uint8Array) =>
   Effect.gen(function* () {
     const plistXml = extractPlist(bytes);
     if (plistXml === null) {
-      return yield* Effect.fail(
-        new InvalidProvisioningProfile({
-          message: "Could not find embedded plist in .mobileprovision",
-        }),
-      );
+      return yield* new InvalidProvisioningProfile({
+        message: "Could not find embedded plist in .mobileprovision",
+      });
     }
 
     const plist = yield* parseEmbeddedPlist(plistXml);
@@ -99,27 +97,25 @@ export const parseProvisioningProfile = (bytes: Uint8Array) =>
     const teamArray = getPlistStringArray(plist, "TeamIdentifier");
     const appleTeamId = toDbNull(teamSingle ?? teamArray[0]);
     if (appleTeamId === null || !APPLE_TEAM_ID_PATTERN.test(appleTeamId)) {
-      return yield* Effect.fail(
-        new InvalidProvisioningProfile({ message: "TeamIdentifier missing or malformed" }),
-      );
+      return yield* new InvalidProvisioningProfile({
+        message: "TeamIdentifier missing or malformed",
+      });
     }
 
     const appIdentifier = readApplicationIdentifier(plist);
     if (appIdentifier === null) {
-      return yield* Effect.fail(
-        new InvalidProvisioningProfile({
-          message: "application-identifier missing from profile plist",
-        }),
-      );
+      return yield* new InvalidProvisioningProfile({
+        message: "application-identifier missing from profile plist",
+      });
     }
     const bundlePrefix = `${appleTeamId}.`;
     const bundleIdentifier = appIdentifier.startsWith(bundlePrefix)
       ? appIdentifier.slice(bundlePrefix.length)
       : appIdentifier;
     if (bundleIdentifier.length === 0) {
-      return yield* Effect.fail(
-        new InvalidProvisioningProfile({ message: "Bundle identifier is empty" }),
-      );
+      return yield* new InvalidProvisioningProfile({
+        message: "Bundle identifier is empty",
+      });
     }
 
     const parsed: ParsedProvisioningProfile = {

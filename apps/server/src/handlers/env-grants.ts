@@ -28,7 +28,7 @@ const VALID_RESOURCES = new Set(Object.keys(statement));
 
 const ACTION_TOKEN = /^[a-z]+:[a-z]+$/iu;
 
-const toApiEnvGrant = (grant: EnvironmentGrantModel): typeof EnvGrantSchema.Type => ({
+const toApiEnvGrant = (grant: EnvironmentGrantModel): EnvGrantSchema => ({
   id: grant.id,
   memberId: grant.memberId,
   // The `EnvGrant` schema fixes `scopeKind` to the literal "env_var_environment".
@@ -57,7 +57,7 @@ const assertValidActionTokens = (actions: readonly string[]) =>
       return resource === undefined || !VALID_RESOURCES.has(resource);
     });
     if (invalid.length > 0) {
-      yield* new Forbidden({
+      return yield* new Forbidden({
         message: `Invalid grant action(s): ${invalid.join(", ")}. Expected "resource:action" with a known resource.`,
       });
     }
@@ -113,7 +113,7 @@ export const EnvGrantsGroupLive = HttpApiBuilder.group(ManagementApi, "envGrants
                 })),
             ),
           );
-          return perEnv.flat() satisfies (typeof EnvGrantRowSchema.Type)[];
+          return perEnv.flat() satisfies EnvGrantRowSchema[];
         }),
       ),
     )

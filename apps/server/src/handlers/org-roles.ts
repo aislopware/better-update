@@ -140,7 +140,7 @@ const toIsoString = (value: string | Date | null | undefined): string | null => 
   return value instanceof Date ? value.toISOString() : value;
 };
 
-const toApiOrgRole = (row: OrgRoleRow): typeof OrgRoleSchema.Type => ({
+const toApiOrgRole = (row: OrgRoleRow): OrgRoleSchema => ({
   id: row.id,
   organizationId: row.organizationId,
   role: row.role,

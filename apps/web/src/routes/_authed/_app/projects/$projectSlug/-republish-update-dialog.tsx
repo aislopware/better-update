@@ -24,7 +24,7 @@ import { safeSubmit, useApiMutation } from "../../../../../lib/use-api-mutation"
 import { invalidateUpdates } from "./-update-helpers";
 
 interface RepublishUpdateDialogProps {
-  readonly update: typeof Update.Type;
+  readonly update: Update;
   readonly branchName: string;
   readonly orgId: string;
   readonly projectId: string;
@@ -39,7 +39,7 @@ const RepublishForm = ({
   projectId,
   onSuccess,
 }: {
-  readonly update: typeof Update.Type;
+  readonly update: Update;
   readonly branchName: string;
   readonly orgId: string;
   readonly projectId: string;

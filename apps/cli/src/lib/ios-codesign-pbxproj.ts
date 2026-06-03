@@ -126,7 +126,7 @@ export const applyTargetSigning = (
       for (const configUuid of entry.buildConfigurationUuids) {
         const mutated = mutateConfig(project, configUuid, entry.settings);
         if (!mutated) {
-          yield* new XcodeProjectError({
+          return yield* new XcodeProjectError({
             message: `Build configuration ${configUuid} not found for target "${entry.targetName}" in ${pbxprojPath}.`,
           });
         }

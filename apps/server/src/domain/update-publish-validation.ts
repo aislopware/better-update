@@ -134,7 +134,7 @@ const assertManifestExtraMatchesRequest = (params: {
     );
 
     if (mismatch) {
-      yield* fail(`manifestBody.extra.${mismatch[0]} must match the request extra payload`);
+      return yield* fail(`manifestBody.extra.${mismatch[0]} must match the request extra payload`);
     }
   });
 
@@ -146,22 +146,22 @@ const assertLaunchAssetSemantics = (
 
     if (input.isRollback) {
       if (input.assets.length > 0) {
-        yield* fail("Rollback directives must not include assets");
+        return yield* fail("Rollback directives must not include assets");
       }
 
       if (input.manifestBody !== null) {
-        yield* fail("Rollback directives must not include manifestBody");
+        return yield* fail("Rollback directives must not include manifestBody");
       }
 
       return;
     }
 
     if (input.directiveBody !== null) {
-      yield* fail("Non-rollback updates must not include directiveBody");
+      return yield* fail("Non-rollback updates must not include directiveBody");
     }
 
     if (launchAssets.length !== 1) {
-      yield* fail("Non-rollback updates must include exactly one launch asset");
+      return yield* fail("Non-rollback updates must include exactly one launch asset");
     }
   });
 
@@ -175,7 +175,7 @@ const assertManifestBodyMatchesRequest = (
     );
     const { runtimeVersion } = manifest;
     if (runtimeVersion !== input.runtimeVersion) {
-      yield* fail("manifestBody.runtimeVersion must match the request runtimeVersion");
+      return yield* fail("manifestBody.runtimeVersion must match the request runtimeVersion");
     }
 
     const launchAsset = yield* parseManifestAssetRef(
@@ -193,7 +193,7 @@ const assertManifestBodyMatchesRequest = (
       launchAsset.key !== expectedLaunchAsset.key ||
       launchAsset.hash !== expectedLaunchHash
     ) {
-      yield* fail("manifestBody.launchAsset must match the request launch asset");
+      return yield* fail("manifestBody.launchAsset must match the request launch asset");
     }
 
     const actualAssets = yield* parseManifestAssetArray(manifest["assets"]);
@@ -220,7 +220,7 @@ const assertDirectiveBodyMatchesRequest = (
     );
 
     if (directive["type"] !== "rollBackToEmbedded") {
-      yield* fail('directiveBody.type must be "rollBackToEmbedded"');
+      return yield* fail('directiveBody.type must be "rollBackToEmbedded"');
     }
 
     const parameters = yield* expectRecord(
@@ -229,7 +229,7 @@ const assertDirectiveBodyMatchesRequest = (
     );
     const { commitTime } = parameters;
     if (typeof commitTime !== "string" || Number.isNaN(Date.parse(commitTime))) {
-      yield* fail("directiveBody.parameters.commitTime must be a valid ISO 8601 timestamp");
+      return yield* fail("directiveBody.parameters.commitTime must be a valid ISO 8601 timestamp");
     }
   });
 
@@ -245,7 +245,7 @@ export const validateUpdatePublishInput = (
 
     if (input.directiveBody !== null) {
       if (!input.isRollback) {
-        yield* fail("Only rollback updates may include directiveBody");
+        return yield* fail("Only rollback updates may include directiveBody");
       }
 
       yield* assertDirectiveBodyMatchesRequest(input.directiveBody);

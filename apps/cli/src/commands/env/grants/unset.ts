@@ -27,9 +27,9 @@ export const unsetCommand = defineCommand({
       Effect.gen(function* () {
         const { environment } = args;
         if (!isEnvironmentName(environment)) {
-          return yield* Effect.fail(
-            new EnvGrantCommandError({ message: `Invalid environment "${environment}".` }),
-          );
+          return yield* new EnvGrantCommandError({
+            message: `Invalid environment "${environment}".`,
+          });
         }
         if (!args.yes) {
           const scopeLabel = args.global ? ENV_GRANT_GLOBAL : (args.project ?? "linked project");

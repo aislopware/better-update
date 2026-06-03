@@ -26,7 +26,7 @@ const ACTION_TOKEN = /^[a-z]+:[a-z]+$/iu;
 
 const SCOPE_KIND = "channel" as const;
 
-const toApiChannelGrant = (grant: EnvironmentGrantModel): typeof ChannelGrantSchema.Type => ({
+const toApiChannelGrant = (grant: EnvironmentGrantModel): ChannelGrantSchema => ({
   id: grant.id,
   memberId: grant.memberId,
   // The `ChannelGrant` schema fixes `scopeKind` to the literal "channel". Every
@@ -56,7 +56,7 @@ const assertValidActionTokens = (actions: readonly string[]) =>
       return resource === undefined || !VALID_RESOURCES.has(resource);
     });
     if (invalid.length > 0) {
-      yield* new Forbidden({
+      return yield* new Forbidden({
         message: `Invalid grant action(s): ${invalid.join(", ")}. Expected "resource:action" with a known resource.`,
       });
     }

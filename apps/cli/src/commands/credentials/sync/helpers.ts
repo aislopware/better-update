@@ -68,9 +68,9 @@ export const ensureGitignoreEntries = (
 ): Effect.Effect<readonly string[], CredentialsJsonError> =>
   Effect.gen(function* () {
     const filePath = path.join(projectRoot, ".gitignore");
-    const exists = yield* fs.exists(filePath).pipe(Effect.catchAll(() => Effect.succeed(false)));
+    const exists = yield* fs.exists(filePath).pipe(Effect.orElseSucceed(() => false));
     const previous = exists
-      ? yield* fs.readFileString(filePath).pipe(Effect.catchAll(() => Effect.succeed("")))
+      ? yield* fs.readFileString(filePath).pipe(Effect.orElseSucceed(() => ""))
       : "";
     const lines = previous.split("\n");
     const added: string[] = [];

@@ -388,15 +388,14 @@ export const readEasJson = (
     const fs = yield* FileSystem.FileSystem;
     const filePath = yield* easJsonPath(projectRoot);
     const text = yield* fs.readFileString(filePath).pipe(
-      Effect.catchAll((cause) =>
-        Effect.fail(
+      Effect.mapError(
+        (cause) =>
           new BuildProfileError({
             message:
               cause._tag === "SystemError" && cause.reason === "NotFound"
                 ? `No eas.json found at ${filePath}. Create one with a "build" section.`
                 : `Failed to read eas.json: ${cause.message}`,
           }),
-        ),
       ),
     );
     return yield* parseEasConfig(text);

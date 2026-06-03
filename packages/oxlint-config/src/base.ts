@@ -117,6 +117,11 @@ export default defineConfig({
     "typescript/explicit-module-boundary-types": "off",
     "typescript/prefer-readonly-parameter-types": "off",
     "typescript/prefer-nullish-coalescing": "off",
+    // Conflicts with the Effect idiom `return yield* <error>` (the @effect/language-service
+    // `missingReturnYieldStar` diagnostic). `yield* error` is `never`-typed, so a generator
+    // that exits via `return yield* error` on some branches and falls through to void on others
+    // is type-safe, but consistent-return (not `never`-aware) flags it. Effect LS wins here.
+    "typescript/consistent-return": "off",
 
     "unicorn/filename-case": "off",
     "unicorn/no-abusive-eslint-disable": "off",
@@ -139,6 +144,19 @@ export default defineConfig({
 
     "jsdoc/require-param": "off",
     "jsdoc/require-returns": "off",
+    // @effect/language-service config tags (effect-tsgo). These are read by the
+    // Effect LS, not standard JSDoc — register them so check-tag-names accepts them.
+    "jsdoc/check-tag-names": [
+      "warn",
+      {
+        definedTags: [
+          "effect-expect-leaking",
+          "effect-leakable-service",
+          "effect-diagnostics",
+          "effect-diagnostics-next-line",
+        ],
+      },
+    ],
 
     "oxc/no-accumulating-spread": "off",
     "oxc/no-async-await": "off",

@@ -42,10 +42,10 @@ export const ConfigStoreLive = Layer.effect(
     const homeDirectory = yield* runtime.homeDirectory;
     const configFile = path.join(homeDirectory, ".better-update", "config.json");
     const readConfig = fs.readFileString(configFile).pipe(
-      Effect.catchAll(() => Effect.succeed("")),
+      Effect.orElseSucceed(() => ""),
       Effect.flatMap((content) =>
         content.length === 0
-          ? Effect.succeed(undefined)
+          ? Effect.void
           : Effect.try({
               try: (): unknown => JSON.parse(content),
               catch: (cause) =>
@@ -55,7 +55,7 @@ export const ConfigStoreLive = Layer.effect(
                 }),
             }).pipe(
               Effect.map((parsed) => (isRecord(parsed) ? parsed : undefined)),
-              Effect.catchAll(() => Effect.succeed(undefined)),
+              Effect.orElseSucceed(() => undefined),
             ),
       ),
     );

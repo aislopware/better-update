@@ -68,7 +68,7 @@ export const CompatibleBuildsSection = ({
 export const MissingMatchingBuilds = ({
   missingRuntimeVersions,
 }: {
-  missingRuntimeVersions: readonly (typeof MissingRuntimeVersionBuild.Type)[];
+  missingRuntimeVersions: readonly MissingRuntimeVersionBuild[];
 }) => {
   if (missingRuntimeVersions.length === 0) {
     return null;

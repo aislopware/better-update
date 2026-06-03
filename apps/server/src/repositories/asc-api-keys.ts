@@ -140,7 +140,7 @@ export const AscApiKeyRepoLive = Layer.succeed(AscApiKeyRepo, {
           .first<Row>(),
       );
       if (row === null) {
-        return yield* Effect.fail(new NotFound({ message: "ASC API key not found" }));
+        return yield* new NotFound({ message: "ASC API key not found" });
       }
       return toModel(row);
     }),

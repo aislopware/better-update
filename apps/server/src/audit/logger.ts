@@ -29,4 +29,4 @@ export const logAudit = (params: {
       metadata: params.metadata ? JSON.stringify(params.metadata) : null,
       source: ctx.source,
     });
-  }).pipe(Effect.catchAll((error) => Effect.logError("Audit log insert failed", error)));
+  });

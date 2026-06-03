@@ -217,9 +217,9 @@ export const OrgVaultRepoLive = Layer.succeed(OrgVaultRepo, {
         "Recipient already holds a vault key wrap at this version",
       );
       if (result.meta.changes === 0) {
-        return yield* Effect.fail(
-          new Conflict({ message: "Vault version changed since read; re-fetch and retry" }),
-        );
+        return yield* new Conflict({
+          message: "Vault version changed since read; re-fetch and retry",
+        });
       }
       return {
         organizationId: params.organizationId,
@@ -357,9 +357,9 @@ export const OrgVaultRepoLive = Layer.succeed(OrgVaultRepo, {
       // rotation moved the version out from under this one.
       const cas = results.at(-1);
       if ((cas?.meta.changes ?? 0) === 0) {
-        return yield* Effect.fail(
-          new Conflict({ message: "Vault version changed since read; re-fetch and retry" }),
-        );
+        return yield* new Conflict({
+          message: "Vault version changed since read; re-fetch and retry",
+        });
       }
 
       const vaultRow = yield* Effect.promise(async () =>

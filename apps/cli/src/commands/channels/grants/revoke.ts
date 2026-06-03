@@ -51,11 +51,9 @@ export const revokeCommand = defineCommand({
           channels.find((ch) => ch.name === args.channel);
 
         if (!channel) {
-          return yield* Effect.fail(
-            new ChannelCommandError({
-              message: `Channel "${args.channel}" not found by ID or name.`,
-            }),
-          );
+          return yield* new ChannelCommandError({
+            message: `Channel "${args.channel}" not found by ID or name.`,
+          });
         }
 
         const result = yield* api.channelGrants.delete({

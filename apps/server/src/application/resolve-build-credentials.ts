@@ -56,11 +56,9 @@ const loadIosBundleConfiguration = (input: IosResolveInput) =>
       distributionType: input.distributionType,
     });
     if (config.organizationId !== input.organizationId) {
-      return yield* Effect.fail(
-        new NotFound({
-          message: `No iOS bundle configuration found for ${input.bundleIdentifier} (${input.distributionType})`,
-        }),
-      );
+      return yield* new NotFound({
+        message: `No iOS bundle configuration found for ${input.bundleIdentifier} (${input.distributionType})`,
+      });
     }
     return config;
   });
@@ -182,12 +180,10 @@ export const resolveIosBuildCredentials = (input: IosResolveInput) =>
     );
 
     if (cert.appleTeamId !== team.id || profile.appleTeamId !== team.id) {
-      return yield* Effect.fail(
-        new BadRequest({
-          message:
-            "iOS bundle configuration binds a certificate or profile from a different Apple team",
-        }),
-      );
+      return yield* new BadRequest({
+        message:
+          "iOS bundle configuration binds a certificate or profile from a different Apple team",
+      });
     }
 
     const { stale: profileStale, currentHash: currentDeviceRosterHash } = yield* checkProfileStale({
@@ -258,11 +254,9 @@ const loadAndroidApplicationIdentifier = (input: AndroidResolveInput) =>
       packageName: input.applicationIdentifier,
     });
     if (app.organizationId !== input.organizationId) {
-      return yield* Effect.fail(
-        new NotFound({
-          message: `No Android application identifier registered for ${input.applicationIdentifier}`,
-        }),
-      );
+      return yield* new NotFound({
+        message: `No Android application identifier registered for ${input.applicationIdentifier}`,
+      });
     }
     return app;
   });
@@ -292,11 +286,9 @@ export const resolveAndroidBuildCredentials = (input: AndroidResolveInput) =>
     });
 
     if (!group?.androidUploadKeystoreId) {
-      return yield* Effect.fail(
-        new BadRequest({
-          message: `No Android build credentials group with a keystore is bound to ${input.applicationIdentifier}`,
-        }),
-      );
+      return yield* new BadRequest({
+        message: `No Android build credentials group with a keystore is bound to ${input.applicationIdentifier}`,
+      });
     }
     const keystoreId = group.androidUploadKeystoreId;
     if (input.buildProfile !== undefined && group.name !== input.buildProfile) {
@@ -316,7 +308,7 @@ export const resolveAndroidBuildCredentials = (input: AndroidResolveInput) =>
     const keystores = yield* AndroidUploadKeystoreRepo;
     const keystore = yield* keystores.findById({ id: keystoreId });
     if (keystore.organizationId !== input.organizationId) {
-      return yield* Effect.fail(new NotFound({ message: "Keystore not found" }));
+      return yield* new NotFound({ message: "Keystore not found" });
     }
 
     const artifacts = yield* CredentialArtifacts;

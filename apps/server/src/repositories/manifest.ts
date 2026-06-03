@@ -106,7 +106,7 @@ export const ManifestRepoLive = Layer.succeed(ManifestRepo, {
       );
 
       if (row === null) {
-        return yield* Effect.fail(new NotFound({ message: "Channel not found" }));
+        return yield* new NotFound({ message: "Channel not found" });
       }
 
       return row;

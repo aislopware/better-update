@@ -120,7 +120,7 @@ export const AndroidUploadKeystoreRepoLive = Layer.succeed(AndroidUploadKeystore
           .first<Row>(),
       );
       if (row === null) {
-        return yield* Effect.fail(new NotFound({ message: "Android keystore not found" }));
+        return yield* new NotFound({ message: "Android keystore not found" });
       }
       return toModel(row);
     }),

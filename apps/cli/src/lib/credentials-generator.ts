@@ -160,12 +160,10 @@ export const generateAndUploadDistributionCertificate = (
     }).pipe(Effect.mapError(wrapAscError("apple-create-certificate")));
 
     if (apple.certificateContent === null) {
-      return yield* Effect.fail(
-        new GenerateFailedError({
-          step: "apple-create-certificate",
-          message: "Apple response missing certificateContent",
-        }),
-      );
+      return yield* new GenerateFailedError({
+        step: "apple-create-certificate",
+        message: "Apple response missing certificateContent",
+      });
     }
 
     const bundle = yield* buildDistributionCertP12({
@@ -244,12 +242,10 @@ export const revokeLocalDistributionCertificate = (
     const listing = yield* api.appleDistributionCertificates.list();
     const local = listing.items.find((entry) => entry.id === input.distributionCertificateId);
     if (local === undefined) {
-      return yield* Effect.fail(
-        new GenerateFailedError({
-          step: "load-distribution-certificate",
-          message: `Distribution certificate ${input.distributionCertificateId} not found on this account`,
-        }),
-      );
+      return yield* new GenerateFailedError({
+        step: "load-distribution-certificate",
+        message: `Distribution certificate ${input.distributionCertificateId} not found on this account`,
+      });
     }
 
     const creds = yield* fetchAscCredentials(api, input.ascApiKeyId);
@@ -328,12 +324,10 @@ const resolveCertAscId = (
     );
     const match = certs.find((entry) => entry.serialNumber.toUpperCase() === serialNumber);
     if (match === undefined) {
-      return yield* Effect.fail(
-        new GenerateFailedError({
-          step: "match-apple-certificate",
-          message: `Distribution certificate ${serialNumber} not present on Apple Developer Portal; upload or re-generate it`,
-        }),
-      );
+      return yield* new GenerateFailedError({
+        step: "match-apple-certificate",
+        message: `Distribution certificate ${serialNumber} not present on Apple Developer Portal; upload or re-generate it`,
+      });
     }
     return match.id;
   });
@@ -415,12 +409,10 @@ export const generateAndUploadProvisioningProfile = (
       : { ids: [] as readonly string[] };
 
     if (useDevices && deviceAscIds.length === 0) {
-      return yield* Effect.fail(
-        new GenerateFailedError({
-          step: "collect-devices",
-          message: "No registered devices to attach to the provisioning profile",
-        }),
-      );
+      return yield* new GenerateFailedError({
+        step: "collect-devices",
+        message: "No registered devices to attach to the provisioning profile",
+      });
     }
 
     const profileName = `${input.bundleIdentifier} ${input.distributionType} ${Date.now()}`;

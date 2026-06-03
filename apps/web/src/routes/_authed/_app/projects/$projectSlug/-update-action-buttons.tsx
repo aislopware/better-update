@@ -17,15 +17,15 @@ import { RollbackToEmbeddedDialog } from "./-rollback-to-embedded-dialog";
 import { invalidateUpdates } from "./-update-helpers";
 
 interface UpdateActionButtonsProps {
-  readonly update: typeof Update.Type;
-  readonly channels: readonly (typeof Channel.Type)[];
+  readonly update: Update;
+  readonly channels: readonly Channel[];
   readonly branchName: string | undefined;
   readonly slug: string;
   readonly orgId: string;
   readonly projectId: string;
 }
 
-const computeFollowupBlockReason = (update: typeof Update.Type): string | undefined => {
+const computeFollowupBlockReason = (update: Update): string | undefined => {
   if (update.isRollback) {
     return "Cannot create a follow-up update from a rollback";
   }

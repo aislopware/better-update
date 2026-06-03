@@ -102,7 +102,7 @@ export const DeviceRegistrationRequestRepoLive = Layer.succeed(DeviceRegistratio
           .first<Row>(),
       );
       if (row === null) {
-        return yield* Effect.fail(new NotFound({ message: "Registration request not found" }));
+        return yield* new NotFound({ message: "Registration request not found" });
       }
       return toModel(row);
     }),

@@ -3,6 +3,7 @@
   "workspaces": {
     ".": {
       "ignoreDependencies": [
+        "@effect/tsgo",
         "@lerna-lite/publish",
         "@tanstack/eslint-plugin-router",
         "@tanstack/react-query",

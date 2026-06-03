@@ -134,7 +134,7 @@ const build = {
   fingerprintHash: null,
   createdAt: "2026-01-01T00:00:00Z",
   artifact: null,
-} satisfies typeof BuildWithArtifact.Type;
+} satisfies BuildWithArtifact;
 
 const channel = {
   id: "channel-production",
@@ -145,7 +145,7 @@ const channel = {
   cacheVersion: 0,
   isPaused: false,
   createdAt: "2026-01-01T00:00:00Z",
-} satisfies typeof Channel.Type;
+} satisfies Channel;
 
 const update = {
   id: "update-1",
@@ -167,7 +167,7 @@ const update = {
   gitDirty: false,
   totalAssetSize: 0,
   createdAt: "2026-01-02T00:00:00Z",
-} satisfies typeof Update.Type;
+} satisfies Update;
 
 const expectInvalidation = async (
   invalidateSpy: ReturnType<typeof vi.spyOn>,

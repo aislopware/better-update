@@ -10,6 +10,7 @@ import forge from "node-forge";
 
 import type { ManifestAssetData, ManifestUpdateData } from "@better-update/expo-protocol";
 
+import { UpdatePublishError } from "./exit-codes";
 import {
   assertSignedManifestBundleUrl,
   buildSignedPayloadFromRender,
@@ -47,7 +48,7 @@ describe(loadOptionalSignedPayload, () => {
           certificateChainFile: files.certificatePath,
         },
         label: "Signed promote",
-        makeError: (message) => new Error(message),
+        makeError: (message) => new UpdatePublishError({ message }),
       }).pipe(Effect.provide(NodeFileSystem.layer), Effect.ensuring(Effect.sync(files.dispose)));
 
       expect(payload).toStrictEqual({
@@ -77,7 +78,7 @@ describe(loadSignedPublishPayloads, () => {
             certificateChainFile: iosFiles.certificatePath,
           },
         },
-        makeError: (message) => new Error(message),
+        makeError: (message) => new UpdatePublishError({ message }),
       }).pipe(Effect.provide(NodeFileSystem.layer), Effect.ensuring(Effect.sync(iosFiles.dispose)));
 
       expect(payloads.ios?.manifestBody).toBe('{"runtimeVersion":"1.0.0"}\n');
@@ -108,7 +109,7 @@ describe(loadSignedPublishPayloads, () => {
             certificateChainFile: androidFiles.certificatePath,
           },
         },
-        makeError: (message) => new Error(message),
+        makeError: (message) => new UpdatePublishError({ message }),
       }).pipe(
         Effect.provide(NodeFileSystem.layer),
         Effect.ensuring(
@@ -135,7 +136,7 @@ describe(loadSignedPublishPayloads, () => {
           certificateChainFile: files.certificatePath,
         },
         platformFiles: {},
-        makeError: (message) => new Error(message),
+        makeError: (message) => new UpdatePublishError({ message }),
       }).pipe(
         Effect.provide(NodeFileSystem.layer),
         Effect.ensuring(Effect.sync(files.dispose)),
@@ -144,10 +145,10 @@ describe(loadSignedPublishPayloads, () => {
 
       expect(Exit.isFailure(exit)).toBe(true);
       if (Exit.isFailure(exit)) {
-        expect(failureError(exit)).toStrictEqual(
-          new Error(
-            "Signed multi-platform publish requires per-platform file sets. Use the --*-ios and --*-android options.",
-          ),
+        const error = failureError(exit);
+        expect(error?._tag).toBe("UpdatePublishError");
+        expect(error?.message).toBe(
+          "Signed multi-platform publish requires per-platform file sets. Use the --*-ios and --*-android options.",
         );
       }
     }),
@@ -170,7 +171,7 @@ describe(loadSignedPublishPayloads, () => {
             certificateChainFile: files.certificatePath,
           },
         },
-        makeError: (message) => new Error(message),
+        makeError: (message) => new UpdatePublishError({ message }),
       }).pipe(
         Effect.provide(NodeFileSystem.layer),
         Effect.ensuring(Effect.sync(files.dispose)),
@@ -179,10 +180,10 @@ describe(loadSignedPublishPayloads, () => {
 
       expect(Exit.isFailure(exit)).toBe(true);
       if (Exit.isFailure(exit)) {
-        expect(failureError(exit)).toStrictEqual(
-          new Error(
-            "Signed publish for ios is ambiguous. Use either the generic file options or the ios-specific file options, not both.",
-          ),
+        const error = failureError(exit);
+        expect(error?._tag).toBe("UpdatePublishError");
+        expect(error?.message).toBe(
+          "Signed publish for ios is ambiguous. Use either the generic file options or the ios-specific file options, not both.",
         );
       }
     }),
@@ -345,7 +346,7 @@ describe(buildSignedPayloadFromRender, () => {
           serverBaseUrl: RENDER_SERVER_BASE_URL,
           projectId: RENDER_PROJECT_ID,
           platform: "ios",
-          makeError: (message) => new Error(message),
+          makeError: (message) => new UpdatePublishError({ message }),
         });
       }),
   );

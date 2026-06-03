@@ -190,7 +190,7 @@ export const AppleProvisioningProfileRepoLive = Layer.succeed(AppleProvisioningP
           .first<Row>(),
       );
       if (row === null) {
-        return yield* Effect.fail(new NotFound({ message: "Provisioning profile not found" }));
+        return yield* new NotFound({ message: "Provisioning profile not found" });
       }
       return toModel(row);
     }),

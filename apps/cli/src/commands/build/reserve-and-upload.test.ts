@@ -5,7 +5,7 @@ import nodePath from "node:path";
 import { FileSystem, HttpClient, HttpClientResponse } from "@effect/platform";
 import { NodeFileSystem } from "@effect/platform-node";
 import { it } from "@effect/vitest";
-import { Effect, Exit, Layer } from "effect";
+import { Data, Effect, Exit, Layer } from "effect";
 
 import {
   CompleteError,
@@ -18,6 +18,11 @@ import { PresignedUploadClientLive } from "../../services/presigned-upload";
 import { reserveAndUpload } from "./reserve-and-upload";
 
 import type { ApiClient } from "../../services/api-client";
+
+class ApiStubError extends Data.TaggedError("ApiStubError")<{
+  message: string;
+  cause?: unknown;
+}> {}
 
 // ── helpers ───────────────────────────────────────────────────────
 
@@ -180,7 +185,7 @@ describe(reserveAndUpload, () => {
   it.effect("fails with ReserveError when reserve endpoint fails", () =>
     Effect.gen(function* () {
       const api = makeApi({
-        reserve: () => Effect.fail(new Error("server down")),
+        reserve: () => Effect.fail(new ApiStubError({ message: "server down" })),
       });
       const exit = yield* reserveAndUpload(api, baseInput("/dev/null")).pipe(
         Effect.provide(makePresignedUploadLayer(FileSystem.layerNoop({}), okResponse)),
@@ -247,7 +252,7 @@ describe(reserveAndUpload, () => {
     Effect.gen(function* () {
       const file = withTempFile(Buffer.from("hello world"));
       const api = makeApi({
-        complete: () => Effect.fail(new Error("db error")),
+        complete: () => Effect.fail(new ApiStubError({ message: "db error" })),
       });
       const exit = yield* reserveAndUpload(api, baseInput(file.path)).pipe(
         Effect.provide(makePresignedUploadLayer(NodeFileSystem.layer, okResponse)),

@@ -43,7 +43,7 @@ export const readGradleConfig = (
 
     const content = yield* fs
       .readFileString(gradlePath)
-      .pipe(Effect.catchAll(() => Effect.succeed(undefined)));
+      .pipe(Effect.orElseSucceed(() => undefined));
     if (!content) {
       return undefined;
     }
@@ -60,7 +60,7 @@ export const readGradleConfig = (
       catch: () => undefined,
     }).pipe(
       Effect.map(extractGradleConfig),
-      Effect.catchAll(() => Effect.succeed(undefined)),
+      Effect.orElseSucceed(() => undefined),
     );
   });
 

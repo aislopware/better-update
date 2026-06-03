@@ -38,7 +38,7 @@ import type { Update } from "@better-update/api";
 import { formatDateTime } from "../../../../../lib/format-date";
 import { DROPDOWN_FETCH_LIMIT } from "../../../../../queries/constants";
 
-type UpdateItem = typeof Update.Type;
+type UpdateItem = Update;
 
 interface CompareUpdatesDialogProps {
   readonly orgId: string;

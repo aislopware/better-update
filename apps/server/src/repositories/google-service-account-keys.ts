@@ -116,7 +116,7 @@ export const GoogleServiceAccountKeyRepoLive = Layer.succeed(GoogleServiceAccoun
           .first<Row>(),
       );
       if (row === null) {
-        return yield* Effect.fail(new NotFound({ message: "Service account key not found" }));
+        return yield* new NotFound({ message: "Service account key not found" });
       }
       return toModel(row);
     }),

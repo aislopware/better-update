@@ -417,7 +417,7 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
       const fingerprintHash = isExpo
         ? yield* runFingerprintForPlatform(userCwd, platform).pipe(
             Effect.map((entry) => entry.hash),
-            Effect.catchAll(() => Effect.succeed(undefined)),
+            Effect.orElseSucceed(() => undefined),
           )
         : undefined;
 

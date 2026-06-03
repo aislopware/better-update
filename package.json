@@ -44,6 +44,8 @@
   "devDependencies": {
     "@commitlint/cli": "^21.0.2",
     "@commitlint/config-conventional": "^21.0.2",
+    "@effect/language-service": "^0.86.2",
+    "@effect/tsgo": "^0.13.1",
     "@effect/vitest": "^0.29.0",
     "@lerna-lite/cli": "^5.2.2",
     "@lerna-lite/publish": "^5.2.2",

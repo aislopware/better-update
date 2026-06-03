@@ -73,9 +73,7 @@ const resolvePatchBaseBranchId = (params: {
       return params.branchId;
     }
     if (params.channel === undefined) {
-      return yield* Effect.fail(
-        new BadRequest({ message: "Either branchId or channel is required" }),
-      );
+      return yield* new BadRequest({ message: "Either branchId or channel is required" });
     }
     const channelRepo = yield* ChannelRepo;
     const channel = yield* channelRepo.findByProjectAndName({
@@ -98,13 +96,13 @@ const assertAssetsExist = (assets: readonly { readonly hash: string }[]) =>
       .map((asset) => asset.hash);
 
     if (missingHashes.length > 0) {
-      yield* new NotFound({
+      return yield* new NotFound({
         message: `Assets not found: ${missingHashes.map((asset) => asset.hash).join(", ")}`,
       });
     }
 
     if (pendingHashes.length > 0) {
-      yield* new Conflict({
+      return yield* new Conflict({
         message: `Assets not uploaded: ${pendingHashes.join(", ")}`,
       });
     }
@@ -165,7 +163,7 @@ const handleCreateUpdate = ({ payload }: { readonly payload: typeof CreateUpdate
         branchName: payload.branch,
       });
       if (!branchResult.ok) {
-        return yield* Effect.fail(new Conflict({ message: branchResult.message }));
+        return yield* new Conflict({ message: branchResult.message });
       }
       const branchValue = branchResult.value;
 
@@ -227,7 +225,7 @@ const handleCreateUpdate = ({ payload }: { readonly payload: typeof CreateUpdate
         },
       });
       if (!publishResult.ok) {
-        return yield* Effect.fail(new Conflict({ message: publishResult.message }));
+        return yield* new Conflict({ message: publishResult.message });
       }
       const publishedUpdate = publishResult.value;
 
@@ -343,12 +341,12 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
           const updateRepo = yield* UpdateRepo;
           const updates = yield* updateRepo.findByGroupId({ groupId: path.groupId });
           if (updates.length === 0) {
-            return yield* Effect.fail(new NotFound({ message: "Update group not found" }));
+            return yield* new NotFound({ message: "Update group not found" });
           }
           const branchRepo = yield* BranchRepo;
           const [firstUpdate] = updates;
           if (!firstUpdate) {
-            return yield* Effect.fail(new NotFound({ message: "Update group not found" }));
+            return yield* new NotFound({ message: "Update group not found" });
           }
           const branch = yield* branchRepo.findById({ id: firstUpdate.branchId });
           yield* assertProjectOwnership(branch.projectId);
@@ -383,14 +381,14 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
           const updateRepo = yield* UpdateRepo;
           const updates = yield* updateRepo.findByGroupId({ groupId: path.groupId });
           if (updates.length === 0) {
-            return yield* Effect.fail(new NotFound({ message: "Update group not found" }));
+            return yield* new NotFound({ message: "Update group not found" });
           }
 
           // Verify ownership via branch -> project
           const branchRepo = yield* BranchRepo;
           const [firstUpdate] = updates;
           if (!firstUpdate) {
-            return yield* Effect.fail(new NotFound({ message: "Update group not found" }));
+            return yield* new NotFound({ message: "Update group not found" });
           }
           const branch = yield* branchRepo.findById({ id: firstUpdate.branchId });
           yield* assertProjectOwnership(branch.projectId);
@@ -460,7 +458,7 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
             },
           });
           if (!publishResult.ok) {
-            return yield* Effect.fail(new Conflict({ message: publishResult.message }));
+            return yield* new Conflict({ message: publishResult.message });
           }
 
           const result = {

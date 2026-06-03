@@ -134,11 +134,9 @@ export const IosAppMetadataRepoLive = Layer.succeed(IosAppMetadataRepo, {
           .first<Row>(),
       );
       if (row === null) {
-        return yield* Effect.fail(
-          new NotFound({
-            message: `No iOS App Store metadata found for ${params.bundleIdentifier}`,
-          }),
-        );
+        return yield* new NotFound({
+          message: `No iOS App Store metadata found for ${params.bundleIdentifier}`,
+        });
       }
       return toModel(row);
     }),
@@ -152,7 +150,7 @@ export const IosAppMetadataRepoLive = Layer.succeed(IosAppMetadataRepo, {
           .first<Row>(),
       );
       if (row === null) {
-        return yield* Effect.fail(new NotFound({ message: "iOS App Store metadata not found" }));
+        return yield* new NotFound({ message: "iOS App Store metadata not found" });
       }
       return toModel(row);
     }),

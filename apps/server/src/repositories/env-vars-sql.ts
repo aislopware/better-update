@@ -218,7 +218,7 @@ export const requireModelById = (db: D1Database, id: string) =>
         .first<EnvVarMetaRow>(),
     );
     if (row === null) {
-      return yield* Effect.fail(new NotFound({ message: "Environment variable not found" }));
+      return yield* new NotFound({ message: "Environment variable not found" });
     }
     return toModel(row);
   });

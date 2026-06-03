@@ -42,9 +42,9 @@ export const UserEncryptionKeysGroupLive = HttpApiBuilder.group(
             // user); `recovery`/`machine` keys are org-owned and admin/owner-gated.
             const isDevice = payload.kind === "device";
             if (isDevice && ctx.userId === null) {
-              return yield* Effect.fail(
-                new BadRequest({ message: "Device keys require an interactive user session" }),
-              );
+              return yield* new BadRequest({
+                message: "Device keys require an interactive user session",
+              });
             }
             if (!isDevice) {
               yield* assertPermission("vaultAccess", "create");

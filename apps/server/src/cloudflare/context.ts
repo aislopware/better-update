@@ -1,6 +1,9 @@
 import { Context, Effect, Option } from "effect";
 
-class CloudflareEnvTag extends Context.Tag("server/CloudflareEnv")<CloudflareEnvTag, Env>() {}
+export class CloudflareEnvTag extends Context.Tag("server/CloudflareEnv")<
+  CloudflareEnvTag,
+  Env
+>() {}
 class CloudflareExecutionContextTag extends Context.Tag("server/CloudflareExecutionContext")<
   CloudflareExecutionContextTag,
   ExecutionContext
@@ -37,9 +40,10 @@ export const cloudflareRequest: Effect.Effect<Request> = fromFiberContext(
 );
 
 export const makeCloudflareRequestContext = (env: Env, ctx: ExecutionContext, request: Request) =>
-  Context.make(CloudflareEnvTag, env)
-    .pipe(Context.add(CloudflareExecutionContextTag, ctx))
-    .pipe(Context.add(CloudflareRequestTag, request));
+  Context.make(CloudflareEnvTag, env).pipe(
+    Context.add(CloudflareExecutionContextTag, ctx),
+    Context.add(CloudflareRequestTag, request),
+  );
 
 export const provideCloudflareEnv = <Success, Failure, Requirements>(
   effect: Effect.Effect<Success, Failure, Requirements>,

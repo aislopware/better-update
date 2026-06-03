@@ -4,7 +4,16 @@
     "types": ["node", "vitest/globals"],
     "paths": {
       "qrcode-terminal": ["./src/types/qrcode-terminal"]
-    }
+    },
+    "plugins": [
+      {
+        "name": "@effect/language-service",
+        "diagnostics": true,
+        "includeSuggestionsInTsc": true,
+        "ignoreEffectSuggestionsInTscExitCode": true,
+        "ignoreEffectWarningsInTscExitCode": false
+      }
+    ]
   },
   "include": ["src", "tests", "*.ts"]
 }

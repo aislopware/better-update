@@ -120,7 +120,7 @@ export const AppleTeamRepoLive = Layer.succeed(AppleTeamRepo, {
           .first<Row>(),
       );
       if (row === null) {
-        return yield* Effect.fail(new NotFound({ message: "Apple team not found" }));
+        return yield* new NotFound({ message: "Apple team not found" });
       }
       return toModel(row);
     }),
@@ -136,7 +136,7 @@ export const AppleTeamRepoLive = Layer.succeed(AppleTeamRepo, {
           .first<Row>(),
       );
       if (row === null) {
-        return yield* Effect.fail(new NotFound({ message: "Apple team not found" }));
+        return yield* new NotFound({ message: "Apple team not found" });
       }
       return toModel(row);
     }),

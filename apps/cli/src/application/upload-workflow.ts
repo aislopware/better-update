@@ -128,7 +128,7 @@ export const runUploadWorkflow = (options: RunUploadWorkflowOptions) =>
       .exists(options.artifactPath)
       .pipe(Effect.orElseSucceed(() => false));
     if (!artifactExists) {
-      yield* new ArtifactNotFoundError({
+      return yield* new ArtifactNotFoundError({
         message: `Artifact not found at ${options.artifactPath}.`,
       });
     }
@@ -177,7 +177,7 @@ export const runUploadWorkflow = (options: RunUploadWorkflowOptions) =>
     const fingerprintHash = isExpo
       ? yield* runFingerprintForPlatform(projectRoot, options.platform).pipe(
           Effect.map((entry) => entry.hash),
-          Effect.catchAll(() => Effect.succeed(undefined)),
+          Effect.orElseSucceed(() => undefined),
         )
       : undefined;
 

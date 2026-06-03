@@ -32,7 +32,7 @@ const checkExistingLink = (
 
     const project = yield* api.projects
       .get({ path: { id: existingId } })
-      .pipe(Effect.catchAll(() => Effect.succeed(undefined)));
+      .pipe(Effect.orElseSucceed(() => undefined));
     if (project === undefined) {
       yield* printHuman(
         `Existing projectId "${existingId}" not found on server. Re-linking by local slug "${localSlug}".`,
@@ -72,12 +72,12 @@ const readPackageJsonName = (
     const fs = yield* FileSystem.FileSystem;
     const content = yield* fs
       .readFileString(path.join(projectRoot, "package.json"))
-      .pipe(Effect.catchAll(() => Effect.succeed("")));
+      .pipe(Effect.orElseSucceed(() => ""));
     if (content.length === 0) {
       return undefined;
     }
     const parsed = yield* Effect.try((): unknown => JSON.parse(content)).pipe(
-      Effect.catchAll(() => Effect.succeed(undefined)),
+      Effect.orElseSucceed(() => undefined),
     );
     const name = isRecord(parsed) ? parsed["name"] : undefined;
     return typeof name === "string" && name.length > 0 ? name : undefined;

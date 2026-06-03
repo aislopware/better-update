@@ -63,11 +63,9 @@ const extractCertMetadata = (
   Effect.gen(function* () {
     const appleTeamId = extractTeamId(cert);
     if (appleTeamId === null) {
-      return yield* Effect.fail(
-        new CertParseError({
-          message: "Could not extract Apple team identifier from certificate subject",
-        }),
-      );
+      return yield* new CertParseError({
+        message: "Could not extract Apple team identifier from certificate subject",
+      });
     }
     return {
       serialNumber: cert.serialNumber.toUpperCase(),
@@ -92,9 +90,7 @@ export const extractMetadataFromP12 = (params: {
   Effect.gen(function* () {
     const certBagOid = forge.pki.oids["certBag"];
     if (certBagOid === undefined) {
-      return yield* Effect.fail(
-        new CertParseError({ message: "PKCS#12 OID lookup for certBag failed" }),
-      );
+      return yield* new CertParseError({ message: "PKCS#12 OID lookup for certBag failed" });
     }
     const bags = yield* Effect.try({
       try: () => {
@@ -111,9 +107,9 @@ export const extractMetadataFromP12 = (params: {
     });
     const [first] = bags;
     if (first?.cert === undefined) {
-      return yield* Effect.fail(
-        new CertParseError({ message: "PKCS#12 bundle does not contain a certificate" }),
-      );
+      return yield* new CertParseError({
+        message: "PKCS#12 bundle does not contain a certificate",
+      });
     }
     return yield* extractCertMetadata(first.cert);
   });

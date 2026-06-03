@@ -1,7 +1,12 @@
-import { Effect } from "effect";
+import { Data, Effect } from "effect";
 
 import { authClient, rejectOnAuthClientError } from "./auth-client";
 import { useApiMutation } from "./use-api-mutation";
+
+class OrgMutationError extends Data.TaggedError("OrgMutationError")<{
+  message: string;
+  cause?: unknown;
+}> {}
 
 /**
  * Creates an organization and activates it in the session.
@@ -24,7 +29,7 @@ export const createAndActivateOrg = async (params: {
       );
 
       if (!created.data) {
-        return yield* Effect.fail(new Error("Failed to create organization"));
+        return yield* new OrgMutationError({ message: "Failed to create organization" });
       }
 
       yield* Effect.tryPromise(async () =>
@@ -61,7 +66,9 @@ export const deleteOrg = async (organizationId: string): Promise<void> =>
           authClient.organization.delete({ organizationId }),
         );
         if (error) {
-          return yield* Effect.fail(new Error(error.message ?? "Failed to delete organization"));
+          return yield* new OrgMutationError({
+            message: error.message ?? "Failed to delete organization",
+          });
         }
         return undefined;
       }),

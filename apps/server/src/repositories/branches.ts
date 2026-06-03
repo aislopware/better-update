@@ -128,7 +128,7 @@ export const BranchRepoLive = Layer.succeed(BranchRepo, {
       );
 
       if (row === null) {
-        return yield* Effect.fail(new NotFound({ message: "Branch not found" }));
+        return yield* new NotFound({ message: "Branch not found" });
       }
 
       return toBranch(row);
@@ -147,7 +147,7 @@ export const BranchRepoLive = Layer.succeed(BranchRepo, {
       );
 
       if (row === null) {
-        return yield* Effect.fail(new NotFound({ message: "Branch not found" }));
+        return yield* new NotFound({ message: "Branch not found" });
       }
 
       return toBranch(row);
@@ -181,9 +181,9 @@ export const BranchRepoLive = Layer.succeed(BranchRepo, {
       );
 
       if ((channelCount?.count ?? 0) > 0) {
-        yield* Effect.fail(
-          new Conflict({ message: "Cannot delete branch while channels are linked to it" }),
-        );
+        return yield* new Conflict({
+          message: "Cannot delete branch while channels are linked to it",
+        });
       }
 
       // Cascade delete in FK dependency order

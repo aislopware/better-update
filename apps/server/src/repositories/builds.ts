@@ -245,7 +245,7 @@ export const BuildRepoLive = Layer.succeed(BuildRepo, {
       );
 
       if (row === null) {
-        return yield* Effect.fail(new NotFound({ message: "Build not found" }));
+        return yield* new NotFound({ message: "Build not found" });
       }
 
       return toBuildWithArtifact(row);
@@ -380,7 +380,7 @@ export const BuildRepoLive = Layer.succeed(BuildRepo, {
       );
 
       if (result.meta.changes === 0) {
-        return yield* Effect.fail(new NotFound({ message: "Build not found" }));
+        return yield* new NotFound({ message: "Build not found" });
       }
 
       return { r2Key: toDbNull(artifact?.r2_key) };

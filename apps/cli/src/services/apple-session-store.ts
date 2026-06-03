@@ -55,7 +55,7 @@ export const AppleSessionStoreLive = Layer.effect(
       loadSession: Effect.gen(function* () {
         const content = yield* fs
           .readFileString(sessionFile)
-          .pipe(Effect.catchAll(() => Effect.succeed(null)));
+          .pipe(Effect.orElseSucceed(() => null));
 
         if (!content) {
           return null;
@@ -101,7 +101,7 @@ export const AppleSessionStoreLive = Layer.effect(
       loadLastUsername: Effect.gen(function* () {
         const content = yield* fs
           .readFileString(usernameFile)
-          .pipe(Effect.catchAll(() => Effect.succeed(null)));
+          .pipe(Effect.orElseSucceed(() => null));
         if (!content) {
           return null;
         }

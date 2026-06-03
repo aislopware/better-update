@@ -38,11 +38,9 @@ export const setCommand = defineCommand({
       Effect.gen(function* () {
         const effectValue = args.effect ?? "allow";
         if (effectValue !== "allow" && effectValue !== "deny") {
-          return yield* Effect.fail(
-            new GrantCommandError({
-              message: `Invalid effect "${effectValue}" — must be "allow" or "deny".`,
-            }),
-          );
+          return yield* new GrantCommandError({
+            message: `Invalid effect "${effectValue}" — must be "allow" or "deny".`,
+          });
         }
 
         const actionTokens = args.actions
@@ -51,11 +49,9 @@ export const setCommand = defineCommand({
           .filter((tok) => tok.length > 0);
 
         if (actionTokens.length === 0) {
-          return yield* Effect.fail(
-            new GrantCommandError({
-              message: "At least one action token is required.",
-            }),
-          );
+          return yield* new GrantCommandError({
+            message: "At least one action token is required.",
+          });
         }
 
         const projectId = yield* readProjectId;
@@ -70,11 +66,9 @@ export const setCommand = defineCommand({
           channels.find((ch) => ch.name === args.channel);
 
         if (!channel) {
-          return yield* Effect.fail(
-            new ChannelCommandError({
-              message: `Channel "${args.channel}" not found by ID or name.`,
-            }),
-          );
+          return yield* new ChannelCommandError({
+            message: `Channel "${args.channel}" not found by ID or name.`,
+          });
         }
 
         const grant = yield* api.channelGrants.upsert({

@@ -36,7 +36,7 @@ export const assertPermissionOn = (resource: Resource, action: Action, scope: Sc
     if (!memberId) {
       const baseline = ctx.effectivePermissions[resource]?.includes(action) ?? false;
       if (!baseline) {
-        yield* new Forbidden({ message: `Insufficient permission: ${token}` });
+        return yield* new Forbidden({ message: `Insufficient permission: ${token}` });
       }
       return;
     }
@@ -50,8 +50,7 @@ export const assertPermissionOn = (resource: Resource, action: Action, scope: Sc
 
     const denied = grants.some((grant) => grant.effect === "deny" && grant.actions.includes(token));
     if (denied) {
-      yield* new Forbidden({ message: `Denied by scope grant: ${token}` });
-      return;
+      return yield* new Forbidden({ message: `Denied by scope grant: ${token}` });
     }
 
     // Role baseline grants it and no deny overrode -> allow.
@@ -64,7 +63,7 @@ export const assertPermissionOn = (resource: Resource, action: Action, scope: Sc
       (grant) => grant.effect === "allow" && grant.actions.includes(token),
     );
     if (!allowed) {
-      yield* new Forbidden({ message: `Insufficient permission: ${token}` });
+      return yield* new Forbidden({ message: `Insufficient permission: ${token}` });
     }
   });
 

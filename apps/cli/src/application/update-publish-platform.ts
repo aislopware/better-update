@@ -136,7 +136,7 @@ const resolvePlatformFingerprintHash = (
 > =>
   runFingerprintForPlatform(projectRoot, platform).pipe(
     Effect.map((result) => result.hash),
-    Effect.catchAll(() => Effect.succeed(undefined)),
+    Effect.orElseSucceed(() => undefined),
   );
 
 const preparePlatformAssets = ({
@@ -387,11 +387,9 @@ export const publishPlatform = (
         Effect.gen(function* () {
           const detail = uploadDetailsByHash.get(asset.hash);
           if (!detail) {
-            return yield* Effect.fail(
-              new UpdatePublishError({
-                message: `Missing upload details for asset ${asset.hash}`,
-              }),
-            );
+            return yield* new UpdatePublishError({
+              message: `Missing upload details for asset ${asset.hash}`,
+            });
           }
           return yield* assetUploader.uploadAssetBinary({
             path: asset.path,

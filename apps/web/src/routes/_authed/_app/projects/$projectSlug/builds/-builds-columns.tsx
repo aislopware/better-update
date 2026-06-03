@@ -10,7 +10,7 @@ import { InstallLinkDialog } from "../-install-link-dialog";
 import { DistributionBadge, PlatformBadge } from "../../../../../../components/attribute-badges";
 import { formatRelativeTime } from "../../../../../../lib/format-relative-time";
 
-export type BuildItem = typeof BuildWithArtifact.Type;
+export type BuildItem = BuildWithArtifact;
 
 const buildLabel = (build: BuildItem) =>
   (build.message ?? build.profile) || `Build ${build.id.slice(0, 8)}`;

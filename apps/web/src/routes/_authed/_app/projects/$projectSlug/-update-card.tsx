@@ -23,8 +23,8 @@ import { UpdateActionButtons } from "./-update-action-buttons";
 import { invalidateUpdates, readUpdateEnvironment } from "./-update-helpers";
 
 interface UpdateCardProps {
-  readonly update: typeof Update.Type;
-  readonly channels: readonly (typeof Channel.Type)[];
+  readonly update: Update;
+  readonly channels: readonly Channel[];
   readonly branchName: string | undefined;
   readonly slug: string;
   readonly orgId: string;

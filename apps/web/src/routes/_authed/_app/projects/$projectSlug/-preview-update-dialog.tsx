@@ -38,8 +38,8 @@ import {
 import { useCopyToClipboard } from "../../../../../lib/use-copy-to-clipboard";
 import { DROPDOWN_FETCH_LIMIT } from "../../../../../queries/constants";
 
-type UpdateItem = typeof Update.Type;
-type ChannelItem = typeof Channel.Type;
+type UpdateItem = Update;
+type ChannelItem = Channel;
 
 const QA_DISTRIBUTIONS = new Set(["development", "ad-hoc", "enterprise", "simulator", "direct"]);
 

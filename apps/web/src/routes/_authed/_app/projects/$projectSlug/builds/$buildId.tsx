@@ -47,7 +47,7 @@ const BuildMetadataCard = ({
   build,
   projectSlug,
 }: {
-  build: typeof BuildWithArtifact.Type;
+  build: BuildWithArtifact;
   projectSlug: string;
 }) => (
   <Card>
@@ -114,7 +114,7 @@ const BuildMetadataCard = ({
   </Card>
 );
 
-const ArtifactCard = ({ build }: { build: typeof BuildWithArtifact.Type }) => (
+const ArtifactCard = ({ build }: { build: BuildWithArtifact }) => (
   <Card>
     <CardHeader>
       <CardTitle>Artifact</CardTitle>

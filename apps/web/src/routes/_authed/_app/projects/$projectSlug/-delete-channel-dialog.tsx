@@ -13,7 +13,7 @@ export const DeleteChannelDialog = ({
   orgId,
   projectId,
 }: {
-  channel: typeof Channel.Type;
+  channel: Channel;
   orgId: string;
   projectId: string;
 }) => {

@@ -1,19 +1,19 @@
 import { Effect, Layer } from "effect";
 
-import { provideCloudflareEnv } from "../../src/cloudflare/context";
+import { CloudflareEnvTag, provideCloudflareEnv } from "../../src/cloudflare/context";
 
-export const runWithEnv = <Success, Error, Requirements>(
-  effect: Effect.Effect<Success, Error, Requirements>,
+export const runWithEnv = <Success, Error>(
+  effect: Effect.Effect<Success, Error, CloudflareEnvTag>,
   env: Env,
 ) => Effect.runPromise(provideCloudflareEnv(effect, env));
 
-export const runEitherWithEnv = <Success, Error, Requirements>(
-  effect: Effect.Effect<Success, Error, Requirements>,
+export const runEitherWithEnv = <Success, Error>(
+  effect: Effect.Effect<Success, Error, CloudflareEnvTag>,
   env: Env,
 ) => Effect.runPromise(Effect.either(provideCloudflareEnv(effect, env)));
 
-export const runWithEnvExit = <Success, Error, Requirements>(
-  effect: Effect.Effect<Success, Error, Requirements>,
+export const runWithEnvExit = <Success, Error>(
+  effect: Effect.Effect<Success, Error, CloudflareEnvTag>,
   env: Env,
 ) => Effect.runPromiseExit(provideCloudflareEnv(effect, env));
 

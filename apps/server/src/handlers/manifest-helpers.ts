@@ -66,6 +66,7 @@ const recordExtraParams = (params: {
       Effect.catchAllCause(() => Effect.void),
       Effect.provide(context),
     );
+    // @effect-diagnostics-next-line effect/runEffectInsideEffect:off -- legit Cloudflare boundary: ctx.waitUntil needs a Promise for detached fire-and-forget off the manifest-serving critical path (see block comment above); `yield* write` would await inline and change behavior
     ctx.waitUntil(Effect.runPromise(write));
   });
 

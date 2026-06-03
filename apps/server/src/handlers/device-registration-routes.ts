@@ -166,7 +166,7 @@ const consumeCallback = (deps: ConsumeCallbackDeps) =>
           createdAt: iso,
           updatedAt: iso,
         })
-        .pipe(Effect.catchTag("Conflict", () => Effect.succeed(undefined)));
+        .pipe(Effect.catchTag("Conflict", () => Effect.void));
     }
 
     yield* inviteRepo.markConsumed({

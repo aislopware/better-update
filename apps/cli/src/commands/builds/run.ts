@@ -138,13 +138,10 @@ const runIosDevice = (params: IosRunParams) =>
   Effect.gen(function* () {
     const { deviceSelector } = params;
     if (deviceSelector === undefined) {
-      yield* Effect.fail(
-        new InvalidArgumentError({
-          message:
-            "Pass --device-id <udid>. Run `xcrun devicectl list devices` to list connected devices.",
-        }),
-      );
-      return;
+      return yield* new InvalidArgumentError({
+        message:
+          "Pass --device-id <udid>. Run `xcrun devicectl list devices` to list connected devices.",
+      });
     }
     const extractDir = yield* extractIosArtifact({
       tempDir: params.tempDir,
@@ -191,33 +188,24 @@ interface AndroidRunParams {
 const runAndroid = (params: AndroidRunParams) =>
   Effect.gen(function* () {
     if (params.format === "aab") {
-      yield* Effect.fail(
-        new InvalidArgumentError({
-          message:
-            ".aab artifacts cannot be installed directly. Use bundletool to convert to apks, or download the play-store APK.",
-        }),
-      );
-      return;
+      return yield* new InvalidArgumentError({
+        message:
+          ".aab artifacts cannot be installed directly. Use bundletool to convert to apks, or download the play-store APK.",
+      });
     }
     if (params.format !== "apk") {
-      yield* Effect.fail(
-        new NativeRunError({
-          message: `Cannot install ${params.format} on Android; only apk is supported.`,
-        }),
-      );
-      return;
+      return yield* new NativeRunError({
+        message: `Cannot install ${params.format} on Android; only apk is supported.`,
+      });
     }
     const device = yield* pickAndroidDevice(params.emulatorSelector);
     const detected = yield* readApkPackageName(params.artifactPath);
     const packageName = params.packageOverride ?? detected;
     if (!packageName) {
-      yield* Effect.fail(
-        new InvalidArgumentError({
-          message:
-            "Could not detect APK package name (aapt/aapt2 not on PATH). Pass --package <name> explicitly.",
-        }),
-      );
-      return;
+      return yield* new InvalidArgumentError({
+        message:
+          "Could not detect APK package name (aapt/aapt2 not on PATH). Pass --package <name> explicitly.",
+      });
     }
     yield* printHuman(`Installing on Android device ${device.serial}...`);
     yield* installAndLaunchAndroid({
@@ -281,9 +269,9 @@ export const runCommand = defineCommand({
           });
           const { artifact } = build;
           if (!artifact) {
-            return yield* Effect.fail(
-              new UploadFailedError({ message: `Build ${build.id} has no artifact yet.` }),
-            );
+            return yield* new UploadFailedError({
+              message: `Build ${build.id} has no artifact yet.`,
+            });
           }
           const link = yield* api.builds.getInstallLink({ path: { id: build.id } });
           const tempDir = yield* acquireBuildTempDir;

@@ -50,9 +50,7 @@ const validateOneBundle = (
   CommandExecutor.CommandExecutor | FileSystem.FileSystem
 > =>
   Effect.gen(function* () {
-    const bundleId = yield* readBundleId(bundleDir).pipe(
-      Effect.catchAll(() => Effect.succeed(undefined)),
-    );
+    const bundleId = yield* readBundleId(bundleDir).pipe(Effect.orElseSucceed(() => undefined));
     if (!bundleId) {
       return {
         bundleId: undefined,
@@ -71,14 +69,14 @@ const validateOneBundle = (
       expected.profileUuid,
       expectedTeamId,
       bundleId,
-    ).pipe(Effect.catchAll(() => Effect.succeed([] as readonly string[])));
+    ).pipe(Effect.orElseSucceed(() => [] as readonly string[]));
     return { bundleId, warnings: profileWarnings };
   });
 
 export const validateIosBuild = (params: IosValidationParams) =>
   Effect.gen(function* () {
     const appDir = yield* findAppDirectory(params.archivePath).pipe(
-      Effect.catchAll(() => Effect.succeed(undefined)),
+      Effect.orElseSucceed(() => undefined),
     );
 
     if (!appDir) {
@@ -87,7 +85,7 @@ export const validateIosBuild = (params: IosValidationParams) =>
     }
 
     const bundleDirs = yield* listSignedBundleDirs(appDir).pipe(
-      Effect.catchAll(() => Effect.succeed([appDir])),
+      Effect.orElseSucceed(() => [appDir]),
     );
     const expectedByBundleId = new Map(
       params.expectedTargets.map((target) => [target.bundleId, target]),
@@ -148,9 +146,7 @@ const listSignedBundleDirs = (
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
     const plugInsDir = path.join(appDir, "PlugIns");
-    const plugInsExists = yield* fs
-      .exists(plugInsDir)
-      .pipe(Effect.catchAll(() => Effect.succeed(false)));
+    const plugInsExists = yield* fs.exists(plugInsDir).pipe(Effect.orElseSucceed(() => false));
     if (!plugInsExists) {
       return [appDir];
     }

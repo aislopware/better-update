@@ -90,7 +90,7 @@ const update = {
   gitDirty: false,
   totalAssetSize: 0,
   createdAt: "2026-01-02T00:00:00Z",
-} satisfies typeof Update.Type;
+} satisfies Update;
 
 const channels = [
   {
@@ -113,7 +113,7 @@ const channels = [
     isPaused: false,
     createdAt: "2026-01-03T00:00:00Z",
   },
-] satisfies readonly (typeof Channel.Type)[];
+] satisfies readonly Channel[];
 
 const expectUpdatesInvalidated = async (invalidateSpy: ReturnType<typeof vi.spyOn>) => {
   await waitFor(() => {

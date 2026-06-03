@@ -1,7 +1,16 @@
 {
   "extends": "@better-update/typescript-config/react.json",
   "compilerOptions": {
-    "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom/vitest"]
+    "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom/vitest"],
+    "plugins": [
+      {
+        "name": "@effect/language-service",
+        "diagnostics": true,
+        "includeSuggestionsInTsc": true,
+        "ignoreEffectSuggestionsInTscExitCode": true,
+        "ignoreEffectWarningsInTscExitCode": false
+      }
+    ]
   },
   "include": ["src", "*.ts"]
 }

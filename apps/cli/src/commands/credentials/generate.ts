@@ -42,6 +42,7 @@ interface KeystoreCliArgs {
 
 const parseValidityDays = (raw: string | undefined) => {
   if (raw === undefined || raw.length === 0) {
+    // @effect-diagnostics-next-line effect/effectSucceedWithVoid:off -- undefined is a load-bearing success value (number | undefined); Effect.void breaks downstream compact()/validityDays?: number typing
     return Effect.succeed(undefined);
   }
   const parsed = Number(raw);
@@ -191,12 +192,10 @@ const handleCertLimitInteractive = (
     yield* printHuman("Apple reports the certificate limit was hit (max 3 distribution certs).");
     const certs = yield* listAppleCertificates(api, { ascApiKeyId, certificateType });
     if (certs.length === 0) {
-      return yield* Effect.fail(
-        new CertificateLimitError({
-          message:
-            "Apple says the certificate limit is hit but no existing certificates were returned — try again later.",
-        }),
-      );
+      return yield* new CertificateLimitError({
+        message:
+          "Apple says the certificate limit is hit but no existing certificates were returned — try again later.",
+      });
     }
     const toRevoke = yield* promptMultiSelect<string>(
       "Select one or more certificates to revoke before retrying",

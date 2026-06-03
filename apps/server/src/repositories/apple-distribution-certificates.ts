@@ -125,9 +125,7 @@ export const AppleDistributionCertificateRepoLive = Layer.succeed(
             .first<Row>(),
         );
         if (row === null) {
-          return yield* Effect.fail(
-            new NotFound({ message: "Distribution certificate not found" }),
-          );
+          return yield* new NotFound({ message: "Distribution certificate not found" });
         }
         return toModel(row);
       }),

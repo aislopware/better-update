@@ -17,6 +17,7 @@ const exitCodeStub = () => {
       argv: [],
       platform: "linux" as NodeJS.Platform,
       cwd: Effect.succeed("/"),
+      // @effect-diagnostics-next-line effect/effectSucceedWithVoid:off -- getEnv's interface returns Effect<string | undefined>; undefined is the success value, Effect.void breaks the Layer.succeed typecheck
       getEnv: () => Effect.succeed(undefined),
       homeDirectory: Effect.succeed("/"),
       userName: Effect.succeed("test"),

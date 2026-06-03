@@ -56,9 +56,7 @@ export const IdentityStoreLive = Layer.effect(
 
     return {
       load: Effect.gen(function* () {
-        const content = yield* fs
-          .readFileString(identityFile)
-          .pipe(Effect.catchAll(() => Effect.succeed("")));
+        const content = yield* fs.readFileString(identityFile).pipe(Effect.orElseSucceed(() => ""));
         if (content.length === 0) {
           return null;
         }

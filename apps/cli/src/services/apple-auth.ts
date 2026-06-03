@@ -223,7 +223,7 @@ const tryRestore = (
       return null;
     }
     const restored = yield* restoreFromCookies(appleUtils, stored.cookies).pipe(
-      Effect.catchAll(() => Effect.succeed(null)),
+      Effect.orElseSucceed(() => null),
     );
     if (restored === null) {
       return null;
@@ -262,7 +262,7 @@ export const makeAppleAuthLive = (appleUtils: AppleUtilsContract = defaultAppleU
             return null;
           }
           const restored = yield* restoreFromCookies(appleUtils, stored.cookies).pipe(
-            Effect.catchAll(() => Effect.succeed(null)),
+            Effect.orElseSucceed(() => null),
           );
           if (restored !== null) {
             return sessionFromAuthState(restored);

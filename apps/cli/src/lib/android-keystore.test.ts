@@ -1,10 +1,15 @@
 import { CommandExecutor } from "@effect/platform";
 import { it } from "@effect/vitest";
-import { Effect, Exit } from "effect";
+import { Data, Effect, Exit } from "effect";
 
 import { generateAndroidKeystore, renderDistinguishedName } from "./android-keystore";
 import { BuildFailedError } from "./exit-codes";
 import { failureError } from "./test-utils";
+
+class SpawnFailedError extends Data.TaggedError("SpawnFailedError")<{
+  message: string;
+  cause?: unknown;
+}> {}
 
 const makeStubExecutor = (
   exitCode: (command: unknown) => Effect.Effect<CommandExecutor.ExitCode, unknown>,
@@ -99,7 +104,7 @@ describe("android keystore helpers", () => {
         commonName: "Jane Doe",
         organization: "Acme Inc",
       }).pipe(
-        provideStubExecutor(() => Effect.fail(new Error("spawn failed"))),
+        provideStubExecutor(() => Effect.fail(new SpawnFailedError({ message: "spawn failed" }))),
         Effect.exit,
       );
 

@@ -198,7 +198,7 @@ const Toolbar = ({
   </div>
 );
 
-const EnvVarsTable = ({ items }: { items: readonly (typeof EnvVar.Type)[] }) =>
+const EnvVarsTable = ({ items }: { items: readonly EnvVar[] }) =>
   items.length === 0 ? (
     <EmptyState />
   ) : (

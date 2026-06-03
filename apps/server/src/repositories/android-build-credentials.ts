@@ -134,7 +134,7 @@ export const AndroidBuildCredentialsRepoLive = Layer.succeed(AndroidBuildCredent
           .first<Row>(),
       );
       if (row === null) {
-        return yield* Effect.fail(new NotFound({ message: "Android build credentials not found" }));
+        return yield* new NotFound({ message: "Android build credentials not found" });
       }
       return toModel(row);
     }),

@@ -21,9 +21,7 @@ export const CredentialArtifactsLive = Layer.succeed(CredentialArtifacts, {
       const env = yield* cloudflareEnv;
       const blob = yield* r2Operation(async () => env.CREDENTIAL_ARTIFACTS.get(r2Key));
       if (blob === null) {
-        return yield* Effect.fail(
-          new NotFound({ message: `${label} artifact missing in object storage` }),
-        );
+        return yield* new NotFound({ message: `${label} artifact missing in object storage` });
       }
       return new Uint8Array(yield* r2Operation(async () => blob.arrayBuffer()));
     }),

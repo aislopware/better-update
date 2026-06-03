@@ -49,7 +49,7 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
           const branchRepo = yield* BranchRepo;
           const branch = yield* branchRepo.findById({ id: payload.branchId });
           if (branch.projectId !== payload.projectId) {
-            return yield* Effect.fail(new NotFound({ message: "Branch not found" }));
+            return yield* new NotFound({ message: "Branch not found" });
           }
 
           const repo = yield* ChannelRepo;
@@ -109,15 +109,13 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
           yield* assertProjectOwnership(channel.projectId);
 
           if (channel.branchMappingJson !== null) {
-            return yield* Effect.fail(
-              new Conflict({ message: "Cannot relink while a rollout is active" }),
-            );
+            return yield* new Conflict({ message: "Cannot relink while a rollout is active" });
           }
 
           const branchRepo = yield* BranchRepo;
           const branch = yield* branchRepo.findById({ id: payload.branchId });
           if (branch.projectId !== channel.projectId) {
-            return yield* Effect.fail(new NotFound({ message: "Branch not found" }));
+            return yield* new NotFound({ message: "Branch not found" });
           }
 
           yield* repo.updateBranchId({ id: path.id, branchId: payload.branchId });
@@ -176,18 +174,16 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
           yield* assertProjectOwnership(channel.projectId);
 
           if (channel.branchMappingJson !== null) {
-            return yield* Effect.fail(new Conflict({ message: "Rollout already active" }));
+            return yield* new Conflict({ message: "Rollout already active" });
           }
           if (payload.newBranchId === channel.branchId) {
-            return yield* Effect.fail(
-              new Conflict({ message: "Cannot rollout to the current branch" }),
-            );
+            return yield* new Conflict({ message: "Cannot rollout to the current branch" });
           }
 
           const branchRepo = yield* BranchRepo;
           const branch = yield* branchRepo.findById({ id: payload.newBranchId });
           if (branch.projectId !== channel.projectId) {
-            return yield* Effect.fail(new NotFound({ message: "Branch not found" }));
+            return yield* new NotFound({ message: "Branch not found" });
           }
 
           const branchMappingJson = buildBranchMapping({
@@ -214,7 +210,7 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
           yield* assertProjectOwnership(channel.projectId);
 
           if (channel.branchMappingJson === null) {
-            return yield* Effect.fail(new NotFound({ message: "No active rollout" }));
+            return yield* new NotFound({ message: "No active rollout" });
           }
 
           const branchMappingJson = updateBranchMappingPercentage(
@@ -238,12 +234,12 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
           yield* assertProjectOwnership(channel.projectId);
 
           if (channel.branchMappingJson === null) {
-            return yield* Effect.fail(new NotFound({ message: "No active rollout" }));
+            return yield* new NotFound({ message: "No active rollout" });
           }
 
           const newBranchId = extractNewBranchId(channel.branchMappingJson);
           if (newBranchId === null) {
-            return yield* Effect.fail(new NotFound({ message: "Branch mapping is empty" }));
+            return yield* new NotFound({ message: "Branch mapping is empty" });
           }
           yield* repo.completeBranchRollout({ id: path.id, branchId: newBranchId });
           return toApiChannel({ ...channel, branchId: newBranchId, branchMappingJson: null });
@@ -262,7 +258,7 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
           yield* assertProjectOwnership(channel.projectId);
 
           if (channel.branchMappingJson === null) {
-            return yield* Effect.fail(new NotFound({ message: "No active rollout" }));
+            return yield* new NotFound({ message: "No active rollout" });
           }
 
           yield* repo.revertBranchRollout({ id: path.id });

@@ -42,8 +42,12 @@ describe("readProjectId resolver", () => {
       writeFile(dir, BETTER_UPDATE_CONFIG_FILENAME, JSON.stringify({ projectId: "from_file" }));
       const id = yield* readProjectId.pipe(
         Effect.ensuring(Effect.sync(() => rmSync(dir, { recursive: true, force: true }))),
-        Effect.provide(runtimeLayer(dir, { BETTER_UPDATE_PROJECT_ID: "from_env" })),
-        Effect.provide(NodeFileSystem.layer),
+        Effect.provide(
+          Layer.mergeAll(
+            runtimeLayer(dir, { BETTER_UPDATE_PROJECT_ID: "from_env" }),
+            NodeFileSystem.layer,
+          ),
+        ),
       );
       expect(id).toBe("from_env");
     }),
@@ -59,8 +63,7 @@ describe("readProjectId resolver", () => {
       );
       const id = yield* readProjectId.pipe(
         Effect.ensuring(Effect.sync(() => rmSync(dir, { recursive: true, force: true }))),
-        Effect.provide(runtimeLayer(dir)),
-        Effect.provide(NodeFileSystem.layer),
+        Effect.provide(Layer.mergeAll(runtimeLayer(dir), NodeFileSystem.layer)),
       );
       expect(id).toBe("proj_from_json");
     }),
@@ -79,8 +82,7 @@ describe("readProjectId resolver", () => {
       );
       const id = yield* readProjectId.pipe(
         Effect.ensuring(Effect.sync(() => rmSync(dir, { recursive: true, force: true }))),
-        Effect.provide(runtimeLayer(dir)),
-        Effect.provide(NodeFileSystem.layer),
+        Effect.provide(Layer.mergeAll(runtimeLayer(dir), NodeFileSystem.layer)),
       );
       expect(id).toBe("proj_expo");
     }),
@@ -91,8 +93,7 @@ describe("readProjectId resolver", () => {
       const dir = makeProjectDir("resolver-none-");
       const exit = yield* readProjectId.pipe(
         Effect.ensuring(Effect.sync(() => rmSync(dir, { recursive: true, force: true }))),
-        Effect.provide(runtimeLayer(dir)),
-        Effect.provide(NodeFileSystem.layer),
+        Effect.provide(Layer.mergeAll(runtimeLayer(dir), NodeFileSystem.layer)),
         Effect.exit,
       );
       expect(Exit.isFailure(exit)).toBe(true);

@@ -352,7 +352,7 @@ export const UpdateRepoLive = Layer.succeed(UpdateRepo, {
       );
 
       if (row === null) {
-        return yield* Effect.fail(new NotFound({ message: "Update not found" }));
+        return yield* new NotFound({ message: "Update not found" });
       }
 
       return toUpdate(row);

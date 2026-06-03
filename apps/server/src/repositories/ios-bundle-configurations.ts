@@ -148,11 +148,9 @@ export const IosBundleConfigurationRepoLive = Layer.succeed(IosBundleConfigurati
           .first<Row>(),
       );
       if (row === null) {
-        return yield* Effect.fail(
-          new NotFound({
-            message: `No iOS bundle configuration found for ${params.bundleIdentifier} (${params.distributionType})`,
-          }),
-        );
+        return yield* new NotFound({
+          message: `No iOS bundle configuration found for ${params.bundleIdentifier} (${params.distributionType})`,
+        });
       }
       return toModel(row);
     }),
@@ -166,7 +164,7 @@ export const IosBundleConfigurationRepoLive = Layer.succeed(IosBundleConfigurati
           .first<Row>(),
       );
       if (row === null) {
-        return yield* Effect.fail(new NotFound({ message: "iOS bundle configuration not found" }));
+        return yield* new NotFound({ message: "iOS bundle configuration not found" });
       }
       return toModel(row);
     }),

@@ -146,7 +146,7 @@ const parseExtraParams = (headers: Headers) =>
         textEncoder.encode(value).byteLength > MAX_EXTRA_PARAM_VALUE_BYTES,
     );
     return hasOversized ? undefined : raw;
-  }).pipe(Effect.catchAll(() => Effect.succeed(undefined)));
+  }).pipe(Effect.orElseSucceed(() => undefined));
 
 export const parseProtocolHeaders = (
   headers: Headers,
@@ -154,7 +154,7 @@ export const parseProtocolHeaders = (
   Effect.gen(function* () {
     const version = yield* requireHeader(headers, "expo-protocol-version", "expo-protocol-version");
     if (version !== "1") {
-      yield* Effect.fail(new BadRequest({ message: `Unsupported protocol version: ${version}` }));
+      return yield* new BadRequest({ message: `Unsupported protocol version: ${version}` });
     }
 
     const rawPlatform = yield* requireHeader(headers, "expo-platform", "expo-platform");

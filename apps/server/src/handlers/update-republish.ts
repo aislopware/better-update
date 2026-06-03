@@ -85,7 +85,7 @@ const resolveSignedRepublishOverrides = (payload: RepublishPayload) =>
       .map(([id]) => id);
 
     if (duplicateSourceUpdateIds.length > 0) {
-      yield* fail(
+      return yield* fail(
         `signedUpdates must contain unique sourceUpdateId values: ${duplicateSourceUpdateIds.join(", ")}`,
       );
     }
@@ -102,7 +102,7 @@ export const prepareRepublishUpdates = (params: {
     const sourceIds = new Set(params.sourceUpdates.map(({ update }) => update.id));
     const unknownSourceIds = [...overridesBySourceId.keys()].filter((id) => !sourceIds.has(id));
     if (unknownSourceIds.length > 0) {
-      yield* fail(
+      return yield* fail(
         `signedUpdates contain unknown sourceUpdateId values: ${unknownSourceIds.join(", ")}`,
       );
     }
@@ -113,7 +113,7 @@ export const prepareRepublishUpdates = (params: {
       .filter((id) => !overridesBySourceId.has(id));
 
     if (missingSignedOverrides.length > 0) {
-      yield* fail(
+      return yield* fail(
         `Signed or precomputed source updates require replacement signed manifests: ${missingSignedOverrides.join(", ")}`,
       );
     }
@@ -206,14 +206,14 @@ export const resolveRepublishSource = ({ payload }: { readonly payload: Republis
     );
     const projectIds = uniq(sourceBranches.map((branch) => branch.projectId));
     if (projectIds.length !== 1) {
-      yield* fail("All source updates must belong to the same project");
+      return yield* fail("All source updates must belong to the same project");
     }
     const sourceProjectId = yield* requireValue(projectIds[0], "projectId");
 
     yield* assertProjectOwnership(sourceProjectId);
 
     if (sourceUpdates.some((update) => update.isRollback)) {
-      yield* fail("Cannot republish a rollback directive");
+      return yield* fail("Cannot republish a rollback directive");
     }
 
     const sourceUpdatesWithAssets = yield* Effect.forEach(
@@ -252,7 +252,7 @@ export const resolveRepublishDestination = (params: {
         id: params.payload.destinationBranchId,
       });
       if (destinationBranch.projectId !== params.projectId) {
-        yield* fail("Source and destination must belong to the same project");
+        return yield* fail("Source and destination must belong to the same project");
       }
 
       // The owning channel for the destination branch (oldest first). Scoped

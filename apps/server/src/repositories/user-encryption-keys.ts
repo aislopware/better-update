@@ -107,7 +107,7 @@ export const UserEncryptionKeyRepoLive = Layer.succeed(UserEncryptionKeyRepo, {
           .first<Row>(),
       );
       if (row === null) {
-        return yield* Effect.fail(new NotFound({ message: "Encryption key not found" }));
+        return yield* new NotFound({ message: "Encryption key not found" });
       }
       return toModel(row);
     }),

@@ -128,10 +128,12 @@ export const resignCommand = defineCommand({
         }
         const link = yield* api.builds.getInstallLink({ path: { id: args.build } });
 
+        // @effect-diagnostics-next-line effect/effectSucceedWithVoid:off -- undefined is a load-bearing success value (unifies with downloadProfileToTmp's result to {...} | undefined); Effect.void breaks the === undefined / ?.profilePath downstream
         const profilePromise =
           args["profile-id"] === undefined
             ? Effect.succeed(undefined)
             : downloadProfileToTmp(api, args["profile-id"]);
+        // @effect-diagnostics-next-line effect/effectSucceedWithVoid:off -- undefined is a load-bearing success value (unifies with resolveSigningIdentity's string to string | undefined); Effect.void breaks the === undefined / ?? downstream
         const identityPromise =
           args["cert-id"] === undefined
             ? Effect.succeed(undefined)

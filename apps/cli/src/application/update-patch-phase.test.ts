@@ -4,7 +4,7 @@ import path from "node:path";
 
 import { patchR2Key } from "@better-update/expo-protocol";
 import { NodeContext } from "@effect/platform-node";
-import { Effect, Layer } from "effect";
+import { Data, Effect, Layer } from "effect";
 
 import { makeOutputModeLayer } from "../lib/output-mode";
 import { ApiClientService } from "../services/api-client";
@@ -19,6 +19,11 @@ import type { UploadPatchInput } from "../services/patch-uploader";
 import type { DownloadToFileInput } from "../services/presigned-download";
 
 const SERVER = "https://api.test.dev";
+
+class ListPatchBasesError extends Data.TaggedError("ListPatchBasesError")<{
+  message: string;
+  cause?: unknown;
+}> {}
 
 const candidate = (overrides: { updateId: string; createdAt: string; isEmbedded?: boolean }) => ({
   updateId: overrides.updateId,
@@ -54,7 +59,9 @@ const makeApiLayer = (
           // swallows to []), NOT the happy-path bases.
           const { branchId, channel } = request.urlParams;
           if (branchId === undefined && channel === undefined) {
-            return Effect.fail(new Error("Either branchId or channel is required"));
+            return Effect.fail(
+              new ListPatchBasesError({ message: "Either branchId or channel is required" }),
+            );
           }
           return Effect.succeed(bases);
         },
@@ -103,11 +110,11 @@ const makeFakes = (recorder: Recorder, opts?: { failBase?: string }) => {
     uploadPatch: (input: UploadPatchInput) =>
       Effect.gen(function* () {
         if (opts?.failBase === input.fromUpdateId) {
-          return yield* Effect.fail(
-            new (yield* Effect.promise(async () => import("../lib/exit-codes"))).PatchUploadError({
-              message: "boom",
-            }),
-          );
+          return yield* new (yield* Effect.promise(
+            async () => import("../lib/exit-codes"),
+          )).PatchUploadError({
+            message: "boom",
+          });
         }
         recorder.uploads.push(input);
         return {

@@ -38,26 +38,22 @@ export const setCommand = defineCommand({
       Effect.gen(function* () {
         const effectValue = args.effect ?? "allow";
         if (effectValue !== "allow" && effectValue !== "deny") {
-          return yield* Effect.fail(
-            new EnvGrantCommandError({ message: `Invalid effect "${effectValue}".` }),
-          );
+          return yield* new EnvGrantCommandError({ message: `Invalid effect "${effectValue}".` });
         }
         const { environment } = args;
         if (!isEnvironmentName(environment)) {
-          return yield* Effect.fail(
-            new EnvGrantCommandError({
-              message: `Invalid environment "${environment}". One of: ${ENVIRONMENTS.join(", ")}.`,
-            }),
-          );
+          return yield* new EnvGrantCommandError({
+            message: `Invalid environment "${environment}". One of: ${ENVIRONMENTS.join(", ")}.`,
+          });
         }
         const actionTokens = (args.actions ?? "envVar:read")
           .split(",")
           .map((tok) => tok.trim())
           .filter((tok) => tok.length > 0);
         if (actionTokens.length === 0) {
-          return yield* Effect.fail(
-            new EnvGrantCommandError({ message: "At least one action token is required." }),
-          );
+          return yield* new EnvGrantCommandError({
+            message: "At least one action token is required.",
+          });
         }
 
         const projectId = args.global ? null : (args.project ?? (yield* readProjectId));

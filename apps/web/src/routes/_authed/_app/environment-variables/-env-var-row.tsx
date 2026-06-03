@@ -47,7 +47,7 @@ const CopyButton = ({ value, label }: { value: string; label: string }) => {
 
 // Read-only: the value is end-to-end encrypted and only readable via the CLI.
 // The dashboard shows public metadata (key, environment, scope, visibility, history depth).
-export const EnvVarRow = ({ envVar }: { envVar: typeof EnvVar.Type }) => (
+export const EnvVarRow = ({ envVar }: { envVar: EnvVar }) => (
   <TableRow>
     <TableCell>
       <div className="flex items-center gap-1">

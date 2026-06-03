@@ -127,7 +127,7 @@ export const runPatchPhase = (
           limit: Math.max(1, input.baseWindow),
         },
       })
-      .pipe(Effect.catchAll(() => Effect.succeed([])));
+      .pipe(Effect.orElseSucceed(() => []));
 
     const bases = selectBaseWindow(candidates, {
       newUpdateId: input.newUpdateId,
@@ -151,7 +151,7 @@ export const runPatchPhase = (
     // omitted (never fails the publish — patches are an optimization).
     const newBundleBytes = yield* sha256File(input.newLaunchPath).pipe(
       Effect.map((result) => result.byteSize),
-      Effect.catchAll(() => Effect.succeed<number | undefined>(undefined)),
+      Effect.orElseSucceed((): number | undefined => undefined),
     );
 
     // Requirement 5: surface the base-window bound so a capped window is never a

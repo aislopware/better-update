@@ -48,7 +48,7 @@ import { invalidateChannels as invalidateChannelsHelper } from "./-update-helper
 import type { BuildWithSyntheticChannels, SyntheticBuildChannel } from "./-compatibility-join";
 
 interface BranchRolloutControlsProps {
-  readonly channel: typeof Channel.Type;
+  readonly channel: Channel;
   readonly branches: readonly BranchItem[];
   readonly invalidateChannels: () => Promise<void>;
 }
@@ -352,7 +352,7 @@ const StartRolloutControls = (props: BranchRolloutControlsProps) => {
 };
 
 interface ChannelCardProps {
-  readonly channel: typeof Channel.Type;
+  readonly channel: Channel;
   readonly orgId: string;
   readonly projectId: string;
   readonly projectSlug: string;
@@ -361,7 +361,7 @@ interface ChannelCardProps {
     readonly build: BuildWithSyntheticChannels;
     readonly status: SyntheticBuildChannel;
   }[];
-  readonly missingRuntimeVersions: readonly (typeof MissingRuntimeVersionBuild.Type)[];
+  readonly missingRuntimeVersions: readonly MissingRuntimeVersionBuild[];
   readonly showDetailsLink?: boolean;
 }
 

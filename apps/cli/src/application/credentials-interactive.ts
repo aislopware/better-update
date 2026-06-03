@@ -92,12 +92,10 @@ const pickExistingKeystore = (api: ApiClient) =>
   Effect.gen(function* () {
     const keystores = yield* api.androidUploadKeystores.list();
     if (keystores.items.length === 0) {
-      return yield* Effect.fail(
-        new MissingCredentialsError({
-          message: "No existing keystores in this organization.",
-          hint: "Re-run and choose 'Generate new keystore'.",
-        }),
-      );
+      return yield* new MissingCredentialsError({
+        message: "No existing keystores in this organization.",
+        hint: "Re-run and choose 'Generate new keystore'.",
+      });
     }
     return yield* promptSelect<string>(
       "Select a keystore",
@@ -143,12 +141,10 @@ const setupAndroidInteractive = (api: ApiClient, input: AndroidSetupInput) =>
     );
 
     if (choice === "abort") {
-      return yield* Effect.fail(
-        new MissingCredentialsError({
-          message: `Build aborted — no keystore bound to ${input.applicationIdentifier}.`,
-          hint: "Run `better-update credentials generate keystore` or upload via the dashboard.",
-        }),
-      );
+      return yield* new MissingCredentialsError({
+        message: `Build aborted — no keystore bound to ${input.applicationIdentifier}.`,
+        hint: "Run `better-update credentials generate keystore` or upload via the dashboard.",
+      });
     }
 
     const keystoreId = yield* choice === "generate"
@@ -188,14 +184,12 @@ export const ensureAndroidCredentials = (
       Effect.gen(function* () {
         const mode = yield* InteractiveMode;
         if (options.freezeCredentials || !mode.allow) {
-          return yield* Effect.fail(
-            new MissingCredentialsError({
-              message: `No Android build credentials for ${input.applicationIdentifier}.`,
-              hint: options.freezeCredentials
-                ? "Run `better-update credentials generate` first, or remove --freeze-credentials."
-                : "Run `better-update credentials generate` first, or rerun with --interactive to configure now.",
-            }),
-          );
+          return yield* new MissingCredentialsError({
+            message: `No Android build credentials for ${input.applicationIdentifier}.`,
+            hint: options.freezeCredentials
+              ? "Run `better-update credentials generate` first, or remove --freeze-credentials."
+              : "Run `better-update credentials generate` first, or rerun with --interactive to configure now.",
+          });
         }
         yield* setupAndroidInteractive(api, input);
         return yield* ensureAndroidCredentialsAvailable(api, input);
@@ -240,12 +234,10 @@ const findBoundIosConfig = (api: ApiClient, input: IosSetupInput) =>
         config.distributionType === distributionType,
     );
     if (match === undefined) {
-      return yield* Effect.fail(
-        new MissingCredentialsError({
-          message: `iOS bundle configuration vanished while regenerating stale profile for ${input.bundleIdentifier}`,
-          hint: "Retry; the configuration must exist before regeneration",
-        }),
-      );
+      return yield* new MissingCredentialsError({
+        message: `iOS bundle configuration vanished while regenerating stale profile for ${input.bundleIdentifier}`,
+        hint: "Retry; the configuration must exist before regeneration",
+      });
     }
     return match;
   });
@@ -293,14 +285,12 @@ export const ensureIosCredentials = (
       Effect.gen(function* () {
         const mode = yield* InteractiveMode;
         if (options.freezeCredentials || !mode.allow) {
-          return yield* Effect.fail(
-            new MissingCredentialsError({
-              message: `No iOS build credentials for ${input.bundleIdentifier} (${input.distribution}).`,
-              hint: options.freezeCredentials
-                ? "Run `better-update credentials generate` first, or remove --freeze-credentials."
-                : "Run `better-update credentials generate` first, or rerun with --interactive to configure now.",
-            }),
-          );
+          return yield* new MissingCredentialsError({
+            message: `No iOS build credentials for ${input.bundleIdentifier} (${input.distribution}).`,
+            hint: options.freezeCredentials
+              ? "Run `better-update credentials generate` first, or remove --freeze-credentials."
+              : "Run `better-update credentials generate` first, or rerun with --interactive to configure now.",
+          });
         }
         yield* setupIosInteractive(api, input);
         return yield* resolveIosBuildCredentials(api, input);
@@ -313,14 +303,12 @@ export const ensureIosCredentials = (
         }
         const mode = yield* InteractiveMode;
         if (options.freezeCredentials || !mode.allow) {
-          return yield* Effect.fail(
-            new MissingCredentialsError({
-              message: `Stale provisioning profile for ${input.bundleIdentifier}; cannot regenerate without an interactive session.`,
-              hint: options.freezeCredentials
-                ? "Run a build without --freeze-credentials once to refresh the profile, or run `better-update credentials regenerate-profile`."
-                : "Run `better-update credentials regenerate-profile --bundle <id> --distribution <type>` from an interactive terminal.",
-            }),
-          );
+          return yield* new MissingCredentialsError({
+            message: `Stale provisioning profile for ${input.bundleIdentifier}; cannot regenerate without an interactive session.`,
+            hint: options.freezeCredentials
+              ? "Run a build without --freeze-credentials once to refresh the profile, or run `better-update credentials regenerate-profile`."
+              : "Run `better-update credentials regenerate-profile --bundle <id> --distribution <type>` from an interactive terminal.",
+          });
         }
         yield* Console.log(
           `Stale provisioning profile for ${input.bundleIdentifier} (device roster changed). Regenerating...`,

@@ -30,20 +30,16 @@ export const parsePermissionTokens = (
     for (const token of tokens) {
       const colonIdx = token.indexOf(":");
       if (colonIdx === -1) {
-        return yield* Effect.fail(
-          new RoleCommandError({
-            message: `Invalid permission token "${token}" — expected "resource:action" format.`,
-          }),
-        );
+        return yield* new RoleCommandError({
+          message: `Invalid permission token "${token}" — expected "resource:action" format.`,
+        });
       }
       const resource = token.slice(0, colonIdx).trim();
       const action = token.slice(colonIdx + 1).trim();
       if (!resource || !action) {
-        return yield* Effect.fail(
-          new RoleCommandError({
-            message: `Invalid permission token "${token}" — resource and action must be non-empty.`,
-          }),
-        );
+        return yield* new RoleCommandError({
+          message: `Invalid permission token "${token}" — resource and action must be non-empty.`,
+        });
       }
       const actions = grouped.get(resource) ?? new Set<string>();
       actions.add(action);

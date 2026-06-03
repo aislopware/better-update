@@ -17,9 +17,9 @@ const resolveChannel = (
     const channel =
       channels.find((ch) => ch.id === target) ?? channels.find((ch) => ch.name === target);
     if (!channel) {
-      return yield* Effect.fail(
-        new ChannelCommandError({ message: `Channel "${target}" not found by ID or name.` }),
-      );
+      return yield* new ChannelCommandError({
+        message: `Channel "${target}" not found by ID or name.`,
+      });
     }
     return channel;
   });

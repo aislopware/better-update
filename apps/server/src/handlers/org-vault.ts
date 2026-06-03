@@ -26,18 +26,16 @@ const assertRotationRecipients = (
   ctx: Actor,
 ): Effect.Effect<void, BadRequest> =>
   Effect.gen(function* () {
-    // A failed `yield*` short-circuits the generator, so no early `return` is
-    // needed (and `consistent-return` forbids mixing it with the void fall-through).
+    // Each guard `return yield*`s a yieldable tagged error — a definitive
+    // generator exit; otherwise the generator falls through to a void success.
     if (new Set(recipientIds).size !== recipientIds.length) {
-      yield* Effect.fail(new BadRequest({ message: "Duplicate recipient in rotation wraps" }));
+      return yield* new BadRequest({ message: "Duplicate recipient in rotation wraps" });
     }
     if (keys.some((key) => isForeignOrgKey(key, ctx))) {
-      yield* Effect.fail(new BadRequest({ message: FOREIGN_ORG_KEY_MESSAGE }));
+      return yield* new BadRequest({ message: FOREIGN_ORG_KEY_MESSAGE });
     }
     if (!keys.some((key) => key.kind === "recovery")) {
-      yield* Effect.fail(
-        new BadRequest({ message: "Rotation must keep an offline recovery recipient" }),
-      );
+      return yield* new BadRequest({ message: "Rotation must keep an offline recovery recipient" });
     }
   });
 
@@ -56,19 +54,15 @@ const assertCoversAllCredentials = (
       credentialDeks.map((dek) => `${dek.credentialType}:${dek.credentialId}`),
     );
     if (submitted.size !== credentialDeks.length) {
-      yield* Effect.fail(
-        new BadRequest({ message: "Duplicate credential in rotation DEK updates" }),
-      );
+      return yield* new BadRequest({ message: "Duplicate credential in rotation DEK updates" });
     }
     const expected = new Set(refs.map((ref) => `${ref.credentialType}:${ref.id}`));
     const coversAll =
       expected.size === submitted.size && [...expected].every((key) => submitted.has(key));
     if (!coversAll) {
-      yield* Effect.fail(
-        new BadRequest({
-          message: `Rotation must re-wrap every credential at the current version (${expected.size}); partial rotation refused`,
-        }),
-      );
+      return yield* new BadRequest({
+        message: `Rotation must re-wrap every credential at the current version (${expected.size}); partial rotation refused`,
+      });
     }
   });
 
@@ -82,7 +76,7 @@ export const OrgVaultGroupLive = HttpApiBuilder.group(ManagementApi, "orgVault",
           const repo = yield* OrgVaultRepo;
           const vault = yield* repo.getVault({ organizationId: ctx.organizationId });
           if (vault === null) {
-            return yield* Effect.fail(new NotFound({ message: "Vault not initialized" }));
+            return yield* new NotFound({ message: "Vault not initialized" });
           }
           return toApiOrgVault(vault);
         }),
@@ -98,9 +92,7 @@ export const OrgVaultGroupLive = HttpApiBuilder.group(ManagementApi, "orgVault",
 
           const ids = payload.wraps.map((wrap) => wrap.userEncryptionKeyId);
           if (new Set(ids).size !== ids.length) {
-            return yield* Effect.fail(
-              new BadRequest({ message: "Duplicate recipient in bootstrap wraps" }),
-            );
+            return yield* new BadRequest({ message: "Duplicate recipient in bootstrap wraps" });
           }
 
           const keys = yield* Effect.forEach(
@@ -109,15 +101,15 @@ export const OrgVaultGroupLive = HttpApiBuilder.group(ManagementApi, "orgVault",
             { concurrency: "unbounded" },
           );
           if (keys.some((key) => isForeignOrgKey(key, ctx))) {
-            return yield* Effect.fail(new BadRequest({ message: FOREIGN_ORG_KEY_MESSAGE }));
+            return yield* new BadRequest({ message: FOREIGN_ORG_KEY_MESSAGE });
           }
 
           // Break-glass invariant: a vault with no offline recovery recipient can
           // be permanently lost if every device is lost, so require one up front.
           if (!keys.some((key) => key.kind === "recovery")) {
-            return yield* Effect.fail(
-              new BadRequest({ message: "Bootstrap must include an offline recovery recipient" }),
-            );
+            return yield* new BadRequest({
+              message: "Bootstrap must include an offline recovery recipient",
+            });
           }
 
           const now = new Date().toISOString();
@@ -146,7 +138,7 @@ export const OrgVaultGroupLive = HttpApiBuilder.group(ManagementApi, "orgVault",
           const repo = yield* OrgVaultRepo;
           const vault = yield* repo.getVault({ organizationId: ctx.organizationId });
           if (vault === null) {
-            return yield* Effect.fail(new NotFound({ message: "Vault not initialized" }));
+            return yield* new NotFound({ message: "Vault not initialized" });
           }
           const wraps = yield* repo.listWraps({
             organizationId: ctx.organizationId,
@@ -174,7 +166,7 @@ export const OrgVaultGroupLive = HttpApiBuilder.group(ManagementApi, "orgVault",
 
           const key = yield* keyRepo.findById({ id: payload.wrap.userEncryptionKeyId });
           if (isForeignOrgKey(key, ctx)) {
-            return yield* Effect.fail(new BadRequest({ message: FOREIGN_ORG_KEY_MESSAGE }));
+            return yield* new BadRequest({ message: FOREIGN_ORG_KEY_MESSAGE });
           }
 
           // Self-link (adding your OWN new device) is self-service for any member;
@@ -188,7 +180,7 @@ export const OrgVaultGroupLive = HttpApiBuilder.group(ManagementApi, "orgVault",
           // Reject early if the vault doesn't exist; `addWrap` itself CAS-guards the version.
           const vault = yield* repo.getVault({ organizationId: ctx.organizationId });
           if (vault === null) {
-            return yield* Effect.fail(new NotFound({ message: "Vault not initialized" }));
+            return yield* new NotFound({ message: "Vault not initialized" });
           }
 
           const now = new Date().toISOString();
@@ -224,12 +216,12 @@ export const OrgVaultGroupLive = HttpApiBuilder.group(ManagementApi, "orgVault",
           const isOwnDevice = ctx.userId !== null && key.userId === ctx.userId;
           const isOrgKey = key.organizationId === ctx.organizationId;
           if (!isOwnDevice && !isOrgKey) {
-            return yield* Effect.fail(new NotFound({ message: "Encryption key not found" }));
+            return yield* new NotFound({ message: "Encryption key not found" });
           }
 
           const vault = yield* repo.getVault({ organizationId: ctx.organizationId });
           if (vault === null) {
-            return yield* Effect.fail(new NotFound({ message: "Vault not initialized" }));
+            return yield* new NotFound({ message: "Vault not initialized" });
           }
 
           const wrap = yield* repo.findWrap({
@@ -238,9 +230,9 @@ export const OrgVaultGroupLive = HttpApiBuilder.group(ManagementApi, "orgVault",
             userEncryptionKeyId: path.keyId,
           });
           if (wrap === null) {
-            return yield* Effect.fail(
-              new NotFound({ message: "No vault key wrap for this recipient — request access" }),
-            );
+            return yield* new NotFound({
+              message: "No vault key wrap for this recipient — request access",
+            });
           }
 
           return { vaultVersion: wrap.vaultVersion, wrappedKey: wrap.wrappedKey };
@@ -255,7 +247,7 @@ export const OrgVaultGroupLive = HttpApiBuilder.group(ManagementApi, "orgVault",
           const repo = yield* OrgVaultRepo;
           const vault = yield* repo.getVault({ organizationId: ctx.organizationId });
           if (vault === null) {
-            return yield* Effect.fail(new NotFound({ message: "Vault not initialized" }));
+            return yield* new NotFound({ message: "Vault not initialized" });
           }
           const deks = yield* repo.listCredentialDeks({ organizationId: ctx.organizationId });
           return { vaultVersion: vault.vaultVersion, deks };
@@ -282,12 +274,12 @@ export const OrgVaultGroupLive = HttpApiBuilder.group(ManagementApi, "orgVault",
           // Cheap precheck; `repo.rotate` re-checks the same version atomically via CAS.
           const vault = yield* repo.getVault({ organizationId: ctx.organizationId });
           if (vault === null) {
-            return yield* Effect.fail(new NotFound({ message: "Vault not initialized" }));
+            return yield* new NotFound({ message: "Vault not initialized" });
           }
           if (vault.vaultVersion !== payload.fromVersion) {
-            return yield* Effect.fail(
-              new Conflict({ message: "Vault version changed since read; re-fetch and retry" }),
-            );
+            return yield* new Conflict({
+              message: "Vault version changed since read; re-fetch and retry",
+            });
           }
 
           const refs = yield* repo.listCredentialRefs({ organizationId: ctx.organizationId });

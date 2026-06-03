@@ -242,7 +242,7 @@ export const DeviceRepoLive = Layer.succeed(DeviceRepo, {
           .first<DeviceRow>(),
       );
       if (row === null) {
-        return yield* Effect.fail(new NotFound({ message: "Device not found" }));
+        return yield* new NotFound({ message: "Device not found" });
       }
       return toDevice(row);
     }),
@@ -258,7 +258,7 @@ export const DeviceRepoLive = Layer.succeed(DeviceRepo, {
           .first<DeviceRow>(),
       );
       if (row === null) {
-        return yield* Effect.fail(new NotFound({ message: "Device not found" }));
+        return yield* new NotFound({ message: "Device not found" });
       }
       return toDevice(row);
     }),

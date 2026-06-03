@@ -21,7 +21,7 @@ import { useApiMutation } from "../../../../../lib/use-api-mutation";
 import { invalidateUpdates } from "./-update-helpers";
 
 interface RollbackToEmbeddedDialogProps {
-  readonly update: typeof Update.Type;
+  readonly update: Update;
   readonly branchName: string;
   readonly slug: string;
   readonly orgId: string;

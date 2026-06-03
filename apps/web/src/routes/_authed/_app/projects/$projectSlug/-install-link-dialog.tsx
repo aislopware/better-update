@@ -160,7 +160,7 @@ export const InstallLinkDialog = ({
   buttonVariant = "ghost",
   buttonSize,
 }: {
-  build: typeof BuildWithArtifact.Type;
+  build: BuildWithArtifact;
   buttonLabel?: string;
   buttonVariant?: ComponentProps<typeof Button>["variant"];
   buttonSize?: ComponentProps<typeof Button>["size"];

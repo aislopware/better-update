@@ -29,7 +29,7 @@ const openBrowser = (
 
     const opened = yield* Command.exitCode(command).pipe(
       Effect.map((code) => code === 0),
-      Effect.catchAll(() => Effect.succeed(false)),
+      Effect.orElseSucceed(() => false),
     );
 
     if (!opened) {

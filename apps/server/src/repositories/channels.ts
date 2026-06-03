@@ -183,7 +183,7 @@ export const ChannelRepoLive = Layer.succeed(ChannelRepo, {
       );
 
       if (row === null) {
-        return yield* Effect.fail(new NotFound({ message: "Channel not found" }));
+        return yield* new NotFound({ message: "Channel not found" });
       }
 
       return toChannel(row);
@@ -202,7 +202,7 @@ export const ChannelRepoLive = Layer.succeed(ChannelRepo, {
       );
 
       if (row === null) {
-        return yield* Effect.fail(new NotFound({ message: "Channel not found" }));
+        return yield* new NotFound({ message: "Channel not found" });
       }
 
       return toChannel(row);

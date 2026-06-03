@@ -41,13 +41,11 @@ const interactiveCertLimitRecover = (api: ApiClient, ascApiKeyId: string) =>
       certificateType: "IOS_DISTRIBUTION",
     });
     if (certs.length === 0) {
-      return yield* Effect.fail(
-        new MissingCredentialsError({
-          message:
-            "Apple says the certificate limit is hit but no existing certificates were returned.",
-          hint: "Try again later or check the Apple Developer portal.",
-        }),
-      );
+      return yield* new MissingCredentialsError({
+        message:
+          "Apple says the certificate limit is hit but no existing certificates were returned.",
+        hint: "Try again later or check the Apple Developer portal.",
+      });
     }
     const toRevoke = yield* promptMultiSelect<string>(
       "Select one or more certificates to revoke before retrying",
@@ -71,12 +69,10 @@ const generateDistributionCertInteractive = (api: ApiClient) =>
     const ascKeys = yield* api.ascApiKeys.list();
     const teamAscKeys = ascKeys.items.filter((key) => key.appleTeamId !== null);
     if (teamAscKeys.length === 0) {
-      return yield* Effect.fail(
-        new MissingCredentialsError({
-          message: "No ASC API key linked to an Apple team in this organization.",
-          hint: "Upload an ASC API key with a team assignment via the dashboard, then retry.",
-        }),
-      );
+      return yield* new MissingCredentialsError({
+        message: "No ASC API key linked to an Apple team in this organization.",
+        hint: "Upload an ASC API key with a team assignment via the dashboard, then retry.",
+      });
     }
     const ascKeyId = yield* promptSelect<string>(
       "Select an ASC API key to issue the certificate against",
@@ -101,12 +97,10 @@ const chooseIosCertificateId = (api: ApiClient) =>
         { value: "abort", label: "Abort — I'll upload one manually" },
       ]);
       if (choice === "abort") {
-        return yield* Effect.fail(
-          new MissingCredentialsError({
-            message: "Build aborted — no distribution certificate available.",
-            hint: "Run `better-update credentials generate distribution-certificate --asc-key-id <id>` or upload via the dashboard.",
-          }),
-        );
+        return yield* new MissingCredentialsError({
+          message: "Build aborted — no distribution certificate available.",
+          hint: "Run `better-update credentials generate distribution-certificate --asc-key-id <id>` or upload via the dashboard.",
+        });
       }
       const created = yield* generateDistributionCertInteractive(api);
       return created.id;
@@ -134,12 +128,10 @@ export const pickIosCertificate = (api: ApiClient) =>
     const refreshed = yield* api.appleDistributionCertificates.list();
     const cert = refreshed.items.find((entry) => entry.id === chosenId);
     if (cert === undefined) {
-      return yield* Effect.fail(
-        new MissingCredentialsError({
-          message: "Selected certificate not found after generation.",
-          hint: "Retry.",
-        }),
-      );
+      return yield* new MissingCredentialsError({
+        message: "Selected certificate not found after generation.",
+        hint: "Retry.",
+      });
     }
     return { certId: chosenId, cert };
   });
@@ -151,12 +143,10 @@ export const pickIosAscKey = (api: ApiClient, appleTeamId: string) =>
       (key) => key.appleTeamId !== null && key.appleTeamId === appleTeamId,
     );
     if (teamAscKeys.length === 0) {
-      return yield* Effect.fail(
-        new MissingCredentialsError({
-          message: `No ASC API key linked to Apple team ${appleTeamId}.`,
-          hint: "Upload an ASC API key for that team via the dashboard, then retry.",
-        }),
-      );
+      return yield* new MissingCredentialsError({
+        message: `No ASC API key linked to Apple team ${appleTeamId}.`,
+        hint: "Upload an ASC API key for that team via the dashboard, then retry.",
+      });
     }
     return yield* promptSelect<string>(
       "Select an ASC API key",

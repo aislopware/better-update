@@ -35,16 +35,14 @@ export const VersionCheckLive = Layer.effect(
     const cacheFile = path.join(cacheDir, "version-check.json");
 
     const readCache: Effect.Effect<VersionCacheEntry | undefined> = Effect.gen(function* () {
-      const content = yield* fs
-        .readFileString(cacheFile)
-        .pipe(Effect.catchAll(() => Effect.succeed("")));
+      const content = yield* fs.readFileString(cacheFile).pipe(Effect.orElseSucceed(() => ""));
       if (content.length === 0) {
         return undefined;
       }
       const parsed = yield* Effect.try({
         try: (): unknown => JSON.parse(content),
         catch: () => "parse-error" as const,
-      }).pipe(Effect.catchAll(() => Effect.succeed(undefined)));
+      }).pipe(Effect.orElseSucceed(() => undefined));
       if (
         isRecord(parsed) &&
         typeof parsed["latest"] === "string" &&

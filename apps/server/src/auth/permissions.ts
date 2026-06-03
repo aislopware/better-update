@@ -102,7 +102,7 @@ export const assertPermission = (resource: Resource, action: Action) =>
     const ctx = yield* CurrentActor;
     const actions = ctx.effectivePermissions[resource];
     if (!actions?.includes(action)) {
-      yield* new Forbidden({
+      return yield* new Forbidden({
         message: `Insufficient permission: ${resource}:${action}`,
       });
     }
@@ -113,6 +113,6 @@ export const assertPermission = (resource: Resource, action: Action) =>
 export const assertSuperadmin = Effect.gen(function* () {
   const ctx = yield* CurrentActor;
   if (!ctx.isSuperadmin) {
-    yield* new Forbidden({ message: "Superadmin access required" });
+    return yield* new Forbidden({ message: "Superadmin access required" });
   }
 });

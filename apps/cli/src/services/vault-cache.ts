@@ -110,7 +110,7 @@ export const VaultCacheLive = Layer.effect(
     // to "no cache" — prompt every time — rather than crash a command.
     const readRaw = (publicKey: string) =>
       Effect.try(() => new Entry(KEYCHAIN_SERVICE, publicKey).getPassword()).pipe(
-        Effect.catchAll(() => Effect.succeed<string | null>(null)),
+        Effect.orElseSucceed((): string | null => null),
       );
     const writeRaw = (publicKey: string, blob: string) =>
       Effect.try(() => {

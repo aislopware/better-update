@@ -70,9 +70,7 @@ const findLockfile = (
 ): Effect.Effect<PackageManager | undefined> =>
   Effect.gen(function* () {
     for (const [name, pm] of LOCKFILES) {
-      const exists = yield* fs
-        .exists(path.join(dir, name))
-        .pipe(Effect.catchAll(() => Effect.succeed(false)));
+      const exists = yield* fs.exists(path.join(dir, name)).pipe(Effect.orElseSucceed(() => false));
       if (exists) {
         return pm;
       }
@@ -143,23 +141,17 @@ export const buildIgnoreInstance = (
     ig.add([...ALWAYS_IGNORE]);
 
     const easignorePath = path.join(workspaceRoot, ".easignore");
-    const hasEasignore = yield* fs
-      .exists(easignorePath)
-      .pipe(Effect.catchAll(() => Effect.succeed(false)));
+    const hasEasignore = yield* fs.exists(easignorePath).pipe(Effect.orElseSucceed(() => false));
     if (hasEasignore) {
-      const content = yield* fs
-        .readFileString(easignorePath)
-        .pipe(Effect.catchAll(() => Effect.succeed("")));
+      const content = yield* fs.readFileString(easignorePath).pipe(Effect.orElseSucceed(() => ""));
       ig.add(content);
     } else {
       const gitignorePath = path.join(workspaceRoot, ".gitignore");
-      const hasGitignore = yield* fs
-        .exists(gitignorePath)
-        .pipe(Effect.catchAll(() => Effect.succeed(false)));
+      const hasGitignore = yield* fs.exists(gitignorePath).pipe(Effect.orElseSucceed(() => false));
       if (hasGitignore) {
         const content = yield* fs
           .readFileString(gitignorePath)
-          .pipe(Effect.catchAll(() => Effect.succeed("")));
+          .pipe(Effect.orElseSucceed(() => ""));
         ig.add(content);
       }
     }
@@ -284,7 +276,7 @@ export const prepareStagingProject = (
     // there is nothing to install and the package manager would error.
     const hasPackageJson = yield* fs
       .exists(path.join(workspaceRoot, "package.json"))
-      .pipe(Effect.catchAll(() => Effect.succeed(false)));
+      .pipe(Effect.orElseSucceed(() => false));
     if (hasPackageJson) {
       const commandEnv = yield* runtime.commandEnvironment(input.envVars);
       yield* runInstall({ stagingRoot, packageManager, env: commandEnv });

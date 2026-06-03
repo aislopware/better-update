@@ -23,7 +23,7 @@ import { openFromDownload, openVaultSessionInteractive } from "./credential-ciph
 import type { EasAndroidSubmitProfile } from "../lib/eas-submit-config";
 import type { ApiClient } from "../services/api-client";
 
-type SubmissionItem = typeof Submission.Type;
+type SubmissionItem = Submission;
 type SubmissionStatusValue = typeof SubmissionStatus.Type;
 
 const execFileAsync = promisify(execFile);
@@ -272,12 +272,10 @@ const fetchArchiveOverHttp = (url: string) =>
         }),
     });
     if (!result.ok || result.bytes === null) {
-      return yield* Effect.fail(
-        new CliSubmitError({
-          code: "SUBMISSION_ARCHIVE_DOWNLOAD_FAILED",
-          message: `HTTP ${String(result.status)} fetching archive at ${url}`,
-        }),
-      );
+      return yield* new CliSubmitError({
+        code: "SUBMISSION_ARCHIVE_DOWNLOAD_FAILED",
+        message: `HTTP ${String(result.status)} fetching archive at ${url}`,
+      });
     }
     return result.bytes;
   });
@@ -441,13 +439,11 @@ export const runAndroidGooglePlayUpload = (inputs: AndroidGooglePlayUploadInputs
   Effect.gen(function* () {
     const { applicationId } = inputs.androidProfile;
     if (applicationId === undefined) {
-      return yield* Effect.fail(
-        new CliSubmitError({
-          code: "SUBMISSION_ANDROID_APP_ID_MISSING",
-          message:
-            "Android submit profile requires applicationId — set submit.<profile>.android.applicationId in eas.json",
-        }),
-      );
+      return yield* new CliSubmitError({
+        code: "SUBMISSION_ANDROID_APP_ID_MISSING",
+        message:
+          "Android submit profile requires applicationId — set submit.<profile>.android.applicationId in eas.json",
+      });
     }
     const serviceAccountJson = yield* resolveServiceAccountJson({
       api: inputs.api,
@@ -479,7 +475,7 @@ export const runAndroidGooglePlayUpload = (inputs: AndroidGooglePlayUploadInputs
             errorCode: engineError.code,
             errorMessage: engineError.message,
           });
-          return yield* Effect.fail(engineError);
+          return yield* engineError;
         }),
       ),
     );

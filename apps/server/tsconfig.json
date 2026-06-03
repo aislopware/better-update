@@ -1,7 +1,16 @@
 {
   "extends": "@better-update/typescript-config/base.json",
   "compilerOptions": {
-    "types": ["vitest/globals"]
+    "types": ["vitest/globals"],
+    "plugins": [
+      {
+        "name": "@effect/language-service",
+        "diagnostics": true,
+        "includeSuggestionsInTsc": true,
+        "ignoreEffectSuggestionsInTscExitCode": true,
+        "ignoreEffectWarningsInTscExitCode": false
+      }
+    ]
   },
   "include": ["src", "*.ts"]
 }

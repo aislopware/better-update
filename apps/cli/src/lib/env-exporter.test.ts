@@ -12,7 +12,7 @@ import {
 import { toBase64 } from "@better-update/encoding";
 import { NodeFileSystem } from "@effect/platform-node";
 import { it } from "@effect/vitest";
-import { Effect, Exit, Layer } from "effect";
+import { Data, Effect, Exit, Layer } from "effect";
 
 import type { Identity } from "@better-update/credentials-crypto";
 
@@ -25,6 +25,8 @@ import { failureError } from "./test-utils";
 
 import type { ApiClient } from "../services/api-client";
 import type { SealedEnvVar } from "./env-exporter";
+
+class TestApiError extends Data.TaggedError("TestApiError")<{ message: string }> {}
 
 const ORG_ID = "org-1";
 const VAULT_VERSION = 1;
@@ -179,7 +181,7 @@ describe(pullEnvVars, () => {
   it.effect("wraps API errors as EnvExportError", () =>
     Effect.gen(function* () {
       const vault = yield* makeTestVault;
-      const api = buildApi(vault, () => Effect.fail(new Error("boom")));
+      const api = buildApi(vault, () => Effect.fail(new TestApiError({ message: "boom" })));
       const exit = yield* pullEnvVars(api, { projectId: "p_1", environment: "production" }).pipe(
         Effect.provide(vaultLayer(vault.identity.privateKey)),
         Effect.exit,

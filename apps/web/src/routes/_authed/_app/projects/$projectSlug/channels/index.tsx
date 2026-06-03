@@ -50,7 +50,7 @@ import { pluralize } from "../../../../../../lib/pluralize";
 import { useApiMutation } from "../../../../../../lib/use-api-mutation";
 import { DROPDOWN_FETCH_LIMIT } from "../../../../../../queries/constants";
 
-type ChannelItem = typeof Channel.Type;
+type ChannelItem = Channel;
 
 const SORT_COLUMNS = ["name", "createdAt"] as const satisfies readonly ChannelSortColumn[];
 

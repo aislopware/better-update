@@ -10,6 +10,7 @@ const cookieSecurity = HttpApiSecurity.apiKey({
   in: "cookie",
 });
 
+/** @effect-expect-leaking HttpServerRequest | ParsedSearchParams | RouteContext */
 export class Authentication extends HttpApiMiddleware.Tag<Authentication>()("api/Authentication", {
   // `Unauthorized` (401): no/invalid credential. `Forbidden` (403): a valid
   // session whose user is not yet approved by a superadmin (the dev-phase gate).

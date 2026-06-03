@@ -74,7 +74,7 @@ export const safely = <Value, Err, Req>(
   );
 
 export const safePrompt = (effect: Effect.Effect<string, unknown, InteractiveMode>) =>
-  effect.pipe(Effect.catchAll(() => Effect.succeed(BACK as string)));
+  effect.pipe(Effect.orElseSucceed(() => BACK as string));
 
 export const promptForBundleConfig = (ctx: WizardContext) =>
   Effect.gen(function* () {

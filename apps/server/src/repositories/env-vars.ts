@@ -128,7 +128,7 @@ export const EnvVarRepoLive = Layer.succeed(EnvVarRepo, {
           .first<{ organization_id: string; max_number: number }>(),
       );
       if (head === null) {
-        return yield* Effect.fail(new NotFound({ message: "Environment variable not found" }));
+        return yield* new NotFound({ message: "Environment variable not found" });
       }
       const nextNumber = head.max_number + 1;
       yield* Effect.promise(async () =>
@@ -162,7 +162,7 @@ export const EnvVarRepoLive = Layer.succeed(EnvVarRepo, {
           .run(),
       );
       if (result.meta.changes === 0) {
-        return yield* Effect.fail(new NotFound({ message: "Environment variable not found" }));
+        return yield* new NotFound({ message: "Environment variable not found" });
       }
       return yield* requireModelById(env.DB, params.id);
     }),
@@ -239,9 +239,7 @@ export const EnvVarRepoLive = Layer.succeed(EnvVarRepo, {
           .first<{ id: string }>(),
       );
       if (target === null) {
-        return yield* Effect.fail(
-          new NotFound({ message: "Revision not found for this environment variable" }),
-        );
+        return yield* new NotFound({ message: "Revision not found for this environment variable" });
       }
       yield* Effect.promise(async () =>
         env.DB.prepare(
@@ -260,7 +258,7 @@ export const EnvVarRepoLive = Layer.succeed(EnvVarRepo, {
         env.DB.prepare(`DELETE FROM "env_vars" WHERE "id" = ?`).bind(params.id).run(),
       );
       if (result.meta.changes === 0) {
-        yield* Effect.fail(new NotFound({ message: "Environment variable not found" }));
+        return yield* new NotFound({ message: "Environment variable not found" });
       }
     }),
 

@@ -24,12 +24,10 @@ export const assertVaultVersionCurrent = (params: {
     // existing vault. An org with no vault yet has no rotation to be stale against
     // (and a credential can't be sealed without one), so the absence is not gated.
     if (vault !== null && vault.vaultVersion !== params.vaultVersion) {
-      return yield* Effect.fail(
-        new Conflict({
-          message:
-            "Vault version is out of date — the vault was rotated. Re-unlock the vault and upload this credential again.",
-        }),
-      );
+      return yield* new Conflict({
+        message:
+          "Vault version is out of date — the vault was rotated. Re-unlock the vault and upload this credential again.",
+      });
     }
     return undefined;
   });

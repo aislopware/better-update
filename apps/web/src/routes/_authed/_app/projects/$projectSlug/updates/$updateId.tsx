@@ -34,7 +34,7 @@ import { DetailCardSkeleton, SummaryCardsSkeleton } from "../../../../../../comp
 import { formatBytes } from "../../../../../../lib/format-bytes";
 import { formatDateTime } from "../../../../../../lib/format-date";
 
-type UpdateItem = typeof Update.Type;
+type UpdateItem = Update;
 
 const OverviewCard = ({
   primary,

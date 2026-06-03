@@ -101,9 +101,9 @@ export const CompatibilityMatrix = ({
   matrix,
   missingRuntimeVersions,
 }: {
-  builds: readonly (typeof BuildWithArtifact.Type)[];
+  builds: readonly BuildWithArtifact[];
   matrix: typeof BuildCompatibilityMatrixResult.Type;
-  missingRuntimeVersions: readonly (typeof MissingRuntimeVersionBuild.Type)[];
+  missingRuntimeVersions: readonly MissingRuntimeVersionBuild[];
 }) => {
   const synthesized = builds.map((build) => synthesizeBuildChannels(build, matrix));
   const { channels } = matrix;

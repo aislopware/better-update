@@ -41,11 +41,9 @@ export const viewCommand = defineCommand({
           channels.find((entry) => entry.name === args.target);
 
         if (!channel) {
-          return yield* Effect.fail(
-            new ChannelCommandError({
-              message: `Channel "${args.target}" not found by ID or name.`,
-            }),
-          );
+          return yield* new ChannelCommandError({
+            message: `Channel "${args.target}" not found by ID or name.`,
+          });
         }
 
         const branchNames = new Map(branches.map((branch) => [branch.id, branch.name]));

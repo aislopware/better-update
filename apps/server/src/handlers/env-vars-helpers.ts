@@ -100,17 +100,17 @@ export const resolveEnvReadPredicate = () =>
 export const validateKey = (key: string) =>
   Effect.gen(function* () {
     if (!KEY_PATTERN.test(key)) {
-      yield* new BadRequest({
+      return yield* new BadRequest({
         message: `Invalid key "${key}": must match ^[A-Z][A-Z0-9_]*$`,
       });
     }
     if (key.length > 256) {
-      yield* new BadRequest({
+      return yield* new BadRequest({
         message: `Key "${key}" exceeds 256 character limit`,
       });
     }
     if (RESERVED_KEYS.has(key)) {
-      yield* new BadRequest({
+      return yield* new BadRequest({
         message: `Key "${key}" is reserved and cannot be used`,
       });
     }

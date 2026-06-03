@@ -65,6 +65,7 @@ export const validateRuntimePolicy = (
   value: string | undefined,
 ): Effect.Effect<RuntimePolicy | undefined, InvalidArgumentError> => {
   if (value === undefined) {
+    // @effect-diagnostics-next-line effect/effectSucceedWithVoid:off -- undefined is a load-bearing success value (RuntimePolicy | undefined); Effect.void breaks exactOptionalPropertyTypes
     return Effect.succeed(undefined);
   }
   return isRuntimePolicy(value)
@@ -84,6 +85,7 @@ export const validateCheckAutomatically = (
   value: string | undefined,
 ): Effect.Effect<CheckAutomatically | undefined, InvalidArgumentError> => {
   if (value === undefined) {
+    // @effect-diagnostics-next-line effect/effectSucceedWithVoid:off -- undefined is a load-bearing success value (CheckAutomatically | undefined); Effect.void breaks exactOptionalPropertyTypes
     return Effect.succeed(undefined);
   }
   return isCheckAutomatically(value)
@@ -104,6 +106,7 @@ export const validateFallbackTimeout = (
   value: number | string | undefined,
 ): Effect.Effect<number | undefined, InvalidArgumentError> => {
   if (value === undefined) {
+    // @effect-diagnostics-next-line effect/effectSucceedWithVoid:off -- undefined is a load-bearing success value (number | undefined); Effect.void breaks exactOptionalPropertyTypes
     return Effect.succeed(undefined);
   }
   const parsed = typeof value === "number" ? value : Number(value);
@@ -332,10 +335,12 @@ export const parseRequestHeaders = (
   raw: string | readonly string[] | undefined,
 ): Effect.Effect<Record<string, string> | undefined, InvalidArgumentError> => {
   if (raw === undefined) {
+    // @effect-diagnostics-next-line effect/effectSucceedWithVoid:off -- undefined is a load-bearing success value (Record<string, string> | undefined); Effect.void breaks exactOptionalPropertyTypes
     return Effect.succeed(undefined);
   }
   const entries = toEntries(raw);
   if (entries.length === 0) {
+    // @effect-diagnostics-next-line effect/effectSucceedWithVoid:off -- undefined is a load-bearing success value (Record<string, string> | undefined); Effect.void breaks exactOptionalPropertyTypes
     return Effect.succeed(undefined);
   }
   return Effect.gen(function* () {

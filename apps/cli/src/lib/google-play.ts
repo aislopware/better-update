@@ -123,11 +123,9 @@ const exchangeJwtForAccessToken = (tokenUri: string, jwt: string) =>
   Effect.gen(function* () {
     const result = yield* postTokenRequest(tokenUri, jwt);
     if (!result.ok) {
-      return yield* Effect.fail(
-        new GooglePlayAuthError({
-          message: `OAuth token exchange failed: ${String(result.status)} ${result.text}`,
-        }),
-      );
+      return yield* new GooglePlayAuthError({
+        message: `OAuth token exchange failed: ${String(result.status)} ${result.text}`,
+      });
     }
     const json = yield* Effect.try({
       try: (): unknown => JSON.parse(result.text),
@@ -174,11 +172,9 @@ export const acquireGooglePlayAccessToken = (
       ),
     );
     if (parsed.type !== "service_account") {
-      return yield* Effect.fail(
-        new GooglePlayAuthError({
-          message: `Service account JSON has wrong type: ${parsed.type}`,
-        }),
-      );
+      return yield* new GooglePlayAuthError({
+        message: `Service account JSON has wrong type: ${parsed.type}`,
+      });
     }
     const tokenUri = parsed.token_uri ?? GOOGLE_OAUTH_TOKEN_URL;
     const key = yield* importPrivateKey(parsed.private_key);
@@ -233,12 +229,10 @@ const callJsonRaw = (params: {
   Effect.gen(function* () {
     const result = yield* performFetch(params);
     if (!result.ok) {
-      return yield* Effect.fail(
-        new GooglePlayApiError({
-          message: `${params.label} failed: ${String(result.status)} ${result.text}`,
-          httpStatus: result.status,
-        }),
-      );
+      return yield* new GooglePlayApiError({
+        message: `${params.label} failed: ${String(result.status)} ${result.text}`,
+        httpStatus: result.status,
+      });
     }
     return yield* Effect.try({
       try: (): unknown => (result.text === "" ? {} : JSON.parse(result.text)),
@@ -309,12 +303,10 @@ export const uploadBundle = (params: {
   Effect.gen(function* () {
     const result = yield* performBundleUpload(params);
     if (!result.ok) {
-      return yield* Effect.fail(
-        new GooglePlayApiError({
-          message: `edits.bundles.upload failed: ${String(result.status)} ${result.text}`,
-          httpStatus: result.status,
-        }),
-      );
+      return yield* new GooglePlayApiError({
+        message: `edits.bundles.upload failed: ${String(result.status)} ${result.text}`,
+        httpStatus: result.status,
+      });
     }
     const raw = yield* Effect.try({
       try: (): unknown => JSON.parse(result.text),

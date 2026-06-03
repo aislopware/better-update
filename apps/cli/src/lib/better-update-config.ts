@@ -36,13 +36,13 @@ export const readBetterUpdateConfig = (
     const fs = yield* FileSystem.FileSystem;
     const content = yield* fs
       .readFileString(configPath(projectRoot))
-      .pipe(Effect.catchAll(() => Effect.succeed("")));
+      .pipe(Effect.orElseSucceed(() => ""));
     if (content.length === 0) {
       return undefined;
     }
     return yield* Effect.try((): unknown => JSON.parse(content)).pipe(
       Effect.map((parsed) => (isRecord(parsed) ? parsed : undefined)),
-      Effect.catchAll(() => Effect.succeed(undefined)),
+      Effect.orElseSucceed(() => undefined),
     );
   });
 

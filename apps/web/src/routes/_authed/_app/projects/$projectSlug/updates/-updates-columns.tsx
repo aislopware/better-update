@@ -9,8 +9,8 @@ import { EnvironmentBadge, PlatformBadge } from "../../../../../../components/at
 import { formatBytes } from "../../../../../../lib/format-bytes";
 import { formatRelativeTime } from "../../../../../../lib/format-relative-time";
 
-export type UpdateItem = typeof Update.Type;
-export type ChannelItem = typeof Channel.Type;
+export type UpdateItem = Update;
+export type ChannelItem = Channel;
 
 export const buildUpdateColumns = (
   branchNames: ReadonlyMap<string, string>,
