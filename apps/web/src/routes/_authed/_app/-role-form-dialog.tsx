@@ -19,9 +19,9 @@ import { PlusIcon, PencilIcon } from "lucide-react";
 
 import type { OrgRole, PermissionGrantSchema } from "@better-update/api";
 
-import { getFieldError, requiredStringSchema } from "../../../../lib/form-utils";
-import { safeSubmit, useApiMutation } from "../../../../lib/use-api-mutation";
-import { createOrgRole, orgRolesQueryKey, updateOrgRole } from "../../../../queries/org";
+import { getFieldError, requiredStringSchema } from "../../../lib/form-utils";
+import { safeSubmit, useApiMutation } from "../../../lib/use-api-mutation";
+import { createOrgRole, orgRolesQueryKey, updateOrgRole } from "../../../queries/org";
 
 // ── Permission catalog ──────────────────────────────────────────────────────
 // Mirrors the server's statement resource/action sets.

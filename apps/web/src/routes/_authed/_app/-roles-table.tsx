@@ -27,9 +27,9 @@ import { useCallback, useMemo, useState } from "react";
 import type { OrgRole } from "@better-update/api";
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
 
-import { DataTableView } from "../../../../lib/data-table";
-import { useApiMutation } from "../../../../lib/use-api-mutation";
-import { deleteOrgRole, orgRolesQueryKey } from "../../../../queries/org";
+import { DataTableView } from "../../../lib/data-table";
+import { useApiMutation } from "../../../lib/use-api-mutation";
+import { deleteOrgRole, orgRolesQueryKey } from "../../../queries/org";
 import { RoleFormDialog } from "./-role-form-dialog";
 
 // ── Delete confirm dialog ─────────────────────────────────────────────────

@@ -15,11 +15,11 @@ import { PlusIcon, ShieldIcon } from "lucide-react";
 import { Suspense, useState } from "react";
 import { z } from "zod";
 
-import { PageHeader } from "../../../../components/page-header";
-import { TableSkeleton } from "../../../../components/skeletons";
-import { sortParam, useDataTableSearch } from "../../../../lib/data-table";
-import { pluralize } from "../../../../lib/pluralize";
-import { rolesQueryOptions } from "../../../../queries/org";
+import { PageHeader } from "../../../components/page-header";
+import { TableSkeleton } from "../../../components/skeletons";
+import { sortParam, useDataTableSearch } from "../../../lib/data-table";
+import { pluralize } from "../../../lib/pluralize";
+import { rolesQueryOptions } from "../../../queries/org";
 import { RoleFormDialog } from "./-role-form-dialog";
 import { RolesTableView } from "./-roles-table";
 
@@ -129,7 +129,7 @@ const RolesPage = () => (
   </div>
 );
 
-export const Route = createFileRoute("/_authed/_app/settings/roles")({
+export const Route = createFileRoute("/_authed/_app/roles")({
   validateSearch: zodValidator(rolesSearchSchema),
   component: RolesPage,
 });

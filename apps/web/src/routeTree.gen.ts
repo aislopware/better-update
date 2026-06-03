@@ -21,6 +21,7 @@ import { Route as AuthedOnboardingRouteImport } from './routes/_authed/onboardin
 import { Route as AuthedAppRouteImport } from './routes/_authed/_app'
 import { Route as AuthedAppIndexRouteImport } from './routes/_authed/_app/index'
 import { Route as AuthedAppVaultAccessRouteImport } from './routes/_authed/_app/vault-access'
+import { Route as AuthedAppRolesRouteImport } from './routes/_authed/_app/roles'
 import { Route as AuthedAppMembersRouteImport } from './routes/_authed/_app/members'
 import { Route as AuthedAppCredentialsRouteImport } from './routes/_authed/_app/credentials'
 import { Route as AuthedAppAuditLogRouteImport } from './routes/_authed/_app/audit-log'
@@ -32,7 +33,6 @@ import { Route as AuthedAppProjectsIndexRouteImport } from './routes/_authed/_ap
 import { Route as AuthedAppEnvironmentVariablesIndexRouteImport } from './routes/_authed/_app/environment-variables/index'
 import { Route as AuthedAppAppleDevicesIndexRouteImport } from './routes/_authed/_app/apple-devices/index'
 import { Route as AuthedAppAccountIndexRouteImport } from './routes/_authed/_app/account/index'
-import { Route as AuthedAppSettingsRolesRouteImport } from './routes/_authed/_app/settings/roles'
 import { Route as AuthedAppSettingsEnvAccessRouteImport } from './routes/_authed/_app/settings/env-access'
 import { Route as AuthedAppProjectsProjectSlugRouteImport } from './routes/_authed/_app/projects/$projectSlug'
 import { Route as AuthedAppAccountSessionsRouteImport } from './routes/_authed/_app/account/sessions'
@@ -120,6 +120,11 @@ const AuthedAppVaultAccessRoute = AuthedAppVaultAccessRouteImport.update({
   path: '/vault-access',
   getParentRoute: () => AuthedAppRoute,
 } as any)
+const AuthedAppRolesRoute = AuthedAppRolesRouteImport.update({
+  id: '/roles',
+  path: '/roles',
+  getParentRoute: () => AuthedAppRoute,
+} as any)
 const AuthedAppMembersRoute = AuthedAppMembersRouteImport.update({
   id: '/members',
   path: '/members',
@@ -176,11 +181,6 @@ const AuthedAppAccountIndexRoute = AuthedAppAccountIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AuthedAppAccountRoute,
-} as any)
-const AuthedAppSettingsRolesRoute = AuthedAppSettingsRolesRouteImport.update({
-  id: '/settings/roles',
-  path: '/settings/roles',
-  getParentRoute: () => AuthedAppRoute,
 } as any)
 const AuthedAppSettingsEnvAccessRoute =
   AuthedAppSettingsEnvAccessRouteImport.update({
@@ -366,6 +366,7 @@ export interface FileRoutesByFullPath {
   '/audit-log': typeof AuthedAppAuditLogRoute
   '/credentials': typeof AuthedAppCredentialsRoute
   '/members': typeof AuthedAppMembersRoute
+  '/roles': typeof AuthedAppRolesRoute
   '/vault-access': typeof AuthedAppVaultAccessRoute
   '/account/appearance': typeof AuthedAppAccountAppearanceRoute
   '/account/connections': typeof AuthedAppAccountConnectionsRoute
@@ -374,7 +375,6 @@ export interface FileRoutesByFullPath {
   '/account/sessions': typeof AuthedAppAccountSessionsRoute
   '/projects/$projectSlug': typeof AuthedAppProjectsProjectSlugRouteWithChildren
   '/settings/env-access': typeof AuthedAppSettingsEnvAccessRoute
-  '/settings/roles': typeof AuthedAppSettingsRolesRoute
   '/account/': typeof AuthedAppAccountIndexRoute
   '/apple-devices/': typeof AuthedAppAppleDevicesIndexRoute
   '/environment-variables/': typeof AuthedAppEnvironmentVariablesIndexRoute
@@ -417,6 +417,7 @@ export interface FileRoutesByTo {
   '/audit-log': typeof AuthedAppAuditLogRoute
   '/credentials': typeof AuthedAppCredentialsRoute
   '/members': typeof AuthedAppMembersRoute
+  '/roles': typeof AuthedAppRolesRoute
   '/vault-access': typeof AuthedAppVaultAccessRoute
   '/account/appearance': typeof AuthedAppAccountAppearanceRoute
   '/account/connections': typeof AuthedAppAccountConnectionsRoute
@@ -424,7 +425,6 @@ export interface FileRoutesByTo {
   '/account/profile': typeof AuthedAppAccountProfileRoute
   '/account/sessions': typeof AuthedAppAccountSessionsRoute
   '/settings/env-access': typeof AuthedAppSettingsEnvAccessRoute
-  '/settings/roles': typeof AuthedAppSettingsRolesRoute
   '/account': typeof AuthedAppAccountIndexRoute
   '/apple-devices': typeof AuthedAppAppleDevicesIndexRoute
   '/environment-variables': typeof AuthedAppEnvironmentVariablesIndexRoute
@@ -469,6 +469,7 @@ export interface FileRoutesById {
   '/_authed/_app/audit-log': typeof AuthedAppAuditLogRoute
   '/_authed/_app/credentials': typeof AuthedAppCredentialsRoute
   '/_authed/_app/members': typeof AuthedAppMembersRoute
+  '/_authed/_app/roles': typeof AuthedAppRolesRoute
   '/_authed/_app/vault-access': typeof AuthedAppVaultAccessRoute
   '/_authed/_app/': typeof AuthedAppIndexRoute
   '/_authed/_app/account/appearance': typeof AuthedAppAccountAppearanceRoute
@@ -478,7 +479,6 @@ export interface FileRoutesById {
   '/_authed/_app/account/sessions': typeof AuthedAppAccountSessionsRoute
   '/_authed/_app/projects/$projectSlug': typeof AuthedAppProjectsProjectSlugRouteWithChildren
   '/_authed/_app/settings/env-access': typeof AuthedAppSettingsEnvAccessRoute
-  '/_authed/_app/settings/roles': typeof AuthedAppSettingsRolesRoute
   '/_authed/_app/account/': typeof AuthedAppAccountIndexRoute
   '/_authed/_app/apple-devices/': typeof AuthedAppAppleDevicesIndexRoute
   '/_authed/_app/environment-variables/': typeof AuthedAppEnvironmentVariablesIndexRoute
@@ -524,6 +524,7 @@ export interface FileRouteTypes {
     | '/audit-log'
     | '/credentials'
     | '/members'
+    | '/roles'
     | '/vault-access'
     | '/account/appearance'
     | '/account/connections'
@@ -532,7 +533,6 @@ export interface FileRouteTypes {
     | '/account/sessions'
     | '/projects/$projectSlug'
     | '/settings/env-access'
-    | '/settings/roles'
     | '/account/'
     | '/apple-devices/'
     | '/environment-variables/'
@@ -575,6 +575,7 @@ export interface FileRouteTypes {
     | '/audit-log'
     | '/credentials'
     | '/members'
+    | '/roles'
     | '/vault-access'
     | '/account/appearance'
     | '/account/connections'
@@ -582,7 +583,6 @@ export interface FileRouteTypes {
     | '/account/profile'
     | '/account/sessions'
     | '/settings/env-access'
-    | '/settings/roles'
     | '/account'
     | '/apple-devices'
     | '/environment-variables'
@@ -626,6 +626,7 @@ export interface FileRouteTypes {
     | '/_authed/_app/audit-log'
     | '/_authed/_app/credentials'
     | '/_authed/_app/members'
+    | '/_authed/_app/roles'
     | '/_authed/_app/vault-access'
     | '/_authed/_app/'
     | '/_authed/_app/account/appearance'
@@ -635,7 +636,6 @@ export interface FileRouteTypes {
     | '/_authed/_app/account/sessions'
     | '/_authed/_app/projects/$projectSlug'
     | '/_authed/_app/settings/env-access'
-    | '/_authed/_app/settings/roles'
     | '/_authed/_app/account/'
     | '/_authed/_app/apple-devices/'
     | '/_authed/_app/environment-variables/'
@@ -759,6 +759,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedAppVaultAccessRouteImport
       parentRoute: typeof AuthedAppRoute
     }
+    '/_authed/_app/roles': {
+      id: '/_authed/_app/roles'
+      path: '/roles'
+      fullPath: '/roles'
+      preLoaderRoute: typeof AuthedAppRolesRouteImport
+      parentRoute: typeof AuthedAppRoute
+    }
     '/_authed/_app/members': {
       id: '/_authed/_app/members'
       path: '/members'
@@ -835,13 +842,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/account/'
       preLoaderRoute: typeof AuthedAppAccountIndexRouteImport
       parentRoute: typeof AuthedAppAccountRoute
-    }
-    '/_authed/_app/settings/roles': {
-      id: '/_authed/_app/settings/roles'
-      path: '/settings/roles'
-      fullPath: '/settings/roles'
-      preLoaderRoute: typeof AuthedAppSettingsRolesRouteImport
-      parentRoute: typeof AuthedAppRoute
     }
     '/_authed/_app/settings/env-access': {
       id: '/_authed/_app/settings/env-access'
@@ -1169,11 +1169,11 @@ interface AuthedAppRouteChildren {
   AuthedAppAuditLogRoute: typeof AuthedAppAuditLogRoute
   AuthedAppCredentialsRoute: typeof AuthedAppCredentialsRoute
   AuthedAppMembersRoute: typeof AuthedAppMembersRoute
+  AuthedAppRolesRoute: typeof AuthedAppRolesRoute
   AuthedAppVaultAccessRoute: typeof AuthedAppVaultAccessRoute
   AuthedAppIndexRoute: typeof AuthedAppIndexRoute
   AuthedAppProjectsProjectSlugRoute: typeof AuthedAppProjectsProjectSlugRouteWithChildren
   AuthedAppSettingsEnvAccessRoute: typeof AuthedAppSettingsEnvAccessRoute
-  AuthedAppSettingsRolesRoute: typeof AuthedAppSettingsRolesRoute
   AuthedAppAppleDevicesIndexRoute: typeof AuthedAppAppleDevicesIndexRoute
   AuthedAppEnvironmentVariablesIndexRoute: typeof AuthedAppEnvironmentVariablesIndexRoute
   AuthedAppProjectsIndexRoute: typeof AuthedAppProjectsIndexRoute
@@ -1187,12 +1187,12 @@ const AuthedAppRouteChildren: AuthedAppRouteChildren = {
   AuthedAppAuditLogRoute: AuthedAppAuditLogRoute,
   AuthedAppCredentialsRoute: AuthedAppCredentialsRoute,
   AuthedAppMembersRoute: AuthedAppMembersRoute,
+  AuthedAppRolesRoute: AuthedAppRolesRoute,
   AuthedAppVaultAccessRoute: AuthedAppVaultAccessRoute,
   AuthedAppIndexRoute: AuthedAppIndexRoute,
   AuthedAppProjectsProjectSlugRoute:
     AuthedAppProjectsProjectSlugRouteWithChildren,
   AuthedAppSettingsEnvAccessRoute: AuthedAppSettingsEnvAccessRoute,
-  AuthedAppSettingsRolesRoute: AuthedAppSettingsRolesRoute,
   AuthedAppAppleDevicesIndexRoute: AuthedAppAppleDevicesIndexRoute,
   AuthedAppEnvironmentVariablesIndexRoute:
     AuthedAppEnvironmentVariablesIndexRoute,
