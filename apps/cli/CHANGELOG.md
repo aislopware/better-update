@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.26.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.25.0...@better-update/cli@0.26.0) (2026-06-03)
+
+### Features
+
+* **cli:** build generic non-Expo apps (bare RN, KMP, native, custom) ([#12](https://github.com/better-update/better-update/issues/12)) ([2752079](https://github.com/better-update/better-update/commit/2752079d6c7c7b64684e5dc074f7859be6cafd64)) - by @trancong12102
+
 ## [0.25.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.24.2...@better-update/cli@0.25.0) (2026-06-02)
 
 ### Features

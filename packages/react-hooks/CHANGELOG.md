@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.2.7](https://github.com/better-update/better-update/compare/@better-update/react-hooks@0.2.6...@better-update/react-hooks@0.2.7) (2026-06-03)
+
+**Note:** Version bump only for package @better-update/react-hooks
+
 ## [0.2.6](https://github.com/better-update/better-update/compare/@better-update/react-hooks@0.2.5...@better-update/react-hooks@0.2.6) (2026-06-01)
 
 **Note:** Version bump only for package @better-update/react-hooks
