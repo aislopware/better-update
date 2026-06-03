@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.28.0](https://github.com/better-update/better-update/compare/@better-update/web@0.27.0...@better-update/web@0.28.0) (2026-06-03)
+
+### Features
+
+* **web:** simplify onboarding account display to signed-in line ([1e3143e](https://github.com/better-update/better-update/commit/1e3143e4374ced27663bcae003fb67b42090e3a1)) - by @trancong12102
+
 ## [0.27.0](https://github.com/better-update/better-update/compare/@better-update/web@0.26.0...@better-update/web@0.27.0) (2026-06-03)
 
 ### Features
