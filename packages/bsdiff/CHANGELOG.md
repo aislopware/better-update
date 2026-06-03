@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.2.2](https://github.com/better-update/better-update/compare/@better-update/bsdiff@0.2.1...@better-update/bsdiff@0.2.2) (2026-06-03)
+
+### Bug Fixes
+
+* **bsdiff:** stop prepublishOnly from aborting the lerna main-package publish ([fcee8d1](https://github.com/better-update/better-update/commit/fcee8d1e0677da67c6f04d8c3e8e8ed259e84473)) - by @
+
 ## [0.2.1](https://github.com/better-update/better-update/compare/@better-update/bsdiff@0.2.0...@better-update/bsdiff@0.2.1) (2026-06-02)
 
 ### Bug Fixes
