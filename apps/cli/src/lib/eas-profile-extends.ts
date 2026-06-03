@@ -41,9 +41,12 @@ export const resolveExtendsChain = <
   readonly label: "build" | "submit";
   readonly maxDepth: number;
   readonly makeError: (message: string) => MakeErr;
+  /** Config file the profiles came from, used in error copy. Defaults to "eas.json". */
+  readonly sourceLabel?: string;
 }): Effect.Effect<readonly Profile[], MakeErr> =>
   Effect.gen(function* () {
     const { profiles, profileName, label, maxDepth, makeError } = params;
+    const sourceLabel = params.sourceLabel ?? "eas.json";
     const noun = label === "build" ? "Build" : "Submit";
     const chain: Profile[] = [];
     const visited = new Set<string>();
@@ -53,7 +56,7 @@ export const resolveExtendsChain = <
       if (visited.has(current)) {
         return yield* Effect.fail(
           makeError(
-            `Cycle detected in eas.json ${label}.${profileName} extends chain at "${current}".`,
+            `Cycle detected in ${sourceLabel} ${label}.${profileName} extends chain at "${current}".`,
           ),
         );
       }
@@ -63,7 +66,7 @@ export const resolveExtendsChain = <
         return yield* Effect.fail(
           makeError(
             current === profileName
-              ? `${noun} profile "${profileName}" not found in eas.json.`
+              ? `${noun} profile "${profileName}" not found in ${sourceLabel}.`
               : `${noun} profile "${profileName}" extends missing profile "${current}".`,
           ),
         );
@@ -74,7 +77,7 @@ export const resolveExtendsChain = <
       if (depth > maxDepth) {
         return yield* Effect.fail(
           makeError(
-            `Too many "extends" levels (max ${String(maxDepth)}) in eas.json ${label}.${profileName}.`,
+            `Too many "extends" levels (max ${String(maxDepth)}) in ${sourceLabel} ${label}.${profileName}.`,
           ),
         );
       }

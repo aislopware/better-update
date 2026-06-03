@@ -4,9 +4,14 @@ import process from "node:process";
 import { defineCommand } from "citty";
 import { Effect } from "effect";
 
-import { BETTER_UPDATE_PROJECT_ID_ENV, readLinkedProjectId } from "../lib/better-update-config";
+import { listBuildProfileNames } from "../lib/better-update-build-config";
+import {
+  BETTER_UPDATE_PROJECT_ID_ENV,
+  readBetterUpdateConfig,
+  readLinkedProjectId,
+} from "../lib/better-update-config";
 import { runEffect } from "../lib/citty-effect";
-import { readEasJson } from "../lib/eas-config";
+import { asProjectType, detectProjectType } from "../lib/detect-project-type";
 import { printHumanTable } from "../lib/output";
 import { readProjectId } from "../lib/project-link";
 import { apiClient } from "../services/api-client";
@@ -115,15 +120,28 @@ const checkProjectLink = Effect.gen(function* () {
   return pass("project-linked", "Project linked", `projectId=${resolved.right} (via ${source})`);
 });
 
-const checkEasJson = Effect.gen(function* () {
+const checkProjectType = Effect.gen(function* () {
   const runtime = yield* CliRuntime;
   const root = yield* runtime.cwd;
-  const result = yield* readEasJson(root).pipe(Effect.either);
-  if (result._tag === "Left") {
-    return warn("eas-json", "eas.json", result.left.message);
+  const buConfig = yield* readBetterUpdateConfig(root);
+  const override = asProjectType(buConfig?.["projectType"]);
+  const type = yield* detectProjectType({ projectRoot: root, override });
+  const via = override === undefined ? "auto-detected" : "better-update.json override";
+  return pass("project-type", "Project type", `${type} (${via})`);
+});
+
+const checkBuildConfig = Effect.gen(function* () {
+  const runtime = yield* CliRuntime;
+  const root = yield* runtime.cwd;
+  const names = yield* listBuildProfileNames(root);
+  if (names.length === 0) {
+    return warn(
+      "build-config",
+      "Build config",
+      'No build profiles found. Add a "build" section to better-update.json.',
+    );
   }
-  const count = Object.keys(result.right.build ?? {}).length;
-  return pass("eas-json", "eas.json", `${count} profile(s) defined`);
+  return pass("build-config", "Build config", `${names.length} profile(s) defined`);
 });
 
 const runChecks = Effect.gen(function* () {
@@ -139,7 +157,8 @@ const runChecks = Effect.gen(function* () {
     yield* checkServerHealth,
     yield* checkAuth,
     yield* checkProjectLink,
-    yield* checkEasJson,
+    yield* checkProjectType,
+    yield* checkBuildConfig,
   ];
 });
 

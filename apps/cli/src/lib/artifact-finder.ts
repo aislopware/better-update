@@ -18,6 +18,8 @@ export interface FindAndroidArtifactOptions {
   readonly format: "apk" | "aab";
   readonly flavor?: string;
   readonly buildType: "debug" | "release";
+  /** Gradle module that produced the artifact. Default "app" (RN/Expo layout). */
+  readonly module?: string;
   /**
    * If provided, only artifacts with mtimeMs >= this value are considered.
    * Used to exclude stale artifacts from previous builds when the current
@@ -88,19 +90,76 @@ export const findIosArtifact = ({
     return picked.path;
   });
 
+export interface FindArtifactByGlobOptions {
+  readonly baseDir: string;
+  /** A literal relative path, or a simple glob like `app/build/**\/*.aab` / `build/*.ipa`. */
+  readonly pattern: string;
+  readonly minMtimeMs?: number;
+}
+
+/**
+ * Resolve a custom-command build artifact from a user-supplied path. A pattern
+ * without wildcards is treated as a literal path (relative to `baseDir`);
+ * otherwise the fixed leading directory + file extension are extracted and the
+ * newest matching file under that directory is returned.
+ */
+export const findArtifactByGlob = ({
+  baseDir,
+  pattern,
+  minMtimeMs,
+}: FindArtifactByGlobOptions): Effect.Effect<
+  string,
+  ArtifactNotFoundError | PlatformError,
+  FileSystem.FileSystem
+> =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    if (!/[*?[]/u.test(pattern)) {
+      const full = path.isAbsolute(pattern) ? pattern : path.join(baseDir, pattern);
+      const exists = yield* fs.exists(full).pipe(Effect.orElseSucceed(() => false));
+      if (exists) {
+        return full;
+      }
+      return yield* new ArtifactNotFoundError({ message: `No artifact found at "${full}".` });
+    }
+
+    const extension = path.extname(pattern).toLowerCase();
+    if (extension === "") {
+      return yield* new ArtifactNotFoundError({
+        message: `artifactPath "${pattern}" must end in a file extension (e.g. **/*.aab).`,
+      });
+    }
+    const wildcardIndex = pattern.search(/[*?[]/u);
+    const fixedPrefix = pattern.slice(0, wildcardIndex);
+    const prefixDir = fixedPrefix.includes("/")
+      ? fixedPrefix.slice(0, fixedPrefix.lastIndexOf("/"))
+      : "";
+    const searchRoot = prefixDir === "" ? baseDir : path.join(baseDir, prefixDir);
+
+    const files = yield* walkAndFind(searchRoot, extension);
+    const picked = newest(files, minMtimeMs);
+    if (!picked) {
+      return yield* new ArtifactNotFoundError({
+        message: `No file matching "${pattern}" found under "${searchRoot}".`,
+      });
+    }
+    return picked.path;
+  });
+
 export const findAndroidArtifact = ({
   projectRoot,
   format,
   flavor,
   buildType,
   minMtimeMs,
+  module: gradleModule = "app",
 }: FindAndroidArtifactOptions): Effect.Effect<
   string,
   ArtifactNotFoundError | PlatformError,
   FileSystem.FileSystem
 > =>
   Effect.gen(function* () {
-    const outputsRoot = path.join(projectRoot, "android", "app", "build", "outputs");
+    const outputsRoot = path.join(projectRoot, "android", gradleModule, "build", "outputs");
     const subdir = format === "aab" ? "bundle" : "apk";
     const variantDir = flavor ? `${flavor}${capitalize(buildType)}` : buildType;
     const expectedDir = path.join(outputsRoot, subdir, variantDir);

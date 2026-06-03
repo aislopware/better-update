@@ -1,54 +1,22 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import nodePath from "node:path";
 
+import { compact } from "@better-update/type-guards";
+import { FileSystem } from "@effect/platform";
 import { defineCommand } from "citty";
 import { Effect } from "effect";
 
+import { readBetterUpdateConfig, writeBetterUpdateConfig } from "../lib/better-update-config";
 import { runEffect } from "../lib/citty-effect";
+import { readEasJson } from "../lib/eas-config";
 import { InvalidArgumentError } from "../lib/exit-codes";
 import { printHuman } from "../lib/output";
 import { promptConfirm } from "../lib/prompts";
 import { CliRuntime } from "../services/cli-runtime";
 
-interface LegacyTemplate {
-  readonly expo?: {
-    readonly extra?: {
-      readonly betterUpdate?: {
-        readonly profiles?: unknown;
-        readonly [key: string]: unknown;
-      };
-      readonly [key: string]: unknown;
-    };
-    readonly [key: string]: unknown;
-  };
-}
-
-const readAppJson = (projectRoot: string): LegacyTemplate | null => {
-  const path = nodePath.join(projectRoot, "app.json");
-  if (!existsSync(path)) {
-    return null;
-  }
-  const raw = readFileSync(path, "utf8");
-  // eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowing JSON.parse result; downstream code only reads known optional shape
-  return JSON.parse(raw) as LegacyTemplate;
-};
-
-const writeAppJson = (projectRoot: string, content: unknown): void => {
-  writeFileSync(nodePath.join(projectRoot, "app.json"), `${JSON.stringify(content, null, 2)}\n`);
-};
-
-const writeEasJson = (projectRoot: string, profiles: unknown): void => {
-  writeFileSync(
-    nodePath.join(projectRoot, "eas.json"),
-    `${JSON.stringify({ build: profiles }, null, 2)}\n`,
-  );
-};
-
 export const migrateConfigCommand = defineCommand({
   meta: {
     name: "migrate-config",
-    description:
-      "Migrate legacy `extra.betterUpdate.profiles` (in app.json) to a sibling `eas.json` file",
+    description: "Migrate `build`/`submit` profiles from a legacy eas.json into better-update.json",
   },
   args: {
     yes: { type: "boolean", description: "Skip the confirmation prompt" },
@@ -57,46 +25,41 @@ export const migrateConfigCommand = defineCommand({
     runEffect(
       Effect.gen(function* () {
         const runtime = yield* CliRuntime;
+        const fs = yield* FileSystem.FileSystem;
         const root = yield* runtime.cwd;
-        const appJson = readAppJson(root);
-        if (!appJson) {
-          return yield* new InvalidArgumentError({
-            message: `No app.json found at ${root}.`,
-          });
+
+        const easPath = nodePath.join(root, "eas.json");
+        const hasEas = yield* fs.exists(easPath).pipe(Effect.orElseSucceed(() => false));
+        if (!hasEas) {
+          return yield* new InvalidArgumentError({ message: `No eas.json found at ${root}.` });
         }
-        const profiles = appJson.expo?.extra?.betterUpdate?.profiles;
-        if (profiles === undefined) {
-          yield* printHuman(
-            "No legacy `extra.betterUpdate.profiles` found in app.json — nothing to migrate.",
-          );
+
+        const config = yield* readEasJson(root);
+        const patch = compact({ build: config.build, submit: config.submit, cli: config.cli });
+        if (Object.keys(patch).length === 0) {
+          yield* printHuman("eas.json has no build/submit/cli sections — nothing to migrate.");
           return undefined;
         }
-        if (existsSync(nodePath.join(root, "eas.json"))) {
-          return yield* new InvalidArgumentError({
-            message:
-              "eas.json already exists. Manual review required — refusing to overwrite. Remove eas.json first if you want to regenerate.",
-          });
-        }
-        if (!args.yes) {
+
+        const existing = yield* readBetterUpdateConfig(root);
+        const existingBuild = existing?.["build"];
+        const wouldOverwrite =
+          typeof existingBuild === "object" && existingBuild !== null && config.build !== undefined;
+        if (wouldOverwrite && !args.yes) {
           const confirmed = yield* promptConfirm(
-            `Move profiles to eas.json and strip from app.json?`,
-            { initialValue: true },
+            "better-update.json already has a build section — overwrite it from eas.json?",
+            { initialValue: false },
           );
           if (!confirmed) {
             yield* printHuman("Cancelled.");
             return undefined;
           }
         }
-        writeEasJson(root, profiles);
-        // Strip profiles, keeping any other betterUpdate fields (e.g. projectId).
-        const clone = structuredClone(appJson);
-        const extra = clone.expo?.extra;
-        const betterUpdate = extra?.betterUpdate as Record<string, unknown> | undefined;
-        if (betterUpdate) {
-          delete betterUpdate["profiles"];
-        }
-        writeAppJson(root, clone);
-        yield* printHuman("Migrated profiles into eas.json. Legacy field removed from app.json.");
+
+        yield* writeBetterUpdateConfig(root, patch);
+        yield* printHuman(
+          "Merged eas.json build/submit into better-update.json. You can now delete eas.json.",
+        );
         return undefined;
       }),
     ),

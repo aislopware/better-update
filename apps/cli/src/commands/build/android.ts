@@ -4,12 +4,10 @@ import { compact } from "@better-update/type-guards";
 import { FileSystem } from "@effect/platform";
 import { Effect } from "effect";
 
-import type { CommandExecutor } from "@effect/platform";
-import type { PlatformError } from "@effect/platform/Error";
-
 import { renderSigningGradle } from "../../lib/android-signing-gradle";
-import { findAndroidArtifact } from "../../lib/artifact-finder";
+import { findAndroidArtifact, findArtifactByGlob } from "../../lib/artifact-finder";
 import { downloadAndroidCredentials } from "../../lib/credentials-downloader";
+import { BuildFailedError } from "../../lib/exit-codes";
 import { loadLocalAndroidCredentials } from "../../lib/local-credentials";
 import { sha256File } from "../../lib/sha256";
 import { capitalize } from "../../lib/string-utils";
@@ -17,15 +15,9 @@ import { CliRuntime } from "../../services/cli-runtime";
 import { runStep } from "./run-step";
 
 import type { AndroidProfile, CredentialsSource } from "../../lib/build-profile";
-import type {
-  ArtifactNotFoundError,
-  BuildFailedError,
-  MissingCredentialsError,
-} from "../../lib/exit-codes";
-import type { InteractiveMode } from "../../lib/interactive-mode";
-import type { OutputMode } from "../../lib/output-mode";
+import type { AndroidBuildStrategy } from "../../lib/build-strategy";
+import type { CustomCommandSpec } from "../../lib/eas-config";
 import type { ApiClient } from "../../services/api-client";
-import type { IdentityStore } from "../../services/identity-store";
 
 export interface RunAndroidBuildInput {
   readonly api: ApiClient;
@@ -37,6 +29,10 @@ export interface RunAndroidBuildInput {
   readonly projectId: string;
   readonly credentialsSource: CredentialsSource;
   readonly profileName: string;
+  /** How to produce the artifact (prebuild+gradle / gradle / custom-command). */
+  readonly strategy: AndroidBuildStrategy;
+  /** Custom build command, required when `strategy === "custom"`. */
+  readonly customCommand?: CustomCommandSpec;
   /**
    * When true, skip remote keystore fetch and Gradle signing init-script. The
    * Android project's native debug signingConfig (RN template debug.keystore)
@@ -46,10 +42,11 @@ export interface RunAndroidBuildInput {
   readonly skipCredentials: boolean;
 }
 
-export interface RunAndroidBuildResult {
-  readonly artifactPath: string;
-  readonly byteSize: number;
-  readonly sha256: string;
+interface AndroidSigningCredentials {
+  readonly keystorePath: string;
+  readonly storePassword: string;
+  readonly keyAlias: string;
+  readonly keyPassword: string;
 }
 
 /**
@@ -72,79 +69,56 @@ const gradleTaskName = (
     : `${verb}${capitalize(buildType)}`;
 };
 
-export const runAndroidBuild = (
+/** Resolve the signing keystore (remote or local), or `undefined` when skipped. */
+const resolveAndroidCredentials = (
   input: RunAndroidBuildInput,
 ): Effect.Effect<
-  RunAndroidBuildResult,
-  BuildFailedError | MissingCredentialsError | ArtifactNotFoundError | PlatformError,
-  | CliRuntime
-  | CommandExecutor.CommandExecutor
-  | FileSystem.FileSystem
-  | IdentityStore
-  | InteractiveMode
-  | OutputMode
-> =>
-  Effect.gen(function* () {
-    const { api, tempDir, projectRoot, androidProfile, applicationIdentifier, envVars, projectId } =
-      input;
-    const runtime = yield* CliRuntime;
+  AndroidSigningCredentials | undefined,
+  Effect.Effect.Error<ReturnType<typeof downloadAndroidCredentials>>,
+  Effect.Effect.Context<ReturnType<typeof downloadAndroidCredentials>>
+> => {
+  if (input.skipCredentials) {
+    return Effect.succeed(undefined);
+  }
+  return input.credentialsSource === "local"
+    ? loadLocalAndroidCredentials({ projectRoot: input.projectRoot })
+    : downloadAndroidCredentials(input.api, {
+        projectId: input.projectId,
+        applicationIdentifier: input.applicationIdentifier,
+        tempDir: input.tempDir,
+        buildProfile: input.profileName,
+      });
+};
 
+/** Gradle build against the (already-prepared) `android/` dir. */
+const runGradleBuild = (input: RunAndroidBuildInput, commandEnv: Record<string, string>) =>
+  Effect.gen(function* () {
     // Record build start so artifact-finder can reject stale outputs from
-    // Earlier builds that may still live in `android/app/build/outputs/`.
+    // earlier builds that may still live in `android/.../build/outputs/`.
     const buildStartMs = Date.now();
 
-    const { format } = androidProfile;
-    const { flavor } = androidProfile;
-    const buildType = androidProfile.buildType ?? "release";
-    const androidDir = path.join(projectRoot, "android");
-    const commandEnv = yield* runtime.commandEnvironment(envVars);
+    const { format, flavor } = input.androidProfile;
+    const buildType = input.androidProfile.buildType ?? "release";
+    const moduleName = input.androidProfile.module ?? "app";
+    const androidDir = path.join(input.projectRoot, "android");
 
-    yield* runStep(
-      {
-        command: "bunx",
-        args: ["expo", "prebuild", "--platform", "android", "--clean"],
-        cwd: projectRoot,
-        env: commandEnv,
-      },
-      "expo prebuild android",
-    );
+    const credentials = yield* resolveAndroidCredentials(input);
+    const gradleArgs: readonly string[] =
+      credentials === undefined
+        ? []
+        : yield* Effect.gen(function* () {
+            const fs = yield* FileSystem.FileSystem;
+            const signingGradlePath = path.join(input.tempDir, "signing.gradle");
+            yield* fs.writeFileString(signingGradlePath, renderSigningGradle(credentials));
+            return ["--init-script", signingGradlePath];
+          });
 
-    // For dev / withoutCredentials builds, the Android project's own debug
-    // signingConfig (RN template debug.keystore) signs the APK. The init-script
-    // only overrides the `release` variant, so skipping it is the same as
-    // injecting it when running assembleDebug — but skipping also lets the
-    // build proceed without a server-side keystore registered for the project.
-    const gradleArgs = yield* input.skipCredentials
-      ? Effect.succeed<readonly string[]>([])
-      : Effect.gen(function* () {
-          const credentials =
-            input.credentialsSource === "local"
-              ? yield* loadLocalAndroidCredentials({ projectRoot })
-              : yield* downloadAndroidCredentials(api, {
-                  projectId,
-                  applicationIdentifier,
-                  tempDir,
-                  buildProfile: input.profileName,
-                });
-          const fs = yield* FileSystem.FileSystem;
-          const signingGradlePath = path.join(tempDir, "signing.gradle");
-          yield* fs.writeFileString(
-            signingGradlePath,
-            renderSigningGradle({
-              keystorePath: credentials.keystorePath,
-              storePassword: credentials.storePassword,
-              keyAlias: credentials.keyAlias,
-              keyPassword: credentials.keyPassword,
-            }),
-          );
-          return ["--init-script", signingGradlePath] as const;
-        });
-
-    const taskName = gradleTaskName(format, flavor, buildType);
+    const taskName = input.androidProfile.gradleTask ?? gradleTaskName(format, flavor, buildType);
+    const taskArg = taskName.startsWith(":") ? taskName : `:${moduleName}:${taskName}`;
     yield* runStep(
       {
         command: "./gradlew",
-        args: [...gradleArgs, `:app:${taskName}`],
+        args: [...gradleArgs, taskArg],
         cwd: androidDir,
         env: commandEnv,
       },
@@ -152,14 +126,96 @@ export const runAndroidBuild = (
     );
 
     const artifactPath = yield* findAndroidArtifact({
-      projectRoot,
+      projectRoot: input.projectRoot,
       format,
       buildType,
       minMtimeMs: buildStartMs,
+      module: moduleName,
       ...compact({ flavor }),
     });
 
     const { sha256, byteSize } = yield* sha256File(artifactPath);
-
     return { artifactPath, byteSize, sha256 };
+  });
+
+/**
+ * Custom-command build. We can't inject signing into an arbitrary build, so the
+ * resolved keystore + passwords are exposed to the command as `BETTER_UPDATE_*`
+ * env vars; the user's script consumes them. The artifact is located via the
+ * profile's `artifactPath` glob.
+ */
+const runAndroidCustom = (input: RunAndroidBuildInput, commandEnv: Record<string, string>) =>
+  Effect.gen(function* () {
+    const buildStartMs = Date.now();
+    const custom = input.customCommand;
+    if (custom === undefined) {
+      return yield* new BuildFailedError({
+        step: "custom android build",
+        exitCode: 1,
+        message: "Internal: custom Android strategy selected without a custom command.",
+      });
+    }
+    if (custom.artifactPath === undefined) {
+      return yield* new BuildFailedError({
+        step: "custom android build",
+        exitCode: 1,
+        message:
+          'Custom Android build requires "artifactPath" (e.g. "**/*.aab") in better-update.json.',
+      });
+    }
+
+    const credentials = yield* resolveAndroidCredentials(input);
+    const credEnv =
+      credentials === undefined
+        ? {}
+        : {
+            BETTER_UPDATE_ANDROID_KEYSTORE_PATH: credentials.keystorePath,
+            BETTER_UPDATE_ANDROID_KEYSTORE_PASSWORD: credentials.storePassword,
+            BETTER_UPDATE_ANDROID_KEY_ALIAS: credentials.keyAlias,
+            BETTER_UPDATE_ANDROID_KEY_PASSWORD: credentials.keyPassword,
+          };
+    const cwd =
+      custom.cwd === undefined ? input.projectRoot : path.join(input.projectRoot, custom.cwd);
+
+    yield* runStep(
+      {
+        command: "sh",
+        args: ["-c", custom.command],
+        cwd,
+        env: { ...commandEnv, ...credEnv, ...custom.env },
+      },
+      "custom android build",
+    );
+
+    const artifactPath = yield* findArtifactByGlob({
+      baseDir: cwd,
+      pattern: custom.artifactPath,
+      minMtimeMs: buildStartMs,
+    });
+    const { sha256, byteSize } = yield* sha256File(artifactPath);
+    return { artifactPath, byteSize, sha256 };
+  });
+
+export const runAndroidBuild = (input: RunAndroidBuildInput) =>
+  Effect.gen(function* () {
+    const runtime = yield* CliRuntime;
+    const commandEnv = yield* runtime.commandEnvironment(input.envVars);
+
+    // Expo regenerates `android/` from app.json before building; bare/KMP/native
+    // build the committed `android/` as-is.
+    if (input.strategy === "expo") {
+      yield* runStep(
+        {
+          command: "bunx",
+          args: ["expo", "prebuild", "--platform", "android", "--clean"],
+          cwd: input.projectRoot,
+          env: commandEnv,
+        },
+        "expo prebuild android",
+      );
+    }
+
+    return input.strategy === "custom"
+      ? yield* runAndroidCustom(input, commandEnv)
+      : yield* runGradleBuild(input, commandEnv);
   });

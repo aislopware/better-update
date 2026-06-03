@@ -43,10 +43,10 @@ const loadXcodeModule = (): XcodeModule =>
  * verbatim from the project file, so identifiers like productType are usually
  * wrapped in double quotes (e.g. `"com.apple.product-type.application"`).
  */
-const unquote = (value: string): string =>
+export const unquote = (value: string): string =>
   value.length >= 2 && value.startsWith('"') && value.endsWith('"') ? value.slice(1, -1) : value;
 
-const findXcodeProjectDir = (
+export const findXcodeProjectDir = (
   iosDir: string,
 ): Effect.Effect<string, XcodeProjectError, FileSystem.FileSystem> =>
   Effect.gen(function* () {
@@ -68,7 +68,7 @@ const findXcodeProjectDir = (
     return path.join(iosDir, projectDir);
   });
 
-const parseProject = (pbxprojPath: string): Effect.Effect<XcodeProject, XcodeProjectError> =>
+export const parseProject = (pbxprojPath: string): Effect.Effect<XcodeProject, XcodeProjectError> =>
   Effect.try({
     try: () => loadXcodeModule().project(pbxprojPath).parseSync(),
     catch: (cause) =>

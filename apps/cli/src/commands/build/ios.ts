@@ -4,14 +4,9 @@ import { FileSystem } from "@effect/platform";
 import { Effect } from "effect";
 
 import { ensureIosCredentials } from "../../application/credentials-interactive";
-import { findIosArtifact } from "../../lib/artifact-finder";
+import { findArtifactByGlob, findIosArtifact } from "../../lib/artifact-finder";
 import { downloadIosCredentials } from "../../lib/credentials-downloader";
-import {
-  ArtifactNotFoundError,
-  BuildFailedError,
-  MissingCredentialsError,
-  ProvisioningError,
-} from "../../lib/exit-codes";
+import { BuildFailedError, MissingCredentialsError, ProvisioningError } from "../../lib/exit-codes";
 import { applyTargetSigning } from "../../lib/ios-codesign-pbxproj";
 import { renderExportOptionsPlist } from "../../lib/ios-export-options";
 import { acquireKeychain } from "../../lib/ios-keychain";
@@ -22,10 +17,13 @@ import { sha256File } from "../../lib/sha256";
 import { discoverSignedTargets } from "../../lib/xcode-targets";
 import { createXcodebuildFormatter } from "../../lib/xcpretty-formatter";
 import { CliRuntime } from "../../services/cli-runtime";
+import { findAppDirectory, prepareIosNative, resolveXcodeContainer } from "./ios-prepare";
 import { runStep, runStepFormatted } from "./run-step";
 
 import type { CredentialsSource, IosProfile } from "../../lib/build-profile";
+import type { IosBuildStrategy } from "../../lib/build-strategy";
 import type { IosCredentialProfile, IosCredentials } from "../../lib/credentials-downloader";
+import type { CustomCommandSpec } from "../../lib/eas-config";
 import type { TargetSigningEntry } from "../../lib/ios-codesign-pbxproj";
 import type { DiscoveredTarget } from "../../lib/xcode-targets";
 import type { ApiClient } from "../../services/api-client";
@@ -40,77 +38,13 @@ export interface RunIosBuildInput {
   readonly envVars: Record<string, string>;
   readonly projectId: string;
   readonly credentialsSource: CredentialsSource;
+  /** How to produce the artifact (prebuild+xcodebuild / xcodebuild / custom). */
+  readonly strategy: IosBuildStrategy;
+  /** Custom build command, required when `strategy === "custom"`. */
+  readonly customCommand?: CustomCommandSpec;
   readonly rawOutput?: boolean | undefined;
   readonly freezeCredentials?: boolean | undefined;
 }
-
-const findXcworkspace = (iosDir: string) =>
-  Effect.gen(function* () {
-    const fs = yield* FileSystem.FileSystem;
-    const entries = yield* fs.readDirectory(iosDir);
-    const workspace = entries.find((entry) => entry.endsWith(".xcworkspace"));
-    if (!workspace) {
-      return yield* new BuildFailedError({
-        step: "detect xcworkspace",
-        exitCode: 1,
-        message: `No .xcworkspace found under ${iosDir}. Did "pod install" run?`,
-      });
-    }
-    return workspace;
-  });
-
-const prebuildAndPods = (params: {
-  readonly projectRoot: string;
-  readonly iosDir: string;
-  readonly commandEnv: Record<string, string>;
-}) =>
-  Effect.gen(function* () {
-    yield* runStep(
-      {
-        command: "bunx",
-        args: ["expo", "prebuild", "--platform", "ios", "--clean"],
-        cwd: params.projectRoot,
-        env: params.commandEnv,
-      },
-      "expo prebuild ios",
-    );
-    yield* runStep(
-      {
-        command: "pod",
-        args: ["install"],
-        cwd: params.iosDir,
-        env: params.commandEnv,
-      },
-      "pod install",
-    );
-  });
-
-const findAppDirectory = (root: string) =>
-  Effect.gen(function* () {
-    const fs = yield* FileSystem.FileSystem;
-    const stack = [root];
-    let depth = 0;
-    while (stack.length > 0 && depth < 6) {
-      const layer = stack.splice(0);
-      depth += 1;
-      for (const dir of layer) {
-        const entries = yield* fs.readDirectory(dir).pipe(Effect.orElseSucceed(() => []));
-        for (const entry of entries) {
-          const full = path.join(dir, entry);
-          if (entry.endsWith(".app")) {
-            return full;
-          }
-          const stat = yield* fs.stat(full).pipe(Effect.option);
-          if (stat._tag === "Some" && stat.value.type === "Directory") {
-            stack.push(full);
-          }
-        }
-      }
-    }
-    return yield* new ArtifactNotFoundError({
-      message: `No .app bundle found under "${root}".`,
-    });
-  });
 
 const runIosSimulatorBuild = (input: RunIosBuildInput) =>
   Effect.gen(function* () {
@@ -119,18 +53,24 @@ const runIosSimulatorBuild = (input: RunIosBuildInput) =>
     const iosDir = path.join(projectRoot, "ios");
     const commandEnv = yield* runtime.commandEnvironment(envVars);
 
-    yield* prebuildAndPods({ projectRoot, iosDir, commandEnv });
+    yield* prepareIosNative({
+      strategy: input.strategy,
+      projectRoot,
+      iosDir,
+      iosProfile,
+      commandEnv,
+    });
 
-    const workspaceFilename = yield* findXcworkspace(iosDir);
-    const scheme = iosProfile.scheme ?? workspaceFilename.replace(/\.xcworkspace$/u, "");
+    const container = yield* resolveXcodeContainer(projectRoot, iosDir, iosProfile);
+    const scheme = iosProfile.scheme ?? container.schemeBase;
     const configuration = iosProfile.buildConfiguration ?? "Release";
     const derivedDataPath = path.join(tempDir, "derived-data");
 
     const buildCmd: RunStepCommand = {
       command: "xcodebuild",
       args: [
-        "-workspace",
-        workspaceFilename,
+        container.flag,
+        container.containerPath,
         "-scheme",
         scheme,
         "-configuration",
@@ -276,7 +216,7 @@ const pickMainTarget = (signedTargets: readonly DiscoveredTarget[]): DiscoveredT
   signedTargets[0];
 
 const runIosDeviceBuild = (input: RunIosBuildInput) =>
-  // eslint-disable-next-line eslint/max-statements -- ios device build orchestration is inherently sequential (prebuild → pods → discover targets → credentials → keychain → install profiles → mutate pbxproj → archive → exportArchive → validate → artifact)
+  // eslint-disable-next-line eslint/max-statements -- ios device build orchestration is inherently sequential (prepare → discover targets → credentials → keychain → install profiles → mutate pbxproj → archive → exportArchive → validate → artifact)
   Effect.gen(function* () {
     const { api, tempDir, projectRoot, iosProfile, envVars } = input;
     const runtime = yield* CliRuntime;
@@ -286,10 +226,16 @@ const runIosDeviceBuild = (input: RunIosBuildInput) =>
     const { distribution } = iosProfile;
     const commandEnv = yield* runtime.commandEnvironment(envVars);
 
-    yield* prebuildAndPods({ projectRoot, iosDir, commandEnv });
+    yield* prepareIosNative({
+      strategy: input.strategy,
+      projectRoot,
+      iosDir,
+      iosProfile,
+      commandEnv,
+    });
 
-    const workspaceFilename = yield* findXcworkspace(iosDir);
-    const scheme = iosProfile.scheme ?? workspaceFilename.replace(/\.xcworkspace$/u, "");
+    const container = yield* resolveXcodeContainer(projectRoot, iosDir, iosProfile);
+    const scheme = iosProfile.scheme ?? container.schemeBase;
     const configuration = iosProfile.buildConfiguration ?? "Release";
 
     const signedTargets = yield* discoverSignedTargets({
@@ -353,8 +299,8 @@ const runIosDeviceBuild = (input: RunIosBuildInput) =>
     const archiveCmd: RunStepCommand = {
       command: "xcodebuild",
       args: [
-        "-workspace",
-        workspaceFilename,
+        container.flag,
+        container.containerPath,
         "-scheme",
         scheme,
         "-configuration",
@@ -434,5 +380,74 @@ const runIosDeviceBuild = (input: RunIosBuildInput) =>
     return { artifactPath, byteSize, sha256 };
   });
 
-export const runIosBuild = (input: RunIosBuildInput) =>
-  input.iosProfile.simulator === true ? runIosSimulatorBuild(input) : runIosDeviceBuild(input);
+/**
+ * Custom-command iOS build. The resolved p12 + provisioning profiles are written
+ * to `tempDir` and their paths exposed via `BETTER_UPDATE_IOS_*` env vars; the
+ * user's command performs the actual signing/archive. The artifact is located
+ * via the profile's `artifactPath` glob.
+ */
+const runIosCustom = (input: RunIosBuildInput) =>
+  Effect.gen(function* () {
+    const runtime = yield* CliRuntime;
+    const commandEnv = yield* runtime.commandEnvironment(input.envVars);
+    const custom = input.customCommand;
+    if (custom === undefined) {
+      return yield* new BuildFailedError({
+        step: "custom ios build",
+        exitCode: 1,
+        message: "Internal: custom iOS strategy selected without a custom command.",
+      });
+    }
+    if (custom.artifactPath === undefined) {
+      return yield* new BuildFailedError({
+        step: "custom ios build",
+        exitCode: 1,
+        message:
+          'Custom iOS build requires "artifactPath" (e.g. "build/*.ipa") in better-update.json.',
+      });
+    }
+
+    const credentials = yield* fetchAllCredentials({
+      api: input.api,
+      input,
+      mainBundleIdentifier: input.bundleId,
+      allBundleIdentifiers: [input.bundleId],
+    });
+    const credEnv = {
+      BETTER_UPDATE_IOS_P12_PATH: credentials.p12Path,
+      BETTER_UPDATE_IOS_P12_PASSWORD: credentials.p12Password,
+      BETTER_UPDATE_IOS_PROVISIONING_PROFILES: credentials.profiles
+        .map((profile) => profile.profilePath)
+        .join(":"),
+    };
+    const cwd =
+      custom.cwd === undefined ? input.projectRoot : path.join(input.projectRoot, custom.cwd);
+    const buildStartMs = Date.now();
+
+    yield* runStep(
+      {
+        command: "sh",
+        args: ["-c", custom.command],
+        cwd,
+        env: { ...commandEnv, ...credEnv, ...custom.env },
+      },
+      "custom ios build",
+    );
+
+    const artifactPath = yield* findArtifactByGlob({
+      baseDir: cwd,
+      pattern: custom.artifactPath,
+      minMtimeMs: buildStartMs,
+    });
+    const { sha256, byteSize } = yield* sha256File(artifactPath);
+    return { artifactPath, byteSize, sha256 };
+  });
+
+export const runIosBuild = (input: RunIosBuildInput) => {
+  if (input.strategy === "custom") {
+    return runIosCustom(input);
+  }
+  return input.iosProfile.simulator === true
+    ? runIosSimulatorBuild(input)
+    : runIosDeviceBuild(input);
+};

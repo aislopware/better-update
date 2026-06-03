@@ -30,6 +30,17 @@ export interface EasIosProfile {
   readonly simulator?: boolean;
   readonly enterpriseProvisioning?: "adhoc" | "universal";
   readonly autoIncrement?: EasIosAutoIncrement;
+  // ── Generic (non-Expo) iOS fields ──
+  /** Explicit `.xcworkspace` path (relative to project root). Else auto-discover. */
+  readonly workspace?: string;
+  /** Explicit `.xcodeproj` path when there is no workspace (pure-native apps). */
+  readonly project?: string;
+  /** Run `pod install` before xcodebuild. Defaults to true when a Podfile exists. */
+  readonly podInstall?: boolean;
+  /** Metadata overrides — fallback when native config can't be read (KMP/custom). */
+  readonly bundleIdentifier?: string;
+  readonly version?: string;
+  readonly buildNumber?: string;
 }
 
 export interface EasAndroidProfile {
@@ -39,9 +50,31 @@ export interface EasAndroidProfile {
   readonly format?: "apk" | "aab";
   readonly distribution?: "play-store" | "direct";
   readonly autoIncrement?: EasAndroidAutoIncrement;
+  // ── Generic (non-Expo) Android fields ──
+  /** Gradle module that produces the artifact. Drives `:<module>:` prefix; default "app". */
+  readonly module?: string;
+  /** Explicit Gradle task, overrides the format/flavor/buildType derivation. */
+  readonly gradleTask?: string;
+  /** Metadata overrides — fallback when build.gradle can't be parsed (KMP .kts/custom). */
+  readonly applicationId?: string;
+  readonly version?: string;
+  readonly versionCode?: string;
 }
 
 export type EasCredentialsSource = "remote" | "local";
+
+/** A user-supplied build command (custom-command escape hatch) for one platform. */
+export interface CustomCommandSpec {
+  readonly command: string;
+  readonly cwd?: string;
+  readonly env?: Record<string, string>;
+  readonly artifactPath?: string;
+}
+
+export interface CustomCommandProfile {
+  readonly ios?: CustomCommandSpec;
+  readonly android?: CustomCommandSpec;
+}
 
 export interface EasBuildProfile {
   readonly extends?: string;
@@ -55,6 +88,8 @@ export interface EasBuildProfile {
   readonly credentialsSource?: EasCredentialsSource;
   readonly autoIncrement?: EasAutoIncrement;
   readonly withoutCredentials?: boolean;
+  /** Custom-command escape hatch — when set for a platform, overrides native build. */
+  readonly custom?: CustomCommandProfile;
 }
 
 export type {
@@ -167,6 +202,12 @@ const parseIosProfile = (raw: unknown): EasIosProfile | undefined => {
   const simulator = asBooleanValue(record["simulator"]);
   const enterpriseProvisioning = asEnterpriseProvisioning(record["enterpriseProvisioning"]);
   const autoIncrement = asIosAutoIncrement(record["autoIncrement"]);
+  const workspace = asStringValue(record["workspace"]);
+  const project = asStringValue(record["project"]);
+  const podInstall = asBooleanValue(record["podInstall"]);
+  const bundleIdentifier = asStringValue(record["bundleIdentifier"]);
+  const version = asStringValue(record["version"]);
+  const buildNumber = asStringValue(record["buildNumber"]);
   return compact({
     distribution,
     buildConfiguration,
@@ -174,6 +215,12 @@ const parseIosProfile = (raw: unknown): EasIosProfile | undefined => {
     simulator,
     enterpriseProvisioning,
     autoIncrement,
+    workspace,
+    project,
+    podInstall,
+    bundleIdentifier,
+    version,
+    buildNumber,
   });
 };
 
@@ -188,6 +235,11 @@ const parseAndroidProfile = (raw: unknown): EasAndroidProfile | undefined => {
   const format = asAndroidFormat(record["format"]);
   const distribution = asAndroidDistribution(record["distribution"]);
   const autoIncrement = asAndroidAutoIncrement(record["autoIncrement"]);
+  const module = asStringValue(record["module"]);
+  const gradleTask = asStringValue(record["gradleTask"]);
+  const applicationId = asStringValue(record["applicationId"]);
+  const version = asStringValue(record["version"]);
+  const versionCode = asStringValue(record["versionCode"]);
   return compact({
     buildType,
     flavor,
@@ -195,10 +247,41 @@ const parseAndroidProfile = (raw: unknown): EasAndroidProfile | undefined => {
     format,
     distribution,
     autoIncrement,
+    module,
+    gradleTask,
+    applicationId,
+    version,
+    versionCode,
   });
 };
 
-const parseBuildProfile = (raw: unknown): EasBuildProfile | undefined => {
+const parseCustomCommandSpec = (raw: unknown): CustomCommandSpec | undefined => {
+  const record = asRecord(raw);
+  if (!record) {
+    return undefined;
+  }
+  const command = asStringValue(record["command"]);
+  if (command === undefined) {
+    return undefined;
+  }
+  const cwd = asStringValue(record["cwd"]);
+  const env = asEnv(record["env"]);
+  const artifactPath = asStringValue(record["artifactPath"]);
+  return compact({ command, cwd, env, artifactPath });
+};
+
+const parseCustomCommandProfile = (raw: unknown): CustomCommandProfile | undefined => {
+  const record = asRecord(raw);
+  if (!record) {
+    return undefined;
+  }
+  const ios = parseCustomCommandSpec(record["ios"]);
+  const android = parseCustomCommandSpec(record["android"]);
+  const result = compact({ ios, android });
+  return Object.keys(result).length === 0 ? undefined : result;
+};
+
+export const parseBuildProfile = (raw: unknown): EasBuildProfile | undefined => {
   const record = asRecord(raw);
   if (!record) {
     return undefined;
@@ -214,6 +297,7 @@ const parseBuildProfile = (raw: unknown): EasBuildProfile | undefined => {
   const credentialsSource = asCredentialsSource(record["credentialsSource"]);
   const autoIncrement = asAutoIncrement(record["autoIncrement"]);
   const withoutCredentials = asBooleanValue(record["withoutCredentials"]);
+  const custom = parseCustomCommandProfile(record["custom"]);
   return compact({
     extends: extendsName,
     developmentClient,
@@ -226,7 +310,42 @@ const parseBuildProfile = (raw: unknown): EasBuildProfile | undefined => {
     credentialsSource,
     autoIncrement,
     withoutCredentials,
+    custom,
   });
+};
+
+/**
+ * Parse an already-decoded JSON object into an {@link EasConfig}. Shared by the
+ * `eas.json` reader and the `better-update.json` build-config reader — both hold
+ * the same `build`/`submit`/`cli` shape, only the source file differs.
+ */
+export const parseConfigFromRecord = (root: Record<string, unknown>): EasConfig => {
+  const buildRecord = asRecord(root["build"]);
+  if (!buildRecord) {
+    return asRecord(root["cli"]) ? { cli: parseCli(root["cli"]) } : {};
+  }
+  const profiles: Record<string, EasBuildProfile> = {};
+  for (const [name, value] of Object.entries(buildRecord)) {
+    const profile = parseBuildProfile(value);
+    if (profile) {
+      profiles[name] = profile;
+    }
+  }
+  const submitRecord = asRecord(root["submit"]);
+  const submit: Record<string, EasSubmitProfile> = {};
+  if (submitRecord) {
+    for (const [name, value] of Object.entries(submitRecord)) {
+      const profile = parseSubmitProfile(value);
+      if (profile !== undefined) {
+        submit[name] = profile;
+      }
+    }
+  }
+  return {
+    ...(asRecord(root["cli"]) ? { cli: parseCli(root["cli"]) } : {}),
+    build: profiles,
+    ...(Object.keys(submit).length === 0 ? {} : { submit }),
+  };
 };
 
 export const parseEasConfig = (text: string): Effect.Effect<EasConfig, BuildProfileError> =>
@@ -244,32 +363,7 @@ export const parseEasConfig = (text: string): Effect.Effect<EasConfig, BuildProf
         message: "eas.json must be a JSON object at the top level.",
       });
     }
-    const buildRecord = asRecord(root["build"]);
-    if (!buildRecord) {
-      return asRecord(root["cli"]) ? { cli: parseCli(root["cli"]) } : {};
-    }
-    const profiles: Record<string, EasBuildProfile> = {};
-    for (const [name, value] of Object.entries(buildRecord)) {
-      const profile = parseBuildProfile(value);
-      if (profile) {
-        profiles[name] = profile;
-      }
-    }
-    const submitRecord = asRecord(root["submit"]);
-    const submit: Record<string, EasSubmitProfile> = {};
-    if (submitRecord) {
-      for (const [name, value] of Object.entries(submitRecord)) {
-        const profile = parseSubmitProfile(value);
-        if (profile !== undefined) {
-          submit[name] = profile;
-        }
-      }
-    }
-    return {
-      ...(asRecord(root["cli"]) ? { cli: parseCli(root["cli"]) } : {}),
-      build: profiles,
-      ...(Object.keys(submit).length === 0 ? {} : { submit }),
-    };
+    return parseConfigFromRecord(root);
   });
 
 const parseCli = (raw: unknown): { readonly version?: string } => {
@@ -308,10 +402,19 @@ export const readEasJson = (
     return yield* parseEasConfig(text);
   });
 
+const mergeCustom = (
+  base: CustomCommandProfile | undefined,
+  overlay: CustomCommandProfile | undefined,
+): CustomCommandProfile | undefined => {
+  const merged = shallowMerge(base, overlay);
+  return merged === undefined || Object.keys(merged).length === 0 ? undefined : merged;
+};
+
 const mergeProfile = (base: EasBuildProfile, overlay: EasBuildProfile): EasBuildProfile => {
   const ios = shallowMerge(base.ios, overlay.ios);
   const android = shallowMerge(base.android, overlay.android);
   const env = shallowMerge(base.env, overlay.env);
+  const custom = mergeCustom(base.custom, overlay.custom);
   const developmentClient = overlay.developmentClient ?? base.developmentClient;
   const distribution = overlay.distribution ?? base.distribution;
   const channel = overlay.channel ?? base.channel;
@@ -331,18 +434,20 @@ const mergeProfile = (base: EasBuildProfile, overlay: EasBuildProfile): EasBuild
     credentialsSource,
     autoIncrement,
     withoutCredentials,
+    custom,
   });
 };
 
 export const resolveEasBuildProfile = (
   config: EasConfig,
   profileName: string,
+  sourceLabel = "eas.json",
 ): Effect.Effect<EasBuildProfile, BuildProfileError> =>
   Effect.gen(function* () {
     const profiles = config.build;
     if (!profiles) {
       return yield* new BuildProfileError({
-        message: 'eas.json has no "build" section. Add at least one profile.',
+        message: `${sourceLabel} has no "build" section. Add at least one profile.`,
       });
     }
     const chain = yield* resolveExtendsChain({
@@ -350,6 +455,7 @@ export const resolveEasBuildProfile = (
       profileName,
       label: "build",
       maxDepth: MAX_EXTENDS_DEPTH,
+      sourceLabel,
       makeError: (message) => new BuildProfileError({ message }),
     });
     const merged = chain.reduce<EasBuildProfile>(

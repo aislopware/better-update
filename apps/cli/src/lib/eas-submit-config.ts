@@ -143,11 +143,12 @@ const mergeSubmitProfile = (
 export const resolveEasSubmitProfile = (
   profiles: Record<string, EasSubmitProfile> | undefined,
   profileName: string,
+  sourceLabel = "eas.json",
 ): Effect.Effect<EasSubmitProfile, BuildProfileError> =>
   Effect.gen(function* () {
     if (!profiles) {
       return yield* new BuildProfileError({
-        message: 'eas.json has no "submit" section. Add at least one submit profile.',
+        message: `${sourceLabel} has no "submit" section. Add at least one submit profile.`,
       });
     }
     const chain = yield* resolveExtendsChain({
@@ -155,6 +156,7 @@ export const resolveEasSubmitProfile = (
       profileName,
       label: "submit",
       maxDepth: MAX_SUBMIT_EXTENDS_DEPTH,
+      sourceLabel,
       makeError: (message) => new BuildProfileError({ message }),
     });
     const merged = chain.reduce<EasSubmitProfile>(
