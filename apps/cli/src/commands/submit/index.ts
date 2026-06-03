@@ -8,11 +8,12 @@ import {
   runAndroidGooglePlayUpload,
   runIosAltoolUpload,
 } from "../../application/submit-flow";
+import { readSubmitProfile } from "../../lib/better-update-build-config";
 import { runEffect } from "../../lib/citty-effect";
-import { readEasJson, resolveEasSubmitProfile } from "../../lib/eas-config";
 import { printHuman } from "../../lib/output";
 import { readProjectId } from "../../lib/project-link";
 import { apiClient } from "../../services/api-client";
+import { CliRuntime } from "../../services/cli-runtime";
 
 import type {
   EasAndroidSubmitProfile,
@@ -221,8 +222,8 @@ export const submitCommand = defineCommand({
 
         const projectId = yield* readProjectId;
         const api = yield* apiClient;
-        const easConfig = yield* readEasJson(process.cwd());
-        const easProfile = yield* resolveEasSubmitProfile(easConfig.submit, args.profile);
+        const runtime = yield* CliRuntime;
+        const easProfile = yield* readSubmitProfile(yield* runtime.cwd, args.profile);
 
         const archive = yield* resolveArchive(api, projectId, platform, {
           id: args.id,

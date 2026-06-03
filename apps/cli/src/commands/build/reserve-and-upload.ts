@@ -34,7 +34,8 @@ export interface ReserveAndUploadInput {
   readonly target: BuildTarget;
   readonly projectId: string;
   readonly profileName: string;
-  readonly runtimeVersion: string;
+  /** OTA runtime version — absent for non-Expo builds (no eas-updates). */
+  readonly runtimeVersion?: string;
   readonly appVersion?: string;
   readonly buildNumber?: string;
   readonly bundleId: string;
@@ -54,12 +55,12 @@ const buildReserveCommon = (input: ReserveAndUploadInput) =>
   ({
     projectId: input.projectId,
     profile: input.profileName,
-    runtimeVersion: input.runtimeVersion,
     bundleId: input.bundleId,
     sha256: input.sha256,
     byteSize: input.byteSize,
     gitDirty: input.gitContext.dirty,
     ...compact({
+      runtimeVersion: input.runtimeVersion,
       appVersion: input.appVersion,
       buildNumber: input.buildNumber,
       gitRef: input.gitContext.ref,

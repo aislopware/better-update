@@ -15,6 +15,7 @@ import { StagingError } from "./exit-codes";
 import { formatCause } from "./format-error";
 import { printHuman } from "./output";
 
+import type { ProjectType } from "./detect-project-type";
 import type { BuildFailedError } from "./exit-codes";
 import type { OutputMode } from "./output-mode";
 
@@ -41,12 +42,10 @@ const LOCKFILES: readonly (readonly [string, PackageManager])[] = [
 ];
 
 /**
- * Paths never copied into staging — covers generated native build outputs and
- * dependency dirs that must be reinstalled fresh in staging.
+ * Generated native build outputs / dependency dirs that must never be copied —
+ * they are regenerated in staging (Pods via `pod install`, build/ via gradle).
  */
-const ALWAYS_IGNORE = [
-  "node_modules",
-  ".git",
+const NATIVE_BUILD_OUTPUTS = [
   "ios/build",
   "ios/Pods",
   "ios/DerivedData",
@@ -54,11 +53,16 @@ const ALWAYS_IGNORE = [
   "android/app/build",
   "android/.gradle",
   "android/.kotlin",
-  ".expo",
-  ".gradle",
-  ".turbo",
-  "dist",
 ] as const;
+
+/** Non-native dirs never copied into staging (reinstalled / regenerated fresh). */
+const GENERAL_IGNORE = ["node_modules", ".git", ".expo", ".gradle", ".turbo", "dist"] as const;
+
+/**
+ * Paths never copied into staging — covers generated native build outputs and
+ * dependency dirs that must be reinstalled fresh in staging.
+ */
+const ALWAYS_IGNORE = [...GENERAL_IGNORE, ...NATIVE_BUILD_OUTPUTS] as const;
 
 const findLockfile = (
   fs: FileSystem.FileSystem,
@@ -108,13 +112,30 @@ export const detectWorkspaceRoot = (
   cwd: string,
 ): Effect.Effect<WorkspaceLookup, never, FileSystem.FileSystem> => walkUpForLockfile(cwd, cwd);
 
+export interface BuildIgnoreOptions {
+  /**
+   * Force-include the native source dirs (`android/`, `ios/`) even when the
+   * project's `.gitignore` excludes them. Bare/KMP/native projects ship these
+   * dirs as source (no `expo prebuild` regenerates them), so they must reach
+   * staging; only their build outputs stay excluded. `appRelPath` scopes the
+   * re-include to the app dir inside a monorepo (empty for single-app layouts).
+   */
+  readonly includeNativeSource?: boolean;
+  readonly appRelPath?: string;
+}
+
 /**
  * Build an `Ignore` matcher for the workspace root. `.easignore` REPLACES
  * `.gitignore` when present (matches EAS semantics); otherwise `.gitignore`
  * is layered on top of the always-ignore baseline.
+ *
+ * When `includeNativeSource` is set, the native source dirs are re-included
+ * after the ignore files are applied, then their build outputs re-excluded, so
+ * a committed `ios/`/`android/` reaches staging intact.
  */
 export const buildIgnoreInstance = (
   workspaceRoot: string,
+  options: BuildIgnoreOptions = {},
 ): Effect.Effect<Ignore, never, FileSystem.FileSystem> =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
@@ -130,18 +151,28 @@ export const buildIgnoreInstance = (
         .readFileString(easignorePath)
         .pipe(Effect.catchAll(() => Effect.succeed("")));
       ig.add(content);
-      return ig;
+    } else {
+      const gitignorePath = path.join(workspaceRoot, ".gitignore");
+      const hasGitignore = yield* fs
+        .exists(gitignorePath)
+        .pipe(Effect.catchAll(() => Effect.succeed(false)));
+      if (hasGitignore) {
+        const content = yield* fs
+          .readFileString(gitignorePath)
+          .pipe(Effect.catchAll(() => Effect.succeed("")));
+        ig.add(content);
+      }
     }
 
-    const gitignorePath = path.join(workspaceRoot, ".gitignore");
-    const hasGitignore = yield* fs
-      .exists(gitignorePath)
-      .pipe(Effect.catchAll(() => Effect.succeed(false)));
-    if (hasGitignore) {
-      const content = yield* fs
-        .readFileString(gitignorePath)
-        .pipe(Effect.catchAll(() => Effect.succeed("")));
-      ig.add(content);
+    if (options.includeNativeSource === true) {
+      const base =
+        options.appRelPath === undefined || options.appRelPath === ""
+          ? ""
+          : `${options.appRelPath}/`;
+      // Re-include the native source dirs (last-match-wins overrides any
+      // .gitignore exclusion), then re-exclude their generated build outputs.
+      ig.add([`!${base}android`, `!${base}ios`]);
+      ig.add(NATIVE_BUILD_OUTPUTS.map((entry) => `${base}${entry}`));
     }
     return ig;
   });
@@ -208,6 +239,12 @@ export interface PrepareStagingProjectInput {
   readonly userCwd: string;
   readonly tempDir: string;
   readonly envVars: Readonly<Record<string, string>>;
+  /**
+   * Build-system family. Non-Expo projects keep their committed `android/`/`ios/`
+   * source (force-included into staging) and skip `<pm> install` when there is no
+   * JS package manifest (pure-native / KMP). Defaults to Expo behavior.
+   */
+  readonly projectType?: ProjectType;
 }
 
 /**
@@ -224,6 +261,7 @@ export const prepareStagingProject = (
   FileSystem.FileSystem | CliRuntime | OutputMode
 > =>
   Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
     const runtime = yield* CliRuntime;
     const { workspaceRoot, packageManager } = yield* detectWorkspaceRoot(input.userCwd);
     const relAppPath = path.relative(workspaceRoot, input.userCwd);
@@ -234,12 +272,25 @@ export const prepareStagingProject = (
       `Staging build into ${stagingRoot}${relAppPath === "" ? "" : ` (app: ${relAppPath})`}`,
     );
 
-    const ig = yield* buildIgnoreInstance(workspaceRoot);
+    const includeNativeSource = input.projectType !== undefined && input.projectType !== "expo";
+    const ig = yield* buildIgnoreInstance(workspaceRoot, {
+      includeNativeSource,
+      appRelPath: relAppPath,
+    });
     yield* copyProjectTree({ source: workspaceRoot, dest: stagingRoot, ig });
     yield* initGitRepo(stagingRoot);
 
-    const commandEnv = yield* runtime.commandEnvironment(input.envVars);
-    yield* runInstall({ stagingRoot, packageManager, env: commandEnv });
+    // Skip `<pm> install` for projects with no JS manifest (pure-native / KMP) —
+    // there is nothing to install and the package manager would error.
+    const hasPackageJson = yield* fs
+      .exists(path.join(workspaceRoot, "package.json"))
+      .pipe(Effect.catchAll(() => Effect.succeed(false)));
+    if (hasPackageJson) {
+      const commandEnv = yield* runtime.commandEnvironment(input.envVars);
+      yield* runInstall({ stagingRoot, packageManager, env: commandEnv });
+    } else {
+      yield* printHuman("No package.json at the staging root — skipping dependency install.");
+    }
 
     return { stagingRoot, projectRoot, packageManager, relAppPath };
   });

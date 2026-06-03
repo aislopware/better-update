@@ -1,18 +1,18 @@
 import { it } from "@effect/vitest";
 import { Effect, Exit } from "effect";
 
-import { fromEasProfile, readRuntimeVersionMeta } from "./build-profile";
+import { fromGenericProfile, readRuntimeVersionMeta } from "./build-profile";
 import { BuildProfileError } from "./exit-codes";
 import { readAppMeta } from "./expo-config";
 import { failureError } from "./test-utils";
 
 import type { ExpoConfig } from "./expo-config";
 
-// ── fromEasProfile (pure EAS→BuildProfile mapping) ────────────────
+// ── fromGenericProfile (pure EAS→BuildProfile mapping) ────────────────
 
-describe(fromEasProfile, () => {
+describe(fromGenericProfile, () => {
   it("derives ios=ad-hoc + android=apk/direct from distribution=internal", () => {
-    const profile = fromEasProfile({ distribution: "internal" }, "preview");
+    const profile = fromGenericProfile({ distribution: "internal" }, "preview");
     expect(profile.name).toBe("preview");
     expect(profile.environment).toBe("production");
     expect(profile.ios?.distribution).toBe("ad-hoc");
@@ -21,27 +21,27 @@ describe(fromEasProfile, () => {
   });
 
   it("derives ios=app-store + android=aab/play-store from distribution=store", () => {
-    const profile = fromEasProfile({ distribution: "store" }, "production");
+    const profile = fromGenericProfile({ distribution: "store" }, "production");
     expect(profile.ios?.distribution).toBe("app-store");
     expect(profile.android?.format).toBe("aab");
     expect(profile.android?.distribution).toBe("play-store");
   });
 
   it("derives ios=development from developmentClient=true", () => {
-    const profile = fromEasProfile({ developmentClient: true }, "development");
+    const profile = fromGenericProfile({ developmentClient: true }, "development");
     expect(profile.ios?.distribution).toBe("development");
     expect(profile.android?.format).toBe("apk");
   });
 
   it("developmentClient=true defaults ios.buildConfiguration to Debug and android.buildType to debug", () => {
-    const profile = fromEasProfile({ developmentClient: true }, "development");
+    const profile = fromGenericProfile({ developmentClient: true }, "development");
     expect(profile.ios?.buildConfiguration).toBe("Debug");
     expect(profile.android?.buildType).toBe("debug");
     expect(profile.developmentClient).toBe(true);
   });
 
   it("explicit ios.buildConfiguration overrides the developmentClient Debug default", () => {
-    const profile = fromEasProfile(
+    const profile = fromGenericProfile(
       {
         developmentClient: true,
         ios: { buildConfiguration: "Release" },
@@ -52,7 +52,7 @@ describe(fromEasProfile, () => {
   });
 
   it("explicit android.buildType overrides the developmentClient debug default", () => {
-    const profile = fromEasProfile(
+    const profile = fromGenericProfile(
       {
         developmentClient: true,
         android: { buildType: "release" },
@@ -63,14 +63,14 @@ describe(fromEasProfile, () => {
   });
 
   it("non-dev profile leaves buildConfiguration/buildType undefined for runtime defaults", () => {
-    const profile = fromEasProfile({ distribution: "store" }, "production");
+    const profile = fromGenericProfile({ distribution: "store" }, "production");
     expect(profile.ios?.buildConfiguration).toBeUndefined();
     expect(profile.android?.buildType).toBeUndefined();
     expect(profile.developmentClient).toBeUndefined();
   });
 
   it("threads withoutCredentials onto the resolved BuildProfile", () => {
-    const profile = fromEasProfile(
+    const profile = fromGenericProfile(
       { developmentClient: true, withoutCredentials: true },
       "dev-no-creds",
     );
@@ -78,7 +78,7 @@ describe(fromEasProfile, () => {
   });
 
   it("ios.distribution override takes precedence over distribution+developmentClient", () => {
-    const profile = fromEasProfile(
+    const profile = fromGenericProfile(
       {
         distribution: "store",
         developmentClient: true,
@@ -90,7 +90,7 @@ describe(fromEasProfile, () => {
   });
 
   it("android.format override takes precedence over distribution-derived default", () => {
-    const profile = fromEasProfile(
+    const profile = fromGenericProfile(
       {
         distribution: "store",
         android: { format: "apk", distribution: "direct" },
@@ -102,19 +102,19 @@ describe(fromEasProfile, () => {
   });
 
   it("returns no ios section when no ios intent (no distribution / no ios / no developmentClient)", () => {
-    const profile = fromEasProfile({ android: { format: "apk" } }, "android-only");
+    const profile = fromGenericProfile({ android: { format: "apk" } }, "android-only");
     expect(profile.ios).toBeUndefined();
     expect(profile.android?.format).toBe("apk");
   });
 
   it("returns no android section when only ios is intended", () => {
-    const profile = fromEasProfile({ ios: { distribution: "app-store" } }, "ios-only");
+    const profile = fromGenericProfile({ ios: { distribution: "app-store" } }, "ios-only");
     expect(profile.ios?.distribution).toBe("app-store");
     expect(profile.android).toBeUndefined();
   });
 
   it("propagates channel + env from the EAS profile", () => {
-    const profile = fromEasProfile(
+    const profile = fromGenericProfile(
       {
         distribution: "internal",
         channel: "preview",
@@ -126,15 +126,79 @@ describe(fromEasProfile, () => {
     expect(profile.env).toStrictEqual({ API_URL: "https://staging.example" });
   });
 
+  it("maps generic iOS fields (workspace/project/podInstall) onto the profile", () => {
+    const profile = fromGenericProfile(
+      {
+        ios: {
+          distribution: "app-store",
+          workspace: "ios/App.xcworkspace",
+          project: "ios/App.xcodeproj",
+          podInstall: false,
+        },
+      },
+      "bare",
+    );
+    expect(profile.ios?.workspace).toBe("ios/App.xcworkspace");
+    expect(profile.ios?.project).toBe("ios/App.xcodeproj");
+    expect(profile.ios?.podInstall).toBe(false);
+  });
+
+  it("collects iOS metadata overrides into metaOverride (only when present)", () => {
+    const withMeta = fromGenericProfile(
+      { ios: { distribution: "app-store", bundleIdentifier: "com.acme.app", buildNumber: "42" } },
+      "meta",
+    );
+    expect(withMeta.ios?.metaOverride).toStrictEqual({
+      bundleIdentifier: "com.acme.app",
+      buildNumber: "42",
+    });
+    const withoutMeta = fromGenericProfile({ ios: { distribution: "app-store" } }, "nometa");
+    expect(withoutMeta.ios?.metaOverride).toBeUndefined();
+  });
+
+  it("maps generic Android fields (module/gradleTask) and metadata overrides", () => {
+    const profile = fromGenericProfile(
+      {
+        android: {
+          format: "aab",
+          distribution: "play-store",
+          module: "composeApp",
+          gradleTask: "bundleRelease",
+          applicationId: "com.acme.app",
+          versionCode: "7",
+        },
+      },
+      "kmp",
+    );
+    expect(profile.android?.module).toBe("composeApp");
+    expect(profile.android?.gradleTask).toBe("bundleRelease");
+    expect(profile.android?.metaOverride).toStrictEqual({
+      applicationId: "com.acme.app",
+      versionCode: "7",
+    });
+  });
+
+  it("threads the custom-command block onto customCommand", () => {
+    const profile = fromGenericProfile(
+      {
+        android: { format: "aab", distribution: "play-store" },
+        custom: { android: { command: "./build.sh", artifactPath: "**/*.aab" } },
+      },
+      "custom",
+    );
+    expect(profile.customCommand?.android?.command).toBe("./build.sh");
+    expect(profile.customCommand?.android?.artifactPath).toBe("**/*.aab");
+  });
+
   it("uses the EAS profile's environment when set, else defaults to production", () => {
-    const explicit = fromEasProfile({ environment: "development" }, "dev");
+    const explicit = fromGenericProfile({ environment: "development" }, "dev");
     expect(explicit.environment).toBe("development");
-    const defaulted = fromEasProfile({ distribution: "internal" }, "noenv");
+    const defaulted = fromGenericProfile({ distribution: "internal" }, "noenv");
     expect(defaulted.environment).toBe("production");
   });
 
   it("propagates ios.simulator + ios.scheme + ios.buildConfiguration", () => {
-    const profile = fromEasProfile(
+    const profile = fromGenericProfile(
       {
         developmentClient: true,
         ios: { simulator: true, scheme: "Dev", buildConfiguration: "Debug" },
@@ -147,7 +211,7 @@ describe(fromEasProfile, () => {
   });
 
   it("propagates android.buildType + flavor + gradleCommand", () => {
-    const profile = fromEasProfile(
+    const profile = fromGenericProfile(
       {
         distribution: "store",
         android: {
@@ -164,31 +228,37 @@ describe(fromEasProfile, () => {
   });
 
   it("resolves autoIncrement=true to buildNumber (ios) and versionCode (android)", () => {
-    const profile = fromEasProfile({ distribution: "store", autoIncrement: true }, "p");
+    const profile = fromGenericProfile({ distribution: "store", autoIncrement: true }, "p");
     expect(profile.ios?.autoIncrement).toBe("buildNumber");
     expect(profile.android?.autoIncrement).toBe("versionCode");
   });
 
   it("resolves autoIncrement=version to version on both platforms", () => {
-    const profile = fromEasProfile({ distribution: "store", autoIncrement: "version" }, "p");
+    const profile = fromGenericProfile({ distribution: "store", autoIncrement: "version" }, "p");
     expect(profile.ios?.autoIncrement).toBe("version");
     expect(profile.android?.autoIncrement).toBe("version");
   });
 
   it("top-level autoIncrement=buildNumber only applies to ios; android stays undefined", () => {
-    const profile = fromEasProfile({ distribution: "store", autoIncrement: "buildNumber" }, "p");
+    const profile = fromGenericProfile(
+      { distribution: "store", autoIncrement: "buildNumber" },
+      "p",
+    );
     expect(profile.ios?.autoIncrement).toBe("buildNumber");
     expect(profile.android?.autoIncrement).toBeUndefined();
   });
 
   it("top-level autoIncrement=versionCode only applies to android; ios stays undefined", () => {
-    const profile = fromEasProfile({ distribution: "store", autoIncrement: "versionCode" }, "p");
+    const profile = fromGenericProfile(
+      { distribution: "store", autoIncrement: "versionCode" },
+      "p",
+    );
     expect(profile.ios?.autoIncrement).toBeUndefined();
     expect(profile.android?.autoIncrement).toBe("versionCode");
   });
 
   it("platform-scoped autoIncrement overrides top-level", () => {
-    const profile = fromEasProfile(
+    const profile = fromGenericProfile(
       {
         distribution: "store",
         autoIncrement: true,
@@ -202,7 +272,7 @@ describe(fromEasProfile, () => {
   });
 
   it("platform-scoped autoIncrement=false disables top-level even when truthy", () => {
-    const profile = fromEasProfile(
+    const profile = fromGenericProfile(
       {
         distribution: "store",
         autoIncrement: true,

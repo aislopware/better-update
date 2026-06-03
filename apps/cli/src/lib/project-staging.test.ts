@@ -192,4 +192,23 @@ describe(buildIgnoreInstance, () => {
       }
     }).pipe(Effect.provide(NodeFileSystem.layer)),
   );
+
+  it.effect("re-includes native source dirs (but not build outputs) for non-Expo projects", () =>
+    Effect.gen(function* () {
+      const dir = makeDir("ignore-native-");
+      // A bare-RN .gitignore that excludes the whole ios/android dirs.
+      writeFileSync(path.join(dir, ".gitignore"), "ios/\nandroid/\n");
+      try {
+        const ig = yield* buildIgnoreInstance(dir, { includeNativeSource: true, appRelPath: "" });
+        // Source files under the native dirs are force-included…
+        expect(ig.ignores("ios/MyApp.xcodeproj/project.pbxproj")).toBe(false);
+        expect(ig.ignores("android/app/build.gradle")).toBe(false);
+        // …but generated build outputs stay excluded.
+        expect(ig.ignores("ios/Pods/Manifest.lock")).toBe(true);
+        expect(ig.ignores("android/app/build/outputs/apk/release/app.apk")).toBe(true);
+      } finally {
+        dispose(dir);
+      }
+    }).pipe(Effect.provide(NodeFileSystem.layer)),
+  );
 });
