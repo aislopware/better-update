@@ -1,6 +1,15 @@
 pre-commit:
   parallel: true
   commands:
+    routetree:
+      # Regenerate apps/web/src/routeTree.gen.ts from a clean Vite build whenever
+      # route files change, so the committed file always matches CI's build output.
+      # A stale routeTree.gen.ts makes the Release workflow's `bun run build` dirty
+      # the tree, which aborts `lerna version` with EUNCOMMIT. Only the TanStack
+      # Start Vite plugin emits the full file (incl. the react-start Register
+      # augmentation), so we build rather than use a standalone generator.
+      glob: "apps/web/src/routes/**"
+      run: (cd apps/web && bunx vite build --logLevel error) && git add apps/web/src/routeTree.gen.ts
     lint:
       glob: "**/*.{ts,tsx,js,jsx,json,jsonc}"
       run: bun run lint:check
