@@ -5,6 +5,7 @@ import { Form } from "@better-update/ui/components/ui/form";
 import {
   Frame,
   FrameDescription,
+  FrameFooter,
   FrameHeader,
   FrameTitle,
 } from "@better-update/ui/components/ui/frame";
@@ -37,13 +38,16 @@ const renderAccountTrigger = (
   image: string | null | undefined,
   email: string | undefined,
 ) => (
-  <Button variant="ghost" className="data-open:bg-accent h-auto gap-2 py-1.5 pr-2 pl-1.5">
+  <Button
+    variant="ghost"
+    className="data-open:bg-accent h-auto w-full justify-start gap-2 py-1.5 pr-2 pl-1.5"
+  >
     <EntityAvatar name={name ?? "U"} image={image} className="size-7" />
     <div className="grid text-left leading-tight">
       <span className="truncate text-sm font-medium">{name}</span>
       <span className="text-muted-foreground truncate text-xs">{email}</span>
     </div>
-    <ChevronDownIcon strokeWidth={2} className="ml-1 size-4" />
+    <ChevronDownIcon strokeWidth={2} className="ml-auto size-4" />
   </Button>
 );
 
@@ -59,7 +63,7 @@ const AccountMenu = () => {
   return (
     <Menu>
       <MenuTrigger render={renderAccountTrigger(user.name, user.image, user.email)} />
-      <MenuPopup align="end" side="bottom" sideOffset={4} className="w-56">
+      <MenuPopup align="start" side="top" sideOffset={4} className="w-(--anchor-width)">
         <MenuGroup>
           <MenuGroupLabel>{user.email}</MenuGroupLabel>
           <MenuSeparator />
@@ -110,111 +114,109 @@ const Onboarding = () => {
   });
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="flex justify-end p-4">
-        <AccountMenu />
-      </header>
-      <div className="flex flex-1 items-center justify-center px-4 pb-16">
-        <Frame className="w-full max-w-md">
-          <FrameHeader>
-            <FrameTitle>Create your organization</FrameTitle>
-            <FrameDescription>
-              Organizations are shared workspaces where teams manage projects and API keys together.
-            </FrameDescription>
-          </FrameHeader>
-          <Card>
-            <CardPanel>
-              <Form
-                className="flex w-full flex-col gap-4"
-                onSubmit={async (event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  await form.handleSubmit();
-                }}
-              >
-                <FieldGroup>
-                  <form.Field
-                    name="name"
-                    validators={{
-                      onBlur: ({ value }) => {
-                        const result = nameSchema.safeParse(value);
-                        return result.success ? undefined : result.error.issues[0]?.message;
-                      },
-                    }}
-                  >
-                    {(field) => {
-                      const errorMessage = getFieldError(field);
-                      return (
-                        <Field invalid={Boolean(errorMessage)}>
-                          <FieldLabel htmlFor="name">Organization name</FieldLabel>
-                          <Input
-                            id="name"
-                            placeholder="Acme Inc."
-                            value={field.state.value}
-                            onChange={(event) => {
-                              field.handleChange(event.target.value);
-                              if (!slugEdited.current) {
-                                form.setFieldValue("slug", generateSlug(event.target.value), {
-                                  dontUpdateMeta: true,
-                                  dontValidate: true,
-                                });
-                              }
-                            }}
-                            onBlur={field.handleBlur}
-                          />
-                          <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
-                        </Field>
-                      );
-                    }}
-                  </form.Field>
+    <div className="flex min-h-screen items-center justify-center px-4 py-16">
+      <Frame className="w-full max-w-md">
+        <FrameHeader>
+          <FrameTitle>Create your organization</FrameTitle>
+          <FrameDescription>
+            Organizations are shared workspaces where teams manage projects and API keys together.
+          </FrameDescription>
+        </FrameHeader>
+        <Card>
+          <CardPanel>
+            <Form
+              className="flex w-full flex-col gap-4"
+              onSubmit={async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                await form.handleSubmit();
+              }}
+            >
+              <FieldGroup>
+                <form.Field
+                  name="name"
+                  validators={{
+                    onBlur: ({ value }) => {
+                      const result = nameSchema.safeParse(value);
+                      return result.success ? undefined : result.error.issues[0]?.message;
+                    },
+                  }}
+                >
+                  {(field) => {
+                    const errorMessage = getFieldError(field);
+                    return (
+                      <Field invalid={Boolean(errorMessage)}>
+                        <FieldLabel htmlFor="name">Organization name</FieldLabel>
+                        <Input
+                          id="name"
+                          placeholder="Acme Inc."
+                          value={field.state.value}
+                          onChange={(event) => {
+                            field.handleChange(event.target.value);
+                            if (!slugEdited.current) {
+                              form.setFieldValue("slug", generateSlug(event.target.value), {
+                                dontUpdateMeta: true,
+                                dontValidate: true,
+                              });
+                            }
+                          }}
+                          onBlur={field.handleBlur}
+                        />
+                        <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
+                      </Field>
+                    );
+                  }}
+                </form.Field>
 
-                  <form.Field
-                    name="slug"
-                    validators={{
-                      onBlur: ({ value }) => {
-                        const result = slugSchema.safeParse(value);
-                        return result.success ? undefined : result.error.issues[0]?.message;
-                      },
-                    }}
+                <form.Field
+                  name="slug"
+                  validators={{
+                    onBlur: ({ value }) => {
+                      const result = slugSchema.safeParse(value);
+                      return result.success ? undefined : result.error.issues[0]?.message;
+                    },
+                  }}
+                >
+                  {(field) => {
+                    const errorMessage = getFieldError(field);
+                    return (
+                      <Field invalid={Boolean(errorMessage)}>
+                        <FieldLabel htmlFor="slug">URL slug</FieldLabel>
+                        <Input
+                          id="slug"
+                          placeholder="acme-inc"
+                          value={field.state.value}
+                          onChange={(event) => {
+                            field.handleChange(event.target.value);
+                            slugEdited.current = event.target.value !== "";
+                          }}
+                          onBlur={field.handleBlur}
+                        />
+                        <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
+                      </Field>
+                    );
+                  }}
+                </form.Field>
+              </FieldGroup>
+              <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
+                {([canSubmit, isSubmitting]) => (
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={!canSubmit}
+                    loading={Boolean(isSubmitting)}
                   >
-                    {(field) => {
-                      const errorMessage = getFieldError(field);
-                      return (
-                        <Field invalid={Boolean(errorMessage)}>
-                          <FieldLabel htmlFor="slug">URL slug</FieldLabel>
-                          <Input
-                            id="slug"
-                            placeholder="acme-inc"
-                            value={field.state.value}
-                            onChange={(event) => {
-                              field.handleChange(event.target.value);
-                              slugEdited.current = event.target.value !== "";
-                            }}
-                            onBlur={field.handleBlur}
-                          />
-                          <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
-                        </Field>
-                      );
-                    }}
-                  </form.Field>
-                </FieldGroup>
-                <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
-                  {([canSubmit, isSubmitting]) => (
-                    <Button
-                      type="submit"
-                      className="w-full"
-                      disabled={!canSubmit}
-                      loading={Boolean(isSubmitting)}
-                    >
-                      Create organization
-                    </Button>
-                  )}
-                </form.Subscribe>
-              </Form>
-            </CardPanel>
-          </Card>
-        </Frame>
-      </div>
+                    Create organization
+                  </Button>
+                )}
+              </form.Subscribe>
+            </Form>
+          </CardPanel>
+        </Card>
+        <FrameFooter className="px-1 py-1">
+          <AccountMenu />
+        </FrameFooter>
+      </Frame>
     </div>
   );
 };
