@@ -1,26 +1,16 @@
 # Cross-platform prebuilt binaries for @better-update/bsdiff (napi-rs).
 #
-# STATUS: package is public (`private` removed; main + the 8 npm/<platform> stubs are
-# version-locked at 0.2.0). The host (darwin-arm64) binary is built + proven locally; the
-# other 7 targets in package.json's `napi.targets` can only be produced in CI (cross-compile
-# / native runners). To ship: run this workflow via `workflow_dispatch` so the build matrix
-# produces all 8 .node artifacts and the publish job runs `napi prepublish` to publish the
-# per-platform optionalDependency packages; the main package then ships via Lerna (release.yml).
-# Until that dispatch runs, `@better-update/bsdiff@0.2.0` is still absent from npm, so the
-# CLI's bsdiff dependency keeps 404-ing — publish the platform packages BEFORE the next CLI release.
-#
-# This matrix follows the standard @napi-rs/cli layout: build each target, run
-# `napi artifacts` to move the .node into npm/<platform>/, upload, then a publish
-# job assembles + npm-publishes the split packages.
+# @better-update/bsdiff publishes as a main package + 8 per-platform
+# optionalDependency stubs. This REUSABLE workflow cross-compiles all 8 `.node`
+# targets and uploads them as artifacts. Publish CLI calls it (workflow_call) and
+# then publishes the stubs + main package; `workflow_dispatch` is kept for manual
+# rebuilds. The publishing itself lives in publish-cli.yml, not here.
 
 name: Build bsdiff
 
 on:
+  workflow_call:
   workflow_dispatch:
-  push:
-    paths:
-      - "packages/bsdiff/**"
-      - ".github/workflows/build-bsdiff.yml"
 
 defaults:
   run:
@@ -106,52 +96,11 @@ jobs:
         run: ${{ matrix.settings.build }}
 
       # `napi build --platform` writes `bsdiff.<platform>.node` into the crate
-      # folder. Upload the raw binary; the publish job runs `napi artifacts` to
-      # collate downloaded binaries into npm/<platform>/ dirs.
+      # folder. Upload it; the Publish CLI publish job runs `napi artifacts` to
+      # collate the downloaded binaries into npm/<platform>/ before publishing.
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: bindings-${{ matrix.settings.target }}
           path: packages/bsdiff/*.node
           if-no-files-found: error
-
-  # Publish split optionalDependency packages + the main package.
-  # Gated on manual dispatch: a `push` only rebuilds + uploads artifacts, while a
-  # `workflow_dispatch` also publishes the per-platform packages. Dispatch this to
-  # publish @better-update/bsdiff@0.2.0's platform stubs before the next CLI release.
-  publish:
-    if: ${{ github.event_name == 'workflow_dispatch' }}
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 22
-          registry-url: "https://registry.npmjs.org"
-
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.3.13
-
-      - name: Install deps
-        run: bun install --frozen-lockfile
-        working-directory: .
-
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: packages/bsdiff/artifacts
-
-      - name: Move artifacts into npm dirs
-        run: bun run artifacts
-
-      - name: Publish (per-platform + main)
-        run: |
-          bunx napi prepublish -t npm
-          # `napi prepublish` publishes the npm/<platform> packages; then the
-          # main package (which has the optionalDependencies + loader) ships via Lerna.
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
