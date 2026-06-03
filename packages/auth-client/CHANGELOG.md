@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.5.0](https://github.com/better-update/better-update/compare/@better-update/auth-client@0.4.1...@better-update/auth-client@0.5.0) (2026-06-03)
+
+### Features
+
+* **server:** add IAM-style authz with roles and per-scope ABAC grants ([a2cfd9c](https://github.com/better-update/better-update/commit/a2cfd9c4ef4f3aa2d69e3542c61074eda85cd54c)) - by @trancong12102
+
 ## [0.4.1](https://github.com/better-update/better-update/compare/@better-update/auth-client@0.4.0...@better-update/auth-client@0.4.1) (2026-06-03)
 
 **Note:** Version bump only for package @better-update/auth-client

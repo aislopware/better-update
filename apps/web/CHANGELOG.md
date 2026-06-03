@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.25.0](https://github.com/better-update/better-update/compare/@better-update/web@0.24.2...@better-update/web@0.25.0) (2026-06-03)
+
+### Features
+
+* **server:** add IAM-style authz with roles and per-scope ABAC grants ([a2cfd9c](https://github.com/better-update/better-update/commit/a2cfd9c4ef4f3aa2d69e3542c61074eda85cd54c)) - by @trancong12102
+
+### Bug Fixes
+
+* **web:** regenerate routeTree.gen.ts from clean build ([139c4e2](https://github.com/better-update/better-update/commit/139c4e26f547082adf2d8a8f400c4f1d1fd2bacf)) - by @trancong12102
+
 ## [0.24.2](https://github.com/better-update/better-update/compare/@better-update/web@0.24.1...@better-update/web@0.24.2) (2026-06-03)
 
 ### Bug Fixes

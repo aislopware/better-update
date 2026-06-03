@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.0.10](https://github.com/better-update/better-update/compare/@better-update/type-guards@0.0.9...@better-update/type-guards@0.0.10) (2026-06-03)
+
+**Note:** Version bump only for package @better-update/type-guards
+
 ## [0.0.9](https://github.com/better-update/better-update/compare/@better-update/type-guards@0.0.8...@better-update/type-guards@0.0.9) (2026-06-03)
 
 **Note:** Version bump only for package @better-update/type-guards
