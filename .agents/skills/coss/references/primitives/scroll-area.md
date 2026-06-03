@@ -64,6 +64,19 @@ Scroll fade edges:
 </ScrollArea>
 ```
 
+Fill viewport for flex layouts (e.g. sidebar footers with `mt-auto`):
+
+```tsx
+<ScrollArea className="flex-1 min-h-0" fill>
+  <div className="flex h-full flex-col">
+    <nav>{/* main items */}</nav>
+    <footer className="mt-auto">{/* pinned footer */}</footer>
+  </div>
+</ScrollArea>
+```
+
+`fill` defaults to `false`. Use it only when the content wrapper must stretch to the viewport height—not for lists, comboboxes, or other content-sized scroll areas.
+
 `ScrollArea` always renders both scrollbars internally -- horizontal scroll is driven by inner content width exceeding the container, not by a prop. Also supports `scrollbarGutter` for reserving scrollbar space.
 
 ### More examples
@@ -75,6 +88,7 @@ See `p-scroll-area-1` through `p-scroll-area-5` for vertical, horizontal, both a
 - Forgetting explicit height/constraint, resulting in non-scrollable container.
 - Nesting multiple scroll areas that compete for wheel/touch events.
 - Using scroll area where native page scrolling is simpler and clearer.
+- Using `fill` on every scroll area—default is `false`; opt in only for flex layouts that need full viewport height (e.g. `mt-auto` footers). Pair with `flex-1 min-h-0` on the root and `h-full flex-col` on the inner wrapper.
 
 ## Useful particle references
 
