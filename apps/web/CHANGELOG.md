@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.26.0](https://github.com/better-update/better-update/compare/@better-update/web@0.25.0...@better-update/web@0.26.0) (2026-06-03)
+
+### Features
+
+* **web:** show current account and logout on onboarding ([5f717fa](https://github.com/better-update/better-update/commit/5f717fac9fc23627cf3fa4c5b0a84201157b52c3)) - by @trancong12102
+
 ## [0.25.0](https://github.com/better-update/better-update/compare/@better-update/web@0.24.2...@better-update/web@0.25.0) (2026-06-03)
 
 ### Features
