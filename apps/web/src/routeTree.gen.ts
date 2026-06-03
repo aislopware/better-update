@@ -373,8 +373,8 @@ export interface FileRoutesByFullPath {
   '/account/profile': typeof AuthedAppAccountProfileRoute
   '/account/sessions': typeof AuthedAppAccountSessionsRoute
   '/projects/$projectSlug': typeof AuthedAppProjectsProjectSlugRouteWithChildren
-  '/settings/roles': typeof AuthedAppSettingsRolesRoute
   '/settings/env-access': typeof AuthedAppSettingsEnvAccessRoute
+  '/settings/roles': typeof AuthedAppSettingsRolesRoute
   '/account/': typeof AuthedAppAccountIndexRoute
   '/apple-devices/': typeof AuthedAppAppleDevicesIndexRoute
   '/environment-variables/': typeof AuthedAppEnvironmentVariablesIndexRoute
@@ -423,8 +423,8 @@ export interface FileRoutesByTo {
   '/account/password': typeof AuthedAppAccountPasswordRoute
   '/account/profile': typeof AuthedAppAccountProfileRoute
   '/account/sessions': typeof AuthedAppAccountSessionsRoute
-  '/settings/roles': typeof AuthedAppSettingsRolesRoute
   '/settings/env-access': typeof AuthedAppSettingsEnvAccessRoute
+  '/settings/roles': typeof AuthedAppSettingsRolesRoute
   '/account': typeof AuthedAppAccountIndexRoute
   '/apple-devices': typeof AuthedAppAppleDevicesIndexRoute
   '/environment-variables': typeof AuthedAppEnvironmentVariablesIndexRoute
@@ -477,8 +477,8 @@ export interface FileRoutesById {
   '/_authed/_app/account/profile': typeof AuthedAppAccountProfileRoute
   '/_authed/_app/account/sessions': typeof AuthedAppAccountSessionsRoute
   '/_authed/_app/projects/$projectSlug': typeof AuthedAppProjectsProjectSlugRouteWithChildren
-  '/_authed/_app/settings/roles': typeof AuthedAppSettingsRolesRoute
   '/_authed/_app/settings/env-access': typeof AuthedAppSettingsEnvAccessRoute
+  '/_authed/_app/settings/roles': typeof AuthedAppSettingsRolesRoute
   '/_authed/_app/account/': typeof AuthedAppAccountIndexRoute
   '/_authed/_app/apple-devices/': typeof AuthedAppAppleDevicesIndexRoute
   '/_authed/_app/environment-variables/': typeof AuthedAppEnvironmentVariablesIndexRoute
@@ -531,8 +531,8 @@ export interface FileRouteTypes {
     | '/account/profile'
     | '/account/sessions'
     | '/projects/$projectSlug'
-    | '/settings/roles'
     | '/settings/env-access'
+    | '/settings/roles'
     | '/account/'
     | '/apple-devices/'
     | '/environment-variables/'
@@ -581,8 +581,8 @@ export interface FileRouteTypes {
     | '/account/password'
     | '/account/profile'
     | '/account/sessions'
-    | '/settings/roles'
     | '/settings/env-access'
+    | '/settings/roles'
     | '/account'
     | '/apple-devices'
     | '/environment-variables'
@@ -634,8 +634,8 @@ export interface FileRouteTypes {
     | '/_authed/_app/account/profile'
     | '/_authed/_app/account/sessions'
     | '/_authed/_app/projects/$projectSlug'
-    | '/_authed/_app/settings/roles'
     | '/_authed/_app/settings/env-access'
+    | '/_authed/_app/settings/roles'
     | '/_authed/_app/account/'
     | '/_authed/_app/apple-devices/'
     | '/_authed/_app/environment-variables/'
@@ -1172,8 +1172,8 @@ interface AuthedAppRouteChildren {
   AuthedAppVaultAccessRoute: typeof AuthedAppVaultAccessRoute
   AuthedAppIndexRoute: typeof AuthedAppIndexRoute
   AuthedAppProjectsProjectSlugRoute: typeof AuthedAppProjectsProjectSlugRouteWithChildren
-  AuthedAppSettingsRolesRoute: typeof AuthedAppSettingsRolesRoute
   AuthedAppSettingsEnvAccessRoute: typeof AuthedAppSettingsEnvAccessRoute
+  AuthedAppSettingsRolesRoute: typeof AuthedAppSettingsRolesRoute
   AuthedAppAppleDevicesIndexRoute: typeof AuthedAppAppleDevicesIndexRoute
   AuthedAppEnvironmentVariablesIndexRoute: typeof AuthedAppEnvironmentVariablesIndexRoute
   AuthedAppProjectsIndexRoute: typeof AuthedAppProjectsIndexRoute
@@ -1191,8 +1191,8 @@ const AuthedAppRouteChildren: AuthedAppRouteChildren = {
   AuthedAppIndexRoute: AuthedAppIndexRoute,
   AuthedAppProjectsProjectSlugRoute:
     AuthedAppProjectsProjectSlugRouteWithChildren,
-  AuthedAppSettingsRolesRoute: AuthedAppSettingsRolesRoute,
   AuthedAppSettingsEnvAccessRoute: AuthedAppSettingsEnvAccessRoute,
+  AuthedAppSettingsRolesRoute: AuthedAppSettingsRolesRoute,
   AuthedAppAppleDevicesIndexRoute: AuthedAppAppleDevicesIndexRoute,
   AuthedAppEnvironmentVariablesIndexRoute:
     AuthedAppEnvironmentVariablesIndexRoute,
@@ -1240,3 +1240,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
