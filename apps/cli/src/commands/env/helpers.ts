@@ -65,7 +65,7 @@ export const parseSingleEnvironmentArg = (
 export const formatEnvironments = (environments: readonly EnvironmentName[]): string =>
   [...environments].toSorted((left, right) => left.localeCompare(right)).join(",");
 
-const DOTENV_LINE = /^\s*(?:export\s+)?([A-Z][A-Z0-9_]*)\s*=\s*(.*?)\s*$/u;
+const DOTENV_LINE = /^\s*(?:export\s+)?(?<key>[A-Z][A-Z0-9_]*)\s*=\s*(?<value>.*?)\s*$/u;
 
 const stripQuotes = (raw: string): string => {
   if (raw.length < 2) {

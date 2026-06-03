@@ -132,7 +132,7 @@ describe(signBody, () => {
     );
 
     // Full SFV header shape.
-    const sigMatch = /^sig="([^"]+)", keyid="main", alg="rsa-v1_5-sha256"$/.exec(signature);
+    const sigMatch = /^sig="(?<sig>[^"]+)", keyid="main", alg="rsa-v1_5-sha256"$/.exec(signature);
     expect(sigMatch).not.toBeNull();
     const sig = sigMatch![1]!;
 
@@ -186,7 +186,7 @@ describe(signBody, () => {
     const { signature } = await Effect.runPromise(
       signBody({ bodyBytes: body, privateKeyPem, certificatePem, keyid: "main" }),
     );
-    const sig = /^sig="([^"]+)"/.exec(signature)![1]!;
+    const sig = /^sig="(?<sig>[^"]+)"/.exec(signature)![1]!;
 
     // The same string is the signed input AND what callers send as manifestBody.
     // Verifying over `body` (not a re-rendered copy) proves byte-identity.
@@ -209,7 +209,7 @@ describe(signDirectiveBody, () => {
     );
 
     // Same `expo-signature` SFV shape the device parses for a directive part.
-    const sigMatch = /^sig="([^"]+)", keyid="main", alg="rsa-v1_5-sha256"$/.exec(signature);
+    const sigMatch = /^sig="(?<sig>[^"]+)", keyid="main", alg="rsa-v1_5-sha256"$/.exec(signature);
     expect(sigMatch).not.toBeNull();
     const sig = sigMatch![1]!;
 

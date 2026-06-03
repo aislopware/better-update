@@ -31,7 +31,7 @@ const walk = (dir: string): string[] => {
 
 const extractClassNames = (content: string): string[] => {
   const matches: string[] = [];
-  const patterns = [/className="([^"]+)"/g, /className=\{`([^`]+)`\}/g];
+  const patterns = [/className="(?<className>[^"]+)"/g, /className=\{`(?<className>[^`]+)`\}/g];
   for (const pattern of patterns) {
     let match: RegExpExecArray | null;
     while ((match = pattern.exec(content)) !== null) {

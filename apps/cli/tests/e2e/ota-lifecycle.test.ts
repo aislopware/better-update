@@ -45,7 +45,8 @@ const cli = setupCliE2E("e2e-cli-ota", {
 
 // `<platform> <id> <rtv> <uploaded> <reused> <patches>` — stop before the
 // trailing Patches column (lookahead, not an end anchor).
-const iosRowPattern = /^ios\s+([0-9a-f-]+)\s+1\.0\.0\s+(\d+)\s+(\d+)(?=\s|$)/m;
+const iosRowPattern =
+  /^ios\s+(?<updateId>[0-9a-f-]+)\s+1\.0\.0\s+(?<uploaded>\d+)\s+(?<reused>\d+)(?=\s|$)/m;
 
 interface MultipartPart {
   readonly headers: Record<string, string>;
@@ -53,7 +54,7 @@ interface MultipartPart {
 }
 
 const parseMultipart = (contentType: string, rawBody: string): readonly MultipartPart[] => {
-  const boundaryMatch = /boundary=([^\s;]+)/.exec(contentType);
+  const boundaryMatch = /boundary=(?<boundary>[^\s;]+)/.exec(contentType);
   const boundary = boundaryMatch?.[1] ?? "";
   return rawBody
     .split(`--${boundary}`)

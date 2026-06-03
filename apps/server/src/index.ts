@@ -118,13 +118,16 @@ const routeRequest = async (
   // sub-path). projectId / updateId / hash; the hash is informational (the
   // launch asset is resolved by updateId), kept in the path so the URL is
   // content-addressed + cacheable.
-  const bundleMatch = /^\/manifest\/([^/]+)\/bundle\/([^/]+)\/([^/]+)\/?$/u.exec(url.pathname);
+  const bundleMatch =
+    /^\/manifest\/(?<projectId>[^/]+)\/bundle\/(?<updateId>[^/]+)\/(?<hash>[^/]+)\/?$/u.exec(
+      url.pathname,
+    );
   if (bundleMatch?.[1] && bundleMatch[2] && request.method === "GET") {
     return handleBundleRequest(request, env, ctx, bundleMatch[1], bundleMatch[2]);
   }
 
   // Expo Updates protocol — unauthenticated manifest serving
-  const manifestMatch = /^\/manifest\/([^/]+)\/?$/u.exec(url.pathname);
+  const manifestMatch = /^\/manifest\/(?<projectId>[^/]+)\/?$/u.exec(url.pathname);
   if (manifestMatch?.[1]) {
     return serveManifest(request, env, ctx, manifestMatch[1]);
   }

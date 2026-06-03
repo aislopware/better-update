@@ -18,10 +18,10 @@ describe(generateSlug, () => {
   });
 });
 
-it("envVarKeySchema accepts valid uppercase env keys", () => {
+test("envVarKeySchema accepts valid uppercase env keys", () => {
   expect(envVarKeySchema.safeParse("EXPO_PUBLIC_API_URL").success).toBe(true);
 });
 
-it("envVarKeySchema rejects invalid env keys", () => {
+test("envVarKeySchema rejects invalid env keys", () => {
   expect(envVarKeySchema.safeParse("expoPublicApiUrl").success).toBe(false);
 });

@@ -162,7 +162,7 @@ describe.skipIf(!hasAndroidSdk)("CLI build journey — Android", () => {
     expect(result.stdout).toContain("Artifact produced:");
 
     // After upload, key-value summary is printed.
-    const buildIdMatch = /^Build ID\s+(.+)$/m.exec(result.stdout);
+    const buildIdMatch = /^Build ID\s+(?<buildId>.+)$/m.exec(result.stdout);
     expect(buildIdMatch).toBeDefined();
     buildState.buildId = buildIdMatch![1]!.trim();
 
@@ -282,11 +282,11 @@ describe.skipIf(!hasAndroidSdk)("CLI build journey — Android", () => {
     expect(result.stdout).toMatch(/^Bytes\s+\d+$/m);
     expect(result.stdout).toMatch(/^Upload\s+skipped \(--no-upload\)$/m);
 
-    const artifactMatch = /^Artifact\s{2,}(.+\.apk)\s*$/m.exec(result.stdout);
+    const artifactMatch = /^Artifact\s{2,}(?<artifact>.+\.apk)\s*$/m.exec(result.stdout);
     expect(artifactMatch).not.toBeNull();
-    const sha256Match = /^SHA-256\s+([a-f0-9]{64})\s*$/m.exec(result.stdout);
+    const sha256Match = /^SHA-256\s+(?<sha256>[a-f0-9]{64})\s*$/m.exec(result.stdout);
     expect(sha256Match).not.toBeNull();
-    const bytesMatch = /^Bytes\s+(\d+)\s*$/m.exec(result.stdout);
+    const bytesMatch = /^Bytes\s+(?<bytes>\d+)\s*$/m.exec(result.stdout);
     expect(bytesMatch).not.toBeNull();
 
     buildState.prebuiltArtifactPath = artifactMatch![1]!.trim();
@@ -309,7 +309,7 @@ describe.skipIf(!hasAndroidSdk)("CLI build journey — Android", () => {
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toBe("");
 
-    const buildIdMatch = /^Build ID\s+(.+)$/m.exec(result.stdout);
+    const buildIdMatch = /^Build ID\s+(?<buildId>.+)$/m.exec(result.stdout);
     expect(buildIdMatch).not.toBeNull();
     buildState.reuploadedBuildId = buildIdMatch![1]!.trim();
     expect(buildState.reuploadedBuildId).not.toBe("");

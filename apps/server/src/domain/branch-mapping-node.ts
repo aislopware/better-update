@@ -105,7 +105,7 @@ const isBranchMappingNode = (value: unknown): value is BranchMappingNode => {
 // Maps a legacy string OR a structured node to a BranchMappingNode, or the
 // never-match sentinel. Backward-compat: "true" -> AlwaysTrue;
 // `hash_lt(mappingId, 0.NN)` -> rolloutToken hash_lt leaf; anything else -> sentinel.
-const legacyHashLtRe = /^hash_lt\(mappingId,\s*([\d.]+)\)$/u;
+const legacyHashLtRe = /^hash_lt\(mappingId,\s*(?<operand>[\d.]+)\)$/u;
 
 export const normalizeLogic = (logic: BranchMappingLogic): BranchMappingNode | NeverMatch => {
   if (typeof logic === "string") {

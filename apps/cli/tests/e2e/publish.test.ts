@@ -48,8 +48,10 @@ const publishState = {
 // Publish rows are `<platform> <id> <rtv> <uploaded> <reused> <patches>` — the
 // trailing Patches column follows Reused, so capture id/uploaded/reused and stop
 // before it (a lookahead, not an end anchor).
-const iosRowPattern = /^ios\s+([0-9a-f-]+)\s+1\.0\.0\s+(\d+)\s+(\d+)(?=\s|$)/m;
-const androidRowPattern = /^android\s+([0-9a-f-]+)\s+1\.0\.0\s+(\d+)\s+(\d+)(?=\s|$)/m;
+const iosRowPattern =
+  /^ios\s+(?<updateId>[0-9a-f-]+)\s+1\.0\.0\s+(?<uploaded>\d+)\s+(?<reused>\d+)(?=\s|$)/m;
+const androidRowPattern =
+  /^android\s+(?<updateId>[0-9a-f-]+)\s+1\.0\.0\s+(?<uploaded>\d+)\s+(?<reused>\d+)(?=\s|$)/m;
 
 describe("CLI publish journey", () => {
   it("links the fixture app to the seeded project", () => {
@@ -79,7 +81,9 @@ describe("CLI publish journey", () => {
     );
     expect(result.exitCode).toBe(0);
 
-    const groupMatch = /Published update group ([0-9a-f-]+) to branch "main"\./.exec(result.stdout);
+    const groupMatch = /Published update group (?<groupId>[0-9a-f-]+) to branch "main"\./.exec(
+      result.stdout,
+    );
     expect(groupMatch).toBeDefined();
     publishState.firstGroupId = groupMatch![1]!;
 
@@ -105,7 +109,9 @@ describe("CLI publish journey", () => {
     );
     expect(result.exitCode).toBe(0);
 
-    const groupMatch = /Published update group ([0-9a-f-]+) to branch "main"\./.exec(result.stdout);
+    const groupMatch = /Published update group (?<groupId>[0-9a-f-]+) to branch "main"\./.exec(
+      result.stdout,
+    );
     expect(groupMatch).toBeDefined();
     expect(groupMatch![1]).not.toBe(publishState.firstGroupId);
 
@@ -128,7 +134,9 @@ describe("CLI publish journey", () => {
     );
     expect(result.exitCode).toBe(0);
 
-    const groupMatch = /Published update group ([0-9a-f-]+) to branch "main"\./.exec(result.stdout);
+    const groupMatch = /Published update group (?<groupId>[0-9a-f-]+) to branch "main"\./.exec(
+      result.stdout,
+    );
     expect(groupMatch).toBeDefined();
 
     const iosRow = iosRowPattern.exec(result.stdout);

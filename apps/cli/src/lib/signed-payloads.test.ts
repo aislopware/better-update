@@ -268,7 +268,7 @@ describe(buildSignedPayloadFromRender, () => {
         );
 
         // The signature is the full expo-signature SFV string.
-        const sigMatch = /^sig="([^"]+)", keyid="main", alg="rsa-v1_5-sha256"$/.exec(
+        const sigMatch = /^sig="(?<sig>[^"]+)", keyid="main", alg="rsa-v1_5-sha256"$/.exec(
           payload.signature,
         );
         expect(sigMatch).not.toBeNull();
@@ -301,7 +301,7 @@ describe(buildSignedPayloadFromRender, () => {
         codeSigning: { privateKeyPem, certificateChainPem: certificatePem, keyid: "main" },
       });
 
-      const sig = /^sig="([^"]+)"/.exec(payload.signature)![1]!;
+      const sig = /^sig="(?<sig>[^"]+)"/.exec(payload.signature)![1]!;
       const certPublicKey = new X509Certificate(payload.certificateChain).publicKey;
 
       // Byte-identity: the signature verifies over payload.manifestBody (the

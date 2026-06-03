@@ -20,7 +20,7 @@ const ttlHours = (value: string | undefined): number | undefined => {
   if (value === undefined) {
     return undefined;
   }
-  const match = /^([0-9]+)([hd])?$/u.exec(value);
+  const match = /^(?<value>[0-9]+)(?<unit>[hd])?$/u.exec(value);
   if (!match?.[1]) {
     return undefined;
   }

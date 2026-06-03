@@ -39,7 +39,7 @@ export const bumpVersionCode = (
     return value + 1;
   });
 
-const SEMVER_PATCH = /^(\d+)\.(\d+)\.(\d+)(.*)$/u;
+const SEMVER_PATCH = /^(?<major>\d+)\.(?<minor>\d+)\.(?<patch>\d+)(?<suffix>.*)$/u;
 
 export const bumpVersion = (
   current: string | undefined,

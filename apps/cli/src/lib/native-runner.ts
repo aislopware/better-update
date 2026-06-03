@@ -332,7 +332,7 @@ const tryReadApkPackageWith = (
     if (!raw) {
       return undefined;
     }
-    const match = /package: name='([^']+)'/u.exec(raw);
+    const match = /package: name='(?<packageName>[^']+)'/u.exec(raw);
     return match?.[1];
   });
 

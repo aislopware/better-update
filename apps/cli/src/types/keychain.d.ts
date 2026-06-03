@@ -12,9 +12,9 @@ declare module "keychain" {
   }
 
   interface KeychainAccess {
-    getPassword(opts: KeychainOptions, cb: (err: Error | null, password?: string) => void): void;
-    setPassword(opts: SetPasswordOptions, cb: (err: Error | null) => void): void;
-    deletePassword(opts: KeychainOptions, cb: (err: Error | null) => void): void;
+    getPassword: (opts: KeychainOptions, cb: (err: Error | null, password?: string) => void) => void;
+    setPassword: (opts: SetPasswordOptions, cb: (err: Error | null) => void) => void;
+    deletePassword: (opts: KeychainOptions, cb: (err: Error | null) => void) => void;
   }
 
   const keychain: KeychainAccess;

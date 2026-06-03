@@ -5,8 +5,10 @@ export interface QrcodeTerminalOptions {
 export type QrcodeTerminalCallback = (qr: string) => void;
 
 interface QrcodeTerminal {
-  generate(input: string, callback: QrcodeTerminalCallback): void;
-  generate(input: string, options: QrcodeTerminalOptions, callback: QrcodeTerminalCallback): void;
+  generate: {
+    (input: string, callback: QrcodeTerminalCallback): void;
+    (input: string, options: QrcodeTerminalOptions, callback: QrcodeTerminalCallback): void;
+  };
 }
 
 declare const qrcode: QrcodeTerminal;
