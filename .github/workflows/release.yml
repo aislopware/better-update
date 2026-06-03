@@ -60,6 +60,12 @@ jobs:
           GH_TOKEN: ${{ secrets.RELEASE_PAT }}
         run: |
           git push origin HEAD
+
+          # Only the published (public) packages get a GitHub Release. Every
+          # package is still versioned + tagged (history/changelog intact), but
+          # private packages (server/web/api/...) don't warrant a release entry.
+          PUBLIC_PACKAGES="@better-update/cli @better-update/bsdiff"
+
           for tag in $(git tag --points-at HEAD); do
             echo "Pushing $tag"
             git push origin "refs/tags/$tag"
@@ -67,6 +73,14 @@ jobs:
 
             name="${tag%@*}"
             version="${tag##*@}"
+
+            case " $PUBLIC_PACKAGES " in
+              *" $name "*) ;;
+              *)
+                echo "Skipping GitHub release for non-public package $name"
+                continue
+                ;;
+            esac
 
             pkg_dir=""
             for pj in apps/*/package.json packages/*/package.json; do

@@ -11,20 +11,18 @@
 //   2. main has publishConfig.access:public  (scoped pkgs default to restricted -> E402)
 //   3. main has NO `prepublishOnly` script   (napi prepublish there -> GH-release 401
 //                                              aborts the Lerna main-package publish)
-//   4. all 8 stub versions === main version  (Lerna bumps main but not the nested
-//      and main.optionalDependencies too      stubs -> silent version drift)
 //   5. every stub also has publishConfig.access:public  (napi prepublish needs it)
 //   6. stub set === optionalDependencies set === napi.targets count  (no missing/extra)
 //
-// Offline by default (static checks). With --check-npm it also asserts every
-// stub@<version> already resolves on npm — the ordering guard run in Publish CLI
-// before `lerna publish`, so the main package never ships before its binaries.
+// Stub + optionalDependencies VERSIONS are deliberately NOT checked: they are
+// placeholders normalized to the main version at publish time by
+// scripts/sync-bsdiff-versions.mjs (Publish CLI), so committed drift is expected.
+// Publish ordering (stubs on npm before main) is enforced by the Publish CLI job
+// graph, not here. Purely structural + offline — runs on every PR.
 //
 // Usage:
-//   node scripts/check-bsdiff-release.mjs              # static invariants (CI on every PR)
-//   node scripts/check-bsdiff-release.mjs --check-npm  # + stubs must exist on npm (pre-publish gate)
+//   node scripts/check-bsdiff-release.mjs   # static structural invariants (CI on every PR)
 
-import { spawnSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 
@@ -32,7 +30,6 @@ const ROOT = path.resolve(import.meta.dirname, "..");
 const BSDIFF_DIR = path.join(ROOT, "packages/bsdiff");
 const NPM_DIR = path.join(BSDIFF_DIR, "npm");
 
-const checkNpm = process.argv.includes("--check-npm");
 const failures = [];
 const fail = (msg) => failures.push(msg);
 const readJson = (file) => JSON.parse(readFileSync(file, "utf8"));
@@ -85,36 +82,16 @@ if (extraInOpt.length) {
 }
 
 // 4. optionalDependencies versions === main version
-for (const [name, range] of Object.entries(optDeps)) {
-  if (range !== version) {
-    fail(`optionalDependencies["${name}"] is "${range}", expected "${version}" (= main version).`);
-  }
-}
+// NOTE: stub + optionalDependencies VERSIONS are intentionally NOT checked here.
+// They are placeholders normalized to the main version at publish time by
+// scripts/sync-bsdiff-versions.mjs (Publish CLI), so committed drift is expected
+// and harmless. Only the structural invariants above + publishConfig below matter.
 
-// 4 + 5. each stub: version matches main, publishConfig.access:public
+// 5. each stub: publishConfig.access:public (napi prepublish needs it).
 for (const { file, pkg } of stubs) {
   const rel = path.relative(ROOT, file);
-  if (pkg.version !== version) {
-    fail(`${rel}: version "${pkg.version}" != main "${version}" — run \`napi version\` to resync.`);
-  }
   if (pkg.publishConfig?.access !== "public") {
     fail(`${rel}: missing publishConfig.access:"public".`);
-  }
-}
-
-// --check-npm: stubs at this version must already be on npm (Build bsdiff ran first).
-if (checkNpm) {
-  for (const name of stubNames) {
-    const res = spawnSync("npm", ["view", `${name}@${version}`, "version", "--json"], {
-      encoding: "utf8",
-    });
-    const ok = res.status === 0 && res.stdout.trim().includes(version);
-    if (!ok) {
-      fail(
-        `${name}@${version} is not on npm yet — dispatch the "Build bsdiff" workflow to build + ` +
-          `publish the platform stubs BEFORE publishing the main package.`,
-      );
-    }
   }
 }
 
@@ -127,6 +104,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log(
-  `✓ bsdiff release invariants OK (version ${version}, ${stubs.length} stubs${checkNpm ? ", all on npm" : ""}).`,
-);
+console.log(`✓ bsdiff release invariants OK (version ${version}, ${stubs.length} stubs).`);

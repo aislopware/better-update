@@ -27,8 +27,7 @@
     "lint:check": "oxlint",
     "napi:prepublish": "napi prepublish -t npm",
     "test": "vitest run",
-    "test:conformance": "node conformance/run-conformance.mjs",
-    "version": "napi version"
+    "test:conformance": "node conformance/run-conformance.mjs"
   },
   "devDependencies": {
     "@better-update/oxlint-config": "workspace:*",

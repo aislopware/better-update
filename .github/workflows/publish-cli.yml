@@ -6,8 +6,41 @@ on:
       - "@better-update/cli@*"
 
 jobs:
-  publish:
+  # bsdiff cascades a version bump into the CLI, so a CLI tag is always present
+  # when bsdiff changes. Decide whether bsdiff@<version> still needs publishing:
+  # if it's already on npm (CLI-only release), skip the 8-target native build.
+  gate:
     runs-on: ubuntu-latest
+    outputs:
+      needs_bsdiff: ${{ steps.check.outputs.needs_bsdiff }}
+    steps:
+      - uses: actions/checkout@v6
+      - id: check
+        run: |
+          V=$(node -p "require('./packages/bsdiff/package.json').version")
+          if npm view "@better-update/bsdiff@$V" version >/dev/null 2>&1; then
+            echo "needs_bsdiff=false" >> "$GITHUB_OUTPUT"
+            echo "bsdiff@$V already on npm — skipping bsdiff build/publish."
+          else
+            echo "needs_bsdiff=true" >> "$GITHUB_OUTPUT"
+            echo "bsdiff@$V not on npm — will build + publish stubs + main."
+          fi
+
+  # Build all 8 native targets — only when bsdiff actually needs publishing.
+  build-native:
+    needs: gate
+    if: needs.gate.outputs.needs_bsdiff == 'true'
+    uses: ./.github/workflows/build-bsdiff.yml
+
+  publish:
+    needs: [gate, build-native]
+    # Run even when build-native is skipped (CLI-only release); bail only on failure.
+    if: >-
+      always() && needs.gate.result == 'success' &&
+      (needs.build-native.result == 'success' || needs.build-native.result == 'skipped')
+    runs-on: ubuntu-latest
+    env:
+      NEEDS_BSDIFF: ${{ needs.gate.outputs.needs_bsdiff }}
     steps:
       - uses: actions/checkout@v6
 
@@ -20,6 +53,20 @@ jobs:
           node-version: 22
           registry-url: "https://registry.npmjs.org"
 
+      # `bun run build` always builds bsdiff (`napi build` regenerates its
+      # git-ignored index.js/index.d.ts loader + host .node), so the runner needs Rust.
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            packages/bsdiff/target
+          key: ${{ runner.os }}-cargo-publish-cli-${{ hashFiles('packages/bsdiff/Cargo.lock') }}
+
       - name: Install deps
         run: bun install --frozen-lockfile
 
@@ -29,14 +76,40 @@ jobs:
       - name: Build
         run: bun run build
 
-      # `lerna publish from-package` ships the main @better-update/bsdiff here.
-      # Its per-platform binary stubs are published separately by the "Build
-      # bsdiff" workflow — fail loudly if they're not on npm yet, so the main
-      # package never lands before its binaries (would 404 patch generation).
-      - name: Check bsdiff release invariants (stubs published)
-        run: bun run check:bsdiff -- --check-npm
+      # --- bsdiff publish (stubs first, then main via Lerna below) ---
+      - name: Download native binaries
+        if: env.NEEDS_BSDIFF == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          path: packages/bsdiff/artifacts
 
-      - name: Publish cli
+      - name: Collate binaries into npm/<platform>
+        if: env.NEEDS_BSDIFF == 'true'
+        working-directory: packages/bsdiff
+        run: bun run artifacts
+
+      # Lock the 8 stub + main optionalDependency versions to the main version
+      # right before publishing — the committed values are placeholders.
+      - name: Sync bsdiff versions
+        if: env.NEEDS_BSDIFF == 'true'
+        run: node scripts/sync-bsdiff-versions.mjs
+
+      - name: Verify bsdiff release invariants
+        if: env.NEEDS_BSDIFF == 'true'
+        run: bun run check:bsdiff
+
+      - name: Publish bsdiff platform stubs
+        if: env.NEEDS_BSDIFF == 'true'
+        working-directory: packages/bsdiff
+        run: bunx napi prepublish -t npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # `lerna publish from-package` ships every unpublished public package in
+      # dependency order: main @better-update/bsdiff (if bumped, its stubs are now
+      # on npm) then @better-update/cli. Already-published packages are skipped.
+      - name: Publish (bsdiff main + cli)
         run: bun run release:publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
