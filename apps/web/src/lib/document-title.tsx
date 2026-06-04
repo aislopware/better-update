@@ -8,9 +8,13 @@ const ORG_LABELS: Record<string, string> = {
   "audit-log": "Audit log",
   credentials: "Credentials",
   "apple-devices": "Apple Devices",
+  "vault-access": "Vault access",
   "api-keys": "API Keys",
+  "environment-variables": "Environment variables",
+  roles: "Roles",
   settings: "Organization settings",
   account: "Account",
+  admin: "Users",
   onboarding: "Onboarding",
 };
 
@@ -20,6 +24,7 @@ const PROJECT_SECTION_LABELS: Record<string, string> = {
   channels: "Channels",
   branches: "Branches",
   updates: "Updates",
+  runtimes: "Runtimes",
   settings: "Project settings",
   "environment-variables": "Environment variables",
   credentials: "Credentials",
