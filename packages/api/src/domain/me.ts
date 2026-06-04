@@ -20,4 +20,15 @@ export const Me = Schema.Struct({
   source: Schema.Literal("session", "api-key"),
   /** Email or descriptor identifying the actor — useful when `user` is null (api-key auth). */
   actorEmail: Schema.String,
+  // Per-action member-management capabilities for the active org, each mirroring
+  // the EXACT token its endpoint gates on so the UI never shows an action the
+  // server would 403. Owner/superadmin are roots (true everywhere). Membership
+  // role is `owner | member`; admin/developer/viewer powers come from policy
+  // attachments, not the role string.
+  /** Holds `invitation:create` on `org` — gates the Invite button. */
+  canInviteMembers: Schema.Boolean,
+  /** Holds `member:delete` on `org` — gates the per-member Remove action. */
+  canRemoveMembers: Schema.Boolean,
+  /** Holds `policy:update` on `org` — gates the per-member Manage-policies action. */
+  canManagePolicies: Schema.Boolean,
 });

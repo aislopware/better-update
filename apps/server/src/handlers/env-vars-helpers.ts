@@ -3,16 +3,18 @@ import { Effect } from "effect";
 import { assertVaultVersionCurrent } from "../application/assert-vault-version";
 import { CurrentActor } from "../auth/current-actor";
 import { assertOrgOwnership, assertProjectOwnership } from "../auth/ownership";
-import { assertPermission } from "../auth/permissions";
-import { assertPermissionOn, buildEnvVarScopeId, ENV_VAR_SCOPE_KIND } from "../auth/scope";
+import { assertAccess } from "../auth/policy";
+import { isAllowed, resolvePath } from "../auth/policy-match";
 import { BadRequest, Forbidden } from "../errors";
 import { toDbNull } from "../lib/nullable";
 import { EnvVarRepo } from "../repositories/env-vars";
-import { EnvironmentGrantRepo } from "../repositories/environment-grant-repo";
 
 import type { EnvVarModel } from "../env-var-models";
 import type { Action, EnvVarEnvironment, EnvVarVisibility } from "../models";
 import type { EnvVarListScope } from "../repositories/env-vars";
+
+/** Sentinel project-id segment for an org-global env-var scope (SPEC §2). */
+export const ENV_VAR_GLOBAL_SENTINEL = "global" as const;
 
 export const RESERVED_KEYS: ReadonlySet<string> = new Set(["PATH", "HOME", "USER", "SHELL"]);
 
@@ -25,75 +27,43 @@ export const isValidEnvironment = (value: string): value is EnvVarEnvironment =>
   value === "development" || value === "preview" || value === "production";
 
 /**
- * Per (project × environment) scoped permission gate for env vars. Delegates to
- * the generic `assertPermissionOn` with scopeKind = env_var_environment and a
- * scope id built from (projectId-or-null, environment). A failed scoped check is a
- * Forbidden (403). Deny-wins / baseline / allow resolution is entirely inside
- * `assertPermissionOn` — unchanged.
+ * Per (project × environment) scoped permission gate for env vars. Resolves the
+ * `envVar` object path (`project/<id|global>/env/<environment>/envVar`) and runs
+ * the standard deny-wins `assertAccess`. A failed check is a Forbidden (403).
  */
 export const assertEnvVarScopedPermission = (
   action: Action,
   projectId: string | null,
   environment: EnvVarEnvironment,
 ) =>
-  assertPermissionOn("envVar", action, {
-    scopeKind: ENV_VAR_SCOPE_KIND,
-    scopeId: buildEnvVarScopeId(projectId, environment),
+  assertAccess("envVar", action, {
+    kind: "envVar",
+    projectId: projectId ?? ENV_VAR_GLOBAL_SENTINEL,
+    environment,
   });
-
-const ENV_VAR_READ_TOKEN = "envVar:read" as const;
 
 /**
  * Resolve the actor's per (project × environment) env-var READ access ONCE into an
- * in-memory predicate. Deny-wins, mirroring `assertPermissionOn`:
- *   - matching deny on the scope id           -> false
- *   - else role baseline allows envVar:read   -> true
- *   - else a matching allow grant on the scope -> true
- *   - else                                     -> false
- * API-key actors (no member id) skip the grant query: predicate = baseline only.
- *
- * The predicate keys on the SAME scope id the create/get/etc. asserts use, so
+ * in-memory predicate (deny-wins, default-deny) evaluated against the actor's
+ * effective policy statements. Owner/superadmin bypass → always true. The
+ * predicate keys on the SAME `envVar` path the create/get/etc. asserts use, so
  * `scope=all` list rows (project rows by projectId, global rows by the sentinel)
  * filter uniformly.
  */
 export const resolveEnvReadPredicate = () =>
   Effect.gen(function* () {
     const ctx = yield* CurrentActor;
-    const baseline = ctx.effectivePermissions.envVar?.includes("read") ?? false;
-
-    // API-key principal: no grants apply, baseline only.
-    if (!ctx.memberId) {
-      return () => baseline;
-    }
-
-    const repo = yield* EnvironmentGrantRepo;
-    const grants = yield* repo.findForMemberByScopeKind({
-      memberId: ctx.memberId,
-      scopeKind: ENV_VAR_SCOPE_KIND,
-    });
-
-    // Index grants by scope id -> { denied, allowed } for envVar:read.
-    const byScope = grants.reduce((acc, grant) => {
-      const slot = acc.get(grant.scopeId) ?? { denied: false, allowed: false };
-      if (grant.actions.includes(ENV_VAR_READ_TOKEN)) {
-        if (grant.effect === "deny") {
-          slot.denied = true;
-        } else {
-          slot.allowed = true;
-        }
-      }
-      return acc.set(grant.scopeId, slot);
-    }, new Map<string, { denied: boolean; allowed: boolean }>());
-
-    return (projectId: string | null, environment: EnvVarEnvironment) => {
-      const slot = byScope.get(buildEnvVarScopeId(projectId, environment));
-      if (slot?.denied) {
-        return false;
-      }
-      if (baseline) {
+    const bypass = ctx.isSuperadmin || ctx.isOwner;
+    return (projectId: string | null, environment: EnvVarEnvironment): boolean => {
+      if (bypass) {
         return true;
       }
-      return slot?.allowed ?? false;
+      const path = resolvePath({
+        kind: "envVar",
+        projectId: projectId ?? ENV_VAR_GLOBAL_SENTINEL,
+        environment,
+      });
+      return isAllowed(ctx.effectiveStatements, "envVar:read", path);
     };
   });
 
@@ -204,7 +174,6 @@ export const handleExport = (urlParams: {
       });
     }
 
-    yield* assertPermission("envVar", "read");
     yield* assertProjectOwnership(urlParams.projectId);
     yield* assertEnvVarScopedPermission("read", urlParams.projectId, urlParams.environment);
 
@@ -329,7 +298,6 @@ const assertBulkEntriesShareCurrentVaultVersion = (
 
 export const handleBulkImport = (payload: BulkImportPayload) =>
   Effect.gen(function* () {
-    yield* assertPermission("envVar", "create");
     const ctx = yield* CurrentActor;
     yield* assertScopeOwnership(payload.scope, payload.projectId);
 

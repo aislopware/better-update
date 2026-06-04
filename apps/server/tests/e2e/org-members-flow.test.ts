@@ -2,7 +2,7 @@ import { env } from "cloudflare:test";
 
 import { setupE2EWorker } from "../helpers/e2e-worker-pool";
 
-const { get, parseCookies, post } = setupE2EWorker(".wrangler/state/e2e-members");
+const { del, get, parseCookies, post } = setupE2EWorker(".wrangler/state/e2e-members");
 
 // ── Cross-flow: auth → org → invite → accept → members CRUD ─────
 
@@ -123,18 +123,16 @@ describe("Organization members cross-flow", () => {
     memberBId = bob.id;
   });
 
-  // ── Section 5: Role management ─────────────────────────────────
+  // ── Section 5: Membership collapse — role stays "member" ───────
+  //
+  // Under the unified IAM model member.role is `owner | member` only; there is no
+  // "promote to admin". Admin/developer/viewer capabilities come EXCLUSIVELY from
+  // policy attachments (managed:admin / managed:developer / managed:viewer or
+  // custom), not from a role. Our clients no longer call
+  // organization/update-member-role; Bob simply stays "member" while gaining
+  // access via attachments (exercised end-to-end in policy-authz-flow.test.ts).
 
-  it("user A promotes user B to admin", async () => {
-    const res = await post(
-      "/api/auth/organization/update-member-role",
-      { memberId: memberBId, role: "admin", organizationId },
-      { cookie: cookiesA },
-    );
-    expect(res.status).toBe(200);
-  });
-
-  it("user B role is now admin", async () => {
+  it("user B remains a plain member (no role-change path; admin is a policy attachment)", async () => {
     const res = await get(`/api/auth/organization/list-members?organizationId=${organizationId}`, {
       cookie: cookiesA,
     });
@@ -144,17 +142,30 @@ describe("Organization members cross-flow", () => {
     const bob = members.find(
       (m: { user: { email: string } }) => m.user.email === "bob@example.com",
     );
-    expect(bob.role).toBe("admin");
+    expect(bob.role).toBe("member");
   });
 
-  // ── Section 6: Remove member ───────────────────────────────────
+  // ── Section 6: Remove member via the IAM-gated endpoint ────────
+  //
+  // Removal goes through DELETE /api/members/:id (assertAccess("member","delete"),
+  // last-owner guard), NOT better-auth's organization/remove-member — the route
+  // the web client now uses. Owner Alice removes via the root bypass.
 
-  it("user A removes user B from org", async () => {
-    const res = await post(
-      "/api/auth/organization/remove-member",
-      { memberIdOrEmail: memberBId, organizationId },
-      { cookie: cookiesA },
+  it("the last owner cannot be removed (409 last-owner guard)", async () => {
+    const list = await get(`/api/auth/organization/list-members?organizationId=${organizationId}`, {
+      cookie: cookiesA,
+    });
+    const body = await list.json();
+    const members = Array.isArray(body) ? body : (body.members ?? body);
+    const alice = members.find(
+      (m: { user: { email: string } }) => m.user.email === "alice@example.com",
     );
+    const res = await del(`/api/members/${alice.id}`, { cookie: cookiesA });
+    expect(res.status).toBe(409);
+  });
+
+  it("user A removes user B via DELETE /api/members/:id", async () => {
+    const res = await del(`/api/members/${memberBId}`, { cookie: cookiesA });
     expect(res.status).toBe(200);
   });
 

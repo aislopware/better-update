@@ -3,7 +3,21 @@ import { Effect } from "effect";
 
 import { ManagementApi } from "../api";
 import { CurrentActor } from "../auth/current-actor";
+import { isAllowed, resolvePath } from "../auth/policy-match";
 import { AuthMetaRepo } from "../repositories/auth-meta";
+
+import type { CurrentActor as CurrentActorModel } from "../models";
+
+const ORG_PATH = resolvePath({ kind: "org" });
+
+/**
+ * Whether the actor holds `token` on `org` — owner/superadmin are unconditional
+ * roots (same bypass order as `assertAccess`), otherwise it mirrors the EXACT
+ * token the corresponding member-management endpoint gates on, so a UI affordance
+ * keyed off this never shows an action the server would 403.
+ */
+export const actorHolds = (ctx: CurrentActorModel, token: string): boolean =>
+  ctx.isSuperadmin || ctx.isOwner || isAllowed(ctx.effectiveStatements, token, ORG_PATH);
 
 export const MeGroupLive = HttpApiBuilder.group(ManagementApi, "me", (handlers) =>
   handlers.handle("get", () =>
@@ -24,6 +38,9 @@ export const MeGroupLive = HttpApiBuilder.group(ManagementApi, "me", (handlers) 
           : null,
         source: ctx.source,
         actorEmail: ctx.actorEmail,
+        canInviteMembers: actorHolds(ctx, "invitation:create"),
+        canRemoveMembers: actorHolds(ctx, "member:delete"),
+        canManagePolicies: actorHolds(ctx, "policy:update"),
       };
     }),
   ),

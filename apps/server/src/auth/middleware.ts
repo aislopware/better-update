@@ -6,18 +6,22 @@ import { Effect, Layer, Redacted } from "effect";
 import { createAuth } from "../auth";
 import { cloudflareEnv } from "../cloudflare/context";
 import { Forbidden, Unauthorized } from "../errors";
-import { OrgRoleRepo, OrgRoleRepoLive } from "../repositories/org-role-repo";
+import { GroupRepo, GroupRepoLive } from "../repositories/group-repo";
+import {
+  PolicyAttachmentRepo,
+  PolicyAttachmentRepoLive,
+} from "../repositories/policy-attachment-repo";
+import { PolicyRepo, PolicyRepoLive } from "../repositories/policy-repo";
 import { API_KEY_PREFIX } from "./constants";
-import { permissions } from "./permissions";
+import { isManagedPolicyId, resolveManagedDocument } from "./managed-policies";
+import { roleIsOwner } from "./owner";
 import { roleIsSuperadmin } from "./superadmin";
 
-import type {
-  Action,
-  BuiltinRole,
-  EffectivePermissions as ModelsEffectivePermissions,
-  Resource,
-} from "../models";
-import type { AuthContextShape, EffectivePermissions } from "./context";
+import type { PolicyStatement } from "../models";
+import type { PrincipalRef } from "../repositories/policy-attachment-repo";
+import type { AuthContextShape } from "./context";
+
+const REPO_LAYERS = Layer.mergeAll(PolicyAttachmentRepoLive, GroupRepoLive, PolicyRepoLive);
 
 // ── Plugin API facade (types not inferred from betterAuth config) ──
 
@@ -25,6 +29,9 @@ interface VerifyApiKeyResult {
   valid: boolean;
   error: { message: string; code: string } | null;
   key: {
+    // The better-auth api-key row id; this is the `principal_id` stored by the
+    // policy-attachment handlers for `principal_type = "apikey"`.
+    id: string;
     referenceId: string;
     permissions: Record<string, string[]> | null;
   } | null;
@@ -143,70 +150,70 @@ const toStandardHeaders = (headers: Readonly<Record<string, string | undefined>>
     return result;
   }, new Headers());
 
-// Built-in vs custom role switch (NOT an accept/reject gate). Built-in names
-// resolve from the static `permissions` map with zero queries; any other name is
-// a custom (dynamic-AC) role read from `organization_role`.
-const isBuiltinRole = (value: string): value is BuiltinRole =>
-  ["owner", "admin", "developer", "viewer"].includes(value);
-
-// Union one role's resource->actions map into the accumulating set map. Keeps the
-// `Resource` key type end-to-end: `Object.entries` widens keys to `string`, so we
-// recover the original key type via a single contained assertion (a known TS
-// structural-typing limitation, not a runtime risk — the source is already typed
-// `Partial<Record<Resource, …>>`).
-const mergePermissionMap = (
-  into: Map<Resource, Set<Action>>,
-  source: Partial<Record<Resource, readonly Action[]>>,
-): void => {
-  // eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- Object.entries widens keys to string; source is already typed Partial<Record<Resource, Action[]>>
-  const entries = Object.entries(source) as [Resource, readonly Action[]][];
-  entries.forEach(([resource, actions]) => {
-    const existing = into.get(resource) ?? new Set<Action>();
-    actions.forEach((action) => existing.add(action));
-    into.set(resource, existing);
-  });
-};
-
-// Resolve a member's `effectivePermissions` ONCE per request, caching it into the
-// auth context. `member.role` may be a built-in name, a custom-role name, or a
-// comma-joined list (better-auth allows multi-role). Built-in names map straight
-// from `permissions` (no query); each non-built-in name costs one
-// `organization_role` read, merged onto any same-named built-in.
-//
-// Exported (with `OrgRoleRepo` as an unresolved requirement) so the resolution
-// algorithm can be unit-tested against a stubbed repo; the live repo is provided
-// at the single call site in `resolveSession` so the requirement never leaks into
-// `ApiLive`.
-export const resolveEffectivePermissions = (params: {
+// Flatten the policy statements granted by a set of principals' attachments.
+// Managed preset ids resolve from code (zero query); real ids resolve in one
+// batched read. Shared by the member path (self + groups) and the api-key path
+// (self only) so both consult `policy_attachment` identically — no implicit
+// baseline, no role-derived grants.
+// Exported (with the policy repos as unresolved requirements) so the api-key
+// positive-grant path can be integration-tested directly, mirroring
+// `resolveEffectiveStatements` for the member path.
+export const statementsForPrincipals = (params: {
   readonly organizationId: string;
-  readonly roleSpec: string;
+  readonly principals: readonly PrincipalRef[];
 }) =>
   Effect.gen(function* () {
-    const repo = yield* OrgRoleRepo;
-    const names = params.roleSpec
-      .split(",")
-      .map((name) => name.trim())
-      .filter((name) => name.length > 0);
-    const merged = yield* Effect.reduce(names, new Map<Resource, Set<Action>>(), (acc, name) =>
-      Effect.gen(function* () {
-        const builtin = isBuiltinRole(name) ? permissions[name] : undefined;
-        // Skip the custom read for pure built-in names (strict zero-query path).
-        const custom = builtin
-          ? null
-          : yield* repo.findByName({ organizationId: params.organizationId, role: name });
-        // An unknown role name (neither built-in nor a stored custom role)
-        // contributes nothing to the merged permission set.
-        const source = builtin ?? custom;
-        if (source) {
-          mergePermissionMap(acc, source);
-        }
-        return acc;
-      }),
-    );
-    return [...merged].reduce<ModelsEffectivePermissions>((out, [resource, set]) => {
-      out[resource] = [...set];
-      return out;
-    }, {});
+    if (params.principals.length === 0) {
+      return [] as readonly PolicyStatement[];
+    }
+    const attachRepo = yield* PolicyAttachmentRepo;
+    const policyRepo = yield* PolicyRepo;
+
+    const attachments = yield* attachRepo.findForPrincipals({
+      organizationId: params.organizationId,
+      principals: params.principals,
+    });
+
+    const policyIds = [...new Set(attachments.map((att) => att.policyId))];
+    const realIds = policyIds.filter((id) => !isManagedPolicyId(id));
+    const realDocs = yield* policyRepo.findDocumentsByIds({
+      organizationId: params.organizationId,
+      ids: realIds,
+    });
+
+    return policyIds.flatMap((id): readonly PolicyStatement[] => {
+      const doc = isManagedPolicyId(id) ? resolveManagedDocument(id) : realDocs.get(id);
+      return doc?.statements ?? [];
+    });
+  });
+
+// Resolve a member's effective policy statements ONCE per request, caching the
+// flat list into the auth context. Direct (member) attachments + group
+// attachments; managed preset ids resolve from code (zero query), real ids in one
+// batched read. Owners bypass entirely, so this is never called for them.
+//
+// No baseline is derived from `member.role` (spec §8 clean break): admin /
+// developer / viewer are granted EXCLUSIVELY via explicit `managed:*`
+// attachments. The free-form role string only feeds the `isOwner` root signal.
+//
+// Exported (with the policy repos as unresolved requirements) so the resolution
+// algorithm can be unit-tested against stubbed repos; the live layers are
+// provided at the single call site in `resolveSession`.
+export const resolveEffectiveStatements = (params: {
+  readonly organizationId: string;
+  readonly memberId: string;
+}) =>
+  Effect.gen(function* () {
+    const groupRepo = yield* GroupRepo;
+    const groupIds = yield* groupRepo.findGroupIdsForMember({ memberId: params.memberId });
+    const principals: readonly PrincipalRef[] = [
+      { type: "member", id: params.memberId },
+      ...groupIds.map((id) => ({ type: "group", id }) as const),
+    ];
+    return yield* statementsForPrincipals({
+      organizationId: params.organizationId,
+      principals,
+    });
   });
 
 // ── Shared session resolver ───────────────────────────────────────
@@ -254,20 +261,24 @@ const resolveSession = (transport: "bearer" | "cookie") =>
       });
     }
 
-    // Resolve effective permissions HERE, once per request, for built-in AND
-    // custom roles; cache the result into the context. A member with a valid
-    // custom role is accepted (the old `isRole` whitelist is gone).
-    const effectivePermissions = yield* resolveEffectivePermissions({
-      organizationId: orgId,
-      roleSpec: member.role,
-    }).pipe(Effect.provide(OrgRoleRepoLive));
+    // Owner = org root (unconditional allow); skip statement resolution entirely.
+    // Otherwise resolve effective policy statements HERE, once per request, and
+    // cache them into the context.
+    const isOwner = roleIsOwner(member.role);
+    const effectiveStatements = isOwner
+      ? []
+      : yield* resolveEffectiveStatements({
+          organizationId: orgId,
+          memberId: member.id,
+        }).pipe(Effect.provide(REPO_LAYERS));
 
     return {
       userId: session.user.id,
       organizationId: orgId,
       memberId: member.id,
       role: member.role,
-      effectivePermissions,
+      isOwner,
+      effectiveStatements,
       source: "session",
       transport,
       actorEmail: session.user.email,
@@ -276,6 +287,26 @@ const resolveSession = (transport: "bearer" | "cookie") =>
   });
 
 // ── Bearer: API key (CI) or session token (CLI) ───────────────────
+
+// Org-wide allow statements from an api-key's inline permission metadata
+// (resource→actions). Additive on top of attachment-derived statements; an empty
+// or absent map contributes nothing.
+export const inlinePermissionStatements = (
+  permissions: Record<string, readonly string[]> | null,
+): readonly PolicyStatement[] =>
+  permissions === null
+    ? []
+    : Object.entries(permissions).flatMap(([resource, actions]) =>
+        actions.length === 0
+          ? []
+          : [
+              {
+                effect: "allow",
+                actions: actions.map((act) => `${resource}:${act}`),
+                resources: ["*"],
+              },
+            ],
+      );
 
 // One Authorization-bearer handler for both machine credentials. Tokens with
 // the configured API-key prefix resolve to an org-scoped, user-less actor;
@@ -303,19 +334,36 @@ const resolveFromBearer = (token: Redacted.Redacted) => {
         );
       }
 
-      const keyPermissions: EffectivePermissions = result.key.permissions ?? permissions.admin;
+      const verifiedKey = result.key;
+      const organizationId = verifiedKey.referenceId;
 
-      return Effect.succeed({
-        userId: null,
-        organizationId: result.key.referenceId,
-        memberId: null,
-        role: null,
-        effectivePermissions: keyPermissions,
-        source: "api-key",
-        transport: "bearer",
-        actorEmail: "api-key",
-        isSuperadmin: false,
-      } as const satisfies AuthContextShape);
+      return Effect.gen(function* () {
+        // API-key permissions come from `policy_attachment` rows on the key
+        // principal — resolved exactly like a member's (managed + real docs).
+        // There is NO implicit admin baseline: a key with no attachments has no
+        // permissions (spec §8 default-deny).
+        const attachmentStatements = yield* statementsForPrincipals({
+          organizationId,
+          principals: [{ type: "apikey", id: verifiedKey.id }],
+        }).pipe(Effect.provide(REPO_LAYERS));
+
+        // Optional additive inline grants from better-auth key metadata (not used
+        // by the dashboard/CLI, which create keys with no permissions map).
+        const inlineStatements = inlinePermissionStatements(verifiedKey.permissions);
+
+        return {
+          userId: null,
+          organizationId,
+          memberId: null,
+          role: null,
+          isOwner: false,
+          effectiveStatements: [...attachmentStatements, ...inlineStatements],
+          source: "api-key",
+          transport: "bearer",
+          actorEmail: "api-key",
+          isSuperadmin: false,
+        } as const satisfies AuthContextShape;
+      });
     }),
   );
 };

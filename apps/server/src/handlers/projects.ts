@@ -6,6 +6,7 @@ import { logAudit } from "../audit/logger";
 import { CurrentActor } from "../auth/current-actor";
 import { assertOrgOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
+import { assertAccess } from "../auth/policy";
 import { toApiProject } from "../http/to-api";
 import { toApiCrudEffect } from "../http/to-api-effect";
 import { parsePagination } from "../lib/pagination";
@@ -140,10 +141,10 @@ export const ProjectsGroupLive = HttpApiBuilder.group(ManagementApi, "projects",
     .handle("get", ({ path }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
-          yield* assertPermission("project", "read");
           const repo = yield* ProjectRepo;
           const project = yield* repo.findById({ id: path.id });
           yield* assertOrgOwnership(project.organizationId);
+          yield* assertAccess("project", "read", { kind: "project", projectId: path.id });
           return toApiProject(project);
         }),
       ),
@@ -151,13 +152,13 @@ export const ProjectsGroupLive = HttpApiBuilder.group(ManagementApi, "projects",
     .handle("getBySlug", ({ path }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
-          yield* assertPermission("project", "read");
           const ctx = yield* CurrentActor;
           const repo = yield* ProjectRepo;
           const project = yield* repo.findBySlug({
             organizationId: ctx.organizationId,
             slug: path.slug,
           });
+          yield* assertAccess("project", "read", { kind: "project", projectId: project.id });
           return toApiProject(project);
         }),
       ),
@@ -165,10 +166,10 @@ export const ProjectsGroupLive = HttpApiBuilder.group(ManagementApi, "projects",
     .handle("rename", ({ path, payload }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
-          yield* assertPermission("project", "update");
           const repo = yield* ProjectRepo;
           const project = yield* repo.findById({ id: path.id });
           yield* assertOrgOwnership(project.organizationId);
+          yield* assertAccess("project", "update", { kind: "project", projectId: path.id });
           yield* repo.updateName({ id: path.id, name: payload.name });
 
           yield* logAudit({
@@ -186,10 +187,10 @@ export const ProjectsGroupLive = HttpApiBuilder.group(ManagementApi, "projects",
     .handle("delete", ({ path }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
-          yield* assertPermission("project", "delete");
           const projectRepo = yield* ProjectRepo;
           const project = yield* projectRepo.findById({ id: path.id });
           yield* assertOrgOwnership(project.organizationId);
+          yield* assertAccess("project", "delete", { kind: "project", projectId: path.id });
           yield* projectRepo.delete({ id: path.id });
 
           yield* logAudit({

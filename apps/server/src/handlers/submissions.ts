@@ -7,7 +7,7 @@ import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
 import { CurrentActor } from "../auth/current-actor";
 import { assertOrgOwnership, assertProjectOwnership } from "../auth/ownership";
-import { assertPermission } from "../auth/permissions";
+import { assertAccess } from "../auth/policy";
 import { BadRequest } from "../errors";
 import { toApiSubmission } from "../http/to-api";
 import { toApiCrudEffect, toApiWriteEffect } from "../http/to-api-effect";
@@ -69,8 +69,11 @@ export const SubmissionsGroupLive = HttpApiBuilder.group(ManagementApi, "submiss
     .handle("list", ({ path, urlParams }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
-          yield* assertPermission("submission", "read");
           yield* assertProjectOwnership(path.projectId);
+          yield* assertAccess("submission", "read", {
+            kind: "submission",
+            projectId: path.projectId,
+          });
           const repo = yield* SubmissionsRepo;
           const items = yield* repo.listByProject({
             projectId: path.projectId,
@@ -86,8 +89,11 @@ export const SubmissionsGroupLive = HttpApiBuilder.group(ManagementApi, "submiss
     .handle("create", ({ path, payload }) =>
       toApiWriteEffect(
         Effect.gen(function* () {
-          yield* assertPermission("submission", "create");
           yield* assertProjectOwnership(path.projectId);
+          yield* assertAccess("submission", "create", {
+            kind: "submission",
+            projectId: path.projectId,
+          });
           const ctx = yield* CurrentActor;
           const repo = yield* SubmissionsRepo;
 
@@ -159,10 +165,14 @@ export const SubmissionsGroupLive = HttpApiBuilder.group(ManagementApi, "submiss
     .handle("get", ({ path }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
-          yield* assertPermission("submission", "read");
           const repo = yield* SubmissionsRepo;
           const submission = yield* repo.findById({ id: path.id });
           yield* assertOrgOwnership(submission.organizationId);
+          yield* assertAccess("submission", "read", {
+            kind: "submission",
+            projectId: submission.projectId,
+            submissionId: path.id,
+          });
           return toApiSubmission(submission);
         }),
       ),
@@ -170,10 +180,14 @@ export const SubmissionsGroupLive = HttpApiBuilder.group(ManagementApi, "submiss
     .handle("updateStatus", ({ path, payload }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
-          yield* assertPermission("submission", "update");
           const repo = yield* SubmissionsRepo;
           const existing = yield* repo.findById({ id: path.id });
           yield* assertOrgOwnership(existing.organizationId);
+          yield* assertAccess("submission", "update", {
+            kind: "submission",
+            projectId: existing.projectId,
+            submissionId: path.id,
+          });
 
           const now = new Date().toISOString();
           const terminal =
@@ -208,10 +222,14 @@ export const SubmissionsGroupLive = HttpApiBuilder.group(ManagementApi, "submiss
     .handle("cancel", ({ path }) =>
       toApiWriteEffect(
         Effect.gen(function* () {
-          yield* assertPermission("submission", "cancel");
           const repo = yield* SubmissionsRepo;
           const existing = yield* repo.findById({ id: path.id });
           yield* assertOrgOwnership(existing.organizationId);
+          yield* assertAccess("submission", "cancel", {
+            kind: "submission",
+            projectId: existing.projectId,
+            submissionId: path.id,
+          });
           if (
             existing.status !== "AWAITING_BUILD" &&
             existing.status !== "IN_QUEUE" &&
@@ -242,10 +260,14 @@ export const SubmissionsGroupLive = HttpApiBuilder.group(ManagementApi, "submiss
     .handle("delete", ({ path }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
-          yield* assertPermission("submission", "delete");
           const repo = yield* SubmissionsRepo;
           const existing = yield* repo.findById({ id: path.id });
           yield* assertOrgOwnership(existing.organizationId);
+          yield* assertAccess("submission", "delete", {
+            kind: "submission",
+            projectId: existing.projectId,
+            submissionId: path.id,
+          });
           yield* repo.delete({ id: path.id });
           yield* logAudit({
             action: "submission.delete",

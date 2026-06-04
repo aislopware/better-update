@@ -409,10 +409,11 @@ describe("Credential vault lifecycle", () => {
         await post("/api/auth/organization/set-active", { organizationId }, { cookie: cookiesB }),
       ) || cookiesB;
 
-    // `developer` is now a first-class assignable role (L1 static RBAC registered
-    // on the org plugin), so assign it through the better-auth API — no raw-D1
-    // `UPDATE member.role` hack. `getActiveMember` reads the member row fresh per
-    // request, so this takes effect without a re-sign-in.
+    // Under the unified IAM model "developer" is no longer a member role — the
+    // capability set comes from attaching the `managed:developer` preset policy to
+    // the member (member.role stays "member"; only `owner` grants anything by role).
+    // The owner attaches it via the IAM endpoint; the gate reads effective
+    // statements fresh per request, so this takes effect without a re-sign-in.
     const members = await (
       await get(`/api/auth/organization/list-members?organizationId=${organizationId}`, {
         cookie: cookiesA,
@@ -422,14 +423,14 @@ describe("Credential vault lifecycle", () => {
     const devMember = memberList.find((m: { user: { email: string } }) => m.user.email === bEmail);
     expect(devMember).toBeDefined();
 
-    const assignRole = await post(
-      "/api/auth/organization/update-member-role",
-      { memberId: devMember.id, role: "developer", organizationId },
+    const attachDeveloper = await post(
+      `/api/members/${devMember.id}/policies`,
+      { policyId: "managed:developer" },
       { cookie: cookiesA },
     );
-    expect(assignRole.status).toBe(200);
+    expect(attachDeveloper.status).toBe(201);
 
-    // Read access is allowed for a developer.
+    // Read access is allowed for a developer (managed:developer grants vaultAccess:read).
     expect((await get("/api/vault", { cookie: cookiesB })).status).toBe(200);
 
     // Registering one's OWN device is self-service (no permission gate).

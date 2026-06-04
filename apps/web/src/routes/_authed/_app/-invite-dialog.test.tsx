@@ -9,7 +9,8 @@ import { RemoveDialog } from "./-invite-dialog";
 
 /**
  * Tests for the invite dialog components.
- * InviteDialog uses authClient.organization.inviteMember which calls fetch.
+ * InviteDialog now invites via the IAM-gated api-client helper `createInvitation`
+ * (POST /api/invitations), not the better-auth organization plugin route.
  * RemoveDialog is a pure props confirmation dialog.
  */
 
@@ -94,15 +95,11 @@ describe(RemoveDialog, () => {
 
 const emailSchema = z.string().check(z.email("Please enter a valid email"));
 
-const InviteTestForm = ({
-  onSubmit,
-}: {
-  onSubmit: (email: string, role: string) => Promise<void>;
-}) => {
+const InviteTestForm = ({ onSubmit }: { onSubmit: (email: string) => Promise<void> }) => {
   const form = useForm({
-    defaultValues: { email: "", role: "member" },
+    defaultValues: { email: "" },
     onSubmit: async ({ value }) => {
-      await onSubmit(value.email, value.role);
+      await onSubmit(value.email);
     },
   });
 
@@ -141,28 +138,6 @@ const InviteTestForm = ({
         }}
       </form.Field>
 
-      <form.Field name="role">
-        {(field) => (
-          <div>
-            <span>Role</span>
-            <button
-              type="button"
-              onClick={() => field.handleChange("member")}
-              aria-pressed={field.state.value === "member"}
-            >
-              Member
-            </button>
-            <button
-              type="button"
-              onClick={() => field.handleChange("admin")}
-              aria-pressed={field.state.value === "admin"}
-            >
-              Admin
-            </button>
-          </div>
-        )}
-      </form.Field>
-
       <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
         {([canSubmit, isSubmitting]) => (
           <button type="submit" disabled={!canSubmit || isSubmitting}>
@@ -177,7 +152,7 @@ const InviteTestForm = ({
 describe("invite form", () => {
   it("empty email shows validation error on blur", async () => {
     const user = userEvent.setup();
-    render(<InviteTestForm onSubmit={vi.fn<(email: string, role: string) => Promise<void>>()} />);
+    render(<InviteTestForm onSubmit={vi.fn<(email: string) => Promise<void>>()} />);
 
     const emailInput = screen.getByLabelText("Email address");
     await user.click(emailInput);
@@ -190,7 +165,7 @@ describe("invite form", () => {
 
   it("invalid email shows validation error on blur", async () => {
     const user = userEvent.setup();
-    render(<InviteTestForm onSubmit={vi.fn<(email: string, role: string) => Promise<void>>()} />);
+    render(<InviteTestForm onSubmit={vi.fn<(email: string) => Promise<void>>()} />);
 
     await user.type(screen.getByLabelText("Email address"), "not-an-email");
     await user.tab();
@@ -200,18 +175,20 @@ describe("invite form", () => {
     });
   });
 
-  it("submitting with valid email calls invite endpoint", async () => {
+  // Invites are member-ONLY in the unified IAM model: the dialog sends `{ email }`
+  // with no role (admin-ness comes from policy attachments post-accept).
+  it("submitting with valid email calls invite endpoint with email only", async () => {
     const user = userEvent.setup();
 
     const fetchMock = mockFetch({
-      "POST /api/auth/organization/invite-member": () => Response.json({ success: true }),
+      "POST /api/invitations": () => Response.json({ id: "inv-1" }),
     });
 
-    const onSubmit = vi.fn<(email: string, role: string) => Promise<void>>(async (email, role) => {
-      await fetch("/api/auth/organization/invite-member", {
+    const onSubmit = vi.fn<(email: string) => Promise<void>>(async (email) => {
+      await fetch("/api/invitations", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email, role }),
+        body: JSON.stringify({ email }),
       });
     });
 
@@ -221,12 +198,12 @@ describe("invite form", () => {
     await user.click(screen.getByRole("button", { name: "Send invitation" }));
 
     await waitFor(() => {
-      expect(onSubmit).toHaveBeenCalledWith("new@example.com", "member");
+      expect(onSubmit).toHaveBeenCalledWith("new@example.com");
     });
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
-        "/api/auth/organization/invite-member",
+        "/api/invitations",
         expect.objectContaining({ method: "POST" }),
       );
     });
@@ -234,30 +211,8 @@ describe("invite form", () => {
     const call = fetchMock.mock.calls[0]!;
     const body = JSON.parse(call[1]?.body as string);
     expect(body.email).toBe("new@example.com");
-    expect(body.role).toBe("member");
+    expect(body.role).toBeUndefined();
 
     vi.restoreAllMocks();
-  });
-
-  it("selecting Admin role then submitting sends admin role", async () => {
-    const user = userEvent.setup();
-    const onSubmit = vi.fn<(email: string, role: string) => Promise<void>>(async () => {});
-
-    render(<InviteTestForm onSubmit={onSubmit} />);
-
-    await user.type(screen.getByLabelText("Email address"), "admin@example.com");
-    await user.click(screen.getByRole("button", { name: "Admin" }));
-    await user.click(screen.getByRole("button", { name: "Send invitation" }));
-
-    await waitFor(() => {
-      expect(onSubmit).toHaveBeenCalledWith("admin@example.com", "admin");
-    });
-  });
-
-  it("default role is member", () => {
-    render(<InviteTestForm onSubmit={vi.fn<(email: string, role: string) => Promise<void>>()} />);
-
-    expect(screen.getByRole("button", { name: "Member" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: "Admin" })).toHaveAttribute("aria-pressed", "false");
   });
 });

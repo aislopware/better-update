@@ -121,6 +121,24 @@ describe("Multi-org data isolation", () => {
     const body = await res.json();
     expect(body.key).toMatch(/^bu_/);
     apiKeyA = body.key;
+
+    // Attach the managed admin preset so the key (default-deny) gains access.
+    // The attachment is scoped to the acting org, so activate org A first — the
+    // key resolves within org A via its referenceId.
+    const activateA = await post(
+      "/api/auth/organization/set-active",
+      { organizationId: orgAId },
+      { cookie: cookies },
+    );
+    expect(activateA.status).toBe(200);
+    cookies = parseCookies(activateA) || cookies;
+
+    const attach = await post(
+      `/api/api-keys/${body.id}/policies`,
+      { policyId: "managed:admin" },
+      { cookie: cookies },
+    );
+    expect(attach.status).toBe(201);
   });
 
   it("creates API key for org B", async () => {
@@ -133,6 +151,23 @@ describe("Multi-org data isolation", () => {
     const body = await res.json();
     expect(body.key).toMatch(/^bu_/);
     apiKeyB = body.key;
+
+    // Attach managed admin to the org B key — activate org B so the attachment
+    // is scoped to org B, matching the key's referenceId.
+    const activateB = await post(
+      "/api/auth/organization/set-active",
+      { organizationId: orgBId },
+      { cookie: cookies },
+    );
+    expect(activateB.status).toBe(200);
+    cookies = parseCookies(activateB) || cookies;
+
+    const attach = await post(
+      `/api/api-keys/${body.id}/policies`,
+      { policyId: "managed:admin" },
+      { cookie: cookies },
+    );
+    expect(attach.status).toBe(201);
   });
 
   it("org A key sees only Alpha Project", async () => {

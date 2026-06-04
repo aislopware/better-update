@@ -14,10 +14,18 @@ import type {
   DeviceRegistrationRequest,
   EncryptionKeyKind,
   GoogleServiceAccountKey,
+  Group,
+  GroupMember,
   IosAppMetadata,
   IosBundleConfiguration,
   PeriodLiteral,
   Platform,
+  Policy,
+  PolicyAttachment,
+  PolicyDocument,
+  PolicyEffect,
+  PolicyStatement,
+  PrincipalType,
   Project,
   Submission,
   SubmissionStatus,
@@ -52,3 +60,11 @@ export type UserEncryptionKeyItem = UserEncryptionKey;
 export type EncryptionKeyKindValue = EncryptionKeyKind;
 export type VaultRecipientItem = typeof VaultRecipientRef.Type;
 export type VaultRecipientsResult = typeof VaultRecipients.Type;
+export type PolicyItem = Policy;
+export type PolicyDocumentValue = typeof PolicyDocument.Type;
+export type PolicyStatementValue = typeof PolicyStatement.Type;
+export type PolicyEffectValue = typeof PolicyEffect.Type;
+export type GroupItem = Group;
+export type GroupMemberItem = GroupMember;
+export type PolicyAttachmentItem = PolicyAttachment;
+export type PrincipalTypeValue = typeof PrincipalType.Type;

@@ -75,6 +75,13 @@ describe("Environment variables API flow (E2E encrypted)", () => {
     const body = await response.json();
     expect(body.key).toMatch(/^bu_/);
     state.apiKey = body.key;
+
+    const attach = await post(
+      `/api/api-keys/${body.id}/policies`,
+      { policyId: "managed:admin" },
+      { cookie: state.cookies },
+    );
+    expect(attach.status).toBe(201);
   });
 
   it("creates a global env var (no plaintext value in the response)", async () => {

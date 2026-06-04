@@ -3,7 +3,7 @@ import { Effect } from "effect";
 
 import { ManagementApi } from "../api";
 import { assertProjectOwnership } from "../auth/ownership";
-import { assertPermission } from "../auth/permissions";
+import { assertAccess } from "../auth/policy";
 import { toApiBuild, toApiUpdate } from "../http/to-api";
 import { toApiBadRequestReadEffect } from "../http/to-api-effect";
 import { BuildRepo, UpdateRepo } from "../repositories";
@@ -15,8 +15,8 @@ export const FingerprintsGroupLive = HttpApiBuilder.group(
     handlers.handle("get", ({ path }) =>
       toApiBadRequestReadEffect(
         Effect.gen(function* () {
-          yield* assertPermission("build", "read");
           yield* assertProjectOwnership(path.projectId);
+          yield* assertAccess("build", "read", { kind: "build", projectId: path.projectId });
 
           const [buildRepo, updateRepo] = yield* Effect.all([BuildRepo, UpdateRepo]);
           const [builds, updates] = yield* Effect.all(

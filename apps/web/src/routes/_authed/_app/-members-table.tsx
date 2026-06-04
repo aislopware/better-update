@@ -15,18 +15,13 @@ import type { InvitationInput, MemberInput, MemberStatus, Row } from "./-members
 
 export type { InvitationInput, MemberInput, MemberStatus };
 
-const ROLE_RANK: Record<string, number> = { owner: 0, admin: 1, member: 2 };
+// Membership role is `owner | member`. Admin/developer/viewer powers come from
+// policy attachments (managed via the per-member dialog), not the role string —
+// so the table only ever distinguishes the owner from everyone else.
+const ROLE_RANK: Record<string, number> = { owner: 0, member: 1 };
 const STATUS_RANK: Record<MemberStatus, number> = { active: 0, pending: 1 };
 
-const roleBadgeVariant = (role: string): "default" | "secondary" | "outline" => {
-  if (role === "owner") {
-    return "default";
-  }
-  if (role === "admin") {
-    return "secondary";
-  }
-  return "outline";
-};
+const isOwnerRole = (role: string): boolean => role === "owner";
 
 const MemberAvatarCell = ({ row }: { row: Row }) => {
   if (row.kind === "member") {
@@ -76,11 +71,12 @@ const JoinedCell = ({ row }: { row: Row }) => {
 };
 
 interface BuildColumnsParams {
+  orgId: string;
   currentUserId: string;
-  currentRole: string;
+  canRemoveMembers: boolean;
+  canManagePolicies: boolean;
   pendingMemberId: string | undefined;
   pendingInvitationId: string | undefined;
-  onRoleChange: (memberId: string, role: string) => void;
   onRemove: (memberId: string) => void;
   onCancelInvitation: (invitationId: string) => void;
 }
@@ -95,13 +91,14 @@ const buildColumns = (params: BuildColumnsParams): ColumnDef<Row>[] => [
   },
   {
     id: "role",
-    accessorFn: (row) => ROLE_RANK[row.role] ?? 99,
+    accessorFn: (row) => ROLE_RANK[row.role] ?? 1,
     header: "Role",
-    cell: ({ row }) => (
-      <Badge variant={roleBadgeVariant(row.original.role)} className="capitalize">
-        {row.original.role}
-      </Badge>
-    ),
+    cell: ({ row }) =>
+      isOwnerRole(row.original.role) ? (
+        <Badge variant="default">Owner</Badge>
+      ) : (
+        <Badge variant="outline">Member</Badge>
+      ),
     enableSorting: true,
   },
   {
@@ -124,11 +121,12 @@ const buildColumns = (params: BuildColumnsParams): ColumnDef<Row>[] => [
     header: "",
     cell: ({ row }) => {
       const {
+        orgId,
         currentUserId,
-        currentRole,
+        canRemoveMembers,
+        canManagePolicies,
         pendingMemberId,
         pendingInvitationId,
-        onRoleChange: handleRoleChange,
         onRemove: handleRemove,
         onCancelInvitation: handleCancelInvitation,
       } = params;
@@ -138,11 +136,12 @@ const buildColumns = (params: BuildColumnsParams): ColumnDef<Row>[] => [
           : pendingInvitationId === row.original.id;
       return (
         <MemberRowActions
+          orgId={orgId}
           row={row.original}
           currentUserId={currentUserId}
-          currentRole={currentRole}
+          canRemoveMembers={canRemoveMembers}
+          canManagePolicies={canManagePolicies}
           isPending={isPending}
-          onRoleChange={handleRoleChange}
           onRemove={handleRemove}
           onCancelInvitation={handleCancelInvitation}
         />
@@ -154,29 +153,31 @@ const buildColumns = (params: BuildColumnsParams): ColumnDef<Row>[] => [
 ];
 
 export const MembersTableView = ({
+  orgId,
   members,
   invitations,
   currentUserId,
-  currentRole,
+  canRemoveMembers,
+  canManagePolicies,
   pendingMemberId,
   pendingInvitationId,
   countLabel,
   sorting,
   onSortingChange,
-  onRoleChange,
   onRemove,
   onCancelInvitation,
 }: {
+  orgId: string;
   members: readonly MemberInput[];
   invitations: readonly InvitationInput[];
   currentUserId: string;
-  currentRole: string;
+  canRemoveMembers: boolean;
+  canManagePolicies: boolean;
   pendingMemberId?: string | undefined;
   pendingInvitationId?: string | undefined;
   countLabel?: string;
   sorting: SortingState;
   onSortingChange: (updater: SortingState | ((prev: SortingState) => SortingState)) => void;
-  onRoleChange: (memberId: string, role: string) => void;
   onRemove: (memberId: string) => void;
   onCancelInvitation: (invitationId: string) => void;
 }) => {
@@ -184,20 +185,22 @@ export const MembersTableView = ({
   const columns = useMemo(
     () =>
       buildColumns({
+        orgId,
         currentUserId,
-        currentRole,
+        canRemoveMembers,
+        canManagePolicies,
         pendingMemberId,
         pendingInvitationId,
-        onRoleChange,
         onRemove,
         onCancelInvitation,
       }),
     [
+      orgId,
       currentUserId,
-      currentRole,
+      canRemoveMembers,
+      canManagePolicies,
       pendingMemberId,
       pendingInvitationId,
-      onRoleChange,
       onRemove,
       onCancelInvitation,
     ],

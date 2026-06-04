@@ -203,6 +203,13 @@ describe("Branches API flow", () => {
     const body = await response.json();
     expect(body.key).toMatch(/^bu_/);
     apiKeyValue = body.key;
+
+    const attach = await post(
+      `/api/api-keys/${body.id}/policies`,
+      { policyId: "managed:admin" },
+      { cookie: cookies },
+    );
+    expect(attach.status).toBe(201);
   });
 
   it("lists branches via API key", async () => {

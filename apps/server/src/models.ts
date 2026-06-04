@@ -1,4 +1,6 @@
-import type { EffectivePermissions, Role } from "./authz-models";
+import type { AuditLogResourceType as ApiAuditLogResourceType } from "@better-update/api";
+
+import type { PolicyStatement, Role } from "./authz-models";
 
 export type Platform = "ios" | "android";
 
@@ -23,31 +25,33 @@ export type EnvVarScope = "project" | "global";
 
 export type EnvVarEnvironment = "development" | "preview" | "production";
 
-export type AuditLogResourceType =
-  | "project"
-  | "branch"
-  | "channel"
-  | "update"
-  | "build"
-  | "appleCredential"
-  | "androidCredential"
-  | "iosBundleConfiguration"
-  | "envVar"
-  | "device"
-  | "webhook"
-  | "iosAppMetadata"
-  | "submission"
-  | "vaultAccess";
+// Derived from the contract's `AuditLogResourceType` literal so the server
+// type stays a single source with the API schema (add new resource types in
+// packages/api/src/domain/audit-log.ts only).
+export type AuditLogResourceType = typeof ApiAuditLogResourceType.Type;
 
 export type DeviceClass = "IPHONE" | "IPAD" | "MAC" | "UNKNOWN";
 
 export type AuditLogSource = "session" | "api-key";
 export type AnalyticsPeriod = "1d" | "7d" | "30d" | "90d";
 
-// Permission scalars (Role/BuiltinRole/Resource/Action/EffectivePermissions) live
-// in ./authz-models; the import above binds Role/EffectivePermissions in-file (used by
-// CurrentActor below), and the re-export below keeps downstream `./models` consumers unchanged.
-export type { Action, BuiltinRole, EffectivePermissions, Resource, Role } from "./authz-models";
+// Permission scalars + IAM policy types live in ./authz-models; the import above
+// binds Role/PolicyStatement in-file (used by CurrentActor below), and the
+// re-export below keeps downstream `./models` consumers unchanged.
+export type {
+  Action,
+  BuiltinRole,
+  GroupModel,
+  ObjectRef,
+  PolicyAttachmentModel,
+  PolicyDocument,
+  PolicyEffect,
+  PolicyModel,
+  PolicyStatement,
+  PrincipalType,
+  Resource,
+  Role,
+} from "./authz-models";
 
 export type EncryptionKeyKind = "device" | "recovery" | "machine";
 
@@ -57,7 +61,10 @@ export interface CurrentActor {
   // Active-org `member.id`, or `null` for API-key principals (no scoped grants).
   readonly memberId: string | null;
   readonly role: Role | null;
-  readonly effectivePermissions: EffectivePermissions;
+  /** `member.role === "owner"` — org root: unconditional allow, undeniable. */
+  readonly isOwner: boolean;
+  /** Flattened policy statements (direct + group + managed presets), resolved once per request. */
+  readonly effectiveStatements: readonly PolicyStatement[];
   readonly source: AuditLogSource;
   readonly transport: "bearer" | "cookie";
   readonly actorEmail: string;

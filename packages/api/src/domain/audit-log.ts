@@ -17,6 +17,13 @@ export const AuditLogResourceType = Schema.Literal(
   "iosAppMetadata",
   "submission",
   "vaultAccess",
+  "policy",
+  "group",
+  "policyAttachment",
+  "apiKey",
+  "invitation",
+  "member",
+  "organization",
 );
 
 export const AuditLogSource = Schema.Literal("session", "api-key");

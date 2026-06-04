@@ -7,7 +7,6 @@ import { assertVaultVersionCurrent } from "../application/assert-vault-version";
 import { logAudit } from "../audit/logger";
 import { CurrentActor } from "../auth/current-actor";
 import { assertOrgOwnership, assertProjectOwnership } from "../auth/ownership";
-import { assertPermission } from "../auth/permissions";
 import { BadRequest } from "../errors";
 import { toApiEnvVar } from "../http/to-api";
 import { toApiBadRequestReadEffect, toApiWriteEffect } from "../http/to-api-effect";
@@ -47,7 +46,6 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
     .handle("create", ({ payload }) =>
       toApiWriteEffect(
         Effect.gen(function* () {
-          yield* assertPermission("envVar", "create");
           const ctx = yield* CurrentActor;
 
           const { scope, projectId } = payload;
@@ -97,7 +95,6 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
     .handle("list", ({ urlParams }) =>
       toApiBadRequestReadEffect(
         Effect.gen(function* () {
-          yield* assertPermission("envVar", "read");
           const ctx = yield* CurrentActor;
 
           const scope = resolveListScope(urlParams);
@@ -147,8 +144,6 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
     .handle("get", ({ path }) =>
       toApiBadRequestReadEffect(
         Effect.gen(function* () {
-          yield* assertPermission("envVar", "read");
-
           const repo = yield* EnvVarRepo;
           const model = yield* repo.findById({ id: path.id });
           yield* assertOrgOwnership(model.organizationId);
@@ -162,7 +157,6 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
     .handle("update", ({ path, payload }) =>
       toApiWriteEffect(
         Effect.gen(function* () {
-          yield* assertPermission("envVar", "update");
           const ctx = yield* CurrentActor;
 
           const repo = yield* EnvVarRepo;
@@ -220,8 +214,6 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
     .handle("delete", ({ path }) =>
       toApiBadRequestReadEffect(
         Effect.gen(function* () {
-          yield* assertPermission("envVar", "delete");
-
           const repo = yield* EnvVarRepo;
           const model = yield* repo.findById({ id: path.id });
           yield* assertOrgOwnership(model.organizationId);
@@ -245,8 +237,6 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
     .handle("revisions", ({ path }) =>
       toApiBadRequestReadEffect(
         Effect.gen(function* () {
-          yield* assertPermission("envVar", "read");
-
           const repo = yield* EnvVarRepo;
           const model = yield* repo.findById({ id: path.id });
           yield* assertOrgOwnership(model.organizationId);
@@ -270,8 +260,6 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
     .handle("rollback", ({ path, payload }) =>
       toApiBadRequestReadEffect(
         Effect.gen(function* () {
-          yield* assertPermission("envVar", "update");
-
           const repo = yield* EnvVarRepo;
           const existing = yield* repo.findById({ id: path.id });
           yield* assertOrgOwnership(existing.organizationId);

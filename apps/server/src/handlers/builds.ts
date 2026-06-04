@@ -14,7 +14,7 @@ import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
 import { CurrentActor } from "../auth/current-actor";
 import { assertProjectOwnership } from "../auth/ownership";
-import { assertPermission } from "../auth/permissions";
+import { assertAccess } from "../auth/policy";
 import { BuildRuntime } from "../cloudflare/build-runtime";
 import { cloudflareEnv } from "../cloudflare/context";
 import { createDirectUploadHeaders } from "../cloudflare/signed-url";
@@ -136,8 +136,8 @@ const buildArtifactKey = (params: {
 const handleReserve = ({ payload }: { readonly payload: typeof CreateBuildBody.Type }) =>
   toApiBadRequestReadEffect(
     Effect.gen(function* () {
-      yield* assertPermission("build", "create");
       yield* assertProjectOwnership(payload.projectId);
+      yield* assertAccess("build", "create", { kind: "build", projectId: payload.projectId });
 
       const runtime = yield* BuildRuntime;
       const ctx = yield* CurrentActor;
@@ -220,8 +220,6 @@ const handleComplete = ({
 }) =>
   toApiBadRequestReadEffect(
     Effect.gen(function* () {
-      yield* assertPermission("build", "create");
-
       const runtime = yield* BuildRuntime;
 
       const reservationJson = yield* runtime.getReservation({ id: path.id });
@@ -232,6 +230,11 @@ const handleComplete = ({
       const reservation = yield* parseReservation(reservationJson);
 
       yield* assertProjectOwnership(reservation.projectId);
+      yield* assertAccess("build", "create", {
+        kind: "build",
+        projectId: reservation.projectId,
+        buildId: path.id,
+      });
 
       if (
         payload.sha256.toLowerCase() !== reservation.sha256 ||
@@ -299,11 +302,14 @@ const handleComplete = ({
 const handleGet = ({ path }: { readonly path: { readonly id: string } }) =>
   toApiBadRequestReadEffect(
     Effect.gen(function* () {
-      yield* assertPermission("build", "read");
-
       const repo = yield* BuildRepo;
       const build = yield* repo.findById({ id: path.id });
       yield* assertProjectOwnership(build.projectId);
+      yield* assertAccess("build", "read", {
+        kind: "build",
+        projectId: build.projectId,
+        buildId: path.id,
+      });
 
       return toApiBuild(build);
     }),
@@ -316,8 +322,8 @@ const handleCompatibilityMatrix = ({
 }) =>
   toApiBadRequestReadEffect(
     Effect.gen(function* () {
-      yield* assertPermission("build", "read");
       yield* assertProjectOwnership(urlParams.projectId);
+      yield* assertAccess("build", "read", { kind: "build", projectId: urlParams.projectId });
 
       const repo = yield* CompatibilityRepo;
       return toApiBuildCompatibilityMatrix(
@@ -329,11 +335,14 @@ const handleCompatibilityMatrix = ({
 const handleDelete = ({ path }: { readonly path: { readonly id: string } }) =>
   toApiBadRequestReadEffect(
     Effect.gen(function* () {
-      yield* assertPermission("build", "delete");
-
       const repo = yield* BuildRepo;
       const build = yield* repo.findById({ id: path.id });
       yield* assertProjectOwnership(build.projectId);
+      yield* assertAccess("build", "delete", {
+        kind: "build",
+        projectId: build.projectId,
+        buildId: path.id,
+      });
 
       const { r2Key } = yield* repo.deleteById({ id: path.id });
 
@@ -356,11 +365,14 @@ const handleDelete = ({ path }: { readonly path: { readonly id: string } }) =>
 const handleGetInstallLink = ({ path }: { readonly path: { readonly id: string } }) =>
   toApiBadRequestReadEffect(
     Effect.gen(function* () {
-      yield* assertPermission("build", "read");
-
       const repo = yield* BuildRepo;
       const build = yield* repo.findById({ id: path.id });
       yield* assertProjectOwnership(build.projectId);
+      yield* assertAccess("build", "read", {
+        kind: "build",
+        projectId: build.projectId,
+        buildId: path.id,
+      });
 
       const runtime = yield* BuildRuntime;
       const installTokenSecret = yield* runtime.getInstallTokenSecret;
@@ -397,8 +409,8 @@ export const BuildsGroupLive = HttpApiBuilder.group(ManagementApi, "builds", (ha
     .handle("list", ({ urlParams }) =>
       toApiBadRequestReadEffect(
         Effect.gen(function* () {
-          yield* assertPermission("build", "read");
           yield* assertProjectOwnership(urlParams.projectId);
+          yield* assertAccess("build", "read", { kind: "build", projectId: urlParams.projectId });
 
           const repo = yield* BuildRepo;
           const { page, limit, offset } = parsePagination(urlParams);

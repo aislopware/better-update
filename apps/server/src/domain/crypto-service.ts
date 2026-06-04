@@ -9,6 +9,13 @@ export class CryptoError extends Data.TaggedError("CryptoError")<{
 
 export interface CryptoServiceImpl {
   readonly sha256Hex: (input: string) => Effect.Effect<string, CryptoError>;
+  /**
+   * SHA-256 of the UTF-8 bytes of `input`, encoded unpadded base64url. Matches
+   * the better-auth api-key plugin's `defaultKeyHasher`
+   * (`base64Url.encode(SHA-256(key), { padding: false })`), so a row hashed with
+   * this verifies via the plugin's `verifyApiKey`.
+   */
+  readonly sha256Base64Url: (input: string) => Effect.Effect<string, CryptoError>;
   readonly sha256Fraction: (salt: string, clientId: string) => Effect.Effect<number, CryptoError>;
   readonly hmacSignBase64Url: (
     secret: string,

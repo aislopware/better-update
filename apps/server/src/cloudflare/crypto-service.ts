@@ -26,6 +26,14 @@ const sha256Hex = (input: string) =>
     return toHex(buffer);
   });
 
+const sha256Base64Url = (input: string) =>
+  Effect.gen(function* () {
+    const buffer = yield* tryWebCrypto("sha256Base64Url", async () =>
+      crypto.subtle.digest("SHA-256", new TextEncoder().encode(input)),
+    );
+    return toBase64Url(buffer);
+  });
+
 const sha256Fraction = (salt: string, clientId: string) =>
   Effect.gen(function* () {
     const input = new TextEncoder().encode(`${salt}:${clientId}`);
@@ -118,6 +126,7 @@ const rsaPkcs1Sha256Verify = (params: {
 
 export const CryptoServiceLive = Layer.succeed(CryptoService, {
   sha256Hex,
+  sha256Base64Url,
   sha256Fraction,
   hmacSignBase64Url,
   hmacVerifyBase64Url,

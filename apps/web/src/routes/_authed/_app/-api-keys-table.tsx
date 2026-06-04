@@ -14,7 +14,7 @@ import {
   MenuItem,
   MenuTrigger,
 } from "@better-update/ui/components/ui/menu";
-import { KeyIcon, Trash2Icon, EllipsisVerticalIcon } from "lucide-react";
+import { KeyIcon, ShieldIcon, Trash2Icon, EllipsisVerticalIcon } from "lucide-react";
 
 import type { ReactNode } from "react";
 
@@ -32,13 +32,23 @@ const maskKey = (start: string | null, prefix: string | null): string => {
   return "••••";
 };
 
-const KeyActions = ({ onRevoke }: { onRevoke: () => void }) => (
+const KeyActions = ({
+  onManagePolicies,
+  onRevoke,
+}: {
+  onManagePolicies: () => void;
+  onRevoke: () => void;
+}) => (
   <Menu>
     <MenuTrigger render={<Button variant="ghost" size="icon" aria-label="Key actions" />}>
       <EllipsisVerticalIcon strokeWidth={2} />
     </MenuTrigger>
     <MenuPopup align="end">
       <MenuGroup>
+        <MenuItem onClick={onManagePolicies}>
+          <ShieldIcon strokeWidth={2} />
+          <span>Manage policies</span>
+        </MenuItem>
         <MenuItem variant="destructive" onClick={onRevoke}>
           <Trash2Icon strokeWidth={2} />
           <span>Revoke key</span>
@@ -50,9 +60,11 @@ const KeyActions = ({ onRevoke }: { onRevoke: () => void }) => (
 
 export const ApiKeysTable = ({
   apiKeys,
+  onManagePolicies,
   onRevoke,
 }: {
-  apiKeys: ApiKeyItem[];
+  apiKeys: readonly ApiKeyItem[];
+  onManagePolicies: (keyId: string) => void;
   onRevoke: (keyId: string) => void;
 }) => (
   <ul className="flex flex-col divide-y">
@@ -78,6 +90,9 @@ export const ApiKeysTable = ({
           </span>
         </div>
         <KeyActions
+          onManagePolicies={() => {
+            onManagePolicies(key.id);
+          }}
           onRevoke={() => {
             onRevoke(key.id);
           }}

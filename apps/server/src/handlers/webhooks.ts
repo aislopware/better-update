@@ -5,6 +5,7 @@ import { Effect } from "effect";
 import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
 import { CurrentActor } from "../auth/current-actor";
+import { assertOrgOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
 import { toApiBadRequestReadEffect, toApiWriteEffect } from "../http/to-api-effect";
 import { toDbNull } from "../lib/nullable";
@@ -90,6 +91,7 @@ export const WebhooksGroupLive = HttpApiBuilder.group(ManagementApi, "webhooks",
           yield* assertPermission("webhook", "read");
           const repo = yield* WebhookRepo;
           const model = yield* repo.findById({ id: path.id });
+          yield* assertOrgOwnership(model.organizationId);
           return toApiWebhook(model);
         }),
       ),
@@ -99,6 +101,8 @@ export const WebhooksGroupLive = HttpApiBuilder.group(ManagementApi, "webhooks",
         Effect.gen(function* () {
           yield* assertPermission("webhook", "update");
           const repo = yield* WebhookRepo;
+          const existing = yield* repo.findById({ id: path.id });
+          yield* assertOrgOwnership(existing.organizationId);
           const model = yield* repo.update({
             id: path.id,
             updatedAt: new Date().toISOString(),
@@ -122,8 +126,12 @@ export const WebhooksGroupLive = HttpApiBuilder.group(ManagementApi, "webhooks",
       toApiBadRequestReadEffect(
         Effect.gen(function* () {
           yield* assertPermission("webhook", "delete");
+          const ctx = yield* CurrentActor;
           const repo = yield* WebhookRepo;
-          const result = yield* repo.delete({ id: path.id });
+          // Org-scoped delete: stays idempotent (`deleted: 0` for a missing id)
+          // AND closes the cross-org IDOR — another org's webhook id matches 0 rows
+          // here, so it is neither leaked nor deletable.
+          const result = yield* repo.delete({ id: path.id, organizationId: ctx.organizationId });
           yield* logAudit({
             action: "webhook.delete",
             resourceType: "webhook",

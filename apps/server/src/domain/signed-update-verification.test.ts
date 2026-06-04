@@ -15,6 +15,7 @@ const MANIFEST_BODY = '{"id":"u1","launchAsset":{}}';
 // never invoked in these tests.
 const makeCrypto = (overrides: Partial<CryptoServiceImpl>): CryptoServiceImpl => ({
   sha256Hex: () => Effect.succeed(""),
+  sha256Base64Url: () => Effect.succeed(""),
   sha256Fraction: () => Effect.succeed(0),
   hmacSignBase64Url: () => Effect.succeed(""),
   hmacVerifyBase64Url: () => Effect.succeed(false),

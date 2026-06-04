@@ -3,15 +3,15 @@ import { Effect } from "effect";
 
 import { ManagementApi } from "../api";
 import { assertProjectOwnership } from "../auth/ownership";
-import { assertPermission } from "../auth/permissions";
+import { assertAccess } from "../auth/policy";
 import { AnalyticsRepo } from "../repositories";
 
 export const AnalyticsGroupLive = HttpApiBuilder.group(ManagementApi, "analytics", (handlers) =>
   handlers
     .handle("adoption", ({ urlParams: { projectId, period } }) =>
       Effect.gen(function* () {
-        yield* assertPermission("project", "read");
         yield* assertProjectOwnership(projectId);
+        yield* assertAccess("project", "read", { kind: "project", projectId });
         const repo = yield* AnalyticsRepo;
 
         const result = yield* repo.getAdoption({ projectId, period });
@@ -28,8 +28,8 @@ export const AnalyticsGroupLive = HttpApiBuilder.group(ManagementApi, "analytics
     )
     .handle("updates", ({ urlParams: { projectId, updateId, period } }) =>
       Effect.gen(function* () {
-        yield* assertPermission("project", "read");
         yield* assertProjectOwnership(projectId);
+        yield* assertAccess("project", "read", { kind: "project", projectId });
         const repo = yield* AnalyticsRepo;
         const result = yield* repo.getUpdateMetrics({ projectId, updateId, period });
 
@@ -51,8 +51,8 @@ export const AnalyticsGroupLive = HttpApiBuilder.group(ManagementApi, "analytics
     )
     .handle("channels", ({ urlParams: { projectId, channel, period } }) =>
       Effect.gen(function* () {
-        yield* assertPermission("project", "read");
         yield* assertProjectOwnership(projectId);
+        yield* assertAccess("project", "read", { kind: "project", projectId });
         const repo = yield* AnalyticsRepo;
         const result = yield* repo.getChannelMetrics({ projectId, channel, period });
 
@@ -70,8 +70,8 @@ export const AnalyticsGroupLive = HttpApiBuilder.group(ManagementApi, "analytics
     )
     .handle("platforms", ({ urlParams: { projectId, period } }) =>
       Effect.gen(function* () {
-        yield* assertPermission("project", "read");
         yield* assertProjectOwnership(projectId);
+        yield* assertAccess("project", "read", { kind: "project", projectId });
         const repo = yield* AnalyticsRepo;
         const result = yield* repo.getPlatformMetrics({ projectId, period });
 

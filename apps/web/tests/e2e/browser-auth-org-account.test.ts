@@ -212,8 +212,9 @@ describe("dashboard auth + org + account (browser)", () => {
       // Invite dialog
       await page.getByRole("button", { name: "Invite member" }).click();
       const inviteDialog = page.getByRole("dialog");
+      // Invitations are member-only post-collapse (no role picker in the dialog);
+      // admin/developer/viewer are granted via policy attachments after joining.
       await inviteDialog.getByLabel("Email address").fill(invitee);
-      await inviteDialog.getByRole("button", { name: "Admin" }).click();
       await inviteDialog.getByRole("button", { name: "Send invitation" }).click();
       await expectToast(page, "Invitation sent");
 
@@ -228,7 +229,7 @@ describe("dashboard auth + org + account (browser)", () => {
     });
   });
 
-  it("change role and remove member (seeded via API)", async () => {
+  it("remove member (seeded via API)", async () => {
     const suffix = shortId();
     const owner = {
       name: `Owner ${suffix}`,
@@ -275,17 +276,10 @@ describe("dashboard auth + org + account (browser)", () => {
       const memberRow = page.getByRole("row").filter({ hasText: member.email });
       await memberRow.waitFor();
 
-      // Open the row action menu and promote to admin
-      await memberRow.getByRole("button").click();
-      await page.getByRole("menuitem", { name: "Set as Admin" }).click();
-      await expectToast(page, "Role updated");
-
-      // Demote back to member
-      await memberRow.getByRole("button").click();
-      await page.getByRole("menuitem", { name: "Set as Member" }).click();
-      await expectToast(page, "Role updated");
-
-      // Remove member
+      // Under the IAM membership collapse there is no role-change action: roles are
+      // `owner | member`, and admin/developer/viewer come from policy attachments
+      // (Manage policies), not a role. The owner removes the member via the row
+      // action menu, which hits the IAM-gated DELETE /api/members/:id.
       await memberRow.getByRole("button").click();
       await page.getByRole("menuitem", { name: "Remove member" }).click();
       await page.getByRole("button", { name: "Remove", exact: true }).click();
