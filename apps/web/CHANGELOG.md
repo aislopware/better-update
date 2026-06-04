@@ -3,6 +3,23 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.29.0](https://github.com/better-update/better-update/compare/@better-update/web@0.28.0...@better-update/web@0.29.0) (2026-06-04)
+
+### ⚠ BREAKING CHANGES
+
+* **authz:** authz model replaced (organization_role/environment_grant dropped,
+no migration); api-keys and non-owner members are default-deny until a policy is
+attached; member.role is owner|member only. Prod data is wiped before deploy.
+
+### Features
+
+* **authz:** unify better-auth and IAM into a single policy gate ([92a3cf2](https://github.com/better-update/better-update/commit/92a3cf21a461aabb61d84d20ba11e781bcec21aa)) - by @trancong12102
+
+### Bug Fixes
+
+* **web:** add missing document-title labels for top-level routes ([a2e4e65](https://github.com/better-update/better-update/commit/a2e4e65c8842d8941b414401611659b1f8f483f6)) - by @trancong12102
+* **web:** move roles page from /settings/roles to top-level /roles ([e290107](https://github.com/better-update/better-update/commit/e2901078493646defc90e24d6c66b00dd6470f2f)) - by @trancong12102
+
 ## [0.28.0](https://github.com/better-update/better-update/compare/@better-update/web@0.27.0...@better-update/web@0.28.0) (2026-06-03)
 
 ### Features
