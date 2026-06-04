@@ -73,6 +73,7 @@ describe("Updates & Assets API flow", () => {
   let rollbackUpdateId: string;
   let signedUpdateId: string;
   let apiKeyValue: string;
+  let apiKeyId: string;
 
   const firstAssetContent = "console.log('hello')";
   const secondAssetContent = "console.log('world')";
@@ -899,6 +900,16 @@ describe("Updates & Assets API flow", () => {
     const body = await response.json();
     expect(body.key).toMatch(/^bu_/);
     apiKeyValue = body.key;
+    apiKeyId = body.id;
+  });
+
+  it("attaches the managed admin policy to the API key", async () => {
+    const response = await post(
+      `/api/api-keys/${apiKeyId}/policies`,
+      { policyId: "managed:admin" },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(201);
   });
 
   it("lists updates via API key", async () => {

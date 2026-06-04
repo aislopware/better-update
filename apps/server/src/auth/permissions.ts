@@ -1,18 +1,52 @@
-import { Effect } from "effect";
+// Preset permission maps backing the MANAGED policies (admin/developer/viewer)
+// and the owner root. These are the SINGLE SOURCE for managed-policy content —
+// `auth/managed-policies.ts` turns each entry into an org-wide (`*`) allow
+// document. The runtime gate is `assertAccess` in `auth/policy.ts`.
+//
+// `owner` is NOT a managed policy: it maps to the `member.role === "owner"` root
+// bypass. Its entry here documents the full action surface for reference + tests.
 
-import { Forbidden } from "../errors";
-import { CurrentActor } from "./current-actor";
+import { assertAccess, assertSuperadmin } from "./policy";
 
 import type { Action, BuiltinRole, Resource } from "../models";
 
+// Org-level convenience over `assertAccess` (target defaults to `{ kind: "org" }`).
+// Use for genuinely org-scoped resources (member, billing, apiKey, devices,
+// webhooks, vault, credentials, audit). Object-scopeable resources call
+// `assertAccess` directly with a structured `ObjectRef`.
+export const assertPermission = (resource: Resource, action: Action) =>
+  assertAccess(resource, action);
+
+export { assertSuperadmin };
+
 type PermissionMap = Record<BuiltinRole, Partial<Record<Resource, readonly Action[]>>>;
 
+// IAM-enforced via dedicated ManagementApi handler groups (the unified-authz
+// migration): `apiKey` (api-keys group — mint/revoke/list), `invitation`
+// (invitations group — create/cancel/list, member-only invites), `member:delete`
+// (members group — remove, with a last-owner guard), and `organization:update`
+// (organization group — rename/re-slug the active org). The matching better-auth
+// routes stay live-but-dormant (clients use IAM); better-auth's apiKey plugin is
+// kept only for verifyApiKey.
+//
+// RESERVED / NOT-YET-IAM-enforced (a policy may list these tokens, but no handler
+// gates on them today):
+//   - `organization:delete` + `organization:create`: org CREATE is a pre-org
+//     platform gate IAM cannot evaluate (no actor/org context); org DELETE stays on
+//     better-auth (owner-only) because its destructive cross-table cascade
+//     (projects, api keys, …) is delegated there. Both documented in auth.ts.
+//   - `member:read`/`member:create`/`member:update`: membership joins via invite
+//     accept (better-auth, session-gated); only member:delete is IAM-gated.
+//   - credential resources (apple*/android*/google*/iosBundle*/iosAppMetadata):
+//     gated org-level via `assertPermission` (see the `credential` ObjectRef note
+//     in authz-models.ts). The presets enumerate them for completeness + future use.
 export const permissions: PermissionMap = {
   owner: {
     organization: ["read", "update", "delete"],
     member: ["read", "create", "update", "delete"],
     invitation: ["read", "create", "cancel"],
-    ac: ["create", "read", "update", "delete"],
+    policy: ["read", "create", "update", "delete"],
+    group: ["read", "create", "update", "delete"],
     project: ["read", "create", "update", "delete"],
     channel: ["read", "create", "update", "delete"],
     branch: ["read", "create", "update", "delete"],
@@ -36,7 +70,8 @@ export const permissions: PermissionMap = {
     organization: ["read"],
     member: ["read", "create", "update", "delete"],
     invitation: ["read", "create", "cancel"],
-    ac: ["create", "read", "update", "delete"],
+    policy: ["read", "create", "update", "delete"],
+    group: ["read", "create", "update", "delete"],
     project: ["read", "create", "update", "delete"],
     channel: ["read", "create", "update", "delete"],
     branch: ["read", "create", "update", "delete"],
@@ -78,6 +113,8 @@ export const permissions: PermissionMap = {
   viewer: {
     organization: ["read"],
     member: ["read"],
+    policy: ["read"],
+    group: ["read"],
     project: ["read"],
     channel: ["read"],
     branch: ["read"],
@@ -96,23 +133,3 @@ export const permissions: PermissionMap = {
     vaultAccess: ["read"],
   },
 };
-
-export const assertPermission = (resource: Resource, action: Action) =>
-  Effect.gen(function* () {
-    const ctx = yield* CurrentActor;
-    const actions = ctx.effectivePermissions[resource];
-    if (!actions?.includes(action)) {
-      return yield* new Forbidden({
-        message: `Insufficient permission: ${resource}:${action}`,
-      });
-    }
-  });
-
-// Gate for the platform admin surface: requires the global (cross-org)
-// superadmin flag, not a per-org membership role.
-export const assertSuperadmin = Effect.gen(function* () {
-  const ctx = yield* CurrentActor;
-  if (!ctx.isSuperadmin) {
-    return yield* new Forbidden({ message: "Superadmin access required" });
-  }
-});

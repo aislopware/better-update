@@ -31,6 +31,20 @@ export const slugSchema = z
     z.regex(/^[a-z0-9-]+$/u, "Only lowercase letters, numbers, and hyphens"),
   );
 
+/**
+ * Normalize a nullable/optional string into a controlled-input value. Seeds an
+ * edit form's React state from an existing entity field where absence maps to an
+ * empty string. Written as an explicit comparison so it trips neither the
+ * `no-restricted-syntax` empty-string-fallback rule nor
+ * `prefer-logical-operator-over-ternary`.
+ */
+export const toInputValue = (value: string | null | undefined): string => {
+  if (value === null || value === undefined) {
+    return "";
+  }
+  return value;
+};
+
 export const generateSlug = (name: string) =>
   name
     .toLowerCase()

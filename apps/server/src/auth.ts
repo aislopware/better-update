@@ -3,7 +3,6 @@ import { betterAuth } from "better-auth";
 import { admin, bearer, oneTimeToken, organization } from "better-auth/plugins";
 import { Effect } from "effect";
 
-import { ac, acRoles } from "./auth/access-control";
 import { API_KEY_PREFIX } from "./auth/constants";
 import { findFirstMembershipOrgId } from "./auth/memberships";
 import { hashPassword, verifyPassword } from "./auth/password";
@@ -25,9 +24,9 @@ const ADMIN_PLUGIN_SCHEMA = {
 } as const;
 
 // Snake_case column mapping for the `organization` plugin's tables (all static —
-// no `env` capture — so it lives at module scope). `organizationRole` is the
-// dynamic-AC custom-role table (migration 0054); only its multi-word columns need
-// mapping (`role`/`permission` already match).
+// no `env` capture — so it lives at module scope). Fine-grained authz now lives in
+// the IAM policy/group model (not better-auth dynamic-AC), so the
+// `organizationRole` mapping is gone.
 const ORGANIZATION_PLUGIN_SCHEMA = {
   session: { fields: { activeOrganizationId: "active_organization_id" } },
   organization: { fields: { createdAt: "created_at" } },
@@ -40,14 +39,6 @@ const ORGANIZATION_PLUGIN_SCHEMA = {
       inviterId: "inviter_id",
       expiresAt: "expires_at",
       createdAt: "created_at",
-    },
-  },
-  organizationRole: {
-    modelName: "organization_role",
-    fields: {
-      organizationId: "organization_id",
-      createdAt: "created_at",
-      updatedAt: "updated_at",
     },
   },
 } as const;
@@ -201,11 +192,26 @@ export const createAuth = (env: AuthEnv, ctx?: ExecutionContext) => {
         organizationLimit: 5,
         membershipLimit: 100,
         creatorRole: "owner",
-        // L1 static RBAC (ac + the 4 built-in roles from auth/permissions.ts) and
-        // L2 dynamic custom roles stored in `organization_role`.
-        ac,
-        roles: acRoles,
-        dynamicAccessControl: { enabled: true, maximumRolesPerOrganization: 50 },
+        // Fine-grained authz is the IAM policy/group model (auth/policy.ts), not
+        // better-auth roles. The org creator gets `member.role = "owner"` (root).
+        // No custom `ac`/`roles` is configured, so this plugin keeps its DEFAULT
+        // org AC (owner|admin|member). The unified-authz clients (web/CLI) do NOT
+        // call its invite-member / update-member-role / remove-member / org-update
+        // routes — those moved to IAM-gated ManagementApi endpoints (/api/invitations,
+        // /api/members, PATCH /api/organization) — but the routes stay LIVE and
+        // owner-reachable. They are authz-neutral: a member.role written here (e.g.
+        // "admin" via the default-AC invite route) grants NOTHING in the IAM gate
+        // (only "owner" is read, for the root bypass) and the Members table renders
+        // any non-owner role as "Member". Tightening invitable roles via a custom
+        // `ac` is optional hardening.
+        //
+        // INTENTIONALLY left on better-auth (NOT migrated to IAM):
+        //   - org CREATE: a pre-org platform gate (allowUserToCreateOrganization,
+        //     superadmin-approval); IAM cannot evaluate it — no actor/org context yet.
+        //   - org DELETE: stays owner-only here because its destructive cross-table
+        //     cascade (projects [no org-cascade FK], api keys [no FK], + their
+        //     children) is delegated to better-auth's deleteOrganization. Reimplementing
+        //     that cascade in an IAM endpoint is deferred (see permissions.ts).
         sendInvitationEmail: async (data) => {
           const acceptUrl = `${env.BETTER_AUTH_URL}/accept-invitation?id=${data.id}`;
           const inviterTrimmed = data.inviter.user.name.trim();

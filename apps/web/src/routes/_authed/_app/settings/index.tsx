@@ -1,3 +1,4 @@
+import { updateOrganization } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
@@ -20,7 +21,6 @@ import { useRef, useState } from "react";
 
 import { PageHeader } from "../../../../components/page-header";
 import { SettingCard } from "../../../../components/setting-card";
-import { authClient, rejectOnAuthClientError } from "../../../../lib/auth-client";
 import { generateSlug, getFieldError, nameSchema, slugSchema } from "../../../../lib/form-utils";
 import { useDeleteOrgMutation } from "../../../../lib/org-mutations";
 import { safeSubmit, useApiMutation } from "../../../../lib/use-api-mutation";
@@ -34,11 +34,7 @@ const OrgGeneralForm = () => {
   const slugEdited = useRef(false);
 
   const updateOrgMutation = useApiMutation({
-    mutationFn: async (input: { name: string; slug: string }) =>
-      rejectOnAuthClientError(
-        authClient.organization.update({ data: input }),
-        "Failed to update organization",
-      ),
+    mutationFn: async (input: { name: string; slug: string }) => updateOrganization(input),
     onSuccess: async () => {
       toastManager.add({ title: "Organization updated", type: "success" });
       await queryClient.resetQueries({ queryKey: authKeyPrefix });

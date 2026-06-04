@@ -12,7 +12,7 @@ export type {
   Action,
   AuthContextShape,
   BuiltinRole,
-  EffectivePermissions,
+  PolicyStatement as PolicyStatementShape,
   Resource,
   Role,
 } from "./auth/context";
@@ -56,29 +56,6 @@ export {
   DeleteChannelResult,
   UpdateChannelBody,
 } from "./domain/channel";
-export {
-  ChannelGrant,
-  DeleteChannelGrantResult,
-  GrantEffectSchema,
-  ListChannelGrantsParams,
-  UpsertChannelGrantBody,
-} from "./domain/channel-grant";
-export {
-  DeleteEnvGrantBody,
-  DeleteEnvGrantResult,
-  EnvGrant,
-  EnvGrantRow,
-  ListEnvGrantsParams,
-  UpsertEnvGrantBody,
-} from "./domain/env-grant";
-export {
-  CreateOrgRoleBody,
-  DeleteOrgRoleResult,
-  ListOrgRolesParams,
-  OrgRole,
-  PermissionGrantSchema,
-  UpdateOrgRoleBody,
-} from "./domain/org-role";
 export {
   AssetRef,
   CreateUpdateBody,
@@ -288,6 +265,29 @@ export {
   VaultCredentialDeks,
   WrappedDek,
 } from "./domain/encrypted-credential";
+export { ApiKey, ApiKeyList, CreateApiKeyBody, CreatedApiKey } from "./domain/api-key";
+export { CreateInvitationBody, Invitation, InvitationList } from "./domain/invitation";
+export {
+  CreatePolicyBody,
+  Policy,
+  PolicyDocument,
+  PolicyEffect,
+  PolicyStatement,
+  UpdatePolicyBody,
+} from "./domain/policy";
+export {
+  AddGroupMemberBody,
+  CreateGroupBody,
+  Group,
+  GroupMember,
+  UpdateGroupBody,
+} from "./domain/group";
+export { AttachPolicyBody, PolicyAttachment, PrincipalType } from "./domain/policy-attachment";
+export {
+  isCanonicalSelector,
+  isValidActionTokenShape,
+  isValidSelector,
+} from "./domain/policy-selector";
 
 // Groups
 export { AdminGroup } from "./groups/admin";
@@ -297,9 +297,7 @@ export { AssetsGroup } from "./groups/assets";
 export { BranchesGroup } from "./groups/branches";
 export { BuildsGroup } from "./groups/builds";
 export { EnvVarsGroup } from "./groups/env-vars";
-export { ChannelGrantsGroup } from "./groups/channel-grants";
 export { ChannelsGroup } from "./groups/channels";
-export { EnvGrantsGroup } from "./groups/env-grants";
 export { FingerprintDetail, FingerprintsGroup } from "./groups/fingerprints";
 export { DevicesGroup } from "./groups/devices";
 export { AppleTeamsGroup } from "./groups/apple-teams";
@@ -319,10 +317,17 @@ export { UserEncryptionKeysGroup } from "./groups/user-encryption-keys";
 export { OrgVaultGroup } from "./groups/org-vault";
 export { ManifestGroup } from "./groups/manifest";
 export { MeGroup } from "./groups/me";
-export { OrgRolesGroup } from "./groups/org-roles";
 export { ProjectsGroup } from "./groups/projects";
 export { UpdatesGroup } from "./groups/updates";
 export { WebhooksGroup } from "./groups/webhooks";
+export { PoliciesGroup } from "./groups/policies";
+export { GroupsGroup } from "./groups/groups";
+export { PolicyAttachmentsGroup } from "./groups/policy-attachments";
+export { ApiKeysGroup } from "./groups/api-keys";
+export { InvitationsGroup } from "./groups/invitations";
+export { MembersGroup } from "./groups/members";
+export { OrganizationGroup } from "./groups/organization";
+export { Organization, UpdateOrganizationBody } from "./domain/organization";
 
 export { Me, MeOrganization, MeUser } from "./domain/me";
 export {

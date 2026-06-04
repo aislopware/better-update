@@ -11,8 +11,6 @@ export type Resource =
   | "organization"
   | "member"
   | "invitation"
-  // manage custom roles (better-auth dynamic AC meta-resource)
-  | "ac"
   | "project"
   | "channel"
   | "branch"
@@ -27,24 +25,39 @@ export type Resource =
   | "envVar"
   | "auditLog"
   | "device"
-  | "webhook";
+  | "webhook"
+  | "iosAppMetadata"
+  | "submission"
+  | "vaultAccess"
+  // manage IAM policies + groups (org-level)
+  | "policy"
+  | "group";
 
 export type Action = "read" | "create" | "update" | "delete" | "cancel" | "download";
 
-export type EffectivePermissions = Partial<Record<Resource, readonly Action[]>>;
+export type PolicyEffect = "allow" | "deny";
+
+/** A single permission statement inside a policy document (IAM model). */
+export interface PolicyStatement {
+  readonly effect: PolicyEffect;
+  readonly actions: readonly string[];
+  readonly resources: readonly string[];
+}
 
 export interface AuthContextShape {
   readonly userId: string | null;
   readonly organizationId: string;
   /**
    * The active-org membership row id (`member.id`), or `null` for API-key
-   * principals. Resolved once in `auth/middleware.ts`; per-scope (ABAC) grant
-   * lookups in `auth/scope.ts` key off it. A `null` member id has no scoped
-   * grants and falls back to the role/metadata baseline only.
+   * principals. Resolved once in `auth/middleware.ts`; policy attachments key off
+   * it (members) or the api-key id (machine principals).
    */
   readonly memberId: string | null;
   readonly role: Role | null;
-  readonly effectivePermissions: EffectivePermissions;
+  /** `member.role === "owner"` — org root: unconditional allow, undeniable. */
+  readonly isOwner: boolean;
+  /** Flattened policy statements (direct + group + managed presets), resolved once per request. */
+  readonly effectiveStatements: readonly PolicyStatement[];
   readonly source: "session" | "api-key";
   /**
    * Transport that carried the credential: `"bearer"` for the CLI/CI

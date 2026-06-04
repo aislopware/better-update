@@ -82,7 +82,10 @@ export interface WebhookRepository {
     readonly enabled?: boolean;
     readonly updatedAt: string;
   }) => Effect.Effect<WebhookModel, NotFound>;
-  readonly delete: (params: { readonly id: string }) => Effect.Effect<{ readonly deleted: number }>;
+  readonly delete: (params: {
+    readonly id: string;
+    readonly organizationId: string;
+  }) => Effect.Effect<{ readonly deleted: number }>;
 }
 
 export class WebhookRepo extends Context.Tag("server/WebhookRepo")<
@@ -187,11 +190,13 @@ export const WebhookRepoLive = Layer.succeed(WebhookRepo, {
       }
       return rowToModel(row);
     }),
-  delete: ({ id }) =>
+  delete: ({ id, organizationId }) =>
     Effect.gen(function* () {
       const env = yield* cloudflareEnv;
       const result = yield* Effect.promise(async () =>
-        env.DB.prepare(`DELETE FROM "webhooks" WHERE "id" = ?`).bind(id).run(),
+        env.DB.prepare(`DELETE FROM "webhooks" WHERE "id" = ? AND "organization_id" = ?`)
+          .bind(id, organizationId)
+          .run(),
       );
       return { deleted: result.meta.changes };
     }),

@@ -1,3 +1,4 @@
+import { createInvitation } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
@@ -13,14 +14,12 @@ import {
 import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
 import { toastManager } from "@better-update/ui/components/ui/toast";
-import { ToggleGroup, ToggleGroupItem } from "@better-update/ui/components/ui/toggle-group";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { UserPlusIcon } from "lucide-react";
 import { useState } from "react";
 import { z } from "zod/v4";
 
-import { authClient, rejectOnAuthClientError } from "../../../lib/auth-client";
 import { getFieldError } from "../../../lib/form-utils";
 import { safeSubmit, useApiMutation } from "../../../lib/use-api-mutation";
 import { invitationsQueryOptions } from "../../../queries/org";
@@ -31,15 +30,7 @@ const InviteFormContent = ({ orgId, onSuccess }: { orgId: string; onSuccess: () 
   const queryClient = useQueryClient();
 
   const inviteMutation = useApiMutation({
-    mutationFn: async (input: { email: string; role: "member" | "admin" }) =>
-      rejectOnAuthClientError(
-        authClient.organization.inviteMember({
-          email: input.email,
-          role: input.role,
-          organizationId: orgId,
-        }),
-        "Failed to send invitation",
-      ),
+    mutationFn: async (input: { email: string }) => createInvitation({ email: input.email }),
     onSuccess: async () => {
       toastManager.add({ title: "Invitation sent", type: "success" });
       await queryClient.invalidateQueries({
@@ -50,13 +41,9 @@ const InviteFormContent = ({ orgId, onSuccess }: { orgId: string; onSuccess: () 
   });
 
   const form = useForm({
-    defaultValues: { email: "", role: "member" },
+    defaultValues: { email: "" },
     onSubmit: async ({ value }) => {
-      const { role } = value;
-      if (role !== "member" && role !== "admin") {
-        return;
-      }
-      await safeSubmit(inviteMutation.mutateAsync({ email: value.email, role }));
+      await safeSubmit(inviteMutation.mutateAsync({ email: value.email }));
     },
   });
 
@@ -101,30 +88,10 @@ const InviteFormContent = ({ orgId, onSuccess }: { orgId: string; onSuccess: () 
             }}
           </form.Field>
 
-          <form.Field name="role">
-            {(field) => (
-              <Field>
-                <FieldLabel>Role</FieldLabel>
-                <ToggleGroup
-                  value={[field.state.value]}
-                  onValueChange={(value) => {
-                    const [next] = value;
-                    if (next) {
-                      field.handleChange(next);
-                    }
-                  }}
-                >
-                  <ToggleGroupItem value="member">Member</ToggleGroupItem>
-                  <ToggleGroupItem value="admin">Admin</ToggleGroupItem>
-                </ToggleGroup>
-                <p className="text-muted-foreground text-xs">
-                  {field.state.value === "admin"
-                    ? "Admins can invite people and manage projects."
-                    : "Members can view projects but cannot manage them."}
-                </p>
-              </Field>
-            )}
-          </form.Field>
+          <p className="text-muted-foreground text-xs">
+            New members can view the organization; grant additional access via policies after they
+            join.
+          </p>
         </FieldGroup>
       </DialogPanel>
 

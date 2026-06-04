@@ -1,3 +1,4 @@
+import { createApiKey } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
@@ -27,7 +28,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { KeyIcon, CopyIcon, CheckIcon } from "lucide-react";
 import { useState } from "react";
 
-import { authClient, rejectOnAuthClientError } from "../../../lib/auth-client";
 import { getFieldError, requiredStringSchema } from "../../../lib/form-utils";
 import { useApiMutation, safeSubmit } from "../../../lib/use-api-mutation";
 import { useCopyToClipboard } from "../../../lib/use-copy-to-clipboard";
@@ -61,6 +61,10 @@ const KeyRevealContent = ({ apiKey, onClose }: { apiKey: string; onClose: () => 
               </Button>
             </InputGroupAddon>
           </InputGroup>
+          <p className="text-muted-foreground text-sm">
+            This key has no permissions yet. Open its menu and choose{" "}
+            <span className="font-medium">Manage policies</span> to grant access.
+          </p>
         </div>
       </DialogPanel>
       <DialogFooter>
@@ -82,20 +86,13 @@ const CreateFormContent = ({
   const queryClient = useQueryClient();
 
   const createMutation = useApiMutation({
-    mutationFn: async (name: string) =>
-      rejectOnAuthClientError(
-        authClient.apiKey.create({ name, organizationId: orgId }),
-        "Failed to create API key",
-      ),
+    mutationFn: async (name: string) => createApiKey({ name }),
     onSuccess: async (result) => {
       toastManager.add({ title: "API key created", type: "success" });
       await queryClient.invalidateQueries({
         queryKey: apiKeysQueryOptions(orgId).queryKey,
       });
-      const key = result.data?.key;
-      if (key) {
-        onCreated(key);
-      }
+      onCreated(result.key);
     },
   });
 

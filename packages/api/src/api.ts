@@ -6,6 +6,7 @@ import { AnalyticsGroup } from "./groups/analytics";
 import { AndroidApplicationIdentifiersGroup } from "./groups/android-application-identifiers";
 import { AndroidBuildCredentialsGroup } from "./groups/android-build-credentials";
 import { AndroidUploadKeystoresGroup } from "./groups/android-upload-keystores";
+import { ApiKeysGroup } from "./groups/api-keys";
 import { AppleDistributionCertificatesGroup } from "./groups/apple-distribution-certificates";
 import { AppleProvisioningProfilesGroup } from "./groups/apple-provisioning-profiles";
 import { ApplePushKeysGroup } from "./groups/apple-push-keys";
@@ -16,18 +17,21 @@ import { AuditLogsGroup } from "./groups/audit-logs";
 import { BranchesGroup } from "./groups/branches";
 import { BuildCredentialsGroup } from "./groups/build-credentials";
 import { BuildsGroup } from "./groups/builds";
-import { ChannelGrantsGroup } from "./groups/channel-grants";
 import { ChannelsGroup } from "./groups/channels";
 import { DevicesGroup } from "./groups/devices";
-import { EnvGrantsGroup } from "./groups/env-grants";
 import { EnvVarsGroup } from "./groups/env-vars";
 import { FingerprintsGroup } from "./groups/fingerprints";
 import { GoogleServiceAccountKeysGroup } from "./groups/google-service-account-keys";
+import { GroupsGroup } from "./groups/groups";
+import { InvitationsGroup } from "./groups/invitations";
 import { IosAppMetadataGroup } from "./groups/ios-app-metadata";
 import { IosBundleConfigurationsGroup } from "./groups/ios-bundle-configurations";
 import { MeGroup } from "./groups/me";
-import { OrgRolesGroup } from "./groups/org-roles";
+import { MembersGroup } from "./groups/members";
 import { OrgVaultGroup } from "./groups/org-vault";
+import { OrganizationGroup } from "./groups/organization";
+import { PoliciesGroup } from "./groups/policies";
+import { PolicyAttachmentsGroup } from "./groups/policy-attachments";
 import { ProjectsGroup } from "./groups/projects";
 import { SubmissionsGroup } from "./groups/submissions";
 import { UpdatesGroup } from "./groups/updates";
@@ -63,10 +67,14 @@ export class ManagementApi extends HttpApi.make("management-api")
   .add(OrgVaultGroup)
   .add(MeGroup)
   .add(WebhooksGroup)
+  .add(PoliciesGroup)
+  .add(GroupsGroup)
+  .add(PolicyAttachmentsGroup)
+  .add(ApiKeysGroup)
+  .add(InvitationsGroup)
+  .add(MembersGroup)
+  .add(OrganizationGroup)
   .add(AdminGroup)
-  .add(OrgRolesGroup)
-  .add(ChannelGrantsGroup)
-  .add(EnvGrantsGroup)
   .middleware(Authentication)
   .annotateContext(
     OpenApi.annotations({

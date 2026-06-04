@@ -40,8 +40,13 @@ import {
   UserEncryptionKeyRepoLive,
   WebhookRepoLive,
 } from "./repositories";
-import { EnvironmentGrantRepoLive } from "./repositories/environment-grant-repo";
-import { MemberRepoLive, OrgRoleRepoLive } from "./repositories/org-role-repo";
+import { ApiKeyRepoLive } from "./repositories/api-keys";
+import { GroupRepoLive } from "./repositories/group-repo";
+import { InvitationRepoLive } from "./repositories/invitations";
+import { MemberRepoLive } from "./repositories/member-repo";
+import { OrganizationRepoLive } from "./repositories/organizations";
+import { PolicyAttachmentRepoLive } from "./repositories/policy-attachment-repo";
+import { PolicyRepoLive } from "./repositories/policy-repo";
 
 import type { AnalyticsEngine } from "./cloudflare/analytics-engine";
 import type { AssetStorage } from "./cloudflare/asset-storage";
@@ -83,8 +88,13 @@ import type {
   UserEncryptionKeyRepo,
   WebhookRepo,
 } from "./repositories";
-import type { EnvironmentGrantRepo } from "./repositories/environment-grant-repo";
-import type { MemberRepo, OrgRoleRepo } from "./repositories/org-role-repo";
+import type { ApiKeyRepo } from "./repositories/api-keys";
+import type { GroupRepo } from "./repositories/group-repo";
+import type { InvitationRepo } from "./repositories/invitations";
+import type { MemberRepo } from "./repositories/member-repo";
+import type { OrganizationRepo } from "./repositories/organizations";
+import type { PolicyAttachmentRepo } from "./repositories/policy-attachment-repo";
+import type { PolicyRepo } from "./repositories/policy-repo";
 
 export type ServerInfrastructure =
   | AdminUsersRepo
@@ -93,6 +103,7 @@ export type ServerInfrastructure =
   | AndroidApplicationIdentifierRepo
   | AndroidBuildCredentialsRepo
   | AndroidUploadKeystoreRepo
+  | ApiKeyRepo
   | AppleDistributionCertificateRepo
   | AppleProvisioningProfileRepo
   | ApplePushKeyRepo
@@ -114,13 +125,16 @@ export type ServerInfrastructure =
   | DeviceRepo
   | EmailService
   | EnvVarRepo
-  | EnvironmentGrantRepo
   | GoogleServiceAccountKeyRepo
+  | GroupRepo
+  | InvitationRepo
   | IosAppMetadataRepo
   | IosBundleConfigurationRepo
   | ManifestCacheStorage
   | MemberRepo
-  | OrgRoleRepo
+  | OrganizationRepo
+  | PolicyAttachmentRepo
+  | PolicyRepo
   | OrgVaultRepo
   | ProjectRepo
   | SubmissionsRepo
@@ -135,6 +149,7 @@ export const RepositoryLayer = Layer.mergeAll(
   AndroidApplicationIdentifierRepoLive,
   AndroidBuildCredentialsRepoLive,
   AndroidUploadKeystoreRepoLive,
+  ApiKeyRepoLive,
   AppleDistributionCertificateRepoLive,
   AppleProvisioningProfileRepoLive,
   ApplePushKeyRepoLive,
@@ -151,12 +166,15 @@ export const RepositoryLayer = Layer.mergeAll(
   DeviceRegistrationRequestRepoLive,
   DeviceRepoLive,
   EnvVarRepoLive,
-  EnvironmentGrantRepoLive,
   GoogleServiceAccountKeyRepoLive,
+  GroupRepoLive,
+  InvitationRepoLive,
   IosAppMetadataRepoLive,
   IosBundleConfigurationRepoLive,
   MemberRepoLive,
-  OrgRoleRepoLive,
+  OrganizationRepoLive,
+  PolicyAttachmentRepoLive,
+  PolicyRepoLive,
   OrgVaultRepoLive,
   ProjectRepoLive,
   SubmissionsRepoLive,

@@ -103,6 +103,13 @@ describe("Management API happy path", () => {
     expect(body.key).toMatch(/^bu_/);
     apiKeyValue = body.key;
     apiKeyId = body.id;
+
+    const attach = await post(
+      `/api/api-keys/${apiKeyId}/policies`,
+      { policyId: "managed:admin" },
+      { cookie: cookies },
+    );
+    expect(attach.status).toBe(201);
   });
 
   it("GET /api/projects works with API key (bearer auth)", async () => {

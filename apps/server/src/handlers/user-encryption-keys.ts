@@ -5,6 +5,7 @@ import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
 import { CurrentActor } from "../auth/current-actor";
 import { assertPermission } from "../auth/permissions";
+import { isAllowed } from "../auth/policy-match";
 import { BadRequest } from "../errors";
 import { toApiCrudEffect, toApiWriteEffect } from "../http/to-api-effect";
 import { toApiUserEncryptionKey } from "../http/to-api-vault";
@@ -24,7 +25,10 @@ export const UserEncryptionKeysGroupLive = HttpApiBuilder.group(
             // Admins/owners (vaultAccess:create) grant the vault to other members'
             // device keys, so they see every grantable recipient in the org;
             // everyone else sees only org-owned keys plus their own devices.
-            const canGrant = ctx.effectivePermissions.vaultAccess?.includes("create") ?? false;
+            const canGrant =
+              ctx.isSuperadmin ||
+              ctx.isOwner ||
+              isAllowed(ctx.effectiveStatements, "vaultAccess:create", "org");
             const items = yield* canGrant
               ? repo.listGrantable({ organizationId: ctx.organizationId })
               : repo.listForActor({ organizationId: ctx.organizationId, userId: ctx.userId });

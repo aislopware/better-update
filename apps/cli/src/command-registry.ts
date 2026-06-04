@@ -11,13 +11,14 @@ import { devicesCommand } from "./commands/devices";
 import { doctorCommand } from "./commands/doctor";
 import { envCommand } from "./commands/env";
 import { fingerprintCommand } from "./commands/fingerprint";
+import { groupsCommand } from "./commands/groups";
 import { initCommand } from "./commands/init";
 import { loginCommand } from "./commands/login";
 import { logoutCommand } from "./commands/logout";
 import { migrateConfigCommand } from "./commands/migrate-config";
 import { openCommand } from "./commands/open";
+import { policiesCommand } from "./commands/policies";
 import { projectsCommand } from "./commands/projects";
-import { rolesCommand } from "./commands/roles";
 import { statusCommand } from "./commands/status";
 import { submitCommand } from "./commands/submit";
 import { updateCommand } from "./commands/update";
@@ -48,9 +49,10 @@ export const commandRegistry = {
   init: initCommand,
   status: statusCommand,
   projects: projectsCommand,
+  policies: policiesCommand,
+  groups: groupsCommand,
   branches: branchesCommand,
   channels: channelsCommand,
-  roles: rolesCommand,
   build: buildCommand,
   builds: buildsCommand,
   credentials: credentialsCommand,

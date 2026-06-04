@@ -26,6 +26,7 @@ import {
   SmartphoneIcon,
   UploadCloudIcon,
   UsersIcon,
+  UsersRoundIcon,
 } from "lucide-react";
 
 import type { LucideIcon } from "lucide-react";
@@ -34,6 +35,8 @@ interface OrgNavItem {
   to:
     | "/projects"
     | "/members"
+    | "/policies"
+    | "/groups"
     | "/audit-log"
     | "/credentials"
     | "/apple-devices"
@@ -41,7 +44,6 @@ interface OrgNavItem {
     | "/api-keys"
     | "/environment-variables"
     | "/settings"
-    | "/roles"
     | "/admin"
     | "/account/profile";
   label: string;
@@ -89,6 +91,13 @@ const ORG_NAV: OrgNavSection[] = [
     ],
   },
   {
+    label: "Access control",
+    items: [
+      { to: "/policies", label: "Policies", icon: ShieldIcon },
+      { to: "/groups", label: "Groups", icon: UsersRoundIcon },
+    ],
+  },
+  {
     label: "Credentials",
     items: [
       { to: "/credentials", label: "Credentials", icon: ShieldCheckIcon },
@@ -105,7 +114,6 @@ const ORG_NAV: OrgNavSection[] = [
         label: "Environment variables",
         icon: CodeIcon,
       },
-      { to: "/roles", label: "Roles", icon: ShieldIcon },
       { to: "/settings", label: "Organization settings", icon: SettingsIcon },
     ],
   },

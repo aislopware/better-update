@@ -25,7 +25,7 @@ import { PageHeader } from "../../../components/page-header";
 import { FilterBarSkeleton, TableSkeleton } from "../../../components/skeletons";
 import { enumParam, fireAndForget, sortParam, useDataTableSearch } from "../../../lib/data-table";
 import { pluralize } from "../../../lib/pluralize";
-import { invitationsQueryOptions, membersQueryOptions } from "../../../queries/org";
+import { invitationsQueryOptions, membersQueryOptions, meQueryOptions } from "../../../queries/org";
 import { InviteDialog, RemoveDialog } from "./-invite-dialog";
 import { useMembersHandlers } from "./-members-mutations";
 import { MembersTableView } from "./-members-table";
@@ -81,19 +81,32 @@ const MembersContent = () => {
     placeholderData: keepPreviousData,
   });
 
-  const currentMember = members.find((member) => member.userId === user.id);
-  const currentRole = currentMember?.role ?? "member";
-  const isOwnerOrAdmin = currentRole === "owner" || currentRole === "admin";
+  // Per-action capabilities come from the server, not the role string — each
+  // mirrors the exact token its endpoint gates on (invitation:create / member:delete
+  // / policy:update on org). A role-"member" principal holding managed:admin (or a
+  // matching custom policy) sees exactly the actions it can actually perform.
+  const { data: me } = useSuspenseQuery(meQueryOptions());
+  const { canInviteMembers, canRemoveMembers, canManagePolicies } = me;
 
+  // The IAM list endpoint returns invitations with ISO-string `expiresAt` and a
+  // nullable `role`; map them to the table's `InvitationInput` shape (Date +
+  // baseline "member" role) here so the table stays decoupled from the wire type.
   const pendingInvitations = useMemo(
-    () => invitations.filter((inv) => inv.status === "pending"),
+    () =>
+      invitations
+        .filter((inv) => inv.status === "pending")
+        .map((inv) => ({
+          id: inv.id,
+          email: inv.email,
+          role: inv.role ?? "member",
+          expiresAt: new Date(inv.expiresAt),
+        })),
     [invitations],
   );
 
   const {
     removeMemberId,
     setRemoveMemberId,
-    handleRoleChange,
     handleRemove,
     handleCancelInvitation,
     memberPendingId,
@@ -110,7 +123,7 @@ const MembersContent = () => {
     [statusFilter, pendingInvitations],
   );
   const visibleCount = filteredMembers.length + filteredInvitations.length;
-  const headerActions = isOwnerOrAdmin ? <InviteDialog orgId={orgId} /> : undefined;
+  const headerActions = canInviteMembers ? <InviteDialog orgId={orgId} /> : undefined;
   const countLabel = `${visibleCount} ${pluralize(visibleCount, "member")}`;
 
   const isOrgEmpty =
@@ -171,16 +184,17 @@ const MembersContent = () => {
           </Empty>
         ) : (
           <MembersTableView
+            orgId={orgId}
             members={filteredMembers}
             invitations={filteredInvitations}
             currentUserId={user.id}
-            currentRole={currentRole}
+            canRemoveMembers={canRemoveMembers}
+            canManagePolicies={canManagePolicies}
             pendingMemberId={memberPendingId}
             pendingInvitationId={invitationPendingId}
             countLabel={countLabel}
             sorting={sorting}
             onSortingChange={onSortingChange}
-            onRoleChange={handleRoleChange}
             onRemove={setRemoveMemberId}
             onCancelInvitation={handleCancelInvitation}
           />
@@ -205,7 +219,7 @@ const MembersPage = () => (
   <div className="flex w-full flex-col gap-6">
     <PageHeader
       title="Members"
-      description="Invite teammates and manage their roles within this organization."
+      description="Invite teammates and manage their access within this organization."
     />
     <Suspense fallback={<MembersSkeleton />}>
       <MembersContent />

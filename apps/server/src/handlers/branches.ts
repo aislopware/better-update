@@ -4,7 +4,7 @@ import { Effect } from "effect";
 import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
 import { assertProjectOwnership } from "../auth/ownership";
-import { assertPermission } from "../auth/permissions";
+import { assertAccess } from "../auth/policy";
 import { toApiBranch } from "../http/to-api";
 import { toApiCrudEffect } from "../http/to-api-effect";
 import { parsePagination } from "../lib/pagination";
@@ -35,8 +35,11 @@ export const BranchesGroupLive = HttpApiBuilder.group(ManagementApi, "branches",
     .handle("create", ({ payload }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
-          yield* assertPermission("branch", "create");
           yield* assertProjectOwnership(payload.projectId);
+          yield* assertAccess("branch", "create", {
+            kind: "project",
+            projectId: payload.projectId,
+          });
           const repo = yield* BranchRepo;
           const projectRepo = yield* ProjectRepo;
           const id = crypto.randomUUID();
@@ -68,8 +71,11 @@ export const BranchesGroupLive = HttpApiBuilder.group(ManagementApi, "branches",
     .handle("list", ({ urlParams }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
-          yield* assertPermission("branch", "read");
           yield* assertProjectOwnership(urlParams.projectId);
+          yield* assertAccess("branch", "read", {
+            kind: "project",
+            projectId: urlParams.projectId,
+          });
           const repo = yield* BranchRepo;
           const { page, limit, offset } = parsePagination(urlParams);
           const { sort, order } = parseBranchSort(urlParams.sort);
@@ -89,10 +95,14 @@ export const BranchesGroupLive = HttpApiBuilder.group(ManagementApi, "branches",
     .handle("get", ({ path }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
-          yield* assertPermission("branch", "read");
           const repo = yield* BranchRepo;
           const branch = yield* repo.findById({ id: path.id });
           yield* assertProjectOwnership(branch.projectId);
+          yield* assertAccess("branch", "read", {
+            kind: "environment",
+            projectId: branch.projectId,
+            environment: branch.name,
+          });
           return toApiBranch(branch);
         }),
       ),
@@ -100,10 +110,14 @@ export const BranchesGroupLive = HttpApiBuilder.group(ManagementApi, "branches",
     .handle("rename", ({ path, payload }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
-          yield* assertPermission("branch", "update");
           const repo = yield* BranchRepo;
           const branch = yield* repo.findById({ id: path.id });
           yield* assertProjectOwnership(branch.projectId);
+          yield* assertAccess("branch", "update", {
+            kind: "environment",
+            projectId: branch.projectId,
+            environment: branch.name,
+          });
           yield* repo.updateName({ id: path.id, name: payload.name });
 
           yield* logAudit({
@@ -121,10 +135,14 @@ export const BranchesGroupLive = HttpApiBuilder.group(ManagementApi, "branches",
     .handle("delete", ({ path }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
-          yield* assertPermission("branch", "delete");
           const branchRepo = yield* BranchRepo;
           const branch = yield* branchRepo.findById({ id: path.id });
           yield* assertProjectOwnership(branch.projectId);
+          yield* assertAccess("branch", "delete", {
+            kind: "environment",
+            projectId: branch.projectId,
+            environment: branch.name,
+          });
           yield* branchRepo.delete({ id: path.id });
 
           yield* logAudit({

@@ -1,3 +1,4 @@
+import { revokeApiKey } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import { CardFrame, CardFrameHeader, CardFrameTitle } from "@better-update/ui/components/ui/card";
 import { Skeleton } from "@better-update/ui/components/ui/skeleton";
@@ -9,11 +10,11 @@ import { useState } from "react";
 
 import { PageHeader } from "../../../components/page-header";
 import { ListItemsSkeleton } from "../../../components/skeletons";
-import { authClient, rejectOnAuthClientError } from "../../../lib/auth-client";
 import { pluralize } from "../../../lib/pluralize";
 import { useApiMutation } from "../../../lib/use-api-mutation";
 import { apiKeysQueryOptions } from "../../../queries/api-keys";
 import { CreateApiKeyDialog, RevokeDialog } from "./-api-key-dialogs";
+import { ApiKeyPoliciesDialog } from "./-api-key-policies-dialog";
 import { ApiKeysEmptyState, ApiKeysTable } from "./-api-keys-table";
 
 const ApiKeysSkeleton = () => (
@@ -53,10 +54,11 @@ const ApiKeysContent = ({ orgId }: { orgId: string }) => {
   const { data: apiKeys } = useSuspenseQuery(apiKeysQueryOptions(orgId));
 
   const [revokeKeyId, setRevokeKeyId] = useState<string | null>(null);
+  const [managePoliciesKeyId, setManagePoliciesKeyId] = useState<string | null>(null);
+  const managePoliciesKey = apiKeys.find((key) => key.id === managePoliciesKeyId);
 
   const revokeKeyMutation = useApiMutation({
-    mutationFn: async (keyId: string) =>
-      rejectOnAuthClientError(authClient.apiKey.delete({ keyId }), "Failed to revoke API key"),
+    mutationFn: async (keyId: string) => revokeApiKey(keyId),
     onSuccess: async () => {
       setRevokeKeyId(null);
       toastManager.add({ title: "API key revoked", type: "success" });
@@ -84,9 +86,27 @@ const ApiKeysContent = ({ orgId }: { orgId: string }) => {
               {apiKeys.length} {pluralize(apiKeys.length, "key")}
             </CardFrameTitle>
           </CardFrameHeader>
-          <ApiKeysTable apiKeys={apiKeys} onRevoke={setRevokeKeyId} />
+          <ApiKeysTable
+            apiKeys={apiKeys}
+            onManagePolicies={setManagePoliciesKeyId}
+            onRevoke={setRevokeKeyId}
+          />
         </CardFrame>
       )}
+
+      {managePoliciesKey ? (
+        <ApiKeyPoliciesDialog
+          orgId={orgId}
+          apiKeyId={managePoliciesKey.id}
+          apiKeyName={managePoliciesKey.name ?? "Unnamed key"}
+          open
+          onOpenChange={(isOpen) => {
+            if (!isOpen) {
+              setManagePoliciesKeyId(null);
+            }
+          }}
+        />
+      ) : null}
 
       <RevokeDialog
         open={revokeKeyId !== null}

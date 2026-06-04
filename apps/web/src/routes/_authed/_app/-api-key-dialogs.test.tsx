@@ -177,11 +177,11 @@ describe("createApiKeyDialog form", () => {
     const user = userEvent.setup();
 
     const fetchMock = mockFetch({
-      "POST /api/auth/api-key/create": () => Response.json({ key: "bu_secret_key_123" }),
+      "POST /api/api-keys": () => Response.json({ key: "bu_secret_key_123" }),
     });
 
     const onSubmit = vi.fn<(name: string) => Promise<void>>(async (name) => {
-      await fetch("/api/auth/api-key/create", {
+      await fetch("/api/api-keys", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ name }),
@@ -199,7 +199,7 @@ describe("createApiKeyDialog form", () => {
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
-        "/api/auth/api-key/create",
+        "/api/api-keys",
         expect.objectContaining({ method: "POST" }),
       );
     });
@@ -245,34 +245,23 @@ describe("keyRevealContent", () => {
 
 // ── CreateApiKeyDialog (full integration) ─────────────────────────
 
-interface CreateResponse {
-  data: { key: string } | null;
-  error: { message: string } | null;
+interface CreatedKeyResult {
+  key: string;
 }
 
-const { authClientModule, authClientMocks } = vi.hoisted(() => ({
-  authClientModule: "../../../lib/auth-client",
-  authClientMocks: {
-    create: vi.fn<(input: { name: string; organizationId: string }) => Promise<CreateResponse>>(),
+const { apiClientModule, apiClientMocks } = vi.hoisted(() => ({
+  apiClientModule: "@better-update/api-client/react",
+  apiClientMocks: {
+    createApiKey: vi.fn<(body: { name: string }) => Promise<CreatedKeyResult>>(),
   },
 }));
 
-vi.mock(authClientModule, () => ({
-  authClient: {
-    apiKey: {
-      create: authClientMocks.create,
-    },
-  },
-  rejectOnAuthClientError: async <T extends { error: unknown }>(
-    promise: Promise<T>,
-    fallbackMessage: string,
-  ): Promise<T> => {
-    const result = await promise;
-    if (result.error) {
-      throw new Error((result.error as { message?: string }).message ?? fallbackMessage);
-    }
-    return result;
-  },
+// The dialog now mints via the IAM-gated api-client helper (POST /api/api-keys),
+// not the better-auth plugin route. Stub the helper + the query-key it invalidates.
+vi.mock(apiClientModule, () => ({
+  createApiKey: apiClientMocks.createApiKey,
+  apiKeysQueryKey: (orgId: string) => ["org", orgId, "api-keys"],
+  apiKeysQueryOptions: (orgId: string) => ({ queryKey: ["org", orgId, "api-keys"] }),
 }));
 
 const CreateDialogHarness = ({ initialOpen = true }: { initialOpen?: boolean }) => {
@@ -308,11 +297,11 @@ const renderCreateDialog = ({ initialOpen = true }: { initialOpen?: boolean } = 
 
 describe(CreateApiKeyDialog, () => {
   beforeEach(() => {
-    authClientMocks.create.mockReset();
+    apiClientMocks.createApiKey.mockReset();
   });
 
   it("submit shows reveal and invalidates the api-keys query", async () => {
-    authClientMocks.create.mockResolvedValue({ data: { key: "bu_test_abc" }, error: null });
+    apiClientMocks.createApiKey.mockResolvedValue({ key: "bu_test_abc" });
     const user = userEvent.setup();
     const { invalidateSpy } = renderCreateDialog();
 
@@ -329,7 +318,7 @@ describe(CreateApiKeyDialog, () => {
   });
 
   it("clicking Done closes the reveal", async () => {
-    authClientMocks.create.mockResolvedValue({ data: { key: "bu_test_xyz" }, error: null });
+    apiClientMocks.createApiKey.mockResolvedValue({ key: "bu_test_xyz" });
     const user = userEvent.setup();
     renderCreateDialog();
 
@@ -348,10 +337,10 @@ describe(CreateApiKeyDialog, () => {
   });
 
   it("closing during in-flight submit invalidates but skips reveal on reopen", async () => {
-    let resolveCreate: (value: CreateResponse) => void = () => {};
-    authClientMocks.create.mockImplementation(
+    let resolveCreate: (value: CreatedKeyResult) => void = () => {};
+    apiClientMocks.createApiKey.mockImplementation(
       async () =>
-        new Promise<CreateResponse>((resolve) => {
+        new Promise<CreatedKeyResult>((resolve) => {
           resolveCreate = resolve;
         }),
     );
@@ -364,7 +353,7 @@ describe(CreateApiKeyDialog, () => {
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(screen.queryByLabelText("Name")).not.toBeInTheDocument();
 
-    resolveCreate({ data: { key: "bu_late_key" }, error: null });
+    resolveCreate({ key: "bu_late_key" });
 
     await waitFor(() => {
       expect(invalidateSpy).toHaveBeenCalledWith(

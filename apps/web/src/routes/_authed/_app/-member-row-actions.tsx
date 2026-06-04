@@ -7,12 +7,12 @@ import {
   MenuSeparator,
   MenuTrigger,
 } from "@better-update/ui/components/ui/menu";
-import { EllipsisVerticalIcon, ShieldIcon, UserMinusIcon } from "lucide-react";
+import { EllipsisVerticalIcon, ScrollTextIcon, UserMinusIcon } from "lucide-react";
+import { useState } from "react";
+
+import { MemberPoliciesDialog } from "./-member-policies-dialog";
 
 import type { Row } from "./-members-row";
-
-const canManageRole = (currentRole: string, targetRole: string): boolean =>
-  currentRole === "owner" && targetRole !== "owner";
 
 const ActionsTrigger = ({ isPending, label }: { isPending: boolean; label?: string }) => (
   <MenuTrigger
@@ -48,73 +48,86 @@ const InvitationActions = ({
 );
 
 const ActiveMemberActions = ({
+  orgId,
   memberId,
-  memberRole,
+  memberName,
   isPending,
-  onRoleChange,
+  showPolicies,
+  showRemove,
   onRemove,
 }: {
+  orgId: string;
   memberId: string;
-  memberRole: string;
+  memberName: string;
   isPending: boolean;
-  onRoleChange: (memberId: string, role: string) => void;
+  showPolicies: boolean;
+  showRemove: boolean;
   onRemove: (memberId: string) => void;
-}) => (
-  <Menu>
-    <ActionsTrigger isPending={isPending} label="Member actions" />
-    <MenuPopup align="end">
-      <MenuGroup>
-        {memberRole === "admin" ? null : (
-          <MenuItem
-            onClick={() => {
-              onRoleChange(memberId, "admin");
-            }}
-          >
-            <ShieldIcon strokeWidth={2} />
-            <span>Set as Admin</span>
-          </MenuItem>
-        )}
-        {memberRole === "member" ? null : (
-          <MenuItem
-            onClick={() => {
-              onRoleChange(memberId, "member");
-            }}
-          >
-            <ShieldIcon strokeWidth={2} />
-            <span>Set as Member</span>
-          </MenuItem>
-        )}
-      </MenuGroup>
-      <MenuSeparator />
-      <MenuGroup>
-        <MenuItem
-          variant="destructive"
-          onClick={() => {
-            onRemove(memberId);
-          }}
-        >
-          <UserMinusIcon strokeWidth={2} />
-          <span>Remove member</span>
-        </MenuItem>
-      </MenuGroup>
-    </MenuPopup>
-  </Menu>
-);
+}) => {
+  const [policiesOpen, setPoliciesOpen] = useState(false);
+
+  return (
+    <>
+      <Menu>
+        <ActionsTrigger isPending={isPending} label="Member actions" />
+        <MenuPopup align="end">
+          {showPolicies ? (
+            <MenuGroup>
+              <MenuItem
+                onClick={() => {
+                  setPoliciesOpen(true);
+                }}
+              >
+                <ScrollTextIcon strokeWidth={2} />
+                <span>Manage policies</span>
+              </MenuItem>
+            </MenuGroup>
+          ) : null}
+          {showPolicies && showRemove ? <MenuSeparator /> : null}
+          {showRemove ? (
+            <MenuGroup>
+              <MenuItem
+                variant="destructive"
+                onClick={() => {
+                  onRemove(memberId);
+                }}
+              >
+                <UserMinusIcon strokeWidth={2} />
+                <span>Remove member</span>
+              </MenuItem>
+            </MenuGroup>
+          ) : null}
+        </MenuPopup>
+      </Menu>
+      {showPolicies ? (
+        <MemberPoliciesDialog
+          orgId={orgId}
+          memberId={memberId}
+          memberName={memberName}
+          open={policiesOpen}
+          onOpenChange={setPoliciesOpen}
+        />
+      ) : null}
+    </>
+  );
+};
 
 export const MemberRowActions = ({
+  orgId,
   row,
   currentUserId,
-  currentRole,
+  canRemoveMembers,
+  canManagePolicies,
   isPending,
-  onRoleChange,
   onRemove,
   onCancelInvitation,
 }: {
+  orgId: string;
   row: Row;
   currentUserId: string;
-  currentRole: string;
+  canRemoveMembers: boolean;
+  canManagePolicies: boolean;
   isPending: boolean;
-  onRoleChange: (memberId: string, role: string) => void;
   onRemove: (memberId: string) => void;
   onCancelInvitation: (invitationId: string) => void;
 }) => {
@@ -128,17 +141,29 @@ export const MemberRowActions = ({
     );
   }
 
+  // Admin-ness is a policy attachment, not a role. Each action is gated on its OWN
+  // server-computed capability (policy:update for Manage policies, member:delete for
+  // Remove) so a partial-capability holder never sees an action the server would
+  // 403. The owner's own membership is never managed here: their policies are inert
+  // (owner is undeniable root) and they cannot be removed (last-owner guard).
+  if (row.role === "owner") {
+    return null;
+  }
   const isSelf = row.userId === currentUserId;
-  if (isSelf || !canManageRole(currentRole, row.role)) {
+  const showPolicies = canManagePolicies;
+  const showRemove = canRemoveMembers && !isSelf;
+  if (!showPolicies && !showRemove) {
     return null;
   }
 
   return (
     <ActiveMemberActions
+      orgId={orgId}
       memberId={row.id}
-      memberRole={row.role}
+      memberName={row.name}
       isPending={isPending}
-      onRoleChange={onRoleChange}
+      showPolicies={showPolicies}
+      showRemove={showRemove}
       onRemove={onRemove}
     />
   );

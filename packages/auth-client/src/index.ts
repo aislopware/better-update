@@ -11,12 +11,12 @@ export const createBetterUpdateAuthClient = (baseURL: string) =>
   createAuthClient({
     baseURL,
     plugins: [
-      organizationClient({ dynamicAccessControl: { enabled: true } }),
+      organizationClient(),
       apiKeyClient(),
       oneTimeTokenClient(),
       // `adminClient` types the global `role`/`banned` fields; `inferAdditionalFields`
-      // surfaces our custom `approved` gate flag on `session.user` and widens
-      // `member.role` to accept custom role names beyond the built-in set.
+      // surfaces our custom `approved` gate flag on `session.user` and keeps
+      // `member.role` a free string (the IAM model reads only `"owner"` for root).
       adminClient(),
       inferAdditionalFields({
         user: { approved: { type: "boolean" } },

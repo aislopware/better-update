@@ -82,7 +82,7 @@
     },
     "apps/docs": {
       "name": "@better-update/docs",
-      "version": "0.4.1",
+      "version": "0.4.2",
       "dependencies": {
         "@astrojs/starlight": "^0.39.3",
         "astro": "^6.4.3",
@@ -90,7 +90,7 @@
     },
     "apps/server": {
       "name": "@better-update/server",
-      "version": "0.22.0",
+      "version": "0.22.1",
       "dependencies": {
         "@better-auth/api-key": "^1.6.13",
         "@better-update/api": "workspace:*",
@@ -121,7 +121,7 @@
     },
     "apps/web": {
       "name": "@better-update/web",
-      "version": "0.25.0",
+      "version": "0.28.0",
       "dependencies": {
         "@better-auth/api-key": "^1.6.13",
         "@better-update/api": "workspace:*",
@@ -130,7 +130,6 @@
         "@better-update/expo-protocol": "workspace:*",
         "@better-update/react-hooks": "workspace:*",
         "@better-update/safe-json": "workspace:*",
-        "@better-update/type-guards": "workspace:*",
         "@better-update/ui": "workspace:*",
         "@cloudflare/vite-plugin": "^1.39.2",
         "@fontsource-variable/geist": "^5.2.9",

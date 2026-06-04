@@ -5,7 +5,6 @@ import { NotFound } from "../errors";
 import { ProjectRepo } from "../repositories/projects";
 import { AuthContext } from "./context";
 import { assertOrgOwnership, assertProjectOwnership } from "./ownership";
-import { permissions } from "./permissions";
 
 const provideAuth = (organizationId: string) =>
   Effect.provideService(AuthContext, {
@@ -13,7 +12,8 @@ const provideAuth = (organizationId: string) =>
     organizationId,
     memberId: "test-member",
     role: "owner",
-    effectivePermissions: permissions.owner,
+    isOwner: true,
+    effectiveStatements: [],
     source: "session",
     transport: "cookie",
     actorEmail: "test@example.com",

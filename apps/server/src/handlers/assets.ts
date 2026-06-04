@@ -5,7 +5,7 @@ import { uniq } from "es-toolkit";
 
 import { ManagementApi } from "../api";
 import { assertProjectOwnership } from "../auth/ownership";
-import { assertPermission } from "../auth/permissions";
+import { assertAccess, assertAccessAny } from "../auth/policy";
 import { AssetStorage } from "../cloudflare/asset-storage";
 import { createDirectUploadHeaders } from "../cloudflare/signed-url";
 import { BadRequest, NotFound } from "../errors";
@@ -128,8 +128,8 @@ const handleUpload = ({
 }) =>
   toApiBadRequestReadEffect(
     Effect.gen(function* () {
-      yield* assertPermission("update", "create");
       yield* assertProjectOwnership(payload.projectId);
+      yield* assertAccess("update", "create", { kind: "project", projectId: payload.projectId });
       yield* assertConsistentRequestedAssets({ assets: payload.assets });
 
       const repo = yield* AssetRepo;
@@ -222,8 +222,8 @@ const handlePatchUpload = ({
 }) =>
   toApiBadRequestReadEffect(
     Effect.gen(function* () {
-      yield* assertPermission("update", "create");
       yield* assertProjectOwnership(payload.projectId);
+      yield* assertAccess("update", "create", { kind: "project", projectId: payload.projectId });
 
       if (payload.fromUpdateId === payload.toUpdateId) {
         return yield* fail("A patch cannot have the same from and to update");
@@ -263,7 +263,12 @@ const handlePatchUpload = ({
 const handleFinalize = ({ path }: { readonly path: { readonly hash: string } }) =>
   toApiBadRequestReadEffect(
     Effect.gen(function* () {
-      yield* assertPermission("update", "create");
+      // Assets are content-addressed (no project on the row), so finalize has no
+      // ObjectRef to scope to. It is a benign precursor: the bytes were already
+      // uploaded via the project-scoped `upload` presign. Gate on holding
+      // `update:create` on ANY scope so narrow per-project publishers pass while
+      // a no-create principal (e.g. viewer) is still rejected.
+      yield* assertAccessAny("update", "create");
 
       const repo = yield* AssetRepo;
       const storage = yield* AssetStorage;

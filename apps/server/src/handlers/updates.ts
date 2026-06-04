@@ -7,8 +7,7 @@ import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
 import { CurrentActor } from "../auth/current-actor";
 import { assertProjectOwnership } from "../auth/ownership";
-import { assertPermission } from "../auth/permissions";
-import { assertPermissionOn } from "../auth/scope";
+import { assertAccess } from "../auth/policy";
 import { UpdateCoordinator } from "../cloudflare/update-coordinator";
 import { validateEmbeddedBaselineId } from "../domain/embedded-baseline-validation";
 import { verifySignedUpdate } from "../domain/signed-update-verification";
@@ -32,36 +31,7 @@ import {
   resolveRepublishDestination,
   resolveRepublishSource,
 } from "./update-republish";
-
-import type { UpdateSortKey, UpdateSortOrder } from "../repositories/updates";
-
-const parseUpdateSort = (
-  value: string | undefined = "-createdAt",
-): { readonly sort: UpdateSortKey; readonly order: UpdateSortOrder } => {
-  const order: UpdateSortOrder = value.startsWith("-") ? "desc" : "asc";
-  const column = value.startsWith("-") ? value.slice(1) : value;
-  switch (column) {
-    case "createdAt":
-    case "runtimeVersion":
-    case "platform":
-    case "rolloutPercentage": {
-      return { sort: column, order };
-    }
-    default: {
-      return { sort: "createdAt", order: "desc" };
-    }
-  }
-};
-
-const DEFAULT_PATCH_BASE_LIMIT = 10;
-const MAX_PATCH_BASE_LIMIT = 50;
-
-const clampPatchBaseLimit = (limit: number | undefined): number => {
-  if (limit === undefined || !Number.isFinite(limit) || limit < 1) {
-    return DEFAULT_PATCH_BASE_LIMIT;
-  }
-  return Math.min(Math.trunc(limit), MAX_PATCH_BASE_LIMIT);
-};
+import { clampPatchBaseLimit, parseUpdateSort } from "./updates-helpers";
 
 const resolvePatchBaseBranchId = (params: {
   readonly projectId: string;
@@ -110,10 +80,13 @@ const assertAssetsExist = (assets: readonly { readonly hash: string }[]) =>
 const handleCreateUpdate = ({ payload }: { readonly payload: typeof CreateUpdateBody.Type }) =>
   toApiWriteEffect(
     Effect.gen(function* () {
-      // NOTE: the publish gate is per-channel (assertPermissionOn) and runs AFTER
-      // `ensureBranchChannel` resolves the destination channel scope below — not
-      // here. Everything before that gate is read-only validation plus the
-      // channel-ensure itself, so no update write happens before it.
+      // NOTE: the publish gate is per-channel (assertAccess on a {kind:"update"}
+      // target) and runs AFTER `ensureBranchChannel` resolves the destination
+      // channel scope below — not here. Everything before that gate is read-only
+      // validation plus the channel-ensure itself, so no update write happens
+      // before it. Read/delete of stored updates gate at project scope on purpose:
+      // an update is owned by a branch (servable by 0..N channels), so it has no
+      // single channel to scope by — only publish targets one channel.
 
       // Embedded-baseline id gate (trust boundary, id+isEmbedded correlated only
       // here): when isEmbedded:true the id is REQUIRED + lowercase-UUID-validated
@@ -167,12 +140,11 @@ const handleCreateUpdate = ({ payload }: { readonly payload: typeof CreateUpdate
       }
       const branchValue = branchResult.value;
 
-      // Per-channel publish gate: now that the destination channel is resolved,
-      // enforce update:create on THIS channel (allow/deny grants apply). Runs
-      // before any update write.
-      yield* assertPermissionOn("update", "create", {
-        scopeKind: "channel",
-        scopeId: branchValue.channelId,
+      // Per-channel publish gate on the resolved destination channel.
+      yield* assertAccess("update", "create", {
+        kind: "update",
+        projectId: project.id,
+        channelId: branchValue.channelId,
       });
 
       if (branchValue.branchCreated) {
@@ -258,8 +230,12 @@ const updateRolloutPercentage = (id: string, percentage: number) =>
     const channelRepoForGate = yield* ChannelRepo;
     const owningChannel = yield* channelRepoForGate.findByBranchId({ branchId: update.branchId });
     yield* owningChannel
-      ? assertPermissionOn("rollout", "update", { scopeKind: "channel", scopeId: owningChannel.id })
-      : assertPermission("rollout", "update");
+      ? assertAccess("rollout", "update", {
+          kind: "rollout",
+          projectId: branch.projectId,
+          channelId: owningChannel.id,
+        })
+      : assertAccess("rollout", "update", { kind: "project", projectId: branch.projectId });
 
     yield* updateRepo.updateRollout({ id, percentage });
 
@@ -275,8 +251,11 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
     .handle("list", ({ urlParams }) =>
       toApiBadRequestReadEffect(
         Effect.gen(function* () {
-          yield* assertPermission("update", "read");
           yield* assertProjectOwnership(urlParams.projectId);
+          yield* assertAccess("update", "read", {
+            kind: "project",
+            projectId: urlParams.projectId,
+          });
 
           const repo = yield* UpdateRepo;
           const { page, limit, offset } = parsePagination(urlParams);
@@ -300,8 +279,11 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
     .handle("listPatchBases", ({ urlParams }) =>
       toApiBadRequestReadEffect(
         Effect.gen(function* () {
-          yield* assertPermission("update", "read");
           yield* assertProjectOwnership(urlParams.projectId);
+          yield* assertAccess("update", "read", {
+            kind: "project",
+            projectId: urlParams.projectId,
+          });
 
           const branchId = yield* resolvePatchBaseBranchId({
             projectId: urlParams.projectId,
@@ -324,12 +306,12 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
     .handle("get", ({ path }) =>
       toApiBadRequestReadEffect(
         Effect.gen(function* () {
-          yield* assertPermission("update", "read");
           const updateRepo = yield* UpdateRepo;
           const update = yield* updateRepo.findById({ id: path.id });
           const branchRepo = yield* BranchRepo;
           const branch = yield* branchRepo.findById({ id: update.branchId });
           yield* assertProjectOwnership(branch.projectId);
+          yield* assertAccess("update", "read", { kind: "project", projectId: branch.projectId });
           return toApiUpdate(update);
         }),
       ),
@@ -337,7 +319,6 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
     .handle("getGroup", ({ path }) =>
       toApiBadRequestReadEffect(
         Effect.gen(function* () {
-          yield* assertPermission("update", "read");
           const updateRepo = yield* UpdateRepo;
           const updates = yield* updateRepo.findByGroupId({ groupId: path.groupId });
           if (updates.length === 0) {
@@ -350,6 +331,7 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
           }
           const branch = yield* branchRepo.findById({ id: firstUpdate.branchId });
           yield* assertProjectOwnership(branch.projectId);
+          yield* assertAccess("update", "read", { kind: "project", projectId: branch.projectId });
           return { items: updates.map(toApiUpdate) };
         }),
       ),
@@ -357,12 +339,12 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
     .handle("listAssets", ({ path }) =>
       toApiBadRequestReadEffect(
         Effect.gen(function* () {
-          yield* assertPermission("update", "read");
           const updateRepo = yield* UpdateRepo;
           const update = yield* updateRepo.findById({ id: path.id });
           const branchRepo = yield* BranchRepo;
           const branch = yield* branchRepo.findById({ id: update.branchId });
           yield* assertProjectOwnership(branch.projectId);
+          yield* assertAccess("update", "read", { kind: "project", projectId: branch.projectId });
           const assets = yield* updateRepo.findAssetsByUpdateId({ updateId: path.id });
           return assets.map((asset) => ({
             hash: asset.hash,
@@ -376,8 +358,6 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
     .handle("deleteGroup", ({ path }) =>
       toApiBadRequestReadEffect(
         Effect.gen(function* () {
-          yield* assertPermission("update", "delete");
-
           const updateRepo = yield* UpdateRepo;
           const updates = yield* updateRepo.findByGroupId({ groupId: path.groupId });
           if (updates.length === 0) {
@@ -392,6 +372,7 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
           }
           const branch = yield* branchRepo.findById({ id: firstUpdate.branchId });
           yield* assertProjectOwnership(branch.projectId);
+          yield* assertAccess("update", "delete", { kind: "project", projectId: branch.projectId });
 
           // Route manual delete through the same orphan-aware asset cleanup the
           // OTA reaper uses, so the two paths never diverge (the plain deleteGroup
@@ -441,8 +422,12 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
           // baseline applies. Runs before the republish write.
           const { channelId } = destination;
           yield* channelId === null
-            ? assertPermission("update", "create")
-            : assertPermissionOn("update", "create", { scopeKind: "channel", scopeId: channelId });
+            ? assertAccess("update", "create", { kind: "project", projectId: source.projectId })
+            : assertAccess("update", "create", {
+                kind: "update",
+                projectId: source.projectId,
+                channelId,
+              });
 
           const republishUpdates = yield* prepareRepublishUpdates({
             payload,
