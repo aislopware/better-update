@@ -11,7 +11,7 @@ import type { UserEncryptionKey } from "@better-update/api";
 
 import { IdentityError } from "../lib/exit-codes";
 import { getActiveOrgId } from "./credential-cipher";
-import { unlockVaultKey } from "./vault-access";
+import { forgetCachedVaultKey, unlockVaultKeyInteractive } from "./vault-access";
 
 import type { ApiClient } from "../services/api-client";
 
@@ -27,15 +27,18 @@ export interface RotationRecipient {
  * one, re-wrap the new vault key to each recipient, then submit the rotation
  * atomically (the server CAS-guards on the current version and requires a
  * recovery recipient in the set). Drops every recipient not in `recipients`.
+ *
+ * Unlocks via the cache-aware path (reusing a live `credentials unlock` session),
+ * then drops that cached key once the re-key lands — it is now stale, so the next
+ * operation must re-unlock at the new version.
  */
 export const rotateVaultTo = (args: {
   readonly api: ApiClient;
-  readonly passphrase: string | undefined;
   readonly recipients: readonly RotationRecipient[];
 }) =>
   Effect.gen(function* () {
     const orgId = yield* getActiveOrgId(args.api);
-    const current = yield* unlockVaultKey(args.api, args.passphrase);
+    const current = yield* unlockVaultKeyInteractive(args.api);
     const newVaultKey = generateVaultKey();
     const newVersion = current.vaultVersion + 1;
 
@@ -82,9 +85,11 @@ export const rotateVaultTo = (args: {
       { concurrency: "unbounded" },
     );
 
-    return yield* args.api.orgVault.rotate({
+    const rotated = yield* args.api.orgVault.rotate({
       payload: { fromVersion: current.vaultVersion, recipientWraps, credentialDeks },
     });
+    yield* forgetCachedVaultKey;
+    return rotated;
   });
 
 /** The encryption keys currently holding the vault key, joined with their public keys. */

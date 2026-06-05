@@ -7,11 +7,7 @@ import { Effect } from "effect";
 import type { UserEncryptionKey } from "@better-update/api";
 
 import { activeRecipient } from "../../application/identity";
-import {
-  findRecipient,
-  grantRecipient,
-  resolveVaultPassphrase,
-} from "../../application/vault-access";
+import { findRecipient, grantRecipient } from "../../application/vault-access";
 import { currentRecipients, rotateVaultTo } from "../../application/vault-rotation";
 import { runEffect } from "../../lib/citty-effect";
 import { IdentityError } from "../../lib/exit-codes";
@@ -126,10 +122,8 @@ const rotateCommand = defineCommand({
         const api = yield* apiClient;
         const recipients = yield* currentRecipients(api);
         yield* confirmRecipients(recipients, args.yes === true);
-        const passphrase = yield* resolveVaultPassphrase;
         const rotated = yield* rotateVaultTo({
           api,
-          passphrase,
           recipients: recipients.map(toRotationRecipient),
         });
         yield* printHuman(
@@ -178,10 +172,8 @@ const revokeCommand = defineCommand({
           });
         }
         yield* confirmRecipients(surviving, args.yes === true);
-        const passphrase = yield* resolveVaultPassphrase;
         const rotated = yield* rotateVaultTo({
           api,
-          passphrase,
           recipients: surviving.map(toRotationRecipient),
         });
         yield* printHuman(
@@ -290,10 +282,8 @@ const recoveryRotateCommand = defineCommand({
         // Drop every old recovery recipient; the freshly-minted one takes its place.
         const surviving = recipients.filter((recipient) => recipient.kind !== "recovery");
         yield* confirmRecipients(surviving, args.yes === true);
-        const passphrase = yield* resolveVaultPassphrase;
         const rotated = yield* rotateVaultTo({
           api,
-          passphrase,
           recipients: [
             ...surviving.map(toRotationRecipient),
             { userEncryptionKeyId: registered.id, publicKey: newRecovery.publicKey },

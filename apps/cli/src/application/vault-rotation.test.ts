@@ -116,7 +116,6 @@ describe(rotateVaultTo, () => {
 
       const rotated = yield* rotateVaultTo({
         api,
-        passphrase: undefined,
         recipients: [{ userEncryptionKeyId: KEY_ID, publicKey: identity.publicKey }],
       }).pipe(Effect.provide(vaultLayer(identity.privateKey)));
 

@@ -4,11 +4,10 @@ import { FileSystem } from "@effect/platform";
 import { Effect, Match } from "effect";
 
 import {
-  openVaultSession,
+  openVaultSessionInteractive,
   sealForUpload,
   toUploadEnvelope,
 } from "../application/credential-cipher";
-import { resolveVaultPassphrase } from "../application/vault-access";
 import { parseGoogleServiceAccountKey, validateAndroidKeystore } from "./credential-metadata";
 import { CredentialValidationError } from "./exit-codes";
 import { inspectP12 } from "./pkcs12";
@@ -142,8 +141,6 @@ export interface UploadCredentialInput {
   readonly keyId?: string;
   readonly issuerId?: string;
   readonly appleTeamIdentifier?: string;
-  /** Passphrase to unlock the device identity; undefined when using the CI env key. */
-  readonly passphrase?: string;
 }
 
 const toUtf8 = (bytes: Uint8Array): string => new TextDecoder().decode(bytes);
@@ -180,7 +177,7 @@ const uploadIosDistributionCertificate = (
       validFrom: info.validFrom.toISOString(),
       validUntil: info.expiresAt.toISOString(),
     };
-    const session = yield* openVaultSession(api, input.passphrase);
+    const session = yield* openVaultSessionInteractive(api);
     const envelope = yield* sealForUpload({
       session,
       credentialType: "distribution-certificate",
@@ -207,7 +204,7 @@ const uploadIosPushKey = (api: ApiClient, input: UploadCredentialInput, bytes: U
       return yield* missing("apple-team-identifier");
     }
     const metadata = { keyId: input.keyId, appleTeamIdentifier: input.appleTeamIdentifier };
-    const session = yield* openVaultSession(api, input.passphrase);
+    const session = yield* openVaultSessionInteractive(api);
     const envelope = yield* sealForUpload({
       session,
       credentialType: "push-key",
@@ -239,7 +236,7 @@ const uploadIosAscApiKey = (api: ApiClient, input: UploadCredentialInput, bytes:
       issuerId: input.issuerId,
       appleTeamIdentifier: input.appleTeamIdentifier,
     });
-    const session = yield* openVaultSession(api, input.passphrase);
+    const session = yield* openVaultSessionInteractive(api);
     const envelope = yield* sealForUpload({
       session,
       credentialType: "asc-api-key",
@@ -292,7 +289,7 @@ const uploadAndroidKeystore = (api: ApiClient, input: UploadCredentialInput, byt
       keyPassword: input.keyPassword,
     });
     const metadata = { keyAlias: parsed.keyAlias };
-    const session = yield* openVaultSession(api, input.passphrase);
+    const session = yield* openVaultSessionInteractive(api);
     const envelope = yield* sealForUpload({
       session,
       credentialType: "keystore",
@@ -327,7 +324,7 @@ const uploadAndroidGoogleServiceAccountKey = (
       privateKeyId: parsed.privateKeyId,
       googleProjectId: parsed.googleProjectId,
     };
-    const session = yield* openVaultSession(api, input.passphrase);
+    const session = yield* openVaultSessionInteractive(api);
     const envelope = yield* sealForUpload({
       session,
       credentialType: "google-service-account-key",
@@ -368,13 +365,10 @@ export const uploadCredential = (api: ApiClient, input: UploadCredentialInput) =
         message: `Unsupported credential combination: platform=${input.platform} type=${input.type}`,
       });
     }
-    // Provisioning profiles are stored plaintext (not secret); everything else is
-    // sealed, so resolve the unlock passphrase once here unless a caller passed one.
-    const resolved: UploadCredentialInput =
-      input.type === "provisioning-profile" || input.passphrase !== undefined
-        ? input
-        : { ...input, ...compact({ passphrase: yield* resolveVaultPassphrase }) };
-    return yield* handler(api, resolved, bytes);
+    // Each sealing handler opens the vault via the cache-aware interactive unlock,
+    // so the device passphrase is prompted at most once per cache TTL (and reused
+    // across a multi-credential session) rather than once per upload.
+    return yield* handler(api, input, bytes);
   });
 
 export const deleteCredential = (
