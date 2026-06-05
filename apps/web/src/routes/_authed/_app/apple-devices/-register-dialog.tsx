@@ -14,7 +14,6 @@ import {
   Field,
   FieldDescription,
   FieldError,
-  FieldGroup,
   FieldLabel,
 } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
@@ -144,108 +143,106 @@ const RegisterDeviceForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: ()
         await form.handleSubmit();
       }}
     >
-      <DialogPanel>
-        <FieldGroup>
-          <form.Field
-            name="identifier"
-            validators={{
-              onBlur: ({ value }) => {
-                const result = identifierSchema.safeParse(value.trim());
-                return result.success ? undefined : result.error.issues[0]?.message;
-              },
-            }}
-          >
-            {(field) => {
-              const errorMessage = getFieldError(field);
-              return (
-                <Field invalid={Boolean(errorMessage)}>
-                  <FieldLabel htmlFor="device-identifier">UDID</FieldLabel>
-                  <Input
-                    id="device-identifier"
-                    placeholder="00008030-001C45663C90802E"
-                    value={field.state.value}
-                    onChange={(event) => {
-                      const next = event.target.value;
-                      field.handleChange(next);
-                      const inferred = inferClass(next);
-                      if (inferred !== null) {
-                        form.setFieldValue("deviceClass", inferred, {
-                          dontUpdateMeta: true,
-                          dontValidate: true,
-                        });
-                      }
-                    }}
-                    onBlur={field.handleBlur}
-                    className="font-mono"
-                  />
-                  <FieldDescription>
-                    40 hex chars (legacy) · 8-16 hex (modern iOS) · UUID (Mac).
-                  </FieldDescription>
-                  <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
-                </Field>
-              );
-            }}
-          </form.Field>
-
-          <form.Field
-            name="name"
-            validators={{
-              onBlur: ({ value }) => {
-                const result = nameSchema.safeParse(value.trim());
-                return result.success ? undefined : result.error.issues[0]?.message;
-              },
-            }}
-          >
-            {(field) => {
-              const errorMessage = getFieldError(field);
-              return (
-                <Field invalid={Boolean(errorMessage)}>
-                  <FieldLabel htmlFor="device-name">Name</FieldLabel>
-                  <Input
-                    id="device-name"
-                    placeholder="Alex's iPhone 15 Pro"
-                    value={field.state.value}
-                    onChange={(event) => {
-                      field.handleChange(event.target.value);
-                    }}
-                    onBlur={field.handleBlur}
-                  />
-                  <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
-                </Field>
-              );
-            }}
-          </form.Field>
-
-          <form.Field name="deviceClass">
-            {(field) => (
-              <Field>
-                <FieldLabel>Class</FieldLabel>
-                <DeviceClassField
-                  value={field.state.value}
-                  onChange={(next) => {
-                    field.handleChange(next);
-                  }}
-                />
-              </Field>
-            )}
-          </form.Field>
-
-          <form.Field name="model">
-            {(field) => (
-              <Field>
-                <FieldLabel htmlFor="device-model">Model (optional)</FieldLabel>
+      <DialogPanel className="grid gap-4">
+        <form.Field
+          name="identifier"
+          validators={{
+            onBlur: ({ value }) => {
+              const result = identifierSchema.safeParse(value.trim());
+              return result.success ? undefined : result.error.issues[0]?.message;
+            },
+          }}
+        >
+          {(field) => {
+            const errorMessage = getFieldError(field);
+            return (
+              <Field invalid={Boolean(errorMessage)}>
+                <FieldLabel htmlFor="device-identifier">UDID</FieldLabel>
                 <Input
-                  id="device-model"
-                  placeholder="iPhone 15 Pro"
+                  id="device-identifier"
+                  placeholder="00008030-001C45663C90802E"
+                  value={field.state.value}
+                  onChange={(event) => {
+                    const next = event.target.value;
+                    field.handleChange(next);
+                    const inferred = inferClass(next);
+                    if (inferred !== null) {
+                      form.setFieldValue("deviceClass", inferred, {
+                        dontUpdateMeta: true,
+                        dontValidate: true,
+                      });
+                    }
+                  }}
+                  onBlur={field.handleBlur}
+                  className="font-mono"
+                />
+                <FieldDescription>
+                  40 hex chars (legacy) · 8-16 hex (modern iOS) · UUID (Mac).
+                </FieldDescription>
+                <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
+              </Field>
+            );
+          }}
+        </form.Field>
+
+        <form.Field
+          name="name"
+          validators={{
+            onBlur: ({ value }) => {
+              const result = nameSchema.safeParse(value.trim());
+              return result.success ? undefined : result.error.issues[0]?.message;
+            },
+          }}
+        >
+          {(field) => {
+            const errorMessage = getFieldError(field);
+            return (
+              <Field invalid={Boolean(errorMessage)}>
+                <FieldLabel htmlFor="device-name">Name</FieldLabel>
+                <Input
+                  id="device-name"
+                  placeholder="Alex's iPhone 15 Pro"
                   value={field.state.value}
                   onChange={(event) => {
                     field.handleChange(event.target.value);
                   }}
+                  onBlur={field.handleBlur}
                 />
+                <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
               </Field>
-            )}
-          </form.Field>
-        </FieldGroup>
+            );
+          }}
+        </form.Field>
+
+        <form.Field name="deviceClass">
+          {(field) => (
+            <Field>
+              <FieldLabel>Class</FieldLabel>
+              <DeviceClassField
+                value={field.state.value}
+                onChange={(next) => {
+                  field.handleChange(next);
+                }}
+              />
+            </Field>
+          )}
+        </form.Field>
+
+        <form.Field name="model">
+          {(field) => (
+            <Field>
+              <FieldLabel htmlFor="device-model">Model (optional)</FieldLabel>
+              <Input
+                id="device-model"
+                placeholder="iPhone 15 Pro"
+                value={field.state.value}
+                onChange={(event) => {
+                  field.handleChange(event.target.value);
+                }}
+              />
+            </Field>
+          )}
+        </form.Field>
       </DialogPanel>
 
       <DialogFooter>

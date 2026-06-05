@@ -10,7 +10,7 @@ import {
   DialogPanel,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
+import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
 import {
   Select,
@@ -149,39 +149,37 @@ const CreateChannelForm = ({
         await form.handleSubmit();
       }}
     >
-      <DialogPanel>
-        <FieldGroup>
-          <form.Field
-            name="name"
-            validators={{
-              onBlur: ({ value }) => {
-                const result = requiredStringSchema.safeParse(value.trim());
-                return result.success ? undefined : "Name is required";
-              },
-            }}
-          >
-            {(field) => {
-              const errorMessage = getFieldError(field);
-              return (
-                <Field invalid={Boolean(errorMessage)}>
-                  <FieldLabel htmlFor="channel-name">Name</FieldLabel>
-                  <Input
-                    id="channel-name"
-                    value={field.state.value}
-                    onBlur={field.handleBlur}
-                    onChange={(event) => {
-                      field.handleChange(event.target.value);
-                    }}
-                    placeholder="e.g. production, staging"
-                  />
-                  <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
-                </Field>
-              );
-            }}
-          </form.Field>
+      <DialogPanel className="grid gap-4">
+        <form.Field
+          name="name"
+          validators={{
+            onBlur: ({ value }) => {
+              const result = requiredStringSchema.safeParse(value.trim());
+              return result.success ? undefined : "Name is required";
+            },
+          }}
+        >
+          {(field) => {
+            const errorMessage = getFieldError(field);
+            return (
+              <Field invalid={Boolean(errorMessage)}>
+                <FieldLabel htmlFor="channel-name">Name</FieldLabel>
+                <Input
+                  id="channel-name"
+                  value={field.state.value}
+                  onBlur={field.handleBlur}
+                  onChange={(event) => {
+                    field.handleChange(event.target.value);
+                  }}
+                  placeholder="e.g. production, staging"
+                />
+                <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
+              </Field>
+            );
+          }}
+        </form.Field>
 
-          <BranchField form={form} branches={branches} />
-        </FieldGroup>
+        <BranchField form={form} branches={branches} />
       </DialogPanel>
 
       <DialogFooter>

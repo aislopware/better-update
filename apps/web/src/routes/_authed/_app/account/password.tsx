@@ -1,5 +1,5 @@
 import { Button } from "@better-update/ui/components/ui/button";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
+import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
 import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
@@ -91,7 +91,7 @@ const PasswordForm = () => {
           </form.Subscribe>
         }
       >
-        <FieldGroup>
+        <div className="grid gap-4">
           <form.Field
             name="currentPassword"
             validators={{
@@ -180,7 +180,7 @@ const PasswordForm = () => {
               );
             }}
           </form.Field>
-        </FieldGroup>
+        </div>
       </SettingCard>
     </form>
   );

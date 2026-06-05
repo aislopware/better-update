@@ -160,4 +160,8 @@ export function AlertDialogClose(
   );
 }
 
-export { AlertDialogPrimitive };
+export {
+  AlertDialogPrimitive,
+  AlertDialogBackdrop as AlertDialogOverlay,
+  AlertDialogPopup as AlertDialogContent,
+};

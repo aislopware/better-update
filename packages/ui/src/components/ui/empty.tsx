@@ -17,30 +17,16 @@ const emptyMediaVariants = cva(
   },
 );
 
-const emptyVariants = cva(
-  "flex min-w-0 flex-1 flex-col items-center justify-center gap-6 rounded-2xl px-6 text-balance text-center",
-  {
-    defaultVariants: {
-      appearance: "placeholder",
-    },
-    variants: {
-      appearance: {
-        placeholder: "border-2 border-dashed bg-muted/40 py-10",
-        surface: "border bg-card py-16",
-      },
-    },
-  },
-);
-
 export function Empty({
   className,
-  appearance,
   ...props
-}: React.ComponentProps<"div"> &
-  VariantProps<typeof emptyVariants>): React.ReactElement {
+}: React.ComponentProps<"div">): React.ReactElement {
   return (
     <div
-      className={cn(emptyVariants({ appearance }), className)}
+      className={cn(
+        "flex min-w-0 flex-1 flex-col items-center justify-center gap-6 text-balance px-6 py-12 text-center md:py-20",
+        className,
+      )}
       data-slot="empty"
       {...props}
     />

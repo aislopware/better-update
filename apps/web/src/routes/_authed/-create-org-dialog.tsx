@@ -9,7 +9,7 @@ import {
   DialogPanel,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
+import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
@@ -56,79 +56,77 @@ const CreateOrgForm = ({ onSuccess }: { onSuccess: () => void }) => {
         await form.handleSubmit();
       }}
     >
-      <DialogPanel>
-        <FieldGroup>
-          <form.Field
-            name="name"
-            validators={{
-              onBlur: ({ value }) => {
-                const result = nameSchema.safeParse(value);
-                return result.success ? undefined : result.error.issues[0]?.message;
-              },
-            }}
-          >
-            {(field) => {
-              const errorMessage = getFieldError(field);
-              const invalid = Boolean(errorMessage);
-              return (
-                <Field invalid={invalid}>
-                  <FieldLabel htmlFor="create-org-name">Organization name</FieldLabel>
-                  <Input
-                    id="create-org-name"
-                    placeholder="Acme Inc."
-                    value={field.state.value}
-                    onChange={(event) => {
-                      field.handleChange(event.target.value);
-                      if (!slugEdited.current) {
-                        form.setFieldValue("slug", generateSlug(event.target.value), {
-                          dontUpdateMeta: true,
-                          dontValidate: true,
-                        });
-                      }
-                    }}
-                    onBlur={field.handleBlur}
-                  />
-                  <FieldError match={invalid}>{errorMessage}</FieldError>
-                </Field>
-              );
-            }}
-          </form.Field>
+      <DialogPanel className="grid gap-4">
+        <form.Field
+          name="name"
+          validators={{
+            onBlur: ({ value }) => {
+              const result = nameSchema.safeParse(value);
+              return result.success ? undefined : result.error.issues[0]?.message;
+            },
+          }}
+        >
+          {(field) => {
+            const errorMessage = getFieldError(field);
+            const invalid = Boolean(errorMessage);
+            return (
+              <Field invalid={invalid}>
+                <FieldLabel htmlFor="create-org-name">Organization name</FieldLabel>
+                <Input
+                  id="create-org-name"
+                  placeholder="Acme Inc."
+                  value={field.state.value}
+                  onChange={(event) => {
+                    field.handleChange(event.target.value);
+                    if (!slugEdited.current) {
+                      form.setFieldValue("slug", generateSlug(event.target.value), {
+                        dontUpdateMeta: true,
+                        dontValidate: true,
+                      });
+                    }
+                  }}
+                  onBlur={field.handleBlur}
+                />
+                <FieldError match={invalid}>{errorMessage}</FieldError>
+              </Field>
+            );
+          }}
+        </form.Field>
 
-          <form.Field
-            name="slug"
-            validators={{
-              onBlur: ({ value }) => {
-                const result = slugSchema.safeParse(value);
-                return result.success ? undefined : result.error.issues[0]?.message;
-              },
-            }}
-          >
-            {(field) => {
-              const errorMessage = getFieldError(field);
-              const invalid = Boolean(errorMessage);
-              return (
-                <Field invalid={invalid}>
-                  <FieldLabel htmlFor="create-org-slug">Workspace URL</FieldLabel>
-                  <SlugInput
-                    addonStart="better-update.dev/"
-                    id="create-org-slug"
-                    placeholder="acme-inc"
-                    value={field.state.value}
-                    onChange={(event) => {
-                      field.handleChange(event.target.value);
-                      slugEdited.current = event.target.value !== "";
-                    }}
-                    onBlur={field.handleBlur}
-                  />
-                  <p className="text-muted-foreground text-xs">
-                    Lowercase letters, numbers and dashes only.
-                  </p>
-                  <FieldError match={invalid}>{errorMessage}</FieldError>
-                </Field>
-              );
-            }}
-          </form.Field>
-        </FieldGroup>
+        <form.Field
+          name="slug"
+          validators={{
+            onBlur: ({ value }) => {
+              const result = slugSchema.safeParse(value);
+              return result.success ? undefined : result.error.issues[0]?.message;
+            },
+          }}
+        >
+          {(field) => {
+            const errorMessage = getFieldError(field);
+            const invalid = Boolean(errorMessage);
+            return (
+              <Field invalid={invalid}>
+                <FieldLabel htmlFor="create-org-slug">Workspace URL</FieldLabel>
+                <SlugInput
+                  addonStart="better-update.dev/"
+                  id="create-org-slug"
+                  placeholder="acme-inc"
+                  value={field.state.value}
+                  onChange={(event) => {
+                    field.handleChange(event.target.value);
+                    slugEdited.current = event.target.value !== "";
+                  }}
+                  onBlur={field.handleBlur}
+                />
+                <p className="text-muted-foreground text-xs">
+                  Lowercase letters, numbers and dashes only.
+                </p>
+                <FieldError match={invalid}>{errorMessage}</FieldError>
+              </Field>
+            );
+          }}
+        </form.Field>
       </DialogPanel>
 
       <DialogFooter>

@@ -17,7 +17,6 @@ import {
   Field,
   FieldDescription,
   FieldError,
-  FieldGroup,
   FieldLabel,
 } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
@@ -235,68 +234,66 @@ const CreateInviteForm = ({
         await form.handleSubmit();
       }}
     >
-      <DialogPanel>
-        <FieldGroup>
-          <form.Field
-            name="deviceNameHint"
-            validators={{
-              onBlur: ({ value }) => {
-                const result = hintNameSchema.safeParse(value.trim());
-                return result.success ? undefined : result.error.issues[0]?.message;
-              },
-            }}
-          >
-            {(field) => {
-              const errorMessage = getFieldError(field);
-              return (
-                <Field invalid={Boolean(errorMessage)}>
-                  <FieldLabel htmlFor="invite-name">Device name hint (optional)</FieldLabel>
-                  <Input
-                    id="invite-name"
-                    placeholder="Alex's iPhone"
-                    value={field.state.value}
-                    onChange={(event) => {
-                      field.handleChange(event.target.value);
-                    }}
-                    onBlur={field.handleBlur}
-                  />
-                  <FieldDescription>
-                    Shown on the landing page. Device owner can override.
-                  </FieldDescription>
-                  <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
-                </Field>
-              );
-            }}
-          </form.Field>
-
-          <form.Field name="deviceClassHint">
-            {(field) => (
-              <Field>
-                <FieldLabel>Device class (optional)</FieldLabel>
-                <DeviceClassHintSelect
+      <DialogPanel className="grid gap-4">
+        <form.Field
+          name="deviceNameHint"
+          validators={{
+            onBlur: ({ value }) => {
+              const result = hintNameSchema.safeParse(value.trim());
+              return result.success ? undefined : result.error.issues[0]?.message;
+            },
+          }}
+        >
+          {(field) => {
+            const errorMessage = getFieldError(field);
+            return (
+              <Field invalid={Boolean(errorMessage)}>
+                <FieldLabel htmlFor="invite-name">Device name hint (optional)</FieldLabel>
+                <Input
+                  id="invite-name"
+                  placeholder="Alex's iPhone"
                   value={field.state.value}
-                  onChange={(next) => {
-                    field.handleChange(next);
+                  onChange={(event) => {
+                    field.handleChange(event.target.value);
                   }}
+                  onBlur={field.handleBlur}
                 />
+                <FieldDescription>
+                  Shown on the landing page. Device owner can override.
+                </FieldDescription>
+                <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
               </Field>
-            )}
-          </form.Field>
+            );
+          }}
+        </form.Field>
 
-          <form.Field name="ttlHours">
-            {(field) => (
-              <Field>
-                <FieldLabel>Expires after</FieldLabel>
-                <TtlSelect
-                  value={field.state.value}
-                  onChange={(next) => {
-                    field.handleChange(next);
-                  }}
-                />
-              </Field>
-            )}
-          </form.Field>
-        </FieldGroup>
+        <form.Field name="deviceClassHint">
+          {(field) => (
+            <Field>
+              <FieldLabel>Device class (optional)</FieldLabel>
+              <DeviceClassHintSelect
+                value={field.state.value}
+                onChange={(next) => {
+                  field.handleChange(next);
+                }}
+              />
+            </Field>
+          )}
+        </form.Field>
+
+        <form.Field name="ttlHours">
+          {(field) => (
+            <Field>
+              <FieldLabel>Expires after</FieldLabel>
+              <TtlSelect
+                value={field.state.value}
+                onChange={(next) => {
+                  field.handleChange(next);
+                }}
+              />
+            </Field>
+          )}
+        </form.Field>
       </DialogPanel>
 
       <DialogFooter>
