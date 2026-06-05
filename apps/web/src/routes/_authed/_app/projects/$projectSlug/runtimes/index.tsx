@@ -1,5 +1,6 @@
 import { buildsQueryOptions, updatesQueryOptions } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
+import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
   EmptyDescription,
@@ -42,17 +43,19 @@ const runtimesSearchSchema = z.object({
 });
 
 const RuntimesEmptyState = () => (
-  <Empty>
-    <EmptyHeader>
-      <EmptyMedia variant="icon">
-        <LayersIcon strokeWidth={1.5} />
-      </EmptyMedia>
-      <EmptyTitle>No runtime versions yet</EmptyTitle>
-      <EmptyDescription>
-        Runtime versions appear here once you publish a build or update.
-      </EmptyDescription>
-    </EmptyHeader>
-  </Empty>
+  <Card>
+    <Empty>
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <LayersIcon strokeWidth={1.5} />
+        </EmptyMedia>
+        <EmptyTitle>No runtime versions yet</EmptyTitle>
+        <EmptyDescription>
+          Runtime versions appear here once you publish a build or update.
+        </EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+  </Card>
 );
 
 const RuntimesSkeleton = () => (

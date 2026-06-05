@@ -1,5 +1,6 @@
 import { projectsQueryOptions } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
+import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
   EmptyDescription,
@@ -65,15 +66,17 @@ const projectsSearchSchema = z.object({
 });
 
 const EmptyState = () => (
-  <Empty>
-    <EmptyHeader>
-      <EmptyMedia variant="icon">
-        <FolderIcon strokeWidth={1.5} />
-      </EmptyMedia>
-      <EmptyTitle>No projects yet</EmptyTitle>
-      <EmptyDescription>Create your first project to start publishing updates.</EmptyDescription>
-    </EmptyHeader>
-  </Empty>
+  <Card>
+    <Empty>
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <FolderIcon strokeWidth={1.5} />
+        </EmptyMedia>
+        <EmptyTitle>No projects yet</EmptyTitle>
+        <EmptyDescription>Create your first project to start publishing updates.</EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+  </Card>
 );
 
 const getActivityDotColor = (lastActivityAt: string): string => {
@@ -281,15 +284,17 @@ const Projects = () => {
           ) : null}
         </InputGroup>
         {showsFilteredEmpty ? (
-          <Empty>
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <SearchXIcon strokeWidth={1.5} />
-              </EmptyMedia>
-              <EmptyTitle>No projects match your search</EmptyTitle>
-              <EmptyDescription>Try a different keyword or clear the search.</EmptyDescription>
-            </EmptyHeader>
-          </Empty>
+          <Card>
+            <Empty>
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <SearchXIcon strokeWidth={1.5} />
+                </EmptyMedia>
+                <EmptyTitle>No projects match your search</EmptyTitle>
+                <EmptyDescription>Try a different keyword or clear the search.</EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          </Card>
         ) : (
           <DataTableView
             table={table}

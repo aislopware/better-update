@@ -2,6 +2,7 @@ import {
   buildCompatibilityMatrixQueryOptions,
   buildsQueryOptions,
 } from "@better-update/api-client/react";
+import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
   EmptyDescription,
@@ -71,15 +72,17 @@ const buildsSearchSchema = z.object({
 });
 
 const BuildsEmptyState = () => (
-  <Empty>
-    <EmptyHeader>
-      <EmptyMedia variant="icon">
-        <PackageIcon strokeWidth={1.5} />
-      </EmptyMedia>
-      <EmptyTitle>No builds yet</EmptyTitle>
-      <EmptyDescription>Upload your first build using the CLI to get started.</EmptyDescription>
-    </EmptyHeader>
-  </Empty>
+  <Card>
+    <Empty>
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <PackageIcon strokeWidth={1.5} />
+        </EmptyMedia>
+        <EmptyTitle>No builds yet</EmptyTitle>
+        <EmptyDescription>Upload your first build using the CLI to get started.</EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+  </Card>
 );
 
 const BuildsSkeleton = () => (
@@ -222,15 +225,17 @@ const BuildsContent = () => {
         missingRuntimeVersions={matrix.missingRuntimeVersions}
       />
       {data.total === 0 ? (
-        <Empty>
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <SearchXIcon strokeWidth={1.5} />
-            </EmptyMedia>
-            <EmptyTitle>No matches</EmptyTitle>
-            <EmptyDescription>No builds match your filters.</EmptyDescription>
-          </EmptyHeader>
-        </Empty>
+        <Card>
+          <Empty>
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <SearchXIcon strokeWidth={1.5} />
+              </EmptyMedia>
+              <EmptyTitle>No matches</EmptyTitle>
+              <EmptyDescription>No builds match your filters.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        </Card>
       ) : (
         <DataTableView
           table={table}

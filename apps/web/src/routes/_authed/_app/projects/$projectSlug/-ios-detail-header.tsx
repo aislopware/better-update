@@ -10,6 +10,7 @@ import {
 } from "@better-update/ui/components/ui/breadcrumb";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
+  Card,
   CardFrame,
   CardFrameDescription,
   CardFrameHeader,
@@ -114,24 +115,26 @@ export const IosNotFoundEmpty = ({
   projectSlug: string;
   bundleIdentifier: string;
 }) => (
-  <Empty>
-    <EmptyHeader>
-      <EmptyMedia variant="icon">
-        <AppleIcon strokeWidth={1.5} />
-      </EmptyMedia>
-      <EmptyTitle>Bundle identifier not found</EmptyTitle>
-      <EmptyDescription>
-        No configuration exists for{" "}
-        <code className="text-foreground font-mono">{bundleIdentifier}</code> on this project.
-      </EmptyDescription>
-    </EmptyHeader>
-    <Button
-      variant="outline"
-      render={
-        <Link to="/projects/$projectSlug/credentials" params={{ projectSlug }}>
-          Back to credentials
-        </Link>
-      }
-    />
-  </Empty>
+  <Card>
+    <Empty>
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <AppleIcon strokeWidth={1.5} />
+        </EmptyMedia>
+        <EmptyTitle>Bundle identifier not found</EmptyTitle>
+        <EmptyDescription>
+          No configuration exists for{" "}
+          <code className="text-foreground font-mono">{bundleIdentifier}</code> on this project.
+        </EmptyDescription>
+      </EmptyHeader>
+      <Button
+        variant="outline"
+        render={
+          <Link to="/projects/$projectSlug/credentials" params={{ projectSlug }}>
+            Back to credentials
+          </Link>
+        }
+      />
+    </Empty>
+  </Card>
 );

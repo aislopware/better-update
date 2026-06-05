@@ -1,6 +1,6 @@
 import { submissionsQueryOptions } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
-import { CardFrame } from "@better-update/ui/components/ui/card";
+import { Card, CardFrame } from "@better-update/ui/components/ui/card";
 import {
   Empty,
   EmptyDescription,
@@ -49,17 +49,19 @@ const ROW_CLASS =
   "hover:bg-muted/50 flex items-center justify-between gap-2 px-3 py-3 text-sm transition-colors";
 
 const SubmissionsEmpty = () => (
-  <Empty>
-    <EmptyHeader>
-      <EmptyMedia variant="icon">
-        <UploadCloudIcon strokeWidth={1.5} />
-      </EmptyMedia>
-      <EmptyTitle>No submissions yet</EmptyTitle>
-      <EmptyDescription>
-        Use the CLI `better-update submit` to push a build to App Store Connect or Google Play.
-      </EmptyDescription>
-    </EmptyHeader>
-  </Empty>
+  <Card>
+    <Empty>
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <UploadCloudIcon strokeWidth={1.5} />
+        </EmptyMedia>
+        <EmptyTitle>No submissions yet</EmptyTitle>
+        <EmptyDescription>
+          Use the CLI `better-update submit` to push a build to App Store Connect or Google Play.
+        </EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+  </Card>
 );
 
 const SubmissionRow = ({

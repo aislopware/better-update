@@ -1,4 +1,5 @@
 import { Badge } from "@better-update/ui/components/ui/badge";
+import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
   EmptyDescription,
@@ -35,18 +36,20 @@ import { formatDate } from "../../../lib/format-date";
 import { formatAppleTeamLabel } from "./-credentials-utils";
 
 export const DistributionCertificatesEmptyState = () => (
-  <Empty>
-    <EmptyHeader>
-      <EmptyMedia variant="icon">
-        <ShieldCheckIcon strokeWidth={1.5} />
-      </EmptyMedia>
-      <EmptyTitle>No distribution certificates</EmptyTitle>
-      <EmptyDescription>
-        Use the CLI to upload a .p12 certificate to sign iOS builds for the App Store or ad-hoc
-        distribution.
-      </EmptyDescription>
-    </EmptyHeader>
-  </Empty>
+  <Card>
+    <Empty>
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <ShieldCheckIcon strokeWidth={1.5} />
+        </EmptyMedia>
+        <EmptyTitle>No distribution certificates</EmptyTitle>
+        <EmptyDescription>
+          Use the CLI to upload a .p12 certificate to sign iOS builds for the App Store or ad-hoc
+          distribution.
+        </EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+  </Card>
 );
 
 export const DistributionCertificatesTable = ({
@@ -81,18 +84,20 @@ export const DistributionCertificatesTable = ({
 );
 
 export const PushKeysEmptyState = () => (
-  <Empty>
-    <EmptyHeader>
-      <EmptyMedia variant="icon">
-        <BellRingIcon strokeWidth={1.5} />
-      </EmptyMedia>
-      <EmptyTitle>No push keys</EmptyTitle>
-      <EmptyDescription>
-        Use the CLI to upload an APNs .p8 key to send push notifications from the Apple Push
-        Notification service.
-      </EmptyDescription>
-    </EmptyHeader>
-  </Empty>
+  <Card>
+    <Empty>
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <BellRingIcon strokeWidth={1.5} />
+        </EmptyMedia>
+        <EmptyTitle>No push keys</EmptyTitle>
+        <EmptyDescription>
+          Use the CLI to upload an APNs .p8 key to send push notifications from the Apple Push
+          Notification service.
+        </EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+  </Card>
 );
 
 export const PushKeysTable = ({ items }: { items: readonly ApplePushKeyItem[] }) => (
@@ -115,17 +120,19 @@ export const PushKeysTable = ({ items }: { items: readonly ApplePushKeyItem[] })
 );
 
 export const AscApiKeysEmptyState = () => (
-  <Empty>
-    <EmptyHeader>
-      <EmptyMedia variant="icon">
-        <KeyRoundIcon strokeWidth={1.5} />
-      </EmptyMedia>
-      <EmptyTitle>No App Store Connect API keys</EmptyTitle>
-      <EmptyDescription>
-        Use the CLI to upload an ASC .p8 key to automate App Store Connect operations.
-      </EmptyDescription>
-    </EmptyHeader>
-  </Empty>
+  <Card>
+    <Empty>
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <KeyRoundIcon strokeWidth={1.5} />
+        </EmptyMedia>
+        <EmptyTitle>No App Store Connect API keys</EmptyTitle>
+        <EmptyDescription>
+          Use the CLI to upload an ASC .p8 key to automate App Store Connect operations.
+        </EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+  </Card>
 );
 
 export const AscApiKeysTable = ({ items }: { items: readonly AscApiKeyItem[] }) => (
@@ -150,17 +157,19 @@ export const AscApiKeysTable = ({ items }: { items: readonly AscApiKeyItem[] }) 
 );
 
 export const AppleTeamsEmptyState = () => (
-  <Empty>
-    <EmptyHeader>
-      <EmptyMedia variant="icon">
-        <UsersRoundIcon strokeWidth={1.5} />
-      </EmptyMedia>
-      <EmptyTitle>No Apple Teams yet</EmptyTitle>
-      <EmptyDescription>
-        Apple Teams are auto-derived from uploaded certificates, push keys, and ASC API keys.
-      </EmptyDescription>
-    </EmptyHeader>
-  </Empty>
+  <Card>
+    <Empty>
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <UsersRoundIcon strokeWidth={1.5} />
+        </EmptyMedia>
+        <EmptyTitle>No Apple Teams yet</EmptyTitle>
+        <EmptyDescription>
+          Apple Teams are auto-derived from uploaded certificates, push keys, and ASC API keys.
+        </EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+  </Card>
 );
 
 export const AppleTeamsTable = ({ items }: { items: readonly AppleTeamItem[] }) => (
@@ -193,17 +202,19 @@ export const AppleTeamsTable = ({ items }: { items: readonly AppleTeamItem[] }) 
 );
 
 export const GoogleServiceAccountKeysEmptyState = () => (
-  <Empty>
-    <EmptyHeader>
-      <EmptyMedia variant="icon">
-        <CloudIcon strokeWidth={1.5} />
-      </EmptyMedia>
-      <EmptyTitle>No Google service account keys</EmptyTitle>
-      <EmptyDescription>
-        Use the CLI to upload a service account .json key for FCM v1 push notifications.
-      </EmptyDescription>
-    </EmptyHeader>
-  </Empty>
+  <Card>
+    <Empty>
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <CloudIcon strokeWidth={1.5} />
+        </EmptyMedia>
+        <EmptyTitle>No Google service account keys</EmptyTitle>
+        <EmptyDescription>
+          Use the CLI to upload a service account .json key for FCM v1 push notifications.
+        </EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+  </Card>
 );
 
 export const GoogleServiceAccountKeysTable = ({

@@ -3,7 +3,7 @@ import {
   iosBundleConfigurationsQueryOptions,
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
-import { CardFrame } from "@better-update/ui/components/ui/card";
+import { Card, CardFrame } from "@better-update/ui/components/ui/card";
 import {
   Empty,
   EmptyDescription,
@@ -70,33 +70,37 @@ const SectionListSkeleton = () => (
 );
 
 const AndroidEmpty = () => (
-  <Empty>
-    <EmptyHeader>
-      <EmptyMedia variant="icon">
-        <AndroidIcon strokeWidth={1.5} />
-      </EmptyMedia>
-      <EmptyTitle>No application identifiers</EmptyTitle>
-      <EmptyDescription>
-        Use the CLI to register an Android application identifier and bind upload keystores and
-        Google service account keys for this project.
-      </EmptyDescription>
-    </EmptyHeader>
-  </Empty>
+  <Card>
+    <Empty>
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <AndroidIcon strokeWidth={1.5} />
+        </EmptyMedia>
+        <EmptyTitle>No application identifiers</EmptyTitle>
+        <EmptyDescription>
+          Use the CLI to register an Android application identifier and bind upload keystores and
+          Google service account keys for this project.
+        </EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+  </Card>
 );
 
 const IosEmpty = () => (
-  <Empty>
-    <EmptyHeader>
-      <EmptyMedia variant="icon">
-        <AppleIcon strokeWidth={1.5} />
-      </EmptyMedia>
-      <EmptyTitle>No bundle identifiers</EmptyTitle>
-      <EmptyDescription>
-        Use the CLI to register an iOS bundle identifier and bind distribution certificates,
-        provisioning profiles, push keys, and App Store Connect API keys for this project.
-      </EmptyDescription>
-    </EmptyHeader>
-  </Empty>
+  <Card>
+    <Empty>
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <AppleIcon strokeWidth={1.5} />
+        </EmptyMedia>
+        <EmptyTitle>No bundle identifiers</EmptyTitle>
+        <EmptyDescription>
+          Use the CLI to register an iOS bundle identifier and bind distribution certificates,
+          provisioning profiles, push keys, and App Store Connect API keys for this project.
+        </EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+  </Card>
 );
 
 const ROW_CLASS =

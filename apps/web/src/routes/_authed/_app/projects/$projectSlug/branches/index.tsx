@@ -1,4 +1,5 @@
 import { branchesQueryOptions } from "@better-update/api-client/react";
+import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
   EmptyDescription,
@@ -48,15 +49,17 @@ const branchesSearchSchema = z.object({
 });
 
 const BranchesEmptyState = () => (
-  <Empty>
-    <EmptyHeader>
-      <EmptyMedia variant="icon">
-        <GitBranchIcon strokeWidth={1.5} />
-      </EmptyMedia>
-      <EmptyTitle>No branches yet</EmptyTitle>
-      <EmptyDescription>Create your first branch to start managing deployments.</EmptyDescription>
-    </EmptyHeader>
-  </Empty>
+  <Card>
+    <Empty>
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <GitBranchIcon strokeWidth={1.5} />
+        </EmptyMedia>
+        <EmptyTitle>No branches yet</EmptyTitle>
+        <EmptyDescription>Create your first branch to start managing deployments.</EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+  </Card>
 );
 
 const BranchActions = ({

@@ -8,6 +8,7 @@ import {
 } from "@better-update/ui/components/ui/breadcrumb";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
+  Card,
   CardFrame,
   CardFrameDescription,
   CardFrameHeader,
@@ -72,24 +73,26 @@ export const AndroidNotFoundEmpty = ({
   projectSlug: string;
   packageName: string;
 }) => (
-  <Empty>
-    <EmptyHeader>
-      <EmptyMedia variant="icon">
-        <AndroidIcon strokeWidth={1.5} />
-      </EmptyMedia>
-      <EmptyTitle>Application identifier not found</EmptyTitle>
-      <EmptyDescription>
-        No identifier exists for <code className="text-foreground font-mono">{packageName}</code> on
-        this project.
-      </EmptyDescription>
-    </EmptyHeader>
-    <Button
-      variant="outline"
-      render={
-        <Link to="/projects/$projectSlug/credentials" params={{ projectSlug }}>
-          Back to credentials
-        </Link>
-      }
-    />
-  </Empty>
+  <Card>
+    <Empty>
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <AndroidIcon strokeWidth={1.5} />
+        </EmptyMedia>
+        <EmptyTitle>Application identifier not found</EmptyTitle>
+        <EmptyDescription>
+          No identifier exists for <code className="text-foreground font-mono">{packageName}</code>{" "}
+          on this project.
+        </EmptyDescription>
+      </EmptyHeader>
+      <Button
+        variant="outline"
+        render={
+          <Link to="/projects/$projectSlug/credentials" params={{ projectSlug }}>
+            Back to credentials
+          </Link>
+        }
+      />
+    </Empty>
+  </Card>
 );

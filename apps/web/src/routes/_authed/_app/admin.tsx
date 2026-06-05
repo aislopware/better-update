@@ -6,6 +6,7 @@ import {
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
+import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
   EmptyDescription,
@@ -258,25 +259,29 @@ const AdminUsers = () => {
   }`;
 
   const emptyState = showsGlobalEmpty ? (
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <UsersIcon strokeWidth={1.5} />
-        </EmptyMedia>
-        <EmptyTitle>No users yet</EmptyTitle>
-        <EmptyDescription>Users appear here after they sign up.</EmptyDescription>
-      </EmptyHeader>
-    </Empty>
+    <Card>
+      <Empty>
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <UsersIcon strokeWidth={1.5} />
+          </EmptyMedia>
+          <EmptyTitle>No users yet</EmptyTitle>
+          <EmptyDescription>Users appear here after they sign up.</EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    </Card>
   ) : (
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <SearchXIcon strokeWidth={1.5} />
-        </EmptyMedia>
-        <EmptyTitle>No users match your filters</EmptyTitle>
-        <EmptyDescription>Try a different keyword or status.</EmptyDescription>
-      </EmptyHeader>
-    </Empty>
+    <Card>
+      <Empty>
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <SearchXIcon strokeWidth={1.5} />
+          </EmptyMedia>
+          <EmptyTitle>No users match your filters</EmptyTitle>
+          <EmptyDescription>Try a different keyword or status.</EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    </Card>
   );
 
   return (
