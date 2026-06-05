@@ -10,8 +10,6 @@ import { CliRuntime } from "../services/cli-runtime";
 import { VaultCache, VaultCacheLive } from "../services/vault-cache";
 import { activeRecipient, loadIdentityFileOrFail } from "./identity";
 
-import type { InteractiveProhibitedError } from "../lib/exit-codes";
-import type { InteractiveMode } from "../lib/interactive-mode";
 import type { ApiClient } from "../services/api-client";
 import type { IdentityStore } from "../services/identity-store";
 
@@ -138,23 +136,6 @@ export const grantRecipient = (args: {
   });
 
 /**
- * Resolve the passphrase needed to unlock the active identity before a crypto
- * operation: prompt for it when the identity is the on-disk file, or return
- * `undefined` when the raw `BETTER_UPDATE_IDENTITY` env key is in use (CI). The
- * resolved value is threaded into {@link unlockVaultKey} by the cipher helpers.
- */
-export const resolveVaultPassphrase: Effect.Effect<
-  string | undefined,
-  IdentityError | InteractiveProhibitedError,
-  CliRuntime | IdentityStore | InteractiveMode
-> = Effect.gen(function* () {
-  const recipient = yield* activeRecipient;
-  return recipient.source === "file"
-    ? yield* promptPassword("Passphrase to unlock this device's identity:")
-    : undefined;
-});
-
-/**
  * Unlock the org vault key for an interactive command, reusing a cached vault key
  * from the OS keychain when one is present and unexpired — so the device
  * passphrase is prompted at most once per cache TTL rather than on every command
@@ -162,6 +143,12 @@ export const resolveVaultPassphrase: Effect.Effect<
  * The CI `BETTER_UPDATE_IDENTITY` key carries no passphrase and is never cached:
  * it skips straight to the raw unwrap. On a cache miss the full unlock runs —
  * prompt, Argon2id, fetch + unwrap — and the result is cached for next time.
+ *
+ * The cached key is the unwrapped vault key, which both unwraps (decrypt/read)
+ * and wraps (encrypt/write) DEKs — so this single entry point backs every vault
+ * operation: download/build-resolve reads, seal-for-upload + generate writes, and
+ * rotation. There is no read-only cache: an unlock makes the next write seamless
+ * too.
  */
 export const unlockVaultKeyInteractive = (api: ApiClient) =>
   Effect.gen(function* () {
@@ -181,6 +168,20 @@ export const unlockVaultKeyInteractive = (api: ApiClient) =>
     // Discharge `VaultCache` here — it only needs `CliRuntime` (already in scope),
     // so the cache stays an internal detail and never widens the requirements of
     // the publish / download / credential flows that call this.
+  }).pipe(Effect.provide(VaultCacheLive));
+
+/**
+ * Forget the active recipient's cached vault key. Called after a rotation re-keys
+ * the vault: the cached key + version are now stale, so leaving them would make
+ * the next seal upload a key/version the server CAS-rejects (and the next decrypt
+ * fail integrity). Clearing forces a fresh unlock at the new version next time —
+ * which also correctly locks out a device that just revoked its own access.
+ */
+export const forgetCachedVaultKey: Effect.Effect<void, IdentityError, CliRuntime | IdentityStore> =
+  Effect.gen(function* () {
+    const recipient = yield* activeRecipient;
+    const cache = yield* VaultCache;
+    yield* cache.clear(recipient.publicKey);
   }).pipe(Effect.provide(VaultCacheLive));
 
 /** Look up a registered recipient by its key id or full `SHA256:` fingerprint. */

@@ -7,11 +7,10 @@ import { FileSystem } from "@effect/platform";
 import { Data, Effect } from "effect";
 
 import {
-  openVaultSession,
+  openVaultSessionInteractive,
   sealForUpload,
   toUploadEnvelope,
 } from "../application/credential-cipher";
-import { resolveVaultPassphrase } from "../application/vault-access";
 import { generateAndroidKeystore } from "./android-keystore";
 import {
   createBundleId,
@@ -85,8 +84,6 @@ export interface GenerateAndUploadKeystoreInput {
   readonly commonName: string;
   readonly organization: string;
   readonly validityDays?: number;
-  /** Passphrase to unlock the device identity; undefined when using the CI env key. */
-  readonly passphrase?: string;
 }
 
 export const generateAndUploadKeystore = (api: ApiClient, input: GenerateAndUploadKeystoreInput) =>
@@ -107,8 +104,7 @@ export const generateAndUploadKeystore = (api: ApiClient, input: GenerateAndUplo
       });
 
       const bytes = yield* fs.readFile(keystorePath);
-      const passphrase = input.passphrase ?? (yield* resolveVaultPassphrase);
-      const session = yield* openVaultSession(api, passphrase);
+      const session = yield* openVaultSessionInteractive(api);
       const metadata = { keyAlias: input.keyAlias };
       const envelope = yield* sealForUpload({
         session,
@@ -132,8 +128,6 @@ export const generateAndUploadKeystore = (api: ApiClient, input: GenerateAndUplo
 export interface GenerateAndUploadDistributionCertificateInput {
   readonly ascApiKeyId: string;
   readonly certificateType?: "IOS_DISTRIBUTION" | "IOS_DEVELOPMENT";
-  /** Passphrase to unlock the device identity; undefined when using the CI env key. */
-  readonly passphrase?: string;
 }
 
 export const generateAndUploadDistributionCertificate = (
@@ -175,8 +169,7 @@ export const generateAndUploadDistributionCertificate = (
       ),
     );
 
-    const passphrase = input.passphrase ?? (yield* resolveVaultPassphrase);
-    const session = yield* openVaultSession(api, passphrase);
+    const session = yield* openVaultSessionInteractive(api);
     const metadata = {
       serialNumber: bundle.metadata.serialNumber,
       appleTeamIdentifier: bundle.metadata.appleTeamId,

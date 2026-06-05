@@ -7,11 +7,10 @@ import AppleUtils from "@expo/apple-utils";
 import { Data, Effect } from "effect";
 
 import {
-  openVaultSession,
+  openVaultSessionInteractive,
   sealForUpload,
   toUploadEnvelope,
 } from "../application/credential-cipher";
-import { resolveVaultPassphrase } from "../application/vault-access";
 import { extractMetadataFromP12 } from "./apple-cert-to-p12";
 import { CertificateLimitError, computeDeviceRosterHashHex } from "./credentials-generator";
 
@@ -92,8 +91,7 @@ export const generateAndUploadDistributionCertificateViaAppleId = (
       ),
     );
 
-    const passphrase = yield* resolveVaultPassphrase;
-    const session = yield* openVaultSession(api, passphrase);
+    const session = yield* openVaultSessionInteractive(api);
     const envelopeMetadata = {
       serialNumber: metadata.serialNumber,
       appleTeamIdentifier: metadata.appleTeamId,
