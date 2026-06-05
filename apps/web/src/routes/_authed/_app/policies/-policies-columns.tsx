@@ -14,26 +14,21 @@ import type { PolicyItem } from "@better-update/api-client/react";
 import type { ColumnDef } from "@tanstack/react-table";
 
 import { formatRelativeTime } from "../../../../lib/format-relative-time";
+import { isManagedPolicy } from "../../../../lib/policy";
 import { DeletePolicyDialog } from "./-delete-policy-dialog";
 import { PolicyFormDialog } from "./-policy-form-dialog";
-
-export const isManagedPolicy = (policyId: string): boolean => policyId.startsWith("managed:");
+import { PolicyViewDialog } from "./-policy-view-dialog";
 
 const statementSummary = (policy: PolicyItem): string => {
   const count = policy.document.statements.length;
   return `${count} statement${count === 1 ? "" : "s"}`;
 };
 
-const ManagedActions = () => (
-  <Badge variant="outline" className="text-muted-foreground gap-1.5">
-    <LockIcon className="size-3" strokeWidth={2} />
-    Read-only
-  </Badge>
-);
-
 const PolicyRowActions = ({ orgId, policy }: { orgId: string; policy: PolicyItem }) => {
+  const [viewOpen, setViewOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const managed = isManagedPolicy(policy.id);
 
   return (
     <>
@@ -48,29 +43,50 @@ const PolicyRowActions = ({ orgId, policy }: { orgId: string; policy: PolicyItem
         <MenuPopup align="end" className="w-40">
           <MenuItem
             onClick={() => {
-              setEditOpen(true);
+              setViewOpen(true);
             }}
           >
-            Edit
+            View
           </MenuItem>
-          <MenuSeparator />
-          <MenuItem
-            variant="destructive"
-            onClick={() => {
-              setDeleteOpen(true);
-            }}
-          >
-            Delete
-          </MenuItem>
+          {managed ? null : (
+            <>
+              <MenuItem
+                onClick={() => {
+                  setEditOpen(true);
+                }}
+              >
+                Edit
+              </MenuItem>
+              <MenuSeparator />
+              <MenuItem
+                variant="destructive"
+                onClick={() => {
+                  setDeleteOpen(true);
+                }}
+              >
+                Delete
+              </MenuItem>
+            </>
+          )}
         </MenuPopup>
       </Menu>
-      <PolicyFormDialog orgId={orgId} policy={policy} open={editOpen} onOpenChange={setEditOpen} />
-      <DeletePolicyDialog
-        orgId={orgId}
-        policy={policy}
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
-      />
+      <PolicyViewDialog policy={policy} open={viewOpen} onOpenChange={setViewOpen} />
+      {managed ? null : (
+        <>
+          <PolicyFormDialog
+            orgId={orgId}
+            policy={policy}
+            open={editOpen}
+            onOpenChange={setEditOpen}
+          />
+          <DeletePolicyDialog
+            orgId={orgId}
+            policy={policy}
+            open={deleteOpen}
+            onOpenChange={setDeleteOpen}
+          />
+        </>
+      )}
     </>
   );
 };
@@ -122,14 +138,7 @@ export const buildPolicyColumns = (orgId: string): readonly ColumnDef<PolicyItem
   {
     id: "actions",
     header: "",
-    cell: ({ row }) =>
-      isManagedPolicy(row.original.id) ? (
-        <div className="flex justify-end">
-          <ManagedActions />
-        </div>
-      ) : (
-        <PolicyRowActions orgId={orgId} policy={row.original} />
-      ),
+    cell: ({ row }) => <PolicyRowActions orgId={orgId} policy={row.original} />,
     enableSorting: false,
     meta: { align: "right" },
   },
