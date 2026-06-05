@@ -1,6 +1,6 @@
 import { envVarsQueryOptions, globalEnvVarsQueryOptions } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
-import { CardFrame } from "@better-update/ui/components/ui/card";
+import { Card, CardFrame } from "@better-update/ui/components/ui/card";
 import { Checkbox } from "@better-update/ui/components/ui/checkbox";
 import { CheckboxGroup } from "@better-update/ui/components/ui/checkbox-group";
 import {
@@ -86,17 +86,19 @@ const isEnvironment = (value: string): value is typeof EnvVarEnvironment.Type =>
   (ENV_VALUES as readonly string[]).includes(value);
 
 const EmptyState = () => (
-  <Empty>
-    <EmptyHeader>
-      <EmptyMedia variant="icon">
-        <SettingsIcon strokeWidth={1.5} />
-      </EmptyMedia>
-      <EmptyTitle>No environment variables</EmptyTitle>
-      <EmptyDescription>
-        Set variables from the CLI with <code>better-update env set</code>.
-      </EmptyDescription>
-    </EmptyHeader>
-  </Empty>
+  <Card>
+    <Empty>
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <SettingsIcon strokeWidth={1.5} />
+        </EmptyMedia>
+        <EmptyTitle>No environment variables</EmptyTitle>
+        <EmptyDescription>
+          Set variables from the CLI with <code>better-update env set</code>.
+        </EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+  </Card>
 );
 
 const EnvFilterPopover = ({

@@ -1,4 +1,5 @@
 import { Button } from "@better-update/ui/components/ui/button";
+import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
   EmptyContent,
@@ -103,16 +104,18 @@ export const ApiKeysTable = ({
 );
 
 export const ApiKeysEmptyState = ({ children }: { children?: ReactNode }) => (
-  <Empty>
-    <EmptyHeader>
-      <EmptyMedia variant="icon">
-        <KeyIcon strokeWidth={1.5} />
-      </EmptyMedia>
-      <EmptyTitle>Create your first API key</EmptyTitle>
-      <EmptyDescription>
-        API keys let other apps and the CLI talk to your organization securely.
-      </EmptyDescription>
-    </EmptyHeader>
-    {children ? <EmptyContent>{children}</EmptyContent> : null}
-  </Empty>
+  <Card>
+    <Empty>
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <KeyIcon strokeWidth={1.5} />
+        </EmptyMedia>
+        <EmptyTitle>Create your first API key</EmptyTitle>
+        <EmptyDescription>
+          API keys let other apps and the CLI talk to your organization securely.
+        </EmptyDescription>
+      </EmptyHeader>
+      {children ? <EmptyContent>{children}</EmptyContent> : null}
+    </Empty>
+  </Card>
 );

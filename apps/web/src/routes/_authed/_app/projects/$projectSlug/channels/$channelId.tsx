@@ -37,25 +37,27 @@ import { DetailCardSkeleton, SummaryCardsSkeleton } from "../../../../../../comp
 import { DROPDOWN_FETCH_LIMIT } from "../../../../../../queries/constants";
 
 const ChannelNotFoundState = ({ projectSlug }: { projectSlug: string }) => (
-  <Empty>
-    <EmptyHeader>
-      <EmptyMedia variant="icon">
-        <RadioTowerIcon strokeWidth={1.5} />
-      </EmptyMedia>
-      <EmptyTitle>Channel not found in this project</EmptyTitle>
-      <EmptyDescription>
-        The requested channel does not belong to this project or was removed.
-      </EmptyDescription>
-    </EmptyHeader>
-    <EmptyContent>
-      <Button
-        variant="outline"
-        render={<Link to="/projects/$projectSlug" params={{ projectSlug }} />}
-      >
-        Back to project
-      </Button>
-    </EmptyContent>
-  </Empty>
+  <Card>
+    <Empty>
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <RadioTowerIcon strokeWidth={1.5} />
+        </EmptyMedia>
+        <EmptyTitle>Channel not found in this project</EmptyTitle>
+        <EmptyDescription>
+          The requested channel does not belong to this project or was removed.
+        </EmptyDescription>
+      </EmptyHeader>
+      <EmptyContent>
+        <Button
+          variant="outline"
+          render={<Link to="/projects/$projectSlug" params={{ projectSlug }} />}
+        >
+          Back to project
+        </Button>
+      </EmptyContent>
+    </Empty>
+  </Card>
 );
 
 const ChannelSummaryCards = ({

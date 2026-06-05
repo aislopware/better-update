@@ -36,23 +36,25 @@ import { buildBuildsColumns } from "../builds/-builds-columns";
 const RUNTIME_PAGE_LIMIT = 25;
 
 const RuntimeNotFoundState = ({ projectSlug }: { projectSlug: string }) => (
-  <Empty>
-    <EmptyHeader>
-      <EmptyMedia variant="icon">
-        <LayersIcon strokeWidth={1.5} />
-      </EmptyMedia>
-      <EmptyTitle>No data for this runtime version</EmptyTitle>
-      <EmptyDescription>Nothing in this project references this runtime yet.</EmptyDescription>
-    </EmptyHeader>
-    <EmptyContent>
-      <Button
-        variant="outline"
-        render={<Link to="/projects/$projectSlug/runtimes" params={{ projectSlug }} />}
-      >
-        Back to runtimes
-      </Button>
-    </EmptyContent>
-  </Empty>
+  <Card>
+    <Empty>
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <LayersIcon strokeWidth={1.5} />
+        </EmptyMedia>
+        <EmptyTitle>No data for this runtime version</EmptyTitle>
+        <EmptyDescription>Nothing in this project references this runtime yet.</EmptyDescription>
+      </EmptyHeader>
+      <EmptyContent>
+        <Button
+          variant="outline"
+          render={<Link to="/projects/$projectSlug/runtimes" params={{ projectSlug }} />}
+        >
+          Back to runtimes
+        </Button>
+      </EmptyContent>
+    </Empty>
+  </Card>
 );
 
 const RuntimeSummaryCards = ({

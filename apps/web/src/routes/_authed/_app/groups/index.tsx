@@ -1,5 +1,6 @@
 import { groupsQueryOptions } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
+import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
   EmptyDescription,
@@ -64,18 +65,20 @@ const GroupsContent = () => {
 
   if (groups.length === 0) {
     return (
-      <Empty>
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <UsersRoundIcon strokeWidth={1.5} />
-          </EmptyMedia>
-          <EmptyTitle>No groups yet</EmptyTitle>
-          <EmptyDescription>
-            Create a group to bundle members together, then attach policies to the group.
-          </EmptyDescription>
-        </EmptyHeader>
-        <CreateGroupButton orgId={orgId} />
-      </Empty>
+      <Card>
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <UsersRoundIcon strokeWidth={1.5} />
+            </EmptyMedia>
+            <EmptyTitle>No groups yet</EmptyTitle>
+            <EmptyDescription>
+              Create a group to bundle members together, then attach policies to the group.
+            </EmptyDescription>
+          </EmptyHeader>
+          <CreateGroupButton orgId={orgId} />
+        </Empty>
+      </Card>
     );
   }
 

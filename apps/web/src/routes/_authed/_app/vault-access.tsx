@@ -3,7 +3,7 @@ import {
   vaultRecipientsQueryOptions,
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
-import { CardFrame } from "@better-update/ui/components/ui/card";
+import { Card, CardFrame } from "@better-update/ui/components/ui/card";
 import {
   Empty,
   EmptyDescription,
@@ -33,18 +33,20 @@ import { ENCRYPTION_KEY_KIND_META, joinVaultRecipients } from "./-vault-access-u
 import type { VaultRecipientRow } from "./-vault-access-utils";
 
 const VaultAccessEmptyState = () => (
-  <Empty>
-    <EmptyHeader>
-      <EmptyMedia variant="icon">
-        <FingerprintIcon strokeWidth={1.5} />
-      </EmptyMedia>
-      <EmptyTitle>No vault recipients yet</EmptyTitle>
-      <EmptyDescription>
-        The credential vault is created from the CLI on the first upload. Once it exists, the keys
-        that can decrypt it appear here.
-      </EmptyDescription>
-    </EmptyHeader>
-  </Empty>
+  <Card>
+    <Empty>
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <FingerprintIcon strokeWidth={1.5} />
+        </EmptyMedia>
+        <EmptyTitle>No vault recipients yet</EmptyTitle>
+        <EmptyDescription>
+          The credential vault is created from the CLI on the first upload. Once it exists, the keys
+          that can decrypt it appear here.
+        </EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+  </Card>
 );
 
 const RecipientsTable = ({ rows }: { rows: readonly VaultRecipientRow[] }) => (

@@ -1,3 +1,4 @@
+import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
   EmptyDescription,
@@ -131,16 +132,18 @@ const MembersContent = () => {
 
   if (isOrgEmpty) {
     return (
-      <Empty>
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <UsersIcon strokeWidth={1.5} />
-          </EmptyMedia>
-          <EmptyTitle>No members yet</EmptyTitle>
-          <EmptyDescription>Invite your first teammate to get started.</EmptyDescription>
-        </EmptyHeader>
-        {headerActions}
-      </Empty>
+      <Card>
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <UsersIcon strokeWidth={1.5} />
+            </EmptyMedia>
+            <EmptyTitle>No members yet</EmptyTitle>
+            <EmptyDescription>Invite your first teammate to get started.</EmptyDescription>
+          </EmptyHeader>
+          {headerActions}
+        </Empty>
+      </Card>
     );
   }
 
@@ -173,15 +176,17 @@ const MembersContent = () => {
           {headerActions}
         </div>
         {visibleCount === 0 ? (
-          <Empty>
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <SearchXIcon strokeWidth={1.5} />
-              </EmptyMedia>
-              <EmptyTitle>No matches</EmptyTitle>
-              <EmptyDescription>No members match the selected filter.</EmptyDescription>
-            </EmptyHeader>
-          </Empty>
+          <Card>
+            <Empty>
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <SearchXIcon strokeWidth={1.5} />
+                </EmptyMedia>
+                <EmptyTitle>No matches</EmptyTitle>
+                <EmptyDescription>No members match the selected filter.</EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          </Card>
         ) : (
           <MembersTableView
             orgId={orgId}

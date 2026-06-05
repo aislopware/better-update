@@ -3,6 +3,7 @@ import {
   channelsQueryOptions,
   updatesQueryOptions,
 } from "@better-update/api-client/react";
+import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
   EmptyDescription,
@@ -58,15 +59,17 @@ const updatesSearchSchema = z.object({
 });
 
 const UpdatesEmptyState = () => (
-  <Empty>
-    <EmptyHeader>
-      <EmptyMedia variant="icon">
-        <CloudUploadIcon strokeWidth={1.5} />
-      </EmptyMedia>
-      <EmptyTitle>No updates yet</EmptyTitle>
-      <EmptyDescription>Publish your first update using the CLI to see it here.</EmptyDescription>
-    </EmptyHeader>
-  </Empty>
+  <Card>
+    <Empty>
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <CloudUploadIcon strokeWidth={1.5} />
+        </EmptyMedia>
+        <EmptyTitle>No updates yet</EmptyTitle>
+        <EmptyDescription>Publish your first update using the CLI to see it here.</EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+  </Card>
 );
 
 const UpdatesSkeleton = () => (
@@ -245,15 +248,17 @@ const UpdatesContent = () => {
         <div className="flex flex-wrap items-center gap-2">{filterControls}</div>
       </div>
       {data.total === 0 ? (
-        <Empty>
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <SearchXIcon strokeWidth={1.5} />
-            </EmptyMedia>
-            <EmptyTitle>No matches</EmptyTitle>
-            <EmptyDescription>No updates match your filters.</EmptyDescription>
-          </EmptyHeader>
-        </Empty>
+        <Card>
+          <Empty>
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <SearchXIcon strokeWidth={1.5} />
+              </EmptyMedia>
+              <EmptyTitle>No matches</EmptyTitle>
+              <EmptyDescription>No updates match your filters.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        </Card>
       ) : (
         <DataTableView
           table={table}

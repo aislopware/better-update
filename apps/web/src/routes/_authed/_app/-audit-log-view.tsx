@@ -2,6 +2,7 @@ import { auditLogsInfiniteQueryOptions } from "@better-update/api-client/react";
 import { safeJsonParse } from "@better-update/safe-json";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
+import { Card } from "@better-update/ui/components/ui/card";
 import { DateRangePicker } from "@better-update/ui/components/ui/date-range-picker";
 import {
   Dialog,
@@ -105,15 +106,17 @@ const parseMetadata = (metadata: string | null): unknown => {
 };
 
 const EmptyState = ({ scopeLabel }: { scopeLabel: string }) => (
-  <Empty>
-    <EmptyHeader>
-      <EmptyMedia variant="icon">
-        <ScrollTextIcon strokeWidth={1.5} />
-      </EmptyMedia>
-      <EmptyTitle>No activity yet</EmptyTitle>
-      <EmptyDescription>Actions performed in {scopeLabel} will appear here.</EmptyDescription>
-    </EmptyHeader>
-  </Empty>
+  <Card>
+    <Empty>
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <ScrollTextIcon strokeWidth={1.5} />
+        </EmptyMedia>
+        <EmptyTitle>No activity yet</EmptyTitle>
+        <EmptyDescription>Actions performed in {scopeLabel} will appear here.</EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+  </Card>
 );
 
 export interface AuditLogViewProps {

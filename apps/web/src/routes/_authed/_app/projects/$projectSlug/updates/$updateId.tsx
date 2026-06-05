@@ -217,17 +217,21 @@ const PlatformTabContent = ({
   const platformVariants = variants.filter((update) => update.platform === platform);
   if (platformVariants.length === 0) {
     return (
-      <Empty>
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <PackageIcon strokeWidth={1.5} />
-          </EmptyMedia>
-          <EmptyTitle>No {platform === "ios" ? "iOS" : "Android"} variant in this group</EmptyTitle>
-          <EmptyDescription>
-            This update group only published a {platform === "ios" ? "Android" : "iOS"} variant.
-          </EmptyDescription>
-        </EmptyHeader>
-      </Empty>
+      <Card>
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <PackageIcon strokeWidth={1.5} />
+            </EmptyMedia>
+            <EmptyTitle>
+              No {platform === "ios" ? "iOS" : "Android"} variant in this group
+            </EmptyTitle>
+            <EmptyDescription>
+              This update group only published a {platform === "ios" ? "Android" : "iOS"} variant.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      </Card>
     );
   }
   return (

@@ -1,5 +1,6 @@
 import { policiesQueryOptions } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
+import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
   EmptyDescription,
@@ -64,19 +65,21 @@ const PoliciesContent = () => {
 
   if (policies.length === 0) {
     return (
-      <Empty>
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <ShieldIcon strokeWidth={1.5} />
-          </EmptyMedia>
-          <EmptyTitle>No policies yet</EmptyTitle>
-          <EmptyDescription>
-            Create a policy to grant scoped permissions, then attach it to members, groups, or API
-            keys.
-          </EmptyDescription>
-        </EmptyHeader>
-        <CreatePolicyButton orgId={orgId} />
-      </Empty>
+      <Card>
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <ShieldIcon strokeWidth={1.5} />
+            </EmptyMedia>
+            <EmptyTitle>No policies yet</EmptyTitle>
+            <EmptyDescription>
+              Create a policy to grant scoped permissions, then attach it to members, groups, or API
+              keys.
+            </EmptyDescription>
+          </EmptyHeader>
+          <CreatePolicyButton orgId={orgId} />
+        </Empty>
+      </Card>
     );
   }
 

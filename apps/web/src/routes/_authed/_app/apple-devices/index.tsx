@@ -1,4 +1,5 @@
 import { appleTeamsQueryOptions, devicesQueryOptions } from "@better-update/api-client/react";
+import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
   EmptyDescription,
@@ -90,22 +91,24 @@ const CLASS_FILTER_VALUES: readonly ("ALL" | DeviceClassValue)[] = [
 ];
 
 const EmptyState = ({ orgId, inviteCta }: { orgId: string; inviteCta: ReactNode }) => (
-  <Empty>
-    <EmptyHeader>
-      <EmptyMedia variant="icon">
-        <SmartphoneIcon strokeWidth={1.5} />
-      </EmptyMedia>
-      <EmptyTitle>No devices registered</EmptyTitle>
-      <EmptyDescription>
-        Register an Apple device UDID, or send an invite link for self-service enrollment via iOS
-        Safari.
-      </EmptyDescription>
-    </EmptyHeader>
-    <div className="flex items-center gap-2">
-      <RegisterDeviceDialog orgId={orgId} />
-      {inviteCta}
-    </div>
-  </Empty>
+  <Card>
+    <Empty>
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <SmartphoneIcon strokeWidth={1.5} />
+        </EmptyMedia>
+        <EmptyTitle>No devices registered</EmptyTitle>
+        <EmptyDescription>
+          Register an Apple device UDID, or send an invite link for self-service enrollment via iOS
+          Safari.
+        </EmptyDescription>
+      </EmptyHeader>
+      <div className="flex items-center gap-2">
+        <RegisterDeviceDialog orgId={orgId} />
+        {inviteCta}
+      </div>
+    </Empty>
+  </Card>
 );
 
 const DevicesFilterBar = ({
@@ -336,15 +339,17 @@ const DevicesContent = () => {
       />
       <PendingInvitesList orgId={orgId} />
       {data.total === 0 ? (
-        <Empty>
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <SearchXIcon strokeWidth={1.5} />
-            </EmptyMedia>
-            <EmptyTitle>No devices match your filters</EmptyTitle>
-            <EmptyDescription>Adjust your filters or clear the search.</EmptyDescription>
-          </EmptyHeader>
-        </Empty>
+        <Card>
+          <Empty>
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <SearchXIcon strokeWidth={1.5} />
+              </EmptyMedia>
+              <EmptyTitle>No devices match your filters</EmptyTitle>
+              <EmptyDescription>Adjust your filters or clear the search.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        </Card>
       ) : (
         <DataTableView
           table={table}

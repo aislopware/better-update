@@ -35,17 +35,19 @@ type BuildItem = BuildWithArtifact;
 type UpdateItem = Update;
 
 const FingerprintEmpty = () => (
-  <Empty>
-    <EmptyHeader>
-      <EmptyMedia variant="icon">
-        <PackageIcon strokeWidth={1.5} />
-      </EmptyMedia>
-      <EmptyTitle>No builds or updates yet</EmptyTitle>
-      <EmptyDescription>
-        Nothing in this project has been published with this fingerprint yet.
-      </EmptyDescription>
-    </EmptyHeader>
-  </Empty>
+  <Card>
+    <Empty>
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <PackageIcon strokeWidth={1.5} />
+        </EmptyMedia>
+        <EmptyTitle>No builds or updates yet</EmptyTitle>
+        <EmptyDescription>
+          Nothing in this project has been published with this fingerprint yet.
+        </EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+  </Card>
 );
 
 const FingerprintHashCard = ({

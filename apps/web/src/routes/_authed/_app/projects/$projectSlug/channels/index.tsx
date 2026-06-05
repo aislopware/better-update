@@ -6,6 +6,7 @@ import {
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
+import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
   EmptyDescription,
@@ -62,15 +63,19 @@ const channelsSearchSchema = z.object({
 });
 
 const ChannelsEmptyState = () => (
-  <Empty>
-    <EmptyHeader>
-      <EmptyMedia variant="icon">
-        <SatelliteIcon strokeWidth={1.5} />
-      </EmptyMedia>
-      <EmptyTitle>No channels yet</EmptyTitle>
-      <EmptyDescription>Create your first channel to start distributing updates.</EmptyDescription>
-    </EmptyHeader>
-  </Empty>
+  <Card>
+    <Empty>
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <SatelliteIcon strokeWidth={1.5} />
+        </EmptyMedia>
+        <EmptyTitle>No channels yet</EmptyTitle>
+        <EmptyDescription>
+          Create your first channel to start distributing updates.
+        </EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+  </Card>
 );
 
 const PauseToggleButton = ({

@@ -215,25 +215,27 @@ const RelatedChannelsCard = ({
 );
 
 const BuildNotFoundState = ({ projectSlug }: { projectSlug: string }) => (
-  <Empty>
-    <EmptyHeader>
-      <EmptyMedia variant="icon">
-        <PackageXIcon strokeWidth={1.5} />
-      </EmptyMedia>
-      <EmptyTitle>Build not found in this project</EmptyTitle>
-      <EmptyDescription>
-        The requested build exists outside this project or was removed.
-      </EmptyDescription>
-    </EmptyHeader>
-    <EmptyContent>
-      <Button
-        variant="outline"
-        render={<Link to="/projects/$projectSlug" params={{ projectSlug }} />}
-      >
-        Back to project
-      </Button>
-    </EmptyContent>
-  </Empty>
+  <Card>
+    <Empty>
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <PackageXIcon strokeWidth={1.5} />
+        </EmptyMedia>
+        <EmptyTitle>Build not found in this project</EmptyTitle>
+        <EmptyDescription>
+          The requested build exists outside this project or was removed.
+        </EmptyDescription>
+      </EmptyHeader>
+      <EmptyContent>
+        <Button
+          variant="outline"
+          render={<Link to="/projects/$projectSlug" params={{ projectSlug }} />}
+        >
+          Back to project
+        </Button>
+      </EmptyContent>
+    </Empty>
+  </Card>
 );
 
 const BuildDetailContent = () => {
