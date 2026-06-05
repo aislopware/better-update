@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.17.0](https://github.com/better-update/better-update/compare/@better-update/api@0.16.0...@better-update/api@0.17.0) (2026-06-05)
+
+### Features
+
+* **environments:** user-defined environments + built-in dev/preview/production lock ([a647410](https://github.com/better-update/better-update/commit/a647410b7f4865c2a797f0b8c5d04add0b74fa96)) - by @trancong12102
+
 ## [0.16.0](https://github.com/better-update/better-update/compare/@better-update/api@0.15.0...@better-update/api@0.16.0) (2026-06-04)
 
 ### ⚠ BREAKING CHANGES

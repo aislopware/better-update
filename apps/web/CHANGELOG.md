@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.32.0](https://github.com/better-update/better-update/compare/@better-update/web@0.31.0...@better-update/web@0.32.0) (2026-06-05)
+
+### Features
+
+* **environments:** user-defined environments + built-in dev/preview/production lock ([a647410](https://github.com/better-update/better-update/commit/a647410b7f4865c2a797f0b8c5d04add0b74fa96)) - by @trancong12102
+
+### Bug Fixes
+
+* **web:** wrap empty states in card to restore bordered surface ([997cef4](https://github.com/better-update/better-update/commit/997cef416e3e658d655d16648522709a5f5f8a0b)) - by @trancong12102
+
 ## [0.31.0](https://github.com/better-update/better-update/compare/@better-update/web@0.30.0...@better-update/web@0.31.0) (2026-06-05)
 
 ### Features
