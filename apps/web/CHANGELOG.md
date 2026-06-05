@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.30.0](https://github.com/better-update/better-update/compare/@better-update/web@0.29.0...@better-update/web@0.30.0) (2026-06-05)
+
+### Features
+
+* **web:** add read-only policy view dialog, fix policy builder layout ([65dcba6](https://github.com/better-update/better-update/commit/65dcba680c38a3b1e25730f365e48cc64e83e7af)) - by @trancong12102
+
 ## [0.29.0](https://github.com/better-update/better-update/compare/@better-update/web@0.28.0...@better-update/web@0.29.0) (2026-06-04)
 
 ### ⚠ BREAKING CHANGES
