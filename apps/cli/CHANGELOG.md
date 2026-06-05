@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.29.1](https://github.com/better-update/better-update/compare/@better-update/cli@0.29.0...@better-update/cli@0.29.1) (2026-06-05)
+
+### Bug Fixes
+
+* **cli:** reuse cached vault key for write/seal operations after unlock ([119b93b](https://github.com/better-update/better-update/commit/119b93b85c8ea2a59e20d2094e0830ea1cd8b0c0)) - by @trancong12102
+* **credentials:** bind Android keystore to seeded Default group, not a duplicate create ([a9ca514](https://github.com/better-update/better-update/commit/a9ca5149cf49ceb7371a947672df0b111afd51e7)) - by @trancong12102
+
 ## [0.29.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.28.1...@better-update/cli@0.29.0) (2026-06-05)
 
 ### Features
