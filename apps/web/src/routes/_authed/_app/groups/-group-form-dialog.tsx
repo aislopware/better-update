@@ -15,7 +15,7 @@ import {
   DialogPopup,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
+import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
 import { Textarea } from "@better-update/ui/components/ui/textarea";
 import { toastManager } from "@better-update/ui/components/ui/toast";
@@ -81,34 +81,32 @@ const GroupForm = ({
         saveMutation.mutate();
       }}
     >
-      <DialogPanel>
-        <FieldGroup>
-          <Field invalid={submitted && nameError !== null}>
-            <FieldLabel htmlFor="group-name">Name</FieldLabel>
-            <Input
-              id="group-name"
-              placeholder="Release managers"
-              value={name}
-              onChange={(event) => {
-                setName(event.target.value);
-              }}
-            />
-            <FieldError match={submitted && nameError !== null}>{nameError}</FieldError>
-          </Field>
+      <DialogPanel className="grid gap-4">
+        <Field invalid={submitted && nameError !== null}>
+          <FieldLabel htmlFor="group-name">Name</FieldLabel>
+          <Input
+            id="group-name"
+            placeholder="Release managers"
+            value={name}
+            onChange={(event) => {
+              setName(event.target.value);
+            }}
+          />
+          <FieldError match={submitted && nameError !== null}>{nameError}</FieldError>
+        </Field>
 
-          <Field>
-            <FieldLabel htmlFor="group-description">Description (optional)</FieldLabel>
-            <Textarea
-              id="group-description"
-              placeholder="Who belongs to this group and why."
-              rows={2}
-              value={description}
-              onChange={(event) => {
-                setDescription(event.target.value);
-              }}
-            />
-          </Field>
-        </FieldGroup>
+        <Field>
+          <FieldLabel htmlFor="group-description">Description (optional)</FieldLabel>
+          <Textarea
+            id="group-description"
+            placeholder="Who belongs to this group and why."
+            rows={2}
+            value={description}
+            onChange={(event) => {
+              setDescription(event.target.value);
+            }}
+          />
+        </Field>
       </DialogPanel>
 
       <DialogFooter>

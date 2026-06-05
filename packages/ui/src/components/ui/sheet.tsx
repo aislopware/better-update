@@ -224,4 +224,8 @@ export function SheetPanel({
   );
 }
 
-export { SheetPrimitive };
+export {
+  SheetPrimitive,
+  SheetBackdrop as SheetOverlay,
+  SheetPopup as SheetContent,
+};

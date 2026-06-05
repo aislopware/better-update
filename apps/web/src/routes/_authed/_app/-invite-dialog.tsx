@@ -11,7 +11,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
+import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
 import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
@@ -56,43 +56,41 @@ const InviteFormContent = ({ orgId, onSuccess }: { orgId: string; onSuccess: () 
         await form.handleSubmit();
       }}
     >
-      <DialogPanel>
-        <FieldGroup>
-          <form.Field
-            name="email"
-            validators={{
-              onBlur: ({ value }) => {
-                const result = emailSchema.safeParse(value);
-                return result.success ? undefined : result.error.issues[0]?.message;
-              },
-            }}
-          >
-            {(field) => {
-              const errorMessage = getFieldError(field);
-              return (
-                <Field invalid={Boolean(errorMessage)}>
-                  <FieldLabel htmlFor="invite-email">Email address</FieldLabel>
-                  <Input
-                    id="invite-email"
-                    type="email"
-                    placeholder="colleague@example.com"
-                    value={field.state.value}
-                    onChange={(event) => {
-                      field.handleChange(event.target.value);
-                    }}
-                    onBlur={field.handleBlur}
-                  />
-                  <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
-                </Field>
-              );
-            }}
-          </form.Field>
+      <DialogPanel className="grid gap-4">
+        <form.Field
+          name="email"
+          validators={{
+            onBlur: ({ value }) => {
+              const result = emailSchema.safeParse(value);
+              return result.success ? undefined : result.error.issues[0]?.message;
+            },
+          }}
+        >
+          {(field) => {
+            const errorMessage = getFieldError(field);
+            return (
+              <Field invalid={Boolean(errorMessage)}>
+                <FieldLabel htmlFor="invite-email">Email address</FieldLabel>
+                <Input
+                  id="invite-email"
+                  type="email"
+                  placeholder="colleague@example.com"
+                  value={field.state.value}
+                  onChange={(event) => {
+                    field.handleChange(event.target.value);
+                  }}
+                  onBlur={field.handleBlur}
+                />
+                <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
+              </Field>
+            );
+          }}
+        </form.Field>
 
-          <p className="text-muted-foreground text-xs">
-            New members can view the organization; grant additional access via policies after they
-            join.
-          </p>
-        </FieldGroup>
+        <p className="text-muted-foreground text-xs">
+          New members can view the organization; grant additional access via policies after they
+          join.
+        </p>
       </DialogPanel>
 
       <DialogFooter>

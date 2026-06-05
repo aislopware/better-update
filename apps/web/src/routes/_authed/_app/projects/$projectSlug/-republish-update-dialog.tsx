@@ -9,7 +9,7 @@ import {
   DialogPanel,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
-import { Field, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
+import { Field, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Textarea } from "@better-update/ui/components/ui/textarea";
 import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
@@ -77,40 +77,38 @@ const RepublishForm = ({
         await form.handleSubmit();
       }}
     >
-      <DialogPanel>
-        <FieldGroup>
-          <Field>
-            <FieldLabel>Source update</FieldLabel>
-            <div className="flex flex-wrap items-center gap-2 text-sm">
-              <span>{update.message || `Update ${update.groupId.slice(0, 8)}`}</span>
-              <PlatformBadge platform={update.platform} />
-              <span className="text-muted-foreground">v{update.runtimeVersion}</span>
-              <span className="text-muted-foreground">on {branchName}</span>
-            </div>
-          </Field>
+      <DialogPanel className="grid gap-4">
+        <Field>
+          <FieldLabel>Source update</FieldLabel>
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span>{update.message || `Update ${update.groupId.slice(0, 8)}`}</span>
+            <PlatformBadge platform={update.platform} />
+            <span className="text-muted-foreground">v{update.runtimeVersion}</span>
+            <span className="text-muted-foreground">on {branchName}</span>
+          </div>
+        </Field>
 
-          <form.Field name="message">
-            {(field) => (
-              <Field>
-                <FieldLabel htmlFor="republish-message">Message (optional)</FieldLabel>
-                <Textarea
-                  id="republish-message"
-                  value={field.state.value}
-                  onChange={(event) => {
-                    field.handleChange(event.target.value);
-                  }}
-                  rows={3}
-                  placeholder={`Republish of "${update.message}"`}
-                />
-              </Field>
-            )}
-          </form.Field>
+        <form.Field name="message">
+          {(field) => (
+            <Field>
+              <FieldLabel htmlFor="republish-message">Message (optional)</FieldLabel>
+              <Textarea
+                id="republish-message"
+                value={field.state.value}
+                onChange={(event) => {
+                  field.handleChange(event.target.value);
+                }}
+                rows={3}
+                placeholder={`Republish of "${update.message}"`}
+              />
+            </Field>
+          )}
+        </form.Field>
 
-          <p className="text-muted-foreground text-sm">
-            Republishing creates a new update group on the same branch. Devices receive it as a
-            fresh update — useful to reset a stalled rollout or re-issue after a rollback.
-          </p>
-        </FieldGroup>
+        <p className="text-muted-foreground text-sm">
+          Republishing creates a new update group on the same branch. Devices receive it as a fresh
+          update — useful to reset a stalled rollout or re-issue after a rollback.
+        </p>
       </DialogPanel>
       <DialogFooter>
         <form.Subscribe selector={(state) => state.isSubmitting}>

@@ -105,7 +105,7 @@ const parseMetadata = (metadata: string | null): unknown => {
 };
 
 const EmptyState = ({ scopeLabel }: { scopeLabel: string }) => (
-  <Empty appearance="surface">
+  <Empty>
     <EmptyHeader>
       <EmptyMedia variant="icon">
         <ScrollTextIcon strokeWidth={1.5} />

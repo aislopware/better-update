@@ -1,6 +1,6 @@
 import { Button } from "@better-update/ui/components/ui/button";
 import { Card, CardPanel } from "@better-update/ui/components/ui/card";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
+import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Form } from "@better-update/ui/components/ui/form";
 import {
   Frame,
@@ -91,7 +91,7 @@ const Onboarding = () => {
                 await form.handleSubmit();
               }}
             >
-              <FieldGroup>
+              <div className="grid gap-4">
                 <form.Field
                   name="name"
                   validators={{
@@ -156,7 +156,7 @@ const Onboarding = () => {
                     );
                   }}
                 </form.Field>
-              </FieldGroup>
+              </div>
               <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
                 {([canSubmit, isSubmitting]) => (
                   <Button

@@ -254,4 +254,4 @@ export function SelectGroupLabel(
   );
 }
 
-export { SelectPrimitive };
+export { SelectPrimitive, SelectPopup as SelectContent };

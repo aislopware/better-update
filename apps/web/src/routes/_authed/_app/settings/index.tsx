@@ -11,7 +11,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
+import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
 import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
@@ -72,7 +72,7 @@ const OrgGeneralForm = () => {
           </form.Subscribe>
         }
       >
-        <FieldGroup>
+        <div className="grid gap-4">
           <form.Field
             name="name"
             validators={{
@@ -135,7 +135,7 @@ const OrgGeneralForm = () => {
               );
             }}
           </form.Field>
-        </FieldGroup>
+        </div>
       </SettingCard>
     </form>
   );

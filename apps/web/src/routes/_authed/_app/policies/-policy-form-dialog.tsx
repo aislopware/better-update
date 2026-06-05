@@ -15,7 +15,7 @@ import {
   DialogPopup,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
+import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
 import { Textarea } from "@better-update/ui/components/ui/textarea";
 import { toastManager } from "@better-update/ui/components/ui/toast";
@@ -109,42 +109,40 @@ const PolicyForm = ({
         saveMutation.mutate();
       }}
     >
-      <DialogPanel>
-        <FieldGroup>
-          <Field invalid={submitted && nameError !== null}>
-            <FieldLabel htmlFor="policy-name">Name</FieldLabel>
-            <Input
-              id="policy-name"
-              placeholder="Channel deployers"
-              value={name}
-              onChange={(event) => {
-                setName(event.target.value);
-              }}
-            />
-            <FieldError match={submitted && nameError !== null}>{nameError}</FieldError>
-          </Field>
+      <DialogPanel className="grid gap-4">
+        <Field invalid={submitted && nameError !== null}>
+          <FieldLabel htmlFor="policy-name">Name</FieldLabel>
+          <Input
+            id="policy-name"
+            placeholder="Channel deployers"
+            value={name}
+            onChange={(event) => {
+              setName(event.target.value);
+            }}
+          />
+          <FieldError match={submitted && nameError !== null}>{nameError}</FieldError>
+        </Field>
 
-          <Field>
-            <FieldLabel htmlFor="policy-description">Description (optional)</FieldLabel>
-            <Textarea
-              id="policy-description"
-              placeholder="What this policy grants and to whom."
-              rows={2}
-              value={description}
-              onChange={(event) => {
-                setDescription(event.target.value);
-              }}
-            />
-          </Field>
+        <Field>
+          <FieldLabel htmlFor="policy-description">Description (optional)</FieldLabel>
+          <Textarea
+            id="policy-description"
+            placeholder="What this policy grants and to whom."
+            rows={2}
+            value={description}
+            onChange={(event) => {
+              setDescription(event.target.value);
+            }}
+          />
+        </Field>
 
-          <Field invalid={submitted && !statementsValid}>
-            <FieldLabel>Statements</FieldLabel>
-            <PolicyBuilder statements={statements} onChange={setStatements} />
-            <FieldError match={submitted && !statementsValid}>
-              Each statement needs at least one action and one valid resource selector.
-            </FieldError>
-          </Field>
-        </FieldGroup>
+        <Field invalid={submitted && !statementsValid}>
+          <FieldLabel>Statements</FieldLabel>
+          <PolicyBuilder statements={statements} onChange={setStatements} />
+          <FieldError match={submitted && !statementsValid}>
+            Each statement needs at least one action and one valid resource selector.
+          </FieldError>
+        </Field>
       </DialogPanel>
 
       <DialogFooter>

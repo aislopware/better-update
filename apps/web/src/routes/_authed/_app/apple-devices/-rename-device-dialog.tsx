@@ -11,7 +11,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
+import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
 import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
@@ -59,36 +59,34 @@ const RenameForm = ({
         await form.handleSubmit();
       }}
     >
-      <DialogPanel>
-        <FieldGroup>
-          <form.Field
-            name="name"
-            validators={{
-              onBlur: ({ value }) => {
-                const result = nameSchema.safeParse(value.trim());
-                return result.success ? undefined : result.error.issues[0]?.message;
-              },
-            }}
-          >
-            {(field) => {
-              const errorMessage = getFieldError(field);
-              return (
-                <Field invalid={Boolean(errorMessage)}>
-                  <FieldLabel htmlFor="device-rename">Name</FieldLabel>
-                  <Input
-                    id="device-rename"
-                    value={field.state.value}
-                    onChange={(event) => {
-                      field.handleChange(event.target.value);
-                    }}
-                    onBlur={field.handleBlur}
-                  />
-                  <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
-                </Field>
-              );
-            }}
-          </form.Field>
-        </FieldGroup>
+      <DialogPanel className="grid gap-4">
+        <form.Field
+          name="name"
+          validators={{
+            onBlur: ({ value }) => {
+              const result = nameSchema.safeParse(value.trim());
+              return result.success ? undefined : result.error.issues[0]?.message;
+            },
+          }}
+        >
+          {(field) => {
+            const errorMessage = getFieldError(field);
+            return (
+              <Field invalid={Boolean(errorMessage)}>
+                <FieldLabel htmlFor="device-rename">Name</FieldLabel>
+                <Input
+                  id="device-rename"
+                  value={field.state.value}
+                  onChange={(event) => {
+                    field.handleChange(event.target.value);
+                  }}
+                  onBlur={field.handleBlur}
+                />
+                <FieldError match={Boolean(errorMessage)}>{errorMessage}</FieldError>
+              </Field>
+            );
+          }}
+        </form.Field>
       </DialogPanel>
       <DialogFooter>
         <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>

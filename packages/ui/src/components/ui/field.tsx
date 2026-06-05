@@ -77,17 +77,4 @@ export const FieldControl: typeof FieldPrimitive.Control =
 export const FieldValidity: typeof FieldPrimitive.Validity =
   FieldPrimitive.Validity;
 
-export function FieldGroup({
-  className,
-  ...props
-}: React.ComponentProps<"div">): React.ReactElement {
-  return (
-    <div
-      className={cn("flex flex-col gap-4", className)}
-      data-slot="field-group"
-      {...props}
-    />
-  );
-}
-
 export { FieldPrimitive };

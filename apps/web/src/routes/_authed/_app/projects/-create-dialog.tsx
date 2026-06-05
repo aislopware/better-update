@@ -11,7 +11,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@better-update/ui/components/ui/field";
+import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
 import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
@@ -57,80 +57,78 @@ export const CreateProjectFormContent = ({
         await form.handleSubmit();
       }}
     >
-      <DialogPanel>
-        <FieldGroup>
-          <form.Field
-            name="name"
-            validators={{
-              onBlur: ({ value }) => {
-                const result = nameSchema.safeParse(value);
-                return result.success ? undefined : result.error.issues[0]?.message;
-              },
-            }}
-          >
-            {(field) => {
-              const errorMessage = getFieldError(field);
-              const invalid = Boolean(errorMessage);
-              return (
-                <Field invalid={invalid}>
-                  <FieldLabel htmlFor="project-name">Project name</FieldLabel>
-                  <Input
-                    id="project-name"
-                    placeholder="My App"
-                    value={field.state.value}
-                    onChange={(event) => {
-                      const name = event.target.value;
-                      field.handleChange(name);
-                      if (!slugEdited.current) {
-                        form.setFieldValue("slug", generateSlug(name), {
-                          dontUpdateMeta: true,
-                          dontValidate: true,
-                        });
-                      }
-                    }}
-                    onBlur={field.handleBlur}
-                  />
-                  <FieldError match={invalid}>{errorMessage}</FieldError>
-                </Field>
-              );
-            }}
-          </form.Field>
+      <DialogPanel className="grid gap-4">
+        <form.Field
+          name="name"
+          validators={{
+            onBlur: ({ value }) => {
+              const result = nameSchema.safeParse(value);
+              return result.success ? undefined : result.error.issues[0]?.message;
+            },
+          }}
+        >
+          {(field) => {
+            const errorMessage = getFieldError(field);
+            const invalid = Boolean(errorMessage);
+            return (
+              <Field invalid={invalid}>
+                <FieldLabel htmlFor="project-name">Project name</FieldLabel>
+                <Input
+                  id="project-name"
+                  placeholder="My App"
+                  value={field.state.value}
+                  onChange={(event) => {
+                    const name = event.target.value;
+                    field.handleChange(name);
+                    if (!slugEdited.current) {
+                      form.setFieldValue("slug", generateSlug(name), {
+                        dontUpdateMeta: true,
+                        dontValidate: true,
+                      });
+                    }
+                  }}
+                  onBlur={field.handleBlur}
+                />
+                <FieldError match={invalid}>{errorMessage}</FieldError>
+              </Field>
+            );
+          }}
+        </form.Field>
 
-          <form.Field
-            name="slug"
-            validators={{
-              onBlur: ({ value }) => {
-                const result = slugSchema.safeParse(value);
-                return result.success ? undefined : result.error.issues[0]?.message;
-              },
-            }}
-          >
-            {(field) => {
-              const errorMessage = getFieldError(field);
-              const invalid = Boolean(errorMessage);
-              return (
-                <Field invalid={invalid}>
-                  <FieldLabel htmlFor="project-slug">Slug</FieldLabel>
-                  <Input
-                    id="project-slug"
-                    placeholder="my-app"
-                    value={field.state.value}
-                    onChange={(event) => {
-                      field.handleChange(event.target.value);
-                      slugEdited.current = event.target.value !== "";
-                    }}
-                    onBlur={field.handleBlur}
-                  />
-                  <p className="text-muted-foreground text-xs">
-                    Must match <code className="bg-muted/72 rounded px-1 font-mono">expo.slug</code>{" "}
-                    in your <code className="bg-muted/72 rounded px-1 font-mono">app.json</code>.
-                  </p>
-                  <FieldError match={invalid}>{errorMessage}</FieldError>
-                </Field>
-              );
-            }}
-          </form.Field>
-        </FieldGroup>
+        <form.Field
+          name="slug"
+          validators={{
+            onBlur: ({ value }) => {
+              const result = slugSchema.safeParse(value);
+              return result.success ? undefined : result.error.issues[0]?.message;
+            },
+          }}
+        >
+          {(field) => {
+            const errorMessage = getFieldError(field);
+            const invalid = Boolean(errorMessage);
+            return (
+              <Field invalid={invalid}>
+                <FieldLabel htmlFor="project-slug">Slug</FieldLabel>
+                <Input
+                  id="project-slug"
+                  placeholder="my-app"
+                  value={field.state.value}
+                  onChange={(event) => {
+                    field.handleChange(event.target.value);
+                    slugEdited.current = event.target.value !== "";
+                  }}
+                  onBlur={field.handleBlur}
+                />
+                <p className="text-muted-foreground text-xs">
+                  Must match <code className="bg-muted/72 rounded px-1 font-mono">expo.slug</code>{" "}
+                  in your <code className="bg-muted/72 rounded px-1 font-mono">app.json</code>.
+                </p>
+                <FieldError match={invalid}>{errorMessage}</FieldError>
+              </Field>
+            );
+          }}
+        </form.Field>
       </DialogPanel>
 
       <DialogFooter>
