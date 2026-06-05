@@ -167,16 +167,17 @@ const SelectorPresetMenu = ({ onInsert }: { onInsert: (value: string) => void })
         </Button>
       }
     />
-    <MenuPopup align="start" className="w-72">
+    <MenuPopup align="start" className="w-80">
       {SELECTOR_PRESETS.map((preset) => (
         <MenuItem
           key={preset.value}
+          className="flex-col items-start gap-0.5"
           onClick={() => {
             onInsert(preset.value);
           }}
         >
           <span>{preset.label}</span>
-          <span className="text-muted-foreground ml-auto font-mono text-xs">{preset.value}</span>
+          <span className="text-muted-foreground font-mono text-xs break-all">{preset.value}</span>
         </MenuItem>
       ))}
     </MenuPopup>
@@ -363,7 +364,7 @@ export const PolicyBuilder = ({
   };
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex w-full flex-col gap-4">
       {statements.map((statement, statementIndex) => (
         <StatementCard
           key={statement.id}

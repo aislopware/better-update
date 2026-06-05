@@ -19,9 +19,8 @@ import type { AttachPolicyBody } from "@better-update/api";
 import type { PolicyAttachmentItem, PolicyItem } from "@better-update/api-client/react";
 import type { QueryKey } from "@tanstack/react-query";
 
+import { isManagedPolicy } from "../../../lib/policy";
 import { useApiMutation } from "../../../lib/use-api-mutation";
-
-const isManagedPolicyId = (policyId: string): boolean => policyId.startsWith("managed:");
 
 export interface PolicyAttachPanelProps {
   readonly orgId: string;
@@ -70,7 +69,7 @@ const AttachmentList = ({
         >
           <span className="flex items-center gap-2 text-sm font-medium">
             {policyLabel(policies, attachment.policyId)}
-            {isManagedPolicyId(attachment.policyId) ? (
+            {isManagedPolicy(attachment.policyId) ? (
               <Badge variant="secondary" className="gap-1">
                 <LockIcon className="size-3" strokeWidth={2} />
                 Managed
@@ -159,7 +158,7 @@ export const PolicyAttachPanel = ({
                 {availablePolicies.map((policy) => (
                   <SelectItem key={policy.id} value={policy.id}>
                     {policy.name}
-                    {isManagedPolicyId(policy.id) ? " (managed)" : ""}
+                    {isManagedPolicy(policy.id) ? " (managed)" : ""}
                   </SelectItem>
                 ))}
               </SelectGroup>
