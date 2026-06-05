@@ -72,7 +72,7 @@ describe("Channels API flow", () => {
   });
 
   // ── Section 3: Channel CRUD (session auth) ─────────────────────
-  // Projects start with 3 seeded channels (production/staging/preview) wired
+  // Projects start with 3 seeded channels (development/preview/production) wired
   // to same-named branches, so all assertions account for that baseline.
 
   it("creates a channel", async () => {
@@ -558,5 +558,20 @@ describe("Channels API flow", () => {
     });
     expect(response.status).toBe(200);
     expect((await response.json()).deleted).toBe(1);
+  });
+
+  // ── Section 9: Built-in channel lock ────────────────────────────
+
+  it("rejects deleting a built-in channel (409)", async () => {
+    const listRes = await get(`/api/channels?projectId=${projectId}`, { cookie: cookies });
+    const listBody = await listRes.json();
+    const builtin = listBody.items.find(
+      (c: { name: string; isBuiltin: boolean }) => c.name === "production",
+    );
+    expect(builtin).toBeDefined();
+    expect(builtin.isBuiltin).toBe(true);
+
+    const response = await del(`/api/channels/${builtin.id}`, { cookie: cookies });
+    expect(response.status).toBe(409);
   });
 });

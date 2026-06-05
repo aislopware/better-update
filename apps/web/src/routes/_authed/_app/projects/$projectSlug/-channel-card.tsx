@@ -434,6 +434,7 @@ export const ChannelCard = ({
           </div>
           <div className="flex items-center gap-1">
             {channel.isPaused && <Badge variant="warning">Paused</Badge>}
+            {channel.isBuiltin && <Badge variant="secondary">Built-in</Badge>}
             <Tooltip>
               <TooltipTrigger
                 render={
@@ -450,7 +451,9 @@ export const ChannelCard = ({
               </TooltipTrigger>
               <TooltipPopup>{channel.isPaused ? "Resume channel" : "Pause channel"}</TooltipPopup>
             </Tooltip>
-            <DeleteChannelDialog channel={channel} orgId={orgId} projectId={projectId} />
+            {channel.isBuiltin ? null : (
+              <DeleteChannelDialog channel={channel} orgId={orgId} projectId={projectId} />
+            )}
           </div>
         </div>
       </CardHeader>

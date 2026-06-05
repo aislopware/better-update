@@ -1,4 +1,5 @@
 import { branchesQueryOptions } from "@better-update/api-client/react";
+import { Badge } from "@better-update/ui/components/ui/badge";
 import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
@@ -70,12 +71,17 @@ const BranchActions = ({
   branch: BranchItem;
   orgId: string;
   projectId: string;
-}) => (
-  <div className="flex items-center justify-end gap-1">
-    <RenameBranchDialog branch={branch} orgId={orgId} projectId={projectId} />
-    <DeleteBranchDialog branch={branch} orgId={orgId} projectId={projectId} />
-  </div>
-);
+}) =>
+  branch.isBuiltin ? (
+    <div className="flex items-center justify-end">
+      <Badge variant="secondary">Built-in</Badge>
+    </div>
+  ) : (
+    <div className="flex items-center justify-end gap-1">
+      <RenameBranchDialog branch={branch} orgId={orgId} projectId={projectId} />
+      <DeleteBranchDialog branch={branch} orgId={orgId} projectId={projectId} />
+    </div>
+  );
 
 const buildColumns = (orgId: string, projectId: string): readonly ColumnDef<BranchItem>[] => [
   {

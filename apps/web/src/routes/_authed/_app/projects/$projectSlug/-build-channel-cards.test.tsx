@@ -76,6 +76,7 @@ const activeRolloutChannel = {
     '{"data":[{"branchId":"branch-next","branchMappingLogic":"hash_lt(mappingId, 0.50)"},{"branchId":"branch-main","branchMappingLogic":"true"}],"salt":"salt"}',
   cacheVersion: 0,
   isPaused: false,
+  isBuiltin: false,
   createdAt: "2026-01-01T00:00:00Z",
 };
 
@@ -87,6 +88,7 @@ const pausedChannel = {
   branchMappingJson: null,
   cacheVersion: 0,
   isPaused: true,
+  isBuiltin: false,
   createdAt: "2026-01-01T00:00:00Z",
 };
 
@@ -96,6 +98,7 @@ const branches = [
     projectId: "proj-1",
     name: "main",
     createdAt: "2026-01-01T00:00:00Z",
+    isBuiltin: false,
     updateCount: 0,
   },
   {
@@ -103,6 +106,7 @@ const branches = [
     projectId: "proj-1",
     name: "next",
     createdAt: "2026-01-02T00:00:00Z",
+    isBuiltin: false,
     updateCount: 0,
   },
 ];

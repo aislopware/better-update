@@ -94,6 +94,13 @@ export {
 } from "./react/env-vars";
 export type { EnvVarsFilters } from "./react/env-vars";
 export {
+  createEnvironment,
+  deleteEnvironment,
+  environmentsQueryKey,
+  environmentsQueryOptions,
+  renameEnvironment,
+} from "./react/environments";
+export {
   addGroupMember,
   createGroup,
   deleteGroup,
@@ -220,6 +227,7 @@ export type {
   DeviceItem,
   DeviceRegistrationRequestItem,
   EncryptionKeyKindValue,
+  EnvironmentItem,
   GoogleServiceAccountKeyItem,
   GroupItem,
   GroupMemberItem,

@@ -8,12 +8,12 @@ export { PaginationControls } from "./pagination-controls";
 export type { PaginationControlsProps } from "./pagination-controls";
 export {
   enumParam,
+  freeStringArrayParam,
   optionalEnumParam,
   optionalStringParam,
   pageParam,
   queryParam,
   sortParam,
-  stringArrayParam,
 } from "./search-schema";
 export { SortIcon, toAriaSort } from "./sort-icon";
 export { normalizeSortParam, sortingStateToSortParam, sortParamToSortingState } from "./sort-param";

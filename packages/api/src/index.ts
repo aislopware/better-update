@@ -57,6 +57,15 @@ export {
   UpdateChannelBody,
 } from "./domain/channel";
 export {
+  BUILTIN_ENVIRONMENTS,
+  CreateEnvironmentBody,
+  DeleteEnvironmentResult,
+  Environment,
+  EnvironmentListResult,
+  EnvironmentName,
+  RenameEnvironmentBody,
+} from "./domain/environment";
+export {
   AssetRef,
   CreateUpdateBody,
   DeleteUpdateResult,
@@ -297,6 +306,7 @@ export { AssetsGroup } from "./groups/assets";
 export { BranchesGroup } from "./groups/branches";
 export { BuildsGroup } from "./groups/builds";
 export { EnvVarsGroup } from "./groups/env-vars";
+export { EnvironmentsGroup } from "./groups/environments";
 export { ChannelsGroup } from "./groups/channels";
 export { FingerprintDetail, FingerprintsGroup } from "./groups/fingerprints";
 export { DevicesGroup } from "./groups/devices";

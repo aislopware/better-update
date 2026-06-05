@@ -13,6 +13,7 @@ import type {
   DeviceClass,
   DeviceRegistrationRequest,
   EncryptionKeyKind,
+  Environment,
   GoogleServiceAccountKey,
   Group,
   GroupMember,
@@ -41,6 +42,7 @@ export type ProjectItem = Project;
 export type ProjectDetail = ProjectItem;
 export type BranchItem = Branch;
 export type DeviceItem = Device;
+export type EnvironmentItem = Environment;
 export type DeviceClassValue = typeof DeviceClass.Type;
 export type DeviceRegistrationRequestItem = DeviceRegistrationRequest;
 export type AppleTeamItem = AppleTeam;

@@ -87,19 +87,19 @@ describe("Golden path cross-flow", () => {
   let organizationId: string;
   let projectId: string;
   let productionBranchId: string;
-  let stagingBranchId: string;
+  let developmentBranchId: string;
   let rollbackBranchId: string;
 
   let v1AssetHash: string;
   let v2AssetHash: string;
   let v3AssetHash: string;
 
-  let stagingV1UpdateId: string;
+  let developmentV1UpdateId: string;
   let promotedV1UpdateId: string;
   let productionV2UpdateId: string;
 
   const projectSlug = "golden-path";
-  const stagingV1GroupId = "golden-group-staging-v1";
+  const developmentV1GroupId = "golden-group-development-v1";
   const productionV2GroupId = "golden-group-prod-v2";
   const productionV3GroupId = "golden-group-prod-v3";
   const rollbackGroupId = "golden-group-rollback";
@@ -151,11 +151,11 @@ describe("Golden path cross-flow", () => {
     projectId = (await response.json()).id as string;
   });
 
-  // The project is seeded with production/staging/preview branches+channels at
-  // create time, so the golden path picks up the seeded production+staging and
+  // The project is seeded with production/development/preview branches+channels at
+  // create time, so the golden path picks up the seeded production+development and
   // only needs to add the rollback branch+channel.
 
-  it("resolves seeded production + staging branches", async () => {
+  it("resolves seeded production + development branches", async () => {
     const response = await get(`/api/branches?projectId=${projectId}`, { cookie: cookies });
     expect(response.status).toBe(200);
     const body = await response.json();
@@ -163,11 +163,11 @@ describe("Golden path cross-flow", () => {
       body.items.map((b: { id: string; name: string }) => [b.name, b.id]),
     );
     const production = byName.get("production");
-    const staging = byName.get("staging");
+    const development = byName.get("development");
     expect(production).toBeDefined();
-    expect(staging).toBeDefined();
+    expect(development).toBeDefined();
     productionBranchId = production!;
-    stagingBranchId = staging!;
+    developmentBranchId = development!;
   });
 
   it("creates rollback branch", async () => {
@@ -200,16 +200,16 @@ describe("Golden path cross-flow", () => {
     v1AssetHash = hash;
   });
 
-  it("publishes v1 (ios) to staging branch", async () => {
+  it("publishes v1 (ios) to development branch", async () => {
     const response = await post(
       "/api/updates",
       {
         slug: projectSlug,
-        branch: "staging",
+        branch: "development",
         runtimeVersion: "1.0.0",
         platform: "ios",
-        message: "Golden v1 staging",
-        groupId: stagingV1GroupId,
+        message: "Golden v1 development",
+        groupId: developmentV1GroupId,
         metadata: { release: "v1" },
         assets: [{ hash: v1AssetHash, key: "bundles/ios.js", isLaunch: true }],
       },
@@ -217,9 +217,9 @@ describe("Golden path cross-flow", () => {
     );
     expect(response.status).toBe(201);
     const body = await response.json();
-    expect(body.branchId).toBe(stagingBranchId);
+    expect(body.branchId).toBe(developmentBranchId);
     expect(body.rolloutPercentage).toBe(100);
-    stagingV1UpdateId = body.id;
+    developmentV1UpdateId = body.id;
   });
 
   it("publishes v1 (android) into same group", async () => {
@@ -227,11 +227,11 @@ describe("Golden path cross-flow", () => {
       "/api/updates",
       {
         slug: projectSlug,
-        branch: "staging",
+        branch: "development",
         runtimeVersion: "1.0.0",
         platform: "android",
-        message: "Golden v1 staging",
-        groupId: stagingV1GroupId,
+        message: "Golden v1 development",
+        groupId: developmentV1GroupId,
         metadata: { release: "v1" },
         assets: [{ hash: v1AssetHash, key: "bundles/android.js", isLaunch: true }],
       },
@@ -240,8 +240,8 @@ describe("Golden path cross-flow", () => {
     expect(response.status).toBe(201);
   });
 
-  it("staging manifest returns v1 for ios", async () => {
-    const response = await manifestGet(projectId, protocolHeaders("staging", "1.0.0", "ios"));
+  it("development manifest returns v1 for ios", async () => {
+    const response = await manifestGet(projectId, protocolHeaders("development", "1.0.0", "ios"));
     expect(response.status).toBe(200);
     const contentType = response.headers.get("content-type") ?? "";
     const parts = parseMultipart(contentType, await response.text());
@@ -250,17 +250,17 @@ describe("Golden path cross-flow", () => {
     );
     expect(manifestPart).toBeDefined();
     const manifest = JSON.parse(manifestPart!.body);
-    expect(manifest.id).toBe(stagingV1UpdateId);
+    expect(manifest.id).toBe(developmentV1UpdateId);
     expect(manifest.launchAsset.hash).toBe(v1AssetHash);
   });
 
-  // ── Section 4: Promote staging → production ───────────────────
+  // ── Section 4: Promote development → production ───────────────────
 
-  it("promotes v1 from staging group into production branch", async () => {
+  it("promotes v1 from development group into production branch", async () => {
     const response = await post(
       "/api/updates/republish",
       {
-        sourceGroupId: stagingV1GroupId,
+        sourceGroupId: developmentV1GroupId,
         destinationBranchId: productionBranchId,
         message: "Go live v1",
       },
@@ -455,14 +455,14 @@ describe("Golden path cross-flow", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     const groupIds = new Set(body.items.map((update: { groupId: string }) => update.groupId));
-    expect(groupIds.has(stagingV1GroupId)).toBe(true);
+    expect(groupIds.has(developmentV1GroupId)).toBe(true);
     expect(groupIds.has(productionV2GroupId)).toBe(true);
     expect(groupIds.has(productionV3GroupId)).toBe(true);
     expect(groupIds.has(rollbackGroupId)).toBe(true);
   });
 
-  it("deletes the staging v1 group and verifies removal", async () => {
-    const deleteResponse = await del(`/api/updates/${stagingV1GroupId}`, {
+  it("deletes the development v1 group and verifies removal", async () => {
+    const deleteResponse = await del(`/api/updates/${developmentV1GroupId}`, {
       cookie: cookies,
     });
     expect(deleteResponse.status).toBe(200);
@@ -470,14 +470,14 @@ describe("Golden path cross-flow", () => {
     expect(deleteBody.deleted).toBeGreaterThanOrEqual(2);
 
     const listResponse = await get(
-      `/api/updates?projectId=${projectId}&branchId=${stagingBranchId}`,
+      `/api/updates?projectId=${projectId}&branchId=${developmentBranchId}`,
       { cookie: cookies },
     );
     expect(listResponse.status).toBe(200);
     const listBody = await listResponse.json();
-    const stagingV1Remains = listBody.items.some(
-      (update: { groupId: string }) => update.groupId === stagingV1GroupId,
+    const developmentV1Remains = listBody.items.some(
+      (update: { groupId: string }) => update.groupId === developmentV1GroupId,
     );
-    expect(stagingV1Remains).toBe(false);
+    expect(developmentV1Remains).toBe(false);
   });
 });

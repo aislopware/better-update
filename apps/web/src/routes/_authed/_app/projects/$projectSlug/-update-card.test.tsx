@@ -101,6 +101,7 @@ const channels = [
     branchMappingJson: null,
     cacheVersion: 0,
     isPaused: false,
+    isBuiltin: false,
     createdAt: "2026-01-01T00:00:00Z",
   },
   {
@@ -111,6 +112,7 @@ const channels = [
     branchMappingJson: null,
     cacheVersion: 0,
     isPaused: false,
+    isBuiltin: false,
     createdAt: "2026-01-03T00:00:00Z",
   },
 ] satisfies readonly Channel[];

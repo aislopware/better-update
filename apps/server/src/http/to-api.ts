@@ -15,6 +15,7 @@ import {
   CompatibilityChannelInfo,
   Device,
   DeviceRegistrationRequest,
+  Environment,
   EnvVar,
   GoogleServiceAccountKey,
   IosAppMetadata,
@@ -43,6 +44,7 @@ import type {
   ChannelModel,
   DeviceModel,
   DeviceRegistrationRequestModel,
+  EnvironmentModel,
   GoogleServiceAccountKeyModel,
   IosBundleConfigurationModel,
   MissingRuntimeVersionBuildModel,
@@ -70,6 +72,7 @@ export const toApiBranch = (branch: BranchModel) =>
     id: branch.id,
     projectId: branch.projectId,
     name: branch.name,
+    isBuiltin: branch.isBuiltin,
     createdAt: branch.createdAt,
     updateCount: branch.updateCount,
   });
@@ -83,7 +86,18 @@ export const toApiChannel = (channel: ChannelModel) =>
     branchMappingJson: channel.branchMappingJson,
     cacheVersion: channel.cacheVersion,
     isPaused: channel.isPaused,
+    isBuiltin: channel.isBuiltin,
     createdAt: channel.createdAt,
+  });
+
+/** Map a user-defined environment row to the API shape (built-ins are virtual). */
+export const toApiEnvironment = (environment: EnvironmentModel) =>
+  new Environment({
+    id: environment.id,
+    organizationId: environment.organizationId,
+    name: environment.name,
+    isBuiltin: false,
+    createdAt: environment.createdAt,
   });
 
 export const toApiUpdate = (update: UpdateModel) =>

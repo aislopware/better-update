@@ -36,6 +36,7 @@ export {
   DeviceRegistrationRequestRepo,
   DeviceRegistrationRequestRepoLive,
 } from "./device-registration-requests";
+export { EnvironmentRepo, EnvironmentRepoLive } from "./environments";
 export { EnvVarRepo, EnvVarRepoLive } from "./env-vars";
 export {
   GoogleServiceAccountKeyRepo,

@@ -65,11 +65,11 @@ describe("Updates & Assets API flow", () => {
   let projectId: string;
   let autoProjectId: string;
   let mainBranchId: string;
-  let stagingBranchId: string;
+  let developmentBranchId: string;
   let rollbackBranchId: string;
   let productionChannelId: string;
   let updateId: string;
-  let stagingUpdateId: string;
+  let developmentUpdateId: string;
   let rollbackUpdateId: string;
   let signedUpdateId: string;
   let apiKeyValue: string;
@@ -152,17 +152,17 @@ describe("Updates & Assets API flow", () => {
     mainBranchId = body.id;
   });
 
-  // The project is seeded with production/staging/preview branches+channels.
-  // Reuse the seeded "staging" branch + "production" channel; rebind the
+  // The project is seeded with production/development/preview branches+channels.
+  // Reuse the seeded "development" branch + "production" channel; rebind the
   // production channel to the new "main" branch for downstream tests.
 
-  it("resolves seeded staging branch + production channel", async () => {
+  it("resolves seeded development branch + production channel", async () => {
     const branchesRes = await get(`/api/branches?projectId=${projectId}`, { cookie: cookies });
     expect(branchesRes.status).toBe(200);
     const branchesBody = await branchesRes.json();
-    const staging = branchesBody.items.find((b: { name: string }) => b.name === "staging");
-    expect(staging).toBeDefined();
-    stagingBranchId = staging.id;
+    const development = branchesBody.items.find((b: { name: string }) => b.name === "development");
+    expect(development).toBeDefined();
+    developmentBranchId = development.id;
 
     const channelsRes = await get(`/api/channels?projectId=${projectId}`, { cookie: cookies });
     expect(channelsRes.status).toBe(200);
@@ -613,16 +613,16 @@ describe("Updates & Assets API flow", () => {
 
   // ── Section 6: Republish ───────────────────────────────────────
 
-  it("creates an update on staging branch", async () => {
+  it("creates an update on development branch", async () => {
     const response = await post(
       "/api/updates",
       {
         slug: "updates-test",
-        branch: "staging",
+        branch: "development",
         runtimeVersion: "1.0.0",
         platform: "ios",
         message: "Staging build",
-        groupId: "group-staging",
+        groupId: "group-development",
         metadata: {},
         assets: [{ hash: firstAssetHash, key: "bundles/ios.js", isLaunch: true }],
       },
@@ -630,14 +630,14 @@ describe("Updates & Assets API flow", () => {
     );
     expect(response.status).toBe(201);
     const body = await response.json();
-    stagingUpdateId = body.id;
+    developmentUpdateId = body.id;
   });
 
   it("republishes to production channel", async () => {
     const response = await post(
       "/api/updates/republish",
       {
-        sourceUpdateId: stagingUpdateId,
+        sourceUpdateId: developmentUpdateId,
         destinationChannel: "production",
       },
       { cookie: cookies },
@@ -654,7 +654,7 @@ describe("Updates & Assets API flow", () => {
       "/api/updates/republish",
       {
         sourceGroupId: "group-1",
-        destinationBranchId: stagingBranchId,
+        destinationBranchId: developmentBranchId,
         message: "Promoted release train",
       },
       { cookie: cookies },
@@ -668,7 +668,7 @@ describe("Updates & Assets API flow", () => {
     expect(
       body.updates.every(
         (update: { branchId: string; message: string }) =>
-          update.branchId === stagingBranchId && update.message === "Promoted release train",
+          update.branchId === developmentBranchId && update.message === "Promoted release train",
       ),
     ).toBe(true);
   });

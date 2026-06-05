@@ -59,7 +59,7 @@ describe("Fingerprint detail endpoint", () => {
     projectId = (await createProjectResponse.json()).id;
 
     await seedD1(`
--- Project create auto-provisions production/staging/preview channels + branches;
+-- Project create auto-provisions development/preview/production channels + branches;
 -- clear them so the fixed-id branch seeded below is the only one the updates JOIN sees.
 DELETE FROM "channels" WHERE "project_id" = ${sqlString(projectId)};
 DELETE FROM "branches" WHERE "project_id" = ${sqlString(projectId)};

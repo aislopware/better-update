@@ -2,13 +2,17 @@ import { Schema } from "effect";
 
 import { DateTimeString, Id } from "./common";
 import { encryptedEnvelopeFields } from "./encrypted-credential";
+import { EnvironmentName } from "./environment";
 import { VaultVersion } from "./org-vault";
 
 export const EnvVarVisibility = Schema.Literal("plaintext", "sensitive");
 
 export const EnvVarScope = Schema.Literal("project", "global");
 
-export const EnvVarEnvironment = Schema.Literal("development", "preview", "production");
+// An env var's environment is any of the org's environments (built-in or
+// user-defined), so this is a free-form environment name rather than a fixed
+// enum — the server validates it against the org's environments at write time.
+export const EnvVarEnvironment = EnvironmentName;
 
 export const EnvVarListScope = Schema.Literal("all", "project", "global");
 

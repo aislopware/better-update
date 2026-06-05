@@ -20,6 +20,7 @@ export interface ChannelRepository {
     readonly projectId: string;
     readonly name: string;
     readonly branchId: string;
+    readonly isBuiltin?: boolean;
   }) => Effect.Effect<ChannelModel, Conflict>;
 
   readonly findByProject: (params: {
@@ -96,8 +97,11 @@ interface ChannelRow {
   branch_mapping_json: string | null;
   cache_version: number;
   is_paused: number;
+  is_builtin: number;
   created_at: string;
 }
+
+const CHANNEL_COLUMNS = `"id", "project_id", "name", "branch_id", "branch_mapping_json", "cache_version", "is_paused", "is_builtin", "created_at"`;
 
 const toChannel = (row: ChannelRow) =>
   ({
@@ -108,6 +112,7 @@ const toChannel = (row: ChannelRow) =>
     branchMappingJson: row.branch_mapping_json,
     cacheVersion: row.cache_version,
     isPaused: row.is_paused === 1,
+    isBuiltin: row.is_builtin === 1,
     createdAt: row.created_at,
   }) satisfies ChannelModel;
 
@@ -121,9 +126,19 @@ export const ChannelRepoLive = Layer.succeed(ChannelRepo, {
       yield* d1RunWithUniqueCheck(
         async () =>
           env.DB.prepare(
-            `INSERT INTO "channels" ("id", "project_id", "name", "branch_id", "branch_mapping_json", "cache_version", "is_paused", "created_at") VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO "channels" ("id", "project_id", "name", "branch_id", "branch_mapping_json", "cache_version", "is_paused", "is_builtin", "created_at") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           )
-            .bind(id, params.projectId, params.name, params.branchId, null, 0, 0, now)
+            .bind(
+              id,
+              params.projectId,
+              params.name,
+              params.branchId,
+              null,
+              0,
+              0,
+              params.isBuiltin ? 1 : 0,
+              now,
+            )
             .run(),
         `A channel named "${params.name}" already exists in this project`,
       );
@@ -136,6 +151,7 @@ export const ChannelRepoLive = Layer.succeed(ChannelRepo, {
         branchMappingJson: null,
         cacheVersion: 0,
         isPaused: false,
+        isBuiltin: params.isBuiltin ?? false,
         createdAt: now,
       } satisfies ChannelModel;
     }),
@@ -161,7 +177,7 @@ export const ChannelRepoLive = Layer.succeed(ChannelRepo, {
 
       const rows = yield* Effect.promise(async () =>
         env.DB.prepare(
-          `SELECT "id", "project_id", "name", "branch_id", "branch_mapping_json", "cache_version", "is_paused", "created_at" FROM "channels" WHERE "project_id" = ? ORDER BY ${orderBy} LIMIT ? OFFSET ?`,
+          `SELECT ${CHANNEL_COLUMNS} FROM "channels" WHERE "project_id" = ? ORDER BY ${orderBy} LIMIT ? OFFSET ?`,
         )
           .bind(params.projectId, params.limit, params.offset)
           .all<ChannelRow>(),
@@ -175,9 +191,7 @@ export const ChannelRepoLive = Layer.succeed(ChannelRepo, {
       const env = yield* cloudflareEnv;
 
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT "id", "project_id", "name", "branch_id", "branch_mapping_json", "cache_version", "is_paused", "created_at" FROM "channels" WHERE "id" = ?`,
-        )
+        env.DB.prepare(`SELECT ${CHANNEL_COLUMNS} FROM "channels" WHERE "id" = ?`)
           .bind(params.id)
           .first<ChannelRow>(),
       );
@@ -195,7 +209,7 @@ export const ChannelRepoLive = Layer.succeed(ChannelRepo, {
 
       const row = yield* Effect.promise(async () =>
         env.DB.prepare(
-          `SELECT "id", "project_id", "name", "branch_id", "branch_mapping_json", "cache_version", "is_paused", "created_at" FROM "channels" WHERE "project_id" = ? AND "name" = ?`,
+          `SELECT ${CHANNEL_COLUMNS} FROM "channels" WHERE "project_id" = ? AND "name" = ?`,
         )
           .bind(params.projectId, params.name)
           .first<ChannelRow>(),
@@ -214,7 +228,7 @@ export const ChannelRepoLive = Layer.succeed(ChannelRepo, {
 
       const row = yield* Effect.promise(async () =>
         env.DB.prepare(
-          `SELECT "id", "project_id", "name", "branch_id", "branch_mapping_json", "cache_version", "is_paused", "created_at" FROM "channels" WHERE "branch_id" = ? ORDER BY "created_at" ASC, "id" ASC LIMIT 1`,
+          `SELECT ${CHANNEL_COLUMNS} FROM "channels" WHERE "branch_id" = ? ORDER BY "created_at" ASC, "id" ASC LIMIT 1`,
         )
           .bind(params.branchId)
           .first<ChannelRow>(),

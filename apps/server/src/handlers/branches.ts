@@ -5,6 +5,7 @@ import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
 import { assertProjectOwnership } from "../auth/ownership";
 import { assertAccess } from "../auth/policy";
+import { Conflict } from "../errors";
 import { toApiBranch } from "../http/to-api";
 import { toApiCrudEffect } from "../http/to-api-effect";
 import { parsePagination } from "../lib/pagination";
@@ -49,6 +50,7 @@ export const BranchesGroupLive = HttpApiBuilder.group(ManagementApi, "branches",
             id,
             projectId: payload.projectId,
             name: payload.name,
+            isBuiltin: false,
             createdAt: now,
             updateCount: 0,
           };
@@ -118,6 +120,11 @@ export const BranchesGroupLive = HttpApiBuilder.group(ManagementApi, "branches",
             projectId: branch.projectId,
             environment: branch.name,
           });
+          if (branch.isBuiltin) {
+            return yield* new Conflict({
+              message: `Built-in branch "${branch.name}" cannot be renamed`,
+            });
+          }
           yield* repo.updateName({ id: path.id, name: payload.name });
 
           yield* logAudit({
@@ -143,6 +150,11 @@ export const BranchesGroupLive = HttpApiBuilder.group(ManagementApi, "branches",
             projectId: branch.projectId,
             environment: branch.name,
           });
+          if (branch.isBuiltin) {
+            return yield* new Conflict({
+              message: `Built-in branch "${branch.name}" cannot be deleted`,
+            });
+          }
           yield* branchRepo.delete({ id: path.id });
 
           yield* logAudit({

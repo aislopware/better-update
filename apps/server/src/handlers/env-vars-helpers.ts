@@ -1,3 +1,4 @@
+import { BUILTIN_ENVIRONMENTS } from "@better-update/api";
 import { Effect } from "effect";
 
 import { assertVaultVersionCurrent } from "../application/assert-vault-version";
@@ -8,6 +9,7 @@ import { isAllowed, resolvePath } from "../auth/policy-match";
 import { BadRequest, Forbidden } from "../errors";
 import { toDbNull } from "../lib/nullable";
 import { EnvVarRepo } from "../repositories/env-vars";
+import { EnvironmentRepo } from "../repositories/environments";
 
 import type { EnvVarModel } from "../env-var-models";
 import type { Action, EnvVarEnvironment, EnvVarVisibility } from "../models";
@@ -23,8 +25,33 @@ export const KEY_PATTERN = /^[A-Z][A-Z0-9_]*$/u;
 export const MAX_VARS_PER_PROJECT = 5000;
 export const MAX_VARS_PER_ORG_GLOBAL = 5000;
 
-export const isValidEnvironment = (value: string): value is EnvVarEnvironment =>
-  value === "development" || value === "preview" || value === "production";
+/** The built-in environments, always valid for every org regardless of rows. */
+const BUILTIN_ENVIRONMENT_NAMES: ReadonlySet<string> = new Set(BUILTIN_ENVIRONMENTS);
+
+const ENVIRONMENT_NAME_PATTERN = /^[a-z][a-z0-9-]*$/u;
+
+/** A well-formed environment name (does NOT assert the org actually defines it). */
+export const isValidEnvironment = (value: string): boolean =>
+  ENVIRONMENT_NAME_PATTERN.test(value) && value.length <= 64;
+
+/** The org's valid environment names: the built-ins plus user-defined rows. */
+export const resolveOrgEnvironmentNames = (organizationId: string) =>
+  Effect.gen(function* () {
+    const repo = yield* EnvironmentRepo;
+    const custom = yield* repo.listByOrg({ organizationId });
+    return new Set<string>([...BUILTIN_ENVIRONMENT_NAMES, ...custom.map((env) => env.name)]);
+  });
+
+/** Reject an env-var write whose environment is not one the org defines. */
+export const assertEnvironmentExists = (organizationId: string, environment: string) =>
+  Effect.gen(function* () {
+    const names = yield* resolveOrgEnvironmentNames(organizationId);
+    if (!names.has(environment)) {
+      return yield* new BadRequest({
+        message: `Unknown environment "${environment}". Create it first, or use a built-in (development, preview, production).`,
+      });
+    }
+  });
 
 /**
  * Per (project × environment) scoped permission gate for env vars. Resolves the
@@ -100,7 +127,7 @@ export const validateEnvironments = (
         Effect.gen(function* () {
           if (!isValidEnvironment(env)) {
             return yield* new BadRequest({
-              message: `Invalid environment "${env}". Must be one of: development, preview, production`,
+              message: `Invalid environment "${env}": must be lowercase letters, digits, and hyphens, starting with a letter`,
             });
           }
           if (seen.has(env)) {
@@ -175,6 +202,7 @@ export const handleExport = (urlParams: {
     }
 
     yield* assertProjectOwnership(urlParams.projectId);
+    yield* assertEnvironmentExists(ctx.organizationId, urlParams.environment);
     yield* assertEnvVarScopedPermission("read", urlParams.projectId, urlParams.environment);
 
     const repo = yield* EnvVarRepo;
@@ -305,6 +333,11 @@ export const handleBulkImport = (payload: BulkImportPayload) =>
 
     const projectId = payload.scope === "project" ? toDbNull(payload.projectId) : null;
     const distinctEnvironments = [...new Set(payload.entries.map((entry) => entry.environment))];
+    yield* Effect.forEach(
+      distinctEnvironments,
+      (environment) => assertEnvironmentExists(ctx.organizationId, environment),
+      { discard: true },
+    );
     yield* Effect.forEach(
       distinctEnvironments,
       (environment) => assertEnvVarScopedPermission("create", projectId, environment),

@@ -10,6 +10,7 @@ export class Channel extends Schema.Class<Channel>("Channel")({
   branchMappingJson: Schema.NullOr(Schema.String),
   cacheVersion: Schema.Number,
   isPaused: Schema.Boolean,
+  isBuiltin: Schema.Boolean,
   createdAt: DateTimeString,
 }) {}
 

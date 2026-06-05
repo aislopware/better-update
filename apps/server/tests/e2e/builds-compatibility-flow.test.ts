@@ -66,7 +66,7 @@ describe("Build compatibility matrix endpoint", () => {
     });
 
     await runSeedSql(`
--- Project create auto-provisions production/staging/preview channels + branches;
+-- Project create auto-provisions development/preview/production channels + branches;
 -- clear them so the fixed-id topology seeded below is the only one present.
 DELETE FROM "channels" WHERE "project_id" = ${sqlString(projectId)};
 DELETE FROM "branches" WHERE "project_id" = ${sqlString(projectId)};
