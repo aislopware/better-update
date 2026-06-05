@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.31.0](https://github.com/better-update/better-update/compare/@better-update/web@0.30.0...@better-update/web@0.31.0) (2026-06-05)
+
+### Features
+
+* **ui:** sync components with coss upstream ([1b05769](https://github.com/better-update/better-update/commit/1b057697b2161b835bda59f70a922a7711a4df6e)) - by @trancong12102
+
 ## [0.30.0](https://github.com/better-update/better-update/compare/@better-update/web@0.29.0...@better-update/web@0.30.0) (2026-06-05)
 
 ### Features

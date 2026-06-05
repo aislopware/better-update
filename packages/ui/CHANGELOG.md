@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.5.0](https://github.com/better-update/better-update/compare/@better-update/ui@0.4.7...@better-update/ui@0.5.0) (2026-06-05)
+
+### Features
+
+* **ui:** sync components with coss upstream ([1b05769](https://github.com/better-update/better-update/commit/1b057697b2161b835bda59f70a922a7711a4df6e)) - by @trancong12102
+
 ## [0.4.7](https://github.com/better-update/better-update/compare/@better-update/ui@0.4.6...@better-update/ui@0.4.7) (2026-06-03)
 
 **Note:** Version bump only for package @better-update/ui
