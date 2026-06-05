@@ -2,7 +2,9 @@ import { Context, Effect, Layer } from "effect";
 
 import { cloudflareEnv } from "../cloudflare/context";
 import { NotFound } from "../errors";
+import { d1RunWithUniqueCheck } from "./d1-helpers";
 
+import type { Conflict } from "../errors";
 import type { AndroidBuildCredentialsModel } from "../models";
 
 export interface AndroidBuildCredentialsRepository {
@@ -18,7 +20,7 @@ export interface AndroidBuildCredentialsRepository {
     readonly createdAt: string;
     readonly updatedAt: string;
     readonly clearOtherDefaults?: boolean | undefined;
-  }) => Effect.Effect<void>;
+  }) => Effect.Effect<void, Conflict>;
 
   readonly listByAppIdentifier: (params: {
     readonly androidApplicationIdentifierId: string;
@@ -102,14 +104,18 @@ export const AndroidBuildCredentialsRepoLive = Layer.succeed(AndroidBuildCredent
         params.createdAt,
         params.updatedAt,
       );
-      if (params.clearOtherDefaults === true) {
-        const clearStmt = env.DB.prepare(
-          `UPDATE "android_build_credentials" SET "is_default" = 0 WHERE "android_application_identifier_id" = ? AND "id" <> ?`,
-        ).bind(params.androidApplicationIdentifierId, params.id);
-        yield* Effect.promise(async () => env.DB.batch([clearStmt, insertStmt]));
-      } else {
-        yield* Effect.promise(async () => insertStmt.run());
-      }
+      // A duplicate (app identifier, name) — or a second default — is a clean
+      // Conflict, not a defect. Map the D1 UNIQUE rejection to a typed 409 so
+      // callers get a real error instead of an opaque 500.
+      yield* d1RunWithUniqueCheck(async () => {
+        if (params.clearOtherDefaults === true) {
+          const clearStmt = env.DB.prepare(
+            `UPDATE "android_build_credentials" SET "is_default" = 0 WHERE "android_application_identifier_id" = ? AND "id" <> ?`,
+          ).bind(params.androidApplicationIdentifierId, params.id);
+          return env.DB.batch([clearStmt, insertStmt]);
+        }
+        return insertStmt.run();
+      }, "A build credentials group with this name already exists for this app identifier");
     }),
 
   listByAppIdentifier: (params) =>

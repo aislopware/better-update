@@ -116,6 +116,29 @@ const resolveAndroidAppId = (api: ApiClient, input: AndroidSetupInput) =>
 export const resolveAndroidKeystoreId = (api: ApiClient, choice: "generate" | "existing") =>
   choice === "generate" ? generateKeystoreInteractive(api) : pickExistingKeystore(api);
 
+// Creating an app identifier auto-seeds a "Default" credentials group with a
+// null keystore, and (app identifier, name) is UNIQUE. So bind by UPDATEing the
+// existing default group; only CREATE when none exists. A blind create here
+// always collided with the seeded "Default" row → 500.
+const bindAndroidKeystore = (api: ApiClient, appId: string, keystoreId: string) =>
+  Effect.gen(function* () {
+    const existing = yield* api.androidBuildCredentials.list({
+      path: { applicationIdentifierId: appId },
+    });
+    const target = existing.items.find((group) => group.isDefault) ?? existing.items.at(0);
+    if (target === undefined) {
+      yield* api.androidBuildCredentials.create({
+        path: { applicationIdentifierId: appId },
+        payload: { name: "Default", isDefault: true, androidUploadKeystoreId: keystoreId },
+      });
+      return;
+    }
+    yield* api.androidBuildCredentials.update({
+      path: { id: target.id },
+      payload: { androidUploadKeystoreId: keystoreId },
+    });
+  });
+
 const setupAndroidInteractive = (api: ApiClient, input: AndroidSetupInput) =>
   Effect.gen(function* () {
     yield* Console.log("");
@@ -145,10 +168,7 @@ const setupAndroidInteractive = (api: ApiClient, input: AndroidSetupInput) =>
       ? generateKeystoreAuto(api, input.applicationIdentifier)
       : pickExistingKeystore(api);
 
-    yield* api.androidBuildCredentials.create({
-      path: { applicationIdentifierId: appId },
-      payload: { name: "Default", isDefault: true, androidUploadKeystoreId: keystoreId },
-    });
+    yield* bindAndroidKeystore(api, appId, keystoreId);
     yield* Console.log("Android build credentials configured.");
     return undefined;
   });

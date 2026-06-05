@@ -75,6 +75,18 @@ describe("Credentials Android flow", () => {
     expect(items[0]?.name).toBe("Default");
   });
 
+  it("returns 409 (not 500) when creating a duplicate 'Default' group", async () => {
+    // The seeded "Default" group makes (app identifier, name) collide. The repo
+    // must surface this as a typed Conflict, not let the D1 UNIQUE rejection
+    // become an opaque 500. The CLI used to blindly POST a second "Default".
+    const res = await post(
+      `/api/android-application-identifiers/${appIdentifierId}/build-credentials`,
+      { name: "Default" },
+      { cookie: cookies },
+    );
+    expect(res.status).toBe(409);
+  });
+
   it("rejects invalid package names", async () => {
     const res = await post(
       `/api/projects/${projectId}/android-application-identifiers`,
