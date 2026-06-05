@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.24.1](https://github.com/better-update/better-update/compare/@better-update/server@0.24.0...@better-update/server@0.24.1) (2026-06-05)
+
+### Bug Fixes
+
+* **credentials:** bind Android keystore to seeded Default group, not a duplicate create ([a9ca514](https://github.com/better-update/better-update/commit/a9ca5149cf49ceb7371a947672df0b111afd51e7)) - by @trancong12102
+
 ## [0.24.0](https://github.com/better-update/better-update/compare/@better-update/server@0.23.1...@better-update/server@0.24.0) (2026-06-05)
 
 ### Features
