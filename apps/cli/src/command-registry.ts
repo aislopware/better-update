@@ -10,6 +10,7 @@ import { credentialsCommand } from "./commands/credentials";
 import { devicesCommand } from "./commands/devices";
 import { doctorCommand } from "./commands/doctor";
 import { envCommand } from "./commands/env";
+import { environmentsCommand } from "./commands/environments";
 import { fingerprintCommand } from "./commands/fingerprint";
 import { groupsCommand } from "./commands/groups";
 import { initCommand } from "./commands/init";
@@ -53,6 +54,7 @@ export const commandRegistry = {
   groups: groupsCommand,
   branches: branchesCommand,
   channels: channelsCommand,
+  environments: environmentsCommand,
   build: buildCommand,
   builds: buildsCommand,
   credentials: credentialsCommand,

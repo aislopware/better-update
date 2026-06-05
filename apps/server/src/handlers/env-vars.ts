@@ -15,6 +15,7 @@ import { parsePagination } from "../lib/pagination";
 import { EnvVarRepo } from "../repositories/env-vars";
 import {
   applyOverrideResolution,
+  assertEnvironmentExists,
   assertEnvVarCountWithinCap,
   assertEnvVarScopedPermission,
   assertScopeOwnership,
@@ -56,6 +57,7 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
             payload.environment,
           );
           yield* validateKey(payload.key);
+          yield* assertEnvironmentExists(ctx.organizationId, payload.environment);
           yield* assertVaultVersionCurrent({
             organizationId: ctx.organizationId,
             vaultVersion: payload.value.vaultVersion,

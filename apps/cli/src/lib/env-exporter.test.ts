@@ -193,11 +193,14 @@ describe(pullEnvVars, () => {
     }),
   );
 
-  it.effect("rejects an invalid environment", () =>
+  it.effect("rejects a malformed environment name", () =>
     Effect.gen(function* () {
       const vault = yield* makeTestVault;
       const api = buildApi(vault, () => Effect.succeed({ environment: "production", items: [] }));
-      const exit = yield* pullEnvVars(api, { projectId: "p_1", environment: "bogus" }).pipe(
+      // The CLI only format-checks; the server is the source of truth for which
+      // environments exist. A name that breaks the format (uppercase + space) is
+      // still rejected locally.
+      const exit = yield* pullEnvVars(api, { projectId: "p_1", environment: "Bad Env" }).pipe(
         Effect.provide(vaultLayer(vault.identity.privateKey)),
         Effect.exit,
       );

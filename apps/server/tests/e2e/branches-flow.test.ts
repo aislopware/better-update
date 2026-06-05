@@ -62,7 +62,7 @@ describe("Branches API flow", () => {
   });
 
   // ── Section 3: Branch CRUD (session auth) ──────────────────────
-  // Projects start with 3 seeded branches (production/staging/preview),
+  // Projects start with 3 seeded branches (development/preview/production),
   // so all assertions account for that baseline.
 
   it("creates a branch", async () => {
@@ -320,10 +320,11 @@ describe("Branches API flow", () => {
   });
 
   it("rejects deleting a branch that is a rollout target (409)", async () => {
-    // Use the seeded "staging" branch as the rollout target
+    // Use the user-created "hotfix" branch as the rollout target — a non-built-in
+    // branch, so the 409 proves the rollout-target guard (not the built-in guard).
     const listRes = await get(`/api/branches?projectId=${projectId}`, { cookie: cookies });
     const listBody = await listRes.json();
-    const targetBranch = listBody.items.find((b: { name: string }) => b.name === "staging");
+    const targetBranch = listBody.items.find((b: { name: string }) => b.name === "hotfix");
     expect(targetBranch).toBeDefined();
 
     const rolloutRes = await post(
@@ -372,5 +373,34 @@ describe("Branches API flow", () => {
   it("rejects deleting non-existent branch (404)", async () => {
     const response = await del(`/api/branches/${branchId}`, { cookie: cookies });
     expect(response.status).toBe(404);
+  });
+
+  // ── Section 8: Built-in branch lock ─────────────────────────────
+
+  const findBuiltinBranchId = async (): Promise<string> => {
+    const listRes = await get(`/api/branches?projectId=${projectId}`, { cookie: cookies });
+    const listBody = await listRes.json();
+    const builtin = listBody.items.find(
+      (b: { name: string; isBuiltin: boolean }) => b.name === "production",
+    );
+    expect(builtin).toBeDefined();
+    expect(builtin.isBuiltin).toBe(true);
+    return builtin.id;
+  };
+
+  it("rejects renaming a built-in branch (409)", async () => {
+    const builtinId = await findBuiltinBranchId();
+    const response = await patch(
+      `/api/branches/${builtinId}`,
+      { name: "prod-renamed" },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(409);
+  });
+
+  it("rejects deleting a built-in branch (409)", async () => {
+    const builtinId = await findBuiltinBranchId();
+    const response = await del(`/api/branches/${builtinId}`, { cookie: cookies });
+    expect(response.status).toBe(409);
   });
 });

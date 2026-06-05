@@ -22,6 +22,7 @@ export { BuildsGroupLive } from "./builds";
 export { ChannelsGroupLive } from "./channels";
 export { matchDeviceRegistrationRoute } from "./device-registration-routes";
 export { DevicesGroupLive } from "./devices";
+export { EnvironmentsGroupLive } from "./environments";
 export { EnvVarsGroupLive } from "./env-vars";
 export { FingerprintsGroupLive } from "./fingerprints";
 export { GoogleServiceAccountKeysGroupLive } from "./google-service-account-keys";

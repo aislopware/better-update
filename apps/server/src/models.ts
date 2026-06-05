@@ -23,7 +23,10 @@ export type EnvVarVisibility = "plaintext" | "sensitive";
 
 export type EnvVarScope = "project" | "global";
 
-export type EnvVarEnvironment = "development" | "preview" | "production";
+// An env var's environment is any of the org's environments (built-in or
+// user-defined), validated against the environments set at write time — no
+// longer a fixed enum.
+export type EnvVarEnvironment = string;
 
 // Derived from the contract's `AuditLogResourceType` literal so the server
 // type stays a single source with the API schema (add new resource types in
@@ -87,6 +90,7 @@ export interface BranchModel {
   readonly id: string;
   readonly projectId: string;
   readonly name: string;
+  readonly isBuiltin: boolean;
   readonly createdAt: string;
   readonly updateCount: number;
 }
@@ -99,6 +103,15 @@ export interface ChannelModel {
   readonly branchMappingJson: string | null;
   readonly cacheVersion: number;
   readonly isPaused: boolean;
+  readonly isBuiltin: boolean;
+  readonly createdAt: string;
+}
+
+/** A user-defined organization environment row (built-ins are virtual). */
+export interface EnvironmentModel {
+  readonly id: string;
+  readonly organizationId: string;
+  readonly name: string;
   readonly createdAt: string;
 }
 

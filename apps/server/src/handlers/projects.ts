@@ -16,7 +16,10 @@ import { ProjectRepo } from "../repositories/projects";
 
 import type { ProjectSortKey, ProjectSortOrder } from "../repositories/projects";
 
-const DEFAULT_ENVIRONMENT_NAMES = ["production", "staging", "preview"] as const;
+// The three built-in environments. Each new project is seeded one branch + one
+// channel per name, flagged built-in so they cannot be renamed or deleted (their
+// operational actions stay available). Mirrors the built-in environment entity.
+const DEFAULT_ENVIRONMENT_NAMES = ["development", "preview", "production"] as const;
 
 const parseProjectSort = (
   value: string | undefined = "-lastActivityAt",
@@ -76,6 +79,7 @@ export const ProjectsGroupLive = HttpApiBuilder.group(ManagementApi, "projects",
                   id: branchId,
                   projectId: id,
                   name: envName,
+                  isBuiltin: true,
                   createdAt: now,
                 });
                 yield* logAudit({
@@ -90,6 +94,7 @@ export const ProjectsGroupLive = HttpApiBuilder.group(ManagementApi, "projects",
                   projectId: id,
                   name: envName,
                   branchId,
+                  isBuiltin: true,
                 });
                 yield* logAudit({
                   action: "channel.create",

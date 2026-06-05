@@ -618,4 +618,46 @@ describe("Environment variables API flow (E2E encrypted)", () => {
     );
     expect(overflowImport.status).toBe(400);
   });
+
+  // ── User-defined environments ───────────────────────────────────
+
+  it("rejects an env var for an unknown environment (400)", async () => {
+    const response = await post(
+      "/api/env-vars",
+      {
+        scope: "global",
+        environment: "ghost",
+        key: "GHOST_VAR",
+        visibility: "plaintext",
+        value: credentialEnvelope(),
+      },
+      { cookie: state.cookies },
+    );
+    expect(response.status).toBe(400);
+  });
+
+  it("accepts an env var bound to a user-defined environment", async () => {
+    const created = await post("/api/environments", { name: "qa" }, { cookie: state.cookies });
+    expect(created.status).toBe(201);
+
+    const response = await post(
+      "/api/env-vars",
+      {
+        scope: "project",
+        projectId: state.projectId,
+        environment: "qa",
+        key: "QA_ONLY",
+        visibility: "plaintext",
+        value: credentialEnvelope(),
+      },
+      { cookie: state.cookies },
+    );
+    expect(response.status).toBe(201);
+    expect((await response.json()).environment).toBe("qa");
+  });
+
+  it("rejects deleting an environment that still has bound variables (409)", async () => {
+    const response = await del("/api/environments/qa", { cookie: state.cookies });
+    expect(response.status).toBe(409);
+  });
 });

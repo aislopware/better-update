@@ -14,10 +14,15 @@ export const envErrorExtras = {
   BadArgument: 6,
 } as const;
 
-export type EnvironmentName = "development" | "preview" | "production";
+// An environment name is any of the org's environments (the built-ins
+// development/preview/production plus user-defined ones), so the CLI only
+// format-checks here and lets the server reject names the org does not define.
+export type EnvironmentName = string;
 
-const isEnvironmentName = (value: string): value is EnvironmentName =>
-  value === "development" || value === "preview" || value === "production";
+const ENVIRONMENT_NAME_PATTERN = /^[a-z][a-z0-9-]*$/u;
+
+const isEnvironmentName = (value: string): boolean =>
+  ENVIRONMENT_NAME_PATTERN.test(value) && value.length <= 64;
 
 export const parseEnvironmentsArg = (
   raw: string,
@@ -29,7 +34,7 @@ export const parseEnvironmentsArg = (
       .filter((token) => token.length > 0);
     if (tokens.length === 0) {
       return yield* new InvalidArgumentError({
-        message: "Provide at least one environment (development, preview, production).",
+        message: "Provide at least one environment (e.g. development, preview, production).",
       });
     }
     const seen = new Set<EnvironmentName>();
@@ -39,7 +44,7 @@ export const parseEnvironmentsArg = (
         Effect.gen(function* () {
           if (!isEnvironmentName(token)) {
             return yield* new InvalidArgumentError({
-              message: `Invalid environment "${token}". Must be one of: development, preview, production.`,
+              message: `Invalid environment "${token}": must be lowercase letters, digits, and hyphens, starting with a letter.`,
             });
           }
           seen.add(token);
@@ -56,7 +61,7 @@ export const parseSingleEnvironmentArg = (
   Effect.gen(function* () {
     if (!isEnvironmentName(raw)) {
       return yield* new InvalidArgumentError({
-        message: `Invalid environment "${raw}". Must be one of: development, preview, production.`,
+        message: `Invalid environment "${raw}": must be lowercase letters, digits, and hyphens, starting with a letter.`,
       });
     }
     return raw;

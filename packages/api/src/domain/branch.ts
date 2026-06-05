@@ -6,6 +6,7 @@ export class Branch extends Schema.Class<Branch>("Branch")({
   id: Id,
   projectId: Id,
   name: Schema.String,
+  isBuiltin: Schema.Boolean,
   createdAt: DateTimeString,
   updateCount: Schema.Number,
 }) {}

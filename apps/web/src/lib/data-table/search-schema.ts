@@ -16,11 +16,8 @@ export const optionalEnumParam = <T extends string>(values: readonly [T, ...T[]]
 export const enumParam = <T extends string>(values: readonly [T, ...T[]], defaultValue: T) =>
   z.enum(values).catch(defaultValue).default(defaultValue);
 
-export const stringArrayParam = <T extends string>(
-  values: readonly [T, ...T[]],
-  defaults: readonly T[],
-) =>
-  z
-    .array(z.enum(values))
-    .catch([...defaults])
-    .default([...defaults]);
+/**
+ * A free-form string-array search param (no fixed enum). For filters whose set is
+ * dynamic (e.g. user-defined environments); an empty array means "no filter".
+ */
+export const freeStringArrayParam = () => z.array(z.string()).catch([]).default([]);

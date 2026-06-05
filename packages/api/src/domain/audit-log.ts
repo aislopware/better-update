@@ -7,6 +7,7 @@ export const AuditLogResourceType = Schema.Literal(
   "branch",
   "channel",
   "update",
+  "environment",
   "build",
   "appleCredential",
   "androidCredential",

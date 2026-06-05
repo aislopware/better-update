@@ -11,7 +11,11 @@ import { EnvExportError } from "./exit-codes";
 import type { VaultSession } from "../application/credential-cipher";
 import type { ApiClient } from "../services/api-client";
 
-type EnvironmentName = "development" | "preview" | "production";
+// Any of the org's environments (built-in or user-defined); the server is the
+// source of truth, so the CLI only format-checks names.
+type EnvironmentName = string;
+
+const ENVIRONMENT_NAME_PATTERN = /^[a-z][a-z0-9-]*$/u;
 
 /**
  * A sealed env var as the export endpoint returns it: the opaque value envelope
@@ -38,7 +42,7 @@ export interface DecryptedEnvVar {
 }
 
 const coerceEnvironment = (raw: string): EnvironmentName | undefined =>
-  raw === "development" || raw === "preview" || raw === "production" ? raw : undefined;
+  ENVIRONMENT_NAME_PATTERN.test(raw) && raw.length <= 64 ? raw : undefined;
 
 /** Decrypt one sealed env var value, re-checking the sealed metadata against the row. */
 export const decryptEnvVarValue = (
@@ -136,7 +140,7 @@ export const pullEnvVars = (
     const validated = coerceEnvironment(environment);
     if (!validated) {
       return yield* new EnvExportError({
-        message: `Invalid environment "${environment}". Must be one of: development, preview, production.`,
+        message: `Invalid environment "${environment}": must be lowercase letters, digits, and hyphens, starting with a letter.`,
       });
     }
     const items = yield* exportDecryptedEnvVars(api, projectId, validated);

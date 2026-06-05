@@ -38,21 +38,21 @@ import { FilterIcon, SearchIcon, SettingsIcon } from "lucide-react";
 import { useMemo } from "react";
 import { z } from "zod";
 
-import type { EnvVarEnvironment, EnvVar } from "@better-update/api";
+import type { EnvVar } from "@better-update/api";
 import type { EnvVarsFilters } from "@better-update/api-client/react";
 import type { ChangeEvent } from "react";
 
 import { TableSkeleton } from "../../../../components/skeletons";
 import {
   enumParam,
+  freeStringArrayParam,
   queryParam,
-  stringArrayParam,
   useDebouncedSearch,
 } from "../../../../lib/data-table";
 import { pluralize } from "../../../../lib/pluralize";
 import { EnvVarRow } from "./-env-var-row";
-import { ENV_LABELS } from "./-env-vars-labels";
-import { ALL_ENVIRONMENTS } from "./-environments-picker";
+import { formatEnvironmentLabel } from "./-env-vars-labels";
+import { useEnvironmentNames } from "./-environments-picker";
 
 type Mode =
   | { readonly kind: "project"; readonly orgId: string; readonly projectId: string }
@@ -67,12 +67,12 @@ const SCOPE_LABELS: Record<ScopeFilter, string> = {
   global: "Global only",
 };
 
-const ENV_VALUES = ["development", "preview", "production"] as const;
-
 export const envVarsSearchSchema = z.object({
   query: queryParam(),
   scope: enumParam(SCOPE_VALUES, "all"),
-  environments: stringArrayParam(ENV_VALUES, [...ALL_ENVIRONMENTS]),
+  // Any of the org's environments (built-in or user-defined); an empty list means
+  // "all environments" (no filter), so it stays valid as custom environments change.
+  environments: freeStringArrayParam(),
 });
 
 export type EnvVarsSearch = z.infer<typeof envVarsSearchSchema>;
@@ -81,9 +81,6 @@ const SEARCH_DEBOUNCE_MS = 300;
 
 const isScopeFilter = (value: string): value is ScopeFilter =>
   (SCOPE_VALUES as readonly string[]).includes(value);
-
-const isEnvironment = (value: string): value is typeof EnvVarEnvironment.Type =>
-  (ENV_VALUES as readonly string[]).includes(value);
 
 const EmptyState = () => (
   <Card>
@@ -102,14 +99,17 @@ const EmptyState = () => (
 );
 
 const EnvFilterPopover = ({
+  orgId,
   value,
   onChange,
 }: {
-  value: readonly (typeof EnvVarEnvironment.Type)[];
-  onChange: (next: readonly (typeof EnvVarEnvironment.Type)[]) => void;
+  orgId: string;
+  value: readonly string[];
+  onChange: (next: readonly string[]) => void;
 }) => {
+  const environmentNames = useEnvironmentNames(orgId);
   const label =
-    value.length === ALL_ENVIRONMENTS.length || value.length === 0
+    value.length === 0
       ? "All environments"
       : `${value.length} ${pluralize(value.length, "environment")}`;
   return (
@@ -127,13 +127,13 @@ const EnvFilterPopover = ({
           className="gap-2 p-2 text-sm"
           value={[...value]}
           onValueChange={(next) => {
-            onChange(next.filter(isEnvironment));
+            onChange(next);
           }}
         >
-          {ALL_ENVIRONMENTS.map((env) => (
+          {environmentNames.map((env) => (
             <Label key={env} className="cursor-pointer gap-2 select-none">
               <Checkbox name={env} />
-              {ENV_LABELS[env]}
+              {formatEnvironmentLabel(env)}
             </Label>
           ))}
         </CheckboxGroup>
@@ -156,8 +156,8 @@ const Toolbar = ({
   onSearchDraftChange: (value: string) => void;
   scope: ScopeFilter;
   onScopeChange: (value: ScopeFilter) => void;
-  environments: readonly (typeof EnvVarEnvironment.Type)[];
-  onEnvironmentsChange: (value: readonly (typeof EnvVarEnvironment.Type)[]) => void;
+  environments: readonly string[];
+  onEnvironmentsChange: (value: readonly string[]) => void;
 }) => (
   <div className="flex flex-wrap items-center gap-2">
     <InputGroup className="w-56">
@@ -174,7 +174,7 @@ const Toolbar = ({
         }}
       />
     </InputGroup>
-    <EnvFilterPopover value={environments} onChange={onEnvironmentsChange} />
+    <EnvFilterPopover orgId={mode.orgId} value={environments} onChange={onEnvironmentsChange} />
     {mode.kind === "project" ? (
       <Select
         items={SCOPE_LABELS}
@@ -244,10 +244,7 @@ export const EnvVarsView = ({
   });
 
   const filters = useMemo<EnvVarsFilters>(() => {
-    const filteredEnvs =
-      environments.length > 0 && environments.length < ALL_ENVIRONMENTS.length
-        ? environments
-        : undefined;
+    const filteredEnvs = environments.length > 0 ? environments : undefined;
     return {
       ...(mode.kind === "project" ? { scope } : {}),
       ...(filteredEnvs ? { environments: filteredEnvs } : {}),

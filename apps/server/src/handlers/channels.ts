@@ -288,6 +288,11 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
             projectId: channel.projectId,
             channelId: path.id,
           });
+          if (channel.isBuiltin) {
+            return yield* new Conflict({
+              message: `Built-in channel "${channel.name}" cannot be deleted`,
+            });
+          }
           yield* channelRepo.delete({ id: path.id });
 
           yield* logAudit({

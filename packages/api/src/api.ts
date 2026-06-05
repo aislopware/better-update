@@ -20,6 +20,7 @@ import { BuildsGroup } from "./groups/builds";
 import { ChannelsGroup } from "./groups/channels";
 import { DevicesGroup } from "./groups/devices";
 import { EnvVarsGroup } from "./groups/env-vars";
+import { EnvironmentsGroup } from "./groups/environments";
 import { FingerprintsGroup } from "./groups/fingerprints";
 import { GoogleServiceAccountKeysGroup } from "./groups/google-service-account-keys";
 import { GroupsGroup } from "./groups/groups";
@@ -42,6 +43,7 @@ export class ManagementApi extends HttpApi.make("management-api")
   .add(ProjectsGroup)
   .add(BranchesGroup)
   .add(ChannelsGroup)
+  .add(EnvironmentsGroup)
   .add(UpdatesGroup)
   .add(AssetsGroup)
   .add(AnalyticsGroup)

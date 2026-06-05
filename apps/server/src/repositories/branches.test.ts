@@ -8,6 +8,7 @@ const makeInsertParams = () => ({
   id: "branch-1",
   projectId: "proj-1",
   name: "production",
+  isBuiltin: false,
   createdAt: "2026-01-01T00:00:00Z",
 });
 

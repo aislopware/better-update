@@ -83,6 +83,7 @@ const resolveBranch = (params: {
         id: branchId,
         projectId: params.projectId,
         name: params.branchName,
+        isBuiltin: false,
         createdAt: nowIso(),
       })
       .pipe(

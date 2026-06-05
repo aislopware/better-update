@@ -18,6 +18,7 @@ export interface BranchRepository {
     readonly id: string;
     readonly projectId: string;
     readonly name: string;
+    readonly isBuiltin: boolean;
     readonly createdAt: string;
   }) => Effect.Effect<void, Conflict>;
 
@@ -52,17 +53,19 @@ interface BranchRow {
   id: string;
   project_id: string;
   name: string;
+  is_builtin: number;
   created_at: string;
   update_count: number;
 }
 
-const BRANCH_COLUMNS = `b."id", b."project_id", b."name", b."created_at", (SELECT COUNT(*) FROM "updates" WHERE "updates"."branch_id" = b."id") AS "update_count"`;
+const BRANCH_COLUMNS = `b."id", b."project_id", b."name", b."is_builtin", b."created_at", (SELECT COUNT(*) FROM "updates" WHERE "updates"."branch_id" = b."id") AS "update_count"`;
 
 const toBranch = (row: BranchRow) =>
   ({
     id: row.id,
     projectId: row.project_id,
     name: row.name,
+    isBuiltin: row.is_builtin === 1,
     createdAt: row.created_at,
     updateCount: row.update_count,
   }) satisfies BranchModel;
@@ -86,9 +89,15 @@ export const BranchRepoLive = Layer.succeed(BranchRepo, {
       yield* d1RunWithUniqueCheck(
         async () =>
           env.DB.prepare(
-            `INSERT INTO "branches" ("id", "project_id", "name", "created_at") VALUES (?, ?, ?, ?)`,
+            `INSERT INTO "branches" ("id", "project_id", "name", "is_builtin", "created_at") VALUES (?, ?, ?, ?, ?)`,
           )
-            .bind(params.id, params.projectId, params.name, params.createdAt)
+            .bind(
+              params.id,
+              params.projectId,
+              params.name,
+              params.isBuiltin ? 1 : 0,
+              params.createdAt,
+            )
             .run(),
         `A branch named "${params.name}" already exists in this project`,
       );

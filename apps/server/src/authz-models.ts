@@ -25,6 +25,7 @@ export type Resource =
   | "project"
   | "channel"
   | "branch"
+  | "environment"
   | "update"
   | "rollout"
   | "billing"

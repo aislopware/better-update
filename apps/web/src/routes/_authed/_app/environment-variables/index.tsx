@@ -3,6 +3,7 @@ import { zodValidator } from "@tanstack/zod-adapter";
 
 import { fireAndForget } from "../../../../lib/data-table";
 import { EnvVarsView, envVarsSearchSchema } from "./-env-vars-view";
+import { EnvironmentsManager } from "./-environments-manager";
 
 const GlobalEnvironmentVariablesPage = () => {
   const { activeOrg } = Route.useRouteContext();
@@ -10,7 +11,7 @@ const GlobalEnvironmentVariablesPage = () => {
   const navigate = Route.useNavigate();
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-1">
         <h1 className="text-2xl font-semibold">Global environment variables</h1>
         <p className="text-muted-foreground text-sm">
@@ -18,6 +19,7 @@ const GlobalEnvironmentVariablesPage = () => {
           defining a variable with the same key.
         </p>
       </header>
+      <EnvironmentsManager orgId={activeOrg.id} />
       <EnvVarsView
         mode={{ kind: "global", orgId: activeOrg.id }}
         search={search}

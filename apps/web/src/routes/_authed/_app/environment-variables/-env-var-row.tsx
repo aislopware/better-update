@@ -7,7 +7,7 @@ import { CheckIcon, CopyIcon } from "lucide-react";
 import type { EnvVar } from "@better-update/api";
 
 import { useCopyToClipboard } from "../../../../lib/use-copy-to-clipboard";
-import { ENV_LABELS } from "./-env-vars-labels";
+import { formatEnvironmentLabel } from "./-env-vars-labels";
 
 const VISIBILITY_VARIANTS: Record<string, "secondary" | "warning"> = {
   plaintext: "secondary",
@@ -56,7 +56,7 @@ export const EnvVarRow = ({ envVar }: { envVar: EnvVar }) => (
       </div>
     </TableCell>
     <TableCell>
-      <Badge variant="secondary">{ENV_LABELS[envVar.environment]}</Badge>
+      <Badge variant="secondary">{formatEnvironmentLabel(envVar.environment)}</Badge>
     </TableCell>
     <TableCell>
       <div className="flex flex-wrap items-center gap-1">

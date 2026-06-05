@@ -68,7 +68,7 @@ describe("Projects API flow", () => {
     projectId = body.id;
   });
 
-  it("seeds production/staging/preview branches on create", async () => {
+  it("seeds development/preview/production branches on create", async () => {
     const response = await get(`/api/branches?projectId=${projectId}&sort=name`, {
       cookie: cookies,
     });
@@ -76,13 +76,13 @@ describe("Projects API flow", () => {
     const body = await response.json();
     expect(body.total).toBe(3);
     expect(body.items.map((b: { name: string }) => b.name)).toEqual([
+      "development",
       "preview",
       "production",
-      "staging",
     ]);
   });
 
-  it("seeds production/staging/preview channels pointing at matching branches", async () => {
+  it("seeds development/preview/production channels pointing at matching branches", async () => {
     const channelsRes = await get(`/api/channels?projectId=${projectId}&sort=name`, {
       cookie: cookies,
     });
@@ -90,9 +90,9 @@ describe("Projects API flow", () => {
     const channelsBody = await channelsRes.json();
     expect(channelsBody.total).toBe(3);
     expect(channelsBody.items.map((c: { name: string }) => c.name)).toEqual([
+      "development",
       "preview",
       "production",
-      "staging",
     ]);
 
     const branchesRes = await get(`/api/branches?projectId=${projectId}&sort=name`, {

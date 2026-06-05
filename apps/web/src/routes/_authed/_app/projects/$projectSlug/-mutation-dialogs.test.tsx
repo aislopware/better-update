@@ -113,6 +113,7 @@ const branch = {
   projectId,
   name: "main",
   createdAt: "2026-01-01T00:00:00Z",
+  isBuiltin: false,
   updateCount: 0,
 } satisfies BranchItem;
 
@@ -144,6 +145,7 @@ const channel = {
   branchMappingJson: null,
   cacheVersion: 0,
   isPaused: false,
+  isBuiltin: false,
   createdAt: "2026-01-01T00:00:00Z",
 } satisfies Channel;
 

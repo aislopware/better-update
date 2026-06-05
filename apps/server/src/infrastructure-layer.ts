@@ -29,6 +29,7 @@ import {
   CompatibilityRepoLive,
   DeviceRegistrationRequestRepoLive,
   DeviceRepoLive,
+  EnvironmentRepoLive,
   EnvVarRepoLive,
   GoogleServiceAccountKeyRepoLive,
   IosAppMetadataRepoLive,
@@ -77,6 +78,7 @@ import type {
   CompatibilityRepo,
   DeviceRegistrationRequestRepo,
   DeviceRepo,
+  EnvironmentRepo,
   EnvVarRepo,
   GoogleServiceAccountKeyRepo,
   IosAppMetadataRepo,
@@ -124,6 +126,7 @@ export type ServerInfrastructure =
   | DeviceRegistrationRequestRepo
   | DeviceRepo
   | EmailService
+  | EnvironmentRepo
   | EnvVarRepo
   | GoogleServiceAccountKeyRepo
   | GroupRepo
@@ -165,6 +168,7 @@ export const RepositoryLayer = Layer.mergeAll(
   CompatibilityRepoLive,
   DeviceRegistrationRequestRepoLive,
   DeviceRepoLive,
+  EnvironmentRepoLive,
   EnvVarRepoLive,
   GoogleServiceAccountKeyRepoLive,
   GroupRepoLive,
