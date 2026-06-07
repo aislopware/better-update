@@ -1,6 +1,6 @@
 {
   "name": "@better-update/web",
-  "version": "0.32.0",
+  "version": "0.33.0",
   "private": true,
   "description": "Better Update web app (accounts + console) on Cloudflare Workers",
   "homepage": "https://github.com/better-update/better-update",

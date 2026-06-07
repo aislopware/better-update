@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.33.0](https://github.com/better-update/better-update/compare/@better-update/web@0.32.0...@better-update/web@0.33.0) (2026-06-07)
+
+### Features
+
+* **web:** enrich credential, audit-log & vault dashboard surfaces ([e8b9634](https://github.com/better-update/better-update/commit/e8b963402dcb2f000efb447373352eb1d2e3d701)) - by @trancong12102
+
 ## [0.32.0](https://github.com/better-update/better-update/compare/@better-update/web@0.31.0...@better-update/web@0.32.0) (2026-06-05)
 
 ### Features
