@@ -151,6 +151,11 @@ const buildColumns = (
       <div className="flex items-center gap-2 font-medium">
         <SatelliteIcon strokeWidth={2} className="text-muted-foreground size-4" />
         {row.original.name}
+        {row.original.isBuiltin ? (
+          <Badge variant="outline" className="text-muted-foreground">
+            Built-in
+          </Badge>
+        ) : null}
       </div>
     ),
     enableSorting: true,

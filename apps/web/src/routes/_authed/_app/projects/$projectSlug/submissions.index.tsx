@@ -78,16 +78,22 @@ const SubmissionRow = ({
         params={{ projectSlug, submissionId: submission.id }}
         className={ROW_CLASS}
       >
-        <span className="flex flex-wrap items-center gap-2">
-          <Badge variant={STATUS_VARIANT[submission.status]}>
-            {STATUS_LABEL[submission.status]}
-          </Badge>
-          <span className="font-mono text-xs uppercase">{submission.platform}</span>
-          <span className="text-muted-foreground">{submission.profileName}</span>
-          {submission.buildId ? (
-            <span className="text-muted-foreground/70 font-mono text-xs">
-              build {submission.buildId.slice(0, 8)}
-            </span>
+        <span className="flex min-w-0 flex-col gap-1">
+          <span className="flex flex-wrap items-center gap-2">
+            <Badge variant={STATUS_VARIANT[submission.status]}>
+              {STATUS_LABEL[submission.status]}
+            </Badge>
+            <span className="font-mono text-xs uppercase">{submission.platform}</span>
+            <span className="text-muted-foreground">{submission.profileName}</span>
+            <span className="text-muted-foreground/70 text-xs">via {submission.archiveSource}</span>
+            {submission.buildId ? (
+              <span className="text-muted-foreground/70 font-mono text-xs">
+                build {submission.buildId.slice(0, 8)}
+              </span>
+            ) : null}
+          </span>
+          {submission.status === "ERRORED" && submission.errorMessage ? (
+            <span className="text-destructive truncate text-xs">{submission.errorMessage}</span>
           ) : null}
         </span>
         <span className="flex items-center gap-3">

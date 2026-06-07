@@ -1,3 +1,4 @@
+import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import { Card } from "@better-update/ui/components/ui/card";
 import {
@@ -75,8 +76,13 @@ export const ApiKeysTable = ({
           <KeyIcon strokeWidth={2} className="size-4" />
         </span>
         <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <span className="truncate text-sm leading-none font-medium">
-            {key.name ?? "Unnamed key"}
+          <span className="flex items-center gap-1.5 text-sm leading-none font-medium">
+            <span className="truncate">{key.name ?? "Unnamed key"}</span>
+            {key.enabled ? null : (
+              <Badge variant="outline" className="text-muted-foreground">
+                Disabled
+              </Badge>
+            )}
           </span>
           <code className="text-muted-foreground truncate font-mono text-xs">
             {maskKey(key.start, key.prefix)}

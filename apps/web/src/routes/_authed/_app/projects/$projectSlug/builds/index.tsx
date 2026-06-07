@@ -90,7 +90,7 @@ const BuildsSkeleton = () => (
     <div className="flex items-center justify-between gap-2">
       <ProjectSubpageHeader title="Builds" />
     </div>
-    <TableSkeleton columns={7} rows={6} />
+    <TableSkeleton columns={8} rows={6} />
   </>
 );
 
@@ -185,7 +185,7 @@ const BuildsContent = () => {
           <ProjectSubpageHeader title="Builds" />
           <div className="flex flex-wrap items-center gap-2">{filterControls}</div>
         </div>
-        <TableSkeleton columns={7} rows={6} />
+        <TableSkeleton columns={8} rows={6} />
       </div>
     );
   }

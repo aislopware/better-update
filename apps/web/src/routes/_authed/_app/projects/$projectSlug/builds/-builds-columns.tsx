@@ -8,6 +8,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { DeleteBuildDialog } from "../-delete-build-dialog";
 import { InstallLinkDialog } from "../-install-link-dialog";
 import { DistributionBadge, PlatformBadge } from "../../../../../../components/attribute-badges";
+import { formatBytes } from "../../../../../../lib/format-bytes";
 import { formatRelativeTime } from "../../../../../../lib/format-relative-time";
 
 export type BuildItem = BuildWithArtifact;
@@ -64,14 +65,27 @@ export const buildBuildsColumns = (
   {
     id: "message",
     header: "Build",
-    cell: ({ row }) => (
-      <div className="flex flex-col gap-0.5">
-        <span className="truncate font-medium">{buildLabel(row.original)}</span>
-        <code className="text-muted-foreground truncate font-mono text-xs">
-          {row.original.id.slice(0, 8)}
-        </code>
-      </div>
-    ),
+    cell: ({ row }) => {
+      const git =
+        row.original.gitRef ?? (row.original.gitCommit ? row.original.gitCommit.slice(0, 7) : null);
+      return (
+        <div className="flex flex-col gap-0.5">
+          <span className="truncate font-medium">{buildLabel(row.original)}</span>
+          <div className="text-muted-foreground flex flex-wrap items-center gap-2 font-mono text-xs">
+            <code className="truncate">{row.original.id.slice(0, 8)}</code>
+            {row.original.bundleId ? (
+              <span className="truncate">{row.original.bundleId}</span>
+            ) : null}
+            {git ? (
+              <span className="shrink-0">
+                {git}
+                {row.original.gitDirty ? <span className="text-warning"> ·dirty</span> : null}
+              </span>
+            ) : null}
+          </div>
+        </div>
+      );
+    },
     enableSorting: false,
   },
   {
@@ -123,6 +137,13 @@ export const buildBuildsColumns = (
         <code className="font-mono text-xs">{row.original.buildNumber}</code>
       ),
     enableSorting: false,
+  },
+  {
+    id: "size",
+    header: "Size",
+    cell: ({ row }) => (row.original.artifact ? formatBytes(row.original.artifact.byteSize) : "—"),
+    enableSorting: false,
+    meta: { align: "right", muted: true },
   },
   {
     id: "createdAt",

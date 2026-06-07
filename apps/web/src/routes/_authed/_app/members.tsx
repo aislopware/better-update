@@ -100,6 +100,7 @@ const MembersContent = () => {
           id: inv.id,
           email: inv.email,
           role: inv.role ?? "member",
+          createdAt: new Date(inv.createdAt),
           expiresAt: new Date(inv.expiresAt),
         })),
     [invitations],

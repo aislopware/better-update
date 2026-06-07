@@ -103,6 +103,7 @@ export const makeInvitation = (
     email: string;
     role: string;
     status: string;
+    createdAt: Date;
     expiresAt: Date;
   }>,
 ) => ({
@@ -110,6 +111,7 @@ export const makeInvitation = (
   email: "invited@example.com",
   role: "member",
   status: "pending",
+  createdAt: new Date("2026-12-01"),
   expiresAt: new Date("2027-01-01"),
   ...overrides,
 });

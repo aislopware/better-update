@@ -12,6 +12,7 @@ export interface InvitationInput {
   id: string;
   email: string;
   role: string;
+  createdAt: Date;
   expiresAt: Date;
 }
 
@@ -36,6 +37,7 @@ export interface InvitationRow {
   image: undefined;
   role: string;
   status: "pending";
+  invitedAt: Date;
   expiresAt: Date;
 }
 
@@ -65,6 +67,7 @@ export const buildRows = (
     image: undefined,
     role: invitation.role,
     status: "pending",
+    invitedAt: new Date(invitation.createdAt),
     expiresAt: new Date(invitation.expiresAt),
   }));
   return [...memberRows, ...invitationRows];

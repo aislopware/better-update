@@ -6,6 +6,7 @@ import { CheckIcon, CopyIcon } from "lucide-react";
 
 import type { EnvVar } from "@better-update/api";
 
+import { formatRelativeTime } from "../../../../lib/format-relative-time";
 import { useCopyToClipboard } from "../../../../lib/use-copy-to-clipboard";
 import { formatEnvironmentLabel } from "./-env-vars-labels";
 
@@ -70,5 +71,8 @@ export const EnvVarRow = ({ envVar }: { envVar: EnvVar }) => (
       </Badge>
     </TableCell>
     <TableCell className="text-muted-foreground text-sm">{envVar.revisionCount}</TableCell>
+    <TableCell className="text-muted-foreground text-sm">
+      {formatRelativeTime(envVar.updatedAt)}
+    </TableCell>
   </TableRow>
 );

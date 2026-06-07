@@ -39,7 +39,9 @@ describe(joinVaultRecipients, () => {
         label: "Work laptop",
         kind: "device",
         fingerprint: "SHA256:zzz",
+        grantedAt: "2026-02-01T00:00:00.000Z",
         lastUsedAt: "2026-03-01T00:00:00.000Z",
+        revokedAt: null,
       },
     ]);
   });
@@ -54,7 +56,9 @@ describe(joinVaultRecipients, () => {
       label: "Unknown key",
       kind: "unknown",
       fingerprint: null,
+      grantedAt: "2026-02-01T00:00:00.000Z",
       lastUsedAt: null,
+      revokedAt: null,
     });
   });
 

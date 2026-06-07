@@ -32,7 +32,7 @@ import { z } from "zod";
 import type { DeviceClassValue, DeviceSortColumn } from "@better-update/api-client/react";
 import type { ChangeEvent, ReactNode } from "react";
 
-import { formatAppleTeamLabel } from "../-credentials-utils";
+import { formatAppleTeamLabel, indexAppleTeamsById } from "../-credentials-utils";
 import { PageHeader } from "../../../../components/page-header";
 import { FilterBarSkeleton, TableSkeleton } from "../../../../components/skeletons";
 import {
@@ -263,13 +263,7 @@ const DevicesContent = () => {
   };
 
   const { data: teams } = useSuspenseQuery(appleTeamsQueryOptions(orgId));
-  const teamLabels = useMemo(() => {
-    const result: Record<string, string> = {};
-    teams.items.forEach((team) => {
-      result[team.id] = formatAppleTeamLabel(team);
-    });
-    return result;
-  }, [teams.items]);
+  const teamsById = useMemo(() => indexAppleTeamsById(teams.items), [teams.items]);
   const teamOptions = useMemo(
     () => teams.items.map((team) => ({ id: team.id, label: formatAppleTeamLabel(team) })),
     [teams.items],
@@ -287,7 +281,7 @@ const DevicesContent = () => {
     placeholderData: keepPreviousData,
   });
 
-  const columns = useMemo(() => buildDeviceColumns(orgId, teamLabels), [orgId, teamLabels]);
+  const columns = useMemo(() => buildDeviceColumns(orgId, teamsById), [orgId, teamsById]);
   const tableData = useMemo(() => [...(data?.items ?? [])], [data?.items]);
 
   const table = useReactTable({

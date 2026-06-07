@@ -103,6 +103,18 @@ export const buildGroupColumns = (orgId: string): readonly ColumnDef<GroupItem>[
     meta: { align: "right", muted: true },
   },
   {
+    id: "updatedAt",
+    header: "Updated",
+    cell: ({ row }) =>
+      row.original.updatedAt === null ? (
+        <span className="text-muted-foreground text-sm">—</span>
+      ) : (
+        formatRelativeTime(row.original.updatedAt)
+      ),
+    enableSorting: false,
+    meta: { align: "right", muted: true },
+  },
+  {
     id: "actions",
     header: "",
     cell: ({ row }) => <GroupRowActions orgId={orgId} group={row.original} />,

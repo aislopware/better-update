@@ -136,6 +136,18 @@ export const buildPolicyColumns = (orgId: string): readonly ColumnDef<PolicyItem
     meta: { align: "right", muted: true },
   },
   {
+    id: "updatedAt",
+    header: "Updated",
+    cell: ({ row }) =>
+      isManagedPolicy(row.original.id) || row.original.updatedAt === null ? (
+        <span className="text-muted-foreground text-sm">—</span>
+      ) : (
+        formatRelativeTime(row.original.updatedAt)
+      ),
+    enableSorting: false,
+    meta: { align: "right", muted: true },
+  },
+  {
     id: "actions",
     header: "",
     cell: ({ row }) => <PolicyRowActions orgId={orgId} policy={row.original} />,

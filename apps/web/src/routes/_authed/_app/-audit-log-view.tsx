@@ -56,15 +56,33 @@ export const AuditLogSkeleton = () => (
   </div>
 );
 
+// Values mirror the server's AuditLogResourceType union exactly — the audit-log
+// repository filters with `WHERE resource_type = ?`, so each option must equal a
+// stored value (the old collapsed "credential" alias matched zero rows).
 const RESOURCE_TYPE_VALUES = [
   "all",
   "project",
   "branch",
   "channel",
   "update",
+  "environment",
   "build",
-  "credential",
+  "appleCredential",
+  "androidCredential",
+  "iosBundleConfiguration",
+  "iosAppMetadata",
   "envVar",
+  "device",
+  "webhook",
+  "submission",
+  "vaultAccess",
+  "policy",
+  "group",
+  "policyAttachment",
+  "apiKey",
+  "invitation",
+  "member",
+  "organization",
 ] as const;
 
 type ResourceTypeValue = (typeof RESOURCE_TYPE_VALUES)[number];
@@ -75,9 +93,24 @@ const RESOURCE_TYPE_LABELS: Record<ResourceTypeValue, string> = {
   branch: "Branch",
   channel: "Channel",
   update: "Update",
+  environment: "Environment",
   build: "Build",
-  credential: "Credential",
-  envVar: "Env Var",
+  appleCredential: "Apple credential",
+  androidCredential: "Android credential",
+  iosBundleConfiguration: "iOS bundle config",
+  iosAppMetadata: "iOS app metadata",
+  envVar: "Env var",
+  device: "Device",
+  webhook: "Webhook",
+  submission: "Submission",
+  vaultAccess: "Vault access",
+  policy: "Policy",
+  group: "Group",
+  policyAttachment: "Policy attachment",
+  apiKey: "API key",
+  invitation: "Invitation",
+  member: "Member",
+  organization: "Organization",
 };
 
 export const auditLogSearchSchema = z.object({
@@ -90,6 +123,9 @@ export type AuditLogSearch = z.infer<typeof auditLogSearchSchema>;
 
 const isResourceType = (value: unknown): value is ResourceTypeValue =>
   (RESOURCE_TYPE_VALUES as readonly unknown[]).includes(value);
+
+const resourceTypeLabel = (value: string): string =>
+  isResourceType(value) ? RESOURCE_TYPE_LABELS[value] : value;
 
 const parseDateRange = (search: AuditLogSearch): DateRange | undefined => {
   if (!search.from || !search.to) {
@@ -162,7 +198,7 @@ const AuditLogRow = ({
       </TableCell>
       <TableCell className="align-top">
         <div className="flex flex-col gap-0.5">
-          <span className="text-foreground text-sm">{entry.resourceType}</span>
+          <span className="text-foreground text-sm">{resourceTypeLabel(entry.resourceType)}</span>
           {entry.resourceId ? (
             <code className="text-muted-foreground/72 font-mono text-xs break-all">
               {entry.resourceId}

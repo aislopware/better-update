@@ -32,8 +32,9 @@ import type {
 } from "@better-update/api-client/react";
 
 import { STATUS_BADGE_VARIANT, deriveExpiryStatus } from "../../../lib/credential-status";
-import { formatDate } from "../../../lib/format-date";
-import { formatAppleTeamLabel } from "./-credentials-utils";
+import { formatShortDate } from "../../../lib/format-date";
+import { EmptyDash, RolesCell, TeamCell } from "./-credential-cells";
+import { formatAppleTeamLabel, formatAppleTeamType } from "./-credentials-utils";
 
 export const DistributionCertificatesEmptyState = () => (
   <Card>
@@ -54,14 +55,20 @@ export const DistributionCertificatesEmptyState = () => (
 
 export const DistributionCertificatesTable = ({
   items,
+  teamsById,
 }: {
   items: readonly AppleDistributionCertificateItem[];
+  teamsById: ReadonlyMap<string, AppleTeamItem>;
 }) => (
   <Table variant="card">
     <TableHeader>
       <TableRow>
         <TableHead>Serial</TableHead>
+        <TableHead>Team</TableHead>
+        <TableHead>Developer ID</TableHead>
+        <TableHead>Status</TableHead>
         <TableHead>Valid until</TableHead>
+        <TableHead>Uploaded</TableHead>
       </TableRow>
     </TableHeader>
     <TableBody>
@@ -69,12 +76,19 @@ export const DistributionCertificatesTable = ({
         const status = deriveExpiryStatus(cert.validUntil);
         return (
           <TableRow key={cert.id}>
-            <TableCell className="font-mono text-xs">{cert.serialNumber}</TableCell>
+            <TableCell className="font-mono text-xs break-all">{cert.serialNumber}</TableCell>
             <TableCell>
-              <div className="flex items-center gap-2">
-                <span>{formatDate(cert.validUntil)}</span>
-                <Badge variant={STATUS_BADGE_VARIANT[status.tone]}>{status.label}</Badge>
-              </div>
+              <TeamCell team={teamsById.get(cert.appleTeamId)} />
+            </TableCell>
+            <TableCell className="font-mono text-xs">
+              {cert.developerIdIdentifier ?? <EmptyDash />}
+            </TableCell>
+            <TableCell>
+              <Badge variant={STATUS_BADGE_VARIANT[status.tone]}>{status.label}</Badge>
+            </TableCell>
+            <TableCell>{formatShortDate(cert.validUntil)}</TableCell>
+            <TableCell className="text-muted-foreground">
+              {formatShortDate(cert.createdAt)}
             </TableCell>
           </TableRow>
         );
@@ -100,11 +114,18 @@ export const PushKeysEmptyState = () => (
   </Card>
 );
 
-export const PushKeysTable = ({ items }: { items: readonly ApplePushKeyItem[] }) => (
+export const PushKeysTable = ({
+  items,
+  teamsById,
+}: {
+  items: readonly ApplePushKeyItem[];
+  teamsById: ReadonlyMap<string, AppleTeamItem>;
+}) => (
   <Table variant="card">
     <TableHeader>
       <TableRow>
         <TableHead>Key ID</TableHead>
+        <TableHead>Team</TableHead>
         <TableHead>Added</TableHead>
       </TableRow>
     </TableHeader>
@@ -112,7 +133,10 @@ export const PushKeysTable = ({ items }: { items: readonly ApplePushKeyItem[] })
       {items.map((key) => (
         <TableRow key={key.id}>
           <TableCell className="font-mono">{key.keyId}</TableCell>
-          <TableCell>{formatDate(key.createdAt)}</TableCell>
+          <TableCell>
+            <TeamCell team={teamsById.get(key.appleTeamId)} />
+          </TableCell>
+          <TableCell className="text-muted-foreground">{formatShortDate(key.createdAt)}</TableCell>
         </TableRow>
       ))}
     </TableBody>
@@ -135,13 +159,22 @@ export const AscApiKeysEmptyState = () => (
   </Card>
 );
 
-export const AscApiKeysTable = ({ items }: { items: readonly AscApiKeyItem[] }) => (
+export const AscApiKeysTable = ({
+  items,
+  teamsById,
+}: {
+  items: readonly AscApiKeyItem[];
+  teamsById: ReadonlyMap<string, AppleTeamItem>;
+}) => (
   <Table variant="card">
     <TableHeader>
       <TableRow>
         <TableHead>Name</TableHead>
         <TableHead>Key ID</TableHead>
         <TableHead>Issuer ID</TableHead>
+        <TableHead>Team</TableHead>
+        <TableHead>Roles</TableHead>
+        <TableHead>Added</TableHead>
       </TableRow>
     </TableHeader>
     <TableBody>
@@ -150,6 +183,15 @@ export const AscApiKeysTable = ({ items }: { items: readonly AscApiKeyItem[] }) 
           <TableCell className="font-medium">{key.name}</TableCell>
           <TableCell className="font-mono">{key.keyId}</TableCell>
           <TableCell className="font-mono text-xs break-all">{key.issuerId}</TableCell>
+          <TableCell>
+            <TeamCell
+              team={key.appleTeamId === null ? undefined : teamsById.get(key.appleTeamId)}
+            />
+          </TableCell>
+          <TableCell>
+            <RolesCell roles={key.roles} />
+          </TableCell>
+          <TableCell className="text-muted-foreground">{formatShortDate(key.createdAt)}</TableCell>
         </TableRow>
       ))}
     </TableBody>
@@ -189,7 +231,9 @@ export const AppleTeamsTable = ({ items }: { items: readonly AppleTeamItem[] }) 
       {items.map((team) => (
         <TableRow key={team.id}>
           <TableCell className="font-medium">{formatAppleTeamLabel(team)}</TableCell>
-          <TableCell className="text-muted-foreground">{team.appleTeamType}</TableCell>
+          <TableCell className="text-muted-foreground">
+            {formatAppleTeamType(team.appleTeamType)}
+          </TableCell>
           <TableCell className="text-right">{team.distributionCertificateCount}</TableCell>
           <TableCell className="text-right">{team.pushKeyCount}</TableCell>
           <TableCell className="text-right">{team.ascApiKeyCount}</TableCell>
@@ -227,6 +271,8 @@ export const GoogleServiceAccountKeysTable = ({
       <TableRow>
         <TableHead>Client email</TableHead>
         <TableHead>Project</TableHead>
+        <TableHead>Key ID</TableHead>
+        <TableHead>Added</TableHead>
       </TableRow>
     </TableHeader>
     <TableBody>
@@ -234,6 +280,8 @@ export const GoogleServiceAccountKeysTable = ({
         <TableRow key={key.id}>
           <TableCell className="text-xs">{key.clientEmail}</TableCell>
           <TableCell className="font-mono text-xs">{key.googleProjectId}</TableCell>
+          <TableCell className="font-mono text-xs break-all">{key.privateKeyId}</TableCell>
+          <TableCell className="text-muted-foreground">{formatShortDate(key.createdAt)}</TableCell>
         </TableRow>
       ))}
     </TableBody>

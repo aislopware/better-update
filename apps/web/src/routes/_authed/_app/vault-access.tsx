@@ -56,6 +56,7 @@ const RecipientsTable = ({ rows }: { rows: readonly VaultRecipientRow[] }) => (
         <TableHead>Recipient</TableHead>
         <TableHead>Type</TableHead>
         <TableHead>Fingerprint</TableHead>
+        <TableHead>Granted</TableHead>
         <TableHead>Last used</TableHead>
       </TableRow>
     </TableHeader>
@@ -66,9 +67,13 @@ const RecipientsTable = ({ rows }: { rows: readonly VaultRecipientRow[] }) => (
           <TableRow key={row.userEncryptionKeyId}>
             <TableCell className="font-medium">{row.label}</TableCell>
             <TableCell>
-              <Badge variant={meta.variant}>{meta.label}</Badge>
+              <div className="flex items-center gap-1.5">
+                <Badge variant={meta.variant}>{meta.label}</Badge>
+                {row.revokedAt ? <Badge variant="destructive">Revoked</Badge> : null}
+              </div>
             </TableCell>
             <TableCell className="font-mono text-xs break-all">{row.fingerprint ?? "—"}</TableCell>
+            <TableCell className="text-muted-foreground">{formatDate(row.grantedAt)}</TableCell>
             <TableCell className="text-muted-foreground">
               {row.lastUsedAt ? formatDate(row.lastUsedAt) : "—"}
             </TableCell>
@@ -112,7 +117,7 @@ const VaultAccess = () => (
       title="Vault access"
       description="Keys that can decrypt this organization's credential vault. Access is granted and revoked from the CLI."
     />
-    <Suspense fallback={<TableSkeleton variant="card" columns={4} rows={3} hasFooter={false} />}>
+    <Suspense fallback={<TableSkeleton variant="card" columns={5} rows={3} hasFooter={false} />}>
       <VaultAccessContent />
     </Suspense>
   </div>

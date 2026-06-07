@@ -213,6 +213,7 @@ const EnvVarsTable = ({ items }: { items: readonly EnvVar[] }) =>
             <TableHead>Scope</TableHead>
             <TableHead>Visibility</TableHead>
             <TableHead>Revisions</TableHead>
+            <TableHead>Updated</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -285,7 +286,7 @@ export const EnvVarsView = ({
       {isLoading || !data ? (
         <div className="flex flex-col gap-2">
           <Skeleton className="h-9 w-full rounded-md" />
-          <TableSkeleton variant="card" columns={5} rows={4} hasFooter={false} />
+          <TableSkeleton variant="card" columns={6} rows={4} hasFooter={false} />
         </div>
       ) : (
         <EnvVarsTable items={data.items} />

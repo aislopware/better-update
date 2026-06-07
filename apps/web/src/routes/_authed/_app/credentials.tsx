@@ -8,7 +8,7 @@ import {
 import { CardFrame } from "@better-update/ui/components/ui/card";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Suspense } from "react";
+import { Suspense, useMemo } from "react";
 
 import { PageHeader, SectionHeader } from "../../../components/page-header";
 import { SectionSkeleton, TableSkeleton } from "../../../components/skeletons";
@@ -24,9 +24,12 @@ import {
   PushKeysEmptyState,
   PushKeysTable,
 } from "./-credentials-tables";
+import { indexAppleTeamsById } from "./-credentials-utils";
 
 const DistributionCertificatesSection = ({ orgId }: { orgId: string }) => {
   const { data } = useSuspenseQuery(appleDistributionCertificatesQueryOptions(orgId));
+  const { data: teams } = useSuspenseQuery(appleTeamsQueryOptions(orgId));
+  const teamsById = useMemo(() => indexAppleTeamsById(teams.items), [teams.items]);
 
   return (
     <section className="flex flex-col gap-3">
@@ -38,7 +41,7 @@ const DistributionCertificatesSection = ({ orgId }: { orgId: string }) => {
         <DistributionCertificatesEmptyState />
       ) : (
         <CardFrame>
-          <DistributionCertificatesTable items={data.items} />
+          <DistributionCertificatesTable items={data.items} teamsById={teamsById} />
         </CardFrame>
       )}
     </section>
@@ -47,6 +50,8 @@ const DistributionCertificatesSection = ({ orgId }: { orgId: string }) => {
 
 const PushKeysSection = ({ orgId }: { orgId: string }) => {
   const { data } = useSuspenseQuery(applePushKeysQueryOptions(orgId));
+  const { data: teams } = useSuspenseQuery(appleTeamsQueryOptions(orgId));
+  const teamsById = useMemo(() => indexAppleTeamsById(teams.items), [teams.items]);
 
   return (
     <section className="flex flex-col gap-3">
@@ -58,7 +63,7 @@ const PushKeysSection = ({ orgId }: { orgId: string }) => {
         <PushKeysEmptyState />
       ) : (
         <CardFrame>
-          <PushKeysTable items={data.items} />
+          <PushKeysTable items={data.items} teamsById={teamsById} />
         </CardFrame>
       )}
     </section>
@@ -67,6 +72,8 @@ const PushKeysSection = ({ orgId }: { orgId: string }) => {
 
 const AscApiKeysSection = ({ orgId }: { orgId: string }) => {
   const { data } = useSuspenseQuery(ascApiKeysQueryOptions(orgId));
+  const { data: teams } = useSuspenseQuery(appleTeamsQueryOptions(orgId));
+  const teamsById = useMemo(() => indexAppleTeamsById(teams.items), [teams.items]);
 
   return (
     <section className="flex flex-col gap-3">
@@ -75,7 +82,7 @@ const AscApiKeysSection = ({ orgId }: { orgId: string }) => {
         <AscApiKeysEmptyState />
       ) : (
         <CardFrame>
-          <AscApiKeysTable items={data.items} />
+          <AscApiKeysTable items={data.items} teamsById={teamsById} />
         </CardFrame>
       )}
     </section>

@@ -13,9 +13,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import { CheckIcon, CopyIcon, EllipsisVerticalIcon } from "lucide-react";
 import { useState } from "react";
 
-import type { DeviceClassValue, DeviceItem } from "@better-update/api-client/react";
+import type { AppleTeamItem, DeviceClassValue, DeviceItem } from "@better-update/api-client/react";
 import type { ColumnDef } from "@tanstack/react-table";
 
+import { TeamCell } from "../-credential-cells";
 import { formatRelativeTime } from "../../../../lib/format-relative-time";
 import { useApiMutation } from "../../../../lib/use-api-mutation";
 import { useCopyToClipboard } from "../../../../lib/use-copy-to-clipboard";
@@ -128,7 +129,7 @@ const RowActions = ({ orgId, device }: { orgId: string; device: DeviceItem }) =>
 
 export const buildDeviceColumns = (
   orgId: string,
-  teamLabels: Record<string, string>,
+  teamsById: ReadonlyMap<string, AppleTeamItem>,
 ): readonly ColumnDef<DeviceItem>[] => [
   {
     id: "name",
@@ -162,14 +163,10 @@ export const buildDeviceColumns = (
   {
     id: "team",
     header: "Team",
-    cell: ({ row }) =>
-      row.original.appleTeamId === null ? (
-        <span className="text-muted-foreground text-xs">—</span>
-      ) : (
-        <Badge variant="outline" className="font-mono text-xs">
-          {teamLabels[row.original.appleTeamId] ?? row.original.appleTeamId.slice(0, 8)}
-        </Badge>
-      ),
+    cell: ({ row }) => {
+      const teamId = row.original.appleTeamId;
+      return <TeamCell team={teamId === null ? null : teamsById.get(teamId)} />;
+    },
     enableSorting: false,
   },
   {

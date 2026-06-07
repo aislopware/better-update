@@ -22,6 +22,7 @@ export interface ParsedProvisioningProfile {
   readonly bundleIdentifier: string;
   readonly distributionType: DistributionType;
   readonly appleTeamId: string;
+  readonly teamName: string | null;
   readonly developerPortalIdentifier: string | null;
   readonly profileName: string | null;
   readonly validUntil: string | null;
@@ -122,6 +123,7 @@ export const parseProvisioningProfile = (bytes: Uint8Array) =>
       bundleIdentifier,
       distributionType: inferDistributionType(plist),
       appleTeamId,
+      teamName: getPlistString(plist, "TeamName"),
       developerPortalIdentifier: getPlistString(plist, "UUID"),
       profileName: getPlistString(plist, "Name"),
       validUntil: getPlistDateString(plist, "ExpirationDate"),

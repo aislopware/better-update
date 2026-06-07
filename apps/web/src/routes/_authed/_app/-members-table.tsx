@@ -64,9 +64,12 @@ const JoinedCell = ({ row }: { row: Row }) => {
     return formatRelativeTime(row.joinedAt.toISOString());
   }
   return (
-    <span className="text-muted-foreground italic">
-      Expires {formatRelativeFuture(row.expiresAt.toISOString())}
-    </span>
+    <div className="flex flex-col items-end gap-0.5">
+      <span>Invited {formatRelativeTime(row.invitedAt.toISOString())}</span>
+      <span className="text-muted-foreground/72 text-xs italic">
+        Expires {formatRelativeFuture(row.expiresAt.toISOString())}
+      </span>
+    </div>
   );
 };
 

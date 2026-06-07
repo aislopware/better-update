@@ -31,9 +31,10 @@ import type {
   IosBundleConfigurationItem,
 } from "@better-update/api-client/react";
 
+import { EmptyDash, TeamCell } from "../../-credential-cells";
 import { formatAppleTeamLabel } from "../../-credentials-utils";
 import { STATUS_BADGE_VARIANT, deriveExpiryStatus } from "../../../../../lib/credential-status";
-import { formatDate } from "../../../../../lib/format-date";
+import { formatShortDate } from "../../../../../lib/format-date";
 import { DISTRIBUTION_LABELS, sortConfigsByDistribution } from "./-ios-detail-shared";
 
 const EmptyBindingCard = ({ message }: { message: string }) => (
@@ -54,15 +55,20 @@ const CertRow = ({
   const certStatus = deriveExpiryStatus(cert.validUntil);
   return (
     <TableRow>
-      <TableCell className="font-mono text-xs">{cert.serialNumber.slice(0, 16)}…</TableCell>
-      <TableCell>{team ? formatAppleTeamLabel(team) : cert.appleTeamId}</TableCell>
+      <TableCell className="font-mono text-xs break-all">{cert.serialNumber}</TableCell>
+      <TableCell>
+        <TeamCell team={team} />
+      </TableCell>
+      <TableCell className="font-mono text-xs">
+        {cert.developerIdIdentifier ?? <EmptyDash />}
+      </TableCell>
       <TableCell>
         <div className="flex items-center gap-2">
-          <span>{formatDate(cert.validUntil)}</span>
+          <span>{formatShortDate(cert.validUntil)}</span>
           <Badge variant={STATUS_BADGE_VARIANT[certStatus.tone]}>{certStatus.label}</Badge>
         </div>
       </TableCell>
-      <TableCell className="text-muted-foreground">{formatDate(cert.updatedAt)}</TableCell>
+      <TableCell className="text-muted-foreground">{formatShortDate(cert.updatedAt)}</TableCell>
     </TableRow>
   );
 };
@@ -86,6 +92,7 @@ const CertTableCard = ({
           <TableRow>
             <TableHead>Serial</TableHead>
             <TableHead>Apple Team</TableHead>
+            <TableHead>Developer ID</TableHead>
             <TableHead>Expires</TableHead>
             <TableHead>Updated</TableHead>
           </TableRow>
@@ -111,14 +118,16 @@ const ProfileRow = ({
       <TableCell className="font-medium">
         {profile.profileName ?? profile.developerPortalIdentifier ?? "Unnamed profile"}
       </TableCell>
-      <TableCell>{team ? formatAppleTeamLabel(team) : profile.appleTeamId}</TableCell>
+      <TableCell>
+        <TeamCell team={team} />
+      </TableCell>
       <TableCell>
         <div className="flex items-center gap-2">
-          <span>{profile.validUntil === null ? "—" : formatDate(profile.validUntil)}</span>
+          <span>{profile.validUntil === null ? "—" : formatShortDate(profile.validUntil)}</span>
           <Badge variant={STATUS_BADGE_VARIANT[profileStatus.tone]}>{profileStatus.label}</Badge>
         </div>
       </TableCell>
-      <TableCell className="text-muted-foreground">{formatDate(profile.updatedAt)}</TableCell>
+      <TableCell className="text-muted-foreground">{formatShortDate(profile.updatedAt)}</TableCell>
     </TableRow>
   );
 };

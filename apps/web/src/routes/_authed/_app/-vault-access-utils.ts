@@ -12,7 +12,9 @@ export interface VaultRecipientRow {
   readonly label: string;
   readonly kind: RecipientKind;
   readonly fingerprint: string | null;
+  readonly grantedAt: string;
   readonly lastUsedAt: string | null;
+  readonly revokedAt: string | null;
 }
 
 const KIND_ORDER: Record<RecipientKind, number> = {
@@ -44,14 +46,18 @@ export const joinVaultRecipients = (
             label: key.label,
             kind: key.kind,
             fingerprint: key.fingerprint,
+            grantedAt: recipient.createdAt,
             lastUsedAt: key.lastUsedAt,
+            revokedAt: key.revokedAt,
           }
         : {
             userEncryptionKeyId: recipient.userEncryptionKeyId,
             label: "Unknown key",
             kind: "unknown",
             fingerprint: null,
+            grantedAt: recipient.createdAt,
             lastUsedAt: null,
+            revokedAt: null,
           };
     })
     .toSorted(

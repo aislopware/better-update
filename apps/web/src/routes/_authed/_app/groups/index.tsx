@@ -102,7 +102,7 @@ const GroupsPage = () => {
         description="Collect members into groups and attach policies once to grant everyone in the group the same access."
         actions={<CreateGroupButton orgId={activeOrg.id} />}
       />
-      <Suspense fallback={<TableSkeleton columns={3} rows={5} hasFooter={false} />}>
+      <Suspense fallback={<TableSkeleton columns={4} rows={5} hasFooter={false} />}>
         <GroupsContent />
       </Suspense>
     </div>

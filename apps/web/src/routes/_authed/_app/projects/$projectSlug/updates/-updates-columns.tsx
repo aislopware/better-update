@@ -33,9 +33,15 @@ export const buildUpdateColumns = (
               <EnvironmentBadge environment={environment} />
             ) : null}
           </div>
-          <code className="text-muted-foreground truncate font-mono text-xs">
-            {row.original.groupId.slice(0, 8)}
-          </code>
+          <div className="text-muted-foreground flex items-center gap-2 font-mono text-xs">
+            <code className="truncate">{row.original.groupId.slice(0, 8)}</code>
+            {row.original.gitCommit ? (
+              <span className="shrink-0">
+                {row.original.gitCommit.slice(0, 7)}
+                {row.original.gitDirty ? <span className="text-warning"> ·dirty</span> : null}
+              </span>
+            ) : null}
+          </div>
         </div>
       );
     },

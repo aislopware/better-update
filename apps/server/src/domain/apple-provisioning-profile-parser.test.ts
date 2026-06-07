@@ -10,6 +10,7 @@ describe(parseProvisioningProfile, () => {
     const plist = `
       <dict>
         <key>TeamIdentifier</key><array><string>ABCDE12345</string></array>
+        <key>TeamName</key><string>Example Corp Ltd</string>
         <key>application-identifier</key><string>ABCDE12345.com.example.app</string>
         <key>Name</key><string>Example Distribution</string>
         <key>UUID</key><string>12345678-1234-1234-1234-123456789012</string>
@@ -19,10 +20,22 @@ describe(parseProvisioningProfile, () => {
     `;
     const result = await Effect.runPromise(parseProvisioningProfile(buildProfile(plist)));
     expect(result.appleTeamId).toBe("ABCDE12345");
+    expect(result.teamName).toBe("Example Corp Ltd");
     expect(result.bundleIdentifier).toBe("com.example.app");
     expect(result.distributionType).toBe("APP_STORE");
     expect(result.validUntil).toMatch(/2027/);
     expect(result.certificateSerialNumbers).toStrictEqual(["CERTBASE64"]);
+  });
+
+  it("returns null teamName when TeamName key is absent", async () => {
+    const plist = `
+      <dict>
+        <key>TeamIdentifier</key><array><string>ABCDE12345</string></array>
+        <key>application-identifier</key><string>ABCDE12345.com.example.app</string>
+      </dict>
+    `;
+    const result = await Effect.runPromise(parseProvisioningProfile(buildProfile(plist)));
+    expect(result.teamName).toBeNull();
   });
 
   it("parses escaped values and application identifier from Entitlements", async () => {

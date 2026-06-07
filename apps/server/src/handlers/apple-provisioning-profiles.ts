@@ -69,7 +69,7 @@ export const AppleProvisioningProfilesGroupLive = HttpApiBuilder.group(
               organizationId: ctx.organizationId,
               appleTeamId: parsed.appleTeamId,
               appleTeamType: "COMPANY_ORGANIZATION",
-              name: null,
+              name: parsed.teamName,
             });
 
             const id = crypto.randomUUID();

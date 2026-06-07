@@ -121,7 +121,12 @@ const buildColumns = (
   {
     id: "status",
     header: "Status",
-    cell: ({ row }) => <StatusBadge approved={row.original.approved} />,
+    cell: ({ row }) => (
+      <div className="flex items-center gap-1.5">
+        <StatusBadge approved={row.original.approved} />
+        {row.original.banned ? <Badge variant="destructive">Banned</Badge> : null}
+      </div>
+    ),
   },
   {
     id: "createdAt",

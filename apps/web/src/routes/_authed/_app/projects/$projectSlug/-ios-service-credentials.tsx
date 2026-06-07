@@ -27,8 +27,8 @@ import type {
   AscApiKeyItem,
 } from "@better-update/api-client/react";
 
-import { formatAppleTeamLabel } from "../../-credentials-utils";
-import { formatDate } from "../../../../../lib/format-date";
+import { RolesCell, TeamCell } from "../../-credential-cells";
+import { formatShortDate } from "../../../../../lib/format-date";
 
 const EmptyBindingCard = ({ message }: { message: string }) => (
   <Card>
@@ -63,21 +63,18 @@ const PushKeyTableCard = ({
         <TableBody>
           <TableRow>
             <TableCell className="font-mono">{pushKey.keyId}</TableCell>
-            <TableCell>{team ? formatAppleTeamLabel(team) : pushKey.appleTeamId}</TableCell>
-            <TableCell className="text-muted-foreground">{formatDate(pushKey.createdAt)}</TableCell>
+            <TableCell>
+              <TeamCell team={team} />
+            </TableCell>
+            <TableCell className="text-muted-foreground">
+              {formatShortDate(pushKey.createdAt)}
+            </TableCell>
           </TableRow>
         </TableBody>
       </Table>
     )}
   </CardFrame>
 );
-
-const formatAscTeam = (key: AscApiKeyItem, team: AppleTeamItem | null): string => {
-  if (team !== null) {
-    return formatAppleTeamLabel(team);
-  }
-  return key.appleTeamId === null ? "—" : key.appleTeamId;
-};
 
 const AscKeyTableCard = ({
   ascKey,
@@ -100,6 +97,7 @@ const AscKeyTableCard = ({
             <TableHead>Key ID</TableHead>
             <TableHead>Issuer ID</TableHead>
             <TableHead>Apple Team</TableHead>
+            <TableHead>Roles</TableHead>
             <TableHead>Uploaded at</TableHead>
           </TableRow>
         </TableHeader>
@@ -108,8 +106,15 @@ const AscKeyTableCard = ({
             <TableCell className="font-medium">{ascKey.name}</TableCell>
             <TableCell className="font-mono">{ascKey.keyId}</TableCell>
             <TableCell className="font-mono text-xs break-all">{ascKey.issuerId}</TableCell>
-            <TableCell>{formatAscTeam(ascKey, team)}</TableCell>
-            <TableCell className="text-muted-foreground">{formatDate(ascKey.createdAt)}</TableCell>
+            <TableCell>
+              <TeamCell team={team} />
+            </TableCell>
+            <TableCell>
+              <RolesCell roles={ascKey.roles} />
+            </TableCell>
+            <TableCell className="text-muted-foreground">
+              {formatShortDate(ascKey.createdAt)}
+            </TableCell>
           </TableRow>
         </TableBody>
       </Table>
