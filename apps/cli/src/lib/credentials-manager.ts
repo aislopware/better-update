@@ -8,6 +8,7 @@ import {
   sealForUpload,
   toUploadEnvelope,
 } from "../application/credential-cipher";
+import { extractKeystoreFingerprints } from "./android-keystore";
 import { parseGoogleServiceAccountKey, validateAndroidKeystore } from "./credential-metadata";
 import { CredentialValidationError } from "./exit-codes";
 import { inspectP12 } from "./pkcs12";
@@ -288,7 +289,20 @@ const uploadAndroidKeystore = (api: ApiClient, input: UploadCredentialInput, byt
       keystorePassword: input.password,
       keyPassword: input.keyPassword,
     });
-    const metadata = { keyAlias: parsed.keyAlias };
+    // The original file is still on disk (we only read its bytes), so keytool can
+    // read its fingerprints directly. Run this before opening the vault session so
+    // a keytool failure aborts before any prompt or credential row is created.
+    const fingerprints = yield* extractKeystoreFingerprints({
+      keystorePath: input.filePath,
+      keyAlias: parsed.keyAlias,
+      storePassword: input.password,
+    });
+    const metadata = compact({
+      keyAlias: parsed.keyAlias,
+      md5Fingerprint: fingerprints.md5,
+      sha1Fingerprint: fingerprints.sha1,
+      sha256Fingerprint: fingerprints.sha256,
+    });
     const session = yield* openVaultSessionInteractive(api);
     const envelope = yield* sealForUpload({
       session,

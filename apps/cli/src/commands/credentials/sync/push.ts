@@ -1,7 +1,7 @@
 import { defineCommand } from "citty";
 import { Effect } from "effect";
 
-import type { FileSystem } from "@effect/platform";
+import type { CommandExecutor, FileSystem } from "@effect/platform";
 
 import { runEffect } from "../../../lib/citty-effect";
 import { readCredentialsJson, resolveCredentialPath } from "../../../lib/credentials-json";
@@ -20,7 +20,12 @@ import type { IdentityStore } from "../../../services/identity-store";
 import type { SyncRow } from "./helpers";
 
 /** Services the credential-sealing upload path pulls in beyond the filesystem. */
-type PushRequirements = FileSystem.FileSystem | CliRuntime | IdentityStore | InteractiveMode;
+type PushRequirements =
+  | FileSystem.FileSystem
+  | CommandExecutor.CommandExecutor
+  | CliRuntime
+  | IdentityStore
+  | InteractiveMode;
 
 const pushIos = (
   api: ApiClient,
