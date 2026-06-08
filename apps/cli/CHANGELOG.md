@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.31.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.30.0...@better-update/cli@0.31.0) (2026-06-08)
+
+### Features
+
+* **credentials:** capture & display Google service-account client_id (EAS parity) ([e14e8f7](https://github.com/better-update/better-update/commit/e14e8f70352f542cb2700384e83795f2eff4d72b)) - by @trancong12102
+
 ## [0.30.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.29.2...@better-update/cli@0.30.0) (2026-06-08)
 
 ### Features
