@@ -339,6 +339,7 @@ export const toApiGoogleServiceAccountKey = (
     clientEmail: model.clientEmail,
     privateKeyId: model.privateKeyId,
     googleProjectId: model.googleProjectId,
+    clientId: model.clientId,
     createdAt: model.createdAt,
     updatedAt: model.updatedAt,
   });

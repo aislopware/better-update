@@ -16,6 +16,7 @@ import {
   toApiCrudEffect,
   toApiWriteEffect,
 } from "../http/to-api-effect";
+import { toDbNull } from "../lib/nullable";
 import { withR2Compensation } from "../lib/r2-helpers";
 import { GoogleServiceAccountKeyRepo } from "../repositories/google-service-account-keys";
 
@@ -55,6 +56,7 @@ export const GoogleServiceAccountKeysGroupLive = HttpApiBuilder.group(
             });
 
             const blob = yield* decodeBase64(payload.ciphertext);
+            const clientId = toDbNull(payload.clientId);
 
             const r2Key = `google-service-account-keys/${ctx.organizationId}/${crypto.randomUUID()}.json.enc`;
             yield* artifacts.put(r2Key, blob);
@@ -68,6 +70,7 @@ export const GoogleServiceAccountKeysGroupLive = HttpApiBuilder.group(
                 clientEmail: payload.clientEmail,
                 privateKeyId: payload.privateKeyId,
                 googleProjectId: payload.googleProjectId,
+                clientId,
                 r2Key,
                 wrappedDek: payload.wrappedDek,
                 vaultVersion: payload.vaultVersion,
@@ -93,6 +96,7 @@ export const GoogleServiceAccountKeysGroupLive = HttpApiBuilder.group(
               clientEmail: payload.clientEmail,
               privateKeyId: payload.privateKeyId,
               googleProjectId: payload.googleProjectId,
+              clientId,
               r2Key,
               wrappedDek: payload.wrappedDek,
               vaultVersion: payload.vaultVersion,

@@ -338,6 +338,7 @@ const uploadAndroidGoogleServiceAccountKey = (
       clientEmail: parsed.clientEmail,
       privateKeyId: parsed.privateKeyId,
       googleProjectId: parsed.googleProjectId,
+      clientId: parsed.clientId,
     };
     const session = yield* openVaultSessionInteractive(api);
     const envelope = yield* sealForUpload({

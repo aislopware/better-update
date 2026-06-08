@@ -11,6 +11,7 @@ export class GoogleServiceAccountKey extends Schema.Class<GoogleServiceAccountKe
   clientEmail: Schema.String,
   privateKeyId: Schema.String,
   googleProjectId: Schema.String,
+  clientId: Schema.NullOr(Schema.String),
   createdAt: DateTimeString,
   updatedAt: DateTimeString,
 }) {}
@@ -26,6 +27,7 @@ export const UploadGoogleServiceAccountKeyBody = Schema.Struct({
   clientEmail: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(320)),
   privateKeyId: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(200)),
   googleProjectId: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(200)),
+  clientId: Schema.optional(Schema.NullOr(Schema.String.pipe(Schema.maxLength(200)))),
 });
 
 export const DeleteGoogleServiceAccountKeyResult = DeletedResult;

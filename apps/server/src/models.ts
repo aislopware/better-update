@@ -16,7 +16,6 @@ export type Distribution =
 export type ArtifactFormat = "ipa" | "apk" | "aab" | "tar.gz";
 
 export type DistributionType = "APP_STORE" | "AD_HOC" | "ENTERPRISE" | "DEVELOPMENT";
-
 export type AppleTeamType = "IN_HOUSE" | "COMPANY_ORGANIZATION" | "INDIVIDUAL";
 
 export type EnvVarVisibility = "plaintext" | "sensitive";
@@ -310,6 +309,7 @@ export interface GoogleServiceAccountKeyModel {
   readonly clientEmail: string;
   readonly privateKeyId: string;
   readonly googleProjectId: string;
+  readonly clientId: string | null;
   readonly r2Key: string;
   readonly wrappedDek: string;
   readonly vaultVersion: number;

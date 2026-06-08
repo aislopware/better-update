@@ -15,6 +15,7 @@ export interface GoogleServiceAccountKeyRepository {
     readonly clientEmail: string;
     readonly privateKeyId: string;
     readonly googleProjectId: string;
+    readonly clientId: string | null;
     readonly r2Key: string;
     readonly wrappedDek: string;
     readonly vaultVersion: number;
@@ -46,6 +47,7 @@ interface Row {
   client_email: string;
   private_key_id: string;
   google_project_id: string;
+  client_id: string | null;
   r2_key: string;
   wrapped_dek: string;
   vault_version: number;
@@ -53,7 +55,7 @@ interface Row {
   updated_at: string;
 }
 
-const COLUMNS = `"id", "organization_id", "client_email", "private_key_id", "google_project_id", "r2_key", "wrapped_dek", "vault_version", "created_at", "updated_at"`;
+const COLUMNS = `"id", "organization_id", "client_email", "private_key_id", "google_project_id", "client_id", "r2_key", "wrapped_dek", "vault_version", "created_at", "updated_at"`;
 
 const toModel = (row: Row): GoogleServiceAccountKeyModel => ({
   id: row.id,
@@ -61,6 +63,7 @@ const toModel = (row: Row): GoogleServiceAccountKeyModel => ({
   clientEmail: row.client_email,
   privateKeyId: row.private_key_id,
   googleProjectId: row.google_project_id,
+  clientId: row.client_id,
   r2Key: row.r2_key,
   wrappedDek: row.wrapped_dek,
   vaultVersion: row.vault_version,
@@ -75,7 +78,7 @@ export const GoogleServiceAccountKeyRepoLive = Layer.succeed(GoogleServiceAccoun
       yield* d1RunWithUniqueCheck(
         async () =>
           env.DB.prepare(
-            `INSERT INTO "google_service_account_keys" (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO "google_service_account_keys" (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           )
             .bind(
               params.id,
@@ -83,6 +86,7 @@ export const GoogleServiceAccountKeyRepoLive = Layer.succeed(GoogleServiceAccoun
               params.clientEmail,
               params.privateKeyId,
               params.googleProjectId,
+              params.clientId,
               params.r2Key,
               params.wrappedDek,
               params.vaultVersion,

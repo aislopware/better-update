@@ -74,7 +74,12 @@ const GsaTableCard = ({
               </span>
             </TableCell>
             <TableCell>
-              <CopyableMono value={sa.clientEmail} label="Client email" />
+              <div className="flex flex-col gap-0.5">
+                <CopyableMono value={sa.clientEmail} label="Client email" />
+                {sa.clientId === null ? null : (
+                  <span className="text-muted-foreground text-xs">ID: {sa.clientId}</span>
+                )}
+              </div>
             </TableCell>
             <TableCell className="text-muted-foreground">{formatDate(sa.createdAt)}</TableCell>
           </TableRow>

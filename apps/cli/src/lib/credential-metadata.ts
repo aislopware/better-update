@@ -80,6 +80,7 @@ export interface ParsedGoogleServiceAccountKey {
   readonly clientEmail: string;
   readonly privateKeyId: string;
   readonly googleProjectId: string;
+  readonly clientId: string | null;
 }
 
 interface RawServiceAccountKey {
@@ -88,6 +89,7 @@ interface RawServiceAccountKey {
   readonly private_key_id?: unknown;
   readonly private_key?: unknown;
   readonly client_email?: unknown;
+  readonly client_id?: unknown;
 }
 
 const isNonEmptyString = (value: unknown): value is string =>
@@ -127,5 +129,6 @@ export const parseGoogleServiceAccountKey = (
       clientEmail: raw.client_email,
       privateKeyId: raw.private_key_id,
       googleProjectId: raw.project_id,
+      clientId: isNonEmptyString(raw.client_id) ? raw.client_id : null,
     };
   });

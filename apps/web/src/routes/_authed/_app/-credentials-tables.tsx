@@ -278,23 +278,28 @@ export const GoogleServiceAccountKeysTable = ({
   <Table variant="card">
     <TableHeader>
       <TableRow>
-        <TableHead>Client email</TableHead>
-        <TableHead>Project</TableHead>
-        <TableHead>Key ID</TableHead>
-        <TableHead>Added</TableHead>
+        <TableHead>Project ID</TableHead>
+        <TableHead>Private Key ID</TableHead>
+        <TableHead>Client</TableHead>
+        <TableHead>Uploaded at</TableHead>
       </TableRow>
     </TableHeader>
     <TableBody>
       {items.map((key) => (
         <TableRow key={key.id}>
           <TableCell>
-            <CopyableMono value={key.clientEmail} label="Client email" />
-          </TableCell>
-          <TableCell>
             <CopyableMono value={key.googleProjectId} label="Project ID" />
           </TableCell>
           <TableCell>
             <CopyableMono value={key.privateKeyId} label="Private key ID" />
+          </TableCell>
+          <TableCell>
+            <div className="flex flex-col gap-0.5">
+              <CopyableMono value={key.clientEmail} label="Client email" />
+              {key.clientId === null ? null : (
+                <span className="text-muted-foreground text-xs">ID: {key.clientId}</span>
+              )}
+            </div>
           </TableCell>
           <TableCell className="text-muted-foreground">{formatShortDate(key.createdAt)}</TableCell>
         </TableRow>

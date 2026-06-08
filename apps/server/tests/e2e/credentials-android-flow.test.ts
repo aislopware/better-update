@@ -123,11 +123,14 @@ describe("Credentials Android flow", () => {
         clientEmail: "submissions@play-project.iam.gserviceaccount.com",
         privateKeyId: "sub-key-id",
         googleProjectId: "play-project",
+        clientId: "109516608069988386879",
       },
       { cookie: cookies },
     );
     expect(subRes.status).toBe(201);
-    saSubmissionsId = (await subRes.json()).id;
+    const subBody = await subRes.json();
+    expect(subBody.clientId).toBe("109516608069988386879");
+    saSubmissionsId = subBody.id;
 
     const fcmRes = await post(
       "/api/google/service-account-keys",
