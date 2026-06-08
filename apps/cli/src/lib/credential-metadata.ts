@@ -43,8 +43,9 @@ export interface ValidatedKeystore {
 /**
  * Validate keystore bytes + alias/passwords locally before sealing. Mirrors the
  * old server check: magic-byte format detection + required-field validation.
- * Fingerprints are not derived from the bytes (keytool never surfaced them here
- * either) — they remain optional, user-supplied metadata.
+ * Fingerprints cannot be derived from the raw bytes; they are extracted separately
+ * via keytool (`extractKeystoreFingerprints` in ./android-keystore) at upload/generate
+ * time and attached to the public metadata.
  */
 export const validateAndroidKeystore = (params: {
   readonly bytes: Uint8Array;

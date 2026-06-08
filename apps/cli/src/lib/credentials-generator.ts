@@ -11,7 +11,7 @@ import {
   sealForUpload,
   toUploadEnvelope,
 } from "../application/credential-cipher";
-import { generateAndroidKeystore } from "./android-keystore";
+import { extractKeystoreFingerprints, generateAndroidKeystore } from "./android-keystore";
 import {
   createBundleId,
   createCertificate,
@@ -104,8 +104,18 @@ export const generateAndUploadKeystore = (api: ApiClient, input: GenerateAndUplo
       });
 
       const bytes = yield* fs.readFile(keystorePath);
+      const fingerprints = yield* extractKeystoreFingerprints({
+        keystorePath,
+        keyAlias: input.keyAlias,
+        storePassword: input.storePassword,
+      });
       const session = yield* openVaultSessionInteractive(api);
-      const metadata = { keyAlias: input.keyAlias };
+      const metadata = compact({
+        keyAlias: input.keyAlias,
+        md5Fingerprint: fingerprints.md5,
+        sha1Fingerprint: fingerprints.sha1,
+        sha256Fingerprint: fingerprints.sha256,
+      });
       const envelope = yield* sealForUpload({
         session,
         credentialType: "keystore",
