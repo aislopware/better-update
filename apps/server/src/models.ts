@@ -20,7 +20,6 @@ export type DistributionType = "APP_STORE" | "AD_HOC" | "ENTERPRISE" | "DEVELOPM
 export type AppleTeamType = "IN_HOUSE" | "COMPANY_ORGANIZATION" | "INDIVIDUAL";
 
 export type EnvVarVisibility = "plaintext" | "sensitive";
-
 export type EnvVarScope = "project" | "global";
 
 // An env var's environment is any of the org's environments (built-in or
@@ -354,6 +353,7 @@ export interface AndroidUploadKeystoreModel {
   readonly md5Fingerprint: string | null;
   readonly sha1Fingerprint: string | null;
   readonly sha256Fingerprint: string | null;
+  readonly keystoreType: "JKS" | "PKCS12" | null;
   readonly createdAt: string;
   readonly updatedAt: string;
 }

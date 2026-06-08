@@ -19,6 +19,7 @@ export interface AndroidUploadKeystoreRepository {
     readonly md5Fingerprint: string | null;
     readonly sha1Fingerprint: string | null;
     readonly sha256Fingerprint: string | null;
+    readonly keystoreType: "JKS" | "PKCS12" | null;
     readonly createdAt: string;
     readonly updatedAt: string;
   }) => Effect.Effect<void, Conflict>;
@@ -51,11 +52,12 @@ interface Row {
   md5_fingerprint: string | null;
   sha1_fingerprint: string | null;
   sha256_fingerprint: string | null;
+  keystore_type: "JKS" | "PKCS12" | null;
   created_at: string;
   updated_at: string;
 }
 
-const COLUMNS = `"id", "organization_id", "key_alias", "r2_key", "wrapped_dek", "vault_version", "md5_fingerprint", "sha1_fingerprint", "sha256_fingerprint", "created_at", "updated_at"`;
+const COLUMNS = `"id", "organization_id", "key_alias", "r2_key", "wrapped_dek", "vault_version", "md5_fingerprint", "sha1_fingerprint", "sha256_fingerprint", "keystore_type", "created_at", "updated_at"`;
 
 const toModel = (row: Row): AndroidUploadKeystoreModel => ({
   id: row.id,
@@ -67,6 +69,7 @@ const toModel = (row: Row): AndroidUploadKeystoreModel => ({
   md5Fingerprint: row.md5_fingerprint,
   sha1Fingerprint: row.sha1_fingerprint,
   sha256Fingerprint: row.sha256_fingerprint,
+  keystoreType: row.keystore_type,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
@@ -78,7 +81,7 @@ export const AndroidUploadKeystoreRepoLive = Layer.succeed(AndroidUploadKeystore
       yield* d1RunWithUniqueCheck(
         async () =>
           env.DB.prepare(
-            `INSERT INTO "android_upload_keystores" (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO "android_upload_keystores" (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           )
             .bind(
               params.id,
@@ -90,6 +93,7 @@ export const AndroidUploadKeystoreRepoLive = Layer.succeed(AndroidUploadKeystore
               params.md5Fingerprint,
               params.sha1Fingerprint,
               params.sha256Fingerprint,
+              params.keystoreType,
               params.createdAt,
               params.updatedAt,
             )

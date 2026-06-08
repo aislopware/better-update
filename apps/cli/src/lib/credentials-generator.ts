@@ -115,6 +115,8 @@ export const generateAndUploadKeystore = (api: ApiClient, input: GenerateAndUplo
         md5Fingerprint: fingerprints.md5,
         sha1Fingerprint: fingerprints.sha1,
         sha256Fingerprint: fingerprints.sha256,
+        // generateAndroidKeystore always emits a JKS container.
+        keystoreType: "JKS" as const,
       });
       const envelope = yield* sealForUpload({
         session,

@@ -103,6 +103,7 @@ describe("Credentials Android flow", () => {
         ...credentialEnvelope(),
         keyAlias: "upload",
         sha256Fingerprint: "00:11:22:33:44:55:66:77",
+        keystoreType: "JKS",
       },
       { cookie: cookies },
     );
@@ -110,6 +111,7 @@ describe("Credentials Android flow", () => {
     const body = await res.json();
     expect(body.keyAlias).toBe("upload");
     expect(body.sha256Fingerprint).toBe("00:11:22:33:44:55:66:77");
+    expect(body.keystoreType).toBe("JKS");
     keystoreId = body.id;
   });
 

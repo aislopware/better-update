@@ -12,6 +12,7 @@ export class AndroidUploadKeystore extends Schema.Class<AndroidUploadKeystore>(
   md5Fingerprint: Schema.NullOr(Schema.String),
   sha1Fingerprint: Schema.NullOr(Schema.String),
   sha256Fingerprint: Schema.NullOr(Schema.String),
+  keystoreType: Schema.NullOr(Schema.Literal("JKS", "PKCS12")),
   createdAt: DateTimeString,
   updatedAt: DateTimeString,
 }) {}
@@ -28,6 +29,7 @@ export const UploadAndroidUploadKeystoreBody = Schema.Struct({
   md5Fingerprint: Schema.optional(Schema.String.pipe(Schema.maxLength(200))),
   sha1Fingerprint: Schema.optional(Schema.String.pipe(Schema.maxLength(200))),
   sha256Fingerprint: Schema.optional(Schema.String.pipe(Schema.maxLength(200))),
+  keystoreType: Schema.optional(Schema.Literal("JKS", "PKCS12")),
 });
 
 export const DeleteAndroidUploadKeystoreResult = DeletedResult;
