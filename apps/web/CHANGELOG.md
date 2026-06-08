@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.35.0](https://github.com/better-update/better-update/compare/@better-update/web@0.34.0...@better-update/web@0.35.0) (2026-06-08)
+
+### Features
+
+* **credentials:** store & show Android keystore type (JKS/PKCS12) ([20cd16c](https://github.com/better-update/better-update/commit/20cd16cf3ac9cc5f1e9acec9cddfb5dbef851a8e)) - by @trancong12102
+
 ## [0.34.0](https://github.com/better-update/better-update/compare/@better-update/web@0.33.0...@better-update/web@0.34.0) (2026-06-08)
 
 ### Features
