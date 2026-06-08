@@ -81,7 +81,11 @@ export const addDeviceCommand = defineCommand({
       default: "IPHONE",
       description: "Device class (IPHONE, IPAD, MAC, UNKNOWN)",
     },
-    "apple-team-id": { type: "string", description: "Apple team to assign" },
+    "apple-team-id": {
+      type: "string",
+      description:
+        "Internal team Id (UUID from `credentials list`), not the Apple Team Identifier (e.g. 233P57T2L4)",
+    },
     invite: {
       type: "boolean",
       description:

@@ -118,6 +118,24 @@ describe("Apple Devices multi-team flow", () => {
     expect(devOrphan.status).toBe(201);
   });
 
+  it("translates an Apple Team Identifier passed as appleTeamId to 404, not a FK 500", async () => {
+    // TEAM_A is the Apple Team Identifier string, NOT the internal team Id (UUID).
+    // Passing it straight through used to crash on the FK constraint (HTTP 500).
+    const res = await post(
+      "/api/devices",
+      {
+        identifier: "00008030-001c45663c90802e",
+        name: "Wrong Team Id",
+        deviceClass: "IPHONE",
+        appleTeamId: TEAM_A,
+      },
+      { cookie: cookies },
+    );
+    expect(res.status).toBe(404);
+    const body = (await res.json()) as { message: string };
+    expect(body.message).toContain("Apple team");
+  });
+
   it("lists all devices without a team filter", async () => {
     const res = await get("/api/devices", { cookie: cookies });
     expect(res.status).toBe(200);
