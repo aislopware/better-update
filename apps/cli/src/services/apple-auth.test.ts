@@ -110,6 +110,7 @@ const makeAppleUtilsStub = (
     logout: () => Promise<void>;
     getAnySessionInfo: () => Session.SessionInfo | null;
     setSessionProviderId: (id: number) => Promise<Session.SessionInfo | null>;
+    getTeams: () => Promise<unknown>;
     getCookiesJSON: () => NonNullable<Auth.UserCredentials["cookies"]>;
   }> = {},
 ): AppleUtilsContract => ({
@@ -123,6 +124,10 @@ const makeAppleUtilsStub = (
   Session: {
     getAnySessionInfo: overrides.getAnySessionInfo ?? (() => null),
     setSessionProviderIdAsync: overrides.setSessionProviderId ?? (async () => null),
+  },
+  Teams: {
+    getTeamsAsync: (overrides.getTeams ??
+      (async () => [])) as AppleUtilsContract["Teams"]["getTeamsAsync"],
   },
   CookieFileCache: {
     getCookiesJSON: overrides.getCookiesJSON ?? (() => COOKIES_FIXTURE),
@@ -194,6 +199,49 @@ describe("AppleAuth.ensureLoggedIn", () => {
         })(),
       ),
     ),
+  );
+
+  it.effect(
+    "switching to a UUID-provider team resolves the 10-char Team ID from the portal team list",
+    () =>
+      Effect.gen(function* () {
+        const auth = yield* AppleAuth;
+        const session = yield* auth.ensureLoggedIn();
+        // publicProviderId is a UUID, so the real 10-char Team ID must come from getTeamsAsync.
+        expect(session.providerId).toBe(200);
+        expect(session.teamId).toBe("LPZ7MF9QXQ");
+      }).pipe(
+        Effect.provide(
+          (() => {
+            const { layer } = makeSessionStoreLayer({
+              session: { cookies: COOKIES_FIXTURE, username: "cong@example.com" },
+            });
+            const uuidProvider = makeProvider(
+              200,
+              "69a6de80-b33d-47e3-e053-5b8c7c11a4d1",
+              "JMango Operations B.V.",
+            );
+            const appleUtils = makeAppleUtilsStub({
+              loginWithCookies: async () =>
+                makeAuthState({
+                  providerId: 100,
+                  teamId: "TEAM100",
+                  availableProviders: [makeProvider(100, "TEAM100"), uuidProvider],
+                }),
+              getTeams: async () => [
+                { teamId: "LPZ7MF9QXQ", name: "JMango Operations B.V." },
+                { teamId: "OTHER12345", name: "Someone Else" },
+              ],
+            });
+            return Layer.mergeAll(
+              makeAppleAuthLive(appleUtils).pipe(Layer.provide(layer)),
+              layer,
+              makeInteractiveModeLayer(false),
+              cliRuntimeStub({ APPLE_PROVIDER_ID: "200" }),
+            );
+          })(),
+        ),
+      ),
   );
 
   it.effect(

@@ -305,6 +305,13 @@ better-update credentials generate provisioning-profile \
   --cert-id <distribution-certificate-id> \
   --asc-key-id <asc-api-key-id> \
   [--device-ids id1,id2,...]
+
+better-update credentials generate push-key \
+  [--method <apple-id|upload>] \
+  [--p8 <path>] [--key-id <id>] [--apple-team-id <id>] [--name <name>]
+
+better-update credentials revoke distribution-certificate <id> --asc-key-id <id> [--keep-local]
+better-update credentials revoke push-key [--id <local-id>] [--keep-local]
 ```
 
 Valid `--type` values:
@@ -317,6 +324,10 @@ Valid `--type` values:
 `generate distribution-certificate` generates a CSR + private key locally, requests a fresh `.p12` from the App Store Connect API, and stores the result server-side. If Apple's 3-cert limit is hit, the CLI prompts you to revoke existing certificates before retrying.
 
 `generate provisioning-profile` calls the App Store Connect API from the CLI; the referenced distribution certificate must already exist both on better-update and the Apple Developer portal. `--device-ids` is required for `AD_HOC`/`DEVELOPMENT`.
+
+`generate push-key` creates a new APNs auth key (`.p8`) by **logging in with your Apple ID** — the public App Store Connect API cannot create APNs keys, so this uses the Apple Developer portal session (2FA, interactive only). The key is created on Apple, downloaded once, end-to-end encrypted on your machine, then uploaded. Pass `--p8 <path>` (or `--method upload`) to upload a key you already downloaded instead — that path also works non-interactively in CI. Apple caps a team at 2 APNs keys; on the limit the CLI offers an interactive revoke + retry.
+
+`revoke push-key` revokes the key on the Apple Developer portal (via Apple ID login) and deletes the stored copy; pass `--keep-local` to revoke upstream but keep the record. A key already gone from the portal is still deleted locally.
 
 `build` will prompt to bind credentials interactively on first run if nothing is configured for the project + bundle/package. For `AD_HOC`/`DEVELOPMENT` bundles, the CLI auto-regenerates the provisioning profile if the registered device roster changed since the last build.
 

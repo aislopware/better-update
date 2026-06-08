@@ -31,6 +31,9 @@ export interface AppleUtilsContract {
     readonly getAnySessionInfo: typeof AppleUtils.Session.getAnySessionInfo;
     readonly setSessionProviderIdAsync: typeof AppleUtils.Session.setSessionProviderIdAsync;
   };
+  readonly Teams: {
+    readonly getTeamsAsync: typeof AppleUtils.Teams.getTeamsAsync;
+  };
   readonly CookieFileCache: {
     readonly getCookiesJSON: typeof AppleUtils.CookieFileCache.getCookiesJSON;
   };
@@ -39,8 +42,14 @@ export interface AppleUtilsContract {
 const defaultAppleUtils: AppleUtilsContract = {
   Auth: AppleUtils.Auth,
   Session: AppleUtils.Session,
+  Teams: AppleUtils.Teams,
   CookieFileCache: AppleUtils.CookieFileCache,
 };
+
+// A Developer Portal Team ID is 10 uppercase alphanumerics. An App Store Connect
+// provider's `publicProviderId` equals that Team ID for most teams, but is a UUID
+// for some (multi-brand orgs); cert/profile/key portal calls reject the UUID.
+const TEN_CHAR_TEAM_ID = /^[A-Z0-9]{10}$/u;
 
 /**
  * Resolved Apple Developer Portal session, ready to back entity-manager calls
@@ -88,15 +97,31 @@ const sessionFromInfo = (username: string, info: Session.SessionInfo): AppleAuth
   providerId: info.provider.providerId,
 });
 
-const sessionFromProvider = (
-  username: string,
+/**
+ * Resolve the 10-char Developer Portal Team ID for a selected App Store Connect
+ * provider. Uses the provider's `publicProviderId` directly when it already is a
+ * Team ID; otherwise (UUID providers) looks it up from the Developer Portal team
+ * list by name — the only field both surfaces share. Falls back to the
+ * `publicProviderId` if no match, preserving prior behavior.
+ */
+const resolvePortalTeamId = (
+  appleUtils: AppleUtilsContract,
   provider: Session.SessionProvider,
-): AppleAuthSession => ({
-  username,
-  teamId: provider.publicProviderId,
-  teamName: provider.name,
-  providerId: provider.providerId,
-});
+): Effect.Effect<string, AppleAuthError> =>
+  Effect.gen(function* () {
+    if (TEN_CHAR_TEAM_ID.test(provider.publicProviderId)) {
+      return provider.publicProviderId;
+    }
+    const teams = yield* Effect.tryPromise({
+      try: async () => appleUtils.Teams.getTeamsAsync(),
+      catch: (cause) =>
+        new AppleAuthError({
+          message: `Failed to list Apple Developer teams: ${formatCause(cause)}`,
+        }),
+    });
+    const match = teams.find((team) => team.name === provider.name);
+    return match?.teamId ?? provider.publicProviderId;
+  });
 
 type RestoreInput = Parameters<AppleUtilsContract["Auth"]["loginWithCookiesAsync"]>[0];
 
@@ -130,19 +155,30 @@ const resolveSessionTeam = (
     const currentProviderId = state.context.providerId ?? state.session.provider.providerId;
     const resolution = yield* resolveProvider(appleUtils, availableProviders, currentProviderId);
 
-    if (!resolution.switched || resolution.providerId === undefined) {
-      return sessionFromAuthState(state);
-    }
-
-    const picked = availableProviders.find(
-      (provider) => provider.providerId === resolution.providerId,
-    );
-    if (picked === undefined) {
+    const switched = resolution.switched && resolution.providerId !== undefined;
+    const provider = switched
+      ? availableProviders.find((entry) => entry.providerId === resolution.providerId)
+      : state.session.provider;
+    if (provider === undefined) {
       return yield* new AppleAuthError({
         message: `Selected provider ${String(resolution.providerId)} not in available providers list.`,
       });
     }
-    return sessionFromProvider(state.username, picked);
+
+    // A non-switched session already carries the resolved 10-char Team ID in its
+    // context; a switch invalidates it, so re-resolve from the portal team list.
+    const cachedTeamId =
+      !switched && state.context.teamId !== undefined && TEN_CHAR_TEAM_ID.test(state.context.teamId)
+        ? state.context.teamId
+        : undefined;
+    const teamId = cachedTeamId ?? (yield* resolvePortalTeamId(appleUtils, provider));
+
+    return {
+      username: state.username,
+      teamId,
+      teamName: provider.name,
+      providerId: provider.providerId,
+    } satisfies AppleAuthSession;
   });
 
 const loginWithCredentials = (appleUtils: AppleUtilsContract, credentials: Auth.UserCredentials) =>
