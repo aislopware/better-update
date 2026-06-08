@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.36.0](https://github.com/better-update/better-update/compare/@better-update/web@0.35.0...@better-update/web@0.36.0) (2026-06-08)
+
+### Features
+
+* **web:** show Android keystore type in its own column ([b881ede](https://github.com/better-update/better-update/commit/b881ede0adeb66cacd065c7ce7e8f2949e9d9c50)) - by @trancong12102
+
 ## [0.35.0](https://github.com/better-update/better-update/compare/@better-update/web@0.34.0...@better-update/web@0.35.0) (2026-06-08)
 
 ### Features
