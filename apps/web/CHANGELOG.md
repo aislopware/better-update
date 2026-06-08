@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.38.0](https://github.com/better-update/better-update/compare/@better-update/web@0.37.0...@better-update/web@0.38.0) (2026-06-08)
+
+### Features
+
+* **web:** add Apple team selector + sync status to device dialogs ([46e5d97](https://github.com/better-update/better-update/commit/46e5d97ef173d57b2d254df14261625c050ae830)) - by @trancong12102
+
 ## [0.37.0](https://github.com/better-update/better-update/compare/@better-update/web@0.36.0...@better-update/web@0.37.0) (2026-06-08)
 
 ### Features

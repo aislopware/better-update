@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.28.0](https://github.com/better-update/better-update/compare/@better-update/server@0.27.1...@better-update/server@0.28.0) (2026-06-08)
+
+### Features
+
+* **devices:** sync device roster with App Store Connect ([5b4e0ca](https://github.com/better-update/better-update/commit/5b4e0ca3f86fa87b99b151cccd2e09c2681cebd8)) - by @trancong12102
+
 ## [0.27.1](https://github.com/better-update/better-update/compare/@better-update/server@0.27.0...@better-update/server@0.27.1) (2026-06-08)
 
 ### Bug Fixes
