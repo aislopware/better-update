@@ -43,6 +43,37 @@ export const UpdateDeviceBody = Schema.Struct({
   appleTeamId: Schema.optional(Schema.NullOr(Id)),
 });
 
+/**
+ * One device in an App Store Connect snapshot, as reconciled by `syncDevices`.
+ * `appleDevicePortalId` is the device's id on Apple's portal — its presence is
+ * what the dashboard surfaces as "synced".
+ */
+const SyncDeviceEntry = Schema.Struct({
+  identifier: DeviceIdentifier,
+  name: Name120,
+  deviceClass: DeviceClass,
+  appleDevicePortalId: Schema.String,
+});
+
+/**
+ * Reconcile the org's device roster for one Apple team against a snapshot of
+ * App Store Connect devices: link portal ids onto existing rows and import any
+ * device that only exists on Apple. `appleTeamId` is the internal team Id (UUID).
+ */
+export const SyncDevicesBody = Schema.Struct({
+  appleTeamId: Id,
+  devices: Schema.Array(SyncDeviceEntry),
+});
+
+export const SyncDevicesResult = Schema.Struct({
+  /** Devices that existed only on Apple and were imported locally. */
+  created: Schema.Number,
+  /** Local devices that gained (or changed) their Apple portal id. */
+  linked: Schema.Number,
+  /** Local devices already in sync — nothing to do. */
+  unchanged: Schema.Number,
+});
+
 export const DeleteDeviceResult = DeletedResult;
 
 export const DeviceSortColumn = Schema.Literal("name", "createdAt", "deviceClass");

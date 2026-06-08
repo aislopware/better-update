@@ -60,13 +60,14 @@ export const listDevicesCommand = defineCommand({
             ? result.items
             : result.items.filter((device) => device.enabled === enabledFilter);
         yield* printHumanTable(
-          ["ID", "Name", "Class", "UDID", "Team", "Enabled"],
+          ["ID", "Name", "Class", "UDID", "Team", "Synced", "Enabled"],
           items.map((device) => [
             device.id,
             device.name,
             device.deviceClass,
             device.identifier,
             device.appleTeamId ?? "—",
+            device.appleDevicePortalId === null ? "no" : "yes",
             device.enabled ? "yes" : "no",
           ]),
         );

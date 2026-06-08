@@ -12,6 +12,8 @@ import {
   ListDevicesParams,
   ListRegistrationRequestsParams,
   RegisterDeviceBody,
+  SyncDevicesBody,
+  SyncDevicesResult,
   UpdateDeviceBody,
 } from "../domain/device";
 import { Conflict } from "../domain/errors";
@@ -65,6 +67,18 @@ export class DevicesGroup extends HttpApiGroup.make("devices")
         OpenApi.annotations({
           title: "Delete device",
           description: "Remove a registered device from the organization",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.post("syncDevices", "/api/devices/sync")
+      .setPayload(SyncDevicesBody)
+      .addSuccess(SyncDevicesResult)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Sync devices with App Store Connect",
+          description:
+            "Reconcile the org's device roster for one Apple team against an App Store Connect snapshot: link Apple portal ids onto existing devices and import devices that only exist on Apple",
         }),
       ),
   )
