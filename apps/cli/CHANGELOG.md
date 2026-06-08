@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.33.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.32.0...@better-update/cli@0.33.0) (2026-06-08)
+
+### Features
+
+* **credentials:** create & revoke APNs push keys via Apple ID ([06e6503](https://github.com/better-update/better-update/commit/06e65032a5d54131321478a78798e95ef9fe977b)) - by @trancong12102
+
 ## [0.32.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.31.1...@better-update/cli@0.32.0) (2026-06-08)
 
 ### Features
