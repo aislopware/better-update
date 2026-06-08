@@ -302,6 +302,7 @@ const uploadAndroidKeystore = (api: ApiClient, input: UploadCredentialInput, byt
       md5Fingerprint: fingerprints.md5,
       sha1Fingerprint: fingerprints.sha1,
       sha256Fingerprint: fingerprints.sha256,
+      keystoreType: parsed.format,
     });
     const session = yield* openVaultSessionInteractive(api);
     const envelope = yield* sealForUpload({

@@ -385,6 +385,7 @@ export const toApiAndroidUploadKeystore = (
     md5Fingerprint: model.md5Fingerprint,
     sha1Fingerprint: model.sha1Fingerprint,
     sha256Fingerprint: model.sha256Fingerprint,
+    keystoreType: model.keystoreType,
     createdAt: model.createdAt,
     updatedAt: model.updatedAt,
   });
