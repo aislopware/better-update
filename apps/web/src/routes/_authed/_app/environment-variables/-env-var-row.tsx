@@ -1,13 +1,10 @@
 import { Badge } from "@better-update/ui/components/ui/badge";
-import { Button } from "@better-update/ui/components/ui/button";
 import { TableCell, TableRow } from "@better-update/ui/components/ui/table";
-import { toastManager } from "@better-update/ui/components/ui/toast";
-import { CheckIcon, CopyIcon } from "lucide-react";
 
 import type { EnvVar } from "@better-update/api";
 
+import { CopyButton } from "../../../../lib/copy-button";
 import { formatRelativeTime } from "../../../../lib/format-relative-time";
-import { useCopyToClipboard } from "../../../../lib/use-copy-to-clipboard";
 import { formatEnvironmentLabel } from "./-env-vars-labels";
 
 const VISIBILITY_VARIANTS: Record<string, "secondary" | "warning"> = {
@@ -18,32 +15,6 @@ const VISIBILITY_VARIANTS: Record<string, "secondary" | "warning"> = {
 const SCOPE_VARIANTS: Record<string, "secondary" | "info"> = {
   project: "secondary",
   global: "info",
-};
-
-const CopyButton = ({ value, label }: { value: string; label: string }) => {
-  const { copied, copy } = useCopyToClipboard(1500);
-  const handleCopy = async () => {
-    const ok = await copy(value);
-    toastManager.add(
-      ok
-        ? { title: `${label} copied`, type: "success" }
-        : { title: "Failed to copy to clipboard", type: "error" },
-    );
-  };
-  return (
-    <Button
-      variant="ghost"
-      size="icon-sm"
-      aria-label={`Copy ${label.toLowerCase()}`}
-      onClick={handleCopy}
-    >
-      {copied ? (
-        <CheckIcon strokeWidth={2} className="size-3.5" />
-      ) : (
-        <CopyIcon strokeWidth={2} className="size-3.5" />
-      )}
-    </Button>
-  );
 };
 
 // Read-only: the value is end-to-end encrypted and only readable via the CLI.

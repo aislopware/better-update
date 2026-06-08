@@ -26,6 +26,7 @@ import { Suspense } from "react";
 
 import { PageHeader } from "../../../components/page-header";
 import { TableSkeleton } from "../../../components/skeletons";
+import { CopyableMono } from "../../../lib/copy-button";
 import { formatDate } from "../../../lib/format-date";
 import { pluralize } from "../../../lib/pluralize";
 import { ENCRYPTION_KEY_KIND_META, joinVaultRecipients } from "./-vault-access-utils";
@@ -72,7 +73,9 @@ const RecipientsTable = ({ rows }: { rows: readonly VaultRecipientRow[] }) => (
                 {row.revokedAt ? <Badge variant="destructive">Revoked</Badge> : null}
               </div>
             </TableCell>
-            <TableCell className="font-mono text-xs break-all">{row.fingerprint ?? "—"}</TableCell>
+            <TableCell>
+              <CopyableMono value={row.fingerprint} label="Fingerprint" />
+            </TableCell>
             <TableCell className="text-muted-foreground">{formatDate(row.grantedAt)}</TableCell>
             <TableCell className="text-muted-foreground">
               {row.lastUsedAt ? formatDate(row.lastUsedAt) : "—"}

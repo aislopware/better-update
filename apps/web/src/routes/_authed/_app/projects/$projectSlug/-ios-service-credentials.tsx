@@ -28,6 +28,7 @@ import type {
 } from "@better-update/api-client/react";
 
 import { RolesCell, TeamCell } from "../../-credential-cells";
+import { CopyableMono } from "../../../../../lib/copy-button";
 import { formatShortDate } from "../../../../../lib/format-date";
 
 const EmptyBindingCard = ({ message }: { message: string }) => (
@@ -62,7 +63,9 @@ const PushKeyTableCard = ({
         </TableHeader>
         <TableBody>
           <TableRow>
-            <TableCell className="font-mono">{pushKey.keyId}</TableCell>
+            <TableCell>
+              <CopyableMono value={pushKey.keyId} label="Key ID" />
+            </TableCell>
             <TableCell>
               <TeamCell team={team} />
             </TableCell>
@@ -104,8 +107,12 @@ const AscKeyTableCard = ({
         <TableBody>
           <TableRow>
             <TableCell className="font-medium">{ascKey.name}</TableCell>
-            <TableCell className="font-mono">{ascKey.keyId}</TableCell>
-            <TableCell className="font-mono text-xs break-all">{ascKey.issuerId}</TableCell>
+            <TableCell>
+              <CopyableMono value={ascKey.keyId} label="Key ID" />
+            </TableCell>
+            <TableCell>
+              <CopyableMono value={ascKey.issuerId} label="Issuer ID" />
+            </TableCell>
             <TableCell>
               <TeamCell team={team} />
             </TableCell>

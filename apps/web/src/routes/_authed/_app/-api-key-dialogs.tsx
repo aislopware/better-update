@@ -25,54 +25,44 @@ import {
 import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
-import { KeyIcon, CopyIcon, CheckIcon } from "lucide-react";
+import { KeyIcon } from "lucide-react";
 import { useState } from "react";
 
+import { CopyButton } from "../../../lib/copy-button";
 import { getFieldError, requiredStringSchema } from "../../../lib/form-utils";
 import { useApiMutation, safeSubmit } from "../../../lib/use-api-mutation";
-import { useCopyToClipboard } from "../../../lib/use-copy-to-clipboard";
 import { apiKeysQueryOptions } from "../../../queries/api-keys";
 
 // ── Key Reveal ───────────────────────────────────────────────────
 
-const KeyRevealContent = ({ apiKey, onClose }: { apiKey: string; onClose: () => void }) => {
-  const { copied, copy } = useCopyToClipboard();
-
-  const handleCopy = async () => {
-    await copy(apiKey);
-  };
-
-  return (
-    <>
-      <DialogHeader>
-        <DialogTitle>API key created</DialogTitle>
-        <DialogDescription>Your new API key has been created successfully.</DialogDescription>
-      </DialogHeader>
-      <DialogPanel>
-        <div className="flex flex-col gap-2">
-          <p className="text-muted-foreground text-sm">
-            Copy your API key now. You will not be able to see it again.
-          </p>
-          <InputGroup>
-            <InputGroupInput readOnly value={apiKey} className="font-mono text-sm" />
-            <InputGroupAddon align="inline-end">
-              <Button variant="ghost" size="icon-xs" aria-label="Copy API key" onClick={handleCopy}>
-                {copied ? <CheckIcon strokeWidth={2} /> : <CopyIcon strokeWidth={2} />}
-              </Button>
-            </InputGroupAddon>
-          </InputGroup>
-          <p className="text-muted-foreground text-sm">
-            This key has no permissions yet. Open its menu and choose{" "}
-            <span className="font-medium">Manage policies</span> to grant access.
-          </p>
-        </div>
-      </DialogPanel>
-      <DialogFooter>
-        <Button onClick={onClose}>Done</Button>
-      </DialogFooter>
-    </>
-  );
-};
+const KeyRevealContent = ({ apiKey, onClose }: { apiKey: string; onClose: () => void }) => (
+  <>
+    <DialogHeader>
+      <DialogTitle>API key created</DialogTitle>
+      <DialogDescription>Your new API key has been created successfully.</DialogDescription>
+    </DialogHeader>
+    <DialogPanel>
+      <div className="flex flex-col gap-2">
+        <p className="text-muted-foreground text-sm">
+          Copy your API key now. You will not be able to see it again.
+        </p>
+        <InputGroup>
+          <InputGroupInput readOnly value={apiKey} className="font-mono text-sm" />
+          <InputGroupAddon align="inline-end">
+            <CopyButton value={apiKey} label="API key" size="icon-xs" />
+          </InputGroupAddon>
+        </InputGroup>
+        <p className="text-muted-foreground text-sm">
+          This key has no permissions yet. Open its menu and choose{" "}
+          <span className="font-medium">Manage policies</span> to grant access.
+        </p>
+      </div>
+    </DialogPanel>
+    <DialogFooter>
+      <Button onClick={onClose}>Done</Button>
+    </DialogFooter>
+  </>
+);
 
 // ── Create Form ──────────────────────────────────────────────────
 

@@ -33,10 +33,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
-import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
-import { CheckIcon, CopyIcon, LinkIcon } from "lucide-react";
+import { LinkIcon } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useState } from "react";
 import { z } from "zod/v4";
@@ -46,10 +45,10 @@ import type {
   DeviceRegistrationRequestItem,
 } from "@better-update/api-client/react";
 
+import { CopyButton } from "../../../../lib/copy-button";
 import { getFieldError } from "../../../../lib/form-utils";
 import { formatDateTime } from "../../../../lib/format-date";
 import { safeSubmit, useApiMutation } from "../../../../lib/use-api-mutation";
-import { useCopyToClipboard } from "../../../../lib/use-copy-to-clipboard";
 
 const hintNameSchema = z.string().check(z.maxLength(120, "Max 120 characters"));
 
@@ -149,52 +148,32 @@ const ShareInvite = ({
 }: {
   invite: DeviceRegistrationRequestItem;
   onClose: () => void;
-}) => {
-  const { copied, copy } = useCopyToClipboard(1500);
-
-  const handleCopy = async () => {
-    const ok = await copy(invite.url);
-    if (ok) {
-      toastManager.add({ title: "Link copied", type: "success" });
-    }
-  };
-
-  return (
-    <>
-      <DialogPanel>
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-center rounded-xl border bg-white p-4">
-            <QRCodeSVG value={invite.url} size={192} marginSize={2} />
-          </div>
-          <Field>
-            <FieldLabel>Invite link</FieldLabel>
-            <InputGroup>
-              <InputGroupInput readOnly value={invite.url} className="font-mono text-xs" />
-              <InputGroupAddon align="inline-end">
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  aria-label="Copy link"
-                  onClick={async () => {
-                    await handleCopy();
-                  }}
-                >
-                  {copied ? <CheckIcon strokeWidth={2} /> : <CopyIcon strokeWidth={2} />}
-                </Button>
-              </InputGroupAddon>
-            </InputGroup>
-            <FieldDescription>
-              Expires {formatDateTime(invite.expiresAt)}. Open on iOS Safari to install the profile.
-            </FieldDescription>
-          </Field>
+}) => (
+  <>
+    <DialogPanel>
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-center rounded-xl border bg-white p-4">
+          <QRCodeSVG value={invite.url} size={192} marginSize={2} />
         </div>
-      </DialogPanel>
-      <DialogFooter>
-        <Button onClick={onClose}>Done</Button>
-      </DialogFooter>
-    </>
-  );
-};
+        <Field>
+          <FieldLabel>Invite link</FieldLabel>
+          <InputGroup>
+            <InputGroupInput readOnly value={invite.url} className="font-mono text-xs" />
+            <InputGroupAddon align="inline-end">
+              <CopyButton value={invite.url} label="Invite link" size="icon-xs" />
+            </InputGroupAddon>
+          </InputGroup>
+          <FieldDescription>
+            Expires {formatDateTime(invite.expiresAt)}. Open on iOS Safari to install the profile.
+          </FieldDescription>
+        </Field>
+      </div>
+    </DialogPanel>
+    <DialogFooter>
+      <Button onClick={onClose}>Done</Button>
+    </DialogFooter>
+  </>
+);
 
 const CreateInviteForm = ({
   orgId,

@@ -35,18 +35,26 @@ import type {
   AndroidUploadKeystoreItem,
 } from "@better-update/api-client/react";
 
+import { CopyButton } from "../../../../../lib/copy-button";
 import { formatDate } from "../../../../../lib/format-date";
 import { findKeystore, sortGroupsByDefault } from "./-android-detail-shared";
 
-const formatFingerprint = (value: string | null): string => {
-  if (value === null) {
-    return "—";
-  }
+const formatFingerprint = (value: string): string => {
   if (value.length <= 12) {
     return value;
   }
   return `${value.slice(0, 5)}…${value.slice(-4)}`;
 };
+
+const FingerprintCell = ({ value, label }: { value: string | null; label: string }) =>
+  value === null ? (
+    <span className="font-mono text-xs">—</span>
+  ) : (
+    <span className="flex items-center gap-1">
+      <span className="font-mono text-xs">{formatFingerprint(value)}</span>
+      <CopyButton value={value} label={label} />
+    </span>
+  );
 
 const KeystoreCard = ({ keystore }: { keystore: AndroidUploadKeystoreItem | null }) => (
   <CardFrame>
@@ -74,11 +82,11 @@ const KeystoreCard = ({ keystore }: { keystore: AndroidUploadKeystoreItem | null
         <TableBody>
           <TableRow>
             <TableCell className="font-medium">{keystore.keyAlias}</TableCell>
-            <TableCell className="font-mono text-xs">
-              {formatFingerprint(keystore.sha1Fingerprint)}
+            <TableCell>
+              <FingerprintCell value={keystore.sha1Fingerprint} label="SHA-1" />
             </TableCell>
-            <TableCell className="font-mono text-xs">
-              {formatFingerprint(keystore.sha256Fingerprint)}
+            <TableCell>
+              <FingerprintCell value={keystore.sha256Fingerprint} label="SHA-256" />
             </TableCell>
             <TableCell className="text-muted-foreground">
               {formatDate(keystore.updatedAt)}

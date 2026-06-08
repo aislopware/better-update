@@ -31,9 +31,10 @@ import type {
   GoogleServiceAccountKeyItem,
 } from "@better-update/api-client/react";
 
+import { CopyableMono } from "../../../lib/copy-button";
 import { STATUS_BADGE_VARIANT, deriveExpiryStatus } from "../../../lib/credential-status";
 import { formatShortDate } from "../../../lib/format-date";
-import { EmptyDash, RolesCell, TeamCell } from "./-credential-cells";
+import { RolesCell, TeamCell } from "./-credential-cells";
 import { formatAppleTeamLabel, formatAppleTeamType } from "./-credentials-utils";
 
 export const DistributionCertificatesEmptyState = () => (
@@ -76,12 +77,14 @@ export const DistributionCertificatesTable = ({
         const status = deriveExpiryStatus(cert.validUntil);
         return (
           <TableRow key={cert.id}>
-            <TableCell className="font-mono text-xs break-all">{cert.serialNumber}</TableCell>
+            <TableCell>
+              <CopyableMono value={cert.serialNumber} label="Serial" />
+            </TableCell>
             <TableCell>
               <TeamCell team={teamsById.get(cert.appleTeamId)} />
             </TableCell>
-            <TableCell className="font-mono text-xs">
-              {cert.developerIdIdentifier ?? <EmptyDash />}
+            <TableCell>
+              <CopyableMono value={cert.developerIdIdentifier} label="Developer ID" />
             </TableCell>
             <TableCell>
               <Badge variant={STATUS_BADGE_VARIANT[status.tone]}>{status.label}</Badge>
@@ -132,7 +135,9 @@ export const PushKeysTable = ({
     <TableBody>
       {items.map((key) => (
         <TableRow key={key.id}>
-          <TableCell className="font-mono">{key.keyId}</TableCell>
+          <TableCell>
+            <CopyableMono value={key.keyId} label="Key ID" />
+          </TableCell>
           <TableCell>
             <TeamCell team={teamsById.get(key.appleTeamId)} />
           </TableCell>
@@ -181,8 +186,12 @@ export const AscApiKeysTable = ({
       {items.map((key) => (
         <TableRow key={key.id}>
           <TableCell className="font-medium">{key.name}</TableCell>
-          <TableCell className="font-mono">{key.keyId}</TableCell>
-          <TableCell className="font-mono text-xs break-all">{key.issuerId}</TableCell>
+          <TableCell>
+            <CopyableMono value={key.keyId} label="Key ID" />
+          </TableCell>
+          <TableCell>
+            <CopyableMono value={key.issuerId} label="Issuer ID" />
+          </TableCell>
           <TableCell>
             <TeamCell
               team={key.appleTeamId === null ? undefined : teamsById.get(key.appleTeamId)}
@@ -278,9 +287,15 @@ export const GoogleServiceAccountKeysTable = ({
     <TableBody>
       {items.map((key) => (
         <TableRow key={key.id}>
-          <TableCell className="text-xs">{key.clientEmail}</TableCell>
-          <TableCell className="font-mono text-xs">{key.googleProjectId}</TableCell>
-          <TableCell className="font-mono text-xs break-all">{key.privateKeyId}</TableCell>
+          <TableCell>
+            <CopyableMono value={key.clientEmail} label="Client email" />
+          </TableCell>
+          <TableCell>
+            <CopyableMono value={key.googleProjectId} label="Project ID" />
+          </TableCell>
+          <TableCell>
+            <CopyableMono value={key.privateKeyId} label="Private key ID" />
+          </TableCell>
           <TableCell className="text-muted-foreground">{formatShortDate(key.createdAt)}</TableCell>
         </TableRow>
       ))}

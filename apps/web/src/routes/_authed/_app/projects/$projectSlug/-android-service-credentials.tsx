@@ -22,6 +22,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 
 import type { GoogleServiceAccountKeyItem } from "@better-update/api-client/react";
 
+import { CopyButton, CopyableMono } from "../../../../../lib/copy-button";
 import { formatDate } from "../../../../../lib/format-date";
 import { findGsa, sortGroupsByDefault } from "./-android-detail-shared";
 
@@ -63,11 +64,18 @@ const GsaTableCard = ({
         </TableHeader>
         <TableBody>
           <TableRow>
-            <TableCell className="font-mono text-xs">{sa.googleProjectId}</TableCell>
-            <TableCell className="font-mono text-xs">
-              {truncatePrivateKey(sa.privateKeyId)}
+            <TableCell>
+              <CopyableMono value={sa.googleProjectId} label="Project ID" />
             </TableCell>
-            <TableCell className="font-mono text-xs break-all">{sa.clientEmail}</TableCell>
+            <TableCell>
+              <span className="flex items-center gap-1">
+                <span className="font-mono text-xs">{truncatePrivateKey(sa.privateKeyId)}</span>
+                <CopyButton value={sa.privateKeyId} label="Private key ID" />
+              </span>
+            </TableCell>
+            <TableCell>
+              <CopyableMono value={sa.clientEmail} label="Client email" />
+            </TableCell>
             <TableCell className="text-muted-foreground">{formatDate(sa.createdAt)}</TableCell>
           </TableRow>
         </TableBody>

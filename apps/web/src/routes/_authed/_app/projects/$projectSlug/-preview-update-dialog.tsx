@@ -22,10 +22,9 @@ import {
   InputGroupInput,
 } from "@better-update/ui/components/ui/input-group";
 import { Spinner } from "@better-update/ui/components/ui/spinner";
-import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { CheckIcon, CopyIcon, EyeIcon, PackageIcon } from "lucide-react";
+import { EyeIcon, PackageIcon } from "lucide-react";
 import { Suspense, useState } from "react";
 
 import type { Channel, Update } from "@better-update/api";
@@ -35,29 +34,13 @@ import {
   DistributionBadge,
   PlatformBadge,
 } from "../../../../../components/attribute-badges";
-import { useCopyToClipboard } from "../../../../../lib/use-copy-to-clipboard";
+import { CopyButton } from "../../../../../lib/copy-button";
 import { DROPDOWN_FETCH_LIMIT } from "../../../../../queries/constants";
 
 type UpdateItem = Update;
 type ChannelItem = Channel;
 
 const QA_DISTRIBUTIONS = new Set(["development", "ad-hoc", "enterprise", "simulator", "direct"]);
-
-const CopyIconButton = ({ text, label }: { text: string; label: string }) => {
-  const { copied, copy } = useCopyToClipboard();
-  const handleCopy = async () => {
-    const ok = await copy(text);
-    if (!ok) {
-      toastManager.add({ title: "Failed to copy to clipboard", type: "error" });
-    }
-  };
-  const Icon = copied ? CheckIcon : CopyIcon;
-  return (
-    <Button variant="ghost" size="icon-xs" aria-label={label} onClick={handleCopy}>
-      <Icon strokeWidth={2} />
-    </Button>
-  );
-};
 
 const CompatibleBuildsList = ({
   orgId,
@@ -171,7 +154,7 @@ const PreviewBody = ({
       <InputGroup>
         <InputGroupInput readOnly value={update.groupId} className="font-mono text-xs" />
         <InputGroupAddon align="inline-end">
-          <CopyIconButton text={update.groupId} label="Copy group ID" />
+          <CopyButton value={update.groupId} label="Group ID" size="icon-xs" />
         </InputGroupAddon>
       </InputGroup>
     </div>

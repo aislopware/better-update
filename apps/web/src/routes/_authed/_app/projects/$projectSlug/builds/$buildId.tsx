@@ -34,6 +34,7 @@ import { InstallLinkDialog } from "../-install-link-dialog";
 import { ProjectSubpageHeader } from "../-project-subpage-header";
 import { ChannelBadge } from "../../../../../../components/attribute-badges";
 import { DetailCardSkeleton, SummaryCardsSkeleton } from "../../../../../../components/skeletons";
+import { CopyButton } from "../../../../../../lib/copy-button";
 import { formatDateTime } from "../../../../../../lib/format-date";
 
 import type { BuildWithSyntheticChannels } from "../-compatibility-join";
@@ -64,7 +65,14 @@ const BuildMetadataCard = ({
       </div>
       <div className="flex flex-col gap-1">
         <div className="text-muted-foreground text-sm">Bundle ID</div>
-        <div className="font-medium">{build.bundleId ?? "Missing"}</div>
+        {build.bundleId === null ? (
+          <div className="font-medium">Missing</div>
+        ) : (
+          <div className="flex items-center gap-1">
+            <span className="font-medium">{build.bundleId}</span>
+            <CopyButton value={build.bundleId} label="Bundle ID" />
+          </div>
+        )}
       </div>
       <div className="flex flex-col gap-1">
         <div className="text-muted-foreground text-sm">App version</div>
@@ -80,11 +88,14 @@ const BuildMetadataCard = ({
       </div>
       <div className="flex flex-col gap-1">
         <div className="text-muted-foreground text-sm">Git commit</div>
-        <div className="font-medium">
-          {build.gitCommit === null
-            ? "Not provided"
-            : `${build.gitCommit}${build.gitDirty ? "*" : ""}`}
-        </div>
+        {build.gitCommit === null ? (
+          <div className="font-medium">Not provided</div>
+        ) : (
+          <div className="flex items-center gap-1">
+            <span className="font-medium">{`${build.gitCommit}${build.gitDirty ? "*" : ""}`}</span>
+            <CopyButton value={build.gitCommit} label="Git commit" />
+          </div>
+        )}
       </div>
       <div className="flex flex-col gap-1 sm:col-span-2">
         <div className="text-muted-foreground text-sm">Created</div>
@@ -95,13 +106,16 @@ const BuildMetadataCard = ({
         {build.fingerprintHash === null ? (
           <div className="text-muted-foreground text-sm italic">Not recorded</div>
         ) : (
-          <Link
-            to="/projects/$projectSlug/fingerprints/$hash"
-            params={{ projectSlug, hash: build.fingerprintHash }}
-            className="hover:text-foreground text-muted-foreground font-mono text-sm transition-colors"
-          >
-            {build.fingerprintHash}
-          </Link>
+          <div className="flex items-start gap-1">
+            <Link
+              to="/projects/$projectSlug/fingerprints/$hash"
+              params={{ projectSlug, hash: build.fingerprintHash }}
+              className="hover:text-foreground text-muted-foreground min-w-0 font-mono text-sm break-all transition-colors"
+            >
+              {build.fingerprintHash}
+            </Link>
+            <CopyButton value={build.fingerprintHash} label="Fingerprint" />
+          </div>
         )}
       </div>
       <div className="flex flex-col gap-1 sm:col-span-2">
@@ -131,11 +145,17 @@ const ArtifactCard = ({ build }: { build: BuildWithArtifact }) => (
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-1">
               <div className="text-muted-foreground text-sm">SHA-256</div>
-              <code className="block text-xs break-all">{build.artifact.sha256}</code>
+              <div className="flex items-start gap-1">
+                <code className="min-w-0 flex-1 text-xs break-all">{build.artifact.sha256}</code>
+                <CopyButton value={build.artifact.sha256} label="SHA-256" />
+              </div>
             </div>
             <div className="flex flex-col gap-1">
               <div className="text-muted-foreground text-sm">Storage key</div>
-              <code className="block text-xs break-all">{build.artifact.r2Key}</code>
+              <div className="flex items-start gap-1">
+                <code className="min-w-0 flex-1 text-xs break-all">{build.artifact.r2Key}</code>
+                <CopyButton value={build.artifact.r2Key} label="Storage key" />
+              </div>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">

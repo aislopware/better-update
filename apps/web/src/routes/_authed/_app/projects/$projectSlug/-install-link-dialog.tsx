@@ -23,35 +23,15 @@ import {
   InputGroupInput,
 } from "@better-update/ui/components/ui/input-group";
 import { Spinner } from "@better-update/ui/components/ui/spinner";
-import { toastManager } from "@better-update/ui/components/ui/toast";
-import { CircleAlertIcon, SmartphoneIcon, CopyIcon, CheckIcon } from "lucide-react";
+import { CircleAlertIcon, SmartphoneIcon } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useSyncExternalStore, useState } from "react";
 
 import type { BuildWithArtifact } from "@better-update/api";
 import type { ComponentProps } from "react";
 
+import { CopyButton } from "../../../../../lib/copy-button";
 import { useApiMutation } from "../../../../../lib/use-api-mutation";
-import { useCopyToClipboard } from "../../../../../lib/use-copy-to-clipboard";
-
-const CopyIconButton = ({ text }: { text: string }) => {
-  const { copied, copy } = useCopyToClipboard();
-
-  const handleCopy = async () => {
-    const ok = await copy(text);
-    if (!ok) {
-      toastManager.add({ title: "Failed to copy to clipboard", type: "error" });
-    }
-  };
-
-  const Icon = copied ? CheckIcon : CopyIcon;
-
-  return (
-    <Button variant="ghost" size="icon-xs" aria-label="Copy link" onClick={handleCopy}>
-      <Icon strokeWidth={2} />
-    </Button>
-  );
-};
 
 const minutesRemaining = (expiresUnix: number) =>
   Math.max(0, Math.floor((expiresUnix * 1000 - Date.now()) / 60_000));
@@ -135,7 +115,7 @@ const InstallLinkBody = ({ buildId }: { buildId: string }) => {
             <InputGroup>
               <InputGroupInput readOnly value={primaryUrl} className="font-mono text-xs" />
               <InputGroupAddon align="inline-end">
-                <CopyIconButton text={primaryUrl} />
+                <CopyButton value={primaryUrl} label="Install link" size="icon-xs" />
               </InputGroupAddon>
             </InputGroup>
 
@@ -143,7 +123,7 @@ const InstallLinkBody = ({ buildId }: { buildId: string }) => {
               <InputGroup>
                 <InputGroupInput readOnly value={data.artifactUrl} className="font-mono text-xs" />
                 <InputGroupAddon align="inline-end">
-                  <CopyIconButton text={data.artifactUrl} />
+                  <CopyButton value={data.artifactUrl} label="Artifact URL" size="icon-xs" />
                 </InputGroupAddon>
               </InputGroup>
             ) : null}

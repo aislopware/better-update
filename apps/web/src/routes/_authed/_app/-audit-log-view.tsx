@@ -45,6 +45,7 @@ import { z } from "zod";
 import type { DateRange } from "react-day-picker";
 
 import { FilterBarSkeleton, TableSkeleton } from "../../../components/skeletons";
+import { CopyButton } from "../../../lib/copy-button";
 import { enumParam, optionalStringParam } from "../../../lib/data-table";
 import { formatTimeShort, formatWeekdayShort } from "../../../lib/format-date";
 import { formatRelativeTime } from "../../../lib/format-relative-time";
@@ -200,9 +201,12 @@ const AuditLogRow = ({
         <div className="flex flex-col gap-0.5">
           <span className="text-foreground text-sm">{resourceTypeLabel(entry.resourceType)}</span>
           {entry.resourceId ? (
-            <code className="text-muted-foreground/72 font-mono text-xs break-all">
-              {entry.resourceId}
-            </code>
+            <div className="flex items-center gap-1">
+              <code className="text-muted-foreground/72 min-w-0 font-mono text-xs break-all">
+                {entry.resourceId}
+              </code>
+              <CopyButton value={entry.resourceId} label="Resource ID" size="icon-xs" />
+            </div>
           ) : null}
         </div>
       </TableCell>

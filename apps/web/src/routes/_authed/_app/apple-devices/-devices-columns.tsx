@@ -10,16 +10,16 @@ import {
 } from "@better-update/ui/components/ui/menu";
 import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useQueryClient } from "@tanstack/react-query";
-import { CheckIcon, CopyIcon, EllipsisVerticalIcon } from "lucide-react";
+import { EllipsisVerticalIcon } from "lucide-react";
 import { useState } from "react";
 
 import type { AppleTeamItem, DeviceClassValue, DeviceItem } from "@better-update/api-client/react";
 import type { ColumnDef } from "@tanstack/react-table";
 
 import { TeamCell } from "../-credential-cells";
+import { CopyButton } from "../../../../lib/copy-button";
 import { formatRelativeTime } from "../../../../lib/format-relative-time";
 import { useApiMutation } from "../../../../lib/use-api-mutation";
-import { useCopyToClipboard } from "../../../../lib/use-copy-to-clipboard";
 import { DeleteDeviceDialog } from "./-delete-device-dialog";
 import { RenameDeviceDialog } from "./-rename-device-dialog";
 
@@ -30,34 +30,14 @@ const CLASS_LABEL: Record<DeviceClassValue, string> = {
   UNKNOWN: "Unknown",
 };
 
-const IdentifierCell = ({ identifier }: { identifier: string }) => {
-  const { copied, copy } = useCopyToClipboard(1500);
-
-  return (
-    <div className="flex items-center gap-1.5">
-      <code className="bg-muted max-w-[22ch] truncate rounded px-1.5 py-0.5 font-mono text-xs">
-        {identifier}
-      </code>
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        aria-label="Copy UDID"
-        onClick={async () => {
-          const ok = await copy(identifier);
-          if (ok) {
-            toastManager.add({ title: "UDID copied", type: "success" });
-          }
-        }}
-      >
-        {copied ? (
-          <CheckIcon strokeWidth={2} className="size-3.5" />
-        ) : (
-          <CopyIcon strokeWidth={2} className="size-3.5" />
-        )}
-      </Button>
-    </div>
-  );
-};
+const IdentifierCell = ({ identifier }: { identifier: string }) => (
+  <div className="flex items-center gap-1.5">
+    <code className="bg-muted max-w-[22ch] truncate rounded px-1.5 py-0.5 font-mono text-xs">
+      {identifier}
+    </code>
+    <CopyButton value={identifier} label="UDID" />
+  </div>
+);
 
 const actionsTrigger = (
   <Button variant="ghost" size="icon" aria-label="Device actions">
