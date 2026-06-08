@@ -39,6 +39,19 @@ const IdentifierCell = ({ identifier }: { identifier: string }) => (
   </div>
 );
 
+// `appleDevicePortalId` is set once the UDID is registered on the Apple Developer
+// Portal (via ASC), so its presence is the source of truth for "synced".
+const AppleSyncCell = ({ portalId }: { portalId: string | null }) =>
+  portalId === null ? (
+    <Badge variant="outline" className="text-muted-foreground">
+      Not synced
+    </Badge>
+  ) : (
+    <Badge variant="success" title={`Apple device ID: ${portalId}`}>
+      Synced
+    </Badge>
+  );
+
 const actionsTrigger = (
   <Button variant="ghost" size="icon" aria-label="Device actions">
     <EllipsisVerticalIcon strokeWidth={2} />
@@ -147,6 +160,12 @@ export const buildDeviceColumns = (
       const teamId = row.original.appleTeamId;
       return <TeamCell team={teamId === null ? null : teamsById.get(teamId)} />;
     },
+    enableSorting: false,
+  },
+  {
+    id: "appleSync",
+    header: "Apple sync",
+    cell: ({ row }) => <AppleSyncCell portalId={row.original.appleDevicePortalId} />,
     enableSorting: false,
   },
   {
