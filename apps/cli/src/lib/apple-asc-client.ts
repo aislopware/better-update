@@ -61,6 +61,8 @@ export interface AscDevice {
   readonly id: string;
   readonly udid: string;
   readonly name: string;
+  /** Apple's device class (e.g. `IPHONE`, `IPAD`, `MAC`, `APPLE_WATCH`); may be absent. */
+  readonly deviceClass: string | null;
 }
 
 export class AscApiError extends Data.TaggedError("AscApiError")<{
@@ -218,11 +220,11 @@ const toAscDevice = (value: unknown): AscDevice | null => {
   if (typeof id !== "string" || !isRecord(attributes)) {
     return null;
   }
-  const { udid, name } = attributes;
+  const { udid, name, deviceClass } = attributes;
   if (typeof udid !== "string" || typeof name !== "string") {
     return null;
   }
-  return { id, udid, name };
+  return { id, udid, name, deviceClass: typeof deviceClass === "string" ? deviceClass : null };
 };
 
 const extractList = <T>(body: unknown, map: (value: unknown) => T | null): readonly T[] => {
@@ -237,6 +239,23 @@ const extractSingle = <T>(body: unknown, map: (value: unknown) => T | null): T |
     return null;
   }
   return map(body["data"]);
+};
+
+/**
+ * App Store Connect paginates list responses (default 200/page) and returns the
+ * absolute URL of the next page under `links.next`. Strip the base so it can be
+ * fed back into `fetchRaw`; return null when there is no further page.
+ */
+const nextPagePath = (body: unknown): string | null => {
+  if (!isRecord(body)) {
+    return null;
+  }
+  const { links } = body;
+  if (!isRecord(links) || typeof links["next"] !== "string") {
+    return null;
+  }
+  const { next } = links;
+  return next.startsWith(API_BASE) ? next.slice(API_BASE.length) : next;
 };
 
 const malformed = (resource: string): AscApiError =>
@@ -338,8 +357,37 @@ export const createBundleId = (
 export const listDevices = (credentials: AscCredentials) =>
   withJwt(credentials, (jwt) =>
     Effect.gen(function* () {
-      const body = yield* fetchRaw(jwt, "/v1/devices?limit=200");
-      return extractList(body, toAscDevice);
+      const devices: AscDevice[] = [];
+      let path: string | null = "/v1/devices?limit=200";
+      while (path !== null) {
+        const body = yield* fetchRaw(jwt, path);
+        devices.push(...extractList(body, toAscDevice));
+        path = nextPagePath(body);
+      }
+      return devices as readonly AscDevice[];
+    }),
+  );
+
+export const createDevice = (
+  credentials: AscCredentials,
+  params: { readonly name: string; readonly udid: string },
+) =>
+  withJwt(credentials, (jwt) =>
+    Effect.gen(function* () {
+      const body = yield* fetchRaw(jwt, "/v1/devices", {
+        method: "POST",
+        body: JSON.stringify({
+          data: {
+            type: "devices",
+            attributes: { name: params.name, udid: params.udid, platform: "IOS" },
+          },
+        }),
+      });
+      const resource = extractSingle(body, toAscDevice);
+      if (resource === null) {
+        return yield* malformed("device");
+      }
+      return resource;
     }),
   );
 

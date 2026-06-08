@@ -3,6 +3,7 @@ import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
 import { ManagementApi } from "../api";
+import { syncAppleDevices } from "../application/sync-apple-devices";
 import { logAudit } from "../audit/logger";
 import { CurrentActor } from "../auth/current-actor";
 import { assertOrgOwnership } from "../auth/ownership";
@@ -195,6 +196,34 @@ export const DevicesGroupLive = HttpApiBuilder.group(ManagementApi, "devices", (
           });
 
           return { deleted: 1 };
+        }),
+      ),
+    )
+    .handle("syncDevices", ({ payload }) =>
+      toApiCrudEffect(
+        Effect.gen(function* () {
+          yield* assertPermission("device", "create");
+          const ctx = yield* CurrentActor;
+          yield* assertAppleTeamInOrg(payload.appleTeamId);
+
+          const result = yield* syncAppleDevices({
+            organizationId: ctx.organizationId,
+            appleTeamId: payload.appleTeamId,
+            devices: payload.devices,
+          });
+
+          yield* logAudit({
+            action: "device.sync",
+            resourceType: "device",
+            resourceId: payload.appleTeamId,
+            metadata: {
+              created: result.created,
+              linked: result.linked,
+              unchanged: result.unchanged,
+            },
+          });
+
+          return result;
         }),
       ),
     )
