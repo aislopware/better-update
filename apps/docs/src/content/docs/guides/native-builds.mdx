@@ -146,9 +146,16 @@ better-update credentials generate provisioning-profile \
   --distribution APP_STORE \
   --cert-id <distribution-certificate-id> \
   --asc-key-id <asc-api-key-id>
+
+# iOS: create a new APNs auth key (.p8) by logging in with your Apple ID.
+# Apple's public API can't create APNs keys, so this uses the Developer portal
+# session (2FA). The key is created on Apple, downloaded once, end-to-end
+# encrypted on your machine, then uploaded. Use --p8 <path> to upload one you
+# already downloaded instead (the only option in CI).
+better-update credentials generate push-key
 ```
 
-Omitted args fall back to interactive prompts where it makes sense (keystore passwords, CN/O). For AD_HOC or DEVELOPMENT profiles, pass `--device-ids id1,id2`.
+Omitted args fall back to interactive prompts where it makes sense (keystore passwords, CN/O). For AD_HOC or DEVELOPMENT profiles, pass `--device-ids id1,id2`. Unlike certificates and profiles, **APNs push keys are created via Apple ID login, not the App Store Connect API** — so `generate push-key` (and `revoke push-key`) prompt for your Apple ID + 2FA. Revoke a key with `better-update credentials revoke push-key`.
 
 ### First-build setup is interactive
 

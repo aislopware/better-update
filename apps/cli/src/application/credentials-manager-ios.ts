@@ -12,8 +12,9 @@ import {
   regenerateProvisioningProfile,
   resolveIosProfileId,
 } from "./credentials-interactive";
+import { createApnsKeyViaAppleId, defaultApnsKeyName } from "./credentials-interactive-apple-id";
 import { iosAscKeysMenu } from "./credentials-manager-ios-asc";
-import { revokeIosDistributionCert } from "./credentials-manager-ios-revoke";
+import { revokeIosDistributionCert, revokeIosPushKey } from "./credentials-manager-ios-revoke";
 import {
   announce,
   APPLE_PUSH_KEY_PORTAL_URL,
@@ -116,9 +117,29 @@ const generateNewIosDistributionCert = (ctx: WizardContext) =>
     return undefined;
   });
 
+const promptPushKeyMethod = () =>
+  promptSelect<"apple-id" | "upload">("How do you want to provide the APNs auth key?", [
+    {
+      value: "apple-id",
+      label: "Create a new key by logging in with your Apple ID (recommended)",
+    },
+    { value: "upload", label: "Upload a .p8 you already downloaded from the Apple portal" },
+  ]);
+
 const addIosPushKey = (ctx: WizardContext) =>
   Effect.gen(function* () {
-    yield* printHuman("Apple does not expose APNs key creation via API.");
+    if ((yield* promptPushKeyMethod()) === "apple-id") {
+      const created = yield* createApnsKeyViaAppleId(ctx.api, defaultApnsKeyName());
+      yield* Console.log("APNs push key created and registered.");
+      yield* printKeyValue([
+        ["ID", created.id],
+        ["Key ID", created.keyId],
+        ["Apple team", created.appleTeamIdentifier],
+        ["Name", created.name],
+      ]);
+      return undefined;
+    }
+    yield* printHuman("Apple does not expose APNs key creation via the public ASC API.");
     yield* printHuman(`Create one here, download .p8, then return: ${APPLE_PUSH_KEY_PORTAL_URL}`);
     const keyId = (yield* promptText("APNs key ID (10 uppercase alphanumeric)"))
       .trim()
@@ -216,7 +237,12 @@ const setupProjectPushNotifications = (ctx: WizardContext) =>
 
 const createNewPushKeyForBundle = (ctx: WizardContext, fallbackTeamId: string) =>
   Effect.gen(function* () {
-    yield* printHuman("Apple does not expose APNs key creation via API.");
+    if ((yield* promptPushKeyMethod()) === "apple-id") {
+      const created = yield* createApnsKeyViaAppleId(ctx.api, defaultApnsKeyName());
+      yield* Console.log(`APNs push key ${created.keyId} created.`);
+      return created.id;
+    }
+    yield* printHuman("Apple does not expose APNs key creation via the public ASC API.");
     yield* printHuman(`Create one here, download .p8, then return: ${APPLE_PUSH_KEY_PORTAL_URL}`);
     const rawKeyId = (yield* promptText("APNs key ID (10 uppercase alphanumeric)"))
       .trim()
@@ -314,7 +340,8 @@ const iosPushKeysMenu = (ctx: WizardContext): MenuEffect =>
         { value: "setup", label: "Set up your project to use Push Notifications" },
         { value: "add", label: "Add a new push key" },
         { value: "bind", label: "Use an existing push key" },
-        { value: "remove", label: "Remove a push key" },
+        { value: "revoke", label: "Revoke a push key (Apple Developer Portal)" },
+        { value: "remove", label: "Remove a push key (local only)" },
         { value: BACK, label: "Go back" },
       ]),
     );
@@ -327,6 +354,8 @@ const iosPushKeysMenu = (ctx: WizardContext): MenuEffect =>
       yield* safely("add push key", addIosPushKey(ctx));
     } else if (choice === "bind") {
       yield* safely("bind push key", bindIosPushKey(ctx));
+    } else if (choice === "revoke") {
+      yield* safely("revoke push key", revokeIosPushKey(ctx));
     } else if (choice === "remove") {
       yield* safely("remove push key", pickAndDelete(ctx, "push-key", "APNs push key"));
     }

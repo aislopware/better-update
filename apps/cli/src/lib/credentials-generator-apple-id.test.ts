@@ -4,8 +4,9 @@ import {
   wrapVaultKey,
 } from "@better-update/credentials-crypto";
 import { toBase64 } from "@better-update/encoding";
+import { FileSystem } from "@effect/platform";
 import { it } from "@effect/vitest";
-import { Effect, Layer } from "effect";
+import { Effect, Exit, Layer } from "effect";
 
 import type { Identity } from "@better-update/credentials-crypto";
 import type { RequestContext } from "@expo/apple-utils";
@@ -15,10 +16,13 @@ import type * as AppleUtilsModule from "@expo/apple-utils";
 import { CliRuntime } from "../services/cli-runtime";
 import { IdentityStore } from "../services/identity-store";
 import {
+  generateAndUploadApnsKeyViaAppleId,
   generateAndUploadDistributionCertificateViaAppleId,
   generateAndUploadProvisioningProfileViaAppleId,
+  listApnsKeysViaAppleId,
   listDistributionCertsViaAppleId,
   revokeDistributionCertViaAppleId,
+  revokeLocalApnsKey,
 } from "./credentials-generator-apple-id";
 import { makeInteractiveModeLayer } from "./interactive-mode";
 
@@ -37,6 +41,18 @@ const mocks = vi.hoisted(() => ({
   deviceGetAllIosAsync: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
   createCertAndP12Async: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
   extractMetadataFromP12: vi.fn<(params: { p12Base64: string; password: string }) => unknown>(),
+  keysCreateAsync: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
+  keysDownloadAsync: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
+  keysGetAsync: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
+  keysGetInfoAsync: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
+  keysRevokeAsync: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
+  applePushKeysUpload: vi.fn<(...args: unknown[]) => unknown>(),
+  applePushKeysDelete: vi.fn<(...args: unknown[]) => unknown>(),
+  // Stand-in for apple-utils' MaxKeysCreatedError so the SUT's instanceof check
+  // (AppleUtils.Keys.MaxKeysCreatedError) resolves against the same constructor.
+  MaxKeysCreatedError: class MaxKeysCreatedError extends Error {
+    public override readonly name = "MaxKeysCreatedError";
+  },
 }));
 
 vi.mock(import("./apple-cert-to-p12"), async (importOriginal) => {
@@ -57,6 +73,19 @@ vi.mock(import("@expo/apple-utils"), () => {
     BundleId: { findAsync: mocks.bundleIdFindAsync, createAsync: mocks.bundleIdCreateAsync },
     Profile: { createAsync: mocks.profileCreateAsync },
     Device: { getAllIOSProfileDevicesAsync: mocks.deviceGetAllIosAsync },
+    Keys: {
+      createKeyAsync: mocks.keysCreateAsync,
+      downloadKeyAsync: mocks.keysDownloadAsync,
+      getKeysAsync: mocks.keysGetAsync,
+      getKeyInfoAsync: mocks.keysGetInfoAsync,
+      revokeKeyAsync: mocks.keysRevokeAsync,
+      MaxKeysCreatedError: mocks.MaxKeysCreatedError,
+      AppStoreKeyServiceConfigID: {
+        APNS: "U27F4V844T",
+        DEVICE_CHECK: "DQ8HTZ7739",
+        MUSIC_KIT: "6A7HVUVQ3M",
+      },
+    },
     createCertificateAndP12Async: mocks.createCertAndP12Async,
     CertificateType: {
       IOS_DISTRIBUTION: "IOS_DISTRIBUTION",
@@ -134,7 +163,24 @@ const buildApi = (vault: TestVault) =>
           developerPortalIdentifier: "dev-portal-1",
         }),
     },
+    applePushKeys: {
+      upload: mocks.applePushKeysUpload,
+      delete: mocks.applePushKeysDelete,
+    },
   }) as unknown as ApiClient;
+
+// FileSystem stub: the APNs generator references FileSystem in its rescue path
+// (so it is part of the requirement set even on the happy path). Record writes so
+// the upload-failure test can assert the .p8 was rescued to disk.
+const recordedWrites: { path: string; content: string }[] = [];
+const fsStubLayer = Layer.succeed(FileSystem.FileSystem, {
+  writeFileString: (path: string, content: string) =>
+    Effect.sync(() => {
+      recordedWrites.push({ path, content });
+    }),
+} as unknown as FileSystem.FileSystem);
+
+const apnsLayer = (privateKey: string) => Layer.mergeAll(vaultLayer(privateKey), fsStubLayer);
 
 /** CliRuntime surfacing the env identity so the vault unlocks without a passphrase. */
 const vaultLayer = (privateKey: string) =>
@@ -162,7 +208,11 @@ const context: RequestContext = { teamId: "TEAM1234", providerId: 100 };
 
 beforeEach(() => {
   vi.clearAllMocks();
+  recordedWrites.length = 0;
 });
+
+const PEM = "-----BEGIN PRIVATE KEY-----\nMIGTAgEAMBMG\n-----END PRIVATE KEY-----\n";
+const apnsServiceList = [{ id: "U27F4V844T", name: "APNS", configurations: [] }];
 
 // ── tests ──────────────────────────────────────────────────────
 
@@ -375,6 +425,262 @@ describe(revokeDistributionCertViaAppleId, () => {
       expect(mocks.certificateDeleteAsync).toHaveBeenCalledTimes(1);
       const [, args] = mocks.certificateDeleteAsync.mock.calls[0] as [unknown, { id: string }];
       expect(args.id).toBe("cert-asc-1");
+    }),
+  );
+});
+
+const failureTag = (exit: Exit.Exit<unknown, unknown>): string | undefined => {
+  if (!Exit.isFailure(exit)) {
+    return undefined;
+  }
+  const json = exit.cause.toJSON() as { failure?: { _tag?: string } };
+  return json.failure?._tag;
+};
+
+describe(generateAndUploadApnsKeyViaAppleId, () => {
+  it.effect("creates an APNs key, downloads it, and uploads only the sealed envelope", () =>
+    Effect.gen(function* () {
+      mocks.keysCreateAsync.mockResolvedValue({
+        id: "APNSKEY123",
+        name: "my key",
+        canDownload: true,
+        canRevoke: true,
+        services: [],
+      });
+      mocks.keysDownloadAsync.mockResolvedValue(PEM);
+      mocks.applePushKeysUpload.mockReturnValue(Effect.succeed({ id: "push-local-1" }));
+
+      const vault = yield* makeTestVault;
+      const api = buildApi(vault);
+      const result = yield* generateAndUploadApnsKeyViaAppleId(api, {
+        context,
+        appleTeamIdentifier: "TEAM1234",
+        name: "my key",
+      }).pipe(Effect.provide(apnsLayer(vault.identity.privateKey)));
+
+      expect(result.id).toBe("push-local-1");
+      expect(result.keyId).toBe("APNSKEY123");
+      const [, createArgs] = mocks.keysCreateAsync.mock.calls[0] as [unknown, { isApns?: boolean }];
+      expect(createArgs.isApns).toBe(true);
+      const [, downloadArgs] = mocks.keysDownloadAsync.mock.calls[0] as [unknown, { id: string }];
+      expect(downloadArgs.id).toBe("APNSKEY123");
+      // E2E: the upload body carries the sealed envelope + public metadata, never the raw PEM.
+      const [uploadArg] = mocks.applePushKeysUpload.mock.calls[0] as [
+        { payload: { keyId: string; appleTeamIdentifier: string; ciphertext: string } },
+      ];
+      expect(uploadArg.payload.keyId).toBe("APNSKEY123");
+      expect(uploadArg.payload.appleTeamIdentifier).toBe("TEAM1234");
+      expect(uploadArg.payload.ciphertext).toBeTypeOf("string");
+      expect(JSON.stringify(uploadArg.payload)).not.toContain("BEGIN PRIVATE KEY");
+      expect(recordedWrites).toHaveLength(0);
+    }),
+  );
+
+  it.effect("maps apple-utils MaxKeysCreatedError to ApnsKeyLimitError", () =>
+    Effect.gen(function* () {
+      mocks.keysCreateAsync.mockRejectedValue(new mocks.MaxKeysCreatedError("too many keys"));
+
+      const vault = yield* makeTestVault;
+      const api = buildApi(vault);
+      const exit = yield* Effect.exit(
+        generateAndUploadApnsKeyViaAppleId(api, {
+          context,
+          appleTeamIdentifier: "TEAM1234",
+          name: "x",
+        }),
+      ).pipe(Effect.provide(apnsLayer(vault.identity.privateKey)));
+
+      expect(failureTag(exit)).toBe("ApnsKeyLimitError");
+    }),
+  );
+
+  // Real Apple behavior (verified live): at the cap, createKeyAsync rejects with a
+  // plain server error, NOT a typed MaxKeysCreatedError — so the wording must be matched.
+  it.effect("maps Apple's plain key-limit error message to ApnsKeyLimitError", () =>
+    Effect.gen(function* () {
+      mocks.keysCreateAsync.mockRejectedValue(
+        new Error(
+          "Apple provided the following error info:\nYou have already reached the maximum allowed number of team scoped Keys for this service in production and sandbox environments.",
+        ),
+      );
+
+      const vault = yield* makeTestVault;
+      const api = buildApi(vault);
+      const exit = yield* Effect.exit(
+        generateAndUploadApnsKeyViaAppleId(api, {
+          context,
+          appleTeamIdentifier: "TEAM1234",
+          name: "x",
+        }),
+      ).pipe(Effect.provide(apnsLayer(vault.identity.privateKey)));
+
+      expect(failureTag(exit)).toBe("ApnsKeyLimitError");
+    }),
+  );
+
+  it.effect("surfaces a download failure without swallowing the orphaned key", () =>
+    Effect.gen(function* () {
+      mocks.keysCreateAsync.mockResolvedValue({
+        id: "APNSKEY123",
+        name: "n",
+        canDownload: true,
+        canRevoke: true,
+        services: [],
+      });
+      mocks.keysDownloadAsync.mockRejectedValue(new Error("download exploded"));
+
+      const vault = yield* makeTestVault;
+      const api = buildApi(vault);
+      const exit = yield* Effect.exit(
+        generateAndUploadApnsKeyViaAppleId(api, {
+          context,
+          appleTeamIdentifier: "TEAM1234",
+          name: "x",
+        }),
+      ).pipe(Effect.provide(apnsLayer(vault.identity.privateKey)));
+
+      expect(failureTag(exit)).toBe("AppleIdGenerateFailedError");
+      expect(recordedWrites).toHaveLength(0);
+    }),
+  );
+
+  it.effect("rescues the .p8 to disk when upload fails after the one-shot download", () =>
+    Effect.gen(function* () {
+      mocks.keysCreateAsync.mockResolvedValue({
+        id: "APNSKEY123",
+        name: "n",
+        canDownload: true,
+        canRevoke: true,
+        services: [],
+      });
+      mocks.keysDownloadAsync.mockResolvedValue(PEM);
+      mocks.applePushKeysUpload.mockReturnValue(Effect.fail(new Error("upload boom")));
+
+      const vault = yield* makeTestVault;
+      const api = buildApi(vault);
+      const exit = yield* Effect.exit(
+        generateAndUploadApnsKeyViaAppleId(api, {
+          context,
+          appleTeamIdentifier: "TEAM1234",
+          name: "x",
+        }),
+      ).pipe(Effect.provide(apnsLayer(vault.identity.privateKey)));
+
+      expect(failureTag(exit)).toBe("AppleIdGenerateFailedError");
+      expect(recordedWrites).toHaveLength(1);
+      expect(recordedWrites[0]?.path).toBe("AuthKey_APNSKEY123.p8");
+      expect(recordedWrites[0]?.content).toContain("BEGIN PRIVATE KEY");
+    }),
+  );
+});
+
+describe(listApnsKeysViaAppleId, () => {
+  it.effect("returns only APNs keys with their revocability", () =>
+    Effect.gen(function* () {
+      mocks.keysGetAsync.mockResolvedValue([{ id: "k1" }, { id: "k2" }]);
+      mocks.keysGetInfoAsync.mockImplementation(async (...args: unknown[]) => {
+        const { id } = args[1] as { id: string };
+        return id === "k1"
+          ? {
+              id: "k1",
+              name: "apns one",
+              canDownload: false,
+              canRevoke: true,
+              services: apnsServiceList,
+            }
+          : {
+              id: "k2",
+              name: "devicecheck",
+              canDownload: false,
+              canRevoke: true,
+              services: [{ id: "DQ8HTZ7739", name: "DeviceCheck", configurations: [] }],
+            };
+      });
+
+      const result = yield* listApnsKeysViaAppleId(context);
+
+      expect(result).toStrictEqual([
+        { developerPortalKeyId: "k1", name: "apns one", canRevoke: true },
+      ]);
+    }),
+  );
+});
+
+describe(revokeLocalApnsKey, () => {
+  it.effect("revokes on Apple and deletes locally when the key is still present", () =>
+    Effect.gen(function* () {
+      mocks.keysGetAsync.mockResolvedValue([{ id: "APNSKEY123" }]);
+      mocks.keysGetInfoAsync.mockResolvedValue({
+        id: "APNSKEY123",
+        name: "n",
+        canDownload: false,
+        canRevoke: true,
+        services: apnsServiceList,
+      });
+      mocks.keysRevokeAsync.mockResolvedValue(undefined);
+      mocks.applePushKeysDelete.mockReturnValue(Effect.succeed({ deleted: true }));
+
+      const api = buildApi(yield* makeTestVault);
+      const result = yield* revokeLocalApnsKey(api, {
+        context,
+        pushKeyId: "push-local-1",
+        keyId: "APNSKEY123",
+        keepLocal: false,
+      });
+
+      expect(result).toStrictEqual({
+        localId: "push-local-1",
+        keyId: "APNSKEY123",
+        revokedOnApple: true,
+        deletedLocally: true,
+      });
+      expect(mocks.keysRevokeAsync).toHaveBeenCalledTimes(1);
+      expect(mocks.applePushKeysDelete).toHaveBeenCalledTimes(1);
+    }),
+  );
+
+  it.effect("keeps the local copy and skips delete when keepLocal is set", () =>
+    Effect.gen(function* () {
+      mocks.keysGetAsync.mockResolvedValue([{ id: "APNSKEY123" }]);
+      mocks.keysGetInfoAsync.mockResolvedValue({
+        id: "APNSKEY123",
+        name: "n",
+        canDownload: false,
+        canRevoke: true,
+        services: apnsServiceList,
+      });
+      mocks.keysRevokeAsync.mockResolvedValue(undefined);
+
+      const api = buildApi(yield* makeTestVault);
+      const result = yield* revokeLocalApnsKey(api, {
+        context,
+        pushKeyId: "push-local-1",
+        keyId: "APNSKEY123",
+        keepLocal: true,
+      });
+
+      expect(result.deletedLocally).toBe(false);
+      expect(mocks.applePushKeysDelete).not.toHaveBeenCalled();
+    }),
+  );
+
+  it.effect("does not revoke a key already gone from the portal but still deletes locally", () =>
+    Effect.gen(function* () {
+      mocks.keysGetAsync.mockResolvedValue([]);
+      mocks.applePushKeysDelete.mockReturnValue(Effect.succeed({ deleted: true }));
+
+      const api = buildApi(yield* makeTestVault);
+      const result = yield* revokeLocalApnsKey(api, {
+        context,
+        pushKeyId: "push-local-1",
+        keyId: "GONEKEY999",
+        keepLocal: false,
+      });
+
+      expect(result.revokedOnApple).toBe(false);
+      expect(result.deletedLocally).toBe(true);
+      expect(mocks.keysRevokeAsync).not.toHaveBeenCalled();
+      expect(mocks.applePushKeysDelete).toHaveBeenCalledTimes(1);
     }),
   );
 });
