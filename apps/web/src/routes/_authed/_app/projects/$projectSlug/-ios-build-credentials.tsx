@@ -31,8 +31,9 @@ import type {
   IosBundleConfigurationItem,
 } from "@better-update/api-client/react";
 
-import { EmptyDash, TeamCell } from "../../-credential-cells";
+import { TeamCell } from "../../-credential-cells";
 import { formatAppleTeamLabel } from "../../-credentials-utils";
+import { CopyableMono } from "../../../../../lib/copy-button";
 import { STATUS_BADGE_VARIANT, deriveExpiryStatus } from "../../../../../lib/credential-status";
 import { formatShortDate } from "../../../../../lib/format-date";
 import { DISTRIBUTION_LABELS, sortConfigsByDistribution } from "./-ios-detail-shared";
@@ -55,12 +56,14 @@ const CertRow = ({
   const certStatus = deriveExpiryStatus(cert.validUntil);
   return (
     <TableRow>
-      <TableCell className="font-mono text-xs break-all">{cert.serialNumber}</TableCell>
+      <TableCell>
+        <CopyableMono value={cert.serialNumber} label="Serial" />
+      </TableCell>
       <TableCell>
         <TeamCell team={team} />
       </TableCell>
-      <TableCell className="font-mono text-xs">
-        {cert.developerIdIdentifier ?? <EmptyDash />}
+      <TableCell>
+        <CopyableMono value={cert.developerIdIdentifier} label="Developer ID" />
       </TableCell>
       <TableCell>
         <div className="flex items-center gap-2">

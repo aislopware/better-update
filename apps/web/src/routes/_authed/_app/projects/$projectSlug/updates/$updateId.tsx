@@ -31,6 +31,7 @@ import { ProjectSubpageHeader } from "../-project-subpage-header";
 import { readUpdateEnvironment } from "../-update-helpers";
 import { EnvironmentBadge, PlatformBadge } from "../../../../../../components/attribute-badges";
 import { DetailCardSkeleton, SummaryCardsSkeleton } from "../../../../../../components/skeletons";
+import { CopyButton } from "../../../../../../lib/copy-button";
 import { formatBytes } from "../../../../../../lib/format-bytes";
 import { formatDateTime } from "../../../../../../lib/format-date";
 
@@ -84,21 +85,27 @@ const OverviewCard = ({
         </div>
         <div className="flex flex-col gap-1">
           <div className="text-muted-foreground text-sm">Group ID</div>
-          <code className="font-mono text-xs">{primary.groupId}</code>
+          <div className="flex items-center gap-1">
+            <code className="min-w-0 font-mono text-xs break-all">{primary.groupId}</code>
+            <CopyButton value={primary.groupId} label="Group ID" />
+          </div>
         </div>
         <div className="flex flex-col gap-1">
           <div className="text-muted-foreground text-sm">Fingerprint</div>
           {primary.fingerprintHash === null ? (
             <span className="text-muted-foreground text-sm italic">Not recorded</span>
           ) : (
-            <Link
-              to="/projects/$projectSlug/fingerprints/$hash"
-              params={{ projectSlug, hash: primary.fingerprintHash }}
-              className="hover:text-foreground text-muted-foreground inline-flex items-center gap-1 font-mono text-xs transition-colors"
-            >
-              <FingerprintIcon strokeWidth={2} className="size-3" />
-              {primary.fingerprintHash.slice(0, 16)}
-            </Link>
+            <div className="flex items-center gap-1">
+              <Link
+                to="/projects/$projectSlug/fingerprints/$hash"
+                params={{ projectSlug, hash: primary.fingerprintHash }}
+                className="hover:text-foreground text-muted-foreground inline-flex items-center gap-1 font-mono text-xs transition-colors"
+              >
+                <FingerprintIcon strokeWidth={2} className="size-3" />
+                {primary.fingerprintHash.slice(0, 16)}
+              </Link>
+              <CopyButton value={primary.fingerprintHash} label="Fingerprint" />
+            </div>
           )}
         </div>
       </CardContent>
@@ -127,10 +134,16 @@ const PlatformVariantAssets = ({
           className="flex items-center justify-between gap-2 rounded-xl border p-2"
         >
           <div className="flex min-w-0 flex-col gap-0.5">
-            <code className="truncate font-mono text-xs">{asset.key}</code>
-            <code className="text-muted-foreground truncate font-mono text-xs">
-              {asset.hash.slice(0, 16)}
-            </code>
+            <div className="flex items-center gap-1">
+              <code className="min-w-0 truncate font-mono text-xs">{asset.key}</code>
+              <CopyButton value={asset.key} label="Asset key" size="icon-xs" />
+            </div>
+            <div className="flex items-center gap-1">
+              <code className="text-muted-foreground min-w-0 truncate font-mono text-xs">
+                {asset.hash.slice(0, 16)}
+              </code>
+              <CopyButton value={asset.hash} label="Asset hash" size="icon-xs" />
+            </div>
           </div>
           {asset.isLaunch ? <Badge variant="secondary">Launch</Badge> : null}
         </div>

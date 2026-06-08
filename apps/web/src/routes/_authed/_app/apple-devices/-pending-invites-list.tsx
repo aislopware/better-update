@@ -1,63 +1,36 @@
 import { registrationRequestsQueryOptions } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
-import { Button } from "@better-update/ui/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@better-update/ui/components/ui/card";
-import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { CheckIcon, CopyIcon } from "lucide-react";
 
 import type { DeviceRegistrationRequestItem } from "@better-update/api-client/react";
 
+import { CopyButton } from "../../../../lib/copy-button";
 import { formatRelativeFuture } from "../../../../lib/format-relative-time";
-import { useCopyToClipboard } from "../../../../lib/use-copy-to-clipboard";
 
-const InviteRow = ({ invite }: { invite: DeviceRegistrationRequestItem }) => {
-  const { copied, copy } = useCopyToClipboard(1500);
-
-  const handleCopy = async () => {
-    const ok = await copy(invite.url);
-    if (ok) {
-      toastManager.add({ title: "Link copied", type: "success" });
-    }
-  };
-
-  return (
-    <li className="flex items-center justify-between gap-3 border-b px-4 py-3 last:border-b-0">
-      <div className="flex min-w-0 flex-col gap-0.5">
-        <div className="flex items-center gap-2 text-sm font-medium">
-          {invite.deviceNameHint ?? "Unnamed invite"}
-          {invite.deviceClassHint ? (
-            <Badge variant="secondary" className="text-xs font-normal">
-              {invite.deviceClassHint}
-            </Badge>
-          ) : null}
-        </div>
-        <code className="text-muted-foreground max-w-[46ch] truncate font-mono text-xs">
-          {invite.url}
-        </code>
+const InviteRow = ({ invite }: { invite: DeviceRegistrationRequestItem }) => (
+  <li className="flex items-center justify-between gap-3 border-b px-4 py-3 last:border-b-0">
+    <div className="flex min-w-0 flex-col gap-0.5">
+      <div className="flex items-center gap-2 text-sm font-medium">
+        {invite.deviceNameHint ?? "Unnamed invite"}
+        {invite.deviceClassHint ? (
+          <Badge variant="secondary" className="text-xs font-normal">
+            {invite.deviceClassHint}
+          </Badge>
+        ) : null}
       </div>
-      <div className="flex shrink-0 items-center gap-3">
-        <span className="text-muted-foreground text-xs">
-          Expires {formatRelativeFuture(invite.expiresAt)}
-        </span>
-        <Button
-          variant="outline"
-          size="icon"
-          aria-label="Copy invite link"
-          onClick={async () => {
-            await handleCopy();
-          }}
-        >
-          {copied ? (
-            <CheckIcon strokeWidth={2} className="size-4" />
-          ) : (
-            <CopyIcon strokeWidth={2} className="size-4" />
-          )}
-        </Button>
-      </div>
-    </li>
-  );
-};
+      <code className="text-muted-foreground max-w-[46ch] truncate font-mono text-xs">
+        {invite.url}
+      </code>
+    </div>
+    <div className="flex shrink-0 items-center gap-3">
+      <span className="text-muted-foreground text-xs">
+        Expires {formatRelativeFuture(invite.expiresAt)}
+      </span>
+      <CopyButton value={invite.url} label="Invite link" variant="outline" size="icon" />
+    </div>
+  </li>
+);
 
 export const PendingInvitesList = ({ orgId }: { orgId: string }) => {
   const { data } = useSuspenseQuery(registrationRequestsQueryOptions(orgId, true));

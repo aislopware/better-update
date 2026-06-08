@@ -13,6 +13,7 @@ import { Suspense } from "react";
 
 import type { SubmissionItem, SubmissionStatusValue } from "@better-update/api-client/react";
 
+import { CopyButton } from "../../../../../lib/copy-button";
 import { formatDateTime } from "../../../../../lib/format-date";
 
 const STATUS_VARIANT: Record<SubmissionStatusValue, "secondary" | "destructive" | "outline"> = {
@@ -24,10 +25,25 @@ const STATUS_VARIANT: Record<SubmissionStatusValue, "secondary" | "destructive" 
   CANCELED: "outline",
 };
 
-const DetailRow = ({ label, value }: { label: string; value: string | null | undefined }) => (
+const DetailRow = ({
+  label,
+  value,
+  copyLabel,
+}: {
+  label: string;
+  value: string | null | undefined;
+  copyLabel?: string;
+}) => (
   <div className="flex items-baseline gap-3 text-sm">
-    <span className="text-muted-foreground w-40">{label}</span>
-    <span className="font-mono break-all">{value ?? "—"}</span>
+    <span className="text-muted-foreground w-40 shrink-0">{label}</span>
+    {value === null || value === undefined || value === "" ? (
+      <span className="font-mono break-all">—</span>
+    ) : (
+      <span className="inline-flex min-w-0 items-center gap-1">
+        <span className="min-w-0 font-mono break-all">{value}</span>
+        {copyLabel ? <CopyButton value={value} label={copyLabel} /> : null}
+      </span>
+    )}
   </div>
 );
 
@@ -47,7 +63,10 @@ const SubmissionDetail = ({
       >
         ← Back to submissions
       </Link>
-      <h1 className="font-mono text-lg break-all">{submission.id}</h1>
+      <div className="flex items-center gap-2">
+        <h1 className="font-mono text-lg break-all">{submission.id}</h1>
+        <CopyButton value={submission.id} label="Submission ID" />
+      </div>
     </div>
     <CardFrame>
       <CardFrameHeader className="py-5">
@@ -62,8 +81,8 @@ const SubmissionDetail = ({
       </CardFrameHeader>
       <div className="flex flex-col gap-1.5 px-6 pb-5">
         <DetailRow label="Archive source" value={submission.archiveSource} />
-        <DetailRow label="Build ID" value={submission.buildId} />
-        <DetailRow label="Archive URL" value={submission.archiveUrl} />
+        <DetailRow label="Build ID" value={submission.buildId} copyLabel="Build ID" />
+        <DetailRow label="Archive URL" value={submission.archiveUrl} copyLabel="Archive URL" />
         <DetailRow label="Queued at" value={submission.queuedAt} />
         <DetailRow label="Started at" value={submission.startedAt} />
         <DetailRow label="Completed at" value={submission.completedAt} />
@@ -76,9 +95,21 @@ const SubmissionDetail = ({
         {submission.iosConfig ? (
           <>
             <h2 className="text-muted-foreground mt-3 text-xs uppercase">iOS config</h2>
-            <DetailRow label="Bundle identifier" value={submission.iosConfig.bundleIdentifier} />
-            <DetailRow label="ASC App ID" value={submission.iosConfig.ascAppId} />
-            <DetailRow label="Apple team" value={submission.iosConfig.appleTeamId} />
+            <DetailRow
+              label="Bundle identifier"
+              value={submission.iosConfig.bundleIdentifier}
+              copyLabel="Bundle identifier"
+            />
+            <DetailRow
+              label="ASC App ID"
+              value={submission.iosConfig.ascAppId}
+              copyLabel="ASC App ID"
+            />
+            <DetailRow
+              label="Apple team"
+              value={submission.iosConfig.appleTeamId}
+              copyLabel="Apple team"
+            />
             <DetailRow label="Language" value={submission.iosConfig.language} />
             <DetailRow label="What to test" value={submission.iosConfig.whatToTest} />
           </>
@@ -86,7 +117,11 @@ const SubmissionDetail = ({
         {submission.androidConfig ? (
           <>
             <h2 className="text-muted-foreground mt-3 text-xs uppercase">Android config</h2>
-            <DetailRow label="Application ID" value={submission.androidConfig.applicationId} />
+            <DetailRow
+              label="Application ID"
+              value={submission.androidConfig.applicationId}
+              copyLabel="Application ID"
+            />
             <DetailRow label="Track" value={submission.androidConfig.track} />
             <DetailRow label="Release status" value={submission.androidConfig.releaseStatus} />
             <DetailRow

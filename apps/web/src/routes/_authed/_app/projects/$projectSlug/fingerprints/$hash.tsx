@@ -24,6 +24,7 @@ import type { BuildWithArtifact, Update } from "@better-update/api";
 import { ProjectSubpageHeader } from "../-project-subpage-header";
 import { DistributionBadge, PlatformBadge } from "../../../../../../components/attribute-badges";
 import { DetailCardSkeleton } from "../../../../../../components/skeletons";
+import { CopyButton } from "../../../../../../lib/copy-button";
 import { formatDateTime } from "../../../../../../lib/format-date";
 
 interface RouteParams {
@@ -70,7 +71,12 @@ const FingerprintHashCard = ({
       </CardDescription>
     </CardHeader>
     <CardContent className="flex flex-col gap-3">
-      <pre className="bg-muted overflow-x-auto rounded-xl p-3 font-mono text-xs">{hash}</pre>
+      <div className="flex items-start gap-2">
+        <pre className="bg-muted min-w-0 flex-1 overflow-x-auto rounded-xl p-3 font-mono text-xs">
+          {hash}
+        </pre>
+        <CopyButton value={hash} label="Fingerprint" />
+      </div>
       <div className="flex flex-wrap gap-2">
         <Badge variant="secondary">{buildCount} builds</Badge>
         <Badge variant="secondary">{updateCount} updates</Badge>
