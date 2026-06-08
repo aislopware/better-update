@@ -74,6 +74,7 @@ const KeystoreCard = ({ keystore }: { keystore: AndroidUploadKeystoreItem | null
         <TableHeader>
           <TableRow>
             <TableHead>Key alias</TableHead>
+            <TableHead>Type</TableHead>
             <TableHead>SHA-1 Fingerprint</TableHead>
             <TableHead>SHA-256 Fingerprint</TableHead>
             <TableHead>Uploaded at</TableHead>
@@ -81,15 +82,13 @@ const KeystoreCard = ({ keystore }: { keystore: AndroidUploadKeystoreItem | null
         </TableHeader>
         <TableBody>
           <TableRow>
-            <TableCell className="font-medium">
-              <div className="flex flex-col">
-                <span>{keystore.keyAlias}</span>
-                {keystore.keystoreType === null ? null : (
-                  <span className="text-muted-foreground text-xs font-normal">
-                    Type: {keystore.keystoreType}
-                  </span>
-                )}
-              </div>
+            <TableCell className="font-medium">{keystore.keyAlias}</TableCell>
+            <TableCell>
+              {keystore.keystoreType === null ? (
+                <span className="text-muted-foreground">—</span>
+              ) : (
+                <Badge variant="secondary">{keystore.keystoreType}</Badge>
+              )}
             </TableCell>
             <TableCell>
               <FingerprintCell value={keystore.sha1Fingerprint} label="SHA-1" />
