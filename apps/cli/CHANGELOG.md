@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.29.2](https://github.com/better-update/better-update/compare/@better-update/cli@0.29.1...@better-update/cli@0.29.2) (2026-06-08)
+
+### Bug Fixes
+
+* **credentials:** extract & store Android keystore SHA-1/SHA-256 fingerprints on upload ([c639682](https://github.com/better-update/better-update/commit/c639682de0e7a950f6b52a024582778208430f76)) - by @trancong12102
+
 ## [0.29.1](https://github.com/better-update/better-update/compare/@better-update/cli@0.29.0...@better-update/cli@0.29.1) (2026-06-05)
 
 ### Bug Fixes
