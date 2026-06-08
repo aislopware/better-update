@@ -36,6 +36,7 @@ import type { DeviceClassValue } from "@better-update/api-client/react";
 
 import { deviceNameSchema as nameSchema, getFieldError } from "../../../../lib/form-utils";
 import { safeSubmit, useApiMutation } from "../../../../lib/use-api-mutation";
+import { APPLE_TEAM_NONE, AppleTeamField } from "./-apple-team-field";
 
 const IDENTIFIER_PATTERN =
   /^(?:[A-Fa-f0-9]{40}|[A-Fa-f0-9]{8}-[A-Fa-f0-9]{16}|[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12})$/u;
@@ -107,9 +108,16 @@ interface FormValues {
   name: string;
   deviceClass: DeviceClassValue;
   model: string;
+  appleTeamId: string;
 }
 
-const DEFAULTS: FormValues = { identifier: "", name: "", deviceClass: "IPHONE", model: "" };
+const DEFAULTS: FormValues = {
+  identifier: "",
+  name: "",
+  deviceClass: "IPHONE",
+  model: "",
+  appleTeamId: APPLE_TEAM_NONE,
+};
 
 const RegisterDeviceForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: () => void }) => {
   const queryClient = useQueryClient();
@@ -121,6 +129,7 @@ const RegisterDeviceForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: ()
         name: value.name.trim(),
         deviceClass: value.deviceClass,
         ...(value.model.trim() ? { model: value.model.trim() } : {}),
+        ...(value.appleTeamId === APPLE_TEAM_NONE ? {} : { appleTeamId: value.appleTeamId }),
       }),
     onSuccess: async () => {
       toastManager.add({ title: "Device registered", type: "success" });
@@ -241,6 +250,19 @@ const RegisterDeviceForm = ({ orgId, onSuccess }: { orgId: string; onSuccess: ()
                 }}
               />
             </Field>
+          )}
+        </form.Field>
+
+        <form.Field name="appleTeamId">
+          {(field) => (
+            <AppleTeamField
+              orgId={orgId}
+              value={field.state.value}
+              onChange={(next) => {
+                field.handleChange(next);
+              }}
+              description="Assign this device to an Apple team for ad-hoc provisioning."
+            />
           )}
         </form.Field>
       </DialogPanel>

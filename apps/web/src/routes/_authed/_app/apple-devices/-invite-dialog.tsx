@@ -49,6 +49,7 @@ import { CopyButton } from "../../../../lib/copy-button";
 import { getFieldError } from "../../../../lib/form-utils";
 import { formatDateTime } from "../../../../lib/format-date";
 import { safeSubmit, useApiMutation } from "../../../../lib/use-api-mutation";
+import { APPLE_TEAM_NONE, AppleTeamField } from "./-apple-team-field";
 
 const hintNameSchema = z.string().check(z.maxLength(120, "Max 120 characters"));
 
@@ -133,12 +134,14 @@ const TtlSelect = ({ value, onChange }: { value: string; onChange: (next: string
 interface FormValues {
   deviceNameHint: string;
   deviceClassHint: DeviceClassValue | "NONE";
+  appleTeamId: string;
   ttlHours: string;
 }
 
 const DEFAULTS: FormValues = {
   deviceNameHint: "",
   deviceClassHint: "NONE",
+  appleTeamId: APPLE_TEAM_NONE,
   ttlHours: "24",
 };
 
@@ -190,6 +193,7 @@ const CreateInviteForm = ({
         ttlHours: Number.parseInt(value.ttlHours, 10),
         ...(value.deviceNameHint.trim() ? { deviceNameHint: value.deviceNameHint.trim() } : {}),
         ...(value.deviceClassHint === "NONE" ? {} : { deviceClassHint: value.deviceClassHint }),
+        ...(value.appleTeamId === APPLE_TEAM_NONE ? {} : { appleTeamId: value.appleTeamId }),
       }),
     onSuccess: async (result) => {
       onInviteCreated(result);
@@ -257,6 +261,19 @@ const CreateInviteForm = ({
                 }}
               />
             </Field>
+          )}
+        </form.Field>
+
+        <form.Field name="appleTeamId">
+          {(field) => (
+            <AppleTeamField
+              orgId={orgId}
+              value={field.state.value}
+              onChange={(next) => {
+                field.handleChange(next);
+              }}
+              description="The enrolled device is assigned to this Apple team."
+            />
           )}
         </form.Field>
 
