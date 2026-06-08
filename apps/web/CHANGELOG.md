@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.34.0](https://github.com/better-update/better-update/compare/@better-update/web@0.33.0...@better-update/web@0.34.0) (2026-06-08)
+
+### Features
+
+* **web:** add copy buttons across dashboard identifier surfaces ([b14598a](https://github.com/better-update/better-update/commit/b14598afbedfd65bff82e2add7d9324092a254d3)) - by @trancong12102
+
 ## [0.33.0](https://github.com/better-update/better-update/compare/@better-update/web@0.32.0...@better-update/web@0.33.0) (2026-06-07)
 
 ### Features
