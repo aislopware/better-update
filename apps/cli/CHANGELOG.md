@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.31.1](https://github.com/better-update/better-update/compare/@better-update/cli@0.31.0...@better-update/cli@0.31.1) (2026-06-08)
+
+### Bug Fixes
+
+* **devices:** translate invalid appleTeamId to 404 instead of 500 ([6ad96d9](https://github.com/better-update/better-update/commit/6ad96d917e7bab3ec53fbd30d90155f6fdfde290)) - by @trancong12102
+
 ## [0.31.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.30.0...@better-update/cli@0.31.0) (2026-06-08)
 
 ### Features
