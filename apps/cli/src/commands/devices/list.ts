@@ -28,7 +28,10 @@ export const listDevicesCommand = defineCommand({
       options: ["IPHONE", "IPAD", "MAC", "UNKNOWN"],
       description: "Filter by device class",
     },
-    "apple-team-id": { type: "string", description: "Filter by Apple team ID" },
+    "apple-team-id": {
+      type: "string",
+      description: "Filter by internal team Id (UUID), not the Apple Team Identifier",
+    },
     query: { type: "string", description: "Search devices by name or identifier" },
     enabled: { type: "string", description: "Filter by enabled status (true/false)" },
     page: { type: "string", default: "1", description: "Page number" },

@@ -9,10 +9,12 @@ import { assertOrgOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
 import { cloudflareEnv } from "../cloudflare/context";
 import { normalizeIdentifier } from "../domain/device";
+import { NotFound } from "../errors";
 import { toApiDevice, toApiDeviceRegistrationRequest } from "../http/to-api";
 import { toApiCrudEffect } from "../http/to-api-effect";
 import { toDbNull } from "../lib/nullable";
 import { parsePagination } from "../lib/pagination";
+import { AppleTeamRepo } from "../repositories/apple-teams";
 import { DeviceRegistrationRequestRepo } from "../repositories/device-registration-requests";
 import { DeviceRepo } from "../repositories/devices";
 
@@ -35,6 +37,30 @@ const parseDeviceSort = (
   }
 };
 
+/**
+ * `appleTeamId` in the request body is the *internal* team Id (a better-update
+ * UUID), not the Apple Team Identifier string (e.g. `233P57T2L4`). The column is
+ * a FK to `apple_teams.id`, so an unresolvable value would otherwise surface as
+ * a raw "FOREIGN KEY constraint failed" defect (HTTP 500). Validate up front and
+ * translate to a 404 with an actionable hint instead. Cross-org references are
+ * also reported as not-found to avoid org enumeration.
+ */
+const assertAppleTeamInOrg = (appleTeamId: string | null | undefined) =>
+  Effect.gen(function* () {
+    if (appleTeamId === undefined || appleTeamId === null) {
+      return;
+    }
+    const ctx = yield* CurrentActor;
+    const repo = yield* AppleTeamRepo;
+    const notFound = new NotFound({
+      message: `Apple team "${appleTeamId}" not found. Provide the internal team Id (UUID), not the Apple Team Identifier (e.g. 233P57T2L4).`,
+    });
+    const team = yield* repo.findById({ id: appleTeamId }).pipe(Effect.mapError(() => notFound));
+    if (team.organizationId !== ctx.organizationId) {
+      return yield* notFound;
+    }
+  });
+
 export const DevicesGroupLive = HttpApiBuilder.group(ManagementApi, "devices", (handlers) =>
   handlers
     .handle("register", ({ payload }) =>
@@ -42,6 +68,7 @@ export const DevicesGroupLive = HttpApiBuilder.group(ManagementApi, "devices", (
         Effect.gen(function* () {
           yield* assertPermission("device", "create");
           const ctx = yield* CurrentActor;
+          yield* assertAppleTeamInOrg(payload.appleTeamId);
           const repo = yield* DeviceRepo;
           const id = crypto.randomUUID();
           const now = new Date().toISOString();
@@ -116,6 +143,7 @@ export const DevicesGroupLive = HttpApiBuilder.group(ManagementApi, "devices", (
           const repo = yield* DeviceRepo;
           const device = yield* repo.findById({ id: path.id });
           yield* assertOrgOwnership(device.organizationId);
+          yield* assertAppleTeamInOrg(payload.appleTeamId);
 
           const now = new Date().toISOString();
           yield* repo.update({
@@ -175,6 +203,7 @@ export const DevicesGroupLive = HttpApiBuilder.group(ManagementApi, "devices", (
         Effect.gen(function* () {
           yield* assertPermission("device", "create");
           const ctx = yield* CurrentActor;
+          yield* assertAppleTeamInOrg(payload.appleTeamId);
           const repo = yield* DeviceRegistrationRequestRepo;
           const env = yield* cloudflareEnv;
           const origin = env.PUBLIC_API_URL;
