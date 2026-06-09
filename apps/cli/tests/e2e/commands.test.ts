@@ -16,7 +16,7 @@ import { generateIdentity } from "@better-update/credentials-crypto";
 import { buildExpoSignatureHeader } from "@better-update/expo-codesign";
 import forge from "node-forge";
 
-import { setupCliE2E } from "../helpers/cli-e2e";
+import { futureCommitTime, setupCliE2E } from "../helpers/cli-e2e";
 
 // Produce a REAL verifiable RSA code-signing certificate + a signature over the
 // given body bytes. The server now verifies signed publishes at create time, so
@@ -747,10 +747,17 @@ describe("cLI command journey", () => {
     const targetName = `signed-preview-${Date.now()}`;
     seedDestinationChannel(targetName);
 
+    // Both signed manifests must carry a commitTime newer than the updates
+    // already published on branch "main" earlier in this journey, or the
+    // server's clock-skew guard rejects the create; the replacement supersedes
+    // the source, so it is newer still. See futureCommitTime.
+    const sourceCreatedAt = futureCommitTime(1);
+    const replacementCreatedAt = futureCommitTime(2);
+
     const promotableUpdate = await createPromotableUpdate({
       signed: {
         manifestId: "cli-signed-source-manifest",
-        createdAt: "2026-04-14T10:00:00.000Z",
+        createdAt: sourceCreatedAt,
         signature: 'sig="source-signature", keyid="main", alg="rsa-v1_5_sha256"',
         certificateChain: "-----BEGIN CERTIFICATE-----\nSOURCE\n-----END CERTIFICATE-----",
       },
@@ -764,7 +771,7 @@ describe("cLI command journey", () => {
     const certificateChainPath = path.join(cli.getProjectDir(), `signed-promote-${Date.now()}.pem`);
     const replacementManifestBody = JSON.stringify({
       id: "cli-signed-promoted-manifest",
-      createdAt: "2026-04-15T10:00:00.000Z",
+      createdAt: replacementCreatedAt,
       runtimeVersion: "1.0.0",
       launchAsset: {
         key: promotableUpdate.launchAssetKey,

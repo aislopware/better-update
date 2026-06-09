@@ -1,43 +1,26 @@
 import { setupE2EDashboard } from "../helpers/e2e-dashboard";
 
-const { post, get, patch, del, parseCookies } = setupE2EDashboard();
+const { post, get, seedSql, parseCookies } = setupE2EDashboard();
 
-describe("dashboard environment variables flow", () => {
+// Single-quote a value for inline SQL. Our fixtures are UUIDs + ASCII literals
+// (no apostrophes), but escape defensively all the same.
+const sql = (value: string) => `'${value.replaceAll("'", "''")}'`;
+
+// Env var values are end-to-end encrypted: the CLI seals each value client-side
+// under the org vault and the server stores only ciphertext, so every mutation
+// goes through the CLI (which holds the vault key). The dashboard is READ-ONLY
+// for env vars — see `-env-var-row.tsx` ("Read-only … only readable via the
+// CLI"). This flow therefore seeds encrypted env-var rows directly (opaque
+// ciphertext the dashboard never decrypts) and asserts the dashboard API lists
+// the METADATA read-only — merging scopes, surfacing the project-over-global
+// override, never exposing a plaintext value — and rejects the legacy
+// plaintext-create shape. The encrypted mutation lifecycle (set / pull / revise)
+// is covered end-to-end by the CLI e2e (apps/cli/tests/e2e/env-commands.test.ts).
+describe("dashboard environment variables flow (read-only)", () => {
   const state = {
     cookies: "",
     organizationId: "",
     projectId: "",
-    apiKey: "",
-    globalVarId: "",
-    sensitiveVarId: "",
-    plaintextVarId: "",
-  };
-
-  const createProjectEnvVar = async ({
-    key,
-    value,
-    visibility,
-    environments,
-  }: {
-    key: string;
-    value: string;
-    visibility: "sensitive" | "plaintext";
-    environments: readonly ("development" | "preview" | "production")[];
-  }) => {
-    const response = await post(
-      "/api/env-vars",
-      {
-        scope: "project",
-        projectId: state.projectId,
-        environments,
-        key,
-        value,
-        visibility,
-      },
-      { cookie: state.cookies },
-    );
-    expect(response.status).toBe(201);
-    return response.json();
   };
 
   it("registers a user and activates an organization", async () => {
@@ -68,7 +51,7 @@ describe("dashboard environment variables flow", () => {
     state.cookies = parseCookies(setActiveResponse) || state.cookies;
   });
 
-  it("creates a project and export API key", async () => {
+  it("creates a project and seeds encrypted env vars", async () => {
     const createProjectResponse = await post(
       "/api/projects",
       { name: "Dashboard Env Project", slug: "dashboard-env" },
@@ -78,118 +61,107 @@ describe("dashboard environment variables flow", () => {
     const createProjectBody = await createProjectResponse.json();
     state.projectId = createProjectBody.id;
 
-    const createKeyResponse = await post(
-      "/api/auth/api-key/create",
-      { name: "dashboard-env-key", organizationId: state.organizationId },
-      { cookie: state.cookies },
-    );
-    expect(createKeyResponse.status).toBe(200);
-    const createKeyBody = await createKeyResponse.json();
-    state.apiKey = createKeyBody.key;
+    // Four encrypted env vars (all `production`): two globals, one project var
+    // that shadows a global of the same key (the override case), and one
+    // project-only sensitive var. Each row points at a single revision whose
+    // ciphertext/DEK are opaque placeholders — the dashboard reads only metadata
+    // and never decrypts, so real sealing is unnecessary here.
+    const orgId = sql(state.organizationId);
+    const projectId = sql(state.projectId);
+    seedSql(`
+INSERT INTO "env_vars"
+  ("id","organization_id","project_id","scope","environment","key","visibility","current_revision_id","created_at","updated_at")
+VALUES
+  ('ev-global-api',${orgId},NULL,'global','production','EXPO_PUBLIC_API_URL','plaintext','rev-global-api','2024-02-01T00:00:00Z','2024-02-01T00:00:00Z'),
+  ('ev-global-flag',${orgId},NULL,'global','production','FEATURE_FLAG','plaintext','rev-global-flag','2024-02-02T00:00:00Z','2024-02-02T00:00:00Z'),
+  ('ev-proj-api',${orgId},${projectId},'project','production','EXPO_PUBLIC_API_URL','plaintext','rev-proj-api','2024-02-03T00:00:00Z','2024-02-03T00:00:00Z'),
+  ('ev-proj-sentry',${orgId},${projectId},'project','production','SENTRY_AUTH_TOKEN','sensitive','rev-proj-sentry','2024-02-04T00:00:00Z','2024-02-04T00:00:00Z');
+
+INSERT INTO "env_var_revisions"
+  ("id","env_var_id","organization_id","revision_number","value_ciphertext","wrapped_dek","vault_version","created_by_user_id","created_at","updated_at")
+VALUES
+  ('rev-global-api','ev-global-api',${orgId},1,'ciphertext-global-api','wrapped-dek-global-api',1,NULL,'2024-02-01T00:00:00Z','2024-02-01T00:00:00Z'),
+  ('rev-global-flag','ev-global-flag',${orgId},1,'ciphertext-global-flag','wrapped-dek-global-flag',1,NULL,'2024-02-02T00:00:00Z','2024-02-02T00:00:00Z'),
+  ('rev-proj-api','ev-proj-api',${orgId},1,'ciphertext-proj-api','wrapped-dek-proj-api',1,NULL,'2024-02-03T00:00:00Z','2024-02-03T00:00:00Z'),
+  ('rev-proj-sentry','ev-proj-sentry',${orgId},1,'ciphertext-proj-sentry','wrapped-dek-proj-sentry',1,NULL,'2024-02-04T00:00:00Z','2024-02-04T00:00:00Z');
+`);
   });
 
-  it("creates project + global env vars, imports, lists with override, exports, updates, deletes", async () => {
-    const globalResponse = await post(
+  it("lists global env-var metadata without exposing values", async () => {
+    const response = await get("/api/env-vars?scope=global", { cookie: state.cookies });
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    const byKey = new Map(body.items.map((item: { key: string }) => [item.key, item]));
+    expect(byKey.get("EXPO_PUBLIC_API_URL")).toStrictEqual(
+      expect.objectContaining({
+        scope: "global",
+        environment: "production",
+        key: "EXPO_PUBLIC_API_URL",
+        visibility: "plaintext",
+      }),
+    );
+    expect(byKey.get("FEATURE_FLAG")).toStrictEqual(
+      expect.objectContaining({ scope: "global", key: "FEATURE_FLAG" }),
+    );
+    // Metadata only — the encrypted value never crosses the wire.
+    for (const item of body.items as { value?: unknown }[]) {
+      expect(item.value).toBeUndefined();
+    }
+    expect(JSON.stringify(body)).not.toContain("ciphertext-");
+  });
+
+  it("merges scope=all with the project-over-global override", async () => {
+    const response = await get(`/api/env-vars?projectId=${state.projectId}&scope=all`, {
+      cookie: state.cookies,
+    });
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    const byKey = new Map(body.items.map((item: { key: string }) => [item.key, item]));
+    // EXPO (project shadows global) + FEATURE_FLAG (global, unshadowed) + SENTRY (project).
+    expect(byKey.size).toBe(3);
+    expect(byKey.get("EXPO_PUBLIC_API_URL")).toStrictEqual(
+      expect.objectContaining({ scope: "project", overridesGlobal: true }),
+    );
+    expect(byKey.get("FEATURE_FLAG")).toStrictEqual(expect.objectContaining({ scope: "global" }));
+    expect(byKey.get("SENTRY_AUTH_TOKEN")).toStrictEqual(
+      expect.objectContaining({ scope: "project", visibility: "sensitive" }),
+    );
+    for (const item of body.items as { value?: unknown }[]) {
+      expect(item.value).toBeUndefined();
+    }
+  });
+
+  it("gets a single env var's metadata", async () => {
+    const response = await get("/api/env-vars/ev-proj-sentry", { cookie: state.cookies });
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body).toStrictEqual(
+      expect.objectContaining({
+        id: "ev-proj-sentry",
+        scope: "project",
+        environment: "production",
+        key: "SENTRY_AUTH_TOKEN",
+        visibility: "sensitive",
+      }),
+    );
+    expect(body.value).toBeUndefined();
+  });
+
+  it("rejects the legacy plaintext-create shape (values are sealed client-side)", async () => {
+    // The create endpoint requires a client-sealed value envelope; the pre-E2E
+    // dashboard shape (a bare plaintext `value` + plural `environments` array) no
+    // longer satisfies the contract and is rejected before any write.
+    const response = await post(
       "/api/env-vars",
       {
         scope: "global",
-        environments: ["development", "preview", "production"],
-        key: "EXPO_PUBLIC_API_URL",
-        value: "https://global.example.com",
-        visibility: "plaintext",
-      },
-      { cookie: state.cookies },
-    );
-    expect(globalResponse.status).toBe(201);
-    const globalBody = await globalResponse.json();
-    state.globalVarId = globalBody.id;
-
-    const sensitiveBody = await createProjectEnvVar({
-      key: "SENTRY_AUTH_TOKEN",
-      value: "sentry-token",
-      visibility: "sensitive",
-      environments: ["production"],
-    });
-    state.sensitiveVarId = sensitiveBody.id;
-
-    const plaintextBody = await createProjectEnvVar({
-      key: "EXPO_PUBLIC_API_URL",
-      value: "https://project.example.com",
-      visibility: "plaintext",
-      environments: ["production"],
-    });
-    state.plaintextVarId = plaintextBody.id;
-
-    const importResponse = await post(
-      "/api/env-vars/bulk-import",
-      {
-        scope: "project",
-        projectId: state.projectId,
         environments: ["production"],
-        content: "FEATURE_FLAG=true\n",
+        key: "EXPO_PUBLIC_LEGACY",
+        value: "https://legacy.example.com",
         visibility: "plaintext",
       },
       { cookie: state.cookies },
     );
-    expect(importResponse.status).toBe(200);
-    const importBody = await importResponse.json();
-    expect(importBody).toStrictEqual({ created: 1, updated: 0, skipped: 0 });
-
-    const listResponse = await get(`/api/env-vars?projectId=${state.projectId}&scope=all`, {
-      cookie: state.cookies,
-    });
-    expect(listResponse.status).toBe(200);
-    const listBody = await listResponse.json();
-    const byKey = new Map(listBody.items.map((item: { key: string }) => [item.key, item]));
-    expect(byKey.size).toBe(3);
-    expect(byKey.get("EXPO_PUBLIC_API_URL")).toStrictEqual(
-      expect.objectContaining({
-        scope: "project",
-        value: "https://project.example.com",
-        overridesGlobal: true,
-      }),
-    );
-    expect(byKey.get("SENTRY_AUTH_TOKEN")).toStrictEqual(
-      expect.objectContaining({ value: "sentry-token", visibility: "sensitive" }),
-    );
-
-    const exportResponse = await get(
-      `/api/env-vars/export?projectId=${state.projectId}&environment=production`,
-      { authorization: `Bearer ${state.apiKey}` },
-    );
-    expect(exportResponse.status).toBe(200);
-    const exportBody = await exportResponse.json();
-    const exportByKey = new Map(exportBody.items.map((item: { key: string }) => [item.key, item]));
-    expect(exportByKey.get("EXPO_PUBLIC_API_URL")).toStrictEqual({
-      key: "EXPO_PUBLIC_API_URL",
-      value: "https://project.example.com",
-      visibility: "plaintext",
-    });
-    expect(exportByKey.get("SENTRY_AUTH_TOKEN")).toStrictEqual({
-      key: "SENTRY_AUTH_TOKEN",
-      value: "sentry-token",
-      visibility: "sensitive",
-    });
-
-    const updateResponse = await patch(
-      `/api/env-vars/${state.sensitiveVarId}`,
-      { visibility: "plaintext", environments: ["development", "production"] },
-      { cookie: state.cookies },
-    );
-    expect(updateResponse.status).toBe(200);
-    const updateBody = await updateResponse.json();
-    expect(updateBody).toStrictEqual(
-      expect.objectContaining({
-        id: state.sensitiveVarId,
-        visibility: "plaintext",
-        value: "sentry-token",
-        environments: ["development", "production"],
-      }),
-    );
-
-    const deleteResponse = await del(`/api/env-vars/${state.plaintextVarId}`, undefined, {
-      cookie: state.cookies,
-    });
-    expect(deleteResponse.status).toBe(200);
+    expect(response.status).toBe(400);
   });
 });

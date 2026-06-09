@@ -33,7 +33,8 @@
     "apps/cli": {
       "entry": ["tests/interactive/harness/**/*.ts"],
       "project": ["src/**/*.ts", "tests/**/*.ts"],
-      "ignoreDependencies": ["wrangler", "expo"]
+      "ignoreDependencies": ["wrangler", "expo"],
+      "ignoreBinaries": ["openssl", "keytool"]
     },
     "apps/docs": {
       "entry": ["src/styles/custom.css"],

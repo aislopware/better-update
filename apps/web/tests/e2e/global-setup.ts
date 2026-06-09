@@ -89,10 +89,14 @@ export default async function setup() {
   const restoreProcessEnv = applyProcessEnv(e2eEnv.processOverrides);
 
   // ── D1 migrations ──────────────────────────────────────────────────────
+  // Discard stdout, inherit stderr. `wrangler d1 migrations apply` prints a row
+  // per migration; with 60+ migrations that table exceeds execSync's default
+  // 1 MiB maxBuffer and throws ENOBUFS. The output is never read (execSync still
+  // throws on a non-zero exit), so dropping the buffer is the root-cause fix.
   execSync(`bunx wrangler d1 migrations apply DB --local --persist-to ${PERSIST_DIR}`, {
     cwd: API_DIR,
     env: e2eEnv.wranglerEnv,
-    stdio: "pipe",
+    stdio: ["ignore", "ignore", "inherit"],
   });
 
   // ── Wrangler Worker ────────────────────────────────────────────────────

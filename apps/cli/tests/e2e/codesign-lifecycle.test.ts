@@ -6,7 +6,7 @@ import {
   TEST_CODE_SIGNING_CERTIFICATE_PEM,
   TEST_CODE_SIGNING_PRIVATE_KEY_PEM,
 } from "../../../server/tests/helpers/code-signing-fixture";
-import { setupCliE2E } from "../helpers/cli-e2e";
+import { futureCommitTime, setupCliE2E } from "../helpers/cli-e2e";
 
 const FIXTURE_DIR = path.resolve(import.meta.dirname, "../../../../fixtures/e2e-app");
 
@@ -55,6 +55,10 @@ const cli = setupCliE2E("e2e-cli-codesign", {
   userEmail: "cli-e2e-codesign@example.com",
   orgSlug: "cli-e2e-codesign-org",
 });
+
+// Must be newer than the auto-sign publish above (stamped at the current wall
+// clock) or the server's clock-skew guard rejects the rollback. See futureCommitTime.
+const ROLLBACK_COMMIT_TIME = futureCommitTime();
 
 // ── Helpers ──────────────────────────────────────────────────────
 
@@ -178,7 +182,7 @@ describe("code-signing lifecycle: CLI auto-sign publish + rollback (device-style
       "--private-key-path",
       keyPath,
       "--commit-time",
-      "2026-04-15T00:00:00.000Z",
+      ROLLBACK_COMMIT_TIME,
     );
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain("Created rollback group");
@@ -192,7 +196,7 @@ describe("code-signing lifecycle: CLI auto-sign publish + rollback (device-style
     // The served directive is the rollBackToEmbedded body we signed…
     expect(JSON.parse(directivePart!.body)).toStrictEqual({
       type: "rollBackToEmbedded",
-      parameters: { commitTime: "2026-04-15T00:00:00.000Z" },
+      parameters: { commitTime: ROLLBACK_COMMIT_TIME },
     });
     // …and its signature verifies device-style against the configured cert.
     expect(verifyExpoSignature(directivePart!.headers["expo-signature"], directivePart!.body)).toBe(
