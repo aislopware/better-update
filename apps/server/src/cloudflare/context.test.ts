@@ -9,7 +9,7 @@ import {
 
 describe("cloudflare request context", () => {
   it("provideCloudflareRequestContext stores env and ctx", () => {
-    const mockEnv = { DB: {}, SESSION_KV: {} } as unknown as Env;
+    const mockEnv = { DB: { withSession: () => ({}) }, SESSION_KV: {} } as unknown as Env;
     const mockCtx = {
       waitUntil: () => {},
       passThroughOnException: () => {},

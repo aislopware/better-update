@@ -1,6 +1,10 @@
 import { Context, Effect, Layer } from "effect";
 
-import { cloudflareEnv } from "../cloudflare/context";
+import type { Selectable } from "kysely";
+
+import { kyselyDb } from "../cloudflare/db";
+
+import type { Invitation } from "../db/schema";
 
 // -- Port -------------------------------------------------------------------
 
@@ -76,16 +80,9 @@ const INVITATION_TTL_MS = 48 * 60 * 60 * 1000;
 const CANCELED_STATUS = "canceled";
 const PENDING_STATUS = "pending";
 
-const SELECT_COLUMNS = `"id", "email", "role", "status", "expires_at", "created_at"`;
+const COLUMNS = ["id", "email", "role", "status", "expires_at", "created_at"] as const;
 
-interface InvitationRow {
-  id: string;
-  email: string;
-  role: string | null;
-  status: string;
-  expires_at: string;
-  created_at: string;
-}
+type InvitationRow = Pick<Selectable<Invitation>, (typeof COLUMNS)[number]>;
 
 const toModel = (row: InvitationRow): InvitationModel => ({
   id: row.id,
@@ -96,81 +93,68 @@ const toModel = (row: InvitationRow): InvitationModel => ({
   createdAt: row.created_at,
 });
 
-export const InvitationRepoLive = Layer.effect(
-  InvitationRepo,
-  Effect.sync(
-    () =>
-      ({
-        create: (params) =>
-          Effect.gen(function* () {
-            const env = yield* cloudflareEnv;
-            const id = crypto.randomUUID();
-            const now = new Date();
-            const createdAt = now.toISOString();
-            const expiresAt = new Date(now.getTime() + INVITATION_TTL_MS).toISOString();
-            // Normalize to match better-auth's invite write path (it stores
-            // email.toLowerCase()); accept compares emails case-insensitively, so
-            // both write paths now persist identically-cased rows.
-            const email = params.email.toLowerCase();
+export const InvitationRepoLive = Layer.succeed(InvitationRepo, {
+  create: (params) =>
+    Effect.gen(function* () {
+      const db = yield* kyselyDb;
+      const id = crypto.randomUUID();
+      const now = new Date();
+      const createdAt = now.toISOString();
+      const expiresAt = new Date(now.getTime() + INVITATION_TTL_MS).toISOString();
+      // Normalize to match better-auth's invite write path (it stores
+      // email.toLowerCase()); accept compares emails case-insensitively, so
+      // both write paths now persist identically-cased rows.
+      const email = params.email.toLowerCase();
 
-            const row = yield* Effect.promise(async () =>
-              env.DB.prepare(
-                `INSERT INTO "invitation" (
-                   "id", "organization_id", "email", "role", "status",
-                   "expires_at", "created_at", "inviter_id"
-                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                 RETURNING ${SELECT_COLUMNS}`,
-              )
-                .bind(
-                  id,
-                  params.organizationId,
-                  email,
-                  params.role,
-                  PENDING_STATUS,
-                  expiresAt,
-                  createdAt,
-                  params.inviterUserId,
-                )
-                .first<InvitationRow>(),
-            );
+      const row = yield* Effect.promise(async () =>
+        db
+          .insertInto("invitation")
+          .values({
+            id,
+            organization_id: params.organizationId,
+            email,
+            role: params.role,
+            status: PENDING_STATUS,
+            expires_at: expiresAt,
+            created_at: createdAt,
+            inviter_id: params.inviterUserId,
+          })
+          .returning(COLUMNS)
+          .executeTakeFirst(),
+      );
 
-            return row === null
-              ? {
-                  id,
-                  email,
-                  role: params.role,
-                  status: PENDING_STATUS,
-                  expiresAt,
-                  createdAt,
-                }
-              : toModel(row);
-          }),
+      return row === undefined
+        ? { id, email, role: params.role, status: PENDING_STATUS, expiresAt, createdAt }
+        : toModel(row);
+    }),
 
-        list: (params) =>
-          Effect.gen(function* () {
-            const env = yield* cloudflareEnv;
-            const rows = yield* Effect.promise(async () =>
-              env.DB.prepare(
-                `SELECT ${SELECT_COLUMNS} FROM "invitation" WHERE "organization_id" = ? ORDER BY "created_at" DESC`,
-              )
-                .bind(params.organizationId)
-                .all<InvitationRow>(),
-            );
-            return rows.results.map(toModel);
-          }),
+  list: (params) =>
+    Effect.gen(function* () {
+      const db = yield* kyselyDb;
+      const rows = yield* Effect.promise(async () =>
+        db
+          .selectFrom("invitation")
+          .select(COLUMNS)
+          .where("organization_id", "=", params.organizationId)
+          .orderBy("created_at", "desc")
+          .execute(),
+      );
+      return rows.map(toModel);
+    }),
 
-        cancel: (params) =>
-          Effect.gen(function* () {
-            const env = yield* cloudflareEnv;
-            const result = yield* Effect.promise(async () =>
-              env.DB.prepare(
-                `UPDATE "invitation" SET "status" = ? WHERE "id" = ? AND "organization_id" = ? AND "status" = ?`,
-              )
-                .bind(CANCELED_STATUS, params.id, params.organizationId, PENDING_STATUS)
-                .run(),
-            );
-            return result.meta.changes > 0;
-          }),
-      }) satisfies InvitationRepository,
-  ),
-);
+  cancel: (params) =>
+    Effect.gen(function* () {
+      const db = yield* kyselyDb;
+      const row = yield* Effect.promise(async () =>
+        db
+          .updateTable("invitation")
+          .set({ status: CANCELED_STATUS })
+          .where("id", "=", params.id)
+          .where("organization_id", "=", params.organizationId)
+          .where("status", "=", PENDING_STATUS)
+          .returning(["id"])
+          .executeTakeFirst(),
+      );
+      return row !== undefined;
+    }),
+});

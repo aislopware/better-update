@@ -1,6 +1,7 @@
+import { toDbNull } from "@better-update/type-guards";
 import { Context, Effect, Layer } from "effect";
 
-import { cloudflareEnv } from "../cloudflare/context";
+import { kyselyDb } from "../cloudflare/db";
 
 // -- MemberRepo: membership-meta reads --------------------------------------
 
@@ -47,63 +48,58 @@ export interface MemberRepository {
 
 export class MemberRepo extends Context.Tag("api/MemberRepo")<MemberRepo, MemberRepository>() {}
 
-interface MemberOrgRow {
-  organization_id: string;
-}
-
-interface MemberIdRoleRow {
-  id: string;
-  role: string;
-}
-
-interface OwnerCountRow {
-  owner_count: number;
-}
-
 export const MemberRepoLive = Layer.succeed(MemberRepo, {
   findOrgId: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT "organization_id" FROM "member" WHERE "id" = ?`)
-          .bind(params.memberId)
-          .first<MemberOrgRow>(),
+        db
+          .selectFrom("member")
+          .select("organization_id")
+          .where("id", "=", params.memberId)
+          .executeTakeFirst(),
       );
-      return row === null ? null : row.organization_id;
+      return toDbNull(row?.organization_id);
     }),
 
   findInOrg: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT "id", "role" FROM "member" WHERE "id" = ? AND "organization_id" = ?`)
-          .bind(params.id, params.organizationId)
-          .first<MemberIdRoleRow>(),
+        db
+          .selectFrom("member")
+          .select(["id", "role"])
+          .where("id", "=", params.id)
+          .where("organization_id", "=", params.organizationId)
+          .executeTakeFirst(),
       );
-      return row === null ? null : { id: row.id, role: row.role };
+      return row ? { id: row.id, role: row.role } : null;
     }),
 
   countOwners: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT COUNT(*) AS owner_count FROM "member" WHERE "organization_id" = ? AND "role" = 'owner'`,
-        )
-          .bind(params.organizationId)
-          .first<OwnerCountRow>(),
+        db
+          .selectFrom("member")
+          .where("organization_id", "=", params.organizationId)
+          .where("role", "=", "owner")
+          .select((eb) => eb.fn.countAll<number>().as("owner_count"))
+          .executeTakeFirstOrThrow(),
       );
-      return row === null ? 0 : row.owner_count;
+      return row.owner_count;
     }),
 
   remove: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const result = yield* Effect.promise(async () =>
-        env.DB.prepare(`DELETE FROM "member" WHERE "id" = ? AND "organization_id" = ?`)
-          .bind(params.id, params.organizationId)
-          .run(),
+        db
+          .deleteFrom("member")
+          .where("id", "=", params.id)
+          .where("organization_id", "=", params.organizationId)
+          .executeTakeFirst(),
       );
-      return result.meta.changes > 0;
+      return Number(result.numDeletedRows) > 0;
     }),
 });

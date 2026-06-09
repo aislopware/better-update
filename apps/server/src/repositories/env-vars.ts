@@ -1,33 +1,28 @@
 import { Context, Effect, Layer } from "effect";
+import { sql } from "kysely";
 
-import { cloudflareEnv } from "../cloudflare/context";
-import { NotFound } from "../errors";
-import { d1WithUniqueCheck } from "./d1-helpers";
+import type { Expression, ExpressionBuilder, SqlBool } from "kysely";
+
+import { d1Batch, kyselyDb } from "../cloudflare/db";
+import { Conflict, NotFound } from "../errors";
 import {
   advancePointerStmt,
   conflictMessage,
   escapeLike,
   insertEnvVarStmt,
   insertRevisionStmt,
-  META_FROM,
-  META_SELECT,
   pruneStmt,
-  REVISION_COLUMNS,
   requireModelById,
+  revisionColumns,
+  selectEnvVarMeta,
   toModel,
   toRevisionModel,
 } from "./env-vars-sql";
 
+import type { DB } from "../db/schema";
 import type { EnvVarModel, EnvVarRevisionModel } from "../env-var-models";
-import type { Conflict } from "../errors";
-import type { EnvVarEnvironment, EnvVarScope, EnvVarVisibility } from "../models";
-import type {
-  EnvVarExportRow,
-  EnvVarListFilters,
-  EnvVarMetaRow,
-  EnvVarRevisionRow,
-  InsertParams,
-} from "./env-vars-sql";
+import type { EnvVarEnvironment, EnvVarVisibility } from "../models";
+import type { EnvVarExportRow, EnvVarListFilters, InsertParams } from "./env-vars-sql";
 
 export type {
   EnvVarExportRow,
@@ -79,27 +74,106 @@ export interface EnvVarRepository {
 
 export class EnvVarRepo extends Context.Tag("api/EnvVarRepo")<EnvVarRepo, EnvVarRepository>() {}
 
+// -- D1 Adapter -------------------------------------------------------------
+
+// The list filter predicates. SECURITY: only the search *value* is
+// user-controlled; it is parameterized by the query builder / `sql` template,
+// never concatenated.
+
+// Scope predicate: project-only, global-only (org rows with no project), or the
+// "all" union (project rows OR org-global rows). Project scope without a
+// projectId is short-circuited by `list`, so a real projectId is always present
+// on that branch (the `undefined` guard keeps the type honest but is unreachable).
+const scopeCondition = (
+  eb: ExpressionBuilder<DB, "env_vars">,
+  filters: EnvVarListFilters,
+): Expression<SqlBool> => {
+  if (filters.scope === "project") {
+    const { projectId } = filters;
+    if (projectId === undefined) {
+      // Unreachable: `list` short-circuits a project scope with no projectId.
+      return eb.and([]);
+    }
+    return eb("env_vars.project_id", "=", projectId);
+  }
+  if (filters.scope === "global") {
+    return eb.and([
+      eb("env_vars.project_id", "is", null),
+      eb("env_vars.organization_id", "=", filters.organizationId),
+    ]);
+  }
+  if (filters.projectId) {
+    return eb.or([
+      eb("env_vars.project_id", "=", filters.projectId),
+      eb.and([
+        eb("env_vars.project_id", "is", null),
+        eb("env_vars.organization_id", "=", filters.organizationId),
+      ]),
+    ]);
+  }
+  return eb("env_vars.organization_id", "=", filters.organizationId);
+};
+
+const environmentsCondition = (
+  eb: ExpressionBuilder<DB, "env_vars">,
+  environments: readonly EnvVarEnvironment[] | undefined,
+): Expression<SqlBool> | null =>
+  environments && environments.length > 0
+    ? eb("env_vars.environment", "in", [...environments])
+    : null;
+
+// Case-insensitive key prefix/substring match. The escaped pattern is bound (not
+// concatenated); `ESCAPE '\'` neutralizes the LIKE wildcards in the user term.
+const searchCondition = (search: string | undefined): Expression<SqlBool> | null => {
+  const trimmed = search?.trim();
+  if (!trimmed) {
+    return null;
+  }
+  const pattern = `%${escapeLike(trimmed.toUpperCase())}%`;
+  return sql<SqlBool>`"env_vars"."key" LIKE ${pattern} ESCAPE '\\'`;
+};
+
+const envVarListWhere = (
+  eb: ExpressionBuilder<DB, "env_vars">,
+  filters: EnvVarListFilters,
+): Expression<SqlBool> => {
+  const conditions = [
+    scopeCondition(eb, filters),
+    environmentsCondition(eb, filters.environments),
+    searchCondition(filters.search),
+  ].filter((condition): condition is Expression<SqlBool> => condition !== null);
+  return eb.and(conditions);
+};
+
 export const EnvVarRepoLive = Layer.succeed(EnvVarRepo, {
   insertWithRevision: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const now = new Date().toISOString();
       const envVarId = crypto.randomUUID();
-      yield* d1WithUniqueCheck(
-        async () =>
-          env.DB.batch([
-            insertEnvVarStmt(env.DB, { ...params, envVarId, now }),
-            insertRevisionStmt(env.DB, {
-              envVarId,
-              organizationId: params.organizationId,
-              revisionNumber: 1,
-              createdByUserId: params.createdByUserId,
-              revision: params.revision,
-              now,
-            }),
-          ]),
-        conflictMessage(params.scope, params.key),
+
+      // Insert the env var row + its first revision as one atomic D1 batch (D1
+      // has no interactive transactions). A duplicate (scope,key,environment) is
+      // a clean Conflict, not a defect: map the UNIQUE rejection (a defect from
+      // the failed batch) to a typed 409.
+      yield* d1Batch([
+        insertEnvVarStmt(db, { ...params, envVarId, now }),
+        insertRevisionStmt(db, {
+          envVarId,
+          organizationId: params.organizationId,
+          revisionNumber: 1,
+          createdByUserId: params.createdByUserId,
+          revision: params.revision,
+          now,
+        }),
+      ]).pipe(
+        Effect.catchAllDefect((cause) =>
+          String(cause).includes("UNIQUE constraint failed")
+            ? Effect.fail(new Conflict({ message: conflictMessage(params.scope, params.key) }))
+            : Effect.die(cause),
+        ),
       );
+
       return {
         id: envVarId,
         organizationId: params.organizationId,
@@ -118,268 +192,267 @@ export const EnvVarRepoLive = Layer.succeed(EnvVarRepo, {
 
   addRevision: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const now = new Date().toISOString();
       const head = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT e."organization_id" AS organization_id, COALESCE(MAX(r."revision_number"), 0) AS max_number FROM "env_vars" e LEFT JOIN "env_var_revisions" r ON r."env_var_id" = e."id" WHERE e."id" = ? GROUP BY e."id"`,
-        )
-          .bind(params.id)
-          .first<{ organization_id: string; max_number: number }>(),
+        db
+          .selectFrom("env_vars as e")
+          .leftJoin("env_var_revisions as r", "r.env_var_id", "e.id")
+          .where("e.id", "=", params.id)
+          .groupBy("e.id")
+          .select((eb) => [
+            "e.organization_id",
+            eb.fn
+              .coalesce(eb.fn.max<number | null>("r.revision_number"), eb.lit(0))
+              .as("max_number"),
+          ])
+          .executeTakeFirst(),
       );
-      if (head === null) {
+      if (head === undefined) {
         return yield* new NotFound({ message: "Environment variable not found" });
       }
       const nextNumber = head.max_number + 1;
-      yield* Effect.promise(async () =>
-        env.DB.batch([
-          insertRevisionStmt(env.DB, {
-            envVarId: params.id,
-            organizationId: head.organization_id,
-            revisionNumber: nextNumber,
-            createdByUserId: params.createdByUserId,
-            revision: params.revision,
-            now,
-          }),
-          advancePointerStmt(env.DB, {
-            id: params.id,
-            revisionId: params.revision.id,
-            visibility: params.visibility,
-            now,
-          }),
-          pruneStmt(env.DB, params.id, nextNumber),
-        ]),
-      );
-      return yield* requireModelById(env.DB, params.id);
+      yield* d1Batch([
+        insertRevisionStmt(db, {
+          envVarId: params.id,
+          organizationId: head.organization_id,
+          revisionNumber: nextNumber,
+          createdByUserId: params.createdByUserId,
+          revision: params.revision,
+          now,
+        }),
+        advancePointerStmt(db, {
+          id: params.id,
+          revisionId: params.revision.id,
+          visibility: params.visibility,
+          now,
+        }),
+        pruneStmt(db, params.id, nextNumber),
+      ]);
+      return yield* requireModelById(db, params.id);
     }),
 
   updateVisibility: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
-      const result = yield* Effect.promise(async () =>
-        env.DB.prepare(`UPDATE "env_vars" SET "visibility" = ?, "updated_at" = ? WHERE "id" = ?`)
-          .bind(params.visibility, new Date().toISOString(), params.id)
-          .run(),
+      const db = yield* kyselyDb;
+      const updated = yield* Effect.promise(async () =>
+        db
+          .updateTable("env_vars")
+          .set({ visibility: params.visibility, updated_at: new Date().toISOString() })
+          .where("id", "=", params.id)
+          .returning("id")
+          .executeTakeFirst(),
       );
-      if (result.meta.changes === 0) {
+      if (updated === undefined) {
         return yield* new NotFound({ message: "Environment variable not found" });
       }
-      return yield* requireModelById(env.DB, params.id);
+      return yield* requireModelById(db, params.id);
     }),
 
   findById: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
-      return yield* requireModelById(env.DB, params.id);
+      const db = yield* kyselyDb;
+      return yield* requireModelById(db, params.id);
     }),
 
   list: (filters) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
-      const conditions: string[] = [];
-      const bindValues: (string | number)[] = [];
-
-      if (filters.scope === "project") {
-        if (!filters.projectId) {
-          return { items: [] };
-        }
-        conditions.push(`e."project_id" = ?`);
-        bindValues.push(filters.projectId);
-      } else if (filters.scope === "global") {
-        conditions.push(`e."project_id" IS NULL`, `e."organization_id" = ?`);
-        bindValues.push(filters.organizationId);
-      } else if (filters.projectId) {
-        conditions.push(
-          `(e."project_id" = ? OR (e."project_id" IS NULL AND e."organization_id" = ?))`,
-        );
-        bindValues.push(filters.projectId, filters.organizationId);
-      } else {
-        conditions.push(`e."organization_id" = ?`);
-        bindValues.push(filters.organizationId);
+      if (filters.scope === "project" && !filters.projectId) {
+        return { items: [] };
       }
-
-      if (filters.environments && filters.environments.length > 0) {
-        conditions.push(`e."environment" IN (${filters.environments.map(() => "?").join(", ")})`);
-        bindValues.push(...filters.environments);
-      }
-      if (filters.search && filters.search.trim().length > 0) {
-        conditions.push(`e."key" LIKE ? ESCAPE '\\'`);
-        bindValues.push(`%${escapeLike(filters.search.trim().toUpperCase())}%`);
-      }
-
+      const db = yield* kyselyDb;
       const rows = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT ${META_SELECT} ${META_FROM} WHERE ${conditions.join(" AND ")} ORDER BY e."key" ASC, e."environment" ASC, e."scope" DESC LIMIT ? OFFSET ?`,
-        )
-          .bind(...bindValues, filters.limit, filters.offset)
-          .all<EnvVarMetaRow>(),
+        selectEnvVarMeta(db)
+          .where((eb) => envVarListWhere(eb, filters))
+          .orderBy("env_vars.key", "asc")
+          .orderBy("env_vars.environment", "asc")
+          .orderBy("env_vars.scope", "desc")
+          .limit(filters.limit)
+          .offset(filters.offset)
+          .execute(),
       );
-      return { items: rows.results.map(toModel) };
+      return { items: rows.map(toModel) };
     }),
 
   listRevisions: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const rows = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT ${REVISION_COLUMNS} FROM "env_var_revisions" WHERE "env_var_id" = ? ORDER BY "revision_number" DESC`,
-        )
-          .bind(params.envVarId)
-          .all<EnvVarRevisionRow>(),
+        db
+          .selectFrom("env_var_revisions")
+          .select(revisionColumns)
+          .where("env_var_id", "=", params.envVarId)
+          .orderBy("revision_number", "desc")
+          .execute(),
       );
-      return rows.results.map(toRevisionModel);
+      return rows.map(toRevisionModel);
     }),
 
   rollback: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const target = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT "id" FROM "env_var_revisions" WHERE "id" = ? AND "env_var_id" = ?`)
-          .bind(params.toRevisionId, params.id)
-          .first<{ id: string }>(),
+        db
+          .selectFrom("env_var_revisions")
+          .select("id")
+          .where("id", "=", params.toRevisionId)
+          .where("env_var_id", "=", params.id)
+          .executeTakeFirst(),
       );
-      if (target === null) {
+      if (target === undefined) {
         return yield* new NotFound({ message: "Revision not found for this environment variable" });
       }
       yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `UPDATE "env_vars" SET "current_revision_id" = ?, "updated_at" = ? WHERE "id" = ?`,
-        )
-          .bind(params.toRevisionId, new Date().toISOString(), params.id)
-          .run(),
+        db
+          .updateTable("env_vars")
+          .set({ current_revision_id: params.toRevisionId, updated_at: new Date().toISOString() })
+          .where("id", "=", params.id)
+          .execute(),
       );
-      return yield* requireModelById(env.DB, params.id);
+      return yield* requireModelById(db, params.id);
     }),
 
   deleteById: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const result = yield* Effect.promise(async () =>
-        env.DB.prepare(`DELETE FROM "env_vars" WHERE "id" = ?`).bind(params.id).run(),
+        db.deleteFrom("env_vars").where("id", "=", params.id).executeTakeFirst(),
       );
-      if (result.meta.changes === 0) {
+      if (Number(result.numDeletedRows) === 0) {
         return yield* new NotFound({ message: "Environment variable not found" });
       }
     }),
 
   countByProject: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const result = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT COUNT(*) as count FROM "env_vars" WHERE "project_id" = ?`)
-          .bind(params.projectId)
-          .first<{ count: number }>(),
+        db
+          .selectFrom("env_vars")
+          .where("project_id", "=", params.projectId)
+          .select((eb) => eb.fn.countAll<number>().as("count"))
+          .executeTakeFirstOrThrow(),
       );
-      return result?.count ?? 0;
+      return result.count;
     }),
 
   countByOrgGlobal: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const result = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT COUNT(*) as count FROM "env_vars" WHERE "organization_id" = ? AND "project_id" IS NULL`,
-        )
-          .bind(params.organizationId)
-          .first<{ count: number }>(),
+        db
+          .selectFrom("env_vars")
+          .where("organization_id", "=", params.organizationId)
+          .where("project_id", "is", null)
+          .select((eb) => eb.fn.countAll<number>().as("count"))
+          .executeTakeFirstOrThrow(),
       );
-      return result?.count ?? 0;
+      return result.count;
     }),
 
   upsert: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const now = new Date().toISOString();
-      const existing = yield* Effect.promise(async () =>
-        (params.scope === "project"
-          ? env.DB.prepare(
-              `SELECT "id" FROM "env_vars" WHERE "project_id" = ? AND "key" = ? AND "environment" = ?`,
-            ).bind(params.projectId, params.key, params.environment)
-          : env.DB.prepare(
-              `SELECT "id" FROM "env_vars" WHERE "organization_id" = ? AND "project_id" IS NULL AND "key" = ? AND "environment" = ?`,
-            ).bind(params.organizationId, params.key, params.environment)
-        ).first<{ id: string }>(),
-      );
+      const existing = yield* Effect.promise(async () => {
+        const base = db
+          .selectFrom("env_vars")
+          .select("id")
+          .where("key", "=", params.key)
+          .where("environment", "=", params.environment);
+        if (params.scope === "project") {
+          return base.where("project_id", "=", params.projectId).executeTakeFirst();
+        }
+        return base
+          .where("project_id", "is", null)
+          .where("organization_id", "=", params.organizationId)
+          .executeTakeFirst();
+      });
 
-      if (existing === null) {
+      if (existing === undefined) {
         const envVarId = crypto.randomUUID();
-        yield* Effect.promise(async () =>
-          env.DB.batch([
-            insertEnvVarStmt(env.DB, { ...params, envVarId, now }),
-            insertRevisionStmt(env.DB, {
-              envVarId,
-              organizationId: params.organizationId,
-              revisionNumber: 1,
-              createdByUserId: params.createdByUserId,
-              revision: params.revision,
-              now,
-            }),
-          ]),
-        );
-        return "created" as const;
-      }
-
-      const head = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT COALESCE(MAX("revision_number"), 0) AS max_number FROM "env_var_revisions" WHERE "env_var_id" = ?`,
-        )
-          .bind(existing.id)
-          .first<{ max_number: number }>(),
-      );
-      const nextNumber = (head?.max_number ?? 0) + 1;
-      yield* Effect.promise(async () =>
-        env.DB.batch([
-          insertRevisionStmt(env.DB, {
-            envVarId: existing.id,
+        yield* d1Batch([
+          insertEnvVarStmt(db, { ...params, envVarId, now }),
+          insertRevisionStmt(db, {
+            envVarId,
             organizationId: params.organizationId,
-            revisionNumber: nextNumber,
+            revisionNumber: 1,
             createdByUserId: params.createdByUserId,
             revision: params.revision,
             now,
           }),
-          advancePointerStmt(env.DB, {
-            id: existing.id,
-            revisionId: params.revision.id,
-            visibility: params.visibility,
-            now,
-          }),
-          pruneStmt(env.DB, existing.id, nextNumber),
-        ]),
+        ]);
+        return "created" as const;
+      }
+
+      const existingId = existing.id;
+      const head = yield* Effect.promise(async () =>
+        db
+          .selectFrom("env_var_revisions")
+          .where("env_var_id", "=", existingId)
+          .select((eb) =>
+            eb.fn.coalesce(eb.fn.max<number | null>("revision_number"), eb.lit(0)).as("max_number"),
+          )
+          .executeTakeFirst(),
       );
+      const nextNumber = (head?.max_number ?? 0) + 1;
+      yield* d1Batch([
+        insertRevisionStmt(db, {
+          envVarId: existingId,
+          organizationId: params.organizationId,
+          revisionNumber: nextNumber,
+          createdByUserId: params.createdByUserId,
+          revision: params.revision,
+          now,
+        }),
+        advancePointerStmt(db, {
+          id: existingId,
+          revisionId: params.revision.id,
+          visibility: params.visibility,
+          now,
+        }),
+        pruneStmt(db, existingId, nextNumber),
+      ]);
       return "updated" as const;
     }),
 
   listForExport: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
-      const scopeClause =
-        params.projectId === null
-          ? `e."project_id" IS NULL AND e."organization_id" = ?`
-          : `(e."project_id" = ? OR (e."project_id" IS NULL AND e."organization_id" = ?))`;
-      const scopeBinds =
-        params.projectId === null
-          ? [params.organizationId]
-          : [params.projectId, params.organizationId];
-
+      const db = yield* kyselyDb;
       const rows = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT e."id" AS env_var_id, e."key" AS key, e."scope" AS scope, e."environment" AS environment, e."visibility" AS visibility, r."id" AS revision_id, r."value_ciphertext" AS value_ciphertext, r."wrapped_dek" AS wrapped_dek, r."vault_version" AS vault_version FROM "env_vars" e JOIN "env_var_revisions" r ON r."id" = e."current_revision_id" WHERE e."environment" = ? AND ${scopeClause}`,
-        )
-          .bind(params.environment, ...scopeBinds)
-          .all<{
-            env_var_id: string;
-            key: string;
-            scope: EnvVarScope;
-            environment: EnvVarEnvironment;
-            visibility: EnvVarVisibility;
-            revision_id: string;
-            value_ciphertext: string;
-            wrapped_dek: string;
-            vault_version: number;
-          }>(),
+        db
+          .selectFrom("env_vars as e")
+          .innerJoin("env_var_revisions as r", "r.id", "e.current_revision_id")
+          .where("e.environment", "=", params.environment)
+          .where((eb) =>
+            params.projectId === null
+              ? eb.and([
+                  eb("e.project_id", "is", null),
+                  eb("e.organization_id", "=", params.organizationId),
+                ])
+              : eb.or([
+                  eb("e.project_id", "=", params.projectId),
+                  eb.and([
+                    eb("e.project_id", "is", null),
+                    eb("e.organization_id", "=", params.organizationId),
+                  ]),
+                ]),
+          )
+          .select([
+            "e.id as env_var_id",
+            "e.key",
+            "e.scope",
+            "e.environment",
+            "e.visibility",
+            "r.id as revision_id",
+            "r.value_ciphertext",
+            "r.wrapped_dek",
+            "r.vault_version",
+          ])
+          .execute(),
       );
 
-      return rows.results.map((row) => ({
+      return rows.map((row) => ({
         envVarId: row.env_var_id,
         key: row.key,
         scope: row.scope,

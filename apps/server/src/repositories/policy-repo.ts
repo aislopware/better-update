@@ -1,7 +1,7 @@
-import { toDbNull } from "@better-update/type-guards";
+import { compact } from "@better-update/type-guards";
 import { Context, Effect, Layer } from "effect";
 
-import { cloudflareEnv } from "../cloudflare/context";
+import { d1Batch, kyselyDb } from "../cloudflare/db";
 import { d1WithUniqueCheck } from "./d1-helpers";
 
 import type { Conflict } from "../errors";
@@ -87,31 +87,43 @@ const toModel = (row: PolicyRow): PolicyModel => ({
   updatedAt: row.updated_at,
 });
 
-const COLUMNS = `"id", "organization_id", "name", "description", "document", "created_at", "updated_at"`;
+const COLUMNS = [
+  "id",
+  "organization_id",
+  "name",
+  "description",
+  "document",
+  "created_at",
+  "updated_at",
+] as const;
 
 export const PolicyRepoLive = Layer.succeed(PolicyRepo, {
   list: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const rows = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT ${COLUMNS} FROM "policy" WHERE "organization_id" = ? ORDER BY "name" ASC`,
-        )
-          .bind(params.organizationId)
-          .all<PolicyRow>(),
+        db
+          .selectFrom("policy")
+          .select(COLUMNS)
+          .where("organization_id", "=", params.organizationId)
+          .orderBy("name", "asc")
+          .execute(),
       );
-      return rows.results.map(toModel);
+      return rows.map(toModel);
     }),
 
   findById: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT ${COLUMNS} FROM "policy" WHERE "id" = ? AND "organization_id" = ?`)
-          .bind(params.id, params.organizationId)
-          .first<PolicyRow>(),
+        db
+          .selectFrom("policy")
+          .select(COLUMNS)
+          .where("id", "=", params.id)
+          .where("organization_id", "=", params.organizationId)
+          .executeTakeFirst(),
       );
-      return row === null ? null : toModel(row);
+      return row === undefined ? null : toModel(row);
     }),
 
   findDocumentsByIds: (params) =>
@@ -119,41 +131,41 @@ export const PolicyRepoLive = Layer.succeed(PolicyRepo, {
       if (params.ids.length === 0) {
         return new Map<string, PolicyDocument>();
       }
-      const env = yield* cloudflareEnv;
-      const placeholders = params.ids.map(() => "?").join(", ");
+      const db = yield* kyselyDb;
       const rows = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT "id", "document" FROM "policy" WHERE "organization_id" = ? AND "id" IN (${placeholders})`,
-        )
-          .bind(params.organizationId, ...params.ids)
-          .all<{ id: string; document: string }>(),
+        db
+          .selectFrom("policy")
+          .select(["id", "document"])
+          .where("organization_id", "=", params.organizationId)
+          .where("id", "in", params.ids)
+          .execute(),
       );
-      return new Map(rows.results.map((row) => [row.id, parseDocument(row.document)]));
+      return new Map(rows.map((row) => [row.id, parseDocument(row.document)]));
     }),
 
   create: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const id = crypto.randomUUID();
       const now = new Date().toISOString();
       const row = yield* d1WithUniqueCheck(
         async () =>
-          env.DB.prepare(
-            `INSERT INTO "policy" (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING ${COLUMNS}`,
-          )
-            .bind(
+          db
+            .insertInto("policy")
+            .values({
               id,
-              params.organizationId,
-              params.name,
-              params.description,
-              JSON.stringify(params.document),
-              now,
-              null,
-            )
-            .first<PolicyRow>(),
+              organization_id: params.organizationId,
+              name: params.name,
+              description: params.description,
+              document: JSON.stringify(params.document),
+              created_at: now,
+              updated_at: null,
+            })
+            .returning(COLUMNS)
+            .executeTakeFirst(),
         "A policy with this name already exists",
       );
-      return row === null
+      return row === undefined
         ? {
             id,
             organizationId: params.organizationId,
@@ -168,47 +180,43 @@ export const PolicyRepoLive = Layer.succeed(PolicyRepo, {
 
   update: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const now = new Date().toISOString();
+      const patch = compact({
+        name: params.name,
+        description: params.description,
+        document: params.document === undefined ? undefined : JSON.stringify(params.document),
+        updated_at: now,
+      });
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `UPDATE "policy" SET
-             "name" = COALESCE(?, "name"),
-             "description" = CASE WHEN ? = 1 THEN ? ELSE "description" END,
-             "document" = COALESCE(?, "document"),
-             "updated_at" = ?
-           WHERE "id" = ? AND "organization_id" = ?
-           RETURNING ${COLUMNS}`,
-        )
-          .bind(
-            toDbNull(params.name),
-            params.description === undefined ? 0 : 1,
-            toDbNull(params.description),
-            params.document === undefined ? null : JSON.stringify(params.document),
-            now,
-            params.id,
-            params.organizationId,
-          )
-          .first<PolicyRow>(),
+        db
+          .updateTable("policy")
+          .set(patch)
+          .where("id", "=", params.id)
+          .where("organization_id", "=", params.organizationId)
+          .returning(COLUMNS)
+          .executeTakeFirst(),
       );
-      return row === null ? null : toModel(row);
+      return row === undefined ? null : toModel(row);
     }),
 
   delete: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
-      const result = yield* Effect.promise(async () =>
-        env.DB.batch([
-          env.DB.prepare(
-            `DELETE FROM "policy_attachment" WHERE "policy_id" = ? AND "organization_id" = ?`,
-          ).bind(params.id, params.organizationId),
-          env.DB.prepare(`DELETE FROM "policy" WHERE "id" = ? AND "organization_id" = ?`).bind(
-            params.id,
-            params.organizationId,
-          ),
-        ]),
-      );
-      // The second statement is the policy delete; meta.changes > 0 → existed.
-      return (result[1]?.meta.changes ?? 0) > 0;
+      const db = yield* kyselyDb;
+      // Atomic cascade (D1 has no interactive transactions): clear attachments
+      // then delete the policy in one batch. The policy delete returns its id so
+      // a non-empty result row means the row existed in this org.
+      const [, deletedPolicy] = yield* d1Batch([
+        db
+          .deleteFrom("policy_attachment")
+          .where("policy_id", "=", params.id)
+          .where("organization_id", "=", params.organizationId),
+        db
+          .deleteFrom("policy")
+          .where("id", "=", params.id)
+          .where("organization_id", "=", params.organizationId)
+          .returning("id"),
+      ]);
+      return deletedPolicy.length > 0;
     }),
 });

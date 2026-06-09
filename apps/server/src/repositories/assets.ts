@@ -1,6 +1,6 @@
 import { Context, Effect, Layer } from "effect";
 
-import { cloudflareEnv } from "../cloudflare/context";
+import { d1Batch, kyselyDb } from "../cloudflare/db";
 
 import type { AssetModel } from "../models";
 
@@ -34,7 +34,7 @@ export class AssetRepo extends Context.Tag("api/AssetRepo")<AssetRepo, AssetRepo
 
 // -- D1 Adapter ------------------------------------------------------------
 
-interface AssetRow {
+const toAsset = (row: {
   hash: string;
   content_type: string;
   file_ext: string;
@@ -42,9 +42,7 @@ interface AssetRow {
   r2_key: string;
   content_checksum: string;
   created_at: string;
-}
-
-const toAsset = (row: AssetRow) =>
+}) =>
   ({
     hash: row.hash,
     contentType: row.content_type,
@@ -58,15 +56,10 @@ const toAsset = (row: AssetRow) =>
 export const AssetRepoLive = Layer.succeed(AssetRepo, {
   findByHash: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT "hash", "content_type", "file_ext", "byte_size", "r2_key", "content_checksum", "created_at" FROM "assets" WHERE "hash" = ?`,
-        )
-          .bind(params.hash)
-          .first<AssetRow>(),
+        db.selectFrom("assets").selectAll().where("hash", "=", params.hash).executeTakeFirst(),
       );
-
       return row ? toAsset(row) : null;
     }),
 
@@ -75,19 +68,15 @@ export const AssetRepoLive = Layer.succeed(AssetRepo, {
       if (params.hashes.length === 0) {
         return [];
       }
-
-      const env = yield* cloudflareEnv;
-      const placeholders = params.hashes.map(() => "?").join(", ");
-
+      const db = yield* kyselyDb;
       const rows = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT "hash", "content_type", "file_ext", "byte_size", "r2_key", "content_checksum", "created_at" FROM "assets" WHERE "hash" IN (${placeholders})`,
-        )
-          .bind(...params.hashes)
-          .all<AssetRow>(),
+        db
+          .selectFrom("assets")
+          .selectAll()
+          .where("hash", "in", [...params.hashes])
+          .execute(),
       );
-
-      return rows.results.map(toAsset);
+      return rows.map(toAsset);
     }),
 
   insertBatch: (params) =>
@@ -95,35 +84,35 @@ export const AssetRepoLive = Layer.succeed(AssetRepo, {
       if (params.assets.length === 0) {
         return;
       }
-
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const now = new Date().toISOString();
-
-      const statements = params.assets.map((asset) =>
-        env.DB.prepare(
-          `INSERT OR IGNORE INTO "assets" ("hash", "content_type", "file_ext", "byte_size", "r2_key", "content_checksum", "created_at") VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        ).bind(
-          asset.hash,
-          asset.contentType,
-          asset.fileExt,
-          asset.byteSize,
-          asset.r2Key,
-          asset.contentChecksum,
-          now,
+      yield* d1Batch(
+        params.assets.map((asset) =>
+          db
+            .insertInto("assets")
+            .values({
+              hash: asset.hash,
+              content_type: asset.contentType,
+              file_ext: asset.fileExt,
+              byte_size: asset.byteSize,
+              r2_key: asset.r2Key,
+              content_checksum: asset.contentChecksum,
+              created_at: now,
+            })
+            .onConflict((oc) => oc.doNothing()),
         ),
       );
-
-      yield* Effect.promise(async () => env.DB.batch(statements));
     }),
 
   updateByteSize: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
-
+      const db = yield* kyselyDb;
       yield* Effect.promise(async () =>
-        env.DB.prepare(`UPDATE "assets" SET "byte_size" = ? WHERE "hash" = ?`)
-          .bind(params.byteSize, params.hash)
-          .run(),
+        db
+          .updateTable("assets")
+          .set({ byte_size: params.byteSize })
+          .where("hash", "=", params.hash)
+          .execute(),
       );
     }),
 });

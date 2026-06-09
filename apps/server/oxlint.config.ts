@@ -3,5 +3,5 @@ import { defineConfig } from "oxlint";
 
 export default defineConfig({
   extends: [base],
-  ignorePatterns: ["**/*.d.ts", "coverage", "vitest.config.*", "tests"],
+  ignorePatterns: ["**/*.d.ts", "coverage", "vitest.config.*", "tests", "scripts"],
 });

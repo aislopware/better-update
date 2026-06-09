@@ -1,9 +1,14 @@
 import { Context, Effect, Layer } from "effect";
+import { sql } from "kysely";
 
-import { cloudflareEnv } from "../cloudflare/context";
+import type { Compilable, Kysely, Selectable } from "kysely";
+
+import { d1Session } from "../cloudflare/context";
+import { d1Batch, kyselyDb } from "../cloudflare/db";
 import { Conflict } from "../errors";
 import { d1WithUniqueCheck } from "./d1-helpers";
 
+import type { DB, OrgVaultKeyWraps, OrgVaults } from "../db/schema";
 import type {
   CredentialDekRefModel,
   CredentialRef,
@@ -94,47 +99,36 @@ export class OrgVaultRepo extends Context.Tag("api/OrgVaultRepo")<
   OrgVaultRepository
 >() {}
 
-interface VaultRow {
-  organization_id: string;
-  vault_version: number;
-  created_at: string;
-  updated_at: string;
-}
+// -- D1 Adapter -------------------------------------------------------------
 
-interface WrapRow {
-  organization_id: string;
-  vault_version: number;
-  user_encryption_key_id: string;
-  wrapped_key: string;
-  created_at: string;
-}
+const VAULT_COLUMNS = ["organization_id", "vault_version", "created_at", "updated_at"] as const;
 
-const WRAP_COLUMNS = `"organization_id", "vault_version", "user_encryption_key_id", "wrapped_key", "created_at"`;
+const WRAP_COLUMNS = [
+  "organization_id",
+  "vault_version",
+  "user_encryption_key_id",
+  "wrapped_key",
+  "created_at",
+] as const;
 
-/**
- * The encrypted-credential tables a rotation re-wraps, keyed by the API
- * `CredentialType`. A fixed allowlist — the only values interpolated into the
- * rotation SQL — so the lookup is safe against injection.
- */
-const CREDENTIAL_TABLES: Record<EncryptedCredentialType, string> = {
+/** Typed allowlist of credential table names for rotation, keyed by `CredentialType`. */
+const CREDENTIAL_TABLES = {
   appleDistributionCertificate: "apple_distribution_certificates",
   applePushKey: "apple_push_keys",
   ascApiKey: "asc_api_keys",
   googleServiceAccountKey: "google_service_account_keys",
   androidUploadKeystore: "android_upload_keystores",
-  // Each env var value revision is its own vault-bound secret; rotation re-wraps
-  // every revision so rollback stays decryptable and a revoke is total.
   envVarValue: "env_var_revisions",
-};
+} as const satisfies Record<EncryptedCredentialType, keyof DB>;
 
-const toVaultModel = (row: VaultRow): OrgVaultModel => ({
-  organizationId: row.organization_id,
+const toVaultModel = (row: Selectable<OrgVaults>, organizationId: string): OrgVaultModel => ({
+  organizationId,
   vaultVersion: row.vault_version,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
 
-const toWrapModel = (row: WrapRow): OrgVaultKeyWrapModel => ({
+const toWrapModel = (row: Selectable<OrgVaultKeyWraps>): OrgVaultKeyWrapModel => ({
   organizationId: row.organization_id,
   vaultVersion: row.vault_version,
   userEncryptionKeyId: row.user_encryption_key_id,
@@ -142,35 +136,85 @@ const toWrapModel = (row: WrapRow): OrgVaultKeyWrapModel => ({
   createdAt: row.created_at,
 });
 
+/** Version-guarded atomic INSERT … SELECT … WHERE vault_version = guardVersion. */
+const insertWrapGuarded = (
+  db: Kysely<DB>,
+  params: {
+    readonly organizationId: string;
+    readonly insertVersion: number;
+    readonly guardVersion: number;
+    readonly userEncryptionKeyId: string;
+    readonly wrappedKey: string;
+    readonly now: string;
+  },
+) =>
+  db
+    .insertInto("org_vault_key_wraps")
+    .columns([
+      "organization_id",
+      "vault_version",
+      "user_encryption_key_id",
+      "wrapped_key",
+      "created_at",
+    ])
+    .expression((eb) =>
+      eb
+        .selectFrom("org_vaults")
+        .select([
+          eb.val(params.organizationId).as("organization_id"),
+          eb.val(params.insertVersion).as("vault_version"),
+          eb.val(params.userEncryptionKeyId).as("user_encryption_key_id"),
+          eb.val(params.wrappedKey).as("wrapped_key"),
+          eb.val(params.now).as("created_at"),
+        ])
+        .where("organization_id", "=", params.organizationId)
+        .where("vault_version", "=", params.guardVersion),
+    );
+
+/** Compile Kysely queries into bound D1 statements for `session.batch`. */
+const bindForBatch = (session: D1DatabaseSession, queries: readonly Compilable[]) =>
+  queries.map((query) => {
+    const compiled = query.compile();
+    return session.prepare(compiled.sql).bind(...compiled.parameters);
+  });
+
 export const OrgVaultRepoLive = Layer.succeed(OrgVaultRepo, {
   getVault: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT "organization_id", "vault_version", "created_at", "updated_at" FROM "org_vaults" WHERE "organization_id" = ?`,
-        )
-          .bind(params.organizationId)
-          .first<VaultRow>(),
+        db
+          .selectFrom("org_vaults")
+          .select(VAULT_COLUMNS)
+          .where("organization_id", "=", params.organizationId)
+          .executeTakeFirst(),
       );
-      return row === null ? null : toVaultModel(row);
+      return row === undefined ? null : toVaultModel(row, params.organizationId);
     }),
 
   bootstrap: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
-      const statements = [
-        env.DB.prepare(
-          `INSERT INTO "org_vaults" ("organization_id", "vault_version", "created_at", "updated_at") VALUES (?, 1, ?, ?)`,
-        ).bind(params.organizationId, params.now, params.now),
+      const db = yield* kyselyDb;
+      const session = yield* d1Session;
+      const queries: Compilable[] = [
+        db.insertInto("org_vaults").values({
+          organization_id: params.organizationId,
+          vault_version: 1,
+          created_at: params.now,
+          updated_at: params.now,
+        }),
         ...params.wraps.map((wrap) =>
-          env.DB.prepare(
-            `INSERT INTO "org_vault_key_wraps" (${WRAP_COLUMNS}) VALUES (?, 1, ?, ?, ?)`,
-          ).bind(params.organizationId, wrap.userEncryptionKeyId, wrap.wrappedKey, params.now),
+          db.insertInto("org_vault_key_wraps").values({
+            organization_id: params.organizationId,
+            vault_version: 1,
+            user_encryption_key_id: wrap.userEncryptionKeyId,
+            wrapped_key: wrap.wrappedKey,
+            created_at: params.now,
+          }),
         ),
       ];
       yield* d1WithUniqueCheck(
-        async () => env.DB.batch(statements),
+        async () => session.batch(bindForBatch(session, queries)),
         "Vault already initialized for this organization",
       );
       return {
@@ -183,39 +227,39 @@ export const OrgVaultRepoLive = Layer.succeed(OrgVaultRepo, {
 
   findWrap: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT ${WRAP_COLUMNS} FROM "org_vault_key_wraps" WHERE "organization_id" = ? AND "vault_version" = ? AND "user_encryption_key_id" = ?`,
-        )
-          .bind(params.organizationId, params.vaultVersion, params.userEncryptionKeyId)
-          .first<WrapRow>(),
+        db
+          .selectFrom("org_vault_key_wraps")
+          .select(WRAP_COLUMNS)
+          .where("organization_id", "=", params.organizationId)
+          .where("vault_version", "=", params.vaultVersion)
+          .where("user_encryption_key_id", "=", params.userEncryptionKeyId)
+          .executeTakeFirst(),
       );
-      return row === null ? null : toWrapModel(row);
+      return row === undefined ? null : toWrapModel(row);
     }),
 
   addWrap: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
-      // Insert only while the org is still at `vaultVersion` — the EXISTS guard
-      // makes the version check and the insert one atomic statement (no TOCTOU).
-      const result = yield* d1WithUniqueCheck(
-        async () =>
-          env.DB.prepare(
-            `INSERT INTO "org_vault_key_wraps" (${WRAP_COLUMNS}) SELECT ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM "org_vaults" WHERE "organization_id" = ? AND "vault_version" = ?)`,
-          )
-            .bind(
-              params.organizationId,
-              params.vaultVersion,
-              params.userEncryptionKeyId,
-              params.wrappedKey,
-              params.now,
-              params.organizationId,
-              params.vaultVersion,
-            )
-            .run(),
-        "Recipient already holds a vault key wrap at this version",
-      );
+      const db = yield* kyselyDb;
+      const session = yield* d1Session;
+      const insertQuery = insertWrapGuarded(db, {
+        organizationId: params.organizationId,
+        insertVersion: params.vaultVersion,
+        guardVersion: params.vaultVersion,
+        userEncryptionKeyId: params.userEncryptionKeyId,
+        wrappedKey: params.wrappedKey,
+        now: params.now,
+      });
+      // Version-guarded: the WHERE clause and INSERT are one atomic statement.
+      const result = yield* d1WithUniqueCheck(async () => {
+        const compiled = insertQuery.compile();
+        return session
+          .prepare(compiled.sql)
+          .bind(...compiled.parameters)
+          .run();
+      }, "Recipient already holds a vault key wrap at this version");
       if (result.meta.changes === 0) {
         return yield* new Conflict({
           message: "Vault version changed since read; re-fetch and retry",
@@ -232,129 +276,195 @@ export const OrgVaultRepoLive = Layer.succeed(OrgVaultRepo, {
 
   listWraps: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const rows = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT ${WRAP_COLUMNS} FROM "org_vault_key_wraps" WHERE "organization_id" = ? AND "vault_version" = ? ORDER BY "created_at" ASC`,
-        )
-          .bind(params.organizationId, params.vaultVersion)
-          .all<WrapRow>(),
+        db
+          .selectFrom("org_vault_key_wraps")
+          .select(WRAP_COLUMNS)
+          .where("organization_id", "=", params.organizationId)
+          .where("vault_version", "=", params.vaultVersion)
+          .orderBy("created_at", "asc")
+          .execute(),
       );
-      return rows.results.map(toWrapModel);
+      return rows.map(toWrapModel);
     }),
 
   listCredentialRefs: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
-      // D1 caps a compound SELECT at 5 terms, so the five credential tables fill
-      // one UNION and env var value revisions are queried separately, then merged.
-      // One numbered bind (`?1`) is reused across the union.
-      const results = yield* Effect.promise(async () =>
-        env.DB.batch<{ credential_type: EncryptedCredentialType; id: string }>([
-          env.DB.prepare(
-            `SELECT 'appleDistributionCertificate' AS credential_type, "id" FROM "apple_distribution_certificates" WHERE "organization_id" = ?1
-             UNION ALL SELECT 'applePushKey', "id" FROM "apple_push_keys" WHERE "organization_id" = ?1
-             UNION ALL SELECT 'ascApiKey', "id" FROM "asc_api_keys" WHERE "organization_id" = ?1
-             UNION ALL SELECT 'googleServiceAccountKey', "id" FROM "google_service_account_keys" WHERE "organization_id" = ?1
-             UNION ALL SELECT 'androidUploadKeystore', "id" FROM "android_upload_keystores" WHERE "organization_id" = ?1`,
-          ).bind(params.organizationId),
-          env.DB.prepare(
-            `SELECT 'envVarValue' AS credential_type, "id" FROM "env_var_revisions" WHERE "organization_id" = ?`,
-          ).bind(params.organizationId),
-        ]),
-      );
-      return results
-        .flatMap((result) => result.results)
-        .map((row) => ({ credentialType: row.credential_type, id: row.id }));
+      const db = yield* kyselyDb;
+      const credentialRefs = db
+        .selectFrom("apple_distribution_certificates")
+        .select([
+          sql<EncryptedCredentialType>`'appleDistributionCertificate'`.as("credential_type"),
+          "id",
+        ])
+        .where("organization_id", "=", params.organizationId)
+        .unionAll(
+          db
+            .selectFrom("apple_push_keys")
+            .select([sql<EncryptedCredentialType>`'applePushKey'`.as("credential_type"), "id"])
+            .where("organization_id", "=", params.organizationId),
+        )
+        .unionAll(
+          db
+            .selectFrom("asc_api_keys")
+            .select([sql<EncryptedCredentialType>`'ascApiKey'`.as("credential_type"), "id"])
+            .where("organization_id", "=", params.organizationId),
+        )
+        .unionAll(
+          db
+            .selectFrom("google_service_account_keys")
+            .select([
+              sql<EncryptedCredentialType>`'googleServiceAccountKey'`.as("credential_type"),
+              "id",
+            ])
+            .where("organization_id", "=", params.organizationId),
+        )
+        .unionAll(
+          db
+            .selectFrom("android_upload_keystores")
+            .select([
+              sql<EncryptedCredentialType>`'androidUploadKeystore'`.as("credential_type"),
+              "id",
+            ])
+            .where("organization_id", "=", params.organizationId),
+        );
+      const envVarRefs = db
+        .selectFrom("env_var_revisions")
+        .select([sql<EncryptedCredentialType>`'envVarValue'`.as("credential_type"), "id"])
+        .where("organization_id", "=", params.organizationId);
+
+      const [credentialRows, envVarRows] = yield* d1Batch([credentialRefs, envVarRefs]);
+      return [...credentialRows, ...envVarRows].map((row) => ({
+        credentialType: row.credential_type,
+        id: row.id,
+      }));
     }),
 
   listCredentialDeks: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
-      // Same 5-term compound-SELECT cap as listCredentialRefs: credentials fill
-      // one UNION, env var revisions are a second query, merged.
-      const results = yield* Effect.promise(async () =>
-        env.DB.batch<{
-          credential_type: EncryptedCredentialType;
-          id: string;
-          wrapped_dek: string;
-          vault_version: number;
-        }>([
-          env.DB.prepare(
-            `SELECT 'appleDistributionCertificate' AS credential_type, "id", "wrapped_dek", "vault_version" FROM "apple_distribution_certificates" WHERE "organization_id" = ?1
-             UNION ALL SELECT 'applePushKey', "id", "wrapped_dek", "vault_version" FROM "apple_push_keys" WHERE "organization_id" = ?1
-             UNION ALL SELECT 'ascApiKey', "id", "wrapped_dek", "vault_version" FROM "asc_api_keys" WHERE "organization_id" = ?1
-             UNION ALL SELECT 'googleServiceAccountKey', "id", "wrapped_dek", "vault_version" FROM "google_service_account_keys" WHERE "organization_id" = ?1
-             UNION ALL SELECT 'androidUploadKeystore', "id", "wrapped_dek", "vault_version" FROM "android_upload_keystores" WHERE "organization_id" = ?1`,
-          ).bind(params.organizationId),
-          env.DB.prepare(
-            `SELECT 'envVarValue' AS credential_type, "id", "wrapped_dek", "vault_version" FROM "env_var_revisions" WHERE "organization_id" = ?`,
-          ).bind(params.organizationId),
-        ]),
-      );
-      return results
-        .flatMap((result) => result.results)
-        .map((row) => ({
-          credentialType: row.credential_type,
-          credentialId: row.id,
-          wrappedDek: row.wrapped_dek,
-          vaultVersion: row.vault_version,
-        }));
+      const db = yield* kyselyDb;
+      const credentialDeks = db
+        .selectFrom("apple_distribution_certificates")
+        .select([
+          sql<EncryptedCredentialType>`'appleDistributionCertificate'`.as("credential_type"),
+          "id",
+          "wrapped_dek",
+          "vault_version",
+        ])
+        .where("organization_id", "=", params.organizationId)
+        .unionAll(
+          db
+            .selectFrom("apple_push_keys")
+            .select([
+              sql<EncryptedCredentialType>`'applePushKey'`.as("credential_type"),
+              "id",
+              "wrapped_dek",
+              "vault_version",
+            ])
+            .where("organization_id", "=", params.organizationId),
+        )
+        .unionAll(
+          db
+            .selectFrom("asc_api_keys")
+            .select([
+              sql<EncryptedCredentialType>`'ascApiKey'`.as("credential_type"),
+              "id",
+              "wrapped_dek",
+              "vault_version",
+            ])
+            .where("organization_id", "=", params.organizationId),
+        )
+        .unionAll(
+          db
+            .selectFrom("google_service_account_keys")
+            .select([
+              sql<EncryptedCredentialType>`'googleServiceAccountKey'`.as("credential_type"),
+              "id",
+              "wrapped_dek",
+              "vault_version",
+            ])
+            .where("organization_id", "=", params.organizationId),
+        )
+        .unionAll(
+          db
+            .selectFrom("android_upload_keystores")
+            .select([
+              sql<EncryptedCredentialType>`'androidUploadKeystore'`.as("credential_type"),
+              "id",
+              "wrapped_dek",
+              "vault_version",
+            ])
+            .where("organization_id", "=", params.organizationId),
+        );
+      const envVarDeks = db
+        .selectFrom("env_var_revisions")
+        .select([
+          sql<EncryptedCredentialType>`'envVarValue'`.as("credential_type"),
+          "id",
+          "wrapped_dek",
+          "vault_version",
+        ])
+        .where("organization_id", "=", params.organizationId);
+
+      const [credentialRows, envVarRows] = yield* d1Batch([credentialDeks, envVarDeks]);
+      return [...credentialRows, ...envVarRows].map((row) => ({
+        credentialType: row.credential_type,
+        credentialId: row.id,
+        wrappedDek: row.wrapped_dek,
+        vaultVersion: row.vault_version,
+      }));
     }),
 
   rotate: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
+      const session = yield* d1Session;
       const newVersion = params.fromVersion + 1;
 
-      // Statement order is load-bearing for compare-and-swap safety. Every write
-      // is guarded on the OLD version and the version bump is LAST: if a
-      // concurrent rotation already moved the vault past `fromVersion`, the
-      // EXISTS guard on the inserts is false, the version-scoped deletes/updates
-      // match nothing, and the final CAS changes 0 rows — so this batch commits
-      // but mutates nothing, and we surface a Conflict to retry against the new
-      // version. D1 runs the batch as one implicit transaction.
-      const statements = [
+      // CAS batch: all writes guard on `fromVersion`, version bump is last.
+      // Concurrent rotation → version-guarded statements match nothing → 0 changes
+      // on the final bump → Conflict. D1 runs the batch as one implicit transaction.
+      const queries: Compilable[] = [
         ...params.recipientWraps.map((wrap) =>
-          env.DB.prepare(
-            `INSERT INTO "org_vault_key_wraps" (${WRAP_COLUMNS}) SELECT ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM "org_vaults" WHERE "organization_id" = ? AND "vault_version" = ?)`,
-          ).bind(
-            params.organizationId,
-            newVersion,
-            wrap.userEncryptionKeyId,
-            wrap.wrappedKey,
-            params.now,
-            params.organizationId,
-            params.fromVersion,
-          ),
+          insertWrapGuarded(db, {
+            organizationId: params.organizationId,
+            insertVersion: newVersion,
+            guardVersion: params.fromVersion,
+            userEncryptionKeyId: wrap.userEncryptionKeyId,
+            wrappedKey: wrap.wrappedKey,
+            now: params.now,
+          }),
         ),
-        env.DB.prepare(
-          `DELETE FROM "org_vault_key_wraps" WHERE "organization_id" = ? AND "vault_version" = ?`,
-        ).bind(params.organizationId, params.fromVersion),
+        db
+          .deleteFrom("org_vault_key_wraps")
+          .where("organization_id", "=", params.organizationId)
+          .where("vault_version", "=", params.fromVersion),
         ...params.credentialDeks.map((dek) =>
-          env.DB.prepare(
-            `UPDATE "${CREDENTIAL_TABLES[dek.credentialType]}" SET "wrapped_dek" = ?, "vault_version" = ?, "updated_at" = ? WHERE "id" = ? AND "organization_id" = ? AND "vault_version" = ?`,
-          ).bind(
-            dek.wrappedDek,
-            newVersion,
-            params.now,
-            dek.credentialId,
-            params.organizationId,
-            params.fromVersion,
-          ),
+          db
+            .updateTable(CREDENTIAL_TABLES[dek.credentialType])
+            .set({
+              wrapped_dek: dek.wrappedDek,
+              vault_version: newVersion,
+              updated_at: params.now,
+            })
+            .where("id", "=", dek.credentialId)
+            .where("organization_id", "=", params.organizationId)
+            .where("vault_version", "=", params.fromVersion),
         ),
-        env.DB.prepare(
-          `UPDATE "org_vaults" SET "vault_version" = ?, "updated_at" = ? WHERE "organization_id" = ? AND "vault_version" = ?`,
-        ).bind(newVersion, params.now, params.organizationId, params.fromVersion),
+        db
+          .updateTable("org_vaults")
+          .set({ vault_version: newVersion, updated_at: params.now })
+          .where("organization_id", "=", params.organizationId)
+          .where("vault_version", "=", params.fromVersion),
       ];
 
       const results = yield* d1WithUniqueCheck(
-        async () => env.DB.batch(statements),
+        async () => session.batch(bindForBatch(session, queries)),
         "Recipient appears twice in the rotation wraps",
       );
 
-      // The version bump is the last statement; 0 rows changed means a concurrent
-      // rotation moved the version out from under this one.
+      // 0 changes on the version bump = concurrent rotation; CAS guard fired.
       const cas = results.at(-1);
       if ((cas?.meta.changes ?? 0) === 0) {
         return yield* new Conflict({
@@ -363,9 +473,11 @@ export const OrgVaultRepoLive = Layer.succeed(OrgVaultRepo, {
       }
 
       const vaultRow = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT "created_at" FROM "org_vaults" WHERE "organization_id" = ?`)
-          .bind(params.organizationId)
-          .first<{ created_at: string }>(),
+        db
+          .selectFrom("org_vaults")
+          .select("created_at")
+          .where("organization_id", "=", params.organizationId)
+          .executeTakeFirst(),
       );
       return {
         organizationId: params.organizationId,

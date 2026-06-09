@@ -1,7 +1,10 @@
+import { toDbNull } from "@better-update/type-guards";
 import { Context, Effect, Layer } from "effect";
 
-import { cloudflareEnv } from "../cloudflare/context";
+import { kyselyDb } from "../cloudflare/db";
 import { NotFound } from "../errors";
+
+import type { Platform } from "../models";
 
 // -- Row types ---------------------------------------------------------------
 
@@ -57,13 +60,13 @@ export interface ManifestRepository {
 
   readonly resolveUpdates: (params: {
     readonly branchId: string;
-    readonly platform: string;
+    readonly platform: Platform;
     readonly runtimeVersion: string;
   }) => Effect.Effect<readonly UpdateRow[]>;
 
   readonly resolveFullyRolledOutUpdate: (params: {
     readonly branchId: string;
-    readonly platform: string;
+    readonly platform: Platform;
     readonly runtimeVersion: string;
   }) => Effect.Effect<UpdateRow | null>;
 
@@ -90,22 +93,46 @@ export class ManifestRepo extends Context.Tag("api/ManifestRepo")<
 
 // -- D1 Adapter --------------------------------------------------------------
 
-const UPDATE_COLUMNS = `"id", "runtime_version", "platform", "is_rollback", "signature", "certificate_chain", "manifest_body", "directive_body", "metadata_json", "extra_json", "rollout_percentage", "created_at"`;
+const UPDATE_COLUMNS = [
+  "id",
+  "branch_id",
+  "runtime_version",
+  "platform",
+  "message",
+  "metadata_json",
+  "extra_json",
+  "group_id",
+  "rollout_percentage",
+  "is_rollback",
+  "signature",
+  "certificate_chain",
+  "manifest_body",
+  "directive_body",
+  "created_at",
+] as const;
 
 export const ManifestRepoLive = Layer.succeed(ManifestRepo, {
   resolveChannel: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
 
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT c."branch_id", c."branch_mapping_json", c."cache_version", c."is_paused", p."scope_key" FROM "channels" c JOIN "projects" p ON c."project_id" = p."id" WHERE c."project_id" = ? AND c."name" = ?`,
-        )
-          .bind(params.projectId, params.channelName)
-          .first<ChannelRow>(),
+        db
+          .selectFrom("channels as c")
+          .innerJoin("projects as p", "p.id", "c.project_id")
+          .select([
+            "c.branch_id",
+            "c.branch_mapping_json",
+            "c.cache_version",
+            "c.is_paused",
+            "p.scope_key",
+          ])
+          .where("c.project_id", "=", params.projectId)
+          .where("c.name", "=", params.channelName)
+          .executeTakeFirst(),
       );
 
-      if (row === null) {
+      if (!row) {
         return yield* new NotFound({ message: "Channel not found" });
       }
 
@@ -114,61 +141,85 @@ export const ManifestRepoLive = Layer.succeed(ManifestRepo, {
 
   resolveUpdates: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
 
-      const rows = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT ${UPDATE_COLUMNS} FROM "updates" WHERE "branch_id" = ? AND "platform" = ? AND "runtime_version" = ? ORDER BY "created_at" DESC, "id" DESC LIMIT 2`,
-        )
-          .bind(params.branchId, params.platform, params.runtimeVersion)
-          .all<UpdateRow>(),
+      return yield* Effect.promise(async () =>
+        db
+          .selectFrom("updates")
+          .select(UPDATE_COLUMNS)
+          .where("branch_id", "=", params.branchId)
+          .where("platform", "=", params.platform)
+          .where("runtime_version", "=", params.runtimeVersion)
+          .orderBy("created_at", "desc")
+          .orderBy("id", "desc")
+          .limit(2)
+          .execute(),
       );
-
-      return rows.results;
     }),
 
   resolveFullyRolledOutUpdate: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
 
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT ${UPDATE_COLUMNS} FROM "updates" WHERE "branch_id" = ? AND "platform" = ? AND "runtime_version" = ? AND "rollout_percentage" = 100 ORDER BY "created_at" DESC, "id" DESC LIMIT 1`,
-        )
-          .bind(params.branchId, params.platform, params.runtimeVersion)
-          .first<UpdateRow>(),
+        db
+          .selectFrom("updates")
+          .select(UPDATE_COLUMNS)
+          .where("branch_id", "=", params.branchId)
+          .where("platform", "=", params.platform)
+          .where("runtime_version", "=", params.runtimeVersion)
+          .where("rollout_percentage", "=", 100)
+          .orderBy("created_at", "desc")
+          .orderBy("id", "desc")
+          .limit(1)
+          .executeTakeFirst(),
       );
 
-      return row;
+      return toDbNull(row);
     }),
 
   findUpdateAssets: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
 
-      const rows = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT ua."update_id", ua."asset_key", ua."asset_hash", ua."is_launch", a."hash", a."content_type", a."file_ext", a."byte_size", a."r2_key", a."content_checksum", a."created_at" FROM "update_assets" ua JOIN "assets" a ON ua."asset_hash" = a."hash" WHERE ua."update_id" = ?`,
-        )
-          .bind(params.updateId)
-          .all<AssetRow>(),
+      return yield* Effect.promise(async () =>
+        db
+          .selectFrom("update_assets as ua")
+          .innerJoin("assets as a", "a.hash", "ua.asset_hash")
+          .select([
+            "ua.update_id",
+            "ua.asset_key",
+            "ua.asset_hash",
+            "ua.is_launch",
+            "a.hash",
+            "a.content_type",
+            "a.file_ext",
+            "a.byte_size",
+            "a.r2_key",
+            "a.content_checksum",
+            "a.created_at",
+          ])
+          .where("ua.update_id", "=", params.updateId)
+          .execute(),
       );
-
-      return rows.results;
     }),
 
   findLaunchAssetForUpdate: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
 
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT a."hash", a."r2_key", a."content_type", u."runtime_version" FROM "update_assets" ua JOIN "assets" a ON ua."asset_hash" = a."hash" JOIN "updates" u ON ua."update_id" = u."id" WHERE ua."update_id" = ? AND ua."is_launch" = 1 LIMIT 1`,
-        )
-          .bind(params.updateId)
-          .first<LaunchAssetRow>(),
+        db
+          .selectFrom("update_assets as ua")
+          .innerJoin("assets as a", "a.hash", "ua.asset_hash")
+          .innerJoin("updates as u", "u.id", "ua.update_id")
+          .select(["a.hash", "a.r2_key", "a.content_type", "u.runtime_version"])
+          .where("ua.update_id", "=", params.updateId)
+          .where("ua.is_launch", "=", 1)
+          .limit(1)
+          .executeTakeFirst(),
       );
 
-      return row;
+      return toDbNull(row);
     }),
 });

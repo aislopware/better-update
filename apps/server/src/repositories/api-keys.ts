@@ -1,8 +1,12 @@
 import { Context, Effect, Layer } from "effect";
 
+import type { Selectable } from "kysely";
+
 import { API_KEY_PREFIX } from "../auth/constants";
-import { cloudflareEnv } from "../cloudflare/context";
+import { kyselyDb } from "../cloudflare/db";
 import { CryptoService } from "../domain/crypto-service";
+
+import type { Apikey } from "../db/schema";
 
 // -- Port -------------------------------------------------------------------
 
@@ -109,15 +113,19 @@ const randomKeyBody = (length: number): string => {
   return body.length === length ? body : body + randomKeyBody(length - body.length);
 };
 
-interface ApiKeyRow {
-  id: string;
-  name: string | null;
-  start: string | null;
-  prefix: string | null;
-  enabled: number | null;
-  created_at: string;
-  expires_at: string | null;
-}
+// The non-secret columns surfaced to callers — the hashed `key` is deliberately
+// excluded so it can never leak through list/mint responses.
+const PUBLIC_COLUMNS = [
+  "id",
+  "name",
+  "start",
+  "prefix",
+  "enabled",
+  "created_at",
+  "expires_at",
+] as const;
+
+type ApiKeyRow = Pick<Selectable<Apikey>, (typeof PUBLIC_COLUMNS)[number]>;
 
 const toModel = (row: ApiKeyRow): ApiKeyModel => ({
   id: row.id,
@@ -129,10 +137,6 @@ const toModel = (row: ApiKeyRow): ApiKeyModel => ({
   expiresAt: row.expires_at,
 });
 
-// The non-secret columns surfaced to callers — the hashed `key` is deliberately
-// excluded so it can never leak through list/mint responses.
-const PUBLIC_COLUMNS = `"id", "name", "start", "prefix", "enabled", "created_at", "expires_at"`;
-
 export const ApiKeyRepoLive = Layer.effect(
   ApiKeyRepo,
   Effect.gen(function* () {
@@ -141,7 +145,7 @@ export const ApiKeyRepoLive = Layer.effect(
     return {
       mint: (params) =>
         Effect.gen(function* () {
-          const env = yield* cloudflareEnv;
+          const db = yield* kyselyDb;
           const prefix = API_KEY_PREFIX;
           const plaintext = `${prefix}${randomKeyBody(KEY_BODY_LENGTH)}`;
           // Hash exactly as the plugin: SHA-256 → unpadded base64url. `verifyApiKey`
@@ -154,37 +158,32 @@ export const ApiKeyRepoLive = Layer.effect(
           const now = new Date().toISOString();
 
           const row = yield* Effect.promise(async () =>
-            env.DB.prepare(
-              `INSERT INTO "apikey" (
-                 "id", "config_id", "name", "start", "reference_id", "prefix", "key",
-                 "enabled", "rate_limit_enabled", "rate_limit_time_window", "rate_limit_max",
-                 "request_count", "permissions", "expires_at", "created_at", "updated_at"
-               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-               RETURNING ${PUBLIC_COLUMNS}`,
-            )
-              .bind(
+            db
+              .insertInto("apikey")
+              .values({
                 id,
-                CONFIG_ID,
-                params.name,
+                config_id: CONFIG_ID,
+                name: params.name,
                 start,
-                params.organizationId,
+                reference_id: params.organizationId,
                 prefix,
-                hash,
-                1,
-                RATE_LIMIT_ENABLED,
-                RATE_LIMIT_TIME_WINDOW,
-                RATE_LIMIT_MAX,
-                0,
-                null,
-                params.expiresAt,
-                now,
-                now,
-              )
-              .first<ApiKeyRow>(),
+                key: hash,
+                enabled: 1,
+                rate_limit_enabled: RATE_LIMIT_ENABLED,
+                rate_limit_time_window: RATE_LIMIT_TIME_WINDOW,
+                rate_limit_max: RATE_LIMIT_MAX,
+                request_count: 0,
+                permissions: null,
+                expires_at: params.expiresAt,
+                created_at: now,
+                updated_at: now,
+              })
+              .returning(PUBLIC_COLUMNS)
+              .executeTakeFirst(),
           );
 
           const model =
-            row === null
+            row === undefined
               ? {
                   id,
                   name: params.name,
@@ -201,26 +200,29 @@ export const ApiKeyRepoLive = Layer.effect(
 
       list: (params) =>
         Effect.gen(function* () {
-          const env = yield* cloudflareEnv;
+          const db = yield* kyselyDb;
           const rows = yield* Effect.promise(async () =>
-            env.DB.prepare(
-              `SELECT ${PUBLIC_COLUMNS} FROM "apikey" WHERE "reference_id" = ? ORDER BY "created_at" DESC`,
-            )
-              .bind(params.organizationId)
-              .all<ApiKeyRow>(),
+            db
+              .selectFrom("apikey")
+              .select(PUBLIC_COLUMNS)
+              .where("reference_id", "=", params.organizationId)
+              .orderBy("created_at", "desc")
+              .execute(),
           );
-          return rows.results.map(toModel);
+          return rows.map(toModel);
         }),
 
       revoke: (params) =>
         Effect.gen(function* () {
-          const env = yield* cloudflareEnv;
+          const db = yield* kyselyDb;
           const result = yield* Effect.promise(async () =>
-            env.DB.prepare(`DELETE FROM "apikey" WHERE "id" = ? AND "reference_id" = ?`)
-              .bind(params.id, params.organizationId)
-              .run(),
+            db
+              .deleteFrom("apikey")
+              .where("id", "=", params.id)
+              .where("reference_id", "=", params.organizationId)
+              .executeTakeFirst(),
           );
-          return result.meta.changes > 0;
+          return Number(result.numDeletedRows) > 0;
         }),
     } satisfies ApiKeyRepository;
   }),

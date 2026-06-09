@@ -1,26 +1,13 @@
 import { Context, Effect, Layer } from "effect";
 
-import { cloudflareEnv } from "../cloudflare/context";
+import type { Selectable } from "kysely";
+
+import { kyselyDb } from "../cloudflare/db";
 import { encodeCursor } from "../lib/cursor";
 
+import type { AuditLogs } from "../db/schema";
 import type { Cursor } from "../lib/cursor";
 import type { AuditLogModel, AuditLogResourceType } from "../models";
-
-// -- Row type ----------------------------------------------------------------
-
-export interface AuditLogRow {
-  readonly id: string;
-  readonly organization_id: string;
-  readonly project_id: string | null;
-  readonly actor_id: string | null;
-  readonly actor_email: string;
-  readonly action: string;
-  readonly resource_type: AuditLogResourceType;
-  readonly resource_id: string | null;
-  readonly metadata: string | null;
-  readonly source: "session" | "api-key";
-  readonly created_at: string;
-}
 
 // -- Port --------------------------------------------------------------------
 
@@ -41,7 +28,7 @@ export interface AuditLogRepository {
   readonly list: (params: {
     readonly organizationId: string;
     readonly projectId?: string | undefined;
-    readonly resourceType?: string | undefined;
+    readonly resourceType?: AuditLogResourceType | undefined;
     readonly from?: string | undefined;
     readonly to?: string | undefined;
     readonly cursor: Cursor | null;
@@ -59,97 +46,117 @@ export class AuditLogRepo extends Context.Tag("api/AuditLogRepo")<
 
 // -- D1 Adapter --------------------------------------------------------------
 
-const SELECT_COLUMNS = `"id", "organization_id", "project_id", "actor_id", "actor_email", "action", "resource_type", "resource_id", "metadata", "source", "created_at"`;
+const COLUMNS = [
+  "id",
+  "organization_id",
+  "project_id",
+  "actor_id",
+  "actor_email",
+  "action",
+  "resource_type",
+  "resource_id",
+  "metadata",
+  "source",
+  "created_at",
+] as const;
 
-const toAuditLogModel = (row: AuditLogRow) =>
-  ({
-    id: row.id,
-    organizationId: row.organization_id,
-    projectId: row.project_id,
-    actorId: row.actor_id,
-    actorEmail: row.actor_email,
-    action: row.action,
-    resourceType: row.resource_type,
-    resourceId: row.resource_id,
-    metadata: row.metadata,
-    source: row.source,
-    createdAt: row.created_at,
-  }) satisfies AuditLogModel;
+const toAuditLogModel = (row: Selectable<AuditLogs>): AuditLogModel => ({
+  id: row.id,
+  organizationId: row.organization_id,
+  projectId: row.project_id,
+  actorId: row.actor_id,
+  actorEmail: row.actor_email,
+  action: row.action,
+  resourceType: row.resource_type,
+  resourceId: row.resource_id,
+  metadata: row.metadata,
+  source: row.source,
+  createdAt: row.created_at,
+});
 
 export const AuditLogRepoLive = Layer.succeed(AuditLogRepo, {
   insert: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
 
       yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `INSERT INTO "audit_logs" ("id", "organization_id", "project_id", "actor_id", "actor_email", "action", "resource_type", "resource_id", "metadata", "source") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        )
-          .bind(
-            params.id,
-            params.organizationId,
-            params.projectId,
-            params.actorId,
-            params.actorEmail,
-            params.action,
-            params.resourceType,
-            params.resourceId,
-            params.metadata,
-            params.source,
-          )
-          .run(),
+        db
+          .insertInto("audit_logs")
+          .values({
+            id: params.id,
+            organization_id: params.organizationId,
+            project_id: params.projectId,
+            actor_id: params.actorId,
+            actor_email: params.actorEmail,
+            action: params.action,
+            resource_type: params.resourceType,
+            resource_id: params.resourceId,
+            metadata: params.metadata,
+            source: params.source,
+          })
+          .execute(),
       );
     }),
 
   list: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
 
-      // SECURITY: All condition strings are hardcoded literals. Never interpolate user input into conditions.
-      const conditions: string[] = ['"organization_id" = ?'];
-      const bindValues: (string | number)[] = [params.organizationId];
-
-      if (params.projectId) {
-        conditions.push('"project_id" = ?');
-        bindValues.push(params.projectId);
-      }
-
-      if (params.resourceType) {
-        conditions.push('"resource_type" = ?');
-        bindValues.push(params.resourceType);
-      }
-
-      if (params.from) {
-        conditions.push('"created_at" >= ?');
-        bindValues.push(params.from);
-      }
-
-      if (params.to) {
-        conditions.push('"created_at" <= ?');
-        bindValues.push(params.to);
-      }
-
-      if (params.cursor) {
-        conditions.push('("created_at" < ? OR ("created_at" = ? AND "id" < ?))');
-        bindValues.push(params.cursor.createdAt, params.cursor.createdAt, params.cursor.id);
-      }
-
-      const whereClause = conditions.join(" AND ");
+      const { projectId, resourceType, from, to, cursor } = params;
 
       const rows = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT ${SELECT_COLUMNS} FROM "audit_logs" WHERE ${whereClause} ORDER BY "created_at" DESC, "id" DESC LIMIT ?`,
-        )
-          .bind(...bindValues, params.limit + 1)
-          .all<AuditLogRow>(),
+        db
+          .selectFrom("audit_logs")
+          .select(COLUMNS)
+          .where("organization_id", "=", params.organizationId)
+          .$if(Boolean(projectId), (qb) => {
+            if (projectId === undefined) {
+              return qb;
+            }
+            return qb.where("project_id", "=", projectId);
+          })
+          .$if(Boolean(resourceType), (qb) => {
+            if (resourceType === undefined) {
+              return qb;
+            }
+            return qb.where("resource_type", "=", resourceType);
+          })
+          .$if(Boolean(from), (qb) => {
+            if (from === undefined) {
+              return qb;
+            }
+            return qb.where("created_at", ">=", from);
+          })
+          .$if(Boolean(to), (qb) => {
+            if (to === undefined) {
+              return qb;
+            }
+            return qb.where("created_at", "<=", to);
+          })
+          .$if(cursor !== null, (qb) => {
+            if (cursor === null) {
+              return qb;
+            }
+            return qb.where((eb) =>
+              eb.or([
+                eb("created_at", "<", cursor.createdAt),
+                eb.and([eb("created_at", "=", cursor.createdAt), eb("id", "<", cursor.id)]),
+              ]),
+            );
+          })
+          .orderBy("created_at", "desc")
+          .orderBy("id", "desc")
+          .limit(params.limit + 1)
+          .execute(),
       );
 
-      const hasMore = rows.results.length > params.limit;
-      const trimmed = hasMore ? rows.results.slice(0, params.limit) : rows.results;
-      const last = trimmed.at(-1);
+      const hasMore = rows.length > params.limit;
+      const trimmed = hasMore ? rows.slice(0, params.limit) : rows;
+      const items = trimmed.map(toAuditLogModel);
+      const last = items.at(-1);
       const nextCursor =
-        hasMore && last ? encodeCursor({ createdAt: last.created_at, id: last.id }) : null;
+        hasMore && last ? encodeCursor({ createdAt: last.createdAt, id: last.id }) : null;
 
-      return { items: trimmed.map(toAuditLogModel), nextCursor };
+      return { items, nextCursor };
     }),
 });

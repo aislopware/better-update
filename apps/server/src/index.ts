@@ -2,7 +2,8 @@ import type { Context } from "effect";
 
 import { makeManagementWebHandler } from "./app-layer";
 import { createAuth, isGithubEnabled, isGoogleEnabled } from "./auth";
-import { makeCloudflareRequestContext } from "./cloudflare/context";
+import { makeCloudflareRequestContext, makeD1Session } from "./cloudflare/context";
+import { applyD1Bookmark, readD1Bookmark } from "./cloudflare/db";
 import {
   handleBundleRequest,
   handleScheduled,
@@ -85,7 +86,16 @@ const routeRequest = async (
   ctx: ExecutionContext,
 ): Promise<Response> => {
   const url = new URL(request.url);
-  const requestContext = makeCloudflareRequestContext(env, ctx, request) as Context.Context<never>;
+  // One D1 session per request, anchored at the bookmark the client last saw,
+  // so management-API reads can be served by replicas while staying consistent
+  // with this client's own prior writes.
+  const session = makeD1Session(env, readD1Bookmark(request));
+  const requestContext = makeCloudflareRequestContext(
+    env,
+    ctx,
+    request,
+    session,
+  ) as Context.Context<never>;
 
   // Better Auth handles its own auth routes
   if (url.pathname.startsWith("/api/auth")) {
@@ -144,8 +154,9 @@ const routeRequest = async (
     return registrationResponse;
   }
 
-  // Effect HttpApi handles management routes + OpenAPI + Scalar docs
-  return handler(request, requestContext);
+  // Effect HttpApi handles management routes + OpenAPI + Scalar docs. Thread the
+  // session's latest bookmark back so the client can keep read-your-writes.
+  return applyD1Bookmark(await handler(request, requestContext), session);
 };
 
 export default {

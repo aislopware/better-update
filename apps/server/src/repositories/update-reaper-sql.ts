@@ -1,9 +1,14 @@
 import { Effect } from "effect";
 import { chunk } from "es-toolkit";
 
+import type { Kysely } from "kysely";
+
+import { d1Batch } from "../cloudflare/db";
+
+import type { DB } from "../db/schema";
 import type { Platform } from "../models";
 
-// OTA-reaper D1 queries, colocated I/O helpers that take a D1Database (mirrors
+// OTA-reaper D1 queries, colocated I/O helpers that take a `Kysely<DB>` (mirrors
 // update-patch-base-sql.ts). Keeps the conservative reap SQL out of the already
 // large updates.ts adapter while staying in the repositories/ layer where
 // Effect.promise / D1 access is permitted. The reaper port-method signatures
@@ -98,56 +103,14 @@ export interface UpdateReaperQueries {
   }) => Effect.Effect<readonly string[]>;
 }
 
-interface ReapableRow {
-  id: string;
-  group_id: string;
-  branch_id: string;
-  runtime_version: string;
-  platform: Platform;
-}
-
 // Conservative reap-candidate query, scoped to one project. Honors the SQL half
 // of the safety invariant EXACTLY: a row is returned only if it survives EVERY
 // keep clause below. The served / reachable-branch / current-base keep guard
 // (clauses 4+5) is applied in JS by the caller, NOT bound here — so this
-// statement binds only `projectId`, `cutoff` and `limit` (three parameters,
-// never near D1's ceiling).
-const reapableUpdateSql = `
-SELECT u."id", u."group_id", u."branch_id", u."runtime_version", u."platform"
-FROM "updates" u
-JOIN "branches" b ON b."id" = u."branch_id"
-WHERE b."project_id" = ?
-  AND u."created_at" < ?
-  -- (1) NEVER reap the embedded baseline (always-servable first-launch patch base).
-  AND u."is_embedded" = 0
-  -- (2) NEVER reap the newest servable per (branch, platform, rv): keep U only if
-  -- a strictly-newer sibling shields it (so the newest row is always kept).
-  AND EXISTS (
-    SELECT 1 FROM "updates" newer
-    WHERE newer."branch_id" = u."branch_id"
-      AND newer."platform" = u."platform"
-      AND newer."runtime_version" = u."runtime_version"
-      AND (newer."created_at" > u."created_at"
-        OR (newer."created_at" = u."created_at" AND newer."id" > u."id"))
-  )
-  -- (3) Keep the newest fully-rolled-out (rollout_percentage=100) row per tuple
-  -- (the rollout/rollback fallback target). If U is that newest =100 row, keep it.
-  AND NOT (
-    u."rollout_percentage" = 100 AND NOT EXISTS (
-      SELECT 1 FROM "updates" n2
-      WHERE n2."branch_id" = u."branch_id"
-        AND n2."platform" = u."platform"
-        AND n2."runtime_version" = u."runtime_version"
-        AND n2."rollout_percentage" = 100
-        AND (n2."created_at" > u."created_at"
-          OR (n2."created_at" = u."created_at" AND n2."id" > u."id"))
-    )
-  )
-ORDER BY u."created_at" ASC, u."id" ASC
-LIMIT ?`;
-
+// statement binds only `projectId`, `cutoff` and `limit`, never near D1's
+// ceiling.
 export const queryReapableUpdateBatch = (
-  db: D1Database,
+  db: Kysely<DB>,
   params: {
     readonly projectId: string;
     readonly cutoff: string;
@@ -157,13 +120,75 @@ export const queryReapableUpdateBatch = (
   Effect.gen(function* () {
     const rows = yield* Effect.promise(async () =>
       db
-        .prepare(reapableUpdateSql)
-        // Source order: projectId, cutoff (WHERE), limit (LIMIT). No id lists.
-        .bind(params.projectId, params.cutoff, params.limit)
-        .all<ReapableRow>(),
+        .selectFrom("updates")
+        .select(["updates.id", "updates.group_id", "updates.branch_id", "updates.runtime_version"])
+        .select((eb) => eb.ref("updates.platform").$castTo<Platform>().as("platform"))
+        .where("updates.branch_id", "in", (eb) =>
+          eb
+            .selectFrom("branches")
+            .select("branches.id")
+            .where("branches.project_id", "=", params.projectId),
+        )
+        .where("updates.created_at", "<", params.cutoff)
+        // (1) NEVER reap the embedded baseline (always-servable first-launch patch base).
+        .where("updates.is_embedded", "=", 0)
+        // (2) NEVER reap the newest servable per (branch, platform, rv): keep U only if
+        // a strictly-newer sibling shields it (so the newest row is always kept).
+        .where((eb) =>
+          eb.exists(
+            eb
+              .selectFrom("updates as newer")
+              .select((newerEb) => newerEb.lit(1).as("one"))
+              .whereRef("newer.branch_id", "=", "updates.branch_id")
+              .whereRef("newer.platform", "=", "updates.platform")
+              .whereRef("newer.runtime_version", "=", "updates.runtime_version")
+              .where((newerEb) =>
+                newerEb.or([
+                  newerEb("newer.created_at", ">", newerEb.ref("updates.created_at")),
+                  newerEb.and([
+                    newerEb("newer.created_at", "=", newerEb.ref("updates.created_at")),
+                    newerEb("newer.id", ">", newerEb.ref("updates.id")),
+                  ]),
+                ]),
+              ),
+          ),
+        )
+        // (3) Keep the newest fully-rolled-out (rollout_percentage=100) row per tuple
+        // (the rollout/rollback fallback target). If U is that newest =100 row, keep it.
+        .where((eb) =>
+          eb.not(
+            eb.and([
+              eb("updates.rollout_percentage", "=", 100),
+              eb.not(
+                eb.exists(
+                  eb
+                    .selectFrom("updates as n2")
+                    .select((n2Eb) => n2Eb.lit(1).as("one"))
+                    .whereRef("n2.branch_id", "=", "updates.branch_id")
+                    .whereRef("n2.platform", "=", "updates.platform")
+                    .whereRef("n2.runtime_version", "=", "updates.runtime_version")
+                    .where("n2.rollout_percentage", "=", 100)
+                    .where((n2Eb) =>
+                      n2Eb.or([
+                        n2Eb("n2.created_at", ">", n2Eb.ref("updates.created_at")),
+                        n2Eb.and([
+                          n2Eb("n2.created_at", "=", n2Eb.ref("updates.created_at")),
+                          n2Eb("n2.id", ">", n2Eb.ref("updates.id")),
+                        ]),
+                      ]),
+                    ),
+                ),
+              ),
+            ]),
+          ),
+        )
+        .orderBy("updates.created_at", "asc")
+        .orderBy("updates.id", "asc")
+        .limit(params.limit)
+        .execute(),
     );
 
-    return rows.results.map((row) => ({
+    return rows.map((row) => ({
       id: row.id,
       groupId: row.group_id,
       branchId: row.branch_id,
@@ -172,12 +197,12 @@ export const queryReapableUpdateBatch = (
     }));
   });
 
-// Run `query(placeholders, chunkIds)` once per chunk of `ids` (so a single
-// statement never exceeds D1's parameter ceiling) and flatten the string
-// results, de-duplicated. Empty input short-circuits.
+// Run `query(chunkIds)` once per chunk of `ids` (so a single statement never
+// exceeds D1's parameter ceiling) and flatten the string results, de-duplicated.
+// Empty input short-circuits.
 const collectChunkedIds = (
   ids: readonly string[],
-  query: (placeholders: string, chunkIds: readonly string[]) => Promise<readonly string[]>,
+  query: (chunkIds: readonly string[]) => Promise<readonly string[]>,
 ): Effect.Effect<readonly string[]> =>
   Effect.gen(function* () {
     if (ids.length === 0) {
@@ -185,31 +210,28 @@ const collectChunkedIds = (
     }
     const perChunk = yield* Effect.forEach(
       chunk([...ids], IN_CHUNK),
-      (chunkIds) => {
-        const placeholders = chunkIds.map(() => "?").join(", ");
-        return Effect.promise(async () => query(placeholders, chunkIds));
-      },
+      (chunkIds) => Effect.promise(async () => query(chunkIds)),
       { concurrency: 1 },
     );
     return [...new Set(perChunk.flat())];
   });
 
 export const queryAssetHashesForUpdates = (
-  db: D1Database,
+  db: Kysely<DB>,
   updateIds: readonly string[],
 ): Effect.Effect<readonly string[]> =>
-  collectChunkedIds(updateIds, async (placeholders, chunkIds) => {
+  collectChunkedIds(updateIds, async (chunkIds) => {
     const rows = await db
-      .prepare(
-        `SELECT DISTINCT "asset_hash" FROM "update_assets" WHERE "update_id" IN (${placeholders})`,
-      )
-      .bind(...chunkIds)
-      .all<{ asset_hash: string }>();
-    return rows.results.map((row) => row.asset_hash);
+      .selectFrom("update_assets")
+      .select("asset_hash")
+      .distinct()
+      .where("update_id", "in", chunkIds)
+      .execute();
+    return rows.map((row) => row.asset_hash);
   });
 
 export const queryUnreferencedAssetHashes = (
-  db: D1Database,
+  db: Kysely<DB>,
   hashes: readonly string[],
 ): Effect.Effect<readonly string[]> =>
   Effect.gen(function* () {
@@ -219,33 +241,34 @@ export const queryUnreferencedAssetHashes = (
     // A candidate hash is unreferenced iff NO surviving update_assets row points
     // at it. Computed AFTER the reaped updates' update_assets rows are deleted,
     // so any referrer is a genuine survivor — orphan decision is global per run.
-    const referenced = yield* collectChunkedIds(hashes, async (placeholders, chunkIds) => {
+    const referenced = yield* collectChunkedIds(hashes, async (chunkIds) => {
       const rows = await db
-        .prepare(
-          `SELECT DISTINCT "asset_hash" FROM "update_assets" WHERE "asset_hash" IN (${placeholders})`,
-        )
-        .bind(...chunkIds)
-        .all<{ asset_hash: string }>();
-      return rows.results.map((row) => row.asset_hash);
+        .selectFrom("update_assets")
+        .select("asset_hash")
+        .distinct()
+        .where("asset_hash", "in", chunkIds)
+        .execute();
+      return rows.map((row) => row.asset_hash);
     });
     const referencedSet = new Set(referenced);
     return hashes.filter((hash) => !referencedSet.has(hash));
   });
 
 export const queryAssetR2Keys = (
-  db: D1Database,
+  db: Kysely<DB>,
   hashes: readonly string[],
 ): Effect.Effect<readonly string[]> =>
-  collectChunkedIds(hashes, async (placeholders, chunkIds) => {
+  collectChunkedIds(hashes, async (chunkIds) => {
     const rows = await db
-      .prepare(`SELECT "r2_key" FROM "assets" WHERE "hash" IN (${placeholders})`)
-      .bind(...chunkIds)
-      .all<{ r2_key: string }>();
-    return rows.results.map((row) => row.r2_key);
+      .selectFrom("assets")
+      .select("r2_key")
+      .where("hash", "in", chunkIds)
+      .execute();
+    return rows.map((row) => row.r2_key);
   });
 
 export const runDeleteUpdateRows = (
-  db: D1Database,
+  db: Kysely<DB>,
   updateIds: readonly string[],
 ): Effect.Effect<{ readonly updatesDeleted: number }> =>
   Effect.gen(function* () {
@@ -253,22 +276,17 @@ export const runDeleteUpdateRows = (
       return { updatesDeleted: 0 };
     }
     // Chunk so each DELETE ... IN (...) stays under D1's parameter ceiling, and
-    // batch each chunk's (update_assets, updates) pair atomically.
+    // batch each chunk's (update_assets, updates) pair atomically. The updates
+    // DELETE returns its rows so the deleted count is the returned-row count.
     const perChunk = yield* Effect.forEach(
       chunk([...updateIds], IN_CHUNK),
       (chunkIds) =>
         Effect.gen(function* () {
-          const placeholders = chunkIds.map(() => "?").join(", ");
-          const results = yield* Effect.promise(async () =>
-            db.batch([
-              db
-                .prepare(`DELETE FROM "update_assets" WHERE "update_id" IN (${placeholders})`)
-                .bind(...chunkIds),
-              db.prepare(`DELETE FROM "updates" WHERE "id" IN (${placeholders})`).bind(...chunkIds),
-            ]),
-          );
-          const [, updatesResult] = results;
-          return updatesResult ? updatesResult.meta.changes : 0;
+          const [, deletedUpdates] = yield* d1Batch([
+            db.deleteFrom("update_assets").where("update_id", "in", chunkIds),
+            db.deleteFrom("updates").where("id", "in", chunkIds).returning("id"),
+          ]);
+          return deletedUpdates.length;
         }),
       { concurrency: 1 },
     );
@@ -276,7 +294,7 @@ export const runDeleteUpdateRows = (
   });
 
 export const runDeleteAssetRows = (
-  db: D1Database,
+  db: Kysely<DB>,
   hashes: readonly string[],
 ): Effect.Effect<void> =>
   Effect.gen(function* () {
@@ -285,86 +303,128 @@ export const runDeleteAssetRows = (
     }
     yield* Effect.forEach(
       chunk([...hashes], IN_CHUNK),
-      (chunkHashes) => {
-        const placeholders = chunkHashes.map(() => "?").join(", ");
-        return Effect.promise(async () =>
-          db
-            .prepare(`DELETE FROM "assets" WHERE "hash" IN (${placeholders})`)
-            .bind(...chunkHashes)
-            .run(),
-        );
-      },
+      (chunkHashes) =>
+        Effect.promise(async () =>
+          db.deleteFrom("assets").where("hash", "in", chunkHashes).execute(),
+        ),
       { concurrency: 1 },
     );
   });
 
 export const runDeleteGroup = (
-  db: D1Database,
+  db: Kysely<DB>,
   groupId: string,
 ): Effect.Effect<{ readonly deleted: number }> =>
   Effect.gen(function* () {
-    const results = yield* Effect.promise(async () =>
-      db.batch([
-        db
-          .prepare(
-            `DELETE FROM "update_assets" WHERE "update_id" IN (SELECT "id" FROM "updates" WHERE "group_id" = ?)`,
-          )
-          .bind(groupId),
-        db.prepare(`DELETE FROM "updates" WHERE "group_id" = ?`).bind(groupId),
-      ]),
-    );
-    const [, updatesResult] = results;
-    return { deleted: updatesResult ? updatesResult.meta.changes : 0 };
+    const [, deletedUpdates] = yield* d1Batch([
+      db
+        .deleteFrom("update_assets")
+        .where("update_id", "in", (eb) =>
+          eb.selectFrom("updates").select("updates.id").where("updates.group_id", "=", groupId),
+        ),
+      db.deleteFrom("updates").where("group_id", "=", groupId).returning("id"),
+    ]);
+    return { deleted: deletedUpdates.length };
   });
 
 export const querySurvivingUpdateIds = (
-  db: D1Database,
+  db: Kysely<DB>,
   projectId: string,
 ): Effect.Effect<readonly string[]> =>
   Effect.gen(function* () {
     const rows = yield* Effect.promise(async () =>
       db
-        .prepare(
-          `SELECT u."id" FROM "updates" u JOIN "branches" b ON u."branch_id" = b."id" WHERE b."project_id" = ?`,
-        )
-        .bind(projectId)
-        .all<{ id: string }>(),
+        .selectFrom("updates")
+        .innerJoin("branches", "branches.id", "updates.branch_id")
+        .select("updates.id")
+        .where("branches.project_id", "=", projectId)
+        .execute(),
     );
-    return rows.results.map((row) => row.id);
+    return rows.map((row) => row.id);
   });
 
 export const queryServableUpdateIdsForBranches = (
-  db: D1Database,
+  db: Kysely<DB>,
   branchIds: readonly string[],
 ): Effect.Effect<readonly string[]> =>
-  collectChunkedIds(branchIds, async (placeholders, chunkIds) => {
+  collectChunkedIds(branchIds, async (chunkIds) => {
     // The newest TWO rows per (branch, platform, rv): the manifest serving layer
     // resolves over a LIMIT-2 window (latest + previous) and can serve EITHER as
     // the rollout fallback, so both rn=1 and rn=2 must be protected.
-    const rows = await db
-      .prepare(
-        `SELECT "id" FROM (SELECT u."id", ROW_NUMBER() OVER (PARTITION BY u."branch_id", u."platform", u."runtime_version" ORDER BY u."created_at" DESC, u."id" DESC) AS "rn" FROM "updates" u WHERE u."branch_id" IN (${placeholders})) WHERE "rn" <= 2`,
+    const ranked = db
+      .selectFrom("updates")
+      .select("updates.id")
+      .select((eb) =>
+        eb.fn
+          .agg<number>("row_number")
+          .over((ob) =>
+            ob
+              .partitionBy(["updates.branch_id", "updates.platform", "updates.runtime_version"])
+              .orderBy("updates.created_at", "desc")
+              .orderBy("updates.id", "desc"),
+          )
+          .as("rn"),
       )
-      .bind(...chunkIds)
-      .all<{ id: string }>();
-    return rows.results.map((row) => row.id);
+      .where("updates.branch_id", "in", chunkIds);
+    const rows = await db
+      .selectFrom(ranked.as("ranked"))
+      .select("ranked.id")
+      .where("ranked.rn", "<=", 2)
+      .execute();
+    return rows.map((row) => row.id);
   });
 
 export const queryPatchBaseUpdateIds = (
-  db: D1Database,
+  db: Kysely<DB>,
   params: { readonly projectId: string; readonly limit: number },
 ): Effect.Effect<readonly string[]> =>
   Effect.gen(function* () {
     // Recent non-rollback launch-asset updates per (branch, rv, platform) tuple,
     // ranked newest-first and capped at `limit` per tuple, UNION the embedded
     // baselines. Mirrors queryPatchBases but at project scope (all tuples).
-    const rows = yield* Effect.promise(async () =>
-      db
-        .prepare(
-          `SELECT "id" FROM (SELECT u."id", ROW_NUMBER() OVER (PARTITION BY u."branch_id", u."runtime_version", u."platform" ORDER BY u."created_at" DESC, u."id" DESC) AS "rn" FROM "updates" u JOIN "branches" b ON b."id" = u."branch_id" JOIN "update_assets" ua ON ua."update_id" = u."id" AND ua."is_launch" = 1 WHERE b."project_id" = ? AND u."is_rollback" = 0) WHERE "rn" <= ? UNION SELECT u."id" FROM "updates" u JOIN "branches" b ON b."id" = u."branch_id" WHERE b."project_id" = ? AND u."is_embedded" = 1`,
-        )
-        .bind(params.projectId, params.limit, params.projectId)
-        .all<{ id: string }>(),
-    );
-    return rows.results.map((row) => row.id);
+    const ranked = db
+      .selectFrom("updates")
+      .innerJoin("update_assets", (join) =>
+        join
+          .onRef("update_assets.update_id", "=", "updates.id")
+          .on("update_assets.is_launch", "=", 1),
+      )
+      .select("updates.id")
+      .select((eb) =>
+        eb.fn
+          .agg<number>("row_number")
+          .over((ob) =>
+            ob
+              .partitionBy(["updates.branch_id", "updates.runtime_version", "updates.platform"])
+              .orderBy("updates.created_at", "desc")
+              .orderBy("updates.id", "desc"),
+          )
+          .as("rn"),
+      )
+      .where("updates.branch_id", "in", (eb) =>
+        eb
+          .selectFrom("branches")
+          .select("branches.id")
+          .where("branches.project_id", "=", params.projectId),
+      )
+      .where("updates.is_rollback", "=", 0);
+
+    const recent = db
+      .selectFrom(ranked.as("ranked"))
+      .select("ranked.id")
+      .where("ranked.rn", "<=", params.limit);
+
+    const embedded = db
+      .selectFrom("updates")
+      .select("updates.id")
+      .where("updates.branch_id", "in", (eb) =>
+        eb
+          .selectFrom("branches")
+          .select("branches.id")
+          .where("branches.project_id", "=", params.projectId),
+      )
+      .where("updates.is_embedded", "=", 1);
+
+    const rows = yield* Effect.promise(async () => recent.union(embedded).execute());
+    return rows.map((row) => row.id);
   });

@@ -1,10 +1,13 @@
+import { toDbNull } from "@better-update/type-guards";
 import { Context, Effect, Layer } from "effect";
 
-import { cloudflareEnv } from "../cloudflare/context";
+import type { Selectable } from "kysely";
+
+import { kyselyDb } from "../cloudflare/db";
 import { NotFound } from "../errors";
-import { toDbNull } from "../lib/nullable";
 import { d1RunWithUniqueCheck } from "./d1-helpers";
 
+import type { AppleDistributionCertificates } from "../db/schema";
 import type { Conflict } from "../errors";
 import type { AppleDistributionCertificateModel } from "../models";
 
@@ -41,24 +44,26 @@ export class AppleDistributionCertificateRepo extends Context.Tag(
   "api/AppleDistributionCertificateRepo",
 )<AppleDistributionCertificateRepo, AppleDistributionCertificateRepository>() {}
 
-interface Row {
-  id: string;
-  organization_id: string;
-  apple_team_id: string;
-  serial_number: string;
-  developer_id_identifier: string | null;
-  valid_from: string;
-  valid_until: string;
-  r2_key: string;
-  wrapped_dek: string;
-  vault_version: number;
-  created_at: string;
-  updated_at: string;
-}
+// -- D1 Adapter -------------------------------------------------------------
 
-const COLUMNS = `"id", "organization_id", "apple_team_id", "serial_number", "developer_id_identifier", "valid_from", "valid_until", "r2_key", "wrapped_dek", "vault_version", "created_at", "updated_at"`;
+const COLUMNS = [
+  "id",
+  "organization_id",
+  "apple_team_id",
+  "serial_number",
+  "developer_id_identifier",
+  "valid_from",
+  "valid_until",
+  "r2_key",
+  "wrapped_dek",
+  "vault_version",
+  "created_at",
+  "updated_at",
+] as const;
 
-const toModel = (row: Row): AppleDistributionCertificateModel => ({
+const toModel = (
+  row: Selectable<AppleDistributionCertificates>,
+): AppleDistributionCertificateModel => ({
   id: row.id,
   organizationId: row.organization_id,
   appleTeamId: row.apple_team_id,
@@ -78,53 +83,55 @@ export const AppleDistributionCertificateRepoLive = Layer.succeed(
   {
     insert: (params) =>
       Effect.gen(function* () {
-        const env = yield* cloudflareEnv;
+        const db = yield* kyselyDb;
         yield* d1RunWithUniqueCheck(
           async () =>
-            env.DB.prepare(
-              `INSERT INTO "apple_distribution_certificates" (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            )
-              .bind(
-                params.id,
-                params.organizationId,
-                params.appleTeamId,
-                params.serialNumber,
-                params.developerIdIdentifier,
-                params.validFrom,
-                params.validUntil,
-                params.r2Key,
-                params.wrappedDek,
-                params.vaultVersion,
-                params.createdAt,
-                params.updatedAt,
-              )
-              .run(),
+            db
+              .insertInto("apple_distribution_certificates")
+              .values({
+                id: params.id,
+                organization_id: params.organizationId,
+                apple_team_id: params.appleTeamId,
+                serial_number: params.serialNumber,
+                developer_id_identifier: params.developerIdIdentifier,
+                valid_from: params.validFrom,
+                valid_until: params.validUntil,
+                r2_key: params.r2Key,
+                wrapped_dek: params.wrappedDek,
+                vault_version: params.vaultVersion,
+                created_at: params.createdAt,
+                updated_at: params.updatedAt,
+              })
+              .execute(),
           `Distribution certificate with serial ${params.serialNumber} already exists`,
         );
       }),
 
     listByOrg: (params) =>
       Effect.gen(function* () {
-        const env = yield* cloudflareEnv;
+        const db = yield* kyselyDb;
         const rows = yield* Effect.promise(async () =>
-          env.DB.prepare(
-            `SELECT ${COLUMNS} FROM "apple_distribution_certificates" WHERE "organization_id" = ? ORDER BY "created_at" DESC`,
-          )
-            .bind(params.organizationId)
-            .all<Row>(),
+          db
+            .selectFrom("apple_distribution_certificates")
+            .select(COLUMNS)
+            .where("organization_id", "=", params.organizationId)
+            .orderBy("created_at", "desc")
+            .execute(),
         );
-        return rows.results.map(toModel);
+        return rows.map(toModel);
       }),
 
     findById: (params) =>
       Effect.gen(function* () {
-        const env = yield* cloudflareEnv;
+        const db = yield* kyselyDb;
         const row = yield* Effect.promise(async () =>
-          env.DB.prepare(`SELECT ${COLUMNS} FROM "apple_distribution_certificates" WHERE "id" = ?`)
-            .bind(params.id)
-            .first<Row>(),
+          db
+            .selectFrom("apple_distribution_certificates")
+            .select(COLUMNS)
+            .where("id", "=", params.id)
+            .executeTakeFirst(),
         );
-        if (row === null) {
+        if (row === undefined) {
           return yield* new NotFound({ message: "Distribution certificate not found" });
         }
         return toModel(row);
@@ -132,16 +139,16 @@ export const AppleDistributionCertificateRepoLive = Layer.succeed(
 
     delete: (params) =>
       Effect.gen(function* () {
-        const env = yield* cloudflareEnv;
+        const db = yield* kyselyDb;
         const keyRow = yield* Effect.promise(async () =>
-          env.DB.prepare(`SELECT "r2_key" FROM "apple_distribution_certificates" WHERE "id" = ?`)
-            .bind(params.id)
-            .first<{ r2_key: string }>(),
+          db
+            .selectFrom("apple_distribution_certificates")
+            .select(["r2_key"])
+            .where("id", "=", params.id)
+            .executeTakeFirst(),
         );
         yield* Effect.promise(async () =>
-          env.DB.prepare(`DELETE FROM "apple_distribution_certificates" WHERE "id" = ?`)
-            .bind(params.id)
-            .run(),
+          db.deleteFrom("apple_distribution_certificates").where("id", "=", params.id).execute(),
         );
         return { r2Key: toDbNull(keyRow?.r2_key) };
       }),

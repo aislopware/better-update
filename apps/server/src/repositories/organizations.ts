@@ -1,7 +1,7 @@
-import { toDbNull } from "@better-update/type-guards";
+import { compact, toDbNull } from "@better-update/type-guards";
 import { Context, Effect, Layer } from "effect";
 
-import { cloudflareEnv } from "../cloudflare/context";
+import { kyselyDb } from "../cloudflare/db";
 import { d1WithUniqueCheck } from "./d1-helpers";
 
 import type { Conflict } from "../errors";
@@ -34,28 +34,37 @@ export class OrganizationRepo extends Context.Tag("api/OrganizationRepo")<
 
 // -- D1 Adapter -------------------------------------------------------------
 
-interface OrganizationRow {
-  id: string;
-  name: string;
-  slug: string;
-}
+const COLUMNS = ["id", "name", "slug"] as const;
 
 export const OrganizationRepoLive = Layer.succeed(OrganizationRepo, {
   update: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
+      const patch = compact({ name: params.name, slug: params.slug });
+
+      // Nothing to change → return the row unchanged. Kysely rejects an empty
+      // SET, so this stands in for the old `COALESCE(?, col)` no-op update.
+      if (Object.keys(patch).length === 0) {
+        const current = yield* Effect.promise(async () =>
+          db
+            .selectFrom("organization")
+            .select(COLUMNS)
+            .where("id", "=", params.id)
+            .executeTakeFirst(),
+        );
+        return toDbNull(current);
+      }
+
       const row = yield* d1WithUniqueCheck(
         async () =>
-          env.DB.prepare(
-            `UPDATE "organization"
-               SET "name" = COALESCE(?, "name"), "slug" = COALESCE(?, "slug")
-             WHERE "id" = ?
-             RETURNING "id", "name", "slug"`,
-          )
-            .bind(toDbNull(params.name), toDbNull(params.slug), params.id)
-            .first<OrganizationRow>(),
+          db
+            .updateTable("organization")
+            .set(patch)
+            .where("id", "=", params.id)
+            .returning(COLUMNS)
+            .executeTakeFirst(),
         "An organization with this slug already exists",
       );
-      return row === null ? null : { id: row.id, name: row.name, slug: row.slug };
+      return toDbNull(row);
     }),
 });

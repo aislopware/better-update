@@ -1,10 +1,13 @@
+import { toDbNull } from "@better-update/type-guards";
 import { Context, Effect, Layer } from "effect";
 
-import { cloudflareEnv } from "../cloudflare/context";
+import type { Selectable } from "kysely";
+
+import { kyselyDb } from "../cloudflare/db";
 import { NotFound } from "../errors";
-import { toDbNull } from "../lib/nullable";
 import { d1RunWithUniqueCheck } from "./d1-helpers";
 
+import type { GoogleServiceAccountKeys } from "../db/schema";
 import type { Conflict } from "../errors";
 import type { GoogleServiceAccountKeyModel } from "../models";
 
@@ -41,23 +44,9 @@ export class GoogleServiceAccountKeyRepo extends Context.Tag("api/GoogleServiceA
   GoogleServiceAccountKeyRepository
 >() {}
 
-interface Row {
-  id: string;
-  organization_id: string;
-  client_email: string;
-  private_key_id: string;
-  google_project_id: string;
-  client_id: string | null;
-  r2_key: string;
-  wrapped_dek: string;
-  vault_version: number;
-  created_at: string;
-  updated_at: string;
-}
+// -- D1 Adapter -------------------------------------------------------------
 
-const COLUMNS = `"id", "organization_id", "client_email", "private_key_id", "google_project_id", "client_id", "r2_key", "wrapped_dek", "vault_version", "created_at", "updated_at"`;
-
-const toModel = (row: Row): GoogleServiceAccountKeyModel => ({
+const toModel = (row: Selectable<GoogleServiceAccountKeys>): GoogleServiceAccountKeyModel => ({
   id: row.id,
   organizationId: row.organization_id,
   clientEmail: row.client_email,
@@ -74,52 +63,54 @@ const toModel = (row: Row): GoogleServiceAccountKeyModel => ({
 export const GoogleServiceAccountKeyRepoLive = Layer.succeed(GoogleServiceAccountKeyRepo, {
   insert: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       yield* d1RunWithUniqueCheck(
         async () =>
-          env.DB.prepare(
-            `INSERT INTO "google_service_account_keys" (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          )
-            .bind(
-              params.id,
-              params.organizationId,
-              params.clientEmail,
-              params.privateKeyId,
-              params.googleProjectId,
-              params.clientId,
-              params.r2Key,
-              params.wrappedDek,
-              params.vaultVersion,
-              params.createdAt,
-              params.updatedAt,
-            )
-            .run(),
+          db
+            .insertInto("google_service_account_keys")
+            .values({
+              id: params.id,
+              organization_id: params.organizationId,
+              client_email: params.clientEmail,
+              private_key_id: params.privateKeyId,
+              google_project_id: params.googleProjectId,
+              client_id: params.clientId,
+              r2_key: params.r2Key,
+              wrapped_dek: params.wrappedDek,
+              vault_version: params.vaultVersion,
+              created_at: params.createdAt,
+              updated_at: params.updatedAt,
+            })
+            .execute(),
         `Google service account key ${params.privateKeyId} already uploaded`,
       );
     }),
 
   listByOrg: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const rows = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT ${COLUMNS} FROM "google_service_account_keys" WHERE "organization_id" = ? ORDER BY "created_at" DESC`,
-        )
-          .bind(params.organizationId)
-          .all<Row>(),
+        db
+          .selectFrom("google_service_account_keys")
+          .selectAll()
+          .where("organization_id", "=", params.organizationId)
+          .orderBy("created_at", "desc")
+          .execute(),
       );
-      return rows.results.map(toModel);
+      return rows.map(toModel);
     }),
 
   findById: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT ${COLUMNS} FROM "google_service_account_keys" WHERE "id" = ?`)
-          .bind(params.id)
-          .first<Row>(),
+        db
+          .selectFrom("google_service_account_keys")
+          .selectAll()
+          .where("id", "=", params.id)
+          .executeTakeFirst(),
       );
-      if (row === null) {
+      if (row === undefined) {
         return yield* new NotFound({ message: "Service account key not found" });
       }
       return toModel(row);
@@ -127,16 +118,16 @@ export const GoogleServiceAccountKeyRepoLive = Layer.succeed(GoogleServiceAccoun
 
   delete: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const keyRow = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT "r2_key" FROM "google_service_account_keys" WHERE "id" = ?`)
-          .bind(params.id)
-          .first<{ r2_key: string }>(),
+        db
+          .selectFrom("google_service_account_keys")
+          .select("r2_key")
+          .where("id", "=", params.id)
+          .executeTakeFirst(),
       );
       yield* Effect.promise(async () =>
-        env.DB.prepare(`DELETE FROM "google_service_account_keys" WHERE "id" = ?`)
-          .bind(params.id)
-          .run(),
+        db.deleteFrom("google_service_account_keys").where("id", "=", params.id).execute(),
       );
       return { r2Key: toDbNull(keyRow?.r2_key) };
     }),

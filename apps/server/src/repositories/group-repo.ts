@@ -1,7 +1,7 @@
-import { toDbNull } from "@better-update/type-guards";
+import { compact } from "@better-update/type-guards";
 import { Context, Effect, Layer } from "effect";
 
-import { cloudflareEnv } from "../cloudflare/context";
+import { d1Batch, kyselyDb } from "../cloudflare/db";
 import { d1WithUniqueCheck } from "./d1-helpers";
 
 import type { Conflict } from "../errors";
@@ -86,150 +86,166 @@ const toModel = (row: GroupRow): GroupModel => ({
   updatedAt: row.updated_at,
 });
 
-const COLUMNS = `"id", "organization_id", "name", "description", "created_at", "updated_at"`;
+const COLUMNS = [
+  "id",
+  "organization_id",
+  "name",
+  "description",
+  "created_at",
+  "updated_at",
+] as const;
 
 export const GroupRepoLive = Layer.succeed(GroupRepo, {
   list: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const rows = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT ${COLUMNS} FROM "iam_group" WHERE "organization_id" = ? ORDER BY "name" ASC`,
-        )
-          .bind(params.organizationId)
-          .all<GroupRow>(),
+        db
+          .selectFrom("iam_group")
+          .select(COLUMNS)
+          .where("organization_id", "=", params.organizationId)
+          .orderBy("name", "asc")
+          .execute(),
       );
-      return rows.results.map(toModel);
+      return rows.map(toModel);
     }),
 
   findById: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT ${COLUMNS} FROM "iam_group" WHERE "id" = ? AND "organization_id" = ?`,
-        )
-          .bind(params.id, params.organizationId)
-          .first<GroupRow>(),
+        db
+          .selectFrom("iam_group")
+          .select(COLUMNS)
+          .where("id", "=", params.id)
+          .where("organization_id", "=", params.organizationId)
+          .executeTakeFirst(),
       );
-      return row === null ? null : toModel(row);
+      return row ? toModel(row) : null;
     }),
 
   create: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const id = crypto.randomUUID();
       const now = new Date().toISOString();
       const row = yield* d1WithUniqueCheck(
         async () =>
-          env.DB.prepare(
-            `INSERT INTO "iam_group" (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?) RETURNING ${COLUMNS}`,
-          )
-            .bind(id, params.organizationId, params.name, params.description, now, null)
-            .first<GroupRow>(),
+          db
+            .insertInto("iam_group")
+            .values({
+              id,
+              organization_id: params.organizationId,
+              name: params.name,
+              description: params.description,
+              created_at: now,
+              updated_at: null,
+            })
+            .returning(COLUMNS)
+            .executeTakeFirst(),
         "A group with this name already exists",
       );
-      return row === null
-        ? {
+      return row
+        ? toModel(row)
+        : {
             id,
             organizationId: params.organizationId,
             name: params.name,
             description: params.description,
             createdAt: now,
             updatedAt: null,
-          }
-        : toModel(row);
+          };
     }),
 
   update: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const now = new Date().toISOString();
+      // `compact` drops only `undefined` keys (a provided `null` description is
+      // kept), mirroring the old COALESCE(name)/CASE(description) no-op skips.
+      // `updated_at` is always set, so the SET is never empty.
+      const patch = compact({ name: params.name, description: params.description });
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `UPDATE "iam_group" SET
-             "name" = COALESCE(?, "name"),
-             "description" = CASE WHEN ? = 1 THEN ? ELSE "description" END,
-             "updated_at" = ?
-           WHERE "id" = ? AND "organization_id" = ?
-           RETURNING ${COLUMNS}`,
-        )
-          .bind(
-            toDbNull(params.name),
-            params.description === undefined ? 0 : 1,
-            toDbNull(params.description),
-            now,
-            params.id,
-            params.organizationId,
-          )
-          .first<GroupRow>(),
+        db
+          .updateTable("iam_group")
+          .set({ ...patch, updated_at: now })
+          .where("id", "=", params.id)
+          .where("organization_id", "=", params.organizationId)
+          .returning(COLUMNS)
+          .executeTakeFirst(),
       );
-      return row === null ? null : toModel(row);
+      return row ? toModel(row) : null;
     }),
 
   delete: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
-      const result = yield* Effect.promise(async () =>
-        env.DB.batch([
-          env.DB.prepare(
-            `DELETE FROM "policy_attachment" WHERE "principal_type" = 'group' AND "principal_id" = ?`,
-          ).bind(params.id),
-          env.DB.prepare(`DELETE FROM "iam_group" WHERE "id" = ? AND "organization_id" = ?`).bind(
-            params.id,
-            params.organizationId,
-          ),
-        ]),
-      );
-      return (result[1]?.meta.changes ?? 0) > 0;
+      const db = yield* kyselyDb;
+      // Cascade in one atomic batch (D1 has no interactive transactions): sweep
+      // policy attachments first, then the group itself (memberships cascade via
+      // FK). The group delete returns its id so we can report whether a row went.
+      const [, deleted] = yield* d1Batch([
+        db
+          .deleteFrom("policy_attachment")
+          .where("principal_type", "=", "group")
+          .where("principal_id", "=", params.id),
+        db
+          .deleteFrom("iam_group")
+          .where("id", "=", params.id)
+          .where("organization_id", "=", params.organizationId)
+          .returning(["id"]),
+      ]);
+      return deleted.length > 0;
     }),
 
   findGroupIdsForMember: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const rows = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT "group_id" FROM "iam_group_membership" WHERE "member_id" = ?`)
-          .bind(params.memberId)
-          .all<{ group_id: string }>(),
+        db
+          .selectFrom("iam_group_membership")
+          .select("group_id")
+          .where("member_id", "=", params.memberId)
+          .execute(),
       );
-      return rows.results.map((row) => row.group_id);
+      return rows.map((row) => row.group_id);
     }),
 
   listMembers: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const rows = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT "member_id", "created_at" FROM "iam_group_membership" WHERE "group_id" = ? ORDER BY "created_at" ASC`,
-        )
-          .bind(params.groupId)
-          .all<{ member_id: string; created_at: string }>(),
+        db
+          .selectFrom("iam_group_membership")
+          .select(["member_id", "created_at"])
+          .where("group_id", "=", params.groupId)
+          .orderBy("created_at", "asc")
+          .execute(),
       );
-      return rows.results.map((row) => ({ memberId: row.member_id, createdAt: row.created_at }));
+      return rows.map((row) => ({ memberId: row.member_id, createdAt: row.created_at }));
     }),
 
   addMember: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const now = new Date().toISOString();
       yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `INSERT INTO "iam_group_membership" ("group_id", "member_id", "created_at") VALUES (?, ?, ?) ON CONFLICT ("group_id", "member_id") DO NOTHING`,
-        )
-          .bind(params.groupId, params.memberId, now)
-          .run(),
+        db
+          .insertInto("iam_group_membership")
+          .values({ group_id: params.groupId, member_id: params.memberId, created_at: now })
+          .onConflict((oc) => oc.columns(["group_id", "member_id"]).doNothing())
+          .execute(),
       );
     }),
 
   removeMember: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `DELETE FROM "iam_group_membership" WHERE "group_id" = ? AND "member_id" = ?`,
-        )
-          .bind(params.groupId, params.memberId)
-          .run(),
+        db
+          .deleteFrom("iam_group_membership")
+          .where("group_id", "=", params.groupId)
+          .where("member_id", "=", params.memberId)
+          .execute(),
       );
     }),
 });

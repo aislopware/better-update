@@ -1,6 +1,6 @@
 import type { ArtifactFormat, BuildWithArtifactModel, Distribution, Platform } from "../models";
 
-export interface BuildWithArtifactRow {
+interface BuildWithArtifactRow {
   id: string;
   project_id: string;
   platform: Platform;
@@ -23,10 +23,6 @@ export interface BuildWithArtifactRow {
   a_byte_size: number | null;
   a_sha256: string | null;
 }
-
-export const BUILD_WITH_ARTIFACT_COLUMNS = `b."id", b."project_id", b."platform", b."profile", b."distribution", b."runtime_version", b."app_version", b."build_number", b."bundle_id", b."git_ref", b."git_commit", b."git_dirty", b."message", b."metadata_json", b."fingerprint_hash", b."created_at", a."r2_key" AS "a_r2_key", a."format" AS "a_format", a."content_type" AS "a_content_type", a."byte_size" AS "a_byte_size", a."sha256" AS "a_sha256"`;
-
-export const BUILD_WITH_ARTIFACT_JOIN = `FROM "builds" b LEFT JOIN "build_artifacts" a ON a."build_id" = b."id"`;
 
 export const toBuildWithArtifact = (row: BuildWithArtifactRow): BuildWithArtifactModel => ({
   id: row.id,

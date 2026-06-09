@@ -36,6 +36,7 @@ import {
 } from "./manifest-render";
 
 import type { CryptoService } from "../domain/crypto-service";
+import type { Platform } from "../models";
 import type { ProtocolHeaders } from "../protocol/headers";
 import type { ChannelRow, UpdateRow } from "../repositories/manifest";
 import type { ManifestFilters, TrackManifestResponse } from "./manifest-helpers";
@@ -50,7 +51,7 @@ const resolveRolledOutUpdate = (params: {
   readonly candidates: readonly UpdateRow[];
   readonly easClientId: string | undefined;
   readonly branchId: string;
-  readonly platform: string;
+  readonly platform: Platform;
   readonly runtimeVersion: string;
 }): Effect.Effect<UpdateRow | null, never, ManifestRepo | CryptoService> =>
   Effect.gen(function* () {

@@ -1,9 +1,13 @@
 import { Context, Effect, Layer } from "effect";
+import { sql } from "kysely";
 
-import { cloudflareEnv } from "../cloudflare/context";
+import type { Expression, ExpressionBuilder, SqlBool } from "kysely";
+
+import { d1Batch, kyselyDb } from "../cloudflare/db";
 import { NotFound } from "../errors";
 import { d1RunWithUniqueCheck } from "./d1-helpers";
 
+import type { DB } from "../db/schema";
 import type { Conflict } from "../errors";
 import type { ProjectModel } from "../models";
 
@@ -85,12 +89,10 @@ interface ProjectRow {
   slug: string;
   created_at: string;
   last_activity_at: string;
-  branch_count: number;
-  channel_count: number;
-  update_count: number;
+  branch_count: number | null;
+  channel_count: number | null;
+  update_count: number | null;
 }
-
-const PROJECT_COLUMNS = `p."id", p."organization_id", p."name", p."slug", p."created_at", COALESCE(p."last_activity_at", p."created_at") AS "last_activity_at", (SELECT COUNT(*) FROM "branches" WHERE "branches"."project_id" = p."id") AS "branch_count", (SELECT COUNT(*) FROM "channels" WHERE "channels"."project_id" = p."id") AS "channel_count", (SELECT COUNT(*) FROM "updates" JOIN "branches" ON "updates"."branch_id" = "branches"."id" WHERE "branches"."project_id" = p."id") AS "update_count"`;
 
 const toProject = (row: ProjectRow) =>
   ({
@@ -100,124 +102,160 @@ const toProject = (row: ProjectRow) =>
     slug: row.slug,
     createdAt: row.created_at,
     lastActivityAt: row.last_activity_at,
-    branchCount: row.branch_count,
-    channelCount: row.channel_count,
-    updateCount: row.update_count,
+    // Correlated COUNT subqueries are typed `number | null` by Kysely; coerce to
+    // a plain number (a scalar COUNT subquery never actually returns null).
+    branchCount: Number(row.branch_count),
+    channelCount: Number(row.channel_count),
+    updateCount: Number(row.update_count),
   }) satisfies ProjectModel;
+
+// The list/detail projection: base columns plus a COALESCE'd activity timestamp
+// and three correlated COUNT subqueries (branches / channels / updates per
+// project). The aliases match the keys `toProject` reads.
+const projectColumns = (eb: ExpressionBuilder<DB, "projects">) =>
+  [
+    "projects.id",
+    "projects.organization_id",
+    "projects.name",
+    "projects.slug",
+    "projects.created_at",
+    sql<string>`coalesce(${eb.ref("projects.last_activity_at")}, ${eb.ref("projects.created_at")})`.as(
+      "last_activity_at",
+    ),
+    eb
+      .selectFrom("branches")
+      .whereRef("branches.project_id", "=", "projects.id")
+      .select((row) => row.fn.countAll<number>().as("count"))
+      .as("branch_count"),
+    eb
+      .selectFrom("channels")
+      .whereRef("channels.project_id", "=", "projects.id")
+      .select((row) => row.fn.countAll<number>().as("count"))
+      .as("channel_count"),
+    eb
+      .selectFrom("updates")
+      .innerJoin("branches", "updates.branch_id", "branches.id")
+      .whereRef("branches.project_id", "=", "projects.id")
+      .select((row) => row.fn.countAll<number>().as("count"))
+      .as("update_count"),
+  ] as const;
 
 // FTS5 trigram tokenizer requires 3+ char queries. Wrap in phrase quotes so
 // Special chars (-, ", *, etc.) are treated as literal text rather than FTS
 // Operators. Doubling embedded quotes is the standard FTS5 escape.
 const escapeFtsPhrase = (value: string): string => `"${value.replaceAll('"', '""')}"`;
 
-interface SearchClause {
-  readonly join: string;
-  readonly where: string;
-  readonly binds: readonly string[];
-}
-
-const buildSearchClause = (query: string | undefined): SearchClause | null => {
+// Search predicate: FTS5 MATCH (via a correlated EXISTS over `projects_fts`) for
+// 3+ char queries, falling back to a LIKE substring scan for shorter queries the
+// trigram index can't tokenize. `null` when there is nothing to filter on.
+const searchExpression = (
+  eb: ExpressionBuilder<DB, "projects">,
+  query: string | undefined,
+): Expression<SqlBool> | null => {
   if (query === undefined || query.length === 0) {
     return null;
   }
   if (query.length >= 3) {
-    return {
-      join: 'JOIN "projects_fts" ON "projects_fts"."project_id" = p."id"',
-      where: '"projects_fts" MATCH ?',
-      binds: [escapeFtsPhrase(query)],
-    };
+    return eb.exists(
+      eb
+        .selectFrom("projects_fts")
+        .select(sql`1`.as("present"))
+        .whereRef("projects_fts.project_id", "=", "projects.id")
+        .where(sql<SqlBool>`"projects_fts" MATCH ${escapeFtsPhrase(query)}`),
+    );
   }
   // Trigram FTS can't index 1-2 char tokens; LIKE keeps short queries usable.
   const pattern = `%${query.toLowerCase()}%`;
-  return {
-    join: "",
-    where: '(LOWER(p."name") LIKE ? OR LOWER(p."slug") LIKE ?)',
-    binds: [pattern, pattern],
+  return eb.or([
+    eb(eb.fn<string>("lower", ["projects.name"]), "like", pattern),
+    eb(eb.fn<string>("lower", ["projects.slug"]), "like", pattern),
+  ]);
+};
+
+const projectFilter =
+  (organizationId: string, query: string | undefined) =>
+  (eb: ExpressionBuilder<DB, "projects">): Expression<SqlBool> => {
+    const orgFilter = eb("projects.organization_id", "=", organizationId);
+    const search = searchExpression(eb, query);
+    return search ? eb.and([search, orgFilter]) : orgFilter;
   };
-};
 
-const sortColumns: Record<ProjectSortKey, string> = {
-  name: 'p."name" COLLATE NOCASE',
-  lastActivityAt: 'p."last_activity_at"',
-  createdAt: 'p."created_at"',
-  branchCount: '"branch_count"',
-  channelCount: '"channel_count"',
-  updateCount: '"update_count"',
-};
-
-const sortClause = (sort: ProjectSortKey, order: ProjectSortOrder): string => {
-  const direction = order === "asc" ? "ASC" : "DESC";
-  return `${sortColumns[sort]} ${direction}, p."id" ${direction}`;
-};
+// Sort whitelist → ORDER BY expression. `name` is case-insensitive; the count
+// keys reference the computed output aliases. The trailing `projects.id` tie-break
+// that keeps pagination stable is applied at the call site.
+const sortColumns = {
+  name: sql`"projects"."name" collate nocase`,
+  lastActivityAt: sql`"projects"."last_activity_at"`,
+  createdAt: sql`"projects"."created_at"`,
+  branchCount: sql`"branch_count"`,
+  channelCount: sql`"channel_count"`,
+  updateCount: sql`"update_count"`,
+} satisfies Record<ProjectSortKey, unknown>;
 
 export const ProjectRepoLive = Layer.succeed(ProjectRepo, {
   insert: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
 
       yield* d1RunWithUniqueCheck(
         async () =>
-          env.DB.prepare(
-            `INSERT INTO "projects" ("id", "organization_id", "name", "slug", "created_at", "last_activity_at") VALUES (?, ?, ?, ?, ?, ?)`,
-          )
-            .bind(
-              params.id,
-              params.organizationId,
-              params.name,
-              params.slug,
-              params.createdAt,
-              params.createdAt,
-            )
-            .run(),
+          db
+            .insertInto("projects")
+            .values({
+              id: params.id,
+              organization_id: params.organizationId,
+              name: params.name,
+              slug: params.slug,
+              created_at: params.createdAt,
+              last_activity_at: params.createdAt,
+            })
+            .execute(),
         `A project with slug "${params.slug}" already exists`,
       );
     }),
 
   findByOrg: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
+      const where = projectFilter(params.organizationId, params.query);
 
-      const search = buildSearchClause(params.query);
-      const joinClause = search ? ` ${search.join}` : "";
-      const whereClause = search
-        ? `${search.where} AND p."organization_id" = ?`
-        : 'p."organization_id" = ?';
-      const filterBinds = search
-        ? [...search.binds, params.organizationId]
-        : [params.organizationId];
-
-      const countResult = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT COUNT(*) as count FROM "projects" p${joinClause} WHERE ${whereClause}`,
-        )
-          .bind(...filterBinds)
-          .first<{ count: number }>(),
+      const countRow = yield* Effect.promise(async () =>
+        db
+          .selectFrom("projects")
+          .where(where)
+          .select((eb) => eb.fn.countAll<number>().as("count"))
+          .executeTakeFirstOrThrow(),
       );
-
-      const total = countResult?.count ?? 0;
+      const total = countRow.count;
 
       const rows = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT ${PROJECT_COLUMNS} FROM "projects" p${joinClause} WHERE ${whereClause} ORDER BY ${sortClause(params.sort, params.order)} LIMIT ? OFFSET ?`,
-        )
-          .bind(...filterBinds, params.limit, params.offset)
-          .all<ProjectRow>(),
+        db
+          .selectFrom("projects")
+          .where(where)
+          .select(projectColumns)
+          .orderBy(sortColumns[params.sort], params.order)
+          .orderBy("projects.id", params.order)
+          .limit(params.limit)
+          .offset(params.offset)
+          .execute(),
       );
 
-      return { items: rows.results.map(toProject), total };
+      return { items: rows.map(toProject), total };
     }),
 
   findById: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
 
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT ${PROJECT_COLUMNS} FROM "projects" p WHERE p."id" = ?`)
-          .bind(params.id)
-          .first<ProjectRow>(),
+        db
+          .selectFrom("projects")
+          .select(projectColumns)
+          .where("projects.id", "=", params.id)
+          .executeTakeFirst(),
       );
 
-      if (row === null) {
+      if (!row) {
         return yield* new NotFound({ message: "Project not found" });
       }
 
@@ -226,26 +264,27 @@ export const ProjectRepoLive = Layer.succeed(ProjectRepo, {
 
   listAllIds: () =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const rows = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT "id" FROM "projects"`).all<{ id: string }>(),
+        db.selectFrom("projects").select("id").execute(),
       );
-      return rows.results.map((row) => row.id);
+      return rows.map((row) => row.id);
     }),
 
   findBySlug: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
 
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT ${PROJECT_COLUMNS} FROM "projects" p WHERE p."organization_id" = ? AND p."slug" = ?`,
-        )
-          .bind(params.organizationId, params.slug)
-          .first<ProjectRow>(),
+        db
+          .selectFrom("projects")
+          .select(projectColumns)
+          .where("projects.organization_id", "=", params.organizationId)
+          .where("projects.slug", "=", params.slug)
+          .executeTakeFirst(),
       );
 
-      if (row === null) {
+      if (!row) {
         return yield* new NotFound({ message: "Project not found" });
       }
 
@@ -258,30 +297,31 @@ export const ProjectRepoLive = Layer.succeed(ProjectRepo, {
         return new Map<string, ProjectModel>();
       }
 
-      const env = yield* cloudflareEnv;
-      const placeholders = params.ids.map(() => "?").join(", ");
+      const db = yield* kyselyDb;
       const rows = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT ${PROJECT_COLUMNS} FROM "projects" p WHERE p."id" IN (${placeholders})`,
-        )
-          .bind(...params.ids)
-          .all<ProjectRow>(),
+        db
+          .selectFrom("projects")
+          .select(projectColumns)
+          .where("projects.id", "in", params.ids)
+          .execute(),
       );
 
-      return new Map(rows.results.map((row) => [row.id, toProject(row)] as const));
+      return new Map(rows.map((row) => [row.id, toProject(row)] as const));
     }),
 
   findOrgIdById: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
 
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT "organization_id" FROM "projects" WHERE "id" = ?`)
-          .bind(params.id)
-          .first<{ organization_id: string }>(),
+        db
+          .selectFrom("projects")
+          .select("organization_id")
+          .where("id", "=", params.id)
+          .executeTakeFirst(),
       );
 
-      if (row === null) {
+      if (!row) {
         return yield* new NotFound({ message: "Project not found" });
       }
 
@@ -290,66 +330,84 @@ export const ProjectRepoLive = Layer.succeed(ProjectRepo, {
 
   updateName: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       yield* Effect.promise(async () =>
-        env.DB.prepare(`UPDATE "projects" SET "name" = ? WHERE "id" = ?`)
-          .bind(params.name, params.id)
-          .run(),
+        db.updateTable("projects").set({ name: params.name }).where("id", "=", params.id).execute(),
       );
     }),
 
   delete: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
 
       // Bump cache version before deleting channels to invalidate edge caches
       yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `UPDATE "channels" SET "cache_version" = "cache_version" + 1 WHERE "project_id" = ?`,
-        )
-          .bind(params.id)
-          .run(),
+        db
+          .updateTable("channels")
+          .set((eb) => ({ cache_version: eb("cache_version", "+", 1) }))
+          .where("project_id", "=", params.id)
+          .execute(),
       );
 
       // Cascade delete in FK dependency order
-      yield* Effect.promise(async () =>
-        env.DB.batch([
-          env.DB.prepare(
-            `DELETE FROM "update_assets" WHERE "update_id" IN (SELECT u."id" FROM "updates" u JOIN "branches" b ON u."branch_id" = b."id" WHERE b."project_id" = ?)`,
-          ).bind(params.id),
-          env.DB.prepare(
-            `DELETE FROM "updates" WHERE "branch_id" IN (SELECT "id" FROM "branches" WHERE "project_id" = ?)`,
-          ).bind(params.id),
-          env.DB.prepare(`DELETE FROM "channels" WHERE "project_id" = ?`).bind(params.id),
-          env.DB.prepare(`DELETE FROM "branches" WHERE "project_id" = ?`).bind(params.id),
-          env.DB.prepare(`DELETE FROM "projects" WHERE "id" = ?`).bind(params.id),
-        ]),
-      );
+      yield* d1Batch([
+        db
+          .deleteFrom("update_assets")
+          .where(
+            "update_id",
+            "in",
+            db
+              .selectFrom("updates as u")
+              .innerJoin("branches as b", "u.branch_id", "b.id")
+              .where("b.project_id", "=", params.id)
+              .select("u.id"),
+          ),
+        db
+          .deleteFrom("updates")
+          .where(
+            "branch_id",
+            "in",
+            db.selectFrom("branches").where("project_id", "=", params.id).select("id"),
+          ),
+        db.deleteFrom("channels").where("project_id", "=", params.id),
+        db.deleteFrom("branches").where("project_id", "=", params.id),
+        db.deleteFrom("projects").where("id", "=", params.id),
+      ]);
     }),
 
   // Guard with `last_activity_at < ?` so out-of-order writes (e.g. backdated
   // Republish) don't regress a more recent activity timestamp.
   bumpLastActivity: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `UPDATE "projects" SET "last_activity_at" = ? WHERE "id" = ? AND ("last_activity_at" IS NULL OR "last_activity_at" < ?)`,
-        )
-          .bind(params.at, params.projectId, params.at)
-          .run(),
+        db
+          .updateTable("projects")
+          .set({ last_activity_at: params.at })
+          .where("id", "=", params.projectId)
+          .where((eb) =>
+            eb.or([eb("last_activity_at", "is", null), eb("last_activity_at", "<", params.at)]),
+          )
+          .execute(),
       );
     }),
 
   bumpLastActivityByBranch: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `UPDATE "projects" SET "last_activity_at" = ? WHERE "id" = (SELECT "project_id" FROM "branches" WHERE "id" = ?) AND ("last_activity_at" IS NULL OR "last_activity_at" < ?)`,
-        )
-          .bind(params.at, params.branchId, params.at)
-          .run(),
+        db
+          .updateTable("projects")
+          .set({ last_activity_at: params.at })
+          .where(
+            "id",
+            "=",
+            db.selectFrom("branches").select("project_id").where("id", "=", params.branchId),
+          )
+          .where((eb) =>
+            eb.or([eb("last_activity_at", "is", null), eb("last_activity_at", "<", params.at)]),
+          )
+          .execute(),
       );
     }),
 });

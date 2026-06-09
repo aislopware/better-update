@@ -1,9 +1,14 @@
+import { compact } from "@better-update/type-guards";
 import { Context, Effect, Layer } from "effect";
+import { sql } from "kysely";
 
-import { cloudflareEnv } from "../cloudflare/context";
+import type { Expression, ExpressionBuilder, NotNull, Selectable, SqlBool } from "kysely";
+
+import { kyselyDb } from "../cloudflare/db";
 import { NotFound } from "../errors";
 import { d1RunWithUniqueCheck } from "./d1-helpers";
 
+import type { DB } from "../db/schema";
 import type { Conflict } from "../errors";
 import type { DeviceClass, DeviceModel } from "../models";
 
@@ -73,52 +78,93 @@ export class DeviceRepo extends Context.Tag("api/DeviceRepo")<DeviceRepo, Device
 
 // ── D1 Adapter ────────────────────────────────────────────────────
 
-interface DeviceRow {
-  id: string;
-  organization_id: string;
-  apple_team_id: string | null;
-  identifier: string;
-  name: string;
-  model: string | null;
-  device_class: DeviceClass;
-  enabled: number;
-  apple_device_portal_id: string | null;
-  created_at: string;
-  updated_at: string;
-}
+// The full `devices` projection. `devices.id` is a TEXT primary key the codegen
+// types as nullable, but every query here selects it and the row always carries
+// it — the `$narrowType<{ id: NotNull }>()` on each select reflects that, so the
+// mapper input intersects a non-null `id`.
+type DeviceRow = Selectable<DB["devices"]> & { id: string };
 
-const DEVICE_COLUMNS = `d."id", d."organization_id", d."apple_team_id", d."identifier", d."name", d."model", d."device_class", d."enabled", d."apple_device_portal_id", d."created_at", d."updated_at"`;
+// The list/detail projection, selected from the `devices` source. Keys map
+// 1:1 onto the snake_case fields `toDevice` reads.
+const deviceColumns = [
+  "devices.id",
+  "devices.organization_id",
+  "devices.apple_team_id",
+  "devices.identifier",
+  "devices.name",
+  "devices.model",
+  "devices.device_class",
+  "devices.enabled",
+  "devices.apple_device_portal_id",
+  "devices.created_at",
+  "devices.updated_at",
+] as const;
 
 // FTS5 trigram tokenizer requires 3+ char queries. Wrap in phrase quotes so
 // Special chars (-, ", *, etc.) are treated as literal text rather than FTS
 // Operators. Doubling embedded quotes is the standard FTS5 escape.
 const escapeFtsPhrase = (value: string): string => `"${value.replaceAll('"', '""')}"`;
 
-interface DeviceSearchClause {
-  readonly join: string;
-  readonly where: string;
-  readonly binds: readonly string[];
-}
-
-const buildDeviceSearchClause = (query: string | undefined): DeviceSearchClause | null => {
+// Search predicate: FTS5 MATCH (via a correlated EXISTS over `devices_fts`) for
+// 3+ char queries, falling back to a LIKE substring scan on name/identifier for
+// shorter queries the trigram index can't tokenize. `null` when there is
+// nothing to filter on.
+const searchExpression = (
+  eb: ExpressionBuilder<DB, "devices">,
+  query: string | undefined,
+): Expression<SqlBool> | null => {
   if (query === undefined || query.length === 0) {
     return null;
   }
   if (query.length >= 3) {
-    return {
-      join: 'JOIN "devices_fts" ON "devices_fts"."device_id" = d."id"',
-      where: '"devices_fts" MATCH ?',
-      binds: [escapeFtsPhrase(query)],
-    };
+    return eb.exists(
+      eb
+        .selectFrom("devices_fts")
+        .select(sql`1`.as("present"))
+        .whereRef("devices_fts.device_id", "=", "devices.id")
+        .where(sql<SqlBool>`"devices_fts" MATCH ${escapeFtsPhrase(query)}`),
+    );
   }
   // Trigram FTS can't index 1-2 char tokens; LIKE keeps short queries usable.
   const pattern = `%${query.toLowerCase()}%`;
-  return {
-    join: "",
-    where: '(LOWER(d."name") LIKE ? OR LOWER(d."identifier") LIKE ?)',
-    binds: [pattern, pattern],
-  };
+  return eb.or([
+    eb(eb.fn<string>("lower", ["devices.name"]), "like", pattern),
+    eb(eb.fn<string>("lower", ["devices.identifier"]), "like", pattern),
+  ]);
 };
+
+// Combine the always-present org scope with the optional class / team / search
+// predicates. SECURITY: only the search *value* is user-controlled; it is
+// parameterized by `sql`/the query builder, never concatenated.
+const deviceFilter =
+  (filters: {
+    readonly organizationId: string;
+    readonly deviceClass: DeviceClass | undefined;
+    readonly appleTeamId: string | undefined;
+    readonly query: string | undefined;
+  }) =>
+  (eb: ExpressionBuilder<DB, "devices">): Expression<SqlBool> => {
+    const conditions = [
+      eb("devices.organization_id", "=", filters.organizationId),
+      filters.deviceClass === undefined
+        ? null
+        : eb("devices.device_class", "=", filters.deviceClass),
+      filters.appleTeamId === undefined
+        ? null
+        : eb("devices.apple_team_id", "=", filters.appleTeamId),
+      searchExpression(eb, filters.query),
+    ].filter((condition): condition is Expression<SqlBool> => condition !== null);
+    return eb.and(conditions);
+  };
+
+// Sort whitelist → ORDER BY expression. `name` collates case-insensitively. The
+// trailing `devices.id` tie-break that keeps pagination stable is applied at the
+// call site.
+const sortColumns = {
+  name: sql`"devices"."name" collate nocase`,
+  createdAt: sql`"devices"."created_at"`,
+  deviceClass: sql`"devices"."device_class"`,
+} satisfies Record<DeviceSortKey, unknown>;
 
 const toDevice = (row: DeviceRow): DeviceModel => ({
   id: row.id,
@@ -137,111 +183,98 @@ const toDevice = (row: DeviceRow): DeviceModel => ({
 export const DeviceRepoLive = Layer.succeed(DeviceRepo, {
   insert: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       yield* d1RunWithUniqueCheck(
         async () =>
-          env.DB.prepare(
-            `INSERT INTO "devices" ("id", "organization_id", "apple_team_id", "identifier", "name", "model", "device_class", "enabled", "apple_device_portal_id", "created_at", "updated_at") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          )
-            .bind(
-              params.id,
-              params.organizationId,
-              params.appleTeamId,
-              params.identifier,
-              params.name,
-              params.model,
-              params.deviceClass,
-              params.enabled ? 1 : 0,
-              params.appleDevicePortalId,
-              params.createdAt,
-              params.updatedAt,
-            )
-            .run(),
+          db
+            .insertInto("devices")
+            .values({
+              id: params.id,
+              organization_id: params.organizationId,
+              apple_team_id: params.appleTeamId,
+              identifier: params.identifier,
+              name: params.name,
+              model: params.model,
+              device_class: params.deviceClass,
+              enabled: params.enabled ? 1 : 0,
+              apple_device_portal_id: params.appleDevicePortalId,
+              created_at: params.createdAt,
+              updated_at: params.updatedAt,
+            })
+            .execute(),
         `A device with identifier "${params.identifier}" is already registered`,
       );
     }),
 
   findByOrg: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
-      // SECURITY: All condition strings are hardcoded literals. Never interpolate user input into conditions.
-      const filters: string[] = [`d."organization_id" = ?`];
-      const bindings: (string | number)[] = [params.organizationId];
+      const db = yield* kyselyDb;
+      const where = deviceFilter({
+        organizationId: params.organizationId,
+        deviceClass: params.deviceClass,
+        appleTeamId: params.appleTeamId,
+        query: params.query,
+      });
 
-      if (params.deviceClass !== undefined) {
-        filters.push(`d."device_class" = ?`);
-        bindings.push(params.deviceClass);
-      }
-      if (params.appleTeamId !== undefined) {
-        filters.push(`d."apple_team_id" = ?`);
-        bindings.push(params.appleTeamId);
-      }
-
-      const search = buildDeviceSearchClause(params.query);
-      if (search) {
-        filters.push(search.where);
-        bindings.push(...search.binds);
-      }
-
-      const joinClause = search ? ` ${search.join}` : "";
-      const whereClause = filters.join(" AND ");
-
-      const sortColumns: Record<DeviceSortKey, string> = {
-        name: 'd."name" COLLATE NOCASE',
-        createdAt: 'd."created_at"',
-        deviceClass: 'd."device_class"',
-      };
-      const direction = params.order === "asc" ? "ASC" : "DESC";
-      const orderBy = `${sortColumns[params.sort]} ${direction}, d."id" ${direction}`;
-
-      const countResult = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT COUNT(*) as count FROM "devices" d${joinClause} WHERE ${whereClause}`,
-        )
-          .bind(...bindings)
-          .first<{ count: number }>(),
+      const countRow = yield* Effect.promise(async () =>
+        db
+          .selectFrom("devices")
+          .where(where)
+          .select((eb) => eb.fn.countAll<number>().as("count"))
+          .executeTakeFirstOrThrow(),
       );
-      const total = countResult?.count ?? 0;
+      const total = countRow.count;
 
       const rows = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT ${DEVICE_COLUMNS} FROM "devices" d${joinClause} WHERE ${whereClause} ORDER BY ${orderBy} LIMIT ? OFFSET ?`,
-        )
-          .bind(...bindings, params.limit, params.offset)
-          .all<DeviceRow>(),
+        db
+          .selectFrom("devices")
+          .where(where)
+          .select(deviceColumns)
+          .$narrowType<{ id: NotNull }>()
+          .orderBy(sortColumns[params.sort], params.order)
+          .orderBy("devices.id", params.order)
+          .limit(params.limit)
+          .offset(params.offset)
+          .execute(),
       );
 
-      return { items: rows.results.map(toDevice), total };
+      return { items: rows.map(toDevice), total };
     }),
 
   findAllByOrg: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
-      const filters: string[] = [`d."organization_id" = ?`];
-      const bindings: (string | number)[] = [params.organizationId];
-      if (params.appleTeamId !== undefined) {
-        filters.push(`d."apple_team_id" = ?`);
-        bindings.push(params.appleTeamId);
-      }
+      const db = yield* kyselyDb;
       const rows = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT ${DEVICE_COLUMNS} FROM "devices" d WHERE ${filters.join(" AND ")} ORDER BY d."created_at" DESC`,
-        )
-          .bind(...bindings)
-          .all<DeviceRow>(),
+        db
+          .selectFrom("devices")
+          .select(deviceColumns)
+          .$narrowType<{ id: NotNull }>()
+          .where(
+            deviceFilter({
+              organizationId: params.organizationId,
+              deviceClass: undefined,
+              appleTeamId: params.appleTeamId,
+              query: undefined,
+            }),
+          )
+          .orderBy("devices.created_at", "desc")
+          .execute(),
       );
-      return rows.results.map(toDevice);
+      return rows.map(toDevice);
     }),
 
   findById: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT ${DEVICE_COLUMNS} FROM "devices" d WHERE d."id" = ?`)
-          .bind(params.id)
-          .first<DeviceRow>(),
+        db
+          .selectFrom("devices")
+          .select(deviceColumns)
+          .$narrowType<{ id: NotNull }>()
+          .where("devices.id", "=", params.id)
+          .executeTakeFirst(),
       );
-      if (row === null) {
+      if (!row) {
         return yield* new NotFound({ message: "Device not found" });
       }
       return toDevice(row);
@@ -249,15 +282,20 @@ export const DeviceRepoLive = Layer.succeed(DeviceRepo, {
 
   findByIdentifier: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT ${DEVICE_COLUMNS} FROM "devices" d WHERE d."organization_id" = ? AND COALESCE(d."apple_team_id", '') = COALESCE(?, '') AND d."identifier" = ?`,
-        )
-          .bind(params.organizationId, params.appleTeamId, params.identifier)
-          .first<DeviceRow>(),
+        db
+          .selectFrom("devices")
+          .select(deviceColumns)
+          .$narrowType<{ id: NotNull }>()
+          .where("devices.organization_id", "=", params.organizationId)
+          .where(
+            sql<SqlBool>`coalesce("devices"."apple_team_id", '') = coalesce(${params.appleTeamId}, '')`,
+          )
+          .where("devices.identifier", "=", params.identifier)
+          .executeTakeFirst(),
       );
-      if (row === null) {
+      if (!row) {
         return yield* new NotFound({ message: "Device not found" });
       }
       return toDevice(row);
@@ -265,51 +303,37 @@ export const DeviceRepoLive = Layer.succeed(DeviceRepo, {
 
   update: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
-      const sets: string[] = [`"updated_at" = ?`];
-      const bindings: (string | number | null)[] = [params.updatedAt];
-
-      if (params.name !== undefined) {
-        sets.push(`"name" = ?`);
-        bindings.push(params.name);
-      }
-      if (params.enabled !== undefined) {
-        sets.push(`"enabled" = ?`);
-        bindings.push(params.enabled ? 1 : 0);
-      }
-      if (params.appleTeamId !== undefined) {
-        sets.push(`"apple_team_id" = ?`);
-        bindings.push(params.appleTeamId);
-      }
-
-      bindings.push(params.id);
+      const db = yield* kyselyDb;
+      const patch = compact({
+        name: params.name,
+        enabled: typeof params.enabled === "boolean" ? Number(params.enabled) : undefined,
+        apple_team_id: params.appleTeamId,
+        updated_at: params.updatedAt,
+      });
 
       yield* d1RunWithUniqueCheck(
-        async () =>
-          env.DB.prepare(`UPDATE "devices" SET ${sets.join(", ")} WHERE "id" = ?`)
-            .bind(...bindings)
-            .run(),
+        async () => db.updateTable("devices").set(patch).where("id", "=", params.id).execute(),
         `A device with this identifier is already registered in the target team`,
       );
     }),
 
   setApplePortalId: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `UPDATE "devices" SET "apple_device_portal_id" = ?, "updated_at" = ? WHERE "id" = ?`,
-        )
-          .bind(params.appleDevicePortalId, params.updatedAt, params.id)
-          .run(),
+        db
+          .updateTable("devices")
+          .set({ apple_device_portal_id: params.appleDevicePortalId, updated_at: params.updatedAt })
+          .where("id", "=", params.id)
+          .execute(),
       );
     }),
 
   delete: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       yield* Effect.promise(async () =>
-        env.DB.prepare(`DELETE FROM "devices" WHERE "id" = ?`).bind(params.id).run(),
+        db.deleteFrom("devices").where("id", "=", params.id).execute(),
       );
     }),
 });

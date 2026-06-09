@@ -1,14 +1,20 @@
+import { compact } from "@better-update/type-guards";
 import { Context, Effect, Layer } from "effect";
 
-import { cloudflareEnv } from "../cloudflare/context";
+import type { Expression, SqlBool, Selectable } from "kysely";
+
+import { kyselyDb } from "../cloudflare/db";
 import { NotFound } from "../errors";
 
+import type { Submissions } from "../db/schema";
 import type { Platform } from "../models";
 import type {
   SubmissionArchiveSource,
   SubmissionModel,
   SubmissionStatus,
 } from "../submission-models";
+
+// -- Port -------------------------------------------------------------------
 
 export interface SubmissionsRepository {
   readonly insert: (params: {
@@ -57,31 +63,9 @@ export class SubmissionsRepo extends Context.Tag("api/SubmissionsRepo")<
   SubmissionsRepository
 >() {}
 
-interface Row {
-  id: string;
-  organization_id: string;
-  project_id: string;
-  platform: Platform;
-  profile_name: string;
-  status: SubmissionStatus;
-  archive_source: SubmissionArchiveSource;
-  build_id: string | null;
-  archive_url: string | null;
-  submission_config: string;
-  error_code: string | null;
-  error_message: string | null;
-  log_files: string;
-  initiating_user_id: string | null;
-  queued_at: string | null;
-  started_at: string | null;
-  completed_at: string | null;
-  created_at: string;
-  updated_at: string;
-}
+// -- D1 Adapter -------------------------------------------------------------
 
-const COLUMNS = `"id", "organization_id", "project_id", "platform", "profile_name", "status", "archive_source", "build_id", "archive_url", "submission_config", "error_code", "error_message", "log_files", "initiating_user_id", "queued_at", "started_at", "completed_at", "created_at", "updated_at"`;
-
-const toModel = (row: Row): SubmissionModel => ({
+const toModel = (row: Selectable<Submissions>): SubmissionModel => ({
   id: row.id,
   organizationId: row.organization_id,
   projectId: row.project_id,
@@ -106,71 +90,66 @@ const toModel = (row: Row): SubmissionModel => ({
 export const SubmissionsRepoLive = Layer.succeed(SubmissionsRepo, {
   insert: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `INSERT INTO "submissions" (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, '[]', ?, ?, NULL, NULL, ?, ?)`,
-        )
-          .bind(
-            params.id,
-            params.organizationId,
-            params.projectId,
-            params.platform,
-            params.profileName,
-            params.status,
-            params.archiveSource,
-            params.buildId,
-            params.archiveUrl,
-            params.submissionConfigJson,
-            params.initiatingUserId,
-            params.queuedAt,
-            params.createdAt,
-            params.updatedAt,
-          )
-          .run(),
+        db
+          .insertInto("submissions")
+          .values({
+            id: params.id,
+            organization_id: params.organizationId,
+            project_id: params.projectId,
+            platform: params.platform,
+            profile_name: params.profileName,
+            status: params.status,
+            archive_source: params.archiveSource,
+            build_id: params.buildId,
+            archive_url: params.archiveUrl,
+            submission_config: params.submissionConfigJson,
+            error_code: null,
+            error_message: null,
+            log_files: "[]",
+            initiating_user_id: params.initiatingUserId,
+            queued_at: params.queuedAt,
+            started_at: null,
+            completed_at: null,
+            created_at: params.createdAt,
+            updated_at: params.updatedAt,
+          })
+          .execute(),
       );
     }),
 
   listByProject: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
-      const conditions: string[] = [`"project_id" = ?`];
-      const bindings: (string | null)[] = [params.projectId];
-      if (params.status !== undefined) {
-        conditions.push(`"status" = ?`);
-        bindings.push(params.status);
-      }
-      if (params.platform !== undefined) {
-        conditions.push(`"platform" = ?`);
-        bindings.push(params.platform);
-      }
-      if (params.profile !== undefined) {
-        conditions.push(`"profile_name" = ?`);
-        bindings.push(params.profile);
-      }
-      if (params.buildId !== undefined) {
-        conditions.push(`"build_id" = ?`);
-        bindings.push(params.buildId);
-      }
+      const db = yield* kyselyDb;
+      const { status, platform, profile, buildId } = params;
       const rows = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT ${COLUMNS} FROM "submissions" WHERE ${conditions.join(" AND ")} ORDER BY "created_at" DESC`,
-        )
-          .bind(...bindings)
-          .all<Row>(),
+        db
+          .selectFrom("submissions")
+          .selectAll()
+          .where("project_id", "=", params.projectId)
+          .where((eb) => {
+            const conditions: (Expression<SqlBool> | null)[] = [
+              status === undefined ? null : eb("status", "=", status),
+              platform === undefined ? null : eb("platform", "=", platform),
+              profile === undefined ? null : eb("profile_name", "=", profile),
+              buildId === undefined ? null : eb("build_id", "=", buildId),
+            ];
+            return eb.and(conditions.filter((cond): cond is Expression<SqlBool> => cond !== null));
+          })
+          .orderBy("created_at", "desc")
+          .execute(),
       );
-      return rows.results.map(toModel);
+      return rows.map(toModel);
     }),
 
   findById: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT ${COLUMNS} FROM "submissions" WHERE "id" = ?`)
-          .bind(params.id)
-          .first<Row>(),
+        db.selectFrom("submissions").selectAll().where("id", "=", params.id).executeTakeFirst(),
       );
-      if (row === null) {
+      if (row === undefined) {
         return yield* new NotFound({ message: "Submission not found" });
       }
       return toModel(row);
@@ -178,42 +157,26 @@ export const SubmissionsRepoLive = Layer.succeed(SubmissionsRepo, {
 
   updateStatus: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
-      const sets: string[] = [`"status" = ?`, `"updated_at" = ?`];
-      const bindings: (string | null)[] = [params.status, params.updatedAt];
-      if (params.errorCode !== undefined) {
-        sets.push(`"error_code" = ?`);
-        bindings.push(params.errorCode);
-      }
-      if (params.errorMessage !== undefined) {
-        sets.push(`"error_message" = ?`);
-        bindings.push(params.errorMessage);
-      }
-      if (params.logFilesJson !== undefined) {
-        sets.push(`"log_files" = ?`);
-        bindings.push(params.logFilesJson);
-      }
-      if (params.startedAt !== undefined) {
-        sets.push(`"started_at" = ?`);
-        bindings.push(params.startedAt);
-      }
-      if (params.completedAt !== undefined) {
-        sets.push(`"completed_at" = ?`);
-        bindings.push(params.completedAt);
-      }
-      bindings.push(params.id);
+      const db = yield* kyselyDb;
+      const patch = compact({
+        status: params.status,
+        updated_at: params.updatedAt,
+        error_code: params.errorCode,
+        error_message: params.errorMessage,
+        log_files: params.logFilesJson,
+        started_at: params.startedAt,
+        completed_at: params.completedAt,
+      });
       yield* Effect.promise(async () =>
-        env.DB.prepare(`UPDATE "submissions" SET ${sets.join(", ")} WHERE "id" = ?`)
-          .bind(...bindings)
-          .run(),
+        db.updateTable("submissions").set(patch).where("id", "=", params.id).execute(),
       );
     }),
 
   delete: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       yield* Effect.promise(async () =>
-        env.DB.prepare(`DELETE FROM "submissions" WHERE "id" = ?`).bind(params.id).run(),
+        db.deleteFrom("submissions").where("id", "=", params.id).execute(),
       );
     }),
 });

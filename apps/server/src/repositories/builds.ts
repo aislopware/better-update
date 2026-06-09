@@ -1,16 +1,14 @@
+import { toDbNull } from "@better-update/type-guards";
 import { Context, Effect, Layer } from "effect";
 
-import { cloudflareEnv } from "../cloudflare/context";
-import { NotFound } from "../errors";
-import { toDbNull } from "../lib/nullable";
-import {
-  BUILD_WITH_ARTIFACT_COLUMNS,
-  BUILD_WITH_ARTIFACT_JOIN,
-  toBuildWithArtifact,
-} from "./build-row";
+import type { Kysely } from "kysely";
 
+import { d1Batch, kyselyDb } from "../cloudflare/db";
+import { NotFound } from "../errors";
+import { toBuildWithArtifact } from "./build-row";
+
+import type { DB } from "../db/schema";
 import type { ArtifactFormat, BuildWithArtifactModel, Distribution, Platform } from "../models";
-import type { BuildWithArtifactRow } from "./build-row";
 
 export type BuildSortKey =
   | "createdAt"
@@ -108,104 +106,86 @@ export class BuildRepo extends Context.Tag("api/BuildRepo")<BuildRepo, BuildRepo
 
 // -- D1 Adapter ------------------------------------------------------------
 
-type BuildRow = BuildWithArtifactRow;
+/**
+ * Base build projection: every stored column plus the LEFT-joined artifact
+ * columns aliased `a_*`. Shared by every read so the `toBuildWithArtifact`
+ * mapper always sees an identical row shape. The domain-narrowed columns
+ * (`platform`, `distribution`, `a_format`) and the non-null `id` are `$castTo`'d
+ * from their wider schema types so the inferred row matches the mapper input.
+ */
+const selectBuildsWithArtifact = (db: Kysely<DB>) =>
+  db
+    .selectFrom("builds as b")
+    .leftJoin("build_artifacts as a", "a.build_id", "b.id")
+    .select((eb) => [
+      eb.ref("b.id").$castTo<string>().as("id"),
+      "b.project_id",
+      eb.ref("b.platform").$castTo<Platform>().as("platform"),
+      "b.profile",
+      eb.ref("b.distribution").$castTo<Distribution>().as("distribution"),
+      "b.runtime_version",
+      "b.app_version",
+      "b.build_number",
+      "b.bundle_id",
+      "b.git_ref",
+      "b.git_commit",
+      "b.git_dirty",
+      "b.message",
+      "b.metadata_json",
+      "b.fingerprint_hash",
+      "b.created_at",
+      eb.ref("a.r2_key").as("a_r2_key"),
+      eb.ref("a.format").$castTo<ArtifactFormat | null>().as("a_format"),
+      eb.ref("a.content_type").as("a_content_type"),
+      eb.ref("a.byte_size").as("a_byte_size"),
+      eb.ref("a.sha256").as("a_sha256"),
+    ]);
 
-interface BuildInstallRow {
-  distribution: Distribution;
-  bundle_id: string | null;
-  app_version: string | null;
-  message: string | null;
-  r2_key: string;
-}
-
-const SELECT_WITH_ARTIFACT = `SELECT ${BUILD_WITH_ARTIFACT_COLUMNS} ${BUILD_WITH_ARTIFACT_JOIN}`;
-
-const SORT_COLUMN_SQL: Record<BuildSortKey, string> = {
-  createdAt: 'b."created_at"',
-  platform: 'b."platform"',
-  distribution: 'b."distribution"',
-  runtimeVersion: 'b."runtime_version"',
-  appVersion: 'b."app_version"',
-};
-
-// SECURITY: All condition strings are hardcoded literals. Never interpolate user input into conditions.
-const buildListWhere = (params: {
-  readonly projectId: string;
-  readonly platform?: Platform;
-  readonly profile?: string;
-  readonly runtimeVersion?: string;
-  readonly distribution?: Distribution;
-  readonly distributions?: readonly Distribution[];
-}): { readonly clause: string; readonly bindValues: (string | number)[] } => {
-  const conditions: string[] = ['b."project_id" = ?'];
-  const bindValues: (string | number)[] = [params.projectId];
-
-  if (params.platform) {
-    conditions.push('b."platform" = ?');
-    bindValues.push(params.platform);
-  }
-  if (params.profile) {
-    conditions.push('b."profile" = ?');
-    bindValues.push(params.profile);
-  }
-  if (params.runtimeVersion) {
-    conditions.push('b."runtime_version" = ?');
-    bindValues.push(params.runtimeVersion);
-  }
-  if (params.distribution) {
-    conditions.push('b."distribution" = ?');
-    bindValues.push(params.distribution);
-  }
-  if (params.distributions && params.distributions.length > 0) {
-    const placeholders = params.distributions.map(() => "?").join(", ");
-    conditions.push(`b."distribution" IN (${placeholders})`);
-    bindValues.push(...params.distributions);
-  }
-
-  return { clause: conditions.join(" AND "), bindValues };
-};
+// Sort whitelist → `builds` column reference. The trailing `b.id` tie-break that
+// keeps pagination stable is applied at the call site.
+const buildSortColumn = {
+  createdAt: "b.created_at",
+  platform: "b.platform",
+  distribution: "b.distribution",
+  runtimeVersion: "b.runtime_version",
+  appVersion: "b.app_version",
+} as const satisfies Record<BuildSortKey, string>;
 
 export const BuildRepoLive = Layer.succeed(BuildRepo, {
   insert: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const now = new Date().toISOString();
 
-      yield* Effect.promise(async () =>
-        env.DB.batch([
-          env.DB.prepare(
-            `INSERT INTO "builds" ("id", "project_id", "platform", "profile", "distribution", "runtime_version", "app_version", "build_number", "bundle_id", "git_ref", "git_commit", "git_dirty", "message", "metadata_json", "fingerprint_hash", "created_at") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          ).bind(
-            params.id,
-            params.projectId,
-            params.platform,
-            params.profile,
-            params.distribution,
-            params.runtimeVersion,
-            params.appVersion,
-            params.buildNumber,
-            params.bundleId,
-            params.gitRef,
-            params.gitCommit,
-            params.gitDirty ? 1 : 0,
-            params.message,
-            params.metadataJson,
-            params.fingerprintHash,
-            now,
-          ),
-          env.DB.prepare(
-            `INSERT INTO "build_artifacts" ("build_id", "r2_key", "format", "content_type", "byte_size", "sha256", "created_at") VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          ).bind(
-            params.id,
-            params.artifact.r2Key,
-            params.artifact.format,
-            params.artifact.contentType,
-            params.artifact.byteSize,
-            params.artifact.sha256,
-            now,
-          ),
-        ]),
-      );
+      yield* d1Batch([
+        db.insertInto("builds").values({
+          id: params.id,
+          project_id: params.projectId,
+          platform: params.platform,
+          profile: params.profile,
+          distribution: params.distribution,
+          runtime_version: params.runtimeVersion,
+          app_version: params.appVersion,
+          build_number: params.buildNumber,
+          bundle_id: params.bundleId,
+          git_ref: params.gitRef,
+          git_commit: params.gitCommit,
+          git_dirty: params.gitDirty ? 1 : 0,
+          message: params.message,
+          metadata_json: params.metadataJson,
+          fingerprint_hash: params.fingerprintHash,
+          created_at: now,
+        }),
+        db.insertInto("build_artifacts").values({
+          build_id: params.id,
+          r2_key: params.artifact.r2Key,
+          format: params.artifact.format,
+          content_type: params.artifact.contentType,
+          byte_size: params.artifact.byteSize,
+          sha256: params.artifact.sha256,
+          created_at: now,
+        }),
+      ]);
 
       return {
         id: params.id,
@@ -236,15 +216,13 @@ export const BuildRepoLive = Layer.succeed(BuildRepo, {
 
   findById: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
 
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(`${SELECT_WITH_ARTIFACT} WHERE b."id" = ?`)
-          .bind(params.id)
-          .first<BuildRow>(),
+        selectBuildsWithArtifact(db).where("b.id", "=", params.id).executeTakeFirst(),
       );
 
-      if (row === null) {
+      if (!row) {
         return yield* new NotFound({ message: "Build not found" });
       }
 
@@ -253,37 +231,49 @@ export const BuildRepoLive = Layer.succeed(BuildRepo, {
 
   findArtifactR2KeyById: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT "r2_key" FROM "build_artifacts" WHERE "build_id" = ?`)
-          .bind(params.id)
-          .first<{ r2_key: string }>(),
+        db
+          .selectFrom("build_artifacts")
+          .select("r2_key")
+          .where("build_id", "=", params.id)
+          .executeTakeFirst(),
       );
       return toDbNull(row?.r2_key);
     }),
 
   findArtifactR2KeyByIdAndOrg: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT a."r2_key" FROM "build_artifacts" a JOIN "builds" b ON b."id" = a."build_id" JOIN "projects" p ON p."id" = b."project_id" WHERE a."build_id" = ? AND p."organization_id" = ?`,
-        )
-          .bind(params.id, params.organizationId)
-          .first<{ r2_key: string }>(),
+        db
+          .selectFrom("build_artifacts as a")
+          .innerJoin("builds as b", "b.id", "a.build_id")
+          .innerJoin("projects as p", "p.id", "b.project_id")
+          .select("a.r2_key")
+          .where("a.build_id", "=", params.id)
+          .where("p.organization_id", "=", params.organizationId)
+          .executeTakeFirst(),
       );
       return toDbNull(row?.r2_key);
     }),
 
   findInstallInfoById: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT b."distribution", b."bundle_id", b."app_version", b."message", a."r2_key" FROM "builds" b JOIN "build_artifacts" a ON a."build_id" = b."id" WHERE b."id" = ?`,
-        )
-          .bind(params.id)
-          .first<BuildInstallRow>(),
+        db
+          .selectFrom("builds as b")
+          .innerJoin("build_artifacts as a", "a.build_id", "b.id")
+          .select((eb) => [
+            eb.ref("b.distribution").$castTo<Distribution>().as("distribution"),
+            "b.bundle_id",
+            "b.app_version",
+            "b.message",
+            "a.r2_key",
+          ])
+          .where("b.id", "=", params.id)
+          .executeTakeFirst(),
       );
 
       return row
@@ -299,16 +289,19 @@ export const BuildRepoLive = Layer.succeed(BuildRepo, {
 
   findExpiredArtifactBatch: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const rows = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT b."id", a."r2_key" AS "r2_key" FROM "builds" b JOIN "build_artifacts" a ON a."build_id" = b."id" WHERE b."profile" = ? AND b."created_at" < ? LIMIT ?`,
-        )
-          .bind(params.profile, params.cutoff, params.limit)
-          .all<{ id: string; r2_key: string }>(),
+        db
+          .selectFrom("builds as b")
+          .innerJoin("build_artifacts as a", "a.build_id", "b.id")
+          .select((eb) => [eb.ref("b.id").$castTo<string>().as("id"), "a.r2_key"])
+          .where("b.profile", "=", params.profile)
+          .where("b.created_at", "<", params.cutoff)
+          .limit(params.limit)
+          .execute(),
       );
 
-      return rows.results.map((row) => ({ id: row.id, r2Key: row.r2_key }));
+      return rows.map((row) => ({ id: row.id, r2Key: row.r2_key }));
     }),
 
   deleteArtifactMetadataBatch: (params) =>
@@ -317,69 +310,93 @@ export const BuildRepoLive = Layer.succeed(BuildRepo, {
         return;
       }
 
-      const env = yield* cloudflareEnv;
-      yield* Effect.promise(async () =>
-        env.DB.batch(
-          params.buildIds.map((id) =>
-            env.DB.prepare(`DELETE FROM "build_artifacts" WHERE "build_id" = ?`).bind(id),
-          ),
-        ),
+      const db = yield* kyselyDb;
+      yield* d1Batch(
+        params.buildIds.map((id) => db.deleteFrom("build_artifacts").where("build_id", "=", id)),
       );
     }),
 
   list: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
-      const { clause: whereClause, bindValues } = buildListWhere(params);
-      const direction = params.order === "asc" ? "ASC" : "DESC";
-      const orderBy = `${SORT_COLUMN_SQL[params.sort]} ${direction}, b."id" ${direction}`;
+      const db = yield* kyselyDb;
 
-      const countResult = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT COUNT(*) as count FROM "builds" b WHERE ${whereClause}`)
-          .bind(...bindValues)
-          .first<{ count: number }>(),
+      const countRow = yield* Effect.promise(async () =>
+        db
+          .selectFrom("builds")
+          .where((eb) =>
+            eb.and([
+              eb("project_id", "=", params.projectId),
+              ...(params.platform ? [eb("platform", "=", params.platform)] : []),
+              ...(params.profile ? [eb("profile", "=", params.profile)] : []),
+              ...(params.runtimeVersion ? [eb("runtime_version", "=", params.runtimeVersion)] : []),
+              ...(params.distribution ? [eb("distribution", "=", params.distribution)] : []),
+              ...(params.distributions && params.distributions.length > 0
+                ? [eb("distribution", "in", [...params.distributions])]
+                : []),
+            ]),
+          )
+          .select((eb) => eb.fn.countAll<number>().as("count"))
+          .executeTakeFirstOrThrow(),
       );
-      const total = countResult?.count ?? 0;
+      const total = countRow.count;
 
       const rows = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `${SELECT_WITH_ARTIFACT} WHERE ${whereClause} ORDER BY ${orderBy} LIMIT ? OFFSET ?`,
-        )
-          .bind(...bindValues, params.limit, params.offset)
-          .all<BuildRow>(),
+        selectBuildsWithArtifact(db)
+          .where((eb) =>
+            eb.and([
+              eb("b.project_id", "=", params.projectId),
+              ...(params.platform ? [eb("b.platform", "=", params.platform)] : []),
+              ...(params.profile ? [eb("b.profile", "=", params.profile)] : []),
+              ...(params.runtimeVersion
+                ? [eb("b.runtime_version", "=", params.runtimeVersion)]
+                : []),
+              ...(params.distribution ? [eb("b.distribution", "=", params.distribution)] : []),
+              ...(params.distributions && params.distributions.length > 0
+                ? [eb("b.distribution", "in", [...params.distributions])]
+                : []),
+            ]),
+          )
+          .orderBy(buildSortColumn[params.sort], params.order)
+          .orderBy("b.id", params.order)
+          .limit(params.limit)
+          .offset(params.offset)
+          .execute(),
       );
 
-      return { items: rows.results.map(toBuildWithArtifact), total };
+      return { items: rows.map(toBuildWithArtifact), total };
     }),
 
   listByProjectAndFingerprint: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const rows = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `${SELECT_WITH_ARTIFACT} WHERE b."project_id" = ? AND b."fingerprint_hash" = ? ORDER BY b."created_at" DESC, b."id" DESC`,
-        )
-          .bind(params.projectId, params.fingerprintHash)
-          .all<BuildRow>(),
+        selectBuildsWithArtifact(db)
+          .where("b.project_id", "=", params.projectId)
+          .where("b.fingerprint_hash", "=", params.fingerprintHash)
+          .orderBy("b.created_at", "desc")
+          .orderBy("b.id", "desc")
+          .execute(),
       );
-      return rows.results.map(toBuildWithArtifact);
+      return rows.map(toBuildWithArtifact);
     }),
 
   deleteById: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
 
       const artifact = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT "r2_key" FROM "build_artifacts" WHERE "build_id" = ?`)
-          .bind(params.id)
-          .first<{ r2_key: string }>(),
+        db
+          .selectFrom("build_artifacts")
+          .select("r2_key")
+          .where("build_id", "=", params.id)
+          .executeTakeFirst(),
       );
 
-      const result = yield* Effect.promise(async () =>
-        env.DB.prepare(`DELETE FROM "builds" WHERE "id" = ?`).bind(params.id).run(),
+      const deleted = yield* Effect.promise(async () =>
+        db.deleteFrom("builds").where("id", "=", params.id).returning("id").executeTakeFirst(),
       );
 
-      if (result.meta.changes === 0) {
+      if (deleted === undefined) {
         return yield* new NotFound({ message: "Build not found" });
       }
 

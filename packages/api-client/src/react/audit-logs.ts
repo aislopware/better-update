@@ -1,5 +1,7 @@
 import { infiniteQueryOptions } from "@tanstack/react-query";
 
+import type { AuditLogResourceType } from "@better-update/api";
+
 import { runApi } from "../index";
 
 export const auditLogsQueryKey = (orgId: string, projectId?: string) =>
@@ -9,7 +11,7 @@ export const auditLogsQueryKey = (orgId: string, projectId?: string) =>
 
 export interface AuditLogsFilters {
   readonly projectId?: string;
-  readonly resourceType?: string;
+  readonly resourceType?: AuditLogResourceType;
   readonly from?: string;
   readonly to?: string;
   readonly limit?: number;
