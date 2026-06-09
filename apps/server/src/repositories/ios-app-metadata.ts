@@ -1,9 +1,13 @@
+import { compact } from "@better-update/type-guards";
 import { Context, Effect, Layer } from "effect";
 
-import { cloudflareEnv } from "../cloudflare/context";
+import type { Selectable } from "kysely";
+
+import { kyselyDb } from "../cloudflare/db";
 import { NotFound } from "../errors";
 import { d1RunWithUniqueCheck } from "./d1-helpers";
 
+import type { IosAppMetadata } from "../db/schema";
 import type { Conflict } from "../errors";
 import type { IosAppMetadataModel } from "../submission-models";
 
@@ -53,23 +57,9 @@ export class IosAppMetadataRepo extends Context.Tag("api/IosAppMetadataRepo")<
   IosAppMetadataRepository
 >() {}
 
-interface Row {
-  id: string;
-  organization_id: string;
-  project_id: string;
-  bundle_identifier: string;
-  asc_app_id: string | null;
-  sku: string | null;
-  language: string;
-  company_name: string | null;
-  app_name: string | null;
-  created_at: string;
-  updated_at: string;
-}
+// -- D1 Adapter -------------------------------------------------------------
 
-const COLUMNS = `"id", "organization_id", "project_id", "bundle_identifier", "asc_app_id", "sku", "language", "company_name", "app_name", "created_at", "updated_at"`;
-
-const toModel = (row: Row): IosAppMetadataModel => ({
+const toModel = (row: Selectable<IosAppMetadata>): IosAppMetadataModel => ({
   id: row.id,
   organizationId: row.organization_id,
   projectId: row.project_id,
@@ -86,54 +76,55 @@ const toModel = (row: Row): IosAppMetadataModel => ({
 export const IosAppMetadataRepoLive = Layer.succeed(IosAppMetadataRepo, {
   insert: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       yield* d1RunWithUniqueCheck(
         async () =>
-          env.DB.prepare(
-            `INSERT INTO "ios_app_metadata" (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          )
-            .bind(
-              params.id,
-              params.organizationId,
-              params.projectId,
-              params.bundleIdentifier,
-              params.ascAppId,
-              params.sku,
-              params.language,
-              params.companyName,
-              params.appName,
-              params.createdAt,
-              params.updatedAt,
-            )
-            .run(),
+          db
+            .insertInto("ios_app_metadata")
+            .values({
+              id: params.id,
+              organization_id: params.organizationId,
+              project_id: params.projectId,
+              bundle_identifier: params.bundleIdentifier,
+              asc_app_id: params.ascAppId,
+              sku: params.sku,
+              language: params.language,
+              company_name: params.companyName,
+              app_name: params.appName,
+              created_at: params.createdAt,
+              updated_at: params.updatedAt,
+            })
+            .execute(),
         `iOS App Store metadata already exists for ${params.bundleIdentifier}`,
       );
     }),
 
   listByProject: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const rows = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT ${COLUMNS} FROM "ios_app_metadata" WHERE "project_id" = ? ORDER BY "bundle_identifier"`,
-        )
-          .bind(params.projectId)
-          .all<Row>(),
+        db
+          .selectFrom("ios_app_metadata")
+          .selectAll()
+          .where("project_id", "=", params.projectId)
+          .orderBy("bundle_identifier")
+          .execute(),
       );
-      return rows.results.map(toModel);
+      return rows.map(toModel);
     }),
 
   findByProjectAndBundle: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT ${COLUMNS} FROM "ios_app_metadata" WHERE "project_id" = ? AND "bundle_identifier" = ?`,
-        )
-          .bind(params.projectId, params.bundleIdentifier)
-          .first<Row>(),
+        db
+          .selectFrom("ios_app_metadata")
+          .selectAll()
+          .where("project_id", "=", params.projectId)
+          .where("bundle_identifier", "=", params.bundleIdentifier)
+          .executeTakeFirst(),
       );
-      if (row === null) {
+      if (row === undefined) {
         return yield* new NotFound({
           message: `No iOS App Store metadata found for ${params.bundleIdentifier}`,
         });
@@ -143,13 +134,15 @@ export const IosAppMetadataRepoLive = Layer.succeed(IosAppMetadataRepo, {
 
   findById: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT ${COLUMNS} FROM "ios_app_metadata" WHERE "id" = ?`)
-          .bind(params.id)
-          .first<Row>(),
+        db
+          .selectFrom("ios_app_metadata")
+          .selectAll()
+          .where("id", "=", params.id)
+          .executeTakeFirst(),
       );
-      if (row === null) {
+      if (row === undefined) {
         return yield* new NotFound({ message: "iOS App Store metadata not found" });
       }
       return toModel(row);
@@ -157,42 +150,25 @@ export const IosAppMetadataRepoLive = Layer.succeed(IosAppMetadataRepo, {
 
   update: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
-      const sets: string[] = [`"updated_at" = ?`];
-      const bindings: (string | null)[] = [params.updatedAt];
-      if (params.ascAppId !== undefined) {
-        sets.push(`"asc_app_id" = ?`);
-        bindings.push(params.ascAppId);
-      }
-      if (params.sku !== undefined) {
-        sets.push(`"sku" = ?`);
-        bindings.push(params.sku);
-      }
-      if (params.language !== undefined) {
-        sets.push(`"language" = ?`);
-        bindings.push(params.language);
-      }
-      if (params.companyName !== undefined) {
-        sets.push(`"company_name" = ?`);
-        bindings.push(params.companyName);
-      }
-      if (params.appName !== undefined) {
-        sets.push(`"app_name" = ?`);
-        bindings.push(params.appName);
-      }
-      bindings.push(params.id);
+      const db = yield* kyselyDb;
+      const patch = compact({
+        updated_at: params.updatedAt,
+        asc_app_id: params.ascAppId,
+        sku: params.sku,
+        language: params.language,
+        company_name: params.companyName,
+        app_name: params.appName,
+      });
       yield* Effect.promise(async () =>
-        env.DB.prepare(`UPDATE "ios_app_metadata" SET ${sets.join(", ")} WHERE "id" = ?`)
-          .bind(...bindings)
-          .run(),
+        db.updateTable("ios_app_metadata").set(patch).where("id", "=", params.id).execute(),
       );
     }),
 
   delete: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       yield* Effect.promise(async () =>
-        env.DB.prepare(`DELETE FROM "ios_app_metadata" WHERE "id" = ?`).bind(params.id).run(),
+        db.deleteFrom("ios_app_metadata").where("id", "=", params.id).execute(),
       );
     }),
 });

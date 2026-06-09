@@ -1,9 +1,13 @@
+import { compact } from "@better-update/type-guards";
 import { Context, Effect, Layer } from "effect";
 
-import { cloudflareEnv } from "../cloudflare/context";
+import type { Selectable } from "kysely";
+
+import { kyselyDb } from "../cloudflare/db";
 import { NotFound } from "../errors";
 import { d1RunWithUniqueCheck } from "./d1-helpers";
 
+import type { IosBundleConfigurations } from "../db/schema";
 import type { Conflict } from "../errors";
 import type { DistributionType, IosBundleConfigurationModel } from "../models";
 
@@ -58,26 +62,26 @@ export class IosBundleConfigurationRepo extends Context.Tag("api/IosBundleConfig
   IosBundleConfigurationRepository
 >() {}
 
-interface Row {
-  id: string;
-  organization_id: string;
-  project_id: string;
-  bundle_identifier: string;
-  distribution_type: DistributionType;
-  apple_team_id: string;
-  apple_distribution_certificate_id: string | null;
-  apple_provisioning_profile_id: string | null;
-  apple_push_key_id: string | null;
-  asc_api_key_id: string | null;
-  target_name: string | null;
-  parent_bundle_identifier: string | null;
-  created_at: string;
-  updated_at: string;
-}
+// -- D1 Adapter -------------------------------------------------------------
 
-const COLUMNS = `"id", "organization_id", "project_id", "bundle_identifier", "distribution_type", "apple_team_id", "apple_distribution_certificate_id", "apple_provisioning_profile_id", "apple_push_key_id", "asc_api_key_id", "target_name", "parent_bundle_identifier", "created_at", "updated_at"`;
+const COLUMNS = [
+  "id",
+  "organization_id",
+  "project_id",
+  "bundle_identifier",
+  "distribution_type",
+  "apple_team_id",
+  "apple_distribution_certificate_id",
+  "apple_provisioning_profile_id",
+  "apple_push_key_id",
+  "asc_api_key_id",
+  "target_name",
+  "parent_bundle_identifier",
+  "created_at",
+  "updated_at",
+] as const;
 
-const toModel = (row: Row): IosBundleConfigurationModel => ({
+const toModel = (row: Selectable<IosBundleConfigurations>): IosBundleConfigurationModel => ({
   id: row.id,
   organizationId: row.organization_id,
   projectId: row.project_id,
@@ -97,57 +101,60 @@ const toModel = (row: Row): IosBundleConfigurationModel => ({
 export const IosBundleConfigurationRepoLive = Layer.succeed(IosBundleConfigurationRepo, {
   insert: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       yield* d1RunWithUniqueCheck(
         async () =>
-          env.DB.prepare(
-            `INSERT INTO "ios_bundle_configurations" (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          )
-            .bind(
-              params.id,
-              params.organizationId,
-              params.projectId,
-              params.bundleIdentifier,
-              params.distributionType,
-              params.appleTeamId,
-              params.appleDistributionCertificateId,
-              params.appleProvisioningProfileId,
-              params.applePushKeyId,
-              params.ascApiKeyId,
-              params.targetName,
-              params.parentBundleIdentifier,
-              params.createdAt,
-              params.updatedAt,
-            )
-            .run(),
+          db
+            .insertInto("ios_bundle_configurations")
+            .values({
+              id: params.id,
+              organization_id: params.organizationId,
+              project_id: params.projectId,
+              bundle_identifier: params.bundleIdentifier,
+              distribution_type: params.distributionType,
+              apple_team_id: params.appleTeamId,
+              apple_distribution_certificate_id: params.appleDistributionCertificateId,
+              apple_provisioning_profile_id: params.appleProvisioningProfileId,
+              apple_push_key_id: params.applePushKeyId,
+              asc_api_key_id: params.ascApiKeyId,
+              target_name: params.targetName,
+              parent_bundle_identifier: params.parentBundleIdentifier,
+              created_at: params.createdAt,
+              updated_at: params.updatedAt,
+            })
+            .execute(),
         `iOS bundle configuration already exists for ${params.bundleIdentifier} (${params.distributionType})`,
       );
     }),
 
   listByProject: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const rows = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT ${COLUMNS} FROM "ios_bundle_configurations" WHERE "project_id" = ? ORDER BY "bundle_identifier", "distribution_type"`,
-        )
-          .bind(params.projectId)
-          .all<Row>(),
+        db
+          .selectFrom("ios_bundle_configurations")
+          .select(COLUMNS)
+          .where("project_id", "=", params.projectId)
+          .orderBy("bundle_identifier", "asc")
+          .orderBy("distribution_type", "asc")
+          .execute(),
       );
-      return rows.results.map(toModel);
+      return rows.map(toModel);
     }),
 
   findByProjectAndBundle: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT ${COLUMNS} FROM "ios_bundle_configurations" WHERE "project_id" = ? AND "bundle_identifier" = ? AND "distribution_type" = ?`,
-        )
-          .bind(params.projectId, params.bundleIdentifier, params.distributionType)
-          .first<Row>(),
+        db
+          .selectFrom("ios_bundle_configurations")
+          .select(COLUMNS)
+          .where("project_id", "=", params.projectId)
+          .where("bundle_identifier", "=", params.bundleIdentifier)
+          .where("distribution_type", "=", params.distributionType)
+          .executeTakeFirst(),
       );
-      if (row === null) {
+      if (row === undefined) {
         return yield* new NotFound({
           message: `No iOS bundle configuration found for ${params.bundleIdentifier} (${params.distributionType})`,
         });
@@ -157,13 +164,15 @@ export const IosBundleConfigurationRepoLive = Layer.succeed(IosBundleConfigurati
 
   findById: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT ${COLUMNS} FROM "ios_bundle_configurations" WHERE "id" = ?`)
-          .bind(params.id)
-          .first<Row>(),
+        db
+          .selectFrom("ios_bundle_configurations")
+          .select(COLUMNS)
+          .where("id", "=", params.id)
+          .executeTakeFirst(),
       );
-      if (row === null) {
+      if (row === undefined) {
         return yield* new NotFound({ message: "iOS bundle configuration not found" });
       }
       return toModel(row);
@@ -171,48 +180,30 @@ export const IosBundleConfigurationRepoLive = Layer.succeed(IosBundleConfigurati
 
   update: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
-      const sets: string[] = [`"updated_at" = ?`];
-      const bindings: (string | null)[] = [params.updatedAt];
-      if (params.appleDistributionCertificateId !== undefined) {
-        sets.push(`"apple_distribution_certificate_id" = ?`);
-        bindings.push(params.appleDistributionCertificateId);
-      }
-      if (params.appleProvisioningProfileId !== undefined) {
-        sets.push(`"apple_provisioning_profile_id" = ?`);
-        bindings.push(params.appleProvisioningProfileId);
-      }
-      if (params.applePushKeyId !== undefined) {
-        sets.push(`"apple_push_key_id" = ?`);
-        bindings.push(params.applePushKeyId);
-      }
-      if (params.ascApiKeyId !== undefined) {
-        sets.push(`"asc_api_key_id" = ?`);
-        bindings.push(params.ascApiKeyId);
-      }
-      if (params.targetName !== undefined) {
-        sets.push(`"target_name" = ?`);
-        bindings.push(params.targetName);
-      }
-      if (params.parentBundleIdentifier !== undefined) {
-        sets.push(`"parent_bundle_identifier" = ?`);
-        bindings.push(params.parentBundleIdentifier);
-      }
-      bindings.push(params.id);
+      const db = yield* kyselyDb;
+      const patch = compact({
+        apple_distribution_certificate_id: params.appleDistributionCertificateId,
+        apple_provisioning_profile_id: params.appleProvisioningProfileId,
+        apple_push_key_id: params.applePushKeyId,
+        asc_api_key_id: params.ascApiKeyId,
+        target_name: params.targetName,
+        parent_bundle_identifier: params.parentBundleIdentifier,
+        updated_at: params.updatedAt,
+      });
       yield* Effect.promise(async () =>
-        env.DB.prepare(`UPDATE "ios_bundle_configurations" SET ${sets.join(", ")} WHERE "id" = ?`)
-          .bind(...bindings)
-          .run(),
+        db
+          .updateTable("ios_bundle_configurations")
+          .set(patch)
+          .where("id", "=", params.id)
+          .execute(),
       );
     }),
 
   delete: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       yield* Effect.promise(async () =>
-        env.DB.prepare(`DELETE FROM "ios_bundle_configurations" WHERE "id" = ?`)
-          .bind(params.id)
-          .run(),
+        db.deleteFrom("ios_bundle_configurations").where("id", "=", params.id).execute(),
       );
     }),
 });

@@ -1,9 +1,14 @@
+import { compact } from "@better-update/type-guards";
 import { Context, Effect, Layer } from "effect";
 
-import { cloudflareEnv } from "../cloudflare/context";
+import type { Selectable } from "kysely";
+
+import { d1Session } from "../cloudflare/context";
+import { kyselyDb } from "../cloudflare/db";
 import { NotFound } from "../errors";
 import { d1RunWithUniqueCheck } from "./d1-helpers";
 
+import type { AndroidBuildCredentials } from "../db/schema";
 import type { Conflict } from "../errors";
 import type { AndroidBuildCredentialsModel } from "../models";
 
@@ -58,22 +63,22 @@ export class AndroidBuildCredentialsRepo extends Context.Tag("api/AndroidBuildCr
   AndroidBuildCredentialsRepository
 >() {}
 
-interface Row {
-  id: string;
-  organization_id: string;
-  android_application_identifier_id: string;
-  android_upload_keystore_id: string | null;
-  google_service_account_key_for_submissions_id: string | null;
-  google_service_account_key_for_fcm_v1_id: string | null;
-  name: string;
-  is_default: number;
-  created_at: string;
-  updated_at: string;
-}
+// -- D1 Adapter -------------------------------------------------------------
 
-const COLUMNS = `"id", "organization_id", "android_application_identifier_id", "android_upload_keystore_id", "google_service_account_key_for_submissions_id", "google_service_account_key_for_fcm_v1_id", "name", "is_default", "created_at", "updated_at"`;
+const COLUMNS = [
+  "id",
+  "organization_id",
+  "android_application_identifier_id",
+  "android_upload_keystore_id",
+  "google_service_account_key_for_submissions_id",
+  "google_service_account_key_for_fcm_v1_id",
+  "name",
+  "is_default",
+  "created_at",
+  "updated_at",
+] as const;
 
-const toModel = (row: Row): AndroidBuildCredentialsModel => ({
+const toModel = (row: Selectable<AndroidBuildCredentials>): AndroidBuildCredentialsModel => ({
   id: row.id,
   organizationId: row.organization_id,
   androidApplicationIdentifierId: row.android_application_identifier_id,
@@ -89,57 +94,73 @@ const toModel = (row: Row): AndroidBuildCredentialsModel => ({
 export const AndroidBuildCredentialsRepoLive = Layer.succeed(AndroidBuildCredentialsRepo, {
   insert: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
-      const insertStmt = env.DB.prepare(
-        `INSERT INTO "android_build_credentials" (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      ).bind(
-        params.id,
-        params.organizationId,
-        params.androidApplicationIdentifierId,
-        params.androidUploadKeystoreId,
-        params.googleServiceAccountKeyForSubmissionsId,
-        params.googleServiceAccountKeyForFcmV1Id,
-        params.name,
-        params.isDefault ? 1 : 0,
-        params.createdAt,
-        params.updatedAt,
-      );
+      const db = yield* kyselyDb;
+      const session = yield* d1Session;
+
+      const insertQuery = db.insertInto("android_build_credentials").values({
+        id: params.id,
+        organization_id: params.organizationId,
+        android_application_identifier_id: params.androidApplicationIdentifierId,
+        android_upload_keystore_id: params.androidUploadKeystoreId,
+        google_service_account_key_for_submissions_id:
+          params.googleServiceAccountKeyForSubmissionsId,
+        google_service_account_key_for_fcm_v1_id: params.googleServiceAccountKeyForFcmV1Id,
+        name: params.name,
+        is_default: params.isDefault ? 1 : 0,
+        created_at: params.createdAt,
+        updated_at: params.updatedAt,
+      });
+
       // A duplicate (app identifier, name) — or a second default — is a clean
       // Conflict, not a defect. Map the D1 UNIQUE rejection to a typed 409 so
-      // callers get a real error instead of an opaque 500.
+      // callers get a real error instead of an opaque 500. When promoting this
+      // group to default we clear any prior default first; the clear + insert
+      // run as one atomic D1 batch (D1 has no interactive transactions) so a
+      // name collision rolls the clear back too. d1Batch can't carry the typed
+      // Conflict, so the batch is routed through the unique-check helper here.
       yield* d1RunWithUniqueCheck(async () => {
         if (params.clearOtherDefaults === true) {
-          const clearStmt = env.DB.prepare(
-            `UPDATE "android_build_credentials" SET "is_default" = 0 WHERE "android_application_identifier_id" = ? AND "id" <> ?`,
-          ).bind(params.androidApplicationIdentifierId, params.id);
-          return env.DB.batch([clearStmt, insertStmt]);
+          const clearQuery = db
+            .updateTable("android_build_credentials")
+            .set({ is_default: 0 })
+            .where("android_application_identifier_id", "=", params.androidApplicationIdentifierId)
+            .where("id", "<>", params.id);
+          const statements = [clearQuery, insertQuery].map((query) => {
+            const { sql, parameters } = query.compile();
+            return session.prepare(sql).bind(...parameters);
+          });
+          return session.batch(statements);
         }
-        return insertStmt.run();
+        return insertQuery.execute();
       }, "A build credentials group with this name already exists for this app identifier");
     }),
 
   listByAppIdentifier: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const rows = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT ${COLUMNS} FROM "android_build_credentials" WHERE "android_application_identifier_id" = ? ORDER BY "is_default" DESC, "created_at" DESC`,
-        )
-          .bind(params.androidApplicationIdentifierId)
-          .all<Row>(),
+        db
+          .selectFrom("android_build_credentials")
+          .select(COLUMNS)
+          .where("android_application_identifier_id", "=", params.androidApplicationIdentifierId)
+          .orderBy("is_default", "desc")
+          .orderBy("created_at", "desc")
+          .execute(),
       );
-      return rows.results.map(toModel);
+      return rows.map(toModel);
     }),
 
   findById: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT ${COLUMNS} FROM "android_build_credentials" WHERE "id" = ?`)
-          .bind(params.id)
-          .first<Row>(),
+        db
+          .selectFrom("android_build_credentials")
+          .select(COLUMNS)
+          .where("id", "=", params.id)
+          .executeTakeFirst(),
       );
-      if (row === null) {
+      if (row === undefined) {
         return yield* new NotFound({ message: "Android build credentials not found" });
       }
       return toModel(row);
@@ -147,69 +168,57 @@ export const AndroidBuildCredentialsRepoLive = Layer.succeed(AndroidBuildCredent
 
   findByAppIdentifierAndName: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT ${COLUMNS} FROM "android_build_credentials" WHERE "android_application_identifier_id" = ? AND "name" = ?`,
-        )
-          .bind(params.androidApplicationIdentifierId, params.name)
-          .first<Row>(),
+        db
+          .selectFrom("android_build_credentials")
+          .select(COLUMNS)
+          .where("android_application_identifier_id", "=", params.androidApplicationIdentifierId)
+          .where("name", "=", params.name)
+          .executeTakeFirst(),
       );
-      return row === null ? null : toModel(row);
+      return row === undefined ? null : toModel(row);
     }),
 
   update: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
-      const sets: string[] = [`"updated_at" = ?`];
-      const bindings: (string | number | null)[] = [params.updatedAt];
-      if (params.name !== undefined) {
-        sets.push(`"name" = ?`);
-        bindings.push(params.name);
-      }
-      if (params.androidUploadKeystoreId !== undefined) {
-        sets.push(`"android_upload_keystore_id" = ?`);
-        bindings.push(params.androidUploadKeystoreId);
-      }
-      if (params.googleServiceAccountKeyForSubmissionsId !== undefined) {
-        sets.push(`"google_service_account_key_for_submissions_id" = ?`);
-        bindings.push(params.googleServiceAccountKeyForSubmissionsId);
-      }
-      if (params.googleServiceAccountKeyForFcmV1Id !== undefined) {
-        sets.push(`"google_service_account_key_for_fcm_v1_id" = ?`);
-        bindings.push(params.googleServiceAccountKeyForFcmV1Id);
-      }
-      if (params.isDefault !== undefined) {
-        sets.push(`"is_default" = ?`);
-        bindings.push(params.isDefault ? 1 : 0);
-      }
-      bindings.push(params.id);
+      const db = yield* kyselyDb;
+      const patch = compact({
+        updated_at: params.updatedAt,
+        name: params.name,
+        android_upload_keystore_id: params.androidUploadKeystoreId,
+        google_service_account_key_for_submissions_id:
+          params.googleServiceAccountKeyForSubmissionsId,
+        google_service_account_key_for_fcm_v1_id: params.googleServiceAccountKeyForFcmV1Id,
+        is_default: params.isDefault === undefined ? undefined : Number(params.isDefault),
+      });
       yield* Effect.promise(async () =>
-        env.DB.prepare(`UPDATE "android_build_credentials" SET ${sets.join(", ")} WHERE "id" = ?`)
-          .bind(...bindings)
-          .run(),
+        db
+          .updateTable("android_build_credentials")
+          .set(patch)
+          .where("id", "=", params.id)
+          .execute(),
       );
     }),
 
   clearDefault: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `UPDATE "android_build_credentials" SET "is_default" = 0 WHERE "android_application_identifier_id" = ? AND "id" <> ?`,
-        )
-          .bind(params.androidApplicationIdentifierId, params.exceptId)
-          .run(),
+        db
+          .updateTable("android_build_credentials")
+          .set({ is_default: 0 })
+          .where("android_application_identifier_id", "=", params.androidApplicationIdentifierId)
+          .where("id", "<>", params.exceptId)
+          .execute(),
       );
     }),
 
   delete: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       yield* Effect.promise(async () =>
-        env.DB.prepare(`DELETE FROM "android_build_credentials" WHERE "id" = ?`)
-          .bind(params.id)
-          .run(),
+        db.deleteFrom("android_build_credentials").where("id", "=", params.id).execute(),
       );
     }),
 });

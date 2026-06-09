@@ -1,6 +1,6 @@
 import { Context, Effect, Layer } from "effect";
 
-import { cloudflareEnv } from "../cloudflare/context";
+import { kyselyDb } from "../cloudflare/db";
 import { NotFound } from "../errors";
 import { d1RunWithUniqueCheck } from "./d1-helpers";
 
@@ -37,19 +37,25 @@ export class AndroidApplicationIdentifierRepo extends Context.Tag(
   "api/AndroidApplicationIdentifierRepo",
 )<AndroidApplicationIdentifierRepo, AndroidApplicationIdentifierRepository>() {}
 
-interface Row {
-  id: string;
+const COLUMNS = [
+  "id",
+  "organization_id",
+  "project_id",
+  "package_name",
+  "created_at",
+  "updated_at",
+] as const;
+
+const toModel = (row: {
+  id: string | null;
   organization_id: string;
   project_id: string;
   package_name: string;
   created_at: string;
   updated_at: string;
-}
-
-const COLUMNS = `"id", "organization_id", "project_id", "package_name", "created_at", "updated_at"`;
-
-const toModel = (row: Row): AndroidApplicationIdentifierModel => ({
-  id: row.id,
+}): AndroidApplicationIdentifierModel => ({
+  // eslint-disable-next-line typescript/no-non-null-assertion -- id is always present; schema marks it nullable only due to codegen convention
+  id: row.id!,
   organizationId: row.organization_id,
   projectId: row.project_id,
   packageName: row.package_name,
@@ -62,49 +68,50 @@ export const AndroidApplicationIdentifierRepoLive = Layer.succeed(
   {
     insert: (params) =>
       Effect.gen(function* () {
-        const env = yield* cloudflareEnv;
+        const db = yield* kyselyDb;
         yield* d1RunWithUniqueCheck(
           async () =>
-            env.DB.prepare(
-              `INSERT INTO "android_application_identifiers" (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?)`,
-            )
-              .bind(
-                params.id,
-                params.organizationId,
-                params.projectId,
-                params.packageName,
-                params.createdAt,
-                params.updatedAt,
-              )
-              .run(),
+            db
+              .insertInto("android_application_identifiers")
+              .values({
+                id: params.id,
+                organization_id: params.organizationId,
+                project_id: params.projectId,
+                package_name: params.packageName,
+                created_at: params.createdAt,
+                updated_at: params.updatedAt,
+              })
+              .execute(),
           `Android application identifier ${params.packageName} already registered for this project`,
         );
       }),
 
     listByProject: (params) =>
       Effect.gen(function* () {
-        const env = yield* cloudflareEnv;
+        const db = yield* kyselyDb;
         const rows = yield* Effect.promise(async () =>
-          env.DB.prepare(
-            `SELECT ${COLUMNS} FROM "android_application_identifiers" WHERE "project_id" = ? ORDER BY "package_name"`,
-          )
-            .bind(params.projectId)
-            .all<Row>(),
+          db
+            .selectFrom("android_application_identifiers")
+            .select(COLUMNS)
+            .where("project_id", "=", params.projectId)
+            .orderBy("package_name", "asc")
+            .execute(),
         );
-        return rows.results.map(toModel);
+        return rows.map(toModel);
       }),
 
     findByProjectAndPackage: (params) =>
       Effect.gen(function* () {
-        const env = yield* cloudflareEnv;
+        const db = yield* kyselyDb;
         const row = yield* Effect.promise(async () =>
-          env.DB.prepare(
-            `SELECT ${COLUMNS} FROM "android_application_identifiers" WHERE "project_id" = ? AND "package_name" = ?`,
-          )
-            .bind(params.projectId, params.packageName)
-            .first<Row>(),
+          db
+            .selectFrom("android_application_identifiers")
+            .select(COLUMNS)
+            .where("project_id", "=", params.projectId)
+            .where("package_name", "=", params.packageName)
+            .executeTakeFirst(),
         );
-        if (row === null) {
+        if (row === undefined) {
           return yield* new NotFound({
             message: `No Android application identifier registered for ${params.packageName}`,
           });
@@ -114,13 +121,15 @@ export const AndroidApplicationIdentifierRepoLive = Layer.succeed(
 
     findById: (params) =>
       Effect.gen(function* () {
-        const env = yield* cloudflareEnv;
+        const db = yield* kyselyDb;
         const row = yield* Effect.promise(async () =>
-          env.DB.prepare(`SELECT ${COLUMNS} FROM "android_application_identifiers" WHERE "id" = ?`)
-            .bind(params.id)
-            .first<Row>(),
+          db
+            .selectFrom("android_application_identifiers")
+            .select(COLUMNS)
+            .where("id", "=", params.id)
+            .executeTakeFirst(),
         );
-        if (row === null) {
+        if (row === undefined) {
           return yield* new NotFound({ message: "Android application identifier not found" });
         }
         return toModel(row);
@@ -128,11 +137,9 @@ export const AndroidApplicationIdentifierRepoLive = Layer.succeed(
 
     delete: (params) =>
       Effect.gen(function* () {
-        const env = yield* cloudflareEnv;
+        const db = yield* kyselyDb;
         yield* Effect.promise(async () =>
-          env.DB.prepare(`DELETE FROM "android_application_identifiers" WHERE "id" = ?`)
-            .bind(params.id)
-            .run(),
+          db.deleteFrom("android_application_identifiers").where("id", "=", params.id).execute(),
         );
       }),
   },

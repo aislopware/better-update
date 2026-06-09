@@ -1,10 +1,13 @@
+import { toDbNull } from "@better-update/type-guards";
 import { Context, Effect, Layer } from "effect";
 
-import { cloudflareEnv } from "../cloudflare/context";
+import type { Selectable } from "kysely";
+
+import { kyselyDb } from "../cloudflare/db";
 import { NotFound } from "../errors";
-import { toDbNull } from "../lib/nullable";
 import { d1RunWithUniqueCheck } from "./d1-helpers";
 
+import type { AscApiKeys } from "../db/schema";
 import type { Conflict } from "../errors";
 import type { AscApiKeyModel } from "../models";
 
@@ -45,24 +48,24 @@ export class AscApiKeyRepo extends Context.Tag("api/AscApiKeyRepo")<
   AscApiKeyRepository
 >() {}
 
-interface Row {
-  id: string;
-  organization_id: string;
-  apple_team_id: string | null;
-  key_id: string;
-  issuer_id: string;
-  name: string;
-  roles: string;
-  r2_key: string;
-  wrapped_dek: string;
-  vault_version: number;
-  created_at: string;
-  updated_at: string;
-}
+// -- D1 Adapter -------------------------------------------------------------
 
-const COLUMNS = `"id", "organization_id", "apple_team_id", "key_id", "issuer_id", "name", "roles", "r2_key", "wrapped_dek", "vault_version", "created_at", "updated_at"`;
+const COLUMNS = [
+  "id",
+  "organization_id",
+  "apple_team_id",
+  "key_id",
+  "issuer_id",
+  "name",
+  "roles",
+  "r2_key",
+  "wrapped_dek",
+  "vault_version",
+  "created_at",
+  "updated_at",
+] as const;
 
-const toModel = (row: Row): AscApiKeyModel => ({
+const toModel = (row: Selectable<AscApiKeys>): AscApiKeyModel => ({
   id: row.id,
   organizationId: row.organization_id,
   appleTeamId: row.apple_team_id,
@@ -80,66 +83,70 @@ const toModel = (row: Row): AscApiKeyModel => ({
 export const AscApiKeyRepoLive = Layer.succeed(AscApiKeyRepo, {
   insert: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       yield* d1RunWithUniqueCheck(
         async () =>
-          env.DB.prepare(
-            `INSERT INTO "asc_api_keys" (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          )
-            .bind(
-              params.id,
-              params.organizationId,
-              params.appleTeamId,
-              params.keyId,
-              params.issuerId,
-              params.name,
-              params.roles,
-              params.r2Key,
-              params.wrappedDek,
-              params.vaultVersion,
-              params.createdAt,
-              params.updatedAt,
-            )
-            .run(),
+          db
+            .insertInto("asc_api_keys")
+            .values({
+              id: params.id,
+              organization_id: params.organizationId,
+              apple_team_id: params.appleTeamId,
+              key_id: params.keyId,
+              issuer_id: params.issuerId,
+              name: params.name,
+              roles: params.roles,
+              r2_key: params.r2Key,
+              wrapped_dek: params.wrappedDek,
+              vault_version: params.vaultVersion,
+              created_at: params.createdAt,
+              updated_at: params.updatedAt,
+            })
+            .execute(),
         `ASC API key ${params.keyId} already uploaded`,
       );
     }),
 
   listByOrg: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const rows = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT ${COLUMNS} FROM "asc_api_keys" WHERE "organization_id" = ? ORDER BY "created_at" DESC`,
-        )
-          .bind(params.organizationId)
-          .all<Row>(),
+        db
+          .selectFrom("asc_api_keys")
+          .select(COLUMNS)
+          .where("organization_id", "=", params.organizationId)
+          .orderBy("created_at", "desc")
+          .execute(),
       );
-      return rows.results.map(toModel);
+      return rows.map(toModel);
     }),
 
   listByOrgAndTeam: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const rows = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT ${COLUMNS} FROM "asc_api_keys" WHERE "organization_id" = ? AND "apple_team_id" = ? ORDER BY "created_at" DESC`,
-        )
-          .bind(params.organizationId, params.appleTeamId)
-          .all<Row>(),
+        db
+          .selectFrom("asc_api_keys")
+          .select(COLUMNS)
+          .where("organization_id", "=", params.organizationId)
+          .where("apple_team_id", "=", params.appleTeamId)
+          .orderBy("created_at", "desc")
+          .execute(),
       );
-      return rows.results.map(toModel);
+      return rows.map(toModel);
     }),
 
   findById: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT ${COLUMNS} FROM "asc_api_keys" WHERE "id" = ?`)
-          .bind(params.id)
-          .first<Row>(),
+        db
+          .selectFrom("asc_api_keys")
+          .select(COLUMNS)
+          .where("id", "=", params.id)
+          .executeTakeFirst(),
       );
-      if (row === null) {
+      if (row === undefined) {
         return yield* new NotFound({ message: "ASC API key not found" });
       }
       return toModel(row);
@@ -147,14 +154,16 @@ export const AscApiKeyRepoLive = Layer.succeed(AscApiKeyRepo, {
 
   delete: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const keyRow = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT "r2_key" FROM "asc_api_keys" WHERE "id" = ?`)
-          .bind(params.id)
-          .first<{ r2_key: string }>(),
+        db
+          .selectFrom("asc_api_keys")
+          .select(["r2_key"])
+          .where("id", "=", params.id)
+          .executeTakeFirst(),
       );
       yield* Effect.promise(async () =>
-        env.DB.prepare(`DELETE FROM "asc_api_keys" WHERE "id" = ?`).bind(params.id).run(),
+        db.deleteFrom("asc_api_keys").where("id", "=", params.id).execute(),
       );
       return { r2Key: toDbNull(keyRow?.r2_key) };
     }),

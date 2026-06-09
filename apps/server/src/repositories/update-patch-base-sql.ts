@@ -1,5 +1,8 @@
 import { Effect } from "effect";
 
+import type { Kysely, SelectQueryBuilder } from "kysely";
+
+import type { DB } from "../db/schema";
 import type { Platform } from "../models";
 
 /** A recent (or embedded-baseline) update joined to its launch-asset hash. */
@@ -30,11 +33,22 @@ export const toPatchBaseRow = (row: PatchBaseQueryRow): PatchBaseRow => ({
   createdAt: row.created_at,
 });
 
-const PATCH_BASE_COLUMNS = `u."id" AS "id", ua."asset_hash" AS "asset_hash", u."runtime_version" AS "runtime_version", u."platform" AS "platform", u."is_embedded" AS "is_embedded", u."created_at" AS "created_at"`;
-
-const RECENT_PATCH_BASES_SQL = `SELECT ${PATCH_BASE_COLUMNS} FROM "updates" u JOIN "update_assets" ua ON ua."update_id" = u."id" AND ua."is_launch" = 1 JOIN "branches" b ON b."id" = u."branch_id" WHERE b."project_id" = ? AND u."branch_id" = ? AND u."runtime_version" = ? AND u."platform" = ? AND u."is_rollback" = 0 ORDER BY u."created_at" DESC, u."id" DESC LIMIT ?`;
-
-const EMBEDDED_PATCH_BASE_SQL = `SELECT ${PATCH_BASE_COLUMNS} FROM "updates" u JOIN "update_assets" ua ON ua."update_id" = u."id" AND ua."is_launch" = 1 WHERE u."branch_id" = ? AND u."runtime_version" = ? AND u."platform" = ? AND u."is_embedded" = 1 LIMIT 1`;
+// The shared patch-base column projection (updates joined to its launch asset).
+// `platform` is narrowed to the Platform union so the row matches
+// PatchBaseQueryRow. The caller supplies the filtered `updates`+`update_assets`
+// builder.
+const selectPatchBaseRow = <Output>(
+  qb: SelectQueryBuilder<DB, "updates" | "update_assets", Output>,
+) =>
+  qb
+    .select([
+      "updates.id",
+      "update_assets.asset_hash",
+      "updates.runtime_version",
+      "updates.is_embedded",
+      "updates.created_at",
+    ])
+    .select((eb) => eb.ref("updates.platform").$castTo<Platform>().as("platform"));
 
 /**
  * Recent published (non-rollback) updates for a (project, branch, rv, platform)
@@ -52,31 +66,55 @@ export interface PatchBaseQueryParams {
 }
 
 export const queryPatchBases = (
-  db: D1Database,
+  db: Kysely<DB>,
   params: PatchBaseQueryParams,
 ): Effect.Effect<readonly PatchBaseRow[]> =>
   Effect.gen(function* () {
     const recent = yield* Effect.promise(async () =>
-      db
-        .prepare(RECENT_PATCH_BASES_SQL)
-        .bind(
-          params.projectId,
-          params.branchId,
-          params.runtimeVersion,
-          params.platform,
-          params.limit,
-        )
-        .all<PatchBaseQueryRow>(),
+      selectPatchBaseRow(
+        db
+          .selectFrom("updates")
+          .innerJoin("update_assets", (join) =>
+            join
+              .onRef("update_assets.update_id", "=", "updates.id")
+              .on("update_assets.is_launch", "=", 1),
+          )
+          .where("updates.branch_id", "in", (eb) =>
+            eb
+              .selectFrom("branches")
+              .select("branches.id")
+              .where("branches.project_id", "=", params.projectId),
+          )
+          .where("updates.branch_id", "=", params.branchId)
+          .where("updates.runtime_version", "=", params.runtimeVersion)
+          .where("updates.platform", "=", params.platform)
+          .where("updates.is_rollback", "=", 0),
+      )
+        .orderBy("updates.created_at", "desc")
+        .orderBy("updates.id", "desc")
+        .limit(params.limit)
+        .execute(),
     );
 
     const embedded = yield* Effect.promise(async () =>
-      db
-        .prepare(EMBEDDED_PATCH_BASE_SQL)
-        .bind(params.branchId, params.runtimeVersion, params.platform)
-        .first<PatchBaseQueryRow>(),
+      selectPatchBaseRow(
+        db
+          .selectFrom("updates")
+          .innerJoin("update_assets", (join) =>
+            join
+              .onRef("update_assets.update_id", "=", "updates.id")
+              .on("update_assets.is_launch", "=", 1),
+          )
+          .where("updates.branch_id", "=", params.branchId)
+          .where("updates.runtime_version", "=", params.runtimeVersion)
+          .where("updates.platform", "=", params.platform)
+          .where("updates.is_embedded", "=", 1),
+      )
+        .limit(1)
+        .executeTakeFirst(),
     );
 
-    const allRows = embedded === null ? recent.results : [...recent.results, embedded];
+    const allRows = embedded === undefined ? recent : [...recent, embedded];
     const merged = new Map(allRows.map((row) => [row.id, toPatchBaseRow(row)]));
     return [...merged.values()];
   });

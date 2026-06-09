@@ -1,11 +1,15 @@
 import { Context, Effect, Layer } from "effect";
+import { sql } from "kysely";
 
-import { cloudflareEnv } from "../cloudflare/context";
+import type { Selectable } from "kysely";
+
+import { d1Batch, kyselyDb } from "../cloudflare/db";
 import { extractReachableBranchIds } from "../domain/branch-mapping";
 import { NotFound } from "../errors";
 import { bumpChannelCacheVersionByBranchReference } from "./channel-cache-version";
 import { d1RunWithUniqueCheck } from "./d1-helpers";
 
+import type { Channels } from "../db/schema";
 import type { Conflict } from "../errors";
 import type { ChannelModel } from "../models";
 
@@ -89,21 +93,19 @@ export class ChannelRepo extends Context.Tag("api/ChannelRepo")<ChannelRepo, Cha
 
 // -- D1 Adapter ------------------------------------------------------------
 
-interface ChannelRow {
-  id: string;
-  project_id: string;
-  name: string;
-  branch_id: string;
-  branch_mapping_json: string | null;
-  cache_version: number;
-  is_paused: number;
-  is_builtin: number;
-  created_at: string;
-}
+const CHANNEL_COLUMNS = [
+  "id",
+  "project_id",
+  "name",
+  "branch_id",
+  "branch_mapping_json",
+  "cache_version",
+  "is_paused",
+  "is_builtin",
+  "created_at",
+] as const;
 
-const CHANNEL_COLUMNS = `"id", "project_id", "name", "branch_id", "branch_mapping_json", "cache_version", "is_paused", "is_builtin", "created_at"`;
-
-const toChannel = (row: ChannelRow) =>
+const toChannel = (row: Selectable<Channels>) =>
   ({
     id: row.id,
     projectId: row.project_id,
@@ -119,27 +121,26 @@ const toChannel = (row: ChannelRow) =>
 export const ChannelRepoLive = Layer.succeed(ChannelRepo, {
   insert: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const id = crypto.randomUUID();
       const now = new Date().toISOString();
 
       yield* d1RunWithUniqueCheck(
         async () =>
-          env.DB.prepare(
-            `INSERT INTO "channels" ("id", "project_id", "name", "branch_id", "branch_mapping_json", "cache_version", "is_paused", "is_builtin", "created_at") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          )
-            .bind(
+          db
+            .insertInto("channels")
+            .values({
               id,
-              params.projectId,
-              params.name,
-              params.branchId,
-              null,
-              0,
-              0,
-              params.isBuiltin ? 1 : 0,
-              now,
-            )
-            .run(),
+              project_id: params.projectId,
+              name: params.name,
+              branch_id: params.branchId,
+              branch_mapping_json: null,
+              cache_version: 0,
+              is_paused: 0,
+              is_builtin: params.isBuiltin ? 1 : 0,
+              created_at: now,
+            })
+            .execute(),
         `A channel named "${params.name}" already exists in this project`,
       );
 
@@ -158,45 +159,49 @@ export const ChannelRepoLive = Layer.succeed(ChannelRepo, {
 
   findByProject: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
 
-      const countResult = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT COUNT(*) as count FROM "channels" WHERE "project_id" = ?`)
-          .bind(params.projectId)
-          .first<{ count: number }>(),
+      const countRow = yield* Effect.promise(async () =>
+        db
+          .selectFrom("channels")
+          .where("project_id", "=", params.projectId)
+          .select((eb) => eb.fn.countAll<number>().as("count"))
+          .executeTakeFirstOrThrow(),
       );
+      const total = countRow.count;
 
-      const total = countResult?.count ?? 0;
-
-      const sortColumns: Record<ChannelSortKey, string> = {
-        name: '"name" COLLATE NOCASE',
-        createdAt: '"created_at"',
-      };
-      const direction = params.order === "asc" ? "ASC" : "DESC";
-      const orderBy = `${sortColumns[params.sort]} ${direction}, "id" ${direction}`;
+      const direction = params.order === "asc" ? "asc" : "desc";
+      const primaryOrder =
+        params.sort === "name" ? sql`"name" collate nocase` : sql.ref("created_at");
 
       const rows = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT ${CHANNEL_COLUMNS} FROM "channels" WHERE "project_id" = ? ORDER BY ${orderBy} LIMIT ? OFFSET ?`,
-        )
-          .bind(params.projectId, params.limit, params.offset)
-          .all<ChannelRow>(),
+        db
+          .selectFrom("channels")
+          .select(CHANNEL_COLUMNS)
+          .where("project_id", "=", params.projectId)
+          .orderBy(primaryOrder, direction)
+          .orderBy("id", direction)
+          .limit(params.limit)
+          .offset(params.offset)
+          .execute(),
       );
 
-      return { items: rows.results.map(toChannel), total };
+      return { items: rows.map(toChannel), total };
     }),
 
   findById: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
 
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT ${CHANNEL_COLUMNS} FROM "channels" WHERE "id" = ?`)
-          .bind(params.id)
-          .first<ChannelRow>(),
+        db
+          .selectFrom("channels")
+          .select(CHANNEL_COLUMNS)
+          .where("id", "=", params.id)
+          .executeTakeFirst(),
       );
 
-      if (row === null) {
+      if (row === undefined) {
         return yield* new NotFound({ message: "Channel not found" });
       }
 
@@ -205,17 +210,18 @@ export const ChannelRepoLive = Layer.succeed(ChannelRepo, {
 
   findByProjectAndName: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
 
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT ${CHANNEL_COLUMNS} FROM "channels" WHERE "project_id" = ? AND "name" = ?`,
-        )
-          .bind(params.projectId, params.name)
-          .first<ChannelRow>(),
+        db
+          .selectFrom("channels")
+          .select(CHANNEL_COLUMNS)
+          .where("project_id", "=", params.projectId)
+          .where("name", "=", params.name)
+          .executeTakeFirst(),
       );
 
-      if (row === null) {
+      if (row === undefined) {
         return yield* new NotFound({ message: "Channel not found" });
       }
 
@@ -224,103 +230,123 @@ export const ChannelRepoLive = Layer.succeed(ChannelRepo, {
 
   findByBranchId: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
 
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT ${CHANNEL_COLUMNS} FROM "channels" WHERE "branch_id" = ? ORDER BY "created_at" ASC, "id" ASC LIMIT 1`,
-        )
-          .bind(params.branchId)
-          .first<ChannelRow>(),
+        db
+          .selectFrom("channels")
+          .select(CHANNEL_COLUMNS)
+          .where("branch_id", "=", params.branchId)
+          .orderBy("created_at", "asc")
+          .orderBy("id", "asc")
+          .limit(1)
+          .executeTakeFirst(),
       );
 
-      return row === null ? null : toChannel(row);
+      return row === undefined ? null : toChannel(row);
     }),
 
   updateBranchId: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
 
       yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `UPDATE "channels" SET "branch_id" = ?, "cache_version" = "cache_version" + 1 WHERE "id" = ?`,
-        )
-          .bind(params.branchId, params.id)
-          .run(),
+        db
+          .updateTable("channels")
+          .set((eb) => ({
+            branch_id: params.branchId,
+            cache_version: eb("cache_version", "+", 1),
+          }))
+          .where("id", "=", params.id)
+          .execute(),
       );
     }),
 
   setPaused: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
 
       yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `UPDATE "channels" SET "is_paused" = ?, "cache_version" = "cache_version" + 1 WHERE "id" = ?`,
-        )
-          .bind(params.isPaused ? 1 : 0, params.id)
-          .run(),
+        db
+          .updateTable("channels")
+          .set((eb) => ({
+            is_paused: params.isPaused ? 1 : 0,
+            cache_version: eb("cache_version", "+", 1),
+          }))
+          .where("id", "=", params.id)
+          .execute(),
       );
     }),
 
   setBranchMapping: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
 
       yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `UPDATE "channels" SET "branch_mapping_json" = ?, "cache_version" = "cache_version" + 1 WHERE "id" = ?`,
-        )
-          .bind(params.branchMappingJson, params.id)
-          .run(),
+        db
+          .updateTable("channels")
+          .set((eb) => ({
+            branch_mapping_json: params.branchMappingJson,
+            cache_version: eb("cache_version", "+", 1),
+          }))
+          .where("id", "=", params.id)
+          .execute(),
       );
     }),
 
   completeBranchRollout: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
 
       yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `UPDATE "channels" SET "branch_id" = ?, "branch_mapping_json" = NULL, "cache_version" = "cache_version" + 1 WHERE "id" = ?`,
-        )
-          .bind(params.branchId, params.id)
-          .run(),
+        db
+          .updateTable("channels")
+          .set((eb) => ({
+            branch_id: params.branchId,
+            branch_mapping_json: null,
+            cache_version: eb("cache_version", "+", 1),
+          }))
+          .where("id", "=", params.id)
+          .execute(),
       );
     }),
 
   revertBranchRollout: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
 
       yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `UPDATE "channels" SET "branch_mapping_json" = NULL, "cache_version" = "cache_version" + 1 WHERE "id" = ?`,
-        )
-          .bind(params.id)
-          .run(),
+        db
+          .updateTable("channels")
+          .set((eb) => ({
+            branch_mapping_json: null,
+            cache_version: eb("cache_version", "+", 1),
+          }))
+          .where("id", "=", params.id)
+          .execute(),
       );
     }),
 
   bumpCacheVersionByBranch: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
-      yield* bumpChannelCacheVersionByBranchReference(env.DB, params.branchId);
+      const db = yield* kyselyDb;
+      yield* bumpChannelCacheVersionByBranchReference(db, params.branchId);
     }),
 
   listReachableBranchIdsByProject: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
+
       const rows = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT "branch_id", "branch_mapping_json" FROM "channels" WHERE "project_id" = ?`,
-        )
-          .bind(params.projectId)
-          .all<{ branch_id: string; branch_mapping_json: string | null }>(),
+        db
+          .selectFrom("channels")
+          .select(["branch_id", "branch_mapping_json"])
+          .where("project_id", "=", params.projectId)
+          .execute(),
       );
 
-      const currentBranchIds = rows.results.map((row) => row.branch_id);
-      const reachableBranchIds = rows.results.flatMap((row) =>
+      const currentBranchIds = rows.map((row) => row.branch_id);
+      const reachableBranchIds = rows.flatMap((row) =>
         row.branch_mapping_json === null ? [] : extractReachableBranchIds(row.branch_mapping_json),
       );
       return [...new Set([...currentBranchIds, ...reachableBranchIds])];
@@ -328,15 +354,14 @@ export const ChannelRepoLive = Layer.succeed(ChannelRepo, {
 
   delete: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
 
-      yield* Effect.promise(async () =>
-        env.DB.batch([
-          env.DB.prepare(
-            `UPDATE "channels" SET "cache_version" = "cache_version" + 1 WHERE "id" = ?`,
-          ).bind(params.id),
-          env.DB.prepare(`DELETE FROM "channels" WHERE "id" = ?`).bind(params.id),
-        ]),
-      );
+      yield* d1Batch([
+        db
+          .updateTable("channels")
+          .set((eb) => ({ cache_version: eb("cache_version", "+", 1) }))
+          .where("id", "=", params.id),
+        db.deleteFrom("channels").where("id", "=", params.id),
+      ]);
     }),
 });

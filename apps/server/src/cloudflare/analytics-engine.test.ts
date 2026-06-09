@@ -4,6 +4,9 @@ import { AnalyticsEngineLive, queryAnalyticsEngine } from "./analytics-engine";
 const mockEnv = {
   ACCOUNT_ID: "test-account",
   CLOUDFLARE_API_TOKEN: "test-token",
+  // `provideCloudflareEnv` opens a D1 read-replication session per call; this
+  // WAE-only path never touches it, so a stub binding suffices.
+  DB: { withSession: () => ({}) },
 } as unknown as Env;
 
 afterEach(() => {

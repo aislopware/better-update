@@ -1,9 +1,15 @@
 import { Context, Effect, Layer } from "effect";
+import { sql } from "kysely";
 
-import { cloudflareEnv } from "../cloudflare/context";
+import type { Kysely, Selectable } from "kysely";
+
+import { kyselyDb } from "../cloudflare/db";
 import { NotFound } from "../errors";
 
+import type { AppleTeams, DB } from "../db/schema";
 import type { AppleTeamModel, AppleTeamType } from "../models";
+
+// -- Port -------------------------------------------------------------------
 
 export interface AppleTeamWithCounts extends AppleTeamModel {
   readonly distributionCertificateCount: number;
@@ -40,25 +46,60 @@ export class AppleTeamRepo extends Context.Tag("api/AppleTeamRepo")<
   AppleTeamRepository
 >() {}
 
-interface Row {
-  id: string;
-  organization_id: string;
-  apple_team_id: string;
-  apple_team_type: AppleTeamType;
-  name: string | null;
-  created_at: string;
-  updated_at: string;
-}
+// -- D1 Adapter -------------------------------------------------------------
 
-interface RowWithCounts extends Row {
-  distribution_certificate_count: number;
-  push_key_count: number;
-  asc_api_key_count: number;
-  provisioning_profile_count: number;
-  device_count: number;
-}
+/**
+ * Base projection with correlated COUNT subqueries for each credential
+ * category attached to an Apple team. Used exclusively by `listWithCounts`.
+ */
+const selectAppleTeamWithCounts = (db: Kysely<DB>) =>
+  db
+    .selectFrom("apple_teams as t")
+    .select([
+      "t.id",
+      "t.organization_id",
+      "t.apple_team_id",
+      "t.apple_team_type",
+      "t.name",
+      "t.created_at",
+      "t.updated_at",
+      (eb) =>
+        eb
+          .selectFrom("apple_distribution_certificates")
+          .select(eb.fn.countAll<number>().as("c"))
+          .whereRef("apple_team_id", "=", "t.id")
+          .as("distribution_certificate_count"),
+      (eb) =>
+        eb
+          .selectFrom("apple_push_keys")
+          .select(eb.fn.countAll<number>().as("c"))
+          .whereRef("apple_team_id", "=", "t.id")
+          .as("push_key_count"),
+      (eb) =>
+        eb
+          .selectFrom("asc_api_keys")
+          .select(eb.fn.countAll<number>().as("c"))
+          .whereRef("apple_team_id", "=", "t.id")
+          .as("asc_api_key_count"),
+      (eb) =>
+        eb
+          .selectFrom("apple_provisioning_profiles")
+          .select(eb.fn.countAll<number>().as("c"))
+          .whereRef("apple_team_id", "=", "t.id")
+          .as("provisioning_profile_count"),
+      (eb) =>
+        eb
+          .selectFrom("devices")
+          .select(eb.fn.countAll<number>().as("c"))
+          .whereRef("apple_team_id", "=", "t.id")
+          .as("device_count"),
+    ]);
 
-const toModel = (row: Row): AppleTeamModel => ({
+type AppleTeamWithCountsRow = Awaited<
+  ReturnType<ReturnType<typeof selectAppleTeamWithCounts>["execute"]>
+>[number];
+
+const toModel = (row: Selectable<AppleTeams>): AppleTeamModel => ({
   id: row.id,
   organizationId: row.organization_id,
   appleTeamId: row.apple_team_id,
@@ -68,44 +109,47 @@ const toModel = (row: Row): AppleTeamModel => ({
   updatedAt: row.updated_at,
 });
 
-const toModelWithCounts = (row: RowWithCounts): AppleTeamWithCounts => ({
+const toModelWithCounts = (row: AppleTeamWithCountsRow): AppleTeamWithCounts => ({
   ...toModel(row),
-  distributionCertificateCount: row.distribution_certificate_count,
-  pushKeyCount: row.push_key_count,
-  ascApiKeyCount: row.asc_api_key_count,
-  provisioningProfileCount: row.provisioning_profile_count,
-  deviceCount: row.device_count,
+  distributionCertificateCount: Number(row.distribution_certificate_count),
+  pushKeyCount: Number(row.push_key_count),
+  ascApiKeyCount: Number(row.asc_api_key_count),
+  provisioningProfileCount: Number(row.provisioning_profile_count),
+  deviceCount: Number(row.device_count),
 });
-
-const COLUMNS = `"id", "organization_id", "apple_team_id", "apple_team_type", "name", "created_at", "updated_at"`;
 
 export const AppleTeamRepoLive = Layer.succeed(AppleTeamRepo, {
   upsertByAppleTeamId: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const id = crypto.randomUUID();
       const now = new Date().toISOString();
+
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `INSERT INTO "apple_teams" ("id", "organization_id", "apple_team_id", "apple_team_type", "name", "created_at", "updated_at") VALUES (?, ?, ?, ?, ?, ?, ?)
-           ON CONFLICT ("organization_id", "apple_team_id") DO UPDATE SET
-             "apple_team_type" = excluded."apple_team_type",
-             "name" = COALESCE(excluded."name", "apple_teams"."name"),
-             "updated_at" = excluded."updated_at"
-           RETURNING ${COLUMNS}`,
-        )
-          .bind(
+        db
+          .insertInto("apple_teams")
+          .values({
             id,
-            params.organizationId,
-            params.appleTeamId,
-            params.appleTeamType,
-            params.name,
-            now,
-            now,
+            organization_id: params.organizationId,
+            apple_team_id: params.appleTeamId,
+            apple_team_type: params.appleTeamType,
+            name: params.name,
+            created_at: now,
+            updated_at: now,
+          })
+          .onConflict((oc) =>
+            oc.columns(["organization_id", "apple_team_id"]).doUpdateSet((eb) => ({
+              apple_team_type: eb.ref("excluded.apple_team_type"),
+              // Preserve the stored name when the incoming name is null
+              name: sql<string | null>`COALESCE(excluded."name", "apple_teams"."name")`,
+              updated_at: eb.ref("excluded.updated_at"),
+            })),
           )
-          .first<Row>(),
+          .returningAll()
+          .executeTakeFirst(),
       );
-      if (row === null) {
+
+      if (row === undefined) {
         return yield* Effect.die(new Error("Apple team upsert failed"));
       }
       return toModel(row);
@@ -113,13 +157,13 @@ export const AppleTeamRepoLive = Layer.succeed(AppleTeamRepo, {
 
   findById: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
+
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT ${COLUMNS} FROM "apple_teams" WHERE "id" = ?`)
-          .bind(params.id)
-          .first<Row>(),
+        db.selectFrom("apple_teams").selectAll().where("id", "=", params.id).executeTakeFirst(),
       );
-      if (row === null) {
+
+      if (!row) {
         return yield* new NotFound({ message: "Apple team not found" });
       }
       return toModel(row);
@@ -127,15 +171,18 @@ export const AppleTeamRepoLive = Layer.succeed(AppleTeamRepo, {
 
   findByAppleTeamId: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
+
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT ${COLUMNS} FROM "apple_teams" WHERE "organization_id" = ? AND "apple_team_id" = ?`,
-        )
-          .bind(params.organizationId, params.appleTeamId)
-          .first<Row>(),
+        db
+          .selectFrom("apple_teams")
+          .selectAll()
+          .where("organization_id", "=", params.organizationId)
+          .where("apple_team_id", "=", params.appleTeamId)
+          .executeTakeFirst(),
       );
-      if (row === null) {
+
+      if (!row) {
         return yield* new NotFound({ message: "Apple team not found" });
       }
       return toModel(row);
@@ -143,30 +190,24 @@ export const AppleTeamRepoLive = Layer.succeed(AppleTeamRepo, {
 
   listWithCounts: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
+
       const rows = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT t."id", t."organization_id", t."apple_team_id", t."apple_team_type", t."name", t."created_at", t."updated_at",
-            (SELECT COUNT(*) FROM "apple_distribution_certificates" WHERE "apple_team_id" = t."id") AS "distribution_certificate_count",
-            (SELECT COUNT(*) FROM "apple_push_keys" WHERE "apple_team_id" = t."id") AS "push_key_count",
-            (SELECT COUNT(*) FROM "asc_api_keys" WHERE "apple_team_id" = t."id") AS "asc_api_key_count",
-            (SELECT COUNT(*) FROM "apple_provisioning_profiles" WHERE "apple_team_id" = t."id") AS "provisioning_profile_count",
-            (SELECT COUNT(*) FROM "devices" WHERE "apple_team_id" = t."id") AS "device_count"
-          FROM "apple_teams" t
-          WHERE t."organization_id" = ?
-          ORDER BY t."created_at" DESC`,
-        )
-          .bind(params.organizationId)
-          .all<RowWithCounts>(),
+        selectAppleTeamWithCounts(db)
+          .where("t.organization_id", "=", params.organizationId)
+          .orderBy("t.created_at", "desc")
+          .execute(),
       );
-      return rows.results.map(toModelWithCounts);
+
+      return rows.map(toModelWithCounts);
     }),
 
   delete: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
+
       yield* Effect.promise(async () =>
-        env.DB.prepare(`DELETE FROM "apple_teams" WHERE "id" = ?`).bind(params.id).run(),
+        db.deleteFrom("apple_teams").where("id", "=", params.id).execute(),
       );
     }),
 });

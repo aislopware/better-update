@@ -1,10 +1,13 @@
 import { Context, Effect, Layer } from "effect";
+import { sql } from "kysely";
 
-import { cloudflareEnv } from "../cloudflare/context";
+import type { Kysely } from "kysely";
+
+import { d1Batch, kyselyDb } from "../cloudflare/db";
 import { Conflict, NotFound } from "../errors";
-import { CHANNEL_BRANCH_REFERENCE_PREDICATE } from "./channel-cache-version";
 import { d1RunWithUniqueCheck } from "./d1-helpers";
 
+import type { DB } from "../db/schema";
 import type { BranchModel } from "../models";
 
 // -- Port ------------------------------------------------------------------
@@ -49,16 +52,29 @@ export class BranchRepo extends Context.Tag("api/BranchRepo")<BranchRepo, Branch
 
 // -- D1 Adapter ------------------------------------------------------------
 
-interface BranchRow {
-  id: string;
-  project_id: string;
-  name: string;
-  is_builtin: number;
-  created_at: string;
-  update_count: number;
-}
+/**
+ * Base branch projection: the stored columns plus a correlated `update_count`
+ * subquery (number of updates on the branch). Shared by every read so the
+ * `toBranch` mapper always sees an identical row shape.
+ */
+const selectBranches = (db: Kysely<DB>) =>
+  db.selectFrom("branches as b").select((eb) => [
+    "b.id",
+    "b.project_id",
+    "b.name",
+    "b.is_builtin",
+    "b.created_at",
+    eb
+      .selectFrom("updates")
+      .whereRef("updates.branch_id", "=", "b.id")
+      .select((count) => count.fn.countAll<number>().as("count"))
+      .$asScalar()
+      .as("update_count"),
+  ]);
 
-const BRANCH_COLUMNS = `b."id", b."project_id", b."name", b."is_builtin", b."created_at", (SELECT COUNT(*) FROM "updates" WHERE "updates"."branch_id" = b."id") AS "update_count"`;
+type BranchListQuery = ReturnType<typeof selectBranches>;
+
+type BranchRow = Awaited<ReturnType<BranchListQuery["execute"]>>[number];
 
 const toBranch = (row: BranchRow) =>
   ({
@@ -70,73 +86,81 @@ const toBranch = (row: BranchRow) =>
     updateCount: row.update_count,
   }) satisfies BranchModel;
 
-const sortColumns: Record<BranchSortKey, string> = {
-  name: 'b."name" COLLATE NOCASE',
-  createdAt: 'b."created_at"',
-  updateCount: '"update_count"',
-};
-
-const sortClause = (sort: BranchSortKey, order: BranchSortOrder): string => {
-  const direction = order === "asc" ? "ASC" : "DESC";
-  return `${sortColumns[sort]} ${direction}, b."id" ${direction}`;
+/**
+ * Apply the primary sort. `name` collates case-insensitively; `updateCount`
+ * sorts on the computed alias. The caller adds the `b.id` tie-break.
+ */
+const orderByPrimary = (
+  query: BranchListQuery,
+  sort: BranchSortKey,
+  order: BranchSortOrder,
+): BranchListQuery => {
+  if (sort === "name") {
+    return query.orderBy(sql`"b"."name" COLLATE NOCASE`, order);
+  }
+  if (sort === "updateCount") {
+    return query.orderBy("update_count", order);
+  }
+  return query.orderBy("b.created_at", order);
 };
 
 export const BranchRepoLive = Layer.succeed(BranchRepo, {
   insert: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
 
       yield* d1RunWithUniqueCheck(
         async () =>
-          env.DB.prepare(
-            `INSERT INTO "branches" ("id", "project_id", "name", "is_builtin", "created_at") VALUES (?, ?, ?, ?, ?)`,
-          )
-            .bind(
-              params.id,
-              params.projectId,
-              params.name,
-              params.isBuiltin ? 1 : 0,
-              params.createdAt,
-            )
-            .run(),
+          db
+            .insertInto("branches")
+            .values({
+              id: params.id,
+              project_id: params.projectId,
+              name: params.name,
+              is_builtin: params.isBuiltin ? 1 : 0,
+              created_at: params.createdAt,
+            })
+            .execute(),
         `A branch named "${params.name}" already exists in this project`,
       );
     }),
 
   findByProject: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
 
-      const countResult = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT COUNT(*) as count FROM "branches" b WHERE b."project_id" = ?`)
-          .bind(params.projectId)
-          .first<{ count: number }>(),
+      const totalRow = yield* Effect.promise(async () =>
+        db
+          .selectFrom("branches")
+          .where("project_id", "=", params.projectId)
+          .select((eb) => eb.fn.countAll<number>().as("count"))
+          .executeTakeFirstOrThrow(),
       );
-
-      const total = countResult?.count ?? 0;
 
       const rows = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT ${BRANCH_COLUMNS} FROM "branches" b WHERE b."project_id" = ? ORDER BY ${sortClause(params.sort, params.order)} LIMIT ? OFFSET ?`,
+        orderByPrimary(
+          selectBranches(db).where("b.project_id", "=", params.projectId),
+          params.sort,
+          params.order,
         )
-          .bind(params.projectId, params.limit, params.offset)
-          .all<BranchRow>(),
+          .orderBy("b.id", params.order)
+          .limit(params.limit)
+          .offset(params.offset)
+          .execute(),
       );
 
-      return { items: rows.results.map(toBranch), total };
+      return { items: rows.map(toBranch), total: totalRow.count };
     }),
 
   findById: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
 
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT ${BRANCH_COLUMNS} FROM "branches" b WHERE b."id" = ?`)
-          .bind(params.id)
-          .first<BranchRow>(),
+        selectBranches(db).where("b.id", "=", params.id).executeTakeFirst(),
       );
 
-      if (row === null) {
+      if (!row) {
         return yield* new NotFound({ message: "Branch not found" });
       }
 
@@ -145,17 +169,16 @@ export const BranchRepoLive = Layer.succeed(BranchRepo, {
 
   findByProjectAndName: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
 
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT ${BRANCH_COLUMNS} FROM "branches" b WHERE b."project_id" = ? AND b."name" = ?`,
-        )
-          .bind(params.projectId, params.name)
-          .first<BranchRow>(),
+        selectBranches(db)
+          .where("b.project_id", "=", params.projectId)
+          .where("b.name", "=", params.name)
+          .executeTakeFirst(),
       );
 
-      if (row === null) {
+      if (!row) {
         return yield* new NotFound({ message: "Branch not found" });
       }
 
@@ -164,46 +187,56 @@ export const BranchRepoLive = Layer.succeed(BranchRepo, {
 
   updateName: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
 
       yield* d1RunWithUniqueCheck(
         async () =>
-          env.DB.prepare(`UPDATE "branches" SET "name" = ? WHERE "id" = ?`)
-            .bind(params.name, params.id)
-            .run(),
+          db
+            .updateTable("branches")
+            .set({ name: params.name })
+            .where("id", "=", params.id)
+            .execute(),
         `A branch named "${params.name}" already exists in this project`,
       );
     }),
 
   delete: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
 
-      // Conflict guard: cannot delete branch while channels reference it
-      // (either as current branch_id OR as a rollout target in branch_mapping_json)
+      // Conflict guard: cannot delete a branch while channels reference it,
+      // either as the current branch_id OR as a rollout target inside
+      // branch_mapping_json. Mirrors CHANNEL_BRANCH_REFERENCE_PREDICATE in
+      // channel-cache-version.ts (kept in sync); the json_each/json_extract
+      // predicate has no query-builder form, so it uses the `sql` escape hatch.
       const channelCount = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT COUNT(*) as count FROM "channels" WHERE ${CHANNEL_BRANCH_REFERENCE_PREDICATE}`,
-        )
-          .bind(params.id, params.id)
-          .first<{ count: number }>(),
+        db
+          .selectFrom("channels")
+          .where(
+            sql<boolean>`"branch_id" = ${params.id} OR ("branch_mapping_json" IS NOT NULL AND EXISTS (SELECT 1 FROM json_each("branch_mapping_json", '$.data') AS "branch_mapping_entry" WHERE json_extract("branch_mapping_entry"."value", '$.branchId') = ${params.id}))`,
+          )
+          .select((eb) => eb.fn.countAll<number>().as("count"))
+          .executeTakeFirstOrThrow(),
       );
 
-      if ((channelCount?.count ?? 0) > 0) {
+      if (channelCount.count > 0) {
         return yield* new Conflict({
           message: "Cannot delete branch while channels are linked to it",
         });
       }
 
-      // Cascade delete in FK dependency order
-      yield* Effect.promise(async () =>
-        env.DB.batch([
-          env.DB.prepare(
-            `DELETE FROM "update_assets" WHERE "update_id" IN (SELECT "id" FROM "updates" WHERE "branch_id" = ?)`,
-          ).bind(params.id),
-          env.DB.prepare(`DELETE FROM "updates" WHERE "branch_id" = ?`).bind(params.id),
-          env.DB.prepare(`DELETE FROM "branches" WHERE "id" = ?`).bind(params.id),
-        ]),
-      );
+      // Cascade delete in FK dependency order, atomically (D1 has no
+      // interactive transactions — a batch is the only multi-statement atom).
+      yield* d1Batch([
+        db
+          .deleteFrom("update_assets")
+          .where(
+            "update_id",
+            "in",
+            db.selectFrom("updates").select("updates.id").where("branch_id", "=", params.id),
+          ),
+        db.deleteFrom("updates").where("branch_id", "=", params.id),
+        db.deleteFrom("branches").where("id", "=", params.id),
+      ]);
     }),
 });

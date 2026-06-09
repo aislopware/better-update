@@ -1,9 +1,14 @@
 import { Context, Effect, Layer } from "effect";
+import { sql } from "kysely";
 
-import { cloudflareEnv } from "../cloudflare/context";
+import type { Selectable } from "kysely";
+
+import { d1Session } from "../cloudflare/context";
+import { kyselyDb } from "../cloudflare/db";
 import { NotFound } from "../errors";
 import { d1RunWithUniqueCheck } from "./d1-helpers";
 
+import type { Environments } from "../db/schema";
 import type { Conflict } from "../errors";
 import type { EnvironmentModel } from "../models";
 
@@ -57,16 +62,9 @@ export class EnvironmentRepo extends Context.Tag("api/EnvironmentRepo")<
 
 // -- D1 Adapter ------------------------------------------------------------
 
-interface EnvironmentRow {
-  id: string;
-  organization_id: string;
-  name: string;
-  created_at: string;
-}
+const ENVIRONMENT_COLUMNS = ["id", "organization_id", "name", "created_at"] as const;
 
-const ENVIRONMENT_COLUMNS = `"id", "organization_id", "name", "created_at"`;
-
-const toEnvironment = (row: EnvironmentRow) =>
+const toEnvironment = (row: Selectable<Environments>) =>
   ({
     id: row.id,
     organizationId: row.organization_id,
@@ -77,28 +75,30 @@ const toEnvironment = (row: EnvironmentRow) =>
 export const EnvironmentRepoLive = Layer.succeed(EnvironmentRepo, {
   listByOrg: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const rows = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT ${ENVIRONMENT_COLUMNS} FROM "environments" WHERE "organization_id" = ? ORDER BY "name" COLLATE NOCASE ASC`,
-        )
-          .bind(params.organizationId)
-          .all<EnvironmentRow>(),
+        db
+          .selectFrom("environments")
+          .select(ENVIRONMENT_COLUMNS)
+          .where("organization_id", "=", params.organizationId)
+          .orderBy(sql`"name" collate nocase`, "asc")
+          .execute(),
       );
-      return rows.results.map(toEnvironment);
+      return rows.map(toEnvironment);
     }),
 
   findByName: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT ${ENVIRONMENT_COLUMNS} FROM "environments" WHERE "organization_id" = ? AND "name" = ?`,
-        )
-          .bind(params.organizationId, params.name)
-          .first<EnvironmentRow>(),
+        db
+          .selectFrom("environments")
+          .select(ENVIRONMENT_COLUMNS)
+          .where("organization_id", "=", params.organizationId)
+          .where("name", "=", params.name)
+          .executeTakeFirst(),
       );
-      if (row === null) {
+      if (!row) {
         return yield* new NotFound({ message: "Environment not found" });
       }
       return toEnvironment(row);
@@ -106,56 +106,75 @@ export const EnvironmentRepoLive = Layer.succeed(EnvironmentRepo, {
 
   insert: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       yield* d1RunWithUniqueCheck(
         async () =>
-          env.DB.prepare(
-            `INSERT INTO "environments" ("id", "organization_id", "name", "created_at") VALUES (?, ?, ?, ?)`,
-          )
-            .bind(params.id, params.organizationId, params.name, params.createdAt)
-            .run(),
+          db
+            .insertInto("environments")
+            .values({
+              id: params.id,
+              organization_id: params.organizationId,
+              name: params.name,
+              created_at: params.createdAt,
+            })
+            .execute(),
         `An environment named "${params.name}" already exists`,
       );
     }),
 
   rename: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
+      const session = yield* d1Session;
       const now = new Date().toISOString();
-      yield* d1RunWithUniqueCheck(
-        async () =>
-          env.DB.batch([
-            env.DB.prepare(
-              `UPDATE "environments" SET "name" = ? WHERE "organization_id" = ? AND "name" = ?`,
-            ).bind(params.newName, params.organizationId, params.oldName),
-            env.DB.prepare(
-              `UPDATE "env_vars" SET "environment" = ?, "updated_at" = ? WHERE "organization_id" = ? AND "environment" = ?`,
-            ).bind(params.newName, now, params.organizationId, params.oldName),
-          ]),
-        `An environment named "${params.newName}" already exists`,
-      );
+
+      // Rename + re-point run as one atomic D1 batch (D1 has no interactive
+      // transactions) so a name collision rolls the rename back too. d1Batch
+      // can't carry the typed Conflict, so the batch is routed through the
+      // unique-check helper here.
+      yield* d1RunWithUniqueCheck(async () => {
+        const statements = [
+          db
+            .updateTable("environments")
+            .set({ name: params.newName })
+            .where("organization_id", "=", params.organizationId)
+            .where("name", "=", params.oldName),
+          db
+            .updateTable("env_vars")
+            .set({ environment: params.newName, updated_at: now })
+            .where("organization_id", "=", params.organizationId)
+            .where("environment", "=", params.oldName),
+        ].map((query) => {
+          const { sql: compiledSql, parameters } = query.compile();
+          return session.prepare(compiledSql).bind(...parameters);
+        });
+        return session.batch(statements);
+      }, `An environment named "${params.newName}" already exists`);
     }),
 
   countEnvVarsUsing: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
-      const result = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT COUNT(*) as count FROM "env_vars" WHERE "organization_id" = ? AND "environment" = ?`,
-        )
-          .bind(params.organizationId, params.name)
-          .first<{ count: number }>(),
+      const db = yield* kyselyDb;
+      const countRow = yield* Effect.promise(async () =>
+        db
+          .selectFrom("env_vars")
+          .where("organization_id", "=", params.organizationId)
+          .where("environment", "=", params.name)
+          .select((eb) => eb.fn.countAll<number>().as("count"))
+          .executeTakeFirstOrThrow(),
       );
-      return result?.count ?? 0;
+      return countRow.count;
     }),
 
   deleteByName: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       yield* Effect.promise(async () =>
-        env.DB.prepare(`DELETE FROM "environments" WHERE "organization_id" = ? AND "name" = ?`)
-          .bind(params.organizationId, params.name)
-          .run(),
+        db
+          .deleteFrom("environments")
+          .where("organization_id", "=", params.organizationId)
+          .where("name", "=", params.name)
+          .execute(),
       );
     }),
 });

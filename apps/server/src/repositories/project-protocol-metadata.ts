@@ -1,6 +1,8 @@
+import { toDbNull } from "@better-update/type-guards";
 import { Context, Effect, Layer } from "effect";
+import { sql } from "kysely";
 
-import { cloudflareEnv } from "../cloudflare/context";
+import { kyselyDb } from "../cloudflare/db";
 
 // Per-(project, scopeKey) protocol metadata the device persists in its local
 // SQLite json_data store: expo-server-defined-headers today and (P1)
@@ -41,42 +43,62 @@ export class ProjectProtocolMetadataRepo extends Context.Tag("api/ProjectProtoco
   ProjectProtocolMetadataRepository
 >() {}
 
-const SELECT_COLUMNS = `"server_defined_headers_json", "manifest_filters_json", "updated_at"`;
+const COLUMNS = ["server_defined_headers_json", "manifest_filters_json", "updated_at"] as const;
 
 export const ProjectProtocolMetadataRepoLive = Layer.succeed(ProjectProtocolMetadataRepo, {
   get: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
-      return yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT ${SELECT_COLUMNS} FROM "project_protocol_metadata" WHERE "project_id" = ? AND "scope_key" = ?`,
-        )
-          .bind(params.projectId, params.scopeKey)
-          .first<ProjectProtocolMetadataRow>(),
+      const db = yield* kyselyDb;
+      const row = yield* Effect.promise(async () =>
+        db
+          .selectFrom("project_protocol_metadata")
+          .select(COLUMNS)
+          .where("project_id", "=", params.projectId)
+          .where("scope_key", "=", params.scopeKey)
+          .executeTakeFirst(),
       );
+      return toDbNull(row);
     }),
 
   upsertServerDefinedHeaders: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `INSERT INTO "project_protocol_metadata" ("project_id", "scope_key", "server_defined_headers_json") VALUES (?, ?, ?) ON CONFLICT("project_id", "scope_key") DO UPDATE SET "server_defined_headers_json" = excluded."server_defined_headers_json", "updated_at" = strftime('%Y-%m-%dT%H:%M:%fZ','now')`,
-        )
-          .bind(params.projectId, params.scopeKey, params.serverDefinedHeadersJson)
-          .run(),
+        db
+          .insertInto("project_protocol_metadata")
+          .values({
+            project_id: params.projectId,
+            scope_key: params.scopeKey,
+            server_defined_headers_json: params.serverDefinedHeadersJson,
+          })
+          .onConflict((oc) =>
+            oc.columns(["project_id", "scope_key"]).doUpdateSet((eb) => ({
+              server_defined_headers_json: eb.ref("excluded.server_defined_headers_json"),
+              updated_at: sql<string>`strftime('%Y-%m-%dT%H:%M:%fZ','now')`,
+            })),
+          )
+          .execute(),
       );
     }),
 
   upsertManifestFilters: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `INSERT INTO "project_protocol_metadata" ("project_id", "scope_key", "manifest_filters_json") VALUES (?, ?, ?) ON CONFLICT("project_id", "scope_key") DO UPDATE SET "manifest_filters_json" = excluded."manifest_filters_json", "updated_at" = strftime('%Y-%m-%dT%H:%M:%fZ','now')`,
-        )
-          .bind(params.projectId, params.scopeKey, params.manifestFiltersJson)
-          .run(),
+        db
+          .insertInto("project_protocol_metadata")
+          .values({
+            project_id: params.projectId,
+            scope_key: params.scopeKey,
+            manifest_filters_json: params.manifestFiltersJson,
+          })
+          .onConflict((oc) =>
+            oc.columns(["project_id", "scope_key"]).doUpdateSet((eb) => ({
+              manifest_filters_json: eb.ref("excluded.manifest_filters_json"),
+              updated_at: sql<string>`strftime('%Y-%m-%dT%H:%M:%fZ','now')`,
+            })),
+          )
+          .execute(),
       );
     }),
 });

@@ -1,7 +1,10 @@
 import { Context, Effect, Layer } from "effect";
 
-import { cloudflareEnv } from "../cloudflare/context";
+import type { Selectable } from "kysely";
 
+import { kyselyDb } from "../cloudflare/db";
+
+import type { PolicyAttachment } from "../db/schema";
 import type { PolicyAttachmentModel, PrincipalType } from "../models";
 
 // -- Port -------------------------------------------------------------------
@@ -48,14 +51,16 @@ export class PolicyAttachmentRepo extends Context.Tag("api/PolicyAttachmentRepo"
 
 // -- D1 Adapter -------------------------------------------------------------
 
-interface AttachmentRow {
-  id: string;
-  organization_id: string;
-  policy_id: string;
-  principal_type: PrincipalType;
-  principal_id: string;
-  created_at: string;
-}
+const COLUMNS = [
+  "id",
+  "organization_id",
+  "policy_id",
+  "principal_type",
+  "principal_id",
+  "created_at",
+] as const;
+
+type AttachmentRow = Pick<Selectable<PolicyAttachment>, (typeof COLUMNS)[number]>;
 
 const toModel = (row: AttachmentRow): PolicyAttachmentModel => ({
   id: row.id,
@@ -66,72 +71,85 @@ const toModel = (row: AttachmentRow): PolicyAttachmentModel => ({
   createdAt: row.created_at,
 });
 
-const COLUMNS = `"id", "organization_id", "policy_id", "principal_type", "principal_id", "created_at"`;
-
 export const PolicyAttachmentRepoLive = Layer.succeed(PolicyAttachmentRepo, {
   findForPrincipals: (params) =>
     Effect.gen(function* () {
       if (params.principals.length === 0) {
         return [];
       }
-      const env = yield* cloudflareEnv;
-      const clause = params.principals
-        .map(() => `("principal_type" = ? AND "principal_id" = ?)`)
-        .join(" OR ");
-      const binds = params.principals.flatMap((principal) => [principal.type, principal.id]);
+      const db = yield* kyselyDb;
       const rows = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT ${COLUMNS} FROM "policy_attachment" WHERE "organization_id" = ? AND (${clause})`,
-        )
-          .bind(params.organizationId, ...binds)
-          .all<AttachmentRow>(),
+        db
+          .selectFrom("policy_attachment")
+          .select(COLUMNS)
+          .where("organization_id", "=", params.organizationId)
+          .where((eb) =>
+            eb.or(
+              params.principals.map((principal) =>
+                eb.and([
+                  eb("principal_type", "=", principal.type),
+                  eb("principal_id", "=", principal.id),
+                ]),
+              ),
+            ),
+          )
+          .execute(),
       );
-      return rows.results.map(toModel);
+      return rows.map(toModel);
     }),
 
   listForPrincipal: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const rows = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT ${COLUMNS} FROM "policy_attachment" WHERE "organization_id" = ? AND "principal_type" = ? AND "principal_id" = ? ORDER BY "created_at" ASC`,
-        )
-          .bind(params.organizationId, params.principal.type, params.principal.id)
-          .all<AttachmentRow>(),
+        db
+          .selectFrom("policy_attachment")
+          .select(COLUMNS)
+          .where("organization_id", "=", params.organizationId)
+          .where("principal_type", "=", params.principal.type)
+          .where("principal_id", "=", params.principal.id)
+          .orderBy("created_at", "asc")
+          .execute(),
       );
-      return rows.results.map(toModel);
+      return rows.map(toModel);
     }),
 
   attach: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const id = crypto.randomUUID();
       const now = new Date().toISOString();
       yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `INSERT INTO "policy_attachment" (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT ("organization_id", "policy_id", "principal_type", "principal_id") DO NOTHING`,
-        )
-          .bind(
+        db
+          .insertInto("policy_attachment")
+          .values({
             id,
-            params.organizationId,
-            params.policyId,
-            params.principal.type,
-            params.principal.id,
-            now,
+            organization_id: params.organizationId,
+            policy_id: params.policyId,
+            principal_type: params.principal.type,
+            principal_id: params.principal.id,
+            created_at: now,
+          })
+          .onConflict((oc) =>
+            oc
+              .columns(["organization_id", "policy_id", "principal_type", "principal_id"])
+              .doNothing(),
           )
-          .run(),
+          .execute(),
       );
     }),
 
   detach: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `DELETE FROM "policy_attachment" WHERE "organization_id" = ? AND "policy_id" = ? AND "principal_type" = ? AND "principal_id" = ?`,
-        )
-          .bind(params.organizationId, params.policyId, params.principal.type, params.principal.id)
-          .run(),
+        db
+          .deleteFrom("policy_attachment")
+          .where("organization_id", "=", params.organizationId)
+          .where("policy_id", "=", params.policyId)
+          .where("principal_type", "=", params.principal.type)
+          .where("principal_id", "=", params.principal.id)
+          .execute(),
       );
     }),
 });

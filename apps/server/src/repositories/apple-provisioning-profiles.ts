@@ -1,10 +1,15 @@
+import { toDbNull } from "@better-update/type-guards";
 import { Context, Effect, Layer } from "effect";
 
-import { cloudflareEnv } from "../cloudflare/context";
-import { NotFound } from "../errors";
-import { toDbNull } from "../lib/nullable";
+import type { Expression, Selectable, SqlBool } from "kysely";
 
+import { kyselyDb } from "../cloudflare/db";
+import { NotFound } from "../errors";
+
+import type { AppleProvisioningProfiles } from "../db/schema";
 import type { AppleProvisioningProfileModel, DistributionType } from "../models";
+
+// -- Port -------------------------------------------------------------------
 
 export interface AppleProvisioningProfileRepository {
   readonly upsert: (params: {
@@ -46,26 +51,9 @@ export class AppleProvisioningProfileRepo extends Context.Tag("api/AppleProvisio
   AppleProvisioningProfileRepository
 >() {}
 
-interface Row {
-  id: string;
-  organization_id: string;
-  apple_team_id: string;
-  apple_distribution_certificate_id: string | null;
-  bundle_identifier: string;
-  distribution_type: DistributionType;
-  developer_portal_identifier: string | null;
-  profile_name: string | null;
-  valid_until: string | null;
-  r2_key: string;
-  is_managed: number;
-  device_roster_hash: string | null;
-  created_at: string;
-  updated_at: string;
-}
+// -- D1 Adapter -------------------------------------------------------------
 
-const COLUMNS = `"id", "organization_id", "apple_team_id", "apple_distribution_certificate_id", "bundle_identifier", "distribution_type", "developer_portal_identifier", "profile_name", "valid_until", "r2_key", "is_managed", "device_roster_hash", "created_at", "updated_at"`;
-
-const toModel = (row: Row): AppleProvisioningProfileModel => ({
+const toModel = (row: Selectable<AppleProvisioningProfiles>): AppleProvisioningProfileModel => ({
   id: row.id,
   organizationId: row.organization_id,
   appleTeamId: row.apple_team_id,
@@ -85,70 +73,68 @@ const toModel = (row: Row): AppleProvisioningProfileModel => ({
 export const AppleProvisioningProfileRepoLive = Layer.succeed(AppleProvisioningProfileRepo, {
   upsert: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const id = params.id ?? crypto.randomUUID();
       const now = new Date().toISOString();
 
       const existing = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT "r2_key" FROM "apple_provisioning_profiles" WHERE "organization_id" = ? AND "apple_team_id" = ? AND "bundle_identifier" = ? AND "distribution_type" = ?`,
-        )
-          .bind(
-            params.organizationId,
-            params.appleTeamId,
-            params.bundleIdentifier,
-            params.distributionType,
-          )
-          .first<{ r2_key: string }>(),
+        db
+          .selectFrom("apple_provisioning_profiles")
+          .select("r2_key")
+          .where("organization_id", "=", params.organizationId)
+          .where("apple_team_id", "=", params.appleTeamId)
+          .where("bundle_identifier", "=", params.bundleIdentifier)
+          .where("distribution_type", "=", params.distributionType)
+          .executeTakeFirst(),
       );
       const previousR2Key =
-        existing !== null && existing.r2_key !== params.r2Key ? existing.r2_key : null;
-
-      yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `INSERT INTO "apple_provisioning_profiles" (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-           ON CONFLICT ("organization_id", "apple_team_id", "bundle_identifier", "distribution_type") DO UPDATE SET
-             "apple_distribution_certificate_id" = excluded."apple_distribution_certificate_id",
-             "developer_portal_identifier" = excluded."developer_portal_identifier",
-             "profile_name" = excluded."profile_name",
-             "valid_until" = excluded."valid_until",
-             "r2_key" = excluded."r2_key",
-             "is_managed" = excluded."is_managed",
-             "device_roster_hash" = excluded."device_roster_hash",
-             "updated_at" = excluded."updated_at"`,
-        )
-          .bind(
-            id,
-            params.organizationId,
-            params.appleTeamId,
-            params.appleDistributionCertificateId,
-            params.bundleIdentifier,
-            params.distributionType,
-            params.developerPortalIdentifier,
-            params.profileName,
-            params.validUntil,
-            params.r2Key,
-            params.isManaged ? 1 : 0,
-            params.deviceRosterHash,
-            now,
-            now,
-          )
-          .run(),
-      );
+        existing !== undefined && existing.r2_key !== params.r2Key ? existing.r2_key : null;
 
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT ${COLUMNS} FROM "apple_provisioning_profiles" WHERE "organization_id" = ? AND "apple_team_id" = ? AND "bundle_identifier" = ? AND "distribution_type" = ?`,
-        )
-          .bind(
-            params.organizationId,
-            params.appleTeamId,
-            params.bundleIdentifier,
-            params.distributionType,
+        db
+          .insertInto("apple_provisioning_profiles")
+          .values({
+            id,
+            organization_id: params.organizationId,
+            apple_team_id: params.appleTeamId,
+            apple_distribution_certificate_id: params.appleDistributionCertificateId,
+            bundle_identifier: params.bundleIdentifier,
+            distribution_type: params.distributionType,
+            developer_portal_identifier: params.developerPortalIdentifier,
+            profile_name: params.profileName,
+            valid_until: params.validUntil,
+            r2_key: params.r2Key,
+            is_managed: params.isManaged ? 1 : 0,
+            device_roster_hash: params.deviceRosterHash,
+            created_at: now,
+            updated_at: now,
+          })
+          .onConflict((oc) =>
+            oc
+              .columns([
+                "organization_id",
+                "apple_team_id",
+                "bundle_identifier",
+                "distribution_type",
+              ])
+              .doUpdateSet((eb) => ({
+                apple_distribution_certificate_id: eb.ref(
+                  "excluded.apple_distribution_certificate_id",
+                ),
+                developer_portal_identifier: eb.ref("excluded.developer_portal_identifier"),
+                profile_name: eb.ref("excluded.profile_name"),
+                valid_until: eb.ref("excluded.valid_until"),
+                r2_key: eb.ref("excluded.r2_key"),
+                is_managed: eb.ref("excluded.is_managed"),
+                device_roster_hash: eb.ref("excluded.device_roster_hash"),
+                updated_at: eb.ref("excluded.updated_at"),
+              })),
           )
-          .first<Row>(),
+          .returningAll()
+          .executeTakeFirst(),
       );
-      if (row === null) {
+
+      if (row === undefined) {
         return yield* Effect.die(new Error("Profile upsert failed"));
       }
       return { model: toModel(row), previousR2Key };
@@ -156,40 +142,43 @@ export const AppleProvisioningProfileRepoLive = Layer.succeed(AppleProvisioningP
 
   list: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
-      const filters: string[] = [`"organization_id" = ?`];
-      const bindings: (string | number)[] = [params.organizationId];
-      if (params.bundleIdentifier !== undefined) {
-        filters.push(`"bundle_identifier" = ?`);
-        bindings.push(params.bundleIdentifier);
-      }
-      if (params.distributionType !== undefined) {
-        filters.push(`"distribution_type" = ?`);
-        bindings.push(params.distributionType);
-      }
-      if (params.appleTeamId !== undefined) {
-        filters.push(`"apple_team_id" = ?`);
-        bindings.push(params.appleTeamId);
-      }
+      const db = yield* kyselyDb;
       const rows = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT ${COLUMNS} FROM "apple_provisioning_profiles" WHERE ${filters.join(" AND ")} ORDER BY "created_at" DESC`,
-        )
-          .bind(...bindings)
-          .all<Row>(),
+        db
+          .selectFrom("apple_provisioning_profiles")
+          .selectAll()
+          .where((eb) => {
+            const conditions: (Expression<SqlBool> | null)[] = [
+              eb("organization_id", "=", params.organizationId),
+              params.bundleIdentifier === undefined
+                ? null
+                : eb("bundle_identifier", "=", params.bundleIdentifier),
+              params.distributionType === undefined
+                ? null
+                : eb("distribution_type", "=", params.distributionType),
+              params.appleTeamId === undefined
+                ? null
+                : eb("apple_team_id", "=", params.appleTeamId),
+            ];
+            return eb.and(conditions.filter((cond): cond is Expression<SqlBool> => cond !== null));
+          })
+          .orderBy("created_at", "desc")
+          .execute(),
       );
-      return rows.results.map(toModel);
+      return rows.map(toModel);
     }),
 
   findById: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT ${COLUMNS} FROM "apple_provisioning_profiles" WHERE "id" = ?`)
-          .bind(params.id)
-          .first<Row>(),
+        db
+          .selectFrom("apple_provisioning_profiles")
+          .selectAll()
+          .where("id", "=", params.id)
+          .executeTakeFirst(),
       );
-      if (row === null) {
+      if (row === undefined) {
         return yield* new NotFound({ message: "Provisioning profile not found" });
       }
       return toModel(row);
@@ -197,17 +186,14 @@ export const AppleProvisioningProfileRepoLive = Layer.succeed(AppleProvisioningP
 
   delete: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
-      const keyRow = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT "r2_key" FROM "apple_provisioning_profiles" WHERE "id" = ?`)
-          .bind(params.id)
-          .first<{ r2_key: string }>(),
+      const db = yield* kyselyDb;
+      const row = yield* Effect.promise(async () =>
+        db
+          .deleteFrom("apple_provisioning_profiles")
+          .where("id", "=", params.id)
+          .returning("r2_key")
+          .executeTakeFirst(),
       );
-      yield* Effect.promise(async () =>
-        env.DB.prepare(`DELETE FROM "apple_provisioning_profiles" WHERE "id" = ?`)
-          .bind(params.id)
-          .run(),
-      );
-      return { r2Key: toDbNull(keyRow?.r2_key) };
+      return { r2Key: toDbNull(row?.r2_key) };
     }),
 });

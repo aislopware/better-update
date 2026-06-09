@@ -1,8 +1,11 @@
 import { Context, Effect, Layer } from "effect";
 
-import { cloudflareEnv } from "../cloudflare/context";
+import type { Selectable } from "kysely";
+
+import { kyselyDb } from "../cloudflare/db";
 import { NotFound } from "../errors";
 
+import type { DeviceRegistrationRequests } from "../db/schema";
 import type { DeviceClass, DeviceRegistrationRequestModel } from "../models";
 
 // ── Port ──────────────────────────────────────────────────────────
@@ -43,22 +46,20 @@ export class DeviceRegistrationRequestRepo extends Context.Tag("api/DeviceRegist
 
 // ── D1 Adapter ────────────────────────────────────────────────────
 
-interface Row {
-  id: string;
-  organization_id: string;
-  apple_team_id: string | null;
-  created_by_user_id: string;
-  device_name_hint: string | null;
-  device_class_hint: DeviceClass | null;
-  expires_at: string;
-  consumed_at: string | null;
-  consumed_device_id: string | null;
-  created_at: string;
-}
+const COLUMNS = [
+  "id",
+  "organization_id",
+  "apple_team_id",
+  "created_by_user_id",
+  "device_name_hint",
+  "device_class_hint",
+  "expires_at",
+  "consumed_at",
+  "consumed_device_id",
+  "created_at",
+] as const;
 
-const COLUMNS = `"id", "organization_id", "apple_team_id", "created_by_user_id", "device_name_hint", "device_class_hint", "expires_at", "consumed_at", "consumed_device_id", "created_at"`;
-
-const toModel = (row: Row): DeviceRegistrationRequestModel => ({
+const toModel = (row: Selectable<DeviceRegistrationRequests>): DeviceRegistrationRequestModel => ({
   id: row.id,
   organizationId: row.organization_id,
   appleTeamId: row.apple_team_id,
@@ -74,34 +75,35 @@ const toModel = (row: Row): DeviceRegistrationRequestModel => ({
 export const DeviceRegistrationRequestRepoLive = Layer.succeed(DeviceRegistrationRequestRepo, {
   insert: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `INSERT INTO "device_registration_requests" ("id", "organization_id", "apple_team_id", "created_by_user_id", "device_name_hint", "device_class_hint", "expires_at", "created_at") VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        )
-          .bind(
-            params.id,
-            params.organizationId,
-            params.appleTeamId,
-            params.createdByUserId,
-            params.deviceNameHint,
-            params.deviceClassHint,
-            params.expiresAt,
-            params.createdAt,
-          )
-          .run(),
+        db
+          .insertInto("device_registration_requests")
+          .values({
+            id: params.id,
+            organization_id: params.organizationId,
+            apple_team_id: params.appleTeamId,
+            created_by_user_id: params.createdByUserId,
+            device_name_hint: params.deviceNameHint,
+            device_class_hint: params.deviceClassHint,
+            expires_at: params.expiresAt,
+            created_at: params.createdAt,
+          })
+          .execute(),
       );
     }),
 
   findById: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT ${COLUMNS} FROM "device_registration_requests" WHERE "id" = ?`)
-          .bind(params.id)
-          .first<Row>(),
+        db
+          .selectFrom("device_registration_requests")
+          .select(COLUMNS)
+          .where("id", "=", params.id)
+          .executeTakeFirst(),
       );
-      if (row === null) {
+      if (row === undefined) {
         return yield* new NotFound({ message: "Registration request not found" });
       }
       return toModel(row);
@@ -109,33 +111,31 @@ export const DeviceRegistrationRequestRepoLive = Layer.succeed(DeviceRegistratio
 
   findByOrg: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
-      const where = params.activeOnly
-        ? `WHERE "organization_id" = ? AND "consumed_at" IS NULL AND "expires_at" > ?`
-        : `WHERE "organization_id" = ?`;
-      const bindings = params.activeOnly
-        ? [params.organizationId, params.now]
-        : [params.organizationId];
+      const db = yield* kyselyDb;
+      const query = db
+        .selectFrom("device_registration_requests")
+        .select(COLUMNS)
+        .where("organization_id", "=", params.organizationId)
+        .$if(params.activeOnly, (qb) =>
+          qb.where("consumed_at", "is", null).where("expires_at", ">", params.now),
+        );
 
-      const rows = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT ${COLUMNS} FROM "device_registration_requests" ${where} ORDER BY "created_at" DESC`,
-        )
-          .bind(...bindings)
-          .all<Row>(),
-      );
-      return rows.results.map(toModel);
+      const rows = yield* Effect.promise(async () => query.orderBy("created_at", "desc").execute());
+      return rows.map(toModel);
     }),
 
   markConsumed: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `UPDATE "device_registration_requests" SET "consumed_at" = ?, "consumed_device_id" = ? WHERE "id" = ?`,
-        )
-          .bind(params.consumedAt, params.consumedDeviceId, params.id)
-          .run(),
+        db
+          .updateTable("device_registration_requests")
+          .set({
+            consumed_at: params.consumedAt,
+            consumed_device_id: params.consumedDeviceId,
+          })
+          .where("id", "=", params.id)
+          .execute(),
       );
     }),
 });

@@ -1,7 +1,7 @@
 import { Context, Effect, Layer } from "effect";
 import { groupBy } from "es-toolkit";
 
-import { cloudflareEnv } from "../cloudflare/context";
+import { kyselyDb } from "../cloudflare/db";
 import { extractReachableBranchIds } from "../domain/branch-mapping";
 import { collectServableUpdates } from "../domain/update-rollout";
 import { toDbNull } from "../lib/nullable";
@@ -46,10 +46,6 @@ interface UpdateRow {
   rollout_percentage: number;
 }
 
-const SELECT_CHANNELS = `SELECT "id", "name", "branch_id", "branch_mapping_json", "is_paused" FROM "channels" WHERE "project_id" = ? ORDER BY "name" ASC`;
-
-const SELECT_PROJECT_UPDATES = `SELECT u."id", u."branch_id", u."platform", u."runtime_version", u."message", u."created_at", u."rollout_percentage" FROM "updates" u JOIN "branches" b ON b."id" = u."branch_id" WHERE b."project_id" = ? ORDER BY u."branch_id" ASC, u."platform" ASC, u."runtime_version" ASC, u."created_at" DESC, u."id" DESC`;
-
 const platformRuntimeKey = (platform: Platform, runtimeVersion: string) =>
   `${platform}:${runtimeVersion}`;
 
@@ -91,29 +87,58 @@ const resolveChannelBranchIds = (channel: ChannelRow) => {
 export const CompatibilityRepoLive = Layer.succeed(CompatibilityRepo, {
   getBuildMatrix: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
 
-      const [buildKeysResult, channelRows, updateRows] = yield* Effect.all(
+      const [buildKeys, channelRows, updateRows] = yield* Effect.all(
         [
           Effect.promise(async () =>
-            env.DB.prepare(
-              `SELECT DISTINCT "platform", "runtime_version" FROM "builds" WHERE "project_id" = ? AND "runtime_version" IS NOT NULL`,
-            )
-              .bind(params.projectId)
-              .all<{ platform: Platform; runtime_version: string }>(),
+            // platform is always "ios"|"android"; runtime_version IS NOT NULL filter
+            // makes it non-nullable at runtime despite the nullable schema column
+            db
+              .selectFrom("builds")
+              .select(["platform", "runtime_version"])
+              .distinct()
+              .where("project_id", "=", params.projectId)
+              .where("runtime_version", "is not", null)
+              .$narrowType<{ runtime_version: string }>()
+              .execute(),
           ),
           Effect.promise(async () =>
-            env.DB.prepare(SELECT_CHANNELS).bind(params.projectId).all<ChannelRow>(),
+            db
+              .selectFrom("channels")
+              .select(["id", "name", "branch_id", "branch_mapping_json", "is_paused"])
+              .where("project_id", "=", params.projectId)
+              .orderBy("name", "asc")
+              .execute(),
           ),
           Effect.promise(async () =>
-            env.DB.prepare(SELECT_PROJECT_UPDATES).bind(params.projectId).all<UpdateRow>(),
+            // platform is always "ios"|"android" in the DB
+            db
+              .selectFrom("updates as u")
+              .innerJoin("branches as b", "b.id", "u.branch_id")
+              .select([
+                "u.id",
+                "u.branch_id",
+                "u.platform",
+                "u.runtime_version",
+                "u.message",
+                "u.created_at",
+                "u.rollout_percentage",
+              ])
+              .where("b.project_id", "=", params.projectId)
+              .orderBy("u.branch_id", "asc")
+              .orderBy("u.platform", "asc")
+              .orderBy("u.runtime_version", "asc")
+              .orderBy("u.created_at", "desc")
+              .orderBy("u.id", "desc")
+              .execute(),
           ),
         ],
         { concurrency: "unbounded" },
       );
 
       const channelDefinitions: readonly ChannelDefinition[] = yield* Effect.all(
-        channelRows.results.map((channel) =>
+        channelRows.map((channel) =>
           Effect.map(resolveChannelBranchIds(channel), (branchIds) => ({
             ...channel,
             branchIds,
@@ -121,7 +146,7 @@ export const CompatibilityRepoLive = Layer.succeed(CompatibilityRepo, {
         ),
       );
 
-      const updatesByBranchRuntime = groupBy(updateRows.results, (update) =>
+      const updatesByBranchRuntime = groupBy(updateRows, (update) =>
         groupRuntimeKey(update.branch_id, update.platform, update.runtime_version),
       );
 
@@ -190,7 +215,7 @@ export const CompatibilityRepoLive = Layer.succeed(CompatibilityRepo, {
         return channels;
       }, new Map<string, Map<string, ChannelRuntimeSummary>>());
 
-      const uploadedBuildKeys = buildKeysResult.results.reduce((keys, row) => {
+      const uploadedBuildKeys = buildKeys.reduce((keys, row) => {
         keys.add(platformRuntimeKey(row.platform, row.runtime_version));
         return keys;
       }, new Set<string>());

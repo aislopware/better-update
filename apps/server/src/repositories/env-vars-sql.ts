@@ -1,13 +1,18 @@
+import { compact } from "@better-update/type-guards";
 import { Effect } from "effect";
+
+import type { Kysely, Selectable } from "kysely";
 
 import { NotFound } from "../errors";
 
+import type { DB, EnvVarRevisions } from "../db/schema";
 import type { EnvVarModel, EnvVarRevisionModel } from "../env-var-models";
 import type { EnvVarEnvironment, EnvVarScope, EnvVarVisibility } from "../models";
 
-// SQL plumbing for the env var repository — row types, mappers, statement
-// builders, and shared types. Kept beside `env-vars.ts` (which holds the port
-// interface + Live adapter) so each file stays under the max-lines budget.
+// Kysely plumbing for the env var repository — row types, mappers, the shared
+// metadata projection, and statement builders. Kept beside `env-vars.ts` (which
+// holds the port interface + Live adapter) so each file stays under the
+// max-lines budget.
 
 // Keep at most this many revisions per env var. Rotation re-wraps every retained
 // revision (one DEK each), so the cap bounds the rotation batch; older revisions
@@ -61,7 +66,9 @@ export interface InsertParams {
   readonly revision: EnvVarRevisionInput;
 }
 
-export interface EnvVarMetaRow {
+// Row shape of `selectEnvVarMeta` (the `env_vars` columns plus the two
+// scalar-subquery counts), mapped 1:1 by `toModel`.
+interface EnvVarMetaRow {
   readonly id: string;
   readonly organization_id: string;
   readonly project_id: string | null;
@@ -72,19 +79,6 @@ export interface EnvVarMetaRow {
   readonly current_revision_id: string | null;
   readonly revision_number: number | null;
   readonly revision_count: number;
-  readonly created_at: string;
-  readonly updated_at: string;
-}
-
-export interface EnvVarRevisionRow {
-  readonly id: string;
-  readonly env_var_id: string;
-  readonly organization_id: string;
-  readonly revision_number: number;
-  readonly value_ciphertext: string;
-  readonly wrapped_dek: string;
-  readonly vault_version: number;
-  readonly created_by_user_id: string | null;
   readonly created_at: string;
   readonly updated_at: string;
 }
@@ -104,7 +98,7 @@ export const toModel = (row: EnvVarMetaRow): EnvVarModel => ({
   updatedAt: row.updated_at,
 });
 
-export const toRevisionModel = (row: EnvVarRevisionRow): EnvVarRevisionModel => ({
+export const toRevisionModel = (row: Selectable<EnvVarRevisions>): EnvVarRevisionModel => ({
   id: row.id,
   envVarId: row.env_var_id,
   organizationId: row.organization_id,
@@ -117,10 +111,49 @@ export const toRevisionModel = (row: EnvVarRevisionRow): EnvVarRevisionModel => 
   updatedAt: row.updated_at,
 });
 
-// `e` = env_vars, `r` = its current revision (LEFT JOIN); `revision_count` is correlated.
-export const META_SELECT = `e."id" AS id, e."organization_id" AS organization_id, e."project_id" AS project_id, e."scope" AS scope, e."environment" AS environment, e."key" AS key, e."visibility" AS visibility, e."current_revision_id" AS current_revision_id, e."created_at" AS created_at, e."updated_at" AS updated_at, r."revision_number" AS revision_number, (SELECT COUNT(*) FROM "env_var_revisions" rc WHERE rc."env_var_id" = e."id") AS revision_count`;
-export const META_FROM = `FROM "env_vars" e LEFT JOIN "env_var_revisions" r ON r."id" = e."current_revision_id"`;
-export const REVISION_COLUMNS = `"id", "env_var_id", "organization_id", "revision_number", "value_ciphertext", "wrapped_dek", "vault_version", "created_by_user_id", "created_at", "updated_at"`;
+// The list/detail metadata projection. `revision_number` (of the active
+// revision) and the correlated `revision_count` are scalar subqueries so the
+// source stays a single `env_vars` table — keeping the list filter's
+// expression builder simple. Keys map 1:1 onto `EnvVarMetaRow`/`toModel`.
+export const selectEnvVarMeta = (db: Kysely<DB>) =>
+  db.selectFrom("env_vars").select((eb) => [
+    "env_vars.id",
+    "env_vars.organization_id",
+    "env_vars.project_id",
+    "env_vars.scope",
+    "env_vars.environment",
+    "env_vars.key",
+    "env_vars.visibility",
+    "env_vars.current_revision_id",
+    "env_vars.created_at",
+    "env_vars.updated_at",
+    eb
+      .selectFrom("env_var_revisions as r")
+      .whereRef("r.id", "=", "env_vars.current_revision_id")
+      .select("r.revision_number")
+      .$asScalar()
+      .as("revision_number"),
+    eb
+      .selectFrom("env_var_revisions as rc")
+      .whereRef("rc.env_var_id", "=", "env_vars.id")
+      .select((count) => count.fn.countAll<number>().as("count"))
+      .$asScalar()
+      .as("revision_count"),
+  ]);
+
+// The revision history projection (every column, mapped 1:1 by `toRevisionModel`).
+export const revisionColumns = [
+  "id",
+  "env_var_id",
+  "organization_id",
+  "revision_number",
+  "value_ciphertext",
+  "wrapped_dek",
+  "vault_version",
+  "created_by_user_id",
+  "created_at",
+  "updated_at",
+] as const;
 
 export const escapeLike = (input: string) =>
   input
@@ -136,28 +169,24 @@ export const conflictMessage = (scope: EnvVarScope, key: string) =>
 // -- Statement builders (shared by insert/upsert/addRevision) ----------------
 
 export const insertEnvVarStmt = (
-  db: D1Database,
+  db: Kysely<DB>,
   params: InsertParams & { readonly envVarId: string; readonly now: string },
 ) =>
-  db
-    .prepare(
-      `INSERT INTO "env_vars" ("id", "organization_id", "project_id", "scope", "environment", "key", "visibility", "current_revision_id", "created_at", "updated_at") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
-    .bind(
-      params.envVarId,
-      params.organizationId,
-      params.projectId,
-      params.scope,
-      params.environment,
-      params.key,
-      params.visibility,
-      params.revision.id,
-      params.now,
-      params.now,
-    );
+  db.insertInto("env_vars").values({
+    id: params.envVarId,
+    organization_id: params.organizationId,
+    project_id: params.projectId,
+    scope: params.scope,
+    environment: params.environment,
+    key: params.key,
+    visibility: params.visibility,
+    current_revision_id: params.revision.id,
+    created_at: params.now,
+    updated_at: params.now,
+  });
 
 export const insertRevisionStmt = (
-  db: D1Database,
+  db: Kysely<DB>,
   params: {
     readonly envVarId: string;
     readonly organizationId: string;
@@ -167,25 +196,21 @@ export const insertRevisionStmt = (
     readonly now: string;
   },
 ) =>
-  db
-    .prepare(
-      `INSERT INTO "env_var_revisions" (${REVISION_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
-    .bind(
-      params.revision.id,
-      params.envVarId,
-      params.organizationId,
-      params.revisionNumber,
-      params.revision.valueCiphertext,
-      params.revision.wrappedDek,
-      params.revision.vaultVersion,
-      params.createdByUserId,
-      params.now,
-      params.now,
-    );
+  db.insertInto("env_var_revisions").values({
+    id: params.revision.id,
+    env_var_id: params.envVarId,
+    organization_id: params.organizationId,
+    revision_number: params.revisionNumber,
+    value_ciphertext: params.revision.valueCiphertext,
+    wrapped_dek: params.revision.wrappedDek,
+    vault_version: params.revision.vaultVersion,
+    created_by_user_id: params.createdByUserId,
+    created_at: params.now,
+    updated_at: params.now,
+  });
 
 export const advancePointerStmt = (
-  db: D1Database,
+  db: Kysely<DB>,
   params: {
     readonly id: string;
     readonly revisionId: string;
@@ -193,31 +218,32 @@ export const advancePointerStmt = (
     readonly now: string;
   },
 ) =>
-  params.visibility === undefined
-    ? db
-        .prepare(`UPDATE "env_vars" SET "current_revision_id" = ?, "updated_at" = ? WHERE "id" = ?`)
-        .bind(params.revisionId, params.now, params.id)
-    : db
-        .prepare(
-          `UPDATE "env_vars" SET "current_revision_id" = ?, "visibility" = ?, "updated_at" = ? WHERE "id" = ?`,
-        )
-        .bind(params.revisionId, params.visibility, params.now, params.id);
-
-export const pruneStmt = (db: D1Database, envVarId: string, nextNumber: number) =>
   db
-    .prepare(`DELETE FROM "env_var_revisions" WHERE "env_var_id" = ? AND "revision_number" <= ?`)
-    .bind(envVarId, nextNumber - REVISION_HISTORY_CAP);
+    .updateTable("env_vars")
+    // `compact` drops `visibility` when undefined, leaving the pointer-only
+    // update (current_revision_id + updated_at always present, never empty).
+    .set(
+      compact({
+        current_revision_id: params.revisionId,
+        visibility: params.visibility,
+        updated_at: params.now,
+      }),
+    )
+    .where("id", "=", params.id);
+
+export const pruneStmt = (db: Kysely<DB>, envVarId: string, nextNumber: number) =>
+  db
+    .deleteFrom("env_var_revisions")
+    .where("env_var_id", "=", envVarId)
+    .where("revision_number", "<=", nextNumber - REVISION_HISTORY_CAP);
 
 /** Fetch the env var metadata model by id, failing `NotFound` if absent. */
-export const requireModelById = (db: D1Database, id: string) =>
+export const requireModelById = (db: Kysely<DB>, id: string) =>
   Effect.gen(function* () {
     const row = yield* Effect.promise(async () =>
-      db
-        .prepare(`SELECT ${META_SELECT} ${META_FROM} WHERE e."id" = ?`)
-        .bind(id)
-        .first<EnvVarMetaRow>(),
+      selectEnvVarMeta(db).where("env_vars.id", "=", id).executeTakeFirst(),
     );
-    if (row === null) {
+    if (row === undefined) {
       return yield* new NotFound({ message: "Environment variable not found" });
     }
     return toModel(row);

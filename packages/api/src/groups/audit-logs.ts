@@ -2,7 +2,7 @@ import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "@effect/platform";
 import { Schema } from "effect";
 
 import { Forbidden } from "../auth/errors";
-import { AuditLog } from "../domain/audit-log";
+import { AuditLog, AuditLogResourceType } from "../domain/audit-log";
 import { CursorPaginationParams, cursorPageResult } from "../domain/common";
 
 export class AuditLogsGroup extends HttpApiGroup.make("audit-logs")
@@ -11,7 +11,7 @@ export class AuditLogsGroup extends HttpApiGroup.make("audit-logs")
       .setUrlParams(
         Schema.Struct({
           projectId: Schema.optional(Schema.String),
-          resourceType: Schema.optional(Schema.String),
+          resourceType: Schema.optional(AuditLogResourceType),
           from: Schema.optional(Schema.String),
           to: Schema.optional(Schema.String),
           ...CursorPaginationParams.fields,

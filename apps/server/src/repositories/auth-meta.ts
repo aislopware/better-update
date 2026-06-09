@@ -1,6 +1,7 @@
+import { toDbNull } from "@better-update/type-guards";
 import { Context, Effect, Layer } from "effect";
 
-import { cloudflareEnv } from "../cloudflare/context";
+import { kyselyDb } from "../cloudflare/db";
 
 export interface AuthMetaUser {
   readonly id: string;
@@ -27,22 +28,26 @@ export class AuthMetaRepo extends Context.Tag("server/AuthMetaRepo")<
 export const AuthMetaRepoLive = Layer.succeed(AuthMetaRepo, {
   findUserById: (id: string) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT "id", "name", "email" FROM "user" WHERE "id" = ?`)
-          .bind(id)
-          .first<AuthMetaUser>(),
+        db
+          .selectFrom("user")
+          .select(["id", "name", "email"])
+          .where("id", "=", id)
+          .executeTakeFirst(),
       );
-      return row;
+      return toDbNull(row);
     }),
   findOrganizationById: (id: string) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT "id", "name", "slug" FROM "organization" WHERE "id" = ?`)
-          .bind(id)
-          .first<AuthMetaOrganization>(),
+        db
+          .selectFrom("organization")
+          .select(["id", "name", "slug"])
+          .where("id", "=", id)
+          .executeTakeFirst(),
       );
-      return row;
+      return toDbNull(row);
     }),
 });

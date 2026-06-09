@@ -1,10 +1,13 @@
+import { toDbNull } from "@better-update/type-guards";
 import { Context, Effect, Layer } from "effect";
 
-import { cloudflareEnv } from "../cloudflare/context";
+import type { Selectable } from "kysely";
+
+import { kyselyDb } from "../cloudflare/db";
 import { NotFound } from "../errors";
-import { toDbNull } from "../lib/nullable";
 import { d1RunWithUniqueCheck } from "./d1-helpers";
 
+import type { AndroidUploadKeystores } from "../db/schema";
 import type { Conflict } from "../errors";
 import type { AndroidUploadKeystoreModel } from "../models";
 
@@ -42,24 +45,24 @@ export class AndroidUploadKeystoreRepo extends Context.Tag("api/AndroidUploadKey
   AndroidUploadKeystoreRepository
 >() {}
 
-interface Row {
-  id: string;
-  organization_id: string;
-  key_alias: string;
-  r2_key: string;
-  wrapped_dek: string;
-  vault_version: number;
-  md5_fingerprint: string | null;
-  sha1_fingerprint: string | null;
-  sha256_fingerprint: string | null;
-  keystore_type: "JKS" | "PKCS12" | null;
-  created_at: string;
-  updated_at: string;
-}
+// -- D1 Adapter -------------------------------------------------------------
 
-const COLUMNS = `"id", "organization_id", "key_alias", "r2_key", "wrapped_dek", "vault_version", "md5_fingerprint", "sha1_fingerprint", "sha256_fingerprint", "keystore_type", "created_at", "updated_at"`;
+const COLUMNS = [
+  "id",
+  "organization_id",
+  "key_alias",
+  "r2_key",
+  "wrapped_dek",
+  "vault_version",
+  "md5_fingerprint",
+  "sha1_fingerprint",
+  "sha256_fingerprint",
+  "keystore_type",
+  "created_at",
+  "updated_at",
+] as const;
 
-const toModel = (row: Row): AndroidUploadKeystoreModel => ({
+const toModel = (row: Selectable<AndroidUploadKeystores>): AndroidUploadKeystoreModel => ({
   id: row.id,
   organizationId: row.organization_id,
   keyAlias: row.key_alias,
@@ -77,53 +80,55 @@ const toModel = (row: Row): AndroidUploadKeystoreModel => ({
 export const AndroidUploadKeystoreRepoLive = Layer.succeed(AndroidUploadKeystoreRepo, {
   insert: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       yield* d1RunWithUniqueCheck(
         async () =>
-          env.DB.prepare(
-            `INSERT INTO "android_upload_keystores" (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          )
-            .bind(
-              params.id,
-              params.organizationId,
-              params.keyAlias,
-              params.r2Key,
-              params.wrappedDek,
-              params.vaultVersion,
-              params.md5Fingerprint,
-              params.sha1Fingerprint,
-              params.sha256Fingerprint,
-              params.keystoreType,
-              params.createdAt,
-              params.updatedAt,
-            )
-            .run(),
+          db
+            .insertInto("android_upload_keystores")
+            .values({
+              id: params.id,
+              organization_id: params.organizationId,
+              key_alias: params.keyAlias,
+              r2_key: params.r2Key,
+              wrapped_dek: params.wrappedDek,
+              vault_version: params.vaultVersion,
+              md5_fingerprint: params.md5Fingerprint,
+              sha1_fingerprint: params.sha1Fingerprint,
+              sha256_fingerprint: params.sha256Fingerprint,
+              keystore_type: params.keystoreType,
+              created_at: params.createdAt,
+              updated_at: params.updatedAt,
+            })
+            .execute(),
         "This keystore has already been uploaded",
       );
     }),
 
   listByOrg: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const rows = yield* Effect.promise(async () =>
-        env.DB.prepare(
-          `SELECT ${COLUMNS} FROM "android_upload_keystores" WHERE "organization_id" = ? ORDER BY "created_at" DESC`,
-        )
-          .bind(params.organizationId)
-          .all<Row>(),
+        db
+          .selectFrom("android_upload_keystores")
+          .select(COLUMNS)
+          .where("organization_id", "=", params.organizationId)
+          .orderBy("created_at", "desc")
+          .execute(),
       );
-      return rows.results.map(toModel);
+      return rows.map(toModel);
     }),
 
   findById: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
+      const db = yield* kyselyDb;
       const row = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT ${COLUMNS} FROM "android_upload_keystores" WHERE "id" = ?`)
-          .bind(params.id)
-          .first<Row>(),
+        db
+          .selectFrom("android_upload_keystores")
+          .select(COLUMNS)
+          .where("id", "=", params.id)
+          .executeTakeFirst(),
       );
-      if (row === null) {
+      if (row === undefined) {
         return yield* new NotFound({ message: "Android keystore not found" });
       }
       return toModel(row);
@@ -131,17 +136,14 @@ export const AndroidUploadKeystoreRepoLive = Layer.succeed(AndroidUploadKeystore
 
   delete: (params) =>
     Effect.gen(function* () {
-      const env = yield* cloudflareEnv;
-      const keyRow = yield* Effect.promise(async () =>
-        env.DB.prepare(`SELECT "r2_key" FROM "android_upload_keystores" WHERE "id" = ?`)
-          .bind(params.id)
-          .first<{ r2_key: string }>(),
+      const db = yield* kyselyDb;
+      const row = yield* Effect.promise(async () =>
+        db
+          .deleteFrom("android_upload_keystores")
+          .where("id", "=", params.id)
+          .returning(["r2_key"])
+          .executeTakeFirst(),
       );
-      yield* Effect.promise(async () =>
-        env.DB.prepare(`DELETE FROM "android_upload_keystores" WHERE "id" = ?`)
-          .bind(params.id)
-          .run(),
-      );
-      return { r2Key: toDbNull(keyRow?.r2_key) };
+      return { r2Key: toDbNull(row?.r2_key) };
     }),
 });
