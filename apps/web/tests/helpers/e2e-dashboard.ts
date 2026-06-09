@@ -1,4 +1,5 @@
 import { execSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import nodePath from "node:path";
 
@@ -54,7 +55,11 @@ export const setupE2EDashboard = () => {
 
   const seedSql = (sql: string) => {
     const { persistDir } = getSharedEnv();
-    const seedFile = nodePath.resolve(API_DIR, ".wrangler/seed-dashboard-e2e.sql");
+    // Unique per call: e2e-api files run concurrently and several seed via this
+    // helper, so a shared file path would race (one file's writeFileSync clobbers
+    // another's before its execSync reads it, seeding the wrong rows). randomUUID
+    // keeps each seed write isolated even across vitest worker processes.
+    const seedFile = nodePath.resolve(API_DIR, `.wrangler/seed-dashboard-${randomUUID()}.sql`);
     writeFileSync(seedFile, sql);
     try {
       execSync(

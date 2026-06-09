@@ -54,6 +54,21 @@ export interface SetupCliE2EOptions {
   readonly orgSlug: string;
 }
 
+/**
+ * A commitTime guaranteed to be NEWER than any update published during a test
+ * run. The server's clock-skew guard (the `publishCreatedAt` invariant — DB
+ * `created_at` is stamped = the served commitTime) rejects a rollback/republish
+ * whose commitTime is not newer than the latest published update on the
+ * branch/platform/runtimeVersion: the device selects updates by commitTime, so
+ * an older one would never apply. Publishes in a flow are stamped at the current
+ * wall clock, so a fixed future literal silently goes stale once real time
+ * passes it (which is exactly how the rollback/signed-promote e2e tests broke).
+ * Derive the value from `Date.now()` instead. Pass `offsetDays` to order several
+ * values relative to each other (e.g. a source < its replacement).
+ */
+export const futureCommitTime = (offsetDays = 1): string =>
+  new Date(Date.now() + offsetDays * 24 * 60 * 60 * 1000).toISOString();
+
 const defaultAppJsonTemplate = {
   expo: {
     name: "CLI E2E App",
@@ -447,6 +462,21 @@ export const setupCliE2E = (testId: string, options: SetupCliE2EOptions): CliE2E
     expect(createKeyResponse.status).toBe(200);
     const createKeyBody = await createKeyResponse.json();
     state.apiKey = createKeyBody.key;
+
+    // Grant the api-key admin permissions. Under the IAM policy-group model
+    // (default-deny — no role baseline, no api-key admin fallback; see
+    // docs/specs/authz/POLICY-GROUPS-SPEC.md §8), a freshly created key holds
+    // ZERO permissions, so every project-scoped CLI command would 403. Attach
+    // the managed admin preset to the key principal as the owner (owners bypass
+    // the privilege-boundary check), mirroring a real operator granting their
+    // CLI key admin access. The `:id` is the better-auth api-key row id, which
+    // is the `principal_id` the authz layer resolves attachments against.
+    const attachKeyPolicyResponse = await post(
+      `/api/api-keys/${createKeyBody.id}/policies`,
+      { policyId: "managed:admin" },
+      { cookie: state.cookies },
+    );
+    expect(attachKeyPolicyResponse.status).toBe(201);
 
     const createBranchResponse = await post(
       "/api/branches",

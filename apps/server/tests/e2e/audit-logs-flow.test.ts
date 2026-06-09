@@ -79,14 +79,25 @@ describe("Audit Logs API flow", () => {
     }
   });
 
-  it("returns empty list for unused filter", async () => {
-    const response = await get("/api/audit-logs?resourceType=credential", {
+  it("returns empty list for a valid but unused filter", async () => {
+    // `webhook` is a valid resourceType the strict union accepts, but this flow
+    // never creates a webhook → zero matching rows.
+    const response = await get("/api/audit-logs?resourceType=webhook", {
       cookie: cookies,
     });
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.items).toHaveLength(0);
     expect(body.nextCursor).toBeNull();
+  });
+
+  it("rejects an unknown resourceType with 400", async () => {
+    // The url-param schema is the strict `AuditLogResourceType` union, so a value
+    // outside it is a request-validation error, not a silent empty result.
+    const response = await get("/api/audit-logs?resourceType=credential", {
+      cookie: cookies,
+    });
+    expect(response.status).toBe(400);
   });
 
   it("paginates via cursor across multiple pages without overlap", async () => {

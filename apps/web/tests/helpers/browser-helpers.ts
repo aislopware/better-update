@@ -129,38 +129,10 @@ export const loginViaUI = async (
   await page.goto(`${baseUrl}/onboarding`);
 };
 
-export const logoutViaUI = async (page: Page, userName: string): Promise<void> => {
-  await page
-    .getByRole("button", { name: new RegExp(userName, "u") })
-    .last()
-    .click();
-  await page.getByRole("menuitem", { name: "Log out" }).click();
-  await page.waitForURL(/\/(?:auth\/)?login(?:$|\?)/u);
-};
-
 // ── Project / navigation helpers ──────────────────────────────────────────
 
 export const expectToast = async (page: Page, text: string | RegExp): Promise<void> => {
   await page.getByText(text).first().waitFor({ state: "visible", timeout: 15_000 });
-};
-
-export const dismissToasts = async (page: Page): Promise<void> => {
-  // Visually hide toasts via CSS — do NOT remove them from the DOM, since
-  // Sonner/React still own those nodes and later unmount via removeChild.
-  // Directly removing the nodes crashes React with "The node to be removed
-  // Is not a child of this node."
-  await page.addStyleTag({
-    content:
-      "[data-sonner-toast], [data-sonner-toaster] { opacity: 0 !important; pointer-events: none !important; }",
-  });
-};
-
-export const waitForPortalCleanup = async (page: Page): Promise<void> => {
-  await page
-    .locator("[data-base-ui-portal]")
-    .last()
-    .waitFor({ state: "detached", timeout: 3000 })
-    .catch(() => {});
 };
 
 export const createProjectViaUI = async (
@@ -177,18 +149,6 @@ export const createProjectViaUI = async (
   await dialog.getByRole("button", { name: "Create project" }).click();
   await expectToast(page, "Project created");
   await page.getByRole("link", { name: new RegExp(params.name, "u") }).waitFor();
-};
-
-export const openProjectFromListViaUI = async (page: Page, projectName: string): Promise<void> => {
-  await page.getByRole("link", { name: new RegExp(projectName, "u") }).click();
-  await page.waitForURL(/\/projects\/[^/]+$/u);
-  // The project overview page no longer renders the project name as a heading
-  // (see refactor 593b8ad). Project identity now lives in the breadcrumb's
-  // ProjectSwitcher button — match that as the readiness signal instead.
-  await page
-    .getByRole("button", { name: new RegExp(projectName, "u") })
-    .first()
-    .waitFor();
 };
 
 type ProjectTabName =

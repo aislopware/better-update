@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import path from "node:path";
 
-import { setupCliE2E } from "../helpers/cli-e2e";
+import { futureCommitTime, setupCliE2E } from "../helpers/cli-e2e";
 
 const FIXTURE_DIR = path.resolve(import.meta.dirname, "../../../../fixtures/e2e-app");
 
@@ -40,6 +40,10 @@ const cli = setupCliE2E("e2e-cli-ota", {
   userEmail: "cli-e2e-ota@example.com",
   orgSlug: "cli-e2e-ota-org",
 });
+
+// Must be newer than the v1/v2 publishes below (stamped at the current wall
+// clock) or the server's clock-skew guard rejects the rollback. See futureCommitTime.
+const ROLLBACK_COMMIT_TIME = futureCommitTime();
 
 // ── Helpers ──────────────────────────────────────────────────────
 
@@ -258,7 +262,7 @@ describe("oTA lifecycle: CLI publish → manifest → rollout → rollback", () 
       "--platform",
       "ios",
       "--commit-time",
-      "2026-04-15T00:00:00.000Z",
+      ROLLBACK_COMMIT_TIME,
     );
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain("Created rollback group");
@@ -277,7 +281,7 @@ describe("oTA lifecycle: CLI publish → manifest → rollout → rollback", () 
     expect(directivePart).toBeDefined();
     expect(JSON.parse(directivePart!.body)).toStrictEqual({
       type: "rollBackToEmbedded",
-      parameters: { commitTime: "2026-04-15T00:00:00.000Z" },
+      parameters: { commitTime: ROLLBACK_COMMIT_TIME },
     });
 
     // No manifest part — only directive
