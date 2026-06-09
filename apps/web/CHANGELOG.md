@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.38.1](https://github.com/better-update/better-update/compare/@better-update/web@0.38.0...@better-update/web@0.38.1) (2026-06-09)
+
+**Note:** Version bump only for package @better-update/web
+
 ## [0.38.0](https://github.com/better-update/better-update/compare/@better-update/web@0.37.0...@better-update/web@0.38.0) (2026-06-08)
 
 ### Features
