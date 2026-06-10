@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.6.0](https://github.com/aislopware/better-update/compare/@better-update/docs@0.5.0...@better-update/docs@0.6.0) (2026-06-10)
+
+### Features
+
+* **cli:** mirror EAS build-tools step-for-step in the native build pipeline ([305eb79](https://github.com/aislopware/better-update/commit/305eb79bcdd38b8f5be8818ea8c6a1fd3462fa26)) - by @trancong12102
+
 ## [0.5.0](https://github.com/better-update/better-update/compare/@better-update/docs@0.4.3...@better-update/docs@0.5.0) (2026-06-08)
 
 ### Features

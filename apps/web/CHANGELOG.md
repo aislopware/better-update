@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.39.1](https://github.com/better-update/better-update/compare/@better-update/web@0.39.0...@better-update/web@0.39.1) (2026-06-10)
+
+### Bug Fixes
+
+* **web:** surface API errors instead of an infinite skeleton on 403 ([49d3b9b](https://github.com/better-update/better-update/commit/49d3b9bcb4d4c4ace4cb09ae89bf94ea89141139)) - by @trancong12102
+
 ## [0.39.0](https://github.com/better-update/better-update/compare/@better-update/web@0.38.3...@better-update/web@0.39.0) (2026-06-10)
 
 ### Features
