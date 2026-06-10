@@ -19,6 +19,13 @@ describe("vault-cache entry codec", () => {
     expect(decoded!.remainingMs).toBe(VAULT_CACHE_TTL_MS);
   });
 
+  it("stamps a custom TTL when one is provided", () => {
+    const now = 1_000_000;
+    const twoHoursMs = 2 * 60 * 60 * 1000;
+    const decoded = decodeCacheEntry(encodeCacheEntry(vault, now, twoHoursMs), now);
+    expect(decoded!.remainingMs).toBe(twoHoursMs);
+  });
+
   it("counts down the remaining TTL as time passes", () => {
     const now = 1_000_000;
     const blob = encodeCacheEntry(vault, now);

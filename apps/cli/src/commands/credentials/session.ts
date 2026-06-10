@@ -4,13 +4,35 @@ import { Effect } from "effect";
 import { activeRecipient } from "../../application/identity";
 import { unlockVaultKeyInteractive } from "../../application/vault-access";
 import { runEffect } from "../../lib/citty-effect";
+import { formatDurationApprox, parseDurationMs } from "../../lib/duration";
+import { InvalidArgumentError } from "../../lib/exit-codes";
 import { printHuman } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
-import { VaultCache } from "../../services/vault-cache";
+import {
+  VAULT_CACHE_TTL_MAX_MS,
+  VAULT_CACHE_TTL_MIN_MS,
+  VaultCache,
+} from "../../services/vault-cache";
 
-/** Whole minutes left, rounded up so "<1 min remaining" still reads as 1. */
-const remainingMinutes = (remainingMs: number): number =>
-  Math.max(1, Math.ceil(remainingMs / 60_000));
+/** Parse + bound the `--duration` flag; `undefined` (flag absent) keeps the 15-minute default. */
+const resolveUnlockTtlMs = (flag: string | undefined) =>
+  Effect.gen(function* () {
+    if (flag === undefined) {
+      return undefined;
+    }
+    const ms = parseDurationMs(flag);
+    if (ms === undefined) {
+      return yield* new InvalidArgumentError({
+        message: `Could not parse --duration "${flag}" — use minutes ("90") or h/m units ("45m", "2h", "1h30m").`,
+      });
+    }
+    if (ms < VAULT_CACHE_TTL_MIN_MS || ms > VAULT_CACHE_TTL_MAX_MS) {
+      return yield* new InvalidArgumentError({
+        message: `--duration must be between ${formatDurationApprox(VAULT_CACHE_TTL_MIN_MS)} and ${formatDurationApprox(VAULT_CACHE_TTL_MAX_MS)}, got "${flag}".`,
+      });
+    }
+    return ms;
+  });
 
 const unlockCommand = defineCommand({
   meta: {
@@ -18,9 +40,17 @@ const unlockCommand = defineCommand({
     description:
       "Unlock the credential vault and cache the key in your OS keychain, so later commands don't re-prompt",
   },
-  run: async () =>
+  args: {
+    duration: {
+      type: "string",
+      description:
+        'How long to stay unlocked — minutes ("90") or h/m units ("45m", "2h", "1h30m"); default 15m, max 24h',
+    },
+  },
+  run: async ({ args }) =>
     runEffect(
       Effect.gen(function* () {
+        const cacheTtlMs = yield* resolveUnlockTtlMs(args.duration);
         const recipient = yield* activeRecipient;
         if (recipient.source !== "file") {
           yield* printHuman(
@@ -33,12 +63,12 @@ const unlockCommand = defineCommand({
         // Force a fresh unlock: drop any live entry first so the interactive
         // unlock prompts and re-caches, rather than silently reusing the old key.
         yield* cache.clear(recipient.publicKey);
-        yield* unlockVaultKeyInteractive(api);
+        yield* unlockVaultKeyInteractive(api, { cacheTtlMs });
         const cached = yield* cache.get(recipient.publicKey);
         const suffix =
           cached === undefined
             ? " (no OS keychain available — commands will keep prompting)"
-            : ` for ~${remainingMinutes(cached.remainingMs)} min; run \`better-update credentials lock\` to clear it`;
+            : ` for ~${formatDurationApprox(cached.remainingMs)}; run \`better-update credentials lock\` to clear it`;
         yield* printHuman(`Vault unlocked${suffix}.`);
       }),
     ),
@@ -80,7 +110,7 @@ const statusCommand = defineCommand({
         yield* printHuman(
           cached === undefined
             ? "Locked — the next credential command will prompt for your passphrase."
-            : `Unlocked — cached vault key expires in ~${remainingMinutes(cached.remainingMs)} min.`,
+            : `Unlocked — cached vault key expires in ~${formatDurationApprox(cached.remainingMs)}.`,
         );
       }),
     ),

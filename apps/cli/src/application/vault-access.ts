@@ -149,8 +149,14 @@ export const grantRecipient = (args: {
  * operation: download/build-resolve reads, seal-for-upload + generate writes, and
  * rotation. There is no read-only cache: an unlock makes the next write seamless
  * too.
+ *
+ * `cacheTtlMs` overrides how long the unlocked key stays cached (default 15 min)
+ * — `credentials unlock --duration` is the one caller that sets it.
  */
-export const unlockVaultKeyInteractive = (api: ApiClient) =>
+export const unlockVaultKeyInteractive = (
+  api: ApiClient,
+  options?: { readonly cacheTtlMs?: number | undefined },
+) =>
   Effect.gen(function* () {
     const recipient = yield* activeRecipient;
     if (recipient.source !== "file") {
@@ -163,7 +169,7 @@ export const unlockVaultKeyInteractive = (api: ApiClient) =>
     }
     const passphrase = yield* promptPassword("Passphrase to unlock this device's identity:");
     const vault = yield* unlockVaultKey(api, passphrase);
-    yield* cache.set(recipient.publicKey, vault);
+    yield* cache.set(recipient.publicKey, vault, options?.cacheTtlMs);
     return vault;
     // Discharge `VaultCache` here — it only needs `CliRuntime` (already in scope),
     // so the cache stays an internal detail and never widens the requirements of

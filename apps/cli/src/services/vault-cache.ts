@@ -21,8 +21,12 @@ import type { UnlockedVault } from "../application/vault-access";
  * version's credentials, and only until the TTL lapses.
  */
 
-/** How long a cached vault key stays valid before a fresh passphrase is required. */
+/** Default for how long a cached vault key stays valid before a fresh passphrase is required. */
 export const VAULT_CACHE_TTL_MS = 15 * 60 * 1000;
+
+/** Bounds for a user-chosen TTL (`credentials unlock --duration`). */
+export const VAULT_CACHE_TTL_MIN_MS = 60 * 1000;
+export const VAULT_CACHE_TTL_MAX_MS = 24 * 60 * 60 * 1000;
 
 /** Keychain service name; the account is the recipient's public key. */
 const KEYCHAIN_SERVICE = "better-update-vault";
@@ -86,8 +90,8 @@ export class VaultCache extends Context.Tag("cli/VaultCache")<
   {
     /** The cached vault key for this recipient, or `undefined` if absent/expired/disabled. */
     readonly get: (publicKey: string) => Effect.Effect<CachedVault | undefined>;
-    /** Stow the unlocked vault key under this recipient, with a fresh TTL. */
-    readonly set: (publicKey: string, vault: UnlockedVault) => Effect.Effect<void>;
+    /** Stow the unlocked vault key under this recipient, with a fresh TTL (default 15 min). */
+    readonly set: (publicKey: string, vault: UnlockedVault, ttlMs?: number) => Effect.Effect<void>;
     /** Forget the cached vault key for this recipient (the `lock` operation). */
     readonly clear: (publicKey: string) => Effect.Effect<void>;
   }
@@ -139,13 +143,13 @@ export const VaultCacheLive = Layer.effect(
           return decoded;
         }),
 
-      set: (publicKey, vault) =>
+      set: (publicKey, vault, ttlMs) =>
         Effect.gen(function* () {
           if (yield* cacheDisabled) {
             return;
           }
           const now = yield* Clock.currentTimeMillis;
-          yield* writeRaw(publicKey, encodeCacheEntry(vault, now));
+          yield* writeRaw(publicKey, encodeCacheEntry(vault, now, ttlMs));
         }),
 
       clear: (publicKey) => deleteRaw(publicKey),
