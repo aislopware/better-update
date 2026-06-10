@@ -279,11 +279,10 @@ trap 'rm -rf "$BUILD_DIR"; security delete-keychain "$KEYCHAIN_NAME" 2>/dev/null
 #    → GET /api/env-vars/export?projectId=X&environment=production
 #    → export each key=value
 
-# 3. Prebuild
+# 3. Prebuild — installs deps + CocoaPods itself, so there is no separate
+#    `pod install` step (bare/KMP/native projects skip prebuild and run
+#    `pod install` directly against the committed ios/ dir instead)
 npx expo prebuild --platform ios --clean
-
-# 4. Install CocoaPods
-cd ios && pod install
 
 # 5. Setup code signing
 #    → create ephemeral keychain named $KEYCHAIN_NAME (unique per build)

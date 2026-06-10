@@ -6,6 +6,7 @@ import { Effect } from "effect";
 
 import { renderSigningGradle } from "../../lib/android-signing-gradle";
 import { findAndroidArtifact, findArtifactByGlob } from "../../lib/artifact-finder";
+import { runBuildHook } from "../../lib/build-hooks";
 import { downloadAndroidCredentials } from "../../lib/credentials-downloader";
 import { BuildFailedError } from "../../lib/exit-codes";
 import { loadLocalAndroidCredentials } from "../../lib/local-credentials";
@@ -18,6 +19,7 @@ import { runStep } from "./run-step";
 import type { AndroidProfile, CredentialsSource } from "../../lib/build-profile";
 import type { AndroidBuildStrategy } from "../../lib/build-strategy";
 import type { CustomCommandSpec } from "../../lib/eas-config";
+import type { PackageManager } from "../../lib/project-staging";
 import type { ApiClient } from "../../services/api-client";
 
 export interface RunAndroidBuildInput {
@@ -30,6 +32,8 @@ export interface RunAndroidBuildInput {
   readonly projectId: string;
   readonly credentialsSource: CredentialsSource;
   readonly profileName: string;
+  /** Package manager of the staged workspace — used to run lifecycle hooks. */
+  readonly packageManager: PackageManager;
   /** How to produce the artifact (prebuild+gradle / gradle / custom-command). */
   readonly strategy: AndroidBuildStrategy;
   /** Custom build command, required when `strategy === "custom"`. */
@@ -94,6 +98,32 @@ const resolveAndroidCredentials = (
       });
 };
 
+/**
+ * Repair the staged `gradlew` before running it: re-assert the executable bit
+ * (copy/checkout can drop it) and, for committed native dirs (bare/KMP/native),
+ * normalize Windows CRLF line endings that break the shell wrapper. Mirrors
+ * EAS's FIX_GRADLEW phase. Best-effort — a failure here surfaces as the real
+ * gradlew error instead.
+ */
+const fixGradlew = (androidDir: string, fixLineEndings: boolean) =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const gradlewPath = path.join(androidDir, "gradlew");
+    const exists = yield* fs.exists(gradlewPath).pipe(Effect.orElseSucceed(() => false));
+    if (!exists) {
+      return;
+    }
+    if (fixLineEndings) {
+      const content = yield* fs.readFileString(gradlewPath).pipe(Effect.orElseSucceed(() => ""));
+      if (content.includes("\r\n")) {
+        yield* fs
+          .writeFileString(gradlewPath, content.replaceAll("\r\n", "\n"))
+          .pipe(Effect.orElseSucceed(() => undefined));
+      }
+    }
+    yield* fs.chmod(gradlewPath, 0o755).pipe(Effect.orElseSucceed(() => undefined));
+  });
+
 /** Gradle build against the (already-prepared) `android/` dir. */
 const runGradleBuild = (input: RunAndroidBuildInput, commandEnv: Record<string, string>) =>
   Effect.gen(function* () {
@@ -105,6 +135,8 @@ const runGradleBuild = (input: RunAndroidBuildInput, commandEnv: Record<string, 
     const buildType = input.androidProfile.buildType ?? "release";
     const moduleName = input.androidProfile.module ?? "app";
     const androidDir = path.join(input.projectRoot, "android");
+
+    yield* fixGradlew(androidDir, input.strategy !== "expo");
 
     const credentials = yield* resolveAndroidCredentials(input);
     const gradleArgs: readonly string[] =
@@ -122,9 +154,10 @@ const runGradleBuild = (input: RunAndroidBuildInput, commandEnv: Record<string, 
     yield* runStep(
       {
         command: "./gradlew",
-        args: [...gradleArgs, taskArg],
+        args: [...gradleArgs, taskArg, "--profile"],
         cwd: androidDir,
-        env: commandEnv,
+        // Gradle needs a UTF-8 locale for tool output — same value EAS sets.
+        env: { ...commandEnv, LC_ALL: "C.UTF-8" },
       },
       "gradlew",
     );
@@ -222,6 +255,17 @@ export const runAndroidBuild = (input: RunAndroidBuildInput) =>
           channel: input.updateChannel,
         });
       }
+    }
+
+    // Custom commands own their full pipeline; the managed strategies run the
+    // post-install lifecycle hook after deps + prebuild are in place (EAS parity).
+    if (input.strategy !== "custom") {
+      yield* runBuildHook({
+        name: "eas-build-post-install",
+        projectRoot: input.projectRoot,
+        packageManager: input.packageManager,
+        env: commandEnv,
+      });
     }
 
     return input.strategy === "custom"

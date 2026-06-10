@@ -2,14 +2,13 @@ import path from "node:path";
 
 import { compact } from "@better-update/type-guards";
 import { FileSystem } from "@effect/platform";
-import { Effect } from "effect";
+import { Effect, Either } from "effect";
 
-import { runAndroidBuild } from "../commands/build/android";
-import { runIosBuild } from "../commands/build/ios";
 import { reserveAndUpload } from "../commands/build/reserve-and-upload";
+import { runStep } from "../commands/build/run-step";
 import { applyAutoIncrement } from "../lib/auto-increment";
+import { runBuildHook } from "../lib/build-hooks";
 import { readBuildProfile } from "../lib/build-profile";
-import { resolveAndroidStrategy, resolveIosStrategy } from "../lib/build-strategy";
 import { clearBuildCaches } from "../lib/clear-cache";
 import { asProjectType, detectProjectType } from "../lib/detect-project-type";
 import { warnIfDevClientMissing } from "../lib/dev-client-check";
@@ -20,7 +19,6 @@ import { readAppMeta, readExpoConfig } from "../lib/expo-config";
 import { runFingerprintForPlatform } from "../lib/fingerprint";
 import { formatCause } from "../lib/format-error";
 import { readGitContext } from "../lib/git-context";
-import { readGradleConfig, warnOnGradleMismatch } from "../lib/gradle-config";
 import { InteractiveMode } from "../lib/interactive-mode";
 import { printHuman, printKeyValue } from "../lib/output";
 import { detectPlatform, detectPlatformGeneric } from "../lib/platform-detect";
@@ -30,16 +28,17 @@ import { promptSelect } from "../lib/prompts";
 import { ensureRepoClean } from "../lib/repo-clean";
 import { resolveRuntimeVersion } from "../lib/runtime-version";
 import { acquireBuildTempDir } from "../lib/temp-dir";
+import { printWarn } from "../lib/warning-style";
 import { apiClient } from "../services/api-client";
 import { CliRuntime } from "../services/cli-runtime";
 import { runAutoSubmit } from "./build-auto-submit";
-import { ensureAndroidCredentials, ensureIosCredentials } from "./credentials-interactive";
+import { runPlatformBuild } from "./platform-build";
 import { resolveAppMeta } from "./resolve-app-meta";
 import { resolveUpdateChannel } from "./resolve-update-channel";
 
-import type { BuildTarget } from "../commands/build/reserve-and-upload";
 import type { Platform } from "../lib/build-profile";
-import type { ProjectType } from "../lib/detect-project-type";
+import type { PackageManager } from "../lib/project-staging";
+import type { AppMeta, BuildProfile } from "./platform-build";
 
 export interface RunBuildWorkflowOptions {
   readonly platform: Platform | undefined;
@@ -55,137 +54,6 @@ export interface RunBuildWorkflowOptions {
   readonly autoSubmitProfile?: string;
   readonly whatToTest?: string;
 }
-
-type AppMeta = Effect.Effect.Success<ReturnType<typeof readAppMeta>>;
-type BuildProfile = Effect.Effect.Success<ReturnType<typeof readBuildProfile>>;
-type ApiClient = Effect.Effect.Success<typeof apiClient>;
-
-interface PlatformBuildInput {
-  readonly api: ApiClient;
-  readonly options: RunBuildWorkflowOptions;
-  readonly platform: Platform;
-  readonly profile: BuildProfile;
-  readonly projectType: ProjectType;
-  readonly appMeta: AppMeta;
-  readonly envVars: Record<string, string>;
-  readonly projectId: string;
-  readonly projectRoot: string;
-  readonly tempDir: string;
-  /** Channel baked into the native app at prebuild; undefined skips injection. */
-  readonly updateChannel: string | undefined;
-}
-
-const runIosPlatformBuild = (input: PlatformBuildInput) =>
-  Effect.gen(function* () {
-    const { api, appMeta, envVars, options, profile, projectId, projectRoot, tempDir } = input;
-    if (!profile.ios) {
-      return yield* new BuildProfileError({
-        message: `Profile "${profile.name}" has no ios section.`,
-      });
-    }
-    const iosProfile = profile.ios;
-    const iosBundleId = appMeta.bundleId;
-    if (!iosBundleId) {
-      return yield* new BuildProfileError({
-        message: "Missing iOS bundle identifier (set ios.bundleIdentifier or your Expo config).",
-      });
-    }
-    const strategy = resolveIosStrategy(profile, input.projectType);
-    const isSimulator = iosProfile.simulator === true;
-    const credentialsSource = profile.credentialsSource ?? "remote";
-    // Custom builds own their own signing; only the native xcodebuild path needs
-    // server-managed credentials pre-ensured here.
-    if (strategy !== "custom" && !isSimulator && credentialsSource === "remote") {
-      yield* ensureIosCredentials(
-        api,
-        {
-          projectId,
-          bundleIdentifier: iosBundleId,
-          distribution: iosProfile.distribution,
-        },
-        { freezeCredentials: options.freezeCredentials ?? false },
-      );
-    }
-    const build = yield* runIosBuild({
-      api,
-      tempDir,
-      projectRoot,
-      iosProfile,
-      bundleId: iosBundleId,
-      envVars,
-      projectId,
-      credentialsSource,
-      strategy,
-      rawOutput: options.rawOutput,
-      freezeCredentials: options.freezeCredentials ?? false,
-      updateChannel: input.updateChannel,
-      ...compact({ customCommand: profile.customCommand?.ios }),
-    });
-    const target: BuildTarget = isSimulator
-      ? { platform: "ios", distribution: "simulator", artifactFormat: "tar.gz" }
-      : { platform: "ios", distribution: iosProfile.distribution, artifactFormat: "ipa" };
-    return { build, target, bundleId: iosBundleId };
-  });
-
-const runAndroidPlatformBuild = (input: PlatformBuildInput) =>
-  Effect.gen(function* () {
-    const { api, appMeta, envVars, options, profile, projectId, projectRoot, tempDir } = input;
-    if (!profile.android) {
-      return yield* new BuildProfileError({
-        message: `Profile "${profile.name}" has no android section.`,
-      });
-    }
-    const androidProfile = profile.android;
-    const androidBundleId = appMeta.androidPackage;
-    if (!androidBundleId) {
-      return yield* new BuildProfileError({
-        message: "Missing Android applicationId (set android.applicationId or your Expo config).",
-      });
-    }
-    const strategy = resolveAndroidStrategy(profile, input.projectType);
-    // Cross-validate Gradle config against the resolved package (Groovy only).
-    // When Gradle resolves a different applicationId, the built APK/AAB is signed
-    // under that id — so the credential resolver must key off the Gradle value.
-    const androidDir = `${projectRoot}/android`;
-    const gradleConfig = yield* readGradleConfig(androidDir);
-    yield* warnOnGradleMismatch(gradleConfig, androidBundleId);
-    const applicationIdentifier = gradleConfig?.applicationId ?? androidBundleId;
-    const credentialsSource = profile.credentialsSource ?? "remote";
-    // EAS parity: developmentClient=true or withoutCredentials=true skips the
-    // server keystore lookup so dev builds work without registering a keystore.
-    const skipCredentials =
-      profile.developmentClient === true || profile.withoutCredentials === true;
-    if (credentialsSource === "remote" && !skipCredentials) {
-      yield* ensureAndroidCredentials(
-        api,
-        { projectId, applicationIdentifier },
-        { freezeCredentials: options.freezeCredentials ?? false },
-      );
-    }
-    const build = yield* runAndroidBuild({
-      api,
-      tempDir,
-      projectRoot,
-      androidProfile,
-      applicationIdentifier,
-      envVars,
-      projectId,
-      credentialsSource,
-      profileName: profile.name,
-      skipCredentials,
-      strategy,
-      updateChannel: input.updateChannel,
-      ...compact({ customCommand: profile.customCommand?.android }),
-    });
-    const target: BuildTarget =
-      androidProfile.format === "aab"
-        ? { platform: "android", distribution: "play-store", artifactFormat: "aab" }
-        : { platform: "android", distribution: "direct", artifactFormat: "apk" };
-    return { build, target, bundleId: applicationIdentifier };
-  });
-
-const runPlatformBuild = (input: PlatformBuildInput) =>
-  input.platform === "ios" ? runIosPlatformBuild(input) : runAndroidPlatformBuild(input);
 
 const dirExists = (root: string, name: string) =>
   Effect.gen(function* () {
@@ -242,6 +110,70 @@ const resolveExpoBuildMeta = (params: {
     });
     return { appMeta, runtimeVersion };
   });
+
+/**
+ * EAS-parity lifecycle hooks after the native build. Success-path hook
+ * failures fail the build; failure-path hooks are best-effort so they never
+ * mask the original build error.
+ */
+const runBuildLifecycleHooks = (params: {
+  readonly succeeded: boolean;
+  readonly projectRoot: string;
+  readonly packageManager: PackageManager;
+  readonly env: Readonly<Record<string, string>>;
+}) =>
+  Effect.gen(function* () {
+    const { env, packageManager, projectRoot } = params;
+    const hook = (name: "eas-build-on-success" | "eas-build-on-error" | "eas-build-on-complete") =>
+      runBuildHook({ name, projectRoot, packageManager, env });
+    if (params.succeeded) {
+      yield* hook("eas-build-on-success");
+      yield* hook("eas-build-on-complete");
+      return;
+    }
+    yield* hook("eas-build-on-error").pipe(
+      Effect.catchAll((error) => printWarn(`eas-build-on-error hook: ${formatCause(error)}`)),
+    );
+    yield* hook("eas-build-on-complete").pipe(
+      Effect.catchAll((error) => printWarn(`eas-build-on-complete hook: ${formatCause(error)}`)),
+    );
+  });
+
+const printBuildHeader = (params: {
+  readonly platform: Platform;
+  readonly profileName: string;
+  readonly runtimeVersion: string | undefined;
+  readonly updateChannel: string | undefined;
+}) => {
+  const details = [
+    ...(params.runtimeVersion === undefined ? [] : [`runtimeVersion=${params.runtimeVersion}`]),
+    ...(params.updateChannel === undefined ? [] : [`channel=${params.updateChannel}`]),
+  ];
+  return printHuman(
+    `Building ${params.platform} artifact for profile "${params.profileName}"${
+      details.length === 0 ? "" : ` (${details.join(", ")})`
+    }`,
+  );
+};
+
+/**
+ * Warning-only `expo-doctor` pass before the native build (mirrors EAS's
+ * RUN_EXPO_DOCTOR phase): findings and timeouts are reported but never fail
+ * the build.
+ */
+const runExpoDoctor = (params: {
+  readonly projectRoot: string;
+  readonly env: Readonly<Record<string, string>>;
+}) =>
+  runStep(
+    { command: "bunx", args: ["expo-doctor"], cwd: params.projectRoot, env: params.env },
+    "expo-doctor",
+  ).pipe(
+    Effect.timeout("30 seconds"),
+    Effect.catchAll(() =>
+      printWarn("expo-doctor reported issues or timed out — continuing (warning only)."),
+    ),
+  );
 
 const resolveProfileName = (projectRoot: string, requested: string) =>
   Effect.gen(function* () {
@@ -326,12 +258,29 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
         projectType,
       });
 
+      // Best-effort git context — used for build metadata at upload time and
+      // exposed to subprocesses (EAS_BUILD_GIT_COMMIT_HASH parity).
+      const rawGitContext = yield* readGitContext(userCwd);
+
+      // Build-identity env (mirrors EAS_BUILD*): every subprocess from here on
+      // (dynamic app.config evaluation, install, hooks, prebuild, native build)
+      // can detect the build and its parameters.
+      const envWithBuildId = {
+        ...envVars,
+        BETTER_UPDATE_BUILD: "1",
+        BETTER_UPDATE_BUILD_RUNNER: "cli",
+        BETTER_UPDATE_BUILD_PLATFORM: platform,
+        BETTER_UPDATE_BUILD_PROFILE: profile.name,
+        BETTER_UPDATE_BUILD_PROJECT_ID: projectId,
+        ...compact({ BETTER_UPDATE_BUILD_GIT_COMMIT_HASH: rawGitContext.commit }),
+      };
+
       // Resolve app metadata + OTA runtimeVersion. Expo reads app.json (with the
       // env overlay), applies autoIncrement to the user's tree, and derives a
       // runtimeVersion. Non-Expo reads native files / profile overrides and has
       // no runtimeVersion (no eas-updates).
       const { appMeta, runtimeVersion }: BuildMeta = isExpo
-        ? yield* resolveExpoBuildMeta({ userCwd, platform, profile, envVars })
+        ? yield* resolveExpoBuildMeta({ userCwd, platform, profile, envVars: envWithBuildId })
         : {
             appMeta: yield* resolveAppMeta({
               projectType,
@@ -341,6 +290,22 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
             }),
             runtimeVersion: undefined,
           };
+
+      // Platform version env (EAS_BUILD_IOS_* / EAS_BUILD_ANDROID_* parity).
+      const buildEnvVars = {
+        ...envWithBuildId,
+        ...compact(
+          platform === "ios"
+            ? {
+                BETTER_UPDATE_BUILD_IOS_APP_VERSION: appMeta.appVersion,
+                BETTER_UPDATE_BUILD_IOS_BUILD_NUMBER: appMeta.buildNumber,
+              }
+            : {
+                BETTER_UPDATE_BUILD_ANDROID_VERSION_NAME: appMeta.appVersion,
+                BETTER_UPDATE_BUILD_ANDROID_VERSION_CODE: appMeta.buildNumber,
+              },
+        ),
+      };
 
       if (options.clearCache) {
         yield* clearBuildCaches(userCwd);
@@ -354,34 +319,58 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
       const staging = yield* prepareStagingProject({
         userCwd,
         tempDir,
-        envVars,
+        envVars: buildEnvVars,
         projectType,
       });
+      const buildEnv = { ...buildEnvVars, BETTER_UPDATE_BUILD_WORKINGDIR: staging.stagingRoot };
 
-      const buildDetails = [
-        ...(runtimeVersion === undefined ? [] : [`runtimeVersion=${runtimeVersion}`]),
-        ...(updateChannel === undefined ? [] : [`channel=${updateChannel}`]),
-      ];
-      yield* printHuman(
-        `Building ${platform} artifact for profile "${profile.name}"${
-          buildDetails.length === 0 ? "" : ` (${buildDetails.join(", ")})`
-        }`,
-      );
+      if (isExpo) {
+        yield* runExpoDoctor({
+          projectRoot: staging.projectRoot,
+          env: yield* runtime.commandEnvironment(buildEnv),
+        });
+      }
 
-      const outcome = yield* runPlatformBuild({
-        api,
-        options,
+      yield* printBuildHeader({
         platform,
-        profile,
-        projectType,
-        appMeta,
-        envVars,
-        projectId,
-        projectRoot: staging.projectRoot,
-        tempDir,
+        profileName: profile.name,
+        runtimeVersion,
         updateChannel,
       });
-      const { build, target, bundleId } = outcome;
+
+      const buildOutcome = yield* Effect.either(
+        runPlatformBuild({
+          api,
+          platform,
+          profile,
+          projectType,
+          appMeta,
+          envVars: buildEnv,
+          projectId,
+          projectRoot: staging.projectRoot,
+          tempDir,
+          packageManager: staging.packageManager,
+          updateChannel,
+          freezeCredentials: options.freezeCredentials ?? false,
+          rawOutput: options.rawOutput,
+        }),
+      );
+
+      const lifecycleStatus = Either.isRight(buildOutcome) ? "finished" : "errored";
+      yield* runBuildLifecycleHooks({
+        succeeded: Either.isRight(buildOutcome),
+        projectRoot: staging.projectRoot,
+        packageManager: staging.packageManager,
+        env: yield* runtime.commandEnvironment({
+          ...buildEnv,
+          BETTER_UPDATE_BUILD_STATUS: lifecycleStatus,
+          EAS_BUILD_STATUS: lifecycleStatus,
+        }),
+      });
+      if (Either.isLeft(buildOutcome)) {
+        return yield* Effect.fail(buildOutcome.left);
+      }
+      const { build, target, bundleId } = buildOutcome.right;
 
       yield* printHuman(`Artifact produced: ${build.artifactPath}`);
 
@@ -421,7 +410,6 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
         return;
       }
 
-      const rawGitContext = yield* readGitContext(userCwd);
       const gitContext = compact({
         ref: rawGitContext.ref,
         commit: rawGitContext.commit,
