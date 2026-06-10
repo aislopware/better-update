@@ -4,11 +4,11 @@ import { safeJsonParse } from "@better-update/safe-json";
 import { isRecord } from "@better-update/type-guards";
 import { FileSystem } from "@effect/platform";
 import { AndroidConfig } from "@expo/config-plugins";
-import plist from "@expo/plist";
 import { Effect } from "effect";
 
 import { BuildFailedError } from "./exit-codes";
 import { formatCause } from "./format-error";
+import { buildPlistXml, parsePlistXml } from "./plist";
 
 /**
  * EAS parity: after `expo prebuild`, bake the build profile's `channel` into
@@ -147,8 +147,7 @@ export const setIosUpdateChannel = (params: {
       });
     const content = yield* fs.readFileString(plistPath).pipe(Effect.mapError(failure));
     const parsed = yield* Effect.try({
-      // @expo/plist types `parse` as `any` — pin the boundary to `unknown`.
-      try: (): unknown => plist.parse(content),
+      try: (): unknown => parsePlistXml(content),
       catch: failure,
     });
     if (!isRecord(parsed)) {
@@ -161,6 +160,6 @@ export const setIosUpdateChannel = (params: {
         params.channel,
       ),
     };
-    const rendered = plist.build(next);
+    const rendered = buildPlistXml(next);
     yield* fs.writeFileString(plistPath, `${rendered}\n`).pipe(Effect.mapError(failure));
   });

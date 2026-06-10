@@ -5,9 +5,9 @@ import nodePath from "node:path";
 import { isRecord } from "@better-update/type-guards";
 import { NodeContext } from "@effect/platform-node";
 import { it } from "@effect/vitest";
-import plist from "@expo/plist";
 import { Effect } from "effect";
 
+import { buildPlistXml, parsePlistXml } from "./plist";
 import {
   isExpoUpdatesInstalled,
   setAndroidUpdateChannel,
@@ -42,7 +42,7 @@ const writeAndroidManifest = (dir: string, content: string): string => {
   return manifestPath;
 };
 
-const IOS_EXPO_PLIST = plist.build({
+const IOS_EXPO_PLIST = buildPlistXml({
   EXUpdatesURL: "https://example.com/manifest/p1",
   EXUpdatesRequestHeaders: { "x-custom": "kept" },
 });
@@ -148,9 +148,9 @@ describe(setIosUpdateChannel, () => {
         iosDir: nodePath.join(dir, "ios"),
         channel: "production",
       });
-      // @expo/plist types `parse` as `any`; its objects also carry a non-Object
-      // prototype, so spread into plain objects before strict comparison.
-      const parsed: unknown = plist.parse(readFileSync(plistPath, "utf8"));
+      // @expo/plist objects carry a non-Object prototype, so spread into
+      // plain objects before strict comparison.
+      const parsed: unknown = parsePlistXml(readFileSync(plistPath, "utf8"));
       const root = isRecord(parsed) ? parsed : {};
       const headers = isRecord(root["EXUpdatesRequestHeaders"])
         ? root["EXUpdatesRequestHeaders"]

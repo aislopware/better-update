@@ -25,6 +25,11 @@ export const parsePlistXml = (xml: string): PlistObject =>
   plist.parse(xml) as PlistObject;
 
 /**
+ * Serialize an object into XML plist text.
+ */
+export const buildPlistXml = (value: PlistObject): string => plist.build(value);
+
+/**
  * Parse a binary plist buffer into a typed object.
  * Uses bplist-parser for Apple's binary plist format.
  */
