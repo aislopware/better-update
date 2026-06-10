@@ -7,9 +7,11 @@ import {
 } from "../application/credential-cipher";
 import { requireSecretString } from "./credential-secret";
 import { EnvExportError } from "./exit-codes";
+import { printHuman } from "./output";
 
 import type { VaultSession } from "../application/credential-cipher";
 import type { ApiClient } from "../services/api-client";
+import type { OutputMode } from "./output-mode";
 
 // Any of the org's environments (built-in or user-defined); the server is the
 // source of truth, so the CLI only format-checks names.
@@ -126,7 +128,8 @@ export interface PullEnvVarsOptions {
 
 /**
  * Pull + decrypt environment variables flattened into a key/value map for
- * injection into a build/subprocess.
+ * injection into a build/subprocess. Reports which variables were loaded (names
+ * only — values stay secret) so users can see what the server contributed.
  */
 export const pullEnvVars = (
   api: ApiClient,
@@ -134,7 +137,7 @@ export const pullEnvVars = (
 ): Effect.Effect<
   Record<string, string>,
   EnvExportError,
-  Effect.Effect.Context<ReturnType<typeof openVaultSessionInteractive>>
+  OutputMode | Effect.Effect.Context<ReturnType<typeof openVaultSessionInteractive>>
 > =>
   Effect.gen(function* () {
     const validated = coerceEnvironment(environment);
@@ -144,6 +147,13 @@ export const pullEnvVars = (
       });
     }
     const items = yield* exportDecryptedEnvVars(api, projectId, validated);
+    yield* printHuman(
+      items.length === 0
+        ? `No environment variables found for the "${validated}" environment.`
+        : `Environment variables loaded from the "${validated}" environment: ${items
+            .map((item) => item.key)
+            .join(", ")}`,
+    );
     return Object.fromEntries(items.map((item) => [item.key, item.value]));
   });
 

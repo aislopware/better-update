@@ -21,6 +21,7 @@ import { IdentityStore } from "../services/identity-store";
 import { pullEnvVars } from "./env-exporter";
 import { EnvExportError } from "./exit-codes";
 import { makeInteractiveModeLayer } from "./interactive-mode";
+import { makeOutputModeLayer } from "./output-mode";
 import { failureError } from "./test-utils";
 
 import type { ApiClient } from "../services/api-client";
@@ -119,10 +120,11 @@ const buildApi = (
   }) as unknown as ApiClient;
 
 /** CliRuntime that surfaces the env identity so the vault unlocks without a passphrase. */
-const vaultLayer = (privateKey: string) =>
+const vaultLayer = (privateKey: string, { json = true }: { json?: boolean } = {}) =>
   Layer.mergeAll(
     NodeFileSystem.layer,
     makeInteractiveModeLayer(false),
+    makeOutputModeLayer(json),
     Layer.succeed(CliRuntime, {
       argv: [],
       platform: "linux" as NodeJS.Platform,
@@ -192,6 +194,67 @@ describe(pullEnvVars, () => {
       }
     }),
   );
+
+  it("lists the loaded variable names in human mode (names only, never values)", async () => {
+    const lines: string[] = [];
+    const spy = vi.spyOn(console, "log").mockImplementation((value: unknown) => {
+      lines.push(String(value));
+    });
+    try {
+      await Effect.runPromise(
+        Effect.gen(function* () {
+          const vault = yield* makeTestVault;
+          const items = [
+            sealEnvVar(vault, {
+              key: "API_URL",
+              environment: "production",
+              visibility: "plaintext",
+              value: "https://api.example.com",
+            }),
+            sealEnvVar(vault, {
+              key: "SECRET",
+              environment: "production",
+              visibility: "sensitive",
+              value: "xyz",
+            }),
+          ];
+          const api = buildApi(vault, () => Effect.succeed({ environment: "production", items }));
+          yield* pullEnvVars(api, { projectId: "p_1", environment: "production" }).pipe(
+            Effect.provide(vaultLayer(vault.identity.privateKey, { json: false })),
+          );
+        }),
+      );
+    } finally {
+      spy.mockRestore();
+    }
+    expect(lines).toContain(
+      'Environment variables loaded from the "production" environment: API_URL, SECRET',
+    );
+    expect(lines.join("\n")).not.toContain("xyz");
+  });
+
+  it("reports when the environment has no variables in human mode", async () => {
+    const lines: string[] = [];
+    const spy = vi.spyOn(console, "log").mockImplementation((value: unknown) => {
+      lines.push(String(value));
+    });
+    try {
+      await Effect.runPromise(
+        Effect.gen(function* () {
+          const vault = yield* makeTestVault;
+          const api = buildApi(vault, () =>
+            Effect.succeed({ environment: "development", items: [] }),
+          );
+          yield* pullEnvVars(api, { projectId: "p_1", environment: "development" }).pipe(
+            Effect.provide(vaultLayer(vault.identity.privateKey, { json: false })),
+          );
+        }),
+      );
+    } finally {
+      spy.mockRestore();
+    }
+    expect(lines).toContain('No environment variables found for the "development" environment.');
+  });
 
   it.effect("rejects a malformed environment name", () =>
     Effect.gen(function* () {

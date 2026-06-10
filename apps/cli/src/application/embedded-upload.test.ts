@@ -10,6 +10,7 @@ import { Effect, Exit, Layer } from "effect";
 
 import { UpdatePublishError } from "../lib/exit-codes";
 import { makeInteractiveModeLayer } from "../lib/interactive-mode";
+import { OutputModeLive } from "../lib/output-mode";
 import { failureError } from "../lib/test-utils";
 import { ApiClientService } from "../services/api-client";
 import { CliRuntime } from "../services/cli-runtime";
@@ -123,6 +124,7 @@ const stubCommandExecutorLayer = Layer.succeed(CommandExecutor.CommandExecutor, 
 
 const stubVaultLayer = Layer.mergeAll(
   makeInteractiveModeLayer(false),
+  OutputModeLive,
   Layer.succeed(IdentityStore, {
     load: Effect.sync(() => null),
     save: () => Effect.void,

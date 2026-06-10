@@ -34,6 +34,7 @@ import type {
 } from "../lib/exit-codes";
 import type { ExpoConfig } from "../lib/expo-config";
 import type { InteractiveMode } from "../lib/interactive-mode";
+import type { OutputMode } from "../lib/output-mode";
 import type { UpdatePlatformOption } from "../lib/update-platforms";
 import type { ApiClientService } from "../services/api-client";
 import type { IdentityStore } from "../services/identity-store";
@@ -319,6 +320,7 @@ export const runUpdateRollback = (
   | FileSystem.FileSystem
   | IdentityStore
   | InteractiveMode
+  | OutputMode
 > =>
   Effect.gen(function* () {
     const runtime = yield* CliRuntime;
