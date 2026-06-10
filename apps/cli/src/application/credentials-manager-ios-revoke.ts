@@ -1,7 +1,7 @@
 import { Console, Effect } from "effect";
 
 import { revokeLocalDistributionCertificate } from "../lib/credentials-generator";
-import { revokeLocalApnsKey } from "../lib/credentials-generator-apple-id";
+import { revokeLocalApnsKey } from "../lib/credentials-generator-apns";
 import { MissingCredentialsError } from "../lib/exit-codes";
 import { printKeyValue } from "../lib/output";
 import { promptConfirm, promptSelect } from "../lib/prompts";

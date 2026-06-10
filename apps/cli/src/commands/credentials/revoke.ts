@@ -3,7 +3,7 @@ import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
 import { revokeLocalDistributionCertificate } from "../../lib/credentials-generator";
-import { revokeLocalApnsKey } from "../../lib/credentials-generator-apple-id";
+import { revokeLocalApnsKey } from "../../lib/credentials-generator-apns";
 import { CredentialValidationError } from "../../lib/exit-codes";
 import { printHuman, printHumanKeyValue } from "../../lib/output";
 import { promptSelect } from "../../lib/prompts";
