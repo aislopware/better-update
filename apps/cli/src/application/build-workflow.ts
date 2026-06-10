@@ -295,23 +295,26 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
         yield* warnIfDevClientMissing(userCwd);
       }
 
-      // Detect the platform: Expo infers from app.json; non-Expo intersects the
-      // profile's declared sections with the native dirs present on disk.
-      const platform = isExpo
-        ? yield* detectPlatform(options.platform, yield* readExpoConfig(userCwd))
-        : yield* detectPlatformGeneric(options.platform, {
-            profile,
-            hasAndroidDir: yield* dirExists(userCwd, "android"),
-            hasIosDir: yield* dirExists(userCwd, "ios"),
-          });
-
       // Pull env vars for the profile's environment scope, then overlay the
       // profile.env block on top (profile keys win over remote on collision).
+      // This happens before any config evaluation below so dynamic Expo configs
+      // never run against a bare process.env.
       const remoteEnvVars = yield* pullEnvVars(api, {
         projectId,
         environment: profile.environment,
       });
       const envVars = { ...remoteEnvVars, ...profile.env };
+
+      // Detect the platform: Expo infers from app.json (loaded lazily — an
+      // explicit --platform skips the config read); non-Expo intersects the
+      // profile's declared sections with the native dirs present on disk.
+      const platform = isExpo
+        ? yield* detectPlatform(options.platform, readExpoConfig(userCwd, envVars))
+        : yield* detectPlatformGeneric(options.platform, {
+            profile,
+            hasAndroidDir: yield* dirExists(userCwd, "android"),
+            hasIosDir: yield* dirExists(userCwd, "ios"),
+          });
 
       // Resolve app metadata + OTA runtimeVersion. Expo reads app.json (with the
       // env overlay), applies autoIncrement to the user's tree, and derives a

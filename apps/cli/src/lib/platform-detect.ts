@@ -27,19 +27,24 @@ const inferPlatforms = (config: ExpoConfig): readonly Platform[] => {
 
 /**
  * Resolve a build platform from an explicit flag, or fall back to the Expo
- * config (`expo.platforms` or the presence of `ios`/`android` sections). Prompts
- * when the config declares both platforms; fails when ambiguous and prompts are
- * disallowed.
+ * config (`expo.platforms` or the presence of `ios`/`android` sections). The
+ * config is loaded lazily so an explicit `--platform` skips evaluating
+ * `app.config.js`/`.ts` entirely. Prompts when the config declares both
+ * platforms; fails when ambiguous and prompts are disallowed.
  */
-export const detectPlatform = (
+export const detectPlatform = <Err, Req>(
   explicit: Platform | undefined,
-  config: ExpoConfig,
-): Effect.Effect<Platform, BuildProfileError | InteractiveProhibitedError, InteractiveMode> =>
+  loadConfig: Effect.Effect<ExpoConfig, Err, Req>,
+): Effect.Effect<
+  Platform,
+  BuildProfileError | InteractiveProhibitedError | Err,
+  InteractiveMode | Req
+> =>
   Effect.gen(function* () {
     if (explicit !== undefined) {
       return explicit;
     }
-    const candidates = inferPlatforms(config);
+    const candidates = inferPlatforms(yield* loadConfig);
     if (candidates.length === 0) {
       return yield* new BuildProfileError({
         message:
