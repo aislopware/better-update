@@ -54,7 +54,7 @@ import {
   queryParam,
   useDebouncedSearch,
 } from "../../../lib/data-table";
-import { formatShortDate } from "../../../lib/format-date";
+import { formatShortDateTime } from "../../../lib/format-date";
 import { pluralize } from "../../../lib/pluralize";
 import { useApiMutation } from "../../../lib/use-api-mutation";
 
@@ -131,8 +131,8 @@ const buildColumns = (
   {
     id: "createdAt",
     accessorKey: "createdAt",
-    header: "Joined",
-    cell: ({ row }) => formatShortDate(row.original.createdAt),
+    header: "Joined at",
+    cell: ({ row }) => formatShortDateTime(row.original.createdAt),
     meta: { align: "right", muted: true },
   },
   {

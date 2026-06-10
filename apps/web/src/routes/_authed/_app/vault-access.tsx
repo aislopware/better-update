@@ -27,7 +27,7 @@ import { Suspense } from "react";
 import { PageHeader } from "../../../components/page-header";
 import { TableSkeleton } from "../../../components/skeletons";
 import { CopyableMono } from "../../../lib/copy-button";
-import { formatDate } from "../../../lib/format-date";
+import { formatShortDateTime } from "../../../lib/format-date";
 import { pluralize } from "../../../lib/pluralize";
 import { ENCRYPTION_KEY_KIND_META, joinVaultRecipients } from "./-vault-access-utils";
 
@@ -57,8 +57,8 @@ const RecipientsTable = ({ rows }: { rows: readonly VaultRecipientRow[] }) => (
         <TableHead>Recipient</TableHead>
         <TableHead>Type</TableHead>
         <TableHead>Fingerprint</TableHead>
-        <TableHead>Granted</TableHead>
-        <TableHead>Last used</TableHead>
+        <TableHead>Granted at</TableHead>
+        <TableHead>Last used at</TableHead>
       </TableRow>
     </TableHeader>
     <TableBody>
@@ -76,9 +76,11 @@ const RecipientsTable = ({ rows }: { rows: readonly VaultRecipientRow[] }) => (
             <TableCell>
               <CopyableMono value={row.fingerprint} label="Fingerprint" />
             </TableCell>
-            <TableCell className="text-muted-foreground">{formatDate(row.grantedAt)}</TableCell>
             <TableCell className="text-muted-foreground">
-              {row.lastUsedAt ? formatDate(row.lastUsedAt) : "—"}
+              {formatShortDateTime(row.grantedAt)}
+            </TableCell>
+            <TableCell className="text-muted-foreground">
+              {row.lastUsedAt ? formatShortDateTime(row.lastUsedAt) : "—"}
             </TableCell>
           </TableRow>
         );

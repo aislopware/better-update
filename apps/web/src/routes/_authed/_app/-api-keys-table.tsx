@@ -89,11 +89,9 @@ export const ApiKeysTable = ({
           </code>
         </div>
         <div className="text-muted-foreground hidden flex-col items-end gap-0.5 text-xs sm:flex">
-          <span>Created {formatRelativeTime(new Date(key.createdAt).toISOString())}</span>
+          <span>Created {formatRelativeTime(key.createdAt)}</span>
           <span>
-            {key.expiresAt
-              ? `Expires ${formatRelativeFuture(new Date(key.expiresAt).toISOString())}`
-              : "Never expires"}
+            {key.expiresAt ? `Expires ${formatRelativeFuture(key.expiresAt)}` : "Never expires"}
           </span>
         </div>
         <KeyActions

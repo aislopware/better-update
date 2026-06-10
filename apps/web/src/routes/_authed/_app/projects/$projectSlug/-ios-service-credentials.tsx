@@ -29,7 +29,7 @@ import type {
 
 import { RolesCell, TeamCell } from "../../-credential-cells";
 import { CopyableMono } from "../../../../../lib/copy-button";
-import { formatShortDate } from "../../../../../lib/format-date";
+import { formatShortDateTime } from "../../../../../lib/format-date";
 
 const EmptyBindingCard = ({ message }: { message: string }) => (
   <Card>
@@ -70,7 +70,7 @@ const PushKeyTableCard = ({
               <TeamCell team={team} />
             </TableCell>
             <TableCell className="text-muted-foreground">
-              {formatShortDate(pushKey.createdAt)}
+              {formatShortDateTime(pushKey.createdAt)}
             </TableCell>
           </TableRow>
         </TableBody>
@@ -120,7 +120,7 @@ const AscKeyTableCard = ({
               <RolesCell roles={ascKey.roles} />
             </TableCell>
             <TableCell className="text-muted-foreground">
-              {formatShortDate(ascKey.createdAt)}
+              {formatShortDateTime(ascKey.createdAt)}
             </TableCell>
           </TableRow>
         </TableBody>

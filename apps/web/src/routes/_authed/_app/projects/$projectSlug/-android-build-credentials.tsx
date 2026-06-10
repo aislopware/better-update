@@ -36,7 +36,7 @@ import type {
 } from "@better-update/api-client/react";
 
 import { CopyButton } from "../../../../../lib/copy-button";
-import { formatDate } from "../../../../../lib/format-date";
+import { formatShortDateTime } from "../../../../../lib/format-date";
 import { findKeystore, sortGroupsByDefault } from "./-android-detail-shared";
 
 const formatFingerprint = (value: string): string => {
@@ -97,7 +97,7 @@ const KeystoreCard = ({ keystore }: { keystore: AndroidUploadKeystoreItem | null
               <FingerprintCell value={keystore.sha256Fingerprint} label="SHA-256" />
             </TableCell>
             <TableCell className="text-muted-foreground">
-              {formatDate(keystore.updatedAt)}
+              {formatShortDateTime(keystore.updatedAt)}
             </TableCell>
           </TableRow>
         </TableBody>

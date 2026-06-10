@@ -19,6 +19,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
+import { differenceInDays, parseISO } from "date-fns";
 import { FolderIcon, SearchIcon, SearchXIcon } from "lucide-react";
 import { useMemo } from "react";
 import { z } from "zod";
@@ -41,7 +42,7 @@ import {
   useDebouncedSearch,
 } from "../../../../lib/data-table";
 import { EntityAvatar } from "../../../../lib/entity-avatar";
-import { formatShortDate } from "../../../../lib/format-date";
+import { formatShortDateTime } from "../../../../lib/format-date";
 import { formatRelativeTime } from "../../../../lib/format-relative-time";
 import { pluralize } from "../../../../lib/pluralize";
 import { CreateProjectDialog } from "./-create-dialog";
@@ -80,7 +81,7 @@ const EmptyState = () => (
 );
 
 const getActivityDotColor = (lastActivityAt: string): string => {
-  const days = (Date.now() - new Date(lastActivityAt).getTime()) / 86_400_000;
+  const days = differenceInDays(new Date(), parseISO(lastActivityAt));
   if (days < 7) {
     return "bg-success";
   }
@@ -159,8 +160,8 @@ const columns: readonly ColumnDef<ProjectItem>[] = [
   {
     id: "createdAt",
     accessorKey: "createdAt",
-    header: "Created",
-    cell: ({ row }) => formatShortDate(row.original.createdAt),
+    header: "Created at",
+    cell: ({ row }) => formatShortDateTime(row.original.createdAt),
     enableSorting: true,
     meta: { align: "right", muted: true },
   },

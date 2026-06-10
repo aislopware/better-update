@@ -23,6 +23,7 @@ import {
   InputGroupInput,
 } from "@better-update/ui/components/ui/input-group";
 import { Spinner } from "@better-update/ui/components/ui/spinner";
+import { differenceInMinutes } from "date-fns";
 import { CircleAlertIcon, SmartphoneIcon } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useSyncExternalStore, useState } from "react";
@@ -34,7 +35,7 @@ import { CopyButton } from "../../../../../lib/copy-button";
 import { useApiMutation } from "../../../../../lib/use-api-mutation";
 
 const minutesRemaining = (expiresUnix: number) =>
-  Math.max(0, Math.floor((expiresUnix * 1000 - Date.now()) / 60_000));
+  Math.max(0, differenceInMinutes(expiresUnix * 1000, Date.now()));
 
 const subscribeMinuteTick = (onStoreChange: () => void) => {
   const id = setInterval(onStoreChange, 60_000);

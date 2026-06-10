@@ -70,6 +70,19 @@ export const parseProfileCallbackPlist = (body: string): Record<string, string> 
   );
 };
 
+// The Worker has no notion of the visitor's timezone, so render the expiry
+// explicitly in UTC instead of relying on the runtime's implicit locale/zone.
+const formatExpiryUtc = (iso: string): string =>
+  new Date(iso).toLocaleString("en-US", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "UTC",
+    timeZoneName: "short",
+  });
+
 export const renderRegistrationLandingHtml = (params: {
   readonly profileUrl: string;
   readonly deviceNameHint: string | null;
@@ -94,7 +107,7 @@ export const renderRegistrationLandingHtml = (params: {
 <h1>Register ${escapeXml(hint)}</h1>
 <p>Tap the button below on an iOS device to install a profile that registers this device for ad-hoc builds.</p>
 <a class="btn" href="${escapeXml(params.profileUrl)}">Install profile</a>
-<p class="muted">Link expires ${escapeXml(new Date(params.expiresAt).toLocaleString())}. Safari will show "Not Verified" — that is expected for internal enrollment.</p>
+<p class="muted">Link expires ${escapeXml(formatExpiryUtc(params.expiresAt))}. Safari will show "Not Verified" — that is expected for internal enrollment.</p>
 </body>
 </html>`;
 };

@@ -61,13 +61,13 @@ const StatusCell = ({ status }: { status: MemberStatus }) => {
 
 const JoinedCell = ({ row }: { row: Row }) => {
   if (row.kind === "member") {
-    return formatRelativeTime(row.joinedAt.toISOString());
+    return formatRelativeTime(row.joinedAt);
   }
   return (
     <div className="flex flex-col items-end gap-0.5">
-      <span>Invited {formatRelativeTime(row.invitedAt.toISOString())}</span>
+      <span>Invited {formatRelativeTime(row.invitedAt)}</span>
       <span className="text-muted-foreground/72 text-xs italic">
-        Expires {formatRelativeFuture(row.expiresAt.toISOString())}
+        Expires {formatRelativeFuture(row.expiresAt)}
       </span>
     </div>
   );
