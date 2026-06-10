@@ -26,11 +26,17 @@ better-update build --platform android --profile production
 
 What it does:
 
-1. Downloads the credentials for that platform from the server (so they don't live on every dev machine).
-2. Runs `expo prebuild --platform <ios|android>`.
-3. iOS: `pod install`, `xcodebuild archive`, `xcodebuild exportArchive`.
-4. Android: `./gradlew :app:<assembleRelease|bundleRelease|...>`.
+1. Stages your project into a temp dir and installs dependencies there (frozen to your lockfile).
+2. Downloads the credentials for that platform from the server (so they don't live on every dev machine).
+3. Runs `expo prebuild --platform <ios|android>` (which installs CocoaPods itself on iOS).
+4. iOS: `xcodebuild archive`, `xcodebuild exportArchive`. Android: `./gradlew :app:<assembleRelease|bundleRelease|...>`.
 5. Optionally uploads the resulting `.ipa` / `.apk` / `.aab` to the server.
+
+### Lifecycle hooks
+
+The same npm-script hooks EAS Build supports run at the same points, so existing scripts work unchanged: `eas-build-pre-install`, `eas-build-post-install`, `eas-build-on-success`, `eas-build-on-error`, and `eas-build-on-complete` (the last one sees `EAS_BUILD_STATUS` / `BETTER_UPDATE_BUILD_STATUS` set to `finished` or `errored`).
+
+Build subprocesses (including dynamic `app.config.ts`) also see `BETTER_UPDATE_BUILD=1`, `BETTER_UPDATE_BUILD_PLATFORM`, `BETTER_UPDATE_BUILD_PROFILE`, `BETTER_UPDATE_BUILD_PROJECT_ID`, `BETTER_UPDATE_BUILD_GIT_COMMIT_HASH`, `BETTER_UPDATE_BUILD_WORKINGDIR`, and the platform version pair (`BETTER_UPDATE_BUILD_IOS_APP_VERSION`/`_IOS_BUILD_NUMBER` or `BETTER_UPDATE_BUILD_ANDROID_VERSION_NAME`/`_ANDROID_VERSION_CODE`) — mirroring the `EAS_BUILD*` set.
 
 ### Flags
 

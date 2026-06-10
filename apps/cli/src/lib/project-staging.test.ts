@@ -6,7 +6,7 @@ import { NodeFileSystem } from "@effect/platform-node";
 import { it } from "@effect/vitest";
 import { Effect } from "effect";
 
-import { buildIgnoreInstance, detectWorkspaceRoot } from "./project-staging";
+import { buildIgnoreInstance, detectWorkspaceRoot, installArgs } from "./project-staging";
 
 const makeDir = (prefix: string): string => realpathSync(mkdtempSync(path.join(tmpdir(), prefix)));
 
@@ -26,6 +26,7 @@ describe(detectWorkspaceRoot, () => {
         const result = yield* detectWorkspaceRoot(dir);
         expect(result.workspaceRoot).toBe(dir);
         expect(result.packageManager).toBe("bun");
+        expect(result.lockfileFound).toBe(false);
       } finally {
         dispose(dir);
       }
@@ -40,6 +41,7 @@ describe(detectWorkspaceRoot, () => {
         const result = yield* detectWorkspaceRoot(dir);
         expect(result.workspaceRoot).toBe(dir);
         expect(result.packageManager).toBe("bun");
+        expect(result.lockfileFound).toBe(true);
       } finally {
         dispose(dir);
       }
@@ -122,6 +124,22 @@ describe(detectWorkspaceRoot, () => {
       }
     }).pipe(Effect.provide(NodeFileSystem.layer)),
   );
+});
+
+describe(installArgs, () => {
+  it("uses frozen-lockfile variants matching EAS when a lockfile was found", () => {
+    expect(installArgs("bun", true)).toStrictEqual(["install", "--frozen-lockfile"]);
+    expect(installArgs("pnpm", true)).toStrictEqual(["install", "--frozen-lockfile"]);
+    expect(installArgs("yarn", true)).toStrictEqual(["install", "--frozen-lockfile"]);
+    expect(installArgs("npm", true)).toStrictEqual(["ci", "--include=dev"]);
+  });
+
+  it("falls back to a plain install without a lockfile", () => {
+    expect(installArgs("bun", false)).toStrictEqual(["install"]);
+    expect(installArgs("pnpm", false)).toStrictEqual(["install"]);
+    expect(installArgs("yarn", false)).toStrictEqual(["install"]);
+    expect(installArgs("npm", false)).toStrictEqual(["install", "--include=dev"]);
+  });
 });
 
 describe(buildIgnoreInstance, () => {

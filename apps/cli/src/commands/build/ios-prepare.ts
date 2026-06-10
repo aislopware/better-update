@@ -3,12 +3,14 @@ import path from "node:path";
 import { FileSystem } from "@effect/platform";
 import { Effect } from "effect";
 
+import { runBuildHook } from "../../lib/build-hooks";
 import { ArtifactNotFoundError, BuildFailedError } from "../../lib/exit-codes";
 import { setIosUpdateChannel } from "../../lib/update-channel-native";
 import { runStep } from "./run-step";
 
 import type { IosProfile } from "../../lib/build-profile";
 import type { IosBuildStrategy } from "../../lib/build-strategy";
+import type { PackageManager } from "../../lib/project-staging";
 
 export interface XcodeContainer {
   readonly flag: "-workspace" | "-project";
@@ -74,8 +76,12 @@ export const resolveXcodeContainer = (
 
 /**
  * Prepare the `ios/` dir for an xcodebuild. Expo regenerates it from app.json
- * via prebuild then runs `pod install`; bare/KMP/native build the committed dir
- * and only run `pod install` when a Podfile is present (unless disabled).
+ * via prebuild (which installs deps + pods itself — no separate `pod install`);
+ * bare/KMP/native build the committed dir and only run `pod install` when a
+ * Podfile is present (unless disabled).
+ *
+ * CocoaPods requires a UTF-8 locale (it aborts on ASCII-8BIT shells), so every
+ * step that may run pods forces `LANG=en_US.UTF-8` — same as EAS Build.
  */
 export const prepareIosNative = (params: {
   readonly strategy: IosBuildStrategy;
@@ -83,42 +89,44 @@ export const prepareIosNative = (params: {
   readonly iosDir: string;
   readonly iosProfile: IosProfile;
   readonly commandEnv: Record<string, string>;
+  /** Package manager of the staged workspace — used to run lifecycle hooks. */
+  readonly packageManager: PackageManager;
   /** OTA channel baked into the generated Expo.plist; undefined skips injection. */
   readonly updateChannel?: string | undefined;
 }) =>
   Effect.gen(function* () {
+    const podEnv = { ...params.commandEnv, LANG: "en_US.UTF-8" };
     if (params.strategy === "expo") {
       yield* runStep(
         {
           command: "bunx",
           args: ["expo", "prebuild", "--platform", "ios", "--clean"],
           cwd: params.projectRoot,
-          env: params.commandEnv,
+          env: podEnv,
         },
         "expo prebuild ios",
       );
       if (params.updateChannel !== undefined) {
         yield* setIosUpdateChannel({ iosDir: params.iosDir, channel: params.updateChannel });
       }
-      yield* runStep(
-        { command: "pod", args: ["install"], cwd: params.iosDir, env: params.commandEnv },
-        "pod install",
-      );
-      return;
+    } else if (params.iosProfile.podInstall !== false) {
+      const fs = yield* FileSystem.FileSystem;
+      const hasPodfile = yield* fs
+        .exists(path.join(params.iosDir, "Podfile"))
+        .pipe(Effect.orElseSucceed(() => false));
+      if (hasPodfile) {
+        yield* runStep(
+          { command: "pod", args: ["install"], cwd: params.iosDir, env: podEnv },
+          "pod install",
+        );
+      }
     }
-    if (params.iosProfile.podInstall === false) {
-      return;
-    }
-    const fs = yield* FileSystem.FileSystem;
-    const hasPodfile = yield* fs
-      .exists(path.join(params.iosDir, "Podfile"))
-      .pipe(Effect.orElseSucceed(() => false));
-    if (hasPodfile) {
-      yield* runStep(
-        { command: "pod", args: ["install"], cwd: params.iosDir, env: params.commandEnv },
-        "pod install",
-      );
-    }
+    yield* runBuildHook({
+      name: "eas-build-post-install",
+      projectRoot: params.projectRoot,
+      packageManager: params.packageManager,
+      env: params.commandEnv,
+    });
   });
 
 /** Recursively locate the first `.app` bundle under `root` (simulator output). */

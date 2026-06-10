@@ -11,6 +11,7 @@ import type { Ignore } from "ignore";
 
 import { runStep } from "../commands/build/run-step";
 import { CliRuntime } from "../services/cli-runtime";
+import { runBuildHook } from "./build-hooks";
 import { StagingError } from "./exit-codes";
 import { formatCause } from "./format-error";
 import { printHuman } from "./output";
@@ -81,6 +82,8 @@ const findLockfile = (
 interface WorkspaceLookup {
   readonly workspaceRoot: string;
   readonly packageManager: PackageManager;
+  /** False when no lockfile was found anywhere up to the volume root. */
+  readonly lockfileFound: boolean;
 }
 
 const walkUpForLockfile = (
@@ -91,11 +94,11 @@ const walkUpForLockfile = (
     const fs = yield* FileSystem.FileSystem;
     const pm = yield* findLockfile(fs, dir);
     if (pm !== undefined) {
-      return { workspaceRoot: dir, packageManager: pm };
+      return { workspaceRoot: dir, packageManager: pm, lockfileFound: true };
     }
     const parent = path.dirname(dir);
     if (parent === dir) {
-      return { workspaceRoot: startCwd, packageManager: "bun" as const };
+      return { workspaceRoot: startCwd, packageManager: "bun" as const, lockfileFound: false };
     }
     return yield* walkUpForLockfile(startCwd, parent);
   });
@@ -212,15 +215,28 @@ const initGitRepo = (stagingRoot: string): Effect.Effect<void, StagingError> =>
       }),
   }).pipe(Effect.asVoid);
 
+/**
+ * Install args per package manager, frozen-lockfile variants matching EAS
+ * (`bun install --frozen-lockfile` / `npm ci --include=dev` / etc.) so the
+ * staged install resolves exactly what the user's lockfile pins.
+ */
+export const installArgs = (packageManager: PackageManager, frozen: boolean): readonly string[] => {
+  if (packageManager === "npm") {
+    return frozen ? ["ci", "--include=dev"] : ["install", "--include=dev"];
+  }
+  return frozen ? ["install", "--frozen-lockfile"] : ["install"];
+};
+
 const runInstall = (params: {
   readonly stagingRoot: string;
   readonly packageManager: PackageManager;
+  readonly frozen: boolean;
   readonly env: Readonly<Record<string, string>>;
 }): Effect.Effect<void, BuildFailedError, OutputMode> =>
   runStep(
     {
       command: params.packageManager,
-      args: ["install"],
+      args: [...installArgs(params.packageManager, params.frozen)],
       cwd: params.stagingRoot,
       env: params.env,
     },
@@ -255,7 +271,9 @@ export const prepareStagingProject = (
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
     const runtime = yield* CliRuntime;
-    const { workspaceRoot, packageManager } = yield* detectWorkspaceRoot(input.userCwd);
+    const { workspaceRoot, packageManager, lockfileFound } = yield* detectWorkspaceRoot(
+      input.userCwd,
+    );
     const relAppPath = path.relative(workspaceRoot, input.userCwd);
     const stagingRoot = path.join(input.tempDir, "project");
     const projectRoot = relAppPath === "" ? stagingRoot : path.join(stagingRoot, relAppPath);
@@ -278,8 +296,20 @@ export const prepareStagingProject = (
       .exists(path.join(workspaceRoot, "package.json"))
       .pipe(Effect.orElseSucceed(() => false));
     if (hasPackageJson) {
-      const commandEnv = yield* runtime.commandEnvironment(input.envVars);
-      yield* runInstall({ stagingRoot, packageManager, env: commandEnv });
+      const commandEnv = yield* runtime.commandEnvironment({
+        ...input.envVars,
+        BETTER_UPDATE_BUILD_WORKINGDIR: stagingRoot,
+      });
+      yield* runBuildHook({
+        name: "eas-build-pre-install",
+        projectRoot,
+        packageManager,
+        env: commandEnv,
+      });
+      // Frozen install (EAS parity) keeps staging on the exact lockfile pins;
+      // BETTER_UPDATE_NO_FROZEN_LOCKFILE=1 opts out (mirrors EAS_NO_FROZEN_LOCKFILE).
+      const frozen = lockfileFound && commandEnv["BETTER_UPDATE_NO_FROZEN_LOCKFILE"] !== "1";
+      yield* runInstall({ stagingRoot, packageManager, frozen, env: commandEnv });
     } else {
       yield* printHuman("No package.json at the staging root — skipping dependency install.");
     }

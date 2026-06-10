@@ -25,6 +25,7 @@ import type { IosBuildStrategy } from "../../lib/build-strategy";
 import type { IosCredentialProfile, IosCredentials } from "../../lib/credentials-downloader";
 import type { CustomCommandSpec } from "../../lib/eas-config";
 import type { TargetSigningEntry } from "../../lib/ios-codesign-pbxproj";
+import type { PackageManager } from "../../lib/project-staging";
 import type { DiscoveredTarget } from "../../lib/xcode-targets";
 import type { ApiClient } from "../../services/api-client";
 import type { RunStepCommand } from "./run-step";
@@ -42,6 +43,8 @@ export interface RunIosBuildInput {
   readonly strategy: IosBuildStrategy;
   /** Custom build command, required when `strategy === "custom"`. */
   readonly customCommand?: CustomCommandSpec;
+  /** Package manager of the staged workspace — used to run lifecycle hooks. */
+  readonly packageManager: PackageManager;
   readonly rawOutput?: boolean | undefined;
   readonly freezeCredentials?: boolean | undefined;
   /** OTA channel baked into Expo.plist after prebuild; undefined skips injection. */
@@ -61,6 +64,7 @@ const runIosSimulatorBuild = (input: RunIosBuildInput) =>
       iosDir,
       iosProfile,
       commandEnv,
+      packageManager: input.packageManager,
       updateChannel: input.updateChannel,
     });
 
@@ -235,6 +239,7 @@ const runIosDeviceBuild = (input: RunIosBuildInput) =>
       iosDir,
       iosProfile,
       commandEnv,
+      packageManager: input.packageManager,
       updateChannel: input.updateChannel,
     });
 
@@ -311,7 +316,6 @@ const runIosDeviceBuild = (input: RunIosBuildInput) =>
         configuration,
         "-archivePath",
         archivePath,
-        "-allowProvisioningUpdates",
         "archive",
       ],
       cwd: iosDir,
@@ -359,7 +363,6 @@ const runIosDeviceBuild = (input: RunIosBuildInput) =>
         exportPath,
         "-exportOptionsPlist",
         exportOptionsPath,
-        "-allowProvisioningUpdates",
       ],
       cwd: iosDir,
       env: commandEnv,
