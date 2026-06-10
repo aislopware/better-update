@@ -3,6 +3,7 @@ import { HttpApiBuilder, HttpServerResponse } from "@effect/platform";
 import { Effect } from "effect";
 
 import { ManagementApi } from "../api";
+import { assertVaultRotationNotPending } from "../application/assert-vault-rotation";
 import {
   resolveAndroidBuildCredentials,
   resolveIosBuildCredentials,
@@ -11,7 +12,7 @@ import { logAudit } from "../audit/logger";
 import { CurrentActor } from "../auth/current-actor";
 import { assertProjectOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
-import { toApiBadRequestReadEffect } from "../http/to-api-effect";
+import { toApiResolveReadEffect } from "../http/to-api-effect";
 
 const withNoStore = (body: unknown) =>
   HttpServerResponse.json(body, {
@@ -23,10 +24,15 @@ export const BuildCredentialsGroupLive = HttpApiBuilder.group(
   "buildCredentials",
   (handlers) =>
     handlers.handle("resolve", ({ path, payload }) =>
-      toApiBadRequestReadEffect(
+      toApiResolveReadEffect(
         Effect.gen(function* () {
           yield* assertProjectOwnership(path.projectId);
           const ctx = yield* CurrentActor;
+
+          // Fail closed while the vault is flagged for rotation (a recipient was
+          // removed): handing out more vault-key-encrypted ciphertext is refused
+          // until an admin rotates. See application/assert-vault-rotation.
+          yield* assertVaultRotationNotPending({ organizationId: ctx.organizationId });
 
           if (payload.platform === "ios") {
             yield* assertPermission("appleCredential", "download");

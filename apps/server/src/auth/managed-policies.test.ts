@@ -67,6 +67,20 @@ describe("MANAGED_POLICY_LIST contents", () => {
     expect(adminTokens).toContain("channel:create");
     expect(viewerTokens).not.toContain("channel:create");
   });
+
+  it("grants the viewer NO vault access (not a vault participant)", () => {
+    const viewerTokens = MANAGED_POLICIES["managed:viewer"].document.statements.flatMap(
+      (stmt) => stmt.actions,
+    );
+    // A viewer must hold no `vaultAccess:*` token at all — `vaultAccess:read`
+    // alone is the foothold for the device-enrol + self-link escalation.
+    expect(viewerTokens.some((token) => token.startsWith("vaultAccess:"))).toBe(false);
+    // Admin/developer keep read; only the viewer is excluded.
+    const developerTokens = MANAGED_POLICIES["managed:developer"].document.statements.flatMap(
+      (stmt) => stmt.actions,
+    );
+    expect(developerTokens).toContain("vaultAccess:read");
+  });
 });
 
 // The managed:viewer preset replaces the old built-in viewer role; what it must
@@ -102,6 +116,16 @@ describe("managed:viewer upper bound (via assertAccess)", () => {
         kind: "project",
         projectId: "A",
       }).pipe(Effect.provideService(AuthContext, viewerActor), Effect.exit);
+      expect(Exit.isFailure(exit)).toBe(true);
+    }),
+  );
+
+  it.effect("denies vault read (viewer is not a vault participant)", () =>
+    Effect.gen(function* () {
+      const exit = yield* assertAccess("vaultAccess", "read").pipe(
+        Effect.provideService(AuthContext, viewerActor),
+        Effect.exit,
+      );
       expect(Exit.isFailure(exit)).toBe(true);
     }),
   );

@@ -17,6 +17,24 @@ export const encryptionKeysQueryOptions = (orgId: string) =>
 /** Sentinel for an org whose vault has not been bootstrapped yet (no CLI upload). */
 const UNINITIALIZED_VAULT: VaultRecipientsResult = { vaultVersion: 0, recipients: [] };
 
+export const orgVaultQueryKey = (orgId: string) => ["org", orgId, "vault"] as const;
+
+/**
+ * The org vault row (version + rotation-pending state). `null` until the vault is
+ * bootstrapped by the first CLI upload (server replies NotFound). The
+ * `rotationPending` flag drives the "rotation required" banner on the access view.
+ */
+export const orgVaultQueryOptions = (orgId: string) =>
+  queryOptions({
+    queryKey: orgVaultQueryKey(orgId),
+    queryFn: async ({ signal }) =>
+      runApi(
+        (api) => api.orgVault.get().pipe(Effect.catchTag("NotFound", () => Effect.succeed(null))),
+        signal,
+      ),
+    staleTime: 30_000,
+  });
+
 export const vaultRecipientsQueryKey = (orgId: string) =>
   ["org", orgId, "vault-recipients"] as const;
 

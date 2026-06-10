@@ -11,6 +11,7 @@ import { toApiWriteEffect } from "../http/to-api-effect";
 import { toDbNull } from "../lib/nullable";
 import { GroupRepo } from "../repositories/group-repo";
 import { MemberRepo } from "../repositories/member-repo";
+import { reconcileVaultAccess } from "./reconcile-vault-access";
 
 import type { GroupModel } from "../models";
 
@@ -111,6 +112,12 @@ export const GroupsGroupLive = HttpApiBuilder.group(ManagementApi, "groups", (ha
             resourceType: "group",
             resourceId: path.id,
           });
+          // The cascade drops the group's policy attachments, so members of the
+          // group may lose `vaultAccess` — reconcile the recipient set.
+          yield* reconcileVaultAccess({
+            organizationId: ctx.organizationId,
+            reason: `group-deleted:${path.id}`,
+          });
           return { deleted: 1 };
         }),
       ),
@@ -178,6 +185,12 @@ export const GroupsGroupLive = HttpApiBuilder.group(ManagementApi, "groups", (ha
             resourceType: "group",
             resourceId: path.id,
             metadata: { memberId: path.memberId },
+          });
+          // Leaving the group drops the member's inherited policies, which may
+          // include `vaultAccess` — reconcile the recipient set.
+          yield* reconcileVaultAccess({
+            organizationId: ctx.organizationId,
+            reason: `group-member-removed:${path.memberId}`,
           });
           return { deleted: 1 };
         }),

@@ -10,6 +10,8 @@ export interface MemberRow {
   readonly id: string;
   /** Membership role — `owner | member` in the unified IAM model. */
   readonly role: string;
+  /** The underlying user id — needed to drop the departing member's vault wraps. */
+  readonly userId: string;
 }
 
 export interface MemberRepository {
@@ -44,6 +46,21 @@ export interface MemberRepository {
     readonly id: string;
     readonly organizationId: string;
   }) => Effect.Effect<boolean>;
+
+  /**
+   * The member id + member-role + user-role for a `(userId, org)` pair, or `null`
+   * if the user is not a member of the org. The vault reconcile uses it to decide
+   * off-request whether a recipient still has vault access: `owner`/superadmin
+   * bypass mirror the request-time gate, otherwise effective statements decide.
+   */
+  readonly findAuthRoleByUser: (params: {
+    readonly userId: string;
+    readonly organizationId: string;
+  }) => Effect.Effect<{
+    readonly memberId: string;
+    readonly memberRole: string;
+    readonly userRole: string | null;
+  } | null>;
 }
 
 export class MemberRepo extends Context.Tag("api/MemberRepo")<MemberRepo, MemberRepository>() {}
@@ -68,12 +85,12 @@ export const MemberRepoLive = Layer.succeed(MemberRepo, {
       const row = yield* Effect.promise(async () =>
         db
           .selectFrom("member")
-          .select(["id", "role"])
+          .select(["id", "role", "user_id"])
           .where("id", "=", params.id)
           .where("organization_id", "=", params.organizationId)
           .executeTakeFirst(),
       );
-      return row ? { id: row.id, role: row.role } : null;
+      return row ? { id: row.id, role: row.role, userId: row.user_id } : null;
     }),
 
   countOwners: (params) =>
@@ -101,5 +118,22 @@ export const MemberRepoLive = Layer.succeed(MemberRepo, {
           .executeTakeFirst(),
       );
       return Number(result.numDeletedRows) > 0;
+    }),
+
+  findAuthRoleByUser: (params) =>
+    Effect.gen(function* () {
+      const db = yield* kyselyDb;
+      const row = yield* Effect.promise(async () =>
+        db
+          .selectFrom("member as m")
+          .innerJoin("user as u", "u.id", "m.user_id")
+          .select(["m.id as memberId", "m.role as memberRole", "u.role as userRole"])
+          .where("m.user_id", "=", params.userId)
+          .where("m.organization_id", "=", params.organizationId)
+          .executeTakeFirst(),
+      );
+      return row
+        ? { memberId: row.memberId, memberRole: row.memberRole, userRole: row.userRole }
+        : null;
     }),
 });

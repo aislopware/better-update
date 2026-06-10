@@ -72,6 +72,8 @@ export {
 export {
   encryptionKeysQueryKey,
   encryptionKeysQueryOptions,
+  orgVaultQueryKey,
+  orgVaultQueryOptions,
   vaultRecipientsQueryKey,
   vaultRecipientsQueryOptions,
 } from "./react/vault";

@@ -8,7 +8,8 @@ import { d1RunWithUniqueCheck } from "./d1-helpers";
 
 import type { UserEncryptionKeys } from "../db/schema";
 import type { Conflict } from "../errors";
-import type { EncryptionKeyKind, UserEncryptionKeyModel } from "../models";
+import type { EncryptionKeyKind } from "../models";
+import type { UserEncryptionKeyModel } from "../vault-models";
 
 // -- Port -------------------------------------------------------------------
 

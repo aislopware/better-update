@@ -504,4 +504,96 @@ describe("Credential vault lifecycle", () => {
     // `machine` is org A's org-owned key — invisible from the other org.
     expect((await get(`/api/vault/wraps/${machine}`, { cookie: cookiesOther })).status).toBe(404);
   });
+
+  // ── Section 9: a viewer is not a vault participant ──────────────
+
+  it("blocks a viewer from reading the vault, enrolling a device, or self-linking", async () => {
+    const cEmail = "vault-viewer@example.com";
+
+    const invite = await post(
+      "/api/auth/organization/invite-member",
+      { email: cEmail, role: "member", organizationId },
+      { cookie: cookiesA },
+    );
+    expect(invite.status).toBe(200);
+
+    const invitations = await (
+      await get(`/api/auth/organization/list-invitations?organizationId=${organizationId}`, {
+        cookie: cookiesA,
+      })
+    ).json();
+    const list = Array.isArray(invitations)
+      ? invitations
+      : (invitations.invitations ?? invitations);
+    const invitationId = list.find(
+      (item: { email: string; status: string }) =>
+        item.email === cEmail && item.status === "pending",
+    ).id;
+
+    const signup = await post("/api/auth/sign-up/email", {
+      name: "Vault Viewer",
+      email: cEmail,
+      password: "SecureP@ss123",
+    });
+    expect(signup.status).toBe(200);
+
+    await env.DB.prepare(`UPDATE "user" SET "email_verified" = 1 WHERE "email" = ?`)
+      .bind(cEmail)
+      .run();
+    let cookiesC = parseCookies(
+      await post("/api/auth/sign-in/email", { email: cEmail, password: "SecureP@ss123" }),
+    );
+    expect(
+      (
+        await post(
+          "/api/auth/organization/accept-invitation",
+          { invitationId },
+          { cookie: cookiesC },
+        )
+      ).status,
+    ).toBe(200);
+    cookiesC =
+      parseCookies(
+        await post("/api/auth/organization/set-active", { organizationId }, { cookie: cookiesC }),
+      ) || cookiesC;
+
+    // Section 8 created another org, switching A's active org; point it back to the
+    // vault org so the policy-attach (scoped to the caller's active org) resolves.
+    cookiesA =
+      parseCookies(
+        await post("/api/auth/organization/set-active", { organizationId }, { cookie: cookiesA }),
+      ) || cookiesA;
+
+    const members = await (
+      await get(`/api/auth/organization/list-members?organizationId=${organizationId}`, {
+        cookie: cookiesA,
+      })
+    ).json();
+    const memberList = Array.isArray(members) ? members : (members.members ?? members);
+    const viewerMember = memberList.find(
+      (m: { user: { email: string } }) => m.user.email === cEmail,
+    );
+    expect(viewerMember).toBeDefined();
+
+    const attachViewer = await post(
+      `/api/members/${viewerMember.id}/policies`,
+      { policyId: "managed:viewer" },
+      { cookie: cookiesA },
+    );
+    expect(attachViewer.status).toBe(201);
+
+    // A viewer holds no `vaultAccess` — every vault surface is read-gated first,
+    // so all three escalation primitives are refused before any key is touched.
+    expect((await get("/api/vault", { cookie: cookiesC })).status).toBe(403);
+    expect((await registerKey(cookiesC, "device", "Viewer laptop")).status).toBe(403);
+    expect(
+      (
+        await post(
+          "/api/vault/wraps",
+          { vaultVersion: 3, wrap: wrapFor(deviceA) },
+          { cookie: cookiesC },
+        )
+      ).status,
+    ).toBe(403);
+  });
 });

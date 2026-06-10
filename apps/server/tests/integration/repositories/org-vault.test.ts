@@ -45,6 +45,28 @@ const countWraps = async (organizationId: string, userEncryptionKeyId: string) =
   return row?.n ?? 0;
 };
 
+const insertUser = (id: string) =>
+  env.DB.prepare(
+    `INSERT INTO "user" ("id", "name", "email", "email_verified", "created_at", "updated_at") VALUES (?, ?, ?, 1, ?, ?)`,
+  )
+    .bind(id, `User ${id}`, `${id}@example.com`, "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z")
+    .run();
+
+// A device key is user-owned (user_id set, organization_id NULL per the table CHECK).
+const insertDeviceKey = (id: string, userId: string) =>
+  env.DB.prepare(
+    `INSERT INTO "user_encryption_keys" ("id", "user_id", "organization_id", "kind", "public_key", "label", "fingerprint", "created_at") VALUES (?, ?, NULL, 'device', ?, ?, ?, ?)`,
+  )
+    .bind(id, userId, `age1${id}`, `Key ${id}`, `SHA256:${id}`, "2026-01-01T00:00:00Z")
+    .run();
+
+const keyRevokedAt = async (id: string) => {
+  const row = await env.DB.prepare(`SELECT "revoked_at" FROM "user_encryption_keys" WHERE "id" = ?`)
+    .bind(id)
+    .first<{ revoked_at: string | null }>();
+  return row?.revoked_at ?? null;
+};
+
 // ── Setup ─────────────────────────────────────────────────────────
 
 beforeAll(async () => {
@@ -421,6 +443,140 @@ describe("OrgVaultRepo — D1 integration", () => {
       // The lost CAS must have left the vault and its wraps untouched at v2.
       expect(await getVersion("ov-rot")).toBe(2);
       expect(await wrapIdsAt("ov-rot", 2)).toEqual(["ov-rot-m", "ov-rot-r"]);
+    });
+  });
+
+  describe("dropDeviceWrapsForUser (departure → drop + flag rotation)", () => {
+    // Device keys are user-global (one key, wrapped per-org), so removal from one
+    // org must be org-scoped: drop the wrap here, but only globally revoke the key
+    // when it holds no wrap in ANY org.
+    beforeAll(async () => {
+      await insertOrg("ov-drop", "ov-drop");
+      await insertOrg("ov-drop2", "ov-drop2");
+      await insertOrg("ov-clear", "ov-clear");
+      await insertUser("u-a");
+      await insertUser("u-b");
+      await insertUser("u-c");
+      await insertUser("u-clr");
+      await insertDeviceKey("dk-a", "u-a");
+      await insertDeviceKey("dk-b", "u-b");
+      await insertDeviceKey("dk-c", "u-c");
+      await insertDeviceKey("dk-clr", "u-clr");
+      await insertOrgKey("ov-clear-r", "ov-clear", "recovery");
+      await run(
+        Effect.gen(function* () {
+          const repo = yield* OrgVaultRepo;
+          // ov-drop: three device recipients; dk-a is ALSO a recipient in ov-drop2.
+          yield* repo.bootstrap({
+            organizationId: "ov-drop",
+            wraps: [
+              { userEncryptionKeyId: "dk-a", wrappedKey: "drop-a" },
+              { userEncryptionKeyId: "dk-b", wrappedKey: "drop-b" },
+              { userEncryptionKeyId: "dk-c", wrappedKey: "drop-c" },
+            ],
+            now: "2026-04-01T00:00:00Z",
+          });
+          yield* repo.bootstrap({
+            organizationId: "ov-drop2",
+            wraps: [{ userEncryptionKeyId: "dk-a", wrappedKey: "drop2-a" }],
+            now: "2026-04-01T00:00:00Z",
+          });
+          yield* repo.bootstrap({
+            organizationId: "ov-clear",
+            wraps: [
+              { userEncryptionKeyId: "ov-clear-r", wrappedKey: "clear-r" },
+              { userEncryptionKeyId: "dk-clr", wrappedKey: "clear-dk" },
+            ],
+            now: "2026-04-01T00:00:00Z",
+          });
+        }),
+      );
+    });
+
+    const drop = (organizationId: string, userId: string, now: string) =>
+      run(
+        Effect.gen(function* () {
+          const repo = yield* OrgVaultRepo;
+          return yield* repo.dropDeviceWrapsForUser({
+            organizationId,
+            userId,
+            reason: `member-removed:${userId}`,
+            now,
+          });
+        }),
+      );
+
+    const getVault = (organizationId: string) =>
+      run(
+        Effect.gen(function* () {
+          const repo = yield* OrgVaultRepo;
+          return yield* repo.getVault({ organizationId });
+        }),
+      );
+
+    it("drops the wrap in this org + flags rotation, keeping a key wrapped elsewhere live", async () => {
+      const dropped = await drop("ov-drop", "u-a", "2026-04-02T00:00:00Z");
+      expect(dropped).toEqual(["dk-a"]);
+
+      // Org-scoped: gone here, untouched in the other org.
+      expect(await countWraps("ov-drop", "dk-a")).toBe(0);
+      expect(await countWraps("ov-drop2", "dk-a")).toBe(1);
+      // Still a recipient elsewhere → NOT globally revoked.
+      expect(await keyRevokedAt("dk-a")).toBeNull();
+      // A different member's wrap is untouched.
+      expect(await countWraps("ov-drop", "dk-b")).toBe(1);
+
+      const vault = await getVault("ov-drop");
+      expect(vault?.rotationPending).toBe(true);
+      expect(vault?.rotationPendingSince).toBe("2026-04-02T00:00:00Z");
+      expect(vault?.rotationPendingReason).toBe("member-removed:u-a");
+    });
+
+    it("globally revokes a device key when this was its last org", async () => {
+      const dropped = await drop("ov-drop", "u-c", "2026-04-03T00:00:00Z");
+      expect(dropped).toEqual(["dk-c"]);
+      expect(await countWraps("ov-drop", "dk-c")).toBe(0);
+      // No wrap left in any org → revoked globally.
+      expect(await keyRevokedAt("dk-c")).toBe("2026-04-03T00:00:00Z");
+    });
+
+    it("preserves the first rotation reason/since on a subsequent drop", async () => {
+      const dropped = await drop("ov-drop", "u-b", "2026-04-04T00:00:00Z");
+      expect(dropped).toEqual(["dk-b"]);
+      const vault = await getVault("ov-drop");
+      // coalesce keeps the earliest departure as the reason/since.
+      expect(vault?.rotationPendingReason).toBe("member-removed:u-a");
+      expect(vault?.rotationPendingSince).toBe("2026-04-02T00:00:00Z");
+    });
+
+    it("is a no-op (no flag flip) when the user holds no wrap here", async () => {
+      const dropped = await drop("ov-clear", "u-a", "2026-04-05T00:00:00Z");
+      expect(dropped).toEqual([]);
+      const vault = await getVault("ov-clear");
+      expect(vault?.rotationPending).toBe(false);
+    });
+
+    it("rotate clears the pending-rotation flag", async () => {
+      await drop("ov-clear", "u-clr", "2026-04-06T00:00:00Z");
+      expect((await getVault("ov-clear"))?.rotationPending).toBe(true);
+
+      const rotated = await run(
+        Effect.gen(function* () {
+          const repo = yield* OrgVaultRepo;
+          return yield* repo.rotate({
+            organizationId: "ov-clear",
+            fromVersion: 1,
+            recipientWraps: [{ userEncryptionKeyId: "ov-clear-r", wrappedKey: "clear-r-v2" }],
+            credentialDeks: [],
+            now: "2026-04-07T00:00:00Z",
+          });
+        }),
+      );
+      expect(rotated.rotationPending).toBe(false);
+      const vault = await getVault("ov-clear");
+      expect(vault?.vaultVersion).toBe(2);
+      expect(vault?.rotationPending).toBe(false);
+      expect(vault?.rotationPendingSince).toBeNull();
     });
   });
 });

@@ -14,6 +14,7 @@ import { GroupRepo } from "../repositories/group-repo";
 import { MemberRepo } from "../repositories/member-repo";
 import { PolicyAttachmentRepo } from "../repositories/policy-attachment-repo";
 import { PolicyRepo } from "../repositories/policy-repo";
+import { reconcileVaultAccess } from "./reconcile-vault-access";
 
 import type { PolicyAttachmentModel, PrincipalType } from "../models";
 
@@ -179,6 +180,15 @@ const detachPolicy = (params: {
         resourceId: params.policyId,
         metadata: { principalType: params.principalType, principalId: params.principalId },
       });
+      // Detaching a policy may strip `vaultAccess` from a member (directly, or via
+      // a group), so reconcile the vault recipient set. Api-key principals never
+      // own device wraps, so they need no reconcile.
+      if (params.principalType !== "apikey") {
+        yield* reconcileVaultAccess({
+          organizationId: ctx.organizationId,
+          reason: `policy-detached:${params.principalType}:${params.principalId}`,
+        });
+      }
       return { deleted: 1 };
     }),
   );

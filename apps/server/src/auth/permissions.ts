@@ -134,6 +134,10 @@ export const permissions: PermissionMap = {
     iosBundleConfiguration: ["read"],
     iosAppMetadata: ["read"],
     submission: ["read"],
-    vaultAccess: ["read"],
+    // No `vaultAccess`: a viewer is a read-only org observer and must NOT touch
+    // the credential vault. Granting `vaultAccess:read` would let a viewer fetch
+    // their own wrap, self-link a device wrap, and enrol a device key — the
+    // low-privilege foothold for a vault escalation. Vault participation starts
+    // at `developer`. See docs/specs/build/10-vault-lifecycle-revocation.md §2.
   },
 };

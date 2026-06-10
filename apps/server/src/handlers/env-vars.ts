@@ -3,13 +3,18 @@ import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
 import { ManagementApi } from "../api";
+import { assertVaultRotationNotPending } from "../application/assert-vault-rotation";
 import { assertVaultVersionCurrent } from "../application/assert-vault-version";
 import { logAudit } from "../audit/logger";
 import { CurrentActor } from "../auth/current-actor";
 import { assertOrgOwnership, assertProjectOwnership } from "../auth/ownership";
 import { BadRequest } from "../errors";
 import { toApiEnvVar } from "../http/to-api";
-import { toApiBadRequestReadEffect, toApiWriteEffect } from "../http/to-api-effect";
+import {
+  toApiBadRequestReadEffect,
+  toApiResolveReadEffect,
+  toApiWriteEffect,
+} from "../http/to-api-effect";
 import { toDbNull } from "../lib/nullable";
 import { parsePagination } from "../lib/pagination";
 import { EnvVarRepo } from "../repositories/env-vars";
@@ -306,5 +311,15 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
         }),
       ),
     )
-    .handle("export", ({ urlParams }) => toApiBadRequestReadEffect(handleExport(urlParams))),
+    .handle("export", ({ urlParams }) =>
+      toApiResolveReadEffect(
+        Effect.gen(function* () {
+          const ctx = yield* CurrentActor;
+          // Fail closed while the vault is flagged for rotation (a recipient was
+          // removed) — env-var values share the org vault. See assert-vault-rotation.
+          yield* assertVaultRotationNotPending({ organizationId: ctx.organizationId });
+          return yield* handleExport(urlParams);
+        }),
+      ),
+    ),
 );

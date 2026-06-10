@@ -1,7 +1,9 @@
 import {
   encryptionKeysQueryOptions,
+  orgVaultQueryOptions,
   vaultRecipientsQueryOptions,
 } from "@better-update/api-client/react";
+import { Alert, AlertDescription, AlertTitle } from "@better-update/ui/components/ui/alert";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Card, CardFrame } from "@better-update/ui/components/ui/card";
 import {
@@ -21,7 +23,7 @@ import {
 } from "@better-update/ui/components/ui/table";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { FingerprintIcon } from "lucide-react";
+import { FingerprintIcon, TriangleAlertIcon } from "lucide-react";
 import { Suspense } from "react";
 
 import { PageHeader } from "../../../components/page-header";
@@ -89,10 +91,24 @@ const RecipientsTable = ({ rows }: { rows: readonly VaultRecipientRow[] }) => (
   </Table>
 );
 
+const RotationPendingBanner = ({ reason }: { reason: string | null }) => (
+  <Alert variant="warning">
+    <TriangleAlertIcon />
+    <AlertTitle>Rotation required</AlertTitle>
+    <AlertDescription>
+      A recipient was removed from this organization{reason ? ` (${reason})` : ""}, so the vault
+      must be rotated before credentials can be downloaded again. Run{" "}
+      <code className="font-mono text-xs">better-update credentials access rotate</code> from the
+      CLI.
+    </AlertDescription>
+  </Alert>
+);
+
 const VaultAccessContent = () => {
   const { activeOrg } = Route.useRouteContext();
   const orgId = activeOrg.id;
   const { data: vault } = useSuspenseQuery(vaultRecipientsQueryOptions(orgId));
+  const { data: orgVault } = useSuspenseQuery(orgVaultQueryOptions(orgId));
   const { data: keys } = useSuspenseQuery(encryptionKeysQueryOptions(orgId));
   const rows = joinVaultRecipients(vault.recipients, keys.items);
 
@@ -102,6 +118,9 @@ const VaultAccessContent = () => {
 
   return (
     <section className="flex flex-col gap-3">
+      {orgVault?.rotationPending ? (
+        <RotationPendingBanner reason={orgVault.rotationPendingReason} />
+      ) : null}
       <div className="flex items-center gap-2">
         <Badge variant="outline">Vault v{vault.vaultVersion}</Badge>
         <span className="text-muted-foreground text-sm">

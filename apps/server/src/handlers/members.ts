@@ -8,6 +8,7 @@ import { assertAccess } from "../auth/policy";
 import { Conflict, NotFound } from "../errors";
 import { toApiCrudEffect } from "../http/to-api-effect";
 import { MemberRepo } from "../repositories/member-repo";
+import { OrgVaultRepo } from "../repositories/org-vault";
 
 export const MembersGroupLive = HttpApiBuilder.group(ManagementApi, "members", (handlers) =>
   handlers.handle("remove", ({ path }) =>
@@ -46,6 +47,32 @@ export const MembersGroupLive = HttpApiBuilder.group(ManagementApi, "members", (
           resourceType: "member",
           resourceId: path.id,
         });
+
+        // Bind the departure to the vault: drop the removed member's device wraps
+        // in this org and flag the vault for rotation. Their cached vault key still
+        // matches the live vault until an admin rotates, so credential-download
+        // paths fail closed until then (see vault-lifecycle-revocation §3).
+        const vaultRepo = yield* OrgVaultRepo;
+        const droppedRecipients = yield* vaultRepo.dropDeviceWrapsForUser({
+          organizationId: ctx.organizationId,
+          userId: target.userId,
+          reason: `member-removed:${target.userId}`,
+          now: new Date().toISOString(),
+        });
+        if (droppedRecipients.length > 0) {
+          yield* logAudit({
+            action: "vault.recipient.dropped",
+            resourceType: "vaultAccess",
+            resourceId: ctx.organizationId,
+            metadata: {
+              reason: "member-removed",
+              userId: target.userId,
+              droppedRecipients,
+              rotationPending: true,
+            },
+          });
+        }
+
         return { deleted: 1 };
       }),
     ),

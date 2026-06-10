@@ -11,7 +11,8 @@ import { toApiOrgVault, toApiOrgVaultKeyWrap } from "../http/to-api-vault";
 import { OrgVaultRepo } from "../repositories/org-vault";
 import { UserEncryptionKeyRepo } from "../repositories/user-encryption-keys";
 
-import type { CredentialRef, CurrentActor as Actor, UserEncryptionKeyModel } from "../models";
+import type { CurrentActor as Actor } from "../models";
+import type { CredentialRef, UserEncryptionKeyModel } from "../vault-models";
 
 const FOREIGN_ORG_KEY_MESSAGE = "Recipient key belongs to another organization";
 
@@ -167,6 +168,14 @@ export const OrgVaultGroupLive = HttpApiBuilder.group(ManagementApi, "orgVault",
           const key = yield* keyRepo.findById({ id: payload.wrap.userEncryptionKeyId });
           if (isForeignOrgKey(key, ctx)) {
             return yield* new BadRequest({ message: FOREIGN_ORG_KEY_MESSAGE });
+          }
+
+          // A revoked key must never (re-)enter the recipient set — neither an
+          // admin grant nor a self-link may resurrect it. This keeps revocation
+          // one-way: once a device/recovery/machine key is revoked, wrapping the
+          // vault to it again is refused. See vault-lifecycle-revocation §3.
+          if (key.revokedAt !== null) {
+            return yield* new BadRequest({ message: "Cannot wrap the vault to a revoked key" });
           }
 
           // Self-link (adding your OWN new device) is self-service for any member;

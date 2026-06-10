@@ -254,6 +254,12 @@ CLI show them as **pending access**.
 
 ### Revoking & rotating
 
+> **Lifecycle sync** — this is the _manual, admin-initiated_ revoke. It is opt-in and easy to
+> forget. Binding it to the org-membership lifecycle — a member removal automatically drops the
+> recipient and forces a rotation before more credentials can be read — is specified separately in
+> [10-vault-lifecycle-revocation.md](./10-vault-lifecycle-revocation.md), which also documents the
+> viewer / self-link escalation hardening.
+
 **Revoke always rotates** (v1 decision). A soft revoke that only removed a wrap row would not actually
 revoke — a removed recipient that had cached or copied the vault key could still decrypt every existing
 credential (their DEKs are still wrapped under the old vault key). So `credentials access revoke

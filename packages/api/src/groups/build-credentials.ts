@@ -7,7 +7,7 @@ import {
   ResolveBuildCredentialsBody,
   ResolveBuildCredentialsResult,
 } from "../domain/build-credentials";
-import { BadRequest } from "../domain/errors";
+import { BadRequest, Conflict } from "../domain/errors";
 
 const projectIdParam = HttpApiSchema.param("projectId", Schema.String);
 
@@ -27,6 +27,7 @@ export class BuildCredentialsGroup extends HttpApiGroup.make("buildCredentials")
   .addError(NotFound)
   .addError(BadRequest)
   .addError(Forbidden)
+  .addError(Conflict)
   .annotateContext(
     OpenApi.annotations({
       title: "Build Credentials",

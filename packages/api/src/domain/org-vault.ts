@@ -17,6 +17,14 @@ export class OrgVault extends Schema.Class<OrgVault>("OrgVault")({
   vaultVersion: VaultVersion,
   createdAt: DateTimeString,
   updatedAt: DateTimeString,
+  /**
+   * A recipient was dropped out-of-band (member removed/downgraded); the live key
+   * is considered compromised and must be rotated. While true, credential-download
+   * paths fail closed (409). `rotate` clears it.
+   */
+  rotationPending: Schema.Boolean,
+  rotationPendingSince: Schema.NullOr(DateTimeString),
+  rotationPendingReason: Schema.NullOr(Schema.String),
 }) {}
 
 /**

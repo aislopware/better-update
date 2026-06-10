@@ -12,6 +12,7 @@ import { BadRequest, Conflict, NotFound } from "../errors";
 import { toApiWriteEffect } from "../http/to-api-effect";
 import { toDbNull } from "../lib/nullable";
 import { PolicyRepo } from "../repositories/policy-repo";
+import { reconcileVaultAccess } from "./reconcile-vault-access";
 
 import type { PolicyDocument, PolicyModel, Resource } from "../models";
 
@@ -155,6 +156,14 @@ export const PoliciesGroupLive = HttpApiBuilder.group(ManagementApi, "policies",
             resourceType: "policy",
             resourceId: path.id,
           });
+          // A narrowed document may strip `vaultAccess` from every member/group
+          // this policy is attached to — reconcile when the document changed.
+          if (payload.document !== undefined) {
+            yield* reconcileVaultAccess({
+              organizationId: ctx.organizationId,
+              reason: `policy-updated:${path.id}`,
+            });
+          }
           return toApiPolicy(updated);
         }),
       ),
@@ -176,6 +185,12 @@ export const PoliciesGroupLive = HttpApiBuilder.group(ManagementApi, "policies",
             action: "policy.delete",
             resourceType: "policy",
             resourceId: path.id,
+          });
+          // Deleting the policy cascades its attachments, so any member/group that
+          // held it may lose `vaultAccess` — reconcile the recipient set.
+          yield* reconcileVaultAccess({
+            organizationId: ctx.organizationId,
+            reason: `policy-deleted:${path.id}`,
           });
           return { deleted: 1 };
         }),

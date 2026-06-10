@@ -216,60 +216,9 @@ export interface ApplePushKeyModel {
   readonly updatedAt: string;
 }
 
-export interface UserEncryptionKeyModel {
-  readonly id: string;
-  readonly userId: string | null;
-  readonly organizationId: string | null;
-  readonly kind: EncryptionKeyKind;
-  readonly publicKey: string;
-  readonly label: string;
-  readonly fingerprint: string;
-  readonly createdAt: string;
-  readonly lastUsedAt: string | null;
-  readonly revokedAt: string | null;
-}
-
-export interface OrgVaultModel {
-  readonly organizationId: string;
-  readonly vaultVersion: number;
-  readonly createdAt: string;
-  readonly updatedAt: string;
-}
-
-export interface OrgVaultKeyWrapModel {
-  readonly organizationId: string;
-  readonly vaultVersion: number;
-  readonly userEncryptionKeyId: string;
-  readonly wrappedKey: string;
-  readonly createdAt: string;
-}
-
-/**
- * The secret kinds whose DEK is wrapped under the org vault key — the rows a
- * rotation must re-wrap. Besides the five signing credentials, each environment
- * variable value revision is its own E2E-encrypted secret bound to the vault.
- */
-export type EncryptedCredentialType =
-  | "appleDistributionCertificate"
-  | "applePushKey"
-  | "ascApiKey"
-  | "googleServiceAccountKey"
-  | "androidUploadKeystore"
-  | "envVarValue";
-
-/** A credential row's identity for rotation coverage (type + id, version-agnostic). */
-export interface CredentialRef {
-  readonly credentialType: EncryptedCredentialType;
-  readonly id: string;
-}
-
-/** A credential row's currently-wrapped DEK — the source the client re-wraps in a rotation. */
-export interface CredentialDekRefModel {
-  readonly credentialType: EncryptedCredentialType;
-  readonly credentialId: string;
-  readonly wrappedDek: string;
-  readonly vaultVersion: number;
-}
+// Vault recipient / wrap / credential-rotation models live in `./vault-models`
+// (extracted to keep this file under the line cap). `EncryptionKeyKind` stays
+// here as a shared primitive.
 
 export interface AscApiKeyModel {
   readonly id: string;

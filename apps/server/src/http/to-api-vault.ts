@@ -1,6 +1,6 @@
 import { OrgVault, OrgVaultKeyWrap, UserEncryptionKey } from "@better-update/api";
 
-import type { OrgVaultKeyWrapModel, OrgVaultModel, UserEncryptionKeyModel } from "../models";
+import type { OrgVaultKeyWrapModel, OrgVaultModel, UserEncryptionKeyModel } from "../vault-models";
 
 export const toApiUserEncryptionKey = (model: UserEncryptionKeyModel): UserEncryptionKey =>
   new UserEncryptionKey({
@@ -22,6 +22,9 @@ export const toApiOrgVault = (model: OrgVaultModel): OrgVault =>
     vaultVersion: model.vaultVersion,
     createdAt: model.createdAt,
     updatedAt: model.updatedAt,
+    rotationPending: model.rotationPending,
+    rotationPendingSince: model.rotationPendingSince,
+    rotationPendingReason: model.rotationPendingReason,
   });
 
 export const toApiOrgVaultKeyWrap = (model: OrgVaultKeyWrapModel): OrgVaultKeyWrap =>

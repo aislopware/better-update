@@ -41,12 +41,19 @@ const listCommand = defineCommand({
     runEffect(
       Effect.gen(function* () {
         const api = yield* apiClient;
-        const [{ recipients, vaultVersion }, { items }] = yield* Effect.all([
+        const [{ recipients, vaultVersion }, { items }, vault] = yield* Effect.all([
           api.orgVault.listWraps(),
           api.userEncryptionKeys.list(),
+          api.orgVault.get(),
         ]);
         const byId = new Map(items.map((key) => [key.id, key]));
         yield* printHuman(`Vault version ${vaultVersion}`);
+        if (vault.rotationPending) {
+          yield* printHuman(
+            `⚠ Rotation pending — a recipient was removed (${vault.rotationPendingReason ?? "vault access revoked"}). ` +
+              "Credential downloads are blocked until you run `credentials access rotate`.",
+          );
+        }
         const rows = recipients.map((recipient) => {
           const key = byId.get(recipient.userEncryptionKeyId);
           return [
@@ -63,6 +70,7 @@ const listCommand = defineCommand({
         );
         return {
           vaultVersion,
+          rotationPending: vault.rotationPending,
           recipients: recipients.map((recipient) =>
             toRecipientView(recipient.userEncryptionKeyId, byId.get(recipient.userEncryptionKeyId)),
           ),

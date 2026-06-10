@@ -79,3 +79,14 @@ export const toApiBadRequestReadEffect = <Success, Requirements>(
     Requirements
   >,
 ) => Effect.mapError(effect, mapBadRequestReadError);
+
+// A read path that can also Conflict — e.g. the vault-rotation-pending block on
+// credential downloads (build-credentials.resolve, env-vars.export). Same error
+// set as a write, surfaced from a read handler; reuses the write matcher.
+export const toApiResolveReadEffect = <Success, Requirements>(
+  effect: Effect.Effect<
+    Success,
+    BadRequest | Conflict | Forbidden | MissingValueError | NotFound,
+    Requirements
+  >,
+) => Effect.mapError(effect, mapWriteError);

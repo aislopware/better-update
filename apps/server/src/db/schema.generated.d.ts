@@ -395,6 +395,9 @@ export interface OrgVaultKeyWraps {
 export interface OrgVaults {
   created_at: Generated<string>;
   organization_id: string | null;
+  rotation_pending: Generated<number>;
+  rotation_pending_reason: string | null;
+  rotation_pending_since: string | null;
   updated_at: Generated<string>;
   vault_version: Generated<number>;
 }

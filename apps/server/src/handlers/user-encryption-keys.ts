@@ -45,12 +45,18 @@ export const UserEncryptionKeysGroupLive = HttpApiBuilder.group(
             // A `device` key is the caller's own (self-service, needs an interactive
             // user); `recovery`/`machine` keys are org-owned and admin/owner-gated.
             const isDevice = payload.kind === "device";
-            if (isDevice && ctx.userId === null) {
-              return yield* new BadRequest({
-                message: "Device keys require an interactive user session",
-              });
-            }
-            if (!isDevice) {
+            if (isDevice) {
+              // Enrolling a device key makes the caller a vault recipient
+              // candidate (it lands in `listGrantable` + is self-linkable). Gate
+              // it on the same read capability the vault requires, so a principal
+              // with no vault access (e.g. viewer) can't plant a recipient key.
+              yield* assertPermission("vaultAccess", "read");
+              if (ctx.userId === null) {
+                return yield* new BadRequest({
+                  message: "Device keys require an interactive user session",
+                });
+              }
+            } else {
               yield* assertPermission("vaultAccess", "create");
             }
 
