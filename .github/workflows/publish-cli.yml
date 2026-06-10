@@ -98,13 +98,15 @@ jobs:
         if: env.NEEDS_BSDIFF == 'true'
         run: bun run check:bsdiff
 
+      # --no-gh-release: binaries ship via the per-platform npm packages; napi's
+      # GitHub release would mint a `v<version>` tag that clashes with the
+      # per-package tag scheme (and the default GITHUB_TOKEN lacks contents:write).
       - name: Publish bsdiff platform stubs
         if: env.NEEDS_BSDIFF == 'true'
         working-directory: packages/bsdiff
-        run: bunx napi prepublish -t npm
+        run: bunx napi prepublish -t npm --no-gh-release
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # `lerna publish from-package` ships every unpublished public package in
       # dependency order: main @better-update/bsdiff (if bumped, its stubs are now
