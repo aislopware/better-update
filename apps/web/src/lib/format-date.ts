@@ -1,34 +1,21 @@
-export const formatShortDate = (value: string): string =>
-  new Date(value).toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+import { format, parseISO } from "date-fns";
 
-export const formatWeekdayShort = (value: string): string =>
-  new Date(value).toLocaleDateString(undefined, {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
+export type DateInput = string | Date;
 
-export const formatTimeShort = (value: string): string =>
-  new Date(value).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+export const asDate = (value: DateInput): Date =>
+  typeof value === "string" ? parseISO(value) : value;
 
-export const formatDateTime = (value: string): string => new Date(value).toLocaleString();
+export const formatShortDate = (value: DateInput): string => format(asDate(value), "MMM d, yyyy");
 
-export const formatDate = (value: string): string => new Date(value).toLocaleDateString();
+export const formatWeekdayShort = (value: DateInput): string => format(asDate(value), "EEE, MMM d");
 
-export const formatChartTimestamp = (value: string): string => {
-  const date = new Date(value);
-  const datePart = date.toLocaleDateString(undefined, {
-    month: "2-digit",
-    day: "2-digit",
-  });
-  const timePart = date.toLocaleTimeString(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-  return `${datePart} ${timePart}`;
-};
+export const formatTimeShort = (value: DateInput): string => format(asDate(value), "h:mm a");
+
+export const formatShortDateTime = (value: DateInput): string =>
+  format(asDate(value), "MMM d, yyyy, h:mm a");
+
+export const formatDateTime = (value: DateInput): string =>
+  format(asDate(value), "MMM d, yyyy, h:mm:ss a");
+
+export const formatChartTimestamp = (value: DateInput): string =>
+  format(asDate(value), "MM/dd HH:mm");

@@ -50,6 +50,7 @@
     "@tanstack/zod-adapter": "^1.167.0",
     "better-auth": "^1.6.15",
     "cobe": "^2.0.1",
+    "date-fns": "^4.4.0",
     "effect": "^3.21.3",
     "lucide-react": "^1.17.0",
     "qrcode.react": "^4.2.0",

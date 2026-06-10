@@ -1,3 +1,5 @@
+import { addDays, isAfter, parseISO } from "date-fns";
+
 export type CredentialStatusTone = "success" | "warning" | "error" | "muted";
 
 export interface CredentialStatus {
@@ -5,7 +7,6 @@ export interface CredentialStatus {
   readonly label: string;
 }
 
-const DAY_MS = 1000 * 60 * 60 * 24;
 const EXPIRES_SOON_DAYS = 30;
 
 export const deriveExpiryStatus = (
@@ -15,12 +16,11 @@ export const deriveExpiryStatus = (
   if (validUntil === null) {
     return { tone: "muted", label: "No expiry" };
   }
-  const expiry = new Date(validUntil).getTime();
-  const diffMs = expiry - now.getTime();
-  if (diffMs <= 0) {
+  const expiry = parseISO(validUntil);
+  if (!isAfter(expiry, now)) {
     return { tone: "error", label: "Expired" };
   }
-  if (diffMs <= EXPIRES_SOON_DAYS * DAY_MS) {
+  if (!isAfter(expiry, addDays(now, EXPIRES_SOON_DAYS))) {
     return { tone: "warning", label: "Expires soon" };
   }
   return { tone: "success", label: "Active" };

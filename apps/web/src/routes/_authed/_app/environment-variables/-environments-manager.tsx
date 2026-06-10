@@ -39,7 +39,7 @@ import { z } from "zod/v4";
 import type { EnvironmentItem } from "@better-update/api-client/react";
 
 import { getFieldError } from "../../../../lib/form-utils";
-import { formatShortDate } from "../../../../lib/format-date";
+import { formatShortDateTime } from "../../../../lib/format-date";
 import { safeSubmit, useApiMutation } from "../../../../lib/use-api-mutation";
 
 const environmentNameSchema = z
@@ -338,7 +338,7 @@ export const EnvironmentsManager = ({ orgId }: { orgId: string }) => {
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
-              <TableHead>Created</TableHead>
+              <TableHead>Created at</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -347,7 +347,7 @@ export const EnvironmentsManager = ({ orgId }: { orgId: string }) => {
               <TableRow key={environment.name}>
                 <TableCell className="font-medium">{environment.name}</TableCell>
                 <TableCell className="text-muted-foreground">
-                  {formatShortDate(environment.createdAt)}
+                  {formatShortDateTime(environment.createdAt)}
                 </TableCell>
                 <TableCell className="text-right">
                   <EnvironmentRowActions orgId={orgId} environment={environment} />

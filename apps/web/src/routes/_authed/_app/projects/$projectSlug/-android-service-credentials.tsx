@@ -23,7 +23,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { GoogleServiceAccountKeyItem } from "@better-update/api-client/react";
 
 import { CopyButton, CopyableMono } from "../../../../../lib/copy-button";
-import { formatDate } from "../../../../../lib/format-date";
+import { formatShortDateTime } from "../../../../../lib/format-date";
 import { findGsa, sortGroupsByDefault } from "./-android-detail-shared";
 
 const truncatePrivateKey = (value: string): string => {
@@ -81,7 +81,9 @@ const GsaTableCard = ({
                 )}
               </div>
             </TableCell>
-            <TableCell className="text-muted-foreground">{formatDate(sa.createdAt)}</TableCell>
+            <TableCell className="text-muted-foreground">
+              {formatShortDateTime(sa.createdAt)}
+            </TableCell>
           </TableRow>
         </TableBody>
       </Table>

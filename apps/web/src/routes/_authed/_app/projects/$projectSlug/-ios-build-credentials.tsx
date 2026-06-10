@@ -35,7 +35,7 @@ import { TeamCell } from "../../-credential-cells";
 import { formatAppleTeamLabel } from "../../-credentials-utils";
 import { CopyableMono } from "../../../../../lib/copy-button";
 import { STATUS_BADGE_VARIANT, deriveExpiryStatus } from "../../../../../lib/credential-status";
-import { formatShortDate } from "../../../../../lib/format-date";
+import { formatShortDate, formatShortDateTime } from "../../../../../lib/format-date";
 import { DISTRIBUTION_LABELS, sortConfigsByDistribution } from "./-ios-detail-shared";
 
 const EmptyBindingCard = ({ message }: { message: string }) => (
@@ -71,7 +71,7 @@ const CertRow = ({
           <Badge variant={STATUS_BADGE_VARIANT[certStatus.tone]}>{certStatus.label}</Badge>
         </div>
       </TableCell>
-      <TableCell className="text-muted-foreground">{formatShortDate(cert.updatedAt)}</TableCell>
+      <TableCell className="text-muted-foreground">{formatShortDateTime(cert.updatedAt)}</TableCell>
     </TableRow>
   );
 };
@@ -97,7 +97,7 @@ const CertTableCard = ({
             <TableHead>Apple Team</TableHead>
             <TableHead>Developer ID</TableHead>
             <TableHead>Expires</TableHead>
-            <TableHead>Updated</TableHead>
+            <TableHead>Updated at</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -130,7 +130,9 @@ const ProfileRow = ({
           <Badge variant={STATUS_BADGE_VARIANT[profileStatus.tone]}>{profileStatus.label}</Badge>
         </div>
       </TableCell>
-      <TableCell className="text-muted-foreground">{formatShortDate(profile.updatedAt)}</TableCell>
+      <TableCell className="text-muted-foreground">
+        {formatShortDateTime(profile.updatedAt)}
+      </TableCell>
     </TableRow>
   );
 };
@@ -155,7 +157,7 @@ const ProfileTableCard = ({
             <TableHead>Name</TableHead>
             <TableHead>Apple Team</TableHead>
             <TableHead>Expires</TableHead>
-            <TableHead>Updated</TableHead>
+            <TableHead>Updated at</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

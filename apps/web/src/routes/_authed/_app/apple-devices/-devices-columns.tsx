@@ -18,7 +18,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 
 import { TeamCell } from "../-credential-cells";
 import { CopyButton } from "../../../../lib/copy-button";
-import { formatRelativeTime } from "../../../../lib/format-relative-time";
+import { formatShortDateTime } from "../../../../lib/format-date";
 import { useApiMutation } from "../../../../lib/use-api-mutation";
 import { DeleteDeviceDialog } from "./-delete-device-dialog";
 import { RenameDeviceDialog } from "./-rename-device-dialog";
@@ -179,8 +179,8 @@ export const buildDeviceColumns = (
   {
     id: "createdAt",
     accessorKey: "createdAt",
-    header: "Added",
-    cell: ({ row }) => formatRelativeTime(row.original.createdAt),
+    header: "Registered at",
+    cell: ({ row }) => formatShortDateTime(row.original.createdAt),
     enableSorting: true,
     meta: { align: "right", muted: true },
   },
