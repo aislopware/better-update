@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.39.0](https://github.com/better-update/better-update/compare/@better-update/web@0.38.3...@better-update/web@0.39.0) (2026-06-10)
+
+### Features
+
+* **vault:** bind IAM lifecycle to credential-vault recipients ([f15b1e4](https://github.com/better-update/better-update/commit/f15b1e46dc4fa192dd4b2d688fcb7ffb9279de0b)) - by @trancong12102
+
 ## [0.38.3](https://github.com/better-update/better-update/compare/@better-update/web@0.38.2...@better-update/web@0.38.3) (2026-06-10)
 
 **Note:** Version bump only for package @better-update/web

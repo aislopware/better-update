@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.34.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.33.2...@better-update/cli@0.34.0) (2026-06-10)
+
+### Features
+
+* **cli:** report which env vars were pulled from the server ([080557e](https://github.com/better-update/better-update/commit/080557e6e0e9fa4f0cef0eaf80cc2c2f2a222a19)) - by @trancong12102
+* **vault:** bind IAM lifecycle to credential-vault recipients ([f15b1e4](https://github.com/better-update/better-update/commit/f15b1e46dc4fa192dd4b2d688fcb7ffb9279de0b)) - by @trancong12102
+
+### Bug Fixes
+
+* **cli:** pull remote env vars before evaluating Expo config during build ([714a869](https://github.com/better-update/better-update/commit/714a869cb7f4468b3b04dea944f482710d1a1844)) - by @trancong12102
+
 ## [0.33.2](https://github.com/better-update/better-update/compare/@better-update/cli@0.33.1...@better-update/cli@0.33.2) (2026-06-10)
 
 ### Bug Fixes
