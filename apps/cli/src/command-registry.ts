@@ -16,7 +16,6 @@ import { groupsCommand } from "./commands/groups";
 import { initCommand } from "./commands/init";
 import { loginCommand } from "./commands/login";
 import { logoutCommand } from "./commands/logout";
-import { migrateConfigCommand } from "./commands/migrate-config";
 import { openCommand } from "./commands/open";
 import { policiesCommand } from "./commands/policies";
 import { projectsCommand } from "./commands/projects";
@@ -69,7 +68,6 @@ export const commandRegistry = {
   devices: devicesCommand,
   webhooks: webhooksCommand,
   autocomplete: autocompleteCommand,
-  "migrate-config": migrateConfigCommand,
   apple: appleCommand,
   submit: submitCommand,
 };

@@ -44,6 +44,8 @@ export interface RunIosBuildInput {
   readonly customCommand?: CustomCommandSpec;
   readonly rawOutput?: boolean | undefined;
   readonly freezeCredentials?: boolean | undefined;
+  /** OTA channel baked into Expo.plist after prebuild; undefined skips injection. */
+  readonly updateChannel?: string | undefined;
 }
 
 const runIosSimulatorBuild = (input: RunIosBuildInput) =>
@@ -59,6 +61,7 @@ const runIosSimulatorBuild = (input: RunIosBuildInput) =>
       iosDir,
       iosProfile,
       commandEnv,
+      updateChannel: input.updateChannel,
     });
 
     const container = yield* resolveXcodeContainer(projectRoot, iosDir, iosProfile);
@@ -232,6 +235,7 @@ const runIosDeviceBuild = (input: RunIosBuildInput) =>
       iosDir,
       iosProfile,
       commandEnv,
+      updateChannel: input.updateChannel,
     });
 
     const container = yield* resolveXcodeContainer(projectRoot, iosDir, iosProfile);
@@ -402,8 +406,7 @@ const runIosCustom = (input: RunIosBuildInput) =>
       return yield* new BuildFailedError({
         step: "custom ios build",
         exitCode: 1,
-        message:
-          'Custom iOS build requires "artifactPath" (e.g. "build/*.ipa") in better-update.json.',
+        message: 'Custom iOS build requires "artifactPath" (e.g. "build/*.ipa") in eas.json.',
       });
     }
 

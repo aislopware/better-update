@@ -1,5 +1,7 @@
+import path from "node:path";
+
 import { asRecord, compact } from "@better-update/type-guards";
-import { FileSystem, Path } from "@effect/platform";
+import { FileSystem } from "@effect/platform";
 import { Effect } from "effect";
 
 import {
@@ -316,7 +318,7 @@ export const parseBuildProfile = (raw: unknown): EasBuildProfile | undefined => 
 
 /**
  * Parse an already-decoded JSON object into an {@link EasConfig}. Shared by the
- * `eas.json` reader and the `better-update.json` build-config reader — both hold
+ * `eas.json` reader and any legacy build-config reader — both hold
  * the same `build`/`submit`/`cli` shape, only the source file differs.
  */
 export const parseConfigFromRecord = (root: Record<string, unknown>): EasConfig => {
@@ -375,18 +377,14 @@ const parseCli = (raw: unknown): { readonly version?: string } => {
   return compact({ version });
 };
 
-const easJsonPath = (projectRoot: string): Effect.Effect<string, never, Path.Path> =>
-  Effect.gen(function* () {
-    const path = yield* Path.Path;
-    return path.join(projectRoot, "eas.json");
-  });
+export const easJsonPath = (projectRoot: string): string => path.join(projectRoot, "eas.json");
 
 export const readEasJson = (
   projectRoot: string,
-): Effect.Effect<EasConfig, BuildProfileError, FileSystem.FileSystem | Path.Path> =>
+): Effect.Effect<EasConfig, BuildProfileError, FileSystem.FileSystem> =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
-    const filePath = yield* easJsonPath(projectRoot);
+    const filePath = easJsonPath(projectRoot);
     const text = yield* fs.readFileString(filePath).pipe(
       Effect.mapError(
         (cause) =>

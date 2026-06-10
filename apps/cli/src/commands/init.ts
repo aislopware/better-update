@@ -5,8 +5,8 @@ import { FileSystem } from "@effect/platform";
 import { defineCommand } from "citty";
 import { Effect, Option } from "effect";
 
-import { writeBetterUpdateConfig } from "../lib/better-update-config";
 import { runEffect } from "../lib/citty-effect";
+import { writeEasJsonPatch } from "../lib/eas-json";
 import { ProjectNotLinkedError } from "../lib/exit-codes";
 import { extractSlug, writeProjectId } from "../lib/expo-config";
 import { InteractiveMode } from "../lib/interactive-mode";
@@ -117,7 +117,8 @@ const resolveNameAndSlug = (
 
 /**
  * Persist the resolved project id: into the Expo config (`extra.betterUpdate`)
- * when an Expo project is present, otherwise into `better-update.json`.
+ * when an Expo project is present, otherwise as `eas.json`'s top-level
+ * `projectId` extension key.
  */
 const persistLink = (projectRoot: string, projectId: string, hasExpoConfig: boolean) =>
   Effect.gen(function* () {
@@ -132,7 +133,7 @@ const persistLink = (projectRoot: string, projectId: string, hasExpoConfig: bool
       }
       return { projectId, ...compact({ configPath: writeResult.configPath }) };
     }
-    const filePath = yield* writeBetterUpdateConfig(projectRoot, { projectId });
+    const filePath = yield* writeEasJsonPatch(projectRoot, { projectId });
     yield* printHuman(
       `Project linked successfully. ID saved to ${path.relative(projectRoot, filePath)}.`,
     );

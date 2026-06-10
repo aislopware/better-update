@@ -3,8 +3,7 @@ import { Effect } from "effect";
 
 import type { FileSystem } from "@effect/platform";
 
-import { readBuildConfig } from "./better-update-build-config";
-import { resolveEasBuildProfile } from "./eas-config";
+import { readEasJson, resolveEasBuildProfile } from "./eas-config";
 import { extractAppVersion, extractBuildNumber, extractRawRuntimeVersion } from "./expo-config";
 
 import type {
@@ -283,14 +282,14 @@ export const fromGenericProfile = (eas: EasBuildProfile, profileName: string): B
   });
 };
 
-/** Resolve a build profile from `better-update.json`'s `build` section. */
+/** Resolve a build profile from `eas.json`'s `build` section (all build systems). */
 export const readBuildProfile = (
   projectRoot: string,
   profileName: string,
 ): Effect.Effect<BuildProfile, BuildProfileError, FileSystem.FileSystem> =>
   Effect.gen(function* () {
-    const buildConfig = yield* readBuildConfig(projectRoot);
-    const profile = yield* resolveEasBuildProfile(buildConfig, profileName, "better-update.json");
+    const config = yield* readEasJson(projectRoot);
+    const profile = yield* resolveEasBuildProfile(config, profileName, "eas.json");
     return fromGenericProfile(profile, profileName);
   });
 

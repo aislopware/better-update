@@ -7,7 +7,6 @@ import { it } from "@effect/vitest";
 import { Effect, Exit, Layer } from "effect";
 
 import { CliRuntime } from "../services/cli-runtime";
-import { BETTER_UPDATE_CONFIG_FILENAME } from "./better-update-config";
 import { ProjectNotLinkedError } from "./exit-codes";
 import { readProjectId } from "./project-link";
 import { failureError } from "./test-utils";
@@ -37,9 +36,9 @@ const runtimeLayer = (cwd: string, env: Readonly<Record<string, string>> = {}) =
 describe("readProjectId resolver", () => {
   it.effect("prefers BETTER_UPDATE_PROJECT_ID over everything else", () =>
     Effect.gen(function* () {
-      // cwd has a conflicting better-update.json — the env override must win.
+      // cwd has a conflicting eas.json — the env override must win.
       const dir = makeProjectDir("resolver-env-");
-      writeFile(dir, BETTER_UPDATE_CONFIG_FILENAME, JSON.stringify({ projectId: "from_file" }));
+      writeFile(dir, "eas.json", JSON.stringify({ projectId: "from_file" }));
       const id = yield* readProjectId.pipe(
         Effect.ensuring(Effect.sync(() => rmSync(dir, { recursive: true, force: true }))),
         Effect.provide(
@@ -53,14 +52,10 @@ describe("readProjectId resolver", () => {
     }),
   );
 
-  it.effect("falls back to better-update.json (no Expo config needed)", () =>
+  it.effect("falls back to eas.json's top-level projectId (no Expo config needed)", () =>
     Effect.gen(function* () {
       const dir = makeProjectDir("resolver-file-");
-      writeFile(
-        dir,
-        BETTER_UPDATE_CONFIG_FILENAME,
-        JSON.stringify({ projectId: "proj_from_json" }),
-      );
+      writeFile(dir, "eas.json", JSON.stringify({ projectId: "proj_from_json" }));
       const id = yield* readProjectId.pipe(
         Effect.ensuring(Effect.sync(() => rmSync(dir, { recursive: true, force: true }))),
         Effect.provide(Layer.mergeAll(runtimeLayer(dir), NodeFileSystem.layer)),
@@ -101,7 +96,7 @@ describe("readProjectId resolver", () => {
         const err = failureError(exit);
         expect(err).toBeInstanceOf(ProjectNotLinkedError);
         expect(err!.message).toContain("BETTER_UPDATE_PROJECT_ID");
-        expect(err!.message).toContain("better-update.json");
+        expect(err!.message).toContain("eas.json");
       }
     }),
   );

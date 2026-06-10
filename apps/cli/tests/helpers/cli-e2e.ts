@@ -37,7 +37,7 @@ export interface SetupCliE2EOptions {
   /**
    * Skip writing any Expo config (no app.json / app.config.js / package.json).
    * Use to exercise build-system-neutral (non-Expo) projects that link via the
-   * `BETTER_UPDATE_PROJECT_ID` env var or a `better-update.json` file instead of
+   * `BETTER_UPDATE_PROJECT_ID` env var or an `eas.json` projectId instead of
    * an Expo config. The server project's name/slug are still derived from
    * `appJsonTemplate.expo` for setup, but nothing is written to the project dir.
    */
@@ -277,8 +277,8 @@ export const setupCliE2E = (testId: string, options: SetupCliE2EOptions): CliE2E
   };
 
   // Move legacy `expo.extra.betterUpdate.profiles` (the pre-config shape) into a
-  // sibling better-update.json `build` section. Strip the legacy field from the
-  // app config so better-update.json is the only build-profile source.
+  // sibling eas.json `build` section. Strip the legacy field from the
+  // app config so eas.json is the only build-profile source.
   const splitTemplateAndBuildProfiles = (
     rawTemplate: Record<string, unknown>,
   ): {
@@ -301,7 +301,7 @@ export const setupCliE2E = (testId: string, options: SetupCliE2EOptions): CliE2E
     if (!buildProfiles) {
       return;
     }
-    const configPath = path.join(state.projectDir, "better-update.json");
+    const configPath = path.join(state.projectDir, "eas.json");
     const existing = existsSync(configPath)
       ? (JSON.parse(readFileSync(configPath, "utf8")) as Record<string, unknown>)
       : {};

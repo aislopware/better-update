@@ -11,6 +11,7 @@ import { BuildFailedError } from "../../lib/exit-codes";
 import { loadLocalAndroidCredentials } from "../../lib/local-credentials";
 import { sha256File } from "../../lib/sha256";
 import { capitalize } from "../../lib/string-utils";
+import { setAndroidUpdateChannel } from "../../lib/update-channel-native";
 import { CliRuntime } from "../../services/cli-runtime";
 import { runStep } from "./run-step";
 
@@ -40,6 +41,8 @@ export interface RunAndroidBuildInput {
    * `withoutCredentials: true` profiles (mirrors EAS withoutCredentials).
    */
   readonly skipCredentials: boolean;
+  /** OTA channel baked into the manifest after prebuild; undefined skips injection. */
+  readonly updateChannel?: string | undefined;
 }
 
 interface AndroidSigningCredentials {
@@ -160,8 +163,7 @@ const runAndroidCustom = (input: RunAndroidBuildInput, commandEnv: Record<string
       return yield* new BuildFailedError({
         step: "custom android build",
         exitCode: 1,
-        message:
-          'Custom Android build requires "artifactPath" (e.g. "**/*.aab") in better-update.json.',
+        message: 'Custom Android build requires "artifactPath" (e.g. "**/*.aab") in eas.json.',
       });
     }
 
@@ -214,6 +216,12 @@ export const runAndroidBuild = (input: RunAndroidBuildInput) =>
         },
         "expo prebuild android",
       );
+      if (input.updateChannel !== undefined) {
+        yield* setAndroidUpdateChannel({
+          projectRoot: input.projectRoot,
+          channel: input.updateChannel,
+        });
+      }
     }
 
     return input.strategy === "custom"

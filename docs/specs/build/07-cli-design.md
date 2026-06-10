@@ -236,13 +236,13 @@ better-update init
 # Non-Expo project (KMP / Flutter / native — no app.json):
 #   1. Derives name/slug from --name/--slug, else package.json `name`, else the directory name
 #   2. Creates project on server (or links to existing)
-#   3. Writes { "projectId": "…" } to better-update.json at the project root
+#   3. Writes { "projectId": "…" } into eas.json at the project root
 better-update init --name "My App" --slug my-app   # non-Expo, explicit
 better-update init --id <projectId>                 # link by explicit id (any project)
 
 # Project-id resolution (every credentials/* and env/* command, build-system-agnostic):
 #   1. BETTER_UPDATE_PROJECT_ID environment variable
-#   2. better-update.json  ({ "projectId": "…" })
+#   2. eas.json            (top-level { "projectId": "…" })
 #   3. Expo config         (extra.betterUpdate.projectId, only when @expo/config is installed)
 # @expo/config is loaded lazily/optionally, so a project without Expo never crashes.
 

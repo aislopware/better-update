@@ -113,7 +113,7 @@ export const detectPlatformGeneric = (
       return yield* new BuildProfileError({
         message:
           "Cannot infer build platform. Add an `ios` or `android` section to the build profile " +
-          "in better-update.json, or pass --platform.",
+          "in eas.json, or pass --platform.",
       });
     }
     const [only] = candidates;

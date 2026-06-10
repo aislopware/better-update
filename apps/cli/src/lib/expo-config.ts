@@ -6,7 +6,7 @@ import { asRecord, compact } from "@better-update/type-guards";
 import { FileSystem } from "@effect/platform";
 import { Effect, Option } from "effect";
 
-import { BETTER_UPDATE_PROJECT_ID_ENV } from "./better-update-config";
+import { BETTER_UPDATE_PROJECT_ID_ENV } from "./eas-json";
 import { BuildProfileError, ProjectNotLinkedError, UpdatePublishError } from "./exit-codes";
 import { formatCause } from "./format-error";
 
@@ -105,12 +105,12 @@ export const isExpoConfigInstalled = (): boolean => {
 
 /**
  * Build-system-neutral "project not linked" guidance, listing every supported
- * project-id source (env override, better-update.json, Expo config) so the
+ * project-id source (env override, eas.json, Expo config) so the
  * message is correct for Expo and non-Expo projects alike.
  */
 export const PROJECT_NOT_LINKED_MESSAGE =
   "Project not linked. Run `better-update init` to link this project, set the " +
-  `${BETTER_UPDATE_PROJECT_ID_ENV} environment variable, add a "projectId" to better-update.json, ` +
+  `${BETTER_UPDATE_PROJECT_ID_ENV} environment variable, add a top-level "projectId" to eas.json, ` +
   "or set extra.betterUpdate.projectId in your Expo config.";
 
 // `@expo/config` resolves dynamic configs via Node's `require`, which caches the

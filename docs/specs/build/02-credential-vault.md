@@ -206,7 +206,7 @@ set, `organization_id` null) and works across the user's orgs via per-org wraps;
 A single device identity can be a recipient in **multiple orgs** — each org wraps its own vault key to
 the same public key. `user_encryption_keys` is global per user/device; `org_vault_key_wraps` is per
 (org, recipient). CLI credential commands resolve the active org from the project id, which is itself
-resolved **build-system-agnostically** — `BETTER_UPDATE_PROJECT_ID` env > `better-update.json` >
+resolved **build-system-agnostically** — `BETTER_UPDATE_PROJECT_ID` env > `eas.json` (top-level `projectId`) >
 Expo config (`extra.betterUpdate.projectId`, lazy/optional `@expo/config`). The vault is not tied to
 Expo: the credential types are standard Apple/Android signing artifacts (.p12, .p8, .mobileprovision,
 .jks, service-account .json) equally valid for KMP, Flutter, and native projects, which can use the

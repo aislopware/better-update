@@ -35,7 +35,7 @@
     },
     "apps/cli": {
       "name": "@better-update/cli",
-      "version": "0.33.2",
+      "version": "0.34.0",
       "bin": {
         "better-update": "./dist/index.mjs",
       },
@@ -46,6 +46,7 @@
         "@effect/platform-node": "^0.107.0",
         "@expo/apple-utils": "^2.1.21",
         "@expo/config": "^56.0.9",
+        "@expo/config-plugins": "~56.0.8",
         "@expo/pkcs12": "^0.5.1",
         "@expo/plist": "^0.7.0",
         "@expo/xcpretty": "^4.4.4",
@@ -90,7 +91,7 @@
     },
     "apps/server": {
       "name": "@better-update/server",
-      "version": "0.29.1",
+      "version": "0.30.0",
       "dependencies": {
         "@better-auth/api-key": "^1.6.15",
         "@better-update/api": "workspace:*",
@@ -124,7 +125,7 @@
     },
     "apps/web": {
       "name": "@better-update/web",
-      "version": "0.38.2",
+      "version": "0.39.0",
       "dependencies": {
         "@better-auth/api-key": "^1.6.15",
         "@better-update/api": "workspace:*",
@@ -182,7 +183,7 @@
     },
     "packages/api": {
       "name": "@better-update/api",
-      "version": "0.21.1",
+      "version": "0.22.0",
       "dependencies": {
         "@effect/platform": "^0.96.1",
         "effect": "^3.21.3",
@@ -194,7 +195,7 @@
     },
     "packages/api-client": {
       "name": "@better-update/api-client",
-      "version": "0.13.1",
+      "version": "0.14.0",
       "dependencies": {
         "@better-update/api": "workspace:*",
         "@better-update/type-guards": "workspace:*",

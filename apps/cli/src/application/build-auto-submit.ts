@@ -1,7 +1,7 @@
 import { compact } from "@better-update/type-guards";
 import { Effect } from "effect";
 
-import { readSubmitProfile } from "../lib/better-update-build-config";
+import { readSubmitProfile } from "../lib/eas-json";
 import { printHuman } from "../lib/output";
 import { CliRuntime } from "../services/cli-runtime";
 import {

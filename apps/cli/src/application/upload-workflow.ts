@@ -3,9 +3,9 @@ import { FileSystem } from "@effect/platform";
 import { Effect } from "effect";
 
 import { reserveAndUpload } from "../commands/build/reserve-and-upload";
-import { readBetterUpdateConfig } from "../lib/better-update-config";
 import { readBuildProfile } from "../lib/build-profile";
 import { asProjectType, detectProjectType } from "../lib/detect-project-type";
+import { readEasProjectType } from "../lib/eas-json";
 import { pullEnvVars } from "../lib/env-exporter";
 import { ArtifactNotFoundError, BuildProfileError } from "../lib/exit-codes";
 import { readAppMeta, readExpoConfig } from "../lib/expo-config";
@@ -133,10 +133,9 @@ export const runUploadWorkflow = (options: RunUploadWorkflowOptions) =>
       });
     }
 
-    const buConfig = yield* readBetterUpdateConfig(projectRoot);
     const projectType = yield* detectProjectType({
       projectRoot,
-      override: asProjectType(buConfig?.["projectType"]),
+      override: asProjectType(yield* readEasProjectType(projectRoot)),
     });
     const projectId = yield* readProjectId;
     const profile = yield* readBuildProfile(projectRoot, options.profileName);

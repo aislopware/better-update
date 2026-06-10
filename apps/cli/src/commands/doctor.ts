@@ -4,14 +4,14 @@ import process from "node:process";
 import { defineCommand } from "citty";
 import { Data, Effect } from "effect";
 
-import { listBuildProfileNames } from "../lib/better-update-build-config";
-import {
-  BETTER_UPDATE_PROJECT_ID_ENV,
-  readBetterUpdateConfig,
-  readLinkedProjectId,
-} from "../lib/better-update-config";
 import { runEffect } from "../lib/citty-effect";
 import { asProjectType, detectProjectType } from "../lib/detect-project-type";
+import {
+  BETTER_UPDATE_PROJECT_ID_ENV,
+  listBuildProfileNames,
+  readEasLinkedProjectId,
+  readEasProjectType,
+} from "../lib/eas-json";
 import { printHumanTable } from "../lib/output";
 import { readProjectId } from "../lib/project-link";
 import { apiClient } from "../services/api-client";
@@ -119,34 +119,36 @@ const checkProjectLink = Effect.gen(function* () {
   if (resolved._tag === "Left") {
     return warn("project-linked", "Project linked", resolved.left.message);
   }
-  // Distinguish the build-system-neutral link file from the Expo-config fallback.
-  const fromFile = yield* readLinkedProjectId(root);
-  const source = fromFile === undefined ? "Expo config" : "better-update.json";
+  // Distinguish the eas.json link from the Expo-config fallback.
+  const fromFile = yield* readEasLinkedProjectId(root);
+  const source = fromFile === undefined ? "Expo config" : "eas.json";
   return pass("project-linked", "Project linked", `projectId=${resolved.right} (via ${source})`);
 });
 
 const checkProjectType = Effect.gen(function* () {
   const runtime = yield* CliRuntime;
   const root = yield* runtime.cwd;
-  const buConfig = yield* readBetterUpdateConfig(root);
-  const override = asProjectType(buConfig?.["projectType"]);
+  const override = asProjectType(yield* readEasProjectType(root));
   const type = yield* detectProjectType({ projectRoot: root, override });
-  const via = override === undefined ? "auto-detected" : "better-update.json override";
+  const via = override === undefined ? "auto-detected" : "eas.json override";
   return pass("project-type", "Project type", `${type} (${via})`);
 });
 
 const checkBuildConfig = Effect.gen(function* () {
   const runtime = yield* CliRuntime;
   const root = yield* runtime.cwd;
-  const names = yield* listBuildProfileNames(root);
-  if (names.length === 0) {
+  const names = yield* listBuildProfileNames(root).pipe(Effect.either);
+  if (names._tag === "Left") {
+    return warn("build-config", "Build config", names.left.message);
+  }
+  if (names.right.length === 0) {
     return warn(
       "build-config",
       "Build config",
-      'No build profiles found. Add a "build" section to better-update.json.',
+      'No build profiles found. Add a "build" section to eas.json.',
     );
   }
-  return pass("build-config", "Build config", `${names.length} profile(s) defined`);
+  return pass("build-config", "Build config", `${names.right.length} profile(s) defined`);
 });
 
 const runChecks = Effect.gen(function* () {

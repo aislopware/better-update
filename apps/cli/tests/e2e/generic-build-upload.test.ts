@@ -106,14 +106,14 @@ beforeAll(() => {
   const root = cli.getProjectDir();
 
   // Mark it a JS project so auto-detection lands on `bare`; the explicit
-  // `projectType` override in better-update.json pins it regardless.
+  // `projectType` override in eas.json pins it regardless.
   writeFileSync(
     path.join(root, "package.json"),
     `${JSON.stringify({ name: "bare-build-app", version: "1.0.0" }, null, 2)}\n`,
   );
 
   writeFileSync(
-    path.join(root, "better-update.json"),
+    path.join(root, "eas.json"),
     `${JSON.stringify(
       {
         projectId: cli.getProjectId(),
@@ -143,10 +143,10 @@ beforeAll(() => {
 });
 
 describe("generic build upload: bare RN project (no Expo, no OTA)", () => {
-  it("doctor reports the bare project type from the better-update.json override", () => {
+  it("doctor reports the bare project type from the eas.json override", () => {
     const result = cli.runCli("doctor");
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).toContain("bare (better-update.json override)");
+    expect(result.stdout).toContain("bare (eas.json override)");
     expect(result.stdout).toContain("1 profile(s) defined");
   });
 

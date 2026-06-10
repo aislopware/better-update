@@ -8,8 +8,8 @@ import {
   runAndroidGooglePlayUpload,
   runIosAltoolUpload,
 } from "../../application/submit-flow";
-import { readSubmitProfile } from "../../lib/better-update-build-config";
 import { runEffect } from "../../lib/citty-effect";
+import { readSubmitProfile } from "../../lib/eas-json";
 import { printHuman } from "../../lib/output";
 import { readProjectId } from "../../lib/project-link";
 import { apiClient } from "../../services/api-client";

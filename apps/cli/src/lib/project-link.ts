@@ -3,7 +3,7 @@ import { Effect, Option } from "effect";
 import type { FileSystem } from "@effect/platform";
 
 import { CliRuntime } from "../services/cli-runtime";
-import { BETTER_UPDATE_PROJECT_ID_ENV, readLinkedProjectId } from "./better-update-config";
+import { BETTER_UPDATE_PROJECT_ID_ENV, readEasLinkedProjectId } from "./eas-json";
 import { ProjectNotLinkedError } from "./exit-codes";
 import {
   extractProjectId,
@@ -19,12 +19,12 @@ import type { ExpoConfig } from "./expo-config";
 /**
  * Resolve the active better-update project id, build-system-agnostically.
  *
- * Precedence: `BETTER_UPDATE_PROJECT_ID` env > `better-update.json` >
- * `@expo/config` (`extra.betterUpdate.projectId`). The Expo branch is taken only
- * when `@expo/config` is installed, so a non-Expo project (no app.json, Expo not
- * installed) never crashes at module load — it simply falls through to the
- * `ProjectNotLinkedError`. Every `env`/`credentials`/`status` command reaches the
- * vault through this single resolver.
+ * Precedence: `BETTER_UPDATE_PROJECT_ID` env > `eas.json` top-level `projectId`
+ * > `@expo/config` (`extra.betterUpdate.projectId`). The Expo branch is taken
+ * only when `@expo/config` is installed, so a non-Expo project (no app.json,
+ * Expo not installed) never crashes at module load — it simply falls through to
+ * the `ProjectNotLinkedError`. Every `env`/`credentials`/`status` command
+ * reaches the vault through this single resolver.
  */
 export const readProjectId: Effect.Effect<
   string,
@@ -40,7 +40,7 @@ export const readProjectId: Effect.Effect<
 
   const projectRoot = yield* runtime.cwd;
 
-  const fromConfig = yield* readLinkedProjectId(projectRoot);
+  const fromConfig = yield* readEasLinkedProjectId(projectRoot);
   if (fromConfig !== undefined) {
     return fromConfig;
   }
@@ -64,7 +64,7 @@ export const readProjectId: Effect.Effect<
  * Read the Expo config without failing: `Option.some(config)` when an Expo
  * project is present and loads, otherwise `Option.none()` (no `@expo/config`
  * installed, no config file, or a config that errors). Lets `init` decide
- * whether to write the link into the Expo config vs `better-update.json`.
+ * whether to write the link into the Expo config vs `eas.json`.
  */
 export const readExpoConfigOptional = (
   projectRoot: string,

@@ -19,7 +19,7 @@ export type ProjectType = "expo" | "bare" | "kmp" | "native" | "custom";
 
 const PROJECT_TYPES: readonly ProjectType[] = ["expo", "bare", "kmp", "native", "custom"];
 
-/** Narrow an arbitrary `projectType` override (e.g. from better-update.json) to a valid value. */
+/** Narrow an arbitrary `projectType` override (e.g. from eas.json) to a valid value. */
 export const asProjectType = (raw: unknown): ProjectType | undefined =>
   PROJECT_TYPES.find((type) => type === raw);
 
@@ -77,7 +77,7 @@ const looksKmp = (projectRoot: string) =>
 
 export interface DetectProjectTypeParams {
   readonly projectRoot: string;
-  /** Explicit override (e.g. better-update.json `projectType`); wins unconditionally. */
+  /** Explicit override (e.g. eas.json `projectType`); wins unconditionally. */
   readonly override?: ProjectType | undefined;
 }
 

@@ -71,9 +71,8 @@ const setupProject = (options: {
   const dir = realpathSync(mkdtempSync(nodePath.join(tmpdir(), "upload-workflow-test-")));
   const appJson = options.appJson ?? baseAppJson;
   writeFileSync(nodePath.join(dir, "app.json"), JSON.stringify(appJson, null, 2));
-  // Build profiles now live in better-update.json (eas.json is no longer read).
   const buildConfig = options.easJson ?? baseEasJson;
-  writeFileSync(nodePath.join(dir, "better-update.json"), JSON.stringify(buildConfig, null, 2));
+  writeFileSync(nodePath.join(dir, "eas.json"), JSON.stringify(buildConfig, null, 2));
   // @expo/config requires a package.json in the project root.
   writeFileSync(
     nodePath.join(dir, "package.json"),

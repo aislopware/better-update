@@ -27,7 +27,7 @@ const warnIfMismatch = (label: string, override: string | undefined, native: str
   override !== undefined && native !== undefined && override !== native
     ? printWarn(
         `${label} override "${override}" differs from the native value "${native}". ` +
-          "The better-update.json value will be used for build metadata.",
+          "The eas.json value will be used for build metadata.",
       )
     : Effect.void;
 
@@ -42,7 +42,7 @@ const resolveAndroidMeta = (projectRoot: string, profile: BuildProfile) =>
       return yield* new BuildProfileError({
         message:
           "Could not determine the Android applicationId. Set android.applicationId under this " +
-          "build profile in better-update.json, or ensure android/app/build.gradle defines it.",
+          "build profile in eas.json, or ensure android/app/build.gradle defines it.",
       });
     }
     const versionCode =
@@ -71,7 +71,7 @@ const resolveIosMeta = (projectRoot: string, profile: BuildProfile) =>
       return yield* new BuildProfileError({
         message:
           "Could not determine the iOS bundle identifier. Set ios.bundleIdentifier under this " +
-          "build profile in better-update.json, or ensure the Xcode project defines " +
+          "build profile in eas.json, or ensure the Xcode project defines " +
           "PRODUCT_BUNDLE_IDENTIFIER for the build configuration.",
       });
     }

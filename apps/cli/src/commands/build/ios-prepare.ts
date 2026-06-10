@@ -4,6 +4,7 @@ import { FileSystem } from "@effect/platform";
 import { Effect } from "effect";
 
 import { ArtifactNotFoundError, BuildFailedError } from "../../lib/exit-codes";
+import { setIosUpdateChannel } from "../../lib/update-channel-native";
 import { runStep } from "./run-step";
 
 import type { IosProfile } from "../../lib/build-profile";
@@ -67,7 +68,7 @@ export const resolveXcodeContainer = (
     return yield* new BuildFailedError({
       step: "resolve Xcode container",
       exitCode: 1,
-      message: `No .xcworkspace or .xcodeproj found under ${iosDir}. Set ios.workspace / ios.project in better-update.json.`,
+      message: `No .xcworkspace or .xcodeproj found under ${iosDir}. Set ios.workspace / ios.project in eas.json.`,
     });
   });
 
@@ -82,6 +83,8 @@ export const prepareIosNative = (params: {
   readonly iosDir: string;
   readonly iosProfile: IosProfile;
   readonly commandEnv: Record<string, string>;
+  /** OTA channel baked into the generated Expo.plist; undefined skips injection. */
+  readonly updateChannel?: string | undefined;
 }) =>
   Effect.gen(function* () {
     if (params.strategy === "expo") {
@@ -94,6 +97,9 @@ export const prepareIosNative = (params: {
         },
         "expo prebuild ios",
       );
+      if (params.updateChannel !== undefined) {
+        yield* setIosUpdateChannel({ iosDir: params.iosDir, channel: params.updateChannel });
+      }
       yield* runStep(
         { command: "pod", args: ["install"], cwd: params.iosDir, env: params.commandEnv },
         "pod install",

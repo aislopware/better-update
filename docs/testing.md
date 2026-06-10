@@ -124,8 +124,7 @@ a real Expo export and a live worker, including:
   `@expo/fingerprint` over the fixture, plain + `--platform`) and `compare`
   (positional-hash vs local; server build-vs-build). Caught two
   committed-but-never-run product bugs — see below.
-- **migrate-config / analytics** (`migrate-config.test.ts`, `analytics.test.ts`):
-  the local eas.json→config migration and the read-only analytics reports.
+- **analytics** (`analytics.test.ts`): the read-only analytics reports.
 
 `e2e-web` drives the dashboard in a real browser. `e2e-server` covers manifest
 resolution, bundle/patch negotiation, signing-policy 204s, the reaper, scopeKey

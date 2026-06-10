@@ -8,13 +8,12 @@ import { runAndroidBuild } from "../commands/build/android";
 import { runIosBuild } from "../commands/build/ios";
 import { reserveAndUpload } from "../commands/build/reserve-and-upload";
 import { applyAutoIncrement } from "../lib/auto-increment";
-import { listBuildProfileNames } from "../lib/better-update-build-config";
-import { readBetterUpdateConfig } from "../lib/better-update-config";
 import { readBuildProfile } from "../lib/build-profile";
 import { resolveAndroidStrategy, resolveIosStrategy } from "../lib/build-strategy";
 import { clearBuildCaches } from "../lib/clear-cache";
 import { asProjectType, detectProjectType } from "../lib/detect-project-type";
 import { warnIfDevClientMissing } from "../lib/dev-client-check";
+import { listBuildProfileNames, readEasProjectType } from "../lib/eas-json";
 import { pullEnvVars } from "../lib/env-exporter";
 import { BuildProfileError } from "../lib/exit-codes";
 import { readAppMeta, readExpoConfig } from "../lib/expo-config";
@@ -36,6 +35,7 @@ import { CliRuntime } from "../services/cli-runtime";
 import { runAutoSubmit } from "./build-auto-submit";
 import { ensureAndroidCredentials, ensureIosCredentials } from "./credentials-interactive";
 import { resolveAppMeta } from "./resolve-app-meta";
+import { resolveUpdateChannel } from "./resolve-update-channel";
 
 import type { BuildTarget } from "../commands/build/reserve-and-upload";
 import type { Platform } from "../lib/build-profile";
@@ -71,6 +71,8 @@ interface PlatformBuildInput {
   readonly projectId: string;
   readonly projectRoot: string;
   readonly tempDir: string;
+  /** Channel baked into the native app at prebuild; undefined skips injection. */
+  readonly updateChannel: string | undefined;
 }
 
 const runIosPlatformBuild = (input: PlatformBuildInput) =>
@@ -116,6 +118,7 @@ const runIosPlatformBuild = (input: PlatformBuildInput) =>
       strategy,
       rawOutput: options.rawOutput,
       freezeCredentials: options.freezeCredentials ?? false,
+      updateChannel: input.updateChannel,
       ...compact({ customCommand: profile.customCommand?.ios }),
     });
     const target: BuildTarget = isSimulator
@@ -171,6 +174,7 @@ const runAndroidPlatformBuild = (input: PlatformBuildInput) =>
       profileName: profile.name,
       skipCredentials,
       strategy,
+      updateChannel: input.updateChannel,
       ...compact({ customCommand: profile.customCommand?.android }),
     });
     const target: BuildTarget =
@@ -248,10 +252,10 @@ const resolveProfileName = (projectRoot: string, requested: string) =>
     const mode = yield* InteractiveMode;
     if (!mode.allow || available.length === 0) {
       // Let readBuildProfile fail with its existing "not found" message,
-      // or with the empty-build-section message when applicable.
+      // or with the missing-eas.json / empty-build-section message.
       return requested;
     }
-    yield* printHuman(`Build profile "${requested}" not found in better-update.json.`);
+    yield* printHuman(`Build profile "${requested}" not found in eas.json.`);
     return yield* promptSelect<string>(
       "Pick a build profile:",
       available.map((name) => ({ value: name, label: name })),
@@ -275,16 +279,15 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
         label: "build",
       });
 
-      // Resolve the build-system family (better-update.json `projectType` wins).
-      const buConfig = yield* readBetterUpdateConfig(userCwd);
+      // Resolve the build-system family (eas.json `projectType` wins).
       const projectType = yield* detectProjectType({
         projectRoot: userCwd,
-        override: asProjectType(buConfig?.["projectType"]),
+        override: asProjectType(yield* readEasProjectType(userCwd)),
       });
       const isExpo = projectType === "expo";
 
       // projectId via the build-system-neutral resolver
-      // (env override > better-update.json > Expo config).
+      // (env override > eas.json > Expo config).
       const projectId = yield* readProjectId;
 
       // Resolve profile name + profile (static, env- and platform-independent).
@@ -315,6 +318,13 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
             hasAndroidDir: yield* dirExists(userCwd, "android"),
             hasIosDir: yield* dirExists(userCwd, "ios"),
           });
+
+      const updateChannel = yield* resolveUpdateChannel({
+        userCwd,
+        platform,
+        profile,
+        projectType,
+      });
 
       // Resolve app metadata + OTA runtimeVersion. Expo reads app.json (with the
       // env overlay), applies autoIncrement to the user's tree, and derives a
@@ -348,9 +358,13 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
         projectType,
       });
 
+      const buildDetails = [
+        ...(runtimeVersion === undefined ? [] : [`runtimeVersion=${runtimeVersion}`]),
+        ...(updateChannel === undefined ? [] : [`channel=${updateChannel}`]),
+      ];
       yield* printHuman(
         `Building ${platform} artifact for profile "${profile.name}"${
-          runtimeVersion === undefined ? "" : ` (runtimeVersion=${runtimeVersion})`
+          buildDetails.length === 0 ? "" : ` (${buildDetails.join(", ")})`
         }`,
       );
 
@@ -365,6 +379,7 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
         projectId,
         projectRoot: staging.projectRoot,
         tempDir,
+        updateChannel,
       });
       const { build, target, bundleId } = outcome;
 
