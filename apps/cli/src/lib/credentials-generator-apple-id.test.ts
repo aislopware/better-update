@@ -17,12 +17,14 @@ import { CliRuntime } from "../services/cli-runtime";
 import { IdentityStore } from "../services/identity-store";
 import {
   generateAndUploadApnsKeyViaAppleId,
+  listApnsKeysViaAppleId,
+  revokeLocalApnsKey,
+} from "./credentials-generator-apns";
+import {
   generateAndUploadDistributionCertificateViaAppleId,
   generateAndUploadProvisioningProfileViaAppleId,
-  listApnsKeysViaAppleId,
   listDistributionCertsViaAppleId,
   revokeDistributionCertViaAppleId,
-  revokeLocalApnsKey,
 } from "./credentials-generator-apple-id";
 import { makeInteractiveModeLayer } from "./interactive-mode";
 
@@ -455,6 +457,7 @@ describe(generateAndUploadApnsKeyViaAppleId, () => {
       const result = yield* generateAndUploadApnsKeyViaAppleId(api, {
         context,
         appleTeamIdentifier: "TEAM1234",
+        appleTeamName: "Acme Inc.",
         name: "my key",
       }).pipe(Effect.provide(apnsLayer(vault.identity.privateKey)));
 
@@ -466,10 +469,18 @@ describe(generateAndUploadApnsKeyViaAppleId, () => {
       expect(downloadArgs.id).toBe("APNSKEY123");
       // E2E: the upload body carries the sealed envelope + public metadata, never the raw PEM.
       const [uploadArg] = mocks.applePushKeysUpload.mock.calls[0] as [
-        { payload: { keyId: string; appleTeamIdentifier: string; ciphertext: string } },
+        {
+          payload: {
+            keyId: string;
+            appleTeamIdentifier: string;
+            appleTeamName?: string;
+            ciphertext: string;
+          };
+        },
       ];
       expect(uploadArg.payload.keyId).toBe("APNSKEY123");
       expect(uploadArg.payload.appleTeamIdentifier).toBe("TEAM1234");
+      expect(uploadArg.payload.appleTeamName).toBe("Acme Inc.");
       expect(uploadArg.payload.ciphertext).toBeTypeOf("string");
       expect(JSON.stringify(uploadArg.payload)).not.toContain("BEGIN PRIVATE KEY");
       expect(recordedWrites).toHaveLength(0);
@@ -486,6 +497,7 @@ describe(generateAndUploadApnsKeyViaAppleId, () => {
         generateAndUploadApnsKeyViaAppleId(api, {
           context,
           appleTeamIdentifier: "TEAM1234",
+          appleTeamName: null,
           name: "x",
         }),
       ).pipe(Effect.provide(apnsLayer(vault.identity.privateKey)));
@@ -510,6 +522,7 @@ describe(generateAndUploadApnsKeyViaAppleId, () => {
         generateAndUploadApnsKeyViaAppleId(api, {
           context,
           appleTeamIdentifier: "TEAM1234",
+          appleTeamName: null,
           name: "x",
         }),
       ).pipe(Effect.provide(apnsLayer(vault.identity.privateKey)));
@@ -535,6 +548,7 @@ describe(generateAndUploadApnsKeyViaAppleId, () => {
         generateAndUploadApnsKeyViaAppleId(api, {
           context,
           appleTeamIdentifier: "TEAM1234",
+          appleTeamName: null,
           name: "x",
         }),
       ).pipe(Effect.provide(apnsLayer(vault.identity.privateKey)));
@@ -562,6 +576,7 @@ describe(generateAndUploadApnsKeyViaAppleId, () => {
         generateAndUploadApnsKeyViaAppleId(api, {
           context,
           appleTeamIdentifier: "TEAM1234",
+          appleTeamName: null,
           name: "x",
         }),
       ).pipe(Effect.provide(apnsLayer(vault.identity.privateKey)));

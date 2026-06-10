@@ -4,13 +4,15 @@ import type { RequestContext } from "@expo/apple-utils";
 
 import { IOS_DISTRIBUTION_TO_TYPE } from "../lib/credentials-downloader";
 import {
-  AppleIdGenerateFailedError,
   generateAndUploadApnsKeyViaAppleId,
+  listApnsKeysViaAppleId,
+  revokeApnsKeyViaAppleId,
+} from "../lib/credentials-generator-apns";
+import {
+  AppleIdGenerateFailedError,
   generateAndUploadDistributionCertificateViaAppleId,
   generateAndUploadProvisioningProfileViaAppleId,
-  listApnsKeysViaAppleId,
   listDistributionCertsViaAppleId,
-  revokeApnsKeyViaAppleId,
   revokeDistributionCertViaAppleId,
 } from "../lib/credentials-generator-apple-id";
 import { CredentialValidationError } from "../lib/exit-codes";
@@ -122,6 +124,7 @@ export const createApnsKeyViaAppleId = (api: ApiClient, name: string) =>
     const generate = generateAndUploadApnsKeyViaAppleId(api, {
       context: ctx,
       appleTeamIdentifier: session.teamId,
+      appleTeamName: session.teamName,
       name,
     });
     return yield* generate.pipe(
