@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.35.1](https://github.com/better-update/better-update/compare/@better-update/cli@0.35.0...@better-update/cli@0.35.1) (2026-06-10)
+
+### Bug Fixes
+
+* **cli:** route Expo.plist channel injection through the plist interop shim ([c697abe](https://github.com/better-update/better-update/commit/c697abe432a6889d7f83843a68000bb35f2336e1)) - by @trancong12102
+
 ## [0.35.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.34.0...@better-update/cli@0.35.0) (2026-06-10)
 
 ### Features
