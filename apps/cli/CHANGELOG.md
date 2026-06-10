@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.33.2](https://github.com/better-update/better-update/compare/@better-update/cli@0.33.1...@better-update/cli@0.33.2) (2026-06-10)
+
+### Bug Fixes
+
+* **cli:** record Apple team name when creating APNs keys via Apple ID ([7225136](https://github.com/better-update/better-update/commit/722513680093ddb634e431b40925ef877ec42981)) - by @trancong12102
+
 ## [0.33.1](https://github.com/better-update/better-update/compare/@better-update/cli@0.33.0...@better-update/cli@0.33.1) (2026-06-09)
 
 **Note:** Version bump only for package @better-update/cli
