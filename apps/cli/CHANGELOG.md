@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.35.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.34.0...@better-update/cli@0.35.0) (2026-06-10)
+
+### Features
+
+* **cli:** let users choose the vault unlock duration ([3713d74](https://github.com/better-update/better-update/commit/3713d74b58c2ab981e951e275d65f557e8fbf155)) - by @trancong12102
+* **cli:** make eas.json the single config file and bake the update channel at build time ([656c422](https://github.com/better-update/better-update/commit/656c422f4fc5845e7de52a6abfab375125249950)) - by @trancong12102
+
 ## [0.34.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.33.2...@better-update/cli@0.34.0) (2026-06-10)
 
 ### Features
