@@ -1,11 +1,12 @@
 import "./app.css";
 
-import { configureApiBaseUrl } from "@better-update/api-client";
+import { configureApiBaseUrl, getTypedApiError } from "@better-update/api-client";
 import { Button } from "@better-update/ui/components/ui/button";
 import { QueryClient, defaultShouldDehydrateQuery } from "@tanstack/react-query";
 import { createRouter } from "@tanstack/react-router";
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
 
+import { QueryErrorState } from "./components/query-error-state";
 import { routeTree } from "./routeTree.gen";
 
 // eslint-disable-next-line eslint-js/no-restricted-syntax -- Vite build-time env; empty fallback resolves API calls against current origin via Vite dev proxy.
@@ -58,28 +59,37 @@ const RouterErrorFallback = ({
   error: unknown;
   reset: () => void;
   info?: RouterErrorInfo;
-}) => (
-  <div className="mx-auto flex max-w-3xl flex-col items-start gap-4 p-8">
-    <div className="flex flex-col gap-1">
-      <h2 className="text-xl font-semibold">Something went wrong</h2>
-      <p className="text-muted-foreground text-sm">A route failed to load.</p>
+}) =>
+  // Typed API failures (Forbidden, NotFound, …) get the user-facing error
+  // surface; everything else keeps the developer-oriented stack dump.
+  getTypedApiError(error) ? (
+    <div className="mx-auto w-full max-w-3xl p-8">
+      <QueryErrorState error={error} onRetry={reset} />
     </div>
-    <pre className="bg-muted/40 max-h-96 w-full overflow-auto rounded-md border p-3 text-xs leading-relaxed whitespace-pre-wrap">
-      {formatError(error)}
-    </pre>
-    {info?.componentStack ? (
-      <details className="w-full">
-        <summary className="text-muted-foreground cursor-pointer text-xs">Component stack</summary>
-        <pre className="bg-muted/40 mt-2 max-h-72 w-full overflow-auto rounded-md border p-3 text-xs leading-relaxed whitespace-pre-wrap">
-          {info.componentStack}
-        </pre>
-      </details>
-    ) : null}
-    <Button type="button" variant="outline" onClick={reset}>
-      Try again
-    </Button>
-  </div>
-);
+  ) : (
+    <div className="mx-auto flex max-w-3xl flex-col items-start gap-4 p-8">
+      <div className="flex flex-col gap-1">
+        <h2 className="text-xl font-semibold">Something went wrong</h2>
+        <p className="text-muted-foreground text-sm">A route failed to load.</p>
+      </div>
+      <pre className="bg-muted/40 max-h-96 w-full overflow-auto rounded-md border p-3 text-xs leading-relaxed whitespace-pre-wrap">
+        {formatError(error)}
+      </pre>
+      {info?.componentStack ? (
+        <details className="w-full">
+          <summary className="text-muted-foreground cursor-pointer text-xs">
+            Component stack
+          </summary>
+          <pre className="bg-muted/40 mt-2 max-h-72 w-full overflow-auto rounded-md border p-3 text-xs leading-relaxed whitespace-pre-wrap">
+            {info.componentStack}
+          </pre>
+        </details>
+      ) : null}
+      <Button type="button" variant="outline" onClick={reset}>
+        Try again
+      </Button>
+    </div>
+  );
 
 export const getRouter = () => {
   const queryClient = new QueryClient({
@@ -87,6 +97,9 @@ export const getRouter = () => {
       queries: {
         staleTime: 60_000,
         gcTime: 5 * 60_000,
+        // Tagged API errors (Forbidden, NotFound, …) are deterministic 4xx
+        // responses — retrying only delays the error surface.
+        retry: (failureCount, error) => getTypedApiError(error) === null && failureCount < 3,
       },
       dehydrate: {
         shouldDehydrateQuery: (query) =>

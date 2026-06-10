@@ -42,6 +42,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import type { ChangeEvent } from "react";
 
 import { PageHeader } from "../../../components/page-header";
+import { QueryErrorState } from "../../../components/query-error-state";
 import { TableSkeleton } from "../../../components/skeletons";
 import { isSuperadminUser } from "../../../lib/access";
 import {
@@ -201,7 +202,7 @@ const AdminUsers = () => {
     },
   });
 
-  const { data, isPlaceholderData, isLoading } = useQuery({
+  const { data, error, isPlaceholderData, isLoading, refetch } = useQuery({
     ...adminUsersQueryOptions({
       page,
       limit: PAGE_SIZE,
@@ -244,7 +245,11 @@ const AdminUsers = () => {
     return (
       <div className="flex w-full flex-col gap-6">
         <PageHeader title="Users" description="Approve who can access Better Update." />
-        <TableSkeleton columns={5} rows={6} />
+        {error ? (
+          <QueryErrorState error={error} onRetry={refetch} />
+        ) : (
+          <TableSkeleton columns={5} rows={6} />
+        )}
       </div>
     );
   }

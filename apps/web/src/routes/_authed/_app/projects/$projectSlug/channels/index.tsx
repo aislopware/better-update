@@ -37,6 +37,7 @@ import { CreateChannelDialog } from "../-create-channel-dialog";
 import { DeleteChannelDialog } from "../-delete-channel-dialog";
 import { ProjectSubpageHeader } from "../-project-subpage-header";
 import { invalidateChannels as invalidateChannelsHelper } from "../-update-helpers";
+import { QueryErrorState } from "../../../../../../components/query-error-state";
 import { TableSkeleton } from "../../../../../../components/skeletons";
 import {
   DataTableView,
@@ -226,7 +227,7 @@ const ChannelsContent = () => {
     navigate: routeNavigate,
   });
 
-  const { data, isPlaceholderData, isLoading } = useQuery({
+  const { data, error, isPlaceholderData, isLoading, refetch } = useQuery({
     ...channelsQueryOptions(orgId, projectId, {
       page,
       limit: PAGE_SIZE,
@@ -266,7 +267,11 @@ const ChannelsContent = () => {
           <ProjectSubpageHeader title="Channels" />
           {createCta}
         </div>
-        <TableSkeleton columns={5} rows={5} />
+        {error ? (
+          <QueryErrorState error={error} onRetry={refetch} />
+        ) : (
+          <TableSkeleton columns={5} rows={5} />
+        )}
       </div>
     );
   }

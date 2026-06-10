@@ -34,6 +34,7 @@ import type { ChangeEvent, ReactNode } from "react";
 
 import { formatAppleTeamLabel, indexAppleTeamsById } from "../-credentials-utils";
 import { PageHeader } from "../../../../components/page-header";
+import { QueryErrorState } from "../../../../components/query-error-state";
 import { FilterBarSkeleton, TableSkeleton } from "../../../../components/skeletons";
 import {
   DataTableView,
@@ -269,7 +270,7 @@ const DevicesContent = () => {
     [teams.items],
   );
 
-  const { data, isPlaceholderData, isLoading } = useQuery({
+  const { data, error, isPlaceholderData, isLoading, refetch } = useQuery({
     ...devicesQueryOptions(orgId, {
       page,
       limit: PAGE_SIZE,
@@ -298,6 +299,9 @@ const DevicesContent = () => {
   const filtersActive = Boolean(deviceClass) || Boolean(appleTeamId) || urlQuery.length > 0;
 
   if (isLoading || data === undefined) {
+    if (error) {
+      return <QueryErrorState error={error} onRetry={refetch} />;
+    }
     return <TableSkeleton columns={5} rows={5} />;
   }
 

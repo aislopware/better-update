@@ -42,6 +42,7 @@ import type { EnvVar } from "@better-update/api";
 import type { EnvVarsFilters } from "@better-update/api-client/react";
 import type { ChangeEvent } from "react";
 
+import { QueryErrorState } from "../../../../components/query-error-state";
 import { TableSkeleton } from "../../../../components/skeletons";
 import {
   enumParam,
@@ -258,10 +259,25 @@ export const EnvVarsView = ({
       ? envVarsQueryOptions(mode.orgId, mode.projectId, filters)
       : globalEnvVarsQueryOptions(mode.orgId, filters);
 
-  const { data, isLoading } = useQuery({
+  const { data, error, isLoading, refetch } = useQuery({
     ...queryOptions,
     placeholderData: keepPreviousData,
   });
+
+  const renderContent = () => {
+    if (error && !data) {
+      return <QueryErrorState error={error} onRetry={refetch} />;
+    }
+    if (isLoading || !data) {
+      return (
+        <div className="flex flex-col gap-2">
+          <Skeleton className="h-9 w-full rounded-md" />
+          <TableSkeleton variant="card" columns={6} rows={4} hasFooter={false} />
+        </div>
+      );
+    }
+    return <EnvVarsTable items={data.items} />;
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -283,14 +299,7 @@ export const EnvVarsView = ({
         <code className="font-mono">better-update env set</code> /{" "}
         <code className="font-mono">env pull</code>. The dashboard shows metadata only.
       </p>
-      {isLoading || !data ? (
-        <div className="flex flex-col gap-2">
-          <Skeleton className="h-9 w-full rounded-md" />
-          <TableSkeleton variant="card" columns={6} rows={4} hasFooter={false} />
-        </div>
-      ) : (
-        <EnvVarsTable items={data.items} />
-      )}
+      {renderContent()}
     </div>
   );
 };

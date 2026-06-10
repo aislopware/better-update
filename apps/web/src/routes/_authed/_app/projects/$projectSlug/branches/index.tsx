@@ -23,6 +23,7 @@ import { CreateBranchDialog } from "../-create-branch-dialog";
 import { DeleteBranchDialog } from "../-delete-branch-dialog";
 import { ProjectSubpageHeader } from "../-project-subpage-header";
 import { RenameBranchDialog } from "../-rename-branch-dialog";
+import { QueryErrorState } from "../../../../../../components/query-error-state";
 import { TableSkeleton } from "../../../../../../components/skeletons";
 import {
   DataTableView,
@@ -140,7 +141,7 @@ const BranchesPage = () => {
     navigate,
   });
 
-  const { data, isPlaceholderData, isLoading } = useQuery({
+  const { data, error, isPlaceholderData, isLoading, refetch } = useQuery({
     ...branchesQueryOptions(orgId, projectId, {
       page,
       limit: PAGE_SIZE,
@@ -172,7 +173,11 @@ const BranchesPage = () => {
           <ProjectSubpageHeader title="Branches" />
           {createCta}
         </div>
-        <TableSkeleton columns={4} rows={5} />
+        {error ? (
+          <QueryErrorState error={error} onRetry={refetch} />
+        ) : (
+          <TableSkeleton columns={4} rows={5} />
+        )}
       </div>
     );
   }

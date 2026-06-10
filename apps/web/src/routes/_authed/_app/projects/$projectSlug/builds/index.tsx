@@ -26,6 +26,7 @@ import type {
 
 import { CompatibilityMatrix } from "../-compatibility-matrix";
 import { ProjectSubpageHeader } from "../-project-subpage-header";
+import { QueryErrorState } from "../../../../../../components/query-error-state";
 import { TableSkeleton } from "../../../../../../components/skeletons";
 import {
   DataTableView,
@@ -139,7 +140,7 @@ const BuildsContent = () => {
     );
   };
 
-  const { data, isPlaceholderData, isLoading } = useQuery({
+  const { data, error, isPlaceholderData, isLoading, refetch } = useQuery({
     ...buildsQueryOptions(orgId, projectId, {
       page,
       limit: PAGE_SIZE,
@@ -185,7 +186,11 @@ const BuildsContent = () => {
           <ProjectSubpageHeader title="Builds" />
           <div className="flex flex-wrap items-center gap-2">{filterControls}</div>
         </div>
-        <TableSkeleton columns={8} rows={6} />
+        {error ? (
+          <QueryErrorState error={error} onRetry={refetch} />
+        ) : (
+          <TableSkeleton columns={8} rows={6} />
+        )}
       </div>
     );
   }

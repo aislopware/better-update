@@ -29,6 +29,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import type { ChangeEvent } from "react";
 
 import { PageHeader } from "../../../../components/page-header";
+import { QueryErrorState } from "../../../../components/query-error-state";
 import { TableSkeleton } from "../../../../components/skeletons";
 import {
   DataTableView,
@@ -193,7 +194,7 @@ const Projects = () => {
     },
   });
 
-  const { data, isPlaceholderData, isLoading } = useQuery({
+  const { data, error, isPlaceholderData, isLoading, refetch } = useQuery({
     ...projectsQueryOptions(activeOrg.id, {
       page,
       limit: PAGE_SIZE,
@@ -226,7 +227,11 @@ const Projects = () => {
           description="Manage your over-the-air update projects."
           actions={createCta}
         />
-        <TableSkeleton columns={6} rows={6} />
+        {error ? (
+          <QueryErrorState error={error} onRetry={refetch} />
+        ) : (
+          <TableSkeleton columns={6} rows={6} />
+        )}
       </div>
     );
   }

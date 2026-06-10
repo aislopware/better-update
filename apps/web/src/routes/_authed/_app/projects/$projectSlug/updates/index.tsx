@@ -23,6 +23,7 @@ import type { UpdateSortColumn } from "@better-update/api-client/react";
 
 import { CompareUpdatesDialog } from "../-compare-updates-dialog";
 import { ProjectSubpageHeader } from "../-project-subpage-header";
+import { QueryErrorState } from "../../../../../../components/query-error-state";
 import { TableSkeleton } from "../../../../../../components/skeletons";
 import {
   DataTableView,
@@ -172,7 +173,7 @@ const UpdatesContent = () => {
     platform,
   });
 
-  const { data, isPlaceholderData, isLoading } = updatesQuery;
+  const { data, error, isPlaceholderData, isLoading, refetch } = updatesQuery;
   const tableData = useMemo(() => [...(data?.items ?? [])], [data?.items]);
   const table = useReactTable({
     data: tableData,
@@ -210,7 +211,11 @@ const UpdatesContent = () => {
             <CompareUpdatesDialog orgId={orgId} projectId={projectId} />
           </div>
         </div>
-        <TableSkeleton columns={7} rows={6} />
+        {error ? (
+          <QueryErrorState error={error} onRetry={refetch} />
+        ) : (
+          <TableSkeleton columns={7} rows={6} />
+        )}
       </div>
     );
   }
