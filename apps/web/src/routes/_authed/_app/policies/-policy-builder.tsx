@@ -1,6 +1,7 @@
 import { isCanonicalSelector, isValidActionTokenShape, isValidSelector } from "@better-update/api";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
+import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Input } from "@better-update/ui/components/ui/input";
 import {
   Menu,
@@ -17,7 +18,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@better-update/ui/components/ui/select";
-import { cn } from "@better-update/ui/lib/utils";
 import { PlusIcon, Trash2Icon, XIcon } from "lucide-react";
 
 import type { PolicyDocumentValue, PolicyEffectValue } from "@better-update/api-client/react";
@@ -129,20 +129,18 @@ const ResourceRow = ({
   const invalid = value.length > 0 && (!isValidSelector(value) || !isCanonicalSelector(value));
   return (
     <div className="flex items-start gap-2">
-      <div className="flex flex-1 flex-col gap-1">
+      <Field invalid={invalid} className="flex-1 gap-1">
         <Input
           aria-label="Resource selector"
           placeholder="* or project/{projectId}/channel/{channelId}"
-          className={cn("font-mono text-xs", invalid && "border-destructive")}
+          className="font-mono text-xs"
           value={value}
           onChange={(event) => {
             onChange(event.target.value);
           }}
         />
-        {invalid ? (
-          <span className="text-destructive text-xs">Not a valid resource path selector.</span>
-        ) : null}
-      </div>
+        <FieldError match={invalid}>Not a valid resource path selector.</FieldError>
+      </Field>
       <Button
         type="button"
         variant="ghost"
@@ -240,8 +238,8 @@ const StatementCard = ({
         </Button>
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <span className="text-sm font-medium">Effect</span>
+      <Field className="gap-1.5">
+        <FieldLabel>Effect</FieldLabel>
         <Select
           value={statement.effect}
           onValueChange={(next) => {
@@ -264,10 +262,10 @@ const StatementCard = ({
             </SelectGroup>
           </SelectPopup>
         </Select>
-      </div>
+      </Field>
 
-      <div className="flex flex-col gap-1.5">
-        <span className="text-sm font-medium">Actions</span>
+      <Field className="gap-1.5">
+        <FieldLabel>Actions</FieldLabel>
         <div className="flex flex-wrap items-center gap-1.5">
           {statement.actions.length === 0 ? (
             <span className="text-muted-foreground text-xs">No actions selected yet.</span>
@@ -286,11 +284,11 @@ const StatementCard = ({
         <div>
           <ActionPicker selected={statement.actions} onToggle={toggleAction} />
         </div>
-      </div>
+      </Field>
 
-      <div className="flex flex-col gap-1.5">
-        <span className="text-sm font-medium">Resources</span>
-        <div className="flex flex-col gap-2">
+      <Field className="gap-1.5">
+        <FieldLabel>Resources</FieldLabel>
+        <div className="flex w-full flex-col gap-2">
           {statement.resources.map((resource) => (
             <ResourceRow
               key={resource.id}
@@ -308,7 +306,7 @@ const StatementCard = ({
         <div>
           <SelectorPresetMenu onInsert={insertResource} />
         </div>
-      </div>
+      </Field>
     </div>
   );
 };

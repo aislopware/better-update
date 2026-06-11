@@ -30,6 +30,7 @@ import type { PlatformValue } from "@better-update/api-client/react";
 
 import { ProjectSubpageHeader } from "../-project-subpage-header";
 import { PlatformBadge } from "../../../../../../components/attribute-badges";
+import { SectionHeader } from "../../../../../../components/page-header";
 import { DetailCardSkeleton, SummaryCardsSkeleton } from "../../../../../../components/skeletons";
 import { DataTableView } from "../../../../../../lib/data-table";
 import { pluralize } from "../../../../../../lib/pluralize";
@@ -70,7 +71,7 @@ const RuntimeSummaryCards = ({
   updatesCount: number;
   latestActivity: string | null;
 }) => (
-  <div className="grid gap-4 sm:grid-cols-3">
+  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-base">Builds</CardTitle>
@@ -210,38 +211,42 @@ const RuntimeDetailContent = () => {
         latestActivity={latestActivity}
       />
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <PackageIcon strokeWidth={2} className="text-muted-foreground size-4" />
-            Builds on this runtime
-          </CardTitle>
-          <CardDescription>
-            {buildsCount === 0
+      <div className="flex flex-col gap-3">
+        <SectionHeader
+          title={
+            <span className="flex items-center gap-2">
+              <PackageIcon strokeWidth={2} className="text-muted-foreground size-4" />
+              Builds on this runtime
+            </span>
+          }
+          description={
+            buildsCount === 0
               ? "No builds yet"
-              : `${buildsCount} ${pluralize(buildsCount, "build")} on runtime v${version}`}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {buildsCount === 0 ? (
-            <p className="text-muted-foreground text-sm">
-              Build a binary against this runtime to see it here.
-            </p>
-          ) : (
-            <DataTableView
-              table={buildsTable}
-              columnsCount={buildColumns.length}
-              isPlaceholderData={false}
-              countLabel={`${buildsTableData.length} of ${buildsCount}`}
-              safePage={1}
-              totalPages={1}
-              onPageChange={() => {
-                /* single-page view; full pagination via Builds page */
-              }}
-            />
-          )}
-        </CardContent>
-      </Card>
+              : `${buildsCount} ${pluralize(buildsCount, "build")} on runtime v${version}`
+          }
+        />
+        {buildsCount === 0 ? (
+          <Card>
+            <CardContent>
+              <p className="text-muted-foreground text-sm">
+                Build a binary against this runtime to see it here.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <DataTableView
+            table={buildsTable}
+            columnsCount={buildColumns.length}
+            isPlaceholderData={false}
+            countLabel={`${buildsTableData.length} of ${buildsCount}`}
+            safePage={1}
+            totalPages={1}
+            onPageChange={() => {
+              /* single-page view; full pagination via Builds page */
+            }}
+          />
+        )}
+      </div>
 
       <Card>
         <CardHeader>

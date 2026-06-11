@@ -9,19 +9,20 @@ import {
   CardPanel,
 } from "@better-update/ui/components/ui/card";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { Suspense } from "react";
 
 import type { SubmissionItem } from "@better-update/api-client/react";
 
 import { PlatformBadge } from "../../../../../components/attribute-badges";
 import { DetailCardSkeleton } from "../../../../../components/skeletons";
-import { CopyButton } from "../../../../../lib/copy-button";
+import { CopyButton, CopyableId } from "../../../../../lib/copy-button";
 import { formatDateTime } from "../../../../../lib/format-date";
 import {
   SUBMISSION_STATUS_LABEL,
   SUBMISSION_STATUS_VARIANT,
 } from "../../../../../lib/submission-status";
+import { ProjectSubpageHeader } from "./-project-subpage-header";
 
 const formatTimestamp = (value: string | null | undefined) =>
   value ? formatDateTime(value) : null;
@@ -48,26 +49,11 @@ const DetailRow = ({
   </div>
 );
 
-const SubmissionDetail = ({
-  submission,
-  projectSlug,
-}: {
-  submission: SubmissionItem;
-  projectSlug: string;
-}) => (
-  <div className="flex flex-col gap-4">
-    <div className="flex flex-col gap-1.5">
-      <Link
-        to="/projects/$projectSlug/submissions"
-        params={{ projectSlug }}
-        className="text-muted-foreground hover:text-foreground text-sm"
-      >
-        ← Back to submissions
-      </Link>
-      <div className="flex items-center gap-2">
-        <h1 className="font-mono text-lg break-all">{submission.id}</h1>
-        <CopyButton value={submission.id} label="Submission ID" />
-      </div>
+const SubmissionDetail = ({ submission }: { submission: SubmissionItem }) => (
+  <>
+    <div className="flex flex-wrap items-center gap-2">
+      <ProjectSubpageHeader title="Submission" />
+      <CopyableId value={submission.id} label="Submission ID" />
     </div>
     <CardFrame>
       <CardFrameHeader className="py-5">
@@ -145,35 +131,36 @@ const SubmissionDetail = ({
         </CardPanel>
       </Card>
     </CardFrame>
-  </div>
+  </>
 );
 
 const SubmissionDetailContainer = ({
   orgId,
   submissionId,
-  projectSlug,
 }: {
   readonly orgId: string;
   readonly submissionId: string;
-  readonly projectSlug: string;
 }) => {
   const { data } = useSuspenseQuery(submissionQueryOptions(orgId, submissionId));
-  return <SubmissionDetail submission={data} projectSlug={projectSlug} />;
+  return <SubmissionDetail submission={data} />;
 };
 
-const SubmissionDetailSkeleton = () => <DetailCardSkeleton rows={6} columns={1} />;
+const SubmissionDetailSkeleton = () => (
+  <>
+    <ProjectSubpageHeader title="Submission" />
+    <DetailCardSkeleton rows={6} columns={1} />
+  </>
+);
 
 const SubmissionDetailPage = () => {
   const { activeOrg } = Route.useRouteContext();
-  const { submissionId, projectSlug } = Route.useParams();
+  const { submissionId } = Route.useParams();
   return (
-    <Suspense fallback={<SubmissionDetailSkeleton />}>
-      <SubmissionDetailContainer
-        orgId={activeOrg.id}
-        submissionId={submissionId}
-        projectSlug={projectSlug}
-      />
-    </Suspense>
+    <div className="flex w-full flex-col gap-4">
+      <Suspense fallback={<SubmissionDetailSkeleton />}>
+        <SubmissionDetailContainer orgId={activeOrg.id} submissionId={submissionId} />
+      </Suspense>
+    </div>
   );
 };
 

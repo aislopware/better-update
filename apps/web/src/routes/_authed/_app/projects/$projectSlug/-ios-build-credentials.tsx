@@ -25,7 +25,6 @@ import type {
 } from "@better-update/api-client/react";
 
 import { TeamCell } from "../../-credential-cells";
-import { formatAppleTeamLabel } from "../../-credentials-utils";
 import { CopyableMono } from "../../../../../lib/copy-button";
 import { STATUS_BADGE_VARIANT, deriveExpiryStatus } from "../../../../../lib/credential-status";
 import { formatShortDate, formatShortDateTime } from "../../../../../lib/format-date";
@@ -192,9 +191,6 @@ const ConfigTabPanel = ({
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-muted-foreground text-sm">
-        Team: <span className="text-foreground">{team ? formatAppleTeamLabel(team) : "—"}</span>
-      </p>
       <CertTableCard cert={cert} team={team} />
       <ProfileTableCard profile={profile} team={team} />
     </div>

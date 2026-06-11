@@ -17,6 +17,7 @@ import {
   DialogPopup,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
+import { Field, FieldLabel } from "@better-update/ui/components/ui/field";
 import {
   Select,
   SelectGroup,
@@ -158,7 +159,8 @@ const GroupMembersSection = ({ orgId, group }: { orgId: string; group: GroupItem
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-end gap-2">
-        <div className="flex-1">
+        <Field className="flex-1">
+          <FieldLabel>Member</FieldLabel>
           <Select
             value={selectedMemberId}
             onValueChange={(next) => {
@@ -168,7 +170,7 @@ const GroupMembersSection = ({ orgId, group }: { orgId: string; group: GroupItem
             }}
             disabled={availableMembers.length === 0}
           >
-            <SelectTrigger>
+            <SelectTrigger className="w-full">
               <SelectValue placeholder="Select a member to add" />
             </SelectTrigger>
             <SelectPopup>
@@ -181,7 +183,7 @@ const GroupMembersSection = ({ orgId, group }: { orgId: string; group: GroupItem
               </SelectGroup>
             </SelectPopup>
           </Select>
-        </div>
+        </Field>
         <Button
           loading={addMutation.isPending}
           disabled={selectedMemberId === ""}

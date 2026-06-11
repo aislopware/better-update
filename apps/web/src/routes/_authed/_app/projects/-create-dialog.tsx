@@ -160,7 +160,10 @@ export const CreateProjectDialog = ({ orgId }: { orgId: string }) => {
         }
       }}
     >
-      <DialogTrigger render={<Button />}>Create project</DialogTrigger>
+      <DialogTrigger render={<Button />}>
+        <PlusIcon strokeWidth={2} data-icon="inline-start" />
+        Create project
+      </DialogTrigger>
       <DialogPopup>
         <DialogHeader>
           <DialogTitle>Create a project</DialogTitle>

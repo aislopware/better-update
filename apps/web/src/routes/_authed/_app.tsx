@@ -41,6 +41,7 @@ import {
 } from "lucide-react";
 import { Suspense, useState } from "react";
 
+import { DetailCardSkeleton } from "../../components/skeletons";
 import { renderSwitcherIndicator } from "../../components/switcher-indicator";
 import { isSuperadminUser } from "../../lib/access";
 import { authClient, rejectOnAuthClientError } from "../../lib/auth-client";
@@ -284,7 +285,7 @@ const AppLayout = () => {
           </header>
           <main className="flex-1 px-4 py-6 lg:px-6 lg:py-8">
             <ErrorBoundary key={pathname}>
-              <Suspense fallback={null}>
+              <Suspense fallback={<DetailCardSkeleton rows={3} columns={2} />}>
                 <Outlet />
               </Suspense>
             </ErrorBoundary>

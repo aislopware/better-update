@@ -93,6 +93,7 @@ describe("compatibility UI", () => {
     render(<MissingMatchingBuilds missingRuntimeVersions={[missingRuntimeVersion]} />);
 
     expect(screen.getByText("Missing matching builds")).toBeInTheDocument();
-    expect(screen.getByText("android v3.0.0")).toBeInTheDocument();
+    expect(screen.getByText("v3.0.0")).toBeInTheDocument();
+    expect(screen.getByText("1 updates but no uploaded build.")).toBeInTheDocument();
   });
 });

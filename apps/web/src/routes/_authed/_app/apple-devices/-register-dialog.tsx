@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogPanel,
   DialogTitle,
+  DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
 import {
   Field,
@@ -296,14 +297,10 @@ export const RegisterDeviceDialog = ({ orgId }: { orgId: string }) => {
         }
       }}
     >
-      <Button
-        onClick={() => {
-          setOpen(true);
-        }}
-      >
+      <DialogTrigger render={<Button />}>
         <PlusIcon strokeWidth={2} data-icon="inline-start" />
         Add device
-      </Button>
+      </DialogTrigger>
       <DialogPopup>
         <DialogHeader>
           <DialogTitle>Register a device</DialogTitle>

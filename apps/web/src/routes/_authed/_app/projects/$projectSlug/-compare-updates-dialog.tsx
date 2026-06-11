@@ -20,6 +20,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
+import { Field, FieldLabel } from "@better-update/ui/components/ui/field";
 import {
   Select,
   SelectPopup,
@@ -259,8 +260,8 @@ const UpdateSelector = ({
     options.map((update) => [update.id, formatUpdateLabel(update, branchName(update.branchId))]),
   );
   return (
-    <div className="flex flex-col gap-1.5">
-      <span className="text-muted-foreground text-xs font-medium uppercase">{label}</span>
+    <Field className="w-full gap-1.5">
+      <FieldLabel>{label}</FieldLabel>
       <Select
         items={itemLabels}
         value={value}
@@ -283,7 +284,7 @@ const UpdateSelector = ({
           </SelectGroup>
         </SelectPopup>
       </Select>
-    </div>
+    </Field>
   );
 };
 

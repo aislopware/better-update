@@ -3,7 +3,7 @@ import { Schema } from "effect";
 
 import { Forbidden } from "../auth/errors";
 import { NotFound } from "../auth/ownership";
-import { idParam, Platform } from "../domain/common";
+import { idParam, pageResult, PaginationParams, Platform } from "../domain/common";
 import { BadRequest, Conflict } from "../domain/errors";
 import {
   CancelSubmissionResult,
@@ -17,6 +17,7 @@ import {
 const projectIdParam = HttpApiSchema.param("projectId", Schema.String);
 
 const ListParams = Schema.Struct({
+  ...PaginationParams.fields,
   status: Schema.optional(SubmissionStatus),
   platform: Schema.optional(Platform),
   profile: Schema.optional(Schema.String),
@@ -27,7 +28,7 @@ export class SubmissionsGroup extends HttpApiGroup.make("submissions")
   .add(
     HttpApiEndpoint.get("list")`/api/projects/${projectIdParam}/submissions`
       .setUrlParams(ListParams)
-      .addSuccess(Schema.Struct({ items: Schema.Array(Submission) }))
+      .addSuccess(pageResult(Submission))
       .annotateContext(
         OpenApi.annotations({
           title: "List submissions",

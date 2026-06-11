@@ -159,7 +159,10 @@ export const IosServiceCredentialsSection = ({
 
   const pushKey = findPushKey(pushKeysResult.items, firstConfig.applePushKeyId);
   const ascKey = findAscKey(ascKeysResult.items, firstConfig.ascApiKeyId);
-  const team = findTeam(teamsResult.items, firstConfig.appleTeamId);
+  // Push and ASC keys can belong to a different Apple Team than the bundle's
+  // signing team, so each key resolves its own team.
+  const pushTeam = pushKey === null ? null : findTeam(teamsResult.items, pushKey.appleTeamId);
+  const ascTeam = ascKey?.appleTeamId ? findTeam(teamsResult.items, ascKey.appleTeamId) : null;
 
   return (
     <section className="flex flex-col gap-4">
@@ -169,8 +172,8 @@ export const IosServiceCredentialsSection = ({
           Push notification key and App Store Connect API key for this bundle identifier.
         </p>
       </div>
-      <PushKeyTableCard pushKey={pushKey} team={team} />
-      <AscKeyTableCard ascKey={ascKey} team={team} />
+      <PushKeyTableCard pushKey={pushKey} team={pushTeam} />
+      <AscKeyTableCard ascKey={ascKey} team={ascTeam} />
     </section>
   );
 };

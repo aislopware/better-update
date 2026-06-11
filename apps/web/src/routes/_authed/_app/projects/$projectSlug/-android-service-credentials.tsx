@@ -102,27 +102,45 @@ export const AndroidServiceCredentialsSection = ({
   }
 
   const sortedGroups = sortGroupsByDefault(groupsResult.items);
+  // FCM keys are bound per credential group, so only collapse to a single
+  // card when every group resolves to the same key.
+  const distinctKeyIds = new Set(
+    sortedGroups.map((group) => group.googleServiceAccountKeyForFcmV1Id),
+  );
+  const sharedAcrossGroups = distinctKeyIds.size <= 1;
   const [defaultGroup] = sortedGroups;
-
-  const fcmSa =
-    defaultGroup === undefined
-      ? null
-      : findGsa(gsaResult.items, defaultGroup.googleServiceAccountKeyForFcmV1Id);
 
   return (
     <section className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
         <h2 className="font-heading text-base leading-none font-semibold">Service credentials</h2>
         <p className="text-muted-foreground text-sm">
-          FCM v1 service account for push notifications. Applied across all credential groups for
-          this application identifier.
+          FCM v1 service account for push notifications.
+          {sharedAcrossGroups
+            ? " Applied across all credential groups for this application identifier."
+            : " Bound per credential group for this application identifier."}
         </p>
       </div>
-      <GsaTableCard
-        title="FCM V1 service account key"
-        emptyLabel="No service account key configured for FCM v1 push notifications — bind one with the CLI."
-        sa={fcmSa}
-      />
+      {sharedAcrossGroups ? (
+        <GsaTableCard
+          title="FCM V1 service account key"
+          emptyLabel="No service account key configured for FCM v1 push notifications — bind one with the CLI."
+          sa={
+            defaultGroup === undefined
+              ? null
+              : findGsa(gsaResult.items, defaultGroup.googleServiceAccountKeyForFcmV1Id)
+          }
+        />
+      ) : (
+        sortedGroups.map((group) => (
+          <GsaTableCard
+            key={group.id}
+            title={`FCM V1 service account key — ${group.name}`}
+            emptyLabel="No service account key configured for FCM v1 push notifications — bind one with the CLI."
+            sa={findGsa(gsaResult.items, group.googleServiceAccountKeyForFcmV1Id)}
+          />
+        ))
+      )}
     </section>
   );
 };

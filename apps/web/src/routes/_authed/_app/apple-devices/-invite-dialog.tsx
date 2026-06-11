@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogPanel,
   DialogTitle,
+  DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
 import {
   Field,
@@ -322,15 +323,10 @@ export const InviteDeviceDialog = ({ orgId }: { orgId: string }) => {
         }
       }}
     >
-      <Button
-        variant="outline"
-        onClick={() => {
-          setOpen(true);
-        }}
-      >
+      <DialogTrigger render={<Button variant="outline" />}>
         <LinkIcon strokeWidth={2} data-icon="inline-start" />
         Invite link
-      </Button>
+      </DialogTrigger>
       <DialogPopup>
         <DialogHeader>
           <DialogTitle>{invite ? "Share invite link" : "Create invite link"}</DialogTitle>

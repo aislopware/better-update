@@ -2,10 +2,10 @@ import { Alert, AlertDescription, AlertTitle } from "@better-update/ui/component
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Card,
-  CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
+  CardPanel,
   CardTitle,
 } from "@better-update/ui/components/ui/card";
 import { createFileRoute, redirect } from "@tanstack/react-router";
@@ -36,13 +36,13 @@ const CliLoginPage = () => {
           <CardTitle>Connect CLI</CardTitle>
           <CardDescription>The browser login could not finish.</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardPanel>
           <Alert variant="error">
             <CircleAlertIcon />
             <AlertTitle>Login failed</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
-        </CardContent>
+        </CardPanel>
         <CardFooter>
           <Button
             variant="outline"

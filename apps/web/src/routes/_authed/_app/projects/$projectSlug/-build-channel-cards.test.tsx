@@ -196,7 +196,8 @@ describe("build and channel cards", () => {
     expect(screen.getByText("✓ 2 updates")).toBeInTheDocument();
     expect(screen.getByText("latest Canary release")).toBeInTheDocument();
     expect(screen.getByText("Missing matching builds")).toBeInTheDocument();
-    expect(screen.getByText("android v3.0.0")).toBeInTheDocument();
+    expect(screen.getByText("v3.0.0")).toBeInTheDocument();
+    expect(screen.getByText("1 updates but no uploaded build.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Release build" })).toHaveAttribute(
       "href",
       "/projects/my-app/builds/build-1",

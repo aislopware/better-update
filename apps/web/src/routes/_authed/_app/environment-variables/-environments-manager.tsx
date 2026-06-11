@@ -38,6 +38,7 @@ import { z } from "zod/v4";
 
 import type { EnvironmentItem } from "@better-update/api-client/react";
 
+import { SectionHeader } from "../../../../components/page-header";
 import { getFieldError } from "../../../../lib/form-utils";
 import { formatShortDateTime } from "../../../../lib/format-date";
 import { safeSubmit, useApiMutation } from "../../../../lib/use-api-mutation";
@@ -324,15 +325,11 @@ export const EnvironmentsManager = ({ orgId }: { orgId: string }) => {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <div className="flex flex-col gap-1">
-          <h2 className="text-lg font-semibold">Environments</h2>
-          <p className="text-muted-foreground text-sm">
-            The three built-ins are always available. Add your own to scope environment variables.
-          </p>
-        </div>
-        <CreateEnvironmentDialog orgId={orgId} />
-      </div>
+      <SectionHeader
+        title="Environments"
+        description="The three built-ins are always available. Add your own to scope environment variables."
+        actions={<CreateEnvironmentDialog orgId={orgId} />}
+      />
       <Frame>
         <Table variant="card">
           <TableHeader>
