@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.41.0](https://github.com/better-update/better-update/compare/@better-update/web@0.40.2...@better-update/web@0.41.0) (2026-06-11)
+
+### Features
+
+* **web:** redesign channel details page ([6c0bf8c](https://github.com/better-update/better-update/commit/6c0bf8c2f23e419e9f739e83235f21afefa3e1f0)) - by @trancong12102
+
 ## [0.40.2](https://github.com/better-update/better-update/compare/@better-update/web@0.40.1...@better-update/web@0.40.2) (2026-06-11)
 
 ### Bug Fixes
