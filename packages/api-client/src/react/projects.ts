@@ -42,6 +42,9 @@ export const channelsQueryKey = (orgId: string, projectId: string) =>
 export const updatesQueryKey = (orgId: string, projectId: string) =>
   ["org", orgId, "projects", projectId, "updates"] as const;
 
+export const runtimesQueryKey = (orgId: string, projectId: string) =>
+  ["org", orgId, "projects", projectId, "runtimes"] as const;
+
 export const updateAssetsQueryKey = (orgId: string, projectId: string, updateId: string) =>
   ["org", orgId, "projects", projectId, "updates", updateId, "assets"] as const;
 
@@ -117,6 +120,7 @@ export type BranchSort = typeof BranchSortSchema.Type;
 export interface BranchesFilters {
   readonly page?: number;
   readonly limit?: number;
+  readonly query?: string;
   readonly sort?: BranchSort;
 }
 
@@ -131,6 +135,7 @@ export const branchesQueryOptions = (orgId: string, projectId: string, filters?:
               projectId,
               page: filters?.page,
               limit: filters?.limit,
+              query: filters?.query,
               sort: filters?.sort,
             }),
           }),
@@ -145,6 +150,7 @@ export type ChannelSort = typeof ChannelSortSchema.Type;
 export interface ChannelsFilters {
   readonly page?: number;
   readonly limit?: number;
+  readonly query?: string;
   readonly sort?: ChannelSort;
 }
 
@@ -159,7 +165,31 @@ export const channelsQueryOptions = (orgId: string, projectId: string, filters?:
               projectId,
               page: filters?.page,
               limit: filters?.limit,
+              query: filters?.query,
               sort: filters?.sort,
+            }),
+          }),
+        signal,
+      ),
+    staleTime: 30_000,
+  });
+
+export interface RuntimesFilters {
+  readonly page?: number;
+  readonly limit?: number;
+}
+
+export const runtimesQueryOptions = (orgId: string, projectId: string, filters?: RuntimesFilters) =>
+  queryOptions({
+    queryKey: [...runtimesQueryKey(orgId, projectId), filters ?? {}],
+    queryFn: async ({ signal }) =>
+      runApi(
+        (api) =>
+          api.runtimes.list({
+            urlParams: compact({
+              projectId,
+              page: filters?.page,
+              limit: filters?.limit,
             }),
           }),
         signal,
@@ -174,6 +204,7 @@ export interface UpdatesFilters {
   readonly branchId?: string;
   readonly platform?: PlatformValue;
   readonly runtimeVersion?: string;
+  readonly query?: string;
   readonly page?: number;
   readonly limit?: number;
   readonly sort?: UpdateSort;
@@ -191,6 +222,7 @@ export const updatesQueryOptions = (orgId: string, projectId: string, filters?: 
               branchId: filters?.branchId,
               platform: filters?.platform,
               runtimeVersion: filters?.runtimeVersion,
+              query: filters?.query,
               page: filters?.page,
               limit: filters?.limit,
               sort: filters?.sort,

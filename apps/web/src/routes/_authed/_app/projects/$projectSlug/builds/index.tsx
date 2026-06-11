@@ -10,11 +10,17 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@better-update/ui/components/ui/input-group";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { keepPreviousData, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { PackageIcon, SearchXIcon } from "lucide-react";
+import { PackageIcon, SearchIcon, SearchXIcon } from "lucide-react";
 import { Suspense, useMemo } from "react";
 import { z } from "zod";
 
@@ -23,6 +29,7 @@ import type {
   BuildDistribution,
   BuildSortColumn,
 } from "@better-update/api-client/react";
+import type { ChangeEvent } from "react";
 
 import { CompatibilityMatrix } from "../-compatibility-matrix";
 import { ProjectSubpageHeader } from "../-project-subpage-header";
@@ -35,8 +42,10 @@ import {
   fireAndForget,
   optionalEnumParam,
   pageParam,
+  queryParam,
   sortParam,
   useDataTableSearch,
+  useDebouncedSearch,
 } from "../../../../../../lib/data-table";
 import { pluralize } from "../../../../../../lib/pluralize";
 import { buildBuildsColumns } from "./-builds-columns";
@@ -64,12 +73,15 @@ const DISTRIBUTIONS = [
 ] as const satisfies readonly BuildDistribution[];
 const AUDIENCES = ["internal", "store"] as const satisfies readonly BuildAudience[];
 
+const SEARCH_DEBOUNCE_MS = 300;
+
 const buildsSearchSchema = z.object({
   page: pageParam(),
   sort: sortParam(DEFAULT_SORT),
   platform: optionalEnumParam(PLATFORMS),
   distribution: optionalEnumParam(DISTRIBUTIONS),
   audience: optionalEnumParam(AUDIENCES),
+  query: queryParam(),
 });
 
 const BuildsEmptyState = () => (
@@ -91,7 +103,7 @@ const BuildsSkeleton = () => (
     <div className="flex items-center justify-between gap-2">
       <ProjectSubpageHeader title="Builds" />
     </div>
-    <TableSkeleton columns={8} rows={6} />
+    <TableSkeleton columns={9} rows={6} />
   </>
 );
 
@@ -104,12 +116,26 @@ const BuildsContent = () => {
   const { id: projectId, slug: projectSlug } = project;
   const routeNavigate = Route.useNavigate();
 
-  const { page, sort, platform, distribution, audience } = Route.useSearch();
+  const { page, sort, platform, distribution, audience, query: urlQuery } = Route.useSearch();
   const { sorting, apiSort, onSortingChange, onPageChange } = useDataTableSearch({
     sortColumns: SORT_COLUMNS,
     defaultSort: DEFAULT_SORT,
     sort,
     navigate: routeNavigate,
+  });
+
+  const { draft: searchDraft, setDraft: handleSearchChange } = useDebouncedSearch({
+    initial: urlQuery,
+    delayMs: SEARCH_DEBOUNCE_MS,
+    onCommit: (value) => {
+      fireAndForget(
+        routeNavigate({
+          to: ".",
+          search: (prev) => ({ ...prev, query: value, page: 1 }),
+          replace: true,
+        }),
+      );
+    },
   });
 
   const handlePlatformChange = (next: "ios" | "android" | undefined) => {
@@ -147,6 +173,7 @@ const BuildsContent = () => {
       ...(platform ? { platform } : {}),
       ...(distribution ? { distribution } : {}),
       ...(audience ? { audience } : {}),
+      ...(urlQuery ? { query: urlQuery } : {}),
       sort: apiSort,
     }),
     placeholderData: keepPreviousData,
@@ -189,15 +216,16 @@ const BuildsContent = () => {
         {error ? (
           <QueryErrorState error={error} onRetry={refetch} />
         ) : (
-          <TableSkeleton columns={8} rows={6} />
+          <TableSkeleton columns={9} rows={6} />
         )}
       </div>
     );
   }
 
-  const filtersActive = Boolean(platform) || Boolean(distribution) || Boolean(audience);
+  const filtersActive =
+    Boolean(platform) || Boolean(distribution) || Boolean(audience) || urlQuery.length > 0;
 
-  if (data.total === 0 && !filtersActive) {
+  if (data.total === 0 && !filtersActive && searchDraft.length === 0) {
     return (
       <div className="flex w-full flex-col gap-4">
         <div className="flex items-center justify-between gap-2">
@@ -229,6 +257,25 @@ const BuildsContent = () => {
         matrix={matrix}
         missingRuntimeVersions={matrix.missingRuntimeVersions}
       />
+      <InputGroup>
+        <InputGroupAddon>
+          <SearchIcon aria-hidden="true" />
+        </InputGroupAddon>
+        <InputGroupInput
+          aria-label="Search builds"
+          placeholder="Search by message, commit or branch…"
+          type="search"
+          value={searchDraft}
+          onChange={(event: ChangeEvent<HTMLInputElement>) => {
+            handleSearchChange(event.target.value);
+          }}
+        />
+        {isPlaceholderData ? (
+          <InputGroupAddon align="inline-end">
+            <Spinner />
+          </InputGroupAddon>
+        ) : null}
+      </InputGroup>
       {data.total === 0 ? (
         <Card>
           <Empty>

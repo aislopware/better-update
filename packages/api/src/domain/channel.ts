@@ -21,6 +21,7 @@ export const ChannelSort = sortParam(ChannelSortColumn);
 export const ListChannelsParams = Schema.Struct({
   projectId: Id,
   ...PaginationParams.fields,
+  query: Schema.optional(Schema.String),
   sort: Schema.optional(ChannelSort),
 });
 

@@ -8,8 +8,9 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { DeleteBuildDialog } from "../-delete-build-dialog";
 import { InstallLinkDialog } from "../-install-link-dialog";
 import { DistributionBadge, PlatformBadge } from "../../../../../../components/attribute-badges";
+import { CopyableId } from "../../../../../../lib/copy-button";
 import { formatBytes } from "../../../../../../lib/format-bytes";
-import { formatRelativeTime } from "../../../../../../lib/format-relative-time";
+import { RelativeTime } from "../../../../../../lib/relative-time";
 
 export type BuildItem = BuildWithArtifact;
 
@@ -72,7 +73,7 @@ export const buildBuildsColumns = (
         <div className="flex flex-col gap-0.5">
           <span className="truncate font-medium">{buildLabel(row.original)}</span>
           <div className="text-muted-foreground flex flex-wrap items-center gap-2 font-mono text-xs">
-            <code className="truncate">{row.original.id.slice(0, 8)}</code>
+            <CopyableId value={row.original.id} label="Build ID" />
             {row.original.bundleId ? (
               <span className="truncate">{row.original.bundleId}</span>
             ) : null}
@@ -149,7 +150,7 @@ export const buildBuildsColumns = (
     id: "createdAt",
     accessorKey: "createdAt",
     header: "Created",
-    cell: ({ row }) => formatRelativeTime(row.original.createdAt),
+    cell: ({ row }) => <RelativeTime value={row.original.createdAt} />,
     enableSorting: true,
     meta: { align: "right", muted: true },
   },

@@ -13,8 +13,8 @@ import { useState } from "react";
 import type { PolicyItem } from "@better-update/api-client/react";
 import type { ColumnDef } from "@tanstack/react-table";
 
-import { formatRelativeTime } from "../../../../lib/format-relative-time";
 import { isManagedPolicy } from "../../../../lib/policy";
+import { RelativeTime } from "../../../../lib/relative-time";
 import { DeletePolicyDialog } from "./-delete-policy-dialog";
 import { PolicyFormDialog } from "./-policy-form-dialog";
 import { PolicyViewDialog } from "./-policy-view-dialog";
@@ -130,7 +130,7 @@ export const buildPolicyColumns = (orgId: string): readonly ColumnDef<PolicyItem
       isManagedPolicy(row.original.id) ? (
         <span className="text-muted-foreground text-sm">Built-in</span>
       ) : (
-        formatRelativeTime(row.original.createdAt)
+        <RelativeTime value={row.original.createdAt} />
       ),
     enableSorting: true,
     meta: { align: "right", muted: true },
@@ -139,10 +139,10 @@ export const buildPolicyColumns = (orgId: string): readonly ColumnDef<PolicyItem
     id: "updatedAt",
     header: "Updated",
     cell: ({ row }) =>
-      isManagedPolicy(row.original.id) || row.original.updatedAt === null ? (
+      isManagedPolicy(row.original.id) ? (
         <span className="text-muted-foreground text-sm">—</span>
       ) : (
-        formatRelativeTime(row.original.updatedAt)
+        <RelativeTime value={row.original.updatedAt} />
       ),
     enableSorting: false,
     meta: { align: "right", muted: true },

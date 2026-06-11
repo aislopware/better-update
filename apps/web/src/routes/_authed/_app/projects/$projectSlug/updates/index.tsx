@@ -11,15 +11,22 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@better-update/ui/components/ui/input-group";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { keepPreviousData, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { CloudUploadIcon, SearchXIcon } from "lucide-react";
+import { CloudUploadIcon, SearchIcon, SearchXIcon } from "lucide-react";
 import { Suspense, useMemo } from "react";
 import { z } from "zod";
 
 import type { UpdateSortColumn } from "@better-update/api-client/react";
+import type { ChangeEvent } from "react";
 
 import { CompareUpdatesDialog } from "../-compare-updates-dialog";
 import { ProjectSubpageHeader } from "../-project-subpage-header";
@@ -33,8 +40,10 @@ import {
   optionalEnumParam,
   optionalStringParam,
   pageParam,
+  queryParam,
   sortParam,
   useDataTableSearch,
+  useDebouncedSearch,
 } from "../../../../../../lib/data-table";
 import { pluralize } from "../../../../../../lib/pluralize";
 import { DROPDOWN_FETCH_LIMIT } from "../../../../../../queries/constants";
@@ -52,11 +61,14 @@ const DEFAULT_SORT = "-createdAt" as const;
 
 const PLATFORMS = ["ios", "android"] as const;
 
+const SEARCH_DEBOUNCE_MS = 300;
+
 const updatesSearchSchema = z.object({
   page: pageParam(),
   sort: sortParam(DEFAULT_SORT),
   platform: optionalEnumParam(PLATFORMS),
   branchId: optionalStringParam(),
+  query: queryParam(),
 });
 
 const UpdatesEmptyState = () => (
@@ -78,7 +90,7 @@ const UpdatesSkeleton = () => (
     <div className="flex items-center justify-between gap-2">
       <ProjectSubpageHeader title="Updates" />
     </div>
-    <TableSkeleton columns={7} rows={6} />
+    <TableSkeleton columns={8} rows={6} />
   </>
 );
 
@@ -90,6 +102,7 @@ interface UseUpdatesDataArgs {
   readonly apiSort: (typeof SORT_COLUMNS)[number] | `-${(typeof SORT_COLUMNS)[number]}`;
   readonly branchId: string | undefined;
   readonly platform: "ios" | "android" | undefined;
+  readonly query: string;
 }
 
 const useUpdatesData = ({
@@ -100,6 +113,7 @@ const useUpdatesData = ({
   apiSort,
   branchId,
   platform,
+  query,
 }: UseUpdatesDataArgs) => {
   const updatesQuery = useQuery({
     ...updatesQueryOptions(orgId, projectId, {
@@ -107,6 +121,7 @@ const useUpdatesData = ({
       limit: PAGE_SIZE,
       ...(branchId ? { branchId } : {}),
       ...(platform ? { platform } : {}),
+      ...(query ? { query } : {}),
       sort: apiSort,
     }),
     placeholderData: keepPreviousData,
@@ -137,12 +152,26 @@ const UpdatesContent = () => {
   const { id: projectId, slug } = project;
   const routeNavigate = Route.useNavigate();
 
-  const { page, sort, platform, branchId } = Route.useSearch();
+  const { page, sort, platform, branchId, query: urlQuery } = Route.useSearch();
   const { sorting, apiSort, onSortingChange, onPageChange } = useDataTableSearch({
     sortColumns: SORT_COLUMNS,
     defaultSort: DEFAULT_SORT,
     sort,
     navigate: routeNavigate,
+  });
+
+  const { draft: searchDraft, setDraft: handleSearchChange } = useDebouncedSearch({
+    initial: urlQuery,
+    delayMs: SEARCH_DEBOUNCE_MS,
+    onCommit: (value) => {
+      fireAndForget(
+        routeNavigate({
+          to: ".",
+          search: (prev) => ({ ...prev, query: value, page: 1 }),
+          replace: true,
+        }),
+      );
+    },
   });
 
   const handleBranchFilter = (next: string | undefined) => {
@@ -171,6 +200,7 @@ const UpdatesContent = () => {
     apiSort,
     branchId,
     platform,
+    query: urlQuery,
   });
 
   const { data, error, isPlaceholderData, isLoading, refetch } = updatesQuery;
@@ -214,15 +244,15 @@ const UpdatesContent = () => {
         {error ? (
           <QueryErrorState error={error} onRetry={refetch} />
         ) : (
-          <TableSkeleton columns={7} rows={6} />
+          <TableSkeleton columns={8} rows={6} />
         )}
       </div>
     );
   }
 
-  const filtersActive = Boolean(branchId) || Boolean(platform);
+  const filtersActive = Boolean(branchId) || Boolean(platform) || urlQuery.length > 0;
 
-  if (data.total === 0 && !filtersActive) {
+  if (data.total === 0 && !filtersActive && searchDraft.length === 0) {
     return (
       <div className="flex w-full flex-col gap-4">
         <div className="flex items-center justify-between gap-2">
@@ -252,6 +282,25 @@ const UpdatesContent = () => {
         <ProjectSubpageHeader title="Updates" />
         <div className="flex flex-wrap items-center gap-2">{filterControls}</div>
       </div>
+      <InputGroup>
+        <InputGroupAddon>
+          <SearchIcon aria-hidden="true" />
+        </InputGroupAddon>
+        <InputGroupInput
+          aria-label="Search updates"
+          placeholder="Search by message or commit…"
+          type="search"
+          value={searchDraft}
+          onChange={(event: ChangeEvent<HTMLInputElement>) => {
+            handleSearchChange(event.target.value);
+          }}
+        />
+        {isPlaceholderData ? (
+          <InputGroupAddon align="inline-end">
+            <Spinner />
+          </InputGroupAddon>
+        ) : null}
+      </InputGroup>
       {data.total === 0 ? (
         <Card>
           <Empty>

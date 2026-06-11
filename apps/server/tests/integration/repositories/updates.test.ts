@@ -34,6 +34,7 @@ const seedUpdate = (params: {
   readonly message: string;
   readonly rolloutPercentage?: number;
   readonly fingerprintHash?: string | null;
+  readonly gitCommit?: string | null;
   readonly assets: readonly UpdateAssetRefModel[];
 }) =>
   run(
@@ -54,7 +55,7 @@ const seedUpdate = (params: {
         manifestBody: null,
         directiveBody: null,
         fingerprintHash: toDbNull(params.fingerprintHash),
-        gitCommit: null,
+        gitCommit: toDbNull(params.gitCommit),
         gitDirty: false,
         assets: params.assets,
       });
@@ -193,6 +194,48 @@ describe("UpdateRepo — Kysely read/aggregate/delete paths (real D1)", () => {
     expect(ios.total).toBe(2);
     expect(ios.items).toHaveLength(1);
     expect(ios.items[0]?.platform).toBe("ios");
+  });
+
+  it("findByProject searches message and git commit case-insensitively, totals respecting it", async () => {
+    await seedUpdate({
+      branchId,
+      groupId: `grp-search-${suffix}`,
+      platform: "ios",
+      runtimeVersion: "1.0.0",
+      message: "search-needle",
+      gitCommit: "AbCdEf1234567890",
+      assets: [{ key: "bundle", hash: launchHash, isLaunch: true }],
+    });
+
+    const search = (query: string) =>
+      run(
+        Effect.gen(function* () {
+          const repo = yield* UpdateRepo;
+          return yield* repo.findByProject({
+            projectId,
+            query,
+            sort: "createdAt",
+            order: "desc",
+            limit: 50,
+            offset: 0,
+          });
+        }),
+      );
+
+    const byMessage = await search("NEEDLE");
+    expect(byMessage.total).toBe(1);
+    expect(byMessage.items[0]?.message).toBe("search-needle");
+
+    const byCommit = await search("abcdef12");
+    expect(byCommit.total).toBe(1);
+    expect(byCommit.items[0]?.message).toBe("search-needle");
+
+    // The other-project row's message must not leak through the search path.
+    const crossProject = await search("other-project");
+    expect(crossProject.total).toBe(0);
+
+    const noMatch = await search("zzz-no-such");
+    expect(noMatch.total).toBe(0);
   });
 
   it("findByGroupId returns every update in the group", async () => {

@@ -30,9 +30,12 @@ const seedBuild = (params: {
   readonly id: string;
   readonly projectId: string;
   readonly createdAt: string;
+  readonly message?: string;
+  readonly gitCommit?: string;
+  readonly gitRef?: string;
 }) =>
   env.DB.prepare(
-    `INSERT INTO "builds" ("id", "project_id", "platform", "profile", "distribution", "runtime_version", "app_version", "bundle_id", "message", "metadata_json", "created_at") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO "builds" ("id", "project_id", "platform", "profile", "distribution", "runtime_version", "app_version", "bundle_id", "git_ref", "git_commit", "message", "metadata_json", "created_at") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
     .bind(
       params.id,
@@ -43,7 +46,9 @@ const seedBuild = (params: {
       "1.0.0",
       "1.2.3",
       "com.example.app",
-      "Seed build",
+      params.gitRef ?? null,
+      params.gitCommit ?? null,
+      params.message ?? "Seed build",
       "{}",
       params.createdAt,
     )
@@ -95,11 +100,29 @@ beforeAll(async () => {
   await insertOrg("org-build");
   await insertProject("p-list", "org-build");
   await insertProject("p-mut", "org-build");
+  await insertProject("p-search", "org-build");
   // Two builds, oldest first; `bl-new` is the newer one.
   await seedBuild({ id: "bl-old", projectId: "p-list", createdAt: "2024-01-02T00:00:00Z" });
   await seedBuild({ id: "bl-new", projectId: "p-list", createdAt: "2024-01-04T00:00:00Z" });
   await seedArtifact("bl-old", "builds/bl-old.ipa");
   await seedArtifact("bl-new", "builds/bl-new.ipa");
+  // Search fixtures: distinct message / git commit / git ref per build.
+  await seedBuild({
+    id: "bs-login",
+    projectId: "p-search",
+    createdAt: "2024-01-02T00:00:00Z",
+    message: "Fix Login crash",
+    gitCommit: "A1b2C3d4E5",
+    gitRef: "feature/login-form",
+  });
+  await seedBuild({
+    id: "bs-deps",
+    projectId: "p-search",
+    createdAt: "2024-01-03T00:00:00Z",
+    message: "Bump deps",
+    gitCommit: "ffeeddcc00",
+    gitRef: "main",
+  });
 });
 
 // ── Tests ─────────────────────────────────────────────────────────
@@ -121,6 +144,40 @@ describe("BuildRepo — D1 integration (Kysely + LEFT JOIN)", () => {
 
     expect(page.total).toBe(2);
     expect(page.items.map((b) => b.id)).toEqual(["bl-new", "bl-old"]);
+  });
+
+  it("lists builds matching a case-insensitive message/commit/ref search, totals respecting it", async () => {
+    const search = (query: string) =>
+      run(
+        Effect.gen(function* () {
+          const repo = yield* BuildRepo;
+          return yield* repo.list({
+            projectId: "p-search",
+            query,
+            sort: "createdAt",
+            order: "desc",
+            limit: 10,
+            offset: 0,
+          });
+        }),
+      );
+
+    // "login" hits bs-login twice (message + git ref) but must surface once.
+    const byMessage = await search("LOGIN");
+    expect(byMessage.total).toBe(1);
+    expect(byMessage.items.map((b) => b.id)).toEqual(["bs-login"]);
+
+    const byCommit = await search("a1b2c3");
+    expect(byCommit.total).toBe(1);
+    expect(byCommit.items.map((b) => b.id)).toEqual(["bs-login"]);
+
+    const byRef = await search("main");
+    expect(byRef.total).toBe(1);
+    expect(byRef.items.map((b) => b.id)).toEqual(["bs-deps"]);
+
+    const noMatch = await search("zzz-no-such");
+    expect(noMatch.total).toBe(0);
+    expect(noMatch.items).toHaveLength(0);
   });
 
   it("findById returns the build joined with its artifact", async () => {

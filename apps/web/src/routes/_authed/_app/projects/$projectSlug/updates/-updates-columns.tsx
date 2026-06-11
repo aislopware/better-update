@@ -6,8 +6,9 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { UpdateActionButtons } from "../-update-action-buttons";
 import { readUpdateEnvironment } from "../-update-helpers";
 import { EnvironmentBadge, PlatformBadge } from "../../../../../../components/attribute-badges";
+import { CopyableId } from "../../../../../../lib/copy-button";
 import { formatBytes } from "../../../../../../lib/format-bytes";
-import { formatRelativeTime } from "../../../../../../lib/format-relative-time";
+import { RelativeTime } from "../../../../../../lib/relative-time";
 
 export type UpdateItem = Update;
 export type ChannelItem = Channel;
@@ -34,7 +35,7 @@ export const buildUpdateColumns = (
             ) : null}
           </div>
           <div className="text-muted-foreground flex items-center gap-2 font-mono text-xs">
-            <code className="truncate">{row.original.groupId.slice(0, 8)}</code>
+            <CopyableId value={row.original.groupId} label="Update group ID" />
             {row.original.gitCommit ? (
               <span className="shrink-0">
                 {row.original.gitCommit.slice(0, 7)}
@@ -87,7 +88,7 @@ export const buildUpdateColumns = (
     id: "createdAt",
     accessorKey: "createdAt",
     header: "Created",
-    cell: ({ row }) => formatRelativeTime(row.original.createdAt),
+    cell: ({ row }) => <RelativeTime value={row.original.createdAt} />,
     enableSorting: true,
     meta: { align: "right", muted: true },
   },

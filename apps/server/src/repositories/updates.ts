@@ -1,13 +1,12 @@
 import { Context, Effect, Layer } from "effect";
 
-import type { Expression, SqlBool } from "kysely";
-
 import { d1Batch, kyselyDb } from "../cloudflare/db";
 import { publishCreatedAt } from "../domain/signed-update-recency";
 import { Conflict, NotFound } from "../errors";
 import { toDbNull } from "../lib/nullable";
 import { fetchUpdatesByIds } from "./update-fetch-sql";
 import { queryLatestLaunchAssetHash, queryLatestServedRow } from "./update-latest-sql";
+import { queryUpdatesByProject } from "./update-list-sql";
 import { queryPatchBases } from "./update-patch-base-sql";
 import {
   queryAssetHashesForUpdates,
@@ -21,12 +20,7 @@ import {
   runDeleteGroup,
   runDeleteUpdateRows,
 } from "./update-reaper-sql";
-import {
-  buildUpdateInsertStatements,
-  selectUpdateRow,
-  toUpdate,
-  updateSortColumns,
-} from "./update-row-mapping";
+import { buildUpdateInsertStatements, selectUpdateRow, toUpdate } from "./update-row-mapping";
 
 import type { Platform, UpdateAssetRefModel, UpdateModel } from "../models";
 import type { LatestServedRow, LatestTupleParams } from "./update-latest-sql";
@@ -100,6 +94,7 @@ export interface UpdateRepository extends UpdateReaperQueries {
     readonly branchId?: string;
     readonly platform?: Platform;
     readonly runtimeVersion?: string;
+    readonly query?: string;
     readonly sort: UpdateSortKey;
     readonly order: UpdateSortOrder;
     readonly limit: number;
@@ -281,53 +276,7 @@ export const UpdateRepoLive = Layer.succeed(UpdateRepo, {
     }),
 
   findByProject: (params) =>
-    Effect.gen(function* () {
-      const db = yield* kyselyDb;
-
-      // SECURITY: project scope is enforced by the branch subquery; the optional
-      // filters are bound parameters, never interpolated. They are collected into
-      // a conditions array applied once (no reassignment) so the query stays a
-      // single `const`.
-      const filtered = db
-        .selectFrom("updates")
-        .where("updates.branch_id", "in", (eb) =>
-          eb
-            .selectFrom("branches")
-            .select("branches.id")
-            .where("branches.project_id", "=", params.projectId),
-        )
-        .where((eb) => {
-          const conditions: Expression<SqlBool>[] = [];
-          if (params.branchId !== undefined) {
-            conditions.push(eb("updates.branch_id", "=", params.branchId));
-          }
-          if (params.platform !== undefined) {
-            conditions.push(eb("updates.platform", "=", params.platform));
-          }
-          if (params.runtimeVersion !== undefined) {
-            conditions.push(eb("updates.runtime_version", "=", params.runtimeVersion));
-          }
-          return eb.and(conditions);
-        });
-
-      const direction = params.order === "asc" ? "asc" : "desc";
-
-      const countRow = yield* Effect.promise(async () =>
-        filtered.select((eb) => eb.fn.countAll<number>().as("count")).executeTakeFirstOrThrow(),
-      );
-      const total = countRow.count;
-
-      const rows = yield* Effect.promise(async () =>
-        selectUpdateRow(filtered)
-          .orderBy(updateSortColumns[params.sort], direction)
-          .orderBy("updates.id", direction)
-          .limit(params.limit)
-          .offset(params.offset)
-          .execute(),
-      );
-
-      return { items: rows.map(toUpdate), total };
-    }),
+    kyselyDb.pipe(Effect.flatMap((db) => queryUpdatesByProject(db, params))),
 
   findById: (params) =>
     Effect.gen(function* () {

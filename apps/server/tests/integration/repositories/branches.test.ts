@@ -134,6 +134,72 @@ describe("BranchRepo — D1 integration (Kysely + session)", () => {
     expect(result.items[1]?.updateCount).toBe(0);
   });
 
+  describe("findByProject query search (LIKE)", () => {
+    const seedSearchBranches = async () => {
+      const suffix = crypto.randomUUID();
+      const orgId = `org-${suffix}`;
+      const projectId = `proj-${suffix}`;
+
+      await insertOrg(orgId);
+      await insertProject(projectId, orgId);
+      await insertBranch(`branch-prod-${suffix}`, projectId, "Production", "2024-01-02T00:00:00Z");
+      await insertBranch(
+        `branch-preview-${suffix}`,
+        projectId,
+        "preview-feature",
+        "2024-01-03T00:00:00Z",
+      );
+      await insertBranch(`branch-dev-${suffix}`, projectId, "development", "2024-01-04T00:00:00Z");
+
+      return { suffix, projectId };
+    };
+
+    const findWithQuery = (projectId: string, query: string, limit = 20) =>
+      run(
+        Effect.gen(function* () {
+          const repo = yield* BranchRepo;
+          return yield* repo.findByProject({
+            projectId,
+            query,
+            sort: "createdAt",
+            order: "asc",
+            limit,
+            offset: 0,
+          });
+        }),
+      );
+
+    test("matches name substring case-insensitively", async () => {
+      const { projectId } = await seedSearchBranches();
+
+      const result = await findWithQuery(projectId, "PROD");
+
+      expect(result.total).toBe(1);
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0]?.name).toBe("Production");
+    });
+
+    test("total respects the filter when the page is smaller than the match set", async () => {
+      const { projectId } = await seedSearchBranches();
+
+      // "ev" matches both "preview-feature" and "development".
+      const result = await findWithQuery(projectId, "ev", 1);
+
+      expect(result.total).toBe(2);
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0]?.name).toBe("preview-feature");
+    });
+
+    test("returns empty when no branch matches", async () => {
+      const { projectId } = await seedSearchBranches();
+
+      const result = await findWithQuery(projectId, "doesnotexist");
+
+      expect(result.total).toBe(0);
+      expect(result.items).toHaveLength(0);
+    });
+  });
+
   test("findById returns NotFound when the branch is absent", async () => {
     const result = await runEither(
       Effect.gen(function* () {

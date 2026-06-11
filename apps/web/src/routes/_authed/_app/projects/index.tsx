@@ -43,9 +43,8 @@ import {
   useDebouncedSearch,
 } from "../../../../lib/data-table";
 import { EntityAvatar } from "../../../../lib/entity-avatar";
-import { formatShortDateTime } from "../../../../lib/format-date";
-import { formatRelativeTime } from "../../../../lib/format-relative-time";
 import { pluralize } from "../../../../lib/pluralize";
+import { RelativeTime } from "../../../../lib/relative-time";
 import { CreateProjectDialog } from "./-create-dialog";
 
 const SEARCH_DEBOUNCE_MS = 300;
@@ -115,7 +114,7 @@ const ActivityCell = ({ project }: { project: ProjectItem }) => (
       aria-hidden="true"
       className={cn("size-1.5 rounded-full", getActivityDotColor(project.lastActivityAt))}
     />
-    Active {formatRelativeTime(project.lastActivityAt)}
+    Active <RelativeTime value={project.lastActivityAt} />
   </Badge>
 );
 
@@ -161,8 +160,8 @@ const columns: readonly ColumnDef<ProjectItem>[] = [
   {
     id: "createdAt",
     accessorKey: "createdAt",
-    header: "Created at",
-    cell: ({ row }) => formatShortDateTime(row.original.createdAt),
+    header: "Created",
+    cell: ({ row }) => <RelativeTime value={row.original.createdAt} />,
     enableSorting: true,
     meta: { align: "right", muted: true },
   },

@@ -14,6 +14,12 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@better-update/ui/components/ui/input-group";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { toastManager } from "@better-update/ui/components/ui/toast";
 import {
   keepPreviousData,
@@ -24,13 +30,21 @@ import {
 import { createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { GitBranchIcon, PauseIcon, PlayIcon, SatelliteIcon } from "lucide-react";
+import {
+  GitBranchIcon,
+  PauseIcon,
+  PlayIcon,
+  SatelliteIcon,
+  SearchIcon,
+  SearchXIcon,
+} from "lucide-react";
 import { Suspense, useMemo } from "react";
 import { z } from "zod";
 
 import type { Channel } from "@better-update/api";
 import type { BranchItem, ChannelSortColumn } from "@better-update/api-client/react";
 import type { ColumnDef } from "@tanstack/react-table";
+import type { ChangeEvent } from "react";
 
 import { parseRolloutState } from "../-channel-rollout-state";
 import { CreateChannelDialog } from "../-create-channel-dialog";
@@ -39,20 +53,26 @@ import { ProjectSubpageHeader } from "../-project-subpage-header";
 import { invalidateChannels as invalidateChannelsHelper } from "../-update-helpers";
 import { QueryErrorState } from "../../../../../../components/query-error-state";
 import { TableSkeleton } from "../../../../../../components/skeletons";
+import { CopyableId } from "../../../../../../lib/copy-button";
 import {
   DataTableView,
   PAGE_SIZE,
   computePagination,
+  fireAndForget,
   pageParam,
+  queryParam,
   sortParam,
   useDataTableSearch,
+  useDebouncedSearch,
 } from "../../../../../../lib/data-table";
-import { formatRelativeTime } from "../../../../../../lib/format-relative-time";
 import { pluralize } from "../../../../../../lib/pluralize";
+import { RelativeTime } from "../../../../../../lib/relative-time";
 import { useApiMutation } from "../../../../../../lib/use-api-mutation";
 import { DROPDOWN_FETCH_LIMIT } from "../../../../../../queries/constants";
 
 type ChannelItem = Channel;
+
+const SEARCH_DEBOUNCE_MS = 300;
 
 const SORT_COLUMNS = ["name", "createdAt"] as const satisfies readonly ChannelSortColumn[];
 
@@ -61,6 +81,7 @@ const DEFAULT_SORT = "-createdAt" as const;
 const channelsSearchSchema = z.object({
   page: pageParam(),
   sort: sortParam(DEFAULT_SORT),
+  query: queryParam(),
 });
 
 const ChannelsEmptyState = () => (
@@ -169,7 +190,7 @@ const buildColumns = (
       return (
         <span className="inline-flex items-center gap-1.5">
           <GitBranchIcon strokeWidth={2} className="text-muted-foreground size-3.5" />
-          {branch?.name ?? row.original.branchId}
+          {branch ? branch.name : <CopyableId value={row.original.branchId} label="Branch ID" />}
         </span>
       );
     },
@@ -185,7 +206,7 @@ const buildColumns = (
     id: "createdAt",
     accessorKey: "createdAt",
     header: "Created",
-    cell: ({ row }) => formatRelativeTime(row.original.createdAt),
+    cell: ({ row }) => <RelativeTime value={row.original.createdAt} />,
     enableSorting: true,
     meta: { align: "right", muted: true },
   },
@@ -219,7 +240,7 @@ const ChannelsContent = () => {
   const projectSlug = project.slug;
   const routeNavigate = Route.useNavigate();
 
-  const { page, sort } = Route.useSearch();
+  const { page, sort, query: urlQuery } = Route.useSearch();
   const { sorting, apiSort, onSortingChange, onPageChange } = useDataTableSearch({
     sortColumns: SORT_COLUMNS,
     defaultSort: DEFAULT_SORT,
@@ -227,10 +248,25 @@ const ChannelsContent = () => {
     navigate: routeNavigate,
   });
 
+  const { draft: searchDraft, setDraft: handleSearchChange } = useDebouncedSearch({
+    initial: urlQuery,
+    delayMs: SEARCH_DEBOUNCE_MS,
+    onCommit: (value) => {
+      fireAndForget(
+        routeNavigate({
+          to: ".",
+          search: (prev) => ({ ...prev, query: value, page: 1 }),
+          replace: true,
+        }),
+      );
+    },
+  });
+
   const { data, error, isPlaceholderData, isLoading, refetch } = useQuery({
     ...channelsQueryOptions(orgId, projectId, {
       page,
       limit: PAGE_SIZE,
+      ...(urlQuery ? { query: urlQuery } : {}),
       sort: apiSort,
     }),
     placeholderData: keepPreviousData,
@@ -276,7 +312,10 @@ const ChannelsContent = () => {
     );
   }
 
-  if (data.total === 0) {
+  const showsFilteredEmpty = data.total === 0 && urlQuery.length > 0;
+  const showsGlobalEmpty = data.total === 0 && urlQuery.length === 0 && searchDraft.length === 0;
+
+  if (showsGlobalEmpty) {
     return (
       <div className="flex w-full flex-col gap-4">
         <div className="flex items-center justify-between">
@@ -294,7 +333,9 @@ const ChannelsContent = () => {
     page,
   );
 
-  const countLabel = `${fromIndex}–${toIndex} of ${data.total} ${pluralize(data.total, "channel")}`;
+  const countLabel = `${fromIndex}–${toIndex} of ${data.total} ${pluralize(data.total, "channel")}${
+    urlQuery ? " (filtered)" : ""
+  }`;
 
   return (
     <div className="flex w-full flex-col gap-4">
@@ -302,21 +343,56 @@ const ChannelsContent = () => {
         <ProjectSubpageHeader title="Channels" />
         {createCta}
       </div>
-      <DataTableView
-        table={table}
-        columnsCount={columns.length}
-        isPlaceholderData={isPlaceholderData}
-        countLabel={countLabel}
-        safePage={safePage}
-        totalPages={totalPages}
-        onPageChange={onPageChange}
-        onRowClick={async (channel) => {
-          await routeNavigate({
-            to: "/projects/$projectSlug/channels/$channelId",
-            params: { projectSlug, channelId: channel.id },
-          });
-        }}
-      />
+      <div className="flex flex-col gap-3">
+        <InputGroup>
+          <InputGroupAddon>
+            <SearchIcon aria-hidden="true" />
+          </InputGroupAddon>
+          <InputGroupInput
+            aria-label="Search channels"
+            placeholder="Search channels…"
+            type="search"
+            value={searchDraft}
+            onChange={(event: ChangeEvent<HTMLInputElement>) => {
+              handleSearchChange(event.target.value);
+            }}
+          />
+          {isPlaceholderData ? (
+            <InputGroupAddon align="inline-end">
+              <Spinner />
+            </InputGroupAddon>
+          ) : null}
+        </InputGroup>
+        {showsFilteredEmpty ? (
+          <Card>
+            <Empty>
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <SearchXIcon strokeWidth={1.5} />
+                </EmptyMedia>
+                <EmptyTitle>No channels match your search</EmptyTitle>
+                <EmptyDescription>Try a different keyword or clear the search.</EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          </Card>
+        ) : (
+          <DataTableView
+            table={table}
+            columnsCount={columns.length}
+            isPlaceholderData={isPlaceholderData}
+            countLabel={countLabel}
+            safePage={safePage}
+            totalPages={totalPages}
+            onPageChange={onPageChange}
+            onRowClick={async (channel) => {
+              await routeNavigate({
+                to: "/projects/$projectSlug/channels/$channelId",
+                params: { projectSlug, channelId: channel.id },
+              });
+            }}
+          />
+        )}
+      </div>
     </div>
   );
 };

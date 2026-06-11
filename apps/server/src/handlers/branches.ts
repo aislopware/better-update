@@ -84,6 +84,7 @@ export const BranchesGroupLive = HttpApiBuilder.group(ManagementApi, "branches",
 
           const { items, total } = yield* repo.findByProject({
             projectId: urlParams.projectId,
+            ...(urlParams.query ? { query: urlParams.query } : {}),
             sort,
             order,
             limit,

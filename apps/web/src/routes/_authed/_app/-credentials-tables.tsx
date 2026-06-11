@@ -33,7 +33,8 @@ import type {
 
 import { CopyableMono } from "../../../lib/copy-button";
 import { STATUS_BADGE_VARIANT, deriveExpiryStatus } from "../../../lib/credential-status";
-import { formatShortDate, formatShortDateTime } from "../../../lib/format-date";
+import { formatShortDate } from "../../../lib/format-date";
+import { RelativeTime } from "../../../lib/relative-time";
 import { RolesCell, TeamCell } from "./-credential-cells";
 import { formatAppleTeamLabel, formatAppleTeamType } from "./-credentials-utils";
 
@@ -69,7 +70,7 @@ export const DistributionCertificatesTable = ({
         <TableHead>Developer ID</TableHead>
         <TableHead>Status</TableHead>
         <TableHead>Valid until</TableHead>
-        <TableHead>Uploaded at</TableHead>
+        <TableHead>Uploaded</TableHead>
       </TableRow>
     </TableHeader>
     <TableBody>
@@ -91,7 +92,7 @@ export const DistributionCertificatesTable = ({
             </TableCell>
             <TableCell>{formatShortDate(cert.validUntil)}</TableCell>
             <TableCell className="text-muted-foreground">
-              {formatShortDateTime(cert.createdAt)}
+              <RelativeTime value={cert.createdAt} />
             </TableCell>
           </TableRow>
         );
@@ -129,7 +130,7 @@ export const PushKeysTable = ({
       <TableRow>
         <TableHead>Key ID</TableHead>
         <TableHead>Team</TableHead>
-        <TableHead>Uploaded at</TableHead>
+        <TableHead>Uploaded</TableHead>
       </TableRow>
     </TableHeader>
     <TableBody>
@@ -142,7 +143,7 @@ export const PushKeysTable = ({
             <TeamCell team={teamsById.get(key.appleTeamId)} />
           </TableCell>
           <TableCell className="text-muted-foreground">
-            {formatShortDateTime(key.createdAt)}
+            <RelativeTime value={key.createdAt} />
           </TableCell>
         </TableRow>
       ))}
@@ -181,7 +182,7 @@ export const AscApiKeysTable = ({
         <TableHead>Issuer ID</TableHead>
         <TableHead>Team</TableHead>
         <TableHead>Roles</TableHead>
-        <TableHead>Uploaded at</TableHead>
+        <TableHead>Uploaded</TableHead>
       </TableRow>
     </TableHeader>
     <TableBody>
@@ -203,7 +204,7 @@ export const AscApiKeysTable = ({
             <RolesCell roles={key.roles} />
           </TableCell>
           <TableCell className="text-muted-foreground">
-            {formatShortDateTime(key.createdAt)}
+            <RelativeTime value={key.createdAt} />
           </TableCell>
         </TableRow>
       ))}
@@ -285,7 +286,7 @@ export const GoogleServiceAccountKeysTable = ({
         <TableHead>Project ID</TableHead>
         <TableHead>Private Key ID</TableHead>
         <TableHead>Client</TableHead>
-        <TableHead>Uploaded at</TableHead>
+        <TableHead>Uploaded</TableHead>
       </TableRow>
     </TableHeader>
     <TableBody>
@@ -306,7 +307,7 @@ export const GoogleServiceAccountKeysTable = ({
             </div>
           </TableCell>
           <TableCell className="text-muted-foreground">
-            {formatShortDateTime(key.createdAt)}
+            <RelativeTime value={key.createdAt} />
           </TableCell>
         </TableRow>
       ))}

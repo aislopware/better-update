@@ -34,6 +34,7 @@ import { OrganizationGroup } from "./groups/organization";
 import { PoliciesGroup } from "./groups/policies";
 import { PolicyAttachmentsGroup } from "./groups/policy-attachments";
 import { ProjectsGroup } from "./groups/projects";
+import { RuntimesGroup } from "./groups/runtimes";
 import { SubmissionsGroup } from "./groups/submissions";
 import { UpdatesGroup } from "./groups/updates";
 import { UserEncryptionKeysGroup } from "./groups/user-encryption-keys";
@@ -48,6 +49,7 @@ export class ManagementApi extends HttpApi.make("management-api")
   .add(AssetsGroup)
   .add(AnalyticsGroup)
   .add(BuildsGroup)
+  .add(RuntimesGroup)
   .add(EnvVarsGroup)
   .add(FingerprintsGroup)
   .add(AuditLogsGroup)

@@ -54,7 +54,7 @@ const MembersSkeleton = () => (
       <FilterBarSkeleton selectCount={1} />
       <Skeleton className="h-9 w-32 rounded-md" />
     </div>
-    <TableSkeleton columns={4} rows={5} hasFooter={false} />
+    <TableSkeleton columns={5} rows={5} hasFooter={false} />
   </div>
 );
 

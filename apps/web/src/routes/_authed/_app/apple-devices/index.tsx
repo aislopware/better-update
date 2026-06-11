@@ -207,7 +207,7 @@ const DevicesFilterBar = ({
 const DevicesSkeleton = () => (
   <div className="flex flex-col gap-3">
     <FilterBarSkeleton hasSearch selectCount={2} />
-    <TableSkeleton columns={5} rows={5} />
+    <TableSkeleton columns={8} rows={5} />
   </div>
 );
 
@@ -302,7 +302,7 @@ const DevicesContent = () => {
     if (error) {
       return <QueryErrorState error={error} onRetry={refetch} />;
     }
-    return <TableSkeleton columns={5} rows={5} />;
+    return <TableSkeleton columns={8} rows={5} />;
   }
 
   if (data.total === 0 && !filtersActive && searchDraft.length === 0) {

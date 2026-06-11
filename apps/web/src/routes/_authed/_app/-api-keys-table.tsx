@@ -16,11 +16,16 @@ import {
   MenuItem,
   MenuTrigger,
 } from "@better-update/ui/components/ui/menu";
+import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { KeyIcon, ShieldIcon, Trash2Icon, EllipsisVerticalIcon } from "lucide-react";
+import { useMemo } from "react";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import type { ReactNode } from "react";
 
-import { formatRelativeFuture, formatRelativeTime } from "../../../lib/format-relative-time";
+import { DataTableView } from "../../../lib/data-table";
+import { formatRelativeFuture } from "../../../lib/format-relative-time";
+import { RelativeTime } from "../../../lib/relative-time";
 
 import type { ApiKeyItem } from "../../../queries/api-keys";
 
@@ -60,52 +65,102 @@ const KeyActions = ({
   </Menu>
 );
 
+const NameCell = ({ apiKey }: { apiKey: ApiKeyItem }) => (
+  <div className="flex items-center gap-3">
+    <span className="bg-muted/72 flex size-9 shrink-0 items-center justify-center rounded-md border">
+      <KeyIcon strokeWidth={2} className="size-4" />
+    </span>
+    <div className="flex min-w-0 flex-col gap-0.5">
+      <span className="flex items-center gap-1.5 text-sm leading-none font-medium">
+        <span className="truncate">{apiKey.name ?? "Unnamed key"}</span>
+        {apiKey.enabled ? null : (
+          <Badge variant="outline" className="text-muted-foreground">
+            Disabled
+          </Badge>
+        )}
+      </span>
+      <code className="text-muted-foreground truncate font-mono text-xs">
+        {maskKey(apiKey.start, apiKey.prefix)}
+      </code>
+    </div>
+  </div>
+);
+
+const buildColumns = (
+  onManagePolicies: (keyId: string) => void,
+  onRevoke: (keyId: string) => void,
+): readonly ColumnDef<ApiKeyItem>[] => [
+  {
+    id: "name",
+    header: "Key",
+    cell: ({ row }) => <NameCell apiKey={row.original} />,
+    enableSorting: false,
+  },
+  {
+    id: "createdAt",
+    header: "Created",
+    cell: ({ row }) => <RelativeTime value={row.original.createdAt} />,
+    enableSorting: false,
+    meta: { align: "right", muted: true },
+  },
+  {
+    id: "expiresAt",
+    header: "Expires",
+    cell: ({ row }) =>
+      row.original.expiresAt ? (
+        formatRelativeFuture(row.original.expiresAt)
+      ) : (
+        <span className="text-muted-foreground">Never</span>
+      ),
+    enableSorting: false,
+    meta: { align: "right", muted: true },
+  },
+  {
+    id: "actions",
+    header: "",
+    cell: ({ row }) => (
+      <div className="flex justify-end">
+        <KeyActions
+          onManagePolicies={() => {
+            onManagePolicies(row.original.id);
+          }}
+          onRevoke={() => {
+            onRevoke(row.original.id);
+          }}
+        />
+      </div>
+    ),
+    enableSorting: false,
+    meta: { align: "right" },
+  },
+];
+
 export const ApiKeysTable = ({
   apiKeys,
+  countLabel,
   onManagePolicies,
   onRevoke,
 }: {
   apiKeys: readonly ApiKeyItem[];
+  countLabel: string;
   onManagePolicies: (keyId: string) => void;
   onRevoke: (keyId: string) => void;
-}) => (
-  <ul className="flex flex-col divide-y">
-    {apiKeys.map((key) => (
-      <li key={key.id} className="flex items-center gap-4 px-6 py-4">
-        <span className="bg-muted/72 flex size-9 shrink-0 items-center justify-center rounded-md border">
-          <KeyIcon strokeWidth={2} className="size-4" />
-        </span>
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <span className="flex items-center gap-1.5 text-sm leading-none font-medium">
-            <span className="truncate">{key.name ?? "Unnamed key"}</span>
-            {key.enabled ? null : (
-              <Badge variant="outline" className="text-muted-foreground">
-                Disabled
-              </Badge>
-            )}
-          </span>
-          <code className="text-muted-foreground truncate font-mono text-xs">
-            {maskKey(key.start, key.prefix)}
-          </code>
-        </div>
-        <div className="text-muted-foreground hidden flex-col items-end gap-0.5 text-xs sm:flex">
-          <span>Created {formatRelativeTime(key.createdAt)}</span>
-          <span>
-            {key.expiresAt ? `Expires ${formatRelativeFuture(key.expiresAt)}` : "Never expires"}
-          </span>
-        </div>
-        <KeyActions
-          onManagePolicies={() => {
-            onManagePolicies(key.id);
-          }}
-          onRevoke={() => {
-            onRevoke(key.id);
-          }}
-        />
-      </li>
-    ))}
-  </ul>
-);
+}) => {
+  const columns = useMemo(
+    () => buildColumns(onManagePolicies, onRevoke),
+    [onManagePolicies, onRevoke],
+  );
+  const tableData = useMemo(() => [...apiKeys], [apiKeys]);
+
+  const table = useReactTable({
+    data: tableData,
+    columns: [...columns],
+    enableSorting: false,
+    getCoreRowModel: getCoreRowModel(),
+  });
+
+  return <DataTableView table={table} columnsCount={columns.length} countLabel={countLabel} />;
+};
 
 export const ApiKeysEmptyState = ({ children }: { children?: ReactNode }) => (
   <Card>

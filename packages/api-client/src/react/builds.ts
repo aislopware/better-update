@@ -34,6 +34,7 @@ export interface BuildsFilters {
   readonly runtimeVersion?: string;
   readonly distribution?: BuildDistribution;
   readonly audience?: BuildAudience;
+  readonly query?: string;
   readonly page?: number;
   readonly limit?: number;
   readonly sort?: BuildSort;
@@ -53,6 +54,7 @@ export const buildsQueryOptions = (orgId: string, projectId: string, filters?: B
               runtimeVersion: filters?.runtimeVersion,
               distribution: filters?.distribution,
               audience: filters?.audience,
+              query: filters?.query,
               page: filters?.page,
               limit: filters?.limit,
               sort: filters?.sort,

@@ -31,7 +31,9 @@ export const CopyButton = ({
 }) => {
   const { copied, copy } = useCopyToClipboard(1500);
 
-  const handleCopy = async () => {
+  const handleCopy = async (event: React.MouseEvent) => {
+    // Copying must never also trigger a clickable row's navigation.
+    event.stopPropagation();
     const ok = await copy(value);
     toastManager.add(
       ok
@@ -55,6 +57,27 @@ export const CopyButton = ({
     </Button>
   );
 };
+
+// Truncated mono identifier whose copy button copies the FULL value.
+// Use for long IDs (update group, build id, UDID) shown abbreviated in tables.
+export const CopyableId = ({
+  value,
+  label,
+  length = 8,
+  className,
+}: {
+  value: string;
+  label: string;
+  length?: number;
+  className?: string;
+}) => (
+  <span className={cn("inline-flex items-center gap-0.5", className)}>
+    <code className="font-mono text-xs" title={value}>
+      {value.slice(0, length)}
+    </code>
+    <CopyButton value={value} label={label} />
+  </span>
+);
 
 // Mono value paired with a copy button — the canonical "copyable identifier" cell.
 // Renders nothing copyable when the value is absent, falling back to an em dash.

@@ -8,16 +8,23 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@better-update/ui/components/ui/input-group";
+import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { GitBranchIcon } from "lucide-react";
+import { GitBranchIcon, SearchIcon, SearchXIcon } from "lucide-react";
 import { useMemo } from "react";
 import { z } from "zod";
 
 import type { BranchItem, BranchSortColumn } from "@better-update/api-client/react";
 import type { ColumnDef } from "@tanstack/react-table";
+import type { ChangeEvent } from "react";
 
 import { CreateBranchDialog } from "../-create-branch-dialog";
 import { DeleteBranchDialog } from "../-delete-branch-dialog";
@@ -29,13 +36,17 @@ import {
   DataTableView,
   PAGE_SIZE,
   computePagination,
+  fireAndForget,
   pageParam,
+  queryParam,
   sortParam,
   useDataTableSearch,
+  useDebouncedSearch,
 } from "../../../../../../lib/data-table";
-import { formatShortDate } from "../../../../../../lib/format-date";
-import { formatRelativeTime } from "../../../../../../lib/format-relative-time";
 import { pluralize } from "../../../../../../lib/pluralize";
+import { RelativeTime } from "../../../../../../lib/relative-time";
+
+const SEARCH_DEBOUNCE_MS = 300;
 
 const SORT_COLUMNS = [
   "name",
@@ -48,6 +59,7 @@ const DEFAULT_SORT = "-createdAt" as const;
 const branchesSearchSchema = z.object({
   page: pageParam(),
   sort: sortParam(DEFAULT_SORT),
+  query: queryParam(),
 });
 
 const BranchesEmptyState = () => (
@@ -109,11 +121,7 @@ const buildColumns = (orgId: string, projectId: string): readonly ColumnDef<Bran
     id: "createdAt",
     accessorKey: "createdAt",
     header: "Created",
-    cell: ({ row }) => (
-      <span title={formatShortDate(row.original.createdAt)}>
-        {formatRelativeTime(row.original.createdAt)}
-      </span>
-    ),
+    cell: ({ row }) => <RelativeTime value={row.original.createdAt} />,
     enableSorting: true,
     meta: { align: "right", muted: true },
   },
@@ -131,7 +139,7 @@ const BranchesPage = () => {
   const orgId = activeOrg.id;
   const projectId = project.id;
 
-  const { page, sort } = Route.useSearch();
+  const { page, sort, query: urlQuery } = Route.useSearch();
   const navigate = Route.useNavigate();
 
   const { sorting, apiSort, onSortingChange, onPageChange } = useDataTableSearch({
@@ -141,10 +149,25 @@ const BranchesPage = () => {
     navigate,
   });
 
+  const { draft: searchDraft, setDraft: handleSearchChange } = useDebouncedSearch({
+    initial: urlQuery,
+    delayMs: SEARCH_DEBOUNCE_MS,
+    onCommit: (value) => {
+      fireAndForget(
+        navigate({
+          to: ".",
+          search: (prev) => ({ ...prev, query: value, page: 1 }),
+          replace: true,
+        }),
+      );
+    },
+  });
+
   const { data, error, isPlaceholderData, isLoading, refetch } = useQuery({
     ...branchesQueryOptions(orgId, projectId, {
       page,
       limit: PAGE_SIZE,
+      ...(urlQuery ? { query: urlQuery } : {}),
       sort: apiSort,
     }),
     placeholderData: keepPreviousData,
@@ -188,7 +211,10 @@ const BranchesPage = () => {
     page,
   );
 
-  if (data.total === 0) {
+  const showsFilteredEmpty = data.total === 0 && urlQuery.length > 0;
+  const showsGlobalEmpty = data.total === 0 && urlQuery.length === 0 && searchDraft.length === 0;
+
+  if (showsGlobalEmpty) {
     return (
       <div className="flex w-full flex-col gap-4">
         <div className="flex items-center justify-between">
@@ -200,7 +226,9 @@ const BranchesPage = () => {
     );
   }
 
-  const countLabel = `${fromIndex}–${toIndex} of ${data.total} ${pluralize(data.total, "branch", "branches")}`;
+  const countLabel = `${fromIndex}–${toIndex} of ${data.total} ${pluralize(data.total, "branch", "branches")}${
+    urlQuery ? " (filtered)" : ""
+  }`;
 
   return (
     <div className="flex w-full flex-col gap-4">
@@ -208,15 +236,50 @@ const BranchesPage = () => {
         <ProjectSubpageHeader title="Branches" />
         {createCta}
       </div>
-      <DataTableView
-        table={table}
-        columnsCount={columns.length}
-        isPlaceholderData={isPlaceholderData}
-        countLabel={countLabel}
-        safePage={safePage}
-        totalPages={totalPages}
-        onPageChange={onPageChange}
-      />
+      <div className="flex flex-col gap-3">
+        <InputGroup>
+          <InputGroupAddon>
+            <SearchIcon aria-hidden="true" />
+          </InputGroupAddon>
+          <InputGroupInput
+            aria-label="Search branches"
+            placeholder="Search branches…"
+            type="search"
+            value={searchDraft}
+            onChange={(event: ChangeEvent<HTMLInputElement>) => {
+              handleSearchChange(event.target.value);
+            }}
+          />
+          {isPlaceholderData ? (
+            <InputGroupAddon align="inline-end">
+              <Spinner />
+            </InputGroupAddon>
+          ) : null}
+        </InputGroup>
+        {showsFilteredEmpty ? (
+          <Card>
+            <Empty>
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <SearchXIcon strokeWidth={1.5} />
+                </EmptyMedia>
+                <EmptyTitle>No branches match your search</EmptyTitle>
+                <EmptyDescription>Try a different keyword or clear the search.</EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          </Card>
+        ) : (
+          <DataTableView
+            table={table}
+            columnsCount={columns.length}
+            isPlaceholderData={isPlaceholderData}
+            countLabel={countLabel}
+            safePage={safePage}
+            totalPages={totalPages}
+            onPageChange={onPageChange}
+          />
+        )}
+      </div>
     </div>
   );
 };

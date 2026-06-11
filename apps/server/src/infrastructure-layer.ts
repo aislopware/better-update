@@ -36,6 +36,7 @@ import {
   IosBundleConfigurationRepoLive,
   OrgVaultRepoLive,
   ProjectRepoLive,
+  RuntimeRepoLive,
   SubmissionsRepoLive,
   UpdateRepoLive,
   UserEncryptionKeyRepoLive,
@@ -85,6 +86,7 @@ import type {
   IosBundleConfigurationRepo,
   OrgVaultRepo,
   ProjectRepo,
+  RuntimeRepo,
   SubmissionsRepo,
   UpdateRepo,
   UserEncryptionKeyRepo,
@@ -140,6 +142,7 @@ export type ServerInfrastructure =
   | PolicyRepo
   | OrgVaultRepo
   | ProjectRepo
+  | RuntimeRepo
   | SubmissionsRepo
   | UpdateCoordinator
   | UpdateRepo
@@ -181,6 +184,7 @@ export const RepositoryLayer = Layer.mergeAll(
   PolicyRepoLive,
   OrgVaultRepoLive,
   ProjectRepoLive,
+  RuntimeRepoLive,
   SubmissionsRepoLive,
   UpdateRepoLive,
   UserEncryptionKeyRepoLive,

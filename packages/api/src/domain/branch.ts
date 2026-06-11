@@ -18,6 +18,7 @@ export const BranchSort = sortParam(BranchSortColumn);
 export const ListBranchesParams = Schema.Struct({
   projectId: Id,
   ...PaginationParams.fields,
+  query: Schema.optional(Schema.String),
   sort: Schema.optional(BranchSort),
 });
 

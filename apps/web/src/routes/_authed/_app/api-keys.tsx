@@ -1,7 +1,5 @@
 import { revokeApiKey } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
-import { CardFrame, CardFrameHeader, CardFrameTitle } from "@better-update/ui/components/ui/card";
-import { Skeleton } from "@better-update/ui/components/ui/skeleton";
 import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
@@ -9,7 +7,7 @@ import { KeyIcon } from "lucide-react";
 import { useState } from "react";
 
 import { PageHeader } from "../../../components/page-header";
-import { ListItemsSkeleton } from "../../../components/skeletons";
+import { TableSkeleton } from "../../../components/skeletons";
 import { pluralize } from "../../../lib/pluralize";
 import { useApiMutation } from "../../../lib/use-api-mutation";
 import { apiKeysQueryOptions } from "../../../queries/api-keys";
@@ -17,16 +15,7 @@ import { CreateApiKeyDialog, RevokeDialog } from "./-api-key-dialogs";
 import { ApiKeyPoliciesDialog } from "./-api-key-policies-dialog";
 import { ApiKeysEmptyState, ApiKeysTable } from "./-api-keys-table";
 
-const ApiKeysSkeleton = () => (
-  <CardFrame>
-    <CardFrameHeader>
-      <Skeleton className="h-4 w-16 rounded" />
-    </CardFrameHeader>
-    <div className="px-6 py-2">
-      <ListItemsSkeleton rows={3} hasTrailingButton={false} />
-    </div>
-  </CardFrame>
-);
+const ApiKeysSkeleton = () => <TableSkeleton columns={4} rows={3} />;
 
 interface CreateApiKeyButtonProps {
   readonly orgId: string;
@@ -80,18 +69,12 @@ const ApiKeysContent = ({ orgId }: { orgId: string }) => {
       {apiKeys.length === 0 ? (
         <ApiKeysEmptyState />
       ) : (
-        <CardFrame>
-          <CardFrameHeader>
-            <CardFrameTitle>
-              {apiKeys.length} {pluralize(apiKeys.length, "key")}
-            </CardFrameTitle>
-          </CardFrameHeader>
-          <ApiKeysTable
-            apiKeys={apiKeys}
-            onManagePolicies={setManagePoliciesKeyId}
-            onRevoke={setRevokeKeyId}
-          />
-        </CardFrame>
+        <ApiKeysTable
+          apiKeys={apiKeys}
+          countLabel={`${apiKeys.length} ${pluralize(apiKeys.length, "key")}`}
+          onManagePolicies={setManagePoliciesKeyId}
+          onRevoke={setRevokeKeyId}
+        />
       )}
 
       {managePoliciesKey ? (

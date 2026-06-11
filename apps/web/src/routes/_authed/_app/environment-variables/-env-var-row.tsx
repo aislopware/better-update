@@ -4,7 +4,7 @@ import { TableCell, TableRow } from "@better-update/ui/components/ui/table";
 import type { EnvVar } from "@better-update/api";
 
 import { CopyButton } from "../../../../lib/copy-button";
-import { formatRelativeTime } from "../../../../lib/format-relative-time";
+import { RelativeTime } from "../../../../lib/relative-time";
 import { formatEnvironmentLabel } from "./-env-vars-labels";
 
 const VISIBILITY_VARIANTS: Record<string, "secondary" | "warning"> = {
@@ -43,7 +43,7 @@ export const EnvVarRow = ({ envVar }: { envVar: EnvVar }) => (
     </TableCell>
     <TableCell className="text-muted-foreground text-sm">{envVar.revisionCount}</TableCell>
     <TableCell className="text-muted-foreground text-sm">
-      {formatRelativeTime(envVar.updatedAt)}
+      <RelativeTime value={envVar.updatedAt} />
     </TableCell>
   </TableRow>
 );

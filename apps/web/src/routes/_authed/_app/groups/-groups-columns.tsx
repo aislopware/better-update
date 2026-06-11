@@ -12,7 +12,7 @@ import { useState } from "react";
 import type { GroupItem } from "@better-update/api-client/react";
 import type { ColumnDef } from "@tanstack/react-table";
 
-import { formatRelativeTime } from "../../../../lib/format-relative-time";
+import { RelativeTime } from "../../../../lib/relative-time";
 import { DeleteGroupDialog } from "./-delete-group-dialog";
 import { GroupDetailDialog } from "./-group-detail-dialog";
 import { GroupFormDialog } from "./-group-form-dialog";
@@ -98,19 +98,14 @@ export const buildGroupColumns = (orgId: string): readonly ColumnDef<GroupItem>[
     id: "createdAt",
     accessorKey: "createdAt",
     header: "Created",
-    cell: ({ row }) => formatRelativeTime(row.original.createdAt),
+    cell: ({ row }) => <RelativeTime value={row.original.createdAt} />,
     enableSorting: true,
     meta: { align: "right", muted: true },
   },
   {
     id: "updatedAt",
     header: "Updated",
-    cell: ({ row }) =>
-      row.original.updatedAt === null ? (
-        <span className="text-muted-foreground text-sm">—</span>
-      ) : (
-        formatRelativeTime(row.original.updatedAt)
-      ),
+    cell: ({ row }) => <RelativeTime value={row.original.updatedAt} />,
     enableSorting: false,
     meta: { align: "right", muted: true },
   },

@@ -8,7 +8,7 @@ import { MonitorIcon } from "lucide-react";
 import { SettingCard } from "../../../../components/setting-card";
 import { ListItemsSkeleton, SettingCardSkeleton } from "../../../../components/skeletons";
 import { authClient, rejectOnAuthClientError } from "../../../../lib/auth-client";
-import { formatRelativeTime } from "../../../../lib/format-relative-time";
+import { RelativeTime } from "../../../../lib/relative-time";
 import { useApiMutation } from "../../../../lib/use-api-mutation";
 import { parseUserAgent } from "../../../../lib/user-agent";
 import { sessionQueryOptions, sessionsQueryOptions } from "../../../../queries/auth";
@@ -76,7 +76,7 @@ const SessionsList = () => {
                 </div>
                 <span className="text-muted-foreground truncate text-xs">
                   {session.ipAddress ?? "Unknown IP"} · Signed in{" "}
-                  {formatRelativeTime(new Date(session.createdAt).toISOString())}
+                  <RelativeTime value={new Date(session.createdAt)} />
                 </span>
               </div>
               {isCurrent ? null : (

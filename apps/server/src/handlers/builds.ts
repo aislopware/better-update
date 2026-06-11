@@ -425,6 +425,7 @@ export const BuildsGroupLive = HttpApiBuilder.group(ManagementApi, "builds", (ha
             ...(urlParams.runtimeVersion ? { runtimeVersion: urlParams.runtimeVersion } : {}),
             ...(urlParams.distribution ? { distribution: urlParams.distribution } : {}),
             ...(audienceDistributions ? { distributions: audienceDistributions } : {}),
+            ...(urlParams.query ? { query: urlParams.query } : {}),
             sort,
             order,
             limit,

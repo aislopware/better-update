@@ -103,7 +103,7 @@ const PoliciesPage = () => {
         description="Reusable permission documents. Attach them to members, groups, or API keys to grant scoped access."
         actions={<CreatePolicyButton orgId={activeOrg.id} />}
       />
-      <Suspense fallback={<TableSkeleton columns={4} rows={5} hasFooter={false} />}>
+      <Suspense fallback={<TableSkeleton columns={5} rows={5} hasFooter={false} />}>
         <PoliciesContent />
       </Suspense>
     </div>

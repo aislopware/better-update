@@ -140,6 +140,8 @@ export const ListBuildsParams = Schema.Struct({
   runtimeVersion: Schema.optional(Schema.String),
   distribution: Schema.optional(Distribution),
   audience: Schema.optional(BuildAudience),
+  // Case-insensitive substring match on the build message, git commit SHA or git ref.
+  query: Schema.optional(Schema.String),
   ...PaginationParams.fields,
   sort: Schema.optional(BuildSort),
 });

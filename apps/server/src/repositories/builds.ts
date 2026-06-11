@@ -88,6 +88,7 @@ export interface BuildRepository {
     readonly runtimeVersion?: string;
     readonly distribution?: Distribution;
     readonly distributions?: readonly Distribution[];
+    readonly query?: string;
     readonly sort: BuildSortKey;
     readonly order: BuildSortOrder;
     readonly limit: number;
@@ -319,6 +320,10 @@ export const BuildRepoLive = Layer.succeed(BuildRepo, {
   list: (params) =>
     Effect.gen(function* () {
       const db = yield* kyselyDb;
+      // Case-insensitive LIKE substring match on message, git commit or git ref
+      // (builds have no FTS table — LIKE is the only search path). Applied to
+      // BOTH the count and page queries so `total` respects the search.
+      const pattern = params.query ? `%${params.query.toLowerCase()}%` : undefined;
 
       const countRow = yield* Effect.promise(async () =>
         db
@@ -332,6 +337,15 @@ export const BuildRepoLive = Layer.succeed(BuildRepo, {
               ...(params.distribution ? [eb("distribution", "=", params.distribution)] : []),
               ...(params.distributions && params.distributions.length > 0
                 ? [eb("distribution", "in", [...params.distributions])]
+                : []),
+              ...(pattern
+                ? [
+                    eb.or([
+                      eb(eb.fn<string>("lower", ["message"]), "like", pattern),
+                      eb(eb.fn<string>("lower", ["git_commit"]), "like", pattern),
+                      eb(eb.fn<string>("lower", ["git_ref"]), "like", pattern),
+                    ]),
+                  ]
                 : []),
             ]),
           )
@@ -353,6 +367,15 @@ export const BuildRepoLive = Layer.succeed(BuildRepo, {
               ...(params.distribution ? [eb("b.distribution", "=", params.distribution)] : []),
               ...(params.distributions && params.distributions.length > 0
                 ? [eb("b.distribution", "in", [...params.distributions])]
+                : []),
+              ...(pattern
+                ? [
+                    eb.or([
+                      eb(eb.fn<string>("lower", ["b.message"]), "like", pattern),
+                      eb(eb.fn<string>("lower", ["b.git_commit"]), "like", pattern),
+                      eb(eb.fn<string>("lower", ["b.git_ref"]), "like", pattern),
+                    ]),
+                  ]
                 : []),
             ]),
           )

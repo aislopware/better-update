@@ -55,8 +55,8 @@ import {
   queryParam,
   useDebouncedSearch,
 } from "../../../lib/data-table";
-import { formatShortDateTime } from "../../../lib/format-date";
 import { pluralize } from "../../../lib/pluralize";
+import { RelativeTime } from "../../../lib/relative-time";
 import { useApiMutation } from "../../../lib/use-api-mutation";
 
 const SEARCH_DEBOUNCE_MS = 300;
@@ -132,8 +132,8 @@ const buildColumns = (
   {
     id: "createdAt",
     accessorKey: "createdAt",
-    header: "Joined at",
-    cell: ({ row }) => formatShortDateTime(row.original.createdAt),
+    header: "Joined",
+    cell: ({ row }) => <RelativeTime value={row.original.createdAt} />,
     meta: { align: "right", muted: true },
   },
   {

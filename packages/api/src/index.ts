@@ -56,6 +56,7 @@ export {
   DeleteChannelResult,
   UpdateChannelBody,
 } from "./domain/channel";
+export { ListRuntimesParams, RuntimeAggregate } from "./domain/runtime";
 export {
   BUILTIN_ENVIRONMENTS,
   CreateEnvironmentBody,
@@ -304,6 +305,7 @@ export { AuditLogsGroup } from "./groups/audit-logs";
 export { AnalyticsGroup } from "./groups/analytics";
 export { AssetsGroup } from "./groups/assets";
 export { BranchesGroup } from "./groups/branches";
+export { RuntimesGroup } from "./groups/runtimes";
 export { BuildsGroup } from "./groups/builds";
 export { EnvVarsGroup } from "./groups/env-vars";
 export { EnvironmentsGroup } from "./groups/environments";

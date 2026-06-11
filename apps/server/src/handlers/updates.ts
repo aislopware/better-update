@@ -266,6 +266,7 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
             ...(urlParams.branchId ? { branchId: urlParams.branchId } : {}),
             ...(urlParams.platform ? { platform: urlParams.platform } : {}),
             ...(urlParams.runtimeVersion ? { runtimeVersion: urlParams.runtimeVersion } : {}),
+            ...(urlParams.query ? { query: urlParams.query } : {}),
             sort,
             order,
             limit,

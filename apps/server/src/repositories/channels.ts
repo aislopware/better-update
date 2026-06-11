@@ -1,7 +1,7 @@
 import { Context, Effect, Layer } from "effect";
 import { sql } from "kysely";
 
-import type { Selectable } from "kysely";
+import type { Expression, ExpressionBuilder, Selectable, SqlBool } from "kysely";
 
 import { d1Batch, kyselyDb } from "../cloudflare/db";
 import { extractReachableBranchIds } from "../domain/branch-mapping";
@@ -9,7 +9,7 @@ import { NotFound } from "../errors";
 import { bumpChannelCacheVersionByBranchReference } from "./channel-cache-version";
 import { d1RunWithUniqueCheck } from "./d1-helpers";
 
-import type { Channels } from "../db/schema";
+import type { Channels, DB } from "../db/schema";
 import type { Conflict } from "../errors";
 import type { ChannelModel } from "../models";
 
@@ -29,6 +29,7 @@ export interface ChannelRepository {
 
   readonly findByProject: (params: {
     readonly projectId: string;
+    readonly query?: string | undefined;
     readonly sort: ChannelSortKey;
     readonly order: ChannelSortOrder;
     readonly limit: number;
@@ -105,6 +106,21 @@ const CHANNEL_COLUMNS = [
   "created_at",
 ] as const;
 
+// List filter: project scope plus an optional case-insensitive LIKE substring
+// match on the channel name (channels have no FTS table — LIKE is the only
+// search path). Shared by the count and page queries so `total` respects the
+// search.
+const channelFilter =
+  (projectId: string, query: string | undefined) =>
+  (eb: ExpressionBuilder<DB, "channels">): Expression<SqlBool> => {
+    const projectMatch = eb("project_id", "=", projectId);
+    if (!query) {
+      return projectMatch;
+    }
+    const pattern = `%${query.toLowerCase()}%`;
+    return eb.and([eb(eb.fn<string>("lower", ["name"]), "like", pattern), projectMatch]);
+  };
+
 const toChannel = (row: Selectable<Channels>) =>
   ({
     id: row.id,
@@ -161,10 +177,12 @@ export const ChannelRepoLive = Layer.succeed(ChannelRepo, {
     Effect.gen(function* () {
       const db = yield* kyselyDb;
 
+      const where = channelFilter(params.projectId, params.query);
+
       const countRow = yield* Effect.promise(async () =>
         db
           .selectFrom("channels")
-          .where("project_id", "=", params.projectId)
+          .where(where)
           .select((eb) => eb.fn.countAll<number>().as("count"))
           .executeTakeFirstOrThrow(),
       );
@@ -178,7 +196,7 @@ export const ChannelRepoLive = Layer.succeed(ChannelRepo, {
         db
           .selectFrom("channels")
           .select(CHANNEL_COLUMNS)
-          .where("project_id", "=", params.projectId)
+          .where(where)
           .orderBy(primaryOrder, direction)
           .orderBy("id", direction)
           .limit(params.limit)

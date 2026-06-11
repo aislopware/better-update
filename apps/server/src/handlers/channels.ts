@@ -91,6 +91,7 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
 
           const { items, total } = yield* repo.findByProject({
             projectId: urlParams.projectId,
+            ...(urlParams.query ? { query: urlParams.query } : {}),
             sort,
             order,
             limit,

@@ -7,7 +7,8 @@ import type { ColumnDef, SortingState } from "@tanstack/react-table";
 
 import { DataTableView } from "../../../lib/data-table";
 import { EntityAvatar } from "../../../lib/entity-avatar";
-import { formatRelativeFuture, formatRelativeTime } from "../../../lib/format-relative-time";
+import { formatRelativeFuture } from "../../../lib/format-relative-time";
+import { RelativeTime } from "../../../lib/relative-time";
 import { MemberRowActions } from "./-member-row-actions";
 import { buildRows } from "./-members-row";
 
@@ -61,11 +62,13 @@ const StatusCell = ({ status }: { status: MemberStatus }) => {
 
 const JoinedCell = ({ row }: { row: Row }) => {
   if (row.kind === "member") {
-    return formatRelativeTime(row.joinedAt);
+    return <RelativeTime value={row.joinedAt} />;
   }
   return (
     <div className="flex flex-col items-end gap-0.5">
-      <span>Invited {formatRelativeTime(row.invitedAt)}</span>
+      <span>
+        Invited <RelativeTime value={row.invitedAt} />
+      </span>
       <span className="text-muted-foreground/72 text-xs italic">
         Expires {formatRelativeFuture(row.expiresAt)}
       </span>

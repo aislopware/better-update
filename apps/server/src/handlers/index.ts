@@ -39,6 +39,7 @@ export { OrgVaultGroupLive } from "./org-vault";
 export { PoliciesGroupLive } from "./policies";
 export { PolicyAttachmentsGroupLive } from "./policy-attachments";
 export { ProjectsGroupLive } from "./projects";
+export { RuntimesGroupLive } from "./runtimes";
 export { UpdatesGroupLive } from "./updates";
 export { UserEncryptionKeysGroupLive } from "./user-encryption-keys";
 export { WebhooksGroupLive } from "./webhooks";

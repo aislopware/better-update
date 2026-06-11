@@ -27,6 +27,7 @@ export interface BranchRepository {
 
   readonly findByProject: (params: {
     readonly projectId: string;
+    readonly query?: string | undefined;
     readonly sort: BranchSortKey;
     readonly order: BranchSortOrder;
     readonly limit: number;
@@ -128,18 +129,27 @@ export const BranchRepoLive = Layer.succeed(BranchRepo, {
   findByProject: (params) =>
     Effect.gen(function* () {
       const db = yield* kyselyDb;
+      // Optional case-insensitive LIKE substring match on the branch name
+      // (branches have no FTS table — LIKE is the only search path). Applied to
+      // BOTH the count and page queries so `total` respects the search.
+      const pattern = params.query ? `%${params.query.toLowerCase()}%` : undefined;
 
+      const countQuery = db.selectFrom("branches").where("project_id", "=", params.projectId);
       const totalRow = yield* Effect.promise(async () =>
-        db
-          .selectFrom("branches")
-          .where("project_id", "=", params.projectId)
+        (pattern === undefined
+          ? countQuery
+          : countQuery.where((eb) => eb(eb.fn<string>("lower", ["name"]), "like", pattern))
+        )
           .select((eb) => eb.fn.countAll<number>().as("count"))
           .executeTakeFirstOrThrow(),
       );
 
+      const pageQuery = selectBranches(db).where("b.project_id", "=", params.projectId);
       const rows = yield* Effect.promise(async () =>
         orderByPrimary(
-          selectBranches(db).where("b.project_id", "=", params.projectId),
+          pattern === undefined
+            ? pageQuery
+            : pageQuery.where((eb) => eb(eb.fn<string>("lower", ["b.name"]), "like", pattern)),
           params.sort,
           params.order,
         )

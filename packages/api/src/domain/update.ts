@@ -42,6 +42,8 @@ export const ListUpdatesParams = Schema.Struct({
   branchId: Schema.optional(Id),
   platform: Schema.optional(Platform),
   runtimeVersion: Schema.optional(Schema.String),
+  // Case-insensitive substring match on the publish message or git commit SHA.
+  query: Schema.optional(Schema.String),
   ...PaginationParams.fields,
   sort: Schema.optional(UpdateSort),
 });
