@@ -5,13 +5,7 @@ import {
   iosBundleConfigurationsQueryOptions,
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
-import {
-  Card,
-  CardFrame,
-  CardFrameHeader,
-  CardFrameTitle,
-  CardPanel,
-} from "@better-update/ui/components/ui/card";
+import { Frame, FrameHeader, FramePanel, FrameTitle } from "@better-update/ui/components/ui/frame";
 import {
   Table,
   TableBody,
@@ -38,12 +32,10 @@ import { STATUS_BADGE_VARIANT, deriveExpiryStatus } from "../../../../../lib/cre
 import { formatShortDate, formatShortDateTime } from "../../../../../lib/format-date";
 import { DISTRIBUTION_LABELS, sortConfigsByDistribution } from "./-ios-detail-shared";
 
-const EmptyBindingCard = ({ message }: { message: string }) => (
-  <Card>
-    <CardPanel className="py-4">
-      <span className="text-muted-foreground text-sm">{message}</span>
-    </CardPanel>
-  </Card>
+const EmptyBindingPanel = ({ message }: { message: string }) => (
+  <FramePanel className="py-4">
+    <span className="text-muted-foreground text-sm">{message}</span>
+  </FramePanel>
 );
 
 const CertRow = ({
@@ -83,12 +75,12 @@ const CertTableCard = ({
   cert: AppleDistributionCertificateItem | null;
   team: AppleTeamItem | null;
 }) => (
-  <CardFrame>
-    <CardFrameHeader className="py-4">
-      <CardFrameTitle className="text-base">Distribution certificate</CardFrameTitle>
-    </CardFrameHeader>
+  <Frame>
+    <FrameHeader>
+      <FrameTitle>Distribution certificate</FrameTitle>
+    </FrameHeader>
     {cert === null ? (
-      <EmptyBindingCard message="No distribution certificate bound — bind one with the CLI." />
+      <EmptyBindingPanel message="No distribution certificate bound — bind one with the CLI." />
     ) : (
       <Table variant="card">
         <TableHeader>
@@ -105,7 +97,7 @@ const CertTableCard = ({
         </TableBody>
       </Table>
     )}
-  </CardFrame>
+  </Frame>
 );
 
 const ProfileRow = ({
@@ -144,12 +136,12 @@ const ProfileTableCard = ({
   profile: AppleProvisioningProfileItem | null;
   team: AppleTeamItem | null;
 }) => (
-  <CardFrame>
-    <CardFrameHeader className="py-4">
-      <CardFrameTitle className="text-base">Provisioning profile</CardFrameTitle>
-    </CardFrameHeader>
+  <Frame>
+    <FrameHeader>
+      <FrameTitle>Provisioning profile</FrameTitle>
+    </FrameHeader>
     {profile === null ? (
-      <EmptyBindingCard message="No provisioning profile bound — bind one with the CLI." />
+      <EmptyBindingPanel message="No provisioning profile bound — bind one with the CLI." />
     ) : (
       <Table variant="card">
         <TableHeader>
@@ -165,7 +157,7 @@ const ProfileTableCard = ({
         </TableBody>
       </Table>
     )}
-  </CardFrame>
+  </Frame>
 );
 
 const findCert = (

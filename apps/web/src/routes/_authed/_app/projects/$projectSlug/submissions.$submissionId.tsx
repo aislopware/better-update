@@ -1,29 +1,30 @@
 import { submissionQueryOptions } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import {
+  Card,
   CardFrame,
   CardFrameDescription,
   CardFrameHeader,
   CardFrameTitle,
+  CardPanel,
 } from "@better-update/ui/components/ui/card";
-import { Skeleton } from "@better-update/ui/components/ui/skeleton";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { Suspense } from "react";
 
-import type { SubmissionItem, SubmissionStatusValue } from "@better-update/api-client/react";
+import type { SubmissionItem } from "@better-update/api-client/react";
 
+import { PlatformBadge } from "../../../../../components/attribute-badges";
+import { DetailCardSkeleton } from "../../../../../components/skeletons";
 import { CopyButton } from "../../../../../lib/copy-button";
 import { formatDateTime } from "../../../../../lib/format-date";
+import {
+  SUBMISSION_STATUS_LABEL,
+  SUBMISSION_STATUS_VARIANT,
+} from "../../../../../lib/submission-status";
 
-const STATUS_VARIANT: Record<SubmissionStatusValue, "secondary" | "destructive" | "outline"> = {
-  AWAITING_BUILD: "outline",
-  IN_QUEUE: "outline",
-  IN_PROGRESS: "secondary",
-  FINISHED: "secondary",
-  ERRORED: "destructive",
-  CANCELED: "outline",
-};
+const formatTimestamp = (value: string | null | undefined) =>
+  value ? formatDateTime(value) : null;
 
 const DetailRow = ({
   label,
@@ -71,74 +72,78 @@ const SubmissionDetail = ({
     <CardFrame>
       <CardFrameHeader className="py-5">
         <CardFrameTitle className="flex items-center gap-2.5 text-base">
-          <Badge variant={STATUS_VARIANT[submission.status]}>{submission.status}</Badge>
-          <span className="font-mono text-xs uppercase">{submission.platform}</span>
+          <Badge variant={SUBMISSION_STATUS_VARIANT[submission.status]}>
+            {SUBMISSION_STATUS_LABEL[submission.status]}
+          </Badge>
+          <PlatformBadge platform={submission.platform} />
         </CardFrameTitle>
         <CardFrameDescription>
           Profile <span className="font-mono">{submission.profileName}</span> · created{" "}
           {formatDateTime(submission.createdAt)}
         </CardFrameDescription>
       </CardFrameHeader>
-      <div className="flex flex-col gap-1.5 px-6 pb-5">
-        <DetailRow label="Archive source" value={submission.archiveSource} />
-        <DetailRow label="Build ID" value={submission.buildId} copyLabel="Build ID" />
-        <DetailRow label="Archive URL" value={submission.archiveUrl} copyLabel="Archive URL" />
-        <DetailRow label="Queued at" value={submission.queuedAt} />
-        <DetailRow label="Started at" value={submission.startedAt} />
-        <DetailRow label="Completed at" value={submission.completedAt} />
-        {submission.errorCode ? (
-          <>
-            <DetailRow label="Error code" value={submission.errorCode} />
-            <DetailRow label="Error message" value={submission.errorMessage} />
-          </>
-        ) : null}
-        {submission.iosConfig ? (
-          <>
-            <h2 className="text-muted-foreground mt-3 text-xs uppercase">iOS config</h2>
-            <DetailRow
-              label="Bundle identifier"
-              value={submission.iosConfig.bundleIdentifier}
-              copyLabel="Bundle identifier"
-            />
-            <DetailRow
-              label="ASC App ID"
-              value={submission.iosConfig.ascAppId}
-              copyLabel="ASC App ID"
-            />
-            <DetailRow
-              label="Apple team"
-              value={submission.iosConfig.appleTeamId}
-              copyLabel="Apple team"
-            />
-            <DetailRow label="Language" value={submission.iosConfig.language} />
-            <DetailRow label="What to test" value={submission.iosConfig.whatToTest} />
-          </>
-        ) : null}
-        {submission.androidConfig ? (
-          <>
-            <h2 className="text-muted-foreground mt-3 text-xs uppercase">Android config</h2>
-            <DetailRow
-              label="Application ID"
-              value={submission.androidConfig.applicationId}
-              copyLabel="Application ID"
-            />
-            <DetailRow label="Track" value={submission.androidConfig.track} />
-            <DetailRow label="Release status" value={submission.androidConfig.releaseStatus} />
-            <DetailRow
-              label="Rollout"
-              value={
-                submission.androidConfig.rollout === null
-                  ? null
-                  : String(submission.androidConfig.rollout)
-              }
-            />
-            <DetailRow
-              label="Changes not sent for review"
-              value={String(submission.androidConfig.changesNotSentForReview)}
-            />
-          </>
-        ) : null}
-      </div>
+      <Card>
+        <CardPanel className="flex flex-col gap-1.5">
+          <DetailRow label="Archive source" value={submission.archiveSource} />
+          <DetailRow label="Build ID" value={submission.buildId} copyLabel="Build ID" />
+          <DetailRow label="Archive URL" value={submission.archiveUrl} copyLabel="Archive URL" />
+          <DetailRow label="Queued at" value={formatTimestamp(submission.queuedAt)} />
+          <DetailRow label="Started at" value={formatTimestamp(submission.startedAt)} />
+          <DetailRow label="Completed at" value={formatTimestamp(submission.completedAt)} />
+          {submission.errorCode ? (
+            <>
+              <DetailRow label="Error code" value={submission.errorCode} />
+              <DetailRow label="Error message" value={submission.errorMessage} />
+            </>
+          ) : null}
+          {submission.iosConfig ? (
+            <>
+              <h2 className="text-muted-foreground mt-3 text-xs uppercase">iOS config</h2>
+              <DetailRow
+                label="Bundle identifier"
+                value={submission.iosConfig.bundleIdentifier}
+                copyLabel="Bundle identifier"
+              />
+              <DetailRow
+                label="ASC App ID"
+                value={submission.iosConfig.ascAppId}
+                copyLabel="ASC App ID"
+              />
+              <DetailRow
+                label="Apple team"
+                value={submission.iosConfig.appleTeamId}
+                copyLabel="Apple team"
+              />
+              <DetailRow label="Language" value={submission.iosConfig.language} />
+              <DetailRow label="What to test" value={submission.iosConfig.whatToTest} />
+            </>
+          ) : null}
+          {submission.androidConfig ? (
+            <>
+              <h2 className="text-muted-foreground mt-3 text-xs uppercase">Android config</h2>
+              <DetailRow
+                label="Application ID"
+                value={submission.androidConfig.applicationId}
+                copyLabel="Application ID"
+              />
+              <DetailRow label="Track" value={submission.androidConfig.track} />
+              <DetailRow label="Release status" value={submission.androidConfig.releaseStatus} />
+              <DetailRow
+                label="Rollout"
+                value={
+                  submission.androidConfig.rollout === null
+                    ? null
+                    : String(submission.androidConfig.rollout)
+                }
+              />
+              <DetailRow
+                label="Changes not sent for review"
+                value={String(submission.androidConfig.changesNotSentForReview)}
+              />
+            </>
+          ) : null}
+        </CardPanel>
+      </Card>
     </CardFrame>
   </div>
 );
@@ -156,7 +161,7 @@ const SubmissionDetailContainer = ({
   return <SubmissionDetail submission={data} projectSlug={projectSlug} />;
 };
 
-const SubmissionDetailSkeleton = () => <Skeleton className="h-64 w-full rounded" />;
+const SubmissionDetailSkeleton = () => <DetailCardSkeleton rows={6} columns={1} />;
 
 const SubmissionDetailPage = () => {
   const { activeOrg } = Route.useRouteContext();

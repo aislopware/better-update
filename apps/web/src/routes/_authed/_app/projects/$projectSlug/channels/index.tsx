@@ -46,7 +46,7 @@ import type { BranchItem, ChannelSortColumn } from "@better-update/api-client/re
 import type { ColumnDef } from "@tanstack/react-table";
 import type { ChangeEvent } from "react";
 
-import { parseRolloutState } from "../-channel-rollout-state";
+import { ChannelStatusBadge } from "../-channel-status-badge";
 import { CreateChannelDialog } from "../-create-channel-dialog";
 import { DeleteChannelDialog } from "../-delete-channel-dialog";
 import { ProjectSubpageHeader } from "../-project-subpage-header";
@@ -134,30 +134,6 @@ const PauseToggleButton = ({
       {channel.isPaused ? <PlayIcon strokeWidth={2} /> : <PauseIcon strokeWidth={2} />}
     </Button>
   );
-};
-
-const ChannelStatusBadge = ({
-  channel,
-  branches,
-}: {
-  channel: ChannelItem;
-  branches: readonly BranchItem[];
-}) => {
-  if (channel.isPaused) {
-    return <Badge variant="warning">Paused</Badge>;
-  }
-  const rolloutState = channel.branchMappingJson
-    ? parseRolloutState(channel.branchMappingJson)
-    : null;
-  if (rolloutState) {
-    const target = branches.find((branch) => branch.id === rolloutState.targetBranchId);
-    return (
-      <Badge variant="secondary">
-        Rolling out to {target?.name ?? rolloutState.targetBranchId} {rolloutState.percentage}%
-      </Badge>
-    );
-  }
-  return <Badge variant="outline">Live</Badge>;
 };
 
 const buildColumns = (

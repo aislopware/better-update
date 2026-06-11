@@ -34,8 +34,8 @@ import { InstallLinkDialog } from "../-install-link-dialog";
 import { ProjectSubpageHeader } from "../-project-subpage-header";
 import { ChannelBadge } from "../../../../../../components/attribute-badges";
 import { DetailCardSkeleton, SummaryCardsSkeleton } from "../../../../../../components/skeletons";
-import { CopyButton } from "../../../../../../lib/copy-button";
-import { formatDateTime } from "../../../../../../lib/format-date";
+import { CopyButton, CopyableMono } from "../../../../../../lib/copy-button";
+import { RelativeTime } from "../../../../../../lib/relative-time";
 
 import type { BuildWithSyntheticChannels } from "../-compatibility-join";
 
@@ -59,9 +59,15 @@ const BuildMetadataCard = ({
       </CardDescription>
     </CardHeader>
     <CardContent className="grid gap-4 sm:grid-cols-2">
+      <div className="flex flex-col gap-1 sm:col-span-2">
+        <div className="text-muted-foreground text-sm">Build ID</div>
+        <CopyableMono value={build.id} label="Build ID" />
+      </div>
       <div className="flex flex-col gap-1">
         <div className="text-muted-foreground text-sm">Runtime version</div>
-        <div className="font-medium">{build.runtimeVersion ?? "Missing"}</div>
+        <div className="font-medium">
+          {build.runtimeVersion ? `v${build.runtimeVersion}` : "Missing"}
+        </div>
       </div>
       <div className="flex flex-col gap-1">
         <div className="text-muted-foreground text-sm">Bundle ID</div>
@@ -92,14 +98,17 @@ const BuildMetadataCard = ({
           <div className="font-medium">Not provided</div>
         ) : (
           <div className="flex items-center gap-1">
-            <span className="font-medium">{`${build.gitCommit}${build.gitDirty ? "*" : ""}`}</span>
+            <code className="min-w-0 font-mono text-sm break-all">{build.gitCommit}</code>
+            {build.gitDirty ? <span className="text-warning text-xs">·dirty</span> : null}
             <CopyButton value={build.gitCommit} label="Git commit" />
           </div>
         )}
       </div>
       <div className="flex flex-col gap-1 sm:col-span-2">
         <div className="text-muted-foreground text-sm">Created</div>
-        <div className="font-medium">{formatDateTime(build.createdAt)}</div>
+        <div className="font-medium">
+          <RelativeTime value={build.createdAt} />
+        </div>
       </div>
       <div className="flex flex-col gap-1 sm:col-span-2">
         <div className="text-muted-foreground text-sm">Fingerprint</div>
@@ -207,7 +216,7 @@ const RelatedChannelsCard = ({
             >
               <div className="flex flex-wrap items-center gap-2">
                 <ChannelBadge name={channel.channelName} />
-                {channel.isPaused && <Badge variant="outline">Paused</Badge>}
+                {channel.isPaused && <Badge variant="warning">Paused</Badge>}
                 {channel.rolloutActive && <Badge variant="secondary">Rollout active</Badge>}
                 <span className="text-muted-foreground text-sm">
                   {channel.updateCount > 0

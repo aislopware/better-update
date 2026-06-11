@@ -1,4 +1,5 @@
 import {
+  branchesQueryOptions,
   updateAnalyticsQueryOptions,
   updateAssetsQueryOptions,
   updateGroupQueryOptions,
@@ -22,7 +23,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@better-update/ui/components/ui/tabs";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { FingerprintIcon, PackageIcon } from "lucide-react";
+import { FingerprintIcon, GitBranchIcon, PackageIcon } from "lucide-react";
 import { Suspense } from "react";
 
 import type { Update } from "@better-update/api";
@@ -31,9 +32,10 @@ import { ProjectSubpageHeader } from "../-project-subpage-header";
 import { readUpdateEnvironment } from "../-update-helpers";
 import { EnvironmentBadge, PlatformBadge } from "../../../../../../components/attribute-badges";
 import { DetailCardSkeleton, SummaryCardsSkeleton } from "../../../../../../components/skeletons";
-import { CopyButton } from "../../../../../../lib/copy-button";
+import { CopyButton, CopyableId } from "../../../../../../lib/copy-button";
 import { formatBytes } from "../../../../../../lib/format-bytes";
-import { formatDateTime } from "../../../../../../lib/format-date";
+import { RelativeTime } from "../../../../../../lib/relative-time";
+import { DROPDOWN_FETCH_LIMIT } from "../../../../../../queries/constants";
 
 type UpdateItem = Update;
 
@@ -41,10 +43,12 @@ const OverviewCard = ({
   primary,
   variants,
   projectSlug,
+  branchName,
 }: {
   primary: UpdateItem;
   variants: readonly UpdateItem[];
   projectSlug: string;
+  branchName: string | undefined;
 }) => {
   const environment = readUpdateEnvironment(primary.extraJson);
   const groupTotalSize = variants.reduce((acc, variant) => acc + variant.totalAssetSize, 0);
@@ -62,8 +66,30 @@ const OverviewCard = ({
           <div className="font-medium">{primary.message || "—"}</div>
         </div>
         <div className="flex flex-col gap-1">
+          <div className="text-muted-foreground text-sm">Branch</div>
+          {branchName ? (
+            <Link
+              to="/projects/$projectSlug/updates"
+              params={{ projectSlug }}
+              search={{ page: 1, sort: "-createdAt" as const, branchId: primary.branchId }}
+              className="inline-flex items-center gap-1.5 font-medium underline-offset-4 hover:underline"
+            >
+              <GitBranchIcon strokeWidth={2} className="text-muted-foreground size-3.5" />
+              {branchName}
+            </Link>
+          ) : (
+            <CopyableId value={primary.branchId} label="Branch ID" />
+          )}
+        </div>
+        <div className="flex flex-col gap-1">
           <div className="text-muted-foreground text-sm">Runtime version</div>
-          <div className="font-medium">v{primary.runtimeVersion}</div>
+          <Link
+            to="/projects/$projectSlug/runtimes/$version"
+            params={{ projectSlug, version: primary.runtimeVersion }}
+            className="self-start font-medium underline-offset-4 hover:underline"
+          >
+            v{primary.runtimeVersion}
+          </Link>
         </div>
         <div className="flex flex-col gap-1">
           <div className="text-muted-foreground text-sm">Environment</div>
@@ -81,7 +107,9 @@ const OverviewCard = ({
         </div>
         <div className="flex flex-col gap-1">
           <div className="text-muted-foreground text-sm">Created</div>
-          <div className="font-medium">{formatDateTime(primary.createdAt)}</div>
+          <div className="font-medium">
+            <RelativeTime value={primary.createdAt} />
+          </div>
         </div>
         <div className="flex flex-col gap-1">
           <div className="text-muted-foreground text-sm">Group ID</div>
@@ -178,20 +206,31 @@ const PlatformVariantCard = ({
     <CardHeader>
       <CardTitle className="flex items-center gap-2 text-base">
         <PlatformBadge platform={update.platform} />
-        <code className="font-mono text-xs">{update.id.slice(0, 8)}</code>
+        <CopyableId value={update.id} label="Update ID" />
         {update.isRollback ? <Badge variant="destructive">Rollback</Badge> : null}
       </CardTitle>
-      <CardDescription>Rollout: {update.rolloutPercentage}%</CardDescription>
+      <CardDescription>
+        {update.rolloutPercentage < 100
+          ? `Rolling out to ${update.rolloutPercentage}% of devices`
+          : "Fully rolled out"}
+      </CardDescription>
     </CardHeader>
     <CardContent className="flex flex-col gap-3">
       <div className="grid gap-3 sm:grid-cols-4">
         <div className="flex flex-col gap-1">
           <div className="text-muted-foreground text-xs">Signature</div>
-          <div className="text-xs">{update.signature === null ? "Unsigned" : "Signed"}</div>
+          <Badge variant={update.signature === null ? "outline" : "success"} className="self-start">
+            {update.signature === null ? "Unsigned" : "Signed"}
+          </Badge>
         </div>
         <div className="flex flex-col gap-1">
           <div className="text-muted-foreground text-xs">Manifest body</div>
-          <div className="text-xs">{update.manifestBody === null ? "Not stored" : "Stored"}</div>
+          <Badge
+            variant={update.manifestBody === null ? "outline" : "secondary"}
+            className="self-start"
+          >
+            {update.manifestBody === null ? "Not stored" : "Stored"}
+          </Badge>
         </div>
         <div className="flex flex-col gap-1">
           <div className="text-muted-foreground text-xs">Size</div>
@@ -265,14 +304,23 @@ const UpdateDetailContent = () => {
   const { data: group } = useSuspenseQuery(
     updateGroupQueryOptions(orgId, projectId, update.groupId),
   );
+  const { data: branchesData } = useSuspenseQuery(
+    branchesQueryOptions(orgId, projectId, { limit: DROPDOWN_FETCH_LIMIT }),
+  );
 
   const primary = group.items.find((entry) => entry.id === updateId) ?? group.items[0] ?? update;
   const title = primary.message || `Update ${update.groupId.slice(0, 8)}`;
+  const branchName = branchesData.items.find((branch) => branch.id === primary.branchId)?.name;
 
   return (
     <>
       <ProjectSubpageHeader title={title} />
-      <OverviewCard primary={primary} variants={group.items} projectSlug={project.slug} />
+      <OverviewCard
+        primary={primary}
+        variants={group.items}
+        projectSlug={project.slug}
+        branchName={branchName}
+      />
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>

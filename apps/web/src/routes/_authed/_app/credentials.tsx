@@ -5,7 +5,7 @@ import {
   ascApiKeysQueryOptions,
   googleServiceAccountKeysQueryOptions,
 } from "@better-update/api-client/react";
-import { CardFrame } from "@better-update/ui/components/ui/card";
+import { Frame } from "@better-update/ui/components/ui/frame";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Suspense, useMemo } from "react";
@@ -40,9 +40,9 @@ const DistributionCertificatesSection = ({ orgId }: { orgId: string }) => {
       {data.items.length === 0 ? (
         <DistributionCertificatesEmptyState />
       ) : (
-        <CardFrame>
+        <Frame>
           <DistributionCertificatesTable items={data.items} teamsById={teamsById} />
-        </CardFrame>
+        </Frame>
       )}
     </section>
   );
@@ -62,9 +62,9 @@ const PushKeysSection = ({ orgId }: { orgId: string }) => {
       {data.items.length === 0 ? (
         <PushKeysEmptyState />
       ) : (
-        <CardFrame>
+        <Frame>
           <PushKeysTable items={data.items} teamsById={teamsById} />
-        </CardFrame>
+        </Frame>
       )}
     </section>
   );
@@ -81,9 +81,9 @@ const AscApiKeysSection = ({ orgId }: { orgId: string }) => {
       {data.items.length === 0 ? (
         <AscApiKeysEmptyState />
       ) : (
-        <CardFrame>
+        <Frame>
           <AscApiKeysTable items={data.items} teamsById={teamsById} />
-        </CardFrame>
+        </Frame>
       )}
     </section>
   );
@@ -101,9 +101,9 @@ const AppleTeamsSection = ({ orgId }: { orgId: string }) => {
       {teams.items.length === 0 ? (
         <AppleTeamsEmptyState />
       ) : (
-        <CardFrame>
+        <Frame>
           <AppleTeamsTable items={teams.items} />
-        </CardFrame>
+        </Frame>
       )}
     </section>
   );
@@ -121,9 +121,9 @@ const GoogleServiceAccountSection = ({ orgId }: { orgId: string }) => {
       {data.items.length === 0 ? (
         <GoogleServiceAccountKeysEmptyState />
       ) : (
-        <CardFrame>
+        <Frame>
           <GoogleServiceAccountKeysTable items={data.items} />
-        </CardFrame>
+        </Frame>
       )}
     </section>
   );
@@ -131,7 +131,7 @@ const GoogleServiceAccountSection = ({ orgId }: { orgId: string }) => {
 
 const CredentialSectionSkeleton = () => (
   <SectionSkeleton hasAction={false}>
-    <TableSkeleton variant="card" columns={4} rows={2} hasFooter={false} />
+    <TableSkeleton columns={4} rows={2} hasFooter={false} />
   </SectionSkeleton>
 );
 

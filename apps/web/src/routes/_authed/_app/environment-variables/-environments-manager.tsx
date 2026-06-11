@@ -7,7 +7,6 @@ import {
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
-import { CardFrame } from "@better-update/ui/components/ui/card";
 import {
   Dialog,
   DialogClose,
@@ -20,6 +19,7 @@ import {
   DialogTrigger,
 } from "@better-update/ui/components/ui/dialog";
 import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
+import { Frame } from "@better-update/ui/components/ui/frame";
 import { Input } from "@better-update/ui/components/ui/input";
 import {
   Table,
@@ -333,7 +333,7 @@ export const EnvironmentsManager = ({ orgId }: { orgId: string }) => {
         </div>
         <CreateEnvironmentDialog orgId={orgId} />
       </div>
-      <CardFrame>
+      <Frame>
         <Table variant="card">
           <TableHeader>
             <TableRow>
@@ -356,7 +356,7 @@ export const EnvironmentsManager = ({ orgId }: { orgId: string }) => {
             ))}
           </TableBody>
         </Table>
-      </CardFrame>
+      </Frame>
     </div>
   );
 };

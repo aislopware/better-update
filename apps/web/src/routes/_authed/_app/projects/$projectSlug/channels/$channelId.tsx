@@ -26,14 +26,20 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { RadioTowerIcon } from "lucide-react";
 import { Suspense } from "react";
 
+import type { Channel } from "@better-update/api";
+import type { BranchItem } from "@better-update/api-client/react";
+
 import { ChannelCard } from "../-channel-card";
 import {
   getCompatibleBuildsForChannel,
   getMissingRuntimeVersionsForChannel,
 } from "../-channel-compatibility-helpers";
+import { ChannelStatusBadge } from "../-channel-status-badge";
 import { ProjectSubpageHeader } from "../-project-subpage-header";
-import { PlatformBadge } from "../../../../../../components/attribute-badges";
+import { DistributionBadge, PlatformBadge } from "../../../../../../components/attribute-badges";
 import { DetailCardSkeleton, SummaryCardsSkeleton } from "../../../../../../components/skeletons";
+import { CopyableId } from "../../../../../../lib/copy-button";
+import { RelativeTime } from "../../../../../../lib/relative-time";
 import { DROPDOWN_FETCH_LIMIT } from "../../../../../../queries/constants";
 
 const ChannelNotFoundState = ({ projectSlug }: { projectSlug: string }) => (
@@ -61,25 +67,31 @@ const ChannelNotFoundState = ({ projectSlug }: { projectSlug: string }) => (
 );
 
 const ChannelSummaryCards = ({
-  linkedBranchName,
+  channel,
+  branches,
+  linkedBranch,
   compatibleBuildsCount,
   missingBuildCount,
-  isPaused,
   rolloutActive,
 }: {
-  linkedBranchName: string;
+  channel: Channel;
+  branches: readonly BranchItem[];
+  linkedBranch: BranchItem | undefined;
   compatibleBuildsCount: number;
   missingBuildCount: number;
-  isPaused: boolean;
   rolloutActive: boolean;
 }) => (
-  <div className="grid gap-4 sm:grid-cols-3">
+  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-base">Linked branch</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="font-medium">{linkedBranchName}</div>
+        {linkedBranch ? (
+          <div className="font-medium">{linkedBranch.name}</div>
+        ) : (
+          <CopyableId value={channel.branchId} label="Branch ID" />
+        )}
       </CardContent>
     </Card>
     <Card>
@@ -87,7 +99,7 @@ const ChannelSummaryCards = ({
         <CardTitle className="text-base">Channel state</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-wrap items-center gap-2">
-        <Badge variant={isPaused ? "outline" : "secondary"}>{isPaused ? "Paused" : "Live"}</Badge>
+        <ChannelStatusBadge channel={channel} branches={branches} />
         {rolloutActive ? <Badge variant="secondary">Rollout active</Badge> : null}
       </CardContent>
     </Card>
@@ -100,6 +112,14 @@ const ChannelSummaryCards = ({
         <div className="text-muted-foreground mt-1">
           {missingBuildCount} runtime versions currently missing builds
         </div>
+      </CardContent>
+    </Card>
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base">Created</CardTitle>
+      </CardHeader>
+      <CardContent className="text-sm font-medium">
+        <RelativeTime value={channel.createdAt} />
       </CardContent>
     </Card>
   </div>
@@ -132,10 +152,11 @@ const CompatibleBuildLinksCard = ({
                   {(build.message ?? build.profile) || `Build ${build.id.slice(0, 8)}`}
                 </span>
                 <PlatformBadge platform={build.platform} />
+                <DistributionBadge distribution={build.distribution} />
                 {build.runtimeVersion ? (
                   <span className="text-muted-foreground text-sm">v{build.runtimeVersion}</span>
                 ) : (
-                  <Badge variant="secondary">Missing runtimeVersion</Badge>
+                  <Badge variant="warning">Missing runtime version</Badge>
                 )}
               </div>
               <Link
@@ -199,13 +220,17 @@ const ChannelDetailContent = () => {
 
   return (
     <>
-      <ProjectSubpageHeader title={channel.name} />
+      <div className="flex flex-wrap items-center gap-2">
+        <ProjectSubpageHeader title={channel.name} />
+        <CopyableId value={channel.id} label="Channel ID" />
+      </div>
 
       <ChannelSummaryCards
-        linkedBranchName={linkedBranch?.name ?? channel.branchId}
+        channel={channel}
+        branches={branches}
+        linkedBranch={linkedBranch}
         compatibleBuildsCount={compatibleBuilds.length}
         missingBuildCount={missingRuntimeVersions.length}
-        isPaused={channel.isPaused}
         rolloutActive={rolloutActive}
       />
 

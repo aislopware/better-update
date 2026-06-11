@@ -1,6 +1,6 @@
 import { envVarsQueryOptions, globalEnvVarsQueryOptions } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
-import { Card, CardFrame } from "@better-update/ui/components/ui/card";
+import { Card } from "@better-update/ui/components/ui/card";
 import { Checkbox } from "@better-update/ui/components/ui/checkbox";
 import { CheckboxGroup } from "@better-update/ui/components/ui/checkbox-group";
 import {
@@ -10,6 +10,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
+import { Frame } from "@better-update/ui/components/ui/frame";
 import {
   InputGroup,
   InputGroupAddon,
@@ -205,7 +206,7 @@ const EnvVarsTable = ({ items }: { items: readonly EnvVar[] }) =>
   items.length === 0 ? (
     <EmptyState />
   ) : (
-    <CardFrame>
+    <Frame>
       <Table variant="card">
         <TableHeader>
           <TableRow>
@@ -223,7 +224,7 @@ const EnvVarsTable = ({ items }: { items: readonly EnvVar[] }) =>
           ))}
         </TableBody>
       </Table>
-    </CardFrame>
+    </Frame>
   );
 
 export const EnvVarsView = ({
@@ -272,7 +273,7 @@ export const EnvVarsView = ({
       return (
         <div className="flex flex-col gap-2">
           <Skeleton className="h-9 w-full rounded-md" />
-          <TableSkeleton variant="card" columns={6} rows={4} hasFooter={false} />
+          <TableSkeleton columns={6} rows={4} hasFooter={false} />
         </div>
       );
     }

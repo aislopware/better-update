@@ -32,7 +32,10 @@ const CLASS_LABEL: Record<DeviceClassValue, string> = {
 
 const IdentifierCell = ({ identifier }: { identifier: string }) => (
   <div className="flex items-center gap-1.5">
-    <code className="bg-muted max-w-[22ch] truncate rounded px-1.5 py-0.5 font-mono text-xs">
+    <code
+      title={identifier}
+      className="bg-muted max-w-[22ch] truncate rounded px-1.5 py-0.5 font-mono text-xs"
+    >
       {identifier}
     </code>
     <CopyButton value={identifier} label="UDID" />

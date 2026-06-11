@@ -3,13 +3,15 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFrame,
-  CardFrameDescription,
-  CardFrameHeader,
-  CardFrameTitle,
   CardHeader,
   CardTitle,
 } from "@better-update/ui/components/ui/card";
+import {
+  Frame,
+  FrameDescription,
+  FrameHeader,
+  FrameTitle,
+} from "@better-update/ui/components/ui/frame";
 import {
   Table,
   TableBody,
@@ -143,13 +145,13 @@ export const CompatibilityMatrix = ({
       )}
 
       {synthesized.length > 0 && channels.length > 0 && (
-        <CardFrame>
-          <CardFrameHeader>
-            <CardFrameTitle>Builds × Channels</CardFrameTitle>
-            <CardFrameDescription>
+        <Frame>
+          <FrameHeader>
+            <FrameTitle>Builds × Channels</FrameTitle>
+            <FrameDescription>
               Check which builds can receive OTA updates from each channel.
-            </CardFrameDescription>
-          </CardFrameHeader>
+            </FrameDescription>
+          </FrameHeader>
           <Table variant="card">
             <TableHeader>
               <TableRow>
@@ -168,7 +170,7 @@ export const CompatibilityMatrix = ({
               ))}
             </TableBody>
           </Table>
-        </CardFrame>
+        </Frame>
       )}
     </div>
   );

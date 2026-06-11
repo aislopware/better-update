@@ -33,25 +33,11 @@ import { TableSkeleton } from "../../../../../components/skeletons";
 import { CopyableId } from "../../../../../lib/copy-button";
 import { DataTableView, enumParam, fireAndForget } from "../../../../../lib/data-table";
 import { RelativeTime } from "../../../../../lib/relative-time";
+import {
+  SUBMISSION_STATUS_LABEL,
+  SUBMISSION_STATUS_VARIANT,
+} from "../../../../../lib/submission-status";
 import { ProjectSubpageHeader } from "./-project-subpage-header";
-
-const STATUS_VARIANT: Record<SubmissionStatusValue, "secondary" | "destructive" | "outline"> = {
-  AWAITING_BUILD: "outline",
-  IN_QUEUE: "outline",
-  IN_PROGRESS: "secondary",
-  FINISHED: "secondary",
-  ERRORED: "destructive",
-  CANCELED: "outline",
-};
-
-const STATUS_LABEL: Record<SubmissionStatusValue, string> = {
-  AWAITING_BUILD: "Awaiting build",
-  IN_QUEUE: "In queue",
-  IN_PROGRESS: "In progress",
-  FINISHED: "Finished",
-  ERRORED: "Errored",
-  CANCELED: "Canceled",
-};
 
 const STATUS_VALUES = [
   "AWAITING_BUILD",
@@ -67,7 +53,7 @@ type StatusFilter = (typeof STATUS_FILTER_VALUES)[number];
 
 const STATUS_FILTER_LABELS: Record<StatusFilter, string> = {
   all: "All statuses",
-  ...STATUS_LABEL,
+  ...SUBMISSION_STATUS_LABEL,
 };
 
 const PLATFORM_FILTER_VALUES = ["all", "ios", "android"] as const;
@@ -89,8 +75,8 @@ const columns: readonly ColumnDef<SubmissionItem>[] = [
     id: "status",
     header: "Status",
     cell: ({ row }) => (
-      <Badge variant={STATUS_VARIANT[row.original.status]}>
-        {STATUS_LABEL[row.original.status]}
+      <Badge variant={SUBMISSION_STATUS_VARIANT[row.original.status]}>
+        {SUBMISSION_STATUS_LABEL[row.original.status]}
       </Badge>
     ),
     enableSorting: false,

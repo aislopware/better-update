@@ -1,5 +1,4 @@
 import { runtimesQueryOptions } from "@better-update/api-client/react";
-import { Badge } from "@better-update/ui/components/ui/badge";
 import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
@@ -68,9 +67,9 @@ const columns: readonly ColumnDef<RuntimeAggregate>[] = [
     id: "buildsCount",
     header: "Builds",
     cell: ({ row }) => (
-      <Badge variant={row.original.buildsCount > 0 ? "secondary" : "outline"}>
+      <span className={row.original.buildsCount > 0 ? undefined : "text-muted-foreground"}>
         {row.original.buildsCount} {pluralize(row.original.buildsCount, "build")}
-      </Badge>
+      </span>
     ),
     enableSorting: false,
   },
@@ -78,9 +77,9 @@ const columns: readonly ColumnDef<RuntimeAggregate>[] = [
     id: "updatesCount",
     header: "Updates",
     cell: ({ row }) => (
-      <Badge variant={row.original.updatesCount > 0 ? "secondary" : "outline"}>
+      <span className={row.original.updatesCount > 0 ? undefined : "text-muted-foreground"}>
         {row.original.updatesCount} {pluralize(row.original.updatesCount, "update")}
-      </Badge>
+      </span>
     ),
     enableSorting: false,
   },

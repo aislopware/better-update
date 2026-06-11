@@ -5,7 +5,7 @@ import {
 } from "@better-update/api-client/react";
 import { Alert, AlertDescription, AlertTitle } from "@better-update/ui/components/ui/alert";
 import { Badge } from "@better-update/ui/components/ui/badge";
-import { Card, CardFrame } from "@better-update/ui/components/ui/card";
+import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
   EmptyDescription,
@@ -13,6 +13,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
+import { Frame } from "@better-update/ui/components/ui/frame";
 import {
   Table,
   TableBody,
@@ -128,9 +129,9 @@ const VaultAccessContent = () => {
           credentials
         </span>
       </div>
-      <CardFrame>
+      <Frame>
         <RecipientsTable rows={rows} />
-      </CardFrame>
+      </Frame>
     </section>
   );
 };
@@ -141,7 +142,7 @@ const VaultAccess = () => (
       title="Vault access"
       description="Keys that can decrypt this organization's credential vault. Access is granted and revoked from the CLI."
     />
-    <Suspense fallback={<TableSkeleton variant="card" columns={5} rows={3} hasFooter={false} />}>
+    <Suspense fallback={<TableSkeleton columns={5} rows={3} hasFooter={false} />}>
       <VaultAccessContent />
     </Suspense>
   </div>

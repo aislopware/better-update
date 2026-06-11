@@ -4,13 +4,8 @@ import {
   androidUploadKeystoresQueryOptions,
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
-import {
-  Card,
-  CardFrame,
-  CardFrameHeader,
-  CardFrameTitle,
-  CardPanel,
-} from "@better-update/ui/components/ui/card";
+import { Card, CardPanel } from "@better-update/ui/components/ui/card";
+import { Frame, FrameHeader, FramePanel, FrameTitle } from "@better-update/ui/components/ui/frame";
 import {
   Select,
   SelectItem,
@@ -57,18 +52,16 @@ const FingerprintCell = ({ value, label }: { value: string | null; label: string
   );
 
 const KeystoreCard = ({ keystore }: { keystore: AndroidUploadKeystoreItem | null }) => (
-  <CardFrame>
-    <CardFrameHeader className="py-4">
-      <CardFrameTitle className="text-base">Android upload keystore</CardFrameTitle>
-    </CardFrameHeader>
+  <Frame>
+    <FrameHeader>
+      <FrameTitle>Android upload keystore</FrameTitle>
+    </FrameHeader>
     {keystore === null ? (
-      <Card>
-        <CardPanel className="py-4">
-          <span className="text-muted-foreground text-sm">
-            No upload keystore bound — bind one with the CLI.
-          </span>
-        </CardPanel>
-      </Card>
+      <FramePanel className="py-4">
+        <span className="text-muted-foreground text-sm">
+          No upload keystore bound — bind one with the CLI.
+        </span>
+      </FramePanel>
     ) : (
       <Table variant="card">
         <TableHeader>
@@ -103,7 +96,7 @@ const KeystoreCard = ({ keystore }: { keystore: AndroidUploadKeystoreItem | null
         </TableBody>
       </Table>
     )}
-  </CardFrame>
+  </Frame>
 );
 
 const GroupOptionLabel = ({ group }: { group: AndroidBuildCredentialsItem }) => (

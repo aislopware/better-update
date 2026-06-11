@@ -1,4 +1,4 @@
-import { Card, CardFrame } from "@better-update/ui/components/ui/card";
+import { Card } from "@better-update/ui/components/ui/card";
 import { Frame } from "@better-update/ui/components/ui/frame";
 import { Skeleton } from "@better-update/ui/components/ui/skeleton";
 import {
@@ -25,7 +25,6 @@ interface TableSkeletonProps {
   readonly columns?: number;
   readonly rows?: number;
   readonly hasFooter?: boolean;
-  readonly variant?: "card" | "frame";
   readonly className?: string;
 }
 
@@ -33,16 +32,13 @@ export const TableSkeleton = ({
   columns = 5,
   rows = 5,
   hasFooter = true,
-  variant = "frame",
   className,
 }: TableSkeletonProps) => {
-  const Wrapper = variant === "card" ? CardFrame : Frame;
-  const tableVariant = variant === "card" ? "default" : "card";
   const safeColumns = Math.max(columns, 1);
   const safeRows = Math.max(rows, 1);
   return (
-    <Wrapper className={cn("overflow-hidden", className)}>
-      <Table variant={tableVariant}>
+    <Frame className={cn("overflow-hidden", className)}>
+      <Table variant="card">
         <TableHeader>
           <TableRow>
             {repeat(safeColumns).map((index) => (
@@ -79,7 +75,7 @@ export const TableSkeleton = ({
           </TableFooter>
         ) : null}
       </Table>
-    </Wrapper>
+    </Frame>
   );
 };
 

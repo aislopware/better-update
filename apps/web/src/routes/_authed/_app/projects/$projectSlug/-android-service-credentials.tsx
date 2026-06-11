@@ -3,13 +3,7 @@ import {
   androidBuildCredentialsQueryOptions,
   googleServiceAccountKeysQueryOptions,
 } from "@better-update/api-client/react";
-import {
-  Card,
-  CardFrame,
-  CardFrameHeader,
-  CardFrameTitle,
-  CardPanel,
-} from "@better-update/ui/components/ui/card";
+import { Frame, FrameHeader, FramePanel, FrameTitle } from "@better-update/ui/components/ui/frame";
 import {
   Table,
   TableBody,
@@ -42,16 +36,14 @@ const GsaTableCard = ({
   emptyLabel: string;
   sa: GoogleServiceAccountKeyItem | null;
 }) => (
-  <CardFrame>
-    <CardFrameHeader className="py-4">
-      <CardFrameTitle className="text-base">{title}</CardFrameTitle>
-    </CardFrameHeader>
+  <Frame>
+    <FrameHeader>
+      <FrameTitle>{title}</FrameTitle>
+    </FrameHeader>
     {sa === null ? (
-      <Card>
-        <CardPanel className="py-4">
-          <span className="text-muted-foreground text-sm">{emptyLabel}</span>
-        </CardPanel>
-      </Card>
+      <FramePanel className="py-4">
+        <span className="text-muted-foreground text-sm">{emptyLabel}</span>
+      </FramePanel>
     ) : (
       <Table variant="card">
         <TableHeader>
@@ -88,7 +80,7 @@ const GsaTableCard = ({
         </TableBody>
       </Table>
     )}
-  </CardFrame>
+  </Frame>
 );
 
 export const AndroidServiceCredentialsSection = ({

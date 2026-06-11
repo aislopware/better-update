@@ -4,13 +4,7 @@ import {
   ascApiKeysQueryOptions,
   iosBundleConfigurationsQueryOptions,
 } from "@better-update/api-client/react";
-import {
-  Card,
-  CardFrame,
-  CardFrameHeader,
-  CardFrameTitle,
-  CardPanel,
-} from "@better-update/ui/components/ui/card";
+import { Frame, FrameHeader, FramePanel, FrameTitle } from "@better-update/ui/components/ui/frame";
 import {
   Table,
   TableBody,
@@ -31,12 +25,10 @@ import { RolesCell, TeamCell } from "../../-credential-cells";
 import { CopyableMono } from "../../../../../lib/copy-button";
 import { formatShortDateTime } from "../../../../../lib/format-date";
 
-const EmptyBindingCard = ({ message }: { message: string }) => (
-  <Card>
-    <CardPanel className="py-4">
-      <span className="text-muted-foreground text-sm">{message}</span>
-    </CardPanel>
-  </Card>
+const EmptyBindingPanel = ({ message }: { message: string }) => (
+  <FramePanel className="py-4">
+    <span className="text-muted-foreground text-sm">{message}</span>
+  </FramePanel>
 );
 
 const PushKeyTableCard = ({
@@ -46,12 +38,12 @@ const PushKeyTableCard = ({
   pushKey: ApplePushKeyItem | null;
   team: AppleTeamItem | null;
 }) => (
-  <CardFrame>
-    <CardFrameHeader className="py-4">
-      <CardFrameTitle className="text-base">Push notifications key</CardFrameTitle>
-    </CardFrameHeader>
+  <Frame>
+    <FrameHeader>
+      <FrameTitle>Push notifications key</FrameTitle>
+    </FrameHeader>
     {pushKey === null ? (
-      <EmptyBindingCard message="No push key bound — bind one with the CLI." />
+      <EmptyBindingPanel message="No push key bound — bind one with the CLI." />
     ) : (
       <Table variant="card">
         <TableHeader>
@@ -76,7 +68,7 @@ const PushKeyTableCard = ({
         </TableBody>
       </Table>
     )}
-  </CardFrame>
+  </Frame>
 );
 
 const AscKeyTableCard = ({
@@ -86,12 +78,12 @@ const AscKeyTableCard = ({
   ascKey: AscApiKeyItem | null;
   team: AppleTeamItem | null;
 }) => (
-  <CardFrame>
-    <CardFrameHeader className="py-4">
-      <CardFrameTitle className="text-base">App Store Connect API key</CardFrameTitle>
-    </CardFrameHeader>
+  <Frame>
+    <FrameHeader>
+      <FrameTitle>App Store Connect API key</FrameTitle>
+    </FrameHeader>
     {ascKey === null ? (
-      <EmptyBindingCard message="No App Store Connect API key bound — bind one with the CLI." />
+      <EmptyBindingPanel message="No App Store Connect API key bound — bind one with the CLI." />
     ) : (
       <Table variant="card">
         <TableHeader>
@@ -126,7 +118,7 @@ const AscKeyTableCard = ({
         </TableBody>
       </Table>
     )}
-  </CardFrame>
+  </Frame>
 );
 
 const findPushKey = (

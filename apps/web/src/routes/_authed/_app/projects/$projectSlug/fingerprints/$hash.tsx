@@ -25,7 +25,7 @@ import { ProjectSubpageHeader } from "../-project-subpage-header";
 import { DistributionBadge, PlatformBadge } from "../../../../../../components/attribute-badges";
 import { DetailCardSkeleton } from "../../../../../../components/skeletons";
 import { CopyButton } from "../../../../../../lib/copy-button";
-import { formatDateTime } from "../../../../../../lib/format-date";
+import { RelativeTime } from "../../../../../../lib/relative-time";
 
 interface RouteParams {
   projectSlug: string;
@@ -115,9 +115,7 @@ const FingerprintBuildsCard = ({
                 <span className="font-medium">v{build.runtimeVersion ?? "—"}</span>
                 <span className="text-muted-foreground text-sm">{build.profile}</span>
               </div>
-              <span className="text-muted-foreground text-xs">
-                {formatDateTime(build.createdAt)}
-              </span>
+              <RelativeTime value={build.createdAt} className="text-muted-foreground text-xs" />
             </Link>
           ))}
         </div>
@@ -126,7 +124,13 @@ const FingerprintBuildsCard = ({
   </Card>
 );
 
-const FingerprintUpdatesCard = ({ updates }: { updates: readonly UpdateItem[] }) => (
+const FingerprintUpdatesCard = ({
+  projectSlug,
+  updates,
+}: {
+  projectSlug: string;
+  updates: readonly UpdateItem[];
+}) => (
   <Card>
     <CardHeader>
       <CardTitle>Updates ({updates.length})</CardTitle>
@@ -138,20 +142,22 @@ const FingerprintUpdatesCard = ({ updates }: { updates: readonly UpdateItem[] })
       ) : (
         <div className="flex flex-col gap-2">
           {updates.map((update) => (
-            <div
+            <Link
               key={update.id}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3"
+              to="/projects/$projectSlug/updates/$updateId"
+              params={{ projectSlug, updateId: update.id }}
+              className="hover:bg-muted/40 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3 transition-colors"
             >
               <div className="flex flex-wrap items-center gap-2">
                 <PlatformBadge platform={update.platform} />
                 <span className="font-medium">v{update.runtimeVersion}</span>
                 {update.isRollback && <Badge variant="destructive">Rollback</Badge>}
-                <span className="text-muted-foreground line-clamp-1 text-sm">{update.message}</span>
+                <span className="text-muted-foreground line-clamp-1 text-sm">
+                  {update.message || `Update ${update.groupId.slice(0, 8)}`}
+                </span>
               </div>
-              <span className="text-muted-foreground text-xs">
-                {formatDateTime(update.createdAt)}
-              </span>
-            </div>
+              <RelativeTime value={update.createdAt} className="text-muted-foreground text-xs" />
+            </Link>
           ))}
         </div>
       )}
@@ -181,15 +187,24 @@ const FingerprintContent = ({ projectSlug, hash }: RouteParams) => {
         updateCount={data.updates.length}
       />
       <FingerprintBuildsCard projectSlug={projectSlug} builds={data.builds} />
-      <FingerprintUpdatesCard updates={data.updates} />
+      <FingerprintUpdatesCard projectSlug={projectSlug} updates={data.updates} />
     </div>
   );
 };
 
+const FingerprintSkeleton = () => (
+  <div className="flex w-full flex-col gap-4">
+    <ProjectSubpageHeader title="Fingerprint" />
+    <DetailCardSkeleton rows={2} columns={1} />
+    <DetailCardSkeleton rows={3} columns={1} />
+    <DetailCardSkeleton rows={3} columns={1} />
+  </div>
+);
+
 const FingerprintPage = () => {
   const { projectSlug, hash } = Route.useParams();
   return (
-    <Suspense fallback={<DetailCardSkeleton />}>
+    <Suspense fallback={<FingerprintSkeleton />}>
       <FingerprintContent projectSlug={projectSlug} hash={hash} />
     </Suspense>
   );

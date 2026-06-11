@@ -4,6 +4,7 @@ import { TableCell, TableRow } from "@better-update/ui/components/ui/table";
 import type { EnvVar } from "@better-update/api";
 
 import { CopyButton } from "../../../../lib/copy-button";
+import { pluralize } from "../../../../lib/pluralize";
 import { RelativeTime } from "../../../../lib/relative-time";
 import { formatEnvironmentLabel } from "./-env-vars-labels";
 
@@ -41,7 +42,9 @@ export const EnvVarRow = ({ envVar }: { envVar: EnvVar }) => (
         {envVar.visibility}
       </Badge>
     </TableCell>
-    <TableCell className="text-muted-foreground text-sm">{envVar.revisionCount}</TableCell>
+    <TableCell className="text-muted-foreground text-sm">
+      {envVar.revisionCount} {pluralize(envVar.revisionCount, "revision")}
+    </TableCell>
     <TableCell className="text-muted-foreground text-sm">
       <RelativeTime value={envVar.updatedAt} />
     </TableCell>

@@ -51,7 +51,10 @@ export const buildUpdateColumns = (
   {
     id: "branch",
     header: "Branch",
-    cell: ({ row }) => branchNames.get(row.original.branchId) ?? row.original.branchId,
+    cell: ({ row }) =>
+      branchNames.get(row.original.branchId) ?? (
+        <CopyableId value={row.original.branchId} label="Branch ID" />
+      ),
     enableSorting: false,
   },
   {

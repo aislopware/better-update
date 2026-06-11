@@ -3,7 +3,7 @@ import {
   iosBundleConfigurationsQueryOptions,
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
-import { Card, CardFrame } from "@better-update/ui/components/ui/card";
+import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
   EmptyDescription,
@@ -11,6 +11,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
+import { Frame } from "@better-update/ui/components/ui/frame";
 import { Skeleton } from "@better-update/ui/components/ui/skeleton";
 import {
   Table,
@@ -54,7 +55,7 @@ const groupBundleConfigs = (
 };
 
 const SectionListSkeleton = () => (
-  <CardFrame>
+  <Frame>
     <Table variant="card">
       <TableBody>
         {[0, 1, 2].map((index) => (
@@ -66,7 +67,7 @@ const SectionListSkeleton = () => (
         ))}
       </TableBody>
     </Table>
-  </CardFrame>
+  </Frame>
 );
 
 const AndroidEmpty = () => (
@@ -189,7 +190,7 @@ const AndroidSection = ({
       {items.length === 0 ? (
         <AndroidEmpty />
       ) : (
-        <CardFrame>
+        <Frame>
           <Table variant="card">
             <TableHeader>
               <TableRow>
@@ -202,7 +203,7 @@ const AndroidSection = ({
               ))}
             </TableBody>
           </Table>
-        </CardFrame>
+        </Frame>
       )}
     </section>
   );
@@ -234,7 +235,7 @@ const IosSection = ({
       {groups.length === 0 ? (
         <IosEmpty />
       ) : (
-        <CardFrame>
+        <Frame>
           <Table variant="card">
             <TableHeader>
               <TableRow>
@@ -251,7 +252,7 @@ const IosSection = ({
               ))}
             </TableBody>
           </Table>
-        </CardFrame>
+        </Frame>
       )}
     </section>
   );

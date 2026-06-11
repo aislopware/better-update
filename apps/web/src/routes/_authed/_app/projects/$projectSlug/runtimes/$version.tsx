@@ -1,4 +1,8 @@
-import { buildsQueryOptions, updatesQueryOptions } from "@better-update/api-client/react";
+import {
+  branchesQueryOptions,
+  buildsQueryOptions,
+  updatesQueryOptions,
+} from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
@@ -28,8 +32,8 @@ import { ProjectSubpageHeader } from "../-project-subpage-header";
 import { PlatformBadge } from "../../../../../../components/attribute-badges";
 import { DetailCardSkeleton, SummaryCardsSkeleton } from "../../../../../../components/skeletons";
 import { DataTableView } from "../../../../../../lib/data-table";
-import { formatDateTime } from "../../../../../../lib/format-date";
 import { pluralize } from "../../../../../../lib/pluralize";
+import { RelativeTime } from "../../../../../../lib/relative-time";
 import { DROPDOWN_FETCH_LIMIT } from "../../../../../../queries/constants";
 import { buildBuildsColumns } from "../builds/-builds-columns";
 
@@ -91,12 +95,8 @@ const RuntimeSummaryCards = ({
       <CardHeader className="pb-2">
         <CardTitle className="text-base">Latest activity</CardTitle>
       </CardHeader>
-      <CardContent className="text-sm">
-        {latestActivity === null ? (
-          <span className="text-muted-foreground">—</span>
-        ) : (
-          formatDateTime(latestActivity)
-        )}
+      <CardContent className="text-sm font-medium">
+        <RelativeTime value={latestActivity} />
       </CardContent>
     </Card>
   </div>
@@ -116,29 +116,32 @@ const UpdateRow = ({
     readonly createdAt: string;
     readonly rolloutPercentage: number;
   };
-  branchName: string;
+  branchName: string | undefined;
   projectSlug: string;
 }) => (
-  <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-3">
+  <Link
+    to="/projects/$projectSlug/updates/$updateId"
+    params={{ projectSlug, updateId: update.id }}
+    className="hover:bg-muted/40 flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-3 transition-colors"
+  >
     <div className="flex flex-wrap items-center gap-2">
       <span className="font-medium">
         {update.message || `Update ${update.groupId.slice(0, 8)}`}
       </span>
       <PlatformBadge platform={update.platform} />
-      <span className="text-muted-foreground text-sm">{branchName}</span>
+      {branchName ? (
+        <span className="text-muted-foreground text-sm">{branchName}</span>
+      ) : (
+        <code className="text-muted-foreground font-mono text-xs" title={update.branchId}>
+          {update.branchId.slice(0, 8)}
+        </code>
+      )}
       {update.rolloutPercentage < 100 ? (
         <Badge variant="secondary">Rollout {update.rolloutPercentage}%</Badge>
       ) : null}
     </div>
-    <Link
-      to="/projects/$projectSlug/updates"
-      params={{ projectSlug }}
-      search={{ page: 1, sort: "-createdAt" as const, branchId: update.branchId }}
-      className="text-muted-foreground hover:text-foreground text-sm transition-colors"
-    >
-      View in updates
-    </Link>
-  </div>
+    <RelativeTime value={update.createdAt} className="text-muted-foreground text-xs" />
+  </Link>
 );
 
 const RuntimeDetailContent = () => {
@@ -158,6 +161,13 @@ const RuntimeDetailContent = () => {
       runtimeVersion: version,
       limit: DROPDOWN_FETCH_LIMIT,
     }),
+  );
+  const { data: branchesData } = useSuspenseQuery(
+    branchesQueryOptions(orgId, projectId, { limit: DROPDOWN_FETCH_LIMIT }),
+  );
+  const branchNames = useMemo(
+    () => new Map(branchesData.items.map((branch) => [branch.id, branch.name])),
+    [branchesData.items],
   );
 
   const buildsCount = buildsData.total;
@@ -256,7 +266,7 @@ const RuntimeDetailContent = () => {
                 <UpdateRow
                   key={update.id}
                   update={update}
-                  branchName={update.branchId.slice(0, 8)}
+                  branchName={branchNames.get(update.branchId)}
                   projectSlug={projectSlug}
                 />
               ))}
