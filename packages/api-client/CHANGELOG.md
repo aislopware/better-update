@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.15.0](https://github.com/aislopware/better-update/compare/@better-update/api-client@0.14.0...@better-update/api-client@0.15.0) (2026-06-11)
+
+### Features
+
+* **web:** polish dashboard list views and add server-side search ([299260e](https://github.com/aislopware/better-update/commit/299260ef7634cf4064e0f71f6321bd3b4aea50a5)) - by @trancong12102
+
 ## [0.14.0](https://github.com/aislopware/better-update/compare/@better-update/api-client@0.13.1...@better-update/api-client@0.14.0) (2026-06-10)
 
 ### Features

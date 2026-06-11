@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.31.0](https://github.com/better-update/better-update/compare/@better-update/server@0.30.0...@better-update/server@0.31.0) (2026-06-11)
+
+### Features
+
+* **web:** polish dashboard list views and add server-side search ([299260e](https://github.com/better-update/better-update/commit/299260ef7634cf4064e0f71f6321bd3b4aea50a5)) - by @trancong12102
+
 ## [0.30.0](https://github.com/better-update/better-update/compare/@better-update/server@0.29.2...@better-update/server@0.30.0) (2026-06-10)
 
 ### Features
