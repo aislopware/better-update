@@ -1,6 +1,5 @@
 import { deleteUpdateGroup } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
-import { toastManager } from "@better-update/ui/components/ui/toast";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@better-update/ui/components/ui/tooltip";
 import { useQueryClient } from "@tanstack/react-query";
 import { RefreshCwIcon, RocketIcon, Trash2Icon, Undo2Icon } from "lucide-react";
@@ -9,7 +8,7 @@ import { useState } from "react";
 import type { Channel, Update } from "@better-update/api";
 import type { ReactNode } from "react";
 
-import { useApiMutation } from "../../../../../lib/use-api-mutation";
+import { ConfirmDeleteDialog } from "./-confirm-delete-dialog";
 import { PreviewUpdateDialog } from "./-preview-update-dialog";
 import { PromoteUpdateDialog } from "./-promote-update-dialog";
 import { RepublishUpdateDialog } from "./-republish-update-dialog";
@@ -88,6 +87,7 @@ export const UpdateActionButtons = ({
   const [promoteOpen, setPromoteOpen] = useState(false);
   const [rollbackOpen, setRollbackOpen] = useState(false);
   const [republishOpen, setRepublishOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const eligibleChannels = channels.filter((channel) => channel.branchId !== update.branchId);
   const followupBlockReason = computeFollowupBlockReason(update);
@@ -99,14 +99,6 @@ export const UpdateActionButtons = ({
     (eligibleChannels.length === 0
       ? "No other channels available to promote this update to"
       : undefined);
-
-  const deleteUpdateGroupMutation = useApiMutation({
-    mutationFn: async () => deleteUpdateGroup(update.groupId),
-    onSuccess: async () => {
-      toastManager.add({ title: "Update group deleted", type: "success" });
-      await invalidateUpdates(queryClient, orgId, projectId);
-    },
-  });
 
   return (
     <div className="flex items-center gap-1">
@@ -150,10 +142,21 @@ export const UpdateActionButtons = ({
         enabledTooltip="Delete update group"
         disabledReason={undefined}
         icon={<Trash2Icon strokeWidth={2} />}
-        loading={deleteUpdateGroupMutation.isPending}
         onClick={() => {
-          deleteUpdateGroupMutation.mutate();
+          setDeleteOpen(true);
         }}
+      />
+      <ConfirmDeleteDialog
+        name={update.message || update.groupId.slice(0, 8)}
+        title="Delete update group?"
+        description="This action cannot be undone. All platform variants in this update group will be permanently deleted."
+        onConfirm={async () => deleteUpdateGroup(update.groupId)}
+        successMessage="Update group deleted"
+        onSuccess={async () => {
+          await invalidateUpdates(queryClient, orgId, projectId);
+        }}
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
       />
       {rollbackDisabledReason === undefined && branchName !== undefined && (
         <RollbackToEmbeddedDialog

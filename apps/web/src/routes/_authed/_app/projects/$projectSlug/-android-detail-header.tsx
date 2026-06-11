@@ -16,6 +16,7 @@ import {
 } from "@better-update/ui/components/ui/card";
 import {
   Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
@@ -85,14 +86,14 @@ export const AndroidNotFoundEmpty = ({
           on this project.
         </EmptyDescription>
       </EmptyHeader>
-      <Button
-        variant="outline"
-        render={
-          <Link to="/projects/$projectSlug/credentials" params={{ projectSlug }}>
-            Back to credentials
-          </Link>
-        }
-      />
+      <EmptyContent>
+        <Button
+          variant="outline"
+          render={<Link to="/projects/$projectSlug/credentials" params={{ projectSlug }} />}
+        >
+          Back to credentials
+        </Button>
+      </EmptyContent>
     </Empty>
   </Card>
 );

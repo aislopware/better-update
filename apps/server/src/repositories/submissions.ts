@@ -40,7 +40,9 @@ export interface SubmissionsRepository {
     readonly platform?: Platform | undefined;
     readonly profile?: string | undefined;
     readonly buildId?: string | undefined;
-  }) => Effect.Effect<readonly SubmissionModel[]>;
+    readonly limit: number;
+    readonly offset: number;
+  }) => Effect.Effect<{ readonly items: readonly SubmissionModel[]; readonly total: number }>;
 
   readonly findById: (params: { readonly id: string }) => Effect.Effect<SubmissionModel, NotFound>;
 
@@ -123,24 +125,31 @@ export const SubmissionsRepoLive = Layer.succeed(SubmissionsRepo, {
     Effect.gen(function* () {
       const db = yield* kyselyDb;
       const { status, platform, profile, buildId } = params;
+      // Shared by the count and page queries so `total` respects the filters.
+      const filtered = db
+        .selectFrom("submissions")
+        .where("project_id", "=", params.projectId)
+        .where((eb) => {
+          const conditions: (Expression<SqlBool> | null)[] = [
+            status === undefined ? null : eb("status", "=", status),
+            platform === undefined ? null : eb("platform", "=", platform),
+            profile === undefined ? null : eb("profile_name", "=", profile),
+            buildId === undefined ? null : eb("build_id", "=", buildId),
+          ];
+          return eb.and(conditions.filter((cond): cond is Expression<SqlBool> => cond !== null));
+        });
+      const countRow = yield* Effect.promise(async () =>
+        filtered.select((eb) => eb.fn.countAll<number>().as("count")).executeTakeFirstOrThrow(),
+      );
       const rows = yield* Effect.promise(async () =>
-        db
-          .selectFrom("submissions")
+        filtered
           .selectAll()
-          .where("project_id", "=", params.projectId)
-          .where((eb) => {
-            const conditions: (Expression<SqlBool> | null)[] = [
-              status === undefined ? null : eb("status", "=", status),
-              platform === undefined ? null : eb("platform", "=", platform),
-              profile === undefined ? null : eb("profile_name", "=", profile),
-              buildId === undefined ? null : eb("build_id", "=", buildId),
-            ];
-            return eb.and(conditions.filter((cond): cond is Expression<SqlBool> => cond !== null));
-          })
           .orderBy("created_at", "desc")
+          .limit(params.limit)
+          .offset(params.offset)
           .execute(),
       );
-      return rows.map(toModel);
+      return { items: rows.map(toModel), total: countRow.count };
     }),
 
   findById: (params) =>

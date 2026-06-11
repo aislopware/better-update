@@ -5,6 +5,7 @@ import {
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Card, CardPanel } from "@better-update/ui/components/ui/card";
+import { Field, FieldLabel } from "@better-update/ui/components/ui/field";
 import {
   Select,
   SelectItem,
@@ -115,25 +116,28 @@ const GroupSwitcher = ({
   onChange: (id: string) => void;
   group: AndroidBuildCredentialsItem;
 }) => (
-  <Select
-    value={selectedId}
-    onValueChange={(next) => {
-      if (next !== null) {
-        onChange(next);
-      }
-    }}
-  >
-    <SelectTrigger className="min-w-64">
-      <SelectValue>{() => <GroupOptionLabel group={group} />}</SelectValue>
-    </SelectTrigger>
-    <SelectPopup>
-      {groups.map((item) => (
-        <SelectItem key={item.id} value={item.id}>
-          <GroupOptionLabel group={item} />
-        </SelectItem>
-      ))}
-    </SelectPopup>
-  </Select>
+  <Field>
+    <FieldLabel>Credential group</FieldLabel>
+    <Select
+      value={selectedId}
+      onValueChange={(next) => {
+        if (next !== null) {
+          onChange(next);
+        }
+      }}
+    >
+      <SelectTrigger className="min-w-64">
+        <SelectValue>{() => <GroupOptionLabel group={group} />}</SelectValue>
+      </SelectTrigger>
+      <SelectPopup>
+        {groups.map((item) => (
+          <SelectItem key={item.id} value={item.id}>
+            <GroupOptionLabel group={item} />
+          </SelectItem>
+        ))}
+      </SelectPopup>
+    </Select>
+  </Field>
 );
 
 const EmptyGroups = () => (

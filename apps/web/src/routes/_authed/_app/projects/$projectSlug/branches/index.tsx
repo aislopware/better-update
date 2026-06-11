@@ -192,7 +192,7 @@ const BranchesPage = () => {
   if (isLoading || data === undefined) {
     return (
       <div className="flex w-full flex-col gap-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <ProjectSubpageHeader title="Branches" />
           {createCta}
         </div>
@@ -217,7 +217,7 @@ const BranchesPage = () => {
   if (showsGlobalEmpty) {
     return (
       <div className="flex w-full flex-col gap-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <ProjectSubpageHeader title="Branches" />
           {createCta}
         </div>
@@ -232,7 +232,7 @@ const BranchesPage = () => {
 
   return (
     <div className="flex w-full flex-col gap-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <ProjectSubpageHeader title="Branches" />
         {createCta}
       </div>

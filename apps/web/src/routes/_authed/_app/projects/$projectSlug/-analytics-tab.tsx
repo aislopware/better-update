@@ -403,7 +403,7 @@ export const AnalyticsTab = ({ orgId, projectId, search, onSearchChange }: Analy
         </Select>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid gap-4 sm:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Update Adoption</CardTitle>

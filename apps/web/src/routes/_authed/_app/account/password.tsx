@@ -55,16 +55,17 @@ const PasswordForm = () => {
 
   if (!hasCredential) {
     return (
-      <SettingCard title="Password" description="Set a password to enable email sign-in.">
+      <SettingCard title="Password" description="Password sign-in is not set up for this account.">
         <p className="text-muted-foreground text-sm">
-          You signed up with a social provider. Add an email & password from{" "}
+          You signed in with a social provider, so there is no password to change. Manage your
+          linked providers from{" "}
           <Link
             className="text-foreground underline-offset-2 hover:underline"
             to="/account/connections"
           >
             Connections
-          </Link>{" "}
-          first.
+          </Link>
+          .
         </p>
       </SettingCard>
     );

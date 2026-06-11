@@ -34,6 +34,7 @@ import type {
 import { AndroidIcon } from "../../../../../components/android-icon";
 import { AppleIcon } from "../../../../../components/apple-icon";
 import { SectionHeader } from "../../../../../components/page-header";
+import { ProjectSubpageHeader } from "./-project-subpage-header";
 
 interface IosBundleGroup {
   readonly bundleIdentifier: string;
@@ -263,6 +264,7 @@ const ProjectCredentialsIndex = () => {
   const { projectSlug } = Route.useParams();
   return (
     <div className="flex w-full flex-col gap-8">
+      <ProjectSubpageHeader title="Credentials" />
       <Suspense fallback={<SectionListSkeleton />}>
         <AndroidSection orgId={activeOrg.id} projectId={project.id} projectSlug={projectSlug} />
       </Suspense>

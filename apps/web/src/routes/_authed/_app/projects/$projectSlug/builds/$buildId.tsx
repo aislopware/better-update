@@ -33,7 +33,7 @@ import { synthesizeBuildChannels } from "../-compatibility-join";
 import { InstallLinkDialog } from "../-install-link-dialog";
 import { ProjectSubpageHeader } from "../-project-subpage-header";
 import { ChannelBadge } from "../../../../../../components/attribute-badges";
-import { DetailCardSkeleton, SummaryCardsSkeleton } from "../../../../../../components/skeletons";
+import { DetailCardSkeleton } from "../../../../../../components/skeletons";
 import { CopyButton, CopyableMono } from "../../../../../../lib/copy-button";
 import { RelativeTime } from "../../../../../../lib/relative-time";
 
@@ -309,7 +309,7 @@ const BuildDetailContent = () => {
 const BuildDetailSkeleton = () => (
   <>
     <ProjectSubpageHeader title="Build" />
-    <SummaryCardsSkeleton count={3} />
+    <DetailCardSkeleton rows={2} columns={2} />
     <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
       <DetailCardSkeleton rows={3} columns={2} />
       <DetailCardSkeleton rows={2} columns={1} />

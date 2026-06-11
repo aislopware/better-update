@@ -1,4 +1,14 @@
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@better-update/ui/components/ui/card";
+
 import type { MissingRuntimeVersionBuild } from "@better-update/api";
+
+import { PlatformBadge } from "../../../../../components/attribute-badges";
 
 export const MissingMatchingBuilds = ({
   missingRuntimeVersions,
@@ -10,24 +20,27 @@ export const MissingMatchingBuilds = ({
   }
 
   return (
-    <div className="bg-muted/40 border-border rounded-3xl border p-4">
-      <div className="mb-2 text-sm font-medium">Missing matching builds</div>
-      <div className="flex flex-col gap-2">
+    <Card className="border-border bg-muted/40">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base">Missing matching builds</CardTitle>
+        <CardDescription>
+          These runtime versions have OTA updates but no uploaded build.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-2">
         {missingRuntimeVersions.map((entry) => (
           <div
             key={`${entry.channelId}:${entry.platform}:${entry.runtimeVersion}`}
-            className="text-sm"
+            className="flex flex-wrap items-center gap-2 text-sm"
           >
-            <span className="font-medium">
-              {entry.platform} v{entry.runtimeVersion}
-            </span>
+            <PlatformBadge platform={entry.platform} />
+            <span className="font-medium">v{entry.runtimeVersion}</span>
             <span className="text-muted-foreground">
-              {" "}
-              has {entry.updateCount} updates but no uploaded build.
+              {entry.updateCount} updates but no uploaded build.
             </span>
           </div>
         ))}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 };

@@ -9,6 +9,7 @@ import {
   DialogPanel,
   DialogTitle,
 } from "@better-update/ui/components/ui/dialog";
+import { Field, FieldLabel } from "@better-update/ui/components/ui/field";
 import {
   Select,
   SelectPopup,
@@ -130,14 +131,14 @@ const PromoteForm = ({
           </div>
           <form.Field name="targetChannelName">
             {(field) => (
-              <div className="flex flex-col gap-2">
-                <span className="text-sm font-medium">Target channel</span>
+              <Field>
+                <FieldLabel>Target channel</FieldLabel>
                 <TargetChannelSelect
                   value={field.state.value}
                   onChange={field.handleChange}
                   channels={channels}
                 />
-              </div>
+              </Field>
             )}
           </form.Field>
         </div>

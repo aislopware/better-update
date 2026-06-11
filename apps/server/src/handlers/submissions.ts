@@ -12,6 +12,7 @@ import { BadRequest } from "../errors";
 import { toApiSubmission } from "../http/to-api";
 import { toApiCrudEffect, toApiWriteEffect } from "../http/to-api-effect";
 import { toDbNull } from "../lib/nullable";
+import { parsePagination } from "../lib/pagination";
 import { requireValue } from "../lib/require-value";
 import { SubmissionsRepo } from "../repositories/submissions";
 
@@ -75,14 +76,17 @@ export const SubmissionsGroupLive = HttpApiBuilder.group(ManagementApi, "submiss
             projectId: path.projectId,
           });
           const repo = yield* SubmissionsRepo;
-          const items = yield* repo.listByProject({
+          const { page, limit, offset } = parsePagination(urlParams);
+          const { items, total } = yield* repo.listByProject({
             projectId: path.projectId,
             status: urlParams.status,
             platform: urlParams.platform,
             profile: urlParams.profile,
             buildId: urlParams.buildId,
+            limit,
+            offset,
           });
-          return { items: items.map(toApiSubmission) };
+          return { items: items.map(toApiSubmission), total, page, limit };
         }),
       ),
     )

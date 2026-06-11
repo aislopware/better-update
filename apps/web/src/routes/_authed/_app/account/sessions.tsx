@@ -76,7 +76,7 @@ const SessionsList = () => {
                 </div>
                 <span className="text-muted-foreground truncate text-xs">
                   {session.ipAddress ?? "Unknown IP"} · Signed in{" "}
-                  <RelativeTime value={new Date(session.createdAt)} />
+                  <RelativeTime value={session.createdAt} />
                 </span>
               </div>
               {isCurrent ? null : (

@@ -11,6 +11,8 @@ import type {
 import { runApi } from "../index";
 
 export interface SubmissionsFilters {
+  readonly page?: number;
+  readonly limit?: number;
   readonly status?: typeof SubmissionStatus.Type;
   readonly platform?: typeof Platform.Type;
   readonly profile?: string;
@@ -22,6 +24,8 @@ const buildUrlParams = (filters: SubmissionsFilters | undefined) => {
     return {};
   }
   return compact({
+    page: filters.page,
+    limit: filters.limit,
     status: filters.status,
     platform: filters.platform,
     profile: filters.profile,

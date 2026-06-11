@@ -29,6 +29,10 @@ const ROUTE_LABELS: Record<string, string> = {
   submissions: "Submissions",
   "apple-devices": "Apple Devices",
   "environment-variables": "Environment variables",
+  policies: "Policies",
+  groups: "Groups",
+  admin: "Admin",
+  fingerprints: "Fingerprints",
 };
 
 const switcherFallback = <span className="text-muted-foreground">Loading...</span>;

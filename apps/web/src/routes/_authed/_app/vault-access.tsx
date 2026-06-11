@@ -137,7 +137,7 @@ const VaultAccessContent = () => {
 };
 
 const VaultAccess = () => (
-  <div className="flex w-full flex-col gap-8">
+  <div className="flex w-full flex-col gap-6">
     <PageHeader
       title="Vault access"
       description="Keys that can decrypt this organization's credential vault. Access is granted and revoked from the CLI."

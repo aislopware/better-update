@@ -13,17 +13,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@better-update/ui/components/ui/card";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@better-update/ui/components/ui/empty";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@better-update/ui/components/ui/tabs";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { FingerprintIcon, GitBranchIcon, PackageIcon } from "lucide-react";
+import { FingerprintIcon, GitBranchIcon } from "lucide-react";
 import { Suspense } from "react";
 
 import type { Update } from "@better-update/api";
@@ -31,7 +23,7 @@ import type { Update } from "@better-update/api";
 import { ProjectSubpageHeader } from "../-project-subpage-header";
 import { readUpdateEnvironment } from "../-update-helpers";
 import { EnvironmentBadge, PlatformBadge } from "../../../../../../components/attribute-badges";
-import { DetailCardSkeleton, SummaryCardsSkeleton } from "../../../../../../components/skeletons";
+import { DetailCardSkeleton } from "../../../../../../components/skeletons";
 import { CopyButton, CopyableId } from "../../../../../../lib/copy-button";
 import { formatBytes } from "../../../../../../lib/format-bytes";
 import { RelativeTime } from "../../../../../../lib/relative-time";
@@ -109,13 +101,6 @@ const OverviewCard = ({
           <div className="text-muted-foreground text-sm">Created</div>
           <div className="font-medium">
             <RelativeTime value={primary.createdAt} />
-          </div>
-        </div>
-        <div className="flex flex-col gap-1">
-          <div className="text-muted-foreground text-sm">Group ID</div>
-          <div className="flex items-center gap-1">
-            <code className="min-w-0 font-mono text-xs break-all">{primary.groupId}</code>
-            <CopyButton value={primary.groupId} label="Group ID" />
           </div>
         </div>
         <div className="flex flex-col gap-1">
@@ -255,46 +240,6 @@ const PlatformVariantCard = ({
   </Card>
 );
 
-const PlatformTabContent = ({
-  variants,
-  platform,
-  orgId,
-  projectId,
-}: {
-  variants: readonly UpdateItem[];
-  platform: "ios" | "android";
-  orgId: string;
-  projectId: string;
-}) => {
-  const platformVariants = variants.filter((update) => update.platform === platform);
-  if (platformVariants.length === 0) {
-    return (
-      <Card>
-        <Empty>
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <PackageIcon strokeWidth={1.5} />
-            </EmptyMedia>
-            <EmptyTitle>
-              No {platform === "ios" ? "iOS" : "Android"} variant in this group
-            </EmptyTitle>
-            <EmptyDescription>
-              This update group only published a {platform === "ios" ? "Android" : "iOS"} variant.
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      </Card>
-    );
-  }
-  return (
-    <div className="flex flex-col gap-3">
-      {platformVariants.map((update) => (
-        <PlatformVariantCard key={update.id} update={update} orgId={orgId} projectId={projectId} />
-      ))}
-    </div>
-  );
-};
-
 const UpdateDetailContent = () => {
   const { updateId } = Route.useParams();
   const { activeOrg, project } = Route.useRouteContext();
@@ -314,48 +259,30 @@ const UpdateDetailContent = () => {
 
   return (
     <>
-      <ProjectSubpageHeader title={title} />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <ProjectSubpageHeader title={title} />
+          {primary.isRollback ? <Badge variant="destructive">Rollback</Badge> : null}
+          <CopyableId value={primary.groupId} label="Update group ID" />
+        </div>
+      </div>
       <OverviewCard
         primary={primary}
         variants={group.items}
         projectSlug={project.slug}
         branchName={branchName}
       />
-      <Tabs defaultValue="overview">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="ios">iOS</TabsTrigger>
-          <TabsTrigger value="android">Android</TabsTrigger>
-        </TabsList>
-        <TabsContent value="overview" className="pt-4">
-          <div className="flex flex-col gap-3">
-            {group.items.map((variant) => (
-              <PlatformVariantCard
-                key={variant.id}
-                update={variant}
-                orgId={orgId}
-                projectId={projectId}
-              />
-            ))}
-          </div>
-        </TabsContent>
-        <TabsContent value="ios" className="pt-4">
-          <PlatformTabContent
-            variants={group.items}
-            platform="ios"
+      <div className="flex flex-col gap-3">
+        <h2 className="font-heading text-base leading-none font-semibold">Platform variants</h2>
+        {group.items.map((variant) => (
+          <PlatformVariantCard
+            key={variant.id}
+            update={variant}
             orgId={orgId}
             projectId={projectId}
           />
-        </TabsContent>
-        <TabsContent value="android" className="pt-4">
-          <PlatformTabContent
-            variants={group.items}
-            platform="android"
-            orgId={orgId}
-            projectId={projectId}
-          />
-        </TabsContent>
-      </Tabs>
+        ))}
+      </div>
     </>
   );
 };
@@ -363,8 +290,8 @@ const UpdateDetailContent = () => {
 const UpdateDetailSkeleton = () => (
   <>
     <ProjectSubpageHeader title="Update" />
-    <SummaryCardsSkeleton count={2} />
-    <DetailCardSkeleton rows={3} columns={2} />
+    <DetailCardSkeleton rows={4} columns={2} />
+    <DetailCardSkeleton rows={2} columns={2} />
   </>
 );
 

@@ -204,7 +204,7 @@ const buildColumns = (
 
 const ChannelsSkeleton = () => (
   <>
-    <div className="flex items-center justify-between">
+    <div className="flex items-center justify-between gap-2">
       <ProjectSubpageHeader title="Channels" />
     </div>
     <TableSkeleton columns={5} rows={5} />
@@ -277,7 +277,7 @@ const ChannelsContent = () => {
   if (isLoading || data === undefined) {
     return (
       <div className="flex w-full flex-col gap-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <ProjectSubpageHeader title="Channels" />
           {createCta}
         </div>
@@ -296,7 +296,7 @@ const ChannelsContent = () => {
   if (showsGlobalEmpty) {
     return (
       <div className="flex w-full flex-col gap-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <ProjectSubpageHeader title="Channels" />
           {createCta}
         </div>
@@ -317,7 +317,7 @@ const ChannelsContent = () => {
 
   return (
     <div className="flex w-full flex-col gap-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <ProjectSubpageHeader title="Channels" />
         {createCta}
       </div>

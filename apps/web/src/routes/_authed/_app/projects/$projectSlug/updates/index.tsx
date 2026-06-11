@@ -280,7 +280,10 @@ const UpdatesContent = () => {
     <div className="flex w-full flex-col gap-4">
       <div className="flex items-center justify-between gap-2">
         <ProjectSubpageHeader title="Updates" />
-        <div className="flex flex-wrap items-center gap-2">{filterControls}</div>
+        <div className="flex flex-wrap items-center gap-2">
+          {filterControls}
+          <CompareUpdatesDialog orgId={orgId} projectId={projectId} />
+        </div>
       </div>
       <InputGroup>
         <InputGroupAddon>

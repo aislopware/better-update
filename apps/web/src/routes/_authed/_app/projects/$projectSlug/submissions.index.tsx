@@ -31,7 +31,14 @@ import { PlatformBadge } from "../../../../../components/attribute-badges";
 import { QueryErrorState } from "../../../../../components/query-error-state";
 import { TableSkeleton } from "../../../../../components/skeletons";
 import { CopyableId } from "../../../../../lib/copy-button";
-import { DataTableView, enumParam, fireAndForget } from "../../../../../lib/data-table";
+import {
+  computePagination,
+  DataTableView,
+  enumParam,
+  fireAndForget,
+  pageParam,
+} from "../../../../../lib/data-table";
+import { pluralize } from "../../../../../lib/pluralize";
 import { RelativeTime } from "../../../../../lib/relative-time";
 import {
   SUBMISSION_STATUS_LABEL,
@@ -66,6 +73,7 @@ const PLATFORM_FILTER_LABELS: Record<PlatformFilter, string> = {
 };
 
 const submissionsSearchSchema = z.object({
+  page: pageParam(),
   status: enumParam(STATUS_FILTER_VALUES, "all"),
   platform: enumParam(PLATFORM_FILTER_VALUES, "all"),
 });
@@ -198,11 +206,12 @@ const SubmissionsPage = () => {
   const { activeOrg, project } = Route.useRouteContext();
   const { projectSlug } = Route.useParams();
   const navigate = Route.useNavigate();
-  const { status, platform } = Route.useSearch();
+  const { page, status, platform } = Route.useSearch();
   const hasFilters = status !== "all" || platform !== "all";
 
   const { data, error, isPlaceholderData, isLoading, refetch } = useQuery({
     ...submissionsQueryOptions(activeOrg.id, project.id, {
+      page,
       ...(status === "all" ? {} : { status }),
       ...(platform === "all" ? {} : { platform }),
     }),
@@ -219,7 +228,11 @@ const SubmissionsPage = () => {
   });
 
   const setFilter = (patch: Partial<{ status: StatusFilter; platform: PlatformFilter }>): void => {
-    fireAndForget(navigate({ to: ".", search: (prev) => ({ ...prev, ...patch }) }));
+    fireAndForget(navigate({ to: ".", search: (prev) => ({ ...prev, ...patch, page: 1 }) }));
+  };
+
+  const onPageChange = (nextPage: number): void => {
+    fireAndForget(navigate({ to: ".", search: (prev) => ({ ...prev, page: nextPage }) }));
   };
 
   if (isLoading || data === undefined) {
@@ -235,8 +248,16 @@ const SubmissionsPage = () => {
     );
   }
 
-  const isEmpty = data.items.length === 0;
+  const isEmpty = data.total === 0;
   const emptyState = hasFilters ? <SubmissionsFilteredEmpty /> : <SubmissionsEmpty />;
+  const { totalPages, safePage, fromIndex, toIndex } = computePagination(
+    data.total,
+    data.items.length,
+    page,
+  );
+  const countLabel = `${fromIndex}–${toIndex} of ${data.total} ${pluralize(data.total, "submission")}${
+    hasFilters ? " (filtered)" : ""
+  }`;
 
   return (
     <div className="flex w-full flex-col gap-4">
@@ -269,6 +290,10 @@ const SubmissionsPage = () => {
             table={table}
             columnsCount={columns.length}
             isPlaceholderData={isPlaceholderData}
+            countLabel={countLabel}
+            safePage={safePage}
+            totalPages={totalPages}
+            onPageChange={onPageChange}
             onRowClick={(submission) => {
               fireAndForget(
                 navigate({

@@ -1,6 +1,7 @@
 import { policiesQueryOptions } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
+import { Field, FieldLabel } from "@better-update/ui/components/ui/field";
 import {
   Select,
   SelectGroup,
@@ -140,7 +141,8 @@ export const PolicyAttachPanel = ({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-end gap-2">
-        <div className="flex-1">
+        <Field className="flex-1">
+          <FieldLabel>Policy</FieldLabel>
           <Select
             value={selectedPolicyId}
             onValueChange={(next) => {
@@ -150,7 +152,7 @@ export const PolicyAttachPanel = ({
             }}
             disabled={availablePolicies.length === 0}
           >
-            <SelectTrigger>
+            <SelectTrigger className="w-full">
               <SelectValue placeholder="Select a policy to attach" />
             </SelectTrigger>
             <SelectPopup>
@@ -164,7 +166,7 @@ export const PolicyAttachPanel = ({
               </SelectGroup>
             </SelectPopup>
           </Select>
-        </div>
+        </Field>
         <Button
           loading={attachMutation.isPending}
           disabled={selectedPolicyId === ""}
