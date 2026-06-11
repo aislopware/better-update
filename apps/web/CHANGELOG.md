@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.40.1](https://github.com/better-update/better-update/compare/@better-update/web@0.40.0...@better-update/web@0.40.1) (2026-06-11)
+
+### Bug Fixes
+
+* **web:** align frame titles above card tables to the table column rail ([3f0a2eb](https://github.com/better-update/better-update/commit/3f0a2ebe711cb26243a98f6cce12a55994ec9b84)) - by @trancong12102
+
 ## [0.40.0](https://github.com/better-update/better-update/compare/@better-update/web@0.39.1...@better-update/web@0.40.0) (2026-06-11)
 
 ### Features
