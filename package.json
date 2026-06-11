@@ -61,7 +61,7 @@
     "oxlint-plugin-eslint": "1.69.0",
     "oxlint-tsgolint": "^0.23.0",
     "portless": "^0.14.0",
-    "turbo": "^2.9.16",
+    "turbo": "^2.9.17",
     "type-fest": "^5.7.0",
     "vitest": "^4.1.8"
   },

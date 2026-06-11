@@ -36,7 +36,7 @@
     "@better-update/react-hooks": "workspace:*",
     "@better-update/safe-json": "workspace:*",
     "@better-update/ui": "workspace:*",
-    "@cloudflare/vite-plugin": "^1.40.0",
+    "@cloudflare/vite-plugin": "^1.40.1",
     "@fontsource-variable/geist": "^5.2.9",
     "@fontsource-variable/inter": "^5.2.8",
     "@react-spring/web": "^10.1.0",
@@ -79,6 +79,6 @@
     "react-devtools-core": "^7.0.1",
     "vite": "^8.0.16",
     "vitest": "^4.1.8",
-    "wrangler": "^4.98.0"
+    "wrangler": "^4.99.0"
   }
 }
