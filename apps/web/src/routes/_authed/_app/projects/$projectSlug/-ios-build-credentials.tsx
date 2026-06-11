@@ -5,7 +5,6 @@ import {
   iosBundleConfigurationsQueryOptions,
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
-import { Frame, FrameHeader, FramePanel, FrameTitle } from "@better-update/ui/components/ui/frame";
 import {
   Table,
   TableBody,
@@ -30,13 +29,8 @@ import { formatAppleTeamLabel } from "../../-credentials-utils";
 import { CopyableMono } from "../../../../../lib/copy-button";
 import { STATUS_BADGE_VARIANT, deriveExpiryStatus } from "../../../../../lib/credential-status";
 import { formatShortDate, formatShortDateTime } from "../../../../../lib/format-date";
+import { CredentialFrame, EmptyBindingPanel } from "./-credential-frame";
 import { DISTRIBUTION_LABELS, sortConfigsByDistribution } from "./-ios-detail-shared";
-
-const EmptyBindingPanel = ({ message }: { message: string }) => (
-  <FramePanel className="py-4">
-    <span className="text-muted-foreground text-sm">{message}</span>
-  </FramePanel>
-);
 
 const CertRow = ({
   cert,
@@ -75,10 +69,7 @@ const CertTableCard = ({
   cert: AppleDistributionCertificateItem | null;
   team: AppleTeamItem | null;
 }) => (
-  <Frame>
-    <FrameHeader>
-      <FrameTitle>Distribution certificate</FrameTitle>
-    </FrameHeader>
+  <CredentialFrame title="Distribution certificate">
     {cert === null ? (
       <EmptyBindingPanel message="No distribution certificate bound — bind one with the CLI." />
     ) : (
@@ -97,7 +88,7 @@ const CertTableCard = ({
         </TableBody>
       </Table>
     )}
-  </Frame>
+  </CredentialFrame>
 );
 
 const ProfileRow = ({
@@ -136,10 +127,7 @@ const ProfileTableCard = ({
   profile: AppleProvisioningProfileItem | null;
   team: AppleTeamItem | null;
 }) => (
-  <Frame>
-    <FrameHeader>
-      <FrameTitle>Provisioning profile</FrameTitle>
-    </FrameHeader>
+  <CredentialFrame title="Provisioning profile">
     {profile === null ? (
       <EmptyBindingPanel message="No provisioning profile bound — bind one with the CLI." />
     ) : (
@@ -157,7 +145,7 @@ const ProfileTableCard = ({
         </TableBody>
       </Table>
     )}
-  </Frame>
+  </CredentialFrame>
 );
 
 const findCert = (

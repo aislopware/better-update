@@ -4,7 +4,6 @@ import {
   ascApiKeysQueryOptions,
   iosBundleConfigurationsQueryOptions,
 } from "@better-update/api-client/react";
-import { Frame, FrameHeader, FramePanel, FrameTitle } from "@better-update/ui/components/ui/frame";
 import {
   Table,
   TableBody,
@@ -24,12 +23,7 @@ import type {
 import { RolesCell, TeamCell } from "../../-credential-cells";
 import { CopyableMono } from "../../../../../lib/copy-button";
 import { formatShortDateTime } from "../../../../../lib/format-date";
-
-const EmptyBindingPanel = ({ message }: { message: string }) => (
-  <FramePanel className="py-4">
-    <span className="text-muted-foreground text-sm">{message}</span>
-  </FramePanel>
-);
+import { CredentialFrame, EmptyBindingPanel } from "./-credential-frame";
 
 const PushKeyTableCard = ({
   pushKey,
@@ -38,10 +32,7 @@ const PushKeyTableCard = ({
   pushKey: ApplePushKeyItem | null;
   team: AppleTeamItem | null;
 }) => (
-  <Frame>
-    <FrameHeader>
-      <FrameTitle>Push notifications key</FrameTitle>
-    </FrameHeader>
+  <CredentialFrame title="Push notifications key">
     {pushKey === null ? (
       <EmptyBindingPanel message="No push key bound — bind one with the CLI." />
     ) : (
@@ -68,7 +59,7 @@ const PushKeyTableCard = ({
         </TableBody>
       </Table>
     )}
-  </Frame>
+  </CredentialFrame>
 );
 
 const AscKeyTableCard = ({
@@ -78,10 +69,7 @@ const AscKeyTableCard = ({
   ascKey: AscApiKeyItem | null;
   team: AppleTeamItem | null;
 }) => (
-  <Frame>
-    <FrameHeader>
-      <FrameTitle>App Store Connect API key</FrameTitle>
-    </FrameHeader>
+  <CredentialFrame title="App Store Connect API key">
     {ascKey === null ? (
       <EmptyBindingPanel message="No App Store Connect API key bound — bind one with the CLI." />
     ) : (
@@ -118,7 +106,7 @@ const AscKeyTableCard = ({
         </TableBody>
       </Table>
     )}
-  </Frame>
+  </CredentialFrame>
 );
 
 const findPushKey = (

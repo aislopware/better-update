@@ -5,7 +5,6 @@ import {
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Card, CardPanel } from "@better-update/ui/components/ui/card";
-import { Frame, FrameHeader, FramePanel, FrameTitle } from "@better-update/ui/components/ui/frame";
 import {
   Select,
   SelectItem,
@@ -33,6 +32,7 @@ import type {
 import { CopyButton } from "../../../../../lib/copy-button";
 import { formatShortDateTime } from "../../../../../lib/format-date";
 import { findKeystore, sortGroupsByDefault } from "./-android-detail-shared";
+import { CredentialFrame, EmptyBindingPanel } from "./-credential-frame";
 
 const formatFingerprint = (value: string): string => {
   if (value.length <= 12) {
@@ -52,16 +52,9 @@ const FingerprintCell = ({ value, label }: { value: string | null; label: string
   );
 
 const KeystoreCard = ({ keystore }: { keystore: AndroidUploadKeystoreItem | null }) => (
-  <Frame>
-    <FrameHeader>
-      <FrameTitle>Android upload keystore</FrameTitle>
-    </FrameHeader>
+  <CredentialFrame title="Android upload keystore">
     {keystore === null ? (
-      <FramePanel className="py-4">
-        <span className="text-muted-foreground text-sm">
-          No upload keystore bound — bind one with the CLI.
-        </span>
-      </FramePanel>
+      <EmptyBindingPanel message="No upload keystore bound — bind one with the CLI." />
     ) : (
       <Table variant="card">
         <TableHeader>
@@ -96,7 +89,7 @@ const KeystoreCard = ({ keystore }: { keystore: AndroidUploadKeystoreItem | null
         </TableBody>
       </Table>
     )}
-  </Frame>
+  </CredentialFrame>
 );
 
 const GroupOptionLabel = ({ group }: { group: AndroidBuildCredentialsItem }) => (
