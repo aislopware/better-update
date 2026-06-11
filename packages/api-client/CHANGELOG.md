@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.15.1](https://github.com/aislopware/better-update/compare/@better-update/api-client@0.15.0...@better-update/api-client@0.15.1) (2026-06-11)
+
+### Bug Fixes
+
+* **web:** cross-page UI audit — fix latent bugs and align pages to house style ([b04cdcc](https://github.com/aislopware/better-update/commit/b04cdcc61fabaea2ce5abb8c416fdb88bfd48c6a)) - by @trancong12102
+
 ## [0.15.0](https://github.com/aislopware/better-update/compare/@better-update/api-client@0.14.0...@better-update/api-client@0.15.0) (2026-06-11)
 
 ### Features
