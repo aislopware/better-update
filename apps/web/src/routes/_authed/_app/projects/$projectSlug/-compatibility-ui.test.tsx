@@ -1,29 +1,7 @@
 import { render, screen } from "@testing-library/react";
 
-import { CompatibleBuildsSection, MissingMatchingBuilds } from "./-channel-compatibility";
+import { MissingMatchingBuilds } from "./-channel-compatibility";
 import { CompatibilityMatrix } from "./-compatibility-matrix";
-
-const productionStatus = {
-  channelId: "channel-production",
-  channelName: "production",
-  updateCount: 2,
-  latestUpdateId: "update-canary",
-  latestUpdateMessage: "Canary release",
-  latestUpdateCreatedAt: "2026-01-02T00:00:00Z",
-  isPaused: false,
-  rolloutActive: true,
-};
-
-const pausedStatus = {
-  channelId: "channel-paused",
-  channelName: "paused",
-  updateCount: 0,
-  latestUpdateId: null,
-  latestUpdateMessage: null,
-  latestUpdateCreatedAt: null,
-  isPaused: true,
-  rolloutActive: false,
-};
 
 const build = {
   id: "build-1",
@@ -43,11 +21,6 @@ const build = {
   fingerprintHash: null,
   createdAt: "2026-01-01T00:00:00Z",
   artifact: null,
-};
-
-const synthesizedBuild = {
-  ...build,
-  channels: [productionStatus, pausedStatus],
 };
 
 const matrix = {
@@ -116,33 +89,10 @@ describe("compatibility UI", () => {
     expect(screen.getByText("1 updates, latest Native change")).toBeInTheDocument();
   });
 
-  it("renders compatible builds and missing matching builds sections", () => {
-    render(
-      <>
-        <CompatibleBuildsSection
-          compatibleBuilds={[
-            {
-              build: synthesizedBuild,
-              status: productionStatus,
-            },
-          ]}
-        />
-        <MissingMatchingBuilds missingRuntimeVersions={[missingRuntimeVersion]} />
-      </>,
-    );
+  it("renders missing matching builds warnings", () => {
+    render(<MissingMatchingBuilds missingRuntimeVersions={[missingRuntimeVersion]} />);
 
-    expect(screen.getByText("Compatible builds")).toBeInTheDocument();
-    expect(screen.getByText("✓ 2 updates")).toBeInTheDocument();
-    expect(screen.getByText("latest Canary release")).toBeInTheDocument();
     expect(screen.getByText("Missing matching builds")).toBeInTheDocument();
     expect(screen.getByText("android v3.0.0")).toBeInTheDocument();
-  });
-
-  it("renders empty state when no compatible builds exist", () => {
-    render(<CompatibleBuildsSection compatibleBuilds={[]} />);
-
-    expect(
-      screen.getByText("No builds have been uploaded for this project yet."),
-    ).toBeInTheDocument();
   });
 });
