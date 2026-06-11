@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.40.0](https://github.com/better-update/better-update/compare/@better-update/web@0.39.1...@better-update/web@0.40.0) (2026-06-11)
+
+### Features
+
+* **web:** polish dashboard list views and add server-side search ([299260e](https://github.com/better-update/better-update/commit/299260ef7634cf4064e0f71f6321bd3b4aea50a5)) - by @trancong12102
+* **web:** standardize table shells on Frame and polish detail pages ([a3e6534](https://github.com/better-update/better-update/commit/a3e6534919383f3aa45ce81fcb81c0de867ac736)) - by @trancong12102
+
 ## [0.39.1](https://github.com/better-update/better-update/compare/@better-update/web@0.39.0...@better-update/web@0.39.1) (2026-06-10)
 
 ### Bug Fixes
