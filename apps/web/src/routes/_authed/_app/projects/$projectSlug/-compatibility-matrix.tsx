@@ -146,7 +146,7 @@ export const CompatibilityMatrix = ({
 
       {synthesized.length > 0 && channels.length > 0 && (
         <Frame>
-          <FrameHeader>
+          <FrameHeader className="px-2.5">
             <FrameTitle>Builds × Channels</FrameTitle>
             <FrameDescription>
               Check which builds can receive OTA updates from each channel.
