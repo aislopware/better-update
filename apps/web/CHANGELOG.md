@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.40.2](https://github.com/better-update/better-update/compare/@better-update/web@0.40.1...@better-update/web@0.40.2) (2026-06-11)
+
+### Bug Fixes
+
+* **web:** hide delete action for built-in channels in channels list ([b4a5036](https://github.com/better-update/better-update/commit/b4a5036b0b82c895869b69a372bb3122e44af426)) - by @trancong12102
+
 ## [0.40.1](https://github.com/better-update/better-update/compare/@better-update/web@0.40.0...@better-update/web@0.40.1) (2026-06-11)
 
 ### Bug Fixes
