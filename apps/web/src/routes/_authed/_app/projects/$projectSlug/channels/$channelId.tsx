@@ -3,16 +3,12 @@ import {
   buildCompatibilityMatrixQueryOptions,
   buildsQueryOptions,
   channelsQueryOptions,
+  pauseChannel,
+  resumeChannel,
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@better-update/ui/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@better-update/ui/components/ui/card";
 import {
   Empty,
   EmptyContent,
@@ -21,25 +17,29 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@better-update/ui/components/ui/empty";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { toastManager } from "@better-update/ui/components/ui/toast";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { RadioTowerIcon } from "lucide-react";
+import { GitBranchIcon, PauseIcon, PlayIcon, RadioTowerIcon } from "lucide-react";
 import { Suspense } from "react";
 
 import type { Channel } from "@better-update/api";
 import type { BranchItem } from "@better-update/api-client/react";
 
-import { ChannelCard } from "../-channel-card";
+import { ChannelBuildsCard } from "../-channel-builds-card";
 import {
   getCompatibleBuildsForChannel,
   getMissingRuntimeVersionsForChannel,
 } from "../-channel-compatibility-helpers";
+import { ChannelRolloutCard } from "../-channel-rollout-card";
 import { ChannelStatusBadge } from "../-channel-status-badge";
+import { DeleteChannelDialog } from "../-delete-channel-dialog";
 import { ProjectSubpageHeader } from "../-project-subpage-header";
-import { DistributionBadge, PlatformBadge } from "../../../../../../components/attribute-badges";
+import { invalidateChannels } from "../-update-helpers";
 import { DetailCardSkeleton, SummaryCardsSkeleton } from "../../../../../../components/skeletons";
 import { CopyableId } from "../../../../../../lib/copy-button";
 import { RelativeTime } from "../../../../../../lib/relative-time";
+import { useApiMutation } from "../../../../../../lib/use-api-mutation";
 import { DROPDOWN_FETCH_LIMIT } from "../../../../../../queries/constants";
 
 const ChannelNotFoundState = ({ projectSlug }: { projectSlug: string }) => (
@@ -66,20 +66,63 @@ const ChannelNotFoundState = ({ projectSlug }: { projectSlug: string }) => (
   </Card>
 );
 
+const ChannelHeaderActions = ({
+  channel,
+  orgId,
+  projectId,
+}: {
+  channel: Channel;
+  orgId: string;
+  projectId: string;
+}) => {
+  const queryClient = useQueryClient();
+  const togglePauseMutation = useApiMutation({
+    mutationFn: async () =>
+      channel.isPaused ? resumeChannel(channel.id) : pauseChannel(channel.id),
+    onSuccess: async () => {
+      toastManager.add({
+        title: channel.isPaused ? "Channel resumed" : "Channel paused",
+        type: "success",
+      });
+      await invalidateChannels(queryClient, orgId, projectId);
+    },
+  });
+
+  return (
+    <div className="flex items-center gap-2">
+      <Button
+        variant="outline"
+        loading={togglePauseMutation.isPending}
+        onClick={() => {
+          togglePauseMutation.mutate();
+        }}
+      >
+        {channel.isPaused ? (
+          <PlayIcon strokeWidth={2} data-icon="inline-start" />
+        ) : (
+          <PauseIcon strokeWidth={2} data-icon="inline-start" />
+        )}
+        {channel.isPaused ? "Resume" : "Pause"}
+      </Button>
+      {channel.isBuiltin ? null : (
+        <DeleteChannelDialog channel={channel} orgId={orgId} projectId={projectId} />
+      )}
+    </div>
+  );
+};
+
 const ChannelSummaryCards = ({
   channel,
   branches,
   linkedBranch,
   compatibleBuildsCount,
   missingBuildCount,
-  rolloutActive,
 }: {
   channel: Channel;
   branches: readonly BranchItem[];
   linkedBranch: BranchItem | undefined;
   compatibleBuildsCount: number;
   missingBuildCount: number;
-  rolloutActive: boolean;
 }) => (
   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
     <Card>
@@ -88,7 +131,10 @@ const ChannelSummaryCards = ({
       </CardHeader>
       <CardContent>
         {linkedBranch ? (
-          <div className="font-medium">{linkedBranch.name}</div>
+          <div className="flex items-center gap-2 font-medium">
+            <GitBranchIcon strokeWidth={2} className="text-muted-foreground size-4" />
+            {linkedBranch.name}
+          </div>
         ) : (
           <CopyableId value={channel.branchId} label="Branch ID" />
         )}
@@ -100,7 +146,6 @@ const ChannelSummaryCards = ({
       </CardHeader>
       <CardContent className="flex flex-wrap items-center gap-2">
         <ChannelStatusBadge channel={channel} branches={branches} />
-        {rolloutActive ? <Badge variant="secondary">Rollout active</Badge> : null}
       </CardContent>
     </Card>
     <Card>
@@ -123,59 +168,6 @@ const ChannelSummaryCards = ({
       </CardContent>
     </Card>
   </div>
-);
-
-const CompatibleBuildLinksCard = ({
-  projectSlug,
-  compatibleBuilds,
-}: {
-  projectSlug: string;
-  compatibleBuilds: ReturnType<typeof getCompatibleBuildsForChannel>;
-}) => (
-  <Card>
-    <CardHeader>
-      <CardTitle>Open compatible builds</CardTitle>
-      <CardDescription>
-        Jump directly to a build detail page for install and artifact actions.
-      </CardDescription>
-    </CardHeader>
-    <CardContent>
-      {compatibleBuilds.length > 0 ? (
-        <div className="flex flex-col gap-3">
-          {compatibleBuilds.map(({ build, status }) => (
-            <div
-              key={`${status.channelId}:${build.id}`}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-3"
-            >
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="font-medium">
-                  {(build.message ?? build.profile) || `Build ${build.id.slice(0, 8)}`}
-                </span>
-                <PlatformBadge platform={build.platform} />
-                <DistributionBadge distribution={build.distribution} />
-                {build.runtimeVersion ? (
-                  <span className="text-muted-foreground text-sm">v{build.runtimeVersion}</span>
-                ) : (
-                  <Badge variant="warning">Missing runtime version</Badge>
-                )}
-              </div>
-              <Link
-                to="/projects/$projectSlug/builds/$buildId"
-                params={{ projectSlug, buildId: build.id }}
-                className="text-muted-foreground hover:text-foreground text-sm transition-colors"
-              >
-                Open build
-              </Link>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <p className="text-muted-foreground text-sm">
-          No compatible builds are currently available for this channel.
-        </p>
-      )}
-    </CardContent>
-  </Card>
 );
 
 const ChannelDetailContent = () => {
@@ -216,13 +208,16 @@ const ChannelDetailContent = () => {
     compatibilityData.missingRuntimeVersions,
     channel.id,
   );
-  const rolloutActive = compatibleBuilds.some(({ status }) => status.rolloutActive);
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-2">
-        <ProjectSubpageHeader title={channel.name} />
-        <CopyableId value={channel.id} label="Channel ID" />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <ProjectSubpageHeader title={channel.name} />
+          {channel.isBuiltin ? <Badge variant="secondary">Built-in</Badge> : null}
+          <CopyableId value={channel.id} label="Channel ID" />
+        </div>
+        <ChannelHeaderActions channel={channel} orgId={orgId} projectId={projectId} />
       </div>
 
       <ChannelSummaryCards
@@ -231,21 +226,21 @@ const ChannelDetailContent = () => {
         linkedBranch={linkedBranch}
         compatibleBuildsCount={compatibleBuilds.length}
         missingBuildCount={missingRuntimeVersions.length}
-        rolloutActive={rolloutActive}
       />
 
-      <ChannelCard
-        channel={channel}
-        orgId={orgId}
-        projectId={projectId}
-        projectSlug={project.slug}
-        branches={branches}
-        compatibleBuilds={compatibleBuilds}
-        missingRuntimeVersions={missingRuntimeVersions}
-        showDetailsLink={false}
-      />
-
-      <CompatibleBuildLinksCard projectSlug={project.slug} compatibleBuilds={compatibleBuilds} />
+      <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+        <ChannelRolloutCard
+          channel={channel}
+          orgId={orgId}
+          projectId={projectId}
+          branches={branches}
+        />
+        <ChannelBuildsCard
+          projectSlug={project.slug}
+          compatibleBuilds={compatibleBuilds}
+          missingRuntimeVersions={missingRuntimeVersions}
+        />
+      </div>
     </>
   );
 };
@@ -253,9 +248,11 @@ const ChannelDetailContent = () => {
 const ChannelDetailSkeleton = () => (
   <>
     <ProjectSubpageHeader title="Channel" />
-    <SummaryCardsSkeleton count={3} />
-    <DetailCardSkeleton rows={3} columns={2} />
-    <DetailCardSkeleton rows={3} columns={1} />
+    <SummaryCardsSkeleton count={4} />
+    <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+      <DetailCardSkeleton rows={3} columns={2} />
+      <DetailCardSkeleton rows={3} columns={1} />
+    </div>
   </>
 );
 

@@ -2,15 +2,13 @@ import { screen } from "@testing-library/react";
 
 import { renderWithQuery } from "../../../../../../tests/helpers/render-with-query";
 import { BuildCard } from "./-build-card";
-import { ChannelCard } from "./-channel-card";
+import { ChannelBuildsCard } from "./-channel-builds-card";
+import { ChannelRolloutCard } from "./-channel-rollout-card";
 
-const { deleteBuildDialogModule, installLinkDialogModule, deleteChannelDialogModule } = vi.hoisted(
-  () => ({
-    deleteBuildDialogModule: "./-delete-build-dialog",
-    installLinkDialogModule: "./-install-link-dialog",
-    deleteChannelDialogModule: "./-delete-channel-dialog",
-  }),
-);
+const { deleteBuildDialogModule, installLinkDialogModule } = vi.hoisted(() => ({
+  deleteBuildDialogModule: "./-delete-build-dialog",
+  installLinkDialogModule: "./-install-link-dialog",
+}));
 
 vi.mock(deleteBuildDialogModule, () => ({
   DeleteBuildDialog: () => <div>Delete build dialog</div>,
@@ -18,10 +16,6 @@ vi.mock(deleteBuildDialogModule, () => ({
 
 vi.mock(installLinkDialogModule, () => ({
   InstallLinkDialog: () => <div>Install link dialog</div>,
-}));
-
-vi.mock(deleteChannelDialogModule, () => ({
-  DeleteChannelDialog: () => <div>Delete channel dialog</div>,
 }));
 
 const productionStatus = {
@@ -157,46 +151,63 @@ describe("build and channel cards", () => {
     ).toBeInTheDocument();
   });
 
-  it("channelCard renders rollout state, compatible builds, and missing build warnings", () => {
+  it("channelRolloutCard renders active rollout controls with labeled inputs", () => {
     renderWithQuery(
-      <ChannelCard
+      <ChannelRolloutCard
         channel={activeRolloutChannel}
         orgId="org-1"
         projectId="proj-1"
-        projectSlug="my-app"
         branches={branches}
+      />,
+    );
+
+    expect(screen.getByText("Branch & rollout")).toBeInTheDocument();
+    expect(screen.getByText("Linked branch")).toBeInTheDocument();
+    expect(screen.getByText("Active")).toBeInTheDocument();
+    expect(screen.getByLabelText("Rollout percentage")).toHaveValue(50);
+    expect(screen.getByRole("button", { name: /Complete rollout/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Revert/ })).toBeInTheDocument();
+  });
+
+  it("channelRolloutCard offers to start a rollout when none is active", () => {
+    renderWithQuery(
+      <ChannelRolloutCard
+        channel={pausedChannel}
+        orgId="org-1"
+        projectId="proj-1"
+        branches={branches}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: /Start rollout/ })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: /Complete rollout/ })).not.toBeInTheDocument();
+  });
+
+  it("channelBuildsCard renders compatible builds and missing build warnings", () => {
+    renderWithQuery(
+      <ChannelBuildsCard
+        projectSlug="my-app"
         compatibleBuilds={[{ build, status: productionStatus }]}
         missingRuntimeVersions={[missingRuntimeVersion]}
       />,
     );
 
-    expect(screen.getByText("production")).toBeInTheDocument();
-    expect(screen.getByText("Rolling out to next at 50%")).toBeInTheDocument();
     expect(screen.getByText("Compatible builds")).toBeInTheDocument();
-    expect(screen.getByText("Missing matching builds")).toBeInTheDocument();
+    expect(screen.getByText("✓ 2 updates")).toBeInTheDocument();
     expect(screen.getByText("latest Canary release")).toBeInTheDocument();
+    expect(screen.getByText("Missing matching builds")).toBeInTheDocument();
     expect(screen.getByText("android v3.0.0")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "View details" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Release build" })).toHaveAttribute(
       "href",
-      "/projects/my-app/channels/channel-production",
+      "/projects/my-app/builds/build-1",
     );
   });
 
-  it("channelCard still renders paused channels without rollout controls", () => {
+  it("channelBuildsCard renders an empty state when no builds match", () => {
     renderWithQuery(
-      <ChannelCard
-        channel={pausedChannel}
-        orgId="org-1"
-        projectId="proj-1"
-        projectSlug="my-app"
-        branches={branches}
-        compatibleBuilds={[]}
-        missingRuntimeVersions={[]}
-      />,
+      <ChannelBuildsCard projectSlug="my-app" compatibleBuilds={[]} missingRuntimeVersions={[]} />,
     );
 
-    expect(screen.getByText("Paused")).toBeInTheDocument();
-    expect(screen.getByText("Start Rollout")).toBeInTheDocument();
     expect(
       screen.getByText("No builds have been uploaded for this project yet."),
     ).toBeInTheDocument();
