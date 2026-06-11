@@ -192,7 +192,9 @@ const buildColumns = (
     cell: ({ row }) => (
       <div className="flex items-center justify-end gap-1">
         <PauseToggleButton channel={row.original} orgId={orgId} projectId={projectId} />
-        <DeleteChannelDialog channel={row.original} orgId={orgId} projectId={projectId} />
+        {row.original.isBuiltin ? null : (
+          <DeleteChannelDialog channel={row.original} orgId={orgId} projectId={projectId} />
+        )}
       </div>
     ),
     enableSorting: false,
