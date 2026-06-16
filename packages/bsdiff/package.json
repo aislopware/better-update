@@ -32,17 +32,17 @@
   "devDependencies": {
     "@better-update/oxlint-config": "workspace:*",
     "@better-update/typescript-config": "workspace:*",
-    "@napi-rs/cli": "^3.7.0"
+    "@napi-rs/cli": "^3.7.2"
   },
   "optionalDependencies": {
-    "@better-update/bsdiff-darwin-arm64": "0.2.7",
-    "@better-update/bsdiff-darwin-x64": "0.2.7",
-    "@better-update/bsdiff-linux-arm64-gnu": "0.2.7",
-    "@better-update/bsdiff-linux-arm64-musl": "0.2.7",
-    "@better-update/bsdiff-linux-x64-gnu": "0.2.7",
-    "@better-update/bsdiff-linux-x64-musl": "0.2.7",
-    "@better-update/bsdiff-win32-arm64-msvc": "0.2.7",
-    "@better-update/bsdiff-win32-x64-msvc": "0.2.7"
+    "@better-update/bsdiff-darwin-arm64": "0.2.8",
+    "@better-update/bsdiff-darwin-x64": "0.2.8",
+    "@better-update/bsdiff-linux-arm64-gnu": "0.2.8",
+    "@better-update/bsdiff-linux-arm64-musl": "0.2.8",
+    "@better-update/bsdiff-linux-x64-gnu": "0.2.8",
+    "@better-update/bsdiff-linux-x64-musl": "0.2.8",
+    "@better-update/bsdiff-win32-arm64-msvc": "0.2.8",
+    "@better-update/bsdiff-win32-x64-msvc": "0.2.8"
   },
   "napi": {
     "binaryName": "bsdiff",
