@@ -8,7 +8,10 @@ import { AndroidBuildCredentialsGroup } from "./groups/android-build-credentials
 import { AndroidUploadKeystoresGroup } from "./groups/android-upload-keystores";
 import { ApiKeysGroup } from "./groups/api-keys";
 import { AppleDistributionCertificatesGroup } from "./groups/apple-distribution-certificates";
+import { ApplePassTypeCertificatesGroup } from "./groups/apple-pass-type-certificates";
+import { ApplePayCertificatesGroup } from "./groups/apple-pay-certificates";
 import { AppleProvisioningProfilesGroup } from "./groups/apple-provisioning-profiles";
+import { ApplePushCertificatesGroup } from "./groups/apple-push-certificates";
 import { ApplePushKeysGroup } from "./groups/apple-push-keys";
 import { AppleTeamsGroup } from "./groups/apple-teams";
 import { AscApiKeysGroup } from "./groups/asc-api-keys";
@@ -57,6 +60,9 @@ export class ManagementApi extends HttpApi.make("management-api")
   .add(AppleTeamsGroup)
   .add(AppleDistributionCertificatesGroup)
   .add(ApplePushKeysGroup)
+  .add(ApplePushCertificatesGroup)
+  .add(ApplePayCertificatesGroup)
+  .add(ApplePassTypeCertificatesGroup)
   .add(AscApiKeysGroup)
   .add(AppleProvisioningProfilesGroup)
   .add(GoogleServiceAccountKeysGroup)

@@ -3,7 +3,10 @@ import {
   AndroidBuildCredentials,
   AndroidUploadKeystore,
   AppleDistributionCertificate,
+  ApplePassTypeCertificate,
+  ApplePayCertificate,
   AppleProvisioningProfile,
+  ApplePushCertificate,
   ApplePushKey,
   AppleTeam,
   AscApiKey,
@@ -32,7 +35,10 @@ import type {
   AndroidBuildCredentialsModel,
   AndroidUploadKeystoreModel,
   AppleDistributionCertificateModel,
+  ApplePassTypeCertificateModel,
+  ApplePayCertificateModel,
   AppleProvisioningProfileModel,
+  ApplePushCertificateModel,
   ApplePushKeyModel,
   AscApiKeyModel,
   AuditLogModel,
@@ -288,6 +294,47 @@ export const toApiApplePushKey = (model: ApplePushKeyModel): ApplePushKey =>
     organizationId: model.organizationId,
     appleTeamId: model.appleTeamId,
     keyId: model.keyId,
+    createdAt: model.createdAt,
+    updatedAt: model.updatedAt,
+  });
+
+export const toApiApplePushCertificate = (model: ApplePushCertificateModel): ApplePushCertificate =>
+  new ApplePushCertificate({
+    id: model.id,
+    organizationId: model.organizationId,
+    appleTeamId: model.appleTeamId,
+    bundleIdentifier: model.bundleIdentifier,
+    serialNumber: model.serialNumber,
+    validFrom: model.validFrom,
+    validUntil: model.validUntil,
+    createdAt: model.createdAt,
+    updatedAt: model.updatedAt,
+  });
+
+export const toApiApplePayCertificate = (model: ApplePayCertificateModel): ApplePayCertificate =>
+  new ApplePayCertificate({
+    id: model.id,
+    organizationId: model.organizationId,
+    appleTeamId: model.appleTeamId,
+    merchantIdentifier: model.merchantIdentifier,
+    serialNumber: model.serialNumber,
+    validFrom: model.validFrom,
+    validUntil: model.validUntil,
+    createdAt: model.createdAt,
+    updatedAt: model.updatedAt,
+  });
+
+export const toApiApplePassTypeCertificate = (
+  model: ApplePassTypeCertificateModel,
+): ApplePassTypeCertificate =>
+  new ApplePassTypeCertificate({
+    id: model.id,
+    organizationId: model.organizationId,
+    appleTeamId: model.appleTeamId,
+    passTypeIdentifier: model.passTypeIdentifier,
+    serialNumber: model.serialNumber,
+    validFrom: model.validFrom,
+    validUntil: model.validUntil,
     createdAt: model.createdAt,
     updatedAt: model.updatedAt,
   });

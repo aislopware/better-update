@@ -10,6 +10,9 @@ import {
 } from "../application/credential-cipher";
 import { extractKeystoreFingerprints } from "./android-keystore";
 import { parseGoogleServiceAccountKey, validateAndroidKeystore } from "./credential-metadata";
+import { uploadIosPassTypeCertificate } from "./credentials-pass-type-certificate";
+import { uploadIosPayCertificate } from "./credentials-pay-certificate";
+import { uploadIosPushCertificate } from "./credentials-push-certificate";
 import { CredentialValidationError } from "./exit-codes";
 import { inspectP12 } from "./pkcs12";
 
@@ -18,6 +21,9 @@ import type { ApiClient } from "../services/api-client";
 export type CliCredentialType =
   | "distribution-certificate"
   | "push-key"
+  | "push-certificate"
+  | "apple-pay-certificate"
+  | "pass-type-certificate"
   | "asc-api-key"
   | "provisioning-profile"
   | "keystore"
@@ -37,10 +43,23 @@ const formatDistribution = (value: string): string => value.toLowerCase().replac
 
 export const listAllCredentials = (api: ApiClient) =>
   Effect.gen(function* () {
-    const [certs, pushKeys, ascKeys, profiles, keystores, googleKeys] = yield* Effect.all(
+    const [
+      certs,
+      pushKeys,
+      pushCerts,
+      payCerts,
+      passCerts,
+      ascKeys,
+      profiles,
+      keystores,
+      googleKeys,
+    ] = yield* Effect.all(
       [
         api.appleDistributionCertificates.list(),
         api.applePushKeys.list(),
+        api.applePushCertificates.list(),
+        api.applePayCertificates.list(),
+        api.applePassTypeCertificates.list(),
         api.ascApiKeys.list(),
         api.appleProvisioningProfiles.list({ urlParams: {} }),
         api.androidUploadKeystores.list(),
@@ -65,6 +84,33 @@ export const listAllCredentials = (api: ApiClient) =>
           name: key.keyId,
           platform: "ios",
           type: "push-key",
+          distribution: null,
+        }),
+      ),
+      ...pushCerts.items.map(
+        (cert): CliCredentialRow => ({
+          id: cert.id,
+          name: cert.bundleIdentifier,
+          platform: "ios",
+          type: "push-certificate",
+          distribution: null,
+        }),
+      ),
+      ...payCerts.items.map(
+        (cert): CliCredentialRow => ({
+          id: cert.id,
+          name: cert.merchantIdentifier,
+          platform: "ios",
+          type: "apple-pay-certificate",
+          distribution: null,
+        }),
+      ),
+      ...passCerts.items.map(
+        (cert): CliCredentialRow => ({
+          id: cert.id,
+          name: cert.passTypeIdentifier,
+          platform: "ios",
+          type: "pass-type-certificate",
           distribution: null,
         }),
       ),
@@ -142,6 +188,9 @@ export interface UploadCredentialInput {
   readonly keyId?: string;
   readonly issuerId?: string;
   readonly appleTeamIdentifier?: string;
+  readonly bundleIdentifier?: string;
+  readonly merchantIdentifier?: string;
+  readonly passTypeIdentifier?: string;
 }
 
 const toUtf8 = (bytes: Uint8Array): string => new TextDecoder().decode(bytes);
@@ -361,6 +410,9 @@ const uploadAndroidGoogleServiceAccountKey = (
 const uploadHandlers = {
   "ios:distribution-certificate": uploadIosDistributionCertificate,
   "ios:push-key": uploadIosPushKey,
+  "ios:push-certificate": uploadIosPushCertificate,
+  "ios:apple-pay-certificate": uploadIosPayCertificate,
+  "ios:pass-type-certificate": uploadIosPassTypeCertificate,
   "ios:asc-api-key": uploadIosAscApiKey,
   "ios:provisioning-profile": uploadIosProvisioningProfile,
   "android:keystore": uploadAndroidKeystore,
@@ -401,6 +453,15 @@ export const deleteCredential = (
       api.appleDistributionCertificates.delete({ path }),
     ),
     Match.when({ platform: "ios", type: "push-key" }, () => api.applePushKeys.delete({ path })),
+    Match.when({ platform: "ios", type: "push-certificate" }, () =>
+      api.applePushCertificates.delete({ path }),
+    ),
+    Match.when({ platform: "ios", type: "apple-pay-certificate" }, () =>
+      api.applePayCertificates.delete({ path }),
+    ),
+    Match.when({ platform: "ios", type: "pass-type-certificate" }, () =>
+      api.applePassTypeCertificates.delete({ path }),
+    ),
     Match.when({ platform: "ios", type: "asc-api-key" }, () => api.ascApiKeys.delete({ path })),
     Match.when({ platform: "ios", type: "provisioning-profile" }, () =>
       api.appleProvisioningProfiles.delete({ path }),

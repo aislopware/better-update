@@ -4,7 +4,10 @@ import type {
   AndroidBuildCredentials,
   AndroidUploadKeystore,
   AppleDistributionCertificate,
+  ApplePassTypeCertificate,
+  ApplePayCertificate,
   AppleProvisioningProfile,
+  ApplePushCertificate,
   ApplePushKey,
   AppleTeam,
   AscApiKey,
@@ -47,6 +50,9 @@ export type DeviceClassValue = typeof DeviceClass.Type;
 export type DeviceRegistrationRequestItem = DeviceRegistrationRequest;
 export type AppleTeamItem = AppleTeam;
 export type AppleDistributionCertificateItem = AppleDistributionCertificate;
+export type ApplePassTypeCertificateItem = ApplePassTypeCertificate;
+export type ApplePayCertificateItem = ApplePayCertificate;
+export type ApplePushCertificateItem = ApplePushCertificate;
 export type ApplePushKeyItem = ApplePushKey;
 export type AscApiKeyItem = AscApiKey;
 export type AppleProvisioningProfileItem = AppleProvisioningProfile;

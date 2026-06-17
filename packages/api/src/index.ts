@@ -132,6 +132,21 @@ export {
   UploadApplePushKeyBody,
 } from "./domain/apple-push-key";
 export {
+  ApplePushCertificate,
+  DeleteApplePushCertificateResult,
+  UploadApplePushCertificateBody,
+} from "./domain/apple-push-certificate";
+export {
+  ApplePayCertificate,
+  DeleteApplePayCertificateResult,
+  UploadApplePayCertificateBody,
+} from "./domain/apple-pay-certificate";
+export {
+  ApplePassTypeCertificate,
+  DeleteApplePassTypeCertificateResult,
+  UploadApplePassTypeCertificateBody,
+} from "./domain/apple-pass-type-certificate";
+export {
   AscApiKey,
   AscApiKeyCredentials,
   AscApiKeyId,
@@ -227,6 +242,8 @@ export {
   Distribution,
   INTERNAL_DISTRIBUTIONS,
   InstallLinkResult,
+  isOtaInstallableDistribution,
+  OTA_INSTALLABLE_DISTRIBUTIONS,
   ReserveBuildResult,
   STORE_DISTRIBUTIONS,
 } from "./domain/build";
@@ -315,6 +332,9 @@ export { DevicesGroup } from "./groups/devices";
 export { AppleTeamsGroup } from "./groups/apple-teams";
 export { AppleDistributionCertificatesGroup } from "./groups/apple-distribution-certificates";
 export { ApplePushKeysGroup } from "./groups/apple-push-keys";
+export { ApplePushCertificatesGroup } from "./groups/apple-push-certificates";
+export { ApplePayCertificatesGroup } from "./groups/apple-pay-certificates";
+export { ApplePassTypeCertificatesGroup } from "./groups/apple-pass-type-certificates";
 export { AscApiKeysGroup } from "./groups/asc-api-keys";
 export { AppleProvisioningProfilesGroup } from "./groups/apple-provisioning-profiles";
 export { GoogleServiceAccountKeysGroup } from "./groups/google-service-account-keys";

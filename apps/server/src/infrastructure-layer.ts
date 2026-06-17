@@ -15,7 +15,10 @@ import {
   AndroidBuildCredentialsRepoLive,
   AndroidUploadKeystoreRepoLive,
   AppleDistributionCertificateRepoLive,
+  ApplePassTypeCertificateRepoLive,
+  ApplePayCertificateRepoLive,
   AppleProvisioningProfileRepoLive,
+  ApplePushCertificateRepoLive,
   ApplePushKeyRepoLive,
   AppleTeamRepoLive,
   AscApiKeyRepoLive,
@@ -65,7 +68,10 @@ import type {
   AndroidBuildCredentialsRepo,
   AndroidUploadKeystoreRepo,
   AppleDistributionCertificateRepo,
+  ApplePassTypeCertificateRepo,
+  ApplePayCertificateRepo,
   AppleProvisioningProfileRepo,
+  ApplePushCertificateRepo,
   ApplePushKeyRepo,
   AppleTeamRepo,
   AscApiKeyRepo,
@@ -109,7 +115,10 @@ export type ServerInfrastructure =
   | AndroidUploadKeystoreRepo
   | ApiKeyRepo
   | AppleDistributionCertificateRepo
+  | ApplePassTypeCertificateRepo
+  | ApplePayCertificateRepo
   | AppleProvisioningProfileRepo
+  | ApplePushCertificateRepo
   | ApplePushKeyRepo
   | AppleTeamRepo
   | AscApiKeyRepo
@@ -157,7 +166,10 @@ export const RepositoryLayer = Layer.mergeAll(
   AndroidUploadKeystoreRepoLive,
   ApiKeyRepoLive,
   AppleDistributionCertificateRepoLive,
+  ApplePassTypeCertificateRepoLive,
+  ApplePayCertificateRepoLive,
   AppleProvisioningProfileRepoLive,
+  ApplePushCertificateRepoLive,
   ApplePushKeyRepoLive,
   AppleTeamRepoLive,
   AscApiKeyRepoLive,

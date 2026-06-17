@@ -35,6 +35,22 @@ export const STORE_DISTRIBUTIONS = [
   "play-store",
 ] as const satisfies readonly (typeof Distribution.Type)[];
 
+/**
+ * iOS distributions installable on-device over-the-air via an itms-services
+ * manifest. Each is signed with a provisioning profile that authorizes a direct
+ * install: `development` and `ad-hoc` embed a device roster, `enterprise` is
+ * org-wide. `app-store` builds ship through the App Store and `simulator`
+ * artifacts (tar.gz) are not device-installable.
+ */
+export const OTA_INSTALLABLE_DISTRIBUTIONS = [
+  "ad-hoc",
+  "development",
+  "enterprise",
+] as const satisfies readonly (typeof Distribution.Type)[];
+
+export const isOtaInstallableDistribution = (distribution: typeof Distribution.Type): boolean =>
+  (OTA_INSTALLABLE_DISTRIBUTIONS as readonly string[]).includes(distribution);
+
 export const ArtifactFormat = Schema.Literal("ipa", "apk", "aab", "tar.gz");
 const Sha256Hex = Schema.String.pipe(Schema.pattern(/^[a-fA-F0-9]{64}$/u), Schema.maxLength(64));
 

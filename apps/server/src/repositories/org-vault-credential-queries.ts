@@ -5,11 +5,13 @@ import type { Kysely } from "kysely";
 import type { DB } from "../db/schema";
 import type { EncryptedCredentialType } from "../vault-models";
 
-// The org's E2E-encrypted rows live across five signing-credential tables plus
-// env-var revisions. D1 caps a compound SELECT at five UNION terms, so each set
-// is two queries (the five credentials in one UNION ALL, env vars separately)
-// run via `d1Batch`. These builders are extracted from `org-vault.ts` to keep
-// that file under the line cap.
+// The org's E2E-encrypted rows live across several signing-credential tables
+// plus env-var revisions. D1 caps a compound SELECT at five UNION terms, so each
+// set is split into two queries run via `d1Batch`: the first five
+// signing-credential tables in one UNION ALL, and an "aux" UNION ALL holding the
+// later-added cert tables together with env-var revisions (kept <= five terms).
+// These builders are extracted from `org-vault.ts` to keep that file under the
+// line cap.
 
 /** Rotation coverage refs (type + id) for every encrypted row in the org. */
 export const credentialRefQueries = (db: Kysely<DB>, organizationId: string) => {
@@ -47,11 +49,32 @@ export const credentialRefQueries = (db: Kysely<DB>, organizationId: string) => 
         .select([sql<EncryptedCredentialType>`'androidUploadKeystore'`.as("credential_type"), "id"])
         .where("organization_id", "=", organizationId),
     );
-  const envVarRefs = db
-    .selectFrom("env_var_revisions")
-    .select([sql<EncryptedCredentialType>`'envVarValue'`.as("credential_type"), "id"])
-    .where("organization_id", "=", organizationId);
-  return [credentialRefs, envVarRefs] as const;
+  const auxRefs = db
+    .selectFrom("apple_push_certificates")
+    .select([sql<EncryptedCredentialType>`'applePushCertificate'`.as("credential_type"), "id"])
+    .where("organization_id", "=", organizationId)
+    .unionAll(
+      db
+        .selectFrom("apple_pay_certificates")
+        .select([sql<EncryptedCredentialType>`'applePayCertificate'`.as("credential_type"), "id"])
+        .where("organization_id", "=", organizationId),
+    )
+    .unionAll(
+      db
+        .selectFrom("apple_pass_type_certificates")
+        .select([
+          sql<EncryptedCredentialType>`'applePassTypeCertificate'`.as("credential_type"),
+          "id",
+        ])
+        .where("organization_id", "=", organizationId),
+    )
+    .unionAll(
+      db
+        .selectFrom("env_var_revisions")
+        .select([sql<EncryptedCredentialType>`'envVarValue'`.as("credential_type"), "id"])
+        .where("organization_id", "=", organizationId),
+    );
+  return [credentialRefs, auxRefs] as const;
 };
 
 /** The currently-wrapped DEK (+ version) for every encrypted row — the rotation source set. */
@@ -109,14 +132,47 @@ export const credentialDekQueries = (db: Kysely<DB>, organizationId: string) => 
         ])
         .where("organization_id", "=", organizationId),
     );
-  const envVarDeks = db
-    .selectFrom("env_var_revisions")
+  const auxDeks = db
+    .selectFrom("apple_push_certificates")
     .select([
-      sql<EncryptedCredentialType>`'envVarValue'`.as("credential_type"),
+      sql<EncryptedCredentialType>`'applePushCertificate'`.as("credential_type"),
       "id",
       "wrapped_dek",
       "vault_version",
     ])
-    .where("organization_id", "=", organizationId);
-  return [credentialDeks, envVarDeks] as const;
+    .where("organization_id", "=", organizationId)
+    .unionAll(
+      db
+        .selectFrom("apple_pay_certificates")
+        .select([
+          sql<EncryptedCredentialType>`'applePayCertificate'`.as("credential_type"),
+          "id",
+          "wrapped_dek",
+          "vault_version",
+        ])
+        .where("organization_id", "=", organizationId),
+    )
+    .unionAll(
+      db
+        .selectFrom("apple_pass_type_certificates")
+        .select([
+          sql<EncryptedCredentialType>`'applePassTypeCertificate'`.as("credential_type"),
+          "id",
+          "wrapped_dek",
+          "vault_version",
+        ])
+        .where("organization_id", "=", organizationId),
+    )
+    .unionAll(
+      db
+        .selectFrom("env_var_revisions")
+        .select([
+          sql<EncryptedCredentialType>`'envVarValue'`.as("credential_type"),
+          "id",
+          "wrapped_dek",
+          "vault_version",
+        ])
+        .where("organization_id", "=", organizationId),
+    );
+  return [credentialDeks, auxDeks] as const;
 };

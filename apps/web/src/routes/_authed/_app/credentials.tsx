@@ -1,5 +1,8 @@
 import {
   appleDistributionCertificatesQueryOptions,
+  applePassTypeCertificatesQueryOptions,
+  applePayCertificatesQueryOptions,
+  applePushCertificatesQueryOptions,
   applePushKeysQueryOptions,
   appleTeamsQueryOptions,
   ascApiKeysQueryOptions,
@@ -21,6 +24,12 @@ import {
   DistributionCertificatesTable,
   GoogleServiceAccountKeysEmptyState,
   GoogleServiceAccountKeysTable,
+  PassTypeCertificatesEmptyState,
+  PassTypeCertificatesTable,
+  PayCertificatesEmptyState,
+  PayCertificatesTable,
+  PushCertificatesEmptyState,
+  PushCertificatesTable,
   PushKeysEmptyState,
   PushKeysTable,
 } from "./-credentials-tables";
@@ -64,6 +73,66 @@ const PushKeysSection = ({ orgId }: { orgId: string }) => {
       ) : (
         <Frame>
           <PushKeysTable items={data.items} teamsById={teamsById} />
+        </Frame>
+      )}
+    </section>
+  );
+};
+
+const PushCertificatesSection = ({ orgId }: { orgId: string }) => {
+  const { data } = useSuspenseQuery(applePushCertificatesQueryOptions(orgId));
+
+  return (
+    <section className="flex flex-col gap-3">
+      <SectionHeader
+        title="Push Certificates"
+        description="APNs Push Services SSL certificates (.p12)."
+      />
+      {data.items.length === 0 ? (
+        <PushCertificatesEmptyState />
+      ) : (
+        <Frame>
+          <PushCertificatesTable items={data.items} />
+        </Frame>
+      )}
+    </section>
+  );
+};
+
+const PayCertificatesSection = ({ orgId }: { orgId: string }) => {
+  const { data } = useSuspenseQuery(applePayCertificatesQueryOptions(orgId));
+
+  return (
+    <section className="flex flex-col gap-3">
+      <SectionHeader
+        title="Apple Pay Certificates"
+        description="Apple Pay payment processing certificates (.p12)."
+      />
+      {data.items.length === 0 ? (
+        <PayCertificatesEmptyState />
+      ) : (
+        <Frame>
+          <PayCertificatesTable items={data.items} />
+        </Frame>
+      )}
+    </section>
+  );
+};
+
+const PassTypeCertificatesSection = ({ orgId }: { orgId: string }) => {
+  const { data } = useSuspenseQuery(applePassTypeCertificatesQueryOptions(orgId));
+
+  return (
+    <section className="flex flex-col gap-3">
+      <SectionHeader
+        title="Pass Type ID Certificates"
+        description="Wallet Pass Type ID certificates (.p12)."
+      />
+      {data.items.length === 0 ? (
+        <PassTypeCertificatesEmptyState />
+      ) : (
+        <Frame>
+          <PassTypeCertificatesTable items={data.items} />
         </Frame>
       )}
     </section>
@@ -149,6 +218,15 @@ const Credentials = () => {
       </Suspense>
       <Suspense fallback={<CredentialSectionSkeleton />}>
         <PushKeysSection orgId={orgId} />
+      </Suspense>
+      <Suspense fallback={<CredentialSectionSkeleton />}>
+        <PushCertificatesSection orgId={orgId} />
+      </Suspense>
+      <Suspense fallback={<CredentialSectionSkeleton />}>
+        <PayCertificatesSection orgId={orgId} />
+      </Suspense>
+      <Suspense fallback={<CredentialSectionSkeleton />}>
+        <PassTypeCertificatesSection orgId={orgId} />
       </Suspense>
       <Suspense fallback={<CredentialSectionSkeleton />}>
         <AscApiKeysSection orgId={orgId} />

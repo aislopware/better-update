@@ -2,6 +2,7 @@ import {
   ArtifactFormat,
   Distribution,
   INTERNAL_DISTRIBUTIONS,
+  isOtaInstallableDistribution,
   STORE_DISTRIBUTIONS,
 } from "@better-update/api";
 import { fromHex, toBase64 } from "@better-update/encoding";
@@ -391,7 +392,7 @@ const handleGetInstallLink = ({ path }: { readonly path: { readonly id: string }
 
       const installUrl =
         build.platform === "ios" &&
-        (build.distribution === "ad-hoc" || build.distribution === "enterprise") &&
+        isOtaInstallableDistribution(build.distribution) &&
         build.artifact?.format === "ipa" &&
         build.bundleId !== null &&
         build.appVersion !== null

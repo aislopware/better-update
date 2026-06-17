@@ -50,6 +50,9 @@ export interface OrgVaultKeyWrapModel {
 export type EncryptedCredentialType =
   | "appleDistributionCertificate"
   | "applePushKey"
+  | "applePushCertificate"
+  | "applePayCertificate"
+  | "applePassTypeCertificate"
   | "ascApiKey"
   | "googleServiceAccountKey"
   | "androidUploadKeystore"

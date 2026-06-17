@@ -15,13 +15,16 @@ export const WrappedDek = Schema.String.pipe(Schema.minLength(1)).annotations({
 
 /**
  * The secret kinds whose DEK is wrapped under the org vault key — the rows a
- * rotation must re-wrap. Five signing-credential tables plus `envVarValue` (one
+ * rotation must re-wrap. Eight signing-credential tables plus `envVarValue` (one
  * row per environment variable value revision). Provisioning profiles are
  * plaintext and are deliberately absent.
  */
 export const CredentialType = Schema.Literal(
   "appleDistributionCertificate",
   "applePushKey",
+  "applePushCertificate",
+  "applePayCertificate",
+  "applePassTypeCertificate",
   "ascApiKey",
   "googleServiceAccountKey",
   "androidUploadKeystore",

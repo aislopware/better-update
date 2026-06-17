@@ -17,6 +17,9 @@ describe("Credentials Apple flow", () => {
   let cookies: string;
   let certId: string;
   let pushKeyId: string;
+  let pushCertId: string;
+  let payCertId: string;
+  let passCertId: string;
   let ascKeyId: string;
 
   it("signs up and activates an org", async () => {
@@ -115,6 +118,101 @@ describe("Credentials Apple flow", () => {
     const [team] = teams;
     expect(team?.distributionCertificateCount).toBe(1);
     expect(team?.pushKeyCount).toBe(1);
+  });
+
+  it("uploads a push SSL certificate bound to the same apple team and downloads it", async () => {
+    const res = await post(
+      "/api/apple/push-certificates",
+      {
+        ...credentialEnvelope(),
+        bundleIdentifier: "com.acme.app",
+        serialNumber: "PUSHCERT0001",
+        appleTeamIdentifier: TEAM_A,
+        validFrom: "2026-01-01T00:00:00Z",
+        validUntil: "2027-01-01T00:00:00Z",
+      },
+      { cookie: cookies },
+    );
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.bundleIdentifier).toBe("com.acme.app");
+    expect(body.serialNumber).toBe("PUSHCERT0001");
+    pushCertId = body.id;
+
+    const listed = await (await get("/api/apple/push-certificates", { cookie: cookies })).json();
+    expect(listed.items).toHaveLength(1);
+
+    const download = await get(`/api/apple/push-certificates/${pushCertId}/download`, {
+      cookie: cookies,
+    });
+    expect(download.status).toBe(200);
+    const downloadBody = await download.json();
+    expect(downloadBody.bundleIdentifier).toBe("com.acme.app");
+    expect(downloadBody.serialNumber).toBe("PUSHCERT0001");
+    expect(downloadBody.ciphertext).toBeTruthy();
+    expect(downloadBody.wrappedDek).toBeTruthy();
+  });
+
+  it("uploads an Apple Pay certificate and downloads it", async () => {
+    const res = await post(
+      "/api/apple/pay-certificates",
+      {
+        ...credentialEnvelope(),
+        merchantIdentifier: "merchant.com.acme.pay",
+        serialNumber: "PAYCERT00001",
+        appleTeamIdentifier: TEAM_A,
+        validFrom: "2026-01-01T00:00:00Z",
+        validUntil: "2027-01-01T00:00:00Z",
+      },
+      { cookie: cookies },
+    );
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.merchantIdentifier).toBe("merchant.com.acme.pay");
+    payCertId = body.id;
+
+    const listed = await (await get("/api/apple/pay-certificates", { cookie: cookies })).json();
+    expect(listed.items).toHaveLength(1);
+
+    const download = await get(`/api/apple/pay-certificates/${payCertId}/download`, {
+      cookie: cookies,
+    });
+    expect(download.status).toBe(200);
+    const downloadBody = await download.json();
+    expect(downloadBody.merchantIdentifier).toBe("merchant.com.acme.pay");
+    expect(downloadBody.ciphertext).toBeTruthy();
+  });
+
+  it("uploads a Pass Type ID certificate and downloads it", async () => {
+    const res = await post(
+      "/api/apple/pass-type-certificates",
+      {
+        ...credentialEnvelope(),
+        passTypeIdentifier: "pass.com.acme.coupon",
+        serialNumber: "PASSCERT0001",
+        appleTeamIdentifier: TEAM_A,
+        validFrom: "2026-01-01T00:00:00Z",
+        validUntil: "2027-01-01T00:00:00Z",
+      },
+      { cookie: cookies },
+    );
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.passTypeIdentifier).toBe("pass.com.acme.coupon");
+    passCertId = body.id;
+
+    const listed = await (
+      await get("/api/apple/pass-type-certificates", { cookie: cookies })
+    ).json();
+    expect(listed.items).toHaveLength(1);
+
+    const download = await get(`/api/apple/pass-type-certificates/${passCertId}/download`, {
+      cookie: cookies,
+    });
+    expect(download.status).toBe(200);
+    const downloadBody = await download.json();
+    expect(downloadBody.passTypeIdentifier).toBe("pass.com.acme.coupon");
+    expect(downloadBody.ciphertext).toBeTruthy();
   });
 
   it("uploads an ASC API key bound to the same apple team", async () => {
@@ -252,5 +350,15 @@ describe("Credentials Apple flow", () => {
     expect(probe.status).toBe(404);
     const probeAsc = await del(`/api/apple/asc-api-keys/${ascKeyId}`, { cookie: cookies });
     expect(probeAsc.status).toBe(404);
+    const probePushCert = await del(`/api/apple/push-certificates/${pushCertId}`, {
+      cookie: cookies,
+    });
+    expect(probePushCert.status).toBe(404);
+    const probePayCert = await del(`/api/apple/pay-certificates/${payCertId}`, { cookie: cookies });
+    expect(probePayCert.status).toBe(404);
+    const probePassCert = await del(`/api/apple/pass-type-certificates/${passCertId}`, {
+      cookie: cookies,
+    });
+    expect(probePassCert.status).toBe(404);
   });
 });

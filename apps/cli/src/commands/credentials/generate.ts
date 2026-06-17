@@ -16,6 +16,7 @@ import { CredentialValidationError } from "../../lib/exit-codes";
 import { printHuman, printHumanKeyValue } from "../../lib/output";
 import { promptMultiSelect, promptPassword, promptText } from "../../lib/prompts";
 import { apiClient } from "../../services/api-client";
+import { merchantIdCommand } from "./generate-merchant-id";
 import { pushKeyCommand } from "./generate-push-key";
 
 import type { ApiClient } from "../../services/api-client";
@@ -370,6 +371,7 @@ export const generateCommand = defineCommand({
     "distribution-certificate": distributionCertificateCommand,
     "provisioning-profile": provisioningProfileCommand,
     "push-key": pushKeyCommand,
+    "merchant-id": merchantIdCommand,
     "gsa-key": gsaKeyCommand,
   },
 });

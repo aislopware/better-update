@@ -13,6 +13,9 @@ const CREDENTIAL_TYPES = [
   "distribution-certificate",
   "provisioning-profile",
   "push-key",
+  "push-certificate",
+  "apple-pay-certificate",
+  "pass-type-certificate",
   "asc-api-key",
   "keystore",
   "google-service-account-key",
@@ -31,6 +34,18 @@ export const uploadCommand = defineCommand({
     "key-id": { type: "string", description: "ASC API key ID" },
     "issuer-id": { type: "string", description: "ASC API issuer ID" },
     "apple-team-identifier": { type: "string", description: "Apple Team ID" },
+    "bundle-identifier": {
+      type: "string",
+      description: "App ID for a push certificate (else derived from the cert CN)",
+    },
+    "merchant-identifier": {
+      type: "string",
+      description: "Merchant ID (merchant.*) for an Apple Pay certificate",
+    },
+    "pass-type-identifier": {
+      type: "string",
+      description: "Pass Type ID (pass.*) for a Pass Type ID certificate",
+    },
   },
   run: async ({ args }) =>
     runEffect(
@@ -49,6 +64,9 @@ export const uploadCommand = defineCommand({
             keyId: args["key-id"],
             issuerId: args["issuer-id"],
             appleTeamIdentifier: args["apple-team-identifier"],
+            bundleIdentifier: args["bundle-identifier"],
+            merchantIdentifier: args["merchant-identifier"],
+            passTypeIdentifier: args["pass-type-identifier"],
           }),
         };
 

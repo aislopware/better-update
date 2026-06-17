@@ -22,6 +22,12 @@ export {
   AppleProvisioningProfileRepoLive,
 } from "./apple-provisioning-profiles";
 export { ApplePushKeyRepo, ApplePushKeyRepoLive } from "./apple-push-keys";
+export { ApplePushCertificateRepo, ApplePushCertificateRepoLive } from "./apple-push-certificates";
+export { ApplePayCertificateRepo, ApplePayCertificateRepoLive } from "./apple-pay-certificates";
+export {
+  ApplePassTypeCertificateRepo,
+  ApplePassTypeCertificateRepoLive,
+} from "./apple-pass-type-certificates";
 export { AppleTeamRepo, AppleTeamRepoLive } from "./apple-teams";
 export { AscApiKeyRepo, AscApiKeyRepoLive } from "./asc-api-keys";
 export { AssetRepo, AssetRepoLive } from "./assets";

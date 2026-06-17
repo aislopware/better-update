@@ -139,6 +139,9 @@ const WRAP_COLUMNS = [
 const CREDENTIAL_TABLES = {
   appleDistributionCertificate: "apple_distribution_certificates",
   applePushKey: "apple_push_keys",
+  applePushCertificate: "apple_push_certificates",
+  applePayCertificate: "apple_pay_certificates",
+  applePassTypeCertificate: "apple_pass_type_certificates",
   ascApiKey: "asc_api_keys",
   googleServiceAccountKey: "google_service_account_keys",
   androidUploadKeystore: "android_upload_keystores",
@@ -322,10 +325,10 @@ export const OrgVaultRepoLive = Layer.succeed(OrgVaultRepo, {
   listCredentialRefs: (params) =>
     Effect.gen(function* () {
       const db = yield* kyselyDb;
-      const [credentialRows, envVarRows] = yield* d1Batch(
+      const [credentialRows, auxRows] = yield* d1Batch(
         credentialRefQueries(db, params.organizationId),
       );
-      return [...credentialRows, ...envVarRows].map((row) => ({
+      return [...credentialRows, ...auxRows].map((row) => ({
         credentialType: row.credential_type,
         id: row.id,
       }));
@@ -334,10 +337,10 @@ export const OrgVaultRepoLive = Layer.succeed(OrgVaultRepo, {
   listCredentialDeks: (params) =>
     Effect.gen(function* () {
       const db = yield* kyselyDb;
-      const [credentialRows, envVarRows] = yield* d1Batch(
+      const [credentialRows, auxRows] = yield* d1Batch(
         credentialDekQueries(db, params.organizationId),
       );
-      return [...credentialRows, ...envVarRows].map((row) => ({
+      return [...credentialRows, ...auxRows].map((row) => ({
         credentialType: row.credential_type,
         credentialId: row.id,
         wrappedDek: row.wrapped_dek,

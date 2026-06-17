@@ -65,6 +65,9 @@ export type AppleProvisioningProfiles = WithNonNullId<
   Narrow<Gen.AppleProvisioningProfiles, { distribution_type: DistributionType }>
 >;
 export type ApplePushKeys = WithNonNullId<Gen.ApplePushKeys>;
+export type ApplePushCertificates = WithNonNullId<Gen.ApplePushCertificates>;
+export type ApplePayCertificates = WithNonNullId<Gen.ApplePayCertificates>;
+export type ApplePassTypeCertificates = WithNonNullId<Gen.ApplePassTypeCertificates>;
 export type AppleTeams = WithNonNullId<Narrow<Gen.AppleTeams, { apple_team_type: AppleTeamType }>>;
 export type AscApiKeys = WithNonNullId<Gen.AscApiKeys>;
 export type Assets = WithNonNullId<Gen.Assets>;
@@ -135,6 +138,9 @@ export interface DB {
   apple_distribution_certificates: AppleDistributionCertificates;
   apple_provisioning_profiles: AppleProvisioningProfiles;
   apple_push_keys: ApplePushKeys;
+  apple_push_certificates: ApplePushCertificates;
+  apple_pay_certificates: ApplePayCertificates;
+  apple_pass_type_certificates: ApplePassTypeCertificates;
   apple_teams: AppleTeams;
   asc_api_keys: AscApiKeys;
   assets: Assets;

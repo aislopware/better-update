@@ -12,6 +12,9 @@ const CREDENTIAL_TYPES = [
   "distribution-certificate",
   "provisioning-profile",
   "push-key",
+  "push-certificate",
+  "apple-pay-certificate",
+  "pass-type-certificate",
   "asc-api-key",
   "keystore",
   "google-service-account-key",
@@ -86,6 +89,78 @@ const viewPushKey = (api: ApiClient, id: string) =>
         ["Type", "Apple APNs auth key"],
         ["Key ID", item.keyId],
         ["Apple team ID", item.appleTeamId],
+        ["Created", item.createdAt],
+        ["Updated", item.updatedAt],
+      ] as const,
+      raw: item,
+    };
+  });
+
+const viewPushCertificate = (api: ApiClient, id: string) =>
+  Effect.gen(function* () {
+    const { items } = yield* api.applePushCertificates.list();
+    const item = items.find((entry) => entry.id === id);
+    if (!item) {
+      return yield* notFound(id, "push-certificate");
+    }
+    return {
+      kind: "push-certificate" as const,
+      pairs: [
+        ["ID", item.id],
+        ["Type", "Apple push SSL certificate"],
+        ["Bundle identifier", item.bundleIdentifier],
+        ["Serial number", item.serialNumber],
+        ["Apple team ID", item.appleTeamId],
+        ["Valid from", item.validFrom],
+        ["Valid until", item.validUntil],
+        ["Created", item.createdAt],
+        ["Updated", item.updatedAt],
+      ] as const,
+      raw: item,
+    };
+  });
+
+const viewPayCertificate = (api: ApiClient, id: string) =>
+  Effect.gen(function* () {
+    const { items } = yield* api.applePayCertificates.list();
+    const item = items.find((entry) => entry.id === id);
+    if (!item) {
+      return yield* notFound(id, "apple-pay-certificate");
+    }
+    return {
+      kind: "apple-pay-certificate" as const,
+      pairs: [
+        ["ID", item.id],
+        ["Type", "Apple Pay payment processing certificate"],
+        ["Merchant identifier", item.merchantIdentifier],
+        ["Serial number", item.serialNumber],
+        ["Apple team ID", item.appleTeamId],
+        ["Valid from", item.validFrom],
+        ["Valid until", item.validUntil],
+        ["Created", item.createdAt],
+        ["Updated", item.updatedAt],
+      ] as const,
+      raw: item,
+    };
+  });
+
+const viewPassTypeCertificate = (api: ApiClient, id: string) =>
+  Effect.gen(function* () {
+    const { items } = yield* api.applePassTypeCertificates.list();
+    const item = items.find((entry) => entry.id === id);
+    if (!item) {
+      return yield* notFound(id, "pass-type-certificate");
+    }
+    return {
+      kind: "pass-type-certificate" as const,
+      pairs: [
+        ["ID", item.id],
+        ["Type", "Wallet Pass Type ID certificate"],
+        ["Pass Type ID", item.passTypeIdentifier],
+        ["Serial number", item.serialNumber],
+        ["Apple team ID", item.appleTeamId],
+        ["Valid from", item.validFrom],
+        ["Valid until", item.validUntil],
         ["Created", item.createdAt],
         ["Updated", item.updatedAt],
       ] as const,
@@ -168,6 +243,15 @@ const lookupByType = (api: ApiClient, id: string, type: CredentialType) => {
     }
     case "push-key": {
       return viewPushKey(api, id);
+    }
+    case "push-certificate": {
+      return viewPushCertificate(api, id);
+    }
+    case "apple-pay-certificate": {
+      return viewPayCertificate(api, id);
+    }
+    case "pass-type-certificate": {
+      return viewPassTypeCertificate(api, id);
     }
     case "asc-api-key": {
       return viewAscApiKey(api, id);

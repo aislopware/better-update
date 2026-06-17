@@ -216,6 +216,51 @@ export interface ApplePushKeyModel {
   readonly updatedAt: string;
 }
 
+export interface ApplePushCertificateModel {
+  readonly id: string;
+  readonly organizationId: string;
+  readonly appleTeamId: string;
+  readonly bundleIdentifier: string;
+  readonly serialNumber: string;
+  readonly validFrom: string;
+  readonly validUntil: string;
+  readonly r2Key: string;
+  readonly wrappedDek: string;
+  readonly vaultVersion: number;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface ApplePayCertificateModel {
+  readonly id: string;
+  readonly organizationId: string;
+  readonly appleTeamId: string;
+  readonly merchantIdentifier: string;
+  readonly serialNumber: string;
+  readonly validFrom: string;
+  readonly validUntil: string;
+  readonly r2Key: string;
+  readonly wrappedDek: string;
+  readonly vaultVersion: number;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface ApplePassTypeCertificateModel {
+  readonly id: string;
+  readonly organizationId: string;
+  readonly appleTeamId: string;
+  readonly passTypeIdentifier: string;
+  readonly serialNumber: string;
+  readonly validFrom: string;
+  readonly validUntil: string;
+  readonly r2Key: string;
+  readonly wrappedDek: string;
+  readonly vaultVersion: number;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
 // Vault recipient / wrap / credential-rotation models live in `./vault-models`
 // (extracted to keep this file under the line cap). `EncryptionKeyKind` stays
 // here as a shared primitive.

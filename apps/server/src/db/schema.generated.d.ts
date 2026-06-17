@@ -102,6 +102,36 @@ export interface AppleDistributionCertificates {
   wrapped_dek: string;
 }
 
+export interface ApplePassTypeCertificates {
+  apple_team_id: string;
+  created_at: Generated<string>;
+  id: string | null;
+  organization_id: string;
+  pass_type_identifier: string;
+  r2_key: string;
+  serial_number: string;
+  updated_at: Generated<string>;
+  valid_from: string;
+  valid_until: string;
+  vault_version: number;
+  wrapped_dek: string;
+}
+
+export interface ApplePayCertificates {
+  apple_team_id: string;
+  created_at: Generated<string>;
+  id: string | null;
+  merchant_identifier: string;
+  organization_id: string;
+  r2_key: string;
+  serial_number: string;
+  updated_at: Generated<string>;
+  valid_from: string;
+  valid_until: string;
+  vault_version: number;
+  wrapped_dek: string;
+}
+
 export interface AppleProvisioningProfiles {
   apple_distribution_certificate_id: string | null;
   apple_team_id: string;
@@ -117,6 +147,21 @@ export interface AppleProvisioningProfiles {
   r2_key: string;
   updated_at: Generated<string>;
   valid_until: string | null;
+}
+
+export interface ApplePushCertificates {
+  apple_team_id: string;
+  bundle_identifier: string;
+  created_at: Generated<string>;
+  id: string | null;
+  organization_id: string;
+  r2_key: string;
+  serial_number: string;
+  updated_at: Generated<string>;
+  valid_from: string;
+  valid_until: string;
+  vault_version: number;
+  wrapped_dek: string;
 }
 
 export interface ApplePushKeys {
@@ -567,7 +612,10 @@ export interface DB {
   android_upload_keystores: AndroidUploadKeystores;
   apikey: Apikey;
   apple_distribution_certificates: AppleDistributionCertificates;
+  apple_pass_type_certificates: ApplePassTypeCertificates;
+  apple_pay_certificates: ApplePayCertificates;
   apple_provisioning_profiles: AppleProvisioningProfiles;
+  apple_push_certificates: ApplePushCertificates;
   apple_push_keys: ApplePushKeys;
   apple_teams: AppleTeams;
   asc_api_keys: AscApiKeys;

@@ -10,7 +10,10 @@ import type {
   UpdateIosBundleConfigurationBody,
   UploadAndroidUploadKeystoreBody,
   UploadAppleDistributionCertificateBody,
+  UploadApplePassTypeCertificateBody,
+  UploadApplePayCertificateBody,
   UploadAppleProvisioningProfileBody,
+  UploadApplePushCertificateBody,
   UploadApplePushKeyBody,
   UploadAscApiKeyBody,
   UploadGoogleServiceAccountKeyBody,
@@ -59,6 +62,56 @@ export const uploadApplePushKey = async (body: typeof UploadApplePushKeyBody.Typ
 
 export const deleteApplePushKey = async (id: string) =>
   runApi((api) => api.applePushKeys.delete({ path: { id } }));
+
+export const applePushCertificatesQueryKey = (orgId: string) =>
+  ["org", orgId, "apple-push-certificates"] as const;
+
+export const applePushCertificatesQueryOptions = (orgId: string) =>
+  queryOptions({
+    queryKey: applePushCertificatesQueryKey(orgId),
+    queryFn: async ({ signal }) => runApi((api) => api.applePushCertificates.list(), signal),
+    staleTime: 30_000,
+  });
+
+export const uploadApplePushCertificate = async (
+  body: typeof UploadApplePushCertificateBody.Type,
+) => runApi((api) => api.applePushCertificates.upload({ payload: body }));
+
+export const deleteApplePushCertificate = async (id: string) =>
+  runApi((api) => api.applePushCertificates.delete({ path: { id } }));
+
+export const applePayCertificatesQueryKey = (orgId: string) =>
+  ["org", orgId, "apple-pay-certificates"] as const;
+
+export const applePayCertificatesQueryOptions = (orgId: string) =>
+  queryOptions({
+    queryKey: applePayCertificatesQueryKey(orgId),
+    queryFn: async ({ signal }) => runApi((api) => api.applePayCertificates.list(), signal),
+    staleTime: 30_000,
+  });
+
+export const uploadApplePayCertificate = async (body: typeof UploadApplePayCertificateBody.Type) =>
+  runApi((api) => api.applePayCertificates.upload({ payload: body }));
+
+export const deleteApplePayCertificate = async (id: string) =>
+  runApi((api) => api.applePayCertificates.delete({ path: { id } }));
+
+export const applePassTypeCertificatesQueryKey = (orgId: string) =>
+  ["org", orgId, "apple-pass-type-certificates"] as const;
+
+export const applePassTypeCertificatesQueryOptions = (orgId: string) =>
+  queryOptions({
+    queryKey: applePassTypeCertificatesQueryKey(orgId),
+    queryFn: async ({ signal }) => runApi((api) => api.applePassTypeCertificates.list(), signal),
+    staleTime: 30_000,
+  });
+
+export const uploadApplePassTypeCertificate = async (
+  body: typeof UploadApplePassTypeCertificateBody.Type,
+) => runApi((api) => api.applePassTypeCertificates.upload({ payload: body }));
+
+export const deleteApplePassTypeCertificate = async (id: string) =>
+  runApi((api) => api.applePassTypeCertificates.delete({ path: { id } }));
 
 export const ascApiKeysQueryKey = (orgId: string) => ["org", orgId, "asc-api-keys"] as const;
 

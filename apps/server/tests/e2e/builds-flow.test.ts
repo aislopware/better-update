@@ -318,6 +318,50 @@ describe("Builds API flow", () => {
     expect(plist).toContain("com.test.app");
   });
 
+  it("offers an itms-services install link for development (dev-client) iOS builds", async () => {
+    // Regression: dev-client builds resolve to the `development` distribution and
+    // are installable on registered devices — they must get an OTA install link,
+    // not just a download. Previously the guard only allowed ad-hoc/enterprise.
+    const reserve = await post(
+      "/api/builds",
+      {
+        projectId,
+        platform: "ios",
+        distribution: "development",
+        artifactFormat: "ipa",
+        appVersion: "1.0.0",
+        buildNumber: "44",
+        bundleId: "com.test.app",
+        message: "Dev client build",
+        sha256: artifactSha256,
+        byteSize: artifactBytes.byteLength,
+      },
+      { cookie: cookies },
+    );
+    expect(reserve.status).toBe(201);
+    const devBuildId = (await reserve.json()).id as string;
+
+    const complete = await post(
+      `/api/builds/${devBuildId}/complete`,
+      { sha256: artifactSha256, byteSize: artifactBytes.byteLength },
+      { cookie: cookies },
+    );
+    expect(complete.status).toBe(200);
+
+    const linkResponse = await get(`/api/builds/${devBuildId}/install-link`, {
+      cookie: cookies,
+    });
+    expect(linkResponse.status).toBe(200);
+    const links = await linkResponse.json();
+    expect(links.installUrl).toContain("itms-services://?action=download-manifest");
+
+    const plistResponse = await get(
+      `/api/builds/${devBuildId}/install?token=${String(links.token)}&expires=${String(links.expires)}`,
+    );
+    expect(plistResponse.status).toBe(200);
+    expect(await plistResponse.text()).toContain("software-package");
+  });
+
   it("deletes the build and its artifact record", async () => {
     const response = await del(`/api/builds/${buildId}`, {
       cookie: cookies,

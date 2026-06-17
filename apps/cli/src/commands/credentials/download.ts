@@ -20,6 +20,9 @@ const DOWNLOAD_TYPES = [
   "distribution-certificate",
   "provisioning-profile",
   "push-key",
+  "push-certificate",
+  "apple-pay-certificate",
+  "pass-type-certificate",
   "asc-api-key",
   "keystore",
   "google-service-account-key",
@@ -152,6 +155,114 @@ const downloadPushKey = ({ api, id, cwd, output }: DownloadCtx) =>
     } satisfies DownloadResult;
   });
 
+const downloadPushCertificate = ({ api, id, cwd, output }: DownloadCtx) =>
+  Effect.gen(function* () {
+    const data = yield* api.applePushCertificates.download({ path: { id } });
+    const session = yield* openVaultSessionInteractive(api);
+    const secret = yield* openFromDownload({
+      session,
+      credentialType: "push-certificate",
+      downloaded: data,
+    });
+    const p12Base64 = yield* secretString(secret, "p12Base64");
+    const p12Password = yield* secretString(secret, "p12Password");
+    const filePath = resolveOutputPath(cwd, output, `${data.id}.p12`);
+    yield* writeBinary(filePath, fromBase64(p12Base64));
+    return {
+      path: filePath,
+      pairs: [
+        ["Path", filePath],
+        ["Type", "Apple push SSL certificate (.p12)"],
+        ["Bundle", data.bundleIdentifier],
+        ["Serial", data.serialNumber],
+        ["Apple team", data.appleTeamIdentifier],
+        ["Valid from", data.validFrom],
+        ["Valid until", data.validUntil],
+        ["P12 password", p12Password],
+      ] as const,
+      metadata: {
+        bundleIdentifier: data.bundleIdentifier,
+        serialNumber: data.serialNumber,
+        appleTeamIdentifier: data.appleTeamIdentifier,
+        validFrom: data.validFrom,
+        validUntil: data.validUntil,
+        p12Password,
+      },
+    } satisfies DownloadResult;
+  });
+
+const downloadPayCertificate = ({ api, id, cwd, output }: DownloadCtx) =>
+  Effect.gen(function* () {
+    const data = yield* api.applePayCertificates.download({ path: { id } });
+    const session = yield* openVaultSessionInteractive(api);
+    const secret = yield* openFromDownload({
+      session,
+      credentialType: "apple-pay-certificate",
+      downloaded: data,
+    });
+    const p12Base64 = yield* secretString(secret, "p12Base64");
+    const p12Password = yield* secretString(secret, "p12Password");
+    const filePath = resolveOutputPath(cwd, output, `${data.id}.p12`);
+    yield* writeBinary(filePath, fromBase64(p12Base64));
+    return {
+      path: filePath,
+      pairs: [
+        ["Path", filePath],
+        ["Type", "Apple Pay payment processing certificate (.p12)"],
+        ["Merchant", data.merchantIdentifier],
+        ["Serial", data.serialNumber],
+        ["Apple team", data.appleTeamIdentifier],
+        ["Valid from", data.validFrom],
+        ["Valid until", data.validUntil],
+        ["P12 password", p12Password],
+      ] as const,
+      metadata: {
+        merchantIdentifier: data.merchantIdentifier,
+        serialNumber: data.serialNumber,
+        appleTeamIdentifier: data.appleTeamIdentifier,
+        validFrom: data.validFrom,
+        validUntil: data.validUntil,
+        p12Password,
+      },
+    } satisfies DownloadResult;
+  });
+
+const downloadPassTypeCertificate = ({ api, id, cwd, output }: DownloadCtx) =>
+  Effect.gen(function* () {
+    const data = yield* api.applePassTypeCertificates.download({ path: { id } });
+    const session = yield* openVaultSessionInteractive(api);
+    const secret = yield* openFromDownload({
+      session,
+      credentialType: "pass-type-certificate",
+      downloaded: data,
+    });
+    const p12Base64 = yield* secretString(secret, "p12Base64");
+    const p12Password = yield* secretString(secret, "p12Password");
+    const filePath = resolveOutputPath(cwd, output, `${data.id}.p12`);
+    yield* writeBinary(filePath, fromBase64(p12Base64));
+    return {
+      path: filePath,
+      pairs: [
+        ["Path", filePath],
+        ["Type", "Wallet Pass Type ID certificate (.p12)"],
+        ["Pass Type ID", data.passTypeIdentifier],
+        ["Serial", data.serialNumber],
+        ["Apple team", data.appleTeamIdentifier],
+        ["Valid from", data.validFrom],
+        ["Valid until", data.validUntil],
+        ["P12 password", p12Password],
+      ] as const,
+      metadata: {
+        passTypeIdentifier: data.passTypeIdentifier,
+        serialNumber: data.serialNumber,
+        appleTeamIdentifier: data.appleTeamIdentifier,
+        validFrom: data.validFrom,
+        validUntil: data.validUntil,
+        p12Password,
+      },
+    } satisfies DownloadResult;
+  });
+
 const downloadAscApiKey = ({ api, id, cwd, output }: DownloadCtx) =>
   Effect.gen(function* () {
     const data = yield* api.ascApiKeys.getCredentials({ path: { id } });
@@ -255,6 +366,15 @@ const dispatchDownload = (ctx: DownloadCtx, type: DownloadType) => {
     }
     case "push-key": {
       return downloadPushKey(ctx);
+    }
+    case "push-certificate": {
+      return downloadPushCertificate(ctx);
+    }
+    case "apple-pay-certificate": {
+      return downloadPayCertificate(ctx);
+    }
+    case "pass-type-certificate": {
+      return downloadPassTypeCertificate(ctx);
     }
     case "asc-api-key": {
       return downloadAscApiKey(ctx);

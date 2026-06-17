@@ -1,3 +1,4 @@
+import { isOtaInstallableDistribution } from "@better-update/api";
 import { Effect } from "effect";
 
 import { createAuth } from "../auth";
@@ -188,11 +189,12 @@ export const handleBuildInstallPlist = async (
     return Response.json({ code: "NOT_FOUND", message: "Build not found" }, { status: 404 });
   }
 
-  if (build.distribution !== "ad-hoc" && build.distribution !== "enterprise") {
+  if (!isOtaInstallableDistribution(build.distribution)) {
     return Response.json(
       {
         code: "BAD_REQUEST",
-        message: "Install plist only available for ad-hoc or enterprise distributions",
+        message:
+          "Install plist only available for development, ad-hoc, or enterprise distributions",
       },
       { status: 400 },
     );
