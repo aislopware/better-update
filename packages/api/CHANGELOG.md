@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.24.0](https://github.com/aislopware/better-update/compare/@better-update/api@0.23.1...@better-update/api@0.24.0) (2026-06-17)
+
+### Features
+
+* add Apple push/pay/pass-type cert vault + iOS dev-build install link ([95228b5](https://github.com/aislopware/better-update/commit/95228b5f15b4b96ec227ae43c4ae6f3ace862349)) - by @trancong12102
+
 ## [0.23.1](https://github.com/aislopware/better-update/compare/@better-update/api@0.23.0...@better-update/api@0.23.1) (2026-06-11)
 
 ### Bug Fixes

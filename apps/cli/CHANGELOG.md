@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.38.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.37.0...@better-update/cli@0.38.0) (2026-06-17)
+
+### Features
+
+* add Apple push/pay/pass-type cert vault + iOS dev-build install link ([95228b5](https://github.com/better-update/better-update/commit/95228b5f15b4b96ec227ae43c4ae6f3ace862349)) - by @trancong12102
+* **cli:** always remind about new versions with a 5-minute check cache ([44e0d3a](https://github.com/better-update/better-update/commit/44e0d3ab8f37f7eb8dc4e6d178944f31e2e3068d)) - by @trancong12102
+* **cli:** scaffold default eas.json build profiles on init ([5c13146](https://github.com/better-update/better-update/commit/5c13146bcc71919e79d0a62472ab45bff7d01a64)) - by @trancong12102
+
 ## [0.37.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.36.2...@better-update/cli@0.37.0) (2026-06-17)
 
 ### Features
