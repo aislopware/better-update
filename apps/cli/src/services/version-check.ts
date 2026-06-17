@@ -7,8 +7,11 @@ import { Context, Effect, Layer } from "effect";
 import { CliRuntime } from "./cli-runtime";
 
 const NPM_REGISTRY_URL = "https://registry.npmjs.org/@better-update/cli/latest";
-const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const CACHE_TTL_MS = 5 * 60 * 1000;
 const REFRESH_TIMEOUT_MS = 3000;
+// Tighter bound for the cold-cache foreground probe — it blocks the user's
+// first command, so it must give up fast and fall back to the background refresh.
+const FOREGROUND_TIMEOUT_MS = 1500;
 
 interface VersionCacheEntry {
   readonly latest: string;
@@ -20,6 +23,7 @@ export class VersionCheck extends Context.Tag("cli/VersionCheck")<
   {
     readonly cachedLatest: Effect.Effect<string | undefined>;
     readonly cacheStale: Effect.Effect<boolean>;
+    readonly fetchLatest: Effect.Effect<string | undefined>;
     readonly refreshCache: Effect.Effect<void>;
   }
 >() {}
@@ -56,6 +60,31 @@ export const VersionCheckLive = Layer.effect(
       return undefined;
     });
 
+    const fetchAndCache = (timeoutMs: number): Effect.Effect<string | undefined> =>
+      Effect.gen(function* () {
+        const request = HttpClientRequest.get(NPM_REGISTRY_URL).pipe(
+          HttpClientRequest.setHeader("accept", "application/json"),
+        );
+        const response = yield* httpClient.execute(request);
+        if (response.status < 200 || response.status >= 300) {
+          return undefined;
+        }
+        const body = yield* response.json;
+        if (!isRecord(body) || typeof body["version"] !== "string") {
+          return undefined;
+        }
+        const latest = body["version"];
+        yield* fs.makeDirectory(cacheDir, { recursive: true });
+        yield* fs.writeFileString(
+          cacheFile,
+          `${JSON.stringify({ latest, checkedAt: Date.now() }, null, 2)}\n`,
+        );
+        return latest;
+      }).pipe(
+        Effect.timeout(timeoutMs),
+        Effect.catchAll(() => Effect.succeed(undefined)),
+      );
+
     return {
       cachedLatest: readCache.pipe(Effect.map((entry) => entry?.latest)),
       cacheStale: readCache.pipe(
@@ -67,28 +96,10 @@ export const VersionCheckLive = Layer.effect(
           return elapsed < 0 || elapsed > CACHE_TTL_MS;
         }),
       ),
-      refreshCache: Effect.gen(function* () {
-        const request = HttpClientRequest.get(NPM_REGISTRY_URL).pipe(
-          HttpClientRequest.setHeader("accept", "application/json"),
-        );
-        const response = yield* httpClient.execute(request);
-        if (response.status < 200 || response.status >= 300) {
-          return;
-        }
-        const body = yield* response.json;
-        if (!isRecord(body) || typeof body["version"] !== "string") {
-          return;
-        }
-        const latest = body["version"];
-        yield* fs.makeDirectory(cacheDir, { recursive: true });
-        yield* fs.writeFileString(
-          cacheFile,
-          `${JSON.stringify({ latest, checkedAt: Date.now() }, null, 2)}\n`,
-        );
-      }).pipe(
-        Effect.timeout(REFRESH_TIMEOUT_MS),
-        Effect.catchAll(() => Effect.void),
-      ),
+      // Bounded foreground probe for a cold cache — lets the very first run remind.
+      fetchLatest: fetchAndCache(FOREGROUND_TIMEOUT_MS),
+      // Background warm-up for the next run; its value is irrelevant to this run.
+      refreshCache: fetchAndCache(REFRESH_TIMEOUT_MS).pipe(Effect.asVoid),
     };
   }),
 );

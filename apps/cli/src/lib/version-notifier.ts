@@ -36,10 +36,16 @@ export const bootstrapVersionCheck = (
     }
     const versionCheck = yield* VersionCheck;
     if (options?.quiet !== true) {
-      const cached = yield* versionCheck.cachedLatest;
-      if (cached && isNewerVersion(cached, currentVersion)) {
+      // Warm cache → instant. Cold cache (first run / no prior fetch) → one
+      // bounded foreground probe so the reminder fires even on the very first
+      // invocation — that is what makes it "always" remind, not best-effort.
+      let latest = yield* versionCheck.cachedLatest;
+      if (latest === undefined) {
+        latest = yield* versionCheck.fetchLatest;
+      }
+      if (latest && isNewerVersion(latest, currentVersion)) {
         const installer = detectInstallerFromImportMetaUrl(installerHint);
-        yield* Console.error(formatNotice(currentVersion, cached, installCommand(installer)));
+        yield* Console.error(formatNotice(currentVersion, latest, installCommand(installer)));
       }
     }
     if (yield* versionCheck.cacheStale) {

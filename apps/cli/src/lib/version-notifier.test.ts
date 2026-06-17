@@ -10,10 +10,18 @@ import { bootstrapVersionCheck } from "./version-notifier";
 // to stderr (Console.error), never stdout, so it cannot corrupt the JSON
 // envelope — but EAS suppresses it under --json/CI and so do we (P4).
 
-const makeVersionCheckLayer = () =>
+interface VersionConfig {
+  readonly cachedLatest: string | undefined;
+  readonly fetchLatest: string | undefined;
+}
+
+const DEFAULT_VERSION_CONFIG: VersionConfig = { cachedLatest: "9.9.9", fetchLatest: undefined };
+
+const makeVersionCheckLayer = (config: VersionConfig = DEFAULT_VERSION_CONFIG) =>
   Layer.succeed(VersionCheck, {
-    cachedLatest: Effect.succeed("9.9.9"),
+    cachedLatest: Effect.succeed(config.cachedLatest),
     cacheStale: Effect.succeed(false),
+    fetchLatest: Effect.succeed(config.fetchLatest),
     refreshCache: Effect.void,
   });
 
@@ -35,10 +43,13 @@ const makeRuntimeLayer = (optedOut: boolean) =>
 const run = async (
   options: Parameters<typeof bootstrapVersionCheck>[3],
   optedOut = false,
+  versionConfig: VersionConfig = DEFAULT_VERSION_CONFIG,
 ): Promise<void> =>
   Effect.runPromise(
     bootstrapVersionCheck("1.0.0", "file:///x", () => undefined, options).pipe(
-      Effect.provide(Layer.mergeAll(makeVersionCheckLayer(), makeRuntimeLayer(optedOut))),
+      Effect.provide(
+        Layer.mergeAll(makeVersionCheckLayer(versionConfig), makeRuntimeLayer(optedOut)),
+      ),
     ),
   );
 
@@ -77,6 +88,25 @@ describe("bootstrapVersionCheck upgrade notice", () => {
   it.effect("emits nothing when the user opted out, regardless of quiet", () =>
     Effect.gen(function* () {
       yield* Effect.promise(async () => run({ quiet: false }, true));
+      expect(errorSpy).not.toHaveBeenCalled();
+    }),
+  );
+
+  it.effect("emits the notice on a cold cache via a foreground fetch (first run)", () =>
+    Effect.gen(function* () {
+      yield* Effect.promise(async () =>
+        run({ quiet: false }, false, { cachedLatest: undefined, fetchLatest: "9.9.9" }),
+      );
+      expect(errorSpy).toHaveBeenCalledTimes(1);
+      expect(String(errorSpy.mock.calls[0]?.[0])).toContain("Update available");
+    }),
+  );
+
+  it.effect("stays silent when the cold-cache foreground fetch fails (offline)", () =>
+    Effect.gen(function* () {
+      yield* Effect.promise(async () =>
+        run({ quiet: false }, false, { cachedLatest: undefined, fetchLatest: undefined }),
+      );
       expect(errorSpy).not.toHaveBeenCalled();
     }),
   );
