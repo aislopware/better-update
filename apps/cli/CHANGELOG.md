@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.39.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.38.0...@better-update/cli@0.39.0) (2026-06-17)
+
+### Features
+
+* **cli:** client-side store submission at EAS parity ([a044ad2](https://github.com/better-update/better-update/commit/a044ad2dbd3e22f62f98b37dc4b3910eb7cf3a1b)) - by @trancong12102
+
 ## [0.38.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.37.0...@better-update/cli@0.38.0) (2026-06-17)
 
 ### Features
