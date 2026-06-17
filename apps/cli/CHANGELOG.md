@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.37.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.36.2...@better-update/cli@0.37.0) (2026-06-17)
+
+### Features
+
+* **cli:** enrich credential picker labels with type, dates, and team names ([72ded1c](https://github.com/better-update/better-update/commit/72ded1cf5fd0c24b86197ee56f2d0fd5b6d0606d)) - by @trancong12102
+
 ## [0.36.2](https://github.com/better-update/better-update/compare/@better-update/cli@0.36.1...@better-update/cli@0.36.2) (2026-06-11)
 
 **Note:** Version bump only for package @better-update/cli

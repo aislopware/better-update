@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.6.3](https://github.com/aislopware/better-update/compare/@better-update/auth-client@0.6.2...@better-update/auth-client@0.6.3) (2026-06-17)
+
+**Note:** Version bump only for package @better-update/auth-client
+
 ## [0.6.2](https://github.com/better-update/better-update/compare/@better-update/auth-client@0.6.1...@better-update/auth-client@0.6.2) (2026-06-10)
 
 **Note:** Version bump only for package @better-update/auth-client
