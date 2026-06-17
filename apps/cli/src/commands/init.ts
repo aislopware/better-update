@@ -6,7 +6,7 @@ import { defineCommand } from "citty";
 import { Effect, Option } from "effect";
 
 import { runEffect } from "../lib/citty-effect";
-import { writeEasJsonPatch } from "../lib/eas-json";
+import { ensureDefaultBuildProfiles, readEasJsonRaw, writeEasJsonPatch } from "../lib/eas-json";
 import { ProjectNotLinkedError } from "../lib/exit-codes";
 import { extractSlug, writeProjectId } from "../lib/expo-config";
 import { InteractiveMode } from "../lib/interactive-mode";
@@ -140,6 +140,26 @@ const persistLink = (projectRoot: string, projectId: string, hasExpoConfig: bool
     return { projectId, configPath: filePath };
   });
 
+/**
+ * Scaffold the default `eas.json` build profiles after linking so a freshly
+ * `init`ed project can `build` straight away. Only acts when no `build` section
+ * exists yet — a project that already defines profiles is left untouched (run
+ * `build configure` to top those up). Use `build configure` to re-scaffold.
+ */
+const scaffoldBuildProfiles = (projectRoot: string) =>
+  Effect.gen(function* () {
+    const existing = yield* readEasJsonRaw(projectRoot);
+    const existingBuild = isRecord(existing?.["build"]) ? existing["build"] : {};
+    if (Object.keys(existingBuild).length > 0) {
+      return [];
+    }
+    const result = yield* ensureDefaultBuildProfiles(projectRoot);
+    yield* printHuman(
+      `Scaffolded eas.json with default build profiles: ${result.added.join(", ")}.`,
+    );
+    return result.added;
+  });
+
 export const initCommand = defineCommand({
   meta: {
     name: "init",
@@ -174,7 +194,8 @@ export const initCommand = defineCommand({
           const project = yield* api.projects.get({ path: { id: args.id } });
           yield* printHuman(`Linking project: ${project.name} (${project.id})`);
           const linked = yield* persistLink(projectRoot, project.id, hasExpoConfig);
-          return { linked: true, ...linked };
+          const buildProfiles = yield* scaffoldBuildProfiles(projectRoot);
+          return { linked: true, ...linked, buildProfiles };
         }
 
         const { name, slug } = yield* resolveNameAndSlug(args, projectRoot, expoConfig);
@@ -202,7 +223,8 @@ export const initCommand = defineCommand({
         });
 
         const linked = yield* persistLink(projectRoot, linkedProjectId, hasExpoConfig);
-        return { linked: true, ...linked };
+        const buildProfiles = yield* scaffoldBuildProfiles(projectRoot);
+        return { linked: true, ...linked, buildProfiles };
       }),
       { json: "value" },
     ),

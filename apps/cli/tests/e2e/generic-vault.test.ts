@@ -44,10 +44,17 @@ describe("generic vault: credentials/env on a non-Expo project", () => {
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain("Project linked successfully");
     expect(result.stdout).toContain("eas.json");
+    // init scaffolds the default build profiles into the fresh eas.json so the
+    // project can `build` immediately, without losing the projectId link.
+    expect(result.stdout).toContain("default build profiles");
 
     const linkPath = path.join(cli.getProjectDir(), "eas.json");
-    const link = JSON.parse(readFileSync(linkPath, "utf8")) as { projectId?: string };
+    const link = JSON.parse(readFileSync(linkPath, "utf8")) as {
+      projectId?: string;
+      build?: Record<string, unknown>;
+    };
     expect(link.projectId).toBe(cli.getProjectId());
+    expect(Object.keys(link.build ?? {})).toStrictEqual(["development", "preview", "production"]);
   });
 
   it("env list resolves via eas.json after init (no env var needed)", () => {

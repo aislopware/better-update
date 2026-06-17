@@ -1,45 +1,19 @@
-import path from "node:path";
-
-import { compact } from "@better-update/type-guards";
 import { FileSystem } from "@effect/platform";
 import { defineCommand } from "citty";
 import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
-import { parseEasConfig } from "../../lib/eas-config";
+import { easJsonPath, parseEasConfig } from "../../lib/eas-config";
+import {
+  DEFAULT_EAS_JSON,
+  DEFAULT_PROFILE_NAMES,
+  ensureDefaultBuildProfiles,
+} from "../../lib/eas-json";
 import { BuildProfileError } from "../../lib/exit-codes";
 import { InteractiveMode } from "../../lib/interactive-mode";
 import { printHuman, printHumanKeyValue } from "../../lib/output";
 import { promptConfirm } from "../../lib/prompts";
 import { CliRuntime } from "../../services/cli-runtime";
-
-const DEFAULT_EAS_JSON = {
-  cli: {
-    version: ">= 7.0.0",
-  },
-  build: {
-    development: {
-      developmentClient: true,
-      distribution: "internal",
-      channel: "development",
-      environment: "development",
-      android: { format: "apk" },
-    },
-    preview: {
-      distribution: "internal",
-      channel: "preview",
-      environment: "preview",
-      android: { format: "apk" },
-    },
-    production: {
-      channel: "production",
-      environment: "production",
-      android: { format: "aab" },
-    },
-  },
-};
-
-const DEFAULT_PROFILES = ["development", "preview", "production"] as const;
 
 const writeEasJson = (filePath: string, value: unknown) =>
   Effect.gen(function* () {
@@ -76,44 +50,48 @@ export const configureBuildCommand = defineCommand({
         const { allow: interactive } = yield* InteractiveMode;
         const runtime = yield* CliRuntime;
         const projectRoot = yield* runtime.cwd;
-        const easJsonPath = path.join(projectRoot, "eas.json");
+        const filePath = easJsonPath(projectRoot);
 
         const fs = yield* FileSystem.FileSystem;
-        const exists = yield* fs.exists(easJsonPath);
+        const exists = yield* fs.exists(filePath);
 
-        if (!exists) {
-          yield* writeEasJson(easJsonPath, DEFAULT_EAS_JSON);
-          yield* printHuman(`Wrote eas.json with default profiles to ${easJsonPath}.`);
-          yield* printHumanKeyValue([
-            ["Profiles", DEFAULT_PROFILES.join(", ")],
-            ["Path", easJsonPath],
-          ]);
-          return {
-            action: "created" as const,
-            path: easJsonPath,
-            profiles: [...DEFAULT_PROFILES],
-          };
-        }
-
+        // --force: hard reset to the default template (drops any existing keys).
         if (args.force === true) {
-          const proceed = interactive
-            ? yield* promptConfirm(`Overwrite existing eas.json at ${easJsonPath} with defaults?`)
-            : true;
+          const proceed =
+            exists && interactive
+              ? yield* promptConfirm(`Overwrite existing eas.json at ${filePath} with defaults?`)
+              : true;
           if (!proceed) {
             yield* printHuman("Aborted. eas.json was not modified.");
-            return { action: "aborted" as const, path: easJsonPath };
+            return { action: "aborted" as const, path: filePath };
           }
-          yield* writeEasJson(easJsonPath, DEFAULT_EAS_JSON);
-          yield* printHuman(`Overwrote eas.json with default profiles.`);
+          yield* writeEasJson(filePath, DEFAULT_EAS_JSON);
+          yield* printHuman(
+            exists
+              ? "Overwrote eas.json with default profiles."
+              : `Wrote eas.json with default profiles to ${filePath}.`,
+          );
           return {
-            action: "overwritten" as const,
-            path: easJsonPath,
-            profiles: [...DEFAULT_PROFILES],
+            action: exists ? "overwritten" : "created",
+            path: filePath,
+            profiles: [...DEFAULT_PROFILE_NAMES],
           };
         }
 
+        // Fresh scaffold — `ensureDefaultBuildProfiles` writes the full template.
+        if (!exists) {
+          const created = yield* ensureDefaultBuildProfiles(projectRoot);
+          yield* printHuman(`Wrote eas.json with default profiles to ${created.path}.`);
+          yield* printHumanKeyValue([
+            ["Profiles", created.added.join(", ")],
+            ["Path", created.path],
+          ]);
+          return { action: "created" as const, path: created.path, profiles: created.added };
+        }
+
+        // Existing file: validate it parses (surface errors) before topping up.
         const existingRaw = yield* fs
-          .readFileString(easJsonPath)
+          .readFileString(filePath)
           .pipe(
             Effect.mapError(
               (cause) =>
@@ -121,16 +99,15 @@ export const configureBuildCommand = defineCommand({
             ),
           );
         const config = yield* parseEasConfig(existingRaw);
-
         const existingProfiles = Object.keys(config.build ?? {});
-        const missing = DEFAULT_PROFILES.filter((name) => !existingProfiles.includes(name));
+        const missing = DEFAULT_PROFILE_NAMES.filter((name) => !existingProfiles.includes(name));
 
         if (missing.length === 0) {
           yield* printHuman(
             `eas.json already defines all default profiles (${existingProfiles.join(", ")}). Nothing to add.`,
           );
           yield* printHuman("Pass --force to overwrite with the default template.");
-          return { action: "noop" as const, path: easJsonPath, existing: existingProfiles };
+          return { action: "noop" as const, path: filePath, existing: existingProfiles };
         }
 
         const proceed = interactive
@@ -141,31 +118,23 @@ export const configureBuildCommand = defineCommand({
           : true;
         if (!proceed) {
           yield* printHuman("Aborted. eas.json was not modified.");
-          return { action: "aborted" as const, path: easJsonPath };
+          return { action: "aborted" as const, path: filePath };
         }
 
-        const additions = Object.fromEntries(
-          missing.map((name) => [name, DEFAULT_EAS_JSON.build[name]]),
-        );
-        const merged = {
-          build: {
-            ...config.build,
-            ...additions,
-          },
-          ...compact({ cli: config.cli }),
-        };
-        yield* writeEasJson(easJsonPath, merged);
-        yield* printHuman(`Added profile(s) to eas.json: ${missing.join(", ")}.`);
+        // Key-preserving top-up: only the missing default profiles are added,
+        // every existing profile and top-level key (projectId, …) is retained.
+        const result = yield* ensureDefaultBuildProfiles(projectRoot);
+        yield* printHuman(`Added profile(s) to eas.json: ${result.added.join(", ")}.`);
         yield* printHumanKeyValue([
           ["Existing", existingProfiles.join(", ") || "(none)"],
-          ["Added", missing.join(", ")],
-          ["Path", easJsonPath],
+          ["Added", result.added.join(", ")],
+          ["Path", result.path],
         ]);
         return {
           action: "topped-up" as const,
-          path: easJsonPath,
+          path: result.path,
           existing: existingProfiles,
-          added: [...missing],
+          added: result.added,
         };
       }),
       { json: "value" },

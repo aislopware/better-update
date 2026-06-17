@@ -77,6 +77,80 @@ export const writeEasJsonPatch = (
   });
 
 /**
+ * Default `build` profiles scaffolded by `init` / `build configure`. Mirrors the
+ * EAS three-tier convention: `development` (dev-client, internal), `preview`
+ * (internal QA) and `production` (store). Keep in sync with the build-profile
+ * derivation in `build-profile.ts` (e.g. `distribution: "internal"` → ad-hoc).
+ */
+export const DEFAULT_BUILD_PROFILES = {
+  development: {
+    developmentClient: true,
+    distribution: "internal",
+    channel: "development",
+    environment: "development",
+    android: { format: "apk" },
+  },
+  preview: {
+    distribution: "internal",
+    channel: "preview",
+    environment: "preview",
+    android: { format: "apk" },
+  },
+  production: {
+    channel: "production",
+    environment: "production",
+    android: { format: "aab" },
+  },
+} as const;
+
+export const DEFAULT_PROFILE_NAMES = ["development", "preview", "production"] as const;
+
+/** Full default `eas.json` body (cli pin + the three default build profiles). */
+export const DEFAULT_EAS_JSON = {
+  cli: { version: ">= 7.0.0" },
+  build: DEFAULT_BUILD_PROFILES,
+} as const;
+
+export interface ScaffoldEasJsonResult {
+  readonly path: string;
+  readonly action: "created" | "topped-up" | "noop";
+  /** Profile names written this run (`[]` for a noop). */
+  readonly added: readonly string[];
+}
+
+/**
+ * Ensure `eas.json` carries the default build profiles. Creates the file with
+ * the full default template when absent; otherwise tops up only the missing
+ * default profiles, preserving every existing profile and top-level key
+ * (`projectId`, `projectType`, `submit`, …). Never overwrites a profile that is
+ * already defined — call sites wanting a hard reset write `DEFAULT_EAS_JSON`.
+ */
+export const ensureDefaultBuildProfiles = (
+  projectRoot: string,
+): Effect.Effect<ScaffoldEasJsonResult, ProjectNotLinkedError, FileSystem.FileSystem> =>
+  Effect.gen(function* () {
+    const existing = yield* readEasJsonRaw(projectRoot);
+    if (existing === undefined) {
+      const filePath = yield* writeEasJsonPatch(projectRoot, DEFAULT_EAS_JSON);
+      return { path: filePath, action: "created", added: [...DEFAULT_PROFILE_NAMES] };
+    }
+    const existingBuild = isRecord(existing["build"]) ? existing["build"] : {};
+    const missing = DEFAULT_PROFILE_NAMES.filter((name) => !(name in existingBuild));
+    if (missing.length === 0) {
+      return { path: easJsonPath(projectRoot), action: "noop", added: [] };
+    }
+    const additions = Object.fromEntries(
+      missing.map((name) => [name, DEFAULT_BUILD_PROFILES[name]]),
+    );
+    const patch =
+      existing["cli"] === undefined
+        ? { cli: DEFAULT_EAS_JSON.cli, build: { ...existingBuild, ...additions } }
+        : { build: { ...existingBuild, ...additions } };
+    const filePath = yield* writeEasJsonPatch(projectRoot, patch);
+    return { path: filePath, action: "topped-up", added: missing };
+  });
+
+/**
  * Resolve the linked project id from `eas.json`'s top-level `projectId`, or
  * `undefined` when the file is absent / has no usable value.
  */
