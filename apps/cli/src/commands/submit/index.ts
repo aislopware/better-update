@@ -2,11 +2,13 @@ import { compact } from "@better-update/type-guards";
 import { defineCommand } from "citty";
 import { Effect } from "effect";
 
+import { runAndroidGooglePlayUpload } from "../../application/android-play-submit";
 import {
   createSubmissionViaApi,
+  hasAppleAppSpecificPassword,
   pollSubmissionUntilTerminal,
-  runAndroidGooglePlayUpload,
-  runIosAltoolUpload,
+  resolveIosUploadAuth,
+  runIosSubmit,
 } from "../../application/submit-flow";
 import { runEffect } from "../../lib/citty-effect";
 import { readSubmitProfile } from "../../lib/eas-json";
@@ -135,19 +137,36 @@ const runFlow = (api: ApiClient, projectId: string, args: RunArgs) =>
     yield* printHuman(`Submission created: ${submission.id} (${submission.status})`);
 
     if (args.platform === "ios" && iosConfig !== undefined) {
-      const ascApiKeyId = args.easProfile.ios?.ascApiKeyId;
-      if (ascApiKeyId === undefined) {
+      const iosProfile = args.easProfile.ios;
+      const auth = resolveIosUploadAuth({
+        appleId: iosProfile?.appleId,
+        ascApiKeyId: iosProfile?.ascApiKeyId,
+        hasAppSpecificPassword: hasAppleAppSpecificPassword(),
+      });
+      if (auth === null) {
         yield* printHuman(
-          "iOS submission queued. Resolve ascApiKeyId in eas.json submit profile to enable client-side altool upload.",
+          "iOS submission queued. Add ascApiKeyId to the eas.json submit profile, or set appleId + the EXPO_APPLE_APP_SPECIFIC_PASSWORD env var, to enable client-side altool upload.",
         );
         return submission;
       }
-      yield* printHuman("Running xcrun altool upload locally...");
-      yield* runIosAltoolUpload({
+      yield* printHuman(
+        auth.kind === "app-specific-password"
+          ? "Running xcrun altool upload (Apple ID app-specific password)..."
+          : "Running xcrun altool upload (ASC API key)...",
+      );
+      yield* runIosSubmit({
         api,
         submissionId: submission.id,
-        ipaPath: args.archive.archiveUrl,
-        ascApiKeyId,
+        archive: { source: args.archive.archiveSource, value: args.archive.archiveUrl },
+        auth,
+        ascApiKeyId: iosProfile?.ascApiKeyId,
+        config: {
+          bundleIdentifier: iosConfig.bundleIdentifier,
+          ascAppId: iosProfile?.ascAppId,
+          language: iosProfile?.language,
+          whatToTest: args.whatToTest,
+          groups: iosProfile?.groups ?? [],
+        },
       });
     }
 

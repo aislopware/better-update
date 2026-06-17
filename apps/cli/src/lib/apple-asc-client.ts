@@ -104,7 +104,7 @@ const parseApiError = (response: Response, body: unknown, raw: string): AscApiEr
   });
 };
 
-const fetchRaw = (jwt: string, path: string, init?: { method?: string; body?: string }) =>
+export const fetchRaw = (jwt: string, path: string, init?: { method?: string; body?: string }) =>
   Effect.gen(function* () {
     const response = yield* Effect.tryPromise({
       try: async () =>
@@ -227,7 +227,7 @@ const toAscDevice = (value: unknown): AscDevice | null => {
   return { id, udid, name, deviceClass: typeof deviceClass === "string" ? deviceClass : null };
 };
 
-const extractList = <T>(body: unknown, map: (value: unknown) => T | null): readonly T[] => {
+export const extractList = <T>(body: unknown, map: (value: unknown) => T | null): readonly T[] => {
   if (!isRecord(body) || !Array.isArray(body["data"])) {
     return [];
   }
@@ -246,7 +246,7 @@ const extractSingle = <T>(body: unknown, map: (value: unknown) => T | null): T |
  * absolute URL of the next page under `links.next`. Strip the base so it can be
  * fed back into `fetchRaw`; return null when there is no further page.
  */
-const nextPagePath = (body: unknown): string | null => {
+export const nextPagePath = (body: unknown): string | null => {
   if (!isRecord(body)) {
     return null;
   }
@@ -266,7 +266,7 @@ const malformed = (resource: string): AscApiError =>
     raw: "",
   });
 
-const withJwt = <Value, Err, Req>(
+export const withJwt = <Value, Err, Req>(
   credentials: AscCredentials,
   fn: (jwt: string) => Effect.Effect<Value, Err, Req>,
 ) =>

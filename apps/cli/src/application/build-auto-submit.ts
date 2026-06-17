@@ -4,10 +4,13 @@ import { Effect } from "effect";
 import { readSubmitProfile } from "../lib/eas-json";
 import { printHuman } from "../lib/output";
 import { CliRuntime } from "../services/cli-runtime";
+import { runAndroidGooglePlayUpload } from "./android-play-submit";
 import {
   createSubmissionViaApi,
+  hasAppleAppSpecificPassword,
   pollSubmissionUntilTerminal,
-  runIosAltoolUpload,
+  resolveIosUploadAuth,
+  runIosSubmit,
 } from "./submit-flow";
 
 import type { Platform } from "../lib/build-profile";
@@ -86,13 +89,51 @@ export const runAutoSubmit = (input: AutoSubmitInput) =>
 
     yield* printHuman(`Submission created: ${submission.id} (${submission.status})`);
 
-    if (input.platform === "ios" && easProfile.ios?.ascApiKeyId !== undefined) {
-      yield* printHuman("Running xcrun altool upload...");
-      yield* runIosAltoolUpload({
+    if (input.platform === "ios" && iosConfig !== undefined) {
+      const auth = resolveIosUploadAuth({
+        appleId: easProfile.ios?.appleId,
+        ascApiKeyId: easProfile.ios?.ascApiKeyId,
+        hasAppSpecificPassword: hasAppleAppSpecificPassword(),
+      });
+      if (auth === null) {
+        yield* printHuman(
+          "Skipping iOS upload: configure ascApiKeyId or set EXPO_APPLE_APP_SPECIFIC_PASSWORD (+ appleId).",
+        );
+      } else {
+        yield* printHuman(
+          auth.kind === "app-specific-password"
+            ? "Running xcrun altool upload (Apple ID app-specific password)..."
+            : "Running xcrun altool upload (ASC API key)...",
+        );
+        yield* runIosSubmit({
+          api: input.api,
+          submissionId: submission.id,
+          archive: { source: "build", value: archiveUrl },
+          auth,
+          ascApiKeyId: easProfile.ios?.ascApiKeyId,
+          config: {
+            bundleIdentifier: iosConfig.bundleIdentifier,
+            ascAppId: easProfile.ios?.ascAppId,
+            language: easProfile.ios?.language,
+            whatToTest: input.whatToTest,
+            groups: easProfile.ios?.groups ?? [],
+          },
+        });
+      }
+    }
+
+    if (
+      input.platform === "android" &&
+      androidConfig !== undefined &&
+      easProfile.android !== undefined
+    ) {
+      yield* printHuman("Uploading bundle to Google Play...");
+      yield* runAndroidGooglePlayUpload({
         api: input.api,
         submissionId: submission.id,
-        ipaPath: archiveUrl,
-        ascApiKeyId: easProfile.ios.ascApiKeyId,
+        archive: { source: "build", value: archiveUrl },
+        androidProfile: easProfile.android,
+        serviceAccountKeyId: easProfile.android.serviceAccountKeyId,
       });
     }
 

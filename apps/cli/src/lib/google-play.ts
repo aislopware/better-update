@@ -334,6 +334,27 @@ interface TrackReleasePayload {
   readonly releaseNotes?: readonly { language: string; text: string }[];
 }
 
+/**
+ * Build the track release object. Google Play accepts `userFraction` only for a
+ * staged (`inProgress`) rollout and rejects it for `completed`/`draft`/`halted`,
+ * so the fraction is gated on the status rather than passed through blindly.
+ */
+export const buildTrackRelease = (params: {
+  readonly releaseStatus: EasAndroidSubmitReleaseStatus;
+  readonly versionCode: number;
+  readonly rollout: number | null;
+  readonly releaseNotes?: string | undefined;
+}): TrackReleasePayload => ({
+  status: params.releaseStatus,
+  versionCodes: [String(params.versionCode)],
+  ...compact({
+    userFraction: params.releaseStatus === "inProgress" ? toOptional(params.rollout) : undefined,
+    releaseNotes: params.releaseNotes
+      ? [{ language: "en-US", text: params.releaseNotes }]
+      : undefined,
+  }),
+});
+
 export const updateTrack = (params: {
   readonly accessToken: string;
   readonly packageName: string;
@@ -344,16 +365,12 @@ export const updateTrack = (params: {
   readonly rollout: number | null;
   readonly releaseNotes?: string | undefined;
 }) => {
-  const release: TrackReleasePayload = {
-    status: params.releaseStatus,
-    versionCodes: [String(params.versionCode)],
-    ...compact({
-      userFraction: toOptional(params.rollout),
-      releaseNotes: params.releaseNotes
-        ? [{ language: "en-US", text: params.releaseNotes }]
-        : undefined,
-    }),
-  };
+  const release = buildTrackRelease({
+    releaseStatus: params.releaseStatus,
+    versionCode: params.versionCode,
+    rollout: params.rollout,
+    releaseNotes: params.releaseNotes,
+  });
   return callJsonRaw({
     url: `${ANDROID_PUBLISHER_BASE}/androidpublisher/v3/applications/${encodeURIComponent(params.packageName)}/edits/${encodeURIComponent(params.editId)}/tracks/${encodeURIComponent(params.track)}`,
     method: "PUT",

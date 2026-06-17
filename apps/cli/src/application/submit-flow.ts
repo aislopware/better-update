@@ -2,25 +2,23 @@ import { execFile } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
-import { compact, toDbNull } from "@better-update/type-guards";
+import { compact } from "@better-update/type-guards";
 import { Duration, Effect, Schema } from "effect";
 
 import type { CreateSubmissionBody, Submission, SubmissionStatus } from "@better-update/api";
 
 import { fetchAscCredentials } from "../lib/asc-credentials";
-import {
-  acquireGooglePlayAccessToken,
-  commitEdit,
-  insertEdit,
-  updateTrack,
-  uploadBundle,
-} from "../lib/google-play";
 import { printHuman } from "../lib/output";
-import { openFromDownload, openVaultSessionInteractive } from "./credential-cipher";
+import {
+  applyTestFlightConfig,
+  captureTestFlightContext,
+  needsTestFlightConfig,
+} from "./ios-testflight-config";
 
-import type { EasAndroidSubmitProfile } from "../lib/eas-submit-config";
+import type { AscCredentials } from "../lib/apple-asc-client";
 import type { ApiClient } from "../services/api-client";
 
 type SubmissionItem = Submission;
@@ -151,97 +149,35 @@ export const pollSubmissionUntilTerminal = (
     ),
   );
 
-// ── iOS altool flow ─────────────────────────────────────────────────────────
+// ── Archive resolution + status patching (shared) ────────────────────────────
 
-interface IosAltoolInputs {
-  readonly api: ApiClient;
-  readonly submissionId: string;
-  readonly ipaPath: string;
-  readonly ascApiKeyId: string;
+export interface ArchiveRef {
+  readonly source: "build" | "path" | "url";
+  readonly value: string;
 }
 
-const writeAscApiKeyP8 = (api: ApiClient, ascApiKeyId: string) =>
-  Effect.gen(function* () {
-    const creds = yield* fetchAscCredentials(api, ascApiKeyId).pipe(
-      Effect.mapError(
-        () =>
-          new CliSubmitError({
-            code: "SUBMISSION_ASC_KEY_FETCH_FAILED",
-            message: `Failed to fetch or decrypt ASC API key ${ascApiKeyId}`,
-          }),
-      ),
-    );
-    const target = path.join(tmpdir(), `better-update-submit-AuthKey_${creds.keyId}.p8`);
-    yield* Effect.promise(async () => writeFile(target, creds.p8Pem, "utf8"));
-    return { p8Path: target, keyId: creds.keyId, issuerId: creds.issuerId };
-  });
+export const patchSubmissionStatus = (
+  api: ApiClient,
+  submissionId: string,
+  payload: {
+    readonly status: SubmissionStatusValue;
+    readonly errorCode?: string;
+    readonly errorMessage?: string;
+  },
+) =>
+  api.submissions.updateStatus({ path: { id: submissionId }, payload }).pipe(
+    Effect.mapError(
+      () =>
+        new CliSubmitError({
+          code: "SUBMISSION_PATCH_FAILED",
+          message: `Failed to PATCH submission status to ${payload.status}`,
+        }),
+    ),
+  );
 
-export const runIosAltoolUpload = (inputs: IosAltoolInputs) =>
-  Effect.gen(function* () {
-    const creds = yield* writeAscApiKeyP8(inputs.api, inputs.ascApiKeyId);
-    const apiKeyDir = path.dirname(creds.p8Path);
-
-    yield* inputs.api.submissions
-      .updateStatus({
-        path: { id: inputs.submissionId },
-        payload: { status: "IN_PROGRESS" },
-      })
-      .pipe(
-        Effect.mapError(
-          () =>
-            new CliSubmitError({
-              code: "SUBMISSION_PATCH_FAILED",
-              message: "Failed to PATCH submission status to IN_PROGRESS",
-            }),
-        ),
-      );
-
-    const result = yield* runAltool([
-      "--upload-app",
-      "--type",
-      "ios",
-      "--apiKey",
-      creds.keyId,
-      "--apiIssuer",
-      creds.issuerId,
-      "--apiKeyDir",
-      apiKeyDir,
-      "--file",
-      inputs.ipaPath,
-      "--output-format",
-      "xml",
-    ]);
-
-    const terminalStatus: SubmissionStatusValue = result.exitCode === 0 ? "FINISHED" : "ERRORED";
-    const errorMessage =
-      result.exitCode === 0
-        ? null
-        : `xcrun altool exited ${String(result.exitCode)}: ${result.stderr}`;
-
-    yield* inputs.api.submissions
-      .updateStatus({
-        path: { id: inputs.submissionId },
-        payload: {
-          status: terminalStatus,
-          ...(errorMessage
-            ? { errorCode: "SUBMISSION_SERVICE_IOS_ALTOOL_FAILED", errorMessage }
-            : {}),
-        },
-      })
-      .pipe(
-        Effect.mapError(
-          () =>
-            new CliSubmitError({
-              code: "SUBMISSION_PATCH_FAILED",
-              message: "Failed to PATCH submission terminal status",
-            }),
-        ),
-      );
-
-    return { status: terminalStatus, stdout: result.stdout, stderr: result.stderr };
-  });
-
-// ── Android Google Play flow ──────────────────────────────────────────────
+/** A local `path` archive may be given as a plain path or a `file://` URL. */
+export const localPathFromArchiveValue = (value: string): string =>
+  value.startsWith("file://") ? fileURLToPath(value) : value;
 
 const readLocalFile = (
   filePath: string,
@@ -268,7 +204,7 @@ const fetchArchiveOverHttp = (url: string) =>
       catch: (cause) =>
         new CliSubmitError({
           code: "SUBMISSION_ARCHIVE_DOWNLOAD_FAILED",
-          message: `Failed to download AAB from ${url}: ${cause instanceof Error ? cause.message : String(cause)}`,
+          message: `Failed to download archive from ${url}: ${cause instanceof Error ? cause.message : String(cause)}`,
         }),
     });
     if (!result.ok || result.bytes === null) {
@@ -280,207 +216,239 @@ const fetchArchiveOverHttp = (url: string) =>
     return result.bytes;
   });
 
-const readArchiveBytes = (archive: { source: "build" | "path" | "url"; value: string }) =>
+export const readArchiveBytes = (archive: ArchiveRef) =>
   archive.source === "path"
     ? Effect.map(
         readLocalFile(
-          archive.value,
+          localPathFromArchiveValue(archive.value),
           "SUBMISSION_ARCHIVE_READ_FAILED",
           (cause) =>
-            `Failed to read AAB at ${archive.value}: ${cause instanceof Error ? cause.message : String(cause)}`,
+            `Failed to read archive at ${archive.value}: ${cause instanceof Error ? cause.message : String(cause)}`,
         ),
         (buf) => new Uint8Array(buf),
       )
     : fetchArchiveOverHttp(archive.value);
 
-const fetchServiceAccountKeyById = (api: ApiClient, id: string) =>
+const downloadArchiveToTempFile = (url: string, extension: string) =>
   Effect.gen(function* () {
-    const data = yield* api.googleServiceAccountKeys.download({ path: { id } }).pipe(
-      Effect.mapError(
-        () =>
-          new CliSubmitError({
-            code: "SUBMISSION_ANDROID_SA_KEY_FETCH_FAILED",
-            message: `Failed to download Google service account key ${id}`,
-          }),
-      ),
-    );
-    const session = yield* openVaultSessionInteractive(api).pipe(
-      Effect.mapError(
-        (cause) =>
-          new CliSubmitError({
-            code: "SUBMISSION_VAULT_UNLOCK_FAILED",
-            message: `Could not unlock the credential vault: ${cause.message}`,
-          }),
-      ),
-    );
-    const secret = yield* openFromDownload({
-      session,
-      credentialType: "google-service-account-key",
-      downloaded: data,
-    }).pipe(
-      Effect.mapError(
-        (cause) =>
-          new CliSubmitError({
-            code: "SUBMISSION_ANDROID_SA_KEY_DECRYPT_FAILED",
-            message: `Failed to decrypt Google service account key ${id}: ${cause.message}`,
-          }),
-      ),
-    );
-    const { json } = secret;
-    if (typeof json !== "string") {
-      return yield* new CliSubmitError({
-        code: "SUBMISSION_ANDROID_SA_KEY_DECRYPT_FAILED",
-        message: `Decrypted Google service account key ${id} is missing its JSON.`,
-      });
-    }
-    return json;
+    const bytes = yield* fetchArchiveOverHttp(url);
+    const target = path.join(tmpdir(), `better-update-submit-${crypto.randomUUID()}${extension}`);
+    yield* Effect.tryPromise({
+      try: async () => writeFile(target, bytes),
+      catch: (cause) =>
+        new CliSubmitError({
+          code: "SUBMISSION_ARCHIVE_WRITE_FAILED",
+          message: `Failed to stage archive to ${target}: ${cause instanceof Error ? cause.message : String(cause)}`,
+        }),
+    });
+    return target;
   });
 
-const resolveServiceAccountJson = (params: {
-  readonly api: ApiClient;
-  readonly serviceAccountKeyId: string | undefined;
-  readonly serviceAccountKeyPath: string | undefined;
-}) => {
-  if (params.serviceAccountKeyId !== undefined) {
-    return fetchServiceAccountKeyById(params.api, params.serviceAccountKeyId);
-  }
-  if (params.serviceAccountKeyPath !== undefined) {
-    return Effect.map(
-      readLocalFile(
-        params.serviceAccountKeyPath,
-        "SUBMISSION_ANDROID_SA_KEY_LOCAL_READ_FAILED",
-        (cause) =>
-          `Failed to read service account JSON at ${String(params.serviceAccountKeyPath)}: ${cause instanceof Error ? cause.message : String(cause)}`,
-      ),
-      (buf) => new TextDecoder().decode(buf),
-    );
-  }
-  return Effect.fail(
-    new CliSubmitError({
-      code: "SUBMISSION_ANDROID_SA_KEY_MISSING",
-      message:
-        "Android submission requires a service account key. Pass --service-account-key-id <id>, set serviceAccountKeyId in eas.json submit profile, or set serviceAccountKeyPath to a local JSON file.",
-    }),
-  );
+/**
+ * Resolve an archive to a **local file path** on disk, downloading remote
+ * (`build`/`url`) sources first. Store upload tools (`altool`) require a path
+ * they can open — handing them an https URL fails.
+ */
+const resolveLocalArchivePath = (archive: ArchiveRef, extension: string) =>
+  archive.source === "path"
+    ? Effect.succeed(localPathFromArchiveValue(archive.value))
+    : downloadArchiveToTempFile(archive.value, extension);
+
+// ── iOS App Store Connect flow ───────────────────────────────────────────────
+
+/** EAS-compatible env var carrying the Apple ID app-specific password. */
+export const APPLE_APP_SPECIFIC_PASSWORD_ENV = "EXPO_APPLE_APP_SPECIFIC_PASSWORD";
+
+/**
+ * How the `.ipa` is authenticated to App Store Connect, mirroring `eas submit`'s
+ * two mutually-exclusive paths: an ASC API key (`.p8`) or an Apple ID + an
+ * app-specific password supplied via {@link APPLE_APP_SPECIFIC_PASSWORD_ENV}.
+ */
+export type IosUploadAuth =
+  | { readonly kind: "asc-api-key"; readonly ascApiKeyId: string }
+  | { readonly kind: "app-specific-password"; readonly appleId: string };
+
+export const hasAppleAppSpecificPassword = (): boolean => {
+  const value = process.env[APPLE_APP_SPECIFIC_PASSWORD_ENV];
+  return value !== undefined && value !== "";
 };
 
-const patchSubmissionStatus = (
-  api: ApiClient,
-  submissionId: string,
-  payload: {
-    readonly status: SubmissionStatusValue;
-    readonly errorCode?: string;
-    readonly errorMessage?: string;
-  },
-) =>
-  api.submissions.updateStatus({ path: { id: submissionId }, payload }).pipe(
+/**
+ * Resolve the upload auth, matching `eas submit` precedence: an app-specific
+ * password (env var + `appleId`) wins when usable; otherwise fall back to the
+ * ASC API key. Returns null when neither is configured.
+ */
+export const resolveIosUploadAuth = (params: {
+  readonly appleId: string | undefined;
+  readonly ascApiKeyId: string | undefined;
+  readonly hasAppSpecificPassword: boolean;
+}): IosUploadAuth | null => {
+  if (params.hasAppSpecificPassword && params.appleId !== undefined) {
+    return { kind: "app-specific-password", appleId: params.appleId };
+  }
+  if (params.ascApiKeyId !== undefined) {
+    return { kind: "asc-api-key", ascApiKeyId: params.ascApiKeyId };
+  }
+  return null;
+};
+
+interface IosSubmitInputs {
+  readonly api: ApiClient;
+  readonly submissionId: string;
+  readonly archive: ArchiveRef;
+  readonly auth: IosUploadAuth;
+  /** ASC API key for post-upload TestFlight config; may differ from upload auth. */
+  readonly ascApiKeyId: string | undefined;
+  readonly config: {
+    readonly bundleIdentifier: string;
+    readonly ascAppId: string | undefined;
+    readonly language: string | undefined;
+    readonly whatToTest: string | undefined;
+    readonly groups: readonly string[];
+  };
+}
+
+const resolveAscCredentials = (api: ApiClient, ascApiKeyId: string) =>
+  fetchAscCredentials(api, ascApiKeyId).pipe(
     Effect.mapError(
       () =>
         new CliSubmitError({
-          code: "SUBMISSION_PATCH_FAILED",
-          message: `Failed to PATCH submission status to ${payload.status}`,
+          code: "SUBMISSION_ASC_KEY_FETCH_FAILED",
+          message: `Failed to fetch or decrypt ASC API key ${ascApiKeyId}`,
         }),
     ),
   );
 
-const wrapGooglePlayError = (label: string) => (cause: { readonly message: string }) =>
-  new CliSubmitError({
-    code: `SUBMISSION_ANDROID_${label}`,
-    message: cause.message,
+/** `altool` reads the API key from `--apiKeyDir`; write the decrypted `.p8` there. */
+const writeP8ForAltool = (credentials: AscCredentials) =>
+  Effect.gen(function* () {
+    const target = path.join(tmpdir(), `better-update-submit-AuthKey_${credentials.keyId}.p8`);
+    yield* Effect.promise(async () => writeFile(target, credentials.p8Pem, "utf8"));
+    return target;
   });
 
-interface AndroidGooglePlayUploadInputs {
-  readonly api: ApiClient;
-  readonly submissionId: string;
-  readonly archive: { readonly source: "build" | "path" | "url"; readonly value: string };
-  readonly androidProfile: EasAndroidSubmitProfile;
-  readonly serviceAccountKeyId: string | undefined;
-}
+const baseAltoolArgs = (ipaPath: string): readonly string[] => [
+  "--upload-app",
+  "--type",
+  "ios",
+  "--file",
+  ipaPath,
+  "--output-format",
+  "xml",
+];
 
-const runGooglePlayPipeline = (params: {
-  readonly accessToken: string;
-  readonly applicationId: string;
-  readonly aab: Uint8Array;
-  readonly track: string;
-  readonly releaseStatus: "completed" | "draft" | "halted" | "inProgress";
-  readonly changesNotSentForReview: boolean;
-  readonly rollout: number | null;
+/** Build `altool` args for the chosen auth. The app-specific password is passed
+ * as `@env:` so it never enters argv; `altool` reads it from the inherited env. */
+const buildAltoolArgs = (params: {
+  readonly auth: IosUploadAuth;
+  readonly ascCredentials: AscCredentials | null;
+  readonly ipaPath: string;
 }) =>
   Effect.gen(function* () {
-    const edit = yield* insertEdit({
-      accessToken: params.accessToken,
-      packageName: params.applicationId,
-    }).pipe(Effect.mapError(wrapGooglePlayError("EDIT_INSERT_FAILED")));
-    const uploaded = yield* uploadBundle({
-      accessToken: params.accessToken,
-      packageName: params.applicationId,
-      editId: edit.id,
-      aabBytes: params.aab,
-    }).pipe(Effect.mapError(wrapGooglePlayError("BUNDLE_UPLOAD_FAILED")));
-    yield* updateTrack({
-      accessToken: params.accessToken,
-      packageName: params.applicationId,
-      editId: edit.id,
-      track: params.track,
-      releaseStatus: params.releaseStatus,
-      versionCode: uploaded.versionCode,
-      rollout: params.rollout,
-    }).pipe(Effect.mapError(wrapGooglePlayError("TRACK_UPDATE_FAILED")));
-    yield* commitEdit({
-      accessToken: params.accessToken,
-      packageName: params.applicationId,
-      editId: edit.id,
-      changesNotSentForReview: params.changesNotSentForReview,
-    }).pipe(Effect.mapError(wrapGooglePlayError("COMMIT_FAILED")));
-    return uploaded;
-  });
-
-export const runAndroidGooglePlayUpload = (inputs: AndroidGooglePlayUploadInputs) =>
-  Effect.gen(function* () {
-    const { applicationId } = inputs.androidProfile;
-    if (applicationId === undefined) {
+    if (params.auth.kind === "app-specific-password") {
+      return [
+        ...baseAltoolArgs(params.ipaPath),
+        "--username",
+        params.auth.appleId,
+        "--password",
+        `@env:${APPLE_APP_SPECIFIC_PASSWORD_ENV}`,
+      ];
+    }
+    if (params.ascCredentials === null) {
       return yield* new CliSubmitError({
-        code: "SUBMISSION_ANDROID_APP_ID_MISSING",
-        message:
-          "Android submit profile requires applicationId — set submit.<profile>.android.applicationId in eas.json",
+        code: "SUBMISSION_ASC_KEY_FETCH_FAILED",
+        message: "ASC API key is required for an asc-api-key upload but was not resolved.",
       });
     }
-    const serviceAccountJson = yield* resolveServiceAccountJson({
-      api: inputs.api,
-      serviceAccountKeyId: inputs.serviceAccountKeyId,
-      serviceAccountKeyPath: inputs.androidProfile.serviceAccountKeyPath,
+    const p8Path = yield* writeP8ForAltool(params.ascCredentials);
+    return [
+      ...baseAltoolArgs(params.ipaPath),
+      "--apiKey",
+      params.ascCredentials.keyId,
+      "--apiIssuer",
+      params.ascCredentials.issuerId,
+      "--apiKeyDir",
+      path.dirname(p8Path),
+    ];
+  });
+
+export const runIosSubmit = (inputs: IosSubmitInputs) =>
+  Effect.gen(function* () {
+    const wantsConfig = needsTestFlightConfig({
+      whatToTest: inputs.config.whatToTest,
+      groups: inputs.config.groups,
     });
+    // ASC credentials power the asc-api-key upload AND the TestFlight config.
+    // The app-specific-password upload needs none, but the config still does.
+    const credsKeyId =
+      inputs.auth.kind === "asc-api-key" ? inputs.auth.ascApiKeyId : inputs.ascApiKeyId;
+    const needsCreds = inputs.auth.kind === "asc-api-key" || wantsConfig;
+    const ascCredentials =
+      needsCreds && credsKeyId !== undefined
+        ? yield* resolveAscCredentials(inputs.api, credsKeyId)
+        : null;
+
+    const ipaPath = yield* resolveLocalArchivePath(inputs.archive, ".ipa");
+
+    // Snapshot existing builds BEFORE upload so the new one can be identified.
+    // Skips (with a note) when config is wanted but no ASC key is available.
+    let tfContext = null;
+    if (wantsConfig && ascCredentials !== null) {
+      tfContext = yield* captureTestFlightContext({
+        credentials: ascCredentials,
+        ascAppId: inputs.config.ascAppId,
+        bundleIdentifier: inputs.config.bundleIdentifier,
+      }).pipe(
+        Effect.mapError(
+          (error) => new CliSubmitError({ code: error.code, message: error.message }),
+        ),
+      );
+    } else if (wantsConfig) {
+      yield* printHuman(
+        'Note: "What to Test" and TestFlight groups require an ASC API key (ascApiKeyId) — skipping that step for the app-specific-password upload.',
+      );
+    }
+
+    const altoolArgs = yield* buildAltoolArgs({ auth: inputs.auth, ascCredentials, ipaPath });
 
     yield* patchSubmissionStatus(inputs.api, inputs.submissionId, { status: "IN_PROGRESS" });
 
-    const result = yield* Effect.gen(function* () {
-      const token = yield* acquireGooglePlayAccessToken(serviceAccountJson).pipe(
-        Effect.mapError(wrapGooglePlayError("AUTH_FAILED")),
-      );
-      const aab = yield* readArchiveBytes(inputs.archive);
-      return yield* runGooglePlayPipeline({
-        accessToken: token.accessToken,
-        applicationId,
-        aab,
-        track: inputs.androidProfile.track ?? "internal",
-        releaseStatus: inputs.androidProfile.releaseStatus ?? "completed",
-        changesNotSentForReview: inputs.androidProfile.changesNotSentForReview ?? false,
-        rollout: toDbNull(inputs.androidProfile.rollout),
+    const result = yield* runAltool(altoolArgs);
+
+    if (result.exitCode !== 0) {
+      yield* patchSubmissionStatus(inputs.api, inputs.submissionId, {
+        status: "ERRORED",
+        errorCode: "SUBMISSION_SERVICE_IOS_ALTOOL_FAILED",
+        errorMessage: `xcrun altool exited ${String(result.exitCode)}: ${result.stderr}`,
       });
-    }).pipe(
-      Effect.catchTag("CliSubmitError", (engineError) =>
-        Effect.gen(function* () {
-          yield* patchSubmissionStatus(inputs.api, inputs.submissionId, {
-            status: "ERRORED",
-            errorCode: engineError.code,
-            errorMessage: engineError.message,
-          });
-          return yield* engineError;
-        }),
-      ),
-    );
+      return { status: "ERRORED" as SubmissionStatusValue };
+    }
+    yield* printHuman("altool upload complete.");
+
+    if (tfContext !== null && ascCredentials !== null) {
+      yield* applyTestFlightConfig({
+        credentials: ascCredentials,
+        context: tfContext,
+        language: inputs.config.language,
+        whatToTest: inputs.config.whatToTest,
+        groups: inputs.config.groups,
+      }).pipe(
+        Effect.catchTag("TestFlightConfigError", (configError) =>
+          Effect.gen(function* () {
+            yield* patchSubmissionStatus(inputs.api, inputs.submissionId, {
+              status: "ERRORED",
+              errorCode: configError.code,
+              errorMessage: configError.message,
+            });
+            return yield* new CliSubmitError({
+              code: configError.code,
+              message: configError.message,
+            });
+          }),
+        ),
+      );
+    }
 
     yield* patchSubmissionStatus(inputs.api, inputs.submissionId, { status: "FINISHED" });
-    yield* printHuman(`Google Play bundle uploaded (versionCode ${String(result.versionCode)})`);
-    return result;
+    return { status: "FINISHED" as SubmissionStatusValue };
   });
