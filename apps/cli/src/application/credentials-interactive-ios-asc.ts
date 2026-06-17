@@ -1,5 +1,6 @@
 import { Console, Effect } from "effect";
 
+import { distributionCertChoice, makeAppleTeamLabeler } from "../lib/credential-choices";
 import { IOS_DISTRIBUTION_TO_TYPE } from "../lib/credentials-downloader";
 import {
   generateAndUploadDistributionCertificate,
@@ -105,14 +106,12 @@ const chooseIosCertificateId = (api: ApiClient) =>
       const created = yield* generateDistributionCertInteractive(api);
       return created.id;
     }
+    const teamLabel = makeAppleTeamLabeler((yield* api.appleTeams.list()).items);
     const choice = yield* promptSelect<string>(
       "Select a distribution certificate (or 'generate' for a fresh one)",
       [
         { value: "__generate__", label: "Generate a new distribution certificate" },
-        ...certs.items.map((cert) => ({
-          value: cert.id,
-          label: `${cert.serialNumber.slice(0, 12)}… (team ${cert.appleTeamId})`,
-        })),
+        ...certs.items.map((cert) => distributionCertChoice(cert, teamLabel(cert.appleTeamId))),
       ],
     );
     if (choice === "__generate__") {

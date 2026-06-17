@@ -1,5 +1,10 @@
 import { Console, Effect } from "effect";
 
+import {
+  distributionCertChoice,
+  makeAppleTeamLabeler,
+  pushKeyChoice,
+} from "../lib/credential-choices";
 import { revokeLocalDistributionCertificate } from "../lib/credentials-generator";
 import { revokeLocalApnsKey } from "../lib/credentials-generator-apns";
 import { MissingCredentialsError } from "../lib/exit-codes";
@@ -26,12 +31,10 @@ export const revokeIosDistributionCert = (ctx: WizardContext) =>
         hint: "Upload an ASC API key first so the CLI can call Apple to revoke.",
       });
     }
+    const teamLabel = makeAppleTeamLabeler((yield* ctx.api.appleTeams.list()).items);
     const localId = yield* promptSelect<string>(
       "Select a distribution certificate to revoke",
-      certs.items.map((cert) => ({
-        value: cert.id,
-        label: `${cert.serialNumber.slice(0, 12)}… (team ${cert.appleTeamId})`,
-      })),
+      certs.items.map((cert) => distributionCertChoice(cert, teamLabel(cert.appleTeamId))),
     );
     const target = certs.items.find((entry) => entry.id === localId);
     const matchingAscKey = teamKeys.find((key) => key.appleTeamId === target?.appleTeamId);
@@ -69,9 +72,10 @@ export const revokeIosPushKey = (ctx: WizardContext) =>
         hint: "Run 'Add a new push key' to create one first.",
       });
     }
+    const teamLabel = makeAppleTeamLabeler((yield* ctx.api.appleTeams.list()).items);
     const localId = yield* promptSelect<string>(
       "Select a push key to revoke",
-      items.map((key) => ({ value: key.id, label: `${key.keyId} (team ${key.appleTeamId})` })),
+      items.map((key) => pushKeyChoice(key, teamLabel(key.appleTeamId))),
     );
     const target = items.find((entry) => entry.id === localId);
     if (target === undefined) {

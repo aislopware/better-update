@@ -2,6 +2,7 @@ import { Console, Effect } from "effect";
 
 import type { RequestContext } from "@expo/apple-utils";
 
+import { distributionCertChoice } from "../lib/credential-choices";
 import { IOS_DISTRIBUTION_TO_TYPE } from "../lib/credentials-downloader";
 import {
   generateAndUploadApnsKeyViaAppleId,
@@ -168,10 +169,7 @@ const chooseDistributionCertViaAppleId = (
       "Select a distribution certificate (or 'generate' for a fresh one)",
       [
         { value: GENERATE_NEW, label: "Generate a new distribution certificate" },
-        ...items.map((cert) => ({
-          value: cert.id,
-          label: `${cert.serialNumber.slice(0, 12)}… (team ${appleTeamIdentifier})`,
-        })),
+        ...items.map((cert) => distributionCertChoice(cert, team?.name ?? appleTeamIdentifier)),
       ],
     );
     if (choice === GENERATE_NEW) {

@@ -2,6 +2,7 @@ import { defineCommand } from "citty";
 import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
+import { makeAppleTeamLabeler, pushKeyChoice } from "../../lib/credential-choices";
 import { revokeLocalDistributionCertificate } from "../../lib/credentials-generator";
 import { revokeLocalApnsKey } from "../../lib/credentials-generator-apns";
 import { CredentialValidationError } from "../../lib/exit-codes";
@@ -104,12 +105,10 @@ const resolvePushKeyTarget = (api: ApiClient, idArg: string | undefined) =>
         return only;
       }
     }
+    const teamLabel = makeAppleTeamLabeler((yield* api.appleTeams.list()).items);
     const chosen = yield* promptSelect<string>(
       "Select a push key to revoke",
-      items.map((entry) => ({
-        value: entry.id,
-        label: `${entry.keyId} (team ${entry.appleTeamId})`,
-      })),
+      items.map((key) => pushKeyChoice(key, teamLabel(key.appleTeamId))),
     );
     const match = items.find((entry) => entry.id === chosen);
     if (match === undefined) {

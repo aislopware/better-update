@@ -5,6 +5,7 @@ import { fromBase64 } from "@better-update/encoding";
 import { FileSystem } from "@effect/platform";
 import { Console, Effect } from "effect";
 
+import { keystoreChoice } from "../lib/credential-choices";
 import { requireSecretString } from "../lib/credential-secret";
 import { generateAndUploadKeystore } from "../lib/credentials-generator";
 import { uploadCredential } from "../lib/credentials-manager";
@@ -104,10 +105,7 @@ const downloadAndroidKeystoreInteractive = (ctx: WizardContext) =>
     }
     const id = yield* promptSelect<string>(
       "Select a keystore to download",
-      list.items.map((item) => ({
-        value: item.id,
-        label: `${item.keyAlias} (${item.id.slice(0, 8)}…)`,
-      })),
+      list.items.map(keystoreChoice),
     );
     const data = yield* ctx.api.androidUploadKeystores.download({ path: { id } });
     const session = yield* openVaultSessionInteractive(ctx.api);

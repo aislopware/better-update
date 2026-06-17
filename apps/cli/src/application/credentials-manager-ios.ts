@@ -1,5 +1,6 @@
 import { Console, Effect } from "effect";
 
+import { makeAppleTeamLabeler, pushKeyChoice } from "../lib/credential-choices";
 import { generateAndUploadDistributionCertificate } from "../lib/credentials-generator";
 import { uploadCredential } from "../lib/credentials-manager";
 import { CredentialValidationError, MissingCredentialsError } from "../lib/exit-codes";
@@ -190,9 +191,10 @@ const bindIosPushKey = (ctx: WizardContext) =>
       });
     }
     const config = yield* promptForBundleConfig(ctx);
+    const teamLabel = makeAppleTeamLabeler((yield* ctx.api.appleTeams.list()).items);
     const pushKeyId = yield* promptSelect<string>(
       "Select a push key to bind",
-      keys.items.map((key) => ({ value: key.id, label: `${key.keyId} (team ${key.appleTeamId})` })),
+      keys.items.map((key) => pushKeyChoice(key, teamLabel(key.appleTeamId))),
     );
     yield* ctx.api.iosBundleConfigurations.update({
       path: { id: config.id },
@@ -215,15 +217,14 @@ const setupProjectPushNotifications = (ctx: WizardContext) =>
             { value: "add", label: "Add a new push key" },
           ]);
     const config = yield* promptForBundleConfig(ctx);
+    const teams = keys.items.length === 0 ? [] : (yield* ctx.api.appleTeams.list()).items;
+    const teamLabel = makeAppleTeamLabeler(teams);
     const pushKeyId =
       choice === "add"
         ? yield* createNewPushKeyForBundle(ctx, config.appleTeamId)
         : yield* promptSelect<string>(
             "Select a push key to bind",
-            keys.items.map((key) => ({
-              value: key.id,
-              label: `${key.keyId} (team ${key.appleTeamId})`,
-            })),
+            keys.items.map((key) => pushKeyChoice(key, teamLabel(key.appleTeamId))),
           );
     yield* ctx.api.iosBundleConfigurations.update({
       path: { id: config.id },

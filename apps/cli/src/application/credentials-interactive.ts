@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 
 import { Console, Effect } from "effect";
 
+import { keystoreChoice } from "../lib/credential-choices";
 import { IOS_DISTRIBUTION_TO_TYPE } from "../lib/credentials-downloader";
 import {
   generateAndUploadKeystore,
@@ -91,10 +92,7 @@ const pickExistingKeystore = (api: ApiClient) =>
         hint: "Re-run and choose 'Generate new keystore'.",
       });
     }
-    return yield* promptSelect<string>(
-      "Select a keystore",
-      keystores.items.map((item) => ({ value: item.id, label: item.keyAlias })),
-    );
+    return yield* promptSelect<string>("Select a keystore", keystores.items.map(keystoreChoice));
   });
 
 const resolveAndroidAppId = (api: ApiClient, input: AndroidSetupInput) =>
