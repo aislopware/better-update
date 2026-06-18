@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.42.1](https://github.com/better-update/better-update/compare/@better-update/web@0.42.0...@better-update/web@0.42.1) (2026-06-18)
+
+### Bug Fixes
+
+* repoint better-update.dev to updates.jmango360.dev ([3f36350](https://github.com/better-update/better-update/commit/3f36350247d4be30c8fc7bf803b136b112aa75ef)) - by @trancong12102
+
 ## [0.42.0](https://github.com/better-update/better-update/compare/@better-update/web@0.41.2...@better-update/web@0.42.0) (2026-06-17)
 
 ### Features
