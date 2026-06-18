@@ -41,7 +41,7 @@ What started as an OTA update server has grown into a full release pipeline: bui
 | `apps/server` | API on Cloudflare Workers (D1, KV, R2), Effect-based hexagonal core                 |
 | `apps/web`    | Dashboard at [better-update.dev](https://better-update.dev) (TanStack Start)        |
 | `apps/cli`    | `better-update` CLI — builds, updates, credentials, env vars, submissions           |
-| `apps/docs`   | Documentation site                                                                  |
+| `skills/*`    | Agent skills — `better-update` teaches an agent to drive the CLI end to end         |
 | `packages/*`  | Shared libraries: typed API client, Expo protocol, code signing, bsdiff, crypto, UI |
 
 ## License
