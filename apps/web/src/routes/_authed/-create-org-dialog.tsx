@@ -109,7 +109,7 @@ const CreateOrgForm = ({ onSuccess }: { onSuccess: () => void }) => {
               <Field invalid={invalid}>
                 <FieldLabel htmlFor="create-org-slug">Workspace URL</FieldLabel>
                 <SlugInput
-                  addonStart="better-update.dev/"
+                  addonStart="updates.jmango360.dev/"
                   id="create-org-slug"
                   placeholder="acme-inc"
                   value={field.state.value}

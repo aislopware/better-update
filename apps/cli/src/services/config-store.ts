@@ -6,9 +6,9 @@ import { Context, Data, Effect, Layer } from "effect";
 
 import { CliRuntime } from "./cli-runtime";
 
-const DEFAULT_BASE_URL = "https://better-update.dev";
-const DEFAULT_WEB_URL = "https://better-update.dev";
-const DEFAULT_ASSET_CDN_URL = "https://assets.better-update.dev";
+const DEFAULT_BASE_URL = "https://updates.jmango360.dev";
+const DEFAULT_WEB_URL = "https://updates.jmango360.dev";
+const DEFAULT_ASSET_CDN_URL = "https://assets.updates.jmango360.dev";
 
 class ConfigStoreParseError extends Data.TaggedError("ConfigStoreParseError")<{
   readonly message: string;

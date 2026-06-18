@@ -13,7 +13,7 @@ import { EmailService } from "./domain/email-service";
 import { renderInviteEmail } from "./lib/email-templates";
 import { structuredLog } from "./middleware/logging";
 
-const INVITE_SENDER_FROM = "noreply@better-update.dev";
+const INVITE_SENDER_FROM = "noreply@jmango360.dev";
 
 // Snake_case column mapping for the Better Auth `admin` plugin (role/banned use
 // matching column names; only these two need remapping, plus the session

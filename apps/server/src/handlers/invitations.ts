@@ -18,7 +18,7 @@ import { InvitationRepo } from "../repositories/invitations";
 import type { InvitationModel } from "../repositories/invitations";
 
 // Mirrors auth.ts: invite emails come from this verbatim sender.
-const INVITE_SENDER_FROM = "noreply@better-update.dev";
+const INVITE_SENDER_FROM = "noreply@jmango360.dev";
 
 // In the unified IAM model invited members are plain "member"; admin/developer/
 // viewer come from policy attachments, not the invite role.

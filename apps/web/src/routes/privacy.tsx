@@ -123,7 +123,7 @@ const SECTIONS: readonly LegalSectionData[] = [
     blocks: [
       {
         kind: "p",
-        text: "Depending on where you live, you may have the right to access, correct, delete, export, or restrict the processing of your personal data, and to object to certain processing. To exercise these rights, contact legal@better-update.dev. We will respond as required by applicable law, including Vietnam's Decree No. 13/2023/ND-CP on Personal Data Protection, and the GDPR or CCPA where they apply to you.",
+        text: "Depending on where you live, you may have the right to access, correct, delete, export, or restrict the processing of your personal data, and to object to certain processing. To exercise these rights, contact legal@jmango360.dev. We will respond as required by applicable law, including Vietnam's Decree No. 13/2023/ND-CP on Personal Data Protection, and the GDPR or CCPA where they apply to you.",
       },
     ],
   },
@@ -150,7 +150,7 @@ const SECTIONS: readonly LegalSectionData[] = [
     blocks: [
       {
         kind: "p",
-        text: "For privacy questions or requests, contact us at legal@better-update.dev.",
+        text: "For privacy questions or requests, contact us at legal@jmango360.dev.",
       },
     ],
   },

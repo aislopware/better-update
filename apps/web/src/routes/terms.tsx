@@ -40,7 +40,7 @@ const SECTIONS: readonly LegalSectionData[] = [
       },
       {
         kind: "p",
-        text: "You must be at least the age of majority in your jurisdiction and able to form a binding contract. Notify us at legal@better-update.dev if you suspect any unauthorized use of your account.",
+        text: "You must be at least the age of majority in your jurisdiction and able to form a binding contract. Notify us at legal@jmango360.dev if you suspect any unauthorized use of your account.",
       },
     ],
   },
@@ -189,7 +189,7 @@ const SECTIONS: readonly LegalSectionData[] = [
     blocks: [
       {
         kind: "p",
-        text: "Questions about these Terms can be sent to legal@better-update.dev.",
+        text: "Questions about these Terms can be sent to legal@jmango360.dev.",
       },
     ],
   },

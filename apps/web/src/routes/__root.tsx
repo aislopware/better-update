@@ -85,8 +85,8 @@ const RootShell = ({ children }: Readonly<{ children: ReactNode }>) => {
           property="og:description"
           content="Deploy, monitor, and roll back over-the-air updates for your React Native apps."
         />
-        <meta property="og:url" content="https://better-update.dev" />
-        <meta property="og:image" content="https://better-update.dev/og-image.svg" />
+        <meta property="og:url" content="https://updates.jmango360.dev" />
+        <meta property="og:image" content="https://updates.jmango360.dev/og-image.svg" />
         <meta property="og:image:type" content="image/svg+xml" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
@@ -97,7 +97,7 @@ const RootShell = ({ children }: Readonly<{ children: ReactNode }>) => {
           name="twitter:description"
           content="Deploy, monitor, and roll back over-the-air updates for your React Native apps."
         />
-        <meta name="twitter:image" content="https://better-update.dev/og-image.svg" />
+        <meta name="twitter:image" content="https://updates.jmango360.dev/og-image.svg" />
         <HeadContent />
       </head>
       <body>

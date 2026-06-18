@@ -76,10 +76,10 @@ const LegalFooter = () => (
     <p className="text-muted-foreground text-sm leading-relaxed">
       Questions about this page? Email{" "}
       <a
-        href="mailto:legal@better-update.dev"
+        href="mailto:legal@jmango360.dev"
         className="text-foreground underline-offset-4 hover:underline"
       >
-        legal@better-update.dev
+        legal@jmango360.dev
       </a>
       .
     </p>

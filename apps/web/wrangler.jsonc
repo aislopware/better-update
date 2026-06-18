@@ -9,8 +9,8 @@
   },
   "routes": [
     {
-      "pattern": "better-update.dev/*",
-      "zone_id": "02ffa0c8760a5554d9b09a05d7ccbd9e",
+      "pattern": "updates.jmango360.dev/*",
+      "zone_id": "e36dbf0b4c3b7fd375d1423e14ccef97",
     },
   ],
 }
