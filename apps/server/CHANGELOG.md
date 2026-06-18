@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.32.1](https://github.com/better-update/better-update/compare/@better-update/server@0.32.0...@better-update/server@0.32.1) (2026-06-18)
+
+### Bug Fixes
+
+* **server:** chunk asset findByHashes under D1's 100-param ceiling ([16823f6](https://github.com/better-update/better-update/commit/16823f6dcfc70253e72a8a895d4899daae2611e2)) - by @trancong12102
+
 ## [0.32.0](https://github.com/better-update/better-update/compare/@better-update/server@0.31.2...@better-update/server@0.32.0) (2026-06-17)
 
 ### Features
