@@ -3,7 +3,7 @@ import { chunk } from "es-toolkit";
 
 import type { Kysely } from "kysely";
 
-import { d1Batch } from "../cloudflare/db";
+import { D1_IN_PARAM_CHUNK as IN_CHUNK, d1Batch } from "../cloudflare/db";
 
 import type { DB } from "../db/schema";
 import type { Platform } from "../models";
@@ -17,13 +17,10 @@ import type { Platform } from "../models";
 // D1 PARAMETER CEILING: D1 caps a single prepared statement at 100 bound
 // parameters. None of the queries below bind a caller-controlled-length list
 // into a single statement — variable-length id lists (reapIds, keepIds, hashes)
-// are CHUNKED at IN_CHUNK so each statement stays well under the ceiling. The
-// keep-id NOT-IN guard is applied in JS (application/ota-reaper.ts), never bound
-// into SQL, so the keep set can grow without bound.
-
-// Max ids/hashes bound into a single IN (...) statement. Stays comfortably under
-// D1's 100-parameter ceiling even when a query also binds a few scalars.
-const IN_CHUNK = 80;
+// are CHUNKED at IN_CHUNK (the shared D1_IN_PARAM_CHUNK) so each statement stays
+// well under the ceiling. The keep-id NOT-IN guard is applied in JS
+// (application/ota-reaper.ts), never bound into SQL, so the keep set can grow
+// without bound.
 
 /** Minimal shape the OTA reaper needs per reap-eligible update candidate. */
 export interface ReapableUpdateRow {

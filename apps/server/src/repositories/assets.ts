@@ -1,6 +1,7 @@
 import { Context, Effect, Layer } from "effect";
+import { chunk } from "es-toolkit";
 
-import { d1Batch, kyselyDb } from "../cloudflare/db";
+import { D1_IN_PARAM_CHUNK, d1Batch, kyselyDb } from "../cloudflare/db";
 
 import type { AssetModel } from "../models";
 
@@ -69,14 +70,18 @@ export const AssetRepoLive = Layer.succeed(AssetRepo, {
         return [];
       }
       const db = yield* kyselyDb;
-      const rows = yield* Effect.promise(async () =>
-        db
-          .selectFrom("assets")
-          .selectAll()
-          .where("hash", "in", [...params.hashes])
-          .execute(),
+      // Chunk the IN (...) list so a single statement never exceeds D1's
+      // 100-bound-parameter ceiling (a first publish can register hundreds of
+      // hashes at once).
+      const chunks = yield* Effect.forEach(
+        chunk([...params.hashes], D1_IN_PARAM_CHUNK),
+        (hashChunk) =>
+          Effect.promise(async () =>
+            db.selectFrom("assets").selectAll().where("hash", "in", hashChunk).execute(),
+          ),
+        { concurrency: 1 },
       );
-      return rows.map(toAsset);
+      return chunks.flat().map(toAsset);
     }),
 
   insertBatch: (params) =>
@@ -86,21 +91,30 @@ export const AssetRepoLive = Layer.succeed(AssetRepo, {
       }
       const db = yield* kyselyDb;
       const now = new Date().toISOString();
-      yield* d1Batch(
-        params.assets.map((asset) =>
-          db
-            .insertInto("assets")
-            .values({
-              hash: asset.hash,
-              content_type: asset.contentType,
-              file_ext: asset.fileExt,
-              byte_size: asset.byteSize,
-              r2_key: asset.r2Key,
-              content_checksum: asset.contentChecksum,
-              created_at: now,
-            })
-            .onConflict((oc) => oc.doNothing()),
-        ),
+      // Chunk the batch so its statement count never scales unbounded with the
+      // request (a first publish can register hundreds of new assets). Per-chunk
+      // atomicity is sufficient: each insert is independent and idempotent
+      // (`onConflict doNothing`).
+      yield* Effect.forEach(
+        chunk([...params.assets], D1_IN_PARAM_CHUNK),
+        (assetChunk) =>
+          d1Batch(
+            assetChunk.map((asset) =>
+              db
+                .insertInto("assets")
+                .values({
+                  hash: asset.hash,
+                  content_type: asset.contentType,
+                  file_ext: asset.fileExt,
+                  byte_size: asset.byteSize,
+                  r2_key: asset.r2Key,
+                  content_checksum: asset.contentChecksum,
+                  created_at: now,
+                })
+                .onConflict((oc) => oc.doNothing()),
+            ),
+          ),
+        { concurrency: 1 },
       );
     }),
 

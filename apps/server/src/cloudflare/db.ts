@@ -40,6 +40,15 @@ const kyselyForSession = (session: D1DatabaseSession): Kysely<DB> => {
 export const kyselyDb: Effect.Effect<Kysely<DB>> = d1Session.pipe(Effect.map(kyselyForSession));
 
 /**
+ * D1 caps a single prepared statement at 100 bound parameters. Any
+ * caller-controlled-length list bound into an `IN (...)` clause — or a `d1Batch`
+ * whose statement count scales with input — must be CHUNKED at this size so no
+ * single statement (and no batch) approaches the ceiling. 80 leaves headroom for
+ * a few extra scalar bindings in the same query.
+ */
+export const D1_IN_PARAM_CHUNK = 80;
+
+/**
  * Run several compiled Kysely queries as a single atomic `D1.batch` — D1's only
  * form of multi-statement atomicity (it has no interactive transactions). If
  * any statement fails the whole batch rolls back. Returns each query's rows in
