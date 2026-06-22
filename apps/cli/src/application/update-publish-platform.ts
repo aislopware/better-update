@@ -120,6 +120,14 @@ export const gitCreateFields = (
 const dedupeAssetsByHash = (assets: readonly PreparedAsset[]): readonly PreparedAsset[] =>
   uniqBy(assets, (asset) => asset.hash);
 
+// The create body is keyed server-side by `(update_id, asset_key)`. Expo names
+// exported assets by content hash, so a metadata entry repeated across the export
+// produces the same basename `key` twice; sending both would trip that primary
+// key and fail the publish. Dedupe by key (not hash) so distinct keys sharing one
+// content-addressed hash are preserved.
+const dedupeAssetsByKey = (assets: readonly PreparedAsset[]): readonly PreparedAsset[] =>
+  uniqBy(assets, (asset) => asset.key);
+
 /**
  * Record the per-platform fingerprint (matching EAS) so `fingerprint:compare`
  * lines up with the per-platform `fingerprint`-policy RTV. Best-effort: the hash
@@ -414,7 +422,7 @@ export const publishPlatform = (
           groupId: params.groupId,
           metadata: manifestMetadata,
           extra: manifestExtra,
-          assets: preparedAssets.map((asset) => ({
+          assets: dedupeAssetsByKey(preparedAssets).map((asset) => ({
             hash: asset.hash,
             key: asset.key,
             isLaunch: asset.isLaunch,

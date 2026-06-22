@@ -45,21 +45,27 @@ export const PresignedUploadClientLive = Layer.effect(
             });
           }
 
-          const request = yield* HttpClientRequest.put(url).pipe(
-            HttpClientRequest.bodyFile(filePath),
-            Effect.provideService(FileSystem.FileSystem, fileSystem),
-            Effect.map(
-              HttpClientRequest.setHeaders({
-                "content-length": String(byteSize),
-                ...headers,
-              }),
-            ),
+          // R2 presigned PUTs require Content-Length. `bodyFile` makes the
+          // fetch-based client send a streaming body, so fetch falls back to
+          // chunked transfer-encoding and drops the (forbidden-to-set)
+          // content-length header -> R2 returns 411 MissingContentLength. Read
+          // the artifact into a Uint8Array instead: it has a known size, so
+          // fetch emits Content-Length itself and the explicit header survives.
+          const bytes = yield* fileSystem.readFile(filePath).pipe(
             Effect.mapError(
               (cause) =>
                 new UploadFailedError({
-                  message: `Failed to open artifact for upload: ${String(cause)}`,
+                  message: `Failed to read artifact for upload: ${String(cause)}`,
                 }),
             ),
+          );
+
+          const request = HttpClientRequest.put(url).pipe(
+            HttpClientRequest.bodyUint8Array(bytes),
+            HttpClientRequest.setHeaders({
+              "content-length": String(byteSize),
+              ...headers,
+            }),
           );
 
           const response = yield* client.execute(request).pipe(

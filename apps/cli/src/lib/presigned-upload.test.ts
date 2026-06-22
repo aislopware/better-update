@@ -7,6 +7,8 @@ import { NodeFileSystem } from "@effect/platform-node";
 import { it } from "@effect/vitest";
 import { Effect, Exit, Layer } from "effect";
 
+import type { HttpClientRequest } from "@effect/platform";
+
 import { PresignedUploadClientLive } from "../services/presigned-upload";
 import { PresignedUrlExpiredError, UploadFailedError } from "./exit-codes";
 import { putToPresignedUrl } from "./presigned-upload";
@@ -31,6 +33,19 @@ const makePresignedUploadLayer = (
 ) =>
   PresignedUploadClientLive.pipe(
     Layer.provide(Layer.mergeAll(fileSystemLayer, makeHttpClientLayer(respond))),
+  );
+
+// Captures the outgoing request so a test can assert how the body is framed.
+const makeCapturingLayer = (
+  capture: { request?: HttpClientRequest.HttpClientRequest },
+  respond: () => globalThis.Response,
+): Layer.Layer<HttpClient.HttpClient> =>
+  Layer.succeed(
+    HttpClient.HttpClient,
+    HttpClient.make((request) => {
+      capture.request = request;
+      return Effect.sync(() => HttpClientResponse.fromWeb(request, respond()));
+    }),
   );
 
 const withTempFile = (bytes: Buffer): { path: string; dispose: () => void } => {
@@ -108,6 +123,35 @@ describe(putToPresignedUrl, () => {
         Effect.exit,
       );
       expect(Exit.isSuccess(exit)).toBe(true);
+    }),
+  );
+
+  it.effect("sends a buffered Uint8Array body with Content-Length (not a chunked stream)", () =>
+    Effect.gen(function* () {
+      const file = withTempFile(Buffer.from("hello world"));
+      const capture: { request?: HttpClientRequest.HttpClientRequest } = {};
+      yield* putToPresignedUrl({
+        url: "https://example.com/upload",
+        filePath: file.path,
+        byteSize: 11,
+        expiresAt: futureExpiry(),
+      }).pipe(
+        Effect.provide(
+          PresignedUploadClientLive.pipe(
+            Layer.provide(
+              Layer.mergeAll(
+                NodeFileSystem.layer,
+                makeCapturingLayer(capture, () => new Response(null, { status: 200 })),
+              ),
+            ),
+          ),
+        ),
+        Effect.ensuring(Effect.sync(file.dispose)),
+      );
+      // A "Stream" body is what produced 411 (chunked, no Content-Length); the
+      // fix sends a known-size buffer so fetch frames Content-Length itself.
+      expect(capture.request?.body._tag).toBe("Uint8Array");
+      expect(capture.request?.headers["content-length"]).toBe("11");
     }),
   );
 
