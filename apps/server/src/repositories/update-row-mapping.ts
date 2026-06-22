@@ -142,7 +142,7 @@ export const buildUpdateInsertStatements = (
     is_embedded: row.isEmbedded ? 1 : 0,
     created_at: row.createdAt,
   }),
-  ...row.assets.map((asset) =>
+  ...dedupeAssetRefsByKey(row.assets).map((asset) =>
     db.insertInto("update_assets").values({
       update_id: row.id,
       asset_key: asset.key,
@@ -151,6 +151,51 @@ export const buildUpdateInsertStatements = (
     }),
   ),
 ];
+
+/**
+ * Collapse asset refs to one row per `key`. `update_assets` is keyed by
+ * `(update_id, asset_key)`, and Expo names exported assets by content hash, so a
+ * metadata entry repeated across the export yields the same basename `key` twice.
+ * The create body is not hash-deduped (only the upload pass is), so without this
+ * the second `INSERT` trips the primary key and rolls back the whole atomic
+ * batch — which previously surfaced as a misleading "update id already exists"
+ * 409 on a brand-new publish. Last-wins is safe: a repeated key is the same
+ * content-addressed asset.
+ */
+export const dedupeAssetRefsByKey = (
+  assets: readonly UpdateAssetRefModel[],
+): readonly UpdateAssetRefModel[] => [
+  ...new Map(assets.map((asset) => [asset.key, asset])).values(),
+];
+
+/**
+ * Translate a D1 "UNIQUE constraint failed" defect into a 409 message keyed on
+ * the constraint that actually fired. The previous blanket mapping reported
+ * every uniqueness rejection as "update id already exists", which masked an
+ * `update_assets` duplicate-key collision as a (false) id collision and sent a
+ * real publish-failure investigation chasing fingerprint/orphan-row theories.
+ * Returns `undefined` when the cause is not a uniqueness rejection (the caller
+ * re-dies, since that is a genuine defect).
+ */
+export const describeUniqueConstraintConflict = (cause: string, id: string): string | undefined => {
+  const marker = "UNIQUE constraint failed:";
+  if (!cause.includes(marker)) {
+    return undefined;
+  }
+  if (cause.includes("update_assets")) {
+    return `Duplicate asset reference in update "${id}"`;
+  }
+  if (cause.includes("updates.branch_id")) {
+    return "An embedded baseline already exists for this branch, runtime version and platform";
+  }
+  if (cause.includes("updates.id")) {
+    return `An update with id "${id}" already exists`;
+  }
+  const detail = cause.slice(cause.indexOf(marker) + marker.length).trim();
+  return detail
+    ? `Update rejected by a uniqueness constraint: ${detail}`
+    : "Update rejected by a uniqueness constraint";
+};
 
 export const toUpdate = (row: UpdateRow) =>
   ({

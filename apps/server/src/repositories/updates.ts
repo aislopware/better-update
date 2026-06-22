@@ -20,7 +20,12 @@ import {
   runDeleteGroup,
   runDeleteUpdateRows,
 } from "./update-reaper-sql";
-import { buildUpdateInsertStatements, selectUpdateRow, toUpdate } from "./update-row-mapping";
+import {
+  buildUpdateInsertStatements,
+  describeUniqueConstraintConflict,
+  selectUpdateRow,
+  toUpdate,
+} from "./update-row-mapping";
 
 import type { Platform, UpdateAssetRefModel, UpdateModel } from "../models";
 import type { LatestServedRow, LatestTupleParams } from "./update-latest-sql";
@@ -175,16 +180,16 @@ export const UpdateRepoLive = Layer.succeed(UpdateRepo, {
         assets: params.assets,
       });
 
-      // The batch is atomic (d1Batch). A pinned `id` colliding with an existing
-      // PRIMARY KEY is a normal, attacker-/operator-reachable input, not a defect:
-      // map the D1 UNIQUE/PK rejection (a defect from the failed batch) to a typed
-      // Conflict (clean 409, not 500). The collision overwrites nothing.
+      // The batch is atomic (d1Batch). A UNIQUE/PK rejection here is a normal,
+      // attacker-/operator-reachable input, not a defect: map it to a typed
+      // Conflict (clean 409, not 500). The message is keyed on the constraint
+      // that actually fired so an asset/baseline collision is not misreported as
+      // an update-id collision. Anything else stays a defect (re-died).
       yield* d1Batch(statements).pipe(
-        Effect.catchAllDefect((cause) =>
-          String(cause).includes("UNIQUE constraint failed")
-            ? Effect.fail(new Conflict({ message: `An update with id "${id}" already exists` }))
-            : Effect.die(cause),
-        ),
+        Effect.catchAllDefect((cause) => {
+          const message = describeUniqueConstraintConflict(String(cause), id);
+          return message === undefined ? Effect.die(cause) : Effect.fail(new Conflict({ message }));
+        }),
       );
 
       const [inserted] = yield* fetchUpdatesByIds(db, [id]);
