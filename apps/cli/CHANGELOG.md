@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.39.2](https://github.com/better-update/better-update/compare/@better-update/cli@0.39.1...@better-update/cli@0.39.2) (2026-06-22)
+
+### Bug Fixes
+
+* **cli:** repair OTA publish (411 asset upload + duplicate asset keys) ([7f240e1](https://github.com/better-update/better-update/commit/7f240e18cf48c0f65528cb52b0b2900d4f776ea1)) - by @trancong12102
+
 ## [0.39.1](https://github.com/better-update/better-update/compare/@better-update/cli@0.39.0...@better-update/cli@0.39.1) (2026-06-18)
 
 ### Bug Fixes

@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.32.3](https://github.com/better-update/better-update/compare/@better-update/server@0.32.2...@better-update/server@0.32.3) (2026-06-22)
+
+### Bug Fixes
+
+* **server:** dedupe update_assets and report the real 409 constraint ([441cb16](https://github.com/better-update/better-update/commit/441cb166fe3a3172888b9b60ff458efcc200e30e)) - by @trancong12102
+
 ## [0.32.2](https://github.com/better-update/better-update/compare/@better-update/server@0.32.1...@better-update/server@0.32.2) (2026-06-18)
 
 ### Bug Fixes
