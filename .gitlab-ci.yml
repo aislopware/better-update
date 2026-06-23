@@ -237,6 +237,9 @@ release:
       when: manual
   variables:
     GIT_DEPTH: "0" # full history + tags for conventional-commits / lerna
+    # Skip lefthook on lerna's release commit — format/lint are gated on MRs, not
+    # re-run for the automated `chore(release)` commit (equivalent to --no-verify).
+    LEFTHOOK: "0"
     # Set DRY_RUN=true when running the manual job to preview without pushing.
     DRY_RUN: "false"
   script:
