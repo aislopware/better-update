@@ -52,6 +52,20 @@ workflow:
 # (buildpack-deps). bun is pinned to BUN_VERSION; Rust is added only where the
 # turbo graph compiles @better-update/bsdiff (napi build -> cargo).
 # ---------------------------------------------------------------------------
+# node-pty (a @better-update/cli dep) ships no linux-x64 prebuild, so `bun
+# install` compiles it from source — which needs node-gyp + python3 + a C++
+# toolchain on PATH. The slim node:22-bookworm image lacks node-gyp/python3.
+# apt step is guarded so this is a no-op on the macOS runner.
+.node-gyp-setup:
+  before_script:
+    - |
+      if ! command -v node-gyp >/dev/null 2>&1; then
+        if command -v apt-get >/dev/null 2>&1; then
+          apt-get update && apt-get install -y --no-install-recommends python3 make g++
+        fi
+        npm install -g node-gyp || true
+      fi
+
 .base-bun:
   image: node:22-bookworm
   tags:
@@ -70,6 +84,7 @@ workflow:
       if [ "$(bun --version 2>/dev/null)" != "$BUN_VERSION" ]; then
         curl -fsSL https://bun.sh/install | bash -s "bun-v$BUN_VERSION"
       fi
+    - !reference [.node-gyp-setup, before_script]
     - bun --version
 
 .base-rust:
@@ -100,6 +115,7 @@ workflow:
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
           | sh -s -- -y --profile minimal --default-toolchain stable
       fi
+    - !reference [.node-gyp-setup, before_script]
     - bun --version && cargo --version
 
 # macOS Tart runner. Same bun + rustup bootstrap, but the VM image + tag select
@@ -120,6 +136,7 @@ workflow:
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
           | sh -s -- -y --profile minimal --default-toolchain stable
       fi
+    - !reference [.node-gyp-setup, before_script]
     - bun --version && cargo --version
 
 # ---------------------------------------------------------------------------
