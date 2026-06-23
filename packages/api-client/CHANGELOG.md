@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.17.0](https://github.com/aislopware/better-update/compare/@better-update/api-client@0.16.0...@better-update/api-client@0.17.0) (2026-06-23)
+
+### Features
+
+* **projects:** archive/unarchive with read-only enforcement (BU-2) ([d677f49](https://github.com/aislopware/better-update/commit/d677f49176580a95aacde53495fd81dedc88ac7f)) - by @trancong12102
+
 ## [0.16.0](https://github.com/aislopware/better-update/compare/@better-update/api-client@0.15.1...@better-update/api-client@0.16.0) (2026-06-17)
 
 ### Features
