@@ -54,6 +54,14 @@ workflow:
 # (buildpack-deps). bun is pinned to BUN_VERSION; Rust is added only where the
 # turbo graph compiles @better-update/bsdiff (napi build -> cargo).
 # ---------------------------------------------------------------------------
+# bun extracts package tarballs in parallel and exhausts the container's default
+# file-descriptor soft limit (often 1024) → "Fail extracting tarball" on a random
+# package each run. Raise the soft limit to the hard max before any bun install.
+.fd-limit:
+  before_script:
+    - ulimit -n "$(ulimit -Hn)" 2>/dev/null || true
+    - echo "nofile limit: soft=$(ulimit -Sn) hard=$(ulimit -Hn)"
+
 # node-pty (a @better-update/cli dep) ships no linux-x64 prebuild, so `bun
 # install` compiles it from source — which needs node-gyp + python3 + a C++
 # toolchain on PATH. The slim node:22-bookworm image lacks node-gyp/python3.
@@ -90,6 +98,7 @@ workflow:
         - .cache/bun
         - .bun
   before_script:
+    - !reference [.fd-limit, before_script]
     - export PATH="$BUN_INSTALL/bin:$PATH"
     - |
       if [ "$(bun --version 2>/dev/null)" != "$BUN_VERSION" ]; then
@@ -113,6 +122,7 @@ workflow:
       paths:
         - packages/bsdiff/target
   before_script:
+    - !reference [.fd-limit, before_script]
     - export PATH="$BUN_INSTALL/bin:$HOME/.cargo/bin:$PATH"
     - |
       if [ "$(bun --version 2>/dev/null)" != "$BUN_VERSION" ]; then
@@ -142,6 +152,7 @@ workflow:
       - runner_system_failure
       - stuck_or_timeout_failure
   before_script:
+    - !reference [.fd-limit, before_script]
     - export PATH="$BUN_INSTALL/bin:$HOME/.cargo/bin:$PATH"
     - |
       if [ "$(bun --version 2>/dev/null)" != "$BUN_VERSION" ]; then
