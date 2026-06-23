@@ -79,6 +79,8 @@ export interface ProjectModel {
   readonly slug: string;
   readonly createdAt: string;
   readonly lastActivityAt: string;
+  /** ISO-8601 timestamp the project was archived (read-only); `null` when active. */
+  readonly archivedAt: string | null;
   readonly branchCount: number;
   readonly channelCount: number;
   readonly updateCount: number;

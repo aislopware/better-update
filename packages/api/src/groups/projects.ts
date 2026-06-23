@@ -77,6 +77,29 @@ export class ProjectsGroup extends HttpApiGroup.make("projects")
         }),
       ),
   )
+  .add(
+    HttpApiEndpoint.post("archive")`/api/projects/${idParam}/archive`
+      .addSuccess(Project)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Archive project",
+          description:
+            "Archive a project: it is hidden from the default project list and becomes " +
+            "read-only (publishes, builds and other writes are blocked) until unarchived. " +
+            "OTA serving to existing devices is unaffected. Reversible.",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.post("unarchive")`/api/projects/${idParam}/unarchive`
+      .addSuccess(Project)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Unarchive project",
+          description: "Restore an archived project to active, writable state",
+        }),
+      ),
+  )
   .addError(NotFound)
   .addError(Conflict)
   .addError(Forbidden)

@@ -114,6 +114,7 @@ export const ProjectsGroupLive = HttpApiBuilder.group(ManagementApi, "projects",
             slug: payload.slug,
             createdAt: now,
             lastActivityAt: now,
+            archivedAt: null,
             branchCount: DEFAULT_ENVIRONMENT_NAMES.length,
             channelCount: DEFAULT_ENVIRONMENT_NAMES.length,
             updateCount: 0,
@@ -133,6 +134,7 @@ export const ProjectsGroupLive = HttpApiBuilder.group(ManagementApi, "projects",
           const { items, total } = yield* repo.findByOrg({
             organizationId: ctx.organizationId,
             ...(urlParams.query ? { query: urlParams.query } : {}),
+            ...(urlParams.status ? { status: urlParams.status } : {}),
             sort,
             order,
             limit,
@@ -206,6 +208,64 @@ export const ProjectsGroupLive = HttpApiBuilder.group(ManagementApi, "projects",
           });
 
           return { deleted: 1 };
+        }),
+      ),
+    )
+    .handle("archive", ({ path }) =>
+      toApiCrudEffect(
+        Effect.gen(function* () {
+          const repo = yield* ProjectRepo;
+          const project = yield* repo.findById({ id: path.id });
+          yield* assertOrgOwnership(project.organizationId);
+          // `allowArchived` so re-archiving an already-archived project is not
+          // self-blocked by the read-only guard; it stays the archive-state gate.
+          yield* assertAccess(
+            "project",
+            "update",
+            { kind: "project", projectId: path.id },
+            { allowArchived: true },
+          );
+
+          // Idempotent: keep the original timestamp if already archived.
+          const archivedAt = project.archivedAt ?? new Date().toISOString();
+          if (project.archivedAt === null) {
+            yield* repo.setArchived({ id: path.id, archivedAt });
+            yield* logAudit({
+              action: "project.archive",
+              resourceType: "project",
+              resourceId: path.id,
+              projectId: path.id,
+            });
+          }
+
+          return toApiProject({ ...project, archivedAt });
+        }),
+      ),
+    )
+    .handle("unarchive", ({ path }) =>
+      toApiCrudEffect(
+        Effect.gen(function* () {
+          const repo = yield* ProjectRepo;
+          const project = yield* repo.findById({ id: path.id });
+          yield* assertOrgOwnership(project.organizationId);
+          yield* assertAccess(
+            "project",
+            "update",
+            { kind: "project", projectId: path.id },
+            { allowArchived: true },
+          );
+
+          if (project.archivedAt !== null) {
+            yield* repo.setArchived({ id: path.id, archivedAt: null });
+            yield* logAudit({
+              action: "project.unarchive",
+              resourceType: "project",
+              resourceId: path.id,
+              projectId: path.id,
+            });
+          }
+
+          return toApiProject({ ...project, archivedAt: null });
         }),
       ),
     ),

@@ -72,11 +72,15 @@ export const platformAnalyticsQueryKey = (orgId: string, projectId: string) =>
 export type ProjectSortColumn = typeof ProjectSortColumnSchema.Type;
 export type ProjectSort = typeof ProjectSortSchema.Type;
 
+/** Archival filter for the project list. Omitted ⇒ active only. */
+export type ProjectListStatus = "active" | "archived" | "all";
+
 export interface ProjectsFilters {
   readonly page?: number;
   readonly limit?: number;
   readonly query?: string;
   readonly sort?: ProjectSort;
+  readonly status?: ProjectListStatus;
 }
 
 export const projectsQueryOptions = (orgId: string, filters?: ProjectsFilters) =>
@@ -91,6 +95,7 @@ export const projectsQueryOptions = (orgId: string, filters?: ProjectsFilters) =
               limit: filters?.limit,
               query: filters?.query,
               sort: filters?.sort,
+              status: filters?.status,
             }),
           }),
         signal,
@@ -322,6 +327,12 @@ export const createProject = async (body: typeof CreateProjectBody.Type) =>
 
 export const renameProject = async (id: string, body: typeof UpdateProjectBody.Type) =>
   runApi((api) => api.projects.rename({ path: { id }, payload: body }));
+
+export const archiveProject = async (id: string) =>
+  runApi((api) => api.projects.archive({ path: { id } }));
+
+export const unarchiveProject = async (id: string) =>
+  runApi((api) => api.projects.unarchive({ path: { id } }));
 
 export const deleteProject = async (id: string) =>
   runApi((api) => api.projects.delete({ path: { id } }));

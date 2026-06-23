@@ -9,6 +9,8 @@ export class Project extends Schema.Class<Project>("Project")({
   slug: Schema.String,
   createdAt: DateTimeString,
   lastActivityAt: DateTimeString,
+  /** ISO-8601 timestamp the project was archived (read-only); `null` when active. */
+  archivedAt: Schema.NullOr(DateTimeString),
   branchCount: Schema.Number,
   channelCount: Schema.Number,
   updateCount: Schema.Number,
@@ -29,6 +31,10 @@ export const ListProjectsParams = Schema.Struct({
   ...PaginationParams.fields,
   query: Schema.optional(Schema.String),
   sort: Schema.optional(ProjectSort),
+  // Archival filter. Omitted (or "active") lists only active projects; "archived"
+  // lists only archived ones; "all" lists both. String literals because url params
+  // decode from strings.
+  status: Schema.optional(Schema.Literal("active", "archived", "all")),
 });
 
 export const CreateProjectBody = Schema.Struct({

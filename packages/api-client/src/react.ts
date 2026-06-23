@@ -163,6 +163,7 @@ export {
 export {
   adoptionQueryKey,
   adoptionQueryOptions,
+  archiveProject,
   branchesQueryKey,
   branchesQueryOptions,
   channelAnalyticsQueryKey,
@@ -200,6 +201,7 @@ export {
   runtimesQueryOptions,
   revertBranchRollout,
   revertUpdateRollout,
+  unarchiveProject,
   updateBranchRollout,
   updateChannel,
   updateAnalyticsQueryKey,
@@ -220,6 +222,7 @@ export type {
   ChannelSort,
   ChannelSortColumn,
   ChannelsFilters,
+  ProjectListStatus,
   ProjectSort,
   ProjectSortColumn,
   ProjectsFilters,

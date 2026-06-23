@@ -23,6 +23,9 @@ export type ProjectSortKey =
 
 export type ProjectSortOrder = "asc" | "desc";
 
+/** List filter over archival state. `"all"` ignores the `archived_at` column. */
+export type ProjectListStatus = "active" | "archived" | "all";
+
 export interface ProjectRepository {
   readonly insert: (params: {
     readonly id: string;
@@ -35,6 +38,8 @@ export interface ProjectRepository {
   readonly findByOrg: (params: {
     readonly organizationId: string;
     readonly query?: string | undefined;
+    /** `"active"` (default) hides archived projects; `"archived"` shows only them. */
+    readonly status?: ProjectListStatus | undefined;
     readonly sort: ProjectSortKey;
     readonly order: ProjectSortOrder;
     readonly limit: number;
@@ -67,6 +72,20 @@ export interface ProjectRepository {
 
   readonly delete: (params: { readonly id: string }) => Effect.Effect<void>;
 
+  /**
+   * The project's `archived_at` timestamp, or `null` when active (or absent).
+   * Backs the centralized read-only guard in `auth/policy.ts`; deliberately
+   * errorless — a missing row reads as "not archived" and the caller's own
+   * lookup surfaces the NotFound.
+   */
+  readonly findArchivedAt: (params: { readonly id: string }) => Effect.Effect<string | null>;
+
+  /** Set (archive) or clear (unarchive) `archived_at`. Idempotent. */
+  readonly setArchived: (params: {
+    readonly id: string;
+    readonly archivedAt: string | null;
+  }) => Effect.Effect<void>;
+
   readonly bumpLastActivity: (params: {
     readonly projectId: string;
     readonly at: string;
@@ -89,6 +108,7 @@ interface ProjectRow {
   slug: string;
   created_at: string;
   last_activity_at: string;
+  archived_at: string | null;
   branch_count: number | null;
   channel_count: number | null;
   update_count: number | null;
@@ -102,6 +122,7 @@ const toProject = (row: ProjectRow) =>
     slug: row.slug,
     createdAt: row.created_at,
     lastActivityAt: row.last_activity_at,
+    archivedAt: row.archived_at,
     // Correlated COUNT subqueries are typed `number | null` by Kysely; coerce to
     // a plain number (a scalar COUNT subquery never actually returns null).
     branchCount: Number(row.branch_count),
@@ -119,6 +140,7 @@ const projectColumns = (eb: ExpressionBuilder<DB, "projects">) =>
     "projects.name",
     "projects.slug",
     "projects.created_at",
+    "projects.archived_at",
     sql<string>`coalesce(${eb.ref("projects.last_activity_at")}, ${eb.ref("projects.created_at")})`.as(
       "last_activity_at",
     ),
@@ -172,12 +194,27 @@ const searchExpression = (
   ]);
 };
 
+// `"active"` → archived_at IS NULL, `"archived"` → archived_at IS NOT NULL,
+// `"all"` → no archival predicate (`null` collapses to "no filter").
+const archivedExpression = (
+  eb: ExpressionBuilder<DB, "projects">,
+  status: ProjectListStatus,
+): Expression<SqlBool> | null => {
+  if (status === "active") {
+    return eb("projects.archived_at", "is", null);
+  }
+  if (status === "archived") {
+    return eb("projects.archived_at", "is not", null);
+  }
+  return null;
+};
+
 const projectFilter =
-  (organizationId: string, query: string | undefined) =>
+  (organizationId: string, query: string | undefined, status: ProjectListStatus) =>
   (eb: ExpressionBuilder<DB, "projects">): Expression<SqlBool> => {
     const orgFilter = eb("projects.organization_id", "=", organizationId);
-    const search = searchExpression(eb, query);
-    return search ? eb.and([search, orgFilter]) : orgFilter;
+    const conditions = [orgFilter, searchExpression(eb, query), archivedExpression(eb, status)];
+    return eb.and(conditions.filter((condition) => condition !== null));
   };
 
 // Sort whitelist → ORDER BY expression. `name` is case-insensitive; the count
@@ -217,7 +254,7 @@ export const ProjectRepoLive = Layer.succeed(ProjectRepo, {
   findByOrg: (params) =>
     Effect.gen(function* () {
       const db = yield* kyselyDb;
-      const where = projectFilter(params.organizationId, params.query);
+      const where = projectFilter(params.organizationId, params.query, params.status ?? "active");
 
       const countRow = yield* Effect.promise(async () =>
         db
@@ -373,6 +410,34 @@ export const ProjectRepoLive = Layer.succeed(ProjectRepo, {
         db.deleteFrom("branches").where("project_id", "=", params.id),
         db.deleteFrom("projects").where("id", "=", params.id),
       ]);
+    }),
+
+  findArchivedAt: (params) =>
+    Effect.gen(function* () {
+      const db = yield* kyselyDb;
+      const row = yield* Effect.promise(async () =>
+        db
+          .selectFrom("projects")
+          .select("archived_at")
+          .where("id", "=", params.id)
+          .executeTakeFirst(),
+      );
+      if (!row) {
+        return null;
+      }
+      return row.archived_at;
+    }),
+
+  setArchived: (params) =>
+    Effect.gen(function* () {
+      const db = yield* kyselyDb;
+      yield* Effect.promise(async () =>
+        db
+          .updateTable("projects")
+          .set({ archived_at: params.archivedAt })
+          .where("id", "=", params.id)
+          .execute(),
+      );
     }),
 
   // Guard with `last_activity_at < ?` so out-of-order writes (e.g. backdated

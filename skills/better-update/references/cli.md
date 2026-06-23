@@ -91,14 +91,23 @@ better-update autocomplete <shell>       # shell ∈ bash|zsh|fish
 ## projects
 
 ```bash
-better-update projects list [--query <q>] [--sort <lastActivityAt|name>] [--limit <n>=50] [--page <n>=1]
+better-update projects list [--query <q>] [--sort <lastActivityAt|name>] [--archived] [--all] [--limit <n>=50] [--page <n>=1]
 better-update projects create --name <name> --slug <slug>
 better-update projects get <id>
 better-update projects rename <id> --name <new-name>
-better-update projects delete <id>
+better-update projects archive <id> [--yes]
+better-update projects unarchive <id>
+better-update projects delete <id> [--yes]
 ```
 
-`list`: `--limit` max 100; `--sort` defaults to `lastActivityAt`.
+`list`: `--limit` max 100; `--sort` defaults to `lastActivityAt`. By default lists only active
+projects; `--archived` lists only archived ones, `--all` lists both. The `Status` column shows
+`active`/`archived`.
+
+`archive`: hides the project and makes it **read-only** — publishes, builds, env changes, renames,
+and other writes are rejected with 403 until you `unarchive`. OTA updates already on devices keep
+serving. Reversible. `archive`/`delete` prompt for confirmation; pass `--yes` to skip (required in
+non-interactive/CI). `unarchive` restores the project to active, writable state.
 
 ## branches
 

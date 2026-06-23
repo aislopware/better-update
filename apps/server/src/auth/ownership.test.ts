@@ -62,6 +62,8 @@ const mockProjectRepo = (orgId: string | null) =>
         : Effect.succeed(orgId),
     updateName: () => Effect.void,
     delete: () => Effect.void,
+    findArchivedAt: () => Effect.succeed(null),
+    setArchived: () => Effect.void,
     bumpLastActivity: () => Effect.void,
     bumpLastActivityByBranch: () => Effect.void,
   });
