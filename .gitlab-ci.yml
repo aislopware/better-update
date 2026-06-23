@@ -31,13 +31,12 @@ stages:
 variables:
   BUN_VERSION: "1.3.13"
   ZIG_VERSION: "0.14.1"
-  # Bun home stays in the project dir for GitLab caching. Rust deliberately uses
-  # the DEFAULT ~/.cargo / ~/.rustup: `turbo run build` runs in strict env mode
-  # and strips CARGO_HOME/RUSTUP_HOME, so a redirected home is invisible to the
-  # napi/cargo subprocess ("no default toolchain configured"). HOME + PATH are
-  # always passed through, so default homes work; only target/ is cached.
-  BUN_INSTALL: "$CI_PROJECT_DIR/.bun"
-  BUN_INSTALL_CACHE_DIR: "$CI_PROJECT_DIR/.cache/bun"
+  # Bun + Rust use DEFAULT homes (~/.bun, ~/.cargo, ~/.rustup), NOT project-dir
+  # homes: (a) `turbo run build` strict-env strips CARGO_HOME/RUSTUP_HOME so a
+  # redirected rust home is invisible to napi/cargo ("no default toolchain"); (b)
+  # an in-project bun cache gets scanned by `oxfmt --check .` (the lint job + the
+  # lefthook release commit) and fails on vendored files. HOME + PATH always pass
+  # through, so default homes work; only bsdiff target/ is cached.
   # macOS Tart VM image (override via a CI/CD variable to match the runner).
   MACOS_TART_IMAGE: "ghcr.io/cirruslabs/macos-sequoia-xcode:latest"
 
@@ -82,17 +81,10 @@ workflow:
       - script_failure
       - runner_system_failure
       - stuck_or_timeout_failure
-  cache:
-    - key:
-        files:
-          - bun.lock
-      paths:
-        - .cache/bun
-        - .bun
   before_script:
     - ulimit -n "$(ulimit -Hn)" 2>/dev/null || true
     - echo "nofile soft=$(ulimit -Sn) hard=$(ulimit -Hn)"
-    - export PATH="$BUN_INSTALL/bin:$PATH"
+    - export PATH="$HOME/.bun/bin:$PATH"
     - |
       if [ "$(bun --version 2>/dev/null)" != "$BUN_VERSION" ]; then
         curl -fsSL https://bun.sh/install | bash -s "bun-v$BUN_VERSION"
@@ -105,19 +97,13 @@ workflow:
   cache:
     - key:
         files:
-          - bun.lock
-      paths:
-        - .cache/bun
-        - .bun
-    - key:
-        files:
           - packages/bsdiff/Cargo.lock
       paths:
         - packages/bsdiff/target
   before_script:
     - ulimit -n "$(ulimit -Hn)" 2>/dev/null || true
     - echo "nofile soft=$(ulimit -Sn) hard=$(ulimit -Hn)"
-    - export PATH="$BUN_INSTALL/bin:$HOME/.cargo/bin:$PATH"
+    - export PATH="$HOME/.bun/bin:$HOME/.cargo/bin:$PATH"
     - |
       if [ "$(bun --version 2>/dev/null)" != "$BUN_VERSION" ]; then
         curl -fsSL https://bun.sh/install | bash -s "bun-v$BUN_VERSION"
@@ -148,7 +134,7 @@ workflow:
   before_script:
     - ulimit -n "$(ulimit -Hn)" 2>/dev/null || true
     - echo "nofile soft=$(ulimit -Sn) hard=$(ulimit -Hn)"
-    - export PATH="$BUN_INSTALL/bin:$HOME/.cargo/bin:$PATH"
+    - export PATH="$HOME/.bun/bin:$HOME/.cargo/bin:$PATH"
     - |
       if [ "$(bun --version 2>/dev/null)" != "$BUN_VERSION" ]; then
         curl -fsSL https://bun.sh/install | bash -s "bun-v$BUN_VERSION"
