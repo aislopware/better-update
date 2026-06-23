@@ -35,7 +35,7 @@
     },
     "apps/cli": {
       "name": "@better-update/cli",
-      "version": "0.39.0",
+      "version": "0.40.0",
       "bin": {
         "better-update": "./dist/index.mjs",
       },
@@ -83,7 +83,7 @@
     },
     "apps/server": {
       "name": "@better-update/server",
-      "version": "0.32.0",
+      "version": "0.33.0",
       "dependencies": {
         "@better-auth/api-key": "^1.6.18",
         "@better-update/api": "workspace:*",
@@ -117,7 +117,7 @@
     },
     "apps/web": {
       "name": "@better-update/web",
-      "version": "0.42.0",
+      "version": "0.43.0",
       "dependencies": {
         "@better-auth/api-key": "^1.6.18",
         "@better-update/api": "workspace:*",
@@ -175,7 +175,7 @@
     },
     "packages/api": {
       "name": "@better-update/api",
-      "version": "0.24.0",
+      "version": "0.25.0",
       "dependencies": {
         "@effect/platform": "^0.96.1",
         "effect": "^3.21.3",
@@ -187,7 +187,7 @@
     },
     "packages/api-client": {
       "name": "@better-update/api-client",
-      "version": "0.16.0",
+      "version": "0.17.0",
       "dependencies": {
         "@better-update/api": "workspace:*",
         "@better-update/type-guards": "workspace:*",
@@ -225,13 +225,10 @@
       },
       "optionalDependencies": {
         "@better-update/bsdiff-darwin-arm64": "0.2.8",
-        "@better-update/bsdiff-darwin-x64": "0.2.8",
         "@better-update/bsdiff-linux-arm64-gnu": "0.2.8",
         "@better-update/bsdiff-linux-arm64-musl": "0.2.8",
         "@better-update/bsdiff-linux-x64-gnu": "0.2.8",
         "@better-update/bsdiff-linux-x64-musl": "0.2.8",
-        "@better-update/bsdiff-win32-arm64-msvc": "0.2.8",
-        "@better-update/bsdiff-win32-x64-msvc": "0.2.8",
       },
     },
     "packages/credentials-crypto": {
@@ -434,8 +431,6 @@
 
     "@better-update/bsdiff-darwin-arm64": ["@better-update/bsdiff-darwin-arm64@0.2.8", "", { "os": "darwin", "cpu": "arm64" }, "sha512-rlRLdVDuugKNyrPyLhsM0wxgqjMbc06pd70i2S1tQwz81HasXPb+emh48itLULEnGxiqwp1O/4LbOS5WG61Aqw=="],
 
-    "@better-update/bsdiff-darwin-x64": ["@better-update/bsdiff-darwin-x64@0.2.8", "", { "os": "darwin", "cpu": "x64" }, "sha512-1wpMSedGVcjCfhkY+gaBxE6Bjlmv3Z23O4ozlJ72lFLjcanpLtpn05n2k01kACpQMXYi5/B9K9IrLi+kOGSZYg=="],
-
     "@better-update/bsdiff-linux-arm64-gnu": ["@better-update/bsdiff-linux-arm64-gnu@0.2.8", "", { "os": "linux", "cpu": "arm64" }, "sha512-1andlnIwWzBt0IVYtt3cecnx+NAVhYNllaqxJgzCxOeJk3Ul8B/G19/TqbcoYW63LYZbiaqHxtbcA/hKYxpVAw=="],
 
     "@better-update/bsdiff-linux-arm64-musl": ["@better-update/bsdiff-linux-arm64-musl@0.2.8", "", { "os": "linux", "cpu": "arm64" }, "sha512-9NFSkMk1eiUFQq/cXtOoOCn3aTpQNEsV1aowYjg1LpY2uCIxz1/TZySj8Jy0JCUSSr5xNZdDofbPeeKrwPFfXQ=="],
@@ -443,10 +438,6 @@
     "@better-update/bsdiff-linux-x64-gnu": ["@better-update/bsdiff-linux-x64-gnu@0.2.8", "", { "os": "linux", "cpu": "x64" }, "sha512-ulsnHmgBn/dHfIqG376cO4HpCmo4OspEbFhyC8Z0zQOUtHJ23Me9OwXc6ZhJ03JwOL4tXc2OpC8qmZOxOeVfzg=="],
 
     "@better-update/bsdiff-linux-x64-musl": ["@better-update/bsdiff-linux-x64-musl@0.2.8", "", { "os": "linux", "cpu": "x64" }, "sha512-7wdfl0HAzebAn7fvUv5gR6IC7OgyeYSkh/DsnAjVbUk9z8+IMeARRMML++D8LmhsgAl/IVBGEfoKgPeuWx6sFg=="],
-
-    "@better-update/bsdiff-win32-arm64-msvc": ["@better-update/bsdiff-win32-arm64-msvc@0.2.8", "", { "os": "win32", "cpu": "arm64" }, "sha512-DV6SsxulAogvY57z7m2M2w14QpMNXpWOaOXiv2hS9FW8VMvE69093CfTmhaKFNxqOUUL8SggrmplMqlWcQ73AA=="],
-
-    "@better-update/bsdiff-win32-x64-msvc": ["@better-update/bsdiff-win32-x64-msvc@0.2.8", "", { "os": "win32", "cpu": "x64" }, "sha512-0ohGGCECkGdsH8Pi7vFxE8WQ9ec1+mKmY73ZBYTS9yORXMbETRK+OjsIx/EtQz55SKG/kq86YlSGRAwPvy9ySg=="],
 
     "@better-update/cli": ["@better-update/cli@workspace:apps/cli"],
 
