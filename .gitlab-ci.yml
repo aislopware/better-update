@@ -111,10 +111,13 @@ workflow:
         curl -fsSL https://bun.sh/install | bash -s "bun-v$BUN_VERSION"
       fi
     - |
-      if ! command -v cargo >/dev/null; then
+      if ! command -v rustup >/dev/null 2>&1; then
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
-          | sh -s -- -y --profile minimal --default-toolchain stable
+          | sh -s -- -y --profile minimal --default-toolchain stable --no-modify-path
       fi
+      # Cached .rustup can carry a settings.toml with no default toolchain;
+      # set it explicitly (installs stable if the cache is partial).
+      rustup default stable
     - !reference [.node-gyp-setup, before_script]
     - bun --version && cargo --version
 
@@ -132,10 +135,13 @@ workflow:
         curl -fsSL https://bun.sh/install | bash -s "bun-v$BUN_VERSION"
       fi
     - |
-      if ! command -v cargo >/dev/null; then
+      if ! command -v rustup >/dev/null 2>&1; then
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
-          | sh -s -- -y --profile minimal --default-toolchain stable
+          | sh -s -- -y --profile minimal --default-toolchain stable --no-modify-path
       fi
+      # Cached .rustup can carry a settings.toml with no default toolchain;
+      # set it explicitly (installs stable if the cache is partial).
+      rustup default stable
     - !reference [.node-gyp-setup, before_script]
     - bun --version && cargo --version
 
