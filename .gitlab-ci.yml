@@ -37,8 +37,9 @@ variables:
   # an in-project bun cache gets scanned by `oxfmt --check .` (the lint job + the
   # lefthook release commit) and fails on vendored files. HOME + PATH always pass
   # through, so default homes work; only bsdiff target/ is cached.
-  # macOS Tart VM image (override via a CI/CD variable to match the runner).
-  MACOS_TART_IMAGE: "ghcr.io/cirruslabs/macos-sequoia-xcode:latest"
+  # macOS Tart VM image — must match an image already on the office-mac-runner so
+  # tart doesn't pull ~30GB. Override via a CI/CD variable when the runner updates.
+  MACOS_TART_IMAGE: "ghcr.io/cirruslabs/macos-tahoe-xcode:26.5"
 
 # Only build pipelines we care about: merge requests, tags, and the default
 # branch (whose pipeline carries the manual `release` job).
@@ -425,9 +426,10 @@ build-bsdiff-linux:
     - |
       if printf '%s' "$TARGET" | grep -q musl; then
         # cargo-zigbuild needs zig + the cargo-zigbuild shim on PATH.
-        curl -fsSL "https://ziglang.org/download/${ZIG_VERSION}/zig-linux-$(uname -m)-${ZIG_VERSION}.tar.xz" \
-          | tar -xJ -C /usr/local
-        export PATH="/usr/local/zig-linux-$(uname -m)-${ZIG_VERSION}:$PATH"
+        # Zig tarballs are named zig-<arch>-<os>-<version> (arch before os).
+        ZIG_DIR="zig-$(uname -m)-linux-${ZIG_VERSION}"
+        curl -fsSL "https://ziglang.org/download/${ZIG_VERSION}/${ZIG_DIR}.tar.xz" | tar -xJ -C /usr/local
+        export PATH="/usr/local/${ZIG_DIR}:$PATH"
         cargo install --locked cargo-zigbuild
       fi
     - bun install --frozen-lockfile
