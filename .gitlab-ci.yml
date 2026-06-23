@@ -31,11 +31,13 @@ stages:
 variables:
   BUN_VERSION: "1.3.13"
   ZIG_VERSION: "0.14.1"
-  # Keep tool homes inside the project dir so GitLab cache can capture them.
+  # Bun home stays in the project dir for GitLab caching. Rust deliberately uses
+  # the DEFAULT ~/.cargo / ~/.rustup: `turbo run build` runs in strict env mode
+  # and strips CARGO_HOME/RUSTUP_HOME, so a redirected home is invisible to the
+  # napi/cargo subprocess ("no default toolchain configured"). HOME + PATH are
+  # always passed through, so default homes work; only target/ is cached.
   BUN_INSTALL: "$CI_PROJECT_DIR/.bun"
   BUN_INSTALL_CACHE_DIR: "$CI_PROJECT_DIR/.cache/bun"
-  CARGO_HOME: "$CI_PROJECT_DIR/.cargo"
-  RUSTUP_HOME: "$CI_PROJECT_DIR/.rustup"
   # macOS Tart VM image (override via a CI/CD variable to match the runner).
   MACOS_TART_IMAGE: "ghcr.io/cirruslabs/macos-sequoia-xcode:latest"
 
@@ -100,12 +102,9 @@ workflow:
         files:
           - packages/bsdiff/Cargo.lock
       paths:
-        - .cargo/registry
-        - .cargo/git
-        - .rustup
         - packages/bsdiff/target
   before_script:
-    - export PATH="$BUN_INSTALL/bin:$CARGO_HOME/bin:$PATH"
+    - export PATH="$BUN_INSTALL/bin:$HOME/.cargo/bin:$PATH"
     - |
       if [ "$(bun --version 2>/dev/null)" != "$BUN_VERSION" ]; then
         curl -fsSL https://bun.sh/install | bash -s "bun-v$BUN_VERSION"
@@ -113,10 +112,8 @@ workflow:
     - |
       if ! command -v rustup >/dev/null 2>&1; then
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
-          | sh -s -- -y --profile minimal --default-toolchain stable --no-modify-path
+          | sh -s -- -y --profile minimal --default-toolchain stable
       fi
-      # Cached .rustup can carry a settings.toml with no default toolchain;
-      # set it explicitly (installs stable if the cache is partial).
       rustup default stable
     - !reference [.node-gyp-setup, before_script]
     - bun --version && cargo --version
@@ -129,7 +126,7 @@ workflow:
     - office-mac-runner
   interruptible: true
   before_script:
-    - export PATH="$BUN_INSTALL/bin:$CARGO_HOME/bin:$PATH"
+    - export PATH="$BUN_INSTALL/bin:$HOME/.cargo/bin:$PATH"
     - |
       if [ "$(bun --version 2>/dev/null)" != "$BUN_VERSION" ]; then
         curl -fsSL https://bun.sh/install | bash -s "bun-v$BUN_VERSION"
@@ -137,10 +134,8 @@ workflow:
     - |
       if ! command -v rustup >/dev/null 2>&1; then
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
-          | sh -s -- -y --profile minimal --default-toolchain stable --no-modify-path
+          | sh -s -- -y --profile minimal --default-toolchain stable
       fi
-      # Cached .rustup can carry a settings.toml with no default toolchain;
-      # set it explicitly (installs stable if the cache is partial).
       rustup default stable
     - !reference [.node-gyp-setup, before_script]
     - bun --version && cargo --version
