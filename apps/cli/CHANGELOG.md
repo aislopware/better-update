@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.41.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.40.2...@better-update/cli@0.41.0) (2026-06-23)
+
+### Features
+
+* **cli:** configure signing credentials per iOS target incl. app extensions ([ea0f41a](https://github.com/better-update/better-update/commit/ea0f41a4a9d32598b49442121b86c7ffc633350c))
+
+### Bug Fixes
+
+* **cli:** honor nested .gitignore files in build staging ([82a5c1f](https://github.com/better-update/better-update/commit/82a5c1f55e6194778324e05ec3abff255fec1d7f))
+
 ## [0.40.2](https://github.com/better-update/better-update/compare/@better-update/cli@0.40.1...@better-update/cli@0.40.2) (2026-06-23)
 
 **Note:** Version bump only for package @better-update/cli
