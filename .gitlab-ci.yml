@@ -4,7 +4,8 @@
 # workflow under .github/workflows is fully commented out, so nothing runs on
 # GitHub anymore — this file is the whole CI/CD.
 #
-# Runners: Linux Docker (default) + a macOS Tart runner tagged `office-mac-runner`.
+# Runners: Linux Docker runner tagged `office-runner-01` (all jobs except macOS)
+# + a macOS Tart runner tagged `office-mac-runner` (Apple build + conformance).
 # @better-update/bsdiff ships prebuilt natives for 5 platforms: macOS arm64 (built
 # on the Mac runner) + Linux x64/arm64 in both gnu and musl (built on Linux via
 # napi-cross / cargo-zigbuild). Windows and Intel-mac are intentionally NOT built.
@@ -53,6 +54,8 @@ workflow:
 # ---------------------------------------------------------------------------
 .base-bun:
   image: node:22-bookworm
+  tags:
+    - office-runner-01
   interruptible: true
   cache:
     - key:
