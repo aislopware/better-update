@@ -125,7 +125,10 @@ workflow:
   tags:
     - office-mac-runner
   interruptible: true
-  timeout: 45m
+  # Generous: a cold pull of the ~30GB Tart VM image (if evicted from the runner)
+  # can take a long time; once cached, real runs are minutes. Capped by the
+  # project max job timeout (raised to 3h) and the runner's own max_timeout.
+  timeout: 2h
   retry:
     max: 2
     when:
