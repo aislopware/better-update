@@ -126,13 +126,117 @@ export interface BuildIgnoreOptions {
 }
 
 /**
- * Build an `Ignore` matcher for the workspace root. `.easignore` REPLACES
- * `.gitignore` when present (matches EAS semantics); otherwise `.gitignore`
- * is layered on top of the always-ignore baseline.
+ * Rebase a single nested `.gitignore` line so it applies only within `prefix`
+ * (the posix dir path + trailing slash) when folded into the workspace-root
+ * matcher. Returns `undefined` for blanks/comments. Anchored patterns (a
+ * leading or interior `/`) are prefixed as-is; unanchored ones (which match at
+ * any depth) become `prefix**\/pat`. Negation and directory-only trailing
+ * slashes are preserved.
+ */
+const rebaseGitignoreLine = (prefix: string, rawLine: string): string | undefined => {
+  // git strips trailing whitespace unless it is backslash-escaped.
+  const line = rawLine.replace(/(?<!\\)\s+$/u, "");
+  if (line === "" || line.startsWith("#")) {
+    return undefined;
+  }
+  const negate = line.startsWith("!");
+  const unescaped =
+    negate || line.startsWith(String.raw`\#`) || line.startsWith(String.raw`\!`)
+      ? line.slice(1)
+      : line;
+  const hadLeadingSlash = unescaped.startsWith("/");
+  const body = hadLeadingSlash ? unescaped.slice(1) : unescaped;
+  if (body === "") {
+    return undefined;
+  }
+  // A separator anywhere but the trailing position anchors the pattern to the
+  // `.gitignore`'s own dir; otherwise it matches at any depth below it.
+  const withoutTrailingSlash = body.endsWith("/") ? body.slice(0, -1) : body;
+  const anchored = hadLeadingSlash || withoutTrailingSlash.includes("/");
+  const rebased = anchored ? `${prefix}${body}` : `${prefix}**/${body}`;
+  return negate ? `!${rebased}` : rebased;
+};
+
+/**
+ * Rebase every line of a nested `.gitignore` to its own directory (`relDir`,
+ * posix, relative to the workspace root) — mirroring how git scopes a
+ * `.gitignore` to the dir it lives in.
+ */
+const rebaseGitignore = (relDir: string, content: string): string[] => {
+  const prefix = `${relDir}/`;
+  return content
+    .split(/\r?\n/u)
+    .map((rawLine) => rebaseGitignoreLine(prefix, rawLine))
+    .filter((pattern): pattern is string => pattern !== undefined);
+};
+
+const safeReadDir = async (dir: string) => {
+  try {
+    return await fsp.readdir(dir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+};
+
+const safeReadText = async (file: string): Promise<string> => {
+  try {
+    return await fsp.readFile(file, "utf8");
+  } catch {
+    return "";
+  }
+};
+
+const isDirectory = async (file: string): Promise<boolean> => {
+  try {
+    const stat = await fsp.lstat(file);
+    return stat.isDirectory();
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Fold every NESTED `.gitignore` under `workspaceRoot` into `ig`, each rebased
+ * to its own directory (git scopes a `.gitignore` to the dir it lives in, and
+ * EAS — which stages via git — honors that). The walk prunes any directory the
+ * matcher-so-far already ignores, so it never descends into `node_modules`,
+ * build outputs, or a subtree excluded by a shallower `.gitignore` — including
+ * the entries a just-loaded nested `.gitignore` adds. The root `.gitignore` is
+ * added by the caller, so the walk skips it.
+ */
+const addNestedGitignores = (workspaceRoot: string, ig: Ignore): Effect.Effect<void> =>
+  Effect.promise(async () => {
+    const walk = async (absDir: string, relDir: string): Promise<void> => {
+      const entries = await safeReadDir(absDir);
+      if (relDir !== "" && entries.some((entry) => entry.isFile() && entry.name === ".gitignore")) {
+        const content = await safeReadText(path.join(absDir, ".gitignore"));
+        if (content !== "") {
+          ig.add(rebaseGitignore(relDir, content));
+        }
+      }
+      const subdirs = entries.filter((entry) => entry.isDirectory());
+      for (const entry of subdirs) {
+        const childRel = relDir === "" ? entry.name : `${relDir}/${entry.name}`;
+        // `foo/` rules only match with a trailing slash, so test both forms;
+        // pruning here keeps the walk out of huge ignored trees entirely.
+        if (!ig.ignores(childRel) && !ig.ignores(`${childRel}/`)) {
+          await walk(path.join(absDir, entry.name), childRel);
+        }
+      }
+    };
+    await walk(workspaceRoot, "");
+  });
+
+/**
+ * Build an `Ignore` matcher for the workspace root. `.easignore` REPLACES every
+ * `.gitignore` when present (matches EAS semantics); otherwise the root
+ * `.gitignore` plus every NESTED `.gitignore` (git semantics) is layered on top
+ * of the always-ignore baseline.
  *
  * When `includeNativeSource` is set, the native source dirs are re-included
- * after the ignore files are applied, then their build outputs re-excluded, so
- * a committed `ios/`/`android/` reaches staging intact.
+ * before the nested scan (so the scan descends into committed `android/`/`ios/`
+ * and folds in their nested ignores), then their build outputs re-excluded last,
+ * so a committed `ios/`/`android/` reaches staging intact.
  */
 export const buildIgnoreInstance = (
   workspaceRoot: string,
@@ -142,6 +246,9 @@ export const buildIgnoreInstance = (
     const fs = yield* FileSystem.FileSystem;
     const ig = ignore();
     ig.add([...ALWAYS_IGNORE]);
+
+    const base =
+      options.appRelPath === undefined || options.appRelPath === "" ? "" : `${options.appRelPath}/`;
 
     const easignorePath = path.join(workspaceRoot, ".easignore");
     const hasEasignore = yield* fs.exists(easignorePath).pipe(Effect.orElseSucceed(() => false));
@@ -159,14 +266,21 @@ export const buildIgnoreInstance = (
       }
     }
 
+    // Re-include committed native source BEFORE the nested scan, so the walk
+    // descends into `android/`/`ios/` and folds in any nested `.gitignore`.
     if (options.includeNativeSource === true) {
-      const base =
-        options.appRelPath === undefined || options.appRelPath === ""
-          ? ""
-          : `${options.appRelPath}/`;
-      // Re-include the native source dirs (last-match-wins overrides any
-      // .gitignore exclusion), then re-exclude their generated build outputs.
       ig.add([`!${base}android`, `!${base}ios`]);
+    }
+
+    // Honor NESTED `.gitignore` files (git / EAS semantics). `.easignore`, when
+    // present, REPLACES all `.gitignore` files, so it is skipped in that mode.
+    if (!hasEasignore) {
+      yield* addNestedGitignores(workspaceRoot, ig);
+    }
+
+    // Re-exclude generated native build outputs last, so neither the native
+    // re-include above nor any nested `.gitignore` can pull them into staging.
+    if (options.includeNativeSource === true) {
       ig.add(NATIVE_BUILD_OUTPUTS.map((entry) => `${base}${entry}`));
     }
     return ig;
@@ -182,13 +296,17 @@ const copyProjectTree = (params: {
       await fsp.cp(params.source, params.dest, {
         recursive: true,
         dereference: false,
-        filter: (src) => {
+        filter: async (src) => {
           const rel = path.relative(params.source, src);
           if (rel === "") {
             return true;
           }
           const posixRel = rel.split(path.sep).join("/");
-          return !params.ig.ignores(posixRel);
+          // Append a trailing slash for directories so directory-only rules
+          // (`foo/`) prune the whole subtree here instead of crawling into it
+          // (returning `false` for a dir tells `cp` to skip its descendants).
+          const isDir = await isDirectory(src);
+          return !params.ig.ignores(isDir ? `${posixRel}/` : posixRel);
         },
       });
     },

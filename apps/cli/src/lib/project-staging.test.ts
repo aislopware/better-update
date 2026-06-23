@@ -229,4 +229,108 @@ describe(buildIgnoreInstance, () => {
       }
     }).pipe(Effect.provide(NodeFileSystem.layer)),
   );
+
+  it.effect("honors a NESTED .gitignore scoped to its own directory (BU-6)", () =>
+    Effect.gen(function* () {
+      const root = makeDir("ignore-nested-");
+      const app = path.join(root, "apps", "bigcommerce-app");
+      mkdirSync(path.join(app, "ios"), { recursive: true });
+      writeFileSync(path.join(root, ".gitignore"), "node_modules\n");
+      // The custom xcodebuild derivedDataPath, ignored only in the nested file.
+      writeFileSync(path.join(app, ".gitignore"), "ios/build-release/\n*.log\n");
+      try {
+        const ig = yield* buildIgnoreInstance(root);
+        // The 9.2 GB build output dir (and everything under it) is excluded…
+        expect(ig.ignores("apps/bigcommerce-app/ios/build-release/")).toBe(true);
+        expect(ig.ignores("apps/bigcommerce-app/ios/build-release/Build/foo.o")).toBe(true);
+        expect(ig.ignores("apps/bigcommerce-app/debug.log")).toBe(true);
+        // …while the nested rules stay scoped to that app and don't leak up.
+        expect(ig.ignores("apps/bigcommerce-app/src/index.ts")).toBe(false);
+        expect(ig.ignores("ios/build-release/Build/foo.o")).toBe(false);
+        expect(ig.ignores("other.log")).toBe(false);
+      } finally {
+        dispose(root);
+      }
+    }).pipe(Effect.provide(NodeFileSystem.layer)),
+  );
+
+  it.effect("matches an unanchored nested pattern at any depth below its dir", () =>
+    Effect.gen(function* () {
+      const root = makeDir("ignore-nested-unanchored-");
+      const app = path.join(root, "packages", "app");
+      mkdirSync(app, { recursive: true });
+      // No slash → matches at any depth within packages/app (git semantics).
+      writeFileSync(path.join(app, ".gitignore"), "build-release\n");
+      try {
+        const ig = yield* buildIgnoreInstance(root);
+        expect(ig.ignores("packages/app/build-release/x.o")).toBe(true);
+        expect(ig.ignores("packages/app/ios/build-release/x.o")).toBe(true);
+        expect(ig.ignores("packages/app/src/main.ts")).toBe(false);
+        // Outside the nesting dir it has no effect.
+        expect(ig.ignores("build-release/x.o")).toBe(false);
+      } finally {
+        dispose(root);
+      }
+    }).pipe(Effect.provide(NodeFileSystem.layer)),
+  );
+
+  it.effect("ignores nested .gitignore files when a root .easignore is present", () =>
+    Effect.gen(function* () {
+      const root = makeDir("ignore-nested-easignore-");
+      const app = path.join(root, "apps", "mobile");
+      mkdirSync(app, { recursive: true });
+      writeFileSync(path.join(root, ".easignore"), "only-eas.txt\n");
+      writeFileSync(path.join(app, ".gitignore"), "nested-secret.txt\n");
+      try {
+        const ig = yield* buildIgnoreInstance(root);
+        expect(ig.ignores("only-eas.txt")).toBe(true);
+        // .easignore REPLACES every .gitignore (root and nested) — EAS semantics.
+        expect(ig.ignores("apps/mobile/nested-secret.txt")).toBe(false);
+      } finally {
+        dispose(root);
+      }
+    }).pipe(Effect.provide(NodeFileSystem.layer)),
+  );
+
+  it.effect("prunes ignored dirs — a nested .gitignore under one is not honored", () =>
+    Effect.gen(function* () {
+      const root = makeDir("ignore-nested-prune-");
+      const buildDir = path.join(root, "build");
+      mkdirSync(buildDir, { recursive: true });
+      writeFileSync(path.join(root, ".gitignore"), "build/\n");
+      // git can't re-include a file whose parent dir is excluded; the walk must
+      // never descend into `build/`, so this re-include is never folded in.
+      writeFileSync(path.join(buildDir, ".gitignore"), "!important.txt\n");
+      try {
+        const ig = yield* buildIgnoreInstance(root);
+        expect(ig.ignores("build/important.txt")).toBe(true);
+      } finally {
+        dispose(root);
+      }
+    }).pipe(Effect.provide(NodeFileSystem.layer)),
+  );
+
+  it.effect("scopes a nested re-exclude to a monorepo app for non-Expo projects", () =>
+    Effect.gen(function* () {
+      const root = makeDir("ignore-nested-native-");
+      const app = path.join(root, "apps", "bare");
+      mkdirSync(path.join(app, "ios"), { recursive: true });
+      // The app ships committed ios/ source but ignores its derived data.
+      writeFileSync(path.join(app, ".gitignore"), "ios/build-release/\n");
+      try {
+        const ig = yield* buildIgnoreInstance(root, {
+          includeNativeSource: true,
+          appRelPath: "apps/bare",
+        });
+        // Committed native source reaches staging…
+        expect(ig.ignores("apps/bare/ios/MyApp.xcodeproj/project.pbxproj")).toBe(false);
+        // …the always-excluded native outputs stay out…
+        expect(ig.ignores("apps/bare/ios/Pods/Manifest.lock")).toBe(true);
+        // …and the nested custom derived-data dir is excluded too.
+        expect(ig.ignores("apps/bare/ios/build-release/Build/foo.o")).toBe(true);
+      } finally {
+        dispose(root);
+      }
+    }).pipe(Effect.provide(NodeFileSystem.layer)),
+  );
 });
