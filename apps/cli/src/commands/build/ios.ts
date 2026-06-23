@@ -14,7 +14,7 @@ import { installProvisioningProfile } from "../../lib/ios-provisioning";
 import { loadLocalIosCredentials } from "../../lib/local-credentials";
 import { validateIosBuild } from "../../lib/post-build-validation";
 import { sha256File } from "../../lib/sha256";
-import { discoverSignedTargets } from "../../lib/xcode-targets";
+import { discoverSignedTargets, pickMainTarget } from "../../lib/xcode-targets";
 import { createXcodebuildFormatter } from "../../lib/xcpretty-formatter";
 import { CliRuntime } from "../../services/cli-runtime";
 import { findAppDirectory, prepareIosNative, resolveXcodeContainer } from "./ios-prepare";
@@ -217,10 +217,6 @@ const installProfileForTarget = (
     Effect.map((installed) => ({ target, profile, installed })),
   );
 };
-
-const pickMainTarget = (signedTargets: readonly DiscoveredTarget[]): DiscoveredTarget | undefined =>
-  signedTargets.find((target) => target.productType === "com.apple.product-type.application") ??
-  signedTargets[0];
 
 const runIosDeviceBuild = (input: RunIosBuildInput) =>
   // eslint-disable-next-line eslint/max-statements -- ios device build orchestration is inherently sequential (prepare → discover targets → credentials → keychain → install profiles → mutate pbxproj → archive → exportArchive → validate → artifact)

@@ -8,7 +8,13 @@ import { Effect } from "effect";
 
 import { XcodeProjectError } from "./exit-codes";
 import { failureError } from "./test-utils";
-import { discoverSignedTargets } from "./xcode-targets";
+import {
+  discoverSignedTargets,
+  discoverSignedTargetsIfPresent,
+  pickMainTarget,
+} from "./xcode-targets";
+
+import type { DiscoveredTarget } from "./xcode-targets";
 
 const setupProject = (
   pbxproj: string,
@@ -221,4 +227,103 @@ describe(discoverSignedTargets, () => {
       }
     }).pipe(Effect.provide(NodeFileSystem.layer)),
   );
+});
+
+describe(discoverSignedTargetsIfPresent, () => {
+  it.effect("discovers targets when a prebuilt .xcodeproj is present", () =>
+    Effect.gen(function* () {
+      const project = setupProject(minimalPbxproj);
+      try {
+        const targets = yield* discoverSignedTargetsIfPresent({
+          iosDir: project.iosDir,
+          configurationName: "Release",
+        });
+        expect(targets).toBeDefined();
+        expect(targets?.map((target) => target.bundleId).toSorted()).toStrictEqual([
+          "com.example.app",
+          "com.example.app.notification",
+        ]);
+      } finally {
+        project.dispose();
+      }
+    }).pipe(Effect.provide(NodeFileSystem.layer)),
+  );
+
+  it.effect("returns undefined when the ios directory does not exist", () =>
+    Effect.gen(function* () {
+      const root = realpathSync(mkdtempSync(path.join(tmpdir(), "xcode-targets-noios-")));
+      try {
+        const targets = yield* discoverSignedTargetsIfPresent({
+          iosDir: path.join(root, "ios"),
+          configurationName: "Release",
+        });
+        expect(targets).toBeUndefined();
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
+    }).pipe(Effect.provide(NodeFileSystem.layer)),
+  );
+
+  it.effect("returns undefined when ios exists but has not been prebuilt (no .xcodeproj)", () =>
+    Effect.gen(function* () {
+      const root = realpathSync(mkdtempSync(path.join(tmpdir(), "xcode-targets-bare-")));
+      const iosDir = path.join(root, "ios");
+      mkdirSync(iosDir, { recursive: true });
+      try {
+        const targets = yield* discoverSignedTargetsIfPresent({
+          iosDir,
+          configurationName: "Release",
+        });
+        expect(targets).toBeUndefined();
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
+    }).pipe(Effect.provide(NodeFileSystem.layer)),
+  );
+
+  it.effect("surfaces a genuine parse error from an existing project", () =>
+    Effect.gen(function* () {
+      const project = setupProject(minimalPbxproj);
+      try {
+        const exit = yield* Effect.exit(
+          discoverSignedTargetsIfPresent({ iosDir: project.iosDir, configurationName: "Staging" }),
+        );
+        const err = failureError(exit);
+        expect(err).toBeInstanceOf(XcodeProjectError);
+        expect(err?.message).toContain("Staging");
+      } finally {
+        project.dispose();
+      }
+    }).pipe(Effect.provide(NodeFileSystem.layer)),
+  );
+});
+
+describe(pickMainTarget, () => {
+  const make = (overrides: Partial<DiscoveredTarget>): DiscoveredTarget => ({
+    targetName: "T",
+    bundleId: "com.example.t",
+    productType: "com.apple.product-type.app-extension",
+    buildConfigurationUuids: [],
+    ...overrides,
+  });
+
+  it("prefers the application target regardless of order", () => {
+    const ext = make({ targetName: "Ext", bundleId: "com.example.app.ext" });
+    const app = make({
+      targetName: "App",
+      bundleId: "com.example.app",
+      productType: "com.apple.product-type.application",
+    });
+    expect(pickMainTarget([ext, app])).toBe(app);
+  });
+
+  it("falls back to the first target when no application target exists", () => {
+    const first = make({ targetName: "First", bundleId: "com.example.first" });
+    const second = make({ targetName: "Second", bundleId: "com.example.second" });
+    expect(pickMainTarget([first, second])).toBe(first);
+  });
+
+  it("returns undefined for an empty set", () => {
+    expect(pickMainTarget([])).toBeUndefined();
+  });
 });

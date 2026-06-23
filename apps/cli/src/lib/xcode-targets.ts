@@ -185,3 +185,44 @@ export const discoverSignedTargets = (
 
     return results;
   });
+
+/**
+ * Like {@link discoverSignedTargets}, but tolerant of a project that hasn't been
+ * prebuilt: returns `undefined` when `iosDir` is absent or contains no
+ * `.xcodeproj` (a managed Expo app before `expo prebuild`). A genuine parse
+ * error in an existing project still surfaces. Used by `credentials configure`,
+ * which runs outside a build and must degrade to the main bundle id from the
+ * Expo config when the native project isn't generated yet.
+ */
+export const discoverSignedTargetsIfPresent = (
+  options: DiscoverSignedTargetsOptions,
+): Effect.Effect<
+  readonly DiscoveredTarget[] | undefined,
+  XcodeProjectError,
+  FileSystem.FileSystem
+> =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const exists = yield* fs.exists(options.iosDir).pipe(Effect.orElseSucceed(() => false));
+    if (!exists) {
+      return undefined;
+    }
+    const entries = yield* fs
+      .readDirectory(options.iosDir)
+      .pipe(Effect.orElseSucceed(() => [] as readonly string[]));
+    if (!entries.some((entry) => entry.endsWith(".xcodeproj"))) {
+      return undefined;
+    }
+    return yield* discoverSignedTargets(options);
+  });
+
+/**
+ * Pick the "main" target from a discovered set: the application product type if
+ * present, otherwise the first signed target. Shared by the build pipeline and
+ * `credentials configure` so both agree on which bundle id is primary.
+ */
+export const pickMainTarget = (
+  signedTargets: readonly DiscoveredTarget[],
+): DiscoveredTarget | undefined =>
+  signedTargets.find((target) => target.productType === "com.apple.product-type.application") ??
+  signedTargets[0];

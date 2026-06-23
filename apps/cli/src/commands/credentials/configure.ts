@@ -1,3 +1,5 @@
+import path from "node:path";
+
 import { compact } from "@better-update/type-guards";
 import { defineCommand } from "citty";
 import { Effect } from "effect";
@@ -18,11 +20,19 @@ import { MissingCredentialsError } from "../../lib/exit-codes";
 import { printHuman } from "../../lib/output";
 import { readAppMetaOptional, readProjectId } from "../../lib/project-link";
 import { promptSelect, promptText } from "../../lib/prompts";
+import { discoverSignedTargetsIfPresent, pickMainTarget } from "../../lib/xcode-targets";
 import { apiClient } from "../../services/api-client";
 import { CliRuntime } from "../../services/cli-runtime";
 
 import type { IosDistribution } from "../../lib/build-profile";
 import type { ApiClient } from "../../services/api-client";
+
+/**
+ * Xcode build configuration whose `PRODUCT_BUNDLE_IDENTIFIER`s the configure
+ * wizard reads when discovering signed targets. Distribution signing always
+ * runs against the Release configuration.
+ */
+const IOS_DISCOVERY_CONFIGURATION = "Release";
 
 interface ConfigureAndroidArgs {
   readonly api: ApiClient;
@@ -185,6 +195,126 @@ const configureIos = (args: ConfigureIosArgs) =>
     );
   });
 
+interface ConfigureIosTargetsArgs {
+  readonly api: ApiClient;
+  readonly projectId: string;
+  readonly distribution: IosDistribution;
+  readonly targets: readonly { readonly targetName: string; readonly bundleId: string }[];
+}
+
+// Configure every signed target (main app + app extensions, e.g. a Notification
+// Service Extension) discovered from the Xcode project. The distribution cert is
+// shared across targets, but each bundle id needs its own provisioning profile,
+// so we run the ensure flow once per bundle. Sequential (concurrency 1) so the
+// interactive Apple ID / ASC prompts for different bundles don't race.
+const configureIosTargets = (args: ConfigureIosTargetsArgs) =>
+  Effect.gen(function* () {
+    yield* printHuman(
+      `Configuring iOS credentials for ${args.targets.length} signed target(s) (${args.distribution})...`,
+    );
+    yield* Effect.forEach(
+      args.targets,
+      (target) =>
+        Effect.gen(function* () {
+          const input = {
+            projectId: args.projectId,
+            bundleIdentifier: target.bundleId,
+            distribution: args.distribution,
+          };
+          yield* printHuman("");
+          yield* printHuman(`${target.targetName} (${target.bundleId})`);
+          yield* ensureIosCredentials(args.api, input, { freezeCredentials: false });
+          yield* showIosBinding(args.api, input);
+        }),
+      { concurrency: 1 },
+    );
+    yield* printHuman("");
+    yield* printHuman(
+      "Run with --bundle <id> --rebind to switch a target's certificate, profile, or ASC key.",
+    );
+    yield* printHuman(
+      "Run with --bundle <id> --bind-push-key <id> / --bind-asc-key <id> to update a single binding.",
+    );
+  });
+
+interface IosConfigureResult {
+  readonly platform: "ios";
+  readonly projectId: string;
+  readonly distribution: IosDistribution;
+  readonly bundleIdentifier: string;
+  readonly bundleIdentifiers: readonly string[];
+}
+
+interface RunConfigureIosArgs {
+  readonly api: ApiClient;
+  readonly projectId: string;
+  readonly root: string;
+  readonly bundle: string | undefined;
+  readonly distribution: IosDistribution;
+  readonly rebind: boolean;
+  readonly bindPushKey: string | undefined;
+  readonly bindAscKey: string | undefined;
+}
+
+const runConfigureIos = (args: RunConfigureIosArgs) =>
+  Effect.gen(function* () {
+    const { api, projectId, root, distribution } = args;
+    // An explicit --bundle, --rebind, or a single-binding flag scopes the wizard
+    // to ONE bundle id. Target auto-discovery is reserved for the plain
+    // "configure everything" flow, where extension bundles must be covered too.
+    const singleBundleOnly =
+      args.bundle !== undefined ||
+      args.rebind ||
+      args.bindPushKey !== undefined ||
+      args.bindAscKey !== undefined;
+
+    const iosMeta = yield* readAppMetaOptional(root, "ios");
+
+    if (!singleBundleOnly) {
+      const targets = yield* discoverSignedTargetsIfPresent({
+        iosDir: path.join(root, "ios"),
+        configurationName: IOS_DISCOVERY_CONFIGURATION,
+      });
+      // `pickMainTarget` only returns undefined for an empty set, so a defined
+      // `main` also proves `targets` is non-empty — narrowing both at once.
+      const main = targets === undefined ? undefined : pickMainTarget(targets);
+      if (targets !== undefined && main !== undefined) {
+        yield* configureIosTargets({ api, projectId, distribution, targets });
+        return {
+          platform: "ios",
+          projectId,
+          distribution,
+          bundleIdentifier: main.bundleId,
+          bundleIdentifiers: targets.map((target) => target.bundleId),
+        } satisfies IosConfigureResult;
+      }
+      if (iosMeta.bundleId !== undefined) {
+        yield* printHuman(
+          "No prebuilt iOS project found — configuring the main bundle only. Run `expo prebuild` (or a build) once so app-extension targets are discovered and configured.",
+        );
+      }
+    }
+
+    const bundleIdentifier =
+      args.bundle ?? iosMeta.bundleId ?? (yield* promptText("iOS bundle identifier"));
+    yield* configureIos({
+      api,
+      projectId,
+      bundleIdentifier,
+      distribution,
+      rebind: args.rebind,
+      bindPushKey: args.bindPushKey,
+      bindAscKey: args.bindAscKey,
+    });
+    return {
+      platform: "ios",
+      projectId,
+      distribution,
+      bundleIdentifier,
+      bundleIdentifiers: [bundleIdentifier],
+    } satisfies IosConfigureResult;
+  });
+
 export const configureCommand = defineCommand({
   meta: {
     name: "configure",
@@ -196,7 +326,11 @@ export const configureCommand = defineCommand({
       options: ["ios", "android"],
       description: "Skip the platform prompt",
     },
-    bundle: { type: "string", description: "iOS bundle identifier (defaults to app.json)" },
+    bundle: {
+      type: "string",
+      description:
+        "iOS bundle identifier to scope to a single target (defaults to configuring every signed target — main app + extensions — discovered from the Xcode project)",
+    },
     "android-package": {
       type: "string",
       description: "Android application identifier (defaults to app.json)",
@@ -241,24 +375,16 @@ export const configureCommand = defineCommand({
           ]));
 
         if (platform === "ios") {
-          const iosMeta = yield* readAppMetaOptional(root, "ios");
-          const bundleIdentifier =
-            args.bundle ?? iosMeta.bundleId ?? (yield* promptText("iOS bundle identifier"));
-          yield* configureIos({
+          return yield* runConfigureIos({
             api,
             projectId,
-            bundleIdentifier,
+            root,
+            bundle: args.bundle,
             distribution: args.distribution as IosDistribution,
             rebind: args.rebind ?? false,
             bindPushKey: args["bind-push-key"],
             bindAscKey: args["bind-asc-key"],
           });
-          return {
-            platform: "ios" as const,
-            projectId,
-            bundleIdentifier,
-            distribution: args.distribution,
-          };
         }
         const androidMeta = yield* readAppMetaOptional(root, "android");
         const applicationIdentifier =
