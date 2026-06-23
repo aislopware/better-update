@@ -540,4 +540,129 @@ describe("ProjectRepo — D1 integration", () => {
       expect(ftsRow!.name).toBe("Updated Name");
     });
   });
+
+  describe("archival", () => {
+    beforeAll(async () => {
+      await insertOrg("org-arch", "org-arch");
+      await run(
+        Effect.gen(function* () {
+          const repo = yield* ProjectRepo;
+          yield* repo.insert({
+            id: "arch-active",
+            organizationId: "org-arch",
+            name: "Active App",
+            slug: "arch-active",
+            createdAt: "2026-01-01T00:00:00Z",
+          });
+          yield* repo.insert({
+            id: "arch-archived",
+            organizationId: "org-arch",
+            name: "Archived App",
+            slug: "arch-archived",
+            createdAt: "2026-01-02T00:00:00Z",
+          });
+          yield* repo.setArchived({ id: "arch-archived", archivedAt: "2026-02-01T00:00:00Z" });
+        }),
+      );
+    });
+
+    it("new projects are active (archivedAt null); setArchived/findArchivedAt round-trip", async () => {
+      const result = await run(
+        Effect.gen(function* () {
+          const repo = yield* ProjectRepo;
+          const active = yield* repo.findArchivedAt({ id: "arch-active" });
+          const archived = yield* repo.findArchivedAt({ id: "arch-archived" });
+          const project = yield* repo.findById({ id: "arch-archived" });
+          return { active, archived, projectArchivedAt: project.archivedAt };
+        }),
+      );
+
+      expect(result.active).toBeNull();
+      expect(result.archived).toBe("2026-02-01T00:00:00Z");
+      expect(result.projectArchivedAt).toBe("2026-02-01T00:00:00Z");
+    });
+
+    it("findByOrg defaults to active-only (hides archived)", async () => {
+      const result = await run(
+        Effect.gen(function* () {
+          const repo = yield* ProjectRepo;
+          return yield* repo.findByOrg({
+            organizationId: "org-arch",
+            sort: "lastActivityAt",
+            order: "desc",
+            limit: 20,
+            offset: 0,
+          });
+        }),
+      );
+
+      expect(result.total).toBe(1);
+      expect(result.items.map((item) => item.id)).toEqual(["arch-active"]);
+    });
+
+    it("findByOrg status=archived returns only archived", async () => {
+      const result = await run(
+        Effect.gen(function* () {
+          const repo = yield* ProjectRepo;
+          return yield* repo.findByOrg({
+            organizationId: "org-arch",
+            status: "archived",
+            sort: "lastActivityAt",
+            order: "desc",
+            limit: 20,
+            offset: 0,
+          });
+        }),
+      );
+
+      expect(result.total).toBe(1);
+      expect(result.items.map((item) => item.id)).toEqual(["arch-archived"]);
+    });
+
+    it("findByOrg status=all returns both active and archived", async () => {
+      const result = await run(
+        Effect.gen(function* () {
+          const repo = yield* ProjectRepo;
+          return yield* repo.findByOrg({
+            organizationId: "org-arch",
+            status: "all",
+            sort: "lastActivityAt",
+            order: "asc",
+            limit: 20,
+            offset: 0,
+          });
+        }),
+      );
+
+      expect(result.total).toBe(2);
+      expect(result.items.map((item) => item.id).sort()).toEqual(["arch-active", "arch-archived"]);
+    });
+
+    it("unarchive (setArchived null) restores the project to active listings", async () => {
+      await run(
+        Effect.gen(function* () {
+          const repo = yield* ProjectRepo;
+          yield* repo.setArchived({ id: "arch-archived", archivedAt: null });
+        }),
+      );
+
+      const result = await run(
+        Effect.gen(function* () {
+          const repo = yield* ProjectRepo;
+          const archivedAt = yield* repo.findArchivedAt({ id: "arch-archived" });
+          const active = yield* repo.findByOrg({
+            organizationId: "org-arch",
+            sort: "lastActivityAt",
+            order: "desc",
+            limit: 20,
+            offset: 0,
+          });
+          return { archivedAt, activeTotal: active.total };
+        }),
+      );
+
+      expect(result.archivedAt).toBeNull();
+      expect(result.activeTotal).toBe(2);
+    });
+  });
 });

@@ -251,6 +251,93 @@ describe("Projects API flow", () => {
     expect(new Date(after).getTime()).toBeGreaterThan(new Date(before).getTime());
   });
 
+  // ── Section 3.6: Archive lifecycle (read-only + restore) ───────
+
+  it("archives the project (returns archivedAt timestamp)", async () => {
+    const response = await post(`/api/projects/${projectId}/archive`, {}, { cookie: cookies });
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.id).toBe(projectId);
+    expect(typeof body.archivedAt).toBe("string");
+  });
+
+  it("hides the archived project from the default list", async () => {
+    const response = await get("/api/projects", { cookie: cookies });
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.total).toBe(2);
+    expect(body.items.map((p: { id: string }) => p.id)).not.toContain(projectId);
+  });
+
+  it("lists the archived project under status=archived", async () => {
+    const response = await get("/api/projects?status=archived", { cookie: cookies });
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.total).toBe(1);
+    expect(body.items[0].id).toBe(projectId);
+    expect(typeof body.items[0].archivedAt).toBe("string");
+  });
+
+  it("lists every project under status=all", async () => {
+    const response = await get("/api/projects?status=all", { cookie: cookies });
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.total).toBe(3);
+  });
+
+  it("still reads the archived project by id (read is not blocked)", async () => {
+    const response = await get(`/api/projects/${projectId}`, { cookie: cookies });
+    expect(response.status).toBe(200);
+    expect(typeof (await response.json()).archivedAt).toBe("string");
+  });
+
+  it("blocks renaming an archived project (403, read-only — even for the owner)", async () => {
+    const response = await patch(
+      `/api/projects/${projectId}`,
+      { name: "Should Fail" },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(403);
+  });
+
+  it("blocks project-scoped writes (branch create) on an archived project (403)", async () => {
+    const response = await post(
+      "/api/branches",
+      { projectId, name: "blocked-branch" },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(403);
+  });
+
+  it("archiving again is idempotent and keeps the original timestamp", async () => {
+    const first = await get("/api/projects?status=archived", { cookie: cookies });
+    const firstArchivedAt: string = (await first.json()).items[0].archivedAt;
+
+    const response = await post(`/api/projects/${projectId}/archive`, {}, { cookie: cookies });
+    expect(response.status).toBe(200);
+    expect((await response.json()).archivedAt).toBe(firstArchivedAt);
+  });
+
+  it("unarchives the project (clears archivedAt) and restores it to the active list", async () => {
+    const response = await post(`/api/projects/${projectId}/unarchive`, {}, { cookie: cookies });
+    expect(response.status).toBe(200);
+    expect((await response.json()).archivedAt).toBeNull();
+
+    const listRes = await get("/api/projects", { cookie: cookies });
+    const body = await listRes.json();
+    expect(body.total).toBe(3);
+  });
+
+  it("allows writes again after unarchiving (rename succeeds)", async () => {
+    const response = await patch(
+      `/api/projects/${projectId}`,
+      { name: "New Name" },
+      { cookie: cookies },
+    );
+    expect(response.status).toBe(200);
+    expect((await response.json()).name).toBe("New Name");
+  });
+
   // ── Section 4: Error cases ─────────────────────────────────────
 
   it("rejects renaming non-existent project (404)", async () => {

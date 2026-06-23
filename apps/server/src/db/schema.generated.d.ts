@@ -475,6 +475,7 @@ export interface ProjectProtocolMetadata {
 }
 
 export interface Projects {
+  archived_at: string | null;
   created_at: string;
   id: string;
   last_activity_at: string | null;

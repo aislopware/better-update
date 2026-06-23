@@ -1,9 +1,11 @@
 import {
+  archiveProject,
   deleteProject,
   projectQueryKey,
   projectQueryOptions,
   projectsQueryKey,
   renameProject,
+  unarchiveProject,
 } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
@@ -16,6 +18,7 @@ import { Suspense } from "react";
 
 import type { ProjectDetail } from "@better-update/api-client/react";
 
+import { ConfirmActionDialog } from "../-confirm-action-dialog";
 import { ConfirmDeleteDialog } from "../-confirm-delete-dialog";
 import { invalidateProjects } from "../-update-helpers";
 import { SettingCard } from "../../../../../../components/setting-card";
@@ -25,6 +28,7 @@ import { safeSubmit, useApiMutation } from "../../../../../../lib/use-api-mutati
 
 const RenameSection = ({ project }: { project: ProjectDetail }) => {
   const queryClient = useQueryClient();
+  const isArchived = project.archivedAt !== null;
   const renameProjectMutation = useApiMutation({
     mutationFn: async (value: { name: string }) => renameProject(project.id, { name: value.name }),
     onSuccess: async () => {
@@ -48,11 +52,15 @@ const RenameSection = ({ project }: { project: ProjectDetail }) => {
     >
       <SettingCard
         title="General"
-        description="Rename this project."
+        description={isArchived ? "Unarchive this project to rename it." : "Rename this project."}
         footer={
           <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
             {([canSubmit, isSubmitting]) => (
-              <Button type="submit" disabled={!canSubmit} loading={Boolean(isSubmitting)}>
+              <Button
+                type="submit"
+                disabled={!canSubmit || isArchived}
+                loading={Boolean(isSubmitting)}
+              >
                 Save changes
               </Button>
             )}
@@ -76,6 +84,7 @@ const RenameSection = ({ project }: { project: ProjectDetail }) => {
                 <Input
                   id="project-name"
                   value={field.state.value}
+                  disabled={isArchived}
                   onChange={(event) => {
                     field.handleChange(event.target.value);
                   }}
@@ -88,6 +97,60 @@ const RenameSection = ({ project }: { project: ProjectDetail }) => {
         </form.Field>
       </SettingCard>
     </form>
+  );
+};
+
+const ArchiveSection = ({ project }: { project: ProjectDetail }) => {
+  const queryClient = useQueryClient();
+  const isArchived = project.archivedAt !== null;
+
+  const unarchiveMutation = useApiMutation({
+    mutationFn: async () => unarchiveProject(project.id),
+    onSuccess: async () => {
+      toastManager.add({ title: "Project unarchived", type: "success" });
+      await invalidateProjects(queryClient, project.organizationId, project.id);
+    },
+  });
+
+  if (isArchived) {
+    return (
+      <SettingCard
+        title="Archived"
+        description="This project is archived and read-only. Publishing, builds, and other changes are blocked until you unarchive it. Updates already on devices keep serving."
+        footer={
+          <Button
+            variant="outline"
+            loading={unarchiveMutation.isPending}
+            onClick={() => {
+              unarchiveMutation.mutate();
+            }}
+          >
+            Unarchive project
+          </Button>
+        }
+      />
+    );
+  }
+
+  return (
+    <SettingCard
+      title="Archive project"
+      description="Hide this project from your project list and make it read-only. Publishing, builds, and other changes are blocked until you unarchive it. Updates already on devices keep serving. Reversible."
+      footer={
+        <ConfirmActionDialog
+          title={`Archive ${project.name}?`}
+          description="The project will be hidden from your list and become read-only until you unarchive it. This is reversible."
+          confirmLabel="Archive project"
+          onConfirm={async () => archiveProject(project.id)}
+          successMessage="Project archived"
+          onSuccess={async () => {
+            await invalidateProjects(queryClient, project.organizationId, project.id);
+          }}
+        >
+          <Button variant="outline">Archive project</Button>
+        </ConfirmActionDialog>
+      }
+    />
   );
 };
 
@@ -131,6 +194,7 @@ const SettingsContent = () => {
   return (
     <>
       <RenameSection project={projectData} />
+      <ArchiveSection project={projectData} />
       <DeleteSection project={projectData} />
     </>
   );
@@ -142,6 +206,7 @@ const SettingsPage = () => (
       fallback={
         <>
           <SettingCardSkeleton fields={1} />
+          <SettingCardSkeleton fields={0} hasFooter={false} />
           <SettingCardSkeleton fields={0} hasFooter={false} />
         </>
       }
