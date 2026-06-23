@@ -1,117 +1,120 @@
-name: CI
-
-on:
-  pull_request:
-
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
-
-jobs:
-  check:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 22
-
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.3.13
-
-      # `bun run test` + `bun run build` fan out via turbo and include
-      # @better-update/bsdiff#build (`napi build --platform --release` -> cargo).
-      # The native artifacts (index.js/index.d.ts/*.node) are git-ignored, so a
-      # fresh checkout must compile Rust here.
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache cargo
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            packages/bsdiff/target
-          key: ${{ runner.os }}-cargo-ci-check-${{ hashFiles('packages/bsdiff/Cargo.lock') }}
-
-      - name: Install deps
-        run: bun install --frozen-lockfile
-
-      - name: Generate Cloudflare types
-        run: bun run typegen:cf
-
-      - name: Check bsdiff release invariants
-        run: bun run check:bsdiff
-
-      - name: Lint + format check
-        run: bun run check
-
-      - name: Test
-        run: bun run test
-
-      - name: Build
-        run: bun run build
-
-  e2e-server:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 22
-
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.3.13
-
-      - name: Install deps
-        run: bun install --frozen-lockfile
-
-      - name: Generate Cloudflare types
-        run: bun run typegen:cf
-
-      - name: Server e2e (local pool)
-        # Remote-R2 e2e (test:e2e-r2) needs Cloudflare creds this job has none of;
-        # run the local pool suite here. Full `test:e2e` (pool + R2) runs locally.
-        run: bun --filter @better-update/server test:e2e-pool
-
-  integrations:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 22
-
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.3.13
-
-      # `bun run test:integrations` fans out via turbo and includes
-      # @better-update/bsdiff#build (`napi build --platform --release` -> cargo).
-      # The native artifacts are git-ignored, so a fresh checkout must compile Rust.
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache cargo
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            packages/bsdiff/target
-          key: ${{ runner.os }}-cargo-ci-integrations-${{ hashFiles('packages/bsdiff/Cargo.lock') }}
-
-      - name: Install deps
-        run: bun install --frozen-lockfile
-
-      - name: Generate Cloudflare types
-        run: bun run typegen:cf
-
-      - name: Integration tests
-        run: bun run test:integrations
+# DISABLED — migrated to GitLab CI (../../.gitlab-ci.yml). GitHub is a push-mirror only.
+# Kept commented for reference / rollback; this file no longer runs on GitHub.
+#
+# name: CI
+#
+# on:
+#   pull_request:
+#
+# concurrency:
+#   group: ci-${{ github.ref }}
+#   cancel-in-progress: true
+#
+# jobs:
+#   check:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v6
+#
+#       - uses: actions/setup-node@v6
+#         with:
+#           node-version: 22
+#
+#       - uses: oven-sh/setup-bun@v2
+#         with:
+#           bun-version: 1.3.13
+#
+#       # `bun run test` + `bun run build` fan out via turbo and include
+#       # @better-update/bsdiff#build (`napi build --platform --release` -> cargo).
+#       # The native artifacts (index.js/index.d.ts/*.node) are git-ignored, so a
+#       # fresh checkout must compile Rust here.
+#       - name: Install Rust toolchain
+#         uses: dtolnay/rust-toolchain@stable
+#
+#       - name: Cache cargo
+#         uses: actions/cache@v4
+#         with:
+#           path: |
+#             ~/.cargo/registry
+#             ~/.cargo/git
+#             packages/bsdiff/target
+#           key: ${{ runner.os }}-cargo-ci-check-${{ hashFiles('packages/bsdiff/Cargo.lock') }}
+#
+#       - name: Install deps
+#         run: bun install --frozen-lockfile
+#
+#       - name: Generate Cloudflare types
+#         run: bun run typegen:cf
+#
+#       - name: Check bsdiff release invariants
+#         run: bun run check:bsdiff
+#
+#       - name: Lint + format check
+#         run: bun run check
+#
+#       - name: Test
+#         run: bun run test
+#
+#       - name: Build
+#         run: bun run build
+#
+#   e2e-server:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v6
+#
+#       - uses: actions/setup-node@v6
+#         with:
+#           node-version: 22
+#
+#       - uses: oven-sh/setup-bun@v2
+#         with:
+#           bun-version: 1.3.13
+#
+#       - name: Install deps
+#         run: bun install --frozen-lockfile
+#
+#       - name: Generate Cloudflare types
+#         run: bun run typegen:cf
+#
+#       - name: Server e2e (local pool)
+#         # Remote-R2 e2e (test:e2e-r2) needs Cloudflare creds this job has none of;
+#         # run the local pool suite here. Full `test:e2e` (pool + R2) runs locally.
+#         run: bun --filter @better-update/server test:e2e-pool
+#
+#   integrations:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v6
+#
+#       - uses: actions/setup-node@v6
+#         with:
+#           node-version: 22
+#
+#       - uses: oven-sh/setup-bun@v2
+#         with:
+#           bun-version: 1.3.13
+#
+#       # `bun run test:integrations` fans out via turbo and includes
+#       # @better-update/bsdiff#build (`napi build --platform --release` -> cargo).
+#       # The native artifacts are git-ignored, so a fresh checkout must compile Rust.
+#       - name: Install Rust toolchain
+#         uses: dtolnay/rust-toolchain@stable
+#
+#       - name: Cache cargo
+#         uses: actions/cache@v4
+#         with:
+#           path: |
+#             ~/.cargo/registry
+#             ~/.cargo/git
+#             packages/bsdiff/target
+#           key: ${{ runner.os }}-cargo-ci-integrations-${{ hashFiles('packages/bsdiff/Cargo.lock') }}
+#
+#       - name: Install deps
+#         run: bun install --frozen-lockfile
+#
+#       - name: Generate Cloudflare types
+#         run: bun run typegen:cf
+#
+#       - name: Integration tests
+#         run: bun run test:integrations

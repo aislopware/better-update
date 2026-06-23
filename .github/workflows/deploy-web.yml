@@ -1,34 +1,37 @@
-name: Deploy Web
-
-on:
-  push:
-    tags:
-      - "@better-update/web@*"
-
-concurrency:
-  group: deploy-web
-  cancel-in-progress: false
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 22
-
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.3.13
-
-      - name: Install deps
-        run: bun install --frozen-lockfile
-
-      - name: Deploy to Cloudflare
-        working-directory: apps/web
-        run: bun run deploy
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+# DISABLED — migrated to GitLab CI (../../.gitlab-ci.yml). GitHub is a push-mirror only.
+# Kept commented for reference / rollback; this file no longer runs on GitHub.
+#
+# name: Deploy Web
+#
+# on:
+#   push:
+#     tags:
+#       - "@better-update/web@*"
+#
+# concurrency:
+#   group: deploy-web
+#   cancel-in-progress: false
+#
+# jobs:
+#   deploy:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v6
+#
+#       - uses: actions/setup-node@v6
+#         with:
+#           node-version: 22
+#
+#       - uses: oven-sh/setup-bun@v2
+#         with:
+#           bun-version: 1.3.13
+#
+#       - name: Install deps
+#         run: bun install --frozen-lockfile
+#
+#       - name: Deploy to Cloudflare
+#         working-directory: apps/web
+#         run: bun run deploy
+#         env:
+#           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+#           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

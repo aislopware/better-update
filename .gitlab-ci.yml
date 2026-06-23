@@ -1,0 +1,440 @@
+# GitLab CI — primary pipeline on gitlab.jmango360.com.
+#
+# GitHub (origin = aislopware/better-update) is now only a PUSH MIRROR. Every
+# workflow under .github/workflows is fully commented out, so nothing runs on
+# GitHub anymore — this file is the whole CI/CD.
+#
+# Runners: Linux Docker (default) + a macOS Tart runner tagged `office-mac-runner`.
+# @better-update/bsdiff ships prebuilt natives for 5 platforms: macOS arm64 (built
+# on the Mac runner) + Linux x64/arm64 in both gnu and musl (built on Linux via
+# napi-cross / cargo-zigbuild). Windows and Intel-mac are intentionally NOT built.
+#
+# Required CI/CD variables (Settings → CI/CD → Variables, masked + protected):
+#   CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID  — deploy-server / deploy-web
+#   NPM_TOKEN                                     — publish-cli (npm publish)
+#   GITLAB_RELEASE_TOKEN                          — release (project/group access
+#       token, scopes write_repository + api; pushes the version commit + tags AND
+#       creates GitLab Releases; pushing tags with a real token is what triggers
+#       the downstream deploy/publish pipelines).
+#   MACOS_TART_IMAGE (optional)                   — the Tart VM image for the macOS
+#       runner; defaults below. Set it to whatever `tart list` shows if different.
+
+stages:
+  - test
+  - release
+  - deploy
+  - gate
+  - build-native
+  - publish
+
+variables:
+  BUN_VERSION: "1.3.13"
+  ZIG_VERSION: "0.14.1"
+  # Keep tool homes inside the project dir so GitLab cache can capture them.
+  BUN_INSTALL: "$CI_PROJECT_DIR/.bun"
+  BUN_INSTALL_CACHE_DIR: "$CI_PROJECT_DIR/.cache/bun"
+  CARGO_HOME: "$CI_PROJECT_DIR/.cargo"
+  RUSTUP_HOME: "$CI_PROJECT_DIR/.rustup"
+  # macOS Tart VM image (override via a CI/CD variable to match the runner).
+  MACOS_TART_IMAGE: "ghcr.io/cirruslabs/macos-sequoia-xcode:latest"
+
+# Only build pipelines we care about: merge requests, tags, and the default
+# branch (whose pipeline carries the manual `release` job).
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_TAG
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# ---------------------------------------------------------------------------
+# Reusable setup. node:22-bookworm gives Node 22 + git + curl + a C toolchain
+# (buildpack-deps). bun is pinned to BUN_VERSION; Rust is added only where the
+# turbo graph compiles @better-update/bsdiff (napi build -> cargo).
+# ---------------------------------------------------------------------------
+.base-bun:
+  image: node:22-bookworm
+  interruptible: true
+  cache:
+    - key:
+        files:
+          - bun.lock
+      paths:
+        - .cache/bun
+        - .bun
+  before_script:
+    - export PATH="$BUN_INSTALL/bin:$PATH"
+    - |
+      if [ "$(bun --version 2>/dev/null)" != "$BUN_VERSION" ]; then
+        curl -fsSL https://bun.sh/install | bash -s "bun-v$BUN_VERSION"
+      fi
+    - bun --version
+
+.base-rust:
+  extends: .base-bun
+  cache:
+    - key:
+        files:
+          - bun.lock
+      paths:
+        - .cache/bun
+        - .bun
+    - key:
+        files:
+          - packages/bsdiff/Cargo.lock
+      paths:
+        - .cargo/registry
+        - .cargo/git
+        - .rustup
+        - packages/bsdiff/target
+  before_script:
+    - export PATH="$BUN_INSTALL/bin:$CARGO_HOME/bin:$PATH"
+    - |
+      if [ "$(bun --version 2>/dev/null)" != "$BUN_VERSION" ]; then
+        curl -fsSL https://bun.sh/install | bash -s "bun-v$BUN_VERSION"
+      fi
+    - |
+      if ! command -v cargo >/dev/null; then
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+          | sh -s -- -y --profile minimal --default-toolchain stable
+      fi
+    - bun --version && cargo --version
+
+# macOS Tart runner. Same bun + rustup bootstrap, but the VM image + tag select
+# the Mac, and there's no apt/cache (Tart VMs are ephemeral). Brew is preinstalled.
+.macos-rust:
+  image: $MACOS_TART_IMAGE
+  tags:
+    - office-mac-runner
+  interruptible: true
+  before_script:
+    - export PATH="$BUN_INSTALL/bin:$CARGO_HOME/bin:$PATH"
+    - |
+      if [ "$(bun --version 2>/dev/null)" != "$BUN_VERSION" ]; then
+        curl -fsSL https://bun.sh/install | bash -s "bun-v$BUN_VERSION"
+      fi
+    - |
+      if ! command -v cargo >/dev/null; then
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+          | sh -s -- -y --profile minimal --default-toolchain stable
+      fi
+    - bun --version && cargo --version
+
+# ---------------------------------------------------------------------------
+# test (merge requests)
+# ---------------------------------------------------------------------------
+
+# Mirrors the GitHub `check` job: lint + format + unit tests + build. `bun run
+# test`/`build` fan out via turbo and compile the git-ignored bsdiff native
+# addon, hence Rust.
+lint-test-build:
+  extends: .base-rust
+  stage: test
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  script:
+    - bun install --frozen-lockfile
+    - bun run typegen:cf
+    - bun run check:bsdiff
+    - bun run check
+    - bun run test
+    - bun run build
+
+# Mirrors GitHub `e2e-server`: local vitest-pool-workers suite (no Rust, no
+# Cloudflare creds). Remote-R2 e2e (test:e2e-r2) is intentionally skipped here.
+e2e-server:
+  extends: .base-bun
+  stage: test
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  script:
+    - bun install --frozen-lockfile
+    - bun run typegen:cf
+    - bun --filter @better-update/server test:e2e-pool
+
+# Mirrors GitHub `integrations`. Compiles bsdiff via turbo, hence Rust.
+integrations:
+  extends: .base-rust
+  stage: test
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  script:
+    - bun install --frozen-lockfile
+    - bun run typegen:cf
+    - bun run test:integrations
+
+# bsdiff conformance gate (the @better-update/bsdiff SHIP GATE) — Linux + macOS,
+# mirroring the GitHub matrix. Builds the host .node addon, then proves the
+# BSDIFF40 patch applies byte-identically through expo's vendored bspatch.c
+# (needs libbz2 + a C compiler). Runs when packages/bsdiff changes.
+conformance:
+  extends: .base-rust
+  stage: test
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - packages/bsdiff/**/*
+        - .gitlab-ci.yml
+  script:
+    - apt-get update && apt-get install -y --no-install-recommends libbz2-dev
+    - bun install --frozen-lockfile
+    - bun --filter @better-update/bsdiff run build
+    - bun --filter @better-update/bsdiff run test:conformance
+
+conformance-macos:
+  extends: .macos-rust
+  stage: test
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - packages/bsdiff/**/*
+        - .gitlab-ci.yml
+  script:
+    - brew install bzip2
+    - bun install --frozen-lockfile
+    - bun --filter @better-update/bsdiff run build
+    - bun --filter @better-update/bsdiff run test:conformance
+
+# ---------------------------------------------------------------------------
+# release (manual, default branch) — Lerna independent version + tag push +
+# GitLab Releases. Pushing the per-package tags here triggers the deploy /
+# publish pipelines below.
+# ---------------------------------------------------------------------------
+release:
+  extends: .base-rust
+  stage: release
+  interruptible: false
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+  variables:
+    GIT_DEPTH: "0" # full history + tags for conventional-commits / lerna
+    # Set DRY_RUN=true when running the manual job to preview without pushing.
+    DRY_RUN: "false"
+  script:
+    - apt-get update && apt-get install -y --no-install-recommends jq
+    - bun install --frozen-lockfile
+    - bun run typegen:cf
+    - bun run build
+
+    - git config user.name "gitlab-ci"
+    - git config user.email "ci@gitlab.jmango360.com"
+    - git fetch --tags
+    # Land on a real branch (CI checks out detached HEAD) so lerna's
+    # allowBranch:main passes and we can push the version commit back.
+    - git checkout -B "$CI_DEFAULT_BRANCH"
+
+    - |
+      if [ "$DRY_RUN" = "true" ]; then
+        bun run release:preview
+        echo "Dry run complete — no tags pushed."
+        exit 0
+      fi
+
+    - bun run release:version
+
+    # Authenticated push URL (CI's default origin uses a read-only job token).
+    - git remote set-url --push origin "https://oauth2:${GITLAB_RELEASE_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
+    - git push origin "HEAD:refs/heads/${CI_DEFAULT_BRANCH}"
+
+    # Push each new tag individually + create a GitLab Release for the public
+    # packages (mirrors the GitHub release.yml loop; private server/web/api tags
+    # are versioned but get no Release entry).
+    - |
+      PUBLIC_PACKAGES="@better-update/cli @better-update/bsdiff"
+      for tag in $(git tag --points-at HEAD); do
+        echo "Pushing $tag"
+        git push origin "refs/tags/$tag"
+        sleep 2
+
+        name="${tag%@*}"
+        version="${tag##*@}"
+
+        case " $PUBLIC_PACKAGES " in
+          *" $name "*) ;;
+          *) echo "Skipping Release for non-public package $name"; continue ;;
+        esac
+
+        pkg_dir=""
+        for pj in apps/*/package.json packages/*/package.json; do
+          if [ "$(jq -r .name "$pj")" = "$name" ]; then
+            pkg_dir="$(dirname "$pj")"
+            break
+          fi
+        done
+
+        notes_file="$(mktemp)"
+        if [ -n "$pkg_dir" ] && [ -f "$pkg_dir/CHANGELOG.md" ]; then
+          awk -v ver="$version" '
+            /^## (\[|[0-9])/ {
+              if (found) exit
+              if (index($0, "[" ver "]") || $0 ~ ("^## " ver "( |$)")) { found = 1; print; next }
+              next
+            }
+            found { print }
+          ' "$pkg_dir/CHANGELOG.md" > "$notes_file"
+        fi
+
+        if [ ! -s "$notes_file" ]; then
+          printf 'Release %s\n' "$tag" > "$notes_file"
+        fi
+
+        echo "Creating GitLab Release $tag"
+        jq -n --arg tag "$tag" --rawfile notes "$notes_file" \
+          '{tag_name: $tag, name: $tag, description: $notes}' \
+          | curl --fail-with-body --silent --show-error \
+              --header "PRIVATE-TOKEN: ${GITLAB_RELEASE_TOKEN}" \
+              --header "Content-Type: application/json" \
+              --data @- \
+              "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/releases" > /dev/null
+        rm -f "$notes_file"
+      done
+
+# ---------------------------------------------------------------------------
+# deploy (tag-triggered) — apply D1 migrations + wrangler deploy to Cloudflare.
+# ---------------------------------------------------------------------------
+deploy-server:
+  extends: .base-bun
+  stage: deploy
+  interruptible: false
+  resource_group: deploy-server # serialize, mirrors GH concurrency group
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^@better-update\/server@/
+  script:
+    - bun install --frozen-lockfile
+    - cd apps/server
+    - bunx wrangler d1 migrations apply better-update --remote
+    - bun run deploy
+
+deploy-web:
+  extends: .base-bun
+  stage: deploy
+  interruptible: false
+  resource_group: deploy-web
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^@better-update\/web@/
+  script:
+    - bun install --frozen-lockfile
+    - cd apps/web
+    - bun run deploy
+
+# ---------------------------------------------------------------------------
+# publish (tag @better-update/cli@*) — npm publish of @better-update/cli and,
+# when bumped, @better-update/bsdiff (main + its 8 prebuilt native stubs).
+#
+# Flow mirrors the GitHub publish-cli.yml: gate (is bsdiff already on npm?) →
+# cross-build the 8 native targets only when needed → publish stubs then
+# `lerna publish from-package` (bsdiff main + cli).
+# ---------------------------------------------------------------------------
+
+# Decide whether bsdiff still needs publishing. A CLI tag is always present when
+# bsdiff changes (bsdiff cascades a CLI bump); if bsdiff@<ver> is already on npm
+# this is a CLI-only release and the native build is skipped.
+bsdiff-gate:
+  extends: .base-bun
+  stage: gate
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^@better-update\/cli@/
+  script:
+    - |
+      V=$(node -p "require('./packages/bsdiff/package.json').version")
+      if npm view "@better-update/bsdiff@$V" version >/dev/null 2>&1; then
+        echo "NEEDS_BSDIFF=false" > gate.env
+        echo "bsdiff@$V already on npm — skipping native build."
+      else
+        echo "NEEDS_BSDIFF=true" > gate.env
+        echo "bsdiff@$V not on npm — will build + publish 5 stubs + main."
+      fi
+    - cat gate.env
+  artifacts:
+    reports:
+      dotenv: gate.env
+
+# Apple arm64 on the macOS Tart runner (native). Skips fast on a CLI-only release.
+build-bsdiff-apple:
+  extends: .macos-rust
+  stage: build-native
+  needs: ["bsdiff-gate"]
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^@better-update\/cli@/
+  variables:
+    TARGET: aarch64-apple-darwin
+  script:
+    - '[ "$NEEDS_BSDIFF" = "true" ] || { echo "CLI-only release — skipping $TARGET"; exit 0; }'
+    - bun install --frozen-lockfile
+    - rustup target add "$TARGET"
+    - cd packages/bsdiff
+    - bun run build --target "$TARGET"
+  artifacts:
+    paths:
+      - packages/bsdiff/*.node
+    expire_in: 1 day
+
+# Linux targets: gnu via napi-cross (portable glibc baseline), musl via
+# cargo-zigbuild (`-x`, needs zig on PATH).
+build-bsdiff-linux:
+  extends: .base-rust
+  stage: build-native
+  needs: ["bsdiff-gate"]
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^@better-update\/cli@/
+  parallel:
+    matrix:
+      - TARGET: x86_64-unknown-linux-gnu
+        FLAGS: "--use-napi-cross"
+      - TARGET: aarch64-unknown-linux-gnu
+        FLAGS: "--use-napi-cross"
+      - TARGET: x86_64-unknown-linux-musl
+        FLAGS: "-x"
+      - TARGET: aarch64-unknown-linux-musl
+        FLAGS: "-x"
+  script:
+    - '[ "$NEEDS_BSDIFF" = "true" ] || { echo "CLI-only release — skipping $TARGET"; exit 0; }'
+    - rustup target add "$TARGET"
+    - |
+      if printf '%s' "$TARGET" | grep -q musl; then
+        # cargo-zigbuild needs zig + the cargo-zigbuild shim on PATH.
+        curl -fsSL "https://ziglang.org/download/${ZIG_VERSION}/zig-linux-$(uname -m)-${ZIG_VERSION}.tar.xz" \
+          | tar -xJ -C /usr/local
+        export PATH="/usr/local/zig-linux-$(uname -m)-${ZIG_VERSION}:$PATH"
+        cargo install --locked cargo-zigbuild
+      fi
+    - bun install --frozen-lockfile
+    - cd packages/bsdiff
+    - bun run build --target "$TARGET" $FLAGS
+  artifacts:
+    paths:
+      - packages/bsdiff/*.node
+    expire_in: 1 day
+
+# Collate the downloaded .node artifacts + publish: stubs first (napi prepublish),
+# then `lerna publish from-package` (bsdiff main if bumped, then cli).
+publish-cli:
+  extends: .base-rust
+  stage: publish
+  interruptible: false
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^@better-update\/cli@/
+  needs:
+    - bsdiff-gate
+    - job: build-bsdiff-apple
+      artifacts: true
+    - job: build-bsdiff-linux
+      artifacts: true
+  script:
+    - bun install --frozen-lockfile
+    - bun run typegen:cf
+    # `bun run build` rebuilds bsdiff's git-ignored host loader (index.js/.d.ts).
+    - bun run build
+    - printf '//registry.npmjs.org/:_authToken=%s\n' "$NPM_TOKEN" > "$HOME/.npmrc"
+    - |
+      if [ "$NEEDS_BSDIFF" = "true" ]; then
+        # Collate per-platform .node artifacts into npm/<platform>/, pin the 5 stub
+        # + main optionalDependency versions, verify invariants, publish the stubs.
+        ( cd packages/bsdiff && bun run artifacts )
+        node scripts/sync-bsdiff-versions.mjs
+        bun run check:bsdiff
+        ( cd packages/bsdiff && bunx napi prepublish -t npm --no-gh-release )
+      fi
+    # Ships every unpublished public package in dependency order (bsdiff main if
+    # bumped + its stubs now on npm, then cli). Already-published ones are skipped.
+    - bun run release:publish
