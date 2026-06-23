@@ -69,9 +69,18 @@ workflow:
   before_script:
     - |
       bun_ci_install() {
+        # `timeout` is GNU-only (Linux). macOS has it as `gtimeout` (coreutils) or
+        # not at all — fall back to a plain install there (the Mac runner is
+        # dedicated, so it doesn't hit the shared-runner extraction contention).
         for a in 1 2 3; do
-          if timeout 600 bun install --frozen-lockfile; then return 0; fi
-          echo ">> bun install attempt $a failed; disk + clearing cache, then retry" >&2
+          if command -v timeout >/dev/null 2>&1; then
+            timeout 600 bun install --frozen-lockfile && return 0
+          elif command -v gtimeout >/dev/null 2>&1; then
+            gtimeout 600 bun install --frozen-lockfile && return 0
+          else
+            bun install --frozen-lockfile && return 0
+          fi
+          echo ">> bun install attempt $a failed; clearing cache, then retry" >&2
           df -h / 2>/dev/null || true
           rm -rf node_modules "$HOME/.bun/install/cache" 2>/dev/null || true
           sleep 5
