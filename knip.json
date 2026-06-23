@@ -58,5 +58,5 @@
   "ignoreDependencies": ["@better-update/oxlint-config"],
   "ignoreWorkspaces": ["packages/oxlint-config", "packages/typescript-config"],
   "ignoreExportsUsedInFile": true,
-  "ignore": ["fixtures/**"]
+  "ignore": ["fixtures/**", "scripts/sync-bsdiff-versions.mjs"]
 }
