@@ -29,8 +29,13 @@ stages:
   - publish
 
 variables:
+  # Prebuilt CI base image (node 24 + bun + rust + Linux cross targets + zig +
+  # cargo-zigbuild + node-gyp + libbz2 + jq) on Harbor — see ci/Dockerfile. Linux
+  # jobs pull this instead of node:22 + reinstalling the toolchain every run.
+  CI_IMAGE: "harbor.jmango360.dev/library/better-update-ci:node24"
+  # bun is baked into CI_IMAGE; BUN_VERSION is used ONLY by the macOS Tart jobs
+  # (they install bun in-job). Bumping bun on Linux = rebuild + repush CI_IMAGE.
   BUN_VERSION: "1.3.13"
-  ZIG_VERSION: "0.14.1"
   # Cap bun's parallel downloads/extractions so concurrent jobs on the shared
   # runner don't contend and fail tarball extraction (default is 256).
   BUN_CONFIG_MAX_HTTP_REQUESTS: "32"
@@ -53,18 +58,17 @@ workflow:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 # ---------------------------------------------------------------------------
-# Reusable setup. node:22-bookworm gives Node 22 + git + curl + a C toolchain
-# (buildpack-deps). bun is pinned to BUN_VERSION; Rust is added only where the
-# turbo graph compiles @better-update/bsdiff (napi build -> cargo).
+# Linux jobs run on CI_IMAGE (ci/Dockerfile): node 24 + bun + rust + cross
+# targets + zig/cargo-zigbuild + node-gyp + libbz2 + jq, all prebaked. macOS
+# jobs run on the Tart VM and still install bun/rust in-job.
 # ---------------------------------------------------------------------------
 # Shared setup, pulled into each before_script via a single !reference:
 #  - bun_ci_install(): resilient `bun install`. On the shared runner, parallel
 #    tarball extraction occasionally fails ("Fail extracting tarball") under I/O
 #    load AND then hangs; a `timeout` kills the hang, and we clear the cache and
 #    retry so a flake self-heals fast instead of blocking until the job timeout.
-#  - node-gyp + python3 + C++ toolchain: node-pty (a CLI dep) ships no linux-x64
-#    prebuild, so `bun install` compiles it. The slim node:22-bookworm image
-#    lacks these; the apt step is guarded so it's a no-op on the macOS runner.
+#  - node-gyp guard: node-pty (a CLI dep) has no linux-x64 prebuild → compiles.
+#    Baked into CI_IMAGE so the guard no-ops on Linux; still installs on macOS.
 .ci-setup:
   before_script:
     - |
@@ -97,7 +101,7 @@ workflow:
       fi
 
 .base-bun:
-  image: node:22-bookworm
+  image: $CI_IMAGE
   tags:
     - office-runner-01
   interruptible: true
@@ -113,14 +117,11 @@ workflow:
   before_script:
     - ulimit -n "$(ulimit -Hn)" 2>/dev/null || true
     - echo "nofile soft=$(ulimit -Sn) hard=$(ulimit -Hn)"
-    - export PATH="$HOME/.bun/bin:$PATH"
-    - |
-      if [ "$(bun --version 2>/dev/null)" != "$BUN_VERSION" ]; then
-        curl -fsSL https://bun.sh/install | bash -s "bun-v$BUN_VERSION"
-      fi
     - !reference [.ci-setup, before_script]
     - bun --version
 
+# Rust (+ cross targets, zig, cargo-zigbuild) is already baked into CI_IMAGE, so
+# .base-rust just adds the cargo target/ cache and inherits .base-bun's setup.
 .base-rust:
   extends: .base-bun
   cache:
@@ -129,22 +130,6 @@ workflow:
           - packages/bsdiff/Cargo.lock
       paths:
         - packages/bsdiff/target
-  before_script:
-    - ulimit -n "$(ulimit -Hn)" 2>/dev/null || true
-    - echo "nofile soft=$(ulimit -Sn) hard=$(ulimit -Hn)"
-    - export PATH="$HOME/.bun/bin:$HOME/.cargo/bin:$PATH"
-    - |
-      if [ "$(bun --version 2>/dev/null)" != "$BUN_VERSION" ]; then
-        curl -fsSL https://bun.sh/install | bash -s "bun-v$BUN_VERSION"
-      fi
-    - |
-      if ! command -v rustup >/dev/null 2>&1; then
-        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
-          | sh -s -- -y --profile minimal --default-toolchain stable
-      fi
-      rustup default stable
-    - !reference [.ci-setup, before_script]
-    - bun --version && cargo --version
 
 # macOS Tart runner. Same bun + rustup bootstrap, but the VM image + tag select
 # the Mac, and there's no apt/cache (Tart VMs are ephemeral). Brew is preinstalled.
@@ -236,7 +221,6 @@ conformance:
         - packages/bsdiff/**/*
         - .gitlab-ci.yml
   script:
-    - apt-get update && apt-get install -y --no-install-recommends libbz2-dev
     - bun_ci_install
     - bun --filter @better-update/bsdiff run build
     - bun --filter @better-update/bsdiff run test:conformance
@@ -275,7 +259,6 @@ release:
     # Set DRY_RUN=true when running the manual job to preview without pushing.
     DRY_RUN: "false"
   script:
-    - apt-get update && apt-get install -y --no-install-recommends jq
     - bun_ci_install
     - bun run typegen:cf
     - bun run build
@@ -434,7 +417,8 @@ build-bsdiff-apple:
     expire_in: 1 day
 
 # Linux targets: gnu via napi-cross (portable glibc baseline), musl via
-# cargo-zigbuild (`-x`, needs zig on PATH).
+# cargo-zigbuild (`-x`). The cross targets + zig + cargo-zigbuild are baked into
+# CI_IMAGE; napi-cross is fetched by napi at build time.
 build-bsdiff-linux:
   extends: .base-rust
   stage: build-native
@@ -453,16 +437,6 @@ build-bsdiff-linux:
         FLAGS: "-x"
   script:
     - '[ "$NEEDS_BSDIFF" = "true" ] || { echo "CLI-only release — skipping $TARGET"; exit 0; }'
-    - rustup target add "$TARGET"
-    - |
-      if printf '%s' "$TARGET" | grep -q musl; then
-        # cargo-zigbuild needs zig + the cargo-zigbuild shim on PATH.
-        # Zig tarballs are named zig-<arch>-<os>-<version> (arch before os).
-        ZIG_DIR="zig-$(uname -m)-linux-${ZIG_VERSION}"
-        curl -fsSL "https://ziglang.org/download/${ZIG_VERSION}/${ZIG_DIR}.tar.xz" | tar -xJ -C /usr/local
-        export PATH="/usr/local/${ZIG_DIR}:$PATH"
-        cargo install --locked cargo-zigbuild
-      fi
     - bun_ci_install
     - cd packages/bsdiff
     - bun run build --target "$TARGET" $FLAGS
