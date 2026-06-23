@@ -31,6 +31,9 @@ stages:
 variables:
   BUN_VERSION: "1.3.13"
   ZIG_VERSION: "0.14.1"
+  # Cap bun's parallel downloads/extractions so concurrent jobs on the shared
+  # runner don't contend and fail tarball extraction (default is 256).
+  BUN_CONFIG_MAX_HTTP_REQUESTS: "32"
   # Bun + Rust use DEFAULT homes (~/.bun, ~/.cargo, ~/.rustup), NOT project-dir
   # homes: (a) `turbo run build` strict-env strips CARGO_HOME/RUSTUP_HOME so a
   # redirected rust home is invisible to napi/cargo ("no default toolchain"); (b)
@@ -54,12 +57,28 @@ workflow:
 # (buildpack-deps). bun is pinned to BUN_VERSION; Rust is added only where the
 # turbo graph compiles @better-update/bsdiff (napi build -> cargo).
 # ---------------------------------------------------------------------------
-# node-pty (a @better-update/cli dep) ships no linux-x64 prebuild, so `bun
-# install` compiles it from source — which needs node-gyp + python3 + a C++
-# toolchain on PATH. The slim node:22-bookworm image lacks node-gyp/python3.
-# apt step is guarded so this is a no-op on the macOS runner.
-.node-gyp-setup:
+# Shared setup, pulled into each before_script via a single !reference:
+#  - bun_ci_install(): resilient `bun install`. On the shared runner, parallel
+#    tarball extraction occasionally fails ("Fail extracting tarball") under I/O
+#    load AND then hangs; a `timeout` kills the hang, and we clear the cache and
+#    retry so a flake self-heals fast instead of blocking until the job timeout.
+#  - node-gyp + python3 + C++ toolchain: node-pty (a CLI dep) ships no linux-x64
+#    prebuild, so `bun install` compiles it. The slim node:22-bookworm image
+#    lacks these; the apt step is guarded so it's a no-op on the macOS runner.
+.ci-setup:
   before_script:
+    - |
+      bun_ci_install() {
+        for a in 1 2 3; do
+          if timeout 600 bun install --frozen-lockfile; then return 0; fi
+          echo ">> bun install attempt $a failed; disk + clearing cache, then retry" >&2
+          df -h / 2>/dev/null || true
+          rm -rf node_modules "$HOME/.bun/install/cache" 2>/dev/null || true
+          sleep 5
+        done
+        echo ">> bun install failed after 3 attempts" >&2
+        return 1
+      }
     - |
       if ! command -v node-gyp >/dev/null 2>&1; then
         if command -v apt-get >/dev/null 2>&1; then
@@ -90,7 +109,7 @@ workflow:
       if [ "$(bun --version 2>/dev/null)" != "$BUN_VERSION" ]; then
         curl -fsSL https://bun.sh/install | bash -s "bun-v$BUN_VERSION"
       fi
-    - !reference [.node-gyp-setup, before_script]
+    - !reference [.ci-setup, before_script]
     - bun --version
 
 .base-rust:
@@ -115,7 +134,7 @@ workflow:
           | sh -s -- -y --profile minimal --default-toolchain stable
       fi
       rustup default stable
-    - !reference [.node-gyp-setup, before_script]
+    - !reference [.ci-setup, before_script]
     - bun --version && cargo --version
 
 # macOS Tart runner. Same bun + rustup bootstrap, but the VM image + tag select
@@ -149,7 +168,7 @@ workflow:
           | sh -s -- -y --profile minimal --default-toolchain stable
       fi
       rustup default stable
-    - !reference [.node-gyp-setup, before_script]
+    - !reference [.ci-setup, before_script]
     - bun --version && cargo --version
 
 # ---------------------------------------------------------------------------
@@ -165,7 +184,7 @@ lint-test-build:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   script:
-    - bun install --frozen-lockfile
+    - bun_ci_install
     - bun run typegen:cf
     - bun run check:bsdiff
     - bun run check
@@ -180,7 +199,7 @@ e2e-server:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   script:
-    - bun install --frozen-lockfile
+    - bun_ci_install
     - bun run typegen:cf
     - bun --filter @better-update/server test:e2e-pool
 
@@ -191,7 +210,7 @@ integrations:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   script:
-    - bun install --frozen-lockfile
+    - bun_ci_install
     - bun run typegen:cf
     - bun run test:integrations
 
@@ -209,7 +228,7 @@ conformance:
         - .gitlab-ci.yml
   script:
     - apt-get update && apt-get install -y --no-install-recommends libbz2-dev
-    - bun install --frozen-lockfile
+    - bun_ci_install
     - bun --filter @better-update/bsdiff run build
     - bun --filter @better-update/bsdiff run test:conformance
 
@@ -223,7 +242,7 @@ conformance-macos:
         - .gitlab-ci.yml
   script:
     - brew install bzip2
-    - bun install --frozen-lockfile
+    - bun_ci_install
     - bun --filter @better-update/bsdiff run build
     - bun --filter @better-update/bsdiff run test:conformance
 
@@ -248,7 +267,7 @@ release:
     DRY_RUN: "false"
   script:
     - apt-get update && apt-get install -y --no-install-recommends jq
-    - bun install --frozen-lockfile
+    - bun_ci_install
     - bun run typegen:cf
     - bun run build
 
@@ -336,7 +355,7 @@ deploy-server:
   rules:
     - if: $CI_COMMIT_TAG =~ /^@better-update\/server@/
   script:
-    - bun install --frozen-lockfile
+    - bun_ci_install
     - cd apps/server
     - bunx wrangler d1 migrations apply better-update --remote
     - bun run deploy
@@ -349,7 +368,7 @@ deploy-web:
   rules:
     - if: $CI_COMMIT_TAG =~ /^@better-update\/web@/
   script:
-    - bun install --frozen-lockfile
+    - bun_ci_install
     - cd apps/web
     - bun run deploy
 
@@ -396,7 +415,7 @@ build-bsdiff-apple:
     TARGET: aarch64-apple-darwin
   script:
     - '[ "$NEEDS_BSDIFF" = "true" ] || { echo "CLI-only release — skipping $TARGET"; exit 0; }'
-    - bun install --frozen-lockfile
+    - bun_ci_install
     - rustup target add "$TARGET"
     - cd packages/bsdiff
     - bun run build --target "$TARGET"
@@ -435,7 +454,7 @@ build-bsdiff-linux:
         export PATH="/usr/local/${ZIG_DIR}:$PATH"
         cargo install --locked cargo-zigbuild
       fi
-    - bun install --frozen-lockfile
+    - bun_ci_install
     - cd packages/bsdiff
     - bun run build --target "$TARGET" $FLAGS
   artifacts:
@@ -458,7 +477,7 @@ publish-cli:
     - job: build-bsdiff-linux
       artifacts: true
   script:
-    - bun install --frozen-lockfile
+    - bun_ci_install
     - bun run typegen:cf
     # `bun run build` rebuilds bsdiff's git-ignored host loader (index.js/.d.ts).
     - bun run build
