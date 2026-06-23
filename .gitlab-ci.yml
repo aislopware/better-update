@@ -493,6 +493,11 @@ publish-cli:
     - printf '//registry.npmjs.org/:_authToken=%s\n' "$NPM_TOKEN" > "$HOME/.npmrc"
     - |
       if [ "$NEEDS_BSDIFF" = "true" ]; then
+        # GitLab restores the build-job artifacts to packages/bsdiff/*.node, but
+        # `napi artifacts` collates from packages/bsdiff/artifacts/ — stage them
+        # there first (GitHub's download-artifact placed them under artifacts/).
+        mkdir -p packages/bsdiff/artifacts
+        mv packages/bsdiff/*.node packages/bsdiff/artifacts/ 2>/dev/null || true
         # Collate per-platform .node artifacts into npm/<platform>/, pin the 5 stub
         # + main optionalDependency versions, verify invariants, publish the stubs.
         ( cd packages/bsdiff && bun run artifacts )
