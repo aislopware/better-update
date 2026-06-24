@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.41.1](https://github.com/better-update/better-update/compare/@better-update/cli@0.41.0...@better-update/cli@0.41.1) (2026-06-24)
+
+### Bug Fixes
+
+* **cli:** make staged tree clean so expo prebuild never prompts on git status ([6d81065](https://github.com/better-update/better-update/commit/6d81065a8d7420ecb0c5d8c7f59197d0d1fe4a20))
+
 ## [0.41.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.40.2...@better-update/cli@0.41.0) (2026-06-23)
 
 ### Features
