@@ -272,16 +272,14 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
         BETTER_UPDATE_BUILD_PLATFORM: platform,
         BETTER_UPDATE_BUILD_PROFILE: profile.name,
         BETTER_UPDATE_BUILD_PROJECT_ID: projectId,
-        // Suppress `expo prebuild --clean`'s own "Continue with uncommitted
-        // changes?" git check. The native build runs against a staged copy that
-        // is a fresh `git init` (every file untracked), so Expo always reads the
-        // tree as dirty; and because prebuild runs inside a PTY, Expo's
-        // `isInteractive()` is true even with no real controlling TTY, so it
-        // prompts and then hangs on stdin we never write (CI / backgrounded /
-        // piped builds stall indefinitely). The user-facing dirty-tree gate
-        // already ran against the *real* working tree in `ensureRepoClean` above
-        // — honoring --allow-dirty and failing fast non-interactively — which
-        // makes Expo's downstream check both redundant and unanswerable here.
+        // Backup suppressor for `expo prebuild --clean`'s "Continue with
+        // uncommitted changes?" git check (newer Expo only — older releases
+        // ignore this env). The PRIMARY fix is committing the staged tree clean
+        // in `prepareStagingProject` (see `commitStagingSnapshot`), which
+        // neutralizes the prompt on every Expo version. The user-facing
+        // dirty-tree gate already ran against the *real* working tree in
+        // `ensureRepoClean` above — honoring --allow-dirty and failing fast
+        // non-interactively — so Expo's downstream check is redundant here.
         EXPO_NO_GIT_STATUS: "1",
         ...compact({ BETTER_UPDATE_BUILD_GIT_COMMIT_HASH: rawGitContext.commit }),
       };

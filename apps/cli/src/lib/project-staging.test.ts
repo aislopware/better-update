@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -6,7 +7,15 @@ import { NodeFileSystem } from "@effect/platform-node";
 import { it } from "@effect/vitest";
 import { Effect } from "effect";
 
-import { buildIgnoreInstance, detectWorkspaceRoot, installArgs } from "./project-staging";
+import {
+  buildIgnoreInstance,
+  commitStagingSnapshot,
+  detectWorkspaceRoot,
+  installArgs,
+} from "./project-staging";
+
+const gitStatus = (dir: string): string =>
+  execFileSync("git", ["status", "--porcelain"], { cwd: dir, encoding: "utf8" });
 
 const makeDir = (prefix: string): string => realpathSync(mkdtempSync(path.join(tmpdir(), prefix)));
 
@@ -332,5 +341,56 @@ describe(buildIgnoreInstance, () => {
         dispose(root);
       }
     }).pipe(Effect.provide(NodeFileSystem.layer)),
+  );
+});
+
+describe(commitStagingSnapshot, () => {
+  it.effect("makes a freshly init'd, all-untracked tree read clean (BU-5)", () =>
+    Effect.gen(function* () {
+      const root = makeDir("staging-commit-");
+      try {
+        // Mirror staging: a fresh `git init` with copied source but no commit.
+        execFileSync("git", ["init", "-q", root]);
+        writeFileSync(path.join(root, "App.tsx"), "export default null;\n");
+        writeFileSync(path.join(root, ".gitignore"), "node_modules\n");
+        mkdirSync(path.join(root, "node_modules"), { recursive: true });
+        writeFileSync(path.join(root, "node_modules", "dep.js"), "module.exports = {};\n");
+
+        // This is the dirty state Expo's prebuild git check reads as "dirty"
+        // and prompts on (untracked App.tsx + .gitignore).
+        expect(gitStatus(root).trim()).not.toBe("");
+
+        yield* commitStagingSnapshot(root);
+
+        // After the snapshot commit the tree reads clean, so `expo prebuild`'s
+        // `git status --porcelain` returns empty and it never prompts.
+        expect(gitStatus(root).trim()).toBe("");
+      } finally {
+        dispose(root);
+      }
+    }),
+  );
+
+  it.effect("does not track gitignored paths into the snapshot", () =>
+    Effect.gen(function* () {
+      const root = makeDir("staging-commit-ignore-");
+      try {
+        execFileSync("git", ["init", "-q", root]);
+        writeFileSync(path.join(root, ".gitignore"), "node_modules\nios/\n");
+        writeFileSync(path.join(root, "index.js"), "1;\n");
+        mkdirSync(path.join(root, "ios"), { recursive: true });
+        writeFileSync(path.join(root, "ios", "Podfile"), "platform :ios\n");
+
+        yield* commitStagingSnapshot(root);
+
+        const tracked = execFileSync("git", ["ls-files"], { cwd: root, encoding: "utf8" });
+        expect(tracked).toContain("index.js");
+        // Gitignored native dir stays untracked, so a later `expo prebuild`
+        // regenerating ios/ never shows up as a dirty change.
+        expect(tracked).not.toContain("ios/Podfile");
+      } finally {
+        dispose(root);
+      }
+    }),
   );
 });

@@ -334,6 +334,51 @@ const initGitRepo = (stagingRoot: string): Effect.Effect<void, StagingError> =>
   }).pipe(Effect.asVoid);
 
 /**
+ * Snapshot the staged tree as a single commit so its working tree reads CLEAN.
+ *
+ * EAS stages via `git clone` + checkout, so the tree it hands to
+ * `expo prebuild --clean` is a clean checkout. Our `cp` + `git init` leaves
+ * every staged file UNTRACKED, which `expo prebuild`'s git check reads as
+ * "dirty" (`git status --porcelain` is non-empty). Because the native build
+ * runs inside a PTY, Expo's `isInteractive()` is true even with no real
+ * controlling TTY, so it prompts `Continue with uncommitted changes?` and then
+ * blocks on stdin we never write — hanging CI / backgrounded / piped builds.
+ *
+ * Committing once here makes `git status` clean, so Expo's check passes on
+ * EVERY Expo version — the `EXPO_NO_GIT_STATUS` env gate the build sets only
+ * exists in newer Expo — with no global `CI=1` side effects. The real
+ * dirty-tree decision already ran against the user's *actual* working tree in
+ * `ensureRepoClean` (honoring `--allow-dirty`). Best-effort: hooks are disabled
+ * and a failure is non-fatal — the build proceeds and `EXPO_NO_GIT_STATUS`
+ * still covers newer Expo.
+ */
+export const commitStagingSnapshot = (stagingRoot: string): Effect.Effect<void> =>
+  Effect.tryPromise(async () => {
+    const run = async (args: readonly string[]): Promise<unknown> =>
+      execFileAsync("git", [...args], {
+        cwd: stagingRoot,
+        // Don't fire the user's git hooks (lefthook / husky / simple-git-hooks,
+        // installed by the staged postinstall) on this throwaway snapshot.
+        env: { ...process.env, LEFTHOOK: "0", HUSKY: "0" },
+      });
+    await run(["add", "-A"]);
+    await run([
+      "-c",
+      "user.name=better-update",
+      "-c",
+      "user.email=build@better-update.dev",
+      "-c",
+      "commit.gpgsign=false",
+      "commit",
+      "--no-verify",
+      "--allow-empty",
+      "-q",
+      "-m",
+      "better-update staging snapshot",
+    ]);
+  }).pipe(Effect.ignore);
+
+/**
  * Install args per package manager, frozen-lockfile variants matching EAS
  * (`bun install --frozen-lockfile` / `npm ci --include=dev` / etc.) so the
  * staged install resolves exactly what the user's lockfile pins.
@@ -431,6 +476,11 @@ export const prepareStagingProject = (
     } else {
       yield* printHuman("No package.json at the staging root — skipping dependency install.");
     }
+
+    // Commit AFTER install so the (potentially lockfile-touching) install is
+    // captured and the tree Expo prebuilds against reads clean. See
+    // `commitStagingSnapshot` for why this stops `expo prebuild` from hanging.
+    yield* commitStagingSnapshot(stagingRoot);
 
     return { stagingRoot, projectRoot, packageManager, relAppPath };
   });
