@@ -49,6 +49,13 @@ export default defineConfig({
     "react/no-multi-comp": "off",
     "react/forbid-component-props": "off",
     "react/only-export-components": "off",
+    // New in oxlint 1.71. Targets i18n-mandated codebases where all copy must route through a
+    // translation function; this dashboard ships English literals directly, so it just floods.
+    "react/jsx-no-literals": "off",
+    // New in oxlint 1.71. React Compiler isn't in this app's build pipeline, and the diagnostics
+    // are almost all non-actionable "Compilation Skipped: incompatible library" notices about
+    // TanStack APIs that return functions — advisory noise rather than real defects here.
+    "react/react-compiler": "off",
   },
   overrides: [
     {

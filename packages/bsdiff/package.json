@@ -35,11 +35,11 @@
     "@napi-rs/cli": "^3.7.2"
   },
   "optionalDependencies": {
-    "@better-update/bsdiff-darwin-arm64": "0.2.8",
-    "@better-update/bsdiff-linux-arm64-gnu": "0.2.8",
-    "@better-update/bsdiff-linux-arm64-musl": "0.2.8",
-    "@better-update/bsdiff-linux-x64-gnu": "0.2.8",
-    "@better-update/bsdiff-linux-x64-musl": "0.2.8"
+    "@better-update/bsdiff-darwin-arm64": "0.2.9",
+    "@better-update/bsdiff-linux-arm64-gnu": "0.2.9",
+    "@better-update/bsdiff-linux-arm64-musl": "0.2.9",
+    "@better-update/bsdiff-linux-x64-gnu": "0.2.9",
+    "@better-update/bsdiff-linux-x64-musl": "0.2.9"
   },
   "napi": {
     "binaryName": "bsdiff",

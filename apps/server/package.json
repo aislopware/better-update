@@ -30,7 +30,7 @@
     "typegen:cf": "wrangler types"
   },
   "dependencies": {
-    "@better-auth/api-key": "^1.6.18",
+    "@better-auth/api-key": "^1.6.20",
     "@better-update/api": "workspace:*",
     "@better-update/dotenv": "workspace:*",
     "@better-update/encoding": "workspace:*",
@@ -38,12 +38,12 @@
     "@better-update/expo-protocol": "workspace:*",
     "@better-update/safe-json": "workspace:*",
     "@better-update/type-guards": "workspace:*",
-    "@effect/platform": "^0.96.1",
+    "@effect/platform": "^0.96.2",
     "@noble/hashes": "^2.2.0",
     "@xmldom/xmldom": "^0.9.10",
-    "better-auth": "^1.6.18",
-    "effect": "^3.21.3",
-    "es-toolkit": "^1.47.1",
+    "better-auth": "^1.6.20",
+    "effect": "^3.21.4",
+    "es-toolkit": "^1.48.1",
     "kysely": "^0.29.2",
     "s3mini": "^0.9.5",
     "structured-headers": "^2.0.2"
@@ -51,12 +51,12 @@
   "devDependencies": {
     "@better-update/oxlint-config": "workspace:*",
     "@better-update/typescript-config": "workspace:*",
-    "@cloudflare/vite-plugin": "^1.40.2",
-    "@cloudflare/vitest-pool-workers": "^0.16.15",
-    "@vitest/coverage-istanbul": "^4.1.8",
+    "@cloudflare/vite-plugin": "^1.42.1",
+    "@cloudflare/vitest-pool-workers": "^0.16.18",
+    "@vitest/coverage-istanbul": "^4.1.9",
     "kysely-bun-sqlite": "^0.4.0",
     "kysely-codegen": "^0.20.0",
     "vite": "^8.0.16",
-    "wrangler": "^4.100.0"
+    "wrangler": "^4.103.0"
   }
 }

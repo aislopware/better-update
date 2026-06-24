@@ -36,31 +36,31 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.101.0",
-    "@tanstack/react-router": "^1.170.15"
+    "@tanstack/react-router": "^1.170.16"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.0.2",
     "@commitlint/config-conventional": "^21.0.2",
     "@effect/language-service": "^0.86.2",
-    "@effect/tsgo": "^0.14.3",
+    "@effect/tsgo": "^0.14.6",
     "@effect/vitest": "^0.29.0",
     "@lerna-lite/cli": "^5.3.0",
     "@lerna-lite/publish": "^5.3.0",
     "@tanstack/eslint-plugin-router": "^1.162.0",
-    "@types/node": "^25.9.3",
-    "@typescript/native-preview": "^7.0.0-dev.20260614.1",
+    "@types/node": "^26.0.0",
+    "@typescript/native-preview": "^7.0.0-dev.20260622.1",
     "conventional-changelog-conventionalcommits": "^9.3.1",
     "eslint-plugin-functional": "^10.0.0",
-    "knip": "^6.16.1",
+    "knip": "^6.18.0",
     "lefthook": "^2.1.9",
-    "oxfmt": "^0.54.0",
-    "oxlint": "^1.69.0",
-    "oxlint-plugin-eslint": "1.69.0",
+    "oxfmt": "^0.56.0",
+    "oxlint": "^1.71.0",
+    "oxlint-plugin-eslint": "1.71.0",
     "oxlint-tsgolint": "^0.23.0",
     "portless": "^0.14.0",
     "turbo": "^2.9.18",
     "type-fest": "^5.7.0",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.9"
   },
   "overrides": {
     "kysely": "0.29.2"

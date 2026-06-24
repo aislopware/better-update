@@ -11,7 +11,7 @@ export default defineConfig({
     nursery: "warn",
   },
   plugins: ["typescript", "unicorn", "oxc", "import", "vitest", "jsdoc", "node", "promise"],
-  jsPlugins: ["eslint-plugin-functional", "oxlint-plugin-eslint"],
+  jsPlugins: ["eslint-plugin-functional", { name: "eslint-js", specifier: "oxlint-plugin-eslint" }],
   rules: {
     "eslint-js/no-restricted-syntax": [
       "error",
@@ -132,6 +132,22 @@ export default defineConfig({
     "unicorn/no-nested-ternary": "off",
     "unicorn/no-null": "off",
     "unicorn/no-useless-undefined": "off",
+    // Rules newly implemented/enabled in oxlint 1.71 that clash with this codebase's idioms.
+    // `throw-new-error`'s autofix wrongly inserts `new` before Effect's `Schema.TaggedError()` /
+    // `Data.TaggedError()` factory calls in class `extends` clauses (not throws), breaking them —
+    // and the codebase avoids raw throws (functional/no-throw-statements) anyway.
+    // `max-nested-calls` fights Effect's declarative Schema/HttpApi combinator nesting
+    // (e.g. `Schema.Struct({ items: Schema.Array(Schema.optional(X)) })`), which is unavoidable.
+    // The remaining three are stylistic preferences we don't enforce repo-wide.
+    "unicorn/throw-new-error": "off",
+    "unicorn/max-nested-calls": "off",
+    "unicorn/prefer-export-from": "off",
+    "unicorn/prefer-number-coercion": "off",
+    "unicorn/prefer-single-call": "off",
+
+    // CLI build tooling (and Vite/Wrangler config) legitimately uses synchronous fs APIs; the
+    // server runs on Workers where node's sync I/O isn't even available. New in oxlint 1.71.
+    "node/no-sync": "off",
 
     "import/exports-last": "off",
     "import/group-exports": "off",
