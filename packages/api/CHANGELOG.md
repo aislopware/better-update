@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.26.0](https://gitlab.jmango360.com/mobile/better-update/compare/@better-update/api@0.25.0...@better-update/api@0.26.0) (2026-06-25)
+
+### Features
+
+* add project logo upload to the portal ([c0f5002](https://gitlab.jmango360.com/mobile/better-update/commit/c0f5002999a476e3bb16016926e2e55af700b41e))
+
 ## [0.25.0](https://github.com/aislopware/better-update/compare/@better-update/api@0.24.0...@better-update/api@0.25.0) (2026-06-23)
 
 ### Features

@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.34.0](https://github.com/better-update/better-update/compare/@better-update/server@0.33.0...@better-update/server@0.34.0) (2026-06-25)
+
+### Features
+
+* add project logo upload to the portal ([c0f5002](https://github.com/better-update/better-update/commit/c0f5002999a476e3bb16016926e2e55af700b41e))
+
 ## [0.33.0](https://github.com/better-update/better-update/compare/@better-update/server@0.32.3...@better-update/server@0.33.0) (2026-06-23)
 
 ### Features

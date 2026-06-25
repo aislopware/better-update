@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.6.4](https://gitlab.jmango360.com/mobile/better-update/compare/@better-update/auth-client@0.6.3...@better-update/auth-client@0.6.4) (2026-06-25)
+
+**Note:** Version bump only for package @better-update/auth-client
+
 ## [0.6.3](https://github.com/aislopware/better-update/compare/@better-update/auth-client@0.6.2...@better-update/auth-client@0.6.3) (2026-06-17)
 
 **Note:** Version bump only for package @better-update/auth-client
