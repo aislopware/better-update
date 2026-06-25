@@ -61,6 +61,7 @@ const mockProjectRepo = (orgId: string | null) =>
         ? Effect.fail(new NotFound({ message: "Project not found" }))
         : Effect.succeed(orgId),
     updateName: () => Effect.void,
+    updateLogoUrl: () => Effect.void,
     delete: () => Effect.void,
     findArchivedAt: () => Effect.succeed(null),
     setArchived: () => Effect.void,

@@ -479,6 +479,7 @@ export interface Projects {
   created_at: string;
   id: string;
   last_activity_at: string | null;
+  logo_url: string | null;
   name: string;
   organization_id: string;
   scope_key: string | null;

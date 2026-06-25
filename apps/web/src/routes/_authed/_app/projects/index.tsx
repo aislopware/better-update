@@ -145,7 +145,13 @@ const ProjectNameCell = ({ project }: { project: ProjectItem }) => (
       event.stopPropagation();
     }}
   >
-    <EntityAvatar name={project.name} seed={project.slug} size="sm" shape="square" />
+    <EntityAvatar
+      name={project.name}
+      seed={project.slug}
+      image={project.logoUrl}
+      size="sm"
+      shape="square"
+    />
     <div className="flex min-w-0 flex-col">
       <span className="text-foreground truncate font-medium">{project.name}</span>
       <code className="text-muted-foreground truncate font-mono text-xs">/{project.slug}</code>

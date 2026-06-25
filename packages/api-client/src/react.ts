@@ -184,6 +184,7 @@ export {
   editUpdateRollout,
   fingerprintDetailQueryKey,
   fingerprintDetailQueryOptions,
+  isProjectLogoContentType,
   pauseChannel,
   platformAnalyticsQueryKey,
   platformAnalyticsQueryOptions,
@@ -193,6 +194,7 @@ export {
   projectQueryOptions,
   projectsQueryKey,
   projectsQueryOptions,
+  removeProjectLogo,
   renameBranch,
   renameProject,
   republishUpdate,
@@ -214,6 +216,7 @@ export {
   updateQueryOptions,
   updatesQueryKey,
   updatesQueryOptions,
+  uploadProjectLogo,
 } from "./react/projects";
 export type {
   BranchSort,
@@ -223,6 +226,7 @@ export type {
   ChannelSortColumn,
   ChannelsFilters,
   ProjectListStatus,
+  ProjectLogoContentTypeValue,
   ProjectSort,
   ProjectSortColumn,
   ProjectsFilters,

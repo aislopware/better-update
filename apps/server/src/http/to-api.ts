@@ -69,6 +69,7 @@ export const toApiProject = (project: ProjectModel) =>
     createdAt: project.createdAt,
     lastActivityAt: project.lastActivityAt,
     archivedAt: project.archivedAt,
+    logoUrl: project.logoUrl,
     branchCount: project.branchCount,
     channelCount: project.channelCount,
     updateCount: project.updateCount,

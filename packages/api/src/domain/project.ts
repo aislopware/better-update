@@ -1,6 +1,13 @@
 import { Schema } from "effect";
 
-import { DeletedResult, PaginationParams, DateTimeString, Id, sortParam } from "./common";
+import {
+  DeletedResult,
+  PaginationParams,
+  DateTimeString,
+  Id,
+  sortParam,
+  UploadHeaders,
+} from "./common";
 
 export class Project extends Schema.Class<Project>("Project")({
   id: Id,
@@ -11,10 +18,37 @@ export class Project extends Schema.Class<Project>("Project")({
   lastActivityAt: DateTimeString,
   /** ISO-8601 timestamp the project was archived (read-only); `null` when active. */
   archivedAt: Schema.NullOr(DateTimeString),
+  /** Absolute public CDN URL of the project logo; `null` when none is set. */
+  logoUrl: Schema.NullOr(Schema.String),
   branchCount: Schema.Number,
   channelCount: Schema.Number,
   updateCount: Schema.Number,
 }) {}
+
+/** Image MIME types accepted for a project logo. */
+export const ProjectLogoContentType = Schema.Literal(
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/svg+xml",
+);
+
+/**
+ * Request a presigned PUT to upload a project logo. The server builds the R2 key
+ * itself (`logos/{projectId}`) — never trusting a client-sent key — and signs the
+ * content type into the URL, so the direct upload must send the returned headers.
+ */
+export const ProjectLogoUploadBody = Schema.Struct({
+  contentType: ProjectLogoContentType,
+});
+
+export const ProjectLogoUploadResult = Schema.Struct({
+  /** R2 object key the presigned URL targets (`logos/{projectId}`). */
+  key: Schema.String,
+  uploadUrl: Schema.String,
+  uploadExpiresAt: DateTimeString,
+  uploadHeaders: UploadHeaders,
+});
 
 export const ProjectSortColumn = Schema.Literal(
   "lastActivityAt",

@@ -4,12 +4,14 @@ import { Schema } from "effect";
 import { Forbidden } from "../auth/errors";
 import { NotFound } from "../auth/ownership";
 import { idParam, pageResult } from "../domain/common";
-import { Conflict } from "../domain/errors";
+import { BadRequest, Conflict } from "../domain/errors";
 import {
   CreateProjectBody,
   DeleteProjectResult,
   ListProjectsParams,
   Project,
+  ProjectLogoUploadBody,
+  ProjectLogoUploadResult,
   UpdateProjectBody,
 } from "../domain/project";
 
@@ -68,6 +70,42 @@ export class ProjectsGroup extends HttpApiGroup.make("projects")
       ),
   )
   .add(
+    HttpApiEndpoint.post("createLogoUploadUrl")`/api/projects/${idParam}/logo/upload-url`
+      .setPayload(ProjectLogoUploadBody)
+      .addSuccess(ProjectLogoUploadResult)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Create project logo upload URL",
+          description:
+            "Request a presigned PUT URL to upload a project logo directly to object " +
+            "storage. Send the returned headers with the upload, then call “Set project " +
+            "logo” to finalize.",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.put("setLogo")`/api/projects/${idParam}/logo`
+      .addSuccess(Project)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Set project logo",
+          description:
+            "Finalize a project logo after its bytes were uploaded via the presigned URL: " +
+            "validates the stored object and records its public CDN URL on the project.",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.del("removeLogo")`/api/projects/${idParam}/logo`
+      .addSuccess(Project)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Remove project logo",
+          description: "Remove the project logo, clearing it back to the default avatar",
+        }),
+      ),
+  )
+  .add(
     HttpApiEndpoint.del("delete")`/api/projects/${idParam}`
       .addSuccess(DeleteProjectResult)
       .annotateContext(
@@ -102,6 +140,7 @@ export class ProjectsGroup extends HttpApiGroup.make("projects")
   )
   .addError(NotFound)
   .addError(Conflict)
+  .addError(BadRequest)
   .addError(Forbidden)
   .annotateContext(
     OpenApi.annotations({

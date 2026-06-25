@@ -93,6 +93,7 @@ export const ProjectSwitcher = ({ orgId, currentProjectSlug }: ProjectSwitcherPr
                     <EntityAvatar
                       name={project.name}
                       seed={project.slug}
+                      image={project.logoUrl}
                       size="sm"
                       shape="square"
                     />

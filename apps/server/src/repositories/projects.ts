@@ -70,6 +70,12 @@ export interface ProjectRepository {
     readonly name: string;
   }) => Effect.Effect<void>;
 
+  /** Set (or clear, with `null`) the project's logo URL. */
+  readonly updateLogoUrl: (params: {
+    readonly id: string;
+    readonly logoUrl: string | null;
+  }) => Effect.Effect<void>;
+
   readonly delete: (params: { readonly id: string }) => Effect.Effect<void>;
 
   /**
@@ -109,6 +115,7 @@ interface ProjectRow {
   created_at: string;
   last_activity_at: string;
   archived_at: string | null;
+  logo_url: string | null;
   branch_count: number | null;
   channel_count: number | null;
   update_count: number | null;
@@ -123,6 +130,7 @@ const toProject = (row: ProjectRow) =>
     createdAt: row.created_at,
     lastActivityAt: row.last_activity_at,
     archivedAt: row.archived_at,
+    logoUrl: row.logo_url,
     // Correlated COUNT subqueries are typed `number | null` by Kysely; coerce to
     // a plain number (a scalar COUNT subquery never actually returns null).
     branchCount: Number(row.branch_count),
@@ -141,6 +149,7 @@ const projectColumns = (eb: ExpressionBuilder<DB, "projects">) =>
     "projects.slug",
     "projects.created_at",
     "projects.archived_at",
+    "projects.logo_url",
     sql<string>`coalesce(${eb.ref("projects.last_activity_at")}, ${eb.ref("projects.created_at")})`.as(
       "last_activity_at",
     ),
@@ -370,6 +379,18 @@ export const ProjectRepoLive = Layer.succeed(ProjectRepo, {
       const db = yield* kyselyDb;
       yield* Effect.promise(async () =>
         db.updateTable("projects").set({ name: params.name }).where("id", "=", params.id).execute(),
+      );
+    }),
+
+  updateLogoUrl: (params) =>
+    Effect.gen(function* () {
+      const db = yield* kyselyDb;
+      yield* Effect.promise(async () =>
+        db
+          .updateTable("projects")
+          .set({ logo_url: params.logoUrl })
+          .where("id", "=", params.id)
+          .execute(),
       );
     }),
 

@@ -176,6 +176,7 @@ const archivedRepo = (archivedAt: string | null): ProjectRepository => ({
   listAllIds: () => Effect.succeed([]),
   findOrgIdById: () => Effect.fail(new NotFound({ message: "unexpected" })),
   updateName: () => Effect.void,
+  updateLogoUrl: () => Effect.void,
   delete: () => Effect.void,
   findArchivedAt: () => Effect.succeed(archivedAt),
   setArchived: () => Effect.void,

@@ -7,8 +7,12 @@ import { CurrentActor } from "../auth/current-actor";
 import { assertOrgOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
 import { assertAccess } from "../auth/policy";
+import { AssetStorage } from "../cloudflare/asset-storage";
+import { cloudflareEnv } from "../cloudflare/context";
+import { createDirectUploadHeaders } from "../cloudflare/signed-url";
+import { BadRequest } from "../errors";
 import { toApiProject } from "../http/to-api";
-import { toApiCrudEffect } from "../http/to-api-effect";
+import { toApiBadRequestReadEffect, toApiCrudEffect } from "../http/to-api-effect";
 import { parsePagination } from "../lib/pagination";
 import { BranchRepo } from "../repositories/branches";
 import { ChannelRepo } from "../repositories/channels";
@@ -20,6 +24,141 @@ import type { ProjectSortKey, ProjectSortOrder } from "../repositories/projects"
 // channel per name, flagged built-in so they cannot be renamed or deleted (their
 // operational actions stay available). Mirrors the built-in environment entity.
 const DEFAULT_ENVIRONMENT_NAMES = ["development", "preview", "production"] as const;
+
+// Project logos live in the assets bucket under a fixed per-project key, served
+// publicly via the asset CDN. The presigned PUT expires fast; the upload is a
+// quick precursor to the `setLogo` finalize call.
+const LOGO_UPLOAD_EXPIRY_SECONDS = 600;
+
+// Hard cap (2 MiB) enforced post-upload (a presigned PUT can't bound its own
+// size): the finalize step heads the object and rejects anything larger.
+const MAX_LOGO_BYTES = 2_097_152;
+
+const LOGO_CONTENT_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/svg+xml"]);
+
+const logoR2Key = (projectId: string): string => `logos/${projectId}`;
+
+/**
+ * Validate an uploaded logo object's stored metadata against the size cap and the
+ * allowed image types. Returns a human-readable rejection reason, or `null` when
+ * the object is acceptable. A `null` content type (R2 didn't record one) passes —
+ * the presigned PUT already signed an allowed type at request time.
+ */
+export const logoRejectionReason = (params: {
+  readonly size: number;
+  readonly contentType: string | null;
+}): string | null => {
+  if (params.size > MAX_LOGO_BYTES) {
+    return "Logo must be 2 MB or smaller";
+  }
+  if (params.contentType !== null && !LOGO_CONTENT_TYPES.has(params.contentType)) {
+    return `Unsupported logo type: ${params.contentType}`;
+  }
+  return null;
+};
+
+// Load + authorize a project for a logo write. Shared preamble of the three logo
+// handlers; returns the project so callers can echo it back with the new state.
+const loadProjectForLogoWrite = (id: string) =>
+  Effect.gen(function* () {
+    const repo = yield* ProjectRepo;
+    const project = yield* repo.findById({ id });
+    yield* assertOrgOwnership(project.organizationId);
+    yield* assertAccess("project", "update", { kind: "project", projectId: id });
+    return project;
+  });
+
+const createLogoUploadUrlEffect = (id: string, contentType: string) =>
+  toApiCrudEffect(
+    Effect.gen(function* () {
+      yield* loadProjectForLogoWrite(id);
+
+      const storage = yield* AssetStorage;
+      // Build the key server-side — never trust a client-sent key — and sign the
+      // content type so the direct upload must declare the same image type.
+      const key = logoR2Key(id);
+      const uploadUrl = yield* storage.createUploadUrl({
+        key,
+        contentType,
+        expiresIn: LOGO_UPLOAD_EXPIRY_SECONDS,
+      });
+      const uploadExpiresAt = new Date(
+        Date.now() + LOGO_UPLOAD_EXPIRY_SECONDS * 1000,
+      ).toISOString();
+
+      return {
+        key,
+        uploadUrl,
+        uploadExpiresAt,
+        uploadHeaders: createDirectUploadHeaders({ contentType }),
+      };
+    }),
+  );
+
+const setLogoEffect = (id: string) =>
+  toApiBadRequestReadEffect(
+    Effect.gen(function* () {
+      const project = yield* loadProjectForLogoWrite(id);
+
+      const storage = yield* AssetStorage;
+      const key = logoR2Key(id);
+      const stored = yield* storage.headObject({ key });
+      if (!stored) {
+        return yield* new BadRequest({
+          message: "Logo upload not found; upload the image before finalizing",
+        });
+      }
+
+      // The presigned PUT can't cap its own size or fully constrain its type;
+      // enforce both here and drop a rejected object so it can't be served.
+      const rejection = logoRejectionReason({
+        size: stored.size,
+        contentType: stored.contentType,
+      });
+      if (rejection !== null) {
+        yield* storage.deleteObjects({ keys: [key] });
+        return yield* new BadRequest({ message: rejection });
+      }
+
+      const env = yield* cloudflareEnv;
+      // Cache-bust the public URL by the object's etag: replacing the logo yields
+      // new bytes → new etag → new URL, while the R2 key stays fixed (no orphans).
+      const version = encodeURIComponent(stored.etag ?? crypto.randomUUID());
+      const logoUrl = `${env.ASSET_CDN_URL}/${key}?v=${version}`;
+      const repo = yield* ProjectRepo;
+      yield* repo.updateLogoUrl({ id, logoUrl });
+
+      yield* logAudit({
+        action: "project.logo.update",
+        resourceType: "project",
+        resourceId: id,
+        projectId: id,
+      });
+
+      return toApiProject({ ...project, logoUrl });
+    }),
+  );
+
+const removeLogoEffect = (id: string) =>
+  toApiCrudEffect(
+    Effect.gen(function* () {
+      const project = yield* loadProjectForLogoWrite(id);
+
+      const storage = yield* AssetStorage;
+      yield* storage.deleteObjects({ keys: [logoR2Key(id)] });
+      const repo = yield* ProjectRepo;
+      yield* repo.updateLogoUrl({ id, logoUrl: null });
+
+      yield* logAudit({
+        action: "project.logo.remove",
+        resourceType: "project",
+        resourceId: id,
+        projectId: id,
+      });
+
+      return toApiProject({ ...project, logoUrl: null });
+    }),
+  );
 
 const parseProjectSort = (
   value: string | undefined = "-lastActivityAt",
@@ -115,6 +254,7 @@ export const ProjectsGroupLive = HttpApiBuilder.group(ManagementApi, "projects",
             createdAt: now,
             lastActivityAt: now,
             archivedAt: null,
+            logoUrl: null,
             branchCount: DEFAULT_ENVIRONMENT_NAMES.length,
             channelCount: DEFAULT_ENVIRONMENT_NAMES.length,
             updateCount: 0,
@@ -191,6 +331,11 @@ export const ProjectsGroupLive = HttpApiBuilder.group(ManagementApi, "projects",
         }),
       ),
     )
+    .handle("createLogoUploadUrl", ({ path, payload }) =>
+      createLogoUploadUrlEffect(path.id, payload.contentType),
+    )
+    .handle("setLogo", ({ path }) => setLogoEffect(path.id))
+    .handle("removeLogo", ({ path }) => removeLogoEffect(path.id))
     .handle("delete", ({ path }) =>
       toApiCrudEffect(
         Effect.gen(function* () {

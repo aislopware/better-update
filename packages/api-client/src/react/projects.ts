@@ -1,5 +1,7 @@
+import { ProjectLogoContentType } from "@better-update/api";
 import { compact } from "@better-update/type-guards";
 import { queryOptions } from "@tanstack/react-query";
+import { Effect } from "effect";
 
 import type {
   BranchSort as BranchSortSchema,
@@ -336,6 +338,44 @@ export const unarchiveProject = async (id: string) =>
 
 export const deleteProject = async (id: string) =>
   runApi((api) => api.projects.delete({ path: { id } }));
+
+/** MIME types the project logo upload accepts (mirrors the server schema). */
+export type ProjectLogoContentTypeValue = typeof ProjectLogoContentType.Type;
+
+export const isProjectLogoContentType = (value: string): value is ProjectLogoContentTypeValue =>
+  (ProjectLogoContentType.literals as readonly string[]).includes(value);
+
+// Reject a mutation the functional way (no `throw`/`Promise.reject`): a failed
+// Effect run rejects with a FiberFailure that `getApiError` reads the message off.
+const failMutation = async (message: string): Promise<never> =>
+  Effect.runPromise(Effect.fail(new Error(message)));
+
+/**
+ * Upload a project logo end-to-end: request a presigned PUT, upload the bytes
+ * directly to object storage with the signed headers, then finalize so the server
+ * records the public CDN URL. Returns the updated project. API-call failures keep
+ * their typed errors (they propagate from `runApi`).
+ */
+export const uploadProjectLogo = async (id: string, file: File) => {
+  if (!isProjectLogoContentType(file.type)) {
+    return failMutation("Unsupported image type. Use PNG, JPEG, WebP, or SVG.");
+  }
+  const contentType = file.type;
+
+  const { uploadUrl, uploadHeaders } = await runApi((api) =>
+    api.projects.createLogoUploadUrl({ path: { id }, payload: { contentType } }),
+  );
+
+  const response = await fetch(uploadUrl, { method: "PUT", headers: uploadHeaders, body: file });
+  if (!response.ok) {
+    return failMutation(`Logo upload failed (${response.status})`);
+  }
+
+  return runApi((api) => api.projects.setLogo({ path: { id } }));
+};
+
+export const removeProjectLogo = async (id: string) =>
+  runApi((api) => api.projects.removeLogo({ path: { id } }));
 
 export const createBranch = async (body: typeof CreateBranchBody.Type) =>
   runApi((api) => api.branches.create({ payload: body }));
