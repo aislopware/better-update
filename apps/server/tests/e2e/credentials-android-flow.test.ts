@@ -101,6 +101,7 @@ describe("Credentials Android flow", () => {
       "/api/android/upload-keystores",
       {
         ...credentialEnvelope(),
+        name: "alphonso release upload key",
         keyAlias: "upload",
         sha256Fingerprint: "00:11:22:33:44:55:66:77",
         keystoreType: "JKS",
@@ -109,6 +110,7 @@ describe("Credentials Android flow", () => {
     );
     expect(res.status).toBe(201);
     const body = await res.json();
+    expect(body.name).toBe("alphonso release upload key");
     expect(body.keyAlias).toBe("upload");
     expect(body.sha256Fingerprint).toBe("00:11:22:33:44:55:66:77");
     expect(body.keystoreType).toBe("JKS");

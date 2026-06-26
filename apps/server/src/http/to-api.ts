@@ -431,6 +431,7 @@ export const toApiAndroidUploadKeystore = (
   new AndroidUploadKeystore({
     id: model.id,
     organizationId: model.organizationId,
+    name: model.name,
     keyAlias: model.keyAlias,
     md5Fingerprint: model.md5Fingerprint,
     sha1Fingerprint: model.sha1Fingerprint,

@@ -34,6 +34,7 @@ const ensureNonEmpty = (value: string | undefined, label: string) =>
     : Effect.succeed(value);
 
 interface KeystoreCliArgs {
+  readonly name?: string | undefined;
   readonly alias?: string | undefined;
   readonly "store-password"?: string | undefined;
   readonly "key-password"?: string | undefined;
@@ -79,13 +80,14 @@ const resolveKeystoreInput = (args: KeystoreCliArgs) =>
         ? args.organization
         : yield* promptText("Organization (O)", { placeholder: "Your Company" });
     const validityDays = yield* parseValidityDays(args["validity-days"]);
+    const name = args.name !== undefined && args.name.trim().length > 0 ? args.name : undefined;
     return {
       alias: yield* ensureNonEmpty(alias, "alias"),
       storePassword: yield* ensureNonEmpty(storePassword, "store-password"),
       keyPassword: yield* ensureNonEmpty(keyPassword, "key-password"),
       commonName: yield* ensureNonEmpty(commonName, "common-name"),
       organization: yield* ensureNonEmpty(organization, "organization"),
-      ...compact({ validityDays }),
+      ...compact({ validityDays, name }),
     };
   });
 
@@ -95,6 +97,7 @@ const keystoreCommand = defineCommand({
     description: "Generate a new Android upload keystore via keytool and store it server-side",
   },
   args: {
+    name: { type: "string", description: "Display name (label shown in `credentials list`)" },
     alias: { type: "string", description: "Key alias" },
     "store-password": { type: "string", description: "Keystore password" },
     "key-password": { type: "string", description: "Key password" },
@@ -117,7 +120,7 @@ const keystoreCommand = defineCommand({
           keyPassword: resolved.keyPassword,
           commonName: resolved.commonName,
           organization: resolved.organization,
-          ...compact({ validityDays: resolved.validityDays }),
+          ...compact({ validityDays: resolved.validityDays, name: resolved.name }),
         });
         yield* printHuman("");
         yield* printHuman("Keystore generated and uploaded.");

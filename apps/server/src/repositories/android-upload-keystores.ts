@@ -15,6 +15,7 @@ export interface AndroidUploadKeystoreRepository {
   readonly insert: (params: {
     readonly id: string;
     readonly organizationId: string;
+    readonly name: string | null;
     readonly keyAlias: string;
     readonly r2Key: string;
     readonly wrappedDek: string;
@@ -50,6 +51,7 @@ export class AndroidUploadKeystoreRepo extends Context.Tag("api/AndroidUploadKey
 const COLUMNS = [
   "id",
   "organization_id",
+  "name",
   "key_alias",
   "r2_key",
   "wrapped_dek",
@@ -65,6 +67,7 @@ const COLUMNS = [
 const toModel = (row: Selectable<AndroidUploadKeystores>): AndroidUploadKeystoreModel => ({
   id: row.id,
   organizationId: row.organization_id,
+  name: row.name,
   keyAlias: row.key_alias,
   r2Key: row.r2_key,
   wrappedDek: row.wrapped_dek,
@@ -88,6 +91,7 @@ export const AndroidUploadKeystoreRepoLive = Layer.succeed(AndroidUploadKeystore
             .values({
               id: params.id,
               organization_id: params.organizationId,
+              name: params.name,
               key_alias: params.keyAlias,
               r2_key: params.r2Key,
               wrapped_dek: params.wrappedDek,

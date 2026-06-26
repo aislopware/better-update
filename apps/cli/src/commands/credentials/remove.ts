@@ -37,8 +37,11 @@ const isType = (value: string): value is CliCredentialType =>
   (CREDENTIAL_TYPES as readonly string[]).includes(value);
 
 const formatRowLabel = (row: CliCredentialRow): string => {
+  // Lead with the user label when present, else the natural identifier; keystores
+  // sharing an alias are told apart by their distinct `--name`.
+  const label = row.name ? `${row.name} (${row.identifier})` : row.identifier;
   const distro = row.distribution ? ` (${row.distribution})` : "";
-  return `${row.type}: ${row.name}${distro} — ${row.id.slice(0, 8)}…`;
+  return `${row.type}: ${label}${distro} — ${row.id.slice(0, 8)}…`;
 };
 
 export const removeCommand = defineCommand({

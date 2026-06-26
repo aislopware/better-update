@@ -344,6 +344,7 @@ export interface AndroidApplicationIdentifierModel {
 export interface AndroidUploadKeystoreModel {
   readonly id: string;
   readonly organizationId: string;
+  readonly name: string | null;
   readonly keyAlias: string;
   readonly r2Key: string;
   readonly wrappedDek: string;

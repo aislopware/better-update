@@ -60,6 +60,7 @@ export const AndroidUploadKeystoresGroupLive = HttpApiBuilder.group(
             const r2Key = `android-upload-keystores/${ctx.organizationId}/${crypto.randomUUID()}.keystore.enc`;
             yield* artifacts.put(r2Key, blob);
 
+            const name = toDbNull(payload.name);
             const md5Fingerprint = toDbNull(payload.md5Fingerprint);
             const sha1Fingerprint = toDbNull(payload.sha1Fingerprint);
             const sha256Fingerprint = toDbNull(payload.sha256Fingerprint);
@@ -70,6 +71,7 @@ export const AndroidUploadKeystoresGroupLive = HttpApiBuilder.group(
               repo.insert({
                 id: payload.id,
                 organizationId: ctx.organizationId,
+                name,
                 keyAlias: payload.keyAlias,
                 r2Key,
                 wrappedDek: payload.wrappedDek,
@@ -93,6 +95,7 @@ export const AndroidUploadKeystoresGroupLive = HttpApiBuilder.group(
             return toApiAndroidUploadKeystore({
               id: payload.id,
               organizationId: ctx.organizationId,
+              name,
               keyAlias: payload.keyAlias,
               r2Key,
               wrappedDek: payload.wrappedDek,

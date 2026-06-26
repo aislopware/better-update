@@ -16,6 +16,7 @@ const keystore = (overrides: Partial<AndroidUploadKeystore>): AndroidUploadKeyst
   AndroidUploadKeystore.make({
     id: overrides.id ?? "11111111-2222-3333-4444-555555555555",
     organizationId: overrides.organizationId ?? "org",
+    name: overrides.name ?? null,
     keyAlias: overrides.keyAlias ?? "upload",
     md5Fingerprint: overrides.md5Fingerprint ?? null,
     sha1Fingerprint: overrides.sha1Fingerprint ?? null,
@@ -45,6 +46,15 @@ describe(keystoreChoice, () => {
     );
     expect(choice.label).toBe("x9f (created 2026-01-02)");
     expect(choice.hint).toBe("id abcdef01…");
+  });
+
+  it("leads with the user-supplied name, keeping the alias alongside it", () => {
+    const choice = keystoreChoice(
+      keystore({ name: "alphonso release upload key", keyAlias: "jmango", keystoreType: "JKS" }),
+    );
+    expect(choice.label).toBe(
+      "alphonso release upload key (alias jmango) (JKS, created 2026-01-02)",
+    );
   });
 });
 

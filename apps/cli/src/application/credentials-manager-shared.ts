@@ -136,7 +136,8 @@ const TYPE_LABELS: Record<string, string> = {
   "google-service-account-key": "Google service account key",
 };
 
-const formatRowLabel = (row: CliCredentialRow): string => `${row.name} (${row.id.slice(0, 8)}…)`;
+const formatRowLabel = (row: CliCredentialRow): string =>
+  `${row.name ?? row.identifier} (${row.id.slice(0, 8)}…)`;
 
 export type DeletableType =
   | "distribution-certificate"

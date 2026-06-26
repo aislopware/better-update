@@ -45,6 +45,7 @@ const setupAndroidProjectCredentials = (ctx: WizardContext) =>
 const generateAndroidKeystoreInteractive = (ctx: WizardContext) =>
   Effect.gen(function* () {
     const alias = yield* promptText("Key alias", { placeholder: "upload-key" });
+    const name = yield* promptText("Display name (label shown in lists)", { placeholder: alias });
     const storePassword = yield* promptPassword("Keystore password");
     const keyPassword = yield* promptPassword("Key password");
     const commonName = yield* promptText("Common name (CN)", { placeholder: "Your App" });
@@ -52,6 +53,7 @@ const generateAndroidKeystoreInteractive = (ctx: WizardContext) =>
     yield* Console.log("Generating keystore with keytool...");
     const created = yield* generateAndUploadKeystore(ctx.api, {
       keyAlias: alias,
+      name: name.trim().length > 0 ? name : alias,
       storePassword,
       keyPassword,
       commonName,
@@ -68,12 +70,15 @@ const uploadAndroidKeystoreInteractive = (ctx: WizardContext) =>
   Effect.gen(function* () {
     const filePath = yield* promptText("Path to the keystore (.jks/.keystore) file");
     const keyAlias = yield* promptText("Key alias");
+    const name = yield* promptText("Display name (label shown in lists)", {
+      placeholder: keyAlias,
+    });
     const storePassword = yield* promptPassword("Keystore password");
     const keyPassword = yield* promptPassword("Key password");
     const created = yield* uploadCredential(ctx.api, {
       platform: "android",
       type: "keystore",
-      name: keyAlias,
+      name: name.trim().length > 0 ? name : keyAlias,
       filePath,
       keyAlias,
       keyPassword,

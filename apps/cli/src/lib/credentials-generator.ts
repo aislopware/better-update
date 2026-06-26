@@ -84,6 +84,8 @@ export interface GenerateAndUploadKeystoreInput {
   readonly commonName: string;
   readonly organization: string;
   readonly validityDays?: number;
+  /** Optional human label so generated keystores are distinguishable in `credentials list` even when aliases collide. */
+  readonly name?: string;
 }
 
 export const generateAndUploadKeystore = (api: ApiClient, input: GenerateAndUploadKeystoreInput) =>
@@ -111,6 +113,7 @@ export const generateAndUploadKeystore = (api: ApiClient, input: GenerateAndUplo
       });
       const session = yield* openVaultSessionInteractive(api);
       const metadata = compact({
+        name: input.name,
         keyAlias: input.keyAlias,
         md5Fingerprint: fingerprints.md5,
         sha1Fingerprint: fingerprints.sha1,

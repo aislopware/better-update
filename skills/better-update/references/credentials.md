@@ -12,7 +12,8 @@ platform → category → action wizard — handy when you don't remember the ex
 
 ```bash
 better-update credentials list [--platform <ios|android>]
-better-update credentials view <id> --type <type>            # metadata, no secret
+# columns: ID | Name (the --name label) | Identifier (key alias / cert serial / …) | Platform | Type | Created | SHA-1
+better-update credentials view <id> --type <type>            # metadata, no secret (keystore view shows all fingerprints)
 better-update credentials download <id> --type <type> [--output <path>]   # decrypt via vault session → file (default ./<id>.<ext>)
 better-update credentials delete <id> --platform <ios|android> --type <type>
 better-update credentials remove [--platform <ios|android>] [--type <type>] [--yes]   # interactive picker
@@ -42,6 +43,11 @@ better-update credentials upload-asc-key --p8 ./AuthKey_XXXX.p8 --key-id <id> --
 | Android  | `keystore`                   | `--password`, `--key-alias`, `--key-password`       |
 | Android  | `google-service-account-key` | (none)                                              |
 
+`--name` is a free-form label shown as the **Name** column of `credentials list`. It is persisted for
+keystores and ASC API keys (separate from the key alias / internal identifier), so use a distinct
+`--name` to tell apart credentials that share an internal id — e.g. white-label Android keystores that
+all reuse the key alias `jmango`.
+
 ## Generate (create in-place instead of uploading)
 
 All Apple ASC calls run **from your machine** (the server hands out the decrypted `.p8` only for the
@@ -51,7 +57,7 @@ duration of the request) so you avoid Apple rate-limiting Cloudflare's shared eg
 # Android: fresh upload keystore via keytool, stored server-side
 better-update credentials generate keystore \
   --alias upload-key --store-password "..." --key-password "..." \
-  --common-name "MyApp" --organization "Acme Inc" [--validity-days 10000]
+  --common-name "MyApp" --organization "Acme Inc" [--name "MyApp upload key"] [--validity-days 10000]
 
 # iOS distribution cert: builds the CSR locally, requests a fresh .p12 from the ASC API, uploads it.
 # At Apple's 3-cert limit, offers an interactive revoke + retry.

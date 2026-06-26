@@ -53,6 +53,7 @@ export interface AndroidUploadKeystores {
   key_alias: string;
   keystore_type: string | null;
   md5_fingerprint: string | null;
+  name: string | null;
   organization_id: string;
   r2_key: string;
   sha1_fingerprint: string | null;

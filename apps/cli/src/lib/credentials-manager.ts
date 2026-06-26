@@ -33,11 +33,23 @@ export type CliCredentialPlatform = "ios" | "android";
 
 export interface CliCredentialRow {
   readonly id: string;
-  readonly name: string;
+  /** User-supplied `--name` from upload; `null` for types that don't persist one (only keystores + ASC keys do). */
+  readonly name: string | null;
+  /** Type-specific natural id: keystore alias, cert serial, key id, bundle/merchant/pass id, or SA email. */
+  readonly identifier: string;
   readonly platform: CliCredentialPlatform;
   readonly type: CliCredentialType;
   readonly distribution: string | null;
+  /** Keystore SHA-1 fingerprint for matching against Play Console; `null` when not applicable. */
+  readonly sha1Fingerprint: string | null;
+  readonly createdAt: string;
 }
+
+/** Build a list row, defaulting the optional columns most credential types lack. */
+const makeRow = (
+  fields: Pick<CliCredentialRow, "id" | "identifier" | "platform" | "type" | "createdAt"> &
+    Partial<Pick<CliCredentialRow, "name" | "distribution" | "sha1Fingerprint">>,
+): CliCredentialRow => ({ name: null, distribution: null, sha1Fingerprint: null, ...fields });
 
 const formatDistribution = (value: string): string => value.toLowerCase().replaceAll("_", "-");
 
@@ -69,85 +81,89 @@ export const listAllCredentials = (api: ApiClient) =>
     );
 
     const rows: CliCredentialRow[] = [
-      ...certs.items.map(
-        (cert): CliCredentialRow => ({
+      ...certs.items.map((cert) =>
+        makeRow({
           id: cert.id,
-          name: cert.serialNumber,
+          identifier: cert.serialNumber,
           platform: "ios",
           type: "distribution-certificate",
-          distribution: null,
+          createdAt: cert.createdAt,
         }),
       ),
-      ...pushKeys.items.map(
-        (key): CliCredentialRow => ({
+      ...pushKeys.items.map((key) =>
+        makeRow({
           id: key.id,
-          name: key.keyId,
+          identifier: key.keyId,
           platform: "ios",
           type: "push-key",
-          distribution: null,
+          createdAt: key.createdAt,
         }),
       ),
-      ...pushCerts.items.map(
-        (cert): CliCredentialRow => ({
+      ...pushCerts.items.map((cert) =>
+        makeRow({
           id: cert.id,
-          name: cert.bundleIdentifier,
+          identifier: cert.bundleIdentifier,
           platform: "ios",
           type: "push-certificate",
-          distribution: null,
+          createdAt: cert.createdAt,
         }),
       ),
-      ...payCerts.items.map(
-        (cert): CliCredentialRow => ({
+      ...payCerts.items.map((cert) =>
+        makeRow({
           id: cert.id,
-          name: cert.merchantIdentifier,
+          identifier: cert.merchantIdentifier,
           platform: "ios",
           type: "apple-pay-certificate",
-          distribution: null,
+          createdAt: cert.createdAt,
         }),
       ),
-      ...passCerts.items.map(
-        (cert): CliCredentialRow => ({
+      ...passCerts.items.map((cert) =>
+        makeRow({
           id: cert.id,
-          name: cert.passTypeIdentifier,
+          identifier: cert.passTypeIdentifier,
           platform: "ios",
           type: "pass-type-certificate",
-          distribution: null,
+          createdAt: cert.createdAt,
         }),
       ),
-      ...ascKeys.items.map(
-        (key): CliCredentialRow => ({
+      ...ascKeys.items.map((key) =>
+        makeRow({
           id: key.id,
           name: key.name,
+          identifier: key.keyId,
           platform: "ios",
           type: "asc-api-key",
-          distribution: null,
+          createdAt: key.createdAt,
         }),
       ),
-      ...profiles.items.map(
-        (profile): CliCredentialRow => ({
+      ...profiles.items.map((profile) =>
+        makeRow({
           id: profile.id,
-          name: profile.profileName ?? profile.bundleIdentifier,
+          identifier: profile.profileName ?? profile.bundleIdentifier,
           platform: "ios",
           type: "provisioning-profile",
           distribution: formatDistribution(profile.distributionType),
+          createdAt: profile.createdAt,
         }),
       ),
-      ...keystores.items.map(
-        (ks): CliCredentialRow => ({
+      ...keystores.items.map((ks) =>
+        makeRow({
           id: ks.id,
-          name: ks.keyAlias,
+          name: ks.name,
+          identifier: ks.keyAlias,
           platform: "android",
           type: "keystore",
-          distribution: null,
+          sha1Fingerprint: ks.sha1Fingerprint,
+          createdAt: ks.createdAt,
         }),
       ),
-      ...googleKeys.items.map(
-        (key): CliCredentialRow => ({
+      ...googleKeys.items.map((key) =>
+        makeRow({
           id: key.id,
-          name: key.clientEmail,
+          identifier: key.clientEmail,
           platform: "android",
           type: "google-service-account-key",
-          distribution: null,
+          createdAt: key.createdAt,
         }),
       ),
     ];
@@ -347,6 +363,7 @@ const uploadAndroidKeystore = (api: ApiClient, input: UploadCredentialInput, byt
       storePassword: input.password,
     });
     const metadata = compact({
+      name: input.name,
       keyAlias: parsed.keyAlias,
       md5Fingerprint: fingerprints.md5,
       sha1Fingerprint: fingerprints.sha1,

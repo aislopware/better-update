@@ -13,7 +13,7 @@ export interface CredentialChoice {
 }
 
 /** ISO timestamp → `YYYY-MM-DD` for compact, scannable labels. */
-const isoDate = (value: string): string => value.slice(0, 10);
+export const isoDate = (value: string): string => value.slice(0, 10);
 
 /**
  * Credentials store the internal team UUID, which is meaningless to read. Build a
@@ -28,17 +28,19 @@ export const makeAppleTeamLabeler = (
 };
 
 /**
- * Keystore aliases are often cryptic, so surface the type + creation date in the
- * label and the SHA-1 fingerprint (which matches the Play Console upload key) on
- * the active-row hint.
+ * Aliases collide across white-label apps (many keystores share `jmango`), so
+ * lead with the user-supplied name when present and keep the alias alongside it;
+ * surface the type + creation date in the label and the SHA-1 fingerprint (which
+ * matches the Play Console upload key) on the active-row hint.
  */
 export const keystoreChoice = (item: AndroidUploadKeystore): CredentialChoice => {
   const details = [item.keystoreType, `created ${isoDate(item.createdAt)}`].filter(
     (part): part is string => part !== null,
   );
+  const title = item.name ? `${item.name} (alias ${item.keyAlias})` : item.keyAlias;
   return {
     value: item.id,
-    label: `${item.keyAlias} (${details.join(", ")})`,
+    label: `${title} (${details.join(", ")})`,
     hint: item.sha1Fingerprint ? `SHA-1 ${item.sha1Fingerprint}` : `id ${item.id.slice(0, 8)}…`,
   };
 };

@@ -2,6 +2,7 @@ import { defineCommand } from "citty";
 import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
+import { isoDate } from "../../lib/credential-choices";
 import { filterCredentials, listAllCredentials } from "../../lib/credentials-manager";
 import { printList } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
@@ -19,14 +20,21 @@ export const listCommand = defineCommand({
 
         const filtered = filterCredentials(rows, args.platform ? { platform: args.platform } : {});
 
+        // "Name" is the user-supplied `--name`; "Identifier" is the credential's
+        // own id (keystore key alias, cert serial, …). They were collapsed into a
+        // single "Name" column before, which hid the label that disambiguates
+        // white-label keystores reusing the same alias. SHA-1 lets a keystore be
+        // matched against the Play Console upload-key certificate.
         yield* printList(
-          ["ID", "Name", "Platform", "Type", "Distribution"],
+          ["ID", "Name", "Identifier", "Platform", "Type", "Created", "SHA-1"],
           filtered.map((row) => [
             row.id,
-            row.name,
+            row.name ?? "-",
+            row.identifier,
             row.platform,
             row.type,
-            row.distribution ?? "-",
+            isoDate(row.createdAt),
+            row.sha1Fingerprint ?? "-",
           ]),
           "No credentials found.",
         );
