@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.35.0](https://github.com/better-update/better-update/compare/@better-update/server@0.34.0...@better-update/server@0.35.0) (2026-06-26)
+
+### Features
+
+* **credentials:** show keystore --name distinct from key alias ([1c7e395](https://github.com/better-update/better-update/commit/1c7e3956cf26a32ec9099096401bfff35c1ca1c8))
+
 ## [0.34.0](https://github.com/better-update/better-update/compare/@better-update/server@0.33.0...@better-update/server@0.34.0) (2026-06-25)
 
 ### Features

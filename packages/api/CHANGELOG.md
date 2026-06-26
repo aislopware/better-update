@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.27.0](https://gitlab.jmango360.com/mobile/better-update/compare/@better-update/api@0.26.0...@better-update/api@0.27.0) (2026-06-26)
+
+### Features
+
+* **credentials:** show keystore --name distinct from key alias ([1c7e395](https://gitlab.jmango360.com/mobile/better-update/commit/1c7e3956cf26a32ec9099096401bfff35c1ca1c8))
+
 ## [0.26.0](https://gitlab.jmango360.com/mobile/better-update/compare/@better-update/api@0.25.0...@better-update/api@0.26.0) (2026-06-25)
 
 ### Features

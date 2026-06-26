@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.42.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.41.2...@better-update/cli@0.42.0) (2026-06-26)
+
+### Features
+
+* **credentials:** show keystore --name distinct from key alias ([1c7e395](https://github.com/better-update/better-update/commit/1c7e3956cf26a32ec9099096401bfff35c1ca1c8))
+
 ## [0.41.2](https://github.com/better-update/better-update/compare/@better-update/cli@0.41.1...@better-update/cli@0.41.2) (2026-06-25)
 
 **Note:** Version bump only for package @better-update/cli
