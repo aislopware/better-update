@@ -1,10 +1,13 @@
 import path from "node:path";
 
+import { AndroidPackageName } from "@better-update/api";
 import { asRecord, compact } from "@better-update/type-guards";
 import { FileSystem } from "@effect/platform";
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
 
 import { printWarn } from "./warning-style";
+
+const isValidAndroidPackageName = Schema.is(AndroidPackageName);
 
 export interface GradleConfig {
   readonly applicationId?: string;
@@ -106,10 +109,7 @@ const extractGradleConfig = (parsed: Record<string, unknown>): GradleConfig => {
   const android = asRecord(parsed["android"]);
   const defaultConfig = asRecord(android?.["defaultConfig"]);
 
-  const applicationId =
-    typeof defaultConfig?.["applicationId"] === "string"
-      ? unquote(defaultConfig["applicationId"])
-      : undefined;
+  const applicationId = extractApplicationId(defaultConfig?.["applicationId"]);
   const versionCode = parseVersionCode(defaultConfig?.["versionCode"]);
   const versionName =
     typeof defaultConfig?.["versionName"] === "string"
@@ -121,3 +121,21 @@ const extractGradleConfig = (parsed: Record<string, unknown>): GradleConfig => {
 
 const unquote = (input: string): string =>
   input.startsWith('"') && input.endsWith('"') ? input.slice(1, -1) : input;
+
+/**
+ * Extract a usable Android `applicationId` from the parsed Gradle value.
+ *
+ * react-native-config and similar setups make the id dynamic and env-driven
+ * (e.g. `applicationId project.env.get("APP_ID")`, or a `def` variable). The
+ * Groovy parser surfaces the raw expression text (`project.env.get("APP_ID")`,
+ * `appId`, …), which is not a real package name. Treat anything that isn't a
+ * valid reverse-domain package as unresolved so callers fall back to the
+ * Expo/eas config value instead of building with — or validating — junk.
+ */
+const extractApplicationId = (raw: unknown): string | undefined => {
+  if (typeof raw !== "string") {
+    return undefined;
+  }
+  const value = unquote(raw);
+  return isValidAndroidPackageName(value) ? value : undefined;
+};
