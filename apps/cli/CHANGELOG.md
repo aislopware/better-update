@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.42.1](https://github.com/better-update/better-update/compare/@better-update/cli@0.42.0...@better-update/cli@0.42.1) (2026-06-26)
+
+### Bug Fixes
+
+* **cli:** ignore dynamic Gradle applicationId, fall back to Expo/eas config ([521319a](https://github.com/better-update/better-update/commit/521319a5a333d24537d4ea70f52de659a8c3494f))
+
 ## [0.42.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.41.2...@better-update/cli@0.42.0) (2026-06-26)
 
 ### Features
