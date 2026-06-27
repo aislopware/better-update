@@ -50,7 +50,7 @@
     "chalk": "^5.6.2",
     "citty": "^0.2.2",
     "effect": "^3.21.4",
-    "es-toolkit": "^1.48.1",
+    "es-toolkit": "^1.49.0",
     "gradle-to-js": "^2.0.1",
     "ignore": "^7.0.5",
     "node-forge": "^1.4.0",
