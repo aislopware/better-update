@@ -17,6 +17,7 @@ import { FingerprintIcon } from "lucide-react";
 import { useState } from "react";
 
 import { authClient, rejectOnAuthClientError } from "../../../../lib/auth-client";
+import { VAULT_HOST, isVaultHost } from "../../../../lib/env-vault/host";
 import { getFieldError, requiredStringSchema } from "../../../../lib/form-utils";
 import { safeSubmit, useApiMutation } from "../../../../lib/use-api-mutation";
 
@@ -128,6 +129,23 @@ const AddPasskeyForm = ({
 export const AddPasskeyDialog = ({ invalidate }: { invalidate: () => Promise<void> }) => {
   const [open, setOpen] = useState(false);
   const [resetKey, setResetKey] = useState(0);
+
+  // A passkey ceremony is only valid on the origin that matches the rpID (the
+  // vault host). On any other origin, send the user there to enroll — list,
+  // rename, and remove still work here since they are plain API calls.
+  if (!isVaultHost()) {
+    return (
+      <Button
+        variant="outline"
+        onClick={() => {
+          globalThis.location.assign(`https://${VAULT_HOST}/account/passkeys`);
+        }}
+      >
+        <FingerprintIcon strokeWidth={2} data-icon="inline-start" />
+        Add passkey
+      </Button>
+    );
+  }
 
   return (
     <Dialog
