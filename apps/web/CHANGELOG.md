@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.46.1](https://github.com/better-update/better-update/compare/@better-update/web@0.46.0...@better-update/web@0.46.1) (2026-06-29)
+
+### Bug Fixes
+
+* **web:** scope passkey enrollment to the vault origin ([c5f8a0c](https://github.com/better-update/better-update/commit/c5f8a0c812470cc09729143f80a8467458b4d50a))
+
 ## [0.46.0](https://github.com/better-update/better-update/compare/@better-update/web@0.45.0...@better-update/web@0.46.0) (2026-06-29)
 
 ### Features
