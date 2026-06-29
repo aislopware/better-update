@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.37.1](https://github.com/better-update/better-update/compare/@better-update/server@0.37.0...@better-update/server@0.37.1) (2026-06-29)
+
+### Bug Fixes
+
+* **web:** re-prompt passkey step-up inline instead of 403 dead-end ([67f48a6](https://github.com/better-update/better-update/commit/67f48a64bf22a6b82a0bac11a801199fa98fd15b))
+
 ## [0.37.0](https://github.com/better-update/better-update/compare/@better-update/server@0.36.1...@better-update/server@0.37.0) (2026-06-29)
 
 ### Features

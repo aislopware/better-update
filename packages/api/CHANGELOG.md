@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.29.1](https://gitlab.jmango360.com/mobile/better-update/compare/@better-update/api@0.29.0...@better-update/api@0.29.1) (2026-06-29)
+
+### Bug Fixes
+
+* **web:** re-prompt passkey step-up inline instead of 403 dead-end ([67f48a6](https://gitlab.jmango360.com/mobile/better-update/commit/67f48a64bf22a6b82a0bac11a801199fa98fd15b))
+
 ## [0.29.0](https://gitlab.jmango360.com/mobile/better-update/compare/@better-update/api@0.28.0...@better-update/api@0.29.0) (2026-06-29)
 
 ### Features
