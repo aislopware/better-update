@@ -8,7 +8,8 @@ import { aeadDecrypt, aeadEncrypt, encodeAad, fingerprint } from "./aead";
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
 
-const SALT_BYTES = 16;
+/** Salt length for the passphrase KDF (shared by the identity + account-key seals). */
+export const SALT_BYTES = 16;
 const KEY_BYTES = 32;
 
 /** Argon2id cost parameters for sealing the identity key at rest. */
@@ -51,7 +52,12 @@ export const generateIdentity = async (): Promise<Identity> => {
 export const deriveRecipient = async (privateKey: string): Promise<string> =>
   identityToRecipient(privateKey);
 
-const deriveKek = (passphrase: string, salt: Uint8Array, params: Argon2Params): Uint8Array => {
+/** Argon2id(passphrase, salt) → 32-byte KEK. Shared by the identity + account-key seals. */
+export const deriveKek = (
+  passphrase: string,
+  salt: Uint8Array,
+  params: Argon2Params,
+): Uint8Array => {
   /* eslint-disable id-length -- @noble/hashes argon2id requires fixed single-letter cost keys (t/m/p) */
   const options = { t: params.time, m: params.memory, p: params.parallelism, dkLen: KEY_BYTES };
   /* eslint-enable id-length */

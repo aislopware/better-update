@@ -15,6 +15,15 @@ export {
   wrapDek,
   wrapVaultKey,
 } from "./vault";
-export type { DekBinding } from "./vault";
+export type { DekBinding, VaultKind } from "./vault";
 export { openCredential, sealCredential, SCHEMA_VERSION } from "./credential";
 export type { CredentialBinding, CredentialPayload } from "./credential";
+export { openEnvValue, sealEnvValue } from "./env-value";
+export type { EnvValueEnvelope, OpenedEnvValue } from "./env-value";
+export {
+  ACCOUNT_ARGON2_PARAMS,
+  generateAccountKey,
+  openAccountKey,
+  sealAccountKey,
+} from "./account-key";
+export type { AccountKeyEnvelope, AccountKeyMaterial } from "./account-key";

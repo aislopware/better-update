@@ -31,15 +31,36 @@ export const unwrapVaultKey = async (args: {
   return decrypter.decrypt(args.wrapped);
 };
 
-/** Binds a DEK wrap to one (org, credential) under a specific vault version. */
+/**
+ * Which of the two org vaults a DEK belongs to. The org's secrets are split
+ * across a credentials vault (signing credentials, CLI-only) and an env vault
+ * (env-var values, also reachable from the browser via an account key). The two
+ * vaults hold DIFFERENT keys — the difference alone already makes a cross-vault
+ * unwrap fail the AEAD tag — and `vaultKind` is folded into the DEK AAD as an
+ * explicit, auditable second guard. See docs/specs/build/11-two-vault-split-and-web-env-crud.md.
+ */
+export type VaultKind = "credentials" | "env";
+
+/** Binds a DEK wrap to one (org, credential) under a specific vault + version. */
 export interface DekBinding {
   orgId: string;
   credentialId: string;
   vaultVersion: number;
+  vaultKind: VaultKind;
 }
 
 const dekAad = (binding: DekBinding): Uint8Array =>
-  encodeAad("better-update/dek", [binding.orgId, binding.credentialId, binding.vaultVersion]);
+  // `credentials` reproduces the PRE-SPLIT AAD (no kind segment) verbatim, so every
+  // DEK sealed before the two-vault split still verifies unchanged. `env` folds in
+  // the kind so an env DEK can never be opened under the credentials vault.
+  binding.vaultKind === "env"
+    ? encodeAad("better-update/dek", [
+        binding.orgId,
+        binding.credentialId,
+        binding.vaultVersion,
+        "env",
+      ])
+    : encodeAad("better-update/dek", [binding.orgId, binding.credentialId, binding.vaultVersion]);
 
 /** Wrap a per-credential DEK under the vault key, bound to (org, credential, vaultVersion). */
 export const wrapDek = (args: {
