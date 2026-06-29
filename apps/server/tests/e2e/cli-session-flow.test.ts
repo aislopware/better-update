@@ -90,6 +90,10 @@ describe("CLI session auth (bearer + one-time-token)", () => {
     const res = await post("/api/encryption-keys", deviceKeyBody("CI runner"), {
       authorization: `Bearer ${apiKey}`,
     });
-    expect(res.status).toBe(400);
+    // After the authz unification (8b464b3, feat(authz)!), an org API key with no
+    // resolved user is rejected by the policy gate as Forbidden (403) rather than
+    // a 400 — registering a user-owned device key requires a user. (In dev/test
+    // the server also remaps 401 → 403.)
+    expect(res.status).toBe(403);
   });
 });
