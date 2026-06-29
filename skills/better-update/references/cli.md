@@ -451,6 +451,15 @@ CLI. Exactly one archive source is required (`--latest`/`--id`/`--path`/`--url`)
 passed, precedence is `--path` > `--url` > `--id` > `--latest`. `--what-to-test` is the iOS TestFlight changelog; `--service-account-key-id` overrides the
 Android service account; `--no-wait` returns without blocking until a terminal status.
 
+**iOS upload auth resolution.** The upload uses, in order: an app-specific password
+(`appleId` in the submit profile + the `EXPO_APPLE_APP_SPECIFIC_PASSWORD` env var) if set, else the
+submit profile's `ascApiKeyId`. If neither is configured and the terminal is interactive, `submit`
+auto-resolves an ASC API key: it reuses a stored vault key (prompting to pick when several exist), or
+— with your confirmation — creates one from your Apple ID login (after warning about any keys the team
+already has, since Apple caps keys per team and a key's `.p8` downloads only once). The resolved id is
+written back to the submit profile in `eas.json` so future runs reuse it. Non-interactive/CI runs with
+nothing configured just queue the submission and print how to add a key.
+
 ## devices
 
 Apple device registration (UDIDs) for ad-hoc / development provisioning.

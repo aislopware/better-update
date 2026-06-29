@@ -77,6 +77,28 @@ export const writeEasJsonPatch = (
   });
 
 /**
+ * Set `submit.<profileName>.ios.ascApiKeyId` in `eas.json`, preserving every
+ * other submit profile and key. Used after auto-resolving/creating an ASC API
+ * key during `submit` so the next run reuses it instead of creating another.
+ */
+export const setSubmitProfileAscApiKeyId = (
+  projectRoot: string,
+  profileName: string,
+  ascApiKeyId: string,
+): Effect.Effect<string, ProjectNotLinkedError, FileSystem.FileSystem> =>
+  Effect.gen(function* () {
+    const existing = (yield* readEasJsonRaw(projectRoot)) ?? {};
+    const submit = isRecord(existing["submit"]) ? existing["submit"] : {};
+    const profile = isRecord(submit[profileName]) ? submit[profileName] : {};
+    const ios = isRecord(profile["ios"]) ? profile["ios"] : {};
+    const nextSubmit = {
+      ...submit,
+      [profileName]: { ...profile, ios: { ...ios, ascApiKeyId } },
+    };
+    return yield* writeEasJsonPatch(projectRoot, { submit: nextSubmit });
+  });
+
+/**
  * Default `build` profiles scaffolded by `init` / `build configure`. Mirrors the
  * EAS three-tier convention: `development` (dev-client, internal), `preview`
  * (internal QA) and `production` (store). Keep in sync with the build-profile

@@ -13,6 +13,7 @@ import {
   readEasLinkedProjectId,
   readEasProjectType,
   readSubmitProfile,
+  setSubmitProfileAscApiKeyId,
   writeEasJsonPatch,
 } from "./eas-json";
 
@@ -171,6 +172,49 @@ describe(readSubmitProfile, () => {
         Effect.ensuring(Effect.sync(dispose)),
       );
       expect(submit.ios?.appleId).toBe("dev@acme.com");
+    }).pipe(Effect.provide(NodeContext.layer)),
+  );
+});
+
+describe(setSubmitProfileAscApiKeyId, () => {
+  it.effect("sets ios.ascApiKeyId while preserving the rest of eas.json", () =>
+    Effect.gen(function* () {
+      const { dir, dispose } = makeDir();
+      writeEas(dir, {
+        projectId: "proj-1",
+        build: { production: { channel: "production" } },
+        submit: {
+          production: { ios: { appleId: "dev@acme.com" } },
+          preview: { ios: { ascAppId: "999" } },
+        },
+      });
+      yield* setSubmitProfileAscApiKeyId(dir, "production", "asc-key-1");
+      const raw = JSON.parse(readFileSync(nodePath.join(dir, "eas.json"), "utf8")) as {
+        projectId?: string;
+        build?: { production?: { channel?: string } };
+        submit?: {
+          production?: { ios?: { ascApiKeyId?: string; appleId?: string } };
+          preview?: { ios?: { ascAppId?: string } };
+        };
+      };
+      dispose();
+      expect(raw.submit?.production?.ios?.ascApiKeyId).toBe("asc-key-1");
+      // existing fields + sibling profiles + top-level keys survive
+      expect(raw.submit?.production?.ios?.appleId).toBe("dev@acme.com");
+      expect(raw.submit?.preview?.ios?.ascAppId).toBe("999");
+      expect(raw.projectId).toBe("proj-1");
+      expect(raw.build?.production?.channel).toBe("production");
+    }).pipe(Effect.provide(NodeContext.layer)),
+  );
+
+  it.effect("creates the submit/profile/ios path when eas.json has none", () =>
+    Effect.gen(function* () {
+      const { dir, dispose } = makeDir();
+      writeEas(dir, { build: { production: { channel: "production" } } });
+      yield* setSubmitProfileAscApiKeyId(dir, "production", "asc-key-2");
+      const profile = yield* readSubmitProfile(dir, "production");
+      dispose();
+      expect(profile.ios?.ascApiKeyId).toBe("asc-key-2");
     }).pipe(Effect.provide(NodeContext.layer)),
   );
 });

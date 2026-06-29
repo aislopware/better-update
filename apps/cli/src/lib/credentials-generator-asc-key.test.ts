@@ -15,7 +15,10 @@ import type * as AppleUtilsModule from "@expo/apple-utils";
 
 import { CliRuntime } from "../services/cli-runtime";
 import { IdentityStore } from "../services/identity-store";
-import { generateAndUploadAscApiKeyViaAppleId } from "./credentials-generator-asc-key";
+import {
+  generateAndUploadAscApiKeyViaAppleId,
+  listAscApiKeysViaAppleId,
+} from "./credentials-generator-asc-key";
 import { makeInteractiveModeLayer } from "./interactive-mode";
 
 import type { ApiClient } from "../services/api-client";
@@ -25,6 +28,7 @@ import type { ApiClient } from "../services/api-client";
 const mocks = vi.hoisted(() => ({
   apiKeyCreateAsync: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
   apiKeyInfoAsync: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
+  apiKeyGetAsync: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
   apiKeyDownloadAsync: vi.fn<() => Promise<string | null>>(),
   ascApiKeysUpload: vi.fn<(...args: unknown[]) => unknown>(),
 }));
@@ -34,6 +38,7 @@ vi.mock(import("@expo/apple-utils"), () => {
     ApiKey: {
       createAsync: mocks.apiKeyCreateAsync,
       infoAsync: mocks.apiKeyInfoAsync,
+      getAsync: mocks.apiKeyGetAsync,
     },
     ApiKeyType: { PUBLIC_API: "PUBLIC_API" },
     UserRole: { ADMIN: "ADMIN", APP_MANAGER: "APP_MANAGER" },
@@ -285,6 +290,25 @@ describe(generateAndUploadAscApiKeyViaAppleId, () => {
       expect(recordedWrites[0]?.path).toBe("AuthKey_ASCKEY123.p8");
       expect(recordedWrites[0]?.content).toContain("BEGIN PRIVATE KEY");
       expect(mocks.ascApiKeysUpload).not.toHaveBeenCalled();
+    }),
+  );
+});
+
+describe(listAscApiKeysViaAppleId, () => {
+  it.effect("returns only active team keys mapped to id + nickname", () =>
+    Effect.gen(function* () {
+      mocks.apiKeyGetAsync.mockResolvedValue([
+        { id: "K1", attributes: { nickname: "ci admin", isActive: true } },
+        { id: "K2", attributes: { nickname: "revoked", isActive: false } },
+        { id: "K3", attributes: { nickname: "ci app-manager", isActive: true } },
+      ]);
+
+      const result = yield* listAscApiKeysViaAppleId(context);
+
+      expect(result).toStrictEqual([
+        { keyId: "K1", nickname: "ci admin" },
+        { keyId: "K3", nickname: "ci app-manager" },
+      ]);
     }),
   );
 });

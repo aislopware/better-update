@@ -200,3 +200,31 @@ export const generateAndUploadAscApiKeyViaAppleId = (
       role: input.role,
     } satisfies GeneratedAscApiKey;
   });
+
+export interface AppleIdAscApiKeySummary {
+  /** App Store Connect key id (the `.p8` key id). */
+  readonly keyId: string;
+  readonly nickname: string;
+}
+
+/**
+ * List the team's active App Store Connect API keys as seen on Apple (via the
+ * cookie session). Used before auto-creating a key to avoid making a redundant
+ * one — note a key's `.p8` is downloadable only once, so a key listed here is
+ * usable for publishing only if its `.p8` was captured at creation (i.e. it is
+ * already in the vault). Surfacing them lets the caller warn + respect Apple's
+ * per-team key cap rather than blindly creating another.
+ */
+export const listAscApiKeysViaAppleId = (ctx: AppleUtils.RequestContext) =>
+  Effect.gen(function* () {
+    const keys = yield* wrap("apple-list-asc-keys", async () => AppleUtils.ApiKey.getAsync(ctx));
+    return keys
+      .filter((key) => key.attributes.isActive)
+      .map(
+        (key) =>
+          ({
+            keyId: key.id,
+            nickname: key.attributes.nickname,
+          }) satisfies AppleIdAscApiKeySummary,
+      );
+  });
