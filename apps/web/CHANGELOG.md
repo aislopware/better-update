@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.46.0](https://github.com/better-update/better-update/compare/@better-update/web@0.45.0...@better-update/web@0.46.0) (2026-06-29)
+
+### Features
+
+* **web:** passkey management page + smarter env-vault unlock prompts ([cdad01d](https://github.com/better-update/better-update/commit/cdad01dffab357cfadc90f06acd4ee18c618a28e))
+
 ## [0.45.0](https://github.com/better-update/better-update/compare/@better-update/web@0.44.1...@better-update/web@0.45.0) (2026-06-29)
 
 ### Features
