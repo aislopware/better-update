@@ -1,5 +1,12 @@
 import { Outlet, createFileRoute } from "@tanstack/react-router";
-import { KeyRoundIcon, LinkIcon, MonitorIcon, PaletteIcon, UserIcon } from "lucide-react";
+import {
+  FingerprintIcon,
+  KeyRoundIcon,
+  LinkIcon,
+  MonitorIcon,
+  PaletteIcon,
+  UserIcon,
+} from "lucide-react";
 
 import { SettingsLayout } from "../../../components/settings-layout";
 
@@ -11,6 +18,7 @@ const NAV: readonly SettingsNavSection[] = [
     items: [
       { to: "/account/profile", label: "Profile", icon: UserIcon },
       { to: "/account/password", label: "Password", icon: KeyRoundIcon },
+      { to: "/account/passkeys", label: "Passkeys", icon: FingerprintIcon },
       { to: "/account/connections", label: "Connections", icon: LinkIcon },
     ],
   },

@@ -38,6 +38,7 @@ import { Route as AuthedAppProjectsProjectSlugRouteImport } from './routes/_auth
 import { Route as AuthedAppAccountSessionsRouteImport } from './routes/_authed/_app/account/sessions'
 import { Route as AuthedAppAccountProfileRouteImport } from './routes/_authed/_app/account/profile'
 import { Route as AuthedAppAccountPasswordRouteImport } from './routes/_authed/_app/account/password'
+import { Route as AuthedAppAccountPasskeysRouteImport } from './routes/_authed/_app/account/passkeys'
 import { Route as AuthedAppAccountConnectionsRouteImport } from './routes/_authed/_app/account/connections'
 import { Route as AuthedAppAccountAppearanceRouteImport } from './routes/_authed/_app/account/appearance'
 import { Route as AuthedAppProjectsProjectSlugIndexRouteImport } from './routes/_authed/_app/projects/$projectSlug/index'
@@ -209,6 +210,12 @@ const AuthedAppAccountPasswordRoute =
     path: '/password',
     getParentRoute: () => AuthedAppAccountRoute,
   } as any)
+const AuthedAppAccountPasskeysRoute =
+  AuthedAppAccountPasskeysRouteImport.update({
+    id: '/passkeys',
+    path: '/passkeys',
+    getParentRoute: () => AuthedAppAccountRoute,
+  } as any)
 const AuthedAppAccountConnectionsRoute =
   AuthedAppAccountConnectionsRouteImport.update({
     id: '/connections',
@@ -361,6 +368,7 @@ export interface FileRoutesByFullPath {
   '/vault-access': typeof AuthedAppVaultAccessRoute
   '/account/appearance': typeof AuthedAppAccountAppearanceRoute
   '/account/connections': typeof AuthedAppAccountConnectionsRoute
+  '/account/passkeys': typeof AuthedAppAccountPasskeysRoute
   '/account/password': typeof AuthedAppAccountPasswordRoute
   '/account/profile': typeof AuthedAppAccountProfileRoute
   '/account/sessions': typeof AuthedAppAccountSessionsRoute
@@ -411,6 +419,7 @@ export interface FileRoutesByTo {
   '/vault-access': typeof AuthedAppVaultAccessRoute
   '/account/appearance': typeof AuthedAppAccountAppearanceRoute
   '/account/connections': typeof AuthedAppAccountConnectionsRoute
+  '/account/passkeys': typeof AuthedAppAccountPasskeysRoute
   '/account/password': typeof AuthedAppAccountPasswordRoute
   '/account/profile': typeof AuthedAppAccountProfileRoute
   '/account/sessions': typeof AuthedAppAccountSessionsRoute
@@ -463,6 +472,7 @@ export interface FileRoutesById {
   '/_authed/_app/': typeof AuthedAppIndexRoute
   '/_authed/_app/account/appearance': typeof AuthedAppAccountAppearanceRoute
   '/_authed/_app/account/connections': typeof AuthedAppAccountConnectionsRoute
+  '/_authed/_app/account/passkeys': typeof AuthedAppAccountPasskeysRoute
   '/_authed/_app/account/password': typeof AuthedAppAccountPasswordRoute
   '/_authed/_app/account/profile': typeof AuthedAppAccountProfileRoute
   '/_authed/_app/account/sessions': typeof AuthedAppAccountSessionsRoute
@@ -516,6 +526,7 @@ export interface FileRouteTypes {
     | '/vault-access'
     | '/account/appearance'
     | '/account/connections'
+    | '/account/passkeys'
     | '/account/password'
     | '/account/profile'
     | '/account/sessions'
@@ -566,6 +577,7 @@ export interface FileRouteTypes {
     | '/vault-access'
     | '/account/appearance'
     | '/account/connections'
+    | '/account/passkeys'
     | '/account/password'
     | '/account/profile'
     | '/account/sessions'
@@ -617,6 +629,7 @@ export interface FileRouteTypes {
     | '/_authed/_app/'
     | '/_authed/_app/account/appearance'
     | '/_authed/_app/account/connections'
+    | '/_authed/_app/account/passkeys'
     | '/_authed/_app/account/password'
     | '/_authed/_app/account/profile'
     | '/_authed/_app/account/sessions'
@@ -864,6 +877,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedAppAccountPasswordRouteImport
       parentRoute: typeof AuthedAppAccountRoute
     }
+    '/_authed/_app/account/passkeys': {
+      id: '/_authed/_app/account/passkeys'
+      path: '/passkeys'
+      fullPath: '/account/passkeys'
+      preLoaderRoute: typeof AuthedAppAccountPasskeysRouteImport
+      parentRoute: typeof AuthedAppAccountRoute
+    }
     '/_authed/_app/account/connections': {
       id: '/_authed/_app/account/connections'
       path: '/connections'
@@ -1024,6 +1044,7 @@ declare module '@tanstack/react-router' {
 interface AuthedAppAccountRouteChildren {
   AuthedAppAccountAppearanceRoute: typeof AuthedAppAccountAppearanceRoute
   AuthedAppAccountConnectionsRoute: typeof AuthedAppAccountConnectionsRoute
+  AuthedAppAccountPasskeysRoute: typeof AuthedAppAccountPasskeysRoute
   AuthedAppAccountPasswordRoute: typeof AuthedAppAccountPasswordRoute
   AuthedAppAccountProfileRoute: typeof AuthedAppAccountProfileRoute
   AuthedAppAccountSessionsRoute: typeof AuthedAppAccountSessionsRoute
@@ -1033,6 +1054,7 @@ interface AuthedAppAccountRouteChildren {
 const AuthedAppAccountRouteChildren: AuthedAppAccountRouteChildren = {
   AuthedAppAccountAppearanceRoute: AuthedAppAccountAppearanceRoute,
   AuthedAppAccountConnectionsRoute: AuthedAppAccountConnectionsRoute,
+  AuthedAppAccountPasskeysRoute: AuthedAppAccountPasskeysRoute,
   AuthedAppAccountPasswordRoute: AuthedAppAccountPasswordRoute,
   AuthedAppAccountProfileRoute: AuthedAppAccountProfileRoute,
   AuthedAppAccountSessionsRoute: AuthedAppAccountSessionsRoute,

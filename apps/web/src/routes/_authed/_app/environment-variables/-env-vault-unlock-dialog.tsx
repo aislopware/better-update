@@ -14,6 +14,8 @@ import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/f
 import { Input } from "@better-update/ui/components/ui/input";
 import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { FingerprintIcon, LockKeyholeOpenIcon } from "lucide-react";
 import { useState } from "react";
 
@@ -22,10 +24,49 @@ import { runPasskeyStepUp } from "../../../../lib/env-vault/step-up";
 import { unlockEnvVault } from "../../../../lib/env-vault/unlock";
 import { getFieldError, requiredStringSchema } from "../../../../lib/form-utils";
 import { safeSubmit, useApiMutation } from "../../../../lib/use-api-mutation";
+import { passkeysQueryOptions } from "../../../../queries/auth";
 
 import type { UnlockedEnvVault } from "../../../../lib/env-vault/use-env-vault";
 
 const PASSKEY_NAME = "Env vault passkey";
+
+/**
+ * Below-the-passphrase hint. Until the passkey list resolves we show nothing (so
+ * we never wrongly nag "no passkey" after one was just added); once it's known we
+ * either offer inline enrollment (none yet) or link to the management page.
+ */
+const PasskeyPrompt = ({
+  hasPasskey,
+  enrolling,
+  onAdd,
+}: {
+  hasPasskey: boolean | undefined;
+  enrolling: boolean;
+  onAdd: () => void;
+}) => {
+  if (hasPasskey === undefined) {
+    return null;
+  }
+  if (hasPasskey) {
+    return (
+      <p className="text-muted-foreground text-sm">
+        Manage your passkeys in{" "}
+        <Button variant="link" size="sm" render={<Link to="/account/passkeys" />}>
+          account settings
+        </Button>
+        .
+      </p>
+    );
+  }
+  return (
+    <p className="text-muted-foreground text-sm">
+      No passkey yet?{" "}
+      <Button variant="link" size="sm" type="button" loading={enrolling} onClick={onAdd}>
+        Add a passkey
+      </Button>
+    </p>
+  );
+};
 
 const UnlockForm = ({
   orgId,
@@ -36,14 +77,18 @@ const UnlockForm = ({
   onUnlocked: (vault: UnlockedEnvVault) => void;
   onSuccess: () => void;
 }) => {
+  const queryClient = useQueryClient();
+  const passkeysQuery = useQuery(passkeysQueryOptions);
+
   const enrollMutation = useApiMutation({
     mutationFn: async () =>
       rejectOnAuthClientError(
         authClient.passkey.addPasskey({ name: PASSKEY_NAME }),
         "Could not add a passkey.",
       ),
-    onSuccess: () => {
+    onSuccess: async () => {
       toastManager.add({ title: "Passkey added. Now verify to unlock.", type: "success" });
+      await queryClient.invalidateQueries({ queryKey: passkeysQueryOptions.queryKey });
     },
   });
 
@@ -104,20 +149,13 @@ const UnlockForm = ({
             );
           }}
         </form.Field>
-        <p className="text-muted-foreground text-sm">
-          No passkey on this device yet?{" "}
-          <Button
-            variant="link"
-            size="sm"
-            type="button"
-            loading={enrollMutation.isPending}
-            onClick={() => {
-              enrollMutation.mutate();
-            }}
-          >
-            Add a passkey
-          </Button>
-        </p>
+        <PasskeyPrompt
+          hasPasskey={passkeysQuery.data === undefined ? undefined : passkeysQuery.data.length > 0}
+          enrolling={enrollMutation.isPending}
+          onAdd={() => {
+            enrollMutation.mutate();
+          }}
+        />
       </DialogPanel>
       <DialogFooter>
         <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>

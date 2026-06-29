@@ -48,7 +48,19 @@ const loadOrgs = async () => {
     throw ensureError(error, "Failed to load organizations");
   }
 };
+
+const loadPasskeys = async () => {
+  try {
+    const { data } = await authClient.passkey.listUserPasskeys();
+    return data === null ? [] : data;
+  } catch (error) {
+    throw ensureError(error, "Failed to load passkeys");
+  }
+};
 /* eslint-enable functional/no-try-statements, functional/no-promise-reject, functional/no-throw-statements */
+
+/** One of the caller's registered WebAuthn passkeys (the env-vault step-up factor). */
+export type UserPasskey = Awaited<ReturnType<typeof loadPasskeys>>[number];
 
 export const authKeyPrefix = ["auth"] as const;
 
@@ -77,5 +89,11 @@ export const accountsQueryOptions = queryOptions({
 export const sessionsQueryOptions = queryOptions({
   queryKey: ["auth", "sessions"],
   queryFn: loadSessions,
+  staleTime: ONE_MINUTE_MS,
+});
+
+export const passkeysQueryOptions = queryOptions({
+  queryKey: ["auth", "passkeys"],
+  queryFn: loadPasskeys,
   staleTime: ONE_MINUTE_MS,
 });
