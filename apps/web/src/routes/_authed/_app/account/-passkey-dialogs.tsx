@@ -5,6 +5,7 @@ import {
   DialogDescription,
   DialogFooter,
   DialogHeader,
+  DialogPanel,
   DialogPopup,
   DialogTitle,
   DialogTrigger,
@@ -91,10 +92,7 @@ const AddPasskeyForm = ({
         await form.handleSubmit();
       }}
     >
-      <div className="grid gap-4 py-2">
-        <p className="text-muted-foreground text-sm">
-          Your browser or device will ask you to confirm with Touch ID, Face ID, or a security key.
-        </p>
+      <DialogPanel className="grid gap-4">
         <form.Field name="name" validators={nameValidator}>
           {(field) => (
             <NameField
@@ -105,7 +103,7 @@ const AddPasskeyForm = ({
             />
           )}
         </form.Field>
-      </div>
+      </DialogPanel>
       <DialogFooter>
         <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
@@ -220,7 +218,7 @@ const RenamePasskeyForm = ({
         await form.handleSubmit();
       }}
     >
-      <div className="grid gap-4 py-2">
+      <DialogPanel className="grid gap-4">
         <form.Field name="name" validators={nameValidator}>
           {(field) => (
             <NameField
@@ -231,7 +229,7 @@ const RenamePasskeyForm = ({
             />
           )}
         </form.Field>
-      </div>
+      </DialogPanel>
       <DialogFooter>
         <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
