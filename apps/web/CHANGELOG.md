@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.46.3](https://github.com/better-update/better-update/compare/@better-update/web@0.46.2...@better-update/web@0.46.3) (2026-06-29)
+
+### Bug Fixes
+
+* **web:** prefill env-var edit form with current decrypted value ([b074a09](https://github.com/better-update/better-update/commit/b074a092aa8e50004700e9288efe69edfefb9480))
+
 ## [0.46.2](https://github.com/better-update/better-update/compare/@better-update/web@0.46.1...@better-update/web@0.46.2) (2026-06-29)
 
 ### Bug Fixes
