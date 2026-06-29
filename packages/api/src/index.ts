@@ -286,6 +286,30 @@ export {
   VaultWrapInput,
 } from "./domain/org-vault";
 export {
+  AccountKey,
+  AccountKeyEscrow,
+  AccountKeyKdfParams,
+  AccountKeyList,
+  Ed25519PublicKey,
+  RegisterAccountKeyBody,
+  ResealAccountKeyBody,
+} from "./domain/account-key";
+export {
+  AddEnvVaultWrapBody,
+  CutoverEnvVaultBody,
+  EnvVaultCredentialDeks,
+  EnvVaultDekRef,
+  EnvVaultDekUpdate,
+  EnvVaultRecipientKind,
+  EnvVaultRecipientRef,
+  EnvVaultRecipients,
+  EnvVaultWrapInput,
+  OrgEnvVaultKeyWrap,
+  RecipientEnvVaultKey,
+  RotateEnvVaultBody,
+} from "./domain/env-vault";
+export { PasskeyStepUpBody, PasskeyStepUpResult } from "./domain/web-vault";
+export {
   Ciphertext,
   CredentialDekRef,
   CredentialDekUpdate,
@@ -350,6 +374,9 @@ export { AndroidBuildCredentialsGroup } from "./groups/android-build-credentials
 export { BuildCredentialsGroup } from "./groups/build-credentials";
 export { UserEncryptionKeysGroup } from "./groups/user-encryption-keys";
 export { OrgVaultGroup } from "./groups/org-vault";
+export { AccountKeysGroup } from "./groups/account-keys";
+export { EnvVaultGroup } from "./groups/env-vault";
+export { WebVaultGroup } from "./groups/web-vault";
 export { ManifestGroup } from "./groups/manifest";
 export { MeGroup } from "./groups/me";
 export { ProjectsGroup } from "./groups/projects";

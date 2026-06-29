@@ -14,6 +14,7 @@ import {
   EnvVarExportResult,
   EnvVarListScope,
   EnvVarRevisionsResult,
+  EnvVarValueEnvelope,
   RollbackEnvVarBody,
   UpdateEnvVarBody,
 } from "../domain/env-var";
@@ -63,6 +64,17 @@ export class EnvVarsGroup extends HttpApiGroup.make("env-vars")
         description: "Get an environment variable's metadata by ID (no value)",
       }),
     ),
+  )
+  .add(
+    HttpApiEndpoint.get("getValue")`/api/env-vars/${idParam}/value`
+      .addSuccess(EnvVarValueEnvelope)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Get sealed env-var value",
+          description:
+            "Return the active value's sealed envelope (ciphertext, wrapped DEK, vault version) for client-side decryption in the browser env-vault. Browser (cookie) callers must first complete a WebAuthn step-up; CLI bearer callers use the bulk export instead.",
+        }),
+      ),
   )
   .add(
     HttpApiEndpoint.patch("update")`/api/env-vars/${idParam}`

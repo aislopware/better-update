@@ -67,6 +67,13 @@ export interface AuthContextShape {
    * browser session even though both can be `source: "session"`.
    */
   readonly transport: "bearer" | "cookie";
+  /**
+   * The better-auth `session.id` for a real user session, or `null` for an
+   * API-key principal (no session). Used to scope a WebAuthn step-up to the exact
+   * browser session that proved it (see the web-vault step-up gate), so a step-up
+   * in one session does not silently authorize another.
+   */
+  readonly sessionId: string | null;
   readonly actorEmail: string;
   /**
    * Global (cross-org) superadmin flag, derived from the Better Auth `admin`

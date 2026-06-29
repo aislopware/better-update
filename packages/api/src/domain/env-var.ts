@@ -21,10 +21,18 @@ export const EnvVarListScope = Schema.Literal("all", "project", "global");
  * AAD `credentialId` when sealing; the envelope fields are the opaque ciphertext,
  * wrapped DEK, and vault version. The server stores these and never decrypts —
  * env var values are end-to-end encrypted, like credentials.
+ *
+ * `vaultKind` names which vault the DEK was sealed under. It is OPTIONAL for
+ * back-compat: a pre-split CLI omits it (the server treats absence as
+ * `"credentials"`). Once an org cuts over to a separate env vault, the server
+ * requires `"env"` here — without it a credentials-keyed blob from an un-upgraded
+ * (or racing) CLI would otherwise be silently stored into an env-vault row and be
+ * permanently undecryptable. See `assertEnvVaultWriteAllowed`.
  */
 export const EnvVarValueEnvelope = Schema.Struct({
   id: Id,
   ...encryptedEnvelopeFields,
+  vaultKind: Schema.optional(Schema.Literal("credentials", "env")),
 });
 
 /**

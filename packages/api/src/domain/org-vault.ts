@@ -25,6 +25,16 @@ export class OrgVault extends Schema.Class<OrgVault>("OrgVault")({
   rotationPending: Schema.Boolean,
   rotationPendingSince: Schema.NullOr(DateTimeString),
   rotationPendingReason: Schema.NullOr(Schema.String),
+  /**
+   * Env-vault (EV) state from the two-vault split. `envVaultCutoverAt` is `null`
+   * until the org forks its env values into a separate key; while `null`,
+   * `envVaultVersion` is unused and env stays part of the credentials vault.
+   */
+  envVaultVersion: VaultVersion,
+  envRotationPending: Schema.Boolean,
+  envRotationPendingSince: Schema.NullOr(DateTimeString),
+  envRotationPendingReason: Schema.NullOr(Schema.String),
+  envVaultCutoverAt: Schema.NullOr(DateTimeString),
 }) {}
 
 /**

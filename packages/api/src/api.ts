@@ -1,6 +1,7 @@
 import { HttpApi, OpenApi } from "@effect/platform";
 
 import { Authentication } from "./auth/middleware";
+import { AccountKeysGroup } from "./groups/account-keys";
 import { AdminGroup } from "./groups/admin";
 import { AnalyticsGroup } from "./groups/analytics";
 import { AndroidApplicationIdentifiersGroup } from "./groups/android-application-identifiers";
@@ -23,6 +24,7 @@ import { BuildsGroup } from "./groups/builds";
 import { ChannelsGroup } from "./groups/channels";
 import { DevicesGroup } from "./groups/devices";
 import { EnvVarsGroup } from "./groups/env-vars";
+import { EnvVaultGroup } from "./groups/env-vault";
 import { EnvironmentsGroup } from "./groups/environments";
 import { FingerprintsGroup } from "./groups/fingerprints";
 import { GoogleServiceAccountKeysGroup } from "./groups/google-service-account-keys";
@@ -41,6 +43,7 @@ import { RuntimesGroup } from "./groups/runtimes";
 import { SubmissionsGroup } from "./groups/submissions";
 import { UpdatesGroup } from "./groups/updates";
 import { UserEncryptionKeysGroup } from "./groups/user-encryption-keys";
+import { WebVaultGroup } from "./groups/web-vault";
 import { WebhooksGroup } from "./groups/webhooks";
 
 export class ManagementApi extends HttpApi.make("management-api")
@@ -75,6 +78,9 @@ export class ManagementApi extends HttpApi.make("management-api")
   .add(BuildCredentialsGroup)
   .add(UserEncryptionKeysGroup)
   .add(OrgVaultGroup)
+  .add(AccountKeysGroup)
+  .add(EnvVaultGroup)
+  .add(WebVaultGroup)
   .add(MeGroup)
   .add(WebhooksGroup)
   .add(PoliciesGroup)
