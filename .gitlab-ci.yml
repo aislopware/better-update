@@ -226,7 +226,6 @@ conformance:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes:
         - packages/bsdiff/**/*
-        - .gitlab-ci.yml
   script:
     - bun_ci_install
     - bun --filter @better-update/bsdiff run build
@@ -239,7 +238,6 @@ conformance-macos:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes:
         - packages/bsdiff/**/*
-        - .gitlab-ci.yml
   script:
     - brew install bzip2
     - bun_ci_install
