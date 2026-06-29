@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.19.0](https://gitlab.jmango360.com/mobile/better-update/compare/@better-update/api-client@0.18.1...@better-update/api-client@0.19.0) (2026-06-29)
+
+### Features
+
+* **api-client:** env-vault/account-key/web-vault bindings + env-var CRUD ([b30dbfb](https://gitlab.jmango360.com/mobile/better-update/commit/b30dbfb81b8e2d300345da304c1fdaf550ec291f))
+
 ## [0.18.1](https://gitlab.jmango360.com/mobile/better-update/compare/@better-update/api-client@0.18.0...@better-update/api-client@0.18.1) (2026-06-26)
 
 **Note:** Version bump only for package @better-update/api-client

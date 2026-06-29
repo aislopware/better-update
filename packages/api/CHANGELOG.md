@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.28.0](https://gitlab.jmango360.com/mobile/better-update/compare/@better-update/api@0.27.0...@better-update/api@0.28.0) (2026-06-29)
+
+### Features
+
+* **api:** account-key, env-vault, web-vault contracts + env-var value endpoint ([a98b46b](https://gitlab.jmango360.com/mobile/better-update/commit/a98b46b936ed4ddfd6720bdc5639e077f4c161d3))
+
 ## [0.27.0](https://gitlab.jmango360.com/mobile/better-update/compare/@better-update/api@0.26.0...@better-update/api@0.27.0) (2026-06-26)
 
 ### Features

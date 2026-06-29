@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.43.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.42.1...@better-update/cli@0.43.0) (2026-06-29)
+
+### Features
+
+* **cli:** account create/link, env-vault cutover/rotate, passphrase change ([dcb67ec](https://github.com/better-update/better-update/commit/dcb67ec0ceb78b98139bb343a7b9e7cb96a91208))
+
+### Bug Fixes
+
+* **cli:** default-import @expo/config-plugins so the CLI loads under Node ESM ([b16cb38](https://github.com/better-update/better-update/commit/b16cb387fb3663a8179b29a41bdc973308296ab6))
+* **credentials:** match Apple cert serials ignoring leading zeros ([59bba45](https://github.com/better-update/better-update/commit/59bba45e11e715249cdcc9f725a7695e8ada3ea9))
+
 ## [0.42.1](https://github.com/better-update/better-update/compare/@better-update/cli@0.42.0...@better-update/cli@0.42.1) (2026-06-26)
 
 ### Bug Fixes

@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.45.0](https://github.com/better-update/better-update/compare/@better-update/web@0.44.1...@better-update/web@0.45.0) (2026-06-29)
+
+### Features
+
+* **web:** browser env-vault unlock + E2E env CRUD UI on the vault origin ([ed0db93](https://github.com/better-update/better-update/commit/ed0db937876f74b30644228102c13e5d6cf6cbee))
+
 ## [0.44.1](https://github.com/better-update/better-update/compare/@better-update/web@0.44.0...@better-update/web@0.44.1) (2026-06-26)
 
 **Note:** Version bump only for package @better-update/web

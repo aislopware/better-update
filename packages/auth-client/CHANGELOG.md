@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.7.0](https://gitlab.jmango360.com/mobile/better-update/compare/@better-update/auth-client@0.6.4...@better-update/auth-client@0.7.0) (2026-06-29)
+
+### Features
+
+* **auth-client:** register passkey client plugin for web env-vault step-up ([9926faa](https://gitlab.jmango360.com/mobile/better-update/commit/9926faac6b0e80b7e114653cb388b0a4c54cdaec))
+
 ## [0.6.4](https://gitlab.jmango360.com/mobile/better-update/compare/@better-update/auth-client@0.6.3...@better-update/auth-client@0.6.4) (2026-06-25)
 
 **Note:** Version bump only for package @better-update/auth-client

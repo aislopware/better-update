@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.36.0](https://github.com/better-update/better-update/compare/@better-update/server@0.35.0...@better-update/server@0.36.0) (2026-06-29)
+
+### Features
+
+* **server:** two-vault repos/handlers, passkey step-up gate, vault-origin cookie+routing ([cae9b59](https://github.com/better-update/better-update/commit/cae9b593780f0367cdae6735768d5f74fd936159))
+
+### Bug Fixes
+
+* **server:** expect 403 (not 400) when an org API key registers a device key ([6e2f081](https://github.com/better-update/better-update/commit/6e2f081563106f4aefc416a9a5a5a642809b46e1))
+
 ## [0.35.0](https://github.com/better-update/better-update/compare/@better-update/server@0.34.0...@better-update/server@0.35.0) (2026-06-26)
 
 ### Features

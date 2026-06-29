@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.2.0](https://gitlab.jmango360.com/mobile/better-update/compare/@better-update/credentials-crypto@0.1.5...@better-update/credentials-crypto@0.2.0) (2026-06-29)
+
+### Features
+
+* **credentials-crypto:** two-vault DEK binding, account keys, env-value seal/open ([5e11f5d](https://gitlab.jmango360.com/mobile/better-update/commit/5e11f5d2ab87b0b847d3b591d3c714e9c16bcab8))
+
 ## [0.1.5](https://gitlab.jmango360.com/mobile/better-update/compare/@better-update/credentials-crypto@0.1.4...@better-update/credentials-crypto@0.1.5) (2026-06-25)
 
 **Note:** Version bump only for package @better-update/credentials-crypto
