@@ -70,14 +70,17 @@ type AuthEnv = Env & {
   readonly TEST_MODE?: string;
   // WebAuthn / passkey config for the web env-vault step-up (P4). When
   // WEBAUTHN_RP_ID is unset the passkey plugin is NOT registered (prod default).
-  // The vault UI is served from `updates-vault.jmango360.dev` — a SIBLING of the
-  // dashboard `updates.jmango360.dev`, not a child — so WEBAUTHN_RP_ID must be the
-  // shared registrable parent `jmango360.dev` (a passkey's rpID must be a
-  // registrable suffix of every origin it is used on).
+  // Passkeys are used ONLY on the vault origin (the step-up + enrollment both run
+  // there), so WEBAUTHN_RP_ID is that exact host — `updates-vault.jmango360.dev` —
+  // which binds each credential to the vault origin alone (a passkey's rpID must be
+  // a registrable suffix of the origin it is used on; the exact host is the most
+  // restrictive valid value). It deliberately does NOT cover the dashboard
+  // `updates.jmango360.dev`: enrollment there is redirected to the vault origin.
   readonly WEBAUTHN_RP_ID?: string;
   readonly WEBAUTHN_RP_NAME?: string;
-  // Comma-separated allowed WebAuthn origins — the vault origin plus the dashboard
-  // origin, e.g. "https://updates-vault.jmango360.dev,https://updates.jmango360.dev".
+  // Comma-separated allowed WebAuthn origins. With rpID scoped to the vault host
+  // this is just the vault origin, e.g. "https://updates-vault.jmango360.dev"; the
+  // dashboard origin stays a trusted origin via BETTER_AUTH_URL.
   readonly WEBAUTHN_ORIGINS?: string;
   // Registrable domain to scope the session cookie to (e.g. ".jmango360.dev") so
   // the vault origin — a sibling of the dashboard — carries the dashboard session.
@@ -368,10 +371,11 @@ export const createAuth = (env: AuthEnv, ctx?: ExecutionContext) => {
       // WebAuthn / passkey: the second factor that gates web env-vault access (P4).
       // Registered only when WEBAUTHN_RP_ID is set so the prod auth surface is
       // unchanged until the org cuts over to the browser env vault. rpID is the
-      // registrable parent (jmango360.dev) shared by the dashboard
-      // (updates.jmango360.dev) + vault (updates-vault.jmango360.dev) sibling
-      // origins; the `passkey` table already exists (migration 0072). See the
-      // web-vault step-up handler + assert-web-env-step-up gate.
+      // vault origin host exactly (updates-vault.jmango360.dev) — passkeys are used
+      // only there (step-up + enrollment), so each credential is bound to that
+      // origin alone and is NOT usable on the dashboard (updates.jmango360.dev);
+      // the `passkey` table already exists (migration 0072). See the web-vault
+      // step-up handler + assert-web-env-step-up gate.
       ...(webauthnEnabled
         ? [
             passkey({
