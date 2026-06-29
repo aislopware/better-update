@@ -2,6 +2,7 @@ import { Badge } from "@better-update/ui/components/ui/badge";
 import { TableCell, TableRow } from "@better-update/ui/components/ui/table";
 
 import type { EnvVar } from "@better-update/api";
+import type { ReactNode } from "react";
 
 import { CopyButton } from "../../../../lib/copy-button";
 import { pluralize } from "../../../../lib/pluralize";
@@ -18,9 +19,20 @@ const SCOPE_VARIANTS: Record<string, "secondary" | "info"> = {
   global: "info",
 };
 
-// Read-only: the value is end-to-end encrypted and only readable via the CLI.
-// The dashboard shows public metadata (key, environment, scope, visibility, history depth).
-export const EnvVarRow = ({ envVar }: { envVar: EnvVar }) => (
+// The value is end-to-end encrypted. Everywhere except the dedicated vault origin
+// the dashboard shows public metadata only (key, environment, scope, visibility,
+// history depth). On the vault origin, an unlocked vault adds the `actions` cell
+// (reveal / edit / delete); `hasActions` keeps the column count aligned with the
+// header even while the vault is locked (the cell renders empty).
+export const EnvVarRow = ({
+  envVar,
+  hasActions = false,
+  actions,
+}: {
+  envVar: EnvVar;
+  hasActions?: boolean;
+  actions?: ReactNode;
+}) => (
   <TableRow>
     <TableCell>
       <div className="flex items-center gap-1">
@@ -48,5 +60,6 @@ export const EnvVarRow = ({ envVar }: { envVar: EnvVar }) => (
     <TableCell className="text-muted-foreground text-sm">
       <RelativeTime value={envVar.updatedAt} />
     </TableCell>
+    {hasActions ? <TableCell className="w-px text-right">{actions}</TableCell> : null}
   </TableRow>
 );

@@ -34,9 +34,16 @@ import {
   TableHeader,
   TableRow,
 } from "@better-update/ui/components/ui/table";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { FilterIcon, SearchIcon, SettingsIcon } from "lucide-react";
-import { useMemo } from "react";
+import { toastManager } from "@better-update/ui/components/ui/toast";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  FilterIcon,
+  FingerprintIcon,
+  LockKeyholeIcon,
+  SearchIcon,
+  SettingsIcon,
+} from "lucide-react";
+import { useCallback, useMemo } from "react";
 import { z } from "zod";
 
 import type { EnvVar } from "@better-update/api";
@@ -51,10 +58,18 @@ import {
   queryParam,
   useDebouncedSearch,
 } from "../../../../lib/data-table";
+import { runPasskeyStepUp } from "../../../../lib/env-vault/step-up";
+import { useEnvVault } from "../../../../lib/env-vault/use-env-vault";
 import { pluralize } from "../../../../lib/pluralize";
+import { useApiMutation } from "../../../../lib/use-api-mutation";
+import { EnvVarCreateDialog } from "./-env-var-create-dialog";
 import { EnvVarRow } from "./-env-var-row";
+import { EnvVarRowActions } from "./-env-var-row-actions";
 import { formatEnvironmentLabel } from "./-env-vars-labels";
+import { EnvVaultUnlockDialog } from "./-env-vault-unlock-dialog";
 import { useEnvironmentNames } from "./-environments-picker";
+
+import type { EnvVaultController } from "../../../../lib/env-vault/use-env-vault";
 
 type Mode =
   | { readonly kind: "project"; readonly orgId: string; readonly projectId: string }
@@ -144,6 +159,73 @@ const EnvFilterPopover = ({
   );
 };
 
+// Unlock / lock / add controls — rendered only on the dedicated vault origin
+// (`vault.enabled`). Locked: a single unlock entry point. Unlocked: create + lock.
+const VaultToolbarActions = ({
+  mode,
+  vault,
+  invalidate,
+}: {
+  mode: Mode;
+  vault: EnvVaultController;
+  invalidate: () => Promise<void>;
+}) => {
+  // Re-prove the passkey step-up (the server gate expires after ~10 min) WITHOUT
+  // re-entering the passphrase — the unwrapped vault key is still cached, only the
+  // server-side step-up needs refreshing. Lets a long-open session recover from a
+  // 403 without the full Lock → Unlock dance.
+  const reverifyMutation = useApiMutation({
+    mutationFn: async () => runPasskeyStepUp(),
+    onSuccess: () => {
+      toastManager.add({ title: "Re-verified with your passkey", type: "success" });
+    },
+  });
+
+  if (!vault.enabled) {
+    return null;
+  }
+  if (!vault.unlocked) {
+    return (
+      <EnvVaultUnlockDialog
+        orgId={mode.orgId}
+        onUnlocked={(unlockedVault) => {
+          vault.onUnlocked(unlockedVault);
+        }}
+      />
+    );
+  }
+  return (
+    <>
+      <EnvVarCreateDialog
+        orgId={mode.orgId}
+        scope={mode.kind === "project" ? "project" : "global"}
+        projectId={mode.kind === "project" ? mode.projectId : undefined}
+        vault={vault.unlocked}
+        invalidate={invalidate}
+      />
+      <Button
+        variant="outline"
+        loading={reverifyMutation.isPending}
+        onClick={() => {
+          reverifyMutation.mutate();
+        }}
+      >
+        <FingerprintIcon strokeWidth={2} data-icon="inline-start" />
+        Re-verify
+      </Button>
+      <Button
+        variant="outline"
+        onClick={() => {
+          vault.lock();
+        }}
+      >
+        <LockKeyholeIcon strokeWidth={2} data-icon="inline-start" />
+        Lock
+      </Button>
+    </>
+  );
+};
+
 const Toolbar = ({
   mode,
   searchDraft,
@@ -152,6 +234,8 @@ const Toolbar = ({
   onScopeChange,
   environments,
   onEnvironmentsChange,
+  vault,
+  invalidate,
 }: {
   mode: Mode;
   searchDraft: string;
@@ -160,6 +244,8 @@ const Toolbar = ({
   onScopeChange: (value: ScopeFilter) => void;
   environments: readonly string[];
   onEnvironmentsChange: (value: readonly string[]) => void;
+  vault: EnvVaultController;
+  invalidate: () => Promise<void>;
 }) => (
   <div className="flex flex-wrap items-center gap-2">
     <InputGroup className="w-56">
@@ -199,10 +285,23 @@ const Toolbar = ({
         </SelectPopup>
       </Select>
     ) : null}
+    <div className="ml-auto flex items-center gap-2">
+      <VaultToolbarActions mode={mode} vault={vault} invalidate={invalidate} />
+    </div>
   </div>
 );
 
-const EnvVarsTable = ({ items }: { items: readonly EnvVar[] }) =>
+const EnvVarsTable = ({
+  items,
+  orgId,
+  vault,
+  invalidate,
+}: {
+  items: readonly EnvVar[];
+  orgId: string;
+  vault: EnvVaultController;
+  invalidate: () => Promise<void>;
+}) =>
   items.length === 0 ? (
     <EmptyState />
   ) : (
@@ -216,11 +315,30 @@ const EnvVarsTable = ({ items }: { items: readonly EnvVar[] }) =>
             <TableHead>Visibility</TableHead>
             <TableHead>Revisions</TableHead>
             <TableHead>Updated</TableHead>
+            {vault.enabled ? (
+              <TableHead>
+                <span className="sr-only">Actions</span>
+              </TableHead>
+            ) : null}
           </TableRow>
         </TableHeader>
         <TableBody>
           {items.map((envVar) => (
-            <EnvVarRow key={envVar.id} envVar={envVar} />
+            <EnvVarRow
+              key={envVar.id}
+              envVar={envVar}
+              hasActions={vault.enabled}
+              actions={
+                vault.unlocked ? (
+                  <EnvVarRowActions
+                    envVar={envVar}
+                    orgId={orgId}
+                    vault={vault.unlocked}
+                    invalidate={invalidate}
+                  />
+                ) : null
+              }
+            />
           ))}
         </TableBody>
       </Table>
@@ -237,6 +355,25 @@ export const EnvVarsView = ({
   onChangeSearch: (next: EnvVarsSearch) => void;
 }) => {
   const { query, scope, environments } = search;
+
+  const vault = useEnvVault(mode.orgId);
+  const queryClient = useQueryClient();
+  // Invalidate the global env-vars list AND every project's list for this org:
+  // global vars are merged into each project's view, so a global-scope mutation
+  // (or editing an inherited global row from a project view) can change any of
+  // them. Scoped to env-var list keys so unrelated org queries aren't refetched.
+  const invalidateEnvVars = useCallback(
+    async () =>
+      queryClient.invalidateQueries({
+        predicate: ({ queryKey: key }) => {
+          if (key[0] !== "org" || key[1] !== mode.orgId) {
+            return false;
+          }
+          return key[2] === "global-env-vars" || (key[2] === "projects" && key[4] === "env-vars");
+        },
+      }),
+    [queryClient, mode.orgId],
+  );
 
   const { draft: searchDraft, setDraft: onSearchDraftChange } = useDebouncedSearch({
     initial: query,
@@ -273,11 +410,18 @@ export const EnvVarsView = ({
       return (
         <div className="flex flex-col gap-2">
           <Skeleton className="h-9 w-full rounded-md" />
-          <TableSkeleton columns={6} rows={4} hasFooter={false} />
+          <TableSkeleton columns={vault.enabled ? 7 : 6} rows={4} hasFooter={false} />
         </div>
       );
     }
-    return <EnvVarsTable items={data.items} />;
+    return (
+      <EnvVarsTable
+        items={data.items}
+        orgId={mode.orgId}
+        vault={vault}
+        invalidate={invalidateEnvVars}
+      />
+    );
   };
 
   return (
@@ -294,6 +438,8 @@ export const EnvVarsView = ({
         onEnvironmentsChange={(next) => {
           onChangeSearch({ ...search, environments: [...next] });
         }}
+        vault={vault}
+        invalidate={invalidateEnvVars}
       />
       <p className="text-muted-foreground text-sm">
         Values are end-to-end encrypted and managed from the CLI —{" "}

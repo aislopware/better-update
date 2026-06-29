@@ -12,5 +12,13 @@
       "pattern": "updates.jmango360.dev/*",
       "zone_id": "e36dbf0b4c3b7fd375d1423e14ccef97",
     },
+    // Web env vault (P4): serve the same web app on the independent vault origin.
+    // /api/* there is claimed by the server worker (more specific route); this
+    // catch-all serves the SPA shell. The vault UI is host-gated in app code, so
+    // until an org cuts over this origin just renders the normal (read-only) app.
+    {
+      "pattern": "updates-vault.jmango360.dev/*",
+      "zone_id": "e36dbf0b4c3b7fd375d1423e14ccef97",
+    },
   ],
 }
