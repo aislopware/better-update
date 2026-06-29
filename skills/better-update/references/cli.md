@@ -298,6 +298,7 @@ better-update credentials generate distribution-certificate --asc-key-id <id> [-
 better-update credentials generate provisioning-profile --asc-key-id <id> --cert-id <id> --bundle <id> \
   --distribution <APP_STORE|AD_HOC|DEVELOPMENT|ENTERPRISE> [--device-ids id1,id2]
 better-update credentials generate push-key [--method <apple-id|upload>] [--key-id] [--apple-team-id] [--p8 <path>] [--asc-key-id] [--name] [--skip-portal-hint]
+better-update credentials generate asc-key [--role <ADMIN|APP_MANAGER>=ADMIN] [--name] [--nickname]   # create an ASC API key via Apple ID login (no manual .p8)
 better-update credentials generate merchant-id --identifier <merchant.*> [--name] [--bundle-identifier]
 better-update credentials generate gsa-key [--file <path>] [--name] [--purpose <fcm|play>] [--skip-portal-hint]
 
@@ -517,13 +518,13 @@ creation. `update` uses two separate boolean flags `--enable` / `--disable` to s
 
 Use these in CI to branch on failure type.
 
-| Code | Meaning                                                                                                                                                                                                |
-| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `0`  | Success.                                                                                                                                                                                               |
-| `1`  | General failure (e.g. `fingerprint compare` mismatch; also resource-not-found / 404).                                                                                                                  |
-| `2`  | Validation error (bad flag, missing required arg, `fingerprint` resolution error).                                                                                                                     |
-| `3`  | Auth required or expired.                                                                                                                                                                              |
-| `4`  | Project not linked (run `init`); also Apple Developer auth / interactive-prohibited in the Apple-portal commands (`apple login`, `credentials generate push-key`/`merchant-id`, `credentials revoke`). |
-| `5`  | Missing signing credentials (`build`, `credentials regenerate-profile`) or a missing/invalid `credentials.json` (`credentials sync`).                                                                  |
-| `6`  | Tooling/build failure: `doctor` check failed, plus local build / keychain / provisioning / native-run / credential-generation failures and filesystem errors.                                          |
-| `7`  | Publish/upload pipeline failure (artifact reserve/upload/complete, presigned-URL expiry, env export, bsdiff/patch generation, `update publish`).                                                       |
+| Code | Meaning                                                                                                                                                                                                          |
+| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `0`  | Success.                                                                                                                                                                                                         |
+| `1`  | General failure (e.g. `fingerprint compare` mismatch; also resource-not-found / 404).                                                                                                                            |
+| `2`  | Validation error (bad flag, missing required arg, `fingerprint` resolution error).                                                                                                                               |
+| `3`  | Auth required or expired.                                                                                                                                                                                        |
+| `4`  | Project not linked (run `init`); also Apple Developer auth / interactive-prohibited in the Apple-portal commands (`apple login`, `credentials generate push-key`/`asc-key`/`merchant-id`, `credentials revoke`). |
+| `5`  | Missing signing credentials (`build`, `credentials regenerate-profile`) or a missing/invalid `credentials.json` (`credentials sync`).                                                                            |
+| `6`  | Tooling/build failure: `doctor` check failed, plus local build / keychain / provisioning / native-run / credential-generation failures and filesystem errors.                                                    |
+| `7`  | Publish/upload pipeline failure (artifact reserve/upload/complete, presigned-URL expiry, env export, bsdiff/patch generation, `update publish`).                                                                 |

@@ -36,7 +36,7 @@ better-update credentials upload-asc-key --p8 ./AuthKey_XXXX.p8 --key-id <id> --
 | iOS      | `distribution-certificate`   | `--password` (Apple Team ID is derived from the cert)                       |
 | iOS      | `provisioning-profile`       | (none)                                                                      |
 | iOS      | `push-key`                   | `--key-id`, `--apple-team-identifier`                                       |
-| iOS      | `asc-api-key`                | `--key-id`, `--issuer-id` (or use `upload-asc-key`)                         |
+| iOS      | `asc-api-key`                | `--key-id`, `--issuer-id` (or `upload-asc-key`, or `generate asc-key`)      |
 | iOS      | `push-certificate`           | `--password` (`--bundle-identifier` only if not derivable from the cert CN) |
 | iOS      | `apple-pay-certificate`      | `--password`, `--merchant-identifier`                                       |
 | iOS      | `pass-type-certificate`      | `--password`, `--pass-type-identifier`                                      |
@@ -73,6 +73,14 @@ better-update credentials generate provisioning-profile \
 # locally, uploaded. Use --method upload / --p8 <path> to upload one you already have (CI path).
 better-update credentials generate push-key [--method apple-id|upload] [--p8 <path>] [--asc-key-id <id>] [--skip-portal-hint]
 
+# iOS ASC API key (.p8) via Apple ID login (2FA, interactive) — no manual download. Mirrors what
+# `eas submit` does: created on the iris/v1 endpoint the cookie session authenticates, downloaded
+# once (retried while Apple propagates the new key), E2E-encrypted locally, uploaded. The result is a
+# normal asc-api-key credential usable for certs/profiles/device sync/build upload. --role defaults
+# to ADMIN (APP_MANAGER = least privilege). One-time prereq: the Account Holder must agree to the API
+# Terms under App Store Connect → Users and Access → Integrations, else Apple rejects the create.
+better-update credentials generate asc-key [--role ADMIN|APP_MANAGER] [--name] [--nickname]
+
 # Apple Pay Merchant ID (via Apple ID login)
 better-update credentials generate merchant-id --identifier merchant.com.example.app [--bundle-identifier com.example.app]
 
@@ -80,9 +88,11 @@ better-update credentials generate merchant-id --identifier merchant.com.example
 better-update credentials generate gsa-key [--file <path>] [--purpose fcm|play] [--skip-portal-hint]
 ```
 
-For `AD_HOC`/`DEVELOPMENT` profiles pass `--device-ids`. APNs push keys and merchant IDs are created
-via **Apple ID login (2FA), not the ASC API**. Apple caps a team at 2 APNs keys; at the limit the CLI
-offers an interactive revoke + retry. Omitted args fall back to interactive prompts where sensible.
+For `AD_HOC`/`DEVELOPMENT` profiles pass `--device-ids`. APNs push keys, ASC API keys, and merchant IDs
+are created via **Apple ID login (2FA), not the ASC API** — `generate asc-key` bootstraps the very
+credential the other ASC-API generators consume, so it needs no pre-existing `--asc-key-id`. Apple caps
+a team at 2 APNs keys; at the limit the CLI offers an interactive revoke + retry. Omitted args fall back
+to interactive prompts where sensible.
 
 ## Regenerate / configure / sync
 
