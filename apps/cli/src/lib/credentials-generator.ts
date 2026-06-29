@@ -22,7 +22,7 @@ import {
   listCertificates,
   listDevices,
 } from "./apple-asc-client";
-import { buildDistributionCertP12 } from "./apple-cert-to-p12";
+import { buildDistributionCertP12, normalizeAppleSerial } from "./apple-cert-to-p12";
 import { generateCertificateSigningRequest } from "./apple-csr";
 import { fetchAscCredentials } from "./asc-credentials";
 import { acquireBuildTempDir } from "./temp-dir";
@@ -258,7 +258,7 @@ export const revokeLocalDistributionCertificate = (
 
     const creds = yield* fetchAscCredentials(api, input.ascApiKeyId);
     const ascCreds = { keyId: creds.keyId, issuerId: creds.issuerId, p8Pem: creds.p8Pem };
-    const targetSerial = local.serialNumber.toUpperCase();
+    const targetSerial = normalizeAppleSerial(local.serialNumber);
 
     const matching = yield* Effect.all(
       [
@@ -269,7 +269,7 @@ export const revokeLocalDistributionCertificate = (
     ).pipe(Effect.mapError(wrapAscError("apple-list-certificates")));
 
     const ascMatch = [...matching[0], ...matching[1]].find(
-      (entry) => entry.serialNumber.toUpperCase() === targetSerial,
+      (entry) => normalizeAppleSerial(entry.serialNumber) === targetSerial,
     );
 
     let revokedOnApple = false;
@@ -330,7 +330,8 @@ const resolveCertAscId = (
     const certs = yield* listCertificates(creds, { certificateType }).pipe(
       Effect.mapError(wrapAscError("apple-list-certificates")),
     );
-    const match = certs.find((entry) => entry.serialNumber.toUpperCase() === serialNumber);
+    const target = normalizeAppleSerial(serialNumber);
+    const match = certs.find((entry) => normalizeAppleSerial(entry.serialNumber) === target);
     if (match === undefined) {
       return yield* new GenerateFailedError({
         step: "match-apple-certificate",

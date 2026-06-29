@@ -57,6 +57,19 @@ const parseCert = (certDerBytes: string): forge.pki.Certificate => {
 
 const generatePassword = (): string => forge.util.encode64(forge.random.getBytesSync(16));
 
+/**
+ * Normalize an Apple certificate serial number for comparison.
+ *
+ * The serial read from a certificate's X.509 DER (via node-forge) keeps any
+ * leading zero byte (e.g. `02C4E489…`), whereas the App Store Connect API
+ * reports the same serial with leading zeros stripped (e.g. `2C4E489…`).
+ * Comparing the two representations verbatim makes a present certificate look
+ * absent ("not present on Apple Developer Portal"), so normalize both sides:
+ * uppercase and drop leading zeros.
+ */
+export const normalizeAppleSerial = (serial: string): string =>
+  serial.toUpperCase().replace(/^0+/u, "");
+
 const extractCertMetadata = (
   cert: forge.pki.Certificate,
 ): Effect.Effect<CertMetadata, CertParseError> =>

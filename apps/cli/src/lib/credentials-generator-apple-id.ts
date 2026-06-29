@@ -11,7 +11,7 @@ import {
   sealForUpload,
   toUploadEnvelope,
 } from "../application/credential-cipher";
-import { extractMetadataFromP12 } from "./apple-cert-to-p12";
+import { extractMetadataFromP12, normalizeAppleSerial } from "./apple-cert-to-p12";
 import { CertificateLimitError, computeDeviceRosterHashHex } from "./credentials-generator";
 
 import type { ApiClient } from "../services/api-client";
@@ -196,8 +196,10 @@ const findAscCertificateId = (
         query: { filter: { certificateType } },
       }),
     );
-    const upper = serialNumber.toUpperCase();
-    const match = certs.find((entry) => entry.attributes.serialNumber.toUpperCase() === upper);
+    const target = normalizeAppleSerial(serialNumber);
+    const match = certs.find(
+      (entry) => normalizeAppleSerial(entry.attributes.serialNumber) === target,
+    );
     if (match === undefined) {
       return yield* new AppleIdGenerateFailedError({
         step: "match-apple-certificate",
