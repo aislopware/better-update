@@ -58,7 +58,8 @@ export const ascKeyCommand = defineCommand({
     },
     nickname: {
       type: "string",
-      description: "Nickname shown in App Store Connect (defaults to a timestamped name)",
+      description:
+        "Nickname shown in App Store Connect (defaults to a timestamped name; Apple caps it at 30 chars, longer values are truncated)",
     },
   },
   run: async ({ args }: { readonly args: AscKeyArgs }) =>

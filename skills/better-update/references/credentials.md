@@ -79,6 +79,8 @@ better-update credentials generate push-key [--method apple-id|upload] [--p8 <pa
 # normal asc-api-key credential usable for certs/profiles/device sync/build upload. --role defaults
 # to ADMIN (APP_MANAGER = least privilege). One-time prereq: the Account Holder must agree to the API
 # Terms under App Store Connect → Users and Access → Integrations, else Apple rejects the create.
+# --nickname is the name shown in App Store Connect; Apple caps it at 30 chars, so longer values are
+# truncated (the default is a short timestamped name well under the cap).
 better-update credentials generate asc-key [--role ADMIN|APP_MANAGER] [--name] [--nickname]
 
 # Apple Pay Merchant ID (via Apple ID login)

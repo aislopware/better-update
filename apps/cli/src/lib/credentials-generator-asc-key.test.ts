@@ -16,6 +16,7 @@ import type * as AppleUtilsModule from "@expo/apple-utils";
 import { CliRuntime } from "../services/cli-runtime";
 import { IdentityStore } from "../services/identity-store";
 import {
+  defaultAscApiKeyNickname,
   generateAndUploadAscApiKeyViaAppleId,
   listAscApiKeysViaAppleId,
 } from "./credentials-generator-asc-key";
@@ -226,6 +227,34 @@ describe(generateAndUploadAscApiKeyViaAppleId, () => {
     }),
   );
 
+  it.effect("clamps a too-long nickname to Apple's 30-char API key name cap", () =>
+    Effect.gen(function* () {
+      mocks.apiKeyCreateAsync.mockResolvedValue(makeKey());
+      mocks.apiKeyDownloadAsync.mockResolvedValue(PEM);
+      mocks.apiKeyInfoAsync.mockResolvedValue({
+        id: "ASCKEY123",
+        attributes: { provider: { id: "issuer-uuid-1" } },
+      });
+      mocks.ascApiKeysUpload.mockReturnValue(Effect.succeed({ id: "asc-local-1" }));
+
+      const vault = yield* makeTestVault;
+      yield* generateAndUploadAscApiKeyViaAppleId(buildApi(vault), {
+        context,
+        appleTeamIdentifier: "TEAM1234",
+        // 40 chars — the old ISO-timestamp default Apple rejected as "too long".
+        nickname: "[better-update] 2026-06-29T23:15:42.123Z",
+        role: "ADMIN",
+      }).pipe(Effect.provide(ascLayer(vault.identity.privateKey)));
+
+      const [, createArgs] = mocks.apiKeyCreateAsync.mock.calls[0] as [
+        unknown,
+        { nickname: string },
+      ];
+      expect(createArgs.nickname.length).toBeLessThanOrEqual(30);
+      expect(createArgs.nickname).toMatch(/^\[better-update\] /u);
+    }),
+  );
+
   it.effect("fails fast (no retry) when the key has already been downloaded", () =>
     Effect.gen(function* () {
       mocks.apiKeyCreateAsync.mockResolvedValue(makeKey());
@@ -292,6 +321,13 @@ describe(generateAndUploadAscApiKeyViaAppleId, () => {
       expect(mocks.ascApiKeysUpload).not.toHaveBeenCalled();
     }),
   );
+});
+
+describe(defaultAscApiKeyNickname, () => {
+  it("stays within Apple's 30-char API key name cap", () => {
+    expect(defaultAscApiKeyNickname().length).toBeLessThanOrEqual(30);
+    expect(defaultAscApiKeyNickname()).toMatch(/^\[better-update\] /u);
+  });
 });
 
 describe(listAscApiKeysViaAppleId, () => {

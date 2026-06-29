@@ -28,8 +28,17 @@ export type AscApiKeyRole = "ADMIN" | "APP_MANAGER";
 const toUserRole = (role: AscApiKeyRole): AppleUtils.UserRole =>
   role === "APP_MANAGER" ? AppleUtils.UserRole.APP_MANAGER : AppleUtils.UserRole.ADMIN;
 
+// App Store Connect caps an API key's name at 30 characters; a longer value is
+// rejected at creation with "An attribute value is too long". Keep the default
+// comfortably under that (base-36 epoch ≈ 8 chars) and clamp any caller-supplied
+// nickname so a long `--nickname` (or an old ISO-timestamp default) can't fail.
+const ASC_API_KEY_NICKNAME_MAX_LENGTH = 30;
+
+const clampAscApiKeyNickname = (nickname: string): string =>
+  nickname.slice(0, ASC_API_KEY_NICKNAME_MAX_LENGTH);
+
 /** Default nickname shown in App Store Connect → Users and Access → Integrations. */
-export const defaultAscApiKeyNickname = (): string => `[better-update] ${new Date().toISOString()}`;
+export const defaultAscApiKeyNickname = (): string => `[better-update] ${Date.now().toString(36)}`;
 
 // A freshly-created key is not immediately queryable — Apple needs a moment to
 // propagate it, during which the download (an info GET under the hood) fails with
@@ -127,7 +136,7 @@ export const generateAndUploadAscApiKeyViaAppleId = (
 
     const key = yield* wrap("apple-create-asc-key", async () =>
       AppleUtils.ApiKey.createAsync(ctx, {
-        nickname: input.nickname,
+        nickname: clampAscApiKeyNickname(input.nickname),
         allAppsVisible: true,
         roles: [toUserRole(input.role)],
         keyType: AppleUtils.ApiKeyType.PUBLIC_API,
