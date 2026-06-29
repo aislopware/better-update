@@ -185,13 +185,20 @@ lint-test-build:
     - bun run test
     - bun run build
 
-# Mirrors GitHub `e2e-server`: local vitest-pool-workers suite (no Rust, no
-# Cloudflare creds). Remote-R2 e2e (test:e2e-r2) is intentionally skipped here.
+# Local vitest-pool-workers e2e suite (no Rust, no Cloudflare creds). Remote-R2
+# e2e (test:e2e-r2) is intentionally skipped here.
+#
+# NOT a merge-request gate: MRs gate on lint + unit (`lint-test-build`) and
+# `integrations` only. This job is kept as an on-demand, non-blocking manual job
+# on MR pipelines — hit the play button in the pipeline UI to run the e2e suite
+# when you want it; it never blocks the MR pipeline from going green.
 e2e-server:
   extends: .base-bun
   stage: test
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: manual
+      allow_failure: true
   script:
     - bun_ci_install
     - bun run typegen:cf
