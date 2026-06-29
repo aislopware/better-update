@@ -101,12 +101,17 @@ export {
 } from "./react/devices";
 export type { DeviceSort, DeviceSortColumn, DevicesFilters } from "./react/devices";
 export {
+  createEnvVar,
+  deleteEnvVar,
   envVarsQueryKey,
   envVarsQueryOptions,
+  getEnvVarValue,
   globalEnvVarsQueryKey,
   globalEnvVarsQueryOptions,
+  updateEnvVar,
 } from "./react/env-vars";
 export type { EnvVarsFilters } from "./react/env-vars";
+export { getAccountKeyEscrow, getEnvVaultAccountWrap, stepUpPasskey } from "./react/web-vault";
 export {
   createEnvironment,
   deleteEnvironment,

@@ -1,6 +1,11 @@
 import { queryOptions } from "@tanstack/react-query";
 
-import type { EnvVarEnvironment, EnvVarListScope } from "@better-update/api";
+import type {
+  CreateEnvVarBody,
+  EnvVarEnvironment,
+  EnvVarListScope,
+  UpdateEnvVarBody,
+} from "@better-update/api";
 
 import { runApi } from "../index";
 
@@ -56,6 +61,22 @@ export const globalEnvVarsQueryOptions = (orgId: string, filters?: EnvVarsFilter
     staleTime: 30_000,
   });
 
-// Env var values are end-to-end encrypted: the dashboard reads metadata only.
-// Create / update / delete / import all happen in the CLI (`better-update env …`),
-// which holds the org vault key — so there are deliberately no mutation bindings.
+// Env var VALUE CRUD from the browser env-vault (P4). The dashboard list/get
+// still reads metadata only; these mutations carry a CLIENT-SEALED value envelope
+// (sealed in the browser with the env-vault key — see @better-update/credentials-crypto
+// `sealEnvValue`). The server stays zero-plaintext. All require a fresh WebAuthn
+// step-up (cookie transport) enforced server-side. Callers wrap these in
+// `useMutation` and invalidate `envVarsQueryKey` / `globalEnvVarsQueryKey` onSuccess.
+
+export const createEnvVar = async (body: typeof CreateEnvVarBody.Type) =>
+  runApi((api) => api["env-vars"].create({ payload: body }));
+
+export const updateEnvVar = async (id: string, body: typeof UpdateEnvVarBody.Type) =>
+  runApi((api) => api["env-vars"].update({ path: { id }, payload: body }));
+
+export const deleteEnvVar = async (id: string) =>
+  runApi((api) => api["env-vars"].delete({ path: { id } }));
+
+/** Fetch the active value's sealed envelope for client-side decryption (reveal). */
+export const getEnvVarValue = async (id: string) =>
+  runApi((api) => api["env-vars"].getValue({ path: { id } }));
