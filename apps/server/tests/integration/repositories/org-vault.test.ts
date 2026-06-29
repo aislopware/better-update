@@ -350,7 +350,7 @@ describe("OrgVaultRepo — D1 integration", () => {
       const refs = await run(
         Effect.gen(function* () {
           const repo = yield* OrgVaultRepo;
-          return yield* repo.listCredentialRefs({ organizationId: "ov-rot" });
+          return yield* repo.listCredentialRefs({ organizationId: "ov-rot", includeEnv: true });
         }),
       );
       expect(refs).toContainEqual({ credentialType: "androidUploadKeystore", id: "ks-rot" });
@@ -361,7 +361,7 @@ describe("OrgVaultRepo — D1 integration", () => {
       const deks = await run(
         Effect.gen(function* () {
           const repo = yield* OrgVaultRepo;
-          return yield* repo.listCredentialDeks({ organizationId: "ov-rot" });
+          return yield* repo.listCredentialDeks({ organizationId: "ov-rot", includeEnv: true });
         }),
       );
       expect(deks).toContainEqual({
