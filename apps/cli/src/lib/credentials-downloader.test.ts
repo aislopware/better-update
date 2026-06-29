@@ -108,7 +108,12 @@ const makeTestVault = Effect.gen(function* () {
     wrapDek({
       dek,
       vaultKey,
-      binding: { orgId: ORG_ID, credentialId: CERT_ID, vaultVersion: VAULT_VERSION },
+      binding: {
+        orgId: ORG_ID,
+        credentialId: CERT_ID,
+        vaultVersion: VAULT_VERSION,
+        vaultKind: "credentials",
+      },
     }),
   );
   return {

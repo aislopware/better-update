@@ -3,13 +3,16 @@ import { defineCommand } from "citty";
 import { runCredentialsManager } from "../../application/credentials-manager";
 import { runEffect } from "../../lib/citty-effect";
 import { accessCommand } from "./access";
+import { accountCommand } from "./account";
 import { configureCommand } from "./configure";
 import { deleteCommand } from "./delete";
 import { deviceCommand } from "./device";
 import { downloadCommand } from "./download";
+import { envVaultCommand } from "./env-vault";
 import { generateCommand } from "./generate";
 import { identityCommand } from "./identity";
 import { listCommand } from "./list";
+import { passphraseCommand } from "./passphrase";
 import { regenerateProfileCommand } from "./regenerate-profile";
 import { removeCommand } from "./remove";
 import { revokeCommand } from "./revoke";
@@ -38,6 +41,9 @@ export const credentialsCommand = defineCommand({
     manager: managerCommand,
     identity: identityCommand,
     access: accessCommand,
+    account: accountCommand,
+    "env-vault": envVaultCommand,
+    passphrase: passphraseCommand,
     device: deviceCommand,
     unlock: unlockCommand,
     lock: lockCommand,

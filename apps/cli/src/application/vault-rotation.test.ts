@@ -67,7 +67,12 @@ describe(rotateVaultTo, () => {
         wrapDek({
           dek: originalDek,
           vaultKey: oldVaultKey,
-          binding: { orgId: ORG_ID, credentialId: CRED_ID, vaultVersion: 1 },
+          binding: {
+            orgId: ORG_ID,
+            credentialId: CRED_ID,
+            vaultVersion: 1,
+            vaultKind: "credentials",
+          },
         }),
       );
 
@@ -138,7 +143,12 @@ describe(rotateVaultTo, () => {
       const recovered = unwrapDek({
         wrappedDek: fromBase64(dek?.wrappedDek ?? ""),
         vaultKey: newVaultKey,
-        binding: { orgId: ORG_ID, credentialId: CRED_ID, vaultVersion: 2 },
+        binding: {
+          orgId: ORG_ID,
+          credentialId: CRED_ID,
+          vaultVersion: 2,
+          vaultKind: "credentials",
+        },
       });
       expect(toBase64(recovered)).toBe(toBase64(originalDek));
     }),

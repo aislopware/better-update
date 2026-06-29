@@ -76,7 +76,12 @@ const sealEnvVar = (
     wrapDek({
       dek,
       vaultKey: vault.vaultKey,
-      binding: { orgId: ORG_ID, credentialId: id, vaultVersion: VAULT_VERSION },
+      binding: {
+        orgId: ORG_ID,
+        credentialId: id,
+        vaultVersion: VAULT_VERSION,
+        vaultKind: "credentials",
+      },
     }),
   );
   return {
@@ -113,6 +118,8 @@ const buildApi = (
         }),
     },
     orgVault: {
+      // Not cut over → env stays in the credentials vault (the pre-split path).
+      get: () => Effect.succeed({ envVaultCutoverAt: null }),
       getWrap: () =>
         Effect.succeed({ vaultVersion: VAULT_VERSION, wrappedKey: vault.wrappedVaultKey }),
     },

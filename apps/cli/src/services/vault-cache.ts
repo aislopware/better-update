@@ -4,6 +4,8 @@ import { isRecord } from "@better-update/type-guards";
 import { Entry } from "@napi-rs/keyring";
 import { Clock, Context, Effect, Layer } from "effect";
 
+import type { VaultKind } from "@better-update/credentials-crypto";
+
 import { CliRuntime } from "./cli-runtime";
 
 import type { UnlockedVault } from "../application/vault-access";
@@ -28,8 +30,18 @@ export const VAULT_CACHE_TTL_MS = 15 * 60 * 1000;
 export const VAULT_CACHE_TTL_MIN_MS = 60 * 1000;
 export const VAULT_CACHE_TTL_MAX_MS = 24 * 60 * 60 * 1000;
 
-/** Keychain service name; the account is the recipient's public key. */
+/** Keychain service name; the account is the recipient's public key (per {@link cacheAccount}). */
 const KEYCHAIN_SERVICE = "better-update-vault";
+
+/**
+ * The keychain account a recipient's cached key is stored under, namespaced by
+ * vault kind so the credentials and env vaults cache independently. The
+ * credentials vault keeps the bare public key — byte-identical to entries written
+ * before the two-vault split, so an upgrade keeps any live unlock — while the env
+ * vault is prefixed.
+ */
+const cacheAccount = (publicKey: string, vaultKind: VaultKind = "credentials"): string =>
+  vaultKind === "env" ? `env:${publicKey}` : publicKey;
 
 /** The on-disk (keychain) shape: base64 vault key + provenance + an absolute expiry. */
 interface CachedVaultEntry {
@@ -88,12 +100,19 @@ export const decodeCacheEntry = (raw: string, now: number): CachedVault | undefi
 export class VaultCache extends Context.Tag("cli/VaultCache")<
   VaultCache,
   {
-    /** The cached vault key for this recipient, or `undefined` if absent/expired/disabled. */
-    readonly get: (publicKey: string) => Effect.Effect<CachedVault | undefined>;
-    /** Stow the unlocked vault key under this recipient, with a fresh TTL (default 15 min). */
-    readonly set: (publicKey: string, vault: UnlockedVault, ttlMs?: number) => Effect.Effect<void>;
-    /** Forget the cached vault key for this recipient (the `lock` operation). */
-    readonly clear: (publicKey: string) => Effect.Effect<void>;
+    /** The cached vault key for this recipient + vault kind, or `undefined` if absent/expired/disabled. */
+    readonly get: (
+      publicKey: string,
+      vaultKind?: VaultKind,
+    ) => Effect.Effect<CachedVault | undefined>;
+    /** Stow the unlocked vault key under this recipient + vault kind, with a fresh TTL (default 15 min). */
+    readonly set: (
+      publicKey: string,
+      vault: UnlockedVault,
+      opts?: { readonly ttlMs?: number | undefined; readonly vaultKind?: VaultKind },
+    ) => Effect.Effect<void>;
+    /** Forget the cached vault key for this recipient + vault kind (the `lock` operation). */
+    readonly clear: (publicKey: string, vaultKind?: VaultKind) => Effect.Effect<void>;
   }
 >() {}
 
@@ -112,24 +131,25 @@ export const VaultCacheLive = Layer.effect(
     // All keyring access is best-effort. A machine with no usable OS keychain
     // (headless Linux without libsecret, a locked login keychain, …) must degrade
     // to "no cache" — prompt every time — rather than crash a command.
-    const readRaw = (publicKey: string) =>
-      Effect.try(() => new Entry(KEYCHAIN_SERVICE, publicKey).getPassword()).pipe(
+    const readRaw = (account: string) =>
+      Effect.try(() => new Entry(KEYCHAIN_SERVICE, account).getPassword()).pipe(
         Effect.orElseSucceed((): string | null => null),
       );
-    const writeRaw = (publicKey: string, blob: string) =>
+    const writeRaw = (account: string, blob: string) =>
       Effect.try(() => {
-        new Entry(KEYCHAIN_SERVICE, publicKey).setPassword(blob);
+        new Entry(KEYCHAIN_SERVICE, account).setPassword(blob);
       }).pipe(Effect.ignore);
-    const deleteRaw = (publicKey: string) =>
-      Effect.try(() => new Entry(KEYCHAIN_SERVICE, publicKey).deletePassword()).pipe(Effect.ignore);
+    const deleteRaw = (account: string) =>
+      Effect.try(() => new Entry(KEYCHAIN_SERVICE, account).deletePassword()).pipe(Effect.ignore);
 
     return {
-      get: (publicKey) =>
+      get: (publicKey, vaultKind) =>
         Effect.gen(function* () {
           if (yield* cacheDisabled) {
             return undefined;
           }
-          const raw = yield* readRaw(publicKey);
+          const account = cacheAccount(publicKey, vaultKind);
+          const raw = yield* readRaw(account);
           if (raw === null) {
             return undefined;
           }
@@ -137,22 +157,25 @@ export const VaultCacheLive = Layer.effect(
           const decoded = decodeCacheEntry(raw, now);
           if (decoded === undefined) {
             // Malformed or expired — evict so the next read is a clean miss.
-            yield* deleteRaw(publicKey);
+            yield* deleteRaw(account);
             return undefined;
           }
           return decoded;
         }),
 
-      set: (publicKey, vault, ttlMs) =>
+      set: (publicKey, vault, opts) =>
         Effect.gen(function* () {
           if (yield* cacheDisabled) {
             return;
           }
           const now = yield* Clock.currentTimeMillis;
-          yield* writeRaw(publicKey, encodeCacheEntry(vault, now, ttlMs));
+          yield* writeRaw(
+            cacheAccount(publicKey, opts?.vaultKind),
+            encodeCacheEntry(vault, now, opts?.ttlMs),
+          );
         }),
 
-      clear: (publicKey) => deleteRaw(publicKey),
+      clear: (publicKey, vaultKind) => deleteRaw(cacheAccount(publicKey, vaultKind)),
     };
   }),
 );

@@ -9,7 +9,7 @@ import {
 import { fromBase64, toBase64 } from "@better-update/encoding";
 import { Effect, Schema } from "effect";
 
-import type { CredentialPayload } from "@better-update/credentials-crypto";
+import type { CredentialPayload, VaultKind } from "@better-update/credentials-crypto";
 
 import { IdentityError } from "../lib/exit-codes";
 import { unlockVaultKey, unlockVaultKeyInteractive } from "./vault-access";
@@ -69,6 +69,13 @@ export const getActiveOrgId = (api: ApiClient) =>
 export interface VaultSession {
   readonly orgId: string;
   readonly vault: UnlockedVault;
+  /**
+   * Which org vault these values are sealed under — folded into the DEK AAD by
+   * seal/open. Credential flows are always `"credentials"`; env flows are
+   * `"credentials"` pre-cutover (env still lives in the credentials vault,
+   * byte-identical to before the split) and `"env"` once the org has cut over.
+   */
+  readonly vaultKind: VaultKind;
 }
 
 /** Resolve the active org id and unlock this device's vault key — the once-per-command I/O. */
@@ -76,7 +83,7 @@ export const openVaultSession = (api: ApiClient, passphrase: string | undefined)
   Effect.gen(function* () {
     const orgId = yield* getActiveOrgId(api);
     const vault = yield* unlockVaultKey(api, passphrase);
-    return { orgId, vault } satisfies VaultSession;
+    return { orgId, vault, vaultKind: "credentials" } satisfies VaultSession;
   });
 
 /**
@@ -88,7 +95,7 @@ export const openVaultSessionInteractive = (api: ApiClient) =>
   Effect.gen(function* () {
     const orgId = yield* getActiveOrgId(api);
     const vault = yield* unlockVaultKeyInteractive(api);
-    return { orgId, vault } satisfies VaultSession;
+    return { orgId, vault, vaultKind: "credentials" } satisfies VaultSession;
   });
 
 /** Reshape a sealed envelope into the `{ id, …opaque fields }` an upload body carries. */
@@ -115,7 +122,7 @@ export const sealForUpload = (
   args: SealForUploadArgs,
 ): Effect.Effect<CredentialEnvelope, IdentityError> =>
   Effect.gen(function* () {
-    const { orgId, vault } = args.session;
+    const { orgId, vault, vaultKind } = args.session;
     const credentialId = crypto.randomUUID();
     const dek = generateDek();
     const payload: CredentialPayload = {
@@ -132,7 +139,7 @@ export const sealForUpload = (
         wrappedDek: wrapDek({
           dek,
           vaultKey: vault.vaultKey,
-          binding: { orgId, credentialId, vaultVersion: vault.vaultVersion },
+          binding: { orgId, credentialId, vaultVersion: vault.vaultVersion, vaultKind },
         }),
       }),
       catch: () =>
@@ -164,7 +171,7 @@ export const openEnvelope = (
   args: OpenEnvelopeArgs,
 ): Effect.Effect<Record<string, unknown>, IdentityError> =>
   Effect.gen(function* () {
-    const { orgId, vault } = args.session;
+    const { orgId, vault, vaultKind } = args.session;
     const dek = yield* Effect.try({
       try: () =>
         unwrapDek({
@@ -174,6 +181,7 @@ export const openEnvelope = (
             orgId,
             credentialId: args.credentialId,
             vaultVersion: args.envelope.vaultVersion,
+            vaultKind,
           },
         }),
       catch: () =>

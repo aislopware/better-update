@@ -2,7 +2,8 @@ import { compact } from "@better-update/type-guards";
 import { defineCommand } from "citty";
 import { Effect } from "effect";
 
-import { openVaultSessionInteractive, sealForUpload } from "../../application/credential-cipher";
+import { sealForUpload } from "../../application/credential-cipher";
+import { openEnvVaultSessionInteractive } from "../../application/env-vault-access";
 import { runEffect } from "../../lib/citty-effect";
 import { InvalidArgumentError } from "../../lib/exit-codes";
 import { printHuman } from "../../lib/output";
@@ -60,8 +61,9 @@ export const updateCommand = defineCommand({
             payload: compact({ visibility }),
           });
         } else {
-          // A new value means a new sealed revision; the vault is unlocked to seal.
-          const session = yield* openVaultSessionInteractive(api);
+          // A new value means a new sealed revision; the env vault is unlocked to
+          // seal it (credentials vault pre-cutover, env vault after).
+          const session = yield* openEnvVaultSessionInteractive(api);
           const envelope = yield* sealForUpload({
             session,
             credentialType: "envVarValue",
@@ -76,6 +78,7 @@ export const updateCommand = defineCommand({
                 ciphertext: envelope.ciphertext,
                 wrappedDek: envelope.wrappedDek,
                 vaultVersion: envelope.vaultVersion,
+                vaultKind: session.vaultKind,
               },
               ...compact({ visibility }),
             },

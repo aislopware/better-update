@@ -169,7 +169,7 @@ export const unlockVaultKeyInteractive = (
     }
     const passphrase = yield* promptPassword("Passphrase to unlock this device's identity:");
     const vault = yield* unlockVaultKey(api, passphrase);
-    yield* cache.set(recipient.publicKey, vault, options?.cacheTtlMs);
+    yield* cache.set(recipient.publicKey, vault, { ttlMs: options?.cacheTtlMs });
     return vault;
     // Discharge `VaultCache` here — it only needs `CliRuntime` (already in scope),
     // so the cache stays an internal detail and never widens the requirements of

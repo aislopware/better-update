@@ -51,7 +51,12 @@ export const rotateVaultTo = (args: {
             const raw = unwrapDek({
               wrappedDek: fromBase64(dek.wrappedDek),
               vaultKey: current.vaultKey,
-              binding: { orgId, credentialId: dek.credentialId, vaultVersion: dek.vaultVersion },
+              binding: {
+                orgId,
+                credentialId: dek.credentialId,
+                vaultVersion: dek.vaultVersion,
+                vaultKind: "credentials",
+              },
             });
             return {
               credentialType: dek.credentialType,
@@ -60,7 +65,12 @@ export const rotateVaultTo = (args: {
                 wrapDek({
                   dek: raw,
                   vaultKey: newVaultKey,
-                  binding: { orgId, credentialId: dek.credentialId, vaultVersion: newVersion },
+                  binding: {
+                    orgId,
+                    credentialId: dek.credentialId,
+                    vaultVersion: newVersion,
+                    vaultKind: "credentials",
+                  },
                 }),
               ),
             };

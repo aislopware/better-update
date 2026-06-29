@@ -1,10 +1,7 @@
 import { Effect } from "effect";
 
-import {
-  openFromDownload,
-  openVaultSessionInteractive,
-  sealForUpload,
-} from "../application/credential-cipher";
+import { openFromDownload, sealForUpload } from "../application/credential-cipher";
+import { openEnvVaultSessionInteractive } from "../application/env-vault-access";
 import { requireSecretString } from "./credential-secret";
 import { EnvExportError } from "./exit-codes";
 import { printHuman } from "./output";
@@ -96,7 +93,7 @@ export const exportDecryptedEnvVars = (
 ): Effect.Effect<
   readonly DecryptedEnvVar[],
   EnvExportError,
-  Effect.Effect.Context<ReturnType<typeof openVaultSessionInteractive>>
+  Effect.Effect.Context<ReturnType<typeof openEnvVaultSessionInteractive>>
 > =>
   Effect.gen(function* () {
     const result = yield* api["env-vars"].export({ urlParams: { projectId, environment } }).pipe(
@@ -110,7 +107,7 @@ export const exportDecryptedEnvVars = (
     if (result.items.length === 0) {
       return [];
     }
-    const session = yield* openVaultSessionInteractive(api).pipe(
+    const session = yield* openEnvVaultSessionInteractive(api).pipe(
       Effect.mapError(
         (cause) =>
           new EnvExportError({
@@ -137,7 +134,7 @@ export const pullEnvVars = (
 ): Effect.Effect<
   Record<string, string>,
   EnvExportError,
-  OutputMode | Effect.Effect.Context<ReturnType<typeof openVaultSessionInteractive>>
+  OutputMode | Effect.Effect.Context<ReturnType<typeof openEnvVaultSessionInteractive>>
 > =>
   Effect.gen(function* () {
     const validated = coerceEnvironment(environment);
@@ -177,7 +174,7 @@ export const uploadEnvVars = (
   },
 ) =>
   Effect.gen(function* () {
-    const session = yield* openVaultSessionInteractive(api);
+    const session = yield* openEnvVaultSessionInteractive(api);
     const pairs = params.environments.flatMap((environment) =>
       params.entries.map((entry) => ({ ...entry, environment })),
     );
@@ -200,6 +197,9 @@ export const uploadEnvVars = (
               ciphertext: envelope.ciphertext,
               wrappedDek: envelope.wrappedDek,
               vaultVersion: envelope.vaultVersion,
+              // Name the vault this value is sealed under so the server can reject a
+              // cross-vault write (e.g. an un-upgraded CLI post-cutover).
+              vaultKind: session.vaultKind,
             },
           }),
         ),
