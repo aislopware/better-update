@@ -66,8 +66,8 @@ import { EnvVarCreateDialog } from "./-env-var-create-dialog";
 import { EnvVarRow } from "./-env-var-row";
 import { EnvVarRowActions } from "./-env-var-row-actions";
 import { formatEnvironmentLabel } from "./-env-vars-labels";
-import { EnvVaultUnlockDialog } from "./-env-vault-unlock-dialog";
 import { useEnvironmentNames } from "./-environments-picker";
+import { VaultSetupActions } from "./-vault-setup-actions";
 
 import type { EnvVaultController } from "../../../../lib/env-vault/use-env-vault";
 
@@ -186,7 +186,7 @@ const VaultToolbarActions = ({
   }
   if (!vault.unlocked) {
     return (
-      <EnvVaultUnlockDialog
+      <VaultSetupActions
         orgId={mode.orgId}
         onUnlocked={(unlockedVault) => {
           vault.onUnlocked(unlockedVault);

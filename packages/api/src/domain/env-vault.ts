@@ -2,16 +2,7 @@ import { Schema } from "effect";
 
 import { DateTimeString, Id } from "./common";
 import { WrappedDek } from "./encrypted-credential";
-import { VaultVersion } from "./org-vault";
-
-/**
- * An env-vault recipient kind. Superset of the credentials-vault recipient kinds
- * plus `account` — the per-user account key the browser unwraps the env vault
- * with. `recipientId` references `user_encryption_keys.id` for the first three and
- * `account_keys.id` for `account` (polymorphic; see migration 0071).
- */
-export const EnvVaultRecipientKind = Schema.Literal("device", "recovery", "machine", "account");
-export type EnvVaultRecipientKind = typeof EnvVaultRecipientKind.Type;
+import { EnvVaultRecipientKind, EnvVaultWrapInput, VaultVersion } from "./org-vault";
 
 /** One wrap of the env-vault key to a recipient (an opaque `age` blob). */
 export class OrgEnvVaultKeyWrap extends Schema.Class<OrgEnvVaultKeyWrap>("OrgEnvVaultKeyWrap")({
@@ -40,13 +31,6 @@ export const EnvVaultRecipientRef = Schema.Struct({
 export const EnvVaultRecipients = Schema.Struct({
   envVaultVersion: VaultVersion,
   recipients: Schema.Array(EnvVaultRecipientRef),
-});
-
-/** One recipient's wrap row in a cutover / grant / rotate submission (age blob, base64). */
-export const EnvVaultWrapInput = Schema.Struct({
-  recipientKind: EnvVaultRecipientKind,
-  recipientId: Id,
-  wrappedKey: Schema.String.pipe(Schema.minLength(1)),
 });
 
 /** Add a single env wrap at the current env version (grant or self-link). */

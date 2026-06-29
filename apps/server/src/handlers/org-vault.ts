@@ -2,6 +2,7 @@ import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
 import { ManagementApi } from "../api";
+import { assertEnvWrapSet } from "../application/assert-env-wrap-set";
 import { logAudit } from "../audit/logger";
 import { CurrentActor } from "../auth/current-actor";
 import { assertPermission } from "../auth/permissions";
@@ -114,10 +115,32 @@ export const OrgVaultGroupLive = HttpApiBuilder.group(ManagementApi, "orgVault",
             });
           }
 
+          // Born forked: the env vault is set up at bootstrap. At genesis the env
+          // recipients are the same device + recovery user-encryption keys as the
+          // credentials vault — there are no account keys yet — so reject `account`
+          // recipients and validate every env recipient against the in-org key set.
+          // A client that cannot produce `envWraps` (old CLI) is rejected by the
+          // required schema field before reaching here.
+          yield* assertEnvWrapSet(payload.envWraps);
+          if (payload.envWraps.some((wrap) => wrap.recipientKind === "account")) {
+            return yield* new BadRequest({
+              message: "Bootstrap env wraps cannot target an account key (none exist at genesis)",
+            });
+          }
+          const envKeys = yield* Effect.forEach(
+            payload.envWraps,
+            (wrap) => keyRepo.findById({ id: wrap.recipientId }),
+            { concurrency: "unbounded" },
+          );
+          if (envKeys.some((key) => isForeignOrgKey(key, ctx))) {
+            return yield* new BadRequest({ message: FOREIGN_ORG_KEY_MESSAGE });
+          }
+
           const now = new Date().toISOString();
           const vault = yield* repo.bootstrap({
             organizationId: ctx.organizationId,
             wraps: payload.wraps,
+            envWraps: payload.envWraps,
             now,
           });
 
@@ -125,7 +148,10 @@ export const OrgVaultGroupLive = HttpApiBuilder.group(ManagementApi, "orgVault",
             action: "vault.bootstrap",
             resourceType: "vaultAccess",
             resourceId: ctx.organizationId,
-            metadata: { recipientCount: payload.wraps.length },
+            metadata: {
+              recipientCount: payload.wraps.length,
+              envRecipientCount: payload.envWraps.length,
+            },
           });
 
           return toApiOrgVault(vault);

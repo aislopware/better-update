@@ -45,6 +45,15 @@ const countWraps = async (organizationId: string, userEncryptionKeyId: string) =
   return row?.n ?? 0;
 };
 
+const countEnvWraps = async (organizationId: string, recipientId: string) => {
+  const row = await env.DB.prepare(
+    `SELECT COUNT(*) AS n FROM "org_env_vault_key_wraps" WHERE "organization_id" = ? AND "recipient_id" = ?`,
+  )
+    .bind(organizationId, recipientId)
+    .first<{ n: number }>();
+  return row?.n ?? 0;
+};
+
 const insertUser = (id: string) =>
   env.DB.prepare(
     `INSERT INTO "user" ("id", "name", "email", "email_verified", "created_at", "updated_at") VALUES (?, ?, ?, 1, ?, ?)`,
@@ -106,6 +115,10 @@ describe("OrgVaultRepo — D1 integration", () => {
               { userEncryptionKeyId: "ov-boot-r", wrappedKey: "wrap-recovery" },
               { userEncryptionKeyId: "ov-boot-m", wrappedKey: "wrap-machine" },
             ],
+            envWraps: [
+              { recipientKind: "recovery", recipientId: "ov-boot-r", wrappedKey: "env-recovery" },
+              { recipientKind: "machine", recipientId: "ov-boot-m", wrappedKey: "env-machine" },
+            ],
             now: "2026-02-01T00:00:00Z",
           });
         }),
@@ -116,6 +129,12 @@ describe("OrgVaultRepo — D1 integration", () => {
       expect(await countWraps("ov-boot", "ov-boot-r")).toBe(1);
       expect(await countWraps("ov-boot", "ov-boot-m")).toBe(1);
 
+      // Born forked: the env vault is stamped + wrapped at bootstrap.
+      expect(vault.envVaultCutoverAt).toBe("2026-02-01T00:00:00Z");
+      expect(vault.envVaultVersion).toBe(1);
+      expect(await countEnvWraps("ov-boot", "ov-boot-r")).toBe(1);
+      expect(await countEnvWraps("ov-boot", "ov-boot-m")).toBe(1);
+
       const reread = await run(
         Effect.gen(function* () {
           const repo = yield* OrgVaultRepo;
@@ -123,6 +142,7 @@ describe("OrgVaultRepo — D1 integration", () => {
         }),
       );
       expect(reread?.vaultVersion).toBe(1);
+      expect(reread?.envVaultCutoverAt).toBe("2026-02-01T00:00:00Z");
     });
 
     it("returns Conflict when the org vault already exists", async () => {
@@ -132,6 +152,9 @@ describe("OrgVaultRepo — D1 integration", () => {
           return yield* repo.bootstrap({
             organizationId: "ov-boot",
             wraps: [{ userEncryptionKeyId: "ov-boot-r", wrappedKey: "again" }],
+            envWraps: [
+              { recipientKind: "recovery", recipientId: "ov-boot-r", wrappedKey: "env-again" },
+            ],
             now: "2026-02-02T00:00:00Z",
           });
         }),
@@ -151,6 +174,13 @@ describe("OrgVaultRepo — D1 integration", () => {
           yield* repo.bootstrap({
             organizationId: "ov-cas",
             wraps: [{ userEncryptionKeyId: "ov-cas-r", wrappedKey: "cas-recovery" }],
+            envWraps: [
+              {
+                recipientKind: "recovery",
+                recipientId: "ov-cas-r",
+                wrappedKey: "env-cas-recovery",
+              },
+            ],
             now: "2026-02-01T00:00:00Z",
           });
         }),
@@ -304,6 +334,14 @@ describe("OrgVaultRepo — D1 integration", () => {
             wraps: [
               { userEncryptionKeyId: "ov-rot-r", wrappedKey: "rot-recovery-v1" },
               { userEncryptionKeyId: "ov-rot-m", wrappedKey: "rot-machine-v1" },
+            ],
+            envWraps: [
+              {
+                recipientKind: "recovery",
+                recipientId: "ov-rot-r",
+                wrappedKey: "env-rot-recovery",
+              },
+              { recipientKind: "machine", recipientId: "ov-rot-m", wrappedKey: "env-rot-machine" },
             ],
             now: "2026-03-01T00:00:00Z",
           });
@@ -474,11 +512,17 @@ describe("OrgVaultRepo — D1 integration", () => {
               { userEncryptionKeyId: "dk-b", wrappedKey: "drop-b" },
               { userEncryptionKeyId: "dk-c", wrappedKey: "drop-c" },
             ],
+            envWraps: [
+              { recipientKind: "device", recipientId: "dk-a", wrappedKey: "env-drop-a" },
+              { recipientKind: "device", recipientId: "dk-b", wrappedKey: "env-drop-b" },
+              { recipientKind: "device", recipientId: "dk-c", wrappedKey: "env-drop-c" },
+            ],
             now: "2026-04-01T00:00:00Z",
           });
           yield* repo.bootstrap({
             organizationId: "ov-drop2",
             wraps: [{ userEncryptionKeyId: "dk-a", wrappedKey: "drop2-a" }],
+            envWraps: [{ recipientKind: "device", recipientId: "dk-a", wrappedKey: "env-drop2-a" }],
             now: "2026-04-01T00:00:00Z",
           });
           yield* repo.bootstrap({
@@ -486,6 +530,10 @@ describe("OrgVaultRepo — D1 integration", () => {
             wraps: [
               { userEncryptionKeyId: "ov-clear-r", wrappedKey: "clear-r" },
               { userEncryptionKeyId: "dk-clr", wrappedKey: "clear-dk" },
+            ],
+            envWraps: [
+              { recipientKind: "recovery", recipientId: "ov-clear-r", wrappedKey: "env-clear-r" },
+              { recipientKind: "device", recipientId: "dk-clr", wrappedKey: "env-clear-dk" },
             ],
             now: "2026-04-01T00:00:00Z",
           });

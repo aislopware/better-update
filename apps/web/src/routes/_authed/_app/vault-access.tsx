@@ -32,6 +32,7 @@ import { TableSkeleton } from "../../../components/skeletons";
 import { CopyableMono } from "../../../lib/copy-button";
 import { pluralize } from "../../../lib/pluralize";
 import { RelativeTime } from "../../../lib/relative-time";
+import { VaultAccessGrant } from "./-vault-access-grant";
 import { ENCRYPTION_KEY_KIND_META, joinVaultRecipients } from "./-vault-access-utils";
 
 import type { VaultRecipientRow } from "./-vault-access-utils";
@@ -136,17 +137,21 @@ const VaultAccessContent = () => {
   );
 };
 
-const VaultAccess = () => (
-  <div className="flex w-full flex-col gap-6">
-    <PageHeader
-      title="Vault access"
-      description="Keys that can decrypt this organization's credential vault. Access is granted and revoked from the CLI."
-    />
-    <Suspense fallback={<TableSkeleton columns={5} rows={3} hasFooter={false} />}>
-      <VaultAccessContent />
-    </Suspense>
-  </div>
-);
+const VaultAccess = () => {
+  const { activeOrg } = Route.useRouteContext();
+  return (
+    <div className="flex w-full flex-col gap-6">
+      <PageHeader
+        title="Vault access"
+        description="Keys that can decrypt this organization's credential vault (managed from the CLI). Env-vault access can be granted from the browser on the vault origin."
+      />
+      <Suspense fallback={<TableSkeleton columns={5} rows={3} hasFooter={false} />}>
+        <VaultAccessContent />
+      </Suspense>
+      <VaultAccessGrant orgId={activeOrg.id} />
+    </div>
+  );
+};
 
 export const Route = createFileRoute("/_authed/_app/vault-access")({
   component: VaultAccess,

@@ -26,6 +26,12 @@ const recipientBody = (kind: "device" | "recovery" | "machine", label: string) =
 
 const wrapFor = (userEncryptionKeyId: string) => ({ userEncryptionKeyId, wrappedKey: opaque() });
 
+const envWrapFor = (recipientKind: "device" | "recovery" | "machine", recipientId: string) => ({
+  recipientKind,
+  recipientId,
+  wrappedKey: opaque(),
+});
+
 const registerKey = async (
   cookie: string,
   kind: "device" | "recovery" | "machine",
@@ -108,36 +114,63 @@ describe("Credential vault lifecycle", () => {
 
   // ── Section 3: bootstrap invariants ─────────────────────────────
 
+  const validEnvWraps = () => [envWrapFor("device", deviceA), envWrapFor("recovery", recovery)];
+
   it("rejects a bootstrap with no offline recovery recipient", async () => {
-    const res = await post("/api/vault", { wraps: [wrapFor(deviceA)] }, { cookie: cookiesA });
+    const res = await post(
+      "/api/vault",
+      { wraps: [wrapFor(deviceA)], envWraps: validEnvWraps() },
+      { cookie: cookiesA },
+    );
     expect(res.status).toBe(400);
   });
 
   it("rejects a bootstrap with a duplicate recipient", async () => {
     const res = await post(
       "/api/vault",
-      { wraps: [wrapFor(deviceA), wrapFor(deviceA), wrapFor(recovery)] },
+      { wraps: [wrapFor(deviceA), wrapFor(deviceA), wrapFor(recovery)], envWraps: validEnvWraps() },
       { cookie: cookiesA },
     );
     expect(res.status).toBe(400);
   });
 
-  it("bootstraps the vault at version 1 with the device + recovery recipients", async () => {
+  it("rejects a bootstrap missing env wraps (a CLI too old to born-fork)", async () => {
     const res = await post(
       "/api/vault",
       { wraps: [wrapFor(deviceA), wrapFor(recovery)] },
+      { cookie: cookiesA },
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects a bootstrap whose env wraps lack a recovery recipient", async () => {
+    const res = await post(
+      "/api/vault",
+      { wraps: [wrapFor(deviceA), wrapFor(recovery)], envWraps: [envWrapFor("device", deviceA)] },
+      { cookie: cookiesA },
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it("born-forks the vault at version 1 with the device + recovery recipients", async () => {
+    const res = await post(
+      "/api/vault",
+      { wraps: [wrapFor(deviceA), wrapFor(recovery)], envWraps: validEnvWraps() },
       { cookie: cookiesA },
     );
     expect(res.status).toBe(201);
     const vault = await res.json();
     expect(vault.organizationId).toBe(organizationId);
     expect(vault.vaultVersion).toBe(1);
+    // Born forked: the env vault is active from genesis.
+    expect(vault.envVaultCutoverAt).not.toBeNull();
+    expect(vault.envVaultVersion).toBe(1);
   });
 
   it("rejects a second bootstrap of an existing vault", async () => {
     const res = await post(
       "/api/vault",
-      { wraps: [wrapFor(deviceA), wrapFor(recovery)] },
+      { wraps: [wrapFor(deviceA), wrapFor(recovery)], envWraps: validEnvWraps() },
       { cookie: cookiesA },
     );
     expect(res.status).toBe(409);
@@ -154,6 +187,17 @@ describe("Credential vault lifecycle", () => {
     expect(body.vaultVersion).toBe(1);
     const ids = (body.recipients as { userEncryptionKeyId: string }[]).map(
       (recipient) => recipient.userEncryptionKeyId,
+    );
+    expect(ids.sort()).toEqual([deviceA, recovery].sort());
+  });
+
+  it("exposes the born-forked env-vault recipients (device + recovery)", async () => {
+    const wraps = await get("/api/env-vault/wraps", { cookie: cookiesA });
+    expect(wraps.status).toBe(200);
+    const body = await wraps.json();
+    expect(body.envVaultVersion).toBe(1);
+    const ids = (body.recipients as { recipientId: string }[]).map(
+      (recipient) => recipient.recipientId,
     );
     expect(ids.sort()).toEqual([deviceA, recovery].sort());
   });

@@ -93,10 +93,11 @@ export const rotateEnvVault = (api: ApiClient) =>
           () => new IdentityError({ message: "This organization has no credential vault yet." }),
         ),
       );
+    // Defensive: born-forked orgs always have an env vault, so this only fires if
+    // the vault row predates born-forked or was never initialized.
     if (vault.envVaultCutoverAt === null) {
       return yield* new IdentityError({
-        message:
-          "This organization has no env vault yet — run `better-update credentials env-vault migrate` first.",
+        message: "This organization's env vault is not initialized.",
       });
     }
 

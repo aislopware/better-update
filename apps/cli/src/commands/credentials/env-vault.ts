@@ -1,54 +1,10 @@
 import { defineCommand } from "citty";
 import { Effect } from "effect";
 
-import { cutoverEnvVault } from "../../application/env-vault-cutover";
 import { rotateEnvVault } from "../../application/env-vault-rotation";
 import { runEffect } from "../../lib/citty-effect";
 import { printHuman, printKeyValue } from "../../lib/output";
-import { promptConfirm } from "../../lib/prompts";
 import { apiClient } from "../../services/api-client";
-
-const migrateCommand = defineCommand({
-  meta: {
-    name: "migrate",
-    description:
-      "Fork env values into a separate env vault so they can be unlocked from the browser (one-time, admin)",
-  },
-  args: {
-    yes: { type: "boolean", description: "Skip the confirmation prompt" },
-  },
-  run: async ({ args }) =>
-    runEffect(
-      Effect.gen(function* () {
-        const api = yield* apiClient;
-        yield* printHuman(
-          "Migrating splits env values into their own end-to-end-encrypted vault, wrapped to every device and account key.",
-        );
-        yield* printHuman(
-          "⚠  This is one-shot per organization. Until they upgrade, older CLIs can no longer READ env values (credentials are unaffected).",
-        );
-        yield* printHuman(
-          "⚠  Avoid env-var writes (set/push/import/update) elsewhere while this runs — a value written mid-migration may need re-setting afterwards.",
-        );
-        const proceed =
-          args.yes === true ||
-          (yield* promptConfirm("Migrate this organization's env values to a separate vault now?", {
-            initialValue: false,
-          }));
-        if (!proceed) {
-          yield* printHuman("Aborted — no changes made.");
-          return { migrated: false };
-        }
-        const vault = yield* cutoverEnvVault(api);
-        yield* printHuman(`✓ Env vault created (version ${String(vault.envVaultVersion)}).`);
-        yield* printHuman(
-          "Members enroll browser access with `better-update credentials account create`.",
-        );
-        return { migrated: true, envVaultVersion: vault.envVaultVersion };
-      }),
-      { json: "value" },
-    ),
-});
 
 const rotateCommand = defineCommand({
   meta: {
@@ -109,10 +65,9 @@ const statusCommand = defineCommand({
 export const envVaultCommand = defineCommand({
   meta: {
     name: "env-vault",
-    description: "Manage the organization's separate env-vault (migrate, rotate, status)",
+    description: "Manage the organization's env-vault (rotate, status)",
   },
   subCommands: {
-    migrate: migrateCommand,
     rotate: rotateCommand,
     status: statusCommand,
   },

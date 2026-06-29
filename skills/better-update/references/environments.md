@@ -9,6 +9,11 @@ Why server-side: secrets stay out of git; different environments (`production`, 
 `development`) get different values without branch-specific configs; new developers don't need a
 `.env` handed to them out-of-band.
 
+Values can be created/edited from the **web** too (`updates-vault.<host>`), not just the CLI — once
+the user has set up env-vault access (account key + passkey + an admin grant; see
+`references/credentials.md`) **and** holds a role that can write env vars. The main dashboard origin
+stays read-only metadata; value editing happens on the vault origin.
+
 ## Visibility: `plaintext` or `sensitive` (there is no "secret")
 
 Every var has one of **two** visibilities. There is no `secret` tier — passing `--visibility secret`

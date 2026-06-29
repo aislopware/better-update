@@ -38,6 +38,9 @@ beforeAll(async () => {
       yield* repo.bootstrap({
         organizationId: "avc-vault",
         wraps: [{ userEncryptionKeyId: "avc-vault-r", wrappedKey: "wrap-v1" }],
+        envWraps: [
+          { recipientKind: "recovery", recipientId: "avc-vault-r", wrappedKey: "env-wrap-v1" },
+        ],
         now: "2026-02-01T00:00:00Z",
       });
     }),

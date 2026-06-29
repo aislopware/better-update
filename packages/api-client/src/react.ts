@@ -111,7 +111,17 @@ export {
   updateEnvVar,
 } from "./react/env-vars";
 export type { EnvVarsFilters } from "./react/env-vars";
-export { getAccountKeyEscrow, getEnvVaultAccountWrap, stepUpPasskey } from "./react/web-vault";
+export {
+  accountKeysQueryKey,
+  accountKeysQueryOptions,
+  addEnvWrap,
+  envVaultWrapsQueryKey,
+  envVaultWrapsQueryOptions,
+  getAccountKeyEscrow,
+  getEnvVaultAccountWrap,
+  registerAccountKey,
+  stepUpPasskey,
+} from "./react/web-vault";
 export {
   createEnvironment,
   deleteEnvironment,

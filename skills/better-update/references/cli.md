@@ -335,28 +335,30 @@ better-update credentials status                                          # is t
 register/re-register this device's key; `access grant`/`revoke` add/remove vault recipients (org
 members or other devices). See `references/credentials.md` for the full model.
 
-### Browser env-vault: account keys + cutover (account / env-vault)
+### Browser env-vault: account keys (account / env-vault)
 
-Splits env-var values into a separate env vault (EV) editable from the web (`updates-vault.<host>`),
-leaving signing credentials CLI-only. All CLI-only — the browser reads these but cannot create them.
+Env-var values live in a separate env vault (EV) editable from the web (`updates-vault.<host>`),
+leaving signing credentials CLI-only. Orgs are **born forked** at `identity init` — there is no
+"migrate" step. The account key + the env-access grant each have a browser path (see
+`references/credentials.md`); the CLI commands below are the CLI equivalents.
 
 ```bash
 better-update credentials account <create|link|reseal|show>   # default `show`; per-USER account key, interactive (no flags)
-#   create — enroll your account key (prompts this device's identity passphrase; same passphrase used in the web unlock)
+#   create — enroll your account key (CLI seals it under this device's identity passphrase + self-links it to the EV)
 #   link   — (re)grant your existing account key env access after an env-vault rotate
 #   reseal — re-seal the escrow under a new passphrase (repair after a passphrase change on another device)
 
-better-update credentials env-vault <migrate|rotate|status>   # default `status`; per-ORG (owner/admin)
-better-update credentials env-vault migrate [--yes]           # one-shot: fork env values CV→EV, wrap to every device + account key
+better-update credentials env-vault <rotate|status>          # default `status`; per-ORG (owner/admin)
 better-update credentials env-vault rotate                    # re-key EV to current recipients (clears a pending flag after a member removal)
 ```
 
-To edit env values from the browser you need **both** an account key (`account create`) **and** the
-org cut over (`env-vault migrate`) — plus a passkey enrolled + a step-up in the web unlock dialog. The
-web error _"No account key is enrolled…"_ → run `account create`; _"…can't open this org's env vault
-yet"_ → an admin runs `env-vault migrate` (or you run `account link` after a rotate). `migrate` is
-one-shot per org: older CLIs lose env **read** until upgraded (credentials unaffected). Full model +
-troubleshooting in `references/credentials.md`.
+To edit env values from the browser you need an account key, a passkey, and an admin grant of env
+access — all three have a browser path (**Set up vault access** to self-enroll; an admin clicks
+**Grant env access** on the Vault access page). Web errors: _"No account key is enrolled…"_ → **Set up
+vault access** (or `account create`); _"…can't open this org's env vault yet"_ → ask an admin to
+**Grant env access** (or `account link` after a rotate). Note: **CLIs that predate the env-vault split
+cannot bootstrap a new org** — upgrade first. Full model + troubleshooting in
+`references/credentials.md`.
 
 ## env
 

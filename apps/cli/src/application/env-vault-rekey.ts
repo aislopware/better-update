@@ -5,9 +5,6 @@ import { Effect } from "effect";
 import type { EnvVaultRecipientKind } from "@better-update/api";
 import type { VaultKind } from "@better-update/credentials-crypto";
 
-/** The env vault is born at version 1 — the server `buildCutoverQueries` stamps it. */
-export const ENV_VAULT_INITIAL_VERSION = 1;
-
 /** One env wrap row in a cutover / rotation submission (the env key sealed to a recipient). */
 export interface EnvWrapInput {
   readonly recipientKind: EnvVaultRecipientKind;

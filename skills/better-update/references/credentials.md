@@ -158,60 +158,71 @@ Typical onboarding: `identity init` (first person in the org) → teammates run 
 an owner runs `access grant <recipient>` → each person `unlock`s to cache their key for a session.
 When someone leaves, `access revoke <recipient>` then `access rotate`.
 
-## Browser env-vault access (account keys + env-vault cutover)
+## Browser env-vault access (account keys)
 
-By default the org has **one** vault: signing credentials **and** env-var values share it, and it is
-CLI-only (zero-knowledge — keys never reach a browser). To edit **env-var values from the web**
-(`updates-vault.<host>`, an origin separate from the dashboard), the org splits into **two** vaults:
+The org has **two** vaults, set up together when the vault is first bootstrapped (`identity init`) —
+orgs are **born forked**, so there is no separate "migrate" step:
 
-- **Credentials vault (CV)** — keystores/certs/profiles/keys. Unchanged, CLI-only, zero-knowledge.
-- **Env vault (EV)** — env-var values only, with a **separate key**. Reachable from the browser via a
-  per-user **account key** (so a key a browser can obtain still cannot open signing credentials).
+- **Credentials vault (CV)** — keystores/certs/profiles/keys. CLI-only, zero-knowledge.
+- **Env vault (EV)** — env-var values only, with a **separate key**. Reachable from the browser
+  (`updates-vault.<host>`, an origin separate from the dashboard) via a per-user **account key**, so a
+  key a browser can obtain still cannot open signing credentials.
 
-Two one-time setup steps unlock browser env editing. They are **CLI-only** — the web can read these
-but never create them, which is why an unprepared user sees an opaque error in the browser (see below).
+Editing env values from the web needs three things per user: an **account key**, a **passkey**, and an
+admin **grant** of env access to that account key. The account key and the grant each have a browser
+path now — a genuinely web-only user never touches the CLI.
 
 ```bash
-# 1. Per USER: enroll your account key — the env-vault recipient the browser unwraps env with.
-#    Prompts for THIS DEVICE's identity passphrase; the account key is sealed under the SAME
-#    passphrase (the "one passphrase" promise), so you type that same passphrase in the web unlock.
-#    Requires a device identity already set up (see "E2E vault" above).
+# Per USER (CLI path): enroll your account key — the env-vault recipient the browser unwraps env with.
+#   Seals the escrow under THIS DEVICE's identity passphrase (the "one passphrase" promise on the CLI),
+#   and self-links it to the EV immediately (you already hold the env key via your device).
 better-update credentials account create
 better-update credentials account show                 # fingerprint + status (default action)
 better-update credentials account link                 # (re)grant your existing key env access after a rotation
 better-update credentials account reseal               # repair the escrow after a passphrase change elsewhere
 
-# 2. Per ORG (owner/admin, once): cut the org over to a separate env vault.
-#    Re-keys env values CV→EV and wraps EV to every enrolled account key.
-better-update credentials env-vault migrate [--yes]
-better-update credentials env-vault status             # "separate (migrated)" vs "shared with credentials vault"
+# Per ORG (owner/admin): manage the env vault key.
+better-update credentials env-vault status             # env-vault version + rotation state
 better-update credentials env-vault rotate [--yes]     # rotate the EV key (e.g. after revoking a member)
 ```
 
-Order is flexible: `account create` before `migrate` enrolls the key as _"pending env-vault
-migration"_ (migrate then wraps to it); `migrate` before `account create` self-links the new key
-immediately. After both, `passphrase change` re-seals the device identity **and** the account escrow
-together.
+**Web path (no CLI):**
+
+- **Self-enroll an account key** — on `updates-vault.<host>`, the env-vars view shows **Set up vault
+  access** when you have no account key. You pick **your own passphrase** (it is generated + sealed in
+  the browser and never sent to the server). A web-enrolled user has no device identity, so this
+  passphrase is an **independent secret** — _not_ the "one passphrase" the CLI path ties to the device
+  identity. There is no recovery if you forget it; re-enroll (or `account reseal` on the CLI).
+- **Admin grant** — an admin opens **Vault access** on `updates-vault.<host>`, unlocks their own env
+  vault, and clicks **Grant env access** next to a member's pending account key. The browser wraps the
+  EV key to that account key (the admin must hold the unlocked EV key — the server enforces
+  `vaultAccess:create`). Equivalent to the CLI self-link, but for another user. Granting CV
+  (credentials) access stays CLI-only.
 
 **Web unlock flow** (on `updates-vault.<host>`): the dashboard session carries over (shared cookie),
 then **Unlock env vault** runs a WebAuthn **passkey step-up** + your **account passphrase** to unwrap
 the EV key in the browser; from there you reveal/edit/create/delete env values, each encrypted client
 side. A passkey can be enrolled inline from that dialog ("Add a passkey", Touch ID / security key) —
 the ceremony needs real user presence, so it cannot be scripted. Manage passkeys (add / rename /
-remove) anytime at **Account → Passkeys** in the dashboard; once you have one, the unlock dialog
-links there instead of nagging to add one.
+remove) anytime at **Account → Passkeys** in the dashboard.
+
+A typical web-only onboarding: the new user signs in to `updates-vault.<host>` → **Set up vault
+access** (choose a passphrase) → add a passkey → an admin **Grant env access** → the user unlocks and
+edits values. (Vault access also requires a role that can write env vars — see
+`references/environments.md`.)
 
 **Troubleshooting the web unlock:**
 
-- _"No account key is enrolled for your user yet…"_ → you skipped step 1. Run
-  `better-update credentials account create`.
-- _"Your account key can't open this organization's env vault yet…"_ → the org has not cut over (or
-  the EV key was rotated). An admin runs `better-update credentials env-vault migrate`; after a
-  rotation you run `better-update credentials account link`.
-- Wrong-passphrase errors come from the account passphrase, which equals this device's identity
-  passphrase. Reset the seal with `better-update credentials account reseal` if they drifted.
+- _"No account key is enrolled for your user yet…"_ → use **Set up vault access** to enroll one (or
+  `better-update credentials account create` on the CLI).
+- _"Your account key can't open this organization's env vault yet…"_ → ask an admin to **Grant env
+  access** on the Vault access page (after a key rotation, run `better-update credentials account
+link`).
+- Wrong-passphrase errors come from your account passphrase. If it was set on the CLI it equals this
+  device's identity passphrase; if set in the browser it is the passphrase you chose at enrollment.
+  Re-seal with `better-update credentials account reseal` if a CLI passphrase change drifted.
 
 Env-var **values** are still managed day-to-day with `better-update env …` (see
 `references/environments.md`); the split only changes _where_ those values are encrypted and whether
-the **browser** can edit them. CLI env access is byte-identical before cutover; after cutover, **old
-CLIs that predate the split lose env read until upgraded** (one-shot cutover, no dual-wrap).
+the **browser** can edit them. New orgs are born forked, so no cutover is needed; **CLIs that predate
+the env-vault split cannot bootstrap a new org** (they can't produce the env wraps) — upgrade first.

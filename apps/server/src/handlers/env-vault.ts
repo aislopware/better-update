@@ -2,6 +2,7 @@ import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
 import { ManagementApi } from "../api";
+import { assertEnvWrapSet } from "../application/assert-env-wrap-set";
 import { logAudit } from "../audit/logger";
 import { CurrentActor } from "../auth/current-actor";
 import { assertPermission } from "../auth/permissions";
@@ -16,26 +17,6 @@ import { isEnvVaultForked } from "../vault-models";
 
 import type { CurrentActor as Actor } from "../models";
 import type { EnvVaultRecipientKind } from "../vault-models";
-
-interface EnvWrapInputShape {
-  readonly recipientKind: EnvVaultRecipientKind;
-  readonly recipientId: string;
-  readonly wrappedKey: string;
-}
-
-/** Recipient-set rules for a cutover / rotation: distinct, and a recovery recipient retained. */
-const assertEnvWrapSet = (wraps: readonly EnvWrapInputShape[]): Effect.Effect<void, BadRequest> =>
-  Effect.gen(function* () {
-    const keys = wraps.map((wrap) => `${wrap.recipientKind}:${wrap.recipientId}`);
-    if (new Set(keys).size !== keys.length) {
-      return yield* new BadRequest({ message: "Duplicate recipient in env-vault wraps" });
-    }
-    if (!wraps.some((wrap) => wrap.recipientKind === "recovery")) {
-      return yield* new BadRequest({
-        message: "Env-vault wraps must keep an offline recovery recipient",
-      });
-    }
-  });
 
 /** Coverage rule: a cutover / rotation must re-key EVERY env-var revision. */
 const assertCoversAllEnvDeks = (

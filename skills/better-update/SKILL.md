@@ -81,7 +81,7 @@ better-update
 ├── build [+ configure]       Build the app locally and (by default) upload the artifact
 ├── builds                    list · get · download · run · install-link · compatibility-matrix · upload · resign · delete
 ├── credentials               Signing vault + E2E encryption (identity/access/device/unlock/lock);
-│                             account + env-vault subcommands enable browser-side env editing
+│                             account/env-vault subcommands (or web self-enroll + grant) for browser env editing
 ├── env                       Project env vars: list/get/set/update/delete/history/rollback/import/export/pull/push/exec
 ├── environments              Org environment definitions: list/create/rename/delete
 ├── fingerprint               generate · compare (runtime-compatibility hashes)

@@ -105,6 +105,10 @@ beforeAll(async () => {
           { userEncryptionKeyId: "rec-dk-gone", wrappedKey: "w-gone" },
           { userEncryptionKeyId: "rec-r", wrappedKey: "w-recovery" },
         ],
+        // Born-forked requires env wraps; this suite asserts only CV-recipient
+        // reconciliation, so a recovery-only env wrap keeps env recipients (which
+        // carry no user) out of the reconcile set — behavior is unchanged.
+        envWraps: [{ recipientKind: "recovery", recipientId: "rec-r", wrappedKey: "env-recovery" }],
         now: "2026-05-01T00:00:00Z",
       });
       const attach = yield* PolicyAttachmentRepo;

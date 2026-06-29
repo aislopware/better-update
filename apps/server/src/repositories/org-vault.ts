@@ -15,6 +15,7 @@ import type {
   CredentialDekRefModel,
   CredentialRef,
   EncryptedCredentialType,
+  EnvVaultRecipientKind,
   OrgVaultKeyWrapModel,
   OrgVaultModel,
 } from "../vault-models";
@@ -25,11 +26,22 @@ export interface OrgVaultRepository {
     readonly organizationId: string;
   }) => Effect.Effect<OrgVaultModel | null>;
 
-  /** Atomically create the vault (version 1) with its initial recipient wraps. */
+  /**
+   * Atomically create the vault (version 1) "born forked": the credentials-vault
+   * recipient wraps AND the env-vault recipient wraps, stamping `env_vault_cutover_at`
+   * so the env vault is active from genesis (no separate cutover step). A genesis org
+   * has no env DEKs to re-key, so this is a plain INSERT (the org-row PK is the
+   * atomicity guard) — not the CAS/re-key path used by a post-hoc cutover.
+   */
   readonly bootstrap: (params: {
     readonly organizationId: string;
     readonly wraps: readonly {
       readonly userEncryptionKeyId: string;
+      readonly wrappedKey: string;
+    }[];
+    readonly envWraps: readonly {
+      readonly recipientKind: EnvVaultRecipientKind;
+      readonly recipientId: string;
       readonly wrappedKey: string;
     }[];
     readonly now: string;
@@ -210,6 +222,10 @@ export const OrgVaultRepoLive = Layer.succeed(OrgVaultRepo, {
         db.insertInto("org_vaults").values({
           organization_id: params.organizationId,
           vault_version: 1,
+          // Born forked: stamp the env-vault cutover at genesis so the env vault is
+          // the default and `env-vault migrate` is never needed.
+          env_vault_version: 1,
+          env_vault_cutover_at: params.now,
           created_at: params.now,
           updated_at: params.now,
         }),
@@ -218,6 +234,16 @@ export const OrgVaultRepoLive = Layer.succeed(OrgVaultRepo, {
             organization_id: params.organizationId,
             vault_version: 1,
             user_encryption_key_id: wrap.userEncryptionKeyId,
+            wrapped_key: wrap.wrappedKey,
+            created_at: params.now,
+          }),
+        ),
+        ...params.envWraps.map((wrap) =>
+          db.insertInto("org_env_vault_key_wraps").values({
+            organization_id: params.organizationId,
+            env_vault_version: 1,
+            recipient_kind: wrap.recipientKind,
+            recipient_id: wrap.recipientId,
             wrapped_key: wrap.wrappedKey,
             created_at: params.now,
           }),
@@ -239,7 +265,7 @@ export const OrgVaultRepoLive = Layer.succeed(OrgVaultRepo, {
         envRotationPending: false,
         envRotationPendingSince: null,
         envRotationPendingReason: null,
-        envVaultCutoverAt: null,
+        envVaultCutoverAt: params.now,
       };
     }),
 

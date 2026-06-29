@@ -7,14 +7,13 @@ import {
   AddEnvVaultWrapBody,
   CutoverEnvVaultBody,
   EnvVaultCredentialDeks,
-  EnvVaultRecipientKind,
   EnvVaultRecipients,
   OrgEnvVaultKeyWrap,
   RecipientEnvVaultKey,
   RotateEnvVaultBody,
 } from "../domain/env-vault";
 import { BadRequest, Conflict } from "../domain/errors";
-import { OrgVault } from "../domain/org-vault";
+import { EnvVaultRecipientKind, OrgVault } from "../domain/org-vault";
 
 /** `:recipientKind` / `:recipientId` path params for a polymorphic env recipient. */
 const recipientKindParam = HttpApiSchema.param("recipientKind", EnvVaultRecipientKind);

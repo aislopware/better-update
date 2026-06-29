@@ -10,17 +10,15 @@ import type { UnlockedEnvVault } from "./cache";
 
 export type { UnlockedEnvVault } from "./cache";
 
-// The account key and its env-vault wrap are CLI-only — the browser can read
-// them but never create them. A server `NotFound` here therefore means a setup
-// step is missing, so remap it to the exact CLI command that fixes it (the raw
-// "No account key registered for this user" is opaque to a web user).
+// Defensive fallbacks for a server `NotFound` during unlock. The locked-state UI
+// (VaultSetupActions) branches on these conditions BEFORE unlock, so these are
+// rarely hit — keep them actionable but not CLI-specific (both setup steps now
+// have a browser path: self-enroll an account key, then an admin grants access).
 const ACCOUNT_KEY_MISSING_HINT =
-  "No account key is enrolled for your user yet. Enroll one from the CLI, then try again: " +
-  "better-update credentials account create";
+  "No account key is enrolled for your user yet. Set up vault access first, then try again.";
 const ENV_WRAP_MISSING_HINT =
-  "Your account key can't open this organization's env vault yet. Ask an admin to run " +
-  "`better-update credentials env-vault migrate`, or run `better-update credentials account link` " +
-  "if the vault was rotated.";
+  "Your account key can't open this organization's env vault yet. Ask an admin to grant you " +
+  "env-vault access (Vault access page), then try again.";
 
 /** Run `promise`, turning a typed `NotFound` rejection into an actionable CLI hint. */
 const orNotFoundHint = async <T>(promise: Promise<T>, hint: string): Promise<T> => {

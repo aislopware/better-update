@@ -79,11 +79,34 @@ export const VaultWrapInput = Schema.Struct({
 });
 
 /**
- * Bootstrap the org vault on the first upload: the initial wrap rows, which must
- * include the uploader's own recipient and the offline recovery recipient.
+ * An env-vault recipient kind. Superset of the credentials-vault recipient kinds
+ * plus `account` — the per-user account key the browser unwraps the env vault
+ * with. `recipientId` references `user_encryption_keys.id` for the first three and
+ * `account_keys.id` for `account` (polymorphic; see migration 0071). Defined here
+ * (alongside `VaultWrapInput`) rather than in `env-vault.ts` so `BootstrapVaultBody`
+ * can carry env wraps without a circular import (`env-vault.ts` → `org-vault.ts`).
+ */
+export const EnvVaultRecipientKind = Schema.Literal("device", "recovery", "machine", "account");
+export type EnvVaultRecipientKind = typeof EnvVaultRecipientKind.Type;
+
+/** One recipient's env-vault wrap row in a bootstrap / cutover / grant / rotate submission (age blob, base64). */
+export const EnvVaultWrapInput = Schema.Struct({
+  recipientKind: EnvVaultRecipientKind,
+  recipientId: Id,
+  wrappedKey: Schema.String.pipe(Schema.minLength(1)),
+});
+
+/**
+ * Bootstrap the org vault: the initial credential-vault wrap rows AND the initial
+ * env-vault wrap rows, each of which must include the uploader's own recipient and
+ * the offline recovery recipient. Orgs are "born forked" — the env vault is set up
+ * at bootstrap (server stamps the cutover + env version), so a separate
+ * `env-vault migrate` step is never needed. `envWraps` is required: a client that
+ * cannot produce them is too old to bootstrap.
  */
 export const BootstrapVaultBody = Schema.Struct({
   wraps: Schema.Array(VaultWrapInput).pipe(Schema.minItems(1)),
+  envWraps: Schema.Array(EnvVaultWrapInput).pipe(Schema.minItems(1)),
 });
 
 /**

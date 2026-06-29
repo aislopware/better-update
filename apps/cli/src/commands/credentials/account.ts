@@ -111,9 +111,9 @@ const createCommand = defineCommand({
           },
         });
 
-        // If the org has already cut over, the env vault exists now — self-link so
-        // this account key can decrypt env immediately. Before cutover there is no
-        // env vault yet; the migration wraps it to every account key at that point.
+        // Orgs are born forked, so a bootstrapped org always has an env vault —
+        // self-link so this account key can decrypt env immediately. `cutOver` is
+        // only false if the org vault was never initialized at all.
         const cutOver = yield* orgHasCutOver(api);
         if (cutOver) {
           yield* linkAccountKeyToEnv(api, {
@@ -124,12 +124,12 @@ const createCommand = defineCommand({
 
         yield* printKeyValue([
           ["Account key fingerprint", registered.fingerprint],
-          ["Env access", cutOver ? "granted (self-linked)" : "pending env-vault migration"],
+          ["Env access", cutOver ? "granted (self-linked)" : "pending — vault not initialized"],
         ]);
         yield* printHuman(
           cutOver
             ? "Account key enrolled. You can now unlock env values from the browser after a 2FA step-up."
-            : "Account key enrolled. It gains env access once an admin runs `better-update credentials env-vault migrate`.",
+            : "Account key enrolled. It gains env access once the org vault is initialized (`better-update credentials identity init`).",
         );
         return { fingerprint: registered.fingerprint, envAccess: cutOver };
       }),
@@ -158,7 +158,7 @@ const linkCommand = defineCommand({
         if (!cutOver) {
           return yield* new IdentityError({
             message:
-              "This organization has no env vault yet. An admin must run `better-update credentials env-vault migrate` first.",
+              "This organization's vault is not initialized. Run `better-update credentials identity init` first.",
           });
         }
         yield* linkAccountKeyToEnv(api, { accountKeyId: own.id, agePublicKey: own.agePublicKey });
