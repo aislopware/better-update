@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.29.0](https://gitlab.jmango360.com/mobile/better-update/compare/@better-update/api@0.28.0...@better-update/api@0.29.0) (2026-06-29)
+
+### Features
+
+* **vault:** env-vault default + browser self-enroll & admin grant ([9218872](https://gitlab.jmango360.com/mobile/better-update/commit/92188721387b8ad2f148391d0922f6f65aefb0ae))
+
 ## [0.28.0](https://gitlab.jmango360.com/mobile/better-update/compare/@better-update/api@0.27.0...@better-update/api@0.28.0) (2026-06-29)
 
 ### Features

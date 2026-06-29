@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.37.0](https://github.com/better-update/better-update/compare/@better-update/server@0.36.1...@better-update/server@0.37.0) (2026-06-29)
+
+### Features
+
+* **vault:** env-vault default + browser self-enroll & admin grant ([9218872](https://github.com/better-update/better-update/commit/92188721387b8ad2f148391d0922f6f65aefb0ae))
+
 ## [0.36.1](https://github.com/better-update/better-update/compare/@better-update/server@0.36.0...@better-update/server@0.36.1) (2026-06-29)
 
 **Note:** Version bump only for package @better-update/server
