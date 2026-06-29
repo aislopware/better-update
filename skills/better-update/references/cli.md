@@ -338,7 +338,7 @@ members or other devices). See `references/credentials.md` for the full model.
 
 ### Browser env-vault: account keys (account / env-vault)
 
-Env-var values live in a separate env vault (EV) editable from the web (`updates-vault.<host>`),
+Env-var values live in a separate env vault (EV) editable from the web (`updates-vault.jmango360.dev`),
 leaving signing credentials CLI-only. Orgs are **born forked** at `identity init` — there is no
 "migrate" step. The account key + the env-access grant each have a browser path (see
 `references/credentials.md`); the CLI commands below are the CLI equivalents.

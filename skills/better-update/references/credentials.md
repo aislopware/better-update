@@ -166,7 +166,7 @@ orgs are **born forked**, so there is no separate "migrate" step:
 
 - **Credentials vault (CV)** — keystores/certs/profiles/keys. CLI-only, zero-knowledge.
 - **Env vault (EV)** — env-var values only, with a **separate key**. Reachable from the browser
-  (`updates-vault.<host>`, an origin separate from the dashboard) via a per-user **account key**, so a
+  (`updates-vault.jmango360.dev`, an origin separate from the dashboard) via a per-user **account key**, so a
   key a browser can obtain still cannot open signing credentials.
 
 Editing env values from the web needs three things per user: an **account key**, a **passkey**, and an
@@ -189,18 +189,18 @@ better-update credentials env-vault rotate             # rotate the EV key (e.g.
 
 **Web path (no CLI):**
 
-- **Self-enroll an account key** — on `updates-vault.<host>`, the env-vars view shows **Set up vault
+- **Self-enroll an account key** — on `updates-vault.jmango360.dev`, the env-vars view shows **Set up vault
   access** when you have no account key. You pick **your own passphrase** (it is generated + sealed in
   the browser and never sent to the server). A web-enrolled user has no device identity, so this
   passphrase is an **independent secret** — _not_ the "one passphrase" the CLI path ties to the device
   identity. There is no recovery if you forget it; re-enroll (or `account reseal` on the CLI).
-- **Admin grant** — an admin opens **Vault access** on `updates-vault.<host>`, unlocks their own env
+- **Admin grant** — an admin opens **Vault access** on `updates-vault.jmango360.dev`, unlocks their own env
   vault, and clicks **Grant env access** next to a member's pending account key. The browser wraps the
   EV key to that account key (the admin must hold the unlocked EV key — the server enforces
   `vaultAccess:create`). Equivalent to the CLI self-link, but for another user. Granting CV
   (credentials) access stays CLI-only.
 
-**Web unlock flow** (on `updates-vault.<host>`): the dashboard session carries over (shared cookie),
+**Web unlock flow** (on `updates-vault.jmango360.dev`): the dashboard session carries over (shared cookie),
 then **Unlock env vault** runs a WebAuthn **passkey step-up** + your **account passphrase** to unwrap
 the EV key in the browser; from there you reveal/edit/create/delete env values, each encrypted client
 side. A passkey can be enrolled inline from that dialog ("Add a passkey", Touch ID / security key) —
@@ -213,7 +213,7 @@ vault still shows as unlocked (Re-verify / Lock visible) — the next reveal/edi
 re-prompts your passkey inline (or use **Re-verify** in the toolbar to refresh it ahead of time). No
 need to Lock and Unlock again.
 
-A typical web-only onboarding: the new user signs in to `updates-vault.<host>` → **Set up vault
+A typical web-only onboarding: the new user signs in to `updates-vault.jmango360.dev` → **Set up vault
 access** (choose a passphrase) → add a passkey → an admin **Grant env access** → the user unlocks and
 edits values. (Vault access also requires a role that can write env vars — see
 `references/environments.md`.)
