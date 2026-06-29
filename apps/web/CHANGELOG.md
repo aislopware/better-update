@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.46.2](https://github.com/better-update/better-update/compare/@better-update/web@0.46.1...@better-update/web@0.46.2) (2026-06-29)
+
+### Bug Fixes
+
+* **web:** align passkey dialog body with DialogPanel ([cd7f6e0](https://github.com/better-update/better-update/commit/cd7f6e061498605b9a1b6ef751e44ed0c6c9b875))
+
 ## [0.46.1](https://github.com/better-update/better-update/compare/@better-update/web@0.46.0...@better-update/web@0.46.1) (2026-06-29)
 
 ### Bug Fixes
