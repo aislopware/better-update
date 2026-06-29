@@ -28,6 +28,7 @@ import { useForm } from "@tanstack/react-form";
 import { PlusIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { performStepUpGatedWrite } from "../../../../lib/env-vault/step-up";
 import { envVarKeySchema, getFieldError, requiredStringSchema } from "../../../../lib/form-utils";
 import { safeSubmit, useApiMutation } from "../../../../lib/use-api-mutation";
 import { formatEnvironmentLabel } from "./-env-vars-labels";
@@ -107,29 +108,32 @@ const CreateForm = ({
   const [visibility, setVisibility] = useState<Visibility>("sensitive");
 
   const createMutation = useApiMutation({
-    mutationFn: async (input: { key: string; value: string }) => {
-      const sealed = sealEnvValue({
-        vaultKey: vault.vaultKey,
-        vaultVersion: vault.envVaultVersion,
-        vaultKind: "env",
-        orgId,
-        key: input.key,
-        environment,
-        value: input.value,
-      });
-      const body =
-        scope === "project" && projectId
-          ? {
-              scope: "project" as const,
-              projectId,
-              environment,
-              key: input.key,
-              visibility,
-              value: sealed,
-            }
-          : { scope: "global" as const, environment, key: input.key, visibility, value: sealed };
-      return createEnvVar(body);
-    },
+    mutationFn: async (input: { key: string; value: string }) =>
+      // Create is step-up-gated server-side; refresh the step-up from this click if the
+      // window lapsed (so the passkey prompt fires inside the gesture) before writing.
+      performStepUpGatedWrite(async () => {
+        const sealed = sealEnvValue({
+          vaultKey: vault.vaultKey,
+          vaultVersion: vault.envVaultVersion,
+          vaultKind: "env",
+          orgId,
+          key: input.key,
+          environment,
+          value: input.value,
+        });
+        const body =
+          scope === "project" && projectId
+            ? {
+                scope: "project" as const,
+                projectId,
+                environment,
+                key: input.key,
+                visibility,
+                value: sealed,
+              }
+            : { scope: "global" as const, environment, key: input.key, visibility, value: sealed };
+        return createEnvVar(body);
+      }),
     onSuccess: async () => {
       toastManager.add({ title: "Variable created", type: "success" });
       await invalidate();

@@ -13,6 +13,7 @@ import { toastManager } from "@better-update/ui/components/ui/toast";
 
 import type { EnvVar } from "@better-update/api";
 
+import { performStepUpGatedWrite } from "../../../../lib/env-vault/step-up";
 import { useApiMutation } from "../../../../lib/use-api-mutation";
 import { formatEnvironmentLabel } from "./-env-vars-labels";
 
@@ -32,7 +33,9 @@ export const EnvVarDeleteDialog = ({
   onOpenChange: (open: boolean) => void;
 }) => {
   const deleteMutation = useApiMutation({
-    mutationFn: async () => deleteEnvVar(envVar.id),
+    // Delete is step-up-gated server-side; refresh the step-up from this click if the
+    // window lapsed (so the passkey prompt fires inside the gesture) before writing.
+    mutationFn: async () => performStepUpGatedWrite(async () => deleteEnvVar(envVar.id)),
     onSuccess: async () => {
       toastManager.add({ title: "Variable deleted", type: "success" });
       await invalidate();

@@ -1,3 +1,4 @@
+import { WEB_ENV_STEP_UP_REQUIRED_MESSAGE, WEB_ENV_STEP_UP_TTL_MS } from "@better-update/api";
 import { Effect } from "effect";
 
 import { Forbidden } from "../errors";
@@ -5,15 +6,10 @@ import { PasskeyStepUpRepo } from "../repositories/passkey-step-up";
 
 import type { CurrentActor } from "../models";
 
-/**
- * How long a WebAuthn step-up authorizes browser env-vault writes before a fresh
- * passkey assertion is required again. Short by design: the step-up is a
- * re-authentication for a sensitive action, not a login session.
- */
-export const WEB_ENV_STEP_UP_TTL_MS = 10 * 60 * 1000;
-
-export const WEB_ENV_STEP_UP_REQUIRED_MESSAGE =
-  "A passkey step-up is required before changing env values from the browser. Verify your passkey and retry.";
+// The TTL and the rejection message are shared with the browser (which mirrors the
+// window to re-prompt proactively and to detect this specific rejection); re-exported
+// here so existing server-internal imports keep their path.
+export { WEB_ENV_STEP_UP_REQUIRED_MESSAGE, WEB_ENV_STEP_UP_TTL_MS };
 
 /**
  * Gate browser (cookie-transport) env-value mutations behind a fresh WebAuthn

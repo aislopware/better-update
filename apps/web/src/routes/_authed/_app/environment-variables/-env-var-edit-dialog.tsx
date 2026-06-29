@@ -1,5 +1,4 @@
-import { getApiError } from "@better-update/api-client";
-import { getEnvVarValue, updateEnvVar } from "@better-update/api-client/react";
+import { updateEnvVar } from "@better-update/api-client/react";
 import { sealEnvValue } from "@better-update/credentials-crypto";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
@@ -17,14 +16,14 @@ import { Spinner } from "@better-update/ui/components/ui/spinner";
 import { Textarea } from "@better-update/ui/components/ui/textarea";
 import { toastManager } from "@better-update/ui/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
-import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import type { EnvVar } from "@better-update/api";
 
-import { revealEnvValue } from "../../../../lib/env-vault/reveal";
+import { performStepUpGatedWrite } from "../../../../lib/env-vault/step-up";
 import { getFieldError, requiredStringSchema } from "../../../../lib/form-utils";
 import { safeSubmit, useApiMutation } from "../../../../lib/use-api-mutation";
+import { StepUpGate, useGuardedEnvValue } from "./-step-up-guard";
 
 import type { UnlockedEnvVault } from "../../../../lib/env-vault/use-env-vault";
 
@@ -44,18 +43,21 @@ const EditForm = ({
   onSuccess: () => void;
 }) => {
   const updateMutation = useApiMutation({
-    mutationFn: async (input: { value: string }) => {
-      const sealed = sealEnvValue({
-        vaultKey: vault.vaultKey,
-        vaultVersion: vault.envVaultVersion,
-        vaultKind: "env",
-        orgId,
-        key: envVar.key,
-        environment: envVar.environment,
-        value: input.value,
-      });
-      return updateEnvVar(envVar.id, { value: sealed });
-    },
+    mutationFn: async (input: { value: string }) =>
+      // Save is step-up-gated server-side; refresh the step-up from this click if the
+      // window lapsed (so the passkey prompt fires inside the gesture) before writing.
+      performStepUpGatedWrite(async () => {
+        const sealed = sealEnvValue({
+          vaultKey: vault.vaultKey,
+          vaultVersion: vault.envVaultVersion,
+          vaultKind: "env",
+          orgId,
+          key: envVar.key,
+          environment: envVar.environment,
+          value: input.value,
+        });
+        return updateEnvVar(envVar.id, { value: sealed });
+      }),
     onSuccess: async () => {
       toastManager.add({ title: "Value updated", type: "success" });
       await invalidate();
@@ -133,7 +135,8 @@ const EditForm = ({
  * Load the current value for editing: fetch the sealed envelope (the server gates
  * this on a fresh passkey step-up, same as reveal), decrypt it locally with the
  * unlocked vault key, and seed the edit form with it so changes start from the
- * existing value rather than a blank field.
+ * existing value rather than a blank field. A lapsed step-up surfaces an inline
+ * passkey prompt (via the shared guard) rather than a dead-end error.
  */
 const EditBody = ({
   envVar,
@@ -148,29 +151,27 @@ const EditBody = ({
   invalidate: () => Promise<void>;
   onSuccess: () => void;
 }) => {
-  // Don't retain the sealed envelope in the query cache beyond the open dialog.
-  const valueQuery = useQuery({
-    queryKey: ["env-var-value", envVar.id],
-    queryFn: async () => getEnvVarValue(envVar.id),
-    staleTime: 0,
-    gcTime: 0,
-  });
+  const guarded = useGuardedEnvValue({ envVar, orgId, vault });
 
-  const revealed = useMemo(
-    () =>
-      valueQuery.data
-        ? revealEnvValue({
-            vault,
-            orgId,
-            envelope: valueQuery.data,
-            expectKey: envVar.key,
-            expectEnvironment: envVar.environment,
-          })
-        : null,
-    [valueQuery.data, vault, orgId, envVar.key, envVar.environment],
-  );
-
-  if (valueQuery.isPending) {
+  if (guarded.kind === "needs-step-up") {
+    return (
+      <>
+        <DialogPanel>
+          <StepUpGate
+            action="edit"
+            verifying={guarded.verifying}
+            onVerify={() => {
+              guarded.verify();
+            }}
+          />
+        </DialogPanel>
+        <DialogFooter>
+          <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
+        </DialogFooter>
+      </>
+    );
+  }
+  if (guarded.kind === "loading") {
     return (
       <DialogPanel>
         <div className="text-muted-foreground flex items-center gap-2 text-sm">
@@ -179,15 +180,11 @@ const EditBody = ({
       </DialogPanel>
     );
   }
-  if (valueQuery.isError || revealed === null || !revealed.ok) {
-    const message = valueQuery.isError
-      ? getApiError(valueQuery.error)
-      : (revealed?.ok === false && revealed.error) ||
-        "Could not load this value. Please try again.";
+  if (guarded.kind === "error") {
     return (
       <>
         <DialogPanel>
-          <p className="text-destructive text-sm">{message}</p>
+          <p className="text-destructive text-sm">{guarded.message}</p>
         </DialogPanel>
         <DialogFooter>
           <DialogClose render={<Button variant="ghost" />}>Close</DialogClose>
@@ -201,7 +198,7 @@ const EditBody = ({
       envVar={envVar}
       orgId={orgId}
       vault={vault}
-      initialValue={revealed.value}
+      initialValue={guarded.value}
       invalidate={invalidate}
       onSuccess={onSuccess}
     />

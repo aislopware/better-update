@@ -20,3 +20,21 @@ export const PasskeyStepUpBody = Schema.Struct({
 export const PasskeyStepUpResult = Schema.Struct({
   verifiedAt: Schema.String,
 });
+
+/**
+ * How long a WebAuthn step-up authorizes browser env-vault reads/writes before a
+ * fresh passkey assertion is required again. Short by design: the step-up is a
+ * re-authentication for a sensitive action, not a login session. Shared so the
+ * server gate and the browser (which mirrors the window to re-prompt proactively)
+ * agree on the duration.
+ */
+export const WEB_ENV_STEP_UP_TTL_MS = 10 * 60 * 1000;
+
+/**
+ * The exact `Forbidden` message the server returns when a browser env-value
+ * read/write is rejected for a missing or stale step-up. Shared so the browser can
+ * detect this specific rejection (vs an unrelated permission `Forbidden`) and
+ * re-prompt the passkey rather than dead-ending on the message.
+ */
+export const WEB_ENV_STEP_UP_REQUIRED_MESSAGE =
+  "A passkey step-up is required before changing env values from the browser. Verify your passkey and retry.";

@@ -206,6 +206,12 @@ side. A passkey can be enrolled inline from that dialog ("Add a passkey", Touch 
 the ceremony needs real user presence, so it cannot be scripted. Manage passkeys (add / rename /
 remove) anytime at **Account → Passkeys** in the dashboard.
 
+The passkey step-up authorizes reads/writes for ~10 minutes and is **separate** from the unlock: the
+unwrapped EV key stays cached for the session, but the step-up lapses on its own. When it does, the
+vault still shows as unlocked (Re-verify / Lock visible) — the next reveal/edit/create/delete simply
+re-prompts your passkey inline (or use **Re-verify** in the toolbar to refresh it ahead of time). No
+need to Lock and Unlock again.
+
 A typical web-only onboarding: the new user signs in to `updates-vault.<host>` → **Set up vault
 access** (choose a passphrase) → add a passkey → an admin **Grant env access** → the user unlocks and
 edits values. (Vault access also requires a role that can write env vars — see

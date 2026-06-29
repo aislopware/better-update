@@ -308,7 +308,12 @@ export {
   RecipientEnvVaultKey,
   RotateEnvVaultBody,
 } from "./domain/env-vault";
-export { PasskeyStepUpBody, PasskeyStepUpResult } from "./domain/web-vault";
+export {
+  PasskeyStepUpBody,
+  PasskeyStepUpResult,
+  WEB_ENV_STEP_UP_REQUIRED_MESSAGE,
+  WEB_ENV_STEP_UP_TTL_MS,
+} from "./domain/web-vault";
 export {
   Ciphertext,
   CredentialDekRef,

@@ -1,5 +1,3 @@
-import { getApiError } from "@better-update/api-client";
-import { getEnvVarValue } from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
@@ -17,13 +15,11 @@ import {
   InputGroupInput,
 } from "@better-update/ui/components/ui/input-group";
 import { Spinner } from "@better-update/ui/components/ui/spinner";
-import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
 
 import type { EnvVar } from "@better-update/api";
 
 import { CopyButton } from "../../../../lib/copy-button";
-import { revealEnvValue } from "../../../../lib/env-vault/reveal";
+import { StepUpGate, useGuardedEnvValue } from "./-step-up-guard";
 
 import type { UnlockedEnvVault } from "../../../../lib/env-vault/use-env-vault";
 
@@ -36,51 +32,34 @@ const RevealBody = ({
   orgId: string;
   vault: UnlockedEnvVault;
 }) => {
-  // Don't retain the sealed envelope in the query cache beyond the open dialog.
-  const valueQuery = useQuery({
-    queryKey: ["env-var-value", envVar.id],
-    queryFn: async () => getEnvVarValue(envVar.id),
-    staleTime: 0,
-    gcTime: 0,
-  });
+  const guarded = useGuardedEnvValue({ envVar, orgId, vault });
 
-  const revealed = useMemo(
-    () =>
-      valueQuery.data
-        ? revealEnvValue({
-            vault,
-            orgId,
-            envelope: valueQuery.data,
-            expectKey: envVar.key,
-            expectEnvironment: envVar.environment,
-          })
-        : null,
-    [valueQuery.data, vault, orgId, envVar.key, envVar.environment],
-  );
-
-  if (valueQuery.isPending) {
+  if (guarded.kind === "needs-step-up") {
+    return (
+      <StepUpGate
+        action="reveal"
+        verifying={guarded.verifying}
+        onVerify={() => {
+          guarded.verify();
+        }}
+      />
+    );
+  }
+  if (guarded.kind === "loading") {
     return (
       <div className="text-muted-foreground flex items-center gap-2 text-sm">
         <Spinner /> Decrypting…
       </div>
     );
   }
-  if (valueQuery.isError) {
-    // Surface the server message — notably a step-up-expired 403 reads "Verify
-    // your passkey and retry" so the user knows to Re-verify rather than retry.
-    return <p className="text-destructive text-sm">{getApiError(valueQuery.error)}</p>;
-  }
-  if (revealed === null) {
-    return <p className="text-destructive text-sm">Could not load this value. Please try again.</p>;
-  }
-  if (!revealed.ok) {
-    return <p className="text-destructive text-sm">{revealed.error}</p>;
+  if (guarded.kind === "error") {
+    return <p className="text-destructive text-sm">{guarded.message}</p>;
   }
   return (
     <InputGroup>
-      <InputGroupInput readOnly value={revealed.value} className="font-mono text-sm" />
+      <InputGroupInput readOnly value={guarded.value} className="font-mono text-sm" />
       <InputGroupAddon align="inline-end">
-        <CopyButton value={revealed.value} label={envVar.key} size="icon-xs" />
+        <CopyButton value={guarded.value} label={envVar.key} size="icon-xs" />
       </InputGroupAddon>
     </InputGroup>
   );
