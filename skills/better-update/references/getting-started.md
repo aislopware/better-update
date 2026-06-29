@@ -4,8 +4,8 @@
 
 - An Expo project that already uses [`expo-updates`](https://docs.expo.dev/versions/latest/sdk/updates/).
 - [Bun](https://bun.sh) ≥ 1.3 to run the CLI (it is Bun-first ESM but also runs on Node ≥ 20).
-- A better-update account (default cloud: [better-update.dev](https://better-update.dev); or a
-  self-hosted server).
+- A better-update account (default cloud: [updates.jmango360.dev](https://updates.jmango360.dev); or
+  a self-hosted server).
 
 ## Install
 
@@ -33,13 +33,13 @@ A handy pattern for a project is a package.json script:
 
 The CLI resolves its server URL in priority order:
 
-| Source                                     | Field        | Notes                                                           |
-| ------------------------------------------ | ------------ | --------------------------------------------------------------- |
-| `BETTER_UPDATE_URL` env var                | API base URL | highest priority; per-shell override                            |
-| `BETTER_UPDATE_WEB_URL` env var            | Web URL      | used for the `login` browser callback                           |
-| `~/.better-update/config.json` → `baseUrl` | API base URL | persistent per-user                                             |
-| `~/.better-update/config.json` → `webUrl`  | Web URL      | persistent per-user                                             |
-| built-in defaults                          | —            | `https://graph.better-update.dev` + `https://better-update.dev` |
+| Source                                     | Field        | Notes                                       |
+| ------------------------------------------ | ------------ | ------------------------------------------- |
+| `BETTER_UPDATE_URL` env var                | API base URL | highest priority; per-shell override        |
+| `BETTER_UPDATE_WEB_URL` env var            | Web URL      | used for the `login` browser callback       |
+| `~/.better-update/config.json` → `baseUrl` | API base URL | persistent per-user                         |
+| `~/.better-update/config.json` → `webUrl`  | Web URL      | persistent per-user                         |
+| built-in defaults                          | —            | `https://updates.jmango360.dev` (API + web) |
 
 Persistent config (`~/.better-update/config.json`):
 
@@ -66,7 +66,7 @@ directory is `0700`).
 Headless / remote machine:
 
 ```bash
-better-update login --api-key      # then paste a token from Settings → API tokens in the web console
+better-update login --api-key      # then paste an API key from the dashboard > API Keys page
 ```
 
 Or skip the file entirely with an env var (takes priority over the file):
@@ -116,7 +116,7 @@ OTA with no rebuild:
 {
   "expo": {
     "updates": {
-      "url": "https://graph.better-update.dev/manifest/<projectId>",
+      "url": "https://updates.jmango360.dev/manifest/<projectId>",
       "enabled": true,
       "checkAutomatically": "ON_LOAD",
       "fallbackToCacheTimeout": 0

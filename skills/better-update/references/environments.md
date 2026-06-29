@@ -62,7 +62,7 @@ vars; `--search` filters by key substring.
 Every value change is a revision:
 
 ```bash
-better-update env history STRIPE_KEY --environment staging          # Revision, Active, Vault version, Created, By
+better-update env history STRIPE_KEY --environment staging          # Revision, Active, Vault, Created, By
 better-update env rollback STRIPE_KEY --to <revision> --environment staging
 ```
 

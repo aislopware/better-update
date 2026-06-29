@@ -90,8 +90,10 @@ better-update builds resign --build <id> [--profile-id <id>] [--cert-id <id>]
   and an `expires` timestamp. Send to QA for ad-hoc installs; the signed URL expires.
 - `builds compatibility-matrix` answers "if I publish to channel X today, will any device receive
   it?" — prints runtime-version coverage per channel and flags gaps. Run before a publish if unsure.
-- `builds resign` re-signs an iOS build with a new provisioning profile (iOS only; the build id is the
-  `--build` flag, not a positional).
+- `builds resign` prints step-by-step instructions (fastlane sigh / codesign) for re-signing an iOS
+  build locally with a new provisioning profile — better-update does not bundle the macOS signing
+  toolchain, so it downloads the profile/cert to a tmp path and gives you the commands plus a
+  re-upload path (iOS only; the build id is the `--build` flag, not a positional).
 
 ## `submit` — upload to the stores
 
@@ -102,8 +104,8 @@ better-update submit --platform <ios|android> [--profile <name>=production] \
 ```
 
 Submits a build to App Store Connect (iOS, via `xcrun altool`) or Google Play (Android), straight
-from the CLI. Provide exactly one archive source (`--latest`/`--id`/`--path`/`--url`, precedence in
-that order). `--what-to-test` is the iOS TestFlight "What to test" changelog;
+from the CLI. Provide exactly one archive source (`--latest`/`--id`/`--path`/`--url`); if several are
+passed, precedence is `--path` > `--url` > `--id` > `--latest`. `--what-to-test` is the iOS TestFlight "What to test" changelog;
 `--service-account-key-id` overrides the Android service account from the submit profile; `--no-wait`
 returns without blocking until a terminal status. (`build --auto-submit` runs build → submit in one
 step.) Note: this performs the _upload/submission_ — it does not poll store **review**.

@@ -7,7 +7,7 @@ description: >-
   channels/branches with staged rollouts and instant rollback — for Expo and React Native
   apps. Use this whenever you are working in a project that uses better-update (an
   `@better-update/cli` dependency, a `better-update …` command, `expo.extra.betterUpdate.projectId`
-  in app.json, or a `graph.better-update.dev` manifest URL), OR when the user asks to publish /
+  in app.json, or an `updates.jmango360.dev` manifest URL), OR when the user asks to publish /
   ship an OTA update, stage a rollout or roll back a release, cut a release candidate, promote an
   update between channels, build an IPA/APK/AAB locally, manage keystores / distribution certs /
   provisioning profiles / APNs push keys, or configure per-environment secrets — even if they
@@ -58,12 +58,12 @@ better-update init                 # from the Expo project root: links app.json 
 
 `login` writes `~/.better-update/auth.json` (mode `0600`). `init` reads `app.json`, finds/creates a
 project by `expo.slug`, and writes the project id into `expo.extra.betterUpdate.projectId` — every
-other command reads it from there. Default server is `https://graph.better-update.dev`; override with
+other command reads it from there. Default server is `https://updates.jmango360.dev`; override with
 `BETTER_UPDATE_URL` / `BETTER_UPDATE_WEB_URL` or `~/.better-update/config.json`. Auth can also come
 from `BETTER_UPDATE_TOKEN`. Full detail: **`references/getting-started.md`**.
 
 To know whether a project already uses better-update, look for `@better-update/cli` in
-package.json, `expo.extra.betterUpdate.projectId` in app.json, or a `graph.better-update.dev`
+package.json, `expo.extra.betterUpdate.projectId` in app.json, or an `updates.jmango360.dev`
 manifest URL in `expo.updates.url`.
 
 ## Command map
@@ -73,10 +73,11 @@ better-update
 ├── login / logout / whoami   Auth + identity (token at ~/.better-update/auth.json, mode 0600)
 ├── init / status / doctor    Link project · status · diagnostics
 ├── open / autocomplete       Open the dashboard · print a shell completion script
-├── projects                  list · create · get · rename · delete
+├── projects                  list · create · get · rename · archive · unarchive · delete
 ├── branches                  list · view · create · rename · delete
 ├── update                    publish · list · view · edit · promote · republish · rollback ·
-│                             revert · rollout(set/complete/revert) · configure · insights · delete
+│                             revert · rollout(set/complete/revert) · revert-rollout ·
+│                             roll-back-to-embedded · embedded:upload · configure · insights · delete
 ├── channels                  list · view · create · update(repoint) · pause · resume · delete · insights · rollout
 ├── build [+ configure]       Build the app locally and (by default) upload the artifact
 ├── builds                    list · get · download · run · install-link · compatibility-matrix · upload · resign · delete

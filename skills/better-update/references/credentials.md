@@ -31,17 +31,17 @@ better-update credentials upload-asc-key --p8 ./AuthKey_XXXX.p8 --key-id <id> --
 
 `--type` values and their required extra flags:
 
-| Platform | `--type`                     | Required extras                                     |
-| -------- | ---------------------------- | --------------------------------------------------- |
-| iOS      | `distribution-certificate`   | `--password`, `--apple-team-identifier`             |
-| iOS      | `provisioning-profile`       | (none)                                              |
-| iOS      | `push-key`                   | `--key-id`, `--apple-team-identifier`               |
-| iOS      | `asc-api-key`                | `--key-id`, `--issuer-id` (or use `upload-asc-key`) |
-| iOS      | `push-certificate`           | `--bundle-identifier`                               |
-| iOS      | `apple-pay-certificate`      | `--merchant-identifier`                             |
-| iOS      | `pass-type-certificate`      | `--pass-type-identifier`                            |
-| Android  | `keystore`                   | `--password`, `--key-alias`, `--key-password`       |
-| Android  | `google-service-account-key` | (none)                                              |
+| Platform | `--type`                     | Required extras                                                             |
+| -------- | ---------------------------- | --------------------------------------------------------------------------- |
+| iOS      | `distribution-certificate`   | `--password` (Apple Team ID is derived from the cert)                       |
+| iOS      | `provisioning-profile`       | (none)                                                                      |
+| iOS      | `push-key`                   | `--key-id`, `--apple-team-identifier`                                       |
+| iOS      | `asc-api-key`                | `--key-id`, `--issuer-id` (or use `upload-asc-key`)                         |
+| iOS      | `push-certificate`           | `--password` (`--bundle-identifier` only if not derivable from the cert CN) |
+| iOS      | `apple-pay-certificate`      | `--password`, `--merchant-identifier`                                       |
+| iOS      | `pass-type-certificate`      | `--password`, `--pass-type-identifier`                                      |
+| Android  | `keystore`                   | `--password`, `--key-alias`, `--key-password`                               |
+| Android  | `google-service-account-key` | (none)                                                                      |
 
 `--name` is a free-form label shown as the **Name** column of `credentials list`. It is persisted for
 keystores and ASC API keys (separate from the key alias / internal identifier), so use a distinct
@@ -135,6 +135,7 @@ better-update credentials identity show                  # active recipient + fi
 better-update credentials identity init [--label]        # bootstrap the org vault + offline recovery key (first time)
 better-update credentials identity create [--label]      # make + register this device's key
 better-update credentials identity register [--label]    # re-register an existing identity
+better-update credentials passphrase change              # change this device's passphrase; re-seals device identity + (if enrolled) account key
 
 # Your devices
 better-update credentials device list                    # your device keys (active marked)
@@ -183,7 +184,7 @@ better-update credentials account reseal               # repair the escrow after
 
 # Per ORG (owner/admin): manage the env vault key.
 better-update credentials env-vault status             # env-vault version + rotation state
-better-update credentials env-vault rotate [--yes]     # rotate the EV key (e.g. after revoking a member)
+better-update credentials env-vault rotate             # rotate the EV key (e.g. after revoking a member)
 ```
 
 **Web path (no CLI):**

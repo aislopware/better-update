@@ -72,6 +72,8 @@ Policies:
 
 - **appVersion** — compatible with builds sharing `app.json` `version`. Bump `version` whenever you
   change native code.
+- **nativeVersion** — `app.json` `version` combined with the native build number (Android
+  `versionCode` / iOS `buildNumber`). Bump the version or the build number when native code changes.
 - **fingerprint** — a hash of native sources (`ios/`, `android/`, native deps). Same hash → same
   runtime. Recommended for projects with custom native code.
 - **sdkVersion** — tied to the Expo SDK major. Only safe for Expo-Go-style apps without custom native

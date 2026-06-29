@@ -31,7 +31,7 @@ better-update
 ├── login / logout / whoami        Auth + identity
 ├── init / status / doctor / open  Project link, status, diagnostics, dashboard
 ├── autocomplete <shell>           Print a shell completion script
-├── projects                       list · create · get · rename · delete
+├── projects                       list · create · get · rename · archive · unarchive · delete
 ├── branches                       list · view · create · rename · delete
 ├── update                         publish · list · view · edit · delete · promote · republish ·
 │                                  rollback · roll-back-to-embedded · revert · revert-rollout ·
@@ -63,7 +63,7 @@ Server URL resolution (priority order):
 1. `BETTER_UPDATE_URL` env var (API base URL).
 2. `BETTER_UPDATE_WEB_URL` env var (web URL — for `login` callback).
 3. `~/.better-update/config.json` fields `baseUrl` and `webUrl`.
-4. Defaults: `https://graph.better-update.dev` and `https://better-update.dev`.
+4. Defaults: `https://updates.jmango360.dev` (API + web).
 
 Auth token: `BETTER_UPDATE_TOKEN` env var, else `~/.better-update/auth.json` (created by `login`).
 Project id per project: `expo.extra.betterUpdate.projectId` in `app.json` (Expo) or top-level
@@ -82,8 +82,8 @@ better-update open [resource]            # open the dashboard (resource: builds|
 better-update autocomplete <shell>       # shell ∈ bash|zsh|fish
 ```
 
-- `login` writes `~/.better-update/auth.json` (mode `0600`). `--api-key` token is generated in the
-  web console (Settings → API tokens).
+- `login` writes `~/.better-update/auth.json` (mode `0600`). `--api-key` reads a key generated on the
+  dashboard's API Keys page.
 - `init` links the local project (Expo **or** any build system). With `--id` it links by explicit
   project id (skips slug lookup/creation). For non-Expo projects, `--name`/`--slug` default to
   package.json name / kebab-cased name, and the id is written to `eas.json`, not `app.json`.
@@ -293,7 +293,7 @@ better-update credentials remove [--platform <ios|android>] [--type <type>] [--y
 ### Generate / configure / sync
 
 ```bash
-better-update credentials generate keystore [--alias] [--store-password] [--key-password] [--common-name] [--organization] [--validity-days <n>=10000]
+better-update credentials generate keystore [--name] [--alias] [--store-password] [--key-password] [--common-name] [--organization] [--validity-days <n>=10000]
 better-update credentials generate distribution-certificate --asc-key-id <id> [--type <distribution|development>=distribution]
 better-update credentials generate provisioning-profile --asc-key-id <id> --cert-id <id> --bundle <id> \
   --distribution <APP_STORE|AD_HOC|DEVELOPMENT|ENTERPRISE> [--device-ids id1,id2]
@@ -322,6 +322,7 @@ ciphertext. These manage who can decrypt and the local cached-key session.
 
 ```bash
 better-update credentials identity <create|init|register|show> [--label]   # default `show`
+better-update credentials passphrase [change]                              # change this device's passphrase; re-seals identity + enrolled account key; default `change`
 better-update credentials device <list|link> [<device>] [--yes]            # default `list`; link self-links a new device
 better-update credentials access <list|grant|rotate|revoke|recover|recovery> …   # default `list`
 #   access grant <recipient> [--yes] · access revoke <recipient> [--yes] · access rotate [--yes]
@@ -445,8 +446,8 @@ better-update submit --platform <ios|android> [--profile <name>=production] \
 ```
 
 Submits a build to App Store Connect (iOS, via `xcrun altool`) or Google Play (Android), from the
-CLI. Exactly one archive source is required (`--latest`/`--id`/`--path`/`--url`, precedence in that
-order). `--what-to-test` is the iOS TestFlight changelog; `--service-account-key-id` overrides the
+CLI. Exactly one archive source is required (`--latest`/`--id`/`--path`/`--url`); if several are
+passed, precedence is `--path` > `--url` > `--id` > `--latest`. `--what-to-test` is the iOS TestFlight changelog; `--service-account-key-id` overrides the
 Android service account; `--no-wait` returns without blocking until a terminal status.
 
 ## devices
@@ -516,12 +517,13 @@ creation. `update` uses two separate boolean flags `--enable` / `--disable` to s
 
 Use these in CI to branch on failure type.
 
-| Code | Meaning                                                                            |
-| ---- | ---------------------------------------------------------------------------------- |
-| `0`  | Success.                                                                           |
-| `1`  | General failure (e.g. `fingerprint compare` mismatch).                             |
-| `2`  | Validation error (bad flag, missing required arg, `fingerprint` resolution error). |
-| `3`  | Auth required or expired.                                                          |
-| `4`  | Network/server error (also Apple auth / interactive-prohibited errors).            |
-| `5`  | Resource not found (project, update, channel, …).                                  |
-| `6`  | `doctor` diagnostic check failed.                                                  |
+| Code | Meaning                                                                                                                                                                                                |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `0`  | Success.                                                                                                                                                                                               |
+| `1`  | General failure (e.g. `fingerprint compare` mismatch; also resource-not-found / 404).                                                                                                                  |
+| `2`  | Validation error (bad flag, missing required arg, `fingerprint` resolution error).                                                                                                                     |
+| `3`  | Auth required or expired.                                                                                                                                                                              |
+| `4`  | Project not linked (run `init`); also Apple Developer auth / interactive-prohibited in the Apple-portal commands (`apple login`, `credentials generate push-key`/`merchant-id`, `credentials revoke`). |
+| `5`  | Missing signing credentials (`build`, `credentials regenerate-profile`) or a missing/invalid `credentials.json` (`credentials sync`).                                                                  |
+| `6`  | Tooling/build failure: `doctor` check failed, plus local build / keychain / provisioning / native-run / credential-generation failures and filesystem errors.                                          |
+| `7`  | Publish/upload pipeline failure (artifact reserve/upload/complete, presigned-URL expiry, env export, bsdiff/patch generation, `update publish`).                                                       |

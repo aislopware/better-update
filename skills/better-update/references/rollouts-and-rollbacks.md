@@ -39,6 +39,7 @@ cutover.
 
 ```bash
 better-update channels rollout create <channelId> --branch release-2026-05 --percentage 10
+#   add --runtime-version <version> to create to constrain the rollout to a single runtime version
 better-update channels rollout update <channelId> --percentage 50
 better-update channels rollout complete <channelId>     # channel now fully on the new branch
 better-update channels rollout revert <channelId>       # channel back on the old branch
