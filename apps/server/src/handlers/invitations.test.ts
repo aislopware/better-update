@@ -26,6 +26,7 @@ const baseActor: AuthContextShape = {
   effectiveStatements: [],
   source: "session",
   transport: "cookie",
+  sessionId: "sess-test",
   actorEmail: "dev@example.com",
   isSuperadmin: false,
 };

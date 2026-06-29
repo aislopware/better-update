@@ -25,6 +25,20 @@ export interface Account {
   user_id: string;
 }
 
+export interface AccountKeys {
+  age_public_key: string;
+  created_at: Generated<string>;
+  ed25519_public_key: string;
+  escrow_ct: string;
+  fingerprint: string;
+  id: string | null;
+  kdf_params: string;
+  last_used_at: string | null;
+  revoked_at: string | null;
+  salt: string;
+  user_id: string;
+}
+
 export interface AndroidApplicationIdentifiers {
   created_at: Generated<string>;
   id: string | null;
@@ -430,6 +444,15 @@ export interface Organization {
   slug: string;
 }
 
+export interface OrgEnvVaultKeyWraps {
+  created_at: Generated<string>;
+  env_vault_version: number;
+  organization_id: string;
+  recipient_id: string;
+  recipient_kind: string;
+  wrapped_key: string;
+}
+
 export interface OrgVaultKeyWraps {
   created_at: Generated<string>;
   organization_id: string;
@@ -440,12 +463,37 @@ export interface OrgVaultKeyWraps {
 
 export interface OrgVaults {
   created_at: Generated<string>;
+  env_rotation_pending: Generated<number>;
+  env_rotation_pending_reason: string | null;
+  env_rotation_pending_since: string | null;
+  env_vault_cutover_at: string | null;
+  env_vault_version: Generated<number>;
   organization_id: string | null;
   rotation_pending: Generated<number>;
   rotation_pending_reason: string | null;
   rotation_pending_since: string | null;
   updated_at: Generated<string>;
   vault_version: Generated<number>;
+}
+
+export interface Passkey {
+  aaguid: string | null;
+  backed_up: number;
+  counter: number;
+  created_at: Generated<string>;
+  credential_id: string;
+  device_type: string;
+  id: string | null;
+  name: string | null;
+  public_key: string;
+  transports: string | null;
+  user_id: string;
+}
+
+export interface PasskeyStepUp {
+  session_id: string | null;
+  user_id: string;
+  verified_at: string;
 }
 
 export interface Policy {
@@ -610,6 +658,7 @@ export interface Webhooks {
 
 export interface DB {
   account: Account;
+  account_keys: AccountKeys;
   android_application_identifiers: AndroidApplicationIdentifiers;
   android_build_credentials: AndroidBuildCredentials;
   android_upload_keystores: AndroidUploadKeystores;
@@ -641,9 +690,12 @@ export interface DB {
   ios_app_metadata: IosAppMetadata;
   ios_bundle_configurations: IosBundleConfigurations;
   member: Member;
+  org_env_vault_key_wraps: OrgEnvVaultKeyWraps;
   org_vault_key_wraps: OrgVaultKeyWraps;
   org_vaults: OrgVaults;
   organization: Organization;
+  passkey: Passkey;
+  passkey_step_up: PasskeyStepUp;
   policy: Policy;
   policy_attachment: PolicyAttachment;
   project_protocol_metadata: ProjectProtocolMetadata;

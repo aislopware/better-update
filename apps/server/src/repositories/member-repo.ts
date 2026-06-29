@@ -48,6 +48,15 @@ export interface MemberRepository {
   }) => Effect.Effect<boolean>;
 
   /**
+   * Every member's underlying user id in an org. The env-vault cutover/rotate uses
+   * it to enumerate the org's account-key recipients (account keys are per-user, so
+   * the relevant set is "the account keys of this org's members").
+   */
+  readonly listUserIds: (params: {
+    readonly organizationId: string;
+  }) => Effect.Effect<readonly string[]>;
+
+  /**
    * The member id + member-role + user-role for a `(userId, org)` pair, or `null`
    * if the user is not a member of the org. The vault reconcile uses it to decide
    * off-request whether a recipient still has vault access: `owner`/superadmin
@@ -118,6 +127,19 @@ export const MemberRepoLive = Layer.succeed(MemberRepo, {
           .executeTakeFirst(),
       );
       return Number(result.numDeletedRows) > 0;
+    }),
+
+  listUserIds: (params) =>
+    Effect.gen(function* () {
+      const db = yield* kyselyDb;
+      const rows = yield* Effect.promise(async () =>
+        db
+          .selectFrom("member")
+          .select("user_id")
+          .where("organization_id", "=", params.organizationId)
+          .execute(),
+      );
+      return rows.map((row) => row.user_id);
     }),
 
   findAuthRoleByUser: (params) =>

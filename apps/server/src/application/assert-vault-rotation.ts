@@ -2,11 +2,17 @@ import { Effect } from "effect";
 
 import { Conflict } from "../errors";
 import { OrgVaultRepo } from "../repositories/org-vault";
+import { isEnvVaultForked } from "../vault-models";
 
 /** Shared message so the CLI/dashboard can recognise the pending-rotation block. */
 export const VAULT_ROTATION_PENDING_MESSAGE =
   "Vault rotation pending — a recipient was removed; an admin must rotate the vault " +
   "(`credentials access rotate`) before credentials can be read.";
+
+/** Env-vault counterpart, raised once the org has cut over to a separate env vault. */
+export const ENV_VAULT_ROTATION_PENDING_MESSAGE =
+  "Env vault rotation pending — a recipient was removed; an admin must rotate the env " +
+  "vault (`credentials env-vault rotate`) before env values can be read.";
 
 /**
  * Fail closed on a credential-download path while the org vault is flagged for
@@ -28,6 +34,32 @@ export const assertVaultRotationNotPending = (params: {
     const vault = yield* orgVault.getVault({ organizationId: params.organizationId });
     if (vault?.rotationPending === true) {
       return yield* new Conflict({ message: VAULT_ROTATION_PENDING_MESSAGE });
+    }
+    return undefined;
+  });
+
+/**
+ * Fail closed on an env-value read path while the vault protecting env is flagged
+ * for rotation. Before the org cuts over, env values live in the credentials vault
+ * so its `rotation_pending` gates them (unchanged from today); after the cutover
+ * they live in the env vault, gated by `env_rotation_pending`. Either way an
+ * env-recipient departure no longer blocks credential/build reads.
+ */
+export const assertEnvVaultRotationNotPending = (params: {
+  readonly organizationId: string;
+}): Effect.Effect<void, Conflict, OrgVaultRepo> =>
+  Effect.gen(function* () {
+    const orgVault = yield* OrgVaultRepo;
+    const vault = yield* orgVault.getVault({ organizationId: params.organizationId });
+    if (vault === null) {
+      return undefined;
+    }
+    const forked = isEnvVaultForked(vault);
+    const blocked = forked ? vault.envRotationPending : vault.rotationPending;
+    if (blocked) {
+      return yield* new Conflict({
+        message: forked ? ENV_VAULT_ROTATION_PENDING_MESSAGE : VAULT_ROTATION_PENDING_MESSAGE,
+      });
     }
     return undefined;
   });

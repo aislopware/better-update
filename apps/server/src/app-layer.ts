@@ -4,6 +4,7 @@ import { Layer } from "effect";
 import { ManagementApi } from "./api";
 import { AuthenticationLive } from "./auth/middleware";
 import {
+  AccountKeysGroupLive,
   AdminGroupLive,
   AnalyticsGroupLive,
   AndroidApplicationIdentifiersGroupLive,
@@ -27,6 +28,7 @@ import {
   DevicesGroupLive,
   EnvironmentsGroupLive,
   EnvVarsGroupLive,
+  EnvVaultGroupLive,
   FingerprintsGroupLive,
   GoogleServiceAccountKeysGroupLive,
   GroupsGroupLive,
@@ -44,6 +46,7 @@ import {
   SubmissionsGroupLive,
   UpdatesGroupLive,
   UserEncryptionKeysGroupLive,
+  WebVaultGroupLive,
   WebhooksGroupLive,
 } from "./handlers";
 import { AdapterLayer, RepositoryLayer } from "./infrastructure-layer";
@@ -51,6 +54,7 @@ import { errorFormatMiddleware } from "./middleware/error-format";
 import { JsonLoggerLayer } from "./middleware/logging";
 
 const ManagementGroupsLayer = Layer.mergeAll(
+  AccountKeysGroupLive,
   AdminGroupLive,
   AnalyticsGroupLive,
   AndroidApplicationIdentifiersGroupLive,
@@ -74,6 +78,7 @@ const ManagementGroupsLayer = Layer.mergeAll(
   DevicesGroupLive,
   EnvironmentsGroupLive,
   EnvVarsGroupLive,
+  EnvVaultGroupLive,
   FingerprintsGroupLive,
   GoogleServiceAccountKeysGroupLive,
   GroupsGroupLive,
@@ -91,6 +96,7 @@ const ManagementGroupsLayer = Layer.mergeAll(
   SubmissionsGroupLive,
   UpdatesGroupLive,
   UserEncryptionKeysGroupLive,
+  WebVaultGroupLive,
   WebhooksGroupLive,
 ).pipe(Layer.provide(RepositoryLayer), Layer.provide(AdapterLayer));
 

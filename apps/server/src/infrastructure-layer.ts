@@ -9,6 +9,7 @@ import { EmailServiceLive } from "./cloudflare/email-service";
 import { ManifestCacheStorageLive } from "./cloudflare/manifest-cache-storage";
 import { UpdateCoordinatorLive } from "./cloudflare/update-coordinator";
 import {
+  AccountKeyRepoLive,
   AdminUsersRepoLive,
   AnalyticsRepoLive,
   AndroidApplicationIdentifierRepoLive,
@@ -37,7 +38,9 @@ import {
   GoogleServiceAccountKeyRepoLive,
   IosAppMetadataRepoLive,
   IosBundleConfigurationRepoLive,
+  OrgEnvVaultRepoLive,
   OrgVaultRepoLive,
+  PasskeyStepUpRepoLive,
   ProjectRepoLive,
   RuntimeRepoLive,
   SubmissionsRepoLive,
@@ -62,6 +65,7 @@ import type { UpdateCoordinator } from "./cloudflare/update-coordinator";
 import type { CryptoService } from "./domain/crypto-service";
 import type { EmailService } from "./domain/email-service";
 import type {
+  AccountKeyRepo,
   AdminUsersRepo,
   AnalyticsRepo,
   AndroidApplicationIdentifierRepo,
@@ -90,7 +94,9 @@ import type {
   GoogleServiceAccountKeyRepo,
   IosAppMetadataRepo,
   IosBundleConfigurationRepo,
+  OrgEnvVaultRepo,
   OrgVaultRepo,
+  PasskeyStepUpRepo,
   ProjectRepo,
   RuntimeRepo,
   SubmissionsRepo,
@@ -107,6 +113,7 @@ import type { PolicyAttachmentRepo } from "./repositories/policy-attachment-repo
 import type { PolicyRepo } from "./repositories/policy-repo";
 
 export type ServerInfrastructure =
+  | AccountKeyRepo
   | AdminUsersRepo
   | AnalyticsEngine
   | AnalyticsRepo
@@ -149,7 +156,9 @@ export type ServerInfrastructure =
   | OrganizationRepo
   | PolicyAttachmentRepo
   | PolicyRepo
+  | OrgEnvVaultRepo
   | OrgVaultRepo
+  | PasskeyStepUpRepo
   | ProjectRepo
   | RuntimeRepo
   | SubmissionsRepo
@@ -159,6 +168,7 @@ export type ServerInfrastructure =
   | WebhookRepo;
 
 export const RepositoryLayer = Layer.mergeAll(
+  AccountKeyRepoLive,
   AdminUsersRepoLive,
   AnalyticsRepoLive,
   AndroidApplicationIdentifierRepoLive,
@@ -194,7 +204,9 @@ export const RepositoryLayer = Layer.mergeAll(
   OrganizationRepoLive,
   PolicyAttachmentRepoLive,
   PolicyRepoLive,
+  OrgEnvVaultRepoLive,
   OrgVaultRepoLive,
+  PasskeyStepUpRepoLive,
   ProjectRepoLive,
   RuntimeRepoLive,
   SubmissionsRepoLive,

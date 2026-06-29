@@ -10,6 +10,7 @@ import { toApiCrudEffect, toApiWriteEffect } from "../http/to-api-effect";
 import { toApiOrgVault, toApiOrgVaultKeyWrap } from "../http/to-api-vault";
 import { OrgVaultRepo } from "../repositories/org-vault";
 import { UserEncryptionKeyRepo } from "../repositories/user-encryption-keys";
+import { isEnvVaultForked } from "../vault-models";
 
 import type { CurrentActor as Actor } from "../models";
 import type { CredentialRef, UserEncryptionKeyModel } from "../vault-models";
@@ -258,7 +259,11 @@ export const OrgVaultGroupLive = HttpApiBuilder.group(ManagementApi, "orgVault",
           if (vault === null) {
             return yield* new NotFound({ message: "Vault not initialized" });
           }
-          const deks = yield* repo.listCredentialDeks({ organizationId: ctx.organizationId });
+          const deks = yield* repo.listCredentialDeks({
+            organizationId: ctx.organizationId,
+            // Post-cutover, env DEKs belong to the env vault and are excluded here.
+            includeEnv: !isEnvVaultForked(vault),
+          });
           return { vaultVersion: vault.vaultVersion, deks };
         }),
       ),
@@ -291,7 +296,10 @@ export const OrgVaultGroupLive = HttpApiBuilder.group(ManagementApi, "orgVault",
             });
           }
 
-          const refs = yield* repo.listCredentialRefs({ organizationId: ctx.organizationId });
+          const refs = yield* repo.listCredentialRefs({
+            organizationId: ctx.organizationId,
+            includeEnv: !isEnvVaultForked(vault),
+          });
           yield* assertCoversAllCredentials(refs, payload.credentialDeks);
 
           // Capture the revoked recipients for the audit trail before the old

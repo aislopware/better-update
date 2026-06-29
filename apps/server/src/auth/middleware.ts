@@ -142,7 +142,7 @@ const getUserAuthState = (userId: string) =>
 
 // ── Helpers ────────────────────────────────────────────────────────
 
-const toStandardHeaders = (headers: Readonly<Record<string, string | undefined>>): Headers =>
+export const toStandardHeaders = (headers: Readonly<Record<string, string | undefined>>): Headers =>
   Object.entries(headers).reduce((result, [key, value]) => {
     if (value !== undefined) {
       result.set(key, value);
@@ -253,6 +253,9 @@ const resolveSession = (transport: "bearer" | "cookie") =>
       });
     }
 
+    const rawSessionId = session.session["id"];
+    const sessionId = typeof rawSessionId === "string" ? rawSessionId : null;
+
     const member = yield* getActiveMember(headers);
 
     if (!member) {
@@ -281,6 +284,7 @@ const resolveSession = (transport: "bearer" | "cookie") =>
       effectiveStatements,
       source: "session",
       transport,
+      sessionId,
       actorEmail: session.user.email,
       isSuperadmin: authState.isSuperadmin,
     } as const satisfies AuthContextShape;
@@ -360,6 +364,7 @@ const resolveFromBearer = (token: Redacted.Redacted) => {
           effectiveStatements: [...attachmentStatements, ...inlineStatements],
           source: "api-key",
           transport: "bearer",
+          sessionId: null,
           actorEmail: "api-key",
           isSuperadmin: false,
         } as const satisfies AuthContextShape;

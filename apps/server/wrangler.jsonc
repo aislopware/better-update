@@ -112,6 +112,14 @@
       "pattern": "updates.jmango360.dev/api/*",
       "zone_id": "e36dbf0b4c3b7fd375d1423e14ccef97",
     },
+    // Web env vault (P4): the vault UI lives on the independent origin
+    // updates-vault.jmango360.dev and calls the API same-origin, so /api/* there
+    // routes to this worker too (more specific than the web worker's catch-all).
+    // Inert until the vault UI ships + an org cuts over.
+    {
+      "pattern": "updates-vault.jmango360.dev/api/*",
+      "zone_id": "e36dbf0b4c3b7fd375d1423e14ccef97",
+    },
     {
       "pattern": "updates.jmango360.dev/manifest/*",
       "zone_id": "e36dbf0b4c3b7fd375d1423e14ccef97",

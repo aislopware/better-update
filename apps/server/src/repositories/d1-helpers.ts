@@ -1,6 +1,18 @@
 import { Data, Effect } from "effect";
 
+import type { Compilable } from "kysely";
+
 import { Conflict } from "../errors";
+
+/** Compile Kysely queries into bound D1 statements for `session.batch`. */
+export const bindForBatch = (
+  session: D1DatabaseSession,
+  queries: readonly Compilable[],
+): D1PreparedStatement[] =>
+  queries.map((query) => {
+    const compiled = query.compile();
+    return session.prepare(compiled.sql).bind(...compiled.parameters);
+  });
 
 export class D1StatementError extends Data.TaggedError("D1StatementError")<{
   readonly message: string;

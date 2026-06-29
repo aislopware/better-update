@@ -95,6 +95,7 @@ const viewerActor: AuthContextShape = {
   effectiveStatements: resolveManagedDocument("managed:viewer")?.statements ?? [],
   source: "session",
   transport: "cookie",
+  sessionId: "sess-test",
   actorEmail: "viewer@example.com",
   isSuperadmin: false,
 };

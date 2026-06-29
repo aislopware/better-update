@@ -16,6 +16,7 @@ const provideAuth = (organizationId: string) =>
     effectiveStatements: [],
     source: "session",
     transport: "cookie",
+    sessionId: "sess-test",
     actorEmail: "test@example.com",
     isSuperadmin: false,
   });

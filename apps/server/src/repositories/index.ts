@@ -1,3 +1,4 @@
+export { AccountKeyRepo, AccountKeyRepoLive } from "./account-keys";
 export { AdminUsersRepo, AdminUsersRepoLive } from "./admin-users";
 export { AnalyticsRepo, AnalyticsRepoLive } from "./analytics";
 export { AuthMetaRepo, AuthMetaRepoLive } from "./auth-meta";
@@ -55,7 +56,9 @@ export {
 export { IosAppMetadataRepo, IosAppMetadataRepoLive } from "./ios-app-metadata";
 export { SubmissionsRepo, SubmissionsRepoLive } from "./submissions";
 export { ManifestRepo, ManifestRepoLive } from "./manifest";
+export { OrgEnvVaultRepo, OrgEnvVaultRepoLive } from "./org-env-vault";
 export { OrgVaultRepo, OrgVaultRepoLive } from "./org-vault";
+export { PasskeyStepUpRepo, PasskeyStepUpRepoLive } from "./passkey-step-up";
 export { ProjectRepo, ProjectRepoLive } from "./projects";
 export { RuntimeRepo, RuntimeRepoLive } from "./runtimes";
 export { UpdateRepo, UpdateRepoLive } from "./updates";

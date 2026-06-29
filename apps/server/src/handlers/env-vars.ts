@@ -3,8 +3,9 @@ import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
 import { ManagementApi } from "../api";
-import { assertVaultRotationNotPending } from "../application/assert-vault-rotation";
-import { assertVaultVersionCurrent } from "../application/assert-vault-version";
+import { assertEnvVaultRotationNotPending } from "../application/assert-vault-rotation";
+import { assertEnvVaultWriteAllowed } from "../application/assert-vault-version";
+import { assertWebEnvStepUp } from "../application/assert-web-env-step-up";
 import { logAudit } from "../audit/logger";
 import { CurrentActor } from "../auth/current-actor";
 import { assertOrgOwnership, assertProjectOwnership } from "../auth/ownership";
@@ -12,12 +13,15 @@ import { BadRequest } from "../errors";
 import { toApiEnvVar } from "../http/to-api";
 import {
   toApiBadRequestReadEffect,
+  toApiReadEffect,
   toApiResolveReadEffect,
   toApiWriteEffect,
 } from "../http/to-api-effect";
 import { toDbNull } from "../lib/nullable";
 import { parsePagination } from "../lib/pagination";
 import { EnvVarRepo } from "../repositories/env-vars";
+import { OrgVaultRepo } from "../repositories/org-vault";
+import { isEnvVaultForked } from "../vault-models";
 import {
   applyOverrideResolution,
   assertEnvironmentExists,
@@ -33,6 +37,29 @@ import {
 } from "./env-vars-helpers";
 
 import type { EnvVarListFilters, EnvVarRevisionInput } from "../repositories/env-vars";
+
+/**
+ * Browser reveal of a sealed env-var value envelope (decrypted client-side).
+ * Gated by a WebAuthn step-up for cookie callers; CLI uses bulk export instead.
+ * Extracted from the group builder to keep it under the per-function line cap.
+ */
+const revealCurrentValue = (id: string) =>
+  Effect.gen(function* () {
+    yield* assertWebEnvStepUp(yield* CurrentActor);
+    const repo = yield* EnvVarRepo;
+    const model = yield* repo.findById({ id });
+    yield* assertOrgOwnership(model.organizationId);
+    yield* assertEnvVarScopedPermission("read", model.projectId, model.environment);
+    const value = yield* repo.findCurrentValue({ id });
+    // Tell the browser which vault the value is sealed under so it folds the right
+    // kind into the DEK AAD. Post-cutover every env value is re-keyed to the env
+    // vault; pre-cutover it is still part of the credentials vault. Self-describing
+    // here so the reveal caller never has to guess (and never silently mis-decrypts).
+    const vault = yield* (yield* OrgVaultRepo).getVault({ organizationId: model.organizationId });
+    const vaultKind: "credentials" | "env" =
+      vault !== null && isEnvVaultForked(vault) ? "env" : "credentials";
+    return { ...value, vaultKind };
+  });
 
 /** Reshape the wire envelope (`ciphertext`) into the repo's revision input (`valueCiphertext`). */
 const toRevision = (value: {
@@ -53,6 +80,7 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
       toApiWriteEffect(
         Effect.gen(function* () {
           const ctx = yield* CurrentActor;
+          yield* assertWebEnvStepUp(ctx);
 
           const { scope, projectId } = payload;
           yield* assertScopeOwnership(scope, projectId);
@@ -63,9 +91,10 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
           );
           yield* validateKey(payload.key);
           yield* assertEnvironmentExists(ctx.organizationId, payload.environment);
-          yield* assertVaultVersionCurrent({
+          yield* assertEnvVaultWriteAllowed({
             organizationId: ctx.organizationId,
             vaultVersion: payload.value.vaultVersion,
+            vaultKind: payload.value.vaultKind,
           });
 
           yield* assertEnvVarCountWithinCap(scope, projectId, ctx.organizationId);
@@ -161,10 +190,12 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
         }),
       ),
     )
+    .handle("getValue", ({ path }) => toApiReadEffect(revealCurrentValue(path.id)))
     .handle("update", ({ path, payload }) =>
       toApiWriteEffect(
         Effect.gen(function* () {
           const ctx = yield* CurrentActor;
+          yield* assertWebEnvStepUp(ctx);
 
           const repo = yield* EnvVarRepo;
           const existing = yield* repo.findById({ id: path.id });
@@ -173,9 +204,10 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
           yield* assertEnvVarScopedPermission("update", existing.projectId, existing.environment);
 
           if (payload.value) {
-            yield* assertVaultVersionCurrent({
+            yield* assertEnvVaultWriteAllowed({
               organizationId: existing.organizationId,
               vaultVersion: payload.value.vaultVersion,
+              vaultKind: payload.value.vaultKind,
             });
             const model = yield* repo.addRevision({
               id: path.id,
@@ -221,6 +253,7 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
     .handle("delete", ({ path }) =>
       toApiBadRequestReadEffect(
         Effect.gen(function* () {
+          yield* assertWebEnvStepUp(yield* CurrentActor);
           const repo = yield* EnvVarRepo;
           const model = yield* repo.findById({ id: path.id });
           yield* assertOrgOwnership(model.organizationId);
@@ -267,6 +300,7 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
     .handle("rollback", ({ path, payload }) =>
       toApiBadRequestReadEffect(
         Effect.gen(function* () {
+          yield* assertWebEnvStepUp(yield* CurrentActor);
           const repo = yield* EnvVarRepo;
           const existing = yield* repo.findById({ id: path.id });
           yield* assertOrgOwnership(existing.organizationId);
@@ -290,6 +324,7 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
     .handle("bulkImport", ({ payload }) =>
       toApiWriteEffect(
         Effect.gen(function* () {
+          yield* assertWebEnvStepUp(yield* CurrentActor);
           const { created, updated, skipped } = yield* handleBulkImport(payload);
 
           yield* logAudit({
@@ -315,9 +350,10 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
       toApiResolveReadEffect(
         Effect.gen(function* () {
           const ctx = yield* CurrentActor;
-          // Fail closed while the vault is flagged for rotation (a recipient was
-          // removed) — env-var values share the org vault. See assert-vault-rotation.
-          yield* assertVaultRotationNotPending({ organizationId: ctx.organizationId });
+          // Fail closed while the vault protecting env values is flagged for
+          // rotation (a recipient was removed). Pre-cutover that is the credentials
+          // vault; post-cutover the env vault. See assert-vault-rotation.
+          yield* assertEnvVaultRotationNotPending({ organizationId: ctx.organizationId });
           return yield* handleExport(urlParams);
         }),
       ),

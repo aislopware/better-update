@@ -1,15 +1,16 @@
 import { Context, Effect, Layer } from "effect";
-import { sql } from "kysely";
 
 import type { Compilable, Kysely, Selectable } from "kysely";
 
 import { d1Session } from "../cloudflare/context";
 import { d1Batch, kyselyDb } from "../cloudflare/db";
 import { Conflict } from "../errors";
-import { d1WithUniqueCheck } from "./d1-helpers";
+import { bindForBatch, d1WithUniqueCheck } from "./d1-helpers";
 import { credentialDekQueries, credentialRefQueries } from "./org-vault-credential-queries";
+import { buildDepartureQueries, discoverDepartureRecipients } from "./org-vault-departure";
+import { toVaultModel, VAULT_COLUMNS } from "./org-vault-row";
 
-import type { DB, OrgVaultKeyWraps, OrgVaults } from "../db/schema";
+import type { DB, OrgVaultKeyWraps } from "../db/schema";
 import type {
   CredentialDekRefModel,
   CredentialRef,
@@ -61,14 +62,20 @@ export interface OrgVaultRepository {
     readonly vaultVersion: number;
   }) => Effect.Effect<readonly OrgVaultKeyWrapModel[]>;
 
-  /** Every encrypted-credential row in the org (type + id) — the rotation coverage set. */
+  /**
+   * Every credentials-vault row in the org (type + id) — the rotation coverage
+   * set. `includeEnv` adds env-var revisions, which belong to the credentials
+   * vault only until the org cuts over to a separate env vault (spec 11).
+   */
   readonly listCredentialRefs: (params: {
     readonly organizationId: string;
+    readonly includeEnv: boolean;
   }) => Effect.Effect<readonly CredentialRef[]>;
 
-  /** Every wrapped DEK in the org — the source set the client re-wraps in a rotation. */
+  /** Every wrapped DEK in the credentials vault — the source set the client re-wraps in a rotation. */
   readonly listCredentialDeks: (params: {
     readonly organizationId: string;
+    readonly includeEnv: boolean;
   }) => Effect.Effect<readonly CredentialDekRefModel[]>;
 
   /**
@@ -117,16 +124,6 @@ export class OrgVaultRepo extends Context.Tag("api/OrgVaultRepo")<
 
 // -- D1 Adapter -------------------------------------------------------------
 
-const VAULT_COLUMNS = [
-  "organization_id",
-  "vault_version",
-  "created_at",
-  "updated_at",
-  "rotation_pending",
-  "rotation_pending_since",
-  "rotation_pending_reason",
-] as const;
-
 const WRAP_COLUMNS = [
   "organization_id",
   "vault_version",
@@ -147,16 +144,6 @@ const CREDENTIAL_TABLES = {
   androidUploadKeystore: "android_upload_keystores",
   envVarValue: "env_var_revisions",
 } as const satisfies Record<EncryptedCredentialType, keyof DB>;
-
-const toVaultModel = (row: Selectable<OrgVaults>, organizationId: string): OrgVaultModel => ({
-  organizationId,
-  vaultVersion: row.vault_version,
-  createdAt: row.created_at,
-  updatedAt: row.updated_at,
-  rotationPending: row.rotation_pending !== 0,
-  rotationPendingSince: row.rotation_pending_since,
-  rotationPendingReason: row.rotation_pending_reason,
-});
 
 const toWrapModel = (row: Selectable<OrgVaultKeyWraps>): OrgVaultKeyWrapModel => ({
   organizationId: row.organization_id,
@@ -200,13 +187,6 @@ const insertWrapGuarded = (
         .where("organization_id", "=", params.organizationId)
         .where("vault_version", "=", params.guardVersion),
     );
-
-/** Compile Kysely queries into bound D1 statements for `session.batch`. */
-const bindForBatch = (session: D1DatabaseSession, queries: readonly Compilable[]) =>
-  queries.map((query) => {
-    const compiled = query.compile();
-    return session.prepare(compiled.sql).bind(...compiled.parameters);
-  });
 
 export const OrgVaultRepoLive = Layer.succeed(OrgVaultRepo, {
   getVault: (params) =>
@@ -255,6 +235,11 @@ export const OrgVaultRepoLive = Layer.succeed(OrgVaultRepo, {
         rotationPending: false,
         rotationPendingSince: null,
         rotationPendingReason: null,
+        envVaultVersion: 1,
+        envRotationPending: false,
+        envRotationPendingSince: null,
+        envRotationPendingReason: null,
+        envVaultCutoverAt: null,
       };
     }),
 
@@ -326,7 +311,7 @@ export const OrgVaultRepoLive = Layer.succeed(OrgVaultRepo, {
     Effect.gen(function* () {
       const db = yield* kyselyDb;
       const [credentialRows, auxRows] = yield* d1Batch(
-        credentialRefQueries(db, params.organizationId),
+        credentialRefQueries(db, params.organizationId, params.includeEnv),
       );
       return [...credentialRows, ...auxRows].map((row) => ({
         credentialType: row.credential_type,
@@ -338,7 +323,7 @@ export const OrgVaultRepoLive = Layer.succeed(OrgVaultRepo, {
     Effect.gen(function* () {
       const db = yield* kyselyDb;
       const [credentialRows, auxRows] = yield* d1Batch(
-        credentialDekQueries(db, params.organizationId),
+        credentialDekQueries(db, params.organizationId, params.includeEnv),
       );
       return [...credentialRows, ...auxRows].map((row) => ({
         credentialType: row.credential_type,
@@ -412,79 +397,57 @@ export const OrgVaultRepoLive = Layer.succeed(OrgVaultRepo, {
         });
       }
 
+      // Re-read the full row so the returned model carries the untouched EV state
+      // (a CV rotation never alters env_vault_*); the row now reflects newVersion.
       const vaultRow = yield* Effect.promise(async () =>
         db
           .selectFrom("org_vaults")
-          .select("created_at")
+          .select(VAULT_COLUMNS)
           .where("organization_id", "=", params.organizationId)
           .executeTakeFirst(),
       );
-      return {
-        organizationId: params.organizationId,
-        vaultVersion: newVersion,
-        createdAt: vaultRow?.created_at ?? params.now,
-        updatedAt: params.now,
-        rotationPending: false,
-        rotationPendingSince: null,
-        rotationPendingReason: null,
-      };
+      return vaultRow === undefined
+        ? {
+            organizationId: params.organizationId,
+            vaultVersion: newVersion,
+            createdAt: params.now,
+            updatedAt: params.now,
+            rotationPending: false,
+            rotationPendingSince: null,
+            rotationPendingReason: null,
+            envVaultVersion: 1,
+            envRotationPending: false,
+            envRotationPendingSince: null,
+            envRotationPendingReason: null,
+            envVaultCutoverAt: null,
+          }
+        : toVaultModel(vaultRow, params.organizationId);
     }),
 
   dropDeviceWrapsForUser: (params) =>
     Effect.gen(function* () {
       const db = yield* kyselyDb;
       const session = yield* d1Session;
-      // Device keys owned by this user that are recipients in THIS org.
-      const rows = yield* Effect.promise(async () =>
-        db
-          .selectFrom("user_encryption_keys as k")
-          .innerJoin("org_vault_key_wraps as w", "w.user_encryption_key_id", "k.id")
-          .select("k.id as id")
-          .distinct()
-          .where("k.user_id", "=", params.userId)
-          .where("k.kind", "=", "device")
-          .where("w.organization_id", "=", params.organizationId)
-          .execute(),
+      const { cvKeyIds, evDeviceKeyIds, accountKeyIds } = yield* Effect.promise(async () =>
+        discoverDepartureRecipients(db, {
+          organizationId: params.organizationId,
+          userId: params.userId,
+        }),
       );
-      const keyIds = rows.map((row) => row.id);
-      if (keyIds.length === 0) {
+      if (cvKeyIds.length === 0 && evDeviceKeyIds.length === 0 && accountKeyIds.length === 0) {
         return [];
       }
-      const queries: Compilable[] = [
-        // 1. Drop their wraps in THIS org — the org-scoped revoke.
-        db
-          .deleteFrom("org_vault_key_wraps")
-          .where("organization_id", "=", params.organizationId)
-          .where("user_encryption_key_id", "in", keyIds),
-        // 2. Mark the vault rotation-pending, keeping the earliest reason/since.
-        db
-          .updateTable("org_vaults")
-          .set({
-            rotation_pending: 1,
-            rotation_pending_since: sql`coalesce("rotation_pending_since", ${params.now})`,
-            rotation_pending_reason: sql`coalesce("rotation_pending_reason", ${params.reason})`,
-          })
-          .where("organization_id", "=", params.organizationId),
-        // 3. Globally revoke a device key ONLY if it now holds no wrap in ANY org.
-        //    Runs after the delete in the same transaction, so the NOT EXISTS sees
-        //    the post-drop state; a key still wrapped elsewhere stays live.
-        db
-          .updateTable("user_encryption_keys")
-          .set({ revoked_at: params.now })
-          .where("id", "in", keyIds)
-          .where("revoked_at", "is", null)
-          .where((eb) =>
-            eb.not(
-              eb.exists(
-                eb
-                  .selectFrom("org_vault_key_wraps as w2")
-                  .select(sql`1`.as("one"))
-                  .whereRef("w2.user_encryption_key_id", "=", "user_encryption_keys.id"),
-              ),
-            ),
-          ),
-      ];
+      const allDeviceKeyIds = [...new Set([...cvKeyIds, ...evDeviceKeyIds])];
+      const queries = buildDepartureQueries(db, {
+        organizationId: params.organizationId,
+        now: params.now,
+        reason: params.reason,
+        cvKeyIds,
+        evDeviceKeyIds,
+        accountKeyIds,
+        allDeviceKeyIds,
+      });
       yield* Effect.promise(async () => session.batch(bindForBatch(session, queries)));
-      return keyIds;
+      return allDeviceKeyIds;
     }),
 });

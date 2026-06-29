@@ -64,6 +64,16 @@ export interface EnvVarRepository {
   readonly countByOrgGlobal: (params: { readonly organizationId: string }) => Effect.Effect<number>;
   /** Upsert a single (scope,key,environment) row from its sealed revision (bulk import). */
   readonly upsert: (params: InsertParams) => Effect.Effect<"created" | "updated">;
+  /** The active value envelope for one env var (browser reveal), or NotFound. */
+  readonly findCurrentValue: (params: { readonly id: string }) => Effect.Effect<
+    {
+      readonly id: string;
+      readonly ciphertext: string;
+      readonly wrappedDek: string;
+      readonly vaultVersion: number;
+    },
+    NotFound
+  >;
   /** Env vars for a scope+environment joined with their active value envelope. */
   readonly listForExport: (params: {
     readonly organizationId: string;
@@ -414,6 +424,28 @@ export const EnvVarRepoLive = Layer.succeed(EnvVarRepo, {
         pruneStmt(db, existingId, nextNumber),
       ]);
       return "updated" as const;
+    }),
+
+  findCurrentValue: (params) =>
+    Effect.gen(function* () {
+      const db = yield* kyselyDb;
+      const row = yield* Effect.promise(async () =>
+        db
+          .selectFrom("env_vars as e")
+          .innerJoin("env_var_revisions as r", "r.id", "e.current_revision_id")
+          .where("e.id", "=", params.id)
+          .select(["r.id as revision_id", "r.value_ciphertext", "r.wrapped_dek", "r.vault_version"])
+          .executeTakeFirst(),
+      );
+      if (row === undefined) {
+        return yield* new NotFound({ message: "Env var or its value not found" });
+      }
+      return {
+        id: row.revision_id,
+        ciphertext: row.value_ciphertext,
+        wrappedDek: row.wrapped_dek,
+        vaultVersion: row.vault_version,
+      };
     }),
 
   listForExport: (params) =>

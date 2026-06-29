@@ -1,7 +1,7 @@
 import { BUILTIN_ENVIRONMENTS } from "@better-update/api";
 import { Effect } from "effect";
 
-import { assertVaultVersionCurrent } from "../application/assert-vault-version";
+import { assertEnvVaultWriteAllowed } from "../application/assert-vault-version";
 import { CurrentActor } from "../auth/current-actor";
 import { assertOrgOwnership, assertProjectOwnership } from "../auth/ownership";
 import { assertAccess } from "../auth/policy";
@@ -293,6 +293,7 @@ export interface BulkImportEntryInput {
     readonly ciphertext: string;
     readonly wrappedDek: string;
     readonly vaultVersion: number;
+    readonly vaultKind?: "credentials" | "env" | undefined;
   };
 }
 
@@ -304,8 +305,8 @@ export interface BulkImportPayload {
 
 const dedupeKey = (environment: EnvVarEnvironment, key: string) => `${environment} ${key}`;
 
-// Every entry must be sealed at the same, current vault version. An empty entry
-// set has no version to check (a no-op).
+// Every entry must be sealed at the same, current vault version + kind. An empty
+// entry set has no version to check (a no-op).
 const assertBulkEntriesShareCurrentVaultVersion = (
   organizationId: string,
   entries: readonly BulkImportEntryInput[],
@@ -317,9 +318,16 @@ const assertBulkEntriesShareCurrentVaultVersion = (
         message: "All entries must be sealed at the same vault version",
       });
     }
+    const kinds = new Set(entries.map((entry) => entry.value.vaultKind));
+    if (kinds.size > 1) {
+      return yield* new BadRequest({
+        message: "All entries must be sealed under the same vault",
+      });
+    }
     const [version] = [...versions];
+    const [vaultKind] = [...kinds];
     if (version !== undefined) {
-      yield* assertVaultVersionCurrent({ organizationId, vaultVersion: version });
+      yield* assertEnvVaultWriteAllowed({ organizationId, vaultVersion: version, vaultKind });
     }
     return undefined;
   });

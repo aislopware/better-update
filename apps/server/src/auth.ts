@@ -1,4 +1,5 @@
 import { apiKey } from "@better-auth/api-key";
+import { passkey } from "@better-auth/passkey";
 import { betterAuth } from "better-auth";
 import { admin, bearer, oneTimeToken, organization } from "better-auth/plugins";
 import { Effect } from "effect";
@@ -21,6 +22,23 @@ const INVITE_SENDER_FROM = "noreply@jmango360.dev";
 const ADMIN_PLUGIN_SCHEMA = {
   user: { fields: { banReason: "ban_reason", banExpires: "ban_expires" } },
   session: { fields: { impersonatedBy: "impersonated_by" } },
+} as const;
+
+// Snake_case column mapping for the `@better-auth/passkey` plugin's `passkey`
+// table (migration 0072) — only its camelCase fields need remapping. The plugin
+// is registered ONLY when WEBAUTHN_RP_ID is set (see `createAuth`), so this map
+// is inert until the web env-vault is enabled.
+const PASSKEY_PLUGIN_SCHEMA = {
+  passkey: {
+    fields: {
+      publicKey: "public_key",
+      userId: "user_id",
+      credentialID: "credential_id",
+      deviceType: "device_type",
+      backedUp: "backed_up",
+      createdAt: "created_at",
+    },
+  },
 } as const;
 
 // Snake_case column mapping for the `organization` plugin's tables (all static —
@@ -50,6 +68,26 @@ type AuthEnv = Env & {
   readonly GOOGLE_CLIENT_SECRET?: string;
   readonly SUPERADMIN_EMAILS?: string;
   readonly TEST_MODE?: string;
+  // WebAuthn / passkey config for the web env-vault step-up (P4). When
+  // WEBAUTHN_RP_ID is unset the passkey plugin is NOT registered (prod default).
+  // The vault UI is served from `updates-vault.jmango360.dev` — a SIBLING of the
+  // dashboard `updates.jmango360.dev`, not a child — so WEBAUTHN_RP_ID must be the
+  // shared registrable parent `jmango360.dev` (a passkey's rpID must be a
+  // registrable suffix of every origin it is used on).
+  readonly WEBAUTHN_RP_ID?: string;
+  readonly WEBAUTHN_RP_NAME?: string;
+  // Comma-separated allowed WebAuthn origins — the vault origin plus the dashboard
+  // origin, e.g. "https://updates-vault.jmango360.dev,https://updates.jmango360.dev".
+  readonly WEBAUTHN_ORIGINS?: string;
+  // Registrable domain to scope the session cookie to (e.g. ".jmango360.dev") so
+  // the vault origin — a sibling of the dashboard — carries the dashboard session.
+  // UNSET = host-only cookies (the prod default, unchanged). Setting it is a
+  // deliberate go-live step: it widens the session cookie to ALL first-party
+  // subdomains of that registrable domain and forces a one-time re-login as the
+  // host-only cookie is replaced by the domain-scoped one. Without it the vault
+  // origin cannot obtain a session (OAuth sign-in lands host-only on the
+  // dashboard origin), so the env-vault UI is unreachable. See spec 11b.
+  readonly WEBAUTHN_COOKIE_DOMAIN?: string;
 };
 
 // A user may create/use organizations only once approved (or if they are a
@@ -93,9 +131,33 @@ export const createAuth = (env: AuthEnv, ctx?: ExecutionContext) => {
   const testMode = env.TEST_MODE === "true";
   const superadminEmails = parseSuperadminEmails(env.SUPERADMIN_EMAILS);
 
+  // WebAuthn step-up for the web env-vault. The passkey plugin is added ONLY when
+  // an RP id is configured; with it unset (the prod default today) the auth
+  // surface is byte-identical to before P4 — no /api/auth/passkey/* routes.
+  const webauthnRpId = trimOptionalBinding(env.WEBAUTHN_RP_ID);
+  const webauthnEnabled = webauthnRpId.length > 0;
+  const webauthnRpNameRaw = trimOptionalBinding(env.WEBAUTHN_RP_NAME);
+  const webauthnRpName = webauthnRpNameRaw.length > 0 ? webauthnRpNameRaw : "Better Update";
+  const webauthnOrigins = trimOptionalBinding(env.WEBAUTHN_ORIGINS)
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter((origin) => origin.length > 0);
+  // Registrable domain to share the session cookie across the dashboard + vault
+  // sibling origins. Empty = host-only cookies (prod default, unchanged).
+  const webauthnCookieDomain = trimOptionalBinding(env.WEBAUTHN_COOKIE_DOMAIN);
+
   return betterAuth({
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL,
+    // When the web env vault is enabled, its UI is served from an independent
+    // origin (updates-vault.<host>) that authenticates against this worker
+    // same-origin. Trust the configured WebAuthn origins so better-auth's CSRF
+    // check accepts their requests; `baseURL` stays included as the canonical
+    // origin. Omitted (default = [baseURL]) until the flag is set, so the prod
+    // auth surface is byte-identical to before P4.
+    ...(webauthnEnabled
+      ? { trustedOrigins: [...new Set([env.BETTER_AUTH_URL, ...webauthnOrigins])] }
+      : {}),
     database: env.DB,
     logger: testMode ? { disabled: true } : undefined,
 
@@ -303,6 +365,23 @@ export const createAuth = (env: AuthEnv, ctx?: ExecutionContext) => {
       // Columns: see migration 0053 (ban_reason/ban_expires/impersonated_by are
       // snake_case-mapped here).
       admin({ defaultRole: "user", adminRoles: ["admin"], schema: ADMIN_PLUGIN_SCHEMA }),
+      // WebAuthn / passkey: the second factor that gates web env-vault access (P4).
+      // Registered only when WEBAUTHN_RP_ID is set so the prod auth surface is
+      // unchanged until the org cuts over to the browser env vault. rpID is the
+      // registrable parent (jmango360.dev) shared by the dashboard
+      // (updates.jmango360.dev) + vault (updates-vault.jmango360.dev) sibling
+      // origins; the `passkey` table already exists (migration 0072). See the
+      // web-vault step-up handler + assert-web-env-step-up gate.
+      ...(webauthnEnabled
+        ? [
+            passkey({
+              rpID: webauthnRpId,
+              rpName: webauthnRpName,
+              ...(webauthnOrigins.length > 0 ? { origin: webauthnOrigins } : {}),
+              schema: PASSKEY_PLUGIN_SCHEMA,
+            }),
+          ]
+        : []),
     ],
 
     databaseHooks: {
@@ -343,6 +422,14 @@ export const createAuth = (env: AuthEnv, ctx?: ExecutionContext) => {
 
     advanced: {
       useSecureCookies: true,
+      // Share the session cookie across the dashboard + vault sibling origins so
+      // the vault origin (which calls /api same-origin) carries the dashboard
+      // session. Only when WEBAUTHN_COOKIE_DOMAIN is set — host-only otherwise, so
+      // the prod cookie behaviour is byte-identical until this go-live step. The
+      // cookie prefix stays `__Secure-` (not `__Host-`), so a Domain is allowed.
+      ...(webauthnCookieDomain.length > 0
+        ? { crossSubDomainCookies: { enabled: true, domain: webauthnCookieDomain } }
+        : {}),
       ...(ctx
         ? {
             backgroundTasks: {

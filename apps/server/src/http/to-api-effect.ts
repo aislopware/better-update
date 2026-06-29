@@ -25,6 +25,12 @@ const mapReadError = Match.type<Forbidden | NotFound>().pipe(
   Match.exhaustive,
 );
 
+const mapBadRequestForbiddenError = Match.type<BadRequest | Forbidden>().pipe(
+  Match.tag("BadRequest", (error) => new ApiBadRequest({ message: error.message })),
+  Match.tag("Forbidden", (error) => new ApiForbidden({ message: error.message })),
+  Match.exhaustive,
+);
+
 const mapWriteError = Match.type<
   BadRequest | Conflict | Forbidden | MissingValueError | NotFound
 >().pipe(
@@ -55,6 +61,13 @@ const mapBadRequestReadError = Match.type<
 export const toApiForbiddenEffect = <Success, Requirements>(
   effect: Effect.Effect<Success, Forbidden, Requirements>,
 ) => Effect.mapError(effect, mapForbiddenError);
+
+// A write path whose only failures are validation (BadRequest) or authz/step-up
+// (Forbidden) — e.g. the web-vault step-up handler. Narrower than
+// `toApiWriteEffect` so the endpoint need not declare Conflict / NotFound.
+export const toApiBadRequestForbiddenEffect = <Success, Requirements>(
+  effect: Effect.Effect<Success, BadRequest | Forbidden, Requirements>,
+) => Effect.mapError(effect, mapBadRequestForbiddenError);
 
 export const toApiCrudEffect = <Success, Requirements>(
   effect: Effect.Effect<Success, Conflict | Forbidden | NotFound, Requirements>,

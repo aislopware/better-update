@@ -16,6 +16,7 @@ export const CurrentActor = pipe(
       effectiveStatements: ctx.effectiveStatements,
       source: ctx.source,
       transport: ctx.transport,
+      sessionId: ctx.sessionId,
       actorEmail: ctx.actorEmail,
       isSuperadmin: ctx.isSuperadmin,
     }),

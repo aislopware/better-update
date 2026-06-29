@@ -32,6 +32,7 @@ import type {
   PrincipalType,
 } from "../models";
 import type { SubmissionArchiveSource, SubmissionStatus } from "../submission-models";
+import type { EnvVaultRecipientKind } from "../vault-models";
 // eslint-disable-next-line import/no-namespace -- type-only namespace access to the generated schema module (45 table interfaces); aliasing each individually would be pure noise with no benefit
 import type * as Gen from "./schema.generated";
 
@@ -54,6 +55,7 @@ type WithNonNullId<T> = T extends { id: string | null } ? Omit<T, "id"> & { id: 
 // their `Generated<>` wrappers — pass through untouched.
 
 export type Account = WithNonNullId<Gen.Account>;
+export type AccountKeys = WithNonNullId<Gen.AccountKeys>;
 export type AndroidApplicationIdentifiers = WithNonNullId<Gen.AndroidApplicationIdentifiers>;
 export type AndroidBuildCredentials = WithNonNullId<Gen.AndroidBuildCredentials>;
 export type AndroidUploadKeystores = WithNonNullId<
@@ -100,8 +102,15 @@ export type IosBundleConfigurations = WithNonNullId<
 >;
 export type Member = WithNonNullId<Gen.Member>;
 export type Organization = WithNonNullId<Gen.Organization>;
+export type OrgEnvVaultKeyWraps = WithNonNullId<
+  Narrow<Gen.OrgEnvVaultKeyWraps, { recipient_kind: EnvVaultRecipientKind }>
+>;
 export type OrgVaultKeyWraps = WithNonNullId<Gen.OrgVaultKeyWraps>;
 export type OrgVaults = WithNonNullId<Gen.OrgVaults>;
+export type Passkey = WithNonNullId<Gen.Passkey>;
+// PK is `session_id` (not `id`), so WithNonNullId is a no-op here — narrow the
+// real PK back to non-null instead (SQLite TEXT-PK-nullable quirk).
+export type PasskeyStepUp = Narrow<Gen.PasskeyStepUp, { session_id: string }>;
 export type Policy = WithNonNullId<Gen.Policy>;
 export type PolicyAttachment = WithNonNullId<
   Narrow<Gen.PolicyAttachment, { principal_type: PrincipalType }>
@@ -131,6 +140,7 @@ export type Webhooks = WithNonNullId<Gen.Webhooks>;
 
 export interface DB {
   account: Account;
+  account_keys: AccountKeys;
   android_application_identifiers: AndroidApplicationIdentifiers;
   android_build_credentials: AndroidBuildCredentials;
   android_upload_keystores: AndroidUploadKeystores;
@@ -162,9 +172,12 @@ export interface DB {
   ios_app_metadata: IosAppMetadata;
   ios_bundle_configurations: IosBundleConfigurations;
   member: Member;
+  org_env_vault_key_wraps: OrgEnvVaultKeyWraps;
   org_vault_key_wraps: OrgVaultKeyWraps;
   org_vaults: OrgVaults;
   organization: Organization;
+  passkey: Passkey;
+  passkey_step_up: PasskeyStepUp;
   policy: Policy;
   policy_attachment: PolicyAttachment;
   project_protocol_metadata: ProjectProtocolMetadata;

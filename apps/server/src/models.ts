@@ -68,6 +68,7 @@ export interface CurrentActor {
   readonly effectiveStatements: readonly PolicyStatement[];
   readonly source: AuditLogSource;
   readonly transport: "bearer" | "cookie";
+  readonly sessionId: string | null;
   readonly actorEmail: string;
   readonly isSuperadmin: boolean;
 }

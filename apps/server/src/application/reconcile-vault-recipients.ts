@@ -4,9 +4,53 @@ import { resolveEffectiveStatements } from "../auth/middleware";
 import { roleIsOwner } from "../auth/owner";
 import { isAllowed } from "../auth/policy-match";
 import { roleIsSuperadmin } from "../auth/superadmin";
+import { AccountKeyRepo } from "../repositories/account-keys";
 import { MemberRepo } from "../repositories/member-repo";
+import { OrgEnvVaultRepo } from "../repositories/org-env-vault";
 import { OrgVaultRepo } from "../repositories/org-vault";
 import { UserEncryptionKeyRepo } from "../repositories/user-encryption-keys";
+import { isEnvVaultForked } from "../vault-models";
+
+/**
+ * Owners of the user-scoped env-vault recipients (account keys + device keys) at
+ * the current env version — the extra reconcile set once an org has cut over, so a
+ * member with web-only env access (an account-key wrap but no credentials-vault
+ * wrap) is still reconciled. Org-owned recovery/machine recipients are skipped.
+ */
+const envRecipientUserIds = (params: {
+  readonly organizationId: string;
+  readonly envVaultVersion: number;
+}) =>
+  Effect.gen(function* () {
+    const envRepo = yield* OrgEnvVaultRepo;
+    const keyRepo = yield* UserEncryptionKeyRepo;
+    const accountRepo = yield* AccountKeyRepo;
+    const wraps = yield* envRepo.listEnvWraps({
+      organizationId: params.organizationId,
+      envVaultVersion: params.envVaultVersion,
+    });
+    const ids = yield* Effect.forEach(
+      wraps,
+      (wrap) =>
+        Effect.gen(function* () {
+          if (wrap.recipientKind === "account") {
+            const accountKey = yield* accountRepo
+              .findById({ id: wrap.recipientId })
+              .pipe(Effect.catchAll(() => Effect.succeed(null)));
+            return accountKey === null ? null : accountKey.userId;
+          }
+          if (wrap.recipientKind === "device") {
+            const key = yield* keyRepo
+              .findById({ id: wrap.recipientId })
+              .pipe(Effect.catchAll(() => Effect.succeed(null)));
+            return key === null ? null : key.userId;
+          }
+          return null;
+        }),
+      { concurrency: "unbounded" },
+    );
+    return ids.filter((id): id is string => id !== null);
+  });
 
 // Mirror the request-time gate (auth/policy.ts assertAccess): owner + superadmin
 // bypass; otherwise effective statements must allow `vaultAccess:read`. Resolved
@@ -68,11 +112,22 @@ export const reconcileVaultRecipients = (params: {
       { concurrency: "unbounded" },
     );
     // Only device keys are user-scoped recipients; recovery/machine keys are
-    // org-owned and managed only via explicit rotate/revoke.
+    // org-owned and managed only via explicit rotate/revoke. Once the org has cut
+    // over, also include env-vault recipients (account/device) so a web-only env
+    // user is reconciled even without a credentials-vault wrap.
+    const envUserIds = isEnvVaultForked(vault)
+      ? yield* envRecipientUserIds({
+          organizationId: params.organizationId,
+          envVaultVersion: vault.envVaultVersion,
+        })
+      : [];
     const recipientUserIds = [
-      ...new Set(
-        keys.flatMap((key) => (key.kind === "device" && key.userId !== null ? [key.userId] : [])),
-      ),
+      ...new Set([
+        ...keys.flatMap((key) =>
+          key.kind === "device" && key.userId !== null ? [key.userId] : [],
+        ),
+        ...envUserIds,
+      ]),
     ];
 
     const now = new Date().toISOString();
