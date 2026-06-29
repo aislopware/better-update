@@ -80,7 +80,8 @@ better-update
 ├── channels                  list · view · create · update(repoint) · pause · resume · delete · insights · rollout
 ├── build [+ configure]       Build the app locally and (by default) upload the artifact
 ├── builds                    list · get · download · run · install-link · compatibility-matrix · upload · resign · delete
-├── credentials               Signing vault + E2E encryption (identity/access/device/unlock/lock)
+├── credentials               Signing vault + E2E encryption (identity/access/device/unlock/lock);
+│                             account + env-vault subcommands enable browser-side env editing
 ├── env                       Project env vars: list/get/set/update/delete/history/rollback/import/export/pull/push/exec
 ├── environments              Org environment definitions: list/create/rename/delete
 ├── fingerprint               generate · compare (runtime-compatibility hashes)
@@ -176,17 +177,17 @@ better-update build --platform android --auto-submit          # or build + submi
 
 The depth lives in `references/`. Pull the one you need; don't load them all.
 
-| Read this                              | When you're…                                                                                                     |
-| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `references/getting-started.md`        | installing, logging in, pointing at a self-hosted server, linking a project, or using `whoami`/`doctor`/`open`   |
-| `references/publishing.md`             | publishing updates, every `update publish` flag, runtime-version policies, promote/republish/edit, the audit log |
-| `references/channels-and-branches.md`  | new-branch-vs-channel, repointing channels, `view`/`insights`, the cut→vet→promote pattern, channel rollouts     |
-| `references/rollouts-and-rollbacks.md` | staging a % rollout, the three "revert" verbs, whole-branch rollback, the symptom→action decision table          |
-| `references/native-builds.md`          | running `build` (+`configure`), managing `builds` (download/run/resign), `fingerprint`, store `submit`           |
-| `references/credentials.md`            | the signing + E2E credential vault: certs/profiles/keystores/APNs, `identity`/`access`/`device`, `unlock`/`lock` |
-| `references/environments.md`           | env vars (`set`/`get`/`push`/`pull`/`export`, visibility), `history`/`rollback`, the org `environments` command  |
-| `references/access-control.md`         | IAM policies & groups, member access, Apple device registration, webhooks                                        |
-| `references/cli.md`                    | you need the exhaustive command/flag table for ANY command (every group), or exit codes for CI branching         |
+| Read this                              | When you're…                                                                                                                                                                               |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `references/getting-started.md`        | installing, logging in, pointing at a self-hosted server, linking a project, or using `whoami`/`doctor`/`open`                                                                             |
+| `references/publishing.md`             | publishing updates, every `update publish` flag, runtime-version policies, promote/republish/edit, the audit log                                                                           |
+| `references/channels-and-branches.md`  | new-branch-vs-channel, repointing channels, `view`/`insights`, the cut→vet→promote pattern, channel rollouts                                                                               |
+| `references/rollouts-and-rollbacks.md` | staging a % rollout, the three "revert" verbs, whole-branch rollback, the symptom→action decision table                                                                                    |
+| `references/native-builds.md`          | running `build` (+`configure`), managing `builds` (download/run/resign), `fingerprint`, store `submit`                                                                                     |
+| `references/credentials.md`            | the signing + E2E credential vault: certs/profiles/keystores/APNs, `identity`/`access`/`device`, `unlock`/`lock`; `account`/`env-vault` for browser env-vault access + its troubleshooting |
+| `references/environments.md`           | env vars (`set`/`get`/`push`/`pull`/`export`, visibility), `history`/`rollback`, the org `environments` command                                                                            |
+| `references/access-control.md`         | IAM policies & groups, member access, Apple device registration, webhooks                                                                                                                  |
+| `references/cli.md`                    | you need the exhaustive command/flag table for ANY command (every group), or exit codes for CI branching                                                                                   |
 
 When a command's exact flags or exit-code semantics matter (especially in CI scripts), confirm
 against `references/cli.md` — it mirrors `apps/cli/src/commands` and is the source of truth.

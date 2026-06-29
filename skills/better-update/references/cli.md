@@ -335,6 +335,29 @@ better-update credentials status                                          # is t
 register/re-register this device's key; `access grant`/`revoke` add/remove vault recipients (org
 members or other devices). See `references/credentials.md` for the full model.
 
+### Browser env-vault: account keys + cutover (account / env-vault)
+
+Splits env-var values into a separate env vault (EV) editable from the web (`updates-vault.<host>`),
+leaving signing credentials CLI-only. All CLI-only — the browser reads these but cannot create them.
+
+```bash
+better-update credentials account <create|link|reseal|show>   # default `show`; per-USER account key, interactive (no flags)
+#   create — enroll your account key (prompts this device's identity passphrase; same passphrase used in the web unlock)
+#   link   — (re)grant your existing account key env access after an env-vault rotate
+#   reseal — re-seal the escrow under a new passphrase (repair after a passphrase change on another device)
+
+better-update credentials env-vault <migrate|rotate|status>   # default `status`; per-ORG (owner/admin)
+better-update credentials env-vault migrate [--yes]           # one-shot: fork env values CV→EV, wrap to every device + account key
+better-update credentials env-vault rotate                    # re-key EV to current recipients (clears a pending flag after a member removal)
+```
+
+To edit env values from the browser you need **both** an account key (`account create`) **and** the
+org cut over (`env-vault migrate`) — plus a passkey enrolled + a step-up in the web unlock dialog. The
+web error _"No account key is enrolled…"_ → run `account create`; _"…can't open this org's env vault
+yet"_ → an admin runs `env-vault migrate` (or you run `account link` after a rotate). `migrate` is
+one-shot per org: older CLIs lose env **read** until upgraded (credentials unaffected). Full model +
+troubleshooting in `references/credentials.md`.
+
 ## env
 
 Project env vars stored server-side (E2E-encrypted), injected into `expo export` at publish time.

@@ -157,3 +157,61 @@ better-update credentials status                            # is the vault unloc
 Typical onboarding: `identity init` (first person in the org) → teammates run `identity create` and
 an owner runs `access grant <recipient>` → each person `unlock`s to cache their key for a session.
 When someone leaves, `access revoke <recipient>` then `access rotate`.
+
+## Browser env-vault access (account keys + env-vault cutover)
+
+By default the org has **one** vault: signing credentials **and** env-var values share it, and it is
+CLI-only (zero-knowledge — keys never reach a browser). To edit **env-var values from the web**
+(`updates-vault.<host>`, an origin separate from the dashboard), the org splits into **two** vaults:
+
+- **Credentials vault (CV)** — keystores/certs/profiles/keys. Unchanged, CLI-only, zero-knowledge.
+- **Env vault (EV)** — env-var values only, with a **separate key**. Reachable from the browser via a
+  per-user **account key** (so a key a browser can obtain still cannot open signing credentials).
+
+Two one-time setup steps unlock browser env editing. They are **CLI-only** — the web can read these
+but never create them, which is why an unprepared user sees an opaque error in the browser (see below).
+
+```bash
+# 1. Per USER: enroll your account key — the env-vault recipient the browser unwraps env with.
+#    Prompts for THIS DEVICE's identity passphrase; the account key is sealed under the SAME
+#    passphrase (the "one passphrase" promise), so you type that same passphrase in the web unlock.
+#    Requires a device identity already set up (see "E2E vault" above).
+better-update credentials account create
+better-update credentials account show                 # fingerprint + status (default action)
+better-update credentials account link                 # (re)grant your existing key env access after a rotation
+better-update credentials account reseal               # repair the escrow after a passphrase change elsewhere
+
+# 2. Per ORG (owner/admin, once): cut the org over to a separate env vault.
+#    Re-keys env values CV→EV and wraps EV to every enrolled account key.
+better-update credentials env-vault migrate [--yes]
+better-update credentials env-vault status             # "separate (migrated)" vs "shared with credentials vault"
+better-update credentials env-vault rotate [--yes]     # rotate the EV key (e.g. after revoking a member)
+```
+
+Order is flexible: `account create` before `migrate` enrolls the key as _"pending env-vault
+migration"_ (migrate then wraps to it); `migrate` before `account create` self-links the new key
+immediately. After both, `passphrase change` re-seals the device identity **and** the account escrow
+together.
+
+**Web unlock flow** (on `updates-vault.<host>`): the dashboard session carries over (shared cookie),
+then **Unlock env vault** runs a WebAuthn **passkey step-up** + your **account passphrase** to unwrap
+the EV key in the browser; from there you reveal/edit/create/delete env values, each encrypted client
+side. A passkey can be enrolled inline from that dialog ("Add a passkey", Touch ID / security key) —
+the ceremony needs real user presence, so it cannot be scripted. Manage passkeys (add / rename /
+remove) anytime at **Account → Passkeys** in the dashboard; once you have one, the unlock dialog
+links there instead of nagging to add one.
+
+**Troubleshooting the web unlock:**
+
+- _"No account key is enrolled for your user yet…"_ → you skipped step 1. Run
+  `better-update credentials account create`.
+- _"Your account key can't open this organization's env vault yet…"_ → the org has not cut over (or
+  the EV key was rotated). An admin runs `better-update credentials env-vault migrate`; after a
+  rotation you run `better-update credentials account link`.
+- Wrong-passphrase errors come from the account passphrase, which equals this device's identity
+  passphrase. Reset the seal with `better-update credentials account reseal` if they drifted.
+
+Env-var **values** are still managed day-to-day with `better-update env …` (see
+`references/environments.md`); the split only changes _where_ those values are encrypted and whether
+the **browser** can edit them. CLI env access is byte-identical before cutover; after cutover, **old
+CLIs that predate the split lose env read until upgraded** (one-shot cutover, no dual-wrap).
