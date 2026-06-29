@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.45.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.44.1...@better-update/cli@0.45.0) (2026-06-29)
+
+### Features
+
+* **cli:** auto-create ASC API key from Apple ID login ([cceaa25](https://github.com/better-update/better-update/commit/cceaa2527a50001293d8b3e08ddde00ff24bcd6b))
+
 ## [0.44.1](https://github.com/better-update/better-update/compare/@better-update/cli@0.44.0...@better-update/cli@0.44.1) (2026-06-29)
 
 **Note:** Version bump only for package @better-update/cli
