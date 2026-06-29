@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.46.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.45.0...@better-update/cli@0.46.0) (2026-06-29)
+
+### Features
+
+* **cli:** auto-resolve or create an ASC API key during submit ([24750e6](https://github.com/better-update/better-update/commit/24750e64ddddb7d8bc978b43ffcd4d71bb512bcb))
+
 ## [0.45.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.44.1...@better-update/cli@0.45.0) (2026-06-29)
 
 ### Features
