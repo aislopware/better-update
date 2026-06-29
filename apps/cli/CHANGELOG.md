@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.46.1](https://github.com/better-update/better-update/compare/@better-update/cli@0.46.0...@better-update/cli@0.46.1) (2026-06-29)
+
+### Bug Fixes
+
+* **cli:** cap ASC API key nickname at Apple's 30-char limit ([fdc809c](https://github.com/better-update/better-update/commit/fdc809cef84ff68bf2edc880e26d6e1bc58b53fd))
+
 ## [0.46.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.45.0...@better-update/cli@0.46.0) (2026-06-29)
 
 ### Features
