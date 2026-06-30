@@ -3,6 +3,20 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.49.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.48.0...@better-update/cli@0.49.0) (2026-06-30)
+
+### Features
+
+* **cli:** add ASC visibility + inventory commands (Wave 3) ([bbaf241](https://github.com/better-update/better-update/commit/bbaf2416fbd7f206a5bbd078344088ce6d4a7b6c)), closes [#1](https://github.com/better-update/better-update/issues/1)
+* **cli:** add headless app-store + testflight command groups ([bb58168](https://github.com/better-update/better-update/commit/bb581683bb19bcdce3e61588f44730529ab7b4d5))
+* **cli:** add TestFlight depth + App Store metadata commands (Wave 2) ([51a6ff2](https://github.com/better-update/better-update/commit/51a6ff223ae8dea48bed132673c3fc230ec40e7c))
+* **cli:** map remaining App Store Connect surface (Waves 4-6) ([95dea8d](https://github.com/better-update/better-update/commit/95dea8d7ff76b5497cb70b54824dcaeb9696444a))
+
+### Bug Fixes
+
+* **cli:** make App.createAsync hints fire (match err.code) + dedupe ([7ee586a](https://github.com/better-update/better-update/commit/7ee586a99b45e1b91354313f745cc3887535c8dd))
+* **cli:** resolve projectId before evaluating app.config on publish ([21dd7d5](https://github.com/better-update/better-update/commit/21dd7d5eec6a51447844b55af2ccc86c19aacda4))
+
 ## [0.48.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.47.5...@better-update/cli@0.48.0) (2026-06-30)
 
 ### Features
