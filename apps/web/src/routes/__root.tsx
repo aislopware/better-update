@@ -76,26 +76,26 @@ const RootShell = ({ children }: Readonly<{ children: ReactNode }>) => {
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         <meta
           name="description"
-          content="Deploy, monitor, and roll back over-the-air updates for your React Native apps with Better Update."
+          content="Deploy, monitor, and roll back over-the-air updates — plus native builds and store submissions — for your Expo, React Native, and native apps with Better Update."
         />
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Better Update" />
         <meta property="og:title" content="Better Update" />
         <meta
           property="og:description"
-          content="Deploy, monitor, and roll back over-the-air updates for your React Native apps."
+          content="OTA updates, native builds, and store submissions for your Expo, React Native, and native apps."
         />
         <meta property="og:url" content="https://updates.jmango360.dev" />
         <meta property="og:image" content="https://updates.jmango360.dev/og-image.svg" />
         <meta property="og:image:type" content="image/svg+xml" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
-        <meta property="og:image:alt" content="Better Update — React Native OTA command center" />
+        <meta property="og:image:alt" content="Better Update — mobile release command center" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="Better Update" />
         <meta
           name="twitter:description"
-          content="Deploy, monitor, and roll back over-the-air updates for your React Native apps."
+          content="OTA updates, native builds, and store submissions for your Expo, React Native, and native apps."
         />
         <meta name="twitter:image" content="https://updates.jmango360.dev/og-image.svg" />
         <HeadContent />

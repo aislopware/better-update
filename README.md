@@ -1,6 +1,6 @@
 # better-update
 
-Self-hosted mobile release platform — OTA updates, native builds, and store submissions for Expo and React Native apps, running on Cloudflare Workers.
+Self-hosted mobile release platform — OTA updates, native builds, and store submissions for Expo, React Native, Kotlin Multiplatform, and native apps (any project type via custom build commands), running on Cloudflare Workers.
 
 What started as an OTA update server has grown into a full release pipeline: build your app locally with EAS-compatible config, manage signing credentials in an end-to-end encrypted vault, ship JS updates through channels with staged rollouts, and submit binaries to the App Store and Google Play — all against your own Cloudflare account.
 

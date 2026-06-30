@@ -23,9 +23,58 @@ What it does:
 
 1. Stages the project into a temp dir and installs deps there (frozen to the lockfile).
 2. Downloads the platform credentials from the server (so they don't live on every dev machine).
-3. Runs `expo prebuild --platform <ios|android>` (which installs CocoaPods itself on iOS).
-4. iOS: `xcodebuild archive` + `xcodebuild exportArchive`. Android: `./gradlew :app:<assembleRelease|bundleRelease|…>`.
+3. Resolves a **build strategy** from the detected project type (see below) — for Expo that means
+   `expo prebuild --platform <ios|android>` (which installs CocoaPods itself on iOS); for other types
+   it skips prebuild and uses the native sources / your custom command as-is.
+4. iOS: `xcodebuild archive` + `xcodebuild exportArchive`. Android: `./gradlew :app:<assembleRelease|bundleRelease|…>`. A `custom` profile runs your own command instead.
 5. Optionally uploads the resulting `.ipa` / `.apk` / `.aab` to the server (and optionally submits).
+
+### Project types & custom build commands
+
+The build pipeline is **not Expo-only**. The CLI auto-detects the project type from filesystem
+markers and picks a per-platform strategy; you can also override the command entirely:
+
+| Project type | Detected by                                 | Build strategy                             |
+| ------------ | ------------------------------------------- | ------------------------------------------ |
+| `expo`       | `expo` dep / `app.json` with `expo` key     | `expo prebuild` → `xcodebuild` / `gradlew` |
+| `bare`       | committed `ios/` + `android/` (no prebuild) | `xcodebuild` / `gradlew` directly          |
+| `kmp`        | Kotlin/Compose Multiplatform markers        | `gradlew` (+ Xcode for the iOS app)        |
+| `native`     | pure native Android (Gradle) / iOS (Xcode)  | `gradlew` / `xcodebuild` directly          |
+| `custom`     | a `custom` block in the `eas.json` profile  | your shell command, full escape hatch      |
+
+For any project — or to override a single platform on any of the above — add a `custom` block to the
+build profile in `eas.json`:
+
+```json
+{
+  "build": {
+    "production": {
+      "custom": {
+        "ios": {
+          "command": "xcodebuild -scheme MyApp -configuration Release archive …",
+          "cwd": "ios",
+          "env": { "CUSTOM_VAR": "value" },
+          "artifactPath": "build/MyApp.ipa"
+        },
+        "android": {
+          "command": "./gradlew :app:assembleRelease",
+          "artifactPath": "app/build/outputs/apk/release/app-release.apk"
+        }
+      }
+    }
+  }
+}
+```
+
+- **`command`** (required) — the shell command to run. It sees all the `BETTER_UPDATE_BUILD*` env vars.
+- **`cwd`** (optional) — working directory, relative to the project root.
+- **`env`** (optional) — extra environment variables injected into the command.
+- **`artifactPath`** (optional) — where the built `.ipa`/`.apk`/`.aab` lands (relative to `cwd` or
+  project root), so the CLI can pick it up for upload/submit.
+
+Everything downstream — credential vault, env vars, upload, submit, fingerprints, OTA — works the same
+regardless of project type. OTA JS updates still require an Expo-compatible runtime; native builds,
+credentials, and store submission have no such requirement.
 
 ### Flags
 

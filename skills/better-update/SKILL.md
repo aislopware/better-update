@@ -4,8 +4,9 @@ description: >-
   Drive the better-update CLI (@better-update/cli, the `better-update` command) to ship OTA
   JS/asset updates, run local native iOS/Android builds, manage an end-to-end-encrypted
   signing-credential vault, set server-side env vars, and route releases through
-  channels/branches with staged rollouts and instant rollback — for Expo and React Native
-  apps. Use this whenever you are working in a project that uses better-update (an
+  channels/branches with staged rollouts and instant rollback — for Expo, React Native,
+  Kotlin Multiplatform, and native apps (any project type via custom build commands). Use this
+  whenever you are working in a project that uses better-update (an
   `@better-update/cli` dependency, a `better-update …` command, `expo.extra.betterUpdate.projectId`
   in app.json, or an `updates.jmango360.dev` manifest URL), OR when the user asks to publish /
   ship an OTA update, stage a rollout or roll back a release, cut a release candidate, promote an
@@ -17,7 +18,8 @@ description: >-
 
 # better-update CLI
 
-better-update is a self-hosted mobile release platform for Expo and React Native apps, running on
+better-update is a self-hosted mobile release platform for Expo, React Native, Kotlin Multiplatform,
+and native apps — any project type, including ones driven by a custom build command — running on
 Cloudflare. It does OTA JS updates (Expo Updates protocol-compatible), local native builds (EAS
 Build-compatible), an end-to-end-encrypted credential vault, server-side env vars, and store
 submission — all driven from one CLI, `better-update`. This skill is how you operate that CLI on a
