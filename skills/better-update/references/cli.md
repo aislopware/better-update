@@ -20,7 +20,7 @@ Many booleans are citty-negatable — a `foo` flag with default on is disabled w
 - [credentials](#credentials) (signing + E2E vault)
 - [env](#env) · [environments](#environments)
 - [fingerprint](#fingerprint) · [analytics](#analytics) · [audit-logs](#audit-logs)
-- [apple](#apple) · [submit](#submit)
+- [apple](#apple) · [submit](#submit) · [testflight](#testflight) · [app-store](#app-store)
 - [devices](#devices) · [groups](#groups) · [policies](#policies) · [webhooks](#webhooks)
 - [Exit codes](#exit-codes)
 
@@ -50,6 +50,9 @@ better-update
 ├── audit-logs                     list
 ├── apple                          login · logout · whoami (Apple Developer session)
 ├── submit                         Submit a build to App Store Connect / Google Play
+├── testflight                     group (list/create/delete) — TestFlight beta groups
+├── app-store                      version (list/create/set/localize) · submit · status ·
+│                                  release · rollout (start/status/pause/resume/complete)
 ├── devices                        add · list · view · sync · rename · enable · disable · delete
 ├── groups                         list · create · update · delete · members · policies · attach · detach
 ├── policies                       list · create · update · delete (IAM policy documents)
@@ -471,6 +474,72 @@ value, since Apple rejects an empty name; SKU = bundle id, locale en-US; `compan
 which Apple requires for the first app on a brand-new organization account). The resolved `ascAppId` is
 written back to `eas.json`. The bundle id must already be registered in your Apple Developer account (a
 build or `credentials` run does this). Non-interactive runs with no resolvable app skip config with guidance.
+
+## testflight
+
+Manage TestFlight beta groups directly on App Store Connect — **headless and CI-safe**: every command
+authenticates with a stored ASC API key (`.p8`, signed into a JWT), never a cookie session.
+
+```bash
+better-update testflight group list                                        # list beta groups for the app
+better-update testflight group create --name "QA" [--no-internal] \         # create a group (internal by default)
+  [--public-link] [--public-link-limit <1-10000>]
+better-update testflight group delete (--id <id> | --name <name>)          # delete a group
+```
+
+`testflight group create` is the unblocker for `submit ios`, which hard-fails (`TESTFLIGHT_GROUP_NOT_FOUND`)
+when the submit profile names a group that does not exist yet. Internal groups (`--internal`, the default)
+admit only App Store Connect users; `--no-internal` makes an external group (public testers, needs beta review).
+
+### Shared App Store Connect resolution (testflight + app-store)
+
+Every `testflight`/`app-store` command resolves three things, in this precedence:
+
+- **ASC API key** — `--asc-api-key-id` flag › submit profile `ios.ascApiKeyId` › your single stored key
+  (errors asking you to pick when several are stored). The `.p8` is decrypted locally; the server stays
+  zero-knowledge.
+- **App** — `--app-id` flag › profile `ios.ascAppId` › `App.findAsync` by bundle id (`--bundle-identifier`
+  flag › profile `ios.bundleIdentifier`).
+- **Profile** — `--profile` (default `production`) selects which `eas.json` submit profile to read the
+  above from. A missing submit profile is tolerated when the flags supply everything.
+
+Common flags on every leaf: `--profile`, `--asc-api-key-id`, `--app-id`, `--bundle-identifier`, and
+(where a version is involved) `--platform` (`ios` default, `mac`, `tv`, `vision`).
+
+## app-store
+
+Drive the App Store **release pipeline** on App Store Connect — headless / CI-safe (ASC API key, same as
+`testflight`).
+
+```bash
+# Editable "App Store" version
+better-update app-store version list
+better-update app-store version create --version <x.y.z> [--platform ios]
+better-update app-store version set [--build <ascBuildId> | --build-version <CFBundleVersion>] \
+  [--version <x.y.z>] [--release-type AFTER_APPROVAL|MANUAL|SCHEDULED] [--earliest-release-date <iso8601>]
+better-update app-store version localize --locale en-US \
+  [--whats-new <text>] [--description <text>] [--keywords <csv>] \
+  [--promotional-text <text>] [--marketing-url <url>] [--support-url <url>]
+
+# Review pipeline
+better-update app-store status        # editable / in-review / pending-release / live slots + review submission
+better-update app-store submit        # submit the editable version for App Review (idempotent)
+better-update app-store release        # release a version that is "Pending Developer Release"
+
+# Phased (staged) release
+better-update app-store rollout start | status | pause | resume | complete
+```
+
+- **`version create`** uses `App.ensureVersionAsync` — idempotent (creates the editable version or renames
+  the current one), so re-running with the same version is a no-op.
+- **`version set`** mutates the editable version: `--build`/`--build-version` attaches a build (the latter
+  resolves an uploaded build by its CFBundleVersion), `--release-type`/`--earliest-release-date` control
+  when an approved version ships.
+- **`submit`** is idempotent: if a review submission is already in progress it is reported, not duplicated
+  (Apple allows one in-flight submission per app). Requires an editable version with a build attached.
+- **`release`** only works on a version in "Pending Developer Release" (approved + set to manual release).
+- **`rollout`** targets the version awaiting release › live › editable, in that order. `start` enables a
+  7-day phased release; `complete` releases to 100% immediately.
 
 ## devices
 

@@ -1,4 +1,5 @@
 import { analyticsCommand } from "./commands/analytics";
+import { appStoreCommand } from "./commands/app-store";
 import { appleCommand } from "./commands/apple";
 import { auditLogsCommand } from "./commands/audit-logs";
 import { autocompleteCommand } from "./commands/autocomplete";
@@ -21,6 +22,7 @@ import { policiesCommand } from "./commands/policies";
 import { projectsCommand } from "./commands/projects";
 import { statusCommand } from "./commands/status";
 import { submitCommand } from "./commands/submit";
+import { testflightCommand } from "./commands/testflight";
 import { updateCommand } from "./commands/update";
 import { webhooksCommand } from "./commands/webhooks";
 import { whoamiCommand } from "./commands/whoami";
@@ -69,5 +71,7 @@ export const commandRegistry = {
   webhooks: webhooksCommand,
   autocomplete: autocompleteCommand,
   apple: appleCommand,
+  "app-store": appStoreCommand,
   submit: submitCommand,
+  testflight: testflightCommand,
 };

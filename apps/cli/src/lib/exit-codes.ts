@@ -93,6 +93,10 @@ export class AppleAuthError extends Data.TaggedError("AppleAuthError")<{
   readonly message: string;
 }> {}
 
+export class AppStoreError extends Data.TaggedError("AppStoreError")<{
+  readonly message: string;
+}> {}
+
 export class InvalidArgumentError extends Data.TaggedError("InvalidArgumentError")<{
   readonly message: string;
 }> {}
