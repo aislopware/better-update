@@ -2,8 +2,10 @@ import { env } from "cloudflare:test";
 import { Effect, Layer } from "effect";
 
 import { reconcileVaultRecipients } from "../../../src/application/reconcile-vault-recipients";
+import { AccountKeyRepoLive } from "../../../src/repositories/account-keys";
 import { GroupRepoLive } from "../../../src/repositories/group-repo";
 import { MemberRepoLive } from "../../../src/repositories/member-repo";
+import { OrgEnvVaultRepoLive } from "../../../src/repositories/org-env-vault";
 import { OrgVaultRepo, OrgVaultRepoLive } from "../../../src/repositories/org-vault";
 import {
   PolicyAttachmentRepo,
@@ -13,10 +15,13 @@ import { PolicyRepoLive } from "../../../src/repositories/policy-repo";
 import { UserEncryptionKeyRepoLive } from "../../../src/repositories/user-encryption-keys";
 import { runWithLayerAndEnv } from "../../helpers/runtime";
 
-// reconcile pulls together the vault, user-keys, member, and the three policy
-// repos (for resolveEffectiveStatements) — provide all the real D1-backed layers.
+// reconcile pulls together the credential + env vaults, account keys, user-keys,
+// member, and the three policy repos (for resolveEffectiveStatements) — provide
+// all the real D1-backed layers.
 const REPOS = Layer.mergeAll(
   OrgVaultRepoLive,
+  OrgEnvVaultRepoLive,
+  AccountKeyRepoLive,
   UserEncryptionKeyRepoLive,
   MemberRepoLive,
   GroupRepoLive,

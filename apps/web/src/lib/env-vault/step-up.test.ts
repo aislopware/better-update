@@ -1,3 +1,7 @@
+/* @vitest-environment jsdom */
+// This suite drives the production step-up code, which persists freshness in
+// `sessionStorage`. The `unit` project runs in the Node/Bun runtime (no DOM
+// globals), so opt this file into jsdom for a real `sessionStorage`.
 import { WEB_ENV_STEP_UP_REQUIRED_MESSAGE, WEB_ENV_STEP_UP_TTL_MS } from "@better-update/api";
 
 import {
