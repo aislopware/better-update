@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.47.2](https://github.com/better-update/better-update/compare/@better-update/cli@0.47.1...@better-update/cli@0.47.2) (2026-06-30)
+
+### Bug Fixes
+
+* **cli:** require a non-blank ASC app name, pre-fill for non-Expo projects ([a36728c](https://github.com/better-update/better-update/commit/a36728c745cbb9dad9900b2eb71bd199c6c1c491))
+
 ## [0.47.1](https://github.com/better-update/better-update/compare/@better-update/cli@0.47.0...@better-update/cli@0.47.1) (2026-06-30)
 
 ### Bug Fixes
