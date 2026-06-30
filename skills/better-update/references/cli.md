@@ -465,9 +465,11 @@ nothing configured just queue the submission and print how to add a key.
 This needs the App Store Connect app to exist: `submit` resolves it by the profile's `ascAppId`, else
 looks it up by bundle id (headless, via the ASC key), and — if it still doesn't exist and the terminal
 is interactive — offers to create it from your Apple ID (`App.createAsync`: name from the submit
-profile's `appName` or a prompt, SKU = bundle id, locale en-US). The resolved `ascAppId` is written back
-to `eas.json`. The bundle id must already be registered in your Apple Developer account (a build or
-`credentials` run does this). Non-interactive runs with no resolvable app skip config with guidance.
+profile's `appName`, else app.json `expo.name`, else a prompt — never blank, since Apple rejects an
+empty name; SKU = bundle id, locale en-US; `companyName` from the profile or the signed-in team name,
+which Apple requires for the first app on a brand-new organization account). The resolved `ascAppId` is
+written back to `eas.json`. The bundle id must already be registered in your Apple Developer account (a
+build or `credentials` run does this). Non-interactive runs with no resolvable app skip config with guidance.
 
 ## devices
 

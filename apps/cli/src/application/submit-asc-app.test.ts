@@ -12,6 +12,8 @@ import { ensureAscAppForSubmit } from "./submit-asc-app";
 import type { AscCredentials } from "../lib/asc-credentials";
 // eslint-disable-next-line import-plugin/no-namespace -- vi.mock factory return must satisfy the full module namespace type
 import type * as EasJsonModule from "../lib/eas-json";
+// eslint-disable-next-line import-plugin/no-namespace -- vi.mock factory return must satisfy the full module namespace type
+import type * as ExpoConfigModule from "../lib/expo-config";
 import type { InteractiveMode } from "../lib/interactive-mode";
 import type { OutputMode } from "../lib/output-mode";
 // eslint-disable-next-line import-plugin/no-namespace -- vi.mock factory return must satisfy the full module namespace type
@@ -27,6 +29,7 @@ const mocks = vi.hoisted(() => ({
   promptText: vi.fn<(...args: unknown[]) => unknown>(),
   setSubmit: vi.fn<(...args: unknown[]) => unknown>(),
   ensureLoggedIn: vi.fn<(...args: unknown[]) => unknown>(),
+  readExpoConfig: vi.fn<(...args: unknown[]) => unknown>(),
 }));
 
 vi.mock(import("@expo/apple-utils"), () => {
@@ -54,6 +57,14 @@ vi.mock(
     ({
       setSubmitProfileAscAppId: (...args: unknown[]) => mocks.setSubmit(...args),
     }) as unknown as typeof EasJsonModule,
+);
+
+vi.mock(
+  import("../lib/expo-config"),
+  () =>
+    ({
+      readExpoConfig: (...args: unknown[]) => mocks.readExpoConfig(...args),
+    }) as unknown as typeof ExpoConfigModule,
 );
 
 // ── harness ─────────────────────────────────────────────────────
@@ -94,6 +105,13 @@ beforeEach(() => {
   mocks.setSubmit.mockReturnValue(Effect.succeed("/proj/eas.json"));
   mocks.ensureLoggedIn.mockReturnValue(
     Effect.succeed({ username: "u@acme.com", teamId: "TEAM1234", teamName: "Acme", providerId: 1 }),
+  );
+  // Default: app.json carries an `expo.name`; the prompt echoes whatever default it's given.
+  mocks.readExpoConfig.mockReturnValue(Effect.succeed({ name: "Expo Config Name" }));
+  mocks.promptText.mockImplementation((_message: unknown, options: unknown) =>
+    Effect.succeed(
+      (options as { defaultValue?: string; placeholder?: string } | undefined)?.defaultValue ?? "",
+    ),
   );
 });
 
@@ -142,15 +160,50 @@ describe(ensureAscAppForSubmit, () => {
       expect(mocks.ensureLoggedIn).toHaveBeenCalledTimes(1);
       const [, createProps] = mocks.appCreateAsync.mock.calls[0] as [
         unknown,
-        { name: string; bundleId: string; sku: string; platforms: string[] },
+        { name: string; bundleId: string; sku: string; platforms: string[]; companyName?: string },
       ];
       expect(createProps).toMatchObject({
         name: "Rockxy",
         bundleId: "com.acme.app",
         sku: "com.acme.app",
         platforms: ["IOS"],
+        // Brand-new org accounts need a company name; defaults to the team name.
+        companyName: "Acme",
       });
       expect(mocks.setSubmit).toHaveBeenCalledWith("/proj", "production", "6700000002");
+    }),
+  );
+
+  it.effect("defaults the app name from the Expo config when none is configured", () =>
+    Effect.gen(function* () {
+      mocks.appFindAsync.mockResolvedValue(null);
+      mocks.promptConfirm.mockReturnValue(Effect.succeed(true));
+      mocks.appCreateAsync.mockResolvedValue({ id: "6700000003" });
+
+      const result = yield* run(true);
+
+      expect(result).toBe("6700000003");
+      // Prompt pre-filled with app.json `expo.name`, so an empty Enter still names the app.
+      expect(mocks.promptText).toHaveBeenCalledWith(expect.any(String), {
+        defaultValue: "Expo Config Name",
+      });
+      const [, createProps] = mocks.appCreateAsync.mock.calls[0] as [unknown, { name: string }];
+      expect(createProps.name).toBe("Expo Config Name");
+    }),
+  );
+
+  it.effect("returns null without creating when the resolved app name is empty", () =>
+    Effect.gen(function* () {
+      mocks.appFindAsync.mockResolvedValue(null);
+      mocks.promptConfirm.mockReturnValue(Effect.succeed(true));
+      // No app.json name and an empty prompt → nothing to name the app with.
+      mocks.readExpoConfig.mockReturnValue(Effect.succeed({ name: undefined }));
+
+      const result = yield* run(true);
+
+      expect(result).toBeNull();
+      expect(mocks.ensureLoggedIn).not.toHaveBeenCalled();
+      expect(mocks.appCreateAsync).not.toHaveBeenCalled();
     }),
   );
 

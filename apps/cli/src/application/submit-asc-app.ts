@@ -9,7 +9,7 @@
  * a declined prompt, or any failure (login/create/network) degrade to `null` so the
  * caller queues the submission with guidance rather than crashing.
  */
-import { compact } from "@better-update/type-guards";
+import { compact, toOptional } from "@better-update/type-guards";
 import AppleUtils from "@expo/apple-utils";
 import { Effect } from "effect";
 
@@ -20,6 +20,7 @@ import {
   wrapConnect,
 } from "../lib/apple-asc-connect";
 import { setSubmitProfileAscAppId } from "../lib/eas-json";
+import { readExpoConfig } from "../lib/expo-config";
 import { InteractiveMode } from "../lib/interactive-mode";
 import { printHuman } from "../lib/output";
 import { promptConfirm, promptText } from "../lib/prompts";
@@ -69,6 +70,7 @@ const persist = (input: EnsureAscAppForSubmitInput, ascAppId: string) =>
 const createApp = (
   cookieCtx: AppleUtils.RequestContext,
   name: string,
+  companyName: string | undefined,
   input: EnsureAscAppForSubmitInput,
 ) =>
   wrapConnect("apple-create-app", async () =>
@@ -79,7 +81,7 @@ const createApp = (
         bundleId: input.bundleIdentifier,
         sku: input.sku ?? input.bundleIdentifier,
         primaryLocale: input.primaryLocale ?? DEFAULT_LOCALE,
-        companyName: input.companyName,
+        companyName,
         platforms: [AppleUtils.Platform.IOS],
       }),
     ),
@@ -91,6 +93,38 @@ const createApp = (
         : new AppleConnectError({ step: error.step, message: `${error.message} — ${hint[1]}.` });
     }),
   );
+
+/**
+ * Best-effort App Store name default. EAS-style: fall back to the Expo config's
+ * `name` (app.json `expo.name`) so a never-empty default reaches `App.createAsync`
+ * — Apple's iris API 500s on a blank name. Returns `undefined` for non-Expo
+ * projects (no `@expo/config`) so the caller drops to a bundle-id placeholder.
+ */
+const resolveDefaultAppName = (projectRoot: string) =>
+  readExpoConfig(projectRoot).pipe(
+    Effect.map((config) => (config.name?.trim() ? config.name.trim() : undefined)),
+    Effect.orElseSucceed(() => undefined),
+  );
+
+/**
+ * The App Store name to create the app under. A configured `appName` wins; else
+ * prompt, pre-filled with app.json `expo.name` so an empty Enter still names the
+ * app. Trimmed so a blank value is caught before reaching `App.createAsync`.
+ */
+const resolveAppName = (input: EnsureAscAppForSubmitInput) =>
+  Effect.gen(function* () {
+    if (input.appName !== undefined) {
+      return input.appName.trim();
+    }
+    const defaultName = yield* resolveDefaultAppName(input.projectRoot);
+    const entered = yield* promptText(
+      "App name (as shown on the App Store)",
+      defaultName === undefined
+        ? { placeholder: input.bundleIdentifier }
+        : { defaultValue: defaultName },
+    );
+    return entered.trim();
+  });
 
 export const ensureAscAppForSubmit = (input: EnsureAscAppForSubmitInput) =>
   Effect.gen(function* () {
@@ -121,18 +155,26 @@ export const ensureAscAppForSubmit = (input: EnsureAscAppForSubmitInput) =>
       return null;
     }
 
-    const name =
-      input.appName ??
-      (yield* promptText("App name (as shown on the App Store)", {
-        placeholder: input.bundleIdentifier,
-      }));
+    // Pre-fill the name prompt from app.json `expo.name` so pressing Enter never
+    // yields a blank name (Apple's create-app API rejects empty names with a 500).
+    const name = yield* resolveAppName(input);
+    if (name.length === 0) {
+      yield* printHuman(
+        `No app name was provided, so the App Store Connect app can't be created. Re-run and enter a name, or set submit.${input.profileName}.ios.appName in eas.json.`,
+      );
+      return null;
+    }
 
     const auth = yield* AppleAuth;
     const session = yield* auth.ensureLoggedIn();
     const cookieCtx = auth.buildRequestContext(session);
 
+    // Apple requires a company name for the FIRST app on a brand-new organization
+    // account (the App Store seller name); default it to the signed-in team name.
+    const companyName = input.companyName ?? toOptional(session.teamName);
+
     yield* printHuman("Creating the App Store Connect app via your Apple ID...");
-    const app = yield* createApp(cookieCtx, name, input);
+    const app = yield* createApp(cookieCtx, name, companyName, input);
     yield* printHuman(`Created App Store Connect app "${name}" (${app.id}).`);
     yield* persist(input, app.id);
     return app.id;
