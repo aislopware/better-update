@@ -1,7 +1,7 @@
 {
   "name": "better-update",
   "private": true,
-  "license": "PolyForm-Noncommercial-1.0.0",
+  "license": "MIT",
   "workspaces": [
     "apps/*",
     "packages/*"

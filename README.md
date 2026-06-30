@@ -46,4 +46,4 @@ What started as an OTA update server has grown into a full release pipeline: bui
 
 ## License
 
-[PolyForm Noncommercial 1.0.0](./LICENSE.md) — free for personal, research, educational, nonprofit. Commercial use needs separate license.
+[MIT](./LICENSE.md)
