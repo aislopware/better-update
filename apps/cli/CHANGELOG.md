@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.47.1](https://github.com/better-update/better-update/compare/@better-update/cli@0.47.0...@better-update/cli@0.47.1) (2026-06-30)
+
+### Bug Fixes
+
+* **cli:** default ASC app name from app.json and pass companyName on auto-create ([b16939a](https://github.com/better-update/better-update/commit/b16939ae9e2458cb9214577e566a081ff124f2de))
+
 ## [0.47.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.46.1...@better-update/cli@0.47.0) (2026-06-30)
 
 ### Features
