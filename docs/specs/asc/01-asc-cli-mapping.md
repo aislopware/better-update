@@ -4,6 +4,8 @@ A design document for extending `@better-update/cli` toward App Store Connect (A
 
 > **Provenance.** Produced by a gap analysis of the current CLI (`apps/cli/src/commands/{apple,submit,credentials,builds}` + `lib`/`application` Apple files) against the full `@expo/apple-utils` ≅ `@expo/app-store@2.1.21` surface (104 model classes). Findings verified against `app-store.d.ts`. See the verification addendum at the bottom for residual corrections.
 
+> **Status (2026-06-30): SHIPPED — all six waves implemented on branch `feat/asc-cli-app-store`** (Wave 1 `bb581683`, Wave 2 `51a6ff22`, Wave 3 `bbaf2416`, Waves 4–6 `95dea8d7` + cleanup `7ee586a9`). Each wave was lint-clean, unit-tested, and adversarially reviewed before commit. The deliberate exclusions are noted per-wave in §4 and in §5. This document is retained as the design rationale; the per-wave checklists below record what landed.
+
 ---
 
 ## 1. Executive summary
@@ -265,7 +267,7 @@ Priority: **P0** = core missing publishing capability; **P1** = high value, most
 
 Each wave is internally shippable; later waves carry progressively worse auth/fit characteristics.
 
-### Wave 1 — Core App Store release pipeline (P0, Token/CI-safe, apple-utils-backed)
+### Wave 1 — Core App Store release pipeline (P0, Token/CI-safe, apple-utils-backed) — ✅ SHIPPED (`bb581683`)
 
 **Why:** turns better-update from "TestFlight internal beta" into "ship to the App Store," entirely on the existing vault-`.p8` path. No new auth.
 
@@ -276,7 +278,7 @@ Each wave is internally shippable; later waves carry progressively worse auth/fi
 
 _Rough effort: ~1 L + several S/M. The biggest single piece is `app-store submit` orchestration; everything else reuses `wrapConnect`/`ascKeyRequestContext`/`readSubmitProfile`._
 
-### Wave 2 — TestFlight depth + submission prerequisites (P1, Token/CI-safe)
+### Wave 2 — TestFlight depth + submission prerequisites (P1, Token/CI-safe) — ✅ SHIPPED (`51a6ff22`)
 
 **Why:** external beta + the metadata Apple _requires before review_ (so Wave 1's submit doesn't bounce).
 
@@ -284,7 +286,7 @@ _Rough effort: ~1 L + several S/M. The biggest single piece is `app-store submit
 - `app-store info localize / set-categories`, `app-store age-rating get/set`, `app-store privacy get/set/publish` (privacy + age-rating authored from `--from JSON`, not flag matrices).
 - `app-store review-detail set`, `app-store review cancel`, `app-store reject`.
 
-### Wave 3 — Visibility / read & inventory commands (P1–P2, Token/CI-safe, low effort)
+### Wave 3 — Visibility / read & inventory commands (P1–P2, Token/CI-safe, low effort) — ✅ SHIPPED (`bbaf2416`)
 
 **Why:** cheap, high-leverage "inspect from CI" wins; mostly thin wrappers.
 
@@ -292,14 +294,16 @@ _Rough effort: ~1 L + several S/M. The biggest single piece is `app-store submit
 - `credentials certificate list`, `credentials bundle-id list`, `credentials profile list`, `credentials capability list/enable`.
 - `apple users list/invite` + `app-store apps list`, `app-store pricing show`, `app-store availability show`, `reviews list/reply`.
 
-### Wave 4 — Store media (P1–P2, Token/CI-safe, but L effort)
+### Wave 4 — Store media (P1–P2, Token/CI-safe, but L effort) — ✅ SHIPPED (`95dea8d7`)
 
 **Why:** real value (declarative media sync) but large and self-contained; depends on Wave 1's edit-version helpers.
 
 - `metadata screenshots upload` first, then `metadata media sync` (`--prune`, `--dry-run`) and `previews upload`.
 - apple-utils provides native AssetAPI binary upload here (unlike the `.ipa`), so no altool-style shell-out — just the display-type/pixel-dimension matrix and processing polls.
 
-### Wave 5 — Cookie-only (interactive, degrade-in-CI) flows
+_Landed: top-level `metadata` group — `media list/sync`, `screenshots upload/clear`, `previews upload`. `media sync` uses **numeric-aware** filename order, rejects two dirs that resolve to the same device, and scopes `--prune` to locally-present locales. `lib/asc-display-types.ts` resolves `--device` (exact `APP_IPHONE_67` / `IPHONE_67` or alias `iphone-67`). **Deferred (P3):** `metadata media download` (raw mzstatic CDN fetch)._
+
+### Wave 5 — Cookie-only (interactive, degrade-in-CI) flows — ✅ SHIPPED (`95dea8d7`)
 
 **Why:** genuinely useful but gated on Apple ID + 2FA; must return-null/instruct under `InteractiveMode`.
 
@@ -307,11 +311,15 @@ _Rough effort: ~1 L + several S/M. The biggest single piece is `app-store submit
 - `app-review list / view / reply / rejections` (Resolution Center; text-only) — wire a rejected `submit ios` to print the matching thread id + guideline codes.
 - `app-store apps create` standalone, App Clip bundle-id create, sandbox tester create.
 
-### Wave 6 — Raw-ASC, niche, or out-of-scope (build on explicit demand only)
+_Landed: `app-review list/view/rejections/reply` (threads anchored on `getInProgressReviewSubmissionAsync`, which covers the rejected `UNRESOLVED_ISSUES` state), `apple asc-key list`, `credentials revoke asc-key`, `app-store apps create`, `credentials bundle-id create [--app-clip]`, `apple sandbox list/create/delete`. Cookie session resolution lives in `application/asc-cookie-session.ts` and degrades with `InteractiveProhibitedError` (exit 4) in CI. `reply` posts text-only and rejects an empty body. The `App.createAsync` hint map was made to fire off `error.code` (shared `lib/apple-app-create-error.ts`)._
+
+### Wave 6 — Raw-ASC, niche, or out-of-scope (build on explicit demand only) — ✅ SHIPPED in part (`95dea8d7`)
 
 - **App Encryption Declarations** (`appEncryptionDeclarations`) — the _one_ raw-API capability worth doing (P1 fit): unblocks "Missing Compliance." Prefer injecting `ITSAppUsesNonExemptEncryption` at prebuild for most apps; raw API only for already-uploaded/non-exempt cases.
 - `app-store availability set` (raw `POST /v2/appAvailabilities`), sandbox renewal controls (raw `/v2`).
 - `app-store config push/pull` aggregator (convenience over Wave 1–2 granular commands).
+
+_Landed: `app-store availability set` (via the **deprecated-but-working** `App.updateAsync({ territories })` rather than a hand-rolled raw `/v2` POST — `--territories` replaces, `--add`/`--remove` read-modify-write, refuses an empty set), `app-store territories list`, and `app-store config pull/push` (per-locale version copy only, as a JSON document). **Not built (build on demand):** the full document-based **App Encryption Declaration** flow — not modeled in apple-utils@2.1.21 (raw-only); the exempt/non-exempt boolean already ships as Wave 3's `apple builds compliance`. Sandbox renewal / clear-history (raw `/v2`) also deferred._
 
 ---
 
