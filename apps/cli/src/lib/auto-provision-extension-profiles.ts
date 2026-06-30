@@ -1,6 +1,9 @@
 import { Effect } from "effect";
 
-import { generateAndUploadProvisioningProfile } from "./credentials-generator";
+import {
+  ascKeyRequestContext,
+  generateAndUploadProvisioningProfile,
+} from "./credentials-generator-apple";
 
 import type { ApiClient } from "../services/api-client";
 
@@ -43,8 +46,9 @@ export const autoProvisionExtensionProfile = (
   input: AutoProvisionExtensionProfileInput,
 ) =>
   Effect.gen(function* () {
+    const context = yield* ascKeyRequestContext(api, input.ascApiKeyId);
     const generated = yield* generateAndUploadProvisioningProfile(api, {
-      ascApiKeyId: input.ascApiKeyId,
+      context,
       distributionCertificateId: input.distributionCertificateId,
       bundleIdentifier: input.bundleIdentifier,
       distributionType: input.distributionType,

@@ -3,14 +3,14 @@ import { defineCommand } from "citty";
 import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
+import { CertificateLimitError, generateAndUploadKeystore } from "../../lib/credentials-generator";
 import {
-  CertificateLimitError,
+  ascKeyRequestContext,
   generateAndUploadDistributionCertificate,
-  generateAndUploadKeystore,
   generateAndUploadProvisioningProfile,
-  listAppleCertificates,
-  revokeAppleCertificate,
-} from "../../lib/credentials-generator";
+  listDistributionCerts,
+  revokeDistributionCert,
+} from "../../lib/credentials-generator-apple";
 import { uploadCredential } from "../../lib/credentials-manager";
 import { CredentialValidationError } from "../../lib/exit-codes";
 import { printHuman, printHumanKeyValue } from "../../lib/output";
@@ -20,12 +20,10 @@ import { ascKeyCommand } from "./generate-asc-key";
 import { merchantIdCommand } from "./generate-merchant-id";
 import { pushKeyCommand } from "./generate-push-key";
 
-import type { ApiClient } from "../../services/api-client";
-
 const GENERATE_EXIT_EXTRAS = {
   CredentialValidationError: 2,
   BuildFailedError: 6,
-  GenerateFailedError: 6,
+  AppleIdGenerateFailedError: 6,
   CertificateLimitError: 6,
 } as const;
 
@@ -160,16 +158,14 @@ const distributionCertificateCommand = defineCommand({
         const api = yield* apiClient;
         const certificateType =
           args.type === "development" ? "IOS_DEVELOPMENT" : "IOS_DISTRIBUTION";
-        yield* printHuman("Generating CSR and requesting certificate from Apple...");
+        yield* printHuman("Requesting a distribution certificate from Apple...");
 
-        const attempt = generateAndUploadDistributionCertificate(api, {
-          ascApiKeyId: args["asc-key-id"],
-          certificateType,
-        });
+        const context = yield* ascKeyRequestContext(api, args["asc-key-id"]);
+        const attempt = generateAndUploadDistributionCertificate(api, { context, certificateType });
 
         const created = yield* attempt.pipe(
           Effect.catchTag("CertificateLimitError", () =>
-            handleCertLimitInteractive(api, args["asc-key-id"], certificateType).pipe(
+            handleCertLimitInteractive(context, certificateType).pipe(
               Effect.flatMap(() => attempt),
             ),
           ),
@@ -189,14 +185,13 @@ const distributionCertificateCommand = defineCommand({
 });
 
 const handleCertLimitInteractive = (
-  api: ApiClient,
-  ascApiKeyId: string,
+  context: Parameters<typeof listDistributionCerts>[0],
   certificateType: "IOS_DISTRIBUTION" | "IOS_DEVELOPMENT",
 ) =>
   Effect.gen(function* () {
     yield* printHuman("");
     yield* printHuman("Apple reports the certificate limit was hit (max 3 distribution certs).");
-    const certs = yield* listAppleCertificates(api, { ascApiKeyId, certificateType });
+    const certs = yield* listDistributionCerts(context, certificateType);
     if (certs.length === 0) {
       return yield* new CertificateLimitError({
         message:
@@ -206,16 +201,14 @@ const handleCertLimitInteractive = (
     const toRevoke = yield* promptMultiSelect<string>(
       "Select one or more certificates to revoke before retrying",
       certs.map((entry) => ({
-        value: entry.id,
-        label: `${entry.serialNumber.slice(0, 12)}… (${entry.displayName ?? entry.certificateType}, exp ${entry.expirationDate.slice(0, 10)})`,
+        value: entry.developerPortalIdentifier,
+        label: `${entry.serialNumber.slice(0, 12)}… (${entry.displayName || entry.certificateType}, exp ${entry.expirationDate.slice(0, 10)})`,
       })),
       { required: true },
     );
-    yield* Effect.forEach(
-      toRevoke,
-      (id) => revokeAppleCertificate(api, { ascApiKeyId, developerPortalIdentifier: id }),
-      { concurrency: "inherit" },
-    );
+    yield* Effect.forEach(toRevoke, (id) => revokeDistributionCert(context, id), {
+      concurrency: "inherit",
+    });
     yield* printHuman(`Revoked ${toRevoke.length} certificate(s); retrying generation...`);
     return undefined;
   });
@@ -254,8 +247,9 @@ const provisioningProfileCommand = defineCommand({
       Effect.gen(function* () {
         const api = yield* apiClient;
         const deviceIds = parseDeviceIds(args["device-ids"]);
+        const context = yield* ascKeyRequestContext(api, args["asc-key-id"]);
         const created = yield* generateAndUploadProvisioningProfile(api, {
-          ascApiKeyId: args["asc-key-id"],
+          context,
           distributionCertificateId: args["cert-id"],
           bundleIdentifier: args.bundle,
           distributionType: args.distribution,

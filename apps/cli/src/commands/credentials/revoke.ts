@@ -3,8 +3,8 @@ import { Effect } from "effect";
 
 import { runEffect } from "../../lib/citty-effect";
 import { makeAppleTeamLabeler, pushKeyChoice } from "../../lib/credential-choices";
-import { revokeLocalDistributionCertificate } from "../../lib/credentials-generator";
 import { revokeLocalApnsKey } from "../../lib/credentials-generator-apns";
+import { revokeLocalDistributionCertificate } from "../../lib/credentials-generator-apple";
 import { CredentialValidationError } from "../../lib/exit-codes";
 import { printHuman, printHumanKeyValue } from "../../lib/output";
 import { promptSelect } from "../../lib/prompts";
@@ -15,7 +15,6 @@ import type { ApiClient } from "../../services/api-client";
 
 const REVOKE_EXIT_EXTRAS = {
   CredentialValidationError: 2,
-  GenerateFailedError: 6,
   AppleIdGenerateFailedError: 6,
   AppleAuthError: 4,
   InteractiveProhibitedError: 4,

@@ -23,6 +23,16 @@ export const messageOf = (cause: unknown): string =>
   cause instanceof Error ? cause.message : String(cause);
 
 /**
+ * Apple returns the same "current certificate already exists / pending request"
+ * wording whether the call came from a JWT ASC request or the Apple ID session,
+ * so cert-limit detection lives here, in the shared connect layer.
+ */
+const CERT_LIMIT_PATTERN = /already have a current.*certificate|pending certificate request/iu;
+
+export const isCertificateLimitMessage = (message: string): boolean =>
+  CERT_LIMIT_PATTERN.test(message);
+
+/**
  * Build a headless ASC `RequestContext` from a vault `.p8` key. The `Token`
  * signs ES256 JWTs on demand (apple-utils refreshes them); no `providerId`/
  * `teamId` is needed because the JWT's issuer selects the provider.

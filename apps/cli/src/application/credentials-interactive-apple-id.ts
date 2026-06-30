@@ -11,11 +11,11 @@ import {
 } from "../lib/credentials-generator-apns";
 import {
   AppleIdGenerateFailedError,
-  generateAndUploadDistributionCertificateViaAppleId,
-  generateAndUploadProvisioningProfileViaAppleId,
-  listDistributionCertsViaAppleId,
-  revokeDistributionCertViaAppleId,
-} from "../lib/credentials-generator-apple-id";
+  generateAndUploadDistributionCertificate,
+  generateAndUploadProvisioningProfile,
+  listDistributionCerts,
+  revokeDistributionCert,
+} from "../lib/credentials-generator-apple";
 import { CredentialValidationError } from "../lib/exit-codes";
 import { upsertIosBundleConfiguration } from "../lib/ios-bundle-config-upsert";
 import { promptMultiSelect, promptSelect } from "../lib/prompts";
@@ -55,7 +55,7 @@ const interactiveAppleIdCertLimitRecover = (ctx: RequestContext) =>
     yield* Console.log(
       "Apple reports the certificate limit was hit (max 3 distribution certs per team).",
     );
-    const certs = yield* listDistributionCertsViaAppleId(ctx, "IOS_DISTRIBUTION");
+    const certs = yield* listDistributionCerts(ctx, "IOS_DISTRIBUTION");
     if (certs.length === 0) {
       return yield* new AppleIdGenerateFailedError({
         step: "limit-recover",
@@ -71,7 +71,7 @@ const interactiveAppleIdCertLimitRecover = (ctx: RequestContext) =>
       })),
       { required: true },
     );
-    yield* Effect.forEach(toRevoke, (id) => revokeDistributionCertViaAppleId(ctx, id), {
+    yield* Effect.forEach(toRevoke, (id) => revokeDistributionCert(ctx, id), {
       concurrency: "inherit",
     });
     yield* Console.log(`Revoked ${toRevoke.length} certificate(s); retrying generation...`);
@@ -138,7 +138,7 @@ export const createApnsKeyViaAppleId = (api: ApiClient, name: string) =>
 const generateDistributionCertViaAppleIdInteractive = (api: ApiClient, ctx: RequestContext) =>
   Effect.gen(function* () {
     yield* Console.log("Generating distribution certificate via Apple ID...");
-    const generate = generateAndUploadDistributionCertificateViaAppleId(api, { context: ctx });
+    const generate = generateAndUploadDistributionCertificate(api, { context: ctx });
     return yield* generate.pipe(
       Effect.catchTag("CertificateLimitError", () =>
         interactiveAppleIdCertLimitRecover(ctx).pipe(Effect.flatMap(() => generate)),
@@ -197,7 +197,7 @@ export const setupIosViaAppleId = (api: ApiClient, input: AppleIdIosSetupInput) 
     const cert = yield* chooseDistributionCertViaAppleId(api, ctx, session.teamId);
     const distributionType = IOS_DISTRIBUTION_TO_TYPE[input.distribution];
     yield* Console.log("Generating provisioning profile via Apple ID...");
-    const profile = yield* generateAndUploadProvisioningProfileViaAppleId(api, {
+    const profile = yield* generateAndUploadProvisioningProfile(api, {
       context: ctx,
       distributionCertificateId: cert.id,
       bundleIdentifier: input.bundleIdentifier,
@@ -231,7 +231,7 @@ export const regenerateProvisioningProfileViaAppleId = (
     const auth = yield* AppleAuth;
     const session = yield* auth.ensureLoggedIn();
     yield* Console.log("Regenerating provisioning profile via Apple ID...");
-    const created = yield* generateAndUploadProvisioningProfileViaAppleId(api, {
+    const created = yield* generateAndUploadProvisioningProfile(api, {
       context: auth.buildRequestContext(session),
       distributionCertificateId: input.distributionCertificateId,
       bundleIdentifier: input.bundleIdentifier,

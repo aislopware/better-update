@@ -5,7 +5,7 @@ import { Effect } from "effect";
 
 import type { RequestContext } from "@expo/apple-utils";
 
-import { wrap } from "./credentials-generator-apple-id";
+import { wrap } from "./credentials-generator-apple";
 
 /**
  * Enable the Apple Pay capability on an App ID, registering the App ID first if

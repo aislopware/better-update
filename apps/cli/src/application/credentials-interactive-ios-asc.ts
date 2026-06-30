@@ -3,11 +3,12 @@ import { Console, Effect } from "effect";
 import { distributionCertChoice, makeAppleTeamLabeler } from "../lib/credential-choices";
 import { IOS_DISTRIBUTION_TO_TYPE } from "../lib/credentials-downloader";
 import {
+  ascKeyRequestContext,
   generateAndUploadDistributionCertificate,
   generateAndUploadProvisioningProfile,
-  listAppleCertificates,
-  revokeAppleCertificate,
-} from "../lib/credentials-generator";
+  listDistributionCerts,
+  revokeDistributionCert,
+} from "../lib/credentials-generator-apple";
 import { MissingCredentialsError } from "../lib/exit-codes";
 import { upsertIosBundleConfiguration } from "../lib/ios-bundle-config-upsert";
 import { promptConfirm, promptMultiSelect, promptSelect } from "../lib/prompts";
@@ -37,10 +38,8 @@ const interactiveCertLimitRecover = (api: ApiClient, ascApiKeyId: string) =>
     yield* Console.log(
       "Apple reports the certificate limit was hit (max 3 distribution certs per team).",
     );
-    const certs = yield* listAppleCertificates(api, {
-      ascApiKeyId,
-      certificateType: "IOS_DISTRIBUTION",
-    });
+    const context = yield* ascKeyRequestContext(api, ascApiKeyId);
+    const certs = yield* listDistributionCerts(context, "IOS_DISTRIBUTION");
     if (certs.length === 0) {
       return yield* new MissingCredentialsError({
         message:
@@ -51,16 +50,14 @@ const interactiveCertLimitRecover = (api: ApiClient, ascApiKeyId: string) =>
     const toRevoke = yield* promptMultiSelect<string>(
       "Select one or more certificates to revoke before retrying",
       certs.map((entry) => ({
-        value: entry.id,
-        label: `${entry.serialNumber.slice(0, 12)}… (${entry.displayName ?? entry.certificateType}, exp ${entry.expirationDate.slice(0, 10)})`,
+        value: entry.developerPortalIdentifier,
+        label: `${entry.serialNumber.slice(0, 12)}… (${entry.displayName || entry.certificateType}, exp ${entry.expirationDate.slice(0, 10)})`,
       })),
       { required: true },
     );
-    yield* Effect.forEach(
-      toRevoke,
-      (id) => revokeAppleCertificate(api, { ascApiKeyId, developerPortalIdentifier: id }),
-      { concurrency: "inherit" },
-    );
+    yield* Effect.forEach(toRevoke, (id) => revokeDistributionCert(context, id), {
+      concurrency: "inherit",
+    });
     yield* Console.log(`Revoked ${toRevoke.length} certificate(s); retrying generation...`);
     return undefined;
   });
@@ -79,8 +76,9 @@ const generateDistributionCertInteractive = (api: ApiClient) =>
       "Select an ASC API key to issue the certificate against",
       teamAscKeys.map((key) => ({ value: key.id, label: `${key.name} (${key.keyId})` })),
     );
-    yield* Console.log("Generating CSR and requesting certificate from Apple...");
-    const generate = generateAndUploadDistributionCertificate(api, { ascApiKeyId: ascKeyId });
+    yield* Console.log("Requesting a distribution certificate from Apple...");
+    const context = yield* ascKeyRequestContext(api, ascKeyId);
+    const generate = generateAndUploadDistributionCertificate(api, { context });
     return yield* generate.pipe(
       Effect.catchTag("CertificateLimitError", () =>
         interactiveCertLimitRecover(api, ascKeyId).pipe(Effect.flatMap(() => generate)),
@@ -160,8 +158,9 @@ const generateProvisioningProfileForBundle = (
 ) =>
   Effect.gen(function* () {
     yield* Console.log("Generating provisioning profile via App Store Connect API...");
+    const context = yield* ascKeyRequestContext(api, ctx.ascKeyId);
     const generated = yield* generateAndUploadProvisioningProfile(api, {
-      ascApiKeyId: ctx.ascKeyId,
+      context,
       distributionCertificateId: ctx.certId,
       bundleIdentifier: input.bundleIdentifier,
       distributionType: ctx.distributionType,

@@ -1,7 +1,10 @@
 import { Console, Effect } from "effect";
 
 import { makeAppleTeamLabeler, pushKeyChoice } from "../lib/credential-choices";
-import { generateAndUploadDistributionCertificate } from "../lib/credentials-generator";
+import {
+  ascKeyRequestContext,
+  generateAndUploadDistributionCertificate,
+} from "../lib/credentials-generator-apple";
 import { uploadCredential } from "../lib/credentials-manager";
 import { CredentialValidationError, MissingCredentialsError } from "../lib/exit-codes";
 import { printHuman, printKeyValue } from "../lib/output";
@@ -105,10 +108,9 @@ const generateNewIosDistributionCert = (ctx: WizardContext) =>
       "ASC API key to issue against",
       teamKeys.map((key) => ({ value: key.id, label: `${key.name} (${key.keyId})` })),
     );
-    yield* Console.log("Generating CSR and requesting certificate from Apple...");
-    const created = yield* generateAndUploadDistributionCertificate(ctx.api, {
-      ascApiKeyId: ascKeyId,
-    });
+    yield* Console.log("Requesting a distribution certificate from Apple...");
+    const context = yield* ascKeyRequestContext(ctx.api, ascKeyId);
+    const created = yield* generateAndUploadDistributionCertificate(ctx.api, { context });
     yield* Console.log("Distribution certificate generated.");
     yield* printKeyValue([
       ["ID", created.id],

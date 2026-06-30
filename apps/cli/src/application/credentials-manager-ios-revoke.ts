@@ -5,8 +5,8 @@ import {
   makeAppleTeamLabeler,
   pushKeyChoice,
 } from "../lib/credential-choices";
-import { revokeLocalDistributionCertificate } from "../lib/credentials-generator";
 import { revokeLocalApnsKey } from "../lib/credentials-generator-apns";
+import { revokeLocalDistributionCertificate } from "../lib/credentials-generator-apple";
 import { MissingCredentialsError } from "../lib/exit-codes";
 import { printKeyValue } from "../lib/output";
 import { promptConfirm, promptSelect } from "../lib/prompts";

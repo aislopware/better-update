@@ -1,14 +1,14 @@
+import AppleUtils from "@expo/apple-utils";
 import { defineCommand } from "citty";
 import { Effect, Either } from "effect";
 
-import { createDevice, listDevices } from "../../lib/apple-asc-client";
+import { buildTokenRequestContext, wrapConnect } from "../../lib/apple-asc-connect";
 import { fetchAscCredentials } from "../../lib/asc-credentials";
 import { runEffect } from "../../lib/citty-effect";
 import { InvalidArgumentError } from "../../lib/exit-codes";
 import { printHuman, printHumanKeyValue } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 
-import type { AscCredentials, AscDevice, AscError } from "../../lib/apple-asc-client";
 import type { ApiClient } from "../../services/api-client";
 
 type DeviceClass = "IPHONE" | "IPAD" | "MAC" | "UNKNOWN";
@@ -28,8 +28,19 @@ const APPLE_DEVICE_CLASS: Record<string, DeviceClass> = {
 const toDeviceClass = (raw: string | null): DeviceClass =>
   raw === null ? "UNKNOWN" : (APPLE_DEVICE_CLASS[raw] ?? "UNKNOWN");
 
-const ascErrorMessage = (error: AscError): string =>
-  error._tag === "AscApiError" ? error.message : `Apple request failed: ${String(error.cause)}`;
+interface AppleDevice {
+  readonly id: string;
+  readonly udid: string;
+  readonly name: string;
+  readonly deviceClass: string;
+}
+
+const toAppleDevice = (device: AppleUtils.Device): AppleDevice => ({
+  id: device.id,
+  udid: device.attributes.udid,
+  name: device.attributes.name,
+  deviceClass: device.attributes.deviceClass,
+});
 
 const LIST_LIMIT = 100;
 
@@ -144,35 +155,36 @@ export const syncDeviceCommand = defineCommand({
         const target = yield* resolveTarget(api, args);
 
         const creds = yield* fetchAscCredentials(api, target.ascApiKeyId);
-        const ascCreds: AscCredentials = {
-          keyId: creds.keyId,
-          issuerId: creds.issuerId,
-          p8Pem: creds.p8Pem,
-        };
+        const ctx = buildTokenRequestContext(creds);
 
-        const appleDevices = yield* listDevices(ascCreds);
+        const appleDevices = (yield* wrapConnect("apple-list-devices", async () =>
+          AppleUtils.Device.getAsync(ctx),
+        )).map(toAppleDevice);
         const local = yield* listAllLocalDevices(api, target.appleTeamId);
         const localUdids = new Set(local.map((device) => device.identifier.toLowerCase()));
 
         // PUSH: register devices that exist locally but not yet on Apple. Each
         // create is isolated so one rejection (e.g. a stale/invalid UDID) does
         // not abort the rest of the sync.
-        const pushed: AscDevice[] = [];
+        const pushed: AppleDevice[] = [];
         const pushFailures: { readonly identifier: string; readonly message: string }[] = [];
         if (args.push) {
           const appleUdids = new Set(appleDevices.map((device) => device.udid.toLowerCase()));
           const toPush = local.filter((device) => !appleUdids.has(device.identifier.toLowerCase()));
           for (const device of toPush) {
             const result = yield* Effect.either(
-              createDevice(ascCreds, { name: device.name, udid: device.identifier }),
+              wrapConnect("apple-create-device", async () =>
+                AppleUtils.Device.createAsync(ctx, {
+                  name: device.name,
+                  udid: device.identifier,
+                  platform: AppleUtils.BundleIdPlatform.IOS,
+                }),
+              ),
             );
             if (Either.isRight(result)) {
-              pushed.push(result.right);
+              pushed.push(toAppleDevice(result.right));
             } else {
-              pushFailures.push({
-                identifier: device.identifier,
-                message: ascErrorMessage(result.left),
-              });
+              pushFailures.push({ identifier: device.identifier, message: result.left.message });
             }
           }
         }

@@ -21,11 +21,11 @@ import {
   revokeLocalApnsKey,
 } from "./credentials-generator-apns";
 import {
-  generateAndUploadDistributionCertificateViaAppleId,
-  generateAndUploadProvisioningProfileViaAppleId,
-  listDistributionCertsViaAppleId,
-  revokeDistributionCertViaAppleId,
-} from "./credentials-generator-apple-id";
+  generateAndUploadDistributionCertificate,
+  generateAndUploadProvisioningProfile,
+  listDistributionCerts,
+  revokeDistributionCert,
+} from "./credentials-generator-apple";
 import { makeInteractiveModeLayer } from "./interactive-mode";
 
 import type { ApiClient } from "../services/api-client";
@@ -218,7 +218,7 @@ const apnsServiceList = [{ id: "U27F4V844T", name: "APNS", configurations: [] }]
 
 // ── tests ──────────────────────────────────────────────────────
 
-describe(generateAndUploadProvisioningProfileViaAppleId, () => {
+describe(generateAndUploadProvisioningProfile, () => {
   it.effect("APP_STORE: skips device collection and uses existing bundle id", () =>
     Effect.gen(function* () {
       mocks.certificateGetAsync.mockResolvedValue([
@@ -233,7 +233,7 @@ describe(generateAndUploadProvisioningProfileViaAppleId, () => {
       });
 
       const api = buildApi(yield* makeTestVault);
-      const result = yield* generateAndUploadProvisioningProfileViaAppleId(api, {
+      const result = yield* generateAndUploadProvisioningProfile(api, {
         context,
         distributionCertificateId: "cert-local-1",
         bundleIdentifier: "com.example.app",
@@ -241,6 +241,8 @@ describe(generateAndUploadProvisioningProfileViaAppleId, () => {
       });
 
       expect(result.id).toBe("profile-local-1");
+      // The raw .mobileprovision bytes are returned for inline install (build path).
+      expect(result.profileBase64).toBe(btoa("fake-profile"));
       expect(mocks.bundleIdFindAsync).toHaveBeenCalledTimes(1);
       expect(mocks.bundleIdCreateAsync).not.toHaveBeenCalled();
       expect(mocks.deviceGetAllIosAsync).not.toHaveBeenCalled();
@@ -268,7 +270,7 @@ describe(generateAndUploadProvisioningProfileViaAppleId, () => {
       });
 
       const api = buildApi(yield* makeTestVault);
-      yield* generateAndUploadProvisioningProfileViaAppleId(api, {
+      yield* generateAndUploadProvisioningProfile(api, {
         context,
         distributionCertificateId: "cert-local-1",
         bundleIdentifier: "com.example.app",
@@ -295,7 +297,7 @@ describe(generateAndUploadProvisioningProfileViaAppleId, () => {
 
       const api = buildApi(yield* makeTestVault);
       const exit = yield* Effect.exit(
-        generateAndUploadProvisioningProfileViaAppleId(api, {
+        generateAndUploadProvisioningProfile(api, {
           context,
           distributionCertificateId: "cert-local-1",
           bundleIdentifier: "com.example.app",
@@ -308,7 +310,7 @@ describe(generateAndUploadProvisioningProfileViaAppleId, () => {
   );
 });
 
-describe(generateAndUploadDistributionCertificateViaAppleId, () => {
+describe(generateAndUploadDistributionCertificate, () => {
   it.effect("maps Apple cert-limit message to CertificateLimitError", () =>
     Effect.gen(function* () {
       mocks.createCertAndP12Async.mockRejectedValue(
@@ -320,7 +322,7 @@ describe(generateAndUploadDistributionCertificateViaAppleId, () => {
       const vault = yield* makeTestVault;
       const api = buildApi(vault);
       const exit = yield* Effect.exit(
-        generateAndUploadDistributionCertificateViaAppleId(api, { context }),
+        generateAndUploadDistributionCertificate(api, { context }),
       ).pipe(Effect.provide(vaultLayer(vault.identity.privateKey)));
 
       expect(exit._tag).toBe("Failure");
@@ -338,7 +340,7 @@ describe(generateAndUploadDistributionCertificateViaAppleId, () => {
       const vault = yield* makeTestVault;
       const api = buildApi(vault);
       const exit = yield* Effect.exit(
-        generateAndUploadDistributionCertificateViaAppleId(api, { context }),
+        generateAndUploadDistributionCertificate(api, { context }),
       ).pipe(Effect.provide(vaultLayer(vault.identity.privateKey)));
 
       expect(exit._tag).toBe("Failure");
@@ -372,7 +374,7 @@ describe(generateAndUploadDistributionCertificateViaAppleId, () => {
 
       const vault = yield* makeTestVault;
       const api = buildApi(vault);
-      const result = yield* generateAndUploadDistributionCertificateViaAppleId(api, {
+      const result = yield* generateAndUploadDistributionCertificate(api, {
         context,
       }).pipe(Effect.provide(vaultLayer(vault.identity.privateKey)));
 
@@ -384,7 +386,7 @@ describe(generateAndUploadDistributionCertificateViaAppleId, () => {
   );
 });
 
-describe(listDistributionCertsViaAppleId, () => {
+describe(listDistributionCerts, () => {
   it.effect("maps Apple Certificate.getAsync items to summaries", () =>
     Effect.gen(function* () {
       mocks.certificateGetAsync.mockResolvedValue([
@@ -393,18 +395,20 @@ describe(listDistributionCertsViaAppleId, () => {
           attributes: {
             serialNumber: "ABC123",
             displayName: "iOS Distribution: Acme",
+            certificateType: "IOS_DISTRIBUTION",
             expirationDate: "2030-01-01T00:00:00.000+0000",
           },
         },
       ]);
 
-      const result = yield* listDistributionCertsViaAppleId(context, "IOS_DISTRIBUTION");
+      const result = yield* listDistributionCerts(context, "IOS_DISTRIBUTION");
 
       expect(result).toStrictEqual([
         {
           developerPortalIdentifier: "cert-asc-1",
           serialNumber: "ABC123",
           displayName: "iOS Distribution: Acme",
+          certificateType: "IOS_DISTRIBUTION",
           expirationDate: "2030-01-01T00:00:00.000+0000",
         },
       ]);
@@ -417,12 +421,12 @@ describe(listDistributionCertsViaAppleId, () => {
   );
 });
 
-describe(revokeDistributionCertViaAppleId, () => {
+describe(revokeDistributionCert, () => {
   it.effect("invokes Certificate.deleteAsync with the developer-portal id", () =>
     Effect.gen(function* () {
       mocks.certificateDeleteAsync.mockResolvedValue(undefined);
 
-      yield* revokeDistributionCertViaAppleId(context, "cert-asc-1");
+      yield* revokeDistributionCert(context, "cert-asc-1");
 
       expect(mocks.certificateDeleteAsync).toHaveBeenCalledTimes(1);
       const [, args] = mocks.certificateDeleteAsync.mock.calls[0] as [unknown, { id: string }];

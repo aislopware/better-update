@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 
-import { messageOf } from "../lib/credentials-generator-apple-id";
+import { messageOf } from "../lib/apple-asc-connect";
 import {
   defaultAscApiKeyNickname,
   generateAndUploadAscApiKeyViaAppleId,

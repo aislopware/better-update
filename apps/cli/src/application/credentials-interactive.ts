@@ -4,10 +4,11 @@ import { Console, Effect } from "effect";
 
 import { keystoreChoice } from "../lib/credential-choices";
 import { IOS_DISTRIBUTION_TO_TYPE } from "../lib/credentials-downloader";
+import { generateAndUploadKeystore } from "../lib/credentials-generator";
 import {
-  generateAndUploadKeystore,
+  ascKeyRequestContext,
   generateAndUploadProvisioningProfile,
-} from "../lib/credentials-generator";
+} from "../lib/credentials-generator-apple";
 import { MissingCredentialsError } from "../lib/exit-codes";
 import { InteractiveMode } from "../lib/interactive-mode";
 import { promptPassword, promptSelect, promptText } from "../lib/prompts";
@@ -274,8 +275,9 @@ export const regenerateProvisioningProfile = (api: ApiClient, input: IosSetupInp
       });
     }
     yield* Console.log("Regenerating provisioning profile via App Store Connect API...");
+    const context = yield* ascKeyRequestContext(api, config.ascApiKeyId);
     const created = yield* generateAndUploadProvisioningProfile(api, {
-      ascApiKeyId: config.ascApiKeyId,
+      context,
       distributionCertificateId: config.appleDistributionCertificateId,
       bundleIdentifier: input.bundleIdentifier,
       distributionType,

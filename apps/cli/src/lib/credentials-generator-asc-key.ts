@@ -11,7 +11,7 @@ import {
   sealForUpload,
   toUploadEnvelope,
 } from "../application/credential-cipher";
-import { AppleIdGenerateFailedError, messageOf, wrap } from "./credentials-generator-apple-id";
+import { AppleIdGenerateFailedError, messageOf, wrap } from "./credentials-generator-apple";
 
 import type { ApiClient } from "../services/api-client";
 

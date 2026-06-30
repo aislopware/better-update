@@ -1,3 +1,12 @@
+/**
+ * iOS signing-credential generation on `@expo/apple-utils`, parameterized by the
+ * App Store Connect `RequestContext`: a headless JWT `Token` context (built from a
+ * vault `.p8` via {@link buildTokenRequestContext}) or an interactive Apple ID
+ * cookie session (`AppleAuth.buildRequestContext`). Both drive the same entity
+ * managers — apple-utils routes to the public ASC API or the developer portal by
+ * which context is supplied. This is the single home for cert/bundle-id/device/
+ * profile generation; the JWT REST client it replaced is gone.
+ */
 import { fromBase64, toBase64 } from "@better-update/encoding";
 import { compact, toOptional } from "@better-update/type-guards";
 // @expo/apple-utils is ncc-bundled CJS; `import * as` only surfaces `default`/`module.exports`
@@ -11,10 +20,20 @@ import {
   sealForUpload,
   toUploadEnvelope,
 } from "../application/credential-cipher";
+import {
+  buildTokenRequestContext,
+  isCertificateLimitMessage,
+  messageOf,
+} from "./apple-asc-connect";
 import { extractMetadataFromP12, normalizeAppleSerial } from "./apple-cert-to-p12";
+import { fetchAscCredentials } from "./asc-credentials";
 import { CertificateLimitError, computeDeviceRosterHashHex } from "./credentials-generator";
 
 import type { ApiClient } from "../services/api-client";
+
+// Re-exported so Apple-ID-session generators (asc-key, apns, merchant) keep a single
+// import site for the shared error helpers.
+export { messageOf };
 
 type DistributionType = "APP_STORE" | "AD_HOC" | "DEVELOPMENT" | "ENTERPRISE";
 
@@ -37,49 +56,54 @@ export class AppleIdGenerateFailedError extends Data.TaggedError("AppleIdGenerat
   readonly message: string;
 }> {}
 
-// Mirrors apple-asc-client.isCertificateLimitError — Apple's portal returns the same wording
-// regardless of whether the request originated from an ASC API call or the Apple ID session.
-const CERT_LIMIT_PATTERN = /already have a current.*certificate|pending certificate request/iu;
-
-export const messageOf = (cause: unknown): string =>
-  cause instanceof Error ? cause.message : String(cause);
-
 export const wrap = <T>(step: string, run: () => Promise<T>) =>
   Effect.tryPromise({
     try: run,
     catch: (cause) => new AppleIdGenerateFailedError({ step, message: messageOf(cause) }),
   });
 
+/**
+ * Build a headless ASC `RequestContext` by decrypting a stored ASC `.p8` key.
+ * Used by the non-interactive (build/manager) callers that hold an `ascApiKeyId`
+ * rather than an Apple ID cookie session.
+ */
+export const ascKeyRequestContext = (api: ApiClient, ascApiKeyId: string) =>
+  fetchAscCredentials(api, ascApiKeyId).pipe(Effect.map(buildTokenRequestContext));
+
 const wrapCertificateCreate = <T>(run: () => Promise<T>) =>
   Effect.tryPromise({
     try: run,
     catch: (cause) => {
       const message = messageOf(cause);
-      if (CERT_LIMIT_PATTERN.test(message)) {
+      if (isCertificateLimitMessage(message)) {
         return new CertificateLimitError({ message });
       }
       return new AppleIdGenerateFailedError({ step: "apple-create-certificate", message });
     },
   });
 
-export interface GenerateCertificateViaAppleIdInput {
+const certificateTypeOf = (
+  certificateType: "IOS_DISTRIBUTION" | "IOS_DEVELOPMENT" | undefined,
+): AppleUtils.CertificateType =>
+  certificateType === "IOS_DEVELOPMENT"
+    ? AppleUtils.CertificateType.IOS_DEVELOPMENT
+    : AppleUtils.CertificateType.IOS_DISTRIBUTION;
+
+export interface GenerateCertificateInput {
   readonly context: AppleUtils.RequestContext;
   readonly certificateType?: "IOS_DISTRIBUTION" | "IOS_DEVELOPMENT";
 }
 
-export const generateAndUploadDistributionCertificateViaAppleId = (
+export const generateAndUploadDistributionCertificate = (
   api: ApiClient,
-  input: GenerateCertificateViaAppleIdInput,
+  input: GenerateCertificateInput,
 ) =>
   Effect.gen(function* () {
     const ctx = input.context;
-    const certificateType =
-      input.certificateType === "IOS_DEVELOPMENT"
-        ? AppleUtils.CertificateType.IOS_DEVELOPMENT
-        : AppleUtils.CertificateType.IOS_DISTRIBUTION;
-
     const result = yield* wrapCertificateCreate(async () =>
-      AppleUtils.createCertificateAndP12Async(ctx, { certificateType }),
+      AppleUtils.createCertificateAndP12Async(ctx, {
+        certificateType: certificateTypeOf(input.certificateType),
+      }),
     );
 
     const metadata = yield* extractMetadataFromP12({
@@ -129,24 +153,23 @@ export const generateAndUploadDistributionCertificateViaAppleId = (
     };
   });
 
-export interface AppleIdDistributionCertificateSummary {
+export interface DistributionCertificateSummary {
   readonly developerPortalIdentifier: string;
   readonly serialNumber: string;
   readonly displayName: string;
+  readonly certificateType: string;
   readonly expirationDate: string;
 }
 
-export const listDistributionCertsViaAppleId = (
+export const listDistributionCerts = (
   ctx: AppleUtils.RequestContext,
   certificateType: "IOS_DISTRIBUTION" | "IOS_DEVELOPMENT" = "IOS_DISTRIBUTION",
 ) =>
   Effect.gen(function* () {
-    const filter =
-      certificateType === "IOS_DEVELOPMENT"
-        ? AppleUtils.CertificateType.IOS_DEVELOPMENT
-        : AppleUtils.CertificateType.IOS_DISTRIBUTION;
     const certs = yield* wrap("apple-list-certificates", async () =>
-      AppleUtils.Certificate.getAsync(ctx, { query: { filter: { certificateType: filter } } }),
+      AppleUtils.Certificate.getAsync(ctx, {
+        query: { filter: { certificateType: certificateTypeOf(certificateType) } },
+      }),
     );
     return certs.map(
       (entry) =>
@@ -154,18 +177,99 @@ export const listDistributionCertsViaAppleId = (
           developerPortalIdentifier: entry.id,
           serialNumber: entry.attributes.serialNumber,
           displayName: entry.attributes.displayName,
+          certificateType: entry.attributes.certificateType,
           expirationDate: entry.attributes.expirationDate,
-        }) satisfies AppleIdDistributionCertificateSummary,
+        }) satisfies DistributionCertificateSummary,
     );
   });
 
-export const revokeDistributionCertViaAppleId = (
+export const revokeDistributionCert = (
   ctx: AppleUtils.RequestContext,
   developerPortalIdentifier: string,
 ) =>
   wrap("apple-revoke-certificate", async () =>
     AppleUtils.Certificate.deleteAsync(ctx, { id: developerPortalIdentifier }),
   );
+
+export interface RevokeLocalDistributionCertificateInput {
+  readonly ascApiKeyId: string;
+  readonly distributionCertificateId: string;
+  readonly keepLocal?: boolean;
+}
+
+export interface RevokeLocalDistributionCertificateResult {
+  readonly localId: string;
+  readonly serialNumber: string;
+  readonly revokedOnApple: boolean;
+  readonly deletedLocally: boolean;
+}
+
+/**
+ * Revoke the distribution certificate behind a stored row: match it on Apple by
+ * serial (across distribution + development), delete it there, and optionally
+ * delete the local row. Builds a headless Token context from the ASC key.
+ */
+export const revokeLocalDistributionCertificate = (
+  api: ApiClient,
+  input: RevokeLocalDistributionCertificateInput,
+) =>
+  Effect.gen(function* () {
+    const listing = yield* api.appleDistributionCertificates.list();
+    const local = listing.items.find((entry) => entry.id === input.distributionCertificateId);
+    if (local === undefined) {
+      return yield* new AppleIdGenerateFailedError({
+        step: "load-distribution-certificate",
+        message: `Distribution certificate ${input.distributionCertificateId} not found on this account`,
+      });
+    }
+
+    const creds = yield* fetchAscCredentials(api, input.ascApiKeyId);
+    const ctx = buildTokenRequestContext(creds);
+    const targetSerial = normalizeAppleSerial(local.serialNumber);
+
+    const matching = yield* Effect.all(
+      [
+        wrap("apple-list-certificates", async () =>
+          AppleUtils.Certificate.getAsync(ctx, {
+            query: { filter: { certificateType: AppleUtils.CertificateType.IOS_DISTRIBUTION } },
+          }),
+        ),
+        wrap("apple-list-certificates", async () =>
+          AppleUtils.Certificate.getAsync(ctx, {
+            query: { filter: { certificateType: AppleUtils.CertificateType.IOS_DEVELOPMENT } },
+          }),
+        ),
+      ],
+      { concurrency: 2 },
+    );
+
+    const ascMatch = [...matching[0], ...matching[1]].find(
+      (entry) => normalizeAppleSerial(entry.attributes.serialNumber) === targetSerial,
+    );
+
+    let revokedOnApple = false;
+    if (ascMatch !== undefined) {
+      yield* wrap("apple-revoke-certificate", async () =>
+        AppleUtils.Certificate.deleteAsync(ctx, { id: ascMatch.id }),
+      );
+      revokedOnApple = true;
+    }
+
+    let deletedLocally = false;
+    if (input.keepLocal !== true) {
+      yield* api.appleDistributionCertificates.delete({
+        path: { id: input.distributionCertificateId },
+      });
+      deletedLocally = true;
+    }
+
+    return {
+      localId: input.distributionCertificateId,
+      serialNumber: local.serialNumber,
+      revokedOnApple,
+      deletedLocally,
+    } satisfies RevokeLocalDistributionCertificateResult;
+  });
 
 const findOrCreateBundleId = (ctx: AppleUtils.RequestContext, bundleIdentifier: string) =>
   Effect.gen(function* () {
@@ -224,7 +328,7 @@ const collectIosDeviceIds = (
     return devices.filter((device) => allowed.has(device.id)).map((device) => device.id);
   });
 
-export interface GenerateProvisioningProfileViaAppleIdInput {
+export interface GenerateProvisioningProfileInput {
   readonly context: AppleUtils.RequestContext;
   readonly distributionCertificateId: string;
   readonly bundleIdentifier: string;
@@ -232,9 +336,9 @@ export interface GenerateProvisioningProfileViaAppleIdInput {
   readonly deviceIds?: readonly string[];
 }
 
-export const generateAndUploadProvisioningProfileViaAppleId = (
+export const generateAndUploadProvisioningProfile = (
   api: ApiClient,
-  input: GenerateProvisioningProfileViaAppleIdInput,
+  input: GenerateProvisioningProfileInput,
 ) =>
   Effect.gen(function* () {
     const ctx = input.context;
@@ -292,12 +396,12 @@ export const generateAndUploadProvisioningProfileViaAppleId = (
         message: "Apple returned a profile with no content (likely expired/invalid)",
       });
     }
-    const profileBytes = fromBase64(profileContent);
+    const profileBase64 = toBase64(fromBase64(profileContent));
     const rosterHash = useDevices ? computeDeviceRosterHashHex(deviceIds) : undefined;
 
     const created = yield* api.appleProvisioningProfiles.upload({
       payload: {
-        profileBase64: toBase64(profileBytes),
+        profileBase64,
         appleDistributionCertificateId: input.distributionCertificateId,
         isManaged: true,
         ...compact({ deviceRosterHash: rosterHash }),
@@ -311,5 +415,7 @@ export const generateAndUploadProvisioningProfileViaAppleId = (
       profileName: created.profileName,
       validUntil: created.validUntil,
       developerPortalIdentifier: created.developerPortalIdentifier,
+      /** Raw .mobileprovision bytes (base64) — callers can install without re-downloading. */
+      profileBase64,
     };
   });
