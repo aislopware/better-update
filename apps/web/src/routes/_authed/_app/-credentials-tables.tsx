@@ -327,7 +327,7 @@ export const AscApiKeysTable = ({
   <Table variant="card">
     <TableHeader>
       <TableRow>
-        <TableHead>Name</TableHead>
+        <TableHead>Identifier</TableHead>
         <TableHead>Key ID</TableHead>
         <TableHead>Issuer ID</TableHead>
         <TableHead>Team</TableHead>
