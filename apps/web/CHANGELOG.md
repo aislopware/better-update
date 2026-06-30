@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.48.0](https://github.com/better-update/better-update/compare/@better-update/web@0.47.1...@better-update/web@0.48.0) (2026-06-30)
+
+### Features
+
+* **web:** label ASC API key table first column "Identifier" ([8be300b](https://github.com/better-update/better-update/commit/8be300b257eb09beebaccad96961a94d804ca6df))
+
 ## [0.47.1](https://github.com/better-update/better-update/compare/@better-update/web@0.47.0...@better-update/web@0.47.1) (2026-06-29)
 
 ### Bug Fixes

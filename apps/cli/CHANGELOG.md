@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.47.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.46.1...@better-update/cli@0.47.0) (2026-06-30)
+
+### Features
+
+* **cli:** auto-create ASC app on submit + headless apple-utils TestFlight ([a0d0ae6](https://github.com/better-update/better-update/commit/a0d0ae6dc031d27dce97d255e42ff8e4e186482a))
+* **web:** label ASC API key table first column "Identifier" ([8be300b](https://github.com/better-update/better-update/commit/8be300b257eb09beebaccad96961a94d804ca6df))
+
 ## [0.46.1](https://github.com/better-update/better-update/compare/@better-update/cli@0.46.0...@better-update/cli@0.46.1) (2026-06-29)
 
 ### Bug Fixes
