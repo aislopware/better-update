@@ -5,10 +5,12 @@ import { readSubmitProfile } from "../lib/eas-json";
 import { printHuman } from "../lib/output";
 import { CliRuntime } from "../services/cli-runtime";
 import { runAndroidGooglePlayUpload } from "./android-play-submit";
+import { needsTestFlightConfig } from "./ios-testflight-config";
 import {
   createSubmissionViaApi,
   hasAppleAppSpecificPassword,
   pollSubmissionUntilTerminal,
+  resolveAscUploadCredentials,
   resolveIosUploadAuth,
   runIosSubmit,
 } from "./submit-flow";
@@ -100,25 +102,39 @@ export const runAutoSubmit = (input: AutoSubmitInput) =>
           "Skipping iOS upload: configure ascApiKeyId or set EXPO_APPLE_APP_SPECIFIC_PASSWORD (+ appleId).",
         );
       } else {
-        yield* printHuman(
-          auth.kind === "app-specific-password"
-            ? "Running xcrun altool upload (Apple ID app-specific password)..."
-            : "Running xcrun altool upload (ASC API key)...",
-        );
-        yield* runIosSubmit({
+        const groups = easProfile.ios?.groups ?? [];
+        const wantsConfig = needsTestFlightConfig({ whatToTest: input.whatToTest, groups });
+        const ascCredentials = yield* resolveAscUploadCredentials({
           api: input.api,
-          submissionId: submission.id,
-          archive: { source: "build", value: archiveUrl },
           auth,
           ascApiKeyId: easProfile.ios?.ascApiKeyId,
-          config: {
-            bundleIdentifier: iosConfig.bundleIdentifier,
-            ascAppId: easProfile.ios?.ascAppId,
-            language: easProfile.ios?.language,
-            whatToTest: input.whatToTest,
-            groups: easProfile.ios?.groups ?? [],
-          },
+          wantsConfig,
         });
+        if (auth.kind === "asc-api-key" && ascCredentials === null) {
+          yield* printHuman(
+            "Skipping iOS upload: the ASC API key could not be prepared for upload.",
+          );
+        } else {
+          yield* printHuman(
+            auth.kind === "app-specific-password"
+              ? "Running xcrun altool upload (Apple ID app-specific password)..."
+              : "Running xcrun altool upload (ASC API key)...",
+          );
+          yield* runIosSubmit({
+            api: input.api,
+            submissionId: submission.id,
+            archive: { source: "build", value: archiveUrl },
+            auth,
+            ascCredentials,
+            config: {
+              bundleIdentifier: iosConfig.bundleIdentifier,
+              ascAppId: easProfile.ios?.ascAppId,
+              language: easProfile.ios?.language,
+              whatToTest: input.whatToTest,
+              groups,
+            },
+          });
+        }
       }
     }
 

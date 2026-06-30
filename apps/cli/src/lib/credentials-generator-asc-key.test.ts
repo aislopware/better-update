@@ -191,11 +191,20 @@ describe(generateAndUploadAscApiKeyViaAppleId, () => {
       expect(createArgs.roles).toStrictEqual(["ADMIN"]);
       // E2E: the upload body carries the sealed envelope + public metadata, never the raw PEM.
       const [uploadArg] = mocks.ascApiKeysUpload.mock.calls[0] as [
-        { payload: { keyId: string; issuerId: string; appleTeamIdentifier: string } },
+        {
+          payload: {
+            keyId: string;
+            issuerId: string;
+            appleTeamIdentifier: string;
+            roles: string[];
+          };
+        },
       ];
       expect(uploadArg.payload.keyId).toBe("ASCKEY123");
       expect(uploadArg.payload.issuerId).toBe("issuer-uuid-1");
       expect(uploadArg.payload.appleTeamIdentifier).toBe("TEAM1234");
+      // The created role is persisted so the dashboard's Roles column is populated.
+      expect(uploadArg.payload.roles).toStrictEqual(["ADMIN"]);
       expect(JSON.stringify(uploadArg.payload)).not.toContain("BEGIN PRIVATE KEY");
       expect(recordedWrites).toHaveLength(0);
     }),

@@ -10,6 +10,7 @@ import { Duration, Effect, Schema } from "effect";
 
 import type { CreateSubmissionBody, Submission, SubmissionStatus } from "@better-update/api";
 
+import { messageOf } from "../lib/apple-asc-connect";
 import { fetchAscCredentials } from "../lib/asc-credentials";
 import { printHuman } from "../lib/output";
 import {
@@ -18,7 +19,7 @@ import {
   needsTestFlightConfig,
 } from "./ios-testflight-config";
 
-import type { AscCredentials } from "../lib/apple-asc-client";
+import type { AscCredentials } from "../lib/asc-credentials";
 import type { ApiClient } from "../services/api-client";
 
 type SubmissionItem = Submission;
@@ -297,8 +298,8 @@ interface IosSubmitInputs {
   readonly submissionId: string;
   readonly archive: ArchiveRef;
   readonly auth: IosUploadAuth;
-  /** ASC API key for post-upload TestFlight config; may differ from upload auth. */
-  readonly ascApiKeyId: string | undefined;
+  /** Decrypted ASC API key for the upload + TestFlight config; resolved by the caller. */
+  readonly ascCredentials: AscCredentials | null;
   readonly config: {
     readonly bundleIdentifier: string;
     readonly ascAppId: string | undefined;
@@ -308,16 +309,34 @@ interface IosSubmitInputs {
   };
 }
 
-const resolveAscCredentials = (api: ApiClient, ascApiKeyId: string) =>
-  fetchAscCredentials(api, ascApiKeyId).pipe(
-    Effect.mapError(
-      () =>
-        new CliSubmitError({
-          code: "SUBMISSION_ASC_KEY_FETCH_FAILED",
-          message: `Failed to fetch or decrypt ASC API key ${ascApiKeyId}`,
-        }),
-    ),
-  );
+/**
+ * Decrypt the ASC `.p8` once for a submit: needed for an asc-api-key upload, and
+ * for post-upload TestFlight config regardless of upload auth. Returns null when
+ * none is required or available; a decrypt failure logs a note and degrades to
+ * null so the caller can queue-and-instruct rather than crash.
+ */
+export const resolveAscUploadCredentials = (params: {
+  readonly api: ApiClient;
+  readonly auth: IosUploadAuth;
+  readonly ascApiKeyId: string | undefined;
+  readonly wantsConfig: boolean;
+}) =>
+  Effect.gen(function* () {
+    const credsKeyId =
+      params.auth.kind === "asc-api-key" ? params.auth.ascApiKeyId : params.ascApiKeyId;
+    const needsCreds = params.auth.kind === "asc-api-key" || params.wantsConfig;
+    if (!needsCreds || credsKeyId === undefined) {
+      return null;
+    }
+    return yield* fetchAscCredentials(params.api, credsKeyId).pipe(
+      Effect.map((creds) => ({ keyId: creds.keyId, issuerId: creds.issuerId, p8Pem: creds.p8Pem })),
+      Effect.catchAll((error) =>
+        printHuman(`Could not prepare ASC API key ${credsKeyId} (${messageOf(error)}).`).pipe(
+          Effect.as(null),
+        ),
+      ),
+    );
+  });
 
 /** `altool` reads the API key from `--apiKeyDir`; write the decrypted `.p8` there. */
 const writeP8ForAltool = (credentials: AscCredentials) =>
@@ -378,15 +397,10 @@ export const runIosSubmit = (inputs: IosSubmitInputs) =>
       whatToTest: inputs.config.whatToTest,
       groups: inputs.config.groups,
     });
-    // ASC credentials power the asc-api-key upload AND the TestFlight config.
-    // The app-specific-password upload needs none, but the config still does.
-    const credsKeyId =
-      inputs.auth.kind === "asc-api-key" ? inputs.auth.ascApiKeyId : inputs.ascApiKeyId;
-    const needsCreds = inputs.auth.kind === "asc-api-key" || wantsConfig;
-    const ascCredentials =
-      needsCreds && credsKeyId !== undefined
-        ? yield* resolveAscCredentials(inputs.api, credsKeyId)
-        : null;
+    // ASC credentials power the asc-api-key upload AND the TestFlight config; the
+    // command layer decrypts them once (avoiding a double vault prompt) and passes
+    // them in. Null for an app-specific-password upload with no config wanted.
+    const { ascCredentials } = inputs;
 
     const ipaPath = yield* resolveLocalArchivePath(inputs.archive, ".ipa");
 

@@ -3,15 +3,13 @@ import { Data, Effect } from "effect";
 
 import { pemToPkcs8Der } from "./apple-pem";
 
+import type { AscCredentials } from "./asc-credentials";
+
 export class AppleAuthError extends Data.TaggedError("AppleAuthError")<{
   readonly cause: unknown;
 }> {}
 
-export interface AscCredentials {
-  readonly keyId: string;
-  readonly issuerId: string;
-  readonly p8Pem: string;
-}
+export type { AscCredentials };
 
 const MAX_JWT_LIFETIME_SECONDS = 1200;
 

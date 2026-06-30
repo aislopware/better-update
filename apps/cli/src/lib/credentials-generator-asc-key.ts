@@ -178,7 +178,9 @@ export const generateAndUploadAscApiKeyViaAppleId = (
         secret: { p8Pem },
       });
       const created = yield* api.ascApiKeys.upload({
-        payload: { ...toUploadEnvelope(envelope), ...metadata },
+        // Persist the role we created the key with so the dashboard's Roles column
+        // reflects it (matches Apple's UserRole string: ADMIN / APP_MANAGER).
+        payload: { ...toUploadEnvelope(envelope), ...metadata, roles: [input.role] },
       });
       return { id: created.id, issuerId };
     });

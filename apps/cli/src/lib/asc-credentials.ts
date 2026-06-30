@@ -6,6 +6,18 @@ import { IdentityError } from "./exit-codes";
 import type { ApiClient } from "../services/api-client";
 
 /**
+ * The minimal App Store Connect API-key material needed to authenticate against
+ * Apple — the `.p8` PEM plus its key/issuer ids. {@link fetchAscCredentials}
+ * returns a superset (with the row id + team identifier); this is the shape the
+ * apple-utils JWT `Token` context and the Apple signer consume.
+ */
+export interface AscCredentials {
+  readonly keyId: string;
+  readonly issuerId: string;
+  readonly p8Pem: string;
+}
+
+/**
  * Fetch an ASC API key and decrypt its `.p8` PEM locally. The server is
  * zero-knowledge: `getCredentials` returns the encrypted envelope, so the CLI
  * unwraps it here before talking to Apple. The unlock passphrase is resolved

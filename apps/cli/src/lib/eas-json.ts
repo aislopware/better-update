@@ -81,10 +81,11 @@ export const writeEasJsonPatch = (
  * other submit profile and key. Used after auto-resolving/creating an ASC API
  * key during `submit` so the next run reuses it instead of creating another.
  */
-export const setSubmitProfileAscApiKeyId = (
+const setSubmitProfileIosField = (
   projectRoot: string,
   profileName: string,
-  ascApiKeyId: string,
+  key: "ascApiKeyId" | "ascAppId",
+  value: string,
 ): Effect.Effect<string, ProjectNotLinkedError, FileSystem.FileSystem> =>
   Effect.gen(function* () {
     const existing = (yield* readEasJsonRaw(projectRoot)) ?? {};
@@ -93,10 +94,29 @@ export const setSubmitProfileAscApiKeyId = (
     const ios = isRecord(profile["ios"]) ? profile["ios"] : {};
     const nextSubmit = {
       ...submit,
-      [profileName]: { ...profile, ios: { ...ios, ascApiKeyId } },
+      [profileName]: { ...profile, ios: { ...ios, [key]: value } },
     };
     return yield* writeEasJsonPatch(projectRoot, { submit: nextSubmit });
   });
+
+export const setSubmitProfileAscApiKeyId = (
+  projectRoot: string,
+  profileName: string,
+  ascApiKeyId: string,
+): Effect.Effect<string, ProjectNotLinkedError, FileSystem.FileSystem> =>
+  setSubmitProfileIosField(projectRoot, profileName, "ascApiKeyId", ascApiKeyId);
+
+/**
+ * Set `submit.<profileName>.ios.ascAppId` in `eas.json`, preserving every other
+ * submit profile and key. Used after auto-resolving/creating the App Store
+ * Connect app during `submit` so the next run reuses it instead of re-looking-up.
+ */
+export const setSubmitProfileAscAppId = (
+  projectRoot: string,
+  profileName: string,
+  ascAppId: string,
+): Effect.Effect<string, ProjectNotLinkedError, FileSystem.FileSystem> =>
+  setSubmitProfileIosField(projectRoot, profileName, "ascAppId", ascAppId);
 
 /**
  * Default `build` profiles scaffolded by `init` / `build configure`. Mirrors the

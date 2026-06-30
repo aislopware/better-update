@@ -14,6 +14,7 @@ import {
   readEasProjectType,
   readSubmitProfile,
   setSubmitProfileAscApiKeyId,
+  setSubmitProfileAscAppId,
   writeEasJsonPatch,
 } from "./eas-json";
 
@@ -215,6 +216,35 @@ describe(setSubmitProfileAscApiKeyId, () => {
       const profile = yield* readSubmitProfile(dir, "production");
       dispose();
       expect(profile.ios?.ascApiKeyId).toBe("asc-key-2");
+    }).pipe(Effect.provide(NodeContext.layer)),
+  );
+});
+
+describe(setSubmitProfileAscAppId, () => {
+  it.effect("sets ios.ascAppId while preserving the rest of eas.json", () =>
+    Effect.gen(function* () {
+      const { dir, dispose } = makeDir();
+      writeEas(dir, {
+        projectId: "proj-1",
+        submit: {
+          production: { ios: { ascApiKeyId: "asc-key-1" } },
+          preview: { ios: { ascAppId: "111" } },
+        },
+      });
+      yield* setSubmitProfileAscAppId(dir, "production", "6700000001");
+      const raw = JSON.parse(readFileSync(nodePath.join(dir, "eas.json"), "utf8")) as {
+        projectId?: string;
+        submit?: {
+          production?: { ios?: { ascAppId?: string; ascApiKeyId?: string } };
+          preview?: { ios?: { ascAppId?: string } };
+        };
+      };
+      dispose();
+      expect(raw.submit?.production?.ios?.ascAppId).toBe("6700000001");
+      // existing key + sibling profile + top-level keys survive
+      expect(raw.submit?.production?.ios?.ascApiKeyId).toBe("asc-key-1");
+      expect(raw.submit?.preview?.ios?.ascAppId).toBe("111");
+      expect(raw.projectId).toBe("proj-1");
     }).pipe(Effect.provide(NodeContext.layer)),
   );
 });

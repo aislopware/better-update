@@ -1,13 +1,16 @@
-import { compact } from "@better-update/type-guards";
+import { compact, toOptional } from "@better-update/type-guards";
 import { defineCommand } from "citty";
 import { Effect } from "effect";
 
 import { runAndroidGooglePlayUpload } from "../../application/android-play-submit";
+import { needsTestFlightConfig } from "../../application/ios-testflight-config";
+import { ensureAscAppForSubmit } from "../../application/submit-asc-app";
 import { ensureAscApiKeyForSubmit } from "../../application/submit-asc-key";
 import {
   createSubmissionViaApi,
   hasAppleAppSpecificPassword,
   pollSubmissionUntilTerminal,
+  resolveAscUploadCredentials,
   resolveIosUploadAuth,
   runIosSubmit,
 } from "../../application/submit-flow";
@@ -122,6 +125,107 @@ interface RunArgs {
   readonly wait: boolean;
 }
 
+/**
+ * Run the iOS upload branch: resolve upload auth (stored key, app-specific
+ * password, or an interactively-created ASC key), decrypt the `.p8` once, resolve
+ * (or create) the ASC app for TestFlight config, then upload via `altool`.
+ * Returns `false` when the submission was only queued (no client upload ran).
+ */
+const submitIosBranch = (params: {
+  readonly api: ApiClient;
+  readonly submissionId: string;
+  readonly projectRoot: string;
+  readonly profile: string;
+  readonly archive: RunArgs["archive"];
+  readonly whatToTest: string | undefined;
+  readonly iosProfile: EasIosSubmitProfile | undefined;
+  readonly iosConfig: { readonly bundleIdentifier: string };
+}) =>
+  Effect.gen(function* () {
+    const { api, iosProfile, iosConfig } = params;
+    // When nothing is configured, reuse a stored ASC key or offer to create one
+    // from the Apple ID session (interactive only) before falling back to queuing.
+    const auth =
+      resolveIosUploadAuth({
+        appleId: iosProfile?.appleId,
+        ascApiKeyId: iosProfile?.ascApiKeyId,
+        hasAppSpecificPassword: hasAppleAppSpecificPassword(),
+      }) ??
+      (yield* Effect.gen(function* () {
+        const resolvedKeyId = yield* ensureAscApiKeyForSubmit({
+          api,
+          projectRoot: params.projectRoot,
+          profileName: params.profile,
+        });
+        return resolvedKeyId === null
+          ? null
+          : ({ kind: "asc-api-key", ascApiKeyId: resolvedKeyId } as const);
+      }));
+    if (auth === null) {
+      yield* printHuman(
+        "iOS submission queued. Add ascApiKeyId to the eas.json submit profile, or set appleId + the EXPO_APPLE_APP_SPECIFIC_PASSWORD env var, to enable client-side altool upload.",
+      );
+      return false;
+    }
+
+    // Decrypt the ASC `.p8` once so the vault is unlocked a single time and the
+    // same creds drive both the app lookup and the upload.
+    const groups = iosProfile?.groups ?? [];
+    const wantsConfig = needsTestFlightConfig({ whatToTest: params.whatToTest, groups });
+    const ascCredentials = yield* resolveAscUploadCredentials({
+      api,
+      auth,
+      ascApiKeyId: iosProfile?.ascApiKeyId,
+      wantsConfig,
+    });
+    // An asc-api-key upload cannot proceed without the decrypted .p8.
+    if (auth.kind === "asc-api-key" && ascCredentials === null) {
+      yield* printHuman(
+        "iOS submission queued — the ASC API key could not be prepared for upload.",
+      );
+      return false;
+    }
+
+    // Resolve (and, with consent, create) the ASC app so TestFlight config has a
+    // target. Skipped when ascAppId is already set or no config is wanted.
+    let resolvedAscAppId = iosProfile?.ascAppId;
+    if (wantsConfig && resolvedAscAppId === undefined && ascCredentials !== null) {
+      resolvedAscAppId = toOptional(
+        yield* ensureAscAppForSubmit({
+          credentials: ascCredentials,
+          projectRoot: params.projectRoot,
+          profileName: params.profile,
+          bundleIdentifier: iosConfig.bundleIdentifier,
+          appName: iosProfile?.appName,
+          sku: iosProfile?.sku,
+          companyName: iosProfile?.companyName,
+          primaryLocale: iosProfile?.language,
+        }),
+      );
+    }
+
+    yield* printHuman(
+      auth.kind === "app-specific-password"
+        ? "Running xcrun altool upload (Apple ID app-specific password)..."
+        : "Running xcrun altool upload (ASC API key)...",
+    );
+    yield* runIosSubmit({
+      api,
+      submissionId: params.submissionId,
+      archive: { source: params.archive.archiveSource, value: params.archive.archiveUrl },
+      auth,
+      ascCredentials,
+      config: {
+        bundleIdentifier: iosConfig.bundleIdentifier,
+        ascAppId: resolvedAscAppId,
+        language: iosProfile?.language,
+        whatToTest: params.whatToTest,
+        groups,
+      },
+    });
+    return true;
+  });
+
 const runFlow = (api: ApiClient, projectId: string, args: RunArgs) =>
   Effect.gen(function* () {
     const iosConfig = buildIosCreatePayload(args.easProfile.ios, args.whatToTest);
@@ -140,50 +244,19 @@ const runFlow = (api: ApiClient, projectId: string, args: RunArgs) =>
     yield* printHuman(`Submission created: ${submission.id} (${submission.status})`);
 
     if (args.platform === "ios" && iosConfig !== undefined) {
-      const iosProfile = args.easProfile.ios;
-      // When nothing is configured, reuse a stored ASC key or offer to create one
-      // from the Apple ID session (interactive only) before falling back to queuing.
-      const auth =
-        resolveIosUploadAuth({
-          appleId: iosProfile?.appleId,
-          ascApiKeyId: iosProfile?.ascApiKeyId,
-          hasAppSpecificPassword: hasAppleAppSpecificPassword(),
-        }) ??
-        (yield* Effect.gen(function* () {
-          const resolvedKeyId = yield* ensureAscApiKeyForSubmit({
-            api,
-            projectRoot: args.projectRoot,
-            profileName: args.profile,
-          });
-          return resolvedKeyId === null
-            ? null
-            : ({ kind: "asc-api-key", ascApiKeyId: resolvedKeyId } as const);
-        }));
-      if (auth === null) {
-        yield* printHuman(
-          "iOS submission queued. Add ascApiKeyId to the eas.json submit profile, or set appleId + the EXPO_APPLE_APP_SPECIFIC_PASSWORD env var, to enable client-side altool upload.",
-        );
-        return submission;
-      }
-      yield* printHuman(
-        auth.kind === "app-specific-password"
-          ? "Running xcrun altool upload (Apple ID app-specific password)..."
-          : "Running xcrun altool upload (ASC API key)...",
-      );
-      yield* runIosSubmit({
+      const uploaded = yield* submitIosBranch({
         api,
         submissionId: submission.id,
-        archive: { source: args.archive.archiveSource, value: args.archive.archiveUrl },
-        auth,
-        ascApiKeyId: auth.kind === "asc-api-key" ? auth.ascApiKeyId : iosProfile?.ascApiKeyId,
-        config: {
-          bundleIdentifier: iosConfig.bundleIdentifier,
-          ascAppId: iosProfile?.ascAppId,
-          language: iosProfile?.language,
-          whatToTest: args.whatToTest,
-          groups: iosProfile?.groups ?? [],
-        },
+        projectRoot: args.projectRoot,
+        profile: args.profile,
+        archive: args.archive,
+        whatToTest: args.whatToTest,
+        iosProfile: args.easProfile.ios,
+        iosConfig,
       });
+      if (!uploaded) {
+        return submission;
+      }
     }
 
     if (args.platform === "android" && args.easProfile.android !== undefined) {

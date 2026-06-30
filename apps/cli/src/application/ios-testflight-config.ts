@@ -5,29 +5,19 @@
  * finish, then sets the build's "What to Test" text and assigns it to internal
  * TestFlight groups — the same follow-up `eas submit` performs server-side.
  *
- * Auth reuses the ASC **API key** already decrypted for the upload (no second
- * credential prompt). Failures surface as {@link TestFlightConfigError} so the
- * caller can mark the submission ERRORED with a precise reason.
+ * Auth reuses the ASC **API key** already decrypted for the upload via a headless
+ * `@expo/apple-utils` JWT context (no second credential prompt, no cookie login).
+ * Failures surface as {@link TestFlightConfigError} so the caller can mark the
+ * submission ERRORED with a precise reason.
  */
 import { toDbNull } from "@better-update/type-guards";
+import AppleUtils from "@expo/apple-utils";
 import { Data, Duration, Effect } from "effect";
 
-import {
-  addBuildToBetaGroups,
-  classifyProcessingState,
-  createBetaBuildLocalization,
-  getAppByBundleId,
-  listBetaGroups,
-  listBuildBetaLocalizations,
-  listRecentBuilds,
-  matchBetaGroupsByName,
-  pickNewBuild,
-  updateBetaBuildLocalization,
-} from "../lib/apple-asc-testflight";
+import { buildTokenRequestContext, wrapConnect } from "../lib/apple-asc-connect";
 import { printHuman } from "../lib/output";
 
-import type { AscCredentials, AscError } from "../lib/apple-asc-client";
-import type { AscBuild } from "../lib/apple-asc-testflight";
+import type { AscCredentials } from "../lib/asc-credentials";
 
 export class TestFlightConfigError extends Data.TaggedError("TestFlightConfigError")<{
   readonly code: string;
@@ -38,18 +28,61 @@ const DEFAULT_POLL_TIMEOUT_MS = 15 * 60_000;
 const DEFAULT_POLL_INTERVAL_MS = 30_000;
 const DEFAULT_LOCALE = "en-US";
 
-const ascErrorMessage = (error: AscError): string => {
-  if (error._tag === "AscApiError") {
-    return `App Store Connect API error ${String(error.status)}: ${error.message}`;
+/** Run an apple-utils call, mapping any failure to a coded {@link TestFlightConfigError}. */
+const call = <T>(code: string, step: string, run: () => Promise<T>) =>
+  wrapConnect(step, run).pipe(
+    Effect.mapError((error) => new TestFlightConfigError({ code, message: error.message })),
+  );
+
+/** Apple's build processing lifecycle. `valid` = ready for TestFlight config. */
+export type AscBuildProcessingState = "processing" | "valid" | "failed";
+
+/** Classify a raw `processingState`. Unknown/absent states stay `processing`
+ * so the poller keeps waiting rather than failing early. */
+export const classifyProcessingState = (state: string | null): AscBuildProcessingState => {
+  if (state === "VALID") {
+    return "valid";
   }
-  if (error._tag === "AscNetworkError") {
-    return `App Store Connect network error: ${String(error.cause)}`;
+  if (state === "FAILED" || state === "INVALID") {
+    return "failed";
   }
-  return `App Store Connect auth error: ${String(error.cause)}`;
+  return "processing";
 };
 
-const wrapAsc = (code: string) => (error: AscError) =>
-  new TestFlightConfigError({ code, message: ascErrorMessage(error) });
+/**
+ * Identify the build produced by *our* upload. `Build.getAsync` (sorted newest
+ * first) returns builds newest-first; the freshly-uploaded build is the newest
+ * one whose id differs from the baseline captured before upload. Comparing ids
+ * (not timestamps) avoids both clock-skew misses and matching a pre-existing build.
+ */
+export const pickNewBuild = <T extends { readonly id: string }>(
+  builds: readonly T[],
+  baselineLatestBuildId: string | null,
+): T | null => {
+  const [newest] = builds;
+  if (newest === undefined || newest.id === baselineLatestBuildId) {
+    return null;
+  }
+  return newest;
+};
+
+export const matchBetaGroupsByName = <T extends { readonly name: string }>(
+  groups: readonly T[],
+  names: readonly string[],
+): { readonly matched: readonly T[]; readonly missing: readonly string[] } => {
+  const byName = new Map(groups.map((group) => [group.name, group] as const));
+  const matched: T[] = [];
+  const missing: string[] = [];
+  for (const name of names) {
+    const group = byName.get(name);
+    if (group === undefined) {
+      missing.push(name);
+    } else {
+      matched.push(group);
+    }
+  }
+  return { matched, missing };
+};
 
 export interface TestFlightAppContext {
   readonly appId: string;
@@ -68,11 +101,12 @@ export const captureTestFlightContext = (params: {
   readonly bundleIdentifier: string;
 }): Effect.Effect<TestFlightAppContext, TestFlightConfigError> =>
   Effect.gen(function* () {
+    const ctx = buildTokenRequestContext(params.credentials);
     const appId =
       params.ascAppId ??
       (yield* Effect.gen(function* () {
-        const app = yield* getAppByBundleId(params.credentials, params.bundleIdentifier).pipe(
-          Effect.mapError(wrapAsc("TESTFLIGHT_APP_LOOKUP_FAILED")),
+        const app = yield* call("TESTFLIGHT_APP_LOOKUP_FAILED", "apple-find-app", async () =>
+          AppleUtils.App.findAsync(ctx, { bundleId: params.bundleIdentifier }),
         );
         if (app === null) {
           return yield* new TestFlightConfigError({
@@ -82,14 +116,16 @@ export const captureTestFlightContext = (params: {
         }
         return app.id;
       }));
-    const existing = yield* listRecentBuilds(params.credentials, appId, 1).pipe(
-      Effect.mapError(wrapAsc("TESTFLIGHT_LIST_BUILDS_FAILED")),
+    const existing = yield* call("TESTFLIGHT_LIST_BUILDS_FAILED", "apple-list-builds", async () =>
+      AppleUtils.Build.getAsync(ctx, {
+        query: { filter: { app: appId }, sort: "-uploadedDate", limit: 1 },
+      }),
     );
     return { appId, baselineLatestBuildId: toDbNull(existing[0]?.id) };
   });
 
 const pollForProcessedBuild = (params: {
-  readonly credentials: AscCredentials;
+  readonly ctx: AppleUtils.RequestContext;
   readonly context: TestFlightAppContext;
   readonly pollTimeoutMs: number;
   readonly pollIntervalMs: number;
@@ -97,7 +133,7 @@ const pollForProcessedBuild = (params: {
   Effect.gen(function* () {
     const deadline = Date.now() + params.pollTimeoutMs;
     const final = yield* Effect.iterate(
-      { build: null as AscBuild | null, attempt: 0 },
+      { build: null as AppleUtils.Build | null, attempt: 0 },
       {
         while: (state) => state.build === null,
         body: (state) =>
@@ -105,18 +141,25 @@ const pollForProcessedBuild = (params: {
             if (state.attempt > 0) {
               yield* Effect.sleep(Duration.millis(params.pollIntervalMs));
             }
-            const builds = yield* listRecentBuilds(
-              params.credentials,
-              params.context.appId,
-              20,
-            ).pipe(Effect.mapError(wrapAsc("TESTFLIGHT_LIST_BUILDS_FAILED")));
+            const builds = yield* call(
+              "TESTFLIGHT_LIST_BUILDS_FAILED",
+              "apple-list-builds",
+              async () =>
+                AppleUtils.Build.getAsync(params.ctx, {
+                  query: {
+                    filter: { app: params.context.appId },
+                    sort: "-uploadedDate",
+                    limit: 20,
+                  },
+                }),
+            );
             const candidate = pickNewBuild(builds, params.context.baselineLatestBuildId);
             if (candidate !== null) {
-              const processing = classifyProcessingState(candidate.processingState);
+              const processing = classifyProcessingState(candidate.attributes.processingState);
               if (processing === "failed") {
                 return yield* new TestFlightConfigError({
                   code: "TESTFLIGHT_BUILD_PROCESSING_FAILED",
-                  message: `App Store Connect rejected build ${candidate.version ?? candidate.id} during processing (state ${candidate.processingState ?? "unknown"}).`,
+                  message: `App Store Connect rejected build ${candidate.attributes.version} during processing (state ${candidate.attributes.processingState}).`,
                 });
               }
               if (processing === "valid") {
@@ -148,54 +191,53 @@ const pollForProcessedBuild = (params: {
   });
 
 const applyWhatToTest = (params: {
-  readonly credentials: AscCredentials;
-  readonly buildId: string;
+  readonly ctx: AppleUtils.RequestContext;
+  readonly build: AppleUtils.Build;
   readonly locale: string;
   readonly whatToTest: string;
 }) =>
   Effect.gen(function* () {
-    const localizations = yield* listBuildBetaLocalizations(
-      params.credentials,
-      params.buildId,
-    ).pipe(Effect.mapError(wrapAsc("TESTFLIGHT_LIST_LOCALIZATIONS_FAILED")));
-    const existing = localizations.find((loc) => loc.locale === params.locale);
-    yield* (
-      existing === undefined
-        ? createBetaBuildLocalization(params.credentials, {
-            buildId: params.buildId,
-            locale: params.locale,
-            whatsNew: params.whatToTest,
-          })
-        : updateBetaBuildLocalization(params.credentials, {
-            id: existing.id,
-            whatsNew: params.whatToTest,
-          })
-    ).pipe(Effect.mapError(wrapAsc("TESTFLIGHT_SET_WHAT_TO_TEST_FAILED")));
+    const localizations = yield* call(
+      "TESTFLIGHT_LIST_LOCALIZATIONS_FAILED",
+      "apple-list-localizations",
+      async () => params.build.getBetaBuildLocalizationsAsync(),
+    );
+    const existing = localizations.find((loc) => loc.attributes.locale === params.locale);
+    yield* call("TESTFLIGHT_SET_WHAT_TO_TEST_FAILED", "apple-set-what-to-test", async () => {
+      if (existing === undefined) {
+        const created = await AppleUtils.BetaBuildLocalization.createAsync(params.ctx, {
+          id: params.build.id,
+          locale: params.locale,
+        });
+        await created.updateAsync({ whatsNew: params.whatToTest });
+        return;
+      }
+      await existing.updateAsync({ whatsNew: params.whatToTest });
+    });
   });
 
 const applyGroups = (params: {
-  readonly credentials: AscCredentials;
+  readonly ctx: AppleUtils.RequestContext;
   readonly appId: string;
-  readonly buildId: string;
+  readonly build: AppleUtils.Build;
   readonly groups: readonly string[];
 }) =>
   Effect.gen(function* () {
-    const allGroups = yield* listBetaGroups(params.credentials, params.appId).pipe(
-      Effect.mapError(wrapAsc("TESTFLIGHT_LIST_GROUPS_FAILED")),
+    const allGroups = yield* call("TESTFLIGHT_LIST_GROUPS_FAILED", "apple-list-groups", async () =>
+      AppleUtils.BetaGroup.getAsync(params.ctx, { query: { filter: { app: params.appId } } }),
     );
-    const { matched, missing } = matchBetaGroupsByName(allGroups, params.groups);
+    const named = allGroups.map((group) => ({ id: group.id, name: group.attributes.name }));
+    const { matched, missing } = matchBetaGroupsByName(named, params.groups);
     if (missing.length > 0) {
-      const available = allGroups.map((group) => group.name).join(", ") || "(none)";
+      const available = named.map((group) => group.name).join(", ") || "(none)";
       return yield* new TestFlightConfigError({
         code: "TESTFLIGHT_GROUP_NOT_FOUND",
         message: `TestFlight group(s) not found: ${missing.join(", ")}. Available groups: ${available}.`,
       });
     }
-    yield* addBuildToBetaGroups(
-      params.credentials,
-      params.buildId,
-      matched.map((group) => group.id),
-    ).pipe(Effect.mapError(wrapAsc("TESTFLIGHT_ADD_TO_GROUPS_FAILED")));
+    yield* call("TESTFLIGHT_ADD_TO_GROUPS_FAILED", "apple-add-to-groups", async () =>
+      params.build.addBetaGroupsAsync({ betaGroups: matched.map((group) => group.id) }),
+    );
   });
 
 export interface ApplyTestFlightConfigInputs {
@@ -216,9 +258,10 @@ export const needsTestFlightConfig = (params: {
 
 export const applyTestFlightConfig = (inputs: ApplyTestFlightConfigInputs) =>
   Effect.gen(function* () {
+    const ctx = buildTokenRequestContext(inputs.credentials);
     yield* printHuman("Configuring TestFlight (waiting for build processing)...");
     const build = yield* pollForProcessedBuild({
-      credentials: inputs.credentials,
+      ctx,
       context: inputs.context,
       pollTimeoutMs: inputs.pollTimeoutMs ?? DEFAULT_POLL_TIMEOUT_MS,
       pollIntervalMs: inputs.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS,
@@ -226,23 +269,23 @@ export const applyTestFlightConfig = (inputs: ApplyTestFlightConfigInputs) =>
 
     if (inputs.whatToTest !== undefined) {
       yield* applyWhatToTest({
-        credentials: inputs.credentials,
-        buildId: build.id,
+        ctx,
+        build,
         locale: inputs.language ?? DEFAULT_LOCALE,
         whatToTest: inputs.whatToTest,
       });
-      yield* printHuman(`Set "What to Test" on build ${build.version ?? build.id}.`);
+      yield* printHuman(`Set "What to Test" on build ${build.attributes.version}.`);
     }
 
     if (inputs.groups.length > 0) {
       yield* applyGroups({
-        credentials: inputs.credentials,
+        ctx,
         appId: inputs.context.appId,
-        buildId: build.id,
+        build,
         groups: inputs.groups,
       });
       yield* printHuman(`Assigned build to TestFlight group(s): ${inputs.groups.join(", ")}.`);
     }
 
-    return { buildId: build.id, buildVersion: build.version };
+    return { buildId: build.id, buildVersion: build.attributes.version };
   });
