@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.47.5](https://github.com/better-update/better-update/compare/@better-update/cli@0.47.4...@better-update/cli@0.47.5) (2026-06-30)
+
+### Bug Fixes
+
+* **cli:** default stored ASC API key name to its App Store Connect nickname ([0175373](https://github.com/better-update/better-update/commit/01753730599ca22ec82fc745335319697940d7c6))
+
 ## [0.47.4](https://github.com/better-update/better-update/compare/@better-update/cli@0.47.3...@better-update/cli@0.47.4) (2026-06-30)
 
 ### Bug Fixes

@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.48.1](https://github.com/better-update/better-update/compare/@better-update/web@0.48.0...@better-update/web@0.48.1) (2026-06-30)
+
+### Bug Fixes
+
+* **web:** truncate long submission error in the list ([ac0895e](https://github.com/better-update/better-update/commit/ac0895eb557f8f68ba28671a01de345848b6c95e))
+
 ## [0.48.0](https://github.com/better-update/better-update/compare/@better-update/web@0.47.1...@better-update/web@0.48.0) (2026-06-30)
 
 ### Features
