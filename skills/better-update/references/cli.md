@@ -460,6 +460,15 @@ already has, since Apple caps keys per team and a key's `.p8` downloads only onc
 written back to the submit profile in `eas.json` so future runs reuse it. Non-interactive/CI runs with
 nothing configured just queue the submission and print how to add a key.
 
+**TestFlight config + app auto-create.** When `--what-to-test` or submit-profile `groups` are set,
+`submit` configures the build on TestFlight after upload (sets "What to Test", assigns beta groups).
+This needs the App Store Connect app to exist: `submit` resolves it by the profile's `ascAppId`, else
+looks it up by bundle id (headless, via the ASC key), and — if it still doesn't exist and the terminal
+is interactive — offers to create it from your Apple ID (`App.createAsync`: name from the submit
+profile's `appName` or a prompt, SKU = bundle id, locale en-US). The resolved `ascAppId` is written back
+to `eas.json`. The bundle id must already be registered in your Apple Developer account (a build or
+`credentials` run does this). Non-interactive runs with no resolvable app skip config with guidance.
+
 ## devices
 
 Apple device registration (UDIDs) for ad-hoc / development provisioning.
