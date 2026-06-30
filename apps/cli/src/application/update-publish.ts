@@ -8,16 +8,12 @@ import type { CommandExecutor } from "@effect/platform";
 
 import { pullEnvVars } from "../lib/env-exporter";
 import { UpdatePublishError } from "../lib/exit-codes";
-import {
-  extractCodeSigningConfig,
-  extractProjectId,
-  extractSlug,
-  readExpoConfig,
-} from "../lib/expo-config";
+import { extractCodeSigningConfig, extractSlug, readExpoConfig } from "../lib/expo-config";
 import { readExpoPublicConfig } from "../lib/expo-export";
 import { formatCause } from "../lib/format-error";
 import { readGitContext } from "../lib/git-context";
 import { InteractiveMode } from "../lib/interactive-mode";
+import { readProjectId } from "../lib/project-link";
 import { ensureRepoClean } from "../lib/repo-clean";
 import { loadSignedPublishPayloads } from "../lib/signed-payloads";
 import { acquireBuildTempDir } from "../lib/temp-dir";
@@ -197,8 +193,13 @@ export const runUpdatePublish = (
         label: "update publish",
       });
 
-      const baseConfig = yield* readExpoConfig(projectRoot);
-      const projectId = yield* extractProjectId(baseConfig);
+      // Resolve the project id WITHOUT evaluating app.config first: prefer the
+      // BETTER_UPDATE_PROJECT_ID env / eas.json link (same precedence as every
+      // other command) so we can pull env vars BEFORE the first — and only —
+      // app.config evaluation below. Evaluating the Expo config against a bare
+      // process.env emitted spurious "Missing environment variables" warnings
+      // for vars that actually live in the server-side env scope.
+      const projectId = yield* readProjectId;
 
       const environmentVars = yield* pullEnvVars(api, {
         projectId,
