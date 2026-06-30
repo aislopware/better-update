@@ -96,7 +96,14 @@ const columns: readonly ColumnDef<SubmissionItem>[] = [
       <div className="flex min-w-0 flex-col gap-0.5">
         <span className="truncate font-medium">{row.original.profileName}</span>
         {row.original.status === "ERRORED" && row.original.errorMessage ? (
-          <span className="text-destructive truncate text-xs">{row.original.errorMessage}</span>
+          // Cap the width so a long failure reason truncates to one short line here;
+          // the full message is shown on the submission detail page.
+          <span
+            className="text-destructive max-w-[28rem] truncate text-xs"
+            title={row.original.errorMessage}
+          >
+            {row.original.errorMessage}
+          </span>
         ) : null}
       </div>
     ),
