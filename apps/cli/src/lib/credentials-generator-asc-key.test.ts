@@ -178,7 +178,9 @@ describe(generateAndUploadAscApiKeyViaAppleId, () => {
         id: "asc-local-1",
         keyId: "ASCKEY123",
         issuerId: "issuer-uuid-1",
-        name: "ASCKEY123",
+        // No explicit name → the stored row's name defaults to the ASC nickname,
+        // not the opaque key id.
+        name: "[better-update] x",
         role: "ADMIN",
       });
       // createAsync gets the EAS-shaped attributes.

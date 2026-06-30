@@ -109,7 +109,7 @@ export interface GenerateAscApiKeyViaAppleIdInput {
   /** Nickname shown in App Store Connect. */
   readonly nickname: string;
   readonly role: AscApiKeyRole;
-  /** Display name for the stored credential row; defaults to the Apple key id. */
+  /** Display name for the stored credential row; defaults to the App Store Connect nickname. */
   readonly name?: string;
 }
 
@@ -145,7 +145,10 @@ export const generateAndUploadAscApiKeyViaAppleId = (
 
     // One-shot download — Apple burns `canDownload` after the first successful fetch.
     const p8Pem = yield* downloadAscKeyWithRetry(key);
-    const displayName = input.name ?? key.id;
+    // Default the stored row's name to the App Store Connect nickname
+    // (e.g. "[better-update] mc8x…") rather than the opaque key id, so the
+    // dashboard Identifier column reads like the key's name in App Store Connect.
+    const displayName = input.name ?? clampAscApiKeyNickname(input.nickname);
 
     // Everything past the one-shot download (issuer lookup, vault unlock, seal,
     // upload) failing leaves an orphaned key on Apple that can never be re-downloaded.
