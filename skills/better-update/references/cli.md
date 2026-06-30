@@ -477,19 +477,53 @@ build or `credentials` run does this). Non-interactive runs with no resolvable a
 
 ## testflight
 
-Manage TestFlight beta groups directly on App Store Connect — **headless and CI-safe**: every command
+Manage the TestFlight beta lifecycle directly on App Store Connect — **headless and CI-safe**: every command
 authenticates with a stored ASC API key (`.p8`, signed into a JWT), never a cookie session.
 
 ```bash
+# Beta groups
 better-update testflight group list                                        # list beta groups for the app
 better-update testflight group create --name "QA" [--no-internal] \         # create a group (internal by default)
   [--public-link] [--public-link-limit <1-10000>]
 better-update testflight group delete (--id <id> | --name <name>)          # delete a group
+better-update testflight group add-build (--build <id> | --build-version <n>) \   # assign a build to a group
+  (--group <name> | --group-id <id>)
+
+# Testers
+better-update testflight tester list [--group <name> | --group-id <id>]    # all testers, or one group's
+better-update testflight tester add --email <e> [--first-name <f>] [--last-name <l>] \
+  (--group <name> | --group-id <id>) [--invite]                            # add one tester (+ optional invite email)
+better-update testflight tester import --from <file|json> \                # bulk-import [{email,firstName,lastName}]
+  (--group <name> | --group-id <id>)
+better-update testflight tester remove --email <e> \
+  ((--group <name> | --group-id <id>) | --delete)                          # remove from a group, or --delete entirely
+
+# External beta review (a build moves through Apple's beta app review)
+better-update testflight review submit  (--build <id> | --build-version <n>)   # submit a build for beta review
+better-update testflight review status  (--build <id> | --build-version <n>)
+better-update testflight review withdraw (--build <id> | --build-version <n>)
+better-update testflight review set-detail [--contact-email <e>] [--contact-first-name <f>] \
+  [--contact-last-name <l>] [--contact-phone <p>] [--demo-account-name <n>] \
+  [--demo-account-password <pw>] [--demo-required true|false] [--notes <text>]   # app-level review contact + demo
+
+# Build "What to Test"
+better-update testflight build whats-new (--build <id> | --build-version <n>) \
+  [--locale en-US] (--whats-new <text> | --text-file <path>)
 ```
 
 `testflight group create` is the unblocker for `submit ios`, which hard-fails (`TESTFLIGHT_GROUP_NOT_FOUND`)
 when the submit profile names a group that does not exist yet. Internal groups (`--internal`, the default)
 admit only App Store Connect users; `--no-internal` makes an external group (public testers, needs beta review).
+
+- **`tester import`** is partial-success aware: Apple returns a per-tester result (`ASSIGNED` / `FAILED` /
+  `NOT_QUALIFIED_FOR_INTERNAL_GROUP`), surfaced row-by-row instead of failing the whole batch. `firstName` and
+  `lastName` are required for every row (Apple's bulk endpoint requires them).
+- **`tester remove`** removes a tester from a single group by default; `--delete` removes the tester account
+  entirely (from every group + the app).
+- **`review set-detail`** demo password: pass `--demo-account-password`, or set `BETTER_UPDATE_DEMO_ACCOUNT_PASSWORD`
+  to keep it out of shell history. It is never echoed.
+- A **build** is selected by `--build <ascBuildId>` or `--build-version <CFBundleVersion>` (the build number); the
+  latter resolves the uploaded build for the app.
 
 ### Shared App Store Connect resolution (testflight + app-store)
 
@@ -524,10 +558,34 @@ better-update app-store version localize --locale en-US \
 # Review pipeline
 better-update app-store status        # editable / in-review / pending-release / live slots + review submission
 better-update app-store submit        # submit the editable version for App Review (idempotent)
+better-update app-store cancel        # cancel the in-progress review submission
 better-update app-store release        # release a version that is "Pending Developer Release"
+better-update app-store reject        # developer-reject the in-review version, pulling it back from review
+better-update app-store review-detail set [--contact-email <e>] [--contact-first-name <f>] \
+  [--contact-last-name <l>] [--contact-phone <p>] [--demo-account-name <n>] \
+  [--demo-account-password <pw>] [--demo-required true|false] [--notes <text>]
 
 # Phased (staged) release
 better-update app-store rollout start | status | pause | resume | complete
+
+# Store listing metadata (App Info) + categories
+better-update app-store info show
+better-update app-store info localize --locale en-US [--name <n>] [--subtitle <s>] \
+  [--privacy-policy-url <url>] [--privacy-choices-url <url>] [--privacy-policy-text <text>]
+better-update app-store info set-categories [--primary <ID>] [--secondary <ID>] \
+  [--primary-subcategory-1 <ID>] [--primary-subcategory-2 <ID>] \
+  [--secondary-subcategory-1 <ID>] [--secondary-subcategory-2 <ID>]
+better-update app-store categories list [--platform IOS|MAC_OS|UNIVERSAL|SERVICES]
+
+# Age rating (authored from a JSON document)
+better-update app-store age-rating get
+better-update app-store age-rating set --from <file|json>
+
+# App Privacy nutrition label (declarative)
+better-update app-store privacy get
+better-update app-store privacy set --from <file|json>    # array of { category, protection?, purpose? }
+better-update app-store privacy publish                    # make the label public
+better-update app-store privacy clear                      # delete every declared usage
 ```
 
 - **`version create`** uses `App.ensureVersionAsync` — idempotent (creates the editable version or renames
@@ -537,9 +595,17 @@ better-update app-store rollout start | status | pause | resume | complete
   when an approved version ships.
 - **`submit`** is idempotent: if a review submission is already in progress it is reported, not duplicated
   (Apple allows one in-flight submission per app). Requires an editable version with a build attached.
+  **`cancel`** undoes it; **`reject`** developer-rejects the in-review version (gated on Apple's `canReject`).
 - **`release`** only works on a version in "Pending Developer Release" (approved + set to manual release).
 - **`rollout`** targets the version awaiting release › live › editable, in that order. `start` enables a
   7-day phased release; `complete` releases to 100% immediately.
+- **`info`** is the store-listing metadata (store name/subtitle/privacy URL/categories) on `AppInfo` — distinct
+  from `version localize`, which is the per-version copy (release notes/description/keywords). Category ids come
+  from `app-store categories list`.
+- **`age-rating set`** and **`privacy set`** are authored from a JSON document (`--from <file>` or inline JSON),
+  not a flag matrix. `privacy set` replaces all declarations, then `privacy publish` makes the label public.
+  `review-detail set` sources the demo password from `--demo-account-password` or
+  `BETTER_UPDATE_DEMO_ACCOUNT_PASSWORD` (never echoed).
 
 ## devices
 

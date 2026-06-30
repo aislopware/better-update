@@ -68,6 +68,18 @@ export const ASC_COMMON_ARGS = {
   },
 } as const;
 
+/**
+ * Citty args for selecting an uploaded ASC build by id or CFBundleVersion. Spread
+ * into TestFlight leaves that act on a build; resolve with `resolveBuild`.
+ */
+export const BUILD_SELECTOR_ARGS = {
+  build: { type: "string", description: "ASC build id" },
+  "build-version": {
+    type: "string",
+    description: "Uploaded build's CFBundleVersion (build number)",
+  },
+} as const;
+
 /** The parsed shape of {@link ASC_COMMON_ARGS} a leaf passes to {@link openAscSession}. */
 export interface AscCommonArgs {
   readonly profile: string;
@@ -147,6 +159,124 @@ export const normalizeReleaseType = (
   }
   return Effect.succeed(releaseType);
 };
+
+/**
+ * Validate `raw` against the member values of a string-enum object (read off the
+ * apple-utils default import, e.g. `AppleUtils.AppCategoryId`) and return it typed
+ * as that enum member. Pin the member type at the call site:
+ * `coerceEnum<AppleUtils.AppCategoryId>(AppleUtils.AppCategoryId, raw, "category")`.
+ * Used by the metadata commands that take an enum-id flag.
+ */
+export const coerceEnum = <V extends string>(
+  enumObject: object,
+  raw: string,
+  label: string,
+): Effect.Effect<V, InvalidArgumentError> => {
+  // `Object.values` on a string-enum object yields its member-value strings.
+  // eslint-disable-next-line typescript/no-unsafe-type-assertion -- string enum: every member value is a string
+  const values = Object.values(enumObject) as string[];
+  if (!values.includes(raw)) {
+    return Effect.fail(
+      new InvalidArgumentError({
+        message: `Unknown ${label} "${raw}". Valid values: ${values.join(", ")}.`,
+      }),
+    );
+  }
+  // eslint-disable-next-line typescript/no-unsafe-type-assertion -- raw was just validated to be one of the enum's member values
+  return Effect.succeed(raw as V);
+};
+
+/** Parse an optional `true`/`false` string flag into a tri-state boolean (undefined = leave as-is). */
+export const parseBooleanFlag = (
+  raw: string | undefined,
+  flag: string,
+): Effect.Effect<boolean | undefined, InvalidArgumentError> => {
+  if (raw === undefined) {
+    return Effect.succeed(undefined);
+  }
+  const normalized = raw.trim().toLowerCase();
+  if (normalized === "true") {
+    return Effect.succeed(true);
+  }
+  if (normalized === "false") {
+    return Effect.succeed(false);
+  }
+  return Effect.fail(
+    new InvalidArgumentError({ message: `${flag} must be true or false, got "${raw}".` }),
+  );
+};
+
+/** Env var the App Review demo-account password is sourced from when no flag is passed. */
+const DEMO_PASSWORD_ENV = "BETTER_UPDATE_DEMO_ACCOUNT_PASSWORD";
+
+/**
+ * Shared citty args for an App Review / beta review detail (contact + demo
+ * account). Used by `app-store review-detail set` and `testflight review
+ * set-detail`. Parse with {@link resolveReviewDetailInput}.
+ */
+export const REVIEW_DETAIL_ARGS = {
+  "contact-email": { type: "string", description: "Review contact email" },
+  "contact-first-name": { type: "string", description: "Review contact first name" },
+  "contact-last-name": { type: "string", description: "Review contact last name" },
+  "contact-phone": { type: "string", description: "Review contact phone number" },
+  "demo-account-name": { type: "string", description: "Demo account username for App Review" },
+  "demo-account-password": {
+    type: "string",
+    description: `Demo account password (or set ${DEMO_PASSWORD_ENV} to avoid shell history)`,
+  },
+  "demo-required": {
+    type: "string",
+    description: "Whether a demo account is required: true or false",
+  },
+  notes: { type: "string", description: "Notes for the reviewer" },
+} as const;
+
+/** The parsed shape of {@link REVIEW_DETAIL_ARGS}. */
+export interface ReviewDetailArgs {
+  readonly "contact-email"?: string | undefined;
+  readonly "contact-first-name"?: string | undefined;
+  readonly "contact-last-name"?: string | undefined;
+  readonly "contact-phone"?: string | undefined;
+  readonly "demo-account-name"?: string | undefined;
+  readonly "demo-account-password"?: string | undefined;
+  readonly "demo-required"?: string | undefined;
+  readonly notes?: string | undefined;
+}
+
+/** The normalized review-detail attributes both review-detail leaves write. */
+export interface ReviewDetailInput {
+  readonly contactEmail?: string;
+  readonly contactFirstName?: string;
+  readonly contactLastName?: string;
+  readonly contactPhone?: string;
+  readonly demoAccountName?: string;
+  readonly demoAccountPassword?: string;
+  readonly demoAccountRequired?: boolean;
+  readonly notes?: string;
+}
+
+/**
+ * Build the review-detail attributes from flags, sourcing the demo password from
+ * {@link DEMO_PASSWORD_ENV} when no `--demo-account-password` is passed. The
+ * password is never echoed. Only provided fields are included.
+ */
+export const resolveReviewDetailInput = (
+  args: ReviewDetailArgs,
+): Effect.Effect<ReviewDetailInput, InvalidArgumentError> =>
+  Effect.gen(function* () {
+    const demoAccountRequired = yield* parseBooleanFlag(args["demo-required"], "--demo-required");
+    const demoAccountPassword = args["demo-account-password"] ?? process.env[DEMO_PASSWORD_ENV];
+    return compact({
+      contactEmail: args["contact-email"],
+      contactFirstName: args["contact-first-name"],
+      contactLastName: args["contact-last-name"],
+      contactPhone: args["contact-phone"],
+      demoAccountName: args["demo-account-name"],
+      demoAccountPassword,
+      demoAccountRequired,
+      notes: args.notes,
+    });
+  });
 
 interface ResolveAscSessionInput {
   readonly api: ApiClient;

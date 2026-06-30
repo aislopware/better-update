@@ -1,6 +1,13 @@
 import { defineCommand } from "citty";
 
+import { appStoreAgeRatingCommand } from "./age-rating";
+import { appStoreCancelCommand } from "./cancel";
+import { appStoreCategoriesCommand } from "./categories";
+import { appStoreInfoCommand } from "./info";
+import { appStorePrivacyCommand } from "./privacy";
+import { appStoreRejectCommand } from "./reject";
 import { appStoreReleaseCommand } from "./release";
+import { appStoreReviewDetailCommand } from "./review-detail";
 import { appStoreRolloutCommand } from "./rollout";
 import { appStoreStatusCommand } from "./status";
 import { appStoreSubmitCommand } from "./submit";
@@ -16,7 +23,14 @@ export const appStoreCommand = defineCommand({
     version: appStoreVersionCommand,
     submit: appStoreSubmitCommand,
     status: appStoreStatusCommand,
+    cancel: appStoreCancelCommand,
     release: appStoreReleaseCommand,
+    reject: appStoreRejectCommand,
     rollout: appStoreRolloutCommand,
+    "review-detail": appStoreReviewDetailCommand,
+    info: appStoreInfoCommand,
+    categories: appStoreCategoriesCommand,
+    "age-rating": appStoreAgeRatingCommand,
+    privacy: appStorePrivacyCommand,
   },
 });

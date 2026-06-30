@@ -90,8 +90,8 @@ better-update
 ├── audit-logs                list (every mutation, with actor + timestamp)
 ├── apple                     login · logout · whoami (Apple Developer session)
 ├── submit                    Submit a build to App Store Connect / Google Play
-├── testflight                group (list/create/delete) — TestFlight beta groups (CI-safe)
-├── app-store                 version · submit · status · release · rollout — App Store release pipeline (CI-safe)
+├── testflight                group · tester · review · build — full TestFlight beta lifecycle (CI-safe)
+├── app-store                 version · submit/cancel/status/release/reject · rollout · review-detail · info · categories · age-rating · privacy (CI-safe)
 ├── devices                   Register Apple device UDIDs for ad-hoc/development provisioning
 ├── groups / policies         IAM: member groups + policy documents (default-deny)
 └── webhooks                  update.published / build.completed subscriptions
@@ -175,10 +175,12 @@ better-update build --platform android --auto-submit          # or build + submi
 - **better-update DOES submit to stores from the CLI.** `better-update submit --platform ios|android`
   uploads to App Store Connect (TestFlight via altool) or Google Play; `build --auto-submit` chains
   build → submit. (It does not poll store _review_ — only the upload/submission.)
-- **App Store Connect operations run from the CLI, headless.** `testflight group …` and `app-store …`
-  (version / submit / status / release / rollout) drive App Store Connect with a stored ASC API key — no
-  browser, CI-safe. `testflight group create` is the fix for a `submit ios` that fails with
-  `TESTFLIGHT_GROUP_NOT_FOUND`. See `references/cli.md`.
+- **App Store Connect operations run from the CLI, headless.** `testflight …` (group / tester / review / build)
+  and `app-store …` (version / submit / cancel / status / release / reject / rollout / review-detail / info /
+  categories / age-rating / privacy) drive App Store Connect with a stored ASC API key — no browser, CI-safe.
+  `testflight group create` is the fix for a `submit ios` that fails with `TESTFLIGHT_GROUP_NOT_FOUND`.
+  `app-store age-rating set` / `privacy set` are authored from a JSON document (`--from`), not a flag matrix.
+  See `references/cli.md`.
 
 ## Reference index — read the file that matches the task
 

@@ -124,6 +124,42 @@ export const resolveBuildId = (
     return build.id;
   });
 
+/**
+ * Resolve a Build *entity* (not just its id) from an explicit ASC build id or a
+ * CFBundleVersion ("build number"). The TestFlight build/review commands need the
+ * entity to drive its instance methods; `app-store version set` needs only the id
+ * via {@link resolveBuildId}.
+ */
+export const resolveBuild = (
+  ctx: AppleUtils.RequestContext,
+  appId: string,
+  selector: { readonly buildId: string | undefined; readonly buildVersion: string | undefined },
+) =>
+  Effect.gen(function* () {
+    if (selector.buildId !== undefined) {
+      const { buildId } = selector;
+      return yield* wrapConnect("apple-get-build", async () =>
+        AppleUtils.Build.infoAsync(ctx, { id: buildId }),
+      );
+    }
+    const { buildVersion } = selector;
+    if (buildVersion === undefined) {
+      return yield* new AppStoreError({ message: "Pass --build <id> or --build-version <n>." });
+    }
+    const builds = yield* wrapConnect("apple-find-build", async () =>
+      AppleUtils.Build.getAsync(ctx, {
+        query: { filter: { app: appId, version: buildVersion }, limit: 1 },
+      }),
+    );
+    const [build] = builds;
+    if (build === undefined) {
+      return yield* new AppStoreError({
+        message: `No uploaded build with version ${buildVersion} found for this app.`,
+      });
+    }
+    return build;
+  });
+
 export interface SetVersionInput {
   readonly buildId?: string;
   readonly versionString?: string;

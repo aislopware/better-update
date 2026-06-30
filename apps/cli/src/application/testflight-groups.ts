@@ -27,11 +27,38 @@ const toView = (group: AppleUtils.BetaGroup): BetaGroupView => ({
   publicLink: group.attributes.publicLink,
 });
 
-/** List every beta group for an app, newest-managed view first (Apple's order). */
-export const listBetaGroups = (ctx: AppleUtils.RequestContext, appId: string) =>
+/** Fetch every beta group for an app as raw entities (for instance-method callers). */
+export const getBetaGroupEntities = (ctx: AppleUtils.RequestContext, appId: string) =>
   wrapConnect("apple-list-beta-groups", async () =>
     AppleUtils.BetaGroup.getAsync(ctx, { query: { filter: { app: appId } } }),
-  ).pipe(Effect.map((groups) => groups.map(toView)));
+  );
+
+/** List every beta group for an app, newest-managed view first (Apple's order). */
+export const listBetaGroups = (ctx: AppleUtils.RequestContext, appId: string) =>
+  getBetaGroupEntities(ctx, appId).pipe(Effect.map((groups) => groups.map(toView)));
+
+/** Resolve a beta group *entity* by id or name, failing with a clear list when not found. */
+export const findBetaGroupEntity = (
+  ctx: AppleUtils.RequestContext,
+  appId: string,
+  selector: { readonly id: string | undefined; readonly name: string | undefined },
+) =>
+  Effect.gen(function* () {
+    const groups = yield* getBetaGroupEntities(ctx, appId);
+    const match = groups.find((group) =>
+      selector.id === undefined
+        ? group.attributes.name === selector.name
+        : group.id === selector.id,
+    );
+    if (match === undefined) {
+      const available = groups.map((group) => group.attributes.name).join(", ") || "(none)";
+      const wanted = selector.id ?? selector.name ?? "(unspecified)";
+      return yield* new AppStoreError({
+        message: `TestFlight group "${wanted}" not found. Available groups: ${available}.`,
+      });
+    }
+    return match;
+  });
 
 export interface CreateBetaGroupInput {
   readonly name: string;
@@ -72,26 +99,12 @@ export const createBetaGroup = (
     return toView(created);
   });
 
-/** Resolve a beta group by id or name, failing with a clear list when not found. */
+/** Resolve a beta group (projected view) by id or name, failing clearly when not found. */
 export const findBetaGroup = (
   ctx: AppleUtils.RequestContext,
   appId: string,
   selector: { readonly id: string | undefined; readonly name: string | undefined },
-) =>
-  Effect.gen(function* () {
-    const groups = yield* listBetaGroups(ctx, appId);
-    const match = groups.find((group) =>
-      selector.id === undefined ? group.name === selector.name : group.id === selector.id,
-    );
-    if (match === undefined) {
-      const available = groups.map((group) => group.name).join(", ") || "(none)";
-      const wanted = selector.id ?? selector.name ?? "(unspecified)";
-      return yield* new AppStoreError({
-        message: `TestFlight group "${wanted}" not found. Available groups: ${available}.`,
-      });
-    }
-    return match;
-  });
+) => findBetaGroupEntity(ctx, appId, selector).pipe(Effect.map(toView));
 
 /** Delete a beta group by id. */
 export const deleteBetaGroup = (ctx: AppleUtils.RequestContext, id: string) =>

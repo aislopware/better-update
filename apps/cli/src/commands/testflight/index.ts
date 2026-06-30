@@ -1,6 +1,9 @@
 import { defineCommand } from "citty";
 
+import { testflightBuildCommand } from "./build";
 import { testflightGroupCommand } from "./group";
+import { testflightReviewCommand } from "./review";
+import { testflightTesterCommand } from "./tester";
 
 export const testflightCommand = defineCommand({
   meta: {
@@ -10,5 +13,8 @@ export const testflightCommand = defineCommand({
   },
   subCommands: {
     group: testflightGroupCommand,
+    tester: testflightTesterCommand,
+    review: testflightReviewCommand,
+    build: testflightBuildCommand,
   },
 });
