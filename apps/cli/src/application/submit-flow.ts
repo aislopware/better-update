@@ -1,15 +1,14 @@
-import { execFile } from "node:child_process";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { promisify } from "node:util";
 
 import { compact } from "@better-update/type-guards";
 import { Duration, Effect, Schema } from "effect";
 
 import type { CreateSubmissionBody, Submission, SubmissionStatus } from "@better-update/api";
 
+import { altoolFailureDetail, runAltool } from "../lib/altool";
 import { messageOf } from "../lib/apple-asc-connect";
 import { fetchAscCredentials } from "../lib/asc-credentials";
 import { printHuman } from "../lib/output";
@@ -24,47 +23,6 @@ import type { ApiClient } from "../services/api-client";
 
 type SubmissionItem = Submission;
 type SubmissionStatusValue = typeof SubmissionStatus.Type;
-
-const execFileAsync = promisify(execFile);
-
-interface ExecResult {
-  readonly exitCode: number;
-  readonly stdout: string;
-  readonly stderr: string;
-}
-
-const ExecErrorSchema = Schema.Struct({
-  code: Schema.optional(Schema.Number),
-  stdout: Schema.optional(Schema.String),
-  stderr: Schema.optional(Schema.String),
-});
-
-const runAltool = (args: readonly string[], extraEnv?: Record<string, string>) =>
-  Effect.tryPromise({
-    try: async (): Promise<ExecResult> => {
-      // `env` replaces (not merges) the child env, so inherit process.env — the
-      // app-specific-password path reads the password from `@env:` at runtime.
-      // `encoding` keeps the promisified overload returning strings, not Buffers.
-      const options = extraEnv
-        ? { encoding: "utf8" as const, env: { ...process.env, ...extraEnv } }
-        : { encoding: "utf8" as const };
-      const { stdout, stderr } = await execFileAsync("xcrun", ["altool", ...args], options);
-      return { exitCode: 0, stdout, stderr };
-    },
-    catch: (error: unknown): ExecResult => {
-      const parsed = Schema.decodeUnknownSync(ExecErrorSchema, { onExcessProperty: "ignore" })(
-        typeof error === "object" && error !== null ? error : {},
-      );
-      // eslint-disable-next-line eslint-js/no-restricted-syntax -- stdout legitimately empty when altool fails fast, distinguished by exitCode
-      const stdout = parsed.stdout ?? "";
-      const stderr = parsed.stderr ?? String(error);
-      return {
-        exitCode: parsed.code ?? 1,
-        stdout,
-        stderr: stderr === "" ? String(error) : stderr,
-      };
-    },
-  }).pipe(Effect.catchAll((result) => Effect.succeed(result)));
 
 export class CliSubmitError extends Schema.TaggedError<CliSubmitError>()("CliSubmitError", {
   code: Schema.String,
@@ -457,7 +415,7 @@ export const runIosSubmit = (inputs: IosSubmitInputs) =>
       yield* patchSubmissionStatus(inputs.api, inputs.submissionId, {
         status: "ERRORED",
         errorCode: "SUBMISSION_SERVICE_IOS_ALTOOL_FAILED",
-        errorMessage: `xcrun altool exited ${String(result.exitCode)}: ${result.stderr}`,
+        errorMessage: `xcrun altool exited ${String(result.exitCode)}: ${altoolFailureDetail(result)}`,
       });
       return { status: "ERRORED" as SubmissionStatusValue };
     }
