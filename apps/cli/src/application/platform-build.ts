@@ -4,6 +4,7 @@ import { Effect } from "effect";
 import { runAndroidBuild } from "../commands/build/android";
 import { runIosBuild } from "../commands/build/ios";
 import { resolveAndroidStrategy, resolveIosStrategy } from "../lib/build-strategy";
+import { materializeEnvFile } from "../lib/env-materialize";
 import { BuildProfileError } from "../lib/exit-codes";
 import { readGradleConfig, warnOnGradleMismatch } from "../lib/gradle-config";
 import { ensureAndroidCredentials, ensureIosCredentials } from "./credentials-interactive";
@@ -26,6 +27,12 @@ export interface PlatformBuildInput {
   readonly projectType: ProjectType;
   readonly appMeta: AppMeta;
   readonly envVars: Record<string, string>;
+  /**
+   * User-defined env (decrypted remote vars + profile.env), WITHOUT the synthetic
+   * BETTER_UPDATE_BUILD_* identity vars. Materialized into `.env` for bare
+   * react-native-config builds; see {@link materializeEnvFile}.
+   */
+  readonly appEnvVars: Record<string, string>;
   readonly projectId: string;
   readonly projectRoot: string;
   readonly tempDir: string;
@@ -68,6 +75,18 @@ const runIosPlatformBuild = (input: PlatformBuildInput) =>
         { freezeCredentials: input.freezeCredentials },
       );
     }
+    // Non-Expo projects don't regenerate native files, so an explicit eas.json
+    // version override would otherwise never reach the binary. Materialize it
+    // into the pbxproj during signing. Expo writes versions via prebuild.
+    const iosOverride = profile.ios.metaOverride;
+    const nativeVersion =
+      input.projectType !== "expo" &&
+      (iosOverride?.version !== undefined || iosOverride?.buildNumber !== undefined)
+        ? compact({
+            marketingVersion: appMeta.appVersion,
+            currentProjectVersion: appMeta.buildNumber,
+          })
+        : undefined;
     const build = yield* runIosBuild({
       api,
       tempDir,
@@ -82,7 +101,7 @@ const runIosPlatformBuild = (input: PlatformBuildInput) =>
       rawOutput: input.rawOutput,
       freezeCredentials: input.freezeCredentials,
       updateChannel: input.updateChannel,
-      ...compact({ customCommand: profile.customCommand?.ios }),
+      ...compact({ customCommand: profile.customCommand?.ios, nativeVersion }),
     });
     const target: BuildTarget = isSimulator
       ? { platform: "ios", distribution: "simulator", artifactFormat: "tar.gz" }
@@ -125,6 +144,15 @@ const runAndroidPlatformBuild = (input: PlatformBuildInput) =>
         { freezeCredentials: input.freezeCredentials },
       );
     }
+    // Mirror the iOS path: a non-Expo project never regenerates android/, so an
+    // explicit eas.json version override is materialized into build.gradle / .env
+    // before the Gradle build. Expo writes versions via prebuild.
+    const androidOverride = profile.android.metaOverride;
+    const nativeVersion =
+      input.projectType !== "expo" &&
+      (androidOverride?.version !== undefined || androidOverride?.versionCode !== undefined)
+        ? compact({ versionName: appMeta.appVersion, versionCode: appMeta.buildNumber })
+        : undefined;
     const build = yield* runAndroidBuild({
       api,
       tempDir,
@@ -139,7 +167,7 @@ const runAndroidPlatformBuild = (input: PlatformBuildInput) =>
       strategy,
       packageManager: input.packageManager,
       updateChannel: input.updateChannel,
-      ...compact({ customCommand: profile.customCommand?.android }),
+      ...compact({ customCommand: profile.customCommand?.android, nativeVersion }),
     });
     const target: BuildTarget =
       androidProfile.format === "aab"
@@ -153,6 +181,17 @@ const runAndroidPlatformBuild = (input: PlatformBuildInput) =>
 // like Effect.either at the call site.
 export const runPlatformBuild = (input: PlatformBuildInput) =>
   Effect.gen(function* () {
+    // Materialize the decrypted env into `.env` for bare react-native-config
+    // builds (which read the FILE, not process.env). Runs before the native build
+    // so any eas.json version override applied later (build.gradle / .env) wins on
+    // the version keys. No-op for Expo (regenerates native + reads process.env)
+    // and for bare projects without react-native-config.
+    if (input.projectType !== "expo") {
+      yield* materializeEnvFile({
+        projectRoot: input.projectRoot,
+        envVars: input.appEnvVars,
+      });
+    }
     return input.platform === "ios"
       ? yield* runIosPlatformBuild(input)
       : yield* runAndroidPlatformBuild(input);

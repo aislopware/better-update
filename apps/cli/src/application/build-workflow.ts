@@ -355,6 +355,10 @@ export const runBuildWorkflow = (options: RunBuildWorkflowOptions) =>
           projectType,
           appMeta,
           envVars: buildEnv,
+          // Clean user env (decrypted remote + profile.env), without the synthetic
+          // BETTER_UPDATE_BUILD_* identity vars — materialized into `.env` for bare
+          // react-native-config builds.
+          appEnvVars: envVars,
           projectId,
           projectRoot: staging.projectRoot,
           tempDir,

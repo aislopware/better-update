@@ -5,6 +5,7 @@ import { FileSystem } from "@effect/platform";
 import { Effect } from "effect";
 
 import { renderSigningGradle } from "../../lib/android-signing-gradle";
+import { applyAndroidVersion } from "../../lib/android-version-sync";
 import { findAndroidArtifact, findArtifactByGlob } from "../../lib/artifact-finder";
 import { runBuildHook } from "../../lib/build-hooks";
 import { downloadAndroidCredentials } from "../../lib/credentials-downloader";
@@ -47,6 +48,14 @@ export interface RunAndroidBuildInput {
   readonly skipCredentials: boolean;
   /** OTA channel baked into the manifest after prebuild; undefined skips injection. */
   readonly updateChannel?: string | undefined;
+  /**
+   * Version values to materialize into build.gradle / `.env` before the Gradle
+   * build. Set by non-Expo callers when eas.json carries an explicit version /
+   * versionCode override; undefined leaves the native version as-is.
+   */
+  readonly nativeVersion?:
+    | { readonly versionName?: string; readonly versionCode?: string }
+    | undefined;
 }
 
 interface AndroidSigningCredentials {
@@ -137,6 +146,18 @@ const runGradleBuild = (input: RunAndroidBuildInput, commandEnv: Record<string, 
     const androidDir = path.join(input.projectRoot, "android");
 
     yield* fixGradlew(androidDir, input.strategy !== "expo");
+
+    // Materialize the eas.json version override into the committed native sources
+    // (Expo regenerates android/ via prebuild, so the caller leaves this unset there).
+    if (input.nativeVersion !== undefined) {
+      yield* applyAndroidVersion({
+        projectRoot: input.projectRoot,
+        ...compact({
+          versionName: input.nativeVersion.versionName,
+          versionCode: input.nativeVersion.versionCode,
+        }),
+      });
+    }
 
     const credentials = yield* resolveAndroidCredentials(input);
     const gradleArgs: readonly string[] =

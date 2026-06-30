@@ -11,6 +11,7 @@ import { applyTargetSigning } from "../../lib/ios-codesign-pbxproj";
 import { renderExportOptionsPlist } from "../../lib/ios-export-options";
 import { acquireKeychain } from "../../lib/ios-keychain";
 import { installProvisioningProfile } from "../../lib/ios-provisioning";
+import { buildSigningEntries } from "../../lib/ios-signing-entries";
 import { loadLocalIosCredentials } from "../../lib/local-credentials";
 import { validateIosBuild } from "../../lib/post-build-validation";
 import { sha256File } from "../../lib/sha256";
@@ -24,7 +25,7 @@ import type { CredentialsSource, IosProfile } from "../../lib/build-profile";
 import type { IosBuildStrategy } from "../../lib/build-strategy";
 import type { IosCredentialProfile, IosCredentials } from "../../lib/credentials-downloader";
 import type { CustomCommandSpec } from "../../lib/eas-config";
-import type { TargetSigningEntry } from "../../lib/ios-codesign-pbxproj";
+import type { TargetVersionSettings } from "../../lib/ios-codesign-pbxproj";
 import type { PackageManager } from "../../lib/project-staging";
 import type { DiscoveredTarget } from "../../lib/xcode-targets";
 import type { ApiClient } from "../../services/api-client";
@@ -49,6 +50,13 @@ export interface RunIosBuildInput {
   readonly freezeCredentials?: boolean | undefined;
   /** OTA channel baked into Expo.plist after prebuild; undefined skips injection. */
   readonly updateChannel?: string | undefined;
+  /**
+   * Version build settings to write into the signed targets' pbxproj config(s)
+   * alongside signing (app + extensions, so bundled extension versions match the
+   * host app). Set by non-Expo callers when eas.json carries an explicit
+   * version / buildNumber override; undefined leaves the native version as-is.
+   */
+  readonly nativeVersion?: TargetVersionSettings | undefined;
 }
 
 const runIosSimulatorBuild = (input: RunIosBuildInput) =>
@@ -286,17 +294,11 @@ const runIosDeviceBuild = (input: RunIosBuildInput) =>
       input.credentialsSource,
     );
 
-    const signingEntries: readonly TargetSigningEntry[] = installedTargets.map(
-      ({ target, installed }) => ({
-        targetName: target.targetName,
-        buildConfigurationUuids: target.buildConfigurationUuids,
-        settings: {
-          teamId: installed.teamId,
-          signingIdentity: keychain.signingIdentity,
-          profileSpecifier: installed.name,
-        },
-      }),
-    );
+    const signingEntries = buildSigningEntries({
+      installedTargets,
+      signingIdentity: keychain.signingIdentity,
+      nativeVersion: input.nativeVersion,
+    });
 
     yield* applyTargetSigning({ iosDir, entries: signingEntries });
 

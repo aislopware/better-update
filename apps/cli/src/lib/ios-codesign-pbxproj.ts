@@ -13,12 +13,34 @@ export interface TargetSigningSettings {
   readonly profileSpecifier: string;
 }
 
+/**
+ * App-version build settings to materialize into a target's configuration(s).
+ * Only used for non-Expo projects whose eas.json profile carries an explicit
+ * version / buildNumber override — Expo writes these via `expo prebuild`, so
+ * the Expo path leaves this undefined. Each field is optional so a profile that
+ * sets only one of version / buildNumber writes only that one.
+ */
+export interface TargetVersionSettings {
+  /** Maps to `MARKETING_VERSION` (the user-facing version, e.g. "6.0.4"). */
+  readonly marketingVersion?: string;
+  /** Maps to `CURRENT_PROJECT_VERSION` (the build number, e.g. "17"). */
+  readonly currentProjectVersion?: string;
+}
+
 export interface TargetSigningEntry {
   /** For diagnostics — does not affect what is written. */
   readonly targetName: string;
   /** UUIDs of XCBuildConfiguration entries whose buildSettings should be mutated. */
   readonly buildConfigurationUuids: readonly string[];
   readonly settings: TargetSigningSettings;
+  /**
+   * Optional version settings written into the same configuration(s) as signing.
+   * This layer is policy-agnostic — it writes them onto whichever entries carry
+   * them. The caller decides which targets receive a version (see
+   * `buildSigningEntries`, which attaches it to every signed target so a bundled
+   * extension's version matches the host app, per App Store validation).
+   */
+  readonly versions?: TargetVersionSettings;
 }
 
 export interface ApplyTargetSigningOptions {
@@ -72,6 +94,14 @@ const parseProject = (pbxprojPath: string): Effect.Effect<XcodeProject, XcodePro
  */
 const quote = (value: string): string => `"${value.replaceAll('"', String.raw`\"`)}"`;
 
+/**
+ * Version values (e.g. `6.0.4`, `17`) are normally emitted unquoted in pbxproj.
+ * Keep them bare when they are a safe token to minimize diff noise versus the
+ * committed project; fall back to quoting only for unusual values.
+ */
+const SAFE_PBX_TOKEN = /^[A-Za-z0-9._-]+$/u;
+const pbxValue = (value: string): string => (SAFE_PBX_TOKEN.test(value) ? value : quote(value));
+
 const SDK_CONDITIONAL_IDENTITY_KEYS = [
   '"CODE_SIGN_IDENTITY[sdk=iphoneos*]"',
   "CODE_SIGN_IDENTITY[sdk=iphoneos*]",
@@ -81,6 +111,7 @@ const mutateConfig = (
   project: XcodeProject,
   configUuid: string,
   settings: TargetSigningSettings,
+  versions: TargetVersionSettings | undefined,
 ): boolean => {
   const buildConfigSection = project.pbxXCBuildConfigurationSection();
   const cfg = buildConfigSection[configUuid];
@@ -100,13 +131,25 @@ const mutateConfig = (
     // eslint-disable-next-line typescript/no-dynamic-delete -- delete optional Xcode-emitted SDK-conditional CODE_SIGN_IDENTITY variants if present
     delete cfg.buildSettings[key];
   }
+
+  // Materialize the eas.json version override into the target's build settings
+  // (non-Expo only — see TargetVersionSettings). Setting them at target scope
+  // overrides any project-level inheritance, so xcodebuild archives this value.
+  if (versions?.marketingVersion !== undefined) {
+    cfg.buildSettings["MARKETING_VERSION"] = pbxValue(versions.marketingVersion);
+  }
+  if (versions?.currentProjectVersion !== undefined) {
+    cfg.buildSettings["CURRENT_PROJECT_VERSION"] = pbxValue(versions.currentProjectVersion);
+  }
   return true;
 };
 
 /**
  * Write `CODE_SIGN_STYLE=Manual`, `DEVELOPMENT_TEAM`, `CODE_SIGN_IDENTITY`, and
  * `PROVISIONING_PROFILE_SPECIFIER` into the specified XCBuildConfiguration
- * entries of the project under `iosDir`, then serialize back to disk.
+ * entries of the project under `iosDir`, then serialize back to disk. When an
+ * entry carries `versions`, `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` are
+ * written into the same configuration(s) in the one pass.
  *
  * Only mutates the main app project — `Pods.xcodeproj` is left untouched. The
  * caller is responsible for ensuring each entry's `buildConfigurationUuids`
@@ -124,7 +167,7 @@ export const applyTargetSigning = (
 
     for (const entry of options.entries) {
       for (const configUuid of entry.buildConfigurationUuids) {
-        const mutated = mutateConfig(project, configUuid, entry.settings);
+        const mutated = mutateConfig(project, configUuid, entry.settings, entry.versions);
         if (!mutated) {
           return yield* new XcodeProjectError({
             message: `Build configuration ${configUuid} not found for target "${entry.targetName}" in ${pbxprojPath}.`,

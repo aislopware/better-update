@@ -145,6 +145,52 @@ describe(applyTargetSigning, () => {
     }).pipe(Effect.provide(NodeFileSystem.layer)),
   );
 
+  it.effect("writes version settings only into entries that carry them (selective per-entry)", () =>
+    Effect.gen(function* () {
+      const project = setupProject(pbxprojWithExtension);
+      try {
+        yield* applyTargetSigning({
+          iosDir: project.iosDir,
+          entries: [
+            {
+              targetName: "MyApp",
+              buildConfigurationUuids: ["D002"],
+              settings: {
+                teamId: "ABC1234567",
+                signingIdentity: "Apple Distribution",
+                profileSpecifier: "MyApp APP_STORE 12345",
+              },
+              versions: { marketingVersion: "6.0.4", currentProjectVersion: "17" },
+            },
+            {
+              targetName: "NotificationService",
+              buildConfigurationUuids: ["D004"],
+              settings: {
+                teamId: "ABC1234567",
+                signingIdentity: "Apple Distribution",
+                profileSpecifier: "NotificationService APP_STORE 67890",
+              },
+            },
+          ],
+        });
+
+        const written = readFileSync(project.pbxprojPath, "utf8");
+
+        // Main app target (D002) gets the version settings, emitted unquoted.
+        expect(written).toMatch(/D002 \/\* Release \*\/ = \{[\s\S]*?MARKETING_VERSION = 6\.0\.4;/u);
+        expect(written).toMatch(
+          /D002 \/\* Release \*\/ = \{[\s\S]*?CURRENT_PROJECT_VERSION = 17;/u,
+        );
+        // Extension target (D004) keeps its own version (none injected here).
+        expect(written).not.toMatch(
+          /D004 \/\* Release \*\/ = \{[\s\S]*?MARKETING_VERSION = 6\.0\.4;/u,
+        );
+      } finally {
+        project.dispose();
+      }
+    }).pipe(Effect.provide(NodeFileSystem.layer)),
+  );
+
   it.effect("is idempotent — running twice produces the same file contents", () =>
     Effect.gen(function* () {
       const project = setupProject(pbxprojWithExtension);
