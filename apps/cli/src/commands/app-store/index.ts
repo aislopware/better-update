@@ -5,6 +5,7 @@ import { appStoreAppsCommand } from "./apps";
 import { appStoreAvailabilityCommand } from "./availability";
 import { appStoreCancelCommand } from "./cancel";
 import { appStoreCategoriesCommand } from "./categories";
+import { appStoreConfigCommand } from "./config";
 import { appStoreInfoCommand } from "./info";
 import { appStorePricingCommand } from "./pricing";
 import { appStorePrivacyCommand } from "./privacy";
@@ -14,6 +15,7 @@ import { appStoreReviewDetailCommand } from "./review-detail";
 import { appStoreRolloutCommand } from "./rollout";
 import { appStoreStatusCommand } from "./status";
 import { appStoreSubmitCommand } from "./submit";
+import { appStoreTerritoriesCommand } from "./territories";
 import { appStoreVersionCommand } from "./version";
 
 export const appStoreCommand = defineCommand({
@@ -38,5 +40,7 @@ export const appStoreCommand = defineCommand({
     apps: appStoreAppsCommand,
     pricing: appStorePricingCommand,
     availability: appStoreAvailabilityCommand,
+    territories: appStoreTerritoriesCommand,
+    config: appStoreConfigCommand,
   },
 });

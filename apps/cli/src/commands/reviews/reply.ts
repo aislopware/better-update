@@ -52,6 +52,11 @@ export const reviewsReplyCommand = defineCommand({
           }
           return yield* new InvalidArgumentError({ message: "Pass --body or --text-file." });
         });
+        if (body.trim().length === 0) {
+          return yield* new InvalidArgumentError({
+            message: "The response body is empty. Pass a non-empty --body or --text-file.",
+          });
+        }
         const session = yield* openAscContext(args);
         const result = yield* replyToReview(session.ctx, args.review, body);
         yield* printHuman(`Posted response to review ${result.reviewId} (state: ${result.state}).`);

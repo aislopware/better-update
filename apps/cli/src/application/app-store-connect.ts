@@ -309,8 +309,11 @@ interface ResolveAscSessionInput extends ResolveAscContextInput {
   readonly bundleIdentifier?: string;
 }
 
-/** Read the eas.json submit profile's iOS block, tolerating absence (unlinked project). */
-const loadSubmitProfile = (projectRoot: string, profileName: string) =>
+/**
+ * Read the eas.json submit profile's iOS block, tolerating absence (unlinked
+ * project). Exported for the cookie session resolver (`asc-cookie-session.ts`).
+ */
+export const loadSubmitProfile = (projectRoot: string, profileName: string) =>
   readSubmitProfile(projectRoot, profileName).pipe(
     Effect.map((resolved) => resolved.ios),
     Effect.orElseSucceed<EasIosSubmitProfile | undefined>(() => undefined),
@@ -363,8 +366,11 @@ const resolveAscApiKeyId = (params: {
     });
   });
 
-/** Resolve the target App id: flag > profile ascAppId > `App.findAsync` by bundle id. */
-const resolveAppId = (params: {
+/**
+ * Resolve the target App id: flag > profile ascAppId > `App.findAsync` by bundle
+ * id. Exported for the cookie session resolver (`asc-cookie-session.ts`).
+ */
+export const resolveAppId = (params: {
   readonly ctx: AppleUtils.RequestContext;
   readonly flagAppId: string | undefined;
   readonly profileAppId: string | undefined;

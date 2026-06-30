@@ -242,3 +242,59 @@ export const listAscApiKeysViaAppleId = (ctx: AppleUtils.RequestContext) =>
           }) satisfies AppleIdAscApiKeySummary,
       );
   });
+
+/** Revoke an App Store Connect API key on Apple (Iris) by its key id — irreversible. */
+export const revokeAscApiKeyViaAppleId = (ctx: AppleUtils.RequestContext, keyId: string) =>
+  Effect.gen(function* () {
+    const key = yield* wrap("apple-fetch-asc-key", async () =>
+      AppleUtils.ApiKey.infoAsync(ctx, { id: keyId }),
+    );
+    yield* wrap("apple-revoke-asc-key", async () => key.revokeAsync());
+  });
+
+export interface RevokeLocalAscApiKeyInput {
+  readonly context: AppleUtils.RequestContext;
+  /** Local stored ASC API key row id. */
+  readonly ascApiKeyId: string;
+  readonly keepLocal?: boolean;
+}
+
+export interface RevokeLocalAscApiKeyResult {
+  readonly localId: string;
+  readonly keyId: string;
+  readonly revokedOnApple: boolean;
+  readonly deletedLocally: boolean;
+}
+
+/**
+ * Revoke the App Store Connect API key behind a stored row: revoke it on Apple when
+ * still present (Iris, cookie session) and reconcile the local vault by deleting the
+ * row (unless `keepLocal`). Mirrors {@link revokeLocalApnsKey}. Irreversible on Apple.
+ */
+export const revokeLocalAscApiKey = (api: ApiClient, input: RevokeLocalAscApiKeyInput) =>
+  Effect.gen(function* () {
+    const { items } = yield* api.ascApiKeys.list();
+    const local = items.find((entry) => entry.id === input.ascApiKeyId);
+    if (local === undefined) {
+      return yield* new AppleIdGenerateFailedError({
+        step: "load-asc-key",
+        message: `App Store Connect API key ${input.ascApiKeyId} not found on this account`,
+      });
+    }
+    const remoteKeys = yield* listAscApiKeysViaAppleId(input.context);
+    const present = remoteKeys.some((entry) => entry.keyId === local.keyId);
+    if (present) {
+      yield* revokeAscApiKeyViaAppleId(input.context, local.keyId);
+    }
+    let deletedLocally = false;
+    if (input.keepLocal !== true) {
+      yield* api.ascApiKeys.delete({ path: { id: input.ascApiKeyId } });
+      deletedLocally = true;
+    }
+    return {
+      localId: input.ascApiKeyId,
+      keyId: local.keyId,
+      revokedOnApple: present,
+      deletedLocally,
+    } satisfies RevokeLocalAscApiKeyResult;
+  });

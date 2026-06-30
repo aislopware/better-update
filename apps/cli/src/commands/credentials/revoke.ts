@@ -5,6 +5,7 @@ import { runEffect } from "../../lib/citty-effect";
 import { makeAppleTeamLabeler, pushKeyChoice } from "../../lib/credential-choices";
 import { revokeLocalApnsKey } from "../../lib/credentials-generator-apns";
 import { revokeLocalDistributionCertificate } from "../../lib/credentials-generator-apple";
+import { revokeLocalAscApiKey } from "../../lib/credentials-generator-asc-key";
 import { CredentialValidationError } from "../../lib/exit-codes";
 import { printHuman, printHumanKeyValue } from "../../lib/output";
 import { promptSelect } from "../../lib/prompts";
@@ -157,10 +158,49 @@ const pushKeyCommand = defineCommand({
     ),
 });
 
+const ascKeyCommand = defineCommand({
+  meta: {
+    name: "asc-key",
+    description:
+      "Revoke an App Store Connect API key on Apple (via Apple ID login) and delete it from this account",
+  },
+  args: {
+    id: { type: "string", description: "Local ASC API key ID (prompts if omitted)" },
+    "keep-local": {
+      type: "boolean",
+      description: "Revoke on Apple but keep the credential in this account",
+    },
+  },
+  run: async ({ args }) =>
+    runEffect(
+      Effect.gen(function* () {
+        const api = yield* apiClient;
+        const ascApiKeyId = yield* resolveAscKeyId(api, args.id);
+        const auth = yield* AppleAuth;
+        const session = yield* auth.ensureLoggedIn();
+        const result = yield* revokeLocalAscApiKey(api, {
+          context: auth.buildRequestContext(session),
+          ascApiKeyId,
+          keepLocal: args["keep-local"] ?? false,
+        });
+        yield* printHuman("App Store Connect API key revoke complete.");
+        yield* printHumanKeyValue([
+          ["Local ID", result.localId],
+          ["Key ID", result.keyId],
+          ["Revoked on Apple", result.revokedOnApple ? "yes" : "no (not present on Apple)"],
+          ["Deleted locally", result.deletedLocally ? "yes" : "no (--keep-local)"],
+        ]);
+        return result;
+      }),
+      { exits: REVOKE_EXIT_EXTRAS, json: "value" },
+    ),
+});
+
 export const revokeCommand = defineCommand({
   meta: { name: "revoke", description: "Revoke credentials on the upstream provider" },
   subCommands: {
     "distribution-certificate": distributionCertificateCommand,
     "push-key": pushKeyCommand,
+    "asc-key": ascKeyCommand,
   },
 });

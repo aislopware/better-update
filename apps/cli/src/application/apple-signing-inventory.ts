@@ -116,6 +116,36 @@ export const resolveBundleId = (
     return bundleId;
   });
 
+/** Register a new App ID (bundle id) on the Developer Portal (Token/CI-safe). */
+export const createBundleId = (
+  ctx: AppleUtils.RequestContext,
+  input: { readonly identifier: string; readonly name?: string },
+) =>
+  wrapConnect("apple-create-bundle-id", async () =>
+    AppleUtils.BundleId.createAsync(ctx, {
+      identifier: input.identifier,
+      name: input.name ?? input.identifier,
+      platform: AppleUtils.BundleIdPlatform.IOS,
+    }),
+  ).pipe(Effect.map(toBundleIdView));
+
+/**
+ * Create an **App Clip** App ID (`{parent}.Clip`) under a parent bundle id. App Clip
+ * creation is **cookie-only** (session auth); the parent's ASC resource id is
+ * resolved by the caller via {@link resolveBundleId}.
+ */
+export const createAppClipBundleId = (
+  ctx: AppleUtils.RequestContext,
+  input: { readonly identifier: string; readonly name?: string; readonly parentBundleIdId: string },
+) =>
+  wrapConnect("apple-create-app-clip", async () =>
+    AppleUtils.BundleId.createAppClipAsync(ctx, {
+      name: input.name ?? input.identifier,
+      identifier: input.identifier,
+      parentBundleIdId: input.parentBundleIdId,
+    }),
+  ).pipe(Effect.map(toBundleIdView));
+
 /** An App ID capability projected to the fields the CLI surfaces. */
 export interface CapabilityView {
   readonly id: string;

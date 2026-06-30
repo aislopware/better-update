@@ -1,22 +1,20 @@
 {
   "expo": {
-    "name": "E2E Publish App",
-    "slug": "e2e-publish-app",
-    "owner": "e2e-publish",
+    "name": "OTA Lifecycle App",
+    "slug": "ota-lifecycle-app",
+    "owner": "ota-lifecycle",
     "version": "1.0.0",
     "runtimeVersion": "1.0.0",
     "ios": {
-      "bundleIdentifier": "com.example.e2epublish",
+      "bundleIdentifier": "com.example.otalifecycle",
       "buildNumber": "1"
     },
     "android": {
-      "package": "com.example.e2epublish",
+      "package": "com.example.otalifecycle",
       "versionCode": 1
     },
     "extra": {
-      "betterUpdate": {
-        "projectId": "84859131-db8f-424e-8e4a-9d7937a020ef"
-      }
+      "betterUpdate": {}
     }
   }
 }

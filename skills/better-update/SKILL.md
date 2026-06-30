@@ -89,11 +89,13 @@ better-update
 ├── fingerprint               generate · compare (runtime-compatibility hashes)
 ├── analytics                 adoption · updates · channels · platforms
 ├── audit-logs                list (every mutation, with actor + timestamp)
-├── apple                     login · logout · whoami (Apple Developer session); builds (list/get/status/compliance) · users (list/invite) — CI-safe ASC ops
+├── apple                     login · logout · whoami; builds · users (CI-safe); asc-key · sandbox (Apple ID login)
 ├── submit                    Submit a build to App Store Connect / Google Play
 ├── testflight                group · tester · review · build — full TestFlight beta lifecycle (CI-safe)
-├── app-store                 version · submit/cancel/status/release/reject · rollout · review-detail · info · categories · age-rating · privacy · apps · pricing · availability (CI-safe)
+├── app-store                 version · submit/cancel/status/release/reject · rollout · review-detail · info · categories · age-rating · privacy · apps (list + create) · pricing · availability (show + set) · territories · config (pull/push) (CI-safe; apps create needs Apple ID login)
 ├── reviews                   list · reply — App Store customer reviews (CI-safe)
+├── metadata                  media (list/sync) · screenshots (upload/clear) · previews (upload) — store media (CI-safe)
+├── app-review                list · view · rejections · reply — Apple App Review / Resolution Center (Apple ID login, NOT CI-safe)
 ├── devices                   Register Apple device UDIDs for ad-hoc/development provisioning
 ├── groups / policies         IAM: member groups + policy documents (default-deny)
 └── webhooks                  update.published / build.completed subscriptions
@@ -180,12 +182,20 @@ better-update build --platform android --auto-submit          # or build + submi
 - **App Store Connect operations run from the CLI, headless.** `testflight …` (group / tester / review / build),
   `app-store …` (version / submit / cancel / status / release / reject / rollout / review-detail / info /
   categories / age-rating / privacy / apps / pricing / availability), `apple builds`/`apple users`,
-  `reviews …`, and the `credentials` ASC inventory (certificate / bundle-id / profile / capability) all drive
-  App Store Connect with a stored ASC API key — no browser, CI-safe. `testflight group create` is the fix for a
-  `submit ios` that fails with `TESTFLIGHT_GROUP_NOT_FOUND`. `apple builds compliance --no-uses-encryption`
-  clears a build stranded in `MISSING_EXPORT_COMPLIANCE`. `app-store age-rating set` / `privacy set` are
-  authored from a JSON document (`--from`), not a flag matrix. `apple users` needs an Admin-role key.
-  See `references/cli.md`.
+  `reviews …`, `metadata …` (store media), and the `credentials` ASC inventory (certificate / bundle-id /
+  profile / capability) all drive App Store Connect with a stored ASC API key — no browser, CI-safe.
+  `testflight group create` is the fix for a `submit ios` that fails with `TESTFLIGHT_GROUP_NOT_FOUND`.
+  `apple builds compliance --no-uses-encryption` clears a build stranded in `MISSING_EXPORT_COMPLIANCE`.
+  `app-store age-rating set` / `privacy set` are authored from a JSON document (`--from`), not a flag matrix.
+  `metadata media sync` declaratively pushes a `screenshots/<locale>/<device>/*.png` tree (with `--dry-run` /
+  `--prune`). `apple users` needs an Admin-role key. See `references/cli.md`.
+- **A few App Store Connect ops are cookie-only (Apple ID login + 2FA, NOT CI-safe).** `app-review …`
+  (Resolution Center: read App Review threads / rejection guideline codes / reply — text only), `apple asc-key
+list` + `credentials revoke asc-key` (the upstream ASC-key lifecycle), `app-store apps create`, `credentials
+bundle-id create --app-clip`, and `apple sandbox …` (IAP testers) all hit Apple's Iris API, which a JWT key
+  can't reach — they log in via `apple login` and fail with a clear error under `--non-interactive` / CI. A
+  rejected `app-store submit` is closed out with `app-review list` → `app-review rejections --thread <id>` →
+  `app-review reply`.
 
 ## Reference index — read the file that matches the task
 

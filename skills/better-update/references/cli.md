@@ -452,6 +452,13 @@ better-update apple builds compliance (--build <id> | --build-version <n>) \   #
 better-update apple users list
 better-update apple users invite --email <e> --first-name <f> --last-name <l> \
   --roles DEVELOPER,APP_MANAGER [--visible-apps <appId,appId>] [--provisioning-allowed true|false]
+
+# Cookie-only (Apple ID login + 2FA; NOT CI-safe)
+better-update apple asc-key list                            # active ASC API keys as seen on Apple (not the local vault)
+better-update apple sandbox list                            # IAP sandbox testers
+better-update apple sandbox create --email <e> --password <p> --first-name <f> --last-name <l> \
+  [--secret-question <q>] [--secret-answer <a>] [--birth-date YYYY-MM-DD]   # or BETTER_UPDATE_SANDBOX_PASSWORD
+better-update apple sandbox delete --id <testerId>
 ```
 
 - **`apple builds compliance`** is the near-P0 fix for a build stuck in `MISSING_EXPORT_COMPLIANCE`: the bare
@@ -461,6 +468,11 @@ better-update apple users invite --email <e> --first-name <f> --last-name <l> \
   `APP_MANAGER`, `MARKETING`, `FINANCE`, `SALES`, `CUSTOMER_SUPPORT`, `ACCESS_TO_REPORTS`, `READ_ONLY`, …).
   Omitting `--visible-apps` makes all apps visible; supplying App ids scopes the user to them. Apple emails the
   invite. Both `apple users` commands require an Admin-role key (Apple returns 403 otherwise).
+- **`apple asc-key list`** and **`apple sandbox …`** are **cookie-only** (Apple's Iris API, no JWT equivalent):
+  they log in via `apple login` and fail with a clear error under `--non-interactive` / CI. `asc-key list` shows
+  what's on Apple (distinct from the local `credentials list` vault); create with `credentials generate asc-key`,
+  revoke with `credentials revoke asc-key`. The sandbox password is read from `--password` or
+  `BETTER_UPDATE_SANDBOX_PASSWORD` and is never echoed.
 
 ## submit
 
@@ -608,10 +620,18 @@ better-update app-store privacy set --from <file|json>    # array of { category,
 better-update app-store privacy publish                    # make the label public
 better-update app-store privacy clear                      # delete every declared usage
 
-# Account inventory + commercial (read-only)
+# Account inventory + commercial
 better-update app-store apps list                          # every app the ASC key can see (account-scoped)
 better-update app-store pricing show                       # current price schedule (base territory + manual prices)
 better-update app-store availability show                  # territories the app is available in (~175)
+better-update app-store territories list                   # every territory id + currency (account-scoped reference)
+better-update app-store availability set (--territories USA,GBR | --add USA --remove GBR)   # set availability
+better-update app-store config pull [--out app-store.json]                    # editable version's per-locale copy → JSON
+better-update app-store config push --from app-store.json                     # apply per-locale copy from JSON
+
+# Register a new app record (cookie-only: Apple ID login, App Manager role)
+better-update app-store apps create --name "<App Name>" --bundle-identifier com.acme.app \
+  [--sku <sku>] [--primary-locale en-US] [--company-name "<Seller>"]
 ```
 
 - **`version create`** uses `App.ensureVersionAsync` — idempotent (creates the editable version or renames
@@ -635,7 +655,18 @@ better-update app-store availability show                  # territories the app
 - **`apps list`** is account-scoped (no app resolution — only `--profile`/`--asc-api-key-id`); `pricing show`
   and `availability show` are app-scoped and read-only. `pricing show` surfaces the base territory plus each
   manual price's territory + price-point id (the price amount lives on the price point); it prints "no price
-  schedule" when the app was never priced. Setting price/availability is out of scope (use ASC web).
+  schedule" when the app was never priced. Setting price is out of scope (use ASC web).
+- **`apps create`** registers a new app record (`App.createAsync`) — **cookie-only** (Apple ID login, App
+  Manager role); the bundle id must already be registered. `--company-name` defaults to your Apple team name.
+  Apple's rejection codes (insufficient role / bundle id not registered / name taken) surface as hints.
+- **`availability set`** updates the app's territories via `App.updateAsync({ territories })` (Token/CI-safe):
+  `--territories` REPLACES the whole set; `--add`/`--remove` read-modify-write the current set (mutually
+  exclusive with `--territories`). It refuses to set zero territories (which would delist the app). Ids come from
+  `app-store territories list`.
+- **`config pull/push`** is the `eas metadata` parity aggregator over the editable version's **per-locale copy**
+  only (release notes / description / keywords / promo text / marketing+support URLs). `pull` writes a JSON doc
+  (stdout or `--out <file>`); `push --from <file|json>` applies it, skipping locales with no copy. Pricing,
+  age-rating, privacy, and screenshots stay in their own commands (not in this document).
 
 ## reviews
 
@@ -652,20 +683,81 @@ better-update reviews reply --review <reviewId> (--body <text> | --text-file <pa
   `PENDING_PUBLISH` and becomes `PUBLISHED` after Apple moderation; there is no update API, so editing a reply
   means delete + recreate. Only `--profile`/`--asc-api-key-id` are needed (the review id is global).
 
-## credentials — App Store Connect inventory (CI-safe)
+## app-review (Apple App Review / Resolution Center)
 
-Beyond the signing **vault** (see `references/credentials.md`), the `credentials` group exposes read-only
-App Store Connect inventory + capability enablement, all headless on a stored ASC API key (`--profile` /
-`--asc-api-key-id`, no app resolution):
+Communicate with **Apple App Review** about a submission — read rejection threads, see the guideline codes,
+reply. **Cookie-only** (Apple's Iris API has no JWT equivalent): logs in via `apple login` (2FA) and fails
+with a clear error under `--non-interactive` / CI. App-scoped (shares the ASC app resolution; no ASC key
+needed). Threads anchor on the app's in-progress review submission (which includes the rejected
+`UNRESOLVED_ISSUES` state — exactly when App Review chat is live).
+
+```bash
+better-update app-review list                                          # threads on the open submission
+better-update app-review view --thread <threadId>                      # full transcript (HTML → plain text)
+better-update app-review rejections --thread <threadId>               # guideline section / code / description
+better-update app-review reply --thread <threadId> (--body <text> | --text-file <path>)
+```
+
+- Typical loop after a rejected `app-store submit`: `app-review list` → `app-review rejections --thread <id>`
+  (guideline codes like `2.5.4`) → `app-review reply --thread <id> --body "…"`.
+- Replies are **text only** (Apple's Iris has no attachment-upload model) and write to your live submission.
+  `view` renders the HTML `messageBody` as plain text for humans; the JSON payload carries the raw HTML.
+
+## metadata (store media)
+
+Manage App Store **screenshots and preview videos** — headless / CI-safe (stored ASC API key). All media
+lives on the **editable** App Store version (the one in "Prepare for Submission"), so create/attach a version
+first (`app-store version create`). Shares the ASC resolution above (`--profile` / `--app-id` / `--platform`).
+
+```bash
+better-update metadata media list [--locale en-US]            # screenshot + preview sets and their counts
+better-update metadata media sync --dir <root> [--prune] [--dry-run]   # declaratively push a directory tree
+better-update metadata screenshots upload --locale en-US --device APP_IPHONE_67 \
+  (--dir <folder of .png/.jpg> | --file <image>) [--replace]
+better-update metadata screenshots clear --locale en-US [--device iphone-67]
+better-update metadata previews upload --locale en-US --device IPHONE_67 --file demo.mp4 \
+  [--frame-time 00:00:05:01]
+```
+
+- **`--device`** accepts the exact App Store Connect class (`APP_IPHONE_67`, screenshots; `IPHONE_67`,
+  previews) or a friendly alias without the `APP_` prefix (`iphone-67`, `ipad-pro-3gen-129`, `apple-vision-pro`,
+  `desktop`). The same names are the directory names `media sync` expects.
+- **`media sync`** walks `<root>/<locale>/<device>/*.png` and makes each remote device set match the local
+  files (delete the set's screenshots, re-upload in **numeric-aware** name order, so `2.png` precedes
+  `10.png`). `--dry-run` prints the plan without mutating anything; `--prune` additionally empties remote device
+  sets that a **locally-present** locale does not declare (a locale absent from the tree is never touched). Two
+  directories that resolve to the same device (e.g. `iphone-67` + `APP_IPHONE_67`) are rejected. Apple uploads
+  are native AssetAPI (reserve → PUT → commit → poll) — no altool shell-out — and each upload waits for processing.
+- **`screenshots upload`** appends to the device set; pass `--replace` to clear it first. Missing locales /
+  device sets are created on demand. **`screenshots clear`** deletes a locale's screenshots (one device with
+  `--device`, or all of them); the sets themselves persist (Apple has no set-delete).
+- **`previews upload`** waits for Apple's transcode (minutes); `--frame-time` is the poster frame in
+  `HH:MM:SS:FF` (4-segment, e.g. `00:00:05:01`).
+
+## credentials — App Store Connect inventory + identifiers
+
+Beyond the signing **vault** (see `references/credentials.md`), the `credentials` group exposes
+App Store Connect inventory + capability/identifier management. The reads and the Token-based creates are
+headless on a stored ASC API key (`--profile` / `--asc-api-key-id`, no app resolution); App Clip creation and
+ASC-key revoke are **cookie-only** (Apple ID login).
 
 ```bash
 better-update credentials certificate list                 # signing certificates (type, serial, expiry, status)
 better-update credentials bundle-id list                   # registered App IDs (identifier, name, platform, seed)
+better-update credentials bundle-id create --identifier com.acme.app [--name "<Display>"]   # register an App ID (CI-safe)
+better-update credentials bundle-id create --identifier com.acme.app.Clip --app-clip \      # App Clip (cookie-only)
+  --parent com.acme.app
 better-update credentials profile list                     # provisioning profiles (type, state, uuid, expiry)
 better-update credentials capability list    (--bundle-id <ascId> | --identifier <com.acme.app>)
 better-update credentials capability enable  (--bundle-id <ascId> | --identifier <com.acme.app>) \
   --capability PUSH_NOTIFICATIONS                           # turn a capability ON (validated against CapabilityType)
+better-update credentials revoke asc-key [--id <localKeyId>] [--keep-local]   # revoke on Apple + reconcile vault (cookie)
 ```
+
+- **`bundle-id create`** registers a new App ID (`BundleId.createAsync`, Token/CI-safe). With `--app-clip` it
+  creates an App Clip identifier (`{parent}.Clip`) under `--parent` — that path is **cookie-only** (Apple ID login).
+- **`revoke asc-key`** revokes the App Store Connect API key on Apple (`ApiKey.revokeAsync`, irreversible) and
+  deletes the local vault row (`--keep-local` keeps it). Cookie-only; prompts for which key if `--id` is omitted.
 
 - **`capability enable`** validates `--capability` against Apple's `CapabilityType` and turns it `ON`. Capabilities
   with per-type option variants (Data Protection, iCloud, Sign In with Apple, Push) are enabled with their default

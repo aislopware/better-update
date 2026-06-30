@@ -1,4 +1,5 @@
 import { analyticsCommand } from "./commands/analytics";
+import { appReviewCommand } from "./commands/app-review";
 import { appStoreCommand } from "./commands/app-store";
 import { appleCommand } from "./commands/apple";
 import { auditLogsCommand } from "./commands/audit-logs";
@@ -17,6 +18,7 @@ import { groupsCommand } from "./commands/groups";
 import { initCommand } from "./commands/init";
 import { loginCommand } from "./commands/login";
 import { logoutCommand } from "./commands/logout";
+import { metadataCommand } from "./commands/metadata";
 import { openCommand } from "./commands/open";
 import { policiesCommand } from "./commands/policies";
 import { projectsCommand } from "./commands/projects";
@@ -76,4 +78,6 @@ export const commandRegistry = {
   submit: submitCommand,
   testflight: testflightCommand,
   reviews: reviewsCommand,
+  metadata: metadataCommand,
+  "app-review": appReviewCommand,
 };
