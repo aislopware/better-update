@@ -13,12 +13,8 @@ import { compact, toOptional } from "@better-update/type-guards";
 import AppleUtils from "@expo/apple-utils";
 import { Effect } from "effect";
 
-import {
-  AppleConnectError,
-  buildTokenRequestContext,
-  messageOf,
-  wrapConnect,
-} from "../lib/apple-asc-connect";
+import { mapAppCreateError } from "../lib/apple-app-create-error";
+import { buildTokenRequestContext, messageOf, wrapConnect } from "../lib/apple-asc-connect";
 import { setSubmitProfileAscAppId } from "../lib/eas-json";
 import { readExpoConfig } from "../lib/expo-config";
 import { InteractiveMode } from "../lib/interactive-mode";
@@ -46,16 +42,6 @@ export interface EnsureAscAppForSubmitInput {
 
 const DEFAULT_LOCALE = "en-US";
 
-/** Apple's documented `App.createAsync` rejections → an actionable hint. */
-const APP_CREATE_HINTS: Record<string, string> = {
-  APP_CREATE_INSUFFICIENT_ROLE:
-    'your Apple ID needs the "App Manager" or "Admin" role for this provider to create apps',
-  APP_CREATE_BUNDLE_ID_NOT_REGISTERED:
-    "register the bundle id in your Apple Developer account first (a build or `credentials` run does this)",
-  APP_CREATE_NAME_UNAVAILABLE: "that app name is already taken on the App Store — choose another",
-  APP_CREATE_NAME_INVALID: "the app name contains invalid characters",
-};
-
 /** Best-effort: write the resolved id back to eas.json so the next run reuses it. */
 const persist = (input: EnsureAscAppForSubmitInput, ascAppId: string) =>
   setSubmitProfileAscAppId(input.projectRoot, input.profileName, ascAppId).pipe(
@@ -75,26 +61,21 @@ const createApp = (
   companyName: string | undefined,
   input: EnsureAscAppForSubmitInput,
 ) =>
-  wrapConnect("apple-create-app", async () =>
-    AppleUtils.App.createAsync(
-      cookieCtx,
-      compact({
-        name,
-        bundleId: input.bundleIdentifier,
-        sku: input.sku ?? input.bundleIdentifier,
-        primaryLocale: input.primaryLocale ?? DEFAULT_LOCALE,
-        companyName,
-        platforms: [AppleUtils.Platform.IOS],
-      }),
-    ),
-  ).pipe(
-    Effect.mapError((error) => {
-      const hint = Object.entries(APP_CREATE_HINTS).find(([code]) => error.message.includes(code));
-      return hint === undefined
-        ? error
-        : new AppleConnectError({ step: error.step, message: `${error.message} — ${hint[1]}.` });
-    }),
-  );
+  Effect.tryPromise({
+    try: async () =>
+      AppleUtils.App.createAsync(
+        cookieCtx,
+        compact({
+          name,
+          bundleId: input.bundleIdentifier,
+          sku: input.sku ?? input.bundleIdentifier,
+          primaryLocale: input.primaryLocale ?? DEFAULT_LOCALE,
+          companyName,
+          platforms: [AppleUtils.Platform.IOS],
+        }),
+      ),
+    catch: mapAppCreateError,
+  });
 
 /**
  * Best-effort App Store name default to pre-fill the prompt with. Prefers the

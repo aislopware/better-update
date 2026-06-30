@@ -4,11 +4,12 @@
  * registers a new app record and is **cookie-only** (App Manager role, Iris) — it
  * takes an Apple ID session. Backs `app-store apps list` / `app-store apps create`.
  */
-import { compact, isRecord } from "@better-update/type-guards";
+import { compact } from "@better-update/type-guards";
 import AppleUtils from "@expo/apple-utils";
 import { Effect } from "effect";
 
-import { AppleConnectError, messageOf, wrapConnect } from "../lib/apple-asc-connect";
+import { mapAppCreateError } from "../lib/apple-app-create-error";
+import { wrapConnect } from "../lib/apple-asc-connect";
 
 /** An app record projected to the fields the CLI surfaces. */
 export interface AppView {
@@ -32,29 +33,6 @@ export const listApps = (ctx: AppleUtils.RequestContext) =>
   wrapConnect("apple-list-apps", async () => AppleUtils.App.getAsync(ctx)).pipe(
     Effect.map((apps) => apps.map(toView)),
   );
-
-/** Apple's documented `App.createAsync` rejection codes → an actionable hint. */
-const APP_CREATE_HINTS: Record<string, string> = {
-  APP_CREATE_INSUFFICIENT_ROLE:
-    'your Apple ID needs the "App Manager" or "Admin" role for this provider to create apps',
-  APP_CREATE_BUNDLE_ID_NOT_REGISTERED:
-    "register the bundle id in your Apple Developer account first (a build or `credentials` run does this)",
-  APP_CREATE_NAME_UNAVAILABLE: "that app name is already taken on the App Store — choose another",
-  APP_CREATE_NAME_INVALID: "the app name contains invalid characters",
-};
-
-/**
- * apple-utils sets the documented `APP_CREATE_*` constant on the error's `code`
- * (its `message` is human text that never contains the constant), so the hint must
- * be keyed off `code` — read here from the raw rejection before `messageOf` drops it.
- */
-const appCreateErrorCode = (cause: unknown): string => {
-  if (!isRecord(cause)) {
-    return "";
-  }
-  const { code } = cause;
-  return typeof code === "string" ? code : "";
-};
 
 export interface CreateAppInput {
   readonly name: string;
@@ -85,12 +63,5 @@ export const createApp = (ctx: AppleUtils.RequestContext, input: CreateAppInput)
             input.platforms === undefined ? [AppleUtils.Platform.IOS] : [...input.platforms],
         }),
       ),
-    catch: (cause) => {
-      const message = messageOf(cause);
-      const hint = APP_CREATE_HINTS[appCreateErrorCode(cause)];
-      return new AppleConnectError({
-        step: "apple-create-app",
-        message: hint === undefined ? message : `${message} — ${hint}.`,
-      });
-    },
+    catch: mapAppCreateError,
   }).pipe(Effect.map(toView));
