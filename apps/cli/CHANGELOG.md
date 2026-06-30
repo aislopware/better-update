@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.48.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.47.5...@better-update/cli@0.48.0) (2026-06-30)
+
+### Features
+
+* **cli:** materialize eas.json version + decrypted env into bare native builds ([9747c1b](https://github.com/better-update/better-update/commit/9747c1b9cb7d59595f98c817738bdef427c03658))
+
 ## [0.47.5](https://github.com/better-update/better-update/compare/@better-update/cli@0.47.4...@better-update/cli@0.47.5) (2026-06-30)
 
 ### Bug Fixes
