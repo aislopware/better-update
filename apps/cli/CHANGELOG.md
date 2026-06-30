@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.47.4](https://github.com/better-update/better-update/compare/@better-update/cli@0.47.3...@better-update/cli@0.47.4) (2026-06-30)
+
+### Bug Fixes
+
+* **cli:** surface altool's real upload error from its xml output ([3ed71a9](https://github.com/better-update/better-update/commit/3ed71a92dec50a068028f3b82e856a450fd495b6))
+
 ## [0.47.3](https://github.com/better-update/better-update/compare/@better-update/cli@0.47.2...@better-update/cli@0.47.3) (2026-06-30)
 
 ### Bug Fixes
