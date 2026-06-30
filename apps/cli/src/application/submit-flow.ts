@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { readFile, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -39,10 +39,16 @@ const ExecErrorSchema = Schema.Struct({
   stderr: Schema.optional(Schema.String),
 });
 
-const runAltool = (args: readonly string[]) =>
+const runAltool = (args: readonly string[], extraEnv?: Record<string, string>) =>
   Effect.tryPromise({
     try: async (): Promise<ExecResult> => {
-      const { stdout, stderr } = await execFileAsync("xcrun", ["altool", ...args]);
+      // `env` replaces (not merges) the child env, so inherit process.env — the
+      // app-specific-password path reads the password from `@env:` at runtime.
+      // `encoding` keeps the promisified overload returning strings, not Buffers.
+      const options = extraEnv
+        ? { encoding: "utf8" as const, env: { ...process.env, ...extraEnv } }
+        : { encoding: "utf8" as const };
+      const { stdout, stderr } = await execFileAsync("xcrun", ["altool", ...args], options);
       return { exitCode: 0, stdout, stderr };
     },
     catch: (error: unknown): ExecResult => {
@@ -338,12 +344,23 @@ export const resolveAscUploadCredentials = (params: {
     );
   });
 
-/** `altool` reads the API key from `--apiKeyDir`; write the decrypted `.p8` there. */
-const writeP8ForAltool = (credentials: AscCredentials) =>
-  Effect.gen(function* () {
-    const target = path.join(tmpdir(), `better-update-submit-AuthKey_${credentials.keyId}.p8`);
-    yield* Effect.promise(async () => writeFile(target, credentials.p8Pem, "utf8"));
-    return target;
+/**
+ * `altool --apiKey <id>` searches for a file named *exactly* `AuthKey_<id>.p8` in
+ * the standard `private_keys` dirs plus `$API_PRIVATE_KEYS_DIR`. Write the decrypted
+ * `.p8` under that exact name into a fresh private temp dir and return the dir so the
+ * caller can point `API_PRIVATE_KEYS_DIR` at it (and remove it afterward — it holds
+ * the unencrypted signing key).
+ */
+const writeP8KeyDir = (credentials: AscCredentials) =>
+  Effect.promise(async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "better-update-asc-"));
+    await writeFile(path.join(dir, `AuthKey_${credentials.keyId}.p8`), credentials.p8Pem, "utf8");
+    return dir;
+  });
+
+const removeKeyDir = (dir: string) =>
+  Effect.promise(async () => {
+    await rm(dir, { recursive: true, force: true });
   });
 
 const baseAltoolArgs = (ipaPath: string): readonly string[] => [
@@ -379,15 +396,13 @@ const buildAltoolArgs = (params: {
         message: "ASC API key is required for an asc-api-key upload but was not resolved.",
       });
     }
-    const p8Path = yield* writeP8ForAltool(params.ascCredentials);
+    // The `.p8` is located by name via `$API_PRIVATE_KEYS_DIR`, set when running altool.
     return [
       ...baseAltoolArgs(params.ipaPath),
       "--apiKey",
       params.ascCredentials.keyId,
       "--apiIssuer",
       params.ascCredentials.issuerId,
-      "--apiKeyDir",
-      path.dirname(p8Path),
     ];
   });
 
@@ -427,7 +442,16 @@ export const runIosSubmit = (inputs: IosSubmitInputs) =>
 
     yield* patchSubmissionStatus(inputs.api, inputs.submissionId, { status: "IN_PROGRESS" });
 
-    const result = yield* runAltool(altoolArgs);
+    // For an ASC API key, altool finds the `.p8` by name via `$API_PRIVATE_KEYS_DIR`;
+    // stage it in a temp dir scoped to the upload and remove it (and the key) after.
+    const result =
+      inputs.auth.kind === "asc-api-key" && ascCredentials !== null
+        ? yield* Effect.acquireUseRelease(
+            writeP8KeyDir(ascCredentials),
+            (keyDir) => runAltool(altoolArgs, { API_PRIVATE_KEYS_DIR: keyDir }),
+            (keyDir) => removeKeyDir(keyDir),
+          )
+        : yield* runAltool(altoolArgs);
 
     if (result.exitCode !== 0) {
       yield* patchSubmissionStatus(inputs.api, inputs.submissionId, {
