@@ -39,7 +39,7 @@
     "@clack/prompts": "^1.6.0",
     "@effect/platform": "^0.96.2",
     "@effect/platform-node": "^0.107.0",
-    "@expo/apple-utils": "^2.1.21",
+    "@expo/apple-utils": "^2.1.22",
     "@expo/config": "^56.0.9",
     "@expo/config-plugins": "~56.0.9",
     "@expo/pkcs12": "^0.5.1",
