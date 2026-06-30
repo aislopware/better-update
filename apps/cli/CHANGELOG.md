@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.47.3](https://github.com/better-update/better-update/compare/@better-update/cli@0.47.2...@better-update/cli@0.47.3) (2026-06-30)
+
+### Bug Fixes
+
+* **cli:** locate the ASC .p8 for altool via API_PRIVATE_KEYS_DIR ([f6e06dd](https://github.com/better-update/better-update/commit/f6e06dd11571ac01ad42c9268e07e92e4eef47f3))
+
 ## [0.47.2](https://github.com/better-update/better-update/compare/@better-update/cli@0.47.1...@better-update/cli@0.47.2) (2026-06-30)
 
 ### Bug Fixes
