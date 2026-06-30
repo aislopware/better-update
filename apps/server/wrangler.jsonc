@@ -4,6 +4,9 @@
   "compatibility_flags": ["nodejs_compat"],
   "compatibility_date": "2026-04-25",
   "main": "src/index.ts",
+  "observability": {
+    "enabled": true,
+  },
   "d1_databases": [
     {
       "binding": "DB",
