@@ -1,9 +1,12 @@
 import { defineCommand } from "citty";
 
 import { appStoreAgeRatingCommand } from "./age-rating";
+import { appStoreAppsCommand } from "./apps";
+import { appStoreAvailabilityCommand } from "./availability";
 import { appStoreCancelCommand } from "./cancel";
 import { appStoreCategoriesCommand } from "./categories";
 import { appStoreInfoCommand } from "./info";
+import { appStorePricingCommand } from "./pricing";
 import { appStorePrivacyCommand } from "./privacy";
 import { appStoreRejectCommand } from "./reject";
 import { appStoreReleaseCommand } from "./release";
@@ -32,5 +35,8 @@ export const appStoreCommand = defineCommand({
     categories: appStoreCategoriesCommand,
     "age-rating": appStoreAgeRatingCommand,
     privacy: appStorePrivacyCommand,
+    apps: appStoreAppsCommand,
+    pricing: appStorePricingCommand,
+    availability: appStoreAvailabilityCommand,
   },
 });

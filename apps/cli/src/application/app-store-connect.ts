@@ -42,11 +42,12 @@ export const APP_STORE_EXIT_EXTRAS = {
 } as const;
 
 /**
- * Citty args shared by every ASC leaf: which submit profile to read config from,
- * plus per-run overrides for the API key, app id, and bundle id. Spread into a
- * leaf's `args` alongside its command-specific flags.
+ * Citty args every ASC leaf needs to authenticate (no app resolution): which
+ * submit profile to read config from, plus a per-run API key override. Spread
+ * into account-scoped leaves (`credentials certificate list`, `apple users list`,
+ * `app-store apps list`) that resolve a {@link AscContext} via {@link openAscContext}.
  */
-export const ASC_COMMON_ARGS = {
+export const ASC_AUTH_ARGS = {
   profile: {
     type: "string",
     default: "production",
@@ -58,6 +59,15 @@ export const ASC_COMMON_ARGS = {
     description:
       "Stored ASC API key id to authenticate with (overrides the submit profile's ascApiKeyId)",
   },
+} as const;
+
+/**
+ * Citty args shared by every app-scoped ASC leaf: {@link ASC_AUTH_ARGS} plus the
+ * per-run app id / bundle id overrides. Spread into a leaf's `args` alongside its
+ * command-specific flags; resolve with {@link openAscSession}.
+ */
+export const ASC_COMMON_ARGS = {
+  ...ASC_AUTH_ARGS,
   "app-id": {
     type: "string",
     description: "App Store Connect app id (overrides the profile's ascAppId / bundle-id lookup)",
@@ -80,19 +90,27 @@ export const BUILD_SELECTOR_ARGS = {
   },
 } as const;
 
-/** The parsed shape of {@link ASC_COMMON_ARGS} a leaf passes to {@link openAscSession}. */
-export interface AscCommonArgs {
+/** The parsed shape of {@link ASC_AUTH_ARGS} a leaf passes to {@link openAscContext}. */
+export interface AscAuthArgs {
   readonly profile: string;
   readonly "asc-api-key-id"?: string | undefined;
+}
+
+/** The parsed shape of {@link ASC_COMMON_ARGS} a leaf passes to {@link openAscSession}. */
+export interface AscCommonArgs extends AscAuthArgs {
   readonly "app-id"?: string | undefined;
   readonly "bundle-identifier"?: string | undefined;
 }
 
-/** A resolved headless App Store Connect session, ready to drive entity managers. */
-export interface AscSession {
+/** A resolved headless Token context (no app), for account-scoped commands. */
+export interface AscContext {
   readonly ctx: AppleUtils.RequestContext;
-  readonly appId: string;
   readonly ascApiKeyId: string;
+}
+
+/** A resolved headless App Store Connect session, ready to drive entity managers. */
+export interface AscSession extends AscContext {
+  readonly appId: string;
   readonly bundleIdentifier: string | undefined;
 }
 
@@ -278,15 +296,41 @@ export const resolveReviewDetailInput = (
     });
   });
 
-interface ResolveAscSessionInput {
+interface ResolveAscContextInput {
   readonly api: ApiClient;
   /** Project root holding `eas.json`, for reading the submit profile. */
   readonly projectRoot: string;
   readonly profileName: string;
   readonly ascApiKeyId?: string;
+}
+
+interface ResolveAscSessionInput extends ResolveAscContextInput {
   readonly appId?: string;
   readonly bundleIdentifier?: string;
 }
+
+/** Read the eas.json submit profile's iOS block, tolerating absence (unlinked project). */
+const loadSubmitProfile = (projectRoot: string, profileName: string) =>
+  readSubmitProfile(projectRoot, profileName).pipe(
+    Effect.map((resolved) => resolved.ios),
+    Effect.orElseSucceed<EasIosSubmitProfile | undefined>(() => undefined),
+  );
+
+/** Build the Token context + resolved key id from flags/profile (no app resolution). */
+const buildAscContext = (params: {
+  readonly api: ApiClient;
+  readonly profile: EasIosSubmitProfile | undefined;
+  readonly flagKeyId: string | undefined;
+}) =>
+  Effect.gen(function* () {
+    const ascApiKeyId = yield* resolveAscApiKeyId({
+      api: params.api,
+      flagKeyId: params.flagKeyId,
+      profileKeyId: params.profile?.ascApiKeyId,
+    });
+    const ctx = yield* ascKeyRequestContext(params.api, ascApiKeyId);
+    return { ctx, ascApiKeyId } satisfies AscContext;
+  });
 
 /** Resolve the ASC API key id to authenticate with: flag > profile > the lone stored key. */
 const resolveAscApiKeyId = (params: {
@@ -352,25 +396,29 @@ const resolveAppId = (params: {
   });
 
 /**
+ * Resolve a headless {@link AscContext} (Token + key id, no app) from the submit
+ * profile + flag overrides. For account-scoped commands that operate on the team,
+ * not a single app (certificates, bundle ids, users, the app list).
+ */
+export const resolveAscContext = (input: ResolveAscContextInput) =>
+  Effect.gen(function* () {
+    const profile = yield* loadSubmitProfile(input.projectRoot, input.profileName);
+    return yield* buildAscContext({ api: input.api, profile, flagKeyId: input.ascApiKeyId });
+  });
+
+/**
  * Resolve a full {@link AscSession} from the submit profile + flag overrides. A
  * missing/invalid submit profile is tolerated when flags supply everything (an
  * unlinked project can still target an app by `--app-id` + `--asc-api-key-id`).
  */
 export const resolveAscSession = (input: ResolveAscSessionInput) =>
   Effect.gen(function* () {
-    const profile: EasIosSubmitProfile | undefined = yield* readSubmitProfile(
-      input.projectRoot,
-      input.profileName,
-    ).pipe(
-      Effect.map((resolved) => resolved.ios),
-      Effect.orElseSucceed(() => undefined),
-    );
-    const ascApiKeyId = yield* resolveAscApiKeyId({
+    const profile = yield* loadSubmitProfile(input.projectRoot, input.profileName);
+    const { ctx, ascApiKeyId } = yield* buildAscContext({
       api: input.api,
+      profile,
       flagKeyId: input.ascApiKeyId,
-      profileKeyId: profile?.ascApiKeyId,
     });
-    const ctx = yield* ascKeyRequestContext(input.api, ascApiKeyId);
     const bundleId = input.bundleIdentifier ?? profile?.bundleIdentifier;
     const appId = yield* resolveAppId({
       ctx,
@@ -382,9 +430,26 @@ export const resolveAscSession = (input: ResolveAscSessionInput) =>
   });
 
 /**
+ * Resolve an {@link AscContext} straight from a leaf's parsed auth args. The entry
+ * point every account-scoped (non-app) ASC leaf calls.
+ */
+export const openAscContext = (args: AscAuthArgs) =>
+  Effect.gen(function* () {
+    const api = yield* apiClient;
+    const runtime = yield* CliRuntime;
+    const projectRoot = yield* runtime.cwd;
+    return yield* resolveAscContext({
+      api,
+      projectRoot,
+      profileName: args.profile,
+      ...compact({ ascApiKeyId: args["asc-api-key-id"] }),
+    });
+  });
+
+/**
  * Resolve an {@link AscSession} straight from a leaf's parsed common args,
  * pulling the api client + project root from the CLI services. The single entry
- * point every `app-store`/`testflight` leaf calls.
+ * point every app-scoped `app-store`/`testflight` leaf calls.
  */
 export const openAscSession = (args: AscCommonArgs) =>
   Effect.gen(function* () {

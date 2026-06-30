@@ -433,13 +433,34 @@ better-update audit-logs list [--resource-type <type>] [--from <ISO>] [--to <ISO
 ## apple
 
 Manages the Apple Developer **session** (cookie-based, used to issue iOS credentials). Distinct from
-the top-level `login`/`logout`/`whoami` (which are for better-update itself).
+the top-level `login`/`logout`/`whoami` (which are for better-update itself). The `builds` and `users`
+subgroups are **headless / CI-safe** (stored ASC API key, not the cookie session).
 
 ```bash
 better-update apple login [--username <appleId>]    # defaults to last-used Apple ID; 2FA interactive
 better-update apple logout                          # clear the cached Apple session (ASC API keys unaffected)
 better-update apple whoami                          # show the cached Apple ID + team
+
+# ASC pre-release builds (CI-safe; shares the ASC resolution below)
+better-update apple builds list [--limit 50]                                   # uploaded builds, newest first
+better-update apple builds get    (--build <id> | --build-version <n>)         # one build's attributes
+better-update apple builds status (--build <id> | --build-version <n>)         # processing + TestFlight beta state
+better-update apple builds compliance (--build <id> | --build-version <n>) \   # answer export compliance
+  [--no-uses-encryption]                                                       # default: exempt (clears MISSING_EXPORT_COMPLIANCE)
+
+# Team / seat administration (needs an ADMIN-role ASC API key)
+better-update apple users list
+better-update apple users invite --email <e> --first-name <f> --last-name <l> \
+  --roles DEVELOPER,APP_MANAGER [--visible-apps <appId,appId>] [--provisioning-allowed true|false]
 ```
+
+- **`apple builds compliance`** is the near-P0 fix for a build stuck in `MISSING_EXPORT_COMPLIANCE`: the bare
+  command (or `--no-uses-encryption`) declares the app uses only exempt encryption; `--uses-encryption` declares
+  it uses non-exempt encryption. It sets `usesNonExemptEncryption` on the build via `Build.updateAsync`.
+- **`apple users invite`** takes comma-separated `--roles` (validated against ASC roles: `ADMIN`, `DEVELOPER`,
+  `APP_MANAGER`, `MARKETING`, `FINANCE`, `SALES`, `CUSTOMER_SUPPORT`, `ACCESS_TO_REPORTS`, `READ_ONLY`, …).
+  Omitting `--visible-apps` makes all apps visible; supplying App ids scopes the user to them. Apple emails the
+  invite. Both `apple users` commands require an Admin-role key (Apple returns 403 otherwise).
 
 ## submit
 
@@ -586,6 +607,11 @@ better-update app-store privacy get
 better-update app-store privacy set --from <file|json>    # array of { category, protection?, purpose? }
 better-update app-store privacy publish                    # make the label public
 better-update app-store privacy clear                      # delete every declared usage
+
+# Account inventory + commercial (read-only)
+better-update app-store apps list                          # every app the ASC key can see (account-scoped)
+better-update app-store pricing show                       # current price schedule (base territory + manual prices)
+better-update app-store availability show                  # territories the app is available in (~175)
 ```
 
 - **`version create`** uses `App.ensureVersionAsync` — idempotent (creates the editable version or renames
@@ -606,6 +632,44 @@ better-update app-store privacy clear                      # delete every declar
   not a flag matrix. `privacy set` replaces all declarations, then `privacy publish` makes the label public.
   `review-detail set` sources the demo password from `--demo-account-password` or
   `BETTER_UPDATE_DEMO_ACCOUNT_PASSWORD` (never echoed).
+- **`apps list`** is account-scoped (no app resolution — only `--profile`/`--asc-api-key-id`); `pricing show`
+  and `availability show` are app-scoped and read-only. `pricing show` surfaces the base territory plus each
+  manual price's territory + price-point id (the price amount lives on the price point); it prints "no price
+  schedule" when the app was never priced. Setting price/availability is out of scope (use ASC web).
+
+## reviews
+
+Read and respond to App Store **customer reviews** — headless / CI-safe (stored ASC API key).
+
+```bash
+better-update reviews list [--rating 1-5] [--territory USA] [--limit 50]   # newest first; shows reply state
+better-update reviews reply --review <reviewId> (--body <text> | --text-file <path>)
+```
+
+- **`reviews list`** is app-scoped (shares the ASC resolution above); `--rating` filters by star count,
+  `--territory` by App Store country code.
+- **`reviews reply`** posts a public developer response (`CustomerReviewResponse.createAsync`). It starts in
+  `PENDING_PUBLISH` and becomes `PUBLISHED` after Apple moderation; there is no update API, so editing a reply
+  means delete + recreate. Only `--profile`/`--asc-api-key-id` are needed (the review id is global).
+
+## credentials — App Store Connect inventory (CI-safe)
+
+Beyond the signing **vault** (see `references/credentials.md`), the `credentials` group exposes read-only
+App Store Connect inventory + capability enablement, all headless on a stored ASC API key (`--profile` /
+`--asc-api-key-id`, no app resolution):
+
+```bash
+better-update credentials certificate list                 # signing certificates (type, serial, expiry, status)
+better-update credentials bundle-id list                   # registered App IDs (identifier, name, platform, seed)
+better-update credentials profile list                     # provisioning profiles (type, state, uuid, expiry)
+better-update credentials capability list    (--bundle-id <ascId> | --identifier <com.acme.app>)
+better-update credentials capability enable  (--bundle-id <ascId> | --identifier <com.acme.app>) \
+  --capability PUSH_NOTIFICATIONS                           # turn a capability ON (validated against CapabilityType)
+```
+
+- **`capability enable`** validates `--capability` against Apple's `CapabilityType` and turns it `ON`. Capabilities
+  with per-type option variants (Data Protection, iCloud, Sign In with Apple, Push) are enabled with their default
+  option. Pass the App ID by its ASC id (`--bundle-id`) or its bundle identifier (`--identifier`).
 
 ## devices
 

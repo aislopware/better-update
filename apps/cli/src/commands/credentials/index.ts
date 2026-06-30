@@ -4,6 +4,9 @@ import { runCredentialsManager } from "../../application/credentials-manager";
 import { runEffect } from "../../lib/citty-effect";
 import { accessCommand } from "./access";
 import { accountCommand } from "./account";
+import { bundleIdCommand } from "./bundle-id";
+import { capabilityCommand } from "./capability";
+import { certificateCommand } from "./certificate";
 import { configureCommand } from "./configure";
 import { deleteCommand } from "./delete";
 import { deviceCommand } from "./device";
@@ -13,6 +16,7 @@ import { generateCommand } from "./generate";
 import { identityCommand } from "./identity";
 import { listCommand } from "./list";
 import { passphraseCommand } from "./passphrase";
+import { profileCommand } from "./profile";
 import { regenerateProfileCommand } from "./regenerate-profile";
 import { removeCommand } from "./remove";
 import { revokeCommand } from "./revoke";
@@ -60,6 +64,10 @@ export const credentialsCommand = defineCommand({
     revoke: revokeCommand,
     configure: configureCommand,
     sync: syncCommand,
+    certificate: certificateCommand,
+    "bundle-id": bundleIdCommand,
+    profile: profileCommand,
+    capability: capabilityCommand,
   },
   default: "manager",
 });

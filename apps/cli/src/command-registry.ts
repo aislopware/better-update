@@ -20,6 +20,7 @@ import { logoutCommand } from "./commands/logout";
 import { openCommand } from "./commands/open";
 import { policiesCommand } from "./commands/policies";
 import { projectsCommand } from "./commands/projects";
+import { reviewsCommand } from "./commands/reviews";
 import { statusCommand } from "./commands/status";
 import { submitCommand } from "./commands/submit";
 import { testflightCommand } from "./commands/testflight";
@@ -74,4 +75,5 @@ export const commandRegistry = {
   "app-store": appStoreCommand,
   submit: submitCommand,
   testflight: testflightCommand,
+  reviews: reviewsCommand,
 };
