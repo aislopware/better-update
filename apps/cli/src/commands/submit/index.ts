@@ -133,6 +133,7 @@ interface RunArgs {
  */
 const submitIosBranch = (params: {
   readonly api: ApiClient;
+  readonly projectId: string;
   readonly submissionId: string;
   readonly projectRoot: string;
   readonly profile: string;
@@ -190,6 +191,12 @@ const submitIosBranch = (params: {
     // target. Skipped when ascAppId is already set or no config is wanted.
     let resolvedAscAppId = iosProfile?.ascAppId;
     if (wantsConfig && resolvedAscAppId === undefined && ascCredentials !== null) {
+      // Best-effort: the better-update project name pre-fills the create-app prompt
+      // for non-Expo projects (no app.json `expo.name` to default from).
+      const defaultAppName = yield* api.projects.get({ path: { id: params.projectId } }).pipe(
+        Effect.map((project) => project.name),
+        Effect.orElseSucceed(() => undefined),
+      );
       resolvedAscAppId = toOptional(
         yield* ensureAscAppForSubmit({
           credentials: ascCredentials,
@@ -197,6 +204,7 @@ const submitIosBranch = (params: {
           profileName: params.profile,
           bundleIdentifier: iosConfig.bundleIdentifier,
           appName: iosProfile?.appName,
+          defaultAppName,
           sku: iosProfile?.sku,
           companyName: iosProfile?.companyName,
           primaryLocale: iosProfile?.language,
@@ -246,6 +254,7 @@ const runFlow = (api: ApiClient, projectId: string, args: RunArgs) =>
     if (args.platform === "ios" && iosConfig !== undefined) {
       const uploaded = yield* submitIosBranch({
         api,
+        projectId,
         submissionId: submission.id,
         projectRoot: args.projectRoot,
         profile: args.profile,

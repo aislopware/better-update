@@ -98,7 +98,14 @@ export const promptMultiSelect = <T>(
 
 export const promptText = (
   message: string,
-  options?: { readonly placeholder?: string; readonly defaultValue?: string },
+  options?: {
+    readonly placeholder?: string;
+    readonly defaultValue?: string;
+    /** Pre-fills the editable buffer (visible + editable), unlike `defaultValue`. */
+    readonly initialValue?: string;
+    /** Return a message to reject + re-prompt; `undefined` accepts the value. */
+    readonly validate?: (value: string | undefined) => string | undefined;
+  },
 ): Effect.Effect<string, InteractiveProhibitedError, InteractiveMode> =>
   Effect.gen(function* () {
     yield* ensureInteractive(message);
@@ -108,6 +115,8 @@ export const promptText = (
           message,
           placeholder: options?.placeholder,
           defaultValue: options?.defaultValue,
+          initialValue: options?.initialValue,
+          validate: options?.validate,
         }),
       ),
     );

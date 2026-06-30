@@ -37,6 +37,8 @@ export interface EnsureAscAppForSubmitInput {
   readonly profileName: string;
   readonly bundleIdentifier: string;
   readonly appName: string | undefined;
+  /** Fallback name to pre-fill the prompt with (e.g. the better-update project name). */
+  readonly defaultAppName: string | undefined;
   readonly sku: string | undefined;
   readonly companyName: string | undefined;
   readonly primaryLocale: string | undefined;
@@ -95,33 +97,43 @@ const createApp = (
   );
 
 /**
- * Best-effort App Store name default. EAS-style: fall back to the Expo config's
- * `name` (app.json `expo.name`) so a never-empty default reaches `App.createAsync`
- * — Apple's iris API 500s on a blank name. Returns `undefined` for non-Expo
- * projects (no `@expo/config`) so the caller drops to a bundle-id placeholder.
+ * Best-effort App Store name default to pre-fill the prompt with. Prefers the
+ * Expo config's `name` (app.json `expo.name`), then the passed-in fallback (the
+ * better-update project name) so non-Expo projects — which have no `@expo/config`
+ * — still get a sensible default. Returns `undefined` when neither is available.
  */
-const resolveDefaultAppName = (projectRoot: string) =>
-  readExpoConfig(projectRoot).pipe(
+const resolveDefaultAppName = (input: EnsureAscAppForSubmitInput) =>
+  readExpoConfig(input.projectRoot).pipe(
     Effect.map((config) => (config.name?.trim() ? config.name.trim() : undefined)),
     Effect.orElseSucceed(() => undefined),
+    Effect.map((expoName) => {
+      const fallback = input.defaultAppName?.trim();
+      return expoName ?? (fallback || undefined);
+    }),
   );
 
+/** Reject a blank app name so the prompt re-asks instead of 500'ing `App.createAsync`. */
+const requireNonEmptyName = (value: string | undefined): string | undefined =>
+  value?.trim() ? undefined : "An app name is required.";
+
 /**
- * The App Store name to create the app under. A configured `appName` wins; else
- * prompt, pre-filled with app.json `expo.name` so an empty Enter still names the
- * app. Trimmed so a blank value is caught before reaching `App.createAsync`.
+ * The App Store name to create the app under. A non-empty configured `appName`
+ * wins; else prompt — pre-filled with the resolved default (Expo `expo.name` or
+ * the better-update project name) and *required*, so an empty Enter re-asks
+ * rather than reaching `App.createAsync` with a blank name (which Apple 500s).
  */
 const resolveAppName = (input: EnsureAscAppForSubmitInput) =>
   Effect.gen(function* () {
-    if (input.appName !== undefined) {
-      return input.appName.trim();
+    const configured = input.appName?.trim();
+    if (configured) {
+      return configured;
     }
-    const defaultName = yield* resolveDefaultAppName(input.projectRoot);
+    const defaultName = yield* resolveDefaultAppName(input);
     const entered = yield* promptText(
       "App name (as shown on the App Store)",
       defaultName === undefined
-        ? { placeholder: input.bundleIdentifier }
-        : { defaultValue: defaultName },
+        ? { placeholder: input.bundleIdentifier, validate: requireNonEmptyName }
+        : { initialValue: defaultName, validate: requireNonEmptyName },
     );
     return entered.trim();
   });
@@ -155,8 +167,8 @@ export const ensureAscAppForSubmit = (input: EnsureAscAppForSubmitInput) =>
       return null;
     }
 
-    // Pre-fill the name prompt from app.json `expo.name` so pressing Enter never
-    // yields a blank name (Apple's create-app API rejects empty names with a 500).
+    // Resolve a non-empty name (configured, or a required prompt pre-filled with
+    // the Expo/project default) before any login — Apple 500s on a blank name.
     const name = yield* resolveAppName(input);
     if (name.length === 0) {
       yield* printHuman(

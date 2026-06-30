@@ -78,7 +78,10 @@ const appleAuthStub = Layer.succeed(AppleAuth, {
 
 const CREDS: AscCredentials = { keyId: "K1", issuerId: "ISS-UUID", p8Pem: "PEM" };
 
-const run = (interactive: boolean, overrides: Partial<{ appName: string }> = {}) =>
+const run = (
+  interactive: boolean,
+  overrides: Partial<{ appName: string; defaultAppName: string }> = {},
+) =>
   (
     ensureAscAppForSubmit({
       credentials: CREDS,
@@ -86,6 +89,7 @@ const run = (interactive: boolean, overrides: Partial<{ appName: string }> = {})
       profileName: "production",
       bundleIdentifier: "com.acme.app",
       appName: overrides.appName,
+      defaultAppName: overrides.defaultAppName,
       sku: undefined,
       companyName: undefined,
       primaryLocale: undefined,
@@ -106,11 +110,11 @@ beforeEach(() => {
   mocks.ensureLoggedIn.mockReturnValue(
     Effect.succeed({ username: "u@acme.com", teamId: "TEAM1234", teamName: "Acme", providerId: 1 }),
   );
-  // Default: app.json carries an `expo.name`; the prompt echoes whatever default it's given.
+  // Default: app.json carries an `expo.name`; the prompt accepts whatever it's pre-filled with.
   mocks.readExpoConfig.mockReturnValue(Effect.succeed({ name: "Expo Config Name" }));
   mocks.promptText.mockImplementation((_message: unknown, options: unknown) =>
     Effect.succeed(
-      (options as { defaultValue?: string; placeholder?: string } | undefined)?.defaultValue ?? "",
+      (options as { initialValue?: string; placeholder?: string } | undefined)?.initialValue ?? "",
     ),
   );
 });
@@ -183,12 +187,35 @@ describe(ensureAscAppForSubmit, () => {
       const result = yield* run(true);
 
       expect(result).toBe("6700000003");
-      // Prompt pre-filled with app.json `expo.name`, so an empty Enter still names the app.
+      // Prompt pre-filled (editable) with app.json `expo.name` and required.
       expect(mocks.promptText).toHaveBeenCalledWith(expect.any(String), {
-        defaultValue: "Expo Config Name",
+        initialValue: "Expo Config Name",
+        validate: expect.any(Function),
       });
       const [, createProps] = mocks.appCreateAsync.mock.calls[0] as [unknown, { name: string }];
       expect(createProps.name).toBe("Expo Config Name");
+    }),
+  );
+
+  it.effect("falls back to the better-update project name when the project is not Expo", () =>
+    Effect.gen(function* () {
+      mocks.appFindAsync.mockResolvedValue(null);
+      mocks.promptConfirm.mockReturnValue(Effect.succeed(true));
+      mocks.appCreateAsync.mockResolvedValue({ id: "6700000004" });
+      // Non-Expo project: no `@expo/config` to read, so readExpoConfig fails.
+      mocks.readExpoConfig.mockReturnValue(
+        Effect.fail({ _tag: "ProjectNotLinkedError", message: "no expo" }),
+      );
+
+      const result = yield* run(true, { defaultAppName: "Rockxy" });
+
+      expect(result).toBe("6700000004");
+      expect(mocks.promptText).toHaveBeenCalledWith(expect.any(String), {
+        initialValue: "Rockxy",
+        validate: expect.any(Function),
+      });
+      const [, createProps] = mocks.appCreateAsync.mock.calls[0] as [unknown, { name: string }];
+      expect(createProps.name).toBe("Rockxy");
     }),
   );
 
@@ -196,7 +223,8 @@ describe(ensureAscAppForSubmit, () => {
     Effect.gen(function* () {
       mocks.appFindAsync.mockResolvedValue(null);
       mocks.promptConfirm.mockReturnValue(Effect.succeed(true));
-      // No app.json name and an empty prompt → nothing to name the app with.
+      // Defensive guard: no default and a blank prompt value (the `validate` that
+      // normally re-prompts is bypassed here) must not reach `App.createAsync`.
       mocks.readExpoConfig.mockReturnValue(Effect.succeed({ name: undefined }));
 
       const result = yield* run(true);
