@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.30.0](https://gitlab.jmango360.com/mobile/better-update/compare/@better-update/api@0.29.1...@better-update/api@0.30.0) (2026-07-01)
+
+### Features
+
+* add per-variable env var documentation (label/description) ([044cdc1](https://gitlab.jmango360.com/mobile/better-update/commit/044cdc1b1706b23cc266961169ca9ae75228a90e))
+
 ## [0.29.1](https://gitlab.jmango360.com/mobile/better-update/compare/@better-update/api@0.29.0...@better-update/api@0.29.1) (2026-06-29)
 
 ### Bug Fixes

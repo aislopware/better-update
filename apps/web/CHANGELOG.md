@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.49.0](https://github.com/better-update/better-update/compare/@better-update/web@0.48.2...@better-update/web@0.49.0) (2026-07-01)
+
+### Features
+
+* add per-variable env var documentation (label/description) ([044cdc1](https://github.com/better-update/better-update/commit/044cdc1b1706b23cc266961169ca9ae75228a90e))
+
 ## [0.48.2](https://github.com/better-update/better-update/compare/@better-update/web@0.48.1...@better-update/web@0.48.2) (2026-07-01)
 
 ### Bug Fixes
