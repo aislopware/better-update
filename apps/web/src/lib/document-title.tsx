@@ -9,7 +9,7 @@ const ORG_LABELS: Record<string, string> = {
   credentials: "Credentials",
   "apple-devices": "Apple Devices",
   "vault-access": "Vault access",
-  "api-keys": "API Keys",
+  "robot-accounts": "Robot accounts",
   "environment-variables": "Environment variables",
   policies: "Policies",
   groups: "Groups",

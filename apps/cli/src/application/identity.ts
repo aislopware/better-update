@@ -9,6 +9,7 @@ import { Effect } from "effect";
 import type { Identity, IdentityFile } from "@better-update/credentials-crypto";
 
 import { IdentityError } from "../lib/exit-codes";
+import { parseRobotEnv } from "../lib/robot-env";
 import { CliRuntime } from "../services/cli-runtime";
 import { IdentityStore } from "../services/identity-store";
 
@@ -62,23 +63,25 @@ export const loadIdentityFileOrFail: Effect.Effect<IdentityFile, IdentityError, 
 
 /**
  * The recipient kind implied by where the identity came from. An identity loaded
- * from `BETTER_UPDATE_IDENTITY` (env) is a CI **machine** recipient — org-owned,
- * with no user session; an on-disk identity is a user-owned **device**. Picking
- * the wrong kind is rejected by the server (a device key requires a user session,
- * which a token-authenticated CI run does not have).
+ * from the env (`BETTER_UPDATE_ROBOT` or the deprecated `BETTER_UPDATE_IDENTITY`)
+ * is a CI **machine** recipient — org-owned, with no user session; an on-disk
+ * identity is a user-owned **device**. Picking the wrong kind is rejected by the
+ * server (a device key requires a user session, which a token-authenticated CI
+ * run does not have).
  */
 export const recipientKind = (source: ActiveRecipient["source"]): "device" | "machine" =>
   source === "env" ? "machine" : "device";
 
 /**
- * Register a public recipient on the server. `device` keys are the caller's own
- * (self-service); `machine` keys are org-owned CI keys (admin-gated). The kind
- * follows the identity's source — see {@link recipientKind}.
+ * Register a public device recipient on the server (self-service — the caller's
+ * own key). Robot (machine) recipients are no longer registered through this
+ * generic endpoint; they are created internally, alongside a bearer secret, by
+ * `credentials robot create` (see application/robot.ts).
  */
 export const registerRecipient = (
   api: ApiClient,
   args: {
-    readonly kind: "device" | "machine";
+    readonly kind: "device";
     readonly publicKey: string;
     readonly fingerprint: string;
     readonly label: string;
@@ -94,8 +97,29 @@ export const registerRecipient = (
   });
 
 /**
- * The recipient the CLI would encrypt to right now: the `BETTER_UPDATE_IDENTITY`
- * env key (CI) takes precedence over the on-disk device identity. Neither path
+ * The private key of the identity the CLI would act as right now, preferring a
+ * `BETTER_UPDATE_ROBOT` credential (bundled bearer + vault identity) over the
+ * older standalone `BETTER_UPDATE_IDENTITY` (deprecated, vault-decrypt-only —
+ * kept as a fallback for orgs that minted a robot before this env var existed),
+ * over the on-disk device identity. `undefined` when only a bearer half is
+ * present (a `BETTER_UPDATE_ROBOT` with no linked vault identity yet).
+ */
+export const activeEnvPrivateKey: Effect.Effect<string | undefined, IdentityError, CliRuntime> =
+  Effect.gen(function* () {
+    const runtime = yield* CliRuntime;
+    const robotEnv = yield* runtime.getEnv("BETTER_UPDATE_ROBOT");
+    if (robotEnv) {
+      const parsed = yield* parseRobotEnv(robotEnv);
+      if (parsed.identity) {
+        return parsed.identity;
+      }
+    }
+    return yield* runtime.getEnv("BETTER_UPDATE_IDENTITY");
+  });
+
+/**
+ * The recipient the CLI would encrypt to right now: an env-sourced robot
+ * identity (CI) takes precedence over the on-disk device identity. Neither path
  * needs a passphrase — only the public half is resolved.
  */
 export const activeRecipient: Effect.Effect<
@@ -103,13 +127,12 @@ export const activeRecipient: Effect.Effect<
   IdentityError,
   CliRuntime | IdentityStore
 > = Effect.gen(function* () {
-  const runtime = yield* CliRuntime;
-  const envKey = yield* runtime.getEnv("BETTER_UPDATE_IDENTITY");
+  const envKey = yield* activeEnvPrivateKey;
   if (envKey !== undefined && envKey.length > 0) {
     const publicKey = yield* Effect.tryPromise({
       try: async () => deriveRecipient(envKey),
       catch: () =>
-        new IdentityError({ message: "BETTER_UPDATE_IDENTITY is not a valid age identity key." }),
+        new IdentityError({ message: "The robot's private key is not a valid age identity key." }),
     });
     return { publicKey, fingerprint: fingerprint(publicKey), source: "env" as const };
   }

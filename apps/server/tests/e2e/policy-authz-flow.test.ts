@@ -14,15 +14,15 @@ const { del, get, parseCookies, post } = setupE2EWorker(".wrangler/state/e2e-pol
 //   - a plain `member` (Bob) is added to that group,
 //   - Bob can create/mutate a channel in project A but is DENIED in project B,
 //   - the owner is never locked out (can act in BOTH projects),
-//   - an api-key with no policy attachment is denied (default-deny).
+//   - a robot account with no policy attachment is denied (default-deny).
 //
 // Bob's better-auth member role is `member` (NOT admin/developer/viewer), so he
 // carries NO managed-preset baseline — every grant he has flows solely from the
 // scoped policy attached via the group. That is exactly what we want to prove.
 //
-// Single file → two api-keys issued (one via the better-auth route for the
-// default-deny check, one via the IAM endpoint), each used for ≤1 authed request
-// — well within the 120 req/60s per-key limit.
+// Single file → two robot accounts issued (one for the default-deny check, one
+// via the IAM endpoint), each used for ≤1 authed request — well within the
+// 120 req/60s per-robot limit.
 
 describe("IAM Policy + Group authorization cross-flow", () => {
   let aliceCookies: string;
@@ -35,10 +35,10 @@ describe("IAM Policy + Group authorization cross-flow", () => {
   let bobMemberId: string;
   let groupId: string;
   let policyId: string;
-  let apiKeyValue: string;
-  let bobApiKeyPolicyId: string;
-  let bobMintedKeyId: string;
-  let bobMintedKey: string;
+  let robotBearer: string;
+  let bobRobotAccountPolicyId: string;
+  let bobMintedRobotId: string;
+  let bobMintedRobotBearer: string;
   let bobInvitationPolicyId: string;
   let bobInvitationId: string;
   let aliceMemberId: string;
@@ -287,56 +287,73 @@ describe("IAM Policy + Group authorization cross-flow", () => {
     expect(inB.status).toBe(201);
   });
 
-  // ── Section 7: api-key with no attachment is denied ────────────
+  // ── Section 7: robot account with no attachment is denied ──────
 
-  it("an api-key with NO granting policy is denied (default-deny)", async () => {
-    // Per POLICY-GROUPS-SPEC.md §8, an api-key principal derives ALL permissions
-    // from policy attachments (resolved like a member's) plus optional inline
-    // grants — a key with none has NO access. We create the key with NO
-    // permissions map at all (exactly how the dashboard + CLI create keys), so
-    // there are no inline grants AND no attachment is seeded: every guarded
-    // action is default-denied. There is NO implicit admin baseline.
-    const keyRes = await post(
-      "/api/auth/api-key/create",
-      { name: "authz-e2e-key", organizationId },
+  it("a robot account with NO granting policy is denied (default-deny)", async () => {
+    // Per POLICY-GROUPS-SPEC.md §8, a robot principal derives ALL permissions
+    // from policy attachments (resolved like a member's) — a robot with none has
+    // NO access. No attachment is seeded, so every guarded action is
+    // default-denied. There is NO implicit admin baseline. Alice is the owner, so
+    // minting itself succeeds (robotAccount:create + vaultAccess:create bypass).
+    const robotRes = await post(
+      "/api/robot-accounts",
+      {
+        name: "authz-e2e-robot",
+        publicKey: `age1${crypto.randomUUID()}${crypto.randomUUID()}`,
+        fingerprint: `SHA256:${crypto.randomUUID()}`,
+      },
       { cookie: aliceCookies },
     );
-    expect(keyRes.status).toBe(200);
-    const keyBody = await keyRes.json();
-    apiKeyValue = keyBody.key;
-    expect(apiKeyValue).toBeTruthy();
+    expect(robotRes.status).toBe(201);
+    const robotBody = await robotRes.json();
+    robotBearer = robotBody.bearerSecret;
+    expect(robotBearer).toBeTruthy();
 
-    // The key carries no grants → effectiveStatements is empty → 403 on a guarded
-    // read. (Bearer auth is exempt from the cookie CSRF origin guard.)
+    // The robot carries no grants → effectiveStatements is empty → 403 on a
+    // guarded read. (Bearer auth is exempt from the cookie CSRF origin guard.)
     const res = await get(`/api/channels?projectId=${projectAId}`, {
-      authorization: `Bearer ${apiKeyValue}`,
+      authorization: `Bearer ${robotBearer}`,
     });
     expect(res.status).toBe(403);
   });
 
-  // ── Section 7b: a NON-OWNER mints an API key via the IAM endpoint ─
+  // ── Section 7b: a NON-OWNER mints a robot account via the IAM endpoint ─
   //
-  // The headline of the unification slice: org API-key minting is no longer
-  // better-auth owner-only — a plain member holding an `apiKey:create` grant
-  // (via policy attachment) can mint through POST /api/api-keys, which gates on
-  // assertAccess("apiKey", …) and writes a row better-auth's verifyApiKey accepts.
+  // The headline of the unification slice: robot account minting is no longer
+  // better-auth owner-only — a plain member holding a `robotAccount:create`
+  // grant (via policy attachment) can mint through POST /api/robot-accounts,
+  // which gates on assertAccess("robotAccount", …) — plus vaultAccess:create,
+  // since minting always registers the linked machine vault identity too.
 
-  it("Bob (no apiKey grant) is DENIED minting via the IAM endpoint", async () => {
-    const res = await post("/api/api-keys", { name: "bob-denied-key" }, { cookie: bobCookies });
+  it("Bob (no robotAccount grant) is DENIED minting via the IAM endpoint", async () => {
+    const res = await post(
+      "/api/robot-accounts",
+      {
+        name: "bob-denied-robot",
+        publicKey: `age1${crypto.randomUUID()}${crypto.randomUUID()}`,
+        fingerprint: `SHA256:${crypto.randomUUID()}`,
+      },
+      { cookie: bobCookies },
+    );
     expect(res.status).toBe(403);
   });
 
-  it("owner grants Bob an org-scoped apiKey policy (create/read/delete on *)", async () => {
+  it("owner grants Bob an org-scoped robotAccount + vaultAccess policy", async () => {
     const policyRes = await post(
       "/api/policies",
       {
-        name: "org-api-keys",
-        description: "Allow API key management org-wide",
+        name: "org-robot-accounts",
+        description: "Allow robot account management org-wide",
         document: {
           statements: [
             {
               effect: "allow",
-              actions: ["apiKey:create", "apiKey:read", "apiKey:delete"],
+              actions: [
+                "robotAccount:create",
+                "robotAccount:read",
+                "robotAccount:delete",
+                "vaultAccess:create",
+              ],
               resources: ["*"],
             },
           ],
@@ -345,38 +362,46 @@ describe("IAM Policy + Group authorization cross-flow", () => {
       { cookie: aliceCookies },
     );
     expect(policyRes.status).toBe(201);
-    bobApiKeyPolicyId = (await policyRes.json()).id;
+    bobRobotAccountPolicyId = (await policyRes.json()).id;
 
     const attachRes = await post(
       `/api/groups/${groupId}/policies`,
-      { policyId: bobApiKeyPolicyId },
+      { policyId: bobRobotAccountPolicyId },
       { cookie: aliceCookies },
     );
     expect(attachRes.status).toBe(201);
   });
 
-  it("Bob (non-owner) can now mint an API key via IAM — POST /api/api-keys → 201", async () => {
-    const res = await post("/api/api-keys", { name: "bob-iam-key" }, { cookie: bobCookies });
+  it("Bob (non-owner) can now mint a robot account via IAM — POST /api/robot-accounts → 201", async () => {
+    const res = await post(
+      "/api/robot-accounts",
+      {
+        name: "bob-iam-robot",
+        publicKey: `age1${crypto.randomUUID()}${crypto.randomUUID()}`,
+        fingerprint: `SHA256:${crypto.randomUUID()}`,
+      },
+      { cookie: bobCookies },
+    );
     expect(res.status).toBe(201);
     const body = await res.json();
-    bobMintedKeyId = body.id;
-    bobMintedKey = body.key;
-    expect(bobMintedKey).toBeTruthy();
-    expect(bobMintedKey.startsWith("bu_")).toBe(true);
+    bobMintedRobotId = body.id;
+    bobMintedRobotBearer = body.bearerSecret;
+    expect(bobMintedRobotBearer).toBeTruthy();
+    expect(bobMintedRobotBearer.startsWith("bu_robot_")).toBe(true);
   });
 
-  it("the IAM-minted key is a REAL verifiable key (403 not 401 on a guarded read)", async () => {
-    // The minted key principal has no policy attachment → default-deny → 403.
-    // A 403 (authenticated-but-forbidden), NOT 401 (invalid key), proves
-    // better-auth's verifyApiKey accepted our self-minted row.
+  it("the IAM-minted robot is a REAL verifiable bearer (403 not 401 on a guarded read)", async () => {
+    // The minted robot principal has no policy attachment → default-deny → 403.
+    // A 403 (authenticated-but-forbidden), NOT 401 (invalid bearer), proves
+    // `RobotAccountRepo.verifyBearer` accepted our self-minted row.
     const res = await get(`/api/channels?projectId=${projectAId}`, {
-      authorization: `Bearer ${bobMintedKey}`,
+      authorization: `Bearer ${bobMintedRobotBearer}`,
     });
     expect(res.status).toBe(403);
   });
 
-  it("Bob can revoke the key he minted (apiKey:delete) — DELETE /api/api-keys/:id → 200", async () => {
-    const res = await del(`/api/api-keys/${bobMintedKeyId}`, { cookie: bobCookies });
+  it("Bob can revoke the robot he minted (robotAccount:delete) — DELETE /api/robot-accounts/:id → 200", async () => {
+    const res = await del(`/api/robot-accounts/${bobMintedRobotId}`, { cookie: bobCookies });
     expect(res.status).toBe(200);
   });
 

@@ -14,7 +14,7 @@ import type { PolicyStatement } from "../authz-models";
 // `member:delete` allow via a policy attachment (e.g. managed:admin); a member
 // with no such allow is denied (default-deny). The last-owner guard is exercised
 // against the repo separately; here we exercise the gate directly with a synthetic
-// principal, mirroring `handlers/api-keys.test.ts` / `handlers/invitations.test.ts`.
+// principal, mirroring `handlers/robot-accounts.test.ts` / `handlers/invitations.test.ts`.
 
 const baseActor: AuthContextShape = {
   userId: "u1",

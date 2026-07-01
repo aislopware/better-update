@@ -6,11 +6,11 @@ import type { UserEncryptionKey } from "@better-update/api";
 
 import { IdentityError } from "../lib/exit-codes";
 import { promptPassword } from "../lib/prompts";
-import { CliRuntime } from "../services/cli-runtime";
 import { VaultCache, VaultCacheLive } from "../services/vault-cache";
-import { activeRecipient, loadIdentityFileOrFail } from "./identity";
+import { activeEnvPrivateKey, activeRecipient, loadIdentityFileOrFail } from "./identity";
 
 import type { ApiClient } from "../services/api-client";
+import type { CliRuntime } from "../services/cli-runtime";
 import type { IdentityStore } from "../services/identity-store";
 
 /** The org vault key unlocked locally, tagged with the version + recipient it came from. */
@@ -21,7 +21,8 @@ export interface UnlockedVault {
 }
 
 /**
- * Resolve this device's age private key. The CI `BETTER_UPDATE_IDENTITY` env key
+ * Resolve this device's age private key. A CI robot's env-sourced key (from
+ * `BETTER_UPDATE_ROBOT`, or the deprecated standalone `BETTER_UPDATE_IDENTITY`)
  * is used raw (no passphrase); otherwise the on-disk envelope is opened with the
  * supplied passphrase. `openIdentity` re-derives — and the seal authenticates —
  * the public key, so a wrong passphrase or a tampered file fails here.
@@ -30,8 +31,7 @@ export const unlockActivePrivateKey = (
   passphrase: string | undefined,
 ): Effect.Effect<string, IdentityError, CliRuntime | IdentityStore> =>
   Effect.gen(function* () {
-    const runtime = yield* CliRuntime;
-    const envKey = yield* runtime.getEnv("BETTER_UPDATE_IDENTITY");
+    const envKey = yield* activeEnvPrivateKey;
     if (envKey !== undefined && envKey.length > 0) {
       return envKey;
     }
@@ -140,8 +140,8 @@ export const grantRecipient = (args: {
  * from the OS keychain when one is present and unexpired — so the device
  * passphrase is prompted at most once per cache TTL rather than on every command
  * (`better-update credentials unlock` / `lock` drive that session explicitly).
- * The CI `BETTER_UPDATE_IDENTITY` key carries no passphrase and is never cached:
- * it skips straight to the raw unwrap. On a cache miss the full unlock runs —
+ * A CI robot's env-sourced key carries no passphrase and is never cached: it
+ * skips straight to the raw unwrap. On a cache miss the full unlock runs —
  * prompt, Argon2id, fetch + unwrap — and the result is cached for next time.
  *
  * The cached key is the unwrapped vault key, which both unwraps (decrypt/read)

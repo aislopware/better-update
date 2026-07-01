@@ -1,8 +1,8 @@
 import {
-  apiKeyPoliciesQueryKey,
-  apiKeyPoliciesQueryOptions,
-  attachPolicyToApiKey,
-  detachPolicyFromApiKey,
+  attachPolicyToRobot,
+  detachPolicyFromRobot,
+  robotPoliciesQueryKey,
+  robotPoliciesQueryOptions,
 } from "@better-update/api-client/react";
 import {
   Dialog,
@@ -18,39 +18,40 @@ import { Suspense } from "react";
 
 import { PolicyAttachPanel } from "./-policy-attach-panel";
 
-const ApiKeyPoliciesContent = ({ orgId, apiKeyId }: { orgId: string; apiKeyId: string }) => {
-  const { data, isLoading } = useQuery(apiKeyPoliciesQueryOptions(orgId, apiKeyId));
+const RobotPoliciesContent = ({ orgId, robotId }: { orgId: string; robotId: string }) => {
+  const { data, isLoading } = useQuery(robotPoliciesQueryOptions(orgId, robotId));
   return (
     <PolicyAttachPanel
       orgId={orgId}
       attachments={data?.items ?? []}
       isLoading={isLoading}
-      attachmentsQueryKey={apiKeyPoliciesQueryKey(orgId, apiKeyId)}
-      onAttach={async (body) => attachPolicyToApiKey(apiKeyId, body)}
-      onDetach={async (policyId) => detachPolicyFromApiKey(apiKeyId, policyId)}
+      attachmentsQueryKey={robotPoliciesQueryKey(orgId, robotId)}
+      onAttach={async (body) => attachPolicyToRobot(robotId, body)}
+      onDetach={async (policyId) => detachPolicyFromRobot(robotId, policyId)}
     />
   );
 };
 
-export const ApiKeyPoliciesDialog = ({
+export const RobotPoliciesDialog = ({
   orgId,
-  apiKeyId,
-  apiKeyName,
+  robotId,
+  robotName,
   open,
   onOpenChange,
 }: {
   orgId: string;
-  apiKeyId: string;
-  apiKeyName: string;
+  robotId: string;
+  robotName: string;
   open: boolean;
   onOpenChange: (next: boolean) => void;
 }) => (
   <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogPopup className="sm:max-w-lg">
       <DialogHeader>
-        <DialogTitle>Policies for {apiKeyName}</DialogTitle>
+        <DialogTitle>Policies for {robotName}</DialogTitle>
         <DialogDescription>
-          Attach policies to scope what this key can do. A key with no policies has no access.
+          A freshly minted robot account holds no permissions (default-deny) — attach a policy so it
+          can call the management API.
         </DialogDescription>
       </DialogHeader>
       <DialogPanel>
@@ -62,7 +63,7 @@ export const ApiKeyPoliciesDialog = ({
             </div>
           }
         >
-          <ApiKeyPoliciesContent orgId={orgId} apiKeyId={apiKeyId} />
+          <RobotPoliciesContent orgId={orgId} robotId={robotId} />
         </Suspense>
       </DialogPanel>
     </DialogPopup>

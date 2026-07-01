@@ -2,8 +2,8 @@ import { Schema } from "effect";
 
 import { DateTimeString, Id } from "./common";
 
-/** Whether an attachment binds a policy to a member, a group, or an api-key. */
-export const PrincipalType = Schema.Literal("member", "group", "apikey");
+/** Whether an attachment binds a policy to a member, a group, or a robot account. */
+export const PrincipalType = Schema.Literal("member", "group", "robot");
 export type PrincipalTypeValue = typeof PrincipalType.Type;
 
 export class PolicyAttachment extends Schema.Class<PolicyAttachment>("PolicyAttachment")({

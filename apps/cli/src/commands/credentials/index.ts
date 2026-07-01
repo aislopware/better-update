@@ -20,6 +20,7 @@ import { profileCommand } from "./profile";
 import { regenerateProfileCommand } from "./regenerate-profile";
 import { removeCommand } from "./remove";
 import { revokeCommand } from "./revoke";
+import { robotCommand } from "./robot";
 import { lockCommand, statusCommand, unlockCommand } from "./session";
 import { syncCommand } from "./sync";
 import { uploadCommand } from "./upload";
@@ -44,6 +45,7 @@ export const credentialsCommand = defineCommand({
   subCommands: {
     manager: managerCommand,
     identity: identityCommand,
+    robot: robotCommand,
     access: accessCommand,
     account: accountCommand,
     "env-vault": envVaultCommand,

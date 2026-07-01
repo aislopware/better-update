@@ -11,7 +11,7 @@ import { assertAccess, assertSuperadmin } from "./policy";
 import type { Action, BuiltinRole, Resource } from "../models";
 
 // Org-level convenience over `assertAccess` (target defaults to `{ kind: "org" }`).
-// Use for genuinely org-scoped resources (member, billing, apiKey, devices,
+// Use for genuinely org-scoped resources (member, billing, robotAccount, devices,
 // webhooks, vault, credentials, audit). Object-scopeable resources call
 // `assertAccess` directly with a structured `ObjectRef`.
 export const assertPermission = (resource: Resource, action: Action) =>
@@ -22,12 +22,11 @@ export { assertSuperadmin };
 type PermissionMap = Record<BuiltinRole, Partial<Record<Resource, readonly Action[]>>>;
 
 // IAM-enforced via dedicated ManagementApi handler groups (the unified-authz
-// migration): `apiKey` (api-keys group — mint/revoke/list), `invitation`
-// (invitations group — create/cancel/list, member-only invites), `member:delete`
-// (members group — remove, with a last-owner guard), and `organization:update`
-// (organization group — rename/re-slug the active org). The matching better-auth
-// routes stay live-but-dormant (clients use IAM); better-auth's apiKey plugin is
-// kept only for verifyApiKey.
+// migration): `robotAccount` (robot-accounts group — mint/revoke/list),
+// `invitation` (invitations group — create/cancel/list, member-only invites),
+// `member:delete` (members group — remove, with a last-owner guard), and
+// `organization:update` (organization group — rename/re-slug the active org).
+// The matching better-auth routes stay live-but-dormant (clients use IAM).
 //
 // RESERVED / NOT-YET-IAM-enforced (a policy may list these tokens, but no handler
 // gates on them today):
@@ -54,7 +53,7 @@ export const permissions: PermissionMap = {
     update: ["read", "create", "delete"],
     rollout: ["read", "create", "update", "delete"],
     billing: ["read", "update"],
-    apiKey: ["read", "create", "delete"],
+    robotAccount: ["read", "create", "delete"],
     build: ["read", "create", "delete"],
     envVar: ["read", "create", "update", "delete"],
     auditLog: ["read"],
@@ -80,7 +79,7 @@ export const permissions: PermissionMap = {
     update: ["read", "create", "delete"],
     rollout: ["read", "create", "update", "delete"],
     billing: ["read", "update"],
-    apiKey: ["read", "create", "delete"],
+    robotAccount: ["read", "create", "delete"],
     build: ["read", "create", "delete"],
     envVar: ["read", "create", "update", "delete"],
     auditLog: ["read"],
@@ -100,7 +99,7 @@ export const permissions: PermissionMap = {
     environment: ["read", "create", "update", "delete"],
     update: ["read", "create", "delete"],
     rollout: ["read", "create", "update", "delete"],
-    apiKey: ["read"],
+    robotAccount: ["read"],
     build: ["read", "create"],
     envVar: ["read", "create", "update"],
     auditLog: ["read"],

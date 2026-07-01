@@ -39,9 +39,14 @@ export class UserEncryptionKey extends Schema.Class<UserEncryptionKey>("UserEncr
   revokedAt: Schema.NullOr(DateTimeString),
 }) {}
 
-/** Register a new public recipient (device on first use, or a CI/recovery key). */
+/**
+ * Register a new public recipient (device on first use, or an org-owned
+ * offline recovery key). `machine` keys are no longer registerable through
+ * this public endpoint — they are created internally, alongside a bearer
+ * secret, only via `credentials robot create` (see robot-accounts.ts).
+ */
 export const RegisterEncryptionKeyBody = Schema.Struct({
-  kind: EncryptionKeyKind,
+  kind: Schema.Literal("device", "recovery"),
   publicKey: AgeRecipient,
   label: Name120,
   fingerprint: KeyFingerprint,

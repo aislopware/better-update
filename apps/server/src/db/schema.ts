@@ -61,7 +61,6 @@ export type AndroidBuildCredentials = WithNonNullId<Gen.AndroidBuildCredentials>
 export type AndroidUploadKeystores = WithNonNullId<
   Narrow<Gen.AndroidUploadKeystores, { keystore_type: "JKS" | "PKCS12" | null }>
 >;
-export type Apikey = WithNonNullId<Gen.Apikey>;
 export type AppleDistributionCertificates = WithNonNullId<Gen.AppleDistributionCertificates>;
 export type AppleProvisioningProfiles = WithNonNullId<
   Narrow<Gen.AppleProvisioningProfiles, { distribution_type: DistributionType }>
@@ -121,6 +120,7 @@ export type PolicyAttachment = WithNonNullId<
 export type ProjectProtocolMetadata = WithNonNullId<Gen.ProjectProtocolMetadata>;
 export type Projects = WithNonNullId<Gen.Projects>;
 export type ProjectsFts = WithNonNullId<Gen.ProjectsFts>;
+export type RobotAccount = WithNonNullId<Gen.RobotAccount>;
 export type Session = WithNonNullId<Gen.Session>;
 export type Submissions = WithNonNullId<
   Narrow<Gen.Submissions, { archive_source: SubmissionArchiveSource; platform: Platform }>
@@ -144,7 +144,6 @@ export interface DB {
   android_application_identifiers: AndroidApplicationIdentifiers;
   android_build_credentials: AndroidBuildCredentials;
   android_upload_keystores: AndroidUploadKeystores;
-  apikey: Apikey;
   apple_distribution_certificates: AppleDistributionCertificates;
   apple_provisioning_profiles: AppleProvisioningProfiles;
   apple_push_keys: ApplePushKeys;
@@ -184,6 +183,7 @@ export interface DB {
   project_protocol_metadata: ProjectProtocolMetadata;
   projects: Projects;
   projects_fts: ProjectsFts;
+  robot_account: RobotAccount;
   session: Session;
   submissions: Submissions;
   update_assets: UpdateAssets;

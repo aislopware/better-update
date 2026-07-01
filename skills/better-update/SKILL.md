@@ -62,7 +62,7 @@ better-update init                 # from the Expo project root: links app.json 
 project by `expo.slug`, and writes the project id into `expo.extra.betterUpdate.projectId` — every
 other command reads it from there. Default server is `https://updates.jmango360.dev`; override with
 `BETTER_UPDATE_URL` / `BETTER_UPDATE_WEB_URL` or `~/.better-update/config.json`. Auth can also come
-from `BETTER_UPDATE_TOKEN`. Full detail: **`references/getting-started.md`**.
+from `BETTER_UPDATE_ROBOT` (a robot account, for CI). Full detail: **`references/getting-started.md`**.
 
 To know whether a project already uses better-update, look for `@better-update/cli` in
 package.json, `expo.extra.betterUpdate.projectId` in app.json, or an `updates.jmango360.dev`

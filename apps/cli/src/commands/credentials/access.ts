@@ -19,7 +19,9 @@ import type { RotationRecipient } from "../../application/vault-rotation";
 
 const RECOVERY_LABEL = "Offline recovery key";
 
-const toRotationRecipient = (key: UserEncryptionKey): RotationRecipient => ({
+// Exported for reuse by `credentials robot revoke`, which drives the same
+// exclude-and-rotate flow for a robot's linked vault identity.
+export const toRotationRecipient = (key: UserEncryptionKey): RotationRecipient => ({
   userEncryptionKeyId: key.id,
   publicKey: key.publicKey,
 });
@@ -112,7 +114,8 @@ const grantCommand = defineCommand({
     ),
 });
 
-const confirmRecipients = (recipients: readonly UserEncryptionKey[], skip: boolean) =>
+// Exported for reuse by `credentials robot revoke` (see toRotationRecipient above).
+export const confirmRecipients = (recipients: readonly UserEncryptionKey[], skip: boolean) =>
   Effect.forEach(recipients, (recipient) => confirmFingerprint(recipient, skip), { discard: true });
 
 const rotateCommand = defineCommand({

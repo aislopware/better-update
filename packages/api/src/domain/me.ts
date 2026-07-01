@@ -16,9 +16,9 @@ export const MeOrganization = Schema.Struct({
 export const Me = Schema.Struct({
   user: Schema.NullOr(MeUser),
   activeOrganization: Schema.NullOr(MeOrganization),
-  /** Authentication source — "session" for browser + CLI sessions, "api-key" for API-key (CI) bearer tokens. */
-  source: Schema.Literal("session", "api-key"),
-  /** Email or descriptor identifying the actor — useful when `user` is null (api-key auth). */
+  /** Authentication source — "session" for browser + CLI sessions, "robot" for robot-account (CI) bearer tokens. */
+  source: Schema.Literal("session", "robot"),
+  /** Email or descriptor identifying the actor — useful when `user` is null (robot-account auth). */
   actorEmail: Schema.String,
   // Per-action member-management capabilities for the active org, each mirroring
   // the EXACT token its endpoint gates on so the UI never shows an action the

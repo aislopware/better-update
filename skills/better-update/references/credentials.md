@@ -149,6 +149,15 @@ better-update credentials identity create [--label]      # make + register this 
 better-update credentials identity register [--label]    # re-register an existing identity
 better-update credentials passphrase change              # change this device's passphrase; re-seals device identity + (if enrolled) account key
 
+# Org-owned CI identity (bearer auth + vault identity in one) — see below
+better-update credentials robot create [--name] [--no-grant]   # mint + grant, prints BETTER_UPDATE_ROBOT once
+better-update credentials robot list                           # this org's robot accounts
+better-update credentials robot rotate <id> [--identity <key>] # re-mint the bearer only
+better-update credentials robot revoke <id> [--yes]            # bearer stops auth; excludes + rotates vault if it held access
+better-update credentials robot policies <id>                   # list policies attached to a robot
+better-update credentials robot attach <id> --policy-id <p>     # attach a policy (real or managed:*) — default-deny until granted
+better-update credentials robot detach <id> --policy-id <p>     # remove a policy attachment
+
 # Your devices
 better-update credentials device list                    # your device keys (active marked)
 better-update credentials device link [<device>] [--yes] # self-link another of your devices to the vault
@@ -170,6 +179,58 @@ better-update credentials status                            # is the vault unloc
 Typical onboarding: `identity init` (first person in the org) → teammates run `identity create` and
 an owner runs `access grant <recipient>` → each person `unlock`s to cache their key for a session.
 When someone leaves, `access revoke <recipient>` then `access rotate`.
+
+### CI / robot accounts (`BETTER_UPDATE_ROBOT`)
+
+A CI runner authenticates with **one** org-owned secret, long-lived and set as a masked + protected
+CI variable — nothing is generated on the runner. A **robot account** bundles both halves a runner
+needs into a single credential:
+
+- a **bearer secret** for HTTP/API auth (what used to be a separate API key), and
+- an **age private key** registered as a **machine** recipient and granted vault access — this
+  unlocks cert/profile/ASC key **non-interactively** (no passphrase), because a machine key carries
+  no passphrase and the CLI uses it raw.
+
+Both are generated together and returned as one opaque `BETTER_UPDATE_ROBOT` value the CLI can split
+internally for either purpose. Neither half is stored server-side beyond its hash/public key, so it's
+**not** tied to any runner — mint it **once from an admin device** (where the vault is already
+unlocked) and reuse it across every ephemeral VM/container — do **not** run `identity create` on the
+runner:
+
+```bash
+# On your dev machine (admin/owner, vault unlockable):
+better-update credentials robot create --name gitlab-ci
+#   → generates an age keypair + a bearer secret, registers the keypair as a `machine`
+#     recipient, grants it vault access, and prints the bundled credential ONCE.
+#   Copy that value into the BETTER_UPDATE_ROBOT CI variable (masked + protected).
+#   Pass --no-grant to register without granting (grant later with `access grant <fingerprint>`).
+```
+
+Because the keypair is generated in-process, there is no third-party public key to verify, so
+`robot create` grants vault access directly without the out-of-band fingerprint confirmation that
+`access grant` requires.
+
+A freshly minted robot has **zero** API permissions (default-deny, spec §8) — vault access and IAM
+permissions are separate grants. Attach a policy next so it can actually call the management API
+(build/publish/submit/etc. all need this — vault access alone is not enough):
+
+```bash
+better-update credentials robot attach <id> --policy-id managed:admin   # or a custom scoped policy
+better-update credentials robot policies <id>                          # list what's attached
+better-update credentials robot detach <id> --policy-id managed:admin  # revoke it
+```
+
+Revoke a robot with `credentials robot revoke <id>` — its bearer stops authenticating immediately,
+and if it held vault access, that's excluded and the vault rotated too. Rotate its bearer alone with
+`credentials robot rotate <id>` (its vault identity is left untouched); pass `--identity <its current
+age private key>` to get a fresh full `BETTER_UPDATE_ROBOT` bundle back.
+
+**Migrating from `BETTER_UPDATE_IDENTITY` + `BETTER_UPDATE_TOKEN`:** the old dual-secret setup
+(a standalone `identity create-ci` machine key paired with a dashboard API key) is gone — the API
+key feature was removed outright. An org that already minted a machine key this way keeps decrypting
+the vault unchanged (it was carried forward as a vault-only robot with no bearer yet); run
+`credentials robot rotate <id> --identity <its BETTER_UPDATE_IDENTITY value>` once to mint it a
+bearer and get a single `BETTER_UPDATE_ROBOT` value to replace both old CI variables with.
 
 ## Browser env-vault access (account keys)
 

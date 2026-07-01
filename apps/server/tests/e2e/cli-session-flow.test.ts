@@ -78,19 +78,19 @@ describe("CLI session auth (bearer + one-time-token)", () => {
     expect(body.organizationId).toBeNull();
   });
 
-  it("still rejects a device key when the bearer token is an org API key (no user)", async () => {
+  it("still rejects a device key when the bearer token is a robot account (no user)", async () => {
     const created = await post(
-      "/api/auth/api-key/create",
-      { name: "ci-runner", organizationId },
+      "/api/robot-accounts",
+      { name: "ci-runner", publicKey: `age1${rand()}${rand()}`, fingerprint: `SHA256:${rand()}` },
       { cookie: cookies },
     );
-    expect(created.status).toBe(200);
-    const apiKey = (await created.json()).key as string;
+    expect(created.status).toBe(201);
+    const robotBearer = (await created.json()).bearerSecret as string;
 
     const res = await post("/api/encryption-keys", deviceKeyBody("CI runner"), {
-      authorization: `Bearer ${apiKey}`,
+      authorization: `Bearer ${robotBearer}`,
     });
-    // After the authz unification (8b464b3, feat(authz)!), an org API key with no
+    // After the authz unification (8b464b3, feat(authz)!), a robot account with no
     // resolved user is rejected by the policy gate as Forbidden (403) rather than
     // a 400 — registering a user-owned device key requires a user. (In dev/test
     // the server also remaps 401 → 403.)

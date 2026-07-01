@@ -78,33 +78,33 @@ export class PolicyAttachmentsGroup extends HttpApiGroup.make("policy-attachment
       ),
   )
   .add(
-    HttpApiEndpoint.get("listForApiKey")`/api/api-keys/${idParam}/policies`
+    HttpApiEndpoint.get("listForRobot")`/api/robot-accounts/${idParam}/policies`
       .addSuccess(Schema.Struct({ items: Schema.Array(PolicyAttachment) }))
       .annotateContext(
         OpenApi.annotations({
-          title: "List api-key policy attachments",
-          description: "List policies attached to an api-key principal",
+          title: "List robot account policy attachments",
+          description: "List policies attached to a robot account principal",
         }),
       ),
   )
   .add(
-    HttpApiEndpoint.post("attachToApiKey")`/api/api-keys/${idParam}/policies`
+    HttpApiEndpoint.post("attachToRobot")`/api/robot-accounts/${idParam}/policies`
       .setPayload(AttachPolicyBody)
       .addSuccess(PolicyAttachment, { status: 201 })
       .annotateContext(
         OpenApi.annotations({
-          title: "Attach policy to api-key",
-          description: "Attach a policy (real or managed) to an api-key principal",
+          title: "Attach policy to robot account",
+          description: "Attach a policy (real or managed) to a robot account principal",
         }),
       ),
   )
   .add(
-    HttpApiEndpoint.del("detachFromApiKey")`/api/api-keys/${idParam}/policies/${policyIdParam}`
+    HttpApiEndpoint.del("detachFromRobot")`/api/robot-accounts/${idParam}/policies/${policyIdParam}`
       .addSuccess(DeletedResult)
       .annotateContext(
         OpenApi.annotations({
-          title: "Detach policy from api-key",
-          description: "Remove a policy attachment from an api-key principal",
+          title: "Detach policy from robot account",
+          description: "Remove a policy attachment from a robot account principal",
         }),
       ),
   )
@@ -115,6 +115,6 @@ export class PolicyAttachmentsGroup extends HttpApiGroup.make("policy-attachment
   .annotateContext(
     OpenApi.annotations({
       title: "Policy Attachments",
-      description: "Bindings of policies to member, group, and api-key principals",
+      description: "Bindings of policies to member, group, and robot account principals",
     }),
   ) {}

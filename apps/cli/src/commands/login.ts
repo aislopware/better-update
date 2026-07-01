@@ -8,7 +8,7 @@ export const loginCommand = defineCommand({
   args: {
     "api-key": {
       type: "boolean",
-      description: "Paste an API key manually instead of opening the browser",
+      description: "Paste a session token manually instead of opening the browser",
     },
   },
   run: async ({ args }) => runEffect(runLogin({ manualApiKey: args["api-key"] ?? false })),

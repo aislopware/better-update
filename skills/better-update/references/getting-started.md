@@ -66,13 +66,15 @@ directory is `0700`).
 Headless / remote machine:
 
 ```bash
-better-update login --api-key      # then paste an API key from the dashboard > API Keys page
+better-update login --api-key      # then paste a session token manually
 ```
 
-Or skip the file entirely with an env var (takes priority over the file):
+Or skip the file entirely with a robot account (mint one with `credentials robot create`, then grant
+it a policy with `credentials robot attach <id> --policy-id managed:admin` — a fresh robot has zero
+permissions by default; see `references/credentials.md`), which takes priority over the file:
 
 ```bash
-BETTER_UPDATE_TOKEN=bu_… better-update update list
+BETTER_UPDATE_ROBOT=… better-update update list
 ```
 
 `better-update logout` deletes `~/.better-update/auth.json`; add `--all` to also clear the cached

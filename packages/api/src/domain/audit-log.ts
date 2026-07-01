@@ -21,7 +21,7 @@ export const AuditLogResourceType = Schema.Literal(
   "policy",
   "group",
   "policyAttachment",
-  "apiKey",
+  "robotAccount",
   "invitation",
   "member",
   "organization",
@@ -29,7 +29,7 @@ export const AuditLogResourceType = Schema.Literal(
 
 export type AuditLogResourceType = Schema.Schema.Type<typeof AuditLogResourceType>;
 
-export const AuditLogSource = Schema.Literal("session", "api-key");
+export const AuditLogSource = Schema.Literal("session", "robot");
 
 export class AuditLog extends Schema.Class<AuditLog>("AuditLog")({
   id: Id,

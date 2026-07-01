@@ -43,7 +43,8 @@ export const UserEncryptionKeysGroupLive = HttpApiBuilder.group(
             const repo = yield* UserEncryptionKeyRepo;
 
             // A `device` key is the caller's own (self-service, needs an interactive
-            // user); `recovery`/`machine` keys are org-owned and admin/owner-gated.
+            // user); `recovery` keys are org-owned and admin/owner-gated. `machine`
+            // keys are no longer accepted here — see RegisterEncryptionKeyBody.
             const isDevice = payload.kind === "device";
             if (isDevice) {
               // Enrolling a device key makes the caller a vault recipient

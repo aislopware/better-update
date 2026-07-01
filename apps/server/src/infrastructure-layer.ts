@@ -48,13 +48,13 @@ import {
   UserEncryptionKeyRepoLive,
   WebhookRepoLive,
 } from "./repositories";
-import { ApiKeyRepoLive } from "./repositories/api-keys";
 import { GroupRepoLive } from "./repositories/group-repo";
 import { InvitationRepoLive } from "./repositories/invitations";
 import { MemberRepoLive } from "./repositories/member-repo";
 import { OrganizationRepoLive } from "./repositories/organizations";
 import { PolicyAttachmentRepoLive } from "./repositories/policy-attachment-repo";
 import { PolicyRepoLive } from "./repositories/policy-repo";
+import { RobotAccountRepoLive } from "./repositories/robot-accounts";
 
 import type { AnalyticsEngine } from "./cloudflare/analytics-engine";
 import type { AssetStorage } from "./cloudflare/asset-storage";
@@ -104,13 +104,13 @@ import type {
   UserEncryptionKeyRepo,
   WebhookRepo,
 } from "./repositories";
-import type { ApiKeyRepo } from "./repositories/api-keys";
 import type { GroupRepo } from "./repositories/group-repo";
 import type { InvitationRepo } from "./repositories/invitations";
 import type { MemberRepo } from "./repositories/member-repo";
 import type { OrganizationRepo } from "./repositories/organizations";
 import type { PolicyAttachmentRepo } from "./repositories/policy-attachment-repo";
 import type { PolicyRepo } from "./repositories/policy-repo";
+import type { RobotAccountRepo } from "./repositories/robot-accounts";
 
 export type ServerInfrastructure =
   | AccountKeyRepo
@@ -120,7 +120,6 @@ export type ServerInfrastructure =
   | AndroidApplicationIdentifierRepo
   | AndroidBuildCredentialsRepo
   | AndroidUploadKeystoreRepo
-  | ApiKeyRepo
   | AppleDistributionCertificateRepo
   | ApplePassTypeCertificateRepo
   | ApplePayCertificateRepo
@@ -160,6 +159,7 @@ export type ServerInfrastructure =
   | OrgVaultRepo
   | PasskeyStepUpRepo
   | ProjectRepo
+  | RobotAccountRepo
   | RuntimeRepo
   | SubmissionsRepo
   | UpdateCoordinator
@@ -174,7 +174,6 @@ export const RepositoryLayer = Layer.mergeAll(
   AndroidApplicationIdentifierRepoLive,
   AndroidBuildCredentialsRepoLive,
   AndroidUploadKeystoreRepoLive,
-  ApiKeyRepoLive,
   AppleDistributionCertificateRepoLive,
   ApplePassTypeCertificateRepoLive,
   ApplePayCertificateRepoLive,
@@ -208,6 +207,7 @@ export const RepositoryLayer = Layer.mergeAll(
   OrgVaultRepoLive,
   PasskeyStepUpRepoLive,
   ProjectRepoLive,
+  RobotAccountRepoLive,
   RuntimeRepoLive,
   SubmissionsRepoLive,
   UpdateRepoLive,

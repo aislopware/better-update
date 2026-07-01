@@ -5,6 +5,7 @@ import { Effect, Layer, Redacted } from "effect";
 
 import { createAuth } from "../auth";
 import { cloudflareEnv } from "../cloudflare/context";
+import { CryptoServiceLive } from "../cloudflare/crypto-service";
 import { Forbidden, Unauthorized } from "../errors";
 import { GroupRepo, GroupRepoLive } from "../repositories/group-repo";
 import {
@@ -12,7 +13,8 @@ import {
   PolicyAttachmentRepoLive,
 } from "../repositories/policy-attachment-repo";
 import { PolicyRepo, PolicyRepoLive } from "../repositories/policy-repo";
-import { API_KEY_PREFIX } from "./constants";
+import { RobotAccountRepo, RobotAccountRepoLive } from "../repositories/robot-accounts";
+import { ROBOT_BEARER_PREFIX } from "./constants";
 import { isManagedPolicyId, resolveManagedDocument } from "./managed-policies";
 import { roleIsOwner } from "./owner";
 import { roleIsSuperadmin } from "./superadmin";
@@ -22,20 +24,13 @@ import type { PrincipalRef } from "../repositories/policy-attachment-repo";
 import type { AuthContextShape } from "./context";
 
 const REPO_LAYERS = Layer.mergeAll(PolicyAttachmentRepoLive, GroupRepoLive, PolicyRepoLive);
+// RobotAccountRepoLive needs CryptoService to construct itself, which merging
+// alone doesn't wire up — Layer.provide feeds CryptoServiceLive's output in.
+const ROBOT_LAYERS = Layer.mergeAll(REPO_LAYERS, RobotAccountRepoLive).pipe(
+  Layer.provide(CryptoServiceLive),
+);
 
 // ── Plugin API facade (types not inferred from betterAuth config) ──
-
-interface VerifyApiKeyResult {
-  valid: boolean;
-  error: { message: string; code: string } | null;
-  key: {
-    // The better-auth api-key row id; this is the `principal_id` stored by the
-    // policy-attachment handlers for `principal_type = "apikey"`.
-    id: string;
-    referenceId: string;
-    permissions: Record<string, string[]> | null;
-  } | null;
-}
 
 interface ActiveMember {
   id: string;
@@ -50,7 +45,6 @@ interface SessionResult {
 }
 
 interface BetterAuthApi {
-  readonly verifyApiKey: (opts: { body: { key: string } }) => Promise<VerifyApiKeyResult>;
   readonly getSession: (opts: { headers: Headers }) => Promise<SessionResult | null>;
   readonly getActiveMember: (opts: { headers: Headers }) => Promise<ActiveMember | null>;
 }
@@ -62,13 +56,12 @@ interface BetterAuthApi {
 const assertBetterAuthApi = (api: unknown): BetterAuthApi => {
   if (
     !isRecord(api) ||
-    typeof api["verifyApiKey"] !== "function" ||
     typeof api["getSession"] !== "function" ||
     typeof api["getActiveMember"] !== "function"
   ) {
     // eslint-disable-next-line functional/no-throw-statements -- bootstrap invariant; plugin misconfiguration is unrecoverable
     throw new Error(
-      "Better Auth api is missing expected plugin methods (verifyApiKey / getSession / getActiveMember)",
+      "Better Auth api is missing expected plugin methods (getSession / getActiveMember)",
     );
   }
   // eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- runtime shape validated above; BetterAuthApi narrows Better Auth's opaque plugin object
@@ -79,18 +72,6 @@ const authApi = Effect.gen(function* () {
   const env = yield* cloudflareEnv;
   return assertBetterAuthApi(createAuth(env).api);
 });
-
-const getApiErrorMessage = (value: unknown): string | null =>
-  isRecord(value) && typeof value["message"] === "string" ? value["message"] : null;
-
-const verifyApiKey = (key: string) =>
-  Effect.gen(function* () {
-    const api = yield* authApi;
-    return yield* Effect.tryPromise({
-      try: async () => api.verifyApiKey({ body: { key } }),
-      catch: () => new Unauthorized({ message: "API key verification failed" }),
-    });
-  });
 
 const getSession = (headers: Headers) =>
   Effect.gen(function* () {
@@ -152,10 +133,10 @@ export const toStandardHeaders = (headers: Readonly<Record<string, string | unde
 
 // Flatten the policy statements granted by a set of principals' attachments.
 // Managed preset ids resolve from code (zero query); real ids resolve in one
-// batched read. Shared by the member path (self + groups) and the api-key path
+// batched read. Shared by the member path (self + groups) and the robot path
 // (self only) so both consult `policy_attachment` identically — no implicit
 // baseline, no role-derived grants.
-// Exported (with the policy repos as unresolved requirements) so the api-key
+// Exported (with the policy repos as unresolved requirements) so the robot
 // positive-grant path can be integration-tested directly, mirroring
 // `resolveEffectiveStatements` for the member path.
 export const statementsForPrincipals = (params: {
@@ -290,87 +271,54 @@ const resolveSession = (transport: "bearer" | "cookie") =>
     } as const satisfies AuthContextShape;
   });
 
-// ── Bearer: API key (CI) or session token (CLI) ───────────────────
-
-// Org-wide allow statements from an api-key's inline permission metadata
-// (resource→actions). Additive on top of attachment-derived statements; an empty
-// or absent map contributes nothing.
-export const inlinePermissionStatements = (
-  permissions: Record<string, readonly string[]> | null,
-): readonly PolicyStatement[] =>
-  permissions === null
-    ? []
-    : Object.entries(permissions).flatMap(([resource, actions]) =>
-        actions.length === 0
-          ? []
-          : [
-              {
-                effect: "allow",
-                actions: actions.map((act) => `${resource}:${act}`),
-                resources: ["*"],
-              },
-            ],
-      );
+// ── Bearer: robot account (CI) or session token (CLI) ──────────────
 
 // One Authorization-bearer handler for both machine credentials. Tokens with
-// the configured API-key prefix resolve to an org-scoped, user-less actor;
-// anything else is treated as a Better Auth session token (the CLI's login
-// token) and resolved as a real user session via the `bearer()` plugin. An
-// empty token fails so Effect's security middleware falls through to the cookie
-// scheme (the browser dashboard).
+// the robot bearer prefix resolve to an org-scoped, user-less actor; anything
+// else is treated as a Better Auth session token (the CLI's login token) and
+// resolved as a real user session via the `bearer()` plugin. An empty token
+// fails so Effect's security middleware falls through to the cookie scheme
+// (the browser dashboard).
 const resolveFromBearer = (token: Redacted.Redacted) => {
   const key = Redacted.value(token);
   if (key.length === 0) {
     return Effect.fail(new Unauthorized({ message: "Missing bearer token" }));
   }
 
-  if (!key.startsWith(API_KEY_PREFIX)) {
+  if (!key.startsWith(ROBOT_BEARER_PREFIX)) {
     return resolveSession("bearer");
   }
 
-  return verifyApiKey(key).pipe(
-    Effect.flatMap((result) => {
-      if (!result.valid || !result.key) {
-        return Effect.fail(
-          new Unauthorized({
-            message: getApiErrorMessage(result.error) ?? "Invalid API key",
-          }),
-        );
-      }
+  return Effect.gen(function* () {
+    const robotAccountRepo = yield* RobotAccountRepo;
+    const verified = yield* robotAccountRepo.verifyBearer({ plaintext: key });
+    if (verified === null) {
+      return yield* new Unauthorized({ message: "Invalid robot bearer secret" });
+    }
 
-      const verifiedKey = result.key;
-      const organizationId = verifiedKey.referenceId;
+    // Robot-account permissions come from `policy_attachment` rows on the
+    // robot principal — resolved exactly like a member's (managed + real
+    // docs). There is NO implicit admin baseline: a robot with no attachments
+    // has no permissions (spec §8 default-deny).
+    const effectiveStatements = yield* statementsForPrincipals({
+      organizationId: verified.organizationId,
+      principals: [{ type: "robot", id: verified.id }],
+    });
 
-      return Effect.gen(function* () {
-        // API-key permissions come from `policy_attachment` rows on the key
-        // principal — resolved exactly like a member's (managed + real docs).
-        // There is NO implicit admin baseline: a key with no attachments has no
-        // permissions (spec §8 default-deny).
-        const attachmentStatements = yield* statementsForPrincipals({
-          organizationId,
-          principals: [{ type: "apikey", id: verifiedKey.id }],
-        }).pipe(Effect.provide(REPO_LAYERS));
-
-        // Optional additive inline grants from better-auth key metadata (not used
-        // by the dashboard/CLI, which create keys with no permissions map).
-        const inlineStatements = inlinePermissionStatements(verifiedKey.permissions);
-
-        return {
-          userId: null,
-          organizationId,
-          memberId: null,
-          role: null,
-          isOwner: false,
-          effectiveStatements: [...attachmentStatements, ...inlineStatements],
-          source: "api-key",
-          transport: "bearer",
-          sessionId: null,
-          actorEmail: "api-key",
-          isSuperadmin: false,
-        } as const satisfies AuthContextShape;
-      });
-    }),
-  );
+    return {
+      userId: null,
+      organizationId: verified.organizationId,
+      memberId: null,
+      role: null,
+      isOwner: false,
+      effectiveStatements,
+      source: "robot",
+      transport: "bearer",
+      sessionId: null,
+      actorEmail: "robot",
+      isSuperadmin: false,
+    } as const satisfies AuthContextShape;
+  }).pipe(Effect.provide(ROBOT_LAYERS));
 };
 
 // ── Cookie (browser session) ──────────────────────────────────────

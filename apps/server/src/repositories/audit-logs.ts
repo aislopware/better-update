@@ -22,7 +22,7 @@ export interface AuditLogRepository {
     readonly resourceType: AuditLogResourceType;
     readonly resourceId: string | null;
     readonly metadata: string | null;
-    readonly source: "session" | "api-key";
+    readonly source: "session" | "robot";
   }) => Effect.Effect<void>;
 
   readonly list: (params: {

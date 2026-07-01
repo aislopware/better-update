@@ -68,7 +68,10 @@ Server URL resolution (priority order):
 3. `~/.better-update/config.json` fields `baseUrl` and `webUrl`.
 4. Defaults: `https://updates.jmango360.dev` (API + web).
 
-Auth token: `BETTER_UPDATE_TOKEN` env var, else `~/.better-update/auth.json` (created by `login`).
+Auth token: `BETTER_UPDATE_ROBOT` env var — a robot account's bundled credential, used for both API
+auth (bearer half) and credential-vault decrypt (identity half) automatically wherever each is
+needed — see `credentials robot create`. Falls back to `~/.better-update/auth.json` (created by
+`login`).
 Project id per project: `expo.extra.betterUpdate.projectId` in `app.json` (Expo) or top-level
 `projectId` in `eas.json` (non-Expo) — written by `init`.
 
@@ -95,8 +98,9 @@ better-update open [resource]            # open the dashboard (resource: builds|
 better-update autocomplete <shell>       # shell ∈ bash|zsh|fish
 ```
 
-- `login` writes `~/.better-update/auth.json` (mode `0600`). `--api-key` reads a key generated on the
-  dashboard's API Keys page.
+- `login` writes `~/.better-update/auth.json` (mode `0600`). `--api-key` pastes a session token
+  manually instead of opening the browser. CI doesn't use this at all — it authenticates via the
+  `BETTER_UPDATE_ROBOT` env var (see `credentials robot create` below), never `login`.
 - `init` links the local project (Expo **or** any build system). With `--id` it links by explicit
   project id (skips slug lookup/creation). For non-Expo projects, `--name`/`--slug` default to
   package.json name / kebab-cased name, and the id is written to `eas.json`, not `app.json`.
@@ -335,7 +339,12 @@ The credential vault is end-to-end encrypted (age + per-user keypairs); the serv
 ciphertext. These manage who can decrypt and the local cached-key session.
 
 ```bash
-better-update credentials identity <create|init|register|show> [--label]   # default `show`
+better-update credentials identity <create|init|register|show> [--label]   # default `show`; device identity only
+better-update credentials robot <create|list|rotate|revoke|policies|attach|detach> …   # default `list`; org-owned CI identity
+#   robot create [--name] [--no-grant] — mint a robot (bearer + vault identity), grant it, print BETTER_UPDATE_ROBOT once
+#   robot rotate <id> [--identity <AGE-SECRET-KEY-1…>] — re-mint the bearer only; pass --identity to get a full bundle back
+#   robot revoke <id> [--yes] — bearer stops authenticating; excludes + rotates the vault if it held access
+#   robot policies <id> · robot attach <id> --policy-id <policy> · robot detach <id> --policy-id <policy> — IAM grants (default-deny)
 better-update credentials passphrase [change]                              # change this device's passphrase; re-seals identity + enrolled account key; default `change`
 better-update credentials device <list|link> [<device>] [--yes]            # default `list`; link self-links a new device
 better-update credentials access <list|grant|rotate|revoke|recover|recovery> …   # default `list`
@@ -347,8 +356,10 @@ better-update credentials status                                          # is t
 ```
 
 `identity init` bootstraps the org vault + offline recovery key; `identity create`/`register`
-register/re-register this device's key; `access grant`/`revoke` add/remove vault recipients (org
-members or other devices). See `references/credentials.md` for the full model.
+register/re-register this device's own key; `robot create` mints an org-owned CI identity (bearer
+secret for API auth + vault identity in one, printed as a single `BETTER_UPDATE_ROBOT` credential);
+`access grant`/`revoke` add/remove vault recipients (org members, other devices, or robots). See
+`references/credentials.md` for the full model.
 
 ### Browser env-vault: account keys (account / env-vault)
 
@@ -837,7 +848,7 @@ better-update groups detach <id> --policy-id <policyId>
 
 ## policies
 
-IAM policy documents (default-deny; members/api-keys get permissions only via attached policies).
+IAM policy documents (default-deny; members/robot accounts get permissions only via attached policies).
 
 ```bash
 better-update policies list

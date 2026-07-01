@@ -33,7 +33,7 @@ export type AuditLogResourceType = typeof ApiAuditLogResourceType.Type;
 
 export type DeviceClass = "IPHONE" | "IPAD" | "MAC" | "UNKNOWN";
 
-export type AuditLogSource = "session" | "api-key";
+export type AuditLogSource = "session" | "robot";
 export type AnalyticsPeriod = "1d" | "7d" | "30d" | "90d";
 
 // Permission scalars + IAM policy types live in ./authz-models; the import above

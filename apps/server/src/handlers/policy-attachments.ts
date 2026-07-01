@@ -29,8 +29,8 @@ const toApiAttachment = (model: PolicyAttachmentModel) =>
   });
 
 // Confirm the principal belongs to the acting org. Members + groups are looked
-// up; api-key principals are accepted (the better-auth key referenceId is the
-// org, so any key id presented for the active org is in-scope).
+// up; robot principals are accepted as-is (their organizationId is trusted from
+// the active org, matching how they're minted org-scoped).
 const assertPrincipalInOrg = (params: {
   readonly principalType: PrincipalType;
   readonly principalId: string;
@@ -55,7 +55,7 @@ const assertPrincipalInOrg = (params: {
         return yield* new NotFound({ message: "Group not found" });
       }
     }
-    // api-key principals are accepted as-is — no membership row to verify.
+    // robot principals are accepted as-is — no membership row to verify.
   });
 
 // Resolve the document a policy id confers — a managed preset (from code) or a
@@ -181,9 +181,11 @@ const detachPolicy = (params: {
         metadata: { principalType: params.principalType, principalId: params.principalId },
       });
       // Detaching a policy may strip `vaultAccess` from a member (directly, or via
-      // a group), so reconcile the vault recipient set. Api-key principals never
-      // own device wraps, so they need no reconcile.
-      if (params.principalType !== "apikey") {
+      // a group), so reconcile the vault recipient set. Robot principals only
+      // ever own a `machine`-kind wrap, which reconcile never touches (org-owned
+      // recipients are managed exclusively via explicit rotate/revoke), so they
+      // need no reconcile.
+      if (params.principalType !== "robot") {
         yield* reconcileVaultAccess({
           organizationId: ctx.organizationId,
           reason: `policy-detached:${params.principalType}:${params.principalId}`,
@@ -216,13 +218,13 @@ export const PolicyAttachmentsGroupLive = HttpApiBuilder.group(
       .handle("detachFromGroup", ({ path }) =>
         detachPolicy({ principalType: "group", principalId: path.id, policyId: path.policyId }),
       )
-      .handle("listForApiKey", ({ path }) =>
-        listAttachments({ principalType: "apikey", principalId: path.id }),
+      .handle("listForRobot", ({ path }) =>
+        listAttachments({ principalType: "robot", principalId: path.id }),
       )
-      .handle("attachToApiKey", ({ path, payload }) =>
-        attachPolicy({ principalType: "apikey", principalId: path.id, policyId: payload.policyId }),
+      .handle("attachToRobot", ({ path, payload }) =>
+        attachPolicy({ principalType: "robot", principalId: path.id, policyId: payload.policyId }),
       )
-      .handle("detachFromApiKey", ({ path }) =>
-        detachPolicy({ principalType: "apikey", principalId: path.id, policyId: path.policyId }),
+      .handle("detachFromRobot", ({ path }) =>
+        detachPolicy({ principalType: "robot", principalId: path.id, policyId: path.policyId }),
       ),
 );

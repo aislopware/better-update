@@ -7,12 +7,12 @@ import { assertAccess } from "../auth/policy";
 import type { AuthContextShape } from "../auth/context";
 import type { PolicyStatement } from "../authz-models";
 
-// The api-keys handlers gate every action with `assertAccess("apiKey", <action>)`
-// at the default (org) target. This pins THAT contract: the IAM `apiKey` resource
-// token is now wired, so an org member can mint/list/revoke keys WITHOUT being the
-// better-auth org owner — purely by holding an `apiKey:*` allow via a policy
-// attachment. We exercise the gate directly with a synthetic principal (the
-// handlers' only authz dependency), mirroring `auth/policy.test.ts`.
+// The robot-accounts handlers gate every action with
+// `assertAccess("robotAccount", <action>)` at the default (org) target. This
+// pins THAT contract: an org member can mint/list/rotate/revoke robot accounts
+// WITHOUT being the better-auth org owner — purely by holding a `robotAccount:*`
+// allow via a policy attachment. We exercise the gate directly with a synthetic
+// principal (the handlers' only authz dependency), mirroring `auth/policy.test.ts`.
 
 const baseActor: AuthContextShape = {
   userId: "u1",
@@ -43,74 +43,76 @@ const isForbidden = (effect: Effect.Effect<void, unknown>) =>
     return Exit.isFailure(exit);
   });
 
-describe("api-keys authz gate — assertAccess('apiKey', …)", () => {
+describe("robot-accounts authz gate — assertAccess('robotAccount', …)", () => {
   it.effect("the better-auth org owner bypasses (can mint even with no statements)", () =>
     Effect.gen(function* () {
       const forbidden = yield* isForbidden(
-        assertAccess("apiKey", "create").pipe(provide({ isOwner: true })),
+        assertAccess("robotAccount", "create").pipe(provide({ isOwner: true })),
       );
       expect(forbidden).toBe(false);
     }),
   );
 
   it.effect(
-    "a member with an org-wide apiKey:create allow ('*') can mint — NOT just the owner",
+    "a member with an org-wide robotAccount:create allow ('*') can mint — NOT just the owner",
     () =>
       Effect.gen(function* () {
         const forbidden = yield* isForbidden(
-          assertAccess("apiKey", "create").pipe(
-            provide({ effectiveStatements: [allow(["apiKey:create"], ["*"])] }),
+          assertAccess("robotAccount", "create").pipe(
+            provide({ effectiveStatements: [allow(["robotAccount:create"], ["*"])] }),
           ),
         );
         expect(forbidden).toBe(false);
       }),
   );
 
-  it.effect("an 'org'-scoped apiKey:* allow also grants mint (org target path)", () =>
+  it.effect("an 'org'-scoped robotAccount:* allow also grants mint (org target path)", () =>
     Effect.gen(function* () {
       const forbidden = yield* isForbidden(
-        assertAccess("apiKey", "create").pipe(
-          provide({ effectiveStatements: [allow(["apiKey:*"], ["org"])] }),
+        assertAccess("robotAccount", "create").pipe(
+          provide({ effectiveStatements: [allow(["robotAccount:*"], ["org"])] }),
         ),
       );
       expect(forbidden).toBe(false);
     }),
   );
 
-  it.effect("a member with NO apiKey statement is denied (default-deny)", () =>
+  it.effect("a member with NO robotAccount statement is denied (default-deny)", () =>
     Effect.gen(function* () {
-      const forbidden = yield* isForbidden(assertAccess("apiKey", "create").pipe(provide({})));
+      const forbidden = yield* isForbidden(
+        assertAccess("robotAccount", "create").pipe(provide({})),
+      );
       expect(forbidden).toBe(true);
     }),
   );
 
-  it.effect("an apiKey:read allow does NOT grant create (action is scoped)", () =>
+  it.effect("a robotAccount:read allow does NOT grant create (action is scoped)", () =>
     Effect.gen(function* () {
       const forbidden = yield* isForbidden(
-        assertAccess("apiKey", "create").pipe(
-          provide({ effectiveStatements: [allow(["apiKey:read"], ["*"])] }),
+        assertAccess("robotAccount", "create").pipe(
+          provide({ effectiveStatements: [allow(["robotAccount:read"], ["*"])] }),
         ),
       );
       expect(forbidden).toBe(true);
     }),
   );
 
-  it.effect("read + delete are independently gated under the apiKey resource", () =>
+  it.effect("read + delete are independently gated under the robotAccount resource", () =>
     Effect.gen(function* () {
       const canRead = yield* isForbidden(
-        assertAccess("apiKey", "read").pipe(
-          provide({ effectiveStatements: [allow(["apiKey:read"], ["*"])] }),
+        assertAccess("robotAccount", "read").pipe(
+          provide({ effectiveStatements: [allow(["robotAccount:read"], ["*"])] }),
         ),
       );
       const canDelete = yield* isForbidden(
-        assertAccess("apiKey", "delete").pipe(
-          provide({ effectiveStatements: [allow(["apiKey:delete"], ["*"])] }),
+        assertAccess("robotAccount", "delete").pipe(
+          provide({ effectiveStatements: [allow(["robotAccount:delete"], ["*"])] }),
         ),
       );
       // read-only principal cannot delete
       const readOnlyCanDelete = yield* isForbidden(
-        assertAccess("apiKey", "delete").pipe(
-          provide({ effectiveStatements: [allow(["apiKey:read"], ["*"])] }),
+        assertAccess("robotAccount", "delete").pipe(
+          provide({ effectiveStatements: [allow(["robotAccount:read"], ["*"])] }),
         ),
       );
       expect(canRead).toBe(false);

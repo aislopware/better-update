@@ -80,7 +80,7 @@ const RESOURCE_TYPE_VALUES = [
   "policy",
   "group",
   "policyAttachment",
-  "apiKey",
+  "robotAccount",
   "invitation",
   "member",
   "organization",
@@ -108,7 +108,7 @@ const RESOURCE_TYPE_LABELS: Record<ResourceTypeValue, string> = {
   policy: "Policy",
   group: "Group",
   policyAttachment: "Policy attachment",
-  apiKey: "API key",
+  robotAccount: "Robot account",
   invitation: "Invitation",
   member: "Member",
   organization: "Organization",
@@ -246,7 +246,7 @@ const AuditLogRow = ({
         <div className="flex flex-col items-start gap-1">
           <span className="text-foreground text-sm">{entry.actorEmail}</span>
           <Badge variant="outline" className="text-[10px]">
-            {entry.source === "api-key" ? "API key" : "Session"}
+            {entry.source === "robot" ? "Robot" : "Session"}
           </Badge>
         </div>
       </TableCell>

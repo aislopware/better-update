@@ -77,31 +77,6 @@ export interface AndroidUploadKeystores {
   wrapped_dek: string;
 }
 
-export interface Apikey {
-  config_id: string;
-  created_at: string;
-  enabled: number | null;
-  expires_at: string | null;
-  id: string;
-  key: string;
-  last_refill_at: string | null;
-  last_request: string | null;
-  metadata: string | null;
-  name: string | null;
-  permissions: string | null;
-  prefix: string | null;
-  rate_limit_enabled: number | null;
-  rate_limit_max: number | null;
-  rate_limit_time_window: number | null;
-  reference_id: string;
-  refill_amount: number | null;
-  refill_interval: number | null;
-  remaining: number | null;
-  request_count: number | null;
-  start: string | null;
-  updated_at: string;
-}
-
 export interface AppleDistributionCertificates {
   apple_team_id: string;
   created_at: Generated<string>;
@@ -554,6 +529,17 @@ export interface ProjectsFts {
   slug: string | null;
 }
 
+export interface RobotAccount {
+  bearer_key_hash: string | null;
+  bearer_start: string | null;
+  created_at: Generated<string>;
+  id: string;
+  name: string;
+  organization_id: string;
+  revoked_at: string | null;
+  user_encryption_key_id: string | null;
+}
+
 export interface Session {
   active_organization_id: string | null;
   created_at: string;
@@ -668,7 +654,6 @@ export interface DB {
   android_application_identifiers: AndroidApplicationIdentifiers;
   android_build_credentials: AndroidBuildCredentials;
   android_upload_keystores: AndroidUploadKeystores;
-  apikey: Apikey;
   apple_distribution_certificates: AppleDistributionCertificates;
   apple_pass_type_certificates: ApplePassTypeCertificates;
   apple_pay_certificates: ApplePayCertificates;
@@ -708,6 +693,7 @@ export interface DB {
   project_protocol_metadata: ProjectProtocolMetadata;
   projects: Projects;
   projects_fts: ProjectsFts;
+  robot_account: RobotAccount;
   session: Session;
   submissions: Submissions;
   update_assets: UpdateAssets;

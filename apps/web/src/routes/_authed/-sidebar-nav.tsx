@@ -9,6 +9,7 @@ import {
 import { Link } from "@tanstack/react-router";
 import {
   ScrollTextIcon,
+  BotIcon,
   CloudUploadIcon,
   CodeIcon,
   FingerprintIcon,
@@ -16,7 +17,6 @@ import {
   LayoutDashboardIcon,
   FolderIcon,
   GitBranchIcon,
-  KeyIcon,
   PackageIcon,
   SatelliteIcon,
   SettingsIcon,
@@ -41,7 +41,7 @@ interface OrgNavItem {
     | "/credentials"
     | "/apple-devices"
     | "/vault-access"
-    | "/api-keys"
+    | "/robot-accounts"
     | "/environment-variables"
     | "/settings"
     | "/admin"
@@ -108,7 +108,7 @@ const ORG_NAV: OrgNavSection[] = [
   {
     label: "Settings",
     items: [
-      { to: "/api-keys", label: "API Keys", icon: KeyIcon },
+      { to: "/robot-accounts", label: "Robot accounts", icon: BotIcon },
       {
         to: "/environment-variables",
         label: "Environment variables",

@@ -325,7 +325,13 @@ export {
   VaultCredentialDeks,
   WrappedDek,
 } from "./domain/encrypted-credential";
-export { ApiKey, ApiKeyList, CreateApiKeyBody, CreatedApiKey } from "./domain/api-key";
+export {
+  CreatedRobotAccount,
+  CreateRobotAccountBody,
+  RobotAccount,
+  RobotAccountList,
+  RotatedRobotAccountBearer,
+} from "./domain/robot-account";
 export { CreateInvitationBody, Invitation, InvitationList } from "./domain/invitation";
 export {
   CreatePolicyBody,
@@ -391,7 +397,7 @@ export { WebhooksGroup } from "./groups/webhooks";
 export { PoliciesGroup } from "./groups/policies";
 export { GroupsGroup } from "./groups/groups";
 export { PolicyAttachmentsGroup } from "./groups/policy-attachments";
-export { ApiKeysGroup } from "./groups/api-keys";
+export { RobotAccountsGroup } from "./groups/robot-accounts";
 export { InvitationsGroup } from "./groups/invitations";
 export { MembersGroup } from "./groups/members";
 export { OrganizationGroup } from "./groups/organization";

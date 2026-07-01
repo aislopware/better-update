@@ -64,11 +64,10 @@ const browserLogin = Effect.scoped(
 );
 
 const manualLogin = Effect.gen(function* () {
-  yield* Console.log("Log in to better-update with an existing API key");
-  yield* Console.log("Get your API key from the dashboard > API Keys page");
+  yield* Console.log("Log in to better-update by pasting a session token");
   yield* Console.log("");
 
-  const token = yield* promptPassword("Paste your API key (from dashboard > API Keys):");
+  const token = yield* promptPassword("Paste your session token:");
   const authStore = yield* AuthStore;
   yield* authStore.saveToken(token);
   yield* Console.log("");

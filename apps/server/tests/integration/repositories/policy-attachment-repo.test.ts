@@ -155,7 +155,7 @@ describe("PolicyAttachmentRepo — D1 integration", () => {
         yield* repo.attach({
           organizationId: "org-att-1",
           policyId: "policy-detach",
-          principal: { type: "apikey", id: "apikey-detach" },
+          principal: { type: "robot", id: "robot-detach" },
         });
       }),
     );
@@ -163,7 +163,7 @@ describe("PolicyAttachmentRepo — D1 integration", () => {
     const before = await env.DB.prepare(
       `SELECT COUNT(*) AS n FROM "policy_attachment" WHERE "policy_id" = ? AND "principal_id" = ?`,
     )
-      .bind("policy-detach", "apikey-detach")
+      .bind("policy-detach", "robot-detach")
       .first<{ n: number }>();
     expect(before!.n).toBe(1);
 
@@ -173,13 +173,13 @@ describe("PolicyAttachmentRepo — D1 integration", () => {
         yield* repo.detach({
           organizationId: "org-att-1",
           policyId: "policy-detach",
-          principal: { type: "apikey", id: "apikey-detach" },
+          principal: { type: "robot", id: "robot-detach" },
         });
         // detaching again is a harmless no-op.
         yield* repo.detach({
           organizationId: "org-att-1",
           policyId: "policy-detach",
-          principal: { type: "apikey", id: "apikey-detach" },
+          principal: { type: "robot", id: "robot-detach" },
         });
       }),
     );
@@ -187,7 +187,7 @@ describe("PolicyAttachmentRepo — D1 integration", () => {
     const after = await env.DB.prepare(
       `SELECT COUNT(*) AS n FROM "policy_attachment" WHERE "policy_id" = ? AND "principal_id" = ?`,
     )
-      .bind("policy-detach", "apikey-detach")
+      .bind("policy-detach", "robot-detach")
       .first<{ n: number }>();
     expect(after!.n).toBe(0);
   });

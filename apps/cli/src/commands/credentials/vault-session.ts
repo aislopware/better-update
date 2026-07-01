@@ -12,7 +12,8 @@ import type { ApiClient } from "../../services/api-client";
 /**
  * Unlock the vault key for an interactive command: reuse the OS-keychain-cached
  * key when live, prompt for the device passphrase only on a cache miss, and none
- * at all for the CI `BETTER_UPDATE_IDENTITY` env key.
+ * at all for a CI robot's env-sourced key (`BETTER_UPDATE_ROBOT` or the
+ * deprecated `BETTER_UPDATE_IDENTITY`).
  */
 export const unlockVaultInteractively = (api: ApiClient) => unlockVaultKeyInteractive(api);
 

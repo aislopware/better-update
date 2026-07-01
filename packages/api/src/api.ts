@@ -7,7 +7,6 @@ import { AnalyticsGroup } from "./groups/analytics";
 import { AndroidApplicationIdentifiersGroup } from "./groups/android-application-identifiers";
 import { AndroidBuildCredentialsGroup } from "./groups/android-build-credentials";
 import { AndroidUploadKeystoresGroup } from "./groups/android-upload-keystores";
-import { ApiKeysGroup } from "./groups/api-keys";
 import { AppleDistributionCertificatesGroup } from "./groups/apple-distribution-certificates";
 import { ApplePassTypeCertificatesGroup } from "./groups/apple-pass-type-certificates";
 import { ApplePayCertificatesGroup } from "./groups/apple-pay-certificates";
@@ -39,6 +38,7 @@ import { OrganizationGroup } from "./groups/organization";
 import { PoliciesGroup } from "./groups/policies";
 import { PolicyAttachmentsGroup } from "./groups/policy-attachments";
 import { ProjectsGroup } from "./groups/projects";
+import { RobotAccountsGroup } from "./groups/robot-accounts";
 import { RuntimesGroup } from "./groups/runtimes";
 import { SubmissionsGroup } from "./groups/submissions";
 import { UpdatesGroup } from "./groups/updates";
@@ -86,7 +86,7 @@ export class ManagementApi extends HttpApi.make("management-api")
   .add(PoliciesGroup)
   .add(GroupsGroup)
   .add(PolicyAttachmentsGroup)
-  .add(ApiKeysGroup)
+  .add(RobotAccountsGroup)
   .add(InvitationsGroup)
   .add(MembersGroup)
   .add(OrganizationGroup)

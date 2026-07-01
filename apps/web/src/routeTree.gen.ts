@@ -21,10 +21,10 @@ import { Route as AuthedOnboardingRouteImport } from './routes/_authed/onboardin
 import { Route as AuthedAppRouteImport } from './routes/_authed/_app'
 import { Route as AuthedAppIndexRouteImport } from './routes/_authed/_app/index'
 import { Route as AuthedAppVaultAccessRouteImport } from './routes/_authed/_app/vault-access'
+import { Route as AuthedAppRobotAccountsRouteImport } from './routes/_authed/_app/robot-accounts'
 import { Route as AuthedAppMembersRouteImport } from './routes/_authed/_app/members'
 import { Route as AuthedAppCredentialsRouteImport } from './routes/_authed/_app/credentials'
 import { Route as AuthedAppAuditLogRouteImport } from './routes/_authed/_app/audit-log'
-import { Route as AuthedAppApiKeysRouteImport } from './routes/_authed/_app/api-keys'
 import { Route as AuthedAppAdminRouteImport } from './routes/_authed/_app/admin'
 import { Route as AuthedAppAccountRouteImport } from './routes/_authed/_app/account'
 import { Route as AuthedAppSettingsIndexRouteImport } from './routes/_authed/_app/settings/index'
@@ -120,6 +120,11 @@ const AuthedAppVaultAccessRoute = AuthedAppVaultAccessRouteImport.update({
   path: '/vault-access',
   getParentRoute: () => AuthedAppRoute,
 } as any)
+const AuthedAppRobotAccountsRoute = AuthedAppRobotAccountsRouteImport.update({
+  id: '/robot-accounts',
+  path: '/robot-accounts',
+  getParentRoute: () => AuthedAppRoute,
+} as any)
 const AuthedAppMembersRoute = AuthedAppMembersRouteImport.update({
   id: '/members',
   path: '/members',
@@ -133,11 +138,6 @@ const AuthedAppCredentialsRoute = AuthedAppCredentialsRouteImport.update({
 const AuthedAppAuditLogRoute = AuthedAppAuditLogRouteImport.update({
   id: '/audit-log',
   path: '/audit-log',
-  getParentRoute: () => AuthedAppRoute,
-} as any)
-const AuthedAppApiKeysRoute = AuthedAppApiKeysRouteImport.update({
-  id: '/api-keys',
-  path: '/api-keys',
   getParentRoute: () => AuthedAppRoute,
 } as any)
 const AuthedAppAdminRoute = AuthedAppAdminRouteImport.update({
@@ -361,10 +361,10 @@ export interface FileRoutesByFullPath {
   '/auth/login': typeof AuthLoginRoute
   '/account': typeof AuthedAppAccountRouteWithChildren
   '/admin': typeof AuthedAppAdminRoute
-  '/api-keys': typeof AuthedAppApiKeysRoute
   '/audit-log': typeof AuthedAppAuditLogRoute
   '/credentials': typeof AuthedAppCredentialsRoute
   '/members': typeof AuthedAppMembersRoute
+  '/robot-accounts': typeof AuthedAppRobotAccountsRoute
   '/vault-access': typeof AuthedAppVaultAccessRoute
   '/account/appearance': typeof AuthedAppAccountAppearanceRoute
   '/account/connections': typeof AuthedAppAccountConnectionsRoute
@@ -412,10 +412,10 @@ export interface FileRoutesByTo {
   '/auth/cli-login': typeof AuthCliLoginRoute
   '/auth/login': typeof AuthLoginRoute
   '/admin': typeof AuthedAppAdminRoute
-  '/api-keys': typeof AuthedAppApiKeysRoute
   '/audit-log': typeof AuthedAppAuditLogRoute
   '/credentials': typeof AuthedAppCredentialsRoute
   '/members': typeof AuthedAppMembersRoute
+  '/robot-accounts': typeof AuthedAppRobotAccountsRoute
   '/vault-access': typeof AuthedAppVaultAccessRoute
   '/account/appearance': typeof AuthedAppAccountAppearanceRoute
   '/account/connections': typeof AuthedAppAccountConnectionsRoute
@@ -464,10 +464,10 @@ export interface FileRoutesById {
   '/auth/login': typeof AuthLoginRoute
   '/_authed/_app/account': typeof AuthedAppAccountRouteWithChildren
   '/_authed/_app/admin': typeof AuthedAppAdminRoute
-  '/_authed/_app/api-keys': typeof AuthedAppApiKeysRoute
   '/_authed/_app/audit-log': typeof AuthedAppAuditLogRoute
   '/_authed/_app/credentials': typeof AuthedAppCredentialsRoute
   '/_authed/_app/members': typeof AuthedAppMembersRoute
+  '/_authed/_app/robot-accounts': typeof AuthedAppRobotAccountsRoute
   '/_authed/_app/vault-access': typeof AuthedAppVaultAccessRoute
   '/_authed/_app/': typeof AuthedAppIndexRoute
   '/_authed/_app/account/appearance': typeof AuthedAppAccountAppearanceRoute
@@ -519,10 +519,10 @@ export interface FileRouteTypes {
     | '/auth/login'
     | '/account'
     | '/admin'
-    | '/api-keys'
     | '/audit-log'
     | '/credentials'
     | '/members'
+    | '/robot-accounts'
     | '/vault-access'
     | '/account/appearance'
     | '/account/connections'
@@ -570,10 +570,10 @@ export interface FileRouteTypes {
     | '/auth/cli-login'
     | '/auth/login'
     | '/admin'
-    | '/api-keys'
     | '/audit-log'
     | '/credentials'
     | '/members'
+    | '/robot-accounts'
     | '/vault-access'
     | '/account/appearance'
     | '/account/connections'
@@ -621,10 +621,10 @@ export interface FileRouteTypes {
     | '/auth/login'
     | '/_authed/_app/account'
     | '/_authed/_app/admin'
-    | '/_authed/_app/api-keys'
     | '/_authed/_app/audit-log'
     | '/_authed/_app/credentials'
     | '/_authed/_app/members'
+    | '/_authed/_app/robot-accounts'
     | '/_authed/_app/vault-access'
     | '/_authed/_app/'
     | '/_authed/_app/account/appearance'
@@ -758,6 +758,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedAppVaultAccessRouteImport
       parentRoute: typeof AuthedAppRoute
     }
+    '/_authed/_app/robot-accounts': {
+      id: '/_authed/_app/robot-accounts'
+      path: '/robot-accounts'
+      fullPath: '/robot-accounts'
+      preLoaderRoute: typeof AuthedAppRobotAccountsRouteImport
+      parentRoute: typeof AuthedAppRoute
+    }
     '/_authed/_app/members': {
       id: '/_authed/_app/members'
       path: '/members'
@@ -777,13 +784,6 @@ declare module '@tanstack/react-router' {
       path: '/audit-log'
       fullPath: '/audit-log'
       preLoaderRoute: typeof AuthedAppAuditLogRouteImport
-      parentRoute: typeof AuthedAppRoute
-    }
-    '/_authed/_app/api-keys': {
-      id: '/_authed/_app/api-keys'
-      path: '/api-keys'
-      fullPath: '/api-keys'
-      preLoaderRoute: typeof AuthedAppApiKeysRouteImport
       parentRoute: typeof AuthedAppRoute
     }
     '/_authed/_app/admin': {
@@ -1151,10 +1151,10 @@ const AuthedAppProjectsProjectSlugRouteWithChildren =
 interface AuthedAppRouteChildren {
   AuthedAppAccountRoute: typeof AuthedAppAccountRouteWithChildren
   AuthedAppAdminRoute: typeof AuthedAppAdminRoute
-  AuthedAppApiKeysRoute: typeof AuthedAppApiKeysRoute
   AuthedAppAuditLogRoute: typeof AuthedAppAuditLogRoute
   AuthedAppCredentialsRoute: typeof AuthedAppCredentialsRoute
   AuthedAppMembersRoute: typeof AuthedAppMembersRoute
+  AuthedAppRobotAccountsRoute: typeof AuthedAppRobotAccountsRoute
   AuthedAppVaultAccessRoute: typeof AuthedAppVaultAccessRoute
   AuthedAppIndexRoute: typeof AuthedAppIndexRoute
   AuthedAppProjectsProjectSlugRoute: typeof AuthedAppProjectsProjectSlugRouteWithChildren
@@ -1169,10 +1169,10 @@ interface AuthedAppRouteChildren {
 const AuthedAppRouteChildren: AuthedAppRouteChildren = {
   AuthedAppAccountRoute: AuthedAppAccountRouteWithChildren,
   AuthedAppAdminRoute: AuthedAppAdminRoute,
-  AuthedAppApiKeysRoute: AuthedAppApiKeysRoute,
   AuthedAppAuditLogRoute: AuthedAppAuditLogRoute,
   AuthedAppCredentialsRoute: AuthedAppCredentialsRoute,
   AuthedAppMembersRoute: AuthedAppMembersRoute,
+  AuthedAppRobotAccountsRoute: AuthedAppRobotAccountsRoute,
   AuthedAppVaultAccessRoute: AuthedAppVaultAccessRoute,
   AuthedAppIndexRoute: AuthedAppIndexRoute,
   AuthedAppProjectsProjectSlugRoute:

@@ -19,7 +19,7 @@ export const MembersGroupLive = HttpApiBuilder.group(ManagementApi, "members", (
         const repo = yield* MemberRepo;
 
         // Load org-scoped: a member absent in this org is NotFound (never a
-        // cross-org delete, mirroring api-keys.revoke / invitations.cancel).
+        // cross-org delete, mirroring robot-accounts.revoke / invitations.cancel).
         const target = yield* repo.findInOrg({
           id: path.id,
           organizationId: ctx.organizationId,

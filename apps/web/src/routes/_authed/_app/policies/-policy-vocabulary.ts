@@ -29,7 +29,7 @@ export const RESOURCE_VOCABULARY: readonly ResourceVocabularyEntry[] = [
   { resource: "update", label: "Updates", actions: ["read", "create", "delete"] },
   { resource: "rollout", label: "Rollouts", actions: CRUD },
   { resource: "billing", label: "Billing", actions: ["read", "update"] },
-  { resource: "apiKey", label: "API keys", actions: ["read", "create", "delete"] },
+  { resource: "robotAccount", label: "Robot accounts", actions: ["read", "create", "delete"] },
   { resource: "build", label: "Builds", actions: ["read", "create", "delete"] },
   { resource: "envVar", label: "Environment variables", actions: CRUD },
   { resource: "auditLog", label: "Audit log", actions: ["read"] },

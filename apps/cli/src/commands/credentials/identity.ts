@@ -7,7 +7,6 @@ import {
   activeRecipient,
   createLocalIdentity,
   loadIdentityFileOrFail,
-  recipientKind,
   registerRecipient,
 } from "../../application/identity";
 import {
@@ -130,12 +129,7 @@ const showCommand = defineCommand({
       Effect.gen(function* () {
         const recipient = yield* activeRecipient;
         yield* printKeyValue([
-          [
-            "Source",
-            recipient.source === "env"
-              ? "BETTER_UPDATE_IDENTITY (env)"
-              : "~/.better-update/identity.json",
-          ],
+          ["Source", recipient.source === "env" ? "robot (env)" : "~/.better-update/identity.json"],
           ["Recipient (public key)", recipient.publicKey],
           ["Fingerprint", recipient.fingerprint],
         ]);
@@ -165,9 +159,15 @@ const initCommand = defineCommand({
         const ensureRegistered = existing
           ? Effect.succeed(existing)
           : Effect.gen(function* () {
+              if (recipient.source !== "file") {
+                return yield* new IdentityError({
+                  message:
+                    "Bootstrap the vault from an admin's own device identity, not a robot's. Run `better-update credentials identity create` here first, or mint the org's first robot with `better-update credentials robot create` after the vault exists.",
+                });
+              }
               const label = yield* resolveLabel(args.label);
               return yield* registerRecipient(api, {
-                kind: recipientKind(recipient.source),
+                kind: "device",
                 publicKey: recipient.publicKey,
                 fingerprint: recipient.fingerprint,
                 label,

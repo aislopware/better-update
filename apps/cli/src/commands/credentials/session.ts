@@ -54,7 +54,7 @@ const unlockCommand = defineCommand({
         const recipient = yield* activeRecipient;
         if (recipient.source !== "file") {
           yield* printHuman(
-            "Active identity is the BETTER_UPDATE_IDENTITY (CI) key — it has no passphrase and isn't cached.",
+            "Active identity is a robot (CI) key — it has no passphrase and isn't cached.",
           );
           return;
         }
@@ -100,9 +100,7 @@ const statusCommand = defineCommand({
       Effect.gen(function* () {
         const recipient = yield* activeRecipient;
         if (recipient.source !== "file") {
-          yield* printHuman(
-            "Active identity is the BETTER_UPDATE_IDENTITY (CI) key — caching not used.",
-          );
+          yield* printHuman("Active identity is a robot (CI) key — caching not used.");
           return;
         }
         const cache = yield* VaultCache;

@@ -2,11 +2,7 @@ import { env } from "cloudflare:test";
 import { Effect, Layer } from "effect";
 
 import { MANAGED_POLICIES } from "../../../src/auth/managed-policies";
-import {
-  inlinePermissionStatements,
-  resolveEffectiveStatements,
-  statementsForPrincipals,
-} from "../../../src/auth/middleware";
+import { resolveEffectiveStatements, statementsForPrincipals } from "../../../src/auth/middleware";
 import { GroupRepo, GroupRepoLive } from "../../../src/repositories/group-repo";
 import {
   PolicyAttachmentRepo,
@@ -29,8 +25,8 @@ const run = <Ret, Err>(
 
 const ORG = "org-resolve-1";
 const MEMBER = "member-resolve-alice";
-// A better-auth api-key row id, used as an `apikey` policy-attachment principal.
-const API_KEY = "apikey-resolve-1";
+// A robot_account row id, used as a `robot` policy-attachment principal.
+const ROBOT = "robot-resolve-1";
 
 const scopedDoc: PolicyDocument = {
   statements: [
@@ -131,17 +127,17 @@ beforeAll(async () => {
         principal: { type: "member", id: MEMBER },
       });
 
-      // api-key principal: a managed preset + a real scoped policy, so the
+      // robot principal: a managed preset + a real scoped policy, so the
       // machine-credential grant path is exercised (not just default-deny).
       yield* attachRepo.attach({
         organizationId: ORG,
         policyId: "managed:viewer",
-        principal: { type: "apikey", id: API_KEY },
+        principal: { type: "robot", id: ROBOT },
       });
       yield* attachRepo.attach({
         organizationId: ORG,
         policyId: scopedPolicy.id,
-        principal: { type: "apikey", id: API_KEY },
+        principal: { type: "robot", id: ROBOT },
       });
 
       return { groupOne, groupTwo, scopedPolicy } as const;
@@ -232,12 +228,12 @@ describe("resolveEffectiveStatements — D1 integration", () => {
   });
 });
 
-describe("statementsForPrincipals — api-key principal (machine credential)", () => {
-  it("resolves attachment-derived statements for an api key (POSITIVE grant)", async () => {
+describe("statementsForPrincipals — robot principal (machine credential)", () => {
+  it("resolves attachment-derived statements for a robot (POSITIVE grant)", async () => {
     const statements = await run(
       statementsForPrincipals({
         organizationId: ORG,
-        principals: [{ type: "apikey", id: API_KEY }],
+        principals: [{ type: "robot", id: ROBOT }],
       }),
     );
     const got = sortStatements(statements);
@@ -250,37 +246,23 @@ describe("statementsForPrincipals — api-key principal (machine credential)", (
     }
   });
 
-  it("an api key with no attachment resolves to empty (default-deny, no admin baseline)", async () => {
+  it("a robot with no attachment resolves to empty (default-deny, no admin baseline)", async () => {
     const statements = await run(
       statementsForPrincipals({
         organizationId: ORG,
-        principals: [{ type: "apikey", id: "apikey-unattached" }],
+        principals: [{ type: "robot", id: "robot-unattached" }],
       }),
     );
     expect(statements).toEqual([]);
   });
 
-  it("api-key resolution is tenant-scoped (same key id, other org → nothing)", async () => {
+  it("robot resolution is tenant-scoped (same robot id, other org → nothing)", async () => {
     const statements = await run(
       statementsForPrincipals({
         organizationId: "org-resolve-other",
-        principals: [{ type: "apikey", id: API_KEY }],
+        principals: [{ type: "robot", id: ROBOT }],
       }),
     );
     expect(statements).toEqual([]);
-  });
-});
-
-describe("inlinePermissionStatements — api-key inline metadata (additive)", () => {
-  it("null / empty / empty-action maps contribute nothing", () => {
-    expect(inlinePermissionStatements(null)).toEqual([]);
-    expect(inlinePermissionStatements({})).toEqual([]);
-    expect(inlinePermissionStatements({ channel: [] })).toEqual([]);
-  });
-
-  it("maps a populated map to org-wide allow statements", () => {
-    expect(inlinePermissionStatements({ channel: ["read", "create"] })).toEqual([
-      { effect: "allow", actions: ["channel:read", "channel:create"], resources: ["*"] },
-    ]);
   });
 });

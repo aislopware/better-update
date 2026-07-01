@@ -15,7 +15,7 @@ describe("Environment variables API flow (E2E encrypted)", () => {
     cookies: "",
     organizationId: "",
     projectId: "",
-    apiKey: "",
+    robotBearer: "",
     globalVarId: "",
     sensitiveVarId: "",
     overrideVarId: "",
@@ -65,19 +65,23 @@ describe("Environment variables API flow (E2E encrypted)", () => {
     state.projectId = body.id;
   });
 
-  it("creates an API key for export auth", async () => {
+  it("creates a robot account for export auth", async () => {
     const response = await post(
-      "/api/auth/api-key/create",
-      { name: "env-export-key", organizationId: state.organizationId },
+      "/api/robot-accounts",
+      {
+        name: "env-export-robot",
+        publicKey: `age1${crypto.randomUUID()}${crypto.randomUUID()}`,
+        fingerprint: `SHA256:${crypto.randomUUID()}`,
+      },
       { cookie: state.cookies },
     );
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(201);
     const body = await response.json();
-    expect(body.key).toMatch(/^bu_/);
-    state.apiKey = body.key;
+    expect(body.bearerSecret).toMatch(/^bu_robot_/);
+    state.robotBearer = body.bearerSecret;
 
     const attach = await post(
-      `/api/api-keys/${body.id}/policies`,
+      `/api/robot-accounts/${body.id}/policies`,
       { policyId: "managed:admin" },
       { cookie: state.cookies },
     );
@@ -573,7 +577,7 @@ describe("Environment variables API flow (E2E encrypted)", () => {
   it("exports sealed envelopes (project overrides global) with API key auth", async () => {
     const response = await get(
       `/api/env-vars/export?projectId=${state.projectId}&environment=production`,
-      { authorization: `Bearer ${state.apiKey}` },
+      { authorization: `Bearer ${state.robotBearer}` },
     );
     expect(response.status).toBe(200);
     const body = await response.json();

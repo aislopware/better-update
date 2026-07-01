@@ -15,8 +15,8 @@ export const memberPoliciesQueryKey = (orgId: string, memberId: string) =>
 export const groupPoliciesQueryKey = (orgId: string, groupId: string) =>
   ["org", orgId, "groups", groupId, "policies"] as const;
 
-export const apiKeyPoliciesQueryKey = (orgId: string, apiKeyId: string) =>
-  ["org", orgId, "api-keys", apiKeyId, "policies"] as const;
+export const robotPoliciesQueryKey = (orgId: string, robotId: string) =>
+  ["org", orgId, "robot-accounts", robotId, "policies"] as const;
 
 export const memberPoliciesQueryOptions = (orgId: string, memberId: string) =>
   queryOptions({
@@ -34,11 +34,11 @@ export const groupPoliciesQueryOptions = (orgId: string, groupId: string) =>
     staleTime: 30_000,
   });
 
-export const apiKeyPoliciesQueryOptions = (orgId: string, apiKeyId: string) =>
+export const robotPoliciesQueryOptions = (orgId: string, robotId: string) =>
   queryOptions({
-    queryKey: apiKeyPoliciesQueryKey(orgId, apiKeyId),
+    queryKey: robotPoliciesQueryKey(orgId, robotId),
     queryFn: async ({ signal }) =>
-      runApi((api) => api["policy-attachments"].listForApiKey({ path: { id: apiKeyId } }), signal),
+      runApi((api) => api["policy-attachments"].listForRobot({ path: { id: robotId } }), signal),
     staleTime: 30_000,
   });
 
@@ -66,14 +66,14 @@ export const detachPolicyFromGroup = async (groupId: string, policyId: string) =
     }),
   );
 
-export const attachPolicyToApiKey = async (apiKeyId: string, body: typeof AttachPolicyBody.Type) =>
+export const attachPolicyToRobot = async (robotId: string, body: typeof AttachPolicyBody.Type) =>
   runApi((api) =>
-    api["policy-attachments"].attachToApiKey({ path: { id: apiKeyId }, payload: body }),
+    api["policy-attachments"].attachToRobot({ path: { id: robotId }, payload: body }),
   );
 
-export const detachPolicyFromApiKey = async (apiKeyId: string, policyId: string) =>
+export const detachPolicyFromRobot = async (robotId: string, policyId: string) =>
   runApi((api) =>
-    api["policy-attachments"].detachFromApiKey({
-      path: { id: apiKeyId, policyId: encodePolicyId(policyId) },
+    api["policy-attachments"].detachFromRobot({
+      path: { id: robotId, policyId: encodePolicyId(policyId) },
     }),
   );

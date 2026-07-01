@@ -18,7 +18,7 @@ export type Resource =
   | "update"
   | "rollout"
   | "billing"
-  | "apiKey"
+  | "robotAccount"
   | "build"
   | "appleCredential"
   | "androidCredential"
@@ -49,9 +49,9 @@ export interface AuthContextShape {
   readonly userId: string | null;
   readonly organizationId: string;
   /**
-   * The active-org membership row id (`member.id`), or `null` for API-key
-   * principals. Resolved once in `auth/middleware.ts`; policy attachments key off
-   * it (members) or the api-key id (machine principals).
+   * The active-org membership row id (`member.id`), or `null` for robot-account
+   * principals. Resolved once in `auth/middleware.ts`; policy attachments key
+   * off it (members) or the robot account id (machine principals).
    */
   readonly memberId: string | null;
   readonly role: Role | null;
@@ -59,19 +59,19 @@ export interface AuthContextShape {
   readonly isOwner: boolean;
   /** Flattened policy statements (direct + group + managed presets), resolved once per request. */
   readonly effectiveStatements: readonly PolicyStatement[];
-  readonly source: "session" | "api-key";
+  readonly source: "session" | "robot";
   /**
    * Transport that carried the credential: `"bearer"` for the CLI/CI
-   * (`Authorization` header — both session tokens and API keys) and `"cookie"`
-   * for the browser dashboard. Lets us tell a machine/CLI caller apart from a
-   * browser session even though both can be `source: "session"`.
+   * (`Authorization` header — both session tokens and robot bearer secrets) and
+   * `"cookie"` for the browser dashboard. Lets us tell a machine/CLI caller apart
+   * from a browser session even though both can be `source: "session"`.
    */
   readonly transport: "bearer" | "cookie";
   /**
-   * The better-auth `session.id` for a real user session, or `null` for an
-   * API-key principal (no session). Used to scope a WebAuthn step-up to the exact
-   * browser session that proved it (see the web-vault step-up gate), so a step-up
-   * in one session does not silently authorize another.
+   * The better-auth `session.id` for a real user session, or `null` for a
+   * robot-account principal (no session). Used to scope a WebAuthn step-up to
+   * the exact browser session that proved it (see the web-vault step-up gate),
+   * so a step-up in one session does not silently authorize another.
    */
   readonly sessionId: string | null;
   readonly actorEmail: string;

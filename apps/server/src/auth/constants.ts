@@ -1,2 +1,2 @@
-/** All API keys use this prefix. Custom prefixes are not supported. */
-export const API_KEY_PREFIX = "bu_";
+/** All robot account bearer secrets use this prefix. */
+export const ROBOT_BEARER_PREFIX = "bu_robot_";

@@ -15,7 +15,7 @@ import type { PolicyStatement } from "../authz-models";
 // check. An org member can invite/cancel WITHOUT being the better-auth owner —
 // purely by holding an `invitation:*` allow via a policy attachment; a member
 // with no such allow is denied (default-deny). We exercise the gate directly with
-// a synthetic principal, mirroring `handlers/api-keys.test.ts` / `auth/policy.test.ts`.
+// a synthetic principal, mirroring `handlers/robot-accounts.test.ts` / `auth/policy.test.ts`.
 
 const baseActor: AuthContextShape = {
   userId: "u1",

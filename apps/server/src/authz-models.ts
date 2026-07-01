@@ -5,8 +5,8 @@
 //
 // Design: docs/specs/authz/POLICY-GROUPS-SPEC.md. Access is granted by POLICIES
 // (named JSON documents of allow/deny statements) attached — directly or via
-// GROUPS — to a principal (member / group / api key), evaluated against an
-// object-scoped, path-glob selector with deny-wins, default-deny resolution.
+// GROUPS — to a principal (member / group / robot account), evaluated against
+// an object-scoped, path-glob selector with deny-wins, default-deny resolution.
 
 // Built-in preset names back the managed (code-defined) policies; `member.role`
 // is still an arbitrary string but the app only distinguishes "owner" (root
@@ -29,7 +29,7 @@ export type Resource =
   | "update"
   | "rollout"
   | "billing"
-  | "apiKey"
+  | "robotAccount"
   | "build"
   | "appleCredential"
   | "androidCredential"
@@ -80,7 +80,7 @@ export interface GroupModel {
   readonly updatedAt: string | null;
 }
 
-export type PrincipalType = "member" | "group" | "apikey";
+export type PrincipalType = "member" | "group" | "robot";
 
 export interface PolicyAttachmentModel {
   readonly id: string;

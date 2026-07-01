@@ -1,10 +1,8 @@
-import { apiKey } from "@better-auth/api-key";
 import { passkey } from "@better-auth/passkey";
 import { betterAuth } from "better-auth";
 import { admin, bearer, oneTimeToken, organization } from "better-auth/plugins";
 import { Effect } from "effect";
 
-import { API_KEY_PREFIX } from "./auth/constants";
 import { findFirstMembershipOrgId } from "./auth/memberships";
 import { hashPassword, verifyPassword } from "./auth/password";
 import { isSuperadminEmail, parseSuperadminEmails, roleIsSuperadmin } from "./auth/superadmin";
@@ -315,46 +313,6 @@ export const createAuth = (env: AuthEnv, ctx?: ExecutionContext) => {
         },
         schema: ORGANIZATION_PLUGIN_SCHEMA,
       }),
-      apiKey(
-        [
-          {
-            configId: "default",
-            defaultPrefix: API_KEY_PREFIX,
-            references: "organization",
-            enableMetadata: true,
-            keyExpiration: {
-              defaultExpiresIn: null,
-              minExpiresIn: 86_400,
-            },
-            rateLimit: {
-              enabled: true,
-              timeWindow: 60_000,
-              maxRequests: 120,
-            },
-          },
-        ],
-        {
-          schema: {
-            apikey: {
-              fields: {
-                configId: "config_id",
-                referenceId: "reference_id",
-                refillInterval: "refill_interval",
-                refillAmount: "refill_amount",
-                lastRefillAt: "last_refill_at",
-                rateLimitEnabled: "rate_limit_enabled",
-                rateLimitTimeWindow: "rate_limit_time_window",
-                rateLimitMax: "rate_limit_max",
-                requestCount: "request_count",
-                lastRequest: "last_request",
-                expiresAt: "expires_at",
-                createdAt: "created_at",
-                updatedAt: "updated_at",
-              },
-            },
-          },
-        },
-      ),
       // CLI session auth: `bearer` lets a Better Auth session token ride on the
       // `Authorization: Bearer` header (its before-hook rewrites it into the
       // session cookie so `getSession` resolves it; its after-hook surfaces the

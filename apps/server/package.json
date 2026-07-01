@@ -30,7 +30,6 @@
     "typegen:cf": "wrangler types"
   },
   "dependencies": {
-    "@better-auth/api-key": "^1.6.22",
     "@better-auth/passkey": "^1.6.22",
     "@better-update/api": "workspace:*",
     "@better-update/dotenv": "workspace:*",

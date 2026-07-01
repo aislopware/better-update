@@ -13,6 +13,7 @@ import { Effect, Either, Layer } from "effect";
 import type { UserEncryptionKey } from "@better-update/api";
 import type { IdentityFile } from "@better-update/credentials-crypto";
 
+import { serializeRobotEnv } from "../lib/robot-env";
 import { CliRuntime } from "../services/cli-runtime";
 import { IdentityStore } from "../services/identity-store";
 import {
@@ -96,6 +97,22 @@ describe("unlocking the active private key", () => {
         Effect.provide(
           Layer.mergeAll(
             cliRuntimeStub({ BETTER_UPDATE_IDENTITY: identity.privateKey }),
+            identityStoreStub(null),
+          ),
+        ),
+      );
+      expect(result).toBe(identity.privateKey);
+    }),
+  );
+
+  it.effect("returns the BETTER_UPDATE_ROBOT bundle's identity half without a passphrase", () =>
+    Effect.gen(function* () {
+      const identity = yield* Effect.promise(async () => generateIdentity());
+      const robotEnv = serializeRobotEnv({ bearer: "bu_robot_x", identity: identity.privateKey });
+      const result = yield* unlockActivePrivateKey(undefined).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            cliRuntimeStub({ BETTER_UPDATE_ROBOT: robotEnv }),
             identityStoreStub(null),
           ),
         ),

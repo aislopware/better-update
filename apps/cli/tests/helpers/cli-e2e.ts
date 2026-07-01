@@ -4,6 +4,10 @@ import os from "node:os";
 import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 
+import { generateIdentity } from "@better-update/credentials-crypto";
+
+import { serializeRobotEnv } from "../../src/lib/robot-env";
+
 const CLI_DIR = path.resolve(import.meta.dirname, "../..");
 const SERVER_DIR = path.resolve(import.meta.dirname, "../../../server");
 const SHARED_ENV_FILE = path.resolve(SERVER_DIR, ".wrangler/.e2e-cli-shared-env.json");
@@ -200,7 +204,8 @@ export const setupCliE2E = (testId: string, options: SetupCliE2EOptions): CliE2E
     cookies: "",
     organizationId: "",
     projectId: "",
-    apiKey: "",
+    robotBearer: "",
+    robotEnv: "",
     projectDir: "",
     homeDir: "",
     originalAppJson: undefined as string | undefined,
@@ -370,7 +375,7 @@ export const setupCliE2E = (testId: string, options: SetupCliE2EOptions): CliE2E
         ...process.env,
         HOME: state.homeDir,
         BETTER_UPDATE_URL: state.baseUrl,
-        BETTER_UPDATE_TOKEN: state.apiKey,
+        BETTER_UPDATE_ROBOT: state.robotEnv,
         BETTER_UPDATE_DISABLE_UPDATE_NOTIFIER: "1",
         // CI=1 + no TTY makes the CLI's prompt layer throw `InteractiveProhibitedError`
         // instead of blocking on stdin. Without this, `ensureRepoClean` in `update
@@ -454,29 +459,42 @@ export const setupCliE2E = (testId: string, options: SetupCliE2EOptions): CliE2E
     const createProjectBody = await createProjectResponse.json();
     state.projectId = createProjectBody.id;
 
-    const createKeyResponse = await post(
-      "/api/auth/api-key/create",
-      { name: `${testId}-key`, organizationId: state.organizationId },
+    // A real age keypair (not a fake string): some CLI flows in this shared
+    // suite exercise the credential vault, which derives the recipient from the
+    // identity half via `deriveRecipient` — a malformed key would crash those
+    // rather than cleanly 403.
+    const robotIdentity = await generateIdentity();
+    const createRobotResponse = await post(
+      "/api/robot-accounts",
+      {
+        name: `${testId}-robot`,
+        publicKey: robotIdentity.publicKey,
+        fingerprint: robotIdentity.fingerprint,
+      },
       { cookie: state.cookies },
     );
-    expect(createKeyResponse.status).toBe(200);
-    const createKeyBody = await createKeyResponse.json();
-    state.apiKey = createKeyBody.key;
+    expect(createRobotResponse.status).toBe(201);
+    const createRobotBody = await createRobotResponse.json();
+    state.robotBearer = createRobotBody.bearerSecret;
+    state.robotEnv = serializeRobotEnv({
+      bearer: createRobotBody.bearerSecret,
+      identity: robotIdentity.privateKey,
+    });
 
-    // Grant the api-key admin permissions. Under the IAM policy-group model
-    // (default-deny — no role baseline, no api-key admin fallback; see
-    // docs/specs/authz/POLICY-GROUPS-SPEC.md §8), a freshly created key holds
+    // Grant the robot admin permissions. Under the IAM policy-group model
+    // (default-deny — no role baseline, no admin fallback; see
+    // docs/specs/authz/POLICY-GROUPS-SPEC.md §8), a freshly created robot holds
     // ZERO permissions, so every project-scoped CLI command would 403. Attach
-    // the managed admin preset to the key principal as the owner (owners bypass
-    // the privilege-boundary check), mirroring a real operator granting their
-    // CLI key admin access. The `:id` is the better-auth api-key row id, which
+    // the managed admin preset to the robot principal as the owner (owners
+    // bypass the privilege-boundary check), mirroring a real operator granting
+    // their CLI robot admin access. The `:id` is the robot_account row id, which
     // is the `principal_id` the authz layer resolves attachments against.
-    const attachKeyPolicyResponse = await post(
-      `/api/api-keys/${createKeyBody.id}/policies`,
+    const attachRobotPolicyResponse = await post(
+      `/api/robot-accounts/${createRobotBody.id}/policies`,
       { policyId: "managed:admin" },
       { cookie: state.cookies },
     );
-    expect(attachKeyPolicyResponse.status).toBe(201);
+    expect(attachRobotPolicyResponse.status).toBe(201);
 
     const createBranchResponse = await post(
       "/api/branches",
@@ -554,12 +572,12 @@ VALUES (
     post,
     get,
     getAuthorized: async (requestPath, headers) =>
-      get(requestPath, { authorization: `Bearer ${state.apiKey}`, ...headers }),
+      get(requestPath, { authorization: `Bearer ${state.robotBearer}`, ...headers }),
     postAuthorized: async (requestPath, body, headers) =>
-      post(requestPath, body, { authorization: `Bearer ${state.apiKey}`, ...headers }),
+      post(requestPath, body, { authorization: `Bearer ${state.robotBearer}`, ...headers }),
     patchAuthorized: async (requestPath, body, headers) =>
-      patch(requestPath, body, { authorization: `Bearer ${state.apiKey}`, ...headers }),
+      patch(requestPath, body, { authorization: `Bearer ${state.robotBearer}`, ...headers }),
     deleteAuthorized: async (requestPath, body, headers) =>
-      del(requestPath, body, { authorization: `Bearer ${state.apiKey}`, ...headers }),
+      del(requestPath, body, { authorization: `Bearer ${state.robotBearer}`, ...headers }),
   };
 };

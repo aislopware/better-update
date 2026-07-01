@@ -66,7 +66,7 @@ export const unlockEnvVaultKey = (api: ApiClient, passphrase: string | undefined
 /**
  * Cache-aware env-vault unlock, mirroring {@link unlockVaultKeyInteractive} but on
  * the `"env"` cache namespace so the credentials and env vaults cache (and lock)
- * independently. CI's `BETTER_UPDATE_IDENTITY` key is never cached.
+ * independently. A CI robot's env-sourced key is never cached.
  */
 export const unlockEnvVaultKeyInteractive = (api: ApiClient) =>
   Effect.gen(function* () {

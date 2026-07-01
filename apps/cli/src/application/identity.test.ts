@@ -4,6 +4,7 @@ import { Effect, Either, Layer } from "effect";
 
 import type { IdentityFile } from "@better-update/credentials-crypto";
 
+import { serializeRobotEnv } from "../lib/robot-env";
 import { CliRuntime } from "../services/cli-runtime";
 import { IdentityStore } from "../services/identity-store";
 import { activeRecipient, createLocalIdentity } from "./identity";
@@ -65,6 +66,29 @@ describe("active recipient resolution", () => {
       expect(result.source).toBe("env");
       expect(result.publicKey).toBe(identity.publicKey);
     }),
+  );
+
+  it.effect(
+    "prefers BETTER_UPDATE_ROBOT over BETTER_UPDATE_IDENTITY and the on-disk identity",
+    () =>
+      Effect.gen(function* () {
+        const identity = yield* Effect.promise(async () => generateIdentity());
+        const other = yield* Effect.promise(async () => generateIdentity());
+        const robotEnv = serializeRobotEnv({ bearer: "bu_robot_x", identity: identity.privateKey });
+        const result = yield* activeRecipient.pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              cliRuntimeStub({
+                BETTER_UPDATE_ROBOT: robotEnv,
+                BETTER_UPDATE_IDENTITY: other.privateKey,
+              }),
+              identityStoreStub(FIXTURE_FILE).layer,
+            ),
+          ),
+        );
+        expect(result.source).toBe("env");
+        expect(result.publicKey).toBe(identity.publicKey);
+      }),
   );
 
   it.effect("falls back to the on-disk identity when no env key is set", () =>

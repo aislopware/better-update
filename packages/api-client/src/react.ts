@@ -1,7 +1,5 @@
 export { adminUsersQueryKey, adminUsersQueryOptions, approveUser, revokeUser } from "./react/admin";
 export type { AdminUsersFilters } from "./react/admin";
-export { apiKeysQueryKey, apiKeysQueryOptions, createApiKey, revokeApiKey } from "./react/api-keys";
-export type { ApiKeyItem } from "./react/api-keys";
 export { finalizeAsset, uploadAssets } from "./react/assets";
 export { auditLogsInfiniteQueryOptions, auditLogsQueryKey } from "./react/audit-logs";
 export type { AuditLogsFilters } from "./react/audit-logs";
@@ -149,6 +147,8 @@ export {
   invitationsQueryKey,
   invitationsQueryOptions,
 } from "./react/invitations";
+export { robotAccountsQueryKey, robotAccountsQueryOptions } from "./react/robot-accounts";
+export type { RobotAccountItem } from "./react/robot-accounts";
 export type { InvitationItem } from "./react/invitations";
 export { meQueryKey, meQueryOptions, removeMember } from "./react/members";
 export type { MeResult } from "./react/members";
@@ -169,18 +169,18 @@ export {
   updatePolicy,
 } from "./react/policies";
 export {
-  apiKeyPoliciesQueryKey,
-  apiKeyPoliciesQueryOptions,
-  attachPolicyToApiKey,
   attachPolicyToGroup,
   attachPolicyToMember,
-  detachPolicyFromApiKey,
+  attachPolicyToRobot,
   detachPolicyFromGroup,
   detachPolicyFromMember,
+  detachPolicyFromRobot,
   groupPoliciesQueryKey,
   groupPoliciesQueryOptions,
   memberPoliciesQueryKey,
   memberPoliciesQueryOptions,
+  robotPoliciesQueryKey,
+  robotPoliciesQueryOptions,
 } from "./react/policy-attachments";
 export {
   adoptionQueryKey,

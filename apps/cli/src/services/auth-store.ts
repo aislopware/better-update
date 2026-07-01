@@ -6,6 +6,7 @@ import { Context, Effect, Layer } from "effect";
 
 import { AuthRequiredError } from "../lib/exit-codes";
 import { formatCause } from "../lib/format-error";
+import { parseRobotEnv } from "../lib/robot-env";
 import { CliRuntime } from "./cli-runtime";
 
 export class AuthStore extends Context.Tag("cli/AuthStore")<
@@ -28,9 +29,14 @@ export const AuthStoreLive = Layer.effect(
 
     return {
       getToken: Effect.gen(function* () {
-        const envToken = yield* runtime.getEnv("BETTER_UPDATE_TOKEN");
-        if (envToken) {
-          return envToken;
+        const robotEnv = yield* runtime.getEnv("BETTER_UPDATE_ROBOT");
+        if (robotEnv) {
+          const parsed = yield* parseRobotEnv(robotEnv).pipe(
+            Effect.mapError((error) => new AuthRequiredError({ message: error.message })),
+          );
+          if (parsed.bearer) {
+            return parsed.bearer;
+          }
         }
 
         const content = yield* fs.readFileString(authFile).pipe(
