@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.48.2](https://github.com/better-update/better-update/compare/@better-update/web@0.48.1...@better-update/web@0.48.2) (2026-07-01)
+
+### Bug Fixes
+
+* **web:** show human-readable labels in the audit log action column ([da57283](https://github.com/better-update/better-update/commit/da57283167d2a3bdeca11a5925de412afc532ae4))
+
 ## [0.48.1](https://github.com/better-update/better-update/compare/@better-update/web@0.48.0...@better-update/web@0.48.1) (2026-06-30)
 
 ### Bug Fixes

@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.37.3](https://github.com/better-update/better-update/compare/@better-update/server@0.37.2...@better-update/server@0.37.3) (2026-07-01)
+
+### Bug Fixes
+
+* **server:** rename vault.web.step-up audit action to vault.web.unlock ([4d0e540](https://github.com/better-update/better-update/commit/4d0e540f5febfc8ee474eb80301865ede00ed796))
+
 ## [0.37.2](https://github.com/better-update/better-update/compare/@better-update/server@0.37.1...@better-update/server@0.37.2) (2026-06-30)
 
 **Note:** Version bump only for package @better-update/server
