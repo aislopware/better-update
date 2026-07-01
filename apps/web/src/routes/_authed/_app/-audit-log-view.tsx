@@ -128,6 +128,37 @@ const isResourceType = (value: unknown): value is ResourceTypeValue =>
 const resourceTypeLabel = (value: string): string =>
   isResourceType(value) ? RESOURCE_TYPE_LABELS[value] : value;
 
+// Audit `action` strings are raw tokens (`vault.web.unlock`, `apple.push-key.upload`).
+// Most humanize cleanly by de-dotting/de-casing, but a few are jargon or historical,
+// so this override map wins first. The pre-rename `vault.web.step-up` maps to the same
+// label as its `vault.web.unlock` rename, so old rows read identically with no backfill.
+const ACTION_LABELS: Record<string, string> = {
+  "vault.web.step-up": "Env vault unlocked (passkey)",
+  "vault.web.unlock": "Env vault unlocked (passkey)",
+};
+
+// Split on dots, dashes, and camelCase boundaries, then sentence-case the whole
+// token: `apple.push-key.upload` -> "Apple push key upload", `envVar.bulkImport`
+// -> "Env var bulk import". A best-effort fallback for actions without an override.
+const humanizeActionToken = (action: string): string => {
+  const words = action
+    .split(".")
+    .flatMap((segment) => segment.split("-"))
+    .flatMap((segment) =>
+      segment.replaceAll(/(?<lower>[a-z0-9])(?<upper>[A-Z])/gu, "$<lower> $<upper>").split(" "),
+    )
+    .filter(Boolean)
+    .map((word) => word.toLowerCase());
+  const [first, ...rest] = words;
+  if (!first) {
+    return action;
+  }
+  return [`${first.charAt(0).toUpperCase()}${first.slice(1)}`, ...rest].join(" ");
+};
+
+const actionLabel = (action: string): string =>
+  ACTION_LABELS[action] ?? humanizeActionToken(action);
+
 const parseDateRange = (search: AuditLogSearch): DateRange | undefined => {
   if (!search.from || !search.to) {
     return undefined;
@@ -193,8 +224,8 @@ const AuditLogRow = ({
         </div>
       </TableCell>
       <TableCell className="align-top">
-        <Badge variant="secondary" className="font-mono text-[10px] tracking-wider uppercase">
-          {entry.action}
+        <Badge variant="secondary" className="text-xs" title={entry.action}>
+          {actionLabel(entry.action)}
         </Badge>
       </TableCell>
       <TableCell className="align-top">
