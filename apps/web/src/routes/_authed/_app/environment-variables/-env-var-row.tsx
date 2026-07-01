@@ -40,7 +40,9 @@ export const EnvVarRow = ({
           <span className="font-mono text-sm font-medium">{envVar.key}</span>
           <CopyButton value={envVar.key} label="Key" />
         </div>
-        {envVar.label ? <span className="text-sm font-medium">{envVar.label}</span> : null}
+        {envVar.label ? (
+          <span className="max-w-md text-sm font-medium break-words">{envVar.label}</span>
+        ) : null}
         {envVar.description ? (
           <p className="text-muted-foreground max-w-md text-xs break-words whitespace-normal">
             {envVar.description}
