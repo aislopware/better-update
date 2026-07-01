@@ -6,6 +6,11 @@
 #
 # Runners: Linux Docker runner tagged `office-runner-01` (all jobs except macOS)
 # + a macOS Tart runner tagged `office-mac-runner` (Apple build + conformance).
+# The Linux runner (config.toml runner name "office-1") mounts a persistent
+# `bun-cache-ci` docker volume at /root/.bun/install/cache so `bun install`
+# hardlinks from a warm cache instead of extracting native tarballs each job —
+# this is what stops the recurring "Fail extracting tarball" flake. If the runner
+# is ever re-provisioned, re-add that volume mount (see the bun_ci_install note).
 # @better-update/bsdiff ships prebuilt natives for 5 platforms: macOS arm64 (built
 # on the Mac runner) + Linux x64/arm64 in both gnu and musl (built on Linux via
 # napi-cross / cargo-zigbuild). Windows and Intel-mac are intentionally NOT built.
@@ -63,10 +68,17 @@ workflow:
 # jobs run on the Tart VM and still install bun/rust in-job.
 # ---------------------------------------------------------------------------
 # Shared setup, pulled into each before_script via a single !reference:
-#  - bun_ci_install(): resilient `bun install`. On the shared runner, parallel
-#    tarball extraction occasionally fails ("Fail extracting tarball") under I/O
-#    load AND then hangs; a `timeout` kills the hang, and we clear the cache and
-#    retry so a flake self-heals fast instead of blocking until the job timeout.
+#  - bun_ci_install(): resilient `bun install`. The real fix for the recurring
+#    "Fail extracting tarball" flake (rspack/rolldown/tsgo native bindings, etc.)
+#    is a PERSISTENT bun cache: the office-1 runner mounts the `bun-cache-ci`
+#    docker volume at /root/.bun/install/cache (see [runners.docker] volumes in
+#    /etc/gitlab-runner/config.toml). A warm cache HARDLINKS packages into
+#    node_modules and skips tarball extraction entirely, so the flake can only
+#    occur on a COLD entry (a newly-bumped dep). This retry loop is the seatbelt
+#    for that cold case: a `timeout` kills any extraction hang, and — crucially —
+#    the first retry keeps the warm cache and only drops node_modules; the whole
+#    cache is cleared only as a LAST resort (nuking it would force a full cold
+#    re-download and re-roll the extraction dice on every following job).
 #  - node-gyp guard: node-pty (a CLI dep) has no linux-x64 prebuild → compiles.
 #    Baked into CI_IMAGE so the guard no-ops on Linux; still installs on macOS.
 .ci-setup:
@@ -84,9 +96,17 @@ workflow:
           else
             bun install --frozen-lockfile && return 0
           fi
-          echo ">> bun install attempt $a failed; clearing cache, then retry" >&2
           df -h / 2>/dev/null || true
-          rm -rf node_modules "$HOME/.bun/install/cache" 2>/dev/null || true
+          if [ "$a" -ge 2 ]; then
+            # Last resort: the warm cache itself may be corrupt — nuke it.
+            echo ">> bun install attempt $a failed; clearing bun cache (last resort), then retry" >&2
+            rm -rf node_modules "$HOME/.bun/install/cache" 2>/dev/null || true
+          else
+            # Keep the persistent warm cache; a fresh node_modules is enough to
+            # recover a transient cold-extraction flake without a full re-download.
+            echo ">> bun install attempt $a failed; keeping warm cache, dropping node_modules, then retry" >&2
+            rm -rf node_modules 2>/dev/null || true
+          fi
           sleep 5
         done
         echo ">> bun install failed after 3 attempts" >&2
