@@ -9,7 +9,6 @@ import { needsTestFlightConfig } from "./ios-testflight-config";
 import {
   createSubmissionViaApi,
   hasAppleAppSpecificPassword,
-  pollSubmissionUntilTerminal,
   resolveAscUploadCredentials,
   resolveIosUploadAuth,
   runIosSubmit,
@@ -62,7 +61,67 @@ const buildAutoSubmitAndroidConfig = (androidProfile: EasAndroidSubmitProfile | 
   });
 };
 
-/** Submit a freshly-built artifact to the store using the profile's submit config. */
+/**
+ * Run the iOS altool upload for an auto-submit (non-interactive: never creates an
+ * ASC key). Returns true when the `.ipa` was uploaded, false when skipped because
+ * no upload auth / ASC key is available.
+ */
+const autoSubmitIosUpload = (params: {
+  readonly api: ApiClient;
+  readonly iosProfile: EasIosSubmitProfile | undefined;
+  readonly iosConfig: { readonly bundleIdentifier: string };
+  readonly archiveUrl: string;
+  readonly whatToTest: string | undefined;
+}) =>
+  Effect.gen(function* () {
+    const { iosProfile } = params;
+    const auth = resolveIosUploadAuth({
+      appleId: iosProfile?.appleId,
+      ascApiKeyId: iosProfile?.ascApiKeyId,
+      hasAppSpecificPassword: hasAppleAppSpecificPassword(),
+    });
+    if (auth === null) {
+      yield* printHuman(
+        "Skipping iOS upload: configure ascApiKeyId or set EXPO_APPLE_APP_SPECIFIC_PASSWORD (+ appleId).",
+      );
+      return false;
+    }
+    const groups = iosProfile?.groups ?? [];
+    const wantsConfig = needsTestFlightConfig({ whatToTest: params.whatToTest, groups });
+    const ascCredentials = yield* resolveAscUploadCredentials({
+      api: params.api,
+      auth,
+      ascApiKeyId: iosProfile?.ascApiKeyId,
+      wantsConfig,
+    });
+    if (auth.kind === "asc-api-key" && ascCredentials === null) {
+      yield* printHuman("Skipping iOS upload: the ASC API key could not be prepared for upload.");
+      return false;
+    }
+    yield* printHuman(
+      auth.kind === "app-specific-password"
+        ? "Running xcrun altool upload (Apple ID app-specific password)..."
+        : "Running xcrun altool upload (ASC API key)...",
+    );
+    yield* runIosSubmit({
+      archive: { source: "build", value: params.archiveUrl },
+      auth,
+      ascCredentials,
+      config: {
+        bundleIdentifier: params.iosConfig.bundleIdentifier,
+        ascAppId: iosProfile?.ascAppId,
+        language: iosProfile?.language,
+        whatToTest: params.whatToTest,
+        groups,
+      },
+    });
+    return true;
+  });
+
+/**
+ * Submit a freshly-built artifact to the store using the profile's submit config.
+ * Records the submission only after the local upload succeeds.
+ */
 export const runAutoSubmit = (input: AutoSubmitInput) =>
   Effect.gen(function* () {
     yield* printHuman(`\nAuto-submitting build ${input.buildId} (profile ${input.profileName})...`);
@@ -79,6 +138,41 @@ export const runAutoSubmit = (input: AutoSubmitInput) =>
     const androidConfig =
       input.platform === "android" ? buildAutoSubmitAndroidConfig(easProfile.android) : undefined;
 
+    if (input.platform === "ios") {
+      if (iosConfig === undefined) {
+        yield* printHuman(
+          "Skipping iOS upload: set ios.bundleIdentifier in the eas.json submit profile.",
+        );
+        return;
+      }
+      const uploaded = yield* autoSubmitIosUpload({
+        api: input.api,
+        iosProfile: easProfile.ios,
+        iosConfig,
+        archiveUrl,
+        whatToTest: input.whatToTest,
+      });
+      if (!uploaded) {
+        return;
+      }
+    }
+
+    if (input.platform === "android") {
+      if (androidConfig === undefined || easProfile.android === undefined) {
+        yield* printHuman(
+          "Skipping Android upload: set android.applicationId in the eas.json submit profile.",
+        );
+        return;
+      }
+      yield* printHuman("Uploading bundle to Google Play...");
+      yield* runAndroidGooglePlayUpload({
+        api: input.api,
+        archive: { source: "build", value: archiveUrl },
+        androidProfile: easProfile.android,
+        serviceAccountKeyId: easProfile.android.serviceAccountKeyId,
+      });
+    }
+
     const submission = yield* createSubmissionViaApi(input.api, {
       projectId: input.projectId,
       platform: input.platform,
@@ -88,71 +182,5 @@ export const runAutoSubmit = (input: AutoSubmitInput) =>
       archiveUrl,
       ...compact({ iosConfig, androidConfig }),
     });
-
-    yield* printHuman(`Submission created: ${submission.id} (${submission.status})`);
-
-    if (input.platform === "ios" && iosConfig !== undefined) {
-      const auth = resolveIosUploadAuth({
-        appleId: easProfile.ios?.appleId,
-        ascApiKeyId: easProfile.ios?.ascApiKeyId,
-        hasAppSpecificPassword: hasAppleAppSpecificPassword(),
-      });
-      if (auth === null) {
-        yield* printHuman(
-          "Skipping iOS upload: configure ascApiKeyId or set EXPO_APPLE_APP_SPECIFIC_PASSWORD (+ appleId).",
-        );
-      } else {
-        const groups = easProfile.ios?.groups ?? [];
-        const wantsConfig = needsTestFlightConfig({ whatToTest: input.whatToTest, groups });
-        const ascCredentials = yield* resolveAscUploadCredentials({
-          api: input.api,
-          auth,
-          ascApiKeyId: easProfile.ios?.ascApiKeyId,
-          wantsConfig,
-        });
-        if (auth.kind === "asc-api-key" && ascCredentials === null) {
-          yield* printHuman(
-            "Skipping iOS upload: the ASC API key could not be prepared for upload.",
-          );
-        } else {
-          yield* printHuman(
-            auth.kind === "app-specific-password"
-              ? "Running xcrun altool upload (Apple ID app-specific password)..."
-              : "Running xcrun altool upload (ASC API key)...",
-          );
-          yield* runIosSubmit({
-            api: input.api,
-            submissionId: submission.id,
-            archive: { source: "build", value: archiveUrl },
-            auth,
-            ascCredentials,
-            config: {
-              bundleIdentifier: iosConfig.bundleIdentifier,
-              ascAppId: easProfile.ios?.ascAppId,
-              language: easProfile.ios?.language,
-              whatToTest: input.whatToTest,
-              groups,
-            },
-          });
-        }
-      }
-    }
-
-    if (
-      input.platform === "android" &&
-      androidConfig !== undefined &&
-      easProfile.android !== undefined
-    ) {
-      yield* printHuman("Uploading bundle to Google Play...");
-      yield* runAndroidGooglePlayUpload({
-        api: input.api,
-        submissionId: submission.id,
-        archive: { source: "build", value: archiveUrl },
-        androidProfile: easProfile.android,
-        serviceAccountKeyId: easProfile.android.serviceAccountKeyId,
-      });
-    }
-
-    const terminal = yield* pollSubmissionUntilTerminal(input.api, submission.id);
-    yield* printHuman(`Submission final status: ${terminal.status}`);
+    yield* printHuman(`Submission recorded: ${submission.id}`);
   });

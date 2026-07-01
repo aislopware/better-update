@@ -50,14 +50,6 @@ const toApiAndroidSubmissionConfig = (
   });
 };
 
-const parseLogFiles = (logFilesJson: string): readonly string[] => {
-  const parsed = safeJsonParse(logFilesJson);
-  if (!Array.isArray(parsed)) {
-    return [];
-  }
-  return parsed.filter((item): item is string => typeof item === "string");
-};
-
 const parseSubmissionConfig = (json: string): SubmissionConfigPayload | null => {
   const parsed = safeJsonParse(json);
   if (parsed === null || typeof parsed !== "object") {
@@ -79,20 +71,12 @@ export const toApiSubmission = (model: SubmissionModel): Submission => {
     projectId: model.projectId,
     platform: model.platform,
     profileName: model.profileName,
-    status: model.status,
     archiveSource: model.archiveSource,
     buildId: model.buildId,
     archiveUrl: model.archiveUrl,
     iosConfig,
     androidConfig,
-    errorCode: model.errorCode,
-    errorMessage: model.errorMessage,
-    logFiles: parseLogFiles(model.logFilesJson),
     initiatingUserId: model.initiatingUserId,
-    queuedAt: model.queuedAt,
-    startedAt: model.startedAt,
-    completedAt: model.completedAt,
     createdAt: model.createdAt,
-    updatedAt: model.updatedAt,
   });
 };

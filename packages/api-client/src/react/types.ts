@@ -32,7 +32,6 @@ import type {
   PrincipalType,
   Project,
   Submission,
-  SubmissionStatus,
   UserEncryptionKey,
   VaultRecipientRef,
   VaultRecipients,
@@ -63,7 +62,6 @@ export type AndroidUploadKeystoreItem = AndroidUploadKeystore;
 export type AndroidBuildCredentialsItem = AndroidBuildCredentials;
 export type IosAppMetadataItem = IosAppMetadata;
 export type SubmissionItem = Submission;
-export type SubmissionStatusValue = typeof SubmissionStatus.Type;
 export type UserEncryptionKeyItem = UserEncryptionKey;
 export type EncryptionKeyKindValue = EncryptionKeyKind;
 export type VaultRecipientItem = typeof VaultRecipientRef.Type;

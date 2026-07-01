@@ -3,15 +3,6 @@ import { Schema } from "effect";
 import { BundleIdentifier } from "./apple-provisioning-profile";
 import { DateTimeString, DeletedResult, Id, Platform } from "./common";
 
-export const SubmissionStatus = Schema.Literal(
-  "AWAITING_BUILD",
-  "IN_QUEUE",
-  "IN_PROGRESS",
-  "FINISHED",
-  "ERRORED",
-  "CANCELED",
-);
-
 export const SubmissionArchiveSource = Schema.Literal("build", "path", "url");
 
 export const AndroidReleaseStatus = Schema.Literal("completed", "draft", "halted", "inProgress");
@@ -45,27 +36,21 @@ export class AndroidSubmissionConfig extends Schema.Class<AndroidSubmissionConfi
   googleServiceAccountKeyId: Schema.NullOr(Id),
 }) {}
 
+// A submission row exists iff a client-side upload succeeded — it is an
+// immutable success record, not a lifecycle. No status / error / progress fields.
 export class Submission extends Schema.Class<Submission>("Submission")({
   id: Id,
   organizationId: Id,
   projectId: Id,
   platform: Platform,
   profileName: Schema.String,
-  status: SubmissionStatus,
   archiveSource: SubmissionArchiveSource,
   buildId: Schema.NullOr(Id),
   archiveUrl: Schema.NullOr(Schema.String),
   iosConfig: Schema.NullOr(IosSubmissionConfig),
   androidConfig: Schema.NullOr(AndroidSubmissionConfig),
-  errorCode: Schema.NullOr(Schema.String),
-  errorMessage: Schema.NullOr(Schema.String),
-  logFiles: Schema.Array(Schema.String),
   initiatingUserId: Schema.NullOr(Schema.String),
-  queuedAt: Schema.NullOr(DateTimeString),
-  startedAt: Schema.NullOr(DateTimeString),
-  completedAt: Schema.NullOr(DateTimeString),
   createdAt: DateTimeString,
-  updatedAt: DateTimeString,
 }) {}
 
 export const CreateIosSubmissionBody = Schema.Struct({
@@ -100,14 +85,5 @@ export const CreateSubmissionBody = Schema.Struct({
   iosConfig: Schema.optional(CreateIosSubmissionBody),
   androidConfig: Schema.optional(CreateAndroidSubmissionBody),
 });
-
-export const UpdateSubmissionStatusBody = Schema.Struct({
-  status: SubmissionStatus,
-  errorCode: Schema.optional(Schema.NullOr(Schema.String)),
-  errorMessage: Schema.optional(Schema.NullOr(Schema.String)),
-  logFiles: Schema.optional(Schema.Array(Schema.String)),
-});
-
-export const CancelSubmissionResult = Schema.Struct({ canceled: Schema.Boolean });
 
 export const DeleteSubmissionResult = DeletedResult;

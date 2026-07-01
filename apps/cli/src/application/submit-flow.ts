@@ -4,9 +4,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { compact } from "@better-update/type-guards";
-import { Duration, Effect, Schema } from "effect";
+import { Effect, Schema } from "effect";
 
-import type { CreateSubmissionBody, Submission, SubmissionStatus } from "@better-update/api";
+import type { CreateSubmissionBody, Submission } from "@better-update/api";
 
 import { altoolFailureDetail, runAltool } from "../lib/altool";
 import { messageOf } from "../lib/apple-asc-connect";
@@ -22,7 +22,6 @@ import type { AscCredentials } from "../lib/asc-credentials";
 import type { ApiClient } from "../services/api-client";
 
 type SubmissionItem = Submission;
-type SubmissionStatusValue = typeof SubmissionStatus.Type;
 
 export class CliSubmitError extends Schema.TaggedError<CliSubmitError>()("CliSubmitError", {
   code: Schema.String,
@@ -71,74 +70,12 @@ export const createSubmissionViaApi = (
       ),
     );
 
-const isTerminal = (status: SubmissionStatusValue): boolean =>
-  status === "FINISHED" || status === "ERRORED" || status === "CANCELED";
-
-const fetchSubmission = (api: ApiClient, submissionId: string) =>
-  api.submissions.get({ path: { id: submissionId } }).pipe(
-    Effect.mapError(
-      () =>
-        new CliSubmitError({
-          code: "SUBMISSION_GET_FAILED",
-          message: "Failed to read submission status",
-        }),
-    ),
-  );
-
-export const pollSubmissionUntilTerminal = (
-  api: ApiClient,
-  submissionId: string,
-  pollIntervalMs = 5000,
-) =>
-  Effect.iterate(undefined as SubmissionItem | undefined, {
-    while: (state: SubmissionItem | undefined) => state === undefined || !isTerminal(state.status),
-    body: (state: SubmissionItem | undefined) =>
-      Effect.gen(function* () {
-        if (state !== undefined) {
-          yield* Effect.sleep(Duration.millis(pollIntervalMs));
-        }
-        const next = yield* fetchSubmission(api, submissionId);
-        yield* printHuman(`status: ${next.status}`);
-        return next;
-      }),
-  }).pipe(
-    Effect.flatMap((final) =>
-      final === undefined
-        ? Effect.fail(
-            new CliSubmitError({
-              code: "SUBMISSION_POLL_NO_RESULT",
-              message: "Polling completed without producing a submission",
-            }),
-          )
-        : Effect.succeed(final),
-    ),
-  );
-
-// ── Archive resolution + status patching (shared) ────────────────────────────
+// ── Archive resolution (shared) ──────────────────────────────────────────────
 
 export interface ArchiveRef {
   readonly source: "build" | "path" | "url";
   readonly value: string;
 }
-
-export const patchSubmissionStatus = (
-  api: ApiClient,
-  submissionId: string,
-  payload: {
-    readonly status: SubmissionStatusValue;
-    readonly errorCode?: string;
-    readonly errorMessage?: string;
-  },
-) =>
-  api.submissions.updateStatus({ path: { id: submissionId }, payload }).pipe(
-    Effect.mapError(
-      () =>
-        new CliSubmitError({
-          code: "SUBMISSION_PATCH_FAILED",
-          message: `Failed to PATCH submission status to ${payload.status}`,
-        }),
-    ),
-  );
 
 /** A local `path` archive may be given as a plain path or a `file://` URL. */
 export const localPathFromArchiveValue = (value: string): string =>
@@ -258,8 +195,6 @@ export const resolveIosUploadAuth = (params: {
 };
 
 interface IosSubmitInputs {
-  readonly api: ApiClient;
-  readonly submissionId: string;
   readonly archive: ArchiveRef;
   readonly auth: IosUploadAuth;
   /** Decrypted ASC API key for the upload + TestFlight config; resolved by the caller. */
@@ -398,8 +333,6 @@ export const runIosSubmit = (inputs: IosSubmitInputs) =>
 
     const altoolArgs = yield* buildAltoolArgs({ auth: inputs.auth, ascCredentials, ipaPath });
 
-    yield* patchSubmissionStatus(inputs.api, inputs.submissionId, { status: "IN_PROGRESS" });
-
     // For an ASC API key, altool finds the `.p8` by name via `$API_PRIVATE_KEYS_DIR`;
     // stage it in a temp dir scoped to the upload and remove it (and the key) after.
     const result =
@@ -412,12 +345,10 @@ export const runIosSubmit = (inputs: IosSubmitInputs) =>
         : yield* runAltool(altoolArgs);
 
     if (result.exitCode !== 0) {
-      yield* patchSubmissionStatus(inputs.api, inputs.submissionId, {
-        status: "ERRORED",
-        errorCode: "SUBMISSION_SERVICE_IOS_ALTOOL_FAILED",
-        errorMessage: `xcrun altool exited ${String(result.exitCode)}: ${altoolFailureDetail(result)}`,
+      return yield* new CliSubmitError({
+        code: "SUBMISSION_SERVICE_IOS_ALTOOL_FAILED",
+        message: `xcrun altool exited ${String(result.exitCode)}: ${altoolFailureDetail(result)}`,
       });
-      return { status: "ERRORED" as SubmissionStatusValue };
     }
     yield* printHuman("altool upload complete.");
 
@@ -429,22 +360,10 @@ export const runIosSubmit = (inputs: IosSubmitInputs) =>
         whatToTest: inputs.config.whatToTest,
         groups: inputs.config.groups,
       }).pipe(
-        Effect.catchTag("TestFlightConfigError", (configError) =>
-          Effect.gen(function* () {
-            yield* patchSubmissionStatus(inputs.api, inputs.submissionId, {
-              status: "ERRORED",
-              errorCode: configError.code,
-              errorMessage: configError.message,
-            });
-            return yield* new CliSubmitError({
-              code: configError.code,
-              message: configError.message,
-            });
-          }),
+        Effect.mapError(
+          (configError) =>
+            new CliSubmitError({ code: configError.code, message: configError.message }),
         ),
       );
     }
-
-    yield* patchSubmissionStatus(inputs.api, inputs.submissionId, { status: "FINISHED" });
-    return { status: "FINISHED" as SubmissionStatusValue };
   });

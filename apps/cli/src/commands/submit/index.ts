@@ -9,7 +9,6 @@ import { ensureAscApiKeyForSubmit } from "../../application/submit-asc-key";
 import {
   createSubmissionViaApi,
   hasAppleAppSpecificPassword,
-  pollSubmissionUntilTerminal,
   resolveAscUploadCredentials,
   resolveIosUploadAuth,
   runIosSubmit,
@@ -122,7 +121,6 @@ interface RunArgs {
   };
   readonly whatToTest?: string;
   readonly serviceAccountKeyId?: string;
-  readonly wait: boolean;
 }
 
 /**
@@ -134,7 +132,6 @@ interface RunArgs {
 const submitIosBranch = (params: {
   readonly api: ApiClient;
   readonly projectId: string;
-  readonly submissionId: string;
   readonly projectRoot: string;
   readonly profile: string;
   readonly archive: RunArgs["archive"];
@@ -218,8 +215,6 @@ const submitIosBranch = (params: {
         : "Running xcrun altool upload (ASC API key)...",
     );
     yield* runIosSubmit({
-      api,
-      submissionId: params.submissionId,
       archive: { source: params.archive.archiveSource, value: params.archive.archiveUrl },
       auth,
       ascCredentials,
@@ -234,10 +229,51 @@ const submitIosBranch = (params: {
     return true;
   });
 
+// Submission runs entirely client-side, so a server record is written only AFTER
+// a local upload succeeds — the store is the source of truth, the record is history.
 const runFlow = (api: ApiClient, projectId: string, args: RunArgs) =>
   Effect.gen(function* () {
     const iosConfig = buildIosCreatePayload(args.easProfile.ios, args.whatToTest);
     const androidConfig = buildAndroidCreatePayload(args.easProfile.android);
+
+    if (args.platform === "ios") {
+      if (iosConfig === undefined) {
+        yield* printHuman(
+          "iOS submit requires ios.bundleIdentifier in the eas.json submit profile.",
+        );
+        return;
+      }
+      const uploaded = yield* submitIosBranch({
+        api,
+        projectId,
+        projectRoot: args.projectRoot,
+        profile: args.profile,
+        archive: args.archive,
+        whatToTest: args.whatToTest,
+        iosProfile: args.easProfile.ios,
+        iosConfig,
+      });
+      // Queued / skipped (no auth configured) — nothing was uploaded, so record nothing.
+      if (!uploaded) {
+        return;
+      }
+    }
+
+    if (args.platform === "android") {
+      if (args.easProfile.android === undefined) {
+        yield* printHuman("Android submit requires an android submit profile in eas.json.");
+        return;
+      }
+      yield* printHuman("Uploading bundle to Google Play locally...");
+      const serviceAccountKeyId =
+        args.serviceAccountKeyId ?? args.easProfile.android.serviceAccountKeyId;
+      yield* runAndroidGooglePlayUpload({
+        api,
+        archive: { source: args.archive.archiveSource, value: args.archive.archiveUrl },
+        androidProfile: args.easProfile.android,
+        serviceAccountKeyId,
+      });
+    }
 
     const submission = yield* createSubmissionViaApi(api, {
       projectId,
@@ -248,49 +284,8 @@ const runFlow = (api: ApiClient, projectId: string, args: RunArgs) =>
       archiveUrl: args.archive.archiveUrl,
       ...compact({ iosConfig, androidConfig }),
     });
-
-    yield* printHuman(`Submission created: ${submission.id} (${submission.status})`);
-
-    if (args.platform === "ios" && iosConfig !== undefined) {
-      const uploaded = yield* submitIosBranch({
-        api,
-        projectId,
-        submissionId: submission.id,
-        projectRoot: args.projectRoot,
-        profile: args.profile,
-        archive: args.archive,
-        whatToTest: args.whatToTest,
-        iosProfile: args.easProfile.ios,
-        iosConfig,
-      });
-      if (!uploaded) {
-        return submission;
-      }
-    }
-
-    if (args.platform === "android" && args.easProfile.android !== undefined) {
-      yield* printHuman("Uploading bundle to Google Play locally...");
-      const serviceAccountKeyId =
-        args.serviceAccountKeyId ?? args.easProfile.android.serviceAccountKeyId;
-      yield* runAndroidGooglePlayUpload({
-        api,
-        submissionId: submission.id,
-        archive: { source: args.archive.archiveSource, value: args.archive.archiveUrl },
-        androidProfile: args.easProfile.android,
-        serviceAccountKeyId,
-      });
-    }
-
-    if (!args.wait) {
-      return submission;
-    }
-
-    const terminal = yield* pollSubmissionUntilTerminal(api, submission.id);
-    yield* printHuman(`Final status: ${terminal.status}`);
-    if (terminal.errorCode !== null) {
-      yield* printHuman(`Error ${terminal.errorCode}: ${terminal.errorMessage ?? "(no detail)"}`);
-    }
-    return terminal;
+    yield* printHuman(`Submission recorded: ${submission.id}`);
+    return submission;
   });
 
 export const submitCommand = defineCommand({
@@ -321,11 +316,6 @@ export const submitCommand = defineCommand({
       type: "string",
       description:
         "Android-only: better-update saved Google service account key ID (overrides eas.json submit profile)",
-    },
-    wait: {
-      type: "boolean",
-      default: true,
-      description: "Block until submission reaches a terminal status (default: true)",
     },
   },
   run: async ({ args }) =>
@@ -360,7 +350,6 @@ export const submitCommand = defineCommand({
           projectRoot,
           easProfile,
           archive,
-          wait: args.wait,
           ...compact({
             whatToTest: args["what-to-test"],
             serviceAccountKeyId: args["service-account-key-id"],

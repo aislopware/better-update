@@ -195,7 +195,6 @@ export {
   AndroidReleaseStatus,
   AndroidSubmissionConfig,
   AndroidTrack,
-  CancelSubmissionResult,
   CreateAndroidSubmissionBody,
   CreateIosSubmissionBody,
   CreateSubmissionBody,
@@ -204,8 +203,6 @@ export {
   Rollout,
   Submission,
   SubmissionArchiveSource,
-  SubmissionStatus,
-  UpdateSubmissionStatusBody,
 } from "./domain/submission";
 export {
   AndroidApplicationIdentifier,

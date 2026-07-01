@@ -1,15 +1,16 @@
 import { setupE2EWorker } from "../helpers/e2e-worker-pool";
 
-const { del, get, parseCookies, patch, post } = setupE2EWorker(".wrangler/state/e2e-submission");
+const { del, get, parseCookies, post } = setupE2EWorker(".wrangler/state/e2e-submission");
 
 const BUNDLE = "com.example.submit";
 const ANDROID_PKG = "com.example.submit";
 
+// Submissions are a success-only ledger: a row is created by the CLI only after a
+// client-side upload succeeds. There is no status lifecycle to patch or cancel.
 describe("Submission flow", () => {
   let cookies: string;
   let projectId: string;
   let iosSubmissionId: string;
-  let androidSubmissionId: string;
 
   it("signs up + creates project", async () => {
     const signup = await post("/api/auth/sign-up/email", {
@@ -46,7 +47,7 @@ describe("Submission flow", () => {
     projectId = (await projRes.json()).id;
   });
 
-  it("creates an iOS submission from URL archive source", async () => {
+  it("records an iOS submission from URL archive source", async () => {
     const res = await post(
       `/api/projects/${projectId}/submissions`,
       {
@@ -67,7 +68,7 @@ describe("Submission flow", () => {
     expect(body.platform).toBe("ios");
     expect(body.profileName).toBe("production");
     expect(body.archiveSource).toBe("url");
-    expect(body.status).toBe("IN_QUEUE");
+    expect(body.status).toBeUndefined();
     expect(body.iosConfig?.bundleIdentifier).toBe(BUNDLE);
     iosSubmissionId = body.id;
   });
@@ -103,29 +104,7 @@ describe("Submission flow", () => {
     expect(body.iosConfig?.bundleIdentifier).toBe(BUNDLE);
   });
 
-  it("patches submission status to IN_PROGRESS + FINISHED", async () => {
-    const inProgress = await patch(
-      `/api/submissions/${iosSubmissionId}/status`,
-      { status: "IN_PROGRESS" },
-      { cookie: cookies },
-    );
-    expect(inProgress.status).toBe(200);
-    const ip = await inProgress.json();
-    expect(ip.status).toBe("IN_PROGRESS");
-    expect(ip.startedAt).not.toBeNull();
-
-    const finished = await patch(
-      `/api/submissions/${iosSubmissionId}/status`,
-      { status: "FINISHED" },
-      { cookie: cookies },
-    );
-    expect(finished.status).toBe(200);
-    const fin = await finished.json();
-    expect(fin.status).toBe("FINISHED");
-    expect(fin.completedAt).not.toBeNull();
-  });
-
-  it("creates an Android submission with track + rollout", async () => {
+  it("records an Android submission with track + rollout", async () => {
     const res = await post(
       `/api/projects/${projectId}/submissions`,
       {
@@ -147,27 +126,6 @@ describe("Submission flow", () => {
     expect(body.androidConfig?.applicationId).toBe(ANDROID_PKG);
     expect(body.androidConfig?.track).toBe("internal");
     expect(body.androidConfig?.releaseStatus).toBe("draft");
-    androidSubmissionId = body.id;
-  });
-
-  it("cancels an Android submission in non-terminal state", async () => {
-    const res = await post(
-      `/api/submissions/${androidSubmissionId}/cancel`,
-      {},
-      { cookie: cookies },
-    );
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.canceled).toBe(true);
-
-    const getRes = await get(`/api/submissions/${androidSubmissionId}`, { cookie: cookies });
-    const fetched = await getRes.json();
-    expect(fetched.status).toBe("CANCELED");
-  });
-
-  it("rejects cancel on a terminal submission", async () => {
-    const res = await post(`/api/submissions/${iosSubmissionId}/cancel`, {}, { cookie: cookies });
-    expect(res.status).toBe(400);
   });
 
   it("deletes a submission", async () => {

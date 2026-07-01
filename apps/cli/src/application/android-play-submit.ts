@@ -17,7 +17,7 @@ import {
 } from "../lib/google-play";
 import { printHuman } from "../lib/output";
 import { openFromDownload, openVaultSessionInteractive } from "./credential-cipher";
-import { CliSubmitError, patchSubmissionStatus, readArchiveBytes } from "./submit-flow";
+import { CliSubmitError, readArchiveBytes } from "./submit-flow";
 
 import type {
   EasAndroidSubmitProfile,
@@ -125,7 +125,6 @@ export const androidRolloutError = (
 
 interface AndroidGooglePlayUploadInputs {
   readonly api: ApiClient;
-  readonly submissionId: string;
   readonly archive: ArchiveRef;
   readonly androidProfile: EasAndroidSubmitProfile;
   readonly serviceAccountKeyId: string | undefined;
@@ -183,11 +182,6 @@ export const runAndroidGooglePlayUpload = (inputs: AndroidGooglePlayUploadInputs
     const rollout = toDbNull(inputs.androidProfile.rollout);
     const rolloutError = androidRolloutError(releaseStatus, rollout);
     if (rolloutError !== null) {
-      yield* patchSubmissionStatus(inputs.api, inputs.submissionId, {
-        status: "ERRORED",
-        errorCode: "SUBMISSION_ANDROID_ROLLOUT_INVALID",
-        errorMessage: rolloutError,
-      });
       return yield* new CliSubmitError({
         code: "SUBMISSION_ANDROID_ROLLOUT_INVALID",
         message: rolloutError,
@@ -200,36 +194,20 @@ export const runAndroidGooglePlayUpload = (inputs: AndroidGooglePlayUploadInputs
       serviceAccountKeyPath: inputs.androidProfile.serviceAccountKeyPath,
     });
 
-    yield* patchSubmissionStatus(inputs.api, inputs.submissionId, { status: "IN_PROGRESS" });
-
-    const result = yield* Effect.gen(function* () {
-      const token = yield* acquireGooglePlayAccessToken(serviceAccountJson).pipe(
-        Effect.mapError(wrapGooglePlayError("AUTH_FAILED")),
-      );
-      const aab = yield* readArchiveBytes(inputs.archive);
-      return yield* runGooglePlayPipeline({
-        accessToken: token.accessToken,
-        applicationId,
-        aab,
-        track: inputs.androidProfile.track ?? "internal",
-        releaseStatus,
-        changesNotSentForReview: inputs.androidProfile.changesNotSentForReview ?? false,
-        rollout,
-      });
-    }).pipe(
-      Effect.catchTag("CliSubmitError", (engineError) =>
-        Effect.gen(function* () {
-          yield* patchSubmissionStatus(inputs.api, inputs.submissionId, {
-            status: "ERRORED",
-            errorCode: engineError.code,
-            errorMessage: engineError.message,
-          });
-          return yield* engineError;
-        }),
-      ),
+    const token = yield* acquireGooglePlayAccessToken(serviceAccountJson).pipe(
+      Effect.mapError(wrapGooglePlayError("AUTH_FAILED")),
     );
+    const aab = yield* readArchiveBytes(inputs.archive);
+    const result = yield* runGooglePlayPipeline({
+      accessToken: token.accessToken,
+      applicationId,
+      aab,
+      track: inputs.androidProfile.track ?? "internal",
+      releaseStatus,
+      changesNotSentForReview: inputs.androidProfile.changesNotSentForReview ?? false,
+      rollout,
+    });
 
-    yield* patchSubmissionStatus(inputs.api, inputs.submissionId, { status: "FINISHED" });
     yield* printHuman(`Google Play bundle uploaded (versionCode ${String(result.versionCode)})`);
     return result;
   });

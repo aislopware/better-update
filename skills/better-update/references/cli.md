@@ -479,13 +479,18 @@ better-update apple sandbox delete --id <testerId>
 ```bash
 better-update submit --platform <ios|android> [--profile <name>=production] \
   (--latest | --id <buildId> | --path <ipa/aab|file://> | --url <url>) \
-  [--what-to-test <text>] [--service-account-key-id <id>] [--no-wait]
+  [--what-to-test <text>] [--service-account-key-id <id>]
 ```
 
 Submits a build to App Store Connect (iOS, via `xcrun altool`) or Google Play (Android), from the
 CLI. Exactly one archive source is required (`--latest`/`--id`/`--path`/`--url`); if several are
 passed, precedence is `--path` > `--url` > `--id` > `--latest`. `--what-to-test` is the iOS TestFlight changelog; `--service-account-key-id` overrides the
-Android service account; `--no-wait` returns without blocking until a terminal status.
+Android service account.
+
+The whole upload runs locally, so a submission record is written to the server **only after the
+upload succeeds** — it is a success-only history, not a live status you can poll or cancel. If the
+upload fails (or is skipped because no auth is configured), no record is created; the failure is
+printed to the terminal.
 
 **iOS upload auth resolution.** The upload uses, in order: an app-specific password
 (`appleId` in the submit profile + the `EXPO_APPLE_APP_SPECIFIC_PASSWORD` env var) if set, else the
@@ -494,7 +499,7 @@ auto-resolves an ASC API key: it reuses a stored vault key (prompting to pick wh
 — with your confirmation — creates one from your Apple ID login (after warning about any keys the team
 already has, since Apple caps keys per team and a key's `.p8` downloads only once). The resolved id is
 written back to the submit profile in `eas.json` so future runs reuse it. Non-interactive/CI runs with
-nothing configured just queue the submission and print how to add a key.
+nothing configured skip the upload (no record is written) and print how to add a key.
 
 **TestFlight config + app auto-create.** When `--what-to-test` or submit-profile `groups` are set,
 `submit` configures the build on TestFlight after upload (sets "What to Test", assigns beta groups).

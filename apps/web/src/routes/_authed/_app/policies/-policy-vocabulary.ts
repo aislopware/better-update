@@ -50,7 +50,7 @@ export const RESOURCE_VOCABULARY: readonly ResourceVocabularyEntry[] = [
   {
     resource: "submission",
     label: "Submissions",
-    actions: ["read", "create", "update", "delete", "cancel"],
+    actions: ["read", "create", "delete"],
   },
   { resource: "vaultAccess", label: "Vault access", actions: ["read", "create", "delete"] },
 ];

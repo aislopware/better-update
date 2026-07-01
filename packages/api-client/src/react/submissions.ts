@@ -1,19 +1,13 @@
 import { compact } from "@better-update/type-guards";
 import { queryOptions } from "@tanstack/react-query";
 
-import type {
-  CreateSubmissionBody,
-  Platform,
-  SubmissionStatus,
-  UpdateSubmissionStatusBody,
-} from "@better-update/api";
+import type { CreateSubmissionBody, Platform } from "@better-update/api";
 
 import { runApi } from "../index";
 
 export interface SubmissionsFilters {
   readonly page?: number;
   readonly limit?: number;
-  readonly status?: typeof SubmissionStatus.Type;
   readonly platform?: typeof Platform.Type;
   readonly profile?: string;
   readonly buildId?: string;
@@ -26,7 +20,6 @@ const buildUrlParams = (filters: SubmissionsFilters | undefined) => {
   return compact({
     page: filters.page,
     limit: filters.limit,
-    status: filters.status,
     platform: filters.platform,
     profile: filters.profile,
     buildId: filters.buildId,
@@ -71,14 +64,6 @@ export const submissionQueryOptions = (orgId: string, submissionId: string) =>
 
 export const createSubmission = async (projectId: string, body: typeof CreateSubmissionBody.Type) =>
   runApi((api) => api.submissions.create({ path: { projectId }, payload: body }));
-
-export const updateSubmissionStatus = async (
-  submissionId: string,
-  body: typeof UpdateSubmissionStatusBody.Type,
-) => runApi((api) => api.submissions.updateStatus({ path: { id: submissionId }, payload: body }));
-
-export const cancelSubmission = async (submissionId: string) =>
-  runApi((api) => api.submissions.cancel({ path: { id: submissionId } }));
 
 export const deleteSubmission = async (submissionId: string) =>
   runApi((api) => api.submissions.delete({ path: { id: submissionId } }));

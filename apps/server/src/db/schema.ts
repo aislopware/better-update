@@ -31,7 +31,7 @@ import type {
   Platform,
   PrincipalType,
 } from "../models";
-import type { SubmissionArchiveSource, SubmissionStatus } from "../submission-models";
+import type { SubmissionArchiveSource } from "../submission-models";
 import type { EnvVaultRecipientKind } from "../vault-models";
 // eslint-disable-next-line import/no-namespace -- type-only namespace access to the generated schema module (45 table interfaces); aliasing each individually would be pure noise with no benefit
 import type * as Gen from "./schema.generated";
@@ -123,10 +123,7 @@ export type Projects = WithNonNullId<Gen.Projects>;
 export type ProjectsFts = WithNonNullId<Gen.ProjectsFts>;
 export type Session = WithNonNullId<Gen.Session>;
 export type Submissions = WithNonNullId<
-  Narrow<
-    Gen.Submissions,
-    { archive_source: SubmissionArchiveSource; platform: Platform; status: SubmissionStatus }
-  >
+  Narrow<Gen.Submissions, { archive_source: SubmissionArchiveSource; platform: Platform }>
 >;
 export type UpdateAssets = WithNonNullId<Gen.UpdateAssets>;
 export type Updates = WithNonNullId<Narrow<Gen.Updates, { platform: Platform }>>;

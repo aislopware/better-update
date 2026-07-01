@@ -1,13 +1,5 @@
 import type { Platform } from "./models";
 
-export type SubmissionStatus =
-  | "AWAITING_BUILD"
-  | "IN_QUEUE"
-  | "IN_PROGRESS"
-  | "FINISHED"
-  | "ERRORED"
-  | "CANCELED";
-
 export type SubmissionArchiveSource = "build" | "path" | "url";
 
 export type AndroidReleaseStatus = "completed" | "draft" | "halted" | "inProgress";
@@ -49,24 +41,17 @@ export interface AndroidSubmissionConfigModel {
   readonly googleServiceAccountKeyId: string | null;
 }
 
+// Immutable success record — a row exists iff a client-side upload succeeded.
 export interface SubmissionModel {
   readonly id: string;
   readonly organizationId: string;
   readonly projectId: string;
   readonly platform: Platform;
   readonly profileName: string;
-  readonly status: SubmissionStatus;
   readonly archiveSource: SubmissionArchiveSource;
   readonly buildId: string | null;
   readonly archiveUrl: string | null;
   readonly submissionConfigJson: string;
-  readonly errorCode: string | null;
-  readonly errorMessage: string | null;
-  readonly logFilesJson: string;
   readonly initiatingUserId: string | null;
-  readonly queuedAt: string | null;
-  readonly startedAt: string | null;
-  readonly completedAt: string | null;
   readonly createdAt: string;
-  readonly updatedAt: string;
 }

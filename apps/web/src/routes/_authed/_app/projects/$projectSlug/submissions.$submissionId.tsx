@@ -1,5 +1,4 @@
 import { submissionQueryOptions } from "@better-update/api-client/react";
-import { Badge } from "@better-update/ui/components/ui/badge";
 import {
   Card,
   CardFrame,
@@ -18,14 +17,7 @@ import { PlatformBadge } from "../../../../../components/attribute-badges";
 import { DetailCardSkeleton } from "../../../../../components/skeletons";
 import { CopyButton, CopyableId } from "../../../../../lib/copy-button";
 import { formatDateTime } from "../../../../../lib/format-date";
-import {
-  SUBMISSION_STATUS_LABEL,
-  SUBMISSION_STATUS_VARIANT,
-} from "../../../../../lib/submission-status";
 import { ProjectSubpageHeader } from "./-project-subpage-header";
-
-const formatTimestamp = (value: string | null | undefined) =>
-  value ? formatDateTime(value) : null;
 
 const DetailRow = ({
   label,
@@ -58,9 +50,6 @@ const SubmissionDetail = ({ submission }: { submission: SubmissionItem }) => (
     <CardFrame>
       <CardFrameHeader className="py-5">
         <CardFrameTitle className="flex items-center gap-2.5 text-base">
-          <Badge variant={SUBMISSION_STATUS_VARIANT[submission.status]}>
-            {SUBMISSION_STATUS_LABEL[submission.status]}
-          </Badge>
           <PlatformBadge platform={submission.platform} />
         </CardFrameTitle>
         <CardFrameDescription>
@@ -73,15 +62,6 @@ const SubmissionDetail = ({ submission }: { submission: SubmissionItem }) => (
           <DetailRow label="Archive source" value={submission.archiveSource} />
           <DetailRow label="Build ID" value={submission.buildId} copyLabel="Build ID" />
           <DetailRow label="Archive URL" value={submission.archiveUrl} copyLabel="Archive URL" />
-          <DetailRow label="Queued at" value={formatTimestamp(submission.queuedAt)} />
-          <DetailRow label="Started at" value={formatTimestamp(submission.startedAt)} />
-          <DetailRow label="Completed at" value={formatTimestamp(submission.completedAt)} />
-          {submission.errorCode ? (
-            <>
-              <DetailRow label="Error code" value={submission.errorCode} />
-              <DetailRow label="Error message" value={submission.errorMessage} />
-            </>
-          ) : null}
           {submission.iosConfig ? (
             <>
               <h2 className="text-muted-foreground mt-3 text-xs uppercase">iOS config</h2>

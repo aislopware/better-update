@@ -5,20 +5,12 @@ import { Forbidden } from "../auth/errors";
 import { NotFound } from "../auth/ownership";
 import { idParam, pageResult, PaginationParams, Platform } from "../domain/common";
 import { BadRequest, Conflict } from "../domain/errors";
-import {
-  CancelSubmissionResult,
-  CreateSubmissionBody,
-  DeleteSubmissionResult,
-  Submission,
-  SubmissionStatus,
-  UpdateSubmissionStatusBody,
-} from "../domain/submission";
+import { CreateSubmissionBody, DeleteSubmissionResult, Submission } from "../domain/submission";
 
 const projectIdParam = HttpApiSchema.param("projectId", Schema.String);
 
 const ListParams = Schema.Struct({
   ...PaginationParams.fields,
-  status: Schema.optional(SubmissionStatus),
   platform: Schema.optional(Platform),
   profile: Schema.optional(Schema.String),
   buildId: Schema.optional(Schema.String),
@@ -42,8 +34,8 @@ export class SubmissionsGroup extends HttpApiGroup.make("submissions")
       .addSuccess(Submission, { status: 201 })
       .annotateContext(
         OpenApi.annotations({
-          title: "Create submission",
-          description: "Start a store submission for a build / IPA / AAB",
+          title: "Record submission",
+          description: "Record a store submission after a successful client-side upload",
         }),
       ),
   )
@@ -56,33 +48,12 @@ export class SubmissionsGroup extends HttpApiGroup.make("submissions")
     ),
   )
   .add(
-    HttpApiEndpoint.patch("updateStatus")`/api/submissions/${idParam}/status`
-      .setPayload(UpdateSubmissionStatusBody)
-      .addSuccess(Submission)
-      .annotateContext(
-        OpenApi.annotations({
-          title: "Update submission status",
-          description: "Patch status / error / logFiles. CLI uses this for iOS submissions.",
-        }),
-      ),
-  )
-  .add(
-    HttpApiEndpoint.post("cancel")`/api/submissions/${idParam}/cancel`
-      .addSuccess(CancelSubmissionResult)
-      .annotateContext(
-        OpenApi.annotations({
-          title: "Cancel submission",
-          description: "Cancel an AWAITING_BUILD / IN_QUEUE submission",
-        }),
-      ),
-  )
-  .add(
     HttpApiEndpoint.del("delete")`/api/submissions/${idParam}`
       .addSuccess(DeleteSubmissionResult)
       .annotateContext(
         OpenApi.annotations({
           title: "Delete submission",
-          description: "Delete a terminal submission record",
+          description: "Delete a submission record",
         }),
       ),
   )
@@ -93,6 +64,6 @@ export class SubmissionsGroup extends HttpApiGroup.make("submissions")
   .annotateContext(
     OpenApi.annotations({
       title: "Submissions",
-      description: "Store-submission lifecycle (App Store + Google Play)",
+      description: "Store-submission success history (App Store + Google Play)",
     }),
   ) {}

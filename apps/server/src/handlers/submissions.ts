@@ -79,7 +79,6 @@ export const SubmissionsGroupLive = HttpApiBuilder.group(ManagementApi, "submiss
           const { page, limit, offset } = parsePagination(urlParams);
           const { items, total } = yield* repo.listByProject({
             projectId: path.projectId,
-            status: urlParams.status,
             platform: urlParams.platform,
             profile: urlParams.profile,
             buildId: urlParams.buildId,
@@ -132,7 +131,6 @@ export const SubmissionsGroupLive = HttpApiBuilder.group(ManagementApi, "submiss
           const now = new Date().toISOString();
           const submissionConfig = yield* resolveSubmissionConfig(payload);
           const profileName = payload.profileName ?? "production";
-          const initialStatus = payload.archiveSource === "build" ? "AWAITING_BUILD" : "IN_QUEUE";
 
           yield* repo.insert({
             id,
@@ -140,15 +138,12 @@ export const SubmissionsGroupLive = HttpApiBuilder.group(ManagementApi, "submiss
             projectId: path.projectId,
             platform: payload.platform,
             profileName,
-            status: initialStatus,
             archiveSource: payload.archiveSource,
             buildId: toDbNull(payload.buildId),
             archiveUrl: toDbNull(payload.archiveUrl),
             submissionConfigJson: JSON.stringify(submissionConfig),
             initiatingUserId: ctx.userId,
-            queuedAt: initialStatus === "IN_QUEUE" ? now : null,
             createdAt: now,
-            updatedAt: now,
           });
           yield* logAudit({
             action: "submission.create",
@@ -181,86 +176,6 @@ export const SubmissionsGroupLive = HttpApiBuilder.group(ManagementApi, "submiss
         }),
       ),
     )
-    .handle("updateStatus", ({ path, payload }) =>
-      toApiCrudEffect(
-        Effect.gen(function* () {
-          const repo = yield* SubmissionsRepo;
-          const existing = yield* repo.findById({ id: path.id });
-          yield* assertOrgOwnership(existing.organizationId);
-          yield* assertAccess("submission", "update", {
-            kind: "submission",
-            projectId: existing.projectId,
-            submissionId: path.id,
-          });
-
-          const now = new Date().toISOString();
-          const terminal =
-            payload.status === "FINISHED" ||
-            payload.status === "ERRORED" ||
-            payload.status === "CANCELED";
-          const startingProgress = payload.status === "IN_PROGRESS" && existing.startedAt === null;
-
-          yield* repo.updateStatus({
-            id: path.id,
-            status: payload.status,
-            errorCode: payload.errorCode,
-            errorMessage: payload.errorMessage,
-            logFilesJson:
-              payload.logFiles === undefined ? undefined : JSON.stringify(payload.logFiles),
-            startedAt: startingProgress ? now : undefined,
-            completedAt: terminal ? now : undefined,
-            updatedAt: now,
-          });
-          yield* logAudit({
-            action: "submission.status",
-            resourceType: "submission",
-            resourceId: path.id,
-            projectId: existing.projectId,
-            metadata: { status: payload.status },
-          });
-          const merged = yield* repo.findById({ id: path.id });
-          return toApiSubmission(merged);
-        }),
-      ),
-    )
-    .handle("cancel", ({ path }) =>
-      toApiWriteEffect(
-        Effect.gen(function* () {
-          const repo = yield* SubmissionsRepo;
-          const existing = yield* repo.findById({ id: path.id });
-          yield* assertOrgOwnership(existing.organizationId);
-          yield* assertAccess("submission", "cancel", {
-            kind: "submission",
-            projectId: existing.projectId,
-            submissionId: path.id,
-          });
-          if (
-            existing.status !== "AWAITING_BUILD" &&
-            existing.status !== "IN_QUEUE" &&
-            existing.status !== "IN_PROGRESS"
-          ) {
-            return yield* new BadRequest({
-              message: `Cannot cancel submission in terminal state ${existing.status}`,
-            });
-          }
-          const now = new Date().toISOString();
-          yield* repo.updateStatus({
-            id: path.id,
-            status: "CANCELED",
-            completedAt: now,
-            updatedAt: now,
-          });
-          yield* logAudit({
-            action: "submission.cancel",
-            resourceType: "submission",
-            resourceId: path.id,
-            projectId: existing.projectId,
-            metadata: { previousStatus: existing.status },
-          });
-          return { canceled: true };
-        }),
-      ),
-    )
     .handle("delete", ({ path }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
@@ -278,7 +193,7 @@ export const SubmissionsGroupLive = HttpApiBuilder.group(ManagementApi, "submiss
             resourceType: "submission",
             resourceId: path.id,
             projectId: existing.projectId,
-            metadata: { platform: existing.platform, status: existing.status },
+            metadata: { platform: existing.platform },
           });
           return { deleted: 1 };
         }),

@@ -571,22 +571,14 @@ export interface Submissions {
   archive_source: string;
   archive_url: string | null;
   build_id: string | null;
-  completed_at: string | null;
   created_at: Generated<string>;
-  error_code: string | null;
-  error_message: string | null;
   id: string | null;
   initiating_user_id: string | null;
-  log_files: Generated<string>;
   organization_id: string;
   platform: string;
   profile_name: Generated<string>;
   project_id: string;
-  queued_at: string | null;
-  started_at: string | null;
-  status: string;
   submission_config: Generated<string>;
-  updated_at: Generated<string>;
 }
 
 export interface UpdateAssets {

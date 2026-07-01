@@ -292,19 +292,16 @@ export type {
   ProjectDetail,
   ProjectItem,
   SubmissionItem,
-  SubmissionStatusValue,
   UserEncryptionKeyItem,
   VaultRecipientItem,
   VaultRecipientsResult,
 } from "./react/types";
 export {
-  cancelSubmission,
   createSubmission,
   deleteSubmission,
   submissionQueryKey,
   submissionQueryOptions,
   submissionsQueryKey,
   submissionsQueryOptions,
-  updateSubmissionStatus,
 } from "./react/submissions";
 export type { SubmissionsFilters } from "./react/submissions";

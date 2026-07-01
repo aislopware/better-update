@@ -1,5 +1,4 @@
 import { submissionsQueryOptions } from "@better-update/api-client/react";
-import { Badge } from "@better-update/ui/components/ui/badge";
 import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
@@ -24,7 +23,7 @@ import { SearchXIcon, UploadCloudIcon } from "lucide-react";
 import { useMemo } from "react";
 import { z } from "zod";
 
-import type { SubmissionItem, SubmissionStatusValue } from "@better-update/api-client/react";
+import type { SubmissionItem } from "@better-update/api-client/react";
 import type { ColumnDef } from "@tanstack/react-table";
 
 import { PlatformBadge } from "../../../../../components/attribute-badges";
@@ -40,28 +39,7 @@ import {
 } from "../../../../../lib/data-table";
 import { pluralize } from "../../../../../lib/pluralize";
 import { RelativeTime } from "../../../../../lib/relative-time";
-import {
-  SUBMISSION_STATUS_LABEL,
-  SUBMISSION_STATUS_VARIANT,
-} from "../../../../../lib/submission-status";
 import { ProjectSubpageHeader } from "./-project-subpage-header";
-
-const STATUS_VALUES = [
-  "AWAITING_BUILD",
-  "IN_QUEUE",
-  "IN_PROGRESS",
-  "FINISHED",
-  "ERRORED",
-  "CANCELED",
-] as const satisfies readonly SubmissionStatusValue[];
-
-const STATUS_FILTER_VALUES = ["all", ...STATUS_VALUES] as const;
-type StatusFilter = (typeof STATUS_FILTER_VALUES)[number];
-
-const STATUS_FILTER_LABELS: Record<StatusFilter, string> = {
-  all: "All statuses",
-  ...SUBMISSION_STATUS_LABEL,
-};
 
 const PLATFORM_FILTER_VALUES = ["all", "ios", "android"] as const;
 type PlatformFilter = (typeof PLATFORM_FILTER_VALUES)[number];
@@ -74,39 +52,14 @@ const PLATFORM_FILTER_LABELS: Record<PlatformFilter, string> = {
 
 const submissionsSearchSchema = z.object({
   page: pageParam(),
-  status: enumParam(STATUS_FILTER_VALUES, "all"),
   platform: enumParam(PLATFORM_FILTER_VALUES, "all"),
 });
 
 const columns: readonly ColumnDef<SubmissionItem>[] = [
   {
-    id: "status",
-    header: "Status",
-    cell: ({ row }) => (
-      <Badge variant={SUBMISSION_STATUS_VARIANT[row.original.status]}>
-        {SUBMISSION_STATUS_LABEL[row.original.status]}
-      </Badge>
-    ),
-    enableSorting: false,
-  },
-  {
     id: "profile",
     header: "Submission",
-    cell: ({ row }) => (
-      <div className="flex min-w-0 flex-col gap-0.5">
-        <span className="truncate font-medium">{row.original.profileName}</span>
-        {row.original.status === "ERRORED" && row.original.errorMessage ? (
-          // Cap the width so a long failure reason truncates to one short line here;
-          // the full message is shown on the submission detail page.
-          <span
-            className="text-destructive max-w-[28rem] truncate text-xs"
-            title={row.original.errorMessage}
-          >
-            {row.original.errorMessage}
-          </span>
-        ) : null}
-      </div>
-    ),
+    cell: ({ row }) => <span className="truncate font-medium">{row.original.profileName}</span>,
     enableSorting: false,
   },
   {
@@ -213,13 +166,12 @@ const SubmissionsPage = () => {
   const { activeOrg, project } = Route.useRouteContext();
   const { projectSlug } = Route.useParams();
   const navigate = Route.useNavigate();
-  const { page, status, platform } = Route.useSearch();
-  const hasFilters = status !== "all" || platform !== "all";
+  const { page, platform } = Route.useSearch();
+  const hasFilters = platform !== "all";
 
   const { data, error, isPlaceholderData, isLoading, refetch } = useQuery({
     ...submissionsQueryOptions(activeOrg.id, project.id, {
       page,
-      ...(status === "all" ? {} : { status }),
       ...(platform === "all" ? {} : { platform }),
     }),
     placeholderData: keepPreviousData,
@@ -234,7 +186,7 @@ const SubmissionsPage = () => {
     getCoreRowModel: getCoreRowModel(),
   });
 
-  const setFilter = (patch: Partial<{ status: StatusFilter; platform: PlatformFilter }>): void => {
+  const setFilter = (patch: Partial<{ platform: PlatformFilter }>): void => {
     fireAndForget(navigate({ to: ".", search: (prev) => ({ ...prev, ...patch, page: 1 }) }));
   };
 
@@ -249,7 +201,7 @@ const SubmissionsPage = () => {
         {error ? (
           <QueryErrorState error={error} onRetry={refetch} />
         ) : (
-          <TableSkeleton columns={6} rows={4} />
+          <TableSkeleton columns={5} rows={4} />
         )}
       </div>
     );
@@ -271,15 +223,6 @@ const SubmissionsPage = () => {
       <ProjectSubpageHeader title="Submissions" />
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-2">
-          <FilterSelect
-            value={status}
-            values={STATUS_FILTER_VALUES}
-            labels={STATUS_FILTER_LABELS}
-            ariaLabel="Filter by status"
-            onChange={(next) => {
-              setFilter({ status: next });
-            }}
-          />
           <FilterSelect
             value={platform}
             values={PLATFORM_FILTER_VALUES}
