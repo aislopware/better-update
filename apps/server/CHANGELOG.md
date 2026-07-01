@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.40.0](https://github.com/better-update/better-update/compare/@better-update/server@0.39.0...@better-update/server@0.40.0) (2026-07-01)
+
+### Features
+
+* **cli:** hard-block versions the server has retired ([83efd81](https://github.com/better-update/better-update/commit/83efd8176a1f06222d76e724a8be316568e44513))
+
 ## [0.39.0](https://github.com/better-update/better-update/compare/@better-update/server@0.38.0...@better-update/server@0.39.0) (2026-07-01)
 
 ### Features
