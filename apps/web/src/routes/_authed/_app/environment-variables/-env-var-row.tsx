@@ -42,7 +42,9 @@ export const EnvVarRow = ({
         </div>
         {envVar.label ? <span className="text-sm font-medium">{envVar.label}</span> : null}
         {envVar.description ? (
-          <span className="text-muted-foreground max-w-md text-xs">{envVar.description}</span>
+          <p className="text-muted-foreground max-w-md text-xs break-words whitespace-normal">
+            {envVar.description}
+          </p>
         ) : null}
       </div>
     </TableCell>
