@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.52.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.51.0...@better-update/cli@0.52.0) (2026-07-01)
+
+### Features
+
+* **cli:** validate What to Test pre-upload + testflight whats-new --latest ([fc51d09](https://github.com/better-update/better-update/commit/fc51d09faf44963b8343df6341566b252ca61c3e))
+* **submit:** idempotent iOS submit + metadata-complete status ([947961d](https://github.com/better-update/better-update/commit/947961d70154fa7947cfed6383bbf623dd128a8b))
+
 ## [0.51.0](https://github.com/better-update/better-update/compare/@better-update/cli@0.50.1...@better-update/cli@0.51.0) (2026-07-01)
 
 ### Features

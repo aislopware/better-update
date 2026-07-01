@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.51.0](https://github.com/better-update/better-update/compare/@better-update/web@0.50.3...@better-update/web@0.51.0) (2026-07-01)
+
+### Features
+
+* **submit:** idempotent iOS submit + metadata-complete status ([947961d](https://github.com/better-update/better-update/commit/947961d70154fa7947cfed6383bbf623dd128a8b))
+
 ## [0.50.3](https://github.com/better-update/better-update/compare/@better-update/web@0.50.2...@better-update/web@0.50.3) (2026-07-01)
 
 **Note:** Version bump only for package @better-update/web

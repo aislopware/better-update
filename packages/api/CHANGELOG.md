@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.32.0](https://gitlab.jmango360.com/mobile/better-update/compare/@better-update/api@0.31.1...@better-update/api@0.32.0) (2026-07-01)
+
+### Features
+
+* **submit:** idempotent iOS submit + metadata-complete status ([947961d](https://gitlab.jmango360.com/mobile/better-update/commit/947961d70154fa7947cfed6383bbf623dd128a8b))
+
 ## [0.31.1](https://gitlab.jmango360.com/mobile/better-update/compare/@better-update/api@0.31.0...@better-update/api@0.31.1) (2026-07-01)
 
 **Note:** Version bump only for package @better-update/api
