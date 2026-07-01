@@ -70,6 +70,36 @@ export const parseSingleEnvironmentArg = (
 export const formatEnvironments = (environments: readonly EnvironmentName[]): string =>
   [...environments].toSorted((left, right) => left.localeCompare(right)).join(",");
 
+/**
+ * Build the label/description payload for the no-vault documentation endpoint from
+ * CLI flags. Three-state per field: an omitted flag (`undefined`) leaves it
+ * unchanged, an explicit empty string clears it (`null`), any other string sets it.
+ * Returns `undefined` when neither flag was supplied (nothing to write).
+ */
+// An explicit empty flag clears the field (null); any other string sets it.
+const documentedField = (value: string): string | null => (value.length > 0 ? value : null);
+
+export const describePayload = (
+  label: string | undefined,
+  description: string | undefined,
+): { label?: string | null; description?: string | null } | undefined => {
+  if (label === undefined && description === undefined) {
+    return undefined;
+  }
+  return {
+    ...(label === undefined ? {} : { label: documentedField(label) }),
+    ...(description === undefined ? {} : { description: documentedField(description) }),
+  };
+};
+
+/** Render an optional string as a table cell, blank when absent (no fallback operator). */
+export const optionalCell = (value: string | null | undefined): string => {
+  if (!value) {
+    return "";
+  }
+  return value;
+};
+
 const DOTENV_LINE = /^\s*(?:export\s+)?(?<key>[A-Z][A-Z0-9_]*)\s*=\s*(?<value>.*?)\s*$/u;
 
 const stripQuotes = (raw: string): string => {

@@ -109,6 +109,7 @@ export {
   globalEnvVarsQueryKey,
   globalEnvVarsQueryOptions,
   updateEnvVar,
+  updateEnvVarDescription,
 } from "./react/env-vars";
 export type { EnvVarsFilters } from "./react/env-vars";
 export {

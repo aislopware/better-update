@@ -35,9 +35,15 @@ export const EnvVarRow = ({
 }) => (
   <TableRow>
     <TableCell>
-      <div className="flex items-center gap-1">
-        <span className="font-mono text-sm font-medium">{envVar.key}</span>
-        <CopyButton value={envVar.key} label="Key" />
+      <div className="flex flex-col gap-0.5">
+        <div className="flex items-center gap-1">
+          <span className="font-mono text-sm font-medium">{envVar.key}</span>
+          <CopyButton value={envVar.key} label="Key" />
+        </div>
+        {envVar.label ? <span className="text-sm font-medium">{envVar.label}</span> : null}
+        {envVar.description ? (
+          <span className="text-muted-foreground max-w-md text-xs">{envVar.description}</span>
+        ) : null}
       </div>
     </TableCell>
     <TableCell>

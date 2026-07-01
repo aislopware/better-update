@@ -308,6 +308,60 @@ describe("Environment variables API flow (E2E encrypted)", () => {
     expect(body.value).toBeUndefined();
   });
 
+  it("sets non-secret documentation without a vault or step-up", async () => {
+    // No vault is bootstrapped in this flow, so a successful 200 proves the
+    // documentation endpoint does not gate on vault access or a WebAuthn step-up.
+    const response = await post(
+      "/api/env-vars/description",
+      {
+        scope: "project",
+        projectId: state.projectId,
+        key: "SENTRY_AUTH_TOKEN",
+        label: "Sentry auth token",
+        description: "Used by the release upload step.",
+      },
+      { cookie: state.cookies },
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body).toMatchObject({
+      scope: "project",
+      key: "SENTRY_AUTH_TOKEN",
+      label: "Sentry auth token",
+      description: "Used by the release upload step.",
+    });
+  });
+
+  it("echoes the documentation on the variable's metadata", async () => {
+    const response = await get(`/api/env-vars/${state.sensitiveVarId}`, { cookie: state.cookies });
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.label).toBe("Sentry auth token");
+    expect(body.description).toBe("Used by the release upload step.");
+  });
+
+  it("merges a partial documentation update and clears with null", async () => {
+    const response = await post(
+      "/api/env-vars/description",
+      { scope: "project", projectId: state.projectId, key: "SENTRY_AUTH_TOKEN", label: null },
+      { cookie: state.cookies },
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    // label cleared, description left untouched
+    expect(body.label).toBeNull();
+    expect(body.description).toBe("Used by the release upload step.");
+  });
+
+  it("rejects documenting a variable that does not exist", async () => {
+    const response = await post(
+      "/api/env-vars/description",
+      { scope: "project", projectId: state.projectId, key: "NOPE_MISSING", label: "x" },
+      { cookie: state.cookies },
+    );
+    expect(response.status).toBe(400);
+  });
+
   it("updating the value appends a revision", async () => {
     const response = await patch(
       `/api/env-vars/${state.sensitiveVarId}`,

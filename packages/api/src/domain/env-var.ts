@@ -35,10 +35,21 @@ export const EnvVarValueEnvelope = Schema.Struct({
   vaultKind: Schema.optional(Schema.Literal("credentials", "env")),
 });
 
+// Human-readable documentation for a variable (non-secret). A short label and a
+// longer description that explain what the variable is for, so non-technical
+// people can update its value in the portal with confidence. Shared per
+// (scope, key) — the same across every environment — not per revision.
+export const EnvVarLabel = Schema.String.pipe(Schema.maxLength(120));
+export const EnvVarDescriptionText = Schema.String.pipe(Schema.maxLength(500));
+
 /**
  * Env var metadata. The value is **not** here — it lives encrypted in the
  * revision pointed at by `currentRevisionId` and is only ever readable by the
  * CLI (which holds the org vault key). One entity per (scope, key, environment).
+ *
+ * `label`/`description` are non-secret documentation shared across a variable's
+ * environments (keyed by scope + key); they are `null` when unset. Optional on
+ * the wire for back-compat: an older server omits them entirely.
  */
 export class EnvVar extends Schema.Class<EnvVar>("EnvVar")({
   id: Id,
@@ -52,6 +63,8 @@ export class EnvVar extends Schema.Class<EnvVar>("EnvVar")({
   revisionNumber: Schema.NullOr(Schema.Number),
   revisionCount: Schema.Number,
   overridesGlobal: Schema.optional(Schema.Boolean),
+  label: Schema.optional(Schema.NullOr(Schema.String)),
+  description: Schema.optional(Schema.NullOr(Schema.String)),
   createdAt: DateTimeString,
   updatedAt: DateTimeString,
 }) {}
@@ -66,6 +79,33 @@ export const CreateEnvVarBody = Schema.Struct({
   key: EnvVarKey,
   visibility: EnvVarVisibility,
   value: EnvVarValueEnvelope,
+  // Optional non-secret documentation set on the same call. Applies to the
+  // variable (scope + key), so it is shared across every environment.
+  label: Schema.optional(EnvVarLabel),
+  description: Schema.optional(EnvVarDescriptionText),
+});
+
+/**
+ * Upsert a variable's non-secret documentation, keyed by (scope, key) — shared
+ * across every environment. `label`/`description` are three-state: omit to leave
+ * unchanged, send `null` to clear, or a string to set. This is NOT a secret write:
+ * it needs no vault and no WebAuthn step-up, only the `envVar:update` permission.
+ */
+export const UpsertEnvVarDescriptionBody = Schema.Struct({
+  scope: EnvVarScope,
+  projectId: Schema.optional(Id),
+  key: EnvVarKey,
+  label: Schema.optional(Schema.NullOr(EnvVarLabel)),
+  description: Schema.optional(Schema.NullOr(EnvVarDescriptionText)),
+});
+
+/** The saved documentation for a variable (scope + key). */
+export const EnvVarDescription = Schema.Struct({
+  scope: EnvVarScope,
+  projectId: Schema.NullOr(Id),
+  key: Schema.String,
+  label: Schema.NullOr(Schema.String),
+  description: Schema.NullOr(Schema.String),
 });
 
 export const UpdateEnvVarBody = Schema.Struct({

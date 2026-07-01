@@ -7,7 +7,12 @@ import { uploadEnvVars } from "../../lib/env-exporter";
 import { printHuman } from "../../lib/output";
 import { readProjectId } from "../../lib/project-link";
 import { apiClient } from "../../services/api-client";
-import { envErrorExtras, formatEnvironments, parseEnvironmentsArg } from "./helpers";
+import {
+  describePayload,
+  envErrorExtras,
+  formatEnvironments,
+  parseEnvironmentsArg,
+} from "./helpers";
 
 export const setCommand = defineCommand({
   meta: { name: "set", description: "Create or update a project-scoped environment variable" },
@@ -29,6 +34,15 @@ export const setCommand = defineCommand({
       default: "plaintext",
       description: "Value visibility (build-log redaction hint)",
     },
+    label: {
+      type: "string",
+      description:
+        "Human-readable label documenting the variable (shared across environments; non-secret)",
+    },
+    description: {
+      type: "string",
+      description: "Longer description of what the variable is for (shared; non-secret)",
+    },
   },
   run: async ({ args }) =>
     runEffect(
@@ -47,6 +61,15 @@ export const setCommand = defineCommand({
           environments,
           entries: [{ key, value, visibility }],
         });
+
+        // Non-secret documentation is shared per (scope, key) across environments,
+        // so it is a separate no-vault call made once after the value upsert.
+        const docs = describePayload(args.label, args.description);
+        if (docs) {
+          yield* api["env-vars"].upsertDescription({
+            payload: { scope: "project", projectId, key, ...docs },
+          });
+        }
 
         const label = formatEnvironments(environments);
         yield* printHuman(

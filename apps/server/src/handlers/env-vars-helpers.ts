@@ -94,6 +94,45 @@ export const resolveEnvReadPredicate = () =>
     };
   });
 
+/**
+ * Gate a variable's documentation write (label/description). The metadata is
+ * non-secret and shared across the variable's environments, so — unlike a value
+ * write — it needs no vault and no step-up. It DOES need `envVar:update` on every
+ * environment the variable currently spans (deny-wins), so a scoped user cannot
+ * edit documentation that surfaces on an environment they may not touch. Rejects
+ * with NotFound when no row exists for (scope, key) yet (nothing to document).
+ */
+export const assertEnvVarDescribable = (
+  organizationId: string,
+  scope: "project" | "global",
+  projectId: string | null,
+  key: string,
+) =>
+  Effect.gen(function* () {
+    const repo = yield* EnvVarRepo;
+    const { items } = yield* repo.list({
+      organizationId,
+      ...(projectId ? { projectId } : {}),
+      scope,
+      search: key,
+      limit: 1000,
+      offset: 0,
+    });
+    const environments = [
+      ...new Set(items.filter((model) => model.key === key).map((model) => model.environment)),
+    ];
+    if (environments.length === 0) {
+      return yield* new BadRequest({
+        message: `No variable "${key}" exists for this scope yet — create it before documenting it.`,
+      });
+    }
+    yield* Effect.forEach(
+      environments,
+      (environment) => assertEnvVarScopedPermission("update", projectId, environment),
+      { discard: true },
+    );
+  });
+
 export const validateKey = (key: string) =>
   Effect.gen(function* () {
     if (!KEY_PATTERN.test(key)) {

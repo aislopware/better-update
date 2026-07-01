@@ -88,6 +88,9 @@ export type DeviceRegistrationRequests = WithNonNullId<
 export type Devices = WithNonNullId<Narrow<Gen.Devices, { device_class: DeviceClass }>>;
 export type DevicesFts = WithNonNullId<Gen.DevicesFts>;
 export type Environments = WithNonNullId<Gen.Environments>;
+export type EnvVarDescriptions = WithNonNullId<
+  Narrow<Gen.EnvVarDescriptions, { scope: EnvVarScope }>
+>;
 export type EnvVarRevisions = WithNonNullId<Gen.EnvVarRevisions>;
 export type EnvVars = WithNonNullId<
   Narrow<Gen.EnvVars, { scope: EnvVarScope; visibility: EnvVarVisibility }>
@@ -162,6 +165,7 @@ export interface DB {
   device_registration_requests: DeviceRegistrationRequests;
   devices: Devices;
   devices_fts: DevicesFts;
+  env_var_descriptions: EnvVarDescriptions;
   env_var_revisions: EnvVarRevisions;
   env_vars: EnvVars;
   environments: Environments;

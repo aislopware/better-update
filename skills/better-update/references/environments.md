@@ -34,16 +34,32 @@ Anything that reaches a JS bundle is extractable; for true secrets use a backend
 better-update env set API_URL=https://api.example.com
 better-update env set STRIPE_KEY=sk_live_xxx --visibility sensitive
 better-update env set FEATURE_FLAG=true --environment development,production     # CSV: multiple environments
+better-update env set STRIPE_KEY=sk_live_xxx --label "Stripe secret key" --description "Live key from the Stripe dashboard"
 better-update env update STRIPE_KEY --environment staging --visibility sensitive --value sk_test_xxx
+better-update env update STRIPE_KEY --description "Rotated quarterly — see 1Password"   # docs only, no vault needed
 better-update env get STRIPE_KEY --environment staging --include-sensitive        # positional is the KEY
 ```
 
 - `env set <KEY=VALUE>` upserts (creates if missing, updates if it exists). `--environment` defaults
   to `production` and accepts a comma-separated list; `--visibility` is `plaintext` (default) or
   `sensitive`.
-- `env update <key>` changes value and/or visibility for one environment (fails if you pass neither).
-- `env get <key>` shows the effective (project-over-global) decrypted value. **The positional is the
-  KEY name, not an ID.** Sensitive values are masked as `******` unless `--include-sensitive`.
+- `env update <key>` changes value, visibility, and/or documentation for one environment (fails if you
+  pass none).
+- `env get <key>` shows the effective (project-over-global) decrypted value, plus the variable's label
+  and description when set. **The positional is the KEY name, not an ID.** Sensitive values are masked
+  as `******` unless `--include-sensitive`.
+
+### Documentation: `--label` / `--description`
+
+A variable can carry a human-readable **label** and **description** so non-technical teammates know what
+it is for before updating its value. This documentation is **non-secret** and **shared per variable**
+(scope + key), i.e. the same across every environment — it describes the variable, not any one value.
+
+- Set it on `env set`/`env update` with `--label` / `--description`; pass `--label ""` (empty) to clear a
+  field. Editing documentation needs **no vault access and no passkey step-up** (it is not a secret), so
+  it also works, and is editable, from the web portal even while the env vault is locked (row menu →
+  "Edit details").
+- `env list` shows the Label column; `env get` prints Label + Description when present.
 
 ## List / delete
 
@@ -53,7 +69,7 @@ better-update env delete API_URL                       # NO --environment ⇒ de
 better-update env delete API_URL --environment staging # only that environment
 ```
 
-`env list` shows Key, Environment, Scope, Visibility, Revisions. `--environments` (note the plural) is
+`env list` shows Key, Label, Environment, Scope, Visibility, Revisions. `--environments` (note the plural) is
 a comma-separated filter and defaults to all environments. `--scope` filters project- vs global-scoped
 vars; `--search` filters by key substring.
 

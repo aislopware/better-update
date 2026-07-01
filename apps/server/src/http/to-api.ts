@@ -147,6 +147,8 @@ export const toApiEnvVar = (
     revisionNumber: envVar.revisionNumber,
     revisionCount: envVar.revisionCount,
     ...(overridesGlobal ? { overridesGlobal: true } : {}),
+    label: envVar.label,
+    description: envVar.description,
     createdAt: envVar.createdAt,
     updatedAt: envVar.updatedAt,
   });

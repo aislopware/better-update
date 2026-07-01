@@ -315,11 +315,9 @@ const EnvVarsTable = ({
             <TableHead>Visibility</TableHead>
             <TableHead>Revisions</TableHead>
             <TableHead>Updated</TableHead>
-            {vault.enabled ? (
-              <TableHead>
-                <span className="sr-only">Actions</span>
-              </TableHead>
-            ) : null}
+            <TableHead>
+              <span className="sr-only">Actions</span>
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -327,16 +325,16 @@ const EnvVarsTable = ({
             <EnvVarRow
               key={envVar.id}
               envVar={envVar}
-              hasActions={vault.enabled}
+              hasActions
               actions={
-                vault.unlocked ? (
-                  <EnvVarRowActions
-                    envVar={envVar}
-                    orgId={orgId}
-                    vault={vault.unlocked}
-                    invalidate={invalidate}
-                  />
-                ) : null
+                // Editing the label/description needs no vault, so the row menu is
+                // always available; value actions inside it unlock with the vault.
+                <EnvVarRowActions
+                  envVar={envVar}
+                  orgId={orgId}
+                  vault={vault.unlocked}
+                  invalidate={invalidate}
+                />
               }
             />
           ))}
@@ -410,7 +408,7 @@ export const EnvVarsView = ({
       return (
         <div className="flex flex-col gap-2">
           <Skeleton className="h-9 w-full rounded-md" />
-          <TableSkeleton columns={vault.enabled ? 7 : 6} rows={4} hasFooter={false} />
+          <TableSkeleton columns={7} rows={4} hasFooter={false} />
         </div>
       );
     }
@@ -444,7 +442,8 @@ export const EnvVarsView = ({
       <p className="text-muted-foreground text-sm">
         Values are end-to-end encrypted and managed from the CLI —{" "}
         <code className="font-mono">better-update env set</code> /{" "}
-        <code className="font-mono">env pull</code>. The dashboard shows metadata only.
+        <code className="font-mono">env pull</code>. You can still edit each variable&rsquo;s label
+        and description here (non-secret documentation) from the row menu.
       </p>
       {renderContent()}
     </div>

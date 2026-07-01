@@ -10,6 +10,7 @@ import {
   CreateEnvVarBody,
   DeleteEnvVarResult,
   EnvVar,
+  EnvVarDescription,
   EnvVarEnvironment,
   EnvVarExportResult,
   EnvVarListScope,
@@ -17,6 +18,7 @@ import {
   EnvVarValueEnvelope,
   RollbackEnvVarBody,
   UpdateEnvVarBody,
+  UpsertEnvVarDescriptionBody,
 } from "../domain/env-var";
 import { BadRequest, Conflict } from "../domain/errors";
 
@@ -85,6 +87,18 @@ export class EnvVarsGroup extends HttpApiGroup.make("env-vars")
           title: "Update environment variable",
           description:
             "Change the value (a new sealed revision) and/or the visibility tier. The environment is immutable.",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.post("upsertDescription", "/api/env-vars/description")
+      .setPayload(UpsertEnvVarDescriptionBody)
+      .addSuccess(EnvVarDescription)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Set variable documentation",
+          description:
+            "Upsert a variable's human-readable label + description, keyed by (scope, key) and shared across every environment. Non-secret metadata: needs the envVar:update permission but no vault access or WebAuthn step-up. Send null to clear a field, omit to leave it unchanged.",
         }),
       ),
   )

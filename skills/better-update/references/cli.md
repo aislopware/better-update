@@ -373,8 +373,8 @@ Visibility is one of **`plaintext`** or **`sensitive`** — there is no "secret"
 ```bash
 better-update env list [--environments <csv>] [--scope <all|project|global>] [--search <substr>]
 better-update env get <key> [--environment <name>=production] [--include-sensitive]   # positional is the KEY; sensitive masked as ****** unless --include-sensitive
-better-update env set <KEY=VALUE> [--environment <csv>=production] [--visibility <plaintext|sensitive>=plaintext]
-better-update env update <key> [--environment <name>=production] [--value <v>] [--visibility <plaintext|sensitive>]
+better-update env set <KEY=VALUE> [--environment <csv>=production] [--visibility <plaintext|sensitive>=plaintext] [--label <text>] [--description <text>]
+better-update env update <key> [--environment <name>=production] [--value <v>] [--visibility <plaintext|sensitive>] [--label <text>] [--description <text>]   # --label/--description = non-secret docs, shared per key, no vault; pass "" to clear
 better-update env delete <key> [--environment <name>]          # NO --environment ⇒ deletes the key in EVERY environment
 better-update env history <key> [--environment <name>=production]
 better-update env rollback <key> --to <revision> [--environment <name>=production]

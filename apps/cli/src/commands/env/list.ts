@@ -5,7 +5,7 @@ import { runEffect } from "../../lib/citty-effect";
 import { printList } from "../../lib/output";
 import { readProjectId } from "../../lib/project-link";
 import { apiClient } from "../../services/api-client";
-import { envErrorExtras } from "./helpers";
+import { envErrorExtras, optionalCell } from "./helpers";
 
 export const listCommand = defineCommand({
   meta: {
@@ -42,9 +42,10 @@ export const listCommand = defineCommand({
         const result = yield* api["env-vars"].list({ urlParams });
 
         yield* printList(
-          ["Key", "Environment", "Scope", "Visibility", "Revisions"],
+          ["Key", "Label", "Environment", "Scope", "Visibility", "Revisions"],
           result.items.map((item) => [
             item.key,
+            optionalCell(item.label),
             item.environment,
             item.overridesGlobal ? `${item.scope} (overrides global)` : item.scope,
             item.visibility,

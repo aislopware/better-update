@@ -2,6 +2,8 @@ import { compact } from "@better-update/type-guards";
 import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
+import type { CreateEnvVarBody, UpsertEnvVarDescriptionBody } from "@better-update/api";
+
 import { ManagementApi } from "../api";
 import { assertEnvVaultRotationNotPending } from "../application/assert-vault-rotation";
 import { assertEnvVaultWriteAllowed } from "../application/assert-vault-version";
@@ -26,6 +28,7 @@ import {
   applyOverrideResolution,
   assertEnvironmentExists,
   assertEnvVarCountWithinCap,
+  assertEnvVarDescribable,
   assertEnvVarScopedPermission,
   assertScopeOwnership,
   handleBulkImport,
@@ -74,60 +77,105 @@ const toRevision = (value: {
   vaultVersion: value.vaultVersion,
 });
 
+/**
+ * Create a (scope,key,environment) variable with its first sealed revision. Value
+ * writes are step-up + vault gated. Optional non-secret documentation (label /
+ * description) is shared per (scope, key), so it is upserted once and reflected on
+ * the returned model without a re-read. Extracted to keep the group under the
+ * per-function line cap.
+ */
+const createEnvVarEffect = (payload: typeof CreateEnvVarBody.Type) =>
+  Effect.gen(function* () {
+    const ctx = yield* CurrentActor;
+    yield* assertWebEnvStepUp(ctx);
+
+    const { scope, projectId } = payload;
+    const dbProjectId = scope === "project" ? toDbNull(projectId) : null;
+    yield* assertScopeOwnership(scope, projectId);
+    yield* assertEnvVarScopedPermission("create", dbProjectId, payload.environment);
+    yield* validateKey(payload.key);
+    yield* assertEnvironmentExists(ctx.organizationId, payload.environment);
+    yield* assertEnvVaultWriteAllowed({
+      organizationId: ctx.organizationId,
+      vaultVersion: payload.value.vaultVersion,
+      vaultKind: payload.value.vaultKind,
+    });
+    yield* assertEnvVarCountWithinCap(scope, projectId, ctx.organizationId);
+
+    const repo = yield* EnvVarRepo;
+    const model = yield* repo.insertWithRevision({
+      organizationId: ctx.organizationId,
+      projectId: dbProjectId,
+      scope,
+      environment: payload.environment,
+      key: payload.key,
+      visibility: payload.visibility,
+      createdByUserId: ctx.userId,
+      revision: toRevision(payload.value),
+    });
+
+    yield* logAudit({
+      action: "envVar.create",
+      resourceType: "envVar",
+      resourceId: model.id,
+      ...(scope === "project" && projectId ? { projectId } : {}),
+      metadata: {
+        key: payload.key,
+        scope,
+        environment: payload.environment,
+        visibility: payload.visibility,
+      },
+    });
+
+    if (payload.label === undefined && payload.description === undefined) {
+      return toApiEnvVar(model);
+    }
+    const documented = yield* repo.upsertDescription({
+      organizationId: ctx.organizationId,
+      scope,
+      projectId: dbProjectId,
+      key: payload.key,
+      ...compact({ label: payload.label, description: payload.description }),
+    });
+    return toApiEnvVar({ ...model, label: documented.label, description: documented.description });
+  });
+
+/**
+ * Upsert a variable's non-secret documentation (shared per scope + key). No vault
+ * and no WebAuthn step-up — only ownership + `envVar:update` across the variable's
+ * environments. Extracted to keep the group under the per-function line cap.
+ */
+const upsertDescriptionEffect = (payload: typeof UpsertEnvVarDescriptionBody.Type) =>
+  Effect.gen(function* () {
+    const ctx = yield* CurrentActor;
+    const { scope, key } = payload;
+    const projectId = scope === "project" ? toDbNull(payload.projectId) : null;
+
+    yield* assertScopeOwnership(scope, payload.projectId);
+    yield* assertEnvVarDescribable(ctx.organizationId, scope, projectId, key);
+
+    const repo = yield* EnvVarRepo;
+    const saved = yield* repo.upsertDescription({
+      organizationId: ctx.organizationId,
+      scope,
+      projectId,
+      key,
+      ...compact({ label: payload.label, description: payload.description }),
+    });
+
+    yield* logAudit({
+      action: "envVar.describe",
+      resourceType: "envVar",
+      ...(projectId ? { projectId } : {}),
+      metadata: { key, scope },
+    });
+
+    return saved;
+  });
+
 export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", (handlers) =>
   handlers
-    .handle("create", ({ payload }) =>
-      toApiWriteEffect(
-        Effect.gen(function* () {
-          const ctx = yield* CurrentActor;
-          yield* assertWebEnvStepUp(ctx);
-
-          const { scope, projectId } = payload;
-          yield* assertScopeOwnership(scope, projectId);
-          yield* assertEnvVarScopedPermission(
-            "create",
-            scope === "project" ? toDbNull(projectId) : null,
-            payload.environment,
-          );
-          yield* validateKey(payload.key);
-          yield* assertEnvironmentExists(ctx.organizationId, payload.environment);
-          yield* assertEnvVaultWriteAllowed({
-            organizationId: ctx.organizationId,
-            vaultVersion: payload.value.vaultVersion,
-            vaultKind: payload.value.vaultKind,
-          });
-
-          yield* assertEnvVarCountWithinCap(scope, projectId, ctx.organizationId);
-
-          const repo = yield* EnvVarRepo;
-          const model = yield* repo.insertWithRevision({
-            organizationId: ctx.organizationId,
-            projectId: scope === "project" ? toDbNull(projectId) : null,
-            scope,
-            environment: payload.environment,
-            key: payload.key,
-            visibility: payload.visibility,
-            createdByUserId: ctx.userId,
-            revision: toRevision(payload.value),
-          });
-
-          yield* logAudit({
-            action: "envVar.create",
-            resourceType: "envVar",
-            resourceId: model.id,
-            ...(scope === "project" && projectId ? { projectId } : {}),
-            metadata: {
-              key: payload.key,
-              scope,
-              environment: payload.environment,
-              visibility: payload.visibility,
-            },
-          });
-
-          return toApiEnvVar(model);
-        }),
-      ),
-    )
+    .handle("create", ({ payload }) => toApiWriteEffect(createEnvVarEffect(payload)))
     .handle("list", ({ urlParams }) =>
       toApiBadRequestReadEffect(
         Effect.gen(function* () {
@@ -249,6 +297,9 @@ export const EnvVarsGroupLive = HttpApiBuilder.group(ManagementApi, "env-vars", 
           });
         }),
       ),
+    )
+    .handle("upsertDescription", ({ payload }) =>
+      toApiWriteEffect(upsertDescriptionEffect(payload)),
     )
     .handle("delete", ({ path }) =>
       toApiBadRequestReadEffect(

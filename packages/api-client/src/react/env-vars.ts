@@ -5,6 +5,7 @@ import type {
   EnvVarEnvironment,
   EnvVarListScope,
   UpdateEnvVarBody,
+  UpsertEnvVarDescriptionBody,
 } from "@better-update/api";
 
 import { runApi } from "../index";
@@ -76,6 +77,14 @@ export const updateEnvVar = async (id: string, body: typeof UpdateEnvVarBody.Typ
 
 export const deleteEnvVar = async (id: string) =>
   runApi((api) => api["env-vars"].delete({ path: { id } }));
+
+// Upsert a variable's non-secret label + description (shared per scope + key,
+// across every environment). Unlike the value/visibility mutations above this
+// needs NO vault and NO WebAuthn step-up — it edits documentation, not a secret —
+// so the dashboard can offer it even while the env-vault is locked. Callers wrap
+// it in `useMutation` and invalidate the env-var list keys onSuccess.
+export const updateEnvVarDescription = async (body: typeof UpsertEnvVarDescriptionBody.Type) =>
+  runApi((api) => api["env-vars"].upsertDescription({ payload: body }));
 
 /** Fetch the active value's sealed envelope for client-side decryption (reveal). */
 export const getEnvVarValue = async (id: string) =>

@@ -1,14 +1,11 @@
 import { Context, Effect, Layer } from "effect";
-import { sql } from "kysely";
-
-import type { Expression, ExpressionBuilder, SqlBool } from "kysely";
 
 import { d1Batch, kyselyDb } from "../cloudflare/db";
 import { Conflict, NotFound } from "../errors";
 import {
   advancePointerStmt,
   conflictMessage,
-  escapeLike,
+  envVarListWhere,
   insertEnvVarStmt,
   insertRevisionStmt,
   pruneStmt,
@@ -17,12 +14,18 @@ import {
   selectEnvVarMeta,
   toModel,
   toRevisionModel,
+  upsertEnvVarDescription,
 } from "./env-vars-sql";
 
-import type { DB } from "../db/schema";
 import type { EnvVarModel, EnvVarRevisionModel } from "../env-var-models";
 import type { EnvVarEnvironment, EnvVarVisibility } from "../models";
-import type { EnvVarExportRow, EnvVarListFilters, InsertParams } from "./env-vars-sql";
+import type {
+  EnvVarDescriptionResult,
+  EnvVarExportRow,
+  EnvVarListFilters,
+  InsertParams,
+  UpsertDescriptionParams,
+} from "./env-vars-sql";
 
 export type {
   EnvVarExportRow,
@@ -46,6 +49,13 @@ export interface EnvVarRepository {
     readonly id: string;
     readonly visibility: EnvVarVisibility;
   }) => Effect.Effect<EnvVarModel, NotFound>;
+  /**
+   * Upsert a variable's non-secret documentation, keyed by (scope, key) — shared
+   * across every environment. Three-state per field (undefined keeps, null clears).
+   */
+  readonly upsertDescription: (
+    params: UpsertDescriptionParams,
+  ) => Effect.Effect<EnvVarDescriptionResult>;
   readonly findById: (params: { readonly id: string }) => Effect.Effect<EnvVarModel, NotFound>;
   readonly list: (
     filters: EnvVarListFilters,
@@ -85,75 +95,6 @@ export interface EnvVarRepository {
 export class EnvVarRepo extends Context.Tag("api/EnvVarRepo")<EnvVarRepo, EnvVarRepository>() {}
 
 // -- D1 Adapter -------------------------------------------------------------
-
-// The list filter predicates. SECURITY: only the search *value* is
-// user-controlled; it is parameterized by the query builder / `sql` template,
-// never concatenated.
-
-// Scope predicate: project-only, global-only (org rows with no project), or the
-// "all" union (project rows OR org-global rows). Project scope without a
-// projectId is short-circuited by `list`, so a real projectId is always present
-// on that branch (the `undefined` guard keeps the type honest but is unreachable).
-const scopeCondition = (
-  eb: ExpressionBuilder<DB, "env_vars">,
-  filters: EnvVarListFilters,
-): Expression<SqlBool> => {
-  if (filters.scope === "project") {
-    const { projectId } = filters;
-    if (projectId === undefined) {
-      // Unreachable: `list` short-circuits a project scope with no projectId.
-      return eb.and([]);
-    }
-    return eb("env_vars.project_id", "=", projectId);
-  }
-  if (filters.scope === "global") {
-    return eb.and([
-      eb("env_vars.project_id", "is", null),
-      eb("env_vars.organization_id", "=", filters.organizationId),
-    ]);
-  }
-  if (filters.projectId) {
-    return eb.or([
-      eb("env_vars.project_id", "=", filters.projectId),
-      eb.and([
-        eb("env_vars.project_id", "is", null),
-        eb("env_vars.organization_id", "=", filters.organizationId),
-      ]),
-    ]);
-  }
-  return eb("env_vars.organization_id", "=", filters.organizationId);
-};
-
-const environmentsCondition = (
-  eb: ExpressionBuilder<DB, "env_vars">,
-  environments: readonly EnvVarEnvironment[] | undefined,
-): Expression<SqlBool> | null =>
-  environments && environments.length > 0
-    ? eb("env_vars.environment", "in", [...environments])
-    : null;
-
-// Case-insensitive key prefix/substring match. The escaped pattern is bound (not
-// concatenated); `ESCAPE '\'` neutralizes the LIKE wildcards in the user term.
-const searchCondition = (search: string | undefined): Expression<SqlBool> | null => {
-  const trimmed = search?.trim();
-  if (!trimmed) {
-    return null;
-  }
-  const pattern = `%${escapeLike(trimmed.toUpperCase())}%`;
-  return sql<SqlBool>`"env_vars"."key" LIKE ${pattern} ESCAPE '\\'`;
-};
-
-const envVarListWhere = (
-  eb: ExpressionBuilder<DB, "env_vars">,
-  filters: EnvVarListFilters,
-): Expression<SqlBool> => {
-  const conditions = [
-    scopeCondition(eb, filters),
-    environmentsCondition(eb, filters.environments),
-    searchCondition(filters.search),
-  ].filter((condition): condition is Expression<SqlBool> => condition !== null);
-  return eb.and(conditions);
-};
 
 export const EnvVarRepoLive = Layer.succeed(EnvVarRepo, {
   insertWithRevision: (params) =>
@@ -195,6 +136,10 @@ export const EnvVarRepoLive = Layer.succeed(EnvVarRepo, {
         currentRevisionId: params.revision.id,
         revisionNumber: 1,
         revisionCount: 1,
+        // A freshly-created variable has no documentation yet; the create handler
+        // merges any provided label/description onto this before mapping.
+        label: null,
+        description: null,
         createdAt: now,
         updatedAt: now,
       } satisfies EnvVarModel;
@@ -257,6 +202,12 @@ export const EnvVarRepoLive = Layer.succeed(EnvVarRepo, {
         return yield* new NotFound({ message: "Environment variable not found" });
       }
       return yield* requireModelById(db, params.id);
+    }),
+
+  upsertDescription: (params) =>
+    Effect.gen(function* () {
+      const db = yield* kyselyDb;
+      return yield* upsertEnvVarDescription(db, params);
     }),
 
   findById: (params) =>

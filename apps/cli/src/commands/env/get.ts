@@ -50,12 +50,26 @@ export const getCommand = defineCommand({
         const value =
           match.visibility === "sensitive" && !includeSensitive ? "******" : match.value;
 
-        yield* printKeyValue([
+        // The effective variable's non-secret documentation (shared per scope+key),
+        // resolved from the metadata list so `get` explains what the value is for.
+        const { items: metadata } = yield* api["env-vars"].list({
+          urlParams: { projectId, scope: "all", environments: environment, search: match.key },
+        });
+        const meta = metadata.find((item) => item.key === match.key);
+
+        const pairs: [string, string][] = [
           ["Key", match.key],
           ["Environment", environment],
-          ["Visibility", match.visibility],
-          ["Value", value],
-        ]);
+        ];
+        if (meta?.label) {
+          pairs.push(["Label", meta.label]);
+        }
+        if (meta?.description) {
+          pairs.push(["Description", meta.description]);
+        }
+        pairs.push(["Visibility", match.visibility], ["Value", value]);
+
+        yield* printKeyValue(pairs);
         return undefined;
       }),
       envErrorExtras,

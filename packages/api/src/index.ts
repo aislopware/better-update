@@ -96,9 +96,12 @@ export {
   CreateEnvVarBody,
   DeleteEnvVarResult,
   EnvVar,
+  EnvVarDescription,
+  EnvVarDescriptionText,
   EnvVarEnvironment,
   EnvVarExportItem,
   EnvVarExportResult,
+  EnvVarLabel,
   EnvVarListScope,
   EnvVarRevision,
   EnvVarRevisionsResult,
@@ -107,6 +110,7 @@ export {
   EnvVarVisibility,
   RollbackEnvVarBody,
   UpdateEnvVarBody,
+  UpsertEnvVarDescriptionBody,
 } from "./domain/env-var";
 export {
   CreateRegistrationRequestBody,

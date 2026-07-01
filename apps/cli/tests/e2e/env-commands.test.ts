@@ -149,10 +149,29 @@ describe("cLI env var commands", () => {
     expect(updateVisibility.exitCode).toBe(0);
     expect(updateVisibility.stdout).toContain("Updated visibility for UPDATE_ME (development).");
 
-    // Neither --value nor --visibility → argument error (exit 2).
+    // Documentation-only update: non-secret label/description, no vault, no
+    // environment required (docs are shared per key across environments).
+    const updateDocs = cli.runCli(
+      "env",
+      "update",
+      "UPDATE_ME",
+      "--label",
+      "Update me",
+      "--description",
+      "A throwaway test variable.",
+    );
+    expect(updateDocs.exitCode).toBe(0);
+    expect(updateDocs.stdout).toContain("Updated label + description for UPDATE_ME.");
+
+    // The label shows in the list metadata.
+    const listWithLabel = cli.runCli("env", "list", "--environments", "development");
+    expect(listWithLabel.exitCode).toBe(0);
+    expect(listWithLabel.stdout).toContain("Update me");
+
+    // Nothing to change → argument error (exit 2).
     const noChange = cli.runCli("env", "update", "UPDATE_ME", "--environment", "development");
     expect(noChange.exitCode).toBe(2);
-    expect(`${noChange.stdout}${noChange.stderr}`).toContain("Pass --value and/or --visibility");
+    expect(`${noChange.stdout}${noChange.stderr}`).toContain("Pass --value");
 
     // Updating a key that doesn't exist → not found (exit 1).
     const missing = cli.runCli(

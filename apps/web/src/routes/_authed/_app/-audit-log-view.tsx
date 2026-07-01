@@ -135,6 +135,7 @@ const resourceTypeLabel = (value: string): string =>
 const ACTION_LABELS: Record<string, string> = {
   "vault.web.step-up": "Env vault unlocked (passkey)",
   "vault.web.unlock": "Env vault unlocked (passkey)",
+  "envVar.describe": "Env var documentation edited",
 };
 
 // Split on dots, dashes, and camelCase boundaries, then sentence-case the whole

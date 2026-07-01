@@ -17,6 +17,10 @@ export interface EnvVarModel {
   readonly revisionNumber: number | null;
   readonly revisionCount: number;
   readonly overridesGlobal?: boolean;
+  // Non-secret documentation shared per (scope, key), joined from
+  // `env_var_descriptions`; null when the variable has no documentation row.
+  readonly label: string | null;
+  readonly description: string | null;
   readonly createdAt: string;
   readonly updatedAt: string;
 }

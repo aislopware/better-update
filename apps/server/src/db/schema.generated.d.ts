@@ -330,6 +330,18 @@ export interface Environments {
   organization_id: string;
 }
 
+export interface EnvVarDescriptions {
+  created_at: Generated<string>;
+  description: string | null;
+  id: string | null;
+  key: string;
+  label: string | null;
+  organization_id: string;
+  project_id: string | null;
+  scope: string;
+  updated_at: Generated<string>;
+}
+
 export interface EnvVarRevisions {
   created_at: Generated<string>;
   created_by_user_id: string | null;
@@ -680,6 +692,7 @@ export interface DB {
   device_registration_requests: DeviceRegistrationRequests;
   devices: Devices;
   devices_fts: DevicesFts;
+  env_var_descriptions: EnvVarDescriptions;
   env_var_revisions: EnvVarRevisions;
   env_vars: EnvVars;
   environments: Environments;

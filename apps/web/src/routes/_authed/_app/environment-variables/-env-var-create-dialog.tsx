@@ -108,7 +108,7 @@ const CreateForm = ({
   const [visibility, setVisibility] = useState<Visibility>("sensitive");
 
   const createMutation = useApiMutation({
-    mutationFn: async (input: { key: string; value: string }) =>
+    mutationFn: async (input: { key: string; value: string; label: string; description: string }) =>
       // Create is step-up-gated server-side; refresh the step-up from this click if the
       // window lapsed (so the passkey prompt fires inside the gesture) before writing.
       performStepUpGatedWrite(async () => {
@@ -121,6 +121,14 @@ const CreateForm = ({
           environment,
           value: input.value,
         });
+        // Optional non-secret documentation, omitted when blank (the label lives
+        // per scope+key, shared across environments — see the details dialog).
+        const label = input.label.trim();
+        const description = input.description.trim();
+        const docs = {
+          ...(label ? { label } : {}),
+          ...(description ? { description } : {}),
+        };
         const body =
           scope === "project" && projectId
             ? {
@@ -130,8 +138,16 @@ const CreateForm = ({
                 key: input.key,
                 visibility,
                 value: sealed,
+                ...docs,
               }
-            : { scope: "global" as const, environment, key: input.key, visibility, value: sealed };
+            : {
+                scope: "global" as const,
+                environment,
+                key: input.key,
+                visibility,
+                value: sealed,
+                ...docs,
+              };
         return createEnvVar(body);
       }),
     onSuccess: async () => {
@@ -142,9 +158,16 @@ const CreateForm = ({
   });
 
   const form = useForm({
-    defaultValues: { key: "", value: "" },
+    defaultValues: { key: "", value: "", label: "", description: "" },
     onSubmit: async ({ value }) => {
-      await safeSubmit(createMutation.mutateAsync({ key: value.key, value: value.value }));
+      await safeSubmit(
+        createMutation.mutateAsync({
+          key: value.key,
+          value: value.value,
+          label: value.label,
+          description: value.description,
+        }),
+      );
     },
   });
 
@@ -232,6 +255,43 @@ const CreateForm = ({
             setVisibility(next === "plaintext" ? "plaintext" : "sensitive");
           }}
         />
+        <form.Field name="label">
+          {(field) => (
+            <Field>
+              <FieldLabel htmlFor="env-var-create-label">Label (optional)</FieldLabel>
+              <Input
+                id="env-var-create-label"
+                autoComplete="off"
+                maxLength={120}
+                placeholder="Payment API base URL"
+                value={field.state.value}
+                onChange={(event) => {
+                  field.handleChange(event.target.value);
+                }}
+                onBlur={field.handleBlur}
+              />
+            </Field>
+          )}
+        </form.Field>
+        <form.Field name="description">
+          {(field) => (
+            <Field>
+              <FieldLabel htmlFor="env-var-create-description">Description (optional)</FieldLabel>
+              <Textarea
+                id="env-var-create-description"
+                rows={2}
+                autoComplete="off"
+                maxLength={500}
+                placeholder="What this value is for, so anyone can update it confidently."
+                value={field.state.value}
+                onChange={(event) => {
+                  field.handleChange(event.target.value);
+                }}
+                onBlur={field.handleBlur}
+              />
+            </Field>
+          )}
+        </form.Field>
       </DialogPanel>
       <DialogFooter>
         <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
