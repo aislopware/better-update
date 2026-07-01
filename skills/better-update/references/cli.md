@@ -517,6 +517,15 @@ undocumented minimum length (rejecting terse text like `Fix` as "too short") wit
 pre-check; if it trips post-upload, the error is surfaced clearly and you can fix it without re-uploading via
 `testflight build whats-new --latest`.
 
+**Idempotent upload + metadata status.** `submit` reads the `.ipa`'s `CFBundleVersion` and, before uploading,
+checks App Store Connect for a build with that number. If it's already there (a prior run uploaded it), `submit`
+**skips `altool` and goes straight to TestFlight config** — so re-running after a metadata failure just re-applies
+the config instead of dead-ending on the "already been used" duplicate-build error (which is itself now treated as
+"already uploaded, continue"). Because the binary and its TestFlight config are independent steps, `submit` records
+the server submission even when config fails, marking it **metadata-incomplete** and then surfacing the error; the
+dashboard shows the uploaded-but-pending build (green "Complete" vs amber "Metadata pending"). The record is keyed
+on the build number, so the re-run that completes config **updates the same row** rather than adding a duplicate.
+
 **TestFlight config + app auto-create.** When `--what-to-test` or submit-profile `groups` are set,
 `submit` configures the build on TestFlight after upload (sets "What to Test", assigns beta groups).
 This needs the App Store Connect app to exist: `submit` resolves it by the profile's `ascAppId`, else

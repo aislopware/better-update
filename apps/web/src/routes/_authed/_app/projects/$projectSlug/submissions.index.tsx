@@ -26,7 +26,7 @@ import { z } from "zod";
 import type { SubmissionItem } from "@better-update/api-client/react";
 import type { ColumnDef } from "@tanstack/react-table";
 
-import { PlatformBadge } from "../../../../../components/attribute-badges";
+import { PlatformBadge, SubmissionMetadataBadge } from "../../../../../components/attribute-badges";
 import { QueryErrorState } from "../../../../../components/query-error-state";
 import { TableSkeleton } from "../../../../../components/skeletons";
 import { CopyableId } from "../../../../../lib/copy-button";
@@ -84,6 +84,12 @@ const columns: readonly ColumnDef<SubmissionItem>[] = [
       ) : (
         <span className="text-muted-foreground">—</span>
       ),
+    enableSorting: false,
+  },
+  {
+    id: "metadata",
+    header: "Metadata",
+    cell: ({ row }) => <SubmissionMetadataBadge complete={row.original.metadataComplete} />,
     enableSorting: false,
   },
   {
@@ -201,7 +207,7 @@ const SubmissionsPage = () => {
         {error ? (
           <QueryErrorState error={error} onRetry={refetch} />
         ) : (
-          <TableSkeleton columns={5} rows={4} />
+          <TableSkeleton columns={6} rows={4} />
         )}
       </div>
     );

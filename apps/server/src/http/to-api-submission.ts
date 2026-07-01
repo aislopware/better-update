@@ -76,6 +76,8 @@ export const toApiSubmission = (model: SubmissionModel): Submission => {
     archiveUrl: model.archiveUrl,
     iosConfig,
     androidConfig,
+    metadataComplete: model.metadataComplete,
+    buildVersion: model.buildVersion,
     initiatingUserId: model.initiatingUserId,
     createdAt: model.createdAt,
   });

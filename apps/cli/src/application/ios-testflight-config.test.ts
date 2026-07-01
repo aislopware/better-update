@@ -4,14 +4,15 @@ import { Effect } from "effect";
 // eslint-disable-next-line import-plugin/no-namespace -- vi.mock factory return must satisfy the full module namespace type
 import type * as AppleUtilsModule from "@expo/apple-utils";
 
+import { buildTokenRequestContext } from "../lib/apple-asc-connect";
 import { makeOutputModeLayer } from "../lib/output-mode";
 import {
   applyTestFlightConfig,
-  captureTestFlightContext,
   classifyProcessingState,
+  findBuildByVersion,
   matchBetaGroupsByName,
   needsTestFlightConfig,
-  pickNewBuild,
+  resolveTestFlightAppId,
 } from "./ios-testflight-config";
 
 import type { AscCredentials } from "../lib/asc-credentials";
@@ -87,20 +88,23 @@ describe(classifyProcessingState, () => {
   });
 });
 
-describe(pickNewBuild, () => {
-  it("returns null when there are no builds", () => {
-    expect(pickNewBuild([], null)).toBeNull();
-    expect(pickNewBuild([], "b1")).toBeNull();
-  });
-  it("returns null when the newest build is the pre-upload baseline", () => {
-    expect(pickNewBuild([{ id: "b1" }], "b1")).toBeNull();
-  });
-  it("returns the newest build when it differs from the baseline", () => {
-    expect(pickNewBuild([{ id: "b2" }, { id: "b1" }], "b1")?.id).toBe("b2");
-  });
-  it("returns the newest build when there was no baseline", () => {
-    expect(pickNewBuild([{ id: "b1" }], null)?.id).toBe("b1");
-  });
+describe(findBuildByVersion, () => {
+  it.effect("returns the newest build ASC lists for the version", () =>
+    Effect.gen(function* () {
+      const ctx = buildTokenRequestContext(CREDS);
+      mocks.buildGetAsync.mockResolvedValue([makeBuild("b2", "VALID"), makeBuild("b1", "VALID")]);
+      const build = yield* findBuildByVersion(ctx, "app-1", "42");
+      expect(build?.id).toBe("b2");
+    }),
+  );
+  it.effect("returns null when no build matches the version", () =>
+    Effect.gen(function* () {
+      const ctx = buildTokenRequestContext(CREDS);
+      mocks.buildGetAsync.mockResolvedValue([]);
+      const build = yield* findBuildByVersion(ctx, "app-1", "99");
+      expect(build).toBeNull();
+    }),
+  );
 });
 
 describe(matchBetaGroupsByName, () => {
@@ -129,20 +133,30 @@ describe(needsTestFlightConfig, () => {
   });
 });
 
-// ── captureTestFlightContext ────────────────────────────────────
+// ── resolveTestFlightAppId ──────────────────────────────────────
 
-describe(captureTestFlightContext, () => {
+describe(resolveTestFlightAppId, () => {
   it.effect("uses an explicit ascAppId without looking the app up", () =>
     Effect.gen(function* () {
-      mocks.buildGetAsync.mockResolvedValue([]);
-      const ctx = yield* captureTestFlightContext({
+      const appId = yield* resolveTestFlightAppId({
         credentials: CREDS,
         ascAppId: "6700000001",
         bundleIdentifier: "com.acme.app",
       });
-      expect(ctx).toStrictEqual({ appId: "6700000001", baselineLatestBuildId: null });
+      expect(appId).toBe("6700000001");
       expect(mocks.appFindAsync).not.toHaveBeenCalled();
-      // the JWT Token is built from the decrypted .p8
+    }),
+  );
+
+  it.effect("resolves the app by bundle id via a JWT built from the decrypted .p8", () =>
+    Effect.gen(function* () {
+      mocks.appFindAsync.mockResolvedValue({ id: "app-1" });
+      const appId = yield* resolveTestFlightAppId({
+        credentials: CREDS,
+        ascAppId: undefined,
+        bundleIdentifier: "com.acme.app",
+      });
+      expect(appId).toBe("app-1");
       expect(mocks.tokenCtor).toHaveBeenCalledWith({
         key: "PEM",
         keyId: "K1",
@@ -151,24 +165,11 @@ describe(captureTestFlightContext, () => {
     }),
   );
 
-  it.effect("resolves the app by bundle id and snapshots the latest build", () =>
-    Effect.gen(function* () {
-      mocks.appFindAsync.mockResolvedValue({ id: "app-1" });
-      mocks.buildGetAsync.mockResolvedValue([makeBuild("b9", "VALID")]);
-      const ctx = yield* captureTestFlightContext({
-        credentials: CREDS,
-        ascAppId: undefined,
-        bundleIdentifier: "com.acme.app",
-      });
-      expect(ctx).toStrictEqual({ appId: "app-1", baselineLatestBuildId: "b9" });
-    }),
-  );
-
   it.effect("fails TESTFLIGHT_APP_NOT_FOUND when no app exists for the bundle id", () =>
     Effect.gen(function* () {
       mocks.appFindAsync.mockResolvedValue(null);
       const error = yield* Effect.flip(
-        captureTestFlightContext({
+        resolveTestFlightAppId({
           credentials: CREDS,
           ascAppId: undefined,
           bundleIdentifier: "com.acme.ghost",
@@ -180,8 +181,6 @@ describe(captureTestFlightContext, () => {
 });
 
 // ── applyTestFlightConfig ───────────────────────────────────────
-
-const CONTEXT = { appId: "app-1", baselineLatestBuildId: "b0" } as const;
 
 describe(applyTestFlightConfig, () => {
   it.effect("sets what-to-test and assigns matched beta groups on the valid build", () =>
@@ -195,7 +194,8 @@ describe(applyTestFlightConfig, () => {
 
       const result = yield* applyTestFlightConfig({
         credentials: CREDS,
-        context: CONTEXT,
+        appId: "app-1",
+        buildVersion: "42",
         language: "en-US",
         whatToTest: "Rockxy first build",
         groups: ["Internal"],
@@ -219,7 +219,8 @@ describe(applyTestFlightConfig, () => {
       const error = yield* Effect.flip(
         applyTestFlightConfig({
           credentials: CREDS,
-          context: CONTEXT,
+          appId: "app-1",
+          buildVersion: "42",
           language: undefined,
           whatToTest: undefined,
           groups: ["Ghost"],
@@ -237,7 +238,8 @@ describe(applyTestFlightConfig, () => {
       const error = yield* Effect.flip(
         applyTestFlightConfig({
           credentials: CREDS,
-          context: CONTEXT,
+          appId: "app-1",
+          buildVersion: "42",
           language: undefined,
           whatToTest: "x",
           groups: [],

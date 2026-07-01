@@ -1,4 +1,4 @@
-import { compact } from "@better-update/type-guards";
+import { compact, toOptional } from "@better-update/type-guards";
 import { Effect } from "effect";
 
 import { readSubmitProfile } from "../lib/eas-json";
@@ -17,6 +17,7 @@ import {
 import type { Platform } from "../lib/build-profile";
 import type { EasAndroidSubmitProfile, EasIosSubmitProfile } from "../lib/eas-config";
 import type { ApiClient } from "../services/api-client";
+import type { IosSubmitOutcome } from "./submit-flow";
 
 export interface AutoSubmitInput {
   readonly api: ApiClient;
@@ -63,8 +64,8 @@ const buildAutoSubmitAndroidConfig = (androidProfile: EasAndroidSubmitProfile | 
 
 /**
  * Run the iOS altool upload for an auto-submit (non-interactive: never creates an
- * ASC key). Returns true when the `.ipa` was uploaded, false when skipped because
- * no upload auth / ASC key is available.
+ * ASC key). Returns the submit outcome when the `.ipa` was uploaded (or already
+ * on ASC), or null when skipped because no upload auth / ASC key is available.
  */
 const autoSubmitIosUpload = (params: {
   readonly api: ApiClient;
@@ -84,7 +85,7 @@ const autoSubmitIosUpload = (params: {
       yield* printHuman(
         "Skipping iOS upload: configure ascApiKeyId or set EXPO_APPLE_APP_SPECIFIC_PASSWORD (+ appleId).",
       );
-      return false;
+      return null;
     }
     const groups = iosProfile?.groups ?? [];
     const wantsConfig = needsTestFlightConfig({ whatToTest: params.whatToTest, groups });
@@ -96,14 +97,14 @@ const autoSubmitIosUpload = (params: {
     });
     if (auth.kind === "asc-api-key" && ascCredentials === null) {
       yield* printHuman("Skipping iOS upload: the ASC API key could not be prepared for upload.");
-      return false;
+      return null;
     }
     yield* printHuman(
       auth.kind === "app-specific-password"
         ? "Running xcrun altool upload (Apple ID app-specific password)..."
         : "Running xcrun altool upload (ASC API key)...",
     );
-    yield* runIosSubmit({
+    return yield* runIosSubmit({
       archive: { source: "build", value: params.archiveUrl },
       auth,
       ascCredentials,
@@ -115,7 +116,6 @@ const autoSubmitIosUpload = (params: {
         groups,
       },
     });
-    return true;
   });
 
 /**
@@ -138,6 +138,7 @@ export const runAutoSubmit = (input: AutoSubmitInput) =>
     const androidConfig =
       input.platform === "android" ? buildAutoSubmitAndroidConfig(easProfile.android) : undefined;
 
+    let iosOutcome: IosSubmitOutcome | null = null;
     if (input.platform === "ios") {
       if (iosConfig === undefined) {
         yield* printHuman(
@@ -145,14 +146,14 @@ export const runAutoSubmit = (input: AutoSubmitInput) =>
         );
         return;
       }
-      const uploaded = yield* autoSubmitIosUpload({
+      iosOutcome = yield* autoSubmitIosUpload({
         api: input.api,
         iosProfile: easProfile.ios,
         iosConfig,
         archiveUrl,
         whatToTest: input.whatToTest,
       });
-      if (!uploaded) {
+      if (iosOutcome === null) {
         return;
       }
     }
@@ -181,6 +182,13 @@ export const runAutoSubmit = (input: AutoSubmitInput) =>
       buildId: input.buildId,
       archiveUrl,
       ...compact({ iosConfig, androidConfig }),
+      metadataComplete: iosOutcome === null ? true : iosOutcome.metadataApplied,
+      ...compact({ buildVersion: toOptional(iosOutcome?.buildVersion) }),
     });
     yield* printHuman(`Submission recorded: ${submission.id}`);
+    // Surface a TestFlight-config failure AFTER the record exists, so the dashboard
+    // shows the metadata-incomplete build rather than nothing.
+    if (iosOutcome?.metadataError) {
+      return yield* iosOutcome.metadataError;
+    }
   });

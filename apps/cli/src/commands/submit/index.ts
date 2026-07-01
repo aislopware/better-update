@@ -20,6 +20,7 @@ import { readProjectId } from "../../lib/project-link";
 import { apiClient } from "../../services/api-client";
 import { CliRuntime } from "../../services/cli-runtime";
 
+import type { IosSubmitOutcome } from "../../application/submit-flow";
 import type {
   EasAndroidSubmitProfile,
   EasIosSubmitProfile,
@@ -127,7 +128,8 @@ interface RunArgs {
  * Run the iOS upload branch: resolve upload auth (stored key, app-specific
  * password, or an interactively-created ASC key), decrypt the `.p8` once, resolve
  * (or create) the ASC app for TestFlight config, then upload via `altool`.
- * Returns `false` when the submission was only queued (no client upload ran).
+ * Returns `null` when the submission was only queued (no client upload ran),
+ * otherwise the submit outcome (build version + whether metadata was applied).
  */
 const submitIosBranch = (params: {
   readonly api: ApiClient;
@@ -163,7 +165,7 @@ const submitIosBranch = (params: {
       yield* printHuman(
         "iOS submission queued. Add ascApiKeyId to the eas.json submit profile, or set appleId + the EXPO_APPLE_APP_SPECIFIC_PASSWORD env var, to enable client-side altool upload.",
       );
-      return false;
+      return null;
     }
 
     // Decrypt the ASC `.p8` once so the vault is unlocked a single time and the
@@ -181,7 +183,7 @@ const submitIosBranch = (params: {
       yield* printHuman(
         "iOS submission queued — the ASC API key could not be prepared for upload.",
       );
-      return false;
+      return null;
     }
 
     // Resolve (and, with consent, create) the ASC app so TestFlight config has a
@@ -214,7 +216,7 @@ const submitIosBranch = (params: {
         ? "Running xcrun altool upload (Apple ID app-specific password)..."
         : "Running xcrun altool upload (ASC API key)...",
     );
-    yield* runIosSubmit({
+    return yield* runIosSubmit({
       archive: { source: params.archive.archiveSource, value: params.archive.archiveUrl },
       auth,
       ascCredentials,
@@ -226,16 +228,19 @@ const submitIosBranch = (params: {
         groups,
       },
     });
-    return true;
   });
 
 // Submission runs entirely client-side, so a server record is written only AFTER
-// a local upload succeeds — the store is the source of truth, the record is history.
+// a local upload succeeds — the store is the source of truth, the record is
+// history. iOS records even when TestFlight config failed (metadataComplete=false)
+// so the dashboard shows the uploaded-but-incomplete build, then re-raises the
+// config error; the record is keyed on buildVersion so a re-run updates it.
 const runFlow = (api: ApiClient, projectId: string, args: RunArgs) =>
   Effect.gen(function* () {
     const iosConfig = buildIosCreatePayload(args.easProfile.ios, args.whatToTest);
     const androidConfig = buildAndroidCreatePayload(args.easProfile.android);
 
+    let iosOutcome: IosSubmitOutcome | null = null;
     if (args.platform === "ios") {
       if (iosConfig === undefined) {
         yield* printHuman(
@@ -243,7 +248,7 @@ const runFlow = (api: ApiClient, projectId: string, args: RunArgs) =>
         );
         return;
       }
-      const uploaded = yield* submitIosBranch({
+      iosOutcome = yield* submitIosBranch({
         api,
         projectId,
         projectRoot: args.projectRoot,
@@ -254,7 +259,7 @@ const runFlow = (api: ApiClient, projectId: string, args: RunArgs) =>
         iosConfig,
       });
       // Queued / skipped (no auth configured) — nothing was uploaded, so record nothing.
-      if (!uploaded) {
+      if (iosOutcome === null) {
         return;
       }
     }
@@ -283,8 +288,13 @@ const runFlow = (api: ApiClient, projectId: string, args: RunArgs) =>
       buildId: args.archive.buildId,
       archiveUrl: args.archive.archiveUrl,
       ...compact({ iosConfig, androidConfig }),
+      metadataComplete: iosOutcome === null ? true : iosOutcome.metadataApplied,
+      ...compact({ buildVersion: toOptional(iosOutcome?.buildVersion) }),
     });
     yield* printHuman(`Submission recorded: ${submission.id}`);
+    if (iosOutcome?.metadataError) {
+      return yield* iosOutcome.metadataError;
+    }
     return submission;
   });
 

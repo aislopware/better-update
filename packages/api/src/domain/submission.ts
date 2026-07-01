@@ -36,8 +36,10 @@ export class AndroidSubmissionConfig extends Schema.Class<AndroidSubmissionConfi
   googleServiceAccountKeyId: Schema.NullOr(Id),
 }) {}
 
-// A submission row exists iff a client-side upload succeeded — it is an
-// immutable success record, not a lifecycle. No status / error / progress fields.
+// A submission row exists iff a client-side binary upload succeeded.
+// `metadataComplete` is false when the upload landed but its post-upload store
+// metadata step (iOS TestFlight config) did not; `buildVersion` (CFBundleVersion)
+// keys the idempotent re-run that later completes it.
 export class Submission extends Schema.Class<Submission>("Submission")({
   id: Id,
   organizationId: Id,
@@ -49,6 +51,8 @@ export class Submission extends Schema.Class<Submission>("Submission")({
   archiveUrl: Schema.NullOr(Schema.String),
   iosConfig: Schema.NullOr(IosSubmissionConfig),
   androidConfig: Schema.NullOr(AndroidSubmissionConfig),
+  metadataComplete: Schema.Boolean,
+  buildVersion: Schema.NullOr(Schema.String),
   initiatingUserId: Schema.NullOr(Schema.String),
   createdAt: DateTimeString,
 }) {}
@@ -84,6 +88,11 @@ export const CreateSubmissionBody = Schema.Struct({
   archiveUrl: Schema.optional(Schema.String),
   iosConfig: Schema.optional(CreateIosSubmissionBody),
   androidConfig: Schema.optional(CreateAndroidSubmissionBody),
+  // Defaults to true (a plain success). The iOS CLI sends false when the binary
+  // uploaded but TestFlight config did not, and buildVersion (CFBundleVersion) to
+  // key the idempotent re-run that later completes the same row.
+  metadataComplete: Schema.optional(Schema.Boolean),
+  buildVersion: Schema.optional(Schema.String),
 });
 
 export const DeleteSubmissionResult = DeletedResult;

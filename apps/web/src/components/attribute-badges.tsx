@@ -1,6 +1,7 @@
 import { Badge } from "@better-update/ui/components/ui/badge";
 import {
   BuildingIcon,
+  CheckCircle2Icon,
   CodeIcon,
   DownloadIcon,
   FlaskConicalIcon,
@@ -11,6 +12,7 @@ import {
   SendIcon,
   StoreIcon,
   TagIcon,
+  TriangleAlertIcon,
   WrenchIcon,
 } from "lucide-react";
 
@@ -95,6 +97,19 @@ export const ChannelBadge = ({
     {name}
   </Badge>
 );
+
+export const SubmissionMetadataBadge = ({
+  complete,
+  size,
+  className,
+}: AttributeBadgeProps & { complete: boolean }): ReactElement =>
+  renderBadge(
+    complete
+      ? { label: "Complete", icon: CheckCircle2Icon, variant: "success" }
+      : { label: "Metadata pending", icon: TriangleAlertIcon, variant: "warning" },
+    size,
+    className,
+  );
 
 export const EnvironmentBadge = ({
   environment,

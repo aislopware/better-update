@@ -1,4 +1,4 @@
-import { extractAltoolErrors } from "./altool";
+import { extractAltoolErrors, isDuplicateBuildUpload } from "./altool";
 
 describe(extractAltoolErrors, () => {
   it("pulls product-error messages from an altool xml plist, unescaping entities", () => {
@@ -19,5 +19,25 @@ describe(extractAltoolErrors, () => {
 
   it("returns no messages when the output has no product-errors", () => {
     expect(extractAltoolErrors("UPLOAD FAILED with 1 error\nExitFailure (31)")).toStrictEqual([]);
+  });
+});
+
+describe(isDuplicateBuildUpload, () => {
+  it("recognizes the generic 'already been used' 409", () => {
+    expect(
+      isDuplicateBuildUpload(
+        "The provided entity includes an attribute with a value that has already been used",
+      ),
+    ).toBe(true);
+  });
+
+  it("recognizes the 'Redundant Binary Upload' delivery banner", () => {
+    expect(
+      isDuplicateBuildUpload("ERROR ITMS-90189: Redundant Binary Upload. There already exists..."),
+    ).toBe(true);
+  });
+
+  it("does not match unrelated upload failures", () => {
+    expect(isDuplicateBuildUpload("Asset validation failed: missing icon")).toBe(false);
   });
 });

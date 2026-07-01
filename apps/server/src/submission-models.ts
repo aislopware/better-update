@@ -41,7 +41,10 @@ export interface AndroidSubmissionConfigModel {
   readonly googleServiceAccountKeyId: string | null;
 }
 
-// Immutable success record — a row exists iff a client-side upload succeeded.
+// Success record — a row exists iff a client-side binary upload succeeded.
+// `metadataComplete` is false when the upload landed but its post-upload store
+// metadata step (iOS TestFlight config) did not; a re-run keyed on `buildVersion`
+// updates the same row.
 export interface SubmissionModel {
   readonly id: string;
   readonly organizationId: string;
@@ -52,6 +55,8 @@ export interface SubmissionModel {
   readonly buildId: string | null;
   readonly archiveUrl: string | null;
   readonly submissionConfigJson: string;
+  readonly metadataComplete: boolean;
+  readonly buildVersion: string | null;
   readonly initiatingUserId: string | null;
   readonly createdAt: string;
 }

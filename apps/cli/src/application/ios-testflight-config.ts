@@ -5,10 +5,16 @@
  * finish, then sets the build's "What to Test" text and assigns it to internal
  * TestFlight groups — the same follow-up `eas submit` performs server-side.
  *
+ * The build is resolved by its **CFBundleVersion** (the build number in the IPA),
+ * not by diffing against a pre-upload snapshot. That makes configuration
+ * idempotent: a re-run after a metadata failure finds the *same* already-uploaded
+ * build and re-applies the config, instead of dead-ending because the binary
+ * cannot be uploaded twice.
+ *
  * Auth reuses the ASC **API key** already decrypted for the upload via a headless
  * `@expo/apple-utils` JWT context (no second credential prompt, no cookie login).
- * Failures surface as {@link TestFlightConfigError} so the caller can mark the
- * submission ERRORED with a precise reason.
+ * Failures surface as {@link TestFlightConfigError} so the caller can record the
+ * submission as metadata-incomplete with a precise reason.
  */
 import { toDbNull } from "@better-update/type-guards";
 import AppleUtils from "@expo/apple-utils";
@@ -50,23 +56,6 @@ export const classifyProcessingState = (state: string | null): AscBuildProcessin
   return "processing";
 };
 
-/**
- * Identify the build produced by *our* upload. `Build.getAsync` (sorted newest
- * first) returns builds newest-first; the freshly-uploaded build is the newest
- * one whose id differs from the baseline captured before upload. Comparing ids
- * (not timestamps) avoids both clock-skew misses and matching a pre-existing build.
- */
-export const pickNewBuild = <T extends { readonly id: string }>(
-  builds: readonly T[],
-  baselineLatestBuildId: string | null,
-): T | null => {
-  const [newest] = builds;
-  if (newest === undefined || newest.id === baselineLatestBuildId) {
-    return null;
-  }
-  return newest;
-};
-
 export const matchBetaGroupsByName = <T extends { readonly name: string }>(
   groups: readonly T[],
   names: readonly string[],
@@ -85,49 +74,57 @@ export const matchBetaGroupsByName = <T extends { readonly name: string }>(
   return { matched, missing };
 };
 
-export interface TestFlightAppContext {
-  readonly appId: string;
-  /** Newest build id before upload, so the new build can be told apart. */
-  readonly baselineLatestBuildId: string | null;
-}
-
 /**
- * Resolve the ASC app id (preferring the explicit `ascAppId`) and snapshot the
- * latest existing build. Run this *before* `altool` so the freshly-uploaded
- * build can be distinguished from prior ones.
+ * Resolve the ASC app id, preferring the explicit `ascAppId` and otherwise
+ * looking the app up by its bundle identifier. Needed to scope build/group
+ * queries and to run the pre-upload "is this build already there?" check.
  */
-export const captureTestFlightContext = (params: {
+export const resolveTestFlightAppId = (params: {
   readonly credentials: AscCredentials;
   readonly ascAppId: string | undefined;
   readonly bundleIdentifier: string;
-}): Effect.Effect<TestFlightAppContext, TestFlightConfigError> =>
+}): Effect.Effect<string, TestFlightConfigError> =>
   Effect.gen(function* () {
+    if (params.ascAppId !== undefined) {
+      return params.ascAppId;
+    }
     const ctx = buildTokenRequestContext(params.credentials);
-    const appId =
-      params.ascAppId ??
-      (yield* Effect.gen(function* () {
-        const app = yield* call("TESTFLIGHT_APP_LOOKUP_FAILED", "apple-find-app", async () =>
-          AppleUtils.App.findAsync(ctx, { bundleId: params.bundleIdentifier }),
-        );
-        if (app === null) {
-          return yield* new TestFlightConfigError({
-            code: "TESTFLIGHT_APP_NOT_FOUND",
-            message: `No App Store Connect app found for bundle id ${params.bundleIdentifier}. Set ascAppId in the eas.json submit profile.`,
-          });
-        }
-        return app.id;
-      }));
-    const existing = yield* call("TESTFLIGHT_LIST_BUILDS_FAILED", "apple-list-builds", async () =>
+    const app = yield* call("TESTFLIGHT_APP_LOOKUP_FAILED", "apple-find-app", async () =>
+      AppleUtils.App.findAsync(ctx, { bundleId: params.bundleIdentifier }),
+    );
+    if (app === null) {
+      return yield* new TestFlightConfigError({
+        code: "TESTFLIGHT_APP_NOT_FOUND",
+        message: `No App Store Connect app found for bundle id ${params.bundleIdentifier}. Set ascAppId in the eas.json submit profile.`,
+      });
+    }
+    return app.id;
+  });
+
+/**
+ * Find the uploaded build for a CFBundleVersion (the ASC `Build.version`),
+ * returning `null` when none exists yet, else the newest match. ASC dedupes
+ * uploads on the build number, so this identifies our exact build for both the
+ * pre-upload "already there?" check and post-upload configuration.
+ */
+export const findBuildByVersion = (
+  ctx: AppleUtils.RequestContext,
+  appId: string,
+  buildVersion: string,
+): Effect.Effect<AppleUtils.Build | null, TestFlightConfigError> =>
+  Effect.gen(function* () {
+    const builds = yield* call("TESTFLIGHT_LIST_BUILDS_FAILED", "apple-list-builds", async () =>
       AppleUtils.Build.getAsync(ctx, {
-        query: { filter: { app: appId }, sort: "-uploadedDate", limit: 1 },
+        query: { filter: { app: appId, version: buildVersion }, sort: "-uploadedDate", limit: 10 },
       }),
     );
-    return { appId, baselineLatestBuildId: toDbNull(existing[0]?.id) };
+    return toDbNull(builds[0]);
   });
 
 const pollForProcessedBuild = (params: {
   readonly ctx: AppleUtils.RequestContext;
-  readonly context: TestFlightAppContext;
+  readonly appId: string;
+  readonly buildVersion: string;
   readonly pollTimeoutMs: number;
   readonly pollIntervalMs: number;
 }) =>
@@ -142,19 +139,11 @@ const pollForProcessedBuild = (params: {
             if (state.attempt > 0) {
               yield* Effect.sleep(Duration.millis(params.pollIntervalMs));
             }
-            const builds = yield* call(
-              "TESTFLIGHT_LIST_BUILDS_FAILED",
-              "apple-list-builds",
-              async () =>
-                AppleUtils.Build.getAsync(params.ctx, {
-                  query: {
-                    filter: { app: params.context.appId },
-                    sort: "-uploadedDate",
-                    limit: 20,
-                  },
-                }),
+            const candidate = yield* findBuildByVersion(
+              params.ctx,
+              params.appId,
+              params.buildVersion,
             );
-            const candidate = pickNewBuild(builds, params.context.baselineLatestBuildId);
             if (candidate !== null) {
               const processing = classifyProcessingState(candidate.attributes.processingState);
               if (processing === "failed") {
@@ -170,7 +159,7 @@ const pollForProcessedBuild = (params: {
             if (Date.now() > deadline) {
               return yield* new TestFlightConfigError({
                 code: "TESTFLIGHT_BUILD_PROCESSING_TIMEOUT",
-                message: `Timed out after ${String(Math.round(params.pollTimeoutMs / 60_000))} min waiting for the uploaded build to finish processing on App Store Connect. The binary uploaded successfully — re-run the TestFlight configuration later.`,
+                message: `Timed out after ${String(Math.round(params.pollTimeoutMs / 60_000))} min waiting for the uploaded build to finish processing on App Store Connect. The binary uploaded successfully — re-run submit (it will skip the upload and just configure TestFlight).`,
               });
             }
             yield* printHuman(
@@ -251,7 +240,9 @@ const applyGroups = (params: {
 
 export interface ApplyTestFlightConfigInputs {
   readonly credentials: AscCredentials;
-  readonly context: TestFlightAppContext;
+  readonly appId: string;
+  /** CFBundleVersion of the uploaded build to configure. */
+  readonly buildVersion: string;
   readonly language: string | undefined;
   readonly whatToTest: string | undefined;
   readonly groups: readonly string[];
@@ -271,7 +262,8 @@ export const applyTestFlightConfig = (inputs: ApplyTestFlightConfigInputs) =>
     yield* printHuman("Configuring TestFlight (waiting for build processing)...");
     const build = yield* pollForProcessedBuild({
       ctx,
-      context: inputs.context,
+      appId: inputs.appId,
+      buildVersion: inputs.buildVersion,
       pollTimeoutMs: inputs.pollTimeoutMs ?? DEFAULT_POLL_TIMEOUT_MS,
       pollIntervalMs: inputs.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS,
     });
@@ -289,7 +281,7 @@ export const applyTestFlightConfig = (inputs: ApplyTestFlightConfigInputs) =>
     if (inputs.groups.length > 0) {
       yield* applyGroups({
         ctx,
-        appId: inputs.context.appId,
+        appId: inputs.appId,
         build,
         groups: inputs.groups,
       });

@@ -13,7 +13,7 @@ import { Suspense } from "react";
 
 import type { SubmissionItem } from "@better-update/api-client/react";
 
-import { PlatformBadge } from "../../../../../components/attribute-badges";
+import { PlatformBadge, SubmissionMetadataBadge } from "../../../../../components/attribute-badges";
 import { DetailCardSkeleton } from "../../../../../components/skeletons";
 import { CopyButton, CopyableId } from "../../../../../lib/copy-button";
 import { formatDateTime } from "../../../../../lib/format-date";
@@ -51,6 +51,7 @@ const SubmissionDetail = ({ submission }: { submission: SubmissionItem }) => (
       <CardFrameHeader className="py-5">
         <CardFrameTitle className="flex items-center gap-2.5 text-base">
           <PlatformBadge platform={submission.platform} />
+          <SubmissionMetadataBadge complete={submission.metadataComplete} />
         </CardFrameTitle>
         <CardFrameDescription>
           Profile <span className="font-mono">{submission.profileName}</span> · created{" "}
@@ -60,6 +61,7 @@ const SubmissionDetail = ({ submission }: { submission: SubmissionItem }) => (
       <Card>
         <CardPanel className="flex flex-col gap-1.5">
           <DetailRow label="Archive source" value={submission.archiveSource} />
+          <DetailRow label="Build number" value={submission.buildVersion} />
           <DetailRow label="Build ID" value={submission.buildId} copyLabel="Build ID" />
           <DetailRow label="Archive URL" value={submission.archiveUrl} copyLabel="Archive URL" />
           {submission.iosConfig ? (

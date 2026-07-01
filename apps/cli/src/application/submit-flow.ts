@@ -3,23 +3,26 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { compact } from "@better-update/type-guards";
+import { compact, toDbNull } from "@better-update/type-guards";
 import { Effect, Schema } from "effect";
 
 import type { CreateSubmissionBody, Submission } from "@better-update/api";
 
-import { altoolFailureDetail, runAltool } from "../lib/altool";
-import { messageOf } from "../lib/apple-asc-connect";
+import { altoolFailureDetail, isDuplicateBuildUpload, runAltool } from "../lib/altool";
+import { buildTokenRequestContext, messageOf } from "../lib/apple-asc-connect";
 import { fetchAscCredentials } from "../lib/asc-credentials";
+import { readIpaVersionInfo } from "../lib/ipa-info";
 import { printHuman } from "../lib/output";
 import { validateWhatsNew } from "../lib/whats-new";
 import {
   applyTestFlightConfig,
-  captureTestFlightContext,
+  findBuildByVersion,
   needsTestFlightConfig,
+  resolveTestFlightAppId,
 } from "./ios-testflight-config";
 
 import type { AscCredentials } from "../lib/asc-credentials";
+import type { IpaVersionInfo } from "../lib/ipa-info";
 import type { ApiClient } from "../services/api-client";
 
 type SubmissionItem = Submission;
@@ -40,6 +43,10 @@ interface ResolvedSubmissionInput {
   readonly archiveUrl: string | undefined;
   readonly iosConfig?: CreatePayload["iosConfig"];
   readonly androidConfig?: CreatePayload["androidConfig"];
+  /** False when the iOS binary uploaded but TestFlight config did not complete. */
+  readonly metadataComplete?: boolean | undefined;
+  /** CFBundleVersion of the uploaded build — the iOS idempotency key server-side. */
+  readonly buildVersion?: string | undefined;
 }
 
 export const createSubmissionViaApi = (
@@ -58,6 +65,8 @@ export const createSubmissionViaApi = (
           archiveUrl: resolved.archiveUrl,
           iosConfig: resolved.iosConfig,
           androidConfig: resolved.androidConfig,
+          metadataComplete: resolved.metadataComplete,
+          buildVersion: resolved.buildVersion,
         }),
       },
     })
@@ -300,6 +309,116 @@ const buildAltoolArgs = (params: {
     ];
   });
 
+/**
+ * Run `altool` to upload the `.ipa`. For an ASC API key, altool finds the `.p8` by
+ * name via `$API_PRIVATE_KEYS_DIR`; stage it in a temp dir scoped to the upload and
+ * remove it after. A duplicate-build rejection is benign (already there) — return.
+ */
+const uploadIpaViaAltool = (params: {
+  readonly auth: IosUploadAuth;
+  readonly ascCredentials: AscCredentials | null;
+  readonly ipaPath: string;
+}) =>
+  Effect.gen(function* () {
+    const altoolArgs = yield* buildAltoolArgs(params);
+    const result =
+      params.auth.kind === "asc-api-key" && params.ascCredentials !== null
+        ? yield* Effect.acquireUseRelease(
+            writeP8KeyDir(params.ascCredentials),
+            (keyDir) => runAltool(altoolArgs, { API_PRIVATE_KEYS_DIR: keyDir }),
+            (keyDir) => removeKeyDir(keyDir),
+          )
+        : yield* runAltool(altoolArgs);
+    if (result.exitCode === 0) {
+      yield* printHuman("altool upload complete.");
+      return;
+    }
+    const detail = altoolFailureDetail(result);
+    if (isDuplicateBuildUpload(detail)) {
+      yield* printHuman(
+        `Build already on App Store Connect (${detail}) — continuing to TestFlight configuration.`,
+      );
+      return;
+    }
+    return yield* new CliSubmitError({
+      code: "SUBMISSION_SERVICE_IOS_ALTOOL_FAILED",
+      message: `xcrun altool exited ${String(result.exitCode)}: ${detail}`,
+    });
+  });
+
+/**
+ * Resolve the ASC app id and check whether this exact build (by CFBundleVersion)
+ * is already uploaded, so a re-run after a metadata failure configures the
+ * existing build instead of failing to re-upload a binary ASC won't accept twice.
+ */
+const resolveExistingBuild = (params: {
+  readonly ascCredentials: AscCredentials;
+  readonly ipaInfo: IpaVersionInfo;
+  readonly config: IosSubmitInputs["config"];
+}) =>
+  Effect.gen(function* () {
+    const toSubmitError = (error: { readonly code: string; readonly message: string }) =>
+      new CliSubmitError({ code: error.code, message: error.message });
+    const appId = yield* resolveTestFlightAppId({
+      credentials: params.ascCredentials,
+      ascAppId: params.config.ascAppId,
+      bundleIdentifier: params.config.bundleIdentifier,
+    }).pipe(Effect.mapError(toSubmitError));
+    const ctx = buildTokenRequestContext(params.ascCredentials);
+    const existing = yield* findBuildByVersion(ctx, appId, params.ipaInfo.buildVersion).pipe(
+      Effect.mapError(toSubmitError),
+    );
+    return { appId, alreadyUploaded: existing !== null };
+  });
+
+/** What a client-side iOS submit produced, for the caller to record + surface. */
+export interface IosSubmitOutcome {
+  /** CFBundleVersion of the uploaded/located build, when it could be read. */
+  readonly buildVersion: string | null;
+  /** False only when TestFlight config was attempted and failed. */
+  readonly metadataApplied: boolean;
+  /** The config failure to surface AFTER the submission is recorded, if any. */
+  readonly metadataError: CliSubmitError | null;
+}
+
+/**
+ * Configure TestFlight against the uploaded build. A failure here does NOT abort:
+ * the binary is uploaded, so return it as metadata-incomplete for the caller to
+ * record + surface, keeping the flow re-runnable.
+ */
+const configureUploadedBuild = (params: {
+  readonly ascCredentials: AscCredentials;
+  readonly appId: string;
+  readonly ipaInfo: IpaVersionInfo;
+  readonly config: IosSubmitInputs["config"];
+}) =>
+  Effect.gen(function* () {
+    const configResult = yield* Effect.either(
+      applyTestFlightConfig({
+        credentials: params.ascCredentials,
+        appId: params.appId,
+        buildVersion: params.ipaInfo.buildVersion,
+        language: params.config.language,
+        whatToTest: params.config.whatToTest,
+        groups: params.config.groups,
+      }),
+    );
+    if (configResult._tag === "Left") {
+      const configError = configResult.left;
+      yield* printHuman(`TestFlight configuration failed: ${configError.message}`);
+      return {
+        buildVersion: params.ipaInfo.buildVersion,
+        metadataApplied: false,
+        metadataError: new CliSubmitError({ code: configError.code, message: configError.message }),
+      } satisfies IosSubmitOutcome;
+    }
+    return {
+      buildVersion: params.ipaInfo.buildVersion,
+      metadataApplied: true,
+      metadataError: null,
+    } satisfies IosSubmitOutcome;
+  });
+
 export const runIosSubmit = (inputs: IosSubmitInputs) =>
   Effect.gen(function* () {
     const wantsConfig = needsTestFlightConfig({
@@ -318,64 +437,64 @@ export const runIosSubmit = (inputs: IosSubmitInputs) =>
       }
     }
     // ASC credentials power the asc-api-key upload AND the TestFlight config; the
-    // command layer decrypts them once (avoiding a double vault prompt) and passes
-    // them in. Null for an app-specific-password upload with no config wanted.
+    // command layer decrypts them once and passes them in. Null for an
+    // app-specific-password upload with no config wanted.
     const { ascCredentials } = inputs;
+    const wantsConfigWithKey = wantsConfig && ascCredentials !== null;
 
     const ipaPath = yield* resolveLocalArchivePath(inputs.archive, ".ipa");
 
-    // Snapshot existing builds BEFORE upload so the new one can be identified.
-    // Skips (with a note) when config is wanted but no ASC key is available.
-    let tfContext = null;
-    if (wantsConfig && ascCredentials !== null) {
-      tfContext = yield* captureTestFlightContext({
-        credentials: ascCredentials,
-        ascAppId: inputs.config.ascAppId,
-        bundleIdentifier: inputs.config.bundleIdentifier,
-      }).pipe(
-        Effect.mapError(
-          (error) => new CliSubmitError({ code: error.code, message: error.message }),
-        ),
-      );
+    // The CFBundleVersion makes the upload idempotent (skip when the build is
+    // already on ASC) and lets us configure the exact build. Required with config.
+    const ipaInfo = yield* readIpaVersionInfo(ipaPath).pipe(
+      Effect.catchAll((error) =>
+        wantsConfigWithKey
+          ? Effect.fail(
+              new CliSubmitError({ code: "SUBMISSION_IPA_READ_FAILED", message: error.message }),
+            )
+          : printHuman(`Note: ${error.message}`).pipe(Effect.as(null)),
+      ),
+    );
+
+    // Resolve the ASC app and check whether this exact build is already uploaded.
+    let appId: string | null = null;
+    let alreadyUploaded = false;
+    if (wantsConfigWithKey && ipaInfo !== null) {
+      const resolved = yield* resolveExistingBuild({
+        ascCredentials,
+        ipaInfo,
+        config: inputs.config,
+      });
+      ({ appId } = resolved);
+      ({ alreadyUploaded } = resolved);
+      if (alreadyUploaded) {
+        yield* printHuman(
+          `Build ${ipaInfo.buildVersion} is already on App Store Connect — skipping upload.`,
+        );
+      }
     } else if (wantsConfig) {
       yield* printHuman(
         'Note: "What to Test" and TestFlight groups require an ASC API key (ascApiKeyId) — skipping that step for the app-specific-password upload.',
       );
     }
 
-    const altoolArgs = yield* buildAltoolArgs({ auth: inputs.auth, ascCredentials, ipaPath });
+    // Upload unless the build is already on App Store Connect.
+    if (!alreadyUploaded) {
+      yield* uploadIpaViaAltool({ auth: inputs.auth, ascCredentials, ipaPath });
+    }
 
-    // For an ASC API key, altool finds the `.p8` by name via `$API_PRIVATE_KEYS_DIR`;
-    // stage it in a temp dir scoped to the upload and remove it (and the key) after.
-    const result =
-      inputs.auth.kind === "asc-api-key" && ascCredentials !== null
-        ? yield* Effect.acquireUseRelease(
-            writeP8KeyDir(ascCredentials),
-            (keyDir) => runAltool(altoolArgs, { API_PRIVATE_KEYS_DIR: keyDir }),
-            (keyDir) => removeKeyDir(keyDir),
-          )
-        : yield* runAltool(altoolArgs);
-
-    if (result.exitCode !== 0) {
-      return yield* new CliSubmitError({
-        code: "SUBMISSION_SERVICE_IOS_ALTOOL_FAILED",
-        message: `xcrun altool exited ${String(result.exitCode)}: ${altoolFailureDetail(result)}`,
+    if (wantsConfigWithKey && appId !== null && ipaInfo !== null) {
+      return yield* configureUploadedBuild({
+        ascCredentials,
+        appId,
+        ipaInfo,
+        config: inputs.config,
       });
     }
-    yield* printHuman("altool upload complete.");
 
-    if (tfContext !== null && ascCredentials !== null) {
-      yield* applyTestFlightConfig({
-        credentials: ascCredentials,
-        context: tfContext,
-        language: inputs.config.language,
-        whatToTest: inputs.config.whatToTest,
-        groups: inputs.config.groups,
-      }).pipe(
-        Effect.mapError(
-          (configError) =>
-            new CliSubmitError({ code: configError.code, message: configError.message }),
-        ),
-      );
-    }
+    return {
+      buildVersion: toDbNull(ipaInfo?.buildVersion),
+      metadataApplied: true,
+      metadataError: null,
+    } satisfies IosSubmitOutcome;
   });

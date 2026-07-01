@@ -72,6 +72,17 @@ export const extractAltoolErrors = (xml: string): readonly string[] =>
     },
   );
 
+/**
+ * Whether an altool failure means "this exact build is already on App Store
+ * Connect" — a benign, recoverable condition when a prior submit uploaded the
+ * binary but its follow-up metadata step failed. Apple phrases the duplicate two
+ * ways: the generic 409 ("…value that has already been used") and the delivery
+ * banner ("Redundant Binary Upload…"). Recognizing it lets submit skip to the
+ * metadata step instead of dead-ending on a build it can never re-upload.
+ */
+export const isDuplicateBuildUpload = (detail: string): boolean =>
+  /already been used/iu.test(detail) || /redundant binary upload/iu.test(detail);
+
 /** Best human-readable altool failure detail: parsed product-errors, else raw streams. */
 export const altoolFailureDetail = (result: ExecResult): string => {
   const messages = extractAltoolErrors(result.stdout);

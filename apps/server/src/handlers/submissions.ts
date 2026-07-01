@@ -127,24 +127,52 @@ export const SubmissionsGroupLive = HttpApiBuilder.group(ManagementApi, "submiss
             });
           }
 
-          const id = crypto.randomUUID();
           const now = new Date().toISOString();
           const submissionConfig = yield* resolveSubmissionConfig(payload);
           const profileName = payload.profileName ?? "production";
+          const metadataComplete = payload.metadataComplete ?? true;
+          const submissionConfigJson = JSON.stringify(submissionConfig);
 
-          yield* repo.insert({
-            id,
-            organizationId: ctx.organizationId,
-            projectId: path.projectId,
-            platform: payload.platform,
-            profileName,
-            archiveSource: payload.archiveSource,
-            buildId: toDbNull(payload.buildId),
-            archiveUrl: toDbNull(payload.archiveUrl),
-            submissionConfigJson: JSON.stringify(submissionConfig),
-            initiatingUserId: ctx.userId,
-            createdAt: now,
-          });
+          // Idempotent per build: a re-run that re-uploads/re-configures the same
+          // CFBundleVersion updates its existing row (e.g. flipping metadata_complete
+          // to true) instead of appending a duplicate. Only iOS carries a version.
+          const existing =
+            payload.buildVersion === undefined || payload.buildVersion === ""
+              ? null
+              : yield* repo.findLatestByBuildVersion({
+                  projectId: path.projectId,
+                  platform: payload.platform,
+                  buildVersion: payload.buildVersion,
+                });
+
+          const id = existing?.id ?? crypto.randomUUID();
+          yield* existing === null
+            ? repo.insert({
+                id,
+                organizationId: ctx.organizationId,
+                projectId: path.projectId,
+                platform: payload.platform,
+                profileName,
+                archiveSource: payload.archiveSource,
+                buildId: toDbNull(payload.buildId),
+                archiveUrl: toDbNull(payload.archiveUrl),
+                submissionConfigJson,
+                metadataComplete,
+                buildVersion: toDbNull(payload.buildVersion),
+                initiatingUserId: ctx.userId,
+                createdAt: now,
+              })
+            : repo.update({
+                id,
+                profileName,
+                archiveSource: payload.archiveSource,
+                buildId: toDbNull(payload.buildId),
+                archiveUrl: toDbNull(payload.archiveUrl),
+                submissionConfigJson,
+                metadataComplete,
+                initiatingUserId: ctx.userId,
+                createdAt: now,
+              });
           yield* logAudit({
             action: "submission.create",
             resourceType: "submission",
@@ -154,6 +182,7 @@ export const SubmissionsGroupLive = HttpApiBuilder.group(ManagementApi, "submiss
               platform: payload.platform,
               profile: profileName,
               archiveSource: payload.archiveSource,
+              metadataComplete,
             },
           });
           const persisted = yield* repo.findById({ id });

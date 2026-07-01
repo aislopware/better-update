@@ -185,6 +185,11 @@ better-update build --platform android --auto-submit          # or build + submi
   before upload, but Apple also rejects _short_ strings ("too short" — e.g. `Fix`, and even `Bug fixes` in some
   reports) with no published minimum. Write a full sentence. If it trips after upload, fix it without
   re-uploading: `testflight build whats-new --latest --whats-new "<longer text>"`.
+- **`submit` is idempotent — just re-run it after a metadata failure.** It checks App Store Connect for the
+  IPA's build number before uploading; if the binary is already there it skips `altool` and only re-applies the
+  TestFlight config (so the "already been used" duplicate-build error can't strand you). When the upload
+  succeeds but config fails, the submission is still recorded as **metadata-incomplete** (dashboard shows amber
+  "Metadata pending" vs green "Complete"); the re-run that completes config updates that same row.
 - **App Store Connect operations run from the CLI, headless.** `testflight …` (group / tester / review / build),
   `app-store …` (version / submit / cancel / status / release / reject / rollout / review-detail / info /
   categories / age-rating / privacy / apps / pricing / availability), `apple builds`/`apple users`,

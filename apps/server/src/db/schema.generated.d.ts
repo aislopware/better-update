@@ -571,9 +571,11 @@ export interface Submissions {
   archive_source: string;
   archive_url: string | null;
   build_id: string | null;
+  build_version: string | null;
   created_at: Generated<string>;
   id: string | null;
   initiating_user_id: string | null;
+  metadata_complete: Generated<number>;
   organization_id: string;
   platform: string;
   profile_name: Generated<string>;
