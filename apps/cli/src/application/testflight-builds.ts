@@ -8,7 +8,8 @@
 import AppleUtils from "@expo/apple-utils";
 import { Effect } from "effect";
 
-import { wrapConnect } from "../lib/apple-asc-connect";
+import { AppleConnectError, wrapConnect } from "../lib/apple-asc-connect";
+import { explainWhatsNewApiError } from "../lib/whats-new";
 
 /** A beta-build localization projected to the fields the CLI surfaces. */
 export interface BuildLocalizationView {
@@ -40,6 +41,13 @@ export const setBuildWhatsNew = (
       ));
     const updated = yield* wrapConnect("apple-update-beta-build-localization", async () =>
       target.updateAsync({ whatsNew }),
+    ).pipe(
+      Effect.mapError((error) => {
+        const explained = explainWhatsNewApiError(error.message);
+        return explained === null
+          ? error
+          : new AppleConnectError({ step: error.step, message: explained });
+      }),
     );
     return {
       buildId: build.id,

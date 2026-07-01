@@ -153,7 +153,7 @@ better-update update publish --branch production --environment production
 **Submit a build to the stores** (App Store Connect / Google Play), from the CLI:
 
 ```bash
-better-update submit --platform ios --latest --what-to-test "Bug fixes"
+better-update submit --platform ios --latest --what-to-test "Fixed the login crash and refreshed onboarding"
 better-update build --platform android --auto-submit          # or build + submit in one step
 ```
 
@@ -181,6 +181,10 @@ better-update build --platform android --auto-submit          # or build + submi
 - **better-update DOES submit to stores from the CLI.** `better-update submit --platform ios|android`
   uploads to App Store Connect (TestFlight via altool) or Google Play; `build --auto-submit` chains
   build → submit. (It does not poll store _review_ — only the upload/submission.)
+- **`--what-to-test` has a length floor Apple won't document.** `submit` rejects empty or >4000-byte text
+  before upload, but Apple also rejects _short_ strings ("too short" — e.g. `Fix`, and even `Bug fixes` in some
+  reports) with no published minimum. Write a full sentence. If it trips after upload, fix it without
+  re-uploading: `testflight build whats-new --latest --whats-new "<longer text>"`.
 - **App Store Connect operations run from the CLI, headless.** `testflight …` (group / tester / review / build),
   `app-store …` (version / submit / cancel / status / release / reject / rollout / review-detail / info /
   categories / age-rating / privacy / apps / pricing / availability), `apple builds`/`apple users`,

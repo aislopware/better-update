@@ -511,6 +511,12 @@ already has, since Apple caps keys per team and a key's `.p8` downloads only onc
 written back to the submit profile in `eas.json` so future runs reuse it. Non-interactive/CI runs with
 nothing configured skip the upload (no record is written) and print how to add a key.
 
+**What to Test validation.** `--what-to-test` is validated **before** the (slow) upload: it must be non-empty and
+≤ 4000 UTF-8 bytes, so an avoidable metadata error never costs a full `altool` run. Apple also enforces an
+undocumented minimum length (rejecting terse text like `Fix` as "too short") with no published threshold to
+pre-check; if it trips post-upload, the error is surfaced clearly and you can fix it without re-uploading via
+`testflight build whats-new --latest`.
+
 **TestFlight config + app auto-create.** When `--what-to-test` or submit-profile `groups` are set,
 `submit` configures the build on TestFlight after upload (sets "What to Test", assigns beta groups).
 This needs the App Store Connect app to exist: `submit` resolves it by the profile's `ascAppId`, else
@@ -555,7 +561,7 @@ better-update testflight review set-detail [--contact-email <e>] [--contact-firs
   [--demo-account-password <pw>] [--demo-required true|false] [--notes <text>]   # app-level review contact + demo
 
 # Build "What to Test"
-better-update testflight build whats-new (--build <id> | --build-version <n>) \
+better-update testflight build whats-new (--build <id> | --build-version <n> | --latest) \
   [--locale en-US] (--whats-new <text> | --text-file <path>)
 ```
 
@@ -572,6 +578,12 @@ admit only App Store Connect users; `--no-internal` makes an external group (pub
   to keep it out of shell history. It is never echoed.
 - A **build** is selected by `--build <ascBuildId>` or `--build-version <CFBundleVersion>` (the build number); the
   latter resolves the uploaded build for the app.
+- **`build whats-new`** additionally accepts `--latest` (newest uploaded build, precedence `--build` > `--build-version`
+  > `--latest`) so you can fix "What to Test" on the last upload without looking up its build number — e.g. after a
+  > `submit` where the text was rejected as too short. It edits the build's `betaBuildLocalizations` in place (no
+  > re-upload). "What to Test" text is validated client-side before the call: it must be non-empty and ≤ 4000 UTF-8
+  > bytes. Apple additionally enforces an **undocumented** minimum (a terse string like `Fix` is rejected as "too
+  > short"); there is no published threshold to pre-check, so that rejection is surfaced with a clearer message.
 
 ### Shared App Store Connect resolution (testflight + app-store)
 

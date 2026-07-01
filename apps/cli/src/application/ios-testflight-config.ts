@@ -16,6 +16,7 @@ import { Data, Duration, Effect } from "effect";
 
 import { buildTokenRequestContext, wrapConnect } from "../lib/apple-asc-connect";
 import { printHuman } from "../lib/output";
+import { explainWhatsNewApiError } from "../lib/whats-new";
 
 import type { AscCredentials } from "../lib/asc-credentials";
 
@@ -213,8 +214,16 @@ const applyWhatToTest = (params: {
         return;
       }
       await existing.updateAsync({ whatsNew: params.whatToTest });
-    });
+    }).pipe(Effect.mapError(explainWhatToTestError));
   });
+
+/** Rewrite ASC's opaque "too short" rejection on the set-what-to-test step. */
+const explainWhatToTestError = (error: TestFlightConfigError): TestFlightConfigError => {
+  const explained = explainWhatsNewApiError(error.message);
+  return explained === null
+    ? error
+    : new TestFlightConfigError({ code: error.code, message: explained });
+};
 
 const applyGroups = (params: {
   readonly ctx: AppleUtils.RequestContext;

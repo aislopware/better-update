@@ -13,12 +13,14 @@ import { setBuildWhatsNew } from "../../../application/testflight-builds";
 import { runEffect } from "../../../lib/citty-effect";
 import { InvalidArgumentError } from "../../../lib/exit-codes";
 import { printHuman } from "../../../lib/output";
+import { validateWhatsNew } from "../../../lib/whats-new";
 
 import type { AscCommonArgs } from "../../../application/app-store-connect";
 
 interface BuildWhatsNewArgs extends AscCommonArgs {
   readonly build?: string | undefined;
   readonly "build-version"?: string | undefined;
+  readonly latest?: boolean | undefined;
   readonly locale?: string | undefined;
   readonly "whats-new"?: string | undefined;
   readonly "text-file"?: string | undefined;
@@ -32,6 +34,11 @@ export const buildWhatsNewCommand = defineCommand({
   args: {
     ...ASC_COMMON_ARGS,
     ...BUILD_SELECTOR_ARGS,
+    latest: {
+      type: "boolean",
+      description:
+        "Target the most recently uploaded build (ignored if --build/--build-version given)",
+    },
     locale: { type: "string", default: "en-US", description: "Locale to set (default: en-US)" },
     "whats-new": { type: "string", description: "The 'What to Test' notes" },
     "text-file": {
@@ -60,11 +67,16 @@ export const buildWhatsNewCommand = defineCommand({
           }
           return yield* new InvalidArgumentError({ message: "Pass --whats-new or --text-file." });
         });
+        const invalid = validateWhatsNew(text);
+        if (invalid !== null) {
+          return yield* new InvalidArgumentError({ message: invalid.message });
+        }
         const locale = args.locale ?? "en-US";
         const session = yield* openAscSession(args);
         const build = yield* resolveBuild(session.ctx, session.appId, {
           buildId: args.build,
           buildVersion: args["build-version"],
+          latest: args.latest,
         });
         const result = yield* setBuildWhatsNew(session.ctx, build, locale, text);
         yield* printHuman(

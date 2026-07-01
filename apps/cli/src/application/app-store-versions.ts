@@ -96,56 +96,34 @@ export const getEditableVersion = (
     return version;
   });
 
-/** Resolve an ASC build id from an explicit id or a CFBundleVersion ("build number"). */
-export const resolveBuildId = (
-  ctx: AppleUtils.RequestContext,
-  appId: string,
-  selector: { readonly buildId: string | undefined; readonly buildVersion: string | undefined },
-) =>
+/** How a command targets an uploaded build: an explicit id, a CFBundleVersion
+ * ("build number"), or the newest upload. Precedence: id > version > latest. */
+export interface BuildSelector {
+  readonly buildId: string | undefined;
+  readonly buildVersion: string | undefined;
+  readonly latest?: boolean | undefined;
+}
+
+const NO_BUILD_SELECTOR = "Pass --build <id>, --build-version <n>, or --latest.";
+
+/** Fetch the most recently uploaded build for an app, or fail if it has none. */
+const findLatestBuild = (ctx: AppleUtils.RequestContext, appId: string) =>
   Effect.gen(function* () {
-    if (selector.buildId !== undefined) {
-      return selector.buildId;
-    }
-    const { buildVersion } = selector;
-    if (buildVersion === undefined) {
-      return yield* new AppStoreError({ message: "Pass --build <id> or --build-version <n>." });
-    }
     const builds = yield* wrapConnect("apple-find-build", async () =>
       AppleUtils.Build.getAsync(ctx, {
-        query: { filter: { app: appId, version: buildVersion }, limit: 1 },
+        query: { filter: { app: appId }, sort: "-uploadedDate", limit: 1 },
       }),
     );
     const [build] = builds;
     if (build === undefined) {
-      return yield* new AppStoreError({
-        message: `No uploaded build with version ${buildVersion} found for this app.`,
-      });
+      return yield* new AppStoreError({ message: "This app has no uploaded builds yet." });
     }
-    return build.id;
+    return build;
   });
 
-/**
- * Resolve a Build *entity* (not just its id) from an explicit ASC build id or a
- * CFBundleVersion ("build number"). The TestFlight build/review commands need the
- * entity to drive its instance methods; `app-store version set` needs only the id
- * via {@link resolveBuildId}.
- */
-export const resolveBuild = (
-  ctx: AppleUtils.RequestContext,
-  appId: string,
-  selector: { readonly buildId: string | undefined; readonly buildVersion: string | undefined },
-) =>
+/** Fetch a build by its CFBundleVersion, or fail if none matches. */
+const findBuildByVersion = (ctx: AppleUtils.RequestContext, appId: string, buildVersion: string) =>
   Effect.gen(function* () {
-    if (selector.buildId !== undefined) {
-      const { buildId } = selector;
-      return yield* wrapConnect("apple-get-build", async () =>
-        AppleUtils.Build.infoAsync(ctx, { id: buildId }),
-      );
-    }
-    const { buildVersion } = selector;
-    if (buildVersion === undefined) {
-      return yield* new AppStoreError({ message: "Pass --build <id> or --build-version <n>." });
-    }
     const builds = yield* wrapConnect("apple-find-build", async () =>
       AppleUtils.Build.getAsync(ctx, {
         query: { filter: { app: appId, version: buildVersion }, limit: 1 },
@@ -158,6 +136,52 @@ export const resolveBuild = (
       });
     }
     return build;
+  });
+
+/** Resolve an ASC build id from an explicit id, a CFBundleVersion, or the newest upload. */
+export const resolveBuildId = (
+  ctx: AppleUtils.RequestContext,
+  appId: string,
+  selector: BuildSelector,
+) =>
+  Effect.gen(function* () {
+    if (selector.buildId !== undefined) {
+      return selector.buildId;
+    }
+    if (selector.buildVersion !== undefined) {
+      return (yield* findBuildByVersion(ctx, appId, selector.buildVersion)).id;
+    }
+    if (selector.latest === true) {
+      return (yield* findLatestBuild(ctx, appId)).id;
+    }
+    return yield* new AppStoreError({ message: NO_BUILD_SELECTOR });
+  });
+
+/**
+ * Resolve a Build *entity* (not just its id) from an explicit ASC build id, a
+ * CFBundleVersion ("build number"), or the newest upload (`latest`). The TestFlight
+ * build/review commands need the entity to drive its instance methods; `app-store
+ * version set` needs only the id via {@link resolveBuildId}.
+ */
+export const resolveBuild = (
+  ctx: AppleUtils.RequestContext,
+  appId: string,
+  selector: BuildSelector,
+) =>
+  Effect.gen(function* () {
+    if (selector.buildId !== undefined) {
+      const { buildId } = selector;
+      return yield* wrapConnect("apple-get-build", async () =>
+        AppleUtils.Build.infoAsync(ctx, { id: buildId }),
+      );
+    }
+    if (selector.buildVersion !== undefined) {
+      return yield* findBuildByVersion(ctx, appId, selector.buildVersion);
+    }
+    if (selector.latest === true) {
+      return yield* findLatestBuild(ctx, appId);
+    }
+    return yield* new AppStoreError({ message: NO_BUILD_SELECTOR });
   });
 
 export interface SetVersionInput {

@@ -12,6 +12,7 @@ import { altoolFailureDetail, runAltool } from "../lib/altool";
 import { messageOf } from "../lib/apple-asc-connect";
 import { fetchAscCredentials } from "../lib/asc-credentials";
 import { printHuman } from "../lib/output";
+import { validateWhatsNew } from "../lib/whats-new";
 import {
   applyTestFlightConfig,
   captureTestFlightContext,
@@ -305,6 +306,17 @@ export const runIosSubmit = (inputs: IosSubmitInputs) =>
       whatToTest: inputs.config.whatToTest,
       groups: inputs.config.groups,
     });
+    // Reject bad "What to Test" text BEFORE the (slow) binary upload, so an
+    // avoidable metadata error never costs a full altool run.
+    if (inputs.config.whatToTest !== undefined) {
+      const invalid = validateWhatsNew(inputs.config.whatToTest);
+      if (invalid !== null) {
+        return yield* new CliSubmitError({
+          code: "SUBMISSION_INVALID_WHAT_TO_TEST",
+          message: invalid.message,
+        });
+      }
+    }
     // ASC credentials power the asc-api-key upload AND the TestFlight config; the
     // command layer decrypts them once (avoiding a double vault prompt) and passes
     // them in. Null for an app-specific-password upload with no config wanted.
