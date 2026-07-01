@@ -398,7 +398,13 @@ export { ApiKeysGroup } from "./groups/api-keys";
 export { InvitationsGroup } from "./groups/invitations";
 export { MembersGroup } from "./groups/members";
 export { OrganizationGroup } from "./groups/organization";
-export { Organization, UpdateOrganizationBody } from "./domain/organization";
+export {
+  Organization,
+  OrganizationLogoContentType,
+  OrganizationLogoUploadBody,
+  OrganizationLogoUploadResult,
+  UpdateOrganizationBody,
+} from "./domain/organization";
 
 export { Me, MeOrganization, MeUser } from "./domain/me";
 export {

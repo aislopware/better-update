@@ -39,7 +39,12 @@ describe("OrganizationRepo — D1 integration", () => {
     const updated = await withRepo((repo) =>
       repo.update({ id: ORG_A, name: "Renamed A", slug: "renamed-a" }),
     );
-    expect(updated).toEqual({ id: ORG_A, name: "Renamed A", slug: "renamed-a" });
+    expect(updated).toEqual({
+      id: ORG_A,
+      name: "Renamed A",
+      slug: "renamed-a",
+      logoUrl: null,
+    });
   });
 
   it("a partial patch (name only) keeps the existing slug", async () => {

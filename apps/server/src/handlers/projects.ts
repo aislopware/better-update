@@ -17,6 +17,7 @@ import { parsePagination } from "../lib/pagination";
 import { BranchRepo } from "../repositories/branches";
 import { ChannelRepo } from "../repositories/channels";
 import { ProjectRepo } from "../repositories/projects";
+import { LOGO_UPLOAD_EXPIRY_SECONDS, logoRejectionReason } from "./logo-helpers";
 
 import type { ProjectSortKey, ProjectSortOrder } from "../repositories/projects";
 
@@ -26,36 +27,8 @@ import type { ProjectSortKey, ProjectSortOrder } from "../repositories/projects"
 const DEFAULT_ENVIRONMENT_NAMES = ["development", "preview", "production"] as const;
 
 // Project logos live in the assets bucket under a fixed per-project key, served
-// publicly via the asset CDN. The presigned PUT expires fast; the upload is a
-// quick precursor to the `setLogo` finalize call.
-const LOGO_UPLOAD_EXPIRY_SECONDS = 600;
-
-// Hard cap (2 MiB) enforced post-upload (a presigned PUT can't bound its own
-// size): the finalize step heads the object and rejects anything larger.
-const MAX_LOGO_BYTES = 2_097_152;
-
-const LOGO_CONTENT_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/svg+xml"]);
-
+// publicly via the asset CDN.
 const logoR2Key = (projectId: string): string => `logos/${projectId}`;
-
-/**
- * Validate an uploaded logo object's stored metadata against the size cap and the
- * allowed image types. Returns a human-readable rejection reason, or `null` when
- * the object is acceptable. A `null` content type (R2 didn't record one) passes —
- * the presigned PUT already signed an allowed type at request time.
- */
-export const logoRejectionReason = (params: {
-  readonly size: number;
-  readonly contentType: string | null;
-}): string | null => {
-  if (params.size > MAX_LOGO_BYTES) {
-    return "Logo must be 2 MB or smaller";
-  }
-  if (params.contentType !== null && !LOGO_CONTENT_TYPES.has(params.contentType)) {
-    return `Unsupported logo type: ${params.contentType}`;
-  }
-  return null;
-};
 
 // Load + authorize a project for a logo write. Shared preamble of the three logo
 // handlers; returns the project so callers can echo it back with the new state.

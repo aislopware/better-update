@@ -1,4 +1,9 @@
-import { updateOrganization } from "@better-update/api-client/react";
+import {
+  isOrganizationLogoContentType,
+  removeOrganizationLogo,
+  updateOrganization,
+  uploadOrganizationLogo,
+} from "@better-update/api-client/react";
 import { Button } from "@better-update/ui/components/ui/button";
 import {
   Dialog,
@@ -19,14 +24,110 @@ import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 
+import type { ChangeEvent } from "react";
+
 import { PageHeader } from "../../../../components/page-header";
 import { SettingCard } from "../../../../components/setting-card";
+import { EntityAvatar } from "../../../../lib/entity-avatar";
 import { generateSlug, getFieldError, nameSchema, slugSchema } from "../../../../lib/form-utils";
 import { useDeleteOrgMutation } from "../../../../lib/org-mutations";
 import { safeSubmit, useApiMutation } from "../../../../lib/use-api-mutation";
 import { authKeyPrefix, orgsQueryOptions, sessionQueryOptions } from "../../../../queries/auth";
 
 const deleteOrgTrigger = <Button variant="destructive">Delete organization</Button>;
+
+// Mirrors the server-side cap (handlers/logo-helpers.ts MAX_LOGO_BYTES = 2 MiB);
+// checked here for instant feedback before the upload round-trip.
+const MAX_LOGO_BYTES = 2_097_152;
+
+const OrgLogoSection = () => {
+  const queryClient = useQueryClient();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const { activeOrg } = Route.useRouteContext();
+
+  const onSuccess = async (title: string) => {
+    toastManager.add({ title, type: "success" });
+    await queryClient.resetQueries({ queryKey: authKeyPrefix });
+  };
+
+  const uploadMutation = useApiMutation({
+    mutationFn: async (file: File) => uploadOrganizationLogo(file),
+    onSuccess: async () => onSuccess("Logo updated"),
+  });
+
+  const removeMutation = useApiMutation({
+    mutationFn: async () => removeOrganizationLogo(),
+    onSuccess: async () => onSuccess("Logo removed"),
+  });
+
+  const busy = uploadMutation.isPending || removeMutation.isPending;
+
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    // Reset so re-picking the same file fires onChange again.
+    event.target.value = "";
+    if (!file) {
+      return;
+    }
+    if (!isOrganizationLogoContentType(file.type)) {
+      toastManager.add({ title: "Use a PNG, JPEG, WebP, or SVG image", type: "error" });
+      return;
+    }
+    if (file.size > MAX_LOGO_BYTES) {
+      toastManager.add({ title: "Logo must be 2 MB or smaller", type: "error" });
+      return;
+    }
+    uploadMutation.mutate(file);
+  };
+
+  return (
+    <SettingCard
+      title="Logo"
+      description="Shown across the dashboard. PNG, JPEG, WebP, or SVG up to 2 MB."
+      footer={
+        <>
+          {activeOrg.logo ? (
+            <Button
+              variant="ghost"
+              disabled={busy}
+              loading={removeMutation.isPending}
+              onClick={() => {
+                removeMutation.mutate();
+              }}
+            >
+              Remove
+            </Button>
+          ) : null}
+          <Button
+            variant="outline"
+            disabled={busy}
+            loading={uploadMutation.isPending}
+            onClick={() => inputRef.current?.click()}
+          >
+            {activeOrg.logo ? "Replace logo" : "Upload logo"}
+          </Button>
+        </>
+      }
+    >
+      <div className="flex items-center gap-4">
+        <EntityAvatar
+          name={activeOrg.name}
+          seed={activeOrg.slug}
+          image={activeOrg.logo}
+          shape="square"
+          className="size-16"
+        />
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/svg+xml"
+          hidden
+          onChange={handleFileChange}
+        />
+      </div>
+    </SettingCard>
+  );
+};
 
 const OrgGeneralForm = () => {
   const queryClient = useQueryClient();
@@ -250,6 +351,7 @@ const Settings = () => (
       title="Organization settings"
       description="Update organization details or permanently delete the organization."
     />
+    <OrgLogoSection />
     <OrgGeneralForm />
     <DeleteOrgSection />
   </div>

@@ -1,7 +1,8 @@
-import { logoRejectionReason } from "./projects";
+import { logoRejectionReason } from "./logo-helpers";
 
 // The logo finalize step (`setLogo`) gates the uploaded R2 object on these rules,
 // since a presigned PUT can neither cap its own size nor fully constrain its type.
+// Shared by the project and organization logo handlers.
 describe(logoRejectionReason, () => {
   it("accepts each allowed image type within the size cap", () => {
     const types = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"];

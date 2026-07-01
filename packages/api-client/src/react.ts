@@ -152,7 +152,13 @@ export {
 export type { InvitationItem } from "./react/invitations";
 export { meQueryKey, meQueryOptions, removeMember } from "./react/members";
 export type { MeResult } from "./react/members";
-export { updateOrganization } from "./react/organization";
+export {
+  isOrganizationLogoContentType,
+  removeOrganizationLogo,
+  updateOrganization,
+  uploadOrganizationLogo,
+} from "./react/organization";
+export type { OrganizationLogoContentTypeValue } from "./react/organization";
 export {
   createPolicy,
   deletePolicy,

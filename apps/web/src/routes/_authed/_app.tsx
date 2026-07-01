@@ -67,9 +67,13 @@ const useActiveProjectSlug = (): string | undefined =>
     },
   });
 
-const renderOrgTrigger = (name: string, slug: string | undefined) => (
+const renderOrgTrigger = (
+  name: string,
+  slug: string | undefined,
+  image: string | null | undefined,
+) => (
   <SidebarMenuButton size="lg" className="data-open:bg-sidebar-accent w-full">
-    <EntityAvatar name={name} seed={slug ?? name} shape="square" className="size-8" />
+    <EntityAvatar name={name} seed={slug ?? name} image={image} shape="square" className="size-8" />
     <div className="grid flex-1 text-left text-sm leading-tight">
       <span className="truncate font-semibold">{name}</span>
       <span className="text-muted-foreground truncate text-xs">{slug}</span>
@@ -132,7 +136,7 @@ const OrgSwitcher = () => {
   return (
     <>
       <Menu>
-        <MenuTrigger render={renderOrgTrigger(displayName, activeOrg.slug)} />
+        <MenuTrigger render={renderOrgTrigger(displayName, activeOrg.slug, activeOrg.logo)} />
         <MenuPopup align="start" side="bottom" sideOffset={4} className="w-64">
           <MenuGroup>
             <MenuGroupLabel>Organizations</MenuGroupLabel>
@@ -149,7 +153,13 @@ const OrgSwitcher = () => {
                   data-pending={isSwitching || undefined}
                   disabled={switchOrg.isPending && !isSwitching}
                 >
-                  <EntityAvatar name={org.name} seed={org.slug} size="sm" shape="square" />
+                  <EntityAvatar
+                    name={org.name}
+                    seed={org.slug}
+                    image={org.logo}
+                    size="sm"
+                    shape="square"
+                  />
                   <span className="flex-1 truncate">{org.name}</span>
                   {renderSwitcherIndicator(isSwitching, isActive)}
                 </MenuItem>
