@@ -84,7 +84,11 @@ export const WebVaultGroupLive = HttpApiBuilder.group(ManagementApi, "webVault",
         yield* repo.record({ sessionId: ctx.sessionId, userId: ctx.userId, verifiedAt });
 
         yield* logAudit({
-          action: "vault.web.step-up",
+          // A browser session cleared a passkey step-up, unlocking env-vault
+          // access for the next WEB_ENV_STEP_UP_TTL_MS. Renamed from the jargon
+          // `vault.web.step-up`; the web audit view maps both to one label so
+          // pre-rename rows read identically without a data backfill.
+          action: "vault.web.unlock",
           resourceType: "vaultAccess",
           resourceId: ctx.sessionId,
         });
