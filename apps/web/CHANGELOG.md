@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.50.0](https://github.com/better-update/better-update/compare/@better-update/web@0.49.0...@better-update/web@0.50.0) (2026-07-01)
+
+### Features
+
+* allow setting organization logo/avatar (BU-15) ([be56cb6](https://github.com/better-update/better-update/commit/be56cb6f64b40a9393767e26ddc8771e83979d6a))
+
 ## [0.49.0](https://github.com/better-update/better-update/compare/@better-update/web@0.48.2...@better-update/web@0.49.0) (2026-07-01)
 
 ### Features

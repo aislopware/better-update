@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.22.0](https://gitlab.jmango360.com/mobile/better-update/compare/@better-update/api-client@0.21.0...@better-update/api-client@0.22.0) (2026-07-01)
+
+### Features
+
+* allow setting organization logo/avatar (BU-15) ([be56cb6](https://gitlab.jmango360.com/mobile/better-update/commit/be56cb6f64b40a9393767e26ddc8771e83979d6a))
+
 ## [0.21.0](https://gitlab.jmango360.com/mobile/better-update/compare/@better-update/api-client@0.20.2...@better-update/api-client@0.21.0) (2026-07-01)
 
 ### Features
