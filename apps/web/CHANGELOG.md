@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.50.2](https://github.com/better-update/better-update/compare/@better-update/web@0.50.1...@better-update/web@0.50.2) (2026-07-01)
+
+### Bug Fixes
+
+* **web:** wrap long env var labels to match description ([4416100](https://github.com/better-update/better-update/commit/44161007b69c79c913573a98c5f96aa92ab825bf))
+
 ## [0.50.1](https://github.com/better-update/better-update/compare/@better-update/web@0.50.0...@better-update/web@0.50.1) (2026-07-01)
 
 ### Bug Fixes
