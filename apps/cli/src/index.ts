@@ -12,6 +12,7 @@ import { setActiveCliLayer } from "./lib/citty-effect";
 import { buildKnownCommandTree, setKnownCommandTree } from "./lib/command-output";
 import { setExecTrailingArgv, splitTrailingArgv } from "./lib/exec-trailing-argv";
 import { parseGlobalFlags, stripGlobalFlags } from "./lib/global-flags";
+import { enforceMinVersion } from "./lib/min-version-gate";
 import { bootstrapVersionCheck, refreshVersionCacheIfStale } from "./lib/version-notifier";
 
 const REFRESH_VERSION_CACHE_FLAG = "__refresh-version-cache";
@@ -55,6 +56,15 @@ const main = defineCommand({
     description: "Publish OTA updates and builds for Expo apps",
   },
   setup: async () => {
+    // Hard gate: refuse to run when the server has retired this CLI version.
+    // Runs before anything else so no command can slip past the killswitch;
+    // fails open (returns false) when the minimum can't be resolved.
+    const blocked = await Effect.runPromise(
+      enforceMinVersion(pkg.version, import.meta.url).pipe(Effect.provide(cliLayer)),
+    );
+    if (blocked) {
+      process.exit(1);
+    }
     await Effect.runPromise(
       bootstrapVersionCheck(pkg.version, import.meta.url, spawnDetachedRefresh, {
         // Suppress the upgrade notice under --json / --non-interactive / CI

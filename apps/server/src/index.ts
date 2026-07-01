@@ -113,6 +113,9 @@ const routeRequest = async (
       githubEnabled: isGithubEnabled(env),
       googleEnabled: isGoogleEnabled(env),
       assetCdnUrl: env.ASSET_CDN_URL,
+      // Remote killswitch: the CLI must be strictly newer than this to run. It
+      // hard-blocks at startup when its version is <= this. "0.0.0" blocks nothing.
+      requireCliVersionAbove: env.REQUIRE_CLI_VERSION_ABOVE,
     });
   }
 

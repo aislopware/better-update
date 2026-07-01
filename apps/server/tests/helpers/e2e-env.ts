@@ -177,6 +177,11 @@ export const createServerE2EEnvironment = (options?: {
       secondary: "R2_SECRET_ACCESS_KEY",
     }),
     TEST_MODE: "true",
+    // Never let the CLI version-killswitch fire against the test server: the CLI
+    // under test carries the workspace version, which `wrangler.jsonc` may pin
+    // `REQUIRE_CLI_VERSION_ABOVE` to (retiring exactly that version). "0.0.0"
+    // blocks nothing so functional e2e runs regardless of the prod threshold.
+    REQUIRE_CLI_VERSION_ABOVE: "0.0.0",
   } satisfies Record<string, string>;
 
   return {

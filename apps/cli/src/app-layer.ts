@@ -12,6 +12,7 @@ import { BsdiffServiceLive } from "./services/bsdiff";
 import { CliRuntimeLive } from "./services/cli-runtime";
 import { ConfigStoreLive } from "./services/config-store";
 import { IdentityStoreLive } from "./services/identity-store";
+import { MinVersionCheckLive } from "./services/min-version-check";
 import { PatchUploaderLive } from "./services/patch-uploader";
 import { PresignedDownloadClientLive } from "./services/presigned-download";
 import { PresignedUploadClientLive } from "./services/presigned-upload";
@@ -39,6 +40,7 @@ const PatchUploaderLayer = PatchUploaderLive.pipe(
   Layer.provide(Layer.mergeAll(ApiClientLayer, PresignedUploadLayer)),
 );
 const VersionCheckLayer = VersionCheckLive.pipe(Layer.provide(CliPlatformLayer));
+const MinVersionCheckLayer = MinVersionCheckLive.pipe(Layer.provide(CliAdapterDependencies));
 
 export const makeCliLive = (options: { readonly json: boolean; readonly interactive: boolean }) =>
   Layer.mergeAll(
@@ -51,6 +53,7 @@ export const makeCliLive = (options: { readonly json: boolean; readonly interact
     PatchUploaderLayer,
     BsdiffServiceLive,
     VersionCheckLayer,
+    MinVersionCheckLayer,
     makeOutputModeLayer(options.json),
     makeInteractiveModeLayer(options.interactive),
   );

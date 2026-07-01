@@ -72,6 +72,16 @@ Auth token: `BETTER_UPDATE_TOKEN` env var, else `~/.better-update/auth.json` (cr
 Project id per project: `expo.extra.betterUpdate.projectId` in `app.json` (Expo) or top-level
 `projectId` in `eas.json` (non-Expo) — written by `init`.
 
+Minimum-version killswitch: at startup the CLI reads the server's `/api/config`
+`requireCliVersionAbove` (Worker var `REQUIRE_CLI_VERSION_ABOVE`) and hard-blocks
+(exits non-zero) unless its version is **strictly newer** than that value —
+letting the server retire a release with a critical bug. To force an upgrade,
+set the var to the version you want to retire (that version and older are
+blocked); `0.0.0` (default) blocks nothing. There is no opt-out. The result is
+cached ~15 min in `~/.better-update/min-cli-version.json` and fails open (allows)
+when the server is unreachable and nothing is cached, so an outage never bricks a
+current CLI.
+
 ## Top-level misc
 
 ```bash
