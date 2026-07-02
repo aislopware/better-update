@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.53.2](https://github.com/better-update/better-update/compare/@better-update/web@0.53.1...@better-update/web@0.53.2) (2026-07-02)
+
+### Bug Fixes
+
+* **web:** resolve member select label instead of raw id ([38d27fb](https://github.com/better-update/better-update/commit/38d27fbc49b6b8fc4be637b22cec565953e1de8b))
+
 ## [0.53.1](https://github.com/better-update/better-update/compare/@better-update/web@0.53.0...@better-update/web@0.53.1) (2026-07-02)
 
 **Note:** Version bump only for package @better-update/web
