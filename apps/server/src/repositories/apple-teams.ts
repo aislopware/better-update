@@ -38,6 +38,11 @@ export interface AppleTeamRepository {
     readonly organizationId: string;
   }) => Effect.Effect<readonly AppleTeamWithCounts[]>;
 
+  /** Light projection (no counts) — backs the authz team-scope translation. */
+  readonly listByOrg: (params: {
+    readonly organizationId: string;
+  }) => Effect.Effect<readonly AppleTeamModel[]>;
+
   readonly delete: (params: { readonly id: string }) => Effect.Effect<void>;
 }
 
@@ -200,6 +205,21 @@ export const AppleTeamRepoLive = Layer.succeed(AppleTeamRepo, {
       );
 
       return rows.map(toModelWithCounts);
+    }),
+
+  listByOrg: (params) =>
+    Effect.gen(function* () {
+      const db = yield* kyselyDb;
+
+      const rows = yield* Effect.promise(async () =>
+        db
+          .selectFrom("apple_teams")
+          .selectAll()
+          .where("organization_id", "=", params.organizationId)
+          .execute(),
+      );
+
+      return rows.map(toModel);
     }),
 
   delete: (params) =>

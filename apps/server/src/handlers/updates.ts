@@ -12,71 +12,25 @@ import { UpdateCoordinator } from "../cloudflare/update-coordinator";
 import { validateEmbeddedBaselineId } from "../domain/embedded-baseline-validation";
 import { verifySignedUpdate } from "../domain/signed-update-verification";
 import { validateUpdatePublishInput } from "../domain/update-publish-validation";
-import { BadRequest, Conflict, NotFound } from "../errors";
+import { Conflict, NotFound } from "../errors";
 import { toApiUpdate } from "../http/to-api";
 import { toApiBadRequestReadEffect, toApiWriteEffect } from "../http/to-api-effect";
 import { toApiPatchBaseCandidate } from "../http/to-api-patch";
 import { toDbNull } from "../lib/nullable";
 import { parsePagination } from "../lib/pagination";
-import {
-  AssetRepo,
-  BranchRepo,
-  BundleRepo,
-  ChannelRepo,
-  ProjectRepo,
-  UpdateRepo,
-} from "../repositories";
+import { BranchRepo, BundleRepo, ChannelRepo, ProjectRepo, UpdateRepo } from "../repositories";
 import {
   prepareRepublishUpdates,
   resolveRepublishDestination,
   resolveRepublishSource,
 } from "./update-republish";
 import { clampPatchBaseLimit, parseUpdateSort } from "./updates-helpers";
+import {
+  assertAssetsExist,
+  filterUpdatesByEnvRead,
+  resolvePatchBaseBranchId,
+} from "./updates-read-scope";
 
-const resolvePatchBaseBranchId = (params: {
-  readonly projectId: string;
-  readonly branchId: string | undefined;
-  readonly channel: string | undefined;
-}) =>
-  Effect.gen(function* () {
-    if (params.branchId !== undefined) {
-      return params.branchId;
-    }
-    if (params.channel === undefined) {
-      return yield* new BadRequest({ message: "Either branchId or channel is required" });
-    }
-    const channelRepo = yield* ChannelRepo;
-    const channel = yield* channelRepo.findByProjectAndName({
-      projectId: params.projectId,
-      name: params.channel,
-    });
-    return channel.branchId;
-  });
-
-const assertAssetsExist = (assets: readonly { readonly hash: string }[]) =>
-  Effect.gen(function* () {
-    const assetRepo = yield* AssetRepo;
-    const existingAssets = yield* assetRepo.findByHashes({
-      hashes: assets.map((asset) => asset.hash),
-    });
-    const existingHashes = new Set(existingAssets.map((asset) => asset.hash));
-    const missingHashes = assets.filter((asset) => !existingHashes.has(asset.hash));
-    const pendingHashes = existingAssets
-      .filter((asset) => asset.byteSize <= 0)
-      .map((asset) => asset.hash);
-
-    if (missingHashes.length > 0) {
-      return yield* new NotFound({
-        message: `Assets not found: ${missingHashes.map((asset) => asset.hash).join(", ")}`,
-      });
-    }
-
-    if (pendingHashes.length > 0) {
-      return yield* new Conflict({
-        message: `Assets not uploaded: ${pendingHashes.join(", ")}`,
-      });
-    }
-  });
 const handleCreateUpdate = ({ payload }: { readonly payload: typeof CreateUpdateBody.Type }) =>
   toApiWriteEffect(
     Effect.gen(function* () {
@@ -84,9 +38,9 @@ const handleCreateUpdate = ({ payload }: { readonly payload: typeof CreateUpdate
       // target) and runs AFTER `ensureBranchChannel` resolves the destination
       // channel scope below — not here. Everything before that gate is read-only
       // validation plus the channel-ensure itself, so no update write happens
-      // before it. Read/delete of stored updates gate at project scope on purpose:
-      // an update is owned by a branch (servable by 0..N channels), so it has no
-      // single channel to scope by — only publish targets one channel.
+      // before it. Read/delete of stored updates gate at the update's BRANCH
+      // environment (the branch name), so environment-scoped grants apply; a
+      // project-wide grant still covers them by prefix.
 
       // Embedded-baseline id gate (trust boundary, id+isEmbedded correlated only
       // here): when isEmbedded:true the id is REQUIRED + lowercase-UUID-validated
@@ -130,6 +84,18 @@ const handleCreateUpdate = ({ payload }: { readonly payload: typeof CreateUpdate
 
       yield* assertAssetsExist(payload.assets);
 
+      // Publish gate BEFORE ensureBranchChannel — otherwise an actor with project
+      // ownership but no `update:create` on this environment would create branch +
+      // channel rows (and bypass the archived guard) before being rejected. The
+      // channel NAME is the environment segment, so gating at the environment
+      // applies per-environment grants + the protected-env guard; the channel is
+      // 1:1 with the branch here, so environment scope is the right granularity.
+      yield* assertAccess("update", "create", {
+        kind: "environment",
+        projectId: project.id,
+        environment: payload.branch,
+      });
+
       const coordinator = yield* UpdateCoordinator;
       const branchResult = yield* coordinator.ensureBranchChannel({
         projectId: project.id,
@@ -139,13 +105,6 @@ const handleCreateUpdate = ({ payload }: { readonly payload: typeof CreateUpdate
         return yield* new Conflict({ message: branchResult.message });
       }
       const branchValue = branchResult.value;
-
-      // Per-channel publish gate on the resolved destination channel.
-      yield* assertAccess("update", "create", {
-        kind: "update",
-        projectId: project.id,
-        channelId: branchValue.channelId,
-      });
 
       if (branchValue.branchCreated) {
         yield* logAudit({
@@ -225,17 +184,22 @@ const updateRolloutPercentage = (id: string, percentage: number) =>
     yield* assertProjectOwnership(branch.projectId);
 
     // Per-channel rollout gate: gate on the owning channel's scope (oldest first
-    // if several map the branch); fall back to the org-wide baseline when no
-    // channel maps the branch.
+    // if several map the branch); a channel-less branch gates on the branch name
+    // as its environment (per-env grants + protected-env guard still apply).
     const channelRepoForGate = yield* ChannelRepo;
     const owningChannel = yield* channelRepoForGate.findByBranchId({ branchId: update.branchId });
     yield* owningChannel
       ? assertAccess("rollout", "update", {
           kind: "rollout",
           projectId: branch.projectId,
+          environment: owningChannel.name,
           channelId: owningChannel.id,
         })
-      : assertAccess("rollout", "update", { kind: "project", projectId: branch.projectId });
+      : assertAccess("rollout", "update", {
+          kind: "environment",
+          projectId: branch.projectId,
+          environment: branch.name,
+        });
 
     yield* updateRepo.updateRollout({ id, percentage });
 
@@ -252,10 +216,7 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
       toApiBadRequestReadEffect(
         Effect.gen(function* () {
           yield* assertProjectOwnership(urlParams.projectId);
-          yield* assertAccess("update", "read", {
-            kind: "project",
-            projectId: urlParams.projectId,
-          });
+          const ctx = yield* CurrentActor;
 
           const repo = yield* UpdateRepo;
           const { page, limit, offset } = parsePagination(urlParams);
@@ -273,7 +234,19 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
             offset,
           });
 
-          return { items: items.map(toApiUpdate), total, page, limit };
+          // Per-update read filter (deny-wins): each update's environment is its
+          // branch NAME, so an environment-scoped grant sees its own updates
+          // instead of a blanket 403. Owner/superadmin (and project-wide
+          // `update:read`) see everything.
+          if (ctx.isSuperadmin || ctx.isOwner) {
+            return { items: items.map(toApiUpdate), total, page, limit };
+          }
+          const visible = yield* filterUpdatesByEnvRead({
+            projectId: urlParams.projectId,
+            statements: ctx.effectiveStatements,
+            updates: items,
+          });
+          return { items: visible.map(toApiUpdate), total: visible.length, page, limit };
         }),
       ),
     )
@@ -281,15 +254,22 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
       toApiBadRequestReadEffect(
         Effect.gen(function* () {
           yield* assertProjectOwnership(urlParams.projectId);
-          yield* assertAccess("update", "read", {
-            kind: "project",
-            projectId: urlParams.projectId,
-          });
 
           const branchId = yield* resolvePatchBaseBranchId({
             projectId: urlParams.projectId,
             branchId: urlParams.branchId,
             channel: urlParams.channel,
+          });
+
+          // Read gate at the patch-base branch's environment (its NAME), so an
+          // environment-scoped grant works; project-wide `update:read` still
+          // covers it by prefix.
+          const branchRepo = yield* BranchRepo;
+          const branch = yield* branchRepo.findById({ id: branchId });
+          yield* assertAccess("update", "read", {
+            kind: "environment",
+            projectId: urlParams.projectId,
+            environment: branch.name,
           });
 
           const repo = yield* UpdateRepo;
@@ -312,7 +292,11 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
           const branchRepo = yield* BranchRepo;
           const branch = yield* branchRepo.findById({ id: update.branchId });
           yield* assertProjectOwnership(branch.projectId);
-          yield* assertAccess("update", "read", { kind: "project", projectId: branch.projectId });
+          yield* assertAccess("update", "read", {
+            kind: "environment",
+            projectId: branch.projectId,
+            environment: branch.name,
+          });
           return toApiUpdate(update);
         }),
       ),
@@ -332,7 +316,11 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
           }
           const branch = yield* branchRepo.findById({ id: firstUpdate.branchId });
           yield* assertProjectOwnership(branch.projectId);
-          yield* assertAccess("update", "read", { kind: "project", projectId: branch.projectId });
+          yield* assertAccess("update", "read", {
+            kind: "environment",
+            projectId: branch.projectId,
+            environment: branch.name,
+          });
           return { items: updates.map(toApiUpdate) };
         }),
       ),
@@ -345,7 +333,11 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
           const branchRepo = yield* BranchRepo;
           const branch = yield* branchRepo.findById({ id: update.branchId });
           yield* assertProjectOwnership(branch.projectId);
-          yield* assertAccess("update", "read", { kind: "project", projectId: branch.projectId });
+          yield* assertAccess("update", "read", {
+            kind: "environment",
+            projectId: branch.projectId,
+            environment: branch.name,
+          });
           const assets = yield* updateRepo.findAssetsByUpdateId({ updateId: path.id });
           return assets.map((asset) => ({
             hash: asset.hash,
@@ -373,7 +365,13 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
           }
           const branch = yield* branchRepo.findById({ id: firstUpdate.branchId });
           yield* assertProjectOwnership(branch.projectId);
-          yield* assertAccess("update", "delete", { kind: "project", projectId: branch.projectId });
+          // The branch name is the environment segment (per-env grants + the
+          // protected-env guard apply to destructive update removal).
+          yield* assertAccess("update", "delete", {
+            kind: "environment",
+            projectId: branch.projectId,
+            environment: branch.name,
+          });
 
           // Route manual delete through the same orphan-aware asset cleanup the
           // OTA reaper uses, so the two paths never diverge (the plain deleteGroup
@@ -419,14 +417,19 @@ export const UpdatesGroupLive = HttpApiBuilder.group(ManagementApi, "updates", (
           });
 
           // Per-channel publish gate on the destination channel (allow/deny grants
-          // apply); a branch-only destination has no channel scope so the org-wide
-          // baseline applies. Runs before the republish write.
+          // apply); a branch-only destination gates on the branch name as its
+          // environment. Runs before the republish write.
           const { channelId } = destination;
           yield* channelId === null
-            ? assertAccess("update", "create", { kind: "project", projectId: source.projectId })
+            ? assertAccess("update", "create", {
+                kind: "environment",
+                projectId: source.projectId,
+                environment: destination.environmentName,
+              })
             : assertAccess("update", "create", {
                 kind: "update",
                 projectId: source.projectId,
+                environment: destination.environmentName,
                 channelId,
               });
 

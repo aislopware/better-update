@@ -127,6 +127,7 @@ export {
   environmentsQueryKey,
   environmentsQueryOptions,
   renameEnvironment,
+  setEnvironmentProtection,
 } from "./react/environments";
 export {
   addGroupMember,
@@ -150,8 +151,14 @@ export {
 export { robotAccountsQueryKey, robotAccountsQueryOptions } from "./react/robot-accounts";
 export type { RobotAccountItem } from "./react/robot-accounts";
 export type { InvitationItem } from "./react/invitations";
-export { meQueryKey, meQueryOptions, removeMember } from "./react/members";
-export type { MeResult } from "./react/members";
+export {
+  memberAccessSummariesQueryKey,
+  memberAccessSummariesQueryOptions,
+  meQueryKey,
+  meQueryOptions,
+  removeMember,
+} from "./react/members";
+export type { MemberAccessSummaryItem, MeResult } from "./react/members";
 export {
   isOrganizationLogoContentType,
   removeOrganizationLogo,

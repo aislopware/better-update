@@ -132,7 +132,7 @@ const ResourceRow = ({
       <Field invalid={invalid} className="flex-1 gap-1">
         <Input
           aria-label="Resource selector"
-          placeholder="* or project/{projectId}/channel/{channelId}"
+          placeholder="* or project/{projectId} or appleTeam/{appleTeamId}"
           className="font-mono text-xs"
           value={value}
           onChange={(event) => {

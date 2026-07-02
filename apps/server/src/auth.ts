@@ -4,6 +4,11 @@ import { admin, bearer, oneTimeToken, organization } from "better-auth/plugins";
 import { Effect } from "effect";
 
 import { findFirstMembershipOrgId } from "./auth/memberships";
+import {
+  applyInvitationGrants,
+  seedProtectedEnvironments,
+  sweepInvitationGrants,
+} from "./auth/org-lifecycle";
 import { hashPassword, verifyPassword } from "./auth/password";
 import { isSuperadminEmail, parseSuperadminEmails, roleIsSuperadmin } from "./auth/superadmin";
 import { provideCloudflareEnv } from "./cloudflare/context";
@@ -275,6 +280,25 @@ export const createAuth = (env: AuthEnv, ctx?: ExecutionContext) => {
         //     cascade (projects [no org-cascade FK], api keys [no FK], + their
         //     children) is delegated to better-auth's deleteOrganization. Reimplementing
         //     that cascade in an IAM endpoint is deferred (see permissions.ts).
+        organizationHooks: {
+          afterCreateOrganization: async ({ organization: org }) => {
+            await seedProtectedEnvironments(env.DB, org.id);
+          },
+          afterAcceptInvitation: async ({ invitation, member, user }) => {
+            await applyInvitationGrants(env.DB, {
+              invitationId: invitation.id,
+              organizationId: invitation.organizationId,
+              memberId: member.id,
+              actorEmail: user.email,
+            });
+          },
+          afterRejectInvitation: async ({ invitation }) => {
+            await sweepInvitationGrants(env.DB, invitation.id);
+          },
+          afterCancelInvitation: async ({ invitation }) => {
+            await sweepInvitationGrants(env.DB, invitation.id);
+          },
+        },
         sendInvitationEmail: async (data) => {
           const acceptUrl = `${env.BETTER_AUTH_URL}/accept-invitation?id=${data.id}`;
           const inviterTrimmed = data.inviter.user.name.trim();

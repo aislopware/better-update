@@ -11,7 +11,7 @@ import {
   PolicyAttachmentRepo,
   PolicyAttachmentRepoLive,
 } from "../../../src/repositories/policy-attachment-repo";
-import { PolicyRepoLive } from "../../../src/repositories/policy-repo";
+import { PolicyRepo, PolicyRepoLive } from "../../../src/repositories/policy-repo";
 import { UserEncryptionKeyRepoLive } from "../../../src/repositories/user-encryption-keys";
 import { runWithLayerAndEnv } from "../../helpers/runtime";
 
@@ -84,11 +84,12 @@ beforeAll(async () => {
   await insertUser("rec-u-owner");
   await insertMember("rec-m-owner", "rec-u-owner", "owner");
   await insertDeviceKey("rec-dk-owner", "rec-u-owner");
-  // developer: kept — managed:developer grants vaultAccess:read.
+  // vault reader: kept — a custom policy grants vaultAccess:read (only
+  // managed:admin and custom policies confer vault access now).
   await insertUser("rec-u-dev");
   await insertMember("rec-m-dev", "rec-u-dev", "member");
   await insertDeviceKey("rec-dk-dev", "rec-u-dev");
-  // viewer: dropped — managed:viewer no longer grants any vaultAccess.
+  // viewer: dropped — no attachment grants any vaultAccess.
   await insertUser("rec-u-viewer");
   await insertMember("rec-m-viewer", "rec-u-viewer", "member");
   await insertDeviceKey("rec-dk-viewer", "rec-u-viewer");
@@ -117,22 +118,26 @@ beforeAll(async () => {
         now: "2026-05-01T00:00:00Z",
       });
       const attach = yield* PolicyAttachmentRepo;
-      yield* attach.attach({
+      const policyRepo = yield* PolicyRepo;
+      const vaultReadPolicy = yield* policyRepo.create({
         organizationId: ORG,
-        policyId: "managed:developer",
-        principal: { type: "member", id: "rec-m-dev" },
+        name: "vault-read",
+        description: null,
+        document: {
+          statements: [{ effect: "allow", actions: ["vaultAccess:read"], resources: ["*"] }],
+        },
       });
       yield* attach.attach({
         organizationId: ORG,
-        policyId: "managed:viewer",
-        principal: { type: "member", id: "rec-m-viewer" },
+        policyId: vaultReadPolicy.id,
+        principal: { type: "member", id: "rec-m-dev" },
       });
     }),
   );
 });
 
 describe("reconcileVaultRecipients — D1 integration", () => {
-  it("drops only recipients who lost vault access; keeps owner/developer/org keys", async () => {
+  it("drops only recipients who lost vault access; keeps owner/vault-reader/org keys", async () => {
     const dropped = await run(
       reconcileVaultRecipients({ organizationId: ORG, reason: "downgrade-test" }),
     );
@@ -144,7 +149,7 @@ describe("reconcileVaultRecipients — D1 integration", () => {
     expect(await countWraps("rec-dk-viewer")).toBe(0);
     expect(await countWraps("rec-dk-gone")).toBe(0);
 
-    // Kept: owner (root bypass, no policy), developer (vaultAccess:read), org recovery key.
+    // Kept: owner (root bypass, no policy), vault reader (vaultAccess:read), org recovery key.
     expect(await countWraps("rec-dk-owner")).toBe(1);
     expect(await countWraps("rec-dk-dev")).toBe(1);
     expect(await countWraps("rec-r")).toBe(1);

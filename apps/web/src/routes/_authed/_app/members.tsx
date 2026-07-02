@@ -1,3 +1,4 @@
+import { memberAccessSummariesQueryOptions } from "@better-update/api-client/react";
 import { Card } from "@better-update/ui/components/ui/card";
 import {
   Empty,
@@ -87,7 +88,21 @@ const MembersContent = () => {
   // / policy:update on org). A role-"member" principal holding managed:admin (or a
   // matching custom policy) sees exactly the actions it can actually perform.
   const { data: me } = useSuspenseQuery(meQueryOptions());
-  const { canInviteMembers, canRemoveMembers, canManagePolicies } = me;
+  const { canInviteMembers, canRemoveMembers, canManagePolicies, canViewPolicies } = me;
+
+  // Access chips need policy:read; without it the table falls back to the
+  // plain owner/member badge.
+  const { data: accessSummaryItems } = useQuery({
+    ...memberAccessSummariesQueryOptions(orgId),
+    enabled: canViewPolicies,
+  });
+  const accessSummaries = useMemo(
+    () =>
+      accessSummaryItems
+        ? new Map(accessSummaryItems.map((item) => [item.memberId, item]))
+        : undefined,
+    [accessSummaryItems],
+  );
 
   // The IAM list endpoint returns invitations with ISO-string `expiresAt` and a
   // nullable `role`; map them to the table's `InvitationInput` shape (Date +
@@ -196,6 +211,7 @@ const MembersContent = () => {
             currentUserId={user.id}
             canRemoveMembers={canRemoveMembers}
             canManagePolicies={canManagePolicies}
+            accessSummaries={accessSummaries}
             pendingMemberId={memberPendingId}
             pendingInvitationId={invitationPendingId}
             countLabel={countLabel}

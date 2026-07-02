@@ -3,6 +3,7 @@ import { zodValidator } from "@tanstack/zod-adapter";
 import { Suspense } from "react";
 
 import { PageHeader } from "../../../components/page-header";
+import { assertCapability } from "../../../lib/access";
 import { fireAndForget } from "../../../lib/data-table";
 import { AuditLogSkeleton, AuditLogView, auditLogSearchSchema } from "./-audit-log-view";
 
@@ -33,5 +34,8 @@ const AuditLogPage = () => {
 
 export const Route = createFileRoute("/_authed/_app/audit-log")({
   validateSearch: zodValidator(auditLogSearchSchema),
+  beforeLoad: async ({ context }) => {
+    await assertCapability(context.queryClient, "canViewAuditLog");
+  },
   component: AuditLogPage,
 });

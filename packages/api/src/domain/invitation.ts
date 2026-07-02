@@ -41,6 +41,14 @@ export const CreateInvitationBody = Schema.Struct({
   ),
   // Optional; defaults to "member" when omitted (the unified-model baseline).
   role: Schema.optional(InvitableRole),
+  /**
+   * Access grants applied when the invitation is accepted
+   * (ROLES-CAPABILITIES-SPEC §8d). Policy ids in the attachment grammar:
+   * `managed:{maintainer|developer|viewer}@{projectId|*}`, `managed:cap-*`,
+   * `managed:admin`, or a real policy id. Validated + permission-boundary
+   * checked against the INVITER at create time.
+   */
+  grants: Schema.optional(Schema.Array(Schema.String.pipe(Schema.maxLength(256)))),
 });
 
 export const InvitationList = Schema.Struct({ items: Schema.Array(Invitation) });

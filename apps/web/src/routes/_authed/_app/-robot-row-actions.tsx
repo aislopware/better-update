@@ -44,7 +44,7 @@ export const RobotRowActions = ({
               }}
             >
               <ScrollTextIcon strokeWidth={2} />
-              <span>Manage policies</span>
+              <span>Manage access</span>
             </MenuItem>
           </MenuGroup>
         </MenuPopup>

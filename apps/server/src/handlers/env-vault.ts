@@ -3,6 +3,7 @@ import { Effect } from "effect";
 
 import { ManagementApi } from "../api";
 import { assertEnvWrapSet } from "../application/assert-env-wrap-set";
+import { assertVaultRecipientOwnerInOrg } from "../application/assert-vault-recipient-in-org";
 import { logAudit } from "../audit/logger";
 import { CurrentActor } from "../auth/current-actor";
 import { assertPermission } from "../auth/permissions";
@@ -171,6 +172,16 @@ export const EnvVaultGroupLive = HttpApiBuilder.group(ManagementApi, "envVault",
           // anyone else's recipient is an admin grant.
           if (!isSelfRecipient(recipient, ctx)) {
             yield* assertPermission("vaultAccess", "create");
+            // Device + account recipients carry no organization_id (the org check
+            // above is skipped for them), so confirm the owner is an org member
+            // before granting — a vaultAccess:create holder must not wrap the env
+            // vault to an out-of-org user's key.
+            if (recipient.organizationId === null) {
+              yield* assertVaultRecipientOwnerInOrg({
+                ownerUserId: recipient.ownerUserId,
+                organizationId: ctx.organizationId,
+              });
+            }
           }
 
           const vault = yield* vaultRepo.getVault({ organizationId: ctx.organizationId });

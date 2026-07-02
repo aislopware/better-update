@@ -5,7 +5,7 @@ import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
 import { CurrentActor } from "../auth/current-actor";
 import { assertOrgOwnership, assertProjectOwnership } from "../auth/ownership";
-import { assertPermission } from "../auth/permissions";
+import { assertAccess } from "../auth/policy";
 import { toApiAndroidApplicationIdentifier } from "../http/to-api";
 import { toApiCrudEffect, toApiWriteEffect } from "../http/to-api-effect";
 import { AndroidApplicationIdentifierRepo } from "../repositories/android-application-identifiers";
@@ -19,8 +19,11 @@ export const AndroidApplicationIdentifiersGroupLive = HttpApiBuilder.group(
       .handle("list", ({ path }) =>
         toApiCrudEffect(
           Effect.gen(function* () {
-            yield* assertPermission("androidCredential", "read");
             yield* assertProjectOwnership(path.projectId);
+            yield* assertAccess("androidCredential", "read", {
+              kind: "project",
+              projectId: path.projectId,
+            });
             const repo = yield* AndroidApplicationIdentifierRepo;
             const items = yield* repo.listByProject({ projectId: path.projectId });
             return { items: items.map(toApiAndroidApplicationIdentifier) };
@@ -30,8 +33,11 @@ export const AndroidApplicationIdentifiersGroupLive = HttpApiBuilder.group(
       .handle("create", ({ path, payload }) =>
         toApiWriteEffect(
           Effect.gen(function* () {
-            yield* assertPermission("androidCredential", "create");
             yield* assertProjectOwnership(path.projectId);
+            yield* assertAccess("androidCredential", "create", {
+              kind: "project",
+              projectId: path.projectId,
+            });
             const ctx = yield* CurrentActor;
             const repo = yield* AndroidApplicationIdentifierRepo;
             const groupsRepo = yield* AndroidBuildCredentialsRepo;
@@ -76,10 +82,13 @@ export const AndroidApplicationIdentifiersGroupLive = HttpApiBuilder.group(
       .handle("delete", ({ path }) =>
         toApiCrudEffect(
           Effect.gen(function* () {
-            yield* assertPermission("androidCredential", "delete");
             const repo = yield* AndroidApplicationIdentifierRepo;
             const existing = yield* repo.findById({ id: path.id });
             yield* assertOrgOwnership(existing.organizationId);
+            yield* assertAccess("androidCredential", "delete", {
+              kind: "project",
+              projectId: existing.projectId,
+            });
             yield* repo.delete({ id: path.id });
             yield* logAudit({
               action: "android.application-identifier.delete",

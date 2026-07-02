@@ -58,10 +58,10 @@ export interface BuildRepository {
 
   readonly findArtifactR2KeyById: (params: { readonly id: string }) => Effect.Effect<string | null>;
 
-  readonly findArtifactR2KeyByIdAndOrg: (params: {
+  readonly findArtifactAccessInfoByIdAndOrg: (params: {
     readonly id: string;
     readonly organizationId: string;
-  }) => Effect.Effect<string | null>;
+  }) => Effect.Effect<{ readonly projectId: string; readonly r2Key: string } | null>;
 
   readonly findInstallInfoById: (params: { readonly id: string }) => Effect.Effect<{
     readonly distribution: Distribution;
@@ -243,7 +243,7 @@ export const BuildRepoLive = Layer.succeed(BuildRepo, {
       return toDbNull(row?.r2_key);
     }),
 
-  findArtifactR2KeyByIdAndOrg: (params) =>
+  findArtifactAccessInfoByIdAndOrg: (params) =>
     Effect.gen(function* () {
       const db = yield* kyselyDb;
       const row = yield* Effect.promise(async () =>
@@ -251,12 +251,12 @@ export const BuildRepoLive = Layer.succeed(BuildRepo, {
           .selectFrom("build_artifacts as a")
           .innerJoin("builds as b", "b.id", "a.build_id")
           .innerJoin("projects as p", "p.id", "b.project_id")
-          .select("a.r2_key")
+          .select(["a.r2_key", "b.project_id"])
           .where("a.build_id", "=", params.id)
           .where("p.organization_id", "=", params.organizationId)
           .executeTakeFirst(),
       );
-      return toDbNull(row?.r2_key);
+      return row ? { projectId: row.project_id, r2Key: row.r2_key } : null;
     }),
 
   findInstallInfoById: (params) =>

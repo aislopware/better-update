@@ -6,7 +6,7 @@ import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
 import { CurrentActor } from "../auth/current-actor";
 import { assertOrgOwnership, assertProjectOwnership } from "../auth/ownership";
-import { assertPermission } from "../auth/permissions";
+import { assertAccess } from "../auth/policy";
 import { toApiIosBundleConfiguration } from "../http/to-api";
 import { toApiCrudEffect, toApiWriteEffect } from "../http/to-api-effect";
 import { toDbNull } from "../lib/nullable";
@@ -20,8 +20,11 @@ export const IosBundleConfigurationsGroupLive = HttpApiBuilder.group(
       .handle("list", ({ path }) =>
         toApiCrudEffect(
           Effect.gen(function* () {
-            yield* assertPermission("iosBundleConfiguration", "read");
             yield* assertProjectOwnership(path.projectId);
+            yield* assertAccess("iosBundleConfiguration", "read", {
+              kind: "project",
+              projectId: path.projectId,
+            });
             const repo = yield* IosBundleConfigurationRepo;
             const items = yield* repo.listByProject({ projectId: path.projectId });
             return { items: items.map(toApiIosBundleConfiguration) };
@@ -31,8 +34,11 @@ export const IosBundleConfigurationsGroupLive = HttpApiBuilder.group(
       .handle("create", ({ path, payload }) =>
         toApiWriteEffect(
           Effect.gen(function* () {
-            yield* assertPermission("iosBundleConfiguration", "create");
             yield* assertProjectOwnership(path.projectId);
+            yield* assertAccess("iosBundleConfiguration", "create", {
+              kind: "project",
+              projectId: path.projectId,
+            });
             const ctx = yield* CurrentActor;
             const repo = yield* IosBundleConfigurationRepo;
 
@@ -77,10 +83,13 @@ export const IosBundleConfigurationsGroupLive = HttpApiBuilder.group(
       .handle("update", ({ path, payload }) =>
         toApiCrudEffect(
           Effect.gen(function* () {
-            yield* assertPermission("iosBundleConfiguration", "update");
             const repo = yield* IosBundleConfigurationRepo;
             const existing = yield* repo.findById({ id: path.id });
             yield* assertOrgOwnership(existing.organizationId);
+            yield* assertAccess("iosBundleConfiguration", "update", {
+              kind: "project",
+              projectId: existing.projectId,
+            });
 
             const now = new Date().toISOString();
             yield* repo.update({
@@ -111,10 +120,13 @@ export const IosBundleConfigurationsGroupLive = HttpApiBuilder.group(
       .handle("delete", ({ path }) =>
         toApiCrudEffect(
           Effect.gen(function* () {
-            yield* assertPermission("iosBundleConfiguration", "delete");
             const repo = yield* IosBundleConfigurationRepo;
             const existing = yield* repo.findById({ id: path.id });
             yield* assertOrgOwnership(existing.organizationId);
+            yield* assertAccess("iosBundleConfiguration", "delete", {
+              kind: "project",
+              projectId: existing.projectId,
+            });
             yield* repo.delete({ id: path.id });
             yield* logAudit({
               action: "ios.bundle-configuration.delete",

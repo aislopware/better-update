@@ -410,6 +410,7 @@ export {
 } from "./domain/organization";
 
 export { Me, MeOrganization, MeUser } from "./domain/me";
+export { MemberAccessSummary, MemberAccessSummaryList } from "./domain/member-access";
 export {
   CreateWebhookBody,
   DeleteWebhookResult,

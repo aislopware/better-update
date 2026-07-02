@@ -3,12 +3,14 @@ import { cn } from "@better-update/ui/lib/utils";
 import { getCoreRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
 import { useMemo } from "react";
 
+import type { MemberAccessSummaryItem } from "@better-update/api-client/react";
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
 
 import { DataTableView } from "../../../lib/data-table";
 import { EntityAvatar } from "../../../lib/entity-avatar";
 import { formatRelativeFuture } from "../../../lib/format-relative-time";
 import { RelativeTime } from "../../../lib/relative-time";
+import { AccessChips } from "./-access-chips";
 import { MemberRowActions } from "./-member-row-actions";
 import { buildRows } from "./-members-row";
 
@@ -81,11 +83,33 @@ interface BuildColumnsParams {
   currentUserId: string;
   canRemoveMembers: boolean;
   canManagePolicies: boolean;
+  accessSummaries: ReadonlyMap<string, MemberAccessSummaryItem> | undefined;
   pendingMemberId: string | undefined;
   pendingInvitationId: string | undefined;
   onRemove: (memberId: string) => void;
   onCancelInvitation: (invitationId: string) => void;
 }
+
+// The Access column falls back to the owner/member role badge when the viewer
+// cannot read access summaries (no policy:read) or a row has no summary
+// (pending invitations).
+const AccessCell = ({
+  row,
+  summaries,
+}: {
+  row: Row;
+  summaries: ReadonlyMap<string, MemberAccessSummaryItem> | undefined;
+}) => {
+  const summary = row.kind === "member" ? summaries?.get(row.id) : undefined;
+  if (summary) {
+    return <AccessChips summary={summary} />;
+  }
+  return isOwnerRole(row.role) ? (
+    <Badge variant="default">Owner</Badge>
+  ) : (
+    <Badge variant="outline">Member</Badge>
+  );
+};
 
 const buildColumns = (params: BuildColumnsParams): ColumnDef<Row>[] => [
   {
@@ -98,13 +122,8 @@ const buildColumns = (params: BuildColumnsParams): ColumnDef<Row>[] => [
   {
     id: "role",
     accessorFn: (row) => ROLE_RANK[row.role] ?? 1,
-    header: "Role",
-    cell: ({ row }) =>
-      isOwnerRole(row.original.role) ? (
-        <Badge variant="default">Owner</Badge>
-      ) : (
-        <Badge variant="outline">Member</Badge>
-      ),
+    header: "Access",
+    cell: ({ row }) => <AccessCell row={row.original} summaries={params.accessSummaries} />,
     enableSorting: true,
   },
   {
@@ -165,6 +184,7 @@ export const MembersTableView = ({
   currentUserId,
   canRemoveMembers,
   canManagePolicies,
+  accessSummaries,
   pendingMemberId,
   pendingInvitationId,
   countLabel,
@@ -179,6 +199,7 @@ export const MembersTableView = ({
   currentUserId: string;
   canRemoveMembers: boolean;
   canManagePolicies: boolean;
+  accessSummaries?: ReadonlyMap<string, MemberAccessSummaryItem> | undefined;
   pendingMemberId?: string | undefined;
   pendingInvitationId?: string | undefined;
   countLabel?: string;
@@ -195,6 +216,7 @@ export const MembersTableView = ({
         currentUserId,
         canRemoveMembers,
         canManagePolicies,
+        accessSummaries,
         pendingMemberId,
         pendingInvitationId,
         onRemove,
@@ -205,6 +227,7 @@ export const MembersTableView = ({
       currentUserId,
       canRemoveMembers,
       canManagePolicies,
+      accessSummaries,
       pendingMemberId,
       pendingInvitationId,
       onRemove,

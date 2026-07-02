@@ -1,16 +1,57 @@
 # Access control, devices, and webhooks
 
-This reference covers the organization-management surfaces: IAM (policies + groups), Apple device
-registration, and webhook subscriptions.
+This reference covers the organization-management surfaces: IAM (the managed admin policy + custom
+policies + groups), Apple device registration, and webhook subscriptions.
 
-## IAM model
+## Access model
 
-Authorization is **default-deny**: members and API keys get **no** permissions from a role string or
-an api-key admin fallback. Permissions come _only_ from explicitly attached **policies**. You attach
-policies to **groups**, and members of a group inherit them.
+Authorization is **default-deny**: members and robots get **no** permissions from a role string.
+Three tiers:
+
+- **Owner** — org root (set at org creation), bypasses policy evaluation.
+- **Admin** — attach the single managed policy `managed:admin` (full org administration).
+- **Everything else** — **custom policies** (allow/deny statements with path-glob selectors),
+  attached directly or via groups. A plain member holds only the baseline: org + environment-name
+  reads.
+
+**Protected environments** (default: `production`) only accept writes from principals holding
+`environment:update` on them — Admins, Owner, or a custom grant (e.g. `environment:update` on
+`project/*/env/production` = "production publisher"). Toggle protection in the dashboard
+(Environment variables → Environments) or via the API.
+
+**Apple credentials are scoped by Apple team.** Paths are
+`appleTeam/{APPLE_TEAM_ID}/credential[/{id}]` where `APPLE_TEAM_ID` is the 10-char portal
+identifier, so ONE selector covers every credential type of a team (distribution/push/pass-type/pay
+certificates, push keys, provisioning profiles, ASC API keys):
+
+```json
+// "jmango360-apple-admin" — full CRUD + download on one team's credentials
+{ "statements": [{ "effect": "allow", "actions": ["appleCredential:*"], "resources": ["appleTeam/JMANGO1234"] }] }
+// "jmango360-apple-view" — read-only (add "appleCredential:download" to allow decrypt-download)
+{ "statements": [{ "effect": "allow", "actions": ["appleCredential:read"], "resources": ["appleTeam/JMANGO1234"] }] }
+```
+
+Credential lists (and the Teams view) filter to the credentials the principal can read (a per-item,
+deny-aware filter: a team-wide allow surfaces all of a team's credentials, an item-level deny hides
+just that one). ASC keys not linked to a team live under `appleTeam/none` — grant `appleTeam/*` to
+cover them. Note the IAM grant gates the API only: decrypting credential blobs still requires vault
+access (E2E).
+
+**Android + iOS credentials are scoped by project.** iOS bundle configs / app metadata and Android
+application identifiers + build-credential groups gate at `project/{projectId}` — grant
+`androidCredential:*` / `iosBundleConfiguration:*` on a project to cover just that project. (Android
+upload keystores and Google service-account keys are org-shared secrets, so they stay org-level;
+grant on `*` or `org` to manage them.)
+
+**Group membership is a privilege delta.** Adding a member to a group grants them everything the
+group's policies confer, so `addMember`/`removeMember` and `detach` are boundary-checked: a non-owner
+can only change membership of (or detach) policies that grant nothing beyond what they themselves
+hold. This blocks self-escalation into a group that carries `managed:admin`. Lists for channels,
+branches, and updates also filter to the environments the caller can read, so an environment-scoped
+grant sees its own items instead of an empty page.
 
 ```
-policy (allow/deny statements) ──attach──► group ──membership──► member / api-key
+policy (allow/deny statements) ──attach──► group ──membership──► member / robot
 ```
 
 ### policies
@@ -27,7 +68,7 @@ better-update policies delete <id> [--yes]
 `--document` is JSON, shape-validated client-side:
 
 ```json
-{ "statements": [{ "effect": "allow", "actions": ["update:publish"], "resources": ["project/*"] }] }
+{ "statements": [{ "effect": "allow", "actions": ["update:create"], "resources": ["project/*"] }] }
 ```
 
 Each statement has `effect` (`allow`|`deny`), `actions`, and `resources` (path-glob scoped). There are

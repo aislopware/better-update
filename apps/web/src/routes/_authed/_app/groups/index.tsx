@@ -17,6 +17,7 @@ import { z } from "zod";
 
 import { PageHeader } from "../../../../components/page-header";
 import { TableSkeleton } from "../../../../components/skeletons";
+import { assertCapability } from "../../../../lib/access";
 import { sortParam, useDataTableSearch } from "../../../../lib/data-table";
 import { pluralize } from "../../../../lib/pluralize";
 import { GroupFormDialog } from "./-group-form-dialog";
@@ -111,5 +112,8 @@ const GroupsPage = () => {
 
 export const Route = createFileRoute("/_authed/_app/groups/")({
   validateSearch: zodValidator(groupsSearchSchema),
+  beforeLoad: async ({ context }) => {
+    await assertCapability(context.queryClient, "canViewPolicies");
+  },
   component: GroupsPage,
 });

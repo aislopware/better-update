@@ -5,7 +5,7 @@ import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
 import { CurrentActor } from "../auth/current-actor";
 import { assertOrgOwnership, assertProjectOwnership } from "../auth/ownership";
-import { assertPermission } from "../auth/permissions";
+import { assertAccess } from "../auth/policy";
 import { toApiIosAppMetadata } from "../http/to-api";
 import { toApiCrudEffect, toApiWriteEffect } from "../http/to-api-effect";
 import { toDbNull } from "../lib/nullable";
@@ -19,8 +19,11 @@ export const IosAppMetadataGroupLive = HttpApiBuilder.group(
       .handle("list", ({ path }) =>
         toApiCrudEffect(
           Effect.gen(function* () {
-            yield* assertPermission("iosAppMetadata", "read");
             yield* assertProjectOwnership(path.projectId);
+            yield* assertAccess("iosAppMetadata", "read", {
+              kind: "project",
+              projectId: path.projectId,
+            });
             const repo = yield* IosAppMetadataRepo;
             const items = yield* repo.listByProject({ projectId: path.projectId });
             return { items: items.map(toApiIosAppMetadata) };
@@ -30,8 +33,11 @@ export const IosAppMetadataGroupLive = HttpApiBuilder.group(
       .handle("create", ({ path, payload }) =>
         toApiWriteEffect(
           Effect.gen(function* () {
-            yield* assertPermission("iosAppMetadata", "create");
             yield* assertProjectOwnership(path.projectId);
+            yield* assertAccess("iosAppMetadata", "create", {
+              kind: "project",
+              projectId: path.projectId,
+            });
             const ctx = yield* CurrentActor;
             const repo = yield* IosAppMetadataRepo;
 
@@ -65,10 +71,13 @@ export const IosAppMetadataGroupLive = HttpApiBuilder.group(
       .handle("update", ({ path, payload }) =>
         toApiCrudEffect(
           Effect.gen(function* () {
-            yield* assertPermission("iosAppMetadata", "update");
             const repo = yield* IosAppMetadataRepo;
             const existing = yield* repo.findById({ id: path.id });
             yield* assertOrgOwnership(existing.organizationId);
+            yield* assertAccess("iosAppMetadata", "update", {
+              kind: "project",
+              projectId: existing.projectId,
+            });
             const now = new Date().toISOString();
             yield* repo.update({
               id: path.id,
@@ -94,10 +103,13 @@ export const IosAppMetadataGroupLive = HttpApiBuilder.group(
       .handle("delete", ({ path }) =>
         toApiCrudEffect(
           Effect.gen(function* () {
-            yield* assertPermission("iosAppMetadata", "delete");
             const repo = yield* IosAppMetadataRepo;
             const existing = yield* repo.findById({ id: path.id });
             yield* assertOrgOwnership(existing.organizationId);
+            yield* assertAccess("iosAppMetadata", "delete", {
+              kind: "project",
+              projectId: existing.projectId,
+            });
             yield* repo.delete({ id: path.id });
             yield* logAudit({
               action: "ios.app-metadata.delete",

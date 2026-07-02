@@ -1,8 +1,9 @@
 import { env } from "cloudflare:test";
 import { Effect, Layer } from "effect";
 
-import { MANAGED_POLICIES } from "../../../src/auth/managed-policies";
+import { resolveManagedDocument } from "../../../src/auth/managed-policies";
 import { resolveEffectiveStatements } from "../../../src/auth/middleware";
+import { MEMBER_BASELINE_STATEMENTS } from "../../../src/auth/permissions";
 import { statementsForPrincipals } from "../../../src/auth/statements";
 import { GroupRepo, GroupRepoLive } from "../../../src/repositories/group-repo";
 import {
@@ -37,6 +38,10 @@ const scopedDoc: PolicyDocument = {
 
 const denyDoc: PolicyDocument = {
   statements: [{ effect: "deny", actions: ["channel:delete"], resources: ["project/A"] }],
+};
+
+const readOnlyDoc: PolicyDocument = {
+  statements: [{ effect: "allow", actions: ["project:read", "channel:read"], resources: ["*"] }],
 };
 
 const insertOrg = (id: string) =>
@@ -128,11 +133,17 @@ beforeAll(async () => {
         principal: { type: "member", id: MEMBER },
       });
 
-      // robot principal: a managed preset + a real scoped policy, so the
-      // machine-credential grant path is exercised (not just default-deny).
+      // robot principal: a custom read-only policy + a real scoped policy, so
+      // the machine-credential grant path is exercised (not just default-deny).
+      const readOnlyPolicy = yield* policyRepo.create({
+        organizationId: ORG,
+        name: "robot-read-only",
+        description: null,
+        document: readOnlyDoc,
+      });
       yield* attachRepo.attach({
         organizationId: ORG,
-        policyId: "managed:viewer",
+        policyId: readOnlyPolicy.id,
         principal: { type: "robot", id: ROBOT },
       });
       yield* attachRepo.attach({
@@ -164,7 +175,7 @@ describe("resolveEffectiveStatements — D1 integration", () => {
     const got = sortStatements(statements);
 
     // managed:admin (via group 1) contributes its full org-wide statement set.
-    for (const stmt of MANAGED_POLICIES["managed:admin"].document.statements) {
+    for (const stmt of resolveManagedDocument("managed:admin")?.statements ?? []) {
       expect(got).toContain(JSON.stringify(stmt));
     }
     // the real scoped policy (via group 2) contributes its project/A allows.
@@ -179,8 +190,9 @@ describe("resolveEffectiveStatements — D1 integration", () => {
 
   it("derives NO statements from the member.role string — only attachments grant access (spec §8)", async () => {
     // A fresh member whose role is a managed preset name ("viewer" / "admin") but
-    // who has NO policy/group attachment resolves to ZERO statements: privilege
-    // flows exclusively through `policy_attachment`, never the role string.
+    // who has NO policy/group attachment resolves to ONLY the constant member
+    // baseline: privilege flows exclusively through `policy_attachment`, never
+    // the role string.
     await insertUser("user-resolve-carol");
     await insertMember("member-resolve-carol", ORG, "user-resolve-carol");
     await env.DB.prepare(`UPDATE "member" SET "role" = 'admin' WHERE "id" = ?`)
@@ -193,7 +205,7 @@ describe("resolveEffectiveStatements — D1 integration", () => {
         memberId: "member-resolve-carol",
       }),
     );
-    expect(statements).toEqual([]);
+    expect(statements).toEqual(MEMBER_BASELINE_STATEMENTS);
   });
 
   it("a member with no groups and no attachments resolves to empty", async () => {
@@ -206,8 +218,8 @@ describe("resolveEffectiveStatements — D1 integration", () => {
         memberId: "member-resolve-bob",
       }),
     );
-    // no attachments → empty (no role baseline).
-    expect(statements).toEqual([]);
+    // no attachments → just the org-metadata member baseline.
+    expect(statements).toEqual(MEMBER_BASELINE_STATEMENTS);
   });
 
   it("real-policy resolution is tenant-scoped (a same-named principal in another org sees nothing)", async () => {
@@ -219,7 +231,7 @@ describe("resolveEffectiveStatements — D1 integration", () => {
         memberId: MEMBER,
       }),
     );
-    expect(statements).toEqual([]);
+    expect(statements).toEqual(MEMBER_BASELINE_STATEMENTS);
   });
 
   it("exposes the seeded group ids and real policy id for traceability", () => {
@@ -238,8 +250,8 @@ describe("statementsForPrincipals — robot principal (machine credential)", () 
       }),
     );
     const got = sortStatements(statements);
-    // managed:viewer (read-only) + the real project/A scoped policy are both granted.
-    for (const stmt of MANAGED_POLICIES["managed:viewer"].document.statements) {
+    // The custom read-only policy + the real project/A scoped policy are both granted.
+    for (const stmt of readOnlyDoc.statements) {
       expect(got).toContain(JSON.stringify(stmt));
     }
     for (const stmt of scopedDoc.statements) {

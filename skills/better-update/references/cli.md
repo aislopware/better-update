@@ -858,7 +858,13 @@ better-update policies delete <id> [--yes]
 ```
 
 `--document` is a JSON policy: `{"statements":[{"effect":"allow"|"deny","actions":[…],"resources":[…]}]}`
-(shape-validated client-side). `managed:*` presets are read-only — can't be updated or deleted.
+(shape-validated client-side). `managed:admin` is the ONLY managed (read-only) policy — all
+fine-grained access is granted via custom policies. Resource selectors on the OTA axis carry the
+environment segment: `project/{id}/env/{env}/channel/{id}/…` — writes into a PROTECTED environment
+additionally require `environment:update` on `project/{id}/env/{env}`. Apple credentials are scoped
+by Apple team: `appleCredential:*` on `appleTeam/{APPLE_TEAM_ID}` grants full CRUD + download for
+every credential type of that team (`appleCredential:read` = per-team viewer; team-less ASC keys
+live under `appleTeam/none`; see `references/access-control.md`).
 
 ## webhooks
 

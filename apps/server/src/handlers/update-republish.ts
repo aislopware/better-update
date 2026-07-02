@@ -6,6 +6,7 @@ import { countBy, uniq } from "es-toolkit";
 import type { RepublishBody } from "@better-update/api";
 
 import { assertProjectOwnership } from "../auth/ownership";
+import { assertAccess } from "../auth/policy";
 import { verifySignedUpdate } from "../domain/signed-update-verification";
 import { validateUpdatePublishInput } from "../domain/update-publish-validation";
 import { BadRequest, NotFound } from "../errors";
@@ -212,6 +213,34 @@ export const resolveRepublishSource = ({ payload }: { readonly payload: Republis
 
     yield* assertProjectOwnership(sourceProjectId);
 
+    // Per-source READ gate: republish copies the source's manifest, signature,
+    // cert chain and assets into the destination, so the caller must be allowed
+    // to READ each source at its own environment/channel scope — not merely hold
+    // `update:create` on the destination. Without this, an actor scoped to one
+    // environment could exfiltrate a protected environment's update into a
+    // channel they control. Mirrors the destination gate's channel/branch shape.
+    const channelRepo = yield* ChannelRepo;
+    yield* Effect.forEach(
+      sourceBranches,
+      (branch) =>
+        Effect.gen(function* () {
+          const owningChannel = yield* channelRepo.findByBranchId({ branchId: branch.id });
+          yield* owningChannel
+            ? assertAccess("update", "read", {
+                kind: "update",
+                projectId: sourceProjectId,
+                environment: owningChannel.name,
+                channelId: owningChannel.id,
+              })
+            : assertAccess("update", "read", {
+                kind: "environment",
+                projectId: sourceProjectId,
+                environment: branch.name,
+              });
+        }),
+      { concurrency: "unbounded" },
+    );
+
     if (sourceUpdates.some((update) => update.isRollback)) {
       return yield* fail("Cannot republish a rollback directive");
     }
@@ -263,6 +292,9 @@ export const resolveRepublishDestination = (params: {
       return {
         branchId: destinationBranch.id,
         channelId: toDbNull(owningChannel?.id),
+        // Environment segment for the publish gate: the owning channel's name,
+        // or the branch name for a branch-only destination.
+        environmentName: owningChannel?.name ?? destinationBranch.name,
         auditMetadata: { destinationBranchId: destinationBranch.id },
       };
     }
@@ -276,6 +308,7 @@ export const resolveRepublishDestination = (params: {
     return {
       branchId: destinationChannel.branchId,
       channelId: destinationChannel.id,
+      environmentName: destinationChannel.name,
       auditMetadata: {
         destinationBranchId: destinationChannel.branchId,
         destinationChannel: destinationChannel.name,

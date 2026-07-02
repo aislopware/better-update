@@ -99,12 +99,13 @@ export const toApiChannel = (channel: ChannelModel) =>
   });
 
 /** Map a user-defined environment row to the API shape (built-ins are virtual). */
-export const toApiEnvironment = (environment: EnvironmentModel) =>
+export const toApiEnvironment = (environment: EnvironmentModel, isProtected: boolean) =>
   new Environment({
     id: environment.id,
     organizationId: environment.organizationId,
     name: environment.name,
     isBuiltin: false,
+    protected: isProtected,
     createdAt: environment.createdAt,
   });
 

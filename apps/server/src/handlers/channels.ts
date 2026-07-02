@@ -3,8 +3,10 @@ import { Effect } from "effect";
 
 import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
+import { CurrentActor } from "../auth/current-actor";
 import { assertProjectOwnership } from "../auth/ownership";
 import { assertAccess } from "../auth/policy";
+import { isAllowed, resolvePath } from "../auth/policy-match";
 import {
   buildBranchMapping,
   extractNewBranchId,
@@ -18,6 +20,7 @@ import { BranchRepo } from "../repositories/branches";
 import { ChannelRepo } from "../repositories/channels";
 import { ProjectRepo } from "../repositories/projects";
 
+import type { Action } from "../models";
 import type { ChannelSortKey, ChannelSortOrder } from "../repositories/channels";
 
 const parseChannelSort = (
@@ -36,15 +39,35 @@ const parseChannelSort = (
   }
 };
 
+// Load a channel and run the ownership + access gates for a write on it. The
+// channel NAME is its environment segment, so per-environment grants + the
+// protected-env guard apply.
+const gateChannelWrite = (id: string, resource: "channel" | "rollout", action: Action) =>
+  Effect.gen(function* () {
+    const repo = yield* ChannelRepo;
+    const channel = yield* repo.findById({ id });
+    yield* assertProjectOwnership(channel.projectId);
+    yield* assertAccess(resource, action, {
+      kind: resource,
+      projectId: channel.projectId,
+      environment: channel.name,
+      channelId: id,
+    });
+    return channel;
+  });
+
 export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels", (handlers) =>
   handlers
     .handle("create", ({ payload }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
           yield* assertProjectOwnership(payload.projectId);
+          // Env-scoped create gate: the channel's NAME is its environment
+          // segment, so per-environment grants + the protected-env guard apply.
           yield* assertAccess("channel", "create", {
-            kind: "project",
+            kind: "environment",
             projectId: payload.projectId,
+            environment: payload.name,
           });
 
           const branchRepo = yield* BranchRepo;
@@ -81,10 +104,7 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
       toApiCrudEffect(
         Effect.gen(function* () {
           yield* assertProjectOwnership(urlParams.projectId);
-          yield* assertAccess("channel", "read", {
-            kind: "project",
-            projectId: urlParams.projectId,
-          });
+          const ctx = yield* CurrentActor;
           const repo = yield* ChannelRepo;
           const { page, limit, offset } = parsePagination(urlParams);
           const { sort, order } = parseChannelSort(urlParams.sort);
@@ -98,7 +118,32 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
             offset,
           });
 
-          return { items: items.map(toApiChannel), total, page, limit };
+          // Per-channel read filter (deny-wins), so an environment-scoped grant
+          // sees its own channels here instead of a blanket 403 — the channel's
+          // NAME is its environment segment, matching the by-id write gates.
+          // Owner/superadmin (and project-wide `channel:read`) see everything.
+          const bypass = ctx.isSuperadmin || ctx.isOwner;
+          const visible = bypass
+            ? items
+            : items.filter((channel) =>
+                isAllowed(
+                  ctx.effectiveStatements,
+                  "channel:read",
+                  resolvePath({
+                    kind: "channel",
+                    projectId: urlParams.projectId,
+                    environment: channel.name,
+                    channelId: channel.id,
+                  }),
+                ),
+              );
+
+          return {
+            items: visible.map(toApiChannel),
+            total: bypass ? total : visible.length,
+            page,
+            limit,
+          };
         }),
       ),
     )
@@ -106,13 +151,7 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
       toApiCrudEffect(
         Effect.gen(function* () {
           const repo = yield* ChannelRepo;
-          const channel = yield* repo.findById({ id: path.id });
-          yield* assertProjectOwnership(channel.projectId);
-          yield* assertAccess("channel", "update", {
-            kind: "channel",
-            projectId: channel.projectId,
-            channelId: path.id,
-          });
+          const channel = yield* gateChannelWrite(path.id, "channel", "update");
 
           if (channel.branchMappingJson !== null) {
             return yield* new Conflict({ message: "Cannot relink while a rollout is active" });
@@ -142,13 +181,7 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
       toApiCrudEffect(
         Effect.gen(function* () {
           const repo = yield* ChannelRepo;
-          const channel = yield* repo.findById({ id: path.id });
-          yield* assertProjectOwnership(channel.projectId);
-          yield* assertAccess("channel", "update", {
-            kind: "channel",
-            projectId: channel.projectId,
-            channelId: path.id,
-          });
+          const channel = yield* gateChannelWrite(path.id, "channel", "update");
           yield* repo.setPaused({ id: path.id, isPaused: true });
           return toApiChannel({ ...channel, isPaused: true });
         }),
@@ -158,13 +191,7 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
       toApiCrudEffect(
         Effect.gen(function* () {
           const repo = yield* ChannelRepo;
-          const channel = yield* repo.findById({ id: path.id });
-          yield* assertProjectOwnership(channel.projectId);
-          yield* assertAccess("channel", "update", {
-            kind: "channel",
-            projectId: channel.projectId,
-            channelId: path.id,
-          });
+          const channel = yield* gateChannelWrite(path.id, "channel", "update");
           yield* repo.setPaused({ id: path.id, isPaused: false });
           return toApiChannel({ ...channel, isPaused: false });
         }),
@@ -174,13 +201,7 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
       toApiCrudEffect(
         Effect.gen(function* () {
           const repo = yield* ChannelRepo;
-          const channel = yield* repo.findById({ id: path.id });
-          yield* assertProjectOwnership(channel.projectId);
-          yield* assertAccess("rollout", "create", {
-            kind: "rollout",
-            projectId: channel.projectId,
-            channelId: path.id,
-          });
+          const channel = yield* gateChannelWrite(path.id, "rollout", "create");
 
           if (channel.branchMappingJson !== null) {
             return yield* new Conflict({ message: "Rollout already active" });
@@ -211,13 +232,7 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
       toApiCrudEffect(
         Effect.gen(function* () {
           const repo = yield* ChannelRepo;
-          const channel = yield* repo.findById({ id: path.id });
-          yield* assertProjectOwnership(channel.projectId);
-          yield* assertAccess("rollout", "update", {
-            kind: "rollout",
-            projectId: channel.projectId,
-            channelId: path.id,
-          });
+          const channel = yield* gateChannelWrite(path.id, "rollout", "update");
 
           if (channel.branchMappingJson === null) {
             return yield* new NotFound({ message: "No active rollout" });
@@ -236,13 +251,7 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
       toApiCrudEffect(
         Effect.gen(function* () {
           const repo = yield* ChannelRepo;
-          const channel = yield* repo.findById({ id: path.id });
-          yield* assertProjectOwnership(channel.projectId);
-          yield* assertAccess("rollout", "update", {
-            kind: "rollout",
-            projectId: channel.projectId,
-            channelId: path.id,
-          });
+          const channel = yield* gateChannelWrite(path.id, "rollout", "update");
 
           if (channel.branchMappingJson === null) {
             return yield* new NotFound({ message: "No active rollout" });
@@ -261,13 +270,7 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
       toApiCrudEffect(
         Effect.gen(function* () {
           const repo = yield* ChannelRepo;
-          const channel = yield* repo.findById({ id: path.id });
-          yield* assertProjectOwnership(channel.projectId);
-          yield* assertAccess("rollout", "update", {
-            kind: "rollout",
-            projectId: channel.projectId,
-            channelId: path.id,
-          });
+          const channel = yield* gateChannelWrite(path.id, "rollout", "update");
 
           if (channel.branchMappingJson === null) {
             return yield* new NotFound({ message: "No active rollout" });
@@ -282,13 +285,7 @@ export const ChannelsGroupLive = HttpApiBuilder.group(ManagementApi, "channels",
       toApiCrudEffect(
         Effect.gen(function* () {
           const channelRepo = yield* ChannelRepo;
-          const channel = yield* channelRepo.findById({ id: path.id });
-          yield* assertProjectOwnership(channel.projectId);
-          yield* assertAccess("channel", "delete", {
-            kind: "channel",
-            projectId: channel.projectId,
-            channelId: path.id,
-          });
+          const channel = yield* gateChannelWrite(path.id, "channel", "delete");
           if (channel.isBuiltin) {
             return yield* new Conflict({
               message: `Built-in channel "${channel.name}" cannot be deleted`,

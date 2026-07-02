@@ -26,6 +26,7 @@ import type { RobotAccountItem } from "@better-update/api-client/react";
 
 import { PageHeader } from "../../../components/page-header";
 import { TableSkeleton } from "../../../components/skeletons";
+import { assertCapability } from "../../../lib/access";
 import { RelativeTime } from "../../../lib/relative-time";
 import { RobotRowActions } from "./-robot-row-actions";
 
@@ -130,5 +131,8 @@ const RobotAccounts = () => (
 );
 
 export const Route = createFileRoute("/_authed/_app/robot-accounts")({
+  beforeLoad: async ({ context }) => {
+    await assertCapability(context.queryClient, "canViewRobots");
+  },
   component: RobotAccounts,
 });

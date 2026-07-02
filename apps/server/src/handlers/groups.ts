@@ -6,7 +6,9 @@ import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
 import { CurrentActor } from "../auth/current-actor";
 import { assertAccess } from "../auth/policy";
-import { NotFound } from "../errors";
+import { isWithinBoundary } from "../auth/policy-boundary";
+import { statementsForPrincipals } from "../auth/statements";
+import { Forbidden, NotFound } from "../errors";
 import { toApiWriteEffect } from "../http/to-api-effect";
 import { toDbNull } from "../lib/nullable";
 import { GroupRepo } from "../repositories/group-repo";
@@ -23,6 +25,30 @@ const toApiGroup = (model: GroupModel) =>
     description: model.description,
     createdAt: model.createdAt,
     updatedAt: model.updatedAt,
+  });
+
+// Permission boundary (no privilege escalation): a group's members inherit
+// every policy attached to that group (auth/middleware.ts resolveEffectiveStatements),
+// exactly like a direct policy attachment. So changing a group's roster is a
+// grant/revoke of the group's full statement set — it must clear the same
+// boundary check `attachPolicy` and robot bearer-rotation enforce. Otherwise a
+// bare `group:update` token would be a ladder into any group holding
+// `managed:admin`. Owners/superadmins bypass (root / cross-org).
+const assertGroupWithinBoundary = (groupId: string) =>
+  Effect.gen(function* () {
+    const ctx = yield* CurrentActor;
+    if (ctx.isOwner || ctx.isSuperadmin) {
+      return;
+    }
+    const granted = yield* statementsForPrincipals({
+      organizationId: ctx.organizationId,
+      principals: [{ type: "group", id: groupId }],
+    });
+    if (!isWithinBoundary(ctx.effectiveStatements, { statements: granted })) {
+      return yield* new Forbidden({
+        message: "Cannot change membership of a group that grants more than you currently hold",
+      });
+    }
   });
 
 export const GroupsGroupLive = HttpApiBuilder.group(ManagementApi, "groups", (handlers) =>
@@ -157,6 +183,7 @@ export const GroupsGroupLive = HttpApiBuilder.group(ManagementApi, "groups", (ha
           if (memberOrgId !== ctx.organizationId) {
             return yield* new NotFound({ message: "Member not found" });
           }
+          yield* assertGroupWithinBoundary(path.id);
           yield* repo.addMember({ groupId: path.id, memberId: payload.memberId });
           const now = new Date().toISOString();
           yield* logAudit({
@@ -179,6 +206,7 @@ export const GroupsGroupLive = HttpApiBuilder.group(ManagementApi, "groups", (ha
           if (group === null) {
             return yield* new NotFound({ message: "Group not found" });
           }
+          yield* assertGroupWithinBoundary(path.id);
           yield* repo.removeMember({ groupId: path.id, memberId: path.memberId });
           yield* logAudit({
             action: "group.removeMember",

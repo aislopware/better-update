@@ -383,6 +383,13 @@ export interface Invitation {
   status: string;
 }
 
+export interface InvitationGrant {
+  created_at: Generated<string>;
+  invitation_id: string;
+  organization_id: string;
+  policy_id: string;
+}
+
 export interface IosAppMetadata {
   app_name: string | null;
   asc_app_id: string | null;
@@ -527,6 +534,12 @@ export interface ProjectsFts {
   organization_id: string | null;
   project_id: string | null;
   slug: string | null;
+}
+
+export interface ProtectedEnvironment {
+  created_at: Generated<string>;
+  environment: string;
+  organization_id: string;
 }
 
 export interface RobotAccount {
@@ -679,6 +692,7 @@ export interface DB {
   iam_group: IamGroup;
   iam_group_membership: IamGroupMembership;
   invitation: Invitation;
+  invitation_grant: InvitationGrant;
   ios_app_metadata: IosAppMetadata;
   ios_bundle_configurations: IosBundleConfigurations;
   member: Member;
@@ -693,6 +707,7 @@ export interface DB {
   project_protocol_metadata: ProjectProtocolMetadata;
   projects: Projects;
   projects_fts: ProjectsFts;
+  protected_environment: ProtectedEnvironment;
   robot_account: RobotAccount;
   session: Session;
   submissions: Submissions;

@@ -98,6 +98,7 @@ export type GoogleServiceAccountKeys = WithNonNullId<Gen.GoogleServiceAccountKey
 export type IamGroup = WithNonNullId<Gen.IamGroup>;
 export type IamGroupMembership = WithNonNullId<Gen.IamGroupMembership>;
 export type Invitation = WithNonNullId<Gen.Invitation>;
+export type InvitationGrant = WithNonNullId<Gen.InvitationGrant>;
 export type IosAppMetadata = WithNonNullId<Gen.IosAppMetadata>;
 export type IosBundleConfigurations = WithNonNullId<
   Narrow<Gen.IosBundleConfigurations, { distribution_type: DistributionType }>
@@ -120,6 +121,7 @@ export type PolicyAttachment = WithNonNullId<
 export type ProjectProtocolMetadata = WithNonNullId<Gen.ProjectProtocolMetadata>;
 export type Projects = WithNonNullId<Gen.Projects>;
 export type ProjectsFts = WithNonNullId<Gen.ProjectsFts>;
+export type ProtectedEnvironment = WithNonNullId<Gen.ProtectedEnvironment>;
 export type RobotAccount = WithNonNullId<Gen.RobotAccount>;
 export type Session = WithNonNullId<Gen.Session>;
 export type Submissions = WithNonNullId<
@@ -169,6 +171,7 @@ export interface DB {
   iam_group: IamGroup;
   iam_group_membership: IamGroupMembership;
   invitation: Invitation;
+  invitation_grant: InvitationGrant;
   ios_app_metadata: IosAppMetadata;
   ios_bundle_configurations: IosBundleConfigurations;
   member: Member;
@@ -183,6 +186,7 @@ export interface DB {
   project_protocol_metadata: ProjectProtocolMetadata;
   projects: Projects;
   projects_fts: ProjectsFts;
+  protected_environment: ProtectedEnvironment;
   robot_account: RobotAccount;
   session: Session;
   submissions: Submissions;

@@ -49,6 +49,7 @@ export {
   GoogleServiceAccountKeyRepo,
   GoogleServiceAccountKeyRepoLive,
 } from "./google-service-account-keys";
+export { InvitationGrantRepo, InvitationGrantRepoLive } from "./invitation-grants";
 export {
   IosBundleConfigurationRepo,
   IosBundleConfigurationRepoLive,
@@ -60,6 +61,7 @@ export { OrgEnvVaultRepo, OrgEnvVaultRepoLive } from "./org-env-vault";
 export { OrgVaultRepo, OrgVaultRepoLive } from "./org-vault";
 export { PasskeyStepUpRepo, PasskeyStepUpRepoLive } from "./passkey-step-up";
 export { ProjectRepo, ProjectRepoLive } from "./projects";
+export { ProtectedEnvironmentRepo, ProtectedEnvironmentRepoLive } from "./protected-environments";
 export { RuntimeRepo, RuntimeRepoLive } from "./runtimes";
 export { UpdateRepo, UpdateRepoLive } from "./updates";
 export { UserEncryptionKeyRepo, UserEncryptionKeyRepoLive } from "./user-encryption-keys";

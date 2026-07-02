@@ -56,6 +56,12 @@ reads; the better-auth routes stay live but are no longer called by our web/CLI 
    high-risk/low-value (owner-only is already safe).
 3. **Invitation accept / reject** — gated by the _invited user's own session_, not a
    role; no IAM change needed. They consume the member-only invitations we write.
+4. **Member directory reads** (`authClient.organization.listMembers`) — stays
+   membership-gated (better-auth), NOT `member:read`-gated: **any org member sees
+   the directory** (names, emails, org role, join date) — the GitHub-organization
+   model, deliberate (ROLES-CAPABILITIES-SPEC §8c). IAM-enriched data
+   (attachments, access summaries, robot accounts, invitations) stays behind
+   `policy:read` / `robotAccount:read` / `invitation:read` on our own endpoints.
 
 These are documented inline in `auth.ts` (org plugin comment) and `auth/permissions.ts`
 (the RESERVED note), so the reserved `organization`/`member` tokens are not mistaken for

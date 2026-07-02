@@ -26,6 +26,12 @@ export class Environment extends Schema.Class<Environment>("Environment")({
   organizationId: Id,
   name: EnvironmentName,
   isBuiltin: Schema.Boolean,
+  /**
+   * Protected environments (ROLES-CAPABILITIES-SPEC §2d): writes into them
+   * additionally require `environment:update` (Maintainer+ / Admin / a custom
+   * grant). `production` ships protected in every org.
+   */
+  protected: Schema.Boolean,
   createdAt: DateTimeString,
 }) {}
 

@@ -1,11 +1,12 @@
 import { Context, Effect, Layer } from "effect";
 import { sql } from "kysely";
 
-import type { Expression, ExpressionBuilder, SqlBool } from "kysely";
+import type { ExpressionBuilder } from "kysely";
 
 import { d1Batch, kyselyDb } from "../cloudflare/db";
 import { NotFound } from "../errors";
 import { d1RunWithUniqueCheck } from "./d1-helpers";
+import { projectFilter, sortColumns } from "./projects-sql";
 
 import type { DB } from "../db/schema";
 import type { Conflict } from "../errors";
@@ -40,6 +41,16 @@ export interface ProjectRepository {
     readonly query?: string | undefined;
     /** `"active"` (default) hides archived projects; `"archived"` shows only them. */
     readonly status?: ProjectListStatus | undefined;
+    /**
+     * Server-side access filter (ROLES-CAPABILITIES-SPEC §5a), from
+     * `accessibleProjectIds`: `include` keeps only these ids, `exclude` drops
+     * them. Bound as ONE json_each parameter, so the D1 100-param ceiling never
+     * applies. Omitted = no access filtering (owner/admin).
+     */
+    readonly idFilter?: {
+      readonly mode: "include" | "exclude";
+      readonly ids: readonly string[];
+    };
     readonly sort: ProjectSortKey;
     readonly order: ProjectSortOrder;
     readonly limit: number;
@@ -171,73 +182,6 @@ const projectColumns = (eb: ExpressionBuilder<DB, "projects">) =>
       .as("update_count"),
   ] as const;
 
-// FTS5 trigram tokenizer requires 3+ char queries. Wrap in phrase quotes so
-// Special chars (-, ", *, etc.) are treated as literal text rather than FTS
-// Operators. Doubling embedded quotes is the standard FTS5 escape.
-const escapeFtsPhrase = (value: string): string => `"${value.replaceAll('"', '""')}"`;
-
-// Search predicate: FTS5 MATCH (via a correlated EXISTS over `projects_fts`) for
-// 3+ char queries, falling back to a LIKE substring scan for shorter queries the
-// trigram index can't tokenize. `null` when there is nothing to filter on.
-const searchExpression = (
-  eb: ExpressionBuilder<DB, "projects">,
-  query: string | undefined,
-): Expression<SqlBool> | null => {
-  if (query === undefined || query.length === 0) {
-    return null;
-  }
-  if (query.length >= 3) {
-    return eb.exists(
-      eb
-        .selectFrom("projects_fts")
-        .select(sql`1`.as("present"))
-        .whereRef("projects_fts.project_id", "=", "projects.id")
-        .where(sql<SqlBool>`"projects_fts" MATCH ${escapeFtsPhrase(query)}`),
-    );
-  }
-  // Trigram FTS can't index 1-2 char tokens; LIKE keeps short queries usable.
-  const pattern = `%${query.toLowerCase()}%`;
-  return eb.or([
-    eb(eb.fn<string>("lower", ["projects.name"]), "like", pattern),
-    eb(eb.fn<string>("lower", ["projects.slug"]), "like", pattern),
-  ]);
-};
-
-// `"active"` → archived_at IS NULL, `"archived"` → archived_at IS NOT NULL,
-// `"all"` → no archival predicate (`null` collapses to "no filter").
-const archivedExpression = (
-  eb: ExpressionBuilder<DB, "projects">,
-  status: ProjectListStatus,
-): Expression<SqlBool> | null => {
-  if (status === "active") {
-    return eb("projects.archived_at", "is", null);
-  }
-  if (status === "archived") {
-    return eb("projects.archived_at", "is not", null);
-  }
-  return null;
-};
-
-const projectFilter =
-  (organizationId: string, query: string | undefined, status: ProjectListStatus) =>
-  (eb: ExpressionBuilder<DB, "projects">): Expression<SqlBool> => {
-    const orgFilter = eb("projects.organization_id", "=", organizationId);
-    const conditions = [orgFilter, searchExpression(eb, query), archivedExpression(eb, status)];
-    return eb.and(conditions.filter((condition) => condition !== null));
-  };
-
-// Sort whitelist → ORDER BY expression. `name` is case-insensitive; the count
-// keys reference the computed output aliases. The trailing `projects.id` tie-break
-// that keeps pagination stable is applied at the call site.
-const sortColumns = {
-  name: sql`"projects"."name" collate nocase`,
-  lastActivityAt: sql`"projects"."last_activity_at"`,
-  createdAt: sql`"projects"."created_at"`,
-  branchCount: sql`"branch_count"`,
-  channelCount: sql`"channel_count"`,
-  updateCount: sql`"update_count"`,
-} satisfies Record<ProjectSortKey, unknown>;
-
 export const ProjectRepoLive = Layer.succeed(ProjectRepo, {
   insert: (params) =>
     Effect.gen(function* () {
@@ -263,7 +207,12 @@ export const ProjectRepoLive = Layer.succeed(ProjectRepo, {
   findByOrg: (params) =>
     Effect.gen(function* () {
       const db = yield* kyselyDb;
-      const where = projectFilter(params.organizationId, params.query, params.status ?? "active");
+      const where = projectFilter(
+        params.organizationId,
+        params.query,
+        params.status ?? "active",
+        params.idFilter,
+      );
 
       const countRow = yield* Effect.promise(async () =>
         db

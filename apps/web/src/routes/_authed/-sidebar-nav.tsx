@@ -1,3 +1,4 @@
+import { meQueryOptions } from "@better-update/api-client/react";
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -6,6 +7,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@better-update/ui/components/ui/sidebar";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import {
   ScrollTextIcon,
@@ -29,7 +31,23 @@ import {
   UsersRoundIcon,
 } from "lucide-react";
 
+import type { MeResult } from "@better-update/api-client/react";
 import type { LucideIcon } from "lucide-react";
+
+// Sidebar entries are gated by the server-computed /api/me capabilities
+// (ROLES-CAPABILITIES-SPEC §5b/§9e). Hiding is UX only — every endpoint stays
+// IAM-gated regardless.
+type MeCapability = keyof Pick<
+  MeResult,
+  | "canViewPolicies"
+  | "canViewAuditLog"
+  | "canViewCredentials"
+  | "canViewDevices"
+  | "canViewVaultAccess"
+  | "canViewRobots"
+  | "canManageOrgEnvVars"
+  | "canManageOrgSettings"
+>;
 
 interface OrgNavItem {
   to:
@@ -48,6 +66,8 @@ interface OrgNavItem {
     | "/account/profile";
   label: string;
   icon: LucideIcon;
+  /** Omitted = visible to every member (projects list + member directory). */
+  capability?: MeCapability;
 }
 
 interface OrgNavSection {
@@ -87,34 +107,62 @@ const ORG_NAV: OrgNavSection[] = [
     label: "Organization",
     items: [
       { to: "/members", label: "Members", icon: UsersIcon },
-      { to: "/audit-log", label: "Audit log", icon: ScrollTextIcon },
-    ],
-  },
-  {
-    label: "Access control",
-    items: [
-      { to: "/policies", label: "Policies", icon: ShieldIcon },
-      { to: "/groups", label: "Groups", icon: UsersRoundIcon },
+      { to: "/audit-log", label: "Audit log", icon: ScrollTextIcon, capability: "canViewAuditLog" },
     ],
   },
   {
     label: "Credentials",
     items: [
-      { to: "/credentials", label: "Credentials", icon: ShieldCheckIcon },
-      { to: "/apple-devices", label: "Apple Devices", icon: SmartphoneIcon },
-      { to: "/vault-access", label: "Vault access", icon: FingerprintIcon },
+      {
+        to: "/credentials",
+        label: "Credentials",
+        icon: ShieldCheckIcon,
+        capability: "canViewCredentials",
+      },
+      {
+        to: "/apple-devices",
+        label: "Apple Devices",
+        icon: SmartphoneIcon,
+        capability: "canViewDevices",
+      },
+      {
+        to: "/vault-access",
+        label: "Vault access",
+        icon: FingerprintIcon,
+        capability: "canViewVaultAccess",
+      },
     ],
   },
   {
     label: "Settings",
     items: [
-      { to: "/robot-accounts", label: "Robot accounts", icon: BotIcon },
+      {
+        to: "/robot-accounts",
+        label: "Robot accounts",
+        icon: BotIcon,
+        capability: "canViewRobots",
+      },
       {
         to: "/environment-variables",
         label: "Environment variables",
         icon: CodeIcon,
+        capability: "canManageOrgEnvVars",
       },
-      { to: "/settings", label: "Organization settings", icon: SettingsIcon },
+      {
+        to: "/settings",
+        label: "Organization settings",
+        icon: SettingsIcon,
+        capability: "canManageOrgSettings",
+      },
+    ],
+  },
+  // Demoted (SPEC §9d): the raw policy/group builder is the ADVANCED escape
+  // hatch — the Members page Access sheet is the primary surface.
+  {
+    label: "Advanced",
+    items: [
+      { to: "/policies", label: "Policies", icon: ShieldIcon, capability: "canViewPolicies" },
+      { to: "/groups", label: "Groups", icon: UsersRoundIcon, capability: "canViewPolicies" },
     ],
   },
 ];
@@ -175,31 +223,44 @@ const PROJECT_NAV: ProjectNavSection[] = [
   },
 ];
 
-export const OrgNavSections = ({ isSuperadmin = false }: { isSuperadmin?: boolean }) => (
-  <>
-    {(isSuperadmin ? [...ORG_NAV, ADMIN_NAV] : ORG_NAV).map((section) => (
-      <SidebarGroup key={section.label}>
-        <SidebarGroupLabel>{section.label}</SidebarGroupLabel>
-        <SidebarGroupContent>
-          <SidebarMenu>
-            {section.items.map((item) => (
-              <SidebarMenuItem key={item.to}>
-                <Link to={item.to}>
-                  {({ isActive }) => (
-                    <SidebarMenuButton isActive={isActive} tooltip={item.label}>
-                      <item.icon strokeWidth={2} />
-                      <span>{item.label}</span>
-                    </SidebarMenuButton>
-                  )}
-                </Link>
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </SidebarGroupContent>
-      </SidebarGroup>
-    ))}
-  </>
-);
+export const OrgNavSections = ({ isSuperadmin = false }: { isSuperadmin?: boolean }) => {
+  // Progressive reveal: while /api/me is in flight only ungated entries render,
+  // so capability-gated entries never flash in and out.
+  const { data: me } = useQuery(meQueryOptions());
+  const sections = (isSuperadmin ? [...ORG_NAV, ADMIN_NAV] : ORG_NAV)
+    .map((section) => {
+      const items = section.items.filter(
+        (item) => item.capability === undefined || me?.[item.capability] === true,
+      );
+      return { label: section.label, items };
+    })
+    .filter((section) => section.items.length > 0);
+  return (
+    <>
+      {sections.map((section) => (
+        <SidebarGroup key={section.label}>
+          <SidebarGroupLabel>{section.label}</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {section.items.map((item) => (
+                <SidebarMenuItem key={item.to}>
+                  <Link to={item.to}>
+                    {({ isActive }) => (
+                      <SidebarMenuButton isActive={isActive} tooltip={item.label}>
+                        <item.icon strokeWidth={2} />
+                        <span>{item.label}</span>
+                      </SidebarMenuButton>
+                    )}
+                  </Link>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      ))}
+    </>
+  );
+};
 
 export const ProjectNavSections = ({ projectSlug }: { projectSlug: string }) => (
   <>

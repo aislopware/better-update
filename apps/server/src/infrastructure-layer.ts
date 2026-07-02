@@ -36,12 +36,14 @@ import {
   EnvironmentRepoLive,
   EnvVarRepoLive,
   GoogleServiceAccountKeyRepoLive,
+  InvitationGrantRepoLive,
   IosAppMetadataRepoLive,
   IosBundleConfigurationRepoLive,
   OrgEnvVaultRepoLive,
   OrgVaultRepoLive,
   PasskeyStepUpRepoLive,
   ProjectRepoLive,
+  ProtectedEnvironmentRepoLive,
   RuntimeRepoLive,
   SubmissionsRepoLive,
   UpdateRepoLive,
@@ -92,12 +94,14 @@ import type {
   EnvironmentRepo,
   EnvVarRepo,
   GoogleServiceAccountKeyRepo,
+  InvitationGrantRepo,
   IosAppMetadataRepo,
   IosBundleConfigurationRepo,
   OrgEnvVaultRepo,
   OrgVaultRepo,
   PasskeyStepUpRepo,
   ProjectRepo,
+  ProtectedEnvironmentRepo,
   RuntimeRepo,
   SubmissionsRepo,
   UpdateRepo,
@@ -147,6 +151,7 @@ export type ServerInfrastructure =
   | EnvVarRepo
   | GoogleServiceAccountKeyRepo
   | GroupRepo
+  | InvitationGrantRepo
   | InvitationRepo
   | IosAppMetadataRepo
   | IosBundleConfigurationRepo
@@ -159,6 +164,7 @@ export type ServerInfrastructure =
   | OrgVaultRepo
   | PasskeyStepUpRepo
   | ProjectRepo
+  | ProtectedEnvironmentRepo
   | RobotAccountRepo
   | RuntimeRepo
   | SubmissionsRepo
@@ -196,6 +202,7 @@ export const RepositoryLayer = Layer.mergeAll(
   EnvVarRepoLive,
   GoogleServiceAccountKeyRepoLive,
   GroupRepoLive,
+  InvitationGrantRepoLive,
   InvitationRepoLive,
   IosAppMetadataRepoLive,
   IosBundleConfigurationRepoLive,
@@ -207,6 +214,7 @@ export const RepositoryLayer = Layer.mergeAll(
   OrgVaultRepoLive,
   PasskeyStepUpRepoLive,
   ProjectRepoLive,
+  ProtectedEnvironmentRepoLive,
   RobotAccountRepoLive,
   RuntimeRepoLive,
   SubmissionsRepoLive,

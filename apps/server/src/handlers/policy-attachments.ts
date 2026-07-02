@@ -5,7 +5,7 @@ import { Effect } from "effect";
 import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
 import { CurrentActor } from "../auth/current-actor";
-import { resolveManagedDocument } from "../auth/managed-policies";
+import { MANAGED_POLICY_PREFIX, resolveManagedDocument } from "../auth/managed-policies";
 import { assertAccess } from "../auth/policy";
 import { isWithinBoundary } from "../auth/policy-boundary";
 import { Forbidden, NotFound } from "../errors";
@@ -64,17 +64,21 @@ const assertPrincipalInOrg = (params: {
     });
   });
 
-// Resolve the document a policy id confers — a managed preset (from code) or a
-// real same-org policy. Fails NotFound if the id is neither. The document drives
-// both existence validation and the attach permission-boundary check.
-const resolveAttachableDocument = (params: {
+// Validate + resolve any attachable policy id. The only managed id is
+// `managed:admin`; any other `managed:*` spelling is rejected. Real ids resolve
+// from the org's policy rows. The document drives the permission-boundary
+// check. Shared with the invitation-grants path (handlers/invitations.ts).
+export const resolveAttachablePolicy = (params: {
   readonly policyId: string;
   readonly organizationId: string;
 }) =>
   Effect.gen(function* () {
-    const managed = resolveManagedDocument(params.policyId);
-    if (managed !== null) {
-      return managed;
+    if (params.policyId.startsWith(MANAGED_POLICY_PREFIX)) {
+      const document = resolveManagedDocument(params.policyId);
+      if (document === null) {
+        return yield* new NotFound({ message: `Unknown managed policy id: ${params.policyId}` });
+      }
+      return { policyId: params.policyId, document };
     }
     const policyRepo = yield* PolicyRepo;
     const policy = yield* policyRepo.findById({
@@ -84,7 +88,7 @@ const resolveAttachableDocument = (params: {
     if (policy === null) {
       return yield* new NotFound({ message: "Policy not found" });
     }
-    return policy.document;
+    return { policyId: params.policyId, document: policy.document };
   });
 
 const listAttachments = (params: {
@@ -119,7 +123,7 @@ const attachPolicy = (params: {
         principalId: params.principalId,
         organizationId: ctx.organizationId,
       });
-      const document = yield* resolveAttachableDocument({
+      const { policyId, document } = yield* resolveAttachablePolicy({
         policyId: params.policyId,
         organizationId: ctx.organizationId,
       });
@@ -139,20 +143,20 @@ const attachPolicy = (params: {
       const principal = { type: params.principalType, id: params.principalId } as const;
       yield* repo.attach({
         organizationId: ctx.organizationId,
-        policyId: params.policyId,
+        policyId,
         principal,
       });
       yield* logAudit({
         action: "policyAttachment.attach",
         resourceType: "policyAttachment",
-        resourceId: params.policyId,
+        resourceId: policyId,
         metadata: { principalType: params.principalType, principalId: params.principalId },
       });
       const attachments = yield* repo.listForPrincipal({
         organizationId: ctx.organizationId,
         principal,
       });
-      const attached = attachments.find((row) => row.policyId === params.policyId);
+      const attached = attachments.find((row) => row.policyId === policyId);
       if (attached === undefined) {
         return yield* new NotFound({ message: "Policy attachment not found" });
       }
@@ -174,6 +178,22 @@ const detachPolicy = (params: {
         principalId: params.principalId,
         organizationId: ctx.organizationId,
       });
+      // Permission boundary (no de-escalation of a stronger principal): detaching
+      // is a privilege delta just like attaching. A non-owner may only strip a
+      // policy that grants nothing beyond what they themselves hold — otherwise a
+      // bare `policy:update` token could remove `managed:admin` from the real
+      // admin. Owners/superadmins bypass (root / cross-org).
+      if (!ctx.isOwner && !ctx.isSuperadmin) {
+        const { document } = yield* resolveAttachablePolicy({
+          policyId: params.policyId,
+          organizationId: ctx.organizationId,
+        });
+        if (!isWithinBoundary(ctx.effectiveStatements, document)) {
+          return yield* new Forbidden({
+            message: "Cannot detach a policy that grants more than you currently hold",
+          });
+        }
+      }
       const repo = yield* PolicyAttachmentRepo;
       yield* repo.detach({
         organizationId: ctx.organizationId,

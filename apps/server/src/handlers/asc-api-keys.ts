@@ -5,9 +5,15 @@ import { Effect } from "effect";
 import { ManagementApi } from "../api";
 import { assertVaultVersionCurrent } from "../application/assert-vault-version";
 import { logAudit } from "../audit/logger";
+import {
+  assertAppleCredentialAccess,
+  assertAppleCredentialCreate,
+  filterByAppleTeamRead,
+} from "../auth/apple-team-access";
 import { CurrentActor } from "../auth/current-actor";
 import { assertOrgOwnership } from "../auth/ownership";
-import { assertPermission } from "../auth/permissions";
+import { assertAccess, assertAccessAny } from "../auth/policy";
+import { APPLE_TEAMLESS_SEGMENT } from "../authz-models";
 import { CredentialArtifacts } from "../cloudflare/credential-artifacts";
 import { BadRequest, NotFound } from "../errors";
 import { toApiAscApiKey } from "../http/to-api";
@@ -32,18 +38,23 @@ export const AscApiKeysGroupLive = HttpApiBuilder.group(ManagementApi, "ascApiKe
     .handle("list", () =>
       toApiCrudEffect(
         Effect.gen(function* () {
-          yield* assertPermission("appleCredential", "read");
+          yield* assertAccessAny("appleCredential", "read");
           const ctx = yield* CurrentActor;
           const repo = yield* AscApiKeyRepo;
           const items = yield* repo.listByOrg({ organizationId: ctx.organizationId });
-          return { items: items.map(toApiAscApiKey) };
+          const visible = yield* filterByAppleTeamRead(
+            items,
+            (item) => item.appleTeamId,
+            (item) => item.id,
+          );
+          return { items: visible.map(toApiAscApiKey) };
         }),
       ),
     )
     .handle("upload", ({ payload }) =>
       toApiWriteEffect(
         Effect.gen(function* () {
-          yield* assertPermission("appleCredential", "create");
+          yield* assertAppleCredentialCreate(payload.appleTeamIdentifier);
           const ctx = yield* CurrentActor;
           const artifacts = yield* CredentialArtifacts;
           const teams = yield* AppleTeamRepo;
@@ -115,11 +126,15 @@ export const AscApiKeysGroupLive = HttpApiBuilder.group(ManagementApi, "ascApiKe
     .handle("delete", ({ path }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
-          yield* assertPermission("appleCredential", "delete");
           const artifacts = yield* CredentialArtifacts;
           const repo = yield* AscApiKeyRepo;
           const existing = yield* repo.findById({ id: path.id });
           yield* assertOrgOwnership(existing.organizationId);
+          yield* assertAppleCredentialAccess({
+            action: "delete",
+            credentialId: path.id,
+            appleTeamRowId: existing.appleTeamId,
+          });
           const { r2Key } = yield* repo.delete({ id: path.id });
           if (r2Key !== null) {
             yield* artifacts.delete(r2Key);
@@ -137,7 +152,6 @@ export const AscApiKeysGroupLive = HttpApiBuilder.group(ManagementApi, "ascApiKe
     .handle("getCredentials", ({ path }) =>
       toApiBadRequestReadEffect(
         Effect.gen(function* () {
-          yield* assertPermission("appleCredential", "download");
           const teams = yield* AppleTeamRepo;
           const repo = yield* AscApiKeyRepo;
           const artifacts = yield* CredentialArtifacts;
@@ -152,6 +166,11 @@ export const AscApiKeysGroupLive = HttpApiBuilder.group(ManagementApi, "ascApiKe
                   .findById({ id: key.appleTeamId })
                   .pipe(Effect.mapError(() => new NotFound({ message: "Apple team not found" }))))
                   .appleTeamId;
+          yield* assertAccess("appleCredential", "download", {
+            kind: "appleCredential",
+            appleTeamId: teamIdentifier ?? APPLE_TEAMLESS_SEGMENT,
+            credentialId: key.id,
+          });
 
           const blob = yield* artifacts.get(key.r2Key, "ASC API key");
 

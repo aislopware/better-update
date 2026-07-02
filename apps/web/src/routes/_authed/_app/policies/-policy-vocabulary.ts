@@ -15,7 +15,6 @@ interface ResourceVocabularyEntry {
 }
 
 const CRUD = ["read", "create", "update", "delete"] as const;
-const READ_WRITE = ["read", "create", "update"] as const;
 
 export const RESOURCE_VOCABULARY: readonly ResourceVocabularyEntry[] = [
   { resource: "organization", label: "Organization", actions: ["read", "update", "delete"] },
@@ -26,8 +25,9 @@ export const RESOURCE_VOCABULARY: readonly ResourceVocabularyEntry[] = [
   { resource: "project", label: "Projects", actions: CRUD },
   { resource: "channel", label: "Channels", actions: CRUD },
   { resource: "branch", label: "Branches", actions: CRUD },
+  { resource: "environment", label: "Environments", actions: CRUD },
   { resource: "update", label: "Updates", actions: ["read", "create", "delete"] },
-  { resource: "rollout", label: "Rollouts", actions: CRUD },
+  { resource: "rollout", label: "Rollouts", actions: ["create", "update"] },
   { resource: "billing", label: "Billing", actions: ["read", "update"] },
   { resource: "robotAccount", label: "Robot accounts", actions: CRUD },
   { resource: "build", label: "Builds", actions: ["read", "create", "delete"] },
@@ -45,8 +45,8 @@ export const RESOURCE_VOCABULARY: readonly ResourceVocabularyEntry[] = [
     label: "Android credentials",
     actions: ["read", "create", "update", "delete", "download"],
   },
-  { resource: "iosBundleConfiguration", label: "iOS bundle config", actions: READ_WRITE },
-  { resource: "iosAppMetadata", label: "iOS app metadata", actions: READ_WRITE },
+  { resource: "iosBundleConfiguration", label: "iOS bundle config", actions: CRUD },
+  { resource: "iosAppMetadata", label: "iOS app metadata", actions: CRUD },
   {
     resource: "submission",
     label: "Submissions",
@@ -70,10 +70,17 @@ export const EFFECT_OPTIONS: readonly {
 export const SELECTOR_PRESETS: readonly { readonly label: string; readonly value: string }[] = [
   { label: "Everything (*)", value: "*" },
   { label: "A project", value: "project/{projectId}" },
-  { label: "A channel", value: "project/{projectId}/channel/{channelId}" },
+  { label: "A channel", value: "project/{projectId}/env/{environment}/channel/{channelId}" },
   { label: "An environment", value: "project/{projectId}/env/{environment}" },
   {
     label: "An env var",
     value: "project/{projectId}/env/{environment}/envVar/{key}",
+  },
+  // One Apple team's credentials (all types) — pair with appleCredential:* actions.
+  { label: "An Apple team", value: "appleTeam/{appleTeamId}" },
+  // A single Apple credential of a team — pair with appleCredential:read/download.
+  {
+    label: "One Apple credential",
+    value: "appleTeam/{appleTeamId}/credential/{credentialId}",
   },
 ];

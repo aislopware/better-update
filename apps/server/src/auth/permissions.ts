@@ -1,14 +1,16 @@
-// Preset permission maps backing the MANAGED policies (admin/developer/viewer)
-// and the owner root. These are the SINGLE SOURCE for managed-policy content —
-// `auth/managed-policies.ts` turns each entry into an org-wide (`*`) allow
-// document. The runtime gate is `assertAccess` in `auth/policy.ts`.
+// Preset permission maps backing the MANAGED policies and the owner root
+// (docs/specs/authz/ROLES-CAPABILITIES-SPEC.md). These are the SINGLE SOURCE
+// for managed-policy content — `auth/managed-policies.ts` turns each entry into
+// an allow document. The runtime gate is `assertAccess` in `auth/policy.ts`.
 //
-// `owner` is NOT a managed policy: it maps to the `member.role === "owner"` root
-// bypass. Its entry here documents the full action surface for reference + tests.
+// Two maps: `permissions.owner` documents the root-bypass surface (reference +
+// tests + the policy-builder vocabulary); `permissions.admin` backs
+// `managed:admin` — the ONLY managed policy. Fine-grained access is granted via
+// CUSTOM policies (statements + path selectors), never role presets.
 
 import { assertAccess, assertSuperadmin } from "./policy";
 
-import type { Action, BuiltinRole, Resource } from "../models";
+import type { Action, PolicyStatement, Resource } from "../models";
 
 // Org-level convenience over `assertAccess` (target defaults to `{ kind: "org" }`).
 // Use for genuinely org-scoped resources (member, billing, robotAccount, devices,
@@ -19,7 +21,7 @@ export const assertPermission = (resource: Resource, action: Action) =>
 
 export { assertSuperadmin };
 
-type PermissionMap = Record<BuiltinRole, Partial<Record<Resource, readonly Action[]>>>;
+type PermissionMap = Record<"owner" | "admin", Partial<Record<Resource, readonly Action[]>>>;
 
 // IAM-enforced via dedicated ManagementApi handler groups (the unified-authz
 // migration): `robotAccount` (robot-accounts group — mint/revoke/list),
@@ -36,9 +38,19 @@ type PermissionMap = Record<BuiltinRole, Partial<Record<Resource, readonly Actio
 //     (projects, api keys, …) is delegated there. Both documented in auth.ts.
 //   - `member:read`/`member:create`/`member:update`: membership joins via invite
 //     accept (better-auth, session-gated); only member:delete is IAM-gated.
-//   - credential resources (apple*/android*/google*/iosBundle*/iosAppMetadata):
-//     gated org-level via `assertPermission` (see the `credential` ObjectRef note
-//     in authz-models.ts). The presets enumerate them for completeness + future use.
+//   - `billing:read`/`billing:update`: forward-declared for the not-yet-built
+//     Polar billing integration; no handler gates on them today.
+//   - `iosBundleConfiguration`/`iosAppMetadata`: OBJECT-SCOPED per project — the
+//     handlers gate at `project/{id}` via `assertAccess`.
+//   - `androidCredential`: MIXED-scope. The per-project entities (application
+//     identifiers + their build-credential groups) gate at `project/{id}`; the
+//     org-shared secrets (upload keystores + Google service-account keys, reused
+//     across projects like Apple team certs) stay org-level via
+//     `assertPermission`. `build-credentials resolve` gates android download at
+//     the build's `project/{id}`.
+//   - `appleCredential`: OBJECT-SCOPED by Apple team — the handlers gate at
+//     `appleTeam/{T}/credential[/{id}]` via auth/apple-team-access.ts, so a
+//     custom policy can grant one team's credentials without the rest.
 export const permissions: PermissionMap = {
   owner: {
     organization: ["read", "update", "delete"],
@@ -51,7 +63,7 @@ export const permissions: PermissionMap = {
     branch: ["read", "create", "update", "delete"],
     environment: ["read", "create", "update", "delete"],
     update: ["read", "create", "delete"],
-    rollout: ["read", "create", "update", "delete"],
+    rollout: ["create", "update"],
     billing: ["read", "update"],
     robotAccount: ["read", "create", "update", "delete"],
     build: ["read", "create", "delete"],
@@ -63,7 +75,7 @@ export const permissions: PermissionMap = {
     androidCredential: ["read", "create", "update", "delete", "download"],
     iosBundleConfiguration: ["read", "create", "update", "delete"],
     iosAppMetadata: ["read", "create", "update", "delete"],
-    submission: ["read", "create", "update", "delete", "cancel"],
+    submission: ["read", "create", "delete"],
     vaultAccess: ["read", "create", "delete"],
   },
   admin: {
@@ -77,7 +89,7 @@ export const permissions: PermissionMap = {
     branch: ["read", "create", "update", "delete"],
     environment: ["read", "create", "update", "delete"],
     update: ["read", "create", "delete"],
-    rollout: ["read", "create", "update", "delete"],
+    rollout: ["create", "update"],
     billing: ["read", "update"],
     // `update` = bearer rotation: handing out an existing robot's NEW secret is
     // an identity takeover, so it is a separate token from `create` and is
@@ -92,54 +104,17 @@ export const permissions: PermissionMap = {
     androidCredential: ["read", "create", "update", "delete", "download"],
     iosBundleConfiguration: ["read", "create", "update", "delete"],
     iosAppMetadata: ["read", "create", "update", "delete"],
-    submission: ["read", "create", "update", "delete", "cancel"],
+    submission: ["read", "create", "delete"],
     vaultAccess: ["read", "create", "delete"],
   },
-  developer: {
-    project: ["read", "create"],
-    channel: ["read", "create", "update", "delete"],
-    branch: ["read", "create", "update", "delete"],
-    environment: ["read", "create", "update", "delete"],
-    update: ["read", "create", "delete"],
-    rollout: ["read", "create", "update", "delete"],
-    robotAccount: ["read"],
-    build: ["read", "create"],
-    envVar: ["read", "create", "update"],
-    auditLog: ["read"],
-    device: ["read", "create", "update"],
-    webhook: ["read", "create", "update"],
-    appleCredential: ["read", "create", "update", "download"],
-    androidCredential: ["read", "create", "update", "download"],
-    iosBundleConfiguration: ["read", "create", "update"],
-    iosAppMetadata: ["read", "create", "update"],
-    submission: ["read", "create", "update", "cancel"],
-    vaultAccess: ["read"],
-  },
-  viewer: {
-    organization: ["read"],
-    member: ["read"],
-    policy: ["read"],
-    group: ["read"],
-    project: ["read"],
-    channel: ["read"],
-    branch: ["read"],
-    environment: ["read"],
-    update: ["read"],
-    rollout: ["read"],
-    build: ["read"],
-    envVar: ["read"],
-    auditLog: ["read"],
-    device: ["read"],
-    webhook: ["read"],
-    appleCredential: ["read"],
-    androidCredential: ["read"],
-    iosBundleConfiguration: ["read"],
-    iosAppMetadata: ["read"],
-    submission: ["read"],
-    // No `vaultAccess`: a viewer is a read-only org observer and must NOT touch
-    // the credential vault. Granting `vaultAccess:read` would let a viewer fetch
-    // their own wrap, self-link a device wrap, and enrol a device key — the
-    // low-privilege foothold for a vault escalation. Vault participation starts
-    // at `developer`. See docs/specs/build/10-vault-lifecycle-revocation.md §2.
-  },
 };
+
+// -- Member baseline (SPEC §2a) -----------------------------------------------
+// Appended in code for every member session (never an attachment row; robots
+// get NO baseline). Joining an org grants org metadata reads only:
+// `organization:read` (org name/slug) and `environment:read` (environment
+// NAMES — org-structural metadata every project surface needs to render).
+
+export const MEMBER_BASELINE_STATEMENTS: readonly PolicyStatement[] = [
+  { effect: "allow", actions: ["organization:read", "environment:read"], resources: ["org"] },
+];

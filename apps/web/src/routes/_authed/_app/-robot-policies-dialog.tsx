@@ -48,7 +48,7 @@ export const RobotPoliciesDialog = ({
   <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogPopup className="sm:max-w-lg">
       <DialogHeader>
-        <DialogTitle>Policies for {robotName}</DialogTitle>
+        <DialogTitle>Access for {robotName}</DialogTitle>
         <DialogDescription>
           A freshly minted robot account holds no permissions (default-deny) — attach a policy so it
           can call the management API.

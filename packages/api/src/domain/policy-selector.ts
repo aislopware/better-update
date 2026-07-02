@@ -47,6 +47,12 @@ export const isValidActionTokenShape = (token: string): boolean =>
 const ID = "@";
 const CANONICAL_TEMPLATES: readonly (readonly string[])[] = [
   ["org"],
+  // Apple-team axis: `ID` is the 10-char Apple Team identifier (or the `none`
+  // sentinel for team-less credentials). A bare `appleTeam/{ID}` selector covers
+  // every credential under the team by prefix.
+  ["appleTeam", ID],
+  ["appleTeam", ID, "credential"],
+  ["appleTeam", ID, "credential", ID],
   ["project", ID],
   ["project", ID, "build"],
   ["project", ID, "build", ID],
@@ -57,11 +63,11 @@ const CANONICAL_TEMPLATES: readonly (readonly string[])[] = [
   ["project", ID, "env", ID],
   ["project", ID, "env", ID, "envVar"],
   ["project", ID, "env", ID, "envVar", ID],
-  ["project", ID, "channel", ID],
-  ["project", ID, "channel", ID, "update"],
-  ["project", ID, "channel", ID, "update", ID],
-  ["project", ID, "channel", ID, "rollout"],
-  ["project", ID, "channel", ID, "rollout", ID],
+  ["project", ID, "env", ID, "channel", ID],
+  ["project", ID, "env", ID, "channel", ID, "update"],
+  ["project", ID, "env", ID, "channel", ID, "update", ID],
+  ["project", ID, "env", ID, "channel", ID, "rollout"],
+  ["project", ID, "env", ID, "channel", ID, "rollout", ID],
 ];
 
 const matchesTemplate = (template: readonly string[], segments: readonly string[]): boolean =>

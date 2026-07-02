@@ -14,6 +14,33 @@ Lint may flake on spurious `no-unsafe-*` "error typed value" — re-run once.
 `organization_role` + `environment_grant` and replace the whole authz surface. Do
 NOT write backfill SQL.
 
+> **Current implementation state (updated 2026-07-02).** This spec captured the
+> original design; the shipped model has since diverged in these ways — the code
+> under `apps/server/src/auth/` + the credential handlers is the source of truth:
+>
+> - **Managed presets:** only `managed:admin` exists. `managed:developer` and
+>   `managed:viewer` were removed — fine-grained access is CUSTOM policies. So
+>   §1's "admin/developer/viewer" and §5's preset map are obsolete.
+> - **Principals:** `PrincipalType = "member" | "group" | "robot"`. There is no
+>   `apikey` principal — API keys were replaced by org-owned **robot accounts**.
+>   Every `apikey` mention below reads as `robot`.
+> - **`assertPermission` is NOT removed** (§11 is wrong on this). It remains the
+>   org-level convenience gate (`target = { kind: "org" }`) for genuinely
+>   org-scoped resources (member, invitation, policy, group, robotAccount,
+>   device, webhook, vault, auditLog, org-shared android keystores/GSA keys).
+> - **Credential scoping** (supersedes §2's `project/{projectId}/credential`
+>   line, which is RESERVED/inert — no handler produces it):
+>   - `appleCredential` → `appleTeam/{APPLE_TEAM_ID}/credential[/{id}]` (10-char
+>     portal id; team-less ASC keys under `appleTeam/none`).
+>   - `iosBundleConfiguration` / `iosAppMetadata` and Android application
+>     identifiers + build-credential groups → `project/{projectId}`.
+>   - Android upload keystores + Google service-account keys stay org-level
+>     (org-shared secrets).
+> - **Escalation guards:** group `addMember`/`removeMember` and policy `detach`
+>   are permission-boundary-checked (like `attach` + robot rotate). `assertAccessAny`
+>   is deny-aware. Channel/branch/update LIST endpoints filter per-environment so
+>   environment-scoped grants see their own items.
+
 ---
 
 ## 1. Overview + the model
@@ -82,9 +109,22 @@ project/{projectId}/env/{environment}/envVar/{key}       # envVar:*
 project/{projectId}/env/{environment}/channel/{channelId}        # channel:*
 project/{projectId}/env/{environment}/channel/{channelId}/update/{updateId}    # update:*
 project/{projectId}/env/{environment}/channel/{channelId}/rollout/{rolloutId}  # rollout:*
+appleTeam/{appleTeamId}/credential/{credentialId}        # appleCredential:* (2026-07-02)
 ```
 
 Rules:
+
+- **Apple credentials are scoped by APPLE TEAM**, a top-level axis independent of
+  projects (added 2026-07-02, `auth/apple-team-access.ts`). `{appleTeamId}` is the
+  10-char Apple Team identifier (portal-visible, org-unique), NOT the internal
+  `apple_teams.id`. All credential types (distribution/push/pass-type/pay certs,
+  push keys, provisioning profiles, ASC API keys) share the single `credential`
+  leaf — `appleCredential:*` on selector `appleTeam/{T}` grants full CRUD +
+  download for one team; swap the actions list for `["appleCredential:read"]` to
+  get a per-team viewer. Team-less ASC keys use the sentinel segment `none`
+  (reachable via `appleTeam/*`, never via a specific team). List endpoints filter
+  server-side to teams where the actor holds `appleCredential:read` at
+  `appleTeam/{T}/credential`.
 
 - **`environment`** is the branch name (`production` / `staging` / `preview` / …).
   A channel is bound to one branch at enforcement time; the handler resolves it.

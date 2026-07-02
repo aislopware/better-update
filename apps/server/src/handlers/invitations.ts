@@ -6,6 +6,7 @@ import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
 import { CurrentActor } from "../auth/current-actor";
 import { assertAccess } from "../auth/policy";
+import { isWithinBoundary } from "../auth/policy-boundary";
 import { cloudflareEnv } from "../cloudflare/context";
 import { EmailService } from "../domain/email-service";
 import { Forbidden, NotFound } from "../errors";
@@ -13,7 +14,9 @@ import { toApiForbiddenEffect, toApiReadEffect } from "../http/to-api-effect";
 import { renderInviteEmail } from "../lib/email-templates";
 import { structuredLog } from "../middleware/logging";
 import { AuthMetaRepo } from "../repositories/auth-meta";
+import { InvitationGrantRepo } from "../repositories/invitation-grants";
 import { InvitationRepo } from "../repositories/invitations";
+import { resolveAttachablePolicy } from "./policy-attachments";
 
 import type { InvitationModel } from "../repositories/invitations";
 
@@ -107,6 +110,28 @@ export const InvitationsGroupLive = HttpApiBuilder.group(ManagementApi, "invitat
             });
           }
           const role = payload.role ?? DEFAULT_ROLE;
+
+          // Resolve + boundary-check the carried grants BEFORE writing anything
+          // (SPEC §8d): an inviter cannot smuggle grants they could not attach
+          // directly. Bare managed ids normalize to their explicit form.
+          const requestedGrants = [...new Set(payload.grants)];
+          const resolvedGrants = yield* Effect.all(
+            requestedGrants.map((policyId) =>
+              resolveAttachablePolicy({ policyId, organizationId: ctx.organizationId }),
+            ),
+          );
+          if (!ctx.isOwner && !ctx.isSuperadmin) {
+            const escalating = resolvedGrants.find(
+              (grant) => !isWithinBoundary(ctx.effectiveStatements, grant.document),
+            );
+            if (escalating !== undefined) {
+              return yield* new Forbidden({
+                message: `Cannot grant more than you currently hold: ${escalating.policyId}`,
+              });
+            }
+          }
+          const grantIds = [...new Set(resolvedGrants.map((grant) => grant.policyId))];
+
           const metaRepo = yield* AuthMetaRepo;
           const repo = yield* InvitationRepo;
 
@@ -116,6 +141,22 @@ export const InvitationsGroupLive = HttpApiBuilder.group(ManagementApi, "invitat
             role,
             inviterUserId: ctx.userId,
           });
+
+          if (grantIds.length > 0) {
+            const grantRepo = yield* InvitationGrantRepo;
+            yield* grantRepo.setForInvitation({
+              invitationId: created.id,
+              organizationId: ctx.organizationId,
+              policyIds: grantIds,
+              createdAt: new Date().toISOString(),
+            });
+            yield* logAudit({
+              action: "invitation.grants_set",
+              resourceType: "invitation",
+              resourceId: created.id,
+              metadata: { email: created.email, policyIds: grantIds },
+            });
+          }
 
           const inviter = yield* metaRepo.findUserById(ctx.userId);
           const organization = yield* metaRepo.findOrganizationById(ctx.organizationId);
@@ -150,6 +191,10 @@ export const InvitationsGroupLive = HttpApiBuilder.group(ManagementApi, "invitat
           if (!canceled) {
             return yield* new NotFound({ message: "Invitation not found" });
           }
+          // Grants die with their invitation (the better-auth cancel/reject
+          // hooks cover the plugin routes; this covers the IAM endpoint).
+          const grantRepo = yield* InvitationGrantRepo;
+          yield* grantRepo.deleteForInvitation({ invitationId: path.id });
           yield* logAudit({
             action: "invitation.cancel",
             resourceType: "invitation",

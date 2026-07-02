@@ -13,6 +13,7 @@ import { PolicyRepoLive } from "../repositories/policy-repo";
 import { RobotAccountRepo, RobotAccountRepoLive } from "../repositories/robot-accounts";
 import { ROBOT_BEARER_PREFIX } from "./constants";
 import { roleIsOwner } from "./owner";
+import { MEMBER_BASELINE_STATEMENTS } from "./permissions";
 import { statementsForPrincipals } from "./statements";
 import { roleIsSuperadmin } from "./superadmin";
 
@@ -101,7 +102,7 @@ interface UserAuthState {
 // compact cookie cache may omit custom user fields (`approved`) and the Better
 // Auth `admin` plugin role, so trusting it risks a stale/missing value. A
 // single PK lookup per request, alongside the existing `getActiveMember` read.
-const getUserAuthState = (userId: string) =>
+export const getUserAuthState = (userId: string) =>
   Effect.gen(function* () {
     const env = yield* cloudflareEnv;
     const row = yield* Effect.tryPromise({
@@ -132,9 +133,12 @@ export const toStandardHeaders = (headers: Readonly<Record<string, string | unde
 // attachments; managed preset ids resolve from code (zero query), real ids in one
 // batched read. Owners bypass entirely, so this is never called for them.
 //
-// No baseline is derived from `member.role` (spec §8 clean break): admin /
-// developer / viewer are granted EXCLUSIVELY via explicit `managed:*`
-// attachments. The free-form role string only feeds the `isOwner` root signal.
+// No role baseline is derived from `member.role`: admin and the project roles
+// are granted EXCLUSIVELY via explicit `managed:*` attachments; the free-form
+// role string only feeds the `isOwner` root signal. Every MEMBER session does
+// get the constant org-metadata baseline (`MEMBER_BASELINE_STATEMENTS` —
+// ROLES-CAPABILITIES-SPEC §2a); robots get no baseline (no attachments = no
+// access).
 //
 // Exported (with the policy repos as unresolved requirements) so the resolution
 // algorithm can be unit-tested against stubbed repos; the live layers are
@@ -150,10 +154,11 @@ export const resolveEffectiveStatements = (params: {
       { type: "member", id: params.memberId },
       ...groupIds.map((id) => ({ type: "group", id }) as const),
     ];
-    return yield* statementsForPrincipals({
+    const granted = yield* statementsForPrincipals({
       organizationId: params.organizationId,
       principals,
     });
+    return [...MEMBER_BASELINE_STATEMENTS, ...granted];
   });
 
 // ── Shared session resolver ───────────────────────────────────────

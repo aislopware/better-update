@@ -67,6 +67,27 @@ export class EnvironmentsGroup extends HttpApiGroup.make("environments")
         }),
       ),
   )
+  .add(
+    HttpApiEndpoint.put("protect")`/api/environments/${nameParam}/protection`
+      .addSuccess(Environment)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Protect environment",
+          description:
+            "Mark an environment as protected: writes into it additionally require environment:update (Maintainer+ / Admin / a custom grant). Idempotent.",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.del("unprotect")`/api/environments/${nameParam}/protection`
+      .addSuccess(Environment)
+      .annotateContext(
+        OpenApi.annotations({
+          title: "Unprotect environment",
+          description: "Remove an environment's protection. Idempotent.",
+        }),
+      ),
+  )
   .addError(NotFound)
   .addError(Conflict)
   .addError(BadRequest)

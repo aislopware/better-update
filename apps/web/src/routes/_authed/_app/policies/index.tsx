@@ -17,6 +17,7 @@ import { z } from "zod";
 
 import { PageHeader } from "../../../../components/page-header";
 import { TableSkeleton } from "../../../../components/skeletons";
+import { assertCapability } from "../../../../lib/access";
 import { sortParam, useDataTableSearch } from "../../../../lib/data-table";
 import { pluralize } from "../../../../lib/pluralize";
 import { PoliciesTableView } from "./-policies-table";
@@ -112,5 +113,8 @@ const PoliciesPage = () => {
 
 export const Route = createFileRoute("/_authed/_app/policies/")({
   validateSearch: zodValidator(policiesSearchSchema),
+  beforeLoad: async ({ context }) => {
+    await assertCapability(context.queryClient, "canViewPolicies");
+  },
   component: PoliciesPage,
 });

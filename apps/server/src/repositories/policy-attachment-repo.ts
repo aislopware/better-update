@@ -30,6 +30,11 @@ export interface PolicyAttachmentRepository {
     readonly principal: PrincipalRef;
   }) => Effect.Effect<readonly PolicyAttachmentModel[]>;
 
+  /** Every attachment in an org (small table) — feeds the access-summaries endpoint. */
+  readonly listByOrg: (params: {
+    readonly organizationId: string;
+  }) => Effect.Effect<readonly PolicyAttachmentModel[]>;
+
   /** Idempotent attach (one row per (policy, principal)). */
   readonly attach: (params: {
     readonly organizationId: string;
@@ -109,6 +114,19 @@ export const PolicyAttachmentRepoLive = Layer.succeed(PolicyAttachmentRepo, {
           .where("principal_type", "=", params.principal.type)
           .where("principal_id", "=", params.principal.id)
           .orderBy("created_at", "asc")
+          .execute(),
+      );
+      return rows.map(toModel);
+    }),
+
+  listByOrg: (params) =>
+    Effect.gen(function* () {
+      const db = yield* kyselyDb;
+      const rows = yield* Effect.promise(async () =>
+        db
+          .selectFrom("policy_attachment")
+          .select(COLUMNS)
+          .where("organization_id", "=", params.organizationId)
           .execute(),
       );
       return rows.map(toModel);

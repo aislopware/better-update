@@ -1,11 +1,13 @@
-// Managed (virtual, code-defined) policies: admin / developer / viewer. They are
-// NOT rows — resolving a "managed:*" attachment reads its document from here,
-// preserving the zero-query baseline the built-in roles had. Derived from the
-// preset maps in permissions.ts → one org-wide (`*`) allow statement per
-// resource. See docs/specs/authz/POLICY-GROUPS-SPEC.md §5.
+// Managed (virtual, code-defined) policies. There is exactly ONE: managed:admin
+// — the org Admin role. It is NOT a row; resolving the attachment id reads its
+// document from here (zero query). Everything finer-grained is a CUSTOM policy
+// (see docs/specs/authz/POLICY-GROUPS-SPEC.md).
 //
 // `owner` is intentionally absent: it maps to the `member.role === "owner"` root
-// bypass in auth/policy.ts, not to a policy.
+// bypass in auth/policy.ts, not to a policy. Protected environments stay
+// enforced by the assertAccess guard (`environment:update` on the environment
+// path) — admin holds every token org-wide; custom policies can grant targeted
+// overrides.
 
 import { permissions } from "./permissions";
 
@@ -13,9 +15,8 @@ import type { Action, PolicyDocument, PolicyModel, Resource } from "../models";
 
 export const MANAGED_POLICY_PREFIX = "managed:" as const;
 
-const MANAGED_PRESET_NAMES = ["admin", "developer", "viewer"] as const;
-type ManagedPresetName = (typeof MANAGED_PRESET_NAMES)[number];
-export type ManagedPolicyId = `managed:${ManagedPresetName}`;
+export const ADMIN_POLICY_ID = "managed:admin" as const;
+export type ManagedPolicyId = typeof ADMIN_POLICY_ID;
 
 const presetFrom = (perm: Partial<Record<Resource, readonly Action[]>>): PolicyDocument => ({
   // eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- Object.entries widens keys to string; source is already typed Partial<Record<Resource, Action[]>>
@@ -30,35 +31,26 @@ const presetFrom = (perm: Partial<Record<Resource, readonly Action[]>>): PolicyD
 
 const EPOCH = "1970-01-01T00:00:00.000Z";
 
-const virtualPolicy = (
-  id: ManagedPolicyId,
-  name: string,
-  document: PolicyDocument,
-): PolicyModel => ({
-  id,
+const ADMIN_POLICY: PolicyModel = {
+  id: ADMIN_POLICY_ID,
   organizationId: "*",
-  name,
-  description: `Managed preset: ${name}`,
-  document,
+  name: "Admin",
+  description:
+    "Full organization administration: members, access control, projects, credentials, billing.",
+  document: presetFrom(permissions.admin),
   createdAt: EPOCH,
   updatedAt: null,
-});
-
-export const MANAGED_POLICIES: Record<ManagedPolicyId, PolicyModel> = {
-  "managed:admin": virtualPolicy("managed:admin", "Admin", presetFrom(permissions.admin)),
-  "managed:developer": virtualPolicy(
-    "managed:developer",
-    "Developer",
-    presetFrom(permissions.developer),
-  ),
-  "managed:viewer": virtualPolicy("managed:viewer", "Viewer", presetFrom(permissions.viewer)),
 };
 
-export const MANAGED_POLICY_LIST: readonly PolicyModel[] = Object.values(MANAGED_POLICIES);
+/** The managed entries served by the policies list endpoint. */
+export const MANAGED_POLICY_LIST: readonly PolicyModel[] = [ADMIN_POLICY];
 
-export const isManagedPolicyId = (id: string): id is ManagedPolicyId =>
-  id.startsWith(MANAGED_POLICY_PREFIX) && id in MANAGED_POLICIES;
+export const isManagedPolicyId = (id: string): id is ManagedPolicyId => id === ADMIN_POLICY_ID;
 
-/** Document for a managed preset id, or `null` if not a managed id. */
+/** Virtual PolicyModel for a managed id, else `null`. */
+export const managedPolicyModel = (id: string): PolicyModel | null =>
+  isManagedPolicyId(id) ? ADMIN_POLICY : null;
+
+/** Document for a managed id, else `null`. */
 export const resolveManagedDocument = (id: string): PolicyDocument | null =>
-  isManagedPolicyId(id) ? MANAGED_POLICIES[id].document : null;
+  isManagedPolicyId(id) ? ADMIN_POLICY.document : null;

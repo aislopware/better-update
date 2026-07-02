@@ -210,7 +210,9 @@ const GroupMembersSection = ({ orgId, group }: { orgId: string; group: GroupItem
   );
 };
 
-const GroupPoliciesSection = ({ orgId, group }: { orgId: string; group: GroupItem }) => {
+// The group is the team mechanism: policies attached to the group (managed
+// admin or custom) are inherited by every group member.
+const GroupAccessSection = ({ orgId, group }: { orgId: string; group: GroupItem }) => {
   const { data, isLoading } = useQuery(groupPoliciesQueryOptions(orgId, group.id));
   return (
     <PolicyAttachPanel
@@ -244,7 +246,7 @@ export const GroupDetailDialog = ({
       <DialogHeader>
         <DialogTitle>{group.name}</DialogTitle>
         <DialogDescription>
-          Manage the members of this group and the policies attached to it.
+          Manage the members of this group and the access every group member inherits.
         </DialogDescription>
       </DialogHeader>
       <DialogPanel className="flex flex-col gap-5">
@@ -262,8 +264,8 @@ export const GroupDetailDialog = ({
           </div>
           <Separator />
           <div className="flex flex-col gap-3">
-            <SectionHeading>Policies</SectionHeading>
-            <GroupPoliciesSection orgId={orgId} group={group} />
+            <SectionHeading>Access</SectionHeading>
+            <GroupAccessSection orgId={orgId} group={group} />
           </div>
         </Suspense>
       </DialogPanel>

@@ -28,6 +28,8 @@ export interface PolicyAttachPanelProps {
   readonly attachments: readonly PolicyAttachmentItem[];
   readonly isLoading: boolean;
   readonly attachmentsQueryKey: QueryKey;
+  /** Hide managed presets from the attach dropdown (the Access sheet's Advanced section). */
+  readonly customOnly?: boolean;
   readonly onAttach: (body: typeof AttachPolicyBody.Type) => Promise<unknown>;
   readonly onDetach: (policyId: string) => Promise<unknown>;
 }
@@ -99,6 +101,7 @@ export const PolicyAttachPanel = ({
   attachments,
   isLoading,
   attachmentsQueryKey,
+  customOnly = false,
   onAttach,
   onDetach,
 }: PolicyAttachPanelProps) => {
@@ -113,8 +116,11 @@ export const PolicyAttachPanel = ({
     [attachments],
   );
   const availablePolicies = useMemo(
-    () => policies.filter((policy) => !attachedIds.has(policy.id)),
-    [policies, attachedIds],
+    () =>
+      policies.filter(
+        (policy) => !attachedIds.has(policy.id) && !(customOnly && isManagedPolicy(policy.id)),
+      ),
+    [policies, attachedIds, customOnly],
   );
 
   const invalidate = async (): Promise<void> => {

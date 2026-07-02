@@ -11,7 +11,7 @@ import {
 import { logAudit } from "../audit/logger";
 import { CurrentActor } from "../auth/current-actor";
 import { assertProjectOwnership } from "../auth/ownership";
-import { assertPermission } from "../auth/permissions";
+import { assertAccess, assertAccessAny } from "../auth/policy";
 import { toApiResolveReadEffect } from "../http/to-api-effect";
 
 const withNoStore = (body: unknown) =>
@@ -35,12 +35,19 @@ export const BuildCredentialsGroupLive = HttpApiBuilder.group(
           yield* assertVaultRotationNotPending({ organizationId: ctx.organizationId });
 
           if (payload.platform === "ios") {
-            yield* assertPermission("appleCredential", "download");
+            // Coarse gate first (the owning Apple team is only known after
+            // resolution), then the precise team-scoped gate before anything
+            // is returned (authz-models.ts "APPLE-TEAM axis").
+            yield* assertAccessAny("appleCredential", "download");
             const { response, resolvedIds } = yield* resolveIosBuildCredentials({
               organizationId: ctx.organizationId,
               projectId: path.projectId,
               bundleIdentifier: payload.bundleIdentifier,
               distributionType: payload.distributionType,
+            });
+            yield* assertAccess("appleCredential", "download", {
+              kind: "appleCredential",
+              appleTeamId: response.context.appleTeamIdentifier,
             });
             yield* logAudit({
               action: "build-credentials.resolve",
@@ -61,7 +68,10 @@ export const BuildCredentialsGroupLive = HttpApiBuilder.group(
             return yield* withNoStore(response).pipe(Effect.orDie);
           }
 
-          yield* assertPermission("androidCredential", "download");
+          yield* assertAccess("androidCredential", "download", {
+            kind: "project",
+            projectId: path.projectId,
+          });
           const { response, resolvedIds } = yield* resolveAndroidBuildCredentials({
             organizationId: ctx.organizationId,
             projectId: path.projectId,

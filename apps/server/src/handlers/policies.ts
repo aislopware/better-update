@@ -5,7 +5,11 @@ import { Effect } from "effect";
 import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
 import { CurrentActor } from "../auth/current-actor";
-import { isManagedPolicyId, MANAGED_POLICIES, MANAGED_POLICY_LIST } from "../auth/managed-policies";
+import {
+  isManagedPolicyId,
+  MANAGED_POLICY_LIST,
+  managedPolicyModel,
+} from "../auth/managed-policies";
 import { permissions } from "../auth/permissions";
 import { assertAccess } from "../auth/policy";
 import { BadRequest, Conflict, NotFound } from "../errors";
@@ -116,8 +120,11 @@ export const PoliciesGroupLive = HttpApiBuilder.group(ManagementApi, "policies",
       toApiWriteEffect(
         Effect.gen(function* () {
           yield* assertAccess("policy", "read");
-          if (isManagedPolicyId(path.id)) {
-            return toApiPolicy(MANAGED_POLICIES[path.id]);
+          // Managed ids (static, parameterized project roles, or bare aliases)
+          // resolve to virtual models — they are never rows.
+          const managed = managedPolicyModel(path.id);
+          if (managed !== null) {
+            return toApiPolicy(managed);
           }
           const ctx = yield* CurrentActor;
           const repo = yield* PolicyRepo;

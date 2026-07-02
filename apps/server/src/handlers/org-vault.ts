@@ -1,8 +1,11 @@
 import { HttpApiBuilder } from "@effect/platform";
 import { Effect } from "effect";
 
+import type { AddVaultWrapBody } from "@better-update/api";
+
 import { ManagementApi } from "../api";
 import { assertEnvWrapSet } from "../application/assert-env-wrap-set";
+import { assertVaultRecipientOwnerInOrg } from "../application/assert-vault-recipient-in-org";
 import { logAudit } from "../audit/logger";
 import { CurrentActor } from "../auth/current-actor";
 import { assertPermission } from "../auth/permissions";
@@ -69,6 +72,69 @@ const assertCoversAllCredentials = (
     }
   });
 
+// Wrap the vault key to a recipient. Extracted from the group so its (handlers)
+// callback stays within the max-lines budget.
+const handleAddWrap = ({ payload }: { readonly payload: typeof AddVaultWrapBody.Type }) =>
+  toApiWriteEffect(
+    Effect.gen(function* () {
+      // Any member may reach this (read-gated) before we touch a key, so a
+      // caller without vault access can't probe key existence.
+      yield* assertPermission("vaultAccess", "read");
+      const ctx = yield* CurrentActor;
+      const repo = yield* OrgVaultRepo;
+      const keyRepo = yield* UserEncryptionKeyRepo;
+
+      const key = yield* keyRepo.findById({ id: payload.wrap.userEncryptionKeyId });
+      if (isForeignOrgKey(key, ctx)) {
+        return yield* new BadRequest({ message: FOREIGN_ORG_KEY_MESSAGE });
+      }
+
+      // Revocation is one-way: a revoked key may never re-enter the recipient set
+      // (admin grant or self-link). See vault-lifecycle-revocation §3.
+      if (key.revokedAt !== null) {
+        return yield* new BadRequest({ message: "Cannot wrap the vault to a revoked key" });
+      }
+
+      // Self-link (adding your OWN new device) is self-service for any member;
+      // wrapping to anyone/anything else is a grant gated to admin/owner.
+      const isSelfLink = key.kind === "device" && ctx.userId !== null && key.userId === ctx.userId;
+      if (!isSelfLink) {
+        yield* assertPermission("vaultAccess", "create");
+        // Device keys carry no organization_id, so confirm the owner is a member.
+        if (key.kind === "device") {
+          yield* assertVaultRecipientOwnerInOrg({
+            ownerUserId: key.userId,
+            organizationId: ctx.organizationId,
+          });
+        }
+      }
+
+      // Reject early if the vault doesn't exist; `addWrap` itself CAS-guards the version.
+      const vault = yield* repo.getVault({ organizationId: ctx.organizationId });
+      if (vault === null) {
+        return yield* new NotFound({ message: "Vault not initialized" });
+      }
+
+      const now = new Date().toISOString();
+      const wrap = yield* repo.addWrap({
+        organizationId: ctx.organizationId,
+        vaultVersion: payload.vaultVersion,
+        userEncryptionKeyId: payload.wrap.userEncryptionKeyId,
+        wrappedKey: payload.wrap.wrappedKey,
+        now,
+      });
+
+      yield* logAudit({
+        action: "vault.wrap.add",
+        resourceType: "vaultAccess",
+        resourceId: payload.wrap.userEncryptionKeyId,
+        metadata: { kind: key.kind, selfLink: isSelfLink, vaultVersion: payload.vaultVersion },
+      });
+
+      return toApiOrgVaultKeyWrap(wrap);
+    }),
+  );
+
 export const OrgVaultGroupLive = HttpApiBuilder.group(ManagementApi, "orgVault", (handlers) =>
   handlers
     .handle("get", () =>
@@ -115,12 +181,10 @@ export const OrgVaultGroupLive = HttpApiBuilder.group(ManagementApi, "orgVault",
             });
           }
 
-          // Born forked: the env vault is set up at bootstrap. At genesis the env
-          // recipients are the same device + recovery user-encryption keys as the
-          // credentials vault — there are no account keys yet — so reject `account`
-          // recipients and validate every env recipient against the in-org key set.
-          // A client that cannot produce `envWraps` (old CLI) is rejected by the
-          // required schema field before reaching here.
+          // Born forked: env vault is set up at bootstrap. At genesis its recipients
+          // are the same device + recovery keys as the credentials vault (no account
+          // keys yet), so reject `account` recipients and validate every env recipient
+          // against the in-org key set.
           yield* assertEnvWrapSet(payload.envWraps);
           if (payload.envWraps.some((wrap) => wrap.recipientKind === "account")) {
             return yield* new BadRequest({
@@ -182,63 +246,7 @@ export const OrgVaultGroupLive = HttpApiBuilder.group(ManagementApi, "orgVault",
         }),
       ),
     )
-    .handle("addWrap", ({ payload }) =>
-      toApiWriteEffect(
-        Effect.gen(function* () {
-          // Any member may reach this (read-gated) before we touch a key, so a
-          // caller without vault access can't probe key existence.
-          yield* assertPermission("vaultAccess", "read");
-          const ctx = yield* CurrentActor;
-          const repo = yield* OrgVaultRepo;
-          const keyRepo = yield* UserEncryptionKeyRepo;
-
-          const key = yield* keyRepo.findById({ id: payload.wrap.userEncryptionKeyId });
-          if (isForeignOrgKey(key, ctx)) {
-            return yield* new BadRequest({ message: FOREIGN_ORG_KEY_MESSAGE });
-          }
-
-          // A revoked key must never (re-)enter the recipient set — neither an
-          // admin grant nor a self-link may resurrect it. This keeps revocation
-          // one-way: once a device/recovery/machine key is revoked, wrapping the
-          // vault to it again is refused. See vault-lifecycle-revocation §3.
-          if (key.revokedAt !== null) {
-            return yield* new BadRequest({ message: "Cannot wrap the vault to a revoked key" });
-          }
-
-          // Self-link (adding your OWN new device) is self-service for any member;
-          // wrapping to anyone/anything else is a grant gated to admin/owner.
-          const isSelfLink =
-            key.kind === "device" && ctx.userId !== null && key.userId === ctx.userId;
-          if (!isSelfLink) {
-            yield* assertPermission("vaultAccess", "create");
-          }
-
-          // Reject early if the vault doesn't exist; `addWrap` itself CAS-guards the version.
-          const vault = yield* repo.getVault({ organizationId: ctx.organizationId });
-          if (vault === null) {
-            return yield* new NotFound({ message: "Vault not initialized" });
-          }
-
-          const now = new Date().toISOString();
-          const wrap = yield* repo.addWrap({
-            organizationId: ctx.organizationId,
-            vaultVersion: payload.vaultVersion,
-            userEncryptionKeyId: payload.wrap.userEncryptionKeyId,
-            wrappedKey: payload.wrap.wrappedKey,
-            now,
-          });
-
-          yield* logAudit({
-            action: "vault.wrap.add",
-            resourceType: "vaultAccess",
-            resourceId: payload.wrap.userEncryptionKeyId,
-            metadata: { kind: key.kind, selfLink: isSelfLink, vaultVersion: payload.vaultVersion },
-          });
-
-          return toApiOrgVaultKeyWrap(wrap);
-        }),
-      ),
-    )
+    .handle("addWrap", handleAddWrap)
     .handle("getWrap", ({ path }) =>
       toApiCrudEffect(
         Effect.gen(function* () {

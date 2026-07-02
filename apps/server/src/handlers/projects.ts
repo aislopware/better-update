@@ -7,6 +7,7 @@ import { CurrentActor } from "../auth/current-actor";
 import { assertOrgOwnership } from "../auth/ownership";
 import { assertPermission } from "../auth/permissions";
 import { assertAccess } from "../auth/policy";
+import { accessibleProjectIds } from "../auth/policy-match";
 import { AssetStorage } from "../cloudflare/asset-storage";
 import { cloudflareEnv } from "../cloudflare/context";
 import { createDirectUploadHeaders } from "../cloudflare/signed-url";
@@ -19,6 +20,7 @@ import { ChannelRepo } from "../repositories/channels";
 import { ProjectRepo } from "../repositories/projects";
 import { LOGO_UPLOAD_EXPIRY_SECONDS, logoRejectionReason } from "./logo-helpers";
 
+import type { ProjectReadScope } from "../auth/policy-match";
 import type { ProjectSortKey, ProjectSortOrder } from "../repositories/projects";
 
 // The three built-in environments. Each new project is seeded one branch + one
@@ -29,6 +31,17 @@ const DEFAULT_ENVIRONMENT_NAMES = ["development", "preview", "production"] as co
 // Project logos live in the assets bucket under a fixed per-project key, served
 // publicly via the asset CDN.
 const logoR2Key = (projectId: string): string => `logos/${projectId}`;
+
+// Translate the pure read scope into the repo's id filter; `all` with no
+// exclusions means no filtering at all.
+const toProjectIdFilter = (
+  scope: ProjectReadScope,
+): { readonly mode: "include" | "exclude"; readonly ids: readonly string[] } | undefined => {
+  if (scope.kind === "ids") {
+    return { mode: "include", ids: [...scope.ids] };
+  }
+  return scope.except.size > 0 ? { mode: "exclude", ids: [...scope.except] } : undefined;
+};
 
 // Load + authorize a project for a logo write. Shared preamble of the three logo
 // handlers; returns the project so callers can echo it back with the new state.
@@ -238,16 +251,27 @@ export const ProjectsGroupLive = HttpApiBuilder.group(ManagementApi, "projects",
     .handle("list", ({ urlParams }) =>
       toApiCrudEffect(
         Effect.gen(function* () {
-          yield* assertPermission("project", "read");
           const ctx = yield* CurrentActor;
-          const repo = yield* ProjectRepo;
           const { page, limit, offset } = parsePagination(urlParams);
+          // Per-project grants replaced the org-wide read gate: the list is
+          // FILTERED to readable projects instead of 403ing (SPEC §5a). A
+          // principal with no project grants sees an empty list.
+          const scope =
+            ctx.isOwner || ctx.isSuperadmin
+              ? ({ kind: "all", except: new Set<string>() } as const)
+              : accessibleProjectIds(ctx.effectiveStatements);
+          if (scope.kind === "ids" && scope.ids.size === 0) {
+            return { items: [], total: 0, page, limit };
+          }
+          const idFilter = toProjectIdFilter(scope);
 
+          const repo = yield* ProjectRepo;
           const { sort, order } = parseProjectSort(urlParams.sort);
           const { items, total } = yield* repo.findByOrg({
             organizationId: ctx.organizationId,
             ...(urlParams.query ? { query: urlParams.query } : {}),
             ...(urlParams.status ? { status: urlParams.status } : {}),
+            ...(idFilter ? { idFilter } : {}),
             sort,
             order,
             limit,
@@ -278,6 +302,7 @@ export const ProjectsGroupLive = HttpApiBuilder.group(ManagementApi, "projects",
             organizationId: ctx.organizationId,
             slug: path.slug,
           });
+          yield* assertOrgOwnership(project.organizationId);
           yield* assertAccess("project", "read", { kind: "project", projectId: project.id });
           return toApiProject(project);
         }),

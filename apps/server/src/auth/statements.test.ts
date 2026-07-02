@@ -3,7 +3,7 @@ import { Effect } from "effect";
 
 import { PolicyAttachmentRepo } from "../repositories/policy-attachment-repo";
 import { PolicyRepo } from "../repositories/policy-repo";
-import { MANAGED_POLICIES } from "./managed-policies";
+import { resolveManagedDocument } from "./managed-policies";
 import { statementsForPrincipals } from "./statements";
 
 import type { PolicyAttachmentModel, PolicyDocument } from "../models";
@@ -33,6 +33,7 @@ const attachmentRepoStub = (
 ): PolicyAttachmentRepository => ({
   findForPrincipals: () => Effect.succeed(attachments),
   listForPrincipal: unused("listForPrincipal"),
+  listByOrg: unused("listByOrg"),
   attach: unused("attach"),
   detach: unused("detach"),
 });
@@ -75,10 +76,24 @@ describe("statement resolution for principals", () => {
     }),
   );
 
-  it.effect("a managed preset id resolves from code (no real-doc lookup needed)", () =>
+  it.effect("the managed admin id resolves from code (no real-doc lookup needed)", () =>
     Effect.gen(function* () {
-      const statements = yield* resolve([attachment("managed:viewer", 1)], new Map());
-      expect(statements).toStrictEqual(MANAGED_POLICIES["managed:viewer"].document.statements);
+      const statements = yield* resolve([attachment("managed:admin", 1)], new Map());
+      expect(statements).toStrictEqual(resolveManagedDocument("managed:admin")?.statements);
+    }),
+  );
+
+  it.effect("removed managed ids (roles/capabilities) contribute nothing", () =>
+    Effect.gen(function* () {
+      const statements = yield* resolve(
+        [
+          attachment("managed:developer", 1),
+          attachment("managed:viewer@proj-1", 2),
+          attachment("managed:cap-credentials", 3),
+        ],
+        new Map(),
+      );
+      expect(statements).toStrictEqual([]);
     }),
   );
 

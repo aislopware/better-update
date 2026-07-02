@@ -21,3 +21,10 @@ export const renameEnvironment = async (name: string, body: typeof RenameEnviron
 
 export const deleteEnvironment = async (name: string) =>
   runApi((api) => api.environments.delete({ path: { name } }));
+
+// Toggle environment protection (IAM-gated by environment:update). A protected
+// environment additionally requires environment:update for any write into it.
+export const setEnvironmentProtection = async (name: string, isProtected: boolean) =>
+  isProtected
+    ? runApi((api) => api.environments.protect({ path: { name } }))
+    : runApi((api) => api.environments.unprotect({ path: { name } }));

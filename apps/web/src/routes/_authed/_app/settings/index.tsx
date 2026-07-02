@@ -28,6 +28,7 @@ import type { ChangeEvent } from "react";
 
 import { PageHeader } from "../../../../components/page-header";
 import { SettingCard } from "../../../../components/setting-card";
+import { assertCapability } from "../../../../lib/access";
 import { EntityAvatar } from "../../../../lib/entity-avatar";
 import { generateSlug, getFieldError, nameSchema, slugSchema } from "../../../../lib/form-utils";
 import { useDeleteOrgMutation } from "../../../../lib/org-mutations";
@@ -358,5 +359,8 @@ const Settings = () => (
 );
 
 export const Route = createFileRoute("/_authed/_app/settings/")({
+  beforeLoad: async ({ context }) => {
+    await assertCapability(context.queryClient, "canManageOrgSettings");
+  },
   component: Settings,
 });

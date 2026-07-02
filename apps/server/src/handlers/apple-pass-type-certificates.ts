@@ -5,9 +5,14 @@ import { Effect } from "effect";
 import { ManagementApi } from "../api";
 import { assertVaultVersionCurrent } from "../application/assert-vault-version";
 import { logAudit } from "../audit/logger";
+import {
+  assertAppleCredentialAccess,
+  assertAppleCredentialCreate,
+  filterByAppleTeamRead,
+} from "../auth/apple-team-access";
 import { CurrentActor } from "../auth/current-actor";
 import { assertOrgOwnership } from "../auth/ownership";
-import { assertPermission } from "../auth/permissions";
+import { assertAccess, assertAccessAny } from "../auth/policy";
 import { CredentialArtifacts } from "../cloudflare/credential-artifacts";
 import { BadRequest } from "../errors";
 import { toApiApplePassTypeCertificate } from "../http/to-api";
@@ -35,18 +40,23 @@ export const ApplePassTypeCertificatesGroupLive = HttpApiBuilder.group(
       .handle("list", () =>
         toApiCrudEffect(
           Effect.gen(function* () {
-            yield* assertPermission("appleCredential", "read");
+            yield* assertAccessAny("appleCredential", "read");
             const ctx = yield* CurrentActor;
             const repo = yield* ApplePassTypeCertificateRepo;
             const items = yield* repo.listByOrg({ organizationId: ctx.organizationId });
-            return { items: items.map(toApiApplePassTypeCertificate) };
+            const visible = yield* filterByAppleTeamRead(
+              items,
+              (item) => item.appleTeamId,
+              (item) => item.id,
+            );
+            return { items: visible.map(toApiApplePassTypeCertificate) };
           }),
         ),
       )
       .handle("upload", ({ payload }) =>
         toApiWriteEffect(
           Effect.gen(function* () {
-            yield* assertPermission("appleCredential", "create");
+            yield* assertAppleCredentialCreate(payload.appleTeamIdentifier);
             const ctx = yield* CurrentActor;
             const artifacts = yield* CredentialArtifacts;
             const teams = yield* AppleTeamRepo;
@@ -119,11 +129,15 @@ export const ApplePassTypeCertificatesGroupLive = HttpApiBuilder.group(
       .handle("delete", ({ path }) =>
         toApiCrudEffect(
           Effect.gen(function* () {
-            yield* assertPermission("appleCredential", "delete");
             const artifacts = yield* CredentialArtifacts;
             const repo = yield* ApplePassTypeCertificateRepo;
             const existing = yield* repo.findById({ id: path.id });
             yield* assertOrgOwnership(existing.organizationId);
+            yield* assertAppleCredentialAccess({
+              action: "delete",
+              credentialId: path.id,
+              appleTeamRowId: existing.appleTeamId,
+            });
             const { r2Key } = yield* repo.delete({ id: path.id });
             if (r2Key !== null) {
               yield* artifacts.delete(r2Key);
@@ -141,7 +155,6 @@ export const ApplePassTypeCertificatesGroupLive = HttpApiBuilder.group(
       .handle("download", ({ path }) =>
         toApiBadRequestReadEffect(
           Effect.gen(function* () {
-            yield* assertPermission("appleCredential", "download");
             const repo = yield* ApplePassTypeCertificateRepo;
             const teams = yield* AppleTeamRepo;
             const artifacts = yield* CredentialArtifacts;
@@ -149,6 +162,11 @@ export const ApplePassTypeCertificatesGroupLive = HttpApiBuilder.group(
             const existing = yield* repo.findById({ id: path.id });
             yield* assertOrgOwnership(existing.organizationId);
             const team = yield* teams.findById({ id: existing.appleTeamId });
+            yield* assertAccess("appleCredential", "download", {
+              kind: "appleCredential",
+              appleTeamId: team.appleTeamId,
+              credentialId: existing.id,
+            });
 
             const blob = yield* artifacts.get(existing.r2Key, "Pass Type ID certificate");
 

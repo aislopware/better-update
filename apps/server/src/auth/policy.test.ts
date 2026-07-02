@@ -3,11 +3,13 @@ import { Effect, Exit } from "effect";
 
 import { NotFound } from "../errors";
 import { ProjectRepo } from "../repositories/projects";
+import { ProtectedEnvironmentRepo } from "../repositories/protected-environments";
 import { AuthContext } from "./context";
 import { assertAccess, assertAccessAny } from "./policy";
 
 import type { PolicyStatement } from "../authz-models";
 import type { ProjectRepository } from "../repositories/projects";
+import type { ProtectedEnvironmentRepository } from "../repositories/protected-environments";
 import type { AuthContextShape } from "./context";
 
 const baseActor: AuthContextShape = {
@@ -101,6 +103,7 @@ describe(assertAccess, () => {
         assertAccess("update", "create", {
           kind: "update",
           projectId: "A",
+          environment: "preview",
           channelId: "X",
         }).pipe(
           provide({
@@ -121,6 +124,7 @@ describe(assertAccess, () => {
         assertAccess("update", "create", {
           kind: "update",
           projectId: "A",
+          environment: "preview",
           channelId: "X",
         }).pipe(provide({ isOwner: true, effectiveStatements: [deny(["update:create"], ["*"])] })),
       );
@@ -162,6 +166,35 @@ describe(assertAccessAny, () => {
         ),
       );
       expect(forbidden).toBe(true);
+    }),
+  );
+
+  it.effect("net-zero allow+deny on the same scope does NOT pass (deny-wins)", () =>
+    Effect.gen(function* () {
+      const forbidden = yield* isForbidden(
+        assertAccessAny("update", "create").pipe(
+          provide({
+            effectiveStatements: [allow(["update:create"], ["*"]), deny(["update:create"], ["*"])],
+          }),
+        ),
+      );
+      expect(forbidden).toBe(true);
+    }),
+  );
+
+  it.effect("a partial deny still leaves an allowed scope (passes)", () =>
+    Effect.gen(function* () {
+      const forbidden = yield* isForbidden(
+        assertAccessAny("update", "create").pipe(
+          provide({
+            effectiveStatements: [
+              allow(["update:create"], ["project/A"]),
+              deny(["update:create"], ["project/A/env/production"]),
+            ],
+          }),
+        ),
+      );
+      expect(forbidden).toBe(false);
     }),
   );
 });
@@ -215,9 +248,12 @@ describe("archived read-only guard", () => {
   it.effect("blocks a deep channel-axis write (publish) when archived", () =>
     Effect.gen(function* () {
       const forbidden = yield* isForbidden(
-        assertAccess("update", "create", { kind: "update", projectId: "A", channelId: "X" }).pipe(
-          provideArchived(ARCHIVED_AT, { isOwner: true }),
-        ),
+        assertAccess("update", "create", {
+          kind: "update",
+          projectId: "A",
+          environment: "preview",
+          channelId: "X",
+        }).pipe(provideArchived(ARCHIVED_AT, { isOwner: true })),
       );
       expect(forbidden).toBe(true);
     }),
@@ -259,9 +295,12 @@ describe("archived read-only guard", () => {
   it.effect("blocks deleting a sub-resource (channel) on an archived project", () =>
     Effect.gen(function* () {
       const forbidden = yield* isForbidden(
-        assertAccess("channel", "delete", { kind: "channel", projectId: "A", channelId: "X" }).pipe(
-          provideArchived(ARCHIVED_AT, { isOwner: true }),
-        ),
+        assertAccess("channel", "delete", {
+          kind: "channel",
+          projectId: "A",
+          environment: "preview",
+          channelId: "X",
+        }).pipe(provideArchived(ARCHIVED_AT, { isOwner: true })),
       );
       expect(forbidden).toBe(true);
     }),
@@ -276,6 +315,138 @@ describe("archived read-only guard", () => {
           { kind: "project", projectId: "A" },
           { allowArchived: true },
         ).pipe(provideArchived(ARCHIVED_AT, { isOwner: true })),
+      );
+      expect(forbidden).toBe(false);
+    }),
+  );
+});
+
+// A ProtectedEnvironmentRepo stub — the protected-env guard's single
+// dependency (it no-ops without a repo, mirroring the archived guard).
+const protectedEnvRepo = (names: readonly string[]): ProtectedEnvironmentRepository => ({
+  listByOrg: () => Effect.succeed(new Set(names)),
+  protect: () => Effect.void,
+  unprotect: () => Effect.void,
+});
+
+const provideProtected =
+  (names: readonly string[], overrides: Partial<AuthContextShape> = {}) =>
+  <Success, Failure>(
+    effect: Effect.Effect<Success, Failure, AuthContext | ProtectedEnvironmentRepo>,
+  ): Effect.Effect<Success, Failure> =>
+    effect.pipe(
+      Effect.provideService(AuthContext, { ...baseActor, ...overrides }),
+      Effect.provideService(ProtectedEnvironmentRepo, protectedEnvRepo(names)),
+    );
+
+// Developer-shaped grant: env-scoped writes, no environment:update.
+const developerish: PolicyStatement[] = [
+  allow(["update:read", "channel:read"], ["project/A"]),
+  allow(["update:create", "envVar:create"], ["project/A/env/*"]),
+];
+// Maintainer-shaped grant: project-rooted writes incl. environment:update.
+const maintainerish: PolicyStatement[] = [
+  allow(["update:create", "envVar:create", "environment:update"], ["project/A"]),
+];
+
+describe("protected-environment guard", () => {
+  it.effect("allows a developer write into a non-protected environment", () =>
+    Effect.gen(function* () {
+      const forbidden = yield* isForbidden(
+        assertAccess("update", "create", {
+          kind: "update",
+          projectId: "A",
+          environment: "preview",
+          channelId: "X",
+        }).pipe(provideProtected(["production"], { effectiveStatements: developerish })),
+      );
+      expect(forbidden).toBe(false);
+    }),
+  );
+
+  it.effect("blocks a developer write into a protected environment", () =>
+    Effect.gen(function* () {
+      const forbidden = yield* isForbidden(
+        assertAccess("update", "create", {
+          kind: "update",
+          projectId: "A",
+          environment: "production",
+          channelId: "X",
+        }).pipe(provideProtected(["production"], { effectiveStatements: developerish })),
+      );
+      expect(forbidden).toBe(true);
+    }),
+  );
+
+  it.effect("blocks a developer env-var write into a protected environment", () =>
+    Effect.gen(function* () {
+      const forbidden = yield* isForbidden(
+        assertAccess("envVar", "create", {
+          kind: "envVar",
+          projectId: "A",
+          environment: "production",
+          key: "API_URL",
+        }).pipe(provideProtected(["production"], { effectiveStatements: developerish })),
+      );
+      expect(forbidden).toBe(true);
+    }),
+  );
+
+  it.effect("maintainer (environment:update at the project root) writes protected envs", () =>
+    Effect.gen(function* () {
+      const forbidden = yield* isForbidden(
+        assertAccess("update", "create", {
+          kind: "update",
+          projectId: "A",
+          environment: "production",
+          channelId: "X",
+        }).pipe(provideProtected(["production"], { effectiveStatements: maintainerish })),
+      );
+      expect(forbidden).toBe(false);
+    }),
+  );
+
+  it.effect("a targeted environment:update grant unlocks exactly that environment", () =>
+    Effect.gen(function* () {
+      const statements = [
+        ...developerish,
+        allow(["environment:update"], ["project/*/env/production"]),
+      ];
+      const forbidden = yield* isForbidden(
+        assertAccess("update", "create", {
+          kind: "update",
+          projectId: "A",
+          environment: "production",
+          channelId: "X",
+        }).pipe(provideProtected(["production"], { effectiveStatements: statements })),
+      );
+      expect(forbidden).toBe(false);
+    }),
+  );
+
+  it.effect("reads are never blocked by protection", () =>
+    Effect.gen(function* () {
+      const forbidden = yield* isForbidden(
+        assertAccess("update", "read", {
+          kind: "update",
+          projectId: "A",
+          environment: "production",
+          channelId: "X",
+        }).pipe(provideProtected(["production"], { effectiveStatements: developerish })),
+      );
+      expect(forbidden).toBe(false);
+    }),
+  );
+
+  it.effect("owner bypasses the guard", () =>
+    Effect.gen(function* () {
+      const forbidden = yield* isForbidden(
+        assertAccess("update", "create", {
+          kind: "update",
+          projectId: "A",
+          environment: "production",
+          channelId: "X",
+        }).pipe(provideProtected(["production"], { isOwner: true })),
       );
       expect(forbidden).toBe(false);
     }),

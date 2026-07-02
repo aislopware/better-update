@@ -120,19 +120,39 @@ export interface PolicyAttachmentModel {
  * Structured target for `assertAccess`, resolved to a canonical path string by
  * `resolvePath` (auth/policy-match.ts). Parent ids are supplied by the call site.
  *
- * Two independent subtrees hang under a project (SPEC §2):
- *   - the CHANNEL axis (OTA): channel → update / rollout. Scoped by channel id;
- *     no env segment (channels↔branches are a separate axis from env-var envs).
- *   - the ENV-VAR axis: env (the development/preview/production enum) → envVar.
- *     `projectId` is "global" for org-wide vars.
+ * Two subtrees hang under a project's `env/{environment}` segment (SPEC §2):
+ *   - the CHANNEL axis (OTA): channel → update / rollout. `environment` is the
+ *     channel/branch NAME (arbitrary — "production", "preview", "feature-x");
+ *     it feeds both the path and the protected-environment guard in
+ *     `assertAccess` (auth/policy.ts).
+ *   - the ENV-VAR axis: env (an org environment name) → envVar. `projectId` is
+ *     "global" for org-wide vars.
  * Plus per-project build / submission leaves. The "credential" leaf is RESERVED
  * for future per-project credential scoping: credential handlers currently gate at
  * org scope via `assertPermission`, so this variant is defined + unit-tested but is
  * not yet an enforcement target (a `project/.../credential/...` selector has no
  * effect until those handlers adopt it).
+ *
+ * A separate APPLE-TEAM axis scopes Apple credentials (`appleCredential:*`) by
+ * the 10-char Apple Team identifier — the value users see on the Apple portal,
+ * so policies written against it stay meaningful ("jmango360-apple-admin"):
+ * paths are `appleTeam/{APPLE_TEAM_ID}/credential[/{id}]`, and a selector
+ * `appleTeam/{APPLE_TEAM_ID}` covers the whole team by prefix. Every credential
+ * type under the team (distribution certs, push keys/certs, pass-type/pay
+ * certs, provisioning profiles, ASC API keys) shares ONE leaf: the action
+ * namespace is already uniform (`appleCredential:*`), splitting by type would
+ * defeat the "one grant covers the team" design. Credentials with NO linked
+ * team (ASC keys can be issuer-only) live under the
+ * {@link APPLE_TEAMLESS_SEGMENT} sentinel — reachable via team-wide selectors
+ * (`*`, `appleTeam/*`) but never via a specific team's selector.
  */
 export type ObjectRef =
   | { readonly kind: "org" }
+  | {
+      readonly kind: "appleCredential";
+      readonly appleTeamId: string;
+      readonly credentialId?: string;
+    }
   | { readonly kind: "project"; readonly projectId: string }
   | { readonly kind: "build"; readonly projectId: string; readonly buildId?: string }
   | { readonly kind: "credential"; readonly projectId: string; readonly credentialId?: string }
@@ -144,16 +164,30 @@ export type ObjectRef =
       readonly environment: string;
       readonly key?: string;
     }
-  | { readonly kind: "channel"; readonly projectId: string; readonly channelId: string }
+  | {
+      readonly kind: "channel";
+      readonly projectId: string;
+      readonly environment: string;
+      readonly channelId: string;
+    }
   | {
       readonly kind: "update";
       readonly projectId: string;
+      readonly environment: string;
       readonly channelId: string;
       readonly updateId?: string;
     }
   | {
       readonly kind: "rollout";
       readonly projectId: string;
+      readonly environment: string;
       readonly channelId: string;
       readonly rolloutId?: string;
     };
+
+/**
+ * Path segment standing in for "no Apple team" on the appleTeam axis. Lowercase
+ * 4 chars — can never collide with a real Apple Team identifier (10 uppercase
+ * alphanumerics).
+ */
+export const APPLE_TEAMLESS_SEGMENT = "none";

@@ -49,6 +49,11 @@ export interface GroupRepository {
     readonly memberId: string;
   }) => Effect.Effect<readonly string[]>;
 
+  /** Every (groupId, memberId) membership pair in an org — feeds access summaries. */
+  readonly listMembershipsByOrg: (params: {
+    readonly organizationId: string;
+  }) => Effect.Effect<readonly { readonly groupId: string; readonly memberId: string }[]>;
+
   readonly listMembers: (params: {
     readonly groupId: string;
   }) => Effect.Effect<readonly GroupMemberRow[]>;
@@ -208,6 +213,20 @@ export const GroupRepoLive = Layer.succeed(GroupRepo, {
           .execute(),
       );
       return rows.map((row) => row.group_id);
+    }),
+
+  listMembershipsByOrg: (params) =>
+    Effect.gen(function* () {
+      const db = yield* kyselyDb;
+      const rows = yield* Effect.promise(async () =>
+        db
+          .selectFrom("iam_group_membership")
+          .innerJoin("iam_group", "iam_group.id", "iam_group_membership.group_id")
+          .select(["iam_group_membership.group_id", "iam_group_membership.member_id"])
+          .where("iam_group.organization_id", "=", params.organizationId)
+          .execute(),
+      );
+      return rows.map((row) => ({ groupId: row.group_id, memberId: row.member_id }));
     }),
 
   listMembers: (params) =>

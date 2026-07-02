@@ -88,8 +88,8 @@ const InviteFormContent = ({ orgId, onSuccess }: { orgId: string; onSuccess: () 
         </form.Field>
 
         <p className="text-muted-foreground text-xs">
-          New members can view the organization; grant additional access via policies after they
-          join.
+          New members can view the organization; grant additional access after they join (Members →
+          Manage access).
         </p>
       </DialogPanel>
 

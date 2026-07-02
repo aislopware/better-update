@@ -36,6 +36,7 @@ import { formatAppleTeamLabel, indexAppleTeamsById } from "../-credentials-utils
 import { PageHeader } from "../../../../components/page-header";
 import { QueryErrorState } from "../../../../components/query-error-state";
 import { FilterBarSkeleton, TableSkeleton } from "../../../../components/skeletons";
+import { assertCapability } from "../../../../lib/access";
 import {
   DataTableView,
   PAGE_SIZE,
@@ -388,5 +389,8 @@ const Devices = () => {
 
 export const Route = createFileRoute("/_authed/_app/apple-devices/")({
   validateSearch: zodValidator(devicesSearchSchema),
+  beforeLoad: async ({ context }) => {
+    await assertCapability(context.queryClient, "canViewDevices");
+  },
   component: Devices,
 });

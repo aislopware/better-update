@@ -3,8 +3,10 @@ import { Effect } from "effect";
 
 import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
+import { CurrentActor } from "../auth/current-actor";
 import { assertProjectOwnership } from "../auth/ownership";
 import { assertAccess } from "../auth/policy";
+import { isAllowed, resolvePath } from "../auth/policy-match";
 import { Conflict } from "../errors";
 import { toApiBranch } from "../http/to-api";
 import { toApiCrudEffect } from "../http/to-api-effect";
@@ -74,10 +76,7 @@ export const BranchesGroupLive = HttpApiBuilder.group(ManagementApi, "branches",
       toApiCrudEffect(
         Effect.gen(function* () {
           yield* assertProjectOwnership(urlParams.projectId);
-          yield* assertAccess("branch", "read", {
-            kind: "project",
-            projectId: urlParams.projectId,
-          });
+          const ctx = yield* CurrentActor;
           const repo = yield* BranchRepo;
           const { page, limit, offset } = parsePagination(urlParams);
           const { sort, order } = parseBranchSort(urlParams.sort);
@@ -91,7 +90,31 @@ export const BranchesGroupLive = HttpApiBuilder.group(ManagementApi, "branches",
             offset,
           });
 
-          return { items: items.map(toApiBranch), total, page, limit };
+          // Per-branch read filter (deny-wins): a branch's NAME is its environment
+          // segment, so an environment-scoped grant sees its own branches instead
+          // of a blanket 403. Owner/superadmin (and project-wide `branch:read`)
+          // see everything.
+          const bypass = ctx.isSuperadmin || ctx.isOwner;
+          const visible = bypass
+            ? items
+            : items.filter((branch) =>
+                isAllowed(
+                  ctx.effectiveStatements,
+                  "branch:read",
+                  resolvePath({
+                    kind: "environment",
+                    projectId: urlParams.projectId,
+                    environment: branch.name,
+                  }),
+                ),
+              );
+
+          return {
+            items: visible.map(toApiBranch),
+            total: bypass ? total : visible.length,
+            page,
+            limit,
+          };
         }),
       ),
     )

@@ -47,6 +47,11 @@ export interface MemberRepository {
     readonly organizationId: string;
   }) => Effect.Effect<boolean>;
 
+  /** Every member of an org (id + role + userId) — feeds the access-summaries endpoint. */
+  readonly listByOrg: (params: {
+    readonly organizationId: string;
+  }) => Effect.Effect<readonly MemberRow[]>;
+
   /**
    * Every member's underlying user id in an org. The env-vault cutover/rotate uses
    * it to enumerate the org's account-key recipients (account keys are per-user, so
@@ -127,6 +132,19 @@ export const MemberRepoLive = Layer.succeed(MemberRepo, {
           .executeTakeFirst(),
       );
       return Number(result.numDeletedRows) > 0;
+    }),
+
+  listByOrg: (params) =>
+    Effect.gen(function* () {
+      const db = yield* kyselyDb;
+      const rows = yield* Effect.promise(async () =>
+        db
+          .selectFrom("member")
+          .select(["id", "role", "user_id"])
+          .where("organization_id", "=", params.organizationId)
+          .execute(),
+      );
+      return rows.map((row) => ({ id: row.id, role: row.role, userId: row.user_id }));
     }),
 
   listUserIds: (params) =>

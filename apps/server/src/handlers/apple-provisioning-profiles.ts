@@ -4,9 +4,14 @@ import { Effect } from "effect";
 
 import { ManagementApi } from "../api";
 import { logAudit } from "../audit/logger";
+import {
+  assertAppleCredentialAccess,
+  assertAppleCredentialCreate,
+  filterByAppleTeamRead,
+} from "../auth/apple-team-access";
 import { CurrentActor } from "../auth/current-actor";
 import { assertOrgOwnership } from "../auth/ownership";
-import { assertPermission } from "../auth/permissions";
+import { assertAccessAny } from "../auth/policy";
 import { CredentialArtifacts } from "../cloudflare/credential-artifacts";
 import { parseProvisioningProfile } from "../domain/apple-provisioning-profile-parser";
 import { BadRequest } from "../errors";
@@ -40,7 +45,7 @@ export const AppleProvisioningProfilesGroupLive = HttpApiBuilder.group(
       .handle("list", ({ urlParams }) =>
         toApiCrudEffect(
           Effect.gen(function* () {
-            yield* assertPermission("appleCredential", "read");
+            yield* assertAccessAny("appleCredential", "read");
             const ctx = yield* CurrentActor;
             const repo = yield* AppleProvisioningProfileRepo;
             const items = yield* repo.list({
@@ -49,14 +54,18 @@ export const AppleProvisioningProfilesGroupLive = HttpApiBuilder.group(
               distributionType: urlParams.distributionType,
               appleTeamId: urlParams.appleTeamId,
             });
-            return { items: items.map(toApiAppleProvisioningProfile) };
+            const visible = yield* filterByAppleTeamRead(
+              items,
+              (item) => item.appleTeamId,
+              (item) => item.id,
+            );
+            return { items: visible.map(toApiAppleProvisioningProfile) };
           }),
         ),
       )
       .handle("upload", ({ payload }) =>
         toApiWriteEffect(
           Effect.gen(function* () {
-            yield* assertPermission("appleCredential", "create");
             const ctx = yield* CurrentActor;
             const artifacts = yield* CredentialArtifacts;
             const teams = yield* AppleTeamRepo;
@@ -64,6 +73,7 @@ export const AppleProvisioningProfilesGroupLive = HttpApiBuilder.group(
 
             const bytes = yield* decodeBase64(payload.profileBase64);
             const parsed = yield* parseProvisioningProfile(bytes).pipe(Effect.mapError(mapInvalid));
+            yield* assertAppleCredentialCreate(parsed.appleTeamId);
 
             const team = yield* teams.upsertByAppleTeamId({
               organizationId: ctx.organizationId,
@@ -117,11 +127,15 @@ export const AppleProvisioningProfilesGroupLive = HttpApiBuilder.group(
       .handle("delete", ({ path }) =>
         toApiCrudEffect(
           Effect.gen(function* () {
-            yield* assertPermission("appleCredential", "delete");
             const artifacts = yield* CredentialArtifacts;
             const repo = yield* AppleProvisioningProfileRepo;
             const existing = yield* repo.findById({ id: path.id });
             yield* assertOrgOwnership(existing.organizationId);
+            yield* assertAppleCredentialAccess({
+              action: "delete",
+              credentialId: path.id,
+              appleTeamRowId: existing.appleTeamId,
+            });
             const { r2Key } = yield* repo.delete({ id: path.id });
             if (r2Key !== null) {
               yield* artifacts.delete(r2Key);
@@ -142,12 +156,16 @@ export const AppleProvisioningProfilesGroupLive = HttpApiBuilder.group(
       .handle("download", ({ path }) =>
         toApiBadRequestReadEffect(
           Effect.gen(function* () {
-            yield* assertPermission("appleCredential", "download");
             const repo = yield* AppleProvisioningProfileRepo;
             const artifacts = yield* CredentialArtifacts;
 
             const existing = yield* repo.findById({ id: path.id });
             yield* assertOrgOwnership(existing.organizationId);
+            yield* assertAppleCredentialAccess({
+              action: "download",
+              credentialId: path.id,
+              appleTeamRowId: existing.appleTeamId,
+            });
 
             const profileBytes = yield* artifacts.get(existing.r2Key, "Provisioning profile");
 

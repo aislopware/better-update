@@ -1,9 +1,10 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import type { SortingState } from "@tanstack/react-table";
 
 import { makeInvitation, makeMember } from "../../../../tests/helpers/fixtures";
+import { renderWithQuery } from "../../../../tests/helpers/render-with-query";
 import { MembersTableView } from "./-members-table";
 
 const noopSorting: SortingState = [];
@@ -41,7 +42,7 @@ describe(MembersTableView, () => {
   const onCancelInvitation = vi.fn<(invitationId: string) => Promise<void>>(async () => {});
 
   it("renders member rows with name, email, role badge, and status", () => {
-    render(
+    renderWithQuery(
       <MembersTableView
         orgId="org-1"
         members={allMembers}
@@ -79,7 +80,7 @@ describe(MembersTableView, () => {
   });
 
   it("capable actor sees action buttons for non-owner members", () => {
-    render(
+    renderWithQuery(
       <MembersTableView
         orgId="org-1"
         members={allMembers}
@@ -99,7 +100,7 @@ describe(MembersTableView, () => {
   });
 
   it("never renders actions for the owner row", () => {
-    render(
+    renderWithQuery(
       <MembersTableView
         orgId="org-1"
         members={[ownerMember]}
@@ -118,7 +119,7 @@ describe(MembersTableView, () => {
   });
 
   it("an actor with no member-management capability sees NO action dropdowns", () => {
-    render(
+    renderWithQuery(
       <MembersTableView
         orgId="org-1"
         members={allMembers}
@@ -138,7 +139,7 @@ describe(MembersTableView, () => {
 
   it("a capable non-owner sees Manage policies, never role-change items, never self-remove", async () => {
     const user = userEvent.setup();
-    render(
+    renderWithQuery(
       <MembersTableView
         orgId="org-1"
         members={allMembers}
@@ -163,7 +164,7 @@ describe(MembersTableView, () => {
     // role-change item (those are gone post-collapse).
     await user.click(actionButtons[0]!);
     await expect(
-      screen.findByRole("menuitem", { name: /manage policies/i }),
+      screen.findByRole("menuitem", { name: /manage access/i }),
     ).resolves.toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: /remove member/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: /set as admin/i })).not.toBeInTheDocument();
@@ -172,7 +173,7 @@ describe(MembersTableView, () => {
 
   it("a capable non-owner can Remove a different non-owner member", async () => {
     const user = userEvent.setup();
-    render(
+    renderWithQuery(
       <MembersTableView
         orgId="org-1"
         members={allMembers}
@@ -202,7 +203,7 @@ describe(MembersTableView, () => {
       expiresAt: new Date("2099-06-15"),
     });
 
-    render(
+    renderWithQuery(
       <MembersTableView
         orgId="org-1"
         members={[]}
@@ -226,7 +227,7 @@ describe(MembersTableView, () => {
     const user = userEvent.setup();
     const invitation = makeInvitation({ id: "inv-42" });
 
-    render(
+    renderWithQuery(
       <MembersTableView
         orgId="org-1"
         members={[]}

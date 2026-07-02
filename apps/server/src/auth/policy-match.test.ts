@@ -1,4 +1,10 @@
-import { actionMatches, isAllowed, resolvePath, selectorMatches } from "./policy-match";
+import {
+  accessibleProjectIds,
+  actionMatches,
+  isAllowed,
+  resolvePath,
+  selectorMatches,
+} from "./policy-match";
 
 import type { ObjectRef, PolicyStatement } from "../authz-models";
 
@@ -64,12 +70,28 @@ describe(resolvePath, () => {
       "project/global/env/production/envVar/API_URL",
     ],
     [{ kind: "envVar", projectId: "A", environment: "preview" }, "project/A/env/preview/envVar"],
-    [{ kind: "channel", projectId: "A", channelId: "ch1" }, "project/A/channel/ch1"],
     [
-      { kind: "update", projectId: "A", channelId: "ch1", updateId: "u1" },
-      "project/A/channel/ch1/update/u1",
+      { kind: "channel", projectId: "A", environment: "preview", channelId: "ch1" },
+      "project/A/env/preview/channel/ch1",
     ],
-    [{ kind: "rollout", projectId: "A", channelId: "ch1" }, "project/A/channel/ch1/rollout"],
+    [
+      { kind: "update", projectId: "A", environment: "preview", channelId: "ch1", updateId: "u1" },
+      "project/A/env/preview/channel/ch1/update/u1",
+    ],
+    [
+      { kind: "rollout", projectId: "A", environment: "production", channelId: "ch1" },
+      "project/A/env/production/channel/ch1/rollout",
+    ],
+    [{ kind: "appleCredential", appleTeamId: "TEAM123456" }, "appleTeam/TEAM123456/credential"],
+    [
+      { kind: "appleCredential", appleTeamId: "TEAM123456", credentialId: "c1" },
+      "appleTeam/TEAM123456/credential/c1",
+    ],
+    // Team-less credentials live under the sentinel segment (authz-models.ts).
+    [
+      { kind: "appleCredential", appleTeamId: "none", credentialId: "c2" },
+      "appleTeam/none/credential/c2",
+    ],
   ];
   it.each(cases)("%o → %s", (ref, expected) => {
     expect(resolvePath(ref)).toBe(expected);
@@ -107,5 +129,61 @@ describe("isAllowed (deny-wins, default-deny)", () => {
   });
   it("action must match too", () => {
     expect(isAllowed([allow(["channel:read"], ["*"])], "update:create", "project/A")).toBe(false);
+  });
+});
+
+describe(accessibleProjectIds, () => {
+  const allow = (actions: string[], resources: string[]): PolicyStatement => ({
+    effect: "allow",
+    actions,
+    resources,
+  });
+  const deny = (actions: string[], resources: string[]): PolicyStatement => ({
+    effect: "deny",
+    actions,
+    resources,
+  });
+
+  it("no statements → empty id set", () => {
+    expect(accessibleProjectIds([])).toStrictEqual({ kind: "ids", ids: new Set() });
+  });
+  it("explicit project grants collect literal ids", () => {
+    const stmts = [
+      allow(["project:read"], ["project/A"]),
+      allow(["project:read", "channel:read"], ["project/B"]),
+    ];
+    expect(accessibleProjectIds(stmts)).toStrictEqual({ kind: "ids", ids: new Set(["A", "B"]) });
+  });
+  it("`*` and `project/*` selectors mean all projects", () => {
+    expect(accessibleProjectIds([allow(["project:read"], ["*"])])).toStrictEqual({
+      kind: "all",
+      except: new Set(),
+    });
+    expect(accessibleProjectIds([allow(["project:*"], ["project/*"])])).toStrictEqual({
+      kind: "all",
+      except: new Set(),
+    });
+  });
+  it("a deny on one project removes it — from an id set AND from `all`", () => {
+    const denyA = deny(["project:read"], ["project/A"]);
+    expect(
+      accessibleProjectIds([allow(["project:read"], ["project/A", "project/B"]), denyA]),
+    ).toStrictEqual({ kind: "ids", ids: new Set(["B"]) });
+    expect(accessibleProjectIds([allow(["project:read"], ["*"]), denyA])).toStrictEqual({
+      kind: "all",
+      except: new Set(["A"]),
+    });
+  });
+  it("a global deny empties everything", () => {
+    const stmts = [allow(["project:read"], ["*"]), deny(["*"], ["project/*"])];
+    expect(accessibleProjectIds(stmts)).toStrictEqual({ kind: "ids", ids: new Set() });
+  });
+  it("selectors deeper than project/{id} grant no project read", () => {
+    const stmts = [allow(["project:read"], ["project/A/env/production"])];
+    expect(accessibleProjectIds(stmts)).toStrictEqual({ kind: "ids", ids: new Set() });
+  });
+  it("non-project:read actions are ignored", () => {
+    const stmts = [allow(["channel:read"], ["project/A"])];
+    expect(accessibleProjectIds(stmts)).toStrictEqual({ kind: "ids", ids: new Set() });
   });
 });

@@ -29,6 +29,22 @@ export const Me = Schema.Struct({
   canInviteMembers: Schema.Boolean,
   /** Holds `member:delete` on `org` — gates the per-member Remove action. */
   canRemoveMembers: Schema.Boolean,
-  /** Holds `policy:update` on `org` — gates the per-member Manage-policies action. */
+  /** Holds `policy:update` on `org` — gates the Access sheet's mutations. */
   canManagePolicies: Schema.Boolean,
+  /** Holds `policy:read` on `org` — gates the Access column + policies/groups pages. */
+  canViewPolicies: Schema.Boolean,
+  /** Holds `auditLog:read` on `org` — gates the Audit log page. */
+  canViewAuditLog: Schema.Boolean,
+  /** Holds `appleCredential:read` on `org` — gates the Credentials pages. */
+  canViewCredentials: Schema.Boolean,
+  /** Holds `device:read` on `org` — gates the Devices page. */
+  canViewDevices: Schema.Boolean,
+  /** Holds `vaultAccess:read` on `org` — gates the Vault access page. */
+  canViewVaultAccess: Schema.Boolean,
+  /** Holds `robotAccount:read` on `org` — gates the Robot accounts page. */
+  canViewRobots: Schema.Boolean,
+  /** Holds `envVar:read` over the `project/global` subtree — gates the Org env vars page. */
+  canManageOrgEnvVars: Schema.Boolean,
+  /** Holds `organization:update` on `org` — gates Organization settings mutations. */
+  canManageOrgSettings: Schema.Boolean,
 });

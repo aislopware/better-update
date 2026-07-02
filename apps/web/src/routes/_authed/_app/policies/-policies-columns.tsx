@@ -19,11 +19,6 @@ import { DeletePolicyDialog } from "./-delete-policy-dialog";
 import { PolicyFormDialog } from "./-policy-form-dialog";
 import { PolicyViewDialog } from "./-policy-view-dialog";
 
-const statementSummary = (policy: PolicyItem): string => {
-  const count = policy.document.statements.length;
-  return `${count} statement${count === 1 ? "" : "s"}`;
-};
-
 const PolicyRowActions = ({ orgId, policy }: { orgId: string; policy: PolicyItem }) => {
   const [viewOpen, setViewOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -113,14 +108,6 @@ export const buildPolicyColumns = (orgId: string): readonly ColumnDef<PolicyItem
       </div>
     ),
     enableSorting: true,
-  },
-  {
-    id: "statements",
-    header: "Statements",
-    cell: ({ row }) => (
-      <span className="text-muted-foreground text-sm">{statementSummary(row.original)}</span>
-    ),
-    enableSorting: false,
   },
   {
     id: "createdAt",

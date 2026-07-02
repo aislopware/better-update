@@ -4,6 +4,7 @@ import {
   environmentsQueryKey,
   environmentsQueryOptions,
   renameEnvironment,
+  setEnvironmentProtection,
 } from "@better-update/api-client/react";
 import { Badge } from "@better-update/ui/components/ui/badge";
 import { Button } from "@better-update/ui/components/ui/button";
@@ -21,6 +22,7 @@ import {
 import { Field, FieldError, FieldLabel } from "@better-update/ui/components/ui/field";
 import { Frame } from "@better-update/ui/components/ui/frame";
 import { Input } from "@better-update/ui/components/ui/input";
+import { Switch } from "@better-update/ui/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -265,6 +267,39 @@ const DeleteEnvironmentDialog = ({
   );
 };
 
+// GitLab-protected-branches analogue (ROLES-CAPABILITIES-SPEC §2d): writes into
+// a protected environment additionally require environment:update — Developers
+// cannot publish/edit there; Maintainers, Admins, and explicit grants can.
+const ProtectionSwitch = ({
+  orgId,
+  environment,
+}: {
+  orgId: string;
+  environment: EnvironmentItem;
+}) => {
+  const queryClient = useQueryClient();
+  const protectionMutation = useApiMutation({
+    mutationFn: async (next: boolean) => setEnvironmentProtection(environment.name, next),
+    onSuccess: async (_result, next) => {
+      toastManager.add({
+        title: next ? "Environment protected" : "Environment unprotected",
+        type: "success",
+      });
+      await queryClient.invalidateQueries({ queryKey: environmentsQueryKey(orgId) });
+    },
+  });
+  return (
+    <Switch
+      checked={environment.protected}
+      disabled={protectionMutation.isPending}
+      aria-label={`Protect ${environment.name}`}
+      onCheckedChange={(next) => {
+        protectionMutation.mutate(next);
+      }}
+    />
+  );
+};
+
 const EnvironmentRowActions = ({
   orgId,
   environment,
@@ -327,7 +362,7 @@ export const EnvironmentsManager = ({ orgId }: { orgId: string }) => {
     <div className="flex flex-col gap-3">
       <SectionHeader
         title="Environments"
-        description="The three built-ins are always available. Add your own to scope environment variables."
+        description="The three built-ins are always available. Add your own to scope environment variables. Protected environments only accept writes from Maintainers and Admins."
         actions={<CreateEnvironmentDialog orgId={orgId} />}
       />
       <Frame>
@@ -336,6 +371,7 @@ export const EnvironmentsManager = ({ orgId }: { orgId: string }) => {
             <TableRow>
               <TableHead>Name</TableHead>
               <TableHead>Created at</TableHead>
+              <TableHead>Protected</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -345,6 +381,9 @@ export const EnvironmentsManager = ({ orgId }: { orgId: string }) => {
                 <TableCell className="font-medium">{environment.name}</TableCell>
                 <TableCell className="text-muted-foreground">
                   {formatShortDateTime(environment.createdAt)}
+                </TableCell>
+                <TableCell>
+                  <ProtectionSwitch orgId={orgId} environment={environment} />
                 </TableCell>
                 <TableCell className="text-right">
                   <EnvironmentRowActions orgId={orgId} environment={environment} />

@@ -15,6 +15,7 @@ import { Suspense, useMemo } from "react";
 
 import { PageHeader, SectionHeader } from "../../../components/page-header";
 import { SectionSkeleton, TableSkeleton } from "../../../components/skeletons";
+import { assertCapability } from "../../../lib/access";
 import {
   AppleTeamsEmptyState,
   AppleTeamsTable,
@@ -242,5 +243,8 @@ const Credentials = () => {
 };
 
 export const Route = createFileRoute("/_authed/_app/credentials")({
+  beforeLoad: async ({ context }) => {
+    await assertCapability(context.queryClient, "canViewCredentials");
+  },
   component: Credentials,
 });

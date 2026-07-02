@@ -2,6 +2,9 @@ import { isOtaInstallableDistribution } from "@better-update/api";
 import { Effect } from "effect";
 
 import { createAuth } from "../auth";
+import { getUserAuthState, resolveEffectiveStatements } from "../auth/middleware";
+import { roleIsOwner } from "../auth/owner";
+import { isAllowed, resolvePath } from "../auth/policy-match";
 import { BuildRuntime } from "../cloudflare/build-runtime";
 import { provideCloudflareEnv } from "../cloudflare/context";
 import { verifyInstallToken } from "../domain/install-token";
@@ -21,10 +24,44 @@ const runBuildRouteEffect = async <Success, Failure>(
     ),
   );
 
-const findArtifactR2KeyByIdAndOrg = (buildId: string, organizationId: string) =>
+const findArtifactAccessInfoByIdAndOrg = (buildId: string, organizationId: string) =>
   Effect.gen(function* () {
     const repo = yield* BuildRepo;
-    return yield* repo.findArtifactR2KeyByIdAndOrg({ id: buildId, organizationId });
+    return yield* repo.findArtifactAccessInfoByIdAndOrg({ id: buildId, organizationId });
+  });
+
+// Session-fallback authorization for the artifact download (the signed-token
+// path is device-facing and already scoped by the token). This raw route runs
+// outside the Effect HttpApi middleware, so it re-derives the same decision the
+// middleware caches into CurrentActor: owner/superadmin bypass, otherwise the
+// caller's effective statements must allow `build:read` at the build's object
+// path. Without this, any org member could download any build's artifact by id,
+// defeating per-project custom-policy scoping.
+const isBuildReadAuthorized = (params: {
+  readonly userId: string;
+  readonly organizationId: string;
+  readonly memberId: string;
+  readonly role: string;
+  readonly projectId: string;
+  readonly buildId: string;
+}) =>
+  Effect.gen(function* () {
+    if (roleIsOwner(params.role)) {
+      return true;
+    }
+    const authState = yield* getUserAuthState(params.userId);
+    if (authState.isSuperadmin) {
+      return true;
+    }
+    const statements = yield* resolveEffectiveStatements({
+      organizationId: params.organizationId,
+      memberId: params.memberId,
+    });
+    return isAllowed(
+      statements,
+      "build:read",
+      resolvePath({ kind: "build", projectId: params.projectId, buildId: params.buildId }),
+    );
   });
 
 const findArtifactR2KeyById = (buildId: string) =>
@@ -84,6 +121,71 @@ const verifySignedToken = async (
   );
 };
 
+// Session-transport artifact download: verify the browser/CLI session, then
+// enforce the same `build:read` policy the HttpApi handlers do (see
+// isBuildReadAuthorized). Extracted from handleBuildArtifactDownload so each
+// stays within the statement budget.
+const handleArtifactDownloadViaSession = async (
+  request: Request,
+  env: Env,
+  buildId: string,
+): Promise<Response> => {
+  const auth = createAuth(env);
+  const session = await auth.api.getSession({ headers: request.headers });
+  if (!session) {
+    return Response.json(
+      { code: "UNAUTHORIZED", message: "Authentication required" },
+      { status: 401 },
+    );
+  }
+
+  const orgId = session.session.activeOrganizationId;
+  if (!orgId) {
+    return Response.json(
+      { code: "FORBIDDEN", message: "Organization context required" },
+      { status: 403 },
+    );
+  }
+
+  const member = await auth.api.getActiveMember({ headers: request.headers });
+  // eslint-disable-next-line typescript-eslint/no-unnecessary-condition -- runtime null when membership revoked while session alive
+  if (!member) {
+    return Response.json(
+      { code: "FORBIDDEN", message: "Not a member of this organization" },
+      { status: 403 },
+    );
+  }
+
+  const access = await runBuildRouteEffect(findArtifactAccessInfoByIdAndOrg(buildId, orgId), env);
+  if (!access) {
+    return Response.json(
+      { code: "NOT_FOUND", message: "Build artifact not found" },
+      { status: 404 },
+    );
+  }
+
+  const authorized = await runBuildRouteEffect(
+    isBuildReadAuthorized({
+      userId: session.user.id,
+      organizationId: orgId,
+      memberId: member.id,
+      role: member.role,
+      projectId: access.projectId,
+      buildId,
+    }),
+    env,
+  );
+  if (!authorized) {
+    return Response.json(
+      { code: "FORBIDDEN", message: "You do not have access to this build" },
+      { status: 403 },
+    );
+  }
+
+  const downloadUrl = await resolveBuildDownloadUrl(request, env, access.r2Key);
+  return Response.redirect(downloadUrl, 302);
+};
+
 export const handleBuildArtifactDownload = async (
   request: Request,
   env: Env,
@@ -101,42 +203,7 @@ export const handleBuildArtifactDownload = async (
     : false;
 
   if (!tokenValid) {
-    const auth = createAuth(env);
-    const session = await auth.api.getSession({ headers: request.headers });
-    if (!session) {
-      return Response.json(
-        { code: "UNAUTHORIZED", message: "Authentication required" },
-        { status: 401 },
-      );
-    }
-
-    const orgId = session.session.activeOrganizationId;
-    if (!orgId) {
-      return Response.json(
-        { code: "FORBIDDEN", message: "Organization context required" },
-        { status: 403 },
-      );
-    }
-
-    const member = await auth.api.getActiveMember({ headers: request.headers });
-    // eslint-disable-next-line typescript-eslint/no-unnecessary-condition -- runtime null when membership revoked while session alive
-    if (!member) {
-      return Response.json(
-        { code: "FORBIDDEN", message: "Not a member of this organization" },
-        { status: 403 },
-      );
-    }
-
-    const r2Key = await runBuildRouteEffect(findArtifactR2KeyByIdAndOrg(buildId, orgId), env);
-    if (!r2Key) {
-      return Response.json(
-        { code: "NOT_FOUND", message: "Build artifact not found" },
-        { status: 404 },
-      );
-    }
-
-    const downloadUrl = await resolveBuildDownloadUrl(request, env, r2Key);
-    return Response.redirect(downloadUrl, 302);
+    return handleArtifactDownloadViaSession(request, env, buildId);
   }
 
   const r2Key = await runBuildRouteEffect(findArtifactR2KeyById(buildId), env);

@@ -29,6 +29,7 @@ import { Suspense } from "react";
 
 import { PageHeader } from "../../../components/page-header";
 import { TableSkeleton } from "../../../components/skeletons";
+import { assertCapability } from "../../../lib/access";
 import { CopyableMono } from "../../../lib/copy-button";
 import { pluralize } from "../../../lib/pluralize";
 import { RelativeTime } from "../../../lib/relative-time";
@@ -154,5 +155,8 @@ const VaultAccess = () => {
 };
 
 export const Route = createFileRoute("/_authed/_app/vault-access")({
+  beforeLoad: async ({ context }) => {
+    await assertCapability(context.queryClient, "canViewVaultAccess");
+  },
   component: VaultAccess,
 });

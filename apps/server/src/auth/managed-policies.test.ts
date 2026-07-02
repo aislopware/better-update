@@ -3,9 +3,10 @@ import { Effect, Exit } from "effect";
 
 import { AuthContext } from "./context";
 import {
+  ADMIN_POLICY_ID,
   isManagedPolicyId,
-  MANAGED_POLICIES,
   MANAGED_POLICY_LIST,
+  managedPolicyModel,
   resolveManagedDocument,
 } from "./managed-policies";
 import { assertAccess } from "./policy";
@@ -13,119 +14,93 @@ import { assertAccess } from "./policy";
 import type { AuthContextShape } from "./context";
 
 describe(isManagedPolicyId, () => {
-  it("is true for the three real preset ids", () => {
-    expect(isManagedPolicyId("managed:admin")).toBe(true);
-    expect(isManagedPolicyId("managed:developer")).toBe(true);
-    expect(isManagedPolicyId("managed:viewer")).toBe(true);
+  it("accepts exactly managed:admin", () => {
+    expect(isManagedPolicyId(ADMIN_POLICY_ID)).toBe(true);
   });
 
-  it("is false for owner (root bypass, not a policy) and unknown/malformed ids", () => {
-    for (const id of ["managed:owner", "managed:bogus", "managed:", "admin", "managed", ""]) {
+  it("rejects every removed or malformed managed id", () => {
+    for (const id of [
+      "managed:owner",
+      "managed:bogus",
+      "managed:",
+      // The old presets, capabilities, and parameterized project roles are
+      // GONE (migrations 0083/0084 dropped their rows).
+      "managed:developer",
+      "managed:viewer",
+      "managed:maintainer",
+      "managed:developer@*",
+      "managed:maintainer@proj-1",
+      "managed:cap-credentials",
+      "managed:cap-auditor",
+      "managed:cap-billing",
+      "admin",
+      "managed",
+      "",
+    ]) {
       expect(isManagedPolicyId(id)).toBe(false);
+      expect(resolveManagedDocument(id)).toBeNull();
+      expect(managedPolicyModel(id)).toBeNull();
     }
   });
 });
 
-describe(resolveManagedDocument, () => {
-  it("returns a read-only org-wide document for managed:viewer", () => {
-    const document = resolveManagedDocument("managed:viewer");
-    expect(document).not.toBeNull();
-    expect(document?.statements.every((stmt) => stmt.effect === "allow")).toBe(true);
+describe("MANAGED_POLICY_LIST contents", () => {
+  it("is exactly the admin preset, org '*', with a description", () => {
+    expect(MANAGED_POLICY_LIST.map((policy) => policy.id)).toStrictEqual(["managed:admin"]);
+    expect(MANAGED_POLICY_LIST.every((policy) => policy.organizationId === "*")).toBe(true);
+    expect(MANAGED_POLICY_LIST.every((policy) => (policy.description ?? "").length > 0)).toBe(true);
+  });
+
+  it("admin grants org-wide management tokens", () => {
+    const tokens =
+      resolveManagedDocument(ADMIN_POLICY_ID)?.statements.flatMap((stmt) => stmt.actions) ?? [];
+    expect(tokens).toContain("policy:create");
+    expect(tokens).toContain("channel:create");
+    expect(tokens).toContain("environment:update");
+    expect(tokens).toContain("vaultAccess:read");
     expect(
-      document?.statements.every(
-        (stmt) => stmt.resources.length === 1 && stmt.resources[0] === "*",
+      resolveManagedDocument(ADMIN_POLICY_ID)?.statements.every(
+        (stmt) => stmt.effect === "allow" && stmt.resources[0] === "*",
       ),
     ).toBe(true);
-    const tokens = document?.statements.flatMap((stmt) => stmt.actions) ?? [];
-    expect(tokens.every((token) => token.endsWith(":read"))).toBe(true);
-  });
-
-  it("returns null for owner and non-managed ids", () => {
-    expect(resolveManagedDocument("managed:owner")).toBeNull();
-    expect(resolveManagedDocument("00000000-0000-0000-0000-000000000000")).toBeNull();
   });
 });
 
-describe("MANAGED_POLICY_LIST contents", () => {
-  it("is exactly the three presets, all org '*'", () => {
-    expect(MANAGED_POLICY_LIST.map((policy) => policy.id).toSorted()).toStrictEqual([
-      "managed:admin",
-      "managed:developer",
-      "managed:viewer",
-    ]);
-    expect(MANAGED_POLICY_LIST.every((policy) => policy.organizationId === "*")).toBe(true);
-  });
-
-  it("admin grants create tokens that viewer does not", () => {
-    const adminTokens = MANAGED_POLICIES["managed:admin"].document.statements.flatMap(
-      (stmt) => stmt.actions,
-    );
-    const viewerTokens = MANAGED_POLICIES["managed:viewer"].document.statements.flatMap(
-      (stmt) => stmt.actions,
-    );
-    expect(adminTokens).toContain("policy:create");
-    expect(adminTokens).toContain("channel:create");
-    expect(viewerTokens).not.toContain("channel:create");
-  });
-
-  it("grants the viewer NO vault access (not a vault participant)", () => {
-    const viewerTokens = MANAGED_POLICIES["managed:viewer"].document.statements.flatMap(
-      (stmt) => stmt.actions,
-    );
-    // A viewer must hold no `vaultAccess:*` token at all — `vaultAccess:read`
-    // alone is the foothold for the device-enrol + self-link escalation.
-    expect(viewerTokens.some((token) => token.startsWith("vaultAccess:"))).toBe(false);
-    // Admin/developer keep read; only the viewer is excluded.
-    const developerTokens = MANAGED_POLICIES["managed:developer"].document.statements.flatMap(
-      (stmt) => stmt.actions,
-    );
-    expect(developerTokens).toContain("vaultAccess:read");
-  });
-});
-
-// The managed:viewer preset replaces the old built-in viewer role; what it must
-// NOT grant (writes) is a security property of the new model — pin it end-to-end
-// through the real evaluator.
-const viewerActor: AuthContextShape = {
+// End-to-end pin through the real evaluator: an admin attachment authorizes
+// org-wide writes; a principal without it is default-denied.
+const actorWith = (statements: AuthContextShape["effectiveStatements"]): AuthContextShape => ({
   userId: "u1",
   organizationId: "org-1",
   memberId: "m1",
-  role: "viewer",
+  role: "member",
   isOwner: false,
-  effectiveStatements: resolveManagedDocument("managed:viewer")?.statements ?? [],
+  effectiveStatements: statements,
   source: "session",
   transport: "cookie",
   sessionId: "sess-test",
-  actorEmail: "viewer@example.com",
+  actorEmail: "member@example.com",
   isSuperadmin: false,
   robotId: null,
-};
+});
 
-describe("managed:viewer upper bound (via assertAccess)", () => {
-  it.effect("allows a scoped read", () =>
+describe("managed:admin via assertAccess", () => {
+  it.effect("authorizes an org-wide write", () =>
     Effect.gen(function* () {
-      const exit = yield* assertAccess("channel", "read", { kind: "project", projectId: "A" }).pipe(
-        Effect.provideService(AuthContext, viewerActor),
-        Effect.exit,
-      );
+      const admin = actorWith(resolveManagedDocument(ADMIN_POLICY_ID)?.statements ?? []);
+      const exit = yield* assertAccess("channel", "create", {
+        kind: "environment",
+        projectId: "A",
+        environment: "preview",
+      }).pipe(Effect.provideService(AuthContext, admin), Effect.exit);
       expect(Exit.isSuccess(exit)).toBe(true);
     }),
   );
 
-  it.effect("denies a write (channel:create)", () =>
+  it.effect("a principal with no attachments is default-denied", () =>
     Effect.gen(function* () {
-      const exit = yield* assertAccess("channel", "create", {
-        kind: "project",
-        projectId: "A",
-      }).pipe(Effect.provideService(AuthContext, viewerActor), Effect.exit);
-      expect(Exit.isFailure(exit)).toBe(true);
-    }),
-  );
-
-  it.effect("denies vault read (viewer is not a vault participant)", () =>
-    Effect.gen(function* () {
-      const exit = yield* assertAccess("vaultAccess", "read").pipe(
-        Effect.provideService(AuthContext, viewerActor),
+      const nobody = actorWith([]);
+      const exit = yield* assertAccess("channel", "read", { kind: "project", projectId: "A" }).pipe(
+        Effect.provideService(AuthContext, nobody),
         Effect.exit,
       );
       expect(Exit.isFailure(exit)).toBe(true);

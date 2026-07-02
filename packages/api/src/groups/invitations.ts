@@ -3,6 +3,7 @@ import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "@effect/platform";
 import { Forbidden } from "../auth/errors";
 import { NotFound } from "../auth/ownership";
 import { DeletedResult, idParam } from "../domain/common";
+import { BadRequest } from "../domain/errors";
 import { CreateInvitationBody, Invitation, InvitationList } from "../domain/invitation";
 
 export class InvitationsGroup extends HttpApiGroup.make("invitations")
@@ -20,6 +21,7 @@ export class InvitationsGroup extends HttpApiGroup.make("invitations")
     HttpApiEndpoint.post("create", "/api/invitations")
       .setPayload(CreateInvitationBody)
       .addSuccess(Invitation, { status: 201 })
+      .addError(BadRequest)
       .annotateContext(
         OpenApi.annotations({
           title: "Create invitation",

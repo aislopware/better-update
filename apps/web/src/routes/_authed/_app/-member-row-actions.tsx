@@ -7,10 +7,10 @@ import {
   MenuSeparator,
   MenuTrigger,
 } from "@better-update/ui/components/ui/menu";
-import { EllipsisVerticalIcon, ScrollTextIcon, UserMinusIcon } from "lucide-react";
+import { EllipsisVerticalIcon, ShieldIcon, UserMinusIcon } from "lucide-react";
 import { useState } from "react";
 
-import { MemberPoliciesDialog } from "./-member-policies-dialog";
+import { MemberAccessSheet } from "./-member-access-sheet";
 
 import type { Row } from "./-members-row";
 
@@ -64,7 +64,7 @@ const ActiveMemberActions = ({
   showRemove: boolean;
   onRemove: (memberId: string) => void;
 }) => {
-  const [policiesOpen, setPoliciesOpen] = useState(false);
+  const [accessOpen, setAccessOpen] = useState(false);
 
   return (
     <>
@@ -75,11 +75,11 @@ const ActiveMemberActions = ({
             <MenuGroup>
               <MenuItem
                 onClick={() => {
-                  setPoliciesOpen(true);
+                  setAccessOpen(true);
                 }}
               >
-                <ScrollTextIcon strokeWidth={2} />
-                <span>Manage policies</span>
+                <ShieldIcon strokeWidth={2} />
+                <span>Manage access</span>
               </MenuItem>
             </MenuGroup>
           ) : null}
@@ -100,12 +100,12 @@ const ActiveMemberActions = ({
         </MenuPopup>
       </Menu>
       {showPolicies ? (
-        <MemberPoliciesDialog
+        <MemberAccessSheet
           orgId={orgId}
           memberId={memberId}
           memberName={memberName}
-          open={policiesOpen}
-          onOpenChange={setPoliciesOpen}
+          open={accessOpen}
+          onOpenChange={setAccessOpen}
         />
       ) : null}
     </>
