@@ -82,6 +82,28 @@ export interface GroupModel {
 
 export type PrincipalType = "member" | "group" | "robot";
 
+export type AuditLogSource = "session" | "robot";
+
+/** The authenticated actor a handler sees (via `CurrentActor` in auth/current-actor). */
+export interface CurrentActor {
+  readonly userId: string | null;
+  readonly organizationId: string;
+  // Active-org `member.id`, or `null` for robot principals (no membership row).
+  readonly memberId: string | null;
+  readonly role: Role | null;
+  /** `member.role === "owner"` — org root: unconditional allow, undeniable. */
+  readonly isOwner: boolean;
+  /** Flattened policy statements (direct + group + managed presets), resolved once per request. */
+  readonly effectiveStatements: readonly PolicyStatement[];
+  readonly source: AuditLogSource;
+  readonly transport: "bearer" | "cookie";
+  readonly sessionId: string | null;
+  readonly actorEmail: string;
+  readonly isSuperadmin: boolean;
+  /** `robot_account.id` for robot-bearer requests, `null` for user sessions. */
+  readonly robotId: string | null;
+}
+
 export interface PolicyAttachmentModel {
   readonly id: string;
   readonly organizationId: string;

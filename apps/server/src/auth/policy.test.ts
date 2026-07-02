@@ -22,6 +22,7 @@ const baseActor: AuthContextShape = {
   sessionId: "sess-test",
   actorEmail: "dev@example.com",
   isSuperadmin: false,
+  robotId: null,
 };
 
 const provide = (overrides: Partial<AuthContextShape>) =>

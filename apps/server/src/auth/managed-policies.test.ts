@@ -98,6 +98,7 @@ const viewerActor: AuthContextShape = {
   sessionId: "sess-test",
   actorEmail: "viewer@example.com",
   isSuperadmin: false,
+  robotId: null,
 };
 
 describe("managed:viewer upper bound (via assertAccess)", () => {

@@ -2,7 +2,8 @@ import { env } from "cloudflare:test";
 import { Effect, Layer } from "effect";
 
 import { MANAGED_POLICIES } from "../../../src/auth/managed-policies";
-import { resolveEffectiveStatements, statementsForPrincipals } from "../../../src/auth/middleware";
+import { resolveEffectiveStatements } from "../../../src/auth/middleware";
+import { statementsForPrincipals } from "../../../src/auth/statements";
 import { GroupRepo, GroupRepoLive } from "../../../src/repositories/group-repo";
 import {
   PolicyAttachmentRepo,

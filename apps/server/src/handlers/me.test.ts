@@ -23,6 +23,7 @@ const baseActor: CurrentActor = {
   sessionId: "sess-test",
   actorEmail: "dev@example.com",
   isSuperadmin: false,
+  robotId: null,
 };
 
 const actor = (overrides: Partial<CurrentActor>): CurrentActor => ({ ...baseActor, ...overrides });

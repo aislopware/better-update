@@ -19,6 +19,7 @@ export const CurrentActor = pipe(
       sessionId: ctx.sessionId,
       actorEmail: ctx.actorEmail,
       isSuperadmin: ctx.isSuperadmin,
+      robotId: ctx.robotId,
     }),
   ),
 );

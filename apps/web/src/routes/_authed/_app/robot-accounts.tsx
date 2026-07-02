@@ -61,7 +61,7 @@ const RobotAccountsTable = ({
       <TableRow>
         <TableHead>Name</TableHead>
         <TableHead>Bearer</TableHead>
-        <TableHead>Vault access</TableHead>
+        <TableHead>Vault identity</TableHead>
         <TableHead>Created</TableHead>
         {canManagePolicies ? <TableHead className="w-0" /> : null}
       </TableRow>

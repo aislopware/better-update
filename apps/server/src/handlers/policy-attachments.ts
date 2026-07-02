@@ -14,6 +14,7 @@ import { GroupRepo } from "../repositories/group-repo";
 import { MemberRepo } from "../repositories/member-repo";
 import { PolicyAttachmentRepo } from "../repositories/policy-attachment-repo";
 import { PolicyRepo } from "../repositories/policy-repo";
+import { RobotAccountRepo } from "../repositories/robot-accounts";
 import { reconcileVaultAccess } from "./reconcile-vault-access";
 
 import type { PolicyAttachmentModel, PrincipalType } from "../models";
@@ -28,9 +29,9 @@ const toApiAttachment = (model: PolicyAttachmentModel) =>
     createdAt: model.createdAt,
   });
 
-// Confirm the principal belongs to the acting org. Members + groups are looked
-// up; robot principals are accepted as-is (their organizationId is trusted from
-// the active org, matching how they're minted org-scoped).
+// Confirm the principal belongs to the acting org — members, groups, AND robot
+// accounts are all looked up, so an attachment can never be minted against a
+// nonexistent or foreign-org principal id.
 const assertPrincipalInOrg = (params: {
   readonly principalType: PrincipalType;
   readonly principalId: string;
@@ -54,8 +55,13 @@ const assertPrincipalInOrg = (params: {
       if (group === null) {
         return yield* new NotFound({ message: "Group not found" });
       }
+      return;
     }
-    // robot principals are accepted as-is — no membership row to verify.
+    const robotRepo = yield* RobotAccountRepo;
+    yield* robotRepo.findById({
+      id: params.principalId,
+      organizationId: params.organizationId,
+    });
   });
 
 // Resolve the document a policy id confers — a managed preset (from code) or a

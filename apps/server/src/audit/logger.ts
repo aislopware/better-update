@@ -21,7 +21,9 @@ export const logAudit = (params: {
       id: crypto.randomUUID(),
       organizationId: ctx.organizationId,
       projectId: toDbNull(params.projectId),
-      actorId: ctx.userId,
+      // Robot principals carry no user id — attribute them by robot_account.id
+      // so two robots in one org never collapse into an indistinct "robot" actor.
+      actorId: ctx.userId ?? ctx.robotId,
       actorEmail: ctx.actorEmail,
       action: params.action,
       resourceType: params.resourceType,

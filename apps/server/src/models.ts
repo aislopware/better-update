@@ -1,6 +1,6 @@
 import type { AuditLogResourceType as ApiAuditLogResourceType } from "@better-update/api";
 
-import type { PolicyStatement, Role } from "./authz-models";
+import type { AuditLogSource } from "./authz-models";
 
 export type Platform = "ios" | "android";
 
@@ -33,15 +33,15 @@ export type AuditLogResourceType = typeof ApiAuditLogResourceType.Type;
 
 export type DeviceClass = "IPHONE" | "IPAD" | "MAC" | "UNKNOWN";
 
-export type AuditLogSource = "session" | "robot";
 export type AnalyticsPeriod = "1d" | "7d" | "30d" | "90d";
 
-// Permission scalars + IAM policy types live in ./authz-models; the import above
-// binds Role/PolicyStatement in-file (used by CurrentActor below), and the
-// re-export below keeps downstream `./models` consumers unchanged.
+// Permission scalars, IAM policy types, and the CurrentActor shape live in
+// ./authz-models; the re-export keeps downstream `./models` consumers unchanged.
 export type {
   Action,
+  AuditLogSource,
   BuiltinRole,
+  CurrentActor,
   GroupModel,
   ObjectRef,
   PolicyAttachmentModel,
@@ -55,23 +55,6 @@ export type {
 } from "./authz-models";
 
 export type EncryptionKeyKind = "device" | "recovery" | "machine";
-
-export interface CurrentActor {
-  readonly userId: string | null;
-  readonly organizationId: string;
-  // Active-org `member.id`, or `null` for API-key principals (no scoped grants).
-  readonly memberId: string | null;
-  readonly role: Role | null;
-  /** `member.role === "owner"` — org root: unconditional allow, undeniable. */
-  readonly isOwner: boolean;
-  /** Flattened policy statements (direct + group + managed presets), resolved once per request. */
-  readonly effectiveStatements: readonly PolicyStatement[];
-  readonly source: AuditLogSource;
-  readonly transport: "bearer" | "cookie";
-  readonly sessionId: string | null;
-  readonly actorEmail: string;
-  readonly isSuperadmin: boolean;
-}
 
 export interface ProjectModel {
   readonly id: string;

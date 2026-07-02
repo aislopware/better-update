@@ -342,8 +342,8 @@ ciphertext. These manage who can decrypt and the local cached-key session.
 better-update credentials identity <create|init|register|show> [--label]   # default `show`; device identity only
 better-update credentials robot <create|list|rotate|revoke|policies|attach|detach> …   # default `list`; org-owned CI identity
 #   robot create [--name] [--no-grant] — mint a robot (bearer + vault identity), grant it, print BETTER_UPDATE_ROBOT once
-#   robot rotate <id> [--identity <AGE-SECRET-KEY-1…>] — re-mint the bearer only; pass --identity to get a full bundle back
-#   robot revoke <id> [--yes] — bearer stops authenticating; excludes + rotates the vault if it held access
+#   robot rotate <id> [--identity <AGE-SECRET-KEY-1…>] — re-mint the bearer only (needs robotAccount:update; boundary-checked); pass --identity to get a full bundle back
+#   robot revoke <id> [--yes] — bearer stops authenticating, policy attachments dropped; excludes + rotates the vault if it held access
 #   robot policies <id> · robot attach <id> --policy-id <policy> · robot detach <id> --policy-id <policy> — IAM grants (default-deny)
 better-update credentials passphrase [change]                              # change this device's passphrase; re-seals identity + enrolled account key; default `change`
 better-update credentials device <list|link> [<device>] [--yes]            # default `list`; link self-links a new device

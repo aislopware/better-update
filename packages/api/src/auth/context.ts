@@ -81,6 +81,12 @@ export interface AuthContextShape {
    * membership role. Gates the platform admin surface (`/api/admin/*`).
    */
   readonly isSuperadmin: boolean;
+  /**
+   * The `robot_account.id` when the request authenticated with a robot bearer
+   * secret, `null` for user sessions. Feeds audit-log attribution (`actor_id`)
+   * so multiple robots in one org stay distinguishable in the trail.
+   */
+  readonly robotId: string | null;
 }
 
 export class AuthContext extends Context.Tag("api/AuthContext")<AuthContext, AuthContextShape>() {}

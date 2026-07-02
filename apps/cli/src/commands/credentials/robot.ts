@@ -134,8 +134,10 @@ const listCommand = defineCommand({
       Effect.gen(function* () {
         const api = yield* apiClient;
         const { items } = yield* api["robot-accounts"].list();
+        // "Vault identity" (not "access"): a registered identity may not have
+        // been GRANTED the vault yet — actual membership is `credentials access list`.
         yield* printHumanList(
-          ["Id", "Name", "Bearer", "Vault access", "Created"],
+          ["Id", "Name", "Bearer", "Vault identity", "Created"],
           items.map((robot) => [
             robot.id,
             robot.name,

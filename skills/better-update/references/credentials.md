@@ -221,9 +221,15 @@ better-update credentials robot detach <id> --policy-id managed:admin  # revoke 
 ```
 
 Revoke a robot with `credentials robot revoke <id>` — its bearer stops authenticating immediately,
-and if it held vault access, that's excluded and the vault rotated too. Rotate its bearer alone with
-`credentials robot rotate <id>` (its vault identity is left untouched); pass `--identity <its current
-age private key>` to get a fresh full `BETTER_UPDATE_ROBOT` bundle back.
+its policy attachments are dropped with it, and if it held vault access, that's excluded and the
+vault rotated too. Rotate its bearer alone with `credentials robot rotate <id>` (its vault identity
+is left untouched); pass `--identity <its current age private key>` to get a fresh full
+`BETTER_UPDATE_ROBOT` bundle back.
+
+Rotation is an identity handover — whoever runs it walks away with the robot's new bearer — so it is
+gated separately: it needs `robotAccount:update` (not `create`), and a non-owner can only rotate a
+robot whose attached policies grant nothing beyond what the caller itself holds (the same
+no-privilege-escalation boundary `attach` enforces).
 
 **Migrating from `BETTER_UPDATE_IDENTITY` + `BETTER_UPDATE_TOKEN`:** the old dual-secret setup
 (a standalone `identity create-ci` machine key paired with a dashboard API key) is gone — the API

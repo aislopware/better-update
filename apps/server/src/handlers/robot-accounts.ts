@@ -7,10 +7,11 @@ import { logAudit } from "../audit/logger";
 import { CurrentActor } from "../auth/current-actor";
 import { assertPermission } from "../auth/permissions";
 import { assertAccess } from "../auth/policy";
-import { NotFound } from "../errors";
+import { isWithinBoundary } from "../auth/policy-boundary";
+import { statementsForPrincipals } from "../auth/statements";
+import { Forbidden, NotFound } from "../errors";
 import { toApiCrudEffect, toApiReadEffect } from "../http/to-api-effect";
 import { RobotAccountRepo } from "../repositories/robot-accounts";
-import { UserEncryptionKeyRepo } from "../repositories/user-encryption-keys";
 
 import type { RobotAccountModel } from "../repositories/robot-accounts";
 
@@ -53,25 +54,14 @@ export const RobotAccountsGroupLive = HttpApiBuilder.group(
             yield* assertPermission("vaultAccess", "create");
             const ctx = yield* CurrentActor;
 
-            const userEncryptionKeyId = crypto.randomUUID();
-            const now = new Date().toISOString();
-            const keyRepo = yield* UserEncryptionKeyRepo;
-            yield* keyRepo.insert({
-              id: userEncryptionKeyId,
-              userId: null,
-              organizationId: ctx.organizationId,
-              kind: "machine",
-              publicKey: payload.publicKey,
-              label: payload.name,
-              fingerprint: payload.fingerprint,
-              createdAt: now,
-            });
-
+            // The repo mints the machine-kind vault recipient and the robot row
+            // in one atomic D1 batch — no orphaned recipient on partial failure.
             const repo = yield* RobotAccountRepo;
             const created = yield* repo.create({
               organizationId: ctx.organizationId,
               name: payload.name,
-              userEncryptionKeyId,
+              publicKey: payload.publicKey,
+              fingerprint: payload.fingerprint,
             });
 
             yield* logAudit({
@@ -97,8 +87,24 @@ export const RobotAccountsGroupLive = HttpApiBuilder.group(
       .handle("rotate", ({ path }) =>
         toApiReadEffect(
           Effect.gen(function* () {
-            yield* assertAccess("robotAccount", "create");
+            yield* assertAccess("robotAccount", "update");
             const ctx = yield* CurrentActor;
+            // Permission boundary (no privilege escalation): rotating hands out
+            // the target robot's NEW bearer — an identity takeover. A non-owner
+            // may only rotate a robot whose attached grants are all within what
+            // the caller itself holds; otherwise `robotAccount:update` alone
+            // would be a ladder to any stronger robot's permissions.
+            if (!ctx.isOwner && !ctx.isSuperadmin) {
+              const granted = yield* statementsForPrincipals({
+                organizationId: ctx.organizationId,
+                principals: [{ type: "robot", id: path.id }],
+              });
+              if (!isWithinBoundary(ctx.effectiveStatements, { statements: granted })) {
+                return yield* new Forbidden({
+                  message: "Cannot rotate a robot that holds more than you currently hold",
+                });
+              }
+            }
             const repo = yield* RobotAccountRepo;
             const rotated = yield* repo.rotateBearer({
               id: path.id,

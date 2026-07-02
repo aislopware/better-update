@@ -53,7 +53,7 @@ export const permissions: PermissionMap = {
     update: ["read", "create", "delete"],
     rollout: ["read", "create", "update", "delete"],
     billing: ["read", "update"],
-    robotAccount: ["read", "create", "delete"],
+    robotAccount: ["read", "create", "update", "delete"],
     build: ["read", "create", "delete"],
     envVar: ["read", "create", "update", "delete"],
     auditLog: ["read"],
@@ -79,7 +79,10 @@ export const permissions: PermissionMap = {
     update: ["read", "create", "delete"],
     rollout: ["read", "create", "update", "delete"],
     billing: ["read", "update"],
-    robotAccount: ["read", "create", "delete"],
+    // `update` = bearer rotation: handing out an existing robot's NEW secret is
+    // an identity takeover, so it is a separate token from `create` and is
+    // additionally boundary-checked in the handler (see robot-accounts.ts).
+    robotAccount: ["read", "create", "update", "delete"],
     build: ["read", "create", "delete"],
     envVar: ["read", "create", "update", "delete"],
     auditLog: ["read"],

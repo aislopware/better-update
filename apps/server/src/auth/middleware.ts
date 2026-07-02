@@ -8,18 +8,14 @@ import { cloudflareEnv } from "../cloudflare/context";
 import { CryptoServiceLive } from "../cloudflare/crypto-service";
 import { Forbidden, Unauthorized } from "../errors";
 import { GroupRepo, GroupRepoLive } from "../repositories/group-repo";
-import {
-  PolicyAttachmentRepo,
-  PolicyAttachmentRepoLive,
-} from "../repositories/policy-attachment-repo";
-import { PolicyRepo, PolicyRepoLive } from "../repositories/policy-repo";
+import { PolicyAttachmentRepoLive } from "../repositories/policy-attachment-repo";
+import { PolicyRepoLive } from "../repositories/policy-repo";
 import { RobotAccountRepo, RobotAccountRepoLive } from "../repositories/robot-accounts";
 import { ROBOT_BEARER_PREFIX } from "./constants";
-import { isManagedPolicyId, resolveManagedDocument } from "./managed-policies";
 import { roleIsOwner } from "./owner";
+import { statementsForPrincipals } from "./statements";
 import { roleIsSuperadmin } from "./superadmin";
 
-import type { PolicyStatement } from "../models";
 import type { PrincipalRef } from "../repositories/policy-attachment-repo";
 import type { AuthContextShape } from "./context";
 
@@ -131,43 +127,6 @@ export const toStandardHeaders = (headers: Readonly<Record<string, string | unde
     return result;
   }, new Headers());
 
-// Flatten the policy statements granted by a set of principals' attachments.
-// Managed preset ids resolve from code (zero query); real ids resolve in one
-// batched read. Shared by the member path (self + groups) and the robot path
-// (self only) so both consult `policy_attachment` identically — no implicit
-// baseline, no role-derived grants.
-// Exported (with the policy repos as unresolved requirements) so the robot
-// positive-grant path can be integration-tested directly, mirroring
-// `resolveEffectiveStatements` for the member path.
-export const statementsForPrincipals = (params: {
-  readonly organizationId: string;
-  readonly principals: readonly PrincipalRef[];
-}) =>
-  Effect.gen(function* () {
-    if (params.principals.length === 0) {
-      return [] as readonly PolicyStatement[];
-    }
-    const attachRepo = yield* PolicyAttachmentRepo;
-    const policyRepo = yield* PolicyRepo;
-
-    const attachments = yield* attachRepo.findForPrincipals({
-      organizationId: params.organizationId,
-      principals: params.principals,
-    });
-
-    const policyIds = [...new Set(attachments.map((att) => att.policyId))];
-    const realIds = policyIds.filter((id) => !isManagedPolicyId(id));
-    const realDocs = yield* policyRepo.findDocumentsByIds({
-      organizationId: params.organizationId,
-      ids: realIds,
-    });
-
-    return policyIds.flatMap((id): readonly PolicyStatement[] => {
-      const doc = isManagedPolicyId(id) ? resolveManagedDocument(id) : realDocs.get(id);
-      return doc?.statements ?? [];
-    });
-  });
-
 // Resolve a member's effective policy statements ONCE per request, caching the
 // flat list into the auth context. Direct (member) attachments + group
 // attachments; managed preset ids resolve from code (zero query), real ids in one
@@ -268,6 +227,7 @@ const resolveSession = (transport: "bearer" | "cookie") =>
       sessionId,
       actorEmail: session.user.email,
       isSuperadmin: authState.isSuperadmin,
+      robotId: null,
     } as const satisfies AuthContextShape;
   });
 
@@ -315,8 +275,11 @@ const resolveFromBearer = (token: Redacted.Redacted) => {
       source: "robot",
       transport: "bearer",
       sessionId: null,
-      actorEmail: "robot",
+      // Attribution: the audit trail must distinguish WHICH robot acted, so the
+      // actor label carries the robot's name and `robotId` its stable id.
+      actorEmail: `robot:${verified.name}`,
       isSuperadmin: false,
+      robotId: verified.id,
     } as const satisfies AuthContextShape;
   }).pipe(Effect.provide(ROBOT_LAYERS));
 };

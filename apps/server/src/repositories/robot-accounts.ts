@@ -3,7 +3,7 @@ import { Context, Effect, Layer } from "effect";
 import type { Selectable } from "kysely";
 
 import { ROBOT_BEARER_PREFIX } from "../auth/constants";
-import { kyselyDb } from "../cloudflare/db";
+import { d1Batch, kyselyDb } from "../cloudflare/db";
 import { CryptoService } from "../domain/crypto-service";
 import { NotFound } from "../errors";
 
@@ -28,8 +28,9 @@ export interface RobotAccountModel {
 export interface CreateRobotAccountInput {
   readonly organizationId: string;
   readonly name: string;
-  /** The `user_encryption_keys` (kind 'machine') row registered alongside this robot. */
-  readonly userEncryptionKeyId: string;
+  /** The robot's age public key, registered as a `machine`-kind vault recipient. */
+  readonly publicKey: string;
+  readonly fingerprint: string;
 }
 
 export interface CreateRobotAccountResult {
@@ -40,10 +41,11 @@ export interface CreateRobotAccountResult {
 
 export interface RobotAccountRepository {
   /**
-   * Insert an org-scoped robot account row linked to an already-registered
-   * machine vault identity, minting a fresh bearer secret for it (hashed
-   * exactly like the deleted apikey feature did: SHA-256 -> unpadded
-   * base64url).
+   * Mint an org-scoped robot account: the `machine`-kind `user_encryption_keys`
+   * row (vault recipient) and the `robot_account` row are inserted in ONE atomic
+   * `D1.batch`, so a failure can never leave an orphaned vault recipient. The
+   * bearer secret is hashed exactly like the deleted apikey feature did
+   * (SHA-256 -> unpadded base64url).
    */
   readonly create: (params: CreateRobotAccountInput) => Effect.Effect<CreateRobotAccountResult>;
 
@@ -69,8 +71,9 @@ export interface RobotAccountRepository {
   }) => Effect.Effect<{ readonly bearerSecret: string }, NotFound>;
 
   /**
-   * Delete a robot account, scoped to its org. Only removes the `robot_account`
-   * row (the bearer stops authenticating immediately) — any linked vault
+   * Delete a robot account, scoped to its org, atomically dropping every
+   * `policy_attachment` row on the robot principal with it (no dangling
+   * grants). The bearer stops authenticating immediately. Any linked vault
    * identity's `user_encryption_keys` row is untouched; vault access for it is
    * revoked the same way any other recipient is (`credentials access revoke`),
    * which the CLI runs before calling this.
@@ -81,9 +84,11 @@ export interface RobotAccountRepository {
   }) => Effect.Effect<boolean>;
 
   /** Bearer verification for auth middleware — SHA-256 hash lookup, org-scoped result. */
-  readonly verifyBearer: (params: {
-    readonly plaintext: string;
-  }) => Effect.Effect<{ readonly id: string; readonly organizationId: string } | null>;
+  readonly verifyBearer: (params: { readonly plaintext: string }) => Effect.Effect<{
+    readonly id: string;
+    readonly organizationId: string;
+    readonly name: string;
+  } | null>;
 }
 
 export class RobotAccountRepo extends Context.Tag("api/RobotAccountRepo")<
@@ -168,38 +173,48 @@ export const RobotAccountRepoLive = Layer.effect(
           const db = yield* kyselyDb;
           const bearer = yield* mintBearer;
           const id = crypto.randomUUID();
+          const userEncryptionKeyId = crypto.randomUUID();
           const now = new Date().toISOString();
 
-          const row = yield* Effect.promise(async () =>
-            db
-              .insertInto("robot_account")
-              .values({
-                id,
-                organization_id: params.organizationId,
-                name: params.name,
-                bearer_key_hash: bearer.hash,
-                bearer_start: bearer.start,
-                user_encryption_key_id: params.userEncryptionKeyId,
-                revoked_at: null,
-              })
-              .returning(PUBLIC_COLUMNS)
-              .executeTakeFirst(),
-          );
+          // One atomic batch: the vault-recipient row and the robot row land (or
+          // roll back) together — a failure can't leave an orphaned machine key.
+          yield* d1Batch([
+            db.insertInto("user_encryption_keys").values({
+              id: userEncryptionKeyId,
+              user_id: null,
+              organization_id: params.organizationId,
+              kind: "machine",
+              public_key: params.publicKey,
+              label: params.name,
+              fingerprint: params.fingerprint,
+              created_at: now,
+              last_used_at: null,
+              revoked_at: null,
+            }),
+            db.insertInto("robot_account").values({
+              id,
+              organization_id: params.organizationId,
+              name: params.name,
+              bearer_key_hash: bearer.hash,
+              bearer_start: bearer.start,
+              user_encryption_key_id: userEncryptionKeyId,
+              created_at: now,
+              revoked_at: null,
+            }),
+          ]);
 
-          const model =
-            row === undefined
-              ? {
-                  id,
-                  organizationId: params.organizationId,
-                  name: params.name,
-                  bearerStart: bearer.start,
-                  hasBearer: true,
-                  userEncryptionKeyId: params.userEncryptionKeyId,
-                  createdAt: now,
-                }
-              : toModel(row);
-
-          return { bearerSecret: bearer.plaintext, model };
+          return {
+            bearerSecret: bearer.plaintext,
+            model: {
+              id,
+              organizationId: params.organizationId,
+              name: params.name,
+              bearerStart: bearer.start,
+              hasBearer: true,
+              userEncryptionKeyId,
+              createdAt: now,
+            },
+          };
         }),
 
       list: (params) =>
@@ -210,6 +225,7 @@ export const RobotAccountRepoLive = Layer.effect(
               .selectFrom("robot_account")
               .select(PUBLIC_COLUMNS)
               .where("organization_id", "=", params.organizationId)
+              .where("revoked_at", "is", null)
               .orderBy("created_at", "desc")
               .execute(),
           );
@@ -225,6 +241,7 @@ export const RobotAccountRepoLive = Layer.effect(
               .select(PUBLIC_COLUMNS)
               .where("id", "=", params.id)
               .where("organization_id", "=", params.organizationId)
+              .where("revoked_at", "is", null)
               .executeTakeFirst(),
           );
           if (row === undefined) {
@@ -243,6 +260,7 @@ export const RobotAccountRepoLive = Layer.effect(
               .set({ bearer_key_hash: bearer.hash, bearer_start: bearer.start })
               .where("id", "=", params.id)
               .where("organization_id", "=", params.organizationId)
+              .where("revoked_at", "is", null)
               .returning(PUBLIC_COLUMNS)
               .executeTakeFirst(),
           );
@@ -255,14 +273,23 @@ export const RobotAccountRepoLive = Layer.effect(
       revoke: (params) =>
         Effect.gen(function* () {
           const db = yield* kyselyDb;
-          const result = yield* Effect.promise(async () =>
+          // Atomic: the robot row and its policy attachments go together, so a
+          // revoked robot never leaves dangling grants behind. RETURNING on the
+          // robot delete carries the "did it exist in this org" signal out of
+          // the batch (d1Batch surfaces rows, not counts).
+          const [, deletedRows] = yield* d1Batch([
+            db
+              .deleteFrom("policy_attachment")
+              .where("organization_id", "=", params.organizationId)
+              .where("principal_type", "=", "robot")
+              .where("principal_id", "=", params.id),
             db
               .deleteFrom("robot_account")
               .where("id", "=", params.id)
               .where("organization_id", "=", params.organizationId)
-              .executeTakeFirst(),
-          );
-          return Number(result.numDeletedRows) > 0;
+              .returning("id"),
+          ]);
+          return deletedRows.length > 0;
         }),
 
       verifyBearer: (params) =>
@@ -272,11 +299,14 @@ export const RobotAccountRepoLive = Layer.effect(
           const row = yield* Effect.promise(async () =>
             db
               .selectFrom("robot_account")
-              .select(["id", "organization_id"])
+              .select(["id", "organization_id", "name"])
               .where("bearer_key_hash", "=", hash)
+              .where("revoked_at", "is", null)
               .executeTakeFirst(),
           );
-          return row === undefined ? null : { id: row.id, organizationId: row.organization_id };
+          return row === undefined
+            ? null
+            : { id: row.id, organizationId: row.organization_id, name: row.name };
         }),
     } satisfies RobotAccountRepository;
   }),

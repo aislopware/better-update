@@ -19,6 +19,7 @@ const provideAuth = (organizationId: string) =>
     sessionId: "sess-test",
     actorEmail: "test@example.com",
     isSuperadmin: false,
+    robotId: null,
   });
 
 describe(assertOrgOwnership, () => {

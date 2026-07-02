@@ -21,8 +21,10 @@ const { del, get, parseCookies, post } = setupE2EWorker(".wrangler/state/e2e-pol
 // scoped policy attached via the group. That is exactly what we want to prove.
 //
 // Single file → two robot accounts issued (one for the default-deny check, one
-// via the IAM endpoint), each used for ≤1 authed request — well within the
-// 120 req/60s per-robot limit.
+// via the IAM endpoint), each used for ≤1 authed request. (Robot bearers have
+// no server-side rate limit — the old 120 req/60s window died with the
+// better-auth apiKey plugin; brute force is impractical against a 64-char
+// random secret.)
 
 describe("IAM Policy + Group authorization cross-flow", () => {
   let aliceCookies: string;
