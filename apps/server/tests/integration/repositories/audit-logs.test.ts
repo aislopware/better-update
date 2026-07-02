@@ -138,7 +138,9 @@ describe("AuditLogRepo — D1 integration (Kysely + session)", () => {
           resourceType: "channel",
           resourceId: "chan-1",
           metadata: null,
-          source: "api-key",
+          // 'robot' regression-tests the 0085 CHECK widening: robot actors are
+          // the one live source the original 0008 constraint rejected.
+          source: "robot",
         });
       }),
     );
@@ -154,7 +156,7 @@ describe("AuditLogRepo — D1 integration (Kysely + session)", () => {
       action: "thing.deleted",
       resourceType: "channel",
       resourceId: "chan-1",
-      source: "api-key",
+      source: "robot",
     });
   });
 });
