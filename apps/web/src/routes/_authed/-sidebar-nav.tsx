@@ -110,6 +110,15 @@ const ORG_NAV: OrgNavSection[] = [
       { to: "/audit-log", label: "Audit log", icon: ScrollTextIcon, capability: "canViewAuditLog" },
     ],
   },
+  // Demoted (SPEC §9d): the raw policy/group builder is the ADVANCED escape
+  // hatch — the Members page Access sheet is the primary surface.
+  {
+    label: "Access Control",
+    items: [
+      { to: "/policies", label: "Policies", icon: ShieldIcon, capability: "canViewPolicies" },
+      { to: "/groups", label: "Groups", icon: UsersRoundIcon, capability: "canViewPolicies" },
+    ],
+  },
   {
     label: "Credentials",
     items: [
@@ -154,15 +163,6 @@ const ORG_NAV: OrgNavSection[] = [
         icon: SettingsIcon,
         capability: "canManageOrgSettings",
       },
-    ],
-  },
-  // Demoted (SPEC §9d): the raw policy/group builder is the ADVANCED escape
-  // hatch — the Members page Access sheet is the primary surface.
-  {
-    label: "Advanced",
-    items: [
-      { to: "/policies", label: "Policies", icon: ShieldIcon, capability: "canViewPolicies" },
-      { to: "/groups", label: "Groups", icon: UsersRoundIcon, capability: "canViewPolicies" },
     ],
   },
 ];
