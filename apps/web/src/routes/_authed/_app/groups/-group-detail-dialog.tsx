@@ -134,6 +134,14 @@ const GroupMembersSection = ({ orgId, group }: { orgId: string; group: GroupItem
     () => orgMembers.filter((member) => !memberIdsInGroup.has(member.id)),
     [orgMembers, memberIdsInGroup],
   );
+  const memberSelectItems = useMemo(
+    () =>
+      availableMembers.map((member) => ({
+        value: member.id,
+        label: `${member.user.name} (${member.user.email})`,
+      })),
+    [availableMembers],
+  );
 
   const invalidate = async (): Promise<void> => {
     await queryClient.invalidateQueries({ queryKey: groupMembersQueryKey(orgId, group.id) });
@@ -162,6 +170,7 @@ const GroupMembersSection = ({ orgId, group }: { orgId: string; group: GroupItem
         <Field className="flex-1">
           <FieldLabel>Member</FieldLabel>
           <Select
+            items={memberSelectItems}
             value={selectedMemberId}
             onValueChange={(next) => {
               if (next !== null) {
@@ -175,9 +184,9 @@ const GroupMembersSection = ({ orgId, group }: { orgId: string; group: GroupItem
             </SelectTrigger>
             <SelectPopup>
               <SelectGroup>
-                {availableMembers.map((member) => (
-                  <SelectItem key={member.id} value={member.id}>
-                    {member.user.name} ({member.user.email})
+                {memberSelectItems.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
                   </SelectItem>
                 ))}
               </SelectGroup>
