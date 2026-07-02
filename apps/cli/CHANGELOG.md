@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.53.2](https://github.com/better-update/better-update/compare/@better-update/cli@0.53.1...@better-update/cli@0.53.2) (2026-07-02)
+
+### Bug Fixes
+
+* **cli:** self-heal stale keychain entries when caching the vault key ([4bc3001](https://github.com/better-update/better-update/commit/4bc3001105371cd32ffd4fb670dd2d791397afd6))
+
 ## [0.53.1](https://github.com/better-update/better-update/compare/@better-update/cli@0.53.0...@better-update/cli@0.53.1) (2026-07-02)
 
 **Note:** Version bump only for package @better-update/cli
