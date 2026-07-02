@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.53.0](https://github.com/better-update/better-update/compare/@better-update/web@0.52.0...@better-update/web@0.53.0) (2026-07-02)
+
+### Features
+
+* **auth:** object-scope credentials and harden IAM authorization ([0b4d047](https://github.com/better-update/better-update/commit/0b4d0479a54a0c78f1ea4e9110d7681288a7a4da))
+
 ## [0.52.0](https://github.com/better-update/better-update/compare/@better-update/web@0.51.0...@better-update/web@0.52.0) (2026-07-02)
 
 ### Features

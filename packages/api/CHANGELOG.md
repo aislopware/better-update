@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.34.0](https://gitlab.jmango360.com/mobile/better-update/compare/@better-update/api@0.33.0...@better-update/api@0.34.0) (2026-07-02)
+
+### Features
+
+* **auth:** object-scope credentials and harden IAM authorization ([0b4d047](https://gitlab.jmango360.com/mobile/better-update/commit/0b4d0479a54a0c78f1ea4e9110d7681288a7a4da))
+
 ## [0.33.0](https://gitlab.jmango360.com/mobile/better-update/compare/@better-update/api@0.32.0...@better-update/api@0.33.0) (2026-07-02)
 
 ### Features
