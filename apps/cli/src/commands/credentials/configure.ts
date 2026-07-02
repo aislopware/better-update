@@ -380,7 +380,7 @@ export const configureCommand = defineCommand({
             projectId,
             root,
             bundle: args.bundle,
-            distribution: args.distribution as IosDistribution,
+            distribution: args.distribution,
             rebind: args.rebind ?? false,
             bindPushKey: args["bind-push-key"],
             bindAscKey: args["bind-asc-key"],

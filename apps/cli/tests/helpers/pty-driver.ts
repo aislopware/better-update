@@ -41,7 +41,7 @@ export const spawnPty = (
     cols: options?.cols ?? 120,
     rows: options?.rows ?? 40,
     cwd: options?.cwd ?? process.cwd(),
-    env: { ...process.env, ...options?.env } as Record<string, string>,
+    env: { ...process.env, ...options?.env },
     name: "xterm-256color",
   });
 

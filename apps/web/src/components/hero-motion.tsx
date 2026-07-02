@@ -236,32 +236,29 @@ const makePointerHandlers = (state: PointerState) => {
   return { onDown, onUp, onMove };
 };
 
-const edgeMarkerStyle = (id: string): CSSProperties =>
-  ({
-    positionAnchor: `--cobe-${id}`,
-    top: "anchor(center)",
-    left: "anchor(center)",
-    transform: "translate(-50%, -50%)",
-    opacity: `var(--cobe-visible-${id}, 0)`,
-  }) as CSSProperties;
+const edgeMarkerStyle = (id: string): CSSProperties => ({
+  positionAnchor: `--cobe-${id}`,
+  top: "anchor(center)",
+  left: "anchor(center)",
+  transform: "translate(-50%, -50%)",
+  opacity: `var(--cobe-visible-${id}, 0)`,
+});
 
-const edgeLabelStyle = (id: string): CSSProperties =>
-  ({
-    positionAnchor: `--cobe-${id}`,
-    top: "anchor(bottom)",
-    left: "anchor(center)",
-    transform: "translate(-50%, 16px)",
-    opacity: `var(--cobe-visible-${id}, 0)`,
-  }) as CSSProperties;
+const edgeLabelStyle = (id: string): CSSProperties => ({
+  positionAnchor: `--cobe-${id}`,
+  top: "anchor(bottom)",
+  left: "anchor(center)",
+  transform: "translate(-50%, 16px)",
+  opacity: `var(--cobe-visible-${id}, 0)`,
+});
 
-const arcLabelStyle = (id: string): CSSProperties =>
-  ({
-    positionAnchor: `--cobe-arc-${id}`,
-    top: "anchor(center)",
-    left: "anchor(center)",
-    transform: "translate(-50%, -50%)",
-    opacity: `var(--cobe-visible-arc-${id}, 0)`,
-  }) as CSSProperties;
+const arcLabelStyle = (id: string): CSSProperties => ({
+  positionAnchor: `--cobe-arc-${id}`,
+  top: "anchor(center)",
+  left: "anchor(center)",
+  transform: "translate(-50%, -50%)",
+  opacity: `var(--cobe-visible-arc-${id}, 0)`,
+});
 
 export const HeroMotion = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);

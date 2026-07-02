@@ -32,7 +32,7 @@ export const runApi = async <Success, Failure>(
       Effect.flatMap(fn),
       Effect.provide(FetchHttpClient.layer),
       Effect.provideService(FetchHttpClient.RequestInit, {
-        credentials: "include" as RequestCredentials,
+        credentials: "include",
       }),
       Effect.scoped,
     ),
@@ -77,7 +77,7 @@ const extractMessage = (value: unknown): string | null => {
     return value.message;
   }
   if (typeof value === "object" && value !== null && "message" in value) {
-    const { message } = value as { message: unknown };
+    const { message } = value;
     return typeof message === "string" ? message : null;
   }
   return null;
@@ -96,7 +96,7 @@ export const getApiError = (error: unknown): string => {
       const { value } = option;
       const fromCause =
         typeof value === "object" && value !== null && "cause" in value
-          ? extractMessage((value as { cause: unknown }).cause)
+          ? extractMessage(value.cause)
           : null;
       if (fromCause !== null) {
         return fromCause;

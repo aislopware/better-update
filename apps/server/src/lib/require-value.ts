@@ -21,4 +21,4 @@ export const requireValue = <T>(
 ): Effect.Effect<NonNullable<T>, MissingValueError> =>
   value === null || value === undefined || (value as unknown) === ""
     ? Effect.fail(new MissingValueError({ field }))
-    : Effect.succeed(value as NonNullable<T>);
+    : Effect.succeed(value);

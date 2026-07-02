@@ -23,7 +23,7 @@ const FIXTURE_FILE: IdentityFile = {
 const cliRuntimeStub = (env: Readonly<Record<string, string | undefined>>) =>
   Layer.succeed(CliRuntime, {
     argv: [],
-    platform: "linux" as NodeJS.Platform,
+    platform: "linux",
     cwd: Effect.succeed("/"),
     getEnv: (name: string) => Effect.succeed(env[name]),
     homeDirectory: Effect.succeed("/"),

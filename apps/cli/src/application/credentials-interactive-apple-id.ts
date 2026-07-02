@@ -38,7 +38,7 @@ export const chooseIosSetupPath = (api: ApiClient) =>
     const hasAscKeys = ascKeys.items.some((key) => key.appleTeamId !== null);
     if (!hasAscKeys) {
       // No ASC keys configured — Apple ID is the only option. Skip the prompt.
-      return "apple-id" as IosSetupPath;
+      return "apple-id";
     }
     return yield* promptSelect<IosSetupPath>(
       "How would you like to provide your iOS credentials?",

@@ -24,7 +24,7 @@ const writeFile = (dir: string, name: string, content: string): void => {
 const runtimeLayer = (cwd: string, env: Readonly<Record<string, string>> = {}) =>
   Layer.succeed(CliRuntime, {
     argv: [],
-    platform: "linux" as NodeJS.Platform,
+    platform: "linux",
     cwd: Effect.succeed(cwd),
     getEnv: (name: string) => Effect.succeed(env[name]),
     homeDirectory: Effect.succeed(cwd),

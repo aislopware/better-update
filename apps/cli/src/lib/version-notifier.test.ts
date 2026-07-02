@@ -28,7 +28,7 @@ const makeVersionCheckLayer = (config: VersionConfig = DEFAULT_VERSION_CONFIG) =
 const makeRuntimeLayer = (optedOut: boolean) =>
   Layer.succeed(CliRuntime, {
     argv: [],
-    platform: "darwin" as NodeJS.Platform,
+    platform: "darwin",
     cwd: Effect.succeed("/"),
     getEnv: (name: string) =>
       Effect.succeed(

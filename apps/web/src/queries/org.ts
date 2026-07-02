@@ -28,7 +28,7 @@ const loadMembers = async (orgId: string): Promise<MemberItem[]> => {
     if (data === null) {
       return [];
     }
-    return data.members as MemberItem[];
+    return data.members;
   } catch (error) {
     throw ensureError(error, "Failed to load organization members");
   }

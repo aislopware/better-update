@@ -7,8 +7,6 @@ import { uploadCredential } from "../../lib/credentials-manager";
 import { printHuman, printHumanKeyValue } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 
-import type { CliCredentialType } from "../../lib/credentials-manager";
-
 const CREDENTIAL_TYPES = [
   "distribution-certificate",
   "provisioning-profile",
@@ -54,7 +52,7 @@ export const uploadCommand = defineCommand({
 
         const input = {
           platform: args.platform,
-          type: args.type as CliCredentialType,
+          type: args.type,
           name: args.name,
           filePath: args.file,
           ...compact({

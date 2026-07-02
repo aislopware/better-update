@@ -268,5 +268,5 @@ export const loadSignedPublishPayloads = <Err>(params: {
       { concurrency: 1 },
     );
 
-    return Object.fromEntries(platformPayloadEntries) as Partial<Record<Platform, SignedPayload>>;
+    return Object.fromEntries(platformPayloadEntries);
   });

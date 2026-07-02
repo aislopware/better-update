@@ -17,7 +17,7 @@ const { apiModule, orgModule, routerModule, accountModule, unlockModule, state }
     accountModule: "../account/-account-key-dialogs",
     unlockModule: "./-env-vault-unlock-dialog",
     state: {
-      me: { user: { id: "u-1" } } as { user: { id: string } | null } | undefined,
+      me: { user: { id: "u-1" } },
       accountKeys: { items: [] as { id: string; userId: string }[] },
       wraps: { recipients: [] as { recipientKind: string; recipientId: string }[] },
     },

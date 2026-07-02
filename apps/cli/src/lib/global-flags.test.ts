@@ -65,11 +65,11 @@ describe("parseGlobalFlags precedence", () => {
   });
 
   it("treats CI=1 the same as CI=true", () => {
-    expect(parseGlobalFlags([], { CI: "1" } as NodeJS.ProcessEnv).nonInteractive).toBe(true);
+    expect(parseGlobalFlags([], { CI: "1" }).nonInteractive).toBe(true);
   });
 
   it("ignores other CI values (e.g. CI=false)", () => {
-    expect(parseGlobalFlags([], { CI: "false" } as NodeJS.ProcessEnv).nonInteractive).toBe(false);
+    expect(parseGlobalFlags([], { CI: "false" }).nonInteractive).toBe(false);
   });
 });
 

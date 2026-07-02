@@ -16,7 +16,7 @@ import type { SerializedAppleSession } from "./apple-session-store";
 const cliRuntimeStub = (env: Readonly<Record<string, string | undefined>> = {}) =>
   Layer.succeed(CliRuntime, {
     argv: [],
-    platform: "linux" as NodeJS.Platform,
+    platform: "linux",
     cwd: Effect.succeed("/"),
     getEnv: (name: string) => Effect.succeed(env[name]),
     homeDirectory: Effect.succeed("/"),
@@ -115,10 +115,8 @@ const makeAppleUtilsStub = (
   }> = {},
 ): AppleUtilsContract => ({
   Auth: {
-    loginWithCookiesAsync: (overrides.loginWithCookies ??
-      (async () => null)) as AppleUtilsContract["Auth"]["loginWithCookiesAsync"],
-    loginWithUserCredentialsAsync: (overrides.loginWithUserCredentials ??
-      (async () => null)) as AppleUtilsContract["Auth"]["loginWithUserCredentialsAsync"],
+    loginWithCookiesAsync: overrides.loginWithCookies ?? (async () => null),
+    loginWithUserCredentialsAsync: overrides.loginWithUserCredentials ?? (async () => null),
     logoutAsync: overrides.logout ?? (async () => {}),
   },
   Session: {

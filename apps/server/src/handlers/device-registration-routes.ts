@@ -129,16 +129,19 @@ const consumeCallback = (deps: ConsumeCallbackDeps) =>
         ),
       );
     if (invite === null) {
-      return { ok: false, message: "Registration link not found." } as ConsumeCallbackResult;
+      return { ok: false, message: "Registration link not found." } satisfies ConsumeCallbackResult;
     }
     if (invite.consumedAt !== null) {
       return {
         ok: false,
         message: "Registration link already used.",
-      } as ConsumeCallbackResult;
+      } satisfies ConsumeCallbackResult;
     }
     if (isExpired(invite.expiresAt, deps.now)) {
-      return { ok: false, message: "Registration link has expired." } as ConsumeCallbackResult;
+      return {
+        ok: false,
+        message: "Registration link has expired.",
+      } satisfies ConsumeCallbackResult;
     }
 
     const existing = yield* deviceRepo
@@ -175,7 +178,7 @@ const consumeCallback = (deps: ConsumeCallbackDeps) =>
       consumedAt: iso,
     });
 
-    return { ok: true, deviceName: deps.deviceName } as ConsumeCallbackResult;
+    return { ok: true, deviceName: deps.deviceName } satisfies ConsumeCallbackResult;
   });
 
 const handleCallback = async (request: Request, env: Env, id: string): Promise<Response> => {

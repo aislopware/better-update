@@ -98,7 +98,7 @@ const resolvePushKeyInput = (api: ApiClient, args: PushKeyArgs) =>
 const resolvePushKeyMethod = (args: PushKeyArgs) =>
   Effect.gen(function* () {
     if (args.p8 !== undefined && args.p8.trim().length > 0) {
-      return "upload" as PushKeyMethod;
+      return "upload";
     }
     if (args.method === "upload" || args.method === "apple-id") {
       return args.method;

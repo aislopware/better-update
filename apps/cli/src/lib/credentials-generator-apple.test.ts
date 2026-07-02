@@ -190,7 +190,7 @@ const vaultLayer = (privateKey: string) =>
     makeInteractiveModeLayer(false),
     Layer.succeed(CliRuntime, {
       argv: [],
-      platform: "linux" as NodeJS.Platform,
+      platform: "linux",
       cwd: Effect.succeed("/"),
       getEnv: (name: string) =>
         Effect.succeed(name === "BETTER_UPDATE_IDENTITY" ? privateKey : undefined),

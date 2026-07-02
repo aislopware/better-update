@@ -6,8 +6,6 @@ import { deleteCredential } from "../../lib/credentials-manager";
 import { printHuman } from "../../lib/output";
 import { apiClient } from "../../services/api-client";
 
-import type { CliCredentialType } from "../../lib/credentials-manager";
-
 const CREDENTIAL_TYPES = [
   "distribution-certificate",
   "provisioning-profile",
@@ -34,7 +32,7 @@ export const deleteCommand = defineCommand({
         yield* deleteCredential(api, {
           id: args.id,
           platform: args.platform,
-          type: args.type as CliCredentialType,
+          type: args.type,
         });
         yield* printHuman(`Credential ${args.id} deleted.`);
         return { id: args.id, platform: args.platform, type: args.type, deleted: true };

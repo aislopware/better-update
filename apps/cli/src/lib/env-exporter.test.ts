@@ -134,7 +134,7 @@ const vaultLayer = (privateKey: string, { json = true }: { json?: boolean } = {}
     makeOutputModeLayer(json),
     Layer.succeed(CliRuntime, {
       argv: [],
-      platform: "linux" as NodeJS.Platform,
+      platform: "linux",
       cwd: Effect.succeed("/"),
       getEnv: (name: string) =>
         Effect.succeed(name === "BETTER_UPDATE_IDENTITY" ? privateKey : undefined),

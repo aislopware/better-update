@@ -9,29 +9,34 @@ import { VaultAccessGrant } from "./-vault-access-grant";
 // PUBLIC age recipient and submitted as an `account` env wrap. Module paths come
 // from hoisted string vars so the partial factories use the loose vi.mock overload.
 const { cryptoModule, encodingModule, apiModule, vaultModule, unlockModule, state, fns } =
-  vi.hoisted(() => ({
-    cryptoModule: "@better-update/credentials-crypto",
-    encodingModule: "@better-update/encoding",
-    apiModule: "@better-update/api-client/react",
-    vaultModule: "../../../lib/env-vault/use-env-vault",
-    unlockModule: "./environment-variables/-env-vault-unlock-dialog",
-    state: {
-      enabled: true,
-      unlocked: { vaultKey: new Uint8Array([9, 9, 9]), envVaultVersion: 3 } as {
-        vaultKey: Uint8Array;
-        envVaultVersion: number;
-      } | null,
+  vi.hoisted(() => {
+    const hoistedState: {
+      enabled: boolean;
+      unlocked: { vaultKey: Uint8Array; envVaultVersion: number } | null;
       accountKeys: {
-        items: [] as { id: string; agePublicKey: string; fingerprint: string; createdAt: string }[],
+        items: { id: string; agePublicKey: string; fingerprint: string; createdAt: string }[];
+      };
+      wraps: { recipients: { recipientKind: string; recipientId: string }[] };
+    } = {
+      enabled: true,
+      unlocked: { vaultKey: new Uint8Array([9, 9, 9]), envVaultVersion: 3 },
+      accountKeys: { items: [] },
+      wraps: { recipients: [] },
+    };
+    return {
+      cryptoModule: "@better-update/credentials-crypto",
+      encodingModule: "@better-update/encoding",
+      apiModule: "@better-update/api-client/react",
+      vaultModule: "../../../lib/env-vault/use-env-vault",
+      unlockModule: "./environment-variables/-env-vault-unlock-dialog",
+      state: hoistedState,
+      fns: {
+        addEnvWrap: vi.fn<() => Promise<unknown>>(),
+        wrapVaultKey: vi.fn<() => Promise<Uint8Array>>(),
+        toBase64: vi.fn<() => string>(),
       },
-      wraps: { recipients: [] as { recipientKind: string; recipientId: string }[] },
-    },
-    fns: {
-      addEnvWrap: vi.fn<() => Promise<unknown>>(),
-      wrapVaultKey: vi.fn<() => Promise<Uint8Array>>(),
-      toBase64: vi.fn<() => string>(),
-    },
-  }));
+    };
+  });
 
 vi.mock(cryptoModule, () => ({ wrapVaultKey: fns.wrapVaultKey }));
 vi.mock(encodingModule, () => ({ toBase64: fns.toBase64 }));
