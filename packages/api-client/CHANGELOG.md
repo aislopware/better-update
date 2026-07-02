@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.23.0](https://gitlab.jmango360.com/mobile/better-update/compare/@better-update/api-client@0.22.2...@better-update/api-client@0.23.0) (2026-07-02)
+
+### Features
+
+* **auth:** consolidate API key + identity into org-owned robot accounts ([ae5dcd5](https://gitlab.jmango360.com/mobile/better-update/commit/ae5dcd5c70062ebc98af6407ccb35b197853dbff))
+
 ## [0.22.2](https://gitlab.jmango360.com/mobile/better-update/compare/@better-update/api-client@0.22.1...@better-update/api-client@0.22.2) (2026-07-01)
 
 **Note:** Version bump only for package @better-update/api-client

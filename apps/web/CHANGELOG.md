@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.52.0](https://github.com/better-update/better-update/compare/@better-update/web@0.51.0...@better-update/web@0.52.0) (2026-07-02)
+
+### Features
+
+* **auth:** consolidate API key + identity into org-owned robot accounts ([ae5dcd5](https://github.com/better-update/better-update/commit/ae5dcd5c70062ebc98af6407ccb35b197853dbff))
+* **auth:** harden robot accounts post-audit ([c667ad1](https://github.com/better-update/better-update/commit/c667ad1b420717fb7826d0e3fc5a54b01dcb71ed))
+
 ## [0.51.0](https://github.com/better-update/better-update/compare/@better-update/web@0.50.3...@better-update/web@0.51.0) (2026-07-01)
 
 ### Features
