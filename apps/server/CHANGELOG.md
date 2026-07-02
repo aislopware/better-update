@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.43.2](https://github.com/better-update/better-update/compare/@better-update/server@0.43.1...@better-update/server@0.43.2) (2026-07-02)
+
+### Bug Fixes
+
+* **server:** admit 'robot' into the audit_logs source CHECK ([c5ff94a](https://github.com/better-update/better-update/commit/c5ff94a2f7517d5a657370eb9ca0494dceed3c3e))
+
 ## [0.43.1](https://github.com/better-update/better-update/compare/@better-update/server@0.43.0...@better-update/server@0.43.1) (2026-07-02)
 
 **Note:** Version bump only for package @better-update/server
