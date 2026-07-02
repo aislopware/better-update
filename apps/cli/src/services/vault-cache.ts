@@ -1,3 +1,6 @@
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+
 import { fromBase64, toBase64 } from "@better-update/encoding";
 import { safeJsonParse } from "@better-update/safe-json";
 import { isRecord } from "@better-update/type-guards";
@@ -22,6 +25,8 @@ import type { UnlockedVault } from "../application/vault-access";
  * private key — so the blast radius of a leaked keychain entry is one vault
  * version's credentials, and only until the TTL lapses.
  */
+
+const execFileAsync = promisify(execFile);
 
 /** Default for how long a cached vault key stays valid before a fresh passphrase is required. */
 export const VAULT_CACHE_TTL_MS = 15 * 60 * 1000;
@@ -135,12 +140,37 @@ export const VaultCacheLive = Layer.effect(
       Effect.try(() => new Entry(KEYCHAIN_SERVICE, account).getPassword()).pipe(
         Effect.orElseSucceed((): string | null => null),
       );
-    const writeRaw = (account: string, blob: string) =>
-      Effect.try(() => {
-        new Entry(KEYCHAIN_SERVICE, account).setPassword(blob);
-      }).pipe(Effect.ignore);
     const deleteRaw = (account: string) =>
       Effect.try(() => new Entry(KEYCHAIN_SERVICE, account).deletePassword()).pipe(Effect.ignore);
+    // The macOS keychain can hold an entry whose ACL is bound to a since-replaced
+    // binary (e.g. a node upgrade): the keyring API then can't read, update, or
+    // even delete it — only SecItemAdd still collides, failing every write with
+    // errSecDuplicateItem. The `security` CLI goes through the legacy keychain
+    // API and can still find and delete such an item.
+    const evictStale = (account: string) =>
+      Effect.zipRight(
+        deleteRaw(account),
+        process.platform === "darwin"
+          ? Effect.tryPromise(async () =>
+              execFileAsync("security", [
+                "delete-generic-password",
+                "-s",
+                KEYCHAIN_SERVICE,
+                "-a",
+                account,
+              ]),
+            ).pipe(Effect.ignore)
+          : Effect.void,
+      );
+    const writeRaw = (account: string, blob: string) => {
+      const write = Effect.try(() => {
+        new Entry(KEYCHAIN_SERVICE, account).setPassword(blob);
+      });
+      return write.pipe(
+        Effect.orElse(() => Effect.zipRight(evictStale(account), write)),
+        Effect.ignore,
+      );
+    };
 
     return {
       get: (publicKey, vaultKind) =>
