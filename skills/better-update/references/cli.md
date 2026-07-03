@@ -340,10 +340,11 @@ ciphertext. These manage who can decrypt and the local cached-key session.
 
 ```bash
 better-update credentials identity <create|init|register|show> [--label]   # default `show`; device identity only
-better-update credentials robot <create|list|rotate|revoke|policies|attach|detach> …   # default `list`; org-owned CI identity
-#   robot create [--name] [--no-grant] — mint a robot (bearer + vault identity), grant it, print BETTER_UPDATE_ROBOT once
+better-update credentials robot <create|list|rotate|revoke|grant-env|policies|attach|detach> …   # default `list`; org-owned CI identity
+#   robot create [--name] [--no-grant] — mint a robot (bearer + vault identity), grant it (incl. env-vault post-cutover), print BETTER_UPDATE_ROBOT once
 #   robot rotate <id> [--identity <AGE-SECRET-KEY-1…>] — re-mint the bearer only (needs robotAccount:update; boundary-checked); pass --identity to get a full bundle back
-#   robot revoke <id> [--yes] — bearer stops authenticating, policy attachments dropped; excludes + rotates the vault if it held access
+#   robot revoke <id> [--yes] — bearer stops authenticating, policy attachments dropped; excludes + rotates the credentials and env vaults it held access to
+#   robot grant-env <id> — enroll an EXISTING robot into the env vault so it decrypts env vars in CI (post-cutover; idempotent; `create` already covers new robots)
 #   robot policies <id> · robot attach <id> --policy-id <policy> · robot detach <id> --policy-id <policy> — IAM grants (default-deny)
 better-update credentials passphrase [change]                              # change this device's passphrase; re-seals identity + enrolled account key; default `change`
 better-update credentials device <list|link> [<device>] [--yes]            # default `list`; link self-links a new device
@@ -382,7 +383,9 @@ To edit env values from the browser you need an account key, a passkey, and an a
 access — all three have a browser path (**Set up vault access** to self-enroll; an admin clicks
 **Grant env access** on the Vault access page). Web errors: _"No account key is enrolled…"_ → **Set up
 vault access** (or `account create`); _"…can't open this org's env vault yet"_ → ask an admin to
-**Grant env access** (or `account link` after a rotate). Note: **CLIs that predate the env-vault split
+**Grant env access** (or `account link` after a rotate). A CI **robot** failing `env pull`/build-time
+env export with _"This device isn't an env-vault recipient"_ → an admin runs
+`credentials robot grant-env <robot-id>`. Note: **CLIs that predate the env-vault split
 cannot bootstrap a new org** — upgrade first. Full model + troubleshooting in
 `references/credentials.md`.
 

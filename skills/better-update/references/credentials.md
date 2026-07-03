@@ -150,10 +150,11 @@ better-update credentials identity register [--label]    # re-register an existi
 better-update credentials passphrase change              # change this device's passphrase; re-seals device identity + (if enrolled) account key
 
 # Org-owned CI identity (bearer auth + vault identity in one) — see below
-better-update credentials robot create [--name] [--no-grant]   # mint + grant, prints BETTER_UPDATE_ROBOT once
+better-update credentials robot create [--name] [--no-grant]   # mint + grant (credentials + env vault), prints BETTER_UPDATE_ROBOT once
 better-update credentials robot list                           # this org's robot accounts
 better-update credentials robot rotate <id> [--identity <key>] # re-mint the bearer only
-better-update credentials robot revoke <id> [--yes]            # bearer stops auth; excludes + rotates vault if it held access
+better-update credentials robot revoke <id> [--yes]            # bearer stops auth; excludes + rotates the vault(s) it held access to
+better-update credentials robot grant-env <id>                 # enroll an existing robot into the env vault (post-cutover; idempotent)
 better-update credentials robot policies <id>                   # list policies attached to a robot
 better-update credentials robot attach <id> --policy-id <p>     # attach a policy (real or managed:*) — default-deny until granted
 better-update credentials robot detach <id> --policy-id <p>     # remove a policy attachment
@@ -210,6 +211,17 @@ Because the keypair is generated in-process, there is no third-party public key 
 `robot create` grants vault access directly without the out-of-band fingerprint confirmation that
 `access grant` requires.
 
+Post-cutover orgs keep env-var values under a **separate env vault**, so credentials-vault access
+alone does not decrypt env vars in CI — `robot create` therefore also self-links the new robot as an
+env-vault recipient (best-effort: if that part fails you get a warning plus the `grant-env` command
+to run later, never a lost bundle). For a robot minted **before** this existed — the one whose
+`env pull` / build-time env export fails with _"This device isn't an env-vault recipient"_ — enroll
+it from an env-recipient admin device:
+
+```bash
+better-update credentials robot grant-env <id>   # idempotent — re-running reports "already a recipient"
+```
+
 A freshly minted robot has **zero** API permissions (default-deny, spec §8) — vault access and IAM
 permissions are separate grants. Attach a policy next so it can actually call the management API
 (build/publish/submit/etc. all need this — vault access alone is not enough):
@@ -221,8 +233,10 @@ better-update credentials robot detach <id> --policy-id managed:admin  # revoke 
 ```
 
 Revoke a robot with `credentials robot revoke <id>` — its bearer stops authenticating immediately,
-its policy attachments are dropped with it, and if it held vault access, that's excluded and the
-vault rotated too. Rotate its bearer alone with `credentials robot rotate <id>` (its vault identity
+its policy attachments are dropped with it, and if it held credentials-vault and/or env-vault
+access, each is excluded and that vault rotated too (the revoking device must itself be able to
+unlock the vault(s) being rotated; a mid-way failure is safe to re-run). Rotate its bearer alone
+with `credentials robot rotate <id>` (its vault identity
 is left untouched); pass `--identity <its current age private key>` to get a fresh full
 `BETTER_UPDATE_ROBOT` bundle back.
 
