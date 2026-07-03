@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.1.5](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fexpo-codesign%400.1.4...%40better-update%2Fexpo-codesign%400.1.5) (2026-07-03)
+
+**Note:** Version bump only for package @better-update/expo-codesign
+
 ## [0.1.4](https://gitlab.jmango360.com/mobile/better-update/compare/@better-update/expo-codesign@0.1.3...@better-update/expo-codesign@0.1.4) (2026-06-25)
 
 **Note:** Version bump only for package @better-update/expo-codesign

@@ -1,6 +1,6 @@
 {
   "name": "@better-update/bsdiff",
-  "version": "0.2.13",
+  "version": "0.2.14",
   "files": [
     "index.js",
     "index.d.ts",

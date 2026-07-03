@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.2.14](https://gitlab.jmango360.com/mobile/better-update/compare/%40better-update%2Fbsdiff%400.2.13...%40better-update%2Fbsdiff%400.2.14) (2026-07-03)
+
+**Note:** Version bump only for package @better-update/bsdiff
+
 ## [0.2.13](https://gitlab.jmango360.com/mobile/better-update/compare/@better-update/bsdiff@0.2.12...@better-update/bsdiff@0.2.13) (2026-07-01)
 
 **Note:** Version bump only for package @better-update/bsdiff
