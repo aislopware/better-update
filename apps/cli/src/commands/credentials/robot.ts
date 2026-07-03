@@ -1,6 +1,12 @@
 import { defineCommand } from "citty";
 import { Effect } from "effect";
 
+import {
+  grantEnvRecipient,
+  orgHasCutOver,
+  unlockEnvVaultKeyInteractive,
+} from "../../application/env-vault-access";
+import { rotateEnvVault } from "../../application/env-vault-rotation";
 import { createRobotAccount, rotateRobotAccountBearer } from "../../application/robot";
 import { grantRecipient } from "../../application/vault-access";
 import { currentRecipients, rotateVaultTo } from "../../application/vault-rotation";
@@ -19,6 +25,8 @@ import { CliRuntime } from "../../services/cli-runtime";
 import { confirmRecipients, toRotationRecipient } from "./access";
 import { unlockVaultInteractively } from "./vault-session";
 
+import type { ApiClient } from "../../services/api-client";
+
 const resolveName = (flag: string | undefined) =>
   Effect.gen(function* () {
     if (flag && flag.trim().length > 0) {
@@ -27,6 +35,46 @@ const resolveName = (flag: string | undefined) =>
     const runtime = yield* CliRuntime;
     const userName = yield* runtime.userName;
     return `ci-${userName}`;
+  });
+
+/**
+ * Wrap the env-vault key to a robot's machine key from this device. Post-cutover
+ * only — before it, env values are sealed under the credentials vault, so a
+ * credentials-vault grant already covers them. The caller must itself be an env
+ * recipient (its device wrap unlocks the key being re-wrapped).
+ */
+const grantRobotEnvAccess = (api: ApiClient, userEncryptionKeyId: string | null) =>
+  Effect.gen(function* () {
+    const { items } = yield* api.userEncryptionKeys.list();
+    const target = items.find((key) => key.id === userEncryptionKeyId);
+    if (target === undefined) {
+      return yield* new IdentityError({ message: "Robot's vault identity was not found." });
+    }
+    const ev = yield* unlockEnvVaultKeyInteractive(api);
+    yield* grantEnvRecipient({ api, vault: ev, target });
+  });
+
+/**
+ * If the robot's machine key holds an env wrap, rotate the env vault to a new key
+ * it never receives (the exclude-and-rotate `revoke` drives for the credentials
+ * vault, on the env side). Returns whether an env revocation actually happened.
+ */
+const revokeRobotEnvAccess = (api: ApiClient, keyId: string) =>
+  Effect.gen(function* () {
+    const isEnvRecipient = yield* api.envVault.listWraps().pipe(
+      Effect.map(({ recipients }) =>
+        recipients.some((wrap) => wrap.recipientKind !== "account" && wrap.recipientId === keyId),
+      ),
+      Effect.catchTag("NotFound", () => Effect.succeed(false)),
+    );
+    if (!isEnvRecipient) {
+      return false;
+    }
+    const rotated = yield* rotateEnvVault(api, { excludeKeyId: keyId });
+    yield* printHuman(
+      `Revoked env-vault access and rotated the env vault to version ${String(rotated.envVaultVersion)}.`,
+    );
+    return true;
   });
 
 const createCommand = defineCommand({
@@ -115,10 +163,34 @@ const createCommand = defineCommand({
             : `Registered ${robot.account.name}'s vault identity (not yet a vault member).`,
         );
 
+        // Post-cutover the env vault is a SEPARATE key, so the credentials-vault
+        // grant above does not cover env decryption — self-link the robot as an
+        // env recipient too (this device wraps the env key it can already unlock).
+        // Pre-cutover env is sealed under the credentials vault: nothing extra to
+        // grant, so `envGranted` stays false without a warning.
+        const envGranted =
+          args.grant && (yield* orgHasCutOver(api))
+            ? yield* grantRobotEnvAccess(api, robot.account.userEncryptionKeyId).pipe(
+                Effect.as(true),
+                Effect.catchTag("IdentityError", (error) =>
+                  printHuman(
+                    `⚠ Env vault not granted: ${error.message}\n` +
+                      `  An admin can grant it later: better-update credentials robot grant-env ${robot.account.id}`,
+                  ).pipe(Effect.as(false)),
+                ),
+              )
+            : false;
+        if (envGranted) {
+          yield* printHuman(
+            `✓ Granted env-vault access to ${robot.account.name} — it decrypts env vars non-interactively.`,
+          );
+        }
+
         return {
           id: robot.account.id,
           name: robot.account.name,
           granted,
+          envGranted,
           // Shown once: JSON consumers must capture this now (mirrors human output).
           robotEnv: bundle,
         };
@@ -195,7 +267,7 @@ const revokeCommand = defineCommand({
   meta: {
     name: "revoke",
     description:
-      "Revoke a robot account: its bearer stops authenticating immediately; if it holds vault access, that is excluded and the vault is rotated too",
+      "Revoke a robot account: its bearer stops authenticating immediately; if it holds vault or env-vault access, it is excluded and the vault(s) rotated too",
   },
   args: {
     id: { type: "positional", required: true, description: "Robot account id" },
@@ -235,9 +307,69 @@ const revokeCommand = defineCommand({
           }
         }
 
+        // The env vault (post-cutover) is keyed separately, so an env-recipient
+        // robot needs its own exclude-and-rotate — no fingerprint confirmation:
+        // the surviving set was just confirmed above (or includes account keys,
+        // which carry no out-of-band fingerprint to check).
+        const envRevoked =
+          robot.userEncryptionKeyId !== null && (yield* orgHasCutOver(api))
+            ? yield* revokeRobotEnvAccess(api, robot.userEncryptionKeyId)
+            : false;
+
         yield* api["robot-accounts"].revoke({ path: { id: args.id } });
         yield* printHuman(`Revoked robot account ${robot.name} (${robot.id}).`);
-        return { revoked: true, id: robot.id, vaultRevoked };
+        return { revoked: true, id: robot.id, vaultRevoked, envRevoked };
+      }),
+      { json: "value" },
+    ),
+});
+
+const grantEnvCommand = defineCommand({
+  meta: {
+    name: "grant-env",
+    description:
+      "Grant an existing robot access to the env vault so it can decrypt env vars in CI (post-cutover orgs — before the cutover a credentials-vault grant already covers env)",
+  },
+  args: {
+    id: { type: "positional", required: true, description: "Robot account id" },
+  },
+  run: async ({ args }) =>
+    runEffect(
+      Effect.gen(function* () {
+        const api = yield* apiClient;
+        const { items } = yield* api["robot-accounts"].list();
+        const robot = items.find((item) => item.id === args.id);
+        if (robot === undefined) {
+          return yield* new IdentityError({ message: `No robot account matches id "${args.id}".` });
+        }
+        if (robot.userEncryptionKeyId === null) {
+          return yield* new IdentityError({
+            message:
+              "This robot has no vault identity to grant — revoke it and mint a replacement with `credentials robot create`.",
+          });
+        }
+        if (!(yield* orgHasCutOver(api))) {
+          return yield* new IdentityError({
+            message:
+              "This organization's env values are still sealed under the credentials vault (no env cutover) — a credentials-vault grant already covers env; nothing to do.",
+          });
+        }
+        // Idempotent: a duplicate wrap Conflict means the robot already reads env.
+        const outcome = yield* grantRobotEnvAccess(api, robot.userEncryptionKeyId).pipe(
+          Effect.as("granted" as const),
+          Effect.catchTag("Conflict", () => Effect.succeed("already" as const)),
+        );
+        yield* printHuman(
+          outcome === "granted"
+            ? `✓ Granted env-vault access to ${robot.name} — it decrypts env vars non-interactively.`
+            : `${robot.name} is already an env-vault recipient — nothing to do.`,
+        );
+        return {
+          id: robot.id,
+          name: robot.name,
+          envGranted: true,
+          alreadyGranted: outcome === "already",
+        };
       }),
       { json: "value" },
     ),
@@ -334,6 +466,7 @@ export const robotCommand = defineCommand({
     list: listCommand,
     rotate: rotateCommand,
     revoke: revokeCommand,
+    "grant-env": grantEnvCommand,
     policies: listPoliciesCommand,
     attach: attachPolicyCommand,
     detach: detachPolicyCommand,

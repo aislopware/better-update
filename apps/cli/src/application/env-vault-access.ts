@@ -1,6 +1,8 @@
-import { unwrapVaultKey } from "@better-update/credentials-crypto";
-import { fromBase64 } from "@better-update/encoding";
+import { unwrapVaultKey, wrapVaultKey } from "@better-update/credentials-crypto";
+import { fromBase64, toBase64 } from "@better-update/encoding";
 import { Effect } from "effect";
+
+import type { UserEncryptionKey } from "@better-update/api";
 
 import { IdentityError } from "../lib/exit-codes";
 import { promptPassword } from "../lib/prompts";
@@ -16,12 +18,46 @@ import type { UnlockedVault } from "./vault-access";
 /**
  * Guidance when this device holds no env-vault wrap. Post-cutover the env vault is
  * a SEPARATE key from the credentials vault, so even a device that can read
- * credentials may not be an env recipient yet — it self-links by enrolling an
- * account key, or an admin re-runs the env-vault migration / rotation to include
- * it.
+ * credentials may not be an env recipient yet — a user self-links by enrolling an
+ * account key; a CI robot is granted by an admin.
  */
 export const ENV_VAULT_NOT_RECIPIENT_GUIDANCE =
-  "This device isn't an env-vault recipient. Run `better-update credentials account create` to enroll, or ask an admin to re-run `better-update credentials env-vault rotate` to include it.";
+  "This device isn't an env-vault recipient. Run `better-update credentials account create` to enroll, or — for a CI robot — ask an admin to run `better-update credentials robot grant-env <robot-id>`.";
+
+/** `true` once the org has cut over to its separate env vault. */
+export const orgHasCutOver = (api: ApiClient) =>
+  api.orgVault.get().pipe(
+    Effect.map((vault) => vault.envVaultCutoverAt !== null),
+    Effect.catchTag("NotFound", () => Effect.succeed(false)),
+  );
+
+/**
+ * Wrap the (already-unlocked) env-vault key to another org recipient — a robot's
+ * machine key — and push the wrap row at the version it was unlocked from (the
+ * server CAS-rejects it if the env vault rotated underneath). Mirrors
+ * `grantRecipient` on the credentials vault; the per-user account-key self-link
+ * lives in `commands/credentials/account.ts`.
+ */
+export const grantEnvRecipient = (args: {
+  readonly api: ApiClient;
+  readonly vault: UnlockedVault;
+  readonly target: UserEncryptionKey;
+}) =>
+  Effect.gen(function* () {
+    const wrapped = yield* Effect.promise(async () =>
+      wrapVaultKey({ vaultKey: args.vault.vaultKey, recipient: args.target.publicKey }),
+    );
+    return yield* args.api.envVault.addWrap({
+      payload: {
+        envVaultVersion: args.vault.vaultVersion,
+        wrap: {
+          recipientKind: args.target.kind,
+          recipientId: args.target.id,
+          wrappedKey: toBase64(wrapped),
+        },
+      },
+    });
+  });
 
 /**
  * Unlock the ENV-vault key for this device via its env wrap (post-cutover). The

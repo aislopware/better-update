@@ -9,7 +9,7 @@ import { toBase64 } from "@better-update/encoding";
 import { defineCommand } from "citty";
 import { Effect } from "effect";
 
-import { unlockEnvVaultKeyInteractive } from "../../application/env-vault-access";
+import { orgHasCutOver, unlockEnvVaultKeyInteractive } from "../../application/env-vault-access";
 import { loadIdentityFileOrFail } from "../../application/identity";
 import { escrowToEnvelope } from "../../application/passphrase-change";
 import { runEffect } from "../../lib/citty-effect";
@@ -19,13 +19,6 @@ import { promptPassword } from "../../lib/prompts";
 import { apiClient } from "../../services/api-client";
 
 import type { ApiClient } from "../../services/api-client";
-
-/** `true` once the org has cut over to its separate env vault. */
-const orgHasCutOver = (api: ApiClient) =>
-  api.orgVault.get().pipe(
-    Effect.map((vault) => vault.envVaultCutoverAt !== null),
-    Effect.catchTag("NotFound", () => Effect.succeed(false)),
-  );
 
 /** The caller's live account key (public escrow view), or `null` if not enrolled. */
 const findOwnAccountKey = (api: ApiClient) =>

@@ -15,9 +15,11 @@ import type { EnvRecipient } from "./env-vault-rekey";
  * already dropped the departing user's wraps server-side), and each id is resolved
  * to its public key: device/recovery/machine via `userEncryptionKeys`, account via
  * `accountKeys`. An id that no longer resolves (revoked) is dropped — the server
- * still enforces that a recovery recipient remains.
+ * still enforces that a recovery recipient remains. `excludeKeyId` drops one
+ * device/machine recipient from the re-wrap — the exclude-and-rotate a robot
+ * revocation drives (account wraps are never matched by it).
  */
-const rewrapSurvivingRecipients = (api: ApiClient, evKey: Uint8Array) =>
+const rewrapSurvivingRecipients = (api: ApiClient, evKey: Uint8Array, excludeKeyId?: string) =>
   Effect.gen(function* () {
     const { recipients } = yield* api.envVault.listWraps();
     const [{ items: keys }, { items: accounts }] = yield* Effect.all([
@@ -26,7 +28,13 @@ const rewrapSurvivingRecipients = (api: ApiClient, evKey: Uint8Array) =>
     ]);
     const keyById = new Map(keys.map((key) => [key.id, key.publicKey]));
     const accountById = new Map(accounts.map((account) => [account.id, account.agePublicKey]));
-    const resolved: EnvRecipient[] = recipients.flatMap((wrap) => {
+    const surviving = recipients.filter(
+      (wrap) =>
+        excludeKeyId === undefined ||
+        wrap.recipientKind === "account" ||
+        wrap.recipientId !== excludeKeyId,
+    );
+    const resolved: EnvRecipient[] = surviving.flatMap((wrap) => {
       const recipient =
         wrap.recipientKind === "account"
           ? accountById.get(wrap.recipientId)
@@ -81,8 +89,13 @@ const rekeyEnvDeksForRotation = (
  * current recipients, re-key every env DEK, and submit atomically (the server
  * compare-and-swaps on the env version). Clears the env rotation-pending flag a
  * member removal raised. Drops the now-stale cached env key afterwards.
+ * `options.excludeKeyId` revokes one device/machine recipient in the same move —
+ * the new key is simply never wrapped to it.
  */
-export const rotateEnvVault = (api: ApiClient) =>
+export const rotateEnvVault = (
+  api: ApiClient,
+  options?: { readonly excludeKeyId?: string | undefined },
+) =>
   Effect.gen(function* () {
     const orgId = yield* getActiveOrgId(api);
     const vault = yield* api.orgVault
@@ -104,7 +117,7 @@ export const rotateEnvVault = (api: ApiClient) =>
     const current = yield* unlockEnvVaultKeyInteractive(api);
     const toVersion = current.vaultVersion + 1;
     const newEvKey = generateVaultKey();
-    const wraps = yield* rewrapSurvivingRecipients(api, newEvKey);
+    const wraps = yield* rewrapSurvivingRecipients(api, newEvKey, options?.excludeKeyId);
     const envDeks = yield* rekeyEnvDeksForRotation(api, {
       orgId,
       fromKey: current.vaultKey,
