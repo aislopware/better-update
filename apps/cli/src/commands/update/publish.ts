@@ -54,7 +54,15 @@ export const publishCommand = defineCommand({
       description: "Platform(s) to publish",
     },
     message: { type: "string", description: "Optional update message" },
-    environment: { type: "string", default: "production", description: "Env vars scope" },
+    environment: {
+      type: "string",
+      description: "Env vars scope (defaults to --profile's environment, else production)",
+    },
+    profile: {
+      type: "string",
+      description:
+        "eas.json build profile to publish with: its environment picks the env scope and its env block overlays the server vars (profile wins on collision) — same merge as `build`",
+    },
     auto: {
       type: "boolean",
       description:
@@ -139,6 +147,7 @@ export const publishCommand = defineCommand({
           message: args.message,
           auto: args.auto ?? false,
           environment: args.environment,
+          profileName: args.profile,
           clear: args.clear ?? false,
           allowDirty: args["allow-dirty"] ?? false,
           rolloutPercentage,

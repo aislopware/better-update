@@ -13,6 +13,11 @@ import { readExpoPublicConfig } from "../lib/expo-export";
 import { formatCause } from "../lib/format-error";
 import { readGitContext } from "../lib/git-context";
 import { InteractiveMode } from "../lib/interactive-mode";
+import {
+  overlayProfileEnv,
+  readOptionalProfile,
+  resolveEnvironmentScope,
+} from "../lib/profile-env";
 import { readProjectId } from "../lib/project-link";
 import { ensureRepoClean } from "../lib/repo-clean";
 import { loadSignedPublishPayloads } from "../lib/signed-payloads";
@@ -55,7 +60,10 @@ export interface RunUpdatePublishOptions {
   readonly platform: Platform | "all";
   readonly message: string | undefined;
   readonly auto: boolean;
-  readonly environment: string;
+  /** Explicit --environment; undefined defers to the profile's, then "production". */
+  readonly environment: string | undefined;
+  /** eas.json build profile whose `environment` + `env` block apply (env wins over server on collision). */
+  readonly profileName: string | undefined;
   readonly clear: boolean;
   readonly allowDirty: boolean;
   readonly rolloutPercentage: number | undefined;
@@ -201,10 +209,15 @@ export const runUpdatePublish = (
       // for vars that actually live in the server-side env scope.
       const projectId = yield* readProjectId;
 
-      const environmentVars = yield* pullEnvVars(api, {
-        projectId,
-        environment: options.environment,
-      });
+      // Same merge the build workflow runs: server env for the resolved scope,
+      // then the eas.json profile's env block on top (profile keys win). This is
+      // what lets per-app config live in eas.json instead of the env store.
+      const profile = yield* readOptionalProfile(projectRoot, options.profileName);
+      const environment = resolveEnvironmentScope(options.environment, profile);
+      const environmentVars = overlayProfileEnv(
+        yield* pullEnvVars(api, { projectId, environment }),
+        profile,
+      );
 
       // Read slug from the env-resolved config so dynamic configs that derive
       // slug from env vars publish under the same identity as `expo export`.
@@ -261,7 +274,7 @@ export const runUpdatePublish = (
           branch,
           platforms,
           message,
-          environment: options.environment,
+          environment,
         });
         if (!confirmed) {
           return yield* new UpdatePublishError({ message: "Publish cancelled." });
@@ -313,7 +326,7 @@ export const runUpdatePublish = (
             branch,
             groupId,
             message,
-            environment: options.environment,
+            environment,
             environmentVars,
             expoClientConfig,
             clear: options.clear,

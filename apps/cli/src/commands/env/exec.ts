@@ -6,6 +6,11 @@ import { runEffect } from "../../lib/citty-effect";
 import { pullEnvVars } from "../../lib/env-exporter";
 import { getExecTrailingArgv } from "../../lib/exec-trailing-argv";
 import { InvalidArgumentError } from "../../lib/exit-codes";
+import {
+  overlayProfileEnv,
+  readOptionalProfile,
+  resolveEnvironmentScope,
+} from "../../lib/profile-env";
 import { readProjectId } from "../../lib/project-link";
 import { apiClient } from "../../services/api-client";
 import { CliRuntime } from "../../services/cli-runtime";
@@ -48,20 +53,35 @@ export const execCommand = defineCommand({
   args: {
     environment: {
       type: "positional",
-      required: true,
-      description: "Target environment (e.g. production)",
+      required: false,
+      description: "Target environment (e.g. production) — optional when --profile is given",
+    },
+    profile: {
+      type: "string",
+      description:
+        "eas.json build profile: its environment picks the scope and its env block overlays the server vars (profile wins on collision) — same merge as `build`",
     },
   },
   run: async ({ args }) =>
     runEffect(
       Effect.gen(function* () {
         const [bin, rest] = yield* splitTrailing(getExecTrailingArgv());
-        const environment = yield* parseSingleEnvironmentArg(args.environment);
+        const runtime = yield* CliRuntime;
+        const projectRoot = yield* runtime.cwd;
+        const profile = yield* readOptionalProfile(projectRoot, args.profile);
+        if (args.environment === undefined && profile === undefined) {
+          return yield* new InvalidArgumentError({
+            message:
+              "Pass an environment (`env exec production -- …`) or an eas.json profile (`env exec --profile preview -- …`).",
+          });
+        }
+        const environment = yield* parseSingleEnvironmentArg(
+          resolveEnvironmentScope(args.environment, profile),
+        );
         const projectId = yield* readProjectId;
         const api = yield* apiClient;
-        const runtime = yield* CliRuntime;
         const baseEnv = yield* runtime.commandEnvironment();
-        const pulled = yield* pullForExec(api, projectId, environment);
+        const pulled = overlayProfileEnv(yield* pullForExec(api, projectId, environment), profile);
 
         const cmd = Command.make(bin, ...rest).pipe(
           Command.env({ ...baseEnv, ...pulled }),
@@ -72,6 +92,6 @@ export const execCommand = defineCommand({
         const code = yield* Command.exitCode(cmd).pipe(Effect.orDie);
         yield* runtime.setExitCode(code);
       }),
-      envErrorExtras,
+      { ...envErrorExtras, BuildProfileError: 2 },
     ),
 });

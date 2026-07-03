@@ -102,11 +102,16 @@ better-update env pull --environment staging --stdout                # prints `e
 - `env export` prints all values to stdout. `env pull` **writes a dotenv file by default** (`.env.local`,
   overridable with `--path`, `--force` to skip the overwrite prompt). To source into a shell, use
   `--stdout`: `eval "$(better-update env pull --environment staging --stdout)"`.
+- `export`/`pull`/`exec` accept `--profile <name>`: the eas.json build profile's `environment`
+  becomes the default scope and its `env` block overlays the server set (profile wins on
+  collision) — the same merge `build` runs. Lets per-app config (bundle ids, endpoints) live in
+  eas.json while secrets stay server-side, and gives dev/pull the exact env a build would see.
 
 ## Run a command with vars injected
 
 ```bash
 better-update env exec staging -- npm run e2e        # runs the command with the env's vars injected; exits with its code
+better-update env exec --profile preview -- bun run dev   # scope + overlay from the eas.json profile
 ```
 
 ## What gets injected at publish time
@@ -124,6 +129,9 @@ better-update env set EXPO_PUBLIC_API_URL=https://staging.api.example.com --envi
 # Publish — each picks up the right set
 better-update update publish --branch production --environment production
 better-update update publish --branch staging --environment staging
+# Or drive scope + per-app config from the eas.json profile (its `env` block
+# overlays the server vars — the same merge a native build runs):
+better-update update publish --branch preview --profile preview
 ```
 
 ## `environments` — the org's environment definitions

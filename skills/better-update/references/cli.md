@@ -142,26 +142,27 @@ better-update branches delete <id>
 better-update update publish [flags]
 ```
 
-| Flag                                                                     | Default      | Notes                                                                      |
-| ------------------------------------------------------------------------ | ------------ | -------------------------------------------------------------------------- |
-| `--branch <name>`                                                        | —            | Target branch.                                                             |
-| `--channel <name>`                                                       | —            | Route via a channel name (resolves to its branch) instead of `--branch`.   |
-| `--platform <ios\|android\|all>`                                         | `all`        | Restrict to one platform.                                                  |
-| `--message <text>`                                                       | —            | Free-form description.                                                     |
-| `--environment <name>`                                                   | `production` | Env-var environment to inject during export.                               |
-| `--auto`                                                                 | off          | Skip prompts (CI mode).                                                    |
-| `--clear`                                                                | off          | Drop existing assets before upload.                                        |
-| `--rollout-percentage <1-100>`                                           | —            | Initial rollout percentage. Omit for 100%.                                 |
-| `--input-dir <path>`                                                     | —            | Use a pre-bundled `expo export` dir (with `--skip-bundler`).               |
-| `--skip-bundler`                                                         | off          | Skip running `expo export`; requires `--input-dir`.                        |
-| `--emit-metadata`                                                        | off          | Write `eas-update-metadata.json` after publish.                            |
-| `--no-bytecode`                                                          | off          | Disable Hermes bytecode, emit raw JS.                                      |
-| `--source-maps`                                                          | off          | Emit JS source maps.                                                       |
-| `--private-key-path <path>`                                              | —            | RSA PEM to code-sign the rendered manifest (reads cert from app.json).     |
-| `--allow-dirty`                                                          | off          | Proceed with uncommitted git changes.                                      |
-| `--patch-base-window <n>`                                                | `10`         | Max recent updates to bsdiff against (0 = embedded baseline only).         |
-| `--no-patches`                                                           | off          | Skip bsdiff patch generation (the `patches` step is on by default).        |
-| `--manifest-body-file` / `--signature-file` / `--certificate-chain-file` | —            | Pre-built signed payload; `*-ios` / `*-android` variants for per-platform. |
+| Flag                                                                     | Default      | Notes                                                                                                                                              |
+| ------------------------------------------------------------------------ | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--branch <name>`                                                        | —            | Target branch.                                                                                                                                     |
+| `--channel <name>`                                                       | —            | Route via a channel name (resolves to its branch) instead of `--branch`.                                                                           |
+| `--platform <ios\|android\|all>`                                         | `all`        | Restrict to one platform.                                                                                                                          |
+| `--message <text>`                                                       | —            | Free-form description.                                                                                                                             |
+| `--environment <name>`                                                   | `production` | Env-var environment to inject during export (default comes from `--profile` when given).                                                           |
+| `--profile <name>`                                                       | —            | eas.json build profile: its `environment` picks the env scope and its `env` block overlays the server vars (profile wins) — same merge as `build`. |
+| `--auto`                                                                 | off          | Skip prompts (CI mode).                                                                                                                            |
+| `--clear`                                                                | off          | Drop existing assets before upload.                                                                                                                |
+| `--rollout-percentage <1-100>`                                           | —            | Initial rollout percentage. Omit for 100%.                                                                                                         |
+| `--input-dir <path>`                                                     | —            | Use a pre-bundled `expo export` dir (with `--skip-bundler`).                                                                                       |
+| `--skip-bundler`                                                         | off          | Skip running `expo export`; requires `--input-dir`.                                                                                                |
+| `--emit-metadata`                                                        | off          | Write `eas-update-metadata.json` after publish.                                                                                                    |
+| `--no-bytecode`                                                          | off          | Disable Hermes bytecode, emit raw JS.                                                                                                              |
+| `--source-maps`                                                          | off          | Emit JS source maps.                                                                                                                               |
+| `--private-key-path <path>`                                              | —            | RSA PEM to code-sign the rendered manifest (reads cert from app.json).                                                                             |
+| `--allow-dirty`                                                          | off          | Proceed with uncommitted git changes.                                                                                                              |
+| `--patch-base-window <n>`                                                | `10`         | Max recent updates to bsdiff against (0 = embedded baseline only).                                                                                 |
+| `--no-patches`                                                           | off          | Skip bsdiff patch generation (the `patches` step is on by default).                                                                                |
+| `--manifest-body-file` / `--signature-file` / `--certificate-chain-file` | —            | Pre-built signed payload; `*-ios` / `*-android` variants for per-platform.                                                                         |
 
 Calls `expo export` internally unless `--skip-bundler` — you do NOT need to export first.
 
@@ -412,15 +413,19 @@ better-update env history <key> [--environment <name>=production]
 better-update env rollback <key> --to <revision> [--environment <name>=production]
 better-update env import <file> [--environment <csv>=production] [--visibility <plaintext|sensitive>=plaintext]
 better-update env push [file=.env.local] [--environment <csv>=production]    # auto-classify EXPO_PUBLIC_* as plaintext, others sensitive
-better-update env export [--environment <name>=production]                   # prints KEY='value' per line (all values)
-better-update env pull [--environment <name>=production] [--path <file>=.env.local] [--stdout] [--force]
-better-update env exec <environment> -- <command…>                          # run a command with project env vars injected
+better-update env export [--environment <name>=production] [--profile <name>]   # prints KEY='value' per line (all values)
+better-update env pull [--environment <name>=production] [--profile <name>] [--path <file>=.env.local] [--stdout] [--force]
+better-update env exec <environment> [--profile <name>] -- <command…>       # run a command with project env vars injected
 ```
 
 > `env pull` **writes a dotenv file by default** (`.env.local`, `KEY="value"`), prompting before
 > overwrite unless `--force`. To source into a shell, use `--stdout`:
 > `eval "$(better-update env pull --environment staging --stdout)"`.
 > `--environment` on `set`/`import`/`push` accepts a comma-separated list.
+> `--profile <name>` on `export`/`pull`/`exec` (and `update publish`) reads that eas.json build
+> profile: its `environment` becomes the default scope and its `env` block overlays the server
+> set (profile wins on collision) — the same merge `build` runs, so per-app config can live in
+> eas.json instead of the env store.
 
 ## environments
 

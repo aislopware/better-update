@@ -9,6 +9,11 @@ import { exportDecryptedEnvVars } from "../../lib/env-exporter";
 import { InvalidArgumentError } from "../../lib/exit-codes";
 import { InteractiveMode } from "../../lib/interactive-mode";
 import { printHuman } from "../../lib/output";
+import {
+  overlayProfileEnvItems,
+  readOptionalProfile,
+  resolveEnvironmentScope,
+} from "../../lib/profile-env";
 import { readProjectId } from "../../lib/project-link";
 import { promptConfirm } from "../../lib/prompts";
 import { apiClient } from "../../services/api-client";
@@ -80,8 +85,13 @@ export const pullCommand = defineCommand({
   args: {
     environment: {
       type: "string",
-      default: "production",
-      description: "Target environment (development, preview, production)",
+      description:
+        "Target environment (development, preview, production; defaults to --profile's environment, else production)",
+    },
+    profile: {
+      type: "string",
+      description:
+        "eas.json build profile: its environment picks the scope and its env block overlays the pulled set (profile wins on collision) — same merge as `build`",
     },
     path: {
       type: "string",
@@ -99,20 +109,26 @@ export const pullCommand = defineCommand({
   run: async ({ args }) =>
     runEffect(
       Effect.gen(function* () {
-        const environment = yield* parseSingleEnvironmentArg(args.environment);
+        const runtime = yield* CliRuntime;
+        const cwd = yield* runtime.cwd;
+        const profile = yield* readOptionalProfile(cwd, args.profile);
+        const environment = yield* parseSingleEnvironmentArg(
+          resolveEnvironmentScope(args.environment, profile),
+        );
         const projectId = yield* readProjectId;
         const api = yield* apiClient;
 
-        // Fetches sealed envelopes and decrypts them locally (unlocks the vault).
-        const items = yield* exportDecryptedEnvVars(api, projectId, environment);
+        // Fetches sealed envelopes and decrypts them locally (unlocks the vault),
+        // then overlays the profile's eas.json env block (profile wins).
+        const items = overlayProfileEnvItems(
+          yield* exportDecryptedEnvVars(api, projectId, environment),
+          profile,
+        );
 
         if (args.stdout) {
           yield* printStdout(items);
           return { environment, target: "stdout", count: items.length, written: true };
         }
-
-        const runtime = yield* CliRuntime;
-        const cwd = yield* runtime.cwd;
         const targetPath = path.resolve(cwd, args.path ?? DEFAULT_PATH);
         const written = yield* writeDotenvFile({
           targetPath,
@@ -121,6 +137,6 @@ export const pullCommand = defineCommand({
         });
         return { environment, target: targetPath, count: items.length, written };
       }),
-      { exits: envErrorExtras, json: "value" },
+      { exits: { ...envErrorExtras, BuildProfileError: 2 }, json: "value" },
     ),
 });
