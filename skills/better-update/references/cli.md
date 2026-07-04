@@ -846,7 +846,9 @@ better-update devices delete <id> [--yes]
 ```
 
 `--apple-team-id` is the internal team UUID (not the Apple Team Identifier). `devices sync` requires
-`--apple-team-id` or `--asc-api-key-id`.
+`--apple-team-id` or `--asc-api-key-id`. Sync reconciles by UDID against the whole org roster:
+team-less devices (added without `--apple-team-id`) are pushed to Apple and **claimed** into the
+synced team, and a UDID Apple lists more than once is collapsed to one row.
 
 ## Access control
 

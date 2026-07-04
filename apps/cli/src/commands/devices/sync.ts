@@ -105,16 +105,25 @@ const listAllLocalDevices = (api: ApiClient, appleTeamId: string) =>
   Effect.gen(function* () {
     const items: LocalDevice[] = [];
     let page = 1;
+    let fetched = 0;
     let total = Number.POSITIVE_INFINITY;
-    while (items.length < total) {
+    // List across teams (no `appleTeamId` filter) so team-less devices are seen:
+    // sync claims unassigned devices for the target team. Devices already on
+    // another team are skipped — they are not this sync's to push or link.
+    while (fetched < total) {
       const result = yield* api.devices.list({
-        urlParams: { appleTeamId, page, limit: LIST_LIMIT },
+        urlParams: { page, limit: LIST_LIMIT },
       });
       ({ total } = result);
       if (result.items.length === 0) {
         break;
       }
-      items.push(...result.items);
+      fetched += result.items.length;
+      for (const device of result.items) {
+        if (device.appleTeamId === appleTeamId || device.appleTeamId === null) {
+          items.push({ identifier: device.identifier, name: device.name });
+        }
+      }
       page += 1;
     }
     return items;
